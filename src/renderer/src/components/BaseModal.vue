@@ -6,7 +6,7 @@
           <span class="modal-title">{{ title }}</span>
           <Close class="ph ph-x modal-close" @click="handleCancel" />
         </div>
-        <div class="modal-body">
+        <div class="modal-body" :style="{ height, maxHeight }">
           <slot>
             <div v-if="content" class="modal-desc">
               <template v-if="typeof content === 'string'">{{ content }}</template>
@@ -131,7 +131,9 @@ const handleCancel = () => {
 
 .modal-body {
   padding: 20px;
+  overflow-y: auto;
 }
+
 
 .modal-desc {
   font-size: 13px;

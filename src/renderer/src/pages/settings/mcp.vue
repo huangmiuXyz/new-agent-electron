@@ -33,7 +33,6 @@ const openServerModal = async (server?: McpServers[string]) => {
                 type: 'textarea',
                 label: '描述',
                 placeholder: '描述',
-                required: true
             },
             {
                 name: 'transport',
@@ -86,6 +85,7 @@ const openServerModal = async (server?: McpServers[string]) => {
     confirm({
         title: modalTitle,
         content: FormComponent,
+        maxHeight: '70vh',
         width: '50%',
         onOk: async () => {
             if (formActions.submit()) remove()
@@ -204,7 +204,7 @@ const toggleActive = (server: McpServers[string]) => {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 .server-info {
@@ -227,6 +227,7 @@ const toggleActive = (server: McpServers[string]) => {
     padding: 2px 6px;
     border-radius: 4px;
     align-self: flex-start;
+    margin-top: 4px;
 }
 
 .server-actions {

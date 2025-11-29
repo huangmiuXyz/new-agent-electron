@@ -14,4 +14,6 @@ export interface BaseModalProps {
   confirmProps?: ButtonProps
   width?: string
   onOk?: () => void
+  height?: string
+  maxHeight?: string
 }
