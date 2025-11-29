@@ -1,0 +1,49 @@
+import { Icon } from '@vicons/utils'
+import { Edit, Add, TrashCan, Close, Settings, Screen, Delete } from '@vicons/carbon'
+import { Cpu, Refresh, Copy, Search, Check, } from '@vicons/tabler'
+
+const icons = {
+  Edit,
+  Plus: Add,
+  Trash: TrashCan,
+  Close,
+  Settings,
+  Cpu,
+  Screen,
+  Refresh,
+  Delete,
+  Copy,
+  Search,
+  Check,
+}
+
+type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
+  T extends (keyof typeof icons)[]
+  ? { [K in T[number]]?: ReturnType<typeof h> }
+  : ReturnType<typeof h>;
+
+export const useIcon = <T extends keyof typeof icons | (keyof typeof icons)[]>(
+  iconName: T
+): IconResult<T> => {
+  if (Array.isArray(iconName)) {
+    const result = {} as { [key: string]: ReturnType<typeof h> | null };
+
+    iconName.forEach(name => {
+      const IconComponent = icons[name];
+      result[name as string] = h(Icon, {}, {
+        default: () => h(IconComponent)
+      });
+    });
+
+    return result as IconResult<T>;
+  }
+
+  const IconComponent = icons[iconName as keyof typeof icons];
+
+
+  const icon = h(Icon, {}, {
+    default: () => h(IconComponent)
+  });
+
+  return icon as IconResult<T>;
+}
