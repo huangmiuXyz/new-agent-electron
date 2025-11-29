@@ -4,7 +4,7 @@ import { ChatAnthropic } from '@langchain/anthropic'
 import { ChatDeepSeek } from '@langchain/deepseek'
 import { InMemoryChatMessageHistory } from '@langchain/core/chat_history'
 import { HumanMessage, AIMessage, type BaseMessage } from '@langchain/core/messages'
-import type { ContentBlock } from 'langchain'
+import type { BaseMessageChunk, ContentBlock } from 'langchain'
 import { nanoid } from '../utils/nanoid'
 import type {
   HandleLLMNewTokenCallbackFields,
@@ -98,8 +98,8 @@ export const useLangChain = () => {
                 fields?: HandleLLMNewTokenCallbackFields
               ) => {
                 content[0]!.text += token
-                const reasoning_content = (fields?.chunk as ChatGenerationChunk).message
-                  .additional_kwargs?.reasoning_content as string
+                const message = fields?.chunk as AIMessageChunk
+                const reasoning_content = message.additional_kwargs?.reasoning_content as string
                 if (reasoning_content) {
                   additional_kwargs.reasoning_content += reasoning_content
                 }
