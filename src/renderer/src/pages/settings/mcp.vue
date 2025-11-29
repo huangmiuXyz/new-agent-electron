@@ -24,8 +24,15 @@ const openServerModal = async (server?: McpServers[string]) => {
             {
                 name: 'name',
                 type: 'text',
-                label: '服务器名称',
-                placeholder: '例如：我的服务器',
+                label: '名称',
+                placeholder: '名称',
+                required: true
+            },
+            {
+                name: 'description',
+                type: 'textarea',
+                label: '描述',
+                placeholder: '描述',
                 required: true
             },
             {
@@ -48,6 +55,21 @@ const openServerModal = async (server?: McpServers[string]) => {
                 ifShow: (data) => data.transport === 'stdio'
             },
             {
+                name: 'args',
+                type: 'array',
+                label: '参数',
+                placeholder: '参数值',
+                ifShow: (data) => data.transport === 'stdio'
+            },
+            {
+                name: 'env',
+                type: 'object',
+                label: '环境变量',
+                keyPlaceholder: '变量名',
+                valuePlaceholder: '变量值',
+                ifShow: (data) => data.transport === 'stdio'
+            },
+            {
                 name: 'url',
                 type: 'text',
                 label: 'URL',
@@ -63,7 +85,8 @@ const openServerModal = async (server?: McpServers[string]) => {
 
     const result = await confirm({
         title: modalTitle,
-        content: FormComponent
+        content: FormComponent,
+        width: '50%'
     })
 
     if (result) {
@@ -119,7 +142,7 @@ const toggleActive = (server: McpServers[string]) => {
                                 </div>
                             </div>
                             <div class="card-details">
-                                <div v-if="server.args.length" class="detail-item">
+                                <div v-if="server.args?.length" class="detail-item">
                                     <span class="label">参数:</span>
                                     <span class="value">{{ server.args.join(' ') }}</span>
                                 </div>

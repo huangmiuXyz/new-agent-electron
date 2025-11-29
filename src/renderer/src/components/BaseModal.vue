@@ -1,7 +1,7 @@
 <template>
   <Transition name="modal-fade">
     <div v-if="visible" class="modal-overlay" @click.self="handleCancel" @keydown.esc="handleCancel">
-      <div class="modal-box">
+      <div class="modal-box" :style="{ width: props.width }">
         <div class="modal-header">
           <span class="modal-title">{{ title }}</span>
           <Close class="ph ph-x modal-close" @click="handleCancel" />

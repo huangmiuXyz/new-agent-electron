@@ -12,4 +12,5 @@ export interface BaseModalProps {
   resolve?: Function
   remove?: Function
   confirmProps?: ButtonProps
+  width?: string
 }

@@ -1,7 +1,9 @@
 import Input from '@renderer/components/Input.vue'
+import Textarea from '@renderer/components/Textarea.vue'
 import Switch from '@renderer/components/Switch.vue'
 import Slider from '@renderer/components/Slider.vue'
 import Select from '@renderer/components/Select.vue'
+import InputGroup from '@renderer/components/InputGroup.vue'
 
 // FormItem 组件 - 统一的表单项布局组件
 export const FormItem = defineComponent({
@@ -103,7 +105,36 @@ export interface SelectField<T> extends BaseField<T> {
   placeholder?: string
 }
 
-export type FormField<T> = TextField<T> | BooleanField<T> | SliderField<T> | SelectField<T>
+// 文本域字段
+export interface TextareaField<T> extends BaseField<T> {
+  type: 'textarea'
+  placeholder?: string
+  readonly?: boolean
+  rows?: number
+  autoResize?: boolean
+}
+
+// 数组字段（用于参数列表）
+export interface ArrayField<T> extends BaseField<T> {
+  type: 'array'
+  placeholder?: string
+}
+
+// 对象字段（用于环境变量）
+export interface ObjectField<T> extends BaseField<T> {
+  type: 'object'
+  keyPlaceholder?: string
+  valuePlaceholder?: string
+}
+
+export type FormField<T> =
+  | TextField<T>
+  | BooleanField<T>
+  | SliderField<T>
+  | SelectField<T>
+  | TextareaField<T>
+  | ArrayField<T>
+  | ObjectField<T>
 
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
@@ -151,6 +182,15 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
           break
         case 'select':
           formData.value[field.name] = ''
+          break
+        case 'textarea':
+          formData.value[field.name] = ''
+          break
+        case 'array':
+          formData.value[field.name] = []
+          break
+        case 'object':
+          formData.value[field.name] = {}
           break
         default:
           formData.value[field.name] = ''
@@ -224,6 +264,15 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             break
           case 'select':
             formData.value[field.name] = ''
+            break
+          case 'textarea':
+            formData.value[field.name] = ''
+            break
+          case 'array':
+            formData.value[field.name] = []
+            break
+          case 'object':
+            formData.value[field.name] = {}
             break
           default:
             formData.value[field.name] = ''
@@ -364,6 +413,87 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             disabled={field.disabled}
                             v-model={formData.value[field.name]}
                             onUpdate:modelValue={(value) => {
+                              formData.value[field.name] = value
+                              config.onChange?.(
+                                field.name as keyof T,
+                                value as T[keyof T],
+                                formData.value
+                              )
+                            }}
+                          />
+                        </FormItem>
+                      )
+
+                    case 'textarea':
+                      return (
+                        <FormItem
+                          label={field.label}
+                          error={hasError}
+                          hint={field.hint}
+                          required={field.required}
+                          layout="default"
+                        >
+                          <Textarea
+                            placeholder={field.placeholder}
+                            disabled={field.disabled}
+                            readonly={field.readonly}
+                            rows={field.rows}
+                            autoResize={field.autoResize}
+                            v-model={formData.value[field.name]}
+                            onUpdate:modelValue={(value) => {
+                              formData.value[field.name] = value
+                              config.onChange?.(
+                                field.name as keyof T,
+                                value as T[keyof T],
+                                formData.value
+                              )
+                            }}
+                          />
+                        </FormItem>
+                      )
+
+                    case 'array':
+                      return (
+                        <FormItem
+                          label={field.label}
+                          error={hasError}
+                          hint={field.hint}
+                          required={field.required}
+                          layout="default"
+                        >
+                          <InputGroup
+                            mode="array"
+                            placeholder={field.placeholder}
+                            disabled={field.disabled}
+                            arrayValue={formData.value[field.name] as string[]}
+                            onUpdate:arrayValue={(value) => {
+                              formData.value[field.name] = value
+                              config.onChange?.(
+                                field.name as keyof T,
+                                value as T[keyof T],
+                                formData.value
+                              )
+                            }}
+                          />
+                        </FormItem>
+                      )
+
+                    case 'object':
+                      return (
+                        <FormItem
+                          label={field.label}
+                          error={hasError}
+                          hint={field.hint}
+                          required={field.required}
+                          layout="default"
+                        >
+                          <InputGroup
+                            mode="object"
+                            keyPlaceholder={field.keyPlaceholder}
+                            valuePlaceholder={field.valuePlaceholder}
+                            disabled={field.disabled}
+                            objectValue={formData.value[field.name] as Record<string, string>}
+                            onUpdate:objectValue={(value) => {
                               formData.value[field.name] = value
                               config.onChange?.(
                                 field.name as keyof T,
