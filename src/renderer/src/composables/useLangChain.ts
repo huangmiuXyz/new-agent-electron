@@ -111,48 +111,16 @@ export const useLangChain = () => {
       console.error('生成失败:', error)
     }
   }
-  // const chatStream = async (input: string, chatId: string) => {
-  //   const chat = chatStore.getChatById(chatId)!
-  //   const userMsg = new HumanMessage({
-  //     id: nanoid(),
-  //     content: input
-  //   })
-  //   chat.messages.push(userMsg)
-  //   const chatHistory = new InMemoryChatMessageHistory(chat.messages)
-  //   const historyMessages = await chatHistory.getMessages()
-  //   await _generateResponse(historyMessages, chatId)
-  // }
   const chatStream = async (input: string, chatId: string) => {
-    const { model, provider } = settings.getModelById(
-      settings.currentSelectedProvider!.id,
-      settings.currentSelectedModel!.id
-    )!
-    const client = await window.api.create_client(
-      {
-        mcpServers: {
-          context7: {
-            command: 'npx',
-            args: [
-              '-y',
-              '@upstash/context7-mcp',
-              '--api-key',
-              'ctx7sk-e802e8c0-dc49-4c65-912a-dae993d7e758'
-            ]
-          }
-        }
-      },
-      model.name,
-      provider.modelType
-    )
-    for await (const chunk of await client.stream(
-      { messages: [{ role: 'user', content: input }] },
-      {
-        configurable: { thread_id: chatId },
-        streamMode: 'messages'
-      }
-    )) {
-      console.log(chunk)
-    }
+    const chat = chatStore.getChatById(chatId)!
+    const userMsg = new HumanMessage({
+      id: nanoid(),
+      content: input
+    })
+    chat.messages.push(userMsg)
+    const chatHistory = new InMemoryChatMessageHistory(chat.messages)
+    const historyMessages = await chatHistory.getMessages()
+    await _generateResponse(historyMessages, chatId)
   }
   const regenerate = async (messageId: string, chatId: string) => {
     const chat = chatStore.getChatById(chatId)!
