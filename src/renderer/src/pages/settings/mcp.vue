@@ -3,7 +3,7 @@ const { mcpServers } = storeToRefs(useSettingsStore())
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
 const { confirm } = useModal()
 
-const openServerModal = (server?: McpServers[string]) => {
+const openServerModal = async (server?: McpServers[string]) => {
     const isEdit = !!server
     const modalTitle = isEdit ? '编辑 MCP 服务器' : '添加 MCP 服务器'
 
@@ -45,14 +45,14 @@ const openServerModal = (server?: McpServers[string]) => {
         }
     })
 
-    confirm({
+    const result = await confirm({
         title: modalTitle,
         content: FormComponent
-    }).then((result) => {
-        if (result) {
-            // 表单提交逻辑已在 useForm 的 onSubmit 中处理
-        }
     })
+
+    if (result) {
+        formActions.submit()
+    }
 }
 
 const handleDelete = (name: string) => {
