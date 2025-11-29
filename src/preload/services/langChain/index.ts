@@ -1,17 +1,29 @@
 import { ClientConfig, MultiServerMCPClient } from '@langchain/mcp-adapters'
 
 export const langChainServices = () => {
+  let client: MultiServerMCPClient
+  let lastConfig: ClientConfig
+
+  const isConfigChanged = (a?: ClientConfig, b?: ClientConfig) => {
+    return JSON.stringify(a) !== JSON.stringify(b)
+  }
+
   const create_client = async (config: ClientConfig) => {
-    const client = new MultiServerMCPClient(config)
+    if (!client || isConfigChanged(lastConfig, config)) {
+      client = new MultiServerMCPClient(config)
+      lastConfig = config
+    }
     return client
   }
+
   const list_tools = async (config: ClientConfig) => {
-    const client = await create_client(config)
-    const tools = await client.getTools()
-    return tools
+    if (!client) {
+      await create_client(config)
+    }
+    return await client.getTools()
   }
+
   return {
-    create_client,
     list_tools
   }
 }

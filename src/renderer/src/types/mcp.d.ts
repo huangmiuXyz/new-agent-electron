@@ -4,6 +4,7 @@ declare global {
   type ExtendedServerConfig = ClientConfig['mcpServers'][string] & {
     active: boolean
     name: string
+    tools?: Tools
   }
   type McpServers = Record<string, ExtendedServerConfig>
 }

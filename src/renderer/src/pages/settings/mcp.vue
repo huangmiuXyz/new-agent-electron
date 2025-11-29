@@ -97,7 +97,14 @@ const handleDelete = (name: string) => {
     delete mcpServers.value[name]
 }
 
-const toggleActive = (server: McpServers[string]) => {
+const toggleActive = async (server: McpServers[string]) => {
+    if (!server.active) {
+        const safeServer = JSON.parse(JSON.stringify(server));
+        const tools = await window.api.list_tools({
+            mcpServers: { [safeServer.name]: safeServer }
+        });
+        server.tools = tools
+    }
     server.active = !server.active
 }
 </script>
