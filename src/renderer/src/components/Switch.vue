@@ -1,13 +1,23 @@
 <script setup lang="ts">
+const props = defineProps<{
+  loading?: boolean
+}>()
+
 const modelValue = defineModel<boolean>()
 
 const toggle = () => {
+  if (props.loading) return
   modelValue.value = !modelValue.value
 }
 </script>
 
 <template>
-  <div class="toggle-switch" :class="{ checked: modelValue }" @click="toggle">
+  <div class="toggle-switch" :class="{ checked: modelValue, loading: props.loading }" @click="toggle">
+    <div class="toggle-knob">
+      <svg v-if="loading" class="spinner" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="4"></circle>
+      </svg>
+    </div>
   </div>
 </template>
 
@@ -19,11 +29,16 @@ const toggle = () => {
   border-radius: 20px;
   position: relative;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, opacity 0.2s;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.toggle-switch::after {
-  content: '';
+.toggle-switch.loading {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.toggle-knob {
   position: absolute;
   left: 2px;
   top: 2px;
@@ -33,13 +48,49 @@ const toggle = () => {
   border-radius: 50%;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   transition: left 0.2s;
+
+  /* 为了居中 loading 图标 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .toggle-switch.checked {
   background: #34c759;
 }
 
-.toggle-switch.checked::after {
+.toggle-switch.checked .toggle-knob {
   left: 18px;
+}
+
+.spinner {
+  width: 10px;
+  height: 10px;
+  animation: spin 1s linear infinite;
+  color: #8e8e93;
+}
+
+.toggle-switch.checked .spinner {
+  color: #34c759;
+}
+
+.spinner circle {
+  opacity: 0.25;
+}
+
+.spinner circle {
+  stroke-dasharray: 15;
+  stroke-dashoffset: 10;
+  stroke-linecap: round;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

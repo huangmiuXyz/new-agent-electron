@@ -96,14 +96,19 @@ const openServerModal = async (server?: McpServers[string]) => {
 const handleDelete = (name: string) => {
     delete mcpServers.value[name]
 }
-
+const activeMcpLoading = ref(false)
 const toggleActive = async (server: McpServers[string]) => {
     if (!server.active) {
-        const safeServer = JSON.parse(JSON.stringify(server));
-        const tools = await window.api.list_tools({
-            mcpServers: { [safeServer.name]: safeServer }
-        });
-        server.tools = tools
+        try {
+            const safeServer = JSON.parse(JSON.stringify(server));
+            activeMcpLoading.value = true
+            const tools = await window.api.list_tools({
+                mcpServers: { [safeServer.name]: safeServer }
+            });
+            server.tools = tools
+        } finally {
+            activeMcpLoading.value = false
+        }
     }
     server.active = !server.active
 }
@@ -134,7 +139,8 @@ const toggleActive = async (server: McpServers[string]) => {
                                 </div>
                             </div>
                             <div class="server-actions">
-                                <Switch :model-value="server.active" @update:model-value="toggleActive(server)" />
+                                <Switch :loading="activeMcpLoading" :model-value="server.active"
+                                    @update:model-value="toggleActive(server)" />
                                 <Button size="sm" variant="text" @click="openServerModal(server)">
                                     <template #icon>
                                         <Pencil />
