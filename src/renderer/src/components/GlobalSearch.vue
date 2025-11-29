@@ -178,7 +178,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
                             <circle cx="11" cy="11" r="8"></circle>
                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                         </svg>
-                        <input ref="searchInput" v-model="query" class="search-input" placeholder="搜索聊天记录、联系人..."
+                        <input ref="searchInput" v-model="query" class="search-input" placeholder="搜索聊天记录"
                             type="text" />
                         <div class="shortcut-hint">ESC</div>
                     </div>
