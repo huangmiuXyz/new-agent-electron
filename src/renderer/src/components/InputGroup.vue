@@ -121,9 +121,9 @@ const updateObjectValue = (key: string, value: string) => {
                     <Input :model-value="value" :placeholder="valuePlaceholder" :disabled="disabled" size="sm"
                         class="value-input"
                         @update:model-value="(newValue) => updateObjectValue(key, newValue as string)" />
-                    <button type="button" class="remove-btn" :disabled="disabled" @click="removeItem(index, key)">
+                    <Button variant="text" size="sm" :disabled="disabled" @click="removeItem(index, key)">
                         <Close />
-                    </button>
+                    </Button>
                 </div>
             </template>
         </TransitionGroup>
