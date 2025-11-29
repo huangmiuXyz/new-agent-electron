@@ -138,12 +138,12 @@ const handleShowSearch = async () => {
 </script>
 
 <template>
-    <!-- 厂商列表 -->
     <List type="gap" title="提供商" :items="providers" :active-id="activeProviderId" @select="selectProvider" />
 
     <!-- 配置表单 -->
-    <SettingFormContainer :show-header="false">
-        <template #content>
+    <SettingFormContainer header-title="模型提供商">
+        <template #content> <!-- 厂商列表 -->
+
             <ProviderForm>
                 <template #footer>
                     <FormItem label="模型列表">
