@@ -66,28 +66,29 @@ export const FormItem = defineComponent({
   }
 })
 
-interface BaseField {
+interface BaseField<T> {
   name: string
   label?: string
   required?: boolean
   disabled?: boolean
   hint?: string
+  ifShow?: (data: T) => boolean
 }
 
 // 文本输入字段
-export interface TextField extends BaseField {
+export interface TextField<T> extends BaseField<T> {
   type: 'text' | 'password' | 'email' | 'number'
   placeholder?: string
   readonly?: boolean
 }
 
 // 布尔字段（开关）
-export interface BooleanField extends BaseField {
+export interface BooleanField<T> extends BaseField<T> {
   type: 'boolean'
 }
 
 // 滑块字段
-export interface SliderField extends BaseField {
+export interface SliderField<T> extends BaseField<T> {
   type: 'slider'
   min?: number
   max?: number
@@ -96,18 +97,18 @@ export interface SliderField extends BaseField {
 }
 
 // 选择字段
-export interface SelectField extends BaseField {
+export interface SelectField<T> extends BaseField<T> {
   type: 'select'
   options: { label: string; value: string | number }[]
   placeholder?: string
 }
 
-export type FormField = TextField | BooleanField | SliderField | SelectField
+export type FormField<T> = TextField<T> | BooleanField<T> | SliderField<T> | SelectField<T>
 
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
   showHeader?: boolean
-  fields: FormField[]
+  fields: FormField<T>[]
   initialData?: T
   onSubmit?: (data: T) => void
   onReset?: () => void
@@ -165,6 +166,11 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     const newErrors: Record<string, string> = {}
 
     config.fields.forEach((field) => {
+      // 跳过隐藏的字段
+      if (field.ifShow && !field.ifShow(formData.value)) {
+        return
+      }
+
       if (field.required && !formData.value[field.name]) {
         newErrors[field.name] = `${field.label || field.name} 是必填项`
       }
@@ -178,6 +184,11 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     const newErrors: Record<string, string> = {}
 
     config.fields.forEach((field) => {
+      // 跳过隐藏的字段
+      if (field.ifShow && !field.ifShow(formData.value)) {
+        return
+      }
+
       if (field.required && !formData.value[field.name]) {
         newErrors[field.name] = `${field.label || field.name} 是必填项`
       }
@@ -253,6 +264,11 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             <div class="form-content">
               <div class="form-wrapper">
                 {config.fields.map((field) => {
+                  // 检查字段是否应该显示
+                  if (field.ifShow && !field.ifShow(formData.value)) {
+                    return null
+                  }
+
                   const hasError = errors.value[field.name]
 
                   switch (field.type) {

@@ -13,7 +13,7 @@ const openServerModal = async (server?: McpServers[string]) => {
         env: {},
         name: '',
         active: true,
-        transport: 'stdio'
+        transport: 'stdio',
     }
 
     const [FormComponent, formActions] = useForm({
@@ -29,13 +29,6 @@ const openServerModal = async (server?: McpServers[string]) => {
                 required: true
             },
             {
-                name: 'command',
-                type: 'text',
-                label: '命令',
-                placeholder: '例如：npx 或 python',
-                required: true
-            },
-            {
                 name: 'transport',
                 type: 'select',
                 label: '类型',
@@ -45,6 +38,22 @@ const openServerModal = async (server?: McpServers[string]) => {
                     { label: 'http', value: 'http' },
                     { label: 'sse', value: 'sse' }
                 ]
+            },
+            {
+                name: 'command',
+                type: 'text',
+                label: '命令',
+                placeholder: '例如：npx 或 python',
+                required: true,
+                ifShow: (data) => data.transport === 'stdio'
+            },
+            {
+                name: 'url',
+                type: 'text',
+                label: 'URL',
+                placeholder: 'http://localhost:3000/mcp',
+                required: true,
+                ifShow: (data) => data.transport === 'sse' || data.transport === 'http'
             },
         ],
         onSubmit: (data) => {
