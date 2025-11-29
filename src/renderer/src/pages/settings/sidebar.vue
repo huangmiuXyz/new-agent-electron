@@ -30,7 +30,7 @@ const { Cpu, Screen } = useIcon(['Cpu', 'Screen'])
 <style scoped>
 /* 设置-左侧分类导航 */
 .settings-sidebar {
-  width: 260px;
+  width: 200px;
   border-right: 1px solid var(--border-subtle);
   padding: 10px;
   display: flex;

@@ -119,7 +119,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 <style scoped>
 /* === 侧边栏：清爽、层级分明 === */
 .sidebar {
-  width: 250px;
+  width: 200px;
   background-color: var(--bg-sidebar);
   border-right: 1px solid var(--border-subtle);
   display: flex;
@@ -193,7 +193,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 }
 
 :deep(.list-item) {
-  height: 52px;
+  height: 40px;
   margin-bottom: 2px;
   padding: 8px;
   background-color: transparent;
