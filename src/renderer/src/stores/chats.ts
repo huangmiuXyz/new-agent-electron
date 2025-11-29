@@ -1,64 +1,64 @@
-import type { BaseMessage, StoredMessage } from "@langchain/core/messages";
-import { mapStoredMessagesToChatMessages } from "@langchain/core/messages";
+import type { BaseMessage, StoredMessage } from '@langchain/core/messages'
+import { mapStoredMessagesToChatMessages } from '@langchain/core/messages'
 
 export const useChatsStores = defineStore(
-  "chats",
+  'chats',
   () => {
-    const chats = ref<Chat[]>([]);
-    const activeChatId = ref<string | null>(null);
+    const chats = ref<Chat[]>([])
+    const activeChatId = ref<string | null>(null)
 
     const currentChat = computed(() => {
-      return chats.value.find(c => c.id === activeChatId.value) || null;
-    });
+      return chats.value.find((c) => c.id === activeChatId.value) || null
+    })
 
-    const createChat = (title = "新的聊天") => {
+    const createChat = (title = '新的聊天') => {
       const id = nanoid()
       const chat: Chat = {
         id,
         title,
         messages: [],
         createdAt: Date.now()
-      };
-      chats.value.push(chat);
-      activeChatId.value = id;
-      return id;
-    };
-    const getChatById = (id: string) => { return chats.value.find(c => c.id === id); }
+      }
+      chats.value.push(chat)
+      activeChatId.value = id
+      return id
+    }
+    const getChatById = (id: string) => {
+      return chats.value.find((c) => c.id === id)
+    }
     const deleteChat = (id: string) => {
-      chats.value = chats.value.filter(c => c.id !== id);
+      chats.value = chats.value.filter((c) => c.id !== id)
 
       if (activeChatId.value === id) {
-        activeChatId.value = chats.value[0]?.id || null;
+        activeChatId.value = chats.value[0]?.id || null
       }
-    };
+    }
     const deleteMessage = (cid: string, mid: string) => {
       const chat = getChatById(cid)!
-      chat.messages = chat?.messages.filter(m => m.id !== mid)
+      chat.messages = chat?.messages.filter((m) => m.id !== mid)
     }
 
     const renameChat = (id: string, title: string) => {
       const chat = getChatById(id)
-      if (chat) chat.title = title;
-    };
+      if (chat) chat.title = title
+    }
 
     const setActiveChat = (id: string) => {
-      activeChatId.value = id;
-    };
+      activeChatId.value = id
+    }
 
     const addMessageToChat = (msg: BaseMessage) => {
-      if (currentChat.value) {
-        currentChat.value.messages.push(msg)
-        return msg.id
-      }
-    };
+      currentChat.value!.messages.push(msg)
+      return msg.id
+    }
     const updateMessage = (cid: string, mid: string, newContent: string | any[]) => {
-      const chat = getChatById(cid);
-      if (!chat) return;
-      const msg = chat.messages.find(m => m.id === mid);
+      const chat = getChatById(cid)
+      if (!chat) return
+      const msg = chat.messages.find((m) => m.id === mid)
       if (msg) {
-        msg.content = newContent;
+        msg.content = newContent
       }
-    };
+    }
 
     return {
       chats,
@@ -72,20 +72,20 @@ export const useChatsStores = defineStore(
       getChatById,
       deleteMessage,
       updateMessage
-    };
+    }
   },
   {
     persist: {
       serializer: {
         deserialize: (state) => {
-          const parsedState = JSON.parse(state);
+          const parsedState = JSON.parse(state)
           if (parsedState.chats) {
             parsedState.chats = parsedState.chats.map((chat: Chat) => ({
               ...chat,
               messages: mapStoredMessagesToChatMessages(chat.messages as unknown as StoredMessage[])
-            }));
+            }))
           }
-          return parsedState;
+          return parsedState
         },
         serialize: (state) => {
           return JSON.stringify({
@@ -101,4 +101,4 @@ export const useChatsStores = defineStore(
       }
     }
   }
-);
+)

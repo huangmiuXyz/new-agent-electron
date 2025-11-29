@@ -1,4 +1,5 @@
 import data from '@renderer/assets/data/provider.json'
+import { ClientConfig } from '@langchain/mcp-adapters'
 
 export const useSettingsStore = defineStore(
   'settings',
@@ -20,7 +21,7 @@ export const useSettingsStore = defineStore(
       }))
     )
 
-    const mcpServers = ref<McpServer[]>([])
+    const mcpServers = ref<ClientConfig>({ mcpServers: {} })
 
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
       display.value = { ...display.value, ...settings }
