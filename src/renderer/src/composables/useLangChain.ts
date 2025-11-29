@@ -66,7 +66,6 @@ export const useLangChain = () => {
     )!
     const client = createLLMClient({ provider, model })
     const tools = await getMcpTools({ mcpServers: settings.mcpServers })
-    client.bindTools(tools)
     const chat = chatStore.getChatById(chatId)!
     const content = reactive<ContentBlock[]>([{ type: 'text', text: '' }])
     const additional_kwargs = reactive<Additional_kwargs>({
@@ -81,7 +80,7 @@ export const useLangChain = () => {
     })
     chat.messages.push(aiMsg)
     try {
-      await client.invoke(
+      await client.bindTools(tools).invoke(
         messages.filter((m) => {
           if (!AIMessage.isInstance(m)) return true
           const text = Array.isArray(m.content) ? (m.content[0]?.text as string) : m.content
@@ -105,9 +104,6 @@ export const useLangChain = () => {
                   additional_kwargs.reasoning_content += reasoning_content
                 }
                 chatStore.$persist()
-              },
-              handleToolStart: (tool) => {
-                console.log(tool)
               }
             }
           ]
@@ -160,7 +156,7 @@ export const useLangChain = () => {
   }
 
   const getMcpTools = async (config: ClientConfig, cache: boolean = true) => {
-    return await window.api.list_tools(config, cache)
+    return await window.api.list_tools(JSON.parse(JSON.stringify(config)), cache)
   }
 
   const call_tools = async (name: string, args: any, config: ClientConfig) => {

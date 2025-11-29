@@ -105,9 +105,8 @@ const { getMcpTools } = useLangChain()
 const fetchTools = async (server: McpServers[string]) => {
     try {
         activeMcpLoading.value = server.name
-        const safeServer = JSON.parse(JSON.stringify(server));
         const tools = await getMcpTools({
-            mcpServers: { [safeServer.name]: safeServer },
+            mcpServers: { [server.name]: server },
         }, false);
         server.tools = tools
         if (tools.length) {
