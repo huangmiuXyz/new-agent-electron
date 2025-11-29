@@ -101,14 +101,14 @@ const handleDelete = (name: string) => {
 }
 
 const activeMcpLoading = ref<string | null>(null)
-
+const { getMcpTools } = useLangChain()
 const fetchTools = async (server: McpServers[string]) => {
     try {
         activeMcpLoading.value = server.name
         const safeServer = JSON.parse(JSON.stringify(server));
-        const tools = await window.api.list_tools({
-            mcpServers: { [safeServer.name]: safeServer }
-        });
+        const tools = await getMcpTools({
+            mcpServers: { [safeServer.name]: safeServer },
+        }, false);
         server.tools = tools
         if (tools.length) {
             expandedKeys.value[server.name] = true

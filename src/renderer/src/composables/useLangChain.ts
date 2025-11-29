@@ -11,6 +11,7 @@ import type {
   NewTokenIndices
 } from '@langchain/core/callbacks/base'
 import type { ChatGenerationChunk } from '@langchain/core/outputs'
+import { ClientConfig } from '@langchain/mcp-adapters'
 
 type LLMClient = ChatOpenAI | ChatGoogleGenerativeAI | ChatAnthropic | ChatDeepSeek
 
@@ -153,5 +154,15 @@ export const useLangChain = () => {
     return await response.json()
   }
 
-  return { chatStream, regenerate, list_models }
+  const getMcpTools = async (config: ClientConfig, cache: boolean = true) => {
+    return await window.api.list_tools(config, cache)
+  }
+
+  const call_tools = async (name: string, args: any, config: ClientConfig) => {
+    const tools = await window.api.list_tools(config)
+    const tool = tools.find((t) => t.name === name)
+    return await tool?.func(args)
+  }
+
+  return { chatStream, regenerate, list_models, getMcpTools, call_tools }
 }
