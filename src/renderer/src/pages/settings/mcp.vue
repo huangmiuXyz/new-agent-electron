@@ -57,11 +57,7 @@ const openServerModal = async (server?: McpServers[string]) => {
             },
         ],
         onSubmit: (data) => {
-            if (isEdit) {
-                mcpServers.value[data.name!] = { ...data }
-            } else {
-                mcpServers.value[data.name!] = { ...data }
-            }
+            mcpServers.value[data.name!] = data
         }
     })
 
