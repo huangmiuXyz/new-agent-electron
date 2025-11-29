@@ -7,10 +7,12 @@
           <Close class="ph ph-x modal-close" @click="handleCancel" />
         </div>
         <div class="modal-body">
-          <div v-if="content" class="modal-desc">
-            <template v-if="typeof content === 'string'">{{ content }}</template>
-            <component v-else :is="content" />
-          </div>
+          <slot>
+            <div v-if="content" class="modal-desc">
+              <template v-if="typeof content === 'string'">{{ content }}</template>
+              <component v-else :is="content" />
+            </div>
+          </slot>
         </div>
         <div class="modal-footer">
           <Button class="btn btn-secondary" type="button" @click="handleCancel">取消</Button>

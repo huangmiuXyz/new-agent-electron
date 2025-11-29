@@ -18,6 +18,9 @@ const switchTab = (tabName: string) => {
 
       <!-- 显示设置 -->
       <SettingsDisplay v-else-if="activeTab === 'display'" />
+
+      <!-- MCP 设置 -->
+      <SettingsMcp v-else-if="activeTab === 'mcp'" />
     </div>
   </div>
 </template>

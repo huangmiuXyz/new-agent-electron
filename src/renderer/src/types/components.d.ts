@@ -7,9 +7,9 @@ export interface ButtonProps {
 }
 
 export interface BaseModalProps {
-  title: string,
-  content: string | VNode | Component,
-  resolve?: Function,
-  remove?: Function,
+  title: string
+  content?: string | VNode | Component
+  resolve?: Function
+  remove?: Function
   confirmProps?: ButtonProps
 }

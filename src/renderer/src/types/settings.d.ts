@@ -18,11 +18,22 @@ declare global {
     models: Model[]
   }
 
+  // MCP Server Interface
+  interface McpServer {
+    id: string
+    name: string
+    command: string
+    args: string[]
+    env: Record<string, string>
+    active: boolean
+  }
+
   // 设置状态接口
   interface SettingsState {
     display: DisplaySettings
     providers: Provider[]
     activeProviderId: string
+    mcpServers: McpServer[]
   }
 }
 
