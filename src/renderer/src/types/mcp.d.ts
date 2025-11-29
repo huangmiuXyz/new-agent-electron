@@ -5,6 +5,7 @@ declare global {
     active: boolean
     name: string
     tools?: Tools
+    description?: string
   }
   type McpServers = Record<string, ExtendedServerConfig>
 }

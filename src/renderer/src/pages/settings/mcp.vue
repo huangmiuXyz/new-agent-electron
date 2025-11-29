@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { mcpServers } = storeToRefs(useSettingsStore())
-const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
+const { Plus, Pencil, Trash, Refresh } = useIcon(['Plus', 'Pencil', 'Trash', 'Refresh'])
 const { confirm, remove } = useModal()
 
 const openServerModal = async (server?: McpServers[string]) => {
@@ -96,19 +96,27 @@ const openServerModal = async (server?: McpServers[string]) => {
 const handleDelete = (name: string) => {
     delete mcpServers.value[name]
 }
-const activeMcpLoading = ref(false)
+
+const activeMcpLoading = ref<string | null>(null)
+
+const fetchTools = async (server: McpServers[string]) => {
+    try {
+        activeMcpLoading.value = server.name
+        const safeServer = JSON.parse(JSON.stringify(server));
+        const tools = await window.api.list_tools({
+            mcpServers: { [safeServer.name]: safeServer }
+        });
+        server.tools = tools
+    } catch (e) {
+        console.error(e)
+    } finally {
+        activeMcpLoading.value = null
+    }
+}
+
 const toggleActive = async (server: McpServers[string]) => {
     if (!server.active) {
-        try {
-            const safeServer = JSON.parse(JSON.stringify(server));
-            activeMcpLoading.value = true
-            const tools = await window.api.list_tools({
-                mcpServers: { [safeServer.name]: safeServer }
-            });
-            server.tools = tools
-        } finally {
-            activeMcpLoading.value = false
-        }
+        await fetchTools(server)
     }
     server.active = !server.active
 }
@@ -134,12 +142,28 @@ const toggleActive = async (server: McpServers[string]) => {
                     <div v-for="(server, name) of mcpServers" :key="name" class="server-card">
                         <div class="card-header">
                             <div class="server-info">
-                                <div class="server-name">{{ name }}</div>
-                                <div class="server-command" v-if="server.transport === 'stdio'">{{ server.command }}
+                                <div class="server-name-row">
+                                    <div class="server-name">{{ name }}</div>
+                                    <div class="tool-count" v-if="server.tools?.length">
+                                        {{ server.tools.length }} 个工具
+                                    </div>
                                 </div>
+                                <template v-if="server.transport === 'stdio'">
+                                    <div class="server-command">{{ server.command }}
+                                    </div>
+                                    <div class="server-description" v-if="server.description">
+                                        {{ server.description }}
+                                    </div>
+                                </template>
                             </div>
                             <div class="server-actions">
-                                <Switch :loading="activeMcpLoading" :model-value="server.active"
+                                <Button size="sm" variant="text" @click="fetchTools(server)"
+                                    :loading="activeMcpLoading === name" v-if="server.active" title="刷新工具列表">
+                                    <template #icon>
+                                        <Refresh />
+                                    </template>
+                                </Button>
+                                <Switch :loading="activeMcpLoading === name" :model-value="server.active"
                                     @update:model-value="toggleActive(server)" />
                                 <Button size="sm" variant="text" @click="openServerModal(server)">
                                     <template #icon>
@@ -153,20 +177,33 @@ const toggleActive = async (server: McpServers[string]) => {
                                 </Button>
                             </div>
                         </div>
+
                         <div class="card-details" v-if="server.transport === 'stdio'">
                             <div v-if="server.args?.length" class="detail-item">
                                 <span class="label">参数:</span>
                                 <span class="value">{{ server.args.join(' ') }}</span>
                             </div>
-                            <div v-if="server.env?.length" class="detail-item">
+                            <div v-if="server.env && Object.keys(server.env).length" class="detail-item">
                                 <span class="label">Env:</span>
-                                <span class="value">{{ server.env.length }} 个变量</span>
+                                <span class="value">{{ Object.keys(server.env).length }} 个变量</span>
                             </div>
                         </div>
                         <div class="card-details" v-if="server.transport === 'sse' || server.transport === 'http'">
                             <div class="detail-item">
                                 <span class="label">URL:</span>
                                 <span class="value">{{ server.url }}</span>
+                            </div>
+                        </div>
+
+                        <div class="tools-container" v-if="server.active && server.tools?.length">
+                            <div class="tools-divider"></div>
+                            <div class="tools-grid">
+                                <div v-for="tool in server.tools" :key="tool.name!" class="tool-item">
+                                    <div class="tool-head">
+                                        <span class="tool-name-tag">{{ tool.name }}</span>
+                                    </div>
+                                    <div class="tool-desc">{{ tool.description }}</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -229,12 +266,33 @@ const toggleActive = async (server: McpServers[string]) => {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    flex: 1;
+}
+
+.server-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .server-name {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
+}
+
+.tool-count {
+    font-size: 11px;
+    background: #e6f7ff;
+    color: #1890ff;
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+.server-description {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
 }
 
 .server-command {
@@ -252,6 +310,7 @@ const toggleActive = async (server: McpServers[string]) => {
     display: flex;
     align-items: center;
     gap: 8px;
+    margin-left: 16px;
 }
 
 .delete-btn {
@@ -269,6 +328,7 @@ const toggleActive = async (server: McpServers[string]) => {
     color: var(--text-secondary);
     border-top: 1px solid #f5f5f5;
     padding-top: 12px;
+    margin-top: 8px;
 }
 
 .detail-item {
@@ -278,6 +338,81 @@ const toggleActive = async (server: McpServers[string]) => {
 
 .detail-item .label {
     color: var(--text-tertiary);
+}
+
+/* Tools Section Styles */
+.tools-container {
+    margin-top: 12px;
+}
+
+.tools-divider {
+    height: 1px;
+    background: #f0f0f0;
+    margin: 12px 0;
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 8px;
+}
+
+.tool-item {
+    background: #fafafa;
+    border: 1px solid #eaeaea;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 12px;
+}
+
+.tool-head {
+    margin-bottom: 4px;
+}
+
+.tool-name-tag {
+    font-weight: 600;
+    color: var(--text-primary);
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.tool-desc {
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.tool-params {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.params-label {
+    color: var(--text-tertiary);
+    font-size: 11px;
+}
+
+.params-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.param-tag {
+    background: #f0f0f0;
+    color: var(--text-secondary);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 11px;
 }
 
 .empty-state {
