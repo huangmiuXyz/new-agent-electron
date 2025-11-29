@@ -3,7 +3,7 @@ const { mcpServers } = storeToRefs(useSettingsStore())
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
 const { confirm } = useModal()
 
-const openServerModal = (server?: McpServer) => {
+const openServerModal = (server?: McpServers[string]) => {
     const isEdit = !!server
     const modalTitle = isEdit ? '编辑 MCP 服务器' : '添加 MCP 服务器'
 
@@ -38,12 +38,9 @@ const openServerModal = (server?: McpServer) => {
         ],
         onSubmit: (data) => {
             if (isEdit) {
-                const index = mcpServers.value.findIndex(s => s.id === server.id)
-                if (index !== -1) {
-                    mcpServers.value[index] = { ...data }
-                }
+                mcpServers.value[data.name!] = { ...data }
             } else {
-                mcpServers.value.push({ ...data })
+                mcpServers.value[data.name!] = { ...data }
             }
         }
     })
@@ -58,14 +55,11 @@ const openServerModal = (server?: McpServer) => {
     })
 }
 
-const handleDelete = (id: string) => {
-    const index = mcpServers.value.findIndex(s => s.id === id)
-    if (index !== -1) {
-        mcpServers.value.splice(index, 1)
-    }
+const handleDelete = (name: string) => {
+    delete mcpServers.value[name]
 }
 
-const toggleActive = (server: McpServer) => {
+const toggleActive = (server: McpServers[string]) => {
     server.active = !server.active
 }
 </script>
@@ -87,39 +81,41 @@ const toggleActive = (server: McpServer) => {
                 </div>
 
                 <div class="server-list">
-                    <div v-for="server in mcpServers" :key="server.id" class="server-card">
-                        <div class="card-header">
-                            <div class="server-info">
-                                <div class="server-name">{{ server.name }}</div>
-                                <div class="server-command">{{ server.command }}</div>
+                    <div v-for="(server, name) of mcpServers" :key="name" class="server-card">
+                        <template v-if="server.transport === 'stdio'">
+                            <div class="card-header">
+                                <div class="server-info">
+                                    <div class="server-name">{{ name }}</div>
+                                    <div class="server-command">{{ server.command }}</div>
+                                </div>
+                                <div class="server-actions">
+                                    <Switch :model-value="server.active" @update:model-value="toggleActive(server)" />
+                                    <Button size="sm" variant="text" @click="openServerModal(server)">
+                                        <template #icon>
+                                            <Pencil />
+                                        </template>
+                                    </Button>
+                                    <Button size="sm" variant="text" class="delete-btn" @click="handleDelete(name)">
+                                        <template #icon>
+                                            <Trash />
+                                        </template>
+                                    </Button>
+                                </div>
                             </div>
-                            <div class="server-actions">
-                                <Switch :model-value="server.active" @update:model-value="toggleActive(server)" />
-                                <Button size="sm" variant="text" @click="openServerModal(server)">
-                                    <template #icon>
-                                        <Pencil />
-                                    </template>
-                                </Button>
-                                <Button size="sm" variant="text" class="delete-btn" @click="handleDelete(server.id)">
-                                    <template #icon>
-                                        <Trash />
-                                    </template>
-                                </Button>
+                            <div class="card-details">
+                                <div v-if="server.args.length" class="detail-item">
+                                    <span class="label">参数:</span>
+                                    <span class="value">{{ server.args.join(' ') }}</span>
+                                </div>
+                                <div v-if="server.env?.length" class="detail-item">
+                                    <span class="label">Env:</span>
+                                    <span class="value">{{ server.env.length }} 个变量</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="card-details">
-                            <div v-if="server.args.length" class="detail-item">
-                                <span class="label">参数:</span>
-                                <span class="value">{{ server.args.join(' ') }}</span>
-                            </div>
-                            <div v-if="Object.keys(server.env).length" class="detail-item">
-                                <span class="label">Env:</span>
-                                <span class="value">{{ Object.keys(server.env).length }} 个变量</span>
-                            </div>
-                        </div>
+                        </template>
                     </div>
 
-                    <div v-if="mcpServers.length === 0" class="empty-state">
+                    <div v-if="Object.keys(mcpServers).length === 0" class="empty-state">
                         尚未配置 MCP 服务器。点击"添加服务器"开始配置。
                     </div>
                 </div>
