@@ -1,8 +1,10 @@
 import { contextBridge } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-
+import { langChainServices } from './services/langChain/index'
 // Custom APIs for renderer
-const api = {}
+export const api = {
+  ...langChainServices()
+}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
