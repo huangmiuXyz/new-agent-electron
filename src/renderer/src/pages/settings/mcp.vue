@@ -1,7 +1,9 @@
 <script setup lang="ts">
 const { mcpServers } = storeToRefs(useSettingsStore())
-const { Plus, Pencil, Trash, Refresh } = useIcon(['Plus', 'Pencil', 'Trash', 'Refresh'])
+const { Plus, Pencil, Trash, Refresh, ChevronDown, ChevronUp } = useIcon(['Plus', 'Pencil', 'Trash', 'Refresh', 'ChevronDown', 'ChevronUp'])
 const { confirm, remove } = useModal()
+
+const expandedKeys = ref<Record<string, boolean>>({})
 
 const openServerModal = async (server?: McpServers[string]) => {
     const isEdit = !!server
@@ -95,6 +97,7 @@ const openServerModal = async (server?: McpServers[string]) => {
 
 const handleDelete = (name: string) => {
     delete mcpServers.value[name]
+    delete expandedKeys.value[name]
 }
 
 const activeMcpLoading = ref<string | null>(null)
@@ -107,6 +110,9 @@ const fetchTools = async (server: McpServers[string]) => {
             mcpServers: { [safeServer.name]: safeServer }
         });
         server.tools = tools
+        if (tools.length) {
+            expandedKeys.value[server.name] = true
+        }
     } catch (e) {
         console.error(e)
     } finally {
@@ -119,6 +125,10 @@ const toggleActive = async (server: McpServers[string]) => {
         await fetchTools(server)
     }
     server.active = !server.active
+}
+
+const toggleExpand = (name: string) => {
+    expandedKeys.value[name] = !expandedKeys.value[name]
 }
 </script>
 
@@ -175,6 +185,13 @@ const toggleActive = async (server: McpServers[string]) => {
                                         <Trash />
                                     </template>
                                 </Button>
+                                <Button size="sm" variant="text" @click="toggleExpand(name)"
+                                    v-if="server.active && server.tools?.length">
+                                    <template #icon>
+                                        <ChevronUp v-if="expandedKeys[name]" />
+                                        <ChevronDown v-else />
+                                    </template>
+                                </Button>
                             </div>
                         </div>
 
@@ -195,7 +212,7 @@ const toggleActive = async (server: McpServers[string]) => {
                             </div>
                         </div>
 
-                        <div class="tools-container" v-if="server.active && server.tools?.length">
+                        <div class="tools-container" v-if="server.active && server.tools?.length && expandedKeys[name]">
                             <div class="tools-divider"></div>
                             <div class="tools-grid">
                                 <div v-for="tool in server.tools" :key="tool.name!" class="tool-item">
@@ -340,7 +357,6 @@ const toggleActive = async (server: McpServers[string]) => {
     color: var(--text-tertiary);
 }
 
-/* Tools Section Styles */
 .tools-container {
     margin-top: 12px;
 }

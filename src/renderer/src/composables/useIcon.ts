@@ -1,6 +1,6 @@
 import { Icon } from '@vicons/utils'
 import { Edit, Add, TrashCan, Close, Settings, Screen, Delete, Play, Stop } from '@vicons/carbon'
-import { Cpu, Refresh, Copy, Search, Check, Server } from '@vicons/tabler'
+import { Cpu, Refresh, Copy, Search, Check, Server, ChevronDown, ChevronUp } from '@vicons/tabler'
 
 const icons = {
   Edit,
@@ -18,7 +18,9 @@ const icons = {
   Check,
   Server,
   Play,
-  Stop
+  Stop,
+  ChevronDown,
+  ChevronUp
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
