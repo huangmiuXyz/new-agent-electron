@@ -73,18 +73,18 @@ const handleEnvChange = () => {
 <template>
     <div class="mcp-edit-form">
         <div class="form-group">
-            <label class="form-label">Server Name</label>
-            <Input v-model="form.name" placeholder="e.g. My Server" />
+            <label class="form-label">服务器名称</label>
+            <Input v-model="form.name" placeholder="例如：我的服务器" />
         </div>
 
         <div class="form-group">
-            <label class="form-label">Command</label>
-            <Input v-model="form.command" placeholder="e.g. npx or python" />
+            <label class="form-label">命令</label>
+            <Input v-model="form.command" placeholder="例如：npx 或 python" />
         </div>
 
         <div class="form-group">
             <div class="label-row">
-                <label class="form-label">Arguments</label>
+                <label class="form-label">参数</label>
                 <Button size="sm" variant="text" @click="addArg">
                     <template #icon>
                         <Plus />
@@ -93,20 +93,20 @@ const handleEnvChange = () => {
             </div>
             <div class="args-list">
                 <div v-for="(_, index) in form.args" :key="index" class="arg-item">
-                    <Input v-model="form.args[index]" placeholder="Argument" />
+                    <Input v-model="form.args[index]" placeholder="参数" />
                     <Button size="sm" variant="text" class="delete-btn" @click="removeArg(index)">
                         <template #icon>
                             <Trash />
                         </template>
                     </Button>
                 </div>
-                <div v-if="form.args.length === 0" class="empty-tip">No arguments</div>
+                <div v-if="form.args.length === 0" class="empty-tip">暂无参数</div>
             </div>
         </div>
 
         <div class="form-group">
             <div class="label-row">
-                <label class="form-label">Environment Variables</label>
+                <label class="form-label">环境变量</label>
                 <Button size="sm" variant="text" @click="addEnv">
                     <template #icon>
                         <Plus />
@@ -115,15 +115,15 @@ const handleEnvChange = () => {
             </div>
             <div class="env-list">
                 <div v-for="(item, index) in envList" :key="index" class="env-item">
-                    <Input v-model="item.key" placeholder="Key" @input="handleEnvChange" />
-                    <Input v-model="item.value" placeholder="Value" @input="handleEnvChange" />
+                    <Input v-model="item.key" placeholder="键名" @input="handleEnvChange" />
+                    <Input v-model="item.value" placeholder="值" @input="handleEnvChange" />
                     <Button size="sm" variant="text" class="delete-btn" @click="removeEnv(index)">
                         <template #icon>
                             <Trash />
                         </template>
                     </Button>
                 </div>
-                <div v-if="envList.length === 0" class="empty-tip">No environment variables</div>
+                <div v-if="envList.length === 0" class="empty-tip">暂无环境变量</div>
             </div>
         </div>
     </div>

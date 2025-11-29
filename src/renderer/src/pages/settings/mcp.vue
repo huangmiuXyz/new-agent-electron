@@ -3,28 +3,18 @@ import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { useIcon } from '@renderer/composables/useIcon'
+import { useForm } from '@renderer/composables/useForm'
+import { useModal } from '@renderer/composables/useModal'
 import SettingFormContainer from '@renderer/components/SettingFormContainer.vue'
 import Button from '@renderer/components/Button.vue'
 import Switch from '@renderer/components/Switch.vue'
-import BaseModal from '@renderer/components/BaseModal.vue'
-import McpServerEdit from '@renderer/components/McpServerEdit.vue'
 
 const { mcpServers } = storeToRefs(useSettingsStore())
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
-
-const showModal = ref(false)
-const isEditing = ref(false)
-const currentServer = ref<McpServer>({
-    id: '',
-    name: '',
-    command: '',
-    args: [],
-    env: {},
-    active: true
-})
+const { confirm } = useModal()
 
 const openAddModal = () => {
-    currentServer.value = {
+    const initialData = {
         id: crypto.randomUUID(),
         name: '',
         command: '',
@@ -32,31 +22,86 @@ const openAddModal = () => {
         env: {},
         active: true
     }
-    isEditing.value = false
-    showModal.value = true
+
+    const [FormComponent, formActions] = useForm({
+        title: '添加 MCP 服务器',
+        showHeader: false,
+        initialData,
+        fields: [
+            {
+                name: 'name',
+                type: 'text',
+                label: '服务器名称',
+                placeholder: '例如：我的服务器',
+                required: true
+            },
+            {
+                name: 'command',
+                type: 'text',
+                label: '命令',
+                placeholder: '例如：npx 或 python',
+                required: true
+            },
+            {
+                name: 'active',
+                type: 'boolean',
+                label: '启用服务器'
+            }
+        ],
+        onSubmit: (data) => {
+            mcpServers.value.push({ ...data })
+        }
+    })
+
+    confirm({
+        title: '添加 MCP 服务器',
+        content: FormComponent
+    }).then((result) => {
+        if (result) {
+            // 表单提交逻辑已在 useForm 的 onSubmit 中处理
+        }
+    })
 }
 
 const openEditModal = (server: McpServer) => {
-    currentServer.value = JSON.parse(JSON.stringify(server))
-    isEditing.value = true
-    showModal.value = true
-}
+    const initialData = { ...server }
 
-const handleSave = () => {
-    if (!currentServer.value.name || !currentServer.value.command) {
-        // Basic validation
-        return
-    }
-
-    if (isEditing.value) {
-        const index = mcpServers.value.findIndex(s => s.id === currentServer.value.id)
-        if (index !== -1) {
-            mcpServers.value[index] = { ...currentServer.value }
+    const [FormComponent, formActions] = useForm({
+        title: '编辑 MCP 服务器',
+        showHeader: false,
+        initialData,
+        fields: [
+            {
+                name: 'name',
+                type: 'text',
+                label: '服务器名称',
+                placeholder: '例如：我的服务器',
+                required: true
+            },
+            {
+                name: 'command',
+                type: 'text',
+                label: '命令',
+                placeholder: '例如：npx 或 python',
+                required: true
+            }
+        ],
+        onSubmit: (data) => {
+            const index = mcpServers.value.findIndex(s => s.id === server.id)
+            if (index !== -1) {
+                mcpServers.value[index] = { ...data }
+            }
         }
-    } else {
-        mcpServers.value.push({ ...currentServer.value })
-    }
-    showModal.value = false
+    })
+
+    confirm({
+        title: '编辑 MCP 服务器',
+        content: FormComponent
+    }).then((result) => {
+        if (result) {
+            // 表单提交逻辑已在 useForm 的 onSubmit 中处理
+        }
+    })
 }
 
 const handleDelete = (id: string) => {
@@ -72,18 +117,18 @@ const toggleActive = (server: McpServer) => {
 </script>
 
 <template>
-    <SettingFormContainer header-title="MCP Servers">
+    <SettingFormContainer header-title="MCP 服务器">
         <template #content>
             <div class="mcp-container">
                 <div class="mcp-header">
                     <div class="description">
-                        Configure Model Context Protocol (MCP) servers to extend capabilities.
+                        配置模型上下文协议 (MCP) 服务器以扩展功能。
                     </div>
                     <Button size="sm" @click="openAddModal">
                         <template #icon>
                             <Plus />
                         </template>
-                        Add Server
+                        添加服务器
                     </Button>
                 </div>
 
@@ -110,28 +155,23 @@ const toggleActive = (server: McpServer) => {
                         </div>
                         <div class="card-details">
                             <div v-if="server.args.length" class="detail-item">
-                                <span class="label">Args:</span>
+                                <span class="label">参数:</span>
                                 <span class="value">{{ server.args.join(' ') }}</span>
                             </div>
                             <div v-if="Object.keys(server.env).length" class="detail-item">
                                 <span class="label">Env:</span>
-                                <span class="value">{{ Object.keys(server.env).length }} variables</span>
+                                <span class="value">{{ Object.keys(server.env).length }} 个变量</span>
                             </div>
                         </div>
                     </div>
 
                     <div v-if="mcpServers.length === 0" class="empty-state">
-                        No MCP servers configured. Click "Add Server" to get started.
+                        尚未配置 MCP 服务器。点击"添加服务器"开始配置。
                     </div>
                 </div>
             </div>
         </template>
     </SettingFormContainer>
-
-    <BaseModal v-if="showModal" :title="isEditing ? 'Edit MCP Server' : 'Add MCP Server'" :visible="showModal"
-        @resolve="(val) => val ? handleSave() : (showModal = false)">
-        <McpServerEdit v-model="currentServer" />
-    </BaseModal>
 </template>
 
 <style scoped>

@@ -18,7 +18,7 @@ declare global {
     models: Model[]
   }
 
-  // MCP Server Interface
+  // MCP 服务器接口
   interface McpServer {
     id: string
     name: string
