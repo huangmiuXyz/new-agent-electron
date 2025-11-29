@@ -21,7 +21,7 @@ const { Cpu, Screen } = useIcon(['Cpu', 'Screen'])
     <!-- 设置选项 -->
     <List class="settings-sidebar-list" type="gap" title="设置" :items="[
       { id: 'models', name: '模型提供商', icon: Cpu },
-      { id: 'display', name: '显示设置', icon: Screen }
+      // { id: 'display', name: '显示设置', icon: Screen }
     ]" :active-id="activeTab" :key-field="'id'" :main-field="'name'" :logo-field="'icon'" @select="handleTabChange">
     </List>
   </div>
