@@ -1,6 +1,7 @@
 import Input from '@renderer/components/Input.vue'
 import Switch from '@renderer/components/Switch.vue'
 import Slider from '@renderer/components/Slider.vue'
+import Select from '@renderer/components/Select.vue'
 
 // FormItem 组件 - 统一的表单项布局组件
 export const FormItem = defineComponent({
@@ -94,7 +95,14 @@ export interface SliderField extends BaseField {
   unit?: string
 }
 
-export type FormField = TextField | BooleanField | SliderField
+// 选择字段
+export interface SelectField extends BaseField {
+  type: 'select'
+  options: { label: string; value: string | number }[]
+  placeholder?: string
+}
+
+export type FormField = TextField | BooleanField | SliderField | SelectField
 
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
@@ -139,6 +147,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
           break
         case 'slider':
           formData.value[field.name] = field.min || 0
+          break
+        case 'select':
+          formData.value[field.name] = ''
           break
         default:
           formData.value[field.name] = ''
@@ -199,6 +210,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             break
           case 'slider':
             formData.value[field.name] = field.min || 0
+            break
+          case 'select':
+            formData.value[field.name] = ''
             break
           default:
             formData.value[field.name] = ''
@@ -307,6 +321,32 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             max={field.max}
                             step={field.step}
                             unit={field.unit}
+                            onUpdate:modelValue={(value) => {
+                              formData.value[field.name] = value
+                              config.onChange?.(
+                                field.name as keyof T,
+                                value as T[keyof T],
+                                formData.value
+                              )
+                            }}
+                          />
+                        </FormItem>
+                      )
+
+                    case 'select':
+                      return (
+                        <FormItem
+                          label={field.label}
+                          error={hasError}
+                          hint={field.hint}
+                          required={field.required}
+                          layout="default"
+                        >
+                          <Select
+                            options={field.options}
+                            placeholder={field.placeholder}
+                            disabled={field.disabled}
+                            v-model={formData.value[field.name]}
                             onUpdate:modelValue={(value) => {
                               formData.value[field.name] = value
                               config.onChange?.(

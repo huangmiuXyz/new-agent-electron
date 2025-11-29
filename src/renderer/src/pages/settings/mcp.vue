@@ -7,13 +7,13 @@ const openServerModal = async (server?: McpServers[string]) => {
     const isEdit = !!server
     const modalTitle = isEdit ? '编辑 MCP 服务器' : '添加 MCP 服务器'
 
-    const initialData = server ? { ...server } : {
-        id: crypto.randomUUID(),
-        name: '',
+    const initialData: McpServers[string] = server ? { ...server } : {
         command: '',
         args: [],
         env: {},
-        active: true
+        name: '',
+        active: true,
+        transport: 'stdio'
     }
 
     const [FormComponent, formActions] = useForm({
@@ -34,6 +34,17 @@ const openServerModal = async (server?: McpServers[string]) => {
                 label: '命令',
                 placeholder: '例如：npx 或 python',
                 required: true
+            },
+            {
+                name: 'transport',
+                type: 'select',
+                label: '类型',
+                required: true,
+                options: [
+                    { label: 'stdio', value: 'stdio' },
+                    { label: 'http', value: 'http' },
+                    { label: 'sse', value: 'sse' }
+                ]
             },
         ],
         onSubmit: (data) => {
