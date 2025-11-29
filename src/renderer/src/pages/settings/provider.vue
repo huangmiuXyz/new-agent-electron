@@ -11,7 +11,7 @@ const setActiveProvider = (providerId: string) => {
     const provider = providers.value.find(p => p.id === providerId)
     formActions.setData(provider!)
 };
-const activeProviderId = ref('OpenAI');
+const activeProviderId = useLocalStorage<string>('activeProviderId', 'OpenAI');
 
 const activeProvider = computed(() => {
     return providers.value.find(p => p.id === activeProviderId.value);
