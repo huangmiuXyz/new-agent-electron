@@ -7,7 +7,6 @@ declare global {
     fontSize: number
   }
 
-
   // 模型提供商接口
   interface Provider {
     id: string
@@ -15,7 +14,7 @@ declare global {
     logo: string
     apiKey?: string
     baseUrl: string
-    modelType: 'OpenAI' | 'Gemini' | 'Anthropic' | 'DeepSeek'
+    modelType: 'openai' | 'google-genai' | 'anthropic' | 'deepseek'
     models: Model[]
   }
 
@@ -27,4 +26,4 @@ declare global {
   }
 }
 
-export { };
+export {}
