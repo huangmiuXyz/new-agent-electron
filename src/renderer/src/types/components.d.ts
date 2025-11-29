@@ -13,4 +13,5 @@ export interface BaseModalProps {
   remove?: Function
   confirmProps?: ButtonProps
   width?: string
+  onOk?: () => void
 }

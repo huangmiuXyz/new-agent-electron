@@ -38,6 +38,10 @@ onMounted(async () => {
 });
 
 const handleConfirm = () => {
+  if (props.onOk) {
+    props.onOk()
+    return
+  }
   visible.value = false;
   setTimeout(() => {
     props.resolve?.(true);

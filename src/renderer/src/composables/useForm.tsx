@@ -150,7 +150,7 @@ export interface FormActions<T> {
   getData: () => T
   setData: (data: T) => void
   reset: () => void
-  submit: () => void
+  submit: () => boolean
   validate: () => boolean
   setFieldValue: (field: string, value: any) => void
   getFieldValue: (field: string) => any

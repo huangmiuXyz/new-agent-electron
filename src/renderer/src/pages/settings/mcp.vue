@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { mcpServers } = storeToRefs(useSettingsStore())
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
-const { confirm } = useModal()
+const { confirm, remove } = useModal()
 
 const openServerModal = async (server?: McpServers[string]) => {
     const isEdit = !!server
@@ -83,15 +83,14 @@ const openServerModal = async (server?: McpServers[string]) => {
         }
     })
 
-    const result = await confirm({
+    confirm({
         title: modalTitle,
         content: FormComponent,
-        width: '50%'
+        width: '50%',
+        onOk: async () => {
+            if (formActions.submit()) remove()
+        }
     })
-
-    if (result) {
-        formActions.submit()
-    }
 }
 
 const handleDelete = (name: string) => {

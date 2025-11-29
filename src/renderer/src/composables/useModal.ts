@@ -5,18 +5,21 @@ type ModalResolve = (value: string | boolean) => void
 
 interface UseModalReturn {
   confirm: (options: BaseModalProps) => Promise<string | boolean>
+  remove: () => void
 }
 
 export function useModal(): UseModalReturn {
+  let container: HTMLDivElement | null
+  const remove = (): void => {
+    if (!container) return
+    render(null, container)
+    document.body.removeChild(container)
+    container = null
+  }
   const show = (options: BaseModalProps): Promise<string | boolean> => {
     return new Promise<string | boolean>((resolve: ModalResolve) => {
-      const container = document.createElement('div')
+      container = document.createElement('div')
       document.body.appendChild(container)
-      const remove = (): void => {
-        render(null, container)
-        document.body.removeChild(container)
-      }
-
       const vnode: VNode = createVNode(BaseModal, {
         ...options,
         resolve,
@@ -31,6 +34,7 @@ export function useModal(): UseModalReturn {
   }
 
   return {
-    confirm
+    confirm,
+    remove
   }
 }
