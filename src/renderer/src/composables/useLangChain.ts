@@ -142,7 +142,7 @@ export const useLangChain = () => {
         }
       },
       model.name,
-      provider.name
+      provider.modelType
     )
     for await (const chunk of await client.stream(
       { messages: [{ role: 'user', content: input }] },

@@ -11,9 +11,9 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <div class="setting-form-container drag">
+  <div class="setting-form-container">
     <!-- 可配置的头部插槽 -->
-    <header v-if="showHeader" class="settings-header">
+    <header v-if="showHeader" class="settings-header drag">
       <slot name="header">
         {{ headerTitle }}
       </slot>
