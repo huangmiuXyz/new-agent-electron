@@ -65,6 +65,8 @@ export const useLangChain = () => {
       settings.currentSelectedModel!.id
     )!
     const client = createLLMClient({ provider, model })
+    const tools = await getMcpTools({ mcpServers: settings.mcpServers })
+    client.bindTools(tools)
     const chat = chatStore.getChatById(chatId)!
     const content = reactive<ContentBlock[]>([{ type: 'text', text: '' }])
     const additional_kwargs = reactive<Additional_kwargs>({
@@ -103,6 +105,9 @@ export const useLangChain = () => {
                   additional_kwargs.reasoning_content += reasoning_content
                 }
                 chatStore.$persist()
+              },
+              handleToolStart: (tool) => {
+                console.log(tool)
               }
             }
           ]
