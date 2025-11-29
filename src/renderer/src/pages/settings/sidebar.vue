@@ -38,6 +38,7 @@ const { Cpu, Screen } = useIcon(['Cpu', 'Screen'])
   gap: 4px;
   background: #fbfbfb;
   height: 100%;
+  margin-top: 20px;
 }
 
 /* 调整List组件的样式以匹配原有样式 */
