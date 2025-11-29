@@ -120,37 +120,43 @@ const toggleActive = (server: McpServers[string]) => {
 
                 <div class="server-list">
                     <div v-for="(server, name) of mcpServers" :key="name" class="server-card">
-                        <template v-if="server.transport === 'stdio'">
-                            <div class="card-header">
-                                <div class="server-info">
-                                    <div class="server-name">{{ name }}</div>
-                                    <div class="server-command">{{ server.command }}</div>
-                                </div>
-                                <div class="server-actions">
-                                    <Switch :model-value="server.active" @update:model-value="toggleActive(server)" />
-                                    <Button size="sm" variant="text" @click="openServerModal(server)">
-                                        <template #icon>
-                                            <Pencil />
-                                        </template>
-                                    </Button>
-                                    <Button size="sm" variant="text" class="delete-btn" @click="handleDelete(name)">
-                                        <template #icon>
-                                            <Trash />
-                                        </template>
-                                    </Button>
+                        <div class="card-header">
+                            <div class="server-info">
+                                <div class="server-name">{{ name }}</div>
+                                <div class="server-command" v-if="server.transport === 'stdio'">{{ server.command }}
                                 </div>
                             </div>
-                            <div class="card-details">
-                                <div v-if="server.args?.length" class="detail-item">
-                                    <span class="label">参数:</span>
-                                    <span class="value">{{ server.args.join(' ') }}</span>
-                                </div>
-                                <div v-if="server.env?.length" class="detail-item">
-                                    <span class="label">Env:</span>
-                                    <span class="value">{{ server.env.length }} 个变量</span>
-                                </div>
+                            <div class="server-actions">
+                                <Switch :model-value="server.active" @update:model-value="toggleActive(server)" />
+                                <Button size="sm" variant="text" @click="openServerModal(server)">
+                                    <template #icon>
+                                        <Pencil />
+                                    </template>
+                                </Button>
+                                <Button size="sm" variant="text" class="delete-btn" @click="handleDelete(name)">
+                                    <template #icon>
+                                        <Trash />
+                                    </template>
+                                </Button>
                             </div>
-                        </template>
+                        </div>
+                        <div class="card-details" v-if="server.transport === 'stdio'">
+                            <div v-if="server.args?.length" class="detail-item">
+                                <span class="label">参数:</span>
+                                <span class="value">{{ server.args.join(' ') }}</span>
+                            </div>
+                            <div v-if="server.env?.length" class="detail-item">
+                                <span class="label">Env:</span>
+                                <span class="value">{{ server.env.length }} 个变量</span>
+                            </div>
+                        </div>
+                        <div class="card-details" v-if="server.transport === 'sse' || server.transport === 'http'">
+                            <div class="detail-item">
+                                <span class="label">URL:</span>
+                                <span class="value">{{ server.url }}</span>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div v-if="Object.keys(mcpServers).length === 0" class="empty-state">
