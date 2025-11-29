@@ -1,14 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useSettingsStore } from '@renderer/stores/settings'
-import { useIcon } from '@renderer/composables/useIcon'
-import { useForm } from '@renderer/composables/useForm'
-import { useModal } from '@renderer/composables/useModal'
-import SettingFormContainer from '@renderer/components/SettingFormContainer.vue'
-import Button from '@renderer/components/Button.vue'
-import Switch from '@renderer/components/Switch.vue'
-
 const { mcpServers } = storeToRefs(useSettingsStore())
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
 const { confirm } = useModal()
