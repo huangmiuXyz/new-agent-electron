@@ -156,7 +156,6 @@ const toggleActive = (server: McpServers[string]) => {
                                 <span class="value">{{ server.url }}</span>
                             </div>
                         </div>
-
                     </div>
 
                     <div v-if="Object.keys(mcpServers).length === 0" class="empty-state">
