@@ -3,8 +3,11 @@ const { mcpServers } = storeToRefs(useSettingsStore())
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
 const { confirm } = useModal()
 
-const openAddModal = () => {
-    const initialData = {
+const openServerModal = (server?: McpServer) => {
+    const isEdit = !!server
+    const modalTitle = isEdit ? '编辑 MCP 服务器' : '添加 MCP 服务器'
+
+    const initialData = server ? { ...server } : {
         id: crypto.randomUUID(),
         name: '',
         command: '',
@@ -14,7 +17,7 @@ const openAddModal = () => {
     }
 
     const [FormComponent, formActions] = useForm({
-        title: '添加 MCP 服务器',
+        title: modalTitle,
         showHeader: false,
         initialData,
         fields: [
@@ -32,60 +35,21 @@ const openAddModal = () => {
                 placeholder: '例如：npx 或 python',
                 required: true
             },
-            {
-                name: 'active',
-                type: 'boolean',
-                label: '启用服务器'
-            }
         ],
         onSubmit: (data) => {
-            mcpServers.value.push({ ...data })
-        }
-    })
-
-    confirm({
-        title: '添加 MCP 服务器',
-        content: FormComponent
-    }).then((result) => {
-        if (result) {
-            // 表单提交逻辑已在 useForm 的 onSubmit 中处理
-        }
-    })
-}
-
-const openEditModal = (server: McpServer) => {
-    const initialData = { ...server }
-
-    const [FormComponent, formActions] = useForm({
-        title: '编辑 MCP 服务器',
-        showHeader: false,
-        initialData,
-        fields: [
-            {
-                name: 'name',
-                type: 'text',
-                label: '服务器名称',
-                placeholder: '例如：我的服务器',
-                required: true
-            },
-            {
-                name: 'command',
-                type: 'text',
-                label: '命令',
-                placeholder: '例如：npx 或 python',
-                required: true
-            }
-        ],
-        onSubmit: (data) => {
-            const index = mcpServers.value.findIndex(s => s.id === server.id)
-            if (index !== -1) {
-                mcpServers.value[index] = { ...data }
+            if (isEdit) {
+                const index = mcpServers.value.findIndex(s => s.id === server.id)
+                if (index !== -1) {
+                    mcpServers.value[index] = { ...data }
+                }
+            } else {
+                mcpServers.value.push({ ...data })
             }
         }
     })
 
     confirm({
-        title: '编辑 MCP 服务器',
+        title: modalTitle,
         content: FormComponent
     }).then((result) => {
         if (result) {
@@ -114,7 +78,7 @@ const toggleActive = (server: McpServer) => {
                     <div class="description">
                         配置模型上下文协议 (MCP) 服务器以扩展功能。
                     </div>
-                    <Button size="sm" @click="openAddModal">
+                    <Button size="sm" @click="openServerModal()">
                         <template #icon>
                             <Plus />
                         </template>
@@ -131,7 +95,7 @@ const toggleActive = (server: McpServer) => {
                             </div>
                             <div class="server-actions">
                                 <Switch :model-value="server.active" @update:model-value="toggleActive(server)" />
-                                <Button size="sm" variant="text" @click="openEditModal(server)">
+                                <Button size="sm" variant="text" @click="openServerModal(server)">
                                     <template #icon>
                                         <Pencil />
                                     </template>
