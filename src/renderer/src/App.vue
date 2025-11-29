@@ -78,18 +78,28 @@ body {
   height: 100%;
 }
 
-/* 滚动条美化 */
+/* 隐藏滚动条但保持滚动功能 */
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 0px;
+  display: none;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d1d1d6;
-  border-radius: 3px;
+  display: none;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  display: none;
+}
+
+/* Firefox 隐藏滚动条 */
+* {
+  scrollbar-width: none;
+}
+
+/* IE 和 Edge 隐藏滚动条 */
+* {
+  -ms-overflow-style: none;
 }
 
 .no-drag {

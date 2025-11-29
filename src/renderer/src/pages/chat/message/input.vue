@@ -93,19 +93,4 @@ const sendMessage = () => {
   display: flex;
   gap: 12px;
 }
-
-
-/* 滚动条美化 */
-::-webkit-scrollbar {
-  width: 5px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d1d1d6;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
 </style>

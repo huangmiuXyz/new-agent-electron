@@ -75,18 +75,4 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   display: flex;
   flex-direction: column;
 }
-
-/* 滚动条美化 */
-::-webkit-scrollbar {
-  width: 5px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d1d1d6;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
 </style>

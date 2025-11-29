@@ -231,20 +231,6 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   color: var(--text-primary);
 }
 
-/* 滚动条美化 */
-::-webkit-scrollbar {
-  width: 5px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d1d1d6;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
 /* 空状态样式 */
 .empty-state {
   display: flex;

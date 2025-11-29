@@ -263,16 +263,6 @@ const handleModelSelect = (id: string) => {
   font-size: 10px;
 }
 
-.model-list-container::-webkit-scrollbar {
-  width: 4px;
-}
-
-.model-list-container::-webkit-scrollbar-thumb {
-  background: #d1d1d6;
-  border-radius: 2px;
-}
-
-
 :deep(.group-header) {
   font-size: 10px;
   font-weight: 700;

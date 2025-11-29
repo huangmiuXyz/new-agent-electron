@@ -310,16 +310,6 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
     padding: 8px;
 }
 
-/* 自定义滚动条 */
-.results-container::-webkit-scrollbar {
-    width: 6px;
-}
-
-.results-container::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 3px;
-}
-
 .empty-state {
     padding: 40px;
     text-align: center;
