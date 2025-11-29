@@ -105,9 +105,9 @@ const updateObjectValue = (key: string, value: string) => {
                 <div v-for="(item, index) in arrayModel" :key="`array-${index}`" class="input-group-item">
                     <Input :model-value="item" :placeholder="placeholder" :disabled="disabled" size="sm"
                         @update:model-value="(value) => updateArrayItem(index, value as string)" />
-                    <button type="button" class="remove-btn" :disabled="disabled" @click="removeItem(index)">
+                    <Button variant="text" size="sm" :disabled="disabled" @click="removeItem(index)">
                         <Close />
-                    </button>
+                    </Button>
                 </div>
             </template>
 
@@ -139,18 +139,18 @@ const updateObjectValue = (key: string, value: string) => {
 .input-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
 }
 
 .input-group-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 4px;
+    padding: 0 2px;
 }
 
 .input-group-label {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--text-secondary);
 }
@@ -158,115 +158,61 @@ const updateObjectValue = (key: string, value: string) => {
 .input-group-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
 }
 
 .input-group-item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px;
-    background: #fafafa;
-    border: 1px solid var(--border-subtle);
-    border-radius: 6px;
-    transition: all 0.2s;
-}
-
-.input-group-item:hover {
-    background: #f5f5f5;
-    border-color: var(--border-hover, #d1d1d1);
 }
 
 .input-group-item--pair {
     display: grid;
     grid-template-columns: 1fr auto 1fr auto;
-    gap: 8px;
+    align-items: center;
 }
 
 .separator {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    width: 16px;
+    font-size: 14px;
     color: var(--text-tertiary);
-    font-weight: 600;
+    font-weight: 500;
 }
 
-.key-input,
-.value-input {
-    flex: 1;
-}
-
-.remove-btn {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.2s;
-}
-
-.remove-btn:hover:not(:disabled) {
-    background: rgba(255, 71, 87, 0.1);
-    color: #ff4757;
-}
-
-.remove-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
 
 .add-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 8px 12px;
+    gap: 4px;
+    width: 100%;
+    padding: 4px;
     border: 1px dashed var(--border-subtle);
-    background: transparent;
+    background: rgba(0, 0, 0, 0.01);
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s;
 }
 
 .add-btn:hover:not(:disabled) {
-    border-color: var(--text-secondary);
-    background: #fafafa;
+    border-color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.03);
     color: var(--text-primary);
+}
+
+.add-btn:active:not(:disabled) {
+    background: rgba(0, 0, 0, 0.05);
 }
 
 .add-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-}
-
-/* 列表动画 */
-.list-enter-active,
-.list-leave-active {
-    transition: all 0.3s ease;
-}
-
-.list-enter-from {
-    opacity: 0;
-    transform: translateY(-10px);
-}
-
-.list-leave-to {
-    opacity: 0;
-    transform: translateX(10px);
-}
-
-.list-move {
-    transition: transform 0.3s ease;
 }
 </style>
