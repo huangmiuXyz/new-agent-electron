@@ -91,4 +91,12 @@ body {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.drag {
+  -webkit-app-region: drag;
+}
 </style>

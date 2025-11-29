@@ -76,7 +76,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 
 <template>
   <aside class="sidebar">
-    <div class="sidebar-header">
+    <div class="sidebar-header drag">
       <div class="app-title">
         <i class="ph-fill ph-circles-four"></i>
         <span>QI</span>

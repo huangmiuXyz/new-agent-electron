@@ -35,7 +35,7 @@ const handleClick = (event: MouseEvent) => {
 </script>
 
 <template>
-  <button :type="type" :class="buttonClasses" :disabled="disabled" @click="handleClick">
+  <button class="no-drag" :type="type" :class="buttonClasses" :disabled="disabled" @click="handleClick">
     <template v-if="$slots.icon">
       <div class="icon-btn">
         <slot name="icon" />

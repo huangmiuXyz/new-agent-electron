@@ -12,7 +12,7 @@ const openSearch = () => {
 </script>
 
 <template>
-  <header class="chat-header">
+  <header class="chat-header drag">
     <div class="header-info">
     </div>
     <div class="header-actions">
