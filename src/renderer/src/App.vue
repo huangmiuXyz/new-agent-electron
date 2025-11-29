@@ -8,8 +8,8 @@ const switchView = (view: 'chat' | 'settings') => {
   currentView.value = view
 }
 
-// 提供全局方法供子组件调用
 provide('switchView', switchView)
+
 </script>
 
 <template>
