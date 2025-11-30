@@ -3,8 +3,8 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatAnthropic } from '@langchain/anthropic'
 import { ChatDeepSeek } from '@langchain/deepseek'
 import { InMemoryChatMessageHistory } from '@langchain/core/chat_history'
-import { HumanMessage, AIMessage, type BaseMessage } from '@langchain/core/messages'
-import type { BaseMessageChunk, ContentBlock } from 'langchain'
+import { HumanMessage, AIMessage, type BaseMessage, ToolMessage } from '@langchain/core/messages'
+import type { ContentBlock, ToolCall } from 'langchain'
 import { nanoid } from '../utils/nanoid'
 import type {
   HandleLLMNewTokenCallbackFields,
@@ -79,6 +79,7 @@ export const useLangChain = () => {
       additional_kwargs
     })
     chat.messages.push(aiMsg)
+    const tool_calls: ToolCall[] = []
     try {
       await client.bindTools(tools).invoke(
         messages.filter((m) => {
@@ -98,12 +99,36 @@ export const useLangChain = () => {
                 fields?: HandleLLMNewTokenCallbackFields
               ) => {
                 content[0]!.text += token
-                const message = fields?.chunk as AIMessageChunk
+                const message = (fields?.chunk! as ChatGenerationChunk).message as AIMessageChunk
                 const reasoning_content = message.additional_kwargs?.reasoning_content as string
                 if (reasoning_content) {
                   additional_kwargs.reasoning_content += reasoning_content
                 }
+                if (message.tool_call_chunks) {
+                  message.tool_call_chunks.forEach((t) => {
+                    if (t.id || t.name) {
+                      const toolMsg = new ToolMessage({ ...t, tool_call_id: t.id! })
+                      chat.messages.push(toolMsg)
+                    }
+                  })
+                }
                 chatStore.$persist()
+              },
+              handleLLMEnd(output) {
+                output.generations.forEach((g) =>
+                  g.forEach((m) => {
+                    ;((m as any).message as AIMessage).tool_calls?.forEach((t) => {
+                      const idx = chat.messages.findIndex((m) => m.id === t.id)
+                      const toolMessage = new ToolMessage({ ...t, tool_call_id: t.id! })
+                      chat.messages[idx] = toolMessage
+                      tool_calls.push(t as ToolCall)
+                    })
+                  })
+                )
+                tool_calls.forEach(async (t) => {
+                  const response = await call_tools(t, { mcpServers: settings.mcpServers })
+                  console.log(response)
+                })
               }
             }
           ]
@@ -159,10 +184,10 @@ export const useLangChain = () => {
     return await window.api.list_tools(JSON.parse(JSON.stringify(config)), cache)
   }
 
-  const call_tools = async (name: string, args: any, config: ClientConfig) => {
-    const tools = await window.api.list_tools(config)
-    const tool = tools.find((t) => t.name === name)
-    return await tool?.func(args)
+  const call_tools = async (tool_call: ToolCall, config: ClientConfig) => {
+    const tools = await window.api.list_tools(JSON.parse(JSON.stringify(config)))
+    const tool = tools.find((t) => t.name === tool_call.name)
+    return await tool?.func(tool_call.args)
   }
 
   return { chatStream, regenerate, list_models, getMcpTools, call_tools }
