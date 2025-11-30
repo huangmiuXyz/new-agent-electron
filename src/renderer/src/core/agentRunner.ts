@@ -39,15 +39,7 @@ export async function runAgentLoop({
   let aggregatedChunk = new AIMessageChunk({ content: [] })
 
   try {
-    const validMessages = messages.filter((m) => {
-      if (!AIMessage.isInstance(m)) return true
-      const text = Array.isArray(m.content) ? (m.content[0]?.text as string) : m.content
-      const hasText = text && text.trim() !== ''
-      const hasTools = m.tool_calls && m.tool_calls.length > 0
-      return hasText || hasTools
-    })
-
-    const finalResponse = await runnable.invoke(validMessages, {
+    const finalResponse = await runnable.invoke(messages, {
       callbacks: [
         {
           handleLLMNewToken: (
@@ -95,7 +87,7 @@ export async function runAgentLoop({
 
       await runAgentLoop({
         client,
-        messages: [...validMessages, finalResponse, ...toolMessages],
+        messages: [...messages, ...toolMessages],
         mcpConfig,
         recursionLimit: recursionLimit - 1,
         onToken,
