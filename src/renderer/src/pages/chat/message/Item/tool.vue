@@ -134,7 +134,6 @@ const toggleCollapse = () => {
     background-color: #fff;
     max-height: 400px;
     overflow-y: auto;
-    transition: max-height 0.3s ease;
 }
 
 .tool-content.collapsed {
