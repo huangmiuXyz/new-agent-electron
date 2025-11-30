@@ -116,14 +116,10 @@ const selectAgent = (agentId: string) => {
                 </div>
 
                 <div class="agent-list">
-                    <div v-for="agent in agents" :key="agent.id" class="agent-card"
-                        :class="{ selected: agentStore.selectedAgentId === agent.id }" @click="selectAgent(agent.id)">
+                    <div v-for="agent in agents" :key="agent.id" class="agent-card" @click="selectAgent(agent.id)">
                         <div class="card-header">
                             <div class="agent-info">
                                 <div class="agent-name-row">
-                                    <div class="agent-icon">
-                                        <i class="ph-bold ph-robot"></i>
-                                    </div>
                                     <div class="agent-name">{{ agent.name }}</div>
                                     <div class="selected-badge" v-if="agentStore.selectedAgentId === agent.id">
                                         当前
@@ -136,10 +132,6 @@ const selectAgent = (agentId: string) => {
                                     <div v-if="agent.mcpServers.length > 0" class="meta-item">
                                         <i class="ph ph-puzzle-piece"></i>
                                         <span>{{ agent.mcpServers.length }} 个MCP服务</span>
-                                    </div>
-                                    <div class="meta-item">
-                                        <i class="ph ph-calendar"></i>
-                                        <span>创建于 {{ new Date(agent.createdAt).toLocaleDateString() }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -233,7 +225,7 @@ const selectAgent = (agentId: string) => {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 12px;
+    margin-bottom: 4px;
 }
 
 .agent-info {
@@ -246,7 +238,7 @@ const selectAgent = (agentId: string) => {
 .agent-name-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 4px;
 }
 
 .agent-icon {
@@ -323,10 +315,10 @@ const selectAgent = (agentId: string) => {
 
 .card-body {
     border-top: 1px solid #f5f5f5;
-    padding-top: 12px;
+    padding-top: 4px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 4px;
 }
 
 .system-prompt-preview {
@@ -348,7 +340,7 @@ const selectAgent = (agentId: string) => {
     color: var(--text-secondary);
     line-height: 1.5;
     background: #f9f9f9;
-    padding: 10px;
+    padding: 4px;
     border-radius: 6px;
     border: 1px solid #eee;
     max-height: 80px;
