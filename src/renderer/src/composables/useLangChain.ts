@@ -134,24 +134,17 @@ export const useLangChain = () => {
                 }
                 if (aggregatedChunk.tool_calls && aggregatedChunk.tool_calls.length > 0) {
                   aiMsg.tool_calls = aggregatedChunk.tool_calls
-                  chatStore.$persist()
                 }
                 const reasoning = chunk.additional_kwargs?.reasoning_content as string
                 if (reasoning) {
                   additional_kwargs.reasoning_content += reasoning
                 }
+                chatStore.$persist()
               }
             }
           ]
         }
       )
-
-      const targetMsg = chat.messages.find((m) => m.id === aiMsgId) as AIMessage
-      if (targetMsg) {
-        targetMsg.tool_calls = finalResponse.tool_calls
-        targetMsg.content = finalResponse.content
-      }
-
       if (finalResponse.tool_calls && finalResponse.tool_calls.length > 0) {
         for (const toolCall of finalResponse.tool_calls) {
           const toolMsgId = nanoid()
