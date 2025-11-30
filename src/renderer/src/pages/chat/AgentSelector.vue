@@ -89,10 +89,6 @@ onUnmounted(() => {
                 <div v-else class="agent-list">
                     <div v-for="agent in filteredAgents" :key="agent.id" class="agent-item"
                         :class="{ selected: isAgentSelected(agent.id) }" @click="selectAgent(agent.id)">
-                        <div class="agent-icon">
-                            <i v-if="agent.icon" :class="agent.icon"></i>
-                            <i v-else class="ph-bold ph-robot"></i>
-                        </div>
                         <div class="agent-content">
                             <div class="agent-title">{{ agent.name }}</div>
                             <div v-if="agent.description" class="agent-desc">{{ agent.description }}</div>

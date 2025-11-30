@@ -28,7 +28,7 @@ const sendMessage = () => {
       <div class="input-actions">
         <div class="action-left">
           <!-- 智能体选择器 -->
-          <AgentSettings />
+          <ChatAgentSelector />
           <!-- 模型选择器 -->
           <ChatModelSelector />
         </div>
