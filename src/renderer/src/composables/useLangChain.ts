@@ -83,8 +83,8 @@ export const useLangChain = () => {
     )!
     const client = createLLMClient({ provider, model })
     const chat = chatStore.getChatById(chatId)!
-    const mcpConfig = agentStore.getMcpByAgent(chat.agentId)
-    const agent = agentStore.getAgentById(chat.agentId)
+    const mcpConfig = agentStore.getMcpByAgent(chat.agentId!)!
+    const agent = agentStore.getAgentById(chat.agentId!)
     const tools = await getMcpTools(mcpConfig)
     const content = reactive<ContentBlock.Text[]>([{ type: 'text', text: '' }])
     const additional_kwargs = reactive<Additional_kwargs>({
