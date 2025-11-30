@@ -69,7 +69,6 @@ export const useLangChain = () => {
     chatId: string,
     recursionLimit: number = 5
   ) => {
-    // 0. 递归终止条件
     if (recursionLimit <= 0) {
       console.warn('达到最大工具递归调用次数，停止生成')
       return
