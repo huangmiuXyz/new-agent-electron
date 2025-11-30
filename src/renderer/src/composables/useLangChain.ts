@@ -3,7 +3,13 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatAnthropic } from '@langchain/anthropic'
 import { ChatDeepSeek } from '@langchain/deepseek'
 import { InMemoryChatMessageHistory } from '@langchain/core/chat_history'
-import { HumanMessage, AIMessage, type BaseMessage, ToolMessage } from '@langchain/core/messages'
+import {
+  HumanMessage,
+  AIMessage,
+  ToolMessage,
+  AIMessageChunk,
+  type BaseMessage
+} from '@langchain/core/messages'
 import type { ContentBlock, ToolCall } from 'langchain'
 import { nanoid } from '../utils/nanoid'
 import type {
@@ -55,11 +61,20 @@ export const createLLMClient = ({
       throw new Error(`未知的模型类型: ${provider.modelType || 'undefined'}`)
   }
 }
-
 export const useLangChain = () => {
   const settings = useSettingsStore()
   const chatStore = useChatsStores()
-  const _generateResponse = async (messages: BaseMessage[], chatId: string) => {
+  const _generateResponse = async (
+    messages: BaseMessage[],
+    chatId: string,
+    recursionLimit: number = 5
+  ) => {
+    // 0. 递归终止条件
+    if (recursionLimit <= 0) {
+      console.warn('达到最大工具递归调用次数，停止生成')
+      return
+    }
+
     const { provider, model } = settings.getModelById(
       settings.currentSelectedProvider!.id,
       settings.currentSelectedModel!.id
@@ -67,75 +82,109 @@ export const useLangChain = () => {
     const client = createLLMClient({ provider, model })
     const tools = await getMcpTools({ mcpServers: settings.mcpServers })
     const chat = chatStore.getChatById(chatId)!
-    const content = reactive<ContentBlock[]>([{ type: 'text', text: '' }])
+
+    const content = reactive<ContentBlock.Text[]>([{ type: 'text', text: '' }])
     const additional_kwargs = reactive<Additional_kwargs>({
       reasoning_content: '',
       provider,
       model
     })
+
+    const aiMsgId = nanoid()
     const aiMsg = new AIMessage({
-      id: nanoid(),
+      id: aiMsgId,
       content,
-      additional_kwargs
+      additional_kwargs,
+      tool_calls: []
     })
     chat.messages.push(aiMsg)
-    const tool_calls: ToolCall[] = []
+
+    let aggregatedChunk = new AIMessageChunk({ content: [] })
+
     try {
-      await client.bindTools(tools).invoke(
+      const runnable = client.bindTools(tools)
+      const finalResponse = await runnable.invoke(
         messages.filter((m) => {
           if (!AIMessage.isInstance(m)) return true
           const text = Array.isArray(m.content) ? (m.content[0]?.text as string) : m.content
-          return text && text.trim() !== ''
+          const hasText = text && text.trim() !== ''
+          const hasTools = m.tool_calls && m.tool_calls.length > 0
+          return hasText || hasTools
         }),
         {
           callbacks: [
             {
               handleLLMNewToken: (
-                token: string,
+                _token: string,
                 _idx: NewTokenIndices,
                 _runId: string,
                 _parentRunId?: string,
                 _tags?: string[],
                 fields?: HandleLLMNewTokenCallbackFields
               ) => {
-                content[0]!.text += token
-                const message = (fields?.chunk! as ChatGenerationChunk).message as AIMessageChunk
-                const reasoning_content = message.additional_kwargs?.reasoning_content as string
-                if (reasoning_content) {
-                  additional_kwargs.reasoning_content += reasoning_content
-                }
-                if (message.tool_call_chunks) {
-                  message.tool_call_chunks.forEach((t) => {
-                    if (t.id || t.name) {
-                      const toolMsg = new ToolMessage({ ...t, tool_call_id: t.id! })
-                      chat.messages.push(toolMsg)
-                    }
-                  })
-                }
-                chatStore.$persist()
-              },
-              handleLLMEnd(output) {
-                output.generations.forEach((g) =>
-                  g.forEach((m) => {
-                    ;((m as any).message as AIMessage).tool_calls?.forEach((t) => {
-                      const idx = chat.messages.findIndex((m) => m.id === t.id)
-                      const toolMessage = new ToolMessage({ ...t, tool_call_id: t.id! })
-                      chat.messages[idx] = toolMessage
-                      tool_calls.push(t as ToolCall)
+                const chunk = (fields?.chunk as ChatGenerationChunk).message as AIMessageChunk
+                aggregatedChunk = aggregatedChunk.concat(chunk)
+                if (chunk.content) {
+                  if (typeof chunk.content === 'string') {
+                    content[0].text += chunk.content
+                  } else if (Array.isArray(chunk.content)) {
+                    chunk.content.forEach((c) => {
+                      if (c.type === 'text') content[0].text += c.text
                     })
-                  })
-                )
-                tool_calls.forEach(async (t) => {
-                  const response = await call_tools(t, { mcpServers: settings.mcpServers })
-                  console.log(response)
-                })
+                  }
+                }
+                if (aggregatedChunk.tool_calls && aggregatedChunk.tool_calls.length > 0) {
+                  aiMsg.tool_calls = aggregatedChunk.tool_calls
+                  chatStore.$persist()
+                }
+                const reasoning = chunk.additional_kwargs?.reasoning_content as string
+                if (reasoning) {
+                  additional_kwargs.reasoning_content += reasoning
+                }
               }
             }
           ]
         }
       )
+
+      const targetMsg = chat.messages.find((m) => m.id === aiMsgId) as AIMessage
+      if (targetMsg) {
+        targetMsg.tool_calls = finalResponse.tool_calls
+        targetMsg.content = finalResponse.content
+      }
+
+      if (finalResponse.tool_calls && finalResponse.tool_calls.length > 0) {
+        for (const toolCall of finalResponse.tool_calls) {
+          const toolMsgId = nanoid()
+          const toolMsg = new ToolMessage({
+            id: toolMsgId,
+            tool_call_id: toolCall.id!,
+            content: '',
+            name: toolCall.name
+          })
+          chat.messages.push(toolMsg)
+          chatStore.$persist()
+          try {
+            const result = await call_tools(toolCall as ToolCall, {
+              mcpServers: settings.mcpServers
+            })
+            const resultStr = typeof result === 'string' ? result : JSON.stringify(result)
+            toolMsg.content = resultStr
+          } catch (error) {
+            toolMsg.content = `Error: ${error instanceof Error ? error.message : String(error)}`
+            toolMsg.additional_kwargs = { error: true }
+          }
+        }
+        chatStore.$persist()
+        const chatHistory = new InMemoryChatMessageHistory(chat.messages)
+        const nextMessages = await chatHistory.getMessages()
+
+        await _generateResponse(nextMessages, chatId, recursionLimit - 1)
+      }
     } catch (error) {
       console.error('生成失败:', error)
+      content[0].text += `\n[系统错误: ${error instanceof Error ? error.message : String(error)}]`
+      chatStore.$persist()
     }
   }
   const chatStream = async (input: string, chatId: string) => {
@@ -145,10 +194,13 @@ export const useLangChain = () => {
       content: input
     })
     chat.messages.push(userMsg)
+
     const chatHistory = new InMemoryChatMessageHistory(chat.messages)
     const historyMessages = await chatHistory.getMessages()
+
     await _generateResponse(historyMessages, chatId)
   }
+
   const regenerate = async (messageId: string, chatId: string) => {
     const chat = chatStore.getChatById(chatId)!
     const index = chat.messages.findIndex((m) => m.id === messageId)
@@ -156,16 +208,18 @@ export const useLangChain = () => {
       console.error('未找到消息')
       return
     }
+
     const targetMessage = chat.messages[index]
-    let contextMessages: BaseMessage[] = []
     if (AIMessage.isInstance(targetMessage)) {
       chat.messages = chat.messages.slice(0, index)
     } else {
       chat.messages = chat.messages.slice(0, index + 1)
     }
+
     const chatHistory = new InMemoryChatMessageHistory(chat.messages)
-    contextMessages = await chatHistory.getMessages()
+    const contextMessages = await chatHistory.getMessages()
     if (contextMessages.length === 0) return
+
     await _generateResponse(contextMessages, chatId)
   }
 
@@ -187,7 +241,8 @@ export const useLangChain = () => {
   const call_tools = async (tool_call: ToolCall, config: ClientConfig) => {
     const tools = await window.api.list_tools(JSON.parse(JSON.stringify(config)))
     const tool = tools.find((t) => t.name === tool_call.name)
-    return await tool?.func(tool_call.args)
+    if (!tool) throw new Error(`Tool '${tool_call.name}' not found.`)
+    return await tool.func(tool_call.args)
   }
 
   return { chatStream, regenerate, list_models, getMcpTools, call_tools }
