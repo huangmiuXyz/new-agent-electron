@@ -10,8 +10,7 @@ export const useLangChain = () => {
   const settings = useSettingsStore()
   const chatStore = useChatsStores()
 
-  const createAndPushAIMessage = (chatId: string, provider: Provider, model: Model) => {
-    const chat = chatStore.getChatById(chatId)!
+  const createAndPushAIMessage = (chat: Chat, provider: Provider, model: Model) => {
     const content = reactive<ContentBlock.Text[]>([{ type: 'text', text: '' }])
     const additional_kwargs = reactive({
       reasoning_content: '',
@@ -41,7 +40,8 @@ export const useLangChain = () => {
     )!
 
     const client = LLMFactory.create({ provider, model })
-    const { aiMsg, content, additional_kwargs } = createAndPushAIMessage(chatId, provider, model)
+    const chat = chatStore.getChatById(chatId)!
+    const { aiMsg, content, additional_kwargs } = createAndPushAIMessage(chat, provider, model)
 
     await runAgentLoop({
       client,
@@ -70,6 +70,9 @@ export const useLangChain = () => {
         console.error('生成失败:', error)
         content[0].text += `\n[系统错误: ${error instanceof Error ? error.message : String(error)}]`
         chatStore.$persist()
+      },
+      onToolResult: (toolMsg: ToolMessage) => {
+        chat.messages.push(toolMsg)
       }
     })
     chatStore.$persist()

@@ -87,7 +87,7 @@ export async function runAgentLoop({
 
       await runAgentLoop({
         client,
-        messages: [...messages, ...toolMessages],
+        messages,
         mcpConfig,
         recursionLimit: recursionLimit - 1,
         onToken,
