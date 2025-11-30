@@ -94,7 +94,7 @@ onUnmounted(() => {
                             <div v-if="agent.description" class="agent-desc">{{ agent.description }}</div>
                             <div v-if="agent.mcpServers.length > 0" class="agent-mcp">
                                 <i class="ph ph-puzzle-piece"></i>
-                                <span>{{ agent.mcpServers.length }} 个MCP服务</span>
+                                <span style="white-space: nowrap;">{{ agent.mcpServers.length }} 个MCP服务</span>
                             </div>
                         </div>
                         <div class="agent-check">
@@ -150,7 +150,7 @@ onUnmounted(() => {
     position: absolute;
     bottom: 38px;
     left: 0;
-    width: 320px;
+    width: 500px;
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -254,7 +254,9 @@ onUnmounted(() => {
 .agent-content {
     flex: 1;
     min-width: 0;
-    display: flex
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .agent-title {
@@ -271,7 +273,6 @@ onUnmounted(() => {
     font-size: 11px;
     color: var(--text-tertiary);
     line-height: 1.3;
-    margin-bottom: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
