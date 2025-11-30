@@ -4,6 +4,7 @@ const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage } = useChatsStores()
 const { regenerate } = useLangChain()
 const { Delete, Refresh, Copy, Edit } = useIcon(['Delete', 'Refresh', 'Copy', 'Edit'])
+import { ToolMessage } from "@langchain/core/messages";
 
 // 存储当前需要编辑的消息ID
 const editingMessageId = ref<string | null>(null)
@@ -62,6 +63,8 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       <ChatMessageItemHuman v-if="HumanMessage.isInstance(message)" :message="message"
         @contextmenu="onMessageRightClick($event, message)" />
       <ChatMessageItemAi v-if="AIMessage.isInstance(message)" :message="message"
+        @contextmenu="onMessageRightClick($event, message)" />
+      <ChatMessageItemTool v-if="ToolMessage.isInstance(message)" :message="message"
         @contextmenu="onMessageRightClick($event, message)" />
     </template>
   </div>
