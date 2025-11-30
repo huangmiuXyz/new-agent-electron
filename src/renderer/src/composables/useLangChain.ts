@@ -4,6 +4,7 @@ import { nanoid } from '../utils/nanoid'
 import { LLMFactory } from '../core/llmFactory'
 import { runAgentLoop } from '../core/agentRunner'
 import type { ContentBlock } from 'langchain'
+import { MCPService } from '@renderer/core/mcpService'
 
 export const useLangChain = () => {
   const settings = useSettingsStore()
@@ -106,14 +107,7 @@ export const useLangChain = () => {
     chatStream,
     regenerate,
     list_models: LLMFactory.listModels,
-    getMcpTools: async (config: any, cache: boolean = true) => {
-      return await window.api.list_tools(JSON.parse(JSON.stringify(config)), cache)
-    },
-    call_tools: async (tool_call: any, config: any) => {
-      const tools = await window.api.list_tools(JSON.parse(JSON.stringify(config)))
-      const tool = tools.find((t: any) => t.name === tool_call.name)
-      if (!tool) throw new Error(`Tool '${tool_call.name}' not found.`)
-      return await tool.func(tool_call.args)
-    }
+    getMcpTools: MCPService.getTools,
+    call_tools: MCPService.callTool
   }
 }
