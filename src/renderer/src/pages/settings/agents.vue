@@ -128,12 +128,6 @@ const selectAgent = (agentId: string) => {
                                 <div class="agent-description" v-if="agent.description">
                                     {{ agent.description }}
                                 </div>
-                                <div class="agent-meta">
-                                    <div v-if="agent.mcpServers.length > 0" class="meta-item">
-                                        <i class="ph ph-puzzle-piece"></i>
-                                        <span>{{ agent.mcpServers.length }} 个MCP服务</span>
-                                    </div>
-                                </div>
                             </div>
                             <div class="agent-actions" @click.stop>
                                 <Button size="sm" variant="text" @click="openAgentModal(agent)" title="编辑">
@@ -276,13 +270,11 @@ const selectAgent = (agentId: string) => {
     font-size: 12px;
     color: var(--text-secondary);
     line-height: 1.4;
-    margin-left: 46px;
 }
 
 .agent-meta {
     display: flex;
     gap: 16px;
-    margin-left: 46px;
     margin-top: 4px;
 }
 

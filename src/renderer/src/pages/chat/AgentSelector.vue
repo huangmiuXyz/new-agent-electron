@@ -254,6 +254,7 @@ onUnmounted(() => {
 .agent-content {
     flex: 1;
     min-width: 0;
+    display: flex
 }
 
 .agent-title {
