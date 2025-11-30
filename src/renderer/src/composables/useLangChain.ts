@@ -235,6 +235,7 @@ export const useLangChain = () => {
   }
 
   const getMcpTools = async (config: ClientConfig, cache: boolean = true) => {
+    if (!config) return []
     return await window.api.list_tools(JSON.parse(JSON.stringify(config)), cache)
   }
 
