@@ -12,7 +12,7 @@ const reasoning_content = computed(() => (additionalKwargs.value as any).reasoni
 </script>
 
 <template>
-  <div class="msg-row them has-avatar">
+  <div class="msg-row them has-avatar" v-if="message.text">
     <div class="msg-avatar-area">
       <img :src="provider.logo" class="msg-avatar" alt="avatar">
     </div>
