@@ -4,6 +4,8 @@ import Switch from '@renderer/components/Switch.vue'
 import Slider from '@renderer/components/Slider.vue'
 import Select from '@renderer/components/Select.vue'
 import InputGroup from '@renderer/components/InputGroup.vue'
+import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
+import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
 
 // FormItem 组件 - 统一的表单项布局组件
 export const FormItem = defineComponent({
@@ -127,6 +129,12 @@ export interface ObjectField<T> extends BaseField<T> {
   valuePlaceholder?: string
 }
 
+// 复选框组字段（用于多选）
+export interface CheckboxGroupField<T> extends BaseField<T> {
+  type: 'checkboxGroup'
+  options: CheckboxOption[]
+}
+
 export type FormField<T> =
   | TextField<T>
   | BooleanField<T>
@@ -135,6 +143,7 @@ export type FormField<T> =
   | TextareaField<T>
   | ArrayField<T>
   | ObjectField<T>
+  | CheckboxGroupField<T>
 
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
@@ -191,6 +200,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
           break
         case 'object':
           formData.value[field.name] = {}
+          break
+        case 'checkboxGroup':
+          formData.value[field.name] = []
           break
         default:
           formData.value[field.name] = ''
@@ -274,6 +286,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
           case 'object':
             formData.value[field.name] = {}
             break
+          case 'checkboxGroup':
+            formData.value[field.name] = []
+            break
           default:
             formData.value[field.name] = ''
         }
@@ -303,7 +318,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
   // 表单组件
   const FormComponent = defineComponent({
-    setup(props, { slots }) {
+    setup(_, { slots }) {
       return () => {
         const hasHeader = config.showHeader !== false && config.title
 
@@ -494,6 +509,31 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             disabled={field.disabled}
                             objectValue={formData.value[field.name] as Record<string, string>}
                             onUpdate:objectValue={(value) => {
+                              formData.value[field.name] = value
+                              config.onChange?.(
+                                field.name as keyof T,
+                                value as T[keyof T],
+                                formData.value
+                              )
+                            }}
+                          />
+                        </FormItem>
+                      )
+
+                    case 'checkboxGroup':
+                      return (
+                        <FormItem
+                          label={field.label}
+                          error={hasError}
+                          hint={field.hint}
+                          required={field.required}
+                          layout="default"
+                        >
+                          <CheckboxGroup
+                            options={field.options}
+                            disabled={field.disabled}
+                            v-model={formData.value[field.name]}
+                            onUpdate:modelValue={(value) => {
                               formData.value[field.name] = value
                               config.onChange?.(
                                 field.name as keyof T,

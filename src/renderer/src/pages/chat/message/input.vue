@@ -27,6 +27,8 @@ const sendMessage = () => {
         @keydown.enter.exact.prevent="sendMessage"></textarea>
       <div class="input-actions">
         <div class="action-left">
+          <!-- 智能体选择器 -->
+          <AgentSettings />
           <!-- 模型选择器 -->
           <ChatModelSelector />
         </div>

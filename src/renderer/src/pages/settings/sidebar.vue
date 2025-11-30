@@ -13,13 +13,14 @@ const emit = defineEmits<Emits>()
 const handleTabChange = (tabName: string) => {
   emit('tab-change', tabName)
 }
-const { Cpu, Server } = useIcon(['Cpu', 'Screen', 'Server'])
+const { Cpu, Server, Robot } = useIcon(['Cpu', 'Server', 'Robot'])
 </script>
 
 <template>
   <div class="settings-sidebar">
     <!-- 设置选项 -->
     <List class="settings-sidebar-list" type="gap" title="设置" :items="[
+      { id: 'agents', name: '智能体', icon: Robot },
       { id: 'models', name: '模型提供商', icon: Cpu },
       { id: 'mcp', name: 'MCP 服务器', icon: Server },
       // { id: 'display', name: '显示设置', icon: Screen }

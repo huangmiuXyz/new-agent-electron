@@ -17,6 +17,7 @@ const icons = {
   Search,
   Check,
   Server,
+  Robot: Server, // 使用Server图标代替Robot（phosphor图标在模板中使用）
   Play,
   Stop,
   ChevronDown,

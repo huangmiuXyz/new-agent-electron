@@ -13,8 +13,11 @@ const switchTab = (tabName: string) => {
 
     <!-- 设置-右侧内容区 -->
     <div class="settings-content">
+      <!-- 智能体管理 -->
+      <SettingsAgents v-if="activeTab === 'agents'" />
+
       <!-- 模型提供商设置 -->
-      <SettingsProvider v-if="activeTab === 'models'" />
+      <SettingsProvider v-else-if="activeTab === 'models'" />
 
       <!-- 显示设置 -->
       <SettingsDisplay v-else-if="activeTab === 'display'" />

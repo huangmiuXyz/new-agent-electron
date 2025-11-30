@@ -12,12 +12,14 @@ export const useChatsStores = defineStore(
     })
 
     const createChat = (title = '新的聊天') => {
+      const agentStore = useAgentStore()
       const id = nanoid()
       const chat: Chat = {
         id,
         title,
         messages: [],
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        agentId: agentStore.selectedAgentId || 'default'
       }
       chats.value.push(chat)
       activeChatId.value = id

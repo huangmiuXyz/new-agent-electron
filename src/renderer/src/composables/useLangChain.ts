@@ -8,6 +8,7 @@ import {
   AIMessage,
   ToolMessage,
   AIMessageChunk,
+  SystemMessage,
   type BaseMessage
 } from '@langchain/core/messages'
 import type { ContentBlock, ToolCall } from 'langchain'
@@ -64,6 +65,8 @@ export const createLLMClient = ({
 export const useLangChain = () => {
   const settings = useSettingsStore()
   const chatStore = useChatsStores()
+  const agentStore = useAgentStore()
+
   const _generateResponse = async (
     messages: BaseMessage[],
     chatId: string,
@@ -79,9 +82,10 @@ export const useLangChain = () => {
       settings.currentSelectedModel!.id
     )!
     const client = createLLMClient({ provider, model })
-    const tools = await getMcpTools({ mcpServers: settings.mcpServers })
     const chat = chatStore.getChatById(chatId)!
-
+    const mcpConfig = agentStore.getMcpByAgent(chat.agentId)
+    const agent = agentStore.getAgentById(chat.agentId)
+    const tools = await getMcpTools(mcpConfig)
     const content = reactive<ContentBlock.Text[]>([{ type: 'text', text: '' }])
     const additional_kwargs = reactive<Additional_kwargs>({
       reasoning_content: '',
@@ -102,64 +106,68 @@ export const useLangChain = () => {
 
     try {
       const runnable = client.bindTools(tools)
-      const finalResponse = await runnable.invoke(
-        messages.filter((m) => {
-          if (!AIMessage.isInstance(m)) return true
-          const text = Array.isArray(m.content) ? (m.content[0]?.text as string) : m.content
-          const hasText = text && text.trim() !== ''
-          const hasTools = m.tool_calls && m.tool_calls.length > 0
-          return hasText || hasTools
-        }),
-        {
-          callbacks: [
-            {
-              handleLLMNewToken: (
-                _token: string,
-                _idx: NewTokenIndices,
-                _runId: string,
-                _parentRunId?: string,
-                _tags?: string[],
-                fields?: HandleLLMNewTokenCallbackFields
-              ) => {
-                const chunk = (fields?.chunk as ChatGenerationChunk).message as AIMessageChunk
-                aggregatedChunk = aggregatedChunk.concat(chunk)
-                if (chunk.content) {
-                  if (typeof chunk.content === 'string') {
-                    content[0].text += chunk.content
-                  } else if (Array.isArray(chunk.content)) {
-                    chunk.content.forEach((c) => {
-                      if (c.type === 'text') content[0].text += c.text
-                    })
-                  }
-                }
-                if (aggregatedChunk.tool_calls && aggregatedChunk.tool_calls.length > 0) {
-                  aiMsg.tool_calls = aggregatedChunk.tool_calls
-                }
-                const reasoning = chunk.additional_kwargs?.reasoning_content as string
-                if (reasoning) {
-                  additional_kwargs.reasoning_content += reasoning
-                }
-                chatStore.$persist()
-              }
-            }
-          ]
+
+      let messagesToSend = messages.filter((m) => {
+        if (!AIMessage.isInstance(m)) return true
+        const text = Array.isArray(m.content) ? (m.content[0]?.text as string) : m.content
+        const hasText = text && text.trim() !== ''
+        const hasTools = m.tool_calls && m.tool_calls.length > 0
+        return hasText || hasTools
+      })
+
+      if (agent && agent.systemPrompt && messagesToSend.length > 0) {
+        if (!messagesToSend[0] || !SystemMessage.isInstance(messagesToSend[0])) {
+          messagesToSend = [new SystemMessage({ content: agent.systemPrompt }), ...messagesToSend]
         }
-      )
+      }
+
+      const finalResponse = await runnable.invoke(messagesToSend, {
+        callbacks: [
+          {
+            handleLLMNewToken: (
+              _token: string,
+              _idx: NewTokenIndices,
+              _runId: string,
+              _parentRunId?: string,
+              _tags?: string[],
+              fields?: HandleLLMNewTokenCallbackFields
+            ) => {
+              const chunk = (fields?.chunk as ChatGenerationChunk).message as AIMessageChunk
+              aggregatedChunk = aggregatedChunk.concat(chunk)
+              if (chunk.content) {
+                if (typeof chunk.content === 'string') {
+                  content[0].text += chunk.content
+                } else if (Array.isArray(chunk.content)) {
+                  chunk.content.forEach((c) => {
+                    if (c.type === 'text') content[0].text += c.text
+                  })
+                }
+              }
+              if (aggregatedChunk.tool_calls && aggregatedChunk.tool_calls.length > 0) {
+                aiMsg.tool_calls = aggregatedChunk.tool_calls
+              }
+              const reasoning = chunk.additional_kwargs?.reasoning_content as string
+              if (reasoning) {
+                additional_kwargs.reasoning_content += reasoning
+              }
+              chatStore.$persist()
+            }
+          }
+        ]
+      })
       if (finalResponse.tool_calls && finalResponse.tool_calls.length > 0) {
         for (const toolCall of finalResponse.tool_calls) {
           const toolMsgId = nanoid()
           const toolMsg = new ToolMessage({
             id: toolMsgId,
             tool_call_id: toolCall.id!,
-            content: '',
-            name: toolCall.name
+            name: toolCall.name,
+            content: ''
           })
           chat.messages.push(toolMsg)
           chatStore.$persist()
           try {
-            const result = await call_tools(toolCall as ToolCall, {
-              mcpServers: settings.mcpServers
-            })
+            const result = await call_tools(toolCall as ToolCall, mcpConfig)
             const resultStr = typeof result === 'string' ? result : JSON.stringify(result)
             toolMsg.content = resultStr
           } catch (error) {
