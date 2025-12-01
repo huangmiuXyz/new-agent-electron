@@ -1,20 +1,15 @@
 <script setup lang="ts">
-import SelectorPopover from '../../components/SelectorPopover.vue'
-
 const { currentSelectedModel, currentSelectedProvider, selectedModelId, selectedProviderId, providers } = storeToRefs(useSettingsStore())
 
-// 模型选择器状态
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
 
-// 计算属性
 const currentModelLabel = computed(() => {
   if (!currentSelectedModel.value || !currentSelectedProvider.value) return '选择模型'
 
   return currentSelectedProvider.value?.name || '选择模型'
 })
 
-// 过滤后的模型列表
 const filteredModels = computed(() => {
   const query = searchQuery.value.toLowerCase()
   const result: { provider: Provider, models: Model[] }[] = []
@@ -30,7 +25,6 @@ const filteredModels = computed(() => {
   return result
 })
 
-// 扁平化的模型列表
 const flatModelList = computed(() => {
   const result: { model: Model, providerId: string }[] = []
 
@@ -43,25 +37,21 @@ const flatModelList = computed(() => {
   return result
 })
 
-// 方法
 const selectModel = (model: Model, providerId: string) => {
   selectedModelId.value = model.id
   selectedProviderId.value = providerId
   isPopupOpen.value = false
 }
 
-// 渲染分组标题的方法
 const renderProviderHeader = (item: any) => {
   const provider = providers.value.find(p => p.id === item.providerId)
   return provider ? provider.name : ''
 }
 
-// 判断模型是否被选中的方法
 const isModelSelected = (item: any) => {
   return item.id === selectedModelId.value
 }
 
-// 处理模型选择的方法
 const handleModelSelect = (id: string) => {
   const item = flatModelList.value.find(item => item.model.id === id)
   if (item) selectModel(item.model, item.providerId)

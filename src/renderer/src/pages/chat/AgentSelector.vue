@@ -1,20 +1,15 @@
 <script setup lang="ts">
-import SelectorPopover from '../../components/SelectorPopover.vue'
-
 const agentStore = useAgentStore()
 const { agents, selectedAgentId } = storeToRefs(agentStore)
 
-// 弹窗状态
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
 
-// 计算属性
 const selectedAgentLabel = computed(() => {
     const agent = agentStore.selectedAgent
     return agent ? agent.name : '选择智能体'
 })
 
-// 过滤后的智能体列表
 const filteredAgents = computed(() => {
     const query = searchQuery.value.toLowerCase()
     if (!query) return agents.value
@@ -26,14 +21,12 @@ const filteredAgents = computed(() => {
     )
 })
 
-// Watcher to clear search query on close
 watch(isPopupOpen, (val) => {
     if (!val) {
         searchQuery.value = ''
     }
 })
 
-// 方法
 const selectAgent = (agentId: string) => {
     agentStore.selectAgent(agentId)
     isPopupOpen.value = false
