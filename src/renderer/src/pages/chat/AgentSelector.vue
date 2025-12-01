@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SelectorPopover from '../../components/SelectorPopover.vue'
+
 const agentStore = useAgentStore()
 const { agents, selectedAgentId } = storeToRefs(agentStore)
 
@@ -24,96 +26,57 @@ const filteredAgents = computed(() => {
     )
 })
 
+// Watcher to clear search query on close
+watch(isPopupOpen, (val) => {
+    if (!val) {
+        searchQuery.value = ''
+    }
+})
+
 // 方法
-const togglePopup = () => {
-    isPopupOpen.value = !isPopupOpen.value
-    if (isPopupOpen.value) {
-        nextTick(() => {
-            document.addEventListener('click', handleClickOutside)
-        })
-    } else {
-        document.removeEventListener('click', handleClickOutside)
-    }
-}
-
-const closePopup = () => {
-    isPopupOpen.value = false
-    document.removeEventListener('click', handleClickOutside)
-    searchQuery.value = ''
-}
-
-const handleClickOutside = (event: MouseEvent) => {
-    const target = event.target as HTMLElement
-    if (!target.closest('.agent-selector-wrapper')) {
-        closePopup()
-    }
-}
-
 const selectAgent = (agentId: string) => {
     agentStore.selectAgent(agentId)
-    closePopup()
+    isPopupOpen.value = false
 }
 
 const isAgentSelected = (agentId: string) => {
     return agentId === selectedAgentId.value
 }
-
-onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside)
-})
 </script>
 
 <template>
-    <div class="agent-selector-wrapper">
-        <!-- 智能体选择按钮 -->
-        <div class="agent-btn" @click="togglePopup" :title="selectedAgentLabel">
-            <i class="ph-bold ph-robot"></i>
-            <span class="agent-name">{{ selectedAgentLabel }}</span>
-            <i class="ph-bold ph-caret-down arrow-icon"></i>
-        </div>
-
-        <!-- 智能体选择弹窗 -->
-        <div class="agent-popup" :class="{ show: isPopupOpen }">
-            <!-- 搜索框 -->
-            <div class="agent-search">
-                <i class="ph ph-magnifying-glass"></i>
-                <input v-model="searchQuery" type="text" placeholder="搜索智能体..." autocomplete="off" />
+    <SelectorPopover v-model="isPopupOpen" v-model:searchQuery="searchQuery" placeholder="搜索智能体..."
+        noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0" width="500px">
+        <template #trigger>
+            <div class="agent-btn" :title="selectedAgentLabel">
+                <i class="ph-bold ph-robot"></i>
+                <span class="agent-name">{{ selectedAgentLabel }}</span>
+                <i class="ph-bold ph-caret-down arrow-icon"></i>
             </div>
+        </template>
 
-            <!-- 智能体列表 -->
-            <div class="agent-list-container">
-                <!-- 无结果提示 -->
-                <div v-if="filteredAgents.length === 0" class="no-results">未找到智能体</div>
-
-                <!-- 智能体列表 -->
-                <div v-else class="agent-list">
-                    <div v-for="agent in filteredAgents" :key="agent.id" class="agent-item"
-                        :class="{ selected: isAgentSelected(agent.id) }" @click="selectAgent(agent.id)">
-                        <div class="agent-content">
-                            <div class="agent-title">{{ agent.name }}</div>
-                            <div v-if="agent.description" class="agent-desc">{{ agent.description }}</div>
-                            <div v-if="agent.mcpServers.length > 0" class="agent-mcp">
-                                <i class="ph ph-puzzle-piece"></i>
-                                <span style="white-space: nowrap;">{{ agent.mcpServers.length }} 个MCP服务</span>
-                            </div>
-                        </div>
-                        <div class="agent-check">
-                            <i class="ph-bold ph-check" :style="{
-                                opacity: isAgentSelected(agent.id) ? 1 : 0
-                            }"></i>
-                        </div>
+        <div class="agent-list">
+            <div v-for="agent in filteredAgents" :key="agent.id" class="agent-item"
+                :class="{ selected: isAgentSelected(agent.id) }" @click="selectAgent(agent.id)">
+                <div class="agent-content">
+                    <div class="agent-title">{{ agent.name }}</div>
+                    <div v-if="agent.description" class="agent-desc">{{ agent.description }}</div>
+                    <div v-if="agent.mcpServers.length > 0" class="agent-mcp">
+                        <i class="ph ph-puzzle-piece"></i>
+                        <span style="white-space: nowrap;">{{ agent.mcpServers.length }} 个MCP服务</span>
                     </div>
+                </div>
+                <div class="agent-check">
+                    <i class="ph-bold ph-check" :style="{
+                        opacity: isAgentSelected(agent.id) ? 1 : 0
+                    }"></i>
                 </div>
             </div>
         </div>
-    </div>
+    </SelectorPopover>
 </template>
 
 <style scoped>
-.agent-selector-wrapper {
-    position: relative;
-}
-
 .agent-btn {
     display: flex;
     align-items: center;
@@ -144,76 +107,6 @@ onUnmounted(() => {
 .arrow-icon {
     font-size: 10px;
     color: var(--text-tertiary);
-}
-
-.agent-popup {
-    position: absolute;
-    bottom: 38px;
-    left: 0;
-    width: 500px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 10px;
-    box-shadow:
-        0 4px 20px rgba(0, 0, 0, 0.12),
-        0 1px 4px rgba(0, 0, 0, 0.05);
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-    z-index: 100;
-    transform-origin: bottom left;
-}
-
-.agent-popup.show {
-    display: flex;
-    animation: popupFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-@keyframes popupFadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.96) translateY(4px);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-.agent-search {
-    padding: 8px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.agent-search input {
-    border: none;
-    background: transparent;
-    width: 100%;
-    outline: none;
-    font-size: 12px;
-    color: var(--text-primary);
-    padding: 0;
-    font-family: var(--font-stack);
-}
-
-.agent-search i {
-    color: var(--text-tertiary);
-    font-size: 14px;
-}
-
-.agent-list-container {
-    max-height: 320px;
-    overflow-y: auto;
-}
-
-.agent-list {
-    padding: 4px;
 }
 
 .agent-item {
@@ -302,30 +195,5 @@ onUnmounted(() => {
     font-size: 14px;
     color: var(--accent-color);
     transition: opacity 0.15s;
-}
-
-.no-results {
-    padding: 20px;
-    text-align: center;
-    color: var(--text-tertiary);
-    font-size: 12px;
-}
-
-/* 滚动条样式 */
-.agent-list-container::-webkit-scrollbar {
-    width: 6px;
-}
-
-.agent-list-container::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.agent-list-container::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 3px;
-}
-
-.agent-list-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.2);
 }
 </style>
