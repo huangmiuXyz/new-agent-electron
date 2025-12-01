@@ -168,10 +168,8 @@ export const useLangChain = () => {
           chat.messages.push(toolMsg)
         }
         chatStore.$persist()
-        const chatHistory = new InMemoryChatMessageHistory(chat.messages)
-        const nextMessages = await chatHistory.getMessages()
         aiMsg.tool_calls = finalResponse.tool_calls
-        await _generateResponse(nextMessages, chatId, recursionLimit - 1)
+        await _generateResponse(chat.messages, chatId, recursionLimit - 1)
       }
     } catch (error) {
       console.error('生成失败:', error)
