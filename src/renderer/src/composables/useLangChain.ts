@@ -81,7 +81,6 @@ export const useLangChain = () => {
       settings.currentSelectedProvider!.id,
       settings.currentSelectedModel!.id
     )!
-    const client = createLLMClient({ provider, model })
     const chat = chatStore.getChatById(chatId)!
     const mcpConfig = agentStore.getMcpByAgent(chat.agentId!)!
     const agent = agentStore.getAgentById(chat.agentId!)
@@ -103,8 +102,6 @@ export const useLangChain = () => {
     chat.messages.push(aiMsg)
 
     try {
-      const runnable = client.bindTools(tools)
-
       let messagesToSend = messages.filter((m) => {
         if (!AIMessage.isInstance(m)) return true
         const text = Array.isArray(m.content) ? (m.content[0]?.text as string) : m.content
@@ -119,6 +116,8 @@ export const useLangChain = () => {
         }
       }
 
+      const client = createLLMClient({ provider, model })
+      const runnable = client.bindTools(tools)
       const finalResponse = await runnable.invoke(messagesToSend, {
         callbacks: [
           {
