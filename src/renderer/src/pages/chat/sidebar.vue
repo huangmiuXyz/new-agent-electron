@@ -4,6 +4,8 @@ const { showContextMenu } = useContextMenu();
 const Plus = useIcon('Plus');
 const switchView = inject<((view: 'chat' | 'settings') => void) | undefined>('switchView')
 const settings = useIcon('Settings')
+const circlesIcon = useIcon('Server') // 使用 Server 图标代替 ph-circles-four
+const chatsIcon = useIcon('Server') // 使用 Server 图标代替 ph-chats-teardrop
 
 
 const selectChat = (chatId: string) => {
@@ -78,7 +80,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   <aside class="sidebar">
     <div class="sidebar-header drag">
       <div class="app-title">
-        <i class="ph-fill ph-circles-four"></i>
+        <circlesIcon />
         <span>QI</span>
       </div>
       <Button variant="icon" size="sm" @click="createNewChat" title="新建聊天">
@@ -90,7 +92,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
       <!-- 空状态显示 -->
       <div v-if="chatsStore.chats.length === 0" class="empty-state">
         <div class="empty-icon">
-          <i class="ph-fill ph-chats-teardrop"></i>
+          <chatsIcon />
         </div>
         <p class="empty-text">暂无聊天记录</p>
         <Button @click="createNewChat" variant="primary" size="sm" class="empty-button">
@@ -301,7 +303,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   color: var(--text-primary);
 }
 
-.footer-item i {
+.footer-item :deep(svg) {
   font-size: 18px;
 }
 </style>

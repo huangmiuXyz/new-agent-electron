@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onUnmounted } from 'vue'
 
+const Search = useIcon('Search')
+
 const props = defineProps<{
     modelValue: boolean
     searchQuery: string
@@ -55,7 +57,7 @@ const onSearchInput = (e: Event) => {
 
         <div class="selector-popup" :class="{ show: modelValue }" :style="{ width: width || '240px' }">
             <div class="selector-search">
-                <i class="ph ph-magnifying-glass"></i>
+                <Search />
                 <input :value="searchQuery" @input="onSearchInput" type="text" :placeholder="placeholder || '搜索...'"
                     autocomplete="off" />
             </div>
@@ -134,7 +136,7 @@ const onSearchInput = (e: Event) => {
     font-family: var(--font-stack);
 }
 
-.selector-search i {
+.selector-search :deep(svg) {
     color: var(--text-tertiary);
     font-size: 14px;
 }

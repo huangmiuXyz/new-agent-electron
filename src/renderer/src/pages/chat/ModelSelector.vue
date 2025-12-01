@@ -3,6 +3,7 @@ const { currentSelectedModel, currentSelectedProvider, selectedModelId, selected
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
+const { ChevronDown, Check } = useIcon(['ChevronDown', 'Check'])
 
 const currentModelLabel = computed(() => {
   if (!currentSelectedModel.value || !currentSelectedProvider.value) return '选择模型'
@@ -64,7 +65,7 @@ const handleModelSelect = (id: string) => {
     <template #trigger>
       <div class="model-btn" :class="{ active: isPopupOpen }">
         <span>{{ currentModelLabel }}</span>
-        <i class="ph-bold ph-caret-down"></i>
+        <ChevronDown />
       </div>
     </template>
 
@@ -76,11 +77,11 @@ const handleModelSelect = (id: string) => {
       :render-header="renderProviderHeader" :selectable="true" :is-selected="isModelSelected"
       @select="handleModelSelect">
       <template #actions="{ item }">
-        <i class="ph-bold ph-check" :style="{
+        <Check :style="{
           fontSize: '12px',
           color: item.id === selectedModelId ? 'var(--accent-color)' : undefined,
           opacity: item.id === selectedModelId ? 1 : 0
-        }"></i>
+        }" />
       </template>
     </List>
   </SelectorPopover>

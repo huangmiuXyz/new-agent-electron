@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useIcon } from '../composables/useIcon'
+
 export interface CheckboxOption {
     label: string
     value: string
@@ -30,6 +32,8 @@ const toggleOption = (value: string) => {
 const isChecked = (value: string) => {
     return modelValue.value.includes(value)
 }
+
+const checkIcon = useIcon('Check')
 </script>
 
 <template>
@@ -38,7 +42,7 @@ const isChecked = (value: string) => {
             :class="{ disabled, checked: isChecked(option.value) }" @click="toggleOption(option.value)">
             <div class="checkbox">
                 <div class="checkbox-box">
-                    <i v-if="isChecked(option.value)" class="ph-bold ph-check"></i>
+                    <checkIcon v-if="isChecked(option.value)" />
                 </div>
             </div>
             <div class="checkbox-content">
@@ -108,7 +112,7 @@ const isChecked = (value: string) => {
     border-color: var(--accent-color, #000);
 }
 
-.checkbox-box i {
+.checkbox-box :deep(svg) {
     font-size: 12px;
     color: #fff;
 }

@@ -4,6 +4,7 @@ const { agents, selectedAgentId } = storeToRefs(agentStore)
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
+const { Robot, ChevronDown, Server, Check } = useIcon(['Robot', 'ChevronDown', 'Server', 'Check'])
 
 const selectedAgentLabel = computed(() => {
     const agent = agentStore.selectedAgent
@@ -42,9 +43,9 @@ const isAgentSelected = (agentId: string) => {
         noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0" width="500px">
         <template #trigger>
             <div class="agent-btn" :title="selectedAgentLabel">
-                <i class="ph-bold ph-robot"></i>
+                <Robot />
                 <span class="agent-name">{{ selectedAgentLabel }}</span>
-                <i class="ph-bold ph-caret-down arrow-icon"></i>
+                <ChevronDown class="arrow-icon" />
             </div>
         </template>
 
@@ -55,14 +56,14 @@ const isAgentSelected = (agentId: string) => {
                     <div class="agent-title">{{ agent.name }}</div>
                     <div v-if="agent.description" class="agent-desc">{{ agent.description }}</div>
                     <div v-if="agent.mcpServers.length > 0" class="agent-mcp">
-                        <i class="ph ph-puzzle-piece"></i>
+                        <Server />
                         <span style="white-space: nowrap;">{{ agent.mcpServers.length }} 个MCP服务</span>
                     </div>
                 </div>
                 <div class="agent-check">
-                    <i class="ph-bold ph-check" :style="{
+                    <Check :style="{
                         opacity: isAgentSelected(agent.id) ? 1 : 0
-                    }"></i>
+                    }" />
                 </div>
             </div>
         </div>
@@ -132,7 +133,7 @@ const isAgentSelected = (agentId: string) => {
     flex-shrink: 0;
 }
 
-.agent-icon i {
+.agent-icon :deep(svg) {
     font-size: 18px;
     color: #fff;
 }
@@ -172,7 +173,7 @@ const isAgentSelected = (agentId: string) => {
     color: var(--text-secondary);
 }
 
-.agent-mcp i {
+.agent-mcp :deep(svg) {
     font-size: 10px;
 }
 
@@ -184,7 +185,7 @@ const isAgentSelected = (agentId: string) => {
     justify-content: center;
 }
 
-.agent-check i {
+.agent-check :deep(svg) {
     font-size: 14px;
     color: var(--accent-color);
     transition: opacity 0.15s;
