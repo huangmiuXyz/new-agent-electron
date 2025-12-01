@@ -183,7 +183,6 @@ export const useLangChain = () => {
       content: input
     })
     chat.messages.push(userMsg)
-
     await _generateResponse(chat.messages, chatId)
   }
 
