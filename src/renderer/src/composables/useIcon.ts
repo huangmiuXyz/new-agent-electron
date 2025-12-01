@@ -1,5 +1,16 @@
 import { Icon } from '@vicons/utils'
-import { Edit, Add, TrashCan, Close, Settings, Screen, Delete, Play, Stop } from '@vicons/carbon'
+import {
+  Edit,
+  Add,
+  TrashCan,
+  Close,
+  Settings,
+  Screen,
+  Delete,
+  Play,
+  Stop,
+  Chat
+} from '@vicons/carbon'
 import {
   Cpu,
   Refresh,
@@ -20,6 +31,7 @@ const icons = {
   Close,
   Settings,
   Cpu,
+  Chat,
   Screen,
   Refresh,
   Delete,
