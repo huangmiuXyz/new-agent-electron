@@ -2,7 +2,6 @@ import { ChatOpenAI } from '@langchain/openai'
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatAnthropic } from '@langchain/anthropic'
 import { ChatDeepSeek } from '@langchain/deepseek'
-import { InMemoryChatMessageHistory } from '@langchain/core/chat_history'
 import {
   HumanMessage,
   AIMessage,
@@ -185,10 +184,7 @@ export const useLangChain = () => {
     })
     chat.messages.push(userMsg)
 
-    const chatHistory = new InMemoryChatMessageHistory(chat.messages)
-    const historyMessages = await chatHistory.getMessages()
-
-    await _generateResponse(historyMessages, chatId)
+    await _generateResponse(chat.messages, chatId)
   }
 
   const regenerate = async (messageId: string, chatId: string) => {
@@ -206,11 +202,7 @@ export const useLangChain = () => {
       chat.messages = chat.messages.slice(0, index + 1)
     }
 
-    const chatHistory = new InMemoryChatMessageHistory(chat.messages)
-    const contextMessages = await chatHistory.getMessages()
-    if (contextMessages.length === 0) return
-
-    await _generateResponse(contextMessages, chatId)
+    await _generateResponse(chat.messages, chatId)
   }
 
   const list_models = async (apiKey: string, baseURL: string): Promise<{ data: Model[] }> => {
