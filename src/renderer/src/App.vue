@@ -109,4 +109,8 @@ body {
 .drag {
   -webkit-app-region: drag;
 }
+
+.xicon {
+  align-items: center;
+}
 </style>
