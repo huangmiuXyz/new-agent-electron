@@ -140,9 +140,6 @@ export const useLangChain = () => {
                   })
                 }
               }
-              if (chunk.tool_calls && chunk.tool_calls.length > 0) {
-                aiMsg.tool_calls = chunk.tool_calls
-              }
               const reasoning = chunk.additional_kwargs?.reasoning_content as string
               if (reasoning) {
                 additional_kwargs.reasoning_content += reasoning
@@ -153,6 +150,7 @@ export const useLangChain = () => {
         ]
       })
       if (finalResponse.tool_calls && finalResponse.tool_calls.length > 0) {
+        aiMsg.tool_calls = finalResponse.tool_calls
         for (const toolCall of finalResponse.tool_calls) {
           const toolMsgId = nanoid()
           const toolMsg = new ToolMessage({
