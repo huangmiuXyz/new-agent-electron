@@ -102,8 +102,6 @@ export const useLangChain = () => {
     })
     chat.messages.push(aiMsg)
 
-    let aggregatedChunk = new AIMessageChunk({ content: [] })
-
     try {
       const runnable = client.bindTools(tools)
 
@@ -133,7 +131,6 @@ export const useLangChain = () => {
               fields?: HandleLLMNewTokenCallbackFields
             ) => {
               const chunk = (fields?.chunk as ChatGenerationChunk).message as AIMessageChunk
-              aggregatedChunk = aggregatedChunk.concat(chunk)
               if (chunk.content) {
                 if (typeof chunk.content === 'string') {
                   content[0].text += chunk.content
@@ -143,8 +140,8 @@ export const useLangChain = () => {
                   })
                 }
               }
-              if (aggregatedChunk.tool_calls && aggregatedChunk.tool_calls.length > 0) {
-                aiMsg.tool_calls = aggregatedChunk.tool_calls
+              if (chunk.tool_calls && chunk.tool_calls.length > 0) {
+                aiMsg.tool_calls = chunk.tool_calls
               }
               const reasoning = chunk.additional_kwargs?.reasoning_content as string
               if (reasoning) {
@@ -164,8 +161,6 @@ export const useLangChain = () => {
             name: toolCall.name,
             content: ''
           })
-          chat.messages.push(toolMsg)
-          chatStore.$persist()
           try {
             const result = await call_tools(toolCall as ToolCall, mcpConfig)
             const resultStr = typeof result === 'string' ? result : JSON.stringify(result)
@@ -174,6 +169,7 @@ export const useLangChain = () => {
             toolMsg.content = `Error: ${error instanceof Error ? error.message : String(error)}`
             toolMsg.additional_kwargs = { error: true }
           }
+          chat.messages.push(toolMsg)
         }
         chatStore.$persist()
         const chatHistory = new InMemoryChatMessageHistory(chat.messages)
