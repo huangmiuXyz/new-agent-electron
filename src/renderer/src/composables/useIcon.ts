@@ -1,6 +1,16 @@
 import { Icon } from '@vicons/utils'
 import { Edit, Add, TrashCan, Close, Settings, Screen, Delete, Play, Stop } from '@vicons/carbon'
-import { Cpu, Refresh, Copy, Search, Check, Server, ChevronDown, ChevronUp } from '@vicons/tabler'
+import {
+  Cpu,
+  Refresh,
+  Copy,
+  Search,
+  Check,
+  Server,
+  ChevronDown,
+  ChevronUp,
+  Robot
+} from '@vicons/tabler'
 
 const icons = {
   Edit,
@@ -17,7 +27,7 @@ const icons = {
   Search,
   Check,
   Server,
-  Robot: Server, // 使用Server图标代替Robot（phosphor图标在模板中使用）
+  Robot,
   Play,
   Stop,
   ChevronDown,
