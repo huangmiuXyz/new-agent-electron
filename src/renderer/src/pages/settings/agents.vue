@@ -121,9 +121,6 @@ const selectAgent = (agentId: string) => {
                             <div class="agent-info">
                                 <div class="agent-name-row">
                                     <div class="agent-name">{{ agent.name }}</div>
-                                    <div class="selected-badge" v-if="agentStore.selectedAgentId === agent.id">
-                                        当前
-                                    </div>
                                 </div>
                                 <div class="agent-description" v-if="agent.description">
                                     {{ agent.description }}
