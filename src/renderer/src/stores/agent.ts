@@ -89,6 +89,7 @@ export const useAgentStore = defineStore(
       } else {
         mcpConfig.mcpServers = settings.mcpServers
       }
+      return mcpConfig
     }
     return {
       agents,
