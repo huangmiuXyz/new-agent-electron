@@ -78,6 +78,14 @@ const openServerModal = async (server?: McpServers[string]) => {
                 required: true,
                 ifShow: (data) => data.transport === 'sse' || data.transport === 'http'
             },
+            {
+                name: 'headers',
+                type: 'object',
+                label: '请求头',
+                keyPlaceholder: '键',
+                valuePlaceholder: '值',
+                ifShow: (data) => data.transport === 'sse' || data.transport === 'http'
+            },
         ],
         onSubmit: (data) => {
             mcpServers.value[data.name!] = data
