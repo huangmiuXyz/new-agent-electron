@@ -91,15 +91,6 @@ export const useLangChain = () => {
       model
     })
 
-    const aiMsgId = nanoid()
-    const aiMsg = new AIMessage({
-      id: aiMsgId,
-      content,
-      additional_kwargs,
-      tool_calls: []
-    })
-    chat.messages.push(aiMsg)
-
     try {
       let messagesToSend = messages.filter((m) => {
         if (!AIMessage.isInstance(m)) return true
@@ -115,6 +106,13 @@ export const useLangChain = () => {
         }
       }
 
+      const aiMsg = new AIMessage({
+        id: nanoid(),
+        content,
+        additional_kwargs,
+        tool_calls: []
+      })
+      chat.messages.push(aiMsg)
       const client = createLLMClient({ provider, model })
       const runnable = client.bindTools(tools)
       const finalResponse = await runnable.invoke(messagesToSend, {
