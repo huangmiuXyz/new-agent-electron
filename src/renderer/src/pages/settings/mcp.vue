@@ -86,6 +86,11 @@ const openServerModal = async (server?: McpServers[string]) => {
                 valuePlaceholder: '值',
                 ifShow: (data) => data.transport === 'sse' || data.transport === 'http'
             },
+            {
+                name: 'defaultToolTimeout',
+                type: 'number',
+                label: '超时',
+            },
         ],
         onSubmit: (data) => {
             mcpServers.value[data.name!] = data
