@@ -9,10 +9,18 @@ const additionalKwargs = computed(() => props.message.additional_kwargs || {})
 const provider = computed(() => (additionalKwargs.value as any).provider || {})
 const time = computed(() => (additionalKwargs.value as any).time || '')
 const reasoning_content = computed(() => (additionalKwargs.value as any).reasoning_content)
+
+// Check if message is loading (empty content)
+const isLoading = computed(() => {
+  if (!props.message.text || props.message.text.trim() === '') {
+    return true
+  }
+  return false
+})
 </script>
 
 <template>
-  <div class="msg-row them has-avatar" v-if="message.text">
+  <div class="msg-row them has-avatar">
     <div class="msg-avatar-area">
       <img :src="provider.logo" class="msg-avatar" alt="avatar">
     </div>
@@ -24,7 +32,18 @@ const reasoning_content = computed(() => (additionalKwargs.value as any).reasoni
         <span class="msg-time">{{ time }}</span>
       </div>
       <ChatMessageItemReasoning_content :reasoning_content="reasoning_content" v-if="reasoning_content" />
-      <ChatMessageItemContent :message="message" />
+
+      <!-- Loading indicator -->
+      <div v-if="isLoading" class="loading-container">
+        <div class="loading-dots">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+        </div>
+      </div>
+
+      <!-- Actual content -->
+      <ChatMessageItemContent v-else :message="message" />
     </div>
   </div>
 </template>
@@ -80,5 +99,51 @@ const reasoning_content = computed(() => (additionalKwargs.value as any).reasoni
 .msg-time {
   font-size: 11px;
   color: #999;
+}
+
+/* Loading indicator styles */
+.loading-container {
+  padding: 8px 0;
+}
+
+.loading-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 </style>
