@@ -1,7 +1,7 @@
-import { ChatOpenAI } from '@langchain/openai'
+import { ChatOpenAI } from './provider/openai'
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatAnthropic } from '@langchain/anthropic'
-import { ChatDeepSeek } from '@langchain/deepseek'
+import { ChatDeepSeek } from './provider/deepseek'
 
 export type LLMClient = ChatOpenAI | ChatGoogleGenerativeAI | ChatAnthropic | ChatDeepSeek
 
