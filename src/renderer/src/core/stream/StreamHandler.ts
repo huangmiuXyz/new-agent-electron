@@ -2,8 +2,7 @@ import type {
   HandleLLMNewTokenCallbackFields,
   NewTokenIndices
 } from '@langchain/core/callbacks/base'
-import type { ChatGenerationChunk } from '@langchain/core/outputs'
-import { AIMessageChunk } from '@langchain/core/messages'
+import { AIMessage, AIMessageChunk } from '@langchain/core/messages'
 
 export interface IStreamHandler {
   handleToken(
@@ -18,20 +17,13 @@ export interface IStreamHandler {
   ): void
 }
 
-export class StreamHandler implements IStreamHandler {
+export class StreamHandler {
   handleToken(
-    _token: string,
-    _idx: NewTokenIndices,
-    _runId: string,
-    _parentRunId: string | undefined,
-    _tags: string[] | undefined,
-    fields: HandleLLMNewTokenCallbackFields | undefined,
+    chunk: AIMessageChunk,
     content: any[],
+    aiMsg: AIMessage,
     additional_kwargs: Additional_kwargs
   ): void {
-    const chunk = (fields?.chunk as ChatGenerationChunk).message as AIMessageChunk
-
-    // 处理文本内容
     if (chunk.content) {
       if (typeof chunk.content === 'string') {
         content[0].text += chunk.content
@@ -42,10 +34,12 @@ export class StreamHandler implements IStreamHandler {
       }
     }
 
-    // 处理推理内容
     const reasoning = chunk.additional_kwargs?.reasoning_content as string
     if (reasoning) {
       additional_kwargs.reasoning_content += reasoning
+    }
+    if (chunk.tool_calls?.length) {
+      aiMsg.tool_calls = chunk.tool_calls
     }
   }
 }

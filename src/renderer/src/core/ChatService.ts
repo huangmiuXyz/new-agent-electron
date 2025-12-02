@@ -62,23 +62,13 @@ export class ChatService {
       // 创建LLM客户端并调用
       const client = this.llmFactory.createClient(provider, model)
       const runnable = client.bindTools(await this.toolService.getTools(mcpConfig))
-
-      const finalResponse = await runnable.invoke(processedMessages, {
-        callbacks: [
-          {
-            handleLLMNewToken: (...args) => {
-              this.streamHandler.handleToken(...args, content, additional_kwargs)
-              onProgress?.()
-            }
-          }
-        ]
-      })
-
-      // 处理工具调用
-      if (finalResponse.tool_calls!.length > 0) {
-        await this.handleToolCalls(finalResponse.tool_calls!, mcpConfig, chat, aiMsg)
-
-        // 递归调用
+      const stream = await runnable.stream(processedMessages)
+      for await (const chunk of stream) {
+        this.streamHandler.handleToken(chunk, content, aiMsg, additional_kwargs)
+        onProgress?.()
+      }
+      if (aiMsg.tool_calls!.length > 0) {
+        await this.handleToolCalls(aiMsg.tool_calls!, mcpConfig, chat)
         await this.generateResponse(chat.messages, chatConfig, onProgress, recursionLimit - 1)
       }
     } catch (error) {
@@ -89,15 +79,12 @@ export class ChatService {
   private async handleToolCalls(
     toolCalls: ToolCall[],
     mcpConfig: ClientConfig,
-    chat: Chat,
-    aiMsg: AIMessage
+    chat: Chat
   ): Promise<void> {
     for (const toolCall of toolCalls) {
       const toolMsg = await this.createToolMessage(toolCall, mcpConfig)
       chat.messages.push(toolMsg)
     }
-
-    aiMsg.tool_calls = toolCalls
   }
 
   private async createToolMessage(
