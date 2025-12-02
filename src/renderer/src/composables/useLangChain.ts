@@ -1,11 +1,6 @@
-import { useSettingsStore } from '../stores/settings'
-import { useChatsStores } from '../stores/chats'
-import { useAgentStore } from '../stores/agent'
-import { ChatConfig, ChatService } from '../services/ChatService'
-import { ToolService } from '../services/tool/ToolService'
+import { ChatConfig, ChatService } from '../core/ChatService'
+import { ToolService } from '../core/tool/ToolService'
 import { HumanMessage, AIMessage } from '@langchain/core/messages'
-import { reactive } from 'vue'
-import { nanoid } from '../utils/nanoid'
 
 export const useLangChain = () => {
   const settings = useSettingsStore()

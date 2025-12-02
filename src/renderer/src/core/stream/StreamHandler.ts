@@ -27,7 +27,7 @@ export class StreamHandler implements IStreamHandler {
     _tags: string[] | undefined,
     fields: HandleLLMNewTokenCallbackFields | undefined,
     content: any[],
-    additional_kwargs: any
+    additional_kwargs: Additional_kwargs
   ): void {
     const chunk = (fields?.chunk as ChatGenerationChunk).message as AIMessageChunk
 
