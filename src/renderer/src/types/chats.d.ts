@@ -11,6 +11,7 @@ declare global {
     model?: Model
     time?: string
     reasoning_content?: string
+    [key: string]: unknown
   }
 }
 

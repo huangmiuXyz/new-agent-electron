@@ -1,179 +1,20 @@
-import { ChatOpenAI } from '@langchain/openai'
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
-import { ChatAnthropic } from '@langchain/anthropic'
-import { ChatDeepSeek } from '@langchain/deepseek'
-import {
-  HumanMessage,
-  AIMessage,
-  ToolMessage,
-  AIMessageChunk,
-  SystemMessage,
-  type BaseMessage
-} from '@langchain/core/messages'
-import type { ContentBlock, ToolCall } from 'langchain'
+import { useSettingsStore } from '../stores/settings'
+import { useChatsStores } from '../stores/chats'
+import { useAgentStore } from '../stores/agent'
+import { ChatConfig, ChatService } from '../services/ChatService'
+import { ToolService } from '../services/tool/ToolService'
+import { HumanMessage, AIMessage } from '@langchain/core/messages'
+import { reactive } from 'vue'
 import { nanoid } from '../utils/nanoid'
-import type {
-  HandleLLMNewTokenCallbackFields,
-  NewTokenIndices
-} from '@langchain/core/callbacks/base'
-import type { ChatGenerationChunk } from '@langchain/core/outputs'
-import { ClientConfig } from '@langchain/mcp-adapters'
 
-type LLMClient = ChatOpenAI | ChatGoogleGenerativeAI | ChatAnthropic | ChatDeepSeek
-
-export const createLLMClient = ({
-  provider,
-  model
-}: {
-  provider: Provider
-  model: Model
-}): LLMClient => {
-  const base = {
-    model: model.id,
-    apiKey: provider.apiKey!,
-    streaming: true
-  }
-  switch (provider.modelType) {
-    case 'deepseek':
-      return new ChatDeepSeek({
-        ...base,
-        apiKey: provider.apiKey
-      })
-    case 'openai':
-      return new ChatOpenAI({
-        ...base,
-        configuration: { baseURL: provider.baseUrl }
-      })
-    case 'google-genai':
-      return new ChatGoogleGenerativeAI({
-        ...base,
-        apiKey: provider.apiKey,
-        model: model.id,
-        baseUrl: provider.baseUrl
-      })
-    case 'anthropic':
-      return new ChatAnthropic({
-        ...base,
-        apiKey: provider.apiKey,
-        anthropicApiUrl: provider.baseUrl
-      })
-    default:
-      throw new Error(`未知的模型类型: ${provider.modelType || 'undefined'}`)
-  }
-}
 export const useLangChain = () => {
   const settings = useSettingsStore()
   const chatStore = useChatsStores()
   const agentStore = useAgentStore()
 
-  const _generateResponse = async (
-    messages: BaseMessage[],
-    chatId: string,
-    recursionLimit: number = 5
-  ) => {
-    if (recursionLimit <= 0) {
-      console.warn('达到最大工具递归调用次数，停止生成')
-      return
-    }
+  // 使用依赖注入创建服务
+  const chatService = new ChatService()
 
-    const { provider, model } = settings.getModelById(
-      settings.currentSelectedProvider!.id,
-      settings.currentSelectedModel!.id
-    )!
-    const chat = chatStore.getChatById(chatId)!
-    const mcpConfig = agentStore.getMcpByAgent(chat.agentId!)!
-    const agent = agentStore.getAgentById(chat.agentId!)
-    const tools = await getMcpTools(mcpConfig)
-    const content = reactive<ContentBlock.Text[]>([{ type: 'text', text: '' }])
-    const additional_kwargs = reactive<Additional_kwargs>({
-      reasoning_content: '',
-      provider,
-      model
-    })
-
-    try {
-      let messagesToSend = messages.filter((m) => {
-        if (!AIMessage.isInstance(m)) return true
-        const text = Array.isArray(m.content) ? (m.content[0]?.text as string) : m.content
-        const hasText = text && text.trim() !== ''
-        const hasTools = m.tool_calls && m.tool_calls.length > 0
-        return hasText || hasTools
-      })
-
-      if (agent && agent.systemPrompt && messagesToSend.length > 0) {
-        if (!messagesToSend[0] || !SystemMessage.isInstance(messagesToSend[0])) {
-          messagesToSend = [new SystemMessage({ content: agent.systemPrompt }), ...messagesToSend]
-        }
-      }
-
-      const aiMsg = new AIMessage({
-        id: nanoid(),
-        content,
-        additional_kwargs,
-        tool_calls: []
-      })
-      chat.messages.push(aiMsg)
-      const client = createLLMClient({ provider, model })
-      const runnable = client.bindTools(tools)
-      const finalResponse = await runnable.invoke(messagesToSend, {
-        callbacks: [
-          {
-            handleLLMNewToken: (
-              _token: string,
-              _idx: NewTokenIndices,
-              _runId: string,
-              _parentRunId?: string,
-              _tags?: string[],
-              fields?: HandleLLMNewTokenCallbackFields
-            ) => {
-              const chunk = (fields?.chunk as ChatGenerationChunk).message as AIMessageChunk
-              if (chunk.content) {
-                if (typeof chunk.content === 'string') {
-                  content[0].text += chunk.content
-                } else if (Array.isArray(chunk.content)) {
-                  chunk.content.forEach((c) => {
-                    if (c.type === 'text') content[0].text += c.text
-                  })
-                }
-              }
-              const reasoning = chunk.additional_kwargs?.reasoning_content as string
-              if (reasoning) {
-                additional_kwargs.reasoning_content += reasoning
-              }
-              chatStore.$persist()
-            }
-          }
-        ]
-      })
-      if (finalResponse.tool_calls && finalResponse.tool_calls.length > 0) {
-        for (const toolCall of finalResponse.tool_calls) {
-          const toolMsgId = nanoid()
-          const toolMsg = new ToolMessage({
-            id: toolMsgId,
-            tool_call_id: toolCall.id!,
-            name: toolCall.name,
-            content: ''
-          })
-          try {
-            const result = await call_tools(toolCall as ToolCall, mcpConfig)
-            const resultStr = typeof result === 'string' ? result : JSON.stringify(result)
-            toolMsg.content = resultStr
-          } catch (error) {
-            toolMsg.content = `Error: ${error instanceof Error ? error.message : String(error)}`
-            toolMsg.additional_kwargs = { error: true }
-          }
-          chat.messages.push(toolMsg)
-        }
-        chatStore.$persist()
-        aiMsg.tool_calls = finalResponse.tool_calls
-        await _generateResponse(chat.messages, chatId, recursionLimit - 1)
-      }
-    } catch (error) {
-      console.error('生成失败:', error)
-      content[0].text += `\n[系统错误: ${error instanceof Error ? error.message : String(error)}]`
-      chatStore.$persist()
-    }
-  }
   const chatStream = async (input: string, chatId: string) => {
     const chat = chatStore.getChatById(chatId)!
     const userMsg = new HumanMessage({
@@ -181,12 +22,39 @@ export const useLangChain = () => {
       content: input
     })
     chat.messages.push(userMsg)
-    await _generateResponse(chat.messages, chatId)
+
+    const { provider, model } = settings.getModelById(
+      settings.currentSelectedProvider!.id,
+      settings.currentSelectedModel!.id
+    )!
+
+    const mcpConfig = agentStore.getMcpByAgent(chat.agentId!)!
+    const agent = agentStore.getAgentById(chat.agentId!)!
+
+    const content = reactive<any[]>([{ type: 'text', text: '' }])
+    const additional_kwargs = reactive<any>({
+      reasoning_content: '',
+      provider,
+      model
+    })
+
+    const chatConfig: ChatConfig = {
+      provider,
+      model,
+      chat,
+      agent,
+      mcpConfig,
+      content,
+      additional_kwargs
+    }
+
+    await chatService.generateResponse(chat.messages, chatConfig, () => chatStore.$persist())
   }
 
   const regenerate = async (messageId: string, chatId: string) => {
     const chat = chatStore.getChatById(chatId)!
     const index = chat.messages.findIndex((m) => m.id === messageId)
+
     if (index === -1) {
       console.error('未找到消息')
       return
@@ -199,31 +67,16 @@ export const useLangChain = () => {
       chat.messages = chat.messages.slice(0, index + 1)
     }
 
-    await _generateResponse(chat.messages, chatId)
+    await chatStream(chat.messages[chat.messages.length - 1].content as string, chatId)
   }
 
-  const list_models = async (apiKey: string, baseURL: string): Promise<{ data: Model[] }> => {
-    const response = await fetch(`${baseURL}/models`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    })
-    return await response.json()
-  }
+  const toolService = new ToolService()
 
-  const getMcpTools = async (config: ClientConfig, cache: boolean = true) => {
-    if (!config) return []
-    return await window.api.list_tools(JSON.parse(JSON.stringify(config)), cache)
+  return {
+    chatStream,
+    regenerate,
+    list_models: chatService.listModels.bind(chatService),
+    getMcpTools: toolService.getTools.bind(toolService),
+    call_tools: toolService.callTool.bind(toolService)
   }
-
-  const call_tools = async (tool_call: ToolCall, config: ClientConfig) => {
-    const tools = await window.api.list_tools(JSON.parse(JSON.stringify(config)))
-    const tool = tools.find((t) => t.name === tool_call.name)
-    if (!tool) throw new Error(`Tool '${tool_call.name}' not found.`)
-    return await tool.func(tool_call.args)
-  }
-
-  return { chatStream, regenerate, list_models, getMcpTools, call_tools }
 }
