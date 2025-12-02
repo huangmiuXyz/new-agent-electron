@@ -61,6 +61,7 @@ export class ChatService {
 
       // 创建LLM客户端并调用
       const client = this.llmFactory.createClient(provider, model)
+
       const runnable = client.bindTools(await this.toolService.getTools(mcpConfig))
       const stream = await runnable.stream(processedMessages)
       for await (const chunk of stream) {

@@ -1,49 +1,57 @@
-import { ChatOpenAICallOptions, ChatOpenAICompletions, ChatOpenAIFields, OpenAIClient } from "@langchain/openai";
-import * as _langchain_core_messages0 from "@langchain/core/messages";
-import { BaseMessage } from "@langchain/core/messages";
-import { BaseLanguageModelInput, StructuredOutputMethodOptions } from "@langchain/core/language_models/base";
-import { ModelProfile } from "@langchain/core/language_models/profile";
-import { Runnable } from "@langchain/core/runnables";
-import { InteropZodType } from "@langchain/core/utils/types";
+import {
+  ChatOpenAICallOptions,
+  ChatOpenAICompletions,
+  ChatOpenAIFields,
+  OpenAIClient
+} from '../openai'
+import * as _langchain_core_messages0 from '@langchain/core/messages'
+import { BaseMessage } from '@langchain/core/messages'
+import {
+  BaseLanguageModelInput,
+  StructuredOutputMethodOptions
+} from '@langchain/core/language_models/base'
+import { ModelProfile } from '@langchain/core/language_models/profile'
+import { Runnable } from '@langchain/core/runnables'
+import { InteropZodType } from '@langchain/core/utils/types'
 
 //#region src/chat_models.d.ts
 interface ChatDeepSeekCallOptions extends ChatOpenAICallOptions {
-  headers?: Record<string, string>;
+  headers?: Record<string, string>
 }
 interface ChatDeepSeekInput extends ChatOpenAIFields {
   /**
    * The Deepseek API key to use for requests.
    * @default process.env.DEEPSEEK_API_KEY
    */
-  apiKey?: string;
+  apiKey?: string
   /**
    * The name of the model to use.
    */
-  model?: string;
+  model?: string
   /**
    * Up to 4 sequences where the API will stop generating further tokens. The
    * returned text will not contain the stop sequence.
    * Alias for `stopSequences`
    */
-  stop?: Array<string>;
+  stop?: Array<string>
   /**
    * Up to 4 sequences where the API will stop generating further tokens. The
    * returned text will not contain the stop sequence.
    */
-  stopSequences?: Array<string>;
+  stopSequences?: Array<string>
   /**
    * Whether or not to stream responses.
    */
-  streaming?: boolean;
+  streaming?: boolean
   /**
    * The temperature to use for sampling.
    */
-  temperature?: number;
+  temperature?: number
   /**
    * The maximum number of tokens that the model can process in a single response.
    * This limits ensures computational efficiency and resource management.
    */
-  maxTokens?: number;
+  maxTokens?: number
 }
 /**
  * Deepseek chat model integration.
@@ -396,18 +404,29 @@ interface ChatDeepSeekInput extends ChatOpenAIFields {
  * <br />
  */
 declare class ChatDeepSeek extends ChatOpenAICompletions<ChatDeepSeekCallOptions> {
-  static lc_name(): string;
-  _llmType(): string;
-  get lc_secrets(): {
-    [key: string]: string;
-  } | undefined;
-  lc_serializable: boolean;
-  lc_namespace: string[];
-  constructor(fields?: Partial<ChatDeepSeekInput>);
+  static lc_name(): string
+  _llmType(): string
+  get lc_secrets():
+    | {
+        [key: string]: string
+      }
+    | undefined
+  lc_serializable: boolean
+  lc_namespace: string[]
+  constructor(fields?: Partial<ChatDeepSeekInput>)
   protected _convertCompletionsDeltaToBaseMessageChunk(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  delta: Record<string, any>, rawResponse: OpenAIClient.ChatCompletionChunk, defaultRole?: "function" | "user" | "system" | "developer" | "assistant" | "tool"): _langchain_core_messages0.BaseMessageChunk<_langchain_core_messages0.MessageStructure, _langchain_core_messages0.MessageType>;
-  protected _convertCompletionsMessageToBaseMessage(message: OpenAIClient.ChatCompletionMessage, rawResponse: OpenAIClient.ChatCompletion): BaseMessage<_langchain_core_messages0.MessageStructure, _langchain_core_messages0.MessageType>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delta: Record<string, any>,
+    rawResponse: OpenAIClient.ChatCompletionChunk,
+    defaultRole?: 'function' | 'user' | 'system' | 'developer' | 'assistant' | 'tool'
+  ): _langchain_core_messages0.BaseMessageChunk<
+    _langchain_core_messages0.MessageStructure,
+    _langchain_core_messages0.MessageType
+  >
+  protected _convertCompletionsMessageToBaseMessage(
+    message: OpenAIClient.ChatCompletionMessage,
+    rawResponse: OpenAIClient.ChatCompletion
+  ): BaseMessage<_langchain_core_messages0.MessageStructure, _langchain_core_messages0.MessageType>
   /**
    * Return profiling information for the model.
    *
@@ -425,29 +444,52 @@ declare class ChatDeepSeek extends ChatOpenAICompletions<ChatDeepSeekCallOptions
    * console.log(profile.imageInputs); // false
    * ```
    */
-  get profile(): ModelProfile;
+  get profile(): ModelProfile
   withStructuredOutput<
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  RunOutput extends Record<string, any> = Record<string, any>>(outputSchema: InteropZodType<RunOutput>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  | Record<string, any>, config?: StructuredOutputMethodOptions<false>): Runnable<BaseLanguageModelInput, RunOutput>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    RunOutput extends Record<string, any> = Record<string, any>
+  >(
+    outputSchema:
+      | InteropZodType<RunOutput>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      | Record<string, any>,
+    config?: StructuredOutputMethodOptions<false>
+  ): Runnable<BaseLanguageModelInput, RunOutput>
   withStructuredOutput<
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  RunOutput extends Record<string, any> = Record<string, any>>(outputSchema: InteropZodType<RunOutput>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  | Record<string, any>, config?: StructuredOutputMethodOptions<true>): Runnable<BaseLanguageModelInput, {
-    raw: BaseMessage;
-    parsed: RunOutput;
-  }>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    RunOutput extends Record<string, any> = Record<string, any>
+  >(
+    outputSchema:
+      | InteropZodType<RunOutput>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      | Record<string, any>,
+    config?: StructuredOutputMethodOptions<true>
+  ): Runnable<
+    BaseLanguageModelInput,
+    {
+      raw: BaseMessage
+      parsed: RunOutput
+    }
+  >
   withStructuredOutput<
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  RunOutput extends Record<string, any> = Record<string, any>>(outputSchema: InteropZodType<RunOutput>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  | Record<string, any>, config?: StructuredOutputMethodOptions<boolean>): Runnable<BaseLanguageModelInput, RunOutput> | Runnable<BaseLanguageModelInput, {
-    raw: BaseMessage;
-    parsed: RunOutput;
-  }>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    RunOutput extends Record<string, any> = Record<string, any>
+  >(
+    outputSchema:
+      | InteropZodType<RunOutput>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      | Record<string, any>,
+    config?: StructuredOutputMethodOptions<boolean>
+  ):
+    | Runnable<BaseLanguageModelInput, RunOutput>
+    | Runnable<
+        BaseLanguageModelInput,
+        {
+          raw: BaseMessage
+          parsed: RunOutput
+        }
+      >
 }
 //#endregion
-export { ChatDeepSeek, ChatDeepSeekCallOptions, ChatDeepSeekInput };
+export { ChatDeepSeek, ChatDeepSeekCallOptions, ChatDeepSeekInput }
 //# sourceMappingURL=chat_models.d.ts.map
