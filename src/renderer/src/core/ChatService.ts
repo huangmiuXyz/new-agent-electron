@@ -4,7 +4,7 @@ import { ToolService } from './tool/ToolService'
 import { MessageProcessor } from './message/MessageProcessor'
 import { StreamHandler } from './stream/StreamHandler'
 import { nanoid } from '../utils/nanoid'
-import type { BaseMessage, ToolCall } from '@langchain/core/messages'
+import type { BaseMessage, ToolCall, ToolCallChunk } from '@langchain/core/messages'
 import { ClientConfig } from '@langchain/mcp-adapters'
 export interface ChatConfig {
   provider: Provider
@@ -64,12 +64,15 @@ export class ChatService {
 
       const runnable = client.bindTools(await this.toolService.getTools(mcpConfig))
       const stream = await runnable.stream(processedMessages)
+      const toolCallChunks: ToolCallChunk[] = []
       for await (const chunk of stream) {
-        this.streamHandler.handleToken(chunk, content, aiMsg, additional_kwargs)
+        this.streamHandler.handleToken(chunk, content, toolCallChunks, additional_kwargs)
         onProgress?.()
       }
-      if (aiMsg.tool_calls!.length > 0) {
-        await this.handleToolCalls(aiMsg.tool_calls!, mcpConfig, chat)
+      const tool_calls = this.mergeSequentialToolChunks(toolCallChunks)
+      if (tool_calls!.length > 0) {
+        aiMsg.tool_calls = tool_calls as unknown as ToolCall[]
+        await this.handleToolCalls(tool_calls!, mcpConfig, chat)
         await this.generateResponse(chat.messages, chatConfig, onProgress, recursionLimit - 1)
       }
     } catch (error) {
@@ -78,7 +81,7 @@ export class ChatService {
   }
 
   private async handleToolCalls(
-    toolCalls: ToolCall[],
+    toolCalls: ToolCallChunk[],
     mcpConfig: ClientConfig,
     chat: Chat
   ): Promise<void> {
@@ -89,7 +92,7 @@ export class ChatService {
   }
 
   private async createToolMessage(
-    toolCall: ToolCall,
+    toolCall: ToolCallChunk,
     mcpConfig: ClientConfig
   ): Promise<ToolMessage> {
     const toolMsgId = nanoid()
@@ -110,6 +113,30 @@ export class ChatService {
     }
 
     return toolMsg
+  }
+  private mergeSequentialToolChunks(chunks: ToolCallChunk[]) {
+    const groups: ToolCallChunk[] = []
+    let current: ToolCallChunk | null = null
+
+    for (const chunk of chunks) {
+      const hasMeta = ('id' in chunk && chunk.id) || ('name' in chunk && chunk.name)
+
+      if (hasMeta) {
+        const base = { ...chunk }
+        base.args = chunk.args || ''
+        groups.push(base)
+        current = base
+      } else {
+        if (!current) {
+          current = { ...chunk }
+          groups.push(current)
+        } else {
+          current.args = (current.args || '') + (chunk.args || '')
+        }
+      }
+    }
+
+    return groups.map((e) => ({ ...e, args: JSON.parse(e.args!) }))
   }
 
   private handleError(error: any, content: any[]): void {

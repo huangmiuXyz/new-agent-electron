@@ -2,7 +2,7 @@ import type {
   HandleLLMNewTokenCallbackFields,
   NewTokenIndices
 } from '@langchain/core/callbacks/base'
-import { AIMessage, AIMessageChunk } from '@langchain/core/messages'
+import { AIMessage, AIMessageChunk, ToolCallChunk } from '@langchain/core/messages'
 
 export interface IStreamHandler {
   handleToken(
@@ -21,7 +21,7 @@ export class StreamHandler {
   handleToken(
     chunk: AIMessageChunk,
     content: any[],
-    aiMsg: AIMessage,
+    toolCallChunks: ToolCallChunk[],
     additional_kwargs: Additional_kwargs
   ): void {
     if (chunk.content) {
@@ -38,8 +38,8 @@ export class StreamHandler {
     if (reasoning) {
       additional_kwargs.reasoning_content += reasoning
     }
-    if (chunk.tool_calls?.length) {
-      aiMsg.tool_calls = chunk.tool_calls
+    if (chunk.tool_call_chunks?.length) {
+      toolCallChunks.push(...chunk.tool_call_chunks)
     }
   }
 }
