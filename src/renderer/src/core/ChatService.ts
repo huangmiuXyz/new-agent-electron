@@ -102,7 +102,7 @@ export class ChatService {
     try {
       const result = await this.toolService.callTool(toolCall as any, mcpConfig)
       const resultStr = typeof result === 'string' ? result : JSON.stringify(result)
-      toolMsg.content = result
+      toolMsg.content = resultStr
     } catch (error) {
       toolMsg.content = `Error: ${error instanceof Error ? error.message : String(error)}`
       toolMsg.additional_kwargs = { error: true }
