@@ -1,21 +1,21 @@
 <script setup lang="ts">
 const message = ref('')
 const chatStore = useChatsStores();
-const { chatStream } = useLangChain()
+const { sendMessage } = useLangChain()
 const adjustTextareaHeight = (event: Event) => {
   const textarea = event.target as HTMLTextAreaElement
   textarea.style.height = 'auto'
   textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
 }
 
-const sendMessage = () => {
+const _sendMessage = () => {
   const input = message.value.trim()
   if (input) {
     message.value = ''
     if (chatStore.chats.length === 0) {
       chatStore.createChat()
     }
-    chatStream(input, chatStore.currentChat!.id!)
+    sendMessage(input, chatStore.currentChat!.id!)
   }
 }
 </script>
@@ -24,7 +24,7 @@ const sendMessage = () => {
   <footer class="footer">
     <div class="input-container">
       <textarea class="input-field" rows="1" placeholder="发送消息..." v-model="message" @input="adjustTextareaHeight"
-        @keydown.enter.exact.prevent="sendMessage"></textarea>
+        @keydown.enter.exact.prevent="_sendMessage"></textarea>
       <div class="input-actions">
         <div class="action-left">
           <!-- 智能体选择器 -->
@@ -32,7 +32,7 @@ const sendMessage = () => {
           <!-- 模型选择器 -->
           <ChatModelSelector />
         </div>
-        <Button variant="primary" size="md" @click="sendMessage">发送</Button>
+        <Button variant="primary" size="md" @click="_sendMessage">发送</Button>
       </div>
     </div>
   </footer>

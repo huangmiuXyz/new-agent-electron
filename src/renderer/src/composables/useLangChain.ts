@@ -9,15 +9,16 @@ export const useLangChain = () => {
 
   // 使用依赖注入创建服务
   const chatService = new ChatService()
-
-  const chatStream = async (input: string, chatId: string) => {
+  const sendMessage = (input: string, chatId: string) => {
     const chat = chatStore.getChatById(chatId)!
     const userMsg = new HumanMessage({
       id: nanoid(),
       content: input
     })
     chat.messages.push(userMsg)
-
+    chatStream(chat)
+  }
+  const chatStream = async (chat: Chat) => {
     const { provider, model } = settings.getModelById(
       settings.currentSelectedProvider!.id,
       settings.currentSelectedModel!.id
@@ -60,12 +61,13 @@ export const useLangChain = () => {
       chat.messages = chat.messages.slice(0, index + 1)
     }
 
-    await chatStream(chat.messages[chat.messages.length - 1].content as string, chatId)
+    await chatStream(chat)
   }
 
   const toolService = new ToolService()
 
   return {
+    sendMessage,
     chatStream,
     regenerate,
     list_models: chatService.listModels.bind(chatService),
