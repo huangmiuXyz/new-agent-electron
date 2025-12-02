@@ -4,7 +4,7 @@ import { ToolService } from './tool/ToolService'
 import { MessageProcessor } from './message/MessageProcessor'
 import { StreamHandler } from './stream/StreamHandler'
 import { nanoid } from '../utils/nanoid'
-import type { BaseMessage, ContentBlock, ToolCall } from '@langchain/core/messages'
+import type { BaseMessage, ToolCall } from '@langchain/core/messages'
 import { ClientConfig } from '@langchain/mcp-adapters'
 export interface ChatConfig {
   provider: Provider
@@ -12,7 +12,6 @@ export interface ChatConfig {
   chat: Chat
   agent: Agent
   mcpConfig: { mcpServers: McpServers }
-  content: ContentBlock[]
   additional_kwargs: Additional_kwargs
 }
 export class ChatService {
@@ -43,8 +42,9 @@ export class ChatService {
       console.warn('达到最大工具递归调用次数，停止生成')
       return
     }
+    const content = reactive<any[]>([{ type: 'text', text: '' }])
 
-    const { provider, model, chat, agent, mcpConfig, content, additional_kwargs } = chatConfig
+    const { provider, model, chat, agent, mcpConfig, additional_kwargs } = chatConfig
 
     try {
       // 处理消息

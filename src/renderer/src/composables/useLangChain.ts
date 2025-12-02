@@ -26,7 +26,6 @@ export const useLangChain = () => {
     const mcpConfig = agentStore.getMcpByAgent(chat.agentId!)!
     const agent = agentStore.getAgentById(chat.agentId!)!
 
-    const content = reactive<any[]>([{ type: 'text', text: '' }])
     const additional_kwargs = reactive<any>({
       reasoning_content: '',
       provider,
@@ -39,7 +38,6 @@ export const useLangChain = () => {
       chat,
       agent,
       mcpConfig,
-      content,
       additional_kwargs
     }
 
