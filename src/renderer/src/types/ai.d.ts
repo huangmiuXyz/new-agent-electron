@@ -23,8 +23,10 @@ declare global {
       command?: string
       args?: string[]
       url?: string
-      transport?: 'http' | 'sse'
+      transport?: 'http' | 'sse' | 'stdio'
       headers?: Record<string, string>
+      active: boolean
+      tools: Tools
       [key: string]: any
     }
   >

@@ -3,7 +3,7 @@ import { FormItem } from '@renderer/composables/useForm'
 import Input from '@renderer/components/Input.vue'
 const { providers } = storeToRefs(useSettingsStore())
 const { updateProvider, addModelToProvider } = useSettingsStore()
-const { list_models } = useLangChain()
+
 const { confirm } = useModal()
 
 const setActiveProvider = (providerId: string) => {
@@ -91,7 +91,10 @@ const selectProvider = (providerId: string) => {
 const { Refresh, Plus, Search } = useIcon(['Refresh', 'Plus', 'Search'])
 
 const refreshModels = async () => {
-    const { data } = await list_models(activeProvider.value!.apiKey!, activeProvider.value!.baseUrl!)
+    const { data } = await chatService().list_models({
+        apiKey: activeProvider.value!.apiKey!,
+        baseURL: activeProvider.value!.baseUrl!,
+    })
     updateProvider(activeProviderId.value, {
         ...activeProvider.value!,
         models: data.map(m => ({ ...m, name: m.id })),

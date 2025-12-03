@@ -20,7 +20,7 @@ export const useSettingsStore = defineStore(
       }))
     )
 
-    const mcpServers = ref<McpServers>({})
+    const mcpServers = ref<ClientConfig>({})
 
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
       display.value = { ...display.value, ...settings }

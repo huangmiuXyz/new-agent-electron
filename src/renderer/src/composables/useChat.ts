@@ -5,16 +5,19 @@ export const useChat = () => {
   const sendMessages = async (text: string, chatId: string) => {
     const chats = getChatById(chatId)
     const { currentSelectedProvider, currentSelectedModel } = useSettingsStore()
-    const service = chatService({
-      model: currentSelectedModel!.id!,
-      apiKey: currentSelectedProvider?.apiKey!,
-      baseURL: currentSelectedProvider?.baseUrl!,
-      provider: currentSelectedProvider?.name!
-    })
+    const service = chatService()
     const chat = new Chat({
       transport: {
         sendMessages: ({ messages }) => {
-          return service.createAgent(messages)
+          return service.createAgent(
+            {
+              model: currentSelectedModel!.id!,
+              apiKey: currentSelectedProvider?.apiKey!,
+              baseURL: currentSelectedProvider?.baseUrl!,
+              provider: currentSelectedProvider?.name!
+            },
+            messages
+          )
         },
         reconnectToStream: void 0 as any
       },
@@ -25,7 +28,9 @@ export const useChat = () => {
       updateMessages(chatId, chat.messages)
     })
   }
+  const regenerate = () => {}
   return {
-    sendMessages
+    sendMessages,
+    regenerate
   }
 }

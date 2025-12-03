@@ -2,9 +2,8 @@
 const { showContextMenu } = useContextMenu<BaseMessage>();
 const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage } = useChatsStores()
-const { regenerate } = useLangChain()
+const { regenerate } = useChat()
 const { Delete, Refresh, Copy, Edit } = useIcon(['Delete', 'Refresh', 'Copy', 'Edit'])
-import { ToolMessage } from "@langchain/core/messages";
 
 // 存储当前需要编辑的消息ID
 const editingMessageId = ref<string | null>(null)
@@ -37,16 +36,16 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         triggerEdit(message.id!);
       }
     },
-    {
-      label: '复制',
-      icon: Copy,
-      onClick: () => copyText(message.text!)
-    },
-    {
-      label: '重试',
-      icon: Refresh,
-      onClick: (data) => regenerate(data.id!, currentChat.value!.id!)
-    },
+    // {
+    //   label: '复制',
+    //   icon: Copy,
+    //   onClick: () => copyText(message.text!)
+    // },
+    // {
+    //   label: '重试',
+    //   icon: Refresh,
+    //   onClick: (data) => regenerate(data.id!, currentChat.value!.id!)
+    // },
     {
       label: '删除',
       icon: Delete,

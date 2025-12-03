@@ -5,17 +5,26 @@ const { confirm, remove } = useModal()
 
 const expandedKeys = ref<Record<string, boolean>>({})
 
-const openServerModal = async (server?: McpServers[string]) => {
+// 定义更具体的类型以便 TS 推断
+interface McpTool {
+    name: string;
+    description?: string;
+    parameters?: any;
+    [key: string]: any;
+}
+
+const openServerModal = async (server?: any) => {
     const isEdit = !!server
     const modalTitle = isEdit ? '编辑 MCP 服务器' : '添加 MCP 服务器'
 
-    const initialData: McpServers[string] = server ? { ...server } : {
+    // 初始化数据结构
+    const initialData = server ? { ...server } : {
         command: '',
         args: [],
         env: {},
         name: '',
         active: true,
-        transport: 'stdio',
+        transport: 'stdio', // 默认类型
     }
 
     const [FormComponent, formActions] = useForm({
@@ -27,7 +36,7 @@ const openServerModal = async (server?: McpServers[string]) => {
                 name: 'name',
                 type: 'text',
                 label: '名称',
-                placeholder: '名称',
+                placeholder: '给服务器起个名字',
                 required: true
             },
             {
@@ -42,17 +51,18 @@ const openServerModal = async (server?: McpServers[string]) => {
                 label: '类型',
                 required: true,
                 options: [
-                    { label: 'stdio', value: 'stdio' },
-                    { label: 'http', value: 'http' },
-                    { label: 'sse', value: 'sse' }
+                    { label: 'Stdio (本地进程)', value: 'stdio' },
+                    { label: 'HTTP (远程)', value: 'http' },
+                    { label: 'SSE (服务端推送)', value: 'sse' }
                 ]
             },
             {
                 name: 'command',
                 type: 'text',
                 label: '命令',
-                placeholder: '例如：npx 或 python',
+                placeholder: '例如：npx, python, node',
                 required: true,
+                // 仅 stdio 显示
                 ifShow: (data) => data.transport === 'stdio'
             },
             {
@@ -76,6 +86,7 @@ const openServerModal = async (server?: McpServers[string]) => {
                 label: 'URL',
                 placeholder: 'http://localhost:3000/mcp',
                 required: true,
+                // http 或 sse 显示
                 ifShow: (data) => data.transport === 'sse' || data.transport === 'http'
             },
             {
@@ -86,13 +97,9 @@ const openServerModal = async (server?: McpServers[string]) => {
                 valuePlaceholder: '值',
                 ifShow: (data) => data.transport === 'sse' || data.transport === 'http'
             },
-            {
-                name: 'defaultToolTimeout',
-                type: 'number',
-                label: '超时',
-            },
         ],
         onSubmit: (data) => {
+            // 保存到 store
             mcpServers.value[data.name!] = data
         }
     })
@@ -114,25 +121,33 @@ const handleDelete = (name: string) => {
 }
 
 const activeMcpLoading = ref<string | null>(null)
-const { getMcpTools } = useLangChain()
-const fetchTools = async (server: McpServers[string]) => {
+
+// --- 核心修改部分 ---
+const fetchTools = async (server: any) => {
     try {
         activeMcpLoading.value = server.name
-        const tools = await getMcpTools({
-            mcpServers: { [server.name]: server },
+        const toolsMap = await window.api.list_tools({
+            [server.name]: JSON.parse(JSON.stringify(server)),
         }, false);
-        server.tools = tools
-        if (tools.length) {
+
+        const toolsArray: McpTool[] = Object.entries(toolsMap || {}).map(([key, value]: [string, any]) => ({
+            name: key,
+            ...value
+        }));
+        server.tools = toolsArray
+
+        if (toolsArray.length) {
             expandedKeys.value[server.name] = true
         }
     } catch (e) {
-        console.error(e)
+        console.error('Failed to fetch tools:', e)
+        server.tools = []
     } finally {
         activeMcpLoading.value = null
     }
 }
 
-const toggleActive = async (server: McpServers[string]) => {
+const toggleActive = async (server: any) => {
     if (!server.active) {
         await fetchTools(server)
     }
@@ -159,7 +174,6 @@ const toggleExpand = (name: string) => {
                         添加服务器
                     </Button>
                 </div>
-
                 <div class="server-list">
                     <div v-for="(server, name) of mcpServers" :key="name" class="server-card">
                         <div class="card-header">
@@ -169,15 +183,24 @@ const toggleExpand = (name: string) => {
                                     <div class="tool-count" v-if="server.tools?.length">
                                         {{ server.tools.length }} 个工具
                                     </div>
+                                    <div class="server-transport-tag">{{ server.transport }}</div>
                                 </div>
+
+                                <!-- Stdio 信息 -->
                                 <template v-if="server.transport === 'stdio'">
-                                    <div class="server-command">{{ server.command }}
-                                    </div>
-                                    <div class="server-description" v-if="server.description">
-                                        {{ server.description }}
-                                    </div>
+                                    <div class="server-command">{{ server.command }}</div>
                                 </template>
+
+                                <!-- HTTP/SSE 信息 -->
+                                <template v-if="server.transport === 'http' || server.transport === 'sse'">
+                                    <div class="server-url">{{ server.url }}</div>
+                                </template>
+
+                                <div class="server-description" v-if="server.description">
+                                    {{ server.description }}
+                                </div>
                             </div>
+
                             <div class="server-actions">
                                 <Button size="sm" variant="text" @click="fetchTools(server)"
                                     :loading="activeMcpLoading === name" v-if="server.active" title="刷新工具列表">
@@ -192,21 +215,23 @@ const toggleExpand = (name: string) => {
                                         <Pencil />
                                     </template>
                                 </Button>
-                                <Button size="sm" variant="text" class="delete-btn" @click="handleDelete(name)">
+                                <Button size="sm" variant="text" class="delete-btn"
+                                    @click="handleDelete(name as string)">
                                     <template #icon>
                                         <Trash />
                                     </template>
                                 </Button>
-                                <Button size="sm" variant="text" @click="toggleExpand(name)"
-                                    v-if="server.active && server.tools?.length">
+                                <Button size="sm" variant="text" @click="toggleExpand(name as string)"
+                                    v-if="server.active && Object.keys(server.tools)?.length">
                                     <template #icon>
-                                        <ChevronUp v-if="expandedKeys[name]" />
+                                        <ChevronUp v-if="expandedKeys[name as string]" />
                                         <ChevronDown v-else />
                                     </template>
                                 </Button>
                             </div>
                         </div>
 
+                        <!-- 详情区域 -->
                         <div class="card-details" v-if="server.transport === 'stdio'">
                             <div v-if="server.args?.length" class="detail-item">
                                 <span class="label">参数:</span>
@@ -217,27 +242,23 @@ const toggleExpand = (name: string) => {
                                 <span class="value">{{ Object.keys(server.env).length }} 个变量</span>
                             </div>
                         </div>
-                        <div class="card-details" v-if="server.transport === 'sse' || server.transport === 'http'">
-                            <div class="detail-item">
-                                <span class="label">URL:</span>
-                                <span class="value">{{ server.url }}</span>
-                            </div>
-                        </div>
 
-                        <div class="tools-container" v-if="server.active && server.tools?.length && expandedKeys[name]">
+                        <!-- 工具列表区域 -->
+                        <div class="tools-container" v-if="server.active && expandedKeys[name as string]">
                             <div class="tools-divider"></div>
                             <div class="tools-grid">
-                                <div v-for="tool in server.tools" :key="tool.name!" class="tool-item">
+                                <div v-for="(tool, name) of server.tools" :key="name" class="tool-item">
                                     <div class="tool-head">
-                                        <span class="tool-name-tag">{{ tool.name }}</span>
+                                        <span class="tool-name-tag">{{ name }}</span>
                                     </div>
-                                    <div class="tool-desc">{{ tool.description }}</div>
+                                    <div class="tool-desc" :title="tool.description">{{ tool.description || '无描述' }}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div v-if="Object.keys(mcpServers).length === 0" class="empty-state">
+                    <div v-if="!mcpServers || Object.keys(mcpServers).length === 0" class="empty-state">
                         尚未配置 MCP 服务器。点击"添加服务器"开始配置。
                     </div>
                 </div>
@@ -296,6 +317,8 @@ const toggleExpand = (name: string) => {
     flex-direction: column;
     gap: 4px;
     flex: 1;
+    overflow: hidden;
+    /* 防止URL过长撑开 */
 }
 
 .server-name-row {
@@ -316,6 +339,16 @@ const toggleExpand = (name: string) => {
     color: #1890ff;
     padding: 1px 6px;
     border-radius: 10px;
+    white-space: nowrap;
+}
+
+.server-transport-tag {
+    font-size: 10px;
+    text-transform: uppercase;
+    background: #f0f0f0;
+    color: #666;
+    padding: 1px 4px;
+    border-radius: 3px;
 }
 
 .server-description {
@@ -324,7 +357,8 @@ const toggleExpand = (name: string) => {
     margin-top: 2px;
 }
 
-.server-command {
+.server-command,
+.server-url {
     font-size: 12px;
     color: var(--text-tertiary);
     font-family: monospace;
@@ -333,6 +367,7 @@ const toggleExpand = (name: string) => {
     border-radius: 4px;
     align-self: flex-start;
     margin-top: 4px;
+    word-break: break-all;
 }
 
 .server-actions {
@@ -340,6 +375,7 @@ const toggleExpand = (name: string) => {
     align-items: center;
     gap: 8px;
     margin-left: 16px;
+    flex-shrink: 0;
 }
 
 .delete-btn {
@@ -381,7 +417,7 @@ const toggleExpand = (name: string) => {
 
 .tools-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 8px;
 }
 
@@ -414,33 +450,6 @@ const toggleExpand = (name: string) => {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-}
-
-.tool-params {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.params-label {
-    color: var(--text-tertiary);
-    font-size: 11px;
-}
-
-.params-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-}
-
-.param-tag {
-    background: #f0f0f0;
-    color: var(--text-secondary);
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-family: monospace;
-    font-size: 11px;
 }
 
 .empty-state {

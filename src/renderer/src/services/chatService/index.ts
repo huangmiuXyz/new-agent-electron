@@ -7,14 +7,17 @@ interface ChatServiceOptions {
   baseURL: string
   provider: string
 }
-export const chatService = ({ model, apiKey, baseURL, provider }: ChatServiceOptions) => {
-  const createAgent = async (messages: BaseMessage[]) => {
+export const chatService = () => {
+  const createAgent = async (
+    { model, apiKey, baseURL, provider }: ChatServiceOptions,
+    messages: BaseMessage[]
+  ) => {
     const deepseekProvider = createDeepSeek({
       apiKey,
       baseURL
     })
     const agent = new ToolLoopAgent({
-      model: deepseekProvider(model)
+      model: deepseekProvider(model!)
     })
     const stream = await agent.stream({
       messages: convertToModelMessages(messages)
@@ -25,7 +28,18 @@ export const chatService = ({ model, apiKey, baseURL, provider }: ChatServiceOpt
       }
     })
   }
+  const list_models = async ({ baseURL, apiKey }) => {
+    const models = await fetch(`${baseURL}/models`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      }
+    })
+    return await models.json()
+  }
   return {
-    createAgent
+    createAgent,
+    list_models
   }
 }
