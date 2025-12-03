@@ -8,7 +8,7 @@ export const useChat = () => {
     const chats = getChatById(chatId)
     const agent = getAgentById(chats!.agentId!)
     const mcpClient = getMcpByAgent(agent?.id!)
-
+    debugger
     const service = chatService()
     const chat = new Chat({
       transport: {

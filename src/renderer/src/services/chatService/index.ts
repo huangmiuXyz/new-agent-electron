@@ -1,4 +1,4 @@
-import { convertToModelMessages, ToolLoopAgent } from 'ai'
+import { convertToModelMessages, tool, ToolLoopAgent } from 'ai'
 import { createDeepSeek } from '@ai-sdk/deepseek'
 
 interface ChatServiceOptions {
@@ -23,7 +23,14 @@ export const chatService = () => {
     })
     const agent = new ToolLoopAgent({
       model: deepseekProvider(model!),
-      tools: mcpClient
+      tools: mapValues(mcpClient, (v) =>
+        tool({
+          ...v,
+          execute: (args) => {
+            console.log(args)
+          }
+        })
+      )
     })
     const stream = await agent.stream({
       messages: convertToModelMessages(messages)
