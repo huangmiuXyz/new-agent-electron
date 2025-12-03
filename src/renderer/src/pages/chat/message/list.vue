@@ -36,16 +36,16 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         triggerEdit(message.id!);
       }
     },
-    // {
-    //   label: '复制',
-    //   icon: Copy,
-    //   onClick: () => copyText(message.text!)
-    // },
-    // {
-    //   label: '重试',
-    //   icon: Refresh,
-    //   onClick: (data) => regenerate(data.id!, currentChat.value!.id!)
-    // },
+    {
+      label: '复制',
+      icon: Copy,
+      onClick: () => copyText(message.text!)
+    },
+    {
+      label: '重试',
+      icon: Refresh,
+      onClick: (data) => regenerate(data.id!, currentChat.value!.id!)
+    },
     {
       label: '删除',
       icon: Delete,

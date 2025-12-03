@@ -1,10 +1,13 @@
 import { Chat } from '@ai-sdk/vue'
 export const useChat = () => {
   const { getChatById, updateMessages } = useChatsStores()
+  const { currentSelectedProvider, currentSelectedModel } = useSettingsStore()
+  const { getAgentById, getMcpByAgent } = useAgentStore()
 
   const sendMessages = async (text: string, chatId: string) => {
     const chats = getChatById(chatId)
-    const { currentSelectedProvider, currentSelectedModel } = useSettingsStore()
+    const agent = getAgentById(chats!.agentId!)
+    const mcpClient = getMcpByAgent(agent?.id!).mcpServers
     const service = chatService()
     const chat = new Chat({
       transport: {
@@ -16,7 +19,8 @@ export const useChat = () => {
               baseURL: currentSelectedProvider?.baseUrl!,
               provider: currentSelectedProvider?.name!
             },
-            messages
+            messages,
+            { mcpClient }
           )
         },
         reconnectToStream: void 0 as any

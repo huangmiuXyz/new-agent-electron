@@ -23,7 +23,7 @@ declare global {
     display: DisplaySettings
     providers: Provider[]
     activeProviderId: string
-    mcpServers: McpServers
+    mcpServers: ClientConfig
   }
 }
 
