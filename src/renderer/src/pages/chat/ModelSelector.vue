@@ -15,11 +15,11 @@ const filteredModels = computed(() => {
   const query = searchQuery.value.toLowerCase()
   const result: { provider: Provider, models: Model[] }[] = []
   providers.value.forEach(provider => {
-    const filteredModels = provider.models.filter(model =>
+    const filteredModels = provider.models?.filter(model =>
       (model.name.toLowerCase().includes(query) ||
         model.id.toLowerCase().includes(query)) && model.active
     )
-    if (filteredModels.length > 0) {
+    if (filteredModels?.length > 0) {
       result.push({ provider, models: filteredModels })
     }
   })
