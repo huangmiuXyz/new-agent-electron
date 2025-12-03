@@ -60,12 +60,12 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 <template>
   <div class="messages">
     <template v-for="(message, index) in currentChat?.messages" :key="`${message.id}-${index}`">
-      <ChatMessageItemHuman v-if="HumanMessage.isInstance(message)" :message="message"
+      <ChatMessageItemHuman v-if="message.role === 'user'" :message="message"
         @contextmenu="onMessageRightClick($event, message)" />
-      <ChatMessageItemAi v-if="AIMessage.isInstance(message)" :message="message"
+      <ChatMessageItemAi v-if="message.role === 'assistant'" :message="message"
         @contextmenu="onMessageRightClick($event, message)" />
-      <ChatMessageItemTool v-if="ToolMessage.isInstance(message)" :message="message"
-        @contextmenu="onMessageRightClick($event, message)" />
+      <!-- <ChatMessageItemTool v-if="message.role === 'tool'" :message="message"
+        @contextmenu="onMessageRightClick($event, message)" /> -->
     </template>
   </div>
 </template>

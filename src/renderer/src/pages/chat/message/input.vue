@@ -1,21 +1,21 @@
 <script setup lang="ts">
 const message = ref('')
 const chatStore = useChatsStores();
-const { sendMessage } = useLangChain()
 const adjustTextareaHeight = (event: Event) => {
   const textarea = event.target as HTMLTextAreaElement
   textarea.style.height = 'auto'
   textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
 }
 
-const _sendMessage = () => {
+const { sendMessages } = useChat()
+const _sendMessage = async () => {
   const input = message.value.trim()
   if (input) {
     message.value = ''
     if (chatStore.chats.length === 0) {
       chatStore.createChat()
     }
-    sendMessage(input, chatStore.currentChat!.id!)
+    sendMessages(input, chatStore.currentChat!.id!)
   }
 }
 </script>

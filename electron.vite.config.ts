@@ -27,7 +27,7 @@ export default defineConfig({
         imports: ['vue', 'vue-router', 'pinia'],
         dts: 'src/auto-imports.d.ts',
         vueTemplate: true,
-        dirs: ['src/composables', 'src/utils', 'src/stores']
+        dirs: ['src/composables', 'src/utils', 'src/stores', 'src/services']
       }),
       Components({
         dirs: ['src/components', 'src/pages'],

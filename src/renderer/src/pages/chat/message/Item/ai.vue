@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { BaseMessage } from "@langchain/core/messages";
 
 const props = defineProps<{
   message: BaseMessage
@@ -10,13 +9,6 @@ const provider = computed(() => (additionalKwargs.value as any).provider || {})
 const time = computed(() => (additionalKwargs.value as any).time || '')
 const reasoning_content = computed(() => (additionalKwargs.value as any).reasoning_content)
 
-// Check if message is loading (empty content)
-const isLoading = computed(() => {
-  if (!props.message.text || props.message.text.trim() === '') {
-    return true
-  }
-  return false
-})
 </script>
 
 <template>
@@ -28,19 +20,19 @@ const isLoading = computed(() => {
     <div class="msg-content">
 
       <div class="msg-meta">
-        <span class="msg-name">{{ provider.name || message.getType() }}</span>
+        <span class="msg-name">{{ provider.name }}</span>
         <span class="msg-time">{{ time }}</span>
       </div>
       <ChatMessageItemReasoning_content :reasoning_content="reasoning_content" v-if="reasoning_content" />
 
       <!-- Loading indicator -->
-      <div v-if="isLoading" class="loading-container">
+      <!-- <div v-if="isLoading" class="loading-container">
         <div class="loading-dots">
           <span class="dot"></span>
           <span class="dot"></span>
           <span class="dot"></span>
         </div>
-      </div>
+      </div> -->
 
       <!-- Actual content -->
       <ChatMessageItemContent v-else :message="message" />

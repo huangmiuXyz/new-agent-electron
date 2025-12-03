@@ -1,137 +1,84 @@
 <script setup lang="ts">
-import type { BaseMessage, ContentBlock } from "@langchain/core/messages";
+import { nextTick } from 'vue'
 
 const props = defineProps<{
     message: BaseMessage
 }>();
 
+const { currentChat } = storeToRefs(useChatsStores());
+const { updateMessage } = useChatsStores()
 
-const chatStore = useChatsStores();
-
-// 注入编辑功能
 const messageEdit = inject('messageEdit') as {
     editingMessageId: Ref<string | null>
     triggerEdit: (messageId: string) => void
     cancelEdit: () => void
 }
 
-// 计算当前消息是否处于编辑状态
-const isEditing = computed(() => messageEdit.editingMessageId.value === props.message.id)
+const { Check, Close } = useIcon(['Check', 'Close'])
 
-const draftContent = ref<string | ContentBlock[]>([])
+const isEditing = computed(() => {
+    return messageEdit.editingMessageId.value === props.message.id
+})
 
-// 监听编辑状态变化
-watch(() => isEditing.value, (newVal) => {
+const draftContent = ref<Array<{ type: string; text?: string;[key: string]: any }>>([])
+
+watch(isEditing, (newVal) => {
     if (newVal) {
-        // 进入编辑模式时，初始化草稿内容
-        try {
-            draftContent.value = JSON.parse(JSON.stringify(props.message.content))
-        } catch (e) {
-            console.error('Failed to clone content', e)
-            draftContent.value = props.message.content as string
-        }
-
-        nextTick(() => {
-            const textarea = document.querySelector('.edit-textarea') as HTMLTextAreaElement
-            if (textarea) {
-                textarea.focus()
-            }
-            adjustAllTextareas()
-        })
-    } else {
-        // 退出编辑模式时，清空草稿内容
-        draftContent.value = ''
+        draftContent.value = props.message.parts.map(part => ({ ...part }))
+        adjustAllTextareaHeight()
     }
 })
 
+const handleInput = (event: Event) => {
+    const textarea = event.target as HTMLTextAreaElement
+    textarea.style.height = 'auto'
+    textarea.style.height = textarea.scrollHeight + 'px'
+}
+
+const adjustAllTextareaHeight = () => {
+    nextTick(() => {
+        const textareas = document.querySelectorAll('.edit-textarea')
+        textareas.forEach((textarea) => {
+            const el = textarea as HTMLTextAreaElement
+            el.style.height = 'auto'
+            el.style.height = el.scrollHeight + 'px'
+        })
+    })
+}
 const cancelEditing = () => {
     messageEdit.cancelEdit()
 }
-
 const saveEditing = () => {
-    const originalJson = JSON.stringify(props.message.content)
-    const draftJson = JSON.stringify(draftContent.value)
-
-    if (originalJson !== draftJson) {
-        if (chatStore.activeChatId && props.message.id) {
-            chatStore.updateMessage(
-                chatStore.activeChatId,
-                props.message.id,
-                draftContent.value
-            );
-            chatStore.$persist()
-        } else {
-            console.error("无法更新消息: 缺少 ChatID 或 MessageID");
+    if (!currentChat.value) return
+    const filteredContent = draftContent.value.filter(part => {
+        if (part.type === 'text') {
+            return part.text && part.text.trim() !== ''
         }
-    }
+        return true
+    })
+    updateMessage(currentChat.value.id, props.message.id, filteredContent)
     messageEdit.cancelEdit()
 }
-
-const handleInput = (event: Event) => {
-    const target = event.target as HTMLTextAreaElement
-    adjustHeight(target)
-}
-
-const adjustHeight = (el: HTMLTextAreaElement) => {
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = el.scrollHeight + 'px'
-}
-
-const adjustAllTextareas = () => {
-    const els = document.querySelectorAll('.edit-textarea')
-    els.forEach(el => adjustHeight(el as HTMLTextAreaElement))
-}
-
-
-const { Check, Close } = useIcon(['Check', 'Close'])
 </script>
 
 <template>
     <div>
         <div v-if="!isEditing" class="msg-bubble">
-            <div v-if="typeof message.content === 'string'" class="text-content">
-                {{ message.content }}
-            </div>
-
-            <div v-else-if="Array.isArray(message.content)" class="blocks-container">
-                <div v-for="(block, idx) in (message.content as ContentBlock[])" :key="idx" class="view-block">
+            <div class="blocks-container">
+                <div v-for="(block, idx) in message.parts" :key="idx" class="view-block">
                     <span v-if="block.type === 'text'">{{ block.text }}</span>
-                    <img v-else-if="block.type === 'image_url'" :src="(block as ContentBlock.Multimodal.Image).url"
-                        class="msg-image" alt="Generated content" />
                 </div>
             </div>
         </div>
-
         <div v-else class="edit-wrapper">
             <div class="edit-container">
-                <template v-if="typeof draftContent === 'string'">
-                    <textarea v-model="draftContent" class="edit-textarea" rows="2" @input="handleInput"
-                        placeholder="Type your message..."></textarea>
-                </template>
-
-                <template v-else-if="Array.isArray(draftContent)">
-                    <div v-for="(block, idx) in (draftContent as ContentBlock[])" :key="idx" class="edit-block-row">
-
-                        <div v-if="block.type === 'text'" class="edit-text-wrapper">
-                            <textarea v-model="(block as ContentBlock.Text).text" class="edit-textarea" rows="1"
-                                @input="handleInput" placeholder="Edit text content..."></textarea>
-                        </div>
-
-                        <div v-else-if="block.type === 'image'" class="edit-image-readonly">
-                            <div class="readonly-badge">Image (Read-only)</div>
-                            <img :src="(block as ContentBlock.Multimodal.Image).url" class="preview-image"
-                                alt="preview" />
-                        </div>
-
-                        <div v-else class="edit-unknown">
-                            [Unknown Block: {{ block.type }}]
-                        </div>
-
+                <div v-for="(block, idx) in draftContent" :key="idx" class="edit-block-row">
+                    <div v-if="block.type === 'text'" class="edit-text-wrapper">
+                        <textarea v-model="block.text" class="edit-textarea" rows="1" @input="handleInput"
+                            placeholder="Edit text content..."></textarea>
                     </div>
-                </template>
+                </div>
             </div>
-
             <div class="edit-actions">
                 <Button variant="text" size="sm" @click="cancelEditing">
                     <Close />

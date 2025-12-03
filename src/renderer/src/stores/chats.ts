@@ -1,6 +1,3 @@
-import type { BaseMessage, StoredMessage } from '@langchain/core/messages'
-import { mapStoredMessagesToChatMessages } from '@langchain/core/messages'
-
 export const useChatsStores = defineStore(
   'chats',
   () => {
@@ -53,16 +50,23 @@ export const useChatsStores = defineStore(
       currentChat.value!.messages.push(msg)
       return msg.id
     }
-    const updateMessage = (cid: string, mid: string, newContent: string | any[]) => {
+    const updateMessage = (cid: string, mid: string, newParts: ContentBlock[]) => {
       const chat = getChatById(cid)
       if (!chat) return
       const msg = chat.messages.find((m) => m.id === mid)
       if (msg) {
-        msg.content = newContent
+        msg.parts = newParts
+      }
+    }
+    const updateMessages = (chatId: string, messages: BaseMessage[]) => {
+      const chat = getChatById(chatId)
+      if (chat) {
+        chat.messages = messages
       }
     }
 
     return {
+      updateMessages,
       chats,
       activeChatId,
       currentChat,
@@ -77,30 +81,6 @@ export const useChatsStores = defineStore(
     }
   },
   {
-    persist: {
-      serializer: {
-        deserialize: (state) => {
-          const parsedState = JSON.parse(state)
-          if (parsedState.chats) {
-            parsedState.chats = parsedState.chats.map((chat: Chat) => ({
-              ...chat,
-              messages: mapStoredMessagesToChatMessages(chat.messages as unknown as StoredMessage[])
-            }))
-          }
-          return parsedState
-        },
-        serialize: (state) => {
-          return JSON.stringify({
-            ...state,
-            chats: state.chats.map((chat: Chat) => ({
-              ...chat,
-              messages: chat.messages.map((m) => {
-                return m.toDict()
-              })
-            }))
-          })
-        }
-      }
-    }
+    persist: true
   }
 )

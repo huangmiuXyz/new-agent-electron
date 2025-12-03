@@ -1,4 +1,3 @@
-import type { BaseMessage } from '@langchain/core/messages'
 import { SystemMessage } from '@langchain/core/messages'
 import { AIMessage } from '@langchain/core/messages'
 
