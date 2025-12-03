@@ -122,29 +122,12 @@ const handleDelete = (name: string) => {
 
 const activeMcpLoading = ref<string | null>(null)
 
-// --- 核心修改部分 ---
-const fetchTools = async (server: any) => {
-    try {
-        activeMcpLoading.value = server.name
-        const toolsMap = await window.api.list_tools({
-            [server.name]: JSON.parse(JSON.stringify(server)),
-        }, false);
-
-        const toolsArray: McpTool[] = Object.entries(toolsMap || {}).map(([key, value]: [string, any]) => ({
-            name: key,
-            ...value
-        }));
-        server.tools = toolsArray
-
-        if (toolsArray.length) {
-            expandedKeys.value[server.name] = true
-        }
-    } catch (e) {
-        console.error('Failed to fetch tools:', e)
-        server.tools = []
-    } finally {
-        activeMcpLoading.value = null
-    }
+const fetchTools = async (server: ClientConfig[string]) => {
+    activeMcpLoading.value = server.name
+    const tools = await window.api.list_tools({
+        [server.name]: JSON.parse(JSON.stringify(server)),
+    }, false);
+    server.tools = tools
 }
 
 const toggleActive = async (server: any) => {
