@@ -7,7 +7,9 @@ export const useChat = () => {
   const sendMessages = async (text: string, chatId: string) => {
     const chats = getChatById(chatId)
     const agent = getAgentById(chats!.agentId!)
-    const mcpClient = getMcpByAgent(agent?.id!)
+    const mcpClient = getMcpByAgent(agent?.id!).mcpServers
+    debugger
+    const tools = await window.api.list_tools(JSON.parse(JSON.stringify(mcpClient)))
     const service = chatService()
     const chat = new Chat({
       transport: {
@@ -20,7 +22,7 @@ export const useChat = () => {
               provider: currentSelectedProvider?.name!
             },
             messages,
-            { mcpClient }
+            { tools }
           )
         },
         reconnectToStream: void 0 as any

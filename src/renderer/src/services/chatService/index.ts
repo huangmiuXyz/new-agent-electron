@@ -9,13 +9,13 @@ interface ChatServiceOptions {
 }
 
 interface ChatServiceConfig {
-  mcpClient: Tools
+  tools: Tools
 }
 export const chatService = () => {
   const createAgent = async (
     { model, apiKey, baseURL, provider }: ChatServiceOptions,
     messages: BaseMessage[],
-    { mcpClient }: ChatServiceConfig
+    { tools }: ChatServiceConfig
   ) => {
     const deepseekProvider = createDeepSeek({
       apiKey,
@@ -23,14 +23,7 @@ export const chatService = () => {
     })
     const agent = new ToolLoopAgent({
       model: deepseekProvider(model!),
-      tools: mapValues(mcpClient, (v) =>
-        tool({
-          ...v,
-          execute: (args) => {
-            console.log(args)
-          }
-        })
-      )
+      tools
     })
     const stream = await agent.stream({
       messages: convertToModelMessages(messages)

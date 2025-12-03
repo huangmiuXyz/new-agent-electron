@@ -1,18 +1,19 @@
 import { experimental_createMCPClient, type experimental_MCPClient as MCPClient } from '@ai-sdk/mcp'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
-export type ClientConfig = Record<
+type ClientConfig = Record<
   string,
   {
     command?: string
     args?: string[]
     url?: string
-    transport?: 'http' | 'sse'
+    transport?: 'http' | 'sse' | 'stdio'
     headers?: Record<string, string>
+    active: boolean
+    tools: Tools
     [key: string]: any
   }
 >
-
 type Tools = Awaited<ReturnType<MCPClient['tools']>>
 
 interface aiServiceResult {
