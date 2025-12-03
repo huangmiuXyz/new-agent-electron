@@ -77,19 +77,16 @@ export const useAgentStore = defineStore(
     const getMcpByAgent = (agentId: string) => {
       const agent = getAgentById(agentId)
       const settings = useSettingsStore()
-      let mcpConfig: ClientConfig
       if (agent && agent.mcpServers.length > 0) {
-        const filteredServers: ClientConfig = {}
+        const filteredServers: Tools = {}
         agent.mcpServers.forEach((serverName) => {
           if (settings.mcpServers[serverName]) {
-            filteredServers[serverName] = settings.mcpServers[serverName]
+            Object.assign(filteredServers, settings.mcpServers[serverName].tools)
           }
         })
-        mcpConfig = filteredServers
-      } else {
-        mcpConfig = settings.mcpServers
+        return filteredServers
       }
-      return mcpConfig
+      return {}
     }
     return {
       agents,

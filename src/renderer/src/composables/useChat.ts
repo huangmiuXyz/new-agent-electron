@@ -7,7 +7,8 @@ export const useChat = () => {
   const sendMessages = async (text: string, chatId: string) => {
     const chats = getChatById(chatId)
     const agent = getAgentById(chats!.agentId!)
-    const mcpClient = getMcpByAgent(agent?.id!).mcpServers
+    const mcpClient = getMcpByAgent(agent?.id!)
+    debugger
     const service = chatService()
     const chat = new Chat({
       transport: {
