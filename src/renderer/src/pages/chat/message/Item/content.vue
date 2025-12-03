@@ -67,6 +67,8 @@ const saveEditing = () => {
             <div class="blocks-container">
                 <div v-for="(block, idx) in message.parts" :key="idx" class="view-block">
                     <span v-if="block.type === 'text'">{{ block.text }}</span>
+                    <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
+                        :reasoning_content="block.text" />
                 </div>
             </div>
         </div>

@@ -8,7 +8,8 @@ export const useChat = () => {
     const service = chatService({
       model: currentSelectedModel!.id!,
       apiKey: currentSelectedProvider?.apiKey!,
-      baseURL: currentSelectedProvider?.baseUrl!
+      baseURL: currentSelectedProvider?.baseUrl!,
+      provider: currentSelectedProvider?.name!
     })
     const chat = new Chat({
       transport: {

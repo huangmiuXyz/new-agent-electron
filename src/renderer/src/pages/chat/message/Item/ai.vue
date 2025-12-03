@@ -1,31 +1,23 @@
 <script setup lang="ts">
 
-const props = defineProps<{
+defineProps<{
   message: BaseMessage
 }>();
-
-const additionalKwargs = computed(() => props.message.additional_kwargs || {})
-const provider = computed(() => (additionalKwargs.value as any).provider || {})
-const time = computed(() => (additionalKwargs.value as any).time || '')
-const reasoning_content = computed(() => (additionalKwargs.value as any).reasoning_content)
 
 </script>
 
 <template>
   <div class="msg-row them has-avatar">
     <div class="msg-avatar-area">
-      <img :src="provider.logo" class="msg-avatar" alt="avatar">
+      <img :src="message.metadata?.provider" class="msg-avatar" alt="avatar">
     </div>
 
     <div class="msg-content">
 
       <div class="msg-meta">
-        <span class="msg-name">{{ provider.name }}</span>
-        <span class="msg-time">{{ time }}</span>
+        <span class="msg-name">{{ message.metadata?.provider }}</span>
+        <span class="msg-time">{{ new Date(message.metadata!.date).toLocaleString() }}</span>
       </div>
-      <ChatMessageItemReasoning_content :reasoning_content="reasoning_content" v-if="reasoning_content" />
-
-      <!-- Loading indicator -->
       <!-- <div v-if="isLoading" class="loading-container">
         <div class="loading-dots">
           <span class="dot"></span>
@@ -34,8 +26,7 @@ const reasoning_content = computed(() => (additionalKwargs.value as any).reasoni
         </div>
       </div> -->
 
-      <!-- Actual content -->
-      <ChatMessageItemContent v-else :message="message" />
+      <ChatMessageItemContent :message="message" />
     </div>
   </div>
 </template>

@@ -5,8 +5,9 @@ interface ChatServiceOptions {
   model: string
   apiKey: string
   baseURL: string
+  provider: string
 }
-export const chatService = ({ model, apiKey, baseURL }: ChatServiceOptions) => {
+export const chatService = ({ model, apiKey, baseURL, provider }: ChatServiceOptions) => {
   const createAgent = async (messages: BaseMessage[]) => {
     const deepseekProvider = createDeepSeek({
       apiKey,
@@ -20,7 +21,7 @@ export const chatService = ({ model, apiKey, baseURL }: ChatServiceOptions) => {
     })
     return stream.toUIMessageStream({
       messageMetadata: () => {
-        return
+        return { provider, date: Date.now() }
       }
     })
   }
