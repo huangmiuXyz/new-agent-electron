@@ -64,8 +64,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         @contextmenu="onMessageRightClick($event, message)" />
       <ChatMessageItemAi v-if="message.role === 'assistant'" :message="message"
         @contextmenu="onMessageRightClick($event, message)" />
-      <!-- <ChatMessageItemTool v-if="message.role === 'tool'" :message="message"
-        @contextmenu="onMessageRightClick($event, message)" /> -->
     </template>
   </div>
 </template>

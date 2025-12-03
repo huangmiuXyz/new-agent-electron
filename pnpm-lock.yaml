@@ -11,6 +11,9 @@ importers:
       '@ai-sdk/deepseek':
         specifier: 2.0.0-beta.43
         version: 2.0.0-beta.43(zod@4.1.13)
+      '@ai-sdk/mcp':
+        specifier: 1.0.0-beta.24
+        version: 1.0.0-beta.24(zod@4.1.13)
       '@ai-sdk/vue':
         specifier: 3.0.0-beta.129
         version: 3.0.0-beta.129(vue@3.5.25(typescript@5.9.3))(zod@4.1.13)
@@ -188,6 +191,12 @@ packages:
 
   '@ai-sdk/gateway@2.0.0-beta.69':
     resolution: {integrity: sha512-BcDeF3MmIKKL3akDEEztKo8dWclMiLMQj8wASp9+dm6+eB8TtmpPa288wXTOe0mtKSbg2XY8vcSUp+p0TRgz+A==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/mcp@1.0.0-beta.24':
+    resolution: {integrity: sha512-THrqkivzM9TsdXZWkaDpl/3dMcDReypetONXz6nw8WRFt6J8nntzrOUcdwdzWl/kxSSADSnaKFBPZu5JLU+9jA==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -3811,6 +3820,17 @@ snapshots:
       '@ai-sdk/provider': 3.0.0-beta.22
       '@ai-sdk/provider-utils': 4.0.0-beta.40(zod@4.1.13)
       '@vercel/oidc': 3.0.5
+      zod: 4.1.13
+    transitivePeerDependencies:
+      - '@valibot/to-json-schema'
+      - arktype
+      - effect
+
+  '@ai-sdk/mcp@1.0.0-beta.24(zod@4.1.13)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.0-beta.22
+      '@ai-sdk/provider-utils': 4.0.0-beta.40(zod@4.1.13)
+      pkce-challenge: 5.0.1
       zod: 4.1.13
     transitivePeerDependencies:
       - '@valibot/to-json-schema'

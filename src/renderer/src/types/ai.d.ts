@@ -6,6 +6,7 @@ declare global {
   type BaseMessage = UIMessage<{
     provider: string
     date: number
+    model: string
   }>
   type ToolMessage = toolMessage
   type AIMessageChunk = aiMessageChunk
@@ -16,6 +17,17 @@ declare global {
     description?: string
     active?: boolean
   }
+  type ClientConfig = Record<
+    string,
+    {
+      command?: string
+      args?: string[]
+      url?: string
+      transport?: 'http' | 'sse'
+      headers?: Record<string, string>
+      [key: string]: any
+    }
+  >
 }
 
 export {}

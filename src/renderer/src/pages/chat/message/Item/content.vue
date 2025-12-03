@@ -69,6 +69,7 @@ const saveEditing = () => {
                     <span v-if="block.type === 'text'">{{ block.text }}</span>
                     <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
                         :reasoning_content="block.text" />
+                    <ChatMessageItemTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
                 </div>
             </div>
         </div>

@@ -21,7 +21,7 @@ export const chatService = ({ model, apiKey, baseURL, provider }: ChatServiceOpt
     })
     return stream.toUIMessageStream({
       messageMetadata: () => {
-        return { provider, date: Date.now() }
+        return { provider, date: Date.now(), model }
       }
     })
   }

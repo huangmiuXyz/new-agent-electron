@@ -3,19 +3,19 @@
 defineProps<{
   message: BaseMessage
 }>();
-
+const { getProviderById } = useSettingsStore()
 </script>
 
 <template>
   <div class="msg-row them has-avatar">
     <div class="msg-avatar-area">
-      <img :src="message.metadata?.provider" class="msg-avatar" alt="avatar">
+      <img :src="getProviderById(message.metadata?.provider!)?.logo" class="msg-avatar" alt="avatar">
     </div>
 
     <div class="msg-content">
 
       <div class="msg-meta">
-        <span class="msg-name">{{ message.metadata?.provider }}</span>
+        <span class="msg-name">{{ message.metadata?.model }}</span>
         <span class="msg-time">{{ new Date(message.metadata!.date).toLocaleString() }}</span>
       </div>
       <!-- <div v-if="isLoading" class="loading-container">

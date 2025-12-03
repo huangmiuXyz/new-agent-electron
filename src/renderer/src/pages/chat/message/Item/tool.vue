@@ -1,15 +1,14 @@
 <script setup lang="ts">
-import type { ToolMessage } from "@langchain/core/messages";
-import { computed } from 'vue';
+import { UIMessagePart } from 'ai';
 
 const props = defineProps<{
-    message: ToolMessage
+    tool_part
 }>();
 
-const toolName = computed(() => props.message.name || 'Tool Output');
+const toolName = computed(() => props.tool_part.name || 'Tool Output');
 const content = computed(() => {
-    if (typeof props.message.content === 'string') {
-        return props.message.content;
+    if (typeof props.tool_part.content === 'string') {
+        return props.tool_part.content;
     }
     return JSON.stringify(props.message.content, null, 2);
 });
