@@ -5,8 +5,7 @@ defineProps<{
     tool_part: DynamicToolUIPart
 }>();
 
-// 简单的折叠功能，如果内容太长
-const isCollapsed = ref(false);
+const isCollapsed = ref(true);
 const toggleCollapse = () => {
     isCollapsed.value = !isCollapsed.value;
 };
@@ -32,8 +31,12 @@ const toggleCollapse = () => {
                 </div>
             </div>
             <div class="tool-content" :class="{ 'collapsed': isCollapsed }">
-                {{ tool_part.input }}
-                {{ tool_part.output }}
+                <div>
+                    输入:{{ tool_part.input }}
+                </div>
+                <div>
+                    输出:{{ tool_part.output }}
+                </div>
             </div>
         </div>
     </div>
