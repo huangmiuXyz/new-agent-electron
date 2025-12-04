@@ -7,7 +7,6 @@ const adjustTextareaHeight = (event: Event) => {
   textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
 }
 
-const { sendMessages } = useChat()
 const _sendMessage = async () => {
   const input = message.value.trim()
   if (input) {
@@ -15,7 +14,8 @@ const _sendMessage = async () => {
     if (chatStore.chats.length === 0) {
       chatStore.createChat()
     }
-    sendMessages(input, chatStore.currentChat!.id!)
+    const { sendMessages } = await useChat(chatStore.currentChat!.id!)
+    sendMessages(input)
   }
 }
 </script>
