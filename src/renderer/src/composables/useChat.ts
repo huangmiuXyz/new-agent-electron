@@ -18,7 +18,8 @@ export const useChat = () => {
               model: currentSelectedModel.value!.id!,
               apiKey: currentSelectedProvider.value!.apiKey!,
               baseURL: currentSelectedProvider.value!.baseUrl!,
-              provider: currentSelectedProvider.value!.name!
+              provider: currentSelectedProvider.value!.name!,
+              modelType: currentSelectedProvider.value!.modelType
             },
             messages,
             { tools }

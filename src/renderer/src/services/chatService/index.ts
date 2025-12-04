@@ -6,6 +6,7 @@ interface ChatServiceOptions {
   apiKey: string
   baseURL: string
   provider: string
+  modelType: 'anthropic' | 'openai' | 'deepseek' | 'google' | 'xai'
 }
 
 interface ChatServiceConfig {
@@ -13,12 +14,12 @@ interface ChatServiceConfig {
 }
 export const chatService = () => {
   const createAgent = async (
-    { model, apiKey, baseURL, provider }: ChatServiceOptions,
+    { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions,
     messages: BaseMessage[],
     { tools }: ChatServiceConfig
   ) => {
     const agent = new ToolLoopAgent({
-      model: createRegistry({ apiKey, baseURL }).languageModel(`${provider}:${model}` as any),
+      model: createRegistry({ apiKey, baseURL }).languageModel(`${modelType}:${model}`),
       tools
     })
     const stream = await agent.stream({
