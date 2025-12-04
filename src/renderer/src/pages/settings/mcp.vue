@@ -124,9 +124,9 @@ const activeMcpLoading = ref<string | null>(null)
 
 const fetchTools = async (server: ClientConfig[string]) => {
     activeMcpLoading.value = server.name
-    const tools = await window.api.list_tools({
+    const tools = await chatService().list_tools({
         [server.name]: JSON.parse(JSON.stringify(server)),
-    }, false);
+    }, false)
     server.tools = tools
     activeMcpLoading.value = ''
 }

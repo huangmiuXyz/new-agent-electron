@@ -19,7 +19,7 @@ export const chatService = () => {
     { mcpClient }: ChatServiceConfig
   ) => {
     const close = messageApi.loading('连接mcp服务器中...')
-    const tools = await window.api.list_tools(JSON.parse(JSON.stringify(mcpClient)))
+    const tools = await list_tools(JSON.parse(JSON.stringify(mcpClient)))
     close()
     const agent = new ToolLoopAgent({
       model: createRegistry({ apiKey, baseURL }).languageModel(`${modelType}:${model}`),
@@ -44,8 +44,13 @@ export const chatService = () => {
     })
     return await models.json()
   }
+  const list_tools = async (config: ClientConfig, cache?: boolean) => {
+    const tools = await window.api.list_tools(config, cache)
+    return tools
+  }
   return {
     createAgent,
-    list_models
+    list_models,
+    list_tools
   }
 }
