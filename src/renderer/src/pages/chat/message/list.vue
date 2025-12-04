@@ -23,6 +23,7 @@ provide('messageEdit', {
   cancelEdit
 })
 
+const { regenerate } = useChat(currentChat.value!.id!)
 const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   event.preventDefault();
   event.stopPropagation();
@@ -43,7 +44,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       label: '重试',
       icon: Refresh,
       onClick: async (data) => {
-        const { regenerate } = useChat(currentChat.value!.id!)
         regenerate(data.id!)
       }
     },
