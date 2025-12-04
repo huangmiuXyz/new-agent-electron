@@ -6,6 +6,7 @@ declare global {
     date: number
     model: string
     stop: AbortController['abort']
+    loading: boolean
   }>
   type Tools = Awaited<ReturnType<typeof window.api.list_tools>>
   type ContentBlock = UIMessagePart

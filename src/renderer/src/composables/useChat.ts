@@ -29,10 +29,24 @@ export const useChat = (chatId: string) => {
     messages: chats?.messages
   })
   watchEffect(() => {
-    updateMessages(chatId, chat.messages)
+    updateMessages(
+      chatId,
+      chat.messages.map((e) => {
+        if (e.id === chat.lastMessage?.id) {
+          return {
+            ...e,
+            metadata: {
+              ...e.metadata!,
+              loading: chat.status === 'submitted' || chat.status === 'streaming' ? true : false
+            }
+          }
+        }
+        return e
+      })
+    )
   })
   const sendMessages = async (text: string) => {
-    chat.sendMessage({ id: nanoid(), role: 'user', parts: [{ type: 'text', text }] })
+    chat.sendMessage({ id: chat.generateId(), role: 'user', parts: [{ type: 'text', text }] })
   }
   const regenerate = (messageId: string) => {
     chat.regenerate({ messageId })

@@ -24,13 +24,13 @@ const Stop = useIcon('Stop')
           </template>
         </Button>
       </div>
-      <!-- <div v-if="isLoading" class="loading-container">
+      <div v-if="message.metadata!.loading" class="loading-container">
         <div class="loading-dots">
           <span class="dot"></span>
           <span class="dot"></span>
           <span class="dot"></span>
         </div>
-      </div> -->
+      </div>
       <ChatMessageItemContent :message="message" />
     </div>
   </div>
