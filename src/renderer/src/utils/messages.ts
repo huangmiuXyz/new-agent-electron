@@ -28,51 +28,71 @@ const styleId = 'nexus-message-style'
 if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
   const style = document.createElement('style')
   style.id = styleId
+  // 在 message.ts 中
+
   style.innerHTML = `
-        .nexus-message-container {
-            position: fixed;
-            top: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 5000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            pointer-events: none;
-        }
+    .nexus-message-container {
+        position: fixed;
+        top: 24px;
+        left: 0; /* 改为 0 */
+        width: 100%; /* 改为 100%，占满屏幕宽度，这样容器永远不会变形 */
+        /* transform: translateX(-50%);  <-- 删除这一行，不再需要移动容器 */
+        z-index: 5000;
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* 让内部的消息条在 100% 宽度的容器里水平居中 */
+        pointer-events: none; /* 关键：让点击穿透全屏透明容器 */
+    }
+    
+    .nexus-message-item {
+        margin-bottom: 12px;
+        padding: 9px 16px;
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.05);
+        border: 1px solid #e1e1e3;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+        font-size: 13px;
+        color: #202020;
         
-        .nexus-message-item {
-            margin-bottom: 12px;
-            padding: 9px 16px;
-            background: #fff;
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.05);
-            border: 1px solid #e1e1e3;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-            font-size: 13px;
-            color: #202020;
-            pointer-events: auto;
-            transition: all 0.2s cubic-bezier(0.215, 0.61, 0.355, 1);
-        }
+        pointer-events: auto; 
+        width: max-content;
+        max-width: 80vw; 
+        box-sizing: border-box;
 
-        .nexus-message-icon {
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-        }
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
 
-        .nexus-message-enter-from,
-        .nexus-message-leave-to {
-            opacity: 0;
-            transform: translateY(-20px);
-        }
-        .nexus-message-leave-active {
-            position: absolute;
-        }
-    `
+    .nexus-message-icon {
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+    } 
+    .nexus-message-enter-from,
+    .nexus-message-leave-to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    .nexus-message-leave-active {
+        position: absolute; 
+        left: 0;
+        right: 0;
+        margin: 0 auto; 
+        width: fit-content; 
+        width: fit-content; 
+        
+        z-index: -1;
+    }
+
+    .nexus-message-move {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+`
   document.head.appendChild(style)
 }
 
