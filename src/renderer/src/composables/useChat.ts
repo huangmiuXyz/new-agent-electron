@@ -29,6 +29,8 @@ export const useChat = (chatId: string) => {
     messages: unref(chats?.messages)
   })
   watchEffect(() => {
+    console.log(chat.lastMessage)
+
     updateMessages(
       chatId,
       chat.messages.map((e) => {
