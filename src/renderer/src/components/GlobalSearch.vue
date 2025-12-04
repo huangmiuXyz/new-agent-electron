@@ -27,7 +27,7 @@ const scrollContainer = ref<HTMLElement | null>(null)
 
 // 获取聊天存储
 const chatsStore = useChatsStores()
-
+const settings = useSettingsStore()
 // 生成搜索结果数据
 const searchData = computed(() => {
     const results: SearchResult[] = []
@@ -38,18 +38,11 @@ const searchData = computed(() => {
         chat.messages.forEach(message => {
             // 处理消息内容，可能是字符串或ContentBlock数组
             let contentText = ''
-            if (message.content) {
-                if (typeof message.content === 'string') {
-                    contentText = message.content
-                } else if (Array.isArray(message.content)) {
-                    // 处理ContentBlock数组
-                    contentText = message.content
-                        .filter(block => block.type === 'text')
-                        .map(block => (block as any).text || '')
-                        .join('')
-                }
-            }
-            const additional_kwargs = message.additional_kwargs as unknown as Additional_kwargs
+            contentText = message.parts
+                .filter(block => block.type === 'text')
+                .map(block => (block as any).text || '')
+                .join('')
+            const metadata = message.metadata
             // 只搜索有内容的消息
             if (contentText.trim()) {
                 results.push({
@@ -58,10 +51,10 @@ const searchData = computed(() => {
                     chatTitle: chat.title,
                     messageId: message.id!,
                     content: contentText,
-                    logo: additional_kwargs.provider?.logo,
-                    modelName: additional_kwargs.model?.name || '未知模型',
-                    isHuman: message.getType() === 'human',
-                    date: new Date(additional_kwargs?.time || chat.createdAt).toLocaleDateString()
+                    logo: settings.providers.find(p => p.id === metadata?.provider)?.logo!,
+                    modelName: metadata?.model || '未知模型',
+                    isHuman: message.role === 'user',
+                    date: new Date(metadata?.date || chat.createdAt).toLocaleDateString()
                 })
             }
         })
