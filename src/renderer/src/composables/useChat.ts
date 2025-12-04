@@ -26,18 +26,20 @@ export const useChat = (chatId: string) => {
       },
       reconnectToStream: void 0 as any
     },
-    messages: chats?.messages
+    messages: unref(chats?.messages)
   })
   watchEffect(() => {
     updateMessages(
       chatId,
       chat.messages.map((e) => {
         if (e.id === chat.lastMessage?.id) {
+          console.log(chat.status)
+
           return {
             ...e,
             metadata: {
               ...e.metadata!,
-              loading: chat.status === 'submitted' || chat.status === 'streaming' ? true : false
+              loading: chat.status === 'submitted' ? true : false
             }
           }
         }
