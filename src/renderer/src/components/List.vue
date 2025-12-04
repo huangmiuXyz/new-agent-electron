@@ -4,8 +4,12 @@ import { computed } from 'vue'
 interface Props {
   items: T[]
   type?: 'gap' | 'ungap'
-  title?: string // 仅 gap 模式显示
+  title?: string
   activeId?: string
+
+  // 状态配置 (New)
+  loading?: boolean
+  emptyText?: string
 
   // 字段配置
   keyField?: string
@@ -15,13 +19,15 @@ interface Props {
 
   // 功能配置
   selectable?: boolean
-  showHeader?: boolean // 仅 ungap 模式的分组标题
+  showHeader?: boolean
   renderHeader?: (item: T) => string
   isSelected?: (item: T) => boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   type: 'gap',
+  loading: false,        // 默认为不加载
+  emptyText: '暂无数据',  // 默认空提示
   keyField: 'id',
   mainField: 'name',
   subField: '',
@@ -66,23 +72,41 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 <template>
   <div class="list-container" :class="[`mode-${type}`]">
     <div v-if="title && type === 'gap'" class="list-title">{{ title }}</div>
+
     <div class="list-scroll-area">
-      <template v-for="item in viewItems" :key="item.key">
-        <div v-if="item.groupTitle" class="group-header">{{ item.groupTitle }}</div>
-        <div class="list-item" :class="{ 'is-active': item.isActive }" @click="handleAction('select', item)"
-          @contextmenu="handleAction('contextmenu', item, $event)">
-          <div v-if="item.logo" class="item-media">
-            <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
-            <img v-else :src="item.logo" :alt="String(item.main)" class="media-img" />
+      <!-- 1. Loading 状态 -->
+      <div v-if="loading" class="state-container">
+        <slot name="loading">
+          <div class="loading-spinner"></div>
+        </slot>
+      </div>
+
+      <!-- 2. Empty 状态 -->
+      <div v-else-if="viewItems.length === 0" class="state-container">
+        <slot name="empty">
+          <div class="empty-text">{{ emptyText }}</div>
+        </slot>
+      </div>
+
+      <!-- 3. 数据列表 -->
+      <template v-else>
+        <template v-for="item in viewItems" :key="item.key">
+          <div v-if="item.groupTitle" class="group-header">{{ item.groupTitle }}</div>
+          <div class="list-item" :class="{ 'is-active': item.isActive }" @click="handleAction('select', item)"
+            @contextmenu="handleAction('contextmenu', item, $event)">
+            <div v-if="item.logo" class="item-media">
+              <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
+              <img v-else :src="item.logo" :alt="String(item.main)" class="media-img" />
+            </div>
+            <div class="item-content">
+              <div class="main-text text-truncate">{{ item.main }}</div>
+              <div v-if="item.sub" class="sub-text text-truncate">{{ item.sub }}</div>
+            </div>
+            <div v-if="$slots.actions" class="item-actions">
+              <slot name="actions" :item="item.raw"></slot>
+            </div>
           </div>
-          <div class="item-content">
-            <div class="main-text text-truncate">{{ item.main }}</div>
-            <div v-if="item.sub" class="sub-text text-truncate">{{ item.sub }}</div>
-          </div>
-          <div v-if="$slots.actions" class="item-actions">
-            <slot name="actions" :item="item.raw"></slot>
-          </div>
-        </div>
+        </template>
       </template>
     </div>
   </div>
@@ -100,7 +124,46 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 .list-scroll-area {
   flex: 1;
   overflow-y: auto;
+  position: relative;
+  /* 确保状态容器定位正常 */
+  min-height: 60px;
+  /* 防止高度坍塌 */
 }
+
+/* ====================
+   状态样式 (Loading / Empty)
+   ==================== */
+.state-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 100px;
+  padding: 20px;
+  color: var(--text-tertiary, #999);
+}
+
+.empty-text {
+  font-size: 13px;
+  user-select: none;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-subtle, #eee);
+  border-top-color: var(--accent-color, #0066ff);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ... 以下保持原有的 list-item 等样式不变 ... */
 
 .list-item {
   display: flex;
@@ -112,7 +175,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 .item-content {
   flex: 1;
   min-width: 0;
-  /* Flex 布局下文本截断必须 */
   display: flex;
   flex-direction: column;
 }
@@ -137,7 +199,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   padding: 12px;
   height: 100%;
   background-color: transparent;
-  /* 添加透明背景，允许父组件控制 */
 }
 
 .mode-gap .list-title {
@@ -166,12 +227,10 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 
 .mode-gap .item-media {
   display: flex;
-  /* 确保显示 */
 }
 
 .mode-gap .sub-text {
   display: none;
-  /* Gap 模式通常不显示副标题，如需要可移除此行 */
 }
 
 .mode-gap .main-text {
@@ -215,7 +274,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   justify-content: space-between;
 }
 
-/* Ungap 的圆角逻辑 */
 .mode-ungap .list-item:first-of-type {
   border-radius: 6px 6px 0 0;
 }
@@ -246,7 +304,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   background: var(--bg-active, var(--accent-color));
 }
 
-/* 选中态文字颜色反转 */
 .mode-ungap .list-item.is-active .main-text,
 .mode-ungap .list-item.is-active .sub-text {
   color: #fff !important;

@@ -89,16 +89,21 @@ const selectProvider = (providerId: string) => {
 }
 
 const { Refresh, Plus, Search } = useIcon(['Refresh', 'Plus', 'Search'])
-
+const loading = ref(false)
 const refreshModels = async () => {
-    const { data } = await chatService().list_models({
-        apiKey: activeProvider.value!.apiKey!,
-        baseURL: activeProvider.value!.baseUrl!,
-    })
-    updateProvider(activeProviderId.value, {
-        ...activeProvider.value!,
-        models: data.map(m => ({ ...m, name: m.id })),
-    })
+    loading.value = true
+    try {
+        const { data } = await chatService().list_models({
+            apiKey: activeProvider.value!.apiKey!,
+            baseURL: activeProvider.value!.baseUrl!,
+        })
+        updateProvider(activeProviderId.value, {
+            ...activeProvider.value!,
+            models: data.map(m => ({ ...m, name: m.id })),
+        })
+    } finally {
+        loading.value = false
+    }
 }
 
 // 显示添加自定义模型的模态框
@@ -150,8 +155,8 @@ const handleShowSearch = async () => {
             <ProviderForm>
                 <template #footer>
                     <FormItem label="模型列表">
-                        <List type="ungap" v-if="activeProvider?.models?.length" :items="filteredModels"
-                            :key-field="'id'" :main-field="'name'" :sub-field="'id'">
+                        <List :loading="loading" type="ungap" :items="filteredModels" :key-field="'id'"
+                            :main-field="'name'" :sub-field="'id'">
                             <template #actions="{ item }">
                                 <Switch v-model="item.active" />
                             </template>
