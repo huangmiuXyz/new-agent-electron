@@ -37,7 +37,7 @@ export const useChat = (chatId: string) => {
             ...e,
             metadata: {
               ...e.metadata!,
-              loading: chat.status === 'submitted' ? true : false
+              loading: chat.status === 'submitted' || chat.status === 'streaming' ? true : false
             }
           }
         }
