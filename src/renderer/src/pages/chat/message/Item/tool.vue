@@ -52,8 +52,7 @@ const toggleCollapse = () => {
 }
 
 .tool-card {
-    max-width: 90%;
-    min-width: 300px;
+    width: 100%;
     background-color: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
