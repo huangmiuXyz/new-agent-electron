@@ -81,8 +81,9 @@ export const useAgentStore = defineStore(
       if (agent && agent.mcpServers.length > 0) {
         const filteredServers: ClientConfig = {}
         agent.mcpServers.forEach((serverName) => {
-          if (settings.mcpServers[serverName]) {
-            filteredServers[serverName] = settings.mcpServers[serverName]
+          const mcp = settings.mcpServers[serverName]
+          if (mcp) {
+            if (mcp.active) filteredServers[serverName] = mcp
           }
         })
         mcpConfig.mcpServers = filteredServers
