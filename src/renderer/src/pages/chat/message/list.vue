@@ -32,7 +32,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       label: '编辑',
       icon: Edit,
       onClick: () => {
-        // 使用 provide/inject 机制触发编辑模式
         triggerEdit(message.id!);
       }
     },
