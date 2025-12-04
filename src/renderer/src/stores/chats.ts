@@ -58,10 +58,13 @@ export const useChatsStores = defineStore(
         msg.parts = newParts
       }
     }
-    const updateMessages = (chatId: string, messages: BaseMessage[]) => {
+    const updateMessages = (
+      chatId: string,
+      messages: BaseMessage[] | ((messages: BaseMessage[]) => BaseMessage[])
+    ) => {
       const chat = getChatById(chatId)
       if (chat) {
-        chat.messages = messages
+        chat.messages = typeof messages === 'function' ? messages(chat.messages) : messages
       }
     }
 
