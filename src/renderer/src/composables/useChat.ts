@@ -10,16 +10,18 @@ export const useChat = () => {
     const mcpClient = getMcpByAgent(agent?.id!).mcpServers
     const tools = await window.api.list_tools(JSON.parse(JSON.stringify(mcpClient)))
     const service = chatService()
+    const { apiKey, baseUrl, id: provider, modelType } = toRefs(currentSelectedProvider.value!)
+    const { id: model } = toRefs(currentSelectedModel.value!)
     const chat = new Chat({
       transport: {
         sendMessages: ({ messages }) => {
           return service.createAgent(
             {
-              model: currentSelectedModel.value!.id!,
-              apiKey: currentSelectedProvider.value!.apiKey!,
-              baseURL: currentSelectedProvider.value!.baseUrl!,
-              provider: currentSelectedProvider.value!.name!,
-              modelType: currentSelectedProvider.value!.modelType
+              model: model.value!,
+              apiKey: apiKey!.value!,
+              baseURL: baseUrl.value,
+              provider: provider.value,
+              modelType: modelType.value
             },
             messages,
             { tools }
