@@ -38,7 +38,7 @@ export const chatService = () => {
     })
     const uiStream = stream.toUIMessageStream({
       messageMetadata: () => {
-        return { provider, date: Date.now(), model, stop: controller.abort }
+        return { provider, date: Date.now(), model, stop: () => controller.abort() }
       }
     })
     return uiStream

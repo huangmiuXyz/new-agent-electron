@@ -4,6 +4,7 @@ defineProps<{
   message: BaseMessage
 }>();
 const { getProviderById } = useSettingsStore()
+const Stop = useIcon('Stop')
 </script>
 
 <template>
@@ -17,6 +18,11 @@ const { getProviderById } = useSettingsStore()
       <div class="msg-meta">
         <span class="msg-name">{{ message.metadata?.model }}</span>
         <span class="msg-time">{{ new Date(message.metadata!.date).toLocaleString() }}</span>
+        <Button size="sm" @click="message.metadata?.stop" variant="icon" type='button'>
+          <template #icon>
+            <Stop />
+          </template>
+        </Button>
       </div>
       <!-- <div v-if="isLoading" class="loading-container">
         <div class="loading-dots">
@@ -25,7 +31,6 @@ const { getProviderById } = useSettingsStore()
           <span class="dot"></span>
         </div>
       </div> -->
-
       <ChatMessageItemContent :message="message" />
     </div>
   </div>
