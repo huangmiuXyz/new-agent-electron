@@ -39,7 +39,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
     {
       label: '复制',
       icon: Copy,
-      onClick: () => copyText(message.text!)
+      onClick: () => copyText(message.parts.map(e => e.type === 'text' ? e.text : '').join(''))
     },
     {
       label: '重试',
