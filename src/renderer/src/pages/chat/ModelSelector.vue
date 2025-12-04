@@ -79,9 +79,8 @@ const handleModelSelect = (id: string) => {
       <template #actions="{ item }">
         <Check :style="{
           fontSize: '12px',
-          color: item.id === selectedModelId ? 'var(--accent-color)' : undefined,
-          opacity: item.id === selectedModelId ? 1 : 0
-        }" />
+          color: '#fff',
+        }" v-if="item.id === selectedModelId" />
       </template>
     </List>
   </SelectorPopover>
