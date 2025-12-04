@@ -33,8 +33,6 @@ export const useChat = (chatId: string) => {
       chatId,
       chat.messages.map((e) => {
         if (e.id === chat.lastMessage?.id) {
-          console.log(chat.status)
-
           return {
             ...e,
             metadata: {
