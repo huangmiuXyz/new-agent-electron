@@ -128,6 +128,7 @@ const fetchTools = async (server: ClientConfig[string]) => {
         [server.name]: JSON.parse(JSON.stringify(server)),
     }, false);
     server.tools = tools
+    activeMcpLoading.value = ''
 }
 
 const toggleActive = async (server: any) => {
