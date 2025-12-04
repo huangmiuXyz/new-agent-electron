@@ -51,7 +51,12 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       label: '删除',
       icon: Delete,
       danger: true,
-      onClick: () => deleteMessage(currentChat.value!.id, message.id!)
+      onClick: (data) => {
+        data.metadata?.stop()
+        setTimeout(() => {
+          deleteMessage(currentChat.value!.id, message.id!)
+        });
+      }
     }
   ];
   showContextMenu(event, messageMenuOptions, message);
