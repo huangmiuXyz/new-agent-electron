@@ -40,6 +40,7 @@ export const useChat = async (chatId: string) => {
   }
   return {
     sendMessages,
-    regenerate
+    regenerate,
+    chat
   }
 }
