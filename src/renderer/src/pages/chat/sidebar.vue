@@ -86,7 +86,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 
     <div class="nav-list">
       <!-- 空状态显示 -->
-      <div v-if="chatsStore.chats.length === 0" class="empty-state">
+      <div v-if="!chatsStore.chats.length" class="empty-state">
         <div class="empty-icon">
           <chatsIcon />
         </div>
@@ -96,8 +96,9 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
         </Button>
       </div>
       <!-- 聊天列表 -->
-      <List type="gap" :items="chatsStore.chats" :active-id="chatsStore.activeChatId!" :key-field="'id'"
-        :main-field="'title'" :sub-field="'createdAt'" @select="selectChat" @contextmenu="showChatContextMenu">
+      <List v-if="chatsStore.chats.length" type="gap" :items="chatsStore.chats" :active-id="chatsStore.activeChatId!"
+        :key-field="'id'" :main-field="'title'" :sub-field="'createdAt'" @select="selectChat"
+        @contextmenu="showChatContextMenu">
         <template #actions="{ item }">
           <span v-if="item.createdAt" class="item-time">{{ formatTime(item.createdAt) }}</span>
         </template>
