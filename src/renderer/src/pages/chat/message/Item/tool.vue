@@ -1,17 +1,9 @@
 <script setup lang="ts">
-import { UIMessagePart } from 'ai';
+import { DynamicToolUIPart } from 'ai';
 
-const props = defineProps<{
-    tool_part
+defineProps<{
+    tool_part: DynamicToolUIPart
 }>();
-
-const toolName = computed(() => props.tool_part.name || 'Tool Output');
-const content = computed(() => {
-    if (typeof props.tool_part.content === 'string') {
-        return props.tool_part.content;
-    }
-    return JSON.stringify(props.message.content, null, 2);
-});
 
 // 简单的折叠功能，如果内容太长
 const isCollapsed = ref(false);
@@ -32,7 +24,7 @@ const toggleCollapse = () => {
                                 d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                         </svg>
                     </div>
-                    <span class="tool-name">{{ toolName }}</span>
+                    <span class="tool-name">{{ tool_part.toolName }}</span>
                 </div>
                 <div class="tool-status">
                     <span class="status-dot"></span>
@@ -40,7 +32,8 @@ const toggleCollapse = () => {
                 </div>
             </div>
             <div class="tool-content" :class="{ 'collapsed': isCollapsed }">
-                {{ content }}
+                {{ tool_part.output }}
+                {{ tool_part.input }}
             </div>
         </div>
     </div>
