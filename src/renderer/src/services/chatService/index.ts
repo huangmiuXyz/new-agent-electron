@@ -10,14 +10,15 @@ interface ChatServiceOptions {
 }
 
 interface ChatServiceConfig {
-  tools: Tools
+  mcpClient: ClientConfig
 }
 export const chatService = () => {
   const createAgent = async (
     { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions,
     messages: BaseMessage[],
-    { tools }: ChatServiceConfig
+    { mcpClient }: ChatServiceConfig
   ) => {
+    const tools = await window.api.list_tools(JSON.parse(JSON.stringify(mcpClient)))
     const agent = new ToolLoopAgent({
       model: createRegistry({ apiKey, baseURL }).languageModel(`${modelType}:${model}`),
       tools

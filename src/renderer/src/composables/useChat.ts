@@ -6,7 +6,6 @@ export const useChat = async (chatId: string) => {
   const chats = getChatById(chatId)
   const agent = getAgentById(chats!.agentId!)
   const mcpClient = getMcpByAgent(agent?.id!).mcpServers
-  const tools = await window.api.list_tools(JSON.parse(JSON.stringify(mcpClient)))
   const service = chatService()
   const { apiKey, baseUrl, id: provider, modelType } = toRefs(currentSelectedProvider.value!)
   const { id: model } = toRefs(currentSelectedModel.value!)
@@ -22,7 +21,7 @@ export const useChat = async (chatId: string) => {
             modelType: modelType.value
           },
           messages,
-          { tools }
+          { mcpClient }
         )
       },
       reconnectToStream: void 0 as any
