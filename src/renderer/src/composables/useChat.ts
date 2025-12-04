@@ -1,5 +1,5 @@
 import { Chat } from '@ai-sdk/vue'
-export const useChat = async (chatId: string) => {
+export const useChat = (chatId: string) => {
   const { getChatById, updateMessages } = useChatsStores()
   const { currentSelectedProvider, currentSelectedModel } = storeToRefs(useSettingsStore())
   const { getAgentById, getMcpByAgent } = useAgentStore()

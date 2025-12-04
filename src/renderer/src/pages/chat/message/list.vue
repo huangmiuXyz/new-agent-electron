@@ -43,7 +43,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       label: '重试',
       icon: Refresh,
       onClick: async (data) => {
-        const { regenerate } = await useChat(currentChat.value!.id!)
+        const { regenerate } = useChat(currentChat.value!.id!)
         regenerate(data.id!)
       }
     },

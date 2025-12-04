@@ -14,7 +14,7 @@ const _sendMessage = async () => {
     if (chatStore.chats.length === 0) {
       chatStore.createChat()
     }
-    const { sendMessages } = await useChat(chatStore.currentChat!.id!)
+    const { sendMessages } = useChat(chatStore.currentChat!.id!)
     sendMessages(input)
   }
 }
