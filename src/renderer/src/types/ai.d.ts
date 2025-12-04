@@ -5,6 +5,7 @@ declare global {
     provider: string
     date: number
     model: string
+    stop: AbortController['abort']
   }>
   type Tools = Awaited<ReturnType<typeof window.api.list_tools>>
   type ContentBlock = UIMessagePart

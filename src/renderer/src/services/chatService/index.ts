@@ -31,14 +31,17 @@ export const chatService = () => {
       model: createRegistry({ apiKey, baseURL }).languageModel(`${modelType}:${model}`),
       tools
     })
+    const controller = new AbortController()
     const stream = await agent.stream({
-      messages: convertToModelMessages(messages)
+      messages: convertToModelMessages(messages),
+      abortSignal: controller.signal
     })
-    return stream.toUIMessageStream({
+    const uiStream = stream.toUIMessageStream({
       messageMetadata: () => {
-        return { provider, date: Date.now(), model }
+        return { provider, date: Date.now(), model, stop: controller.abort }
       }
     })
+    return uiStream
   }
   const list_models = async ({ baseURL, apiKey }) => {
     const models = await fetch(`${baseURL}/models`, {
