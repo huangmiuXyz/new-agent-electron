@@ -32,8 +32,8 @@ const toggleCollapse = () => {
                 </div>
             </div>
             <div class="tool-content" :class="{ 'collapsed': isCollapsed }">
-                {{ tool_part.output }}
                 {{ tool_part.input }}
+                {{ tool_part.output }}
             </div>
         </div>
     </div>
