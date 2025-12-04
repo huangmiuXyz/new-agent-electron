@@ -42,7 +42,7 @@ const toggleCollapse = () => {
 <style scoped>
 .msg-row {
     display: flex;
-    padding: 4px 20px;
+    padding: 4px 0px;
     /* Reduced padding for compactness */
     justify-content: flex-start;
     /* Align left like system messages */
