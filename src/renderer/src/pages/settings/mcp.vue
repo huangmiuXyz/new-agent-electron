@@ -124,18 +124,25 @@ const activeMcpLoading = ref<string | null>(null)
 
 const fetchTools = async (server: ClientConfig[string]) => {
     activeMcpLoading.value = server.name
-    const tools = await chatService().list_tools({
-        [server.name]: JSON.parse(JSON.stringify(server)),
-    }, false)
-    server.tools = tools
-    activeMcpLoading.value = ''
+    try {
+        const tools = await chatService().list_tools({
+            [server.name]: JSON.parse(JSON.stringify(server)),
+        }, false)
+        server.tools = tools
+        server.active = !server.active
+    } catch (error) {
+        messageApi.error((error as Error).message)
+    } finally {
+        activeMcpLoading.value = ''
+    }
 }
 
 const toggleActive = async (server: any) => {
     if (!server.active) {
         await fetchTools(server)
+    } else {
+        server.active = !server.active
     }
-    server.active = !server.active
 }
 
 const toggleExpand = (name: string) => {
@@ -206,7 +213,7 @@ const toggleExpand = (name: string) => {
                                     </template>
                                 </Button>
                                 <Button size="sm" variant="text" @click="toggleExpand(name as string)"
-                                    v-if="server.active && Object.keys(server.tools)?.length">
+                                    v-if="server.active && Object.keys(server.tools || {})?.length">
                                     <template #icon>
                                         <ChevronUp v-if="expandedKeys[name as string]" />
                                         <ChevronDown v-else />
