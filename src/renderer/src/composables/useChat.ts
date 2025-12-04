@@ -1,7 +1,7 @@
 import { Chat } from '@ai-sdk/vue'
 export const useChat = () => {
   const { getChatById, updateMessages } = useChatsStores()
-  const { currentSelectedProvider, currentSelectedModel } = useSettingsStore()
+  const { currentSelectedProvider, currentSelectedModel } = storeToRefs(useSettingsStore())
   const { getAgentById, getMcpByAgent } = useAgentStore()
 
   const sendMessages = async (text: string, chatId: string) => {
@@ -15,10 +15,10 @@ export const useChat = () => {
         sendMessages: ({ messages }) => {
           return service.createAgent(
             {
-              model: currentSelectedModel!.id!,
-              apiKey: currentSelectedProvider?.apiKey!,
-              baseURL: currentSelectedProvider?.baseUrl!,
-              provider: currentSelectedProvider?.name!
+              model: currentSelectedModel.value!.id!,
+              apiKey: currentSelectedProvider.value!.apiKey!,
+              baseURL: currentSelectedProvider.value!.baseUrl!,
+              provider: currentSelectedProvider.value!.name!
             },
             messages,
             { tools }
