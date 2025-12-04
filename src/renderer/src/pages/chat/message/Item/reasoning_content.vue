@@ -29,7 +29,6 @@ const toggleReasoning = () => {
 </script>
 <style>
 .reasoning-block {
-    margin: 4px 0 10px;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
     background-color: #fcfcfc;
