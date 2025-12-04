@@ -8,16 +8,25 @@ import Components from 'unplugin-vue-components/vite'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()]
+    plugins: [externalizeDepsPlugin()],
+    build: {
+      sourcemap: true
+    }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()]
+    plugins: [externalizeDepsPlugin()],
+    build: {
+      sourcemap: true
+    }
   },
   renderer: {
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src')
       }
+    },
+    build: {
+      sourcemap: true
     },
     plugins: [
       vue(),
