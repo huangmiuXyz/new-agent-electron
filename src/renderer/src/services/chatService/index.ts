@@ -1,5 +1,5 @@
-import { convertToModelMessages, tool, ToolLoopAgent } from 'ai'
-import { createDeepSeek } from '@ai-sdk/deepseek'
+import { convertToModelMessages, ToolLoopAgent } from 'ai'
+import { createRegistry } from './registry'
 
 interface ChatServiceOptions {
   model: string
@@ -17,12 +17,8 @@ export const chatService = () => {
     messages: BaseMessage[],
     { tools }: ChatServiceConfig
   ) => {
-    const deepseekProvider = createDeepSeek({
-      apiKey,
-      baseURL
-    })
     const agent = new ToolLoopAgent({
-      model: deepseekProvider(model!),
+      model: createRegistry({ apiKey, baseURL }).languageModel(`${provider}:${model}` as any),
       tools
     })
     const stream = await agent.stream({

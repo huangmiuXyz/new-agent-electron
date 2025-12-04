@@ -21,9 +21,13 @@
     "build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "3.0.0-beta.71",
     "@ai-sdk/deepseek": "2.0.0-beta.43",
+    "@ai-sdk/google": "3.0.0-beta.63",
     "@ai-sdk/mcp": "1.0.0-beta.24",
+    "@ai-sdk/openai": "3.0.0-beta.81",
     "@ai-sdk/vue": "3.0.0-beta.129",
+    "@ai-sdk/xai": "3.0.0-beta.49",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@vicons/ionicons5": "^0.13.0",
@@ -36,7 +40,8 @@
     "pinia": "^3.0.3",
     "pinia-plugin-persistedstate": "^4.7.1",
     "vue": "^3.5.22",
-    "vue-router": "^4.6.3"
+    "vue-router": "^4.6.3",
+    "zhipu-ai-provider": "0.2.0-beta.1"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "3.0.0",

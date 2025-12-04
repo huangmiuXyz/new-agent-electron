@@ -11,7 +11,7 @@
     "baseUrl": "https://generativelanguage.googleapis.com",
     "id": "Gemini",
     "logo": "/images/providers/gemini.png",
-    "modelType": "google-genai"
+    "modelType": "google"
   },
   {
     "name": "Anthropic",
