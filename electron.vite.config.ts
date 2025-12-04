@@ -25,9 +25,6 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
-    build: {
-      sourcemap: true
-    },
     plugins: [
       vue(),
       vueJsx(),
