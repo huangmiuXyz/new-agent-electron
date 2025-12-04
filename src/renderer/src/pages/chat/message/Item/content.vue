@@ -59,14 +59,6 @@ const saveEditing = () => {
     updateMessage(currentChat.value.id, props.message.id, filteredContent)
     messageEdit.cancelEdit()
 }
-
-// 将Uint8Array转换为可显示的图片URL
-const getImageSrc = (imageData: Uint8Array) => {
-    // 将Uint8Array转换为base64字符串
-    const binaryString = Array.from(imageData, byte => String.fromCharCode(byte)).join('')
-    const base64 = btoa(binaryString)
-    return `data:image/jpeg;base64,${base64}`
-}
 </script>
 
 <template>
@@ -75,8 +67,6 @@ const getImageSrc = (imageData: Uint8Array) => {
             <div class="blocks-container">
                 <div v-for="(block, idx) in message.parts" :key="idx" class="view-block">
                     <span v-if="block.type === 'text'">{{ block.text }}</span>
-                    <img v-else-if="block.type === 'image'" :src="getImageSrc(block.image)" class="msg-image"
-                        alt="User uploaded image" />
                     <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
                         :reasoning_content="block.text" />
                     <ChatMessageItemTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
@@ -89,10 +79,6 @@ const getImageSrc = (imageData: Uint8Array) => {
                     <div v-if="block.type === 'text'" class="edit-text-wrapper">
                         <textarea v-model="block.text" class="edit-textarea" rows="1" @input="handleInput"
                             placeholder="Edit text content..."></textarea>
-                    </div>
-                    <div v-else-if="block.type === 'image'" class="edit-image-readonly">
-                        <span class="readonly-badge">IMAGE</span>
-                        <img :src="getImageSrc(block.image)" class="preview-image" alt="Image" />
                     </div>
                 </div>
             </div>
