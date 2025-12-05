@@ -1,16 +1,17 @@
-import { Chat as _useChat } from '@ai-sdk/vue'
-export const useChat = (chats: Chat) => {
+import { Chat } from '@ai-sdk/vue'
+export const useChat = (chatId: string) => {
   const scope = effectScope()
 
   return scope.run(() => {
-    const { updateMessages } = useChatsStores()
+    const { getChatById, updateMessages } = useChatsStores()
     const { currentSelectedProvider, currentSelectedModel } = storeToRefs(useSettingsStore())
     const agent = useAgentStore()
+    const chats = getChatById(chatId)
     const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
     const service = chatService()
     const { apiKey, baseUrl, id: provider, modelType } = toRefs(currentSelectedProvider.value!)
     const { id: model } = toRefs(currentSelectedModel.value!)
-    const chat = new _useChat({
+    const chat = new Chat({
       transport: {
         sendMessages: ({ messages }) => {
           return service.createAgent(
@@ -36,7 +37,7 @@ export const useChat = (chats: Chat) => {
     watch(
       () => chat.messages,
       () => {
-        updateMessages(chats.id, (oldMessages) => {
+        updateMessages(chatId, (oldMessages) => {
           const map = new Map(oldMessages.map((m) => [m.id, m]))
           const cid = chat.id
           for (const m of chat.messages) {
