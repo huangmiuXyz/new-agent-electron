@@ -36,20 +36,7 @@ export const useChat = (chatId: string) => {
       }
     })
     watchEffect(() => {
-      updateMessages(
-        chatId,
-        chat.messages.map((e) =>
-          e.id === chat.lastMessage?.id
-            ? {
-                ...e,
-                metadata: {
-                  ...e.metadata!,
-                  loading: chat.status === 'submitted' || chat.status === 'streaming' ? true : false
-                }
-              }
-            : e
-        )
-      )
+      updateMessages(chatId, chat.messages)
     })
     const sendMessages = async (text: string) => {
       chat.sendMessage({
