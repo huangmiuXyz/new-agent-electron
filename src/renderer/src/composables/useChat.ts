@@ -26,7 +26,7 @@ export const useChat = (chatId: string) => {
       },
       reconnectToStream: void 0 as any
     },
-    messages: unref(chats?.messages)
+    messages: chats?.messages
   })
   watchEffect(() => {
     updateMessages(
