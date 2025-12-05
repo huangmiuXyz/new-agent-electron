@@ -15,6 +15,7 @@ interface ChatServiceConfig {
 }
 export const chatService = () => {
   const createAgent = async (
+    id: string,
     { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions,
     messages: BaseMessage[],
     { mcpClient, instructions }: ChatServiceConfig
@@ -38,7 +39,7 @@ export const chatService = () => {
     })
     const uiStream = stream.toUIMessageStream({
       messageMetadata: () => {
-        return { provider, date: Date.now(), model }
+        return { provider, date: Date.now(), model, id }
       }
     })
     return uiStream

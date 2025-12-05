@@ -16,6 +16,7 @@ export const useChat = (chatId: string) => {
       transport: {
         sendMessages: ({ messages }) => {
           return service.createAgent(
+            chat.id,
             {
               model: model.value!,
               apiKey: apiKey!.value!,
@@ -51,7 +52,12 @@ export const useChat = (chatId: string) => {
       )
     })
     const sendMessages = async (text: string) => {
-      chat.sendMessage({ id: chat.generateId(), role: 'user', parts: [{ type: 'text', text }] })
+      chat.sendMessage({
+        id: chat.generateId(),
+        role: 'user',
+        parts: [{ type: 'text', text }],
+        metadata: { id: chat.id }
+      })
     }
     const regenerate = (messageId: string) => {
       chat.regenerate({ messageId })
