@@ -39,22 +39,19 @@ export const useChat = (chatId: string) => {
       () => chat.messages,
       () => {
         updateMessages(chatId, (oldMessages) => {
-          const messages = JSON.parse(JSON.stringify(oldMessages))
-          chat.messages.forEach((m) => {
-            const oldMessageIndex = messages.findIndex((o) => m.id === o.id && m.metadata?.cid)
-            if (oldMessageIndex !== -1) {
-              messages[oldMessageIndex] = m
-            } else {
-              if (chat.id === m.metadata?.cid) messages.push(m)
+          const map = new Map(oldMessages.map((m) => [m.id, m]))
+          const cid = chat.id
+          for (const m of chat.messages) {
+            if (m.metadata?.cid && m.metadata.cid === cid) {
+              map.set(m.id, m)
             }
-          })
-          return messages
+          }
+          return Array.from(map.values())
         })
       },
-      {
-        deep: true
-      }
+      { deep: true }
     )
+
     const sendMessages = async (text: string) => {
       chat.sendMessage({
         id: chat.generateId(),
