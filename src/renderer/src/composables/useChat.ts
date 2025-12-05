@@ -5,10 +5,9 @@ export const useChat = (chatId: string) => {
   return scope.run(() => {
     const { getChatById, updateMessages } = useChatsStores()
     const { currentSelectedProvider, currentSelectedModel } = storeToRefs(useSettingsStore())
-    const { getAgentById, getMcpByAgent } = useAgentStore()
+    const agent = useAgentStore()
     const chats = getChatById(chatId)
-    const agent = getAgentById(chats!.agentId!)
-    const mcpClient = getMcpByAgent(agent?.id!).mcpServers
+    const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
     const service = chatService()
     const { apiKey, baseUrl, id: provider, modelType } = toRefs(currentSelectedProvider.value!)
     const { id: model } = toRefs(currentSelectedModel.value!)
@@ -25,7 +24,7 @@ export const useChat = (chatId: string) => {
               modelType: modelType.value
             },
             messages,
-            { mcpClient, instructions: agent?.systemPrompt }
+            { mcpClient, instructions: agent.selectedAgent?.systemPrompt }
           )
         },
         reconnectToStream: void 0 as any
