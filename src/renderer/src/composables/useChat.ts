@@ -42,6 +42,7 @@ export const useChat = (chatId: string) => {
           const cid = chat.id
           for (const m of chat.messages) {
             if (m.metadata?.cid && m.metadata.cid === cid) {
+              m.metadata.loading = chat.status === 'submitted' || chat.status === 'streaming'
               map.set(m.id, m)
             }
           }
