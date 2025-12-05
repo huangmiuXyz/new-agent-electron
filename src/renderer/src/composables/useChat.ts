@@ -4,6 +4,19 @@ export const useChat = (chatId: string) => {
 
   return scope.run(() => {
     const { getChatById, updateMessages } = useChatsStores()
+    const update = (loading) => {
+      updateMessages(chatId, (oldMessages) => {
+        const map = new Map(oldMessages.map((m) => [m.id, m]))
+        const cid = chat.id
+        for (const m of chat.messages) {
+          if (m.metadata?.cid && m.metadata.cid === cid) {
+            m.metadata.loading = loading
+            map.set(m.id, m)
+          }
+        }
+        return Array.from(map.values())
+      })
+    }
     const { currentSelectedProvider, currentSelectedModel } = storeToRefs(useSettingsStore())
     const agent = useAgentStore()
     const chats = getChatById(chatId)
@@ -31,23 +44,14 @@ export const useChat = (chatId: string) => {
       },
       messages: chats?.messages,
       onFinish: () => {
+        update(false)
         scope.stop()
       }
     })
     watch(
       () => chat.messages,
       () => {
-        updateMessages(chatId, (oldMessages) => {
-          const map = new Map(oldMessages.map((m) => [m.id, m]))
-          const cid = chat.id
-          for (const m of chat.messages) {
-            if (m.metadata?.cid && m.metadata.cid === cid) {
-              m.metadata.loading = chat.status === 'submitted' || chat.status === 'streaming'
-              map.set(m.id, m)
-            }
-          }
-          return Array.from(map.values())
-        })
+        update(true)
       },
       { deep: true }
     )
