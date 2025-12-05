@@ -35,20 +35,26 @@ export const useChat = (chatId: string) => {
         scope.stop()
       }
     })
-    watchEffect(() => {
-      updateMessages(chatId, (oldMessages) => {
-        const messages = JSON.parse(JSON.stringify(oldMessages))
-        chat.messages.forEach((m) => {
-          const oldMessageIndex = messages.findIndex((o) => m.id === o.id && m.metadata?.cid)
-          if (oldMessageIndex !== -1) {
-            messages[oldMessageIndex] = m
-          } else {
-            if (chat.id === m.metadata?.cid) messages.push(m)
-          }
+    watch(
+      () => chat.messages,
+      () => {
+        updateMessages(chatId, (oldMessages) => {
+          const messages = JSON.parse(JSON.stringify(oldMessages))
+          chat.messages.forEach((m) => {
+            const oldMessageIndex = messages.findIndex((o) => m.id === o.id && m.metadata?.cid)
+            if (oldMessageIndex !== -1) {
+              messages[oldMessageIndex] = m
+            } else {
+              if (chat.id === m.metadata?.cid) messages.push(m)
+            }
+          })
+          return messages
         })
-        return messages
-      })
-    })
+      },
+      {
+        deep: true
+      }
+    )
     const sendMessages = async (text: string) => {
       chat.sendMessage({
         id: chat.generateId(),
