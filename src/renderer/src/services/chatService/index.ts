@@ -15,7 +15,7 @@ interface ChatServiceConfig {
 }
 export const chatService = () => {
   const createAgent = async (
-    id: string,
+    cid: string,
     { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions,
     messages: BaseMessage[],
     { mcpClient, instructions }: ChatServiceConfig
@@ -34,12 +34,14 @@ export const chatService = () => {
       tools,
       instructions
     })
+    const controller = new AbortController()
     const stream = await agent.stream({
-      messages: convertToModelMessages(messages)
+      messages: convertToModelMessages(messages),
+      abortSignal: controller.signal
     })
     const uiStream = stream.toUIMessageStream({
       messageMetadata: () => {
-        return { provider, date: Date.now(), model, id }
+        return { provider, date: Date.now(), model, cid, stop: () => controller.abort() }
       }
     })
     return uiStream

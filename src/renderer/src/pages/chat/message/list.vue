@@ -52,7 +52,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       icon: Delete,
       danger: true,
       onClick: (data) => {
-        data.metadata?.stop()
+        data.metadata?.stop?.()
         setTimeout(() => {
           deleteMessage(currentChat.value!.id, message.id!)
         });

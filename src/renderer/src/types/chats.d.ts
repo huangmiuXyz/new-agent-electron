@@ -6,13 +6,6 @@ declare global {
     createdAt: number
     agentId?: string // 关联的智能体ID
   }
-  interface Additional_kwargs {
-    provider?: Provider
-    model?: Model
-    time?: string
-    reasoning_content?: string
-    [key: string]: unknown
-  }
 }
 
 export {}
