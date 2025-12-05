@@ -11,12 +11,13 @@ interface ChatServiceOptions {
 
 interface ChatServiceConfig {
   mcpClient: ClientConfig
+  instructions?: string
 }
 export const chatService = () => {
   const createAgent = async (
     { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions,
     messages: BaseMessage[],
-    { mcpClient }: ChatServiceConfig
+    { mcpClient, instructions }: ChatServiceConfig
   ) => {
     const close = messageApi.loading('连接mcp服务器中...')
     let tools: Tools = {}
@@ -29,7 +30,8 @@ export const chatService = () => {
     }
     const agent = new ToolLoopAgent({
       model: createRegistry({ apiKey, baseURL }).languageModel(`${modelType}:${model}`),
-      tools
+      tools,
+      instructions
     })
     const stream = await agent.stream({
       messages: convertToModelMessages(messages)

@@ -21,7 +21,7 @@ export const useChat = (chatId: string) => {
             modelType: modelType.value
           },
           messages,
-          { mcpClient }
+          { mcpClient, instructions: agent?.systemPrompt }
         )
       },
       reconnectToStream: void 0 as any
