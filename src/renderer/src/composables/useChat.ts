@@ -1,4 +1,4 @@
-import { Chat } from '@ai-sdk/vue'
+import { Chat as _useChat } from '@ai-sdk/vue'
 export const useChat = (chatId: string) => {
   const scope = effectScope()
 
@@ -24,7 +24,7 @@ export const useChat = (chatId: string) => {
     const service = chatService()
     const { apiKey, baseUrl, id: provider, modelType } = toRefs(currentSelectedProvider.value!)
     const { id: model } = toRefs(currentSelectedModel.value!)
-    const chat = new Chat({
+    const chat = new _useChat({
       transport: {
         sendMessages: ({ messages }) => {
           return service.createAgent(
@@ -64,9 +64,7 @@ export const useChat = (chatId: string) => {
         metadata: { cid: chat.id }
       })
     }
-    const regenerate = (messageId: string) => {
-      chat.regenerate({ messageId })
-    }
+    const regenerate = (messageId: string) => {}
     return {
       sendMessages,
       regenerate
