@@ -147,10 +147,11 @@ const selectAgent = (agentId: string) => {
                                 <div class="preview-text">{{ agent.systemPrompt }}</div>
                             </div>
 
-                            <div v-if="agent.mcpServers.length > 0" class="mcp-list">
+                            <div v-if="agent.mcpServers.filter(name => mcpServers[name]).length > 0" class="mcp-list">
                                 <div class="mcp-list-label">MCP 服务器:</div>
                                 <div class="mcp-tags">
-                                    <span v-for="serverName in agent.mcpServers" :key="serverName" class="mcp-tag">
+                                    <span v-for="serverName in agent.mcpServers.filter(name => mcpServers[name])"
+                                        :key="serverName" class="mcp-tag">
                                         {{ serverName }}
                                     </span>
                                 </div>

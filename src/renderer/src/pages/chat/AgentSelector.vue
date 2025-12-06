@@ -1,6 +1,8 @@
 <script setup lang="ts">
 const agentStore = useAgentStore()
 const { agents, selectedAgentId } = storeToRefs(agentStore)
+const settingsStore = useSettingsStore()
+const { mcpServers } = storeToRefs(settingsStore)
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
@@ -55,9 +57,11 @@ const isAgentSelected = (agentId: string) => {
                 <div class="agent-content">
                     <div class="agent-title">{{ agent.name }}</div>
                     <div v-if="agent.description" class="agent-desc">{{ agent.description }}</div>
-                    <div v-if="agent.mcpServers.length > 0" class="agent-mcp">
+                    <div v-if="agent.mcpServers.filter(name => mcpServers[name]).length > 0" class="agent-mcp">
                         <Server />
-                        <span style="white-space: nowrap;">{{ agent.mcpServers.length }} 个MCP服务</span>
+                        <span style="white-space: nowrap;">{{agent.mcpServers.filter(name => mcpServers[name]).length
+                            }}
+                            个MCP服务</span>
                     </div>
                 </div>
                 <div class="agent-check">
