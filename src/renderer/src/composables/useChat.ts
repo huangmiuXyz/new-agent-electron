@@ -64,7 +64,13 @@ export const useChat = (chatId: string) => {
         metadata: { cid: chat.id }
       })
     }
-    const regenerate = (messageId: string) => {}
+    const regenerate = (messageId: string) => {
+      const mIndex = chats?.messages.findIndex((m) => m.id === messageId)!
+      const message = chats?.messages[mIndex]
+      chats!.messages = chats!.messages.slice(0, message?.role === 'user' ? mIndex + 1 : mIndex)
+      chat.messages = chats?.messages
+      chat.sendMessage()
+    }
     return {
       sendMessages,
       regenerate
