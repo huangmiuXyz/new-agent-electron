@@ -30,7 +30,7 @@ provide('switchView', switchView)
 
 <style>
 :root {
-  --bg-app: #ffffff;
+  --bg-app: #fbfbfb;
   --bg-sidebar: #fff;
   --bg-header: #fbfbfb;
   --bg-hover: rgba(0, 0, 0, 0.05);
@@ -80,7 +80,6 @@ body {
   color: var(--text-primary);
   overflow: hidden;
   font-size: 13px;
-  /* 保持精细的字体大小 */
   -webkit-font-smoothing: antialiased;
 }
 
@@ -147,5 +146,9 @@ body {
   overflow: hidden;
   position: relative;
   display: flex;
+  border-top: 1px solid var(--border-subtle);
+  border-left: 1px solid var(--border-subtle);
+  /* 左上角圆角 */
+  border-top-left-radius: var(--radius-md);
 }
 </style>

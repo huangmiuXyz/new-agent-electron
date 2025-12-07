@@ -60,7 +60,6 @@ const createNewChat = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-header);
   backdrop-filter: blur(12px);
   position: sticky;

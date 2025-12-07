@@ -43,7 +43,6 @@ const SettingsIcon = useIcon('Settings')
     flex-shrink: 0;
     z-index: 100;
     background: var(--bg-header);
-    border-right: 1px solid var(--border-subtle);
 }
 
 
