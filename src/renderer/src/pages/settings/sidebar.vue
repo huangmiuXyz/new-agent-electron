@@ -38,7 +38,7 @@ const { Cpu, Server, Robot } = useIcon(['Cpu', 'Server', 'Robot'])
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: #fbfbfb;
+  background: var(--bg-sidebar);
   height: 100%;
 }
 

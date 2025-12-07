@@ -2,8 +2,8 @@
 const chatsStore = useChatsStores();
 const { showContextMenu } = useContextMenu();
 const Plus = useIcon('Plus');
-const switchView = inject<((view: 'chat' | 'settings') => void) | undefined>('switchView')
-const settings = useIcon('Settings')
+
+
 const chatsIcon = useIcon('Chat')
 
 const selectChat = (chatId: string) => {
@@ -105,13 +105,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
       </List>
     </div>
 
-    <!-- 侧边栏底部：设置入口 -->
-    <div class="sidebar-footer">
-      <div class="footer-item" @click="switchView?.('settings')">
-        <settings />
-        <span>设置</span>
-      </div>
-    </div>
+
   </aside>
 </template>
 
@@ -129,7 +123,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 }
 
 .sidebar-header {
-  height: var(--header-h);
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;

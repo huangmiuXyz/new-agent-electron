@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ChatPage from './pages/chat/index.vue'
 import SettingsPage from './pages/settings/index.vue'
+import AppNavBar from './components/AppNavBar.vue'
 
 const currentView = ref('chat')
 
@@ -13,15 +14,20 @@ provide('switchView', switchView)
 </script>
 
 <template>
-  <ChatPage v-if="currentView === 'chat'" />
-  <SettingsPage v-else-if="currentView === 'settings'" />
+  <div class="app-layout">
+    <AppNavBar :current-view="currentView" @switch="switchView" />
+    <main class="app-content">
+      <ChatPage v-if="currentView === 'chat'" />
+      <SettingsPage v-else-if="currentView === 'settings'" />
+    </main>
+  </div>
   <ContextMenu />
 </template>
 
 <style>
 :root {
   --bg-app: #ffffff;
-  --bg-sidebar: #f5f5f7;
+  --bg-sidebar: #fbfbfb;
   --bg-hover: rgba(0, 0, 0, 0.05);
   --bg-active: rgba(0, 0, 0, 0.08);
   --border-subtle: #eaeaea;
@@ -37,7 +43,7 @@ provide('switchView', switchView)
   --bubble-me: #2c2c2e;
   --bubble-them: #f2f2f7;
 
-  --header-h: 48px;
+  --header-h: 40px;
   --radius-md: 10px;
   --radius-sm: 6px;
 
@@ -112,5 +118,21 @@ body {
 
 .xicon {
   align-items: center;
+}
+
+.app-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-app);
+}
+
+.app-content {
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
 }
 </style>
