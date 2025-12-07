@@ -49,7 +49,6 @@ const settingsStore = useSettingsStore()
   width: auto;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
-  /* 确保侧边栏有一个基础宽度容器，配合内部固定宽度的侧边栏 */
   width: 200px;
 }
 

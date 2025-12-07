@@ -49,7 +49,7 @@ const createNewChat = () => {
 /* 头部：磨砂玻璃效果，极简边框 */
 .app-header {
   height: var(--header-h);
-  padding: 0 20px;
+  padding-right: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -65,6 +65,10 @@ const createNewChat = () => {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: 48px;
+  width: 200px;
+  padding: 0 10px;
+  justify-content: space-between;
 }
 
 .header-title {

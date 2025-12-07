@@ -42,10 +42,6 @@ const { Cpu, Server, Robot } = useIcon(['Cpu', 'Server', 'Robot'])
   height: 100%;
 }
 
-.settings-sidebar-list {
-  margin-top: 20px;
-}
-
 /* 调整List组件的样式以匹配原有样式 */
 :deep(.mode-gap) {
   width: 100%;
