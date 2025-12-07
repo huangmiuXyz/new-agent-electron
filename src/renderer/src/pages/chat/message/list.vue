@@ -2,7 +2,7 @@
 const { showContextMenu } = useContextMenu<BaseMessage>();
 const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage } = useChatsStores()
-const { Delete, Refresh, Copy, Edit } = useIcon(['Delete', 'Refresh', 'Copy', 'Edit'])
+const { Delete, Refresh, Copy, Edit, Branch } = useIcon(['Delete', 'Refresh', 'Copy', 'Edit', 'Branch'])
 
 // 存储当前需要编辑的消息ID
 const editingMessageId = ref<string | null>(null)
@@ -32,6 +32,14 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       icon: Edit,
       onClick: () => {
         triggerEdit(message.id!);
+      }
+    },
+    {
+      label: '从消息创建聊天分支',
+      icon: Branch,
+      onClick: (data) => {
+        const { forkChat } = useChatsStores()
+        forkChat(currentChat.value!.id, data.id!)
       }
     },
     {

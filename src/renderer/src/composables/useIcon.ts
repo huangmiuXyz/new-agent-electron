@@ -10,7 +10,8 @@ import {
   Play,
   Stop,
   Chat,
-  Menu
+  Menu,
+  Branch
 } from '@vicons/carbon'
 import {
   Cpu,
@@ -36,6 +37,7 @@ const icons = {
   Settings,
   Cpu,
   Chat,
+  Branch,
   Screen,
   Refresh,
   Delete,

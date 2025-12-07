@@ -68,7 +68,26 @@ export const useChatsStores = defineStore(
       }
     }
 
+    const forkChat = (sourceChatId: string, messageId: string) => {
+      const sourceChat = getChatById(sourceChatId)
+      if (!sourceChat) return
+
+      const mIndex = sourceChat.messages.findIndex((m) => m.id === messageId)
+      if (mIndex === -1) return
+
+      const messagesToKeep = sourceChat.messages.slice(0, mIndex + 1)
+      const clonedMessages = JSON.parse(JSON.stringify(messagesToKeep))
+
+      const newChatId = createChat(`${sourceChat.title} (分支)`)
+      const newChat = getChatById(newChatId)
+      if (newChat) {
+        newChat.messages = clonedMessages
+      }
+      return newChatId
+    }
+
     return {
+      forkChat,
       updateMessages,
       chats,
       activeChatId,
