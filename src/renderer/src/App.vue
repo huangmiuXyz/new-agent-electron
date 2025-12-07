@@ -31,8 +31,8 @@ provide('switchView', switchView)
 <style>
 :root {
   --bg-app: #ffffff;
-  --bg-sidebar: #fbfbfb;
-  --bg-header: rgba(255, 255, 255, 0.8);
+  --bg-sidebar: #fff;
+  --bg-header: #fbfbfb;
   --bg-hover: rgba(0, 0, 0, 0.05);
   --bg-active: rgba(0, 0, 0, 0.08);
   --border-subtle: #eaeaea;
