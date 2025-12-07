@@ -152,7 +152,7 @@ export interface FormConfig<T extends Record<string, any>> {
   initialData?: T
   onSubmit?: (data: T) => void
   onReset?: () => void
-  onChange?: (field: keyof T, value: T[keyof T], data: T) => void
+  onChange?: (field: keyof T | undefined, value: T[keyof T] | undefined, data: T) => void
 }
 
 export interface FormActions<T> {
@@ -162,6 +162,7 @@ export interface FormActions<T> {
   submit: () => boolean
   validate: () => boolean
   setFieldValue: (field: string, value: any) => void
+  setFieldsValue: (data: T) => void
   getFieldValue: (field: string) => any
 }
 
@@ -302,6 +303,11 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     formData.value[field] = value
     // 触发 onChange 回调
     config.onChange?.(field as keyof T, value as T[keyof T], formData.value)
+  }
+  const setFieldsValue = (data: T) => {
+    debugger
+    Object.assign(formData.value, data)
+    config.onChange?.(undefined, undefined, formData.value)
   }
 
   const getFieldValue = (field: string) => {
@@ -657,7 +663,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     submit,
     validate,
     setFieldValue,
-    getFieldValue
+    getFieldValue,
+    setFieldsValue
   }
 
   return [FormComponent, actions] as const

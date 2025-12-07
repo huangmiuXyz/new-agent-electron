@@ -109,7 +109,7 @@ const refreshModels = async () => {
             apiKey: activeProvider.value!.apiKey!,
             baseURL: activeProvider.value!.baseUrl!,
         })
-        updateProvider(activeProviderId.value, {
+        formActions.setFieldsValue({
             ...activeProvider.value!,
             models: data.map(m => ({ ...m, name: m.id })),
         })
