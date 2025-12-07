@@ -9,7 +9,8 @@ import {
   Delete,
   Play,
   Stop,
-  Chat
+  Chat,
+  Menu
 } from '@vicons/carbon'
 import {
   Cpu,
@@ -20,7 +21,10 @@ import {
   Server,
   ChevronDown,
   ChevronUp,
-  Robot
+  Robot,
+  LayoutSidebar,
+  LayoutSidebarLeftCollapse,
+  LayoutSidebarLeftExpand
 } from '@vicons/tabler'
 
 const icons = {
@@ -42,6 +46,10 @@ const icons = {
   Robot,
   Play,
   Stop,
+  Menu,
+  Panel: LayoutSidebar,
+  PanelClose: LayoutSidebarLeftCollapse,
+  PanelOpen: LayoutSidebarLeftExpand,
   ChevronDown,
   ChevronUp
 }

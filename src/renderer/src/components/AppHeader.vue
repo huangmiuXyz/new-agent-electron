@@ -1,21 +1,40 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import GlobalSearch from '@renderer/components/GlobalSearch.vue'
+import { useSettingsStore } from '@renderer/stores/settings'
+import { useChatsStores } from '@renderer/stores/chats'
 
-const Search = useIcon('Search')
+const settingsStore = useSettingsStore()
+const chatsStore = useChatsStores()
+
+const { Search, PanelOpen, PanelClose, Plus } = useIcon(['Search', 'PanelOpen', 'PanelClose', 'Plus'])
 const showSearch = ref(false)
 
 const openSearch = () => {
   showSearch.value = true
 }
 
+const toggleSidebar = () => {
+  settingsStore.display.sidebarCollapsed = !settingsStore.display.sidebarCollapsed
+}
+
+const createNewChat = () => {
+  chatsStore.createChat()
+}
+
 </script>
 
 <template>
   <header class="app-header drag">
-    <div class="header-info">
+    <div class="header-info no-drag">
+      <Button variant="icon" size="md" @click="toggleSidebar">
+        <component :is="settingsStore.display.sidebarCollapsed ? PanelOpen : PanelClose" />
+      </Button>
+      <Button variant="icon" size="md" @click="createNewChat">
+        <Plus />
+      </Button>
     </div>
-    <div class="header-actions">
+    <div class="header-actions no-drag">
       <Button variant="text" size="lg" @click="openSearch">
         <Search />
       </Button>

@@ -8,7 +8,8 @@ export const useSettingsStore = defineStore(
       darkMode: false,
       compactDensity: true,
       showTimestamps: true,
-      fontSize: 13
+      fontSize: 13,
+      sidebarCollapsed: false
     })
 
     const providers = ref<Provider[]>(

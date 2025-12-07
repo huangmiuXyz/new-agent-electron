@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import { useSettingsStore } from '@renderer/stores/settings'
+
+const settingsStore = useSettingsStore()
 const activeTab = ref('models')
 
 const switchTab = (tabName: string) => {
@@ -9,7 +13,9 @@ const switchTab = (tabName: string) => {
 <template>
   <div class="settings-layout">
     <!-- 设置-左侧分类导航 -->
-    <SettingsSidebar :active-tab="activeTab" @tab-change="switchTab" />
+    <div class="sidebar-wrapper" :class="{ collapsed: settingsStore.display.sidebarCollapsed }">
+      <SettingsSidebar :active-tab="activeTab" @tab-change="switchTab" />
+    </div>
 
     <!-- 设置-右侧内容区 -->
     <div class="settings-content">
@@ -41,5 +47,17 @@ const switchTab = (tabName: string) => {
   flex: 1;
   display: flex;
   min-width: 0;
+}
+
+.sidebar-wrapper {
+  width: auto;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  /* 确保侧边栏有一个基础宽度容器 */
+  width: 200px;
+}
+
+.sidebar-wrapper.collapsed {
+  width: 0;
 }
 </style>
