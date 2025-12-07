@@ -12,7 +12,7 @@ const openSearch = () => {
 </script>
 
 <template>
-  <header class="chat-header drag">
+  <header class="app-header drag">
     <div class="header-info">
     </div>
     <div class="header-actions">
@@ -28,14 +28,14 @@ const openSearch = () => {
 
 <style scoped>
 /* 头部：磨砂玻璃效果，极简边框 */
-.chat-header {
+.app-header {
   height: var(--header-h);
   padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--bg-header);
   backdrop-filter: blur(12px);
   position: sticky;
   top: 0;

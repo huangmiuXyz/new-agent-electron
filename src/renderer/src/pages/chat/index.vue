@@ -8,9 +8,6 @@
 
     <!-- 主聊天区域 -->
     <main class="main-chat">
-      <!-- 头部 -->
-      <ChatHeader />
-
       <!-- 消息列表 -->
       <ChatMessageList />
 

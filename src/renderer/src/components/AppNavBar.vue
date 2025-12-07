@@ -22,7 +22,7 @@ const SettingsIcon = useIcon('Settings')
         </div>
 
         <!-- Bottom Section for Settings/System -->
-        <div class="nav-section bottom no-drag">
+        <div class="nav-section   bottom no-drag">
             <div class="nav-item" :class="{ active: currentView === 'settings' }" @click="emit('switch', 'settings')"
                 title="设置">
                 <SettingsIcon class="nav-icon" />
@@ -39,11 +39,11 @@ const SettingsIcon = useIcon('Settings')
     justify-content: space-between;
     align-items: center;
     padding: 12px 0;
-    height: 100vh;
+    height: 100%;
     flex-shrink: 0;
     z-index: 100;
-    padding-top: 30px;
-    background: var(--bg-sidebar);
+    background: var(--bg-header);
+    border-right: 1px solid var(--border-subtle);
 }
 
 

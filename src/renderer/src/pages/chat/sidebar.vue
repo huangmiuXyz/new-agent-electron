@@ -119,7 +119,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   flex-direction: column;
   flex-shrink: 0;
   user-select: none;
-  height: 100vh;
+  height: 100%;
 }
 
 .sidebar-header {
