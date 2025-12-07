@@ -44,6 +44,18 @@ const [ProviderForm, formActions] = useForm({
             type: 'text',
             label: '基础 URL（可选）',
             placeholder: '例：https://api.openai.com/v1'
+        },
+        {
+            name: 'modelType',
+            type: 'select',
+            label: '模型类型',
+            options: [
+                { value: 'anthropic', label: 'Anthropic' },
+                { value: 'openai', label: 'OpenAI' },
+                { value: 'deepseek', label: 'DeepSeek' },
+                { value: 'google', label: 'Google' },
+                { value: 'xai', label: 'xAI' }
+            ]
         }
     ],
     initialData: activeProvider.value,
