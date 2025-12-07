@@ -32,7 +32,7 @@ const { Cpu, Server, Robot } = useIcon(['Cpu', 'Server', 'Robot'])
 <style scoped>
 /* 设置-左侧分类导航 */
 .settings-sidebar {
-  width: 200px;
+  width: 180px;
   border-right: 1px solid var(--border-subtle);
   padding: 10px;
   display: flex;

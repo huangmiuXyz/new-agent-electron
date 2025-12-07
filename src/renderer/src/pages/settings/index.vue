@@ -54,7 +54,7 @@ const switchTab = (tabName: string) => {
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   /* 确保侧边栏有一个基础宽度容器 */
-  width: 200px;
+  width: 180px;
 }
 
 .sidebar-wrapper.collapsed {

@@ -73,7 +73,7 @@ const createNewChat = () => {
   align-items: center;
   gap: 8px;
   margin-left: 48px;
-  width: 200px;
+  width: 180px;
   padding: 0 10px;
   justify-content: space-between;
 }
