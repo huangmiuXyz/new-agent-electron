@@ -16,7 +16,7 @@ provide('switchView', switchView)
 
 <template>
   <div class="app-layout">
-    <AppHeader />
+    <AppHeader :current-view="currentView" />
     <div class="app-body">
       <AppNavBar :current-view="currentView" @switch="switchView" />
       <main class="app-content">

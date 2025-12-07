@@ -4,6 +4,10 @@ import GlobalSearch from '@renderer/components/GlobalSearch.vue'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { useChatsStores } from '@renderer/stores/chats'
 
+const props = defineProps<{
+  currentView: string
+}>()
+
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 
@@ -30,7 +34,7 @@ const createNewChat = () => {
       <Button variant="icon" size="md" @click="toggleSidebar">
         <component :is="settingsStore.display.sidebarCollapsed ? PanelOpen : PanelClose" />
       </Button>
-      <Button variant="icon" size="md" @click="createNewChat">
+      <Button v-if="props.currentView === 'chat'" variant="icon" size="md" @click="createNewChat">
         <Plus />
       </Button>
     </div>

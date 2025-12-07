@@ -13,7 +13,7 @@ withDefaults(defineProps<Props>(), {
 <template>
   <div class="setting-form-container">
     <!-- 可配置的头部插槽 -->
-    <header v-if="showHeader" class="settings-header drag">
+    <header v-if="showHeader" class="settings-header">
       <slot name="header">
         {{ headerTitle }}
       </slot>
