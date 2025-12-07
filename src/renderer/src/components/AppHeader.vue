@@ -37,6 +37,9 @@ const createNewChat = () => {
       <Button v-if="props.currentView === 'chat'" variant="icon" size="md" @click="createNewChat">
         <Plus />
       </Button>
+      <div v-else class="header-title">
+        设置
+      </div>
     </div>
     <div class="header-actions no-drag">
       <Button variant="text" size="lg" @click="openSearch">
