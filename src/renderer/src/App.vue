@@ -148,7 +148,7 @@ body {
   display: flex;
   border-top: 1px solid var(--border-subtle);
   border-left: 1px solid var(--border-subtle);
-  /* 左上角圆角 */
+  background: #fff;
   border-top-left-radius: var(--radius-md);
 }
 </style>

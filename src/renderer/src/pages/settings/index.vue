@@ -38,7 +38,6 @@ const switchTab = (tabName: string) => {
 .settings-layout {
   display: flex;
   overflow: hidden;
-  background-color: var(--bg-app);
   height: 100%;
   width: 100%;
 }
