@@ -76,14 +76,6 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 
 <template>
   <aside class="sidebar">
-    <div class="sidebar-header drag">
-      <div class="app-title">
-      </div>
-      <Button variant="icon" size="sm" @click="createNewChat" title="新建聊天">
-        <Plus />
-      </Button>
-    </div>
-
     <div class="nav-list">
       <!-- 空状态显示 -->
       <div v-if="!chatsStore.chats.length" class="empty-state">
@@ -169,7 +161,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 .nav-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 8px;
+  padding: 8px;
 }
 
 /* 调整List组件的样式以匹配原有样式 */
