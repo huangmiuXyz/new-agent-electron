@@ -26,7 +26,14 @@ export const useChatsStores = defineStore(
       return chats.value.find((c) => c.id === id)
     }
     const deleteChat = (id: string) => {
-      chats.value = chats.value.filter((c) => c.id !== id)
+      chats.value = chats.value.filter((c) => {
+        if (c.id === id) {
+          c.messages.forEach((m) => {
+            m.metadata?.stop?.()
+          })
+        }
+        return c.id !== id
+      })
 
       if (activeChatId.value === id) {
         activeChatId.value = chats.value[0]?.id || null
