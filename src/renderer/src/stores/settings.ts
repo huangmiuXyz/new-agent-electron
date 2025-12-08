@@ -61,7 +61,7 @@ export const useSettingsStore = defineStore(
       return providers.value.find((p) => p.id === selectedProviderId.value)
     })
     const currentSelectedModel = computed(() => {
-      return currentSelectedProvider.value?.models.find((p) => p.id === selectedModelId.value)
+      return currentSelectedProvider.value?.models?.find((p) => p.id === selectedModelId.value)
     })
     const getProviderById = (id: string) => {
       return providers.value.find((p) => p.id === id)
