@@ -32,7 +32,7 @@ const Stop = useIcon('Stop')
           <span class="dot"></span>
         </div>
       </div>
-      <ChatMessageItemContent :message="message" />
+      <ChatMessageItemContent markdown :message="message" />
     </div>
   </div>
 </template>

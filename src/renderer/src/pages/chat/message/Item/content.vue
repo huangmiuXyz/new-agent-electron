@@ -5,6 +5,7 @@ import { nextTick } from 'vue'
 
 const props = defineProps<{
     message: BaseMessage
+    markdown?: boolean
 }>();
 
 const { currentChat } = storeToRefs(useChatsStores());
@@ -69,7 +70,10 @@ const saveEditing = () => {
             <div class="blocks-container">
                 <div v-for="(block, idx) in message.parts" :key="idx" class="view-block">
                     <span v-if="block.type === 'text'">
-                        <MarkdownRender :content="block.text" />
+                        <MarkdownRender v-if="markdown" :content="block.text" />
+                        <template v-else>
+                            {{ block.text }}
+                        </template>
                     </span>
                     <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
                         :reasoning_content="block.text" />
@@ -197,10 +201,6 @@ const saveEditing = () => {
 
     button:hover {
         background-color: #f9fafb !important;
-    }
-
-    .paragraph-node {
-        margin: 0;
     }
 }
 </style>
