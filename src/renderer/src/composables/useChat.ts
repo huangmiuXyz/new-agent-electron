@@ -31,7 +31,7 @@ export const useChat = (chatId: string) => {
         for (const m of chat.messages) {
           if (m.metadata?.cid && m.metadata.cid === cid) {
             m.metadata.loading = loading
-            if (isBottom) scrollToBottom()
+            if (isBottom && isLastMessage(m.id)) scrollToBottom()
             map.set(m.id, m)
           }
         }
