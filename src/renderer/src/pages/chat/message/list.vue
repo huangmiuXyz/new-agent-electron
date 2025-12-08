@@ -77,7 +77,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 };
 </script>
 <template>
-  <div class="messages" ref="messageSrollRef">
+  <div class="messages" :ref="ref => messageSrollRef = ref">
     <template v-for="(message, index) in currentChat?.messages" :key="`${message.id}-${index}`">
       <ChatMessageItemHuman v-if="message.role === 'user'" :message="message"
         @contextmenu="onMessageRightClick($event, message)" />
