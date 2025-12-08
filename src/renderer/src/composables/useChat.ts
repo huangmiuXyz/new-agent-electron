@@ -47,7 +47,7 @@ export const useChat = (chatId: string) => {
     const { id: model } = toRefs(currentSelectedModel.value!)
     const chat = new _useChat({
       transport: {
-        sendMessages: ({ messages }) => {
+        sendMessages: () => {
           return service.createAgent(
             chat.id,
             {
@@ -57,13 +57,12 @@ export const useChat = (chatId: string) => {
               provider: provider.value,
               modelType: modelType.value
             },
-            messages,
+            chats!.messages,
             { mcpClient, instructions: agent.selectedAgent?.systemPrompt }
           )
         },
         reconnectToStream: void 0 as any
       },
-      messages: chats?.messages,
       onFinish: () => {
         update(false)
         scope.stop()
@@ -90,7 +89,6 @@ export const useChat = (chatId: string) => {
       const mIndex = chats?.messages.findIndex((m) => m.id === messageId)!
       const message = chats?.messages[mIndex]
       chats!.messages = chats!.messages.slice(0, message?.role === 'user' ? mIndex + 1 : mIndex)
-      chat.messages = chats?.messages
       chat.sendMessage()
     }
     return {
