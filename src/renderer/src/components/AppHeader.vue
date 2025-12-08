@@ -30,7 +30,7 @@ const createNewChat = () => {
 
 <template>
   <header class="app-header drag">
-    <div :style="{ justifyContent: props.currentView === 'chat' ? 'space-between' : '' }" class="header-info no-drag">
+    <div :style="{ justifyContent: props.currentView === 'chat' ? 'space-between' : '' }" class="header-info drag">
       <Button variant="icon" size="md" @click="toggleSidebar">
         <component :is="settingsStore.display.sidebarCollapsed ? PanelOpen : PanelClose" />
       </Button>
