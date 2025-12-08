@@ -54,7 +54,8 @@ const [ProviderForm, formActions] = useForm({
                 { value: 'openai', label: 'OpenAI' },
                 { value: 'deepseek', label: 'DeepSeek' },
                 { value: 'google', label: 'Google' },
-                { value: 'xai', label: 'xAI' }
+                { value: 'xai', label: 'xAI' },
+                { value: 'openai-compatible', label: 'OpenAI 兼容' }
             ]
         }
     ],
