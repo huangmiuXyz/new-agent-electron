@@ -1,14 +1,15 @@
 import { UIMessage, UIMessagePart } from 'ai'
 import type { Model as openAIModel } from 'openai/resources'
 declare global {
-  type BaseMessage = UIMessage<{
+  interface MetaData {
     provider: string
     date: number
     model: string
     stop: AbortController['abort']
     loading: boolean
     cid: string
-  }>
+  }
+  type BaseMessage = UIMessage<MetaData>
   type Tools = Awaited<ReturnType<typeof window.api.list_tools>>
   type ContentBlock = UIMessagePart
   interface Model extends openAIModel {

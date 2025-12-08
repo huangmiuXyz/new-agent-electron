@@ -78,11 +78,13 @@ export const useChat = (chatId: string) => {
 
     const sendMessages = async (text: string) => {
       scrollToBottom()
-      chat.sendMessage({
+      chats?.messages.push({
+        id: chat.generateId(),
         role: 'user',
         parts: [{ type: 'text', text }],
-        metadata: { cid: chat.id }
+        metadata: { cid: chat.id } as MetaData
       })
+      chat.sendMessage()
     }
     const regenerate = (messageId: string) => {
       const mIndex = chats?.messages.findIndex((m) => m.id === messageId)!
