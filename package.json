@@ -36,6 +36,7 @@
     "@vicons/ionicons5": "^0.13.0",
     "@vueuse/core": "^14.1.0",
     "ai": "6.0.0-beta.129",
+    "blob-util": "^2.0.2",
     "dayjs": "^1.11.19",
     "electron-updater": "^6.3.9",
     "es-toolkit": "^1.42.0",

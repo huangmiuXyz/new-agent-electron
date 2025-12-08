@@ -1,5 +1,5 @@
 export { cloneDeep } from 'es-toolkit'
-
+export { blobToDataURL } from 'blob-util'
 export const copyText = (text: string) => {
   if (text) {
     navigator.clipboard

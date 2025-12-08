@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { FileUIPart, TextUIPart } from 'ai';
 
+
 const message = ref('')
 const chatStore = useChatsStores();
-const selectedImages = ref<Array<{ name: string; url: string; type: string; blobUrl?: string }>>([])
+const selectedImages = ref<Array<FileUIPart & { blobUrl: string }>>([])
 const imageInputRef = ref<HTMLInputElement>()
 const FileUpload = useIcon('FileUpload')
 const adjustTextareaHeight = (event: Event) => {
@@ -14,41 +15,23 @@ const adjustTextareaHeight = (event: Event) => {
 
 const { currentSelectedModel } = storeToRefs(useSettingsStore())
 
-const handleImageUpload = async (event: Event) => {
-  const files = (event.target as HTMLInputElement).files
+
+const handleImageUpload = async (e: Event) => {
+  const files = (e.target as HTMLInputElement).files
   if (!files) return
 
-  const filePromises = Array.from(files).map(async (file) => {
-    if (!file.type.startsWith('image/')) return null
-    const blobUrl = URL.createObjectURL(file)
-    const readFileAsDataURL = (file: File): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = (e) => resolve(e.target?.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-    }
-    try {
-      const dataUrl = await readFileAsDataURL(file)
-      const newImage = {
-        name: file.name,
-        url: dataUrl,
-        type: file.type,
-        blobUrl
-      }
-      selectedImages.value.push(newImage)
-      return newImage
-    } catch (error) {
-      console.error('Error reading file:', error)
-      return null
-    }
-  })
-  await Promise.all(filePromises)
+  const imgs = await Promise.all(
+    [...files].map(async f =>
+    ({
+      url: await blobToDataURL(f),
+      mediaType: f.type,
+      blobUrl: URL.createObjectURL(f),
+      type: 'file' as const
+    }))
+  )
 
-  if (imageInputRef.value) {
-    imageInputRef.value.value = ''
-  }
+  selectedImages.value.push(...imgs)
+  imageInputRef.value!.value = ''
 }
 
 const removeImage = (index: number) => {
@@ -82,22 +65,7 @@ const _sendMessage = async () => {
     }
 
     selectedImages.value.forEach(image => {
-      let mediaType = 'image/png'
-      const imageData = image.url
-
-      if (imageData.startsWith('data:')) {
-        const match = imageData.match(/^data:([^;]+);/)
-        if (match && match[1]) {
-          mediaType = match[1]
-        }
-      }
-
-      parts.push({
-        type: 'file',
-        url: imageData,
-        mediaType,
-        filename: image.name
-      })
+      parts.push(image)
     })
 
     selectedImages.value = []
@@ -113,7 +81,7 @@ const _sendMessage = async () => {
       <!-- 图片预览区域 -->
       <div v-if="selectedImages.length > 0" class="image-preview-container">
         <div v-for="(image, index) in selectedImages" :key="index" class="image-preview-item">
-          <img :src="image.blobUrl || image.url" :alt="image.name" class="preview-image" />
+          <img :src="image.blobUrl || image.url" class="preview-image" />
           <button class="remove-image-btn" @click="removeImage(index)">×</button>
         </div>
       </div>

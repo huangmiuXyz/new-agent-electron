@@ -53,6 +53,9 @@ importers:
       ai:
         specifier: 6.0.0-beta.129
         version: 6.0.0-beta.129(zod@4.1.13)
+      blob-util:
+        specifier: ^2.0.2
+        version: 2.0.2
       dayjs:
         specifier: ^1.11.19
         version: 1.11.19
@@ -1737,6 +1740,9 @@ packages:
 
   bl@4.1.0:
     resolution: {integrity: sha512-1W07cM9gS6DcLperZfFSj+bWLtaPGSOHWhPiGzXmvVJbRLdG82sH/Kn8EtW1VqWVA54AKf2h5k5BbnIbwF3h6w==}
+
+  blob-util@2.0.2:
+    resolution: {integrity: sha512-T7JQa+zsXXEa6/8ZhHcQEW1UFfVM49Ts65uBkFL6fz2QmrElqmbajIDJvuA0tEhRe5eIjpV9ZF+0RfZR9voJFQ==}
 
   bluebird-lst@1.0.9:
     resolution: {integrity: sha512-7B1Rtx82hjnSD4PGLAjVWeYH3tHAcVUmChh85a3lltKQm6FresXh9ErQo6oAv6CqxttczC3/kEg8SY5NluPuUw==}
@@ -6062,6 +6068,8 @@ snapshots:
       buffer: 5.7.1
       inherits: 2.0.4
       readable-stream: 3.6.2
+
+  blob-util@2.0.2: {}
 
   bluebird-lst@1.0.9:
     dependencies:
