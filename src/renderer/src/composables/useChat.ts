@@ -3,17 +3,20 @@ import { Chat as _useChat } from '@ai-sdk/vue'
 const messageSrollRef = ref()
 export const useMessagesScroll = () => {
   const { arrivedState } = useScroll(messageSrollRef)
-  const scrollToBottom = () => {
-    setTimeout(() => {
+
+  const scrollToBottom = async () => {
+    await nextTick()
+    requestAnimationFrame(() => {
+      if (!messageSrollRef.value) return
       messageSrollRef.value.scrollTo({
         top: messageSrollRef.value.scrollHeight,
         behavior: 'instant'
       })
     })
   }
+
   return { messageSrollRef, scrollToBottom, arrivedState }
 }
-
 export const useChat = (chatId: string) => {
   const scope = effectScope()
 
