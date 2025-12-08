@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import MarkdownRender from 'markstream-vue'
 import 'markstream-vue/index.css'
-import { nextTick } from 'vue'
+import { nextTick, onUnmounted } from 'vue'
 
 const props = defineProps<{
     message: BaseMessage
@@ -24,12 +24,47 @@ const isEditing = computed(() => {
 })
 
 const draftContent = ref<Array<{ type: string; text?: string;[key: string]: any }>>([])
+const blobUrlMap = ref<Map<string, string>>(new Map())
 
 watch(isEditing, (newVal) => {
     if (newVal) {
         draftContent.value = props.message.parts.map(part => ({ ...part }))
         adjustAllTextareaHeight()
     }
+})
+
+const getBlobUrl = (url: string): string => {
+    if (!url.startsWith('data:')) {
+        return url
+    }
+    if (blobUrlMap.value.has(url)) {
+        return blobUrlMap.value.get(url)!
+    }
+    try {
+        const parts = url.split(',')
+        const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'image/png'
+        const byteString = atob(parts[1])
+        const arrayBuffer = new ArrayBuffer(byteString.length)
+        const uint8Array = new Uint8Array(arrayBuffer)
+        for (let i = 0; i < byteString.length; i++) {
+            uint8Array[i] = byteString.charCodeAt(i)
+        }
+        const blob = new Blob([uint8Array], { type: mimeType })
+        const blobUrl = URL.createObjectURL(blob)
+        blobUrlMap.value.set(url, blobUrl)
+
+        return blobUrl
+    } catch (error) {
+        console.error('Failed to convert base64 to blob URL:', error)
+        return url
+    }
+}
+
+onUnmounted(() => {
+    blobUrlMap.value.forEach(blobUrl => {
+        URL.revokeObjectURL(blobUrl)
+    })
+    blobUrlMap.value.clear()
 })
 
 const handleInput = (event: Event) => {
@@ -76,7 +111,7 @@ const saveEditing = () => {
                         </template>
                     </span>
                     <div v-else-if="block.type === 'file'" class="image-container">
-                        <img :src="block.url" alt="用户上传的图片" class="msg-image" />
+                        <img :src="getBlobUrl(block.url)" alt="用户上传的图片" class="msg-image" />
                     </div>
                     <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
                         :reasoning_content="block.text" />
@@ -93,7 +128,7 @@ const saveEditing = () => {
                     </div>
                     <div v-else-if="(block as any).type === 'file'" class="edit-image-readonly">
                         <div class="readonly-badge">图片</div>
-                        <img :src="(block as any).data" alt="图片" class="preview-image" />
+                        <img :src="getBlobUrl((block as any).data)" alt="图片" class="preview-image" />
                     </div>
                 </div>
             </div>
