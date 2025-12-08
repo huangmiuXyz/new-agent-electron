@@ -26,8 +26,6 @@ export const useChat = (chatId: string) => {
     }
     const update = (loading) => {
       updateMessages(chatId, (oldMessages) => {
-        console.log(chats!.messages)
-
         const isBottom = arrivedState.bottom
         const map = new Map(oldMessages.map((m) => [m.id, m]))
         const cid = chat.id
