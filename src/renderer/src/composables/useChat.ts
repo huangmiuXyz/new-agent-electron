@@ -19,17 +19,19 @@ export const useChat = (chatId: string) => {
 
   return scope.run(() => {
     const { getChatById, updateMessages } = useChatsStores()
-    const { scrollToBottom } = useMessagesScroll()
+    const { scrollToBottom, arrivedState } = useMessagesScroll()
     const isLastMessage = (messageId: string) => {
       return chat.messages[chat.messages.length - 1].id === messageId
     }
     const update = (loading) => {
       updateMessages(chatId, (oldMessages) => {
+        const isBottom = arrivedState.bottom
         const map = new Map(oldMessages.map((m) => [m.id, m]))
         const cid = chat.id
         for (const m of chat.messages) {
           if (m.metadata?.cid && m.metadata.cid === cid) {
             m.metadata.loading = loading
+            if (isBottom) scrollToBottom()
             map.set(m.id, m)
           }
         }
