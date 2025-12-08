@@ -17,6 +17,7 @@ export const useMessagesScroll = () => {
 
   return { messageSrollRef, scrollToBottom, arrivedState }
 }
+
 export const useChat = (chatId: string) => {
   const scope = effectScope()
 

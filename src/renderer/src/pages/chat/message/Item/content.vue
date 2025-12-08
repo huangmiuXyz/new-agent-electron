@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import MarkdownRender from 'markstream-vue'
+import 'markstream-vue/index.css'
 import { nextTick } from 'vue'
 
 const props = defineProps<{
@@ -66,7 +68,9 @@ const saveEditing = () => {
         <div v-if="!isEditing" class="msg-bubble">
             <div class="blocks-container">
                 <div v-for="(block, idx) in message.parts" :key="idx" class="view-block">
-                    <span v-if="block.type === 'text'">{{ block.text }}</span>
+                    <span v-if="block.type === 'text'">
+                        <MarkdownRender :content="block.text" />
+                    </span>
                     <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
                         :reasoning_content="block.text" />
                     <ChatMessageItemTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
@@ -94,7 +98,7 @@ const saveEditing = () => {
     </div>
 </template>
 
-<style scoped>
+<style>
 .msg-bubble {
     font-size: 14px;
     line-height: 1.6;
@@ -183,5 +187,20 @@ const saveEditing = () => {
     justify-content: flex-end;
     gap: 8px;
     margin-top: 8px;
+}
+
+.blocks-container {
+    button {
+        display: flex;
+        align-items: center;
+    }
+
+    button:hover {
+        background-color: #f9fafb !important;
+    }
+
+    .paragraph-node {
+        margin: 0;
+    }
 }
 </style>
