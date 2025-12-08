@@ -305,7 +305,6 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     config.onChange?.(field as keyof T, value as T[keyof T], formData.value)
   }
   const setFieldsValue = (data: T) => {
-    debugger
     Object.assign(formData.value, data)
     config.onChange?.(undefined, undefined, formData.value)
   }
