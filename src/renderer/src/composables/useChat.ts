@@ -1,9 +1,28 @@
 import { Chat as _useChat } from '@ai-sdk/vue'
+
+const messageSrollRef = ref()
+export const useMessagesScroll = () => {
+  const { arrivedState } = useScroll(messageSrollRef)
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messageSrollRef.value.scrollTo({
+        top: messageSrollRef.value.scrollHeight,
+        behavior: 'instant'
+      })
+    })
+  }
+  return { messageSrollRef, scrollToBottom, arrivedState }
+}
+
 export const useChat = (chatId: string) => {
   const scope = effectScope()
 
   return scope.run(() => {
     const { getChatById, updateMessages } = useChatsStores()
+    const { scrollToBottom } = useMessagesScroll()
+    const isLastMessage = (messageId: string) => {
+      return chat.messages[chat.messages.length - 1].id === messageId
+    }
     const update = (loading) => {
       updateMessages(chatId, (oldMessages) => {
         const map = new Map(oldMessages.map((m) => [m.id, m]))
@@ -57,6 +76,7 @@ export const useChat = (chatId: string) => {
     )
 
     const sendMessages = async (text: string) => {
+      scrollToBottom()
       chat.sendMessage({
         id: chat.generateId(),
         role: 'user',
