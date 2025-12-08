@@ -23,6 +23,7 @@ provide('messageEdit', {
   cancelEdit
 })
 
+const { currentSelectedModel } = storeToRefs(useSettingsStore())
 const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   event.preventDefault();
   event.stopPropagation();
@@ -51,6 +52,10 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       label: '重试',
       icon: Refresh,
       onClick: async (data) => {
+        if (!currentSelectedModel.value) {
+          messageApi.error('请先选择模型')
+          return
+        }
         const { regenerate } = useChat(currentChat.value!.id!)
         regenerate(data.id!)
       }

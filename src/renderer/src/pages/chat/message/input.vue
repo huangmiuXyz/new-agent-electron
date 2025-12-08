@@ -6,8 +6,12 @@ const adjustTextareaHeight = (event: Event) => {
   textarea.style.height = 'auto'
   textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
 }
-
+const { currentSelectedModel } = storeToRefs(useSettingsStore())
 const _sendMessage = async () => {
+  if (!currentSelectedModel.value) {
+    messageApi.error('请先选择模型')
+    return
+  }
   const input = message.value.trim()
   if (input) {
     message.value = ''
