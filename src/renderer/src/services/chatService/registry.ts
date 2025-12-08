@@ -1,18 +1,16 @@
 import { createAnthropic } from '@ai-sdk/anthropic'
-import { createOpenAI } from '@ai-sdk/openai'
 import { createDeepSeek } from '@ai-sdk/deepseek'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createXai } from '@ai-sdk/xai'
 import { createProviderRegistry } from 'ai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 
-export const createRegistry = (options: { apiKey: string; baseURL: string }) => {
-  {
-    return createProviderRegistry({
-      anthropic: createAnthropic(options),
-      openai: createOpenAI(options),
-      deepseek: createDeepSeek(options),
-      google: createGoogleGenerativeAI(options),
-      xai: createXai(options)
-    })
-  }
+export const createRegistry = (options: { apiKey: string; baseURL: string; name: string }) => {
+  return createProviderRegistry({
+    anthropic: createAnthropic(options),
+    deepseek: createDeepSeek(options),
+    google: createGoogleGenerativeAI(options),
+    xai: createXai(options),
+    'openai-compatible': createOpenAICompatible({ ...options, name: options.name })
+  })
 }

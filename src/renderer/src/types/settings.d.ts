@@ -14,7 +14,7 @@ declare global {
     logo: string
     apiKey?: string
     baseUrl: string
-    modelType: 'anthropic' | 'openai' | 'deepseek' | 'google' | 'xai'
+    modelType: ModelType
     models: Model[]
   }
 

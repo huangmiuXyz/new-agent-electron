@@ -1,12 +1,12 @@
 import { convertToModelMessages, ToolLoopAgent } from 'ai'
 import { createRegistry } from './registry'
-
+type ModelType = 'anthropic' | 'openai' | 'deepseek' | 'google' | 'xai' | 'openai-compatible'
 interface ChatServiceOptions {
   model: string
   apiKey: string
   baseURL: string
   provider: string
-  modelType: 'anthropic' | 'openai' | 'deepseek' | 'google' | 'xai'
+  modelType: ModelType
 }
 
 interface ChatServiceConfig {
@@ -30,7 +30,9 @@ export const chatService = () => {
       close()
     }
     const agent = new ToolLoopAgent({
-      model: createRegistry({ apiKey, baseURL }).languageModel(`${modelType}:${model}`),
+      model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
+        `${modelType}:${model}`
+      ),
       tools,
       instructions
     })
