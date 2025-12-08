@@ -38,7 +38,7 @@ const SettingsIcon = useIcon('Settings')
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 0;
+    padding-bottom: 12px;
     height: 100%;
     flex-shrink: 0;
     z-index: 100;
