@@ -29,7 +29,7 @@ export const useChat = (chatId: string) => {
     const isLastMessage = (messageId: string) => {
       return chats!.messages[chats!.messages.length - 1].id === messageId
     }
-    const update = (loading) => {
+    const _update = (loading) => {
       updateMessages(chatId, (oldMessages) => {
         const isBottom = arrivedState.bottom
         const map = new Map(oldMessages.map((m) => [m.id, m]))
@@ -44,6 +44,7 @@ export const useChat = (chatId: string) => {
         return Array.from(map.values())
       })
     }
+    const update = throttle(_update, 150, { edges: ['leading'] })
     const { currentSelectedProvider, currentSelectedModel } = storeToRefs(useSettingsStore())
     const agent = useAgentStore()
     const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
