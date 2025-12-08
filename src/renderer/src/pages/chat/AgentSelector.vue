@@ -60,7 +60,7 @@ const isAgentSelected = (agentId: string) => {
                     <div v-if="agent.mcpServers.filter(name => mcpServers[name]).length > 0" class="agent-mcp">
                         <Server />
                         <span style="white-space: nowrap;">{{agent.mcpServers.filter(name => mcpServers[name]).length
-                            }}
+                        }}
                             个MCP服务</span>
                     </div>
                 </div>
@@ -154,7 +154,6 @@ const isAgentSelected = (agentId: string) => {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
