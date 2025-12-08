@@ -76,7 +76,7 @@ export const useChatsStores = defineStore(
       if (mIndex === -1) return
 
       const messagesToKeep = sourceChat.messages.slice(0, mIndex + 1)
-      const clonedMessages = JSON.parse(JSON.stringify(messagesToKeep))
+      const clonedMessages = cloneDeep(messagesToKeep)
 
       const newChatId = createChat(`${sourceChat.title}`)
       const newChat = getChatById(newChatId)

@@ -1,3 +1,5 @@
+export { cloneDeep } from 'es-toolkit'
+
 export const copyText = (text: string) => {
   if (text) {
     navigator.clipboard
