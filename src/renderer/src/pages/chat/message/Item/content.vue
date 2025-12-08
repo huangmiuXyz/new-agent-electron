@@ -75,6 +75,9 @@ const saveEditing = () => {
                             {{ block.text }}
                         </template>
                     </span>
+                    <div v-else-if="block.type === 'file'" class="image-container">
+                        <img :src="block.url" alt="用户上传的图片" class="msg-image" />
+                    </div>
                     <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
                         :reasoning_content="block.text" />
                     <ChatMessageItemTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
@@ -87,6 +90,10 @@ const saveEditing = () => {
                     <div v-if="block.type === 'text'" class="edit-text-wrapper">
                         <textarea v-model="block.text" class="edit-textarea" rows="1" @input="handleInput"
                             placeholder="Edit text content..."></textarea>
+                    </div>
+                    <div v-else-if="(block as any).type === 'file'" class="edit-image-readonly">
+                        <div class="readonly-badge">图片</div>
+                        <img :src="(block as any).data" alt="图片" class="preview-image" />
                     </div>
                 </div>
             </div>
@@ -111,8 +118,7 @@ const saveEditing = () => {
 }
 
 .msg-image {
-    max-width: 100%;
-    max-height: 400px;
+    height: 100px;
     border-radius: 8px;
     margin: 8px 0;
     border: 1px solid #e5e7eb;

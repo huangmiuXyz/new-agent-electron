@@ -1,4 +1,5 @@
 import { Chat as _useChat } from '@ai-sdk/vue'
+import { FileUIPart, TextUIPart } from 'ai'
 
 const messageSrollRef = ref()
 export const useMessagesScroll = () => {
@@ -80,12 +81,21 @@ export const useChat = (chatId: string) => {
       { deep: true }
     )
 
-    const sendMessages = async (text: string) => {
+    const sendMessages = async (content: string | Array<FileUIPart | TextUIPart>) => {
       scrollToBottom()
+
+      let parts: Array<FileUIPart | TextUIPart>
+
+      if (typeof content === 'string') {
+        parts = [{ type: 'text', text: content }]
+      } else {
+        parts = content
+      }
+
       chats?.messages.push({
         id: chat.generateId(),
         role: 'user',
-        parts: [{ type: 'text', text }],
+        parts,
         metadata: { cid: chat.id } as MetaData
       })
       chat.sendMessage()

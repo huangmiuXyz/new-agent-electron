@@ -25,7 +25,8 @@ import {
   Robot,
   LayoutSidebar,
   LayoutSidebarLeftCollapse,
-  LayoutSidebarLeftExpand
+  LayoutSidebarLeftExpand,
+  FileUpload
 } from '@vicons/tabler'
 import { CommentAdd16Regular } from '@vicons/fluent'
 const icons = {
@@ -54,7 +55,8 @@ const icons = {
   PanelOpen: LayoutSidebarLeftExpand,
   ChevronDown,
   ChevronUp,
-  CommentAdd16Regular
+  CommentAdd16Regular,
+  FileUpload
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
