@@ -1,8 +1,6 @@
 <script setup lang="ts">
 const chatsStore = useChatsStores();
 const { showContextMenu } = useContextMenu();
-const Plus = useIcon('Plus');
-
 
 const chatsIcon = useIcon('Chat')
 
