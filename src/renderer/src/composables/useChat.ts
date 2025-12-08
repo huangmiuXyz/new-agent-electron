@@ -79,7 +79,6 @@ export const useChat = (chatId: string) => {
     const sendMessages = async (text: string) => {
       scrollToBottom()
       chat.sendMessage({
-        id: chat.generateId(),
         role: 'user',
         parts: [{ type: 'text', text }],
         metadata: { cid: chat.id }
