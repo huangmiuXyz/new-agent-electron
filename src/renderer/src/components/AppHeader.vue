@@ -11,7 +11,7 @@ const props = defineProps<{
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 
-const { Search, PanelOpen, PanelClose, CommentAdd20Filled } = useIcon(['Search', 'PanelOpen', 'PanelClose', 'CommentAdd20Filled'])
+const { Search, PanelOpen, PanelClose, CommentAdd16Regular } = useIcon(['Search', 'PanelOpen', 'PanelClose', 'CommentAdd16Regular'])
 const showSearch = ref(false)
 
 const openSearch = () => {
@@ -35,7 +35,7 @@ const createNewChat = () => {
         <component :is="settingsStore.display.sidebarCollapsed ? PanelOpen : PanelClose" />
       </Button>
       <Button v-if="props.currentView === 'chat'" variant="icon" size="md" @click="createNewChat">
-        <CommentAdd20Filled />
+        <CommentAdd16Regular />
       </Button>
       <div v-else class="header-title">
         设置

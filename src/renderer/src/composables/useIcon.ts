@@ -27,7 +27,7 @@ import {
   LayoutSidebarLeftCollapse,
   LayoutSidebarLeftExpand
 } from '@vicons/tabler'
-import { CommentAdd20Filled } from '@vicons/fluent'
+import { CommentAdd16Regular } from '@vicons/fluent'
 const icons = {
   Edit,
   Pencil: Edit,
@@ -54,7 +54,7 @@ const icons = {
   PanelOpen: LayoutSidebarLeftExpand,
   ChevronDown,
   ChevronUp,
-  CommentAdd20Filled
+  CommentAdd16Regular
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
