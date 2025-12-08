@@ -20,11 +20,14 @@ export const useChat = (chatId: string) => {
   return scope.run(() => {
     const { getChatById, updateMessages } = useChatsStores()
     const { scrollToBottom, arrivedState } = useMessagesScroll()
+    const chats = getChatById(chatId)
     const isLastMessage = (messageId: string) => {
-      return chat.messages[chat.messages.length - 1].id === messageId
+      return chats!.messages[chats!.messages.length - 1].id === messageId
     }
     const update = (loading) => {
       updateMessages(chatId, (oldMessages) => {
+        console.log(chats!.messages)
+
         const isBottom = arrivedState.bottom
         const map = new Map(oldMessages.map((m) => [m.id, m]))
         const cid = chat.id
@@ -40,7 +43,6 @@ export const useChat = (chatId: string) => {
     }
     const { currentSelectedProvider, currentSelectedModel } = storeToRefs(useSettingsStore())
     const agent = useAgentStore()
-    const chats = getChatById(chatId)
     const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
     const service = chatService()
     const { apiKey, baseUrl, id: provider, modelType } = toRefs(currentSelectedProvider.value!)
