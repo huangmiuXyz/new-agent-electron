@@ -2,7 +2,7 @@
 import { FileUIPart, TextUIPart } from 'ai';
 const message = ref('')
 const chatStore = useChatsStores();
-const selectedFiles = ref<Array<FileUIPart & { blobUrl: string; name: string }>>([])
+const selectedFiles = ref<Array<FileUIPart & { blobUrl: string; }>>([])
 const FileInputRef = ref<HTMLInputElement>()
 
 const FileUpload = useIcon('FileUpload')
@@ -25,7 +25,7 @@ const handleUpload = async (e: Event) => {
       url: await blobToDataURL(f),
       mediaType: f.type,
       blobUrl: URL.createObjectURL(f),
-      name: f.name, // 3. 保存文件名
+      filename: f.name,
       type: 'file' as const
     }))
   )
@@ -65,7 +65,7 @@ const _sendMessage = async () => {
     }
 
     selectedFiles.value.forEach(file => {
-      const { blobUrl, name, ...aiPart } = file
+      const { blobUrl, ...aiPart } = file
       parts.push(aiPart)
     })
 
