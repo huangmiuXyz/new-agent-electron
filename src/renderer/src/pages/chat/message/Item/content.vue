@@ -34,30 +34,8 @@ watch(isEditing, (newVal) => {
 })
 
 const getBlobUrl = (url: string): string => {
-    if (!url.startsWith('data:')) {
-        return url
-    }
-    if (blobUrlMap.value.has(url)) {
-        return blobUrlMap.value.get(url)!
-    }
-    try {
-        const parts = url.split(',')
-        const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'image/png'
-        const byteString = atob(parts[1])
-        const arrayBuffer = new ArrayBuffer(byteString.length)
-        const uint8Array = new Uint8Array(arrayBuffer)
-        for (let i = 0; i < byteString.length; i++) {
-            uint8Array[i] = byteString.charCodeAt(i)
-        }
-        const blob = new Blob([uint8Array], { type: mimeType })
-        const blobUrl = URL.createObjectURL(blob)
-        blobUrlMap.value.set(url, blobUrl)
-
-        return blobUrl
-    } catch (error) {
-        console.error('Failed to convert base64 to blob URL:', error)
-        return url
-    }
+    const blob = dataURLToBlob(url)
+    return URL.createObjectURL(blob)
 }
 
 onUnmounted(() => {
