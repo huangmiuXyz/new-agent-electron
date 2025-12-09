@@ -2,8 +2,6 @@
 import { FileUIPart, TextUIPart } from 'ai';
 import MarkdownRender from 'markstream-vue'
 import 'markstream-vue/index.css'
-import { nextTick, onUnmounted } from 'vue'
-
 const props = defineProps<{
     message: BaseMessage
     markdown?: boolean
