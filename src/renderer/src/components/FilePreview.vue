@@ -32,7 +32,6 @@ const getBlobUrl = (url: string): string => {
     return URL.createObjectURL(blob);
 };
 
-// 统一处理文件数据，无论是来自 files 数组还是单个 src
 const displayFiles = computed(() => {
     if (props.files && props.files.length > 0) {
         return props.files;
