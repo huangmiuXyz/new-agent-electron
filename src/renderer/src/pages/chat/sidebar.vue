@@ -9,7 +9,6 @@ const selectChat = (chatId: string) => {
 };
 
 const createNewChat = () => {
-  // 创建新聊天，模型信息保存在全局状态中
   chatsStore.createChat('新的聊天');
 };
 const { confirm } = useModal()
@@ -131,31 +130,6 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   margin-top: 20px;
 }
 
-/* 搜索框：更现代的微边框风格 */
-.search-wrapper {
-  padding: 0 12px 12px;
-}
-
-.search-input {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: var(--radius-sm);
-  padding: 6px 8px 6px 28px;
-  font-size: 12px;
-  outline: none;
-  transition: all 0.2s ease;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23999' viewBox='0 0 256 256'%3E%3Cpath d='M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z'%3E%3C/path%3E%3C/svg%3E");
-  background-size: 14px;
-  background-repeat: no-repeat;
-  background-position: 8px center;
-}
-
-.search-input:focus {
-  border-color: var(--border-focus);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
-}
-
 .nav-list {
   flex: 1;
   overflow-y: auto;
@@ -179,7 +153,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   height: 40px;
   margin-bottom: 2px;
   padding: 8px;
-  background-color: transparent;
+  background-color: #eee !important;
 }
 
 :deep(.list-item:hover) {

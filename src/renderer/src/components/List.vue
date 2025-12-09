@@ -113,9 +113,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 </template>
 
 <style scoped>
-/* ====================
-   通用基础样式 (Base)
-   ==================== */
 .list-container {
   display: flex;
   flex-direction: column;
@@ -125,14 +122,9 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   flex: 1;
   overflow-y: auto;
   position: relative;
-  /* 确保状态容器定位正常 */
   min-height: 60px;
-  /* 防止高度坍塌 */
 }
 
-/* ====================
-   状态样式 (Loading / Empty)
-   ==================== */
 .state-container {
   display: flex;
   align-items: center;
@@ -163,8 +155,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   }
 }
 
-/* ... 以下保持原有的 list-item 等样式不变 ... */
-
 .list-item {
   display: flex;
   align-items: center;
@@ -190,9 +180,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   padding-left: 8px;
 }
 
-/* ====================
-   模式：Gap (侧边栏风格)
-   ==================== */
 .mode-gap {
   width: 260px;
   border-right: 1px solid var(--border-subtle);
@@ -252,9 +239,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   color: var(--text-secondary);
 }
 
-/* ====================
-   模式：Ungap (列表/卡片风格)
-   ==================== */
 .mode-ungap {
   width: 100%;
 }
