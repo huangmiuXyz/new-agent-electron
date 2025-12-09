@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { FileUIPart, TextUIPart } from 'ai';
 import MarkdownRender from 'markstream-vue'
 import 'markstream-vue/index.css'
 import { nextTick, onUnmounted } from 'vue'
@@ -23,12 +24,12 @@ const isEditing = computed(() => {
     return messageEdit.editingMessageId.value === props.message.id
 })
 
-const draftContent = ref<Array<{ type: string; text?: string;[key: string]: any }>>([])
+const draftContent = ref<Array<FileUIPart | TextUIPart>>([])
 const blobUrlMap = ref<Map<string, string>>(new Map())
 
 watch(isEditing, (newVal) => {
     if (newVal) {
-        draftContent.value = props.message.parts.map(part => ({ ...part }))
+        draftContent.value = JSON.parse(JSON.stringify(props.message.parts))
         adjustAllTextareaHeight()
     }
 })
@@ -104,9 +105,8 @@ const saveEditing = () => {
                         <textarea v-model="block.text" class="edit-textarea" rows="1" @input="handleInput"
                             placeholder="Edit text content..."></textarea>
                     </div>
-                    <div v-else-if="(block as any).type === 'file'" class="edit-image-readonly">
-                        <div class="readonly-badge">图片</div>
-                        <img :src="getBlobUrl((block as any).data)" alt="图片" class="preview-image" />
+                    <div v-else-if="block.type === 'file'" class="edit-image-readonly">
+                        <img :src="getBlobUrl(block.url)" alt="图片" class="preview-image" />
                     </div>
                 </div>
             </div>
