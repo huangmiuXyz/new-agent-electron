@@ -8,6 +8,7 @@ interface Props {
     removable?: boolean;
     showContainer?: boolean;
     onRemove?: (index: number) => void;
+    closable?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -37,7 +38,7 @@ const displayFiles = computed(() => {
         return props.files;
     }
     if (props.src) {
-        return [{ url: props.src, blobUrl: props.src, mediaType: 'image/', name: props.alt || 'image' }];
+        return [{ url: props.src, blobUrl: props.src, mediaType: 'application/octet-stream', name: props.alt || 'file' }];
     }
     return [];
 });
@@ -46,8 +47,8 @@ const displayFiles = computed(() => {
 <template>
     <div :class="showContainer ? 'file-preview-container' : ''">
         <div v-for="(file, index) in displayFiles" :key="index" class="file-preview-item">
-            <img v-if="file.mediaType?.startsWith('image/') || file.url?.startsWith('blob:') || file.url?.startsWith('data:')"
-                :src="file.blobUrl || file.url || getBlobUrl(file.url)" class="preview-file" :alt="file.name || alt" />
+            <img v-if="file.mediaType?.startsWith('image/')" :src="file.blobUrl || file.url || getBlobUrl(file.url)"
+                class="preview-file" :alt="file.name || alt" />
 
             <div v-else class="preview-generic">
                 <div class="generic-icon">

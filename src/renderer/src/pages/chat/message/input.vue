@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { FileUIPart, TextUIPart } from 'ai';
-import FilePreview from '@/components/FilePreview.vue';
-
 const message = ref('')
 const chatStore = useChatsStores();
 const selectedFiles = ref<Array<FileUIPart & { blobUrl: string; name: string }>>([])
@@ -80,7 +78,8 @@ const _sendMessage = async () => {
 <template>
   <footer class="footer">
     <div class="input-container">
-      <ImagePreview v-if="selectedFiles.length > 0" :files="selectedFiles" preview-mode="input" @remove="removefile" />
+      <FilePreview closable v-if="selectedFiles.length > 0" :files="selectedFiles" preview-mode="input"
+        @remove="removefile" />
 
       <textarea class="input-field" rows="1" placeholder="发送消息..." v-model="message" @input="adjustTextareaHeight"
         @keydown.enter.exact.prevent="_sendMessage"></textarea>

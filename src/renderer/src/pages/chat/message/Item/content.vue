@@ -87,7 +87,8 @@ const saveEditing = () => {
                             {{ block.text }}
                         </template>
                     </span>
-                    <FilePreview v-else-if="block.type === 'file'" :src="getBlobUrl(block.url)" />
+                    <FilePreview v-else-if="block.type === 'file'"
+                        :files="[{ ...block, blobUrl: getBlobUrl(block.url) }]" />
                     <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
                         :reasoning_content="block.text" />
                     <ChatMessageItemTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
