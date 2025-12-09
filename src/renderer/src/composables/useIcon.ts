@@ -27,7 +27,16 @@ import {
   LayoutSidebarLeftCollapse,
   LayoutSidebarLeftExpand,
   FileUpload,
-  FileText
+  FileText,
+  FileCode,
+  FileZip,
+  FileMusic,
+  File,
+  FileCertificate,
+  FileAnalytics,
+  FileInvoice,
+  Markdown,
+  Video
 } from '@vicons/tabler'
 import { CommentAdd16Regular } from '@vicons/fluent'
 const icons = {
@@ -58,7 +67,16 @@ const icons = {
   ChevronUp,
   CommentAdd16Regular,
   FileUpload,
-  FileText
+  FileText,
+  FileCode,
+  FileZip,
+  FileMusic,
+  File,
+  FileCertificate,
+  FileAnalytics,
+  FileInvoice,
+  Markdown,
+  Video
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
