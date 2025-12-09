@@ -8,11 +8,10 @@ interface Props {
     removable?: boolean;
     showContainer?: boolean;
     onRemove?: (index: number) => void;
-    closable?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    removable: true,
+    removable: false,
     showContainer: true
 });
 
@@ -28,20 +27,22 @@ const handleRemove = (index: number) => {
     }
 };
 
+const handleOpen = (file: any) => {
+    const fileUrl = file.blobUrl || file.url;
+
+    if (fileUrl) {
+        if (window.api && window.api.openFile) {
+            window.api.openFile(fileUrl);
+        } else {
+            window.open(fileUrl, '_blank');
+        }
+    }
+};
+
 const getBlobUrl = (url: string): string => {
     const blob = dataURLToBlob(url);
     return URL.createObjectURL(blob);
 };
-
-const displayFiles = computed(() => {
-    if (props.files && props.files.length > 0) {
-        return props.files;
-    }
-    if (props.src) {
-        return [{ url: props.src, blobUrl: props.src, mediaType: 'application/octet-stream', name: props.alt || 'file' }];
-    }
-    return [];
-});
 
 const getFileIcon = (file: any) => {
     const mediaType = file.mediaType || '';
@@ -79,16 +80,16 @@ const getFileIcon = (file: any) => {
 
 <template>
     <div :class="showContainer ? 'file-preview-container' : ''">
-        <div v-for="(file, index) in displayFiles" :key="index" class="file-preview-item">
+        <div v-for="(file, index) in files" :key="index" class="file-preview-item" @dblclick="handleOpen(file)">
             <img v-if="file.mediaType?.startsWith('image/')" :src="file.blobUrl || file.url || getBlobUrl(file.url)"
-                class="preview-file" :alt="file.name || alt" />
+                class="preview-file" />
 
             <div v-else class="preview-generic">
                 <div class="generic-icon">
                     <component :is="useIcon(getFileIcon(file))" v-if="useIcon(getFileIcon(file))" />
                     <span v-else>📄</span>
                 </div>
-                <span class="file-name" :title="file.name">{{ file.name }}</span>
+                <span class="file-name" :title="file.filename">{{ file.filename }}</span>
             </div>
 
             <button v-if="removable" class="remove-file-btn" @click="handleRemove(index)">×</button>

@@ -1,9 +1,10 @@
-import { contextBridge } from 'electron'
+import { contextBridge, shell } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { aiServices } from './services/ai/index'
 // Custom APIs for renderer
 export const api = {
-  ...aiServices()
+  ...aiServices(),
+  openFile: (url: string) => shell.openExternal(url)
 }
 
 export type API = typeof api

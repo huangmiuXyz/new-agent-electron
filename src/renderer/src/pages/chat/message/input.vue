@@ -78,7 +78,7 @@ const _sendMessage = async () => {
 <template>
   <footer class="footer">
     <div class="input-container">
-      <FilePreview closable v-if="selectedFiles.length > 0" :files="selectedFiles" preview-mode="input"
+      <FilePreview removable v-if="selectedFiles.length > 0" :files="selectedFiles" preview-mode="input"
         @remove="removefile" />
 
       <textarea class="input-field" rows="1" placeholder="发送消息..." v-model="message" @input="adjustTextareaHeight"
