@@ -10,6 +10,7 @@ declare global {
     cid: string
     translations?: TranslationResult[]
     translationLoading?: boolean
+    translationController?: AbortController['abort']
   }
 
   interface TranslationResult {

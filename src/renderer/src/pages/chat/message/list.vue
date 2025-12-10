@@ -8,7 +8,7 @@ const { messageScrollRef } = useMessagesScroll()
 const { showContextMenu } = useContextMenu<BaseMessage>();
 const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage } = useChatsStores()
-const { Delete, Refresh, Copy, Edit, Branch, Language } = useIcon(['Delete', 'Refresh', 'Copy', 'Edit', 'Branch', 'Language'])
+const { Delete, Refresh, Copy, Edit, Branch, Language, Stop } = useIcon(['Delete', 'Refresh', 'Copy', 'Edit', 'Branch', 'Language', 'Stop'])
 
 
 // 存储当前需要编辑的消息ID
@@ -67,12 +67,16 @@ const translateMessage = async (message: BaseMessage, targetLanguage: string) =>
       return
     }
 
-    // 设置翻译加载状态
+    // 创建 AbortController 用于停止翻译
+    const translationController = new AbortController()
+
+    // 设置翻译加载状态并存储 AbortController
     const { updateMessageMetadata } = useChatsStores()
     if (message.metadata) {
       updateMessageMetadata(currentChat.value!.id, message.id!, {
         ...message.metadata,
-        translationLoading: true
+        translationLoading: true,
+        translationController: () => translationController.abort()
       })
     }
 
@@ -86,7 +90,8 @@ const translateMessage = async (message: BaseMessage, targetLanguage: string) =>
         baseURL: provider.baseUrl,
         provider: provider.id,
         modelType: provider.modelType
-      }
+      },
+      translationController.signal
     )
 
     if (message.metadata) {
@@ -104,7 +109,8 @@ const translateMessage = async (message: BaseMessage, targetLanguage: string) =>
         updateMessageMetadata(currentChat.value!.id, message.id!, {
           ...message.metadata,
           translations: message.metadata.translations,
-          translationLoading: false
+          translationLoading: false,
+          translationController: undefined
         })
       }
     }
@@ -112,16 +118,28 @@ const translateMessage = async (message: BaseMessage, targetLanguage: string) =>
     messageApi.success('翻译完成')
   } catch (error) {
     console.error('翻译失败:', error)
-    messageApi.error(`翻译失败: ${(error as Error).message}`)
+    // 如果是手动中止的错误，不显示错误消息
+    if ((error as Error).name !== 'AbortError') {
+      messageApi.error(`翻译失败: ${(error as Error).message}`)
+    }
 
     // 翻译失败时也要清除加载状态
     const { updateMessageMetadata } = useChatsStores()
     if (message.metadata) {
       updateMessageMetadata(currentChat.value!.id, message.id!, {
         ...message.metadata,
-        translationLoading: false
+        translationLoading: false,
+        translationController: undefined
       })
     }
+  }
+}
+
+// 停止翻译功能
+const stopTranslation = (message: BaseMessage) => {
+  if (message.metadata?.translationController) {
+    message.metadata.translationController()
+    messageApi.info('正在停止翻译...')
   }
 }
 
@@ -226,6 +244,12 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
           label: '自定义语言...',
           icon: getLanguageFlag('custom'),
           onClick: () => translateWithCustomLanguage(message)
+        },
+        {
+          label: '停止翻译',
+          icon: Stop,
+          disabled: !message.metadata?.translationLoading || !message.metadata?.translationController,
+          onClick: () => stopTranslation(message)
         }
       ]
     },

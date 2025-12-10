@@ -2,6 +2,11 @@
 const props = defineProps<{
     translations?: TranslationResult[]
     translationLoading?: boolean
+    translationController?: AbortController['abort']
+}>()
+
+const emit = defineEmits<{
+    stopTranslation: []
 }>()
 
 // 获取最新的翻译结果
@@ -48,6 +53,14 @@ const truncateLanguageName = (name: string, maxLength: number = 10) => {
     if (name.length <= maxLength) return name
     return name.substring(0, maxLength) + '...'
 }
+
+// 停止翻译
+const handleStopTranslation = () => {
+    if (props.translationController) {
+        props.translationController()
+    }
+    emit('stopTranslation')
+}
 </script>
 
 <template>
@@ -64,9 +77,15 @@ const truncateLanguageName = (name: string, maxLength: number = 10) => {
                     ({{ selectedTranslationIndex + 1 }}/{{ props.translations.length }})
                 </span>
             </span>
-            <span class="translation-toggle">
-                {{ translationLoading ? '正在翻译中...' : (showTranslation ? '收起' : '展开') }}
-            </span>
+            <div class="translation-controls">
+                <Button danger v-if="translationLoading && translationController" variant="text" size="sm"
+                    @click.stop="handleStopTranslation" title="停止翻译">
+                    <component :is="useIcon('Stop')" />
+                </Button>
+                <span class="translation-toggle">
+                    {{ translationLoading ? '正在翻译中...' : (showTranslation ? '收起' : '展开') }}
+                </span>
+            </div>
         </div>
 
         <div v-if="showTranslation">
@@ -140,10 +159,31 @@ const truncateLanguageName = (name: string, maxLength: number = 10) => {
     font-weight: normal;
 }
 
+.translation-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
 .translation-toggle {
     font-size: 10px;
     color: #6b7280;
-    margin-left: auto;
+}
+
+.stop-translation-btn {
+    font-size: 10px;
+    padding: 2px 6px;
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.stop-translation-btn:hover {
+    background-color: #dc2626;
 }
 
 .translation-content {

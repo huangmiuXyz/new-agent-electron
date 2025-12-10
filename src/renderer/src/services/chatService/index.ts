@@ -64,14 +64,16 @@ export const chatService = () => {
   const translateText = async (
     text: string,
     targetLanguage: string = '中文',
-    { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions
+    { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions,
+    abortSignal?: AbortSignal
   ) => {
     const prompt = `请将以下文本翻译为${targetLanguage}，只返回翻译结果，不要添加任何解释或额外内容：\n\n${text}`
     const result = await _generateText({
       model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
         `${modelType}:${model}`
       ),
-      prompt
+      prompt,
+      abortSignal
     })
     return result.text
   }
