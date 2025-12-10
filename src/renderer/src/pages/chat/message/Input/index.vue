@@ -106,8 +106,6 @@ const _sendMessage = async () => {
       <div v-if="speechRecognitionRef?.isListening" class="voice-status">
         <div class="voice-indicator"></div>
         <span class="voice-text">正在听取语音...</span>
-        <span v-if="speechRecognitionRef?.speechBuffer" class="voice-preview">{{ speechRecognitionRef.speechBuffer
-        }}</span>
       </div>
 
       <!-- 拖拽提示 -->
