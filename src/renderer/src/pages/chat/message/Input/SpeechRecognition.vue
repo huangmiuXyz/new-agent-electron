@@ -8,7 +8,7 @@ const emit = defineEmits<{
 }>()
 
 const { Mic16Filled, Stop } = useIcon(['Stop', 'Mic16Filled'])
-// 状态
+
 const isListening = ref(false)
 const speechBuffer = ref('')
 const speechTimeout = ref<NodeJS.Timeout | null>(null)
@@ -18,15 +18,16 @@ let audioContext: AudioContext | null = null
 let workletNode: AudioWorkletNode | null = null
 let model: Model | null = null
 let recognizer: KaldiRecognizer | null = null
+let stream: MediaStream | null = null
 
 async function initVoskModel() {
     if (model) return
 
     model = await createModel("/models/vosk-model-small-cn-0.22.zip")
-
     recognizer = new model.KaldiRecognizer(16000)
     recognizer.setWords(true)
 
+    // 监听部分识别结果
     recognizer.on("partialresult", (msg) => {
         if (msg.event === "partialresult") {
             speechBuffer.value += msg.result.partial
@@ -34,6 +35,7 @@ async function initVoskModel() {
         }
     })
 
+    // 监听完整识别结果
     recognizer.on("result", (msg) => {
         if (msg.event === "result") {
             speechBuffer.value += msg.result.text
@@ -44,25 +46,45 @@ async function initVoskModel() {
 
 async function startMic() {
     if (!audioContext) {
-        audioContext = new AudioContext({
-            sampleRate: 16000
-        })
-
-        // 加载 worklet
+        audioContext = new AudioContext({ sampleRate: 16000 })
         await audioContext.audioWorklet.addModule("/worklet/vosk-processor.js")
     }
 
     workletNode = new AudioWorkletNode(audioContext, "vosk-processor")
 
-    // 监听 worklet 的音频块
+    // 收录音数据后送入识别器
     workletNode.port.onmessage = (event) => {
         const floatData = event.data as Float32Array
         recognizer?.acceptWaveformFloat(floatData, audioContext!.sampleRate)
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     const source = audioContext.createMediaStreamSource(stream)
     source.connect(workletNode)
+}
+
+function stopMic() {
+    // 断开 WorkletNode
+    if (workletNode) {
+        try {
+            workletNode.disconnect()
+        } catch (e) { }
+        workletNode = null
+    }
+
+    // 停止所有录音轨
+    if (stream) {
+        stream.getTracks().forEach((t) => t.stop())
+        stream = null
+    }
+
+    // 关闭 audioContext
+    if (audioContext) {
+        try {
+            audioContext.close()
+        } catch (e) { }
+        audioContext = null
+    }
 }
 
 function resetSpeechTimeout() {
@@ -74,19 +96,21 @@ function resetSpeechTimeout() {
 
 function sendSpeechMessage() {
     if (!speechBuffer.value.trim()) return
-
     emit("speechResult", speechBuffer.value.trim())
     speechBuffer.value = ''
 }
 
 async function toggleSpeechRecognition() {
     if (isListening.value) {
+        // STOP
         isListening.value = false
         emit("speechEnd")
         sendSpeechMessage()
+        stopMic()
         return
     }
 
+    // START
     isListening.value = true
     emit("speechStart")
 
@@ -103,7 +127,6 @@ defineExpose({
 
 <template>
     <div class="speech-recognition">
-        <!-- 语音识别按钮 -->
         <Button variant="icon" size="sm" @click="toggleSpeechRecognition" :class="{ 'voice-active': isListening }"
             :title="isListening ? '停止语音识别' : '开始语音识别'">
             <component :is="isListening ? Stop : Mic16Filled" />
