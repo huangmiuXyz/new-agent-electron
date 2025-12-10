@@ -1,22 +1,52 @@
 import { Chat as _useChat } from '@ai-sdk/vue'
 import { FileUIPart, TextUIPart } from 'ai'
+const messageScrollRef = ref()
+const waitForContentStable = (el: HTMLElement) => {
+  return new Promise<void>((resolve) => {
+    const imgs = el.querySelectorAll('img')
+    const pending = Array.from(imgs).filter((i) => !i.complete)
 
-const messageSrollRef = ref()
+    if (pending.length === 0) {
+      requestAnimationFrame(() => resolve())
+      return
+    }
+
+    let remain = pending.length
+    const check = () => {
+      remain--
+      if (remain === 0) {
+        requestAnimationFrame(() => resolve())
+      }
+    }
+
+    pending.forEach((img) => {
+      img.onload = check
+      img.onerror = check
+    })
+  })
+}
+
 export const useMessagesScroll = () => {
-  const { arrivedState } = useScroll(messageSrollRef)
+  const isAtBottom = () => {
+    const el = messageScrollRef.value
+    if (!el) return true
+    const threshold = 30
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold
+  }
 
   const scrollToBottom = async () => {
+    const el = messageScrollRef.value
+    if (!el) return
+
     await nextTick()
+    await waitForContentStable(el)
+
     requestAnimationFrame(() => {
-      if (!messageSrollRef.value) return
-      messageSrollRef.value.scrollTo({
-        top: messageSrollRef.value.scrollHeight,
-        behavior: 'instant'
-      })
+      el.scrollTop = el.scrollHeight
     })
   }
 
-  return { messageSrollRef, scrollToBottom, arrivedState }
+  return { messageScrollRef, isAtBottom, scrollToBottom }
 }
 
 export const useChat = (chatId: string) => {
@@ -24,33 +54,44 @@ export const useChat = (chatId: string) => {
 
   return scope.run(() => {
     const { getChatById, updateMessages } = useChatsStores()
-    const { scrollToBottom, arrivedState } = useMessagesScroll()
     const chats = getChatById(chatId)
+
     const isLastMessage = (messageId: string) => {
       return chats!.messages[chats!.messages.length - 1].id === messageId
     }
-    const _update = (loading) => {
+
+    const { scrollToBottom, isAtBottom } = useMessagesScroll()
+
+    const _update = (loading: boolean) => {
+      const userWasAtBottom = isAtBottom()
+
       updateMessages(chatId, (oldMessages) => {
-        const isBottom = arrivedState.bottom
         const map = new Map(oldMessages.map((m) => [m.id, m]))
         const cid = chat.id
+
         for (const m of chat.messages) {
-          if (m.metadata?.cid && m.metadata.cid === cid) {
+          if (m.metadata?.cid === cid) {
             m.metadata.loading = loading
-            if (isBottom && isLastMessage(m.id)) scrollToBottom()
+            if (userWasAtBottom && isLastMessage(m.id)) {
+              nextTick(() => scrollToBottom())
+            }
             map.set(m.id, m)
           }
         }
+
         return Array.from(map.values())
       })
     }
     const update = throttle(_update, 150, { edges: ['leading'] })
+
     const { currentSelectedProvider, currentSelectedModel } = storeToRefs(useSettingsStore())
     const agent = useAgentStore()
     const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
     const service = chatService()
+
     const { apiKey, baseUrl, id: provider, modelType } = toRefs(currentSelectedProvider.value!)
     const { id: model } = toRefs(currentSelectedModel.value!)
+
     const chat = new _useChat({
       transport: {
         sendMessages: () => {
@@ -67,13 +108,14 @@ export const useChat = (chatId: string) => {
             { mcpClient, instructions: agent.selectedAgent?.systemPrompt }
           )
         },
-        reconnectToStream: void 0 as any
+        reconnectToStream: undefined as any
       },
       onFinish: () => {
         update(false)
         scope.stop()
       }
     })
+
     watch(
       () => chat.messages,
       () => {
@@ -85,28 +127,30 @@ export const useChat = (chatId: string) => {
     const sendMessages = async (content: string | Array<FileUIPart | TextUIPart>) => {
       scrollToBottom()
 
-      let parts: Array<FileUIPart | TextUIPart>
+      let parts: Array<FileUIPart | TextUIPart> =
+        typeof content === 'string' ? [{ type: 'text', text: content }] : content
 
-      if (typeof content === 'string') {
-        parts = [{ type: 'text', text: content }]
-      } else {
-        parts = content
-      }
-
-      chats?.messages.push({
+      chats!.messages.push({
         id: chat.generateId(),
         role: 'user',
         parts,
         metadata: { cid: chat.id } as MetaData
       })
+
       chat.sendMessage()
     }
+
     const regenerate = (messageId: string) => {
       const mIndex = chats?.messages.findIndex((m) => m.id === messageId)!
       const message = chats?.messages[mIndex]
+      if (isLastMessage(messageId)) {
+        scrollToBottom()
+      }
       chats!.messages = chats!.messages.slice(0, message?.role === 'user' ? mIndex + 1 : mIndex)
+
       chat.sendMessage()
     }
+
     return {
       sendMessages,
       regenerate

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { messageSrollRef } = useMessagesScroll()
+const { messageScrollRef } = useMessagesScroll()
 const { showContextMenu } = useContextMenu<BaseMessage>();
 const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage } = useChatsStores()
@@ -77,7 +77,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 };
 </script>
 <template>
-  <div class="messages" :ref="ref => messageSrollRef = ref">
+  <div class="messages" :ref="ref => messageScrollRef = ref">
     <template v-for="(message, index) in currentChat?.messages" :key="`${message.id}-${index}`">
       <ChatMessageItemHuman v-if="message.role === 'user'" :message="message"
         @contextmenu="onMessageRightClick($event, message)" />
