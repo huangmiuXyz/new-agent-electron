@@ -5,6 +5,7 @@ import Slider from '@renderer/components/Slider.vue'
 import Select from '@renderer/components/Select.vue'
 import InputGroup from '@renderer/components/InputGroup.vue'
 import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
+import ModelSelector from '@renderer/pages/chat/ModelSelector.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
 
 // FormItem 组件 - 统一的表单项布局组件
@@ -135,6 +136,12 @@ export interface CheckboxGroupField<T> extends BaseField<T> {
   options: CheckboxOption[]
 }
 
+// 模型选择器字段
+export interface ModelSelectorField<T> extends BaseField<T> {
+  type: 'modelSelector'
+  placeholder?: string
+}
+
 export type FormField<T> =
   | TextField<T>
   | BooleanField<T>
@@ -144,6 +151,7 @@ export type FormField<T> =
   | ArrayField<T>
   | ObjectField<T>
   | CheckboxGroupField<T>
+  | ModelSelectorField<T>
 
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
@@ -204,6 +212,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
           break
         case 'checkboxGroup':
           formData.value[field.name] = []
+          break
+        case 'modelSelector':
+          formData.value[field.name] = { modelId: '', providerId: '' }
           break
         default:
           formData.value[field.name] = ''
@@ -289,6 +300,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             break
           case 'checkboxGroup':
             formData.value[field.name] = []
+            break
+          case 'modelSelector':
+            formData.value[field.name] = { modelId: '', providerId: '' }
             break
           default:
             formData.value[field.name] = ''
@@ -543,6 +557,44 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                               config.onChange?.(
                                 field.name as keyof T,
                                 value as T[keyof T],
+                                formData.value
+                              )
+                            }}
+                          />
+                        </FormItem>
+                      )
+
+                    case 'modelSelector':
+                      return (
+                        <FormItem
+                          label={field.label}
+                          error={hasError}
+                          hint={field.hint}
+                          required={field.required}
+                          layout="default"
+                        >
+                          <ModelSelector
+                            modelId={formData.value[field.name]?.modelId || ''}
+                            providerId={formData.value[field.name]?.providerId || ''}
+                            onUpdate:modelId={(value: string) => {
+                              if (!formData.value[field.name]) {
+                                formData.value[field.name] = {}
+                              }
+                              formData.value[field.name].modelId = value
+                              config.onChange?.(
+                                field.name as keyof T,
+                                formData.value[field.name] as T[keyof T],
+                                formData.value
+                              )
+                            }}
+                            onUpdate:providerId={(value: string) => {
+                              if (!formData.value[field.name]) {
+                                formData.value[field.name] = {}
+                              }
+                              formData.value[field.name].providerId = value
+                              config.onChange?.(
+                                field.name as keyof T,
+                                formData.value[field.name] as T[keyof T],
                                 formData.value
                               )
                             }}
