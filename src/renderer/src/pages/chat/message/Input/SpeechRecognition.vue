@@ -25,7 +25,6 @@ const {
     result,
     start,
     stop,
-    error
 } = useSpeechRecognition({
     continuous: true,
     interimResults: true,
