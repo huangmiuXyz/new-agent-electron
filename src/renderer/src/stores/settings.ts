@@ -23,6 +23,14 @@ export const useSettingsStore = defineStore(
 
     const mcpServers = ref<ClientConfig>({})
 
+    // 默认模型设置
+    const defaultModels = ref({
+      titleGenerationModelId: '',
+      titleGenerationProviderId: '',
+      translationModelId: '',
+      translationProviderId: ''
+    })
+
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
       display.value = { ...display.value, ...settings }
     }
@@ -55,6 +63,10 @@ export const useSettingsStore = defineStore(
       }
     }
 
+    const updateDefaultModels = (settings: Partial<typeof defaultModels.value>) => {
+      defaultModels.value = { ...defaultModels.value, ...settings }
+    }
+
     const selectedModelId = ref<string>('deepseek-chat')
     const selectedProviderId = ref<string>('深度探索')
     const currentSelectedProvider = computed(() => {
@@ -70,19 +82,39 @@ export const useSettingsStore = defineStore(
       const provider = getProviderById(pid)!
       return { model: provider?.models.find((m) => m.id === mid)!, provider }
     }
+
+    // 获取默认模型信息
+    const getTitleGenerationModel = computed(() => {
+      const provider = providers.value.find(
+        (p) => p.id === defaultModels.value.titleGenerationProviderId
+      )
+      return provider?.models?.find((m) => m.id === defaultModels.value.titleGenerationModelId)
+    })
+
+    const getTranslationModel = computed(() => {
+      const provider = providers.value.find(
+        (p) => p.id === defaultModels.value.translationProviderId
+      )
+      return provider?.models?.find((m) => m.id === defaultModels.value.translationModelId)
+    })
+
     return {
       display,
       providers,
       mcpServers,
+      defaultModels,
       updateDisplaySettings,
       updateProvider,
       addModelToProvider,
+      updateDefaultModels,
       selectedModelId,
       selectedProviderId,
       currentSelectedProvider,
       currentSelectedModel,
       getProviderById,
-      getModelById
+      getModelById,
+      getTitleGenerationModel,
+      getTranslationModel
     }
   },
   {

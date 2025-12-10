@@ -10,6 +10,7 @@ const props = defineProps<{
     noResultsText?: string
     hasResults?: boolean
     width?: string
+    position?: 'top' | 'bottom'
 }>()
 
 const emit = defineEmits<{
@@ -55,7 +56,14 @@ const onSearchInput = (e: Event) => {
             <slot name="trigger"></slot>
         </div>
 
-        <div class="selector-popup" :class="{ show: modelValue }" :style="{ width: width || '240px' }">
+        <div class="selector-popup" :class="{
+            show: modelValue,
+            'position-bottom': (position || 'top') === 'top',
+            'position-top': position === 'bottom'
+        }" :style="{
+            width: width || '240px',
+            animation: modelValue ? ((position || 'top') === 'top' ? 'popupFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'popupFadeInTop 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)') : 'none'
+        }">
             <div class="selector-search">
                 <Search />
                 <input :value="searchQuery" @input="onSearchInput" type="text" :placeholder="placeholder || '搜索...'"
@@ -100,6 +108,17 @@ const onSearchInput = (e: Event) => {
     transform-origin: bottom left;
 }
 
+.selector-popup.position-bottom {
+    bottom: 38px;
+    transform-origin: bottom left;
+}
+
+.selector-popup.position-top {
+    bottom: auto;
+    top: 38px;
+    transform-origin: top left;
+}
+
 .selector-popup.show {
     display: flex;
     animation: popupFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -109,6 +128,18 @@ const onSearchInput = (e: Event) => {
     from {
         opacity: 0;
         transform: scale(0.96) translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes popupFadeInTop {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(-4px);
     }
 
     to {

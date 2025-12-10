@@ -1,0 +1,112 @@
+<script setup lang="ts">
+
+const settingsStore = useSettingsStore()
+const { defaultModels } = storeToRefs(settingsStore)
+const { updateDefaultModels } = settingsStore
+
+const [DefaultModelsForm] = useForm({
+    title: '默认模型设置',
+    showHeader: false,
+    fields: [
+        {
+            name: 'titleGenerationModel',
+            type: 'modelSelector',
+            label: '标题生成模型',
+            hint: '用于自动生成聊天标题的模型',
+            required: true,
+            popupPosition: 'bottom'
+        },
+        {
+            name: 'translationModel',
+            type: 'modelSelector',
+            label: '翻译模型',
+            hint: '用于文本翻译功能的模型',
+            required: true,
+            popupPosition: 'bottom'
+        }
+    ],
+    initialData: {
+        titleGenerationModel: {
+            modelId: defaultModels.value.titleGenerationModelId,
+            providerId: defaultModels.value.titleGenerationProviderId
+        },
+        translationModel: {
+            modelId: defaultModels.value.translationModelId,
+            providerId: defaultModels.value.translationProviderId
+        }
+    },
+    onChange: (_field, _value, data) => {
+        updateDefaultModels({
+            titleGenerationModelId: data.titleGenerationModel?.modelId || '',
+            titleGenerationProviderId: data.titleGenerationModel?.providerId || '',
+            translationModelId: data.translationModel?.modelId || '',
+            translationProviderId: data.translationModel?.providerId || ''
+        })
+    }
+})
+
+</script>
+
+<template>
+    <SettingFormContainer header-title="默认模型设置">
+        <template #content>
+            <DefaultModelsForm />
+        </template>
+    </SettingFormContainer>
+</template>
+
+<style scoped>
+.current-models-info {
+    margin-top: 24px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.current-models-info h3 {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.model-info-item {
+    margin-bottom: 16px;
+}
+
+.model-info-item:last-child {
+    margin-bottom: 0;
+}
+
+.model-info-item h4 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.model-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.model-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.model-id {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-family: monospace;
+}
+
+.no-model {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-style: italic;
+}
+</style>

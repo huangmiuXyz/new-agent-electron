@@ -18,12 +18,21 @@ declare global {
     models: Model[]
   }
 
+  // 默认模型设置接口
+  interface DefaultModelsSettings {
+    titleGenerationModelId: string
+    titleGenerationProviderId: string
+    translationModelId: string
+    translationProviderId: string
+  }
+
   // 设置状态接口
   interface SettingsState {
     display: DisplaySettings
     providers: Provider[]
     activeProviderId: string
     mcpServers: ClientConfig
+    defaultModels: DefaultModelsSettings
   }
 }
 

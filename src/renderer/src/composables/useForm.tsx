@@ -140,6 +140,7 @@ export interface CheckboxGroupField<T> extends BaseField<T> {
 export interface ModelSelectorField<T> extends BaseField<T> {
   type: 'modelSelector'
   placeholder?: string
+  popupPosition?: 'bottom' | 'top'
 }
 
 export type FormField<T> =
@@ -574,6 +575,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                           layout="default"
                         >
                           <ModelSelector
+                            popupPosition={field.popupPosition}
                             modelId={formData.value[field.name]?.modelId || ''}
                             providerId={formData.value[field.name]?.providerId || ''}
                             onUpdate:modelId={(value: string) => {
@@ -624,6 +626,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         display: flex;
         flex-direction: column;
         width: 100%;
+        height: 100%;
       }
 
       .form-header {
@@ -640,6 +643,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         flex: 1;
         overflow-y: auto;
         padding: 0;
+        height: 100%;
       }
 
       .form-item {

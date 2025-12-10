@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useSettingsStore } from '@renderer/stores/settings'
+import SettingsDefaultModels from './default-models.vue'
 
 const settingsStore = useSettingsStore()
 const activeTab = ref('models')
@@ -24,6 +25,9 @@ const switchTab = (tabName: string) => {
 
       <!-- 模型提供商设置 -->
       <SettingsProvider v-else-if="activeTab === 'models'" />
+
+      <!-- 默认模型设置 -->
+      <SettingsDefaultModels v-else-if="activeTab === 'defaultModels'" />
 
       <!-- 显示设置 -->
       <SettingsDisplay v-else-if="activeTab === 'display'" />

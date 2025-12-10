@@ -3,6 +3,10 @@
 const selectedModelId = defineModel<string>('modelId', { default: '' })
 const selectedProviderId = defineModel<string>('providerId', { default: '' })
 
+const props = defineProps<{
+  popupPosition?: 'top' | 'bottom'
+}>()
+
 const { providers } = storeToRefs(useSettingsStore())
 
 const currentSelectedModel = computed(() => {
@@ -75,7 +79,7 @@ const handleModelSelect = (id: string) => {
 
 <template>
   <SelectorPopover v-model="isPopupOpen" v-model:searchQuery="searchQuery" placeholder="搜索模型..." noResultsText="未找到模型"
-    :hasResults="filteredModels.length > 0" width="240px">
+    :hasResults="filteredModels.length > 0" width="240px" :position="props.popupPosition || 'top'">
     <template #trigger>
       <div class="model-btn" :class="{ active: isPopupOpen }">
         <img style="width: 10px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="">
