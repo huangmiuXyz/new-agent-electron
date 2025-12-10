@@ -13,7 +13,6 @@ const [DefaultModelsForm] = useForm({
             type: 'modelSelector',
             label: '标题生成模型',
             hint: '用于自动生成聊天标题的模型',
-            required: true,
             popupPosition: 'bottom'
         },
         {
@@ -21,7 +20,6 @@ const [DefaultModelsForm] = useForm({
             type: 'modelSelector',
             label: '翻译模型',
             hint: '用于文本翻译功能的模型',
-            required: true,
             popupPosition: 'bottom'
         }
     ],
