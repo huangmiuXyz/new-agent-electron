@@ -135,14 +135,6 @@ const translateMessage = async (message: BaseMessage, targetLanguage: string) =>
   }
 }
 
-// 停止翻译功能
-const stopTranslation = (message: BaseMessage) => {
-  if (message.metadata?.translationController) {
-    message.metadata.translationController()
-    messageApi.info('正在停止翻译...')
-  }
-}
-
 // 自定义语言翻译功能
 const translateWithCustomLanguage = async (message: BaseMessage) => {
   const { confirm } = useModal()
@@ -245,12 +237,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
           icon: getLanguageFlag('custom'),
           onClick: () => translateWithCustomLanguage(message)
         },
-        {
-          label: '停止翻译',
-          icon: Stop,
-          disabled: !message.metadata?.translationLoading || !message.metadata?.translationController,
-          onClick: () => stopTranslation(message)
-        }
       ]
     },
     {
