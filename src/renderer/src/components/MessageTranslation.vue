@@ -78,7 +78,7 @@ const handleStopTranslation = () => {
                 </span>
             </span>
             <div class="translation-controls">
-                <Button danger v-if="translationLoading && translationController" variant="text" size="sm"
+                <Button v-if="translationLoading && translationController" variant="icon" size="sm"
                     @click.stop="handleStopTranslation" title="停止翻译">
                     <component :is="useIcon('Stop')" />
                 </Button>
