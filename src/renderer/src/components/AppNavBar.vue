@@ -41,7 +41,6 @@ const SettingsIcon = useIcon('Settings')
     padding-bottom: 12px;
     height: 100%;
     flex-shrink: 0;
-    z-index: 100;
     background: var(--bg-header);
 }
 
