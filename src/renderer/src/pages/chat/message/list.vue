@@ -64,7 +64,6 @@ const translateMessage = async (message: BaseMessage) => {
   // 显示语言选择对话框
   const { confirm } = useModal()
   const [LanguageSelector, { getFieldValue }] = useForm({
-    title: '选择翻译语言',
     fields: [{
       label: '目标语言',
       type: 'select',
