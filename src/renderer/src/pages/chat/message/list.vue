@@ -96,6 +96,15 @@ const translateMessage = async (message: BaseMessage) => {
         return
       }
 
+      // 设置翻译加载状态
+      const { updateMessageMetadata } = useChatsStores()
+      if (message.metadata) {
+        updateMessageMetadata(currentChat.value!.id, message.id!, {
+          ...message.metadata,
+          translationLoading: true
+        })
+      }
+
       const { translateText } = chatService()
       const result = await translateText(
         textParts,
@@ -119,17 +128,29 @@ const translateMessage = async (message: BaseMessage) => {
           timestamp: Date.now()
         })
 
-        const { updateMessageMetadata } = useChatsStores()
-        updateMessageMetadata(currentChat.value!.id, message.id!, {
-          ...message.metadata,
-          translations: message.metadata.translations
-        })
+        // 清除翻译加载状态并更新翻译结果
+        if (message.metadata) {
+          updateMessageMetadata(currentChat.value!.id, message.id!, {
+            ...message.metadata,
+            translations: message.metadata.translations,
+            translationLoading: false
+          })
+        }
       }
 
       messageApi.success('翻译完成')
     } catch (error) {
       console.error('翻译失败:', error)
       messageApi.error(`翻译失败: ${(error as Error).message}`)
+
+      // 翻译失败时也要清除加载状态
+      const { updateMessageMetadata } = useChatsStores()
+      if (message.metadata) {
+        updateMessageMetadata(currentChat.value!.id, message.id!, {
+          ...message.metadata,
+          translationLoading: false
+        })
+      }
     }
   }
 }

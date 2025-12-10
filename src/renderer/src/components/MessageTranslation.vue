@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
     translations?: TranslationResult[]
+    translationLoading?: boolean
 }>()
 
 // 获取最新的翻译结果
@@ -34,18 +35,32 @@ watch(() => props.translations, (newTranslations) => {
         selectedTranslationIndex.value = newTranslations.length - 1
     }
 }, { immediate: true })
+
+// 如果正在加载翻译，自动展开显示加载状态
+watch(() => props.translationLoading, (newLoading) => {
+    if (newLoading) {
+        showTranslation.value = true
+    }
+})
 </script>
 
 <template>
-    <div v-if="latestTranslation" class="translation-container">
+    <div v-if="latestTranslation || translationLoading" class="translation-container">
         <div class="translation-header" @click="showTranslation = !showTranslation">
             <span class="translation-label">
                 翻译
-                <span v-if="props.translations && props.translations.length > 1" class="translation-count">
+                <span v-if="translationLoading" class="loading-indicator">
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                </span>
+                <span v-else-if="props.translations && props.translations.length > 1" class="translation-count">
                     ({{ selectedTranslationIndex + 1 }}/{{ props.translations.length }})
                 </span>
             </span>
-            <span class="translation-toggle">{{ showTranslation ? '收起' : '展开' }}</span>
+            <span class="translation-toggle">
+                {{ translationLoading ? '正在翻译中...' : (showTranslation ? '收起' : '展开') }}
+            </span>
         </div>
 
         <div v-if="showTranslation">
@@ -61,7 +76,7 @@ watch(() => props.translations, (newTranslations) => {
             </div>
 
             <!-- 翻译内容 -->
-            <div class="translation-content">
+            <div v-if="selectedTranslation" class="translation-content">
                 <div class="translation-info">
                     {{ selectedTranslation?.targetLanguage || '中文' }}
                     <span class="translation-time">
@@ -82,6 +97,7 @@ watch(() => props.translations, (newTranslations) => {
     border-radius: 8px;
     overflow: hidden;
     background-color: #f9fafb;
+    position: relative;
 }
 
 .translation-header {
@@ -152,5 +168,81 @@ watch(() => props.translations, (newTranslations) => {
     color: #3b82f6;
     border-bottom-color: #3b82f6;
     background-color: #f9fafb;
+}
+
+/* 翻译加载状态样式 */
+
+.loading-dots {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.loading-dots .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #3b82f6;
+    animation: pulse 1.4s ease-in-out infinite;
+}
+
+.loading-dots .dot:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.loading-dots .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.loading-dots .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+.loading-text {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+
+/* 标题中的加载指示器 */
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.loading-indicator .loading-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: #3b82f6;
+    animation: pulse 1.4s ease-in-out infinite;
+}
+
+.loading-indicator .loading-dot:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.loading-indicator .loading-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.loading-indicator .loading-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+
+    0%,
+    80%,
+    100% {
+        opacity: 0.3;
+        transform: scale(0.8);
+    }
+
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 </style>

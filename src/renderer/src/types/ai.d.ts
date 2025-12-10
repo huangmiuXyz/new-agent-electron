@@ -9,6 +9,7 @@ declare global {
     loading: boolean
     cid: string
     translations?: TranslationResult[]
+    translationLoading?: boolean
   }
 
   interface TranslationResult {

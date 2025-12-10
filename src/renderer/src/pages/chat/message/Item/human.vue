@@ -15,7 +15,8 @@ const props = defineProps<{
       </div>
     </div>
     <div class="translation-row">
-      <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
+      <MessageTranslation v-if="message.metadata?.translations || message.metadata?.translationLoading"
+        :translations="message.metadata.translations" :translationLoading="message.metadata.translationLoading" />
     </div>
   </div>
 </template>

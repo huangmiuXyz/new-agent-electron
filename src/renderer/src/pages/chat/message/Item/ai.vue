@@ -34,7 +34,8 @@ const Stop = useIcon('Stop')
       </div>
       <ChatMessageItemContent markdown :message="message" />
 
-      <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
+      <MessageTranslation v-if="message.metadata?.translations || message.metadata?.translationLoading"
+        :translations="message.metadata.translations" :translationLoading="message.metadata.translationLoading" />
     </div>
   </div>
 </template>
