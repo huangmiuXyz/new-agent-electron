@@ -82,7 +82,7 @@ export const useChat = (chatId: string) => {
         return Array.from(map.values())
       })
     }
-    const update = throttle(_update, 150, { edges: ['leading'] })
+    const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
 
     const { currentSelectedProvider, currentSelectedModel } = storeToRefs(useSettingsStore())
     const agent = useAgentStore()
