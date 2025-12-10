@@ -28,10 +28,10 @@ export const useTitle = (chatId: string) => {
           const provider = settingsStore.getProviderById(
             settingsStore.defaultModels.titleGenerationProviderId
           )
-          try {
-            const prompt = `请根据以下对话内容，生成一个简洁、准确的聊天标题。标题应该：\n1. 不超过15个字符\n2. 准确反映对话主题\n3. 使用中文\n4. 不要包含引号或其他标点符号\n\n对话内容：\n${userMessage}\n\n只返回标题，不要其他内容：`
+          const prompt = `请根据以下对话内容，生成一个简洁、准确的聊天标题。标题应该：\n1. 不超过15个字符\n2. 准确反映对话主题\n3. 使用中文\n4. 不要包含引号或其他标点符号\n\n对话内容：\n${userMessage}\n\n只返回标题，不要其他内容：`
 
-            const service = chatService()
+          const service = chatService()
+          try {
             const generatedTitle = await service.generateText(prompt, {
               model: titleModel.id,
               apiKey: provider?.apiKey || '',
@@ -41,7 +41,9 @@ export const useTitle = (chatId: string) => {
             })
             const cleanTitle = generatedTitle.trim().replace(/[""''""']/g, '')
             renameChat(chatId, cleanTitle)
-          } catch {}
+          } catch (error) {
+            messageApi.error((error as Error).message)
+          }
         }
       }
     }
