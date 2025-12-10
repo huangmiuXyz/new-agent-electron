@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import type { MenuItem } from '@renderer/composables/useContextMenu'
+import { getLanguageFlag } from '@renderer/utils/flagIcons'
 
 const { messageScrollRef } = useMessagesScroll()
 const { showContextMenu } = useContextMenu<BaseMessage>();
@@ -32,7 +33,7 @@ provide('messageEdit', {
 const { currentSelectedModel } = storeToRefs(useSettingsStore())
 
 // 翻译功能
-const translateMessage = async (message: BaseMessage) => {
+const translateMessage = async (message: BaseMessage, targetLanguage: string) => {
   const settingsStore = useSettingsStore()
   const translationProviderId = settingsStore.defaultModels.translationProviderId
   const translationModelId = settingsStore.defaultModels.translationModelId
@@ -60,116 +61,96 @@ const translateMessage = async (message: BaseMessage) => {
     return
   }
 
+  try {
+    if (!provider.apiKey) {
+      messageApi.error('翻译模型配置不完整，请检查设置')
+      return
+    }
 
-  // 显示语言选择对话框
+    // 设置翻译加载状态
+    const { updateMessageMetadata } = useChatsStores()
+    if (message.metadata) {
+      updateMessageMetadata(currentChat.value!.id, message.id!, {
+        ...message.metadata,
+        translationLoading: true
+      })
+    }
+
+    const { translateText } = chatService()
+    const result = await translateText(
+      textParts,
+      targetLanguage,
+      {
+        model: translationModel.id,
+        apiKey: provider.apiKey,
+        baseURL: provider.baseUrl,
+        provider: provider.id,
+        modelType: provider.modelType
+      }
+    )
+
+    if (message.metadata) {
+      if (!message.metadata.translations) {
+        message.metadata.translations = []
+      }
+      message.metadata.translations.push({
+        text: result,
+        targetLanguage,
+        timestamp: Date.now()
+      })
+
+      // 清除翻译加载状态并更新翻译结果
+      if (message.metadata) {
+        updateMessageMetadata(currentChat.value!.id, message.id!, {
+          ...message.metadata,
+          translations: message.metadata.translations,
+          translationLoading: false
+        })
+      }
+    }
+
+    messageApi.success('翻译完成')
+  } catch (error) {
+    console.error('翻译失败:', error)
+    messageApi.error(`翻译失败: ${(error as Error).message}`)
+
+    // 翻译失败时也要清除加载状态
+    const { updateMessageMetadata } = useChatsStores()
+    if (message.metadata) {
+      updateMessageMetadata(currentChat.value!.id, message.id!, {
+        ...message.metadata,
+        translationLoading: false
+      })
+    }
+  }
+}
+
+// 自定义语言翻译功能
+const translateWithCustomLanguage = async (message: BaseMessage) => {
   const { confirm } = useModal()
-  const [LanguageSelector, { getFieldValue }] = useForm({
+  const [CustomLanguageSelector, { getFieldValue }] = useForm({
     fields: [{
-      label: '目标语言',
-      type: 'select',
-      name: 'targetLanguage',
-      options: [
-        { label: '中文', value: '中文' },
-        { label: '英文', value: '英文' },
-        { label: '日文', value: '日文' },
-        { label: '韩文', value: '韩文' },
-        { label: '法文', value: '法文' },
-        { label: '德文', value: '德文' },
-        { label: '西班牙文', value: '西班牙文' },
-        { label: '俄文', value: '俄文' },
-        { label: '自定义语言...', value: 'custom' }
-      ]
-    }, {
       label: '自定义语言',
       type: 'text',
       name: 'customLanguage',
-      placeholder: '请输入语言名称',
-      ifShow: (values: any) => values.targetLanguage === 'custom'
+      placeholder: '请输入语言名称'
     }],
     initialData: {
-      targetLanguage: '中文',
       customLanguage: ''
     }
   })
 
   if (await confirm({
-    title: '翻译设置',
-    content: LanguageSelector
+    title: '自定义翻译',
+    content: CustomLanguageSelector
   })) {
-    let targetLanguage = getFieldValue('targetLanguage')
-
-    // 如果选择了自定义语言，则使用用户输入的语言名称
-    if (targetLanguage === 'custom') {
-      const customLanguage = getFieldValue('customLanguage')
-      if (!customLanguage || customLanguage.trim() === '') {
-        messageApi.error('请输入自定义语言名称')
-        return
-      }
-      targetLanguage = customLanguage.trim()
+    const customLanguage = getFieldValue('customLanguage')
+    if (!customLanguage || customLanguage.trim() === '') {
+      messageApi.error('请输入自定义语言名称')
+      return
     }
 
-    try {
-      if (!provider.apiKey) {
-        messageApi.error('翻译模型配置不完整，请检查设置')
-        return
-      }
-
-      // 设置翻译加载状态
-      const { updateMessageMetadata } = useChatsStores()
-      if (message.metadata) {
-        updateMessageMetadata(currentChat.value!.id, message.id!, {
-          ...message.metadata,
-          translationLoading: true
-        })
-      }
-
-      const { translateText } = chatService()
-      const result = await translateText(
-        textParts,
-        targetLanguage,
-        {
-          model: translationModel.id,
-          apiKey: provider.apiKey,
-          baseURL: provider.baseUrl,
-          provider: provider.id,
-          modelType: provider.modelType
-        }
-      )
-
-      if (message.metadata) {
-        if (!message.metadata.translations) {
-          message.metadata.translations = []
-        }
-        message.metadata.translations.push({
-          text: result,
-          targetLanguage,
-          timestamp: Date.now()
-        })
-
-        // 清除翻译加载状态并更新翻译结果
-        if (message.metadata) {
-          updateMessageMetadata(currentChat.value!.id, message.id!, {
-            ...message.metadata,
-            translations: message.metadata.translations,
-            translationLoading: false
-          })
-        }
-      }
-
-      messageApi.success('翻译完成')
-    } catch (error) {
-      console.error('翻译失败:', error)
-      messageApi.error(`翻译失败: ${(error as Error).message}`)
-
-      // 翻译失败时也要清除加载状态
-      const { updateMessageMetadata } = useChatsStores()
-      if (message.metadata) {
-        updateMessageMetadata(currentChat.value!.id, message.id!, {
-          ...message.metadata,
-          translationLoading: false
-        })
-      }
-    }
+    await translateMessage(message, customLanguage.trim())
   }
 }
 
@@ -200,7 +181,53 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
     {
       label: '翻译',
       icon: Language,
-      onClick: () => translateMessage(message)
+      children: [
+        {
+          label: '中文',
+          icon: getLanguageFlag('中文'),
+          onClick: () => translateMessage(message, '中文')
+        },
+        {
+          label: '英文',
+          icon: getLanguageFlag('英文'),
+          onClick: () => translateMessage(message, '英文')
+        },
+        {
+          label: '日文',
+          icon: getLanguageFlag('日文'),
+          onClick: () => translateMessage(message, '日文')
+        },
+        {
+          label: '韩文',
+          icon: getLanguageFlag('韩文'),
+          onClick: () => translateMessage(message, '韩文')
+        },
+        {
+          label: '法文',
+          icon: getLanguageFlag('法文'),
+          onClick: () => translateMessage(message, '法文')
+        },
+        {
+          label: '德文',
+          icon: getLanguageFlag('德文'),
+          onClick: () => translateMessage(message, '德文')
+        },
+        {
+          label: '西班牙文',
+          icon: getLanguageFlag('西班牙文'),
+          onClick: () => translateMessage(message, '西班牙文')
+        },
+        {
+          label: '俄文',
+          icon: getLanguageFlag('俄文'),
+          onClick: () => translateMessage(message, '俄文')
+        },
+        {
+          label: '自定义语言...',
+          icon: getLanguageFlag('custom'),
+          onClick: () => translateWithCustomLanguage(message)
+        }
+      ]
     },
     {
       label: '重试',
