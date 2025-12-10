@@ -150,6 +150,6 @@ const _sendMessage = async () => {
 .action-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
 }
 </style>
