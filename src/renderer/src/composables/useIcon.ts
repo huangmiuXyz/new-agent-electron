@@ -36,7 +36,8 @@ import {
   FileAnalytics,
   FileInvoice,
   Markdown,
-  Video
+  Video,
+  Box
 } from '@vicons/tabler'
 import { CommentAdd16Regular, Mic16Filled } from '@vicons/fluent'
 const icons = {
@@ -77,7 +78,8 @@ const icons = {
   FileInvoice,
   Markdown,
   Video,
-  Mic16Filled
+  Mic16Filled,
+  Box
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
