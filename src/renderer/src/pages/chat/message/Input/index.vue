@@ -5,7 +5,7 @@ const message = ref('')
 const chatStore = useChatsStores();
 const selectedFiles = ref<Array<FileUIPart & { blobUrl: string; }>>([])
 
-const { currentSelectedModel } = storeToRefs(useSettingsStore())
+const { currentSelectedModel, selectedModelId, selectedProviderId } = storeToRefs(useSettingsStore())
 
 // 图标
 const FileUploadIcon = useIcon('FileUpload')
@@ -97,7 +97,7 @@ const _sendMessage = async () => {
           <!-- 智能体选择器 -->
           <ChatAgentSelector />
           <!-- 模型选择器 -->
-          <ChatModelSelector />
+          <ChatModelSelector v-model:model-id="selectedModelId" v-model:provider-id="selectedProviderId" />
         </div>
         <Button variant="primary" size="md" @click="_sendMessage">发送</Button>
       </div>

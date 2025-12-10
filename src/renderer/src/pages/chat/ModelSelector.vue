@@ -1,5 +1,20 @@
 <script setup lang="ts">
-const { currentSelectedModel, currentSelectedProvider, selectedModelId, selectedProviderId, providers } = storeToRefs(useSettingsStore())
+
+const selectedModelId = defineModel<string>('modelId', { default: '' })
+const selectedProviderId = defineModel<string>('providerId', { default: '' })
+
+const { providers } = storeToRefs(useSettingsStore())
+
+const currentSelectedModel = computed(() => {
+  if (!selectedModelId.value || !selectedProviderId.value) return null
+
+  const provider = providers.value.find(p => p.id === selectedProviderId.value)
+  return provider?.models?.find(m => m.id === selectedModelId.value) || null
+})
+
+const currentSelectedProvider = computed(() => {
+  return providers.value.find(p => p.id === selectedProviderId.value) || null
+})
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
@@ -7,7 +22,6 @@ const { ChevronDown, Check } = useIcon(['ChevronDown', 'Check'])
 
 const currentModelLabel = computed(() => {
   if (!currentSelectedModel.value || !currentSelectedProvider.value) return '选择模型'
-
   return currentSelectedModel.value?.name || '选择模型'
 })
 
