@@ -1,4 +1,4 @@
-import { convertToModelMessages, ToolLoopAgent } from 'ai'
+import { convertToModelMessages, generateText as _generateText, ToolLoopAgent } from 'ai'
 import { createRegistry } from './registry'
 type ModelType = 'anthropic' | 'openai' | 'deepseek' | 'google' | 'xai' | 'openai-compatible'
 interface ChatServiceOptions {
@@ -48,6 +48,17 @@ export const chatService = () => {
     })
     return uiStream
   }
+  const generateText = async (
+    prompt: string,
+    { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions
+  ) => {
+    _generateText({
+      model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
+        `${modelType}:${model}`
+      ),
+      prompt
+    })
+  }
   const list_models = async ({ baseURL, apiKey }) => {
     const models = await fetch(`${baseURL}/models`, {
       method: 'GET',
@@ -65,6 +76,7 @@ export const chatService = () => {
   return {
     createAgent,
     list_models,
-    list_tools
+    list_tools,
+    generateText
   }
 }
