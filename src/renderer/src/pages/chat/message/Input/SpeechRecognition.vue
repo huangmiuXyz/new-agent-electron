@@ -1,108 +1,99 @@
 <script setup lang="ts">
-import { useSpeechRecognition } from '@vueuse/core';
+import { createModel, Model, KaldiRecognizer } from "vosk-browser"
 
-// 定义组件的事件
 const emit = defineEmits<{
     speechResult: [text: string]
     speechStart: []
     speechEnd: []
 }>()
 
-// 语音识别相关状态
+const { Mic16Filled, Stop } = useIcon(['Stop', 'Mic16Filled'])
+// 状态
 const isListening = ref(false)
-const speechTimeout = ref<NodeJS.Timeout | null>(null)
 const speechBuffer = ref('')
+const speechTimeout = ref<NodeJS.Timeout | null>(null)
 
-// 图标
-const MicIcon = useIcon('Play')
-const StopIcon = useIcon('Stop')
+// Vosk 内部变量
+let audioContext: AudioContext | null = null
+let workletNode: AudioWorkletNode | null = null
+let model: Model | null = null
+let recognizer: KaldiRecognizer | null = null
 
-// 语音识别配置
-const {
-    isSupported,
-    isListening: speechIsListening,
-    isFinal,
-    result,
-    start,
-    stop,
-} = useSpeechRecognition({
-    continuous: true,
-    interimResults: true,
-    lang: 'zh-CN'
-})
+async function initVoskModel() {
+    if (model) return
 
-// 监听语音识别结果
-watch(result, (newResult) => {
-    if (newResult && newResult.trim()) {
-        speechBuffer.value += newResult
+    model = await createModel("/models/vosk-model-small-cn-0.22.zip")
 
-        // 如果是最终结果，设置一个定时器在用户停止说话后自动发送
-        if (isFinal.value) {
+    recognizer = new model.KaldiRecognizer(16000)
+    recognizer.setWords(true)
+
+    recognizer.on("partialresult", (msg) => {
+        if (msg.event === "partialresult") {
+            speechBuffer.value += msg.result.partial
             resetSpeechTimeout()
         }
-    }
-})
+    })
 
-// 监听语音识别状态变化
-watch(speechIsListening, (listening) => {
-    isListening.value = listening
-    if (listening) {
-        emit('speechStart')
-    } else {
-        emit('speechEnd')
-    }
-})
+    recognizer.on("result", (msg) => {
+        if (msg.event === "result") {
+            speechBuffer.value += msg.result.text
+            resetSpeechTimeout()
+        }
+    })
+}
 
-// 重置语音超时定时器
-const resetSpeechTimeout = () => {
+async function startMic() {
+    if (!audioContext) {
+        audioContext = new AudioContext({
+            sampleRate: 16000
+        })
+
+        // 加载 worklet
+        await audioContext.audioWorklet.addModule("/worklet/vosk-processor.js")
+    }
+
+    workletNode = new AudioWorkletNode(audioContext, "vosk-processor")
+
+    // 监听 worklet 的音频块
+    workletNode.port.onmessage = (event) => {
+        const floatData = event.data as Float32Array
+        recognizer?.acceptWaveformFloat(floatData, audioContext!.sampleRate)
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    const source = audioContext.createMediaStreamSource(stream)
+    source.connect(workletNode)
+}
+
+function resetSpeechTimeout() {
     if (speechTimeout.value) {
         clearTimeout(speechTimeout.value)
     }
+    speechTimeout.value = setTimeout(() => sendSpeechMessage(), 1500)
+}
 
-    // 2秒后自动发送语音内容
-    speechTimeout.value = setTimeout(() => {
+function sendSpeechMessage() {
+    if (!speechBuffer.value.trim()) return
+
+    emit("speechResult", speechBuffer.value.trim())
+    speechBuffer.value = ''
+}
+
+async function toggleSpeechRecognition() {
+    if (isListening.value) {
+        isListening.value = false
+        emit("speechEnd")
         sendSpeechMessage()
-    }, 2000)
-}
-
-// 发送语音消息
-const sendSpeechMessage = async () => {
-    if (speechTimeout.value) {
-        clearTimeout(speechTimeout.value)
-        speechTimeout.value = null
-    }
-
-    const speechText = speechBuffer.value.trim()
-    if (speechText) {
-        emit('speechResult', speechText)
-        speechBuffer.value = ''
-    }
-}
-
-// 切换语音识别状态
-const toggleSpeechRecognition = () => {
-    if (!isSupported.value) {
-        messageApi.error('您的浏览器不支持语音识别功能')
         return
     }
 
-    if (isListening.value) {
-        stop()
-        if (speechTimeout.value) {
-            clearTimeout(speechTimeout.value)
-            speechTimeout.value = null
-        }
-        // 如果有缓冲内容，立即发送
-        if (speechBuffer.value.trim()) {
-            sendSpeechMessage()
-        }
-    } else {
-        speechBuffer.value = ''
-        start()
-    }
+    isListening.value = true
+    emit("speechStart")
+
+    await initVoskModel()
+    await startMic()
 }
 
-// 暴露给父组件的方法和状态
 defineExpose({
     isListening,
     speechBuffer,
@@ -115,7 +106,7 @@ defineExpose({
         <!-- 语音识别按钮 -->
         <Button variant="icon" size="sm" @click="toggleSpeechRecognition" :class="{ 'voice-active': isListening }"
             :title="isListening ? '停止语音识别' : '开始语音识别'">
-            <component :is="isListening ? StopIcon : MicIcon" />
+            <component :is="isListening ? Stop : Mic16Filled" />
         </Button>
     </div>
 </template>

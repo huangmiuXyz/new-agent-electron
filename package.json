@@ -49,6 +49,7 @@
     "pinia-plugin-persistedstate": "^4.7.1",
     "shiki": "^3.19.0",
     "stream-markdown": "^0.0.11",
+    "vosk-browser": "^0.0.8",
     "vue": "^3.5.22",
     "vue-router": "^4.6.3",
     "zhipu-ai-provider": "0.2.0-beta.1"
