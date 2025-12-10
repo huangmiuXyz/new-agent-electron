@@ -6,15 +6,17 @@ const props = defineProps<{
 </script>
 
 <template>
-  <div class="msg-row me has-gap">
-    <div class="msg-content">
-      <div class="msg-bubble">
-        <ChatMessageItemContent :message="message" />
+  <div>
+    <div class="msg-row me has-gap">
+      <div class="msg-content">
+        <div class="msg-bubble">
+          <ChatMessageItemContent :message="message" />
+        </div>
       </div>
     </div>
-  </div>
-  <div class="translation-row">
-    <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
+    <div class="translation-row">
+      <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
+    </div>
   </div>
 </template>
 
