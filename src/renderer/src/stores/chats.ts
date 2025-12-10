@@ -78,6 +78,14 @@ export const useChatsStores = defineStore(
         msg.parts = newParts
       }
     }
+    const updateMessageMetadata = (cid: string, mid: string, newMetadata: MetaData) => {
+      const chat = getChatById(cid)
+      if (!chat) return
+      const msg = chat.messages.find((m) => m.id === mid)
+      if (msg) {
+        msg.metadata = newMetadata
+      }
+    }
     const updateMessages = (
       chatId: string,
       messages: BaseMessage[] | ((messages: BaseMessage[]) => BaseMessage[])
@@ -120,6 +128,7 @@ export const useChatsStores = defineStore(
       getChatById,
       deleteMessage,
       updateMessage,
+      updateMessageMetadata,
       isTitleGenerating,
       setTitleGenerating
     }

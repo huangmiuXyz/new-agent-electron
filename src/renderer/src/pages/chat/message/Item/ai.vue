@@ -33,12 +33,15 @@ const Stop = useIcon('Stop')
         </div>
       </div>
       <ChatMessageItemContent markdown :message="message" />
+
+      <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
     </div>
   </div>
 </template>
 
 <style scoped>
 .msg-row {
+  padding: 8px 20px;
   display: flex;
   gap: 16px;
   position: relative;

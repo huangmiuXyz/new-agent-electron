@@ -119,6 +119,12 @@ const translateMessage = async (message: BaseMessage) => {
           targetLanguage,
           timestamp: Date.now()
         })
+
+        const { updateMessageMetadata } = useChatsStores()
+        updateMessageMetadata(currentChat.value!.id, message.id!, {
+          ...message.metadata,
+          translations: message.metadata.translations
+        })
       }
 
       messageApi.success('翻译完成')
@@ -192,7 +198,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         @contextmenu="onMessageRightClick($event, message)" />
       <ChatMessageItemAi v-if="message.role === 'assistant'" :message="message"
         @contextmenu="onMessageRightClick($event, message)" />
-      <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
     </template>
   </div>
 
@@ -201,11 +206,9 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 <style scoped>
 .messages {
   flex: 1;
-  padding: 20px 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  padding: 8px 20px;
   gap: 8px;
 }
 </style>

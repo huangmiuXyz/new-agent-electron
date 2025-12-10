@@ -13,14 +13,24 @@ const props = defineProps<{
       </div>
     </div>
   </div>
+  <div class="translation-row">
+    <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
+  </div>
 </template>
 
 <style scoped>
 .msg-row {
   display: flex;
   position: relative;
-  /* 核心差异：反向排列，使内容靠右 */
+  padding: 8px 20px;
   flex-direction: row-reverse;
+  width: 100%;
+}
+
+.translation-row {
+  width: 100%;
+  padding: 0px 20px;
+  padding-left: 65px;
 }
 
 .msg-row:hover {
