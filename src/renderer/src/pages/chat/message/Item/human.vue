@@ -11,9 +11,6 @@ const props = defineProps<{
       <div class="msg-bubble">
         <ChatMessageItemContent :message="message" />
       </div>
-
-      <!-- 翻译结果 -->
-      <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
     </div>
   </div>
 </template>
@@ -21,7 +18,6 @@ const props = defineProps<{
 <style scoped>
 .msg-row {
   display: flex;
-  padding: 8px 20px;
   position: relative;
   /* 核心差异：反向排列，使内容靠右 */
   flex-direction: row-reverse;

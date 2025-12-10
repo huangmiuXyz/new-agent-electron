@@ -192,6 +192,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         @contextmenu="onMessageRightClick($event, message)" />
       <ChatMessageItemAi v-if="message.role === 'assistant'" :message="message"
         @contextmenu="onMessageRightClick($event, message)" />
+      <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
     </template>
   </div>
 
@@ -204,5 +205,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  padding: 8px 20px;
+  gap: 8px;
 }
 </style>

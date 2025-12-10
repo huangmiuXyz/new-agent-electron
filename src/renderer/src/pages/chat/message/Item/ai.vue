@@ -33,9 +33,6 @@ const Stop = useIcon('Stop')
         </div>
       </div>
       <ChatMessageItemContent markdown :message="message" />
-
-      <!-- 翻译结果 -->
-      <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
     </div>
   </div>
 </template>
@@ -43,7 +40,6 @@ const Stop = useIcon('Stop')
 <style scoped>
 .msg-row {
   display: flex;
-  padding: 12px 20px;
   gap: 16px;
   position: relative;
   transition: background-color 0.2s;
