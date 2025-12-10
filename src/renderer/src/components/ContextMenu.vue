@@ -1,4 +1,5 @@
 <template>
+  <!-- 主菜单 -->
   <Teleport to="body">
     <transition name="radix-zoom">
       <div v-if="visible" ref="menuRef" class="radix-menu-content" :style="styleObject" @contextmenu.prevent>
@@ -8,8 +9,41 @@
           <div v-if="item.type === 'divider'" class="radix-separator"></div>
 
           <!-- 菜单项 -->
+          <div v-else class="radix-item" :ref="el => setMenuItemRef(el, item)"
+            :class="{ 'danger': item.danger, 'disabled': item.disabled, 'has-submenu': item.children && item.children.length > 0 }"
+            @click="handleItemClick(item)" @mouseenter="handleItemHover($event, item)" @mouseleave="handleItemLeave">
+            <!-- 左侧内容：图标 + 文字 -->
+            <div class="radix-item-left">
+              <component :is="item.icon" />
+              <span>{{ item.label }}</span>
+            </div>
+
+            <!-- 右侧槽位：快捷键或子菜单箭头 -->
+            <div class="radix-right-slot">
+              <!-- 子菜单箭头 -->
+              <span v-if="item.children && item.children.length > 0" class="submenu-arrow">›</span>
+              <!-- 快捷键 -->
+              <span v-else-if="item.shortcut">{{ item.shortcut }}</span>
+            </div>
+          </div>
+
+        </template>
+      </div>
+    </transition>
+  </Teleport>
+
+  <!-- 子菜单 -->
+  <Teleport to="body">
+    <transition name="radix-zoom">
+      <div v-if="submenuVisible" ref="submenuRef" class="radix-menu-content radix-submenu" :style="submenuStyleObject"
+        @contextmenu.prevent>
+        <template v-for="(item, index) in submenuOptions" :key="index">
+          <!-- 分割线 -->
+          <div v-if="item.type === 'divider'" class="radix-separator"></div>
+
+          <!-- 菜单项 -->
           <div v-else class="radix-item" :class="{ 'danger': item.danger, 'disabled': item.disabled }"
-            @click="handleItemClick(item)">
+            @click="handleSubmenuItemClick(item)">
             <!-- 左侧内容：图标 + 文字 -->
             <div class="radix-item-left">
               <component :is="item.icon" />
@@ -21,7 +55,6 @@
               {{ item.shortcut }}
             </div>
           </div>
-
         </template>
       </div>
     </transition>
@@ -35,16 +68,50 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useContextMenu, type MenuItem } from '../composables/useContextMenu';
 
-const { visible, position, menuOptions, contextData, hideContextMenu } = useContextMenu<T>();
+const {
+  visible,
+  position,
+  menuOptions,
+  contextData,
+  submenuVisible,
+  submenuPosition,
+  submenuOptions,
+  parentItem,
+  hideContextMenu,
+  showSubmenu,
+  hideSubmenu
+} = useContextMenu<T>();
 const menuRef = ref<HTMLElement | null>(null);
+const submenuRef = ref<HTMLElement | null>(null);
 const adjustedPos = ref({ x: 0, y: 0 });
+const submenuAdjustedPos = ref({ x: 0, y: 0 });
 const transformOrigin = ref('top left');
+const submenuTransformOrigin = ref('top left');
+let hoverTimer: number | null = null;
+const menuItemRefs = new Map<MenuItem<any>, HTMLElement>();
 
 // 如果配置项里有 handler 函数，直接执行
 // 否则分发 select 事件给父组件
 const emit = defineEmits(['select']);
 
 const handleItemClick = (item: MenuItem<T>) => {
+  if (item.disabled) return;
+
+  // 如果有子菜单，不执行点击事件，由 hover 处理
+  if (item.children && item.children.length > 0) return;
+
+  // 1. 如果配置项自带 onClick 处理函数，优先执行
+  if (typeof item.onClick === 'function') {
+    item.onClick((contextData.value as T));
+  } else {
+    // 2. 否则通过 action 字符串通知父组件
+    emit('select', { action: item.action, data: contextData.value });
+  }
+
+  hideContextMenu();
+};
+
+const handleSubmenuItemClick = (item: MenuItem<T>) => {
   if (item.disabled) return;
 
   // 1. 如果配置项自带 onClick 处理函数，优先执行
@@ -56,6 +123,35 @@ const handleItemClick = (item: MenuItem<T>) => {
   }
 
   hideContextMenu();
+};
+
+const setMenuItemRef = (el: Element | ComponentPublicInstance | null, item: MenuItem<T>) => {
+  if (el && el instanceof HTMLElement) {
+    menuItemRefs.set(item, el);
+  } else {
+    menuItemRefs.delete(item);
+  }
+};
+
+const handleItemHover = (event: MouseEvent, item: MenuItem<T>) => {
+  if (item.children && item.children.length > 0) {
+    // 使用延迟来避免鼠标快速移动时频繁切换
+    if (hoverTimer) clearTimeout(hoverTimer);
+    hoverTimer = window.setTimeout(() => {
+      // 从 ref Map 中获取菜单项元素
+      const target = menuItemRefs.get(item);
+
+      // 检查元素是否存在
+      if (target) {
+        showSubmenu(target, item);
+      }
+    }, 100);
+  }
+};
+
+const handleItemLeave = () => {
+  // 不清除定时器，让子菜单正常显示
+  // 如果需要隐藏子菜单，应该在鼠标离开整个菜单区域时处理
 };
 
 // 位置计算逻辑
@@ -79,7 +175,47 @@ const calculatePosition = async () => {
   transformOrigin.value = `${originY} ${originX}`;
 };
 
+// 子菜单位置计算逻辑
+const calculateSubmenuPosition = async () => {
+  await nextTick();
+  if (!submenuRef.value || !menuRef.value) return;
+
+  const { offsetWidth: w, offsetHeight: h } = submenuRef.value;
+  const { innerWidth: winW, innerHeight: winH } = window;
+  const { x, y } = submenuPosition;
+
+  // 默认在父菜单右侧
+  let newX = x;
+  let newY = y;
+  let originX = 'left';
+  let originY = 'top';
+
+  // 如果右侧空间不足，显示在左侧
+  if (x + w > winW) {
+    // 获取父菜单的左边界
+    const parentRect = menuRef.value.getBoundingClientRect();
+    newX = parentRect.left - w;
+    originX = 'right';
+  }
+
+  // 如果下方空间不足，向上调整
+  if (y + h > winH) {
+    newY = winH - h;
+    originY = 'bottom';
+  }
+
+  submenuAdjustedPos.value = { x: newX, y: newY };
+  submenuTransformOrigin.value = `${originY} ${originX}`;
+};
+
+// 初始化子菜单位置
+watch(submenuPosition, () => {
+  // 当子菜单位置更新时，先设置一个默认值
+  submenuAdjustedPos.value = { x: submenuPosition.x, y: submenuPosition.y };
+});
+
 watch(visible, (val) => { if (val) calculatePosition(); });
+watch(submenuVisible, (val) => { if (val) calculateSubmenuPosition(); });
 
 const styleObject = computed(() => ({
   left: `${adjustedPos.value.x}px`,
@@ -87,9 +223,21 @@ const styleObject = computed(() => ({
   transformOrigin: transformOrigin.value
 }));
 
-const handleScroll = () => { if (visible.value) hideContextMenu(); }
+const submenuStyleObject = computed(() => ({
+  left: `${submenuAdjustedPos.value.x}px`,
+  top: `${submenuAdjustedPos.value.y}px`,
+  transformOrigin: submenuTransformOrigin.value
+}));
+
+const handleScroll = () => {
+  if (visible.value) hideContextMenu();
+  if (submenuVisible.value) hideSubmenu();
+}
 onMounted(() => window.addEventListener('scroll', handleScroll, true));
-onUnmounted(() => window.removeEventListener('scroll', handleScroll, true));
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll, true);
+  if (hoverTimer) clearTimeout(hoverTimer);
+});
 </script>
 
 <style scoped>
@@ -218,5 +366,22 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll, true));
     opacity: 0;
     transform: scale(0.95);
   }
+}
+
+/* 子菜单样式 */
+.radix-submenu {
+  z-index: 2001;
+}
+
+/* 有子菜单的项 */
+.radix-item.has-submenu {
+  position: relative;
+}
+
+/* 子菜单箭头 */
+.submenu-arrow {
+  color: #888;
+  font-size: 14px;
+  margin-left: auto;
 }
 </style>
