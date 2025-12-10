@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-defineProps<{
+const props = defineProps<{
   message: BaseMessage
 }>();
 </script>
@@ -11,6 +11,9 @@ defineProps<{
       <div class="msg-bubble">
         <ChatMessageItemContent :message="message" />
       </div>
+
+      <!-- 翻译结果 -->
+      <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
     </div>
   </div>
 </template>

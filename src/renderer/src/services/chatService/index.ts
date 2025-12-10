@@ -60,6 +60,21 @@ export const chatService = () => {
     })
     return result.text
   }
+
+  const translateText = async (
+    text: string,
+    targetLanguage: string = '中文',
+    { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions
+  ) => {
+    const prompt = `请将以下文本翻译为${targetLanguage}，只返回翻译结果，不要添加任何解释或额外内容：\n\n${text}`
+    const result = await _generateText({
+      model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
+        `${modelType}:${model}`
+      ),
+      prompt
+    })
+    return result.text
+  }
   const list_models = async ({ baseURL, apiKey }) => {
     const models = await fetch(`${baseURL}/models`, {
       method: 'GET',
@@ -78,6 +93,7 @@ export const chatService = () => {
     createAgent,
     list_models,
     list_tools,
-    generateText
+    generateText,
+    translateText
   }
 }

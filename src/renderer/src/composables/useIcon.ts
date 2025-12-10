@@ -37,7 +37,8 @@ import {
   FileInvoice,
   Markdown,
   Video,
-  Box
+  Box,
+  Language
 } from '@vicons/tabler'
 import { CommentAdd16Regular, Mic16Filled } from '@vicons/fluent'
 const icons = {
@@ -79,7 +80,8 @@ const icons = {
   Markdown,
   Video,
   Mic16Filled,
-  Box
+  Box,
+  Language
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =

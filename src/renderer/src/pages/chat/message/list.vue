@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import type { MenuItem } from '@renderer/composables/useContextMenu'
+
 const { messageScrollRef } = useMessagesScroll()
 const { showContextMenu } = useContextMenu<BaseMessage>();
 const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage } = useChatsStores()
-const { Delete, Refresh, Copy, Edit, Branch } = useIcon(['Delete', 'Refresh', 'Copy', 'Edit', 'Branch'])
+const { Delete, Refresh, Copy, Edit, Branch, Language } = useIcon(['Delete', 'Refresh', 'Copy', 'Edit', 'Branch', 'Language'])
+
 
 // 存储当前需要编辑的消息ID
 const editingMessageId = ref<string | null>(null)
@@ -25,6 +30,106 @@ provide('messageEdit', {
 })
 
 const { currentSelectedModel } = storeToRefs(useSettingsStore())
+
+// 翻译功能
+const translateMessage = async (message: BaseMessage) => {
+  const settingsStore = useSettingsStore()
+  const translationProviderId = settingsStore.defaultModels.translationProviderId
+  const translationModelId = settingsStore.defaultModels.translationModelId
+
+  if (!translationProviderId || !translationModelId) {
+    messageApi.error('请先在设置中配置翻译模型')
+    return
+  }
+
+  const provider = settingsStore.getProviderById(translationProviderId)
+  const translationModel = provider?.models?.find(m => m.id === translationModelId)
+
+  if (!translationModel || !provider) {
+    messageApi.error('翻译模型配置不完整，请检查设置')
+    return
+  }
+
+  const textParts = message.parts
+    .filter(part => part.type === 'text')
+    .map(part => part.text)
+    .join('\n')
+
+  if (!textParts.trim()) {
+    messageApi.error('没有可翻译的文本内容')
+    return
+  }
+
+
+  // 显示语言选择对话框
+  const { confirm } = useModal()
+  const [LanguageSelector, { getFieldValue }] = useForm({
+    title: '选择翻译语言',
+    fields: [{
+      label: '目标语言',
+      type: 'select',
+      name: 'targetLanguage',
+      options: [
+        { label: '中文', value: '中文' },
+        { label: '英文', value: '英文' },
+        { label: '日文', value: '日文' },
+        { label: '韩文', value: '韩文' },
+        { label: '法文', value: '法文' },
+        { label: '德文', value: '德文' },
+        { label: '西班牙文', value: '西班牙文' },
+        { label: '俄文', value: '俄文' }
+      ]
+    }],
+    initialData: {
+      targetLanguage: '中文'
+    }
+  })
+
+  if (await confirm({
+    title: '翻译设置',
+    content: LanguageSelector
+  })) {
+    const targetLanguage = getFieldValue('targetLanguage')
+
+    try {
+      if (!provider.apiKey) {
+        messageApi.error('翻译模型配置不完整，请检查设置')
+        return
+      }
+
+      const { translateText } = chatService()
+      const result = await translateText(
+        textParts,
+        targetLanguage,
+        {
+          model: translationModel.id,
+          apiKey: provider.apiKey,
+          baseURL: provider.baseUrl,
+          provider: provider.id,
+          modelType: provider.modelType
+        }
+      )
+
+      // 更新消息的metadata，保存翻译结果
+      if (message.metadata) {
+        if (!message.metadata.translations) {
+          message.metadata.translations = []
+        }
+        message.metadata.translations.push({
+          text: result,
+          targetLanguage,
+          timestamp: Date.now()
+        })
+      }
+
+      messageApi.success('翻译完成')
+    } catch (error) {
+      console.error('翻译失败:', error)
+      messageApi.error(`翻译失败: ${(error as Error).message}`)
+    }
+  }
+}
+
 const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   event.preventDefault();
   event.stopPropagation();
@@ -48,6 +153,11 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       label: '复制',
       icon: Copy,
       onClick: () => copyText(message.parts.map(e => e.type === 'text' ? e.text : '').join(''))
+    },
+    {
+      label: '翻译',
+      icon: Language,
+      onClick: () => translateMessage(message)
     },
     {
       label: '重试',
@@ -85,6 +195,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         @contextmenu="onMessageRightClick($event, message)" />
     </template>
   </div>
+
 </template>
 
 <style scoped>

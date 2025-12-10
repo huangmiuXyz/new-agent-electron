@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-defineProps<{
+const props = defineProps<{
   message: BaseMessage
 }>();
 const { getProviderById } = useSettingsStore()
@@ -33,6 +33,9 @@ const Stop = useIcon('Stop')
         </div>
       </div>
       <ChatMessageItemContent markdown :message="message" />
+
+      <!-- 翻译结果 -->
+      <MessageTranslation v-if="message.metadata?.translations" :translations="message.metadata.translations" />
     </div>
   </div>
 </template>

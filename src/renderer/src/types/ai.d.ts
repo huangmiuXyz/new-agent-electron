@@ -8,6 +8,13 @@ declare global {
     stop: AbortController['abort']
     loading: boolean
     cid: string
+    translations?: TranslationResult[]
+  }
+
+  interface TranslationResult {
+    text: string
+    targetLanguage: string
+    timestamp: number
   }
   type BaseMessage = UIMessage<MetaData>
   type Tools = Awaited<ReturnType<typeof window.api.list_tools>>
