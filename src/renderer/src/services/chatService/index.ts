@@ -52,12 +52,13 @@ export const chatService = () => {
     prompt: string,
     { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions
   ) => {
-    _generateText({
+    const result = await _generateText({
       model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
         `${modelType}:${model}`
       ),
       prompt
     })
+    return result.text
   }
   const list_models = async ({ baseURL, apiKey }) => {
     const models = await fetch(`${baseURL}/models`, {

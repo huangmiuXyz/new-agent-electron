@@ -112,6 +112,7 @@ export const useChat = (chatId: string) => {
       },
       onFinish: () => {
         update(false)
+        useTitle(chatId).generateTitle()
         scope.stop()
       }
     })
