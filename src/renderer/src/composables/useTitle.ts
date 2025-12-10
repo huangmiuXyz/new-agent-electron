@@ -2,8 +2,10 @@ import { TextUIPart } from 'ai'
 
 export const useTitle = (chatId: string) => {
   const settingsStore = useSettingsStore()
-  const { getChatById, renameChat } = useChatsStores()
+  const { getChatById, renameChat, setTitleGenerating } = useChatsStores()
   const chat = getChatById(chatId)
+  const isGeneratingTitle = ref(false)
+
   const generateTitle = async () => {
     const isFirstMessage = chat!.messages.length === 2
     const hasDefaultTitle = chat!.title === '新的聊天'
@@ -32,6 +34,9 @@ export const useTitle = (chatId: string) => {
 
           const service = chatService()
           try {
+            isGeneratingTitle.value = true
+            setTitleGenerating(chatId, true)
+
             const generatedTitle = await service.generateText(prompt, {
               model: titleModel.id,
               apiKey: provider?.apiKey || '',
@@ -43,6 +48,9 @@ export const useTitle = (chatId: string) => {
             renameChat(chatId, cleanTitle)
           } catch (error) {
             messageApi.error((error as Error).message)
+          } finally {
+            isGeneratingTitle.value = false
+            setTitleGenerating(chatId, false)
           }
         }
       }
@@ -50,6 +58,7 @@ export const useTitle = (chatId: string) => {
   }
 
   return {
-    generateTitle
+    generateTitle,
+    isGeneratingTitle: readonly(isGeneratingTitle)
   }
 }

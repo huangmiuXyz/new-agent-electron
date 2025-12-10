@@ -88,6 +88,15 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
       <List v-if="chatsStore.chats.length" type="gap" :items="chatsStore.chats" :active-id="chatsStore.activeChatId!"
         :key-field="'id'" :main-field="'title'" :sub-field="'createdAt'" @select="selectChat"
         @contextmenu="showChatContextMenu">
+        <template #main="{ item }">
+          <div class="chat-title-container">
+            <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-title">{{ item.title }}</span>
+            <div v-else class="chat-title-loading">
+              <div class="loading-spinner-small"></div>
+              <span>生成标题中...</span>
+            </div>
+          </div>
+        </template>
         <template #actions="{ item }">
           <span v-if="item.createdAt" class="item-time">{{ formatTime(item.createdAt) }}</span>
         </template>
@@ -260,5 +269,41 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 
 .footer-item :deep(svg) {
   font-size: 18px;
+}
+
+/* 标题生成loading状态 */
+.chat-title-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.chat-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-title-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.loading-spinner-small {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--border-subtle, #eee);
+  border-top-color: var(--accent-color, #0066ff);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

@@ -3,10 +3,15 @@ export const useChatsStores = defineStore(
   () => {
     const chats = ref<Chat[]>([])
     const activeChatId = ref<string | null>(null)
+    const titleGeneratingChats = ref<Set<string>>(new Set())
 
     const currentChat = computed(() => {
       return chats.value.find((c) => c.id === activeChatId.value) || null
     })
+
+    const isTitleGenerating = (chatId: string) => {
+      return titleGeneratingChats.value.has(chatId)
+    }
 
     const createChat = (title = '新的聊天') => {
       const agentStore = useAgentStore()
@@ -47,6 +52,14 @@ export const useChatsStores = defineStore(
     const renameChat = (id: string, title: string) => {
       const chat = getChatById(id)
       if (chat) chat.title = title
+    }
+
+    const setTitleGenerating = (id: string, generating: boolean) => {
+      if (generating) {
+        titleGeneratingChats.value.add(id)
+      } else {
+        titleGeneratingChats.value.delete(id)
+      }
     }
 
     const setActiveChat = (id: string) => {
@@ -106,7 +119,9 @@ export const useChatsStores = defineStore(
       addMessageToChat,
       getChatById,
       deleteMessage,
-      updateMessage
+      updateMessage,
+      isTitleGenerating,
+      setTitleGenerating
     }
   },
   {

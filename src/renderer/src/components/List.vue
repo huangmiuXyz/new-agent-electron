@@ -99,7 +99,9 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
               <img v-else :src="item.logo" :alt="String(item.main)" class="media-img" />
             </div>
             <div class="item-content">
-              <div class="main-text text-truncate">{{ item.main }}</div>
+              <slot name="main" :item="item.raw">
+                <div class="main-text text-truncate">{{ item.main }}</div>
+              </slot>
               <div v-if="item.sub" class="sub-text text-truncate">{{ item.sub }}</div>
             </div>
             <div v-if="$slots.actions" class="item-actions">
