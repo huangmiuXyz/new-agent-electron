@@ -146,8 +146,10 @@ export const useChat = (chatId: string) => {
       if (isLastMessage(messageId)) {
         scrollToBottom()
       }
-      chats!.messages = chats!.messages.slice(0, message?.role === 'user' ? mIndex + 1 : mIndex)
-
+      const deleMessages = chats!.messages.splice(message?.role === 'user' ? mIndex + 1 : mIndex)
+      deleMessages.forEach((m) => {
+        m.metadata?.stop?.()
+      })
       chat.sendMessage()
     }
 
