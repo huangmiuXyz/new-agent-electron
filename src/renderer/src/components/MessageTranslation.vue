@@ -42,6 +42,12 @@ watch(() => props.translationLoading, (newLoading) => {
         showTranslation.value = true
     }
 })
+
+// 截断长语言名称，用于显示
+const truncateLanguageName = (name: string, maxLength: number = 10) => {
+    if (name.length <= maxLength) return name
+    return name.substring(0, maxLength) + '...'
+}
 </script>
 
 <template>
@@ -68,7 +74,9 @@ watch(() => props.translationLoading, (newLoading) => {
             <div v-if="props.translations && props.translations.length > 1" class="translation-tabs">
                 <div v-for="(translation, index) in props.translations" :key="index" class="translation-tab"
                     :class="{ active: selectedTranslationIndex === index }" @click="selectTranslation(index)">
-                    {{ translation.targetLanguage || '中文' }}
+                    <span :title="translation.targetLanguage" class="language-name">
+                        {{ truncateLanguageName(translation.targetLanguage || '中文') }}
+                    </span>
                     <span class="translation-time">
                         {{ new Date(translation.timestamp).toLocaleTimeString() }}
                     </span>
@@ -78,7 +86,9 @@ watch(() => props.translationLoading, (newLoading) => {
             <!-- 翻译内容 -->
             <div v-if="selectedTranslation" class="translation-content">
                 <div class="translation-info">
-                    {{ selectedTranslation?.targetLanguage || '中文' }}
+                    <span :title="selectedTranslation?.targetLanguage" class="language-name">
+                        {{ truncateLanguageName(selectedTranslation?.targetLanguage || '中文') }}
+                    </span>
                     <span class="translation-time">
                         {{ selectedTranslation ? new Date(selectedTranslation.timestamp).toLocaleString() : '' }}
                     </span>
@@ -158,6 +168,10 @@ watch(() => props.translationLoading, (newLoading) => {
     cursor: pointer;
     border-bottom: 2px solid transparent;
     transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
 }
 
 .translation-tab:hover {
@@ -168,6 +182,13 @@ watch(() => props.translationLoading, (newLoading) => {
     color: #3b82f6;
     border-bottom-color: #3b82f6;
     background-color: #f9fafb;
+}
+
+.language-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* 翻译加载状态样式 */

@@ -76,11 +76,19 @@ const translateMessage = async (message: BaseMessage) => {
         { label: '法文', value: '法文' },
         { label: '德文', value: '德文' },
         { label: '西班牙文', value: '西班牙文' },
-        { label: '俄文', value: '俄文' }
+        { label: '俄文', value: '俄文' },
+        { label: '自定义语言...', value: 'custom' }
       ]
+    }, {
+      label: '自定义语言',
+      type: 'text',
+      name: 'customLanguage',
+      placeholder: '请输入语言名称',
+      ifShow: (values: any) => values.targetLanguage === 'custom'
     }],
     initialData: {
-      targetLanguage: '中文'
+      targetLanguage: '中文',
+      customLanguage: ''
     }
   })
 
@@ -88,7 +96,17 @@ const translateMessage = async (message: BaseMessage) => {
     title: '翻译设置',
     content: LanguageSelector
   })) {
-    const targetLanguage = getFieldValue('targetLanguage')
+    let targetLanguage = getFieldValue('targetLanguage')
+
+    // 如果选择了自定义语言，则使用用户输入的语言名称
+    if (targetLanguage === 'custom') {
+      const customLanguage = getFieldValue('customLanguage')
+      if (!customLanguage || customLanguage.trim() === '') {
+        messageApi.error('请输入自定义语言名称')
+        return
+      }
+      targetLanguage = customLanguage.trim()
+    }
 
     try {
       if (!provider.apiKey) {
