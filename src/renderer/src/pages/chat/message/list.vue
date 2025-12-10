@@ -109,7 +109,6 @@ const translateMessage = async (message: BaseMessage) => {
         }
       )
 
-      // 更新消息的metadata，保存翻译结果
       if (message.metadata) {
         if (!message.metadata.translations) {
           message.metadata.translations = []
