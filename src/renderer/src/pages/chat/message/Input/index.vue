@@ -1,71 +1,39 @@
 <script setup lang="ts">
 import { FileUIPart, TextUIPart } from 'ai';
-import { useDropZone } from '@vueuse/core';
 
 const message = ref('')
 const chatStore = useChatsStores();
 const selectedFiles = ref<Array<FileUIPart & { blobUrl: string; }>>([])
-const FileInputRef = ref<HTMLInputElement>()
-const inputContainerRef = ref<HTMLElement>()
 
-const FileUpload = useIcon('FileUpload')
+const { currentSelectedModel } = storeToRefs(useSettingsStore())
 
-// 拖拽状态
-const isDragOver = ref(false)
+// 图标
+const FileUploadIcon = useIcon('FileUpload')
 
-// 处理文件上传的通用函数
-const processFiles = async (files: FileList | File[]) => {
-  const fileArray = Array.from(files)
-  const processedFiles = await Promise.all(
-    fileArray.map(async f => ({
-      url: await blobToDataURL(f),
-      mediaType: f.type,
-      blobUrl: URL.createObjectURL(f),
-      filename: f.name,
-      type: 'file' as const
-    }))
-  )
+// 引入子组件
+const fileUploadRef = ref()
+const speechRecognitionRef = ref()
 
-  selectedFiles.value.push(...processedFiles)
+// 处理文件选择
+const handleFilesSelected = (files: Array<FileUIPart & { blobUrl: string; }>) => {
+  selectedFiles.value.push(...files)
 }
 
-// 使用 useDropZone 处理拖拽上传
-const { isOverDropZone } = useDropZone(inputContainerRef, {
-  onDrop: (files) => {
-    if (files && files.length > 0) {
-      processFiles(files)
-    }
-    isDragOver.value = false
-  },
-  onEnter: () => {
-    isDragOver.value = true
-  },
-  onLeave: () => {
-    isDragOver.value = false
-  }
-})
+// 处理文件移除
+const handleFileRemoved = (index: number) => {
+  selectedFiles.value.splice(index, 1)
+}
 
+// 处理语音识别结果
+const handleSpeechResult = async (text: string) => {
+  message.value = text
+  await _sendMessage()
+}
 
 // 监听粘贴事件
 const handlePaste = async (event: ClipboardEvent) => {
-  const items = event.clipboardData?.items
-  if (!items) return
-
-  const files: File[] = []
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
-    if (item.kind === 'file') {
-      const file = item.getAsFile()
-      if (file) {
-        files.push(file)
-      }
-    }
-  }
-
-  if (files.length > 0) {
-    event.preventDefault()
-    await processFiles(files)
+  if (fileUploadRef.value) {
+    fileUploadRef.value.handlePaste(event)
   }
 }
 
@@ -73,24 +41,6 @@ const adjustTextareaHeight = (event: Event) => {
   const textarea = event.target as HTMLTextAreaElement
   textarea.style.height = 'auto'
   textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
-}
-
-const { currentSelectedModel } = storeToRefs(useSettingsStore())
-
-const handleUpload = async (e: Event) => {
-  const files = (e.target as HTMLInputElement).files
-  if (!files) return
-
-  await processFiles(files)
-  FileInputRef.value!.value = ''
-}
-
-const removefile = (index: number) => {
-  const file = selectedFiles.value[index]
-  if (file.blobUrl) {
-    URL.revokeObjectURL(file.blobUrl)
-  }
-  selectedFiles.value.splice(index, 1)
 }
 
 const _sendMessage = async () => {
@@ -128,19 +78,21 @@ const _sendMessage = async () => {
 
 <template>
   <footer class="footer">
-    <div ref="inputContainerRef" class="input-container" :class="{ 'drag-over': isDragOver || isOverDropZone }">
+    <div class="input-container" :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
       <FilePreview removable v-if="selectedFiles.length > 0" :files="selectedFiles" preview-mode="input"
-        @remove="removefile" />
+        @remove="handleFileRemoved" />
 
       <textarea class="input-field" rows="1" placeholder="发送消息..." v-model="message" @input="adjustTextareaHeight"
         @keydown.enter.exact.prevent="_sendMessage" @paste="handlePaste"></textarea>
 
       <div class="input-actions">
         <div class="action-left">
-          <input ref="FileInputRef" type="file" multiple @change="handleUpload" style="display: none;" />
-          <Button variant="icon" size="sm" @click="FileInputRef?.click()">
-            <FileUpload />
-          </Button>
+          <!-- 文件上传组件 -->
+          <ChatMessageInputFileUpload ref="fileUploadRef" @files-selected="handleFilesSelected"
+            @file-removed="handleFileRemoved" />
+
+          <!-- 语音识别组件 -->
+          <ChatMessageInputSpeechRecognition ref="speechRecognitionRef" @speech-result="handleSpeechResult" />
 
           <!-- 智能体选择器 -->
           <ChatAgentSelector />
@@ -150,10 +102,18 @@ const _sendMessage = async () => {
         <Button variant="primary" size="md" @click="_sendMessage">发送</Button>
       </div>
 
+      <!-- 语音识别状态显示 -->
+      <div v-if="speechRecognitionRef?.isListening" class="voice-status">
+        <div class="voice-indicator"></div>
+        <span class="voice-text">正在听取语音...</span>
+        <span v-if="speechRecognitionRef?.speechBuffer" class="voice-preview">{{ speechRecognitionRef.speechBuffer
+        }}</span>
+      </div>
+
       <!-- 拖拽提示 -->
-      <div v-if="isDragOver || isOverDropZone" class="drag-overlay">
+      <div v-if="fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone" class="drag-overlay">
         <div class="drag-message">
-          <FileUpload />
+          <FileUploadIcon />
           <span>释放以上传文件</span>
         </div>
       </div>
@@ -246,5 +206,56 @@ const _sendMessage = async () => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.voice-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  background-color: rgba(255, 71, 87, 0.05);
+  border-radius: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.voice-indicator {
+  width: 8px;
+  height: 8px;
+  background-color: #ff4757;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+.voice-text {
+  font-weight: 500;
+}
+
+.voice-preview {
+  color: #333;
+  font-style: italic;
+  margin-left: auto;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 </style>
