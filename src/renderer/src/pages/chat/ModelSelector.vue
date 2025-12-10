@@ -8,7 +8,7 @@ const { ChevronDown, Check } = useIcon(['ChevronDown', 'Check'])
 const currentModelLabel = computed(() => {
   if (!currentSelectedModel.value || !currentSelectedProvider.value) return '选择模型'
 
-  return currentSelectedProvider.value?.name || '选择模型'
+  return currentSelectedModel.value?.name || '选择模型'
 })
 
 const filteredModels = computed(() => {
@@ -64,6 +64,7 @@ const handleModelSelect = (id: string) => {
     :hasResults="filteredModels.length > 0" width="240px">
     <template #trigger>
       <div class="model-btn" :class="{ active: isPopupOpen }">
+        <img style="width: 10px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="">
         <span>{{ currentModelLabel }}</span>
         <ChevronDown />
       </div>
