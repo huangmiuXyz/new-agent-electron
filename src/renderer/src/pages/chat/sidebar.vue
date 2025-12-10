@@ -93,7 +93,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
             <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-title">{{ item.title }}</span>
             <div v-else class="chat-title-loading">
               <div class="loading-spinner-small"></div>
-              <span>生成标题中...</span>
+              <span>标题生成中...</span>
             </div>
           </div>
         </template>
