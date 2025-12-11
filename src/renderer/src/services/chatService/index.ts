@@ -12,23 +12,34 @@ interface ChatServiceOptions {
 interface ChatServiceConfig {
   mcpClient: ClientConfig
   instructions?: string
+  selectedTools?: string[] // 用户选择的工具列表，格式为 "服务器名.工具名"
 }
 export const chatService = () => {
   const createAgent = async (
     cid: string,
     { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions,
     messages: BaseMessage[],
-    { mcpClient, instructions }: ChatServiceConfig
+    { mcpClient, instructions, selectedTools }: ChatServiceConfig
   ) => {
     const close = messageApi.loading('连接mcp服务器中...')
     let tools: Tools = {}
     try {
-      tools = await list_tools(JSON.parse(JSON.stringify(mcpClient)))
+      const allTools = await list_tools(JSON.parse(JSON.stringify(mcpClient)))
+      if (selectedTools && selectedTools.length > 0) {
+        tools = {}
+        selectedTools.forEach((toolKey) => {
+          const key = toolKey.split('.')[1]
+          tools[key] = allTools[key]
+        })
+      } else {
+        tools = allTools
+      }
     } catch (error) {
       messageApi.error((error as Error).message)
     } finally {
       close()
     }
+    debugger
     const agent = new ToolLoopAgent({
       model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
         `${modelType}:${model}`
