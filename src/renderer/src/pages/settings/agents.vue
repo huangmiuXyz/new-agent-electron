@@ -52,6 +52,9 @@ const openAgentModal = async (agent?: Agent) => {
             tools: []
         }
 
+    // 保存之前的服务器状态，用于比较变化
+    let previousMcpServers = initialData.mcpServers || []
+
     const [FormComponent, formActions] = useForm({
         title: modalTitle,
         showHeader: false,
@@ -93,12 +96,46 @@ const openAgentModal = async (agent?: Agent) => {
                 ifShow: (data) => data.mcpServers! && data.mcpServers!.length > 0
             }
         ],
-        onChange: (field, value) => {
+        onChange: (field, value, formData) => {
             if (field === 'mcpServers') {
-                const newToolOptions = getAllToolOptions(value as string[])
+                const selectedMcpServers = value as string[]
+
+                // 获取新的工具选项
+                const newToolOptions = getAllToolOptions(selectedMcpServers)
                 formActions.updateFieldProps('tools', {
                     options: newToolOptions
                 })
+
+                // 计算服务器变化
+                const addedServers = selectedMcpServers.filter(server => !previousMcpServers.includes(server))
+                const removedServers = previousMcpServers.filter(server => !selectedMcpServers.includes(server))
+
+                // 获取当前选中的工具
+                let currentTools = formData.tools as string[] || []
+
+                // 为新增的服务器添加所有工具
+                addedServers.forEach(serverName => {
+                    const server = mcpServers.value[serverName]
+                    if (server && server.tools) {
+                        Object.keys(server.tools).forEach(toolName => {
+                            const toolId = `${serverName}.${toolName}`
+                            if (!currentTools.includes(toolId)) {
+                                currentTools.push(toolId)
+                            }
+                        })
+                    }
+                })
+
+                // 移除被取消勾选的服务器的所有工具
+                removedServers.forEach(serverName => {
+                    currentTools = currentTools.filter(toolId => !toolId.startsWith(`${serverName}.`))
+                })
+
+                // 更新工具选择
+                formActions.setFieldValue('tools', currentTools)
+
+                // 更新之前的服务器状态
+                previousMcpServers = [...selectedMcpServers]
             }
         },
         onSubmit: (data) => {
@@ -114,6 +151,9 @@ const openAgentModal = async (agent?: Agent) => {
     formActions.updateFieldProps('tools', {
         options: getAllToolOptions(initialData.mcpServers || [])
     })
+
+    // 对于编辑模式，保持原有的工具选择状态
+    // 对于新建模式，工具选择为空，等待用户选择服务器后再自动勾选对应工具
 
     confirm({
         title: modalTitle,
