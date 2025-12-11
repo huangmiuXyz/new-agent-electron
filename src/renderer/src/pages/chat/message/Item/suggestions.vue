@@ -16,10 +16,12 @@ const toggleCollapse = () => {
     isCollapsed.value = !isCollapsed.value;
 };
 
-const selectSuggestion = (suggestion: Suggestion) => {
-    selectedSuggestion.value = suggestion.id;
-    emit('suggestionSelected', suggestion);
-};
+const { currentChat } = storeToRefs(useChatsStores());
+const handleSuggestionSelected = (suggestion: any) => {
+    if (!currentChat.value) return
+    const { sendMessages } = useChat(currentChat.value.id)
+    sendMessages(suggestion.text)
+}
 </script>
 
 <template>
@@ -49,7 +51,7 @@ const selectSuggestion = (suggestion: Suggestion) => {
                 <div class="suggestions-list">
                     <div v-for="suggestion in suggestionsData?.suggestions" :key="suggestion.id" class="suggestion-item"
                         :class="{ 'selected': selectedSuggestion === suggestion.id }"
-                        @click="selectSuggestion(suggestion)">
+                        @click="handleSuggestionSelected(suggestion)">
                         <div class="suggestion-text">{{ suggestion.text }}</div>
                         <div v-if="suggestion.action" class="suggestion-action">{{ suggestion.action }}</div>
                     </div>

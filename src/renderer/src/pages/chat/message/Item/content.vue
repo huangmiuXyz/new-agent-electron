@@ -2,7 +2,6 @@
 import { FileUIPart, TextUIPart, ToolUIPart } from 'ai';
 import MarkdownRender from 'markstream-vue'
 import 'markstream-vue/index.css'
-import ChatMessageItemSuggestions from './suggestions.vue'
 const props = defineProps<{
     message: BaseMessage
     markdown?: boolean
@@ -76,11 +75,6 @@ const saveEditing = () => {
     messageEdit.cancelEdit()
 }
 
-const handleSuggestionSelected = (suggestion: any) => {
-    if (!currentChat.value) return
-    const { sendMessages } = useChat(currentChat.value.id)
-    sendMessages(suggestion.text)
-}
 </script>
 
 <template>
