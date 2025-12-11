@@ -35,7 +35,7 @@ const props = defineProps<BaseModalProps>();
 const Close = useIcon('Close')
 
 const visible = ref(false);
-const modalOverlay = ref<HTMLElement | null>(null);
+const modalOverlay = useTemplateRef('modalOverlay');
 
 onMounted(async () => {
   visible.value = true;
