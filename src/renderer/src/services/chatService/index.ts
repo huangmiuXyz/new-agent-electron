@@ -56,7 +56,6 @@ export const chatService = () => {
     } finally {
       close()
     }
-    debugger
     const agent = new ToolLoopAgent({
       model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
         `${modelType}:${model}`
