@@ -5,14 +5,6 @@ const { confirm, remove } = useModal()
 
 const expandedKeys = ref<Record<string, boolean>>({})
 
-// 定义更具体的类型以便 TS 推断
-interface McpTool {
-    name: string;
-    description?: string;
-    parameters?: any;
-    [key: string]: any;
-}
-
 const openServerModal = async (server?: any) => {
     const isEdit = !!server
     const modalTitle = isEdit ? '编辑 MCP 服务器' : '添加 MCP 服务器'
