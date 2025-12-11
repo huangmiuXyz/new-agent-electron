@@ -12,14 +12,12 @@ const [DefaultModelsForm] = useForm({
             name: 'titleGenerationModel',
             type: 'modelSelector',
             label: '标题生成模型',
-            hint: '用于自动生成聊天标题的模型',
             popupPosition: 'bottom'
         },
         {
             name: 'translationModel',
             type: 'modelSelector',
             label: '翻译模型',
-            hint: '用于文本翻译功能的模型',
             popupPosition: 'bottom'
         }
     ],
