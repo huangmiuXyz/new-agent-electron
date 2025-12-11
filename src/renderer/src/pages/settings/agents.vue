@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { getBuiltinTools } from '@renderer/services/builtin-tools'
+
 const agentStore = useAgentStore()
 const { agents } = storeToRefs(agentStore)
 const settingsStore = useSettingsStore()
@@ -6,6 +8,16 @@ const { mcpServers } = storeToRefs(settingsStore)
 
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
 const { confirm, remove } = useModal()
+
+// 获取内置工具选项
+const builtinToolOptions = computed(() => {
+    const tools = getBuiltinTools()
+    return Object.entries(tools).map(([key, tool]) => ({
+        label: tool.title!,
+        value: key,
+        description: tool.description
+    }))
+})
 
 // 获取所有MCP服务器的选项列表
 const mcpServerOptions = computed(() => {
@@ -48,14 +60,16 @@ const openAgentModal = async (agent?: Agent) => {
             description: agent.description,
             systemPrompt: agent.systemPrompt,
             mcpServers: [...(agent.mcpServers || [])],
-            tools: [...(agent.tools || [])]
+            tools: [...(agent.tools || [])],
+            builtinTools: [...(agent.builtinTools || [])]
         }
         : {
             name: '',
             description: '',
             systemPrompt: '你是一个有帮助的AI助手。',
             mcpServers: [],
-            tools: []
+            tools: [],
+            builtinTools: []
         }
 
     let previousMcpServers = initialData.mcpServers || []
@@ -96,9 +110,15 @@ const openAgentModal = async (agent?: Agent) => {
             {
                 name: 'tools',
                 type: 'checkboxGroup',
-                label: '工具',
+                label: 'MCP工具',
                 options: [],
                 ifShow: (data) => data.mcpServers! && data.mcpServers!.length > 0
+            },
+            {
+                name: 'builtinTools',
+                type: 'checkboxGroup',
+                label: '内置工具',
+                options: builtinToolOptions.value
             }
         ],
         onChange: (field, value, formData) => {

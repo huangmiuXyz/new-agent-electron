@@ -1,5 +1,6 @@
 import { convertToModelMessages, generateText as _generateText, ToolLoopAgent } from 'ai'
 import { createRegistry } from './registry'
+import { getBuiltinTools } from '../builtin-tools'
 type ModelType = 'anthropic' | 'openai' | 'deepseek' | 'google' | 'xai' | 'openai-compatible'
 interface ChatServiceOptions {
   model: string
@@ -24,15 +25,31 @@ export const chatService = () => {
     const close = messageApi.loading('连接mcp服务器中...')
     let tools: Tools = {}
     try {
+      // 获取MCP工具
       const allTools = await list_tools(JSON.parse(JSON.stringify(mcpClient)))
+
+      // 获取内置工具
+      const builtinTools = getBuiltinTools()
+
+      // 合并所有工具
+      const mergedTools = { ...allTools, ...builtinTools }
+
       if (selectedTools && selectedTools.length > 0) {
         tools = {}
         selectedTools.forEach((toolKey) => {
-          const key = toolKey.split('.')[1]
-          tools[key] = allTools[key]
+          // 检查是否为内置工具
+          if (toolKey in builtinTools) {
+            tools[toolKey] = builtinTools[toolKey]
+          } else {
+            // MCP工具，格式为 "服务器名.工具名"
+            const key = toolKey.split('.')[1]
+            if (key && allTools[key]) {
+              tools[key] = allTools[key]
+            }
+          }
         })
       } else {
-        tools = allTools
+        tools = mergedTools
       }
     } catch (error) {
       messageApi.error((error as Error).message)
