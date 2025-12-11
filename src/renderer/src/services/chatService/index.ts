@@ -57,7 +57,18 @@ export const chatService = () => {
         `${modelType}:${model}`
       ),
       tools,
-      instructions
+      instructions,
+      stopWhen: [
+        ({ steps }) => {
+          return (
+            steps.some((step) =>
+              step.toolResults?.some((toolResult) => {
+                return JSON.stringify(toolResult.output).includes('<|stop|>')
+              })
+            ) ?? false
+          )
+        }
+      ]
     })
     const controller = new AbortController()
     const stream = await agent.stream({

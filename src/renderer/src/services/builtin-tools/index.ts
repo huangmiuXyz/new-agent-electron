@@ -217,12 +217,11 @@ export const builtinTools: Tools = {
             {
               type: 'text',
               text: `已提供 ${suggestions.length} 个建议，请选择其中一个执行：\n\n${suggestions.map((s) => `- ${s.text}`).join('\n')}`
+            },
+            {
+              type: '<|stop|>'
             }
           ]
-        },
-        _meta: {
-          title,
-          suggestions
         }
       }
     }
