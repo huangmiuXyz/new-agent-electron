@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileUIPart, TextUIPart } from 'ai';
+import { FileUIPart, TextUIPart, ToolUIPart } from 'ai';
 import MarkdownRender from 'markstream-vue'
 import 'markstream-vue/index.css'
 const props = defineProps<{
@@ -91,7 +91,8 @@ const saveEditing = () => {
                         :files="[{ ...block, blobUrl: getBlobUrl(block.url) }]" />
                     <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
                         :reasoning_content="block.text" />
-                    <ChatMessageItemTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
+                    <ChatMessageItemDynamicTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
+                    <ChatMessageItemTool v-if="block.type.startsWith('tool')" :tool_part="block as ToolUIPart" />
                 </div>
             </div>
         </div>
