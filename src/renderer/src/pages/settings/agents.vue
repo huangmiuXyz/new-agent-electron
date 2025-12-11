@@ -247,11 +247,16 @@ const selectAgent = (agentId: string) => {
                             <div v-if="agent.tools && agent.tools.length > 0" class="tools-list">
                                 <div class="tools-list-label">工具:</div>
                                 <div class="tools-tags">
-                                    <span v-for="tool in agent.tools.slice(0, 5)" :key="tool" class="tool-tag">
+                                    <span v-for="tool in agent.tools" :key="tool" class="tool-tag">
                                         {{ tool }}
                                     </span>
-                                    <span v-if="agent.tools.length > 5" class="tool-more">
-                                        +{{ agent.tools.length - 5 }} 更多
+                                </div>
+                            </div>
+                            <div v-if="agent.builtinTools && agent.builtinTools.length > 0" class="tools-list">
+                                <div class="tools-list-label">内置工具:</div>
+                                <div class="tools-tags">
+                                    <span v-for="tool in agent.builtinTools" :key="tool" class="tool-tag">
+                                        {{ tool }}
                                     </span>
                                 </div>
                             </div>
