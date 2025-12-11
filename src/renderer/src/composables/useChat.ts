@@ -64,24 +64,33 @@ export const useChat = (chatId: string) => {
 
     const _update = (loading: boolean) => {
       const userWasAtBottom = isAtBottom()
+      const cid = chat.id
 
       updateMessages(chatId, (oldMessages) => {
         const map = new Map(oldMessages.map((m) => [m.id, m]))
-        const cid = chat.id
-
         for (const m of chat.messages) {
           if (m.metadata?.cid === cid) {
-            m.metadata.loading = loading
-            if (userWasAtBottom && isLastMessage(m.id)) {
+            const isLast = isLastMessage(m.id)
+            const newMessage = {
+              ...m,
+              metadata: {
+                ...m.metadata,
+                loading
+              },
+              parts: m.parts ? m.parts.map((p) => ({ ...p })) : m.parts
+            }
+
+            map.set(m.id, newMessage)
+
+            if (userWasAtBottom && isLast) {
               nextTick(() => scrollToBottom())
             }
-            map.set(m.id, m)
           }
         }
-
         return Array.from(map.values())
       })
     }
+
     const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
 
     const { currentSelectedProvider, currentSelectedModel } = storeToRefs(useSettingsStore())
