@@ -1,9 +1,75 @@
 <script setup lang="ts">
 const { mcpServers } = storeToRefs(useSettingsStore())
-const { Plus, Pencil, Trash, Refresh, ChevronDown, ChevronUp } = useIcon(['Plus', 'Pencil', 'Trash', 'Refresh', 'ChevronDown', 'ChevronUp'])
+const { Plus, Pencil, Trash, Refresh, Settings, ChevronDown, ChevronUp } = useIcon(['Plus', 'Pencil', 'Trash', 'Refresh', 'Settings', 'ChevronDown', 'ChevronUp'])
 const { confirm, remove } = useModal()
 
 const expandedKeys = ref<Record<string, boolean>>({})
+
+const openJsonEditor = () => {
+    const serversConfig = JSON.parse(JSON.stringify(mcpServers.value || {}))
+    for (const key in serversConfig) {
+        delete serversConfig[key].tools
+        delete serversConfig[key].active
+    }
+
+    const initialData = {
+        json: JSON.stringify({ mcpServers: serversConfig }, null, 2)
+    }
+
+    const [FormComponent, formActions] = useForm({
+        title: '编辑 MCP JSON 配置',
+        showHeader: false,
+        initialData,
+        fields: [
+            {
+                name: 'json',
+                type: 'textarea',
+                label: 'JSON 配置',
+                placeholder: '请输入 JSON 配置',
+                required: true,
+                rows: 20
+            }
+        ]
+    })
+
+    confirm({
+        title: '编辑 MCP JSON 配置',
+        content: FormComponent,
+        maxHeight: '80vh',
+        width: '60%',
+        onOk: async () => {
+            if (formActions.submit()) {
+                const data = formActions.getData()
+                try {
+                    const parsed = JSON.parse(data.json)
+                    if (parsed && parsed.mcpServers && typeof parsed.mcpServers === 'object') {
+                        // 恢复 tools 和 active 数据
+                        const newServers = parsed.mcpServers
+                        const currentServers = mcpServers.value || {}
+
+                        for (const key in newServers) {
+                            if (currentServers[key]) {
+                                if (currentServers[key].tools) {
+                                    newServers[key].tools = currentServers[key].tools
+                                }
+                                if (currentServers[key].active !== undefined) {
+                                    newServers[key].active = currentServers[key].active
+                                }
+                            }
+                        }
+
+                        mcpServers.value = newServers
+                        remove()
+                    } else {
+                        messageApi.error('JSON 格式错误: 缺少 mcpServers 字段')
+                    }
+                } catch (e) {
+                    messageApi.error('JSON 解析失败: ' + (e as Error).message)
+                }
+            }
+        }
+    })
+}
 
 const openServerModal = async (server?: any) => {
     const isEdit = !!server
@@ -150,12 +216,20 @@ const toggleExpand = (name: string) => {
                     <div class="description">
                         配置模型上下文协议 (MCP) 服务器以扩展功能。
                     </div>
-                    <Button size="sm" @click="openServerModal()">
-                        <template #icon>
-                            <Plus />
-                        </template>
-                        添加服务器
-                    </Button>
+                    <div class="header-actions">
+                        <Button size="sm" variant="secondary" @click="openJsonEditor()">
+                            <template #icon>
+                                <Settings />
+                            </template>
+                            编辑 JSON
+                        </Button>
+                        <Button size="sm" @click="openServerModal()">
+                            <template #icon>
+                                <Plus />
+                            </template>
+                            添加服务器
+                        </Button>
+                    </div>
                 </div>
                 <div class="server-list">
                     <div v-for="(server, name) of mcpServers" :key="name" class="server-card">
@@ -267,6 +341,11 @@ const toggleExpand = (name: string) => {
 .description {
     font-size: 13px;
     color: var(--text-secondary);
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
 }
 
 .server-list {
