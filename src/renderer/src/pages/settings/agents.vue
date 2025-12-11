@@ -52,9 +52,6 @@ const openAgentModal = async (agent?: Agent) => {
             tools: []
         }
 
-    // 创建响应式的工具选项
-    const toolOptions = ref(getAllToolOptions(initialData.mcpServers || []))
-
     const [FormComponent, formActions] = useForm({
         title: modalTitle,
         showHeader: false,
@@ -92,30 +89,16 @@ const openAgentModal = async (agent?: Agent) => {
                 name: 'tools',
                 type: 'checkboxGroup',
                 label: '工具',
-                options: toolOptions.value,
+                options: [],
                 ifShow: (data) => data.mcpServers! && data.mcpServers!.length > 0
             }
         ],
-        onChange: (field, value, formData) => {
+        onChange: (field, value) => {
             if (field === 'mcpServers') {
                 const newToolOptions = getAllToolOptions(value as string[])
-                toolOptions.value = newToolOptions
-                const previousMcpServers = formData.mcpServers || []
-                const addedServers = (value as string[]).filter(
-                    server => !previousMcpServers.includes(server)
-                )
-                const currentTools = formData.tools || []
-                const newToolsFromAddedServers: string[] = []
-                addedServers.forEach(serverName => {
-                    const server = mcpServers.value[serverName]
-                    if (server && server.tools && Object.keys(server.tools).length > 0) {
-                        Object.entries(server.tools).forEach(([toolName]) => {
-                            newToolsFromAddedServers.push(`${serverName}.${toolName}`)
-                        })
-                    }
+                formActions.updateFieldProps('tools', {
+                    options: newToolOptions
                 })
-                const updatedTools = [...currentTools, ...newToolsFromAddedServers]
-                formActions.setFieldValue('tools', updatedTools)
             }
         },
         onSubmit: (data) => {
@@ -125,6 +108,11 @@ const openAgentModal = async (agent?: Agent) => {
                 agentStore.createAgent(data as Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>)
             }
         }
+    })
+
+    // 初始化工具选项
+    formActions.updateFieldProps('tools', {
+        options: getAllToolOptions(initialData.mcpServers || [])
     })
 
     confirm({

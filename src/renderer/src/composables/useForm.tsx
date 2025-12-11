@@ -173,11 +173,15 @@ export interface FormActions<T> {
   setFieldValue: (field: string, value: any) => void
   setFieldsValue: (data: T) => void
   getFieldValue: (field: string) => any
+  updateFieldProps: (field: string, props: Record<string, any>) => void
 }
 
 export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   // 初始化表单数据
   const formData = ref<T>({} as T)
+
+  // 存储动态字段属性
+  const dynamicFieldProps = ref<Record<string, Record<string, any>>>({})
 
   // 初始化字段值
   config.fields.forEach((field) => {
@@ -336,6 +340,13 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     Object.assign(formData.value, data)
   }
 
+  const updateFieldProps = (field: string, props: Record<string, any>) => {
+    if (!dynamicFieldProps.value[field]) {
+      dynamicFieldProps.value[field] = {}
+    }
+    Object.assign(dynamicFieldProps.value[field], props)
+  }
+
   // 表单组件
   const FormComponent = defineComponent({
     setup(_, { slots }) {
@@ -354,6 +365,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                   }
 
                   const hasError = errors.value[field.name]
+                  // 获取动态字段属性
+                  const dynamicProps = dynamicFieldProps.value[field.name] || {}
 
                   switch (field.type) {
                     case 'text':
@@ -382,6 +395,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                                 formData.value
                               )
                             }}
+                            {...dynamicProps}
                           />
                         </FormItem>
                       )
@@ -399,6 +413,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                                 formData.value
                               )
                             }}
+                            {...dynamicProps}
                           />
                         </FormItem>
                       )
@@ -429,6 +444,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                                 formData.value
                               )
                             }}
+                            {...dynamicProps}
                           />
                         </FormItem>
                       )
@@ -455,6 +471,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                                 formData.value
                               )
                             }}
+                            {...dynamicProps}
                           />
                         </FormItem>
                       )
@@ -483,6 +500,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                                 formData.value
                               )
                             }}
+                            {...dynamicProps}
                           />
                         </FormItem>
                       )
@@ -509,6 +527,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                                 formData.value
                               )
                             }}
+                            {...dynamicProps}
                           />
                         </FormItem>
                       )
@@ -536,6 +555,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                                 formData.value
                               )
                             }}
+                            {...dynamicProps}
                           />
                         </FormItem>
                       )
@@ -561,6 +581,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                                 formData.value
                               )
                             }}
+                            {...dynamicProps}
                           />
                         </FormItem>
                       )
@@ -600,6 +621,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                                 formData.value
                               )
                             }}
+                            {...dynamicProps}
                           />
                         </FormItem>
                       )
@@ -719,7 +741,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     validate,
     setFieldValue,
     getFieldValue,
-    setFieldsValue
+    setFieldsValue,
+    updateFieldProps
   }
 
   return [FormComponent, actions] as const
