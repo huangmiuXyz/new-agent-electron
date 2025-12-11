@@ -133,13 +133,9 @@ const openAgentModal = async (agent?: Agent) => {
         }
     })
 
-    // 初始化工具选项
     formActions.updateFieldProps('tools', {
         options: getAllToolOptions(initialData.mcpServers || [])
     })
-
-    // 对于编辑模式，保持原有的工具选择状态
-    // 对于新建模式，工具选择为空，等待用户选择服务器后再自动勾选对应工具
 
     confirm({
         title: modalTitle,
