@@ -99,21 +99,13 @@ const openAgentModal = async (agent?: Agent) => {
         onChange: (field, value, formData) => {
             if (field === 'mcpServers') {
                 const selectedMcpServers = value as string[]
-
-                // 获取新的工具选项
                 const newToolOptions = getAllToolOptions(selectedMcpServers)
                 formActions.updateFieldProps('tools', {
                     options: newToolOptions
                 })
-
-                // 计算服务器变化
                 const addedServers = selectedMcpServers.filter(server => !previousMcpServers.includes(server))
                 const removedServers = previousMcpServers.filter(server => !selectedMcpServers.includes(server))
-
-                // 获取当前选中的工具
                 let currentTools = formData.tools as string[] || []
-
-                // 为新增的服务器添加所有工具
                 addedServers.forEach(serverName => {
                     const server = mcpServers.value[serverName]
                     if (server && server.tools) {
@@ -125,16 +117,10 @@ const openAgentModal = async (agent?: Agent) => {
                         })
                     }
                 })
-
-                // 移除被取消勾选的服务器的所有工具
                 removedServers.forEach(serverName => {
                     currentTools = currentTools.filter(toolId => !toolId.startsWith(`${serverName}.`))
                 })
-
-                // 更新工具选择
                 formActions.setFieldValue('tools', currentTools)
-
-                // 更新之前的服务器状态
                 previousMcpServers = [...selectedMcpServers]
             }
         },
