@@ -1,6 +1,7 @@
 <template>
   <Transition name="modal-fade">
-    <div v-if="visible" class="modal-overlay" @click.self="handleCancel" @keydown.esc="handleCancel">
+    <div v-if="visible" ref="modalOverlay" class="modal-overlay" @click.self="handleCancel" @keydown.esc="handleCancel"
+      tabindex="-1">
       <div class="modal-box" :style="{ width: props.width }">
         <div class="modal-header">
           <span class="modal-title">{{ title }}</span>
@@ -28,13 +29,19 @@
 <script setup lang="ts">
 import type { BaseModalProps } from '@renderer/types/components';
 import Button from './Button.vue';
+import { useIcon } from '@renderer/composables/useIcon';
 
 const props = defineProps<BaseModalProps>();
 const Close = useIcon('Close')
 
 const visible = ref(false);
+const modalOverlay = ref<HTMLElement | null>(null);
+
 onMounted(async () => {
   visible.value = true;
+  nextTick(() => {
+    modalOverlay.value?.focus();
+  });
 });
 
 const handleConfirm = () => {
