@@ -13,34 +13,44 @@ interface ChatServiceOptions {
 interface ChatServiceConfig {
   mcpClient: ClientConfig
   instructions?: string
-  selectedTools?: string[] // 用户选择的工具列表，格式为 "服务器名.工具名"
+  mcpTools?: string[] // 用户选择的MCP工具列表，格式为 "服务器名.工具名"
+  builtinTools?: string[] // 用户选择的内置工具列表
 }
 export const chatService = () => {
   const createAgent = async (
     cid: string,
     { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions,
     messages: BaseMessage[],
-    { mcpClient, instructions, selectedTools }: ChatServiceConfig
+    { mcpClient, instructions, mcpTools, builtinTools: selectedBuiltinTools }: ChatServiceConfig
   ) => {
-    const close = messageApi.loading('连接mcp服务器中...')
     let tools: Tools = {}
-    try {
-      const allTools = await list_tools(JSON.parse(JSON.stringify(mcpClient)))
-      const builtinTools = getBuiltinTools()
-      selectedTools!.forEach((toolKey) => {
+    const builtinTools = getBuiltinTools()
+
+    // 处理内置工具
+    if (selectedBuiltinTools && selectedBuiltinTools.length > 0) {
+      selectedBuiltinTools.forEach((toolKey) => {
         if (toolKey in builtinTools) {
           tools[toolKey] = builtinTools[toolKey]
-        } else {
+        }
+      })
+    }
+
+    // 处理MCP工具
+    if (mcpTools && mcpTools.length > 0) {
+      const close = messageApi.loading('连接mcp服务器中...')
+      try {
+        const allTools = await list_tools(JSON.parse(JSON.stringify(mcpClient)))
+        mcpTools.forEach((toolKey) => {
           const key = toolKey.split('.')[1]
           if (key && allTools[key]) {
             tools[key] = allTools[key]
           }
-        }
-      })
-    } catch (error) {
-      messageApi.error((error as Error).message)
-    } finally {
-      close()
+        })
+      } catch (error) {
+        messageApi.error((error as Error).message)
+      } finally {
+        close()
+      }
     }
     const agent = new ToolLoopAgent({
       model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(

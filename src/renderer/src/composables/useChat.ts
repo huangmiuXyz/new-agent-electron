@@ -88,10 +88,8 @@ export const useChat = (chatId: string) => {
     const agent = useAgentStore()
     const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
     const service = chatService()
-    const selectedTools = [
-      ...(agent.selectedAgent!.tools! || []),
-      ...(agent.selectedAgent!.builtinTools! || [])
-    ]
+    const mcpTools = agent.selectedAgent!.tools! || []
+    const builtinTools = agent.selectedAgent!.builtinTools! || []
     const { apiKey, baseUrl, id: provider, modelType } = toRefs(currentSelectedProvider.value!)
     const { id: model } = toRefs(currentSelectedModel.value!)
 
@@ -108,7 +106,12 @@ export const useChat = (chatId: string) => {
               modelType: modelType.value
             },
             chats!.messages,
-            { mcpClient, instructions: agent.selectedAgent?.systemPrompt, selectedTools }
+            {
+              mcpClient,
+              instructions: agent.selectedAgent?.systemPrompt,
+              mcpTools,
+              builtinTools
+            }
           )
         },
         reconnectToStream: undefined as any
