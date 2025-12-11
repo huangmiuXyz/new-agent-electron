@@ -1,6 +1,5 @@
 export { cloneDeep, throttle } from 'es-toolkit'
 export { blobToDataURL, dataURLToBlob } from 'blob-util'
-export { produce } from 'immer'
 export const copyText = (text: string) => {
   if (text) {
     navigator.clipboard
