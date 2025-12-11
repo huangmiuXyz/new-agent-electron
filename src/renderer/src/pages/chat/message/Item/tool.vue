@@ -4,12 +4,11 @@ import { ToolUIPart } from 'ai';
 const props = defineProps<{
     tool_part: ToolUIPart
 }>();
+
 const toolName = computed(() => {
     return props.tool_part.type.split('-')[1]
 })
-watchEffect(() => {
-    console.log(props.tool_part);
-})
+
 const isCollapsed = ref(true);
 const toggleCollapse = () => {
     isCollapsed.value = !isCollapsed.value;
