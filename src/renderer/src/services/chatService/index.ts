@@ -77,9 +77,10 @@ export const chatService = () => {
     })
     const uiStream = stream.toUIMessageStream({
       originalMessages: messages,
-      messageMetadata: ({ part }) => {
+      messageMetadata: (message) => {
+        const { part } = message
         return {
-          loading: part.type !== 'finish',
+          loading: part.type !== 'finish' && part.type !== 'abort',
           provider,
           date: Date.now(),
           model,
