@@ -19,6 +19,26 @@ const mcpServerOptions = computed(() => {
     })
 })
 
+// 获取所有可用工具的选项列表
+const getAllToolOptions = (selectedMcpServers: string[]) => {
+    const toolOptions: { label: string; value: string; description?: string }[] = []
+
+    selectedMcpServers.forEach(serverName => {
+        const server = mcpServers.value[serverName]
+        if (server && server.tools && Object.keys(server.tools).length > 0) {
+            Object.entries(server.tools).forEach(([toolName, tool]) => {
+                toolOptions.push({
+                    label: `${serverName}.${toolName}`,
+                    value: `${serverName}.${toolName}`,
+                    description: tool.description || ''
+                })
+            })
+        }
+    })
+
+    return toolOptions
+}
+
 const openAgentModal = async (agent?: Agent) => {
     const isEdit = !!agent
     const modalTitle = isEdit ? '编辑智能体' : '创建智能体'
@@ -29,8 +49,12 @@ const openAgentModal = async (agent?: Agent) => {
             name: '',
             description: '',
             systemPrompt: '你是一个有帮助的AI助手。',
-            mcpServers: []
+            mcpServers: [],
+            tools: []
         }
+
+    // 创建响应式的工具选项
+    const toolOptions = ref(getAllToolOptions(initialData.mcpServers || []))
 
     const [FormComponent, formActions] = useForm({
         title: modalTitle,
@@ -64,8 +88,26 @@ const openAgentModal = async (agent?: Agent) => {
                 type: 'checkboxGroup',
                 label: 'MCP 服务器',
                 options: mcpServerOptions.value
+            },
+            {
+                name: 'tools',
+                type: 'checkboxGroup',
+                label: '工具',
+                options: toolOptions.value,
+                ifShow: (data) => data.mcpServers! && data.mcpServers!.length > 0
             }
         ],
+        onChange: (field, value, data) => {
+            // 当MCP服务器选择变化时，更新工具选项并自动选择所有工具
+            if (field === 'mcpServers') {
+                const newToolOptions = getAllToolOptions(value as string[])
+                toolOptions.value = newToolOptions
+
+                // 自动选择所有新工具
+                const allToolValues = newToolOptions.map(option => option.value)
+                formActions.setFieldValue('tools', allToolValues)
+            }
+        },
         onSubmit: (data) => {
             if (isEdit && agent) {
                 agentStore.updateAgent(agent.id, data as Partial<Agent>)
@@ -153,6 +195,18 @@ const selectAgent = (agentId: string) => {
                                     <span v-for="serverName in agent.mcpServers.filter(name => mcpServers[name])"
                                         :key="serverName" class="mcp-tag">
                                         {{ serverName }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div v-if="agent.tools && agent.tools.length > 0" class="tools-list">
+                                <div class="tools-list-label">工具:</div>
+                                <div class="tools-tags">
+                                    <span v-for="tool in agent.tools.slice(0, 5)" :key="tool" class="tool-tag">
+                                        {{ tool }}
+                                    </span>
+                                    <span v-if="agent.tools.length > 5" class="tool-more">
+                                        +{{ agent.tools.length - 5 }} 更多
                                     </span>
                                 </div>
                             </div>
@@ -364,6 +418,48 @@ const selectAgent = (agentId: string) => {
     padding: 3px 8px;
     border-radius: 4px;
     border: 1px solid #91d5ff;
+}
+
+.tools-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tools-list-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tools-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.tool-tag {
+    font-size: 10px;
+    background: #f0f9ff;
+    color: #0369a1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid #bae6fd;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tool-more {
+    font-size: 10px;
+    background: #f5f5f5;
+    color: var(--text-tertiary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid #e0e0e0;
 }
 
 .empty-state {

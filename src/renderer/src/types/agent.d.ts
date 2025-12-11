@@ -6,6 +6,7 @@ declare global {
     description?: string
     systemPrompt: string
     mcpServers: string[] // MCP服务器名称列表
+    tools: string[] // 工具名称列表，格式为 "服务器名.工具名"
     icon?: string
     createdAt: number
     updatedAt: number

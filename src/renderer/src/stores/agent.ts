@@ -9,6 +9,7 @@ export const useAgentStore = defineStore(
         description: '通用AI助手',
         systemPrompt: '你是一个有帮助的AI助手。',
         mcpServers: [],
+        tools: [],
         createdAt: Date.now(),
         updatedAt: Date.now()
       }
