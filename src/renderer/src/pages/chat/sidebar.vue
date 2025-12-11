@@ -162,11 +162,15 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   height: 40px;
   margin-bottom: 2px;
   padding: 8px;
-  background-color: #eee !important;
+  ;
 }
 
 :deep(.list-item:hover) {
   background-color: var(--bg-hover);
+}
+
+:deep(.list-item.is-active) {
+  background-color: var(--bg-active, #e4e4e6) !important;
 }
 
 :deep(.main-text) {
