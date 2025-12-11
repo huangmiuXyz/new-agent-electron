@@ -6,7 +6,9 @@ const props = defineProps<{
     message: BaseMessage
     markdown?: boolean
 }>();
-
+watchEffect(() => {
+    console.log(props.message);
+})
 const { currentChat } = storeToRefs(useChatsStores());
 const { updateMessage } = useChatsStores()
 
