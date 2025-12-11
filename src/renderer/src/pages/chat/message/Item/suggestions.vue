@@ -82,7 +82,7 @@ const handleSuggestionSelected = (suggestion: Suggestion) => {
     --accent-color: #3b82f6;
     /* 主题蓝 */
     --accent-bg: #eff6ff;
-    --radius: 12px;
+    --radius: 8px;
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
@@ -95,11 +95,9 @@ const handleSuggestionSelected = (suggestion: Suggestion) => {
 
 .suggestions-card {
     width: 100%;
-    max-width: 500px;
     background-color: var(--bg-color);
     border: 1px solid var(--border-color);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
     overflow: hidden;
     font-family: system-ui, -apple-system, sans-serif;
 }
@@ -108,10 +106,9 @@ const handleSuggestionSelected = (suggestion: Suggestion) => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
+    padding: 4px 8px;
     cursor: pointer;
     background: transparent;
-    transition: background-color 0.2s;
     user-select: none;
 }
 
@@ -154,11 +151,6 @@ const handleSuggestionSelected = (suggestion: Suggestion) => {
     align-items: center;
 }
 
-.toggle-icon {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 折叠状态逻辑 */
 .suggestions-card.is-collapsed .toggle-icon {
     transform: rotate(-90deg);
 }
@@ -180,7 +172,6 @@ const handleSuggestionSelected = (suggestion: Suggestion) => {
 /* List & Items */
 .suggestions-list {
     padding: 4px 6px 6px 6px;
-    /* 紧凑的内边距 */
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -197,7 +188,7 @@ const handleSuggestionSelected = (suggestion: Suggestion) => {
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
     color: var(--text-primary);
