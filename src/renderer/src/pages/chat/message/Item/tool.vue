@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ToolUIPart } from 'ai';
 
-defineProps<{
+const props = defineProps<{
     tool_part: ToolUIPart
 }>();
-
+const toolName = computed(() => {
+    return props.tool_part.type.split('-')[1]
+})
 const isCollapsed = ref(true);
 const toggleCollapse = () => {
     isCollapsed.value = !isCollapsed.value;
@@ -12,7 +14,9 @@ const toggleCollapse = () => {
 </script>
 
 <template>
-    <div class="msg-row tool-row">
+    <ChatMessageItemSuggestions v-if="toolName === 'suggestions'"
+        :suggestionsData="(tool_part.output as { _meta: SuggestionsData })._meta" />
+    <div v-else class="msg-row tool-row">
         <div class="tool-card">
             <div class="tool-header" @click="toggleCollapse">
                 <div class="tool-info">

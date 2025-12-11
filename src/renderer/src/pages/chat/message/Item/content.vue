@@ -2,6 +2,7 @@
 import { FileUIPart, TextUIPart, ToolUIPart } from 'ai';
 import MarkdownRender from 'markstream-vue'
 import 'markstream-vue/index.css'
+import ChatMessageItemSuggestions from './suggestions.vue'
 const props = defineProps<{
     message: BaseMessage
     markdown?: boolean
@@ -74,6 +75,12 @@ const saveEditing = () => {
     updateMessage(currentChat.value.id, props.message.id, filteredContent)
     messageEdit.cancelEdit()
 }
+
+const handleSuggestionSelected = (suggestion: any) => {
+    if (!currentChat.value) return
+    const { sendMessages } = useChat(currentChat.value.id)
+    sendMessages(suggestion.text)
+}
 </script>
 
 <template>
@@ -92,7 +99,7 @@ const saveEditing = () => {
                     <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
                         :reasoning_content="block.text" />
                     <ChatMessageItemDynamicTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
-                    <ChatMessageItemTool v-if="block.type.startsWith('tool')" :tool_part="block as ToolUIPart" />
+                    <ChatMessageItemTool v-if="block.type.startsWith('tool')" :tool_part="(block as ToolUIPart)" />
                 </div>
             </div>
         </div>

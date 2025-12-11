@@ -27,6 +27,17 @@ declare global {
   interface BuiltinToolsRegistry {
     [categoryName: string]: BuiltinToolCategory
   }
+
+  interface Suggestion {
+    id: string
+    text: string
+    action?: string
+  }
+
+  interface SuggestionsData {
+    title: string
+    suggestions: Suggestion[]
+  }
 }
 
 export {}
