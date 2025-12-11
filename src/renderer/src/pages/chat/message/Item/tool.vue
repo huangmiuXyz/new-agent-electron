@@ -7,6 +7,9 @@ const props = defineProps<{
 const toolName = computed(() => {
     return props.tool_part.type.split('-')[1]
 })
+watchEffect(() => {
+    console.log(props.tool_part);
+})
 const isCollapsed = ref(true);
 const toggleCollapse = () => {
     isCollapsed.value = !isCollapsed.value;
