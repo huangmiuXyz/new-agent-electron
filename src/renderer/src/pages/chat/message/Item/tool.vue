@@ -15,7 +15,7 @@ const toggleCollapse = () => {
 
 <template>
     <ChatMessageItemSuggestions v-if="toolName === 'suggestions'"
-        :suggestionsData="(tool_part.output as { _meta: SuggestionsData })._meta" />
+        :suggestionsData="(tool_part.input as SuggestionsData)" />
     <div v-else class="msg-row tool-row">
         <div class="tool-card">
             <div class="tool-header" @click="toggleCollapse">

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 
 defineProps<{
     suggestionsData: SuggestionsData;
@@ -17,8 +16,10 @@ const toggleCollapse = () => {
 };
 
 const { currentChat } = storeToRefs(useChatsStores());
-const handleSuggestionSelected = (suggestion: any) => {
+
+const handleSuggestionSelected = (suggestion: Suggestion) => {
     if (!currentChat.value) return
+    selectedSuggestion.value = suggestion.id;
     const { sendMessages } = useChat(currentChat.value.id)
     sendMessages(suggestion.text)
 }
@@ -26,34 +27,42 @@ const handleSuggestionSelected = (suggestion: any) => {
 
 <template>
     <div class="msg-row suggestions-row">
-        <div class="suggestions-card">
+        <div class="suggestions-card" :class="{ 'is-collapsed': isCollapsed }">
             <div class="suggestions-header" @click="toggleCollapse">
                 <div class="suggestions-info">
-                    <div class="suggestions-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    <div class="icon-wrapper">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M9 11l3 3L22 4" />
-                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                         </svg>
                     </div>
-                    <span class="suggestions-title">{{ suggestionsData?.title }}</span>
-                    <span class="suggestions-count">({{ suggestionsData?.suggestions.length }})</span>
+                    <span class="suggestions-title">{{ suggestionsData?.title || '建议' }}</span>
+                    <span class="suggestions-count" v-if="suggestionsData?.suggestions.length">
+                        {{ suggestionsData?.suggestions.length }}
+                    </span>
                 </div>
                 <div class="suggestions-toggle">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        :class="{ 'rotated': !isCollapsed }">
+                        class="toggle-icon">
                         <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
                 </div>
             </div>
-            <div class="suggestions-content" :class="{ 'collapsed': isCollapsed }">
-                <div class="suggestions-list">
-                    <div v-for="suggestion in suggestionsData?.suggestions" :key="suggestion.id" class="suggestion-item"
-                        :class="{ 'selected': selectedSuggestion === suggestion.id }"
-                        @click="handleSuggestionSelected(suggestion)">
-                        <div class="suggestion-text">{{ suggestion.text }}</div>
-                        <div v-if="suggestion.action" class="suggestion-action">{{ suggestion.action }}</div>
+            <div class="suggestions-wrapper">
+                <div class="suggestions-content">
+                    <div class="suggestions-list">
+                        <button v-for="suggestion in suggestionsData?.suggestions" :key="suggestion.id"
+                            class="suggestion-item" :class="{ 'selected': selectedSuggestion === suggestion.id }"
+                            @click="handleSuggestionSelected(suggestion)">
+                            <span class="suggestion-text">{{ suggestion.text }}</span>
+                            <span v-if="suggestion.action" class="suggestion-arrow">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M5 12h14M12 5l7 7-7 7" />
+                                </svg>
+                            </span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -62,36 +71,52 @@ const handleSuggestionSelected = (suggestion: any) => {
 </template>
 
 <style scoped>
+/* 变量定义：方便统一调整颜色 */
+.suggestions-card {
+    --bg-color: #ffffff;
+    --border-color: #eef2f6;
+    /* 极淡的边框 */
+    --hover-bg: #f8fafc;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --accent-color: #3b82f6;
+    /* 主题蓝 */
+    --accent-bg: #eff6ff;
+    --radius: 12px;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
 .msg-row {
     display: flex;
-    padding: 4px 0px;
+    padding: 8px 0;
     justify-content: flex-start;
+    width: 100%;
 }
 
 .suggestions-card {
     width: 100%;
-    background-color: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    max-width: 500px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
     overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-    transition: box-shadow 0.2s;
-}
-
-.suggestions-card:hover {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
+    font-family: system-ui, -apple-system, sans-serif;
 }
 
 .suggestions-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
-    background-color: #f1f5f9;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 10px 14px;
     cursor: pointer;
+    background: transparent;
+    transition: background-color 0.2s;
     user-select: none;
+}
+
+.suggestions-header:hover {
+    background-color: var(--hover-bg);
 }
 
 .suggestions-info {
@@ -100,105 +125,113 @@ const handleSuggestionSelected = (suggestion: any) => {
     gap: 8px;
 }
 
-.suggestions-icon {
-    color: #3b82f6;
+.icon-wrapper {
+    color: var(--accent-color);
     display: flex;
     align-items: center;
+    justify-content: center;
 }
 
 .suggestions-title {
     font-size: 13px;
     font-weight: 600;
-    color: #334155;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
 }
 
 .suggestions-count {
     font-size: 11px;
-    color: #64748b;
-    background-color: #e2e8f0;
-    padding: 2px 6px;
-    border-radius: 10px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background-color: var(--hover-bg);
+    padding: 1px 6px;
+    border-radius: 99px;
 }
 
 .suggestions-toggle {
-    color: #64748b;
-    transition: transform 0.2s;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
 }
 
-.suggestions-toggle svg {
-    transition: transform 0.2s;
+.toggle-icon {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.suggestions-toggle svg.rotated {
-    transform: rotate(180deg);
+/* 折叠状态逻辑 */
+.suggestions-card.is-collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.suggestions-wrapper {
+    display: grid;
+    grid-template-rows: 1fr;
+}
+
+.suggestions-card.is-collapsed .suggestions-wrapper {
+    grid-template-rows: 0fr;
 }
 
 .suggestions-content {
-    padding: 0;
-    max-height: 300px;
-    overflow-y: auto;
-    transition: max-height 0.2s ease-in-out;
+    overflow: hidden;
+    background-color: var(--bg-color);
 }
 
-.suggestions-content.collapsed {
-    max-height: 0;
-}
-
+/* List & Items */
 .suggestions-list {
-    padding: 8px;
+    padding: 4px 6px 6px 6px;
+    /* 紧凑的内边距 */
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 2px;
 }
 
 .suggestion-item {
-    padding: 10px 12px;
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    appearance: none;
+    background: none;
+    border: none;
+    text-align: left;
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .suggestion-item:hover {
-    background-color: #f8fafc;
-    border-color: #cbd5e1;
-    transform: translateY(-1px);
+    background-color: var(--hover-bg);
+    color: var(--text-primary);
 }
 
-.suggestion-item.selected {
-    background-color: #dbeafe;
-    border-color: #3b82f6;
-}
 
 .suggestion-text {
-    font-size: 13px;
-    line-height: 1.5;
-    color: #334155;
-    margin-bottom: 4px;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
-.suggestion-action {
-    font-size: 11px;
-    color: #64748b;
-    font-style: italic;
+.suggestion-arrow {
+    margin-left: 8px;
+    color: var(--text-secondary);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
 }
 
-/* Scrollbar styling */
-.suggestions-content::-webkit-scrollbar {
-    width: 6px;
-}
 
-.suggestions-content::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.suggestions-content::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-
-.suggestions-content::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+.suggestions-list::-webkit-scrollbar {
+    width: 4px;
 }
 </style>
