@@ -62,7 +62,7 @@ export const useChat = (chatId: string) => {
 
     const { scrollToBottom, isAtBottom } = useMessagesScroll()
 
-    const _update = (loading: boolean) => {
+    const _update = () => {
       const userWasAtBottom = isAtBottom()
       const cid = chat.id
 
@@ -73,10 +73,6 @@ export const useChat = (chatId: string) => {
             const isLast = isLastMessage(m.id)
             const newMessage = {
               ...m,
-              metadata: {
-                ...m.metadata,
-                loading
-              },
               parts: m.parts ? m.parts.map((p) => ({ ...p })) : m.parts
             }
 
@@ -126,7 +122,6 @@ export const useChat = (chatId: string) => {
         reconnectToStream: undefined as any
       },
       onFinish: () => {
-        update(false)
         useTitle(chatId).generateTitle()
         scope.stop()
       }
@@ -135,7 +130,7 @@ export const useChat = (chatId: string) => {
     watch(
       () => chat.messages,
       () => {
-        update(true)
+        update()
       },
       { deep: true }
     )

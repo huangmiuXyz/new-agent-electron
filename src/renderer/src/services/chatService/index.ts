@@ -70,12 +70,22 @@ export const chatService = () => {
         }
       ]
     })
+    const controller = new AbortController()
     const stream = await agent.stream({
-      messages: convertToModelMessages(messages)
+      messages: convertToModelMessages(messages),
+      abortSignal: controller.signal
     })
     const uiStream = stream.toUIMessageStream({
-      messageMetadata: () => {
-        return { provider, date: Date.now(), model, cid }
+      originalMessages: messages,
+      messageMetadata: ({ part }) => {
+        return {
+          loading: part.type !== 'finish',
+          provider,
+          date: Date.now(),
+          model,
+          cid,
+          stop: () => controller.abort()
+        }
       }
     })
     return uiStream
