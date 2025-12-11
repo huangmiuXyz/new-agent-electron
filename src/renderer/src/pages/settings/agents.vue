@@ -43,7 +43,13 @@ const openAgentModal = async (agent?: Agent) => {
     const modalTitle = isEdit ? '编辑智能体' : '创建智能体'
 
     const initialData: Partial<Agent> = agent
-        ? { ...agent }
+        ? {
+            name: agent.name,
+            description: agent.description,
+            systemPrompt: agent.systemPrompt,
+            mcpServers: [...(agent.mcpServers || [])],
+            tools: [...(agent.tools || [])]
+        }
         : {
             name: '',
             description: '',
@@ -52,7 +58,6 @@ const openAgentModal = async (agent?: Agent) => {
             tools: []
         }
 
-    // 保存之前的服务器状态，用于比较变化
     let previousMcpServers = initialData.mcpServers || []
 
     const [FormComponent, formActions] = useForm({
