@@ -19,7 +19,6 @@ const mcpServerOptions = computed(() => {
     })
 })
 
-// 获取所有可用工具的选项列表
 const getAllToolOptions = (selectedMcpServers: string[]) => {
     const toolOptions: { label: string; value: string; description?: string }[] = []
 
@@ -97,15 +96,26 @@ const openAgentModal = async (agent?: Agent) => {
                 ifShow: (data) => data.mcpServers! && data.mcpServers!.length > 0
             }
         ],
-        onChange: (field, value, data) => {
-            // 当MCP服务器选择变化时，更新工具选项并自动选择所有工具
+        onChange: (field, value, formData) => {
             if (field === 'mcpServers') {
                 const newToolOptions = getAllToolOptions(value as string[])
                 toolOptions.value = newToolOptions
-
-                // 自动选择所有新工具
-                const allToolValues = newToolOptions.map(option => option.value)
-                formActions.setFieldValue('tools', allToolValues)
+                const previousMcpServers = formData.mcpServers || []
+                const addedServers = (value as string[]).filter(
+                    server => !previousMcpServers.includes(server)
+                )
+                const currentTools = formData.tools || []
+                const newToolsFromAddedServers: string[] = []
+                addedServers.forEach(serverName => {
+                    const server = mcpServers.value[serverName]
+                    if (server && server.tools && Object.keys(server.tools).length > 0) {
+                        Object.entries(server.tools).forEach(([toolName]) => {
+                            newToolsFromAddedServers.push(`${serverName}.${toolName}`)
+                        })
+                    }
+                })
+                const updatedTools = [...currentTools, ...newToolsFromAddedServers]
+                formActions.setFieldValue('tools', updatedTools)
             }
         },
         onSubmit: (data) => {
