@@ -91,7 +91,7 @@ const _sendMessage = async () => {
           <ChatMessageInputSpeechRecognition ref="speechRecognitionRef" @speech-result="handleSpeechResult" />
 
           <!-- 智能体选择器 -->
-          <ChatAgentSelector />
+          <ChatAgentSelector type="icon" />
           <!-- 模型选择器 -->
           <ChatModelSelector v-model:model-id="selectedModelId" v-model:provider-id="selectedProviderId" />
         </div>

@@ -3,7 +3,11 @@ const agentStore = useAgentStore()
 const { agents, selectedAgentId } = storeToRefs(agentStore)
 const settingsStore = useSettingsStore()
 const { mcpServers } = storeToRefs(settingsStore)
-
+withDefaults(defineProps<{
+    type: 'icon' | 'select'
+}>(), {
+    type: 'select'
+})
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
 const { Robot, ChevronDown, Server, Check, Edit } = useIcon(['Robot', 'ChevronDown', 'Server', 'Check', 'Edit'])
@@ -45,11 +49,14 @@ const { openAgentModal } = useAgent()
     <SelectorPopover v-model="isPopupOpen" v-model:searchQuery="searchQuery" placeholder="搜索智能体..."
         noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0" width="500px">
         <template #trigger>
-            <div class="agent-btn" :title="selectedAgentLabel">
+            <div class="agent-btn" v-if="type === 'select'" :title="selectedAgentLabel">
                 <Robot />
                 <span class="agent-name">{{ selectedAgentLabel }}</span>
                 <ChevronDown class="arrow-icon" />
             </div>
+            <Button variant="icon" size="sm">
+                <Robot />
+            </Button>
         </template>
 
         <div class="agent-list">
