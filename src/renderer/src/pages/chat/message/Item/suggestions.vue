@@ -37,8 +37,8 @@ const handleSuggestionSelected = (suggestion: Suggestion) => {
                         </svg>
                     </div>
                     <span class="suggestions-title">{{ suggestionsData?.title || '建议' }}</span>
-                    <span class="suggestions-count" v-if="suggestionsData?.suggestions.length">
-                        {{ suggestionsData?.suggestions.length }}
+                    <span class="suggestions-count" v-if="suggestionsData?.suggestions?.length">
+                        {{ suggestionsData?.suggestions?.length }}
                     </span>
                 </div>
                 <div class="suggestions-toggle">
