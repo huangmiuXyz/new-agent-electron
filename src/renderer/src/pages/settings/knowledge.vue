@@ -123,7 +123,6 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
 
 // 创建知识库表单
 const [CreateKnowledgeBaseForm, createFormActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'type' | 'path' | 'url' | 'apiKey' | 'embeddingModel' | 'chunkSize' | 'chunkOverlap'>>({
-    title: '创建知识库',
     showHeader: true,
     initialData: {
         name: '',
@@ -422,7 +421,7 @@ const formatDate = (timestamp: number): string => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ (props.row as KnowledgeDocument).type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize((props.row as KnowledgeDocument).size) }}
