@@ -153,7 +153,6 @@ const getFileIcon = (file: any) => {
     return 'File';
 };
 const triggerUpload = () => {
-    debugger
     FileInputRef.value!.click()
 }
 // 暴露给父组件的方法和状态

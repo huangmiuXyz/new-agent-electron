@@ -8,12 +8,12 @@ const selectedFiles = ref<Array<FileUIPart & { blobUrl: string; }>>([])
 const { currentSelectedModel, selectedModelId, selectedProviderId } = storeToRefs(useSettingsStore())
 
 // 图标
-const FileUpload = useIcon('FileUpload')
+const FileUploadIcon = useIcon('FileUpload')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
 const speechRecognitionRef = useTemplateRef('speechRecognitionRef')
-const inputContainerRef = useTemplateRef('fileUploadRef')
+const inputContainerRef = useTemplateRef('inputContainerRef')
 
 // 处理文件选择
 const handleFilesSelected = (files: Array<FileUIPart & { blobUrl: string; }>) => {
@@ -81,7 +81,7 @@ const _sendMessage = async () => {
   <footer class="footer">
     <div class="input-container" ref="inputContainerRef"
       :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
-      <FileUploadPreview ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef"
+      <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef"
         @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
       <textarea class="input-field" rows="1" placeholder="发送消息..." v-model="message" @input="adjustTextareaHeight"
@@ -90,7 +90,7 @@ const _sendMessage = async () => {
       <div class="input-actions">
         <div class="action-left">
           <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload">
-            <FileUpload />
+            <FileUploadIcon />
           </Button>
           <!-- 语音识别组件 -->
           <ChatMessageInputSpeechRecognition ref="speechRecognitionRef" @speech-result="handleSpeechResult" />
@@ -112,7 +112,7 @@ const _sendMessage = async () => {
       <!-- 拖拽提示 -->
       <div v-if="fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone" class="drag-overlay">
         <div class="drag-message">
-          <FileUpload />
+          <FileUploadIcon />
           <span>释放以上传文件</span>
         </div>
       </div>
