@@ -177,19 +177,19 @@ export const builtinTools: Tools = {
     }
   },
 
-  suggestions: {
-    description: '提供一个或多个建议，用户可以手动选择并执行其中一个建议',
+  suggestedReplies: {
+    description: '生成对话界面中的推荐回复选项',
     inputSchema: z.object({
-      title: z.string().describe('建议列表的标题'),
+      title: z.string().describe('推荐回复的标题'),
       suggestions: z
         .array(
           z.object({
-            id: z.string().describe('建议的唯一标识符'),
-            text: z.string().describe('建议的文本内容'),
-            action: z.string().optional().describe('建议执行的动作描述')
+            id: z.string().describe('推荐回复的唯一标识符'),
+            text: z.string().describe('推荐回复的文本内容'),
+            action: z.string().optional().describe('推荐回复的动作描述')
           })
         )
-        .describe('建议列表，每个建议包含ID、文本和可选的动作描述')
+        .describe('推荐回复列表，每个推荐回复包含ID、文本和可选的动作描述')
     }),
     title: '建议工具',
     execute: async (args: unknown) => {
@@ -197,17 +197,17 @@ export const builtinTools: Tools = {
       const { title, suggestions } = params
 
       if (!title) {
-        throw new Error('建议标题不能为空')
+        throw new Error('推荐回复标题不能为空')
       }
 
       if (!suggestions || !Array.isArray(suggestions) || suggestions.length === 0) {
-        throw new Error('必须提供至少一个建议')
+        throw new Error('必须提供推荐回复一个建议')
       }
 
       // 验证每个建议的结构
       for (const suggestion of suggestions) {
         if (!suggestion.id || !suggestion.text) {
-          throw new Error('每个建议必须包含ID和文本内容')
+          throw new Error('推荐回复必须包含ID和文本内容')
         }
       }
 
