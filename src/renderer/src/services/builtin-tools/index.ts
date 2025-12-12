@@ -177,37 +177,37 @@ export const builtinTools: Tools = {
     }
   },
 
-  suggestedReplies: {
-    description: '生成对话界面中的推荐回复选项',
+  candidateReplies: {
+    description: '生成对话界面中的候选回复选项',
     inputSchema: z.object({
-      title: z.string().describe('推荐回复的标题'),
+      title: z.string().describe('候选回复的标题'),
       suggestions: z
         .array(
           z.object({
-            id: z.string().describe('推荐回复的唯一标识符'),
-            text: z.string().describe('推荐回复的文本内容'),
-            action: z.string().optional().describe('推荐回复的动作描述')
+            id: z.string().describe('候选回复的唯一标识符'),
+            text: z.string().describe('候选回复的文本内容'),
+            action: z.string().optional().describe('候选回复的动作描述')
           })
         )
-        .describe('推荐回复列表，每个推荐回复包含ID、文本和可选的动作描述')
+        .describe('候选回复列表，每个候选回复包含ID、文本和可选的动作描述')
     }),
-    title: '推荐回复',
+    title: '候选回复生成器',
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
       const { title, suggestions } = params
 
       if (!title) {
-        throw new Error('推荐回复标题不能为空')
+        throw new Error('候选回复标题不能为空')
       }
 
       if (!suggestions || !Array.isArray(suggestions) || suggestions.length === 0) {
-        throw new Error('必须提供推荐回复一个建议')
+        throw new Error('必须提供候选回复一个建议')
       }
 
       // 验证每个建议的结构
       for (const suggestion of suggestions) {
         if (!suggestion.id || !suggestion.text) {
-          throw new Error('推荐回复必须包含ID和文本内容')
+          throw new Error('候选回复必须包含ID和文本内容')
         }
       }
 
