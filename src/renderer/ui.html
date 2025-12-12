@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus RAG - Multi-KB Support</title>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        :root {
+            /* === 配色系统 === */
+            --bg-app: #ffffff;
+            --bg-sidebar: #f5f5f7;       /* App 导航栏背景 */
+            --bg-sub-sidebar: #fafafa;   /* 二级侧栏背景 */
+            --bg-hover: rgba(0, 0, 0, 0.04);
+            --bg-active: rgba(0, 0, 0, 0.06);
+            --border-subtle: #ebebeb;
+            --border-medium: #e1e1e1;
+            
+            --accent-color: #1d1d1f; 
+            --accent-text: #ffffff;
+            --accent-blue: #007aff;
+            
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --text-tertiary: #86868b;
+
+            --header-h: 56px;
+            --radius-md: 8px;
+            --radius-sm: 6px;
+            
+            --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-app);
+            height: 100vh;
+            display: flex;
+            color: var(--text-primary);
+            overflow: hidden;
+            font-size: 13px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* =========================================
+           1. App 全局导航 (最窄的一栏)
+           ========================================= */
+        .app-sidebar {
+            width: 68px; /* 缩窄，仅显示图标，更像现代 SaaS */
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-medium);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            flex-shrink: 0;
+            z-index: 30;
+        }
+
+        .app-logo {
+            font-size: 24px;
+            color: var(--text-primary);
+            margin-bottom: 24px;
+        }
+
+        .app-nav-item {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 20px;
+        }
+
+        .app-nav-item:hover { background-color: rgba(0,0,0,0.05); color: var(--text-primary); }
+        .app-nav-item.active { background-color: var(--accent-color); color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        
+        .user-avatar { margin-top: auto; width: 36px; height: 36px; border-radius: 50%; background: #ddd; }
+
+        /* =========================================
+           容器：处理视图切换
+           ========================================= */
+        .main-viewport {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        /* 视图显示/隐藏逻辑 */
+        .view-layer { display: none; width: 100%; height: 100%; }
+        .view-layer.active { display: flex; }
+
+
+        /* =========================================
+           2. 知识库视图 (Layout)
+           ========================================= */
+        .kb-layout {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- 2.1 知识库列表侧栏 (List Sidebar) --- */
+        .kb-sidebar {
+            width: 260px;
+            background-color: var(--bg-sub-sidebar);
+            border-right: 1px solid var(--border-medium);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            height: var(--header-h);
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 1px solid transparent;
+        }
+
+        .action-icon { 
+            padding: 4px; border-radius: 4px; cursor: pointer; color: var(--text-secondary); 
+        }
+        .action-icon:hover { background: rgba(0,0,0,0.05); color: var(--text-primary); }
+
+        .search-box {
+            padding: 0 12px 12px;
+        }
+        .simple-input {
+            width: 100%;
+            background: #fff;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-sm);
+            padding: 6px 8px 6px 26px;
+            font-size: 12px;
+            outline: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23999' viewBox='0 0 256 256'%3E%3Cpath d='M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z'%3E%3C/path%3E%3C/svg%3E");
+            background-size: 14px;
+            background-repeat: no-repeat;
+            background-position: 8px center;
+        }
+        .simple-input:focus { border-color: #999; }
+
+        .kb-list { flex: 1; overflow-y: auto; padding: 0 8px; }
+
+        .kb-item {
+            padding: 10px;
+            margin-bottom: 2px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid transparent;
+            transition: all 0.1s;
+        }
+        .kb-item:hover { background-color: var(--bg-hover); }
+        
+        /* 选中状态 */
+        .kb-item.selected {
+            background-color: #fff;
+            border-color: var(--border-medium);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .kb-icon {
+            width: 32px; height: 32px;
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        /* 不同类型的图标背景 */
+        .kb-icon.blue { background: #eef7ff; color: #0066cc; }
+        .kb-icon.purple { background: #fbf5ff; color: #8a2be2; }
+        .kb-icon.gray { background: #eeeeef; color: #555; }
+
+        .kb-info { flex: 1; overflow: hidden; }
+        .kb-name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .kb-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+        /* --- 2.2 主内容区域 (Center) --- */
+        .kb-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            min-width: 0; /* 防止溢出 */
+        }
+
+        .main-header {
+            height: var(--header-h);
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .header-title-group { display: flex; align-items: baseline; gap: 8px; }
+        .header-h1 { font-size: 16px; font-weight: 600; }
+        .header-badge { 
+            font-size: 11px; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; color: var(--text-secondary);
+        }
+
+        .btn-primary {
+            background: var(--accent-color); color: #fff; border: none; padding: 6px 14px;
+            border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+
+        .content-scroll { flex: 1; overflow-y: auto; padding: 24px; }
+
+        /* 统计栏 */
+        .stats-bar {
+            display: flex; gap: 24px; margin-bottom: 24px;
+            padding: 16px; background: #fbfbfd; border: 1px solid var(--border-subtle); border-radius: 8px;
+        }
+        .stat-item { display: flex; flex-direction: column; gap: 4px; }
+        .stat-val { font-size: 18px; font-weight: 600; }
+        .stat-lbl { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* 文件列表表格 */
+        .file-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .file-table th {
+            text-align: left; font-size: 11px; color: var(--text-secondary); font-weight: 600;
+            padding: 12px 8px; border-bottom: 1px solid var(--border-medium);
+        }
+        .file-table td {
+            padding: 12px 8px; border-bottom: 1px solid var(--border-subtle); font-size: 13px; color: var(--text-primary);
+        }
+        .file-table tr:hover { background: #fafafa; }
+        
+        .file-cell { display: flex; align-items: center; gap: 10px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        .dot-green { background: #34c759; }
+        .dot-yellow { background: #ffcc00; }
+
+        /* --- 2.3 配置面板 (Right) --- */
+        .kb-config {
+            width: 280px;
+            background: #fff;
+            border-left: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .config-header {
+            padding: 20px;
+            font-size: 12px; font-weight: 600; color: var(--text-primary);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .config-body { padding: 20px; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+        .form-input, .form-select {
+            width: 100%; padding: 8px; border: 1px solid var(--border-medium); border-radius: 6px;
+            font-size: 12px; background: #fff; outline: none;
+        }
+        .form-helper { font-size: 11px; color: var(--text-tertiary); margin-top: 6px; line-height: 1.4; }
+
+        /* 开关样式 */
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .toggle-label { font-size: 12px; }
+        .toggle-switch {
+            width: 32px; height: 18px; background: #e1e1e1; border-radius: 9px; position: relative; cursor: pointer; transition: 0.2s;
+        }
+        .toggle-switch.on { background: var(--accent-color); }
+        .toggle-switch::after {
+            content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+            background: #fff; border-radius: 50%; transition: 0.2s;
+        }
+        .toggle-switch.on::after { left: 16px; }
+
+        /* 聊天界面复用 (简化版以适应结构) */
+        .chat-view { display: flex; height: 100%; width: 100%; }
+        .chat-sidebar { width: 260px; border-right: 1px solid var(--border-medium); background: #fbfbfd; padding: 10px;}
+        .chat-main-area { flex: 1; background: #fff; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); }
+    </style>
+</head>
+<body>
+
+    <!-- 1. 最左侧全局导航 -->
+    <aside class="app-sidebar">
+        <div class="app-logo">
+            <i class="ph-fill ph-circles-four"></i>
+        </div>
+        
+        <div class="app-nav-item" onclick="switchView('chat')">
+            <i class="ph ph-chat-circle"></i>
+        </div>
+        <div class="app-nav-item active" onclick="switchView('kb')">
+            <i class="ph ph-database"></i> <!-- 数据库图标代表知识库 -->
+        </div>
+        <div class="app-nav-item">
+            <i class="ph ph-sliders"></i>
+        </div>
+
+        <div class="user-avatar"></div>
+    </aside>
+
+
+    <!-- 主视图容器 -->
+    <main class="main-viewport">
+
+        <!-- ======================
+             VIEW A: Knowledge Base
+             ====================== -->
+        <div id="view-kb" class="view-layer active kb-layout">
+            
+            <!-- A1. 知识库列表侧栏 -->
+            <aside class="kb-sidebar">
+                <div class="sidebar-header">
+                    <span>Knowledge Bases</span>
+                    <i class="ph ph-plus action-icon"></i>
+                </div>
+                <div class="search-box">
+                    <input class="simple-input" placeholder="Filter...">
+                </div>
+                
+                <div class="kb-list">
+                    <!-- 列表项 1 (选中) -->
+                    <div class="kb-item selected" onclick="selectKB('finance')">
+                        <div class="kb-icon blue">
+                            <i class="ph-fill ph-briefcase"></i>
+                        </div>
+                        <div class="kb-info">
+                            <div class="kb-name">Finance & Audit</div>
+                            <div class="kb-meta">12 files • 48k vectors</div>
+                        </div>
+                    </div>
+
+                    <!-- 列表项 2 -->
+                    <div class="kb-item" onclick="selectKB('tech')">
+                        <div class="kb-icon purple">
+                            <i class="ph-fill ph-code"></i>
+                        </div>
+                        <div class="kb-info">
+                            <div class="kb-name">Tech Documentation</div>
+                            <div class="kb-meta">158 files • 1.2m vectors</div>
+                        </div>
+                    </div>
+
+                    <!-- 列表项 3 -->
+                    <div class="kb-item" onclick="selectKB('hr')">
+                        <div class="kb-icon gray">
+                            <i class="ph-fill ph-users"></i>
+                        </div>
+                        <div class="kb-info">
+                            <div class="kb-name">HR Policies</div>
+                            <div class="kb-meta">3 files • 2k vectors</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- A2. 中间：文件内容区 -->
+            <section class="kb-main">
+                <header class="main-header">
+                    <div class="header-title-group">
+                        <span class="header-h1" id="kb-title">Finance & Audit</span>
+                        <span class="header-badge">Ready</span>
+                    </div>
+                    <button class="btn-primary">
+                        <i class="ph ph-plus"></i> Add Files
+                    </button>
+                </header>
+
+                <div class="content-scroll">
+                    <!-- 统计数据 -->
+                    <div class="stats-bar">
+                        <div class="stat-item">
+                            <span class="stat-lbl">Storage</span>
+                            <span class="stat-val">124 MB</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-lbl">Chunks</span>
+                            <span class="stat-val">48,201</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-lbl">Cost (MTD)</span>
+                            <span class="stat-val">$4.20</span>
+                        </div>
+                    </div>
+
+                    <!-- 文件列表 -->
+                    <table class="file-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40%;">Name</th>
+                                <th>Source Type</th>
+                                <th>Size</th>
+                                <th>Status</th>
+                                <th>Last Sync</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="file-cell">
+                                        <i class="ph-fill ph-file-pdf" style="font-size:20px; color:#e05252;"></i>
+                                        <span>Q4_Financial_Report.pdf</span>
+                                    </div>
+                                </td>
+                                <td>PDF Upload</td>
+                                <td>2.4 MB</td>
+                                <td><span class="status-dot dot-green"></span>Indexed</td>
+                                <td>2h ago</td>
+                                <td><i class="ph ph-dots-three action-icon"></i></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="file-cell">
+                                        <i class="ph-fill ph-file-xls" style="font-size:20px; color:#1d8c47;"></i>
+                                        <span>Budget_2024_Final.xlsx</span>
+                                    </div>
+                                </td>
+                                <td>Excel Sheet</td>
+                                <td>800 KB</td>
+                                <td><span class="status-dot dot-green"></span>Indexed</td>
+                                <td>Yesterday</td>
+                                <td><i class="ph ph-dots-three action-icon"></i></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="file-cell">
+                                        <i class="ph-fill ph-globe" style="font-size:20px; color:#4a90e2;"></i>
+                                        <span>stripe.com/docs/api</span>
+                                    </div>
+                                </td>
+                                <td>Web Crawler</td>
+                                <td>150 Pages</td>
+                                <td><span class="status-dot dot-yellow"></span>Processing</td>
+                                <td>Just now</td>
+                                <td><i class="ph ph-dots-three action-icon"></i></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- A3. 右侧：RAG 配置 -->
+            <aside class="kb-config">
+                <div class="config-header">
+                    CONFIG: FINANCE_BOT_V2
+                </div>
+                <div class="config-body">
+                    <div class="form-group">
+                        <label class="form-label">Embedding Model</label>
+                        <select class="form-select">
+                            <option>text-embedding-3-large (OpenAI)</option>
+                            <option>text-embedding-3-small (OpenAI)</option>
+                            <option>cohere-embed-v3</option>
+                        </select>
+                        <div class="form-helper">Large model captures better semantic nuance for financial terms.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Chunk Size</label>
+                        <input type="number" class="form-input" value="1024">
+                        <div class="form-helper">Tokens per chunk</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Chunk Overlap</label>
+                        <input type="number" class="form-input" value="128">
+                    </div>
+
+                    <hr style="border:none; border-top:1px solid var(--border-subtle); margin: 20px 0;">
+
+                    <div class="toggle-row">
+                        <span class="toggle-label">Hybrid Search</span>
+                        <div class="toggle-switch on"></div>
+                    </div>
+                    <div class="toggle-row">
+                        <span class="toggle-label">Auto-Sync</span>
+                        <div class="toggle-switch"></div>
+                    </div>
+
+                    <button class="btn-primary" style="width:100%; justify-content:center; background:#fff; color:#d00; border:1px solid #eee; margin-top:20px;">
+                        Delete Knowledge Base
+                    </button>
+                </div>
+            </aside>
+
+        </div>
+
+        <!-- ======================
+             VIEW B: Chat (Placeholder)
+             ====================== -->
+        <div id="view-chat" class="view-layer">
+            <div class="chat-view">
+                <div class="chat-sidebar">
+                    <div class="search-box" style="padding:12px 0;">
+                        <input class="simple-input" placeholder="Search chats...">
+                    </div>
+                    <!-- Chat items would go here -->
+                    <div style="padding:10px; border-radius:6px; background:#fff; border:1px solid var(--border-medium);">
+                        <div style="font-weight:600; font-size:13px;">Assistant</div>
+                        <div style="font-size:12px; color:var(--text-tertiary);">Hello! How can I help?</div>
+                    </div>
+                </div>
+                <div class="chat-main-area">
+                    Chat Interface (Same as previous version)
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // 切换左侧大导航
+        function switchView(viewName) {
+            document.querySelectorAll('.app-nav-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            document.querySelectorAll('.view-layer').forEach(el => el.classList.remove('active'));
+            document.getElementById('view-' + viewName).classList.add('active');
+        }
+
+        // 切换知识库 (视觉效果)
+        function selectKB(kbName) {
+            // 移除所有选中状态
+            document.querySelectorAll('.kb-item').forEach(el => el.classList.remove('selected'));
+            // 添加当前点击项的选中状态
+            event.currentTarget.classList.add('selected');
+
+            // 更改标题 (模拟数据切换)
+            const titleEl = document.getElementById('kb-title');
+            if(kbName === 'finance') titleEl.innerText = 'Finance & Audit';
+            if(kbName === 'tech') titleEl.innerText = 'Tech Documentation';
+            if(kbName === 'hr') titleEl.innerText = 'HR Policies';
+        }
+    </script>
+</body>
+</html>
