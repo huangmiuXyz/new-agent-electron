@@ -59,7 +59,6 @@ export const chatService = () => {
       tools: mapValues(tools, (t) => ({
         ...t,
         execute: async (input, options) => {
-          debugger
           const result = await t.execute(input, {
             ...JSON.parse(JSON.stringify(options)),
             abortSignal: undefined
