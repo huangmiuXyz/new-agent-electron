@@ -5,6 +5,24 @@ const { confirm, remove } = useModal()
 
 const expandedKeys = ref<Record<string, boolean>>({})
 
+// 类型推断函数
+const inferServerConfig = (serverName: string, serverConfig: any) => {
+    const inferredConfig = { ...serverConfig }
+    if (!inferredConfig.transport) {
+        if (inferredConfig.command) {
+            inferredConfig.transport = 'stdio'
+        } else if (inferredConfig.url) {
+            inferredConfig.transport = inferredConfig.url.includes('/sse') ||
+                inferredConfig.url.includes('/events') ? 'sse' : 'http'
+        }
+    }
+    inferredConfig.name = serverName
+    if (inferredConfig.active === undefined) {
+        inferredConfig.active = false
+    }
+    return inferredConfig
+}
+
 const openJsonEditor = () => {
     const serversConfig = JSON.parse(JSON.stringify(mcpServers.value || {}))
     for (const key in serversConfig) {
@@ -25,7 +43,7 @@ const openJsonEditor = () => {
                 name: 'json',
                 type: 'textarea',
                 label: 'JSON 配置',
-                placeholder: '请输入 JSON 配置',
+                placeholder: '请输入 JSON 配置，例如：\n{\n  "mcpServers": {\n    "context7": {\n      "command": "npx",\n      "args": ["-y", "@upstash/context7-mcp", "--api-key", "YOUR_API_KEY"]\n    }\n  }\n}',
                 required: true,
                 rows: 20
             }
@@ -43,11 +61,10 @@ const openJsonEditor = () => {
                 try {
                     const parsed = JSON.parse(data.json)
                     if (parsed && parsed.mcpServers && typeof parsed.mcpServers === 'object') {
-                        // 恢复 tools 和 active 数据
                         const newServers = parsed.mcpServers
                         const currentServers = mcpServers.value || {}
-
                         for (const key in newServers) {
+                            newServers[key] = inferServerConfig(key, newServers[key])
                             if (currentServers[key]) {
                                 if (currentServers[key].tools) {
                                     newServers[key].tools = currentServers[key].tools
@@ -57,7 +74,6 @@ const openJsonEditor = () => {
                                 }
                             }
                         }
-
                         mcpServers.value = newServers
                         remove()
                     } else {
