@@ -6,3 +6,5 @@ declare global {
     api: API
   }
 }
+declare module '@ai-sdk/provider-utils' {}
+declare module '@ai-sdk/provider' {}
