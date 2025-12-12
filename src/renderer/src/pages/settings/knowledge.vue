@@ -6,6 +6,7 @@ const { knowledgeBases } = storeToRefs(useSettingsStore())
 const { updateKnowledgeBase, addKnowledgeBase, deleteKnowledgeBase, addDocumentToKnowledgeBase, deleteDocumentFromKnowledgeBase } = useSettingsStore()
 
 const { confirm } = useModal()
+const { showContextMenu } = useContextMenu()
 
 const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
     activeKnowledgeBaseId.value = knowledgeBaseId;
@@ -32,7 +33,6 @@ const filteredDocuments = computed(() => {
 })
 
 const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'type' | 'path' | 'url' | 'apiKey' | 'embeddingModel' | 'chunkSize' | 'chunkOverlap'>>({
-    title: '知识库设置',
     showHeader: true,
     initialData: {
         name: '',
@@ -254,18 +254,32 @@ const selectKnowledgeBase = (knowledgeBaseId: string) => {
     setActiveKnowledgeBase(knowledgeBaseId)
 }
 
-const { Refresh, Plus, Search, File, Trash } = useIcon(['Refresh', 'Plus', 'Search', 'File', 'Trash'])
-const loading = ref(false)
-const refreshDocuments = async () => {
-    loading.value = true
-    try {
-        // 模拟刷新文档列表
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        // 这里可以添加实际的刷新逻辑
-    } finally {
-        loading.value = false
-    }
+// 处理知识库右键菜单
+const handleKnowledgeBaseContextMenu = (event: MouseEvent, knowledgeBase: KnowledgeBase) => {
+    const { File, Trash } = useIcon(['File', 'Trash'])
+    showContextMenu(event, [
+        {
+            label: '编辑知识库',
+            icon: File,
+            onClick: () => {
+                setActiveKnowledgeBase(knowledgeBase.id)
+                showEditKnowledgeBaseModal()
+            }
+        },
+        {
+            label: '删除知识库',
+            danger: true,
+            icon: Trash,
+            onClick: () => {
+                setActiveKnowledgeBase(knowledgeBase.id)
+                showDeleteKnowledgeBaseModal()
+            }
+        }
+    ])
 }
+
+const { Plus, Search, Trash } = useIcon(['Plus', 'Search', 'Trash'])
+const loading = ref(false)
 
 // 显示添加文档的模态框
 const showAddDocumentModal = async () => {
@@ -321,6 +335,7 @@ const showEditKnowledgeBaseModal = async () => {
     const result = await confirm({
         title: '编辑知识库',
         content: KnowledgeBaseForm,
+        width: '50%'
     })
     if (result) {
         formActions.submit()
@@ -334,6 +349,9 @@ const showDeleteKnowledgeBaseModal = async () => {
     }
     const result = await confirm({
         title: '删除知识库',
+        confirmProps: {
+            danger: true
+        },
         content: `确定要删除知识库 "${activeKnowledgeBase.value.name}" 吗？此操作不可撤销。`,
     })
     if (result) {
@@ -381,36 +399,21 @@ const formatDate = (timestamp: number): string => {
 
 <template>
     <List type="gap" title="知识库" :items="knowledgeBases" :active-id="activeKnowledgeBaseId"
-        @select="selectKnowledgeBase" />
+        @select="selectKnowledgeBase"
+        @contextmenu="(event, item) => handleKnowledgeBaseContextMenu(event, knowledgeBases.find(kb => kb.id === item)!)">
+        <template #title-tool>
+            <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="primary">
+                <template #icon>
+                    <Plus />
+                </template>
+                添加知识库
+            </Button>
+        </template>
+    </List>
 
     <!-- 配置表单 -->
     <SettingFormContainer header-title="知识库管理">
         <template #content>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <div style="font-size: 14px; font-weight: 500;">
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="primary">
-                        <template #icon>
-                            <Plus />
-                        </template>
-                        添加知识库
-                    </Button>
-                    <Button @click="showEditKnowledgeBaseModal" size="sm" type="button" variant="secondary">
-                        <template #icon>
-                            <File />
-                        </template>
-                        编辑知识库
-                    </Button>
-                    <Button @click="showDeleteKnowledgeBaseModal" size="sm" type="button" variant="secondary">
-                        <template #icon>
-                            <Trash />
-                        </template>
-                        删除知识库
-                    </Button>
-                </div>
-            </div>
-
             <FormItem label="文档列表">
                 <Table :loading="loading" :data="filteredDocuments" :columns="[
                     { key: 'name', label: '文档名称', width: '2fr' },
@@ -442,14 +445,6 @@ const formatDate = (timestamp: number): string => {
                         </div>
                     </template>
                 </Table>
-                <template #tool>
-                    <Button @click="refreshDocuments" size="sm" type="button" variant="text">
-                        <template #icon>
-                            <Refresh />
-                        </template>
-                        刷新文档列表
-                    </Button>
-                </template>
                 <template #label>
                     <div style="display: flex;">
                         <Button @click="showAddDocumentModal" size="sm" type="button" variant="text">

@@ -71,7 +71,12 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 
 <template>
   <div class="list-container" :class="[`mode-${type}`]">
-    <div v-if="title && type === 'gap'" class="list-title">{{ title }}</div>
+    <div v-if="title && type === 'gap'" class="list-title">
+      <div>{{ title }}</div>
+      <div class="list-title-actions">
+        <slot name="title-tool"></slot>
+      </div>
+    </div>
 
     <div class="list-scroll-area">
       <!-- 1. Loading 状态 -->
@@ -196,6 +201,8 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   color: var(--text-tertiary);
   margin-bottom: 8px;
   padding-left: 4px;
+  display: flex;
+  justify-content: space-between;
 }
 
 .mode-gap .list-item {
