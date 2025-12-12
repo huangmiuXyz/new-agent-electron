@@ -222,6 +222,91 @@ export const builtinTools: Tools = {
         }
       }
     }
+  },
+
+  agentCreator: {
+    description: '创建一个新的智能体，可以配置名称、描述、系统提示词、MCP服务器、工具等',
+    inputSchema: z.object({
+      name: z.string().describe('智能体名称，必须是唯一的'),
+      description: z.string().optional().describe('智能体的功能描述'),
+      systemPrompt: z.string().describe('智能体的系统提示词，定义其行为和角色')
+    }),
+    title: '智能体创建器',
+    execute: async (args: unknown) => {
+      const params = args as Record<string, any>
+      const {
+        name,
+        description,
+        systemPrompt,
+        mcpServers = [],
+        tools = [],
+        builtinTools = [],
+        icon
+      } = params
+
+      if (!name) {
+        throw new Error('智能体名称不能为空')
+      }
+
+      if (!systemPrompt) {
+        throw new Error('系统提示词不能为空')
+      }
+
+      try {
+        const agentStore = useAgentStore()
+        const currentAgents = agentStore.agents || []
+
+        if (currentAgents.some((agent) => agent.name === name)) {
+          throw new Error(`智能体名称"${name}"已存在，请使用不同的名称`)
+        }
+
+        const now = Date.now()
+        const newAgent = {
+          id: nanoid(),
+          name,
+          description: description || '',
+          systemPrompt,
+          mcpServers,
+          tools,
+          builtinTools,
+          icon,
+          createdAt: now,
+          updatedAt: now
+        }
+
+        agentStore.createAgent(newAgent)
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text:
+                  `成功创建智能体：\n` +
+                  `- 名称: ${name}\n` +
+                  `- 描述: ${description || '无'}\n` +
+                  `- 系统提示词: ${systemPrompt.substring(0, 100)}${systemPrompt.length > 100 ? '...' : ''}\n` +
+                  `- MCP服务器: ${mcpServers.length > 0 ? mcpServers.join(', ') : '无'}\n` +
+                  `- MCP工具: ${tools.length > 0 ? tools.join(', ') : '无'}\n` +
+                  `- 内置工具: ${builtinTools.length > 0 ? builtinTools.join(', ') : '无'}\n` +
+                  `- 图标: ${icon || '默认'}\n` +
+                  `- ID: ${newAgent.id}\n`
+              }
+            ]
+          }
+        }
+      } catch (error) {
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text: `创建智能体失败: ${(error as Error).message}`
+              }
+            ]
+          }
+        }
+      }
+    }
   }
 }
 
