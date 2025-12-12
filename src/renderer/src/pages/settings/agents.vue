@@ -5,6 +5,16 @@ const { mcpServers } = storeToRefs(useSettingsStore())
 
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
 const { openAgentModal, handleDelete, selectAgent } = useAgent()
+
+const getValidTools = (tools: string[] | undefined) => {
+    if (!tools) return []
+
+    return tools.filter(toolId => {
+        const [serverName, toolName] = toolId.split('.')
+        const server = mcpServers.value[serverName]
+        return server && server.active && server.tools && server.tools[toolName]
+    })
+}
 </script>
 
 <template>
@@ -55,20 +65,22 @@ const { openAgentModal, handleDelete, selectAgent } = useAgent()
                                 <div class="preview-text">{{ agent.systemPrompt }}</div>
                             </div>
 
-                            <div v-if="agent.mcpServers.filter(name => mcpServers[name]).length > 0" class="mcp-list">
+                            <div v-if="agent.mcpServers.filter(name => mcpServers[name] && mcpServers[name].active).length > 0"
+                                class="mcp-list">
                                 <div class="mcp-list-label">MCP 服务器:</div>
                                 <div class="mcp-tags">
-                                    <span v-for="serverName in agent.mcpServers.filter(name => mcpServers[name])"
+                                    <span
+                                        v-for="serverName in agent.mcpServers.filter(name => mcpServers[name] && mcpServers[name].active)"
                                         :key="serverName" class="mcp-tag">
                                         {{ serverName }}
                                     </span>
                                 </div>
                             </div>
 
-                            <div v-if="agent.tools && agent.tools.length > 0" class="tools-list">
+                            <div v-if="getValidTools(agent.tools).length > 0" class="tools-list">
                                 <div class="tools-list-label">工具:</div>
                                 <div class="tools-tags">
-                                    <span v-for="tool in agent.tools" :key="tool" class="tool-tag">
+                                    <span v-for="tool in getValidTools(agent.tools)" :key="tool" class="tool-tag">
                                         {{ tool }}
                                     </span>
                                 </div>
