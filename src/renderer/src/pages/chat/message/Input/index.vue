@@ -5,7 +5,7 @@ const message = ref('')
 const chatStore = useChatsStores();
 const selectedFiles = ref<Array<FileUIPart & { blobUrl: string; }>>([])
 
-const { currentSelectedModel, selectedModelId, selectedProviderId } = storeToRefs(useSettingsStore())
+const { currentSelectedModel, selectedModelId, selectedProviderId, currentSelectedProvider } = storeToRefs(useSettingsStore())
 
 // 图标
 const FileUploadIcon = useIcon('FileUpload')
@@ -79,7 +79,8 @@ const _sendMessage = async () => {
       <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef" :inputRef="textareaRef"
         @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
-      <textarea ref="textareaRef" class="input-field" rows="1" placeholder="发送消息..." v-model="message"
+      <textarea ref="textareaRef" class="input-field" rows="1"
+        :placeholder="`发送消息给${currentSelectedProvider?.name}提供的${currentSelectedModel?.name}...`" v-model="message"
         @input="adjustTextareaHeight" @keydown.enter.exact.prevent="_sendMessage"></textarea>
 
       <div class="input-actions">
