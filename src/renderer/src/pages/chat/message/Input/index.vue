@@ -11,9 +11,9 @@ const { currentSelectedModel, selectedModelId, selectedProviderId } = storeToRef
 const FileUpload = useIcon('FileUpload')
 
 // 引入子组件
-const fileUploadRef = ref()
-const speechRecognitionRef = ref()
-const inputContainerRef = ref<HTMLElement>()
+const fileUploadRef = useTemplateRef('fileUploadRef')
+const speechRecognitionRef = useTemplateRef('speechRecognitionRef')
+const inputContainerRef = useTemplateRef('fileUploadRef')
 
 // 处理文件选择
 const handleFilesSelected = (files: Array<FileUIPart & { blobUrl: string; }>) => {
@@ -89,7 +89,7 @@ const _sendMessage = async () => {
 
       <div class="input-actions">
         <div class="action-left">
-          <Button variant="icon" size="sm" @click="fileUploadRef?.FileInputRef?.click()">
+          <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload">
             <FileUpload />
           </Button>
           <!-- 语音识别组件 -->

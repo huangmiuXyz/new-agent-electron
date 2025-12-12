@@ -20,7 +20,7 @@ const emit = defineEmits<{
 
 // 文件上传相关状态
 const selectedFiles = ref<Array<FileUIPart & { blobUrl?: string; }>>(props.files || [])
-const FileInputRef = ref<HTMLInputElement>()
+const FileInputRef = useTemplateRef('FileInputRef')
 
 // 拖拽状态
 const isDragOver = ref(false)
@@ -152,16 +152,16 @@ const getFileIcon = (file: any) => {
 
     return 'File';
 };
-
+const triggerUpload = () => {
+    debugger
+    FileInputRef.value!.click()
+}
 // 暴露给父组件的方法和状态
 defineExpose({
     selectedFiles,
     isDragOver,
     isOverDropZone,
-    handlePaste,
-    processFiles,
-    handleOpen,
-    removeFile: handleRemove
+    triggerUpload
 });
 
 // 监听 props.files 的变化
