@@ -1,9 +1,9 @@
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 
-let term: Terminal | null = null
-let fitAddon: FitAddon | null = null
 export function useXterm() {
+  let term: Terminal | null = null
+  let fitAddon: FitAddon | null = null
   const terminalContainer = ref(null)
 
   const initTerminal = () => {
@@ -55,8 +55,12 @@ export function useXterm() {
       fitAddon = null
     }
   }
-
-  initTerminal()
+  onMounted(() => {
+    initTerminal()
+  })
+  onBeforeUnmount(() => {
+    dispose()
+  })
 
   return {
     terminalContainer
