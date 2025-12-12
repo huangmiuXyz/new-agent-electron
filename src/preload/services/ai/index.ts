@@ -19,14 +19,20 @@ type Tools = Awaited<ReturnType<MCPClient['tools']>>
 interface aiServiceResult {
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
 }
-export const aiServices = (): aiServiceResult => {
-  let clients: MCPClient[] = []
-  let lastConfig: ClientConfig
-  let tools: Tools
 
-  const isConfigChanged = (a?: ClientConfig, b?: ClientConfig) => {
-    return JSON.stringify(a) !== JSON.stringify(b)
+export const aiServices = (): aiServiceResult => {
+  let clientMap: Record<string, MCPClient> = {}
+  let lastConfig: ClientConfig = {}
+  let toolsCache: Tools | undefined
+  const NEEDED_FIELDS = ['command', 'args', 'url', 'transport', 'headers'] as const
+  const extractNeededConfig = (cfg: any) => {
+    const result: any = {}
+    for (const key of NEEDED_FIELDS) result[key] = cfg?.[key]
+    return result
   }
+
+  const isNecessaryConfigChanged = (a: any, b: any) =>
+    JSON.stringify(extractNeededConfig(a)) !== JSON.stringify(extractNeededConfig(b))
 
   const createTransport = (cfg: ClientConfig[keyof ClientConfig]) => {
     if (cfg.url) {
@@ -45,38 +51,40 @@ export const aiServices = (): aiServiceResult => {
     throw new Error('Invalid MCP config: missing url or command')
   }
 
-  const create_clients = async (config: ClientConfig) => {
-    if (clients.length > 0 && isConfigChanged(lastConfig, config)) {
-      await Promise.all(clients.map((c) => c.close()))
-      clients = []
-      tools = undefined as any
+  const syncClients = async (config: ClientConfig) => {
+    for (const key of Object.keys(clientMap)) {
+      if (!config[key]) {
+        await clientMap[key].close()
+        delete clientMap[key]
+      }
     }
-    if ((!clients || clients.length === 0) && config) {
-      const promises = Object.values(config).map(async (serverConfig) => {
-        return await experimental_createMCPClient({
-          transport: createTransport(serverConfig) as any
+    for (const [key, serverCfg] of Object.entries(config)) {
+      const prevCfg = lastConfig[key]
+      if (!prevCfg || isNecessaryConfigChanged(prevCfg, serverCfg)) {
+        if (clientMap[key]) {
+          await clientMap[key].close()
+        }
+        clientMap[key] = await experimental_createMCPClient({
+          transport: createTransport(serverCfg) as any
         })
-      })
-      clients = await Promise.all(promises)
-      lastConfig = config
+      }
     }
-    return clients
+
+    lastConfig = JSON.parse(JSON.stringify(config))
   }
 
-  const list_tools = async (config: ClientConfig, cache: boolean = true) => {
-    if (tools && !isConfigChanged(lastConfig, config) && cache) {
-      return tools
+  const list_tools = async (config: ClientConfig, cache = true) => {
+    if (toolsCache && JSON.stringify(lastConfig) === JSON.stringify(config) && cache) {
+      return toolsCache
     }
 
-    if (!clients || clients.length === 0 || isConfigChanged(lastConfig, config)) {
-      await create_clients(config)
-    }
+    await syncClients(config)
 
-    const toolsList = await Promise.all(clients.map((client) => client.tools()))
+    const toolsList = await Promise.all(Object.values(clientMap).map((client) => client.tools()))
 
-    tools = toolsList.reduce((acc, curr) => ({ ...acc, ...curr }), {})
+    toolsCache = toolsList.reduce((acc, curr) => ({ ...acc, ...curr }), {})
 
-    return tools
+    return toolsCache
   }
 
   return {
