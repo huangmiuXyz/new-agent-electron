@@ -3,10 +3,12 @@
 const selectedModelId = defineModel<string>('modelId', { default: '' })
 const selectedProviderId = defineModel<string>('providerId', { default: '' })
 
-const props = defineProps<{
+withDefaults(defineProps<{
+  type: 'icon' | 'select',
   popupPosition?: 'top' | 'bottom'
-}>()
-
+}>(), {
+  type: 'select',
+})
 const { providers } = storeToRefs(useSettingsStore())
 
 const currentSelectedModel = computed(() => {
@@ -79,13 +81,16 @@ const handleModelSelect = (id: string) => {
 
 <template>
   <SelectorPopover v-model="isPopupOpen" v-model:searchQuery="searchQuery" placeholder="搜索模型..." noResultsText="未找到模型"
-    :hasResults="filteredModels.length > 0" width="240px" :position="props.popupPosition || 'top'">
+    :hasResults="filteredModels.length > 0" width="240px" :position="popupPosition || 'top'">
     <template #trigger>
-      <div class="model-btn" :class="{ active: isPopupOpen }">
+      <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
         <img style="width: 10px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="">
         <span>{{ currentModelLabel }}</span>
         <ChevronDown />
       </div>
+      <Button v-else variant="icon" size="sm">
+        <img style="width: 15px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="">
+      </Button>
     </template>
 
     <!-- 扁平化的模型列表，用于统一List组件 -->

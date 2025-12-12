@@ -54,7 +54,7 @@ const { openAgentModal } = useAgent()
                 <span class="agent-name">{{ selectedAgentLabel }}</span>
                 <ChevronDown class="arrow-icon" />
             </div>
-            <Button variant="icon" size="sm">
+            <Button v-else variant="icon" size="sm">
                 <Robot />
             </Button>
         </template>
