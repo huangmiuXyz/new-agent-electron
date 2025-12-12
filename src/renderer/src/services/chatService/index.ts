@@ -67,10 +67,6 @@ export const chatService = () => {
         }
       })),
       instructions,
-      prepareCall: (options) => {
-        console.log(options)
-        return options
-      },
       stopWhen: [
         ({ steps }) => {
           return (
