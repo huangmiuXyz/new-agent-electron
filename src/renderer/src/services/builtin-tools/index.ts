@@ -191,7 +191,7 @@ export const builtinTools: Tools = {
         )
         .describe('推荐回复列表，每个推荐回复包含ID、文本和可选的动作描述')
     }),
-    title: '建议工具',
+    title: '推荐回复',
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
       const { title, suggestions } = params
