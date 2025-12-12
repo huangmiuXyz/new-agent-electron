@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useSettingsStore } from '@renderer/stores/settings'
 import SettingsDefaultModels from './default-models.vue'
+import SettingsKnowledge from './knowledge.vue'
 
 const settingsStore = useSettingsStore()
 const activeTab = ref('models')
@@ -28,6 +29,9 @@ const switchTab = (tabName: string) => {
 
       <!-- 默认模型设置 -->
       <SettingsDefaultModels v-else-if="activeTab === 'defaultModels'" />
+
+      <!-- 知识库设置 -->
+      <SettingsKnowledge v-else-if="activeTab === 'knowledge'" />
 
       <!-- 显示设置 -->
       <SettingsDisplay v-else-if="activeTab === 'display'" />
