@@ -56,7 +56,10 @@ export const chatService = () => {
       model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
         `${modelType}:${model}`
       ),
-      tools,
+      tools: mapValues(tools, (t) => ({
+        ...t,
+        execute: (input, options) => t.execute(input, { ...options, abortSignal: undefined })
+      })),
       instructions,
       stopWhen: [
         ({ steps }) => {
