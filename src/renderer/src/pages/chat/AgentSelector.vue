@@ -10,7 +10,7 @@ withDefaults(defineProps<{
 })
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
-const { Robot, ChevronDown, Server, Check, Edit } = useIcon(['Robot', 'ChevronDown', 'Server', 'Check', 'Edit'])
+const { Robot, ChevronDown, Wrench20Regular, Check, Edit } = useIcon(['Wrench20Regular', 'Robot', 'ChevronDown', 'Server', 'Check', 'Edit'])
 
 const selectedAgentLabel = computed(() => {
     const agent = agentStore.selectedAgent
@@ -65,14 +65,14 @@ const { openAgentModal } = useAgent()
                 <div class="agent-content">
                     <div class="agent-title">{{ agent.name }}</div>
                     <div v-if="agent.description" class="agent-desc">{{ agent.description }}</div>
-                    <div v-if="agent.mcpServers.filter(name => mcpServers[name]).length > 0" class="agent-mcp">
-                        <Server />
-                        <span style="white-space: nowrap;">{{agent.mcpServers.filter(name => mcpServers[name]).length
-                            }}
-                            个MCP服务</span>
-                    </div>
                 </div>
                 <div class="agent-check">
+                    <div v-if="agent.mcpServers.filter(name => mcpServers[name]).length > 0" class="agent-mcp">
+                        <Wrench20Regular />
+                        <span style="white-space: nowrap;">{{ settingsStore.getValidTools(agent.tools).length +
+                            agent.builtinTools?.length }}
+                        </span>
+                    </div>
                     <Check v-if="isAgentSelected(agent.id)" />
                     <Button @click="openAgentModal(agent)" variant="icon" size="sm">
                         <template #icon>

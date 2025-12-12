@@ -40,7 +40,7 @@ import {
   Box,
   Language
 } from '@vicons/tabler'
-import { CommentAdd16Regular, Mic16Filled } from '@vicons/fluent'
+import { CommentAdd16Regular, Mic16Filled, Wrench20Regular } from '@vicons/fluent'
 const icons = {
   Edit,
   Pencil: Edit,
@@ -81,7 +81,8 @@ const icons = {
   Video,
   Mic16Filled,
   Box,
-  Language
+  Language,
+  Wrench20Regular
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
