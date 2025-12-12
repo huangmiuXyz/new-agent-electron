@@ -8,11 +8,12 @@ const selectedFiles = ref<Array<FileUIPart & { blobUrl: string; }>>([])
 const { currentSelectedModel, selectedModelId, selectedProviderId } = storeToRefs(useSettingsStore())
 
 // 图标
-const FileUploadIcon = useIcon('FileUpload')
+const FileUpload = useIcon('FileUpload')
 
 // 引入子组件
 const fileUploadRef = ref()
 const speechRecognitionRef = ref()
+const inputContainerRef = ref<HTMLElement>()
 
 // 处理文件选择
 const handleFilesSelected = (files: Array<FileUIPart & { blobUrl: string; }>) => {
@@ -78,19 +79,19 @@ const _sendMessage = async () => {
 
 <template>
   <footer class="footer">
-    <div class="input-container" :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
-      <FilePreview removable v-if="selectedFiles.length > 0" :files="selectedFiles" preview-mode="input"
-        @remove="handleFileRemoved" />
+    <div class="input-container" ref="inputContainerRef"
+      :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
+      <FileUploadPreview ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef"
+        @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
       <textarea class="input-field" rows="1" placeholder="发送消息..." v-model="message" @input="adjustTextareaHeight"
         @keydown.enter.exact.prevent="_sendMessage" @paste="handlePaste"></textarea>
 
       <div class="input-actions">
         <div class="action-left">
-          <!-- 文件上传组件 -->
-          <ChatMessageInputFileUpload ref="fileUploadRef" @files-selected="handleFilesSelected"
-            @file-removed="handleFileRemoved" />
-
+          <Button variant="icon" size="sm" @click="fileUploadRef?.FileInputRef?.click()">
+            <FileUpload />
+          </Button>
           <!-- 语音识别组件 -->
           <ChatMessageInputSpeechRecognition ref="speechRecognitionRef" @speech-result="handleSpeechResult" />
 
@@ -111,7 +112,7 @@ const _sendMessage = async () => {
       <!-- 拖拽提示 -->
       <div v-if="fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone" class="drag-overlay">
         <div class="drag-message">
-          <FileUploadIcon />
+          <FileUpload />
           <span>释放以上传文件</span>
         </div>
       </div>
