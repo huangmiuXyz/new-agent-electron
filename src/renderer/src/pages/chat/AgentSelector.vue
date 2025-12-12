@@ -6,7 +6,7 @@ const { mcpServers } = storeToRefs(settingsStore)
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
-const { Robot, ChevronDown, Server, Check } = useIcon(['Robot', 'ChevronDown', 'Server', 'Check'])
+const { Robot, ChevronDown, Server, Check, Edit } = useIcon(['Robot', 'ChevronDown', 'Server', 'Check', 'Edit'])
 
 const selectedAgentLabel = computed(() => {
     const agent = agentStore.selectedAgent
@@ -38,6 +38,7 @@ const selectAgent = (agentId: string) => {
 const isAgentSelected = (agentId: string) => {
     return agentId === selectedAgentId.value
 }
+const { openAgentModal } = useAgent()
 </script>
 
 <template>
@@ -60,14 +61,17 @@ const isAgentSelected = (agentId: string) => {
                     <div v-if="agent.mcpServers.filter(name => mcpServers[name]).length > 0" class="agent-mcp">
                         <Server />
                         <span style="white-space: nowrap;">{{agent.mcpServers.filter(name => mcpServers[name]).length
-                        }}
+                            }}
                             个MCP服务</span>
                     </div>
                 </div>
                 <div class="agent-check">
-                    <Check :style="{
-                        opacity: isAgentSelected(agent.id) ? 1 : 0
-                    }" />
+                    <Check v-if="isAgentSelected(agent.id)" />
+                    <Button @click="openAgentModal(agent)" variant="icon" size="sm">
+                        <template #icon>
+                            <Edit />
+                        </template>
+                    </Button>
                 </div>
             </div>
         </div>
@@ -182,10 +186,10 @@ const isAgentSelected = (agentId: string) => {
 
 .agent-check {
     flex-shrink: 0;
-    width: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
 }
 
 .agent-check :deep(svg) {
