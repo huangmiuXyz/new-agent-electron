@@ -38,7 +38,7 @@ async function initVoskModel() {
     // 监听完整识别结果
     recognizer.on("result", (msg) => {
         if (msg.event === "result") {
-            speechBuffer.value += msg.result.text
+            speechBuffer.value = msg.result.text
             resetSpeechTimeout()
         }
     })
