@@ -305,6 +305,7 @@ const showAddKnowledgeBaseModal = async () => {
     const result = await confirm({
         title: '添加知识库',
         content: CreateKnowledgeBaseForm,
+        width: '50%'
     })
     if (result) {
         createFormActions.submit()
@@ -421,7 +422,7 @@ const formatDate = (timestamp: number): string => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ (props.row as KnowledgeDocument).type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize((props.row as KnowledgeDocument).size) }}
