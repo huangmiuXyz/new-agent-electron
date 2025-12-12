@@ -14,6 +14,7 @@ const FileUploadIcon = useIcon('FileUpload')
 const fileUploadRef = useTemplateRef('fileUploadRef')
 const speechRecognitionRef = useTemplateRef('speechRecognitionRef')
 const inputContainerRef = useTemplateRef('inputContainerRef')
+const textareaRef = useTemplateRef('textareaRef')
 
 // 处理文件选择
 const handleFilesSelected = (files: Array<FileUIPart & { blobUrl: string; }>) => {
@@ -31,12 +32,6 @@ const handleSpeechResult = async (text: string) => {
   await _sendMessage()
 }
 
-// 监听粘贴事件
-const handlePaste = async (event: ClipboardEvent) => {
-  if (fileUploadRef.value) {
-    fileUploadRef.value.handlePaste(event)
-  }
-}
 
 const adjustTextareaHeight = (event: Event) => {
   const textarea = event.target as HTMLTextAreaElement
@@ -81,11 +76,11 @@ const _sendMessage = async () => {
   <footer class="footer">
     <div class="input-container" ref="inputContainerRef"
       :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
-      <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef"
+      <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef" :inputRef="textareaRef"
         @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
-      <textarea class="input-field" rows="1" placeholder="发送消息..." v-model="message" @input="adjustTextareaHeight"
-        @keydown.enter.exact.prevent="_sendMessage" @paste="handlePaste"></textarea>
+      <textarea ref="textareaRef" class="input-field" rows="1" placeholder="发送消息..." v-model="message"
+        @input="adjustTextareaHeight" @keydown.enter.exact.prevent="_sendMessage"></textarea>
 
       <div class="input-actions">
         <div class="action-left">

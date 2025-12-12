@@ -6,6 +6,7 @@ interface Props {
     files?: Array<FileUIPart & { blobUrl?: string; name?: string }>;
     removable?: boolean;
     dropZoneRef?: HTMLElement;
+    inputRef?: HTMLTextAreaElement;
     onRemove?: (index: number) => void;
 }
 
@@ -80,6 +81,20 @@ const handlePaste = async (event: ClipboardEvent) => {
         await processFiles(files)
     }
 }
+
+// 通过传入的input ref监听粘贴事件
+watchEffect(() => {
+    const inputRef = props.inputRef
+    if (inputRef) {
+        inputRef.addEventListener('paste', handlePaste)
+        // 返回清理函数
+        return () => {
+            inputRef.removeEventListener('paste', handlePaste)
+        }
+    }
+    // 如果没有inputRef，返回空函数
+    return () => { }
+})
 
 const handleUpload = async (e: Event) => {
     const files = (e.target as HTMLInputElement).files
