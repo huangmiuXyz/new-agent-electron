@@ -1,4 +1,4 @@
-export { cloneDeep, throttle, mapValues } from 'es-toolkit'
+export { cloneDeep, throttle, mapValues, retry } from 'es-toolkit'
 export { blobToDataURL, dataURLToBlob } from 'blob-util'
 export const copyText = (text: string) => {
   if (text) {

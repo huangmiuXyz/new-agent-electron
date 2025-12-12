@@ -133,7 +133,15 @@ export const chatService = () => {
     return await models.json()
   }
   const list_tools = async (config: ClientConfig, cache?: boolean) => {
-    const tools = await window.api.list_tools(config, cache)
+    const tools = await retry(
+      async () => {
+        return await window.api.list_tools(config, cache)
+      },
+      {
+        retries: 3,
+        delay: 100
+      }
+    )
     return tools
   }
   return {
