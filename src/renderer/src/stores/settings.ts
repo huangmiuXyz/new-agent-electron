@@ -98,6 +98,15 @@ export const useSettingsStore = defineStore(
       return provider?.models?.find((m) => m.id === defaultModels.value.translationModelId)
     })
 
+    const getValidTools = (tools: string[] | undefined) => {
+      if (!tools) return []
+
+      return tools.filter((toolId) => {
+        const [serverName, toolName] = toolId.split('.')
+        const server = mcpServers.value[serverName]
+        return server && server.active && server.tools && server.tools[toolName]
+      })
+    }
     return {
       display,
       providers,
@@ -114,7 +123,8 @@ export const useSettingsStore = defineStore(
       getProviderById,
       getModelById,
       getTitleGenerationModel,
-      getTranslationModel
+      getTranslationModel,
+      getValidTools
     }
   },
   {

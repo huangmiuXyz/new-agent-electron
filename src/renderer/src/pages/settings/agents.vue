@@ -2,19 +2,11 @@
 
 const { agents } = storeToRefs(useAgentStore())
 const { mcpServers } = storeToRefs(useSettingsStore())
+const { getValidTools } = useSettingsStore()
 
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
 const { openAgentModal, handleDelete, selectAgent } = useAgent()
 
-const getValidTools = (tools: string[] | undefined) => {
-    if (!tools) return []
-
-    return tools.filter(toolId => {
-        const [serverName, toolName] = toolId.split('.')
-        const server = mcpServers.value[serverName]
-        return server && server.active && server.tools && server.tools[toolName]
-    })
-}
 </script>
 
 <template>
