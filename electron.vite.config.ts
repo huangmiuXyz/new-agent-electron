@@ -25,6 +25,9 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
+    optimizeDeps: {
+      exclude: ['@chevrotain/regexp-to-ast']
+    },
     plugins: [
       vue(),
       vueJsx(),
