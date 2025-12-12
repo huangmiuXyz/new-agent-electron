@@ -58,9 +58,20 @@ export const chatService = () => {
       ),
       tools: mapValues(tools, (t) => ({
         ...t,
-        execute: (input, options) => t.execute(input, { ...options, abortSignal: undefined })
+        execute: async (input, options) => {
+          debugger
+          const result = await t.execute(input, {
+            ...JSON.parse(JSON.stringify(options)),
+            abortSignal: undefined
+          })
+          return result
+        }
       })),
       instructions,
+      prepareCall: (options) => {
+        console.log(options)
+        return options
+      },
       stopWhen: [
         ({ steps }) => {
           return (
