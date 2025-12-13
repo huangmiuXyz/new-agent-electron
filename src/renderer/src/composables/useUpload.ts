@@ -59,9 +59,8 @@ export function useUpload(options: UseUploadOptions = {}) {
         const result = await window.api.showOpenDialog({
           properties: ['openFile', 'multiSelections']
         })
-
-        if (result && result.files && result.files.length > 0) {
-          return await processElectronFiles(result.files)
+        if (result && result.filePaths && result.filePaths.length > 0) {
+          return await processElectronFiles(result.filePaths)
         }
       } else {
         const fileHandles = await (window as any).showOpenFilePicker({
@@ -79,17 +78,17 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   }
 
-  const processElectronFiles = async (files: Array<{ path: string; name: string }>) => {
+  const processElectronFiles = async (paths: string[]) => {
     const processedFiles: UploadFile[] = []
-    for (const file of files) {
-      const content = window.api.fs.readFileSync(file.path)
+    for (const path of paths) {
+      const content = window.api.fs.readFileSync(path)
       const blob = arrayBufferToBlob(content.buffer)
       processedFiles.push({
         url: await blobToDataURL(blob),
         mediaType: 'application/octet-stream',
         blobUrl: URL.createObjectURL(blob),
-        filename: file.name,
-        name: file.name,
+        filename: window.api.path.basename(path),
+        name: window.api.path.basename(path),
         type: 'file' as const
       })
     }

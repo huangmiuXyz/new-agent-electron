@@ -2,6 +2,7 @@ import { contextBridge, shell } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { aiServices } from './services/ai/index'
 import fs from 'fs'
+import path from 'path'
 // Custom APIs for renderer
 
 // @ts-ignore
@@ -10,7 +11,8 @@ export const api = {
   openFile: (url: string) => shell.openExternal(url),
   showOpenDialog: (options: Electron.OpenDialogOptions) =>
     electronAPI.ipcRenderer.invoke('dialog:showOpenDialog', options),
-  fs
+  fs,
+  path
 }
 
 export type API = typeof api
