@@ -194,7 +194,7 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
     }
 })
 const addDocument = () => {
-    triggerUpload()
+    triggerUpload(true)
 }
 const searchBtn = useTemplateRef('searchBtn')
 const handleShowSearch = async () => {
@@ -234,7 +234,7 @@ const handleShowSearch = async () => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
