@@ -36,6 +36,8 @@ export const formatFileSize = (bytes: number): string => {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
+const userDataPath = window.api.getPath('userData')
+export const uploadDir = window.api.path.join(userDataPath, 'Data', 'Files')
 
 export const saveFilesToUserData = async (
   files: {
@@ -46,10 +48,6 @@ export const saveFilesToUserData = async (
   if (!window.api?.fs || !window.api?.path) {
     throw new Error('Required APIs not available')
   }
-
-  const userDataPath = window.api.getPath('userData')
-  const uploadDir = window.api.path.join(userDataPath, 'Data', 'Files')
-
   if (!window.api.fs.existsSync(uploadDir)) {
     window.api.fs.mkdirSync(uploadDir, { recursive: true })
   }
@@ -75,9 +73,6 @@ export const copyFilesToUserData = async (filePaths: string[]) => {
   if (!window.api?.fs || !window.api?.path) {
     throw new Error('Required APIs not available')
   }
-
-  const userDataPath = window.api.getPath('userData')
-  const uploadDir = window.api.path.join(userDataPath, 'Data', 'Files')
 
   if (!window.api.fs.existsSync(uploadDir)) {
     window.api.fs.mkdirSync(uploadDir, { recursive: true })

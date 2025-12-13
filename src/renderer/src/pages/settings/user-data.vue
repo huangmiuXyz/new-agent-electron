@@ -17,8 +17,6 @@ const { Folder, Refresh, File, FileText, FileImage, FileCode } = useIcon([
     'FileImage',
     'FileCode'
 ])
-
-const userDataPath = ref('')
 const files = ref<FileItem[]>([])
 const loading = ref(false)
 const activeCategory = ref<'all' | FileCategory>('all')
@@ -78,9 +76,7 @@ const FILE_ICON_MAP: Record<FileCategory, any> = {
 const loadFiles = async () => {
     loading.value = true
     try {
-        const root = window.api.getPath('userData')
-        userDataPath.value = root
-        const dir = window.api.path.join(root, 'Data', 'Files')
+        const dir = uploadDir
 
         if (!window.api.fs.existsSync(dir)) {
             files.value = []
@@ -118,10 +114,7 @@ const categorizedFiles = computed(() => {
 })
 
 const openFolder = () => {
-    const target = window.api.path.join(userDataPath.value, 'Data', 'Files')
-    window.api.openFile(
-        window.api.fs.existsSync(target) ? target : userDataPath.value
-    )
+    window.api.openFile(uploadDir)
 }
 
 const formatTime = (ts: number) => new Date(ts).toLocaleString()
