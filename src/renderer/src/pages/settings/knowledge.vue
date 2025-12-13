@@ -172,7 +172,10 @@ const showDeleteKnowledgeBaseModal = async () => {
 const showDeleteDocumentModal = async (document: KnowledgeDocument) => {
     const result = await confirm({
         title: '删除文档',
-        content: `确定要删除文档 "${document.name}" 吗？此操作不可撤销。`,
+        content: `确定要删除文档 "${document.name}" 吗？`,
+        confirmProps: {
+            danger: true
+        }
     })
     if (result) {
         deleteDocumentFromKnowledgeBase(activeKnowledgeBaseId.value, document.id)
