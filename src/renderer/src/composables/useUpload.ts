@@ -16,40 +16,6 @@ export interface UseUploadOptions {
   onRemove?: (index: number) => void
 }
 
-const saveFilesToUserData = async (
-  files: {
-    name: string
-    buffer: ArrayBuffer
-  }[]
-) => {
-  if (!window.api?.fs || !window.api?.path) {
-    throw new Error('Required APIs not available')
-  }
-
-  const userDataPath = window.api.getPath('userData')
-  const uploadDir = window.api.path.join(userDataPath, 'uploads')
-
-  if (!window.api.fs.existsSync(uploadDir)) {
-    window.api.fs.mkdirSync(uploadDir, { recursive: true })
-  }
-
-  const results: { name: string; path: string }[] = []
-
-  for (const file of files) {
-    const filePath = window.api.path.join(uploadDir, file.name)
-    const buffer = Buffer.from(file.buffer)
-
-    window.api.fs.writeFileSync(filePath, buffer)
-
-    results.push({
-      name: file.name,
-      path: filePath
-    })
-  }
-
-  return results
-}
-
 const openFile = (file: UploadFile) => {
   const fileUrl = file.blobUrl || file.url
 
