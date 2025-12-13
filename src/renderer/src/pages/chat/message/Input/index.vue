@@ -76,7 +76,7 @@ const _sendMessage = async () => {
   <footer class="footer">
     <div class="input-container" ref="inputContainerRef"
       :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
-      <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef" :inputRef="textareaRef"
+      <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
         @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
       <textarea ref="textareaRef" class="input-field" rows="1"
