@@ -7,27 +7,14 @@ export const useKnowledgeStore = defineStore(
     const knowledgeBases = ref<KnowledgeBase[]>([
       {
         id: 'default-local',
-        name: '本地知识库',
-        description: '本地文件系统中的知识库',
+        name: '默认数据库',
+        description: '',
         type: 'local',
         path: '',
-        embeddingModel: 'text-embedding-ada-002',
+        embeddingModel: '',
         chunkSize: 1000,
         chunkOverlap: 200,
         active: true,
-        created: +new Date(),
-        documents: []
-      },
-      {
-        id: 'default-remote',
-        name: '远程知识库',
-        description: '远程API访问的知识库',
-        type: 'remote',
-        url: '',
-        embeddingModel: 'text-embedding-ada-002',
-        chunkSize: 1000,
-        chunkOverlap: 200,
-        active: false,
         created: +new Date(),
         documents: []
       }
