@@ -1,9 +1,5 @@
-import { ref, watchEffect, type Ref } from 'vue'
 import { useDropZone } from '@vueuse/core'
 import { FileUIPart } from 'ai'
-import { blobToDataURL, dataURLToBlob } from '../utils'
-import { arrayBufferToBlob } from 'blob-util'
-
 export interface UploadFile extends FileUIPart {
   blobUrl?: string
   name?: string
@@ -147,7 +143,7 @@ export function useUpload(options: UseUploadOptions = {}) {
     )
     await processFiles(files)
   }
-  const handleFileSystemPicker = async () => {
+  const handleFileSystemPicker = async (shouldSaveFileToUserData: boolean) => {
     try {
       if (window.api.showOpenDialog) {
         const result = await window.api.showOpenDialog({
@@ -166,6 +162,9 @@ export function useUpload(options: UseUploadOptions = {}) {
             size: blob.size
           })
         })
+        if (shouldSaveFileToUserData) {
+          copyFilesToUserData(result.filePaths)
+        }
         return
       }
       const fileHandles = await (window as any).showOpenFilePicker({
@@ -174,6 +173,16 @@ export function useUpload(options: UseUploadOptions = {}) {
 
       if (fileHandles && fileHandles.length > 0) {
         await processFileSystemHandles(fileHandles)
+
+        if (shouldSaveFileToUserData) {
+          const files = await Promise.all(
+            selectedFiles.value.map(async (f) => ({
+              name: f.filename!,
+              buffer: await dataURLToBlob(f.url).arrayBuffer()
+            }))
+          )
+          saveFilesToUserData(files)
+        }
       }
     } catch (error: any) {
       if (error.name !== 'AbortError') {
@@ -242,8 +251,8 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   }
 
-  const triggerUpload = () => {
-    handleFileSystemPicker()
+  const triggerUpload = (shouldSaveFileToUserData: boolean) => {
+    handleFileSystemPicker(shouldSaveFileToUserData)
   }
 
   const clearSeletedFiles = () => {

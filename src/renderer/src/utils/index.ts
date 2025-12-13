@@ -1,6 +1,6 @@
 import localforage from 'localforage'
 export { cloneDeep, throttle, mapValues, retry } from 'es-toolkit'
-export { blobToDataURL, dataURLToBlob } from 'blob-util'
+export { blobToDataURL, dataURLToBlob, arrayBufferToBlob } from 'blob-util'
 export const copyText = (text: string) => {
   if (text) {
     navigator.clipboard
