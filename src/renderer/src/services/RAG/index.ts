@@ -1,1 +1,4 @@
-export const RAGService = () => {}
+export const RAGService = () => {
+  const embedding = () => {}
+  return { embedding }
+}

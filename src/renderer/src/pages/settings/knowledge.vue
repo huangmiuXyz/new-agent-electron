@@ -5,6 +5,7 @@ import Table from '@renderer/components/Table.vue'
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 const { updateKnowledgeBase, addKnowledgeBase, deleteKnowledgeBase, addDocumentToKnowledgeBase, deleteDocumentFromKnowledgeBase } = useKnowledgeStore()
 
+const { Plus, Search, Trash, File, Refresh } = useIcon(['Plus', 'Search', 'Trash', 'File', 'Refresh'])
 const { confirm } = useModal()
 const { showContextMenu } = useContextMenu<KnowledgeBase>()
 
@@ -92,9 +93,8 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
 const selectKnowledgeBase = (knowledgeBaseId: string) => {
     setActiveKnowledgeBase(knowledgeBaseId)
 }
-
 const handleKnowledgeBaseContextMenu = (event: MouseEvent, knowledgeBase: KnowledgeBase) => {
-    const { File, Trash } = useIcon(['File', 'Trash'])
+
     showContextMenu(event, [
         {
             label: '编辑知识库',
@@ -119,7 +119,6 @@ const handleKnowledgeBaseContextMenu = (event: MouseEvent, knowledgeBase: Knowle
     ])
 }
 
-const { Plus, Search, Trash } = useIcon(['Plus', 'Search', 'Trash'])
 const loading = ref(false)
 
 const showAddKnowledgeBaseModal = async () => {
@@ -205,7 +204,7 @@ const handleShowSearch = async () => {
     await nextTick()
     searchBtn.value?.focus()
 }
-
+const { embedding } = useKnowledge()
 
 </script>
 
@@ -237,7 +236,7 @@ const handleShowSearch = async () => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
@@ -247,7 +246,12 @@ const handleShowSearch = async () => {
                     </template>
                     <template #actions="props">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <Switch v-model="props.row.processed" size="sm" />
+
+                            <Button @click="embedding(props.row)" size="sm" type="button" variant="text">
+                                <template #icon>
+                                    <Refresh />
+                                </template>
+                            </Button>
                             <Button @click="showDeleteDocumentModal(props.row)" size="sm" type="button" variant="text">
                                 <template #icon>
                                     <Trash />
@@ -281,14 +285,12 @@ const handleShowSearch = async () => {
 </template>
 
 <style scoped>
-/* 为settings页面的List组件添加特殊样式 */
 :deep(.mode-ungap) {
     background: #ffffff;
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-    /* 设置自定义的选中项背景颜色 */
     --bg-active: #f0f0f0;
 }
 
