@@ -9,7 +9,8 @@
           <div v-if="item.type === 'divider'" class="radix-separator"></div>
 
           <!-- 菜单项 -->
-          <div v-else class="radix-item" :ref="el => setMenuItemRef(el, item)"
+          <div v-else-if="typeof item.ifShow !== 'function' || item.ifShow(contextData)" class="radix-item"
+            :ref="el => setMenuItemRef(el, item)"
             :class="{ 'danger': item.danger, 'disabled': item.disabled, 'has-submenu': item.children && item.children.length > 0 }"
             @click="handleItemClick(item)" @mouseenter="handleItemHover($event, item)" @mouseleave="handleItemLeave">
             <!-- 左侧内容：图标 + 文字 -->
@@ -76,7 +77,6 @@ const {
   submenuVisible,
   submenuPosition,
   submenuOptions,
-  parentItem,
   hideContextMenu,
   showSubmenu,
   hideSubmenu

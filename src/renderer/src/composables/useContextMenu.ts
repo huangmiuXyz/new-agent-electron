@@ -9,6 +9,7 @@ export interface MenuItem<T = unknown> {
   type?: 'divider'
   onClick?: (data: T) => void
   children?: MenuItem<T>[] // 子菜单项
+  ifShow?: (data: T) => boolean
 }
 
 // 全局单例状态

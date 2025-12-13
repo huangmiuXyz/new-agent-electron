@@ -6,7 +6,7 @@ const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 const { updateKnowledgeBase, addKnowledgeBase, deleteKnowledgeBase, addDocumentToKnowledgeBase, deleteDocumentFromKnowledgeBase } = useKnowledgeStore()
 
 const { confirm } = useModal()
-const { showContextMenu } = useContextMenu()
+const { showContextMenu } = useContextMenu<KnowledgeBase>()
 
 const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
     activeKnowledgeBaseId.value = knowledgeBaseId;
@@ -111,6 +111,9 @@ const handleKnowledgeBaseContextMenu = (event: MouseEvent, knowledgeBase: Knowle
             onClick: () => {
                 setActiveKnowledgeBase(knowledgeBase.id)
                 showDeleteKnowledgeBaseModal()
+            },
+            ifShow: (data) => {
+                return data.id !== 'default-local'
             }
         }
     ])
