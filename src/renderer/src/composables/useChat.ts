@@ -95,7 +95,7 @@ export const useChat = (chatId: string) => {
     const service = chatService()
     const mcpTools = agent.selectedAgent!.tools! || []
     const builtinTools = agent.selectedAgent!.builtinTools! || []
-    const { apiKey, baseUrl, id: provider, modelType } = toRefs(currentSelectedProvider.value!)
+    const { apiKey, baseUrl, id: provider, providerType } = toRefs(currentSelectedProvider.value!)
     const { id: model } = toRefs(currentSelectedModel.value!)
 
     const chat = new _useChat({
@@ -108,7 +108,7 @@ export const useChat = (chatId: string) => {
               apiKey: apiKey!.value!,
               baseURL: baseUrl.value,
               provider: provider.value,
-              modelType: modelType.value
+              providerType: providerType.value
             },
             chats!.messages,
             {

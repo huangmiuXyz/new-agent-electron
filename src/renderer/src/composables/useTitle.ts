@@ -42,7 +42,7 @@ export const useTitle = (chatId: string) => {
               apiKey: provider?.apiKey || '',
               baseURL: provider?.baseUrl || '',
               provider: provider?.id || '',
-              modelType: provider?.modelType || 'openai'
+              providerType: provider?.providerType || 'openai'
             })
             const cleanTitle = generatedTitle.trim().replace(/[""''""']/g, '')
             renameChat(chatId, cleanTitle)

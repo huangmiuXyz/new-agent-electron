@@ -4,97 +4,97 @@
     "baseUrl": "https://api.openai.com/v1",
     "id": "openai",
     "logo": "/images/providers/openai.png",
-    "modelType": "openai"
+    "providerType": "openai"
   },
   {
     "name": "Gemini",
     "baseUrl": "https://generativelanguage.googleapis.com",
     "id": "Gemini",
     "logo": "/images/providers/gemini.png",
-    "modelType": "google"
+    "providerType": "google"
   },
   {
     "name": "Anthropic",
     "baseUrl": "https://api.anthropic.com",
     "id": "Anthropic",
     "logo": "/images/providers/anthropic.png",
-    "modelType": "anthropic"
+    "providerType": "anthropic"
   },
   {
     "name": "深度探索",
     "baseUrl": "https://api.deepseek.com/v1",
     "id": "深度探索",
     "logo": "/images/providers/deepseek.png",
-    "modelType": "deepseek"
+    "providerType": "deepseek"
   },
   {
     "name": "火山引擎",
     "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
     "id": "火山引擎",
     "logo": "/images/providers/volcengine.png",
-    "modelType": "openai-compatible"
+    "providerType": "openai-compatible"
   },
   {
     "name": "阿里云百炼",
     "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
     "id": "阿里云百炼",
     "logo": "/images/providers/bailian.png",
-    "modelType": "openai-compatible"
+    "providerType": "openai-compatible"
   },
   {
     "name": "腾讯混元",
     "baseUrl": "https://api.hunyuan.cloud.tencent.com/v1",
     "id": "腾讯混元",
     "logo": "/images/providers/tencent-cloud-ti.png",
-    "modelType": "openai-compatible"
+    "providerType": "openai-compatible"
   },
   {
     "name": "xAi",
     "baseUrl": "https://api.x.ai/v1",
     "id": "xAi",
     "logo": "/images/providers/grok.png",
-    "modelType": "xai"
+    "providerType": "xai"
   },
   {
     "name": "硅基流动",
     "baseUrl": "https://api.siliconflow.cn/v1",
     "id": "硅基流动",
     "logo": "/images/providers/silicon.png",
-    "modelType": "openai-compatible"
+    "providerType": "openai-compatible"
   },
   {
     "name": "MiniMax",
     "baseUrl": "https://api.minimaxi.com/v1",
     "id": "MiniMax",
     "logo": "/images/providers/minimax.png",
-    "modelType": "openai-compatible"
+    "providerType": "openai-compatible"
   },
   {
     "name": "魔搭",
     "baseUrl": "https://api-inference.modelscope.cn/v1",
     "id": "魔搭",
     "logo": "/images/providers/modelscope.png",
-    "modelType": "openai-compatible"
+    "providerType": "openai-compatible"
   },
   {
     "name": "智谱清言",
     "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
     "id": "智谱清言",
     "logo": "/images/providers/zhipu.png",
-    "modelType": "openai-compatible"
+    "providerType": "openai-compatible"
   },
   {
     "name": "月之暗面",
     "baseUrl": "https://api.moonshot.cn/v1",
     "id": "月之暗面",
     "logo": "/images/providers/moonshot.png",
-    "modelType": "openai-compatible"
+    "providerType": "openai-compatible"
   },
   {
     "name": "OpenRouter",
     "baseUrl": "https://openrouter.ai/api/v1",
     "id": "OpenRouter",
     "logo": "/images/providers/openrouter.png",
-    "modelType": "openai-compatible"
+    "providerType": "openai-compatible"
   }
 ]

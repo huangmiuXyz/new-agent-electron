@@ -3,7 +3,7 @@ export interface TranslationOptions {
   apiKey: string
   baseURL: string
   provider: string
-  modelType: string
+  providerType: string
 }
 
 export function useTranslation() {
@@ -70,7 +70,7 @@ export function useTranslation() {
           apiKey: provider.apiKey,
           baseURL: provider.baseUrl,
           provider: provider.id,
-          modelType: provider.modelType
+          providerType: provider.providerType
         },
         translationController.signal
       )

@@ -1,13 +1,13 @@
 import { convertToModelMessages, generateText as _generateText, ToolLoopAgent } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
-type ModelType = 'anthropic' | 'openai' | 'deepseek' | 'google' | 'xai' | 'openai-compatible'
+type providerType = 'anthropic' | 'openai' | 'deepseek' | 'google' | 'xai' | 'openai-compatible'
 interface ChatServiceOptions {
   model: string
   apiKey: string
   baseURL: string
   provider: string
-  modelType: ModelType
+  providerType: providerType
 }
 
 interface ChatServiceConfig {
@@ -19,7 +19,7 @@ interface ChatServiceConfig {
 export const chatService = () => {
   const createAgent = async (
     cid: string,
-    { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions,
+    { model, apiKey, baseURL, provider, providerType }: ChatServiceOptions,
     messages: BaseMessage[],
     { mcpClient, instructions, mcpTools, builtinTools: selectedBuiltinTools }: ChatServiceConfig
   ) => {
@@ -54,7 +54,7 @@ export const chatService = () => {
     }
     const agent = new ToolLoopAgent({
       model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-        `${modelType}:${model}`
+        `${providerType}:${model}`
       ),
       tools: mapValues(tools, (t) => ({
         ...t,
@@ -101,11 +101,11 @@ export const chatService = () => {
   }
   const generateText = async (
     prompt: string,
-    { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions
+    { model, apiKey, baseURL, provider, providerType }: ChatServiceOptions
   ) => {
     const result = await _generateText({
       model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-        `${modelType}:${model}`
+        `${providerType}:${model}`
       ),
       prompt
     })
@@ -115,13 +115,13 @@ export const chatService = () => {
   const translateText = async (
     text: string,
     targetLanguage: string = '中文',
-    { model, apiKey, baseURL, provider, modelType }: ChatServiceOptions,
+    { model, apiKey, baseURL, provider, providerType }: ChatServiceOptions,
     abortSignal?: AbortSignal
   ) => {
     const prompt = `请将以下文本翻译为${targetLanguage}，只返回翻译结果，不要添加任何解释或额外内容：\n\n${text}`
     const result = await _generateText({
       model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-        `${modelType}:${model}`
+        `${providerType}:${model}`
       ),
       prompt,
       abortSignal

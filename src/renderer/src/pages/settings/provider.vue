@@ -59,7 +59,7 @@ const [ProviderForm, formActions] = useForm({
             placeholder: '例：https://api.openai.com/v1'
         },
         {
-            name: 'modelType',
+            name: 'providerType',
             type: 'select',
             label: '模型类型',
             options: [

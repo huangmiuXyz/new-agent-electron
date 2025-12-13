@@ -15,7 +15,7 @@ export const useSettingsStore = defineStore(
     const providers = ref<Provider[]>(
       data.map((p) => ({
         ...p,
-        modelType: p.modelType as Provider['modelType'],
+        providerType: p.providerType as Provider['providerType'],
         apiKey: '',
         models: []
       }))
