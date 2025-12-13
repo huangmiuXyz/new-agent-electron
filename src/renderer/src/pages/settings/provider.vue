@@ -3,6 +3,7 @@ import { FormItem } from '@renderer/composables/useForm'
 import Input from '@renderer/components/Input.vue'
 import Table from '@renderer/components/Table.vue'
 import Switch from '@renderer/components/Switch.vue'
+import Tags from '@renderer/components/Tags.vue'
 import { messageApi } from '@renderer/utils/messages'
 const { providers } = storeToRefs(useSettingsStore())
 const { updateProvider, addModelToProvider, deleteModelFromProvider } = useSettingsStore()
@@ -255,12 +256,13 @@ const handleShowSearch = async () => {
                     <FormItem label="模型列表">
                         <Table :loading="loading" :columns="tableColumns" :data="filteredModels">
                             <template #category="{ row }">
-                                <span class="text-sm">
-                                    {{ row.category === 'text' ? '文本' :
-                                        row.category === 'embedding' ? '嵌入式' :
-                                            row.category === 'image' ? '图像' :
-                                                row.category === 'rerank' ? '重排' : '文本' }}
-                                </span>
+                                <Tags :tags="[row.category === 'text' ? '文本' :
+                                    row.category === 'embedding' ? '嵌入式' :
+                                        row.category === 'image' ? '图像' :
+                                            row.category === 'rerank' ? '重排' : '文本']" :color="row.category === 'text' ? 'blue' :
+                                                    row.category === 'embedding' ? 'green' :
+                                                        row.category === 'image' ? 'orange' :
+                                                            row.category === 'rerank' ? 'purple' : 'blue'" />
                             </template>
                             <template #active="{ row }">
                                 <Switch v-model="row.active" />
