@@ -114,7 +114,7 @@ const categorizedFiles = computed(() => {
 })
 
 const openFolder = () => {
-    window.api.openFile(uploadDir)
+    window.api.shell.openPath(uploadDir)
 }
 
 const formatTime = (ts: number) => new Date(ts).toLocaleString()
