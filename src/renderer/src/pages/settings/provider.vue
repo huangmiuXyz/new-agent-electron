@@ -179,6 +179,12 @@ const showAddCustomModelModal = async () => {
     editingModelId.value = null
     customModelFormActions.reset()
 
+    customModelFormActions.setFieldsValue({
+        id: '',
+        name: '',
+        description: '',
+        category: 'text'
+    })
     const result = await confirm({
         title: `添加自定义模型到 ${activeProvider.value.name}`,
         content: CustomModelForm,
