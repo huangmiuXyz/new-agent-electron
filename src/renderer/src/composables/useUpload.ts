@@ -6,6 +6,8 @@ import { blobToDataURL, dataURLToBlob } from '../utils'
 export interface UploadFile extends FileUIPart {
   blobUrl?: string
   name?: string
+  path?: string
+  size: number
 }
 
 export interface UseUploadOptions {
@@ -136,7 +138,8 @@ export function useUpload(options: UseUploadOptions = {}) {
         blobUrl: URL.createObjectURL(f),
         filename: f.name,
         name: f.name,
-        type: 'file' as const
+        type: 'file' as const,
+        size: f.size
       }))
     )
 
@@ -236,12 +239,14 @@ export function useUpload(options: UseUploadOptions = {}) {
     handleFileSystemPicker()
   }
 
+  const clearSeletedFiles = () => {
+    selectedFiles.value = []
+  }
   watchEffect(() => {
     if (initialFiles) {
       selectedFiles.value = [...initialFiles]
     }
   })
-
   return {
     selectedFiles,
     isDragOver,
@@ -252,6 +257,7 @@ export function useUpload(options: UseUploadOptions = {}) {
     getBlobUrl,
     getFileIcon,
     triggerUpload,
+    clearSeletedFiles,
     handlePaste
   }
 }

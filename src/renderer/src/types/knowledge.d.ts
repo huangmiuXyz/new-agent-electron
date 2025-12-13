@@ -18,7 +18,7 @@ declare global {
     type: string
     size: number
     created: number
-    processed: boolean
+    processed?: boolean
   }
 }
 

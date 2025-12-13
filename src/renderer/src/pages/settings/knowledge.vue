@@ -178,7 +178,24 @@ const showDeleteDocumentModal = async (document: KnowledgeDocument) => {
         deleteDocumentFromKnowledgeBase(activeKnowledgeBaseId.value, document.id)
     }
 }
-const addDocument = () => { }
+const { triggerUpload, clearSeletedFiles } = useUpload({
+    onFilesSelected: (files) => {
+        files.forEach(f => {
+            addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, {
+                id: `doc_${Date.now()}`,
+                name: f.name!,
+                path: f.path!,
+                size: f.size,
+                type: f.type,
+                created: Date.now()
+            })
+        })
+        clearSeletedFiles()
+    }
+})
+const addDocument = () => {
+    triggerUpload()
+}
 const searchBtn = useTemplateRef('searchBtn')
 const handleShowSearch = async () => {
     showSearch.value = true
@@ -217,7 +234,7 @@ const handleShowSearch = async () => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
