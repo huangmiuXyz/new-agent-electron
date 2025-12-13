@@ -134,6 +134,8 @@ export const useChatsStores = defineStore(
     }
   },
   {
-    persist: true
+    persist: {
+      storage: indexedDBStorage
+    }
   }
 )

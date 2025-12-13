@@ -1,4 +1,4 @@
-import piniaPersist from 'pinia-plugin-persistedstate'
+import piniaPersist from 'pinia-plugin-persistedstate-async'
 
 import App from './App.vue'
 import router from './router'
