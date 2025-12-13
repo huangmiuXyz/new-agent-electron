@@ -2,12 +2,10 @@ import { ref, watchEffect, type Ref } from 'vue'
 import { useDropZone } from '@vueuse/core'
 import { FileUIPart } from 'ai'
 import { blobToDataURL, dataURLToBlob } from '../utils'
-import { arrayBufferToBlob } from 'blob-util'
 
 export interface UploadFile extends FileUIPart {
   blobUrl?: string
   name?: string
-  path?: string
 }
 
 export interface UseUploadOptions {
@@ -16,28 +14,7 @@ export interface UseUploadOptions {
   inputRef?: Ref<HTMLTextAreaElement | undefined>
   onFilesSelected?: (files: UploadFile[]) => void
   onRemove?: (index: number) => void
-  saveToUserData?: boolean // 是否保存到 userData 目录
 }
-
-export type SaveFilesToUserDataFunction = (
-  files: {
-    name: string
-    buffer: ArrayBuffer
-  }[]
-) => Promise<
-  {
-    name: string
-    path: string
-  }[]
->
-
-export type CopyFilesToUserDataFunction = (filePaths: string[]) => Promise<
-  {
-    name: string
-    sourcePath: string
-    destPath: string
-  }[]
->
 
 const saveFilesToUserData = async (
   files: {
@@ -49,11 +26,9 @@ const saveFilesToUserData = async (
     throw new Error('Required APIs not available')
   }
 
-  // 获取 userData 路径
   const userDataPath = window.api.getPath('userData')
   const uploadDir = window.api.path.join(userDataPath, 'uploads')
 
-  // 创建上传目录（如果不存在）
   if (!window.api.fs.existsSync(uploadDir)) {
     window.api.fs.mkdirSync(uploadDir, { recursive: true })
   }
@@ -75,67 +50,12 @@ const saveFilesToUserData = async (
   return results
 }
 
-const copyFilesToUserData = async (filePaths: string[]) => {
-  if (!window.api?.fs || !window.api?.path) {
-    throw new Error('Required APIs not available')
-  }
-
-  // 获取 userData 路径
-  const userDataPath = window.api.getPath('userData')
-  const uploadDir = window.api.path.join(userDataPath, 'uploads')
-
-  // 创建上传目录（如果不存在）
-  if (!window.api.fs.existsSync(uploadDir)) {
-    window.api.fs.mkdirSync(uploadDir, { recursive: true })
-  }
-
-  const results: {
-    name: string
-    sourcePath: string
-    destPath: string
-  }[] = []
-
-  for (const filePath of filePaths) {
-    const fileName = window.api.path.basename(filePath)
-    const destPath = window.api.path.join(uploadDir, fileName)
-
-    window.api.fs.copyFileSync(filePath, destPath)
-
-    results.push({
-      name: fileName,
-      sourcePath: filePath,
-      destPath
-    })
-  }
-
-  return results
-}
-
-const saveToUserData = async (files: UploadFile[]) => {
-  const payload = await Promise.all(
-    files.map(async (file) => {
-      const blob = dataURLToBlob(file.url)
-      const buffer = await blob.arrayBuffer()
-
-      return {
-        name: file.name || file.filename!,
-        buffer
-      }
-    })
-  )
-
-  return saveFilesToUserData(payload)
-}
-
 const openFile = (file: UploadFile) => {
   const fileUrl = file.blobUrl || file.url
 
   if (fileUrl) {
-    if (window.api && window.api.openFile) {
-      window.api.openFile(fileUrl)
-    } else {
-      window.open(fileUrl, '_blank')
-    }
+    // Web 环境下使用新窗口打开文件
+    window.open(fileUrl, '_blank')
   }
 }
 
@@ -236,20 +156,13 @@ const getFileIcon = (file: UploadFile) => {
 }
 
 export function useUpload(options: UseUploadOptions = {}) {
-  const {
-    files: initialFiles = [],
-    dropZoneRef,
-    inputRef,
-    onFilesSelected,
-    onRemove,
-    saveToUserData: globalSaveToUserData = true // 默认保存到 userData
-  } = options
+  const { files: initialFiles = [], dropZoneRef, inputRef, onFilesSelected, onRemove } = options
 
   const selectedFiles = ref<UploadFile[]>([...initialFiles])
 
   const isDragOver = ref(false)
 
-  const processFiles = async (files: FileList | File[], shouldSaveToUserData?: boolean) => {
+  const processFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files)
     const processedFiles = await Promise.all(
       fileArray.map(async (f) => ({
@@ -264,44 +177,28 @@ export function useUpload(options: UseUploadOptions = {}) {
 
     selectedFiles.value.push(...processedFiles)
 
-    if (shouldSaveToUserData !== false && globalSaveToUserData) {
-      await saveToUserData(processedFiles)
-    }
-
     if (onFilesSelected) {
       onFilesSelected(processedFiles)
     }
   }
 
-  const processFileSystemHandles = async (
-    handles: FileSystemFileHandle[],
-    shouldSaveToUserData?: boolean
-  ) => {
+  const processFileSystemHandles = async (handles: FileSystemFileHandle[]) => {
     const files = await Promise.all(
       handles.map(async (handle) => {
         const file = await handle.getFile()
         return file
       })
     )
-    await processFiles(files, shouldSaveToUserData)
+    await processFiles(files)
   }
-  const handleFileSystemPicker = async (shouldSaveToUserData?: boolean) => {
+  const handleFileSystemPicker = async () => {
     try {
-      if (window.api) {
-        const result = await window.api.showOpenDialog({
-          properties: ['openFile', 'multiSelections']
-        })
-        if (result && result.filePaths && result.filePaths.length > 0) {
-          await processElectronFiles(result.filePaths, shouldSaveToUserData)
-        }
-      } else {
-        const fileHandles = await (window as any).showOpenFilePicker({
-          multiple: true
-        })
+      const fileHandles = await (window as any).showOpenFilePicker({
+        multiple: true
+      })
 
-        if (fileHandles && fileHandles.length > 0) {
-          await processFileSystemHandles(fileHandles, shouldSaveToUserData)
-        }
+      if (fileHandles && fileHandles.length > 0) {
+        await processFileSystemHandles(fileHandles)
       }
     } catch (error: any) {
       if (error.name !== 'AbortError') {
@@ -309,33 +206,10 @@ export function useUpload(options: UseUploadOptions = {}) {
       }
     }
   }
-
-  const processElectronFiles = async (paths: string[], shouldSaveToUserData?: boolean) => {
-    const files: UploadFile[] = []
-    for (const filePath of paths) {
-      const content = window.api.fs.readFileSync(filePath)
-      const blob = arrayBufferToBlob(content.buffer)
-      const name = window.api.path.basename(filePath)
-      files.push({
-        url: await blobToDataURL(blob),
-        mediaType: window.api.mime.lookup(filePath) as string,
-        blobUrl: URL.createObjectURL(blob),
-        filename: name,
-        name,
-        type: 'file' as const,
-        path: filePath
-      })
-    }
-    selectedFiles.value.push(...files)
-
-    if (shouldSaveToUserData !== false && globalSaveToUserData) {
-      await copyFilesToUserData(paths)
-    }
-  }
   const { isOverDropZone } = useDropZone(dropZoneRef, {
     onDrop: (files) => {
       if (files && files.length > 0) {
-        processFiles(files, globalSaveToUserData)
+        processFiles(files)
       }
       isDragOver.value = false
     },
@@ -347,7 +221,7 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   })
 
-  const handlePaste = async (event: ClipboardEvent, shouldSaveToUserData?: boolean) => {
+  const handlePaste = async (event: ClipboardEvent) => {
     const items = event.clipboardData?.items
     if (!items) return
 
@@ -365,14 +239,14 @@ export function useUpload(options: UseUploadOptions = {}) {
 
     if (files.length > 0) {
       event.preventDefault()
-      await processFiles(files, shouldSaveToUserData)
+      await processFiles(files)
     }
   }
 
   watchEffect(() => {
     const ref = inputRef?.value
     if (ref) {
-      const wrappedHandlePaste = (event: ClipboardEvent) => handlePaste(event, globalSaveToUserData)
+      const wrappedHandlePaste = (event: ClipboardEvent) => handlePaste(event)
       ref.addEventListener('paste', wrappedHandlePaste)
       return () => {
         ref.removeEventListener('paste', wrappedHandlePaste)
@@ -393,8 +267,8 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   }
 
-  const triggerUpload = (shouldSaveToUserData?: boolean) => {
-    handleFileSystemPicker(shouldSaveToUserData)
+  const triggerUpload = () => {
+    handleFileSystemPicker()
   }
 
   watchEffect(() => {
@@ -413,8 +287,6 @@ export function useUpload(options: UseUploadOptions = {}) {
     getBlobUrl,
     getFileIcon,
     triggerUpload,
-    handlePaste,
-    saveFilesToUserData,
-    copyFilesToUserData
+    handlePaste
   }
 }
