@@ -74,6 +74,9 @@ export function useUpload(options: UseUploadOptions = {}) {
         if (shouldSaveFileToUserData) {
           copyFilesToUserData(result.filePaths)
         }
+        if (onFilesSelected) {
+          onFilesSelected(selectedFiles.value)
+        }
         return
       }
       const fileHandles = await (window as any).showOpenFilePicker({
