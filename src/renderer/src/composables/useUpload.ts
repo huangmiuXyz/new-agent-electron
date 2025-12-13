@@ -50,7 +50,7 @@ const saveFilesToUserData = async (
   }
 
   // 获取 userData 路径
-  const userDataPath = await window.api.getPath('userData')
+  const userDataPath = window.api.getPath('userData')
   const uploadDir = window.api.path.join(userDataPath, 'uploads')
 
   // 创建上传目录（如果不存在）
@@ -81,7 +81,7 @@ const copyFilesToUserData = async (filePaths: string[]) => {
   }
 
   // 获取 userData 路径
-  const userDataPath = await window.api.getPath('userData')
+  const userDataPath = window.api.getPath('userData')
   const uploadDir = window.api.path.join(userDataPath, 'uploads')
 
   // 创建上传目录（如果不存在）
