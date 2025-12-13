@@ -60,7 +60,7 @@ export function useUpload(options: UseUploadOptions = {}) {
           properties: ['openFile', 'multiSelections']
         })
         if (result && result.filePaths && result.filePaths.length > 0) {
-          return await processElectronFiles(result.filePaths)
+          await processElectronFiles(result.filePaths)
         }
       } else {
         const fileHandles = await (window as any).showOpenFilePicker({
@@ -68,7 +68,7 @@ export function useUpload(options: UseUploadOptions = {}) {
         })
 
         if (fileHandles && fileHandles.length > 0) {
-          return await processFileSystemHandles(fileHandles)
+          await processFileSystemHandles(fileHandles)
         }
       }
     } catch (error: any) {
@@ -79,11 +79,11 @@ export function useUpload(options: UseUploadOptions = {}) {
   }
 
   const processElectronFiles = async (paths: string[]) => {
-    const processedFiles: UploadFile[] = []
+    const files: UploadFile[] = []
     for (const path of paths) {
       const content = window.api.fs.readFileSync(path)
       const blob = arrayBufferToBlob(content.buffer)
-      processedFiles.push({
+      files.push({
         url: await blobToDataURL(blob),
         mediaType: blob.type,
         blobUrl: URL.createObjectURL(blob),
@@ -92,7 +92,7 @@ export function useUpload(options: UseUploadOptions = {}) {
         type: 'file' as const
       })
     }
-    return processedFiles
+    selectedFiles.value.push(...files)
   }
   const { isOverDropZone } = useDropZone(dropZoneRef, {
     onDrop: (files) => {
