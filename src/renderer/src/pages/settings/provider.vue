@@ -136,7 +136,7 @@ const refreshModels = async () => {
         })
         formActions.setFieldsValue({
             ...activeProvider.value!,
-            models: data.map(m => ({ ...m, name: m.id })),
+            models: data.map(m => ({ ...m, name: m.id, category: 'text' })),
         })
     } finally {
         loading.value = false

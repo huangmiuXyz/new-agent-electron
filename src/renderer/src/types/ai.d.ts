@@ -26,7 +26,7 @@ declare global {
     name: string
     description?: string
     active?: boolean
-    category?: ModelCategory
+    category: ModelCategory
   }
   type ClientConfig = Record<
     string,
