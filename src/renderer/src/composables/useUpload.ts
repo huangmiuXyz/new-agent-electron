@@ -6,6 +6,7 @@ import { blobToDataURL, dataURLToBlob } from '../utils'
 export interface UploadFile extends FileUIPart {
   blobUrl?: string
   name?: string
+  path?: string
 }
 
 export interface UseUploadOptions {
@@ -19,13 +20,9 @@ export interface UseUploadOptions {
 export function useUpload(options: UseUploadOptions = {}) {
   const { files: initialFiles = [], dropZoneRef, inputRef, onFilesSelected, onRemove } = options
 
-  // 文件列表
   const selectedFiles = ref<UploadFile[]>([...initialFiles])
 
-  // 拖拽状态
   const isDragOver = ref(false)
-
-  // 处理文件上传的通用函数
   const processFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files)
     const processedFiles = await Promise.all(
@@ -56,25 +53,21 @@ export function useUpload(options: UseUploadOptions = {}) {
     await processFiles(files)
   }
 
-  // 使用 File System Access API 选择文件
   const handleFileSystemPicker = async () => {
     try {
       const fileHandles = await (window as any).showOpenFilePicker({
         multiple: true
       })
-
       if (fileHandles && fileHandles.length > 0) {
         await processFileSystemHandles(fileHandles)
       }
     } catch (error: any) {
-      // 用户取消了文件选择，不需要处理
       if (error.name !== 'AbortError') {
         console.error('文件选择出错:', error)
       }
     }
   }
 
-  // 使用 useDropZone 处理拖拽上传
   const { isOverDropZone } = useDropZone(dropZoneRef, {
     onDrop: (files) => {
       if (files && files.length > 0) {
@@ -113,7 +106,6 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   }
 
-  // 通过传入的input ref监听粘贴事件
   watchEffect(() => {
     const ref = inputRef?.value
     if (ref) {
@@ -125,7 +117,6 @@ export function useUpload(options: UseUploadOptions = {}) {
     return () => {}
   })
 
-  // 移除文件
   const removeFile = (index: number) => {
     const file = selectedFiles.value[index]
     if (file.blobUrl) {
@@ -138,7 +129,6 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   }
 
-  // 打开文件
   const openFile = (file: UploadFile) => {
     const fileUrl = file.blobUrl || file.url
 
@@ -151,13 +141,11 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   }
 
-  // 获取 Blob URL
   const getBlobUrl = (url: string): string => {
     const blob = dataURLToBlob(url)
     return URL.createObjectURL(blob)
   }
 
-  // 获取文件图标
   const getFileIcon = (file: UploadFile) => {
     const mediaType = file.mediaType || ''
     const fileName = file.name || file.filename || ''
@@ -249,12 +237,10 @@ export function useUpload(options: UseUploadOptions = {}) {
     return 'File'
   }
 
-  // 触发文件选择
   const triggerUpload = () => {
     handleFileSystemPicker()
   }
 
-  // 监听外部文件列表变化
   watchEffect(() => {
     if (initialFiles) {
       selectedFiles.value = [...initialFiles]
@@ -262,12 +248,9 @@ export function useUpload(options: UseUploadOptions = {}) {
   })
 
   return {
-    // 状态
     selectedFiles,
     isDragOver,
     isOverDropZone,
-
-    // 方法
     processFiles,
     removeFile,
     openFile,
