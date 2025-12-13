@@ -83,7 +83,6 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   })
 
-  // 监听粘贴事件
   const handlePaste = async (event: ClipboardEvent) => {
     const items = event.clipboardData?.items
     if (!items) return
