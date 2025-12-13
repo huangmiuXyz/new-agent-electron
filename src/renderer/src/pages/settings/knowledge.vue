@@ -185,7 +185,7 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
         files.forEach(f => {
             addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, {
                 id: `doc_${nanoid()}`,
-                name: f.name!,
+                name: f.filename!,
                 path: f.path!,
                 size: f.size,
                 type: f.mediaType,
