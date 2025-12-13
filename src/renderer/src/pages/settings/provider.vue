@@ -35,7 +35,8 @@ const filteredModels = computed(() => {
 
 const tableColumns = [
     { key: 'name', label: '模型名称', width: '2fr' },
-    { key: 'id', label: '模型ID', width: '3fr' },
+    { key: 'id', label: '模型ID', width: '2fr' },
+    { key: 'category', label: '模型类型', width: '1fr' },
     { key: 'active', label: '启用', width: '1fr' },
     { key: 'actions', label: '操作', width: '1fr' }
 ]
@@ -102,6 +103,17 @@ const [CustomModelForm, customModelFormActions] = useForm({
             type: 'text',
             label: '模型描述（可选）',
             placeholder: '描述此模型的特点和用途'
+        },
+        {
+            name: 'category',
+            type: 'select',
+            label: '模型类型',
+            options: [
+                { value: 'text', label: '文本' },
+                { value: 'embedding', label: '嵌入式' },
+                { value: 'image', label: '图像' },
+                { value: 'rerank', label: '重排' }
+            ],
         }
     ],
     onSubmit: (data) => {
@@ -151,6 +163,7 @@ const handleSaveCustomModel = (data: any) => {
             id: data.id,
             name: data.name,
             description: data.description,
+            category: data.category || 'text',
             active: true,
             created: +new Date(),
             object: 'model',
@@ -182,7 +195,8 @@ const showEditModelModal = async (row: any) => {
     customModelFormActions.setFieldsValue({
         id: row.id,
         name: row.name,
-        description: row.description || ''
+        description: row.description || '',
+        category: row.category || 'text'
     })
 
     const result = await confirm({
@@ -234,6 +248,14 @@ const handleShowSearch = async () => {
                 <template #footer>
                     <FormItem label="模型列表">
                         <Table :loading="loading" :columns="tableColumns" :data="filteredModels">
+                            <template #category="{ row }">
+                                <span class="text-sm">
+                                    {{ row.category === 'text' ? '文本' :
+                                        row.category === 'embedding' ? '嵌入式' :
+                                            row.category === 'image' ? '图像' :
+                                                row.category === 'rerank' ? '重排' : '文本' }}
+                                </span>
+                            </template>
                             <template #active="{ row }">
                                 <Switch v-model="row.active" />
                             </template>

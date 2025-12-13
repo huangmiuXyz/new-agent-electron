@@ -25,6 +25,7 @@ declare global {
     name: string
     description?: string
     active?: boolean
+    category?: 'text' | 'embedding' | 'image' | 'rerank'
   }
   type ClientConfig = Record<
     string,
