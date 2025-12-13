@@ -85,7 +85,7 @@ export function useUpload(options: UseUploadOptions = {}) {
       const blob = arrayBufferToBlob(content.buffer)
       files.push({
         url: await blobToDataURL(blob),
-        mediaType: window.api.getType(path)!,
+        mediaType: window.api.mime.lookup(path) as string,
         blobUrl: URL.createObjectURL(blob),
         filename: window.api.path.basename(path),
         name: window.api.path.basename(path),
