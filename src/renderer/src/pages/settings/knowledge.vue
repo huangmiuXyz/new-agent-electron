@@ -2,8 +2,8 @@
 import { FormItem } from '@renderer/composables/useForm'
 import Input from '@renderer/components/Input.vue'
 import Table from '@renderer/components/Table.vue'
-const { knowledgeBases } = storeToRefs(useSettingsStore())
-const { updateKnowledgeBase, addKnowledgeBase, deleteKnowledgeBase, addDocumentToKnowledgeBase, deleteDocumentFromKnowledgeBase } = useSettingsStore()
+const { knowledgeBases } = storeToRefs(useKnowledgeStore())
+const { updateKnowledgeBase, addKnowledgeBase, deleteKnowledgeBase, addDocumentToKnowledgeBase, deleteDocumentFromKnowledgeBase } = useKnowledgeStore()
 
 const { confirm } = useModal()
 const { showContextMenu } = useContextMenu()
@@ -425,7 +425,7 @@ const formatDate = (timestamp: number): string => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ (props.row as KnowledgeDocument).type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize((props.row as KnowledgeDocument).size) }}
