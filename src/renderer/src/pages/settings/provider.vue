@@ -33,15 +33,13 @@ const filteredModels = computed(() => {
     )
 })
 
-// Table列配置
 const tableColumns = [
     { key: 'name', label: '模型名称', width: '2fr' },
     { key: 'id', label: '模型ID', width: '3fr' },
     { key: 'active', label: '启用', width: '1fr' },
-    { key: 'actions', label: '操作', width: '1fr' } // 新增操作列
+    { key: 'actions', label: '操作', width: '1fr' }
 ]
 
-// 定义编辑状态
 const editingModelId = ref<string | null>(null)
 
 const [ProviderForm, formActions] = useForm({
@@ -133,27 +131,22 @@ const refreshModels = async () => {
     }
 }
 
-// 提取保存逻辑 (区分新增和编辑)
 const handleSaveCustomModel = (data: any) => {
     if (!activeProvider.value) return
 
-    // 如果是编辑模式
     if (editingModelId.value) {
         const models = [...activeProvider.value.models]
         const index = models.findIndex(m => m.id === editingModelId.value)
 
         if (index > -1) {
-            // 更新模型数据 (保留原有的 created 等字段，覆盖新字段)
             models[index] = {
                 ...models[index],
                 ...data,
-                // 防止 active 状态被表单重置（如果表单里没有 switch）
                 active: models[index].active
             }
             updateProvider(activeProviderId.value, { ...activeProvider.value, models })
         }
     } else {
-        // 新增模式 (原有的 handleAddCustomModel 逻辑)
         const newModel: Model = {
             id: data.id,
             name: data.name,
@@ -167,12 +160,11 @@ const handleSaveCustomModel = (data: any) => {
     }
 }
 
-// 显示添加自定义模型的模态框
 const showAddCustomModelModal = async () => {
     if (!activeProvider.value) return
 
-    editingModelId.value = null // 标记为新增模式
-    customModelFormActions.reset() // 重置表单
+    editingModelId.value = null
+    customModelFormActions.reset()
 
     const result = await confirm({
         title: `添加自定义模型到 ${activeProvider.value.name}`,
@@ -183,13 +175,10 @@ const showAddCustomModelModal = async () => {
     }
 }
 
-// 新增显示"编辑"模态框的方法
 const showEditModelModal = async (row: any) => {
     if (!activeProvider.value) return
 
-    editingModelId.value = row.id // 标记为编辑模式，并记录原始ID
-
-    // 回填表单数据
+    editingModelId.value = row.id
     customModelFormActions.setFieldsValue({
         id: row.id,
         name: row.name,
@@ -206,17 +195,13 @@ const showEditModelModal = async (row: any) => {
     }
 }
 
-// 判断是否为自定义模型
 const isCustomModel = (model: any) => {
-    // 自定义模型通常有 created 字段，且 owned_by 等于当前提供商名称
     return model.created && model.owned_by === activeProvider.value?.name
 }
 
-// 删除模型
 const handleDeleteModel = async (row: any) => {
     if (!activeProvider.value) return
 
-    // 检查是否为自定义模型
     if (!isCustomModel(row)) {
         messageApi.error('只能删除自定义模型')
         return
@@ -243,10 +228,8 @@ const handleShowSearch = async () => {
 <template>
     <List type="gap" title="提供商" :items="providers" :active-id="activeProviderId" @select="selectProvider" />
 
-    <!-- 配置表单 -->
     <SettingFormContainer header-title="模型提供商">
-        <template #content> <!-- 厂商列表 -->
-
+        <template #content>
             <ProviderForm>
                 <template #footer>
                     <FormItem label="模型列表">
