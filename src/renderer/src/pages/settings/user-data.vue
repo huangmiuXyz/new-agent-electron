@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useModal } from '@renderer/composables/useModal'
+
 type FileCategory = 'image' | 'document' | 'data' | 'other'
 
 interface FileItem {
@@ -9,17 +11,20 @@ interface FileItem {
     type: string
 }
 
-const { Folder, Refresh } = useIcon([
+const { Folder, Refresh, Trash } = useIcon([
     'Folder',
     'Refresh',
     'File',
     'FileText',
     'FileImage',
-    'FileCode'
+    'FileCode',
+    'Trash'
 ])
 const files = ref<FileItem[]>([])
 const loading = ref(false)
 const activeCategory = ref<'all' | FileCategory>('all')
+const deletingFile = ref<string | null>(null)
+const modal = useModal()
 
 const categories = [
     { id: 'all', name: '全部' },
@@ -113,6 +118,31 @@ const openFolder = () => {
 
 const formatTime = (ts: number) => new Date(ts).toLocaleString()
 
+const deleteFile = async (file: FileItem) => {
+    const confirmed = await modal.confirm({
+        title: '删除文件',
+        content: `确定要删除文件${file.name}吗？`,
+        confirmProps: {
+            danger: true
+        }
+    })
+
+    if (confirmed) {
+        deletingFile.value = file.name
+        try {
+            if (window.api.fs.existsSync(file.path)) {
+                window.api.fs.unlinkSync(file.path)
+                // 从文件列表中移除
+                files.value = files.value.filter(f => f.path !== file.path)
+            }
+        } catch (error) {
+            console.error('删除文件失败:', error)
+        } finally {
+            deletingFile.value = null
+        }
+    }
+}
+
 onMounted(loadFiles)
 </script>
 
@@ -147,7 +177,8 @@ onMounted(loadFiles)
                         { key: 'name', label: '文件名称', width: '3fr' },
                         { key: 'type', label: '类型', width: '1.5fr' },
                         { key: 'size', label: '大小', width: '1fr' },
-                        { key: 'created', label: '创建时间', width: '2fr' }
+                        { key: 'created', label: '创建时间', width: '2fr' },
+                        { key: 'actions', label: '操作', width: '80px' }
                     ]">
                         <template #name="{ row }">
                             <div class="file-name-cell">
@@ -164,6 +195,14 @@ onMounted(loadFiles)
                         <template #created="{ row }">
                             {{ formatTime(row.created) }}
                         </template>
+                        <template #actions="{ row }">
+                            <Button @click="deleteFile(row)" size="sm" variant="text"
+                                :loading="deletingFile === row.name" class="delete-btn">
+                                <template #icon>
+                                    <Trash />
+                                </template>
+                            </Button>
+                        </template>
                     </Table>
                     <div v-if="files.length === 0 && !loading" class="empty-state">
                         <div class="empty-text">暂无文件</div>
@@ -172,6 +211,7 @@ onMounted(loadFiles)
             </div>
         </template>
     </SettingFormContainer>
+
 </template>
 
 <style scoped>
@@ -228,5 +268,19 @@ onMounted(loadFiles)
     display: flex;
     justify-content: center;
     color: var(--text-secondary);
+}
+
+.delete-btn {
+    color: var(--color-danger);
+}
+
+.delete-btn:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.warning-text {
+    color: var(--color-danger);
+    font-size: 12px;
+    margin-top: 8px;
 }
 </style>
