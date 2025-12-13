@@ -34,7 +34,6 @@ const filteredDocuments = computed(() => {
     )
 })
 
-// 统一的知识库表单（用于创建和编辑）
 const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'embeddingModel'>>({
     showHeader: true,
     initialData: {
@@ -63,9 +62,7 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
         }
     ],
     onSubmit: (data) => {
-        // 判断是创建还是编辑
         if (activeKnowledgeBaseId.value && activeKnowledgeBase.value) {
-            // 编辑模式
             const updatedKnowledgeBase: KnowledgeBase = {
                 ...activeKnowledgeBase.value,
                 ...data
@@ -81,7 +78,6 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
                 documents: []
             }
             addKnowledgeBase(newKnowledgeBase)
-            // 自动选中新创建的知识库
             setActiveKnowledgeBase(newKnowledgeBase.id)
         }
     }
@@ -92,7 +88,6 @@ const selectKnowledgeBase = (knowledgeBaseId: string) => {
     setActiveKnowledgeBase(knowledgeBaseId)
 }
 
-// 处理知识库右键菜单
 const handleKnowledgeBaseContextMenu = (event: MouseEvent, knowledgeBase: KnowledgeBase) => {
     const { File, Trash } = useIcon(['File', 'Trash'])
     showContextMenu(event, [
@@ -119,9 +114,7 @@ const handleKnowledgeBaseContextMenu = (event: MouseEvent, knowledgeBase: Knowle
 const { Plus, Search, Trash } = useIcon(['Plus', 'Search', 'Trash'])
 const loading = ref(false)
 
-// 显示添加知识库模态框
 const showAddKnowledgeBaseModal = async () => {
-    // 重置表单并清除当前活动知识库ID，以标识为创建模式
     formActions.reset()
     activeKnowledgeBaseId.value = ''
     const result = await confirm({
@@ -134,7 +127,6 @@ const showAddKnowledgeBaseModal = async () => {
     }
 }
 
-// 显示编辑知识库模态框
 const showEditKnowledgeBaseModal = async () => {
     if (!activeKnowledgeBase.value) {
         return
@@ -150,7 +142,6 @@ const showEditKnowledgeBaseModal = async () => {
     }
 }
 
-// 显示删除知识库确认对话框
 const showDeleteKnowledgeBaseModal = async () => {
     if (!activeKnowledgeBase.value) {
         return
@@ -164,14 +155,12 @@ const showDeleteKnowledgeBaseModal = async () => {
     })
     if (result) {
         deleteKnowledgeBase(activeKnowledgeBaseId.value)
-        // 切换到第一个可用的知识库
         if (knowledgeBases.value.length > 0) {
             setActiveKnowledgeBase(knowledgeBases.value[0].id)
         }
     }
 }
 
-// 显示删除文档确认对话框
 const showDeleteDocumentModal = async (document: KnowledgeDocument) => {
     const result = await confirm({
         title: '删除文档',
@@ -220,7 +209,7 @@ const handleShowSearch = async () => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
