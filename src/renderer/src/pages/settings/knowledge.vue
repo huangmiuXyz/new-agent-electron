@@ -40,7 +40,7 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
     initialData: {
         name: '',
         description: '',
-        embeddingModel: 'text-embedding-ada-002',
+        embeddingModel: {},
     },
     fields: [
         {
