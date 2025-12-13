@@ -70,3 +70,37 @@ export const saveFilesToUserData = async (
 
   return results
 }
+
+export const copyFilesToUserData = async (filePaths: string[]) => {
+  if (!window.api?.fs || !window.api?.path) {
+    throw new Error('Required APIs not available')
+  }
+
+  const userDataPath = window.api.getPath('userData')
+  const uploadDir = window.api.path.join(userDataPath, 'uploads')
+
+  if (!window.api.fs.existsSync(uploadDir)) {
+    window.api.fs.mkdirSync(uploadDir, { recursive: true })
+  }
+
+  const results: {
+    name: string
+    sourcePath: string
+    destPath: string
+  }[] = []
+
+  for (const filePath of filePaths) {
+    const fileName = window.api.path.basename(filePath)
+    const destPath = window.api.path.join(uploadDir, fileName)
+
+    window.api.fs.copyFileSync(filePath, destPath)
+
+    results.push({
+      name: fileName,
+      sourcePath: filePath,
+      destPath
+    })
+  }
+
+  return results
+}
