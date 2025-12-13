@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { FileUIPart } from 'ai';
-import { useDropZone } from '@vueuse/core';
-
 interface Props {
     files?: Array<FileUIPart & { blobUrl?: string; name?: string }>;
     removable?: boolean;
@@ -19,171 +17,47 @@ const emit = defineEmits<{
     filesSelected: [files: Array<FileUIPart & { blobUrl: string; }>]
 }>();
 
-// 文件上传相关状态
-const selectedFiles = ref<Array<FileUIPart & { blobUrl?: string; }>>(props.files || [])
-const FileInputRef = useTemplateRef('FileInputRef')
-
-// 拖拽状态
-const isDragOver = ref(false)
-
-// 处理文件上传的通用函数
-const processFiles = async (files: FileList | File[]) => {
-    const fileArray = Array.from(files)
-    const processedFiles = await Promise.all(
-        fileArray.map(async f => ({
-            url: await blobToDataURL(f),
-            mediaType: f.type,
-            blobUrl: URL.createObjectURL(f),
-            filename: f.name,
-            type: 'file' as const
-        }))
-    )
-
-    selectedFiles.value.push(...processedFiles)
-    emit('filesSelected', processedFiles)
-}
-
-// 使用 useDropZone 处理拖拽上传
-const { isOverDropZone } = useDropZone(() => props.dropZoneRef, {
-    onDrop: (files) => {
-        if (files && files.length > 0) {
-            processFiles(files)
-        }
-        isDragOver.value = false
-    },
-    onEnter: () => {
-        isDragOver.value = true
-    },
-    onLeave: () => {
-        isDragOver.value = false
-    }
-})
-
-// 监听粘贴事件
-const handlePaste = async (event: ClipboardEvent) => {
-    const items = event.clipboardData?.items
-    if (!items) return
-
-    const files: File[] = []
-
-    for (let i = 0; i < items.length; i++) {
-        const item = items[i]
-        if (item.kind === 'file') {
-            const file = item.getAsFile()
-            if (file) {
-                files.push(file)
-            }
+const {
+    selectedFiles,
+    isDragOver,
+    isOverDropZone,
+    removeFile,
+    openFile,
+    getBlobUrl,
+    getFileIcon,
+    triggerUpload,
+    handlePaste
+} = useUpload({
+    files: props.files as UploadFile[],
+    dropZoneRef: ref(props.dropZoneRef),
+    inputRef: ref(props.inputRef),
+    onFilesSelected: (files) => emit('filesSelected', files as Array<FileUIPart & { blobUrl: string }>),
+    onRemove: (index) => {
+        if (props.onRemove) {
+            props.onRemove(index);
+        } else {
+            emit('remove', index);
         }
     }
+});
 
-    if (files.length > 0) {
-        event.preventDefault()
-        await processFiles(files)
-    }
-}
-
-// 通过传入的input ref监听粘贴事件
-watchEffect(() => {
-    const inputRef = props.inputRef
-    if (inputRef) {
-        inputRef.addEventListener('paste', handlePaste)
-        // 返回清理函数
-        return () => {
-            inputRef.removeEventListener('paste', handlePaste)
-        }
-    }
-    // 如果没有inputRef，返回空函数
-    return () => { }
-})
-
-const handleUpload = async (e: Event) => {
-    const files = (e.target as HTMLInputElement).files
-    if (!files) return
-
-    await processFiles(files)
-    FileInputRef.value!.value = ''
-}
+// 兼容性方法
+const handleOpen = (file: any) => {
+    openFile(file);
+};
 
 const handleRemove = (index: number) => {
-    const file = selectedFiles.value[index]
-    if (file.blobUrl) {
-        URL.revokeObjectURL(file.blobUrl)
-    }
-    selectedFiles.value.splice(index, 1)
-
-    if (props.onRemove) {
-        props.onRemove(index);
-    } else {
-        emit('remove', index);
-    }
+    removeFile(index);
 };
 
-const handleOpen = (file: any) => {
-    const fileUrl = file.blobUrl || file.url;
-
-    if (fileUrl) {
-        if (window.api && window.api.openFile) {
-            window.api.openFile(fileUrl);
-        } else {
-            window.open(fileUrl, '_blank');
-        }
-    }
-};
-
-const getBlobUrl = (url: string): string => {
-    const blob = dataURLToBlob(url);
-    return URL.createObjectURL(blob);
-};
-
-const getFileIcon = (file: any) => {
-    const mediaType = file.mediaType || '';
-    const fileName = file.name || file.filename || '';
-    if (mediaType.includes('pdf')) {
-        return 'FileCertificate';
-    } else if (mediaType.includes('word') || mediaType.includes('document') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
-        return 'File';
-    } else if (mediaType.includes('excel') || mediaType.includes('spreadsheet') || fileName.endsWith('.xls') || fileName.endsWith('.xlsx')) {
-        return 'FileAnalytics';
-    } else if (mediaType.includes('powerpoint') || mediaType.includes('presentation') || fileName.endsWith('.ppt') || fileName.endsWith('.pptx')) {
-        return 'FileInvoice';
-    } else if (fileName.endsWith('.md') || mediaType.includes('markdown')) {
-        return 'Markdown';
-    } else if (mediaType.includes('text/') || mediaType.includes('plain') || fileName.endsWith('.txt')) {
-        return 'FileText';
-    } else if (mediaType.includes('javascript') || mediaType.includes('json') || mediaType.includes('xml') || mediaType.includes('html') || mediaType.includes('css') ||
-        fileName.endsWith('.js') || fileName.endsWith('.ts') || fileName.endsWith('.jsx') || fileName.endsWith('.tsx') ||
-        fileName.endsWith('.json') || fileName.endsWith('.xml') || fileName.endsWith('.html') || fileName.endsWith('.css') ||
-        fileName.endsWith('.py') || fileName.endsWith('.java') || fileName.endsWith('.cpp') || fileName.endsWith('.c') ||
-        fileName.endsWith('.go') || fileName.endsWith('.rs') || fileName.endsWith('.php') || fileName.endsWith('.rb')) {
-        return 'FileCode';
-    } else if (mediaType.includes('zip') || mediaType.includes('rar') || mediaType.includes('tar') || mediaType.includes('gzip') ||
-        fileName.endsWith('.zip') || fileName.endsWith('.rar') || fileName.endsWith('.tar') || fileName.endsWith('.gz') || fileName.endsWith('.7z')) {
-        return 'FileZip';
-    } else if (mediaType.includes('audio/') || fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.flac') || fileName.endsWith('.aac')) {
-        return 'FileMusic';
-    } else if (mediaType.includes('video/') || fileName.endsWith('.mp4') || fileName.endsWith('.avi') || fileName.endsWith('.mov') || fileName.endsWith('.mkv')) {
-        return 'Video';
-    }
-
-    return 'File';
-};
-const triggerUpload = () => {
-    FileInputRef.value!.click()
-}
 // 暴露给父组件的方法和状态
 defineExpose({
     selectedFiles,
     isDragOver,
     isOverDropZone,
-    triggerUpload
+    triggerUpload,
+    handlePaste
 });
-
-// 监听 props.files 的变化
-watch(() => props.files, (newFiles) => {
-    if (newFiles) {
-        selectedFiles.value = [...newFiles] as Array<FileUIPart & { blobUrl?: string; }>;
-    }
-}, { immediate: true, deep: true });
 </script>
 
 <template>
@@ -206,7 +80,6 @@ watch(() => props.files, (newFiles) => {
                 <button v-if="removable" class="remove-file-btn" @click="handleRemove(index)">×</button>
             </div>
         </div>
-        <input ref="FileInputRef" type="file" multiple @change="handleUpload" style="display: none;" />
     </div>
 </template>
 
