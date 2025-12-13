@@ -40,6 +40,7 @@ const adjustTextareaHeight = (event: Event) => {
 }
 
 const _sendMessage = async () => {
+  debugger
   if (!currentSelectedModel.value) {
     messageApi.error('请先选择模型')
     return

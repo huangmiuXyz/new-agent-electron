@@ -143,6 +143,8 @@ export const useSettingsStore = defineStore(
     }
   },
   {
-    persist: true
+    persist: {
+      storage: indexedDBStorage
+    }
   }
 )

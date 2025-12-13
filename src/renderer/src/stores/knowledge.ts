@@ -9,11 +9,7 @@ export const useKnowledgeStore = defineStore(
         id: 'default-local',
         name: '默认数据库',
         description: '',
-        type: 'local',
-        path: '',
         embeddingModel: '',
-        chunkSize: 1000,
-        chunkOverlap: 200,
         active: true,
         created: +new Date(),
         documents: []
