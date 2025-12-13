@@ -109,3 +109,94 @@ export const getBlobUrl = (url: string): string => {
   const blob = dataURLToBlob(url)
   return URL.createObjectURL(blob)
 }
+
+const getFileIcon = (file: UploadFile) => {
+  const mediaType = file.mediaType || ''
+  const fileName = file.name || file.filename || ''
+  if (mediaType.includes('pdf')) {
+    return 'FileCertificate'
+  } else if (
+    mediaType.includes('word') ||
+    mediaType.includes('document') ||
+    fileName.endsWith('.doc') ||
+    fileName.endsWith('.docx')
+  ) {
+    return 'File'
+  } else if (
+    mediaType.includes('excel') ||
+    mediaType.includes('spreadsheet') ||
+    fileName.endsWith('.xls') ||
+    fileName.endsWith('.xlsx')
+  ) {
+    return 'FileAnalytics'
+  } else if (
+    mediaType.includes('powerpoint') ||
+    mediaType.includes('presentation') ||
+    fileName.endsWith('.ppt') ||
+    fileName.endsWith('.pptx')
+  ) {
+    return 'FileInvoice'
+  } else if (fileName.endsWith('.md') || mediaType.includes('markdown')) {
+    return 'Markdown'
+  } else if (
+    mediaType.includes('text/') ||
+    mediaType.includes('plain') ||
+    fileName.endsWith('.txt')
+  ) {
+    return 'FileText'
+  } else if (
+    mediaType.includes('javascript') ||
+    mediaType.includes('json') ||
+    mediaType.includes('xml') ||
+    mediaType.includes('html') ||
+    mediaType.includes('css') ||
+    fileName.endsWith('.js') ||
+    fileName.endsWith('.ts') ||
+    fileName.endsWith('.jsx') ||
+    fileName.endsWith('.tsx') ||
+    fileName.endsWith('.json') ||
+    fileName.endsWith('.xml') ||
+    fileName.endsWith('.html') ||
+    fileName.endsWith('.css') ||
+    fileName.endsWith('.py') ||
+    fileName.endsWith('.java') ||
+    fileName.endsWith('.cpp') ||
+    fileName.endsWith('.c') ||
+    fileName.endsWith('.go') ||
+    fileName.endsWith('.rs') ||
+    fileName.endsWith('.php') ||
+    fileName.endsWith('.rb')
+  ) {
+    return 'FileCode'
+  } else if (
+    mediaType.includes('zip') ||
+    mediaType.includes('rar') ||
+    mediaType.includes('tar') ||
+    mediaType.includes('gzip') ||
+    fileName.endsWith('.zip') ||
+    fileName.endsWith('.rar') ||
+    fileName.endsWith('.tar') ||
+    fileName.endsWith('.gz') ||
+    fileName.endsWith('.7z')
+  ) {
+    return 'FileZip'
+  } else if (
+    mediaType.includes('audio/') ||
+    fileName.endsWith('.mp3') ||
+    fileName.endsWith('.wav') ||
+    fileName.endsWith('.flac') ||
+    fileName.endsWith('.aac')
+  ) {
+    return 'FileMusic'
+  } else if (
+    mediaType.includes('video/') ||
+    fileName.endsWith('.mp4') ||
+    fileName.endsWith('.avi') ||
+    fileName.endsWith('.mov') ||
+    fileName.endsWith('.mkv')
+  ) {
+    return 'Video'
+  }
+
+  return 'File'
+}
