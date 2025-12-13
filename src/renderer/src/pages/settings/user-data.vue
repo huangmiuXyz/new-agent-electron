@@ -9,7 +9,7 @@ interface FileItem {
     type: string
 }
 
-const { Folder, Refresh, File, FileText, FileImage, FileCode } = useIcon([
+const { Folder, Refresh } = useIcon([
     'Folder',
     'Refresh',
     'File',
