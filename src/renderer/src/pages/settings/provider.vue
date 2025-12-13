@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { FormItem } from '@renderer/composables/useForm'
 import Input from '@renderer/components/Input.vue'
+import Table from '@renderer/components/Table.vue'
+import Switch from '@renderer/components/Switch.vue'
 const { providers } = storeToRefs(useSettingsStore())
 const { updateProvider, addModelToProvider } = useSettingsStore()
 
@@ -29,6 +31,13 @@ const filteredModels = computed(() => {
         m.id.toLowerCase().includes(lower)
     )
 })
+
+// Table列配置
+const tableColumns = [
+    { key: 'name', label: '模型名称', width: '2fr' },
+    { key: 'id', label: '模型ID', width: '3fr' },
+    { key: 'active', label: '启用', width: '1fr' }
+]
 
 const [ProviderForm, formActions] = useForm({
     title: `${activeProvider.value?.name} 设置`,
@@ -168,12 +177,17 @@ const handleShowSearch = async () => {
             <ProviderForm>
                 <template #footer>
                     <FormItem label="模型列表">
-                        <List :loading="loading" type="ungap" :items="filteredModels" :key-field="'id'"
-                            :main-field="'name'" :sub-field="'id'">
-                            <template #actions="{ item }">
-                                <Switch v-model="item.active" />
+                        <Table :loading="loading" :columns="tableColumns" :data="filteredModels">
+                            <template #name="{ row }">
+                                {{ row.name }}
                             </template>
-                        </List>
+                            <template #id="{ row }">
+                                {{ row.id }}
+                            </template>
+                            <template #active="{ row }">
+                                <Switch v-model="row.active" />
+                            </template>
+                        </Table>
                         <template #tool>
                             <Button @click="refreshModels" size="sm" type="button" variant="text">
                                 <template #icon>
@@ -207,40 +221,4 @@ const handleShowSearch = async () => {
         </template>
     </SettingFormContainer>
 </template>
-<style scoped>
-/* 为settings页面的List组件添加特殊样式 */
-:deep(.mode-ungap) {
-    background: #ffffff;
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-    /* 设置自定义的选中项背景颜色 */
-    --bg-active: #f0f0f0;
-}
-
-:deep(.group-header) {
-    background: #fafafa;
-    border-bottom: 1px solid #f5f5f5;
-}
-
-:deep(.list-item) {
-    padding: 10px 14px;
-    padding-right: 10px;
-    border-bottom: 1px solid #f5f5f5;
-    background-color: #ffffff;
-}
-
-:deep(.list-item:last-child) {
-    border-bottom: none;
-}
-
-:deep(.list-item:hover) {
-    background-color: #fafafa;
-}
-
-/* 确保Switch组件正确对齐 */
-:deep(.item-actions) {
-    margin-left: 10px;
-}
-</style>
+<style scoped></style>

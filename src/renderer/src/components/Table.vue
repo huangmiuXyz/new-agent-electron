@@ -34,85 +34,52 @@
     </div>
 </template>
 
-<script setup>
-import { computed } from 'vue';
-
-const props = defineProps({
-    // 列定义：[{ key: 'name', label: 'Name', width: '3fr' }, ...]
-    columns: {
-        type: Array,
-        required: true,
-        default: () => []
-    },
-    // 数据源
-    data: {
-        type: Array,
-        default: () => []
-    },
-    loading: {
-        type: Boolean,
-        default: false
-    }
-});
+<script setup lang="ts" generic="T extends Record<string, any>">
+const props = defineProps<{
+    columns: Array<{ key: string; label: string; width?: string; headerClass?: string }>;
+    data: Array<T>;
+    loading?: boolean;
+}>();
 
 const emit = defineEmits(['row-click']);
 
-// 动态生成 Grid 列宽配置
 const gridTemplate = computed(() => {
     return props.columns.map(col => col.width || '1fr').join(' ');
 });
 </script>
 
 <style scoped>
-/* 引入 Phosphor Icons (如果全局未引入，可以在这里 import 或者在 index.html 引入) */
-
-:root {
-    --border-subtle: #eaeaea;
-    --text-secondary: #86868b;
-    --bg-hover: #fafafa;
-}
-
 .table-wrapper {
     border: 1px solid #eaeaea;
-    /* var(--border-subtle) */
     border-radius: 10px;
-    /* var(--radius-md) */
     overflow: hidden;
     background: #ffffff;
     display: flex;
     flex-direction: column;
 }
 
-/* 通用 Grid 布局控制 */
 .table-header,
 .table-row {
     display: grid;
     align-items: center;
     padding: 0 16px;
     gap: 16px;
-    /* 列之间的间距 */
 }
 
-/* 表头样式 */
 .table-header {
     height: 40px;
-    /* 原设计看起来比较紧凑 */
     background: #fcfcfc;
     border-bottom: 1px solid #eaeaea;
     font-size: 11px;
     font-weight: 600;
     color: #86868b;
-    /* var(--text-secondary) */
 }
 
-/* 行样式 */
 .table-row {
-    height: 64px;
-    /* 根据截图内容调整高度 */
+    height: 35px;
     border-bottom: 1px solid #eaeaea;
     font-size: 13px;
     color: #1d1d1f;
-    /* var(--text-primary) */
     transition: background 0.15s;
 }
 
@@ -124,14 +91,12 @@ const gridTemplate = computed(() => {
     background: #fafafa;
 }
 
-/* 单元格默认样式 */
 .table-cell {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-/* 状态行（空/加载） */
 .state-row {
     padding: 40px;
     text-align: center;
