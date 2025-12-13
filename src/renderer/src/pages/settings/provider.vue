@@ -146,6 +146,7 @@ const refreshModels = async () => {
                 if (result.id.toLowerCase().includes('rerank') || result.name.toLowerCase().includes('rerank')) {
                     result.category = 'rerank'
                 }
+                return result
             }),
         })
     } finally {
