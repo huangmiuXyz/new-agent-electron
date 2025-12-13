@@ -88,7 +88,7 @@ export const useSettingsStore = defineStore(
           if (!provider.models) {
             provider.models = []
           }
-          provider.models.push(model)
+          provider.models.unshift(model)
         }
       }
     }
