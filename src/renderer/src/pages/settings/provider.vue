@@ -142,8 +142,11 @@ const refreshModels = async () => {
             ...activeProvider.value!,
             models: data.map(m => {
                 const result = { ...m, id: m.id || m.model, name: m.name || m.id, category: 'text' }
-                if (result.id.includes('embed') || result.name.includes('embed')) {
+                if (result.id.toLowerCase().includes('embed') || result.name.toLowerCase().includes('embed')) {
                     result.category = 'embedding'
+                }
+                if (result.id.toLowerCase().includes('rerank') || result.name.toLowerCase().includes('rerank')) {
+                    result.category = 'rerank'
                 }
                 return result
             }),
