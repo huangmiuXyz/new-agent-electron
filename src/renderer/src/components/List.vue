@@ -203,6 +203,7 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   padding-left: 4px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
 }
 
 .mode-gap .list-item {
