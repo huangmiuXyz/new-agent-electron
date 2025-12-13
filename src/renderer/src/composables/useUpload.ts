@@ -66,7 +66,6 @@ export function useUpload(options: UseUploadOptions = {}) {
 
     selectedFiles.value.push(...processedFiles)
 
-    // 根据参数决定是否保存到 userData
     if (shouldSaveToUserData !== false && globalSaveToUserData) {
       await saveToUserData(processedFiles)
     }
@@ -131,7 +130,6 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
     selectedFiles.value.push(...files)
 
-    // 根据参数决定是否复制到 userData
     if (shouldSaveToUserData !== false && globalSaveToUserData) {
       await window.api.copyFilesToUserData?.(paths)
     }
