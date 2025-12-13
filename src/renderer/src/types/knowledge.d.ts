@@ -15,7 +15,7 @@ declare global {
     id: string
     name: string
     path: string
-    type: string
+    type: SplitType
     size: number
     created: number
     processed?: boolean

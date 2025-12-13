@@ -188,7 +188,7 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
                 name: f.name!,
                 path: f.path!,
                 size: f.size,
-                type: f.type,
+                type: f.mediaType,
                 created: Date.now()
             })
         })
@@ -236,7 +236,7 @@ const { embedding } = useKnowledge()
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
