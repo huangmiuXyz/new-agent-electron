@@ -93,6 +93,19 @@ export const useSettingsStore = defineStore(
       }
     }
 
+    const deleteModelFromProvider = (providerId: string, modelId: string) => {
+      const providerIndex = providers.value.findIndex((p) => p.id === providerId)
+      if (providerIndex !== -1) {
+        const provider = providers.value[providerIndex]
+        if (provider && provider.models) {
+          const modelIndex = provider.models.findIndex((m) => m.id === modelId)
+          if (modelIndex !== -1) {
+            provider.models.splice(modelIndex, 1)
+          }
+        }
+      }
+    }
+
     const updateDefaultModels = (settings: Partial<typeof defaultModels.value>) => {
       defaultModels.value = { ...defaultModels.value, ...settings }
     }
@@ -199,6 +212,7 @@ export const useSettingsStore = defineStore(
       updateDisplaySettings,
       updateProvider,
       addModelToProvider,
+      deleteModelFromProvider,
       updateDefaultModels,
       updateKnowledgeBase,
       addKnowledgeBase,

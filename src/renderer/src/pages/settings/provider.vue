@@ -3,8 +3,9 @@ import { FormItem } from '@renderer/composables/useForm'
 import Input from '@renderer/components/Input.vue'
 import Table from '@renderer/components/Table.vue'
 import Switch from '@renderer/components/Switch.vue'
+import { messageApi } from '@renderer/utils/messages'
 const { providers } = storeToRefs(useSettingsStore())
-const { updateProvider, addModelToProvider } = useSettingsStore()
+const { updateProvider, addModelToProvider, deleteModelFromProvider } = useSettingsStore()
 
 const { confirm } = useModal()
 
@@ -36,8 +37,12 @@ const filteredModels = computed(() => {
 const tableColumns = [
     { key: 'name', label: '模型名称', width: '2fr' },
     { key: 'id', label: '模型ID', width: '3fr' },
-    { key: 'active', label: '启用', width: '1fr' }
+    { key: 'active', label: '启用', width: '1fr' },
+    { key: 'actions', label: '操作', width: '1fr' } // 新增操作列
 ]
+
+// 定义编辑状态
+const editingModelId = ref<string | null>(null)
 
 const [ProviderForm, formActions] = useForm({
     title: `${activeProvider.value?.name} 设置`,
@@ -78,7 +83,7 @@ const [ProviderForm, formActions] = useForm({
 
 // 自定义模型表单
 const [CustomModelForm, customModelFormActions] = useForm({
-    title: '添加自定义模型',
+    title: editingModelId.value ? '编辑模型' : '添加自定义模型',
     showHeader: false,
     fields: [
         {
@@ -102,7 +107,7 @@ const [CustomModelForm, customModelFormActions] = useForm({
         }
     ],
     onSubmit: (data) => {
-        handleAddCustomModel(data)
+        handleSaveCustomModel(data)
     }
 })
 
@@ -110,7 +115,7 @@ const selectProvider = (providerId: string) => {
     setActiveProvider(providerId)
 }
 
-const { Refresh, Plus, Search } = useIcon(['Refresh', 'Plus', 'Search'])
+const { Refresh, Plus, Search, Edit, Delete } = useIcon(['Refresh', 'Plus', 'Search', 'Edit', 'Delete'])
 const loading = ref(false)
 const refreshModels = async () => {
     loading.value = true
@@ -128,12 +133,47 @@ const refreshModels = async () => {
     }
 }
 
+// 提取保存逻辑 (区分新增和编辑)
+const handleSaveCustomModel = (data: any) => {
+    if (!activeProvider.value) return
+
+    // 如果是编辑模式
+    if (editingModelId.value) {
+        const models = [...activeProvider.value.models]
+        const index = models.findIndex(m => m.id === editingModelId.value)
+
+        if (index > -1) {
+            // 更新模型数据 (保留原有的 created 等字段，覆盖新字段)
+            models[index] = {
+                ...models[index],
+                ...data,
+                // 防止 active 状态被表单重置（如果表单里没有 switch）
+                active: models[index].active
+            }
+            updateProvider(activeProviderId.value, { ...activeProvider.value, models })
+        }
+    } else {
+        // 新增模式 (原有的 handleAddCustomModel 逻辑)
+        const newModel: Model = {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            active: true,
+            created: +new Date(),
+            object: 'model',
+            owned_by: activeProvider.value.name
+        }
+        addModelToProvider(activeProviderId.value, newModel)
+    }
+}
+
 // 显示添加自定义模型的模态框
 const showAddCustomModelModal = async () => {
-    if (!activeProvider.value) {
-        return
-    }
-    customModelFormActions.reset()
+    if (!activeProvider.value) return
+
+    editingModelId.value = null // 标记为新增模式
+    customModelFormActions.reset() // 重置表单
+
     const result = await confirm({
         title: `添加自定义模型到 ${activeProvider.value.name}`,
         content: CustomModelForm,
@@ -143,22 +183,55 @@ const showAddCustomModelModal = async () => {
     }
 }
 
-// 处理添加自定义模型
-const handleAddCustomModel = (data: any) => {
-    if (!activeProvider.value) {
+// 新增显示"编辑"模态框的方法
+const showEditModelModal = async (row: any) => {
+    if (!activeProvider.value) return
+
+    editingModelId.value = row.id // 标记为编辑模式，并记录原始ID
+
+    // 回填表单数据
+    customModelFormActions.setFieldsValue({
+        id: row.id,
+        name: row.name,
+        description: row.description || ''
+    })
+
+    const result = await confirm({
+        title: '编辑模型',
+        content: CustomModelForm,
+    })
+
+    if (result) {
+        customModelFormActions.submit()
+    }
+}
+
+// 判断是否为自定义模型
+const isCustomModel = (model: any) => {
+    // 自定义模型通常有 created 字段，且 owned_by 等于当前提供商名称
+    return model.created && model.owned_by === activeProvider.value?.name
+}
+
+// 删除模型
+const handleDeleteModel = async (row: any) => {
+    if (!activeProvider.value) return
+
+    // 检查是否为自定义模型
+    if (!isCustomModel(row)) {
+        messageApi.error('只能删除自定义模型')
         return
     }
-    const newModel: Model = {
-        id: data.id,
-        name: data.name,
-        description: data.description,
-        active: true,
-        created: +new Date(),
-        object: 'model',
-        owned_by: activeProvider.value.name
+
+    const result = await confirm({
+        title: '删除模型',
+        content: `确定要删除模型 "${row.name}" 吗？此操作不可撤销。`,
+    })
+
+    if (result) {
+        deleteModelFromProvider(activeProviderId.value, row.id)
     }
-    addModelToProvider(activeProviderId.value, newModel)
 }
+
 const searchBtn = useTemplateRef('searchBtn')
 const handleShowSearch = async () => {
     showSearch.value = true
@@ -186,6 +259,24 @@ const handleShowSearch = async () => {
                             </template>
                             <template #active="{ row }">
                                 <Switch v-model="row.active" />
+                            </template>
+
+                            <!-- 新增：操作列插槽 -->
+                            <template #actions="{ row }">
+                                <Button type="button" variant="text" size="sm" @click="showEditModelModal(row)"
+                                    title="编辑模型">
+                                    <template #icon>
+                                        <Edit />
+                                    </template>
+                                </Button>
+                                <!-- 只有自定义模型才显示删除按钮 -->
+                                <Button v-if="isCustomModel(row)" type="button" variant="text" size="sm"
+                                    @click="handleDeleteModel(row)" title="删除模型"
+                                    class="text-red-500 hover:text-red-700">
+                                    <template #icon>
+                                        <Delete />
+                                    </template>
+                                </Button>
                             </template>
                         </Table>
                         <template #tool>
