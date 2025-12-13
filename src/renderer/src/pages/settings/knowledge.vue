@@ -11,7 +11,9 @@ const { showContextMenu } = useContextMenu()
 const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
     activeKnowledgeBaseId.value = knowledgeBaseId;
     const knowledgeBase = knowledgeBases.value.find(kb => kb.id === knowledgeBaseId)
-    formActions.setData(knowledgeBase!)
+    if (knowledgeBase) {
+        formActions.setData(knowledgeBase)
+    }
 };
 const activeKnowledgeBaseId = useLocalStorage<string>('activeKnowledgeBaseId', 'default-local');
 
@@ -32,18 +34,13 @@ const filteredDocuments = computed(() => {
     )
 })
 
-const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'type' | 'path' | 'url' | 'apiKey' | 'embeddingModel' | 'chunkSize' | 'chunkOverlap'>>({
+// 统一的知识库表单（用于创建和编辑）
+const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'embeddingModel'>>({
     showHeader: true,
     initialData: {
         name: '',
         description: '',
-        type: 'local',
-        path: '',
-        url: '',
-        apiKey: '',
         embeddingModel: 'text-embedding-ada-002',
-        chunkSize: 1000,
-        chunkOverlap: 200
     },
     fields: [
         {
@@ -59,158 +56,34 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             placeholder: '描述此知识库的用途和内容'
         },
         {
-            name: 'type',
-            type: 'select',
-            label: '知识库类型',
-            options: [
-                { value: 'local', label: '本地知识库' },
-                { value: 'remote', label: '远程知识库' }
-            ]
-        },
-        {
-            name: 'path',
-            type: 'text',
-            label: '本地路径',
-            placeholder: '例：/path/to/knowledge',
-            ifShow: (data) => data.type === 'local'
-        },
-        {
-            name: 'url',
-            type: 'text',
-            label: '远程 URL',
-            placeholder: '例：https://api.example.com/knowledge',
-            ifShow: (data) => data.type === 'remote'
-        },
-        {
-            name: 'apiKey',
-            type: 'password',
-            label: 'API 密钥（可选）',
-            ifShow: (data) => data.type === 'remote'
-        },
-        {
             name: 'embeddingModel',
-            type: 'select',
+            type: 'modelSelector',
             label: '嵌入模型',
-            options: [
-                { value: 'text-embedding-ada-002', label: 'text-embedding-ada-002' },
-                { value: 'text-embedding-3-small', label: 'text-embedding-3-small' },
-                { value: 'text-embedding-3-large', label: 'text-embedding-3-large' }
-            ]
-        },
-        {
-            name: 'chunkSize',
-            type: 'number',
-            label: '文档块大小',
-            placeholder: '默认：1000'
-        },
-        {
-            name: 'chunkOverlap',
-            type: 'number',
-            label: '文档块重叠',
-            placeholder: '默认：200'
+            modelCategory: 'embedding'
         }
     ],
     onSubmit: (data) => {
+        // 判断是创建还是编辑
         if (activeKnowledgeBaseId.value && activeKnowledgeBase.value) {
+            // 编辑模式
             const updatedKnowledgeBase: KnowledgeBase = {
                 ...activeKnowledgeBase.value,
                 ...data
             }
             updateKnowledgeBase(activeKnowledgeBaseId.value, updatedKnowledgeBase)
+        } else {
+            // 创建模式
+            const newKnowledgeBase: KnowledgeBase = {
+                id: `kb_${Date.now()}`,
+                ...data,
+                active: false,
+                created: Date.now(),
+                documents: []
+            }
+            addKnowledgeBase(newKnowledgeBase)
+            // 自动选中新创建的知识库
+            setActiveKnowledgeBase(newKnowledgeBase.id)
         }
-    }
-})
-
-// 创建知识库表单
-const [CreateKnowledgeBaseForm, createFormActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'type' | 'path' | 'url' | 'apiKey' | 'embeddingModel' | 'chunkSize' | 'chunkOverlap'>>({
-    showHeader: true,
-    initialData: {
-        name: '',
-        description: '',
-        type: 'local',
-        path: '',
-        url: '',
-        apiKey: '',
-        embeddingModel: 'text-embedding-ada-002',
-        chunkSize: 1000,
-        chunkOverlap: 200
-    },
-    fields: [
-        {
-            name: 'name',
-            type: 'text',
-            label: '知识库名称',
-            required: true,
-        },
-        {
-            name: 'description',
-            type: 'textarea',
-            label: '描述（可选）',
-            placeholder: '描述此知识库的用途和内容'
-        },
-        {
-            name: 'type',
-            type: 'select',
-            label: '知识库类型',
-            options: [
-                { value: 'local', label: '本地知识库' },
-                { value: 'remote', label: '远程知识库' }
-            ]
-        },
-        {
-            name: 'path',
-            type: 'text',
-            label: '本地路径',
-            placeholder: '例：/path/to/knowledge',
-            ifShow: (data) => data.type === 'local'
-        },
-        {
-            name: 'url',
-            type: 'text',
-            label: '远程 URL',
-            placeholder: '例：https://api.example.com/knowledge',
-            ifShow: (data) => data.type === 'remote'
-        },
-        {
-            name: 'apiKey',
-            type: 'password',
-            label: 'API 密钥（可选）',
-            ifShow: (data) => data.type === 'remote'
-        },
-        {
-            name: 'embeddingModel',
-            type: 'select',
-            label: '嵌入模型',
-            options: [
-                { value: 'text-embedding-ada-002', label: 'text-embedding-ada-002' },
-                { value: 'text-embedding-3-small', label: 'text-embedding-3-small' },
-                { value: 'text-embedding-3-large', label: 'text-embedding-3-large' }
-            ]
-        },
-        {
-            name: 'chunkSize',
-            type: 'number',
-            label: '文档块大小',
-            placeholder: '默认：1000'
-        },
-        {
-            name: 'chunkOverlap',
-            type: 'number',
-            label: '文档块重叠',
-            placeholder: '默认：200'
-        }
-    ],
-    onSubmit: (data) => {
-        const newKnowledgeBase: KnowledgeBase = {
-            id: `kb_${Date.now()}`,
-            ...data,
-            active: false,
-            created: Date.now(),
-            documents: []
-        }
-        addKnowledgeBase(newKnowledgeBase)
-        // 自动选中新创建的知识库
-        setActiveKnowledgeBase(newKnowledgeBase.id)
     }
 })
 
@@ -315,14 +188,16 @@ const handleAddDocument = (data: any) => {
 
 // 显示添加知识库模态框
 const showAddKnowledgeBaseModal = async () => {
-    createFormActions.reset()
+    // 重置表单并清除当前活动知识库ID，以标识为创建模式
+    formActions.reset()
+    activeKnowledgeBaseId.value = ''
     const result = await confirm({
         title: '添加知识库',
-        content: CreateKnowledgeBaseForm,
+        content: KnowledgeBaseForm,
         width: '50%'
     })
     if (result) {
-        createFormActions.submit()
+        formActions.submit()
     }
 }
 

@@ -141,6 +141,7 @@ export interface ModelSelectorField<T> extends BaseField<T> {
   type: 'modelSelector'
   placeholder?: string
   popupPosition?: 'bottom' | 'top'
+  modelCategory?: ModelCategory
 }
 
 export type FormField<T> =
@@ -596,6 +597,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                           layout="default"
                         >
                           <ModelSelector
+                            category={field.modelCategory}
                             popupPosition={field.popupPosition}
                             modelId={formData.value[field.name]?.modelId || ''}
                             providerId={formData.value[field.name]?.providerId || ''}

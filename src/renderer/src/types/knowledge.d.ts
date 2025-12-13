@@ -4,13 +4,7 @@ declare global {
     id: string
     name: string
     description?: string
-    type: 'local' | 'remote'
-    path?: string
-    url?: string
-    apiKey?: string
     embeddingModel?: string
-    chunkSize?: number
-    chunkOverlap?: number
     active: boolean
     created: number
     documents?: KnowledgeDocument[]
