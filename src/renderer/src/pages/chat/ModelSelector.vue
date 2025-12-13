@@ -3,11 +3,13 @@
 const selectedModelId = defineModel<string>('modelId', { default: '' })
 const selectedProviderId = defineModel<string>('providerId', { default: '' })
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   type: 'icon' | 'select',
   popupPosition?: 'top' | 'bottom'
+  category?: ModelCategory
 }>(), {
   type: 'select',
+  category: 'text'
 })
 const { providers } = storeToRefs(useSettingsStore())
 
@@ -37,7 +39,7 @@ const filteredModels = computed(() => {
   providers.value.forEach(provider => {
     const filteredModels = provider.models?.filter(model =>
       (model.name.toLowerCase().includes(query) ||
-        model.id.toLowerCase().includes(query)) && model.active
+        model.id.toLowerCase().includes(query)) && model.active && model.category === props.category
     )
     if (filteredModels?.length > 0) {
       result.push({ provider, models: filteredModels })

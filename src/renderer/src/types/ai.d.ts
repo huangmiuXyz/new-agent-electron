@@ -21,11 +21,12 @@ declare global {
   type BaseMessage = UIMessage<MetaData>
   type Tools = Awaited<ReturnType<typeof window.api.list_tools>>
   type ContentBlock = UIMessagePart
+  type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank'
   interface Model extends openAIModel {
     name: string
     description?: string
     active?: boolean
-    category?: 'text' | 'embedding' | 'image' | 'rerank'
+    category?: ModelCategory
   }
   type ClientConfig = Record<
     string,
