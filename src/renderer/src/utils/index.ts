@@ -48,7 +48,7 @@ export const saveFilesToUserData = async (
   }
 
   const userDataPath = window.api.getPath('userData')
-  const uploadDir = window.api.path.join(userDataPath, 'uploads')
+  const uploadDir = window.api.path.join(userDataPath, 'Data', 'Files')
 
   if (!window.api.fs.existsSync(uploadDir)) {
     window.api.fs.mkdirSync(uploadDir, { recursive: true })
@@ -77,7 +77,7 @@ export const copyFilesToUserData = async (filePaths: string[]) => {
   }
 
   const userDataPath = window.api.getPath('userData')
-  const uploadDir = window.api.path.join(userDataPath, 'uploads')
+  const uploadDir = window.api.path.join(userDataPath, 'Data', 'Files')
 
   if (!window.api.fs.existsSync(uploadDir)) {
     window.api.fs.mkdirSync(uploadDir, { recursive: true })
