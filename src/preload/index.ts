@@ -11,8 +11,11 @@ import { app } from '@electron/remote'
 export const api = {
   ...aiServices(),
   openFile: (url: string) => shell.openExternal(url),
-  showOpenDialog: (options: Electron.OpenDialogOptions) =>
-    electronAPI.ipcRenderer.invoke('dialog:showOpenDialog', options),
+  showOpenDialog: async (options: Electron.OpenDialogOptions) =>
+    (await electronAPI.ipcRenderer.invoke(
+      'dialog:showOpenDialog',
+      options
+    )) as Electron.OpenDialogReturnValue,
   getPath: app.getPath,
   fs,
   path,

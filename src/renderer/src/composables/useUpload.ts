@@ -2,6 +2,7 @@ import { ref, watchEffect, type Ref } from 'vue'
 import { useDropZone } from '@vueuse/core'
 import { FileUIPart } from 'ai'
 import { blobToDataURL, dataURLToBlob } from '../utils'
+import { arrayBufferToBlob } from 'blob-util'
 
 export interface UploadFile extends FileUIPart {
   blobUrl?: string
@@ -148,6 +149,25 @@ export function useUpload(options: UseUploadOptions = {}) {
   }
   const handleFileSystemPicker = async () => {
     try {
+      if (window.api.showOpenDialog) {
+        const result = await window.api.showOpenDialog({
+          properties: ['openFile', 'multiSelections']
+        })
+        result.filePaths?.forEach((path) => {
+          const file = window.api.fs.readFileSync(path)
+          const blob = arrayBufferToBlob(file.buffer)
+          selectedFiles.value.push({
+            url: '',
+            mediaType: window.api.mime.lookup(path) as string,
+            blobUrl: URL.createObjectURL(blob),
+            filename: path,
+            name: window.api.path.basename(path),
+            type: 'file' as const,
+            size: blob.size
+          })
+        })
+        return
+      }
       const fileHandles = await (window as any).showOpenFilePicker({
         multiple: true
       })
