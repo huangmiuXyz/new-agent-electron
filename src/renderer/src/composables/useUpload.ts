@@ -159,7 +159,7 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   }
 
-  const triggerUpload = (shouldSaveFileToUserData: boolean) => {
+  const triggerUpload = (shouldSaveFileToUserData: boolean = false) => {
     handleFileSystemPicker(shouldSaveFileToUserData)
   }
 
