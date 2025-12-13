@@ -132,23 +132,20 @@ const loading = ref(false)
 const refreshModels = async () => {
     loading.value = true
     try {
-        const result = await chatService().list_models({
+        const { data } = await chatService().list_models({
             apiKey: activeProvider.value!.apiKey!,
             baseURL: activeProvider.value!.baseUrl!,
-            providerType: activeProvider.value!.providerType!
         })
-        const data = result.data || result.models
         formActions.setFieldsValue({
             ...activeProvider.value!,
             models: data.map(m => {
-                const result = { ...m, id: m.id || m.model, name: m.name || m.id, category: 'text' }
+                const result = { ...m, name: m.id, category: 'text' }
                 if (result.id.toLowerCase().includes('embed') || result.name.toLowerCase().includes('embed')) {
                     result.category = 'embedding'
                 }
                 if (result.id.toLowerCase().includes('rerank') || result.name.toLowerCase().includes('rerank')) {
                     result.category = 'rerank'
                 }
-                return result
             }),
         })
     } finally {

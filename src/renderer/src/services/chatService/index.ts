@@ -135,11 +135,8 @@ export const chatService = () => {
     })
     return result.text
   }
-  const list_models = async ({ baseURL, apiKey, providerType }) => {
-    let url = {
-      ollama: `${baseURL}/api/tags`
-    }
-    const models = await fetch(url[providerType] || `${baseURL}/models`, {
+  const list_models = async ({ baseURL, apiKey }) => {
+    const models = await fetch(`${baseURL}/models`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
