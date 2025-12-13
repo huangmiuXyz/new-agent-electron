@@ -19,6 +19,26 @@ export interface UseUploadOptions {
   saveToUserData?: boolean // 是否保存到 userData 目录
 }
 
+export type SaveFilesToUserDataFunction = (
+  files: {
+    name: string
+    buffer: ArrayBuffer
+  }[]
+) => Promise<
+  {
+    name: string
+    path: string
+  }[]
+>
+
+export type CopyFilesToUserDataFunction = (filePaths: string[]) => Promise<
+  {
+    name: string
+    sourcePath: string
+    destPath: string
+  }[]
+>
+
 export function useUpload(options: UseUploadOptions = {}) {
   const {
     files: initialFiles = [],
@@ -33,9 +53,79 @@ export function useUpload(options: UseUploadOptions = {}) {
 
   const isDragOver = ref(false)
 
-  const saveToUserData = async (files: UploadFile[]) => {
-    if (!window.api?.saveFilesToUserData) return
+  const saveFilesToUserData = async (
+    files: {
+      name: string
+      buffer: ArrayBuffer
+    }[]
+  ) => {
+    if (!window.api?.fs || !window.api?.path) {
+      throw new Error('Required APIs not available')
+    }
 
+    // 获取 userData 路径
+    const userDataPath = await window.api.getPath('userData')
+    const uploadDir = window.api.path.join(userDataPath, 'uploads')
+
+    // 创建上传目录（如果不存在）
+    if (!window.api.fs.existsSync(uploadDir)) {
+      window.api.fs.mkdirSync(uploadDir, { recursive: true })
+    }
+
+    const results: { name: string; path: string }[] = []
+
+    for (const file of files) {
+      const filePath = window.api.path.join(uploadDir, file.name)
+      const buffer = Buffer.from(file.buffer)
+
+      window.api.fs.writeFileSync(filePath, buffer)
+
+      results.push({
+        name: file.name,
+        path: filePath
+      })
+    }
+
+    return results
+  }
+
+  const copyFilesToUserData = async (filePaths: string[]) => {
+    if (!window.api?.fs || !window.api?.path) {
+      throw new Error('Required APIs not available')
+    }
+
+    // 获取 userData 路径
+    const userDataPath = await window.api.getPath('userData')
+    const uploadDir = window.api.path.join(userDataPath, 'uploads')
+
+    // 创建上传目录（如果不存在）
+    if (!window.api.fs.existsSync(uploadDir)) {
+      window.api.fs.mkdirSync(uploadDir, { recursive: true })
+    }
+
+    const results: {
+      name: string
+      sourcePath: string
+      destPath: string
+    }[] = []
+
+    for (const filePath of filePaths) {
+      const fileName = window.api.path.basename(filePath)
+      const destPath = window.api.path.join(uploadDir, fileName)
+
+      window.api.fs.copyFileSync(filePath, destPath)
+
+      results.push({
+        name: fileName,
+        sourcePath: filePath,
+        destPath
+      })
+    }
+
+    return results
+  }
+
+  const saveToUserData = async (files: UploadFile[]) => {
     const payload = await Promise.all(
       files.map(async (file) => {
         const blob = dataURLToBlob(file.url)
@@ -48,7 +138,7 @@ export function useUpload(options: UseUploadOptions = {}) {
       })
     )
 
-    return window.api.saveFilesToUserData(payload)
+    return saveFilesToUserData(payload)
   }
 
   const processFiles = async (files: FileList | File[], shouldSaveToUserData?: boolean) => {
@@ -131,7 +221,7 @@ export function useUpload(options: UseUploadOptions = {}) {
     selectedFiles.value.push(...files)
 
     if (shouldSaveToUserData !== false && globalSaveToUserData) {
-      await window.api.copyFilesToUserData?.(paths)
+      await copyFilesToUserData(paths)
     }
   }
   const { isOverDropZone } = useDropZone(dropZoneRef, {
@@ -323,6 +413,8 @@ export function useUpload(options: UseUploadOptions = {}) {
     getBlobUrl,
     getFileIcon,
     triggerUpload,
-    handlePaste
+    handlePaste,
+    saveFilesToUserData,
+    copyFilesToUserData
   }
 }
