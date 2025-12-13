@@ -3,6 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 import { aiServices } from './services/ai/index'
 import fs from 'fs'
 import path from 'path'
+import mime from 'mime'
 // Custom APIs for renderer
 
 // @ts-ignore
@@ -12,7 +13,8 @@ export const api = {
   showOpenDialog: (options: Electron.OpenDialogOptions) =>
     electronAPI.ipcRenderer.invoke('dialog:showOpenDialog', options),
   fs,
-  path
+  path,
+  getType: mime.getType
 }
 
 export type API = typeof api
