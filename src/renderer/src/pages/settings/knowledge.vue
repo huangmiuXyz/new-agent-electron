@@ -174,16 +174,7 @@ const handleAddDocument = (data: any) => {
     if (!activeKnowledgeBase.value) {
         return
     }
-    const newDocument: KnowledgeDocument = {
-        id: `doc_${Date.now()}`,
-        name: data.name,
-        path: data.path,
-        type: data.type,
-        size: Math.floor(Math.random() * 1000000), // 模拟文件大小
-        created: +new Date(),
-        processed: false
-    }
-    addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, newDocument)
+    addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, data)
 }
 
 // 显示添加知识库模态框
