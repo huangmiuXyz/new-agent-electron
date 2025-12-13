@@ -99,7 +99,7 @@
   },
   {
     "name": "ollama",
-    "baseUrl": "http://localhost:11434",
+    "baseUrl": "http://localhost:11434/v1",
     "id": "ollama",
     "logo": "/images/providers/ollama.png",
     "providerType": "ollama"
