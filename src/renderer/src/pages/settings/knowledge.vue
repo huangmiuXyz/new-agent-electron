@@ -256,20 +256,7 @@ const handleShowSearch = async () => {
     searchBtn.value?.focus()
 }
 
-// 格式化文件大小
-const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
 
-// 格式化日期
-const formatDate = (timestamp: number): string => {
-    const date = new Date(timestamp)
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
-}
 </script>
 
 <template>
@@ -306,7 +293,7 @@ const formatDate = (timestamp: number): string => {
                         {{ formatFileSize((props.row as KnowledgeDocument).size) }}
                     </template>
                     <template #created="props">
-                        {{ formatDate((props.row as KnowledgeDocument).created) }}
+                        {{ formatTime((props.row as KnowledgeDocument).created) }}
                     </template>
                     <template #actions="props">
                         <div style="display: flex; align-items: center; gap: 8px;">
