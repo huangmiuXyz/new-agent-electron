@@ -55,16 +55,9 @@ export function useUpload(options: UseUploadOptions = {}) {
 
   const handleFileSystemPicker = async () => {
     try {
-      let fileHandles
-      if (window.api.showOpenDialog) {
-        fileHandles = await window.api.showOpenDialog({
-          properties: ['openFile', 'multiSelections']
-        })
-      } else {
-        fileHandles = await (window as any).showOpenFilePicker({
-          multiple: true
-        })
-      }
+      const fileHandles = await (window as any).showOpenFilePicker({
+        multiple: true
+      })
       if (fileHandles && fileHandles.length > 0) {
         await processFileSystemHandles(fileHandles)
       }
