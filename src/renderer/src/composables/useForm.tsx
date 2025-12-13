@@ -5,7 +5,7 @@ import Slider from '@renderer/components/Slider.vue'
 import Select from '@renderer/components/Select.vue'
 import InputGroup from '@renderer/components/InputGroup.vue'
 import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
-import ModelSelector from '@renderer/pages/chat/ModelSelector.vue'
+import ModelSelector from '@renderer/components/ModelSelector.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
 
 // FormItem 组件 - 统一的表单项布局组件
