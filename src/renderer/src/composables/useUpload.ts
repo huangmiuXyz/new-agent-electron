@@ -2,6 +2,7 @@ import { ref, watchEffect, type Ref } from 'vue'
 import { useDropZone } from '@vueuse/core'
 import { FileUIPart } from 'ai'
 import { blobToDataURL, dataURLToBlob } from '../utils'
+import { arrayBufferToBlob } from 'blob-util'
 
 export interface UploadFile extends FileUIPart {
   blobUrl?: string
@@ -52,14 +53,24 @@ export function useUpload(options: UseUploadOptions = {}) {
     )
     await processFiles(files)
   }
-
   const handleFileSystemPicker = async () => {
     try {
-      const fileHandles = await (window as any).showOpenFilePicker({
-        multiple: true
-      })
-      if (fileHandles && fileHandles.length > 0) {
-        await processFileSystemHandles(fileHandles)
+      if (window.api) {
+        const result = await window.api.showOpenDialog({
+          properties: ['openFile', 'multiSelections']
+        })
+
+        if (result && result.files && result.files.length > 0) {
+          return await processElectronFiles(result.files)
+        }
+      } else {
+        const fileHandles = await (window as any).showOpenFilePicker({
+          multiple: true
+        })
+
+        if (fileHandles && fileHandles.length > 0) {
+          return await processFileSystemHandles(fileHandles)
+        }
       }
     } catch (error: any) {
       if (error.name !== 'AbortError') {
@@ -68,6 +79,22 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   }
 
+  const processElectronFiles = async (files: Array<{ path: string; name: string }>) => {
+    const processedFiles: UploadFile[] = []
+    for (const file of files) {
+      const content = window.api.fs.readFileSync(file.path)
+      const blob = arrayBufferToBlob(content.buffer)
+      processedFiles.push({
+        url: await blobToDataURL(blob),
+        mediaType: 'application/octet-stream',
+        blobUrl: URL.createObjectURL(blob),
+        filename: file.name,
+        name: file.name,
+        type: 'file' as const
+      })
+    }
+    return processedFiles
+  }
   const { isOverDropZone } = useDropZone(dropZoneRef, {
     onDrop: (files) => {
       if (files && files.length > 0) {
