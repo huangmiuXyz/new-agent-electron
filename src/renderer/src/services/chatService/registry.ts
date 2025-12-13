@@ -13,6 +13,7 @@ export const createRegistry = (options: { apiKey: string; baseURL: string; name:
     google: createGoogleGenerativeAI(options),
     xai: createXai(options),
     openai: createOpenAI({ ...options, name: options.name }),
-    'openai-compatible': createOpenAICompatible({ ...options, name: options.name })
+    'openai-compatible': createOpenAICompatible({ ...options, name: options.name }),
+    ollama: createOpenAI({ ...options, name: options.name })
   })
 }

@@ -1,7 +1,14 @@
 import { convertToModelMessages, generateText as _generateText, ToolLoopAgent } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
-type providerType = 'anthropic' | 'openai' | 'deepseek' | 'google' | 'xai' | 'openai-compatible'
+type providerType =
+  | 'anthropic'
+  | 'openai'
+  | 'deepseek'
+  | 'google'
+  | 'xai'
+  | 'openai-compatible'
+  | 'ollama'
 interface ChatServiceOptions {
   model: string
   apiKey: string

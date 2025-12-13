@@ -53,6 +53,9 @@ importers:
       ai:
         specifier: 6.0.0-beta.129
         version: 6.0.0-beta.129(zod@4.1.13)
+      ai-sdk-ollama:
+        specifier: ^1.1.0
+        version: 1.1.0(ai@6.0.0-beta.129(zod@4.1.13))(zod@4.1.13)
       blob-util:
         specifier: ^2.0.2
         version: 2.0.2
@@ -83,6 +86,9 @@ importers:
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
+      ollama-ai-provider-v2:
+        specifier: 1.6.0-beta.0
+        version: 1.6.0-beta.0(zod@4.1.13)
       openai:
         specifier: ^6.9.1
         version: 6.9.1(zod@4.1.13)
@@ -279,6 +285,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4
 
+  '@ai-sdk/provider-utils@3.0.19':
+    resolution: {integrity: sha512-W41Wc9/jbUVXVwCN/7bWa4IKe8MtxO3EyA0Hfhx6grnmiYlCvpI8neSYWFE0zScXJkgA/YK3BRybzgyiXuu6JA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider-utils@4.0.0-beta.40':
     resolution: {integrity: sha512-5345iQxWV1coKbs85vkrThsEmiFcIkgqMZUKFrVDM7E4FRqgsnWtn4394/RnShOKRun5K7TWIYCLz3GfRGy/Ig==}
     engines: {node: '>=18'}
@@ -326,6 +338,10 @@ packages:
         optional: true
       effect:
         optional: true
+
+  '@ai-sdk/provider@2.0.0':
+    resolution: {integrity: sha512-6o7Y2SeO9vFKB8lArHXehNuusnpddKPk7xqL7T2/b+OvXMRIXUO1rR4wcv1hAFUAT9avGZshty3Wlua/XA7TvA==}
+    engines: {node: '>=18'}
 
   '@ai-sdk/provider@2.0.0-beta.1':
     resolution: {integrity: sha512-Z8SPncMtS3RsoXITmT7NVwrAq6M44dmw0DoUOYJqNNtCu8iMWuxB8Nxsoqpa0uEEy9R1V1ZThJAXTYgjTUxl3w==}
@@ -1660,6 +1676,12 @@ packages:
   aggregate-error@3.1.0:
     resolution: {integrity: sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==}
     engines: {node: '>=8'}
+
+  ai-sdk-ollama@1.1.0:
+    resolution: {integrity: sha512-Amyfr1NlP7GF0f6hLpWTnQ75gd5NN8wo+JiE4x0L2aNBsN256Qw55/xG1aCEYpDCSaZ8wBBzuvgbBn80twwVLA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      ai: ^5.0.108
 
   ai@6.0.0-beta.129:
     resolution: {integrity: sha512-FS/x0HbHAtMCaE23PKv+2IA6by0SDnibh0I/1AaIGpuglSUOWLmGAsOPxmHngqEnO83tO/Qfe8C0J6RGHxAuag==}
@@ -3492,6 +3514,15 @@ packages:
   ohash@2.0.11:
     resolution: {integrity: sha512-RdR9FQrFwNBNXAr4GixM8YaRZRJ5PUWbKYbE5eOsrwAjJW0q2REGcf79oYPsLyskQCZG1PLN+S/K1V00joZAoQ==}
 
+  ollama-ai-provider-v2@1.6.0-beta.0:
+    resolution: {integrity: sha512-Vl8h8ZyPMhxeLzSXKf4puBlR17G1PqUaRrCfKP94r4nB3sgIDRAZ8Ta23ClFXtinObcVP4iIZP4sYOqmOm7F7A==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^4.0.16
+
+  ollama@0.6.3:
+    resolution: {integrity: sha512-KEWEhIqE5wtfzEIZbDCLH51VFZ6Z3ZSa6sIOg/E/tBV8S51flyqBOXi+bRxlOYKDf8i327zG9eSTb8IJxvm3Zg==}
+
   on-finished@2.4.1:
     resolution: {integrity: sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==}
     engines: {node: '>= 0.8'}
@@ -4435,6 +4466,9 @@ packages:
   webpack-virtual-modules@0.6.2:
     resolution: {integrity: sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ==}
 
+  whatwg-fetch@3.6.20:
+    resolution: {integrity: sha512-EqhiFU6daOA8kpjOWTL0olhVOF3i7OrFzSYiGsEMB8GcXS+RrzauAERX65xMeNWVqxA6HXH2m69Z9LaKKdisfg==}
+
   which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
     engines: {node: '>= 8'}
@@ -4627,6 +4661,13 @@ snapshots:
       zod: 4.1.13
       zod-to-json-schema: 3.25.0(zod@4.1.13)
 
+  '@ai-sdk/provider-utils@3.0.19(zod@4.1.13)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@standard-schema/spec': 1.0.0
+      eventsource-parser: 3.0.6
+      zod: 4.1.13
+
   '@ai-sdk/provider-utils@4.0.0-beta.40(zod@4.1.13)':
     dependencies:
       '@ai-sdk/provider': 3.0.0-beta.22
@@ -4647,6 +4688,10 @@ snapshots:
       '@standard-schema/spec': 1.0.0
       eventsource-parser: 3.0.6
       zod: 4.1.13
+
+  '@ai-sdk/provider@2.0.0':
+    dependencies:
+      json-schema: 0.4.0
 
   '@ai-sdk/provider@2.0.0-beta.1':
     dependencies:
@@ -6108,6 +6153,15 @@ snapshots:
     dependencies:
       clean-stack: 2.2.0
       indent-string: 4.0.0
+
+  ai-sdk-ollama@1.1.0(ai@6.0.0-beta.129(zod@4.1.13))(zod@4.1.13):
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@ai-sdk/provider-utils': 3.0.19(zod@4.1.13)
+      ai: 6.0.0-beta.129(zod@4.1.13)
+      ollama: 0.6.3
+    transitivePeerDependencies:
+      - zod
 
   ai@6.0.0-beta.129(zod@4.1.13):
     dependencies:
@@ -8205,6 +8259,16 @@ snapshots:
 
   ohash@2.0.11: {}
 
+  ollama-ai-provider-v2@1.6.0-beta.0(zod@4.1.13):
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@ai-sdk/provider-utils': 3.0.19(zod@4.1.13)
+      zod: 4.1.13
+
+  ollama@0.6.3:
+    dependencies:
+      whatwg-fetch: 3.6.20
+
   on-finished@2.4.1:
     dependencies:
       ee-first: 1.1.1
@@ -9225,6 +9289,8 @@ snapshots:
       defaults: 1.0.4
 
   webpack-virtual-modules@0.6.2: {}
+
+  whatwg-fetch@3.6.20: {}
 
   which@2.0.2:
     dependencies:

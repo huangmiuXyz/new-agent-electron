@@ -96,5 +96,12 @@
     "id": "OpenRouter",
     "logo": "/images/providers/openrouter.png",
     "providerType": "openai-compatible"
+  },
+  {
+    "name": "ollama",
+    "baseUrl": "http://localhost:11434",
+    "id": "ollama",
+    "logo": "/images/providers/ollama.png",
+    "providerType": "ollama"
   }
 ]

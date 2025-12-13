@@ -69,7 +69,8 @@ const [ProviderForm, formActions] = useForm({
                 { value: 'deepseek', label: 'DeepSeek' },
                 { value: 'google', label: 'Google' },
                 { value: 'xai', label: 'xAI' },
-                { value: 'openai-compatible', label: 'OpenAI 兼容' }
+                { value: 'openai-compatible', label: 'OpenAI 兼容' },
+                { value: 'ollama', label: 'Ollama' }
             ]
         }
     ],
@@ -260,9 +261,9 @@ const handleShowSearch = async () => {
                                     row.category === 'embedding' ? '嵌入式' :
                                         row.category === 'image' ? '图像' :
                                             row.category === 'rerank' ? '重排' : '文本']" :color="row.category === 'text' ? 'blue' :
-                                                    row.category === 'embedding' ? 'green' :
-                                                        row.category === 'image' ? 'orange' :
-                                                            row.category === 'rerank' ? 'purple' : 'blue'" />
+                                                row.category === 'embedding' ? 'green' :
+                                                    row.category === 'image' ? 'orange' :
+                                                        row.category === 'rerank' ? 'purple' : 'blue'" />
                             </template>
                             <template #active="{ row }">
                                 <Switch v-model="row.active" />
