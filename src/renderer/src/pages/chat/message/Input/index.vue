@@ -94,7 +94,7 @@ const _sendMessage = async () => {
           <!-- 智能体选择器 -->
           <ChatAgentSelector type="icon" />
           <!-- 模型选择器 -->
-          <ChatModelSelector type="icon" v-model:model-id="selectedModelId" v-model:provider-id="selectedProviderId" />
+          <ModelSelector type="icon" v-model:model-id="selectedModelId" v-model:provider-id="selectedProviderId" />
         </div>
         <Button variant="primary" size="md" @click="_sendMessage">发送</Button>
       </div>
