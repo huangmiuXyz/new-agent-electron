@@ -132,13 +132,21 @@ const loading = ref(false)
 const refreshModels = async () => {
     loading.value = true
     try {
-        const { data } = await chatService().list_models({
+        const result = await chatService().list_models({
             apiKey: activeProvider.value!.apiKey!,
             baseURL: activeProvider.value!.baseUrl!,
+            providerType: activeProvider.value!.providerType!
         })
+        const data = result.data || result.models
         formActions.setFieldsValue({
             ...activeProvider.value!,
-            models: data.map(m => ({ ...m, name: m.id, category: 'text' })),
+            models: data.map(m => {
+                const result = { ...m, id: m.id || m.model, name: m.name || m.id, category: 'text' }
+                if (result.id.includes('embed') || result.name.includes('embed')) {
+                    result.category = 'embedding'
+                }
+                return result
+            }),
         })
     } finally {
         loading.value = false
