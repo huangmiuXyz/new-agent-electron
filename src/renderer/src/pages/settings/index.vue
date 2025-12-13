@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useSettingsStore } from '@renderer/stores/settings'
 import SettingsDefaultModels from './default-models.vue'
 import SettingsKnowledge from './knowledge.vue'
+import SettingsUserData from './user-data.vue'
 
 const settingsStore = useSettingsStore()
 const activeTab = ref('models')
@@ -38,6 +39,9 @@ const switchTab = (tabName: string) => {
 
       <!-- MCP 设置 -->
       <SettingsMcp v-else-if="activeTab === 'mcp'" />
+
+      <!-- User Data 设置 -->
+      <SettingsUserData v-else-if="activeTab === 'userData'" />
     </div>
   </div>
 </template>

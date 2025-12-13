@@ -38,7 +38,9 @@ import {
   Markdown,
   Video,
   Box,
-  Language
+  Language,
+  Folder,
+  Photo
 } from '@vicons/tabler'
 import { CommentAdd16Regular, Library16Filled, Mic16Filled, Wrench20Regular } from '@vicons/fluent'
 const icons = {
@@ -83,7 +85,9 @@ const icons = {
   Box,
   Language,
   Wrench20Regular,
-  Library16Filled
+  Library16Filled,
+  Folder,
+  FileImage: Photo
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
