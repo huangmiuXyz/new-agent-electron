@@ -76,7 +76,7 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
         } else {
             // 创建模式
             const newKnowledgeBase: KnowledgeBase = {
-                id: `kb_${Date.now()}`,
+                id: `kb_${nanoid()}`,
                 ...data,
                 active: false,
                 created: Date.now(),

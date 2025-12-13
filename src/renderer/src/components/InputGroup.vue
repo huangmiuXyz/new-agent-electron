@@ -69,7 +69,7 @@ const addItem = () => {
     } else {
         // 为对象模式添加一个待添加项（不立即保存到 model）
         pendingItems.value.push({
-            id: `pending_${Date.now()}`,
+            id: `pending_${nanoid()}`,
             key: '',
             value: ''
         })
