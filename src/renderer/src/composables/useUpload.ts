@@ -16,15 +16,42 @@ export interface UseUploadOptions {
   inputRef?: Ref<HTMLTextAreaElement | undefined>
   onFilesSelected?: (files: UploadFile[]) => void
   onRemove?: (index: number) => void
+  saveToUserData?: boolean // 是否保存到 userData 目录
 }
 
 export function useUpload(options: UseUploadOptions = {}) {
-  const { files: initialFiles = [], dropZoneRef, inputRef, onFilesSelected, onRemove } = options
+  const {
+    files: initialFiles = [],
+    dropZoneRef,
+    inputRef,
+    onFilesSelected,
+    onRemove,
+    saveToUserData: globalSaveToUserData = true // 默认保存到 userData
+  } = options
 
   const selectedFiles = ref<UploadFile[]>([...initialFiles])
 
   const isDragOver = ref(false)
-  const processFiles = async (files: FileList | File[]) => {
+
+  const saveToUserData = async (files: UploadFile[]) => {
+    if (!window.api?.saveFilesToUserData) return
+
+    const payload = await Promise.all(
+      files.map(async (file) => {
+        const blob = dataURLToBlob(file.url)
+        const buffer = await blob.arrayBuffer()
+
+        return {
+          name: file.name || file.filename!,
+          buffer
+        }
+      })
+    )
+
+    return window.api.saveFilesToUserData(payload)
+  }
+
+  const processFiles = async (files: FileList | File[], shouldSaveToUserData?: boolean) => {
     const fileArray = Array.from(files)
     const processedFiles = await Promise.all(
       fileArray.map(async (f) => ({
@@ -39,28 +66,36 @@ export function useUpload(options: UseUploadOptions = {}) {
 
     selectedFiles.value.push(...processedFiles)
 
+    // 根据参数决定是否保存到 userData
+    if (shouldSaveToUserData !== false && globalSaveToUserData) {
+      await saveToUserData(processedFiles)
+    }
+
     if (onFilesSelected) {
       onFilesSelected(processedFiles)
     }
   }
 
-  const processFileSystemHandles = async (handles: FileSystemFileHandle[]) => {
+  const processFileSystemHandles = async (
+    handles: FileSystemFileHandle[],
+    shouldSaveToUserData?: boolean
+  ) => {
     const files = await Promise.all(
       handles.map(async (handle) => {
         const file = await handle.getFile()
         return file
       })
     )
-    await processFiles(files)
+    await processFiles(files, shouldSaveToUserData)
   }
-  const handleFileSystemPicker = async () => {
+  const handleFileSystemPicker = async (shouldSaveToUserData?: boolean) => {
     try {
       if (window.api) {
         const result = await window.api.showOpenDialog({
           properties: ['openFile', 'multiSelections']
         })
         if (result && result.filePaths && result.filePaths.length > 0) {
-          await processElectronFiles(result.filePaths)
+          await processElectronFiles(result.filePaths, shouldSaveToUserData)
         }
       } else {
         const fileHandles = await (window as any).showOpenFilePicker({
@@ -68,7 +103,7 @@ export function useUpload(options: UseUploadOptions = {}) {
         })
 
         if (fileHandles && fileHandles.length > 0) {
-          await processFileSystemHandles(fileHandles)
+          await processFileSystemHandles(fileHandles, shouldSaveToUserData)
         }
       }
     } catch (error: any) {
@@ -78,27 +113,33 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   }
 
-  const processElectronFiles = async (paths: string[]) => {
+  const processElectronFiles = async (paths: string[], shouldSaveToUserData?: boolean) => {
     const files: UploadFile[] = []
-    for (const path of paths) {
-      const content = window.api.fs.readFileSync(path)
+    for (const filePath of paths) {
+      const content = window.api.fs.readFileSync(filePath)
       const blob = arrayBufferToBlob(content.buffer)
+      const name = window.api.path.basename(filePath)
       files.push({
         url: await blobToDataURL(blob),
-        mediaType: window.api.mime.lookup(path) as string,
+        mediaType: window.api.mime.lookup(filePath) as string,
         blobUrl: URL.createObjectURL(blob),
-        filename: window.api.path.basename(path),
-        name: window.api.path.basename(path),
+        filename: name,
+        name,
         type: 'file' as const,
-        path
+        path: filePath
       })
     }
     selectedFiles.value.push(...files)
+
+    // 根据参数决定是否复制到 userData
+    if (shouldSaveToUserData !== false && globalSaveToUserData) {
+      await window.api.copyFilesToUserData?.(paths)
+    }
   }
   const { isOverDropZone } = useDropZone(dropZoneRef, {
     onDrop: (files) => {
       if (files && files.length > 0) {
-        processFiles(files)
+        processFiles(files, globalSaveToUserData)
       }
       isDragOver.value = false
     },
@@ -110,7 +151,7 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   })
 
-  const handlePaste = async (event: ClipboardEvent) => {
+  const handlePaste = async (event: ClipboardEvent, shouldSaveToUserData?: boolean) => {
     const items = event.clipboardData?.items
     if (!items) return
 
@@ -128,16 +169,17 @@ export function useUpload(options: UseUploadOptions = {}) {
 
     if (files.length > 0) {
       event.preventDefault()
-      await processFiles(files)
+      await processFiles(files, shouldSaveToUserData)
     }
   }
 
   watchEffect(() => {
     const ref = inputRef?.value
     if (ref) {
-      ref.addEventListener('paste', handlePaste)
+      const wrappedHandlePaste = (event: ClipboardEvent) => handlePaste(event, globalSaveToUserData)
+      ref.addEventListener('paste', wrappedHandlePaste)
       return () => {
-        ref.removeEventListener('paste', handlePaste)
+        ref.removeEventListener('paste', wrappedHandlePaste)
       }
     }
     return () => {}
@@ -263,8 +305,8 @@ export function useUpload(options: UseUploadOptions = {}) {
     return 'File'
   }
 
-  const triggerUpload = () => {
-    handleFileSystemPicker()
+  const triggerUpload = (shouldSaveToUserData?: boolean) => {
+    handleFileSystemPicker(shouldSaveToUserData)
   }
 
   watchEffect(() => {

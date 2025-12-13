@@ -14,7 +14,67 @@ export const api = {
     electronAPI.ipcRenderer.invoke('dialog:showOpenDialog', options),
   fs,
   path,
-  mime
+  mime,
+  saveFilesToUserData: async (
+    files: {
+      name: string
+      buffer: ArrayBuffer
+    }[]
+  ) => {
+    const { app } = require('@electron/remote')
+    const userDataPath = app.getPath('userData')
+    const uploadDir = path.join(userDataPath, 'uploads')
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true })
+    }
+
+    const results: { name: string; path: string }[] = []
+
+    for (const file of files) {
+      const filePath = path.join(uploadDir, file.name)
+      const buffer = Buffer.from(file.buffer)
+
+      fs.writeFileSync(filePath, buffer)
+
+      results.push({
+        name: file.name,
+        path: filePath
+      })
+    }
+
+    return results
+  },
+  copyFilesToUserData: async (filePaths: string[]) => {
+    const { app } = require('@electron/remote')
+    const userDataPath = app.getPath('userData')
+    const uploadDir = path.join(userDataPath, 'uploads')
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true })
+    }
+
+    const results: {
+      name: string
+      sourcePath: string
+      destPath: string
+    }[] = []
+
+    for (const filePath of filePaths) {
+      const fileName = path.basename(filePath)
+      const destPath = path.join(uploadDir, fileName)
+
+      fs.copyFileSync(filePath, destPath)
+
+      results.push({
+        name: fileName,
+        sourcePath: filePath,
+        destPath
+      })
+    }
+
+    return results
+  }
 }
 
 export type API = typeof api

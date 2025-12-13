@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import mime from 'mime'
+import '@electron/remote/main'
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -46,11 +47,16 @@ app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
+  // Initialize @electron/remote
+  require('@electron/remote/main').initialize()
+
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
+    // Enable remote for the window
+    require('@electron/remote/main').enable(window.webContents)
   })
 
   // IPC test
