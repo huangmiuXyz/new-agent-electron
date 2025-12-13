@@ -15,8 +15,13 @@ const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
         formActions.setData(knowledgeBase)
     }
 };
-const activeKnowledgeBaseId = useLocalStorage<string>('activeKnowledgeBaseId', 'default-local');
+const activeKnowledgeBaseId = useLocalStorage<string>('activeKnowledgeBaseId', '');
 
+watch(() => activeKnowledgeBaseId.value, (v) => {
+    if (!v) {
+        activeKnowledgeBaseId.value = knowledgeBases.value[0].id
+    }
+})
 const activeKnowledgeBase = computed(() => {
     return knowledgeBases.value.find(kb => kb.id === activeKnowledgeBaseId.value);
 });
@@ -209,7 +214,7 @@ const handleShowSearch = async () => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
