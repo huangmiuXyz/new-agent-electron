@@ -87,41 +87,6 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
     }
 })
 
-// 自定义文档表单
-const [DocumentForm, documentFormActions] = useForm({
-    title: '添加文档',
-    showHeader: false,
-    fields: [
-        {
-            name: 'name',
-            type: 'text',
-            label: '文档名称',
-            required: true,
-            placeholder: '例如：用户手册'
-        },
-        {
-            name: 'path',
-            type: 'text',
-            label: '文档路径',
-            required: true,
-            placeholder: '例如：/path/to/document.pdf'
-        },
-        {
-            name: 'type',
-            type: 'select',
-            label: '文档类型',
-            options: [
-                { value: 'pdf', label: 'PDF' },
-                { value: 'txt', label: '文本文件' },
-                { value: 'docx', label: 'Word 文档' },
-                { value: 'md', label: 'Markdown' }
-            ]
-        }
-    ],
-    onSubmit: (data) => {
-        handleAddDocument(data)
-    }
-})
 
 const selectKnowledgeBase = (knowledgeBaseId: string) => {
     setActiveKnowledgeBase(knowledgeBaseId)
@@ -153,29 +118,6 @@ const handleKnowledgeBaseContextMenu = (event: MouseEvent, knowledgeBase: Knowle
 
 const { Plus, Search, Trash } = useIcon(['Plus', 'Search', 'Trash'])
 const loading = ref(false)
-
-// 显示添加文档的模态框
-const showAddDocumentModal = async () => {
-    if (!activeKnowledgeBase.value) {
-        return
-    }
-    documentFormActions.reset()
-    const result = await confirm({
-        title: `添加文档到 ${activeKnowledgeBase.value.name}`,
-        content: DocumentForm,
-    })
-    if (result) {
-        documentFormActions.submit()
-    }
-}
-
-// 处理添加文档
-const handleAddDocument = (data: any) => {
-    if (!activeKnowledgeBase.value) {
-        return
-    }
-    addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, data)
-}
 
 // 显示添加知识库模态框
 const showAddKnowledgeBaseModal = async () => {
@@ -239,7 +181,7 @@ const showDeleteDocumentModal = async (document: KnowledgeDocument) => {
         deleteDocumentFromKnowledgeBase(activeKnowledgeBaseId.value, document.id)
     }
 }
-
+const addDocument = () => { }
 const searchBtn = useTemplateRef('searchBtn')
 const handleShowSearch = async () => {
     showSearch.value = true
@@ -278,7 +220,7 @@ const handleShowSearch = async () => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
@@ -299,7 +241,7 @@ const handleShowSearch = async () => {
                 </Table>
                 <template #label>
                     <div style="display: flex;">
-                        <Button @click="showAddDocumentModal" size="sm" type="button" variant="text">
+                        <Button @click="addDocument" size="sm" type="button" variant="text">
                             <template #icon>
                                 <Plus />
                             </template>
