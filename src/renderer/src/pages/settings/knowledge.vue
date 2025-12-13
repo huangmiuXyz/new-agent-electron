@@ -286,20 +286,19 @@ const handleShowSearch = async () => {
                     { key: 'actions', label: '操作', width: '1fr' }
                 ]">
                     <template #type="props">
-                        <span style="text-transform: uppercase;">{{ (props.row as KnowledgeDocument).type
-                        }}</span>
+                        <span style="text-transform: uppercase;">{{ props.row.type
+                            }}</span>
                     </template>
                     <template #size="props">
-                        {{ formatFileSize((props.row as KnowledgeDocument).size) }}
+                        {{ formatFileSize(props.row.size) }}
                     </template>
                     <template #created="props">
-                        {{ formatTime((props.row as KnowledgeDocument).created) }}
+                        {{ formatTime(props.row.created) }}
                     </template>
                     <template #actions="props">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <Switch v-model="(props.row as KnowledgeDocument).processed" size="sm" />
-                            <Button @click="showDeleteDocumentModal(props.row as KnowledgeDocument)" size="sm"
-                                type="button" variant="text">
+                            <Switch v-model="props.row.processed" size="sm" />
+                            <Button @click="showDeleteDocumentModal(props.row)" size="sm" type="button" variant="text">
                                 <template #icon>
                                     <Trash />
                                 </template>
