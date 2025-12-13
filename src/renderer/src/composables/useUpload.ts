@@ -54,7 +54,6 @@ const openFile = (file: UploadFile) => {
   const fileUrl = file.blobUrl || file.url
 
   if (fileUrl) {
-    // Web 环境下使用新窗口打开文件
     window.open(fileUrl, '_blank')
   }
 }
