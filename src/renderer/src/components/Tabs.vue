@@ -37,13 +37,11 @@ const handleTabClick = (tabId: string) => {
 
 <template>
     <div class="tabs-container" :class="`tabs-${size}`">
-        <div class="tabs-list">
-            <div v-for="tab in items" :key="tab.id" class="tab-item" :class="{
-                active: activeTab === tab.id,
-                disabled: tab.disabled
-            }" @click="handleTabClick(tab.id)">
-                {{ tab.name }}
-            </div>
+        <div v-for="tab in items" :key="tab.id" class="tab-item" :class="{
+            active: activeTab === tab.id,
+            disabled: tab.disabled
+        }" @click="handleTabClick(tab.id)">
+            {{ tab.name }}
         </div>
     </div>
 </template>
@@ -57,12 +55,6 @@ const handleTabClick = (tabId: string) => {
     gap: 2px;
 }
 
-.tabs-list {
-    display: flex;
-    width: 100%;
-    gap: 2px;
-}
-
 .tab-item {
     padding: 4px 12px;
     font-size: 13px;
@@ -71,11 +63,6 @@ const handleTabClick = (tabId: string) => {
     color: var(--text-secondary);
     transition: all 0.2s;
     font-weight: 500;
-    flex: 1;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .tab-item:hover:not(.disabled) {

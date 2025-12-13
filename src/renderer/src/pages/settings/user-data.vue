@@ -193,10 +193,6 @@ onMounted(() => {
     padding: 4px 0;
 }
 
-.category-tabs {
-    flex: 1;
-    max-width: 400px;
-}
 
 .actions {
     display: flex;
