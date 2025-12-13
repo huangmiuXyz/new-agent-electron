@@ -105,9 +105,9 @@ export const getBlobUrl = (url: string): string => {
   return URL.createObjectURL(blob)
 }
 
-const getFileIcon = (file: UploadFile) => {
+export const getFileIcon = (file: { name: string; mediaType: string }) => {
   const mediaType = file.mediaType || ''
-  const fileName = file.name || file.filename || ''
+  const fileName = file.name || ''
   if (mediaType.includes('pdf')) {
     return 'FileCertificate'
   } else if (

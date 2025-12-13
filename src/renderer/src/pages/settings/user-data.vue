@@ -66,12 +66,6 @@ function getFileCategory(file: FileItem): FileCategory {
     }
     return 'other'
 }
-const FILE_ICON_MAP: Record<FileCategory, any> = {
-    image: FileImage,
-    document: FileText,
-    data: FileCode,
-    other: File
-}
 
 const loadFiles = async () => {
     loading.value = true
@@ -157,7 +151,10 @@ onMounted(loadFiles)
                     ]">
                         <template #name="{ row }">
                             <div class="file-name-cell">
-                                <component :is="FILE_ICON_MAP[getFileCategory(row)]" class="file-icon" />
+                                <component :is="useIcon(getFileIcon({
+                                    name: row.name,
+                                    mediaType: row.type,
+                                }))" class="file-icon" />
                                 <span class="name-text">{{ row.name }}</span>
                             </div>
                         </template>
