@@ -22,8 +22,6 @@ const {
     isDragOver,
     isOverDropZone,
     removeFile,
-    openFile,
-    getBlobUrl,
     getFileIcon,
     triggerUpload,
     handlePaste
@@ -41,10 +39,6 @@ const {
     }
 });
 
-// 兼容性方法
-const handleOpen = (file: any) => {
-    openFile(file);
-};
 
 const handleRemove = (index: number) => {
     removeFile(index);
@@ -64,8 +58,7 @@ defineExpose({
     <div class="file-upload-preview" :class="{ 'drag-over': isDragOver || isOverDropZone }">
         <!-- 文件预览区域 -->
         <div v-if="selectedFiles.length > 0" class="file-preview-container">
-            <div v-for="(file, index) in selectedFiles" :key="index" class="file-preview-item"
-                @dblclick="handleOpen(file)">
+            <div v-for="(file, index) in selectedFiles" :key="index" class="file-preview-item">
                 <img v-if="file.mediaType?.startsWith('image/')" :src="file.blobUrl || file.url || getBlobUrl(file.url)"
                     class="preview-file" />
 

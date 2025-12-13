@@ -18,19 +18,6 @@ export interface UseUploadOptions {
   onRemove?: (index: number) => void
 }
 
-const openFile = (file: UploadFile) => {
-  const fileUrl = file.blobUrl || file.url
-
-  if (fileUrl) {
-    window.open(fileUrl, '_blank')
-  }
-}
-
-const getBlobUrl = (url: string): string => {
-  const blob = dataURLToBlob(url)
-  return URL.createObjectURL(blob)
-}
-
 const getFileIcon = (file: UploadFile) => {
   const mediaType = file.mediaType || ''
   const fileName = file.name || file.filename || ''
@@ -253,8 +240,6 @@ export function useUpload(options: UseUploadOptions = {}) {
     isOverDropZone,
     processFiles,
     removeFile,
-    openFile,
-    getBlobUrl,
     getFileIcon,
     triggerUpload,
     clearSeletedFiles,

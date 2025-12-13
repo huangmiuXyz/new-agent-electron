@@ -31,11 +31,6 @@ watch(isEditing, (newVal) => {
     }
 })
 
-const getBlobUrl = (url: string): string => {
-    const blob = dataURLToBlob(url)
-    return URL.createObjectURL(blob)
-}
-
 onUnmounted(() => {
     blobUrlMap.value.forEach(blobUrl => {
         URL.revokeObjectURL(blobUrl)
