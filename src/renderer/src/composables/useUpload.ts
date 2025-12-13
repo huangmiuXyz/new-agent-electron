@@ -173,7 +173,6 @@ export function useUpload(options: UseUploadOptions = {}) {
 
       if (fileHandles && fileHandles.length > 0) {
         await processFileSystemHandles(fileHandles)
-
         if (shouldSaveFileToUserData) {
           const files = await Promise.all(
             selectedFiles.value.map(async (f) => ({
