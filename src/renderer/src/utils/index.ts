@@ -63,7 +63,7 @@ export const saveFilesToUserData = async (
     window.api.fs.writeFileSync(filePath, buffer)
 
     results.push({
-      name: file.name,
+      ...file,
       path: filePath
     })
   }
