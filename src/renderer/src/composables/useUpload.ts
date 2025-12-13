@@ -85,7 +85,7 @@ export function useUpload(options: UseUploadOptions = {}) {
       const blob = arrayBufferToBlob(content.buffer)
       processedFiles.push({
         url: await blobToDataURL(blob),
-        mediaType: 'application/octet-stream',
+        mediaType: blob.type,
         blobUrl: URL.createObjectURL(blob),
         filename: window.api.path.basename(path),
         name: window.api.path.basename(path),
