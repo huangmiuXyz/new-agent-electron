@@ -1,4 +1,14 @@
 <script setup lang="ts">
+type FileCategory = 'image' | 'document' | 'data' | 'other'
+
+interface FileItem {
+    name: string
+    path: string
+    size: number
+    created: number
+    type: string
+}
+
 const { Folder, Refresh, File, FileText, FileImage, FileCode } = useIcon([
     'Folder',
     'Refresh',
@@ -9,9 +19,9 @@ const { Folder, Refresh, File, FileText, FileImage, FileCode } = useIcon([
 ])
 
 const userDataPath = ref('')
-const files = ref<any[]>([])
+const files = ref<FileItem[]>([])
 const loading = ref(false)
-const activeCategory = ref('all')
+const activeCategory = ref<'all' | FileCategory>('all')
 
 const categories = [
     { id: 'all', name: '全部' },
@@ -20,105 +30,103 @@ const categories = [
     { id: 'data', name: '数据' },
     { id: 'other', name: '其他' }
 ]
+const FILE_CATEGORY_RULES: Record<FileCategory, {
+    mimeStartsWith?: string[]
+    mimeIncludes?: string[]
+    extensions?: string[]
+}> = {
+    image: {
+        mimeStartsWith: ['image/'],
+        extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp']
+    },
+    document: {
+        mimeIncludes: ['pdf', 'word', 'text'],
+        extensions: ['txt', 'md', 'pdf', 'doc', 'docx']
+    },
+    data: {
+        mimeIncludes: ['json', 'xml', 'csv'],
+        extensions: ['json', 'xml', 'csv', 'db', 'sqlite']
+    },
+    other: {}
+}
+
+function getFileCategory(file: FileItem): FileCategory {
+    const name = file.name.toLowerCase()
+    const mime = file.type || ''
+    const ext = name.split('.').pop() || ''
+
+    for (const [category, rule] of Object.entries(FILE_CATEGORY_RULES)) {
+        if (rule.mimeStartsWith?.some(m => mime.startsWith(m))) {
+            return category as FileCategory
+        }
+        if (rule.mimeIncludes?.some(m => mime.includes(m))) {
+            return category as FileCategory
+        }
+        if (rule.extensions?.includes(ext)) {
+            return category as FileCategory
+        }
+    }
+    return 'other'
+}
+const FILE_ICON_MAP: Record<FileCategory, any> = {
+    image: FileImage,
+    document: FileText,
+    data: FileCode,
+    other: File
+}
 
 const loadFiles = async () => {
     loading.value = true
     try {
-        if (window.api && window.api.getPath) {
-            const root = window.api.getPath('userData')
-            userDataPath.value = root
-            const uploadsDir = window.api.path.join(root, 'Data', 'Files')
+        const root = window.api.getPath('userData')
+        userDataPath.value = root
+        const dir = window.api.path.join(root, 'Data', 'Files')
 
-            if (window.api.fs.existsSync(uploadsDir)) {
-                const fileNames = window.api.fs.readdirSync(uploadsDir)
-                const fileList = await Promise.all(fileNames.map(async (name) => {
-                    const filePath = window.api.path.join(uploadsDir, name)
-                    try {
-                        const stats = window.api.fs.statSync(filePath)
-                        // Use mime or simple extension check
-                        let type = 'unknown'
-                        if (window.api.mime) {
-                            type = window.api.mime.lookup(name) || 'unknown'
-                        } else {
-                            const ext = name.split('.').pop()?.toLowerCase()
-                            if (['png', 'jpg', 'jpeg', 'gif', 'svg'].includes(ext || '')) type = 'image/' + ext
-                            else if (['txt', 'md', 'pdf', 'doc', 'docx'].includes(ext || '')) type = 'application/' + ext
-                        }
-
-                        return {
-                            name,
-                            path: filePath,
-                            size: stats.size,
-                            created: stats.birthtimeMs || stats.ctimeMs, // Use timestamp
-                            type
-                        }
-                    } catch (e) {
-                        console.warn(`Could not stat file ${name}`, e)
-                        return null
-                    }
-                }))
-                files.value = fileList.filter(f => f !== null)
-            } else {
-                files.value = []
-            }
+        if (!window.api.fs.existsSync(dir)) {
+            files.value = []
+            return
         }
+
+        const names = window.api.fs.readdirSync(dir)
+
+        files.value = names.map(name => {
+            const filePath = window.api.path.join(dir, name)
+            const stat = window.api.fs.statSync(filePath)
+
+            const type = window.api.mime
+                ? window.api.mime.lookup(name) || 'application/octet-stream'
+                : 'application/octet-stream'
+
+            return {
+                name,
+                path: filePath,
+                size: stat.size,
+                created: stat.birthtimeMs || stat.ctimeMs,
+                type
+            }
+        })
     } catch (e) {
-        console.error('Failed to load files', e)
+        console.error('load files failed', e)
+        files.value = []
     } finally {
         loading.value = false
     }
 }
-
 const categorizedFiles = computed(() => {
     if (activeCategory.value === 'all') return files.value
-
-    return files.value.filter(file => {
-        const type = file.type || ''
-        const name = file.name.toLowerCase()
-
-        if (activeCategory.value === 'image') return type.startsWith('image')
-
-        if (activeCategory.value === 'document') {
-            return type.includes('pdf') || type.includes('word') || type.includes('text') ||
-                name.endsWith('.md') || name.endsWith('.txt') || name.endsWith('.doc') || name.endsWith('.docx')
-        }
-
-        if (activeCategory.value === 'data') {
-            return type.includes('json') || type.includes('xml') || type.includes('csv') ||
-                name.endsWith('.json') || name.endsWith('.db') || name.endsWith('.sqlite')
-        }
-
-        // Other
-        if (activeCategory.value === 'other') {
-            // messy check but sufficient for now
-            const isImage = type.startsWith('image')
-            const isDoc = type.includes('pdf') || type.includes('word') || type.includes('text') || name.endsWith('.md') || name.endsWith('.txt')
-            const isData = type.includes('json') || name.endsWith('.json')
-            return !isImage && !isDoc && !isData
-        }
-
-        return true
-    })
+    return files.value.filter(f => getFileCategory(f) === activeCategory.value)
 })
 
 const openFolder = () => {
-    if (userDataPath.value) {
-        const target = window.api.path.join(userDataPath.value, 'Data', 'Files')
-        if (window.api.fs.existsSync(target)) {
-            window.api.openFile(target)
-        } else {
-            window.api.openFile(userDataPath.value)
-        }
-    }
+    const target = window.api.path.join(userDataPath.value, 'Data', 'Files')
+    window.api.openFile(
+        window.api.fs.existsSync(target) ? target : userDataPath.value
+    )
 }
 
-const formatTime = (ts: number) => {
-    return new Date(ts).toLocaleString()
-}
+const formatTime = (ts: number) => new Date(ts).toLocaleString()
 
-onMounted(() => {
-    loadFiles()
-})
+onMounted(loadFiles)
 </script>
 
 <template>
@@ -156,9 +164,7 @@ onMounted(() => {
                     ]">
                         <template #name="{ row }">
                             <div class="file-name-cell">
-                                <component
-                                    :is="row.type.startsWith('image') ? FileImage : (row.type.includes('json') ? FileCode : (row.type.includes('text') ? FileText : File))"
-                                    class="file-icon" />
+                                <component :is="FILE_ICON_MAP[getFileCategory(row)]" class="file-icon" />
                                 <span class="name-text">{{ row.name }}</span>
                             </div>
                         </template>
