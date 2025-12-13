@@ -89,7 +89,8 @@ export function useUpload(options: UseUploadOptions = {}) {
         blobUrl: URL.createObjectURL(blob),
         filename: window.api.path.basename(path),
         name: window.api.path.basename(path),
-        type: 'file' as const
+        type: 'file' as const,
+        path
       })
     }
     selectedFiles.value.push(...files)
