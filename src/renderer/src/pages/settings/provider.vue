@@ -234,17 +234,10 @@ const handleShowSearch = async () => {
                 <template #footer>
                     <FormItem label="模型列表">
                         <Table :loading="loading" :columns="tableColumns" :data="filteredModels">
-                            <template #name="{ row }">
-                                {{ row.name }}
-                            </template>
-                            <template #id="{ row }">
-                                {{ row.id }}
-                            </template>
                             <template #active="{ row }">
                                 <Switch v-model="row.active" />
                             </template>
 
-                            <!-- 新增：操作列插槽 -->
                             <template #actions="{ row }">
                                 <Button type="button" variant="text" size="sm" @click="showEditModelModal(row)"
                                     title="编辑模型">
@@ -252,7 +245,6 @@ const handleShowSearch = async () => {
                                         <Edit />
                                     </template>
                                 </Button>
-                                <!-- 只有自定义模型才显示删除按钮 -->
                                 <Button v-if="isCustomModel(row)" type="button" variant="text" size="sm"
                                     @click="handleDeleteModel(row)" title="删除模型"
                                     class="text-red-500 hover:text-red-700">
