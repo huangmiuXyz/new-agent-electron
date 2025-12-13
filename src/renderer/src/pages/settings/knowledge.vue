@@ -112,8 +112,8 @@ const handleKnowledgeBaseContextMenu = (event: MouseEvent, knowledgeBase: Knowle
                 setActiveKnowledgeBase(knowledgeBase.id)
                 showDeleteKnowledgeBaseModal()
             },
-            ifShow: (data) => {
-                return data.id !== 'default-local'
+            ifShow: () => {
+                return knowledgeBase.id !== 'default-local'
             }
         }
     ])
