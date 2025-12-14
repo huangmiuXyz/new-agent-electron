@@ -46,9 +46,10 @@ export const chatService = () => {
     // 处理知识库检索
     if (knowledgeBaseId) {
       tools['search_knowledge'] = {
+        title: '知识库检索',
         description:
           "Search for relevant information from the knowledge base. Use this tool when the user's question involves specific documents or knowledge.",
-        parameters: z.object({
+        inputSchema: z.object({
           query: z.string().describe('The keyword or question to search for')
         }),
         execute: async (args: any) => {
