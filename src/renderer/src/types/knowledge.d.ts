@@ -4,7 +4,7 @@ declare global {
     id: string
     name: string
     description?: string
-    embeddingModel?: {}
+    embeddingModel: { modelId: string; providerId: string }
     active: boolean
     created: number
     documents?: KnowledgeDocument[]

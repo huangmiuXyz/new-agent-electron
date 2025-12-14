@@ -23,8 +23,8 @@ watch(() => activeKnowledgeBaseId.value, (v) => {
         activeKnowledgeBaseId.value = knowledgeBases.value[0].id
     }
 })
-const activeKnowledgeBase = computed(() => {
-    return knowledgeBases.value.find(kb => kb.id === activeKnowledgeBaseId.value);
+const activeKnowledgeBase = computed<KnowledgeBase>(() => {
+    return knowledgeBases.value.find(kb => kb.id === activeKnowledgeBaseId.value)!;
 });
 
 const showSearch = ref(false)
@@ -236,7 +236,7 @@ const { embedding } = useKnowledge()
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
@@ -247,7 +247,8 @@ const { embedding } = useKnowledge()
                     <template #actions="props">
                         <div style="display: flex; align-items: center; gap: 8px;">
 
-                            <Button @click="embedding(props.row)" size="sm" type="button" variant="text">
+                            <Button @click="embedding(props.row, activeKnowledgeBase)" size="sm" type="button"
+                                variant="text">
                                 <template #icon>
                                     <Refresh />
                                 </template>
