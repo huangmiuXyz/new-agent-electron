@@ -1,13 +1,6 @@
 import { createRegistry } from '../chatService/registry'
 import { splitTextByType } from './splitter'
-import { embed, embedMany } from 'ai'
-
-function cosineSimilarity(vecA: number[], vecB: number[]) {
-  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0)
-  const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0))
-  const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0))
-  return dotProduct / (magnitudeA * magnitudeB)
-}
+import { embed, embedMany, cosineSimilarity } from 'ai'
 
 export const RAGService = () => {
   const embedding = async (
@@ -61,7 +54,6 @@ export const RAGService = () => {
       score: cosineSimilarity(queryEmbedding, chunk.embedding)
     }))
 
-    // Sort by score descending and take top K (e.g. 5)
     return scoredChunks.sort((a, b) => b.score - a.score).slice(0, 5)
   }
 
