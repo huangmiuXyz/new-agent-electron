@@ -31,6 +31,22 @@ export const useKnowledge = () => {
     } = knowledge
     const { model, provider } = getModelById(providerId, modelId)!
 
+    // Prepare rerank options if configured
+    let rerankOptions
+    if (knowledge.rerankModel && knowledge.rerankModel.modelId) {
+      const { modelId: rerankModelId, providerId: rerankProviderId } = knowledge.rerankModel
+      const rerankModelInfo = getModelById(rerankProviderId, rerankModelId)
+      if (rerankModelInfo) {
+        rerankOptions = {
+          apiKey: rerankModelInfo.provider.apiKey!,
+          baseURL: rerankModelInfo.provider.baseUrl,
+          name: rerankModelInfo.provider.name,
+          providerType: rerankModelInfo.provider.providerType,
+          model: rerankModelInfo.model.name
+        }
+      }
+    }
+
     return await rag.retrieve(
       query,
       knowledge,
@@ -41,7 +57,8 @@ export const useKnowledge = () => {
         providerType: provider.providerType,
         model: model.name
       },
-      knowledge.retrieveConfig
+      knowledge.retrieveConfig,
+      rerankOptions
     )
   }
 

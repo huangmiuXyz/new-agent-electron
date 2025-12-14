@@ -6,12 +6,14 @@ declare global {
     name: string
     description?: string
     embeddingModel: { modelId: string; providerId: string }
+    rerankModel?: { modelId: string; providerId: string }
     active: boolean
     created: number
     documents?: KnowledgeDocument[]
     retrieveConfig?: {
       similarityThreshold?: number
       topK?: number
+      rerankScoreThreshold?: number
     }
   }
   type KnowledgeDocumentStatus = 'processing' | 'processed' | 'error'

@@ -40,7 +40,7 @@ const filteredDocuments = computed(() => {
     )
 })
 
-const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'embeddingModel' | 'retrieveConfig'>>({
+const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'embeddingModel' | 'retrieveConfig' | 'rerankModel'>>({
     showHeader: true,
     initialData: {
         name: '',
@@ -49,9 +49,14 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             modelId: '',
             providerId: ''
         },
+        rerankModel: {
+            modelId: '',
+            providerId: ''
+        },
         retrieveConfig: {
             similarityThreshold: 0.2,
-            topK: 5
+            topK: 5,
+            rerankScoreThreshold: 0.3
         }
     },
     fields: [
@@ -74,6 +79,12 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             modelCategory: 'embedding'
         },
         {
+            name: 'rerankModel',
+            type: 'modelSelector',
+            label: '重排模型（可选）',
+            modelCategory: 'rerank'
+        },
+        {
             name: 'retrieveConfig.similarityThreshold',
             type: 'slider',
             label: '相似度阈值',
@@ -90,6 +101,16 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             max: 20,
             step: 1,
             hint: '设置返回的最相关文档块数量'
+        },
+        {
+            name: 'retrieveConfig.rerankScoreThreshold',
+            type: 'slider',
+            label: '重排得分阈值',
+            min: 0,
+            max: 1,
+            step: 0.1,
+            hint: '设置重排后的最小得分阈值',
+            ifShow: (data) => !!data.rerankModel?.modelId
         }
     ],
     onSubmit: (data) => {
@@ -166,9 +187,11 @@ const showEditKnowledgeBaseModal = async () => {
     // 确保retrieveConfig有默认值
     const knowledgeBaseData = {
         ...activeKnowledgeBase.value,
+        rerankModel: activeKnowledgeBase.value.rerankModel || { modelId: '', providerId: '' },
         retrieveConfig: {
             similarityThreshold: 0.2,
             topK: 5,
+            rerankScoreThreshold: 0.3,
             ...activeKnowledgeBase.value.retrieveConfig
         }
     }
@@ -282,7 +305,7 @@ const { embedding } = useKnowledge()
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
