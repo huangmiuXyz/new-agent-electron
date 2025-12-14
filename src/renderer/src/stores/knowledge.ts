@@ -14,9 +14,6 @@ export const useKnowledgeStore = defineStore(
       }
     ])
 
-    const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
-      activeKnowledgeBaseId.value = knowledgeBaseId
-    }
     const activeKnowledgeBaseId = useLocalStorage<string>('activeKnowledgeBaseId', '')
 
     watch(
@@ -79,23 +76,13 @@ export const useKnowledgeStore = defineStore(
       }
     }
 
-    const getKnowledgeBaseById = (id: string) => {
-      return knowledgeBases.value.find((kb) => kb.id === id)
-    }
-
-    const activeKnowledgeBase = computed(() => {
-      return knowledgeBases.value.find((kb) => kb.id === activeKnowledgeBaseId.value)
-    })
     return {
       knowledgeBases,
       updateKnowledgeBase,
       addKnowledgeBase,
       deleteKnowledgeBase,
       addDocumentToKnowledgeBase,
-      deleteDocumentFromKnowledgeBase,
-      getKnowledgeBaseById,
-      activeKnowledgeBaseId,
-      activeKnowledgeBase
+      deleteDocumentFromKnowledgeBase
     }
   },
   {
