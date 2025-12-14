@@ -11,7 +11,6 @@ declare global {
     documents?: KnowledgeDocument[]
   }
   type KnowledgeDocumentStatus = 'processing' | 'processed' | 'error'
-  // 知识库文档接口
   interface KnowledgeDocument {
     id: string
     name: string
