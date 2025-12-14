@@ -2,6 +2,11 @@ import { createRegistry } from '../chatService/registry'
 import { splitTextByType } from './splitter'
 import { embed, embedMany, cosineSimilarity } from 'ai'
 
+export interface RetrieveOptions {
+  similarityThreshold?: number
+  topK?: number
+}
+
 export const RAGService = () => {
   const embedding = async (
     doc: KnowledgeDocument,
@@ -35,7 +40,8 @@ export const RAGService = () => {
       providerType: providerType
       model: string
       name: string
-    }
+    },
+    retrieveOptions?: RetrieveOptions
   ) => {
     const { embedding: queryEmbedding } = await embed({
       model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
@@ -54,7 +60,10 @@ export const RAGService = () => {
       score: cosineSimilarity(queryEmbedding, chunk.embedding)
     }))
 
-    return scoredChunks.filter((chunk) => chunk.score > 0.2).slice(0, 5)
+    const similarityThreshold = retrieveOptions?.similarityThreshold ?? 0.2
+    const topK = retrieveOptions?.topK ?? 5
+
+    return scoredChunks.filter((chunk) => chunk.score > similarityThreshold).slice(0, topK)
   }
 
   return { embedding, retrieve }

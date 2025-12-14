@@ -31,13 +31,18 @@ export const useKnowledge = () => {
     } = knowledge
     const { model, provider } = getModelById(providerId, modelId)!
 
-    return await rag.retrieve(query, knowledge, {
-      apiKey: provider.apiKey!,
-      baseURL: provider.baseUrl,
-      name: provider.name,
-      providerType: provider.providerType,
-      model: model.name
-    })
+    return await rag.retrieve(
+      query,
+      knowledge,
+      {
+        apiKey: provider.apiKey!,
+        baseURL: provider.baseUrl,
+        name: provider.name,
+        providerType: provider.providerType,
+        model: model.name
+      },
+      knowledge.retrieveConfig
+    )
   }
 
   return { embedding, search }

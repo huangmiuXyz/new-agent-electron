@@ -9,6 +9,10 @@ declare global {
     active: boolean
     created: number
     documents?: KnowledgeDocument[]
+    retrieveConfig?: {
+      similarityThreshold?: number
+      topK?: number
+    }
   }
   type KnowledgeDocumentStatus = 'processing' | 'processed' | 'error'
   interface KnowledgeDocument {

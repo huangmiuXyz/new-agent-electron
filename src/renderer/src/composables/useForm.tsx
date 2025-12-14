@@ -177,6 +177,24 @@ export interface FormActions<T> {
   updateFieldProps: (field: string, props: Record<string, any>) => void
 }
 
+// 辅助函数：获取嵌套对象的值
+const getNestedValue = (obj: any, path: string) => {
+  return path.split('.').reduce((current, key) => current?.[key], obj)
+}
+
+// 辅助函数：设置嵌套对象的值
+const setNestedValue = (obj: any, path: string, value: any) => {
+  const keys = path.split('.')
+  const lastKey = keys.pop()!
+  const target = keys.reduce((current, key) => {
+    if (!current[key] || typeof current[key] !== 'object') {
+      current[key] = {}
+    }
+    return current[key]
+  }, obj)
+  target[lastKey] = value
+}
+
 export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   // 初始化表单数据
   const formData = ref<T>({} as T)
@@ -184,49 +202,61 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   // 存储动态字段属性
   const dynamicFieldProps = ref<Record<string, Record<string, any>>>({})
 
-  // 初始化字段值
-  config.fields.forEach((field) => {
-    if (
-      config.initialData &&
-      field.name in config.initialData &&
-      config.initialData[field.name] !== undefined
-    ) {
-      formData.value[field.name] = config.initialData[field.name]
-    } else {
-      // 根据字段类型设置默认值
-      switch (field.type) {
-        case 'boolean':
-          formData.value[field.name] = false
-          break
-        case 'number':
-          formData.value[field.name] = ''
-          break
-        case 'slider':
-          formData.value[field.name] = field.min || 0
-          break
-        case 'select':
-          formData.value[field.name] = ''
-          break
-        case 'textarea':
-          formData.value[field.name] = ''
-          break
-        case 'array':
-          formData.value[field.name] = []
-          break
-        case 'object':
-          formData.value[field.name] = {}
-          break
-        case 'checkboxGroup':
-          formData.value[field.name] = []
-          break
-        case 'modelSelector':
-          formData.value[field.name] = { modelId: '', providerId: '' }
-          break
-        default:
-          formData.value[field.name] = ''
-      }
+  // 根据字段类型获取默认值的辅助函数
+  const getDefaultValue = (fieldType: string, field: any) => {
+    switch (fieldType) {
+      case 'boolean':
+        return false
+      case 'number':
+        return ''
+      case 'slider':
+        return field.min || 0
+      case 'select':
+        return ''
+      case 'textarea':
+        return ''
+      case 'array':
+        return []
+      case 'object':
+        return {}
+      case 'checkboxGroup':
+        return []
+      case 'modelSelector':
+        return { modelId: '', providerId: '' }
+      default:
+        return ''
     }
-  })
+  }
+
+  // 初始化单个字段的辅助函数
+  const initializeField = (field: any) => {
+    const isNestedField = field.name.includes('.')
+    let initialValue
+
+    if (isNestedField) {
+      // 处理嵌套字段
+      initialValue = getNestedValue(config.initialData || {}, field.name)
+      if (initialValue === undefined) {
+        initialValue = getDefaultValue(field.type, field)
+      }
+      setNestedValue(formData.value, field.name, initialValue)
+    } else {
+      // 处理非嵌套字段
+      if (
+        config.initialData &&
+        field.name in config.initialData &&
+        config.initialData[field.name] !== undefined
+      ) {
+        initialValue = config.initialData[field.name]
+      } else {
+        initialValue = getDefaultValue(field.type, field)
+      }
+      formData.value[field.name] = initialValue
+    }
+  }
+
+  // 初始化所有字段值
+  config.fields.forEach(initializeField)
 
   // 表单验证状态
   const errors = ref<Record<string, string>>({})
@@ -241,7 +271,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         return
       }
 
-      if (field.required && !formData.value[field.name]) {
+      if (field.required && !getNestedValue(formData.value, field.name)) {
         newErrors[field.name] = `${field.label || field.name} 是必填项`
       }
     })
@@ -259,7 +289,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         return
       }
 
-      if (field.required && !formData.value[field.name]) {
+      if (field.required && !getNestedValue(formData.value, field.name)) {
         newErrors[field.name] = `${field.label || field.name} 是必填项`
       }
     })
@@ -274,53 +304,19 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   }
 
   const reset = () => {
-    config.fields.forEach((field) => {
-      if (
-        config.initialData &&
-        field.name in config.initialData &&
-        config.initialData[field.name] !== undefined
-      ) {
-        formData.value[field.name] = config.initialData[field.name]
-      } else {
-        switch (field.type) {
-          case 'boolean':
-            formData.value[field.name] = false
-            break
-          case 'number':
-            formData.value[field.name] = ''
-            break
-          case 'slider':
-            formData.value[field.name] = field.min || 0
-            break
-          case 'select':
-            formData.value[field.name] = ''
-            break
-          case 'textarea':
-            formData.value[field.name] = ''
-            break
-          case 'array':
-            formData.value[field.name] = []
-            break
-          case 'object':
-            formData.value[field.name] = {}
-            break
-          case 'checkboxGroup':
-            formData.value[field.name] = []
-            break
-          case 'modelSelector':
-            formData.value[field.name] = { modelId: '', providerId: '' }
-            break
-          default:
-            formData.value[field.name] = ''
-        }
-      }
-    })
+    config.fields.forEach(initializeField)
     errors.value = {}
     config.onReset?.()
   }
 
   const setFieldValue = (field: string, value: any) => {
-    formData.value[field] = value
+    if (field.includes('.')) {
+      // 处理嵌套字段
+      setNestedValue(formData.value, field, value)
+    } else {
+      // 处理非嵌套字段
+      formData.value[field] = value
+    }
     // 触发 onChange 回调
     config.onChange?.(field as keyof T, value as T[keyof T], formData.value)
   }
@@ -330,7 +326,13 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   }
 
   const getFieldValue = (field: string) => {
-    return formData.value[field]
+    if (field.includes('.')) {
+      // 处理嵌套字段
+      return getNestedValue(formData.value, field)
+    } else {
+      // 处理非嵌套字段
+      return formData.value[field]
+    }
   }
 
   const getData = () => {
@@ -387,14 +389,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             placeholder={field.placeholder}
                             disabled={field.disabled}
                             readonly={field.readonly}
-                            v-model={formData.value[field.name]}
+                            modelValue={getNestedValue(formData.value, field.name)}
                             onUpdate:modelValue={(value) => {
-                              formData.value[field.name] = value
-                              config.onChange?.(
-                                field.name as keyof T,
-                                value as T[keyof T],
-                                formData.value
-                              )
+                              setFieldValue(field.name, value)
                             }}
                             {...dynamicProps}
                           />
@@ -405,14 +402,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                       return (
                         <FormItem label={field.label} required={field.required} layout="toggle">
                           <Switch
-                            v-model={formData.value[field.name]}
+                            modelValue={getNestedValue(formData.value, field.name)}
                             onUpdate:modelValue={(value) => {
-                              formData.value[field.name] = value
-                              config.onChange?.(
-                                field.name as keyof T,
-                                value as T[keyof T],
-                                formData.value
-                              )
+                              setFieldValue(field.name, value)
                             }}
                             {...dynamicProps}
                           />
@@ -424,7 +416,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                         <FormItem
                           label={
                             field.label
-                              ? `${field.label}: ${formData.value[field.name]}${field.unit || ''}`
+                              ? `${field.label}: ${getNestedValue(formData.value, field.name)}${field.unit || ''}`
                               : ''
                           }
                           hint={field.hint}
@@ -432,18 +424,13 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                           layout="default"
                         >
                           <Slider
-                            v-model={formData.value[field.name]}
+                            modelValue={getNestedValue(formData.value, field.name)}
                             min={field.min}
                             max={field.max}
                             step={field.step}
                             unit={field.unit}
                             onUpdate:modelValue={(value) => {
-                              formData.value[field.name] = value
-                              config.onChange?.(
-                                field.name as keyof T,
-                                value as T[keyof T],
-                                formData.value
-                              )
+                              setFieldValue(field.name, value)
                             }}
                             {...dynamicProps}
                           />
@@ -463,14 +450,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             options={field.options}
                             placeholder={field.placeholder}
                             disabled={field.disabled}
-                            v-model={formData.value[field.name]}
+                            modelValue={getNestedValue(formData.value, field.name)}
                             onUpdate:modelValue={(value) => {
-                              formData.value[field.name] = value
-                              config.onChange?.(
-                                field.name as keyof T,
-                                value as T[keyof T],
-                                formData.value
-                              )
+                              setFieldValue(field.name, value)
                             }}
                             {...dynamicProps}
                           />
@@ -492,14 +474,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             readonly={field.readonly}
                             rows={field.rows}
                             autoResize={field.autoResize}
-                            v-model={formData.value[field.name]}
+                            modelValue={getNestedValue(formData.value, field.name)}
                             onUpdate:modelValue={(value) => {
-                              formData.value[field.name] = value
-                              config.onChange?.(
-                                field.name as keyof T,
-                                value as T[keyof T],
-                                formData.value
-                              )
+                              setFieldValue(field.name, value)
                             }}
                             {...dynamicProps}
                           />
@@ -519,14 +496,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             mode="array"
                             placeholder={field.placeholder}
                             disabled={field.disabled}
-                            arrayValue={formData.value[field.name] as string[]}
+                            arrayValue={getNestedValue(formData.value, field.name) as string[]}
                             onUpdate:arrayValue={(value) => {
-                              formData.value[field.name] = value
-                              config.onChange?.(
-                                field.name as keyof T,
-                                value as T[keyof T],
-                                formData.value
-                              )
+                              setFieldValue(field.name, value)
                             }}
                             {...dynamicProps}
                           />
@@ -547,14 +519,11 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             keyPlaceholder={field.keyPlaceholder}
                             valuePlaceholder={field.valuePlaceholder}
                             disabled={field.disabled}
-                            objectValue={formData.value[field.name] as Record<string, string>}
+                            objectValue={
+                              getNestedValue(formData.value, field.name) as Record<string, string>
+                            }
                             onUpdate:objectValue={(value) => {
-                              formData.value[field.name] = value
-                              config.onChange?.(
-                                field.name as keyof T,
-                                value as T[keyof T],
-                                formData.value
-                              )
+                              setFieldValue(field.name, value)
                             }}
                             {...dynamicProps}
                           />
@@ -573,14 +542,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                           <CheckboxGroup
                             options={field.options}
                             disabled={field.disabled}
-                            v-model={formData.value[field.name]}
+                            modelValue={getNestedValue(formData.value, field.name)}
                             onUpdate:modelValue={(value) => {
-                              formData.value[field.name] = value
-                              config.onChange?.(
-                                field.name as keyof T,
-                                value as T[keyof T],
-                                formData.value
-                              )
+                              setFieldValue(field.name, value)
                             }}
                             {...dynamicProps}
                           />
@@ -599,27 +563,31 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                           <ModelSelector
                             category={field.modelCategory}
                             popupPosition={field.popupPosition}
-                            modelId={formData.value[field.name]?.modelId || ''}
-                            providerId={formData.value[field.name]?.providerId || ''}
+                            modelId={getNestedValue(formData.value, field.name)?.modelId || ''}
+                            providerId={
+                              getNestedValue(formData.value, field.name)?.providerId || ''
+                            }
                             onUpdate:modelId={(value: string) => {
-                              if (!formData.value[field.name]) {
-                                formData.value[field.name] = {}
-                              }
-                              formData.value[field.name].modelId = value
+                              const currentValue = getNestedValue(formData.value, field.name) || {}
+                              setNestedValue(formData.value, field.name, {
+                                ...currentValue,
+                                modelId: value
+                              })
                               config.onChange?.(
                                 field.name as keyof T,
-                                formData.value[field.name] as T[keyof T],
+                                getNestedValue(formData.value, field.name) as T[keyof T],
                                 formData.value
                               )
                             }}
                             onUpdate:providerId={(value: string) => {
-                              if (!formData.value[field.name]) {
-                                formData.value[field.name] = {}
-                              }
-                              formData.value[field.name].providerId = value
+                              const currentValue = getNestedValue(formData.value, field.name) || {}
+                              setNestedValue(formData.value, field.name, {
+                                ...currentValue,
+                                providerId: value
+                              })
                               config.onChange?.(
                                 field.name as keyof T,
-                                formData.value[field.name] as T[keyof T],
+                                getNestedValue(formData.value, field.name) as T[keyof T],
                                 formData.value
                               )
                             }}

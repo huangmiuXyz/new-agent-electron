@@ -40,7 +40,7 @@ const filteredDocuments = computed(() => {
     )
 })
 
-const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'embeddingModel'>>({
+const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'embeddingModel' | 'retrieveConfig'>>({
     showHeader: true,
     initialData: {
         name: '',
@@ -49,6 +49,10 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             modelId: '',
             providerId: ''
         },
+        retrieveConfig: {
+            similarityThreshold: 0.2,
+            topK: 5
+        }
     },
     fields: [
         {
@@ -68,6 +72,24 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             type: 'modelSelector',
             label: '嵌入模型',
             modelCategory: 'embedding'
+        },
+        {
+            name: 'retrieveConfig.similarityThreshold',
+            type: 'slider',
+            label: '相似度阈值',
+            min: 0,
+            max: 1,
+            step: 0.1,
+            hint: '设置检索时的最小相似度阈值，高于此值的文档块会被返回'
+        },
+        {
+            name: 'retrieveConfig.topK',
+            type: 'slider',
+            label: 'Top K',
+            min: 1,
+            max: 20,
+            step: 1,
+            hint: '设置返回的最相关文档块数量'
         }
     ],
     onSubmit: (data) => {
@@ -141,7 +163,16 @@ const showEditKnowledgeBaseModal = async () => {
     if (!activeKnowledgeBase.value) {
         return
     }
-    formActions.setData(activeKnowledgeBase.value)
+    // 确保retrieveConfig有默认值
+    const knowledgeBaseData = {
+        ...activeKnowledgeBase.value,
+        retrieveConfig: {
+            similarityThreshold: 0.2,
+            topK: 5,
+            ...activeKnowledgeBase.value.retrieveConfig
+        }
+    }
+    formActions.setData(knowledgeBaseData)
     const result = await confirm({
         title: '编辑知识库',
         content: KnowledgeBaseForm,
@@ -251,7 +282,7 @@ const { embedding } = useKnowledge()
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
