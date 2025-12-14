@@ -249,6 +249,11 @@ const { embedding } = useKnowledge()
                     <template #created="props">
                         {{ formatTime(props.row.created) }}
                     </template>
+                    <template #status="props">
+                        <Tags
+                            :color="props.row.status === 'processing' ? 'purple' : props.row.status === 'error' ? 'red' : 'blue'"
+                            :tags="[props.row.status]" />
+                    </template>
                     <template #actions="props">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <Button @click="embedding(props.row, activeKnowledgeBase)" size="sm" type="button"
