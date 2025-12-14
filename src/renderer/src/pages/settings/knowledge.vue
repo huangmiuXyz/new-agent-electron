@@ -184,9 +184,10 @@ const showDeleteDocumentModal = async (document: KnowledgeDocument) => {
     }
 }
 const { triggerUpload, clearSeletedFiles } = useUpload({
-    onFilesSelected: (files) => {
+    onFilesSelected: async (files) => {
+        const docs: KnowledgeDocument[] = []
         files.forEach(f => {
-            addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, {
+            const doc: KnowledgeDocument = {
                 id: `doc_${nanoid()}`,
                 name: f.filename!,
                 path: f.path!,
@@ -194,9 +195,14 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
                 type: f.mediaType,
                 created: Date.now(),
                 status: 'processing'
-            })
+            }
+            docs.push(doc)
+            addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, doc)
         })
         clearSeletedFiles()
+        docs.forEach(doc => {
+            embedding(doc, activeKnowledgeBase.value)
+        })
     }
 })
 const addDocument = () => {
@@ -241,7 +247,7 @@ const { embedding } = useKnowledge()
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
