@@ -200,8 +200,11 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
             addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, doc)
         })
         clearSeletedFiles()
-        docs.forEach(doc => {
-            embedding(doc, activeKnowledgeBase.value)
+        activeKnowledgeBase.value?.documents?.forEach(e => {
+            const doc = docs.find(d => d.id === e.id)
+            if (doc) {
+                embedding(doc, activeKnowledgeBase.value)
+            }
         })
     }
 })
