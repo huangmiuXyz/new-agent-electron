@@ -6,14 +6,20 @@ export const useKnowledge = () => {
       embeddingModel: { modelId, providerId }
     } = knowledge
     const { model, provider } = getModelById(providerId, modelId)!
-    const embeddings = await rag.embedding(doc, {
-      apiKey: provider.apiKey!,
-      baseURL: provider.baseUrl,
-      name: provider.name,
-      providerType: provider.providerType,
-      model: model.name
-    })
-    doc.embedding = embeddings
+    doc.status = 'processing'
+    try {
+      const embeddings = await rag.embedding(doc, {
+        apiKey: provider.apiKey!,
+        baseURL: provider.baseUrl,
+        name: provider.name,
+        providerType: provider.providerType,
+        model: model.name
+      })
+      doc.status = 'processed'
+      doc.embedding = embeddings
+    } catch {
+      doc.status = 'error'
+    }
   }
   return { embedding }
 }
