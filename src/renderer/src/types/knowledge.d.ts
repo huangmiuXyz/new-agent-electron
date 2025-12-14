@@ -10,7 +10,7 @@ declare global {
     created: number
     documents?: KnowledgeDocument[]
   }
-
+  type KnowledgeDocumentStatus = 'processing' | 'processed' | 'error'
   // 知识库文档接口
   interface KnowledgeDocument {
     id: string
@@ -19,7 +19,7 @@ declare global {
     type: SplitType
     size: number
     created: number
-    processed?: boolean
+    status: KnowledgeDocumentStatus
     embedding?: Array<Embedding>
   }
 }

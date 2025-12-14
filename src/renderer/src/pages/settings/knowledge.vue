@@ -192,7 +192,8 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
                 path: f.path!,
                 size: f.size,
                 type: f.mediaType,
-                created: Date.now()
+                created: Date.now(),
+                status: 'processing'
             })
         })
         clearSeletedFiles()
@@ -235,6 +236,7 @@ const { embedding } = useKnowledge()
                     { key: 'type', label: '类型', width: '1fr' },
                     { key: 'size', label: '大小', width: '1fr' },
                     { key: 'created', label: '创建时间', width: '1.5fr' },
+                    { key: 'status', label: '状态', width: '1.5fr' },
                     { key: 'actions', label: '操作', width: '1fr' }
                 ]">
                     <template #type="props">
