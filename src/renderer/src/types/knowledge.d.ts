@@ -20,7 +20,7 @@ declare global {
     size: number
     created: number
     processed?: boolean
-    embedding: Array<Embedding>
+    embedding?: Array<Embedding>
   }
 }
 
