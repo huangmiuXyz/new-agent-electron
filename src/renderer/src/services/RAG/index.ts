@@ -54,7 +54,7 @@ export const RAGService = () => {
       score: cosineSimilarity(queryEmbedding, chunk.embedding)
     }))
 
-    return scoredChunks.sort((a, b) => b.score - a.score).slice(0, 5)
+    return scoredChunks.filter((chunk) => chunk.score > 0.2).slice(0, 5)
   }
 
   return { embedding, retrieve }
