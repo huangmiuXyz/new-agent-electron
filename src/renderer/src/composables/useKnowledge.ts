@@ -10,6 +10,7 @@ export const useKnowledge = () => {
       apiKey: provider.apiKey!,
       baseURL: provider.baseUrl,
       name: provider.name,
+      providerType: provider.providerType,
       model: model.name
     })
   }

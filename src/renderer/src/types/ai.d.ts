@@ -1,6 +1,14 @@
 import { UIMessage, UIMessagePart } from 'ai'
 import type { Model as openAIModel } from 'openai/resources'
 declare global {
+  type providerType =
+    | 'anthropic'
+    | 'openai'
+    | 'deepseek'
+    | 'google'
+    | 'xai'
+    | 'openai-compatible'
+    | 'ollama'
   interface MetaData {
     provider: string
     date: number

@@ -7,15 +7,16 @@ export const RAGService = () => {
     options: {
       apiKey: string
       baseURL: string
-      name: string
+      providerType: providerType
       model: string
+      name: string
     }
   ) => {
     const result = await splitTextByType(window.api.fs.readFileSync(doc.path, 'utf-8'), {
       type: doc.type
     })
     const { embeddings } = await embedMany({
-      model: createRegistry(options).embeddingModel(options.model),
+      model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
       values: result
     })
     console.log(embeddings)
