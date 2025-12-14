@@ -4,6 +4,7 @@ import Input from '@renderer/components/Input.vue'
 import Table from '@renderer/components/Table.vue'
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 const { updateKnowledgeBase, addKnowledgeBase, deleteKnowledgeBase, addDocumentToKnowledgeBase, deleteDocumentFromKnowledgeBase } = useKnowledgeStore()
+const { activeKnowledgeBaseId, activeKnowledgeBase } = storeToRefs(useKnowledgeStore())
 
 const { Plus, Search, Trash, File, Refresh } = useIcon(['Plus', 'Search', 'Trash', 'File', 'Refresh'])
 const { confirm } = useModal()
@@ -16,16 +17,11 @@ const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
         formActions.setData(knowledgeBase)
     }
 };
-const activeKnowledgeBaseId = useLocalStorage<string>('activeKnowledgeBaseId', '');
-
 watch(() => activeKnowledgeBaseId.value, (v) => {
     if (!v) {
         activeKnowledgeBaseId.value = knowledgeBases.value[0].id
     }
 })
-const activeKnowledgeBase = computed(() => {
-    return knowledgeBases.value.find(kb => kb.id === activeKnowledgeBaseId.value);
-});
 
 const showSearch = ref(false)
 const searchKeyword = ref('')
@@ -236,7 +232,7 @@ const { embedding } = useKnowledge()
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}

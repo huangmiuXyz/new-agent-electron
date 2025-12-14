@@ -14,6 +14,19 @@ export const useKnowledgeStore = defineStore(
       }
     ])
 
+    const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
+      activeKnowledgeBaseId.value = knowledgeBaseId
+    }
+    const activeKnowledgeBaseId = useLocalStorage<string>('activeKnowledgeBaseId', '')
+
+    watch(
+      () => activeKnowledgeBaseId.value,
+      (v) => {
+        if (!v) {
+          activeKnowledgeBaseId.value = knowledgeBases.value[0].id
+        }
+      }
+    )
     // 知识库相关方法
     const updateKnowledgeBase = (knowledgeBaseId: string, knowledgeBaseData: KnowledgeBase) => {
       const index = knowledgeBases.value.findIndex((kb) => kb.id === knowledgeBaseId)
@@ -70,6 +83,9 @@ export const useKnowledgeStore = defineStore(
       return knowledgeBases.value.find((kb) => kb.id === id)
     }
 
+    const activeKnowledgeBase = computed(() => {
+      return knowledgeBases.value.find((kb) => kb.id === activeKnowledgeBaseId.value)
+    })
     return {
       knowledgeBases,
       updateKnowledgeBase,
@@ -77,7 +93,9 @@ export const useKnowledgeStore = defineStore(
       deleteKnowledgeBase,
       addDocumentToKnowledgeBase,
       deleteDocumentFromKnowledgeBase,
-      getKnowledgeBaseById
+      getKnowledgeBaseById,
+      activeKnowledgeBaseId,
+      activeKnowledgeBase
     }
   },
   {

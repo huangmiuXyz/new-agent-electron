@@ -47,12 +47,5 @@ export async function splitTextByType(text: string, options: SplitOptions) {
   const splitter = getTextSplitter(options)
   const docs = await splitter.createDocuments([text])
 
-  return docs.map((doc, index) => ({
-    id: index,
-    content: doc.pageContent,
-    metadata: {
-      type: options.type,
-      chunk: index
-    }
-  }))
+  return docs.map((doc) => doc.pageContent)
 }
