@@ -1,3 +1,4 @@
+import { Embedding } from 'ai'
 declare global {
   // 知识库接口
   interface KnowledgeBase {
@@ -19,6 +20,7 @@ declare global {
     size: number
     created: number
     processed?: boolean
+    embedding: Array<Embedding>
   }
 }
 

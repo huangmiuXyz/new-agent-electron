@@ -19,7 +19,7 @@ export const RAGService = () => {
       model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
       values: result
     })
-    console.log(embeddings)
+    return embeddings
   }
   return { embedding }
 }
