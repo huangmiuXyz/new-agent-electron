@@ -246,11 +246,12 @@ const { embedding } = useKnowledge()
                     { key: 'size', label: '大小', width: '1fr' },
                     { key: 'created', label: '创建时间', width: '1.5fr' },
                     { key: 'status', label: '状态', width: '1.5fr' },
+                    { key: 'chunks', label: '块数', width: '1fr' },
                     { key: 'actions', label: '操作', width: '1fr' }
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
@@ -262,6 +263,9 @@ const { embedding } = useKnowledge()
                         <Tags
                             :color="props.row.status === 'processing' ? 'purple' : props.row.status === 'error' ? 'red' : 'blue'"
                             :tags="[props.row.status]" />
+                    </template>
+                    <template #chunks="props">
+                        {{ props.row.chunks?.length || 0 }}
                     </template>
                     <template #actions="props">
                         <div style="display: flex; align-items: center; gap: 8px;">

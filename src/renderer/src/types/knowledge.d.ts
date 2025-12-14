@@ -19,7 +19,12 @@ declare global {
     size: number
     created: number
     status: KnowledgeDocumentStatus
-    embedding?: Array<Embedding>
+    chunks?: KnowledgeChunk[]
+  }
+
+  interface KnowledgeChunk {
+    content: string
+    embedding: number[]
   }
 }
 

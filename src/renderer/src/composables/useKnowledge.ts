@@ -1,6 +1,7 @@
 export const useKnowledge = () => {
   const rag = RAGService()
   const { getModelById } = useSettingsStore()
+  const { knowledgeBases } = storeToRefs(useKnowledgeStore())
   const embedding = async (doc: KnowledgeDocument, knowledge: KnowledgeBase) => {
     const {
       embeddingModel: { modelId, providerId }
@@ -8,7 +9,7 @@ export const useKnowledge = () => {
     const { model, provider } = getModelById(providerId, modelId)!
     doc.status = 'processing'
     try {
-      const embeddings = await rag.embedding(doc, {
+      const chunks = await rag.embedding(doc, {
         apiKey: provider.apiKey!,
         baseURL: provider.baseUrl,
         name: provider.name,
@@ -16,10 +17,28 @@ export const useKnowledge = () => {
         model: model.name
       })
       doc.status = 'processed'
-      doc.embedding = embeddings
+      doc.chunks = chunks
     } catch {
       doc.status = 'error'
     }
   }
-  return { embedding }
+
+  const search = async (query: string, knowledgeId: string) => {
+    const knowledge = knowledgeBases.value.find((k) => k.id === knowledgeId)
+    if (!knowledge) return []
+    const {
+      embeddingModel: { modelId, providerId }
+    } = knowledge
+    const { model, provider } = getModelById(providerId, modelId)!
+
+    return await rag.retrieve(query, knowledge, {
+      apiKey: provider.apiKey!,
+      baseURL: provider.baseUrl,
+      name: provider.name,
+      providerType: provider.providerType,
+      model: model.name
+    })
+  }
+
+  return { embedding, search }
 }

@@ -39,7 +39,12 @@ function getTextSplitter({ type, chunkSize = 800, chunkOverlap = 100 }: SplitOpt
       })
 
     default:
-      throw new Error(`Unsupported split type: ${type}`)
+      // Default to text splitter for unknown types
+      return new RecursiveCharacterTextSplitter({
+        chunkSize,
+        chunkOverlap,
+        separators: ['\n\n', '\n', ' ', '']
+      })
   }
 }
 

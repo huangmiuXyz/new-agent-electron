@@ -2,6 +2,7 @@ export const useAgent = () => {
   const agentStore = useAgentStore()
   const settingsStore = useSettingsStore()
   const { mcpServers } = storeToRefs(settingsStore)
+  const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 
   const { confirm, remove } = useModal()
 
@@ -12,6 +13,14 @@ export const useAgent = () => {
       label: tool.title!,
       value: key,
       description: tool.description
+    }))
+  })
+
+  // 知识库选项
+  const knowledgeBaseOptions = computed(() => {
+    return knowledgeBases.value.map((kb) => ({
+      label: kb.name,
+      value: kb.id
     }))
   })
 
@@ -60,6 +69,7 @@ export const useAgent = () => {
           name: agent.name,
           description: agent.description,
           systemPrompt: agent.systemPrompt,
+          knowledgeBaseId: agent.knowledgeBaseId,
           mcpServers: [...(agent.mcpServers || [])],
           tools: [...(agent.tools || [])],
           builtinTools: [...(agent.builtinTools || [])]
@@ -101,6 +111,13 @@ export const useAgent = () => {
           placeholder: '定义智能体的行为和角色...',
           required: true,
           rows: 6
+        },
+        {
+          name: 'knowledgeBaseId',
+          type: 'select',
+          label: '关联知识库',
+          placeholder: '选择知识库（可选）',
+          options: knowledgeBaseOptions.value
         },
         {
           name: 'mcpServers',

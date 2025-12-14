@@ -11,6 +11,7 @@ declare global {
     icon?: string
     createdAt: number
     updatedAt: number
+    knowledgeBaseId?: string
   }
 
   // 智能体状态接口

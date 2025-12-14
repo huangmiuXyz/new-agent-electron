@@ -1,6 +1,7 @@
 import { convertToModelMessages, generateText as _generateText, ToolLoopAgent } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
+import { z } from 'zod'
 
 interface ChatServiceOptions {
   model: string
@@ -15,15 +16,22 @@ interface ChatServiceConfig {
   instructions?: string
   mcpTools?: string[] // 用户选择的MCP工具列表，格式为 "服务器名.工具名"
   builtinTools?: string[] // 用户选择的内置工具列表
+  knowledgeBaseId?: string
 }
 export const chatService = () => {
   const createAgent = async (
     cid: string,
     { model, apiKey, baseURL, provider, providerType }: ChatServiceOptions,
     messages: BaseMessage[],
-    { mcpClient, instructions, mcpTools, builtinTools: selectedBuiltinTools }: ChatServiceConfig
+    {
+      mcpClient,
+      instructions,
+      mcpTools,
+      builtinTools: selectedBuiltinTools,
+      knowledgeBaseId
+    }: ChatServiceConfig
   ) => {
-    let tools: Tools = {}
+    let tools: any = {}
     const builtinTools = getBuiltinTools()
 
     // 处理内置工具
@@ -33,6 +41,23 @@ export const chatService = () => {
           tools[toolKey] = builtinTools[toolKey]
         }
       })
+    }
+
+    // 处理知识库检索
+    if (knowledgeBaseId) {
+      tools['search_knowledge'] = {
+        description:
+          "Search for relevant information from the knowledge base. Use this tool when the user's question involves specific documents or knowledge.",
+        parameters: z.object({
+          query: z.string().describe('The keyword or question to search for')
+        }),
+        execute: async (args: any) => {
+          const { query } = args
+          const { search } = useKnowledge()
+          const results = await search(query, knowledgeBaseId)
+          return results.map((r) => r.content).join('\n\n')
+        }
+      }
     }
 
     // 处理MCP工具
