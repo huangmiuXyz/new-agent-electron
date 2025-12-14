@@ -115,7 +115,8 @@ export const useChat = (chatId: string) => {
               mcpClient,
               instructions: agent.selectedAgent?.systemPrompt,
               mcpTools,
-              builtinTools
+              builtinTools,
+              knowledgeBaseId: agent.selectedAgent?.knowledgeBaseId
             }
           )
         },
