@@ -321,7 +321,14 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     config.onChange?.(field as keyof T, value as T[keyof T], formData.value)
   }
   const setFieldsValue = (data: T) => {
-    Object.assign(formData.value, data)
+    // 处理嵌套字段的设置
+    Object.keys(data).forEach((key) => {
+      if (key.includes('.')) {
+        setNestedValue(formData.value, key, data[key])
+      } else {
+        formData.value[key] = data[key]
+      }
+    })
     config.onChange?.(undefined, undefined, formData.value)
   }
 
