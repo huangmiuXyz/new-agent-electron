@@ -345,8 +345,8 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
                                     <Refresh />
                                 </template>
                             </Button>
-                            <Button v-if="props.row.status === 'processing'" @click="handleAbortDocument(props.row)"
-                                size="sm" type="button" variant="text">
+                            <Button v-if="props.row.status === 'processing' && props.row.abortController?.abort"
+                                @click="handleAbortDocument(props.row)" size="sm" type="button" variant="text">
                                 <template #icon>
                                     <Stop />
                                 </template>
