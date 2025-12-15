@@ -22,6 +22,10 @@ export const useKnowledge = () => {
     }
 
     try {
+      doc.metadata = {
+        modelId: model.id,
+        providerId: provider.id
+      }
       const chunks = await rag.embedding(doc, {
         apiKey: provider.apiKey!,
         baseURL: provider.baseUrl,

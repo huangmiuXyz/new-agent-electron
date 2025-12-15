@@ -27,7 +27,11 @@ declare global {
     status: KnowledgeDocumentStatus
     chunks?: KnowledgeChunk[]
     abortController?: AbortController
-    progress?: number // 向量化进度百分比 (0-100)
+    progress?: number
+    metadata?: {
+      modelId: string
+      providerId: string
+    }
   }
 
   interface KnowledgeChunk {
