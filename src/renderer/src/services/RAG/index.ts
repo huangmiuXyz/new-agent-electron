@@ -29,10 +29,6 @@ export const RAGService = () => {
   ) => {
     const splitterClone = JSON.parse(JSON.stringify(splitter))
     const total = splitterClone.length
-    if (total === 0) {
-      options.onProgress?.(100, splitterClone)
-      return splitterClone
-    }
     let processed = 0
     options.onProgress?.(1)
     for (let i = 0; i < total; i++) {
