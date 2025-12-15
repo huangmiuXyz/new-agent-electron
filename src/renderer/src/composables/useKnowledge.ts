@@ -38,14 +38,17 @@ export const useKnowledge = () => {
         modelId: model.id,
         providerId: provider.id
       }
-      let splitterResult: any
-      if ((!doc.isSplitting || !continueFlag) && doc.chunks?.length) {
-        splitterResult = await rag.splitter(doc)
-        doc.isSplitting = true
+      let splitter: Splitter
+      if ((!doc.isSplitting || !continueFlag) && !doc.chunks?.length) {
+        const splitterResult = await rag.splitter(doc)
+        splitter = splitterResult.map((e) => ({
+          content: e,
+          embedding: []
+        }))
       } else {
-        splitterResult = doc.chunks!.map((chunk) => chunk.embedding)
+        splitter = doc.chunks!
       }
-      await rag.embedding(splitterResult, {
+      await rag.embedding(splitter, {
         apiKey: provider.apiKey!,
         baseURL: provider.baseUrl,
         name: provider.name,

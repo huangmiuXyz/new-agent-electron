@@ -346,7 +346,8 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
                                     <Refresh />
                                 </template>
                             </Button>
-                            <Button v-if="props.row.chunks?.some(chunk => !chunk.embedding?.length)"
+                            <Button
+                                v-if="props.row.chunks?.some(chunk => !chunk.embedding?.length) && !props.row.abortController?.abort"
                                 @click="embedding(props.row, activeKnowledgeBase, true)" size="sm" type="button"
                                 variant="text">
                                 <template #icon>

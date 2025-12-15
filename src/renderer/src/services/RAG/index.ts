@@ -7,7 +7,6 @@ export interface RetrieveOptions {
   topK?: number
   rerankScoreThreshold?: number
 }
-
 export const RAGService = () => {
   const splitter = async (doc: KnowledgeDocument) => {
     const result = await splitTextByType(window.api.fs.readFileSync(doc.path, 'utf-8'), {
@@ -16,7 +15,7 @@ export const RAGService = () => {
     return result
   }
   const embedding = async (
-    splitterResult: string[],
+    splitter: Splitter,
     options: {
       apiKey: string
       baseURL: string
@@ -24,23 +23,22 @@ export const RAGService = () => {
       model: string
       name: string
       abortController: AbortController
-      onProgress?: (progress: number, data?: { content: string; embedding: number[] }[]) => void
+      onProgress?: (progress: number, data?: Splitter) => void
       continueFlag: boolean
     }
   ) => {
     options.onProgress?.(1)
-    const totalChunks = splitterResult.length
+    const totalChunks = splitter.length
     let processedChunks = 0
 
     const embeddings: number[][] = []
     const batchSize = 10
 
     for (let i = 0; i < totalChunks; i += batchSize) {
-      if (options.continueFlag && splitterResult?.[i]?.length > 0) {
+      if (options.continueFlag && splitter?.[i]?.embedding.length > 0) {
         continue
       }
-      const batch = splitterResult.slice(i, i + batchSize)
-
+      const batch = splitter.slice(i, i + batchSize).map((e) => e.content)
       const { embeddings: batchEmbeddings } = await embedMany({
         model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
         values: batch,
@@ -53,8 +51,8 @@ export const RAGService = () => {
       const progress = Math.min(20 + 80 * (processedChunks / totalChunks), 100)
       options.onProgress?.(
         Math.round(progress),
-        splitterResult.map((content, index) => ({
-          content,
+        splitter.map((e, index) => ({
+          content: e.content,
           embedding: embeddings[index]
         }))
       )
@@ -62,8 +60,8 @@ export const RAGService = () => {
 
     options.onProgress?.(
       100,
-      splitterResult.map((content, index) => ({
-        content,
+      splitter.map((e, index) => ({
+        content: e.content,
         embedding: embeddings[index]
       }))
     )

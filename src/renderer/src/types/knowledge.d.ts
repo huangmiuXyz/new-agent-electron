@@ -39,6 +39,7 @@ declare global {
     content: string
     embedding: number[]
   }
+  type Splitter = { content: string; embedding: number[] }[]
 }
 
 export {}
