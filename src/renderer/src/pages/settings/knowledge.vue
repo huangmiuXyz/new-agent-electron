@@ -326,7 +326,7 @@ const isEmbedCompleted = (chunks) => {
                                 <div
                                     style="flex: 1; height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden;">
                                     <div style="height: 100%; background-color: #8b5cf6; transition: width 0.3s ease;"
-                                        :style="{ width: `${Math.round((props.row.currentChunk! / props.row.chunks?.length) * 100)}%` }">
+                                        :style="{ width: `${Math.round((props.row.currentChunk! / (props.row.chunks?.length || 0)) * 100)}%` }">
                                     </div>
                                 </div>
                                 <span style="font-size: 12px; color: #666;">
