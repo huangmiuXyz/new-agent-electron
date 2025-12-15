@@ -26,8 +26,6 @@ export const RAGService = () => {
     const result = await splitTextByType(window.api.fs.readFileSync(doc.path, 'utf-8'), {
       type: doc.type
     })
-
-    // 通知文本分割完成
     options.onProgress?.(1)
 
     const totalChunks = result.length
