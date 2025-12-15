@@ -23,14 +23,14 @@ export const RAGService = () => {
       model: string
       name: string
       abortController: AbortController
-      onProgress?: (progress: number, data?: Splitter, current?: number, total?: number) => void
+      onProgress?: (data?: Splitter, current?: number, total?: number) => void
       continueFlag: boolean
     }
   ) => {
     const splitterClone = JSON.parse(JSON.stringify(splitter))
     const total = splitterClone.length
     let processed = 0
-    options.onProgress?.(1, undefined, 0, total)
+    options.onProgress?.(undefined, 0, total)
     for (let i = 0; i < total; i++) {
       const chunk = splitterClone[i]
       if (options.continueFlag && chunk.embedding?.length > 0) {
@@ -48,7 +48,7 @@ export const RAGService = () => {
       reportProgress(processed, total, splitterClone, options)
     }
 
-    options.onProgress?.(100, splitterClone, total, total)
+    options.onProgress?.(splitterClone, total, total)
     return splitterClone
   }
 
@@ -57,11 +57,10 @@ export const RAGService = () => {
     total: number,
     splitter: Splitter,
     options: {
-      onProgress?: (progress: number, data?: Splitter, current?: number, total?: number) => void
+      onProgress?: (data?: Splitter, current?: number, total?: number) => void
     }
   ) {
-    const progress = Math.min(20 + 80 * (processed / total), 100)
-    options.onProgress?.(Math.round(progress), splitter, processed, total)
+    options.onProgress?.(splitter, processed, total)
   }
 
   const retrieve = async (

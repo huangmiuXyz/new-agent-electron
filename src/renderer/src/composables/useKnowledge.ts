@@ -23,9 +23,6 @@ export const useKnowledge = () => {
 
     doc.status = 'processing'
     if (!continueFlag) {
-      doc.progress = 0
-    }
-    if (!continueFlag) {
       doc.isSplitting = false
       doc.chunks = []
     }
@@ -60,11 +57,9 @@ export const useKnowledge = () => {
         providerType: provider.providerType,
         model: model.name,
         abortController,
-        onProgress: (progress: number, data?: any, current?: number, total?: number) => {
-          doc.progress = progress
+        onProgress: (data?: any, current?: number, total?: number) => {
           if (current !== undefined && total !== undefined) {
             doc.currentChunk = current
-            doc.chunks!.length = total
           }
           if (data) {
             doc.chunks = data
@@ -73,14 +68,12 @@ export const useKnowledge = () => {
         continueFlag
       })
       doc.status = 'processed'
-      doc.progress = 100
     } catch (error) {
       if (abortController.signal.aborted) {
         doc.status = 'aborted'
       } else {
         doc.status = 'error'
       }
-      doc.progress = undefined
     }
   }
 
@@ -92,7 +85,6 @@ export const useKnowledge = () => {
     } = knowledge
     const { model, provider } = getModelById(providerId, modelId)!
 
-    // Prepare rerank options if configured
     let rerankOptions
     if (knowledge.rerankModel && knowledge.rerankModel.modelId) {
       const { modelId: rerankModelId, providerId: rerankProviderId } = knowledge.rerankModel

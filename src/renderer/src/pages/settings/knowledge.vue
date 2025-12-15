@@ -249,8 +249,7 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
                 size: f.size,
                 type: f.mediaType,
                 created: Date.now(),
-                status: 'processing',
-                progress: 0
+                status: 'processing'
             }
             docs.push(doc)
             addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, doc)
@@ -325,15 +324,16 @@ const isEmbedCompleted = (chunks) => {
                             <Tags v-if="props.row.status !== 'processing'"
                                 :color="props.row.status === 'error' ? 'red' : 'blue'"
                                 :tags="[props.row.status === 'aborted' ? '已终止' : props.row.status === 'error' ? '失败' : '成功']" />
-                            <div v-if="props.row.status === 'processing' && props.row.progress !== undefined"
+                            <div v-if="props.row.status === 'processing' && props.row.currentChunk !== undefined && props.row.chunks!.length !== undefined"
                                 style="width: 100%; display: flex; align-items: center; gap: 8px;">
                                 <div
                                     style="flex: 1; height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden;">
                                     <div style="height: 100%; background-color: #8b5cf6; transition: width 0.3s ease;"
-                                        :style="{ width: `${props.row.progress}%` }"></div>
+                                        :style="{ width: `${Math.round((props.row.currentChunk / props.row.chunks!.length) * 100)}%` }">
+                                    </div>
                                 </div>
                                 <span v-if="props.row.status == 'processing'" style="font-size: 12px; color: #666;">
-                                    {{ props.row.currentChunk || 0 }}/{{ props.row.chunks?.length || 0 }}
+                                    {{ props.row.currentChunk || 0 }}/{{ props.row.chunks!.length || 0 }}
                                 </span>
                             </div>
                         </div>
