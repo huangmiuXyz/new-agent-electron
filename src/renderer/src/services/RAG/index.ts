@@ -27,24 +27,47 @@ export const RAGService = () => {
       continueFlag: boolean
     }
   ) => {
+    const splitterClone = JSON.parse(JSON.stringify(splitter))
+    const total = splitterClone.length
+    if (total === 0) {
+      options.onProgress?.(100, splitterClone)
+      return splitterClone
+    }
+    let processed = 0
     options.onProgress?.(1)
-    const splitterClone = structuredClone(splitter)
-    const totalChunks = splitterClone.length
-    let processedChunks = 0
-    for (let i = 0; i < totalChunks; i++) {
-      if (options.continueFlag && splitterClone?.[i]?.embedding.length > 0) {
+    for (let i = 0; i < total; i++) {
+      if (options.abortController.signal.aborted) {
+        throw new Error('Embedding aborted')
+      }
+      const chunk = splitterClone[i]
+      if (options.continueFlag && chunk.embedding?.length > 0) {
+        processed++
+        reportProgress(processed, total, options)
         continue
       }
       const { embedding } = await embed({
         model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
-        value: splitterClone[i].content,
+        value: chunk.content,
         abortSignal: options.abortController.signal
       })
-      splitterClone[i].embedding = embedding
-      const progress = Math.min(20 + 80 * (processedChunks / totalChunks), 100)
-      options.onProgress?.(Math.round(progress), splitterClone)
+      chunk.embedding = embedding
+      processed++
+      reportProgress(processed, total, options)
     }
+
     options.onProgress?.(100, splitterClone)
+    return splitterClone
+  }
+
+  function reportProgress(
+    processed: number,
+    total: number,
+    options: {
+      onProgress?: (progress: number, data?: Splitter) => void
+    }
+  ) {
+    const progress = Math.min(20 + 80 * (processed / total), 100)
+    options.onProgress?.(Math.round(progress))
   }
 
   const retrieve = async (
