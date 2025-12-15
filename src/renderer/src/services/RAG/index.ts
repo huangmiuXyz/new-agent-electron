@@ -24,10 +24,16 @@ export const RAGService = () => {
       model: string
       name: string
       abortController: AbortController
-      onProgress?: (progress: number) => void
+      onProgress?: (progress: number, data?: { content: string; embedding: number[] }[]) => void
     }
   ) => {
-    options.onProgress?.(1)
+    options.onProgress?.(
+      1,
+      splitterResult.map((content) => ({
+        content,
+        embedding: []
+      }))
+    )
     const totalChunks = splitterResult.length
     let processedChunks = 0
 
@@ -47,15 +53,22 @@ export const RAGService = () => {
       processedChunks += batch.length
 
       const progress = Math.min(20 + 80 * (processedChunks / totalChunks), 100)
-      options.onProgress?.(Math.round(progress))
+      options.onProgress?.(
+        Math.round(progress),
+        splitterResult.map((content, index) => ({
+          content,
+          embedding: embeddings[index]
+        }))
+      )
     }
 
-    options.onProgress?.(100)
-
-    return splitterResult.map((content, index) => ({
-      content,
-      embedding: embeddings[index]
-    }))
+    options.onProgress?.(
+      100,
+      splitterResult.map((content, index) => ({
+        content,
+        embedding: embeddings[index]
+      }))
+    )
   }
 
   const retrieve = async (

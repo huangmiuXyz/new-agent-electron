@@ -27,19 +27,19 @@ export const useKnowledge = () => {
         providerId: provider.id
       }
       const splitterResult = await rag.splitter(doc)
-      const chunks = await rag.embedding(splitterResult, {
+      await rag.embedding(splitterResult, {
         apiKey: provider.apiKey!,
         baseURL: provider.baseUrl,
         name: provider.name,
         providerType: provider.providerType,
         model: model.name,
         abortController,
-        onProgress: (progress: number) => {
+        onProgress: (progress: number, data?: any) => {
           doc.progress = progress
+          doc.chunks = data
         }
       })
       doc.status = 'processed'
-      doc.chunks = chunks
       doc.progress = 100
     } catch (error) {
       if (abortController.signal.aborted) {
