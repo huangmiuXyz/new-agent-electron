@@ -92,11 +92,20 @@ export const RAGService = () => {
     if (allChunks.length === 0) {
       return []
     }
-
-    const scoredChunks = allChunks.map((chunk) => ({
-      ...chunk,
-      score: cosineSimilarity(queryEmbedding, chunk.embedding)
-    }))
+    const scoredChunks = allChunks.map((chunk) => {
+      try {
+        const result = {
+          ...chunk,
+          score: cosineSimilarity(queryEmbedding, chunk.embedding)
+        }
+        return result
+      } catch {
+        return {
+          ...chunk,
+          score: -1
+        }
+      }
+    })
 
     const similarityThreshold = retrieveOptions?.similarityThreshold ?? 0.2
     const topK = retrieveOptions?.topK ?? 5
