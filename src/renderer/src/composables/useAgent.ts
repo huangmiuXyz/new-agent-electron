@@ -7,25 +7,25 @@ export const useAgent = () => {
   const { confirm, remove } = useModal()
 
   // 获取内置工具选项
-  const builtinToolOptions = computed(() => {
+  const getBuiltinToolOptions = () => {
     const tools = getBuiltinTools()
     return Object.entries(tools).map(([key, tool]) => ({
       label: tool.title!,
       value: key,
       description: tool.description
     }))
-  })
+  }
 
   // 知识库选项
-  const knowledgeBaseOptions = computed(() => {
+  const getKnowledgeBaseOptions = () => {
     return knowledgeBases.value.map((kb) => ({
       label: kb.name,
       value: kb.id
     }))
-  })
+  }
 
   // 获取所有MCP服务器的选项列表
-  const mcpServerOptions = computed(() => {
+  const getMcpServerOptions = () => {
     return Object.entries(mcpServers.value).map(([name, server]) => {
       const desc =
         server.description ||
@@ -39,7 +39,7 @@ export const useAgent = () => {
         description: desc
       }
     })
-  })
+  }
 
   const getAllToolOptions = (selectedMcpServers: string[]) => {
     const toolOptions: { label: string; value: string; description?: string }[] = []
@@ -117,13 +117,13 @@ export const useAgent = () => {
           type: 'select',
           label: '关联知识库',
           placeholder: '选择知识库（可选）',
-          options: knowledgeBaseOptions.value
+          options: getKnowledgeBaseOptions()
         },
         {
           name: 'mcpServers',
           type: 'checkboxGroup',
           label: 'MCP 服务器',
-          options: mcpServerOptions.value
+          options: getMcpServerOptions()
         },
         {
           name: 'tools',
@@ -136,7 +136,7 @@ export const useAgent = () => {
           name: 'builtinTools',
           type: 'checkboxGroup',
           label: '内置工具',
-          options: builtinToolOptions.value
+          options: getBuiltinToolOptions()
         }
       ],
       onChange: (field, value, formData) => {
