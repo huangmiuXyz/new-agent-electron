@@ -257,7 +257,7 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
         activeKnowledgeBase.value?.documents?.forEach(e => {
             const doc = docs.find(d => d.id === e.id)
             if (doc) {
-                embedding(doc, activeKnowledgeBase.value)
+                embedding(e, activeKnowledgeBase.value)
             }
         })
     }
@@ -305,7 +305,7 @@ const { embedding } = useKnowledge()
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
