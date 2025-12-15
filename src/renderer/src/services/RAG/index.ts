@@ -32,9 +32,6 @@ export const RAGService = () => {
     let processed = 0
     options.onProgress?.(1)
     for (let i = 0; i < total; i++) {
-      if (options.abortController.signal.aborted) {
-        throw new Error('Embedding aborted')
-      }
       const chunk = splitterClone[i]
       if (options.continueFlag && chunk.embedding?.length > 0) {
         processed++
