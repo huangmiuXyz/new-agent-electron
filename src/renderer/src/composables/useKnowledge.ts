@@ -7,19 +7,36 @@ export const useKnowledge = () => {
       embeddingModel: { modelId, providerId }
     } = knowledge
     const { model, provider } = getModelById(providerId, modelId)!
+    if (doc.status === 'processing' && doc.abortController) {
+      doc.abortController.abort()
+    }
+
     doc.status = 'processing'
+    const abortController = new AbortController()
+    doc.abortController = abortController
+    const originalAbort = abortController.abort.bind(abortController)
+    abortController.abort = () => {
+      doc.status = 'aborted'
+      originalAbort()
+    }
+
     try {
       const chunks = await rag.embedding(doc, {
         apiKey: provider.apiKey!,
         baseURL: provider.baseUrl,
         name: provider.name,
         providerType: provider.providerType,
-        model: model.name
+        model: model.name,
+        abortController
       })
       doc.status = 'processed'
       doc.chunks = chunks
-    } catch {
-      doc.status = 'error'
+    } catch (error) {
+      if (abortController.signal.aborted) {
+        doc.status = 'aborted'
+      } else {
+        doc.status = 'error'
+      }
     }
   }
 

@@ -17,6 +17,7 @@ export const RAGService = () => {
       providerType: providerType
       model: string
       name: string
+      abortController: AbortController
     }
   ) => {
     const result = await splitTextByType(window.api.fs.readFileSync(doc.path, 'utf-8'), {
@@ -24,7 +25,8 @@ export const RAGService = () => {
     })
     const { embeddings } = await embedMany({
       model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
-      values: result
+      values: result,
+      abortSignal: options.abortController.signal
     })
     return result.map((content, index) => ({
       content,

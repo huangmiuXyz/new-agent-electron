@@ -5,7 +5,7 @@ import Table from '@renderer/components/Table.vue'
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 const { updateKnowledgeBase, addKnowledgeBase, deleteKnowledgeBase, addDocumentToKnowledgeBase, deleteDocumentFromKnowledgeBase } = useKnowledgeStore()
 
-const { Plus, Search, Trash, File, Refresh } = useIcon(['Plus', 'Search', 'Trash', 'File', 'Refresh'])
+const { Plus, Search, Trash, File, Refresh, Stop } = useIcon(['Stop', 'Plus', 'Search', 'Trash', 'File', 'Refresh'])
 const { confirm } = useModal()
 const { showContextMenu } = useContextMenu<KnowledgeBase>()
 
@@ -254,12 +254,13 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
             addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, doc)
         })
         clearSeletedFiles()
-        activeKnowledgeBase.value?.documents?.forEach(e => {
-            const doc = docs.find(d => d.id === e.id)
-            if (doc) {
-                embedding(e, activeKnowledgeBase.value)
+        await nextTick()
+        for (const doc of docs) {
+            const docInKnowledgeBase = activeKnowledgeBase.value?.documents?.find(d => d.id === doc.id)
+            if (docInKnowledgeBase) {
+                await embedding(docInKnowledgeBase, activeKnowledgeBase.value)
             }
-        })
+        }
     }
 })
 const addDocument = () => {
@@ -272,6 +273,10 @@ const handleShowSearch = async () => {
     searchBtn.value?.focus()
 }
 const { embedding } = useKnowledge()
+
+const handleAbortDocument = (doc: KnowledgeDocument) => {
+    doc.abortController?.abort()
+}
 
 </script>
 
@@ -305,7 +310,7 @@ const { embedding } = useKnowledge()
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
@@ -327,6 +332,12 @@ const { embedding } = useKnowledge()
                                 variant="text">
                                 <template #icon>
                                     <Refresh />
+                                </template>
+                            </Button>
+                            <Button v-if="props.row.status === 'processing'" @click="handleAbortDocument(props.row)"
+                                size="sm" type="button" variant="text">
+                                <template #icon>
+                                    <Stop />
                                 </template>
                             </Button>
                             <Button @click="showDeleteDocumentModal(props.row)" size="sm" type="button" variant="text">
