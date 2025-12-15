@@ -301,17 +301,14 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
             <FormItem label="文档列表">
                 <Table :loading="loading" :data="filteredDocuments" :columns="[
                     { key: 'name', label: '文档名称', width: '2fr' },
-                    { key: 'path', label: '路径', width: '3fr' },
                     { key: 'type', label: '类型', width: '1fr' },
                     { key: 'size', label: '大小', width: '1fr' },
-                    { key: 'created', label: '创建时间', width: '1.5fr' },
                     { key: 'status', label: '状态', width: '1.5fr' },
-                    { key: 'chunks', label: '块数', width: '1fr' },
                     { key: 'actions', label: '操作', width: '1fr' }
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
@@ -322,7 +319,8 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
                     <template #status="props">
                         <div style="display: flex; flex-direction: column; gap: 4px;">
                             <Tags v-if="props.row.status !== 'processing'"
-                                :color="props.row.status === 'error' ? 'red' : 'blue'" :tags="[props.row.status]" />
+                                :color="props.row.status === 'error' ? 'red' : 'blue'"
+                                :tags="[props.row.status === 'aborted' ? '已终止' : props.row.status === 'error' ? '失败' : '成功']" />
                             <div v-if="props.row.status === 'processing' && props.row.progress !== undefined"
                                 style="width: 100%; display: flex; align-items: center; gap: 8px;">
                                 <div
