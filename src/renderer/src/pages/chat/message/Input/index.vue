@@ -40,7 +40,6 @@ const adjustTextareaHeight = (event: Event) => {
 }
 
 const _sendMessage = async () => {
-  debugger
   if (!currentSelectedModel.value) {
     messageApi.error('请先选择模型')
     return
@@ -86,7 +85,7 @@ const _sendMessage = async () => {
 
       <div class="input-actions">
         <div class="action-left">
-          <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload">
+          <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
             <FileUploadIcon />
           </Button>
           <!-- 语音识别组件 -->
