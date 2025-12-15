@@ -7,7 +7,10 @@ export const useKnowledgeStore = defineStore(
         id: 'default-local',
         name: '默认数据库',
         description: '',
-        embeddingModel: '',
+        embeddingModel: {
+          modelId: '',
+          providerId: ''
+        },
         active: true,
         created: +new Date(),
         documents: []
