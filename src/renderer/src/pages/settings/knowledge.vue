@@ -321,9 +321,8 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
                     </template>
                     <template #status="props">
                         <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <Tags
-                                :color="props.row.status === 'processing' ? 'purple' : props.row.status === 'error' ? 'red' : 'blue'"
-                                :tags="[props.row.status]" />
+                            <Tags v-if="props.row.status !== 'processing'"
+                                :color="props.row.status === 'error' ? 'red' : 'blue'" :tags="[props.row.status]" />
                             <div v-if="props.row.status === 'processing' && props.row.progress !== undefined"
                                 style="width: 100%; display: flex; align-items: center; gap: 8px;">
                                 <div
@@ -331,7 +330,8 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
                                     <div style="height: 100%; background-color: #8b5cf6; transition: width 0.3s ease;"
                                         :style="{ width: `${props.row.progress}%` }"></div>
                                 </div>
-                                <span style="font-size: 12px; color: #666;">{{ props.row.progress }}%</span>
+                                <span v-if="props.row.status == 'processing'" style="font-size: 12px; color: #666;">{{
+                                    props.row.progress }}%</span>
                             </div>
                         </div>
                     </template>
