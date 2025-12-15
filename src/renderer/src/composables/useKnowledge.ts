@@ -26,7 +26,8 @@ export const useKnowledge = () => {
         modelId: model.id,
         providerId: provider.id
       }
-      const chunks = await rag.embedding(doc, {
+      const splitterResult = await rag.splitter(doc)
+      const chunks = await rag.embedding(splitterResult, {
         apiKey: provider.apiKey!,
         baseURL: provider.baseUrl,
         name: provider.name,

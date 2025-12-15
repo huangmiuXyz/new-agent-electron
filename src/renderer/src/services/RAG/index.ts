@@ -9,8 +9,14 @@ export interface RetrieveOptions {
 }
 
 export const RAGService = () => {
+  const splitter = async (doc: KnowledgeDocument) => {
+    const result = await splitTextByType(window.api.fs.readFileSync(doc.path, 'utf-8'), {
+      type: doc.type
+    })
+    return result
+  }
   const embedding = async (
-    doc: KnowledgeDocument,
+    splitterResult: string[],
     options: {
       apiKey: string
       baseURL: string
@@ -21,21 +27,14 @@ export const RAGService = () => {
       onProgress?: (progress: number) => void
     }
   ) => {
-    options.onProgress?.(0)
-
-    const result = await splitTextByType(window.api.fs.readFileSync(doc.path, 'utf-8'), {
-      type: doc.type
-    })
-    options.onProgress?.(1)
-
-    const totalChunks = result.length
+    const totalChunks = splitterResult.length
     let processedChunks = 0
 
     const embeddings: number[][] = []
     const batchSize = 10
 
     for (let i = 0; i < totalChunks; i += batchSize) {
-      const batch = result.slice(i, i + batchSize)
+      const batch = splitterResult.slice(i, i + batchSize)
 
       const { embeddings: batchEmbeddings } = await embedMany({
         model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
@@ -52,7 +51,7 @@ export const RAGService = () => {
 
     options.onProgress?.(100)
 
-    return result.map((content, index) => ({
+    return splitterResult.map((content, index) => ({
       content,
       embedding: embeddings[index]
     }))
@@ -137,5 +136,5 @@ export const RAGService = () => {
     return candidates.slice(0, topK)
   }
 
-  return { embedding, retrieve }
+  return { embedding, retrieve, splitter }
 }
