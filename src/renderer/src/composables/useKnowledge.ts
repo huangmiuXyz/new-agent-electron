@@ -27,6 +27,7 @@ export const useKnowledge = () => {
         providerId: provider.id
       }
       const splitterResult = await rag.splitter(doc)
+      doc.isSplitting = true
       await rag.embedding(splitterResult, {
         apiKey: provider.apiKey!,
         baseURL: provider.baseUrl,

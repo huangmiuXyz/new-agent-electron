@@ -28,6 +28,7 @@ declare global {
     chunks?: KnowledgeChunk[]
     abortController?: AbortController
     progress?: number
+    isSplitting?: boolean
     metadata?: {
       modelId: string
       providerId: string
