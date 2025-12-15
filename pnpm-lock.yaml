@@ -80,18 +80,12 @@ importers:
       es-toolkit:
         specifier: ^1.42.0
         version: 1.42.0
-      katex:
-        specifier: ^0.16.27
-        version: 0.16.27
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
       markstream-vue:
         specifier: 0.0.2-beta.9
         version: 0.0.2-beta.9(katex@0.16.27)(mermaid@11.12.2)(shiki@3.19.0)(stream-markdown@0.0.11(shiki@3.19.0))(stream-monaco@0.0.8(monaco-editor@0.52.2))(vue@3.5.25(typescript@5.9.3))
-      mermaid:
-        specifier: ^11.12.2
-        version: 11.12.2
       mime-types:
         specifier: ^3.0.2
         version: 3.0.2
@@ -113,12 +107,9 @@ importers:
       pinia-plugin-persistedstate-async:
         specifier: ^1.6.3
         version: 1.6.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3)))
-      shiki:
-        specifier: ^3.19.0
-        version: 3.19.0
-      stream-markdown:
-        specifier: ^0.0.11
-        version: 0.0.11(shiki@3.19.0)
+      vite-plugin-monaco-editor:
+        specifier: ^1.1.0
+        version: 1.1.0(monaco-editor@0.52.2)
       vosk-browser:
         specifier: ^0.0.8
         version: 0.0.8
@@ -128,12 +119,6 @@ importers:
       vue-router:
         specifier: ^4.6.3
         version: 4.6.3(vue@3.5.25(typescript@5.9.3))
-      xterm:
-        specifier: ^5.3.0
-        version: 5.3.0
-      xterm-addon-fit:
-        specifier: ^0.8.0
-        version: 0.8.0(xterm@5.3.0)
       zhipu-ai-provider:
         specifier: 0.2.0-beta.1
         version: 0.2.0-beta.1(zod@4.1.13)
@@ -228,6 +213,9 @@ importers:
       vite:
         specifier: ^7.1.6
         version: 7.2.4(@types/node@22.19.1)(jiti@2.6.1)
+      vite-plugin-monaco-editor-esm:
+        specifier: ^2.0.2
+        version: 2.0.2(monaco-editor@0.52.2)
       vite-plugin-vue-devtools:
         specifier: ^8.0.5
         version: 8.0.5(vite@7.2.4(@types/node@22.19.1)(jiti@2.6.1))(vue@3.5.25(typescript@5.9.3))
@@ -4446,6 +4434,16 @@ packages:
       '@nuxt/kit':
         optional: true
 
+  vite-plugin-monaco-editor-esm@2.0.2:
+    resolution: {integrity: sha512-XVkOpL/r0rw1NpbO30vUwG4S0THkC9KB1vjjV8olGd49h4/EQsKl3DrxB6KRDwyZNC9mKiiZgk2L6njUYj3oKQ==}
+    peerDependencies:
+      monaco-editor: '>=0.33.0'
+
+  vite-plugin-monaco-editor@1.1.0:
+    resolution: {integrity: sha512-IvtUqZotrRoVqwT0PBBDIZPNraya3BxN/bfcNfnxZ5rkJiGcNtO5eAOWWSgT7zullIAEqQwxMU83yL9J5k7gww==}
+    peerDependencies:
+      monaco-editor: '>=0.33.0'
+
   vite-plugin-vue-devtools@8.0.5:
     resolution: {integrity: sha512-p619BlKFOqQXJ6uDWS1vUPQzuJOD6xJTfftj57JXBGoBD/yeQCowR7pnWcr/FEX4/HVkFbreI6w2uuGBmQOh6A==}
     engines: {node: '>=v14.21.3'}
@@ -4593,16 +4591,6 @@ packages:
   xmlbuilder@15.1.1:
     resolution: {integrity: sha512-yMqGBqtXyeN1e3TGYvgNgDVZ3j84W4cwkOXQswghol6APgZWaff9lnbvN7MHYJOiXsvGPXtjTYJEiC9J2wv9Eg==}
     engines: {node: '>=8.0'}
-
-  xterm-addon-fit@0.8.0:
-    resolution: {integrity: sha512-yj3Np7XlvxxhYF/EJ7p3KHaMt6OdwQ+HDu573Vx1lRXsVxOcnVJs51RgjZOouIZOczTsskaS+CpXspK81/DLqw==}
-    deprecated: This package is now deprecated. Move to @xterm/addon-fit instead.
-    peerDependencies:
-      xterm: ^5.0.0
-
-  xterm@5.3.0:
-    resolution: {integrity: sha512-8QqjlekLUFTrU6x7xck1MsPzPA571K5zNqWm0M0oroYEWVOptZ0+ubQSkQ3uxIEhcIHRujJy6emDWX4A7qyFzg==}
-    deprecated: This package is now deprecated. Move to @xterm/xterm instead.
 
   y18n@5.0.8:
     resolution: {integrity: sha512-0pfFzegeDWJHJIAmTLRP2DwHjdF5s7jo9tuztdQxAhINCdvS+3nGINqPd00AphqJR/0LhANUS6/+7SCb98YOfA==}
@@ -4821,6 +4809,7 @@ snapshots:
     dependencies:
       package-manager-detector: 1.6.0
       tinyexec: 1.0.2
+    optional: true
 
   '@babel/code-frame@7.27.1':
     dependencies:
@@ -5018,7 +5007,8 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@braintree/sanitize-url@7.1.1': {}
+  '@braintree/sanitize-url@7.1.1':
+    optional: true
 
   '@cfworker/json-schema@4.1.1': {}
 
@@ -5027,17 +5017,22 @@ snapshots:
       '@chevrotain/gast': 11.0.3
       '@chevrotain/types': 11.0.3
       lodash-es: 4.17.21
+    optional: true
 
   '@chevrotain/gast@11.0.3':
     dependencies:
       '@chevrotain/types': 11.0.3
       lodash-es: 4.17.21
+    optional: true
 
-  '@chevrotain/regexp-to-ast@11.0.3': {}
+  '@chevrotain/regexp-to-ast@11.0.3':
+    optional: true
 
-  '@chevrotain/types@11.0.3': {}
+  '@chevrotain/types@11.0.3':
+    optional: true
 
-  '@chevrotain/utils@11.0.3': {}
+  '@chevrotain/utils@11.0.3':
+    optional: true
 
   '@develar/schema-utils@2.6.5':
     dependencies:
@@ -5335,13 +5330,15 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@iconify/types@2.0.0': {}
+  '@iconify/types@2.0.0':
+    optional: true
 
   '@iconify/utils@3.1.0':
     dependencies:
       '@antfu/install-pkg': 1.1.0
       '@iconify/types': 2.0.0
       mlly: 1.8.0
+    optional: true
 
   '@isaacs/balanced-match@4.0.1': {}
 
@@ -5420,6 +5417,7 @@ snapshots:
   '@mermaid-js/parser@0.6.3':
     dependencies:
       langium: 3.3.1
+    optional: true
 
   '@modelcontextprotocol/sdk@1.24.2(@cfworker/json-schema@4.1.1)(zod@4.1.13)':
     dependencies:
@@ -5645,21 +5643,25 @@ snapshots:
       '@shikijs/vscode-textmate': 10.0.2
       '@types/hast': 3.0.4
       hast-util-to-html: 9.0.5
+    optional: true
 
   '@shikijs/engine-javascript@3.19.0':
     dependencies:
       '@shikijs/types': 3.19.0
       '@shikijs/vscode-textmate': 10.0.2
       oniguruma-to-es: 4.3.4
+    optional: true
 
   '@shikijs/engine-oniguruma@3.19.0':
     dependencies:
       '@shikijs/types': 3.19.0
       '@shikijs/vscode-textmate': 10.0.2
+    optional: true
 
   '@shikijs/langs@3.19.0':
     dependencies:
       '@shikijs/types': 3.19.0
+    optional: true
 
   '@shikijs/monaco@3.19.0':
     dependencies:
@@ -5671,13 +5673,16 @@ snapshots:
   '@shikijs/themes@3.19.0':
     dependencies:
       '@shikijs/types': 3.19.0
+    optional: true
 
   '@shikijs/types@3.19.0':
     dependencies:
       '@shikijs/vscode-textmate': 10.0.2
       '@types/hast': 3.0.4
+    optional: true
 
-  '@shikijs/vscode-textmate@10.0.2': {}
+  '@shikijs/vscode-textmate@10.0.2':
+    optional: true
 
   '@sindresorhus/is@4.6.0': {}
 
@@ -5703,89 +5708,119 @@ snapshots:
       '@types/node': 22.19.1
       '@types/responselike': 1.0.3
 
-  '@types/d3-array@3.2.2': {}
+  '@types/d3-array@3.2.2':
+    optional: true
 
   '@types/d3-axis@3.0.6':
     dependencies:
       '@types/d3-selection': 3.0.11
+    optional: true
 
   '@types/d3-brush@3.0.6':
     dependencies:
       '@types/d3-selection': 3.0.11
+    optional: true
 
-  '@types/d3-chord@3.0.6': {}
+  '@types/d3-chord@3.0.6':
+    optional: true
 
-  '@types/d3-color@3.1.3': {}
+  '@types/d3-color@3.1.3':
+    optional: true
 
   '@types/d3-contour@3.0.6':
     dependencies:
       '@types/d3-array': 3.2.2
       '@types/geojson': 7946.0.16
+    optional: true
 
-  '@types/d3-delaunay@6.0.4': {}
+  '@types/d3-delaunay@6.0.4':
+    optional: true
 
-  '@types/d3-dispatch@3.0.7': {}
+  '@types/d3-dispatch@3.0.7':
+    optional: true
 
   '@types/d3-drag@3.0.7':
     dependencies:
       '@types/d3-selection': 3.0.11
+    optional: true
 
-  '@types/d3-dsv@3.0.7': {}
+  '@types/d3-dsv@3.0.7':
+    optional: true
 
-  '@types/d3-ease@3.0.2': {}
+  '@types/d3-ease@3.0.2':
+    optional: true
 
   '@types/d3-fetch@3.0.7':
     dependencies:
       '@types/d3-dsv': 3.0.7
+    optional: true
 
-  '@types/d3-force@3.0.10': {}
+  '@types/d3-force@3.0.10':
+    optional: true
 
-  '@types/d3-format@3.0.4': {}
+  '@types/d3-format@3.0.4':
+    optional: true
 
   '@types/d3-geo@3.1.0':
     dependencies:
       '@types/geojson': 7946.0.16
+    optional: true
 
-  '@types/d3-hierarchy@3.1.7': {}
+  '@types/d3-hierarchy@3.1.7':
+    optional: true
 
   '@types/d3-interpolate@3.0.4':
     dependencies:
       '@types/d3-color': 3.1.3
+    optional: true
 
-  '@types/d3-path@3.1.1': {}
+  '@types/d3-path@3.1.1':
+    optional: true
 
-  '@types/d3-polygon@3.0.2': {}
+  '@types/d3-polygon@3.0.2':
+    optional: true
 
-  '@types/d3-quadtree@3.0.6': {}
+  '@types/d3-quadtree@3.0.6':
+    optional: true
 
-  '@types/d3-random@3.0.3': {}
+  '@types/d3-random@3.0.3':
+    optional: true
 
-  '@types/d3-scale-chromatic@3.1.0': {}
+  '@types/d3-scale-chromatic@3.1.0':
+    optional: true
 
   '@types/d3-scale@4.0.9':
     dependencies:
       '@types/d3-time': 3.0.4
+    optional: true
 
-  '@types/d3-selection@3.0.11': {}
+  '@types/d3-selection@3.0.11':
+    optional: true
 
   '@types/d3-shape@3.1.7':
     dependencies:
       '@types/d3-path': 3.1.1
+    optional: true
 
-  '@types/d3-time-format@4.0.3': {}
+  '@types/d3-time-format@4.0.3':
+    optional: true
 
-  '@types/d3-time@3.0.4': {}
+  '@types/d3-time@3.0.4':
+    optional: true
 
-  '@types/d3-timer@3.0.2': {}
+  '@types/d3-timer@3.0.2':
+    optional: true
 
   '@types/d3-transition@3.0.9':
     dependencies:
       '@types/d3-selection': 3.0.11
+    optional: true
 
   '@types/d3-zoom@3.0.8':
     dependencies:
       '@types/d3-interpolate': 3.0.4
       '@types/d3-selection': 3.0.11
+    optional: true
 
   '@types/d3@7.4.3':
     dependencies:
@@ -5819,6 +5854,7 @@ snapshots:
       '@types/d3-timer': 3.0.2
       '@types/d3-transition': 3.0.9
       '@types/d3-zoom': 3.0.8
+    optional: true
 
   '@types/debug@4.1.12':
     dependencies:
@@ -5830,11 +5866,13 @@ snapshots:
     dependencies:
       '@types/node': 22.19.1
 
-  '@types/geojson@7946.0.16': {}
+  '@types/geojson@7946.0.16':
+    optional: true
 
   '@types/hast@3.0.4':
     dependencies:
       '@types/unist': 3.0.3
+    optional: true
 
   '@types/http-cache-semantics@4.0.4': {}
 
@@ -5847,6 +5885,7 @@ snapshots:
   '@types/mdast@4.0.4':
     dependencies:
       '@types/unist': 3.0.3
+    optional: true
 
   '@types/mime-types@3.0.1': {}
 
@@ -5871,7 +5910,8 @@ snapshots:
   '@types/trusted-types@2.0.7':
     optional: true
 
-  '@types/unist@3.0.3': {}
+  '@types/unist@3.0.3':
+    optional: true
 
   '@types/uuid@10.0.0': {}
 
@@ -5977,7 +6017,8 @@ snapshots:
       '@typescript-eslint/types': 8.48.0
       eslint-visitor-keys: 4.2.1
 
-  '@ungap/structured-clone@1.3.0': {}
+  '@ungap/structured-clone@1.3.0':
+    optional: true
 
   '@vercel/oidc@3.0.5': {}
 
@@ -6608,21 +6649,25 @@ snapshots:
 
   caniuse-lite@1.0.30001757: {}
 
-  ccount@2.0.1: {}
+  ccount@2.0.1:
+    optional: true
 
   chalk@4.1.2:
     dependencies:
       ansi-styles: 4.3.0
       supports-color: 7.2.0
 
-  character-entities-html4@2.1.0: {}
+  character-entities-html4@2.1.0:
+    optional: true
 
-  character-entities-legacy@3.0.0: {}
+  character-entities-legacy@3.0.0:
+    optional: true
 
   chevrotain-allstar@0.3.1(chevrotain@11.0.3):
     dependencies:
       chevrotain: 11.0.3
       lodash-es: 4.17.21
+    optional: true
 
   chevrotain@11.0.3:
     dependencies:
@@ -6632,6 +6677,7 @@ snapshots:
       '@chevrotain/types': 11.0.3
       '@chevrotain/utils': 11.0.3
       lodash-es: 4.17.21
+    optional: true
 
   chokidar@4.0.3:
     dependencies:
@@ -6683,13 +6729,16 @@ snapshots:
     dependencies:
       delayed-stream: 1.0.0
 
-  comma-separated-tokens@2.0.3: {}
+  comma-separated-tokens@2.0.3:
+    optional: true
 
   commander@5.1.0: {}
 
-  commander@7.2.0: {}
+  commander@7.2.0:
+    optional: true
 
-  commander@8.3.0: {}
+  commander@8.3.0:
+    optional: true
 
   compare-version@0.1.2: {}
 
@@ -6744,10 +6793,12 @@ snapshots:
   cose-base@1.0.3:
     dependencies:
       layout-base: 1.0.2
+    optional: true
 
   cose-base@2.2.0:
     dependencies:
       layout-base: 2.0.1
+    optional: true
 
   crc-32@1.2.2: {}
 
@@ -6783,23 +6834,29 @@ snapshots:
     dependencies:
       cose-base: 1.0.3
       cytoscape: 3.33.1
+    optional: true
 
   cytoscape-fcose@2.2.0(cytoscape@3.33.1):
     dependencies:
       cose-base: 2.2.0
       cytoscape: 3.33.1
+    optional: true
 
-  cytoscape@3.33.1: {}
+  cytoscape@3.33.1:
+    optional: true
 
   d3-array@2.12.1:
     dependencies:
       internmap: 1.0.1
+    optional: true
 
   d3-array@3.2.4:
     dependencies:
       internmap: 2.0.3
+    optional: true
 
-  d3-axis@3.0.0: {}
+  d3-axis@3.0.0:
+    optional: true
 
   d3-brush@3.0.0:
     dependencies:
@@ -6808,77 +6865,99 @@ snapshots:
       d3-interpolate: 3.0.1
       d3-selection: 3.0.0
       d3-transition: 3.0.1(d3-selection@3.0.0)
+    optional: true
 
   d3-chord@3.0.1:
     dependencies:
       d3-path: 3.1.0
+    optional: true
 
-  d3-color@3.1.0: {}
+  d3-color@3.1.0:
+    optional: true
 
   d3-contour@4.0.2:
     dependencies:
       d3-array: 3.2.4
+    optional: true
 
   d3-delaunay@6.0.4:
     dependencies:
       delaunator: 5.0.1
+    optional: true
 
-  d3-dispatch@3.0.1: {}
+  d3-dispatch@3.0.1:
+    optional: true
 
   d3-drag@3.0.0:
     dependencies:
       d3-dispatch: 3.0.1
       d3-selection: 3.0.0
+    optional: true
 
   d3-dsv@3.0.1:
     dependencies:
       commander: 7.2.0
       iconv-lite: 0.6.3
       rw: 1.3.3
+    optional: true
 
-  d3-ease@3.0.1: {}
+  d3-ease@3.0.1:
+    optional: true
 
   d3-fetch@3.0.1:
     dependencies:
       d3-dsv: 3.0.1
+    optional: true
 
   d3-force@3.0.0:
     dependencies:
       d3-dispatch: 3.0.1
       d3-quadtree: 3.0.1
       d3-timer: 3.0.1
+    optional: true
 
-  d3-format@3.1.0: {}
+  d3-format@3.1.0:
+    optional: true
 
   d3-geo@3.1.1:
     dependencies:
       d3-array: 3.2.4
+    optional: true
 
-  d3-hierarchy@3.1.2: {}
+  d3-hierarchy@3.1.2:
+    optional: true
 
   d3-interpolate@3.0.1:
     dependencies:
       d3-color: 3.1.0
+    optional: true
 
-  d3-path@1.0.9: {}
+  d3-path@1.0.9:
+    optional: true
 
-  d3-path@3.1.0: {}
+  d3-path@3.1.0:
+    optional: true
 
-  d3-polygon@3.0.1: {}
+  d3-polygon@3.0.1:
+    optional: true
 
-  d3-quadtree@3.0.1: {}
+  d3-quadtree@3.0.1:
+    optional: true
 
-  d3-random@3.0.1: {}
+  d3-random@3.0.1:
+    optional: true
 
   d3-sankey@0.12.3:
     dependencies:
       d3-array: 2.12.1
       d3-shape: 1.3.7
+    optional: true
 
   d3-scale-chromatic@3.1.0:
     dependencies:
       d3-color: 3.1.0
       d3-interpolate: 3.0.1
+    optional: true
 
   d3-scale@4.0.2:
     dependencies:
@@ -6887,26 +6966,33 @@ snapshots:
       d3-interpolate: 3.0.1
       d3-time: 3.1.0
       d3-time-format: 4.1.0
+    optional: true
 
-  d3-selection@3.0.0: {}
+  d3-selection@3.0.0:
+    optional: true
 
   d3-shape@1.3.7:
     dependencies:
       d3-path: 1.0.9
+    optional: true
 
   d3-shape@3.2.0:
     dependencies:
       d3-path: 3.1.0
+    optional: true
 
   d3-time-format@4.1.0:
     dependencies:
       d3-time: 3.1.0
+    optional: true
 
   d3-time@3.1.0:
     dependencies:
       d3-array: 3.2.4
+    optional: true
 
-  d3-timer@3.0.1: {}
+  d3-timer@3.0.1:
+    optional: true
 
   d3-transition@3.0.1(d3-selection@3.0.0):
     dependencies:
@@ -6916,6 +7002,7 @@ snapshots:
       d3-interpolate: 3.0.1
       d3-selection: 3.0.0
       d3-timer: 3.0.1
+    optional: true
 
   d3-zoom@3.0.0:
     dependencies:
@@ -6924,6 +7011,7 @@ snapshots:
       d3-interpolate: 3.0.1
       d3-selection: 3.0.0
       d3-transition: 3.0.1(d3-selection@3.0.0)
+    optional: true
 
   d3@7.9.0:
     dependencies:
@@ -6957,11 +7045,13 @@ snapshots:
       d3-timer: 3.0.1
       d3-transition: 3.0.1(d3-selection@3.0.0)
       d3-zoom: 3.0.0
+    optional: true
 
   dagre-d3-es@7.0.13:
     dependencies:
       d3: 7.9.0
       lodash-es: 4.17.21
+    optional: true
 
   dayjs@1.11.19: {}
 
@@ -7011,6 +7101,7 @@ snapshots:
   delaunator@5.0.1:
     dependencies:
       robust-predicates: 3.0.2
+    optional: true
 
   delayed-stream@1.0.0: {}
 
@@ -7018,7 +7109,8 @@ snapshots:
 
   depd@2.0.0: {}
 
-  dequal@2.0.3: {}
+  dequal@2.0.3:
+    optional: true
 
   detect-libc@2.1.2: {}
 
@@ -7028,6 +7120,7 @@ snapshots:
   devlop@1.1.0:
     dependencies:
       dequal: 2.0.3
+    optional: true
 
   dir-compare@4.2.0:
     dependencies:
@@ -7064,6 +7157,7 @@ snapshots:
   dompurify@3.3.0:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
+    optional: true
 
   dotenv-expand@11.0.7:
     dependencies:
@@ -7663,7 +7757,8 @@ snapshots:
 
   graphemer@1.4.0: {}
 
-  hachure-fill@0.5.2: {}
+  hachure-fill@0.5.2:
+    optional: true
 
   has-flag@4.0.0: {}
 
@@ -7697,10 +7792,12 @@ snapshots:
       space-separated-tokens: 2.0.2
       stringify-entities: 4.0.4
       zwitch: 2.0.4
+    optional: true
 
   hast-util-whitespace@3.0.0:
     dependencies:
       '@types/hast': 3.0.4
+    optional: true
 
   hookable@5.5.3: {}
 
@@ -7708,7 +7805,8 @@ snapshots:
     dependencies:
       lru-cache: 6.0.0
 
-  html-void-elements@3.0.0: {}
+  html-void-elements@3.0.0:
+    optional: true
 
   http-cache-semantics@4.2.0: {}
 
@@ -7798,9 +7896,11 @@ snapshots:
 
   inherits@2.0.4: {}
 
-  internmap@1.0.1: {}
+  internmap@1.0.1:
+    optional: true
 
-  internmap@2.0.3: {}
+  internmap@2.0.3:
+    optional: true
 
   ip-address@10.1.0: {}
 
@@ -7912,12 +8012,14 @@ snapshots:
   katex@0.16.27:
     dependencies:
       commander: 8.3.0
+    optional: true
 
   keyv@4.5.4:
     dependencies:
       json-buffer: 3.0.1
 
-  khroma@2.1.0: {}
+  khroma@2.1.0:
+    optional: true
 
   kolorist@1.8.0: {}
 
@@ -7928,6 +8030,7 @@ snapshots:
       vscode-languageserver: 9.0.1
       vscode-languageserver-textdocument: 1.0.12
       vscode-uri: 3.0.8
+    optional: true
 
   langsmith@0.3.87(@opentelemetry/api@1.9.0)(openai@6.9.1(zod@4.1.13)):
     dependencies:
@@ -7941,9 +8044,11 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       openai: 6.9.1(zod@4.1.13)
 
-  layout-base@1.0.2: {}
+  layout-base@1.0.2:
+    optional: true
 
-  layout-base@2.0.1: {}
+  layout-base@2.0.1:
+    optional: true
 
   lazy-val@1.0.5: {}
 
@@ -7978,7 +8083,8 @@ snapshots:
     dependencies:
       p-locate: 5.0.0
 
-  lodash-es@4.17.21: {}
+  lodash-es@4.17.21:
+    optional: true
 
   lodash.defaults@4.2.0: {}
 
@@ -8087,7 +8193,8 @@ snapshots:
       punycode.js: 2.3.1
       uc.micro: 2.1.0
 
-  marked@16.4.2: {}
+  marked@16.4.2:
+    optional: true
 
   markstream-vue@0.0.2-beta.9(katex@0.16.27)(mermaid@11.12.2)(shiki@3.19.0)(stream-markdown@0.0.11(shiki@3.19.0))(stream-monaco@0.0.8(monaco-editor@0.52.2))(vue@3.5.25(typescript@5.9.3)):
     dependencies:
@@ -8119,6 +8226,7 @@ snapshots:
       unist-util-position: 5.0.0
       unist-util-visit: 5.0.0
       vfile: 6.0.3
+    optional: true
 
   mdurl@2.0.0: {}
 
@@ -8152,23 +8260,29 @@ snapshots:
       stylis: 4.3.6
       ts-dedent: 2.2.0
       uuid: 11.1.0
+    optional: true
 
   micromark-util-character@2.1.1:
     dependencies:
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.2
+    optional: true
 
-  micromark-util-encode@2.0.1: {}
+  micromark-util-encode@2.0.1:
+    optional: true
 
   micromark-util-sanitize-uri@2.0.1:
     dependencies:
       micromark-util-character: 2.1.1
       micromark-util-encode: 2.0.1
       micromark-util-symbol: 2.0.1
+    optional: true
 
-  micromark-util-symbol@2.0.1: {}
+  micromark-util-symbol@2.0.1:
+    optional: true
 
-  micromark-util-types@2.0.2: {}
+  micromark-util-types@2.0.2:
+    optional: true
 
   micromatch@4.0.8:
     dependencies:
@@ -8277,8 +8391,7 @@ snapshots:
       pkg-types: 1.3.1
       ufo: 1.6.1
 
-  monaco-editor@0.52.2:
-    optional: true
+  monaco-editor@0.52.2: {}
 
   mrmime@2.0.1: {}
 
@@ -8418,13 +8531,15 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
-  oniguruma-parser@0.12.1: {}
+  oniguruma-parser@0.12.1:
+    optional: true
 
   oniguruma-to-es@4.3.4:
     dependencies:
       oniguruma-parser: 0.12.1
       regex: 6.0.1
       regex-recursion: 6.0.2
+    optional: true
 
   open@10.2.0:
     dependencies:
@@ -8518,7 +8633,8 @@ snapshots:
 
   package-json-from-dist@1.0.1: {}
 
-  package-manager-detector@1.6.0: {}
+  package-manager-detector@1.6.0:
+    optional: true
 
   parent-module@1.0.1:
     dependencies:
@@ -8528,7 +8644,8 @@ snapshots:
 
   path-browserify@1.0.1: {}
 
-  path-data-parser@0.1.0: {}
+  path-data-parser@0.1.0:
+    optional: true
 
   path-exists@4.0.0: {}
 
@@ -8598,12 +8715,14 @@ snapshots:
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
 
-  points-on-curve@0.2.0: {}
+  points-on-curve@0.2.0:
+    optional: true
 
   points-on-path@0.2.1:
     dependencies:
       path-data-parser: 0.1.0
       points-on-curve: 0.2.0
+    optional: true
 
   postcss-selector-parser@7.1.1:
     dependencies:
@@ -8637,7 +8756,8 @@ snapshots:
       err-code: 2.0.3
       retry: 0.12.0
 
-  property-information@7.1.0: {}
+  property-information@7.1.0:
+    optional: true
 
   proxy-addr@2.0.7:
     dependencies:
@@ -8708,12 +8828,15 @@ snapshots:
   regex-recursion@6.0.2:
     dependencies:
       regex-utilities: 2.3.0
+    optional: true
 
-  regex-utilities@2.3.0: {}
+  regex-utilities@2.3.0:
+    optional: true
 
   regex@6.0.1:
     dependencies:
       regex-utilities: 2.3.0
+    optional: true
 
   require-directory@2.1.1: {}
 
@@ -8756,7 +8879,8 @@ snapshots:
       sprintf-js: 1.1.3
     optional: true
 
-  robust-predicates@3.0.2: {}
+  robust-predicates@3.0.2:
+    optional: true
 
   rollup@4.53.3:
     dependencies:
@@ -8792,6 +8916,7 @@ snapshots:
       path-data-parser: 0.1.0
       points-on-curve: 0.2.0
       points-on-path: 0.2.1
+    optional: true
 
   router@2.2.0:
     dependencies:
@@ -8809,7 +8934,8 @@ snapshots:
     dependencies:
       queue-microtask: 1.2.3
 
-  rw@1.3.3: {}
+  rw@1.3.3:
+    optional: true
 
   safe-buffer@5.1.2: {}
 
@@ -8884,6 +9010,7 @@ snapshots:
       '@shikijs/types': 3.19.0
       '@shikijs/vscode-textmate': 10.0.2
       '@types/hast': 3.0.4
+    optional: true
 
   side-channel-list@1.0.0:
     dependencies:
@@ -8968,7 +9095,8 @@ snapshots:
 
   source-map@0.6.1: {}
 
-  space-separated-tokens@2.0.2: {}
+  space-separated-tokens@2.0.2:
+    optional: true
 
   speakingurl@14.0.1: {}
 
@@ -9001,6 +9129,7 @@ snapshots:
   stream-markdown@0.0.11(shiki@3.19.0):
     dependencies:
       shiki: 3.19.0
+    optional: true
 
   stream-monaco@0.0.8(monaco-editor@0.52.2):
     dependencies:
@@ -9034,6 +9163,7 @@ snapshots:
     dependencies:
       character-entities-html4: 2.1.0
       character-entities-legacy: 3.0.0
+    optional: true
 
   strip-ansi@6.0.1:
     dependencies:
@@ -9049,7 +9179,8 @@ snapshots:
     dependencies:
       js-tokens: 9.0.1
 
-  stylis@4.3.6: {}
+  stylis@4.3.6:
+    optional: true
 
   sumchecker@3.0.1:
     dependencies:
@@ -9105,7 +9236,8 @@ snapshots:
 
   tiny-typed-emitter@2.1.0: {}
 
-  tinyexec@1.0.2: {}
+  tinyexec@1.0.2:
+    optional: true
 
   tinyglobby@0.2.15:
     dependencies:
@@ -9126,7 +9258,8 @@ snapshots:
 
   totalist@3.0.1: {}
 
-  trim-lines@3.0.1: {}
+  trim-lines@3.0.1:
+    optional: true
 
   truncate-utf8-bytes@1.0.2:
     dependencies:
@@ -9136,7 +9269,8 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
-  ts-dedent@2.2.0: {}
+  ts-dedent@2.2.0:
+    optional: true
 
   tslib@2.8.1:
     optional: true
@@ -9209,25 +9343,30 @@ snapshots:
   unist-util-is@6.0.1:
     dependencies:
       '@types/unist': 3.0.3
+    optional: true
 
   unist-util-position@5.0.0:
     dependencies:
       '@types/unist': 3.0.3
+    optional: true
 
   unist-util-stringify-position@4.0.0:
     dependencies:
       '@types/unist': 3.0.3
+    optional: true
 
   unist-util-visit-parents@6.0.2:
     dependencies:
       '@types/unist': 3.0.3
       unist-util-is: 6.0.1
+    optional: true
 
   unist-util-visit@5.0.0:
     dependencies:
       '@types/unist': 3.0.3
       unist-util-is: 6.0.1
       unist-util-visit-parents: 6.0.2
+    optional: true
 
   universalify@0.1.2: {}
 
@@ -9290,7 +9429,8 @@ snapshots:
 
   uuid@10.0.0: {}
 
-  uuid@11.1.0: {}
+  uuid@11.1.0:
+    optional: true
 
   uuid@9.0.0: {}
 
@@ -9307,11 +9447,13 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       unist-util-stringify-position: 4.0.0
+    optional: true
 
   vfile@6.0.3:
     dependencies:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
+    optional: true
 
   vite-dev-rpc@1.1.0(vite@7.2.4(@types/node@22.19.1)(jiti@2.6.1)):
     dependencies:
@@ -9337,6 +9479,14 @@ snapshots:
       vite-dev-rpc: 1.1.0(vite@7.2.4(@types/node@22.19.1)(jiti@2.6.1))
     transitivePeerDependencies:
       - supports-color
+
+  vite-plugin-monaco-editor-esm@2.0.2(monaco-editor@0.52.2):
+    dependencies:
+      monaco-editor: 0.52.2
+
+  vite-plugin-monaco-editor@1.1.0(monaco-editor@0.52.2):
+    dependencies:
+      monaco-editor: 0.52.2
 
   vite-plugin-vue-devtools@8.0.5(vite@7.2.4(@types/node@22.19.1)(jiti@2.6.1))(vue@3.5.25(typescript@5.9.3)):
     dependencies:
@@ -9384,22 +9534,28 @@ snapshots:
     dependencies:
       uuid: 9.0.0
 
-  vscode-jsonrpc@8.2.0: {}
+  vscode-jsonrpc@8.2.0:
+    optional: true
 
   vscode-languageserver-protocol@3.17.5:
     dependencies:
       vscode-jsonrpc: 8.2.0
       vscode-languageserver-types: 3.17.5
+    optional: true
 
-  vscode-languageserver-textdocument@1.0.12: {}
+  vscode-languageserver-textdocument@1.0.12:
+    optional: true
 
-  vscode-languageserver-types@3.17.5: {}
+  vscode-languageserver-types@3.17.5:
+    optional: true
 
   vscode-languageserver@9.0.1:
     dependencies:
       vscode-languageserver-protocol: 3.17.5
+    optional: true
 
-  vscode-uri@3.0.8: {}
+  vscode-uri@3.0.8:
+    optional: true
 
   vscode-uri@3.1.0: {}
 
@@ -9478,12 +9634,6 @@ snapshots:
 
   xmlbuilder@15.1.1: {}
 
-  xterm-addon-fit@0.8.0(xterm@5.3.0):
-    dependencies:
-      xterm: 5.3.0
-
-  xterm@5.3.0: {}
-
   y18n@5.0.8: {}
 
   yallist@3.1.1: {}
@@ -9531,4 +9681,5 @@ snapshots:
 
   zod@4.1.13: {}
 
-  zwitch@2.0.4: {}
+  zwitch@2.0.4:
+    optional: true

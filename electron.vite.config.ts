@@ -5,6 +5,7 @@ import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
+import monacoEditorPlugin from 'vite-plugin-monaco-editor-esm'
 
 export default defineConfig({
   main: {
@@ -42,7 +43,8 @@ export default defineConfig({
         dirs: ['src/components', 'src/pages'],
         directoryAsNamespace: true,
         dts: 'src/components.d.ts'
-      })
+      }),
+      monacoEditorPlugin({})
     ],
     server: {
       port: 3000

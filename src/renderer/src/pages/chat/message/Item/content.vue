@@ -193,15 +193,4 @@ const saveEditing = () => {
     gap: 8px;
     margin-top: 8px;
 }
-
-.blocks-container {
-    button {
-        display: flex;
-        align-items: center;
-    }
-
-    button:hover {
-        background-color: #f9fafb !important;
-    }
-}
 </style>
