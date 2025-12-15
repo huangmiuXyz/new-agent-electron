@@ -1,6 +1,6 @@
 import { createRegistry } from '../chatService/registry'
 import { splitTextByType } from './splitter'
-import { embed, embedMany, cosineSimilarity, rerank } from 'ai'
+import { embed, cosineSimilarity, rerank } from 'ai'
 
 export interface RetrieveOptions {
   similarityThreshold?: number
@@ -28,43 +28,23 @@ export const RAGService = () => {
     }
   ) => {
     options.onProgress?.(1)
-    const totalChunks = splitter.length
+    const splitterClone = structuredClone(splitter)
+    const totalChunks = splitterClone.length
     let processedChunks = 0
-
-    const embeddings: number[][] = []
-    const batchSize = 10
-
-    for (let i = 0; i < totalChunks; i += batchSize) {
-      if (options.continueFlag && splitter?.[i]?.embedding.length > 0) {
+    for (let i = 0; i < totalChunks; i++) {
+      if (options.continueFlag && splitterClone?.[i]?.embedding.length > 0) {
         continue
       }
-      const batch = splitter.slice(i, i + batchSize).map((e) => e.content)
-      const { embeddings: batchEmbeddings } = await embedMany({
+      const { embedding } = await embed({
         model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
-        values: batch,
+        value: splitterClone[i].content,
         abortSignal: options.abortController.signal
       })
-
-      embeddings.push(...batchEmbeddings)
-      processedChunks += batch.length
-
+      splitterClone[i].embedding = embedding
       const progress = Math.min(20 + 80 * (processedChunks / totalChunks), 100)
-      options.onProgress?.(
-        Math.round(progress),
-        splitter.map((e, index) => ({
-          content: e.content,
-          embedding: embeddings[index]
-        }))
-      )
+      options.onProgress?.(Math.round(progress), splitterClone)
     }
-
-    options.onProgress?.(
-      100,
-      splitter.map((e, index) => ({
-        content: e.content,
-        embedding: embeddings[index]
-      }))
-    )
+    options.onProgress?.(100, splitterClone)
   }
 
   const retrieve = async (

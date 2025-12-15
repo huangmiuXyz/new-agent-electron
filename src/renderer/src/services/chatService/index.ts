@@ -56,8 +56,6 @@ export const chatService = () => {
           const { query } = args
           const { search } = useKnowledge()
           let allResults: any[] = []
-
-          // 从每个知识库中搜索并合并结果
           for (const kbId of knowledgeBaseIds) {
             try {
               const results = await search(query, kbId)
@@ -66,8 +64,6 @@ export const chatService = () => {
               console.error(`Error searching knowledge base ${kbId}:`, error)
             }
           }
-
-          // 按相似度排序并去重
           allResults.sort((a, b) => (b.score || 0) - (a.score || 0))
           const uniqueResults = allResults.filter(
             (result, index, self) => index === self.findIndex((r) => r.content === result.content)
