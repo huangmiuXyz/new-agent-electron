@@ -3,9 +3,16 @@
 const { agents } = storeToRefs(useAgentStore())
 const { mcpServers } = storeToRefs(useSettingsStore())
 const { getValidTools } = useSettingsStore()
+const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
 const { openAgentModal, handleDelete, selectAgent } = useAgent()
+
+// 根据知识库ID获取知识库名称
+const getKnowledgeBaseName = (kbId: string) => {
+    const kb = knowledgeBases.value.find(k => k.id === kbId)
+    return kb ? kb.name : kbId
+}
 
 </script>
 
@@ -82,6 +89,15 @@ const { openAgentModal, handleDelete, selectAgent } = useAgent()
                                 <div class="tools-tags">
                                     <span v-for="tool in agent.builtinTools" :key="tool" class="tool-tag">
                                         {{ tool }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div v-if="agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0"
+                                class="knowledge-list">
+                                <div class="knowledge-list-label">关联知识库:</div>
+                                <div class="knowledge-tags">
+                                    <span v-for="kbId in agent.knowledgeBaseIds" :key="kbId" class="knowledge-tag">
+                                        {{ getKnowledgeBaseName(kbId) }}
                                     </span>
                                 </div>
                             </div>
@@ -335,6 +351,35 @@ const { openAgentModal, handleDelete, selectAgent } = useAgent()
     padding: 2px 6px;
     border-radius: 3px;
     border: 1px solid #e0e0e0;
+}
+
+.knowledge-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.knowledge-list-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.knowledge-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.knowledge-tag {
+    font-size: 11px;
+    background: #f6ffed;
+    color: #52c41a;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid #b7eb8f;
 }
 
 .empty-state {

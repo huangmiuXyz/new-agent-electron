@@ -11,7 +11,7 @@ declare global {
     icon?: string
     createdAt: number
     updatedAt: number
-    knowledgeBaseId?: string
+    knowledgeBaseIds?: string[] // 关联的知识库ID列表
   }
 
   // 智能体状态接口

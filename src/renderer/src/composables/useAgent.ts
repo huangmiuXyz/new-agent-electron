@@ -69,7 +69,7 @@ export const useAgent = () => {
           name: agent.name,
           description: agent.description,
           systemPrompt: agent.systemPrompt,
-          knowledgeBaseId: agent.knowledgeBaseId,
+          knowledgeBaseIds: [...(agent.knowledgeBaseIds || [])],
           mcpServers: [...(agent.mcpServers || [])],
           tools: [...(agent.tools || [])],
           builtinTools: [...(agent.builtinTools || [])]
@@ -78,6 +78,7 @@ export const useAgent = () => {
           name: '',
           description: '',
           systemPrompt: '你是一个有帮助的AI助手。',
+          knowledgeBaseIds: [],
           mcpServers: [],
           tools: [],
           builtinTools: []
@@ -113,12 +114,10 @@ export const useAgent = () => {
           rows: 6
         },
         {
-          name: 'knowledgeBaseId',
-          type: 'select',
+          name: 'knowledgeBaseIds',
+          type: 'checkboxGroup',
           label: '关联知识库',
-          placeholder: '选择知识库（可选）',
-          options: getKnowledgeBaseOptions(),
-          clearable: true
+          options: getKnowledgeBaseOptions()
         },
         {
           name: 'mcpServers',

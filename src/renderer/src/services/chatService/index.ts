@@ -16,7 +16,7 @@ interface ChatServiceConfig {
   instructions?: string
   mcpTools?: string[] // 用户选择的MCP工具列表，格式为 "服务器名.工具名"
   builtinTools?: string[] // 用户选择的内置工具列表
-  knowledgeBaseId?: string
+  knowledgeBaseIds?: string[] // 关联的知识库ID列表
 }
 export const chatService = () => {
   const createAgent = async (
@@ -28,7 +28,7 @@ export const chatService = () => {
       instructions,
       mcpTools,
       builtinTools: selectedBuiltinTools,
-      knowledgeBaseId
+      knowledgeBaseIds
     }: ChatServiceConfig
   ) => {
     let tools: any = {}
@@ -44,19 +44,36 @@ export const chatService = () => {
     }
 
     // 处理知识库检索
-    if (knowledgeBaseId) {
+    if (knowledgeBaseIds && knowledgeBaseIds.length > 0) {
       tools['search_knowledge'] = {
         title: '知识库检索',
         description:
-          "Search for relevant information from the knowledge base. Use this tool when the user's question involves specific documents or knowledge.",
+          "Search for relevant information from the knowledge bases. Use this tool when the user's question involves specific documents or knowledge.",
         inputSchema: z.object({
           query: z.string().describe('The keyword or question to search for')
         }),
         execute: async (args: any) => {
           const { query } = args
           const { search } = useKnowledge()
-          const results = await search(query, knowledgeBaseId)
-          return results.map((r) => r.content).join('\n\n')
+          let allResults: any[] = []
+
+          // 从每个知识库中搜索并合并结果
+          for (const kbId of knowledgeBaseIds) {
+            try {
+              const results = await search(query, kbId)
+              allResults = allResults.concat(results)
+            } catch (error) {
+              console.error(`Error searching knowledge base ${kbId}:`, error)
+            }
+          }
+
+          // 按相似度排序并去重
+          allResults.sort((a, b) => (b.score || 0) - (a.score || 0))
+          const uniqueResults = allResults.filter(
+            (result, index, self) => index === self.findIndex((r) => r.content === result.content)
+          )
+
+          return uniqueResults.map((r) => r.content).join('\n\n')
         }
       }
     }
