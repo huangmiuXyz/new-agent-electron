@@ -27,6 +27,7 @@ export const RAGService = () => {
       onProgress?: (progress: number) => void
     }
   ) => {
+    options.onProgress?.(1)
     const totalChunks = splitterResult.length
     let processedChunks = 0
 
