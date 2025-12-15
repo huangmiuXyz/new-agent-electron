@@ -238,7 +238,6 @@ onMounted(loadFiles)
 .file-table-wrapper {
     flex: 1;
     overflow: hidden;
-    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     background: #fff;
     display: flex;
