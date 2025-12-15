@@ -50,8 +50,7 @@ const gridTemplate = computed(() => {
 
 <style scoped>
 .table-wrapper {
-    border: 1px solid #eaeaea;
-    border-radius: 10px;
+    border-bottom: 1px solid #eaeaea;
     overflow: hidden;
     background: #ffffff;
     display: flex;
