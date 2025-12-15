@@ -9,7 +9,6 @@ export const useKnowledge = () => {
     const { model, provider } = getModelById(providerId, modelId)!
     if (doc.status === 'processing' && doc.abortController) {
       doc.abortController.abort()
-      return
     }
 
     doc.status = 'processing'
