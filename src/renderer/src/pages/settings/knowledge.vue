@@ -17,6 +17,7 @@ const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
     }
 };
 const activeKnowledgeBaseId = useLocalStorage<string>('activeKnowledgeBaseId', '');
+const isEditMode = ref(false);
 
 watch(() => activeKnowledgeBaseId.value, (v) => {
     if (!v) {
@@ -114,14 +115,13 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
         }
     ],
     onSubmit: (data) => {
-        if (activeKnowledgeBaseId.value && activeKnowledgeBase.value) {
+        if (isEditMode.value && activeKnowledgeBaseId.value && activeKnowledgeBase.value) {
             const updatedKnowledgeBase: KnowledgeBase = {
                 ...activeKnowledgeBase.value,
                 ...data
             }
             updateKnowledgeBase(activeKnowledgeBaseId.value, updatedKnowledgeBase)
         } else {
-            // 创建模式
             const newKnowledgeBase: KnowledgeBase = {
                 id: `kb_${nanoid()}`,
                 ...data,
@@ -169,7 +169,7 @@ const loading = ref(false)
 
 const showAddKnowledgeBaseModal = async () => {
     formActions.reset()
-    activeKnowledgeBaseId.value = ''
+    isEditMode.value = false
     const result = await confirm({
         title: '添加知识库',
         content: KnowledgeBaseForm,
@@ -196,6 +196,7 @@ const showEditKnowledgeBaseModal = async () => {
         }
     }
     formActions.setData(knowledgeBaseData)
+    isEditMode.value = true
     const result = await confirm({
         title: '编辑知识库',
         content: KnowledgeBaseForm,
@@ -308,7 +309,7 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
