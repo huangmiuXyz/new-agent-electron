@@ -35,7 +35,7 @@ export const RAGService = () => {
       const chunk = splitterClone[i]
       if (options.continueFlag && chunk.embedding?.length > 0) {
         processed++
-        reportProgress(processed, total, options)
+        reportProgress(processed, total, splitterClone, options)
         continue
       }
       const { embedding } = await embed({
@@ -45,7 +45,7 @@ export const RAGService = () => {
       })
       chunk.embedding = embedding
       processed++
-      reportProgress(processed, total, options)
+      reportProgress(processed, total, splitterClone, options)
     }
 
     options.onProgress?.(100, splitterClone)
@@ -55,12 +55,13 @@ export const RAGService = () => {
   function reportProgress(
     processed: number,
     total: number,
+    splitter: Splitter,
     options: {
       onProgress?: (progress: number, data?: Splitter) => void
     }
   ) {
     const progress = Math.min(20 + 80 * (processed / total), 100)
-    options.onProgress?.(Math.round(progress))
+    options.onProgress?.(Math.round(progress), splitter)
   }
 
   const retrieve = async (
