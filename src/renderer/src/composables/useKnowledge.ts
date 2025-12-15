@@ -2,17 +2,29 @@ export const useKnowledge = () => {
   const rag = RAGService()
   const { getModelById } = useSettingsStore()
   const { knowledgeBases } = storeToRefs(useKnowledgeStore())
-  const embedding = async (doc: KnowledgeDocument, knowledge: KnowledgeBase) => {
+  const embedding = async (
+    doc: KnowledgeDocument,
+    knowledge: KnowledgeBase,
+    continueFlag: boolean = false
+  ) => {
     const {
       embeddingModel: { modelId, providerId }
     } = knowledge
+    if (continueFlag) {
+      if (doc.metadata?.modelId !== modelId || doc.metadata.providerId !== providerId) {
+        messageApi.error('模型不一致，无法继续')
+        return
+      }
+    }
     const { model, provider } = getModelById(providerId, modelId)!
     if (doc.status === 'processing' && doc.abortController) {
       doc.abortController?.abort?.()
     }
 
     doc.status = 'processing'
-    doc.progress = 0
+    if (!continueFlag) {
+      doc.progress = 0
+    }
     const abortController = new AbortController()
     doc.abortController = abortController
     const originalAbort = abortController.abort.bind(abortController)
@@ -26,8 +38,13 @@ export const useKnowledge = () => {
         modelId: model.id,
         providerId: provider.id
       }
-      const splitterResult = await rag.splitter(doc)
-      doc.isSplitting = true
+      let splitterResult: any
+      if ((!doc.isSplitting || !continueFlag) && doc.chunks?.length) {
+        splitterResult = await rag.splitter(doc)
+        doc.isSplitting = true
+      } else {
+        splitterResult = doc.chunks!.map((chunk) => chunk.embedding)
+      }
       await rag.embedding(splitterResult, {
         apiKey: provider.apiKey!,
         baseURL: provider.baseUrl,
@@ -37,8 +54,11 @@ export const useKnowledge = () => {
         abortController,
         onProgress: (progress: number, data?: any) => {
           doc.progress = progress
-          doc.chunks = data
-        }
+          if (data) {
+            doc.chunks = data
+          }
+        },
+        continueFlag
       })
       doc.status = 'processed'
       doc.progress = 100

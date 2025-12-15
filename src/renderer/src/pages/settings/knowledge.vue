@@ -2,10 +2,11 @@
 import { FormItem } from '@renderer/composables/useForm'
 import Input from '@renderer/components/Input.vue'
 import Table from '@renderer/components/Table.vue'
+import { chunk } from 'es-toolkit'
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 const { updateKnowledgeBase, addKnowledgeBase, deleteKnowledgeBase, addDocumentToKnowledgeBase, deleteDocumentFromKnowledgeBase } = useKnowledgeStore()
 
-const { Plus, Search, Trash, File, Refresh, Stop } = useIcon(['Stop', 'Plus', 'Search', 'Trash', 'File', 'Refresh'])
+const { Plus, Search, Trash, File, Refresh, Stop, Play } = useIcon(['Stop', 'Plus', 'Search', 'Trash', 'File', 'Refresh', 'Play'])
 const { confirm } = useModal()
 const { showContextMenu } = useContextMenu<KnowledgeBase>()
 
@@ -309,7 +310,7 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
@@ -343,6 +344,13 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
                                 variant="text">
                                 <template #icon>
                                     <Refresh />
+                                </template>
+                            </Button>
+                            <Button v-if="props.row.chunks?.some(chunk => !chunk.embedding?.length)"
+                                @click="embedding(props.row, activeKnowledgeBase, true)" size="sm" type="button"
+                                variant="text">
+                                <template #icon>
+                                    <Play />
                                 </template>
                             </Button>
                             <Button v-if="props.row.status === 'processing' && props.row.abortController?.abort"

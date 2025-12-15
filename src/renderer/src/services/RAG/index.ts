@@ -25,15 +25,10 @@ export const RAGService = () => {
       name: string
       abortController: AbortController
       onProgress?: (progress: number, data?: { content: string; embedding: number[] }[]) => void
+      continueFlag: boolean
     }
   ) => {
-    options.onProgress?.(
-      1,
-      splitterResult.map((content) => ({
-        content,
-        embedding: []
-      }))
-    )
+    options.onProgress?.(1)
     const totalChunks = splitterResult.length
     let processedChunks = 0
 
@@ -41,6 +36,9 @@ export const RAGService = () => {
     const batchSize = 10
 
     for (let i = 0; i < totalChunks; i += batchSize) {
+      if (options.continueFlag && splitterResult?.[i]?.length > 0) {
+        continue
+      }
       const batch = splitterResult.slice(i, i + batchSize)
 
       const { embeddings: batchEmbeddings } = await embedMany({
