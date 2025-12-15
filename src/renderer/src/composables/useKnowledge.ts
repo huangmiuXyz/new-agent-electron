@@ -60,8 +60,12 @@ export const useKnowledge = () => {
         providerType: provider.providerType,
         model: model.name,
         abortController,
-        onProgress: (progress: number, data?: any) => {
+        onProgress: (progress: number, data?: any, current?: number, total?: number) => {
           doc.progress = progress
+          if (current !== undefined && total !== undefined) {
+            doc.currentChunk = current
+            doc.chunks!.length = total
+          }
           if (data) {
             doc.chunks = data
           }

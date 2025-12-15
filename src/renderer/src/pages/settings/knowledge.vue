@@ -2,7 +2,6 @@
 import { FormItem } from '@renderer/composables/useForm'
 import Input from '@renderer/components/Input.vue'
 import Table from '@renderer/components/Table.vue'
-import { chunk } from 'es-toolkit'
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 const { updateKnowledgeBase, addKnowledgeBase, deleteKnowledgeBase, addDocumentToKnowledgeBase, deleteDocumentFromKnowledgeBase } = useKnowledgeStore()
 
@@ -313,7 +312,7 @@ const isEmbedCompleted = (chunks) => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
@@ -333,8 +332,9 @@ const isEmbedCompleted = (chunks) => {
                                     <div style="height: 100%; background-color: #8b5cf6; transition: width 0.3s ease;"
                                         :style="{ width: `${props.row.progress}%` }"></div>
                                 </div>
-                                <span v-if="props.row.status == 'processing'" style="font-size: 12px; color: #666;">{{
-                                    props.row.progress }}%</span>
+                                <span v-if="props.row.status == 'processing'" style="font-size: 12px; color: #666;">
+                                    {{ props.row.currentChunk || 0 }}/{{ props.row.chunks?.length || 0 }}
+                                </span>
                             </div>
                         </div>
                     </template>
