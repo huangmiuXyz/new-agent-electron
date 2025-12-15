@@ -117,7 +117,8 @@ export const useAgent = () => {
           type: 'select',
           label: '关联知识库',
           placeholder: '选择知识库（可选）',
-          options: getKnowledgeBaseOptions()
+          options: getKnowledgeBaseOptions(),
+          clearable: true
         },
         {
           name: 'mcpServers',

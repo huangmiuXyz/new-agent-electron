@@ -106,6 +106,7 @@ export interface SelectField<T> extends BaseField<T> {
   type: 'select'
   options: { label: string; value: string | number }[]
   placeholder?: string
+  clearable?: boolean
 }
 
 // 文本域字段
@@ -461,6 +462,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             onUpdate:modelValue={(value) => {
                               setFieldValue(field.name, value)
                             }}
+                            clearable={field.clearable}
                             {...dynamicProps}
                           />
                         </FormItem>
