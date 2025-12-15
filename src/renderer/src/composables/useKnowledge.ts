@@ -8,7 +8,7 @@ export const useKnowledge = () => {
     } = knowledge
     const { model, provider } = getModelById(providerId, modelId)!
     if (doc.status === 'processing' && doc.abortController) {
-      doc.abortController.abort()
+      doc.abortController?.abort?.()
     }
 
     doc.status = 'processing'
