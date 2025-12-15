@@ -192,7 +192,8 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   border-right: 1px solid var(--border-subtle);
   padding: 12px;
   height: 100%;
-  background-color: transparent;
+  background-color: #fff;
+  z-index: 2;
 }
 
 .mode-gap .list-title {
