@@ -25,6 +25,10 @@ export const useKnowledge = () => {
     if (!continueFlag) {
       doc.progress = 0
     }
+    if (!continueFlag) {
+      doc.isSplitting = false
+      doc.chunks = []
+    }
     const abortController = new AbortController()
     doc.abortController = abortController
     const originalAbort = abortController.abort.bind(abortController)
@@ -45,6 +49,7 @@ export const useKnowledge = () => {
           content: e,
           embedding: []
         }))
+        doc.isSplitting = true
       } else {
         splitter = doc.chunks!
       }
