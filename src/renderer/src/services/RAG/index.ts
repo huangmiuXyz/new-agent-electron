@@ -18,16 +18,42 @@ export const RAGService = () => {
       model: string
       name: string
       abortController: AbortController
+      onProgress?: (progress: number) => void
     }
   ) => {
+    options.onProgress?.(0)
+
     const result = await splitTextByType(window.api.fs.readFileSync(doc.path, 'utf-8'), {
       type: doc.type
     })
-    const { embeddings } = await embedMany({
-      model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
-      values: result,
-      abortSignal: options.abortController.signal
-    })
+
+    // 通知文本分割完成
+    options.onProgress?.(1)
+
+    const totalChunks = result.length
+    let processedChunks = 0
+
+    const embeddings: number[][] = []
+    const batchSize = 10
+
+    for (let i = 0; i < totalChunks; i += batchSize) {
+      const batch = result.slice(i, i + batchSize)
+
+      const { embeddings: batchEmbeddings } = await embedMany({
+        model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
+        values: batch,
+        abortSignal: options.abortController.signal
+      })
+
+      embeddings.push(...batchEmbeddings)
+      processedChunks += batch.length
+
+      const progress = Math.min(20 + 80 * (processedChunks / totalChunks), 100)
+      options.onProgress?.(Math.round(progress))
+    }
+
+    options.onProgress?.(100)
+
     return result.map((content, index) => ({
       content,
       embedding: embeddings[index]

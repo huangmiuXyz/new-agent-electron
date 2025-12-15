@@ -12,6 +12,7 @@ export const useKnowledge = () => {
     }
 
     doc.status = 'processing'
+    doc.progress = 0
     const abortController = new AbortController()
     doc.abortController = abortController
     const originalAbort = abortController.abort.bind(abortController)
@@ -27,16 +28,21 @@ export const useKnowledge = () => {
         name: provider.name,
         providerType: provider.providerType,
         model: model.name,
-        abortController
+        abortController,
+        onProgress: (progress: number) => {
+          doc.progress = progress
+        }
       })
       doc.status = 'processed'
       doc.chunks = chunks
+      doc.progress = 100
     } catch (error) {
       if (abortController.signal.aborted) {
         doc.status = 'aborted'
       } else {
         doc.status = 'error'
       }
+      doc.progress = undefined
     }
   }
 
