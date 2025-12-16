@@ -1,8 +1,5 @@
 <script setup lang="ts">
 import { FormItem } from '@renderer/composables/useForm'
-import Input from '@renderer/components/Input.vue'
-import Table from '@renderer/components/Table.vue'
-import SelectorPopover from '@renderer/components/SelectorPopover.vue'
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 const { updateKnowledgeBase, addKnowledgeBase, deleteKnowledgeBase, addDocumentToKnowledgeBase, deleteDocumentFromKnowledgeBase } = useKnowledgeStore()
 
@@ -293,11 +290,11 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
 const addDocument = () => {
     triggerUpload(true)
 }
-const searchBtn = useTemplateRef('searchBtn')
+const searchInputRef = ref<InstanceType<typeof SearchInput> | null>(null)
 const handleShowSearch = async () => {
     showSearch.value = true
     await nextTick()
-    searchBtn.value?.focus()
+    searchInputRef.value?.focus()
 }
 const { embedding } = useKnowledge()
 
@@ -412,8 +409,9 @@ const openFolder = (path: string) => {
                             添加文档
                         </Button>
                         <div v-if="showSearch">
-                            <Input ref="searchBtn" size="sm" v-model="searchKeyword" placeholder="搜索文档..." autofocus
-                                @blur="!searchKeyword && (showSearch = false)" />
+                            <SearchInput ref="searchInputRef" v-model="searchKeyword" placeholder="搜索文档..." size="sm"
+                                variant="default" :show-icon="true" :debounce="0"
+                                @blur="!searchKeyword && (showSearch = false)" class="knowledge-search-input" />
                         </div>
                         <Button v-else type="button" variant="text" size="sm" @click="handleShowSearch">
                             <template #icon>

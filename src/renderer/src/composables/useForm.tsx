@@ -8,7 +8,6 @@ import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
 import ModelSelector from '@renderer/components/ModelSelector.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
 
-// FormItem 组件 - 统一的表单项布局组件
 export const FormItem = defineComponent({
   props: {
     label: {

@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onUnmounted } from 'vue'
-
-const Search = useIcon('Search')
-
 const props = defineProps<{
     modelValue: boolean
     searchQuery?: string
@@ -45,8 +41,8 @@ onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside)
 })
 
-const onSearchInput = (e: Event) => {
-    emit('update:searchQuery', (e.target as HTMLInputElement).value)
+const handleSearch = (value: string) => {
+    emit('update:searchQuery', value)
 }
 </script>
 
@@ -69,9 +65,9 @@ const onSearchInput = (e: Event) => {
             </div>
             <template v-else>
                 <div class="selector-search">
-                    <Search />
-                    <input :value="searchQuery" @input="onSearchInput" type="text" :placeholder="placeholder || '搜索...'"
-                        autocomplete="off" />
+                    <SearchInput :model-value="searchQuery" @update:model-value="handleSearch"
+                        :placeholder="placeholder || '搜索...'" size="sm" variant="minimal" :show-icon="true"
+                        :debounce="0" class="selector-search-input" />
                 </div>
                 <div class="selector-list-container">
                     <div v-if="!hasResults" class="no-results">
@@ -156,25 +152,22 @@ const onSearchInput = (e: Event) => {
 .selector-search {
     padding: 8px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-    display: flex;
-    align-items: center;
-    gap: 6px;
 }
 
-.selector-search input {
-    border: none;
-    background: transparent;
+.selector-search-input {
     width: 100%;
-    outline: none;
-    font-size: 12px;
-    color: var(--text-primary);
-    padding: 0;
-    font-family: var(--font-stack);
 }
 
-.selector-search :deep(svg) {
-    color: var(--text-tertiary);
+.selector-search-input :deep(.search-input__field) {
+    font-size: 12px;
+    padding: 0;
+    height: auto;
+}
+
+.selector-search-input :deep(.search-input__icon) {
     font-size: 14px;
+    width: 14px;
+    height: 14px;
 }
 
 .selector-list-container {

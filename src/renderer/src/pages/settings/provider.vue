@@ -1,10 +1,5 @@
 <script setup lang="ts">
 import { FormItem } from '@renderer/composables/useForm'
-import Input from '@renderer/components/Input.vue'
-import Table from '@renderer/components/Table.vue'
-import Switch from '@renderer/components/Switch.vue'
-import Tags from '@renderer/components/Tags.vue'
-import { messageApi } from '@renderer/utils/messages'
 const { providers } = storeToRefs(useSettingsStore())
 const { updateProvider, addModelToProvider, deleteModelFromProvider } = useSettingsStore()
 
@@ -248,11 +243,11 @@ const handleDeleteModel = async (row: any) => {
     }
 }
 
-const searchBtn = useTemplateRef('searchBtn')
+const searchInputRef = ref<InstanceType<typeof SearchInput> | null>(null)
 const handleShowSearch = async () => {
     showSearch.value = true
     await nextTick()
-    searchBtn.value?.focus()
+    searchInputRef.value?.focus()
 }
 </script>
 
@@ -312,8 +307,9 @@ const handleShowSearch = async () => {
                                     模型列表
                                 </Button>
                                 <div v-if="showSearch">
-                                    <Input ref="searchBtn" size="sm" v-model="searchKeyword" placeholder="搜索模型..."
-                                        autofocus @blur="!searchKeyword && (showSearch = false)" />
+                                    <SearchInput ref="searchInputRef" v-model="searchKeyword" placeholder="搜索模型..."
+                                        size="sm" variant="default" :show-icon="true" :debounce="0"
+                                        @blur="!searchKeyword && (showSearch = false)" class="provider-search-input" />
                                 </div>
                                 <Button v-else type="button" variant="text" size="sm" @click="handleShowSearch">
                                     <template #icon>

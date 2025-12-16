@@ -20,7 +20,7 @@ const emit = defineEmits<{
     'select': [item: SearchResult]
 }>()
 
-const searchInput = ref<HTMLInputElement | null>(null)
+const searchInputRef = ref<InstanceType<typeof SearchInput> | null>(null)
 const query = ref('')
 const selectedIndex = ref(0)
 const scrollContainer = ref<HTMLElement | null>(null)
@@ -79,7 +79,7 @@ watch(() => props.modelValue, (val) => {
     if (val) {
         query.value = ''
         selectedIndex.value = 0
-        nextTick(() => searchInput.value?.focus())
+        nextTick(() => searchInputRef.value?.focus())
     }
 })
 
@@ -167,12 +167,9 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
 
                     <!-- 搜索头部 -->
                     <div class="search-header">
-                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input ref="searchInput" v-model="query" class="search-input" placeholder="搜索聊天记录"
-                            type="text" />
+                        <SearchInput ref="searchInputRef" v-model="query" placeholder="搜索聊天记录" size="md"
+                            variant="minimal" :show-icon="true" :debounce="0" @keydown="handleKeydown"
+                            class="global-search-input" />
                         <div class="shortcut-hint">ESC</div>
                     </div>
 
@@ -274,18 +271,20 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
     color: var(--text-sub);
 }
 
-.search-input {
+.global-search-input {
     flex: 1;
-    background: transparent;
-    border: none;
-    font-size: 16px;
-    color: var(--text-main);
-    outline: none;
-    height: 24px;
 }
 
-.search-input::placeholder {
-    color: #9ca3af;
+.global-search-input :deep(.search-input__field) {
+    font-size: 16px;
+    height: 24px;
+    padding: 0;
+}
+
+.global-search-input :deep(.search-input__icon) {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
 }
 
 .shortcut-hint {
