@@ -62,8 +62,7 @@ const _sendMessage = async () => {
     }
 
     selectedFiles.value.forEach(file => {
-      const { blobUrl, path, size, name, ...aiPart } = file as UploadFile
-
+      const { blobUrl, path, size, name, ...aiPart } = file
       parts.push(aiPart)
     })
 
