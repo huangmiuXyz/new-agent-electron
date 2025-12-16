@@ -1,6 +1,12 @@
 import localforage from 'localforage'
 export { cloneDeep, throttle, mapValues, retry } from 'es-toolkit'
 export { blobToDataURL, dataURLToBlob, arrayBufferToBlob } from 'blob-util'
+
+export const getBlobUrl = (url: string): string => {
+  if (!url) return ''
+  const blob = dataURLToBlob(url)
+  return URL.createObjectURL(blob)
+}
 export const copyText = (text: string) => {
   if (text) {
     navigator.clipboard
@@ -98,12 +104,6 @@ export const copyFilesToUserData = async (filePaths: string[]) => {
   }
 
   return results
-}
-
-export const getBlobUrl = (url: string): string => {
-  if (!url) return ''
-  const blob = dataURLToBlob(url)
-  return URL.createObjectURL(blob)
 }
 
 export const getFileIcon = (file: { name: string; mediaType: string }) => {
