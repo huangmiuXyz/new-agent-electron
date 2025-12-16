@@ -4,6 +4,7 @@ import { aiServices } from './services/ai/index'
 import fs from 'fs'
 import path from 'path'
 import mime from 'mime-types'
+import url from 'url'
 import { app } from '@electron/remote'
 // Custom APIs for renderer
 
@@ -19,7 +20,8 @@ export const api = {
   shell,
   fs,
   path,
-  mime
+  mime,
+  url
 }
 
 export type API = typeof api
