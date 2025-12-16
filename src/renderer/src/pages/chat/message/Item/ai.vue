@@ -10,7 +10,7 @@ const Stop = useIcon('Stop')
 <template>
   <div class="msg-row them has-avatar">
     <div class="msg-avatar-area">
-      <img :src="getProviderById(message.metadata?.provider!)?.logo" class="msg-avatar" alt="avatar">
+      <Image :src="getProviderById(message.metadata?.provider!)?.logo" class="msg-avatar" alt="avatar">
     </div>
 
     <div class="msg-content">

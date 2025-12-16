@@ -190,7 +190,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
                             :class="{ active: index === selectedIndex }" @click="handleSelect(item)"
                             @mouseenter="selectedIndex = index">
                             <div class="model-avatar">
-                                <img v-if="!item.isHuman && item.logo" :src="item.logo" :alt="item.modelName"
+                                <Image v-if="!item.isHuman && item.logo" :src="item.logo" :alt="item.modelName"
                                     class="model-logo" />
                                 <div v-else class="avatar-placeholder" :class="{ 'user-avatar': item.isHuman }">
                                     {{ item.isHuman ? '用' : item.modelName.charAt(0).toUpperCase() }}

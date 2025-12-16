@@ -101,7 +101,7 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
             @contextmenu="handleAction('contextmenu', item, $event)">
             <div v-if="item.logo" class="item-media">
               <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
-              <img v-else :src="item.logo" :alt="String(item.main)" class="media-img" />
+              <Image v-else :src="item.logo" :alt="String(item.main)" class="media-img" />
             </div>
             <div class="item-content">
               <slot name="main" :item="item.raw">
