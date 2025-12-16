@@ -37,13 +37,15 @@ export const useTitle = (chatId: string) => {
             isGeneratingTitle.value = true
             setTitleGenerating(chatId, true)
 
-            const generatedTitle = await service.generateText(prompt, {
-              model: titleModel.id,
-              apiKey: provider?.apiKey || '',
-              baseURL: provider?.baseUrl || '',
-              provider: provider?.id || '',
-              providerType: provider?.providerType || 'openai'
-            })
+            const generatedTitle = (
+              await service.generateText(prompt, {
+                model: titleModel.id,
+                apiKey: provider?.apiKey || '',
+                baseURL: provider?.baseUrl || '',
+                provider: provider?.id || '',
+                providerType: provider?.providerType || 'openai'
+              })
+            ).text
             const cleanTitle = generatedTitle.trim().replace(/[""''""']/g, '')
             renameChat(chatId, cleanTitle)
           } catch (error) {

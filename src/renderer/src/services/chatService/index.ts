@@ -1,4 +1,9 @@
-import { convertToModelMessages, generateText as _generateText, ToolLoopAgent } from 'ai'
+import {
+  convertToModelMessages,
+  generateText as _generateText,
+  ToolLoopAgent,
+  ToolChoice
+} from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
 import { z } from 'zod'
@@ -9,6 +14,8 @@ interface ChatServiceOptions {
   baseURL: string
   provider: string
   providerType: providerType
+  tools?: Tools
+  toolChoice?: ToolChoice<any>
 }
 
 interface ChatServiceConfig {
@@ -140,15 +147,25 @@ export const chatService = () => {
   }
   const generateText = async (
     prompt: string,
-    { model, apiKey, baseURL, provider, providerType }: ChatServiceOptions
+    {
+      model,
+      apiKey,
+      baseURL,
+      provider,
+      providerType,
+      tools,
+      toolChoice = 'auto'
+    }: ChatServiceOptions
   ) => {
     const result = await _generateText({
       model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
         `${providerType}:${model}`
       ),
-      prompt
+      tools,
+      prompt,
+      toolChoice
     })
-    return result.text
+    return result
   }
 
   const translateText = async (

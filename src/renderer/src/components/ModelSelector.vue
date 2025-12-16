@@ -34,12 +34,9 @@ const currentModelLabel = computed(() => {
 })
 
 const filteredModels = computed(() => {
-  const query = searchQuery.value.toLowerCase()
   const result: { provider: Provider, models: Model[] }[] = []
   providers.value.forEach(provider => {
-    const filteredModels = provider.models?.filter(model =>
-      (model.name.toLowerCase().includes(query) ||
-        model.id.toLowerCase().includes(query)) && model.active && model.category === props.category
+    const filteredModels = provider.models?.filter(model => model.active && model.category === props.category
     )
     if (filteredModels?.length > 0) {
       result.push({ provider, models: filteredModels })
@@ -59,7 +56,11 @@ const flatModelList = computed(() => {
 
   return result
 })
-
+const searchModels = computed(() => {
+  const query = searchQuery.value.toLowerCase()
+  return flatModelList.value.filter(item => item.model.name.toLowerCase().includes(query) ||
+    item.model.id.toLowerCase().includes(query))
+})
 const selectModel = (model: Model, providerId: string) => {
   selectedModelId.value = model.id
   selectedProviderId.value = providerId
@@ -82,8 +83,8 @@ const handleModelSelect = (id: string) => {
 </script>
 
 <template>
-  <SelectorPopover v-model="isPopupOpen" v-model:searchQuery="searchQuery" placeholder="搜索模型..." noResultsText="未找到模型"
-    :hasResults="filteredModels.length > 0" width="240px" :position="popupPosition || 'top'">
+  <SelectorPopover v-model="isPopupOpen" :data="flatModelList" v-model:searchQuery="searchQuery" placeholder="搜索模型..."
+    noResultsText="未找到模型" :hasResults="filteredModels.length > 0" width="240px" :position="popupPosition || 'top'">
     <template #trigger>
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
         <Image style="width: 10px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="" />
@@ -95,8 +96,7 @@ const handleModelSelect = (id: string) => {
       </Button>
     </template>
 
-    <!-- 扁平化的模型列表，用于统一List组件 -->
-    <List :items="flatModelList.map(item => ({
+    <List :items="searchModels.map(item => ({
       ...item.model,
       providerId: item.providerId
     }))" :key-field="'id'" :main-field="'name'" :sub-field="'description'" :show-header="true"

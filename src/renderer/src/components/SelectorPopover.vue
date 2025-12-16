@@ -7,6 +7,7 @@ const props = defineProps<{
     hasResults?: boolean
     width?: string
     position?: 'top' | 'bottom'
+    data?: Array<any>
 }>()
 
 const emit = defineEmits<{
@@ -65,7 +66,7 @@ const handleSearch = (value: string) => {
             </div>
             <template v-else>
                 <div class="selector-search">
-                    <SearchInput :model-value="searchQuery" @update:model-value="handleSearch"
+                    <SearchInput :search-data="data" :model-value="searchQuery" @update:model-value="handleSearch"
                         :placeholder="placeholder || '搜索...'" size="sm" variant="minimal" :show-icon="true"
                         :debounce="0" class="selector-search-input" />
                 </div>
@@ -150,7 +151,7 @@ const handleSearch = (value: string) => {
 }
 
 .selector-search {
-    padding: 8px;
+    padding: 4px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 

@@ -1,5 +1,4 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { computed } from 'vue'
 
 interface Props {
   items: T[]
@@ -79,7 +78,7 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
     <div class="list-scroll-area">
       <div v-if="loading" class="state-container">
         <slot name="loading">
-          <div class="loading-spinner"></div>
+          <Loading />
         </slot>
       </div>
 
@@ -134,21 +133,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 .empty-text {
   font-size: 13px;
   user-select: none;
-}
-
-.loading-spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--border-subtle, #eee);
-  border-top-color: var(--accent-color, #0066ff);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .list-container {
