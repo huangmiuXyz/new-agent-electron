@@ -19,7 +19,30 @@ const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
 };
 const activeKnowledgeBaseId = useLocalStorage<string>('activeKnowledgeBaseId', '');
 const isEditMode = ref(false);
-const batchSize = useLocalStorage<number>('embeddingBatchSize', 5); // 默认批处理大小为5
+const batchSize = useLocalStorage<number>('embeddingBatchSize', 5);
+const [BatchSettingsForm, batchSettingsActions] = useForm<{ batchSize: number }>({
+    showHeader: false,
+    initialData: {
+        batchSize: 5
+    },
+    fields: [
+        {
+            name: 'batchSize',
+            type: 'slider',
+            label: 'Batch Size',
+            min: 1,
+            max: 50,
+            step: 1,
+            hint: '设置文档嵌入处理的批处理大小'
+        }
+    ],
+    onSubmit: (data) => {
+        batchSize.value = data.batchSize;
+        showBatchSettings.value = false;
+    }
+});
+
+batchSettingsActions.setData({ batchSize: batchSize.value });
 
 watch(() => activeKnowledgeBaseId.value, (v) => {
     if (!v) {
@@ -398,13 +421,11 @@ const isEmbedCompleted = (chunks) => {
                             <template #content>
                                 <div class="popover-header">批处理设置</div>
                                 <div class="popover-content">
-                                    <div class="setting-item">
-                                        <div class="setting-label">
-                                            <span>Batch Size</span>
-                                            <span class="setting-value">{{ batchSize }}</span>
-                                        </div>
-                                        <input type="range" step="1" min="1" max="50" v-model="batchSize"
-                                            class="setting-slider" />
+                                    <BatchSettingsForm />
+                                    <div style="display: flex; justify-content: flex-end;gap:12px;">
+                                        <Button size="sm" variant="text" @click="showBatchSettings = false">取消</Button>
+                                        <Button size="sm" variant="primary"
+                                            @click="batchSettingsActions.submit()">确定</Button>
                                     </div>
                                 </div>
                             </template>
@@ -458,30 +479,5 @@ const isEmbedCompleted = (chunks) => {
     font-weight: 600;
     margin-bottom: 12px;
     color: var(--text-primary, #333);
-}
-
-.setting-item {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.setting-label {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: var(--text-secondary, #666);
-}
-
-.setting-slider {
-    width: 100%;
-    accent-color: var(--primary-color, #8b5cf6);
-    cursor: pointer;
-}
-
-.setting-value {
-    font-feature-settings: "tnum";
-    font-weight: 500;
-    color: var(--primary-color, #8b5cf6);
 }
 </style>
