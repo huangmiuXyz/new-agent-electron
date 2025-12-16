@@ -182,11 +182,15 @@ onMounted(loadFiles)
                     ]">
                         <template #name="{ row }">
                             <div class="file-name-cell">
-                                <component :is="useIcon(getFileIcon({
-                                    name: row.name,
-                                    mediaType: row.type,
-                                }))" class="file-icon" />
-                                <span class="name-text">{{ row.name }}</span>
+                                <Button variant="text" size="sm" class="name-text">
+                                    <template #icon>
+                                        <component :is="useIcon(getFileIcon({
+                                            name: row.name,
+                                            mediaType: row.type,
+                                        }))" class="file-icon" />
+                                    </template>
+                                    {{ row.name }}
+                                </Button>
                             </div>
                         </template>
                         <template #size="{ row }">
