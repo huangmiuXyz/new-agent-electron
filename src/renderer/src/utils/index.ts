@@ -101,6 +101,7 @@ export const copyFilesToUserData = async (filePaths: string[]) => {
 }
 
 export const getBlobUrl = (url: string): string => {
+  if (!url) return ''
   const blob = dataURLToBlob(url)
   return URL.createObjectURL(blob)
 }

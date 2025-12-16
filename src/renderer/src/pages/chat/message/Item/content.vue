@@ -82,7 +82,7 @@ const saveEditing = () => {
                             {{ block.text }}
                         </template>
                     </span>
-                    <FilePreview v-if="block.type === 'file'" :files="[{ ...block, blobUrl: getBlobUrl(block.url) }]" />
+                    <FileUpload v-if="block.type === 'file'" :files="[{ ...block, blobUrl: getBlobUrl(block.url) }]" />
                     <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
                         :reasoning_content="block.text" />
                     <ChatMessageItemDynamicTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
