@@ -65,7 +65,6 @@ const _sendMessage = async () => {
       const { blobUrl, path, size, name, url, ...aiPart } = file
       parts.push({ ...aiPart, url: path ? path : url })
     })
-
     selectedFiles.value = []
     sendMessages(parts)
   }
