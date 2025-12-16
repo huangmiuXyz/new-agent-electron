@@ -62,8 +62,8 @@ const _sendMessage = async () => {
     }
 
     selectedFiles.value.forEach(file => {
-      const { blobUrl, path, size, name, ...aiPart } = file
-      parts.push(aiPart)
+      const { blobUrl, path, size, name, url, ...aiPart } = file
+      parts.push({ ...aiPart, url: path ? path : url })
     })
 
     selectedFiles.value = []
