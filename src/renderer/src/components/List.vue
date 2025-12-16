@@ -180,7 +180,7 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 
 .list-item.is-active {
   background-color: var(--bg-active, #f2f8ff);
-  color: #fff;
+  color: var(--accent-color);
 }
 
 .item-content {
