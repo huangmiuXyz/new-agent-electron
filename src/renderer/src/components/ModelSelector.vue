@@ -96,7 +96,7 @@ const handleModelSelect = (id: string) => {
     </template>
 
     <!-- 扁平化的模型列表，用于统一List组件 -->
-    <List type="ungap" :items="flatModelList.map(item => ({
+    <List :items="flatModelList.map(item => ({
       ...item.model,
       providerId: item.providerId
     }))" :key-field="'id'" :main-field="'name'" :sub-field="'description'" :show-header="true"

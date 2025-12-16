@@ -19,7 +19,7 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder } = useIcon(['Cpu', 'Se
 <template>
   <div class="settings-sidebar">
     <!-- 设置选项 -->
-    <List class="settings-sidebar-list" type="gap" :items="[
+    <List class="settings-sidebar-list" :items="[
       { id: 'agents', name: '智能体', icon: Robot },
       { id: 'models', name: '模型提供商', icon: Cpu },
       { id: 'defaultModels', name: '默认模型', icon: Box },

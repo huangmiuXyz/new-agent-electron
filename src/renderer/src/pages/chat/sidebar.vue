@@ -85,7 +85,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
         </Button>
       </div>
       <!-- 聊天列表 -->
-      <List v-if="chatsStore.chats.length" type="gap" :items="chatsStore.chats" :active-id="chatsStore.activeChatId!"
+      <List v-if="chatsStore.chats.length" :items="chatsStore.chats" :active-id="chatsStore.activeChatId!"
         :key-field="'id'" :main-field="'title'" :sub-field="'createdAt'" @select="selectChat"
         @contextmenu="showChatContextMenu">
         <template #main="{ item }">

@@ -272,7 +272,7 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
                 id: `doc_${nanoid()}`,
                 name: f.filename!,
                 path: f.path!,
-                size: f.size,
+                size: f.size!,
                 type: f.mediaType,
                 created: Date.now(),
                 status: 'processing'
@@ -307,8 +307,7 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
 </script>
 
 <template>
-    <List type="gap" title="知识库" :items="knowledgeBases" :active-id="activeKnowledgeBaseId"
-        @select="selectKnowledgeBase"
+    <List title="知识库" :items="knowledgeBases" :active-id="activeKnowledgeBaseId" @select="selectKnowledgeBase"
         @contextmenu="(event, item) => handleKnowledgeBaseContextMenu(event, knowledgeBases.find(kb => kb.id === item)!)">
         <template #title-tool>
             <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="primary">

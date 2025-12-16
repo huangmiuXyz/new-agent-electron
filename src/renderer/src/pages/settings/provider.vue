@@ -257,7 +257,7 @@ const handleShowSearch = async () => {
 </script>
 
 <template>
-    <List type="gap" title="提供商" :items="providers" :active-id="activeProviderId" @select="selectProvider" />
+    <List title="提供商" :items="providers" :active-id="activeProviderId" @select="selectProvider" />
 
     <SettingFormContainer header-title="模型提供商">
         <template #content>

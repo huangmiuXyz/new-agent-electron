@@ -3,7 +3,6 @@ import { computed } from 'vue'
 
 interface Props {
   items: T[]
-  type?: 'gap' | 'ungap'
   title?: string
   activeId?: string
 
@@ -25,7 +24,6 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  type: 'gap',
   loading: false,        // 默认为不加载
   emptyText: '暂无数据',  // 默认空提示
   keyField: 'id',
@@ -41,15 +39,9 @@ const emit = defineEmits<{
   contextmenu: [event: MouseEvent, id: string]
 }>()
 
-const viewItems = computed(() => props.items.map((item, index) => {
+const viewItems = computed(() => props.items.map((item) => {
   const key = item[props.keyField] ?? JSON.stringify(item)
   const logo = item[props.logoField]
-  let groupTitle = ''
-  if (props.type === 'ungap' && props.showHeader && props.renderHeader) {
-    const cur = props.renderHeader(item)
-    const prev = index > 0 ? props.renderHeader(props.items[index - 1]!) : null
-    if (index === 0 || cur !== prev) groupTitle = cur
-  }
 
   return {
     raw: item,
@@ -58,8 +50,7 @@ const viewItems = computed(() => props.items.map((item, index) => {
     sub: props.subField ? item[props.subField] : '',
     logo,
     isIcon: typeof logo === 'object' || typeof logo === 'function',
-    isActive: props.type === 'gap' ? props.activeId === key : props.isSelected?.(item),
-    groupTitle
+    isActive: props.activeId === key
   }
 }))
 
@@ -70,8 +61,8 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 </script>
 
 <template>
-  <div class="list-container" :class="[`mode-${type}`]">
-    <div v-if="title && type === 'gap'" class="list-title">
+  <div class="list-container">
+    <div v-if="title" class="list-title">
       <div>{{ title }}</div>
       <div class="list-title-actions">
         <slot name="title-tool"></slot>
@@ -96,7 +87,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
       <!-- 3. 数据列表 -->
       <template v-else>
         <template v-for="item in viewItems" :key="item.key">
-          <div v-if="item.groupTitle" class="group-header">{{ item.groupTitle }}</div>
           <div class="list-item" :class="{ 'is-active': item.isActive }" @click="handleAction('select', item)"
             @contextmenu="handleAction('contextmenu', item, $event)">
             <div v-if="item.logo" class="item-media">
@@ -123,6 +113,12 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 .list-container {
   display: flex;
   flex-direction: column;
+  width: 260px;
+  border-right: 1px solid var(--border-subtle);
+  padding: 12px;
+  height: 100%;
+  background-color: #fff;
+  z-index: 2;
 }
 
 .list-scroll-area {
@@ -162,11 +158,35 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   }
 }
 
+.list-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+  padding-left: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .list-item {
   display: flex;
   align-items: center;
   cursor: pointer;
   transition: all 0.2s;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.list-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.list-item.is-active {
+  background-color: var(--bg-active, #f2f8ff);
+  color: var(--accent-color);
 }
 
 .item-content {
@@ -187,135 +207,30 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   padding-left: 8px;
 }
 
-.mode-gap {
-  width: 260px;
-  border-right: 1px solid var(--border-subtle);
-  padding: 12px;
-  height: 100%;
-  background-color: #fff;
-  z-index: 2;
-}
-
-.mode-gap .list-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  margin-bottom: 8px;
-  padding-left: 4px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.mode-gap .list-item {
-  gap: 10px;
-  padding: 8px 10px;
-  margin-bottom: 4px;
-  border-radius: var(--radius-sm);
-}
-
-.mode-gap .list-item:hover {
-  background-color: var(--bg-hover);
-}
-
-.mode-gap .list-item.is-active {
-  background-color: var(--bg-active, #f2f8ff);
-  color: var(--accent-color);
-}
-
-.mode-gap .item-media {
+.item-media {
   display: flex;
 }
 
-.mode-gap .sub-text {
+.sub-text {
   display: none;
 }
 
-.mode-gap .main-text {
+.main-text {
   font-size: 13px;
   font-weight: 500;
 }
 
-.mode-gap .media-img {
+.media-img {
   width: 24px;
   height: 24px;
   border-radius: 6px;
   object-fit: cover;
 }
 
-.mode-gap .media-icon {
+.media-icon {
   width: 24px;
   height: 24px;
   font-size: 16px;
   color: var(--text-secondary);
-}
-
-.mode-ungap {
-  width: 100%;
-}
-
-.mode-ungap .group-header {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-tertiary);
-  padding: 6px 8px 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.mode-ungap .list-item {
-  padding: 6px 8px;
-  margin-bottom: 1px;
-  justify-content: space-between;
-}
-
-.mode-ungap .list-item:first-of-type {
-  border-radius: 6px 6px 0 0;
-}
-
-.mode-ungap .group-header+.list-item {
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
-.mode-ungap .list-item:last-of-type {
-  border-radius: 0 0 6px 6px;
-  margin-bottom: 0;
-}
-
-.mode-ungap .list-item:only-of-type {
-  border-radius: 6px;
-}
-
-.mode-ungap .group-header:first-of-type {
-  border-radius: 6px 6px 0 0;
-}
-
-.mode-ungap .list-item:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.mode-ungap .list-item.is-active {
-  background: var(--bg-active, var(--accent-color));
-}
-
-.mode-ungap .list-item.is-active .main-text,
-.mode-ungap .list-item.is-active .sub-text {
-  color: #fff !important;
-}
-
-.mode-ungap .item-media {
-  display: none;
-}
-
-.mode-ungap .main-text {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.mode-ungap .sub-text {
-  font-size: 10px;
-  color: var(--text-secondary);
-  margin-top: 1px;
 }
 </style>
