@@ -8,8 +8,11 @@ export const anyUrlToBlobUrl = (url: string): string => {
     const filePath = window.api.url.fileURLToPath(url)
     return URL.createObjectURL(_arrayBufferToBlob(window.api.fs.readFileSync(filePath).buffer))
   }
-  const blob = _dataURLToBlob(url)
-  return URL.createObjectURL(blob)
+  if (url.startsWith('data:')) {
+    const blob = _dataURLToBlob(url)
+    return URL.createObjectURL(blob)
+  }
+  return url
 }
 export const copyText = (text: string) => {
   if (text) {
