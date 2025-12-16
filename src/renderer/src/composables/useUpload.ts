@@ -54,7 +54,7 @@ export function useUpload(options: UseUploadOptions = {}) {
   }
   const handleFileSystemPicker = async (shouldSaveFileToUserData: boolean) => {
     try {
-      if (window.api.showOpenDialog) {
+      if (window.api?.showOpenDialog) {
         const result = await window.api.showOpenDialog({
           properties: ['openFile', 'multiSelections']
         })
