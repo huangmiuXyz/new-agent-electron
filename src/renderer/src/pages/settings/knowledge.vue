@@ -304,6 +304,10 @@ const { embedding } = useKnowledge()
 const handleAbortDocument = (doc: KnowledgeDocument) => {
     doc.abortController?.abort()
 }
+
+const openFolder = (path: string) => {
+    window.api.shell.openPath(window.api.url.fileURLToPath(path))
+}
 </script>
 
 <template>
@@ -332,9 +336,18 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
                     { key: 'status', label: '状态', width: '1.5fr' },
                     { key: 'actions', label: '操作', width: '1fr' }
                 ]">
-                    <template #type="props">
-                        <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                    <template #name="{ row }">
+                        <div class="file-name-cell">
+                            <Button @click="openFolder(row.path)" variant="text" size="sm" class="name-text">
+                                <template #icon>
+                                    <component :is="useIcon(getFileIcon({
+                                        name: row.name,
+                                        mediaType: row.type,
+                                    }))" class="file-icon" />
+                                </template>
+                                {{ row.name }}
+                            </Button>
+                        </div>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
