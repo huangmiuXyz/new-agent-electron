@@ -98,7 +98,7 @@ export const useChat = (chatId: string) => {
     const { apiKey, baseUrl, id: provider, providerType } = toRefs(currentSelectedProvider.value!)
     const { id: model } = toRefs(currentSelectedModel.value!)
 
-    const chat = new _useChat({
+    const chat = new _useChat<BaseMessage>({
       transport: {
         sendMessages: () => {
           return service.createAgent(
