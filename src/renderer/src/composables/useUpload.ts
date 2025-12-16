@@ -4,7 +4,7 @@ export interface UploadFile extends FileUIPart {
   blobUrl?: string
   name?: string
   path?: string
-  size: number
+  size?: number
 }
 
 export interface UseUploadOptions {

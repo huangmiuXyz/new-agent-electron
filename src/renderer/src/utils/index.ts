@@ -2,9 +2,9 @@ import localforage from 'localforage'
 export { cloneDeep, throttle, mapValues, retry } from 'es-toolkit'
 export { blobToDataURL, dataURLToBlob, arrayBufferToBlob } from 'blob-util'
 
-export const getBlobUrl = (url: string): string => {
+export const getBlobUrl = async (url: string): Promise<string> => {
   if (!url) return ''
-  const blob = dataURLToBlob(url)
+  const blob = (await import('blob-util')).dataURLToBlob(url)
   return URL.createObjectURL(blob)
 }
 export const copyText = (text: string) => {

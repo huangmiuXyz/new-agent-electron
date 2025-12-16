@@ -57,8 +57,8 @@ defineExpose({
         <!-- 文件预览区域 -->
         <div v-if="selectedFiles.length > 0" class="file-preview-container">
             <div v-for="(file, index) in selectedFiles" :key="index" class="file-preview-item">
-                <img v-if="file.mediaType?.startsWith('image/')" :src="file.blobUrl || file.url || getBlobUrl(file.url)"
-                    class="preview-file" />
+                <img v-if="file.mediaType?.startsWith('image/')"
+                    :src="file.blobUrl || file.url || await getBlobUrl(file.url)" class="preview-file" />
 
                 <div v-else class="preview-generic">
                     <div class="generic-icon">
