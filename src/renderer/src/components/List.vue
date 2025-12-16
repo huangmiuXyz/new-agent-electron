@@ -119,7 +119,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   flex: 1;
   overflow-y: auto;
   position: relative;
-  min-height: 60px;
 }
 
 .state-container {
