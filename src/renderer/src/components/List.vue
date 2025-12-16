@@ -50,7 +50,7 @@ const viewItems = computed(() => props.items.map((item) => {
     sub: props.subField ? item[props.subField] : '',
     logo,
     isIcon: typeof logo === 'object' || typeof logo === 'function',
-    isActive: props.activeId === key
+    isActive: props.isSelected?.(item) || props.activeId === key
   }
 }))
 
@@ -70,21 +70,18 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
     </div>
 
     <div class="list-scroll-area">
-      <!-- 1. Loading 状态 -->
       <div v-if="loading" class="state-container">
         <slot name="loading">
           <div class="loading-spinner"></div>
         </slot>
       </div>
 
-      <!-- 2. Empty 状态 -->
       <div v-else-if="viewItems.length === 0" class="state-container">
         <slot name="empty">
           <div class="empty-text">{{ emptyText }}</div>
         </slot>
       </div>
 
-      <!-- 3. 数据列表 -->
       <template v-else>
         <template v-for="item in viewItems" :key="item.key">
           <div class="list-item" :class="{ 'is-active': item.isActive }" @click="handleAction('select', item)"
@@ -183,7 +180,7 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 
 .list-item.is-active {
   background-color: var(--bg-active, #f2f8ff);
-  color: var(--accent-color);
+  color: #fff;
 }
 
 .item-content {
