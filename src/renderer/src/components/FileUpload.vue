@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { FileUIPart } from 'ai';
 interface Props {
-    files?: Array<FileUIPart & { blobUrl?: string; name?: string }>;
+    files?: Array<UploadFile>;
     removable?: boolean;
     dropZoneRef?: HTMLElement;
     inputRef?: HTMLTextAreaElement;
