@@ -112,7 +112,7 @@ const categorizedFiles = computed(() => {
     return files.value.filter(f => getFileCategory(f) === activeCategory.value)
 })
 
-const openFolder = (path: string) => {
+const openFolder = (path?: string) => {
     window.api.shell.openPath(path || uploadDir)
 }
 
@@ -158,7 +158,7 @@ onMounted(loadFiles)
                     </div>
 
                     <div class="actions">
-                        <Button @click="openFolder" size="sm" variant="secondary">
+                        <Button @click="openFolder()" size="sm" variant="secondary">
                             <template #icon>
                                 <Folder />
                             </template>
