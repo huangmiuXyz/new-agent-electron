@@ -334,7 +334,7 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
@@ -436,41 +436,6 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
 </template>
 
 <style scoped>
-:deep(.mode-ungap) {
-    background: #ffffff;
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-    --bg-active: #f0f0f0;
-}
-
-:deep(.group-header) {
-    background: #fafafa;
-    border-bottom: 1px solid #f5f5f5;
-}
-
-:deep(.list-item) {
-    padding: 10px 14px;
-    padding-right: 10px;
-    border-bottom: 1px solid #f5f5f5;
-    background-color: #ffffff;
-}
-
-:deep(.list-item:last-child) {
-    border-bottom: none;
-}
-
-:deep(.list-item:hover) {
-    background-color: #fafafa;
-}
-
-/* 确保Switch组件正确对齐 */
-:deep(.item-actions) {
-    margin-left: 10px;
-}
-
-
 .popover-header {
     font-size: 13px;
     font-weight: 600;
