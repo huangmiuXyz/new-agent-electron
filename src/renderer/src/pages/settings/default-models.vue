@@ -19,6 +19,12 @@ const [DefaultModelsForm] = useForm({
             type: 'modelSelector',
             label: '翻译模型',
             popupPosition: 'bottom'
+        },
+        {
+            name: 'searchModel',
+            type: 'modelSelector',
+            label: '搜索模型',
+            popupPosition: 'bottom'
         }
     ],
     initialData: {
@@ -29,6 +35,10 @@ const [DefaultModelsForm] = useForm({
         translationModel: {
             modelId: defaultModels.value.translationModelId,
             providerId: defaultModels.value.translationProviderId
+        },
+        searchModel: {
+            modelId: defaultModels.value.searchModelId,
+            providerId: defaultModels.value.searchProviderId
         }
     },
     onChange: (_field, _value, data) => {
@@ -36,7 +46,9 @@ const [DefaultModelsForm] = useForm({
             titleGenerationModelId: data.titleGenerationModel?.modelId || '',
             titleGenerationProviderId: data.titleGenerationModel?.providerId || '',
             translationModelId: data.translationModel?.modelId || '',
-            translationProviderId: data.translationModel?.providerId || ''
+            translationProviderId: data.translationModel?.providerId || '',
+            searchModelId: data.searchModel?.modelId || '',
+            searchProviderId: data.searchModel?.providerId || ''
         })
     }
 })

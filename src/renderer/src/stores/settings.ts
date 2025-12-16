@@ -23,12 +23,13 @@ export const useSettingsStore = defineStore(
 
     const mcpServers = ref<ClientConfig>({})
 
-    // 默认模型设置
     const defaultModels = ref({
       titleGenerationModelId: '',
       titleGenerationProviderId: '',
       translationModelId: '',
-      translationProviderId: ''
+      translationProviderId: '',
+      searchModelId: '',
+      searchProviderId: ''
     })
 
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
