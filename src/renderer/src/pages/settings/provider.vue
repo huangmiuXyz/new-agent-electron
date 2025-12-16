@@ -28,7 +28,10 @@ const filteredModels = computed(() => {
         m.id.toLowerCase().includes(lower)
     )
 })
-
+const aiSearchModels = ref<Model[]>([])
+const setAISearchValue = (values: Model[]) => {
+    aiSearchModels.value = values
+}
 const tableColumns = [
     { key: 'name', label: '模型名称', width: '2fr' },
     { key: 'id', label: '模型ID', width: '2fr' },
@@ -243,7 +246,7 @@ const handleDeleteModel = async (row: any) => {
     }
 }
 
-const searchInputRef = ref<InstanceType<typeof SearchInput> | null>(null)
+const searchInputRef = useTemplateRef('searchInputRef')
 const handleShowSearch = async () => {
     showSearch.value = true
     await nextTick()
@@ -260,7 +263,8 @@ const handleShowSearch = async () => {
             <ProviderForm>
                 <template #footer>
                     <FormItem label="模型列表">
-                        <Table :loading="loading" :columns="tableColumns" :data="filteredModels">
+                        <Table :loading="loading" :columns="tableColumns"
+                            :data="aiSearchModels.length ? aiSearchModels : filteredModels">
                             <template #category="{ row }">
                                 <Tags :tags="[row.category === 'text' ? '文本' :
                                     row.category === 'embedding' ? '嵌入式' :
@@ -307,8 +311,10 @@ const handleShowSearch = async () => {
                                     模型列表
                                 </Button>
                                 <div v-if="showSearch">
-                                    <SearchInput ref="searchInputRef" v-model="searchKeyword" placeholder="搜索模型..."
-                                        size="sm" variant="default" :show-icon="true" :debounce="0"
+                                    <SearchInput searchKey="id" :search-data="activeProvider!.models"
+                                        @ai-search="setAISearchValue" ref="searchInputRef" v-model="searchKeyword"
+                                        @update:model-value="aiSearchModels = []" placeholder="搜索模型..." size="sm"
+                                        variant="default" :show-icon="true" :debounce="0"
                                         @blur="!searchKeyword && (showSearch = false)" class="provider-search-input" />
                                 </div>
                                 <Button v-else type="button" variant="text" size="sm" @click="handleShowSearch">

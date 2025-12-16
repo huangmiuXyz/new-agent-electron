@@ -1,12 +1,6 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T extends Array<any>">
 import { z } from 'zod'
 
-interface SearchDataItem {
-    id: string
-    content: string
-    title?: string
-    [key: string]: any
-}
 
 interface Props {
     modelValue?: string
@@ -22,7 +16,8 @@ interface Props {
     width?: string
     enableAISearch?: boolean
     aiSearchPlaceholder?: string
-    searchData?: SearchDataItem[]
+    searchData?: T
+    searchKey: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -38,15 +33,14 @@ const props = withDefaults(defineProps<Props>(), {
     debounce: 300,
     width: '100%',
     enableAISearch: true,
-    aiSearchPlaceholder: 'AI 搜索',
-    searchData: () => []
+    aiSearchPlaceholder: 'AI 搜索'
 })
 
 const emit = defineEmits<{
     'update:modelValue': [value: string]
     'focus': []
     'blur': []
-    'ai-search': [results: number[]]
+    'ai-search': [results: T]
 }>()
 
 const { Search, Close, Sparkles } = useIcon(['Search', 'Close', 'Sparkles'])
@@ -94,7 +88,7 @@ const handleAISearch = async () => {
     if (!localValue.value.trim() || isAISearching.value) return
     isAISearching.value = true
 
-    if (!props.searchData.length) {
+    if (!props.searchData!.length) {
         isAISearching.value = false
         return
     }
@@ -113,26 +107,22 @@ const handleAISearch = async () => {
         isAISearching.value = false
         return
     }
-
     const { generateText } = chatService()
-
     const searchTool = {
-        title: '搜索结果裁决',
+        title: '返回结果',
         description: `
 你已经基于搜索词和数据完成了语义搜索。
-请在这里返回你认为“最相关”的数据索引。
-只返回索引，不要解释。
+请在这里返回你认为“最相关”的${props.searchKey}。
+只返回${props.searchKey}。
 `,
         inputSchema: z.object({
-            indexed: z
-                .array(z.number())
-                .min(1)
-                .describe('按相关性从高到低排序的索引')
+            key: z
+                .array(z.string())
         }),
         execute: async (args: any) => {
-            const { indexed } = args
+            const { key } = args
             return {
-                toolResult: indexed
+                toolResult: key
             }
         }
     }
@@ -143,14 +133,10 @@ const handleAISearch = async () => {
 你将获得一组数据，请你：
 1. 阅读并理解所有数据
 2. 判断哪些数据与搜索词在语义上最相关
-3. 在调用 search_data 工具时，提交你最终选定的索引结果
+3. 在调用 return_result 工具时，提交你最终认定的${props.searchKey}
 
 数据如下：
 ${JSON.stringify(props.searchData)}
-
-注意：
-- 你只能通过调用 search_data 工具来提交答案
-- 调用工具即表示你已经完成搜索和判断
 `
 
 
@@ -160,12 +146,11 @@ ${JSON.stringify(props.searchData)}
         baseURL: provider.baseUrl,
         provider: provider.name,
         providerType: provider.providerType,
-        tools: { search_data: searchTool },
-        toolChoice: { type: 'tool', toolName: 'search_data' },
+        tools: { return_result: searchTool },
     })
     const toolResults = (result.toolResults[0]!.output as { toolResult: number[] }).toolResult
     isAISearching.value = false
-    emit('ai-search', toolResults)
+    emit('ai-search', props.searchData!.filter((data) => toolResults.find(res => res === data[props.searchKey])) as T)
 }
 
 onMounted(() => {
