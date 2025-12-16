@@ -112,8 +112,8 @@ const categorizedFiles = computed(() => {
     return files.value.filter(f => getFileCategory(f) === activeCategory.value)
 })
 
-const openFolder = () => {
-    window.api.shell.openPath(uploadDir)
+const openFolder = (path: string) => {
+    window.api.shell.openPath(path || uploadDir)
 }
 
 
