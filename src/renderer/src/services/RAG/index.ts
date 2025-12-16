@@ -1,6 +1,6 @@
 import { createRegistry } from '../chatService/registry'
 import { splitTextByType } from './splitter'
-import { embed, cosineSimilarity, rerank } from 'ai'
+import { embedMany, cosineSimilarity, rerank } from 'ai'
 
 export interface RetrieveOptions {
   similarityThreshold?: number
@@ -38,12 +38,12 @@ export const RAGService = () => {
         reportProgress(processed, total, splitterClone, options)
         continue
       }
-      const { embedding } = await embed({
+      const { embeddings } = await embedMany({
         model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
-        value: chunk.content,
+        values: [chunk.content],
         abortSignal: options.abortController.signal
       })
-      chunk.embedding = embedding
+      chunk.embedding = embeddings[0]
       processed++
       reportProgress(processed, total, splitterClone, options)
     }
