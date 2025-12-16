@@ -95,7 +95,6 @@ const getKnowledgeBaseName = (kbId: string) => {
                             <div v-if="agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0"
                                 class="knowledge-list">
                                 <div class="knowledge-list-label">关联知识库:</div>
-                                {{ agent }}
                                 <div class="knowledge-tags">
                                     <span v-for="kbId in agent.knowledgeBaseIds" :key="kbId" class="knowledge-tag">
                                         {{ getKnowledgeBaseName(kbId) }}
