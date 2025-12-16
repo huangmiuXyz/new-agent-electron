@@ -60,6 +60,7 @@ const _sendMessage = async () => {
     if (input) {
       parts.push({ type: 'text', text: input })
     }
+    debugger
 
     selectedFiles.value.forEach(file => {
       const { blobUrl, path, size, name, url, ...aiPart } = file
