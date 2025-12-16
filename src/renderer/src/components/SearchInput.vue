@@ -221,6 +221,7 @@ defineExpose({
     color: var(--text-primary);
     font-family: inherit;
     width: 100%;
+    margin-left: 4px;
 }
 
 .search-input--sm .search-input__field {
