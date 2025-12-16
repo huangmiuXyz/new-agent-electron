@@ -1,10 +1,14 @@
 import localforage from 'localforage'
 export { cloneDeep, throttle, mapValues, retry } from 'es-toolkit'
 export { blobToDataURL, dataURLToBlob, arrayBufferToBlob } from 'blob-util'
-
-export const getBlobUrl = async (url: string): Promise<string> => {
+import { dataURLToBlob as _dataURLToBlob, arrayBufferToBlob as _arrayBufferToBlob } from 'blob-util'
+export const anyUrlToBlobUrl = (url: string): string => {
   if (!url) return ''
-  const blob = (await import('blob-util')).dataURLToBlob(url)
+  if (url.startsWith('file:///')) {
+    const filePath = window.api.url.fileURLToPath(url)
+    return URL.createObjectURL(_arrayBufferToBlob(window.api.fs.readFileSync(filePath).buffer))
+  }
+  const blob = _dataURLToBlob(url)
   return URL.createObjectURL(blob)
 }
 export const copyText = (text: string) => {
