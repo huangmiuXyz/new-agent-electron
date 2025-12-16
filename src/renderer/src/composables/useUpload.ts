@@ -58,7 +58,11 @@ export function useUpload(options: UseUploadOptions = {}) {
         const result = await window.api.showOpenDialog({
           properties: ['openFile', 'multiSelections']
         })
-        result.filePaths?.forEach((path) => {
+        let filePaths = result.filePaths
+        if (shouldSaveFileToUserData) {
+          filePaths = (await copyFilesToUserData(filePaths)).map((e) => e.sourcePath)
+        }
+        filePaths.forEach((path) => {
           const file = window.api.fs.readFileSync(path)
           const blob = arrayBufferToBlob(file.buffer)
           selectedFiles.value.push({
@@ -72,9 +76,6 @@ export function useUpload(options: UseUploadOptions = {}) {
             size: blob.size
           })
         })
-        if (shouldSaveFileToUserData) {
-          copyFilesToUserData(result.filePaths)
-        }
         if (onFilesSelected) {
           onFilesSelected(selectedFiles.value)
         }
