@@ -48,6 +48,7 @@ export const useKnowledge = () => {
           embedding: []
         }))
         doc.isSplitting = true
+        doc.chunks = splitter
       } else {
         splitter = doc.chunks!
       }
