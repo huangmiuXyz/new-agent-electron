@@ -304,10 +304,6 @@ const { embedding } = useKnowledge()
 const handleAbortDocument = (doc: KnowledgeDocument) => {
     doc.abortController?.abort()
 }
-const isEmbedCompleted = (chunks) => {
-    const is = chunks?.some(chunk => !chunk.embedding?.length)
-    return is
-} 
 </script>
 
 <template>
@@ -337,7 +333,7 @@ const isEmbedCompleted = (chunks) => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                        }}</span>
+                            }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
@@ -372,7 +368,7 @@ const isEmbedCompleted = (chunks) => {
                                     <Refresh />
                                 </template>
                             </Button>
-                            <Button v-if="isEmbedCompleted(props.row.chunks) && !props.row.abortController?.abort"
+                            <Button v-if="!props.row.abortController?.abort && props.row.status !== 'processed'"
                                 @click="embedding(props.row, activeKnowledgeBase, true, batchSize)" size="sm"
                                 type="button" variant="text">
                                 <template #icon>
