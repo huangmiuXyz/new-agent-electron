@@ -4,15 +4,19 @@ export { blobToDataURL, dataURLToBlob, arrayBufferToBlob } from 'blob-util'
 import { dataURLToBlob as _dataURLToBlob, arrayBufferToBlob as _arrayBufferToBlob } from 'blob-util'
 export const anyUrlToBlobUrl = (url: string): string => {
   if (!url) return ''
-  if (url.startsWith('file:///')) {
-    const filePath = window.api.url.fileURLToPath(url)
-    return URL.createObjectURL(_arrayBufferToBlob(window.api.fs.readFileSync(filePath).buffer))
+  try {
+    if (url.startsWith('file:///')) {
+      const filePath = window.api.url.fileURLToPath(url)
+      return URL.createObjectURL(_arrayBufferToBlob(window.api.fs.readFileSync(filePath).buffer))
+    }
+    if (url.startsWith('data:')) {
+      const blob = _dataURLToBlob(url)
+      return URL.createObjectURL(blob)
+    }
+    return url
+  } catch {
+    return ''
   }
-  if (url.startsWith('data:')) {
-    const blob = _dataURLToBlob(url)
-    return URL.createObjectURL(blob)
-  }
-  return url
 }
 export const copyText = (text: string) => {
   if (text) {
