@@ -66,7 +66,7 @@ export function useUpload(options: UseUploadOptions = {}) {
             mediaType: window.api.mime.lookup(path) as string,
             blobUrl: URL.createObjectURL(blob),
             filename: window.api.path.basename(path),
-            path,
+            path: 'file://' + path,
             name: window.api.path.basename(path),
             type: 'file' as const,
             size: blob.size
