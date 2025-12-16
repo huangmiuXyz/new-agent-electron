@@ -39,9 +39,15 @@ const emit = defineEmits<{
   contextmenu: [event: MouseEvent, id: string]
 }>()
 
-const viewItems = computed(() => props.items.map((item) => {
+const viewItems = computed(() => props.items.map((item, index) => {
   const key = item[props.keyField] ?? JSON.stringify(item)
   const logo = item[props.logoField]
+  let groupTitle = ''
+  if (props.showHeader && props.renderHeader) {
+    const cur = props.renderHeader(item)
+    const prev = index > 0 ? props.renderHeader(props.items[index - 1]!) : null
+    if (index === 0 || cur !== prev) groupTitle = cur
+  }
 
   return {
     raw: item,
@@ -50,7 +56,8 @@ const viewItems = computed(() => props.items.map((item) => {
     sub: props.subField ? item[props.subField] : '',
     logo,
     isIcon: typeof logo === 'object' || typeof logo === 'function',
-    isActive: props.isSelected?.(item) || props.activeId === key
+    isActive: props.isSelected?.(item) || props.activeId === key,
+    groupTitle
   }
 }))
 
@@ -84,6 +91,7 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 
       <template v-else>
         <template v-for="item in viewItems" :key="item.key">
+          <div v-if="item.groupTitle" class="group-header">{{ item.groupTitle }}</div>
           <div class="list-item" :class="{ 'is-active': item.isActive }" @click="handleAction('select', item)"
             @contextmenu="handleAction('contextmenu', item, $event)">
             <div v-if="item.logo" class="item-media">
@@ -226,5 +234,14 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   height: 24px;
   font-size: 16px;
   color: var(--text-secondary);
+}
+
+.group-header {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  padding: 6px 8px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 </style>
