@@ -3,7 +3,7 @@ import { FileUIPart, TextUIPart } from 'ai';
 
 const message = ref('')
 const chatStore = useChatsStores();
-const selectedFiles = ref<Array<FileUIPart & { blobUrl: string; }>>([])
+const selectedFiles = ref<Array<UploadFile>>([])
 
 const { currentSelectedModel, selectedModelId, selectedProviderId, currentSelectedProvider } = storeToRefs(useSettingsStore())
 
@@ -17,7 +17,7 @@ const inputContainerRef = useTemplateRef('inputContainerRef')
 const textareaRef = useTemplateRef('textareaRef')
 
 // 处理文件选择
-const handleFilesSelected = (files: Array<FileUIPart & { blobUrl: string; }>) => {
+const handleFilesSelected = (files: Array<UploadFile>) => {
   selectedFiles.value.push(...files)
 }
 
@@ -62,7 +62,8 @@ const _sendMessage = async () => {
     }
 
     selectedFiles.value.forEach(file => {
-      const { blobUrl, ...aiPart } = file
+      const { blobUrl, path, size, name, ...aiPart } = file as UploadFile
+
       parts.push(aiPart)
     })
 

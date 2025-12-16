@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
     remove: [index: number];
-    filesSelected: [files: Array<FileUIPart & { blobUrl: string; }>]
+    filesSelected: [files: Array<UploadFile>]
 }>();
 
 const {
@@ -28,7 +28,7 @@ const {
     files: props.files as UploadFile[],
     dropZoneRef: ref(props.dropZoneRef),
     inputRef: ref(props.inputRef),
-    onFilesSelected: (files) => emit('filesSelected', files as Array<FileUIPart & { blobUrl: string }>),
+    onFilesSelected: (files) => emit('filesSelected', files as Array<UploadFile>),
     onRemove: (index) => {
         if (props.onRemove) {
             props.onRemove(index);
