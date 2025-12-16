@@ -116,6 +116,7 @@ const openFolder = () => {
     window.api.shell.openPath(uploadDir)
 }
 
+
 const formatTime = (ts: number) => new Date(ts).toLocaleString()
 
 const deleteFile = async (file: FileItem) => {
@@ -182,7 +183,7 @@ onMounted(loadFiles)
                     ]">
                         <template #name="{ row }">
                             <div class="file-name-cell">
-                                <Button variant="text" size="sm" class="name-text">
+                                <Button @click="openFolder(row.path)" variant="text" size="sm" class="name-text">
                                     <template #icon>
                                         <component :is="useIcon(getFileIcon({
                                             name: row.name,
