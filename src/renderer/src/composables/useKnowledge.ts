@@ -5,7 +5,8 @@ export const useKnowledge = () => {
   const embedding = async (
     doc: KnowledgeDocument,
     knowledge: KnowledgeBase,
-    continueFlag: boolean = false
+    continueFlag: boolean = false,
+    batchSize?: number
   ) => {
     const {
       embeddingModel: { modelId, providerId }
@@ -65,7 +66,8 @@ export const useKnowledge = () => {
             doc.chunks = data
           }
         },
-        continueFlag
+        continueFlag,
+        batchSize
       })
       doc.status = 'processed'
     } catch (error) {

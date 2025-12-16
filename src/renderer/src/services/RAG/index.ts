@@ -1,6 +1,6 @@
 import { createRegistry } from '../chatService/registry'
 import { splitTextByType } from './splitter'
-import { embedMany, cosineSimilarity, rerank } from 'ai'
+import { embedMany, embed, cosineSimilarity, rerank } from 'ai'
 
 export interface RetrieveOptions {
   similarityThreshold?: number
@@ -25,26 +25,45 @@ export const RAGService = () => {
       abortController: AbortController
       onProgress?: (data?: Splitter, current?: number, total?: number) => void
       continueFlag: boolean
+      batchSize?: number
     }
   ) => {
     const splitterClone = JSON.parse(JSON.stringify(splitter))
     const total = splitterClone.length
     let processed = 0
+    const batchSize = options.batchSize || 1 // 默认批处理大小为1，保持向后兼容
+
     options.onProgress?.(undefined, 0, total)
-    for (let i = 0; i < total; i++) {
-      const chunk = splitterClone[i]
-      if (options.continueFlag && chunk.embedding?.length > 0) {
-        processed++
-        reportProgress(processed, total, splitterClone, options)
+
+    // 批量处理逻辑
+    for (let i = 0; i < total; i += batchSize) {
+      const batch: string[] = []
+      const batchIndices: number[] = []
+      for (let j = i; j < Math.min(i + batchSize, total); j++) {
+        const chunk = splitterClone[j]
+        if (options.continueFlag && chunk.embedding?.length > 0) {
+          processed++
+          reportProgress(processed, total, splitterClone, options)
+          continue
+        }
+        batch.push(chunk.content)
+        batchIndices.push(j)
+      }
+      if (batch.length === 0) {
         continue
       }
       const { embeddings } = await embedMany({
         model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
-        values: [chunk.content],
+        values: batch,
         abortSignal: options.abortController.signal
       })
-      chunk.embedding = embeddings[0]
-      processed++
+
+      embeddings.forEach((embedding, index) => {
+        const chunkIndex = batchIndices[index]
+        splitterClone[chunkIndex].embedding = embedding
+        processed++
+      })
+
       reportProgress(processed, total, splitterClone, options)
     }
 

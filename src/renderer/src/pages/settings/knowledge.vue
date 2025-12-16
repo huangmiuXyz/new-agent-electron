@@ -2,10 +2,11 @@
 import { FormItem } from '@renderer/composables/useForm'
 import Input from '@renderer/components/Input.vue'
 import Table from '@renderer/components/Table.vue'
+import SelectorPopover from '@renderer/components/SelectorPopover.vue'
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 const { updateKnowledgeBase, addKnowledgeBase, deleteKnowledgeBase, addDocumentToKnowledgeBase, deleteDocumentFromKnowledgeBase } = useKnowledgeStore()
 
-const { Plus, Search, Trash, File, Refresh, Stop, Play } = useIcon(['Stop', 'Plus', 'Search', 'Trash', 'File', 'Refresh', 'Play'])
+const { Plus, Search, Trash, File, Refresh, Stop, Play, Settings } = useIcon(['Stop', 'Plus', 'Search', 'Trash', 'File', 'Refresh', 'Play', 'Settings'])
 const { confirm } = useModal()
 const { showContextMenu } = useContextMenu<KnowledgeBase>()
 
@@ -18,6 +19,7 @@ const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
 };
 const activeKnowledgeBaseId = useLocalStorage<string>('activeKnowledgeBaseId', '');
 const isEditMode = ref(false);
+const batchSize = useLocalStorage<number>('embeddingBatchSize', 5); // 默认批处理大小为5
 
 watch(() => activeKnowledgeBaseId.value, (v) => {
     if (!v) {
@@ -30,6 +32,7 @@ const activeKnowledgeBase = computed<KnowledgeBase>(() => {
 
 const showSearch = ref(false)
 const searchKeyword = ref('')
+const showBatchSettings = ref(false)
 
 const filteredDocuments = computed(() => {
     const documents = activeKnowledgeBase.value?.documents || []
@@ -259,7 +262,7 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
         for (const doc of docs) {
             const docInKnowledgeBase = activeKnowledgeBase.value?.documents?.find(d => d.id === doc.id)
             if (docInKnowledgeBase) {
-                await embedding(docInKnowledgeBase, activeKnowledgeBase.value)
+                await embedding(docInKnowledgeBase, activeKnowledgeBase.value, false, batchSize.value)
             }
         }
     }
@@ -311,7 +314,7 @@ const isEmbedCompleted = (chunks) => {
                 ]">
                     <template #type="props">
                         <span style="text-transform: uppercase;">{{ props.row.type
-                            }}</span>
+                        }}</span>
                     </template>
                     <template #size="props">
                         {{ formatFileSize(props.row.size) }}
@@ -340,15 +343,15 @@ const isEmbedCompleted = (chunks) => {
                     </template>
                     <template #actions="props">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <Button @click="embedding(props.row, activeKnowledgeBase)" size="sm" type="button"
-                                variant="text">
+                            <Button @click="embedding(props.row, activeKnowledgeBase, false, batchSize)" size="sm"
+                                type="button" variant="text">
                                 <template #icon>
                                     <Refresh />
                                 </template>
                             </Button>
                             <Button v-if="isEmbedCompleted(props.row.chunks) && !props.row.abortController?.abort"
-                                @click="embedding(props.row, activeKnowledgeBase, true)" size="sm" type="button"
-                                variant="text">
+                                @click="embedding(props.row, activeKnowledgeBase, true, batchSize)" size="sm"
+                                type="button" variant="text">
                                 <template #icon>
                                     <Play />
                                 </template>
@@ -384,9 +387,32 @@ const isEmbedCompleted = (chunks) => {
                                 <Search />
                             </template>
                         </Button>
+                        <SelectorPopover v-model="showBatchSettings" width="240px" position="bottom">
+                            <template #trigger>
+                                <Button :class="{ active: showBatchSettings }" size="sm" type="button" variant="text">
+                                    <template #icon>
+                                        <Settings />
+                                    </template>
+                                </Button>
+                            </template>
+                            <template #content>
+                                <div class="popover-header">批处理设置</div>
+                                <div class="popover-content">
+                                    <div class="setting-item">
+                                        <div class="setting-label">
+                                            <span>Batch Size</span>
+                                            <span class="setting-value">{{ batchSize }}</span>
+                                        </div>
+                                        <input type="range" step="1" min="1" max="50" v-model="batchSize"
+                                            class="setting-slider" />
+                                    </div>
+                                </div>
+                            </template>
+                        </SelectorPopover>
                     </div>
                 </template>
             </FormItem>
+
         </template>
     </SettingFormContainer>
 </template>
@@ -424,5 +450,38 @@ const isEmbedCompleted = (chunks) => {
 /* 确保Switch组件正确对齐 */
 :deep(.item-actions) {
     margin-left: 10px;
+}
+
+
+.popover-header {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-primary, #333);
+}
+
+.setting-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.setting-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+}
+
+.setting-slider {
+    width: 100%;
+    accent-color: var(--primary-color, #8b5cf6);
+    cursor: pointer;
+}
+
+.setting-value {
+    font-feature-settings: "tnum";
+    font-weight: 500;
+    color: var(--primary-color, #8b5cf6);
 }
 </style>

@@ -5,7 +5,7 @@ const Search = useIcon('Search')
 
 const props = defineProps<{
     modelValue: boolean
-    searchQuery: string
+    searchQuery?: string
     placeholder?: string
     noResultsText?: string
     hasResults?: boolean
@@ -64,17 +64,22 @@ const onSearchInput = (e: Event) => {
             width: width || '240px',
             animation: modelValue ? ((position || 'top') === 'top' ? 'popupFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'popupFadeInTop 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)') : 'none'
         }">
-            <div class="selector-search">
-                <Search />
-                <input :value="searchQuery" @input="onSearchInput" type="text" :placeholder="placeholder || '搜索...'"
-                    autocomplete="off" />
+            <div v-if="$slots.content" class="content">
+                <slot name="content"></slot>
             </div>
-            <div class="selector-list-container">
-                <div v-if="!hasResults" class="no-results">
-                    {{ noResultsText || '未找到结果' }}
+            <template v-else>
+                <div class="selector-search">
+                    <Search />
+                    <input :value="searchQuery" @input="onSearchInput" type="text" :placeholder="placeholder || '搜索...'"
+                        autocomplete="off" />
                 </div>
-                <slot v-else></slot>
-            </div>
+                <div class="selector-list-container">
+                    <div v-if="!hasResults" class="no-results">
+                        {{ noResultsText || '未找到结果' }}
+                    </div>
+                    <slot v-else></slot>
+                </div>
+            </template>
         </div>
     </div>
 </template>
@@ -201,5 +206,9 @@ const onSearchInput = (e: Event) => {
     text-align: center;
     color: var(--text-tertiary);
     font-size: 12px;
+}
+
+.content {
+    padding: 12px;
 }
 </style>
