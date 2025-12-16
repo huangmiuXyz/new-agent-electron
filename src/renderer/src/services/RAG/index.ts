@@ -31,11 +31,10 @@ export const RAGService = () => {
     const splitterClone = JSON.parse(JSON.stringify(splitter))
     const total = splitterClone.length
     let processed = 0
-    const batchSize = options.batchSize || 1 // 默认批处理大小为1，保持向后兼容
+    const batchSize = options.batchSize || 1
 
     options.onProgress?.(undefined, 0, total)
 
-    // 批量处理逻辑
     for (let i = 0; i < total; i += batchSize) {
       const batch: string[] = []
       const batchIndices: number[] = []
