@@ -106,7 +106,7 @@ export const copyFilesToUserData = async (filePaths: string[]) => {
   return results
 }
 
-export const getFileIcon = (file: { name: string; mediaType: string }) => {
+export const getFileIcon = (file: { name?: string; mediaType: string }) => {
   const mediaType = file.mediaType || ''
   const fileName = file.name || ''
   if (mediaType.includes('pdf')) {

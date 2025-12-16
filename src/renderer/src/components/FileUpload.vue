@@ -22,7 +22,6 @@ const {
     isDragOver,
     isOverDropZone,
     removeFile,
-    getFileIcon,
     triggerUpload,
     handlePaste
 } = useUpload({
