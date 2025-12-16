@@ -60,7 +60,7 @@ export function useUpload(options: UseUploadOptions = {}) {
         })
         let filePaths = result.filePaths
         if (shouldSaveFileToUserData) {
-          filePaths = (await copyFilesToUserData(filePaths)).map((e) => e.sourcePath)
+          filePaths = (await copyFilesToUserData(filePaths)).map((e) => e.destPath)
         }
         filePaths.forEach((path) => {
           const file = window.api.fs.readFileSync(path)
