@@ -257,8 +257,9 @@ const handleShowSearch = async () => {
 </script>
 
 <template>
-    <List title="提供商" :items="providers" :active-id="activeProviderId" @select="selectProvider" />
-
+    <SettingsListContainer>
+        <List title="提供商" :items="providers" :active-id="activeProviderId" @select="selectProvider" />
+    </SettingsListContainer>
     <SettingFormContainer header-title="模型提供商">
         <template #content>
             <ProviderForm>

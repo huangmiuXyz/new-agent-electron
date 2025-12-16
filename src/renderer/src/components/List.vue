@@ -110,17 +110,6 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 </template>
 
 <style scoped>
-.list-container {
-  display: flex;
-  flex-direction: column;
-  width: 260px;
-  border-right: 1px solid var(--border-subtle);
-  padding: 12px;
-  height: 100%;
-  background-color: #fff;
-  z-index: 2;
-}
-
 .list-scroll-area {
   flex: 1;
   overflow-y: auto;
@@ -156,6 +145,14 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   to {
     transform: rotate(360deg);
   }
+}
+
+.list-container {
+  height: 100%;
+  background-color: #fff;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
 }
 
 .list-title {

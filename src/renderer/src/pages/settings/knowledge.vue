@@ -307,17 +307,19 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
 </script>
 
 <template>
-    <List title="知识库" :items="knowledgeBases" :active-id="activeKnowledgeBaseId" @select="selectKnowledgeBase"
-        @contextmenu="(event, item) => handleKnowledgeBaseContextMenu(event, knowledgeBases.find(kb => kb.id === item)!)">
-        <template #title-tool>
-            <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="primary">
-                <template #icon>
-                    <Plus />
-                </template>
-                添加
-            </Button>
-        </template>
-    </List>
+    <SettingsListContainer>
+        <List title="知识库" :items="knowledgeBases" :active-id="activeKnowledgeBaseId" @select="selectKnowledgeBase"
+            @contextmenu="(event, item) => handleKnowledgeBaseContextMenu(event, knowledgeBases.find(kb => kb.id === item)!)">
+            <template #title-tool>
+                <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="primary">
+                    <template #icon>
+                        <Plus />
+                    </template>
+                    添加
+                </Button>
+            </template>
+        </List>
+    </SettingsListContainer>
 
     <!-- 配置表单 -->
     <SettingFormContainer header-title="知识库管理">
