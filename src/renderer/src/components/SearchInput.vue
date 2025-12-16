@@ -46,6 +46,7 @@ const emit = defineEmits<{
     'update:modelValue': [value: string]
     'focus': []
     'blur': []
+    'ai-search': [results: number[]]
 }>()
 
 const { Search, Close, Sparkles } = useIcon(['Search', 'Close', 'Sparkles'])
@@ -164,6 +165,7 @@ ${JSON.stringify(props.searchData)}
     })
     const toolResults = (result.toolResults[0]!.output as { toolResult: number[] }).toolResult
     isAISearching.value = false
+    emit('ai-search', toolResults)
 }
 
 onMounted(() => {
