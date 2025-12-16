@@ -86,12 +86,12 @@ const handleModelSelect = (id: string) => {
     :hasResults="filteredModels.length > 0" width="240px" :position="popupPosition || 'top'">
     <template #trigger>
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
-        <Image style="width: 10px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="">
-          <span>{{ currentModelLabel }}</span>
-          <ChevronDown />
+        <Image style="width: 10px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="" />
+        <span>{{ currentModelLabel }}</span>
+        <ChevronDown />
       </div>
       <Button v-else variant="icon" size="sm">
-        <Image style="width: 15px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="">
+        <Image style="width: 15px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="" />
       </Button>
     </template>
 
