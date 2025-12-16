@@ -82,7 +82,7 @@ const saveEditing = () => {
                             {{ block.text }}
                         </template>
                     </span>
-                    <FileUpload v-if="block.type === 'file'"
+                    <FileUpload :removable="false" v-if="block.type === 'file'"
                         :files="[{ ...block, blobUrl: anyUrlToBlobUrl(block.url) }]" />
                     <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'"
                         :reasoning_content="block.text" />
