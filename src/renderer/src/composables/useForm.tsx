@@ -7,6 +7,7 @@ import InputGroup from '@renderer/components/InputGroup.vue'
 import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
 import ModelSelector from '@renderer/components/ModelSelector.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
+import { VNode } from 'vue'
 
 export const FormItem = defineComponent({
   props: {
@@ -29,6 +30,10 @@ export const FormItem = defineComponent({
     layout: {
       type: String as () => 'default' | 'toggle',
       default: 'default'
+    },
+    rest: {
+      type: Function,
+      default: () => null
     }
   },
   setup(props, { slots }) {
@@ -84,6 +89,7 @@ export interface TextField<T> extends BaseField<T> {
   type: 'text' | 'password' | 'email' | 'number'
   placeholder?: string
   readonly?: boolean
+  rest?: () => VNode
 }
 
 // 布尔字段（开关）
@@ -390,18 +396,22 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                           hint={field.hint}
                           required={field.required}
                           layout="default"
+                          rest={field.rest}
                         >
-                          <Input
-                            type={field.type}
-                            placeholder={field.placeholder}
-                            disabled={field.disabled}
-                            readonly={field.readonly}
-                            modelValue={getNestedValue(formData.value, field.name)}
-                            onUpdate:modelValue={(value) => {
-                              setFieldValue(field.name, value)
-                            }}
-                            {...dynamicProps}
-                          />
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <Input
+                              type={field.type}
+                              placeholder={field.placeholder}
+                              disabled={field.disabled}
+                              readonly={field.readonly}
+                              modelValue={getNestedValue(formData.value, field.name)}
+                              onUpdate:modelValue={(value) => {
+                                setFieldValue(field.name, value)
+                              }}
+                              {...dynamicProps}
+                            />
+                            {field.rest?.()}
+                          </div>
                         </FormItem>
                       )
 
