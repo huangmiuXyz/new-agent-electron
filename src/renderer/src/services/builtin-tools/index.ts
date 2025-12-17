@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import providerData from '@renderer/assets/data/provider.json'
-export const builtinTools: Tools = {
+export const getBuiltinTools = ({ knowledgeBaseIds }: { knowledgeBaseIds?: string[] }): Tools => ({
   calculator: {
     description: '执行基本的数学计算，支持加、减、乘、除等运算',
     inputSchema: z.object({
@@ -435,8 +435,52 @@ export const builtinTools: Tools = {
         }
       }
     }
-  }
-}
+  },
+  search_knowledge: {
+    title: '知识库检索',
+    description:
+      "Search for relevant information from the knowledge bases. Use this tool when the user's question involves specific documents or knowledge.",
+    inputSchema: z.object({
+      query: z.string().describe('The keyword or question to search for')
+    }),
+    execute: async (args: any) => {
+      const { query } = args
+      const { search } = useKnowledge()
+      if (!knowledgeBaseIds)
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text: '知识库检索失败：当前智能体未关联知识库'
+              }
+            ]
+          }
+        }
+      let allResults: any[] = []
+      for (const kbId of knowledgeBaseIds!) {
+        try {
+          const results = await search(query, kbId)
+          allResults = allResults.concat(results)
+        } catch (error) {
+          console.error(`Error searching knowledge base ${kbId}:`, error)
+        }
+      }
+      allResults.sort((a, b) => (b.score || 0) - (a.score || 0))
+      const uniqueResults = allResults.filter(
+        (result, index, self) => index === self.findIndex((r) => r.content === result.content)
+      )
 
-// 获取所有内置工具
-export const getBuiltinTools = (): Tools => builtinTools
+      return {
+        toolResult: {
+          content: [
+            {
+              type: 'text',
+              text: uniqueResults.map((r) => r.content).join('\n\n')
+            }
+          ]
+        }
+      }
+    }
+  }
+})

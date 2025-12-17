@@ -41,7 +41,7 @@ export const chatService = () => {
     }: ChatServiceConfig
   ) => {
     let tools: any = {}
-    const builtinTools = getBuiltinTools()
+    const builtinTools = getBuiltinTools({ knowledgeBaseIds })
 
     // 处理内置工具
     if (selectedBuiltinTools && selectedBuiltinTools.length > 0) {
@@ -50,37 +50,6 @@ export const chatService = () => {
           tools[toolKey] = builtinTools[toolKey]
         }
       })
-    }
-
-    // 处理知识库检索
-    if (knowledgeBaseIds && knowledgeBaseIds.length > 0) {
-      tools['search_knowledge'] = {
-        title: '知识库检索',
-        description:
-          "Search for relevant information from the knowledge bases. Use this tool when the user's question involves specific documents or knowledge.",
-        inputSchema: z.object({
-          query: z.string().describe('The keyword or question to search for')
-        }),
-        execute: async (args: any) => {
-          const { query } = args
-          const { search } = useKnowledge()
-          let allResults: any[] = []
-          for (const kbId of knowledgeBaseIds) {
-            try {
-              const results = await search(query, kbId)
-              allResults = allResults.concat(results)
-            } catch (error) {
-              console.error(`Error searching knowledge base ${kbId}:`, error)
-            }
-          }
-          allResults.sort((a, b) => (b.score || 0) - (a.score || 0))
-          const uniqueResults = allResults.filter(
-            (result, index, self) => index === self.findIndex((r) => r.content === result.content)
-          )
-
-          return uniqueResults.map((r) => r.content).join('\n\n')
-        }
-      }
     }
 
     // 处理MCP工具
