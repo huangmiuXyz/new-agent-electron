@@ -89,7 +89,8 @@ export const useChat = (chatId: string) => {
 
     const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
 
-    const { currentSelectedProvider, currentSelectedModel } = storeToRefs(useSettingsStore())
+    const { currentSelectedProvider, currentSelectedModel, thinkingMode } =
+      storeToRefs(useSettingsStore())
     const agent = useAgentStore()
     const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
     const service = chatService()
@@ -116,7 +117,8 @@ export const useChat = (chatId: string) => {
               instructions: agent.selectedAgent?.systemPrompt,
               mcpTools,
               builtinTools,
-              knowledgeBaseIds: agent.selectedAgent?.knowledgeBaseIds
+              knowledgeBaseIds: agent.selectedAgent?.knowledgeBaseIds,
+              thinkingMode: thinkingMode.value
             }
           )
         },

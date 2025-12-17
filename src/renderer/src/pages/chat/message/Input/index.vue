@@ -5,10 +5,12 @@ const message = ref('')
 const chatStore = useChatsStores();
 const selectedFiles = ref<Array<UploadFile>>([])
 
-const { currentSelectedModel, selectedModelId, selectedProviderId, currentSelectedProvider } = storeToRefs(useSettingsStore())
+const { currentSelectedModel, selectedModelId, selectedProviderId, currentSelectedProvider, thinkingMode } = storeToRefs(useSettingsStore())
+const { updateThinkingMode } = useSettingsStore()
 
 // 图标
 const FileUploadIcon = useIcon('FileUpload')
+const Thinking20Filled = useIcon('Thinking20Filled')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -89,6 +91,12 @@ const _sendMessage = async () => {
           </Button>
           <!-- 语音识别组件 -->
           <ChatMessageInputSpeechRecognition ref="speechRecognitionRef" @speech-result="handleSpeechResult" />
+
+          <!-- 思考模式按钮 -->
+          <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
+            @click="updateThinkingMode(!thinkingMode)" title="思考模式">
+            <Thinking20Filled />
+          </Button>
 
           <!-- 智能体选择器 -->
           <ChatAgentSelector type="icon" />
@@ -251,5 +259,10 @@ const _sendMessage = async () => {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+.thinking-active {
+  color: var(--primary-color, #007bff);
+  background-color: rgba(0, 123, 255, 0.1);
 }
 </style>

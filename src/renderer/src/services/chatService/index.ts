@@ -24,6 +24,7 @@ interface ChatServiceConfig {
   mcpTools?: string[] // 用户选择的MCP工具列表，格式为 "服务器名.工具名"
   builtinTools?: string[] // 用户选择的内置工具列表
   knowledgeBaseIds?: string[] // 关联的知识库ID列表
+  thinkingMode?: boolean // 思考模式
 }
 export const chatService = () => {
   const createAgent = async (
@@ -35,7 +36,8 @@ export const chatService = () => {
       instructions,
       mcpTools,
       builtinTools: selectedBuiltinTools,
-      knowledgeBaseIds
+      knowledgeBaseIds,
+      thinkingMode
     }: ChatServiceConfig
   ) => {
     let tools: any = {}
@@ -102,6 +104,13 @@ export const chatService = () => {
       model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
         `${providerType}:${model}`
       ),
+      providerOptions: {
+        deepseek: {
+          thinking: {
+            type: thinkingMode ? 'enabled' : 'disabled'
+          }
+        }
+      },
       tools: mapValues(tools, (t) => ({
         ...t,
         execute: async (input, options) => {

@@ -32,6 +32,13 @@ export const useSettingsStore = defineStore(
       searchProviderId: ''
     })
 
+    // 思考模式设置
+    const thinkingMode = ref(false)
+
+    const updateThinkingMode = (mode: boolean) => {
+      thinkingMode.value = mode
+    }
+
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
       display.value = { ...display.value, ...settings }
     }
@@ -127,7 +134,9 @@ export const useSettingsStore = defineStore(
       providers,
       mcpServers,
       defaultModels,
+      thinkingMode,
       updateDisplaySettings,
+      updateThinkingMode,
       updateProvider,
       addModelToProvider,
       deleteModelFromProvider,
