@@ -42,7 +42,9 @@ import {
   Folder,
   Photo,
   BulbOff,
-  Bulb
+  Bulb,
+  Eye,
+  EyeOff
 } from '@vicons/tabler'
 import { CommentAdd16Regular, Library16Filled, Mic16Filled, Wrench20Regular } from '@vicons/fluent'
 import { Sparkles } from '@vicons/ionicons5'
@@ -92,7 +94,9 @@ const icons = {
   Folder,
   FileImage: Photo,
   Sparkles,
-  Bulb
+  Bulb,
+  Eye,
+  EyeOff
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
