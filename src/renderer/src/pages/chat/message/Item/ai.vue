@@ -25,7 +25,7 @@ const Stop = useIcon('Stop')
         </Button>
       </div>
       <div
-        v-if="message.metadata?.stop && message.metadata!.loading && message.parts.findIndex(e => e.type === 'step-start') === -1"
+        v-if="!message.metadata?.error && message.metadata!.loading && message.parts.findIndex(e => e.type === 'step-start') === -1"
         class="loading-container">
         <div class="loading-dots">
           <span class="dot"></span>
