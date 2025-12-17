@@ -91,6 +91,13 @@
     "providerType": "openai-compatible"
   },
   {
+    "name": "xiaomi mimo",
+    "baseUrl": "https://api.xiaomimimo.com/v1",
+    "id": "xiaomi-mimo",
+    "logo": "/images/providers/mimo.png",
+    "providerType": "openai-compatible"
+  },
+  {
     "name": "OpenRouter",
     "baseUrl": "https://openrouter.ai/api/v1",
     "id": "OpenRouter",
