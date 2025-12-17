@@ -18,7 +18,7 @@
         <div class="modal-footer">
           <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
-            }}</Button>
+          }}</Button>
           <Button v-bind="confirmProps" class="btn btn-primary" type="button" @click="handleConfirm">
             {{ props.confirmText || '确认' }}
           </Button>
@@ -61,6 +61,10 @@ const handleConfirm = () => {
 const handleCancel = () => {
   visible.value = false;
   setTimeout(() => {
+    if (props.onCancel) {
+      props.onCancel?.()
+      return
+    }
     props.resolve?.(false);
     props.remove?.();
   }, 200);

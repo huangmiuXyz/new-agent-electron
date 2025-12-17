@@ -174,18 +174,20 @@ export function useUpload(options: UseUploadOptions = {}) {
   }
 
   const triggerUpload = async (shouldSaveFileToUserData: boolean = false) => {
-    const choice = await modal.confirm({
+    await modal.confirm({
       title: '选择文件来源',
       content: '选择文件来源',
       confirmText: '从用户文件目录选择',
-      cancelText: '从文件系统选择'
+      cancelText: '从文件系统选择',
+      onCancel: () => {
+        handleFileSystemPicker(shouldSaveFileToUserData)
+        modal.remove()
+      },
+      onOk: async () => {
+        showFileSelector()
+        modal.remove()
+      }
     })
-
-    if (choice) {
-      await showFileSelector()
-    } else {
-      handleFileSystemPicker(shouldSaveFileToUserData)
-    }
   }
 
   const clearSeletedFiles = () => {
