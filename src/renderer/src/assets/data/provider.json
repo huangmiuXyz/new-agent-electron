@@ -94,7 +94,7 @@
     "name": "xiaomi mimo",
     "baseUrl": "https://api.xiaomimimo.com/v1",
     "id": "xiaomi-mimo",
-    "logo": "/images/providers/mimo.png",
+    "logo": "/images/providers/mimo.jpg",
     "providerType": "openai-compatible"
   },
   {
