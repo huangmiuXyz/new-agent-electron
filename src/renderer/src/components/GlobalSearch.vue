@@ -20,7 +20,7 @@ const emit = defineEmits<{
     'select': [item: SearchResult]
 }>()
 
-const searchInputRef = ref<InstanceType<typeof SearchInput> | null>(null)
+const searchInputRef = useTemplateRef('searchInputRef')
 const query = ref('')
 const selectedIndex = ref(0)
 const scrollContainer = ref<HTMLElement | null>(null)
