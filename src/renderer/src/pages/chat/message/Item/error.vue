@@ -1,7 +1,7 @@
-<template>{{ errorText }}</template>
+<template>{{ error.message }}</template>
 <script lang="ts" setup>
 
 defineProps<{
-    errorText: string
+    error: Error
 }>()
 </script>
