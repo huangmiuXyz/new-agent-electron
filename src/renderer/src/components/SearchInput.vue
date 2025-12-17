@@ -17,7 +17,7 @@ interface Props {
     enableAISearch?: boolean
     aiSearchPlaceholder?: string
     searchData?: T
-    searchKey: string
+    searchKey?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -150,7 +150,7 @@ ${JSON.stringify(props.searchData)}
     })
     const toolResults = (result.toolResults[0]!.output as { toolResult: number[] }).toolResult
     isAISearching.value = false
-    emit('ai-search', props.searchData!.filter((data) => toolResults.find(res => res === data[props.searchKey])) as T)
+    emit('ai-search', props.searchData!.filter((data) => toolResults.find(res => res === data[props.searchKey!])) as T)
 }
 
 onMounted(() => {

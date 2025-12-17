@@ -290,7 +290,7 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
 const addDocument = () => {
     triggerUpload(true)
 }
-const searchInputRef = ref<InstanceType<typeof SearchInput> | null>(null)
+const searchInputRef = useTemplateRef('searchInputRef')
 const handleShowSearch = async () => {
     showSearch.value = true
     await nextTick()
