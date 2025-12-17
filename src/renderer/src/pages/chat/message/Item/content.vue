@@ -89,6 +89,7 @@ const saveEditing = () => {
                     <ChatMessageItemDynamicTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
                     <ChatMessageItemTool v-if="block.type.startsWith('tool')" :tool_part="(block as ToolUIPart)" />
                 </div>
+                <ChatMessageItemError v-if="message.metadata?.error" :errorText="message.metadata.error.message" />
             </div>
         </div>
         <div v-else class="edit-wrapper">

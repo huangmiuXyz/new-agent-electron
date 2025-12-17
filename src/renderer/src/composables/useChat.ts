@@ -62,7 +62,7 @@ export const useChat = (chatId: string) => {
 
     const { scrollToBottom, isAtBottom } = useMessagesScroll()
 
-    const _update = () => {
+    const _update = (error?: Error) => {
       const userWasAtBottom = isAtBottom()
       const cid = chat.id
 
@@ -77,6 +77,7 @@ export const useChat = (chatId: string) => {
             }
 
             map.set(m.id, newMessage)
+            error && (newMessage.metadata.error = error)
 
             if (userWasAtBottom && isLast) {
               nextTick(() => scrollToBottom())
@@ -127,6 +128,9 @@ export const useChat = (chatId: string) => {
       onFinish: () => {
         useTitle(chatId).generateTitle()
         scope.stop()
+      },
+      onError: (error) => {
+        _update(error)
       }
     })
 

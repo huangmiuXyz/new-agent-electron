@@ -1,4 +1,4 @@
-import { UIMessage, UIMessagePart } from 'ai'
+import { UIMessage, UIMessagePart, UIMessageChunk } from 'ai'
 import type { Model as openAIModel } from 'openai/resources'
 declare global {
   type providerType =
@@ -19,6 +19,7 @@ declare global {
     translations?: TranslationResult[]
     translationLoading?: boolean
     translationController?: AbortController['abort']
+    error: Error
   }
 
   interface TranslationResult {
@@ -26,7 +27,7 @@ declare global {
     targetLanguage: string
     timestamp: number
   }
-  type BaseMessage = UIMessage<MetaData>
+  type BaseMessage = UIMessage<MetaData, UIMessageChunk>
   type Tools = Awaited<ReturnType<typeof window.api.list_tools>>
   type ContentBlock = UIMessagePart
   type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank'
