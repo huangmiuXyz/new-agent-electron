@@ -5,7 +5,9 @@
       <div class="modal-box" :style="{ width: props.width }">
         <div class="modal-header">
           <span class="modal-title">{{ title }}</span>
-          <Close class="ph ph-x modal-close" @click="handleEsc" />
+          <Button @click="handleEsc" variant="text">
+            <Close />
+          </Button>
         </div>
         <div class="modal-body" :style="{ height, maxHeight }">
           <slot>
@@ -18,7 +20,7 @@
         <div class="modal-footer">
           <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
-            }}</Button>
+          }}</Button>
           <Button v-bind="confirmProps" class="btn btn-primary" type="button" @click="handleConfirm">
             {{ props.confirmText || '确认' }}
           </Button>
@@ -128,7 +130,7 @@ const handleCancel = () => {
 
 /* 内部布局 */
 .modal-header {
-  padding: 16px 20px;
+  padding: 8px 10px;
   border-bottom: 1px solid #e1e1e3;
   display: flex;
   justify-content: space-between;
