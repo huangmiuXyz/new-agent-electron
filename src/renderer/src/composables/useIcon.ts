@@ -40,15 +40,11 @@ import {
   Box,
   Language,
   Folder,
-  Photo
+  Photo,
+  BulbOff,
+  Bulb
 } from '@vicons/tabler'
-import {
-  CommentAdd16Regular,
-  Library16Filled,
-  Mic16Filled,
-  Thinking20Filled,
-  Wrench20Regular
-} from '@vicons/fluent'
+import { CommentAdd16Regular, Library16Filled, Mic16Filled, Wrench20Regular } from '@vicons/fluent'
 import { Sparkles } from '@vicons/ionicons5'
 const icons = {
   Edit,
@@ -96,7 +92,7 @@ const icons = {
   Folder,
   FileImage: Photo,
   Sparkles,
-  Thinking20Filled
+  Bulb
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =

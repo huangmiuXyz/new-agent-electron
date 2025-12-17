@@ -10,7 +10,7 @@ const { updateThinkingMode } = useSettingsStore()
 
 // 图标
 const FileUploadIcon = useIcon('FileUpload')
-const Thinking20Filled = useIcon('Thinking20Filled')
+const Bulb = useIcon('Bulb')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -95,7 +95,7 @@ const _sendMessage = async () => {
           <!-- 思考模式按钮 -->
           <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
             @click="updateThinkingMode(!thinkingMode)" title="思考模式">
-            <Thinking20Filled />
+            <Bulb />
           </Button>
 
           <!-- 智能体选择器 -->
