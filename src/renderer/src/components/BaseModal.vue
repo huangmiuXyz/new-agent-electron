@@ -1,6 +1,6 @@
 <template>
   <Transition name="modal-fade">
-    <div v-if="visible" ref="modalOverlay" class="modal-overlay" @click.self="handleCancel" @keydown.esc="handleEsc"
+    <div v-if="visible" ref="modalOverlay" class="modal-overlay" @click.self="handleEsc" @keydown.esc="handleEsc"
       tabindex="-1">
       <div class="modal-box" :style="{ width: props.width }">
         <div class="modal-header">
@@ -60,6 +60,10 @@ const handleConfirm = () => {
 const handleEsc = () => {
   visible.value = false;
   setTimeout(() => {
+    if (props.onClose) {
+      props.onClose?.()
+      return
+    }
     props.resolve?.(false);
     props.remove?.();
   }, 200);

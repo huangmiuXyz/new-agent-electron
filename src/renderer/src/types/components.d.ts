@@ -19,4 +19,5 @@ export interface BaseModalProps {
   cancelText?: string
   confirmText?: string
   onCancel?: () => void
+  onClose?: () => void
 }
