@@ -147,6 +147,10 @@ ${JSON.stringify(props.searchData)}
         provider: provider.name,
         providerType: provider.providerType,
         tools: { return_result: searchTool },
+        toolChoice: {
+            type: 'tool',
+            toolName: 'return_result'
+        }
     })
     const toolResults = (result.toolResults[0]!.output as { toolResult: number[] }).toolResult
     isAISearching.value = false
