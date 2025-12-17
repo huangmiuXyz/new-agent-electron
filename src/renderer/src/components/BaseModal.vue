@@ -1,11 +1,11 @@
 <template>
   <Transition name="modal-fade">
-    <div v-if="visible" ref="modalOverlay" class="modal-overlay" @click.self="handleCancel" @keydown.esc="handleCancel"
+    <div v-if="visible" ref="modalOverlay" class="modal-overlay" @click.self="handleCancel" @keydown.esc="handleEsc"
       tabindex="-1">
       <div class="modal-box" :style="{ width: props.width }">
         <div class="modal-header">
           <span class="modal-title">{{ title }}</span>
-          <Close class="ph ph-x modal-close" @click="handleCancel" />
+          <Close class="ph ph-x modal-close" @click="handleEsc" />
         </div>
         <div class="modal-body" :style="{ height, maxHeight }">
           <slot>
@@ -18,7 +18,7 @@
         <div class="modal-footer">
           <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
-          }}</Button>
+            }}</Button>
           <Button v-bind="confirmProps" class="btn btn-primary" type="button" @click="handleConfirm">
             {{ props.confirmText || '确认' }}
           </Button>
@@ -57,7 +57,13 @@ const handleConfirm = () => {
     props.remove?.();
   }, 200);
 };
-
+const handleEsc = () => {
+  visible.value = false;
+  setTimeout(() => {
+    props.resolve?.(false);
+    props.remove?.();
+  }, 200);
+}
 const handleCancel = () => {
   visible.value = false;
   setTimeout(() => {
