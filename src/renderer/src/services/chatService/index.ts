@@ -6,7 +6,6 @@ import {
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
-import { z } from 'zod'
 
 interface ChatServiceOptions {
   model: string
