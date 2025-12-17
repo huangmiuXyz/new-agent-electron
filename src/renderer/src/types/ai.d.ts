@@ -13,13 +13,13 @@ declare global {
     provider: string
     date: number
     model: string
-    stop: AbortController['abort']
+    stop: AbortController['abort'] | null
     loading: boolean
     cid: string
     translations?: TranslationResult[]
     translationLoading?: boolean
     translationController?: AbortController['abort']
-    error: Error
+    error?: Error
   }
 
   interface TranslationResult {
