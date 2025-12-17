@@ -7,6 +7,7 @@ const props = defineProps<{
     markdown?: boolean
 }>();
 const { currentChat } = storeToRefs(useChatsStores());
+const { currentSelectedModel } = storeToRefs(useSettingsStore());
 const { updateMessage } = useChatsStores()
 
 const messageEdit = inject('messageEdit') as {
@@ -69,6 +70,15 @@ const saveEditing = () => {
     messageEdit.cancelEdit()
 }
 
+const retry = () => {
+    if (!currentSelectedModel.value) {
+        messageApi.error('请先选择模型')
+        return
+    }
+    const { regenerate } = useChat(currentChat.value!.id!)
+    regenerate(props.message.id!)
+}
+
 </script>
 
 <template>
@@ -89,7 +99,7 @@ const saveEditing = () => {
                     <ChatMessageItemDynamicTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
                     <ChatMessageItemTool v-if="block.type.startsWith('tool')" :tool_part="(block as ToolUIPart)" />
                 </div>
-                <ChatMessageItemError v-if="message.metadata?.error" :error="message.metadata.error" />
+                <ChatMessageItemError @retry="retry" v-if="message.metadata?.error" :error="message.metadata.error" />
             </div>
         </div>
         <div v-else class="edit-wrapper">

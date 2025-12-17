@@ -18,7 +18,8 @@ const Stop = useIcon('Stop')
       <div class="msg-meta">
         <span class="msg-name">{{ message.metadata?.model }}</span>
         <span class="msg-time">{{ new Date(message.metadata!.date).toLocaleString() }}</span>
-        <Button v-if="message.metadata?.loading" size="sm" @click="message.metadata?.stop" variant="icon" type='button'>
+        <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
+          variant="icon" type='button'>
           <template #icon>
             <Stop style="color: red;" />
           </template>
