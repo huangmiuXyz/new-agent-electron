@@ -7,6 +7,14 @@ export interface UploadFile extends FileUIPart {
   size?: number
 }
 
+interface FileItem {
+  name: string
+  path: string
+  size: number
+  created: number
+  type: string
+}
+
 export interface UseUploadOptions {
   files?: UploadFile[]
   dropZoneRef?: Ref<HTMLElement | undefined>
@@ -21,6 +29,7 @@ export function useUpload(options: UseUploadOptions = {}) {
   const selectedFiles = ref<UploadFile[]>([...initialFiles])
 
   const isDragOver = ref(false)
+  const modal = useModal()
 
   const processFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files)
@@ -164,13 +173,129 @@ export function useUpload(options: UseUploadOptions = {}) {
     }
   }
 
-  const triggerUpload = (shouldSaveFileToUserData: boolean = false) => {
-    handleFileSystemPicker(shouldSaveFileToUserData)
+  const triggerUpload = async (shouldSaveFileToUserData: boolean = false) => {
+    const choice = await modal.confirm({
+      title: '选择文件来源',
+      content: '选择文件来源',
+      confirmText: '从用户文件目录选择',
+      cancelText: '从文件系统选择'
+    })
+
+    if (choice) {
+      await showFileSelector()
+    } else {
+      handleFileSystemPicker(shouldSaveFileToUserData)
+    }
   }
 
   const clearSeletedFiles = () => {
     selectedFiles.value = []
   }
+
+  const loadUserDataFiles = async (): Promise<FileItem[]> => {
+    try {
+      if (!window.api?.fs || !window.api?.path) {
+        return []
+      }
+
+      if (!window.api.fs.existsSync(uploadDir)) {
+        return []
+      }
+
+      const names = window.api.fs.readdirSync(uploadDir)
+
+      return names.map((name) => {
+        const filePath = window.api.path.join(uploadDir, name)
+        const stat = window.api.fs.statSync(filePath)
+
+        const type = window.api.mime
+          ? window.api.mime.lookup(name) || 'application/octet-stream'
+          : 'application/octet-stream'
+
+        return {
+          name,
+          path: filePath,
+          size: stat.size,
+          created: stat.birthtimeMs || stat.ctimeMs,
+          type
+        }
+      })
+    } catch (error) {
+      console.error('加载用户文件失败:', error)
+      return []
+    }
+  }
+
+  const showFileSelector = async () => {
+    const files = await loadUserDataFiles()
+
+    if (files.length === 0) {
+      await modal.confirm({
+        title: '文件选择',
+        content: '用户数据目录中没有文件，请先上传文件。'
+      })
+      return
+    }
+
+    const fileOptions = files.map((file) => ({
+      label: `${file.name} (${formatFileSize(file.size)})`,
+      value: file.path
+    }))
+
+    const [FileSelectorForm, { submit }] = useForm({
+      showHeader: true,
+      fields: [
+        {
+          name: 'selectedFiles',
+          type: 'checkboxGroup' as const,
+          label: '选择文件',
+          options: fileOptions,
+          required: false
+        }
+      ],
+      onSubmit: async (data) => {
+        if (data.selectedFiles && data.selectedFiles.length > 0) {
+          const selectedFilePaths = data.selectedFiles as string[]
+          const selectedFileItems = files.filter((file) => selectedFilePaths.includes(file.path))
+          const processedFiles = selectedFileItems.map((file) => {
+            const fileBuffer = window.api.fs.readFileSync(file.path)
+            const blob = arrayBufferToBlob(fileBuffer.buffer)
+            return {
+              url: '',
+              mediaType: file.type,
+              blobUrl: URL.createObjectURL(blob),
+              filename: file.name,
+              path: 'file://' + file.path,
+              name: file.name,
+              type: 'file' as const,
+              size: file.size
+            }
+          })
+
+          selectedFiles.value.push(...processedFiles)
+
+          if (onFilesSelected) {
+            onFilesSelected(processedFiles)
+          }
+        }
+        return true
+      }
+    })
+
+    const modalContent = h(FileSelectorForm)
+
+    await modal.confirm({
+      title: '从文件列表中选择',
+      content: modalContent,
+      width: '600px',
+      height: '500px',
+      onOk: () => {
+        modal.remove()
+        submit()
+      }
+    })
+  }
+
   watchEffect(() => {
     if (initialFiles) {
       selectedFiles.value = [...initialFiles]
@@ -184,6 +309,7 @@ export function useUpload(options: UseUploadOptions = {}) {
     removeFile,
     triggerUpload,
     clearSeletedFiles,
-    handlePaste
+    handlePaste,
+    showFileSelector
   }
 }

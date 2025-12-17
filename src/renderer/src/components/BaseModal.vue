@@ -16,9 +16,11 @@
           </slot>
         </div>
         <div class="modal-footer">
-          <Button class="btn btn-secondary" type="button" @click="handleCancel">取消</Button>
+          <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
+            props.cancelText || '取消'
+            }}</Button>
           <Button v-bind="confirmProps" class="btn btn-primary" type="button" @click="handleConfirm">
-            确认
+            {{ props.confirmText || '确认' }}
           </Button>
         </div>
       </div>

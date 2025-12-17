@@ -16,4 +16,6 @@ export interface BaseModalProps {
   onOk?: () => void
   height?: string
   maxHeight?: string
+  cancelText?: string
+  confirmText?: string
 }
