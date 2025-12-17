@@ -3,6 +3,15 @@ import data from '@renderer/assets/data/provider.json'
 export const useSettingsStore = defineStore(
   'settings',
   () => {
+    // 获取默认的提供商数据
+    const getDefaultProviders = () => {
+      return data.map((p) => ({
+        ...p,
+        providerType: p.providerType as Provider['providerType'],
+        apiKey: '',
+        models: []
+      }))
+    }
     // 显示设置
     const display = ref({
       darkMode: false,
@@ -12,14 +21,7 @@ export const useSettingsStore = defineStore(
       sidebarCollapsed: false
     })
 
-    const providers = ref<Provider[]>(
-      data.map((p) => ({
-        ...p,
-        providerType: p.providerType as Provider['providerType'],
-        apiKey: '',
-        models: []
-      }))
-    )
+    const providers = ref<Provider[]>(getDefaultProviders())
 
     const mcpServers = ref<ClientConfig>({})
 
@@ -88,6 +90,23 @@ export const useSettingsStore = defineStore(
       defaultModels.value = { ...defaultModels.value, ...settings }
     }
 
+    // 重置提供商的请求地址为默认值
+    const resetProviderBaseUrl = (providerId: string) => {
+      const defaultProviders = getDefaultProviders()
+      const defaultProvider = defaultProviders.find((p) => p.id === providerId)
+
+      if (defaultProvider) {
+        const index = providers.value.findIndex((p) => p.id === providerId)
+        if (index !== -1) {
+          const currentProvider = providers.value[index]
+          providers.value[index] = {
+            ...currentProvider,
+            baseUrl: defaultProvider.baseUrl
+          }
+        }
+      }
+    }
+
     const selectedModelId = ref<string>('deepseek-chat')
     const selectedProviderId = ref<string>('深度探索')
     const currentSelectedProvider = computed(() => {
@@ -149,7 +168,8 @@ export const useSettingsStore = defineStore(
       getModelById,
       getTitleGenerationModel,
       getTranslationModel,
-      getValidTools
+      getValidTools,
+      resetProviderBaseUrl
     }
   },
   {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { FormItem } from '@renderer/composables/useForm'
 const { providers } = storeToRefs(useSettingsStore())
-const { updateProvider, addModelToProvider, deleteModelFromProvider } = useSettingsStore()
+const { updateProvider, addModelToProvider, deleteModelFromProvider, resetProviderBaseUrl } = useSettingsStore()
 
 const { confirm } = useModal()
 
@@ -50,12 +50,6 @@ const [ProviderForm, formActions] = useForm({
             name: 'apiKey',
             type: 'password',
             label: 'API 密钥',
-        },
-        {
-            name: 'baseUrl',
-            type: 'text',
-            label: '基础 URL（可选）',
-            placeholder: '例：https://api.openai.com/v1'
         },
         {
             name: 'providerType',
@@ -252,6 +246,28 @@ const handleShowSearch = async () => {
     await nextTick()
     searchInputRef.value?.focus()
 }
+
+// 重置请求地址
+const handleResetBaseUrl = async () => {
+    if (!activeProvider.value) return
+
+    const result = await confirm({
+        title: '重置请求地址',
+        content: `确定要将 ${activeProvider.value.name} 的请求地址重置为默认值吗？`,
+    })
+
+    if (result) {
+        resetProviderBaseUrl(activeProviderId.value)
+        // 更新表单数据以反映重置后的值
+        const updatedProvider = providers.value.find(p => p.id === activeProviderId.value)
+        if (updatedProvider) {
+            formActions.setData({
+                ...activeProvider.value,
+                baseUrl: updatedProvider.baseUrl
+            })
+        }
+    }
+}
 </script>
 
 <template>
@@ -262,6 +278,25 @@ const handleShowSearch = async () => {
         <template #content>
             <ProviderForm>
                 <template #footer>
+                    <FormItem label="基础 URL">
+                        <div style="display: flex; align-items: center;">
+                            <Input v-if="activeProvider" :model-value="activeProvider.baseUrl || ''"
+                                placeholder="例：https://api.openai.com/v1" @update:model-value="(value) => {
+                                    if (activeProvider && activeProvider.id) {
+                                        updateProvider(activeProviderId, {
+                                            ...activeProvider,
+                                            baseUrl: value || ''
+                                        })
+                                    }
+                                }" style="flex: 1;" />
+                            <Button type="button" variant="text" size="sm" @click="handleResetBaseUrl" title="重置为默认地址"
+                                class="ml-2">
+                                <template #icon>
+                                    <Refresh />
+                                </template>
+                            </Button>
+                        </div>
+                    </FormItem>
                     <FormItem label="模型列表">
                         <Table :loading="loading" :columns="tableColumns"
                             :data="aiSearchModels.length ? aiSearchModels : filteredModels">
