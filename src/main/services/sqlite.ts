@@ -5,47 +5,66 @@ import fs from 'fs'
 import * as sqliteVss from 'sqlite-vss'
 
 let db: Database.Database
+let isSqliteSupported = false
+let isVssSupported = false
 
 export function initSqlite() {
-  const userDataPath = app.getPath('userData')
-  const dbPath = path.join(userDataPath, 'Data', 'SQLite', 'storage.db')
-
-  // Ensure directory exists
-  const dbDir = path.dirname(dbPath)
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true })
-  }
-
-  db = new Database(dbPath)
-
-  // Load sqlite-vss
   try {
-    sqliteVss.load(db)
-    console.log('Successfully loaded sqlite-vss')
+    const userDataPath = app.getPath('userData')
+    const dbPath = path.join(userDataPath, 'Data', 'SQLite', 'storage.db')
+
+    // Ensure directory exists
+    const dbDir = path.dirname(dbPath)
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true })
+    }
+
+    db = new Database(dbPath)
+    isSqliteSupported = true
+
+    // Load sqlite-vss
+    try {
+      sqliteVss.load(db)
+      console.log('Successfully loaded sqlite-vss')
+      isVssSupported = true
+    } catch (err) {
+      console.error('Failed to load sqlite-vss:', err)
+      isVssSupported = false
+    }
+
+    // Create storage table if not exists
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS storage (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    `)
+
+    // Create chunks table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS chunks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kb_id TEXT,
+        doc_id TEXT,
+        content TEXT,
+        metadata TEXT
+      )
+    `)
   } catch (err) {
-    console.error('Failed to load sqlite-vss:', err)
+    console.error('Failed to initialize SQLite:', err)
+    isSqliteSupported = false
   }
-
-  // Create storage table if not exists
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS storage (
-      key TEXT PRIMARY KEY,
-      value TEXT
-    )
-  `)
-
-  // Create chunks table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS chunks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      kb_id TEXT,
-      doc_id TEXT,
-      content TEXT,
-      metadata TEXT
-    )
-  `)
 
   // Register IPC handlers
+  ipcMain.handle('sqlite:isSupported', () => {
+    return {
+      sqlite: isSqliteSupported,
+      vss: isVssSupported
+    }
+  })
+
+  if (!isSqliteSupported) return
+
   ipcMain.handle('sqlite:getItem', (_event, key: string) => {
     const row = db.prepare('SELECT value FROM storage WHERE key = ?').get(key) as
       | { value: string }

@@ -41,7 +41,8 @@ export const RAGService = () => {
     options.onProgress?.(undefined, 0, total)
 
     // Clear existing chunks for this doc if not continuing
-    if (!options.continueFlag) {
+    const support = await checkSqliteSupport()
+    if (!options.continueFlag && support && support.sqlite) {
       try {
         await window.api.sqlite.deleteChunksByDoc(options.docId)
       } catch (e) {
@@ -74,7 +75,7 @@ export const RAGService = () => {
           abortSignal: options.abortController.signal
         })
 
-        if (!vssInitialized && embeddings.length > 0) {
+        if (!vssInitialized && embeddings.length > 0 && support && support.vss) {
           try {
             await window.api.sqlite.initVssTable(embeddings[0].length)
             vssInitialized = true
@@ -155,13 +156,20 @@ export const RAGService = () => {
 
     let candidates: any[] = []
 
-    // Try SQLite-VSS search first
-    try {
-      candidates = await window.api.sqlite.searchChunks(knowledgeBase.id, queryEmbedding, topK * 4)
+    const support = await checkSqliteSupport()
+    if (support && support.vss) {
+      try {
+        candidates = await window.api.sqlite.searchChunks(
+          knowledgeBase.id,
+          queryEmbedding,
+          topK * 4
+        )
+      } catch (e) {
+        console.error('SQLite-VSS search failed, falling back to manual search', e)
+      }
+    }
 
-      // searchChunks returns score as similarity (1 - distance)
-    } catch (e) {
-      console.error('SQLite-VSS search failed, falling back to manual search', e)
+    if (candidates.length === 0) {
       const allChunks = knowledgeBase.documents?.flatMap((doc) => doc.chunks || []) || []
 
       if (allChunks.length === 0) {

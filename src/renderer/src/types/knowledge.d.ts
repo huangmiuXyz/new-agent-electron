@@ -34,6 +34,7 @@ declare global {
       modelId: string
       providerId: string
     }
+    url?: string
   }
 
   interface KnowledgeChunk {

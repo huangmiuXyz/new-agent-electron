@@ -207,7 +207,6 @@ const showEditKnowledgeBaseModal = async () => {
     if (!activeKnowledgeBase.value) {
         return
     }
-    // 确保retrieveConfig有默认值
     const knowledgeBaseData = {
         ...activeKnowledgeBase.value,
         rerankModel: activeKnowledgeBase.value.rerankModel || { modelId: '', providerId: '' },
@@ -272,7 +271,8 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
                 size: f.size!,
                 type: f.mediaType,
                 created: Date.now(),
-                status: 'processing'
+                status: 'processing',
+                url: f.url
             }
             docs.push(doc)
             addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, doc)
@@ -364,7 +364,8 @@ const openFolder = (path: string) => {
                                     </div>
                                 </div>
                                 <span style="font-size: 12px; color: #666;">
-                                    {{ props.row.currentChunk || 0 }}/{{ props.row.chunkCount || props.row.chunks?.length || 0 }}
+                                    {{ props.row.currentChunk || 0 }}/{{ props.row.chunkCount ||
+                                        props.row.chunks?.length || 0 }}
                                 </span>
                             </div>
                         </div>

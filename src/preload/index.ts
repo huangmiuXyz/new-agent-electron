@@ -23,6 +23,7 @@ export const api: any = {
   mime,
   url,
   sqlite: {
+    isSupported: () => electronAPI.ipcRenderer.invoke('sqlite:isSupported'),
     getItem: (key: string) => electronAPI.ipcRenderer.invoke('sqlite:getItem', key),
     setItem: (key: string, value: string) =>
       electronAPI.ipcRenderer.invoke('sqlite:setItem', key, value),

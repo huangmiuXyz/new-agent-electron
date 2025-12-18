@@ -50,10 +50,13 @@ export const useKnowledgeStore = defineStore(
       const index = knowledgeBases.value.findIndex((kb) => kb.id === knowledgeBaseId)
       if (index !== -1) {
         knowledgeBases.value.splice(index, 1)
-        try {
-          await window.api.sqlite.deleteChunksByKb(knowledgeBaseId)
-        } catch (e) {
-          console.error('Failed to delete chunks from SQLite', e)
+        const support = await checkSqliteSupport()
+        if (support && support.sqlite) {
+          try {
+            await window.api.sqlite.deleteChunksByKb(knowledgeBaseId)
+          } catch (e) {
+            console.error('Failed to delete chunks from SQLite', e)
+          }
         }
       }
     }
@@ -79,10 +82,13 @@ export const useKnowledgeStore = defineStore(
           const docIndex = knowledgeBase.documents.findIndex((doc) => doc.id === documentId)
           if (docIndex !== -1) {
             knowledgeBase.documents.splice(docIndex, 1)
-            try {
-              await window.api.sqlite.deleteChunksByDoc(documentId)
-            } catch (e) {
-              console.error('Failed to delete chunks from SQLite', e)
+            const support = await checkSqliteSupport()
+            if (support && support.sqlite) {
+              try {
+                await window.api.sqlite.deleteChunksByDoc(documentId)
+              } catch (e) {
+                console.error('Failed to delete chunks from SQLite', e)
+              }
             }
           }
         }

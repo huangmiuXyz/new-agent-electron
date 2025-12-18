@@ -46,17 +46,44 @@ export const indexedDBStorage = {
   }
 }
 
+let sqliteSupportedStatus: { sqlite: boolean; vss: boolean } | null = null
+
+export const checkSqliteSupport = async () => {
+  if (sqliteSupportedStatus === null) {
+    try {
+      sqliteSupportedStatus = await window.api.sqlite.isSupported()
+    } catch {
+      sqliteSupportedStatus = { sqlite: false, vss: false }
+    }
+  }
+  return sqliteSupportedStatus
+}
+
 export const sqliteStorage = {
   async getItem(key: string): Promise<string | null> {
-    return await window.api.sqlite.getItem(key)
+    const support = await checkSqliteSupport()
+    if (support && support.sqlite) {
+      return await window.api.sqlite.getItem(key)
+    }
+    return await indexedDBStorage.getItem(key)
   },
 
   async setItem(key: string, value: string): Promise<void> {
-    await window.api.sqlite.setItem(key, value)
+    const support = await checkSqliteSupport()
+    if (support && support.sqlite) {
+      await window.api.sqlite.setItem(key, value)
+    } else {
+      await indexedDBStorage.setItem(key, value)
+    }
   },
 
   async removeItem(key: string): Promise<void> {
-    await window.api.sqlite.removeItem(key)
+    const support = await checkSqliteSupport()
+    if (support && support.sqlite) {
+      await window.api.sqlite.removeItem(key)
+    } else {
+      await indexedDBStorage.removeItem(key)
+    }
   }
 }
 
