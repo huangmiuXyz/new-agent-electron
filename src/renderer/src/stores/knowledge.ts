@@ -90,7 +90,7 @@ export const useKnowledgeStore = defineStore(
   },
   {
     persist: {
-      storage: indexedDBStorage
+      storage: sqliteStorage
     }
   }
 )

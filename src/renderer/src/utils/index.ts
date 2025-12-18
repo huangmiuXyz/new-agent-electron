@@ -46,6 +46,20 @@ export const indexedDBStorage = {
   }
 }
 
+export const sqliteStorage = {
+  async getItem(key: string): Promise<string | null> {
+    return await window.api.sqlite.getItem(key)
+  },
+
+  async setItem(key: string, value: string): Promise<void> {
+    await window.api.sqlite.setItem(key, value)
+  },
+
+  async removeItem(key: string): Promise<void> {
+    await window.api.sqlite.removeItem(key)
+  }
+}
+
 export const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes'
   const k = 1024

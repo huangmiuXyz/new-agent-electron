@@ -21,7 +21,13 @@ export const api = {
   fs,
   path,
   mime,
-  url
+  url,
+  sqlite: {
+    getItem: (key: string) => electronAPI.ipcRenderer.invoke('sqlite:getItem', key),
+    setItem: (key: string, value: string) =>
+      electronAPI.ipcRenderer.invoke('sqlite:setItem', key, value),
+    removeItem: (key: string) => electronAPI.ipcRenderer.invoke('sqlite:removeItem', key)
+  }
 }
 
 export type API = typeof api
