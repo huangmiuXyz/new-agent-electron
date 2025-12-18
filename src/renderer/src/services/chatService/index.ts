@@ -182,16 +182,21 @@ export const chatService = () => {
     }
   }
   const list_tools = async (config: ClientConfig, cache?: boolean) => {
-    const tools = await retry(
-      async () => {
-        return await window.api.list_tools(config, cache)
-      },
-      {
-        retries: 3,
-        delay: 100
-      }
-    )
-    return tools
+    try {
+      const tools = await retry(
+        async () => {
+          return await window.api.list_tools(config, cache)
+        },
+        {
+          retries: 3,
+          delay: 100
+        }
+      )
+      return tools
+    } catch (error) {
+      messageApi.error((error as Error).message)
+      throw error
+    }
   }
   return {
     createAgent,
