@@ -20,6 +20,8 @@ export const RAGService = () => {
   const embedding = async (
     splitter: Splitter,
     options: {
+      kbId: string
+      docId: string
       apiKey: string
       baseURL: string
       providerType: providerType
@@ -37,6 +39,17 @@ export const RAGService = () => {
     const batchSize = options.batchSize || 1
 
     options.onProgress?.(undefined, 0, total)
+
+    // Clear existing chunks for this doc if not continuing
+    if (!options.continueFlag) {
+      try {
+        await window.api.sqlite.deleteChunksByDoc(options.docId)
+      } catch (e) {
+        console.error('Failed to clear existing chunks from SQLite', e)
+      }
+    }
+
+    let vssInitialized = false
 
     for (let i = 0; i < total; i += batchSize) {
       const batch: string[] = []
@@ -61,11 +74,35 @@ export const RAGService = () => {
           abortSignal: options.abortController.signal
         })
 
-        embeddings.forEach((embedding, index) => {
+        if (!vssInitialized && embeddings.length > 0) {
+          try {
+            await window.api.sqlite.initVssTable(embeddings[0].length)
+            vssInitialized = true
+          } catch (e) {
+            console.error('Failed to init VSS table', e)
+          }
+        }
+
+        const chunksToInsert = embeddings.map((embedding, index) => {
           const chunkIndex = batchIndices[index]
           splitterClone[chunkIndex].embedding = embedding
           processed++
+          return {
+            kb_id: options.kbId,
+            doc_id: options.docId,
+            content: splitterClone[chunkIndex].content,
+            embedding: embedding,
+            metadata: splitterClone[chunkIndex].metadata
+          }
         })
+
+        if (vssInitialized) {
+          try {
+            await window.api.sqlite.insertChunks(chunksToInsert)
+          } catch (e) {
+            console.error('Failed to insert chunks into SQLite', e)
+          }
+        }
       } catch (error) {
         messageApi.error((error as Error).message)
       }
@@ -112,33 +149,43 @@ export const RAGService = () => {
       value: query
     })
 
-    const allChunks = knowledgeBase.documents?.flatMap((doc) => doc.chunks || []) || []
-
-    if (allChunks.length === 0) {
-      return []
-    }
-    const scoredChunks = allChunks
-      .map((chunk) => {
-        try {
-          const result = {
-            ...chunk,
-            score: cosineSimilarity(queryEmbedding, chunk.embedding)
-          }
-          return result
-        } catch {
-          return false
-        }
-      })
-      .filter((e) => !!e)
-
     const similarityThreshold = retrieveOptions?.similarityThreshold ?? 0.2
     const topK = retrieveOptions?.topK ?? 5
     const rerankScoreThreshold = retrieveOptions?.rerankScoreThreshold ?? 0.3
 
-    const candidates = scoredChunks
+    let candidates: any[] = []
+
+    // Try SQLite-VSS search first
+    try {
+      candidates = await window.api.sqlite.searchChunks(knowledgeBase.id, queryEmbedding, topK * 4)
+
+      // searchChunks returns score as similarity (1 - distance)
+    } catch (e) {
+      console.error('SQLite-VSS search failed, falling back to manual search', e)
+      const allChunks = knowledgeBase.documents?.flatMap((doc) => doc.chunks || []) || []
+
+      if (allChunks.length === 0) {
+        return []
+      }
+      candidates = allChunks
+        .map((chunk) => {
+          try {
+            const result = {
+              ...chunk,
+              score: cosineSimilarity(queryEmbedding, chunk.embedding)
+            }
+            return result
+          } catch {
+            return false
+          }
+        })
+        .filter((e) => !!e) as any[]
+    }
+
+    candidates = candidates
       .filter((chunk) => chunk.score > similarityThreshold)
       .sort((a, b) => b.score - a.score)
-      .slice(0, Math.max(topK * 4, 20))
+      .slice(0, Math.max(topK * 4, 10))
 
     if (candidates.length === 0) {
       return []

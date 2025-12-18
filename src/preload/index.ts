@@ -9,7 +9,7 @@ import { app } from '@electron/remote'
 // Custom APIs for renderer
 
 // @ts-ignore
-export const api = {
+export const api: any = {
   ...aiServices(),
   showOpenDialog: async (options: Electron.OpenDialogOptions) =>
     (await electronAPI.ipcRenderer.invoke(
@@ -26,7 +26,18 @@ export const api = {
     getItem: (key: string) => electronAPI.ipcRenderer.invoke('sqlite:getItem', key),
     setItem: (key: string, value: string) =>
       electronAPI.ipcRenderer.invoke('sqlite:setItem', key, value),
-    removeItem: (key: string) => electronAPI.ipcRenderer.invoke('sqlite:removeItem', key)
+    removeItem: (key: string) => electronAPI.ipcRenderer.invoke('sqlite:removeItem', key),
+    initVssTable: (dimension: number) =>
+      electronAPI.ipcRenderer.invoke('sqlite:initVssTable', dimension),
+    insertChunks: (chunks: any[]) => electronAPI.ipcRenderer.invoke('sqlite:insertChunks', chunks),
+    searchChunks: (kbId: string, embedding: number[], limit?: number) =>
+      electronAPI.ipcRenderer.invoke('sqlite:searchChunks', kbId, embedding, limit),
+    deleteChunksByDoc: (docId: string) =>
+      electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByDoc', docId),
+    deleteChunksByKb: (kbId: string) =>
+      electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByKb', kbId),
+    getChunksByDoc: (docId: string) =>
+      electronAPI.ipcRenderer.invoke('sqlite:getChunksByDoc', docId)
   }
 }
 

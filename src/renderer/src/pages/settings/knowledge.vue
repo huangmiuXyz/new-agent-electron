@@ -360,17 +360,17 @@ const openFolder = (path: string) => {
                                 <div
                                     style="flex: 1; height: 4px; background-color: #f0f0f0; border-radius: 2px; overflow: hidden;">
                                     <div style="height: 100%; background-color: #8b5cf6; transition: width 0.3s ease;"
-                                        :style="{ width: `${Math.round((props.row.currentChunk! / (props.row.chunks?.length || 0)) * 100)}%` }">
+                                        :style="{ width: `${Math.round((props.row.currentChunk! / (props.row.chunkCount || props.row.chunks?.length || 1)) * 100)}%` }">
                                     </div>
                                 </div>
                                 <span style="font-size: 12px; color: #666;">
-                                    {{ props.row.currentChunk || 0 }}/{{ props.row.chunks?.length || 0 }}
+                                    {{ props.row.currentChunk || 0 }}/{{ props.row.chunkCount || props.row.chunks?.length || 0 }}
                                 </span>
                             </div>
                         </div>
                     </template>
                     <template #chunks="props">
-                        {{ props.row.chunks?.length || 0 }}
+                        {{ props.row.chunkCount || props.row.chunks?.length || 0 }}
                     </template>
                     <template #actions="props">
                         <div style="display: flex; align-items: center; gap: 8px;">

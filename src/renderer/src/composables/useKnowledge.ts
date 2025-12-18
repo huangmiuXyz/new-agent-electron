@@ -45,6 +45,15 @@ export const useKnowledge = () => {
         providerId: provider.id
       }
       let splitter: Splitter
+      if (continueFlag && (!doc.chunks || doc.chunks.length === 0)) {
+        // Try to load from SQLite for continuation
+        try {
+          doc.chunks = await window.api.sqlite.getChunksByDoc(doc.id)
+        } catch (e) {
+          console.error('Failed to load chunks from SQLite for continuation', e)
+        }
+      }
+
       if ((!doc.isSplitting || !continueFlag) && !doc.chunks?.length) {
         const splitterResult = await rag.splitter(doc)
         splitter = splitterResult.map((e) => ({
@@ -57,6 +66,8 @@ export const useKnowledge = () => {
         splitter = doc.chunks!
       }
       await rag.embedding(splitter, {
+        kbId: knowledge.id,
+        docId: doc.id,
         apiKey: provider.apiKey!,
         baseURL: provider.baseUrl,
         name: provider.name,
@@ -75,6 +86,8 @@ export const useKnowledge = () => {
         batchSize
       })
       doc.status = 'processed'
+      doc.chunkCount = doc.chunks?.length
+      doc.chunks = [] // Clear chunks to avoid double storage in Pinia (persisted in SQLite chunks table)
     } catch (error) {
       if (abortController.signal.aborted) {
         doc.status = 'aborted'

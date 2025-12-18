@@ -46,10 +46,15 @@ export const useKnowledgeStore = defineStore(
       knowledgeBases.value.push(knowledgeBase)
     }
 
-    const deleteKnowledgeBase = (knowledgeBaseId: string) => {
+    const deleteKnowledgeBase = async (knowledgeBaseId: string) => {
       const index = knowledgeBases.value.findIndex((kb) => kb.id === knowledgeBaseId)
       if (index !== -1) {
         knowledgeBases.value.splice(index, 1)
+        try {
+          await window.api.sqlite.deleteChunksByKb(knowledgeBaseId)
+        } catch (e) {
+          console.error('Failed to delete chunks from SQLite', e)
+        }
       }
     }
 
@@ -66,7 +71,7 @@ export const useKnowledgeStore = defineStore(
       }
     }
 
-    const deleteDocumentFromKnowledgeBase = (knowledgeBaseId: string, documentId: string) => {
+    const deleteDocumentFromKnowledgeBase = async (knowledgeBaseId: string, documentId: string) => {
       const index = knowledgeBases.value.findIndex((kb) => kb.id === knowledgeBaseId)
       if (index !== -1) {
         const knowledgeBase = knowledgeBases.value[index]
@@ -74,6 +79,11 @@ export const useKnowledgeStore = defineStore(
           const docIndex = knowledgeBase.documents.findIndex((doc) => doc.id === documentId)
           if (docIndex !== -1) {
             knowledgeBase.documents.splice(docIndex, 1)
+            try {
+              await window.api.sqlite.deleteChunksByDoc(documentId)
+            } catch (e) {
+              console.error('Failed to delete chunks from SQLite', e)
+            }
           }
         }
       }
