@@ -374,7 +374,7 @@ const openFolder = (path: string) => {
                     </template>
                     <template #actions="props">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <Tags v-if="!activeKnowledgeBase.embeddingModel.modelId" color="red" :tags="['未选择向量模型']" />
+                            <Tags v-if="!activeKnowledgeBase.embeddingModel.modelId" color="red" :tags="['未选择嵌入模型']" />
                             <Button v-if="activeKnowledgeBase?.embeddingModel?.modelId"
                                 @click="embedding(props.row, activeKnowledgeBase, false, batchSize)" size="sm"
                                 type="button" variant="text">
