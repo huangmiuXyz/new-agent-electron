@@ -54,17 +54,21 @@ export const RAGService = () => {
       if (batch.length === 0) {
         continue
       }
-      const { embeddings } = await embedMany({
-        model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
-        values: batch,
-        abortSignal: options.abortController.signal
-      })
+      try {
+        const { embeddings } = await embedMany({
+          model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
+          values: batch,
+          abortSignal: options.abortController.signal
+        })
 
-      embeddings.forEach((embedding, index) => {
-        const chunkIndex = batchIndices[index]
-        splitterClone[chunkIndex].embedding = embedding
-        processed++
-      })
+        embeddings.forEach((embedding, index) => {
+          const chunkIndex = batchIndices[index]
+          splitterClone[chunkIndex].embedding = embedding
+          processed++
+        })
+      } catch (error) {
+        messageApi.error((error as Error).message)
+      }
 
       reportProgress(processed, total, splitterClone, options)
     }
