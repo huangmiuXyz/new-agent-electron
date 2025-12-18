@@ -5,7 +5,7 @@ export const useKnowledgeStore = defineStore(
     const knowledgeBases = ref<KnowledgeBase[]>([
       {
         id: 'default-local',
-        name: '默认数据库',
+        name: '默认知识库',
         description: '',
         embeddingModel: {
           modelId: '',
