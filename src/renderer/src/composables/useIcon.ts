@@ -11,7 +11,8 @@ import {
   Stop,
   Chat,
   Menu,
-  Branch
+  Branch,
+  X
 } from '@vicons/carbon'
 import {
   Cpu,
@@ -102,7 +103,8 @@ const icons = {
   Bulb,
   Eye,
   EyeOff,
-  ErrorCircle24Filled
+  ErrorCircle24Filled,
+  X
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =

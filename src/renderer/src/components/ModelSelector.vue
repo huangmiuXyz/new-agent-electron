@@ -26,7 +26,7 @@ const currentSelectedProvider = computed(() => {
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
-const { ChevronDown, Check } = useIcon(['ChevronDown', 'Check'])
+const { ChevronDown, Check, X } = useIcon(['ChevronDown', 'Check', 'X'])
 
 const currentModelLabel = computed(() => {
   if (!currentSelectedModel.value || !currentSelectedProvider.value) return '选择模型'
@@ -67,6 +67,12 @@ const selectModel = (model: Model, providerId: string) => {
   isPopupOpen.value = false
 }
 
+const clearSelection = () => {
+  selectedModelId.value = ''
+  selectedProviderId.value = ''
+  isPopupOpen.value = false
+}
+
 const renderProviderHeader = (item: any) => {
   const provider = providers.value.find(p => p.id === item.providerId)
   return provider ? provider.name : ''
@@ -89,7 +95,8 @@ const handleModelSelect = (id: string) => {
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
         <Image style="width: 10px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="" />
         <span>{{ currentModelLabel }}</span>
-        <ChevronDown />
+        <ChevronDown v-if="!selectedModelId" />
+        <X v-else class="clear-btn" @click.stop="clearSelection" />
       </div>
       <Button v-else variant="icon" size="sm">
         <Image style="width: 15px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="" />
