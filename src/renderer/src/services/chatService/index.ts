@@ -152,14 +152,19 @@ export const chatService = () => {
     abortSignal?: AbortSignal
   ) => {
     const prompt = `请将以下文本翻译为${targetLanguage}，只返回翻译结果，不要添加任何解释或额外内容：\n\n${text}`
-    const result = await _generateText({
-      model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-        `${providerType}:${model}`
-      ),
-      prompt,
-      abortSignal
-    })
-    return result.text
+    try {
+      const result = await _generateText({
+        model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
+          `${providerType}:${model}`
+        ),
+        prompt,
+        abortSignal
+      })
+      return result.text
+    } catch (error) {
+      messageApi.error((error as Error).message)
+      throw error
+    }
   }
   const list_models = async ({ baseURL, apiKey }) => {
     try {
@@ -173,6 +178,7 @@ export const chatService = () => {
       return await models.json()
     } catch (error) {
       messageApi.error((error as Error).message)
+      throw error
     }
   }
   const list_tools = async (config: ClientConfig, cache?: boolean) => {
