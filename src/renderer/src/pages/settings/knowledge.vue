@@ -330,8 +330,8 @@ const openFolder = (path: string) => {
                     { key: 'name', label: '文档名称', width: '2fr' },
                     { key: 'type', label: '类型', width: '1fr' },
                     { key: 'size', label: '大小', width: '1fr' },
-                    { key: 'status', label: '状态', width: '1.5fr' },
-                    { key: 'actions', label: '操作', width: '1fr' }
+                    { key: 'status', label: '状态', width: '1fr' },
+                    { key: 'actions', label: '操作', width: '1.1fr' }
                 ]">
                     <template #name="{ row }">
                         <div class="file-name-cell">
@@ -373,6 +373,7 @@ const openFolder = (path: string) => {
                     </template>
                     <template #actions="props">
                         <div style="display: flex; align-items: center; gap: 8px;">
+                            <Tags v-if="!activeKnowledgeBase.embeddingModel.modelId" color="red" :tags="['未选择向量模型']" />
                             <Button v-if="activeKnowledgeBase?.embeddingModel?.modelId"
                                 @click="embedding(props.row, activeKnowledgeBase, false, batchSize)" size="sm"
                                 type="button" variant="text">
