@@ -138,6 +138,7 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
         }
     ],
     onSubmit: (data) => {
+        debugger
         if (isEditMode.value && activeKnowledgeBaseId.value && activeKnowledgeBase.value) {
             const updatedKnowledgeBase: KnowledgeBase = {
                 ...activeKnowledgeBase.value,
@@ -146,8 +147,8 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             updateKnowledgeBase(activeKnowledgeBaseId.value, updatedKnowledgeBase)
         } else {
             const newKnowledgeBase: KnowledgeBase = {
-                id: `kb_${nanoid()}`,
                 ...data,
+                id: `kb_${nanoid()}`,
                 active: false,
                 created: Date.now(),
                 documents: []
