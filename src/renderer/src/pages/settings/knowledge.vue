@@ -282,6 +282,7 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
         for (const doc of docs) {
             const docInKnowledgeBase = activeKnowledgeBase.value?.documents?.find(d => d.id === doc.id)
             if (docInKnowledgeBase) {
+                if (!activeKnowledgeBase.value.embeddingModel.modelId) return
                 await embedding(docInKnowledgeBase, activeKnowledgeBase.value, false, batchSize.value)
             }
         }
