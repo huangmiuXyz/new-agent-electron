@@ -134,15 +134,20 @@ export const chatService = () => {
       toolChoice = 'auto'
     }: ChatServiceOptions
   ) => {
-    const result = await _generateText({
-      model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-        `${providerType}:${model}`
-      ),
-      tools,
-      prompt,
-      toolChoice
-    })
-    return result
+    try {
+      const result = await _generateText({
+        model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
+          `${providerType}:${model}`
+        ),
+        tools,
+        prompt,
+        toolChoice
+      })
+      return result
+    } catch (error) {
+      messageApi.error((error as Error).message)
+      throw error
+    }
   }
 
   const translateText = async (
