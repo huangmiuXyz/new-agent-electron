@@ -138,7 +138,6 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
         }
     ],
     onSubmit: (data) => {
-        debugger
         if (isEditMode.value && activeKnowledgeBaseId.value && activeKnowledgeBase.value) {
             const updatedKnowledgeBase: KnowledgeBase = {
                 ...activeKnowledgeBase.value,
