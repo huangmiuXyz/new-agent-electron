@@ -162,14 +162,18 @@ export const chatService = () => {
     return result.text
   }
   const list_models = async ({ baseURL, apiKey }) => {
-    const models = await fetch(`${baseURL}/models`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
-      }
-    })
-    return await models.json()
+    try {
+      const models = await fetch(`${baseURL}/models`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`
+        }
+      })
+      return await models.json()
+    } catch (error) {
+      messageApi.error((error as Error).message)
+    }
   }
   const list_tools = async (config: ClientConfig, cache?: boolean) => {
     const tools = await retry(
