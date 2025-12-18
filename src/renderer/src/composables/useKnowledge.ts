@@ -11,6 +11,10 @@ export const useKnowledge = () => {
     const {
       embeddingModel: { modelId, providerId }
     } = knowledge
+    if (!modelId || !providerId) {
+      messageApi.warning('请选择嵌入模型')
+      return
+    }
     if (continueFlag) {
       if (doc.metadata?.modelId !== modelId || doc.metadata.providerId !== providerId) {
         messageApi.error('模型不一致，无法继续')

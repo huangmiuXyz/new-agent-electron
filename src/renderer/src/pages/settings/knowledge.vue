@@ -373,13 +373,15 @@ const openFolder = (path: string) => {
                     </template>
                     <template #actions="props">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <Button @click="embedding(props.row, activeKnowledgeBase, false, batchSize)" size="sm"
+                            <Button v-if="activeKnowledgeBase?.embeddingModel?.modelId"
+                                @click="embedding(props.row, activeKnowledgeBase, false, batchSize)" size="sm"
                                 type="button" variant="text">
                                 <template #icon>
                                     <Refresh />
                                 </template>
                             </Button>
-                            <Button v-if="!props.row.abortController?.abort && props.row.status !== 'processed'"
+                            <Button
+                                v-if="activeKnowledgeBase?.embeddingModel?.modelId && !props.row.abortController?.abort && props.row.status !== 'processed'"
                                 @click="embedding(props.row, activeKnowledgeBase, true, batchSize)" size="sm"
                                 type="button" variant="text">
                                 <template #icon>
