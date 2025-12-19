@@ -7,6 +7,43 @@ export interface RetrieveOptions {
   topK?: number
   rerankScoreThreshold?: number
 }
+
+const rerank = async (
+  chunks: Splitter,
+  rerankOptions: {
+    query: string
+    topK?: number
+    rerankScoreThreshold?: number
+    apiKey: string
+    baseURL: string
+    providerType: providerType
+    model: string
+    name: string
+  }
+) => {
+  const topK = rerankOptions?.topK ?? 5
+  const rerankScoreThreshold = rerankOptions?.rerankScoreThreshold ?? 0.3
+  const registry = createRegistry(rerankOptions) as any
+  const model = registry.textEmbeddingModel
+    ? registry.textEmbeddingModel(`${rerankOptions.providerType}:${rerankOptions.model}`)
+    : registry.embeddingModel(`${rerankOptions.providerType}:${rerankOptions.model}`)
+
+  const response = await _rerank({
+    model: model,
+    query: rerankOptions.query,
+    documents: chunks.map((c) => c.content),
+    topN: topK
+  })
+
+  const results = (response as any).results
+
+  return results
+    .filter((r: any) => r.score > rerankScoreThreshold)
+    .map((r: any) => ({
+      ...chunks[r.index],
+      score: r.score
+    }))
+}
 const vectorSearch = async (
   queryEmbedding: number[],
   chunks: Splitter,
@@ -129,42 +166,6 @@ export const RAGService = () => {
     }
   ) {
     options.onProgress?.(splitter, processed, total)
-  }
-  const rerank = async (
-    chunks: Splitter,
-    rerankOptions: {
-      query: string
-      topK?: number
-      rerankScoreThreshold?: number
-      apiKey: string
-      baseURL: string
-      providerType: providerType
-      model: string
-      name: string
-    }
-  ) => {
-    const topK = rerankOptions?.topK ?? 5
-    const rerankScoreThreshold = rerankOptions?.rerankScoreThreshold ?? 0.3
-    const registry = createRegistry(rerankOptions) as any
-    const model = registry.textEmbeddingModel
-      ? registry.textEmbeddingModel(`${rerankOptions.providerType}:${rerankOptions.model}`)
-      : registry.embeddingModel(`${rerankOptions.providerType}:${rerankOptions.model}`)
-
-    const response = await _rerank({
-      model: model,
-      query: rerankOptions.query,
-      documents: chunks.map((c) => c.content),
-      topN: topK
-    })
-
-    const results = (response as any).results
-
-    return results
-      .filter((r: any) => r.score > rerankScoreThreshold)
-      .map((r: any) => ({
-        ...chunks[r.index],
-        score: r.score
-      }))
   }
   const retrieve = async (
     query: string,
