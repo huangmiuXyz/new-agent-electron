@@ -77,15 +77,12 @@ export const useKnowledge = () => {
         providerType: provider.providerType,
         model: model.name,
         abortController,
-        onProgress: async (data?: any, current?: number, total?: number) => {
+        onProgress: (data?: any, current?: number, total?: number) => {
           if (current !== undefined && total !== undefined) {
             doc.currentChunk = current
           }
           if (data) {
-            const support = await checkSqliteSupport()
-            if (!support || !support.sqlite) {
-              doc.chunks = data
-            }
+            doc.chunks = data
           }
         },
         continueFlag,
@@ -93,14 +90,16 @@ export const useKnowledge = () => {
       })
       doc.status = 'processed'
       doc.chunkCount = doc.chunks?.length
+      const support = await checkSqliteSupport()
+      if (support && support.sqlite) {
+        doc.chunks = []
+      }
     } catch (error) {
       if (abortController.signal.aborted) {
         doc.status = 'aborted'
       } else {
         doc.status = 'error'
       }
-    } finally {
-      doc.abortController = undefined
     }
   }
 
