@@ -104,6 +104,7 @@ export interface SliderField<T> extends BaseField<T> {
   max?: number
   step?: number
   unit?: string
+  unlimited?: boolean
 }
 
 // 选择字段
@@ -446,6 +447,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             max={field.max}
                             step={field.step}
                             unit={field.unit}
+                            unlimited={field.unlimited}
                             onUpdate:modelValue={(value) => {
                               setFieldValue(field.name, value)
                             }}

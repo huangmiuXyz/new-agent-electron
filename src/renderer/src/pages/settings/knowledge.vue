@@ -28,8 +28,9 @@ const [BatchSettingsForm, batchSettingsActions] = useForm<{ batchSize: number }>
             type: 'slider',
             label: 'Batch Size',
             min: 1,
-            max: 50,
+            max: 100,
             step: 1,
+            unlimited: true,
             hint: '设置文档嵌入处理的批处理大小'
         }
     ],
