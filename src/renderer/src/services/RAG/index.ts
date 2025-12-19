@@ -1,7 +1,7 @@
 import { useWebWorkerFn } from '@vueuse/core'
 import { createRegistry } from '../chatService/registry'
 import { splitTextByType } from './splitter'
-import { embedMany, embed, cosineSimilarity, rerank as _rerank } from 'ai'
+import { embedMany, embed, cosineSimilarity, rerank as _rerank, APICallError } from 'ai'
 export interface RetrieveOptions {
   similarityThreshold?: number
   topK?: number
@@ -166,11 +166,12 @@ export const RAGService = () => {
 
         reportProgress(processed, total, splitterClone, options, batchChunks)
       } catch (error) {
-        const err = error as Error
+        const err = error as APICallError
         if (err.name === 'AbortError') {
           throw error
         }
-        messageApi.error(err.message)
+
+        messageApi.error(err.message || err.responseBody!)
         throw error
       }
     }
