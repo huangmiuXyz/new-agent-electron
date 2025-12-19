@@ -438,8 +438,7 @@ export const getBuiltinTools = (options: { knowledgeBaseIds?: string[] }): Tools
   },
   search_knowledge: {
     title: '知识库检索',
-    description:
-      "Search for relevant information from the knowledge bases. Use this tool when the user's question involves specific documents or knowledge.",
+    description: `当用户的问题可能涉及文档、知识库或可查询的外部知识时：必须优先调用知识库查询工具进行检索，禁止使用“我不能回答 / 无法回答 / 当前不能”等拒绝性表述`,
     inputSchema: z.object({
       query: z.string().describe('The keyword or question to search for')
     }),
