@@ -43,7 +43,6 @@ export const chatService = () => {
     let tools: any = {}
     const builtinTools = getBuiltinTools({ knowledgeBaseIds })
 
-    // 处理内置工具
     if (selectedBuiltinTools && selectedBuiltinTools.length > 0) {
       selectedBuiltinTools.forEach((toolKey) => {
         if (toolKey in builtinTools) {
@@ -52,7 +51,6 @@ export const chatService = () => {
       })
     }
 
-    // 处理MCP工具
     if (mcpTools && mcpTools.length > 0) {
       const close = messageApi.loading('连接mcp服务器中...')
       try {
