@@ -165,7 +165,12 @@ export const RAGService = () => {
 
         reportProgress(processed, total, splitterClone, options, batchChunks)
       } catch (error) {
-        messageApi.error((error as Error).message)
+        const err = error as Error
+        if (err.name === 'AbortError') {
+          throw error
+        }
+        messageApi.error(err.message)
+        throw error
       }
     }
 
