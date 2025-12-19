@@ -29,8 +29,6 @@ export const initSqlite = () => {
   if (!tableInfo.some((col) => col.name === 'dimension')) {
     db.exec('ALTER TABLE chunks ADD COLUMN dimension INTEGER')
   }
-
-  db.exec('DELETE FROM chunks WHERE dimension IS NULL OR dimension = 0')
 }
 
 const ensureVssTable = (dimension: number) => {
