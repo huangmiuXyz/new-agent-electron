@@ -9,12 +9,15 @@ export interface RetrieveOptions {
 }
 export const RAGService = () => {
   const splitter = async (doc: KnowledgeDocument) => {
-    const result = await splitTextByType(
-      window.api.fs.readFileSync(window.api.url.fileURLToPath(doc.path), 'utf-8'),
-      {
-        type: doc.type
-      }
-    )
+    let text = ''
+    try {
+      text = window.api.fs.readFileSync(window.api.url.fileURLToPath(doc.path), 'utf-8')
+    } catch {
+      doc.url && (text = Buffer.from(doc.url, 'base64').toString('utf8'))
+    }
+    const result = await splitTextByType(text, {
+      type: doc.type
+    })
     return result
   }
   const embedding = async (

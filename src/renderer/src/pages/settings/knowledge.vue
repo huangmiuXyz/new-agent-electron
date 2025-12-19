@@ -272,7 +272,8 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
                 size: f.size!,
                 type: f.mediaType,
                 created: Date.now(),
-                status: 'processing'
+                status: 'processing',
+                url: !f.path ? f.url : undefined
             }
             docs.push(doc)
             addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, doc)
