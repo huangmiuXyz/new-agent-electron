@@ -26,7 +26,7 @@ declare global {
     created: number
     status: KnowledgeDocumentStatus
     chunks?: KnowledgeChunk[]
-    abortController?: AbortController
+    abortController?: AbortController | null
     currentChunk?: number
     isSplitting?: boolean
     metadata?: {

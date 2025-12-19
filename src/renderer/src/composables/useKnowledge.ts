@@ -39,6 +39,7 @@ export const useKnowledge = () => {
     abortController.abort = () => {
       doc.status = 'aborted'
       originalAbort()
+      doc.abortController = null
     }
 
     try {
