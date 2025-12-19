@@ -1,6 +1,6 @@
 import { createRegistry } from '../chatService/registry'
 import { splitTextByType } from './splitter'
-import { embedMany, embed, cosineSimilarity, rerank } from 'ai'
+import { embedMany, embed, cosineSimilarity, rerank as _rerank } from 'ai'
 
 export interface RetrieveOptions {
   similarityThreshold?: number
@@ -126,39 +126,40 @@ export const RAGService = () => {
     return candidates.slice(0, topK)
   }
   const rerank = async (
-    queryEmbedding: number[],
     chunks: Splitter,
-    retrieveOptions?: {
-      similarityThreshold?: number
+    rerankOptions: {
+      query: string
       topK?: number
       rerankScoreThreshold?: number
+      apiKey: string
+      baseURL: string
+      providerType: providerType
+      model: string
+      name: string
     }
   ) => {
-    const scoredChunks = chunks
-      .map((chunk) => {
-        try {
-          const result = {
-            ...chunk,
-            score: cosineSimilarity(queryEmbedding, chunk.embedding)
-          }
-          return result
-        } catch {
-          return false
-        }
-      })
-      .filter((e) => !!e)
+    const topK = rerankOptions?.topK ?? 5
+    const rerankScoreThreshold = rerankOptions?.rerankScoreThreshold ?? 0.3
+    const registry = createRegistry(rerankOptions) as any
+    const model = registry.textEmbeddingModel
+      ? registry.textEmbeddingModel(`${rerankOptions.providerType}:${rerankOptions.model}`)
+      : registry.embeddingModel(`${rerankOptions.providerType}:${rerankOptions.model}`)
 
-    const similarityThreshold = retrieveOptions?.similarityThreshold ?? 0.2
-    const topK = retrieveOptions?.topK ?? 5
-    const candidates = scoredChunks
-      .filter((chunk) => chunk.score > similarityThreshold)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, Math.max(topK * 4, 20))
+    const response = await _rerank({
+      model: model,
+      query: rerankOptions.query,
+      documents: chunks.map((c) => c.content),
+      topN: topK
+    })
 
-    if (candidates.length === 0) {
-      return []
-    }
-    return candidates.slice(0, topK)
+    const results = (response as any).results
+
+    return results
+      .filter((r: any) => r.score > rerankScoreThreshold)
+      .map((r: any) => ({
+        ...chunks[r.index],
+        score: r.score
+      }))
   }
   const retrieve = async (
     query: string,
@@ -193,7 +194,10 @@ export const RAGService = () => {
 
     const topK = retrieveOptions?.topK ?? 5
     if (rerankOptions && rerankOptions.model) {
-      return await rerank(queryEmbedding, candidates, retrieveOptions)
+      return await rerank(candidates, {
+        ...rerankOptions,
+        query
+      })
     }
 
     return candidates.slice(0, topK)
