@@ -207,3 +207,13 @@ export const getFileIcon = (file: { name?: string; mediaType: string }) => {
 
   return 'File'
 }
+export const base64ToText = (base64: string) => {
+  const binary = atob(base64.split(',').pop()!)
+  const bytes = new Uint8Array(binary.length)
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+
+  return new TextDecoder('utf-8').decode(bytes)
+}

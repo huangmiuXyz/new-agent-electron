@@ -12,8 +12,8 @@ export const RAGService = () => {
     let text = ''
     try {
       text = window.api.fs.readFileSync(window.api.url.fileURLToPath(doc.path), 'utf-8')
-    } catch {
-      doc.url && (text = Buffer.from(doc.url, 'base64').toString('utf8'))
+    } catch (error) {
+      doc.url && (text = base64ToText(doc.url))
     }
     const result = await splitTextByType(text, {
       type: doc.type
