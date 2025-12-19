@@ -2,7 +2,8 @@ import {
   convertToModelMessages,
   generateText as _generateText,
   ToolLoopAgent,
-  ToolChoice
+  ToolChoice,
+  wrapLanguageModel
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
@@ -69,9 +70,12 @@ export const chatService = () => {
       }
     }
     const agent = new ToolLoopAgent({
-      model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-        `${providerType}:${model}`
-      ),
+      model: wrapLanguageModel({
+        model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
+          `${providerType}:${model}`
+        ),
+        middleware: []
+      }),
       providerOptions: {
         deepseek: {
           thinking: {
