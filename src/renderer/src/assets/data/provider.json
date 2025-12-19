@@ -105,6 +105,13 @@
     "providerType": "openai-compatible"
   },
   {
+    "name": "英伟达",
+    "baseUrl": "https://integrate.api.nvidia.com/v1",
+    "id": "NVIDIA",
+    "logo": "/images/providers/nvidia.png",
+    "providerType": "openai-compatible"
+  },
+  {
     "name": "ollama",
     "baseUrl": "http://localhost:11434/v1",
     "id": "ollama",
