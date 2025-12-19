@@ -60,7 +60,7 @@
     "baseUrl": "https://api.siliconflow.cn/v1",
     "id": "硅基流动",
     "logo": "/images/providers/silicon.png",
-    "providerType": "openai-compatible"
+    "providerType": "deepseek"
   },
   {
     "name": "MiniMax",
