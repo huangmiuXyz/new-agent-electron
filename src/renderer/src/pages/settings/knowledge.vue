@@ -26,7 +26,7 @@ const [BatchSettingsForm, batchSettingsActions] = useForm<{ batchSize: number }>
         {
             name: 'batchSize',
             type: 'slider',
-            label: 'Batch Size',
+            label: '批处理大小',
             min: 1,
             max: 100,
             step: 1,
