@@ -90,7 +90,76 @@ export const RAGService = () => {
   ) {
     options.onProgress?.(splitter, processed, total)
   }
+  const vectorSearch = async (
+    queryEmbedding: number[],
+    chunks: Splitter,
+    retrieveOptions?: {
+      similarityThreshold?: number
+      topK?: number
+      rerankScoreThreshold?: number
+    }
+  ) => {
+    const scoredChunks = chunks
+      .map((chunk) => {
+        try {
+          const result = {
+            ...chunk,
+            score: cosineSimilarity(queryEmbedding, chunk.embedding)
+          }
+          return result
+        } catch {
+          return false
+        }
+      })
+      .filter((e) => !!e)
 
+    const similarityThreshold = retrieveOptions?.similarityThreshold ?? 0.2
+    const topK = retrieveOptions?.topK ?? 5
+    const candidates = scoredChunks
+      .filter((chunk) => chunk.score > similarityThreshold)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, Math.max(topK * 4, 20))
+
+    if (candidates.length === 0) {
+      return []
+    }
+    return candidates.slice(0, topK)
+  }
+  const rerank = async (
+    queryEmbedding: number[],
+    chunks: Splitter,
+    retrieveOptions?: {
+      similarityThreshold?: number
+      topK?: number
+      rerankScoreThreshold?: number
+    }
+  ) => {
+    const scoredChunks = chunks
+      .map((chunk) => {
+        try {
+          const result = {
+            ...chunk,
+            score: cosineSimilarity(queryEmbedding, chunk.embedding)
+          }
+          return result
+        } catch {
+          return false
+        }
+      })
+      .filter((e) => !!e)
+
+    const similarityThreshold = retrieveOptions?.similarityThreshold ?? 0.2
+    const topK = retrieveOptions?.topK ?? 5
+    const candidates = scoredChunks
+      .filter((chunk) => chunk.score > similarityThreshold)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, Math.max(topK * 4, 20))
+
+    if (candidates.length === 0) {
+      return []
+    }
+    return candidates.slice(0, topK)
+  }
   const retrieve = async (
     query: string,
     knowledgeBase: KnowledgeBase,
@@ -120,59 +189,11 @@ export const RAGService = () => {
     if (allChunks.length === 0) {
       return []
     }
-    const scoredChunks = allChunks
-      .map((chunk) => {
-        try {
-          const result = {
-            ...chunk,
-            score: cosineSimilarity(queryEmbedding, chunk.embedding)
-          }
-          return result
-        } catch {
-          return false
-        }
-      })
-      .filter((e) => !!e)
+    const candidates = await vectorSearch(queryEmbedding, allChunks, retrieveOptions)
 
-    const similarityThreshold = retrieveOptions?.similarityThreshold ?? 0.2
     const topK = retrieveOptions?.topK ?? 5
-    const rerankScoreThreshold = retrieveOptions?.rerankScoreThreshold ?? 0.3
-
-    const candidates = scoredChunks
-      .filter((chunk) => chunk.score > similarityThreshold)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, Math.max(topK * 4, 20))
-
-    if (candidates.length === 0) {
-      return []
-    }
-
     if (rerankOptions && rerankOptions.model) {
-      try {
-        const registry = createRegistry(rerankOptions) as any
-        const model = registry.textEmbeddingModel
-          ? registry.textEmbeddingModel(`${rerankOptions.providerType}:${rerankOptions.model}`)
-          : registry.embeddingModel(`${rerankOptions.providerType}:${rerankOptions.model}`)
-
-        const response = await rerank({
-          model: model,
-          query,
-          documents: candidates.map((c) => c.content),
-          topN: topK
-        })
-
-        const results = (response as any).results
-
-        return results
-          .filter((r: any) => r.score > rerankScoreThreshold)
-          .map((r: any) => ({
-            ...candidates[r.index],
-            score: r.score
-          }))
-      } catch (e) {
-        console.error('Rerank failed, falling back to vector search results', e)
-        return candidates.slice(0, topK)
-      }
+      return await rerank(queryEmbedding, candidates, retrieveOptions)
     }
 
     return candidates.slice(0, topK)
