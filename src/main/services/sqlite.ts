@@ -118,7 +118,7 @@ export const setupSqliteHandlers = () => {
   )
 
   ipcMain.handle('sqlite:deleteChunksByDoc', async (_event, doc_id: string) => {
-    const rows = db.prepare('SELECT rowid, dimension FROM chunks WHERE doc_id = ?').all() as {
+    const rows = db.prepare('SELECT rowid, dimension FROM chunks WHERE doc_id = ?').all(doc_id) as {
       rowid: number
       dimension: number
     }[]
@@ -126,7 +126,13 @@ export const setupSqliteHandlers = () => {
     if (rows.length > 0) {
       db.transaction(() => {
         for (const row of rows) {
-          db.prepare(`DELETE FROM vss_chunks_${row.dimension} WHERE rowid = ?`).run(row.rowid)
+          if (row.dimension) {
+            try {
+              db.prepare(`DELETE FROM vss_chunks_${row.dimension} WHERE rowid = ?`).run(row.rowid)
+            } catch (e) {
+              // Ignore if table doesn't exist
+            }
+          }
         }
         db.prepare('DELETE FROM chunks WHERE doc_id = ?').run(doc_id)
       })()
@@ -135,7 +141,7 @@ export const setupSqliteHandlers = () => {
   })
 
   ipcMain.handle('sqlite:deleteChunksByKb', async (_event, kb_id: string) => {
-    const rows = db.prepare('SELECT rowid, dimension FROM chunks WHERE kb_id = ?').all() as {
+    const rows = db.prepare('SELECT rowid, dimension FROM chunks WHERE kb_id = ?').all(kb_id) as {
       rowid: number
       dimension: number
     }[]
@@ -143,7 +149,13 @@ export const setupSqliteHandlers = () => {
     if (rows.length > 0) {
       db.transaction(() => {
         for (const row of rows) {
-          db.prepare(`DELETE FROM vss_chunks_${row.dimension} WHERE rowid = ?`).run(row.rowid)
+          if (row.dimension) {
+            try {
+              db.prepare(`DELETE FROM vss_chunks_${row.dimension} WHERE rowid = ?`).run(row.rowid)
+            } catch (e) {
+              // Ignore if table doesn't exist
+            }
+          }
         }
         db.prepare('DELETE FROM chunks WHERE kb_id = ?').run(kb_id)
       })()
