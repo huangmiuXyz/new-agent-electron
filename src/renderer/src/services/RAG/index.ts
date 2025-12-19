@@ -1,6 +1,8 @@
+import { useWebWorkerFn } from '@vueuse/core'
 import { createRegistry } from '../chatService/registry'
 import { splitTextByType } from './splitter'
 import { embedMany, embed, cosineSimilarity, rerank as _rerank } from 'ai'
+let vectorSearchWorker: ReturnType<typeof useWebWorkerFn> | null = null
 
 export interface RetrieveOptions {
   similarityThreshold?: number
@@ -8,6 +10,48 @@ export interface RetrieveOptions {
   rerankScoreThreshold?: number
 }
 export const RAGService = () => {
+  const vectorSearch = async (
+    queryEmbedding: number[],
+    chunks: Splitter,
+    retrieveOptions?: {
+      similarityThreshold?: number
+      topK?: number
+      rerankScoreThreshold?: number
+    }
+  ) => {
+    const scoredChunks = chunks
+      .map((chunk) => {
+        try {
+          const result = {
+            ...chunk,
+            score: cosineSimilarity(queryEmbedding, chunk.embedding)
+          }
+          return result
+        } catch {
+          return false
+        }
+      })
+      .filter((e) => !!e)
+
+    const similarityThreshold = retrieveOptions?.similarityThreshold ?? 0.2
+    const topK = retrieveOptions?.topK ?? 5
+    const candidates = scoredChunks
+      .filter((chunk) => chunk.score > similarityThreshold)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, Math.max(topK * 4, 20))
+
+    if (candidates.length === 0) {
+      return []
+    }
+    return candidates.slice(0, topK)
+  }
+  if (!vectorSearchWorker) {
+    vectorSearchWorker = useWebWorkerFn(vectorSearch, {
+      localDependencies: [cosineSimilarity],
+      timeout: 50_000
+    })
+  }
+  const { workerFn: vectorSearchInWorker } = vectorSearchWorker
   const splitter = async (doc: KnowledgeDocument) => {
     let text = ''
     try {
@@ -90,41 +134,6 @@ export const RAGService = () => {
   ) {
     options.onProgress?.(splitter, processed, total)
   }
-  const vectorSearch = async (
-    queryEmbedding: number[],
-    chunks: Splitter,
-    retrieveOptions?: {
-      similarityThreshold?: number
-      topK?: number
-      rerankScoreThreshold?: number
-    }
-  ) => {
-    const scoredChunks = chunks
-      .map((chunk) => {
-        try {
-          const result = {
-            ...chunk,
-            score: cosineSimilarity(queryEmbedding, chunk.embedding)
-          }
-          return result
-        } catch {
-          return false
-        }
-      })
-      .filter((e) => !!e)
-
-    const similarityThreshold = retrieveOptions?.similarityThreshold ?? 0.2
-    const topK = retrieveOptions?.topK ?? 5
-    const candidates = scoredChunks
-      .filter((chunk) => chunk.score > similarityThreshold)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, Math.max(topK * 4, 20))
-
-    if (candidates.length === 0) {
-      return []
-    }
-    return candidates.slice(0, topK)
-  }
   const rerank = async (
     chunks: Splitter,
     rerankOptions: {
@@ -190,7 +199,7 @@ export const RAGService = () => {
     if (allChunks.length === 0) {
       return []
     }
-    const candidates = await vectorSearch(queryEmbedding, allChunks, retrieveOptions)
+    const candidates = await vectorSearchInWorker(queryEmbedding, allChunks, retrieveOptions)
 
     const topK = retrieveOptions?.topK ?? 5
     if (rerankOptions && rerankOptions.model) {
