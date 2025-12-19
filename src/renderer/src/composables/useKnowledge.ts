@@ -100,6 +100,8 @@ export const useKnowledge = () => {
       } else {
         doc.status = 'error'
       }
+    } finally {
+      doc.abortController = undefined
     }
   }
 

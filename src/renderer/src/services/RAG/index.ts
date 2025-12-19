@@ -40,7 +40,6 @@ export const RAGService = () => {
 
     options.onProgress?.(undefined, 0, total)
 
-    // Clear existing chunks for this doc if not continuing
     const support = await checkSqliteSupport()
     if (!options.continueFlag && support && support.sqlite) {
       try {
@@ -104,8 +103,12 @@ export const RAGService = () => {
             console.error('Failed to insert chunks into SQLite', e)
           }
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (options.abortController.signal.aborted || error.name === 'AbortError') {
+          throw error
+        }
         messageApi.error((error as Error).message)
+        throw error
       }
 
       reportProgress(processed, total, splitterClone, options)
