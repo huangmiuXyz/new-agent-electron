@@ -66,6 +66,7 @@ export const useKnowledge = () => {
         providerType: provider.providerType,
         model: model.name,
         abortController,
+        currentChunk: doc.currentChunk,
         onProgress: async (data, current, total, batchChunks) => {
           if (current !== undefined && total !== undefined) {
             doc.currentChunk = current

@@ -106,6 +106,7 @@ export const RAGService = () => {
       model: string
       name: string
       abortController: AbortController
+      currentChunk?: number
       onProgress?: (
         data?: Splitter,
         current?: number,
@@ -130,7 +131,7 @@ export const RAGService = () => {
 
       for (let j = i; j < Math.min(i + batchSize, total); j++) {
         const chunk = splitterClone[j]
-        if (options.continueFlag && chunk.embedding?.length > 0) {
+        if (options.continueFlag && options.currentChunk && j < options.currentChunk) {
           processed++
           skippedInBatch++
           continue
