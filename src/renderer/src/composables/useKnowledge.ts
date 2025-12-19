@@ -2,6 +2,7 @@ export const useKnowledge = () => {
   const rag = RAGService()
   const { getModelById } = useSettingsStore()
   const { knowledgeBases } = storeToRefs(useKnowledgeStore())
+  const { upsertChunksToSqlite } = useKnowledgeStore()
   const embedding = async (
     doc: KnowledgeDocument,
     knowledge: KnowledgeBase,
@@ -63,12 +64,18 @@ export const useKnowledge = () => {
         providerType: provider.providerType,
         model: model.name,
         abortController,
-        onProgress: (data, current, total) => {
+        onProgress: async (data, current, total, batchChunks) => {
           if (current !== undefined && total !== undefined) {
             doc.currentChunk = current
           }
-          if (data) {
-            doc.chunks = data
+          if (await window.api.sqlite.isSupported()) {
+            if (batchChunks && batchChunks.length > 0) {
+              await upsertChunksToSqlite(knowledge.id, doc.id, batchChunks)
+            }
+          } else {
+            if (data) {
+              doc.chunks = data
+            }
           }
         },
         continueFlag,

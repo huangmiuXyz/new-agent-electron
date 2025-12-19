@@ -106,7 +106,12 @@ export const RAGService = () => {
       model: string
       name: string
       abortController: AbortController
-      onProgress?: (data?: Splitter, current?: number, total?: number) => void
+      onProgress?: (
+        data?: Splitter,
+        current?: number,
+        total?: number,
+        batchChunks?: Splitter
+      ) => void
       continueFlag: boolean
       batchSize?: number
     }
@@ -121,17 +126,23 @@ export const RAGService = () => {
     for (let i = 0; i < total; i += batchSize) {
       const batch: string[] = []
       const batchIndices: number[] = []
+      let skippedInBatch = 0
+
       for (let j = i; j < Math.min(i + batchSize, total); j++) {
         const chunk = splitterClone[j]
         if (options.continueFlag && chunk.embedding?.length > 0) {
           processed++
-          reportProgress(processed, total, splitterClone, options)
+          skippedInBatch++
           continue
         }
         batch.push(chunk.content)
         batchIndices.push(j)
       }
+
       if (batch.length === 0) {
+        if (skippedInBatch > 0) {
+          reportProgress(processed, total, splitterClone, options)
+        }
         continue
       }
       try {
@@ -141,20 +152,41 @@ export const RAGService = () => {
           abortSignal: options.abortController.signal
         })
 
+        const batchChunks: Splitter = []
         embeddings.forEach((embedding, index) => {
           const chunkIndex = batchIndices[index]
           splitterClone[chunkIndex].embedding = embedding
+          batchChunks.push({
+            ...splitterClone[chunkIndex],
+            id: chunkIndex
+          })
           processed++
         })
+
+        reportProgress(processed, total, splitterClone, options, batchChunks)
       } catch (error) {
         messageApi.error((error as Error).message)
       }
-
-      reportProgress(processed, total, splitterClone, options)
     }
 
     options.onProgress?.(splitterClone, total, total)
     return splitterClone
+  }
+  const syncToSqlite = async (
+    kbId: string,
+    docId: string,
+    chunks: { content: string; embedding: number[] }[]
+  ) => {
+    if (await window.api.sqlite.isSupported()) {
+      const sqliteChunks = chunks.map((c, i) => ({
+        id: `${docId}-${i}`,
+        doc_id: docId,
+        kb_id: kbId,
+        content: c.content,
+        embedding: Array.from(c.embedding)
+      }))
+      await window.api.sqlite.upsertChunks(sqliteChunks)
+    }
   }
 
   function reportProgress(
@@ -162,10 +194,16 @@ export const RAGService = () => {
     total: number,
     splitter: Splitter,
     options: {
-      onProgress?: (data?: Splitter, current?: number, total?: number) => void
-    }
+      onProgress?: (
+        data?: Splitter,
+        current?: number,
+        total?: number,
+        batchChunks?: Splitter
+      ) => void
+    },
+    batchChunks?: Splitter
   ) {
-    options.onProgress?.(splitter, processed, total)
+    options.onProgress?.(splitter, processed, total, batchChunks)
   }
   const retrieve = async (
     query: string,
@@ -191,25 +229,35 @@ export const RAGService = () => {
       value: query
     })
 
-    const allChunks = knowledgeBase.documents?.flatMap((doc) => doc.chunks || []) || []
+    const isSqliteSupported = await window.api.sqlite.isSupported()
+    let candidates: any[] = []
 
-    if (allChunks.length === 0) {
-      return []
+    if (isSqliteSupported) {
+      candidates = await window.api.sqlite.search({
+        kb_id: knowledgeBase.id,
+        queryEmbedding: Array.from(queryEmbedding),
+        topK: retrieveOptions?.topK ?? 5
+      })
+    } else {
+      const allChunks = knowledgeBase.documents?.flatMap((doc) => doc.chunks || []) || []
+      if (allChunks.length === 0) {
+        return []
+      }
+      candidates = await vectorSearchInWorker(
+        Array.from(queryEmbedding),
+        allChunks.map((c) => ({
+          content: c.content,
+          embedding: Array.from(c.embedding)
+        })),
+        retrieveOptions
+          ? {
+              similarityThreshold: retrieveOptions.similarityThreshold,
+              topK: retrieveOptions.topK,
+              rerankScoreThreshold: retrieveOptions.rerankScoreThreshold
+            }
+          : undefined
+      )
     }
-    const candidates = await vectorSearchInWorker(
-      Array.from(queryEmbedding),
-      allChunks.map((c) => ({
-        content: c.content,
-        embedding: Array.from(c.embedding)
-      })),
-      retrieveOptions
-        ? {
-            similarityThreshold: retrieveOptions.similarityThreshold,
-            topK: retrieveOptions.topK,
-            rerankScoreThreshold: retrieveOptions.rerankScoreThreshold
-          }
-        : undefined
-    )
 
     const topK = retrieveOptions?.topK ?? 5
     if (rerankOptions && rerankOptions.model) {
@@ -222,5 +270,5 @@ export const RAGService = () => {
     return candidates.slice(0, topK)
   }
 
-  return { embedding, retrieve, splitter }
+  return { embedding, retrieve, splitter, syncToSqlite }
 }

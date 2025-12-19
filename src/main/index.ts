@@ -1,5 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
+import { initSqlite, setupSqliteHandlers } from './services/sqlite'
+
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import '@electron/remote/main'
@@ -65,6 +67,8 @@ app.whenReady().then(() => {
     const result = await dialog.showOpenDialog(options)
     return result
   })
+  initSqlite()
+  setupSqliteHandlers()
   createWindow()
 
   app.on('activate', function () {

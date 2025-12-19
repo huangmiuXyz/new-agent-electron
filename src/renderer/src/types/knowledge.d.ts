@@ -39,8 +39,9 @@ declare global {
   interface KnowledgeChunk {
     content: string
     embedding: number[]
+    id?: string | number
   }
-  type Splitter = { content: string; embedding: number[] }[]
+  type Splitter = KnowledgeChunk[]
 }
 
 export {}

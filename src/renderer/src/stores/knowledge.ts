@@ -50,6 +50,7 @@ export const useKnowledgeStore = defineStore(
       const index = knowledgeBases.value.findIndex((kb) => kb.id === knowledgeBaseId)
       if (index !== -1) {
         knowledgeBases.value.splice(index, 1)
+        window.api.sqlite.deleteChunksByKb(knowledgeBaseId)
       }
     }
 
@@ -74,9 +75,21 @@ export const useKnowledgeStore = defineStore(
           const docIndex = knowledgeBase.documents.findIndex((doc) => doc.id === documentId)
           if (docIndex !== -1) {
             knowledgeBase.documents.splice(docIndex, 1)
+            window.api.sqlite.deleteChunksByDoc(documentId)
           }
         }
       }
+    }
+
+    const upsertChunksToSqlite = async (kbId: string, docId: string, chunks: Splitter) => {
+      const sqliteChunks = chunks.map((c) => ({
+        id: `${docId}-${c.id}`,
+        doc_id: docId,
+        kb_id: kbId,
+        content: c.content,
+        embedding: Array.from(c.embedding)
+      }))
+      await window.api.sqlite.upsertChunks(sqliteChunks)
     }
 
     return {
@@ -85,7 +98,8 @@ export const useKnowledgeStore = defineStore(
       addKnowledgeBase,
       deleteKnowledgeBase,
       addDocumentToKnowledgeBase,
-      deleteDocumentFromKnowledgeBase
+      deleteDocumentFromKnowledgeBase,
+      upsertChunksToSqlite
     }
   },
   {

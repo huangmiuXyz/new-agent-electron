@@ -21,7 +21,16 @@ export const api = {
   fs,
   path,
   mime,
-  url
+  url,
+  sqlite: {
+    isSupported: () => electronAPI.ipcRenderer.invoke('sqlite:isSupported'),
+    upsertChunks: (chunks: any[]) => electronAPI.ipcRenderer.invoke('sqlite:upsertChunks', chunks),
+    deleteChunksByDoc: (docId: string) =>
+      electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByDoc', docId),
+    deleteChunksByKb: (kbId: string) =>
+      electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByKb', kbId),
+    search: (options: any) => electronAPI.ipcRenderer.invoke('sqlite:search', options)
+  }
 }
 
 export type API = typeof api
