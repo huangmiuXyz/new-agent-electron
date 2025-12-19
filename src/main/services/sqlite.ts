@@ -11,41 +11,35 @@ export const initSqlite = () => {
 
   try {
     sqliteVss.load(db)
-  } catch (error) {
-    console.error('Failed to load sqlite-vss:', error)
+  } catch (e) {
+    console.error('Failed to load sqlite-vss:', e)
   }
 
-  // Create tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS chunks (
       id TEXT PRIMARY KEY,
       doc_id TEXT,
       kb_id TEXT,
-      content TEXT
+      content TEXT,
+      dimension INTEGER
     );
   `)
-
-  const tableInfo = db.prepare('PRAGMA table_info(chunks)').all() as { name: string }[]
-  if (!tableInfo.some((col) => col.name === 'dimension')) {
-    db.exec('ALTER TABLE chunks ADD COLUMN dimension INTEGER')
-  }
 }
 
 const ensureVssTable = (dimension: number) => {
-  if (dimension <= 0) return
-  db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS vss_chunks_${dimension} USING vss0(
-      vector(${dimension})
-    );
-  `)
+  if (dimension > 0) {
+    db.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS vss_chunks_${dimension}
+      USING vss0(vector(${dimension}));
+    `)
+  }
 }
 
 export const setupSqliteHandlers = () => {
   ipcMain.handle('sqlite:isSupported', async () => {
     try {
-      const result = db.prepare('SELECT vss_version() as version').get() as { version: string }
-      return !!result.version
-    } catch (e) {
+      return !!db.prepare('SELECT vss_version()').get()
+    } catch {
       return false
     }
   })
@@ -54,110 +48,63 @@ export const setupSqliteHandlers = () => {
     'sqlite:upsertChunks',
     async (
       _event,
-      chunks: { id: string; doc_id: string; kb_id: string; content: string; embedding: number[] }[]
+      chunks: {
+        id: string
+        doc_id: string
+        kb_id: string
+        content: string
+        embedding: number[]
+      }[]
     ) => {
-      if (chunks.length === 0) return true
-      const dimension = Math.floor(chunks[0].embedding.length)
+      if (!chunks.length) return true
+
+      const dimension = chunks[0].embedding.length
       ensureVssTable(dimension)
 
-      const checkChunk = db.prepare('SELECT rowid, dimension FROM chunks WHERE id = ?')
-      const insertChunk = db.prepare(
-        'INSERT INTO chunks (id, doc_id, kb_id, content, dimension) VALUES (?, ?, ?, ?, ?)'
-      )
+      const findChunk = db.prepare('SELECT rowid FROM chunks WHERE id = ?')
+      const findDocDim = db.prepare('SELECT DISTINCT dimension FROM chunks WHERE doc_id = ?')
+
+      const insertChunk = db.prepare('INSERT INTO chunks VALUES (?, ?, ?, ?, ?)')
       const updateChunk = db.prepare(
-        'UPDATE chunks SET doc_id = ?, kb_id = ?, content = ?, dimension = ? WHERE id = ?'
+        'UPDATE chunks SET doc_id=?, kb_id=?, content=?, dimension=? WHERE id=?'
       )
 
       const insertVss = db.prepare(
         `INSERT INTO vss_chunks_${dimension} (rowid, vector) VALUES (?, ?)`
       )
-      const updateVss = db.prepare(`UPDATE vss_chunks_${dimension} SET vector = ? WHERE rowid = ?`)
+      const updateVss = db.prepare(`UPDATE vss_chunks_${dimension} SET vector=? WHERE rowid=?`)
 
-      const transaction = db.transaction((items) => {
-        for (const item of items) {
-          const existing = checkChunk.get(item.id) as
-            | { rowid: number; dimension: number }
-            | undefined
-          const vectorJson = JSON.stringify(item.embedding)
+      db.transaction(() => {
+        for (const c of chunks) {
+          const docDim = findDocDim.get(c.doc_id)?.dimension
+          if (docDim && docDim !== dimension) {
+            throw new Error(`Document ${c.doc_id} embedding dimension mismatch`)
+          }
+
+          const vector = JSON.stringify(c.embedding)
+          const existing = findChunk.get(c.id)
 
           if (existing) {
-            if (existing.dimension !== dimension) {
-              if (typeof existing.dimension === 'number' && existing.dimension > 0) {
-                try {
-                  db.prepare(`DELETE FROM vss_chunks_${existing.dimension} WHERE rowid = ?`).run(
-                    existing.rowid
-                  )
-                } catch (e) {
-                  // 旧维度表可能不存在
-                }
-              }
-              updateChunk.run(item.doc_id, item.kb_id, item.content, dimension, item.id)
-              insertVss.run(existing.rowid, vectorJson)
-            } else {
-              updateChunk.run(item.doc_id, item.kb_id, item.content, dimension, item.id)
-              updateVss.run(vectorJson, existing.rowid)
-            }
+            updateChunk.run(c.doc_id, c.kb_id, c.content, dimension, c.id)
+            updateVss.run(vector, existing.rowid)
           } else {
-            const result = insertChunk.run(
-              item.id,
-              item.doc_id,
-              item.kb_id,
-              item.content,
-              dimension
-            )
-            insertVss.run(result.lastInsertRowid, vectorJson)
+            const res = insertChunk.run(c.id, c.doc_id, c.kb_id, c.content, dimension)
+            insertVss.run(res.lastInsertRowid, vector)
           }
         }
-      })
+      })()
 
-      transaction(chunks)
       return true
     }
   )
 
   ipcMain.handle('sqlite:deleteChunksByDoc', async (_event, doc_id: string) => {
-    const rows = db.prepare('SELECT rowid, dimension FROM chunks WHERE doc_id = ?').all(doc_id) as {
-      rowid: number
-      dimension: number
-    }[]
-
-    if (rows.length > 0) {
-      db.transaction(() => {
-        for (const row of rows) {
-          if (row.dimension) {
-            try {
-              db.prepare(`DELETE FROM vss_chunks_${row.dimension} WHERE rowid = ?`).run(row.rowid)
-            } catch (e) {
-              // Ignore if table doesn't exist
-            }
-          }
-        }
-        db.prepare('DELETE FROM chunks WHERE doc_id = ?').run(doc_id)
-      })()
-    }
+    deleteChunks('doc_id', doc_id)
     return true
   })
 
   ipcMain.handle('sqlite:deleteChunksByKb', async (_event, kb_id: string) => {
-    const rows = db.prepare('SELECT rowid, dimension FROM chunks WHERE kb_id = ?').all(kb_id) as {
-      rowid: number
-      dimension: number
-    }[]
-
-    if (rows.length > 0) {
-      db.transaction(() => {
-        for (const row of rows) {
-          if (row.dimension) {
-            try {
-              db.prepare(`DELETE FROM vss_chunks_${row.dimension} WHERE rowid = ?`).run(row.rowid)
-            } catch (e) {
-              // Ignore if table doesn't exist
-            }
-          }
-        }
-        db.prepare('DELETE FROM chunks WHERE kb_id = ?').run(kb_id)
-      })()
-    }
+    deleteChunks('kb_id', kb_id)
     return true
   })
 
@@ -167,69 +114,55 @@ export const setupSqliteHandlers = () => {
       _event,
       { kb_id, queryEmbedding, topK }: { kb_id: string; queryEmbedding: number[]; topK: number }
     ) => {
-      const dimension = queryEmbedding.length
+      const rows = db
+        .prepare('SELECT DISTINCT dimension FROM chunks WHERE kb_id = ?')
+        .all(kb_id) as { dimension: number }[]
+
+      if (!rows.length) return []
+      if (rows.length > 1) {
+        throw new Error(`KB ${kb_id} contains mixed embedding dimensions`)
+      }
+
+      const dimension = rows[0].dimension
+      if (queryEmbedding.length !== dimension) {
+        throw new Error('Query embedding dimension mismatch')
+      }
+
       ensureVssTable(dimension)
 
-      const searchTopK = Math.max(1, topK || 5)
-      const results = db
+      return db
         .prepare(
           `
-      SELECT 
-        c.id, 
-        c.content, 
-        v.distance 
-      FROM vss_chunks_${dimension} v
-      JOIN chunks c ON v.rowid = c.rowid
-      WHERE vss_search(v.vector, vss_search_params(?, ?)) AND c.kb_id = ?
-      ORDER BY v.distance ASC
-    `
+          SELECT c.id, c.content, v.distance
+          FROM vss_chunks_${dimension} v
+          JOIN chunks c ON v.rowid = c.rowid
+          WHERE vss_search(v.vector, vss_search_params(?, ?))
+            AND c.kb_id = ?
+          ORDER BY v.distance ASC
+        `
         )
-        .all(JSON.stringify(queryEmbedding), searchTopK, kb_id) as {
-        id: string
-        content: string
-        distance: number
-      }[]
-
-      return results.map((r) => ({
-        id: r.id,
-        content: r.content,
-        score: 1 - r.distance
-      }))
+        .all(JSON.stringify(queryEmbedding), Math.max(1, topK || 5), kb_id)
+        .map((r) => ({
+          id: r.id,
+          content: r.content,
+          score: 1 - r.distance
+        }))
     }
   )
+}
 
-  ipcMain.handle(
-    'sqlite:cleanupObsolete',
-    async (
-      _event,
-      { validKbIds, validDocIds }: { validKbIds: string[]; validDocIds: string[] }
-    ) => {
-      const rows = db.prepare('SELECT rowid, dimension, kb_id, doc_id FROM chunks').all() as {
-        rowid: number
-        dimension: number
-        kb_id: string
-        doc_id: string
-      }[]
+const deleteChunks = (field: 'doc_id' | 'kb_id', value: string) => {
+  const rows = db.prepare(`SELECT rowid, dimension FROM chunks WHERE ${field} = ?`).all(value) as {
+    rowid: number
+    dimension: number
+  }[]
 
-      const obsoleteRows = rows.filter(
-        (row) => !validKbIds.includes(row.kb_id) || !validDocIds.includes(row.doc_id)
-      )
+  if (!rows.length) return
 
-      if (obsoleteRows.length > 0) {
-        db.transaction(() => {
-          for (const row of obsoleteRows) {
-            if (typeof row.dimension === 'number' && row.dimension > 0) {
-              try {
-                db.prepare(`DELETE FROM vss_chunks_${row.dimension} WHERE rowid = ?`).run(row.rowid)
-              } catch (e) {
-                // Table might not exist or dimension is invalid
-              }
-            }
-            db.prepare('DELETE FROM chunks WHERE rowid = ?').run(row.rowid)
-          }
-        })()
-      }
-      return obsoleteRows.length
+  db.transaction(() => {
+    for (const { rowid, dimension } of rows) {
+      db.prepare(`DELETE FROM vss_chunks_${dimension} WHERE rowid = ?`).run(rowid)
     }
-  )
+    db.prepare(`DELETE FROM chunks WHERE ${field} = ?`).run(value)
+  })()
 }
