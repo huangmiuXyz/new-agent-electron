@@ -196,7 +196,20 @@ export const RAGService = () => {
     if (allChunks.length === 0) {
       return []
     }
-    const candidates = await vectorSearchInWorker(queryEmbedding, allChunks, retrieveOptions)
+    const candidates = await vectorSearchInWorker(
+      Array.from(queryEmbedding),
+      allChunks.map((c) => ({
+        content: c.content,
+        embedding: Array.from(c.embedding)
+      })),
+      retrieveOptions
+        ? {
+            similarityThreshold: retrieveOptions.similarityThreshold,
+            topK: retrieveOptions.topK,
+            rerankScoreThreshold: retrieveOptions.rerankScoreThreshold
+          }
+        : undefined
+    )
 
     const topK = retrieveOptions?.topK ?? 5
     if (rerankOptions && rerankOptions.model) {
