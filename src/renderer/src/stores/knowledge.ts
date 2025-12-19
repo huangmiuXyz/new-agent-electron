@@ -104,17 +104,7 @@ export const useKnowledgeStore = defineStore(
   },
   {
     persist: {
-      storage: indexedDBStorage,
-      afterRestore: async (ctx) => {
-        if (await window.api.sqlite.isSupported()) {
-          const store = ctx.store as any
-          const validKbIds = store.knowledgeBases.map((kb: any) => kb.id)
-          const validDocIds = store.knowledgeBases.flatMap(
-            (kb: any) => kb.documents?.map((doc: any) => doc.id) || []
-          )
-          await window.api.sqlite.cleanupObsolete({ validKbIds, validDocIds })
-        }
-      }
+      storage: indexedDBStorage
     }
   }
 )
