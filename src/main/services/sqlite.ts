@@ -29,6 +29,8 @@ export const initSqlite = () => {
   if (!tableInfo.some((col) => col.name === 'dimension')) {
     db.exec('ALTER TABLE chunks ADD COLUMN dimension INTEGER')
   }
+
+  db.exec('DELETE FROM chunks WHERE dimension IS NULL OR dimension = 0')
 }
 
 const ensureVssTable = (dimension: number) => {
@@ -82,9 +84,15 @@ export const setupSqliteHandlers = () => {
 
           if (existing) {
             if (existing.dimension !== dimension) {
-              db.prepare(`DELETE FROM vss_chunks_${existing.dimension} WHERE rowid = ?`).run(
-                existing.rowid
-              )
+              if (typeof existing.dimension === 'number' && existing.dimension > 0) {
+                try {
+                  db.prepare(`DELETE FROM vss_chunks_${existing.dimension} WHERE rowid = ?`).run(
+                    existing.rowid
+                  )
+                } catch (e) {
+                  // 旧维度表可能不存在
+                }
+              }
               updateChunk.run(item.doc_id, item.kb_id, item.content, dimension, item.id)
               insertVss.run(existing.rowid, vectorJson)
             } else {
@@ -200,7 +208,13 @@ export const setupSqliteHandlers = () => {
       if (obsoleteRows.length > 0) {
         db.transaction(() => {
           for (const row of obsoleteRows) {
-            db.prepare(`DELETE FROM vss_chunks_${row.dimension} WHERE rowid = ?`).run(row.rowid)
+            if (typeof row.dimension === 'number' && row.dimension > 0) {
+              try {
+                db.prepare(`DELETE FROM vss_chunks_${row.dimension} WHERE rowid = ?`).run(row.rowid)
+              } catch (e) {
+                // Table might not exist or dimension is invalid
+              }
+            }
             db.prepare('DELETE FROM chunks WHERE rowid = ?').run(row.rowid)
           }
         })()

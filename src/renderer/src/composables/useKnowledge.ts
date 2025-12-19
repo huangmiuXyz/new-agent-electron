@@ -31,6 +31,7 @@ export const useKnowledge = () => {
     if (!continueFlag) {
       doc.isSplitting = false
       doc.chunks = []
+      await window.api.sqlite.deleteChunksByDoc(doc.id)
     }
     const abortController = new AbortController()
     doc.abortController = abortController
