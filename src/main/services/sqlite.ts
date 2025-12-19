@@ -179,4 +179,33 @@ export const setupSqliteHandlers = () => {
       }))
     }
   )
+
+  ipcMain.handle(
+    'sqlite:cleanupObsolete',
+    async (
+      _event,
+      { validKbIds, validDocIds }: { validKbIds: string[]; validDocIds: string[] }
+    ) => {
+      const rows = db.prepare('SELECT rowid, dimension, kb_id, doc_id FROM chunks').all() as {
+        rowid: number
+        dimension: number
+        kb_id: string
+        doc_id: string
+      }[]
+
+      const obsoleteRows = rows.filter(
+        (row) => !validKbIds.includes(row.kb_id) || !validDocIds.includes(row.doc_id)
+      )
+
+      if (obsoleteRows.length > 0) {
+        db.transaction(() => {
+          for (const row of obsoleteRows) {
+            db.prepare(`DELETE FROM vss_chunks_${row.dimension} WHERE rowid = ?`).run(row.rowid)
+            db.prepare('DELETE FROM chunks WHERE rowid = ?').run(row.rowid)
+          }
+        })()
+      }
+      return obsoleteRows.length
+    }
+  )
 }

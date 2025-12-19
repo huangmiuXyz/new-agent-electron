@@ -29,6 +29,8 @@ export const api = {
       electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByDoc', docId),
     deleteChunksByKb: (kbId: string) =>
       electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByKb', kbId),
+    cleanupObsolete: (options: { validKbIds: string[]; validDocIds: string[] }) =>
+      electronAPI.ipcRenderer.invoke('sqlite:cleanupObsolete', options),
     search: (options: any) => electronAPI.ipcRenderer.invoke('sqlite:search', options)
   }
 }
