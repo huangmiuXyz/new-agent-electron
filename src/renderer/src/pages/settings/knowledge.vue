@@ -285,7 +285,7 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
             const docInKnowledgeBase = activeKnowledgeBase.value?.documents?.find(d => d.id === doc.id)
             if (docInKnowledgeBase) {
                 if (!activeKnowledgeBase.value.embeddingModel.modelId) return
-                await embedding(docInKnowledgeBase, activeKnowledgeBase.value, false, batchSize.value)
+                await embedding(docInKnowledgeBase, activeKnowledgeBase.value, false, batchSize.value, { input_type: 'passage' })
             }
         }
     }
@@ -378,16 +378,16 @@ const openFolder = (path: string) => {
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <Tags v-if="!activeKnowledgeBase.embeddingModel.modelId" color="red" :tags="['未选择嵌入模型']" />
                             <Button v-if="activeKnowledgeBase?.embeddingModel?.modelId"
-                                @click="embedding(props.row, activeKnowledgeBase, false, batchSize)" size="sm"
-                                type="button" variant="text">
+                                @click="embedding(props.row, activeKnowledgeBase, false, batchSize, { input_type: 'passage' })"
+                                size="sm" type="button" variant="text">
                                 <template #icon>
                                     <Refresh />
                                 </template>
                             </Button>
                             <Button
                                 v-if="activeKnowledgeBase?.embeddingModel?.modelId && !props.row.abortController?.abort && props.row.status !== 'processed'"
-                                @click="embedding(props.row, activeKnowledgeBase, true, batchSize)" size="sm"
-                                type="button" variant="text">
+                                @click="embedding(props.row, activeKnowledgeBase, true, batchSize, { input_type: 'passage' })"
+                                size="sm" type="button" variant="text">
                                 <template #icon>
                                     <Play />
                                 </template>

@@ -7,7 +7,6 @@ export interface RetrieveOptions {
   topK?: number
   rerankScoreThreshold?: number
 }
-
 const rerank = async (
   chunks: Splitter,
   rerankOptions: {
@@ -115,6 +114,7 @@ export const RAGService = () => {
       ) => void
       continueFlag: boolean
       batchSize?: number
+      providerOptions?: embedProviderOptions
     }
   ) => {
     const splitterClone = JSON.parse(JSON.stringify(splitter))
@@ -150,7 +150,12 @@ export const RAGService = () => {
         const { embeddings } = await embedMany({
           model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
           values: batch,
-          abortSignal: options.abortController.signal
+          abortSignal: options.abortController.signal,
+          providerOptions: {
+            'openai-compatible': {
+              input_type: options.providerOptions?.input_type
+            }
+          }
         })
 
         const batchChunks: Splitter = []
@@ -233,7 +238,12 @@ export const RAGService = () => {
   ) => {
     const { embedding: queryEmbedding } = await embed({
       model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
-      value: query
+      value: query,
+      providerOptions: {
+        'openai-compatible': {
+          input_type: 'query'
+        }
+      }
     })
 
     const isSqliteSupported = await window.api.sqlite.isSupported()

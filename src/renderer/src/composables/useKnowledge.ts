@@ -7,8 +7,10 @@ export const useKnowledge = () => {
     doc: KnowledgeDocument,
     knowledge: KnowledgeBase,
     continueFlag: boolean = false,
-    batchSize?: number
+    batchSize?: number,
+    providerOptions?: embedProviderOptions
   ) => {
+    debugger
     const {
       embeddingModel: { modelId, providerId }
     } = knowledge
@@ -67,6 +69,7 @@ export const useKnowledge = () => {
         model: model.name,
         abortController,
         currentChunk: doc.currentChunk,
+        providerOptions,
         onProgress: async (data, current, total, batchChunks) => {
           if (current !== undefined && total !== undefined) {
             doc.currentChunk = current

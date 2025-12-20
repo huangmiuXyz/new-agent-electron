@@ -1,78 +1,72 @@
-import {
-  EmbeddingModelV3,
-  TooManyEmbeddingValuesForCallError,
-} from '@ai-sdk/provider';
+import { EmbeddingModelV3, TooManyEmbeddingValuesForCallError } from '@ai-sdk/provider'
 import {
   combineHeaders,
   createJsonErrorResponseHandler,
   createJsonResponseHandler,
   FetchFunction,
   parseProviderOptions,
-  postJsonToApi,
-} from '@ai-sdk/provider-utils';
-import { z } from 'zod/v4';
+  postJsonToApi
+} from '@ai-sdk/provider-utils'
+import { z } from 'zod/v4'
 import {
   OpenAICompatibleEmbeddingModelId,
-  openaiCompatibleEmbeddingProviderOptions,
-} from './openai-compatible-embedding-options';
+  openaiCompatibleEmbeddingProviderOptions
+} from './openai-compatible-embedding-options'
 import {
   defaultOpenAICompatibleErrorStructure,
-  ProviderErrorStructure,
-} from '../openai-compatible-error';
+  ProviderErrorStructure
+} from '../openai-compatible-error'
 
 type OpenAICompatibleEmbeddingConfig = {
   /**
 Override the maximum number of embeddings per call.
    */
-  maxEmbeddingsPerCall?: number;
+  maxEmbeddingsPerCall?: number
 
   /**
 Override the parallelism of embedding calls.
   */
-  supportsParallelCalls?: boolean;
+  supportsParallelCalls?: boolean
 
-  provider: string;
-  url: (options: { modelId: string; path: string }) => string;
-  headers: () => Record<string, string | undefined>;
-  fetch?: FetchFunction;
-  errorStructure?: ProviderErrorStructure<any>;
-};
+  provider: string
+  url: (options: { modelId: string; path: string }) => string
+  headers: () => Record<string, string | undefined>
+  fetch?: FetchFunction
+  errorStructure?: ProviderErrorStructure<any>
+}
 
 export class OpenAICompatibleEmbeddingModel implements EmbeddingModelV3 {
-  readonly specificationVersion = 'v3';
-  readonly modelId: OpenAICompatibleEmbeddingModelId;
+  readonly specificationVersion = 'v3'
+  readonly modelId: OpenAICompatibleEmbeddingModelId
 
-  private readonly config: OpenAICompatibleEmbeddingConfig;
+  private readonly config: OpenAICompatibleEmbeddingConfig
 
   get provider(): string {
-    return this.config.provider;
+    return this.config.provider
   }
 
   get maxEmbeddingsPerCall(): number {
-    return this.config.maxEmbeddingsPerCall ?? 2048;
+    return this.config.maxEmbeddingsPerCall ?? 2048
   }
 
   get supportsParallelCalls(): boolean {
-    return this.config.supportsParallelCalls ?? true;
+    return this.config.supportsParallelCalls ?? true
   }
 
-  constructor(
-    modelId: OpenAICompatibleEmbeddingModelId,
-    config: OpenAICompatibleEmbeddingConfig,
-  ) {
-    this.modelId = modelId;
-    this.config = config;
+  constructor(modelId: OpenAICompatibleEmbeddingModelId, config: OpenAICompatibleEmbeddingConfig) {
+    this.modelId = modelId
+    this.config = config
   }
 
   private get providerOptionsName(): string {
-    return this.config.provider.split('.')[0].trim();
+    return this.config.provider.split('.')[0].trim()
   }
 
   async doEmbed({
     values,
     headers,
     abortSignal,
-    providerOptions,
+    providerOptions
   }: Parameters<EmbeddingModelV3['doEmbed']>[0]): Promise<
     Awaited<ReturnType<EmbeddingModelV3['doEmbed']>>
   > {
@@ -80,60 +74,55 @@ export class OpenAICompatibleEmbeddingModel implements EmbeddingModelV3 {
       (await parseProviderOptions({
         provider: 'openai-compatible',
         providerOptions,
-        schema: openaiCompatibleEmbeddingProviderOptions,
+        schema: openaiCompatibleEmbeddingProviderOptions
       })) ?? {},
       (await parseProviderOptions({
         provider: this.providerOptionsName,
         providerOptions,
-        schema: openaiCompatibleEmbeddingProviderOptions,
-      })) ?? {},
-    );
+        schema: openaiCompatibleEmbeddingProviderOptions
+      })) ?? {}
+    )
 
     if (values.length > this.maxEmbeddingsPerCall) {
       throw new TooManyEmbeddingValuesForCallError({
         provider: this.provider,
         modelId: this.modelId,
         maxEmbeddingsPerCall: this.maxEmbeddingsPerCall,
-        values,
-      });
+        values
+      })
     }
 
     const {
       responseHeaders,
       value: response,
-      rawValue,
+      rawValue
     } = await postJsonToApi({
       url: this.config.url({
         path: '/embeddings',
-        modelId: this.modelId,
+        modelId: this.modelId
       }),
       headers: combineHeaders(this.config.headers(), headers),
       body: {
         model: this.modelId,
         input: values,
         encoding_format: 'float',
-        dimensions: compatibleOptions.dimensions,
-        user: compatibleOptions.user,
+        ...compatibleOptions
       },
       failedResponseHandler: createJsonErrorResponseHandler(
-        this.config.errorStructure ?? defaultOpenAICompatibleErrorStructure,
+        this.config.errorStructure ?? defaultOpenAICompatibleErrorStructure
       ),
-      successfulResponseHandler: createJsonResponseHandler(
-        openaiTextEmbeddingResponseSchema,
-      ),
+      successfulResponseHandler: createJsonResponseHandler(openaiTextEmbeddingResponseSchema),
       abortSignal,
-      fetch: this.config.fetch,
-    });
+      fetch: this.config.fetch
+    })
 
     return {
       warnings: [],
-      embeddings: response.data.map(item => item.embedding),
-      usage: response.usage
-        ? { tokens: response.usage.prompt_tokens }
-        : undefined,
+      embeddings: response.data.map((item) => item.embedding),
+      usage: response.usage ? { tokens: response.usage.prompt_tokens } : undefined,
       providerMetadata: response.providerMetadata,
-      response: { headers: responseHeaders, body: rawValue },
-    };
+      response: { headers: responseHeaders, body: rawValue }
+    }
   }
 }
 
@@ -142,7 +131,5 @@ export class OpenAICompatibleEmbeddingModel implements EmbeddingModelV3 {
 const openaiTextEmbeddingResponseSchema = z.object({
   data: z.array(z.object({ embedding: z.array(z.number()) })),
   usage: z.object({ prompt_tokens: z.number() }).nullish(),
-  providerMetadata: z
-    .record(z.string(), z.record(z.string(), z.any()))
-    .optional(),
-});
+  providerMetadata: z.record(z.string(), z.record(z.string(), z.any())).optional()
+})
