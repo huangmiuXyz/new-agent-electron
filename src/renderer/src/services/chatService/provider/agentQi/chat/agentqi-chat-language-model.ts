@@ -26,7 +26,7 @@ import {
   agentqiChatChunkSchema,
   agentqiChatResponseSchema,
   AgentQIChatTokenUsage,
-  agentQiErrorSchema
+  agentQIErrorSchema
 } from './agentqi-chat-api-types'
 import { AgentQIChatModelId, agentqiChatOptions } from './agentqi-chat-options'
 import { prepareTools } from './agentqi-prepare-tools'
@@ -54,8 +54,8 @@ export class AgentQIChatLanguageModel implements LanguageModelV3 {
     this.config = config
 
     this.failedResponseHandler = createJsonErrorResponseHandler({
-      errorSchema: agentQiErrorSchema,
-      errorToMessage: (error: InferSchema<typeof agentQiErrorSchema>) => error.error.message
+      errorSchema: agentQIErrorSchema,
+      errorToMessage: (error: InferSchema<typeof agentQIErrorSchema>) => error.error.message
     })
   }
 

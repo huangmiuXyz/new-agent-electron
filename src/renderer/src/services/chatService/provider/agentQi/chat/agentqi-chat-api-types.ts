@@ -75,7 +75,7 @@ const tokenUsageSchema = z
 
 export type AgentQIChatTokenUsage = z.infer<typeof tokenUsageSchema>
 
-export const agentQiErrorSchema = z.object({
+export const agentQIErrorSchema = z.object({
   error: z.object({
     message: z.string(),
     type: z.string().nullish(),
@@ -84,7 +84,7 @@ export const agentQiErrorSchema = z.object({
   })
 })
 
-export type AgentQIErrorData = z.infer<typeof agentQiErrorSchema>
+export type AgentQIErrorData = z.infer<typeof agentQIErrorSchema>
 
 // limited version of the schema, focussed on what is needed for the implementation
 // this approach limits breakages when the API changes and increases efficiency
@@ -151,7 +151,7 @@ export const agentqiChatChunkSchema = lazySchema(() =>
         ),
         usage: tokenUsageSchema
       }),
-      agentQiErrorSchema
+      agentQIErrorSchema
     ])
   )
 )
