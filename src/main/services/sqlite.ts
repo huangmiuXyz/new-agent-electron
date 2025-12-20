@@ -8,18 +8,15 @@ import { is } from '@electron-toolkit/utils'
 let db: Database.Database
 
 export const initSqlite = () => {
-  // 根据环境选择数据库路径
   let dbPath: string
   if (is.dev) {
     dbPath = join(process.cwd(), 'data', 'vector.db')
   } else {
     dbPath = join(app.getPath('userData'), 'Data', 'SQLite', 'vector.db')
   }
-  // 确保数据目录存在
   const dbDir = dirname(dbPath)
   if (!existsSync(dbDir)) {
     mkdirSync(dbDir, { recursive: true })
-    console.log('📁 创建数据库目录：', dbDir)
   }
 
   db = new Database(dbPath)
