@@ -17,13 +17,27 @@ export const useKnowledge = () => {
       messageApi.warning('请选择嵌入模型')
       return
     }
+    const { model, provider } = getModelById(providerId, modelId)!
     if (continueFlag) {
       if (doc.metadata?.modelId !== modelId || doc.metadata.providerId !== providerId) {
         messageApi.error('模型不一致，无法继续')
         return
       }
+      if (
+        doc.metadata?.chunkSize !== knowledge.embeddingConfig?.chunkSize ||
+        doc.metadata?.chunkOverlap !== knowledge.embeddingConfig?.chunkOverlap
+      ) {
+        messageApi.error('分块配置不一致，无法继续')
+        return
+      }
+    } else {
+      doc.metadata = {
+        modelId: model.id,
+        providerId: provider.id,
+        chunkSize: knowledge.embeddingConfig?.chunkSize,
+        chunkOverlap: knowledge.embeddingConfig?.chunkOverlap
+      }
     }
-    const { model, provider } = getModelById(providerId, modelId)!
     if (doc.status === 'processing' && doc.abortController) {
       doc.abortController?.abort?.()
     }
@@ -44,16 +58,12 @@ export const useKnowledge = () => {
     }
 
     try {
-      doc.metadata = {
-        modelId: model.id,
-        providerId: provider.id
-      }
       let splitter: Splitter
       if ((!doc.isSplitting || !continueFlag) && !doc.chunks?.length) {
         const splitterResult = await rag.splitter(doc, {
           type: getSplitTypeByMediaType(doc.type),
-          chunkSize: knowledge.chunkSize,
-          chunkOverlap: knowledge.chunkOverlap
+          chunkSize: doc.metadata?.chunkSize,
+          chunkOverlap: doc.metadata?.chunkOverlap
         })
         splitter = splitterResult.map((e) => ({
           content: e,

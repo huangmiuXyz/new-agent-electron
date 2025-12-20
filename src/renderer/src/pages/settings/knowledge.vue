@@ -65,7 +65,7 @@ const filteredDocuments = computed(() => {
     )
 })
 
-const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'embeddingModel' | 'retrieveConfig' | 'rerankModel' | 'chunkSize' | 'chunkOverlap'>>({
+const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'embeddingModel' | 'retrieveConfig' | 'rerankModel' | 'embeddingConfig'>>({
     showHeader: true,
     initialData: {
         name: '',
@@ -83,8 +83,10 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             topK: 5,
             rerankScoreThreshold: 0.3
         },
-        chunkSize: 1000,
-        chunkOverlap: 200
+        embeddingConfig: {
+            chunkSize: 1000,
+            chunkOverlap: 200
+        }
     },
     fields: [
         {
@@ -104,6 +106,24 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             type: 'modelSelector',
             label: '嵌入模型',
             modelCategory: 'embedding'
+        },
+        {
+            name: 'embeddingConfig.chunkSize',
+            type: 'slider',
+            label: '文档快大小',
+            min: 1,
+            max: 1000,
+            step: 1,
+            hint: '设置文档块的大小'
+        },
+        {
+            name: 'embeddingConfig.chunkOverlap',
+            type: 'slider',
+            label: 'Chunk Overlap',
+            min: 0,
+            max: 1000,
+            step: 1,
+            hint: '设置文档块的重叠大小'
         },
         {
             name: 'rerankModel',
@@ -139,24 +159,6 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             hint: '设置重排后的最小得分阈值',
             ifShow: (data) => !!data.rerankModel?.modelId
         },
-        {
-            name: 'chunkSize',
-            type: 'slider',
-            label: 'Chunk Size',
-            min: 1,
-            max: 1000,
-            step: 1,
-            hint: '设置文档块的大小'
-        },
-        {
-            name: 'chunkOverlap',
-            type: 'slider',
-            label: 'Chunk Overlap',
-            min: 0,
-            max: 1000,
-            step: 1,
-            hint: '设置文档块的重叠大小'
-        }
     ],
     onSubmit: (data) => {
         if (isEditMode.value && activeKnowledgeBaseId.value && activeKnowledgeBase.value) {

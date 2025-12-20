@@ -10,8 +10,10 @@ declare global {
     active: boolean
     created: number
     documents?: KnowledgeDocument[]
-    chunkSize?: number
-    chunkOverlap?: number
+    embeddingConfig?: {
+      chunkSize?: number
+      chunkOverlap?: number
+    }
     retrieveConfig?: {
       similarityThreshold?: number
       topK?: number
@@ -34,6 +36,8 @@ declare global {
     metadata?: {
       modelId: string
       providerId: string
+      chunkSize?: number
+      chunkOverlap?: number
     }
     url?: string
   }
