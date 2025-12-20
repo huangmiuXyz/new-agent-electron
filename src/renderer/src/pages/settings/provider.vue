@@ -74,6 +74,9 @@ const [ProviderForm, formActions] = useForm({
     showHeader: false,
     fields: [
         {
+            name: 'models'
+        },
+        {
             name: 'apiKey',
             type: 'password',
             label: 'API 密钥',

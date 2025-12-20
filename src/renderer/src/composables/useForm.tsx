@@ -86,7 +86,7 @@ interface BaseField<T> {
 
 // 文本输入字段
 export interface TextField<T> extends BaseField<T> {
-  type: 'text' | 'password' | 'email' | 'number'
+  type?: 'text' | 'password' | 'email' | 'number'
   placeholder?: string
   readonly?: boolean
   rest?: () => VNode
@@ -94,12 +94,12 @@ export interface TextField<T> extends BaseField<T> {
 
 // 布尔字段（开关）
 export interface BooleanField<T> extends BaseField<T> {
-  type: 'boolean'
+  type?: 'boolean'
 }
 
 // 滑块字段
 export interface SliderField<T> extends BaseField<T> {
-  type: 'slider'
+  type?: 'slider'
   min?: number
   max?: number
   step?: number
@@ -109,7 +109,7 @@ export interface SliderField<T> extends BaseField<T> {
 
 // 选择字段
 export interface SelectField<T> extends BaseField<T> {
-  type: 'select'
+  type?: 'select'
   options: { label: string; value: string | number }[]
   placeholder?: string
   clearable?: boolean
@@ -117,7 +117,7 @@ export interface SelectField<T> extends BaseField<T> {
 
 // 文本域字段
 export interface TextareaField<T> extends BaseField<T> {
-  type: 'textarea'
+  type?: 'textarea'
   placeholder?: string
   readonly?: boolean
   rows?: number
@@ -126,26 +126,26 @@ export interface TextareaField<T> extends BaseField<T> {
 
 // 数组字段（用于参数列表）
 export interface ArrayField<T> extends BaseField<T> {
-  type: 'array'
+  type?: 'array'
   placeholder?: string
 }
 
 // 对象字段（用于环境变量）
 export interface ObjectField<T> extends BaseField<T> {
-  type: 'object'
+  type?: 'object'
   keyPlaceholder?: string
   valuePlaceholder?: string
 }
 
 // 复选框组字段（用于多选）
 export interface CheckboxGroupField<T> extends BaseField<T> {
-  type: 'checkboxGroup'
+  type?: 'checkboxGroup'
   options: CheckboxOption[]
 }
 
 // 模型选择器字段
 export interface ModelSelectorField<T> extends BaseField<T> {
-  type: 'modelSelector'
+  type?: 'modelSelector'
   placeholder?: string
   popupPosition?: 'bottom' | 'top'
   modelCategory?: ModelCategory
