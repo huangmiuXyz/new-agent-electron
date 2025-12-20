@@ -5,6 +5,7 @@ import { createXai } from '@ai-sdk/xai'
 import { createProviderRegistry } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createOpenAI } from '@ai-sdk/openai'
+import { createCustom } from './provider/custom'
 
 export const createRegistry = (options: { apiKey: string; baseURL: string; name: string }) => {
   return createProviderRegistry({
@@ -14,6 +15,7 @@ export const createRegistry = (options: { apiKey: string; baseURL: string; name:
     xai: createXai(options),
     openai: createOpenAI({ ...options, name: options.name }),
     'openai-compatible': createOpenAICompatible({ ...options, name: options.name }),
-    ollama: createOpenAICompatible({ ...options, name: options.name })
+    ollama: createOpenAICompatible({ ...options, name: options.name }),
+    'agent-qi': createCustom(options)
   })
 }
