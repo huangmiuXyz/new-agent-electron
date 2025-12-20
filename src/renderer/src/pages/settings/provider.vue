@@ -292,13 +292,10 @@ const handleShowSearch = async () => {
                         <Table :loading="loading" :columns="tableColumns"
                             :data="aiSearchModels.length ? aiSearchModels : filteredModels">
                             <template #category="{ row }">
-                                <Tags :tags="[row.category === 'text' ? '文本' :
-                                    row.category === 'embedding' ? '嵌入式' :
-                                        row.category === 'image' ? '图像' :
-                                            row.category === 'rerank' ? '重排' : '文本']" :color="row.category === 'text' ? 'blue' :
-                                                row.category === 'embedding' ? 'green' :
-                                                    row.category === 'image' ? 'orange' :
-                                                        row.category === 'rerank' ? 'purple' : 'blue'" />
+                                <Tags :tags="[getCategoryLabel(row.category)]" :color="row.category === 'text' ? 'blue' :
+                                    row.category === 'embedding' ? 'green' :
+                                        row.category === 'image' ? 'orange' :
+                                            row.category === 'rerank' ? 'purple' : 'blue'" />
                             </template>
                             <template #active="{ row }">
                                 <Switch v-model="row.active" />

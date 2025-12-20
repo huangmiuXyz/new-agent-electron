@@ -231,3 +231,17 @@ export const getSplitTypeByMediaType = (mediaType: string) => {
       return 'text'
   }
 }
+export const getCategoryLabel = (category: string) => {
+  switch (category) {
+    case 'text':
+      return '文本'
+    case 'embedding':
+      return '嵌入式'
+    case 'image':
+      return '图像'
+    case 'rerank':
+      return '重排'
+    default:
+      return '文本'
+  }
+}
