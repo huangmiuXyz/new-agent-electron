@@ -7,8 +7,11 @@ declare global {
     fontSize: number
   }
 
+  interface ollamaSettings {
+    autoStart: boolean
+  }
   // 模型提供商接口
-  interface Provider {
+  type Provider = {
     id: string
     name: string
     logo: string
@@ -16,8 +19,7 @@ declare global {
     baseUrl: string
     providerType: providerType
     models: Model[]
-  }
-
+  } & ollamaSetting
   // 默认模型设置接口
   interface DefaultModelsSettings {
     titleGenerationModelId: string

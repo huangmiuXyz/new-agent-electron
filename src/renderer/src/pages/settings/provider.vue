@@ -43,7 +43,6 @@ const tableColumns = [
 
 const editingModelId = ref<string | null>(null)
 
-// 重置请求地址
 const handleResetBaseUrl = async () => {
     if (!activeProvider.value) return
 
@@ -62,6 +61,13 @@ const handleResetBaseUrl = async () => {
             })
         }
     }
+}
+const ollamaFormFields = (): FormField<Provider>[] => {
+    return [{
+        name: 'autoStart',
+        type: 'boolean',
+        label: '自动启动'
+    }]
 }
 const [ProviderForm, formActions] = useForm({
     title: `${activeProvider.value?.name} 设置`,
@@ -96,7 +102,8 @@ const [ProviderForm, formActions] = useForm({
                 { value: 'openai-compatible', label: 'OpenAI 兼容' },
                 { value: 'ollama', label: 'Ollama' },
             ]
-        }
+        },
+        ...ollamaFormFields()
     ],
     initialData: activeProvider.value,
     onChange: (_field, _value, data) => {
@@ -105,7 +112,6 @@ const [ProviderForm, formActions] = useForm({
         }
     }
 })
-
 // 自定义模型表单
 const [CustomModelForm, customModelFormActions] = useForm({
     title: editingModelId.value ? '编辑模型' : '添加自定义模型',
