@@ -94,7 +94,8 @@ const [ProviderForm, formActions] = useForm({
                 { value: 'google', label: 'Google' },
                 { value: 'xai', label: 'xAI' },
                 { value: 'openai-compatible', label: 'OpenAI 兼容' },
-                { value: 'ollama', label: 'Ollama' }
+                { value: 'ollama', label: 'Ollama' },
+                { value: 'agentqi', label: 'AgentQI' }
             ]
         }
     ],

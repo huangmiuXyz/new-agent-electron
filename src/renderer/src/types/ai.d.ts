@@ -9,6 +9,7 @@ declare global {
     | 'xai'
     | 'openai-compatible'
     | 'ollama'
+    | 'agentqi'
   interface MetaData {
     provider: string
     date: number
