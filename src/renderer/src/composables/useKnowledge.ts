@@ -74,6 +74,7 @@ export const useKnowledge = () => {
       } else {
         splitter = doc.chunks!
       }
+      const { model, provider } = getModelById(doc.metadata?.providerId!, doc.metadata?.modelId!)!
       await rag.embedding(splitter, {
         apiKey: provider.apiKey!,
         baseURL: provider.baseUrl,
