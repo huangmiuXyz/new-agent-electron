@@ -348,6 +348,7 @@ const handleShowSearch = async () => {
                             </div>
                         </template>
                     </FormItem>
+                    <SettingsOllama v-if="activeProvider?.id === 'ollama'" />
                 </template>
             </ProviderForm>
         </template>
