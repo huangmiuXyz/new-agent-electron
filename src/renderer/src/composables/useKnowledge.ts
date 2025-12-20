@@ -50,7 +50,11 @@ export const useKnowledge = () => {
       }
       let splitter: Splitter
       if ((!doc.isSplitting || !continueFlag) && !doc.chunks?.length) {
-        const splitterResult = await rag.splitter(doc)
+        const splitterResult = await rag.splitter(doc, {
+          type: doc.type,
+          chunkSize: knowledge.chunkSize,
+          chunkOverlap: knowledge.chunkOverlap
+        })
         splitter = splitterResult.map((e) => ({
           content: e,
           embedding: []

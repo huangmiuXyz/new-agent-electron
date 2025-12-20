@@ -136,6 +136,24 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             step: 0.1,
             hint: '设置重排后的最小得分阈值',
             ifShow: (data) => !!data.rerankModel?.modelId
+        },
+        {
+            name: 'chunkSize',
+            type: 'slider',
+            label: 'Chunk Size',
+            min: 1,
+            max: 1000,
+            step: 1,
+            hint: '设置文档块的大小'
+        },
+        {
+            name: 'chunkOverlap',
+            type: 'slider',
+            label: 'Chunk Overlap',
+            min: 0,
+            max: 1000,
+            step: 1,
+            hint: '设置文档块的重叠大小'
         }
     ],
     onSubmit: (data) => {

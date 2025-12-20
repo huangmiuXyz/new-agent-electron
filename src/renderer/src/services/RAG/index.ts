@@ -84,16 +84,14 @@ const vectorSearchWorker = useWebWorkerFn(vectorSearch, {
 })
 const { workerFn: vectorSearchInWorker } = vectorSearchWorker
 export const RAGService = () => {
-  const splitter = async (doc: KnowledgeDocument) => {
+  const splitter = async (doc: KnowledgeDocument, splitOptions: SplitOptions) => {
     let text = ''
     try {
       text = window.api.fs.readFileSync(window.api.url.fileURLToPath(doc.path), 'utf-8')
     } catch (error) {
       doc.url && (text = base64ToText(doc.url))
     }
-    const result = await splitTextByType(text, {
-      type: doc.type
-    })
+    const result = await splitTextByType(text, splitOptions)
     return result
   }
   const embedding = async (

@@ -10,6 +10,8 @@ declare global {
     active: boolean
     created: number
     documents?: KnowledgeDocument[]
+    chunkSize?: number
+    chunkOverlap?: number
     retrieveConfig?: {
       similarityThreshold?: number
       topK?: number

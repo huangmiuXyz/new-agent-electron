@@ -1,13 +1,5 @@
 import { RecursiveCharacterTextSplitter, CharacterTextSplitter } from '@langchain/textsplitters'
 
-type SplitType = 'text/markdown' | 'text' | 'code' | 'log'
-
-interface SplitOptions {
-  type: SplitType
-  chunkSize?: number
-  chunkOverlap?: number
-}
-
 function getTextSplitter({ type, chunkSize = 800, chunkOverlap = 100 }: SplitOptions) {
   switch (type) {
     case 'text/markdown':
