@@ -6,7 +6,7 @@ import { join } from 'path'
 let db: Database.Database
 
 export const initSqlite = () => {
-  const dbPath = join(app.getPath('userData'), 'vector.db')
+  const dbPath = join(app.getPath('userData'), 'Data', 'SQLite', 'vector.db')
   db = new Database(dbPath)
 
   try {
