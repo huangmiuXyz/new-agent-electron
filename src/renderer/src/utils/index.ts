@@ -217,3 +217,17 @@ export const base64ToText = (base64: string) => {
 
   return new TextDecoder('utf-8').decode(bytes)
 }
+export const getSplitTypeByMediaType = (mediaType: string) => {
+  switch (mediaType) {
+    case 'text/markdown':
+      return 'text/markdown'
+    case 'text':
+      return 'text'
+    case 'code':
+      return 'code'
+    case 'log':
+      return 'log'
+    default:
+      return 'text'
+  }
+}
