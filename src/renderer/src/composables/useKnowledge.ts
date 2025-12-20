@@ -10,7 +10,6 @@ export const useKnowledge = () => {
     batchSize?: number,
     providerOptions?: embedProviderOptions
   ) => {
-    debugger
     const {
       embeddingModel: { modelId, providerId }
     } = knowledge
