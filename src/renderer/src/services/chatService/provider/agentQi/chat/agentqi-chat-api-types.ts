@@ -1,62 +1,62 @@
-import { lazySchema, zodSchema } from '@ai-sdk/provider-utils';
-import { z } from 'zod/v4';
+import { lazySchema, zodSchema } from '@ai-sdk/provider-utils'
+import { z } from 'zod/v4'
 
-export type DeepSeekChatPrompt = Array<DeepSeekMessage>;
+export type AgentQIChatPrompt = Array<AgentQIMessage>
 
-export type DeepSeekMessage =
-  | DeepSeekSystemMessage
-  | DeepSeekUserMessage
-  | DeepSeekAssistantMessage
-  | DeepSeekToolMessage;
+export type AgentQIMessage =
+  | AgentQISystemMessage
+  | AgentQIUserMessage
+  | AgentQIAssistantMessage
+  | AgentQIToolMessage
 
-export interface DeepSeekSystemMessage {
-  role: 'system';
-  content: string;
+export interface AgentQISystemMessage {
+  role: 'system'
+  content: string
 }
 
-export interface DeepSeekUserMessage {
-  role: 'user';
-  content: string;
+export interface AgentQIUserMessage {
+  role: 'user'
+  content: string
 }
 
-export interface DeepSeekAssistantMessage {
-  role: 'assistant';
-  content?: string | null;
-  reasoning_content?: string;
-  tool_calls?: Array<DeepSeekMessageToolCall>;
+export interface AgentQIAssistantMessage {
+  role: 'assistant'
+  content?: string | null
+  reasoning_content?: string
+  tool_calls?: Array<AgentQIMessageToolCall>
 }
 
-export interface DeepSeekMessageToolCall {
-  type: 'function';
-  id: string;
+export interface AgentQIMessageToolCall {
+  type: 'function'
+  id: string
   function: {
-    arguments: string;
-    name: string;
-  };
+    arguments: string
+    name: string
+  }
 }
 
-export interface DeepSeekToolMessage {
-  role: 'tool';
-  content: string;
-  tool_call_id: string;
+export interface AgentQIToolMessage {
+  role: 'tool'
+  content: string
+  tool_call_id: string
 }
 
-export interface DeepSeekFunctionTool {
-  type: 'function';
+export interface AgentQIFunctionTool {
+  type: 'function'
   function: {
-    name: string;
-    description: string | undefined;
-    parameters: unknown;
-    strict?: boolean;
-  };
+    name: string
+    description: string | undefined
+    parameters: unknown
+    strict?: boolean
+  }
 }
 
-export type DeepSeekToolChoice =
+export type AgentQIToolChoice =
   | { type: 'function'; function: { name: string } }
   | 'auto'
   | 'none'
   | 'required'
-  | undefined;
+  | undefined
 
 const tokenUsageSchema = z
   .object({
@@ -67,28 +67,28 @@ const tokenUsageSchema = z
     total_tokens: z.number().nullish(),
     completion_tokens_details: z
       .object({
-        reasoning_tokens: z.number().nullish(),
+        reasoning_tokens: z.number().nullish()
       })
-      .nullish(),
+      .nullish()
   })
-  .nullish();
+  .nullish()
 
-export type DeepSeekChatTokenUsage = z.infer<typeof tokenUsageSchema>;
+export type AgentQIChatTokenUsage = z.infer<typeof tokenUsageSchema>
 
-export const deepSeekErrorSchema = z.object({
+export const agentQiErrorSchema = z.object({
   error: z.object({
     message: z.string(),
     type: z.string().nullish(),
     param: z.any().nullish(),
-    code: z.union([z.string(), z.number()]).nullish(),
-  }),
-});
+    code: z.union([z.string(), z.number()]).nullish()
+  })
+})
 
-export type DeepSeekErrorData = z.infer<typeof deepSeekErrorSchema>;
+export type AgentQIErrorData = z.infer<typeof agentQiErrorSchema>
 
 // limited version of the schema, focussed on what is needed for the implementation
 // this approach limits breakages when the API changes and increases efficiency
-export const deepseekChatResponseSchema = z.object({
+export const agentqiChatResponseSchema = z.object({
   id: z.string().nullish(),
   created: z.number().nullish(),
   model: z.string().nullish(),
@@ -104,21 +104,21 @@ export const deepseekChatResponseSchema = z.object({
               id: z.string().nullish(),
               function: z.object({
                 name: z.string(),
-                arguments: z.string(),
-              }),
-            }),
+                arguments: z.string()
+              })
+            })
           )
-          .nullish(),
+          .nullish()
       }),
-      finish_reason: z.string().nullish(),
-    }),
+      finish_reason: z.string().nullish()
+    })
   ),
-  usage: tokenUsageSchema,
-});
+  usage: tokenUsageSchema
+})
 
 // limited version of the schema, focussed on what is needed for the implementation
 // this approach limits breakages when the API changes and increases efficiency
-export const deepseekChatChunkSchema = lazySchema(() =>
+export const agentqiChatChunkSchema = lazySchema(() =>
   zodSchema(
     z.union([
       z.object({
@@ -139,19 +139,19 @@ export const deepseekChatChunkSchema = lazySchema(() =>
                       id: z.string().nullish(),
                       function: z.object({
                         name: z.string().nullish(),
-                        arguments: z.string().nullish(),
-                      }),
-                    }),
+                        arguments: z.string().nullish()
+                      })
+                    })
                   )
-                  .nullish(),
+                  .nullish()
               })
               .nullish(),
-            finish_reason: z.string().nullish(),
-          }),
+            finish_reason: z.string().nullish()
+          })
         ),
-        usage: tokenUsageSchema,
+        usage: tokenUsageSchema
       }),
-      deepSeekErrorSchema,
-    ]),
-  ),
-);
+      agentQiErrorSchema
+    ])
+  )
+)

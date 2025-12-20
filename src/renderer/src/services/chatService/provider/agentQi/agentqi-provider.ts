@@ -5,13 +5,13 @@ import {
   withoutTrailingSlash,
   withUserAgentSuffix
 } from '@ai-sdk/provider-utils'
-import { DeepSeekChatModelId } from './chat/deepseek-chat-options'
-import { DeepSeekChatLanguageModel } from './chat/deepseek-chat-language-model'
+import { AgentQIChatModelId } from './chat/agentqi-chat-options'
+import { AgentQIChatLanguageModel } from './chat/agentqi-chat-language-model'
 import { VERSION } from './version'
 
-export interface DeepSeekProviderSettings {
+export interface AgentQIProviderSettings {
   /**
-   * DeepSeek API key.
+   * AgentQI API key.
    */
   apiKey?: string
 
@@ -32,21 +32,21 @@ export interface DeepSeekProviderSettings {
   fetch?: FetchFunction
 }
 
-export interface DeepSeekProvider extends ProviderV3 {
+export interface AgentQIProvider extends ProviderV3 {
   /**
-Creates a DeepSeek model for text generation.
+Creates a AgentQI model for text generation.
 */
-  (modelId: DeepSeekChatModelId): LanguageModelV3
+  (modelId: AgentQIChatModelId): LanguageModelV3
 
   /**
-Creates a DeepSeek model for text generation.
+Creates a AgentQI model for text generation.
 */
-  languageModel(modelId: DeepSeekChatModelId): LanguageModelV3
+  languageModel(modelId: AgentQIChatModelId): LanguageModelV3
 
   /**
-Creates a DeepSeek chat model for text generation.
+Creates a AgentQI chat model for text generation.
 */
-  chat(modelId: DeepSeekChatModelId): LanguageModelV3
+  chat(modelId: AgentQIChatModelId): LanguageModelV3
 
   /**
    * @deprecated Use `embeddingModel` instead.
@@ -54,32 +54,32 @@ Creates a DeepSeek chat model for text generation.
   textEmbeddingModel(modelId: string): never
 }
 
-export function createDeepSeek(options: DeepSeekProviderSettings = {}): DeepSeekProvider {
-  const baseURL = withoutTrailingSlash(options.baseURL ?? 'https://api.deepseek.com')
+export function createAgentQI(options: AgentQIProviderSettings = {}): AgentQIProvider {
+  const baseURL = withoutTrailingSlash(options.baseURL ?? 'https://api.agentqi.com')
 
   const getHeaders = () =>
     withUserAgentSuffix(
       {
         Authorization: `Bearer ${loadApiKey({
           apiKey: options.apiKey,
-          environmentVariableName: 'DEEPSEEK_API_KEY',
-          description: 'DeepSeek API key'
+          environmentVariableName: 'AGENTQI_API_KEY',
+          description: 'AgentQI API key'
         })}`,
         ...options.headers
       },
-      `ai-sdk/deepseek/${VERSION}`
+      `ai-sdk/agentqi/${VERSION}`
     )
 
-  const createLanguageModel = (modelId: DeepSeekChatModelId) => {
-    return new DeepSeekChatLanguageModel(modelId, {
-      provider: `deepseek.chat`,
+  const createLanguageModel = (modelId: AgentQIChatModelId) => {
+    return new AgentQIChatLanguageModel(modelId, {
+      provider: `agentqi.chat`,
       url: ({ path }) => `${baseURL}${path}`,
       headers: getHeaders,
       fetch: options.fetch
     })
   }
 
-  const provider = (modelId: DeepSeekChatModelId) => createLanguageModel(modelId)
+  const provider = (modelId: AgentQIChatModelId) => createLanguageModel(modelId)
 
   provider.specificationVersion = 'v3' as const
   provider.languageModel = createLanguageModel
@@ -96,4 +96,4 @@ export function createDeepSeek(options: DeepSeekProviderSettings = {}): DeepSeek
   return provider
 }
 
-export const deepseek = createDeepSeek()
+export const agentqi = createAgentQI()
