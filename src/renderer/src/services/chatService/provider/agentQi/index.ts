@@ -1,4 +1,4 @@
-export { createAgentQI as createCustom, agentqi } from './agentqi-provider'
+export { createAgentQI, agentqi } from './agentqi-provider'
 export type { AgentQIProvider, AgentQIProviderSettings } from './agentqi-provider'
 export { VERSION } from './version'
 export type { AgentQIChatOptions } from './chat/agentqi-chat-options'
