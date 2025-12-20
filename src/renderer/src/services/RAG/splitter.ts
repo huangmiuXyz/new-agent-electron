@@ -1,6 +1,6 @@
 import { RecursiveCharacterTextSplitter, CharacterTextSplitter } from '@langchain/textsplitters'
 
-function getTextSplitter({ type, chunkSize = 800, chunkOverlap = 100 }: SplitOptions) {
+function getTextSplitter({ type, chunkSize, chunkOverlap }: SplitOptions) {
   switch (type) {
     case 'text/markdown':
       return new RecursiveCharacterTextSplitter({
