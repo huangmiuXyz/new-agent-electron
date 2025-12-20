@@ -23,7 +23,7 @@ declare global {
     id: string
     name: string
     path: string
-    type: SplitType
+    type: string
     size: number
     created: number
     status: KnowledgeDocumentStatus

@@ -65,7 +65,7 @@ const filteredDocuments = computed(() => {
     )
 })
 
-const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'embeddingModel' | 'retrieveConfig' | 'rerankModel'>>({
+const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'description' | 'embeddingModel' | 'retrieveConfig' | 'rerankModel' | 'chunkSize' | 'chunkOverlap'>>({
     showHeader: true,
     initialData: {
         name: '',
@@ -82,7 +82,9 @@ const [KnowledgeBaseForm, formActions] = useForm<Pick<KnowledgeBase, 'name' | 'd
             similarityThreshold: 0.2,
             topK: 5,
             rerankScoreThreshold: 0.3
-        }
+        },
+        chunkSize: 1000,
+        chunkOverlap: 200
     },
     fields: [
         {
