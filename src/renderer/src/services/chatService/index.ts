@@ -40,7 +40,7 @@ export const chatService = () => {
       thinkingMode
     }: ChatServiceConfig
   ) => {
-    let tools: any = {}
+    let tools: Tools = {}
     const builtinTools = getBuiltinTools({ knowledgeBaseIds })
 
     if (selectedBuiltinTools && selectedBuiltinTools.length > 0) {
@@ -106,7 +106,7 @@ export const chatService = () => {
     })
     const controller = new AbortController()
     const stream = await agent.stream({
-      messages: convertToModelMessages(messages),
+      messages: await convertToModelMessages(messages),
       abortSignal: controller.signal
     })
     const uiStream = stream.toUIMessageStream({
