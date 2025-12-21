@@ -35,8 +35,9 @@ export const onUseAIBefore = async ({
 
       return false
     }
-
-    if (!(await execPromise('ollama --version'))) {
+    try {
+      await execPromise('ollama --version')
+    } catch {
       messageApi.error('未检测到 Ollama，请先安装。')
       throw new Error('ollama not installed')
     }
