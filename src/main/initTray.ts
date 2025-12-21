@@ -60,7 +60,6 @@ export function initTray(mainWindow: BrowserWindow): void {
     }
   })
 
-  // 处理dock栏点击激活 - 只处理窗口存在的情况
   app.on('activate', function () {
     const windows = BrowserWindow.getAllWindows()
     if (windows.length > 0) {
