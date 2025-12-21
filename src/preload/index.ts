@@ -10,7 +10,6 @@ import { exec } from 'child_process'
 import os from 'os'
 // Custom APIs for renderer
 
-// @ts-ignore
 export const api = {
   ...aiServices(),
   showOpenDialog: async (options: Electron.OpenDialogOptions) =>
