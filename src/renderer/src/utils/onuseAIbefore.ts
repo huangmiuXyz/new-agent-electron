@@ -10,8 +10,7 @@ export const onUseAIBefore = async ({
   baseURL: string
 }) => {
   if (providerType === 'ollama') {
-    const url = baseURL || 'http://127.0.0.1:11434'
-
+    const url = baseURL
     const isRunning = async (): Promise<boolean> => {
       try {
         const res = await fetch(`${url}/models`, {
@@ -48,7 +47,7 @@ export const onUseAIBefore = async ({
     }
 
     if (!(await isRunning())) {
-      window.api.startOllama()
+      window.api.startOllama(url)
 
       const ok = await waitUntilRunning(10_000, 500)
       if (!ok) {

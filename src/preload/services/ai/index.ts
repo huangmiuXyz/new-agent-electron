@@ -19,7 +19,7 @@ type Tools = Awaited<ReturnType<MCPClient['tools']>>
 
 interface aiServiceResult {
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
-  startOllama: () => void
+  startOllama: (OLLAMA_HOST: string) => void
 }
 
 export const aiServices = (): aiServiceResult => {
@@ -89,10 +89,13 @@ export const aiServices = (): aiServiceResult => {
     return toolsCache
   }
 
-  const startOllama = () => {
+  const startOllama = (OLLAMA_HOST: string) => {
     spawn('ollama', ['serve'], {
-      detached: false,
-      stdio: 'inherit'
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        OLLAMA_HOST
+      }
     })
   }
   return {
