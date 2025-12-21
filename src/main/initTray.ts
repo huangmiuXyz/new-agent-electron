@@ -5,7 +5,7 @@ let tray: Tray | null = null
 let isQuitting = false
 
 export function initTray(mainWindow: BrowserWindow): void {
-  const trayIcon = nativeImage.createFromPath(path.join(__dirname, 'tray.png'))
+  const trayIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'))
 
   tray = new Tray(trayIcon)
   tray.setToolTip('AI助手')
