@@ -6,8 +6,8 @@ let isQuitting = false
 
 export function initTray(mainWindow: BrowserWindow): void {
   const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'tray.png')
-    : path.join(app.getAppPath(), 'resources/tray.png')
+    ? path.join(process.resourcesPath, 'Q.png')
+    : path.join(app.getAppPath(), 'resources/Q.png')
 
   const trayIcon = nativeImage.createFromPath(iconPath)
 
