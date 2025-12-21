@@ -12,23 +12,16 @@ const agentStore = useAgentStore()
 const windowId = route.query.windowId as string
 
 onMounted(async () => {
-  // Wait for store hydration if needed
   await new Promise(resolve => setTimeout(resolve, 100))
 
   if (windowId) {
-    console.log('Fetching temp chat data for window:', windowId)
     const data = await window.api.getTempChatData(windowId)
-    console.log('Received temp chat data:', data)
 
     if (data) {
-      // Create new chat
       const chatId = chatStore.createChat('临时会话', { isTemp: true })
 
-      // Update Agent if provided
       if (data.agent) {
-        console.log('Adding temp agent:', data.agent)
         agentStore.addTempAgent(data.agent)
-        // Ensure reactivity propagates
         await nextTick()
         agentStore.selectAgent(data.agent.id)
 
@@ -36,14 +29,11 @@ onMounted(async () => {
         if (chat) chat.agentId = data.agent.id
       } else if (data.agentId) {
         agentStore.selectAgent(data.agentId)
-        // Also update chat agentId? The store createChat uses selectedAgentId
         const chat = chatStore.getChatById(chatId)
         if (chat) chat.agentId = data.agentId
       }
 
-      // Update Model if provided
       if (data.model) {
-        // Find provider for the model
         for (const provider of settingsStore.providers) {
           if (provider.models?.some(m => m.id === data.model)) {
             settingsStore.selectedProviderId = provider.id
@@ -53,20 +43,16 @@ onMounted(async () => {
         }
       }
 
-      // Populate history
       if (data.history && Array.isArray(data.history) && data.history.length > 0) {
         chatStore.updateMessages(chatId, data.history)
       }
 
-      // Set active
       chatStore.setActiveChat(chatId)
 
-      // Auto Reply
       if (data.autoReply && data.history && data.history.length > 0) {
         const lastMessage = data.history[data.history.length - 1]
         if (lastMessage && lastMessage.role === 'user') {
           const { regenerate } = useChat(chatId)
-          // Small delay to ensure everything is ready
           setTimeout(() => {
             regenerate(lastMessage.id)
           }, 500)
