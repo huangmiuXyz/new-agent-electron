@@ -514,11 +514,11 @@ export const getBuiltinTools = (options: { knowledgeBaseIds?: string[] }): Tools
         toolResult: {
           content: [
             {
-              type: 'text',
+              type: 'stdout',
               text: result.stdout
             },
             {
-              type: 'text',
+              type: 'stderr',
               text: result.stderr
             }
           ]
