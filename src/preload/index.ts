@@ -10,6 +10,7 @@ import { exec } from 'child_process'
 import os from 'os'
 // Custom APIs for renderer
 
+// @ts-ignore ts(2742)
 export const api = {
   ...aiServices(),
   showOpenDialog: async (options: Electron.OpenDialogOptions) =>
@@ -37,7 +38,7 @@ export const api = {
   createTempChat: (data: any) => electronAPI.ipcRenderer.invoke('window:create-temp-chat', data),
   getTempChatData: (windowId: string) =>
     electronAPI.ipcRenderer.invoke('window:get-temp-chat-data', windowId)
-}
+} satisfies typeof api
 
 export type API = typeof api
 if (process.contextIsolated) {
