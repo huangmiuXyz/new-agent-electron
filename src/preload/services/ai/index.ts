@@ -1,5 +1,6 @@
 import { experimental_createMCPClient, type experimental_MCPClient as MCPClient } from '@ai-sdk/mcp'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { spawn } from 'child_process'
 
 type ClientConfig = Record<
   string,
@@ -18,6 +19,7 @@ type Tools = Awaited<ReturnType<MCPClient['tools']>>
 
 interface aiServiceResult {
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
+  startOllama: () => void
 }
 
 export const aiServices = (): aiServiceResult => {
@@ -87,7 +89,16 @@ export const aiServices = (): aiServiceResult => {
     return toolsCache
   }
 
+  const startOllama = () => {
+    const cp = spawn('ollama', ['serve'], {
+      detached: true,
+      stdio: 'ignore'
+    })
+
+    cp.unref()
+  }
   return {
-    list_tools
+    list_tools,
+    startOllama
   }
 }

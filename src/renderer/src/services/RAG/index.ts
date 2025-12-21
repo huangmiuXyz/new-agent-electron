@@ -115,6 +115,12 @@ export const RAGService = () => {
       providerOptions?: embedProviderOptions
     }
   ) => {
+    await onUseAIBefore({
+      model: options.model,
+      providerType: options.providerType,
+      apiKey: options.apiKey,
+      baseURL: options.baseURL
+    })
     const splitterClone = JSON.parse(JSON.stringify(splitter))
     const total = splitterClone.length
     let processed = 0
@@ -234,6 +240,12 @@ export const RAGService = () => {
       name: string
     }
   ) => {
+    await onUseAIBefore({
+      model: options.model,
+      providerType: options.providerType,
+      apiKey: options.apiKey,
+      baseURL: options.baseURL
+    })
     const { embedding: queryEmbedding } = await embed({
       model: createRegistry(options).embeddingModel(`${options.providerType}:${options.model}`),
       value: query,

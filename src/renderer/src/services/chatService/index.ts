@@ -40,6 +40,7 @@ export const chatService = () => {
       thinkingMode
     }: ChatServiceConfig
   ) => {
+    await onUseAIBefore({ model, providerType, apiKey, baseURL })
     let tools: Tools = {}
     const builtinTools = getBuiltinTools({ knowledgeBaseIds })
 
@@ -136,6 +137,7 @@ export const chatService = () => {
       toolChoice = 'auto'
     }: ChatServiceOptions
   ) => {
+    await onUseAIBefore({ model, providerType, apiKey, baseURL })
     try {
       const result = await _generateText({
         model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
@@ -158,6 +160,7 @@ export const chatService = () => {
     { model, apiKey, baseURL, provider, providerType }: ChatServiceOptions,
     abortSignal?: AbortSignal
   ) => {
+    await onUseAIBefore({ model, providerType, apiKey, baseURL })
     const prompt = `请将以下文本翻译为${targetLanguage}，只返回翻译结果，不要添加任何解释或额外内容：\n\n${text}`
     try {
       const result = await _generateText({
@@ -173,7 +176,8 @@ export const chatService = () => {
       throw error
     }
   }
-  const list_models = async ({ baseURL, apiKey }) => {
+  const list_models = async ({ baseURL, apiKey, providerType }) => {
+    await onUseAIBefore({ providerType, apiKey, baseURL })
     try {
       const models = await fetch(`${baseURL}/models`, {
         method: 'GET',

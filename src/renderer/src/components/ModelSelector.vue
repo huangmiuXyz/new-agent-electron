@@ -4,7 +4,7 @@ const selectedModelId = defineModel<string>('modelId', { default: '' })
 const selectedProviderId = defineModel<string>('providerId', { default: '' })
 
 const props = withDefaults(defineProps<{
-  type: 'icon' | 'select',
+  type?: 'icon' | 'select',
   popupPosition?: 'top' | 'bottom'
   category?: ModelCategory
 }>(), {
