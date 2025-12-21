@@ -6,7 +6,7 @@ import path from 'path'
 import mime from 'mime-types'
 import url from 'url'
 import { app } from '@electron/remote'
-import { exec, spawn } from 'child_process'
+import { exec } from 'child_process'
 // Custom APIs for renderer
 
 // @ts-ignore
@@ -32,7 +32,8 @@ export const api = {
       electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByKb', kbId),
     search: (options: any) => electronAPI.ipcRenderer.invoke('sqlite:search', options)
   },
-  exec
+  exec,
+  os
 }
 
 export type API = typeof api
