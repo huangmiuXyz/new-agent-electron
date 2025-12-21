@@ -47,6 +47,7 @@ export const onUseAIBefore = async ({
     }
     if (!(await isRunning())) {
       window.api.startOllama()
+      messageApi.info('自动启动ollama。')
 
       const ok = await waitUntilRunning(10_000, 500)
       if (!ok) {
