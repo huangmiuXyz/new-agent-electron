@@ -482,25 +482,6 @@ export const getBuiltinTools = (options: { knowledgeBaseIds?: string[] }): Tools
       }
     }
   },
-  // 获取系统类型
-  get_system_type: {
-    title: '获取系统类型',
-    description: '获取当前操作系统的类型',
-    inputSchema: z.object({}),
-    execute: async () => {
-      const os = window.api.os.platform()
-      return {
-        toolResult: {
-          content: [
-            {
-              type: 'text',
-              text: os
-            }
-          ]
-        }
-      }
-    }
-  },
   exec_command: {
     title: '执行命令',
     description: '执行命令',
