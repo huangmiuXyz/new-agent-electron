@@ -1,7 +1,7 @@
 import { experimental_createMCPClient, type experimental_MCPClient as MCPClient } from '@ai-sdk/mcp'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { spawn } from 'child_process'
-
+import os from 'os'
 type ClientConfig = Record<
   string,
   {
@@ -19,7 +19,7 @@ type Tools = Awaited<ReturnType<MCPClient['tools']>>
 
 interface aiServiceResult {
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
-  startOllama: (OLLAMA_HOST: string) => void
+  startOllama: () => void
 }
 
 export const aiServices = (): aiServiceResult => {
@@ -88,16 +88,26 @@ export const aiServices = (): aiServiceResult => {
 
     return toolsCache
   }
-
-  const startOllama = (OLLAMA_HOST: string) => {
-    spawn('ollama', ['serve'], {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        OLLAMA_HOST
-      }
-    })
+  const startOllama = () => {
+    const platform = os.platform()
+    if (platform === 'darwin') {
+      spawn('open', ['-a', 'Ollama'], {
+        detached: true,
+        stdio: 'ignore'
+      })
+    } else if (platform === 'win32') {
+      spawn('cmd', ['/c', 'start', '', 'Ollama'], {
+        detached: true,
+        stdio: 'ignore'
+      })
+    } else {
+      spawn('ollama', ['serve'], {
+        detached: true,
+        stdio: 'ignore'
+      })
+    }
   }
+
   return {
     list_tools,
     startOllama
