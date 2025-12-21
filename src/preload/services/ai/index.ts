@@ -90,12 +90,10 @@ export const aiServices = (): aiServiceResult => {
   }
 
   const startOllama = () => {
-    const cp = spawn('ollama', ['serve'], {
-      detached: true,
-      stdio: 'ignore'
+    spawn('ollama', ['serve'], {
+      detached: false,
+      stdio: 'inherit'
     })
-
-    cp.unref()
   }
   return {
     list_tools,
