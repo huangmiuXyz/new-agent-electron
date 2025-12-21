@@ -45,9 +45,8 @@ export const onUseAIBefore = async ({
       messageApi.error('未检测到 Ollama，请先安装。')
       throw new Error('ollama not installed')
     }
-
     if (!(await isRunning())) {
-      window.api.startOllama(url)
+      window.api.startOllama(getHost(url))
 
       const ok = await waitUntilRunning(10_000, 500)
       if (!ok) {

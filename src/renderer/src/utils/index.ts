@@ -245,3 +245,18 @@ export const getCategoryLabel = (category: string) => {
       return '文本'
   }
 }
+export const getHost = (input: string) => {
+  if (typeof input !== 'string' || !input.trim()) {
+    throw new TypeError('getHost: input must be a non-empty string')
+  }
+
+  let url
+
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(input)) {
+    url = new URL(input)
+  } else {
+    url = new URL(`http://${input}`)
+  }
+
+  return url.host
+}
