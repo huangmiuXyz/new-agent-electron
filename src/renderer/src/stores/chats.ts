@@ -2,18 +2,23 @@ export const useChatsStores = defineStore(
   'chats',
   () => {
     const chats = ref<Chat[]>([])
+    const tempChats = ref<Chat[]>([]) // 临时会话列表
     const activeChatId = ref<string | null>(null)
     const titleGeneratingChats = ref<Set<string>>(new Set())
 
+    const allChats = computed(() => {
+      return [...chats.value, ...tempChats.value]
+    })
+
     const currentChat = computed(() => {
-      return chats.value.find((c) => c.id === activeChatId.value) || null
+      return allChats.value.find((c) => c.id === activeChatId.value) || null
     })
 
     const isTitleGenerating = (chatId: string) => {
       return titleGeneratingChats.value.has(chatId)
     }
 
-    const createChat = (title = '新的聊天') => {
+    const createChat = (title = '新的聊天', options?: { isTemp?: boolean }) => {
       const agentStore = useAgentStore()
       const id = nanoid()
       const chat: Chat = {
@@ -21,16 +26,25 @@ export const useChatsStores = defineStore(
         title,
         messages: [],
         createdAt: Date.now(),
-        agentId: agentStore.selectedAgentId || 'default'
+        agentId: agentStore.selectedAgentId || 'default',
+        isTemp: options?.isTemp
       }
-      chats.value.push(chat)
+
+      if (options?.isTemp) {
+        tempChats.value.push(chat)
+      } else {
+        chats.value.push(chat)
+      }
+
       activeChatId.value = id
       return id
     }
     const getChatById = (id: string) => {
-      return chats.value.find((c) => c.id === id)
+      return allChats.value.find((c) => c.id === id)
     }
     const deleteChat = (id: string) => {
+      // Try deleting from main chats
+      const initialLength = chats.value.length
       chats.value = chats.value.filter((c) => {
         if (c.id === id) {
           c.messages.forEach((m) => {
@@ -40,9 +54,31 @@ export const useChatsStores = defineStore(
         return c.id !== id
       })
 
-      if (activeChatId.value === id) {
-        activeChatId.value = chats.value[0]?.id || null
+      // If not found/deleted in main, try temp chats
+      if (chats.value.length === initialLength) {
+        tempChats.value = tempChats.value.filter((c) => {
+          if (c.id === id) {
+            c.messages.forEach((m) => {
+              m.metadata?.stop?.()
+            })
+          }
+          return c.id !== id
+        })
       }
+
+      if (activeChatId.value === id) {
+        activeChatId.value = allChats.value[0]?.id || null
+      }
+    }
+    // ... rest of the functions use getChatById so they should work with allChats
+    // except addMessageToChat uses currentChat which uses allChats
+    // activeChatId works across both
+
+    // The other functions can remain largely the same if they rely on getChatById
+    // But let's check addMessageToChat
+    const addMessageToChat = (msg: BaseMessage) => {
+      currentChat.value!.messages.push(msg)
+      return msg.id
     }
     const deleteMessage = (cid: string, mid: string) => {
       const chat = getChatById(cid)!
@@ -66,10 +102,6 @@ export const useChatsStores = defineStore(
       activeChatId.value = id
     }
 
-    const addMessageToChat = (msg: BaseMessage) => {
-      currentChat.value!.messages.push(msg)
-      return msg.id
-    }
     const updateMessage = (cid: string, mid: string, newParts: ContentBlock[]) => {
       const chat = getChatById(cid)
       if (!chat) return
@@ -118,6 +150,8 @@ export const useChatsStores = defineStore(
       forkChat,
       updateMessages,
       chats,
+      tempChats,
+      allChats,
       activeChatId,
       currentChat,
       createChat,
@@ -135,7 +169,8 @@ export const useChatsStores = defineStore(
   },
   {
     persist: {
-      storage: indexedDBStorage
+      storage: indexedDBStorage,
+      paths: ['chats', 'activeChatId'] // tempChats shouldn't be here by default unless 'paths' matches all refs if undefined. Explicitly setting paths is safer.
     }
   }
 )

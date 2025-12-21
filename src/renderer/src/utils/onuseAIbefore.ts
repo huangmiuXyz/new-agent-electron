@@ -38,7 +38,36 @@ export const onUseAIBefore = async ({
     try {
       await execPromise('ollama --version')
     } catch {
-      messageApi.error('未检测到 Ollama，请先安装。')
+      useModal().confirm({
+        title: '未检测到 Ollama，请先安装。',
+        content: '是否让智能体帮助您安装？',
+        onOk: () => {
+          useTemporaryChat().open({
+            agent: {
+              id: 'ollama-installer',
+              name: 'Ollama 安装助手',
+              description: '协助安装和配置 Ollama',
+              systemPrompt:
+                '你是一个专门帮助用户安装和配置 Ollama 的助手。请指导用户完成安装过程。',
+              mcpServers: [],
+              tools: [],
+              builtinTools: ['exec_command'],
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              knowledgeBaseIds: []
+            },
+            history: [
+              {
+                role: 'user',
+                content: '我没有检测到 Ollama，请帮我安装。',
+                id: 'init-msg',
+                parts: [{ type: 'text', text: '我没有检测到 Ollama，请帮我安装。' }]
+              }
+            ],
+            autoReply: true
+          })
+        }
+      })
       throw new Error('ollama not installed')
     }
     if (!(await isRunning())) {

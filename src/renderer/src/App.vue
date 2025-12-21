@@ -11,11 +11,12 @@ const switchView = (view: 'chat' | 'settings') => {
 }
 
 provide('switchView', switchView)
+const route = useRoute()
 
 </script>
 
 <template>
-  <div class="app-layout">
+  <div class="app-layout" v-if="route.path !== '/temp-chat'">
     <AppHeader :current-view="currentView" />
     <div class="app-body">
       <AppNavBar :current-view="currentView" @switch="switchView" />
@@ -25,6 +26,7 @@ provide('switchView', switchView)
       </main>
     </div>
   </div>
+  <router-view v-else></router-view>
   <ContextMenu />
 </template>
 

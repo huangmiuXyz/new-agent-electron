@@ -33,7 +33,10 @@ export const api = {
     search: (options: any) => electronAPI.ipcRenderer.invoke('sqlite:search', options)
   },
   exec,
-  os
+  os,
+  createTempChat: (data: any) => electronAPI.ipcRenderer.invoke('window:create-temp-chat', data),
+  getTempChatData: (windowId: string) =>
+    electronAPI.ipcRenderer.invoke('window:get-temp-chat-data', windowId)
 }
 
 export type API = typeof api

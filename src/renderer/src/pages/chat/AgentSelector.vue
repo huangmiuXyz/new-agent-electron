@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const agentStore = useAgentStore()
-const { agents, selectedAgentId } = storeToRefs(agentStore)
+const { allAgents, selectedAgentId, tempAgents } = storeToRefs(agentStore)
 const settingsStore = useSettingsStore()
 const { mcpServers } = storeToRefs(settingsStore)
 withDefaults(defineProps<{
@@ -14,14 +14,15 @@ const { Robot, ChevronDown, Wrench20Regular, Check, Edit } = useIcon(['Wrench20R
 
 const selectedAgentLabel = computed(() => {
     const agent = agentStore.selectedAgent
-    return agent ? agent.name : '选择智能体'
+    if (!agent) return '选择智能体'
+    return agent.name + (tempAgents.value.some(a => a.id === agent.id) ? ' (临时)' : '')
 })
 
 const filteredAgents = computed(() => {
     const query = searchQuery.value.toLowerCase()
-    if (!query) return agents.value
+    if (!query) return allAgents.value
 
-    return agents.value.filter(
+    return allAgents.value.filter(
         (agent) =>
             agent.name.toLowerCase().includes(query) ||
             agent.description?.toLowerCase().includes(query)
@@ -63,7 +64,10 @@ const { openAgentModal } = useAgent()
             <div v-for="agent in filteredAgents" :key="agent.id" class="agent-item"
                 :class="{ selected: isAgentSelected(agent.id) }" @click="selectAgent(agent.id)">
                 <div class="agent-content">
-                    <div class="agent-title">{{ agent.name }}</div>
+                    <div class="agent-title">
+                        {{ agent.name }}
+                        <span v-if="tempAgents.some(a => a.id === agent.id)" class="temp-tag">临时</span>
+                    </div>
                     <div v-if="agent.description" class="agent-desc">{{ agent.description }}</div>
                 </div>
                 <div class="agent-check">
@@ -203,5 +207,15 @@ const { openAgentModal } = useAgent()
     font-size: 14px;
     color: var(--accent-color);
     transition: opacity 0.15s;
+}
+
+.temp-tag {
+    font-size: 10px;
+    background: #f3f4f6;
+    color: #6b7280;
+    padding: 1px 4px;
+    border-radius: 4px;
+    margin-left: 4px;
+    font-weight: normal;
 }
 </style>
