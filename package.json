@@ -101,5 +101,13 @@
       "electron",
       "esbuild"
     ]
+  },
+  "build": {
+    "mac": {
+      "category": "public.app-category.utilities",
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    }
   }
 }

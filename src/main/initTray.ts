@@ -1,26 +1,23 @@
 import { app, Tray, Menu, BrowserWindow, nativeImage } from 'electron'
+import path from 'path'
+
 let tray: Tray | null = null
 let isQuitting = false
 
 export function initTray(mainWindow: BrowserWindow): void {
-  const trayIcon = nativeImage.createEmpty()
+  const trayIcon = nativeImage.createFromPath(path.join(__dirname, 'tray.png'))
+
   tray = new Tray(trayIcon)
   tray.setToolTip('AI助手')
 
   const contextMenu = Menu.buildFromTemplate([
     {
       label: '显示主窗口',
-      click: () => {
-        showWindow(mainWindow)
-      }
+      click: () => showWindow(mainWindow)
     },
     {
       label: '隐藏主窗口',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.hide()
-        }
-      }
+      click: () => hideWindow(mainWindow)
     },
     { type: 'separator' },
     {
@@ -35,67 +32,66 @@ export function initTray(mainWindow: BrowserWindow): void {
   tray.setContextMenu(contextMenu)
 
   tray.on('click', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
     toggleWindow(mainWindow)
   })
 
-  mainWindow.on('close', (event) => {
-    if (!isQuitting && !mainWindow.isDestroyed()) {
-      event.preventDefault()
-      mainWindow.hide()
-    }
+  app.on('before-quit', () => {
+    isQuitting = true
   })
 
-  app.on('before-quit', (event) => {
+  mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault()
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.hide()
-      }
+      hideWindow(mainWindow)
     }
   })
 
-  app.on('window-all-closed', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.hide()
-    }
-  })
+  app.on('window-all-closed', () => {})
 
-  app.on('activate', function () {
-    const windows = BrowserWindow.getAllWindows()
-    if (windows.length > 0) {
-      const activeWindow = windows[0]
-      if (activeWindow.isMinimized()) {
-        activeWindow.restore()
-      }
-      activeWindow.show()
-      activeWindow.focus()
-    }
+  app.on('activate', () => {
+    showWindow(mainWindow)
   })
 }
 
-function showWindow(mainWindow: BrowserWindow): void {
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore()
-    }
-    mainWindow.show()
-    mainWindow.focus()
+function hideWindow(mainWindow: BrowserWindow): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+
+  mainWindow.hide()
+
+  if (process.platform === 'darwin') {
+    app.hide()
+    app.dock?.hide()
   }
 }
 
+function showWindow(mainWindow: BrowserWindow): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+
+  if (process.platform === 'darwin') {
+    app.show()
+    app.dock?.show()
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore()
+  }
+
+  mainWindow.show()
+  mainWindow.focus()
+}
+
 function toggleWindow(mainWindow: BrowserWindow): void {
-  if (mainWindow) {
-    if (mainWindow.isVisible() && !mainWindow.isMinimized()) {
-      mainWindow.hide()
-    } else {
-      showWindow(mainWindow)
-    }
+  if (!mainWindow || mainWindow.isDestroyed()) return
+
+  if (mainWindow.isVisible()) {
+    hideWindow(mainWindow)
+  } else {
+    showWindow(mainWindow)
   }
 }
 
 export function destroyTray(): void {
-  if (tray) {
-    tray.destroy()
-    tray = null
-  }
+  tray?.destroy()
+  tray = null
 }
