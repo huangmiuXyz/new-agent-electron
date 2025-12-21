@@ -64,7 +64,7 @@ const handleResetBaseUrl = async () => {
 }
 const ollamaFormFields = (): FormField<Provider>[] => {
     return [{
-        name: 'autoStart',
+        name: 'autoStartOllama',
         type: 'boolean',
         label: '自动启动'
     }]
