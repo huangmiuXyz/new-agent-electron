@@ -5,9 +5,19 @@ let tray: Tray | null = null
 let isQuitting = false
 
 export function initTray(mainWindow: BrowserWindow): void {
-  const trayIcon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'))
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'tray.png')
+    : path.join(app.getAppPath(), 'resources/tray.png')
+
+  const trayIcon = nativeImage.createFromPath(iconPath)
+
+  if (trayIcon.isEmpty()) {
+    throw new Error('Tray icon image is invalid')
+  }
+  trayIcon.setTemplateImage(true)
 
   tray = new Tray(trayIcon)
+
   tray.setToolTip('AI助手')
 
   const contextMenu = Menu.buildFromTemplate([
