@@ -23,11 +23,6 @@ export const onUseAIBefore = async ({
       }
     }
 
-    const isInstalled = (): Promise<boolean> =>
-      new Promise((resolve) => {
-        window.api.exec('ollama --version', (err) => resolve(!err))
-      })
-
     const waitUntilRunning = async (timeoutMs = 10_000, intervalMs = 500): Promise<boolean> => {
       const start = Date.now()
 
@@ -41,7 +36,7 @@ export const onUseAIBefore = async ({
       return false
     }
 
-    if (!(await isInstalled())) {
+    if (!(await execPromise('ollama --version'))) {
       messageApi.error('未检测到 Ollama，请先安装。')
       throw new Error('ollama not installed')
     }

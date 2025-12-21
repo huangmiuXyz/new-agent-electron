@@ -260,3 +260,16 @@ export const getHost = (input: string) => {
 
   return url.host
 }
+export const execPromise = (command, options = {}): Promise<{ stdout: string; stderr: string }> => {
+  return new Promise((resolve, reject) => {
+    window.api.exec(command, options, (error, stdout, stderr) => {
+      if (error) {
+        error.stdout = stdout
+        error.stderr = stderr
+        reject(error)
+      } else {
+        resolve({ stdout, stderr })
+      }
+    })
+  })
+}

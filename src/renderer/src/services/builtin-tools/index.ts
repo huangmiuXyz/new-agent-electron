@@ -500,5 +500,26 @@ export const getBuiltinTools = (options: { knowledgeBaseIds?: string[] }): Tools
         }
       }
     }
+  },
+  exec_command: {
+    title: '执行命令',
+    description: '执行命令',
+    inputSchema: z.object({
+      command: z.string().describe('要执行的命令')
+    }),
+    execute: async (args: any) => {
+      const { command } = args
+      const result = await execPromise(command)
+      return {
+        toolResult: {
+          content: [
+            {
+              type: 'text',
+              text: result.stdout
+            }
+          ]
+        }
+      }
+    }
   }
 })
