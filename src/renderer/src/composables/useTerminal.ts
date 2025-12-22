@@ -30,9 +30,6 @@ const generateId = () => Math.random().toString(36).substring(2, 9)
 export const useTerminal = () => {
   const settingsStore = useSettingsStore()
 
-  /**
-   * 更新执行状态（使用 es-toolkit debounce，防止快速命令闪烁）
-   */
   const setExecuting = (id: string, executing: boolean, exitCode?: number | null) => {
     const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return
@@ -40,7 +37,6 @@ export const useTerminal = () => {
     tab.isExecuting = executing
     if (exitCode !== undefined) tab.lastExitCode = exitCode
 
-    // 获取或创建防抖函数
     let debouncer = executionDebouncers.get(id)
     if (!debouncer) {
       debouncer = debounce((val: boolean) => {
