@@ -50,5 +50,5 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="terminalEl" style="width: 100vw; height: 100vh; background: black" />
+  <div ref="terminalEl" />
 </template>
