@@ -188,17 +188,18 @@ export const useTerminal = () => {
     }, 50)
   }
 
-  const createTab = async (command?: string | MouseEvent, timeout = 30000) => {
-    const id = generateId()
+  const createTab = async (command?: string | MouseEvent, timeout = 30000, tid?: string) => {
+    const id = tid || generateId()
     const title = `终端 ${tabs.value.length + 1}`
-
-    tabs.value.push({
-      id,
-      title,
-      instance: null,
-      addon: null,
-      socket: null
-    })
+    if (!tid) {
+      tabs.value.push({
+        id,
+        title,
+        instance: null,
+        addon: null,
+        socket: null
+      })
+    }
 
     activeTabId.value = id
     settingsStore.display.showTerminal = true
@@ -224,7 +225,6 @@ export const useTerminal = () => {
 
     await waitForReady(id)
 
-    // 清空之前的输出
     tab.currentOutput = ''
 
     setExecuting(id, true)
