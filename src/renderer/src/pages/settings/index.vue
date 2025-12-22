@@ -62,6 +62,8 @@ const switchTab = (tabName: string) => {
   flex: 1;
   display: flex;
   min-width: 0;
+  z-index: 2;
+  background: #fff;
 }
 
 .sidebar-wrapper {
