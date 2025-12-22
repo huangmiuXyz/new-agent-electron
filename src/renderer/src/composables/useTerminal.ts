@@ -14,7 +14,7 @@ export interface TerminalTab {
 // Global state outside the hook to share across all components
 const tabs = ref<TerminalTab[]>([])
 const activeTabId = ref<string>('')
-const terminalHeight = ref(300)
+const terminalHeight = ref(200)
 const isResizing = ref(false)
 const terminalRefs = new Map<string, HTMLElement>()
 
