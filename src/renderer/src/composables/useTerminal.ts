@@ -125,11 +125,11 @@ export const useTerminal = () => {
       setTimeout(() => {
         setExecuting(id, true)
         if (platform === 'win32') {
-          const psScript = `function prompt { $lastExit = $? ; Write-Host -NoNewline "\`e]633;D;$lastExit\`a" ; return "PS $($executionContext.SessionState.Path.CurrentLocation)> " }; Clear-Host\r`
-          ws.send(psScript)
+          const psScript = `function prompt { $lastExit = $? ; Write-Host -NoNewline "\`e]633;D;$lastExit\`a" ; return "PS $($executionContext.SessionState.Path.CurrentLocation)> " }; Clear-Host`
+          ws.send('\r' + psScript + '\r')
         } else {
-          const shellIntegration = ` if [ -n "$ZSH_VERSION" ]; then precmd() { printf "\\033]633;D;$?\\007"; }; elif [ -n "$BASH_VERSION" ]; then PROMPT_COMMAND='printf "\\033]633;D;$?\\007"'; fi; clear\r`
-          ws.send(' ' + shellIntegration)
+          const shellIntegration = `if [ -n "$ZSH_VERSION" ]; then unsetopt PROMPT_SP; precmd() { printf "\\033]633;D;$?\\007"; }; elif [ -n "$BASH_VERSION" ]; then PROMPT_COMMAND='printf "\\033]633;D;$?\\007"'; fi; clear`
+          ws.send('\r ' + shellIntegration + '\r')
         }
       }, 500)
     }
