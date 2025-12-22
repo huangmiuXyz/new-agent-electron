@@ -487,7 +487,7 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
     description: '执行cmd命令',
     inputSchema: z.object({
       command: z.string().describe('要执行的命令'),
-      id: z.string().describe('终端ID，默认创建新终端')
+      id: z.string().describe('终端ID，默认创建新终端，创建新终端后才可以获得')
     }),
     execute: async (args: any) => {
       const { command, id } = args
