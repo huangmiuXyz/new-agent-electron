@@ -44,7 +44,7 @@ export const useTerminal = () => {
       fontSize: 14,
       cursorBlink: true,
       convertEol: true,
-      fontFamily: 'Consolas, "Courier New", monospace',
+      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       theme: {
         background: '#ffffff',
         foreground: '#333333',
