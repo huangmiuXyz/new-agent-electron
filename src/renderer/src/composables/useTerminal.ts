@@ -121,17 +121,6 @@ export const useTerminal = () => {
     ws.onopen = () => {
       fitAddon.fit()
       ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
-      const platform = window.api.os.platform()
-      setTimeout(() => {
-        setExecuting(id, true)
-        if (platform === 'win32') {
-          const psScript = `function prompt { $lastExit = $? ; Write-Host -NoNewline "\`e]633;D;$lastExit\`a" ; return "PS $($executionContext.SessionState.Path.CurrentLocation)> " }; Clear-Host`
-          ws.send('\r' + psScript + '\r')
-        } else {
-          const shellIntegration = `if [ -n "$ZSH_VERSION" ]; then unsetopt PROMPT_SP; precmd() { printf "\\033]633;D;$?\\007"; }; elif [ -n "$BASH_VERSION" ]; then PROMPT_COMMAND='printf "\\033]633;D;$?\\007"'; fi; clear`
-          ws.send('\r ' + shellIntegration + '\r')
-        }
-      }, 500)
     }
 
     ws.onmessage = (event) => {
@@ -146,14 +135,25 @@ export const useTerminal = () => {
       const currentTab = tabs.value.find((t) => t.id === id)
       if (currentTab) {
         const text = typeof event.data === 'string' ? event.data : ''
+        const cleanText = stripAnsi(text)
 
         if (currentTab.isExecuting) {
-          currentTab.currentOutput = (currentTab.currentOutput || '') + stripAnsi(text)
+          currentTab.currentOutput = (currentTab.currentOutput || '') + cleanText
         }
 
-        if (/[$%#>]\s*$/.test(text)) {
-          if (currentTab.isExecuting) setExecuting(id, false)
-          if (!currentTab.isReady) currentTab.isReady = true
+        if (/[$%#>]\s*$/.test(cleanText)) {
+          if (!currentTab.isReady) {
+            currentTab.isReady = true
+            const platform = window.api.os.platform()
+            setExecuting(id, true)
+            if (platform === 'win32') {
+              const psScript = `function prompt { $lastExit = $? ; Write-Host -NoNewline "\`e]633;D;$lastExit\`a" ; return "PS $($executionContext.SessionState.Path.CurrentLocation)> " }; Clear-Host`
+              ws.send('\r' + psScript + '\r')
+            } else {
+              const shellIntegration = `if [ -n "$ZSH_VERSION" ]; then unsetopt PROMPT_SP; precmd() { printf "\\033]633;D;$?\\007"; }; elif [ -n "$BASH_VERSION" ]; then PROMPT_COMMAND='printf "\\033]633;D;$?\\007"'; fi; clear`
+              ws.send('\r ' + shellIntegration + '\r')
+            }
+          }
         }
       }
     }
@@ -352,14 +352,19 @@ export const useTerminal = () => {
       const tab = tabs.value.find((t) => t.id === id)
       if (!tab) return resolve(false)
 
-      if (tab.isReady) return resolve(true)
+      const checkReady = () => {
+        // 必须同时满足：1. 已经准备好（看到过提示符） 2. 当前没有正在执行的命令（如初始化脚本）
+        return tab.isReady && !tab.isExecuting
+      }
+
+      if (checkReady()) return resolve(true)
 
       let timer: any = null
 
       const unwatch = watch(
-        () => tab.isReady,
-        (isReady) => {
-          if (isReady) {
+        [() => tab.isReady, () => tab.isExecuting],
+        () => {
+          if (checkReady()) {
             if (timer) clearTimeout(timer)
             unwatch()
             resolve(true)
