@@ -37,7 +37,20 @@ export const api = {
   os,
   createTempChat: (data: any) => electronAPI.ipcRenderer.invoke('window:create-temp-chat', data),
   getTempChatData: (windowId: string) =>
-    electronAPI.ipcRenderer.invoke('window:get-temp-chat-data', windowId)
+    electronAPI.ipcRenderer.invoke('window:get-temp-chat-data', windowId),
+  updater: {
+    getVersion: () => electronAPI.ipcRenderer.invoke('updater:get-version'),
+    checkForUpdates: () => electronAPI.ipcRenderer.invoke('updater:check-for-updates'),
+    downloadUpdate: () => electronAPI.ipcRenderer.invoke('updater:download-update'),
+    quitAndInstall: () => electronAPI.ipcRenderer.invoke('updater:quit-and-install'),
+    onStatus: (callback: (status: any) => void) => {
+      const listener = (_event: any, status: any) => callback(status)
+      electronAPI.ipcRenderer.on('updater:status', listener)
+      return () => {
+        electronAPI.ipcRenderer.removeListener('updater:status', listener)
+      }
+    }
+  }
 } satisfies typeof api
 
 export type API = typeof api

@@ -153,4 +153,8 @@ body {
   background: #fff;
   border-top-left-radius: var(--radius-md);
 }
+
+a{
+  color: #000 !important;
+}
 </style>

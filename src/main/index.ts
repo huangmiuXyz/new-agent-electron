@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { initSqlite, setupSqliteHandlers } from './services/sqlite'
+import { setupUpdaterHandlers } from './services/updater'
 import { initTray } from './initTray'
 
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -111,6 +112,7 @@ app.whenReady().then(() => {
   setupSqliteHandlers()
 
   const mainWindow = createWindow()
+  setupUpdaterHandlers(mainWindow)
 
   initTray(mainWindow)
 })

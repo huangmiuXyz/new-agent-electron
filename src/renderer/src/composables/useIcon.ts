@@ -23,6 +23,7 @@ import {
   Server,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Robot,
   LayoutSidebar,
   LayoutSidebarLeftCollapse,
@@ -44,7 +45,8 @@ import {
   Photo,
   Bulb,
   Eye,
-  EyeOff
+  EyeOff,
+  InfoCircle
 } from '@vicons/tabler'
 import {
   CommentAdd16Regular,
@@ -80,6 +82,7 @@ const icons = {
   PanelOpen: LayoutSidebarLeftExpand,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   CommentAdd16Regular,
   FileUpload,
   FileText,
@@ -104,6 +107,7 @@ const icons = {
   Eye,
   EyeOff,
   ErrorCircle24Filled,
+  InfoCircle,
   X
 }
 

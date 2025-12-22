@@ -1,3 +1,5 @@
-provider: generic
-url: https://example.com/auto-updates
+provider: github
+owner: huangmiuXyz
+repo: new-agent-electron
+private: true
 updaterCacheDirName: agent-qi-updater

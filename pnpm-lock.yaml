@@ -74,9 +74,6 @@ importers:
       dayjs:
         specifier: ^1.11.19
         version: 1.11.19
-      electron-rebuild:
-        specifier: ^3.2.9
-        version: 3.2.9
       electron-updater:
         specifier: ^6.3.9
         version: 6.6.2
@@ -180,6 +177,9 @@ importers:
       electron-builder:
         specifier: ^25.1.8
         version: 25.1.8(electron-builder-squirrel-windows@25.1.8)
+      electron-rebuild:
+        specifier: ^3.2.9
+        version: 3.2.9
       electron-vite:
         specifier: ^4.0.1
         version: 4.0.1(vite@7.2.7(@types/node@22.19.3)(jiti@2.6.1))

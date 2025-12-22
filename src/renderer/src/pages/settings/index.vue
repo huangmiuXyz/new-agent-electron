@@ -4,6 +4,7 @@ import { useSettingsStore } from '@renderer/stores/settings'
 import SettingsDefaultModels from './default-models.vue'
 import SettingsKnowledge from './knowledge.vue'
 import SettingsUserData from './user-data.vue'
+import SettingsAbout from './about.vue'
 
 const settingsStore = useSettingsStore()
 const activeTab = ref('models')
@@ -42,6 +43,9 @@ const switchTab = (tabName: string) => {
 
       <!-- User Data 设置 -->
       <SettingsUserData v-else-if="activeTab === 'userData'" />
+
+      <!-- 关于我们 -->
+      <SettingsAbout v-else-if="activeTab === 'about'" />
     </div>
   </div>
 </template>
