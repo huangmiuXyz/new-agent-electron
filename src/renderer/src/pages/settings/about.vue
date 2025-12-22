@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { FormItem } from '@renderer/composables/useForm'
 
 const version = ref('')
 const updateStatus = ref('idle') // idle, checking, available, not-available, downloading, downloaded, error
@@ -57,20 +57,21 @@ onUnmounted(() => {
   <SettingFormContainer header-title="关于我们">
     <template #content>
       <div class="about-wrapper">
-        <!-- App Header -->
-        <div class="header-card">
-          <img src="/logo.png" alt="logo" class="app-logo" />
-          <div class="header-info">
-            <div class="title-row">
-              <h1 class="app-name">Agent Qi</h1>
-              <span class="version-tag">v{{ version }}</span>
+        <FormItem label="软件更新">
+          <div class="header-card">
+            <img src="/logo.png" alt="logo" class="app-logo" />
+            <div class="header-info">
+              <div class="title-row">
+                <h1 class="app-name">Agent Qi</h1>
+                <span class="version-tag">v{{ version }}</span>
+              </div>
             </div>
           </div>
-        </div>
+        </FormItem>
+        <!-- App Header -->
 
         <!-- Update Section -->
-        <div class="section-container">
-          <div class="section-title">软件更新</div>
+        <FormItem label="软件更新">
           <div class="update-card">
             <div class="update-row">
               <div class="update-status-text">
@@ -119,11 +120,9 @@ onUnmounted(() => {
               <div class="notes-content" v-html="updateInfo.releaseNotes"></div>
             </div>
           </div>
-        </div>
+        </FormItem>
 
-        <!-- Links Section -->
-        <div class="section-container">
-          <div class="section-title">相关链接</div>
+        <FormItem label="相关链接">
           <div class="links-list">
             <a
               href="https://github.com/huangmiuXyz/new-agent-electron"
@@ -142,8 +141,7 @@ onUnmounted(() => {
               <component :is="ChevronRight" />
             </a>
           </div>
-        </div>
-
+        </FormItem>
         <!-- Copyright -->
         <!-- <div class="copyright">
           Copyright © {{ new Date().getFullYear() }} Agent Qi. All rights reserved.
@@ -156,11 +154,9 @@ onUnmounted(() => {
 <style scoped>
 .about-wrapper {
   max-width: 640px;
-  margin: 0 auto;
-  padding: 24px;
+  margin: 0 auto; 
   display: flex;
   flex-direction: column;
-  gap: 32px;
 }
 
 /* Header Card */
