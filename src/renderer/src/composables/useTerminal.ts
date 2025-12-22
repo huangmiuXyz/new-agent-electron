@@ -13,6 +13,8 @@ export interface TerminalTab {
   isExecuting?: boolean
   isExecutingDelayed?: boolean // 用于 UI 显示，防抖
   lastExitCode?: number | null
+  isReady?: boolean
+  currentOutput?: string
 }
 
 // Global state outside the hook to share across all components
@@ -101,6 +103,8 @@ export const useTerminal = () => {
       const currentTab = tabs.value.find((t) => t.id === id)
       if (!currentTab) return false
 
+      if (!currentTab.isReady) currentTab.isReady = true
+
       switch (type) {
         case 'A': // Prompt start
           setExecuting(id, false)
@@ -123,6 +127,7 @@ export const useTerminal = () => {
       ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
       const platform = window.api.os.platform()
       setTimeout(() => {
+        setExecuting(id, true)
         if (platform === 'win32') {
           const psScript = `function prompt { $lastExit = $? ; Write-Host -NoNewline "\`e]633;D;$lastExit\`a" ; return "PS $($executionContext.SessionState.Path.CurrentLocation)> " }; Clear-Host\r`
           ws.send(psScript)
@@ -143,10 +148,18 @@ export const useTerminal = () => {
       }
 
       const currentTab = tabs.value.find((t) => t.id === id)
-      if (currentTab && currentTab.isExecuting) {
+      if (currentTab) {
         const text = typeof event.data === 'string' ? event.data : ''
+
+        // 如果正在执行命令，累加输出
+        if (currentTab.isExecuting) {
+          currentTab.currentOutput = (currentTab.currentOutput || '') + text
+        }
+
+        // 增强 prompt 检测
         if (/[$%#>]\s*$/.test(text)) {
-          setExecuting(id, false)
+          if (currentTab.isExecuting) setExecuting(id, false)
+          if (!currentTab.isReady) currentTab.isReady = true
         }
       }
     }
@@ -196,7 +209,7 @@ export const useTerminal = () => {
     if (typeof command !== 'string') return { id }
 
     const tab = tabs.value.find((t) => t.id === id)
-    if (!tab) return { id, result: { success: false, exitCode: null } }
+    if (!tab) return { id, result: { success: false, output: '' } }
 
     await new Promise<void>((resolve) => {
       const check = () => {
@@ -209,7 +222,10 @@ export const useTerminal = () => {
       check()
     })
 
-    await new Promise((r) => setTimeout(r, 800))
+    await waitForReady(id)
+
+    // 清空之前的输出
+    tab.currentOutput = ''
 
     setExecuting(id, true)
     tab.socket?.send(command + '\r')
@@ -300,12 +316,16 @@ export const useTerminal = () => {
   }
 
   const waitForCommand = (id: string, timeout = 30000) => {
-    return new Promise<{ success: boolean; exitCode: number | null }>((resolve) => {
+    return new Promise<{ success: boolean; exitCode: number | null; output: string }>((resolve) => {
       const tab = tabs.value.find((t) => t.id === id)
-      if (!tab) return resolve({ success: false, exitCode: null })
+      if (!tab) return resolve({ success: false, exitCode: null, output: '' })
 
       if (!tab.isExecuting) {
-        return resolve({ success: true, exitCode: tab.lastExitCode ?? 0 })
+        return resolve({
+          success: true,
+          exitCode: tab.lastExitCode ?? 0,
+          output: tab.currentOutput || ''
+        })
       }
 
       let timer: any = null
@@ -316,14 +336,47 @@ export const useTerminal = () => {
           if (!isExecuting) {
             if (timer) clearTimeout(timer)
             unwatch()
-            resolve({ success: true, exitCode: tab.lastExitCode ?? 0 })
+            resolve({
+              success: true,
+              exitCode: tab.lastExitCode ?? 0,
+              output: tab.currentOutput || ''
+            })
           }
         }
       )
       if (timeout > 0) {
         timer = setTimeout(() => {
           unwatch()
-          resolve({ success: false, exitCode: null })
+          resolve({ success: false, exitCode: null, output: tab.currentOutput || '' })
+        }, timeout)
+      }
+    })
+  }
+
+  const waitForReady = (id: string, timeout = 10000) => {
+    return new Promise<boolean>((resolve) => {
+      const tab = tabs.value.find((t) => t.id === id)
+      if (!tab) return resolve(false)
+
+      if (tab.isReady) return resolve(true)
+
+      let timer: any = null
+
+      const unwatch = watch(
+        () => tab.isReady,
+        (isReady) => {
+          if (isReady) {
+            if (timer) clearTimeout(timer)
+            unwatch()
+            resolve(true)
+          }
+        }
+      )
+
+      if (timeout > 0) {
+        timer = setTimeout(() => {
+          unwatch()
+          resolve(false)
         }, timeout)
       }
     })

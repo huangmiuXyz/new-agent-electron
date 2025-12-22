@@ -490,17 +490,14 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
     }),
     execute: async (args: any) => {
       const { command } = args
-      const result = await execPromise(command)
+      const { createTab } = useTerminal()
+      const { id, result } = await createTab(command)
       return {
         toolResult: {
           content: [
             {
               type: 'stdout',
-              text: result.stdout
-            },
-            {
-              type: 'stderr',
-              text: result.stderr
+              text: result!.output
             }
           ]
         }
