@@ -8,7 +8,7 @@
   },
   {
     "name": "Gemini",
-    "baseUrl": "https://generativelanguage.googleapis.com",
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
     "id": "Gemini",
     "logo": "/images/providers/gemini.png",
     "providerType": "google"
