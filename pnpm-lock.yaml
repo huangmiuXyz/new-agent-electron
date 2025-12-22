@@ -107,6 +107,9 @@ importers:
       sqlite-vss:
         specifier: ^0.1.2
         version: 0.1.2
+      strip-ansi:
+        specifier: ^7.1.2
+        version: 7.1.2
       vite-plugin-monaco-editor:
         specifier: ^1.1.0
         version: 1.1.0(monaco-editor@0.55.1)

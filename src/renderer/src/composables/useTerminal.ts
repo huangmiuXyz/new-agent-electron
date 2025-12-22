@@ -148,7 +148,7 @@ export const useTerminal = () => {
         const text = typeof event.data === 'string' ? event.data : ''
 
         if (currentTab.isExecuting) {
-          currentTab.currentOutput = (currentTab.currentOutput || '') + text
+          currentTab.currentOutput = (currentTab.currentOutput || '') + stripAnsi(text)
         }
 
         if (/[$%#>]\s*$/.test(text)) {

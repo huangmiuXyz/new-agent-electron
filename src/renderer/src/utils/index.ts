@@ -2,6 +2,8 @@ import localforage from 'localforage'
 export { cloneDeep, throttle, mapValues, retry } from 'es-toolkit'
 export { blobToDataURL, dataURLToBlob, arrayBufferToBlob } from 'blob-util'
 import { dataURLToBlob as _dataURLToBlob, arrayBufferToBlob as _arrayBufferToBlob } from 'blob-util'
+import stripAnsi from 'strip-ansi'
+export { stripAnsi }
 export const anyUrlToBlobUrl = (url: string): string => {
   if (!url) return ''
   try {

@@ -54,6 +54,7 @@
     "pinia-plugin-persistedstate": "^4.7.1",
     "pinia-plugin-persistedstate-async": "^1.6.3",
     "sqlite-vss": "^0.1.2",
+    "strip-ansi": "^7.1.2",
     "vite-plugin-monaco-editor": "^1.1.0",
     "vosk-browser": "^0.0.8",
     "vue": "^3.5.22",
