@@ -72,7 +72,7 @@ defineExpose({
     <!-- 密码显示/隐藏切换按钮 -->
     <button v-if="showPasswordToggle" type="button" class="password-toggle" @click="togglePasswordVisibility"
       :disabled="disabled">
-      <component :is="showPassword ? useIcon('EyeOff') : useIcon('Eye')" class="toggle-icon" />
+      <component :is="showPassword ? useIcon('Eye') : useIcon('EyeOff')" class="toggle-icon" />
     </button>
   </div>
 </template>
