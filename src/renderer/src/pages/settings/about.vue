@@ -11,7 +11,7 @@ const { ChevronRight } = useIcon(['ChevronRight'])
 
 const checkUpdates = async () => {
   if (updateStatus.value === 'checking' || updateStatus.value === 'downloading') return
-  
+
   updateStatus.value = 'checking'
   try {
     await window.api.updater.checkForUpdates()
@@ -39,7 +39,7 @@ let removeListener: (() => void) | null = null
 
 onMounted(async () => {
   version.value = await window.api.updater.getVersion()
-  
+
   removeListener = window.api.updater.onStatus((status: any) => {
     updateStatus.value = status.status
     if (status.info) updateInfo.value = status.info
@@ -77,33 +77,29 @@ onUnmounted(() => {
                 <span v-if="updateStatus === 'idle'">检查新版本</span>
                 <span v-else-if="updateStatus === 'checking'">正在检查更新...</span>
                 <span v-else-if="updateStatus === 'not-available'">当前已是最新版本</span>
-                <span v-else-if="updateStatus === 'available'">发现新版本 {{ updateInfo?.version }}</span>
+                <span v-else-if="updateStatus === 'available'"
+                  >发现新版本 {{ updateInfo?.version }}</span
+                >
                 <span v-else-if="updateStatus === 'downloading'">正在下载更新...</span>
                 <span v-else-if="updateStatus === 'downloaded'">更新已就绪</span>
-                <span v-else-if="updateStatus === 'error'" class="error-text">检查失败: {{ errorMessage }}</span>
+                <span v-else-if="updateStatus === 'error'" class="error-text"
+                  >检查失败: {{ errorMessage }}</span
+                >
               </div>
-              
+
               <div class="update-actions">
-                <Button 
+                <Button
                   v-if="['idle', 'not-available', 'error'].includes(updateStatus)"
                   @click="checkUpdates"
                 >
                   检查更新
                 </Button>
-                <button 
-                  v-if="updateStatus === 'available'"
-                  class="btn btn-primary"
-                  @click="startDownload"
-                >
+                <Button v-if="updateStatus === 'available'" @click="startDownload">
                   立即下载
-                </button>
-                <button 
-                  v-if="updateStatus === 'downloaded'"
-                  class="btn btn-primary"
-                  @click="installUpdate"
-                >
+                </Button>
+                <Button v-if="updateStatus === 'downloaded'" @click="installUpdate">
                   重启安装
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -116,7 +112,10 @@ onUnmounted(() => {
             </div>
 
             <!-- Release Notes -->
-            <div v-if="updateInfo?.releaseNotes && updateStatus === 'available'" class="release-notes">
+            <div
+              v-if="updateInfo?.releaseNotes && updateStatus === 'available'"
+              class="release-notes"
+            >
               <div class="notes-content" v-html="updateInfo.releaseNotes"></div>
             </div>
           </div>
@@ -126,11 +125,19 @@ onUnmounted(() => {
         <div class="section-container">
           <div class="section-title">相关链接</div>
           <div class="links-list">
-            <a href="https://github.com/huangmiuXyz/new-agent-electron" target="_blank" class="link-item">
+            <a
+              href="https://github.com/huangmiuXyz/new-agent-electron"
+              target="_blank"
+              class="link-item"
+            >
               <span class="link-text">GitHub 项目主页</span>
-              <component :is="ChevronRight"  />
+              <component :is="ChevronRight" />
             </a>
-            <a href="https://github.com/huangmiuXyz/new-agent-electron/issues" target="_blank" class="link-item">
+            <a
+              href="https://github.com/huangmiuXyz/new-agent-electron/issues"
+              target="_blank"
+              class="link-item"
+            >
               <span class="link-text">反馈问题</span>
               <component :is="ChevronRight" />
             </a>
@@ -363,7 +370,7 @@ onUnmounted(() => {
 .link-icon {
   width: 16px;
   height: 16px;
-  color: #000 !important
+  color: #000 !important;
 }
 
 /* Copyright */
