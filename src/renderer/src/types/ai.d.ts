@@ -29,6 +29,7 @@ declare global {
   }
   type BaseMessage = UIMessage<MetaData, UIMessageChunk>
   type Tools = Awaited<ReturnType<typeof window.api.list_tools>>
+  type Tool = Tools[keyof Tools]
   type ContentBlock = UIMessagePart
   type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank'
   interface Model extends openAIModel {

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import providerData from '@renderer/assets/data/provider.json'
-export const getBuiltinTools = (options: { knowledgeBaseIds?: string[] }): Tools => ({
+export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tools => ({
   calculator: {
     description: '执行基本的数学计算，支持加、减、乘、除等运算',
     inputSchema: z.object({
@@ -445,7 +445,7 @@ export const getBuiltinTools = (options: { knowledgeBaseIds?: string[] }): Tools
     execute: async (args: any) => {
       const { query } = args
       const { search } = useKnowledge()
-      if (!options.knowledgeBaseIds)
+      if (!options?.knowledgeBaseIds)
         return {
           toolResult: {
             content: [

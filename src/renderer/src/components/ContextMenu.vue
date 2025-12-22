@@ -133,7 +133,7 @@ const setMenuItemRef = (el: Element | ComponentPublicInstance | null, item: Menu
   }
 };
 
-const handleItemHover = (event: MouseEvent, item: MenuItem<T>) => {
+const handleItemHover = (_event: MouseEvent, item: MenuItem<T>) => {
   if (item.children && item.children.length > 0) {
     // 使用延迟来避免鼠标快速移动时频繁切换
     if (hoverTimer) clearTimeout(hoverTimer);

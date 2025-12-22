@@ -9,7 +9,7 @@ export const useAgent = () => {
   // 获取内置工具选项
   const getBuiltinToolOptions = () => {
     const tools = getBuiltinTools()
-    return Object.entries(tools).map(([key, tool]) => ({
+    return Object.entries(tools).map(([key, tool]: [string, Tool]) => ({
       label: tool.title!,
       value: key,
       description: tool.description
@@ -47,7 +47,7 @@ export const useAgent = () => {
     selectedMcpServers.forEach((serverName) => {
       const server = mcpServers.value[serverName]
       if (server && server.tools && Object.keys(server.tools).length > 0) {
-        Object.entries(server.tools).forEach(([toolName, tool]) => {
+        Object.entries(server.tools).forEach(([toolName, tool]: [string, Tool]) => {
           toolOptions.push({
             label: `${serverName}.${toolName}`,
             value: `${serverName}.${toolName}`,
