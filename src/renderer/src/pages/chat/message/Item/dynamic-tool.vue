@@ -38,13 +38,23 @@ const toggleCollapse = () => {
           }}</span>
         </div>
         <div class="tool-status">
-          <span class="status-dot"></span>
-          <span class="status-text">Completed</span>
+          <slot name="status">
+            <span class="status-dot"></span>
+            <span class="status-text">Completed</span>
+          </slot>
         </div>
       </div>
       <div class="tool-content" :class="{ collapsed: isCollapsed }">
-        <div>输入:{{ tool_part.input }}</div>
-        <div>输出:{{ tool_part.output }}</div>
+        <slot name="content">
+          <div class="content-section">
+            <div class="section-label">输入:</div>
+            <div class="section-value">{{ tool_part.input }}</div>
+          </div>
+          <div class="content-section" v-if="tool_part.output">
+            <div class="section-label">输出:</div>
+            <div class="section-value">{{ tool_part.output }}</div>
+          </div>
+        </slot>
       </div>
     </div>
   </div>

@@ -15,6 +15,7 @@ export interface TerminalTab {
   lastExitCode?: number | null
   isReady?: boolean
   currentOutput?: string
+  forceContinue?: () => void
 }
 
 // Global state outside the hook to share across all components
@@ -24,6 +25,7 @@ const terminalHeight = ref(200)
 const isResizing = ref(false)
 const terminalRefs = new Map<string, HTMLElement>()
 const executionDebouncers = new Map<string, ReturnType<typeof debounce>>()
+const toolCallToTerminalMap = ref<Record<string, string>>({})
 
 const generateId = () => Math.random().toString(36).substring(2, 9)
 
@@ -182,17 +184,30 @@ export const useTerminal = () => {
     }, 50)
   }
 
-  const createTab = async (command?: string | MouseEvent, timeout = 30000) => {
-    const id = generateId()
+  const createTab = async (
+    command?: string | MouseEvent,
+    idOrTimeout?: string | number,
+    options?: { toolCallId?: string }
+  ) => {
+    let id = typeof idOrTimeout === 'string' ? idOrTimeout : generateId()
+    const timeout = typeof idOrTimeout === 'number' ? idOrTimeout : 30000
     const title = `终端 ${tabs.value.length + 1}`
 
-    tabs.value.push({
-      id,
-      title,
-      instance: null,
-      addon: null,
-      socket: null
-    })
+    if (options?.toolCallId) {
+      toolCallToTerminalMap.value[options.toolCallId] = id
+    }
+
+    let tab = tabs.value.find((t) => t.id === id)
+    if (!tab) {
+      tabs.value.push({
+        id,
+        title,
+        instance: null,
+        addon: null,
+        socket: null
+      })
+      tab = tabs.value[tabs.value.length - 1]
+    }
 
     activeTabId.value = id
     settingsStore.display.showTerminal = true
@@ -202,7 +217,6 @@ export const useTerminal = () => {
 
     if (typeof command !== 'string') return { id }
 
-    const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return { id, result: { success: false, output: '' } }
 
     await new Promise<void>((resolve) => {
@@ -314,34 +328,36 @@ export const useTerminal = () => {
       const tab = tabs.value.find((t) => t.id === id)
       if (!tab) return resolve({ success: false, exitCode: null, output: '' })
 
-      if (!tab.isExecuting) {
-        return resolve({
+      let timer: any = null
+
+      const onDone = (force = false) => {
+        if (timer) clearTimeout(timer)
+        unwatch()
+        tab.forceContinue = undefined
+        resolve({
           success: true,
-          exitCode: tab.lastExitCode ?? 0,
+          exitCode: force ? 0 : (tab.lastExitCode ?? 0),
           output: tab.currentOutput || ''
         })
       }
 
-      let timer: any = null
+      tab.forceContinue = () => onDone(true)
+
+      if (!tab.isExecuting) {
+        return onDone()
+      }
 
       const unwatch = watch(
         () => tab.isExecuting,
         (isExecuting) => {
           if (!isExecuting) {
-            if (timer) clearTimeout(timer)
-            unwatch()
-            resolve({
-              success: true,
-              exitCode: tab.lastExitCode ?? 0,
-              output: tab.currentOutput || ''
-            })
+            onDone()
           }
         }
       )
       if (timeout > 0) {
         timer = setTimeout(() => {
-          unwatch()
-          resolve({ success: false, exitCode: null, output: tab.currentOutput || '' })
+          onDone()
         }, timeout)
       }
     })
@@ -395,6 +411,15 @@ export const useTerminal = () => {
     showTerminal: () => (settingsStore.display.showTerminal = true),
     hideTerminal: () => (settingsStore.display.showTerminal = false),
     toggleTerminal,
-    waitForCommand
+    waitForCommand,
+    forceContinue: (id: string) => {
+      const tab = tabs.value.find((t) => t.id === id)
+      if (tab && tab.forceContinue) {
+        tab.forceContinue()
+      }
+    },
+    getTerminalIdByToolCallId: (toolCallId: string) => {
+      return toolCallToTerminalMap.value[toolCallId]
+    }
   }
 }

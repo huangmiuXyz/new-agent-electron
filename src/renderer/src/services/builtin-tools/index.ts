@@ -489,10 +489,10 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
       command: z.string().describe('要执行的命令'),
       id: z.string().describe('终端ID，默认创建新终端，创建新终端后才可以获得，用户无法提供')
     }),
-    execute: async (args: any) => {
+    execute: async (args: any, options: any) => {
       const { command, id } = args
       const { createTab } = useTerminal()
-      const { id: tabId, result } = await createTab(command, id)
+      const { id: tabId, result } = await createTab(command, id, { toolCallId: options.toolCallId })
       return {
         toolResult: {
           content: [
