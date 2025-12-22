@@ -6,13 +6,16 @@ import path from 'path'
 import mime from 'mime-types'
 import url from 'url'
 import { app } from '@electron/remote'
-import { exec } from 'child_process'
+import { exec, spawn } from 'child_process'
 import os from 'os'
 // Custom APIs for renderer
 
 // @ts-ignore ts(2742)
 export const api = {
   ...aiServices(),
+  runPtyServer: () => {
+    spawn('node', [path.resolve(process.cwd(), 'src/server/dist/index.js')])
+  },
   showOpenDialog: async (options: Electron.OpenDialogOptions) =>
     (await electronAPI.ipcRenderer.invoke(
       'dialog:showOpenDialog',

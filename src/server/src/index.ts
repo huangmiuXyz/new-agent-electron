@@ -1,13 +1,10 @@
 import WebSocket from 'ws'
-import pty from 'node-pty'
+import * as pty from 'node-pty'
 
 const wss = new WebSocket.Server({ port: 3333 })
 
 wss.on('connection', (ws) => {
-  const shell =
-    process.platform === 'win32'
-      ? 'powershell.exe'
-      : process.env.SHELL || 'bash'
+  const shell = process.platform === 'win32' ? 'powershell.exe' : process.env.SHELL || 'bash'
 
   const ptyProcess = pty.spawn(shell, [], {
     name: 'xterm-color',
@@ -17,12 +14,22 @@ wss.on('connection', (ws) => {
     env: process.env
   })
 
-  ptyProcess.onData(data => {
+  ptyProcess.onData((data) => {
     ws.send(data)
   })
 
-  ws.on('message', msg => {
-    ptyProcess.write(msg.toString())
+  ws.on('message', (msg) => {
+    const text = msg.toString()
+
+    try {
+      const payload = JSON.parse(text)
+      if (payload.type === 'resize') {
+        ptyProcess.resize(payload.cols, payload.rows)
+        return
+      }
+    } catch {}
+
+    ptyProcess.write(text)
   })
 
   ws.on('close', () => {

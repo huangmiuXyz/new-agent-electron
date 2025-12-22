@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import { useSettingsStore } from '@renderer/stores/settings'
+import { useWebSocket } from '@vueuse/core'
 
 const settingsStore = useSettingsStore()
 const terminalEl = ref<HTMLDivElement | null>(null)
@@ -13,6 +15,15 @@ let resizeHandler: () => void
 
 const terminalHeight = ref(300)
 const isResizing = ref(false)
+const {
+  send,
+  data: wsData,
+  open,
+  close
+} = useWebSocket('ws://localhost:3333', {
+  autoReconnect: true,
+  immediate: false
+})
 
 const startResizing = (event: MouseEvent) => {
   isResizing.value = true
@@ -23,7 +34,6 @@ const startResizing = (event: MouseEvent) => {
     if (!isResizing.value) return
     const deltaY = startY - e.clientY
     terminalHeight.value = Math.max(100, Math.min(window.innerHeight - 200, startHeight + deltaY))
-    // 触发窗口 resize 事件以更新 xterm fit
     window.dispatchEvent(new Event('resize'))
   }
 
@@ -36,9 +46,10 @@ const startResizing = (event: MouseEvent) => {
   document.addEventListener('mousemove', handleMouseMove)
   document.addEventListener('mouseup', handleMouseUp)
 }
-
-onMounted(() => {
-  window.api.pty.start()
+onMounted(async () => {
+  window.api.runPtyServer()
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  open()
 
   term = new Terminal({
     fontSize: 14,
@@ -75,19 +86,34 @@ onMounted(() => {
 
   setTimeout(() => {
     fitAddon.fit()
+    send(
+      JSON.stringify({
+        type: 'resize',
+        cols: term.cols,
+        rows: term.rows
+      })
+    )
   }, 10)
 
-  window.api.pty.onOutput((data) => {
-    term.write(data)
+  watch(wsData, (val) => {
+    if (val) {
+      term.write(val)
+    }
   })
 
   term.onData((data) => {
-    window.api.pty.sendInput(data)
+    send(data)
   })
 
   resizeHandler = () => {
     fitAddon.fit()
-    window.api.pty.resize(term.cols, term.rows)
+    send(
+      JSON.stringify({
+        type: 'resize',
+        cols: term.cols,
+        rows: term.rows
+      })
+    )
   }
 
   window.addEventListener('resize', resizeHandler)
@@ -95,6 +121,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', resizeHandler)
+  close()
   term?.dispose()
 })
 </script>
@@ -106,12 +133,14 @@ onBeforeUnmount(() => {
     :class="{ 'is-resizing': isResizing }"
   >
     <div class="resizer" @mousedown="startResizing"></div>
+
     <div class="terminal-header">
       <span>终端</span>
       <div class="terminal-actions">
         <button @click="settingsStore.display.showTerminal = false" class="close-btn">×</button>
       </div>
     </div>
+
     <div class="terminal-body">
       <div ref="terminalEl" class="xterm-container" />
     </div>
