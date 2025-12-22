@@ -8,7 +8,7 @@ export const ptyServices = () => {
   function startPty() {
     if (ptyProc) return
 
-    const backendPath = path.join(__dirname, '../backend/target/release/pty-backend')
+    const backendPath = path.join(__dirname, '/src/pty/target/release/pty-backend')
 
     ptyProc = spawn(backendPath, [], {
       stdio: ['pipe', 'pipe', 'pipe']
