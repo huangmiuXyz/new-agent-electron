@@ -17,6 +17,7 @@ interface Props {
 
   // 功能配置
   selectable?: boolean
+  variant?: 'default' | 'card'
   showHeader?: boolean
   renderHeader?: (item: T) => string
   isSelected?: (item: T) => boolean
@@ -30,6 +31,7 @@ const props = withDefaults(defineProps<Props>(), {
   subField: '',
   logoField: 'logo',
   selectable: true,
+  variant: 'default',
   showHeader: false
 })
 
@@ -67,7 +69,7 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 </script>
 
 <template>
-  <div class="list-container">
+  <div class="list-container" :class="[`variant-${variant}`]">
     <div v-if="title" class="list-title">
       <div>{{ title }}</div>
       <div class="list-title-actions">
@@ -141,6 +143,41 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   z-index: 2;
   display: flex;
   flex-direction: column;
+}
+
+/* Variant: Card */
+.variant-card {
+  background-color: transparent;
+}
+
+.variant-card .list-scroll-area {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+  height: auto;
+  flex: none;
+}
+
+.variant-card .list-item {
+  padding: 12px 16px;
+  margin-bottom: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.variant-card .list-item:last-child {
+  border-bottom: none;
+}
+
+.variant-card .main-text {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.variant-card .item-actions {
+  padding-left: 0;
 }
 
 .list-title {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { FormItem } from '@renderer/composables/useForm'
 import Divider from '@renderer/components/Divider.vue'
+import List from '@renderer/components/List.vue'
 
 const version = ref('')
 const updateStatus = ref('idle') // idle, checking, available, not-available, downloading, downloaded, error
@@ -9,6 +10,21 @@ const downloadProgress = ref<any>(null)
 const errorMessage = ref('')
 
 const { ChevronRight } = useIcon(['ChevronRight'])
+
+const aboutLinks = [
+  {
+    name: 'GitHub 项目主页',
+    url: 'https://github.com/huangmiuXyz/new-agent-electron'
+  },
+  {
+    name: '反馈问题',
+    url: 'https://github.com/huangmiuXyz/new-agent-electron/issues'
+  }
+]
+
+const handleLinkClick = (url: string) => {
+  window.open(url, '_blank')
+}
 
 const checkUpdates = async () => {
   if (updateStatus.value === 'checking' || updateStatus.value === 'downloading') return
@@ -125,24 +141,17 @@ onUnmounted(() => {
         </FormItem>
 
         <FormItem label="相关链接">
-          <div class="links-list">
-            <a
-              href="https://github.com/huangmiuXyz/new-agent-electron"
-              target="_blank"
-              class="link-item"
-            >
-              <span class="link-text">GitHub 项目主页</span>
-              <component :is="ChevronRight" />
-            </a>
-            <a
-              href="https://github.com/huangmiuXyz/new-agent-electron/issues"
-              target="_blank"
-              class="link-item"
-            >
-              <span class="link-text">反馈问题</span>
-              <component :is="ChevronRight" />
-            </a>
-          </div>
+          <List
+            :items="aboutLinks"
+            variant="card"
+            key-field="url"
+            main-field="name"
+            @select="handleLinkClick"
+          >
+            <template #actions>
+              <component :is="ChevronRight" class="link-icon" />
+            </template>
+          </List>
         </FormItem>
       </div>
     </template>
@@ -325,38 +334,11 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
-/* Links List */
-.links-list {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.link-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  text-decoration: none;
-  transition: background 0.2s;
-}
-
-.link-item:hover {
-  background: var(--bg-hover);
-}
-
-.link-text {
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
+/* Link Icon */
 .link-icon {
   width: 16px;
   height: 16px;
-  color: #000 !important;
+  color: var(--text-tertiary);
 }
 
 /* Copyright */
