@@ -22,7 +22,11 @@ fn main() -> Result<()> {
     })?;
 
     let shell = std::env::var("SHELL").unwrap_or("/bin/zsh".to_string());
-    let cmd = CommandBuilder::new(shell);
+
+    let mut cmd = CommandBuilder::new(shell);
+    cmd.arg("-i");
+    cmd.set_controlling_tty(true);
+
     let _child = pair.slave.spawn_command(cmd)?;
 
     let mut reader = pair.master.try_clone_reader()?;
