@@ -155,7 +155,6 @@ export const useTerminal = () => {
           currentTab.currentOutput = (currentTab.currentOutput || '') + text
         }
 
-        // 增强 prompt 检测
         if (/[$%#>]\s*$/.test(text)) {
           if (currentTab.isExecuting) setExecuting(id, false)
           if (!currentTab.isReady) currentTab.isReady = true
