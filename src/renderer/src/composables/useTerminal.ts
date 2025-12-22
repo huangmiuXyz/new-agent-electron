@@ -175,7 +175,7 @@ export const useTerminal = () => {
     }, 50)
   }
 
-  const createTab = async () => {
+  const createTab = async (command?: string | MouseEvent, timeout = 30000) => {
     const id = generateId()
     const title = `终端 ${tabs.value.length + 1}`
 
@@ -192,6 +192,30 @@ export const useTerminal = () => {
 
     await nextTick()
     initTerminal(id)
+
+    if (typeof command !== 'string') return { id }
+
+    const tab = tabs.value.find((t) => t.id === id)
+    if (!tab) return { id, result: { success: false, exitCode: null } }
+
+    await new Promise<void>((resolve) => {
+      const check = () => {
+        if (tab.socket && tab.socket.readyState === WebSocket.OPEN) {
+          resolve()
+        } else {
+          setTimeout(check, 100)
+        }
+      }
+      check()
+    })
+
+    await new Promise((r) => setTimeout(r, 800))
+
+    setExecuting(id, true)
+    tab.socket?.send(command + '\r')
+
+    const result = await waitForCommand(id, timeout)
+    return { id, result }
   }
 
   const removeTab = (id: string, event?: Event) => {
