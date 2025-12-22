@@ -107,7 +107,11 @@
       "category": "public.app-category.utilities",
       "extendInfo": {
         "LSUIElement": true
-      }
+      },
+      "target": [
+        "zip",
+        "dmg"
+      ]
     }
   }
 }
