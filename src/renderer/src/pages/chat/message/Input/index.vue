@@ -5,12 +5,13 @@ const message = ref('')
 const chatStore = useChatsStores();
 const selectedFiles = ref<Array<UploadFile>>([])
 
-const { currentSelectedModel, selectedModelId, selectedProviderId, currentSelectedProvider, thinkingMode } = storeToRefs(useSettingsStore())
+const { currentSelectedModel, selectedModelId, selectedProviderId, currentSelectedProvider, thinkingMode, display } = storeToRefs(useSettingsStore())
 const { updateThinkingMode } = useSettingsStore()
 
 // 图标
 const FileUploadIcon = useIcon('FileUpload')
 const Bulb = useIcon('Bulb')
+const TerminalIcon = useIcon('Terminal')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -96,6 +97,12 @@ const _sendMessage = async () => {
           <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
             @click="updateThinkingMode(!thinkingMode)" title="思考模式">
             <Bulb />
+          </Button>
+
+          <!-- 终端按钮 -->
+          <Button variant="icon" size="sm" :class="{ 'terminal-active': display.showTerminal }"
+            @click="display.showTerminal = !display.showTerminal" title="显示终端">
+            <TerminalIcon />
           </Button>
 
           <!-- 智能体选择器 -->
@@ -262,6 +269,11 @@ const _sendMessage = async () => {
 }
 
 .thinking-active {
+  color: var(--primary-color, #007bff);
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.terminal-active {
   color: var(--primary-color, #007bff);
   background-color: rgba(0, 123, 255, 0.1);
 }

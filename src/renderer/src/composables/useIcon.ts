@@ -12,7 +12,8 @@ import {
   Chat,
   Menu,
   Branch,
-  X
+  X,
+  Terminal
 } from '@vicons/carbon'
 import {
   Cpu,
@@ -108,7 +109,8 @@ const icons = {
   EyeOff,
   ErrorCircle24Filled,
   InfoCircle,
-  X
+  X,
+  Terminal
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
