@@ -129,7 +129,7 @@ const startResizing = (event: MouseEvent) => {
 
 .terminal-header {
   height: 32px;
-  background: #f5f5f5;
+  /* background: #f5f5f5; */
   color: #666;
   display: flex;
   align-items: center;
@@ -137,7 +137,7 @@ const startResizing = (event: MouseEvent) => {
   padding: 0 12px;
   font-size: 12px;
   user-select: none;
-  border-bottom: 1px solid #e5e5e5;
+  /* border-bottom: 1px solid #e5e5e5; */
 }
 
 .terminal-actions {
