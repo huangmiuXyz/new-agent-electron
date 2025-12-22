@@ -241,6 +241,9 @@ onUnmounted(() => {
   font-size: 14px;
   color: var(--text-primary);
   font-weight: 500;
+  height: 30px;
+  align-items: center;
+  display: flex;
 }
 
 .error-text {
