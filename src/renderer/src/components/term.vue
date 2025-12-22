@@ -28,7 +28,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleWindowResize)
-  // Don't close sockets here as we want to keep them alive
 })
 </script>
 
