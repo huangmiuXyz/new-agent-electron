@@ -36,6 +36,7 @@ export function convertToOpenAICompatibleCompletionPrompt({
 
       case 'user': {
         const userMessage = content
+          // @ts-ignore
           .map(part => {
             switch (part.type) {
               case 'text': {
@@ -52,6 +53,7 @@ export function convertToOpenAICompatibleCompletionPrompt({
 
       case 'assistant': {
         const assistantMessage = content
+          // @ts-ignore
           .map(part => {
             switch (part.type) {
               case 'text': {
