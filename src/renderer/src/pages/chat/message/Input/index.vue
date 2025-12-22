@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { FileUIPart, TextUIPart } from 'ai';
+import { useTerminal } from '@renderer/composables/useTerminal';
 
 const message = ref('')
 const chatStore = useChatsStores();
@@ -7,6 +8,7 @@ const selectedFiles = ref<Array<UploadFile>>([])
 
 const { currentSelectedModel, selectedModelId, selectedProviderId, currentSelectedProvider, thinkingMode, display } = storeToRefs(useSettingsStore())
 const { updateThinkingMode } = useSettingsStore()
+const { toggleTerminal } = useTerminal()
 
 // 图标
 const FileUploadIcon = useIcon('FileUpload')
@@ -101,7 +103,7 @@ const _sendMessage = async () => {
 
           <!-- 终端按钮 -->
           <Button variant="icon" size="sm" :class="{ 'terminal-active': display.showTerminal }"
-            @click="display.showTerminal = !display.showTerminal" title="显示终端">
+            @click="toggleTerminal" title="显示终端">
             <TerminalIcon />
           </Button>
 
