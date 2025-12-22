@@ -151,7 +151,6 @@ export const useTerminal = () => {
       if (currentTab) {
         const text = typeof event.data === 'string' ? event.data : ''
 
-        // 如果正在执行命令，累加输出
         if (currentTab.isExecuting) {
           currentTab.currentOutput = (currentTab.currentOutput || '') + text
         }
@@ -188,18 +187,17 @@ export const useTerminal = () => {
     }, 50)
   }
 
-  const createTab = async (command?: string | MouseEvent, timeout = 30000, tid?: string) => {
-    const id = tid || generateId()
+  const createTab = async (command?: string | MouseEvent, timeout = 30000) => {
+    const id = generateId()
     const title = `终端 ${tabs.value.length + 1}`
-    if (!tid) {
-      tabs.value.push({
-        id,
-        title,
-        instance: null,
-        addon: null,
-        socket: null
-      })
-    }
+
+    tabs.value.push({
+      id,
+      title,
+      instance: null,
+      addon: null,
+      socket: null
+    })
 
     activeTabId.value = id
     settingsStore.display.showTerminal = true
@@ -225,6 +223,7 @@ export const useTerminal = () => {
 
     await waitForReady(id)
 
+    // 清空之前的输出
     tab.currentOutput = ''
 
     setExecuting(id, true)
