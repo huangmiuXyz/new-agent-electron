@@ -63,6 +63,7 @@ const handleResetBaseUrl = async () => {
     }
 }
 const ollamaFormFields = (): FormField<Provider>[] => {
+    if(activeProvider.value?.providerType !== 'ollama') return []
     return [{
         name: 'autoStartOllama',
         type: 'boolean',
