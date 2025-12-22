@@ -115,7 +115,7 @@ const startResizing = (event: MouseEvent) => {
   top: -3px;
   left: 0;
   right: 0;
-  height: 6px;
+  height: 3px;
   cursor: row-resize;
   z-index: 10;
   background: transparent;
