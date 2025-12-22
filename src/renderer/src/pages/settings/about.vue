@@ -142,10 +142,6 @@ onUnmounted(() => {
             </a>
           </div>
         </FormItem>
-        <!-- Copyright -->
-        <!-- <div class="copyright">
-          Copyright © {{ new Date().getFullYear() }} Agent Qi. All rights reserved.
-        </div> -->
       </div>
     </template>
   </SettingFormContainer>
