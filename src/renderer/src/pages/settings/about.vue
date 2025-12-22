@@ -57,9 +57,9 @@ onUnmounted(() => {
   <SettingFormContainer header-title="关于我们">
     <template #content>
       <div class="about-wrapper">
-        <FormItem label="软件更新">
+        <FormItem>
           <div class="header-card">
-            <img src="/logo.png" alt="logo" class="app-logo" />
+            <Image src="/logo.png" alt="logo" class="app-logo" />
             <div class="header-info">
               <div class="title-row">
                 <h1 class="app-name">Agent Qi</h1>
@@ -154,7 +154,7 @@ onUnmounted(() => {
 <style scoped>
 .about-wrapper {
   max-width: 640px;
-  margin: 0 auto; 
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
 }
@@ -171,7 +171,7 @@ onUnmounted(() => {
 .app-logo {
   width: 64px;
   height: 64px;
-  border-radius: 16px;
+  border-radius: 8px;
 }
 
 .header-info {
