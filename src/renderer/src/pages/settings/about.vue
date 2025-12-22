@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { FormItem } from '@renderer/composables/useForm'
+import Divider from '@renderer/components/Divider.vue'
 
 const version = ref('')
 const updateStatus = ref('idle') // idle, checking, available, not-available, downloading, downloaded, error
@@ -67,6 +68,7 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+          <Divider margin="24px 0 0 0" />
         </FormItem>
         <!-- App Header -->
 
@@ -160,8 +162,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--border-subtle);
 }
 
 .app-logo {
@@ -314,8 +314,6 @@ onUnmounted(() => {
 /* Release Notes */
 .release-notes {
   padding: 0 16px 16px;
-  border-top: 1px solid var(--border-subtle);
-  margin-top: -1px; /* Align border */
 }
 
 .notes-content {
@@ -343,12 +341,7 @@ onUnmounted(() => {
   justify-content: space-between;
   padding: 12px 16px;
   text-decoration: none;
-  border-bottom: 1px solid var(--border-subtle);
   transition: background 0.2s;
-}
-
-.link-item:last-child {
-  border-bottom: none;
 }
 
 .link-item:hover {
