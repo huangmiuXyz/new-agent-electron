@@ -483,8 +483,8 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
     }
   },
   exec_command: {
-    title: '执行命令',
-    description: '执行命令',
+    title: '执行cmd命令',
+    description: '执行cmd命令',
     inputSchema: z.object({
       command: z.string().describe('要执行的命令')
     }),
