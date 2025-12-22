@@ -15,7 +15,7 @@
   },
   {
     "name": "Anthropic",
-    "baseUrl": "https://api.anthropic.com",
+    "baseUrl": "https://api.anthropic.com/v1",
     "id": "Anthropic",
     "logo": "/images/providers/anthropic.png",
     "providerType": "anthropic"

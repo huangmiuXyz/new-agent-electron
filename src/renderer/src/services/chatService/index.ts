@@ -179,14 +179,61 @@ export const chatService = () => {
   const list_models = async ({ baseURL, apiKey, providerType }) => {
     await onUseAIBefore({ providerType, apiKey, baseURL })
     try {
-      const models = await fetch(`${baseURL}/models`, {
+      let url = `${baseURL}/models`
+      let headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+
+      if (providerType === 'google') {
+        const params = new URLSearchParams()
+        params.append('key', apiKey)
+        params.append('pageSize', '500')
+        url = `${baseURL}/models?${params.toString()}`
+      } else if (providerType === 'anthropic') {
+        url = `${baseURL}/models`
+        headers['x-api-key'] = apiKey
+        headers['anthropic-version'] = '2023-06-01'
+      } else {
+        headers['Authorization'] = `Bearer ${apiKey}`
+      }
+      const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`
-        }
+        headers
       })
-      return await models.json()
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (providerType === 'google') {
+        return {
+          data: (result.models || []).map((m: any) => ({
+            id: m.name.replace('models/', ''),
+            name: m.displayName || m.name.replace('models/', ''),
+            description: m.description,
+            category: 'text'
+          }))
+        }
+      } else if (providerType === 'anthropic') {
+        return {
+          data: (result.data || []).map((m: any) => ({
+            id: m.id,
+            name: m.display_name || m.id,
+            category: 'text'
+          }))
+        }
+      } else {
+        return {
+          data: (result.data || []).map((m: any) => ({
+            ...m,
+            name: m.id,
+            category: 'text'
+          }))
+        }
+      }
     } catch (error) {
       messageApi.error((error as Error).message)
       throw error
