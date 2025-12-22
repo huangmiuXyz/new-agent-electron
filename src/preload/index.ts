@@ -8,11 +8,13 @@ import url from 'url'
 import { app } from '@electron/remote'
 import { exec } from 'child_process'
 import os from 'os'
+import { ptyServices } from './services/pty'
 // Custom APIs for renderer
 
 // @ts-ignore ts(2742)
 export const api = {
   ...aiServices(),
+  ...ptyServices(),
   showOpenDialog: async (options: Electron.OpenDialogOptions) =>
     (await electronAPI.ipcRenderer.invoke(
       'dialog:showOpenDialog',
