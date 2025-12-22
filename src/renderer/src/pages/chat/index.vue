@@ -18,7 +18,7 @@ const settingsStore = useSettingsStore()
       <ChatMessageList />
 
       <!-- 终端区域 -->
-      <Term v-if="settingsStore.display.showTerminal" />
+      <Term v-show="settingsStore.display.showTerminal" />
 
       <!-- 输入框 -->
       <ChatMessageInput />
