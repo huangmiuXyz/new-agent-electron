@@ -249,7 +249,7 @@ onBeforeUnmount(() => {
       />
 
       <div v-if="tabs.length === 0" class="empty-state">
-        <button @click="createTab">打开新终端</button>
+        <Button @click="createTab" variant="primary">打开新终端</Button>
       </div>
     </div>
   </div>
@@ -285,7 +285,7 @@ onBeforeUnmount(() => {
 }
 
 .terminal-header {
-  height: 36px;
+  height: 32px;
   background: #f3f3f3;
   border-bottom: 1px solid #e0e0e0;
   display: flex;
@@ -302,7 +302,6 @@ onBeforeUnmount(() => {
   overflow-x: auto;
 }
 
-/* 隐藏滚动条 */
 .tabs-list::-webkit-scrollbar {
   display: none;
 }
@@ -331,7 +330,7 @@ onBeforeUnmount(() => {
   background: #ffffff;
   color: #333;
   font-weight: 500;
-  border-bottom: 2px solid #007bff; /* 高亮线 */
+  border-bottom: 2px solid #007bff;
 }
 
 .tab-title {
@@ -351,11 +350,6 @@ onBeforeUnmount(() => {
   color: #999;
 }
 
-.tab-close:hover {
-  background: #ccc;
-  color: #fff;
-}
-
 .add-tab-btn {
   background: transparent;
   border: none;
@@ -364,9 +358,6 @@ onBeforeUnmount(() => {
   height: 100%;
   cursor: pointer;
   color: #666;
-}
-.add-tab-btn:hover {
-  background: #e0e0e0;
 }
 
 .close-panel-btn {
