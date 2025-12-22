@@ -35,6 +35,7 @@ const route = useRoute()
   --bg-app: #fbfbfb;
   --bg-sidebar: #fff;
   --bg-header: #fbfbfb;
+  --bg-secondary: #fff;
   --bg-hover: rgba(0, 0, 0, 0.05);
   --bg-active: rgba(0, 0, 0, 0.08);
   --border-subtle: #eaeaea;

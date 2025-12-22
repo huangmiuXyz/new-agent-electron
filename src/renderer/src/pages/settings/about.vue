@@ -2,6 +2,7 @@
 import { FormItem } from '@renderer/composables/useForm'
 import Divider from '@renderer/components/Divider.vue'
 import List from '@renderer/components/List.vue'
+import Card from '@renderer/components/Card.vue'
 
 const version = ref('')
 const updateStatus = ref('idle') // idle, checking, available, not-available, downloading, downloaded, error
@@ -90,7 +91,7 @@ onUnmounted(() => {
 
         <!-- Update Section -->
         <FormItem label="软件更新">
-          <div class="update-card">
+          <Card>
             <div class="update-row">
               <div class="update-status-text">
                 <span v-if="updateStatus === 'idle'">检查新版本</span>
@@ -137,7 +138,7 @@ onUnmounted(() => {
             >
               <div class="notes-content" v-html="updateInfo.releaseNotes"></div>
             </div>
-          </div>
+          </Card>
         </FormItem>
 
         <FormItem label="相关链接">
@@ -231,13 +232,6 @@ onUnmounted(() => {
 }
 
 /* Update Card */
-.update-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
 .update-row {
   display: flex;
   align-items: center;
