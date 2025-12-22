@@ -59,7 +59,7 @@ onUnmounted(() => {
       <div class="about-wrapper">
         <!-- App Header -->
         <div class="header-card">
-          <img src="/favicon.ico" alt="logo" class="app-logo" />
+          <img src="/logo.png" alt="logo" class="app-logo" />
           <div class="header-info">
             <div class="title-row">
               <h1 class="app-name">Agent Qi</h1>
