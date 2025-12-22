@@ -63,7 +63,7 @@ onUnmounted(() => {
             <div class="header-info">
               <div class="title-row">
                 <h1 class="app-name">Agent Qi</h1>
-                <span class="version-tag">v{{ version }}</span>
+                <Tags :tags="['v' + version]" color="orange" />
               </div>
             </div>
           </div>
@@ -191,6 +191,7 @@ onUnmounted(() => {
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  text-wrap: nowrap;
 }
 
 .version-tag {
