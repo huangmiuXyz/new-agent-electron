@@ -1,7 +1,8 @@
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, watch } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import { useSettingsStore } from '@renderer/stores/settings'
+import { debounce } from 'es-toolkit'
 
 export interface TerminalTab {
   id: string
@@ -9,6 +10,9 @@ export interface TerminalTab {
   instance: Terminal | null
   addon: FitAddon | null
   socket: WebSocket | null
+  isExecuting?: boolean
+  isExecutingDelayed?: boolean // 用于 UI 显示，防抖
+  lastExitCode?: number | null
 }
 
 // Global state outside the hook to share across all components
@@ -17,11 +21,40 @@ const activeTabId = ref<string>('')
 const terminalHeight = ref(200)
 const isResizing = ref(false)
 const terminalRefs = new Map<string, HTMLElement>()
+const executionDebouncers = new Map<string, ReturnType<typeof debounce>>()
 
 const generateId = () => Math.random().toString(36).substring(2, 9)
 
 export const useTerminal = () => {
   const settingsStore = useSettingsStore()
+
+  /**
+   * 更新执行状态（使用 es-toolkit debounce，防止快速命令闪烁）
+   */
+  const setExecuting = (id: string, executing: boolean, exitCode?: number | null) => {
+    const tab = tabs.value.find((t) => t.id === id)
+    if (!tab) return
+
+    tab.isExecuting = executing
+    if (exitCode !== undefined) tab.lastExitCode = exitCode
+
+    // 获取或创建防抖函数
+    let debouncer = executionDebouncers.get(id)
+    if (!debouncer) {
+      debouncer = debounce((val: boolean) => {
+        const t = tabs.value.find((item) => item.id === id)
+        if (t) t.isExecutingDelayed = val
+      }, 300)
+      executionDebouncers.set(id, debouncer)
+    }
+
+    if (executing) {
+      debouncer(true)
+    } else {
+      debouncer.cancel()
+      tab.isExecutingDelayed = false
+    }
+  }
 
   const setTerminalRef = (el: any, id: string) => {
     if (el) {
@@ -61,16 +94,60 @@ export const useTerminal = () => {
     tabs.value[tabIndex].addon = fitAddon
     tabs.value[tabIndex].socket = ws
 
+    // 注册 OSC 633 处理程序 (Shell Integration)
+    term.parser.registerOscHandler(633, (data) => {
+      const parts = data.split(';')
+      const type = parts[0]
+      const currentTab = tabs.value.find((t) => t.id === id)
+      if (!currentTab) return false
+
+      switch (type) {
+        case 'A': // Prompt start
+          setExecuting(id, false)
+          break
+        case 'B': // Command start
+          setExecuting(id, true)
+          break
+        case 'C': // Command executed (output start)
+          setExecuting(id, true)
+          break
+        case 'D': // Command finished
+          setExecuting(id, false, parts[1] ? parseInt(parts[1]) : null)
+          break
+      }
+      return true
+    })
+
     ws.onopen = () => {
       fitAddon.fit()
       ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
+      const platform = window.api.os.platform()
+      setTimeout(() => {
+        if (platform === 'win32') {
+          const psScript = `function prompt { $lastExit = $? ; Write-Host -NoNewline "\`e]633;D;$lastExit\`a" ; return "PS $($executionContext.SessionState.Path.CurrentLocation)> " }; Clear-Host\r`
+          ws.send(psScript)
+        } else {
+          const shellIntegration = ` if [ -n "$ZSH_VERSION" ]; then precmd() { printf "\\033]633;D;$?\\007"; }; elif [ -n "$BASH_VERSION" ]; then PROMPT_COMMAND='printf "\\033]633;D;$?\\007"'; fi; clear\r`
+          ws.send(' ' + shellIntegration)
+        }
+      }, 500)
     }
 
     ws.onmessage = (event) => {
-      if (typeof event.data === 'string') {
-        term.write(event.data)
-      } else {
+      const data = typeof event.data === 'string' ? event.data : ''
+
+      if (data) {
+        term.write(data)
+      } else if (event.data instanceof Blob) {
         event.data.text().then((t: string) => term.write(t))
+      }
+
+      const currentTab = tabs.value.find((t) => t.id === id)
+      if (currentTab && currentTab.isExecuting) {
+        const text = typeof event.data === 'string' ? event.data : ''
+        if (/[$%#>]\s*$/.test(text)) {
+          setExecuting(id, false)
+        }
       }
     }
 
@@ -81,6 +158,9 @@ export const useTerminal = () => {
     term.onData((data) => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(data)
+        if (data === '\r' || data === '\n') {
+          setExecuting(id, true)
+        }
       }
     })
 
@@ -195,6 +275,36 @@ export const useTerminal = () => {
     }
   }
 
+  const waitForCommand = (id: string, timeout = 30000) => {
+    return new Promise<{ success: boolean; exitCode: number | null }>((resolve) => {
+      const tab = tabs.value.find((t) => t.id === id)
+      if (!tab) return resolve({ success: false, exitCode: null })
+
+      if (!tab.isExecuting) {
+        return resolve({ success: true, exitCode: tab.lastExitCode ?? 0 })
+      }
+
+      let timer: any = null
+
+      const unwatch = watch(
+        () => tab.isExecuting,
+        (isExecuting) => {
+          if (!isExecuting) {
+            if (timer) clearTimeout(timer)
+            unwatch()
+            resolve({ success: true, exitCode: tab.lastExitCode ?? 0 })
+          }
+        }
+      )
+      if (timeout > 0) {
+        timer = setTimeout(() => {
+          unwatch()
+          resolve({ success: false, exitCode: null })
+        }, timeout)
+      }
+    })
+  }
+
   return {
     tabs,
     activeTabId,
@@ -208,6 +318,7 @@ export const useTerminal = () => {
     handleWindowResize,
     showTerminal: () => (settingsStore.display.showTerminal = true),
     hideTerminal: () => (settingsStore.display.showTerminal = false),
-    toggleTerminal
+    toggleTerminal,
+    waitForCommand
   }
 }

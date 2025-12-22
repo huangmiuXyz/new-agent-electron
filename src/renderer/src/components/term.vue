@@ -48,6 +48,7 @@ onBeforeUnmount(() => {
           :class="{ active: activeTabId === tab.id }"
           @click="switchTab(tab.id)"
         >
+          <div class="tab-status-dot" :class="{ 'is-executing': tab.isExecutingDelayed }"></div>
           <span class="tab-title">{{ tab.title }}</span>
           <span class="tab-close" @click.stop="removeTab(tab.id)">×</span>
         </div>
@@ -153,6 +154,20 @@ onBeforeUnmount(() => {
   color: #333;
   font-weight: 500;
   border-bottom: 2px solid #007bff;
+}
+
+.tab-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.tab-status-dot.is-executing {
+  background: #28a745;
+  box-shadow: 0 0 4px #28a745;
 }
 
 .tab-title {
