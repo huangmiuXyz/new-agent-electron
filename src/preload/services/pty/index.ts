@@ -7,7 +7,7 @@ export const ptyServices = () => {
 
   function startPty() {
     if (ptyProc) return
-    let backendPath = path.resolve(process.cwd(), 'src/pty/target/debug/pty-backend')
+    let backendPath = path.resolve(process.cwd(), 'src/pty/target/release/pty-backend')
     ptyProc = spawn(backendPath, [], {
       stdio: ['pipe', 'pipe', 'pipe']
     })
