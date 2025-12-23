@@ -17,7 +17,7 @@ const Stop = useIcon('Stop')
 
       <div class="msg-meta">
         <span class="msg-name">{{ message.metadata?.model }}</span>
-        <span class="msg-time">{{ new Date(message.metadata!.date).toLocaleString() }}</span>
+        <span class="msg-time">{{ new Date(message.metadata?.date || '').toLocaleString() }}</span>
         <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
           variant="icon" type='button'>
           <template #icon>
@@ -26,7 +26,7 @@ const Stop = useIcon('Stop')
         </Button>
       </div>
       <div
-        v-if="!message.metadata?.error && message.metadata!.loading && message.parts.findIndex(e => e.type === 'step-start') === -1"
+        v-if="!message.metadata?.error && message.metadata?.loading && message.parts.findIndex(e => e.type === 'step-start') === -1"
         class="loading-container">
         <div class="loading-dots">
           <span class="dot"></span>
