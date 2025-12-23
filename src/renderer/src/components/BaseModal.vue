@@ -21,7 +21,7 @@
           <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
           }}</Button>
-          <Button v-bind="confirmProps" class="btn btn-primary" type="button" @click="handleConfirm">
+          <Button ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button" @click="handleConfirm">
             {{ props.confirmText || '确认' }}
           </Button>
         </div>
@@ -40,11 +40,12 @@ const Close = useIcon('Close')
 
 const visible = ref(false);
 const modalOverlay = useTemplateRef('modalOverlay');
-
+const confirmButton = useTemplateRef('confirmButton');
 onMounted(async () => {
   visible.value = true;
   nextTick(() => {
     modalOverlay.value?.focus();
+    confirmButton.value?.focus()
   });
 });
 

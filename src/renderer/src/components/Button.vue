@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ButtonProps } from '@renderer/types/components';
+import type { ButtonProps } from '@renderer/types/components'
 
 const props = withDefaults(defineProps<ButtonProps>(), {
   variant: 'primary',
@@ -9,10 +9,13 @@ const props = withDefaults(defineProps<ButtonProps>(), {
   danger: false
 })
 
+const buttonRef = useTemplateRef('buttonRef')
 const emit = defineEmits<{
   click: [event: MouseEvent]
 }>()
-
+defineExpose({
+  focus: () => buttonRef.value?.focus?.()
+})
 const buttonClasses = computed(() => {
   const classes = ['btn', `btn--${props.variant}`, `btn--${props.size}`]
 
@@ -26,7 +29,6 @@ const buttonClasses = computed(() => {
 
   return classes
 })
-
 const handleClick = (event: MouseEvent) => {
   if (!props.disabled) {
     emit('click', event)
@@ -35,7 +37,14 @@ const handleClick = (event: MouseEvent) => {
 </script>
 
 <template>
-  <button class="no-drag" :type="type" :class="buttonClasses" :disabled="disabled" @click="handleClick">
+  <button
+    class="no-drag"
+    ref="buttonRef"
+    :type="type"
+    :class="buttonClasses"
+    :disabled="disabled"
+    @click="handleClick"
+  >
     <template v-if="$slots.icon">
       <div class="icon-btn">
         <slot name="icon" />
