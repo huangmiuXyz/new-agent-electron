@@ -65,6 +65,9 @@ export const useTerminal = () => {
     const tabIndex = tabs.value.findIndex((t) => t.id === id)
     if (tabIndex === -1) return
 
+    const tab = tabs.value[tabIndex]
+    if (tab.instance) return
+
     const container = terminalRefs.get(id)
     if (!container) return
 
