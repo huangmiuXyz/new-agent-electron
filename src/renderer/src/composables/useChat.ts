@@ -144,14 +144,12 @@ export const useChat = (chatId: string) => {
     chats!.messages.push({
       id: chat.generateId(),
       role: 'user',
-      parts,
-      metadata: { cid: chat.id } as MetaData
+      parts
     })
     chats!.messages.push({
       id: chat.generateId(),
       role: 'assistant',
-      parts: [],
-      metadata: { cid: chat.id } as MetaData
+      parts: []
     })
     chat.sendMessage()
   }
