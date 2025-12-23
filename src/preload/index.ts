@@ -13,8 +13,23 @@ import os from 'os'
 // @ts-ignore ts(2742)
 export const api = {
   ...aiServices(),
-  runPtyServer: () => {
-    spawn('node', [path.resolve(process.cwd(), 'src/server/dist/index.js')])
+  pty: {
+    spawn: (options: { id: string; cols?: number; rows?: number; cwd?: string }) =>
+      electronAPI.ipcRenderer.invoke('pty:spawn', options),
+    write: (id: string, data: string) => electronAPI.ipcRenderer.invoke('pty:write', { id, data }),
+    resize: (id: string, cols: number, rows: number) =>
+      electronAPI.ipcRenderer.invoke('pty:resize', { id, cols, rows }),
+    kill: (id: string) => electronAPI.ipcRenderer.invoke('pty:kill', id),
+    onData: (id: string, callback: (data: string) => void) => {
+      const listener = (_event: any, data: string) => callback(data)
+      electronAPI.ipcRenderer.on(`pty:data:${id}`, listener)
+      return () => electronAPI.ipcRenderer.removeListener(`pty:data:${id}`, listener)
+    },
+    onExit: (id: string, callback: (info: { exitCode: number; signal?: number }) => void) => {
+      const listener = (_event: any, info: any) => callback(info)
+      electronAPI.ipcRenderer.on(`pty:exit:${id}`, listener)
+      return () => electronAPI.ipcRenderer.removeListener(`pty:exit:${id}`, listener)
+    }
   },
   showOpenDialog: async (options: Electron.OpenDialogOptions) =>
     (await electronAPI.ipcRenderer.invoke(

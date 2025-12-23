@@ -1,21 +1,19 @@
 import { ref, nextTick, watch } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
-import { useSettingsStore } from '@renderer/stores/settings'
-import { debounce } from 'es-toolkit'
 
 export interface TerminalTab {
   id: string
   title: string
   instance: Terminal | null
   addon: FitAddon | null
-  socket: WebSocket | null
   isExecuting?: boolean
   isExecutingDelayed?: boolean // 用于 UI 显示，防抖
   lastExitCode?: number | null
   isReady?: boolean
   currentOutput?: string
   forceContinue?: () => void
+  _cleanup?: () => void
 }
 
 // Global state outside the hook to share across all components
@@ -63,14 +61,12 @@ export const useTerminal = () => {
     }
   }
 
-  const initTerminal = (id: string) => {
+  const initTerminal = async (id: string) => {
     const tabIndex = tabs.value.findIndex((t) => t.id === id)
     if (tabIndex === -1) return
 
     const container = terminalRefs.get(id)
     if (!container) return
-
-    const ws = new WebSocket('ws://localhost:3333')
 
     const term = new Terminal({
       fontSize: 14,
@@ -91,7 +87,6 @@ export const useTerminal = () => {
     term.open(container)
     tabs.value[tabIndex].instance = term
     tabs.value[tabIndex].addon = fitAddon
-    tabs.value[tabIndex].socket = ws
 
     // 注册 OSC 633 处理程序 (Shell Integration)
     term.parser.registerOscHandler(633, (data) => {
@@ -119,24 +114,16 @@ export const useTerminal = () => {
       return true
     })
 
-    ws.onopen = () => {
-      fitAddon.fit()
-      ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
-    }
+    await window.api.pty.spawn({ id, cols: term.cols, rows: term.rows })
 
-    ws.onmessage = (event) => {
-      const data = typeof event.data === 'string' ? event.data : ''
-
+    const cleanupData = window.api.pty.onData(id, (data) => {
       if (data) {
         term.write(data)
-      } else if (event.data instanceof Blob) {
-        event.data.text().then((t: string) => term.write(t))
       }
 
       const currentTab = tabs.value.find((t) => t.id === id)
       if (currentTab) {
-        const text = typeof event.data === 'string' ? event.data : ''
-        const cleanText = stripAnsi(text)
+        const cleanText = stripAnsi(data)
 
         if (currentTab.isExecuting) {
           currentTab.currentOutput = (currentTab.currentOutput || '') + cleanText
@@ -149,26 +136,29 @@ export const useTerminal = () => {
             setExecuting(id, true)
             if (platform === 'win32') {
               const psScript = `function prompt { $lastExit = $? ; Write-Host -NoNewline "\`e]633;D;$lastExit\`a" ; return "PS $($executionContext.SessionState.Path.CurrentLocation)> " }; Clear-Host`
-              ws.send('\r' + psScript + '\r')
+              window.api.pty.write(id, '\r' + psScript + '\r')
             } else {
               const shellIntegration = `if [ -n "$ZSH_VERSION" ]; then unsetopt PROMPT_SP; precmd() { printf "\\033]633;D;$?\\007"; }; elif [ -n "$BASH_VERSION" ]; then PROMPT_COMMAND='printf "\\033]633;D;$?\\007"'; fi; clear`
-              ws.send('\r ' + shellIntegration + '\r')
+              window.api.pty.write(id, '\r ' + shellIntegration + '\r')
             }
           }
         }
       }
-    }
+    })
 
-    ws.onclose = () => {
+    const cleanupExit = window.api.pty.onExit(id, () => {
       term.write('\r\n\x1b[31m连接已断开\x1b[0m')
+    })
+
+    tabs.value[tabIndex]._cleanup = () => {
+      cleanupData()
+      cleanupExit()
     }
 
     term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data)
-        if (data === '\r' || data === '\n') {
-          setExecuting(id, true)
-        }
+      window.api.pty.write(id, data)
+      if (data === '\r' || data === '\n') {
+        setExecuting(id, true)
       }
     })
 
@@ -180,6 +170,7 @@ export const useTerminal = () => {
 
     setTimeout(() => {
       fitAddon.fit()
+      window.api.pty.resize(id, term.cols, term.rows)
     }, 50)
   }
 
@@ -214,8 +205,7 @@ export const useTerminal = () => {
         id,
         title,
         instance: null,
-        addon: null,
-        socket: null
+        addon: null
       })
       tab = tabs.value[tabs.value.length - 1]
     }
@@ -224,22 +214,11 @@ export const useTerminal = () => {
     ;(options?.showTerminal || settingsStore.display.showTerminal) && showTerminal()
 
     await nextTick()
-    initTerminal(id)
+    await initTerminal(id)
 
     if (typeof options?.command !== 'string') return { id }
 
     if (!tab) return { id, result: { success: false, output: '' } }
-
-    await new Promise<void>((resolve) => {
-      const check = () => {
-        if (tab.socket && tab.socket.readyState === WebSocket.OPEN) {
-          resolve()
-        } else {
-          setTimeout(check, 100)
-        }
-      }
-      check()
-    })
 
     await waitForReady(id)
 
@@ -247,7 +226,7 @@ export const useTerminal = () => {
     tab.currentOutput = ''
 
     setExecuting(id, true)
-    tab.socket?.send(options?.command + '\r')
+    window.api.pty.write(id, options?.command + '\r')
 
     const result = await waitForCommand(id, timeout)
     return { id, result }
@@ -260,7 +239,8 @@ export const useTerminal = () => {
 
     const tab = tabs.value[index]
 
-    tab.socket?.close()
+    window.api.pty.kill(id)
+    tab._cleanup?.()
     tab.instance?.dispose()
 
     tabs.value.splice(index, 1)
@@ -283,15 +263,9 @@ export const useTerminal = () => {
 
   const handleWindowResize = () => {
     const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
-    if (activeTab?.addon && activeTab?.socket) {
+    if (activeTab?.addon && activeTab?.instance) {
       activeTab.addon.fit()
-      activeTab.socket.send(
-        JSON.stringify({
-          type: 'resize',
-          cols: activeTab.instance!.cols,
-          rows: activeTab.instance!.rows
-        })
-      )
+      window.api.pty.resize(activeTab.id, activeTab.instance.cols, activeTab.instance.rows)
     }
   }
 
@@ -311,15 +285,9 @@ export const useTerminal = () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
       const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
-      if (activeTab?.addon && activeTab?.socket) {
+      if (activeTab?.addon && activeTab?.instance) {
         activeTab.addon.fit()
-        activeTab.socket.send(
-          JSON.stringify({
-            type: 'resize',
-            cols: activeTab.instance!.cols,
-            rows: activeTab.instance!.rows
-          })
-        )
+        window.api.pty.resize(activeTab.id, activeTab.instance.cols, activeTab.instance.rows)
       }
     }
 

@@ -16,9 +16,6 @@ const {
 } = useTerminal()
 
 onMounted(async () => {
-  if (window.api && window.api.runPtyServer) {
-    window.api.runPtyServer()
-  }
   await new Promise((resolve) => setTimeout(resolve, 500))
   createTab()
   window.addEventListener('resize', handleWindowResize)
