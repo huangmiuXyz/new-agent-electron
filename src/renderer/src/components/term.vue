@@ -19,6 +19,19 @@ onMounted(async () => {
   await new Promise((resolve) => setTimeout(resolve, 500))
   createTab()
   window.addEventListener('resize', handleWindowResize)
+  
+  // 确保终端在初始化后立即应用正确的高度
+  await nextTick()
+  const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
+  if (activeTab?.addon && activeTab?.instance) {
+    // 使用 setTimeout 确保在 DOM 更新后再调整大小
+    setTimeout(() => {
+      if (activeTab.addon && activeTab.instance) {
+        activeTab.addon.fit()
+        window.api.pty.resize(activeTab.id, activeTab.instance.cols, activeTab.instance.rows)
+      }
+    }, 100)
+  }
 })
 
 onBeforeUnmount(() => {

@@ -19,7 +19,8 @@ export const useSettingsStore = defineStore(
       showTimestamps: true,
       fontSize: 13,
       sidebarCollapsed: false,
-      showTerminal: false
+      showTerminal: false,
+      terminalHeight: 200
     })
 
     const providers = ref<Provider[]>(getDefaultProviders())

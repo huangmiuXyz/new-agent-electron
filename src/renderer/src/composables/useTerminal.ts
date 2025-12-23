@@ -1,4 +1,4 @@
-import { ref, nextTick, watch } from 'vue'
+import { ref, nextTick, watch, computed } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 
@@ -18,7 +18,6 @@ export interface TerminalTab {
 
 const tabs = ref<TerminalTab[]>([])
 const activeTabId = ref<string>('')
-const terminalHeight = ref(200)
 const isResizing = ref(false)
 const terminalRefs = new Map<string, HTMLElement>()
 const executionDebouncers = new Map<string, ReturnType<typeof debounce>>()
@@ -28,6 +27,14 @@ const generateId = () => Math.random().toString(36).substring(2, 9)
 
 export const useTerminal = () => {
   const settingsStore = useSettingsStore()
+
+  // 使用设置中的终端高度，如果没有设置则使用默认值 200
+  const terminalHeight = computed({
+    get: () => settingsStore.display.terminalHeight || 200,
+    set: (value: number) => {
+      settingsStore.updateDisplaySettings({ terminalHeight: value })
+    }
+  })
   const setExecuting = (id: string, executing: boolean, exitCode?: number | null) => {
     const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return
@@ -181,6 +188,13 @@ export const useTerminal = () => {
     await waitForReady(activeTabId.value)
     nextTick(() => {
       terminalRefs.get(activeTabId.value)?.focus()
+      const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
+      if (activeTab?.addon && activeTab?.instance) {
+        if (activeTab.addon && activeTab.instance) {
+          activeTab.addon.fit()
+          window.api.pty.resize(activeTab.id, activeTab.instance.cols, activeTab.instance.rows)
+        }
+      }
     })
   }
   const hideTerminal = () => {
