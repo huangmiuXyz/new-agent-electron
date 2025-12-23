@@ -21,10 +21,10 @@ interface ChatServiceOptions {
 interface ChatServiceConfig {
   mcpClient: ClientConfig
   instructions?: string
-  mcpTools?: string[] // 用户选择的MCP工具列表，格式为 "服务器名.工具名"
-  builtinTools?: string[] // 用户选择的内置工具列表
-  knowledgeBaseIds?: string[] // 关联的知识库ID列表
-  thinkingMode?: boolean // 思考模式
+  mcpTools?: string[]
+  builtinTools?: string[]
+  knowledgeBaseIds?: string[]
+  thinkingMode?: boolean
 }
 export const chatService = () => {
   const createAgent = async (
