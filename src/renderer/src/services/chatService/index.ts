@@ -26,6 +26,7 @@ interface ChatServiceConfig {
   builtinTools?: string[]
   knowledgeBaseIds?: string[]
   thinkingMode?: boolean
+  ragEnabled?:boolean
 }
 export const chatService = () => {
   const createAgent = async (
@@ -38,7 +39,8 @@ export const chatService = () => {
       mcpTools,
       builtinTools: selectedBuiltinTools,
       knowledgeBaseIds,
-      thinkingMode
+      thinkingMode,
+      ragEnabled
     }: ChatServiceConfig,
     updateMessageMetadata?: (mid: string, metadata: Partial<MetaData>) => void
   ) => {
@@ -78,7 +80,7 @@ export const chatService = () => {
         middleware: [
           createRagMiddleware({
             knowledgeBaseIds,
-            ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0,
+            ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0 && ragEnabled,
             onRagSearchStart: () => {
               const lastMessage = messages[messages.length - 1]
               if (lastMessage && updateMessageMetadata) {

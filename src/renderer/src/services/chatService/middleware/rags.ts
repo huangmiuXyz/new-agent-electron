@@ -15,7 +15,6 @@ interface RagSearchDetail {
 
 export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageModelV3Middleware => {
   const { knowledgeBaseIds, ragEnabled, onRagSearchStart, onRagSearchComplete } = options
-
   return {
     specificationVersion: 'v3',
     transformParams: async ({ params }) => {

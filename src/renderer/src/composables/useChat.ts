@@ -91,7 +91,8 @@ export const useChat = (chatId: string) => {
                 mcpTools,
                 builtinTools,
                 knowledgeBaseIds: agent.selectedAgent?.knowledgeBaseIds,
-                thinkingMode: thinkingMode.value
+                thinkingMode: thinkingMode.value,
+                ragEnabled: agent.selectedAgent?.ragEnabled
               },
               (mid: string, metadata: Partial<MetaData>) => {
                 updateMessages(chatId, (oldMessages) => {
