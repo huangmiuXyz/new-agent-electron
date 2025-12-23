@@ -442,14 +442,17 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
     description: '实现一个没有跨域问题的fetch工具，可以获取网页内容或调用API',
     inputSchema: z.object({
       url: z.string().describe('要请求的URL'),
-      method: z.enum(['GET', 'POST', 'PUT', 'DELETE']).optional().default('GET').describe('请求方法'),
+      method: z
+        .enum(['GET', 'POST', 'PUT', 'DELETE'])
+        .optional()
+        .default('GET')
+        .describe('请求方法'),
       headers: z.record(z.string(), z.string()).optional().describe('请求头'),
       body: z.string().optional().describe('请求体(POST/PUT时使用)')
     }),
     execute: async (args: any) => {
       const { url, method, headers, body } = args
       try {
-        // @ts-ignore (api is defined in preload)
         const response = await window.api.net.fetch(url, {
           method,
           headers,
