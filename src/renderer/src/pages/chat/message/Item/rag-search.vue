@@ -1,7 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{
   searching?: boolean
-  resultCount?: number
   searchDetails?: RagSearchDetail[]
 }>()
 
@@ -70,10 +69,10 @@ const groupedResults = computed(() => {
     <Search class="rag-search-icon" />
     <span class="rag-search-text">正在搜索知识库...</span>
   </div>
-  <div v-if="resultCount !== undefined && !searching" class="rag-search-results-container">
+  <div v-if="groupedResults.length > 0 && !searching" class="rag-search-results-container">
     <Search class="rag-search-icon" />
     <div class="rag-search-content">
-      <span class="rag-search-text">已找到 {{ resultCount }} 条相关内容</span>
+      <span class="rag-search-text">已找到 {{ groupedResults.length }} 条相关内容</span>
       <div v-if="groupedResults.length > 0" class="rag-search-details">
         <div v-for="(group, index) in groupedResults" :key="index" class="rag-search-group">
           <span class="rag-search-kb-name">{{ group.name }}</span>

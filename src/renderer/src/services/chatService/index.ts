@@ -138,7 +138,7 @@ export const chatService = () => {
     const uiStream = stream.toUIMessageStream({
       originalMessages: messages,
       messageMetadata: ({ part }) => {
-        const lastMessage = messages[messages.length - 1]
+        const lastMessage = messages[messages.length - 1] 
         return {
           ...lastMessage.metadata,
           loading: part.type !== 'finish' && part.type !== 'abort',
