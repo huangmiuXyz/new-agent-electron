@@ -439,7 +439,7 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
 
   fetch: {
     title: '网络请求',
-    description: '实现一个没有跨域问题的fetch工具，可以获取网页内容或调用API',
+    description: 'fetch工具，可以获取网页内容或调用API',
     inputSchema: z.object({
       url: z.string().describe('要请求的URL'),
       method: z
