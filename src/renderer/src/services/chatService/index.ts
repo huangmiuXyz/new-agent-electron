@@ -7,6 +7,7 @@ import {
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
+import { createRagMiddleware } from './middleware/rags'
 
 interface ChatServiceOptions {
   model: string
@@ -73,7 +74,12 @@ export const chatService = () => {
         model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
           `${providerType}:${model}`
         ),
-        middleware: []
+        middleware: [
+          createRagMiddleware({
+            knowledgeBaseIds,
+            ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0
+          })
+        ]
       }),
       providerOptions: {
         deepseek: {
@@ -103,7 +109,7 @@ export const chatService = () => {
             ) ?? false
           )
         }
-      ]
+      ],
     })
     const controller = new AbortController()
     const stream = await agent.stream({
