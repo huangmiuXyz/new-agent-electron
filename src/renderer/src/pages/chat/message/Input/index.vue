@@ -116,10 +116,10 @@ const _sendMessage = async () => {
       </div>
 
       <!-- 语音识别状态显示 -->
-      <div v-if="speechRecognitionRef?.isListening" class="voice-status">
+      <!-- <div v-if="speechRecognitionRef?.isListening" class="voice-status">
         <div class="voice-indicator"></div>
         <span class="voice-text">正在听取语音...</span>
-      </div>
+      </div> -->
 
       <!-- 拖拽提示 -->
       <div v-if="fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone" class="drag-overlay">
