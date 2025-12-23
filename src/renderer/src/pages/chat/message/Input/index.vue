@@ -1,12 +1,19 @@
 <script setup lang="ts">
-import { FileUIPart, TextUIPart } from 'ai';
-import { useTerminal } from '@renderer/composables/useTerminal';
+import { FileUIPart, TextUIPart } from 'ai'
+import { useTerminal } from '@renderer/composables/useTerminal'
 
 const message = ref('')
-const chatStore = useChatsStores();
+const chatStore = useChatsStores()
 const selectedFiles = ref<Array<UploadFile>>([])
 
-const { currentSelectedModel, selectedModelId, selectedProviderId, currentSelectedProvider, thinkingMode, display } = storeToRefs(useSettingsStore())
+const {
+  currentSelectedModel,
+  selectedModelId,
+  selectedProviderId,
+  currentSelectedProvider,
+  thinkingMode,
+  display
+} = storeToRefs(useSettingsStore())
 const { updateThinkingMode } = useSettingsStore()
 const { toggleTerminal } = useTerminal()
 
@@ -37,7 +44,6 @@ const handleSpeechResult = async (text: string) => {
   await _sendMessage()
 }
 
-
 const adjustTextareaHeight = (event: Event) => {
   const textarea = event.target as HTMLTextAreaElement
   textarea.style.height = 'auto'
@@ -66,7 +72,7 @@ const _sendMessage = async () => {
       parts.push({ type: 'text', text: input })
     }
 
-    selectedFiles.value.forEach(file => {
+    selectedFiles.value.forEach((file) => {
       const { blobUrl, path, size, name, url, ...aiPart } = file
       parts.push({ ...aiPart, url: path ? path : url })
     })
@@ -78,14 +84,29 @@ const _sendMessage = async () => {
 
 <template>
   <footer class="footer">
-    <div class="input-container" ref="inputContainerRef"
-      :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
-      <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
-        @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
+    <div
+      class="input-container"
+      ref="inputContainerRef"
+      :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }"
+    >
+      <FileUpload
+        ref="fileUploadRef"
+        :files="selectedFiles"
+        :dropZoneRef="inputContainerRef!"
+        :inputRef="textareaRef!"
+        @files-selected="handleFilesSelected"
+        @remove="handleFileRemoved"
+      />
 
-      <textarea ref="textareaRef" class="input-field" rows="1"
-        :placeholder="`发送消息给${currentSelectedProvider?.name}提供的${currentSelectedModel?.name}...`" v-model="message"
-        @input="adjustTextareaHeight" @keydown.enter.exact.prevent="_sendMessage"></textarea>
+      <textarea
+        ref="textareaRef"
+        class="input-field"
+        rows="1"
+        :placeholder="`发送消息给${currentSelectedProvider?.name}提供的${currentSelectedModel?.name}...`"
+        v-model="message"
+        @input="adjustTextareaHeight"
+        @keydown.enter.exact.prevent="_sendMessage"
+      ></textarea>
 
       <div class="input-actions">
         <div class="action-left">
@@ -93,33 +114,44 @@ const _sendMessage = async () => {
             <FileUploadIcon />
           </Button>
           <!-- 语音识别组件 -->
-          <ChatMessageInputSpeechRecognition ref="speechRecognitionRef" @speech-result="handleSpeechResult" />
+          <ChatMessageInputSpeechRecognition
+            ref="speechRecognitionRef"
+            @speech-result="handleSpeechResult"
+          />
 
           <!-- 思考模式按钮 -->
-          <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
-            @click="updateThinkingMode(!thinkingMode)" title="思考模式">
+          <Button
+            variant="icon"
+            size="sm"
+            :class="{ 'thinking-active': thinkingMode }"
+            @click="updateThinkingMode(!thinkingMode)"
+            title="思考模式"
+          >
             <Bulb />
           </Button>
 
           <!-- 终端按钮 -->
-          <Button variant="icon" size="sm" :class="{ 'terminal-active': display.showTerminal }"
-            @click="toggleTerminal" title="显示终端">
+          <Button
+            variant="icon"
+            size="sm"
+            :class="{ 'terminal-active': display.showTerminal }"
+            @click="toggleTerminal"
+            title="显示终端"
+          >
             <TerminalIcon />
           </Button>
 
           <!-- 智能体选择器 -->
           <ChatAgentSelector type="icon" />
           <!-- 模型选择器 -->
-          <ModelSelector type="icon" v-model:model-id="selectedModelId" v-model:provider-id="selectedProviderId" />
+          <ModelSelector
+            type="icon"
+            v-model:model-id="selectedModelId"
+            v-model:provider-id="selectedProviderId"
+          />
         </div>
         <Button variant="primary" size="md" @click="_sendMessage">发送</Button>
       </div>
-
-      <!-- 语音识别状态显示 -->
-      <!-- <div v-if="speechRecognitionRef?.isListening" class="voice-status">
-        <div class="voice-indicator"></div>
-        <span class="voice-text">正在听取语音...</span>
-      </div> -->
 
       <!-- 拖拽提示 -->
       <div v-if="fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone" class="drag-overlay">
@@ -146,7 +178,9 @@ const _sendMessage = async () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
-  transition: border 0.2s, box-shadow 0.2s;
+  transition:
+    border 0.2s,
+    box-shadow 0.2s;
   position: relative;
 }
 
