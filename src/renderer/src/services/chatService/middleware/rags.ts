@@ -8,8 +8,8 @@ interface RagMiddlewareOptions {
 }
 
 interface RagSearchDetail {
-  knowledgeBaseName: string
-  documentName: string
+  knowledgeBaseId: string
+  documentId: string
   score?: number
 }
 
@@ -50,8 +50,8 @@ export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageMode
         }
 
         const searchDetails: RagSearchDetail[] = allResults.map((result) => ({
-          knowledgeBaseName: result.knowledgeBaseName || '',
-          documentName: result.documentName || '',
+          knowledgeBaseId: result.knowledgeBaseId || '',
+          documentId: result.documentId || '',
           score: result.score
         }))
 

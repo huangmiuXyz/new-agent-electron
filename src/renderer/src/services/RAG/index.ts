@@ -266,18 +266,17 @@ export const RAGService = () => {
         topK: retrieveOptions?.topK ?? 5
       })
       candidates = sqliteResults.map((result: any) => {
-        const doc = knowledgeBase.documents?.find((d) => d.id === result.doc_id)
         return {
           ...result,
-          knowledgeBaseName: knowledgeBase.name,
-          documentName: doc?.name || 'Unknown'
+          knowledgeBaseId: knowledgeBase.id,
+          documentId: result.doc_id
         }
       })
     } else {
       const allChunks = knowledgeBase.documents?.flatMap((doc) =>
         (doc.chunks || []).map((chunk) => ({
           ...chunk,
-          documentName: doc.name
+          documentId: doc.id
         }))
       ) || []
       if (allChunks.length === 0) {
@@ -299,8 +298,8 @@ export const RAGService = () => {
       )
       candidates = searchResults.map((result: any) => ({
         ...result,
-        knowledgeBaseName: knowledgeBase.name,
-        documentName: allChunks[result.id]?.documentName || 'Unknown'
+        knowledgeBaseId: knowledgeBase.id,
+        documentId: allChunks[result.id]?.documentId
       }))
     }
 
@@ -313,8 +312,8 @@ export const RAGService = () => {
       return rerankedResults.map((result: any) => ({
         content: result.content,
         score: result.score,
-        knowledgeBaseName: candidates[result.index]?.knowledgeBaseName || knowledgeBase.name,
-        documentName: candidates[result.index]?.documentName || 'Unknown'
+        knowledgeBaseId: candidates[result.index]?.knowledgeBaseId || knowledgeBase.id,
+        documentId: candidates[result.index]?.documentId
       }))
     }
 

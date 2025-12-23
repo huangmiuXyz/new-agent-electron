@@ -6,34 +6,62 @@ const props = defineProps<{
 }>()
 
 const Search = useIcon('Search')
+const { knowledgeBases } = storeToRefs(useKnowledgeStore())
+
+// 打开文档
+const openDocument = (knowledgeBaseId: string, documentId: string) => {
+  const knowledgeBase = knowledgeBases.value.find((kb) => kb.id === knowledgeBaseId)
+  if (!knowledgeBase) return
+
+  const document = knowledgeBase.documents?.find((doc) => doc.id === documentId)
+  if (!document) return
+
+  window.api.shell.openPath(window.api.url.fileURLToPath(document.path))
+}
 
 // 按知识库分组搜索结果
 const groupedResults = computed(() => {
   if (!props.searchDetails || props.searchDetails.length === 0) {
     return []
   }
-  
-  const groups: Record<string, { name: string; documents: Set<string> }> = {}
-  
-  props.searchDetails.forEach((detail) => {
-    // 过滤掉文档名称为 "Unknown" 的结果
-    if (detail.documentName === 'Unknown') {
-      return
+
+  const groups: Record<
+    string,
+    {
+      name: string
+      id: string
+      documents: Array<{ name: string; id: string }>
     }
-    
-    if (!groups[detail.knowledgeBaseName]) {
-      groups[detail.knowledgeBaseName] = {
-        name: detail.knowledgeBaseName,
-        documents: new Set()
+  > = {}
+
+  props.searchDetails.forEach((detail) => {
+    const knowledgeBase = knowledgeBases.value.find((kb) => kb.id === detail.knowledgeBaseId)
+    if (!knowledgeBase) return
+
+    const document = knowledgeBase.documents?.find((doc) => doc.id === detail.documentId)
+    if (!document) return
+
+    if (!groups[detail.knowledgeBaseId]) {
+      groups[detail.knowledgeBaseId] = {
+        name: knowledgeBase.name,
+        id: detail.knowledgeBaseId,
+        documents: []
       }
     }
-    groups[detail.knowledgeBaseName].documents.add(detail.documentName)
+
+    // 检查文档是否已存在
+    const existingDoc = groups[detail.knowledgeBaseId].documents.find(
+      (doc) => doc.id === detail.documentId
+    )
+    if (!existingDoc) {
+      groups[detail.knowledgeBaseId].documents.push({
+        name: document.name,
+        id: detail.documentId
+      })
+    }
   })
-  
-  return Object.values(groups).map((group) => ({
-    name: group.name,
-    documents: Array.from(group.documents)
-  }))
+
+  return Object.values(groups)
 })
 </script>
 
@@ -49,7 +77,16 @@ const groupedResults = computed(() => {
       <div v-if="groupedResults.length > 0" class="rag-search-details">
         <div v-for="(group, index) in groupedResults" :key="index" class="rag-search-group">
           <span class="rag-search-kb-name">{{ group.name }}</span>
-          <span class="rag-search-docs">{{ group.documents.join(', ') }}</span>
+          <div class="rag-search-docs">
+            <span
+              v-for="(doc, docIndex) in group.documents"
+              :key="docIndex"
+              class="rag-search-doc-item"
+              @click="openDocument(group.id, doc.id)"
+            >
+              {{ doc.name }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -129,9 +166,24 @@ const groupedResults = computed(() => {
 
 .rag-search-docs {
   color: #6b7280;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rag-search-doc-item {
+  cursor: pointer;
+  color: #3b82f6;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: all 0.2s;
+}
+
+.rag-search-doc-item:hover {
+  text-decoration-color: #3b82f6;
+  background-color: #eff6ff;
+  border-radius: 2px;
+  padding: 0 2px;
 }
 
 @keyframes spin {

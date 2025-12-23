@@ -26,8 +26,8 @@ declare global {
   }
 
   interface RagSearchDetail {
-    knowledgeBaseName: string
-    documentName: string
+    knowledgeBaseId: string
+    documentId: string
     score?: number
   }
 
