@@ -27,22 +27,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div
-    class="terminal-container"
-    :style="{ height: terminalHeight + 'px' }"
-    :class="{ 'is-resizing': isResizing }"
-  >
+  <div class="terminal-container" :style="{ height: terminalHeight + 'px' }" :class="{ 'is-resizing': isResizing }">
     <div class="resizer" @mousedown="startResizing"></div>
 
     <div class="terminal-header">
       <div class="tabs-list">
-        <div
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="tab-item"
-          :class="{ active: activeTabId === tab.id }"
-          @click="switchTab(tab.id)"
-        >
+        <div v-for="tab in tabs" :key="tab.id" class="tab-item" :class="{ active: activeTabId === tab.id }"
+          @click="switchTab(tab.id)">
           <div class="tab-status-dot" :class="{ 'is-executing': tab.isExecutingDelayed }"></div>
           <span class="tab-title">{{ tab.title }}</span>
           <span class="tab-close" @click.stop="removeTab(tab.id)">×</span>
@@ -56,17 +47,8 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="terminal-body">
-      <div
-        v-for="tab in tabs"
-        :key="tab.id"
-        :ref="(el) => setTerminalRef(el, tab.id)"
-        class="xterm-container"
-        v-show="activeTabId === tab.id"
-      />
-
-      <div v-if="tabs.length === 0" class="empty-state">
-        <Button @click="createTab()" variant="primary">打开新终端</Button>
-      </div>
+      <div v-for="tab in tabs" :key="tab.id" :ref="(el) => setTerminalRef(el, tab.id)" class="xterm-container"
+        v-show="activeTabId === tab.id" />
     </div>
   </div>
 </template>
@@ -96,6 +78,7 @@ onBeforeUnmount(() => {
   z-index: 10;
   background: transparent;
 }
+
 .resizer:hover {
   background: #007bff;
 }
@@ -197,6 +180,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   color: #999;
 }
+
 .close-panel-btn:hover {
   color: #333;
 }

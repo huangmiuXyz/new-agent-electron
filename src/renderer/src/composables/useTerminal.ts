@@ -196,7 +196,7 @@ export const useTerminal = () => {
   }) => {
     let id = options?.id || generateId()
     const timeout = options?.timeout || 30000
-    const title = `终端 ${tabs.value.length + 1}`
+    const title = '终端'
 
     if (options?.toolCallId) {
       toolCallToTerminalMap.value[options.toolCallId] = id
@@ -250,6 +250,10 @@ export const useTerminal = () => {
 
     if (activeTabId.value === id && tabs.value.length > 0) {
       activeTabId.value = tabs.value[Math.max(0, index - 1)].id
+    }
+
+    if (tabs.value.length === 0) {
+      hideTerminal()
     }
   }
 
