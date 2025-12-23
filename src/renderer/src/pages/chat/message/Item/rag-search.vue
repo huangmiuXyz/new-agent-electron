@@ -70,22 +70,22 @@ const groupedResults = computed(() => {
     <span class="rag-search-text">正在搜索知识库...</span>
   </div>
   <div v-if="groupedResults.length > 0 && !searching" class="rag-search-results-container">
-    <Search class="rag-search-icon" />
     <div class="rag-search-content">
-      <span class="rag-search-text">已找到 {{ groupedResults.length }} 条相关内容</span>
-      <div v-if="groupedResults.length > 0" class="rag-search-details">
-        <div v-for="(group, index) in groupedResults" :key="index" class="rag-search-group">
-          <span class="rag-search-kb-name">{{ group.name }}</span>
-          <div class="rag-search-docs">
-            <span
-              v-for="(doc, docIndex) in group.documents"
-              :key="docIndex"
-              class="rag-search-doc-item"
-              @click="openDocument(group.id, doc.id)"
-            >
-              {{ doc.name }}
-            </span>
-          </div>
+      <Search class="rag-search-icon" />
+      <div class="rag-search-text">已找到 {{ groupedResults.length }} 条相关内容</div>
+    </div>
+    <div v-if="groupedResults.length > 0" class="rag-search-details">
+      <div v-for="(group, index) in groupedResults" :key="index" class="rag-search-group">
+        <span class="rag-search-kb-name">{{ group.name }}</span>
+        <div class="rag-search-docs">
+          <span
+            v-for="(doc, docIndex) in group.documents"
+            :key="docIndex"
+            class="rag-search-doc-item"
+            @click="openDocument(group.id, doc.id)"
+          >
+            {{ doc.name }}
+          </span>
         </div>
       </div>
     </div>
@@ -97,7 +97,7 @@ const groupedResults = computed(() => {
 .rag-searching-container,
 .rag-search-results-container {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
   padding: 8px 12px;
   margin: 8px 0;
@@ -108,6 +108,11 @@ const groupedResults = computed(() => {
   color: #6b7280;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   transition: box-shadow 0.2s;
+}
+.rag-searching-container {
+  display: flex;
+  flex-direction: row !important;
+  align-items: center;
 }
 
 .rag-searching-container:hover,
@@ -133,7 +138,7 @@ const groupedResults = computed(() => {
 .rag-search-content {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 4px;
 }
 
@@ -145,8 +150,7 @@ const groupedResults = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-top: 4px;
-  padding-top: 4px;
+  padding-top: 8px;
   border-top: 1px solid #e5e7eb;
 }
 
