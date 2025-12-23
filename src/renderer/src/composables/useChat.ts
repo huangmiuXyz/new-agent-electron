@@ -50,130 +50,123 @@ export const useMessagesScroll = () => {
 }
 
 export const useChat = (chatId: string) => {
-  const scope = effectScope()
+  const { getChatById, updateMessages } = useChatsStores()
+  const chats = getChatById(chatId)
 
-  return scope.run(() => {
-    const { getChatById, updateMessages } = useChatsStores()
-    const chats = getChatById(chatId)
+  const { scrollToBottom, isAtBottom } = useMessagesScroll()
 
-    const isLastMessage = (messageId: string) => {
-      return chats!.messages[chats!.messages.length - 1].id === messageId
-    }
+  const isLastMessage = (messageId: string) => {
+    return chats!.messages[chats!.messages.length - 1].id === messageId
+  }
+  const { currentSelectedProvider, currentSelectedModel, thinkingMode } =
+    storeToRefs(useSettingsStore())
+  const agent = useAgentStore()
+  const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
+  const service = chatService()
+  const mcpTools = agent.selectedAgent!.tools! || []
+  const builtinTools = agent.selectedAgent!.builtinTools! || []
+  const { apiKey, baseUrl, id: provider, providerType } = toRefs(currentSelectedProvider.value!)
+  const { id: model } = toRefs(currentSelectedModel.value!)
+  const createChat = (messages: BaseMessage[]): _useChat<BaseMessage> => {
+    const scope = effectScope()
 
-    const { scrollToBottom, isAtBottom } = useMessagesScroll()
-
-    const _update = (error?: Error) => {
-      const userWasAtBottom = isAtBottom()
-      const cid = chat.id
-
-      updateMessages(chatId, (oldMessages) => {
-        const map = new Map(oldMessages.map((m) => [m.id, m]))
-        for (const m of chat.messages) {
-          if (m.metadata?.cid === cid) {
-            const isLast = isLastMessage(m.id)
-            const newMessage = {
-              ...m,
-              parts: m.parts ? m.parts.map((p) => ({ ...p })) : m.parts
-            }
-
-            map.set(m.id, newMessage)
-            error && (newMessage.metadata.error = error)
-
-            if (userWasAtBottom && isLast) {
-              nextTick(() => scrollToBottom())
-            }
-          }
-        }
-        return Array.from(map.values())
-      })
-    }
-
-    const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
-
-    const { currentSelectedProvider, currentSelectedModel, thinkingMode } =
-      storeToRefs(useSettingsStore())
-    const agent = useAgentStore()
-    const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
-    const service = chatService()
-    const mcpTools = agent.selectedAgent!.tools! || []
-    const builtinTools = agent.selectedAgent!.builtinTools! || []
-    const { apiKey, baseUrl, id: provider, providerType } = toRefs(currentSelectedProvider.value!)
-    const { id: model } = toRefs(currentSelectedModel.value!)
-
-    const chat = new _useChat<BaseMessage>({
-      transport: {
-        sendMessages: () => {
-          return service.createAgent(
-            chat.id,
-            {
-              model: model.value!,
-              apiKey: apiKey!.value!,
-              baseURL: baseUrl.value,
-              provider: provider.value,
-              providerType: providerType.value
-            },
-            chats!.messages,
-            {
-              mcpClient,
-              instructions: agent.selectedAgent?.systemPrompt,
-              mcpTools,
-              builtinTools,
-              knowledgeBaseIds: agent.selectedAgent?.knowledgeBaseIds,
-              thinkingMode: thinkingMode.value
-            }
-          )
+    return scope.run(() => {
+      const chat = new _useChat<BaseMessage>({
+        messages,
+        transport: {
+          sendMessages: ({ messages }) => {
+            return service.createAgent(
+              chat.id,
+              {
+                model: model.value!,
+                apiKey: apiKey!.value!,
+                baseURL: baseUrl.value,
+                provider: provider.value,
+                providerType: providerType.value
+              },
+              messages,
+              {
+                mcpClient,
+                instructions: agent.selectedAgent?.systemPrompt,
+                mcpTools,
+                builtinTools,
+                knowledgeBaseIds: agent.selectedAgent?.knowledgeBaseIds,
+                thinkingMode: thinkingMode.value
+              }
+            )
+          },
+          reconnectToStream: undefined as any
         },
-        reconnectToStream: undefined as any
-      },
-      onFinish: () => {
-        useTitle(chatId).generateTitle()
-        scope.stop()
-      },
-      onError: (error) => {
-        _update(error)
+        onFinish: () => {
+          useTitle(chatId).generateTitle()
+          scope.stop()
+        }
+      })
+
+      const _update = (error?: Error) => {
+        const userWasAtBottom = isAtBottom()
+        updateMessages(chatId, (oldMessages) => {
+          const lastMessage = oldMessages.find((m) => m.id === chat.lastMessage!.id)
+          if (lastMessage) {
+            lastMessage.metadata!.error = error
+          }
+          if (userWasAtBottom && isLastMessage(chat.lastMessage.id)) {
+            nextTick(() => scrollToBottom())
+          }
+          return oldMessages
+        })
       }
+
+      const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
+      watch(
+        () => chat.messages,
+        () => {
+          update()
+        },
+        { deep: true }
+      )
+      return chat!
     })
+  }
 
-    watch(
-      () => chat.messages,
-      () => {
-        update()
-      },
-      { deep: true }
-    )
+  const sendMessages = async (content: string | Array<FileUIPart | TextUIPart>) => {
+    scrollToBottom()
+    const chat = createChat(chats?.messages!)
+    let parts: Array<FileUIPart | TextUIPart> =
+      typeof content === 'string' ? [{ type: 'text', text: content }] : content
 
-    const sendMessages = async (content: string | Array<FileUIPart | TextUIPart>) => {
-      scrollToBottom()
+    chats!.messages.push({
+      id: chat.generateId(),
+      role: 'user',
+      parts,
+      metadata: { cid: chat.id } as MetaData
+    })
+    chats!.messages.push({
+      id: chat.generateId(),
+      role: 'assistant',
+      parts: [],
+      metadata: { cid: chat.id } as MetaData
+    })
+    chat.sendMessage()
+  }
 
-      let parts: Array<FileUIPart | TextUIPart> =
-        typeof content === 'string' ? [{ type: 'text', text: content }] : content
-
-      chats!.messages.push({
-        id: chat.generateId(),
-        role: 'user',
-        parts,
-        metadata: { cid: chat.id } as MetaData
-      })
-
-      chat.sendMessage()
+  const regenerate = (messageId: string) => {
+    const messageindex = chats?.messages.findIndex((m) => m.id === messageId)!
+    const messages = chats?.messages.slice(0, messageindex)!
+    const assistantMessage = {
+      id: nanoid(),
+      role: 'assistant' as const,
+      parts: []
     }
+    chats!.messages[messageindex] = assistantMessage
+    messages.push(assistantMessage)
+    const chat = createChat(messages)
+    scrollToBottom()
+    chat.sendMessage()
+  }
 
-    const regenerate = (messageId: string) => {
-      const mIndex = chats?.messages.findIndex((m) => m.id === messageId)!
-      const message = chats?.messages[mIndex]
-      if (isLastMessage(messageId)) {
-        scrollToBottom()
-      }
-      const deleMessages = chats!.messages.splice(message?.role === 'user' ? mIndex + 1 : mIndex)
-      deleMessages.forEach((m) => {
-        m.metadata?.stop?.()
-      })
-      chat.sendMessage()
-    }
-
-    return {
-      sendMessages,
-      regenerate
-    }
-  })!
+  return {
+    sendMessages,
+    regenerate
+  }
 }
