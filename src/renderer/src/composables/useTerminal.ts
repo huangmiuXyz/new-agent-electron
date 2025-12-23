@@ -31,8 +31,12 @@ const generateId = () => Math.random().toString(36).substring(2, 9)
 
 export const useTerminal = () => {
   const settingsStore = useSettingsStore()
-  const showTerminal = () => (settingsStore.display.showTerminal = true)
-  const hideTerminal = () => (settingsStore.display.showTerminal = false)
+  const showTerminal = () => {
+    settingsStore.display.showTerminal = true
+  }
+  const hideTerminal = () => {
+    settingsStore.display.showTerminal = false
+  }
   const setExecuting = (id: string, executing: boolean, exitCode?: number | null) => {
     const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return
