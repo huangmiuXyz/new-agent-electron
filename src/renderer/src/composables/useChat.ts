@@ -117,16 +117,10 @@ export const useChat = (chatId: string) => {
 
       const _update = (error?: Error) => {
         const userWasAtBottom = isAtBottom()
-        updateMessages(chatId, (oldMessages) => {
-          const lastMessage = oldMessages.find((m) => m.id === chat.lastMessage!.id)
-          if (lastMessage) {
-            lastMessage.metadata!.error = error
-          }
-          if (userWasAtBottom && isLastMessage(chat.lastMessage.id)) {
-            nextTick(() => scrollToBottom())
-          }
-          return oldMessages
-        })
+        chat.lastMessage.metadata = { ...chat.lastMessage.metadata, error }
+        if (userWasAtBottom && isLastMessage(chat.lastMessage.id)) {
+          nextTick(() => scrollToBottom())
+        }
       }
 
       const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
