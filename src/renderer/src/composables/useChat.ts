@@ -94,14 +94,8 @@ export const useChat = (chatId: string) => {
                 thinkingMode: thinkingMode.value,
                 ragEnabled: agent.selectedAgent?.ragEnabled
               },
-              (mid: string, metadata: Partial<MetaData>) => {
-                updateMessages(chatId, (oldMessages) => {
-                  const msg = oldMessages.find((m) => m.id === mid)
-                  if (msg && msg.metadata) {
-                    msg.metadata = { ...msg.metadata, ...metadata }
-                  }
-                  return oldMessages
-                })
+              (_mid: string, metadata: Partial<MetaData>) => {
+                chat.lastMessage.metadata = { ...chat.lastMessage.metadata, ...metadata }
               }
             )
           },
