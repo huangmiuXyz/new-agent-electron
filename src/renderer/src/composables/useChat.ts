@@ -126,7 +126,7 @@ export const useChat = (chatId: string) => {
         { deep: true }
       )
       return chat!
-    })
+    })!
   }
 
   const sendMessages = async (content: string | Array<FileUIPart | TextUIPart>) => {
@@ -151,14 +151,35 @@ export const useChat = (chatId: string) => {
   }
 
   const regenerate = (messageId: string) => {
-    const messageindex = chats?.messages.findIndex((m) => m.id === messageId)!
-    const messages = chats?.messages.slice(0, messageindex)!
+    const index = chats?.messages.findIndex((m) => m.id === messageId)!
+    if (index === -1) return
+
+    let targetIndex = index
+    const message = chats!.messages[index]
+
+    if (message.role === 'user') {
+      const nextMessage = chats!.messages[index + 1]
+      if (nextMessage && nextMessage.role === 'assistant') {
+        targetIndex = index + 1
+      } else {
+        const newAssistantMessage = {
+          id: nanoid(),
+          role: 'assistant' as const,
+          parts: []
+        }
+        chats!.messages.splice(index + 1, 0, newAssistantMessage)
+        targetIndex = index + 1
+      }
+    }
+
+    const messages = chats?.messages.slice(0, targetIndex)!
     const assistantMessage = {
       id: nanoid(),
       role: 'assistant' as const,
-      parts: []
+      parts: [],
+      metadata: { cid: nanoid() } as MetaData
     }
-    chats!.messages[messageindex] = assistantMessage
+    chats!.messages[targetIndex] = assistantMessage
     messages.push(assistantMessage)
     const chat = createChat(messages)
     scrollToBottom()
