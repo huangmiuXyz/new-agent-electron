@@ -20,6 +20,8 @@ declare global {
     translationLoading?: boolean
     translationController?: AbortController['abort']
     error?: Error
+    ragSearching?: boolean
+    ragSearchResults?: number
   }
 
   interface TranslationResult {

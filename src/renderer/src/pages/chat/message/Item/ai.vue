@@ -25,6 +25,10 @@ const Stop = useIcon('Stop')
           </template>
         </Button>
       </div>
+      <ChatMessageItemRagSearch
+        :searching="message.metadata?.ragSearching"
+        :result-count="message.metadata?.ragSearchResults"
+      />
       <div
         v-if="!message.metadata?.error && message.metadata?.loading && message.parts.findIndex(e => e.type === 'step-start') === -1"
         class="loading-container">

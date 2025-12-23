@@ -39,7 +39,8 @@ export const chatService = () => {
       builtinTools: selectedBuiltinTools,
       knowledgeBaseIds,
       thinkingMode
-    }: ChatServiceConfig
+    }: ChatServiceConfig,
+    updateMessageMetadata?: (mid: string, metadata: Partial<MetaData>) => void
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
     let tools: Tools = {}
@@ -77,7 +78,22 @@ export const chatService = () => {
         middleware: [
           createRagMiddleware({
             knowledgeBaseIds,
-            ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0
+            ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0,
+            onRagSearchStart: () => {
+              const lastMessage = messages[messages.length - 1]
+              if (lastMessage && updateMessageMetadata) {
+                updateMessageMetadata(lastMessage.id, { ragSearching: true })
+              }
+            },
+            onRagSearchComplete: (resultCount) => {
+              const lastMessage = messages[messages.length - 1]
+              if (lastMessage && updateMessageMetadata) {
+                updateMessageMetadata(lastMessage.id, {
+                  ragSearching: false,
+                  ragSearchResults: resultCount
+                })
+              }
+            }
           })
         ]
       }),

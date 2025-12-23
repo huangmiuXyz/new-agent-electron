@@ -92,6 +92,16 @@ export const useChat = (chatId: string) => {
                 builtinTools,
                 knowledgeBaseIds: agent.selectedAgent?.knowledgeBaseIds,
                 thinkingMode: thinkingMode.value
+              },
+              (mid: string, metadata: Partial<MetaData>) => {
+                debugger;
+                updateMessages(chatId, (oldMessages) => {
+                  const msg = oldMessages.find((m) => m.id === mid)
+                  if (msg && msg.metadata) {
+                    msg.metadata = { ...msg.metadata, ...metadata }
+                  }
+                  return oldMessages
+                })
               }
             )
           },
