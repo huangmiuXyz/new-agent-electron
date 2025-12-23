@@ -260,17 +260,30 @@ export const RAGService = () => {
     let candidates: any[] = []
 
     if (isSqliteSupported) {
-      candidates = await window.api.sqlite.search({
+      const sqliteResults = await window.api.sqlite.search({
         kb_id: knowledgeBase.id,
         queryEmbedding: Array.from(queryEmbedding),
         topK: retrieveOptions?.topK ?? 5
       })
+      candidates = sqliteResults.map((result: any) => {
+        const doc = knowledgeBase.documents?.find((d) => d.id === result.doc_id)
+        return {
+          ...result,
+          knowledgeBaseName: knowledgeBase.name,
+          documentName: doc?.name || 'Unknown'
+        }
+      })
     } else {
-      const allChunks = knowledgeBase.documents?.flatMap((doc) => doc.chunks || []) || []
+      const allChunks = knowledgeBase.documents?.flatMap((doc) =>
+        (doc.chunks || []).map((chunk) => ({
+          ...chunk,
+          documentName: doc.name
+        }))
+      ) || []
       if (allChunks.length === 0) {
         return []
       }
-      candidates = await vectorSearchInWorker(
+      const searchResults = await vectorSearchInWorker(
         Array.from(queryEmbedding),
         allChunks.map((c) => ({
           content: c.content,
@@ -284,14 +297,25 @@ export const RAGService = () => {
             }
           : undefined
       )
+      candidates = searchResults.map((result: any) => ({
+        ...result,
+        knowledgeBaseName: knowledgeBase.name,
+        documentName: allChunks[result.id]?.documentName || 'Unknown'
+      }))
     }
 
     const topK = retrieveOptions?.topK ?? 5
     if (rerankOptions && rerankOptions.model) {
-      return await rerank(candidates, {
+      const rerankedResults = await rerank(candidates, {
         ...rerankOptions,
         query
       })
+      return rerankedResults.map((result: any) => ({
+        content: result.content,
+        score: result.score,
+        knowledgeBaseName: candidates[result.index]?.knowledgeBaseName || knowledgeBase.name,
+        documentName: candidates[result.index]?.documentName || 'Unknown'
+      }))
     }
 
     return candidates.slice(0, topK)

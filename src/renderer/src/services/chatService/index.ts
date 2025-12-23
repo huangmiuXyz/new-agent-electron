@@ -85,12 +85,13 @@ export const chatService = () => {
                 updateMessageMetadata(lastMessage.id, { ragSearching: true })
               }
             },
-            onRagSearchComplete: (resultCount) => {
+            onRagSearchComplete: (details) => {
               const lastMessage = messages[messages.length - 1]
               if (lastMessage && updateMessageMetadata) {
                 updateMessageMetadata(lastMessage.id, {
                   ragSearching: false,
-                  ragSearchResults: resultCount
+                  ragSearchResults: details.length,
+                  ragSearchDetails: details
                 })
               }
             }

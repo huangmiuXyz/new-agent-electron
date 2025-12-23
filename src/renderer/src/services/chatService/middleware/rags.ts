@@ -4,7 +4,13 @@ interface RagMiddlewareOptions {
   knowledgeBaseIds?: string[]
   ragEnabled?: boolean
   onRagSearchStart?: () => void
-  onRagSearchComplete?: (resultCount: number) => void
+1  onRagSearchComplete?: (details: RagSearchDetail[]) => void
+}
+
+interface RagSearchDetail {
+  knowledgeBaseName: string
+  documentName: string
+  score?: number
 }
 
 export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageModelV3Middleware => {
@@ -43,8 +49,14 @@ export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageMode
           }
         }
 
-        onRagSearchComplete?.(allResults.length)
-        
+        const searchDetails: RagSearchDetail[] = allResults.map((result) => ({
+          knowledgeBaseName: result.knowledgeBaseName || '',
+          documentName: result.documentName || '',
+          score: result.score
+        }))
+
+        onRagSearchComplete?.(searchDetails)
+
         if (allResults.length === 0) {
           return params
         }

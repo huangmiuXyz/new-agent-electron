@@ -22,6 +22,13 @@ declare global {
     error?: Error
     ragSearching?: boolean
     ragSearchResults?: number
+    ragSearchDetails?: RagSearchDetail[]
+  }
+
+  interface RagSearchDetail {
+    knowledgeBaseName: string
+    documentName: string
+    score?: number
   }
 
   interface TranslationResult {

@@ -145,7 +145,7 @@ export const setupSqliteHandlers = () => {
       return db
         .prepare(
           `
-          SELECT c.id, c.content, v.distance
+          SELECT c.id, c.content, c.doc_id, v.distance
           FROM vss_chunks_${dimension} v
           JOIN chunks c ON v.rowid = c.rowid
           WHERE vss_search(v.vector, vss_search_params(?, ?))
@@ -157,6 +157,7 @@ export const setupSqliteHandlers = () => {
         .map((r) => ({
           id: r.id,
           content: r.content,
+          doc_id: r.doc_id,
           score: 1 - r.distance
         }))
     }

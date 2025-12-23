@@ -28,6 +28,7 @@ const Stop = useIcon('Stop')
       <ChatMessageItemRagSearch
         :searching="message.metadata?.ragSearching"
         :result-count="message.metadata?.ragSearchResults"
+        :search-details="message.metadata?.ragSearchDetails"
       />
       <div
         v-if="!message.metadata?.error && message.metadata?.loading && message.parts.findIndex(e => e.type === 'step-start') === -1"
