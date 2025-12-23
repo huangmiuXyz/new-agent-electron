@@ -50,7 +50,7 @@ export const useMessagesScroll = () => {
 }
 
 export const useChat = (chatId: string) => {
-  const { getChatById, updateMessages } = useChatsStores()
+  const { getChatById } = useChatsStores()
   const chats = getChatById(chatId)
 
   const { scrollToBottom, isAtBottom } = useMessagesScroll()
