@@ -31,7 +31,8 @@ const generateId = () => Math.random().toString(36).substring(2, 9)
 
 export const useTerminal = () => {
   const settingsStore = useSettingsStore()
-
+  const showTerminal = () => (settingsStore.display.showTerminal = true)
+  const hideTerminal = () => (settingsStore.display.showTerminal = false)
   const setExecuting = (id: string, executing: boolean, exitCode?: number | null) => {
     const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return
@@ -212,7 +213,7 @@ export const useTerminal = () => {
     }
 
     activeTabId.value = id
-    options?.showTerminal && (settingsStore.display.showTerminal = true)
+    options?.showTerminal && showTerminal()
 
     await nextTick()
     initTerminal(id)
@@ -407,8 +408,8 @@ export const useTerminal = () => {
     setTerminalRef,
     startResizing,
     handleWindowResize,
-    showTerminal: () => (settingsStore.display.showTerminal = true),
-    hideTerminal: () => (settingsStore.display.showTerminal = false),
+    showTerminal,
+    hideTerminal,
     toggleTerminal,
     waitForCommand,
     forceContinue: (id: string) => {
