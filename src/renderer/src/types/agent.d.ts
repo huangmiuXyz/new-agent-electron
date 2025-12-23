@@ -12,6 +12,7 @@ declare global {
     createdAt: number
     updatedAt: number
     knowledgeBaseIds?: string[] // 关联的知识库ID列表
+    ragEnabled?: boolean // 是否启用RAG，将检索上下文插入到用户输入中
   }
 
   // 智能体状态接口

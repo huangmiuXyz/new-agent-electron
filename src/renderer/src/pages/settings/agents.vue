@@ -101,6 +101,10 @@ const getKnowledgeBaseName = (kbId: string) => {
                                     </span>
                                 </div>
                             </div>
+                            <div v-if="agent.ragEnabled" class="rag-status">
+                                <div class="rag-status-label">RAG:</div>
+                                <div class="rag-status-value">已启用</div>
+                            </div>
                         </div>
                     </div>
 
@@ -380,6 +384,29 @@ const getKnowledgeBaseName = (kbId: string) => {
     padding: 3px 8px;
     border-radius: 4px;
     border: 1px solid #b7eb8f;
+}
+
+.rag-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rag-status-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rag-status-value {
+    font-size: 11px;
+    background: #fff7e6;
+    color: #fa8c16;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid #ffd591;
 }
 
 .empty-state {

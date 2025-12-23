@@ -72,7 +72,8 @@ export const useAgent = () => {
           knowledgeBaseIds: [...(agent.knowledgeBaseIds || [])],
           mcpServers: [...(agent.mcpServers || [])],
           tools: [...(agent.tools || [])],
-          builtinTools: [...(agent.builtinTools || [])]
+          builtinTools: [...(agent.builtinTools || [])],
+          ragEnabled: agent.ragEnabled ?? false
         }
       : {
           name: '',
@@ -81,7 +82,8 @@ export const useAgent = () => {
           knowledgeBaseIds: [],
           mcpServers: [],
           tools: [],
-          builtinTools: []
+          builtinTools: [],
+          ragEnabled: false
         }
 
     let previousMcpServers = initialData.mcpServers || []
@@ -118,6 +120,13 @@ export const useAgent = () => {
           type: 'checkboxGroup',
           label: '关联知识库',
           options: getKnowledgeBaseOptions()
+        },
+        {
+          name: 'ragEnabled',
+          type: 'boolean',
+          label: '启用RAG',
+          hint: '启用后，将自动从关联的知识库中检索相关内容并插入到用户输入中',
+          ifShow: (data) => data.knowledgeBaseIds! && data.knowledgeBaseIds!.length > 0
         },
         {
           name: 'mcpServers',

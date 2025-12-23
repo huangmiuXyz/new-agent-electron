@@ -48,6 +48,7 @@ export const FormItem = defineComponent({
                 <div class="form-item-title">
                   {slots.label?.() ? slots.label?.() : props.label}
                   {props.required && <span class="form-item-required">*</span>}
+                  {props.hint && <div class="form-item-hint">{props.hint}</div>}
                 </div>
                 <div class="form-item-tool">{slots.tool?.()}</div>
               </div>
@@ -418,7 +419,12 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
                     case 'boolean':
                       return (
-                        <FormItem label={field.label} required={field.required} layout="toggle">
+                        <FormItem
+                          hint={field.hint}
+                          label={field.label}
+                          required={field.required}
+                          layout="toggle"
+                        >
                           <Switch
                             modelValue={getNestedValue(formData.value, field.name)}
                             onUpdate:modelValue={(value) => {

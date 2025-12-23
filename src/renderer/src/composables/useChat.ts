@@ -138,6 +138,46 @@ export const useChat = (chatId: string) => {
     let parts: Array<FileUIPart | TextUIPart> =
       typeof content === 'string' ? [{ type: 'text', text: content }] : content
 
+    // 如果启用了RAG，从知识库中检索相关内容并插入到用户输入中
+    if (agent.selectedAgent?.ragEnabled && agent.selectedAgent?.knowledgeBaseIds?.length) {
+      const { search } = useKnowledge()
+      const userText = typeof content === 'string' ? content : content.find(p => p.type === 'text')?.text || ''
+      
+      if (userText) {
+        let allResults: any[] = []
+        for (const kbId of agent.selectedAgent.knowledgeBaseIds) {
+          try {
+            const results = await search(userText, kbId)
+            allResults = allResults.concat(results)
+          } catch (error) {
+            console.error(`Error searching knowledge base ${kbId}:`, error)
+          }
+        }
+        
+        // 按分数排序并去重
+        allResults.sort((a, b) => (b.score || 0) - (a.score || 0))
+        const uniqueResults = allResults.filter(
+          (result, index, self) => index === self.findIndex((r) => r.content === result.content)
+        )
+        
+        // 如果有检索结果，将上下文插入到用户输入中
+        if (uniqueResults.length > 0) {
+          const contextText = uniqueResults.map((r) => r.content).join('\n\n')
+          const enhancedText = `[参考上下文]:\n${contextText}\n\n[用户问题]:\n${userText}`
+          
+          // 更新parts中的文本内容
+          if (typeof content === 'string') {
+            parts = [{ type: 'text', text: enhancedText }]
+          } else {
+            const textPartIndex = parts.findIndex(p => p.type === 'text')
+            if (textPartIndex !== -1) {
+              parts[textPartIndex] = { type: 'text', text: enhancedText }
+            }
+          }
+        }
+      }
+    }
+
     chats!.messages.push({
       id: chat.generateId(),
       role: 'user',
