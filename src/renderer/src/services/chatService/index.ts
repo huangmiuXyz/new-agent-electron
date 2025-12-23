@@ -26,7 +26,7 @@ interface ChatServiceConfig {
   builtinTools?: string[]
   knowledgeBaseIds?: string[]
   thinkingMode?: boolean
-  ragEnabled?:boolean
+  ragEnabled?: boolean
 }
 export const chatService = () => {
   const createAgent = async (
@@ -128,23 +128,26 @@ export const chatService = () => {
             ) ?? false
           )
         }
-      ],
+      ]
     })
+    const modalMessages = await convertToModelMessages(messages)
     const controller = new AbortController()
     const stream = await agent.stream({
-      messages: await convertToModelMessages(messages),
+      messages: modalMessages,
       abortSignal: controller.signal
     })
     const uiStream = stream.toUIMessageStream({
       originalMessages: messages,
       messageMetadata: ({ part }) => {
+        const lastMessage = messages[messages.length - 1]
         return {
+          ...lastMessage.metadata,
           loading: part.type !== 'finish' && part.type !== 'abort',
           provider,
           date: Date.now(),
           model,
           cid,
-          stop: () => controller.abort()
+          stop: () => controller.abort(),
         }
       }
     })
