@@ -12,7 +12,7 @@ const {
   setTerminalRef,
   startResizing,
   handleWindowResize,
-  showTerminal
+  hideTerminal
 } = useTerminal()
 
 onMounted(async () => {
@@ -51,7 +51,7 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="terminal-actions">
-        <button @click="showTerminal()" class="close-panel-btn">×</button>
+        <button @click="hideTerminal()" class="close-panel-btn">×</button>
       </div>
     </div>
 
