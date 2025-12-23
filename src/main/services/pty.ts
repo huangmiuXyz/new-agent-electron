@@ -66,7 +66,7 @@ export function setupPtyHandlers() {
   })
 
   app.on('before-quit', () => {
-    for (const [id, ptyProcess] of ptyProcesses) {
+    for (const [_id, ptyProcess] of ptyProcesses) {
       try {
         ptyProcess.kill()
       } catch (e) {}
