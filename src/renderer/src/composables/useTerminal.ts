@@ -184,13 +184,15 @@ export const useTerminal = () => {
     }, 50)
   }
 
-  const createTab = async (
-    command?: string | MouseEvent,
-    idOrTimeout?: string | number,
-    options?: { toolCallId?: string, showTerminal?: boolean }
-  ) => {
-    let id = typeof idOrTimeout === 'string' ? idOrTimeout : generateId()
-    const timeout = typeof idOrTimeout === 'number' ? idOrTimeout : 30000
+  const createTab = async (options?: {
+    toolCallId?: string
+    showTerminal?: boolean
+    id: string
+    command?: string
+    timeout?: number
+  }) => {
+    let id = options?.id || generateId()
+    const timeout = options?.timeout || 30000
     const title = `终端 ${tabs.value.length + 1}`
 
     if (options?.toolCallId) {
@@ -217,7 +219,7 @@ export const useTerminal = () => {
     await nextTick()
     initTerminal(id)
 
-    if (typeof command !== 'string') return { id }
+    if (typeof options?.command !== 'string') return { id }
 
     if (!tab) return { id, result: { success: false, output: '' } }
 
@@ -238,7 +240,7 @@ export const useTerminal = () => {
     tab.currentOutput = ''
 
     setExecuting(id, true)
-    tab.socket?.send(command + '\r')
+    tab.socket?.send(options?.command + '\r')
 
     const result = await waitForCommand(id, timeout)
     return { id, result }
@@ -379,16 +381,13 @@ export const useTerminal = () => {
 
       let timer: any = null
 
-      const unwatch = watch(
-        [() => tab.isReady, () => tab.isExecuting],
-        () => {
-          if (checkReady()) {
-            if (timer) clearTimeout(timer)
-            unwatch()
-            resolve(true)
-          }
+      const unwatch = watch([() => tab.isReady, () => tab.isExecuting], () => {
+        if (checkReady()) {
+          if (timer) clearTimeout(timer)
+          unwatch()
+          resolve(true)
         }
-      )
+      })
 
       if (timeout > 0) {
         timer = setTimeout(() => {

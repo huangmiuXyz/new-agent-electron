@@ -52,7 +52,7 @@ onBeforeUnmount(() => {
           <span class="tab-title">{{ tab.title }}</span>
           <span class="tab-close" @click.stop="removeTab(tab.id)">×</span>
         </div>
-        <button class="add-tab-btn" @click="createTab" title="新建终端">+</button>
+        <button class="add-tab-btn" @click="createTab()" title="新建终端">+</button>
       </div>
 
       <div class="terminal-actions">
@@ -72,7 +72,7 @@ onBeforeUnmount(() => {
       />
 
       <div v-if="tabs.length === 0" class="empty-state">
-        <Button @click="createTab" variant="primary">打开新终端</Button>
+        <Button @click="createTab()" variant="primary">打开新终端</Button>
       </div>
     </div>
   </div>

@@ -492,7 +492,7 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
     execute: async (args: any, options: any) => {
       const { command, id } = args
       const { createTab } = useTerminal()
-      const { id: tabId, result } = await createTab(command, id, { toolCallId: options.toolCallId })
+      const { id: tabId, result } = await createTab({ command, id, toolCallId: options.toolCallId })
       return {
         toolResult: {
           content: [
