@@ -94,7 +94,6 @@ export const useChat = (chatId: string) => {
                 thinkingMode: thinkingMode.value
               },
               (mid: string, metadata: Partial<MetaData>) => {
-                debugger;
                 updateMessages(chatId, (oldMessages) => {
                   const msg = oldMessages.find((m) => m.id === mid)
                   if (msg && msg.metadata) {
