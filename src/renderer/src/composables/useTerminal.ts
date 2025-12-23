@@ -187,7 +187,7 @@ export const useTerminal = () => {
   const createTab = async (
     command?: string | MouseEvent,
     idOrTimeout?: string | number,
-    options?: { toolCallId?: string }
+    options?: { toolCallId?: string, showTerminal?: boolean }
   ) => {
     let id = typeof idOrTimeout === 'string' ? idOrTimeout : generateId()
     const timeout = typeof idOrTimeout === 'number' ? idOrTimeout : 30000
@@ -210,7 +210,9 @@ export const useTerminal = () => {
     }
 
     activeTabId.value = id
-    settingsStore.display.showTerminal = true
+    if (options?.showTerminal !== false) {
+      settingsStore.display.showTerminal = true
+    }
 
     await nextTick()
     initTerminal(id)
