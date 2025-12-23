@@ -84,7 +84,7 @@ export const chatService = () => {
             onRagSearchStart: () => {
               const lastMessage = messages[messages.length - 1]
               if (lastMessage && updateMessageMetadata) {
-                updateMessageMetadata(lastMessage.id, { ragSearching: true })
+                updateMessageMetadata(lastMessage.id, { ragSearching: true, ragSearchDetails: [] })
               }
             },
             onRagSearchComplete: (details) => {
@@ -92,7 +92,6 @@ export const chatService = () => {
               if (lastMessage && updateMessageMetadata) {
                 updateMessageMetadata(lastMessage.id, {
                   ragSearching: false,
-                  ragSearchResults: details.length,
                   ragSearchDetails: details
                 })
               }
@@ -147,7 +146,7 @@ export const chatService = () => {
           date: Date.now(),
           model,
           cid,
-          stop: () => controller.abort(),
+          stop: () => controller.abort()
         }
       }
     })

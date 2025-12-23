@@ -27,7 +27,6 @@ const Stop = useIcon('Stop')
       </div>
       <ChatMessageItemRagSearch
         :searching="message.metadata?.ragSearching"
-        :result-count="message.metadata?.ragSearchResults"
         :search-details="message.metadata?.ragSearchDetails"
       />
       <div

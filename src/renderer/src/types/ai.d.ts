@@ -21,7 +21,6 @@ declare global {
     translationController?: AbortController['abort']
     error?: Error
     ragSearching?: boolean
-    ragSearchResults?: number
     ragSearchDetails?: RagSearchDetail[]
   }
 
