@@ -21,8 +21,8 @@ const route = useRoute()
     <div class="app-body">
       <AppNavBar :current-view="currentView" @switch="switchView" />
       <main class="app-content">
-        <ChatPage v-if="currentView === 'chat'" />
-        <SettingsPage v-else-if="currentView === 'settings'" />
+        <ChatPage v-show="currentView === 'chat'" />
+        <SettingsPage v-show="currentView === 'settings'" />
       </main>
     </div>
   </div>
