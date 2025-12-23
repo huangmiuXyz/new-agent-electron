@@ -100,6 +100,9 @@ export const useChat = (chatId: string) => {
         onFinish: () => {
           useTitle(chatId).generateTitle()
           scope.stop()
+        },
+        onError: (error) => {
+          update(error)
         }
       })
 
