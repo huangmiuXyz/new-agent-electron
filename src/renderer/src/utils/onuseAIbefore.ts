@@ -9,7 +9,6 @@ export const onUseAIBefore = async ({
   apiKey: string
   baseURL: string
 }) => {
-  console.log('onUseAIBefore', model, providerType, apiKey, baseURL);
   if (providerType === 'ollama') {
     const url = baseURL
     const isRunning = async (): Promise<boolean> => {
