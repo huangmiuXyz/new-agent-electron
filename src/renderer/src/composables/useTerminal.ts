@@ -8,7 +8,7 @@ export interface TerminalTab {
   instance: Terminal | null
   addon: FitAddon | null
   isExecuting?: boolean
-  isExecutingDelayed?: boolean // 用于 UI 显示，防抖
+  isExecutingDelayed?: boolean
   lastExitCode?: number | null
   isReady?: boolean
   currentOutput?: string
@@ -16,7 +16,6 @@ export interface TerminalTab {
   _cleanup?: () => void
 }
 
-// Global state outside the hook to share across all components
 const tabs = ref<TerminalTab[]>([])
 const activeTabId = ref<string>('')
 const terminalHeight = ref(200)
