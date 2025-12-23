@@ -212,9 +212,7 @@ export const useTerminal = () => {
     }
 
     activeTabId.value = id
-    if (options?.showTerminal !== false) {
-      settingsStore.display.showTerminal = true
-    }
+    options?.showTerminal && (settingsStore.display.showTerminal = true)
 
     await nextTick()
     initTerminal(id)
