@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import 'xterm/css/xterm.css'
-import { useSettingsStore } from '@renderer/stores/settings'
-import { useTerminal } from '@renderer/composables/useTerminal'
 
-const settingsStore = useSettingsStore()
 const {
   tabs,
   activeTabId,
@@ -14,7 +11,8 @@ const {
   switchTab,
   setTerminalRef,
   startResizing,
-  handleWindowResize
+  handleWindowResize,
+  showTerminal
 } = useTerminal()
 
 onMounted(async () => {
@@ -56,9 +54,7 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="terminal-actions">
-        <button @click="settingsStore.display.showTerminal = false" class="close-panel-btn">
-          ×
-        </button>
+        <button @click="showTerminal()" class="close-panel-btn">×</button>
       </div>
     </div>
 

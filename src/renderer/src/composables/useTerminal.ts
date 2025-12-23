@@ -31,12 +31,6 @@ const generateId = () => Math.random().toString(36).substring(2, 9)
 
 export const useTerminal = () => {
   const settingsStore = useSettingsStore()
-  const showTerminal = () => {
-    settingsStore.display.showTerminal = true
-  }
-  const hideTerminal = () => {
-    settingsStore.display.showTerminal = false
-  }
   const setExecuting = (id: string, executing: boolean, exitCode?: number | null) => {
     const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return
@@ -189,6 +183,16 @@ export const useTerminal = () => {
     }, 50)
   }
 
+  const showTerminal = async () => {
+    settingsStore.display.showTerminal = true
+    await waitForReady(activeTabId.value)
+    nextTick(() => {
+      terminalRefs.get(activeTabId.value)?.focus()
+    })
+  }
+  const hideTerminal = () => {
+    settingsStore.display.showTerminal = false
+  }
   const createTab = async (options?: {
     toolCallId?: string
     showTerminal?: boolean
@@ -199,7 +203,7 @@ export const useTerminal = () => {
     let id = options?.id || generateId()
     const timeout = options?.timeout || 30000
     const title = `终端 ${tabs.value.length + 1}`
-
+    debugger
     if (options?.toolCallId) {
       toolCallToTerminalMap.value[options.toolCallId] = id
     }
@@ -217,7 +221,7 @@ export const useTerminal = () => {
     }
 
     activeTabId.value = id
-    options?.showTerminal && showTerminal()
+    ;(options?.showTerminal || settingsStore.display.showTerminal) && showTerminal()
 
     await nextTick()
     initTerminal(id)
@@ -324,7 +328,11 @@ export const useTerminal = () => {
   }
 
   const toggleTerminal = () => {
-    settingsStore.display.showTerminal = !settingsStore.display.showTerminal
+    if (!settingsStore.display.showTerminal) {
+      showTerminal()
+    } else {
+      hideTerminal()
+    }
     if (settingsStore.display.showTerminal && tabs.value.length === 0) {
       createTab()
     }
