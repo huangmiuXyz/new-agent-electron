@@ -194,7 +194,7 @@ export const useTerminal = () => {
     let id = options?.id || generateId()
     const timeout = options?.timeout || 30000
     const title = `终端 ${tabs.value.length + 1}`
-    debugger
+
     if (options?.toolCallId) {
       toolCallToTerminalMap.value[options.toolCallId] = id
     }
