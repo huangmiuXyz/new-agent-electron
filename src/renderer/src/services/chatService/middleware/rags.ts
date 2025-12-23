@@ -4,7 +4,7 @@ interface RagMiddlewareOptions {
   knowledgeBaseIds?: string[]
   ragEnabled?: boolean
   onRagSearchStart?: () => void
-1  onRagSearchComplete?: (details: RagSearchDetail[]) => void
+  onRagSearchComplete?: (details: RagSearchDetail[]) => void
 }
 
 interface RagSearchDetail {
