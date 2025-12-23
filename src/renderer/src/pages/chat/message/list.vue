@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import type { MenuItem } from '@renderer/composables/useContextMenu'
 import { getLanguageFlag } from '@renderer/utils/flagIcons'
+import { useElementSize } from '@vueuse/core'
 
 const { messageScrollRef } = useMessagesScroll()
 const { showContextMenu } = useContextMenu<BaseMessage>()
@@ -41,6 +42,20 @@ provide('messageEdit', {
 })
 
 const { currentSelectedModel } = storeToRefs(useSettingsStore())
+
+const lastMessageIndex = computed(() => {
+  if (!currentChat.value || currentChat.value.messages.length === 0) return -1
+  return currentChat.value.messages.length - 1
+})
+
+const { height: containerHeight } = useElementSize(messageScrollRef)
+
+const lastMessageHeight = computed(() => {
+  if (lastMessageIndex.value >= 0 && containerHeight.value > 0) {
+    return `${containerHeight.value}px`
+  }
+  return 'auto'
+})
 
 const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   event.preventDefault()
@@ -155,6 +170,12 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       <ChatMessageItemAi
         v-if="message.role === 'assistant'"
         :message="message"
+        :class="{ 'last-message': index === lastMessageIndex }"
+        :style="{
+          minHeight: index === lastMessageIndex ? lastMessageHeight : 'auto',
+          height: 'auto',
+          flex: 'none'
+        }"
         @contextmenu="onMessageRightClick($event, message)"
       />
     </template>
@@ -168,5 +189,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-bottom: 16px;
 }
 </style>
