@@ -68,6 +68,9 @@ export const api = {
         electronAPI.ipcRenderer.removeListener('updater:status', listener)
       }
     }
+  },
+  net: {
+    fetch: (url: string, options?: any) => electronAPI.ipcRenderer.invoke('net:fetch', url, options)
   }
 } satisfies typeof api
 

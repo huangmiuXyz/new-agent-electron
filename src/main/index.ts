@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, net } from 'electron'
 import { join } from 'path'
 import { setupSqliteHandlers, initSqlite } from './services/sqlite'
 import { setupUpdaterHandlers } from './services/updater'
@@ -99,6 +99,25 @@ app.whenReady().then(() => {
       return windowId
     }
   )
+
+  ipcMain.handle('net:fetch', async (_event, url, options) => {
+    try {
+      const response = await net.fetch(url, options)
+      const text = await response.text()
+      return {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        text
+      }
+    } catch (error) {
+      return {
+        ok: false,
+        error: (error as Error).message
+      }
+    }
+  })
 
   ipcMain.handle('window:get-temp-chat-data', async (_event, windowId) => {
     if (global.tempChatData && global.tempChatData[windowId]) {

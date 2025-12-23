@@ -436,6 +436,64 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
       }
     }
   },
+
+  fetch: {
+    title: '网络请求',
+    description: '实现一个没有跨域问题的fetch工具，可以获取网页内容或调用API',
+    inputSchema: z.object({
+      url: z.string().describe('要请求的URL'),
+      method: z.enum(['GET', 'POST', 'PUT', 'DELETE']).optional().default('GET').describe('请求方法'),
+      headers: z.record(z.string(), z.string()).optional().describe('请求头'),
+      body: z.string().optional().describe('请求体(POST/PUT时使用)')
+    }),
+    execute: async (args: any) => {
+      const { url, method, headers, body } = args
+      try {
+        // @ts-ignore (api is defined in preload)
+        const response = await window.api.net.fetch(url, {
+          method,
+          headers,
+          body
+        })
+
+        if (!response.ok) {
+          return {
+            toolResult: {
+              content: [
+                {
+                  type: 'text',
+                  text: `请求失败: ${response.status} ${response.statusText}\n${response.error || response.text}`
+                }
+              ]
+            }
+          }
+        }
+
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text: response.text
+              }
+            ]
+          }
+        }
+      } catch (error) {
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text: `请求出错: ${(error as Error).message}`
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+
   search_knowledge: {
     title: '知识库检索',
     description: `当用户的问题可能涉及文档、知识库或可查询的外部知识时：必须优先调用知识库查询工具进行检索，禁止使用“我不能回答 / 无法回答 / 当前不能”等拒绝性表述`,
