@@ -1,4 +1,4 @@
-import { experimental_createMCPClient, type experimental_MCPClient as MCPClient } from '@ai-sdk/mcp'
+import { createMCPClient, type MCPClient } from '@ai-sdk/mcp'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { spawn } from 'child_process'
 import os from 'os'
@@ -66,7 +66,7 @@ export const aiServices = (): aiServiceResult => {
         if (clientMap[key]) {
           await clientMap[key].close()
         }
-        clientMap[key] = await experimental_createMCPClient({
+        clientMap[key] = await createMCPClient({
           transport: createTransport(serverCfg) as any
         })
       }
