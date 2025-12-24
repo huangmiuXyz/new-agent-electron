@@ -1,5 +1,6 @@
 import { createMCPClient, type MCPClient } from '@ai-sdk/mcp'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { spawn } from 'child_process'
 import os from 'os'
 type ClientConfig = Record<
@@ -38,11 +39,9 @@ export const aiServices = (): aiServiceResult => {
 
   const createTransport = (cfg: ClientConfig[keyof ClientConfig]) => {
     if (cfg.url) {
-      return {
-        type: cfg.transport || 'sse',
-        url: cfg.url,
-        headers: cfg.headers
-      }
+      return new StreamableHTTPClientTransport(new URL(cfg.url), {
+        requestInit: cfg.headers ? { headers: cfg.headers } : undefined
+      })
     }
     if (cfg.command) {
       return new StdioClientTransport({
