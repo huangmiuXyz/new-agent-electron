@@ -7,6 +7,13 @@ declare global {
     fontSize: number
   }
 
+  // 终端设置接口
+  interface TerminalSettings {
+    fontSize: number
+    fontFamily: string
+    cursorBlink: boolean
+  }
+
   interface ollamaSettings {
     autoStart?: boolean
   }
@@ -31,6 +38,7 @@ declare global {
   // 设置状态接口
   interface SettingsState {
     display: DisplaySettings
+    terminal: TerminalSettings
     providers: Provider[]
     activeProviderId: string
     mcpServers: ClientConfig

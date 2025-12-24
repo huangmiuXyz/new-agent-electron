@@ -35,6 +35,9 @@ export const useTerminal = () => {
       settingsStore.updateDisplaySettings({ terminalHeight: value })
     }
   })
+
+  // 获取终端设置
+  const terminalSettings = computed(() => settingsStore.terminal)
   const setExecuting = (id: string, executing: boolean, exitCode?: number | null) => {
     const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return
@@ -78,10 +81,10 @@ export const useTerminal = () => {
     if (!container) return
 
     const term = new Terminal({
-      fontSize: 14,
-      cursorBlink: true,
+      fontSize: terminalSettings.value.fontSize,
+      cursorBlink: terminalSettings.value.cursorBlink,
       convertEol: true,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      fontFamily: terminalSettings.value.fontFamily,
       theme: {
         background: '#ffffff',
         foreground: '#333333',
@@ -401,6 +404,7 @@ export const useTerminal = () => {
     tabs,
     activeTabId,
     terminalHeight,
+    terminalSettings,
     isResizing,
     createTab,
     removeTab,

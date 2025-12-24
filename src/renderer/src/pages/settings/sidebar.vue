@@ -13,7 +13,7 @@ const emit = defineEmits<Emits>()
 const handleTabChange = (tabName: string) => {
   emit('tab-change', tabName)
 }
-const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle } = useIcon(['Cpu', 'Server', 'Robot', 'Box', 'Library16Filled', 'Folder', 'InfoCircle'])
+const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal } = useIcon(['Cpu', 'Server', 'Robot', 'Box', 'Library16Filled', 'Folder', 'InfoCircle', 'Terminal'])
 </script>
 
 <template>
@@ -24,6 +24,7 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle } = useIcon
       { id: 'models', name: '模型提供商', icon: Cpu },
       { id: 'defaultModels', name: '默认模型', icon: Box },
       { id: 'knowledge', name: '知识库', icon: Library16Filled },
+      { id: 'terminal', name: '终端设置', icon: Terminal },
       { id: 'mcp', name: 'MCP 服务器', icon: Server },
       { id: 'userData', name: '文件管理', icon: Folder },
       { id: 'about', name: '关于我们', icon: InfoCircle }

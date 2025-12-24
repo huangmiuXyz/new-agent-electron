@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useSettingsStore } from '@renderer/stores/settings'
 import SettingsDefaultModels from './default-models.vue'
 import SettingsKnowledge from './knowledge.vue'
+import SettingsTerminal from './terminal.vue'
 import SettingsUserData from './user-data.vue'
 import SettingsAbout from './about.vue'
 
@@ -34,6 +35,9 @@ const switchTab = (tabName: string) => {
 
       <!-- 知识库设置 -->
       <SettingsKnowledge v-else-if="activeTab === 'knowledge'" />
+
+      <!-- 终端设置 -->
+      <SettingsTerminal v-else-if="activeTab === 'terminal'" />
 
       <!-- 显示设置 -->
       <SettingsDisplay v-else-if="activeTab === 'display'" />

@@ -5,6 +5,7 @@ const {
   tabs,
   activeTabId,
   terminalHeight,
+  terminalSettings,
   isResizing,
   createTab,
   removeTab,
@@ -19,7 +20,7 @@ onMounted(async () => {
   await new Promise((resolve) => setTimeout(resolve, 500))
   createTab()
   window.addEventListener('resize', handleWindowResize)
-  
+
   // 确保终端在初始化后立即应用正确的高度
   await nextTick()
   const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
@@ -34,19 +35,45 @@ onMounted(async () => {
   }
 })
 
+// 监听终端设置变化，更新现有终端实例
+watch(
+  terminalSettings,
+  (newSettings) => {
+    tabs.value.forEach((tab) => {
+      if (tab.instance) {
+        tab.instance.options.fontSize = newSettings.fontSize
+        tab.instance.options.cursorBlink = newSettings.cursorBlink
+        tab.instance.options.fontFamily = newSettings.fontFamily
+        // 重新渲染终端
+        tab.instance.refresh(0, tab.instance.rows - 1)
+      }
+    })
+  },
+  { deep: true }
+)
+
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleWindowResize)
 })
 </script>
 
 <template>
-  <div class="terminal-container" :style="{ height: terminalHeight + 'px' }" :class="{ 'is-resizing': isResizing }">
+  <div
+    class="terminal-container"
+    :style="{ height: terminalHeight + 'px' }"
+    :class="{ 'is-resizing': isResizing }"
+  >
     <div class="resizer" @mousedown="startResizing"></div>
 
     <div class="terminal-header">
       <div class="tabs-list">
-        <div v-for="tab in tabs" :key="tab.id" class="tab-item" :class="{ active: activeTabId === tab.id }"
-          @click="switchTab(tab.id)">
+        <div
+          v-for="tab in tabs"
+          :key="tab.id"
+          class="tab-item"
+          :class="{ active: activeTabId === tab.id }"
+          @click="switchTab(tab.id)"
+        >
           <div class="tab-status-dot" :class="{ 'is-executing': tab.isExecutingDelayed }"></div>
           <span class="tab-title">{{ tab.title }}</span>
           <span class="tab-close" @click.stop="removeTab(tab.id)">×</span>
@@ -60,8 +87,13 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="terminal-body">
-      <div v-for="tab in tabs" :key="tab.id" :ref="(el) => setTerminalRef(el, tab.id)" class="xterm-container"
-        v-show="activeTabId === tab.id" />
+      <div
+        v-for="tab in tabs"
+        :key="tab.id"
+        :ref="(el) => setTerminalRef(el, tab.id)"
+        class="xterm-container"
+        v-show="activeTabId === tab.id"
+      />
     </div>
   </div>
 </template>

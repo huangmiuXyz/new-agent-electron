@@ -23,6 +23,13 @@ export const useSettingsStore = defineStore(
       terminalHeight: 200
     })
 
+    // 终端设置
+    const terminal = ref({
+      fontSize: 14,
+      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      cursorBlink: true,  
+    })
+
     const providers = ref<Provider[]>(getDefaultProviders())
 
     const mcpServers = ref<ClientConfig>({})
@@ -45,6 +52,10 @@ export const useSettingsStore = defineStore(
 
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
       display.value = { ...display.value, ...settings }
+    }
+
+    const updateTerminalSettings = (settings: Partial<typeof terminal.value>) => {
+      terminal.value = { ...terminal.value, ...settings }
     }
 
     const updateProvider = (providerId: string, providerData: Provider) => {
@@ -152,11 +163,13 @@ export const useSettingsStore = defineStore(
 
     return {
       display,
+      terminal,
       providers,
       mcpServers,
       defaultModels,
       thinkingMode,
       updateDisplaySettings,
+      updateTerminalSettings,
       updateThinkingMode,
       updateProvider,
       addModelToProvider,
