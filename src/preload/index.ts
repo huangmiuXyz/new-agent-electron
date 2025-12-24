@@ -14,7 +14,14 @@ import os from 'os'
 export const api = {
   ...aiServices(),
   pty: {
-    spawn: (options: { id: string; cols?: number; rows?: number; cwd?: string }) =>
+    spawn: (options: {
+      id: string;
+      cols?: number;
+      rows?: number;
+      cwd?: string;
+      startupLocation?: string;
+      customLocationPath?: string;
+    }) =>
       electronAPI.ipcRenderer.invoke('pty:spawn', options),
     write: (id: string, data: string) => electronAPI.ipcRenderer.invoke('pty:write', { id, data }),
     resize: (id: string, cols: number, rows: number) =>

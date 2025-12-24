@@ -6,6 +6,7 @@ import Select from '@renderer/components/Select.vue'
 import InputGroup from '@renderer/components/InputGroup.vue'
 import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
 import ModelSelector from '@renderer/components/ModelSelector.vue'
+import ColorPicker from '@renderer/components/ColorPicker.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
 import { VNode } from 'vue'
 
@@ -152,6 +153,14 @@ export interface ModelSelectorField<T> extends BaseField<T> {
   modelCategory?: ModelCategory
 }
 
+// 颜色选择器字段
+export interface ColorField<T> extends BaseField<T> {
+  type?: 'color'
+  placeholder?: string
+  presetColors?: string[]
+  showAlpha?: boolean
+}
+
 export type FormField<T> =
   | TextField<T>
   | BooleanField<T>
@@ -162,6 +171,7 @@ export type FormField<T> =
   | ObjectField<T>
   | CheckboxGroupField<T>
   | ModelSelectorField<T>
+  | ColorField<T>
 
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
@@ -231,6 +241,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         return []
       case 'modelSelector':
         return { modelId: '', providerId: '' }
+      case 'color':
+        return '#000000'
       default:
         return ''
     }
@@ -616,6 +628,29 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                                 getNestedValue(formData.value, field.name) as T[keyof T],
                                 formData.value
                               )
+                            }}
+                            {...dynamicProps}
+                          />
+                        </FormItem>
+                      )
+
+                    case 'color':
+                      return (
+                        <FormItem
+                          label={field.label}
+                          error={hasError}
+                          hint={field.hint}
+                          required={field.required}
+                          layout="default"
+                        >
+                          <ColorPicker
+                            placeholder={field.placeholder}
+                            disabled={field.disabled}
+                            presetColors={field.presetColors}
+                            showAlpha={field.showAlpha}
+                            modelValue={getNestedValue(formData.value, field.name)}
+                            onUpdate:modelValue={(value) => {
+                              setFieldValue(field.name, value)
                             }}
                             {...dynamicProps}
                           />
