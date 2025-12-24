@@ -5,7 +5,6 @@ const {
   tabs,
   activeTabId,
   terminalHeight,
-  terminalSettings,
   isResizing,
   createTab,
   removeTab,
@@ -21,11 +20,9 @@ onMounted(async () => {
   createTab()
   window.addEventListener('resize', handleWindowResize)
 
-  // 确保终端在初始化后立即应用正确的高度
   await nextTick()
   const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
   if (activeTab?.addon && activeTab?.instance) {
-    // 使用 setTimeout 确保在 DOM 更新后再调整大小
     setTimeout(() => {
       if (activeTab.addon && activeTab.instance) {
         activeTab.addon.fit()
@@ -34,23 +31,6 @@ onMounted(async () => {
     }, 100)
   }
 })
-
-// 监听终端设置变化，更新现有终端实例
-watch(
-  terminalSettings,
-  (newSettings) => {
-    tabs.value.forEach((tab) => {
-      if (tab.instance) {
-        tab.instance.options.fontSize = newSettings.fontSize
-        tab.instance.options.cursorBlink = newSettings.cursorBlink
-        tab.instance.options.fontFamily = newSettings.fontFamily
-        // 重新渲染终端
-        tab.instance.refresh(0, tab.instance.rows - 1)
-      }
-    })
-  },
-  { deep: true }
-)
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleWindowResize)

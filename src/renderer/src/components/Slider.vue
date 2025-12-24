@@ -113,7 +113,7 @@ const handleBlur = (e: Event) => {
   border-radius: 6px;
   border: 1px solid transparent;
   transition: all 0.2s;
-  width: 50px;
+  width: 60px;
 }
 
 .number-wrapper:focus-within {
