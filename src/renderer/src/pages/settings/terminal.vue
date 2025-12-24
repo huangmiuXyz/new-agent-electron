@@ -48,7 +48,31 @@ const [TerminalForm] = useForm({
       name: 'cursorBlink',
       type: 'boolean',
       label: '光标闪烁'
-    }, 
+    },
+    {
+      name: 'backgroundColor',
+      type: 'color',
+      label: '背景颜色',
+      placeholder: '选择终端背景颜色'
+    },
+    {
+      name: 'foregroundColor',
+      type: 'color',
+      label: '字体颜色',
+      placeholder: '选择终端字体颜色'
+    },
+    {
+      name: 'cursorColor',
+      type: 'color',
+      label: '光标颜色',
+      placeholder: '选择终端光标颜色'
+    },
+    {
+      name: 'selectionBackgroundColor',
+      type: 'color',
+      label: '选中文字背景颜色',
+      placeholder: '选择选中文字的背景颜色'
+    }
   ],
   initialData: settingsStore.terminal,
   onChange: (_field, _value, data) => {

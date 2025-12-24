@@ -27,7 +27,12 @@ export const useSettingsStore = defineStore(
     const terminal = ref({
       fontSize: 14,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      cursorBlink: true,  
+      cursorBlink: true,
+      // 终端颜色设置
+      backgroundColor: '#ffffff',
+      foregroundColor: '#333333',
+      cursorColor: '#333333',
+      selectionBackgroundColor: '#add6ff'
     })
 
     const providers = ref<Provider[]>(getDefaultProviders())

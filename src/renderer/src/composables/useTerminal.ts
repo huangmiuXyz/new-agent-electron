@@ -86,10 +86,10 @@ export const useTerminal = () => {
       convertEol: true,
       fontFamily: terminalSettings.value.fontFamily,
       theme: {
-        background: '#ffffff',
-        foreground: '#333333',
-        cursor: '#333333',
-        selectionBackground: '#add6ff'
+        background: terminalSettings.value.backgroundColor,
+        foreground: terminalSettings.value.foregroundColor,
+        cursor: terminalSettings.value.cursorColor,
+        selectionBackground: terminalSettings.value.selectionBackgroundColor
       }
     })
 
@@ -162,10 +162,12 @@ export const useTerminal = () => {
       term.write('\r\n\x1b[31m连接已断开\x1b[0m')
     })
 
-    tabs.value[tabIndex]._cleanup = () => {
+    // 先保存原始的清理函数，稍后会重新定义
+    const originalCleanup = () => {
       cleanupData()
       cleanupExit()
     }
+    tabs.value[tabIndex]._cleanup = originalCleanup
 
     term.onData((data) => {
       window.api.pty.write(id, data)
@@ -184,6 +186,31 @@ export const useTerminal = () => {
       fitAddon.fit()
       window.api.pty.resize(id, term.cols, term.rows)
     }, 50)
+
+    // 监听终端设置变化，动态更新主题
+    const unwatchSettings = watch(
+      () => terminalSettings.value,
+      (newSettings) => {
+        if (term) {
+          term.options.theme = {
+            background: newSettings.backgroundColor,
+            foreground: newSettings.foregroundColor,
+            cursor: newSettings.cursorColor,
+            selectionBackground: newSettings.selectionBackgroundColor
+          }
+          term.options.fontSize = newSettings.fontSize
+          term.options.cursorBlink = newSettings.cursorBlink
+          term.options.fontFamily = newSettings.fontFamily
+        }
+      },
+      { deep: true }
+    )
+
+    // 在标签页清理时移除监听器
+    tabs.value[tabIndex]._cleanup = () => {
+      unwatchSettings()
+      originalCleanup()
+    }
   }
 
   const showTerminal = async () => {
