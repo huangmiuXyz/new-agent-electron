@@ -24,7 +24,6 @@ const TerminalIcon = useIcon('Terminal')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
-const speechRecognitionRef = useTemplateRef('speechRecognitionRef')
 const inputContainerRef = useTemplateRef('inputContainerRef')
 const textareaRef = useTemplateRef('textareaRef')
 
@@ -36,12 +35,6 @@ const handleFilesSelected = (files: Array<UploadFile>) => {
 // 处理文件移除
 const handleFileRemoved = (index: number) => {
   selectedFiles.value.splice(index, 1)
-}
-
-// 处理语音识别结果
-const handleSpeechResult = async (text: string) => {
-  message.value = text
-  await _sendMessage()
 }
 
 const adjustTextareaHeight = (event: Event) => {
@@ -113,12 +106,6 @@ const _sendMessage = async () => {
           <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
             <FileUploadIcon />
           </Button>
-          <!-- 语音识别组件 -->
-          <ChatMessageInputSpeechRecognition
-            ref="speechRecognitionRef"
-            @speech-result="handleSpeechResult"
-          />
-
           <!-- 思考模式按钮 -->
           <Button
             variant="icon"
@@ -251,57 +238,6 @@ const _sendMessage = async () => {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.voice-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  margin-top: 8px;
-  background-color: rgba(255, 71, 87, 0.05);
-  border-radius: 8px;
-  font-size: 14px;
-  color: #666;
-}
-
-.voice-indicator {
-  width: 8px;
-  height: 8px;
-  background-color: #ff4757;
-  border-radius: 50%;
-  animation: pulse 1.5s infinite;
-}
-
-.voice-text {
-  font-weight: 500;
-}
-
-.voice-preview {
-  color: #333;
-  font-style: italic;
-  margin-left: auto;
-  max-width: 60%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@keyframes pulse {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.5;
-    transform: scale(1.2);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
 .thinking-active {

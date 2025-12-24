@@ -1,1 +1,1 @@
-export { useLocalStorage, useSpeechRecognition } from '@vueuse/core'
+export { useLocalStorage } from '@vueuse/core'
