@@ -27,6 +27,7 @@ const generateId = () => Math.random().toString(36).substring(2, 9)
 
 export const useTerminal = () => {
   const settingsStore = useSettingsStore()
+  const agentStore = useAgentStore()
 
   // 使用设置中的终端高度，如果没有设置则使用默认值 200
   const terminalHeight = computed({
@@ -126,7 +127,10 @@ export const useTerminal = () => {
       return true
     })
 
-    await window.api.pty.spawn({ id, cols: term.cols, rows: term.rows })
+    // 获取当前选中智能体的终端启动位置
+    const selectedAgent = agentStore.selectedAgent
+    const cwd = selectedAgent?.terminalStartupPath || undefined
+    await window.api.pty.spawn({ id, cols: term.cols, rows: term.rows, cwd })
 
     const cleanupData = window.api.pty.onData(id, (data) => {
       if (data) {

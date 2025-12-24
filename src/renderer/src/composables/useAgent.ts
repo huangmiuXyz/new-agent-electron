@@ -73,7 +73,8 @@ export const useAgent = () => {
           mcpServers: [...(agent.mcpServers || [])],
           tools: [...(agent.tools || [])],
           builtinTools: [...(agent.builtinTools || [])],
-          ragEnabled: agent.ragEnabled ?? false
+          ragEnabled: agent.ragEnabled ?? false,
+          terminalStartupPath: agent.terminalStartupPath || ''
         }
       : {
           name: '',
@@ -83,7 +84,8 @@ export const useAgent = () => {
           mcpServers: [],
           tools: [],
           builtinTools: [],
-          ragEnabled: false
+          ragEnabled: false,
+          terminalStartupPath: ''
         }
 
     let previousMcpServers = initialData.mcpServers || []
@@ -146,6 +148,17 @@ export const useAgent = () => {
           type: 'checkboxGroup',
           label: '内置工具',
           options: getBuiltinToolOptions()
+        },
+        {
+          name: 'terminalStartupPath',
+          type: 'path',
+          label: '终端启动位置',
+          placeholder: '选择或输入终端启动目录',
+          hint: '留空则使用默认启动位置',
+          dialogOptions: {
+            properties: ['openDirectory'],
+            title: '选择终端启动目录'
+          }
         }
       ],
       onChange: (field, value, formData) => {

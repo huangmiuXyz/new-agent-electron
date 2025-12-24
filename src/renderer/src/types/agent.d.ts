@@ -13,6 +13,7 @@ declare global {
     updatedAt: number
     knowledgeBaseIds?: string[] // 关联的知识库ID列表
     ragEnabled?: boolean // 是否启用RAG，将检索上下文插入到用户输入中
+    terminalStartupPath?: string // 终端启动位置
   }
 
   // 智能体状态接口

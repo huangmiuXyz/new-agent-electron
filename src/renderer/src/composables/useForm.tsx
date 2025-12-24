@@ -7,6 +7,7 @@ import InputGroup from '@renderer/components/InputGroup.vue'
 import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
 import ModelSelector from '@renderer/components/ModelSelector.vue'
 import ColorPicker from '@renderer/components/ColorPicker.vue'
+import PathSelector from '@renderer/components/PathSelector.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
 import { VNode } from 'vue'
 
@@ -161,6 +162,19 @@ export interface ColorField<T> extends BaseField<T> {
   showAlpha?: boolean
 }
 
+// 路径选择器字段
+export interface PathSelectorField<T> extends BaseField<T> {
+  type?: 'path'
+  placeholder?: string
+  readonly?: boolean
+  dialogOptions?: {
+    properties?: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'showHiddenFiles'>
+    filters?: Array<{ name: string; extensions: string[] }>
+    title?: string
+    defaultPath?: string
+  }
+}
+
 export type FormField<T> =
   | TextField<T>
   | BooleanField<T>
@@ -172,6 +186,7 @@ export type FormField<T> =
   | CheckboxGroupField<T>
   | ModelSelectorField<T>
   | ColorField<T>
+  | PathSelectorField<T>
 
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
@@ -243,6 +258,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         return { modelId: '', providerId: '' }
       case 'color':
         return '#000000'
+      case 'path':
+        return ''
       default:
         return ''
     }
@@ -648,6 +665,29 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             disabled={field.disabled}
                             presetColors={field.presetColors}
                             showAlpha={field.showAlpha}
+                            modelValue={getNestedValue(formData.value, field.name)}
+                            onUpdate:modelValue={(value) => {
+                              setFieldValue(field.name, value)
+                            }}
+                            {...dynamicProps}
+                          />
+                        </FormItem>
+                      )
+
+                    case 'path':
+                      return (
+                        <FormItem
+                          label={field.label}
+                          error={hasError}
+                          hint={field.hint}
+                          required={field.required}
+                          layout="default"
+                        >
+                          <PathSelector
+                            placeholder={field.placeholder}
+                            disabled={field.disabled}
+                            readonly={field.readonly}
+                            dialogOptions={field.dialogOptions}
                             modelValue={getNestedValue(formData.value, field.name)}
                             onUpdate:modelValue={(value) => {
                               setFieldValue(field.name, value)
