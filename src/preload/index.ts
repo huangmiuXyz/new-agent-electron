@@ -15,14 +15,13 @@ export const api = {
   ...aiServices(),
   pty: {
     spawn: (options: {
-      id: string;
-      cols?: number;
-      rows?: number;
-      cwd?: string;
-      startupLocation?: string;
-      customLocationPath?: string;
-    }) =>
-      electronAPI.ipcRenderer.invoke('pty:spawn', options),
+      id: string
+      cols?: number
+      rows?: number
+      cwd?: string
+      startupLocation?: string
+      customLocationPath?: string
+    }) => electronAPI.ipcRenderer.invoke('pty:spawn', options),
     write: (id: string, data: string) => electronAPI.ipcRenderer.invoke('pty:write', { id, data }),
     resize: (id: string, cols: number, rows: number) =>
       electronAPI.ipcRenderer.invoke('pty:resize', { id, cols, rows }),
@@ -79,7 +78,7 @@ export const api = {
   net: {
     fetch: (url: string, options?: any) => electronAPI.ipcRenderer.invoke('net:fetch', url, options)
   }
-} satisfies typeof api
+}
 
 export type API = typeof api
 if (process.contextIsolated) {

@@ -27,6 +27,7 @@ interface ChatServiceConfig {
   knowledgeBaseIds?: string[]
   thinkingMode?: boolean
   ragEnabled?: boolean
+  onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
 }
 export const chatService = () => {
   const createAgent = async (
@@ -40,7 +41,8 @@ export const chatService = () => {
       builtinTools: selectedBuiltinTools,
       knowledgeBaseIds,
       thinkingMode,
-      ragEnabled
+      ragEnabled,
+      onBeforeToolExecute
     }: ChatServiceConfig,
     updateMessageMetadata?: (mid: string, metadata: Partial<MetaData>) => void
   ) => {
@@ -109,6 +111,7 @@ export const chatService = () => {
       tools: mapValues(tools, (t) => ({
         ...t,
         execute: async (input, options) => {
+          await onBeforeToolExecute?.({ tool: t, input, options })
           const result = await t.execute(input, {
             ...JSON.parse(JSON.stringify(options)),
             abortSignal: undefined
