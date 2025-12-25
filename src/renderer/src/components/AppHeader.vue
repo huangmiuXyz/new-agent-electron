@@ -30,8 +30,10 @@ const createNewChat = () => {
 
 <template>
   <header class="app-header drag">
-    <div :style="{ justifyContent: props.currentView === 'chat' ? 'space-between' : '' }" class="header-info drag">
-      <Button variant="icon" size="md" @click="toggleSidebar">
+    <div
+      :style="{ marginLeft: isMobile ? '0' : '48px', justifyContent: props.currentView === 'chat' ? 'space-between' : '' }"
+      class="header-info drag">
+      <Button v-if="!isMobile" variant="icon" size="md" @click="toggleSidebar">
         <component :is="settingsStore.display.sidebarCollapsed ? PanelOpen : PanelClose" />
       </Button>
       <Button v-if="props.currentView === 'chat'" variant="icon" size="md" @click="createNewChat">
@@ -71,7 +73,6 @@ const createNewChat = () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: 48px;
   width: 180px;
   padding: 0 10px;
 }

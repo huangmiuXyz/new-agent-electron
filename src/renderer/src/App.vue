@@ -19,7 +19,7 @@ const route = useRoute()
   <div class="app-layout" v-if="route.path !== '/temp-chat'">
     <AppHeader :current-view="currentView" />
     <div class="app-body">
-      <AppNavBar :current-view="currentView" @switch="switchView" />
+      <AppNavBar v-if="!isMobile" :current-view="currentView" @switch="switchView" />
       <main class="app-content">
         <ChatPage v-show="currentView === 'chat'" />
         <SettingsPage v-show="currentView === 'settings'" />
@@ -155,7 +155,7 @@ body {
   border-top-left-radius: var(--radius-md);
 }
 
-a{
+a {
   color: #000 !important;
 }
 </style>

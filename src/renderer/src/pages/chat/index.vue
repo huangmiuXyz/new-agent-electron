@@ -8,7 +8,7 @@ const settingsStore = useSettingsStore()
 <template>
   <div class="chat-app">
     <!-- 左侧边栏 -->
-    <div class="sidebar-wrapper" :class="{ collapsed: settingsStore.display.sidebarCollapsed }">
+    <div v-if="!isMobile" class="sidebar-wrapper" :class="{ collapsed: settingsStore.display.sidebarCollapsed }">
       <ChatSidebar />
     </div>
 

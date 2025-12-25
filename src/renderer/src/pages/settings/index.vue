@@ -18,7 +18,7 @@ const switchTab = (tabName: string) => {
 <template>
   <div class="settings-layout">
     <!-- 设置-左侧分类导航 -->
-    <div class="sidebar-wrapper" :class="{ collapsed: settingsStore.display.sidebarCollapsed }">
+    <div v-if="!isMobile" class="sidebar-wrapper" :class="{ collapsed: settingsStore.display.sidebarCollapsed }">
       <SettingsSidebar :active-tab="activeTab" @tab-change="switchTab" />
     </div>
 

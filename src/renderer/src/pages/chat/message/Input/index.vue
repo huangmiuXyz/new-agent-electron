@@ -77,29 +77,14 @@ const _sendMessage = async () => {
 
 <template>
   <footer class="footer">
-    <div
-      class="input-container"
-      ref="inputContainerRef"
-      :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }"
-    >
-      <FileUpload
-        ref="fileUploadRef"
-        :files="selectedFiles"
-        :dropZoneRef="inputContainerRef!"
-        :inputRef="textareaRef!"
-        @files-selected="handleFilesSelected"
-        @remove="handleFileRemoved"
-      />
+    <div class="input-container" ref="inputContainerRef"
+      :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
+      <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
+        @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
-      <textarea
-        ref="textareaRef"
-        class="input-field"
-        rows="1"
-        :placeholder="`发送消息给${currentSelectedProvider?.name}提供的${currentSelectedModel?.name}...`"
-        v-model="message"
-        @input="adjustTextareaHeight"
-        @keydown.enter.exact.prevent="_sendMessage"
-      ></textarea>
+      <textarea ref="textareaRef" class="input-field" rows="1"
+        :placeholder="`${currentSelectedProvider?.name}：${currentSelectedModel?.name}`" v-model="message"
+        @input="adjustTextareaHeight" @keydown.enter.exact.prevent="_sendMessage"></textarea>
 
       <div class="input-actions">
         <div class="action-left">
@@ -107,35 +92,21 @@ const _sendMessage = async () => {
             <FileUploadIcon />
           </Button>
           <!-- 思考模式按钮 -->
-          <Button
-            variant="icon"
-            size="sm"
-            :class="{ 'thinking-active': thinkingMode }"
-            @click="updateThinkingMode(!thinkingMode)"
-            title="思考模式"
-          >
+          <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
+            @click="updateThinkingMode(!thinkingMode)" title="思考模式">
             <Bulb />
           </Button>
 
           <!-- 终端按钮 -->
-          <Button
-            variant="icon"
-            size="sm"
-            :class="{ 'terminal-active': display.showTerminal }"
-            @click="toggleTerminal"
-            title="显示终端"
-          >
+          <Button variant="icon" size="sm" :class="{ 'terminal-active': display.showTerminal }" @click="toggleTerminal"
+            title="显示终端">
             <TerminalIcon />
           </Button>
 
           <!-- 智能体选择器 -->
           <ChatAgentSelector type="icon" />
           <!-- 模型选择器 -->
-          <ModelSelector
-            type="icon"
-            v-model:model-id="selectedModelId"
-            v-model:provider-id="selectedProviderId"
-          />
+          <ModelSelector type="icon" v-model:model-id="selectedModelId" v-model:provider-id="selectedProviderId" />
         </div>
         <Button variant="primary" size="md" @click="_sendMessage">发送</Button>
       </div>
@@ -215,7 +186,7 @@ const _sendMessage = async () => {
   outline: none;
   width: 100%;
   padding: 8px;
-  font-size: 14px;
+  font-size: 12px;
   font-family: var(--font-stack);
   resize: none;
   min-height: 24px;
