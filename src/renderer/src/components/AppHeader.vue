@@ -4,6 +4,7 @@ const props = defineProps<{
   currentView: string
 }>()
 
+const { customTitle } = useAppHeader()
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 
@@ -32,6 +33,8 @@ const { back } = useMobile()
 const route = useRoute()
 
 const pageTitle = computed(() => {
+  if (customTitle.value) return customTitle.value
+
   if (props.currentView === 'chat') {
     // 聊天列表页不显示中间标题，仅在详情页显示
     if (route.path === '/mobile/chat') return ''

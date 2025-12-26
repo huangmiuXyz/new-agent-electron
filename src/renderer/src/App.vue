@@ -11,10 +11,16 @@ const switchView = (view: 'chat' | 'settings') => {
   currentView.value = view
 }
 
+const { resetTitle, customTitle } = useAppHeader()
+
 provide('switchView', switchView)
 const route = useRoute()
 
 const router = useRouter()
+
+watch(() => route.path, () => {
+  resetTitle()
+})
 
 const actualCurrentView = computed(() => {
   if (isMobile.value) {
@@ -69,7 +75,7 @@ watch(isMobile, (mobile) => {
 
 <template>
   <div class="app-layout" v-if="route.path !== '/temp-chat'">
-    <AppHeader :current-view="actualCurrentView" />
+    <AppHeader :current-view="actualCurrentView" :custom-title="customTitle" />
 
     <!-- Desktop Mode -->
     <div class="app-body" v-if="!isMobile">

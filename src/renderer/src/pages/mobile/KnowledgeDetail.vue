@@ -1,9 +1,15 @@
 <script setup lang="ts">
 const route = useRoute()
+const { setTitle } = useAppHeader()
+const knowledgeStore = useKnowledgeStore()
 
 watch(() => route.params.id, (newId) => {
     if (newId) {
         localStorage.setItem('activeKnowledgeBaseId', newId as string)
+        const kb = knowledgeStore.knowledgeBases.find(k => k.id === newId)
+        if (kb && setTitle) {
+            setTitle(kb.name)
+        }
     }
 }, { immediate: true })
 

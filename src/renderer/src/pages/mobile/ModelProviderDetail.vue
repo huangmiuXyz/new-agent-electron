@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
-import { watch } from 'vue'
 const route = useRoute()
-
-
+const { setTitle } = useAppHeader()
+const settingsStore = useSettingsStore()
 
 watch(() => route.params.id, (newId) => {
     if (newId) {
         localStorage.setItem('activeProviderId', newId as string)
+        const provider = settingsStore.getProviderById(newId as string)
+        if (provider && setTitle) {
+            setTitle(provider.name)
+        }
     }
 }, { immediate: true })
 
@@ -25,9 +27,4 @@ watch(() => route.params.id, (newId) => {
     height: 100%;
     background: #fff;
 }
-
-/* Force hide list container if it leaks through due to logic delay? 
-   No, SettingsProvider has v-if="!isMobile || showProviderForm". 
-   If showProviderForm is true, List is hidden.
-*/
 </style>
