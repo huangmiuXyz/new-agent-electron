@@ -161,8 +161,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
     ref="messageScrollRef"
     :enabled="autoScrollEnabled"
     :threshold="0"
-    behavior="smooth"
-    class="messages"
   >
     <div class="messages-content">
       <template v-for="(message, index) in currentChat?.messages" :key="`${message.id}-${index}`">
