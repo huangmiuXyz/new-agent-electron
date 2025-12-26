@@ -27,6 +27,35 @@ const showMobileTab = computed(() => {
   return ['/mobile/chat', '/mobile/settings'].includes(route.path)
 })
 
+const transitionName = ref('fade')
+
+router.beforeEach((to, from) => {
+  const toDepth = to.path.split('/').filter(Boolean).length
+  const fromDepth = from.path.split('/').filter(Boolean).length
+
+  if (toDepth > fromDepth) {
+    transitionName.value = 'slide-left'
+  } else if (toDepth < fromDepth) {
+    transitionName.value = 'slide-right'
+  } else {
+    // Sibling navigation - handle tab switching
+    const getTabIndex = (path: string) => {
+      if (path.includes('/mobile/chat')) return 0
+      if (path.includes('/mobile/settings')) return 1
+      return -1
+    }
+
+    const toIndex = getTabIndex(to.path)
+    const fromIndex = getTabIndex(from.path)
+
+    if (toIndex !== -1 && fromIndex !== -1) {
+      transitionName.value = toIndex > fromIndex ? 'slide-left' : 'slide-right'
+    } else {
+      transitionName.value = 'fade'
+    }
+  }
+})
+
 watch(isMobile, (mobile) => {
   if (mobile) {
     if (currentView.value === 'chat') router.push('/mobile/chat')
@@ -53,11 +82,23 @@ watch(isMobile, (mobile) => {
 
     <!-- Mobile Router Mode -->
     <div class="app-body isMobile" v-else>
-      <router-view></router-view>
+      <div class="router-container">
+        <router-view v-slot="{ Component }">
+          <transition :name="transitionName">
+            <component :is="Component" :key="route.path" />
+          </transition>
+        </router-view>
+      </div>
       <MobileTab v-if="showMobileTab" :active-tab="actualCurrentView" />
     </div>
   </div>
-  <router-view v-else></router-view>
+  <div v-else class="router-container h-full">
+    <router-view v-slot="{ Component }">
+      <transition :name="transitionName">
+        <component :is="Component" :key="route.path" />
+      </transition>
+    </router-view>
+  </div>
   <ContextMenu />
 </template>
 
@@ -192,5 +233,55 @@ body {
 
 a {
   color: #000 !important;
+}
+
+/* Transitions */
+.router-container {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+}
+
+.router-container.h-full {
+  height: 100vh;
+}
+
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active,
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+}
+
+.slide-left-enter-from {
+  transform: translateX(100%);
+}
+
+.slide-left-leave-to {
+  transform: translateX(-30%);
+  opacity: 0;
+}
+
+.slide-right-enter-from {
+  transform: translateX(-30%);
+  opacity: 0;
+}
+
+.slide-right-leave-to {
+  transform: translateX(100%);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
