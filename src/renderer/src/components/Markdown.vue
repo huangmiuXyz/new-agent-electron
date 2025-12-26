@@ -11,16 +11,26 @@ const props = defineProps<{
 const incremark = useIncremark({
   gfm: true
 })
-watchEffect(() => {
-  if (props.block.state === 'streaming') {
-    incremark.append(props.block.text)
+watch(
+  () => props.message,
+  () => {
+    if (props.block.state === 'streaming') {
+      incremark.render(props.block.text)
+    }
+    if (props.block.state === 'done') {
+      incremark.finalize()
+    }
+  },
+  {
+    deep: true
   }
-  if (props.block.state === 'done') {
-    incremark.finalize()
-  }
-})
-
+)
 onMounted(() => {
   incremark.render(props.block.text)
 })
 </script>
+<style>
+  .incremark{
+    background-color: transparent !important;
+  }
+</style>

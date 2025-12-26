@@ -1,63 +1,10 @@
 import { Chat as _useChat } from '@ai-sdk/vue'
+import { AutoScrollContainer } from '@incremark/vue'
 import type { FileUIPart, TextUIPart } from 'ai'
-const messageScrollRef = ref()
-const waitForContentStable = (el: HTMLElement) => {
-  return new Promise<void>((resolve) => {
-    const imgs = el.querySelectorAll('img')
-    const pending = Array.from(imgs).filter((i) => !i.complete)
-
-    if (pending.length === 0) {
-      requestAnimationFrame(() => resolve())
-      return
-    }
-
-    let remain = pending.length
-    const check = () => {
-      remain--
-      if (remain === 0) {
-        requestAnimationFrame(() => resolve())
-      }
-    }
-
-    pending.forEach((img) => {
-      img.onload = check
-      img.onerror = check
-    })
-  })
-}
-
-export const useMessagesScroll = () => {
-  const isAtBottom = () => {
-    const el = messageScrollRef.value
-    if (!el) return true
-    const threshold = 30
-    return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold
-  }
-
-  const scrollToBottom = async () => {
-    const el = messageScrollRef.value
-    if (!el) return
-
-    await nextTick()
-    await waitForContentStable(el)
-
-    requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight
-    })
-  }
-
-  return { messageScrollRef, isAtBottom, scrollToBottom }
-}
-
 export const useChat = (chatId: string) => {
   const { getChatById } = useChatsStores()
   const chats = getChatById(chatId)
 
-  const { scrollToBottom, isAtBottom } = useMessagesScroll()
-
-  const isLastMessage = (messageId: string) => {
-    return chats!.messages[chats!.messages.length - 1].id === messageId
-  }
   const { currentSelectedProvider, currentSelectedModel, thinkingMode } =
     storeToRefs(useSettingsStore())
   const agent = useAgentStore()
@@ -111,11 +58,7 @@ export const useChat = (chatId: string) => {
       })
 
       const _update = (error?: Error) => {
-        const userWasAtBottom = isAtBottom()
         chat.lastMessage.metadata = { ...chat.lastMessage.metadata, error }
-        if (userWasAtBottom && isLastMessage(chat.lastMessage.id)) {
-          nextTick(() => scrollToBottom())
-        }
       }
 
       const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
@@ -131,7 +74,6 @@ export const useChat = (chatId: string) => {
   }
 
   const sendMessages = async (content: string | Array<FileUIPart | TextUIPart>) => {
-    scrollToBottom()
     const chat = createChat(chats?.messages!)
     const parts: Array<FileUIPart | TextUIPart> =
       typeof content === 'string' ? [{ type: 'text', text: content }] : content
@@ -181,7 +123,6 @@ export const useChat = (chatId: string) => {
     chats!.messages[targetIndex] = assistantMessage
     messages.push(assistantMessage)
     const chat = createChat(messages)
-    scrollToBottom()
     chat.sendMessage()
   }
 

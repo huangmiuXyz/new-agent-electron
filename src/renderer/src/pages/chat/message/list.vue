@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { storeToRefs } from 'pinia'
 import type { MenuItem } from '@renderer/composables/useContextMenu'
 import { getLanguageFlag } from '@renderer/utils/flagIcons'
 import { useElementSize } from '@vueuse/core'
+import { AutoScrollContainer } from '@incremark/vue'
 
-const { messageScrollRef } = useMessagesScroll()
+const messageScrollRef = useTemplateRef('messageScrollRef')
+
+const autoScrollEnabled = ref(true)
 const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage } = useChatsStores()
@@ -19,18 +20,14 @@ const { Delete, Refresh, Copy, Edit, Branch, Language } = useIcon([
   'Stop'
 ])
 
-// 使用翻译hook
 const { translateMessage, translateWithCustomLanguage } = useTranslation()
 
-// 存储当前需要编辑的消息ID
 const editingMessageId = ref<string | null>(null)
 
-// 提供编辑功能给子组件
 const triggerEdit = (messageId: string) => {
   editingMessageId.value = messageId
 }
 
-// 提供取消编辑功能
 const cancelEdit = () => {
   editingMessageId.value = null
 }
@@ -160,35 +157,40 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 }
 </script>
 <template>
-  <div class="messages" :ref="(ref) => (messageScrollRef = ref)">
-    <template v-for="(message, index) in currentChat?.messages" :key="`${message.id}-${index}`">
-      <ChatMessageItemHuman
-        v-if="message.role === 'user'"
-        :message="message"
-        @contextmenu="onMessageRightClick($event, message)"
-      />
-      <ChatMessageItemAi
-        v-if="message.role === 'assistant'"
-        :message="message"
-        :class="{ 'last-message': index === lastMessageIndex }"
-        :style="{
-          minHeight: index === lastMessageIndex ? lastMessageHeight : 'auto',
-          height: 'auto',
-          flex: 'none'
-        }"
-        @contextmenu="onMessageRightClick($event, message)"
-      />
-    </template>
-  </div>
+  <AutoScrollContainer
+    ref="messageScrollRef"
+    :enabled="autoScrollEnabled"
+    :threshold="0"
+    behavior="smooth"
+    class="messages"
+  >
+    <div class="messages-content">
+      <template v-for="(message, index) in currentChat?.messages" :key="`${message.id}-${index}`">
+        <ChatMessageItemHuman
+          v-if="message.role === 'user'"
+          :message="message"
+          @contextmenu="onMessageRightClick($event, message)"
+        />
+        <ChatMessageItemAi
+          v-if="message.role === 'assistant'"
+          :message="message"
+          :class="{ 'last-message': index === lastMessageIndex }"
+          :style="{
+            minHeight: index === lastMessageIndex ? lastMessageHeight : 'auto',
+            height: 'auto',
+            flex: 'none'
+          }"
+          @contextmenu="onMessageRightClick($event, message)"
+        />
+      </template>
+    </div>
+  </AutoScrollContainer>
 </template>
 
 <style scoped>
-.messages {
-  flex: 1;
-  overflow-y: auto;
+.messages-content {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-bottom: 16px;
 }
 </style>
