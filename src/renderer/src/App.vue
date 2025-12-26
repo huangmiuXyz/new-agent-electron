@@ -14,19 +14,47 @@ const switchView = (view: 'chat' | 'settings') => {
 provide('switchView', switchView)
 const route = useRoute()
 
-const { showChat, showSettings } = useMobile()
+const router = useRouter()
+
+const actualCurrentView = computed(() => {
+  if (isMobile.value) {
+    return route.path.includes('settings') ? 'settings' : 'chat'
+  }
+  return currentView.value
+})
+
+const showMobileTab = computed(() => {
+  return ['/mobile/chat', '/mobile/settings'].includes(route.path)
+})
+
+watch(isMobile, (mobile) => {
+  if (mobile) {
+    if (currentView.value === 'chat') router.push('/mobile/chat')
+    else router.push('/mobile/settings')
+  } else {
+    if (route.path.includes('settings')) switchView('settings')
+    else switchView('chat')
+  }
+})
 </script>
 
 <template>
   <div class="app-layout" v-if="route.path !== '/temp-chat'">
-    <AppHeader :current-view="currentView" />
-    <div class="app-body" :class="{ isMobile }">
-      <AppNavBar v-if="!isMobile" :current-view="currentView" @switch="switchView" />
+    <AppHeader :current-view="actualCurrentView" />
+
+    <!-- Desktop Mode -->
+    <div class="app-body" v-if="!isMobile">
+      <AppNavBar :current-view="currentView" @switch="switchView" />
       <main class="app-content">
         <ChatPage v-show="currentView === 'chat'" />
         <SettingsPage v-show="currentView === 'settings'" />
       </main>
-      <MobileTab v-if="isMobile && !showChat && !showSettings" :active-tab="currentView" @switch="switchView" />
+    </div>
+
+    <!-- Mobile Router Mode -->
+    <div class="app-body isMobile" v-else>
+      <router-view></router-view>
+      <MobileTab v-if="showMobileTab" :active-tab="actualCurrentView" />
     </div>
   </div>
   <router-view v-else></router-view>
@@ -145,6 +173,7 @@ body {
   overflow: hidden;
   width: 100%;
 }
+
 .app-body.isMobile {
   flex-direction: column;
 }

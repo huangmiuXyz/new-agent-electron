@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import GlobalSearch from '@renderer/components/GlobalSearch.vue'
-import { useSettingsStore } from '@renderer/stores/settings'
-import { useChatsStores } from '@renderer/stores/chats'
 
 const props = defineProps<{
   currentView: string
@@ -32,31 +28,29 @@ const createNewChat = () => {
   chatsStore.createChat()
 }
 
-const { showChat, showSettings, showProviderForm, showKnowledgeForm, back } = useMobile()
+const { back } = useMobile()
 </script>
 
 <template>
   <header class="app-header drag">
-    <div
-      :style="{
-        marginLeft: isMobile ? '0' : '48px',
-        justifyContent: props.currentView === 'chat' ? 'space-between' : ''
-      }"
-      :class="{ isMobile }"
-      class="header-info drag"
-    >
+    <div :style="{
+      marginLeft: isMobile ? '0' : '48px',
+      justifyContent: props.currentView === 'chat' ? 'space-between' : ''
+    }" :class="{ isMobile }" class="header-info drag">
       <Button v-if="!isMobile" variant="icon" size="md" @click="toggleSidebar">
         <component :is="settingsStore.display.sidebarCollapsed ? PanelOpen : PanelClose" />
       </Button>
-      <Button v-if="isMobile && (showChat || showSettings || showProviderForm || showKnowledgeForm)" variant="icon" size="md" @click="back">
+      <Button v-if="isMobile && $route.path.split('/').length > 3" variant="icon" size="md" @click="back">
         <ArrowBackIosNewSharp />
       </Button>
-      <Button v-if="props.currentView === 'chat'" variant="icon" size="md" @click="createNewChat">
+      <Button v-if="props.currentView === 'chat' && (!isMobile || $route.path === '/mobile/chat')" variant="icon"
+        size="md" @click="createNewChat">
         <CommentAdd16Regular />
       </Button>
       <div v-else class="header-title">设置</div>
     </div>
-    <div v-if="!showChat || !isMobile" class="header-actions no-drag">
+    <div v-if="!isMobile || (props.currentView === 'chat' && $route.path === '/mobile/chat')"
+      class="header-actions no-drag">
       <Button v-if="props.currentView === 'chat'" variant="text" size="lg" @click="openSearch">
         <Search />
       </Button>
@@ -88,9 +82,11 @@ const { showChat, showSettings, showProviderForm, showKnowledgeForm, back } = us
   width: 180px;
   padding: 0 10px;
 }
+
 .header-info.isMobile {
   width: 100%;
 }
+
 .header-title {
   font-weight: 600;
   font-size: 14px;

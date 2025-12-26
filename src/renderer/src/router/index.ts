@@ -6,6 +6,30 @@ const router = createRouter({
     {
       path: '/temp-chat',
       component: () => import('../pages/TempChatPage.vue')
+    },
+    {
+      path: '/mobile/chat',
+      component: () => import('../pages/mobile/ChatList.vue')
+    },
+    {
+      path: '/mobile/chat/session',
+      component: () => import('../pages/mobile/ChatDetail.vue')
+    },
+    {
+      path: '/mobile/settings',
+      component: () => import('../pages/mobile/SettingsList.vue')
+    },
+    {
+      path: '/mobile/settings/:tab',
+      component: () => import('../pages/mobile/SettingsDetail.vue')
+    },
+    {
+      path: '/mobile/settings/models/:id',
+      component: () => import('../pages/mobile/ModelProviderDetail.vue')
+    },
+    {
+      path: '/mobile/settings/knowledge/:id',
+      component: () => import('../pages/mobile/KnowledgeDetail.vue')
     }
   ]
 })

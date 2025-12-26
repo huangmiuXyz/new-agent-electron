@@ -2,13 +2,8 @@
   <div class="mobile-layout light-theme">
     <nav class="tab-bar">
       <div class="slider-bar" :style="{ transform: `translateX(${currentIndex * 100}%)` }"></div>
-      <div
-        v-for="(tab, index) in tabs"
-        :key="tab.key"
-        class="tab-item"
-        :class="{ active: activeTab === tab.key }"
-        @click="switchTab(tab.key)"
-      >
+      <div v-for="(tab, index) in tabs" :key="tab.key" class="tab-item" :class="{ active: activeTab === tab.key }"
+        @click="switchTab(tab)">
         <div class="icon-box">
           <component :is="tab.icon" />
         </div>
@@ -20,29 +15,33 @@
 
 <script setup>
 import { computed } from 'vue'
-import ChatPage from '../pages/chat/index.vue'
-import SettingsPage from '../pages/settings/index.vue'
+const router = useRouter()
+const route = useRoute()
 
 const props = defineProps({
-  activeTab: {
-    type: String,
-    default: 'chat'
-  }
+  // No longer strictly needed for control, but maybe for initial state if not routed
 })
 
 const emit = defineEmits(['switch'])
 
 const tabs = [
-  { key: 'chat', label: '聊天', icon: useIcon('Chat') },
-  { key: 'settings', label: '设置', icon: useIcon('Settings') }
+  { key: 'chat', label: '聊天', icon: useIcon('Chat'), path: '/mobile/chat' },
+  { key: 'settings', label: '设置', icon: useIcon('Settings'), path: '/mobile/settings' }
 ]
 
 const currentIndex = computed(() => {
-  return tabs.findIndex((t) => t.key === props.activeTab)
+  if (route.path.startsWith('/mobile/settings')) {
+    return 1
+  }
+  return 0
 })
 
-const switchTab = (key) => {
-  emit('switch', key)
+const activeTab = computed(() => {
+  return tabs[currentIndex.value].key
+})
+
+const switchTab = (tab) => {
+  router.push(tab.path)
 }
 </script>
 
@@ -92,13 +91,11 @@ const switchTab = (key) => {
   left: 0;
   width: 50%;
   height: 3px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--color-active) 30%,
-    var(--color-active) 70%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg,
+      transparent 0%,
+      var(--color-active) 30%,
+      var(--color-active) 70%,
+      transparent 100%);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   z-index: 10;

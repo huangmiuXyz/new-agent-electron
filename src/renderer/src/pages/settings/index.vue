@@ -1,11 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useSettingsStore } from '@renderer/stores/settings'
-import SettingsDefaultModels from './default-models.vue'
-import SettingsKnowledge from './knowledge.vue'
-import SettingsTerminal from './terminal.vue'
-import SettingsUserData from './user-data.vue'
-import SettingsAbout from './about.vue'
 
 const settingsStore = useSettingsStore()
 const activeTab = ref('models')
@@ -13,17 +6,12 @@ const activeTab = ref('models')
 const switchTab = (tabName: string) => {
   activeTab.value = tabName
 }
-const { showSettings } = useMobile()
 </script>
 
 <template>
   <div class="settings-layout">
     <!-- 设置-左侧分类导航 -->
-    <div
-      class="sidebar-wrapper"
-      v-if="!showSettings || !isMobile"
-      :class="{ isMobile, collapsed: settingsStore.display.sidebarCollapsed }"
-    >
+    <div class="sidebar-wrapper" :class="{ collapsed: settingsStore.display.sidebarCollapsed }">
       <SettingsSidebar :active-tab="activeTab" @tab-change="switchTab" />
     </div>
 
@@ -88,6 +76,7 @@ const { showSettings } = useMobile()
   z-index: 3;
   height: 100%;
 }
+
 .sidebar-wrapper.collapsed {
   width: 0;
 }

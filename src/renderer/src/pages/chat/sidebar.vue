@@ -1,12 +1,14 @@
 <script setup lang="ts">
 const chatsStore = useChatsStores()
 const { showContextMenu } = useContextMenu()
-const { showChat } = useMobile()
 const chatsIcon = useIcon('Chat')
+const router = useRouter()
 
 const selectChat = (chatId: string) => {
-  showChat.value = true
   chatsStore.setActiveChat(chatId)
+  if (isMobile.value) {
+    router.push('/mobile/chat/session')
+  }
 }
 
 const createNewChat = () => {
@@ -92,21 +94,14 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
         </Button>
       </div>
       <!-- 聊天列表 -->
-      <List
-        v-if="chatsStore.chats.length"
-        :items="chatsStore.chats"
-        :active-id="chatsStore.activeChatId!"
-        :key-field="'id'"
-        :main-field="'title'"
-        :sub-field="'createdAt'"
-        @select="selectChat"
-        @contextmenu="showChatContextMenu"
-      >
+      <List v-if="chatsStore.chats.length" :items="chatsStore.chats" :active-id="chatsStore.activeChatId!"
+        :key-field="'id'" :main-field="'title'" :sub-field="'createdAt'" @select="selectChat"
+        @contextmenu="showChatContextMenu">
         <template #main="{ item }">
           <div class="chat-title-container">
             <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-title">{{
               item.title
-            }}</span>
+              }}</span>
             <div v-else class="chat-title-loading">
               <div class="loading-spinner-small"></div>
               <span>标题生成中...</span>

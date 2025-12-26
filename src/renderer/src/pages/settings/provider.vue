@@ -12,7 +12,7 @@ const { Refresh, Plus, Search, Edit, Delete }: any = useIcon([
   'Delete'
 ])
 const { confirm } = useModal()
-const { showProviderForm } = useMobile()
+
 
 const setActiveProvider = (providerId: string) => {
   activeProviderId.value = providerId
@@ -175,13 +175,6 @@ const [CustomModelForm, customModelFormActions] = useForm({
   }
 })
 
-const selectProvider = (providerId: string) => {
-  setActiveProvider(providerId)
-  if (isMobile) {
-    showProviderForm.value = true
-  }
-}
-
 const loading = ref(false)
 const refreshModels = async () => {
   loading.value = true
@@ -315,71 +308,65 @@ const handleShowSearch = async () => {
   await nextTick()
   searchInputRef.value?.focus()
 }
+
+import { useRouter, useRoute } from 'vue-router'
+const router = useRouter()
+const route = useRoute()
+
+const isDetailResult = computed(() => {
+  return !!route.params.id
+})
+
+const selectProvider = (providerId: string) => {
+  setActiveProvider(providerId)
+  if (isMobile.value) {
+    router.push(`/mobile/settings/models/${providerId}`)
+  }
+}
+
+// Mobile/Desktop View Logic
+const showList = computed(() => !isMobile.value || !isDetailResult.value)
+const showForm = computed(() => !isMobile.value || isDetailResult.value)
 </script>
 
 <template>
   <!-- 列表视图 -->
-  <SettingsListContainer v-if="!isMobile || !showProviderForm">
-    <List
-      title="提供商"
-      :items="providers"
-      :active-id="activeProviderId"
-      @select="selectProvider"
-    />
+  <SettingsListContainer v-if="showList">
+    <List title="提供商" :items="providers" :active-id="activeProviderId" @select="selectProvider" />
   </SettingsListContainer>
-  
+
   <!-- 表单视图 -->
-  <SettingFormContainer v-if="!isMobile || showProviderForm" header-title="模型提供商">
+  <SettingFormContainer v-if="showForm" header-title="模型提供商">
     <template #content>
       <ProviderForm>
         <template #footer>
           <FormItem label="模型列表">
-            <Table
-              :loading="loading"
-              :columns="tableColumns"
-              :data="aiSearchModels.length ? aiSearchModels : filteredModels"
-            >
+            <Table :loading="loading" :columns="tableColumns"
+              :data="aiSearchModels.length ? aiSearchModels : filteredModels">
               <template #category="{ row }">
-                <Tags
-                  :tags="[getCategoryLabel(row.category)]"
-                  :color="
-                    row.category === 'text'
-                      ? 'blue'
-                      : row.category === 'embedding'
-                        ? 'green'
-                        : row.category === 'image'
-                          ? 'orange'
-                          : row.category === 'rerank'
-                            ? 'purple'
-                            : 'blue'
-                  "
-                />
+                <Tags :tags="[getCategoryLabel(row.category)]" :color="row.category === 'text'
+                  ? 'blue'
+                  : row.category === 'embedding'
+                    ? 'green'
+                    : row.category === 'image'
+                      ? 'orange'
+                      : row.category === 'rerank'
+                        ? 'purple'
+                        : 'blue'
+                  " />
               </template>
               <template #active="{ row }">
                 <Switch v-model="row.active" />
               </template>
 
               <template #actions="{ row }">
-                <Button
-                  type="button"
-                  variant="text"
-                  size="sm"
-                  @click="showEditModelModal(row)"
-                  title="编辑模型"
-                >
+                <Button type="button" variant="text" size="sm" @click="showEditModelModal(row)" title="编辑模型">
                   <template #icon>
                     <Edit />
                   </template>
                 </Button>
-                <Button
-                  v-if="isCustomModel(row)"
-                  type="button"
-                  variant="text"
-                  size="sm"
-                  @click="handleDeleteModel(row)"
-                  title="删除模型"
-                  class="text-red-500 hover:text-red-700"
-                >
+                <Button v-if="isCustomModel(row)" type="button" variant="text" size="sm" @click="handleDeleteModel(row)"
+                  title="删除模型" class="text-red-500 hover:text-red-700">
                   <template #icon>
                     <Delete />
                   </template>
@@ -403,21 +390,10 @@ const handleShowSearch = async () => {
                   模型列表
                 </Button>
                 <div v-if="showSearch">
-                  <SearchInput
-                    searchKey="id"
-                    :search-data="activeProvider!.models"
-                    @ai-search="setAISearchValue"
-                    ref="searchInputRef"
-                    v-model="searchKeyword"
-                    @update:model-value="aiSearchModels = []"
-                    placeholder="搜索模型..."
-                    size="sm"
-                    variant="default"
-                    :show-icon="true"
-                    :debounce="0"
-                    @blur="!searchKeyword && (showSearch = false)"
-                    class="provider-search-input"
-                  />
+                  <SearchInput searchKey="id" :search-data="activeProvider!.models" @ai-search="setAISearchValue"
+                    ref="searchInputRef" v-model="searchKeyword" @update:model-value="aiSearchModels = []"
+                    placeholder="搜索模型..." size="sm" variant="default" :show-icon="true" :debounce="0"
+                    @blur="!searchKeyword && (showSearch = false)" class="provider-search-input" />
                 </div>
                 <Button v-else type="button" variant="text" size="sm" @click="handleShowSearch">
                   <template #icon>

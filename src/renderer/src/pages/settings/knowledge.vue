@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { FormItem } from '@renderer/composables/useForm'
+import { isMobile } from '@renderer/composables/useDeviceType'
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 const {
   updateKnowledgeBase,
@@ -21,7 +22,6 @@ const { Plus, Search, Trash, File, Refresh, Stop, Play, Settings } = useIcon([
 ])
 const { confirm } = useModal()
 const { showContextMenu } = useContextMenu<KnowledgeBase>()
-const { showKnowledgeForm } = useMobile()
 
 const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
   activeKnowledgeBaseId.value = knowledgeBaseId
@@ -204,10 +204,18 @@ const [KnowledgeBaseForm, formActions] = useForm<
   }
 })
 
+import { useRouter, useRoute } from 'vue-router'
+const router = useRouter()
+const route = useRoute()
+
+const isDetailResult = computed(() => {
+  return !!route.params.id
+})
+
 const selectKnowledgeBase = (knowledgeBaseId: string) => {
   setActiveKnowledgeBase(knowledgeBaseId)
-  if (isMobile) {
-    showKnowledgeForm.value = true
+  if (isMobile.value) {
+    router.push(`/mobile/settings/knowledge/${knowledgeBaseId}`)
   }
 }
 const handleKnowledgeBaseContextMenu = (event: MouseEvent, knowledgeBase: KnowledgeBase) => {
@@ -354,21 +362,19 @@ const handleAbortDocument = (doc: KnowledgeDocument) => {
 const openFolder = (path: string) => {
   window.api.shell.openPath(window.api.url.fileURLToPath(path))
 }
+
+const showList = computed(() => !isMobile.value || !isDetailResult.value)
+const showForm = computed(() => !isMobile.value || isDetailResult.value)
 </script>
 
 <template>
   <!-- 列表视图 -->
-  <SettingsListContainer v-if="!isMobile || !showKnowledgeForm">
-    <List
-      title="知识库"
-      :items="knowledgeBases"
-      :active-id="activeKnowledgeBaseId"
-      @select="selectKnowledgeBase"
+  <SettingsListContainer v-if="showList">
+    <List title="知识库" :items="knowledgeBases" :active-id="activeKnowledgeBaseId" @select="selectKnowledgeBase"
       @contextmenu="
         (event, item) =>
           handleKnowledgeBaseContextMenu(event, knowledgeBases.find((kb) => kb.id === item)!)
-      "
-    >
+      ">
       <template #title-tool>
         <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="primary">
           <template #icon>
@@ -381,35 +387,27 @@ const openFolder = (path: string) => {
   </SettingsListContainer>
 
   <!-- 表单视图 -->
-  <SettingFormContainer v-if="!isMobile || showKnowledgeForm" header-title="知识库管理">
+  <SettingFormContainer v-if="showForm" header-title="知识库管理">
     <template #content>
       <FormItem label="文档列表">
-        <Table
-          :loading="loading"
-          :data="filteredDocuments"
-          :columns="[
-            { key: 'name', label: '文档名称', width: '2fr' },
-            { key: 'type', label: '类型', width: '1fr' },
-            { key: 'size', label: '大小', width: '1fr' },
-            { key: 'status', label: '状态', width: '1fr' },
-            { key: 'actions', label: '操作', width: '1.1fr' }
-          ]"
-        >
+        <Table :loading="loading" :data="filteredDocuments" :columns="[
+          { key: 'name', label: '文档名称', width: '2fr' },
+          { key: 'type', label: '类型', width: '1fr' },
+          { key: 'size', label: '大小', width: '1fr' },
+          { key: 'status', label: '状态', width: '1fr' },
+          { key: 'actions', label: '操作', width: '1.1fr' }
+        ]">
           <template #name="{ row }">
             <div class="file-name-cell">
               <Button @click="openFolder(row.path)" variant="text" size="sm" class="name-text">
                 <template #icon>
-                  <component
-                    :is="
-                      useIcon(
-                        getFileIcon({
-                          name: row.name,
-                          mediaType: row.type
-                        })
-                      )
-                    "
-                    class="file-icon"
-                  />
+                  <component :is="useIcon(
+                    getFileIcon({
+                      name: row.name,
+                      mediaType: row.type
+                    })
+                  )
+                    " class="file-icon" />
                 </template>
                 {{ row.name }}
               </Button>
@@ -425,21 +423,16 @@ const openFolder = (path: string) => {
             <div style="display: flex; flex-direction: column; gap: 4px">
               <Tags v-if="props.row.status === 'processed'" color="blue" :tags="['成功']" />
               <div v-else style="width: 100%; display: flex; align-items: center; gap: 8px">
-                <div
-                  style="
+                <div style="
                     flex: 1;
                     height: 4px;
                     background-color: #f0f0f0;
                     border-radius: 2px;
                     overflow: hidden;
-                  "
-                >
-                  <div
-                    style="height: 100%; background-color: #8b5cf6; transition: width 0.3s ease"
-                    :style="{
-                      width: `${Math.round((props.row.currentChunk! / (props.row.chunks?.length || 0)) * 100)}%`
-                    }"
-                  ></div>
+                  ">
+                  <div style="height: 100%; background-color: #8b5cf6; transition: width 0.3s ease" :style="{
+                    width: `${Math.round((props.row.currentChunk! / (props.row.chunks?.length || 0)) * 100)}%`
+                  }"></div>
                 </div>
                 <span style="font-size: 12px; color: #666">
                   {{ props.row.currentChunk || 0 }}/{{ props.row.chunks?.length || 0 }}
@@ -452,62 +445,36 @@ const openFolder = (path: string) => {
           </template>
           <template #actions="props">
             <div style="display: flex; align-items: center; gap: 8px">
-              <Tags
-                v-if="!activeKnowledgeBase.embeddingModel.modelId"
-                color="red"
-                :tags="['未选择嵌入模型']"
-              />
-              <Button
-                v-if="activeKnowledgeBase?.embeddingModel?.modelId"
-                @click="
-                  embedding(props.row, activeKnowledgeBase, false, batchSize, {
-                    input_type: 'passage'
-                  })
-                "
-                size="sm"
-                type="button"
-                variant="text"
-              >
+              <Tags v-if="!activeKnowledgeBase.embeddingModel.modelId" color="red" :tags="['未选择嵌入模型']" />
+              <Button v-if="activeKnowledgeBase?.embeddingModel?.modelId" @click="
+                embedding(props.row, activeKnowledgeBase, false, batchSize, {
+                  input_type: 'passage'
+                })
+                " size="sm" type="button" variant="text">
                 <template #icon>
                   <Refresh />
                 </template>
               </Button>
-              <Button
-                v-if="
-                  activeKnowledgeBase?.embeddingModel?.modelId &&
-                  !props.row.abortController?.abort &&
-                  props.row.status !== 'processed'
-                "
-                @click="
-                  embedding(props.row, activeKnowledgeBase, true, batchSize, {
-                    input_type: 'passage'
-                  })
-                "
-                size="sm"
-                type="button"
-                variant="text"
-              >
+              <Button v-if="
+                activeKnowledgeBase?.embeddingModel?.modelId &&
+                !props.row.abortController?.abort &&
+                props.row.status !== 'processed'
+              " @click="
+                embedding(props.row, activeKnowledgeBase, true, batchSize, {
+                  input_type: 'passage'
+                })
+                " size="sm" type="button" variant="text">
                 <template #icon>
                   <Play />
                 </template>
               </Button>
-              <Button
-                v-if="props.row.status === 'processing' && props.row.abortController?.abort"
-                @click="handleAbortDocument(props.row)"
-                size="sm"
-                type="button"
-                variant="text"
-              >
+              <Button v-if="props.row.status === 'processing' && props.row.abortController?.abort"
+                @click="handleAbortDocument(props.row)" size="sm" type="button" variant="text">
                 <template #icon>
                   <Stop />
                 </template>
               </Button>
-              <Button
-                @click="showDeleteDocumentModal(props.row)"
-                size="sm"
-                type="button"
-                variant="text"
-              >
+              <Button @click="showDeleteDocumentModal(props.row)" size="sm" type="button" variant="text">
                 <template #icon>
                   <Trash />
                 </template>
@@ -524,17 +491,9 @@ const openFolder = (path: string) => {
               添加文档
             </Button>
             <div v-if="showSearch">
-              <SearchInput
-                ref="searchInputRef"
-                v-model="searchKeyword"
-                placeholder="搜索文档..."
-                size="sm"
-                variant="default"
-                :show-icon="true"
-                :debounce="0"
-                @blur="!searchKeyword && (showSearch = false)"
-                class="knowledge-search-input"
-              />
+              <SearchInput ref="searchInputRef" v-model="searchKeyword" placeholder="搜索文档..." size="sm"
+                variant="default" :show-icon="true" :debounce="0" @blur="!searchKeyword && (showSearch = false)"
+                class="knowledge-search-input" />
             </div>
             <Button v-else type="button" variant="text" size="sm" @click="handleShowSearch">
               <template #icon>
@@ -543,12 +502,7 @@ const openFolder = (path: string) => {
             </Button>
             <SelectorPopover title="知识库设置" v-model="showBatchSettings" width="240px" position="bottom">
               <template #trigger>
-                <Button
-                  :class="{ active: showBatchSettings }"
-                  size="sm"
-                  type="button"
-                  variant="text"
-                >
+                <Button :class="{ active: showBatchSettings }" size="sm" type="button" variant="text">
                   <template #icon>
                     <Settings />
                   </template>
@@ -559,12 +513,8 @@ const openFolder = (path: string) => {
                 <div class="popover-content">
                   <BatchSettingsForm />
                   <div style="display: flex; justify-content: flex-end; gap: 12px">
-                    <Button size="sm" variant="text" @click="showBatchSettings = false"
-                      >取消</Button
-                    >
-                    <Button size="sm" variant="primary" @click="batchSettingsActions.submit()"
-                      >确定</Button
-                    >
+                    <Button size="sm" variant="text" @click="showBatchSettings = false">取消</Button>
+                    <Button size="sm" variant="primary" @click="batchSettingsActions.submit()">确定</Button>
                   </div>
                 </div>
               </template>
