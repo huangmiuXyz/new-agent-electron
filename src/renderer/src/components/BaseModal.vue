@@ -82,6 +82,7 @@
 import type { BaseModalProps } from '@renderer/types/components'
 import Button from './Button.vue'
 import { useIcon } from '@renderer/composables/useIcon'
+import { useBackButton } from '@renderer/composables/useBackButton'
 
 const props = withDefaults(defineProps<BaseModalProps>(), {
   variant: isMobile.value ? 'drawer' : 'center',
@@ -103,6 +104,15 @@ onMounted(async () => {
   nextTick(() => {
     modalOverlay.value?.focus()
     confirmButton.value?.focus()
+  })
+
+  // 拦截手机返回键，关闭弹窗
+  useBackButton({
+    enabled: computed(() => visible.value),
+    handler: () => {
+      handleEsc()
+      return true // 阻止默认返回行为
+    }
   })
 })
 

@@ -97,6 +97,7 @@
 <script setup lang="ts" generic="T">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useContextMenu, type MenuItem } from '../composables/useContextMenu'
+import { useBackButton } from '../composables/useBackButton'
 
 // 定义 variant 类型
 type MenuVariant = 'default' | 'glass' | 'mobile'
@@ -284,7 +285,24 @@ const handleScroll = () => {
   if (visible.value) hideContextMenu()
   if (submenuVisible.value) hideSubmenu()
 }
-onMounted(() => window.addEventListener('scroll', handleScroll, true))
+
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll, true)
+
+  // 拦截手机返回键，关闭菜单
+  useBackButton({
+    enabled: computed(() => visible.value || submenuVisible.value),
+    handler: () => {
+      if (submenuVisible.value) {
+        hideSubmenu()
+      } else {
+        hideContextMenu()
+      }
+      return true
+    }
+  })
+})
+
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll, true)
   if (hoverTimer) clearTimeout(hoverTimer)
