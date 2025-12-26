@@ -1,57 +1,63 @@
 <script setup lang="ts">
-const chatsStore = useChatsStores();
-const { showContextMenu } = useContextMenu();
+const chatsStore = useChatsStores()
+const { showContextMenu } = useContextMenu()
 
 const chatsIcon = useIcon('Chat')
 
 const selectChat = (chatId: string) => {
-  chatsStore.setActiveChat(chatId);
-};
+  chatsStore.setActiveChat(chatId)
+}
 
 const createNewChat = () => {
-  chatsStore.createChat('新的聊天');
-};
+  chatsStore.createChat('新的聊天')
+}
 const { confirm } = useModal()
 const deleteChat = async (chatId: string) => {
-  if (await confirm({
-    title: '删除会话',
-    content: '确定要删除这个聊天吗？',
-    confirmProps: {
-      danger: true
-    }
-  })) {
-    chatsStore.deleteChat(chatId);
+  if (
+    await confirm({
+      title: '删除会话',
+      content: '确定要删除这个聊天吗？',
+      confirmProps: {
+        danger: true
+      }
+    })
+  ) {
+    chatsStore.deleteChat(chatId)
   }
-};
+}
 
 const renameChat = async (chatId: string) => {
-  const chat = chatsStore.chats.find(c => c.id === chatId);
+  const chat = chatsStore.chats.find((c) => c.id === chatId)
   if (chat) {
     const [Form, { getFieldValue }] = useForm({
-      fields: [{
-        label: '名称',
-        type: 'text',
-        name: 'name',
-      }],
+      fields: [
+        {
+          label: '名称',
+          type: 'text',
+          name: 'name'
+        }
+      ],
       initialData: {
         name: chat.title
       }
     })
-    if (await useModal().confirm({
-      title: '重命名对话',
-      content: Form
-    })) {
+    if (
+      await useModal().confirm({
+        title: '重命名对话',
+        content: Form
+      })
+    ) {
       const newName = getFieldValue('name')
       if (newName && newName.trim()) {
-        chatsStore.renameChat(chatId, newName.trim());
+        chatsStore.renameChat(chatId, newName.trim())
       }
     }
   }
-};
+}
 const { Edit, Delete } = useIcon(['Edit', 'Delete'])
 const showChatContextMenu = (event: MouseEvent, chatId: string) => {
-  event.preventDefault();
-  event.stopPropagation();
+  event.preventDefault()
+  event.stopPropagation()
   const menuOptions = [
     {
       label: '重命名',
@@ -66,9 +72,9 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
       danger: true,
       onClick: () => deleteChat(chatId)
     }
-  ];
-  showContextMenu(event, menuOptions, { chatId });
-};
+  ]
+  showContextMenu(event, menuOptions, { chatId })
+}
 </script>
 
 <template>
@@ -85,12 +91,21 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
         </Button>
       </div>
       <!-- 聊天列表 -->
-      <List v-if="chatsStore.chats.length" :items="chatsStore.chats" :active-id="chatsStore.activeChatId!"
-        :key-field="'id'" :main-field="'title'" :sub-field="'createdAt'" @select="selectChat"
-        @contextmenu="showChatContextMenu">
+      <List
+        v-if="chatsStore.chats.length"
+        :items="chatsStore.chats"
+        :active-id="chatsStore.activeChatId!"
+        :key-field="'id'"
+        :main-field="'title'"
+        :sub-field="'createdAt'"
+        @select="selectChat"
+        @contextmenu="showChatContextMenu"
+      >
         <template #main="{ item }">
           <div class="chat-title-container">
-            <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-title">{{ item.title }}</span>
+            <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-title">{{
+              item.title
+            }}</span>
             <div v-else class="chat-title-loading">
               <div class="loading-spinner-small"></div>
               <span>标题生成中...</span>
@@ -102,15 +117,11 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
         </template>
       </List>
     </div>
-
-
   </aside>
 </template>
 
 <style scoped>
-/* === 侧边栏：清爽、层级分明 === */
 .sidebar {
-  width: 180px;
   background-color: var(--bg-sidebar);
   border-right: 1px solid var(--border-subtle);
   display: flex;
@@ -162,7 +173,6 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   height: 40px;
   margin-bottom: 2px;
   padding: 8px;
-  ;
 }
 
 :deep(.list-item:hover) {
@@ -194,7 +204,6 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   border-radius: 50%;
   margin-left: 6px;
 }
-
 
 .icon-btn:hover {
   background: #f0f0f0;

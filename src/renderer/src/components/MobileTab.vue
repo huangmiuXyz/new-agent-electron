@@ -5,7 +5,7 @@
       <transition name="fade-slide" mode="out-in">
         <div :key="activeTab" class="page-container">
           <div v-if="activeTab === 'chat'" class="page-view">
-            <ChatPage />
+            <ChatSidebar />
           </div>
           <div v-if="activeTab === 'settings'" class="page-view">
             <SettingsPage />

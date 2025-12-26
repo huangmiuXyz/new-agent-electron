@@ -8,8 +8,12 @@ const settingsStore = useSettingsStore()
 <template>
   <div class="chat-app">
     <!-- 左侧边栏 -->
-    <div v-if="!isMobile" class="sidebar-wrapper" :class="{ collapsed: settingsStore.display.sidebarCollapsed }">
-      <ChatSidebar />
+    <div
+      v-if="!isMobile"
+      class="sidebar-wrapper"
+      :class="{ collapsed: settingsStore.display.sidebarCollapsed }"
+    >
+      <ChatSidebar style="width: 180px" />
     </div>
 
     <!-- 主聊天区域 -->
