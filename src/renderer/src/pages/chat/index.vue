@@ -8,8 +8,11 @@ const settingsStore = useSettingsStore()
 <template>
   <div class="chat-app">
     <!-- 左侧边栏 -->
-    <div class="sidebar-wrapper" :class="{ collapsed: settingsStore.display.sidebarCollapsed }">
-      <ChatSidebar style="width: 180px" />
+    <div
+      class="sidebar-wrapper"
+      :class="{ isMobile, collapsed: settingsStore.display.sidebarCollapsed }"
+    >
+      <ChatSidebar />
     </div>
 
     <!-- 主聊天区域 -->
@@ -54,7 +57,13 @@ const settingsStore = useSettingsStore()
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 180px;
 }
-
+.sidebar-wrapper.isMobile {
+  width: 100%;
+  position: absolute;
+  left: 0;
+  z-index: 2;
+  height: 100%;
+}
 .sidebar-wrapper.collapsed {
   width: 0;
 }

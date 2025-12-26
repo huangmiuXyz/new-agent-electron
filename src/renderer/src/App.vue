@@ -13,24 +13,19 @@ const switchView = (view: 'chat' | 'settings') => {
 
 provide('switchView', switchView)
 const route = useRoute()
-
 </script>
 
 <template>
   <div class="app-layout" v-if="route.path !== '/temp-chat'">
-    <template v-if="!isMobile">
-      <AppHeader :current-view="currentView" />
-      <div class="app-body">
-        <AppNavBar :current-view="currentView" @switch="switchView" />
-        <main class="app-content">
-          <ChatPage v-show="currentView === 'chat'" />
-          <SettingsPage v-show="currentView === 'settings'" />
-        </main>
-      </div>
-    </template>
-    <template v-else>
-      <MobileTab :active-tab="currentView" @switch="switchView" />
-    </template>
+    <AppHeader :current-view="currentView" />
+    <div class="app-body" :class="{ isMobile }">
+      <AppNavBar v-if="!isMobile" :current-view="currentView" @switch="switchView" />
+      <main class="app-content">
+        <ChatPage v-show="currentView === 'chat'" />
+        <SettingsPage v-show="currentView === 'settings'" />
+      </main>
+      <MobileTab v-if="isMobile" :active-tab="currentView" @switch="switchView" />
+    </div>
   </div>
   <router-view v-else></router-view>
   <ContextMenu />
@@ -61,7 +56,7 @@ const route = useRoute()
   --radius-md: 10px;
   --radius-sm: 6px;
 
-  --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-stack: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
 
   /* GlobalSearch 组件所需的变量 */
   --modal-bg: rgba(255, 255, 255, 0.85);
@@ -147,6 +142,9 @@ body {
   flex: 1;
   overflow: hidden;
   width: 100%;
+}
+.app-body.isMobile {
+  flex-direction: column;
 }
 
 .app-content {

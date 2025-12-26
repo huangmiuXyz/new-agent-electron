@@ -1,18 +1,5 @@
 <template>
   <div class="mobile-layout light-theme">
-    <AppHeader :current-view="activeTab" />
-    <main class="content-viewport">
-      <transition name="fade-slide" mode="out-in">
-        <div :key="activeTab" class="page-container">
-          <div v-if="activeTab === 'chat'" class="page-view">
-            <ChatSidebar />
-          </div>
-          <div v-if="activeTab === 'settings'" class="page-view">
-            <SettingsSidebar @tab-change="switchTab" />
-          </div>
-        </div>
-      </transition>
-    </main>
     <nav class="tab-bar">
       <div class="slider-bar" :style="{ transform: `translateX(${currentIndex * 100}%)` }"></div>
       <div
@@ -71,13 +58,6 @@ const switchTab = (key) => {
 
 .mobile-layout {
   width: 100%;
-  height: 100vh;
-  background-color: var(--bg-body);
-  display: flex;
-  flex-direction: column;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
-  color: #333;
-  overflow: hidden;
 }
 
 .content-viewport {
