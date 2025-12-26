@@ -56,70 +56,7 @@ const { openAgentModal } = useAgent()
 </script>
 
 <template>
-    <!-- 移动端底部弹出 -->
-    <BottomSheetSelector
-        v-if="isMobile"
-        v-model="isPopupOpen"
-        v-model:searchQuery="searchQuery"
-        placeholder="搜索智能体..."
-        noResultsText="未找到智能体"
-        :hasResults="filteredAgents.length > 0"
-        maxHeight="70vh"
-    >
-        <template #trigger>
-            <div class="agent-btn" v-if="type === 'select'" :title="selectedAgentLabel" @click="isPopupOpen = true">
-                <Robot />
-                <span class="agent-name">{{ selectedAgentLabel }}</span>
-                <ChevronDown class="arrow-icon" />
-            </div>
-            <Button v-else variant="icon" size="sm" @click="isPopupOpen = true">
-                <Robot />
-            </Button>
-        </template>
-        <template #title>
-            <span>选择智能体</span>
-        </template>
-    <template #default>
-      <div class="agent-list">
-        <div
-          v-for="agent in filteredAgents"
-          :key="agent.id"
-          class="agent-item"
-          :class="{ selected: isAgentSelected(agent.id) }"
-          @click="selectAgent(agent.id)"
-        >
-          <div class="agent-content">
-            <div class="agent-title">
-              {{ agent.name }}
-              <span v-if="tempAgents.some((a) => a.id === agent.id)" class="temp-tag">临时</span>
-            </div>
-            <div v-if="agent.description" class="agent-desc">{{ agent.description }}</div>
-          </div>
-          <div class="agent-check">
-            <div
-              v-if="agent.mcpServers.filter((name) => mcpServers[name]).length > 0"
-              class="agent-mcp"
-            >
-              <Wrench20Regular />
-              <span style="white-space: nowrap"
-                >{{ settingsStore.getValidTools(agent.tools).length + agent.builtinTools?.length }}
-              </span>
-            </div>
-            <Check v-if="isAgentSelected(agent.id)" />
-            <Button @click="openAgentModal(agent)" variant="icon" size="sm">
-              <template #icon>
-                <Edit />
-              </template>
-            </Button>
-          </div>
-        </div>
-      </div>
-    </template>
-  </BottomSheetSelector>
-
-  <!-- 桌面端弹出 -->
   <SelectorPopover
-    v-else
     v-model="isPopupOpen"
     v-model:searchQuery="searchQuery"
     placeholder="搜索智能体..."

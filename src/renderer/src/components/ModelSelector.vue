@@ -1,28 +1,29 @@
 <script setup lang="ts">
-import BottomSheetSelector from './BottomSheetSelector.vue'
-
 const selectedModelId = defineModel<string>('modelId', { default: '' })
 const selectedProviderId = defineModel<string>('providerId', { default: '' })
 
-const props = withDefaults(defineProps<{
-  type?: 'icon' | 'select',
-  popupPosition?: 'top' | 'bottom'
-  category?: ModelCategory
-}>(), {
-  type: 'select',
-  category: 'text'
-})
+const props = withDefaults(
+  defineProps<{
+    type?: 'icon' | 'select'
+    popupPosition?: 'top' | 'bottom'
+    category?: ModelCategory
+  }>(),
+  {
+    type: 'select',
+    category: 'text'
+  }
+)
 const { providers } = storeToRefs(useSettingsStore())
 
 const currentSelectedModel = computed(() => {
   if (!selectedModelId.value || !selectedProviderId.value) return null
 
-  const provider = providers.value.find(p => p.id === selectedProviderId.value)
-  return provider?.models?.find(m => m.id === selectedModelId.value) || null
+  const provider = providers.value.find((p) => p.id === selectedProviderId.value)
+  return provider?.models?.find((m) => m.id === selectedModelId.value) || null
 })
 
 const currentSelectedProvider = computed(() => {
-  return providers.value.find(p => p.id === selectedProviderId.value) || null
+  return providers.value.find((p) => p.id === selectedProviderId.value) || null
 })
 
 const isPopupOpen = ref(false)
@@ -35,9 +36,10 @@ const currentModelLabel = computed(() => {
 })
 
 const filteredModels = computed(() => {
-  const result: { provider: Provider, models: Model[] }[] = []
-  providers.value.forEach(provider => {
-    const filteredModels = provider.models?.filter(model => model.active && model.category === props.category
+  const result: { provider: Provider; models: Model[] }[] = []
+  providers.value.forEach((provider) => {
+    const filteredModels = provider.models?.filter(
+      (model) => model.active && model.category === props.category
     )
     if (filteredModels?.length > 0) {
       result.push({ provider, models: filteredModels })
@@ -47,10 +49,10 @@ const filteredModels = computed(() => {
 })
 
 const flatModelList = computed(() => {
-  const result: { model: Model, providerId: string }[] = []
+  const result: { model: Model; providerId: string }[] = []
 
   filteredModels.value.forEach(({ provider, models }) => {
-    models.forEach(model => {
+    models.forEach((model) => {
       result.push({ model, providerId: provider.id })
     })
   })
@@ -59,8 +61,10 @@ const flatModelList = computed(() => {
 })
 const searchModels = computed(() => {
   const query = searchQuery.value.toLowerCase()
-  return flatModelList.value.filter(item => item.model.name.toLowerCase().includes(query) ||
-    item.model.id.toLowerCase().includes(query))
+  return flatModelList.value.filter(
+    (item) =>
+      item.model.name.toLowerCase().includes(query) || item.model.id.toLowerCase().includes(query)
+  )
 })
 const selectModel = (model: Model, providerId: string) => {
   selectedModelId.value = model.id
@@ -75,7 +79,7 @@ const clearSelection = () => {
 }
 
 const renderProviderHeader = (item: any) => {
-  const provider = providers.value.find(p => p.id === item.providerId)
+  const provider = providers.value.find((p) => p.id === item.providerId)
   return provider ? provider.name : ''
 }
 
@@ -84,79 +88,66 @@ const isModelSelected = (item: any) => {
 }
 
 const handleModelSelect = (id: string) => {
-  const item = flatModelList.value.find(item => item.model.id === id)
+  const item = flatModelList.value.find((item) => item.model.id === id)
   if (item) selectModel(item.model, item.providerId)
 }
 </script>
 
 <template>
-  <!-- 移动端底部弹出 -->
-  <BottomSheetSelector
-    v-if="isMobile"
+  <SelectorPopover
     v-model="isPopupOpen"
+    :data="flatModelList"
     v-model:searchQuery="searchQuery"
     placeholder="搜索模型..."
     noResultsText="未找到模型"
     :hasResults="filteredModels.length > 0"
-    maxHeight="70vh"
+    width="240px"
+    :position="popupPosition || 'top'"
   >
     <template #trigger>
-      <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }" @click="isPopupOpen = true">
-        <Image style="width: 10px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="" />
-        <span>{{ currentModelLabel }}</span>
-        <ChevronDown v-if="!selectedModelId" />
-        <X v-else class="clear-btn" @click.stop="clearSelection" />
-      </div>
-      <Button v-else variant="icon" size="sm" @click="isPopupOpen = true">
-        <Image style="width: 15px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="" />
-      </Button>
-    </template>
-    <template #title>
-      <span>选择模型</span>
-    </template>
-    <template #default>
-      <List :items="searchModels.map(item => ({
-        ...item.model,
-        providerId: item.providerId
-      }))" :key-field="'id'" :main-field="'name'" :sub-field="'description'" :show-header="true"
-        :render-header="renderProviderHeader" :selectable="true" :is-selected="isModelSelected"
-        @select="handleModelSelect">
-        <template #actions="{ item }">
-          <Check :style="{
-            fontSize: '12px',
-            color: '#fff',
-          }" v-if="item.id === selectedModelId" />
-        </template>
-      </List>
-    </template>
-  </BottomSheetSelector>
-
-  <!-- 桌面端弹出 -->
-  <SelectorPopover v-else v-model="isPopupOpen" :data="flatModelList" v-model:searchQuery="searchQuery" placeholder="搜索模型..."
-    noResultsText="未找到模型" :hasResults="filteredModels.length > 0" width="240px" :position="popupPosition || 'top'">
-    <template #trigger>
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
-        <Image style="width: 10px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="" />
+        <Image
+          style="width: 10px; border-radius: 2px"
+          :src="currentSelectedProvider?.logo"
+          alt=""
+        />
         <span>{{ currentModelLabel }}</span>
         <ChevronDown v-if="!selectedModelId" />
         <X v-else class="clear-btn" @click.stop="clearSelection" />
       </div>
       <Button v-else variant="icon" size="sm">
-        <Image style="width: 15px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="" />
+        <Image
+          style="width: 15px; border-radius: 2px"
+          :src="currentSelectedProvider?.logo"
+          alt=""
+        />
       </Button>
     </template>
 
-    <List :items="searchModels.map(item => ({
-      ...item.model,
-      providerId: item.providerId
-    }))" :key-field="'id'" :main-field="'name'" :sub-field="'description'" :show-header="true"
-      :render-header="renderProviderHeader" :selectable="true" :is-selected="isModelSelected"
-      @select="handleModelSelect">
+    <List
+      :items="
+        searchModels.map((item) => ({
+          ...item.model,
+          providerId: item.providerId
+        }))
+      "
+      :key-field="'id'"
+      :main-field="'name'"
+      :sub-field="'description'"
+      :show-header="true"
+      :render-header="renderProviderHeader"
+      :selectable="true"
+      :is-selected="isModelSelected"
+      @select="handleModelSelect"
+    >
       <template #actions="{ item }">
-        <Check :style="{
-          fontSize: '12px',
-          color: '#fff',
-        }" v-if="item.id === selectedModelId" />
+        <Check
+          :style="{
+            fontSize: '12px',
+            color: '#fff'
+          }"
+          v-if="item.id === selectedModelId"
+        />
       </template>
     </List>
   </SelectorPopover>
