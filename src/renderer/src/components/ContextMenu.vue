@@ -2,7 +2,8 @@
   <!-- 主菜单 -->
   <Teleport to="body">
     <transition name="radix-zoom">
-      <div v-if="visible" ref="menuRef" class="radix-menu-content" :style="styleObject" @contextmenu.prevent>
+      <div v-if="visible" ref="menuRef" class="radix-menu-content" :class="[`variant-${props.variant}`]"
+        :style="styleObject" @contextmenu.prevent>
         <template v-for="(item, index) in menuOptions" :key="index">
 
           <!-- 分割线 -->
@@ -36,8 +37,8 @@
   <!-- 子菜单 -->
   <Teleport to="body">
     <transition name="radix-zoom">
-      <div v-if="submenuVisible" ref="submenuRef" class="radix-menu-content radix-submenu" :style="submenuStyleObject"
-        @contextmenu.prevent>
+      <div v-if="submenuVisible" ref="submenuRef" class="radix-menu-content radix-submenu"
+        :class="[`variant-${props.variant}`]" :style="submenuStyleObject" @contextmenu.prevent>
         <template v-for="(item, index) in submenuOptions" :key="index">
           <!-- 分割线 -->
           <div v-if="item.type === 'divider'" class="radix-separator"></div>
@@ -68,6 +69,18 @@
 <script setup lang="ts" generic="T">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useContextMenu, type MenuItem } from '../composables/useContextMenu';
+
+// 定义 variant 类型
+type MenuVariant = 'default' | 'glass';
+
+// Props
+interface Props {
+  variant?: MenuVariant;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  variant: 'default'
+});
 
 const {
   visible,
@@ -263,6 +276,79 @@ onUnmounted(() => {
   user-select: none;
   display: flex;
   flex-direction: column;
+}
+
+/* === Glass 变体样式（磨砂玻璃效果） === */
+.radix-menu-content.variant-glass {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  padding: 5px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Glass 变体的菜单项 */
+.radix-menu-content.variant-glass .radix-item {
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  gap: 10px;
+}
+
+/* Glass 变体的图标 */
+.radix-menu-content.variant-glass .radix-icon {
+  font-size: 15px;
+  color: #86868b;
+}
+
+/* Glass 变体的悬停效果 */
+.radix-menu-content.variant-glass .radix-item:hover {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.radix-menu-content.variant-glass .radix-item:hover .radix-icon {
+  color: #ffffff;
+}
+
+.radix-menu-content.variant-glass .radix-item:hover .radix-right-slot {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Glass 变体的危险选项 */
+.radix-menu-content.variant-glass .radix-item.danger {
+  color: #ff3b30;
+}
+
+.radix-menu-content.variant-glass .radix-item.danger .radix-icon {
+  color: #ff3b30;
+}
+
+.radix-menu-content.variant-glass .radix-item.danger:hover {
+  background-color: #ff3b30;
+  color: #ffffff;
+}
+
+.radix-menu-content.variant-glass .radix-item.danger:hover .radix-icon {
+  color: #ffffff;
+}
+
+/* Glass 变体的分割线 */
+.radix-menu-content.variant-glass .radix-separator {
+  background-color: rgba(0, 0, 0, 0.06);
+  margin: 4px 8px;
+}
+
+/* Glass 变体的子菜单箭头 */
+.radix-menu-content.variant-glass .submenu-arrow {
+  color: #86868b;
+}
+
+.radix-menu-content.variant-glass .radix-item:hover .submenu-arrow {
+  color: #ffffff;
 }
 
 /* 菜单项 */
