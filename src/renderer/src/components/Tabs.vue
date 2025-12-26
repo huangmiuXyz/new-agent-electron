@@ -48,11 +48,36 @@ const handleTabClick = (tabId: string) => {
 
 <style scoped>
 .tabs-container {
-    display: flex;
+    display: inline-flex;
     background: #f1f1f1;
     border-radius: 8px;
     padding: 3px;
     gap: 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) rgba(0, 0, 0, 0.05);
+}
+
+/* Webkit scrollbar styles */
+.tabs-container::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+}
+
+.tabs-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 3px;
+}
+
+.tabs-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+}
+
+.tabs-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.4);
 }
 
 .tab-item {
@@ -63,6 +88,9 @@ const handleTabClick = (tabId: string) => {
     color: var(--text-secondary);
     transition: all 0.2s;
     font-weight: 500;
+    flex-shrink: 0;
+    white-space: nowrap;
+    min-width: fit-content;
 }
 
 .tab-item:hover:not(.disabled) {
