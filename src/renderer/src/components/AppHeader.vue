@@ -29,6 +29,35 @@ const createNewChat = () => {
 }
 
 const { back } = useMobile()
+const route = useRoute()
+
+const pageTitle = computed(() => {
+  if (props.currentView === 'chat') {
+    // 聊天列表页不显示中间标题，仅在详情页显示
+    if (route.path === '/mobile/chat') return ''
+    return chatsStore.currentChat?.title || '新的聊天'
+  }
+  if (props.currentView === 'settings') {
+    const path = route.path
+    if (path.includes('/mobile/settings/knowledge')) return '知识库详情'
+    if (path.includes('/mobile/settings/models')) return '模型提供商'
+
+    const tab = route.params.tab as string
+    const tabMap: Record<string, string> = {
+      agents: '智能体',
+      models: '模型设置',
+      defaultModels: '默认模型',
+      knowledge: '知识库',
+      terminal: '终端设置',
+      display: '显示设置',
+      mcp: 'MCP',
+      userData: '用户数据',
+      about: '关于'
+    }
+    return tabMap[tab] || '设置'
+  }
+  return ''
+})
 </script>
 
 <template>
@@ -43,11 +72,12 @@ const { back } = useMobile()
       <Button v-if="isMobile && $route.path.split('/').length > 3" variant="icon" size="md" @click="back">
         <ArrowBackIosNewSharp />
       </Button>
-      <Button v-if="props.currentView === 'chat' && (!isMobile || $route.path === '/mobile/chat')" variant="icon"
-        size="md" @click="createNewChat">
+      <div v-if="isMobile" class="header-title-container">
+        <div class="header-title">{{ pageTitle }}</div>
+      </div>
+      <Button v-if="props.currentView === 'chat'" variant="icon" size="md" @click="createNewChat">
         <CommentAdd16Regular />
       </Button>
-      <div v-else class="header-title">设置</div>
     </div>
     <div v-if="!isMobile || (props.currentView === 'chat' && $route.path === '/mobile/chat')"
       class="header-actions no-drag">
@@ -81,16 +111,41 @@ const { back } = useMobile()
   gap: 8px;
   width: 180px;
   padding: 0 10px;
+  position: relative;
+  height: 100%;
 }
 
 .header-info.isMobile {
   width: 100%;
+  justify-content: space-between;
+}
+
+.header-title-container {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  z-index: 0;
+  max-width: 60%;
 }
 
 .header-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ensure buttons are above the title for interaction */
+.header-info button {
+  position: relative;
+  z-index: 1;
 }
 
 .header-status {
