@@ -1,5 +1,4 @@
 import { Chat as _useChat } from '@ai-sdk/vue'
-import { AutoScrollContainer } from '@incremark/vue'
 import type { FileUIPart, TextUIPart } from 'ai'
 export const useChat = (chatId: string) => {
   const { getChatById } = useChatsStores()
