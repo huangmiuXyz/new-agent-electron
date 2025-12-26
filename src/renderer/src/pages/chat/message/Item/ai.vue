@@ -1,37 +1,63 @@
 <script setup lang="ts">
-
 const props = defineProps<{
   message: BaseMessage
-}>();
+}>()
 const { getProviderById } = useSettingsStore()
 const Stop = useIcon('Stop')
 </script>
 
 <template>
   <div class="msg-row them has-avatar">
-    <div class="msg-avatar-area">
-      <Image :src="getProviderById(message.metadata?.provider!)?.logo" class="msg-avatar" alt="avatar" />
+    <div v-if="!isMobile" class="msg-avatar-area">
+      <Image
+        :src="getProviderById(message.metadata?.provider!)?.logo"
+        class="msg-avatar"
+        alt="avatar"
+      />
     </div>
 
     <div class="msg-content">
+      <div class="msg-meta" :class="{ isMobile }">
+        <div v-if="isMobile" class="msg-avatar-area">
+          <Image
+            :src="getProviderById(message.metadata?.provider!)?.logo"
+            class="msg-avatar"
+            alt="avatar"
+          />
+        </div>
 
-      <div class="msg-meta">
-        <span class="msg-name">{{ message.metadata?.model }}</span>
-        <span class="msg-time">{{ new Date(message.metadata?.date || '').toLocaleString() }}</span>
-        <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
-          variant="icon" type='button'>
-          <template #icon>
-            <Stop style="color: red;" />
-          </template>
-        </Button>
+        <div style="display: flex; align-items: center;">
+          <div class="msg-meta-content">
+            <span class="msg-name">{{ message.metadata?.model }}</span>
+            <span class="msg-time">{{
+              new Date(message.metadata?.date || '').toLocaleString()
+            }}</span>
+          </div>
+          <Button
+            v-if="message.metadata?.loading && !message.metadata?.error"
+            size="sm"
+            @click="message.metadata?.stop"
+            variant="icon"
+            type="button"
+          >
+            <template #icon>
+              <Stop style="color: red" />
+            </template>
+          </Button>
+        </div>
       </div>
       <ChatMessageItemRagSearch
         :searching="message.metadata?.ragSearching"
         :search-details="message.metadata?.ragSearchDetails"
       />
       <div
-        v-if="!message.metadata?.error && message.metadata?.loading && message.parts.findIndex(e => e.type === 'step-start') === -1"
-        class="loading-container">
+        v-if="
+          !message.metadata?.error &&
+          message.metadata?.loading &&
+          message.parts.findIndex((e) => e.type === 'step-start') === -1
+        "
+        class="loading-container"
+      >
         <div class="loading-dots">
           <span class="dot"></span>
           <span class="dot"></span>
@@ -40,10 +66,13 @@ const Stop = useIcon('Stop')
       </div>
       <ChatMessageItemContent markdown :message="message" />
 
-      <MessageTranslation v-if="message.metadata?.translations || message.metadata?.translationLoading"
-        :translations="message.metadata.translations" :translationLoading="message.metadata.translationLoading"
+      <MessageTranslation
+        v-if="message.metadata?.translations || message.metadata?.translationLoading"
+        :translations="message.metadata.translations"
+        :translationLoading="message.metadata.translationLoading"
         :translationController="message.metadata.translationController"
-        @stopTranslation="() => message.metadata?.translationController?.()" />
+        @stopTranslation="() => message.metadata?.translationController?.()"
+      />
     </div>
   </div>
 </template>
@@ -63,7 +92,6 @@ const Stop = useIcon('Stop')
 }
 
 .msg-avatar-area {
-  flex-shrink: 0;
   padding-top: 2px;
 }
 
@@ -84,12 +112,20 @@ const Stop = useIcon('Stop')
 
 .msg-meta {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 4px;
   margin-bottom: 4px;
-  height: 20px;
+  flex-direction: column;
 }
-
+.msg-meta-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  flex: 1;
+}
+.msg-meta.isMobile {
+  flex-direction: row;
+  gap: 8px;
+}
 .msg-name {
   font-weight: 600;
   font-size: 13px;
@@ -133,7 +169,6 @@ const Stop = useIcon('Stop')
 }
 
 @keyframes pulse {
-
   0%,
   80%,
   100% {
