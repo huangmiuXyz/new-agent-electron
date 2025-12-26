@@ -8,7 +8,7 @@
             <ChatSidebar />
           </div>
           <div v-if="activeTab === 'settings'" class="page-view">
-            <SettingsPage />
+            <SettingsSidebar @tab-change="switchTab" />
           </div>
         </div>
       </transition>

@@ -19,7 +19,7 @@ const switchTab = (tabName: string) => {
   <div class="settings-layout">
     <!-- 设置-左侧分类导航 -->
     <div class="sidebar-wrapper" :class="{ collapsed: settingsStore.display.sidebarCollapsed }">
-      <SettingsSidebar :active-tab="activeTab" @tab-change="switchTab" />
+      <SettingsSidebar style="width: 180px" :active-tab="activeTab" @tab-change="switchTab" />
     </div>
 
     <!-- 设置-右侧内容区 -->

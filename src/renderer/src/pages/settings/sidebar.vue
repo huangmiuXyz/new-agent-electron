@@ -36,7 +36,6 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal }
 <style scoped>
 /* 设置-左侧分类导航 */
 .settings-sidebar {
-  width: 180px;
   border-right: 1px solid var(--border-subtle);
   padding: 10px;
   display: flex;
