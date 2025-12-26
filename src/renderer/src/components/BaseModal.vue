@@ -55,10 +55,15 @@
           </slot>
         </div>
         <div v-if="showFooter" class="drawer-footer">
-          <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
-            props.cancelText || '取消'
-          }}</Button>
           <Button
+            :class="{ isMobile }"
+            class="btn btn-secondary"
+            type="button"
+            @click="handleCancel"
+            >{{ props.cancelText || '取消' }}</Button
+          >
+          <Button
+            :class="{ isMobile }"
             ref="confirmButton"
             v-bind="confirmProps"
             class="btn btn-primary"
@@ -278,7 +283,9 @@ const handleCancel = () => {
   justify-content: center;
   transition: all 0.1s;
 }
-
+.btn.isMobile {
+  flex: 1;
+}
 .btn-secondary {
   background: #fff;
   border-color: #d1d1d1;
