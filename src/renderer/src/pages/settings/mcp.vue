@@ -195,7 +195,6 @@ const openServerModal = async (server?: any) => {
     title: modalTitle,
     content: FormComponent,
     maxHeight: '70vh',
-    width: '50%',
     onOk: async () => {
       if (formActions.submit()) remove()
     }

@@ -12,6 +12,7 @@ const { Refresh, Plus, Search, Edit, Delete }: any = useIcon([
   'Delete'
 ])
 const { confirm } = useModal()
+const { showProviderForm } = useMobile()
 
 const setActiveProvider = (providerId: string) => {
   activeProviderId.value = providerId
@@ -176,6 +177,9 @@ const [CustomModelForm, customModelFormActions] = useForm({
 
 const selectProvider = (providerId: string) => {
   setActiveProvider(providerId)
+  if (isMobile) {
+    showProviderForm.value = true
+  }
 }
 
 const loading = ref(false)
@@ -314,7 +318,8 @@ const handleShowSearch = async () => {
 </script>
 
 <template>
-  <SettingsListContainer>
+  <!-- 列表视图 -->
+  <SettingsListContainer v-if="!isMobile || !showProviderForm">
     <List
       title="提供商"
       :items="providers"
@@ -322,7 +327,9 @@ const handleShowSearch = async () => {
       @select="selectProvider"
     />
   </SettingsListContainer>
-  <SettingFormContainer header-title="模型提供商">
+  
+  <!-- 表单视图 -->
+  <SettingFormContainer v-if="!isMobile || showProviderForm" header-title="模型提供商">
     <template #content>
       <ProviderForm>
         <template #footer>

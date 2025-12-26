@@ -32,7 +32,7 @@ const createNewChat = () => {
   chatsStore.createChat()
 }
 
-const { showChat, showSettings, back } = useMobile()
+const { showChat, showSettings, showProviderForm, showKnowledgeForm, back } = useMobile()
 </script>
 
 <template>
@@ -48,7 +48,7 @@ const { showChat, showSettings, back } = useMobile()
       <Button v-if="!isMobile" variant="icon" size="md" @click="toggleSidebar">
         <component :is="settingsStore.display.sidebarCollapsed ? PanelOpen : PanelClose" />
       </Button>
-      <Button v-if="isMobile && (showChat || showSettings)" variant="icon" size="md" @click="back">
+      <Button v-if="isMobile && (showChat || showSettings || showProviderForm || showKnowledgeForm)" variant="icon" size="md" @click="back">
         <ArrowBackIosNewSharp />
       </Button>
       <Button v-if="props.currentView === 'chat'" variant="icon" size="md" @click="createNewChat">
