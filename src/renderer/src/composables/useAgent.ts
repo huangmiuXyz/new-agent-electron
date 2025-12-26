@@ -209,7 +209,7 @@ export const useAgent = () => {
     confirm({
       title: modalTitle,
       content: FormComponent,
-      maxHeight: '80vh',
+      maxHeight: '90vh',
       width: '600px',
       onOk: async () => {
         if (formActions.submit()) remove()

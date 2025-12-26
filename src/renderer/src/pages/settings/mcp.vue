@@ -64,7 +64,7 @@ const openJsonEditor = () => {
   confirm({
     title: '编辑 MCP JSON 配置',
     content: FormComponent,
-    maxHeight: '80vh',
+    maxHeight: '90vh',
     width: '60%',
     onOk: async () => {
       if (formActions.submit()) {

@@ -80,7 +80,8 @@ import { useIcon } from '@renderer/composables/useIcon'
 
 const props = withDefaults(defineProps<BaseModalProps>(), {
   variant: isMobile.value ? 'drawer' : 'center',
-  showFooter: true
+  showFooter: true,
+  maxHeight: '90vh'
 })
 const Close = useIcon('Close')
 
