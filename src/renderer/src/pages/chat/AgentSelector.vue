@@ -48,7 +48,7 @@ const { openAgentModal } = useAgent()
 
 <template>
     <SelectorPopover v-model="isPopupOpen" v-model:searchQuery="searchQuery" placeholder="搜索智能体..."
-        noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0" width="500px">
+        noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0" width="300px">
         <template #trigger>
             <div class="agent-btn" v-if="type === 'select'" :title="selectedAgentLabel">
                 <Robot />
