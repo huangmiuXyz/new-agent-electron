@@ -13,6 +13,8 @@ const switchView = (view: 'chat' | 'settings') => {
 
 provide('switchView', switchView)
 const route = useRoute()
+
+const { showChat, showSettings } = useMobile()
 </script>
 
 <template>
@@ -24,7 +26,7 @@ const route = useRoute()
         <ChatPage v-show="currentView === 'chat'" />
         <SettingsPage v-show="currentView === 'settings'" />
       </main>
-      <MobileTab v-if="isMobile" :active-tab="currentView" @switch="switchView" />
+      <MobileTab v-if="isMobile && !showChat && !showSettings" :active-tab="currentView" @switch="switchView" />
     </div>
   </div>
   <router-view v-else></router-view>
