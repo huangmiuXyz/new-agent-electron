@@ -1,182 +1,192 @@
 <template>
-    <div class="mobile-layout light-theme">
-        <main class="content-viewport">
-            <transition name="fade-slide" mode="out-in">
-                <div :key="activeTab" class="page-container">
-                    <div v-if="activeTab === 'chat'" class="page-view">
-                        <ChatPage />
-                    </div>
-                    <div v-if="activeTab === 'settings'" class="page-view">
-                        <SettingsPage />
-                    </div>
-                </div>
-            </transition>
-        </main>
-        <nav class="tab-bar">
-            <div class="slider-bar" :style="{ transform: `translateX(${currentIndex * 100}%)` }"></div>
-            <div v-for="(tab, index) in tabs" :key="tab.key" class="tab-item" :class="{ active: activeTab === tab.key }"
-                @click="switchTab(tab.key)">
-                <div class="icon-box">
-                    <component :is="tab.icon" />
-                </div>
-                <span class="tab-text">{{ tab.label }}</span>
-            </div>
-        </nav>
-    </div>
+  <div class="mobile-layout light-theme">
+    <AppHeader :current-view="activeTab" />
+    <main class="content-viewport">
+      <transition name="fade-slide" mode="out-in">
+        <div :key="activeTab" class="page-container">
+          <div v-if="activeTab === 'chat'" class="page-view">
+            <ChatPage />
+          </div>
+          <div v-if="activeTab === 'settings'" class="page-view">
+            <SettingsPage />
+          </div>
+        </div>
+      </transition>
+    </main>
+    <nav class="tab-bar">
+      <div class="slider-bar" :style="{ transform: `translateX(${currentIndex * 100}%)` }"></div>
+      <div
+        v-for="(tab, index) in tabs"
+        :key="tab.key"
+        class="tab-item"
+        :class="{ active: activeTab === tab.key }"
+        @click="switchTab(tab.key)"
+      >
+        <div class="icon-box">
+          <component :is="tab.icon" />
+        </div>
+        <span class="tab-text">{{ tab.label }}</span>
+      </div>
+    </nav>
+  </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import ChatPage from '../pages/chat/index.vue';
-import SettingsPage from '../pages/settings/index.vue';
+import { computed } from 'vue'
+import ChatPage from '../pages/chat/index.vue'
+import SettingsPage from '../pages/settings/index.vue'
 
 const props = defineProps({
-    activeTab: {
-        type: String,
-        default: 'chat'
-    }
-});
+  activeTab: {
+    type: String,
+    default: 'chat'
+  }
+})
 
-const emit = defineEmits(['switch']);
+const emit = defineEmits(['switch'])
 
 const tabs = [
-    { key: 'chat', label: '聊天', icon: useIcon('Chat') },
-    { key: 'settings', label: '设置', icon: useIcon('Settings') }
-];
+  { key: 'chat', label: '聊天', icon: useIcon('Chat') },
+  { key: 'settings', label: '设置', icon: useIcon('Settings') }
+]
 
 const currentIndex = computed(() => {
-    return tabs.findIndex(t => t.key === props.activeTab);
-});
+  return tabs.findIndex((t) => t.key === props.activeTab)
+})
 
 const switchTab = (key) => {
-    emit('switch', key);
-};
+  emit('switch', key)
+}
 </script>
 
 <style scoped>
 .light-theme {
-    --bg-body: #F2F4F6;
+  --bg-body: #f2f4f6;
 
-    --bg-tab: #FFFFFF;
-    --color-active: #2C2C2E;
-    --color-inactive: #A0A4A8;
-    --border-color: rgba(0, 0, 0, 0.05);
+  --bg-tab: #ffffff;
+  --color-active: #2c2c2e;
+  --color-inactive: #a0a4a8;
+  --border-color: rgba(0, 0, 0, 0.05);
 }
 
 .mobile-layout {
-    width: 100%;
-    height: 100vh;
-    background-color: var(--bg-body);
-    display: flex;
-    flex-direction: column;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-    color: #333;
-    overflow: hidden;
+  width: 100%;
+  height: 100vh;
+  background-color: var(--bg-body);
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  color: #333;
+  overflow: hidden;
 }
 
 .content-viewport {
-    flex: 1;
-    overflow-y: auto;
-    position: relative;
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
 }
 
 .page-container {
-    padding: 0;
-    height: 100%;
+  padding: 0;
+  height: 100%;
 }
 
 .page-view {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .tab-bar {
-    position: relative;
-    background-color: var(--bg-tab);
-    display: flex;
-    z-index: 100;
-    height: 56px;
+  position: relative;
+  background-color: var(--bg-tab);
+  display: flex;
+  z-index: 100;
+  height: 56px;
 }
 
 .slider-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 50%;
-    height: 3px;
-    background: linear-gradient(90deg,
-            transparent 0%,
-            var(--color-active) 30%,
-            var(--color-active) 70%,
-            transparent 100%);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-    z-index: 10;
-    pointer-events: none;
-    border-radius: 2px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-active) 30%,
+    var(--color-active) 70%,
+    transparent 100%
+  );
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 10;
+  pointer-events: none;
+  border-radius: 2px;
 }
 
 .tab-item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: var(--color-inactive);
-    transition: all 0.3s ease;
-    -webkit-tap-highlight-color: transparent;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-inactive);
+  transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .icon-box {
-    width: 24px;
-    height: 24px;
-    position: relative;
-    transition: transform 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
+  width: 24px;
+  height: 24px;
+  position: relative;
+  transition: transform 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
 }
 
 .icon-box :deep(svg) {
-    width: 100%;
-    height: 100%;
-    fill: currentColor;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
 }
 
 .tab-text {
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.2px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
 }
 
 .tab-item.active {
-    color: var(--color-active);
+  color: var(--color-active);
 }
 
 .tab-item.active .icon-box {
-    transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
 .tab-item:active .icon-box {
-    transform: scale(0.92) translateY(-2px);
+  transform: scale(0.92) translateY(-2px);
 }
 
 .fade-slide-enter-active,
 .fade-slide-leave-active {
-    transition: opacity 0.25s ease, transform 0.25s ease;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
 }
 
 .fade-slide-enter-from {
-    opacity: 0;
-    transform: translateY(8px);
+  opacity: 0;
+  transform: translateY(8px);
 }
 
 .fade-slide-leave-to {
-    opacity: 0;
-    transform: translateY(-8px);
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>

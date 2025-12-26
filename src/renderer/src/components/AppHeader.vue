@@ -11,7 +11,12 @@ const props = defineProps<{
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 
-const { Search, PanelOpen, PanelClose, CommentAdd16Regular } = useIcon(['Search', 'PanelOpen', 'PanelClose', 'CommentAdd16Regular'])
+const { Search, PanelOpen, PanelClose, CommentAdd16Regular } = useIcon([
+  'Search',
+  'PanelOpen',
+  'PanelClose',
+  'CommentAdd16Regular'
+])
 const showSearch = ref(false)
 
 const openSearch = () => {
@@ -25,26 +30,27 @@ const toggleSidebar = () => {
 const createNewChat = () => {
   chatsStore.createChat()
 }
-
 </script>
 
 <template>
   <header class="app-header drag">
     <div
-      :style="{ marginLeft: isMobile ? '0' : '48px', justifyContent: props.currentView === 'chat' ? 'space-between' : '' }"
-      class="header-info drag">
+      :style="{
+        marginLeft: isMobile ? '0' : '48px',
+        justifyContent: props.currentView === 'chat' ? 'space-between' : ''
+      }"
+      class="header-info drag"
+    >
       <Button v-if="!isMobile" variant="icon" size="md" @click="toggleSidebar">
         <component :is="settingsStore.display.sidebarCollapsed ? PanelOpen : PanelClose" />
       </Button>
       <Button v-if="props.currentView === 'chat'" variant="icon" size="md" @click="createNewChat">
         <CommentAdd16Regular />
       </Button>
-      <div v-else class="header-title">
-        设置
-      </div>
+      <div v-else class="header-title">设置</div>
     </div>
     <div class="header-actions no-drag">
-      <Button variant="text" size="lg" @click="openSearch">
+      <Button v-if="props.currentView === 'chat'" variant="text" size="lg" @click="openSearch">
         <Search />
       </Button>
     </div>
