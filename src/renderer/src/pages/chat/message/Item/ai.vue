@@ -26,8 +26,8 @@ const Stop = useIcon('Stop')
           />
         </div>
 
-        <div style="display: flex; align-items: center;">
-          <div class="msg-meta-content">
+        <div style="display: flex; align-items: center">
+          <div class="msg-meta-content" :class="{ isMobile }">
             <span class="msg-name">{{ message.metadata?.model }}</span>
             <span class="msg-time">{{
               new Date(message.metadata?.date || '').toLocaleString()
@@ -112,15 +112,13 @@ const Stop = useIcon('Stop')
 
 .msg-meta {
   display: flex;
-  gap: 4px;
-  margin-bottom: 4px;
   flex-direction: column;
 }
 .msg-meta-content {
   display: flex;
   flex-direction: column;
-  justify-content: space-evenly;
-  flex: 1;
+  justify-content: space-between;
+  height: 32px;
 }
 .msg-meta.isMobile {
   flex-direction: row;
