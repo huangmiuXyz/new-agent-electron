@@ -13,6 +13,7 @@ const activeTab = ref('models')
 const switchTab = (tabName: string) => {
   activeTab.value = tabName
 }
+const { showSettings } = useMobile()
 </script>
 
 <template>
@@ -20,6 +21,7 @@ const switchTab = (tabName: string) => {
     <!-- 设置-左侧分类导航 -->
     <div
       class="sidebar-wrapper"
+      v-if="!showSettings || !isMobile"
       :class="{ isMobile, collapsed: settingsStore.display.sidebarCollapsed }"
     >
       <SettingsSidebar :active-tab="activeTab" @tab-change="switchTab" />

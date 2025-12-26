@@ -3,12 +3,14 @@ import { useSettingsStore } from '@renderer/stores/settings'
 import Term from '@renderer/components/term.vue'
 
 const settingsStore = useSettingsStore()
+const { showChat } = useMobile()
 </script>
 
 <template>
   <div class="chat-app">
     <!-- 左侧边栏 -->
     <div
+      v-if="!showChat || !isMobile"
       class="sidebar-wrapper"
       :class="{ isMobile, collapsed: settingsStore.display.sidebarCollapsed }"
     >

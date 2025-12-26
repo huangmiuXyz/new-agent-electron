@@ -9,8 +9,9 @@ interface Emits {
 
 defineProps<Props>()
 const emit = defineEmits<Emits>()
-
+const { showSettings } = useMobile()
 const handleTabChange = (tabName: string) => {
+  showSettings.value = true
   emit('tab-change', tabName)
 }
 const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal } = useIcon([

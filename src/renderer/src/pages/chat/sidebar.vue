@@ -1,10 +1,11 @@
 <script setup lang="ts">
 const chatsStore = useChatsStores()
 const { showContextMenu } = useContextMenu()
-
+const { showChat } = useMobile()
 const chatsIcon = useIcon('Chat')
 
 const selectChat = (chatId: string) => {
+  showChat.value = true
   chatsStore.setActiveChat(chatId)
 }
 

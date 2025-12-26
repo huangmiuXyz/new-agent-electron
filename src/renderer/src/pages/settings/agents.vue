@@ -19,9 +19,6 @@ const getKnowledgeBaseName = (kbId: string) => {
     <template #content>
       <div class="agents-container">
         <div class="agents-header">
-          <div class="description">
-            创建和管理AI智能体，每个智能体可以有不同的系统提示词和MCP服务器配置。
-          </div>
           <Button size="sm" @click="openAgentModal()">
             <template #icon>
               <Plus />
@@ -144,7 +141,6 @@ const getKnowledgeBaseName = (kbId: string) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
 }
 
 .description {
