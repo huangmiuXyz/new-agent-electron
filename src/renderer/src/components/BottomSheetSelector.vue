@@ -183,10 +183,10 @@ onUnmounted(() => {
   color: var(--text-tertiary);
 }
 
-/* 动画 */
+/* 遮罩层动画 */
 .bottom-sheet-enter-active,
 .bottom-sheet-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .bottom-sheet-enter-from,
@@ -194,13 +194,27 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-.bottom-sheet-enter-from .bottom-sheet-container,
+.bottom-sheet-enter-to,
+.bottom-sheet-leave-from {
+  opacity: 1;
+}
+
+/* 容器从下方弹出动画 */
+.bottom-sheet-enter-active .bottom-sheet-container,
+.bottom-sheet-leave-active .bottom-sheet-container {
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.bottom-sheet-enter-from .bottom-sheet-container {
+  transform: translateY(100%) scale(0.95);
+}
+
 .bottom-sheet-leave-to .bottom-sheet-container {
-  transform: translateY(100%);
+  transform: translateY(100%) scale(0.95);
 }
 
 .bottom-sheet-enter-to .bottom-sheet-container,
 .bottom-sheet-leave-from .bottom-sheet-container {
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
 </style>
