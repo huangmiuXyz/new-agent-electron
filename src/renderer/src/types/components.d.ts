@@ -20,4 +20,6 @@ export interface BaseModalProps {
   confirmText?: string
   onCancel?: () => void
   onClose?: () => void
+  variant?: 'center' | 'drawer'
+  showFooter?: boolean
 }
