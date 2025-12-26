@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Premium Mobile Tab</title>
+    <style>
+      /* 全局重置与字体 */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: #0f0f11; /* 深邃黑背景 */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+        color: #e0e0e0;
+      }
+
+      /* 模拟手机屏幕容器 */
+      .mobile-screen {
+        width: 100%;
+        max-width: 375px;
+        height: 812px; /* iPhone X 尺寸 */
+        background: linear-gradient(145deg, #1a1a1c, #111113);
+        position: relative;
+        border-radius: 40px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+        border: 8px solid #000;
+      }
+
+      /* 模拟内容区域 */
+      .content-area {
+        height: 100%;
+        padding: 40px 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+        position: absolute;
+        width: 100%;
+        top: 0;
+        pointer-events: none; /* 默认不可点 */
+      }
+
+      .content-area.active-view {
+        opacity: 1;
+        pointer-events: auto;
+        z-index: 1;
+      }
+
+      h1 {
+        font-weight: 200;
+        font-size: 24px;
+        letter-spacing: 2px;
+        color: #888;
+        margin-bottom: 10px;
+      }
+
+      .placeholder-text {
+        color: #444;
+        font-size: 14px;
+      }
+
+      /* --- 核心：高级紧凑 Tab Bar 设计 --- */
+      .tab-bar-container {
+        position: absolute;
+        bottom: 30px; /* 悬浮距离 */
+        left: 50%;
+        transform: translateX(-50%);
+        width: 220px; /* 紧凑宽度 */
+        height: 65px;
+        background: rgba(35, 35, 38, 0.75); /* 半透明灰 */
+        backdrop-filter: blur(15px); /* 毛玻璃模糊 */
+        -webkit-backdrop-filter: blur(15px);
+        border-radius: 35px; /* 大圆角胶囊形 */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px;
+        box-shadow:
+          0 10px 25px rgba(0, 0, 0, 0.3),
+          /* 投影 */ inset 0 1px 1px rgba(255, 255, 255, 0.1); /* 顶部高光，增加质感 */
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        z-index: 100;
+      }
+
+      /* 滑动的背景块（指示器） */
+      .tab-indicator {
+        position: absolute;
+        width: 50%;
+        height: 55px;
+        background: #333336;
+        border-radius: 30px;
+        z-index: 0;
+        left: 5px; /* 初始位置 */
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* 弹性动画 */
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      /* 单个 Tab 按钮 */
+      .tab-item {
+        position: relative;
+        z-index: 1;
+        width: 50%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        color: #666; /* 未选中颜色 */
+        transition: color 0.3s ease;
+      }
+
+      /* 选中状态文字颜色 */
+      .tab-item.active {
+        color: #fff; /* 亮白色 */
+      }
+
+      /* SVG 图标样式 */
+      .tab-icon {
+        width: 24px;
+        height: 24px;
+        margin-bottom: 4px;
+        fill: currentColor; /* 跟随文字颜色 */
+        transition: transform 0.3s ease;
+      }
+
+      /* 选中的图标会有轻微上浮效果 */
+      .tab-item.active .tab-icon {
+        transform: translateY(-2px);
+      }
+
+      /* 标签文字 */
+      .tab-label {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        transform: scale(0.9);
+        transition: transform 0.3s ease;
+      }
+
+      .tab-item.active .tab-label {
+        transform: scale(1);
+      }
+
+      /* --- 状态切换逻辑 CSS --- */
+      /* 如果第二个 tab 激活，移动指示器 */
+      .tab-bar-container[data-active='1'] .tab-indicator {
+        transform: translateX(105px); /* 移动距离 = 容器宽/2 - padding修正 */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mobile-screen">
+      <!-- 页面 1: 聊天 -->
+      <div class="content-area active-view" id="view-chat">
+        <h1>MESSAGES</h1>
+        <div class="placeholder-text">No new messages</div>
+      </div>
+
+      <!-- 页面 2: 设置 -->
+      <div class="content-area" id="view-settings">
+        <h1>SETTINGS</h1>
+        <div class="placeholder-text">System preferences</div>
+      </div>
+
+      <!-- Tab Bar -->
+      <div class="tab-bar-container" id="tabBar" data-active="0">
+        <!-- 背景滑块 -->
+        <div class="tab-indicator"></div>
+
+        <!-- Tab 1: 聊天 -->
+        <div class="tab-item active" onclick="switchTab(0)">
+          <svg class="tab-icon" viewBox="0 0 24 24">
+            <path
+              d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"
+            />
+            <path d="M7 9h10v2H7zm0-3h10v2H7z" />
+            <!-- 增加细节线条 -->
+          </svg>
+          <span class="tab-label">聊天</span>
+        </div>
+
+        <!-- Tab 2: 设置 -->
+        <div class="tab-item" onclick="switchTab(1)">
+          <svg class="tab-icon" viewBox="0 0 24 24">
+            <path
+              d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L3.16 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.04.24.24.41.48.41h3.84c.24 0 .43-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+            />
+          </svg>
+          <span class="tab-label">设置</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function switchTab(index) {
+        const tabBar = document.getElementById('tabBar')
+        const tabs = document.querySelectorAll('.tab-item')
+        const views = document.querySelectorAll('.content-area')
+
+        // 1. 设置 Tab Bar 的状态属性，触发滑块动画
+        tabBar.setAttribute('data-active', index)
+
+        // 2. 切换图标颜色和激活状态
+        tabs.forEach((tab, i) => {
+          if (i === index) {
+            tab.classList.add('active')
+          } else {
+            tab.classList.remove('active')
+          }
+        })
+
+        // 3. 切换页面内容
+        views.forEach((view, i) => {
+          if (i === index) {
+            view.classList.add('active-view')
+          } else {
+            view.classList.remove('active-view')
+          }
+        })
+      }
+    </script>
+  </body>
+</html>

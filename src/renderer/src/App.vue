@@ -3,6 +3,7 @@ import ChatPage from './pages/chat/index.vue'
 import SettingsPage from './pages/settings/index.vue'
 import AppNavBar from './components/AppNavBar.vue'
 import AppHeader from './components/AppHeader.vue'
+import MobileTab from './components/MobileTab.vue'
 
 const currentView = ref('chat')
 
@@ -17,14 +18,19 @@ const route = useRoute()
 
 <template>
   <div class="app-layout" v-if="route.path !== '/temp-chat'">
-    <AppHeader :current-view="currentView" />
-    <div class="app-body">
-      <AppNavBar v-if="!isMobile" :current-view="currentView" @switch="switchView" />
-      <main class="app-content">
-        <ChatPage v-show="currentView === 'chat'" />
-        <SettingsPage v-show="currentView === 'settings'" />
-      </main>
-    </div>
+    <template v-if="!isMobile">
+      <AppHeader :current-view="currentView" />
+      <div class="app-body">
+        <AppNavBar :current-view="currentView" @switch="switchView" />
+        <main class="app-content">
+          <ChatPage v-show="currentView === 'chat'" />
+          <SettingsPage v-show="currentView === 'settings'" />
+        </main>
+      </div>
+    </template>
+    <template v-else>
+      <MobileTab :active-tab="currentView" @switch="switchView" />
+    </template>
   </div>
   <router-view v-else></router-view>
   <ContextMenu />
