@@ -179,11 +179,11 @@ onMounted(loadFiles)
             :loading="loading"
             :data="categorizedFiles"
             :columns="[
-              { key: 'name', label: '文件名称', width: '3fr' },
-              { key: 'type', label: '类型', width: '1.5fr' },
-              { key: 'size', label: '大小', width: '1fr' },
-              { key: 'created', label: '创建时间', width: '2fr' },
-              { key: 'actions', label: '操作', width: '80px' }
+              { key: 'name', label: '文件名称', width: 100 },
+              { key: 'type', label: '类型', width: 60 },
+              { key: 'size', label: '大小', width: 80 },
+              { key: 'created', label: '创建时间', width: 120 },
+              { key: 'actions', label: '操作', width: 200 }
             ]"
           >
             <template #name="{ row }">
