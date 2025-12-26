@@ -541,7 +541,7 @@ const openFolder = (path: string) => {
                 <Search />
               </template>
             </Button>
-            <SelectorPopover v-model="showBatchSettings" width="240px" position="bottom">
+            <SelectorPopover title="知识库设置" v-model="showBatchSettings" width="240px" position="bottom">
               <template #trigger>
                 <Button
                   :class="{ active: showBatchSettings }"

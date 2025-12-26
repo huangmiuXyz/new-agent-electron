@@ -102,6 +102,7 @@ const handleModelSelect = (id: string) => {
     noResultsText="未找到模型"
     :hasResults="filteredModels.length > 0"
     width="240px"
+    title="选择模型"
     :position="popupPosition || 'top'"
   >
     <template #trigger>
