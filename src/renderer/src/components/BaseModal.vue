@@ -1,7 +1,13 @@
 <template>
   <Transition :name="variant === 'drawer' ? 'drawer' : 'modal-fade'">
-    <div v-if="visible" ref="modalOverlay" :class="overlayClass" @click.self="handleEsc" @keydown.esc="handleEsc"
-      tabindex="-1">
+    <div
+      v-if="visible"
+      ref="modalOverlay"
+      :class="overlayClass"
+      @click.self="handleEsc"
+      @keydown.esc="handleEsc"
+      tabindex="-1"
+    >
       <!-- 中心弹窗样式 -->
       <div v-if="variant !== 'drawer'" class="modal-box" :style="{ width: props.width }">
         <div class="modal-header">
@@ -22,7 +28,13 @@
           <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
           }}</Button>
-          <Button ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button" @click="handleConfirm">
+          <Button
+            ref="confirmButton"
+            v-bind="confirmProps"
+            class="btn btn-primary"
+            type="button"
+            @click="handleConfirm"
+          >
             {{ props.confirmText || '确认' }}
           </Button>
         </div>
@@ -46,7 +58,13 @@
           <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
           }}</Button>
-          <Button ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button" @click="handleConfirm">
+          <Button
+            ref="confirmButton"
+            v-bind="confirmProps"
+            class="btn btn-primary"
+            type="button"
+            @click="handleConfirm"
+          >
             {{ props.confirmText || '确认' }}
           </Button>
         </div>
@@ -56,65 +74,65 @@
 </template>
 
 <script setup lang="ts">
-import type { BaseModalProps } from '@renderer/types/components';
-import Button from './Button.vue';
-import { useIcon } from '@renderer/composables/useIcon';
+import type { BaseModalProps } from '@renderer/types/components'
+import Button from './Button.vue'
+import { useIcon } from '@renderer/composables/useIcon'
 
 const props = withDefaults(defineProps<BaseModalProps>(), {
-  variant: 'center',
+  variant: isMobile.value ? 'drawer' : 'center',
   showFooter: true
-});
+})
 const Close = useIcon('Close')
 
-const visible = ref(false);
-const modalOverlay = useTemplateRef('modalOverlay');
-const confirmButton = useTemplateRef('confirmButton');
+const visible = ref(false)
+const modalOverlay = useTemplateRef('modalOverlay')
+const confirmButton = useTemplateRef('confirmButton')
 
 const overlayClass = computed(() => {
-  return props.variant === 'drawer' ? 'modal-overlay drawer-overlay' : 'modal-overlay';
-});
+  return props.variant === 'drawer' ? 'modal-overlay drawer-overlay' : 'modal-overlay'
+})
 
 onMounted(async () => {
-  visible.value = true;
+  visible.value = true
   nextTick(() => {
-    modalOverlay.value?.focus();
+    modalOverlay.value?.focus()
     confirmButton.value?.focus()
-  });
-});
+  })
+})
 
 const handleConfirm = () => {
   if (props.onOk) {
     props.onOk()
     return
   }
-  visible.value = false;
+  visible.value = false
   setTimeout(() => {
-    props.resolve?.(true);
-    props.remove?.();
-  }, 200);
-};
+    props.resolve?.(true)
+    props.remove?.()
+  }, 200)
+}
 const handleEsc = () => {
-  visible.value = false;
+  visible.value = false
   setTimeout(() => {
     if (props.onClose) {
       props.onClose?.()
       return
     }
-    props.resolve?.(false);
-    props.remove?.();
-  }, 200);
+    props.resolve?.(false)
+    props.remove?.()
+  }, 200)
 }
 const handleCancel = () => {
-  visible.value = false;
+  visible.value = false
   setTimeout(() => {
     if (props.onCancel) {
       props.onCancel?.()
       return
     }
-    props.resolve?.(false);
-    props.remove?.();
-  }, 200);
-};
+    props.resolve?.(false)
+    props.remove?.()
+  }, 200)
+}
 </script>
 
 <style scoped>
@@ -140,7 +158,9 @@ const handleCancel = () => {
   background: #fff;
   width: 420px;
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -197,7 +217,6 @@ const handleCancel = () => {
   padding: 20px;
   overflow-y: auto;
 }
-
 
 .modal-desc {
   font-size: 13px;
