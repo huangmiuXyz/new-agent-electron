@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BottomSheetSelector from './BottomSheetSelector.vue'
 
 const selectedModelId = defineModel<string>('modelId', { default: '' })
 const selectedProviderId = defineModel<string>('providerId', { default: '' })
@@ -89,7 +90,49 @@ const handleModelSelect = (id: string) => {
 </script>
 
 <template>
-  <SelectorPopover v-model="isPopupOpen" :data="flatModelList" v-model:searchQuery="searchQuery" placeholder="搜索模型..."
+  <!-- 移动端底部弹出 -->
+  <BottomSheetSelector
+    v-if="isMobile"
+    v-model="isPopupOpen"
+    v-model:searchQuery="searchQuery"
+    placeholder="搜索模型..."
+    noResultsText="未找到模型"
+    :hasResults="filteredModels.length > 0"
+    maxHeight="70vh"
+  >
+    <template #trigger>
+      <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }" @click="isPopupOpen = true">
+        <Image style="width: 10px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="" />
+        <span>{{ currentModelLabel }}</span>
+        <ChevronDown v-if="!selectedModelId" />
+        <X v-else class="clear-btn" @click.stop="clearSelection" />
+      </div>
+      <Button v-else variant="icon" size="sm" @click="isPopupOpen = true">
+        <Image style="width: 15px;border-radius: 2px;" :src="currentSelectedProvider?.logo" alt="" />
+      </Button>
+    </template>
+    <template #title>
+      <span>选择模型</span>
+    </template>
+    <template #default>
+      <List :items="searchModels.map(item => ({
+        ...item.model,
+        providerId: item.providerId
+      }))" :key-field="'id'" :main-field="'name'" :sub-field="'description'" :show-header="true"
+        :render-header="renderProviderHeader" :selectable="true" :is-selected="isModelSelected"
+        @select="handleModelSelect">
+        <template #actions="{ item }">
+          <Check :style="{
+            fontSize: '12px',
+            color: '#fff',
+          }" v-if="item.id === selectedModelId" />
+        </template>
+      </List>
+    </template>
+  </BottomSheetSelector>
+
+  <!-- 桌面端弹出 -->
+  <SelectorPopover v-else v-model="isPopupOpen" :data="flatModelList" v-model:searchQuery="searchQuery" placeholder="搜索模型..."
     noResultsText="未找到模型" :hasResults="filteredModels.length > 0" width="240px" :position="popupPosition || 'top'">
     <template #trigger>
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
