@@ -57,6 +57,7 @@ import {
   Wrench20Regular
 } from '@vicons/fluent'
 import { Sparkles } from '@vicons/ionicons5'
+import { ArrowBackIosNewSharp } from '@vicons/material'
 const icons = {
   Edit,
   Pencil: Edit,
@@ -110,7 +111,8 @@ const icons = {
   ErrorCircle24Filled,
   InfoCircle,
   X,
-  Terminal
+  Terminal,
+  ArrowBackIosNewSharp
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =

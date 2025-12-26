@@ -11,11 +11,12 @@ const props = defineProps<{
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 
-const { Search, PanelOpen, PanelClose, CommentAdd16Regular } = useIcon([
+const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp } = useIcon([
   'Search',
   'PanelOpen',
   'PanelClose',
-  'CommentAdd16Regular'
+  'CommentAdd16Regular',
+  'ArrowBackIosNewSharp'
 ])
 const showSearch = ref(false)
 
@@ -30,6 +31,8 @@ const toggleSidebar = () => {
 const createNewChat = () => {
   chatsStore.createChat()
 }
+
+const { showChat, showSettings, back } = useMobile()
 </script>
 
 <template>
@@ -39,17 +42,21 @@ const createNewChat = () => {
         marginLeft: isMobile ? '0' : '48px',
         justifyContent: props.currentView === 'chat' ? 'space-between' : ''
       }"
+      :class="{ isMobile }"
       class="header-info drag"
     >
       <Button v-if="!isMobile" variant="icon" size="md" @click="toggleSidebar">
         <component :is="settingsStore.display.sidebarCollapsed ? PanelOpen : PanelClose" />
+      </Button>
+      <Button v-if="isMobile && (showChat || showSettings)" variant="icon" size="md" @click="back">
+        <ArrowBackIosNewSharp />
       </Button>
       <Button v-if="props.currentView === 'chat'" variant="icon" size="md" @click="createNewChat">
         <CommentAdd16Regular />
       </Button>
       <div v-else class="header-title">设置</div>
     </div>
-    <div class="header-actions no-drag">
+    <div v-if="!showChat || !isMobile" class="header-actions no-drag">
       <Button v-if="props.currentView === 'chat'" variant="text" size="lg" @click="openSearch">
         <Search />
       </Button>
@@ -64,7 +71,6 @@ const createNewChat = () => {
 /* 头部：磨砂玻璃效果，极简边框 */
 .app-header {
   height: var(--header-h);
-  padding-right: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -82,7 +88,9 @@ const createNewChat = () => {
   width: 180px;
   padding: 0 10px;
 }
-
+.header-info.isMobile {
+  width: 100%;
+}
 .header-title {
   font-weight: 600;
   font-size: 14px;
@@ -100,6 +108,7 @@ const createNewChat = () => {
   display: flex;
   gap: 8px;
   color: var(--text-secondary);
+  margin-right: 8px;
 }
 
 .header-actions i {
