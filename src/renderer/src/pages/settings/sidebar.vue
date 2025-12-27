@@ -80,7 +80,7 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
   top: 0;
   z-index: 10;
   background-color: #f7f7f8;
-  padding: calc(20px + env(safe-area-inset-top)) 20px 10px;
+  padding: calc(20px + env(safe-area-inset-top, 24px)) 20px 10px;
 }
 
 .mobile-title {
