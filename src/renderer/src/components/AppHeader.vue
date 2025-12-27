@@ -97,11 +97,12 @@ const pageTitle = computed(() => {
 <style scoped>
 /* 头部：磨砂玻璃效果，极简边框 */
 .app-header {
-  height: var(--header-h);
+  height: calc(var(--header-h) + env(safe-area-inset-top));
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: var(--bg-header);
+  padding-top: env(safe-area-inset-top);
   backdrop-filter: blur(12px);
   position: sticky;
   top: 0;

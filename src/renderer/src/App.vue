@@ -189,13 +189,19 @@ const handleTouchEnd = (e: TouchEvent) => {
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
   user-select: none;
+  overscroll-behavior: none;
+}
+
+html {
+  background-color: var(--bg-app);
+  height: 100%;
 }
 
 body {
   font-family: var(--font-stack);
   background-color: var(--bg-app);
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
   display: flex;
   color: var(--text-primary);
   overflow: hidden;
@@ -247,8 +253,8 @@ body {
 .app-layout {
   display: flex;
   flex-direction: column;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background-color: var(--bg-app);
 }

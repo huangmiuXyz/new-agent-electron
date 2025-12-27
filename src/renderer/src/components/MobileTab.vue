@@ -78,7 +78,8 @@ const switchTab = (tab) => {
   background-color: var(--bg-tab);
   display: flex;
   z-index: 100;
-  height: 56px;
+  height: calc(56px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .slider-bar {
