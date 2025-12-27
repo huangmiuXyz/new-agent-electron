@@ -500,7 +500,7 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
                 <Search />
               </template>
             </Button>
-            <SelectorPopover title="知识库设置" v-model="showBatchSettings" width="240px" position="bottom">
+            <SelectorPopover v-model:visiable="showBatchSettings" title="知识库设置" width="240px" position="bottom">
               <template #trigger>
                 <Button :class="{ active: showBatchSettings }" size="sm" type="button" variant="text">
                   <template #icon>

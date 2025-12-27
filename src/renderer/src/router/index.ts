@@ -7,8 +7,12 @@ const router = createRouter({
     {
       path: '/',
       redirect: () => {
-        return isMobile.value ? '/mobile/chat' : '/chat'
+        return isMobile.value ? '/mobile/chat' : '/'
       }
+    },
+    {
+      path: '/chat',
+      component: () => import('../pages/chat/index.vue')
     },
     {
       path: '/temp-chat',

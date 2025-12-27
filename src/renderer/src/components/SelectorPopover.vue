@@ -1,6 +1,5 @@
 <script setup lang="ts">
 const props = defineProps<{
-  modelValue: boolean
   searchQuery?: string
   placeholder?: string
   noResultsText?: string
@@ -10,16 +9,13 @@ const props = defineProps<{
   data?: Array<any>
   title?: string
 }>()
-
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: boolean): void
-  (e: 'update:searchQuery', value: string): void
-}>()
+const visiable = defineModel<boolean>('visiable')
+const searchQuery = defineModel<string>('searchQuery')
 
 const containerRef = ref<HTMLElement>()
 
 const closePopup = () => {
-  emit('update:modelValue', false)
+  visiable.value = false
 }
 
 const handleClickOutside = (event: MouseEvent) => {
@@ -30,7 +26,7 @@ const handleClickOutside = (event: MouseEvent) => {
 }
 
 watch(
-  () => props.modelValue,
+  () => visiable.value,
   (newVal) => {
     if (newVal) {
       nextTick(() => {
@@ -47,74 +43,28 @@ onUnmounted(() => {
 })
 
 const handleSearch = (value: string) => {
-  emit('update:searchQuery', value)
+  searchQuery.value = value
+}
+const triggerClick = () => {
+  visiable.value = !visiable.value
 }
 </script>
 
 <template>
-  <div class="selector-trigger" @click="emit('update:modelValue', !modelValue)">
-    <slot name="trigger"></slot>
-  </div>
-
-  <BaseModal :title="title!" v-if="isMobile && modelValue">
-    <div v-if="$slots.content" class="content">
-      <slot name="content"></slot>
+  <div class="selector-trigger">
+    <div @click="triggerClick">
+      <slot name="trigger"></slot>
     </div>
-    <template v-else>
-      <div class="selector-search">
-        <SearchInput
-          :search-data="data"
-          :model-value="searchQuery"
-          @update:model-value="handleSearch"
-          :placeholder="placeholder || '搜索...'"
-          size="sm"
-          variant="minimal"
-          :show-icon="true"
-          :debounce="0"
-          class="selector-search-input"
-        />
-      </div>
-      <div class="selector-list-container">
-        <div v-if="!hasResults" class="no-results">
-          {{ noResultsText || '未找到结果' }}
-        </div>
-        <slot v-else></slot>
-      </div>
-    </template>
-  </BaseModal>
-  <div v-if="!isMobile" class="selector-wrapper" ref="containerRef">
-    <div
-      class="selector-popup"
-      :class="{
-        show: modelValue,
-        'position-bottom': (position || 'top') === 'top',
-        'position-top': position === 'bottom'
-      }"
-      :style="{
-        width: width || '240px',
-        animation: modelValue
-          ? (position || 'top') === 'top'
-            ? 'popupFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'
-            : 'popupFadeInTop 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'
-          : 'none'
-      }"
-    >
+
+    <BaseModal :title="title!" v-if="isMobile && visiable">
       <div v-if="$slots.content" class="content">
         <slot name="content"></slot>
       </div>
       <template v-else>
         <div class="selector-search">
-          <SearchInput
-            :search-data="data"
-            :model-value="searchQuery"
-            @update:model-value="handleSearch"
-            :placeholder="placeholder || '搜索...'"
-            size="sm"
-            variant="minimal"
-            :show-icon="true"
-            :debounce="0"
-            class="selector-search-input"
-          />
+          <SearchInput :search-data="data" :model-value="searchQuery" @update:model-value="handleSearch"
+            :placeholder="placeholder || '搜索...'" size="sm" variant="minimal" :show-icon="true" :debounce="0"
+            class="selector-search-input" />
         </div>
         <div class="selector-list-container">
           <div v-if="!hasResults" class="no-results">
@@ -123,6 +73,37 @@ const handleSearch = (value: string) => {
           <slot v-else></slot>
         </div>
       </template>
+    </BaseModal>
+    <div v-if="!isMobile" class="selector-wrapper" ref="containerRef">
+      <div class="selector-popup" :class="{
+        show: visiable,
+        'position-bottom': (position || 'top') === 'top',
+        'position-top': position === 'bottom'
+      }" :style="{
+        width: width || '240px',
+        animation: visiable
+          ? (position || 'top') === 'top'
+            ? 'popupFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'
+            : 'popupFadeInTop 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'
+          : 'none'
+      }">
+        <div v-if="$slots.content" class="content">
+          <slot name="content"></slot>
+        </div>
+        <template v-else>
+          <div class="selector-search">
+            <SearchInput :search-data="data" :model-value="searchQuery" @update:model-value="handleSearch"
+              :placeholder="placeholder || '搜索...'" size="sm" variant="minimal" :show-icon="true" :debounce="0"
+              class="selector-search-input" />
+          </div>
+          <div class="selector-list-container">
+            <div v-if="!hasResults" class="no-results">
+              {{ noResultsText || '未找到结果' }}
+            </div>
+            <slot v-else></slot>
+          </div>
+        </template>
+      </div>
     </div>
   </div>
 </template>

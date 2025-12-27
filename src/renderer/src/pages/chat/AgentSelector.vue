@@ -56,15 +56,8 @@ const { openAgentModal } = useAgent()
 </script>
 
 <template>
-  <SelectorPopover
-    v-model="isPopupOpen"
-    v-model:searchQuery="searchQuery"
-    placeholder="搜索智能体..."
-    noResultsText="未找到智能体"
-    :hasResults="filteredAgents.length > 0"
-    width="300px"
-    title="选择智能体"
-  >
+  <SelectorPopover v-model:visiable="isPopupOpen" v-model:searchQuery="searchQuery" placeholder="搜索智能体..."
+    noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0" width="300px" title="选择智能体">
     <template #trigger>
       <div class="agent-btn" v-if="type === 'select'" :title="selectedAgentLabel">
         <Robot />
@@ -77,13 +70,8 @@ const { openAgentModal } = useAgent()
     </template>
 
     <div class="agent-list">
-      <div
-        v-for="agent in filteredAgents"
-        :key="agent.id"
-        class="agent-item"
-        :class="{ selected: isAgentSelected(agent.id) }"
-        @click="selectAgent(agent.id)"
-      >
+      <div v-for="agent in filteredAgents" :key="agent.id" class="agent-item"
+        :class="{ selected: isAgentSelected(agent.id) }" @click="selectAgent(agent.id)">
         <div class="agent-content">
           <div class="agent-title">
             {{ agent.name }}
@@ -92,13 +80,10 @@ const { openAgentModal } = useAgent()
           <div v-if="agent.description" class="agent-desc">{{ agent.description }}</div>
         </div>
         <div class="agent-check">
-          <div
-            v-if="agent.mcpServers.filter((name) => mcpServers[name]).length > 0"
-            class="agent-mcp"
-          >
+          <div v-if="agent.mcpServers.filter((name) => mcpServers[name]).length > 0" class="agent-mcp">
             <Wrench20Regular />
-            <span style="white-space: nowrap"
-              >{{ settingsStore.getValidTools(agent.tools).length + agent.builtinTools?.length }}
+            <span style="white-space: nowrap">{{ settingsStore.getValidTools(agent.tools).length +
+              agent.builtinTools?.length }}
             </span>
           </div>
           <Check v-if="isAgentSelected(agent.id)" />
