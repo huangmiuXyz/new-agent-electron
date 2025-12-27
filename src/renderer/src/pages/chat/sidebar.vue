@@ -58,7 +58,7 @@ const renameChat = async (chatId: string) => {
     }
   }
 }
-const { Edit, Delete, Plus, Search, CommentAdd16Regular } = useIcon(['Edit', 'Delete', 'Plus', 'Search', 'CommentAdd16Regular'])
+const { Edit, Delete, Search, CommentAdd16Regular } = useIcon(['Edit', 'Delete', 'Plus', 'Search', 'CommentAdd16Regular'])
 const showSearch = ref(false)
 const openSearch = () => {
   showSearch.value = true
@@ -171,7 +171,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
               <div class="top-row">
                 <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-name">{{
                   item.title
-                  }}</span>
+                }}</span>
                 <div v-else class="shimmer-title"></div>
                 <span class="chat-time">{{ formatTime(item.createdAt) }}</span>
               </div>
@@ -184,7 +184,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
           <div v-else class="chat-title-container">
             <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-title">{{
               item.title
-              }}</span>
+            }}</span>
             <div v-else class="chat-title-loading">
               <div class="loading-spinner-small"></div>
               <span>标题生成中...</span>
