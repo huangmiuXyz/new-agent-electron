@@ -64,8 +64,9 @@ const pageTitle = computed(() => {
 </script>
 
 <template>
-  <header class="app-header drag">
-    <div :style="{
+  <header class="app-header drag"
+    :class="{ 'is-transparent': isMobile && (route.path === '/mobile/chat' || route.path === '/mobile/settings') }">
+    <div v-if="!isMobile || (route.path !== '/mobile/chat' && route.path !== '/mobile/settings')" :style="{
       marginLeft: isMobile ? '0' : '48px',
       justifyContent: props.currentView === 'chat' ? 'space-between' : ''
     }" :class="{ isMobile }" class="header-info drag">
@@ -78,12 +79,11 @@ const pageTitle = computed(() => {
       <div v-if="isMobile" class="header-title-container">
         <div class="header-title">{{ pageTitle }}</div>
       </div>
-      <Button v-if="props.currentView === 'chat'" variant="icon" size="md" @click="createNewChat">
+      <Button v-if="props.currentView === 'chat' && !isMobile" variant="icon" size="md" @click="createNewChat">
         <CommentAdd16Regular />
       </Button>
     </div>
-    <div v-if="!isMobile || (props.currentView === 'chat' && $route.path === '/mobile/chat')"
-      class="header-actions no-drag">
+    <div v-if="(!isMobile && props.currentView === 'chat') || (isMobile && false)" class="header-actions no-drag">
       <Button v-if="props.currentView === 'chat'" variant="text" size="lg" @click="openSearch">
         <Search />
       </Button>
@@ -112,7 +112,24 @@ const pageTitle = computed(() => {
 
 @media screen and (max-width: 768px) {
   .app-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
     height: calc(var(--mobile-header-h) + env(safe-area-inset-top));
+    border-bottom: 0.5px solid var(--border-subtle);
+  }
+
+  .app-header.is-transparent {
+    background: transparent;
+    backdrop-filter: none;
+    border-bottom: none;
+    pointer-events: none;
+    /* Let events pass through to sticky headers below */
+  }
+
+  .app-header.is-transparent * {
+    visibility: hidden;
   }
 }
 

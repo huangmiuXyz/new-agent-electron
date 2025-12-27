@@ -24,6 +24,7 @@ const activeTab = computed(() => route.params.tab as string)
     background: #fff;
     display: flex;
     flex-direction: column;
+    padding-top: calc(56px + env(safe-area-inset-top));
 }
 
 /* Ensure inner components take full height if needed */

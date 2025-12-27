@@ -19,6 +19,7 @@ const settingsStore = useSettingsStore()
     display: flex;
     flex-direction: column;
     background: #fff;
+    padding-top: calc(56px + env(safe-area-inset-top));
 }
 
 .main-chat {

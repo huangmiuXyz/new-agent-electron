@@ -3,7 +3,7 @@
 
 <template>
     <div class="mobile-chat-list">
-        <ChatSidebar class="w-full h-full" />
+        <ChatSidebar />
     </div>
 </template>
 
