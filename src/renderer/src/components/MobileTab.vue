@@ -1,5 +1,6 @@
 <template>
-  <div class="mobile-layout light-theme">
+  <div class="mobile-layout light-theme" @touchstart="handleTouchStart" @touchmove="handleTouchMove"
+    @touchend="handleTouchEnd">
     <nav class="tab-bar">
       <div class="slider-bar" :style="{ transform: `translateX(${currentIndex * 100}%)` }"></div>
       <div v-for="(tab, index) in tabs" :key="tab.key" class="tab-item" :class="{ active: activeTab === tab.key }"
@@ -14,7 +15,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 const router = useRouter()
 const route = useRoute()
 
@@ -42,6 +43,53 @@ const activeTab = computed(() => {
 
 const switchTab = (tab) => {
   router.push(tab.path)
+}
+
+// 触摸滑动相关
+const touchStartX = ref(0)
+const touchStartY = ref(0)
+const isSwiping = ref(false)
+const SWIPE_THRESHOLD = 50 // 滑动阈值，单位像素
+
+const handleTouchStart = (e) => {
+  touchStartX.value = e.touches[0].clientX
+  touchStartY.value = e.touches[0].clientY
+  isSwiping.value = true
+}
+
+const handleTouchMove = (e) => {
+  if (!isSwiping.value) return
+  // 可以在这里添加滑动时的视觉反馈
+}
+
+const handleTouchEnd = (e) => {
+  if (!isSwiping.value) return
+
+  const touchEndX = e.changedTouches[0].clientX
+  const touchEndY = e.changedTouches[0].clientY
+
+  const deltaX = touchEndX - touchStartX.value
+  const deltaY = touchEndY - touchStartY.value
+
+  // 判断是否是水平滑动（水平移动距离大于垂直移动距离）
+  if (Math.abs(deltaX) > Math.abs(deltaY)) {
+    // 向左滑动，切换到下一个tab
+    if (deltaX < -SWIPE_THRESHOLD) {
+      const nextIndex = Math.min(currentIndex.value + 1, tabs.length - 1)
+      if (nextIndex !== currentIndex.value) {
+        switchTab(tabs[nextIndex])
+      }
+    }
+    // 向右滑动，切换到上一个tab
+    else if (deltaX > SWIPE_THRESHOLD) {
+      const prevIndex = Math.max(currentIndex.value - 1, 0)
+      if (prevIndex !== currentIndex.value) {
+        switchTab(tabs[prevIndex])
+      }
+    }
+  }
+
+  isSwiping.value = false
 }
 </script>
 
