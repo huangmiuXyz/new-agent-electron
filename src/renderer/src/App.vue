@@ -29,7 +29,7 @@ const actualCurrentView = computed(() => {
 })
 
 const showMobileTab = computed(() => {
-  return ['/mobile/chat', '/mobile/settings', '/mobile/'].includes(route.path) || route.path === '/mobile'
+  return ['/mobile/chat', '/mobile/settings'].includes(route.path) || route.path === '/mobile'
 })
 
 const transitionName = ref('fade')
