@@ -126,9 +126,6 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
   border-top-right-radius: 12px;
 }
 
-/* Hard to target last-in-group with CSS only if headers are intermediate, 
-   but we can at least do the very last item or use a more clever selector 
-   if we had control over the DOM. For now, let's at least fix the last item. */
 .settings-sidebar.is-mobile :deep(.list-item:last-child) {
   border-bottom-left-radius: 12px;
   border-bottom-right-radius: 12px;
