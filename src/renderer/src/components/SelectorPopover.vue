@@ -51,7 +51,7 @@ const triggerClick = () => {
 </script>
 
 <template>
-  <div class="selector-trigger">
+  <div class="selector">
     <div @click="triggerClick">
       <slot name="trigger"></slot>
     </div>
