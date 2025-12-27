@@ -84,7 +84,6 @@ const handleTouchStart = (e: TouchEvent) => {
 }
 
 const handleTouchMove = () => {
-  // 可以根据需要添加滑动跟随效果，目前仅处理结束时的切换
   if (!isSwiping.value) return
 }
 
