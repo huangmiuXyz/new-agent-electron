@@ -116,7 +116,6 @@ const handleTouchEnd = (e: TouchEvent) => {
   <div class="app-layout" v-if="route.path !== '/temp-chat'">
     <AppHeader :current-view="actualCurrentView" :custom-title="customTitle" />
 
-    <!-- Desktop Mode -->
     <div class="app-body" v-if="!isMobile">
       <AppNavBar :current-view="currentView" @switch="switchView" />
       <main class="app-content">
@@ -125,7 +124,6 @@ const handleTouchEnd = (e: TouchEvent) => {
       </main>
     </div>
 
-    <!-- Mobile Router Mode -->
     <div class="app-body isMobile" v-else @touchstart="handleTouchStart" @touchmove="handleTouchMove"
       @touchend="handleTouchEnd">
       <div class="router-container">
