@@ -7,7 +7,7 @@ const router = createRouter({
     {
       path: '/',
       redirect: () => {
-        return isMobile.value ? '/mobile/chat' : '/'
+        return isMobile.value ? '/mobile/chat' : '/chat'
       }
     },
     {
