@@ -70,7 +70,6 @@ watch(isMobile, (mobile) => {
   }
 })
 
-// === 触摸滑动切换 Tab (仅移动端且在主页时有效) ===
 const touchStartX = ref(0)
 const touchStartY = ref(0)
 const isSwiping = ref(false)
