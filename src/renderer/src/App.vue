@@ -276,6 +276,11 @@ body {
   border-top-left-radius: var(--radius-md);
 }
 
+/* 手机端移除圆角，避免奇怪的边角缺口 */
+.app-body.isMobile .router-container {
+  border-radius: 0;
+}
+
 a {
   color: #000 !important;
 }
