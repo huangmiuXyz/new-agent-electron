@@ -21,13 +21,6 @@ watch(() => route.path, () => {
   resetTitle()
 })
 
-const actualCurrentView = computed(() => {
-  if (isMobile.value) {
-    return route.path.includes('settings') ? 'settings' : 'chat'
-  }
-  return currentView.value
-})
-
 const showMobileTab = computed(() => {
   return ['/mobile/chat', '/mobile/settings'].includes(route.path) || route.path === '/mobile'
 })
@@ -108,7 +101,7 @@ const handleTouchEnd = (e: TouchEvent) => {
 
 <template>
   <div class="app-layout" v-if="route.path !== '/temp-chat'">
-    <AppHeader :current-view="actualCurrentView" :custom-title="customTitle" />
+    <AppHeader :current-view="currentView" :custom-title="customTitle" />
 
     <div class="app-body" v-if="!isMobile">
       <AppNavBar :current-view="currentView" @switch="switchView" />
@@ -127,7 +120,7 @@ const handleTouchEnd = (e: TouchEvent) => {
           </transition>
         </router-view>
       </div>
-      <MobileTab v-if="showMobileTab" :active-tab="actualCurrentView" />
+      <MobileTab v-if="showMobileTab" :active-tab="currentView" />
     </div>
   </div>
   <div v-else class="router-container h-full">
