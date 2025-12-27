@@ -28,7 +28,7 @@ const currentSelectedProvider = computed(() => {
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
-const { ChevronDown, Check, X } = useIcon(['ChevronDown', 'Check', 'X'])
+const { ChevronDown, Check, Close } = useIcon(['ChevronDown', 'Check', 'Close'])
 
 const currentModelLabel = computed(() => {
   if (!currentSelectedModel.value || !currentSelectedProvider.value) return '选择模型'
@@ -99,10 +99,12 @@ const handleModelSelect = (id: string) => {
     :position="popupPosition || 'top'">
     <template #trigger>
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
-        <Image style="width: 10px; border-radius: 2px" :src="currentSelectedProvider?.logo" alt="" />
-        <span>{{ currentModelLabel }}</span>
+        <div class="model-btn-content">
+          <Image style="width: 10px; border-radius: 2px" :src="currentSelectedProvider?.logo" alt="" />
+          <span>{{ currentModelLabel }}</span>
+        </div>
         <ChevronDown v-if="!selectedModelId" />
-        <X v-else class="clear-btn" @click.stop="clearSelection" />
+        <Close v-else class="clear-btn" @click.stop="clearSelection" />
       </div>
       <Button v-else variant="icon" size="sm">
         <Image style="width: 15px; border-radius: 2px" :src="currentSelectedProvider?.logo" alt="" />
@@ -133,13 +135,20 @@ const handleModelSelect = (id: string) => {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.03);
-  border: 1px solid transparent;
+  border: 1px solid #e5e5e5;
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
+  justify-content: space-between;
   transition: all 0.2s;
+  height: 32px;
+}
+
+.model-btn-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .model-btn:hover {
