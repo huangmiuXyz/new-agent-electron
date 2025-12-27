@@ -60,13 +60,25 @@ router.beforeEach((to, from) => {
 
 watch(isMobile, (mobile) => {
   if (mobile) {
-    if (route.path === '/') {
-      if (currentView.value === 'chat') router.replace('/mobile/chat')
-      else router.replace('/mobile/settings')
+    // 切换到手机版时，确保路由正确进入手机版路由
+    const path = route.path
+    if (!path.startsWith('/mobile')) {
+      if (path.includes('settings') || currentView.value === 'settings') {
+        router.replace('/mobile/settings')
+      } else {
+        router.replace('/mobile/chat')
+      }
     }
   } else {
-    if (route.path.includes('settings')) switchView('settings')
-    else switchView('chat')
+    // 切换回电脑版时，根据当前路由状态恢复电脑版的显示
+    const path = route.path
+    if (path.includes('settings')) {
+      switchView('settings')
+    } else {
+      switchView('chat')
+    }
+    // 桌面端保持简洁的路径或恢复到对应的路径
+    router.replace(currentView.value === 'settings' ? '/settings' : '/chat')
   }
 })
 

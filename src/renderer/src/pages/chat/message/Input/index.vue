@@ -83,8 +83,8 @@ const _sendMessage = async () => {
         @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
       <textarea ref="textareaRef" class="input-field" rows="1"
-        :placeholder="`${currentSelectedProvider?.name}：${currentSelectedModel?.name}`" v-model="message"
-        @input="adjustTextareaHeight" @keydown.enter.exact.prevent="_sendMessage"></textarea>
+        :placeholder="currentSelectedModel?.name && currentSelectedProvider?.name ? `${currentSelectedProvider?.name}：${currentSelectedModel?.name}` : '请选择模型'"
+        v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="_sendMessage"></textarea>
 
       <div class="input-actions">
         <div class="action-left">
