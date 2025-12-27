@@ -26,5 +26,6 @@ watch(() => route.params.id, (newId) => {
     width: 100%;
     height: 100%;
     background: #fff;
+    padding-top: calc(56px + env(safe-area-inset-top));
 }
 </style>
