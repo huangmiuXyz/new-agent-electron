@@ -1,13 +1,7 @@
 <template>
   <Transition :name="variant === 'drawer' ? 'drawer' : 'modal-fade'">
-    <div
-      v-if="visible"
-      ref="modalOverlay"
-      :class="overlayClass"
-      @click.self="handleEsc"
-      @keydown.esc="handleEsc"
-      tabindex="-1"
-    >
+    <div v-if="visible" ref="modalOverlay" :class="overlayClass" @click.self="handleEsc" @keydown.esc="handleEsc"
+      tabindex="-1">
       <!-- 中心弹窗样式 -->
       <div v-if="variant !== 'drawer'" class="modal-box" :style="{ width: props.width }">
         <div class="modal-header">
@@ -28,13 +22,8 @@
           <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
           }}</Button>
-          <Button
-            ref="confirmButton"
-            v-bind="confirmProps"
-            class="btn btn-primary"
-            type="button"
-            @click="handleConfirm"
-          >
+          <Button ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button"
+            @click="handleConfirm">
             {{ props.confirmText || '确认' }}
           </Button>
         </div>
@@ -43,7 +32,6 @@
       <!-- 抽屉样式 -->
       <div v-else class="drawer-container" :style="{ maxHeight }">
         <div class="drawer-header">
-          <div class="drawer-handle"></div>
           <div class="drawer-title">{{ title }}</div>
         </div>
         <div class="drawer-content">
@@ -55,21 +43,11 @@
           </slot>
         </div>
         <div v-if="showFooter" class="drawer-footer">
-          <Button
-            :class="{ isMobile }"
-            class="btn btn-secondary"
-            type="button"
-            @click="handleCancel"
-            >{{ props.cancelText || '取消' }}</Button
-          >
-          <Button
-            :class="{ isMobile }"
-            ref="confirmButton"
-            v-bind="confirmProps"
-            class="btn btn-primary"
-            type="button"
-            @click="handleConfirm"
-          >
+          <Button :class="{ isMobile }" class="btn btn-secondary" type="button" @click="handleCancel">{{
+            props.cancelText ||
+            '取消' }}</Button>
+          <Button :class="{ isMobile }" ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button"
+            @click="handleConfirm">
             {{ props.confirmText || '确认' }}
           </Button>
         </div>
@@ -293,9 +271,11 @@ const handleCancel = () => {
   justify-content: center;
   transition: all 0.1s;
 }
+
 .btn.isMobile {
   flex: 1;
 }
+
 .btn-secondary {
   background: #fff;
   border-color: #d1d1d1;
@@ -334,14 +314,6 @@ const handleCancel = () => {
   align-items: center;
   padding: 12px 16px 8px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.drawer-handle {
-  width: 36px;
-  height: 4px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 2px;
-  margin-bottom: 8px;
 }
 
 .drawer-title {
