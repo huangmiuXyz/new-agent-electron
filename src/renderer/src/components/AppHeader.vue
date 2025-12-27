@@ -97,6 +97,7 @@ const pageTitle = computed(() => {
 <style scoped>
 /* 头部：磨砂玻璃效果，极简边框 */
 .app-header {
+  --mobile-header-h: 56px;
   height: calc(var(--header-h) + env(safe-area-inset-top));
   display: flex;
   align-items: center;
@@ -107,6 +108,12 @@ const pageTitle = computed(() => {
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+@media screen and (max-width: 768px) {
+  .app-header {
+    height: calc(var(--mobile-header-h) + env(safe-area-inset-top));
+  }
 }
 
 .header-info {
@@ -127,8 +134,10 @@ const pageTitle = computed(() => {
 .header-title-container {
   position: absolute;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  bottom: 0;
+  height: var(--header-h);
+  /* 锁定在除去安全区域后的内容区中心 */
+  transform: translateX(-50%);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -137,9 +146,16 @@ const pageTitle = computed(() => {
   max-width: 60%;
 }
 
+@media screen and (max-width: 768px) {
+  .header-title-container {
+    height: var(--mobile-header-h);
+  }
+}
+
 .header-title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 16px;
+  /* 稍微加大标题字号 */
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;

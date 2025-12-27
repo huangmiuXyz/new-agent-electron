@@ -23,7 +23,7 @@
     "cap:open:android": "npx cap open android",
     "cap:build:android": "npm run build && npm run cap:sync && cd android && ./gradlew assembleDebug",
     "cap:build:android:release": "npm run build && npm run cap:sync && cd android && ./gradlew assembleRelease",
-    "cap:run:android": "npm run build && npm run cap:sync && android/gradlew installDebug"
+    "cap:run:android": "npm run build && npm run cap:sync && cd android && ./gradlew installDebug"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "3.0.0-beta.92",
