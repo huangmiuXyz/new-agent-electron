@@ -40,27 +40,48 @@ const emit = defineEmits<{
   contextmenu: [event: MouseEvent, id: string]
 }>()
 
-const viewItems = computed(() => props.items.map((item, index) => {
-  const key = item[props.keyField] ?? JSON.stringify(item)
-  const logo = item[props.logoField]
-  let groupTitle = ''
-  if (props.showHeader && props.renderHeader) {
-    const cur = props.renderHeader(item)
-    const prev = index > 0 ? props.renderHeader(props.items[index - 1]!) : null
-    if (index === 0 || cur !== prev) groupTitle = cur
-  }
+const viewItems = computed(() => {
+  const items = props.items.map((item, index) => {
+    const key = item[props.keyField] ?? JSON.stringify(item)
+    const logo = item[props.logoField]
+    let groupTitle = ''
+    if (props.showHeader && props.renderHeader) {
+      const cur = props.renderHeader(item)
+      const prev = index > 0 ? props.renderHeader(props.items[index - 1]!) : null
+      if (index === 0 || cur !== prev) groupTitle = cur
+    }
 
-  return {
-    raw: item,
-    key,
-    main: item[props.mainField] ?? key,
-    sub: props.subField ? item[props.subField] : '',
-    logo,
-    isIcon: typeof logo === 'object' || typeof logo === 'function',
-    isActive: props.isSelected?.(item) || props.activeId === key,
-    groupTitle
-  }
-}))
+    return {
+      raw: item,
+      key,
+      main: item[props.mainField] ?? key,
+      sub: props.subField ? item[props.subField] : '',
+      logo,
+      isIcon: typeof logo === 'object' || typeof logo === 'function',
+      isActive: props.isSelected?.(item) || props.activeId === key,
+      groupTitle
+    }
+  })
+
+  return items.map((item, index) => {
+    let isLastInGroup = false
+
+    if (props.showHeader && props.renderHeader) {
+      const currentGroup = item.groupTitle
+      const nextItem = index < items.length - 1 ? items[index + 1] : null
+      const nextGroup = nextItem ? (props.renderHeader!(nextItem.raw)) : null
+
+      isLastInGroup = !nextItem || (currentGroup !== nextGroup)
+    } else {
+      isLastInGroup = index === items.length - 1
+    }
+
+    return {
+      ...item,
+      isLastItem: isLastInGroup
+    }
+  })
+})
 
 const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.value[0], e?: MouseEvent) => {
   if (type === 'select' && props.selectable) emit('select', item.key)
@@ -93,8 +114,8 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
       <template v-else>
         <template v-for="item in viewItems" :key="item.key">
           <div v-if="item.groupTitle" class="group-header">{{ item.groupTitle }}</div>
-          <div class="list-item" :class="{ 'is-active': item.isActive }" @click="handleAction('select', item)"
-            @contextmenu="handleAction('contextmenu', item, $event)">
+          <div class="list-item" :class="{ 'is-active': item.isActive, 'is-last': item.isLastItem }"
+            @click="handleAction('select', item)" @contextmenu="handleAction('contextmenu', item, $event)">
             <div v-if="item.logo" class="item-media">
               <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
               <Image v-else :src="item.logo" :alt="String(item.main)" class="media-img" />
@@ -263,5 +284,11 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   padding: 6px 8px 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.list-item.is-last {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  border-bottom: none;
 }
 </style>

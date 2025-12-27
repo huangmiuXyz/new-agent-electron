@@ -25,6 +25,8 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
   'Terminal',
   'ChevronRight'
 ])
+
+
 </script>
 
 <template>
@@ -114,22 +116,16 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
 
 .settings-sidebar.is-mobile :deep(.list-item) {
   background: #fff;
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
   padding: 14px 16px;
   border-radius: 0;
   border-bottom: 1px solid #f0f0f0;
 }
 
-.settings-sidebar.is-mobile :deep(.list-item:first-child),
+.settings-sidebar.is-mobile :deep(.list-item:first-of-type),
 .settings-sidebar.is-mobile :deep(.group-header + .list-item) {
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
-}
-
-.settings-sidebar.is-mobile :deep(.list-item:last-child) {
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
-  border-bottom: none;
 }
 
 .settings-sidebar.is-mobile :deep(.media-icon) {
@@ -193,5 +189,20 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
 
 .settings-sidebar:not(.is-mobile) :deep(.list-item.is-active .media-icon) {
   color: var(--text-primary);
+}
+</style>
+
+<style>
+/* 确保分组标题后的第一个列表项也有上圆角 */
+.settings-sidebar.is-mobile .list-scroll-area .group-header+.list-item {
+  border-top-left-radius: 12px !important;
+  border-top-right-radius: 12px !important;
+}
+
+/* 处理每个分组的最后一个列表项 */
+.settings-sidebar.is-mobile .list-scroll-area .list-item.is-last {
+  border-bottom-left-radius: 12px !important;
+  border-bottom-right-radius: 12px !important;
+  border-bottom: none !important;
 }
 </style>
