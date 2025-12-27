@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import ChatPage from './pages/chat/index.vue'
 import SettingsPage from './pages/settings/index.vue'
-import AppNavBar from './components/AppNavBar.vue'
-import AppHeader from './components/AppHeader.vue'
-import MobileTab from './components/MobileTab.vue'
-
 const currentView = ref('chat')
 
 const switchView = (view: 'chat' | 'settings') => {
   currentView.value = view
 }
+
+useBackButton()
 
 const { resetTitle, customTitle } = useAppHeader()
 
@@ -30,7 +28,7 @@ const actualCurrentView = computed(() => {
 })
 
 const showMobileTab = computed(() => {
-  return ['/mobile/chat', '/mobile/settings'].includes(route.path)
+  return ['/mobile/chat', '/mobile/settings', '/mobile/'].includes(route.path) || route.path === '/mobile'
 })
 
 const transitionName = ref('fade')
@@ -73,6 +71,50 @@ watch(isMobile, (mobile) => {
     else switchView('chat')
   }
 })
+
+// === 触摸滑动切换 Tab (仅移动端且在主页时有效) ===
+const touchStartX = ref(0)
+const touchStartY = ref(0)
+const isSwiping = ref(false)
+const SWIPE_THRESHOLD = 50
+
+const handleTouchStart = (e: TouchEvent) => {
+  if (!isMobile.value || !showMobileTab.value) return
+  touchStartX.value = e.touches[0].clientX
+  touchStartY.value = e.touches[0].clientY
+  isSwiping.value = true
+}
+
+const handleTouchMove = () => {
+  // 可以根据需要添加滑动跟随效果，目前仅处理结束时的切换
+  if (!isSwiping.value) return
+}
+
+const handleTouchEnd = (e: TouchEvent) => {
+  if (!isSwiping.value) return
+  isSwiping.value = false
+
+  const touchEndX = e.changedTouches[0].clientX
+  const touchEndY = e.changedTouches[0].clientY
+
+  const deltaX = touchEndX - touchStartX.value
+  const deltaY = touchEndY - touchStartY.value
+
+  // 水平滑动判断：水平距离大于垂直距离且超过阈值
+  if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
+    if (deltaX < 0) {
+      // 向左划 -> 切换到右侧 Tab (设置)
+      if (route.path.includes('/mobile/chat')) {
+        router.push('/mobile/settings')
+      }
+    } else {
+      // 向右划 -> 切换到左侧 Tab (聊天)
+      if (route.path.includes('/mobile/settings')) {
+        router.push('/mobile/chat')
+      }
+    }
+  }
+}
 </script>
 
 <template>
@@ -89,7 +131,8 @@ watch(isMobile, (mobile) => {
     </div>
 
     <!-- Mobile Router Mode -->
-    <div class="app-body isMobile" v-else>
+    <div class="app-body isMobile" v-else @touchstart="handleTouchStart" @touchmove="handleTouchMove"
+      @touchend="handleTouchEnd">
       <div class="router-container">
         <router-view v-slot="{ Component }">
           <transition :name="transitionName">
