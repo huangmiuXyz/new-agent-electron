@@ -133,9 +133,6 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
       <div v-if="!chatsStore.allChats.length" class="empty-state">
         <!-- Mobile Modern Empty State -->
         <template v-if="isMobile">
-          <div class="empty-illustration">
-            <div class="chat-bubble-sketch"></div>
-          </div>
           <p class="empty-text">这里空空如也</p>
           <button @click="createNewChat" class="modern-btn">
             发起新对话
