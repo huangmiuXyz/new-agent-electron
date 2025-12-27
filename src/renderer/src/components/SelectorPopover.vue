@@ -51,7 +51,7 @@ const triggerClick = () => {
 </script>
 
 <template>
-  <div class="selector">
+  <div class="selector" ref="containerRef">
     <div @click="triggerClick">
       <slot name="trigger"></slot>
     </div>
@@ -74,7 +74,7 @@ const triggerClick = () => {
         </div>
       </template>
     </BaseModal>
-    <div v-if="!isMobile" class="selector-wrapper" ref="containerRef">
+    <div v-if="!isMobile" class="selector-wrapper">
       <div class="selector-popup" :class="{
         show: visiable,
         'position-bottom': (position || 'top') === 'top',

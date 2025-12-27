@@ -94,61 +94,33 @@ const handleModelSelect = (id: string) => {
 </script>
 
 <template>
-  <SelectorPopover
-    v-model="isPopupOpen"
-    :data="flatModelList"
-    v-model:searchQuery="searchQuery"
-    placeholder="搜索模型..."
-    noResultsText="未找到模型"
-    :hasResults="filteredModels.length > 0"
-    width="240px"
-    title="选择模型"
-    :position="popupPosition || 'top'"
-  >
+  <SelectorPopover v-model:visiable="isPopupOpen" :data="flatModelList" v-model:searchQuery="searchQuery"
+    placeholder="搜索模型..." noResultsText="未找到模型" :hasResults="filteredModels.length > 0" width="240px" title="选择模型"
+    :position="popupPosition || 'top'">
     <template #trigger>
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
-        <Image
-          style="width: 10px; border-radius: 2px"
-          :src="currentSelectedProvider?.logo"
-          alt=""
-        />
+        <Image style="width: 10px; border-radius: 2px" :src="currentSelectedProvider?.logo" alt="" />
         <span>{{ currentModelLabel }}</span>
         <ChevronDown v-if="!selectedModelId" />
         <X v-else class="clear-btn" @click.stop="clearSelection" />
       </div>
       <Button v-else variant="icon" size="sm">
-        <Image
-          style="width: 15px; border-radius: 2px"
-          :src="currentSelectedProvider?.logo"
-          alt=""
-        />
+        <Image style="width: 15px; border-radius: 2px" :src="currentSelectedProvider?.logo" alt="" />
       </Button>
     </template>
 
-    <List
-      :items="
-        searchModels.map((item) => ({
-          ...item.model,
-          providerId: item.providerId
-        }))
-      "
-      :key-field="'id'"
-      :main-field="'name'"
-      :sub-field="'description'"
-      :show-header="true"
-      :render-header="renderProviderHeader"
-      :selectable="true"
-      :is-selected="isModelSelected"
-      @select="handleModelSelect"
-    >
+    <List :items="searchModels.map((item) => ({
+      ...item.model,
+      providerId: item.providerId
+    }))
+      " :key-field="'id'" :main-field="'name'" :sub-field="'description'" :show-header="true"
+      :render-header="renderProviderHeader" :selectable="true" :is-selected="isModelSelected"
+      @select="handleModelSelect">
       <template #actions="{ item }">
-        <Check
-          :style="{
-            fontSize: '12px',
-            color: '#fff'
-          }"
-          v-if="item.id === selectedModelId"
-        />
+        <Check :style="{
+          fontSize: '12px',
+          color: '#fff'
+        }" v-if="item.id === selectedModelId" />
       </template>
     </List>
   </SelectorPopover>
