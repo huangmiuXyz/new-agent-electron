@@ -1,3 +1,5 @@
+import { App } from '@capacitor/app'
+
 export interface BackButtonOptions {
   enabled: Ref<boolean> | ComputedRef<boolean>
   handler: () => boolean
@@ -12,21 +14,11 @@ export function useBackButton(options?: BackButtonOptions) {
   const router = useRouter()
   const route = useRoute()
 
-  const pushBlockState = () => {
-    if (window.innerWidth >= 768) return
-    if (history.state && history.state.__backBlock) {
-      return
-    }
-
-    history.pushState({ __backBlock: true }, '', location.href)
-  }
-
   const handleBack = () => {
     for (let i = registeredHandlers.length - 1; i >= 0; i--) {
       const h = registeredHandlers[i]
       if (h.enabled.value) {
         if (h.handler()) {
-          pushBlockState()
           return
         }
       }
@@ -41,29 +33,11 @@ export function useBackButton(options?: BackButtonOptions) {
 
     const now = Date.now()
     if (now - lastBackPressTime.value < EXIT_THRESHOLD) {
-      window.close()
+      App.exitApp()
     } else {
       lastBackPressTime.value = now
       messageApi.info('再按一次退出应用')
-      pushBlockState()
     }
-  }
-
-  const onPopState = (event: PopStateEvent) => {
-    if (!event.state || !event.state.__backBlock) {
-      handleBack()
-    }
-  }
-  if (!options) {
-    watch(
-      () => route.fullPath,
-      () => {
-        if (window.innerWidth < 768) {
-          setTimeout(pushBlockState, 200)
-        }
-      },
-      { immediate: true }
-    )
   }
 
   onMounted(() => {
@@ -73,9 +47,34 @@ export function useBackButton(options?: BackButtonOptions) {
 
     if (!isGlobalListenerAdded && window.innerWidth < 768) {
       isGlobalListenerAdded = true
-      window.addEventListener('popstate', onPopState)
+      App.addListener('backButton', () => {
+        handleBack()
+      })
+
+      window.addEventListener('popstate', (event) => {
+        if (!event.state || !event.state.__backBlock) {
+          handleBack()
+        }
+      })
+
+      if (!history.state || !history.state.__backBlock) {
+        history.pushState({ __backBlock: true }, '', location.href)
+      }
     }
   })
+
+  if (!options) {
+    watch(
+      () => route.fullPath,
+      () => {
+        if (window.innerWidth < 768) {
+          if (!history.state || !history.state.__backBlock) {
+            history.pushState({ __backBlock: true }, '', location.href)
+          }
+        }
+      }
+    )
+  }
 
   onUnmounted(() => {
     if (options) {
