@@ -7,9 +7,7 @@ const router = createRouter({
     {
       path: '/',
       redirect: () => {
-        // 如果是移动端，重定向到移动端聊天页
-        // 如果是桌面端，留在根路径 / (App.vue 会默认显示桌面聊天)
-        return isMobile.value ? '/mobile/chat' : undefined
+        return isMobile.value ? '/mobile/chat' : '/'
       }
     },
     {
