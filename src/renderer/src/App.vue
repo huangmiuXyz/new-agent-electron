@@ -186,6 +186,9 @@ const handleTouchEnd = (e: TouchEvent) => {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body {
