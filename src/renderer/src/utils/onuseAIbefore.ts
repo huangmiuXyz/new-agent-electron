@@ -1,7 +1,7 @@
 export const onUseAIBefore = async ({
-  model,
+  model: _model,
   providerType,
-  apiKey,
+  apiKey: _apiKey,
   baseURL
 }: {
   model?: string

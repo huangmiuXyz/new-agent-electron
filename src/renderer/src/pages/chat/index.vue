@@ -2,18 +2,14 @@
 import { useSettingsStore } from '@renderer/stores/settings'
 import Term from '@renderer/components/term.vue'
 
-const settingsStore = useSettingsStore()
-const { showChat } = useMobile()
+const settingsStore = useSettingsStore() 
 </script>
 
 <template>
   <div class="chat-app">
     <!-- 左侧边栏 -->
-    <div
-      v-if="!showChat || !isMobile"
-      class="sidebar-wrapper"
-      :class="{ isMobile, collapsed: settingsStore.display.sidebarCollapsed }"
-    >
+    <div v-if="!isMobile" class="sidebar-wrapper"
+      :class="{ isMobile, collapsed: settingsStore.display.sidebarCollapsed }">
       <ChatSidebar />
     </div>
 
@@ -59,6 +55,7 @@ const { showChat } = useMobile()
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 180px;
 }
+
 .sidebar-wrapper.isMobile {
   width: 100%;
   position: absolute;
@@ -66,6 +63,7 @@ const { showChat } = useMobile()
   z-index: 2;
   height: 100%;
 }
+
 .sidebar-wrapper.collapsed {
   width: 0;
 }

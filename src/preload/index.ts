@@ -6,7 +6,7 @@ import path from 'path'
 import mime from 'mime-types'
 import url from 'url'
 import { app } from '@electron/remote'
-import { exec, spawn } from 'child_process'
+import { exec } from 'child_process'
 import os from 'os'
 // Custom APIs for renderer
 
