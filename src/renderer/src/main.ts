@@ -1,3 +1,5 @@
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import piniaPersist from 'pinia-plugin-persistedstate-async'
 
 import App from './App.vue'
@@ -11,4 +13,6 @@ pinia.use(piniaPersist)
 app.use(pinia)
 app.use(router)
 
-app.mount('#app')
+router.isReady().then(() => {
+  app.mount('#app')
+})

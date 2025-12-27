@@ -64,8 +64,10 @@ router.beforeEach((to, from) => {
 
 watch(isMobile, (mobile) => {
   if (mobile) {
-    if (currentView.value === 'chat') router.push('/mobile/chat')
-    else router.push('/mobile/settings')
+    if (route.path === '/') {
+      if (currentView.value === 'chat') router.replace('/mobile/chat')
+      else router.replace('/mobile/settings')
+    }
   } else {
     if (route.path.includes('settings')) switchView('settings')
     else switchView('chat')
