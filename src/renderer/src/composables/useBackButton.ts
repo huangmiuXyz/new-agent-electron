@@ -73,7 +73,6 @@ export function useBackButton(options?: BackButtonOptions) {
 
     if (!isGlobalListenerAdded && window.innerWidth < 768) {
       isGlobalListenerAdded = true
-      console.log('[BackButton] Adding global popstate listener')
       window.addEventListener('popstate', onPopState)
     }
   })
