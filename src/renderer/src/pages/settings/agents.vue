@@ -28,12 +28,7 @@ const getKnowledgeBaseName = (kbId: string) => {
         </div>
 
         <div class="agent-list">
-          <div
-            v-for="agent in agents"
-            :key="agent.id"
-            class="agent-card"
-            @click="selectAgent(agent.id)"
-          >
+          <div v-for="agent in agents" :key="agent.id" class="agent-card" @click="selectAgent(agent.id)">
             <div class="card-header">
               <div class="agent-info">
                 <div class="agent-name-row">
@@ -49,14 +44,8 @@ const getKnowledgeBaseName = (kbId: string) => {
                     <Pencil />
                   </template>
                 </Button>
-                <Button
-                  v-if="agent.id !== 'default'"
-                  size="sm"
-                  variant="text"
-                  class="delete-btn"
-                  @click="handleDelete(agent.id)"
-                  title="删除"
-                >
+                <Button v-if="agent.id !== 'default'" size="sm" variant="text" class="delete-btn"
+                  @click="handleDelete(agent.id)" title="删除">
                   <template #icon>
                     <Trash />
                   </template>
@@ -70,22 +59,15 @@ const getKnowledgeBaseName = (kbId: string) => {
                 <div class="preview-text">{{ agent.systemPrompt }}</div>
               </div>
 
-              <div
-                v-if="
-                  agent.mcpServers.filter((name) => mcpServers[name] && mcpServers[name].active)
-                    .length > 0
-                "
-                class="mcp-list"
-              >
+              <div v-if="
+                agent.mcpServers.filter((name) => mcpServers[name] && mcpServers[name].active)
+                  .length > 0
+              " class="mcp-list">
                 <div class="mcp-list-label">MCP 服务器:</div>
                 <div class="mcp-tags">
-                  <span
-                    v-for="serverName in agent.mcpServers.filter(
-                      (name) => mcpServers[name] && mcpServers[name].active
-                    )"
-                    :key="serverName"
-                    class="mcp-tag"
-                  >
+                  <span v-for="serverName in agent.mcpServers.filter(
+                    (name) => mcpServers[name] && mcpServers[name].active
+                  )" :key="serverName" class="mcp-tag">
                     {{ serverName }}
                   </span>
                 </div>
@@ -107,10 +89,7 @@ const getKnowledgeBaseName = (kbId: string) => {
                   </span>
                 </div>
               </div>
-              <div
-                v-if="agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0"
-                class="knowledge-list"
-              >
+              <div v-if="agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0" class="knowledge-list">
                 <div class="knowledge-list-label">关联知识库:</div>
                 <div class="knowledge-tags">
                   <span v-for="kbId in agent.knowledgeBaseIds" :key="kbId" class="knowledge-tag">
@@ -139,7 +118,7 @@ const getKnowledgeBaseName = (kbId: string) => {
 
 .agents-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
 }
 

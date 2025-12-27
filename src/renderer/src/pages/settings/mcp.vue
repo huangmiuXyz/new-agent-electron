@@ -106,13 +106,13 @@ const openServerModal = async (server?: any) => {
   const initialData = server
     ? { ...server }
     : {
-        command: '',
-        args: [],
-        env: {},
-        name: '',
-        active: true,
-        transport: 'stdio' // 默认类型
-      }
+      command: '',
+      args: [],
+      env: {},
+      name: '',
+      active: true,
+      transport: 'stdio' // 默认类型
+    }
 
   const [FormComponent, formActions] = useForm({
     title: modalTitle,
@@ -287,44 +287,26 @@ const toggleExpand = (name: string) => {
               </div>
 
               <div class="server-actions">
-                <Button
-                  size="sm"
-                  variant="text"
-                  @click="fetchTools(server)"
-                  :loading="activeMcpLoading === name"
-                  v-if="server.active"
-                  title="刷新工具列表"
-                >
+                <Button size="sm" variant="text" @click="fetchTools(server)" :loading="activeMcpLoading === name"
+                  v-if="server.active" title="刷新工具列表">
                   <template #icon>
                     <Refresh />
                   </template>
                 </Button>
-                <Switch
-                  :loading="activeMcpLoading === name"
-                  :model-value="server.active"
-                  @update:model-value="toggleActive(server)"
-                />
+                <Switch :loading="activeMcpLoading === name" :model-value="server.active"
+                  @update:model-value="toggleActive(server)" />
                 <Button size="sm" variant="text" @click="openServerModal(server)">
                   <template #icon>
                     <Pencil />
                   </template>
                 </Button>
-                <Button
-                  size="sm"
-                  variant="text"
-                  class="delete-btn"
-                  @click="handleDelete(name as string)"
-                >
+                <Button size="sm" variant="text" class="delete-btn" @click="handleDelete(name as string)">
                   <template #icon>
                     <Trash />
                   </template>
                 </Button>
-                <Button
-                  size="sm"
-                  variant="text"
-                  @click="toggleExpand(name as string)"
-                  v-if="server.active && Object.keys(server.tools || {})?.length"
-                >
+                <Button size="sm" variant="text" @click="toggleExpand(name as string)"
+                  v-if="server.active && Object.keys(server.tools || {})?.length">
                   <template #icon>
                     <ChevronUp v-if="expandedKeys[name as string]" />
                     <ChevronDown v-else />
@@ -391,6 +373,8 @@ const toggleExpand = (name: string) => {
 .header-actions {
   display: flex;
   gap: 8px;
+  width: 100%;
+  justify-content: space-between;
 }
 
 .server-list {
