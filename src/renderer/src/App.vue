@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ChatPage from './pages/chat/index.vue'
 import SettingsPage from './pages/settings/index.vue'
+
 const currentView = ref('chat')
 
 const switchView = (view: 'chat' | 'settings') => {
@@ -39,10 +40,7 @@ router.beforeEach((to, from) => {
 
   if (toDepth > fromDepth) {
     transitionName.value = 'slide-left'
-  } else if (toDepth < fromDepth) {
-    transitionName.value = 'slide-right'
-  } else {
-    // Sibling navigation - handle tab switching
+  } else if (toDepth < fromDepth) { transitionName.value = 'slide-right' } else {
     const getTabIndex = (path: string) => {
       if (path.includes('/mobile/chat')) return 0
       if (path.includes('/mobile/settings')) return 1
@@ -100,15 +98,12 @@ const handleTouchEnd = (e: TouchEvent) => {
   const deltaX = touchEndX - touchStartX.value
   const deltaY = touchEndY - touchStartY.value
 
-  // 水平滑动判断：水平距离大于垂直距离且超过阈值
   if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
     if (deltaX < 0) {
-      // 向左划 -> 切换到右侧 Tab (设置)
       if (route.path.includes('/mobile/chat')) {
         router.push('/mobile/settings')
       }
     } else {
-      // 向右划 -> 切换到左侧 Tab (聊天)
       if (route.path.includes('/mobile/settings')) {
         router.push('/mobile/chat')
       }
