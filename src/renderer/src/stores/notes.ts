@@ -242,7 +242,6 @@ export const useNotesStore = defineStore('notes', {
         }
 
         addDocumentToKnowledgeBase(knowledgeBase.id, document)
-        await embedding(document, knowledgeBase)
       } else if (type === 'folder') {
         // 发送文件夹及其所有子文件夹的笔记到知识库
         const notesInFolder = this.getAllNotesInFolder(item.id)
