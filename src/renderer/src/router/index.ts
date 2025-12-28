@@ -57,12 +57,12 @@ const router = createRouter({
         {
           path: '/mobile/settings/models/:id',
           component: () => import('../pages/mobile/ModelProviderDetail.vue'),
-          meta: { depth: 2 }
+          meta: { depth: 3 }
         },
         {
           path: '/mobile/settings/knowledge/:id',
           component: () => import('../pages/mobile/KnowledgeDetail.vue'),
-          meta: { depth: 2 }
+          meta: { depth: 3 }
         }
       ]
     }
