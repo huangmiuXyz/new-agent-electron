@@ -225,7 +225,6 @@ export const useNotesStore = defineStore('notes', {
       const { addDocumentToKnowledgeBase } = useKnowledgeStore()
 
       if (type === 'note') {
-        // 发送单个笔记到知识库
         const note = this.notes.find((n) => n.id === item.id)
         if (!note) return
 
@@ -243,7 +242,6 @@ export const useNotesStore = defineStore('notes', {
 
         addDocumentToKnowledgeBase(knowledgeBase.id, document)
       } else if (type === 'folder') {
-        // 发送文件夹及其所有子文件夹的笔记到知识库
         const notesInFolder = this.getAllNotesInFolder(item.id)
 
         for (const note of notesInFolder) {
