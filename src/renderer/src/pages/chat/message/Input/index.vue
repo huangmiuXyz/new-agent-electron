@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { FileUIPart, TextUIPart } from 'ai'
 import { useTerminal } from '@renderer/composables/useTerminal'
+import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
 
 const message = ref('')
 const chatStore = useChatsStores()
@@ -21,6 +22,8 @@ const { toggleTerminal } = useTerminal()
 const FileUploadIcon = useIcon('FileUpload')
 const Bulb = useIcon('Bulb')
 const TerminalIcon = useIcon('Terminal')
+const MicIcon = useIcon('Mic')
+const MicOffIcon = useIcon('MicOff')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -35,6 +38,43 @@ const handleFilesSelected = (files: Array<UploadFile>) => {
 // 处理文件移除
 const handleFileRemoved = (index: number) => {
   selectedFiles.value.splice(index, 1)
+}
+
+// 语音录制
+const isRecording = ref(false)
+const isListening = ref(false)
+const isProcessingVoice = ref(false)
+
+const { start: startVoice, stop: stopVoice, state: voiceState, isActive: voiceIsActive } = useContinuousVoiceRecorder({
+  volumeThreshold: 0.02,
+  silenceDuration: 800,
+  onSpeechEnd: async (audio: Blob) => {
+    isProcessingVoice.value = true
+    try {
+      // 暂时不进行实际的API调用
+      console.log('语音录制完成:', audio)
+      // TODO: 这里可以添加语音转文字的逻辑
+      // 模拟处理延迟
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    } finally {
+      isProcessingVoice.value = false
+    }
+  }
+})
+
+// 监听语音状态变化
+watch(voiceState, (newState) => {
+  isListening.value = newState === 'listening'
+  isRecording.value = newState === 'recording'
+})
+
+// 切换语音录制
+const toggleVoiceRecording = async () => {
+  if (voiceIsActive.value) {
+    stopVoice()
+  } else {
+    await startVoice()
+  }
 }
 
 const adjustTextareaHeight = (event: Event) => {
@@ -83,8 +123,9 @@ const _sendMessage = async () => {
         @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
       <textarea ref="textareaRef" class="input-field" rows="1"
-        :placeholder="currentSelectedModel?.name && currentSelectedProvider?.name ? `${currentSelectedProvider?.name}：${currentSelectedModel?.name}` : '请选择模型'"
-        v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="_sendMessage"></textarea>
+        :placeholder="isProcessingVoice ? '正在处理语音...' : (currentSelectedModel?.name && currentSelectedProvider?.name ? `${currentSelectedProvider?.name}：${currentSelectedModel?.name}` : '请选择模型')"
+        v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="_sendMessage"
+        :disabled="isProcessingVoice"></textarea>
 
       <div class="input-actions">
         <div class="action-left">
@@ -101,6 +142,13 @@ const _sendMessage = async () => {
           <Button variant="icon" size="sm" :class="{ 'terminal-active': display.showTerminal }" @click="toggleTerminal"
             title="显示终端">
             <TerminalIcon />
+          </Button>
+
+          <!-- 语音录制按钮 -->
+          <Button variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }" @click="toggleVoiceRecording"
+            :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'">
+            <MicIcon v-if="!voiceIsActive" />
+            <MicOffIcon v-else />
           </Button>
 
           <!-- 智能体选择器 -->
@@ -219,5 +267,23 @@ const _sendMessage = async () => {
 .terminal-active {
   color: var(--primary-color, #007bff);
   background-color: rgba(0, 123, 255, 0.1);
+}
+
+.voice-active {
+  color: var(--primary-color, #007bff);
+  background-color: rgba(0, 123, 255, 0.1);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
 }
 </style>
