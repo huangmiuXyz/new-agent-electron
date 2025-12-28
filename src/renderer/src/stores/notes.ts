@@ -218,6 +218,68 @@ export const useNotesStore = defineStore('notes', {
     // 设置当前笔记
     setCurrentNote(noteId: string | null) {
       this.currentNoteId = noteId
+    },
+
+    // 发送到知识库
+    async sendToKnowledgeBase(type: 'note' | 'folder', item: any, knowledgeBase: KnowledgeBase) {
+      const { addDocumentToKnowledgeBase } = useKnowledgeStore()
+
+      if (type === 'note') {
+        // 发送单个笔记到知识库
+        const note = this.notes.find((n) => n.id === item.id)
+        if (!note) return
+
+        const document: KnowledgeDocument = {
+          id: `note-${note.id}`,
+          name: note.title,
+          path: `note://${note.id}`,
+          type: 'text',
+          size: note.content.length,
+          created: Date.now(),
+          status: 'processing',
+          chunks: [],
+          url: note.content
+        }
+
+        addDocumentToKnowledgeBase(knowledgeBase.id, document)
+        await embedding(document, knowledgeBase)
+      } else if (type === 'folder') {
+        // 发送文件夹及其所有子文件夹的笔记到知识库
+        const notesInFolder = this.getAllNotesInFolder(item.id)
+
+        for (const note of notesInFolder) {
+          const document: KnowledgeDocument = {
+            id: `note-${note.id}`,
+            name: note.title,
+            path: `note://${note.id}`,
+            type: 'text',
+            size: note.content.length,
+            created: Date.now(),
+            status: 'processing',
+            chunks: [],
+            url: note.content
+          }
+
+          addDocumentToKnowledgeBase(knowledgeBase.id, document)
+        }
+      }
+    },
+
+    // 获取文件夹及其所有子文件夹中的所有笔记
+    getAllNotesInFolder(folderId: string): Note[] {
+      const notes: Note[] = []
+
+      // 获取当前文件夹的笔记
+      const folderNotes = this.notes.filter((note) => note.folderId === folderId)
+      notes.push(...folderNotes)
+
+      // 递归获取子文件夹的笔记
+      const subFolders = this.folders.filter((folder) => folder.parentId === folderId)
+      for (const subFolder of subFolders) {
+        notes.push(...this.getAllNotesInFolder(subFolder.id))
+      }
+
+      return notes
     }
   }
 })

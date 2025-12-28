@@ -132,6 +132,10 @@ const activeId = computed(() => {
 const showNoteContextMenu = (event: MouseEvent, note: any) => {
     const options = [
         {
+            label: '发送到知识库',
+            onClick: () => sendToKnowledgeBase('note', note)
+        },
+        {
             label: '重命名',
             onClick: () => renameNote(note)
         },
@@ -165,9 +169,8 @@ const showCreateMenu = (event: MouseEvent) => {
 const showFolderContextMenu = (event: MouseEvent, folder: any) => {
     const options = [
         {
-            label: '新建子文件夹',
-            icon: Folder,
-            onClick: () => createNewFolder(folder.id)
+            label: '发送到知识库',
+            onClick: () => sendToKnowledgeBase('folder', folder)
         },
         {
             label: '重命名',
@@ -195,13 +198,10 @@ const createNewFolder = async (parentId: string | null = null) => {
         ],
         onSubmit: (data) => {
             if (data.name) {
-                const newFolder = notesStore.createFolder(data.name, parentId)
-                // 如果是在根目录创建（parentId 为 null），返回文件夹列表视图
-                // 如果是在文件夹内创建，保持当前视图不变
+                notesStore.createFolder(data.name, parentId)
                 if (!parentId) {
                     notesStore.setCurrentFolder(null)
                 }
-                // 在文件夹内创建时，不需要做任何操作，保持当前视图
             }
         }
     })
@@ -305,6 +305,51 @@ const deleteNote = async (note: any) => {
         title: '删除笔记',
         content: `确定要删除笔记"${note.title}"吗？`
     }) && notesStore.deleteNote(note.id)
+}
+
+// 发送到知识库
+const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
+    const { knowledgeBases } = useKnowledgeStore()
+
+    if (knowledgeBases.length === 0) {
+        await confirm({
+            title: '提示',
+            content: '当前没有知识库。请先在设置中创建知识库。'
+        })
+        return
+    }
+
+    const knowledgeBaseOptions = knowledgeBases.map(kb => ({
+        label: kb.name,
+        value: kb.id
+    }))
+
+    const [FormComponent, formActions] = useForm({
+        fields: [
+            {
+                name: 'knowledgeBaseId',
+                label: '选择知识库',
+                type: 'select',
+                options: knowledgeBaseOptions,
+                required: true
+            }
+        ],
+        onSubmit: async (data) => {
+            if (data.knowledgeBaseId) {
+                const knowledgeBase = knowledgeBases.find(kb => kb.id === data.knowledgeBaseId)
+                if (knowledgeBase) {
+                    await notesStore.sendToKnowledgeBase(type, item, knowledgeBase)
+                }
+            }
+        }
+    })
+
+    const title = type === 'note' ? `发送笔记"${item.title}"到知识库` : `发送文件夹"${item.name}"到知识库`
+
+    await confirm({
+        title,
+        content: FormComponent
+    }) && formActions.submit()
 }
 
 

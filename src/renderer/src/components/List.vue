@@ -285,10 +285,4 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-
-.list-item.is-last {
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
-  border-bottom: none;
-}
 </style>

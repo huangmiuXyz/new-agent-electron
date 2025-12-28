@@ -87,7 +87,11 @@ export const RAGService = () => {
   const splitter = async (doc: KnowledgeDocument, splitOptions: SplitOptions) => {
     let text = ''
     try {
-      text = window.api.fs.readFileSync(window.api.url.fileURLToPath(doc.path), 'utf-8')
+      if (doc.path.startsWith('note://')) {
+        text = doc.url || ''
+      } else {
+        text = window.api.fs.readFileSync(window.api.url.fileURLToPath(doc.path), 'utf-8')
+      }
     } catch (error) {
       doc.url && (text = base64ToText(doc.url))
     }
@@ -273,12 +277,13 @@ export const RAGService = () => {
         }
       })
     } else {
-      const allChunks = knowledgeBase.documents?.flatMap((doc) =>
-        (doc.chunks || []).map((chunk) => ({
-          ...chunk,
-          documentId: doc.id
-        }))
-      ) || []
+      const allChunks =
+        knowledgeBase.documents?.flatMap((doc) =>
+          (doc.chunks || []).map((chunk) => ({
+            ...chunk,
+            documentId: doc.id
+          }))
+        ) || []
       if (allChunks.length === 0) {
         return []
       }

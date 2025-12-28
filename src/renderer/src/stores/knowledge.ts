@@ -62,7 +62,8 @@ export const useKnowledgeStore = defineStore(
           if (!knowledgeBase.documents) {
             knowledgeBase.documents = []
           }
-          knowledgeBase.documents.push(document)
+          // 创建新数组以触发响应式更新
+          knowledgeBase.documents = [...knowledgeBase.documents, document]
         }
       }
     }
