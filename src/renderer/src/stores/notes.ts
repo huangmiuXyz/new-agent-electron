@@ -260,6 +260,7 @@ export const useNotesStore = defineStore('notes', {
           addDocumentToKnowledgeBase(knowledgeBase.id, document)
         }
       }
+      messageApi.success('发送成功')
     },
 
     // 获取文件夹及其所有子文件夹中的所有笔记
