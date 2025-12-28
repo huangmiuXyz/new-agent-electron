@@ -88,14 +88,12 @@ export const useNotesStore = defineStore('notes', {
 
       if (savedFolders) {
         this.folders = JSON.parse(savedFolders)
-        // 兼容旧数据：确保所有文件夹都有 parentId 字段
         this.folders.forEach((folder) => {
           if (folder.parentId === undefined) {
             folder.parentId = null
           }
         })
       } else {
-        // 创建默认文件夹
         this.createFolder('默认文件夹')
       }
 
