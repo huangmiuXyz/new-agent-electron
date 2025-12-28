@@ -21,7 +21,7 @@
         <div class="modal-footer">
           <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
-          }}</Button>
+            }}</Button>
           <Button ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button"
             @click="handleConfirm">
             {{ props.confirmText || '确认' }}
@@ -158,6 +158,7 @@ const handleCancel = () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  max-height: 90vh;
 }
 
 /* 动画部分 */
