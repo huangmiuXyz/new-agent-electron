@@ -369,7 +369,7 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
 
 <template>
   <!-- 列表视图 -->
-  <SettingsListContainer v-if="showList">
+  <ListContainer v-if="showList">
     <List title="知识库" :items="knowledgeBases" :active-id="activeKnowledgeBaseId" @select="selectKnowledgeBase"
       @contextmenu="
         (event, item) =>
@@ -384,10 +384,10 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
         </Button>
       </template>
     </List>
-  </SettingsListContainer>
+  </ListContainer>
 
   <!-- 表单视图 -->
-  <SettingFormContainer v-if="showForm" header-title="知识库管理">
+  <FormContainer v-if="showForm" header-title="知识库管理">
     <template #content>
       <FormItem label="文档列表">
         <Table :loading="loading" :data="filteredDocuments" :columns="[
@@ -523,7 +523,7 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
         </template>
       </FormItem>
     </template>
-  </SettingFormContainer>
+  </FormContainer>
 </template>
 
 <style scoped>

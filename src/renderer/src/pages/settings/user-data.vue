@@ -150,7 +150,7 @@ onMounted(loadFiles)
 </script>
 
 <template>
-  <SettingFormContainer header-title="文件管理">
+  <FormContainer header-title="文件管理">
     <template #content>
       <div class="user-data-page">
         <!-- Toolbar -->
@@ -175,32 +175,24 @@ onMounted(loadFiles)
 
         <!-- File List -->
         <div class="file-table-wrapper">
-          <Table
-            :loading="loading"
-            :data="categorizedFiles"
-            :columns="[
-              { key: 'name', label: '文件名称', width: 100 },
-              { key: 'type', label: '类型', width: 60 },
-              { key: 'size', label: '大小', width: 80 },
-              { key: 'created', label: '创建时间', width: 120 },
-              { key: 'actions', label: '操作', width: 200 }
-            ]"
-          >
+          <Table :loading="loading" :data="categorizedFiles" :columns="[
+            { key: 'name', label: '文件名称', width: 100 },
+            { key: 'type', label: '类型', width: 60 },
+            { key: 'size', label: '大小', width: 80 },
+            { key: 'created', label: '创建时间', width: 120 },
+            { key: 'actions', label: '操作', width: 200 }
+          ]">
             <template #name="{ row }">
               <div class="file-name-cell">
                 <Button @click="openFolder(row.path)" variant="text" size="sm" class="name-text">
                   <template #icon>
-                    <component
-                      :is="
-                        useIcon(
-                          getFileIcon({
-                            name: row.name,
-                            mediaType: row.type
-                          })
-                        )
-                      "
-                      class="file-icon"
-                    />
+                    <component :is="useIcon(
+                      getFileIcon({
+                        name: row.name,
+                        mediaType: row.type
+                      })
+                    )
+                      " class="file-icon" />
                   </template>
                   {{ row.name }}
                 </Button>
@@ -213,13 +205,8 @@ onMounted(loadFiles)
               {{ formatTime(row.created) }}
             </template>
             <template #actions="{ row }">
-              <Button
-                @click="deleteFile(row)"
-                size="sm"
-                variant="text"
-                :loading="deletingFile === row.name"
-                class="delete-btn"
-              >
+              <Button @click="deleteFile(row)" size="sm" variant="text" :loading="deletingFile === row.name"
+                class="delete-btn">
                 <template #icon>
                   <Trash />
                 </template>
@@ -232,7 +219,7 @@ onMounted(loadFiles)
         </div>
       </div>
     </template>
-  </SettingFormContainer>
+  </FormContainer>
 </template>
 
 <style scoped>

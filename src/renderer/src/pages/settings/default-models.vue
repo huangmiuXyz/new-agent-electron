@@ -56,11 +56,11 @@ const [DefaultModelsForm] = useForm({
 </script>
 
 <template>
-    <SettingFormContainer header-title="默认模型设置">
+    <FormContainer header-title="默认模型设置">
         <template #content>
             <DefaultModelsForm />
         </template>
-    </SettingFormContainer>
+    </FormContainer>
 </template>
 
 <style scoped>

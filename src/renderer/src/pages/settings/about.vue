@@ -72,7 +72,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <SettingFormContainer header-title="关于我们">
+  <FormContainer header-title="关于我们">
     <template #content>
       <div class="about-wrapper">
         <FormItem>
@@ -97,21 +97,14 @@ onUnmounted(() => {
                 <span v-if="updateStatus === 'idle'">检查新版本</span>
                 <span v-else-if="updateStatus === 'checking'">正在检查更新...</span>
                 <span v-else-if="updateStatus === 'not-available'">当前已是最新版本</span>
-                <span v-else-if="updateStatus === 'available'"
-                  >发现新版本 {{ updateInfo?.version }}</span
-                >
+                <span v-else-if="updateStatus === 'available'">发现新版本 {{ updateInfo?.version }}</span>
                 <span v-else-if="updateStatus === 'downloading'">正在下载更新...</span>
                 <span v-else-if="updateStatus === 'downloaded'">更新已就绪</span>
-                <span v-else-if="updateStatus === 'error'" class="error-text"
-                  >检查失败: {{ errorMessage }}</span
-                >
+                <span v-else-if="updateStatus === 'error'" class="error-text">检查失败: {{ errorMessage }}</span>
               </div>
 
               <div class="update-actions">
-                <Button
-                  v-if="['idle', 'not-available', 'error'].includes(updateStatus)"
-                  @click="checkUpdates"
-                >
+                <Button v-if="['idle', 'not-available', 'error'].includes(updateStatus)" @click="checkUpdates">
                   检查更新
                 </Button>
                 <Button v-if="updateStatus === 'available'" @click="startDownload">
@@ -132,23 +125,14 @@ onUnmounted(() => {
             </div>
 
             <!-- Release Notes -->
-            <div
-              v-if="updateInfo?.releaseNotes && updateStatus === 'available'"
-              class="release-notes"
-            >
+            <div v-if="updateInfo?.releaseNotes && updateStatus === 'available'" class="release-notes">
               <div class="notes-content" v-html="updateInfo.releaseNotes"></div>
             </div>
           </Card>
         </FormItem>
 
         <FormItem label="相关链接">
-          <List
-            :items="aboutLinks"
-            variant="card"
-            key-field="url"
-            main-field="name"
-            @select="handleLinkClick"
-          >
+          <List :items="aboutLinks" variant="card" key-field="url" main-field="name" @select="handleLinkClick">
             <template #actions>
               <component :is="ChevronRight" class="link-icon" />
             </template>
@@ -156,7 +140,7 @@ onUnmounted(() => {
         </FormItem>
       </div>
     </template>
-  </SettingFormContainer>
+  </FormContainer>
 </template>
 
 <style scoped>

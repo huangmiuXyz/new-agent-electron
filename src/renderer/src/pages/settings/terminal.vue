@@ -82,11 +82,11 @@ const [TerminalForm] = useForm({
 </script>
 
 <template>
-  <SettingFormContainer header-title="终端设置">
+  <FormContainer header-title="终端设置">
     <template #content>
       <TerminalForm />
     </template>
-  </SettingFormContainer>
+  </FormContainer>
 </template>
 
 <style scoped></style>

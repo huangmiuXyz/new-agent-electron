@@ -37,9 +37,9 @@ const [DisplayForm] = useForm({
 </script>
 
 <template>
-  <SettingFormContainer header-title="显示设置">
+  <FormContainer header-title="显示设置">
     <template #content>
       <DisplayForm />
     </template>
-  </SettingFormContainer>
+  </FormContainer>
 </template>

@@ -331,12 +331,12 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
 
 <template>
   <!-- 列表视图 -->
-  <SettingsListContainer v-if="showList">
+  <ListContainer v-if="showList">
     <List title="提供商" :items="providers" :active-id="activeProviderId" @select="selectProvider" />
-  </SettingsListContainer>
+  </ListContainer>
 
   <!-- 表单视图 -->
-  <SettingFormContainer v-if="showForm" header-title="模型提供商">
+  <FormContainer v-if="showForm" header-title="模型提供商">
     <template #content>
       <ProviderForm>
         <template #footer>
@@ -406,6 +406,6 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
         </template>
       </ProviderForm>
     </template>
-  </SettingFormContainer>
+  </FormContainer>
 </template>
 <style scoped></style>

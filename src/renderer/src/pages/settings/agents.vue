@@ -15,7 +15,7 @@ const getKnowledgeBaseName = (kbId: string) => {
 </script>
 
 <template>
-  <SettingFormContainer header-title="智能体管理">
+  <FormContainer header-title="智能体管理">
     <template #content>
       <div class="agents-container">
         <div class="agents-header">
@@ -106,7 +106,7 @@ const getKnowledgeBaseName = (kbId: string) => {
         </div>
       </div>
     </template>
-  </SettingFormContainer>
+  </FormContainer>
 </template>
 
 <style scoped>

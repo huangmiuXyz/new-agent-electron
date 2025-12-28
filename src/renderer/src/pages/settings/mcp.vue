@@ -240,7 +240,7 @@ const toggleExpand = (name: string) => {
 </script>
 
 <template>
-  <SettingFormContainer header-title="MCP 服务器">
+  <FormContainer header-title="MCP 服务器">
     <template #content>
       <div class="mcp-container">
         <div class="mcp-header">
@@ -349,7 +349,7 @@ const toggleExpand = (name: string) => {
         </div>
       </div>
     </template>
-  </SettingFormContainer>
+  </FormContainer>
 </template>
 
 <style scoped>
