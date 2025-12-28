@@ -50,31 +50,8 @@ export function useBackButton(options?: BackButtonOptions) {
       App.addListener('backButton', () => {
         handleBack()
       })
-
-      window.addEventListener('popstate', (event) => {
-        if (!event.state || !event.state.__backBlock) {
-          handleBack()
-        }
-      })
-
-      if (!history.state || !history.state.__backBlock) {
-        history.pushState({ __backBlock: true }, '', location.href)
-      }
     }
   })
-
-  if (!options) {
-    watch(
-      () => route.fullPath,
-      () => {
-        if (window.innerWidth < 768) {
-          if (!history.state || !history.state.__backBlock) {
-            history.pushState({ __backBlock: true }, '', location.href)
-          }
-        }
-      }
-    )
-  }
 
   onUnmounted(() => {
     if (options) {
