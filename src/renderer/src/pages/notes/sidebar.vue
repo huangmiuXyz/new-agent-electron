@@ -32,15 +32,36 @@ const handleNoteSelect = (noteId: string) => {
 
 // 返回到文件夹列表
 const handleBackToFolders = () => {
-    notesStore.setCurrentFolder(null)
+    if (notesStore.currentFolder) {
+        // 如果当前文件夹有父文件夹，则返回到父文件夹
+        if (notesStore.currentFolder.parentId) {
+            notesStore.setCurrentFolder(notesStore.currentFolder.parentId)
+        } else {
+            // 否则返回到根目录
+            notesStore.setCurrentFolder(null)
+        }
+    }
 }
 
 // 合并文件夹和笔记到一个列表
 const combinedList = computed(() => {
     const items: any[] = []
 
-    // 如果有当前文件夹，只显示该文件夹下的笔记
+    // 如果有当前文件夹，显示该文件夹下的子文件夹和笔记
     if (notesStore.currentFolderId) {
+        // 先显示子文件夹
+        notesStore.currentSubFolders.forEach(folder => {
+            items.push({
+                id: folder.id,
+                name: folder.name,
+                type: 'folder',
+                icon: Folder,
+                createdAt: folder.createdAt,
+                updatedAt: folder.updatedAt
+            })
+        })
+
+        // 再显示笔记
         notesStore.notesInCurrentFolder.forEach(note => {
             items.push({
                 id: note.id,
@@ -52,8 +73,8 @@ const combinedList = computed(() => {
             })
         })
     } else {
-        // 没有选中文件夹时，显示所有文件夹
-        notesStore.folders.forEach(folder => {
+        // 没有选中文件夹时，显示所有根文件夹
+        notesStore.rootFolders.forEach(folder => {
             items.push({
                 id: folder.id,
                 name: folder.name,
@@ -108,21 +129,6 @@ const activeId = computed(() => {
     return notesStore.currentFolderId
 })
 
-const showFolderContextMenu = (event: MouseEvent, folder: any) => {
-    const options = [
-        {
-            label: '重命名',
-            onClick: () => renameFolder(folder)
-        },
-        {
-            label: '删除',
-            danger: true,
-            onClick: () => deleteFolder(folder)
-        }
-    ]
-    showContextMenu(event, options, { type: 'folder', data: folder })
-}
-
 const showNoteContextMenu = (event: MouseEvent, note: any) => {
     const options = [
         {
@@ -143,7 +149,7 @@ const showCreateMenu = (event: MouseEvent) => {
         {
             label: '新建文件夹',
             icon: Folder,
-            onClick: () => createNewFolder()
+            onClick: () => createNewFolder(notesStore.currentFolderId)
         },
         {
             label: '新建笔记',
@@ -155,7 +161,28 @@ const showCreateMenu = (event: MouseEvent) => {
     showContextMenu(event, options)
 }
 
-const createNewFolder = async () => {
+// 显示文件夹右键菜单
+const showFolderContextMenu = (event: MouseEvent, folder: any) => {
+    const options = [
+        {
+            label: '新建子文件夹',
+            icon: Folder,
+            onClick: () => createNewFolder(folder.id)
+        },
+        {
+            label: '重命名',
+            onClick: () => renameFolder(folder)
+        },
+        {
+            label: '删除',
+            danger: true,
+            onClick: () => deleteFolder(folder)
+        }
+    ]
+    showContextMenu(event, options, { type: 'folder', data: folder })
+}
+
+const createNewFolder = async (parentId: string | null = null) => {
     const [FormComponent, formActions] = useForm({
         fields: [
             {
@@ -168,15 +195,19 @@ const createNewFolder = async () => {
         ],
         onSubmit: (data) => {
             if (data.name) {
-                notesStore.createFolder(data.name)
-                // 新建文件夹后返回文件夹列表视图
-                notesStore.setCurrentFolder(null)
+                const newFolder = notesStore.createFolder(data.name, parentId)
+                // 如果是在根目录创建（parentId 为 null），返回文件夹列表视图
+                // 如果是在文件夹内创建，保持当前视图不变
+                if (!parentId) {
+                    notesStore.setCurrentFolder(null)
+                }
+                // 在文件夹内创建时，不需要做任何操作，保持当前视图
             }
         }
     })
 
     await confirm({
-        title: '新建文件夹',
+        title: parentId ? '新建子文件夹' : '新建文件夹',
         content: FormComponent,
     })
         && formActions.submit()
@@ -238,7 +269,7 @@ const renameFolder = async (folder: any) => {
 const deleteFolder = async (folder: any) => {
     await confirm({
         title: '删除文件夹',
-        content: `确定要删除文件夹"${folder.name}"吗？此操作将同时删除该文件夹下的所有笔记。`
+        content: `确定要删除文件夹"${folder.name}"吗？此操作将同时删除该文件夹及其所有子文件夹下的笔记。`
     }) &&
         notesStore.deleteFolder(folder.id)
 }
@@ -291,7 +322,7 @@ const deleteNote = async (note: any) => {
                 @select="handleItemClick" @contextmenu="handleContextMenu">
                 <template #title-tool>
                     <Button v-if="notesStore.currentFolderId" variant="icon" size="sm" @click="handleBackToFolders"
-                        title="返回文件夹列表">
+                        title="返回上一级">
                         <ArrowLeft />
                     </Button>
                     <Button variant="icon" size="sm" @click="showCreateMenu" title="新建">
@@ -378,5 +409,29 @@ const deleteNote = async (note: any) => {
 
 .notes-sidebar:not(.is-mobile) :deep(.list-item.is-active .media-icon) {
     color: var(--text-primary);
+}
+
+/* 文件夹面包屑导航样式 */
+.folder-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 0;
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.breadcrumb-item {
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.breadcrumb-item:hover {
+    color: var(--text-primary);
+}
+
+.breadcrumb-separator {
+    margin: 0 2px;
+    color: var(--text-quaternary);
 }
 </style>

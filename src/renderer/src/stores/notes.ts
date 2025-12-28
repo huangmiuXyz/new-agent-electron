@@ -13,6 +13,7 @@ export interface Note {
 export interface NoteFolder {
   id: string
   name: string
+  parentId: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -43,6 +44,39 @@ export const useNotesStore = defineStore('notes', {
 
     folderNotes: (state) => (folderId: string) => {
       return state.notes.filter((note) => note.folderId === folderId)
+    },
+
+    // 获取根文件夹（没有父文件夹的文件夹）
+    rootFolders: (state) => {
+      return state.folders.filter((folder) => folder.parentId === null)
+    },
+
+    // 获取指定文件夹的子文件夹
+    subFolders: (state) => (parentId: string) => {
+      return state.folders.filter((folder) => folder.parentId === parentId)
+    },
+
+    // 获取当前文件夹的子文件夹
+    currentSubFolders: (state) => {
+      if (!state.currentFolderId) return []
+      return state.folders.filter((folder) => folder.parentId === state.currentFolderId)
+    },
+
+    // 获取文件夹路径（从根到当前文件夹）
+    folderPath: (state) => (folderId: string) => {
+      const path: NoteFolder[] = []
+      let currentFolder = state.folders.find((f) => f.id === folderId)!
+
+      while (currentFolder) {
+        path.unshift(currentFolder)
+        if (currentFolder.parentId) {
+          currentFolder = state.folders.find((f) => f.id === currentFolder.parentId)
+        } else {
+          currentFolder = null
+        }
+      }
+
+      return path
     }
   },
 
@@ -54,6 +88,12 @@ export const useNotesStore = defineStore('notes', {
 
       if (savedFolders) {
         this.folders = JSON.parse(savedFolders)
+        // 兼容旧数据：确保所有文件夹都有 parentId 字段
+        this.folders.forEach((folder) => {
+          if (folder.parentId === undefined) {
+            folder.parentId = null
+          }
+        })
       } else {
         // 创建默认文件夹
         this.createFolder('默认文件夹')
@@ -71,10 +111,11 @@ export const useNotesStore = defineStore('notes', {
     },
 
     // 创建文件夹
-    createFolder(name: string) {
+    createFolder(name: string, parentId: string | null = null) {
       const newFolder: NoteFolder = {
         id: nanoid(),
         name,
+        parentId,
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -94,23 +135,37 @@ export const useNotesStore = defineStore('notes', {
       }
     },
 
-    // 删除文件夹
+    // 删除文件夹（递归删除子文件夹）
     deleteFolder(id: string) {
-      const index = this.folders.findIndex((f) => f.id === id)
-      if (index !== -1) {
-        this.folders.splice(index, 1)
+      // 递归删除所有子文件夹
+      const deleteRecursive = (folderId: string) => {
+        // 找到所有子文件夹
+        const subFolders = this.folders.filter((f) => f.parentId === folderId)
 
-        // 删除文件夹下的所有笔记
-        this.notes = this.notes.filter((note) => note.folderId !== id)
+        // 递归删除每个子文件夹
+        subFolders.forEach((subFolder) => {
+          deleteRecursive(subFolder.id)
+        })
 
-        // 如果删除的是当前文件夹，则切换到默认文件夹
-        if (this.currentFolderId === id) {
-          this.currentFolderId = this.folders.length > 0 ? this.folders[0].id : null
-          this.currentNoteId = null
+        // 删除当前文件夹的笔记
+        this.notes = this.notes.filter((note) => note.folderId !== folderId)
+
+        // 删除文件夹本身
+        const index = this.folders.findIndex((f) => f.id === folderId)
+        if (index !== -1) {
+          this.folders.splice(index, 1)
         }
-
-        this.saveToStorage()
       }
+
+      deleteRecursive(id)
+
+      // 如果删除的是当前文件夹，则切换到根文件夹或清空
+      if (this.currentFolderId === id) {
+        this.currentFolderId = null
+        this.currentNoteId = null
+      }
+
+      this.saveToStorage()
     },
 
     // 创建笔记
