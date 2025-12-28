@@ -422,6 +422,7 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
           <template #status="props">
             <div style="display: flex; flex-direction: column; gap: 4px">
               <Tags v-if="props.row.status === 'processed'" color="blue" :tags="['成功']" />
+              <Tags v-else-if="!props.row.currentChunk! && !props.row.chunks?.length" color="gray" :tags="['未开始']" />
               <div v-else style="width: 100%; display: flex; align-items: center; gap: 8px">
                 <div style="
                     flex: 1;
