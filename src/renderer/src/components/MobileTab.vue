@@ -1,6 +1,9 @@
 <template>
   <div class="mobile-layout light-theme">
-    <nav class="tab-bar">
+    <div class="content-viewport">
+      <RouterView />
+    </div>
+    <nav class="tab-bar" v-if="route.meta.showTabBar">
       <div class="slider-bar" :style="{ transform: `translateX(${currentIndex * 100}%)` }"></div>
       <div v-for="(tab, index) in tabs" :key="tab.key" class="tab-item" :class="{ active: activeTab === tab.key }"
         @click="switchTab(tab)">
@@ -21,8 +24,8 @@ const route = useRoute()
 const emit = defineEmits(['switch'])
 
 const tabs = [
-  { key: 'chat', label: '聊天', icon: useIcon('Chat'), path: '/mobile/chat' },
-  { key: 'settings', label: '设置', icon: useIcon('Settings'), path: '/mobile/settings' }
+  { key: 'chat', label: '聊天', icon: useIcon('Chat'), path: '/mobile/chat/list' },
+  { key: 'settings', label: '设置', icon: useIcon('Settings'), path: '/mobile/settings/list' }
 ]
 
 const currentIndex = computed(() => {
@@ -31,7 +34,6 @@ const currentIndex = computed(() => {
   }
   return 0
 })
-
 const activeTab = computed(() => {
   return tabs[currentIndex.value].key
 })
@@ -53,6 +55,10 @@ const switchTab = (tab) => {
 
 .mobile-layout {
   width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .content-viewport {

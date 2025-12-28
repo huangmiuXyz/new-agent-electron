@@ -21,9 +21,6 @@ watch(() => route.path, () => {
   resetTitle()
 })
 
-const showMobileTab = computed(() => {
-  return ['/mobile/chat', '/mobile/settings'].includes(route.path) || route.path === '/mobile'
-})
 
 const transitionName = ref('fade')
 
@@ -53,7 +50,7 @@ router.beforeEach((to, from) => {
 
 watch(isMobile, (mobile) => {
   if (mobile) {
-    router.replace('/mobile/chat')
+    router.replace('/mobile/chat/list')
   } else {
     router.replace('/chat')
   }
@@ -65,7 +62,7 @@ const isSwiping = ref(false)
 const SWIPE_THRESHOLD = 50
 
 const handleTouchStart = (e: TouchEvent) => {
-  if (!isMobile.value || !showMobileTab.value) return
+  if (!isMobile.value) return
   touchStartX.value = e.touches[0].clientX
   touchStartY.value = e.touches[0].clientY
   isSwiping.value = true
@@ -113,14 +110,7 @@ const handleTouchEnd = (e: TouchEvent) => {
 
     <div class="app-body isMobile" v-else @touchstart="handleTouchStart" @touchmove="handleTouchMove"
       @touchend="handleTouchEnd">
-      <div class="router-container">
-        <router-view v-slot="{ Component }">
-          <transition :name="transitionName">
-            <component :is="Component" :key="route.path" />
-          </transition>
-        </router-view>
-      </div>
-      <MobileTab v-if="showMobileTab" :active-tab="currentView" />
+      <MobileTab :active-tab="currentView" />
     </div>
   </div>
   <div v-else class="router-container h-full">
