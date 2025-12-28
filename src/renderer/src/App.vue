@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import ChatPage from './pages/chat/index.vue'
+import NotesPage from './pages/notes/index.vue'
 import SettingsPage from './pages/settings/index.vue'
 
 const currentView = ref('chat')
 
-const switchView = (view: 'chat' | 'settings') => {
+const switchView = (view: 'chat' | 'notes' | 'settings') => {
   currentView.value = view
 }
 
@@ -80,10 +81,14 @@ const handleTouchEnd = (e: TouchEvent) => {
   if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
     if (deltaX < 0) {
       if (route.path.includes('/mobile/chat')) {
+        router.push('/mobile/notes')
+      } else if (route.path.includes('/mobile/notes')) {
         router.push('/mobile/settings')
       }
     } else {
       if (route.path.includes('/mobile/settings')) {
+        router.push('/mobile/notes')
+      } else if (route.path.includes('/mobile/notes')) {
         router.push('/mobile/chat')
       }
     }
@@ -99,6 +104,7 @@ const handleTouchEnd = (e: TouchEvent) => {
       <AppNavBar :current-view="currentView" @switch="switchView" />
       <main class="app-content">
         <ChatPage v-show="currentView === 'chat'" />
+        <NotesPage v-show="currentView === 'notes'" />
         <SettingsPage v-show="currentView === 'settings'" />
       </main>
     </div>

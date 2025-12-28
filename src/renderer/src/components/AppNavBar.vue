@@ -4,10 +4,11 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-    (e: 'switch', view: 'chat' | 'settings'): void
+    (e: 'switch', view: 'chat' | 'notes' | 'settings'): void
 }>()
 
 const ChatIcon = useIcon('Chat')
+const NotesIcon = useIcon('Document')
 const SettingsIcon = useIcon('Settings')
 </script>
 
@@ -18,6 +19,10 @@ const SettingsIcon = useIcon('Settings')
             <div class="nav-item" :class="{ active: currentView === 'chat' }" @click="emit('switch', 'chat')"
                 title="聊天">
                 <ChatIcon class="nav-icon" />
+            </div>
+            <div class="nav-item" :class="{ active: currentView === 'notes' }" @click="emit('switch', 'notes')"
+                title="笔记">
+                <NotesIcon class="nav-icon" />
             </div>
         </div>
 

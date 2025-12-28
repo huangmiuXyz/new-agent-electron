@@ -19,6 +19,10 @@ const router = createRouter({
       component: () => import('../pages/TempChatPage.vue')
     },
     {
+      path: '/notes',
+      component: () => import('../pages/notes/index.vue')
+    },
+    {
       path: '/mobile/chat',
       meta: { sort: 1 },
       children: [
@@ -38,8 +42,27 @@ const router = createRouter({
       ]
     },
     {
-      path: '/mobile/settings',
+      path: '/mobile/notes',
       meta: { sort: 2 },
+      children: [
+        {
+          path: '/mobile/notes/list',
+          component: () => import('../pages/mobile/NotesList.vue'),
+          meta: {
+            showTabBar: true,
+            depth: 1
+          }
+        },
+        {
+          path: '/mobile/notes/editor',
+          component: () => import('../pages/notes/editor.vue'),
+          meta: { depth: 2 }
+        }
+      ]
+    },
+    {
+      path: '/mobile/settings',
+      meta: { sort: 3 },
       children: [
         {
           path: '/mobile/settings/list',

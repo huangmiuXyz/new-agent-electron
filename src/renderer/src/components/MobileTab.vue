@@ -3,7 +3,7 @@
     <div class="content-viewport">
       <RouterView v-slot="{ Component }">
         <transition :name="pageTransition">
-          <component :is="Component" />
+          <component :is="Component" class="page-view" />
         </transition>
       </RouterView>
     </div>
@@ -82,6 +82,11 @@ const switchTab = (tab) => {
   flex-direction: column;
 }
 
+.page-view>* {
+  width: 100%;
+  height: 100%;
+}
+
 .tab-bar {
   position: relative;
   background-color: var(--bg-tab);
@@ -95,7 +100,7 @@ const switchTab = (tab) => {
   position: absolute;
   top: 0;
   left: 0;
-  width: 50%;
+  width: 33.333%;
   height: 3px;
   background: linear-gradient(90deg,
       transparent 0%,

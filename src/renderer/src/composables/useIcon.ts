@@ -13,7 +13,8 @@ import {
   Menu,
   Branch,
   X,
-  Terminal
+  Terminal,
+  ArrowLeft
 } from '@vicons/carbon'
 import {
   Cpu,
@@ -25,6 +26,7 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
+  Dots,
   Robot,
   LayoutSidebar,
   LayoutSidebarLeftCollapse,
@@ -85,6 +87,7 @@ const icons = {
   ChevronDown,
   ChevronUp,
   ChevronRight,
+  MoreHorizontal: Dots,
   CommentAdd16Regular,
   FileUpload,
   FileText,
@@ -112,7 +115,9 @@ const icons = {
   InfoCircle,
   X,
   Terminal,
-  ArrowBackIosNewSharp
+  ArrowBackIosNewSharp,
+  Document: FileText,
+  ArrowLeft
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
