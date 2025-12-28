@@ -88,11 +88,6 @@ export const useNotesStore = defineStore('notes', {
 
       if (savedFolders) {
         this.folders = JSON.parse(savedFolders)
-        this.folders.forEach((folder) => {
-          if (folder.parentId === undefined) {
-            folder.parentId = null
-          }
-        })
       } else {
         this.createFolder('默认文件夹')
       }
