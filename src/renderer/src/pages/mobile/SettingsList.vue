@@ -1,8 +1,8 @@
 <script setup lang="ts">
 const router = useRouter()
 
-const handleTabChange = (tabName: string) => {
-    router.push(`/mobile/settings/${tabName}`)
+const handleTabChange = (tabName: string, tabItem: any) => {
+    router.push(`/mobile/settings/${tabName}?name=${tabItem.name}`)
 }
 </script>
 

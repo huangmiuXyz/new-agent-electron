@@ -32,35 +32,6 @@ const createNewChat = () => {
 const { back } = useMobile()
 const route = useRoute()
 
-const pageTitle = computed(() => {
-  if (customTitle.value) return customTitle.value
-
-  if (props.currentView === 'chat') {
-    // 聊天列表页不显示中间标题，仅在详情页显示
-    if (route.path === '/mobile/chat') return ''
-    return chatsStore.currentChat?.title || '新的聊天'
-  }
-  if (props.currentView === 'settings') {
-    const path = route.path
-    if (path.includes('/mobile/settings/knowledge')) return '知识库详情'
-    if (path.includes('/mobile/settings/models')) return '模型提供商'
-
-    const tab = route.params.tab as string
-    const tabMap: Record<string, string> = {
-      agents: '智能体',
-      models: '模型设置',
-      defaultModels: '默认模型',
-      knowledge: '知识库',
-      terminal: '终端设置',
-      display: '显示设置',
-      mcp: 'MCP',
-      userData: '用户数据',
-      about: '关于'
-    }
-    return tabMap[tab] || '设置'
-  }
-  return ''
-})
 </script>
 
 <template>
@@ -77,7 +48,7 @@ const pageTitle = computed(() => {
         <ArrowBackIosNewSharp />
       </Button>
       <div v-if="isMobile" class="header-title-container">
-        <div class="header-title">{{ pageTitle }}</div>
+        <div class="header-title">{{ customTitle }}</div>
       </div>
       <Button v-if="props.currentView === 'chat' && !isMobile" variant="icon" size="md" @click="createNewChat">
         <CommentAdd16Regular />

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const route = useRoute()
 const activeTab = computed(() => route.params.tab as string)
+useAppHeader().setTitle(route.query.name as string)
 </script>
 
 <template>

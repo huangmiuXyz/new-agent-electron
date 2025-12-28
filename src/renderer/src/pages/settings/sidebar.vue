@@ -4,16 +4,6 @@ import { isMobile } from '@renderer/composables/useDeviceType'
 interface Props {
   activeTab: string
 }
-
-interface Emits {
-  (e: 'tab-change', tabName: string): void
-}
-
-defineProps<Props>()
-const emit = defineEmits<Emits>()
-const handleTabChange = (tabName: string) => {
-  emit('tab-change', tabName)
-}
 const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, ChevronRight } = useIcon([
   'Cpu',
   'Server',
@@ -26,6 +16,27 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
   'ChevronRight'
 ])
 
+const settingsList = [
+  { id: 'agents', name: '智能体', icon: Robot, section: '智能助手' },
+  { id: 'models', name: '模型提供商', icon: Cpu, section: '智能助手' },
+  { id: 'defaultModels', name: '默认模型', icon: Box, section: '智能助手' },
+  { id: 'knowledge', name: '知识库', icon: Library16Filled, section: '资源管理' },
+  { id: 'mcp', name: 'MCP 服务器', icon: Server, section: '资源管理' },
+  { id: 'terminal', name: '终端设置', icon: Terminal, section: '系统与文件' },
+  { id: 'userData', name: '文件管理', icon: Folder, section: '系统与文件' },
+  { id: 'about', name: '关于我们', icon: InfoCircle, section: '其他' }
+]
+interface Emits {
+  (e: 'tab-change', tabName: string, tabItem: typeof settingsList[number]): void
+}
+
+defineProps<Props>()
+const emit = defineEmits<Emits>()
+const handleTabChange = (tabName: string) => {
+  const { setTitle } = useAppHeader()
+  setTitle(tabName)
+  emit('tab-change', tabName, settingsList.find(item => item.id === tabName)!)
+}
 
 </script>
 
@@ -35,17 +46,9 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
       <h1 class="mobile-title">设置</h1>
     </div>
     <!-- 设置选项 -->
-    <List class="settings-sidebar-list" :items="[
-      { id: 'agents', name: '智能体', icon: Robot, section: '智能助手' },
-      { id: 'models', name: '模型提供商', icon: Cpu, section: '智能助手' },
-      { id: 'defaultModels', name: '默认模型', icon: Box, section: '智能助手' },
-      { id: 'knowledge', name: '知识库', icon: Library16Filled, section: '资源管理' },
-      { id: 'mcp', name: 'MCP 服务器', icon: Server, section: '资源管理' },
-      { id: 'terminal', name: '终端设置', icon: Terminal, section: '系统与文件' },
-      { id: 'userData', name: '文件管理', icon: Folder, section: '系统与文件' },
-      { id: 'about', name: '关于我们', icon: InfoCircle, section: '其他' }
-    ]" :active-id="activeTab" :key-field="'id'" :main-field="'name'" :logo-field="'icon'" :show-header="isMobile"
-      :render-header="(item) => item.section" @select="handleTabChange">
+    <List class="settings-sidebar-list" :items="settingsList" :active-id="activeTab" :key-field="'id'"
+      :main-field="'name'" :logo-field="'icon'" :show-header="isMobile" :render-header="(item) => item.section"
+      @select="handleTabChange">
       <template #actions v-if="isMobile">
         <ChevronRight class="mobile-arrow" />
       </template>

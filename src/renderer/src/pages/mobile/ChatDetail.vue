@@ -1,5 +1,8 @@
 <script setup lang="ts">
 const settingsStore = useSettingsStore()
+const { setTitle } = useAppHeader()
+const { currentChat } = storeToRefs(useChatsStores())
+setTitle(currentChat.value?.title || '新的对话')
 </script>
 
 <template>
