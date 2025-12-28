@@ -345,7 +345,7 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
     })
 
     const title = type === 'note' ? `发送笔记"${item.title}"到知识库` : `发送文件夹"${item.name}"到知识库`
-
+    formActions.setFieldValue('knowledgeBaseId', knowledgeBases[0].id)
     await confirm({
         title,
         content: FormComponent
