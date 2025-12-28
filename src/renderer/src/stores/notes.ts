@@ -65,12 +65,12 @@ export const useNotesStore = defineStore('notes', {
     // 获取文件夹路径（从根到当前文件夹）
     folderPath: (state) => (folderId: string) => {
       const path: NoteFolder[] = []
-      let currentFolder = state.folders.find((f) => f.id === folderId)!
+      let currentFolder: NoteFolder | null = state.folders.find((f) => f.id === folderId)!
 
       while (currentFolder) {
         path.unshift(currentFolder)
         if (currentFolder.parentId) {
-          currentFolder = state.folders.find((f) => f.id === currentFolder.parentId)
+          currentFolder = state.folders.find((f) => f.id === currentFolder!.parentId)!
         } else {
           currentFolder = null
         }
