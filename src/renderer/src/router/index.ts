@@ -46,14 +46,6 @@ const router = createRouter({
       meta: { sort: 2 },
       children: [
         {
-          path: '/mobile/notes/list',
-          component: () => import('../pages/mobile/NotesList.vue'),
-          meta: {
-            showTabBar: true,
-            depth: 1
-          }
-        },
-        {
           path: '/mobile/notes/editor',
           component: () => import('../pages/notes/editor.vue'),
           meta: { depth: 2 }
