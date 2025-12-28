@@ -1,7 +1,11 @@
 <template>
   <div class="mobile-layout light-theme">
     <div class="content-viewport">
-      <RouterView />
+      <RouterView v-slot="{ Component }">
+        <transition :name="pageTransition">
+          <component :is="Component" />
+        </transition>
+      </RouterView>
     </div>
     <nav class="tab-bar" v-if="route.meta.showTabBar">
       <div class="slider-bar" :style="{ transform: `translateX(${currentIndex * 100}%)` }"></div>
@@ -17,9 +21,10 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, inject } from 'vue'
 const router = useRouter()
 const route = useRoute()
+const pageTransition = inject('pageTransition', ref('fade'))
 
 const emit = defineEmits(['switch'])
 
@@ -29,13 +34,11 @@ const tabs = [
 ]
 
 const currentIndex = computed(() => {
-  if (route.path.startsWith('/mobile/settings')) {
-    return 1
-  }
-  return 0
+  const sort = route.meta.sort
+  return typeof sort === 'number' ? sort - 1 : 0
 })
 const activeTab = computed(() => {
-  return tabs[currentIndex.value].key
+  return tabs[currentIndex.value]?.key || tabs[0].key
 })
 
 const switchTab = (tab) => {

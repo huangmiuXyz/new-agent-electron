@@ -23,25 +23,20 @@ watch(() => route.path, () => {
 
 
 const transitionName = ref('fade')
+provide('pageTransition', transitionName)
 
 router.beforeEach((to, from) => {
-  const toDepth = to.path.split('/').filter(Boolean).length
-  const fromDepth = from.path.split('/').filter(Boolean).length
+  const toDepth = (to.meta.depth as number) || 0
+  const fromDepth = (from.meta.depth as number) || 0
 
-  if (toDepth > fromDepth) {
-    transitionName.value = 'slide-left'
-  } else if (toDepth < fromDepth) { transitionName.value = 'slide-right' } else {
-    const getTabIndex = (path: string) => {
-      if (path.includes('/mobile/chat')) return 0
-      if (path.includes('/mobile/settings')) return 1
-      return -1
-    }
+  if (toDepth !== fromDepth) {
+    transitionName.value = toDepth > fromDepth ? 'slide-left' : 'slide-right'
+  } else {
+    const toSort = (to.meta.sort as number) || 0
+    const fromSort = (from.meta.sort as number) || 0
 
-    const toIndex = getTabIndex(to.path)
-    const fromIndex = getTabIndex(from.path)
-
-    if (toIndex !== -1 && fromIndex !== -1) {
-      transitionName.value = toIndex > fromIndex ? 'slide-left' : 'slide-right'
+    if (toSort && fromSort && toSort !== fromSort) {
+      transitionName.value = toSort > fromSort ? 'slide-left' : 'slide-right'
     } else {
       transitionName.value = 'fade'
     }
