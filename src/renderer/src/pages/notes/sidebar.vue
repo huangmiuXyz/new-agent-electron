@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { isMobile } from '@renderer/composables/useDeviceType'
 
-const { Plus, MoreHorizontal, ArrowLeft, Folder, File } = useIcon([
+const { Plus, ArrowLeft, Folder, File } = useIcon([
     'Plus',
     'MoreHorizontal',
     'ArrowLeft',
@@ -175,13 +175,11 @@ const createNewFolder = async () => {
         }
     })
 
-    confirm({
+    await confirm({
         title: '新建文件夹',
         content: FormComponent,
-        onOk: () => {
-            formActions.submit()
-        }
     })
+        && formActions.submit()
 }
 
 const createNewNote = async () => {
@@ -205,13 +203,11 @@ const createNewNote = async () => {
         }
     })
 
-    confirm({
+    await confirm({
         title: '新建笔记',
         content: FormComponent,
-        onOk: () => {
-            formActions.submit()
-        }
-    })
+
+    }) && formActions.submit()
 }
 
 const renameFolder = async (folder: any) => {
@@ -233,23 +229,18 @@ const renameFolder = async (folder: any) => {
         }
     })
 
-    confirm({
+    await confirm({
         title: '重命名文件夹',
         content: FormComponent,
-        onOk: () => {
-            formActions.submit()
-        }
-    })
+    }) && formActions.submit()
 }
 
 const deleteFolder = async (folder: any) => {
-    const result = await confirm({
+    await confirm({
         title: '删除文件夹',
         content: `确定要删除文件夹"${folder.name}"吗？此操作将同时删除该文件夹下的所有笔记。`
-    })
-    if (result) {
+    }) &&
         notesStore.deleteFolder(folder.id)
-    }
 }
 
 const renameNote = async (note: any) => {
@@ -271,23 +262,18 @@ const renameNote = async (note: any) => {
         }
     })
 
-    confirm({
+    await confirm({
         title: '重命名笔记',
         content: FormComponent,
-        onOk: () => {
-            formActions.submit()
-        }
-    })
+    }) &&
+        formActions.submit()
 }
 
 const deleteNote = async (note: any) => {
-    const result = await confirm({
+    await confirm({
         title: '删除笔记',
         content: `确定要删除笔记"${note.title}"吗？`
-    })
-    if (result) {
-        notesStore.deleteNote(note.id)
-    }
+    }) && notesStore.deleteNote(note.id)
 }
 
 
