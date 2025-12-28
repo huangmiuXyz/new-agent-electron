@@ -312,11 +312,6 @@ const deleteNote = async (note: any) => {
                         <Plus />
                     </Button>
                 </template>
-                <template #actions="{ item }">
-                    <Button variant="text" size="sm" @click.stop="handleContextMenu($event, item.id)">
-                        <MoreHorizontal />
-                    </Button>
-                </template>
             </List>
         </ListContainer>
     </div>
@@ -358,50 +353,12 @@ const deleteNote = async (note: any) => {
     overflow-y: auto;
 }
 
-/* 移动端样式 */
-.notes-sidebar.is-mobile :deep(.list-title) {
-    display: none;
-}
 
-.notes-sidebar.is-mobile :deep(.list-container) {
-    background: transparent;
-    padding: 0;
-}
 
-.notes-sidebar.is-mobile :deep(.list-item) {
-    background: #fff;
-    margin-bottom: 0 !important;
-    padding: 14px 16px;
-    border-radius: 0;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.notes-sidebar.is-mobile :deep(.list-item:first-of-type) {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.notes-sidebar.is-mobile :deep(.list-item:last-of-type) {
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
-    border-bottom: none;
-}
-
-.notes-sidebar.is-mobile :deep(.media-icon) {
-    font-size: 20px;
-    color: var(--text-secondary);
-}
-
-.notes-sidebar.is-mobile :deep(.main-text) {
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--text-primary);
-}
 
 /* PC端样式 */
 .notes-sidebar:not(.is-mobile) :deep(.list-item) {
     background-color: transparent;
-    padding: 8px 12px;
     gap: 10px;
     border-radius: 8px;
     margin: 2px 4px;
