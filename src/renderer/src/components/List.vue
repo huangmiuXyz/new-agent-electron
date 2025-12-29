@@ -71,7 +71,7 @@ const viewItems = computed(() => {
       const nextItem = index < items.length - 1 ? items[index + 1] : null
       const nextGroup = nextItem ? (props.renderHeader!(nextItem.raw)) : null
 
-      isLastInGroup = (currentGroup !== nextGroup)
+      isLastInGroup = !nextItem || (currentGroup !== nextGroup)
     } else {
       isLastInGroup = index === items.length - 1
     }
