@@ -18,7 +18,6 @@ import RichTextEditorToolbar from './toolbar.vue'
 import { common, createLowlight } from 'lowlight'
 import 'highlight.js/styles/atom-one-dark.css'
 
-// 创建 lowlight 实例
 const lowlight = createLowlight(common)
 
 interface Props {
