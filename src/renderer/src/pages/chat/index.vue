@@ -2,7 +2,7 @@
 import { useSettingsStore } from '@renderer/stores/settings'
 import Term from '@renderer/components/term.vue'
 
-const settingsStore = useSettingsStore() 
+const settingsStore = useSettingsStore()
 </script>
 
 <template>
@@ -53,7 +53,7 @@ const settingsStore = useSettingsStore()
 .sidebar-wrapper {
   width: auto;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 180px;
+  min-width: 180px;
 }
 
 .sidebar-wrapper.isMobile {
