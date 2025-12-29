@@ -1,7 +1,7 @@
 // useContinuousVoiceRecorder.ts
 import { ref, onUnmounted } from 'vue'
 
-type RecorderState = 'listening' | 'recording' | 'callback'
+type RecorderState = 'listening' | 'recording' | 'callback' | 'end'
 
 interface UseContinuousVoiceRecorderOptions {
   volumeThreshold?: number
@@ -35,8 +35,6 @@ export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOp
     return Math.sqrt(sum / buffer.length)
   }
 
-  /* ------------------ Main loop ------------------ */
-
   async function loop() {
     if (!isActive.value) return
 
@@ -69,8 +67,6 @@ export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOp
     requestAnimationFrame(loop)
   }
 
-  /* ------------------ MediaRecorder events ------------------ */
-
   function setupRecorder() {
     mediaRecorder.ondataavailable = (e) => chunks.push(e.data)
 
@@ -85,8 +81,6 @@ export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOp
       }
     }
   }
-
-  /* ------------------ Public API ------------------ */
 
   async function start() {
     if (isActive.value) return
@@ -111,7 +105,7 @@ export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOp
 
   function stop() {
     isActive.value = false
-    state.value = 'listening'
+    state.value = 'end'
     silenceTimer && clearTimeout(silenceTimer)
     stream?.getTracks().forEach((t) => t.stop())
     audioContext?.close()

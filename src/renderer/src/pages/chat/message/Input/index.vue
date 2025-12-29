@@ -51,10 +51,7 @@ const { start: startVoice, stop: stopVoice, state: voiceState, isActive: voiceIs
   onSpeechEnd: async (audio: Blob) => {
     isProcessingVoice.value = true
     try {
-      // 暂时不进行实际的API调用
       console.log('语音录制完成:', audio)
-      // TODO: 这里可以添加语音转文字的逻辑
-      // 模拟处理延迟
       await new Promise(resolve => setTimeout(resolve, 1000))
     } finally {
       isProcessingVoice.value = false
