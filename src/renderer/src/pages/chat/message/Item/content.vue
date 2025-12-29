@@ -102,7 +102,8 @@ const retry = () => {
           <ChatMessageItemDynamicTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
           <ChatMessageItemTool
             v-if="block.type.startsWith('tool')"
-            :tool_part="block as ToolUIPart"
+            :tool_part="(block as ToolUIPart)"
+            :message="message"
           />
         </div>
         <ChatMessageItemError

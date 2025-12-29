@@ -5,6 +5,7 @@ import { useTerminal } from '@renderer/composables/useTerminal'
 
 const props = defineProps<{
   tool_part: ToolUIPart
+  message: BaseMessage
 }>()
 
 const { getTerminalIdByToolCallId, forceContinue, tabs } = useTerminal()
@@ -27,16 +28,22 @@ const handleForceContinue = () => {
     forceContinue(terminalId.value)
   }
 }
+
+const { currentChat } = useChatsStores()
+const handleApproval = (resolve: boolean) => {
+  const { approval } = useChat(currentChat?.id!)
+  approval(props.tool_part, resolve)
+}
 </script>
 
 <template>
   <ChatMessageItemDynamicTool :tool_part="tool_part">
     <template #status>
       <template v-if="tool_part.state === 'approval-requested'">
-        <Button size="sm" variant='primary' class="force-continue-btn" @click.stop="handleForceContinue">
+        <Button size="sm" variant='primary' class="force-continue-btn" @click.stop="handleApproval(true)">
           允许
         </Button>
-        <Button danger size="sm" variant="secondary" class="force-continue-btn" @click.stop="handleForceContinue">
+        <Button danger size="sm" variant="secondary" class="force-continue-btn" @click.stop="handleApproval(false)">
           拒绝
         </Button>
       </template>

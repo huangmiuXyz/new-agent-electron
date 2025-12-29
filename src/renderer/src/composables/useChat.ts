@@ -1,5 +1,7 @@
 import { Chat as _useChat } from '@ai-sdk/vue'
-import type { FileUIPart, TextUIPart } from 'ai'
+import type { FileUIPart, TextUIPart, ToolUIPart } from 'ai'
+import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai';
+
 export const useChat = (chatId: string) => {
   const { getChatById } = useChatsStores()
   const chats = getChatById(chatId)
@@ -19,6 +21,7 @@ export const useChat = (chatId: string) => {
     return scope.run(() => {
       const chat = new _useChat<BaseMessage>({
         messages,
+        sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         transport: {
           sendMessages: ({ messages }) => {
             return service.createAgent(
@@ -117,9 +120,16 @@ export const useChat = (chatId: string) => {
     const chat = createChat(messages)
     chat.sendMessage()
   }
-
+  const approval = (part: ToolUIPart, approved: boolean) => {
+    const chat = createChat(chats?.messages!)
+    chat.addToolApprovalResponse({
+      id: part.approval?.id!,
+      approved
+    })
+  }
   return {
     sendMessages,
-    regenerate
+    regenerate,
+    approval
   }
 }
