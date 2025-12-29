@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { isMobile } from '@renderer/composables/useDeviceType'
-import RichTextEditor from '@renderer/components/RichTextEditor.vue'
-
 const { Document, ArrowBackIosNewSharp } = useIcon([
     'Document',
     'ArrowBackIosNewSharp'

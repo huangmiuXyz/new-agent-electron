@@ -16,7 +16,7 @@ import { Table } from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
-import RichTextEditorToolbar from './RichTextEditor/toolbar.vue'
+import RichTextEditorToolbar from './toolbar.vue'
 import { common, createLowlight } from 'lowlight'
 import 'highlight.js/styles/atom-one-dark.css'
 
@@ -158,7 +158,7 @@ defineExpose({
 <template>
     <div class="rich-text-editor">
         <RichTextEditorToolbar v-if="editable && editor" :editor="editor" />
-        <EditorContent :editor="editor" />
+        <EditorContent style="flex: 1; overflow: auto;" :editor="editor" />
     </div>
 </template>
 

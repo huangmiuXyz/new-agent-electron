@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { Editor } from '@tiptap/vue-3'
-import { isMobile } from '@renderer/composables/useDeviceType'
-
 interface Props {
     editor: Editor
 }
@@ -32,32 +30,6 @@ const { FormatBold, FormatItalic, FormatUnderlined, FormatStrikethrough, FormatC
     'CheckCircle'
 ])
 
-const setLink = () => {
-    const previousUrl = props.editor.getAttributes('link').href
-    const url = window.prompt('请输入链接地址', previousUrl)
-
-    if (url === null) {
-        return
-    }
-
-    if (url === '') {
-        props.editor.chain().focus().extendMarkRange('link').unsetLink().run()
-    } else {
-        props.editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
-    }
-}
-
-const addImage = () => {
-    const url = window.prompt('请输入图片地址')
-
-    if (url && url.trim()) {
-        props.editor.chain().focus().setImage({ src: url }).run()
-    }
-}
-
-const addTable = () => {
-    props.editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-}
 
 const toggleTaskList = () => {
     props.editor.chain().focus().toggleTaskList().run()
