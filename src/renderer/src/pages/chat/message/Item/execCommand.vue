@@ -32,13 +32,16 @@ const handleForceContinue = () => {
 <template>
   <ChatMessageItemDynamicTool :tool_part="tool_part">
     <template #status>
-      <template v-if="isExecuting">
-        <Button
-          size="sm"
-          variant="secondary"
-          class="force-continue-btn"
-          @click.stop="handleForceContinue"
-        >
+      <template v-if="tool_part.state === 'approval-requested'">
+        <Button size="sm" variant='primary' class="force-continue-btn" @click.stop="handleForceContinue">
+          允许
+        </Button>
+        <Button danger size="sm" variant="secondary" class="force-continue-btn" @click.stop="handleForceContinue">
+          拒绝
+        </Button>
+      </template>
+      <template v-else-if="isExecuting">
+        <Button size="sm" variant="secondary" class="force-continue-btn" @click.stop="handleForceContinue">
           强制继续
         </Button>
       </template>
@@ -64,10 +67,12 @@ const handleForceContinue = () => {
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
   }
+
   70% {
     transform: scale(1);
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0);
   }
+
   100% {
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
