@@ -363,7 +363,7 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
         <!-- 统一的文件夹和笔记列表 -->
         <ListContainer class="combined-list">
             <List :title="notesStore.currentFolder ? notesStore.currentFolder.name : '笔记'" :items="combinedList"
-                :active-id="activeId" :key-field="'id'" :main-field="'name'" :logo-field="'icon'" :selectable="true"
+                :active-id="activeId!" :key-field="'id'" :main-field="'name'" :logo-field="'icon'" :selectable="true"
                 @select="handleItemClick" @contextmenu="handleContextMenu">
                 <template #title-tool>
                     <Button v-if="notesStore.currentFolderId" variant="icon" size="sm" @click="handleBackToFolders"
@@ -379,63 +379,4 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
     </div>
 </template>
 
-<style scoped>
-.notes-sidebar {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    background: var(--bg-sidebar);
-    border-right: 1px solid var(--border-subtle);
-    overflow: hidden;
-}
-
-.notes-sidebar.is-mobile {
-    background-color: #f7f7f8;
-}
-
-.mobile-header {
-    flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: #f7f7f8;
-    padding: calc(20px + env(safe-area-inset-top, 24px)) 20px 10px;
-}
-
-.mobile-title {
-    font-size: 28px;
-    font-weight: 800;
-    color: var(--text-primary);
-    margin: 0;
-    letter-spacing: -0.5px;
-}
-
-.combined-list {
-    flex: 1;
-    overflow-y: auto;
-}
-
-/* 文件夹面包屑导航样式 */
-.folder-breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 0;
-    font-size: 12px;
-    color: var(--text-tertiary);
-}
-
-.breadcrumb-item {
-    cursor: pointer;
-    transition: color 0.15s ease;
-}
-
-.breadcrumb-item:hover {
-    color: var(--text-primary);
-}
-
-.breadcrumb-separator {
-    margin: 0 2px;
-    color: var(--text-quaternary);
-}
-</style>
+<style scoped></style>
