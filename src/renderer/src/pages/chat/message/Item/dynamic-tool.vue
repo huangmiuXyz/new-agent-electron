@@ -4,8 +4,19 @@ import { DynamicToolUIPart, ToolUIPart } from 'ai'
 defineProps<{
   tool_part: DynamicToolUIPart | ToolUIPart
 }>()
-
 const isCollapsed = ref(true)
+
+const isInputCollapsed = ref(true)
+const isOutputCollapsed = ref(true)
+
+const toggleInputCollapse = () => {
+  isInputCollapsed.value = !isInputCollapsed.value
+}
+
+const toggleOutputCollapse = () => {
+  isOutputCollapsed.value = !isOutputCollapsed.value
+}
+
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
 }
@@ -17,25 +28,15 @@ const toggleCollapse = () => {
       <div class="tool-header" @click="toggleCollapse">
         <div class="tool-info">
           <div class="tool-icon">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path
-                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
-              />
+                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
             </svg>
           </div>
           <span class="tool-name">{{
             (tool_part as DynamicToolUIPart)?.toolName || tool_part?.title
-          }}</span>
+            }}</span>
         </div>
         <div class="tool-status">
           <slot name="status">
@@ -48,46 +49,42 @@ const toggleCollapse = () => {
         <slot name="content">
           <div class="io-container">
             <div class="io-section io-input">
-              <div class="io-header">
-                <div class="io-icon">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
+              <div class="io-header" @click="toggleInputCollapse">
+                <div class="io-left">
+                  <div class="io-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                  </div>
+                  <span class="io-label">输入</span>
                 </div>
-                <span class="io-label">输入</span>
+                <svg class="collapse-icon" :class="{ collapsed: isInputCollapsed }" xmlns="http://www.w3.org/2000/svg"
+                  width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </div>
-              <div class="io-content">{{ tool_part.input }}</div>
+              <div class="io-content" :class="{ collapsed: isInputCollapsed }">{{ tool_part.input }}</div>
             </div>
             <div class="io-section io-output" v-if="tool_part.output">
-              <div class="io-header">
-                <div class="io-icon">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
+              <div class="io-header" @click="toggleOutputCollapse">
+                <div class="io-left">
+                  <div class="io-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </div>
+                  <span class="io-label">输出</span>
                 </div>
-                <span class="io-label">输出</span>
+                <svg class="collapse-icon" :class="{ collapsed: isOutputCollapsed }" xmlns="http://www.w3.org/2000/svg"
+                  width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </div>
-              <div class="io-content">{{ tool_part.output }}</div>
+              <div class="io-content" :class="{ collapsed: isOutputCollapsed }">{{ tool_part.output }}</div>
             </div>
           </div>
         </slot>
@@ -201,9 +198,15 @@ const toggleCollapse = () => {
   overflow: hidden;
 }
 
+.io-left {
+  display: flex;
+  gap: 8px;
+}
+
 .io-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   padding: 6px 10px;
   background-color: #f3f4f6;
@@ -212,6 +215,17 @@ const toggleCollapse = () => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.collapse-icon {
+  color: #6b7280;
+  transition: transform 0.2s ease;
+}
+
+.collapse-icon.collapsed {
+  transform: rotate(-90deg);
 }
 
 .io-icon {
@@ -262,6 +276,15 @@ const toggleCollapse = () => {
   max-height: 300px;
   overflow-y: auto;
   border-top: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.io-content.collapsed {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+  opacity: 0;
 }
 
 .io-input .io-content {
@@ -273,24 +296,20 @@ const toggleCollapse = () => {
 }
 
 /* Scrollbar styling for the content */
-.tool-content::-webkit-scrollbar,
 .io-content::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-.tool-content::-webkit-scrollbar-track,
 .io-content::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.tool-content::-webkit-scrollbar-thumb,
 .io-content::-webkit-scrollbar-thumb {
   background: #e5e7eb;
   border-radius: 3px;
 }
 
-.tool-content::-webkit-scrollbar-thumb:hover,
 .io-content::-webkit-scrollbar-thumb:hover {
   background: #d1d5db;
 }
