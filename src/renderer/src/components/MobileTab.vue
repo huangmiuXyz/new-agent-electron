@@ -100,7 +100,7 @@ const switchTab = (tab) => {
   position: absolute;
   top: 0;
   left: 0;
-  width: 33.333%;
+  width: 50%;
   height: 3px;
   background: linear-gradient(90deg,
       transparent 0%,
