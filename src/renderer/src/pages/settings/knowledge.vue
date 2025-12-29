@@ -376,11 +376,10 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
           handleKnowledgeBaseContextMenu(event, knowledgeBases.find((kb) => kb.id === item)!)
       ">
       <template #title-tool>
-        <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="primary">
+        <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="text">
           <template #icon>
             <Plus />
           </template>
-          添加
         </Button>
       </template>
     </List>
