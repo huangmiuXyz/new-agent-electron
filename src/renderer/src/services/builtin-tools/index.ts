@@ -548,8 +548,9 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
     description: '执行cmd命令',
     inputSchema: z.object({
       command: z.string().describe('要执行的命令'),
-      id: z.string().describe('终端ID，默认创建新终端，创建新终端后才可以获得，用户无法提供')
+      id: z.string().optional().describe('终端ID，默认创建新终端，创建新终端后才可以获得，用户无法提供')
     }),
+    needsApproval: true,
     execute: async (args: any, options: any) => {
       const { command, id } = args
       const { createTab } = useTerminal()
