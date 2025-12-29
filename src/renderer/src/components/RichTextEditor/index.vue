@@ -6,8 +6,6 @@ import Image from '@tiptap/extension-image'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color } from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
-import Link from '@tiptap/extension-link'
-import Underline from '@tiptap/extension-underline'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import HorizontalRule from '@tiptap/extension-horizontal-rule'
 import TaskList from '@tiptap/extension-task-list'
@@ -75,10 +73,6 @@ const editor = useEditor({
         Color.configure({
             types: [TextStyle.name]
         }),
-        Link.configure({
-            openOnClick: false
-        }),
-        Underline,
         CodeBlockLowlight.configure({
             lowlight,
             defaultLanguage: 'plaintext',
