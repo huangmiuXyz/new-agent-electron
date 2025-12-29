@@ -17,12 +17,8 @@
 
       <!-- 数据行 -->
       <template v-else>
-        <div
-          v-for="(row, rowIndex) in data"
-          :key="row.id || rowIndex"
-          class="table-row"
-          @click="$emit('row-click', row)"
-        >
+        <div v-for="(row, rowIndex) in data" :key="row.id || rowIndex" class="table-row"
+          @click="$emit('row-click', row)">
           <div v-for="col in columns" :key="col.key" class="table-cell">
             <slot :name="col.key" :row="row" :index="rowIndex">
               {{ row[col.key] }}
@@ -100,6 +96,10 @@ const gridTemplate = computed(() =>
 .table-cell {
   font-size: 13px;
   color: #1d1d1f;
+}
+
+.table-row:last-child .table-cell {
+  border-bottom: none;
 }
 
 .table-row:hover .table-cell {
