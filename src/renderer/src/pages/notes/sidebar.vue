@@ -415,47 +415,6 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
     overflow-y: auto;
 }
 
-
-
-
-/* PC端样式 */
-.notes-sidebar:not(.is-mobile) :deep(.list-item) {
-    background-color: transparent;
-    gap: 10px;
-    border-radius: 8px;
-    margin: 2px 4px;
-    transition: all 0.15s ease;
-}
-
-.notes-sidebar:not(.is-mobile) :deep(.list-item:hover) {
-    background-color: rgba(0, 0, 0, 0.04);
-}
-
-.notes-sidebar:not(.is-mobile) :deep(.list-item.is-active) {
-    background: rgba(0, 0, 0, 0.07);
-    border-color: transparent;
-}
-
-.notes-sidebar:not(.is-mobile) :deep(.main-text) {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-}
-
-.notes-sidebar:not(.is-mobile) :deep(.list-item.is-active .main-text) {
-    color: var(--text-primary);
-    font-weight: 600;
-}
-
-.notes-sidebar:not(.is-mobile) :deep(.media-icon) {
-    font-size: 16px;
-    color: var(--text-secondary);
-}
-
-.notes-sidebar:not(.is-mobile) :deep(.list-item.is-active .media-icon) {
-    color: var(--text-primary);
-}
-
 /* 文件夹面包屑导航样式 */
 .folder-breadcrumb {
     display: flex;
