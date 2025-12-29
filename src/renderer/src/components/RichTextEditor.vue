@@ -162,7 +162,6 @@ defineExpose({
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
     background: #fff;
-    height: 600px;
     overflow: hidden;
 }
 

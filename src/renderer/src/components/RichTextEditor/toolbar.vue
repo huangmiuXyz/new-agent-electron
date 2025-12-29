@@ -178,34 +178,6 @@ const toggleTaskList = () => {
                 <FormatHorizontalRule />
             </Button>
         </div>
-
-        <Divider vertical />
-
-        <!-- 插入 -->
-        <div class="toolbar-group">
-            <Button variant="icon" size="sm" :class="{ 'is-active': editor.isActive('link') }" @click="setLink"
-                title="插入链接">
-                <Link />
-            </Button>
-            <Button variant="icon" size="sm" @click="addImage" title="插入图片">
-                <FormatImage />
-            </Button>
-            <Button variant="icon" size="sm" @click="addTable" title="插入表格">
-                <FormatTable />
-            </Button>
-        </div>
-
-        <Divider vertical />
-
-        <!-- 清除格式 -->
-        <div class="toolbar-group">
-            <Button variant="icon" size="sm" @click="editor.chain().focus().unsetAllMarks().run()" title="清除标记">
-                <FormatClear />
-            </Button>
-            <Button variant="icon" size="sm" @click="editor.chain().focus().unsetLink().run()" title="移除链接">
-                <LinkOff />
-            </Button>
-        </div>
     </div>
 </template>
 
