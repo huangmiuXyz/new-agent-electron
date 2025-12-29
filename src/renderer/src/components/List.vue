@@ -43,13 +43,11 @@ const viewItems = computed(() => {
     const key = item[props.keyField] ?? JSON.stringify(item)
     const logo = item[props.logoField]
 
-    // —— 核心：稳定的分组 key（每一项都有）
     const groupKey =
       props.showHeader && props.renderHeader
         ? props.renderHeader(item)
         : ''
 
-    // —— 仅用于“是否显示分组标题”
     let groupTitle = ''
     if (props.showHeader && props.renderHeader) {
       const prevGroupKey =
@@ -75,7 +73,6 @@ const viewItems = computed(() => {
   return items.map((item, index) => {
     const nextItem = index < items.length - 1 ? items[index + 1] : null
 
-    // —— 正确的“是否为分组最后一项”判定
     const isLastItem =
       !nextItem || item.groupKey !== nextItem.groupKey
 
