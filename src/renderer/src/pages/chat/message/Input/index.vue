@@ -49,8 +49,9 @@ const { start: startVoice, stop: stopVoice, state: voiceState, isActive: voiceIs
   volumeThreshold: 0.02,
   silenceDuration: 800,
   onSpeechEnd: async (audio: Blob) => {
-    isProcessingVoice.value = true
     try {
+      if (voiceState.value !== 'callback') return
+      isProcessingVoice.value = true
       console.log('语音录制完成:', audio)
       await new Promise(resolve => setTimeout(resolve, 1000))
     } finally {
