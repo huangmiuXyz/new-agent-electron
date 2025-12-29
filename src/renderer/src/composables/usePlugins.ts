@@ -90,7 +90,7 @@ export function usePlugins() {
   };
 
   /**
-   * 卸载插件
+   * 卸载插件（仅从内存中移除）
    */
   const unloadPlugin = async (pluginName: string): Promise<void> => {
     try {
@@ -100,6 +100,21 @@ export function usePlugins() {
       }
     } catch (err) {
       console.error('Failed to unload plugin:', err);
+      throw err;
+    }
+  };
+
+  /**
+   * 完全卸载插件（从内存和文件系统中移除）
+   */
+  const uninstallPlugin = async (pluginName: string): Promise<void> => {
+    try {
+      if (pluginLoader) {
+        await pluginLoader.uninstallPlugin(pluginName);
+        await refreshPlugins();
+      }
+    } catch (err) {
+      console.error('Failed to uninstall plugin:', err);
       throw err;
     }
   };
@@ -211,6 +226,7 @@ export function usePlugins() {
     refreshPlugins,
     loadPlugin,
     unloadPlugin,
+    uninstallPlugin,
     executeCommand,
     getStatusText,
     getStatusColor,

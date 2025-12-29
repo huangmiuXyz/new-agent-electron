@@ -101,7 +101,7 @@ export class PluginLoader {
   }
 
   /**
-   * 卸载插件
+   * 卸载插件（仅从内存中移除）
    * @param pluginName 插件名称
    * @returns 是否成功卸载
    */
@@ -137,6 +137,39 @@ export class PluginLoader {
       pluginInfo.status = 'error' as PluginStatus;
       pluginInfo.error = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to unload plugin "${pluginName}": ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * 完全卸载插件（从内存和文件系统中移除）
+   * @param pluginName 插件名称
+   * @returns 是否成功卸载
+   */
+  async uninstallPlugin(pluginName: string): Promise<boolean> {
+    const fs = window.api.fs;
+    const path = window.api.path;
+
+    if (!fs || !path) {
+      throw new Error('File system API not available');
+    }
+
+    try {
+      // 先从内存中卸载插件
+      await this.unloadPlugin(pluginName);
+
+      // 获取插件目录路径
+      const pluginsDir = window.api.getPluginsPath();
+      const pluginDir = path.join(pluginsDir, pluginName);
+
+      // 检查插件目录是否存在
+      if (fs.existsSync(pluginDir)) {
+        // 删除插件目录及其所有内容
+        fs.rmSync(pluginDir, { recursive: true, force: true });
+      }
+
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to uninstall plugin "${pluginName}": ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

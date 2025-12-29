@@ -21,6 +21,7 @@ const {
   refreshPlugins,
   loadPlugin,
   unloadPlugin,
+  uninstallPlugin,
   executeCommand,
   getStatusText,
   getStatusColor,
@@ -65,6 +66,30 @@ const handleSelectPlugin = (pluginId: string) => {
 
 const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
+
+// 卸载插件（从内存中移除）
+const handleUnloadPlugin = async (pluginName: string) => {
+  try {
+    await unloadPlugin(pluginName)
+  } catch (err) {
+    alert(`卸载失败: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
+
+// 完全卸载插件（从内存和文件系统中移除）
+const handleUninstallPlugin = async (pluginName: string) => {
+  const confirmed = confirm(`确定要完全卸载插件 "${pluginName}" 吗？\n\n此操作将从内存和文件系统中删除该插件的所有文件。`)
+  if (!confirmed) {
+    return
+  }
+
+  try {
+    await uninstallPlugin(pluginName)
+    alert('插件已完全卸载')
+  } catch (err) {
+    alert(`卸载失败: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
 </script>
 
 <template>
@@ -119,11 +144,17 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
                 </div>
               </div>
               <div class="info-actions">
-                <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm" @click="unloadPlugin(activePlugin.name)">
+                <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm" @click="handleUnloadPlugin(activePlugin.name)">
                   <template #icon>
                     <Trash />
                   </template>
-                  卸载
+                  停用
+                </Button>
+                <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm" @click="handleUninstallPlugin(activePlugin.name)">
+                  <template #icon>
+                    <Trash />
+                  </template>
+                  完全卸载
                 </Button>
                 <Button v-if="activePlugin.type === 'available' && activePlugin.path" size="sm" @click="loadPlugin(activePlugin.path)">
                   <template #icon>
