@@ -1,0 +1,35 @@
+{
+  "name": "qi-cli",
+  "version": "1.0.0",
+  "description": "CLI tool for creating and building Qi plugins",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "qi": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "qi",
+    "cli",
+    "plugin",
+    "template"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.0.0",
+    "jszip": "^3.10.1",
+    "ora": "^8.0.1",
+    "chalk": "^5.3.0",
+    "inquirer": "^9.2.12"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^22.18.11",
+    "typescript": "^5.9.2"
+  }
+}
