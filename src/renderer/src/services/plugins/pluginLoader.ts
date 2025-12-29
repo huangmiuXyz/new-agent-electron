@@ -1,4 +1,5 @@
 import { PluginManager } from './pluginManager';
+import JSZip from 'jszip';
 
 /**
  * 插件加载器
@@ -203,5 +204,141 @@ export class PluginLoader {
     }
 
     return count;
+  }
+
+  /**
+   * 刷新插件列表
+   * @returns 包含已加载和可用插件的对象
+   */
+  async refreshPlugins(): Promise<{ loaded: PluginInfo[]; available: PluginInfoData[] }> {
+    const loaded = this.getLoadedPlugins();
+    const available = await this.getAvailablePlugins();
+    return { loaded, available };
+  }
+
+  /**
+   * 安装插件
+   * @param zipFilePath 插件文件路径
+   * @returns 安装结果
+   */
+  async installPlugin(zipFilePath: string): Promise<void> {
+    const fs = window.api.fs;
+    const path = window.api.path;
+
+    if (!fs || !path) {
+      throw new Error('File system API not available');
+    }
+
+    // 读取zip文件
+    const zipData = fs.readFileSync(zipFilePath);
+    const zip = await JSZip.loadAsync(zipData);
+
+    // 检查是否包含info.json
+    const infoFile = zip.file('info.json');
+    if (!infoFile) {
+      throw new Error('插件文件必须包含info.json');
+    }
+
+    // 读取info.json获取插件名称
+    const infoContent = await infoFile.async('string');
+    const info: PluginInfoData = JSON.parse(infoContent);
+
+    if (!info.name) {
+      throw new Error('info.json必须包含name字段');
+    }
+
+    // 检查是否包含index.js
+    const indexFile = zip.file('index.js');
+    if (!indexFile) {
+      throw new Error('插件文件必须包含index.js');
+    }
+
+    // 获取插件目录路径
+    const pluginsDir = window.api.getPluginsPath();
+    const pluginDir = path.join(pluginsDir, info.name);
+
+    // 如果插件已存在，提示覆盖
+    if (fs.existsSync(pluginDir)) {
+      const shouldOverwrite = confirm(`插件 "${info.name}" 已存在，是否覆盖？`);
+      if (!shouldOverwrite) {
+        return;
+      }
+      // 删除现有插件目录
+      fs.rmSync(pluginDir, { recursive: true, force: true });
+    }
+
+    // 创建插件目录
+    fs.mkdirSync(pluginDir, { recursive: true });
+
+    // 解压文件
+    const files = Object.keys(zip.files);
+    for (const filename of files) {
+      const zipEntry = zip.files[filename];
+      if (!zipEntry.dir) {
+        const content = await zipEntry.async('arraybuffer');
+        const outputPath = path.join(pluginDir, filename);
+        fs.writeFileSync(outputPath, Buffer.from(content));
+      }
+    }
+  }
+
+  /**
+   * 获取可用插件列表（从文件系统读取）
+   * @returns 可用插件数组
+   */
+  async getAvailablePlugins(): Promise<PluginInfoData[]> {
+    try {
+      const fs = window.api.fs;
+      const path = window.api.path;
+
+      if (!fs || !path) {
+        throw new Error('File system API not available');
+      }
+
+      // 获取插件目录路径（从userData读取）
+      const pluginsDir = window.api.getPluginsPath();
+
+      // 确保插件目录存在
+      if (!fs.existsSync(pluginsDir)) {
+        fs.mkdirSync(pluginsDir, { recursive: true });
+        return [];
+      }
+
+      // 读取目录内容
+      const files = fs.readdirSync(pluginsDir);
+
+      // 过滤出目录
+      const pluginDirs = files.filter((file: string) => {
+        const filePath = path.join(pluginsDir, file);
+        return fs.statSync(filePath).isDirectory();
+      });
+
+      // 生成插件列表
+      const pluginList: PluginInfoData[] = [];
+      for (const dir of pluginDirs) {
+        const infoPath = path.join(pluginsDir, dir, 'info.json');
+        if (fs.existsSync(infoPath)) {
+          try {
+            const infoContent = fs.readFileSync(infoPath, 'utf-8');
+            const info: PluginInfoData = JSON.parse(infoContent);
+            pluginList.push({
+              ...info,
+              name: info.name || dir,
+              path: dir,
+              description: info.description || `${dir} 插件`,
+              version: info.version || '1.0.0',
+              author: info.author
+            });
+          } catch (err) {
+            console.error(`Failed to read info.json for plugin ${dir}:`, err);
+          }
+        }
+      }
+
+      return pluginList;
+    } catch (err) {
+      console.error('Failed to fetch available plugins:', err);
+      return [];
+    }
   }
 }

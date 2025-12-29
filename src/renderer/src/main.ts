@@ -4,7 +4,7 @@ import piniaPersist from 'pinia-plugin-persistedstate-async'
 
 import App from './App.vue'
 import router from './router'
-import { PluginLoader } from '../core/pluginLoader'
+import { PluginLoader } from './services/plugins/pluginLoader'
 
 const app = createApp(App)
 

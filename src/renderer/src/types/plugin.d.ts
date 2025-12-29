@@ -64,6 +64,38 @@ declare global {
   }
 
   /**
+   * 插件信息数据（从 info.json 读取）
+   */
+  interface PluginInfoData {
+    /** 插件名称 */
+    name: string;
+    /** 插件路径 */
+    path: string;
+    /** 插件描述 */
+    description?: string;
+    /** 插件版本 */
+    version?: string;
+    /** 插件作者 */
+    author?: string;
+    /** 其他属性 */
+    [key: string]: any;
+  }
+
+  interface PluginItem {
+    id: string;
+    name: string;
+    description: string;
+    version: string;
+    status: PluginStatus;
+    type: 'loaded' | 'available';
+    error?: string;
+    path?: string;
+    plugin?: any;
+  }
+  type PluginStatus = 'unloaded' | 'loading' | 'loaded' | 'unloading' | 'error';
+
+
+  /**
    * 命令定义
    */
   interface Command {

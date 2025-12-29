@@ -70,7 +70,8 @@ import {
   EyeOff,
   InfoCircle,
   Puzzle,
-  X
+  X,
+  Download
 } from '@vicons/tabler'
 import {
   CommentAdd16Regular,
@@ -164,7 +165,8 @@ const icons = {
   CheckCircle: Checkmark,
   EditNoteFilled,
   Plugin: Puzzle,
-  Dismiss: X
+  Dismiss: X,
+  Download
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =

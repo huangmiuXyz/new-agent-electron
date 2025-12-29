@@ -1,142 +1,32 @@
 <script setup lang="ts">
 import { FormItem } from '@renderer/composables/useForm'
-import { isMobile } from '@renderer/composables/useDeviceType'
-import List from '@renderer/components/List.vue'
-import ListContainer from '@renderer/components/ListContainer.vue'
-import Table from '@renderer/components/Table.vue'
-
-const { Plugin: PluginIcon, Trash, Refresh, Check, Dismiss, Play, Plus } = useIcon([
+const { Plugin: PluginIcon, Trash, Refresh, Check, Dismiss, Play, Download } = useIcon([
   'Plugin',
   'Trash',
   'Refresh',
   'Check',
   'Dismiss',
   'Play',
-  'Plus'
+  'Download'
 ])
 
-const instance = getCurrentInstance()
-const pluginLoader = instance?.appContext.app.config.globalProperties.$pluginLoader
-
-// 插件列表
-const plugins = ref<PluginInfo[]>([])
-const availablePlugins = ref<any[]>([])
-const loading = ref(false)
-const activePluginId = useLocalStorage<string>('activePluginId', '')
-
-// 从文件系统获取可用插件列表
-const fetchAvailablePlugins = async () => {
-  try {
-    const fs = window.api.fs
-    const path = window.api.path
-    const app = window.api.app
-
-    // 获取插件目录路径（从静态目录读取）
-    const appPath = app.getAppPath()
-    const pluginsDir = path.join(appPath, 'src/renderer/public/plugins')
-
-    // 读取目录内容
-    const files = fs.readdirSync(pluginsDir)
-
-    // 过滤出 TypeScript 文件
-    const pluginFiles = files.filter((file: string) => file.endsWith('.ts'))
-
-    // 生成插件列表
-    const pluginList = pluginFiles.map((file: string) => {
-      const pluginName = file.replace(/\.ts$/, '')
-      return {
-        name: pluginName,
-        path: pluginName,
-        description: `${pluginName} 插件`,
-        version: '1.0.0'
-      }
-    })
-
-    return pluginList
-  } catch (err) {
-    console.error('Failed to fetch available plugins:', err)
-    return []
-  }
-}
-
-// 刷新插件列表
-const refreshPlugins = async () => {
-  loading.value = true
-  try {
-    if (pluginLoader) {
-      plugins.value = pluginLoader.getLoadedPlugins()
-    }
-    // 获取可用插件列表
-    availablePlugins.value = await fetchAvailablePlugins()
-  } catch (err) {
-    console.error('Failed to refresh plugins:', err)
-  } finally {
-    loading.value = false
-  }
-}
-
-// 加载插件
-const loadPlugin = async (pluginPath: string) => {
-  try {
-    if (pluginLoader) {
-      await pluginLoader.loadPlugin(pluginPath)
-      await refreshPlugins()
-    }
-  } catch (err) {
-    console.error('Failed to load plugin:', err)
-    throw err
-  }
-}
-
-// 卸载插件
-const unloadPlugin = async (pluginName: string) => {
-  try {
-    if (pluginLoader) {
-      await pluginLoader.unloadPlugin(pluginName)
-      await refreshPlugins()
-    }
-  } catch (err) {
-    console.error('Failed to unload plugin:', err)
-    throw err
-  }
-}
-
-// 执行命令
-const executeCommand = async (commandName: string) => {
-  try {
-    if (pluginLoader) {
-      const manager = pluginLoader.getPluginManager()
-      await manager.executeCommand(commandName)
-    }
-  } catch (err) {
-    console.error('Failed to execute command:', err)
-    throw err
-  }
-}
-
-// 获取状态文本
-const getStatusText = (status: PluginStatus): string => {
-  const statusMap: Record<PluginStatus, string> = {
-    unloaded: '未加载',
-    loading: '加载中',
-    loaded: '已加载',
-    unloading: '卸载中',
-    error: '错误'
-  }
-  return statusMap[status] || status
-}
-
-// 获取状态颜色
-const getStatusColor = (status: PluginStatus): string => {
-  const colorMap: Record<PluginStatus, string> = {
-    unloaded: '#999',
-    loading: '#1890ff',
-    loaded: '#52c41a',
-    unloading: '#faad14',
-    error: '#ff4d4f'
-  }
-  return colorMap[status] || '#999'
-}
+// 使用 usePlugins composable
+const {
+  allPlugins,
+  loading,
+  installing,
+  activePluginId,
+  activePlugin,
+  installPlugin,
+  refreshPlugins,
+  loadPlugin,
+  unloadPlugin,
+  executeCommand,
+  getStatusText,
+  getStatusColor,
+  getPluginCommands,
+  selectPlugin
+} = usePlugins()
 
 // 获取状态图标
 const getStatusIcon = (status: PluginStatus) => {
@@ -144,49 +34,6 @@ const getStatusIcon = (status: PluginStatus) => {
   if (status === 'loading') return Refresh
   if (status === 'error') return Dismiss
   return null
-}
-
-// 合并所有插件（已加载和可用）
-const allPlugins = computed(() => {
-  const loadedNames = new Set(plugins.value.map(p => p.plugin.name))
-  const available = availablePlugins.value.filter(p => !loadedNames.has(p.name))
-  return [
-    ...plugins.value.map(p => ({
-      id: p.plugin.name,
-      name: p.plugin.name,
-      description: p.plugin.description || '',
-      version: p.plugin.version || '1.0.0',
-      status: p.status,
-      type: 'loaded',
-      error: p.error,
-      plugin: p.plugin
-    })),
-    ...available.map(p => ({
-      id: p.name,
-      name: p.name,
-      description: p.description || '',
-      version: p.version || '1.0.0',
-      status: 'unloaded' as PluginStatus,
-      type: 'available',
-      path: p.path
-    }))
-  ]
-})
-
-// 当前选中的插件
-const activePlugin = computed(() => {
-  return allPlugins.value.find(p => p.id === activePluginId.value)
-})
-
-// 获取插件的命令列表
-const getPluginCommands = (pluginName: string) => {
-  if (!pluginLoader) return []
-  return pluginLoader.getPluginManager().getAllCommands().filter(c => c.pluginName === pluginName)
-}
-
-// 选择插件
-const selectPlugin = (pluginId: string) => {
-  activePluginId.value = pluginId
 }
 
 // 初始化
@@ -231,14 +78,15 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
       key-field="id"
       main-field="name"
       sub-field="description"
-      :logo-field="() => PluginIcon"
+      :logo-field="'PluginIcon'"
       @select="handleSelectPlugin"
     >
       <template #title-tool>
-        <Button @click="refreshPlugins" size="sm" type="button" variant="text" :loading="loading">
+        <Button @click="installPlugin" size="sm" type="button" variant="text" :loading="installing">
           <template #icon>
-            <Refresh />
+            <Download />
           </template>
+          安装插件
         </Button>
       </template>
       <template #main="{ item }">
@@ -277,7 +125,7 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
                   </template>
                   卸载
                 </Button>
-                <Button v-if="activePlugin.type === 'available'" size="sm" @click="loadPlugin(activePlugin.path)">
+                <Button v-if="activePlugin.type === 'available' && activePlugin.path" size="sm" @click="loadPlugin(activePlugin.path)">
                   <template #icon>
                     <Play />
                   </template>
