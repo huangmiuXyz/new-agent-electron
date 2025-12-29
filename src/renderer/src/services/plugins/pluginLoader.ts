@@ -52,7 +52,7 @@ export class PluginLoader {
       const code = await response.text();
 
       // 使用动态导入执行插件代码（插件应为预编译的 JavaScript）
-      const module = await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(code)}`);
+      const module = await import(/* @vite-ignore */ `data:text/javascript;charset=utf-8,${encodeURIComponent(code)}`);
 
       // 获取插件实例（支持 default 导出和命名导出）
       const plugin: Plugin = module.default || module.plugin || module;
