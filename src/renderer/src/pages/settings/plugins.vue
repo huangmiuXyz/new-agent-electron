@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { getCurrentInstance } from 'vue'
+import { FormItem } from '@renderer/composables/useForm'
+import { isMobile } from '@renderer/composables/useDeviceType'
+import List from '@renderer/components/List.vue'
+import ListContainer from '@renderer/components/ListContainer.vue'
+import Table from '@renderer/components/Table.vue'
 
-const { Plugin: PluginIcon, Trash, Refresh, Check, Dismiss, Play } = useIcon([
+const { Plugin: PluginIcon, Trash, Refresh, Check, Dismiss, Play, Plus } = useIcon([
   'Plugin',
   'Trash',
   'Refresh',
   'Check',
   'Dismiss',
-  'Play'
+  'Play',
+  'Plus'
 ])
 
 const instance = getCurrentInstance()
@@ -17,7 +22,7 @@ const pluginLoader = instance?.appContext.app.config.globalProperties.$pluginLoa
 const plugins = ref<PluginInfo[]>([])
 const availablePlugins = ref<any[]>([])
 const loading = ref(false)
-const error = ref<string | null>(null)
+const activePluginId = useLocalStorage<string>('activePluginId', '')
 
 // 从文件系统获取可用插件列表
 const fetchAvailablePlugins = async () => {
@@ -27,7 +32,6 @@ const fetchAvailablePlugins = async () => {
     const app = window.api.app
 
     // 获取插件目录路径（从静态目录读取）
-    // 使用 Electron 的 app.getAppPath() 获取应用路径
     const appPath = app.getAppPath()
     const pluginsDir = path.join(appPath, 'src/renderer/public/plugins')
 
@@ -58,7 +62,6 @@ const fetchAvailablePlugins = async () => {
 // 刷新插件列表
 const refreshPlugins = async () => {
   loading.value = true
-  error.value = null
   try {
     if (pluginLoader) {
       plugins.value = pluginLoader.getLoadedPlugins()
@@ -66,7 +69,7 @@ const refreshPlugins = async () => {
     // 获取可用插件列表
     availablePlugins.value = await fetchAvailablePlugins()
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '加载插件列表失败'
+    console.error('Failed to refresh plugins:', err)
   } finally {
     loading.value = false
   }
@@ -80,7 +83,7 @@ const loadPlugin = async (pluginPath: string) => {
       await refreshPlugins()
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '加载插件失败'
+    console.error('Failed to load plugin:', err)
     throw err
   }
 }
@@ -93,7 +96,7 @@ const unloadPlugin = async (pluginName: string) => {
       await refreshPlugins()
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '卸载插件失败'
+    console.error('Failed to unload plugin:', err)
     throw err
   }
 }
@@ -106,7 +109,7 @@ const executeCommand = async (commandName: string) => {
       await manager.executeCommand(commandName)
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '执行命令失败'
+    console.error('Failed to execute command:', err)
     throw err
   }
 }
@@ -143,173 +146,283 @@ const getStatusIcon = (status: PluginStatus) => {
   return null
 }
 
+// 合并所有插件（已加载和可用）
+const allPlugins = computed(() => {
+  const loadedNames = new Set(plugins.value.map(p => p.plugin.name))
+  const available = availablePlugins.value.filter(p => !loadedNames.has(p.name))
+  return [
+    ...plugins.value.map(p => ({
+      id: p.plugin.name,
+      name: p.plugin.name,
+      description: p.plugin.description || '',
+      version: p.plugin.version || '1.0.0',
+      status: p.status,
+      type: 'loaded',
+      error: p.error,
+      plugin: p.plugin
+    })),
+    ...available.map(p => ({
+      id: p.name,
+      name: p.name,
+      description: p.description || '',
+      version: p.version || '1.0.0',
+      status: 'unloaded' as PluginStatus,
+      type: 'available',
+      path: p.path
+    }))
+  ]
+})
+
+// 当前选中的插件
+const activePlugin = computed(() => {
+  return allPlugins.value.find(p => p.id === activePluginId.value)
+})
+
+// 获取插件的命令列表
+const getPluginCommands = (pluginName: string) => {
+  if (!pluginLoader) return []
+  return pluginLoader.getPluginManager().getAllCommands().filter(c => c.pluginName === pluginName)
+}
+
+// 选择插件
+const selectPlugin = (pluginId: string) => {
+  activePluginId.value = pluginId
+}
+
 // 初始化
 onMounted(() => {
   refreshPlugins()
+  // 默认选中第一个插件
+  watch(allPlugins, (newPlugins) => {
+    if (newPlugins.length > 0 && !activePluginId.value) {
+      activePluginId.value = newPlugins[0].id
+    }
+  }, { immediate: true })
 })
+
+// 移动端路由处理
+import { useRouter, useRoute } from 'vue-router'
+const router = useRouter()
+const route = useRoute()
+
+const isDetailResult = computed(() => {
+  return !!route.params.id
+})
+
+const handleSelectPlugin = (pluginId: string) => {
+  selectPlugin(pluginId)
+  if (isMobile.value) {
+    router.push(`/mobile/settings/plugins/${pluginId}`)
+  }
+}
+
+const showList = computed(() => !isMobile.value || !isDetailResult.value)
+const showForm = computed(() => !isMobile.value || isDetailResult.value)
 </script>
 
 <template>
-  <div class="plugins-page">
-    <div class="page-header">
-      <h2 class="page-title">插件管理</h2>
-      <Button variant="icon" size="sm" @click="refreshPlugins" :loading="loading">
-        <Refresh />
-      </Button>
-    </div>
+  <!-- 列表视图 -->
+  <ListContainer v-if="showList">
+    <List
+      title="插件"
+      :items="allPlugins"
+      :active-id="activePluginId"
+      :loading="loading"
+      key-field="id"
+      main-field="name"
+      sub-field="description"
+      :logo-field="() => PluginIcon"
+      @select="handleSelectPlugin"
+    >
+      <template #title-tool>
+        <Button @click="refreshPlugins" size="sm" type="button" variant="text" :loading="loading">
+          <template #icon>
+            <Refresh />
+          </template>
+        </Button>
+      </template>
+      <template #main="{ item }">
+        <div class="plugin-main">
+          <span>{{ item.name }}</span>
+          <component
+            v-if="getStatusIcon(item.status)"
+            :is="getStatusIcon(item.status)"
+            class="status-icon"
+            :style="{ color: getStatusColor(item.status) }"
+          />
+        </div>
+      </template>
+    </List>
+  </ListContainer>
 
-    <!-- 错误提示 -->
-    <div v-if="error" class="error-message">
-      {{ error }}
-      <Button variant="text" size="sm" @click="error = null">关闭</Button>
-    </div>
-
-    <!-- 已加载的插件 -->
-    <div class="section">
-      <h3 class="section-title">已加载的插件 ({{ plugins.length }})</h3>
-      <div v-if="plugins.length === 0" class="empty-state">
-        <PluginIcon class="empty-icon" />
-        <p>暂无已加载的插件</p>
-      </div>
-      <div v-else class="plugin-list">
-        <div v-for="pluginInfo in plugins" :key="pluginInfo.plugin.name" class="plugin-item">
-          <div class="plugin-info">
-            <div class="plugin-header">
-              <h4 class="plugin-name">{{ pluginInfo.plugin.name }}</h4>
-              <div class="plugin-status" :style="{ color: getStatusColor(pluginInfo.status) }">
-                <component v-if="getStatusIcon(pluginInfo.status)" :is="getStatusIcon(pluginInfo.status)"
-                  class="status-icon" />
-                <span>{{ getStatusText(pluginInfo.status) }}</span>
+  <!-- 表单视图 -->
+  <FormContainer v-if="showForm" header-title="插件管理">
+    <template #content>
+      <div v-if="activePlugin" class="plugin-detail">
+        <!-- 插件基本信息 -->
+        <FormItem label="插件信息">
+          <div class="info-card">
+            <div class="info-header">
+              <div class="info-title">
+                <h2>{{ activePlugin.name }}</h2>
+                <div class="status-badge" :style="{ color: getStatusColor(activePlugin.status) }">
+                  <component v-if="getStatusIcon(activePlugin.status)" :is="getStatusIcon(activePlugin.status)" />
+                  {{ getStatusText(activePlugin.status) }}
+                </div>
+              </div>
+              <div class="info-actions">
+                <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm" @click="unloadPlugin(activePlugin.name)">
+                  <template #icon>
+                    <Trash />
+                  </template>
+                  卸载
+                </Button>
+                <Button v-if="activePlugin.type === 'available'" size="sm" @click="loadPlugin(activePlugin.path)">
+                  <template #icon>
+                    <Play />
+                  </template>
+                  加载
+                </Button>
               </div>
             </div>
-            <p v-if="pluginInfo.plugin.description" class="plugin-description">
-              {{ pluginInfo.plugin.description }}
-            </p>
-            <p v-if="pluginInfo.plugin.version" class="plugin-version">
-              版本: {{ pluginInfo.plugin.version }}
-            </p>
-            <p v-if="pluginInfo.error" class="plugin-error">
-              错误: {{ pluginInfo.error }}
-            </p>
-          </div>
-          <div class="plugin-actions">
-            <Button v-if="pluginInfo.status === 'loaded'" variant="text" size="sm"
-              @click="unloadPlugin(pluginInfo.plugin.name)">
-              <template #icon>
-                <Trash />
-              </template>
-              卸载
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 可用插件 -->
-    <div class="section">
-      <h3 class="section-title">可用插件</h3>
-      <div v-if="availablePlugins.length === 0" class="empty-state">
-        <PluginIcon class="empty-icon" />
-        <p>暂无可用插件</p>
-      </div>
-      <div v-else class="plugin-list">
-        <div v-for="plugin in availablePlugins" :key="plugin.name" class="plugin-item">
-          <div class="plugin-info">
-            <div class="plugin-header">
-              <h4 class="plugin-name">{{ plugin.name }}</h4>
+            <div class="info-body">
+              <div class="info-row">
+                <span class="info-label">描述:</span>
+                <span class="info-value">{{ activePlugin.description || '暂无描述' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">版本:</span>
+                <span class="info-value">{{ activePlugin.version }}</span>
+              </div>
+              <div v-if="activePlugin.error" class="info-row">
+                <span class="info-label error-label">错误:</span>
+                <span class="info-value error-value">{{ activePlugin.error }}</span>
+              </div>
             </div>
-            <p v-if="plugin.description" class="plugin-description">
-              {{ plugin.description }}
-            </p>
-            <p v-if="plugin.version" class="plugin-version">
-              版本: {{ plugin.version }}
-            </p>
           </div>
-          <div class="plugin-actions">
-            <Button v-if="!plugins.find(p => p.plugin.name === plugin.name)" variant="primary" size="sm"
-              @click="loadPlugin(plugin.path)">
-              <template #icon>
-                <Play />
-              </template>
-              加载
-            </Button>
-            <span v-else class="already-loaded">已加载</span>
-          </div>
-        </div>
-      </div>
-    </div>
+        </FormItem>
 
-    <!-- 插件命令 -->
-    <div v-if="plugins.length > 0" class="section">
-      <h3 class="section-title">插件命令</h3>
-      <div class="commands-list">
-        <div v-for="pluginInfo in plugins" :key="`commands-${pluginInfo.plugin.name}`">
-          <div v-if="pluginLoader" class="plugin-commands">
-            <h5 class="plugin-commands-title">{{ pluginInfo.plugin.name }} 的命令:</h5>
-            <div
-              v-for="command in pluginLoader.getPluginManager().getAllCommands().filter(c => c.pluginName === pluginInfo.plugin.name)"
-              :key="command.name" class="command-item">
-              <Button variant="text" size="sm" @click="executeCommand(command.name)">
+        <!-- 插件命令 -->
+        <FormItem v-if="activePlugin.type === 'loaded'" label="可用命令">
+          <Table
+            :data="getPluginCommands(activePlugin.name)"
+            :columns="[
+              { key: 'name', label: '命令名称', width: '2fr' },
+              { key: 'description', label: '描述', width: '2fr' },
+              { key: 'actions', label: '操作', width: '1fr' }
+            ]"
+          >
+            <template #description="{ row }">
+              {{ row.description || '暂无描述' }}
+            </template>
+            <template #actions="{ row }">
+              <Button size="sm" variant="text" @click="executeCommand(row.name)">
                 <template #icon>
                   <Play />
                 </template>
-                {{ command.name }}
+                执行
               </Button>
-            </div>
-            <div
-              v-if="pluginLoader.getPluginManager().getAllCommands().filter(c => c.pluginName === pluginInfo.plugin.name).length === 0"
-              class="no-commands">
-              无可用命令
-            </div>
-          </div>
-        </div>
+            </template>
+          </Table>
+        </FormItem>
       </div>
-    </div>
-  </div>
+
+      <!-- 空状态 -->
+      <div v-else class="empty-state">
+        <PluginIcon class="empty-icon" />
+        <p>请从左侧选择一个插件查看详情</p>
+      </div>
+    </template>
+  </FormContainer>
 </template>
 
 <style scoped>
-.plugins-page {
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.page-header {
+.plugin-main {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
+  gap: 8px;
 }
 
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text-primary);
+.status-icon {
+  font-size: 12px;
 }
 
-.error-message {
-  padding: 12px 16px;
-  background-color: #fff2f0;
-  border: 1px solid #ffccc7;
+.plugin-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.info-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  color: #ff4d4f;
-  margin-bottom: 16px;
+  padding: 16px;
+}
+
+.info-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-}
-
-.section {
-  margin-bottom: 32px;
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
+  align-items: flex-start;
   margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.info-title h2 {
+  font-size: 18px;
+  font-weight: 600;
   color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  background: #fff;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+.info-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.info-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-row {
+  display: flex;
+  gap: 12px;
+}
+
+.info-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 60px;
+}
+
+.info-value {
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.error-label {
+  color: #ff4d4f;
+}
+
+.error-value {
+  color: #ff4d4f;
 }
 
 .empty-state {
@@ -317,123 +430,19 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
-  background-color: var(--bg-secondary);
-  border-radius: 12px;
-  color: var(--text-secondary);
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-  opacity: 0.5;
-}
-
-.plugin-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.plugin-item {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 16px;
-  background-color: var(--bg-secondary);
-  border-radius: 12px;
-  gap: 16px;
-}
-
-.plugin-info {
-  flex: 1;
-}
-
-.plugin-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.plugin-name {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.plugin-status {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-icon {
-  font-size: 12px;
-}
-
-.plugin-description {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin: 4px 0;
-}
-
-.plugin-version {
-  font-size: 12px;
+  padding: 60px 20px;
   color: var(--text-tertiary);
-  margin: 4px 0;
+  text-align: center;
 }
 
-.plugin-error {
-  font-size: 12px;
-  color: #ff4d4f;
-  margin: 4px 0;
+.empty-state .empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.3;
 }
 
-.plugin-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.already-loaded {
-  font-size: 12px;
-  color: var(--text-secondary);
-  padding: 4px 8px;
-  background-color: var(--bg-tertiary);
-  border-radius: 4px;
-}
-
-.commands-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.plugin-commands {
-  padding: 16px;
-  background-color: var(--bg-secondary);
-  border-radius: 12px;
-}
-
-.plugin-commands-title {
+.empty-state p {
   font-size: 14px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
-  color: var(--text-primary);
-}
-
-.command-item {
-  display: inline-block;
-  margin-right: 8px;
-  margin-bottom: 8px;
-}
-
-.no-commands {
-  font-size: 12px;
-  color: var(--text-secondary);
+  margin: 0;
 }
 </style>
