@@ -79,7 +79,7 @@ import {
   Wrench20Regular
 } from '@vicons/fluent'
 import { Mic, MicOff, Sparkles } from '@vicons/ionicons5'
-import { ArrowBackIosNewSharp } from '@vicons/material'
+import { ArrowBackIosNewSharp, EditNoteFilled } from '@vicons/material'
 const icons = {
   Edit,
   Pencil: Edit,
@@ -160,7 +160,8 @@ const icons = {
   FormatImage: Image,
   FormatHorizontalRule: SubtractAlt,
   FormatTable: Table,
-  CheckCircle: Checkmark
+  CheckCircle: Checkmark,
+  EditNoteFilled
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =

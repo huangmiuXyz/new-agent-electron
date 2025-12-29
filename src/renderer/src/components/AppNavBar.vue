@@ -8,7 +8,7 @@ const emit = defineEmits<{
 }>()
 
 const ChatIcon = useIcon('Chat')
-const NotesIcon = useIcon('Document')
+const EditNoteFilled = useIcon('EditNoteFilled')
 const SettingsIcon = useIcon('Settings')
 </script>
 
@@ -22,7 +22,7 @@ const SettingsIcon = useIcon('Settings')
             </div>
             <div class="nav-item" :class="{ active: currentView === 'notes' }" @click="emit('switch', 'notes')"
                 title="笔记">
-                <NotesIcon class="nav-icon" />
+                <EditNoteFilled class="nav-icon" />
             </div>
         </div>
 

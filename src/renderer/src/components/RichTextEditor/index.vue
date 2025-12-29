@@ -166,7 +166,6 @@ defineExpose({
 .rich-text-editor {
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     background: #fff;
     overflow: hidden;

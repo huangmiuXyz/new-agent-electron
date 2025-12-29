@@ -73,19 +73,6 @@ onUnmounted(() => {
 
         <!-- 笔记编辑区域 -->
         <div v-else class="editor-container">
-            <!-- 笔记标题 -->
-            <div class="note-header">
-                <Button v-if="isMobile" variant="icon" size="md" @click="goBack" class="back-button">
-                    <ArrowBackIosNewSharp />
-                </Button>
-                <Input v-model="noteTitle" placeholder="输入笔记标题..." class="title-input"
-                    @update:modelValue="onTitleChange" />
-                <div class="note-meta">
-                    <span v-if="currentFolder">{{ currentFolder.name }}</span>
-                    <span class="separator">•</span>
-                    <span>{{ new Date(currentNote.updatedAt).toLocaleString() }}</span>
-                </div>
-            </div>
 
             <!-- 笔记内容 -->
             <div class="note-content">
@@ -147,13 +134,6 @@ onUnmounted(() => {
     overflow: hidden;
 }
 
-.note-header {
-    padding: 20px 24px 12px;
-    border-bottom: 1px solid var(--border-subtle);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
 
 .title-input {
     font-size: 24px;
@@ -179,7 +159,6 @@ onUnmounted(() => {
 
 .note-content {
     flex: 1;
-    padding: 20px 24px;
     overflow-y: auto;
 }
 
@@ -187,15 +166,6 @@ onUnmounted(() => {
     width: 100%;
     height: 100%;
     min-height: 400px;
-}
-
-/* 移动端样式 */
-.note-editor.is-mobile .note-header {
-    padding: 16px 20px 12px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
 }
 
 .note-editor.is-mobile .title-input {
