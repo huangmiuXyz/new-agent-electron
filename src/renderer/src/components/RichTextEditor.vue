@@ -8,7 +8,7 @@ import { Color } from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
-import CodeBlock from '@tiptap/extension-code-block'
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import HorizontalRule from '@tiptap/extension-horizontal-rule'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
@@ -17,6 +17,11 @@ import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import RichTextEditorToolbar from './RichTextEditor/toolbar.vue'
+import { common, createLowlight } from 'lowlight'
+import 'highlight.js/styles/atom-one-dark.css'
+
+// 创建 lowlight 实例
+const lowlight = createLowlight(common)
 
 interface Props {
     modelValue: string
@@ -74,7 +79,9 @@ const editor = useEditor({
             openOnClick: false
         }),
         Underline,
-        CodeBlock.configure({
+        CodeBlockLowlight.configure({
+            lowlight,
+            defaultLanguage: 'plaintext',
             HTMLAttributes: {
                 class: 'code-block'
             }
