@@ -182,7 +182,7 @@ const handleModelSelect = (id: string) => {
 
 :deep(.list-item.is-active) {
   background: #000000 !important;
-  color: #fff;
+  color: #fff !important;
 }
 
 :deep(.main-text) {
