@@ -379,4 +379,16 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
     </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+:deep(.list-item) {
+    height: 32px;
+}
+
+.notes-sidebar {
+    height: 100%;
+}
+
+.combined-list {
+    height: 100%;
+}
+</style>
