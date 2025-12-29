@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const notesStore = useNotesStore()
+const settingsStore = useSettingsStore()
 const { currentFolder, currentNote } = storeToRefs(notesStore)
 
 // 初始化数据
@@ -24,7 +25,8 @@ watch(() => currentNote.value, (note) => {
 <template>
     <div class="notes-layout">
         <!-- 笔记-左侧侧边栏 -->
-        <div class="sidebar-wrapper" :class="{ collapsed: false }">
+        <div v-if="!isMobile" class="sidebar-wrapper"
+            :class="{ isMobile, collapsed: settingsStore.display.sidebarCollapsed }">
             <NotesSidebar />
         </div>
 
@@ -52,9 +54,9 @@ watch(() => currentNote.value, (note) => {
 }
 
 .sidebar-wrapper {
-    width: 260px;
+    width: auto;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    flex-shrink: 0;
+    width: 260px;
 }
 
 .sidebar-wrapper.isMobile {

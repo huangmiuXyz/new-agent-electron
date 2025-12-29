@@ -168,7 +168,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
               <div class="top-row">
                 <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-name">{{
                   item.title
-                }}</span>
+                  }}</span>
                 <div v-else class="shimmer-title"></div>
                 <span class="chat-time">{{ formatTime(item.createdAt) }}</span>
               </div>
@@ -181,7 +181,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
           <div v-else class="chat-title-container">
             <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-title">{{
               item.title
-            }}</span>
+              }}</span>
             <div v-else class="chat-title-loading">
               <div class="loading-spinner-small"></div>
               <span>标题生成中...</span>
@@ -198,7 +198,10 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 </template>
 
 <style scoped>
-/* --- Mobile Premium Styles --- */
+.chat-title {
+  text-wrap: nowrap;
+}
+
 .sidebar.is-mobile {
   background-color: #ffffff;
   border-right: none;
