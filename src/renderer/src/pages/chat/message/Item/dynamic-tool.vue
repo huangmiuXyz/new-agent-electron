@@ -46,13 +46,49 @@ const toggleCollapse = () => {
       </div>
       <div class="tool-content" :class="{ collapsed: isCollapsed }">
         <slot name="content">
-          <div class="content-section">
-            <div class="section-label">输入:</div>
-            <div class="section-value">{{ tool_part.input }}</div>
-          </div>
-          <div class="content-section" v-if="tool_part.output">
-            <div class="section-label">输出:</div>
-            <div class="section-value">{{ tool_part.output }}</div>
+          <div class="io-container">
+            <div class="io-section io-input">
+              <div class="io-header">
+                <div class="io-icon">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </div>
+                <span class="io-label">输入</span>
+              </div>
+              <div class="io-content">{{ tool_part.input }}</div>
+            </div>
+            <div class="io-section io-output" v-if="tool_part.output">
+              <div class="io-header">
+                <div class="io-icon">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
+                <span class="io-label">输出</span>
+              </div>
+              <div class="io-content">{{ tool_part.output }}</div>
+            </div>
           </div>
         </slot>
       </div>
@@ -136,7 +172,6 @@ const toggleCollapse = () => {
 }
 
 .tool-content {
-  padding: 12px;
   font-size: 12px;
   line-height: 1.6;
   color: #4b5563;
@@ -156,22 +191,107 @@ const toggleCollapse = () => {
   opacity: 0;
 }
 
+/* Input/Output container */
+.io-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.io-section {
+  overflow: hidden;
+}
+
+.io-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.io-icon {
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+}
+
+.io-label {
+  color: #4b5563;
+}
+
+.io-input .io-header {
+  background-color: #eff6ff;
+  border-bottom-color: #dbeafe;
+}
+
+.io-input .io-icon {
+  color: #3b82f6;
+}
+
+.io-input .io-label {
+  color: #1d4ed8;
+}
+
+.io-output .io-header {
+  background-color: #f0fdf4;
+  border-bottom-color: #dcfce7;
+}
+
+.io-output .io-icon {
+  color: #22c55e;
+}
+
+.io-output .io-label {
+  color: #15803d;
+}
+
+.io-content {
+  padding: 10px 12px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #374151;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  background-color: #ffffff;
+  max-height: 300px;
+  overflow-y: auto;
+  border-top: 1px solid transparent;
+}
+
+.io-input .io-content {
+  border-top-color: #dbeafe;
+}
+
+.io-output .io-content {
+  border-top-color: #dcfce7;
+}
+
 /* Scrollbar styling for the content */
-.tool-content::-webkit-scrollbar {
+.tool-content::-webkit-scrollbar,
+.io-content::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-.tool-content::-webkit-scrollbar-track {
+.tool-content::-webkit-scrollbar-track,
+.io-content::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.tool-content::-webkit-scrollbar-thumb {
+.tool-content::-webkit-scrollbar-thumb,
+.io-content::-webkit-scrollbar-thumb {
   background: #e5e7eb;
   border-radius: 3px;
 }
 
-.tool-content::-webkit-scrollbar-thumb:hover {
+.tool-content::-webkit-scrollbar-thumb:hover,
+.io-content::-webkit-scrollbar-thumb:hover {
   background: #d1d5db;
 }
 </style>
