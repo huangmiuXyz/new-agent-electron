@@ -9,55 +9,37 @@ const Stop = useIcon('Stop')
 <template>
   <div class="msg-row them has-avatar">
     <div v-if="!isMobile" class="msg-avatar-area">
-      <Image
-        :src="getProviderById(message.metadata?.provider!)?.logo"
-        class="msg-avatar"
-        alt="avatar"
-      />
+      <Image :src="getProviderById(message.metadata?.provider!)?.logo" class="msg-avatar" alt="avatar" />
     </div>
 
     <div class="msg-content">
       <div class="msg-meta" :class="{ isMobile }">
         <div v-if="isMobile" class="msg-avatar-area">
-          <Image
-            :src="getProviderById(message.metadata?.provider!)?.logo"
-            class="msg-avatar"
-            alt="avatar"
-          />
+          <Image :src="getProviderById(message.metadata?.provider!)?.logo" class="msg-avatar" alt="avatar" />
         </div>
 
-        <div style="display: flex; align-items: center">
+        <div style="display: flex; align-items: center;justify-content: space-between;flex: 1">
           <div class="msg-meta-content" :class="{ isMobile }">
             <span class="msg-name">{{ message.metadata?.model }}</span>
             <span class="msg-time">{{
               new Date(message.metadata?.date || '').toLocaleString()
             }}</span>
           </div>
-          <Button
-            v-if="message.metadata?.loading && !message.metadata?.error"
-            size="sm"
-            @click="message.metadata?.stop"
-            variant="icon"
-            type="button"
-          >
+          <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
+            variant="icon" type="button">
             <template #icon>
               <Stop style="color: red" />
             </template>
           </Button>
         </div>
       </div>
-      <ChatMessageItemRagSearch
-        :searching="message.metadata?.ragSearching"
-        :search-details="message.metadata?.ragSearchDetails"
-      />
-      <div
-        v-if="
-          !message.metadata?.error &&
-          message.metadata?.loading &&
-          message.parts.findIndex((e) => e.type === 'step-start') === -1
-        "
-        class="loading-container"
-      >
+      <ChatMessageItemRagSearch :searching="message.metadata?.ragSearching"
+        :search-details="message.metadata?.ragSearchDetails" />
+      <div v-if="
+        !message.metadata?.error &&
+        message.metadata?.loading &&
+        message.parts.findIndex((e) => e.type === 'step-start') === -1
+      " class="loading-container">
         <div class="loading-dots">
           <span class="dot"></span>
           <span class="dot"></span>
@@ -66,13 +48,10 @@ const Stop = useIcon('Stop')
       </div>
       <ChatMessageItemContent markdown :message="message" />
 
-      <MessageTranslation
-        v-if="message.metadata?.translations || message.metadata?.translationLoading"
-        :translations="message.metadata.translations"
-        :translationLoading="message.metadata.translationLoading"
+      <MessageTranslation v-if="message.metadata?.translations || message.metadata?.translationLoading"
+        :translations="message.metadata.translations" :translationLoading="message.metadata.translationLoading"
         :translationController="message.metadata.translationController"
-        @stopTranslation="() => message.metadata?.translationController?.()"
-      />
+        @stopTranslation="() => message.metadata?.translationController?.()" />
     </div>
   </div>
 </template>
@@ -114,16 +93,19 @@ const Stop = useIcon('Stop')
   display: flex;
   flex-direction: column;
 }
+
 .msg-meta-content {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   height: 32px;
 }
+
 .msg-meta.isMobile {
   flex-direction: row;
   gap: 8px;
 }
+
 .msg-name {
   font-weight: 600;
   font-size: 13px;
@@ -167,6 +149,7 @@ const Stop = useIcon('Stop')
 }
 
 @keyframes pulse {
+
   0%,
   80%,
   100% {
