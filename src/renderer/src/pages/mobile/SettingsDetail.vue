@@ -10,6 +10,7 @@ useAppHeader().setTitle(route.query.name as string)
         <SettingsProvider v-else-if="activeTab === 'models'" />
         <SettingsDefaultModels v-else-if="activeTab === 'defaultModels'" />
         <SettingsKnowledge v-else-if="activeTab === 'knowledge'" />
+        <SettingsPlugins v-else-if="activeTab === 'plugins'" />
         <SettingsTerminal v-else-if="activeTab === 'terminal'" />
         <SettingsDisplay v-else-if="activeTab === 'display'" />
         <SettingsMcp v-else-if="activeTab === 'mcp'" />

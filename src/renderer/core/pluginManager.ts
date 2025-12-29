@@ -1,0 +1,330 @@
+/**
+ * 插件管理器
+ * 负责维护插件注册表、命令系统和钩子系统
+ */
+export class PluginManager {
+  private app: any;
+  private pinia: any;
+  private plugins: Map<string, Plugin> = new Map();
+  private commands: Map<string, Command> = new Map();
+  private hooks: Map<string, Hook[]> = new Map();
+
+  constructor(app: any, pinia?: any) {
+    this.app = app;
+    this.pinia = pinia;
+  }
+
+  /**
+   * 注册插件
+   * @param plugin 插件实例
+   */
+  registerPlugin(plugin: Plugin): void {
+    this.plugins.set(plugin.name, plugin);
+  }
+
+  /**
+   * 注销插件
+   * @param pluginName 插件名称
+   */
+  unregisterPlugin(pluginName: string): void {
+    // 移除插件
+    this.plugins.delete(pluginName);
+
+    // 移除该插件注册的所有命令
+    for (const [commandName, command] of this.commands.entries()) {
+      if (command.pluginName === pluginName) {
+        this.commands.delete(commandName);
+      }
+    }
+
+    // 移除该插件注册的所有钩子
+    for (const [hookName, hooks] of this.hooks.entries()) {
+      const filteredHooks = hooks.filter(hook => hook.pluginName !== pluginName);
+      if (filteredHooks.length === 0) {
+        this.hooks.delete(hookName);
+      } else {
+        this.hooks.set(hookName, filteredHooks);
+      }
+    }
+  }
+
+  /**
+   * 创建插件上下文
+   * @param pluginName 插件名称
+   * @returns 插件上下文
+   */
+  createContext(pluginName: string): PluginContext {
+    return {
+      app: this.app,
+      pinia: this.pinia,
+      registerCommand: (name: string, handler: Function) => {
+        this.registerCommand(pluginName, name, handler);
+      },
+      registerHook: (name: string, handler: Function) => {
+        this.registerHook(pluginName, name, handler);
+      },
+      getStore: async (storeName: string) => {
+        return await this.getStore(storeName);
+      },
+    };
+  }
+
+  /**
+   * 获取 store
+   * @param storeName store 名称
+   * @returns store 实例
+   */
+  async getStore(storeName: string): Promise<any> {
+    if (!this.pinia) {
+      throw new Error('Pinia instance not available');
+    }
+
+    // 动态导入 store
+    const storeMap: Record<string, () => Promise<any>> = {
+      notes: async () => {
+        return useNotesStore(this.pinia);
+      },
+      chats: async () => {
+        return useChatsStores(this.pinia);
+      },
+      settings: async () => {
+        return useSettingsStore(this.pinia);
+      },
+      knowledge: async () => {
+        return useKnowledgeStore(this.pinia);
+      },
+      agent: async () => {
+        return useAgentStore(this.pinia);
+      },
+    };
+
+    const storeGetter = storeMap[storeName];
+    if (!storeGetter) {
+      throw new Error(`Store "${storeName}" not found`);
+    }
+
+    return await storeGetter();
+  }
+
+  /**
+   * 注册命令
+   * @param pluginName 插件名称
+   * @param name 命令名称
+   * @param handler 命令处理器
+   */
+  registerCommand(pluginName: string, name: string, handler: Function): void {
+    // 检查命令是否已存在
+    if (this.commands.has(name)) {
+      throw new Error(`Command "${name}" is already registered`);
+    }
+
+    const command: Command = {
+      name,
+      handler,
+      pluginName,
+    };
+
+    this.commands.set(name, command);
+  }
+
+  /**
+   * 注销命令
+   * @param name 命令名称
+   * @returns 是否成功注销
+   */
+  unregisterCommand(name: string): boolean {
+    return this.commands.delete(name);
+  }
+
+  /**
+   * 执行命令
+   * @param name 命令名称
+   * @param args 命令参数
+   * @returns 命令执行结果
+   */
+  async executeCommand(name: string, ...args: any[]): Promise<any> {
+    const command = this.commands.get(name);
+
+    if (!command) {
+      throw new Error(`Command "${name}" not found`);
+    }
+
+    try {
+      const result = await command.handler(...args);
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to execute command "${name}": ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * 获取命令
+   * @param name 命令名称
+   * @returns 命令定义
+   */
+  getCommand(name: string): Command | undefined {
+    return this.commands.get(name);
+  }
+
+  /**
+   * 获取所有命令
+   * @returns 命令数组
+   */
+  getAllCommands(): Command[] {
+    return Array.from(this.commands.values());
+  }
+
+  /**
+   * 检查命令是否存在
+   * @param name 命令名称
+   * @returns 是否存在
+   */
+  hasCommand(name: string): boolean {
+    return this.commands.has(name);
+  }
+
+  /**
+   * 注册钩子
+   * @param pluginName 插件名称
+   * @param name 钩子名称
+   * @param handler 钩子处理器
+   */
+  registerHook(pluginName: string, name: string, handler: Function): void {
+    const hook: Hook = {
+      name,
+      handler,
+      pluginName,
+    };
+
+    if (!this.hooks.has(name)) {
+      this.hooks.set(name, []);
+    }
+
+    this.hooks.get(name)!.push(hook);
+  }
+
+  /**
+   * 注销钩子
+   * @param name 钩子名称
+   * @param handler 钩子处理器（可选，如果不提供则移除所有同名钩子）
+   * @returns 是否成功注销
+   */
+  unregisterHook(name: string, handler?: Function): boolean {
+    if (!this.hooks.has(name)) {
+      return false;
+    }
+
+    if (!handler) {
+      // 移除所有同名钩子
+      return this.hooks.delete(name);
+    }
+
+    // 移除指定的钩子处理器
+    const hooks = this.hooks.get(name)!;
+    const filteredHooks = hooks.filter(hook => hook.handler !== handler);
+
+    if (filteredHooks.length === 0) {
+      return this.hooks.delete(name);
+    }
+
+    this.hooks.set(name, filteredHooks);
+    return true;
+  }
+
+  /**
+   * 触发钩子
+   * @param name 钩子名称
+   * @param data 钩子数据
+   * @returns 钩子执行结果数组
+   */
+  async triggerHook(name: string, data?: any): Promise<any[]> {
+    const hooks = this.hooks.get(name);
+
+    if (!hooks || hooks.length === 0) {
+      return [];
+    }
+
+    const results: any[] = [];
+
+    for (const hook of hooks) {
+      try {
+        const result = await hook.handler(data);
+        results.push(result);
+      } catch (error) {
+        console.error(`Hook "${name}" failed:`, error);
+        results.push(null);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * 获取钩子
+   * @param name 钩子名称
+   * @returns 钩子数组
+   */
+  getHooks(name: string): Hook[] {
+    return this.hooks.get(name) || [];
+  }
+
+  /**
+   * 获取所有钩子
+   * @returns 钩子映射
+   */
+  getAllHooks(): Map<string, Hook[]> {
+    return new Map(this.hooks);
+  }
+
+  /**
+   * 检查钩子是否存在
+   * @param name 钩子名称
+   * @returns 是否存在
+   */
+  hasHook(name: string): boolean {
+    return this.hooks.has(name) && this.hooks.get(name)!.length > 0;
+  }
+
+  /**
+   * 获取插件
+   * @param pluginName 插件名称
+   * @returns 插件实例
+   */
+  getPlugin(pluginName: string): Plugin | undefined {
+    return this.plugins.get(pluginName);
+  }
+
+  /**
+   * 获取所有插件
+   * @returns 插件数组
+   */
+  getAllPlugins(): Plugin[] {
+    return Array.from(this.plugins.values());
+  }
+
+  /**
+   * 检查插件是否已注册
+   * @param pluginName 插件名称
+   * @returns 是否已注册
+   */
+  hasPlugin(pluginName: string): boolean {
+    return this.plugins.has(pluginName);
+  }
+
+  /**
+   * 获取应用实例
+   * @returns 应用实例
+   */
+  getApp(): any {
+    return this.app;
+  }
+
+  /**
+   * 清空所有注册信息
+   */
+  clear(): void {
+    this.plugins.clear();
+    this.commands.clear();
+    this.hooks.clear();
+  }
+}

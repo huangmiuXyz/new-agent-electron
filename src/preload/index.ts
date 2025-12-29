@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { contextBridge, shell } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { aiServices } from './services/ai/index'
@@ -10,7 +11,6 @@ import { exec } from 'child_process'
 import os from 'os'
 // Custom APIs for renderer
 
-// @ts-ignore ts(2742)
 export const api = {
   ...aiServices(),
   pty: {
@@ -42,7 +42,13 @@ export const api = {
       'dialog:showOpenDialog',
       options
     )) as Electron.OpenDialogReturnValue,
+  app,
+  isPackaged: app.isPackaged,
   getPath: app.getPath,
+  getAppPath: app.getAppPath,
+  getPluginsPath: () => {
+    return path.join(app.getPath('userData'), 'plugins')
+  },
   shell,
   fs,
   path,
@@ -80,6 +86,7 @@ export const api = {
   }
 }
 
+// @ts-ignore - 类型推断需要引用 .pnpm/@ai-sdk+provider，不可移植
 export type API = typeof api
 if (process.contextIsolated) {
   try {

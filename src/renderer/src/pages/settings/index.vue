@@ -29,6 +29,9 @@ const switchTab = (tabName: string) => {
       <!-- 知识库设置 -->
       <SettingsKnowledge v-else-if="activeTab === 'knowledge'" />
 
+      <!-- 插件管理 -->
+      <SettingsPlugins v-else-if="activeTab === 'plugins'" />
+
       <!-- 终端设置 -->
       <SettingsTerminal v-else-if="activeTab === 'terminal'" />
 

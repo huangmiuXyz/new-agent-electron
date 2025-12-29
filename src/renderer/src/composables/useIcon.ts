@@ -12,7 +12,6 @@ import {
   Chat,
   Menu,
   Branch,
-  X,
   Terminal,
   ArrowLeft,
   TextBold,
@@ -69,7 +68,9 @@ import {
   Bulb,
   Eye,
   EyeOff,
-  InfoCircle
+  InfoCircle,
+  Puzzle,
+  X
 } from '@vicons/tabler'
 import {
   CommentAdd16Regular,
@@ -161,7 +162,9 @@ const icons = {
   FormatHorizontalRule: SubtractAlt,
   FormatTable: Table,
   CheckCircle: Checkmark,
-  EditNoteFilled
+  EditNoteFilled,
+  Plugin: Puzzle,
+  Dismiss: X
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
