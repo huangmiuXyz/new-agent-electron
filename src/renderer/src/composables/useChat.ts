@@ -61,13 +61,6 @@ export const useChat = (chatId: string) => {
       }
 
       const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
-      watch(
-        () => chat.messages,
-        () => {
-          update()
-        },
-        { deep: true }
-      )
       return chat!
     })!
   }
