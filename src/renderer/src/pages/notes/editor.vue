@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { isMobile } from '@renderer/composables/useDeviceType'
+import RichTextEditor from '@renderer/components/RichTextEditor.vue'
 
 const { Document, ArrowBackIosNewSharp } = useIcon([
     'Document',
@@ -91,8 +92,8 @@ onUnmounted(() => {
 
             <!-- 笔记内容 -->
             <div class="note-content">
-                <Textarea v-model="noteContent" placeholder="开始输入笔记内容..." class="content-textarea" :auto-resize="true"
-                    @update:modelValue="onContentChange" />
+                <RichTextEditor v-model="noteContent" placeholder="开始输入笔记内容..." class="content-editor"
+                    @change="onContentChange" />
             </div>
         </div>
     </div>
@@ -185,16 +186,10 @@ onUnmounted(() => {
     overflow-y: auto;
 }
 
-.content-textarea {
+.content-editor {
     width: 100%;
-    min-height: 100%;
-    border: none;
-    outline: none;
-    resize: none;
-    font-size: 14px;
-    line-height: 1.6;
-    background: transparent;
-    font-family: inherit;
+    height: 100%;
+    min-height: 400px;
 }
 
 /* 移动端样式 */

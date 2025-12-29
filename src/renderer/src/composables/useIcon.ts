@@ -14,7 +14,27 @@ import {
   Branch,
   X,
   Terminal,
-  ArrowLeft
+  ArrowLeft,
+  TextBold,
+  TextItalic,
+  TextUnderline,
+  TextStrikethrough,
+  Code,
+  Quotes,
+  ListBulleted,
+  ListNumbered,
+  TextAlignLeft,
+  TextAlignCenter,
+  TextAlignRight,
+  TextAlignJustify,
+  Undo,
+  Redo,
+  Link,
+  Erase,
+  Image,
+  Table,
+  Checkmark,
+  SubtractAlt
 } from '@vicons/carbon'
 import {
   Cpu,
@@ -119,7 +139,28 @@ const icons = {
   Document: FileText,
   ArrowLeft,
   Mic,
-  MicOff
+  MicOff,
+  FormatBold: TextBold,
+  FormatItalic: TextItalic,
+  FormatUnderlined: TextUnderline,
+  FormatStrikethrough: TextStrikethrough,
+  FormatCode: Code,
+  FormatQuote: Quotes,
+  FormatListBulleted: ListBulleted,
+  FormatListNumbered: ListNumbered,
+  FormatAlignLeft: TextAlignLeft,
+  FormatAlignCenter: TextAlignCenter,
+  FormatAlignRight: TextAlignRight,
+  FormatAlignJustify: TextAlignJustify,
+  Undo,
+  Redo,
+  Link,
+  LinkOff: Link,
+  FormatClear: Erase,
+  FormatImage: Image,
+  FormatHorizontalRule: SubtractAlt,
+  FormatTable: Table,
+  CheckCircle: Checkmark
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
