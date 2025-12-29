@@ -144,7 +144,7 @@ const triggerClick = () => {
 
 .selector-popup.position-top {
   bottom: auto;
-  top: 38px;
+  /* top: 38px; */
   transform-origin: top left;
 }
 

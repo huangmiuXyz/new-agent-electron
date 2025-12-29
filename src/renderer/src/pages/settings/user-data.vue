@@ -176,11 +176,11 @@ onMounted(loadFiles)
         <!-- File List -->
         <div class="file-table-wrapper">
           <Table :loading="loading" :data="categorizedFiles" :columns="[
-            { key: 'name', label: '文件名称', width: 100 },
+            { key: 'name', label: '文件名称', width: 'auto' },
             { key: 'type', label: '类型', width: 60 },
             { key: 'size', label: '大小', width: 80 },
-            { key: 'created', label: '创建时间', width: 120 },
-            { key: 'actions', label: '操作', width: 200 }
+            { key: 'created', label: '创建时间', width: 200 },
+            { key: 'actions', label: '操作', width: 'auto' }
           ]">
             <template #name="{ row }">
               <div class="file-name-cell">
