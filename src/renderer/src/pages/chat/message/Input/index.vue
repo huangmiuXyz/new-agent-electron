@@ -81,6 +81,23 @@ const adjustTextareaHeight = (event: Event) => {
   textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
 }
 
+const isComposing = ref(false)
+
+const handleCompositionStart = () => {
+  isComposing.value = true
+}
+
+const handleCompositionEnd = () => {
+  isComposing.value = false
+}
+
+const handleEnterKey = () => {
+  if (isComposing.value) {
+    return
+  }
+  _sendMessage()
+}
+
 const _sendMessage = async () => {
   if (!currentSelectedModel.value) {
     messageApi.error('请先选择模型')
@@ -122,7 +139,8 @@ const _sendMessage = async () => {
 
       <textarea ref="textareaRef" class="input-field" rows="1"
         :placeholder="isProcessingVoice ? '正在处理语音...' : (currentSelectedModel?.name && currentSelectedProvider?.name ? `${currentSelectedProvider?.name}：${currentSelectedModel?.name}` : '请选择模型')"
-        v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="_sendMessage"
+        v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="handleEnterKey"
+        @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
         :disabled="isProcessingVoice"></textarea>
 
       <div class="input-actions">
