@@ -110,21 +110,18 @@ const editor = useEditor({
     }
 })
 
-// 监听外部值变化
 watch(() => props.modelValue, (value) => {
     if (editor.value && editor.value.getHTML() !== value) {
         editor.value.commands.setContent(value)
     }
 })
 
-// 监听编辑器属性变化
 watch(() => props.editable, (value) => {
     if (editor.value) {
         editor.value.setEditable(value)
     }
 })
 
-// 监听 placeholder 变化
 watch(() => props.placeholder, (value) => {
     if (editor.value) {
         const placeholderExtension = editor.value.extensionManager.extensions.find(
@@ -142,7 +139,6 @@ onBeforeUnmount(() => {
     }
 })
 
-// 暴露编辑器实例供外部使用
 defineExpose({
     editor
 })
