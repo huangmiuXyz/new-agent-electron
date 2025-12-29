@@ -79,7 +79,13 @@ const editor = useEditor({
             openOnClick: false
         }),
         Underline,
-        CodeBlockLowlight,
+        CodeBlockLowlight.configure({
+            lowlight,
+            defaultLanguage: 'plaintext',
+            HTMLAttributes: {
+                class: 'code-block'
+            }
+        }),
         HorizontalRule,
         TaskList.configure({
             HTMLAttributes: {
