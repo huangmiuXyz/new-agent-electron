@@ -1,21 +1,19 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
+import { computed } from 'vue'
 
 interface Props {
   items: T[]
   title?: string
   activeId?: string
 
-  // 状态配置 (New)
   loading?: boolean
   emptyText?: string
 
-  // 字段配置
   keyField?: string
   mainField?: string
   subField?: string
   logoField?: string
 
-  // 功能配置
   selectable?: boolean
   variant?: 'default' | 'card'
   showHeader?: boolean
@@ -24,8 +22,8 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  loading: false,        // 默认为不加载
-  emptyText: '暂无数据',  // 默认空提示
+  loading: false,
+  emptyText: '暂无数据',
   keyField: 'id',
   mainField: 'name',
   subField: '',
@@ -44,11 +42,21 @@ const viewItems = computed(() => {
   const items = props.items.map((item, index) => {
     const key = item[props.keyField] ?? JSON.stringify(item)
     const logo = item[props.logoField]
+
+    // —— 核心：稳定的分组 key（每一项都有）
+    const groupKey =
+      props.showHeader && props.renderHeader
+        ? props.renderHeader(item)
+        : ''
+
+    // —— 仅用于“是否显示分组标题”
     let groupTitle = ''
     if (props.showHeader && props.renderHeader) {
-      const cur = props.renderHeader(item)
-      const prev = index > 0 ? props.renderHeader(props.items[index - 1]!) : null
-      if (index === 0 || cur !== prev) groupTitle = cur
+      const prevGroupKey =
+        index > 0 ? props.renderHeader(props.items[index - 1]!) : null
+      if (index === 0 || groupKey !== prevGroupKey) {
+        groupTitle = groupKey
+      }
     }
 
     return {
@@ -59,33 +67,36 @@ const viewItems = computed(() => {
       logo,
       isIcon: typeof logo === 'object' || typeof logo === 'function',
       isActive: props.isSelected?.(item) || props.activeId === key,
+      groupKey,
       groupTitle
     }
   })
 
   return items.map((item, index) => {
-    let isLastInGroup = false
+    const nextItem = index < items.length - 1 ? items[index + 1] : null
 
-    if (props.showHeader && props.renderHeader) {
-      const currentGroup = item.groupTitle
-      const nextItem = index < items.length - 1 ? items[index + 1] : null
-      const nextGroup = nextItem ? (props.renderHeader!(nextItem.raw)) : null
-
-      isLastInGroup = !nextItem || (currentGroup !== nextGroup)
-    } else {
-      isLastInGroup = index === items.length - 1
-    }
+    // —— 正确的“是否为分组最后一项”判定
+    const isLastItem =
+      !nextItem || item.groupKey !== nextItem.groupKey
 
     return {
       ...item,
-      isLastItem: isLastInGroup
+      isLastItem
     }
   })
 })
 
-const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.value[0], e?: MouseEvent) => {
-  if (type === 'select' && props.selectable) emit('select', item.key)
-  if (type === 'contextmenu' && e) emit('contextmenu', e, item.key)
+const handleAction = (
+  type: 'select' | 'contextmenu',
+  item: typeof viewItems.value[number],
+  e?: MouseEvent
+) => {
+  if (type === 'select' && props.selectable) {
+    emit('select', item.key)
+  }
+  if (type === 'contextmenu' && e) {
+    emit('contextmenu', e, item.key)
+  }
 }
 </script>
 
@@ -94,7 +105,7 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
     <div v-if="title" class="list-title">
       <div>{{ title }}</div>
       <div class="list-title-actions">
-        <slot name="title-tool"></slot>
+        <slot name="title-tool" />
       </div>
     </div>
 
@@ -113,21 +124,32 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
 
       <template v-else>
         <template v-for="item in viewItems" :key="item.key">
-          <div v-if="item.groupTitle" class="group-header">{{ item.groupTitle }}</div>
-          <div class="list-item" :class="{ 'is-active': item.isActive, 'is-last': item.isLastItem }"
-            @click="handleAction('select', item)" @contextmenu="handleAction('contextmenu', item, $event)">
+          <div v-if="item.groupTitle" class="group-header">
+            {{ item.groupTitle }}
+          </div>
+
+          <div class="list-item" :class="{
+            'is-active': item.isActive,
+            'is-last': item.isLastItem
+          }" @click="handleAction('select', item)" @contextmenu="handleAction('contextmenu', item, $event)">
             <div v-if="item.logo" class="item-media">
               <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
               <Image v-else :src="item.logo" :alt="String(item.main)" class="media-img" />
             </div>
+
             <div class="item-content">
               <slot name="main" :item="item.raw">
-                <div class="main-text text-truncate">{{ item.main }}</div>
+                <div class="main-text text-truncate">
+                  {{ item.main }}
+                </div>
               </slot>
-              <div v-if="item.sub" class="sub-text text-truncate">{{ item.sub }}</div>
+              <div v-if="item.sub" class="sub-text text-truncate">
+                {{ item.sub }}
+              </div>
             </div>
+
             <div v-if="$slots.actions" class="item-actions">
-              <slot name="actions" :item="item.raw"></slot>
+              <slot name="actions" :item="item.raw" />
             </div>
           </div>
         </template>
@@ -135,6 +157,7 @@ const handleAction = (type: 'select' | 'contextmenu', item: typeof viewItems.val
     </div>
   </div>
 </template>
+
 
 <style scoped>
 .list-scroll-area {
