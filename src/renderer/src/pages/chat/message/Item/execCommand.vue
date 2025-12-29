@@ -33,8 +33,6 @@ const handleForceContinue = () => {
   <ChatMessageItemDynamicTool :tool_part="tool_part">
     <template #status>
       <template v-if="isExecuting">
-        <span class="status-dot executing"></span>
-        <span class="status-text">Executing</span>
         <Button
           size="sm"
           variant="secondary"
