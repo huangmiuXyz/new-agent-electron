@@ -223,7 +223,6 @@ export const useSettingsStore = defineStore(
     persist: {
       storage: indexedDBStorage,
       afterRestore: async () => {
-        debugger
         const { restorePlugins } = usePlugins()
         restorePlugins()
       }
