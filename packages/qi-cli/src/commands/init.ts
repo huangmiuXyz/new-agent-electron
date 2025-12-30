@@ -336,7 +336,8 @@ export default defineConfig({
     },
     outDir: 'dist',
     emptyOutDir: true,
-    minify: false
+    minify: false,
+    target: 'esnext'
   },
   resolve: {
     alias: {
