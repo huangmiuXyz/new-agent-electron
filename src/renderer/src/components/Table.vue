@@ -90,7 +90,7 @@ const gridTemplate = computed(() =>
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
-  background: var(--bg-hover);
+  background: var(--bg-tertiary);
 }
 
 .table-cell {

@@ -145,6 +145,7 @@ const handleTouchEnd = (e: TouchEvent) => {
   --bg-secondary: #fff;
   --bg-hover: rgba(0, 0, 0, 0.05);
   --bg-active: rgba(0, 0, 0, 0.08);
+  --bg-tertiary: #fcfcfc;
   --border-subtle: #eaeaea;
   --border-focus: #d1d1d6;
 
