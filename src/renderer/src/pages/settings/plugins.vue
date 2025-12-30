@@ -121,7 +121,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
   <!-- 表单视图 -->
   <FormContainer v-if="showForm" header-title="插件管理">
     <template #content>
-      <div v-if="activePlugin" class="plugin-detail">
+      <template v-if="activePlugin">
         <!-- 插件基本信息 -->
         <FormItem label="插件信息">
           <div class="info-card">
@@ -170,7 +170,6 @@ const handleUninstallPlugin = async (pluginName: string) => {
             </div>
           </div>
         </FormItem>
-
         <!-- 插件命令 -->
         <FormItem v-if="activePlugin.type === 'loaded'" label="可用命令">
           <Table :data="getPluginCommands(activePlugin.name)" :columns="[
@@ -191,8 +190,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
             </template>
           </Table>
         </FormItem>
-      </div>
-
+      </template>
       <!-- 空状态 -->
       <div v-else class="empty-state">
         <PluginIcon class="empty-icon" />
@@ -216,7 +214,6 @@ const handleUninstallPlugin = async (pluginName: string) => {
 .plugin-detail {
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
 .info-card {
