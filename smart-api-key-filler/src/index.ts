@@ -7,24 +7,27 @@ const plugin: Plugin = {
   description: '批量填充提供商API密钥，支持一次性填充多个提供商的密钥',
 
   async install(context) {
-    // 注册内置工具
+    const settingsStore = await context.getStore('settings');
     context.registerBuiltinTool('smartApiKeyFiller', {
       description: '批量填充提供商API密钥，支持一次性填充多个提供商的密钥',
       inputSchema: z.object({
-        providers: z.array(
-          z.object({
-            providerId: z.string().min(1, '提供商ID不能为空'),
-            apiKey: z.string().min(1, 'API密钥不能为空')
-          })
-        ).min(1, '必须提供至少一个提供商密钥'),
-        updateSettings: z.boolean().optional().default(true)
+        providers: z
+          .array(
+            z.object({
+              providerId: z
+                .enum(settingsStore.providers.map((p: any) => p.id) as [string, ...string[]])
+                .describe('提供商ID，只能从预定义的提供商列表中选择'),
+              apiKey: z.string().describe('API密钥')
+            })
+          )
+          .describe('提供商密钥数组，用于批量填充'),
+        updateSettings: z.boolean().optional().describe('是否更新到设置中，默认为true')
       }),
       title: '智能密钥填充器',
       execute: async (args: any) => {
         const { providers, updateSettings = true } = args;
 
         try {
-          const settingsStore = await context.getStore('settings');
           const results: any[] = [];
 
           for (const providerInfo of providers) {
