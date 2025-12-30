@@ -337,8 +337,7 @@ export default defineConfig({
         chunkFileNames: '[name].js',
         assetFileNames: '[name][extname]',
         inlineDynamicImports: true
-      },
-      external: []
+      }
     },
     outDir: 'dist',
     emptyOutDir: true,
@@ -363,6 +362,8 @@ export default defineConfig({
               module: 'ES2022',
               lib: ['ES2022'],
               moduleResolution: 'node',
+              outDir: './dist',
+              rootDir: './src',
               strict: true,
               esModuleInterop: true,
               skipLibCheck: true,
@@ -392,7 +393,7 @@ export default defineConfig({
               'build:watch': 'vite build --watch'
             },
             dependencies: {
-              zod: '^3.23.8'
+              zod: '^4.2.1'
             },
             devDependencies: {
               typescript: '^5.9.2',
