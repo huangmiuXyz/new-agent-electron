@@ -25,9 +25,8 @@ export class PluginLoader {
       throw new Error('Path API not available');
     }
 
-    const pluginFileName = `${pluginName}.js`;
     const pluginsPath = window.api.getPluginsPath();
-    const pluginFullPath = path.join(pluginsPath, pluginFileName);
+    const pluginFullPath = path.join(pluginsPath, pluginName, 'index.js');
 
     return `file://${pluginFullPath}`;
   }
@@ -208,6 +207,14 @@ export class PluginLoader {
   }
 
   /**
+   * 获取所有内置工具
+   * @returns 内置工具映射
+   */
+  getBuiltinTools(): Map<string, any> {
+    return this.pluginManager.getBuiltinTools();
+  }
+
+  /**
    * 重新加载插件
    * @param pluginName 插件名称（不包含 .ts 扩展名）
    * @returns 插件信息
@@ -308,9 +315,9 @@ export class PluginLoader {
     for (const filename of files) {
       const zipEntry = zip.files[filename];
       if (!zipEntry.dir) {
-        const content = await zipEntry.async('arraybuffer');
+        const content = await zipEntry.async('uint8array');
         const outputPath = path.join(pluginDir, filename);
-        fs.writeFileSync(outputPath, Buffer.from(content));
+        fs.writeFileSync(outputPath, content);
       }
     }
   }
@@ -343,7 +350,12 @@ export class PluginLoader {
       // 过滤出目录
       const pluginDirs = files.filter((file: string) => {
         const filePath = path.join(pluginsDir, file);
-        return fs.statSync(filePath).isDirectory();
+        try {
+          const stat = fs.statSync(filePath);
+          return (stat.mode & 0o170000) === 0o040000;
+        } catch {
+          return false;
+        }
       });
 
       // 生成插件列表

@@ -8,6 +8,7 @@ export class PluginManager {
   private plugins: Map<string, Plugin> = new Map();
   private commands: Map<string, Command> = new Map();
   private hooks: Map<string, Hook[]> = new Map();
+  private builtinTools: Map<string, any> = new Map();
 
   constructor(app: any, pinia?: any) {
     this.app = app;
@@ -51,6 +52,7 @@ export class PluginManager {
   /**
    * 创建插件上下文
    * @param pluginName 插件名称
+   * @param options 插件上下文选项
    * @returns 插件上下文
    */
   createContext(pluginName: string): PluginContext {
@@ -65,6 +67,9 @@ export class PluginManager {
       },
       getStore: async (storeName: string) => {
         return await this.getStore(storeName);
+      },
+      registerBuiltinTool: (name: string, tool: any) => {
+        this.builtinTools.set(name, tool);
       },
     };
   }
@@ -320,11 +325,21 @@ export class PluginManager {
   }
 
   /**
+   * 获取所有内置工具
+   * @returns 内置工具映射
+   */
+  getBuiltinTools(): Map<string, any> {
+    return new Map(this.builtinTools);
+  }
+
+  /**
    * 清空所有注册信息
    */
   clear(): void {
     this.plugins.clear();
     this.commands.clear();
     this.hooks.clear();
+    this.builtinTools.clear();
   }
 }
+

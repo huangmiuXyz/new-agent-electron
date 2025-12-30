@@ -79,6 +79,8 @@ export interface PluginContext {
   registerHook: (name: string, handler: Function) => void;
   /** 获取 store */
   getStore: (storeName: string) => Promise<any>;
+  /** 注册内置工具 */
+  registerBuiltinTool: (name: string, tool: any) => void;
 }
 `;
 
@@ -126,6 +128,7 @@ qi code build
 - \`registerCommand(name, handler)\`: 注册命令
 - \`registerHook(name, handler)\`: 注册钩子
 - \`getStore(storeName)\`: 获取 store
+- \`registerBuiltinTool(name, tool)\`: 注册内置工具
 
 ### 可用的 Store
 

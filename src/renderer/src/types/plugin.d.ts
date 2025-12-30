@@ -31,6 +31,16 @@ declare global {
     registerHook: (name: string, handler: Function) => void;
     /** 获取 store */
     getStore: (storeName: string) => Promise<any>;
+    /** 注册内置工具 */
+    registerBuiltinTool: (name: string, tool: Tool) => void;
+  }
+
+  /**
+   * 插件上下文创建选项
+   */
+  interface PluginContextOptions {
+    /** 注册内置工具的方法 */
+    registerBuiltinTools?: (register: (name: string, tool: Tool) => void) => void;
   }
 
   /**

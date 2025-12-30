@@ -231,6 +231,7 @@ export function usePlugins() {
     getStatusText,
     getStatusColor,
     getPluginCommands,
-    selectPlugin
+    selectPlugin,
+    pluginLoader
   };
 }
