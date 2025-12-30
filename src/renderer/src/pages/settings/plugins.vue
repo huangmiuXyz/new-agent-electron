@@ -109,9 +109,11 @@ const handleUninstallPlugin = async (pluginName: string) => {
       <template #main="{ item }">
         <div class="plugin-main">
           <span>{{ item.name }}</span>
-          <component v-if="getStatusIcon(item.status)" :is="getStatusIcon(item.status)" class="status-icon"
-            :style="{ color: getStatusColor(item.status) }" />
         </div>
+      </template>
+      <template #actions="{ item }">
+        <component v-if="getStatusIcon(item.status)" :is="getStatusIcon(item.status)" class="status-icon"
+          :style="{ color: getStatusColor(item.status) }" />
       </template>
     </List>
   </ListContainer>
