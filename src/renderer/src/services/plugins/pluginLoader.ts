@@ -69,26 +69,14 @@ export class PluginLoader {
       if (!response.ok) {
         throw new Error(`Failed to fetch plugin: ${response.status} ${response.statusText}`);
       }
-
       const code = await response.text();
-
-      // 检测插件格式并加载
-      let plugin: Plugin;
-
-      if (code.includes('export ') || code.includes('import ')) {
-        // ES Module 格式
-        const module = await import(/* @vite-ignore */ `data:text/javascript;charset=utf-8,${encodeURIComponent(code)}`);
-        plugin = module.default || module.plugin || module;
-      } else {
-        // IIFE 格式：使用 Function 构造器执行代码
-        const pluginGlobalName = 'plugin';
-        const wrappedCode = `
+      const pluginGlobalName = 'plugin';
+      const wrappedCode = `
           ${code}
           return ${pluginGlobalName};
         `;
-        const getPlugin = new Function(wrappedCode);
-        plugin = getPlugin();
-      }
+      const getPlugin = new Function(wrappedCode);
+      const plugin = getPlugin();
 
       // 验证插件接口
       if (!plugin || typeof plugin !== 'object') {

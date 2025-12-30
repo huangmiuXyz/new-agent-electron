@@ -1,3 +1,5 @@
+import { markRaw } from 'vue';
+
 /**
  * 插件管理器
  * 负责维护插件注册表、命令系统和钩子系统
@@ -69,7 +71,7 @@ export class PluginManager {
         return await this.getStore(storeName);
       },
       registerBuiltinTool: (name: string, tool: any) => {
-        this.builtinTools.set(name, tool);
+        this.builtinTools.set(name, markRaw(tool));
       },
     };
   }
