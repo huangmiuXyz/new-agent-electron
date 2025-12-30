@@ -5,11 +5,12 @@
   "author": "Qi Team",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
-    "build:watch": "tsc --watch"
+    "build": "vite build",
+    "build:watch": "vite build --watch"
   },
   "devDependencies": {
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vite": "^5.0.0"
   },
   "dependencies": {
     "zod": "^4.2.1"

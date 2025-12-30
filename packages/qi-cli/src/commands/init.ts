@@ -38,6 +38,8 @@ const plugin: Plugin = {
       execute: async (args: any) => {
         const { message } = args;
         
+        // 参数已由 zod 自动验证
+        
         return {
           toolResult: {
             content: [
@@ -310,6 +312,42 @@ export const initCommand = new Command('init')
       );
 
       await fs.writeFile(
+        path.join(projectDir, 'vite.config.ts'),
+        `import { defineConfig } from 'vite';
+import { resolve } from 'path';
+
+export default defineConfig({
+  build: {
+    lib: {
+      entry: resolve(__dirname, 'src/index.ts'),
+      name: 'plugin',
+      fileName: 'index',
+      formats: ['es']
+    },
+    rollupOptions: {
+      output: {
+        dir: 'dist',
+        entryFileNames: 'index.js',
+        chunkFileNames: '[name].js',
+        assetFileNames: '[name][extname]',
+        inlineDynamicImports: true
+      },
+      external: []
+    },
+    outDir: 'dist',
+    emptyOutDir: true,
+    minify: false
+  },
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src')
+    }
+  }
+});
+`
+      );
+
+      await fs.writeFile(
         path.join(projectDir, 'tsconfig.json'),
         JSON.stringify(
           {
@@ -318,8 +356,6 @@ export const initCommand = new Command('init')
               module: 'ES2022',
               lib: ['ES2022'],
               moduleResolution: 'node',
-              outDir: './dist',
-              rootDir: './src',
               strict: true,
               esModuleInterop: true,
               skipLibCheck: true,
@@ -345,14 +381,15 @@ export const initCommand = new Command('init')
             author: variables.author,
             main: 'dist/index.js',
             scripts: {
-              build: 'tsc',
-              'build:watch': 'tsc --watch'
+              build: 'vite build',
+              'build:watch': 'vite build --watch'
             },
             dependencies: {
               zod: '^3.23.8'
             },
             devDependencies: {
-              typescript: '^5.9.2'
+              typescript: '^5.9.2',
+              vite: '^5.0.0'
             }
           },
           null,
