@@ -5,6 +5,7 @@ import { useElementSize } from '@vueuse/core'
 import { AutoScrollContainer } from '@incremark/vue'
 
 const messageScrollRef = useTemplateRef('messageScrollRef')
+const prevMessageRef = ref<HTMLElement>()
 
 const autoScrollEnabled = ref(true)
 const { showContextMenu } = useContextMenu<BaseMessage>()
@@ -46,10 +47,12 @@ const lastMessageIndex = computed(() => {
 })
 
 const { height: containerHeight } = useElementSize(messageScrollRef)
+const { height: prevMessageHeight } = useElementSize(prevMessageRef)
 
 const lastMessageHeight = computed(() => {
-  if (lastMessageIndex.value >= 0 && containerHeight.value > 0) {
-    return `${containerHeight.value}px`
+  if (lastMessageIndex.value >= 0 && containerHeight.value > 0 && prevMessageHeight.value > 0) {
+    const height = containerHeight.value - prevMessageHeight.value - 10
+    return `${Math.max(0, height)}px`
   }
   return 'auto'
 })
@@ -157,29 +160,17 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 }
 </script>
 <template>
-  <AutoScrollContainer
-    ref="messageScrollRef"
-    :enabled="autoScrollEnabled"
-    :threshold="0"
-  >
+  <AutoScrollContainer ref="messageScrollRef" :enabled="autoScrollEnabled" :threshold="0">
     <div class="messages-content">
       <template v-for="(message, index) in currentChat?.messages" :key="`${message.id}-${index}`">
-        <ChatMessageItemHuman
-          v-if="message.role === 'user'"
-          :message="message"
-          @contextmenu="onMessageRightClick($event, message)"
-        />
-        <ChatMessageItemAi
-          v-if="message.role === 'assistant'"
-          :message="message"
-          :class="{ 'last-message': index === lastMessageIndex }"
-          :style="{
-            minHeight: index === lastMessageIndex ? lastMessageHeight : 'auto',
-            height: 'auto',
-            flex: 'none'
-          }"
-          @contextmenu="onMessageRightClick($event, message)"
-        />
+        <ChatMessageItemHuman v-if="message.role === 'user'" :message="message"
+          :ref="index === lastMessageIndex - 1 ? 'prevMessageRef' : undefined"
+          @contextmenu="onMessageRightClick($event, message)" />
+        <ChatMessageItemAi v-if="message.role === 'assistant'" :message="message" :style="{
+          minHeight: index === lastMessageIndex ? lastMessageHeight : 'auto',
+          height: 'auto',
+          flex: 'none'
+        }" @contextmenu="onMessageRightClick($event, message)" />
       </template>
     </div>
   </AutoScrollContainer>
