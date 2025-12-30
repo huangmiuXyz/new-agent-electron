@@ -77,12 +77,12 @@ const checkIcon = useIcon('Check')
 
 .checkbox-item:hover:not(.disabled) {
     border-color: var(--border-hover);
-    background: var(--bg-hover);
+    background: var(--bg-tertiary-hover);
 }
 
 .checkbox-item.checked {
     border-color: var(--accent-color);
-    background: var(--bg-hover);
+    background: var(--bg-tertiary-hover);
 }
 
 .checkbox-item.disabled {

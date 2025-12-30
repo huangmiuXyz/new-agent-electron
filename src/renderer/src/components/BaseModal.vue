@@ -21,7 +21,7 @@
         <div class="modal-footer">
           <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
-          }}</Button>
+            }}</Button>
           <Button ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button"
             @click="handleConfirm">
             {{ props.confirmText || '确认' }}
@@ -252,7 +252,7 @@ const handleCancel = () => {
 .modal-footer {
   padding: 12px 20px;
   border-top: 1px solid var(--border-color);
-  background: var(--bg-hover);
+  background: var(--bg-app);
   display: flex;
   justify-content: flex-end;
   gap: 10px;

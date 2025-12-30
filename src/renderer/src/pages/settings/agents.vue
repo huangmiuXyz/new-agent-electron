@@ -269,7 +269,7 @@ const getKnowledgeBaseName = (kbId: string) => {
   font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.5;
-  background: var(--bg-hover);
+  background: var(--bg-tertiary-hover);
   padding: 4px;
   border-radius: 6px;
   border: 1px solid var(--border-color-light);
