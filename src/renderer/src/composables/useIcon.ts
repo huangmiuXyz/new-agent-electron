@@ -71,7 +71,9 @@ import {
   InfoCircle,
   Puzzle,
   X,
-  Download
+  Download,
+  Moon,
+  Sun
 } from '@vicons/tabler'
 import {
   CommentAdd16Regular,
@@ -166,13 +168,15 @@ const icons = {
   EditNoteFilled,
   Plugin: Puzzle,
   Dismiss: X,
-  Download
+  Download,
+  Moon,
+  Sun
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
   T extends (keyof typeof icons)[]
-    ? { [K in T[number]]?: ReturnType<typeof h> }
-    : ReturnType<typeof h>
+  ? { [K in T[number]]?: ReturnType<typeof h> }
+  : ReturnType<typeof h>
 
 export const useIcon = <T extends keyof typeof icons | (keyof typeof icons)[]>(
   iconName: T

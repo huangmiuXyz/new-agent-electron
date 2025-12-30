@@ -7,9 +7,19 @@ const emit = defineEmits<{
     (e: 'switch', view: 'chat' | 'notes' | 'settings'): void
 }>()
 
+const settingsStore = useSettingsStore()
+
 const ChatIcon = useIcon('Chat')
 const EditNoteFilled = useIcon('EditNoteFilled')
 const SettingsIcon = useIcon('Settings')
+const MoonIcon = useIcon('Moon')
+const SunIcon = useIcon('Sun')
+
+const toggleDarkMode = () => {
+    settingsStore.updateDisplaySettings({
+        darkMode: !settingsStore.display.darkMode
+    })
+}
 </script>
 
 <template>
@@ -28,6 +38,10 @@ const SettingsIcon = useIcon('Settings')
 
         <!-- Bottom Section for Settings/System -->
         <div class="nav-section   bottom no-drag">
+            <div class="nav-item" @click="toggleDarkMode" title="切换黑暗模式">
+                <MoonIcon v-if="!settingsStore.display.darkMode" class="nav-icon" />
+                <SunIcon v-else class="nav-icon" />
+            </div>
             <div class="nav-item" :class="{ active: currentView === 'settings' }" @click="emit('switch', 'settings')"
                 title="设置">
                 <SettingsIcon class="nav-icon" />
