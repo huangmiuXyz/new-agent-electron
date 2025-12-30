@@ -92,7 +92,7 @@ defineExpose({
   transition: border 0.2s, box-shadow 0.2s;
   color: var(--text-primary);
   font-family: inherit;
-  background-color: #fff;
+  background-color: var(--bg-input);
 }
 
 .form-input--md {
@@ -125,13 +125,13 @@ defineExpose({
 }
 
 .form-input:disabled {
-  background-color: #f5f5f5;
-  color: #999;
+  background-color: var(--bg-disabled);
+  color: var(--text-disabled);
   cursor: not-allowed;
 }
 
 .form-input::placeholder {
-  color: #999;
+  color: var(--text-placeholder);
 }
 
 .password-toggle {
@@ -154,7 +154,7 @@ defineExpose({
 }
 
 .password-toggle:disabled {
-  color: #ccc;
+  color: var(--text-disabled);
   cursor: not-allowed;
 }
 

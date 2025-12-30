@@ -73,17 +73,17 @@ const handleSuggestionSelected = (suggestion: Suggestion) => {
 <style scoped>
 /* 变量定义：方便统一调整颜色 */
 .suggestions-card {
-    --bg-color: #ffffff;
-    --border-color: #eef2f6;
+    --bg-color: var(--bg-card);
+    --border-color: var(--border-color-light);
     /* 极淡的边框 */
-    --hover-bg: #f8fafc;
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --accent-color: #3b82f6;
+    --hover-bg: var(--bg-hover);
+    --text-primary: var(--text-primary);
+    --text-secondary: var(--text-secondary);
+    --accent-color: var(--accent-color);
     /* 主题蓝 */
-    --accent-bg: #eff6ff;
+    --accent-bg: var(--bg-active);
     --radius: 8px;
-    --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    --shadow: 0 2px 8px rgba(var(--text-rgb), 0.04);
 }
 
 .msg-row {

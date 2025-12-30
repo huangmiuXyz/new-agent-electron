@@ -4,7 +4,7 @@ import { isMobile } from '@renderer/composables/useDeviceType'
 interface Props {
   activeTab: string
 }
-const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, ChevronRight, Plugin } = useIcon([
+const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, ChevronRight, Plugin, Eye } = useIcon([
   'Cpu',
   'Server',
   'Robot',
@@ -14,10 +14,12 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
   'InfoCircle',
   'Terminal',
   'ChevronRight',
-  'Plugin'
+  'Plugin',
+  'Eye'
 ])
 
 const settingsList = [
+  { id: 'display', name: '显示设置', icon: useIcon('Eye'), section: '通用设置' },
   { id: 'agents', name: '智能体', icon: Robot, section: '智能助手' },
   { id: 'models', name: '模型提供商', icon: Cpu, section: '智能助手' },
   { id: 'defaultModels', name: '默认模型', icon: Box, section: '智能助手' },
@@ -72,7 +74,7 @@ const handleTabChange = (tabName: string) => {
 
 /* 移动端样式 */
 .settings-sidebar.is-mobile {
-  background-color: #f7f7f8;
+  background-color: var(--bg-sidebar);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -86,7 +88,7 @@ const handleTabChange = (tabName: string) => {
   position: sticky;
   top: 0;
   z-index: 10;
-  background-color: #f7f7f8;
+  background-color: var(--bg-sidebar);
   padding: calc(20px + env(safe-area-inset-top, 24px)) 20px 10px;
 }
 
@@ -120,11 +122,11 @@ const handleTabChange = (tabName: string) => {
 }
 
 .settings-sidebar.is-mobile :deep(.list-item) {
-  background: #fff;
+  background: var(--bg-card);
   margin-bottom: 0 !important;
   padding: 14px 16px;
   border-radius: 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-color-light);
 }
 
 .settings-sidebar.is-mobile :deep(.list-item:first-of-type),
@@ -155,7 +157,7 @@ const handleTabChange = (tabName: string) => {
   padding: 0;
   border-right: none;
   background: transparent;
-  --bg-active: #e4e4e6;
+  --bg-active: var(--bg-active);
 }
 
 .settings-sidebar:not(.is-mobile) :deep(.list-item) {
@@ -168,11 +170,11 @@ const handleTabChange = (tabName: string) => {
 }
 
 .settings-sidebar:not(.is-mobile) :deep(.list-item:hover) {
-  background-color: rgba(0, 0, 0, 0.04);
+  background-color: var(--bg-hover);
 }
 
 .settings-sidebar:not(.is-mobile) :deep(.list-item.is-active) {
-  background: rgba(0, 0, 0, 0.07);
+  background: var(--bg-active);
   border-color: transparent;
 }
 

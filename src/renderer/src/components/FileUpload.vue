@@ -94,8 +94,8 @@ defineExpose({
     height: 80px;
     border-radius: 8px;
     overflow: hidden;
-    border: 1px solid #e5e7eb;
-    background: #f9fafb;
+    border: 1px solid var(--border-color);
+    background: var(--bg-hover);
 }
 
 .preview-file {
@@ -116,7 +116,7 @@ defineExpose({
 
 .generic-icon {
     font-size: 24px;
-    color: #6b7280;
+    color: var(--text-secondary);
     margin-bottom: 4px;
     display: flex;
     align-items: center;
@@ -125,7 +125,7 @@ defineExpose({
 
 .file-name {
     font-size: 10px;
-    color: #374151;
+    color: var(--text-primary);
     text-align: center;
     width: 100%;
     white-space: nowrap;
@@ -141,8 +141,8 @@ defineExpose({
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
+    background: rgba(var(--text-rgb), 0.6);
+    color: var(--bg-card);
     border: none;
     cursor: pointer;
     display: flex;
@@ -155,7 +155,7 @@ defineExpose({
 }
 
 .remove-file-btn:hover {
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(var(--text-rgb), 0.8);
 }
 
 .upload-section {
@@ -164,8 +164,8 @@ defineExpose({
 }
 
 .drag-over {
-    border-color: var(--primary-color, #007bff);
-    background-color: rgba(0, 123, 255, 0.05);
+    border-color: var(--accent-color);
+    background-color: rgba(var(--accent-rgb), 0.05);
 }
 
 .drag-overlay {
@@ -174,7 +174,7 @@ defineExpose({
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 123, 255, 0.1);
+    background-color: rgba(var(--accent-rgb), 0.1);
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -188,7 +188,7 @@ defineExpose({
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    color: var(--primary-color, #007bff);
+    color: var(--accent-color);
     font-weight: 500;
 }
 

@@ -168,7 +168,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
               <div class="top-row">
                 <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-name">{{
                   item.title
-                  }}</span>
+                }}</span>
                 <div v-else class="shimmer-title"></div>
                 <span class="chat-time">{{ formatTime(item.createdAt) }}</span>
               </div>
@@ -181,7 +181,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
           <div v-else class="chat-title-container">
             <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-title">{{
               item.title
-              }}</span>
+            }}</span>
             <div v-else class="chat-title-loading">
               <div class="loading-spinner-small"></div>
               <span>标题生成中...</span>
@@ -203,7 +203,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 }
 
 .sidebar.is-mobile {
-  background-color: #ffffff;
+  background-color: var(--bg-card);
   border-right: none;
   width: 100% !important;
   max-width: none !important;
@@ -217,10 +217,10 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(var(--bg-rgb), 0.85);
   backdrop-filter: saturate(180%) blur(20px);
   padding: calc(16px + env(safe-area-inset-top, 24px)) 16px 8px;
-  border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 0.5px solid rgba(var(--text-rgb), 0.1);
 }
 
 .mobile-header-top {
@@ -233,7 +233,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 .mobile-title {
   font-size: 22px;
   font-weight: 700;
-  color: #000;
+  color: var(--text-primary);
   letter-spacing: -0.5px;
 }
 
@@ -303,7 +303,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   padding: 12px 16px;
   gap: 12px;
   position: relative;
-  background: #ffffff;
+  background: var(--bg-sidebar);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
 }
@@ -316,7 +316,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   left: 72px;
   /* avatar width + gap + padding */
   height: 0.5px;
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--border-color);
   transition: opacity 0.2s;
 }
 
@@ -328,16 +328,16 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   left: 72px;
   /* avatar width + gap + padding */
   height: 0.5px;
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--border-color);
   transition: opacity 0.2s;
 }
 
 .chat-row:hover {
-  background-color: rgba(0, 0, 0, 0.02);
+  background-color: var(--bg-hover);
 }
 
 .chat-row:active {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--bg-active);
   transform: scale(0.985);
 }
 
@@ -356,7 +356,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   justify-content: center;
   font-size: 18px;
   font-weight: 600;
-  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 0 0 0.5px rgba(var(--text-rgb), 0.05);
 }
 
 .temp-badge {
@@ -366,9 +366,9 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #34C759;
+  background: var(--color-success);
   /* iOS Green */
-  border: 2px solid #fff;
+  border: 2px solid var(--bg-card);
 }
 
 .content-container {
@@ -389,7 +389,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 .chat-name {
   font-size: 16px;
   font-weight: 600;
-  color: #000;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -397,12 +397,12 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 
 .chat-time {
   font-size: 13px;
-  color: #8E8E93;
+  color: var(--text-secondary);
 }
 
 .chat-preview-text {
   font-size: 14px;
-  color: #8E8E93;
+  color: var(--text-secondary);
   line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -423,7 +423,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 .empty-illustration {
   width: 120px;
   height: 120px;
-  background: #f2f2f7;
+  background: var(--bg-hover);
   border-radius: 20px;
   margin-bottom: 24px;
   display: flex;
@@ -434,7 +434,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 .chat-bubble-sketch {
   width: 40px;
   height: 40px;
-  border: 3px solid #D1D1D6;
+  border: 3px solid var(--border-color-medium);
   border-radius: 12px;
   position: relative;
 }
@@ -448,19 +448,19 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-top: 8px solid #D1D1D6;
+  border-top: 8px solid var(--border-color-medium);
 }
 
 .empty-text {
   font-size: 16px;
   font-weight: 500;
-  color: #8E8E93;
+  color: var(--text-secondary);
   margin-bottom: 24px;
 }
 
 .modern-btn {
-  background: #007AFF;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--accent-text);
   border: none;
   padding: 12px 24px;
   border-radius: 10px;
@@ -471,8 +471,8 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 }
 
 .modern-btn:hover {
-  background: #0063CC;
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  background: var(--color-info);
+  box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.3);
 }
 
 .modern-btn:active {
@@ -483,7 +483,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 .shimmer-title {
   width: 100px;
   height: 14px;
-  background: #f2f2f7;
+  background: var(--bg-hover);
   border-radius: 4px;
   animation: shimmer 1.5s infinite linear;
 }
@@ -525,7 +525,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   padding: 0;
   border-right: none;
   /* 设置自定义的选中项背景颜色 */
-  --bg-active: #e4e4e6;
+  --bg-active: var(--bg-active);
 }
 
 .sidebar:not(.is-mobile) :deep(.list-scroll-area) {
@@ -546,7 +546,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 }
 
 .sidebar:not(.is-mobile) :deep(.list-item.is-active) {
-  background-color: var(--bg-active, #e4e4e6) !important;
+  background-color: var(--bg-active) !important;
 }
 
 .sidebar:not(.is-mobile) :deep(.main-text) {

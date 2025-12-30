@@ -8,7 +8,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
     size: 'medium',
-    color: 'var(--accent-color, #0066ff)'
+    color: 'var(--accent-color)'
 })
 
 const spinnerSize = computed(() => {
@@ -61,7 +61,7 @@ const borderWidth = computed(() => {
 }
 
 .loading-spinner {
-    border: solid var(--border-subtle, #eee);
+    border: solid var(--border-subtle);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }

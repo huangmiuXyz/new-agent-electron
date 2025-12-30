@@ -11,7 +11,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  modelValue: '#000000',
+  modelValue: 'var(--text-primary)',
   disabled: false,
   size: 'md',
   placeholder: '选择颜色',
@@ -32,30 +32,30 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const colorInput = ref(props.modelValue || '#000000')
+const colorInput = ref(props.modelValue || 'var(--text-primary)')
 const showPicker = ref(false)
 const pickerRef = ref<HTMLElement>()
 
 // 颜色格式验证和转换
 const isValidHexColor = (color: string): boolean => {
-  const hexRegex = props.showAlpha 
+  const hexRegex = props.showAlpha
     ? /^#([A-Fa-f0-9]{8}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{4}|[A-Fa-f0-9]{3})$/
     : /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/
   return hexRegex.test(color)
 }
 
 const normalizeHexColor = (color: string): string => {
-  if (!isValidHexColor(color)) return props.modelValue || '#000000'
-  
+  if (!isValidHexColor(color)) return props.modelValue || 'var(--text-primary)'
+
   // 扩展简写形式
   if (color.length === 4) {
     return '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3]
   }
-  
+
   if (props.showAlpha && color.length === 5) {
     return '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3] + color[4] + color[4]
   }
-  
+
   return color
 }
 
@@ -70,10 +70,10 @@ const rgbValues = computed(() => {
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
-  const a = props.showAlpha && hex.length > 7 
-    ? parseInt(hex.slice(7, 9), 16) / 255 
+  const a = props.showAlpha && hex.length > 7
+    ? parseInt(hex.slice(7, 9), 16) / 255
     : 1
-  
+
   return { r, g, b, a }
 })
 
@@ -102,12 +102,12 @@ const selectPresetColor = (color: string) => {
 const handleColorInput = (event: Event) => {
   const target = event.target as HTMLInputElement
   let value = target.value
-  
+
   // 自动添加#前缀
   if (value && !value.startsWith('#')) {
     value = '#' + value
   }
-  
+
   colorInput.value = value
 }
 
@@ -145,32 +145,18 @@ onUnmounted(() => {
   <div class="color-picker-wrapper" :class="`color-picker--${size}`" ref="pickerRef">
     <div class="color-input-container">
       <!-- 颜色预览 -->
-      <div 
-        class="color-preview" 
-        :style="{ backgroundColor: currentColor }"
-        @click="!disabled && (showPicker = !showPicker)"
-      ></div>
-      
+      <div class="color-preview" :style="{ backgroundColor: currentColor }"
+        @click="!disabled && (showPicker = !showPicker)"></div>
+
       <!-- 颜色输入框 -->
-      <input
-        type="text"
-        :value="colorInput"
-        :placeholder="placeholder"
-        :disabled="disabled"
-        class="color-text-input"
-        @input="handleColorInput"
-      />
-      
+      <input type="text" :value="colorInput" :placeholder="placeholder" :disabled="disabled" class="color-text-input"
+        @input="handleColorInput" />
+
       <!-- 原生颜色选择器 -->
-      <input
-        type="color"
-        :value="currentColor.slice(0, 7)"
-        :disabled="disabled"
-        class="color-native-input"
-        @change="handleNativeColorChange"
-      />
+      <input type="color" :value="currentColor.slice(0, 7)" :disabled="disabled" class="color-native-input"
+        @change="handleNativeColorChange" />
     </div>
-    
+
     <!-- 颜色选择器面板 -->
     <Transition name="picker-fade">
       <div v-if="showPicker && !disabled" class="color-picker-panel">
@@ -182,18 +168,11 @@ onUnmounted(() => {
             <span v-if="showAlpha">, {{ Math.round(rgbValues.a * 255) }}</span>
           </div>
         </div>
-        
+
         <!-- 预设颜色网格 -->
         <div class="preset-colors">
-          <div
-            v-for="color in presetColors"
-            :key="color"
-            class="preset-color"
-            :style="{ backgroundColor: color }"
-            :class="{ active: color === currentColor }"
-            @click="selectPresetColor(color)"
-            :title="color"
-          ></div>
+          <div v-for="color in presetColors" :key="color" class="preset-color" :style="{ backgroundColor: color }"
+            :class="{ active: color === currentColor }" @click="selectPresetColor(color)" :title="color"></div>
         </div>
       </div>
     </Transition>
@@ -244,7 +223,7 @@ onUnmounted(() => {
   outline: none;
   transition: border 0.2s, box-shadow 0.2s;
   color: var(--text-primary);
-  background-color: #fff;
+  background-color: var(--bg-input);
 }
 
 .color-picker--sm .color-text-input {
@@ -259,8 +238,8 @@ onUnmounted(() => {
 }
 
 .color-text-input:disabled {
-  background-color: #f5f5f5;
-  color: #999;
+  background-color: var(--bg-disabled);
+  color: var(--text-disabled);
   cursor: not-allowed;
 }
 
@@ -299,7 +278,7 @@ onUnmounted(() => {
   top: calc(100% + 8px);
   left: 0;
   z-index: 1000;
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
@@ -349,7 +328,7 @@ onUnmounted(() => {
 }
 
 .preset-color.active {
-  border: 2px solid #000;
+  border: 2px solid var(--accent-color);
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
 }
 

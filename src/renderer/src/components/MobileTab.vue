@@ -1,5 +1,5 @@
 <template>
-  <div class="mobile-layout light-theme">
+  <div class="mobile-layout">
     <div class="content-viewport">
       <RouterView v-slot="{ Component }">
         <transition :name="pageTransition">
@@ -47,15 +47,6 @@ const switchTab = (tab) => {
 </script>
 
 <style scoped>
-.light-theme {
-  --bg-body: #f2f4f6;
-
-  --bg-tab: #ffffff;
-  --color-active: #2c2c2e;
-  --color-inactive: #a0a4a8;
-  --border-color: rgba(0, 0, 0, 0.05);
-}
-
 .mobile-layout {
   width: 100%;
   height: 100%;
@@ -89,7 +80,7 @@ const switchTab = (tab) => {
 
 .tab-bar {
   position: relative;
-  background-color: var(--bg-tab);
+  background-color: var(--bg-card);
   display: flex;
   z-index: 100;
   height: calc(56px + env(safe-area-inset-bottom));
@@ -104,8 +95,8 @@ const switchTab = (tab) => {
   height: 3px;
   background: linear-gradient(90deg,
       transparent 0%,
-      var(--color-active) 30%,
-      var(--color-active) 70%,
+      var(--accent-color) 30%,
+      var(--accent-color) 70%,
       transparent 100%);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -121,7 +112,7 @@ const switchTab = (tab) => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--color-inactive);
+  color: var(--text-secondary);
   transition: all 0.3s ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -150,7 +141,7 @@ const switchTab = (tab) => {
 }
 
 .tab-item.active {
-  color: var(--color-active);
+  color: var(--accent-color);
 }
 
 .tab-item.active .icon-box {

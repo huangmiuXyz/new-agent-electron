@@ -78,7 +78,7 @@ const SettingsIcon = useIcon('Settings')
 }
 
 .nav-item.active {
-    background-color: rgba(0, 0, 0, 0.06);
+    background-color: var(--bg-hover);
     color: var(--text-primary);
 }
 

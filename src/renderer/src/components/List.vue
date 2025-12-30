@@ -170,7 +170,7 @@ const handleAction = (
   height: 100%;
   min-height: 100px;
   padding: 20px;
-  color: var(--text-tertiary, #999);
+  color: var(--text-tertiary);
 }
 
 .empty-text {
@@ -180,7 +180,7 @@ const handleAction = (
 
 .list-container {
   height: 100%;
-  background-color: #fff;
+  background-color: var(--bg-card);
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -248,7 +248,7 @@ const handleAction = (
 }
 
 .list-item.is-active {
-  background-color: var(--bg-active, #f2f8ff);
+  background-color: var(--bg-active);
   color: var(--accent-color);
 }
 

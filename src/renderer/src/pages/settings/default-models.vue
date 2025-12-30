@@ -67,9 +67,9 @@ const [DefaultModelsForm] = useForm({
 .current-models-info {
     margin-top: 24px;
     padding: 16px;
-    background: #f8f9fa;
+    background: var(--bg-hover);
     border-radius: 8px;
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--border-color-light);
 }
 
 .current-models-info h3 {

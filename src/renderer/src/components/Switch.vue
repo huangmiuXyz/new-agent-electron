@@ -25,7 +25,7 @@ const toggle = () => {
 .toggle-switch {
   width: 36px;
   height: 20px;
-  background: #e9e9ea;
+  background: var(--border-color-medium);
   border-radius: 20px;
   position: relative;
   cursor: pointer;
@@ -44,7 +44,7 @@ const toggle = () => {
   top: 2px;
   width: 16px;
   height: 16px;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 50%;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   transition: left 0.2s;
@@ -56,7 +56,7 @@ const toggle = () => {
 }
 
 .toggle-switch.checked {
-  background: #34c759;
+  background: var(--color-success);
 }
 
 .toggle-switch.checked .toggle-knob {
@@ -67,11 +67,11 @@ const toggle = () => {
   width: 10px;
   height: 10px;
   animation: spin 1s linear infinite;
-  color: #8e8e93;
+  color: var(--text-secondary);
 }
 
 .toggle-switch.checked .spinner {
-  color: #34c759;
+  color: var(--color-success);
 }
 
 .spinner circle {

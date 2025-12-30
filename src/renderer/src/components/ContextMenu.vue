@@ -2,32 +2,20 @@
   <!-- 主菜单 -->
   <Teleport to="body">
     <transition name="radix-zoom">
-      <div
-        v-if="visible"
-        ref="menuRef"
-        class="radix-menu-content"
-        :class="[`variant-${props.variant}`]"
-        :style="styleObject"
-        @contextmenu.prevent
-      >
+      <div v-if="visible" ref="menuRef" class="radix-menu-content" :class="[`variant-${props.variant}`]"
+        :style="styleObject" @contextmenu.prevent>
         <template v-for="(item, index) in menuOptions" :key="index">
           <!-- 分割线 -->
           <div v-if="item.type === 'divider'" class="radix-separator"></div>
 
           <!-- 菜单项 -->
-          <div
-            v-else-if="typeof item.ifShow !== 'function' || item.ifShow(contextData)"
-            class="radix-item"
-            :ref="(el) => setMenuItemRef(el, item)"
-            :class="{
+          <div v-else-if="typeof item.ifShow !== 'function' || item.ifShow(contextData)" class="radix-item"
+            :ref="(el) => setMenuItemRef(el, item)" :class="{
               danger: item.danger,
               disabled: item.disabled,
               'has-submenu': item.children && item.children.length > 0
-            }"
-            @click="handleItemClick(item)"
-            @mouseenter="handleItemHover($event, item)"
-            @mouseleave="handleItemLeave"
-          >
+            }" @click="handleItemClick(item)" @mouseenter="handleItemHover($event, item)"
+            @mouseleave="handleItemLeave">
             <!-- 左侧内容：图标 + 文字 -->
             <div class="radix-item-left">
               <component :is="item.icon" />
@@ -50,25 +38,15 @@
   <!-- 子菜单 -->
   <Teleport to="body">
     <transition name="radix-zoom">
-      <div
-        v-if="submenuVisible"
-        ref="submenuRef"
-        class="radix-menu-content radix-submenu"
-        :class="[`variant-${props.variant}`]"
-        :style="submenuStyleObject"
-        @contextmenu.prevent
-      >
+      <div v-if="submenuVisible" ref="submenuRef" class="radix-menu-content radix-submenu"
+        :class="[`variant-${props.variant}`]" :style="submenuStyleObject" @contextmenu.prevent>
         <template v-for="(item, index) in submenuOptions" :key="index">
           <!-- 分割线 -->
           <div v-if="item.type === 'divider'" class="radix-separator"></div>
 
           <!-- 菜单项 -->
-          <div
-            v-else
-            class="radix-item"
-            :class="{ danger: item.danger, disabled: item.disabled }"
-            @click="handleSubmenuItemClick(item)"
-          >
+          <div v-else class="radix-item" :class="{ danger: item.danger, disabled: item.disabled }"
+            @click="handleSubmenuItemClick(item)">
             <!-- 左侧内容：图标 + 文字 -->
             <div class="radix-item-left">
               <component :is="item.icon" />
@@ -86,12 +64,7 @@
   </Teleport>
 
   <!-- 透明遮罩 -->
-  <div
-    v-if="visible"
-    class="radix-overlay"
-    @click="hideContextMenu"
-    @contextmenu.prevent="hideContextMenu"
-  ></div>
+  <div v-if="visible" class="radix-overlay" @click="hideContextMenu" @contextmenu.prevent="hideContextMenu"></div>
 </template>
 
 <script setup lang="ts" generic="T">
@@ -322,8 +295,8 @@ onUnmounted(() => {
 .radix-menu-content {
   position: fixed;
   z-index: 2000;
-  background: #fff;
-  border: 1px solid #e1e1e3;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 4px;
   min-width: 160px;
@@ -336,10 +309,10 @@ onUnmounted(() => {
 
 /* === Glass 变体样式（磨砂玻璃效果） === */
 .radix-menu-content.variant-glass {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(var(--bg-rgb), 0.9);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 5px;
   box-shadow:
@@ -359,60 +332,60 @@ onUnmounted(() => {
 /* Glass 变体的图标 */
 .radix-menu-content.variant-glass .radix-icon {
   font-size: 15px;
-  color: #86868b;
+  color: var(--text-secondary);
 }
 
 /* Glass 变体的悬停效果 */
 .radix-menu-content.variant-glass .radix-item:hover {
-  background-color: #000000;
-  color: #ffffff;
+  background-color: var(--text-primary);
+  color: var(--bg-card);
 }
 
 .radix-menu-content.variant-glass .radix-item:hover .radix-icon {
-  color: #ffffff;
+  color: var(--bg-card);
 }
 
 .radix-menu-content.variant-glass .radix-item:hover .radix-right-slot {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(var(--text-rgb), 0.5);
 }
 
 /* Glass 变体的危险选项 */
 .radix-menu-content.variant-glass .radix-item.danger {
-  color: #ff3b30;
+  color: var(--color-danger);
 }
 
 .radix-menu-content.variant-glass .radix-item.danger .radix-icon {
-  color: #ff3b30;
+  color: var(--color-danger);
 }
 
 .radix-menu-content.variant-glass .radix-item.danger:hover {
-  background-color: #ff3b30;
-  color: #ffffff;
+  background-color: var(--color-danger);
+  color: var(--bg-card);
 }
 
 .radix-menu-content.variant-glass .radix-item.danger:hover .radix-icon {
-  color: #ffffff;
+  color: var(--bg-card);
 }
 
 /* Glass 变体的分割线 */
 .radix-menu-content.variant-glass .radix-separator {
-  background-color: rgba(0, 0, 0, 0.06);
+  background-color: var(--border-color-light);
   margin: 4px 8px;
 }
 
 /* Glass 变体的子菜单箭头 */
 .radix-menu-content.variant-glass .submenu-arrow {
-  color: #86868b;
+  color: var(--text-secondary);
 }
 
 .radix-menu-content.variant-glass .radix-item:hover .submenu-arrow {
-  color: #ffffff;
+  color: var(--bg-card);
 }
 
 /* === Mobile 变体样式（手机端适配） === */
 .radix-menu-content.variant-mobile {
-  background: #fff;
-  border: 1px solid #e1e1e3;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 16px 16px 0 0;
   padding: 8px;
   min-width: 100%;
@@ -437,67 +410,67 @@ onUnmounted(() => {
 /* Mobile 变体的图标 */
 .radix-menu-content.variant-mobile .radix-icon {
   font-size: 18px;
-  color: #86868b;
+  color: var(--text-secondary);
 }
 
 /* Mobile 变体的悬停效果（手机端点击反馈） */
 .radix-menu-content.variant-mobile .radix-item:hover,
 .radix-menu-content.variant-mobile .radix-item:active {
-  background-color: #f5f5f5;
-  color: #202020;
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .radix-menu-content.variant-mobile .radix-item:hover .radix-icon,
 .radix-menu-content.variant-mobile .radix-item:active .radix-icon {
-  color: #86868b;
+  color: var(--text-secondary);
 }
 
 .radix-menu-content.variant-mobile .radix-item:hover .radix-right-slot,
 .radix-menu-content.variant-mobile .radix-item:active .radix-right-slot {
-  color: #888;
+  color: var(--text-sub);
 }
 
 /* Mobile 变体的危险选项 */
 .radix-menu-content.variant-mobile .radix-item.danger {
-  color: #ff3b30;
+  color: var(--color-danger);
 }
 
 .radix-menu-content.variant-mobile .radix-item.danger .radix-icon {
-  color: #ff3b30;
+  color: var(--color-danger);
 }
 
 .radix-menu-content.variant-mobile .radix-item.danger:hover,
 .radix-menu-content.variant-mobile .radix-item.danger:active {
-  background-color: #fff1f0;
-  color: #ff3b30;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
 }
 
 .radix-menu-content.variant-mobile .radix-item.danger:hover .radix-icon,
 .radix-menu-content.variant-mobile .radix-item.danger:active .radix-icon {
-  color: #ff3b30;
+  color: var(--color-danger);
 }
 
 /* Mobile 变体的分割线 */
 .radix-menu-content.variant-mobile .radix-separator {
-  background-color: rgba(0, 0, 0, 0.08);
+  background-color: var(--border-color-light);
   margin: 6px 0;
 }
 
 /* Mobile 变体的右侧快捷键 */
 .radix-menu-content.variant-mobile .radix-right-slot {
   font-size: 13px;
-  color: #888;
+  color: var(--text-sub);
 }
 
 /* Mobile 变体的子菜单箭头 */
 .radix-menu-content.variant-mobile .submenu-arrow {
-  color: #86868b;
+  color: var(--text-secondary);
   font-size: 18px;
 }
 
 .radix-menu-content.variant-mobile .radix-item:hover .submenu-arrow,
 .radix-menu-content.variant-mobile .radix-item:active .submenu-arrow {
-  color: #86868b;
+  color: var(--text-secondary);
 }
 
 /* === 手机端从底部滑出动画 === */
@@ -537,7 +510,7 @@ onUnmounted(() => {
 .radix-item {
   padding: 6px 10px;
   font-size: 13px;
-  color: #202020;
+  color: var(--text-primary);
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -556,50 +529,50 @@ onUnmounted(() => {
 
 .radix-icon {
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* 右侧快捷键 Slot */
 .radix-right-slot {
   margin-left: auto;
-  color: #888;
+  color: var(--text-sub);
   font-size: 11px;
 }
 
 /* === 悬停/选中状态 === */
 .radix-item:hover {
-  background-color: #f0f0f0;
-  color: #202020;
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 /* 危险选项 */
 .radix-item.danger {
-  color: #d72c0d;
+  color: var(--color-danger);
 }
 
 .radix-item.danger .radix-icon {
-  color: #d72c0d;
+  color: var(--color-danger);
 }
 
 .radix-item.danger:hover {
-  background-color: #fff1f0;
-  color: #d72c0d;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
 }
 
 /* 禁用状态 */
 .radix-item.disabled {
-  color: #999;
+  color: var(--text-disabled);
   pointer-events: none;
 }
 
 .radix-item.disabled .radix-icon {
-  color: #bbb;
+  color: var(--text-placeholder);
 }
 
 /* 分割线 */
 .radix-separator {
   height: 1px;
-  background: #f0f0f0;
+  background: var(--bg-hover);
   margin: 3px 0;
 }
 
@@ -648,7 +621,7 @@ onUnmounted(() => {
 
 /* 子菜单箭头 */
 .submenu-arrow {
-  color: #888;
+  color: var(--text-sub);
   font-size: 14px;
   margin-left: auto;
 }

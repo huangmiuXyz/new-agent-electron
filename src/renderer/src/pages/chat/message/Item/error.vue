@@ -43,13 +43,13 @@ defineEmits<{
     max-width: 100%;
     box-sizing: border-box;
 
-    background-color: rgba(254, 242, 242, 0.9);
-    border: 1px solid rgba(252, 165, 165, 0.6);
+    background-color: var(--bg-error, rgba(254, 242, 242, 0.9));
+    border: 1px solid var(--border-error, rgba(252, 165, 165, 0.6));
     border-radius: 6px;
 
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 13px;
-    color: #b91c1c;
+    color: var(--color-danger);
 
     transition: all 0.2s ease;
     user-select: none;
@@ -59,7 +59,7 @@ defineEmits<{
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ef4444;
+    color: var(--color-danger);
     width: 16px;
     height: 16px;
     margin-right: 6px;
@@ -74,7 +74,7 @@ defineEmits<{
 
 .message-text {
     font-weight: 500;
-    color: #991b1b;
+    color: var(--color-danger);
     margin-right: 8px;
     white-space: nowrap;
     overflow: hidden;
@@ -85,7 +85,7 @@ defineEmits<{
 .divider {
     width: 1px;
     height: 10px;
-    background-color: rgba(239, 68, 68, 0.3);
+    background-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.3);
     margin-right: 6px;
 }
 
@@ -97,7 +97,7 @@ defineEmits<{
     border: none;
     padding: 2px 4px;
     cursor: pointer;
-    color: #7f1d1d;
+    color: var(--color-danger);
     font-size: 12px;
     font-weight: 600;
     border-radius: 4px;
@@ -106,7 +106,7 @@ defineEmits<{
 }
 
 .retry-btn:hover {
-    background-color: rgba(239, 68, 68, 0.1);
+    background-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.1);
 }
 
 .retry-btn:hover .retry-icon {
@@ -117,39 +117,37 @@ defineEmits<{
     width: 11px;
     height: 11px;
     transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    color: #991b1b;
+    color: var(--color-danger);
 }
 
 /* 深色模式 */
-@media (prefers-color-scheme: dark) {
-    .ai-error-compact {
-        background-color: rgba(69, 10, 10, 0.7);
-        border-color: rgba(127, 29, 29, 0.6);
-    }
+.dark-mode .ai-error-compact {
+    background-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.15);
+    border-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.3);
+}
 
-    .icon-wrapper {
-        color: #f87171;
-    }
+.dark-mode .icon-wrapper {
+    color: var(--color-danger);
+}
 
-    .message-text {
-        color: #fca5a5;
-    }
+.dark-mode .message-text {
+    color: var(--color-danger);
+}
 
-    .divider {
-        background-color: rgba(248, 113, 113, 0.3);
-    }
+.dark-mode .divider {
+    background-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.3);
+}
 
-    .retry-btn {
-        color: #fca5a5;
-    }
+.dark-mode .retry-btn {
+    color: var(--color-danger);
+}
 
-    .retry-icon {
-        color: #fca5a5;
-    }
+.dark-mode .retry-icon {
+    color: var(--color-danger);
+}
 
-    .retry-btn:hover {
-        background-color: rgba(248, 113, 113, 0.2);
-        color: #fff;
-    }
+.dark-mode .retry-btn:hover {
+    background-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.2);
+    color: var(--accent-text);
 }
 </style>

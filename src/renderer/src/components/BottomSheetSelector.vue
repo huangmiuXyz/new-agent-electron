@@ -68,13 +68,7 @@ onUnmounted(() => {
         </div>
 
         <div class="bottom-sheet-search" v-if="placeholder">
-          <Input
-            v-model="internalSearchQuery"
-            type="text"
-            :placeholder="placeholder"
-            class="search-input"
-            autofocus
-          />
+          <Input v-model="internalSearchQuery" type="text" :placeholder="placeholder" class="search-input" autofocus />
         </div>
 
         <div class="bottom-sheet-content">
@@ -106,7 +100,7 @@ onUnmounted(() => {
 .bottom-sheet-container {
   width: 100%;
   max-width: 100%;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
   display: flex;
@@ -120,13 +114,13 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   padding: 12px 16px 8px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--border-color-light);
 }
 
 .bottom-sheet-handle {
   width: 36px;
   height: 4px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--border-color-medium);
   border-radius: 2px;
   margin-bottom: 8px;
 }
@@ -149,7 +143,7 @@ onUnmounted(() => {
 
 .search-input:focus {
   border-color: var(--accent-color);
-  background: #fff;
+  background: var(--bg-input);
 }
 
 .search-input::placeholder {
@@ -172,7 +166,7 @@ onUnmounted(() => {
 }
 
 .bottom-sheet-content::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--border-color-medium);
   border-radius: 2px;
 }
 

@@ -117,11 +117,11 @@ onMounted(async () => {
 
 .temp-badge {
   font-size: 10px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
   padding: 2px 6px;
   border-radius: 4px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-color-light);
 }
 
 .drag-region {
@@ -133,7 +133,7 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--bg-card);
   position: relative;
   height: 100%;
   overflow: hidden;

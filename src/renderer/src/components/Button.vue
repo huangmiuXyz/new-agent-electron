@@ -37,14 +37,7 @@ const handleClick = (event: MouseEvent) => {
 </script>
 
 <template>
-  <button
-    class="no-drag"
-    ref="buttonRef"
-    :type="type"
-    :class="buttonClasses"
-    :disabled="disabled"
-    @click="handleClick"
-  >
+  <button class="no-drag" ref="buttonRef" :type="type" :class="buttonClasses" :disabled="disabled" @click="handleClick">
     <template v-if="$slots.icon">
       <div class="icon-btn">
         <slot name="icon" />
@@ -103,7 +96,7 @@ const handleClick = (event: MouseEvent) => {
 }
 
 .btn--secondary:hover:not(.btn--disabled) {
-  background: #f0f0f0;
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -124,7 +117,7 @@ const handleClick = (event: MouseEvent) => {
 }
 
 .btn--icon:hover:not(.btn--disabled) {
-  background: #f0f0f0;
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -151,49 +144,49 @@ const handleClick = (event: MouseEvent) => {
 
 /* 危险按钮样式 */
 .btn--danger {
-  background: red !important;
-  color: white !important;
+  background: var(--color-danger) !important;
+  color: var(--accent-text) !important;
 }
 
 .btn--danger:hover:not(.btn--disabled) {
-  background: #ff7875 !important;
+  background: var(--color-danger-hover, rgba(var(--color-danger-rgb, 239, 68, 68), 0.8)) !important;
 }
 
 .btn--danger:active:not(.btn--disabled) {
-  background: #d9363e !important;
+  background: var(--color-danger-active, rgba(var(--color-danger-rgb, 239, 68, 68), 0.7)) !important;
 }
 
 /* 危险次要按钮样式 */
 .btn--secondary.btn--danger {
   background: transparent;
-  color: #ff4d4f;
+  color: var(--color-danger);
 }
 
 .btn--secondary.btn--danger:hover:not(.btn--disabled) {
-  background: #fff2f0;
-  color: #ff4d4f;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
 }
 
 /* 危险图标按钮样式 */
 .btn--icon.btn--danger {
   background: transparent;
-  color: #ff4d4f;
+  color: var(--color-danger);
 }
 
 .btn--icon.btn--danger:hover:not(.btn--disabled) {
-  background: #fff2f0;
-  color: #ff4d4f;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
 }
 
 /* 危险文本按钮样式 */
 .btn--text.btn--danger {
   background: transparent;
-  color: #ff4d4f;
+  color: var(--color-danger);
 }
 
 .btn--text.btn--danger:hover:not(.btn--disabled) {
   background: transparent;
-  color: #ff4d4f;
+  color: var(--color-danger);
 }
 
 /* 尺寸变体 */

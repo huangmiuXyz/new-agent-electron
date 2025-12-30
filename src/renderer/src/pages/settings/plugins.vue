@@ -217,7 +217,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
 }
 
 .info-card {
-  background: var(--bg-secondary);
+  background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 16px;
@@ -246,7 +246,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
   font-size: 12px;
   font-weight: 500;
   padding: 2px 8px;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 4px;
   border: 1px solid var(--border-subtle);
 }
@@ -281,11 +281,11 @@ const handleUninstallPlugin = async (pluginName: string) => {
 }
 
 .error-label {
-  color: #ff4d4f;
+  color: var(--color-danger);
 }
 
 .error-value {
-  color: #ff4d4f;
+  color: var(--color-danger);
 }
 
 .empty-state {

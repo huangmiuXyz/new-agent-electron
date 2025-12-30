@@ -234,7 +234,7 @@ onUnmounted(() => {
 }
 
 .error-text {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 
 /* Buttons */

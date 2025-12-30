@@ -49,7 +49,7 @@ const handleTabClick = (tabId: string) => {
 <style scoped>
 .tabs-container {
     display: inline-flex;
-    background: #f1f1f1;
+    background: var(--bg-hover);
     border-radius: 8px;
     padding: 3px;
     gap: 2px;
@@ -95,11 +95,11 @@ const handleTabClick = (tabId: string) => {
 
 .tab-item:hover:not(.disabled) {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.5);
+    background: var(--bg-card);
 }
 
 .tab-item.active {
-    background: #fff;
+    background: var(--bg-card);
     color: var(--text-primary);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }

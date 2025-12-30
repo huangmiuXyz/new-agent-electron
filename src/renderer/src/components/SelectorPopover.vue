@@ -122,14 +122,14 @@ const triggerClick = () => {
   position: absolute;
   bottom: 38px;
   left: 0;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(var(--bg-rgb), 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(var(--text-rgb), 0.08);
   border-radius: 10px;
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.12),
-    0 1px 4px rgba(0, 0, 0, 0.05);
+    0 4px 20px rgba(var(--text-rgb), 0.12),
+    0 1px 4px rgba(var(--text-rgb), 0.05);
   display: none;
   flex-direction: column;
   overflow: hidden;
@@ -179,7 +179,7 @@ const triggerClick = () => {
 
 .selector-search {
   padding: 4px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(var(--text-rgb), 0.06);
 }
 
 .selector-search-input {
@@ -214,12 +214,12 @@ const triggerClick = () => {
 }
 
 .selector-list-container::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(var(--text-rgb), 0.1);
   border-radius: 3px;
 }
 
 .selector-list-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(var(--text-rgb), 0.2);
 }
 
 .no-results {

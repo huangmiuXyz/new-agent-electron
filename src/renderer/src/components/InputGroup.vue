@@ -262,7 +262,7 @@ const updateObjectValue = (id: string, newValue: string, isPending: boolean) => 
     width: 100%;
     padding: 4px;
     border: 1px dashed var(--border-subtle);
-    background: rgba(0, 0, 0, 0.01);
+    background: var(--bg-hover);
     color: var(--text-secondary);
     font-size: 13px;
     font-weight: 500;
@@ -272,12 +272,12 @@ const updateObjectValue = (id: string, newValue: string, isPending: boolean) => 
 
 .add-btn:hover:not(:disabled) {
     border-color: var(--text-primary);
-    background: rgba(0, 0, 0, 0.03);
+    background: var(--border-color-light);
     color: var(--text-primary);
 }
 
 .add-btn:active:not(:disabled) {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--border-color-medium);
 }
 
 .add-btn:disabled {

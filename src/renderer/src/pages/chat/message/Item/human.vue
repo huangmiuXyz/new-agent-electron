@@ -39,7 +39,7 @@ const props = defineProps<{
 }
 
 .msg-row:hover {
-  background-color: #fafafa;
+  background-color: var(--bg-hover);
 }
 
 .msg-row.has-gap {
@@ -50,11 +50,11 @@ const props = defineProps<{
   font-size: 14px;
   line-height: 1.5;
   /* 自己的气泡样式 */
-  background-color: var(--bubble-me, #007AFF);
-  color: #fff;
+  background-color: var(--bubble-me, var(--accent-color));
+  color: var(--accent-text);
   padding: 8px 14px;
   border-radius: 12px 12px 2px 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 4px rgba(var(--text-rgb), 0.05);
   word-wrap: break-word;
 }
 </style>

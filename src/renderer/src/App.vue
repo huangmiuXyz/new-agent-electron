@@ -2,8 +2,21 @@
 import ChatPage from './pages/chat/index.vue'
 import NotesPage from './pages/notes/index.vue'
 import SettingsPage from './pages/settings/index.vue'
+import { useSettingsStore } from './stores/settings'
 
 const currentView = ref('chat')
+const settingsStore = useSettingsStore()
+const { display } = storeToRefs(settingsStore)
+
+// 监听黑暗模式设置
+watchEffect(() => {
+  const root = document.documentElement
+  if (display.value.darkMode) {
+    root.classList.add('dark-mode')
+  } else {
+    root.classList.remove('dark-mode')
+  }
+})
 
 const switchView = (view: 'chat' | 'notes' | 'settings') => {
   currentView.value = view
@@ -160,6 +173,87 @@ const handleTouchEnd = (e: TouchEvent) => {
   --accent: #3b82f6;
   --active-bg: rgba(59, 130, 246, 0.08);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* 额外的颜色变量 */
+  --bg-card: #fff;
+  --bg-input: #fff;
+  --bg-disabled: #f5f5f5;
+  --border-color-light: #e5e7eb;
+  --border-color-medium: #d1d5db;
+  --border-hover: #d1d1d1;
+  --text-disabled: #999;
+  --text-placeholder: #999;
+  --color-primary: #007bff;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
+
+  /* RGB 变量，用于 rgba() */
+  --bg-rgb: 255, 255, 255;
+  --text-rgb: 29, 29, 31;
+  --accent-rgb: 0, 0, 0;
+  --color-primary-rgb: 0, 123, 255;
+  --color-success-rgb: 16, 185, 129;
+  --color-warning-rgb: 245, 158, 11;
+  --color-danger-rgb: 239, 68, 68;
+  --color-info-rgb: 59, 130, 246;
+}
+
+/* 黑暗模式 */
+.dark-mode {
+  --bg-app: #1c1c1e;
+  --bg-sidebar: #2c2c2e;
+  --bg-header: #1c1c1e;
+  --bg-secondary: #2c2c2e;
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --bg-active: rgba(255, 255, 255, 0.12);
+  --border-subtle: #38383a;
+  --border-focus: #48484a;
+
+  --accent-color: #ffffff;
+  --accent-text: #000000;
+
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --text-tertiary: #8e8e93;
+
+  --bubble-me: #0a84ff;
+  --bubble-them: #2c2c2e;
+
+  /* GlobalSearch 组件所需的变量 */
+  --modal-bg: rgba(44, 44, 46, 0.85);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --text-main: #f5f5f7;
+  --text-sub: #a1a1a6;
+  --accent: #0a84ff;
+  --active-bg: rgba(10, 132, 255, 0.15);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+
+  /* 额外的颜色变量 */
+  --bg-card: #2c2c2e;
+  --bg-input: #2c2c2e;
+  --bg-disabled: #3a3a3c;
+  --border-color-light: #38383a;
+  --border-color-medium: #48484a;
+  --border-hover: #5a5a5c;
+  --text-disabled: #6e6e73;
+  --text-placeholder: #6e6e73;
+  --color-primary: #0a84ff;
+  --color-success: #32d74b;
+  --color-warning: #ffd60a;
+  --color-danger: #ff453a;
+  --color-info: #0a84ff;
+
+  /* RGB 变量，用于 rgba() */
+  --bg-rgb: 44, 44, 46;
+  --text-rgb: 245, 245, 247;
+  --accent-rgb: 255, 255, 255;
+  --color-primary-rgb: 10, 132, 255;
+  --color-success-rgb: 50, 215, 75;
+  --color-warning-rgb: 255, 214, 10;
+  --color-danger-rgb: 255, 69, 58;
+  --color-info-rgb: 10, 132, 255;
 }
 
 * {
@@ -256,12 +350,12 @@ body {
   display: flex;
   border-top: 1px solid var(--border-subtle);
   border-left: 1px solid var(--border-subtle);
-  background: #fff;
+  background: var(--bg-card);
   border-top-left-radius: var(--radius-md);
 }
 
 a {
-  color: #000 !important;
+  color: var(--accent-color) !important;
 }
 
 /* Transitions */

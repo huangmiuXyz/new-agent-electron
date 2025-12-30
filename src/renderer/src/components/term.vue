@@ -38,22 +38,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div
-    class="terminal-container"
-    :style="{ height: terminalHeight + 'px' }"
-    :class="{ 'is-resizing': isResizing }"
-  >
+  <div class="terminal-container" :style="{ height: terminalHeight + 'px' }" :class="{ 'is-resizing': isResizing }">
     <div class="resizer" @mousedown="startResizing"></div>
 
     <div class="terminal-header">
       <div class="tabs-list">
-        <div
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="tab-item"
-          :class="{ active: activeTabId === tab.id }"
-          @click="switchTab(tab.id)"
-        >
+        <div v-for="tab in tabs" :key="tab.id" class="tab-item" :class="{ active: activeTabId === tab.id }"
+          @click="switchTab(tab.id)">
           <div class="tab-status-dot" :class="{ 'is-executing': tab.isExecutingDelayed }"></div>
           <span class="tab-title">{{ tab.title }}</span>
           <span class="tab-close" @click.stop="removeTab(tab.id)">×</span>
@@ -67,23 +58,18 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="terminal-body">
-      <div
-        v-for="tab in tabs"
-        :key="tab.id"
-        :ref="(el) => setTerminalRef(el, tab.id)"
-        class="xterm-container"
-        v-show="activeTabId === tab.id"
-      />
+      <div v-for="tab in tabs" :key="tab.id" :ref="(el) => setTerminalRef(el, tab.id)" class="xterm-container"
+        v-show="activeTabId === tab.id" />
     </div>
   </div>
 </template>
 
 <style scoped>
 .terminal-container {
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--bg-card);
   position: relative;
   flex-shrink: 0;
   min-height: 100px;
@@ -105,13 +91,13 @@ onBeforeUnmount(() => {
 }
 
 .resizer:hover {
-  background: #007bff;
+  background: var(--accent-color);
 }
 
 .terminal-header {
   height: 32px;
-  background: #f3f3f3;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -139,36 +125,36 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   font-size: 12px;
-  color: #666;
-  border-right: 1px solid #e0e0e0;
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border-color);
   cursor: pointer;
-  background: #eaeaea;
+  background: var(--border-color-medium);
   transition: background 0.2s;
 }
 
 .tab-item:hover {
-  background: #e0e0e0;
+  background: var(--border-color);
 }
 
 .tab-item.active {
-  background: #ffffff;
-  color: #333;
+  background: var(--bg-card);
+  color: var(--text-primary);
   font-weight: 500;
-  border-bottom: 2px solid #007bff;
+  border-bottom: 2px solid var(--accent-color);
 }
 
 .tab-status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ccc;
+  background: var(--text-placeholder);
   margin-right: 6px;
   flex-shrink: 0;
 }
 
 .tab-status-dot.is-executing {
-  background: #28a745;
-  box-shadow: 0 0 4px #28a745;
+  background: var(--color-success);
+  box-shadow: 0 0 4px var(--color-success);
 }
 
 .tab-title {
@@ -185,7 +171,7 @@ onBeforeUnmount(() => {
   line-height: 14px;
   text-align: center;
   border-radius: 50%;
-  color: #999;
+  color: var(--text-sub);
 }
 
 .add-tab-btn {
@@ -195,7 +181,7 @@ onBeforeUnmount(() => {
   width: 36px;
   height: 100%;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .close-panel-btn {
@@ -203,18 +189,18 @@ onBeforeUnmount(() => {
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: #999;
+  color: var(--text-sub);
 }
 
 .close-panel-btn:hover {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .terminal-body {
   flex: 1;
   overflow: hidden;
   position: relative;
-  background: #fff;
+  background: var(--bg-card);
   padding: 4px;
 }
 

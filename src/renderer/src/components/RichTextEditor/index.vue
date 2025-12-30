@@ -156,7 +156,7 @@ defineExpose({
     display: flex;
     flex-direction: column;
     border-radius: 8px;
-    background: #fff;
+    background: var(--bg-card);
     overflow: hidden;
 }
 

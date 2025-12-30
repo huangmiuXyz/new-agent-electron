@@ -426,15 +426,15 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
                 <div style="
                     flex: 1;
                     height: 4px;
-                    background-color: #f0f0f0;
+                    background-color: var(--border-color-light);
                     border-radius: 2px;
                     overflow: hidden;
                   ">
-                  <div style="height: 100%; background-color: #8b5cf6; transition: width 0.3s ease" :style="{
+                  <div style="height: 100%; background-color: var(--accent-color); transition: width 0.3s ease" :style="{
                     width: `${Math.round((props.row.currentChunk! / (props.row.chunks?.length || 0)) * 100)}%`
                   }"></div>
                 </div>
-                <span style="font-size: 12px; color: #666">
+                <span style="font-size: 12px; color: var(--text-secondary)">
                   {{ props.row.currentChunk || 0 }}/{{ props.row.chunks?.length || 0 }}
                 </span>
               </div>
@@ -531,6 +531,6 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 12px;
-  color: var(--text-primary, #333);
+  color: var(--text-primary);
 }
 </style>

@@ -25,7 +25,7 @@ watch(() => route.params.id, (newId) => {
 .mobile-provider-detail {
     width: 100%;
     height: 100%;
-    background: #fff;
+    background: var(--bg-card);
     padding-top: calc(56px + env(safe-area-inset-top));
 }
 </style>

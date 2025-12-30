@@ -247,10 +247,10 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
 .modal-content {
     width: 600px;
     max-width: 90vw;
-    background: #fff;
+    background: var(--bg-card);
     border-radius: 12px;
     box-shadow: var(--shadow-xl);
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    border: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -335,7 +335,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f3f4f6;
+    background: var(--bg-hover);
 }
 
 .model-logo {
@@ -349,8 +349,8 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    background: #e5e7eb;
-    color: #6b7280;
+    background: var(--border-color-medium);
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -396,7 +396,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
 
 .model-name {
     font-size: 11px;
-    color: #3b82f6;
+    color: var(--accent-color);
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -405,12 +405,12 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
 }
 
 .user-name {
-    color: #10b981;
+    color: var(--color-success);
 }
 
 .user-avatar {
-    background: #d1fae5;
-    color: #10b981;
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--color-success);
 }
 
 .item-msg {
@@ -424,9 +424,9 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
 
 /* 高亮样式 (需要 deep 选择器或全局样式) */
 :deep(.highlight) {
-    color: var(--accent);
+    color: var(--accent-text);
     font-weight: 600;
-    background: rgba(59, 130, 246, 0.1);
+    background: rgba(var(--accent-rgb), 0.1);
     padding: 0 1px;
     border-radius: 2px;
 }
@@ -440,7 +440,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
 /* 底部 */
 .search-footer {
     padding: 8px 16px;
-    background: rgba(249, 250, 251, 0.8);
+    background: var(--bg-hover);
     border-top: 1px solid var(--border-color);
     display: flex;
     align-items: center;
@@ -456,8 +456,8 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
 }
 
 .kbd {
-    background: white;
-    border: 1px solid #e5e7eb;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color-light);
     border-radius: 3px;
     padding: 1px 4px;
     font-family: inherit;

@@ -63,7 +63,7 @@ const clearValue = () => {
     transition: border 0.2s, box-shadow 0.2s;
     color: var(--text-primary);
     font-family: inherit;
-    background-color: #fff;
+    background-color: var(--bg-input);
     cursor: pointer;
 }
 
@@ -85,8 +85,8 @@ const clearValue = () => {
 }
 
 .form-select:disabled {
-    background-color: #f5f5f5;
-    color: #999;
+    background-color: var(--bg-disabled);
+    color: var(--text-disabled);
     cursor: not-allowed;
 }
 

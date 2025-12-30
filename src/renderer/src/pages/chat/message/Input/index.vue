@@ -193,7 +193,7 @@ const _sendMessage = async () => {
 }
 
 .input-container {
-  background: #fff;
+  background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
   padding: 8px;
@@ -212,8 +212,8 @@ const _sendMessage = async () => {
 }
 
 .input-container.drag-over {
-  border-color: var(--primary-color, #007bff);
-  background-color: rgba(0, 123, 255, 0.05);
+  border-color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.05);
 }
 
 .drag-overlay {
@@ -222,7 +222,7 @@ const _sendMessage = async () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 123, 255, 0.1);
+  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -236,7 +236,7 @@ const _sendMessage = async () => {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  color: var(--primary-color, #007bff);
+  color: var(--color-primary);
   font-weight: 500;
 }
 
@@ -266,7 +266,7 @@ const _sendMessage = async () => {
   align-items: center;
   padding-top: 6px;
   margin-top: 4px;
-  border-top: 1px solid #f5f5f5;
+  border-top: 1px solid var(--border-color-light);
 }
 
 .action-left {
@@ -276,18 +276,18 @@ const _sendMessage = async () => {
 }
 
 .thinking-active {
-  color: var(--primary-color, #007bff);
-  background-color: rgba(0, 123, 255, 0.1);
+  color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
 }
 
 .terminal-active {
-  color: var(--primary-color, #007bff);
-  background-color: rgba(0, 123, 255, 0.1);
+  color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
 }
 
 .voice-active {
-  color: var(--primary-color, #007bff);
-  background-color: rgba(0, 123, 255, 0.1);
+  color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
   animation: pulse 1.5s infinite;
 }
 

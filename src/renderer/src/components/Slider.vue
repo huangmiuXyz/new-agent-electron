@@ -90,10 +90,10 @@ const handleBlur = (e: Event) => {
 
 .slider-input {
   width: 100%;
-  accent-color: #000;
+  accent-color: var(--accent-color);
   cursor: pointer;
   height: 6px;
-  background: #e5e7eb;
+  background: var(--border-color-light);
   border-radius: 3px;
   outline: none;
   position: relative;
@@ -101,14 +101,14 @@ const handleBlur = (e: Event) => {
 }
 
 .is-overflow .slider-input {
-  accent-color: #6b7280;
+  accent-color: var(--text-secondary);
 }
 
 
 .number-wrapper {
   display: flex;
   align-items: center;
-  background-color: #f3f4f6;
+  background-color: var(--bg-hover);
   padding: 4px 8px;
   border-radius: 6px;
   border: 1px solid transparent;
@@ -117,8 +117,8 @@ const handleBlur = (e: Event) => {
 }
 
 .number-wrapper:focus-within {
-  border-color: #000;
-  background: #fff;
+  border-color: var(--accent-color);
+  background: var(--bg-card);
 }
 
 .number-input {
@@ -129,7 +129,7 @@ const handleBlur = (e: Event) => {
   text-align: right;
   font-family: inherit;
   font-size: 14px;
-  color: #374151;
+  color: var(--text-primary);
   -moz-appearance: textfield;
 }
 
@@ -142,7 +142,7 @@ const handleBlur = (e: Event) => {
 .unit {
   margin-left: 4px;
   font-size: 14px;
-  color: #9ca3af;
+  color: var(--text-secondary);
   user-select: none;
 }
 
@@ -150,7 +150,7 @@ const handleBlur = (e: Event) => {
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  background: #000;
+  background: var(--accent-color);
   border-radius: 50%;
   transition: transform 0.1s;
 }
@@ -162,7 +162,7 @@ const handleBlur = (e: Event) => {
 .slider-input::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  background: #000;
+  background: var(--accent-color);
   border: none;
   border-radius: 50%;
   transition: transform 0.1s;

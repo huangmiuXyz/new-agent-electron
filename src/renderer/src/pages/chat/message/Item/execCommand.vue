@@ -65,24 +65,24 @@ const handleApproval = (resolve: boolean) => {
 }
 
 .status-dot.executing {
-  background-color: #3b82f6;
+  background-color: var(--accent-color);
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
   0% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.7);
   }
 
   70% {
     transform: scale(1);
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0);
+    box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0);
   }
 
   100% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0);
   }
 }
 </style>

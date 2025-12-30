@@ -36,7 +36,7 @@ const toggleCollapse = () => {
           </div>
           <span class="tool-name">{{
             (tool_part as DynamicToolUIPart)?.toolName || tool_part?.title
-            }}</span>
+          }}</span>
         </div>
         <div class="tool-status">
           <slot name="status">
@@ -104,17 +104,17 @@ const toggleCollapse = () => {
 
 .tool-card {
   width: 100%;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color-light);
   border-radius: 8px;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgba(var(--text-rgb), 0.03);
   transition: box-shadow 0.2s;
 }
 
 .tool-card:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 6px rgba(var(--text-rgb), 0.04);
 }
 
 .tool-header {
@@ -122,8 +122,8 @@ const toggleCollapse = () => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background-color: #f9fafb;
-  border-bottom: 1px solid #f3f4f6;
+  background-color: var(--bg-hover);
+  border-bottom: 1px solid var(--border-color-light);
   cursor: pointer;
   user-select: none;
 }
@@ -135,7 +135,7 @@ const toggleCollapse = () => {
 }
 
 .tool-icon {
-  color: #6b7280;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
 }
@@ -143,7 +143,7 @@ const toggleCollapse = () => {
 .tool-name {
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
@@ -157,13 +157,13 @@ const toggleCollapse = () => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #10b981;
+  background-color: var(--color-success);
   /* Success green */
 }
 
 .status-text {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--text-secondary);
   font-weight: 500;
   text-transform: uppercase;
 }
@@ -171,11 +171,11 @@ const toggleCollapse = () => {
 .tool-content {
   font-size: 12px;
   line-height: 1.6;
-  color: #4b5563;
+  color: var(--text-sub);
   white-space: pre-wrap;
   word-break: break-all;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  background-color: #fff;
+  background-color: var(--bg-card);
   max-height: 400px;
   overflow-y: auto;
 }
@@ -209,8 +209,8 @@ const toggleCollapse = () => {
   justify-content: space-between;
   gap: 6px;
   padding: 6px 10px;
-  background-color: #f3f4f6;
-  border-bottom: 1px solid #e5e7eb;
+  background-color: var(--border-color-light);
+  border-bottom: 1px solid var(--border-color-light);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -220,7 +220,7 @@ const toggleCollapse = () => {
 }
 
 .collapse-icon {
-  color: #6b7280;
+  color: var(--text-secondary);
   transition: transform 0.2s ease;
 }
 
@@ -229,50 +229,50 @@ const toggleCollapse = () => {
 }
 
 .io-icon {
-  color: #6b7280;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
 }
 
 .io-label {
-  color: #4b5563;
+  color: var(--text-sub);
 }
 
 .io-input .io-header {
-  background-color: #eff6ff;
-  border-bottom-color: #dbeafe;
+  background-color: var(--bg-active);
+  border-bottom-color: rgba(var(--accent-rgb), 0.3);
 }
 
 .io-input .io-icon {
-  color: #3b82f6;
+  color: var(--accent-color);
 }
 
 .io-input .io-label {
-  color: #1d4ed8;
+  color: var(--accent-color);
 }
 
 .io-output .io-header {
-  background-color: #f0fdf4;
-  border-bottom-color: #dcfce7;
+  background-color: rgba(var(--color-success-rgb, 34, 197, 94), 0.1);
+  border-bottom-color: rgba(var(--color-success-rgb, 34, 197, 94), 0.3);
 }
 
 .io-output .io-icon {
-  color: #22c55e;
+  color: var(--color-success);
 }
 
 .io-output .io-label {
-  color: #15803d;
+  color: var(--color-success);
 }
 
 .io-content {
   padding: 10px 12px;
   font-size: 11px;
   line-height: 1.7;
-  color: #374151;
+  color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  background-color: #ffffff;
+  background-color: var(--bg-card);
   max-height: 300px;
   overflow-y: auto;
   border-top: 1px solid transparent;
@@ -288,11 +288,11 @@ const toggleCollapse = () => {
 }
 
 .io-input .io-content {
-  border-top-color: #dbeafe;
+  border-top-color: rgba(var(--accent-rgb), 0.3);
 }
 
 .io-output .io-content {
-  border-top-color: #dcfce7;
+  border-top-color: rgba(var(--color-success-rgb, 34, 197, 94), 0.3);
 }
 
 /* Scrollbar styling for the content */
@@ -306,11 +306,11 @@ const toggleCollapse = () => {
 }
 
 .io-content::-webkit-scrollbar-thumb {
-  background: #e5e7eb;
+  background: var(--border-color-light);
   border-radius: 3px;
 }
 
 .io-content::-webkit-scrollbar-thumb:hover {
-  background: #d1d5db;
+  background: var(--border-color);
 }
 </style>

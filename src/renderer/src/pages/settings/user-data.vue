@@ -254,7 +254,7 @@ onMounted(loadFiles)
   flex: 1;
   overflow: hidden;
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--bg-card);
   display: flex;
   flex-direction: column;
 }

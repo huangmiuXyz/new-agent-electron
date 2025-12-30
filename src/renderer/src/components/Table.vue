@@ -56,10 +56,10 @@ const gridTemplate = computed(() =>
 .table-wrapper {
   display: grid;
   grid-auto-rows: auto;
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   overflow: hidden;
-  background: #fff;
+  background: var(--bg-card);
   overflow-x: auto;
 }
 
@@ -82,20 +82,20 @@ const gridTemplate = computed(() =>
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  border-bottom: 1px solid #eaeaea;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 /* 表头样式 */
 .header-cell {
   font-size: 11px;
   font-weight: 600;
-  color: #86868b;
-  background: #fcfcfc;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
 }
 
 .table-cell {
   font-size: 13px;
-  color: #1d1d1f;
+  color: var(--text-primary);
 }
 
 .table-row:last-child .table-cell {
@@ -103,13 +103,13 @@ const gridTemplate = computed(() =>
 }
 
 .table-row:hover .table-cell {
-  background: #fafafa;
+  background: var(--bg-hover);
 }
 
 .state-row {
   grid-column: 1 / -1;
   padding: 40px;
   text-align: center;
-  color: #86868b;
+  color: var(--text-secondary);
 }
 </style>

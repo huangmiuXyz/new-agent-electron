@@ -213,7 +213,7 @@ defineExpose({
 
 /* 默认样式 */
 .search-input--default {
-    background-color: #fff;
+    background-color: var(--bg-input);
     border: 1px solid var(--border-subtle);
     border-radius: 6px;
     overflow: hidden;
@@ -221,7 +221,7 @@ defineExpose({
 
 .search-input--default.search-input--focused {
     border-color: var(--text-secondary);
-    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 0 0 2px rgba(var(--text-rgb), 0.05);
 }
 
 /* 极简样式 */
@@ -358,7 +358,7 @@ defineExpose({
 
 .search-input__clear:hover {
     color: var(--text-secondary);
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: var(--bg-hover);
 }
 
 .search-input--sm .search-input__clear {
@@ -427,7 +427,7 @@ defineExpose({
 
 .search-input__ai-search:hover {
     color: var(--text-secondary);
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: var(--bg-hover);
 }
 
 .search-input__ai-search--loading {
@@ -458,11 +458,11 @@ defineExpose({
     top: 100%;
     left: 0;
     right: 0;
-    background: #fff;
+    background: var(--bg-card);
     border: 1px solid var(--border-subtle);
     border-top: none;
     border-radius: 0 0 6px 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(var(--text-rgb), 0.1);
     z-index: 1000;
     max-width: 100%;
     overflow: hidden;
@@ -473,7 +473,7 @@ defineExpose({
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    background: rgba(249, 250, 251, 0.8);
+    background: var(--bg-hover);
     border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -506,7 +506,7 @@ defineExpose({
 
 .search-input__ai-result-close:hover {
     color: var(--text-secondary);
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: var(--bg-hover);
 }
 
 .search-input__ai-result-content {

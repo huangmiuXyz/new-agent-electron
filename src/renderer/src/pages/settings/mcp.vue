@@ -384,7 +384,7 @@ const toggleExpand = (name: string) => {
 }
 
 .server-card {
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 16px;
@@ -392,8 +392,8 @@ const toggleExpand = (name: string) => {
 }
 
 .server-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border-color: var(--border-hover, #d1d1d1);
+  box-shadow: 0 2px 8px rgba(var(--text-rgb), 0.05);
+  border-color: var(--border-hover);
 }
 
 .card-header {
@@ -426,8 +426,8 @@ const toggleExpand = (name: string) => {
 
 .tool-count {
   font-size: 11px;
-  background: #e6f7ff;
-  color: #1890ff;
+  background: var(--bg-active);
+  color: var(--accent-color);
   padding: 1px 6px;
   border-radius: 10px;
   white-space: nowrap;
@@ -436,8 +436,8 @@ const toggleExpand = (name: string) => {
 .server-transport-tag {
   font-size: 10px;
   text-transform: uppercase;
-  background: #f0f0f0;
-  color: #666;
+  background: var(--border-color-light);
+  color: var(--text-secondary);
   padding: 1px 4px;
   border-radius: 3px;
 }
@@ -453,7 +453,7 @@ const toggleExpand = (name: string) => {
   font-size: 12px;
   color: var(--text-tertiary);
   font-family: monospace;
-  background: #f5f5f5;
+  background: var(--bg-hover);
   padding: 2px 6px;
   border-radius: 4px;
   align-self: flex-start;
@@ -474,7 +474,7 @@ const toggleExpand = (name: string) => {
 }
 
 .delete-btn:hover {
-  color: #ff4757;
+  color: var(--color-danger);
 }
 
 .card-details {
@@ -482,7 +482,7 @@ const toggleExpand = (name: string) => {
   gap: 16px;
   font-size: 12px;
   color: var(--text-secondary);
-  border-top: 1px solid #f5f5f5;
+  border-top: 1px solid var(--border-color-light);
   padding-top: 12px;
   margin-top: 8px;
 }
@@ -502,7 +502,7 @@ const toggleExpand = (name: string) => {
 
 .tools-divider {
   height: 1px;
-  background: #f0f0f0;
+  background: var(--border-color-light);
   margin: 12px 0;
 }
 
@@ -513,8 +513,8 @@ const toggleExpand = (name: string) => {
 }
 
 .tool-item {
-  background: #fafafa;
-  border: 1px solid #eaeaea;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color-light);
   border-radius: 6px;
   padding: 10px;
   font-size: 12px;
@@ -527,8 +527,8 @@ const toggleExpand = (name: string) => {
 .tool-name-tag {
   font-weight: 600;
   color: var(--text-primary);
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -547,7 +547,7 @@ const toggleExpand = (name: string) => {
   text-align: center;
   padding: 40px;
   color: var(--text-tertiary);
-  background: #fafafa;
+  background: var(--bg-hover);
   border-radius: 8px;
   border: 1px dashed var(--border-subtle);
   font-size: 13px;

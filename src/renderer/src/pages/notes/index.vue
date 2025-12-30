@@ -50,7 +50,7 @@ watch(() => currentNote.value, (note) => {
     display: flex;
     min-width: 0;
     z-index: 2;
-    background: #fff;
+    background: var(--bg-card);
 }
 
 .sidebar-wrapper {

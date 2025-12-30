@@ -78,12 +78,8 @@ const groupedResults = computed(() => {
       <div v-for="(group, index) in groupedResults" :key="index" class="rag-search-group">
         <span class="rag-search-kb-name">{{ group.name }}</span>
         <div class="rag-search-docs">
-          <span
-            v-for="(doc, docIndex) in group.documents"
-            :key="docIndex"
-            class="rag-search-doc-item"
-            @click="openDocument(group.id, doc.id)"
-          >
+          <span v-for="(doc, docIndex) in group.documents" :key="docIndex" class="rag-search-doc-item"
+            @click="openDocument(group.id, doc.id)">
             {{ doc.name }}
           </span>
         </div>
@@ -101,14 +97,15 @@ const groupedResults = computed(() => {
   gap: 8px;
   padding: 8px 12px;
   margin: 8px 0;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background-color: var(--bg-hover);
+  border: 1px solid var(--border-color-light);
   border-radius: 8px;
   font-size: 12px;
-  color: #6b7280;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  color: var(--text-secondary);
+  box-shadow: 0 1px 2px rgba(var(--text-rgb), 0.03);
   transition: box-shadow 0.2s;
 }
+
 .rag-searching-container {
   display: flex;
   flex-direction: row !important;
@@ -117,7 +114,7 @@ const groupedResults = computed(() => {
 
 .rag-searching-container:hover,
 .rag-search-results-container:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 6px rgba(var(--text-rgb), 0.04);
 }
 
 .rag-searching-container {
@@ -128,7 +125,7 @@ const groupedResults = computed(() => {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .rag-searching-container .rag-search-icon {
@@ -151,7 +148,7 @@ const groupedResults = computed(() => {
   flex-direction: column;
   gap: 2px;
   padding-top: 8px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-color-light);
 }
 
 .rag-search-group {
@@ -162,13 +159,13 @@ const groupedResults = computed(() => {
 }
 
 .rag-search-kb-name {
-  color: #4b5563;
+  color: var(--text-sub);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .rag-search-docs {
-  color: #6b7280;
+  color: var(--text-secondary);
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -176,15 +173,15 @@ const groupedResults = computed(() => {
 
 .rag-search-doc-item {
   cursor: pointer;
-  color: #3b82f6;
+  color: var(--accent-color);
   text-decoration: underline;
   text-decoration-color: transparent;
   transition: all 0.2s;
 }
 
 .rag-search-doc-item:hover {
-  text-decoration-color: #3b82f6;
-  background-color: #eff6ff;
+  text-decoration-color: var(--accent-color);
+  background-color: var(--bg-active);
   border-radius: 2px;
   padding: 0 2px;
 }
@@ -193,6 +190,7 @@ const groupedResults = computed(() => {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -203,6 +201,7 @@ const groupedResults = computed(() => {
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

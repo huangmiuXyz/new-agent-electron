@@ -9,7 +9,7 @@ interface Props {
 
 withDefaults(defineProps<Props>(), {
   padding: '0',
-  background: 'var(--bg-secondary, #f5f5f7)',
+  background: 'var(--bg-card)',
   border: true,
   radius: 'var(--radius-md, 10px)',
   hoverable: false
@@ -17,15 +17,11 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <div
-    class="card"
-    :class="{ 'is-border': border, 'is-hoverable': hoverable }"
-    :style="{
-      padding: padding,
-      backgroundColor: background,
-      borderRadius: radius
-    }"
-  >
+  <div class="card" :class="{ 'is-border': border, 'is-hoverable': hoverable }" :style="{
+    padding: padding,
+    backgroundColor: background,
+    borderRadius: radius
+  }">
     <slot />
   </div>
 </template>

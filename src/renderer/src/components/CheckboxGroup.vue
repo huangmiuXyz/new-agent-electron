@@ -72,17 +72,17 @@ const checkIcon = useIcon('Check')
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
-    background: #fff;
+    background: var(--bg-card);
 }
 
 .checkbox-item:hover:not(.disabled) {
-    border-color: var(--border-hover, #d1d1d1);
-    background: #fafafa;
+    border-color: var(--border-hover);
+    background: var(--bg-hover);
 }
 
 .checkbox-item.checked {
-    border-color: var(--accent-color, #000);
-    background: #fafafa;
+    border-color: var(--accent-color);
+    background: var(--bg-hover);
 }
 
 .checkbox-item.disabled {
@@ -104,17 +104,17 @@ const checkIcon = useIcon('Check')
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    background: #fff;
+    background: var(--bg-card);
 }
 
 .checkbox-item.checked .checkbox-box {
-    background: var(--accent-color, #000);
-    border-color: var(--accent-color, #000);
+    background: var(--accent-color);
+    border-color: var(--accent-color);
 }
 
 .checkbox-box :deep(svg) {
     font-size: 12px;
-    color: #fff;
+    color: var(--accent-text);
 }
 
 .checkbox-content {
@@ -140,7 +140,7 @@ const checkIcon = useIcon('Check')
     text-align: center;
     color: var(--text-tertiary);
     font-size: 12px;
-    background: #fafafa;
+    background: var(--bg-hover);
     border-radius: 6px;
     border: 1px dashed var(--border-subtle);
 }

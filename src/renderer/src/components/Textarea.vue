@@ -76,7 +76,7 @@ defineExpose({
     transition: border 0.2s, box-shadow 0.2s;
     color: var(--text-primary);
     font-family: inherit;
-    background-color: #fff;
+    background-color: var(--bg-input);
     resize: vertical;
 }
 
@@ -98,12 +98,12 @@ defineExpose({
 }
 
 .form-textarea:disabled {
-    background-color: #f5f5f5;
-    color: #999;
+    background-color: var(--bg-disabled);
+    color: var(--text-disabled);
     cursor: not-allowed;
 }
 
 .form-textarea::placeholder {
-    color: #999;
+    color: var(--text-placeholder);
 }
 </style>

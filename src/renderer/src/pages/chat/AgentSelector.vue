@@ -105,7 +105,7 @@ const { openAgentModal } = useAgent()
   gap: 6px;
   padding: 4px 10px;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.03);
+  background: var(--bg-hover);
   border: 1px solid transparent;
   cursor: pointer;
   font-size: 12px;
@@ -116,7 +116,7 @@ const { openAgentModal } = useAgent()
 }
 
 .agent-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--border-color-light);
 }
 
 .agent-name {
@@ -143,18 +143,18 @@ const { openAgentModal } = useAgent()
 }
 
 .agent-item:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--bg-hover);
 }
 
 .agent-item.selected {
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--border-color-light);
 }
 
 .agent-icon {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-color) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -163,7 +163,7 @@ const { openAgentModal } = useAgent()
 
 .agent-icon :deep(svg) {
   font-size: 18px;
-  color: #fff;
+  color: var(--bg-card);
 }
 
 .agent-content {
@@ -220,8 +220,8 @@ const { openAgentModal } = useAgent()
 
 .temp-tag {
   font-size: 10px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
   padding: 1px 4px;
   border-radius: 4px;
   margin-left: 4px;

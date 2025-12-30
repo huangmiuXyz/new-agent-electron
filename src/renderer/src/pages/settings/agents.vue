@@ -135,7 +135,7 @@ const getKnowledgeBaseName = (kbId: string) => {
 }
 
 .agent-card {
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 16px;
@@ -144,13 +144,13 @@ const getKnowledgeBaseName = (kbId: string) => {
 }
 
 .agent-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border-color: var(--border-hover, #d1d1d1);
+  box-shadow: 0 2px 8px rgba(var(--text-rgb), 0.05);
+  border-color: var(--border-hover);
 }
 
 .agent-card.selected {
-  border-color: var(--accent-color, #000);
-  background: #fafafa;
+  border-color: var(--accent-color);
+  background: var(--bg-hover);
 }
 
 .card-header {
@@ -177,7 +177,7 @@ const getKnowledgeBaseName = (kbId: string) => {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-color) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -186,7 +186,7 @@ const getKnowledgeBaseName = (kbId: string) => {
 
 .agent-icon i {
   font-size: 20px;
-  color: #fff;
+  color: var(--accent-text);
 }
 
 .agent-name {
@@ -197,8 +197,8 @@ const getKnowledgeBaseName = (kbId: string) => {
 
 .selected-badge {
   font-size: 10px;
-  background: var(--accent-color, #000);
-  color: #fff;
+  background: var(--accent-color);
+  color: var(--accent-text);
   padding: 2px 8px;
   border-radius: 10px;
   font-weight: 500;
@@ -240,11 +240,11 @@ const getKnowledgeBaseName = (kbId: string) => {
 }
 
 .delete-btn:hover {
-  color: #ff4757;
+  color: var(--color-danger);
 }
 
 .card-body {
-  border-top: 1px solid #f5f5f5;
+  border-top: 1px solid var(--border-color-light);
   padding-top: 4px;
   display: flex;
   flex-direction: column;
@@ -269,10 +269,10 @@ const getKnowledgeBaseName = (kbId: string) => {
   font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.5;
-  background: #f9f9f9;
+  background: var(--bg-hover);
   padding: 4px;
   border-radius: 6px;
-  border: 1px solid #eee;
+  border: 1px solid var(--border-color-light);
   max-height: 80px;
   overflow-y: auto;
 }
@@ -299,11 +299,11 @@ const getKnowledgeBaseName = (kbId: string) => {
 
 .mcp-tag {
   font-size: 11px;
-  background: #e6f7ff;
-  color: #1890ff;
+  background: var(--bg-active);
+  color: var(--accent-color);
   padding: 3px 8px;
   border-radius: 4px;
-  border: 1px solid #91d5ff;
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
 }
 
 .tools-list {
@@ -328,11 +328,11 @@ const getKnowledgeBaseName = (kbId: string) => {
 
 .tool-tag {
   font-size: 10px;
-  background: #f0f9ff;
-  color: #0369a1;
+  background: var(--bg-active);
+  color: var(--accent-color);
   padding: 2px 6px;
   border-radius: 3px;
-  border: 1px solid #bae6fd;
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -341,11 +341,11 @@ const getKnowledgeBaseName = (kbId: string) => {
 
 .tool-more {
   font-size: 10px;
-  background: #f5f5f5;
+  background: var(--bg-hover);
   color: var(--text-tertiary);
   padding: 2px 6px;
   border-radius: 3px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
 }
 
 .knowledge-list {
@@ -370,11 +370,11 @@ const getKnowledgeBaseName = (kbId: string) => {
 
 .knowledge-tag {
   font-size: 11px;
-  background: #f6ffed;
-  color: #52c41a;
+  background: rgba(var(--color-success-rgb, 34, 197, 94), 0.1);
+  color: var(--color-success);
   padding: 3px 8px;
   border-radius: 4px;
-  border: 1px solid #b7eb8f;
+  border: 1px solid rgba(var(--color-success-rgb, 34, 197, 94), 0.3);
 }
 
 .rag-status {
@@ -393,18 +393,18 @@ const getKnowledgeBaseName = (kbId: string) => {
 
 .rag-status-value {
   font-size: 11px;
-  background: #fff7e6;
-  color: #fa8c16;
+  background: rgba(var(--color-warning-rgb, 249, 115, 22), 0.1);
+  color: var(--color-warning);
   padding: 3px 8px;
   border-radius: 4px;
-  border: 1px solid #ffd591;
+  border: 1px solid rgba(var(--color-warning-rgb, 249, 115, 22), 0.3);
 }
 
 .empty-state {
   text-align: center;
   padding: 40px;
   color: var(--text-tertiary);
-  background: #fafafa;
+  background: var(--bg-hover);
   border-radius: 8px;
   border: 1px dashed var(--border-subtle);
   font-size: 13px;
@@ -420,11 +420,11 @@ const getKnowledgeBaseName = (kbId: string) => {
 }
 
 .preview-text::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(var(--text-rgb), 0.1);
   border-radius: 2px;
 }
 
 .preview-text::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(var(--text-rgb), 0.2);
 }
 </style>

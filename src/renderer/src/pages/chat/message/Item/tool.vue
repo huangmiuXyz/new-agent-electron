@@ -30,17 +30,17 @@ const toolName = computed(() => {
 
 .tool-card {
   width: 100%;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color-light);
   border-radius: 8px;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgba(var(--text-rgb), 0.03);
   transition: box-shadow 0.2s;
 }
 
 .tool-card:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 6px rgba(var(--text-rgb), 0.04);
 }
 
 .tool-header {
@@ -48,8 +48,8 @@ const toolName = computed(() => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background-color: #f9fafb;
-  border-bottom: 1px solid #f3f4f6;
+  background-color: var(--bg-hover);
+  border-bottom: 1px solid var(--border-color-light);
   cursor: pointer;
   user-select: none;
 }
@@ -61,7 +61,7 @@ const toolName = computed(() => {
 }
 
 .tool-icon {
-  color: #6b7280;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
 }
@@ -69,7 +69,7 @@ const toolName = computed(() => {
 .tool-name {
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
@@ -83,13 +83,13 @@ const toolName = computed(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #10b981;
+  background-color: var(--color-success);
   /* Success green */
 }
 
 .status-text {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--text-secondary);
   font-weight: 500;
   text-transform: uppercase;
 }
@@ -98,11 +98,11 @@ const toolName = computed(() => {
   padding: 12px;
   font-size: 12px;
   line-height: 1.6;
-  color: #4b5563;
+  color: var(--text-sub);
   white-space: pre-wrap;
   word-break: break-all;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  background-color: #fff;
+  background-color: var(--bg-card);
   max-height: 400px;
   overflow-y: auto;
 }
@@ -126,11 +126,11 @@ const toolName = computed(() => {
 }
 
 .tool-content::-webkit-scrollbar-thumb {
-  background: #e5e7eb;
+  background: var(--border-color-light);
   border-radius: 3px;
 }
 
 .tool-content::-webkit-scrollbar-thumb:hover {
-  background: #d1d5db;
+  background: var(--border-color);
 }
 </style>

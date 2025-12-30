@@ -46,7 +46,7 @@ const settingsStore = useSettingsStore()
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--bg-card);
   position: relative;
 }
 

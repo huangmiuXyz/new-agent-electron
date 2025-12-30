@@ -23,7 +23,7 @@ const Stop = useIcon('Stop')
             <span class="msg-name">{{ message.metadata?.model }}</span>
             <span class="msg-time">{{
               new Date(message.metadata?.date || '').toLocaleString()
-            }}</span>
+              }}</span>
           </div>
           <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
             variant="icon" type="button">
@@ -67,7 +67,7 @@ const Stop = useIcon('Stop')
 }
 
 .msg-row:hover {
-  background-color: #f9f9f9;
+  background-color: var(--bg-hover);
 }
 
 .msg-avatar-area {
@@ -78,7 +78,7 @@ const Stop = useIcon('Stop')
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  background-color: #eee;
+  background-color: var(--border-color-medium);
   object-fit: cover;
 }
 
@@ -109,12 +109,12 @@ const Stop = useIcon('Stop')
 .msg-name {
   font-weight: 600;
   font-size: 13px;
-  color: #2c2c2c;
+  color: var(--text-primary);
 }
 
 .msg-time {
   font-size: 11px;
-  color: #999;
+  color: var(--text-sub);
 }
 
 /* Loading indicator styles */
@@ -132,7 +132,7 @@ const Stop = useIcon('Stop')
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #3b82f6;
+  background-color: var(--accent-color);
   animation: pulse 1.4s ease-in-out infinite;
 }
 

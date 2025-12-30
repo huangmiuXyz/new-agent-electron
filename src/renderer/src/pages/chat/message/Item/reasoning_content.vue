@@ -29,9 +29,9 @@ const toggleReasoning = () => {
 </script>
 <style>
 .reasoning-block {
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color-light);
     border-radius: 6px;
-    background-color: #fcfcfc;
+    background-color: var(--bg-hover);
     overflow: hidden;
 }
 
@@ -42,12 +42,12 @@ const toggleReasoning = () => {
     padding: 6px 10px;
     cursor: pointer;
     user-select: none;
-    background-color: #f9fafb;
+    background-color: var(--bg-hover);
     transition: background 0.1s;
 }
 
 .reasoning-header:hover {
-    background-color: #f3f4f6;
+    background-color: var(--border-color-light);
 }
 
 .reasoning-label {
@@ -56,13 +56,13 @@ const toggleReasoning = () => {
     gap: 6px;
     font-size: 11px;
     font-weight: 600;
-    color: #6b7280;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.02em;
 }
 
 .toggle-icon {
-    color: #9ca3af;
+    color: var(--text-sub);
     transition: transform 0.2s ease;
 }
 
@@ -74,9 +74,9 @@ const toggleReasoning = () => {
     padding: 10px 12px;
     font-size: 12px;
     line-height: 1.6;
-    color: #4b5563;
-    background-color: #fff;
-    border-top: 1px solid #e5e7eb;
+    color: var(--text-sub);
+    background-color: var(--bg-card);
+    border-top: 1px solid var(--border-color-light);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     white-space: pre-wrap;
 }

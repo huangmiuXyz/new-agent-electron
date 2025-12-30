@@ -23,7 +23,7 @@ useAppHeader().setTitle(route.query.name as string)
 .mobile-settings-detail {
     width: 100%;
     height: 100%;
-    background: #fff;
+    background: var(--bg-card);
     display: flex;
     flex-direction: column;
     padding-top: calc(56px + env(safe-area-inset-top));

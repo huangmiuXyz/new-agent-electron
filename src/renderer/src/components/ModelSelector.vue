@@ -122,7 +122,7 @@ const handleModelSelect = (id: string) => {
       <template #actions="{ item }">
         <Check :style="{
           fontSize: '12px',
-          color: '#fff'
+          color: 'var(--bg-card)'
         }" v-if="item.id === selectedModelId" />
       </template>
     </List>
@@ -136,7 +136,7 @@ const handleModelSelect = (id: string) => {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid #e5e5e5;
+  border: 1px solid var(--border-color);
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
@@ -153,17 +153,17 @@ const handleModelSelect = (id: string) => {
 }
 
 .model-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--bg-hover);
 }
 
 .model-btn.active {
-  background: #e5e5e5;
+  background: var(--bg-hover);
 }
 
 /* 调整模型列表的大小 */
 :deep(.mode-ungap) {
   /* 设置自定义的选中项背景颜色 */
-  --bg-active: #000000;
+  --bg-active: var(--accent-color);
   /* 确保圆角正确应用 */
   border-radius: 10px;
   overflow: hidden;
@@ -177,12 +177,12 @@ const handleModelSelect = (id: string) => {
 }
 
 :deep(.list-item:hover) {
-  background-color: rgba(0, 0, 0, 0.05) !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.list-item.is-active) {
-  background: #000000 !important;
-  color: #fff !important;
+  background: var(--accent-color) !important;
+  color: var(--bg-card) !important;
 }
 
 :deep(.main-text) {

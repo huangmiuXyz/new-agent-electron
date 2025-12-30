@@ -58,38 +58,38 @@ withDefaults(defineProps<Props>(), {
 }
 
 .tag-blue {
-    background-color: #f0f7ff;
-    color: #0066cc;
+    background-color: rgba(var(--color-info-rgb, 59, 130, 246), 0.15);
+    color: var(--color-info);
 }
 
 .tag-green {
-    background-color: #eafbf0;
-    color: #1a7f37;
+    background-color: rgba(var(--color-success-rgb, 16, 185, 129), 0.15);
+    color: var(--color-success);
 }
 
 .tag-orange {
-    background-color: #fff8eb;
-    color: #9a6602;
+    background-color: rgba(var(--color-warning-rgb, 245, 158, 11), 0.15);
+    color: var(--color-warning);
 }
 
 .tag-red {
-    background-color: #fef2f2;
-    color: #d93025;
+    background-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.15);
+    color: var(--color-danger);
 }
 
 .tag-purple {
-    background-color: #f5f3ff;
+    background-color: rgba(124, 58, 237, 0.15);
     color: #7c3aed;
 }
 
 .tag-gray {
-    background-color: #f3f4f6;
-    color: #4b5563;
+    background-color: var(--bg-hover);
+    color: var(--text-secondary);
 }
 
 .empty-placeholder {
     font-size: 12px;
-    color: #86868b;
+    color: var(--text-secondary);
     font-style: normal;
 }
 </style>

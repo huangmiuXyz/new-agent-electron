@@ -122,10 +122,10 @@ const handleStopTranslation = () => {
 
 <style scoped>
 .translation-container {
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
-    background-color: #f9fafb;
+    background-color: var(--bg-hover);
     position: relative;
 }
 
@@ -134,20 +134,20 @@ const handleStopTranslation = () => {
     justify-content: space-between;
     align-items: center;
     padding: 6px 10px;
-    background-color: #f3f4f6;
+    background-color: var(--border-color-light);
     cursor: pointer;
     user-select: none;
     transition: background-color 0.2s;
 }
 
 .translation-header:hover {
-    background-color: #e5e7eb;
+    background-color: var(--border-color);
 }
 
 .translation-label {
     font-size: 11px;
     font-weight: 600;
-    color: #4b5563;
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     gap: 4px;
@@ -155,7 +155,7 @@ const handleStopTranslation = () => {
 
 .translation-count {
     font-size: 10px;
-    color: #6b7280;
+    color: var(--text-sub);
     font-weight: normal;
 }
 
@@ -168,14 +168,14 @@ const handleStopTranslation = () => {
 
 .translation-toggle {
     font-size: 10px;
-    color: #6b7280;
+    color: var(--text-sub);
 }
 
 .stop-translation-btn {
     font-size: 10px;
     padding: 2px 6px;
-    background-color: #ef4444;
-    color: white;
+    background-color: var(--color-danger);
+    color: var(--bg-card);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -183,28 +183,28 @@ const handleStopTranslation = () => {
 }
 
 .stop-translation-btn:hover {
-    background-color: #dc2626;
+    background-color: rgba(239, 68, 68, 0.8);
 }
 
 .translation-content {
     padding: 8px 10px;
     font-size: 13px;
     line-height: 1.5;
-    color: #1f2937;
+    color: var(--text-primary);
     white-space: pre-wrap;
     word-wrap: break-word;
 }
 
 .translation-tabs {
     display: flex;
-    border-bottom: 1px solid #e5e7eb;
-    background-color: #f9fafb;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-hover);
 }
 
 .translation-tab {
     padding: 6px 12px;
     font-size: 11px;
-    color: #6b7280;
+    color: var(--text-sub);
     cursor: pointer;
     border-bottom: 2px solid transparent;
     transition: all 0.2s;
@@ -215,13 +215,13 @@ const handleStopTranslation = () => {
 }
 
 .translation-tab:hover {
-    background-color: #f3f4f6;
+    background-color: var(--border-color-light);
 }
 
 .translation-tab.active {
-    color: #3b82f6;
-    border-bottom-color: #3b82f6;
-    background-color: #f9fafb;
+    color: var(--accent-color);
+    border-bottom-color: var(--accent-color);
+    background-color: var(--bg-hover);
 }
 
 .language-name {
@@ -243,7 +243,7 @@ const handleStopTranslation = () => {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background-color: #3b82f6;
+    background-color: var(--accent-color);
     animation: pulse 1.4s ease-in-out infinite;
 }
 
@@ -261,7 +261,7 @@ const handleStopTranslation = () => {
 
 .loading-text {
     font-size: 12px;
-    color: #6b7280;
+    color: var(--text-sub);
 }
 
 
@@ -276,7 +276,7 @@ const handleStopTranslation = () => {
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background-color: #3b82f6;
+    background-color: var(--accent-color);
     animation: pulse 1.4s ease-in-out infinite;
 }
 

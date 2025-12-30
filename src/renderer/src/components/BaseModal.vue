@@ -21,7 +21,7 @@
         <div class="modal-footer">
           <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
-            }}</Button>
+          }}</Button>
           <Button ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button"
             @click="handleConfirm">
             {{ props.confirmText || '确认' }}
@@ -149,7 +149,7 @@ const handleCancel = () => {
 }
 
 .modal-box {
-  background: #fff;
+  background: var(--bg-card);
   width: 420px;
   border-radius: 10px;
   box-shadow:
@@ -185,7 +185,7 @@ const handleCancel = () => {
 /* 内部布局 */
 .modal-header {
   padding: 8px 10px;
-  border-bottom: 1px solid #e1e1e3;
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -194,18 +194,18 @@ const handleCancel = () => {
 .modal-title {
   font-size: 15px;
   font-weight: 600;
-  color: #111;
+  color: var(--text-primary);
 }
 
 .modal-close {
   cursor: pointer;
-  color: #a0a0a0;
+  color: var(--text-sub);
   font-size: 16px;
   transition: color 0.2s;
 }
 
 .modal-close:hover {
-  color: #202020;
+  color: var(--text-primary);
 }
 
 .modal-body {
@@ -215,7 +215,7 @@ const handleCancel = () => {
 
 .modal-desc {
   font-size: 13px;
-  color: #6b6b6b;
+  color: var(--text-secondary);
   line-height: 1.5;
   margin-bottom: 12px;
 }
@@ -229,7 +229,7 @@ const handleCancel = () => {
   display: block;
   font-size: 12px;
   font-weight: 500;
-  color: #6b6b6b;
+  color: var(--text-secondary);
   margin-bottom: 6px;
 }
 
@@ -238,21 +238,21 @@ const handleCancel = () => {
   height: 34px;
   padding: 0 10px;
   font-size: 13px;
-  border: 1px solid #d1d1d1;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   outline: none;
   transition: all 0.1s;
 }
 
 .form-input:focus {
-  border-color: #000;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
 }
 
 .modal-footer {
   padding: 12px 20px;
-  border-top: 1px solid #e1e1e3;
-  background: #fbfbfb;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-hover);
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -278,18 +278,18 @@ const handleCancel = () => {
 }
 
 .btn-secondary {
-  background: #fff;
-  border-color: #d1d1d1;
-  color: #202020;
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-primary);
 }
 
 .btn-secondary:hover {
-  background: #f5f5f5;
+  background: var(--bg-hover);
 }
 
 .btn-primary {
-  background: #000;
-  color: #fff;
+  background: var(--text-primary);
+  color: var(--bg-card);
 }
 
 .btn-primary:hover {
@@ -300,7 +300,7 @@ const handleCancel = () => {
 .drawer-container {
   width: 100%;
   max-width: 100%;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
   display: flex;
@@ -314,7 +314,7 @@ const handleCancel = () => {
   flex-direction: column;
   align-items: center;
   padding: 12px 16px 8px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--border-color-light);
 }
 
 .drawer-title {
@@ -339,14 +339,14 @@ const handleCancel = () => {
 }
 
 .drawer-content::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--border-color-medium);
   border-radius: 2px;
 }
 
 .drawer-footer {
   padding: 12px 20px;
-  border-top: 1px solid #e1e1e3;
-  background: #fbfbfb;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-hover);
   display: flex;
   justify-content: flex-end;
   gap: 10px;
