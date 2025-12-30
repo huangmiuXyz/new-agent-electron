@@ -8,7 +8,7 @@
       </RouterView>
     </div>
     <nav class="tab-bar" v-if="route.meta.showTabBar">
-      <div class="slider-bar" :style="{ transform: `translateX(${currentIndex * 100}%)` }"></div>
+      <div class="slider-bar" :style="{ transform: `translateX(${currentIndex * 50}%)` }"></div>
       <div v-for="(tab, index) in tabs" :key="tab.key" class="tab-item" :class="{ active: activeTab === tab.key }"
         @click="switchTab(tab)">
         <div class="icon-box">

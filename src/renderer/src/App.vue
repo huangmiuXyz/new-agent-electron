@@ -151,7 +151,7 @@ const handleTouchEnd = (e: TouchEvent) => {
   --bg-tertiary: #fcfcfc;
   --border-subtle: #eaeaea;
   --border-focus: #d1d1d6;
-
+  --bg-settings-mobile-sidebar: #f7f7f8;
   --accent-color: #000000;
   --accent-text: #ffffff;
 
@@ -212,6 +212,10 @@ const handleTouchEnd = (e: TouchEvent) => {
   --bg-secondary: #2c2c2e;
   --bg-hover: rgba(255, 255, 255, 0.08);
   --bg-active: rgba(255, 255, 255, 0.12);
+  --bg-secondary-hover: #3a3a3c;
+  --bg-tertiary-hover: #2c2c2e;
+  --bg-tertiary: #1c1c1e;
+  --bg-settings-mobile-sidebar: #2c2c2e;
   --border-subtle: #38383a;
   --border-focus: #48484a;
 

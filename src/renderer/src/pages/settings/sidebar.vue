@@ -74,7 +74,7 @@ const handleTabChange = (tabName: string) => {
 
 /* 移动端样式 */
 .settings-sidebar.is-mobile {
-  background-color: var(--bg-sidebar);
+  background-color: var(--bg-settings-mobile-sidebar);
   height: 100%;
   display: flex;
   flex-direction: column;
