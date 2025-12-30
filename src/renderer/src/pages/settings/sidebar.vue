@@ -4,7 +4,7 @@ import { isMobile } from '@renderer/composables/useDeviceType'
 interface Props {
   activeTab: string
 }
-const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, ChevronRight, Plugin, Eye } = useIcon([
+const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, ChevronRight, Plugin } = useIcon([
   'Cpu',
   'Server',
   'Robot',

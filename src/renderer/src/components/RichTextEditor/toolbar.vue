@@ -6,7 +6,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const { FormatBold, FormatItalic, FormatUnderlined, FormatStrikethrough, FormatCode, FormatQuote, FormatListBulleted, FormatListNumbered, FormatAlignLeft, FormatAlignCenter, FormatAlignRight, FormatAlignJustify, Undo, Redo, Link, LinkOff, FormatClear, FormatImage, FormatHorizontalRule, FormatTable, CheckCircle } = useIcon([
+const { FormatBold, FormatItalic, FormatUnderlined, FormatStrikethrough, FormatCode, FormatQuote, FormatListBulleted, FormatListNumbered, FormatAlignLeft, FormatAlignCenter, FormatAlignRight, FormatAlignJustify, Undo, Redo, FormatHorizontalRule, CheckCircle } = useIcon([
     'FormatBold',
     'FormatItalic',
     'FormatUnderlined',

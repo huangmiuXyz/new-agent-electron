@@ -1,12 +1,10 @@
 <script setup lang="ts">
-const { Document, ArrowBackIosNewSharp } = useIcon([
+const { Document } = useIcon([
     'Document',
-    'ArrowBackIosNewSharp'
 ])
 
 const notesStore = useNotesStore()
-const { currentNote, currentFolder } = storeToRefs(notesStore)
-const router = useRouter()
+const { currentNote } = storeToRefs(notesStore)
 
 const noteTitle = ref('')
 const noteContent = ref('')
@@ -34,21 +32,10 @@ const saveNote = () => {
     })
 }
 
-const onTitleChange = () => {
-    if (saveTimeout) clearTimeout(saveTimeout)
-    saveTimeout = setTimeout(saveNote, 500)
-}
 
 const onContentChange = () => {
     if (saveTimeout) clearTimeout(saveTimeout)
     saveTimeout = setTimeout(saveNote, 1000)
-}
-
-const goBack = () => {
-    saveNote()
-    if (isMobile.value) {
-        router.push('/mobile/notes/list')
-    }
 }
 
 // 组件卸载时保存
