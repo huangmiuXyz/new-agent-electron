@@ -97,7 +97,7 @@ const groupedResults = computed(() => {
   gap: 8px;
   padding: 8px 12px;
   margin: 8px 0;
-  background-color: var(--bg-hover);
+  background-color: var(--bg-secondary);
   border: 1px solid var(--border-color-light);
   border-radius: 8px;
   font-size: 12px;

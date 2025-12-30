@@ -42,12 +42,12 @@ const toggleReasoning = () => {
     padding: 6px 10px;
     cursor: pointer;
     user-select: none;
-    background-color: var(--bg-hover);
+    background-color: var(--bg-secondary);
     transition: background 0.1s;
 }
 
 .reasoning-header:hover {
-    background-color: var(--border-color-light);
+    background-color: var(--bg-secondary-hover);
 }
 
 .reasoning-label {
