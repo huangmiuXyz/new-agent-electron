@@ -23,7 +23,7 @@ const Stop = useIcon('Stop')
             <span class="msg-name">{{ message.metadata?.model }}</span>
             <span class="msg-time">{{
               new Date(message.metadata?.date || '').toLocaleString()
-              }}</span>
+            }}</span>
           </div>
           <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
             variant="icon" type="button">
@@ -67,7 +67,7 @@ const Stop = useIcon('Stop')
 }
 
 .msg-row:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--bg-tertiary-hover);
 }
 
 .msg-avatar-area {
