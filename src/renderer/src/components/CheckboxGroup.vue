@@ -140,7 +140,7 @@ const checkIcon = useIcon('Check')
     text-align: center;
     color: var(--text-tertiary);
     font-size: 12px;
-    background: var(--bg-hover);
+    background: var(--bg-tertiary-hover);
     border-radius: 6px;
     border: 1px dashed var(--border-subtle);
 }
