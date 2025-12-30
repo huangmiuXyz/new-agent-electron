@@ -30,6 +30,10 @@ export interface PluginContext {
   registerHook: (name: string, handler: Function) => void;
   /** 获取 store */
   getStore: (storeName: string) => Promise<any>;
+  /** 注册内置工具 */
+  registerBuiltinTool: (name: string, tool: any) => void;
+  /** 注销内置工具 */
+  unregisterBuiltinTool: (name: string) => boolean;
 }
 
 /**

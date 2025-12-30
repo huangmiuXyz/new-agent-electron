@@ -63,6 +63,9 @@ const plugin: Plugin = {
   },
 
   async uninstall(context) {
+    // 注销内置工具（可选，如果插件注册了内置工具）
+    context.unregisterBuiltinTool('{{pluginName}}.example');
+    
     console.log('{{pluginName}} plugin uninstalled!');
   }
 };
@@ -107,6 +110,8 @@ export interface PluginContext {
   getStore: (storeName: string) => Promise<any>;
   /** 注册内置工具 */
   registerBuiltinTool: (name: string, tool: any) => void;
+  /** 注销内置工具 */
+  unregisterBuiltinTool: (name: string) => boolean;
 }
 `;
 
@@ -155,6 +160,7 @@ qi code build
 - \`registerHook(name, handler)\`: 注册钩子
 - \`getStore(storeName)\`: 获取 store
 - \`registerBuiltinTool(name, tool)\`: 注册内置工具
+- \`unregisterBuiltinTool(name)\`: 注销内置工具（返回是否成功）
 
 ### 可用的 Store
 

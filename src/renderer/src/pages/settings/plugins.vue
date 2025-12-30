@@ -134,9 +134,6 @@ const handleUninstallPlugin = async (pluginName: string) => {
               <div class="info-actions">
                 <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm"
                   @click="handleUnloadPlugin(activePlugin.name)">
-                  <template #icon>
-                    <Trash />
-                  </template>
                   停用
                 </Button>
                 <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm"

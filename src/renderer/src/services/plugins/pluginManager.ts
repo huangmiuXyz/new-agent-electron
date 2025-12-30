@@ -11,6 +11,8 @@ export class PluginManager {
   private commands: Map<string, Command> = new Map();
   private hooks: Map<string, Hook[]> = new Map();
   private builtinTools: Map<string, any> = new Map();
+  /** 跟踪每个插件注册的内置工具名称 */
+  private pluginBuiltinTools: Map<string, Set<string>> = new Map();
 
   constructor(app: any, pinia?: any) {
     this.app = app;
@@ -49,6 +51,15 @@ export class PluginManager {
         this.hooks.set(hookName, filteredHooks);
       }
     }
+
+    // 移除该插件注册的所有内置工具
+    const toolNames = this.pluginBuiltinTools.get(pluginName);
+    if (toolNames) {
+      for (const toolName of toolNames) {
+        this.builtinTools.delete(toolName);
+      }
+      this.pluginBuiltinTools.delete(pluginName);
+    }
   }
 
   /**
@@ -72,6 +83,14 @@ export class PluginManager {
       },
       registerBuiltinTool: (name: string, tool: any) => {
         this.builtinTools.set(name, markRaw(tool));
+        // 跟踪该插件注册的内置工具
+        if (!this.pluginBuiltinTools.has(pluginName)) {
+          this.pluginBuiltinTools.set(pluginName, new Set());
+        }
+        this.pluginBuiltinTools.get(pluginName)!.add(name);
+      },
+      unregisterBuiltinTool: (name: string) => {
+        return this.unregisterBuiltinTool(pluginName, name);
       },
     };
   }
@@ -335,6 +354,33 @@ export class PluginManager {
   }
 
   /**
+   * 注销内置工具
+   * @param pluginName 插件名称
+   * @param name 工具名称
+   * @returns 是否成功注销
+   */
+  unregisterBuiltinTool(pluginName: string, name: string): boolean {
+    // 检查工具是否由该插件注册
+    const toolNames = this.pluginBuiltinTools.get(pluginName);
+    if (!toolNames || !toolNames.has(name)) {
+      return false;
+    }
+
+    // 从内置工具映射中移除
+    const deleted = this.builtinTools.delete(name);
+
+    // 从插件跟踪中移除
+    if (deleted) {
+      toolNames.delete(name);
+      if (toolNames.size === 0) {
+        this.pluginBuiltinTools.delete(pluginName);
+      }
+    }
+
+    return deleted;
+  }
+
+  /**
    * 清空所有注册信息
    */
   clear(): void {
@@ -342,6 +388,7 @@ export class PluginManager {
     this.commands.clear();
     this.hooks.clear();
     this.builtinTools.clear();
+    this.pluginBuiltinTools.clear();
   }
 }
 

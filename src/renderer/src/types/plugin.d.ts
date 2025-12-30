@@ -33,6 +33,8 @@ declare global {
     getStore: (storeName: string) => Promise<any>;
     /** 注册内置工具 */
     registerBuiltinTool: (name: string, tool: Tool) => void;
+    /** 注销内置工具 */
+    unregisterBuiltinTool: (name: string) => boolean;
   }
 
   /**
