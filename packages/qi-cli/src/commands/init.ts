@@ -14,6 +14,7 @@ const __dirname = dirname(__filename);
  * 插件模板内容
  */
 const PLUGIN_TEMPLATE = `import { Plugin } from './types';
+import { z } from 'zod';
 
 const plugin: Plugin = {
   name: '{{pluginName}}',
@@ -25,6 +26,29 @@ const plugin: Plugin = {
     context.registerCommand('{{pluginName}}.hello', async () => {
       console.log('Hello from {{pluginName}} plugin!');
       return 'Hello from {{pluginName}} plugin!';
+    });
+
+    // 注册内置工具示例（使用 zod 进行参数验证）
+    context.registerBuiltinTool('{{pluginName}}.example', {
+      description: '示例工具，使用 zod 进行参数验证',
+      inputSchema: z.object({
+        message: z.string().min(1, '消息不能为空')
+      }),
+      title: '示例工具',
+      execute: async (args: any) => {
+        const { message } = args;
+        
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text: \`处理成功: \${message}\`
+              }
+            ]
+          }
+        };
+      }
     });
 
     // 注册钩子示例
@@ -323,6 +347,9 @@ export const initCommand = new Command('init')
             scripts: {
               build: 'tsc',
               'build:watch': 'tsc --watch'
+            },
+            dependencies: {
+              zod: '^3.23.8'
             },
             devDependencies: {
               typescript: '^5.9.2'
