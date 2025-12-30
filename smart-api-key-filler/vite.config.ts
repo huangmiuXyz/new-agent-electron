@@ -7,7 +7,7 @@ export default defineConfig({
             entry: resolve(__dirname, 'src/index.ts'),
             name: 'plugin',
             fileName: 'index',
-            formats: ['es']
+            formats: ['iife']
         },
         rollupOptions: {
             output: {
@@ -16,12 +16,12 @@ export default defineConfig({
                 chunkFileNames: '[name].js',
                 assetFileNames: '[name][extname]',
                 inlineDynamicImports: true
-            },
-            external: []
+            }
         },
         outDir: 'dist',
         emptyOutDir: true,
-        minify: false
+        minify: false,
+        target: 'esnext'
     },
     resolve: {
         alias: {

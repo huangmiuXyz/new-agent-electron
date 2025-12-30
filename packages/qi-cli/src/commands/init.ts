@@ -322,7 +322,7 @@ export default defineConfig({
       entry: resolve(__dirname, 'src/index.ts'),
       name: 'plugin',
       fileName: 'index',
-      formats: ['es']
+      formats: ['iife']
     },
     rollupOptions: {
       output: {

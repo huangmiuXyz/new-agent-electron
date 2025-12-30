@@ -26,9 +26,31 @@ export class PluginLoader {
     }
 
     const pluginsPath = window.api.getPluginsPath();
-    const pluginFullPath = path.join(pluginsPath, pluginName, 'index.js');
+    const pluginDir = path.join(pluginsPath, pluginName);
 
-    return `file://${pluginFullPath}`;
+    // 尝试多个可能的入口文件位置
+    const possiblePaths = [
+      path.join(pluginDir, 'index.js'),      // 根目录的 index.js
+      path.join(pluginDir, 'dist', 'index.js'), // dist 目录的 index.js
+      path.join(pluginDir, 'build', 'index.js')  // build 目录的 index.js
+    ];
+
+    const fs = window.api.fs;
+    if (!fs) {
+      throw new Error('File system API not available');
+    }
+
+    // 查找第一个存在的入口文件
+    for (const entryPath of possiblePaths) {
+      if (fs.existsSync(entryPath)) {
+        return `file://${entryPath}`;
+      }
+    }
+
+    // 如果都不存在，抛出错误
+    throw new Error(
+      `Plugin entry file not found. Tried: ${possiblePaths.join(', ')}`
+    );
   }
 
   /**
@@ -50,13 +72,29 @@ export class PluginLoader {
 
       const code = await response.text();
 
-      // 使用动态导入执行插件代码（插件应为预编译的 JavaScript）
-      const module = await import(/* @vite-ignore */ `data:text/javascript;charset=utf-8,${encodeURIComponent(code)}`);
+      // 检测插件格式并加载
+      let plugin: Plugin;
 
-      // 获取插件实例（支持 default 导出和命名导出）
-      const plugin: Plugin = module.default || module.plugin || module;
+      if (code.includes('export ') || code.includes('import ')) {
+        // ES Module 格式
+        const module = await import(/* @vite-ignore */ `data:text/javascript;charset=utf-8,${encodeURIComponent(code)}`);
+        plugin = module.default || module.plugin || module;
+      } else {
+        // IIFE 格式：使用 Function 构造器执行代码
+        const pluginGlobalName = 'plugin';
+        const wrappedCode = `
+          ${code}
+          return ${pluginGlobalName};
+        `;
+        const getPlugin = new Function(wrappedCode);
+        plugin = getPlugin();
+      }
 
       // 验证插件接口
+      if (!plugin || typeof plugin !== 'object') {
+        throw new Error('Invalid plugin: plugin must be an object');
+      }
+
       if (!plugin.name || typeof plugin.install !== 'function') {
         throw new Error('Invalid plugin: must have name and install function');
       }
