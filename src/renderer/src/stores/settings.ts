@@ -39,6 +39,9 @@ export const useSettingsStore = defineStore(
 
     const mcpServers = ref<ClientConfig>({})
 
+    // 已加载的插件列表（持久化）
+    const loadedPlugins = ref<string[]>([])
+
     const defaultModels = ref({
       titleGenerationModelId: '',
       titleGenerationProviderId: '',
@@ -108,6 +111,26 @@ export const useSettingsStore = defineStore(
       defaultModels.value = { ...defaultModels.value, ...settings }
     }
 
+    // 更新已加载的插件列表
+    const updateLoadedPlugins = (plugins: string[]) => {
+      loadedPlugins.value = plugins
+    }
+
+    // 添加已加载的插件
+    const addLoadedPlugin = (pluginName: string) => {
+      if (!loadedPlugins.value.includes(pluginName)) {
+        loadedPlugins.value.push(pluginName)
+      }
+    }
+
+    // 移除已加载的插件
+    const removeLoadedPlugin = (pluginName: string) => {
+      const index = loadedPlugins.value.indexOf(pluginName)
+      if (index > -1) {
+        loadedPlugins.value.splice(index, 1)
+      }
+    }
+
     // 重置提供商的请求地址为默认值
     const resetProviderBaseUrl = (providerId: string) => {
       const defaultProviders = getDefaultProviders()
@@ -171,6 +194,7 @@ export const useSettingsStore = defineStore(
       terminal,
       providers,
       mcpServers,
+      loadedPlugins,
       defaultModels,
       thinkingMode,
       updateDisplaySettings,
@@ -180,6 +204,9 @@ export const useSettingsStore = defineStore(
       addModelToProvider,
       deleteModelFromProvider,
       updateDefaultModels,
+      updateLoadedPlugins,
+      addLoadedPlugin,
+      removeLoadedPlugin,
       selectedModelId,
       selectedProviderId,
       currentSelectedProvider,
@@ -194,7 +221,12 @@ export const useSettingsStore = defineStore(
   },
   {
     persist: {
-      storage: indexedDBStorage
+      storage: indexedDBStorage,
+      afterRestore: async () => {
+        debugger
+        const { restorePlugins } = usePlugins()
+        restorePlugins()
+      }
     }
   }
 )

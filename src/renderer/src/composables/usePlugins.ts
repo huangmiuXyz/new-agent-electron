@@ -1,4 +1,5 @@
 import { getPluginLoader } from '@renderer/services/plugins/pluginLoaderInstance';
+import { useSettingsStore } from '@renderer/stores/settings';
 
 export function usePlugins() {
   // 响应式状态
@@ -10,6 +11,9 @@ export function usePlugins() {
 
   // 获取插件加载器实例
   const pluginLoader = getPluginLoader();
+
+  // 获取 settings store
+  const settingsStore = useSettingsStore();
 
   /**
    * 安装插件
@@ -74,7 +78,9 @@ export function usePlugins() {
   const loadPlugin = async (pluginPath: string): Promise<void> => {
     try {
       if (pluginLoader) {
-        await pluginLoader.loadPlugin(pluginPath);
+        const pluginInfo = await pluginLoader.loadPlugin(pluginPath);
+        const pluginName = pluginInfo.plugin.name;
+        settingsStore.addLoadedPlugin(pluginName);
         await refreshPlugins();
       }
     } catch (err) {
@@ -90,6 +96,8 @@ export function usePlugins() {
     try {
       if (pluginLoader) {
         await pluginLoader.unloadPlugin(pluginName);
+        // 从已加载列表中移除插件
+        settingsStore.removeLoadedPlugin(pluginName);
         await refreshPlugins();
       }
     } catch (err) {
@@ -105,12 +113,41 @@ export function usePlugins() {
     try {
       if (pluginLoader) {
         await pluginLoader.uninstallPlugin(pluginName);
+        // 从已加载列表中移除插件
+        settingsStore.removeLoadedPlugin(pluginName);
         await refreshPlugins();
       }
     } catch (err) {
       console.error('Failed to uninstall plugin:', err);
       throw err;
     }
+  };
+
+  /**
+   * 自动加载已保存的插件
+   */
+  const restorePlugins = async (): Promise<void> => {
+    const savedPlugins = settingsStore.loadedPlugins;
+    if (savedPlugins.length === 0) {
+      return;
+    }
+
+    console.log('Restoring plugins:', savedPlugins);
+
+    for (const pluginName of savedPlugins) {
+      try {
+        if (pluginLoader && !pluginLoader.isPluginLoaded(pluginName)) {
+          await pluginLoader.loadPlugin(pluginName);
+          console.log(`Plugin "${pluginName}" restored successfully`);
+        }
+      } catch (err) {
+        console.error(`Failed to restore plugin "${pluginName}":`, err);
+        // 移除加载失败的插件
+        settingsStore.removeLoadedPlugin(pluginName);
+      }
+    }
+
+    await refreshPlugins();
   };
 
   /**
@@ -221,6 +258,7 @@ export function usePlugins() {
     loadPlugin,
     unloadPlugin,
     uninstallPlugin,
+    restorePlugins,
     executeCommand,
     getStatusText,
     getStatusColor,

@@ -66,27 +66,27 @@ export const useAgent = () => {
 
     const initialData: Partial<Agent> = agent
       ? {
-          name: agent.name,
-          description: agent.description,
-          systemPrompt: agent.systemPrompt,
-          knowledgeBaseIds: [...(agent.knowledgeBaseIds || [])],
-          mcpServers: [...(agent.mcpServers || [])],
-          tools: [...(agent.tools || [])],
-          builtinTools: [...(agent.builtinTools || [])],
-          ragEnabled: agent.ragEnabled ?? false,
-          terminalStartupPath: agent.terminalStartupPath || ''
-        }
+        name: agent.name,
+        description: agent.description,
+        systemPrompt: agent.systemPrompt,
+        knowledgeBaseIds: [...(agent.knowledgeBaseIds || [])],
+        mcpServers: [...(agent.mcpServers || [])],
+        tools: [...(agent.tools || [])],
+        builtinTools: [...(agent.builtinTools || [])],
+        ragEnabled: agent.ragEnabled ?? false,
+        terminalStartupPath: agent.terminalStartupPath || ''
+      }
       : {
-          name: '',
-          description: '',
-          systemPrompt: '你是一个有帮助的AI助手。',
-          knowledgeBaseIds: [],
-          mcpServers: [],
-          tools: [],
-          builtinTools: [],
-          ragEnabled: false,
-          terminalStartupPath: ''
-        }
+        name: '',
+        description: '',
+        systemPrompt: '你是一个有帮助的AI助手。',
+        knowledgeBaseIds: [],
+        mcpServers: [],
+        tools: [],
+        builtinTools: [],
+        ragEnabled: false,
+        terminalStartupPath: ''
+      }
 
     let previousMcpServers = initialData.mcpServers || []
 

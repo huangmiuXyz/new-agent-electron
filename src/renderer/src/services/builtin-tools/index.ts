@@ -448,8 +448,6 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
         }
       }
     },
-    // 合并插件注册的内置工具
     ...(manager?.getBuiltinTools ? Object.fromEntries(manager.getBuiltinTools()) : {})
   })
-
 }

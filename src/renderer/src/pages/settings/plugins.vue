@@ -38,8 +38,9 @@ const getStatusIcon = (status: PluginStatus) => {
 }
 
 // 初始化
-onMounted(() => {
-  refreshPlugins()
+onMounted(async () => {
+  // 刷新插件列表
+  await refreshPlugins()
   // 默认选中第一个插件
   watch(allPlugins, (newPlugins) => {
     if (newPlugins.length > 0 && !activePluginId.value) {
@@ -95,17 +96,8 @@ const handleUninstallPlugin = async (pluginName: string) => {
 <template>
   <!-- 列表视图 -->
   <ListContainer v-if="showList">
-    <List
-      title="插件"
-      :items="allPlugins"
-      :active-id="activePluginId"
-      :loading="loading"
-      key-field="id"
-      main-field="name"
-      sub-field="description"
-      :logo-field="'PluginIcon'"
-      @select="handleSelectPlugin"
-    >
+    <List title="插件" :items="allPlugins" :active-id="activePluginId" :loading="loading" key-field="id" main-field="name"
+      sub-field="description" :logo-field="'PluginIcon'" @select="handleSelectPlugin">
       <template #title-tool>
         <Button @click="installPlugin" size="sm" type="button" variant="text" :loading="installing">
           <template #icon>
@@ -117,12 +109,8 @@ const handleUninstallPlugin = async (pluginName: string) => {
       <template #main="{ item }">
         <div class="plugin-main">
           <span>{{ item.name }}</span>
-          <component
-            v-if="getStatusIcon(item.status)"
-            :is="getStatusIcon(item.status)"
-            class="status-icon"
-            :style="{ color: getStatusColor(item.status) }"
-          />
+          <component v-if="getStatusIcon(item.status)" :is="getStatusIcon(item.status)" class="status-icon"
+            :style="{ color: getStatusColor(item.status) }" />
         </div>
       </template>
     </List>
@@ -144,19 +132,22 @@ const handleUninstallPlugin = async (pluginName: string) => {
                 </div>
               </div>
               <div class="info-actions">
-                <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm" @click="handleUnloadPlugin(activePlugin.name)">
+                <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm"
+                  @click="handleUnloadPlugin(activePlugin.name)">
                   <template #icon>
                     <Trash />
                   </template>
                   停用
                 </Button>
-                <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm" @click="handleUninstallPlugin(activePlugin.name)">
+                <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm"
+                  @click="handleUninstallPlugin(activePlugin.name)">
                   <template #icon>
                     <Trash />
                   </template>
                   完全卸载
                 </Button>
-                <Button v-if="activePlugin.type === 'available' && activePlugin.path" size="sm" @click="loadPlugin(activePlugin.path)">
+                <Button v-if="activePlugin.type === 'available' && activePlugin.path" size="sm"
+                  @click="loadPlugin(activePlugin.path)">
                   <template #icon>
                     <Play />
                   </template>
@@ -183,14 +174,11 @@ const handleUninstallPlugin = async (pluginName: string) => {
 
         <!-- 插件命令 -->
         <FormItem v-if="activePlugin.type === 'loaded'" label="可用命令">
-          <Table
-            :data="getPluginCommands(activePlugin.name)"
-            :columns="[
-              { key: 'name', label: '命令名称', width: '2fr' },
-              { key: 'description', label: '描述', width: '2fr' },
-              { key: 'actions', label: '操作', width: '1fr' }
-            ]"
-          >
+          <Table :data="getPluginCommands(activePlugin.name)" :columns="[
+            { key: 'name', label: '命令名称', width: '2fr' },
+            { key: 'description', label: '描述', width: '2fr' },
+            { key: 'actions', label: '操作', width: '1fr' }
+          ]">
             <template #description="{ row }">
               {{ row.description || '暂无描述' }}
             </template>
