@@ -48,7 +48,7 @@ export const chatService = () => {
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
     let tools: Tools = {}
-    debugger;
+
     const builtinTools = getBuiltinTools({ knowledgeBaseIds })
 
     if (selectedBuiltinTools && selectedBuiltinTools.length > 0) {
