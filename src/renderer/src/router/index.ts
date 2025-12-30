@@ -24,6 +24,7 @@ const router = createRouter({
     },
     {
       path: '/mobile/chat',
+      redirect: '/mobile/chat/list',
       meta: { sort: 1 },
       children: [
         {
@@ -43,6 +44,7 @@ const router = createRouter({
     },
     {
       path: '/mobile/notes',
+      redirect: '/mobile/notes/editor',
       meta: { sort: 2 },
       children: [
         {
@@ -54,6 +56,7 @@ const router = createRouter({
     },
     {
       path: '/mobile/settings',
+      redirect: '/mobile/settings/list',
       meta: { sort: 3 },
       children: [
         {
