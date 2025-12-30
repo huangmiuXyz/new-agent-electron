@@ -1,13 +1,26 @@
 <template>
-  <Incremark :incremark="incremark" />
+  <ThemeProvider :theme="incremarkTheme">
+    <Incremark :incremark="incremark" />
+  </ThemeProvider>
 </template>
 <script setup lang="ts">
-import { useIncremark, Incremark } from '@incremark/vue'
+import { useIncremark, Incremark, ThemeProvider } from '@incremark/vue'
 import { TextUIPart } from 'ai'
+import { useSettingsStore } from '../stores/settings'
+
 const props = defineProps<{
   block: TextUIPart
   message: BaseMessage
 }>()
+
+const settingsStore = useSettingsStore()
+const { display } = storeToRefs(settingsStore)
+
+// 根据 darkMode 动态切换主题
+const incremarkTheme = computed(() => {
+  return display.value.darkMode ? 'dark' : 'default'
+})
+
 const incremark = useIncremark({
   gfm: true
 })
@@ -30,7 +43,7 @@ onMounted(() => {
 })
 </script>
 <style>
-  .incremark{
-    background-color: transparent !important;
-  }
+.incremark {
+  background-color: transparent !important;
+}
 </style>
