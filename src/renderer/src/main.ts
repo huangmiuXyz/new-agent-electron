@@ -5,6 +5,7 @@ import piniaPersist from 'pinia-plugin-persistedstate-async'
 import App from './App.vue'
 import router from './router'
 import { PluginLoader } from './services/plugins/pluginLoader'
+import { setPluginLoader } from './services/plugins/pluginLoaderInstance'
 
 const app = createApp(App)
 
@@ -17,8 +18,8 @@ app.use(router)
 // 初始化插件加载器
 const pluginLoader = new PluginLoader(app, pinia)
 
-// 将插件加载器挂载到全局，方便后续使用
-app.config.globalProperties.$pluginLoader = pluginLoader
+// 设置插件加载器全局实例（使用 ref，可在 setup 中访问）
+setPluginLoader(pluginLoader)
 
 router.isReady().then(() => {
   app.mount('#app')

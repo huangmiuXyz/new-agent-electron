@@ -1,10 +1,4 @@
-import { PluginLoader } from '@renderer/services/plugins/pluginLoader';
-
-
-function getPluginLoaderInstance(): PluginLoader | undefined {
-  const instance = getCurrentInstance();
-  return instance?.appContext.app.config.globalProperties.$pluginLoader;
-}
+import { getPluginLoader } from '@renderer/services/plugins/pluginLoaderInstance';
 
 export function usePlugins() {
   // 响应式状态
@@ -15,7 +9,7 @@ export function usePlugins() {
   const activePluginId = ref('');
 
   // 获取插件加载器实例
-  const pluginLoader = getPluginLoaderInstance();
+  const pluginLoader = getPluginLoader();
 
   /**
    * 安装插件

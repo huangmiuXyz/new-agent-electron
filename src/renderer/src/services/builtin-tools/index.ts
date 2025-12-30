@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
 export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tools => {
+  const { pluginLoader } = usePlugins()
+  const manager = pluginLoader.getPluginManager()
   return ({
     calculator: {
       description: '执行基本的数学计算，支持加、减、乘、除等运算',
@@ -446,5 +448,8 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
         }
       }
     },
+    // 合并插件注册的内置工具
+    ...(manager?.getBuiltinTools ? Object.fromEntries(manager.getBuiltinTools()) : {})
   })
+
 }
