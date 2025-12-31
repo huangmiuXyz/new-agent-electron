@@ -32,7 +32,8 @@ const router = createRouter({
           component: () => import('../pages/mobile/ChatList.vue'),
           meta: {
             showTabBar: true,
-            depth: 1
+            depth: 1,
+            title: '对话'
           }
         },
         {
@@ -52,7 +53,8 @@ const router = createRouter({
           component: () => import('../pages/mobile/NoteList.vue'),
           meta: {
             showTabBar: true,
-            depth: 1
+            depth: 1,
+            title: '笔记'
           }
         },
         {
@@ -72,7 +74,8 @@ const router = createRouter({
           component: () => import('../pages/mobile/SettingsList.vue'),
           meta: {
             showTabBar: true,
-            depth: 1
+            depth: 1,
+            title: '设置'
           }
         },
         {

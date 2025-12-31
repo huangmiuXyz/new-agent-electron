@@ -66,8 +66,7 @@ const route = useRoute()
 
     <!-- 移动端列表页特有头部 -->
     <div v-if="isListMode" class="mobile-list-header no-drag">
-      <h1 class="mobile-title">{{ route.path.includes('/chat') ? '对话' : (route.path.includes('/settings') ?
-        '设置' : '笔记') }}</h1>
+      <h1 class="mobile-title">{{ route.meta.title }}</h1>
       <div v-if="route.path.includes('/chat') || route.path.includes('/notes')" class="mobile-header-actions">
         <button v-if="route.path.includes('/chat')" class="mobile-action-btn" @click="openSearch">
           <component :is="Search" />
