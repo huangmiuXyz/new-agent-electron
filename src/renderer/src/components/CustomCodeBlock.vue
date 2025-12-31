@@ -147,7 +147,6 @@ async function copy() {
 
 .code-content {
     margin: 0;
-    padding: 16px;
     overflow-x: auto;
     background: var(--code-bg);
 }
