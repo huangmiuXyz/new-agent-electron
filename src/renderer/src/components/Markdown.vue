@@ -51,6 +51,7 @@ watch(() => display.value.darkMode, () => {
 
 onMounted(() => {
   incremarkTheme.value = display.value.darkMode ? 'dark' : 'default'
+  incremark.render(props.block.text)
 })
 </script>
 <style>
