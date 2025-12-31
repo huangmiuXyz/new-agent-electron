@@ -114,20 +114,6 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 
 <template>
   <aside class="sidebar" :class="{ 'is-mobile': isMobile }">
-    <div v-if="isMobile" class="mobile-header">
-      <div class="mobile-header-top">
-        <h1 class="mobile-title">对话</h1>
-        <div class="mobile-header-actions">
-          <button class="mobile-action-btn" @click="openSearch">
-            <Search />
-          </button>
-          <button class="mobile-action-btn" @click="createNewChat">
-            <CommentAdd16Regular />
-          </button>
-        </div>
-      </div>
-    </div>
-
     <div class="nav-list">
       <!-- 空状态显示 -->
       <div v-if="!chatsStore.allChats.length" class="empty-state">
@@ -211,54 +197,6 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-}
-
-.mobile-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: rgba(var(--bg-rgb), 0.85);
-  backdrop-filter: saturate(180%) blur(20px);
-  padding: calc(16px + env(safe-area-inset-top, 24px)) 16px 8px;
-  border-bottom: 0.5px solid rgba(var(--text-rgb), 0.1);
-}
-
-.mobile-header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 44px;
-}
-
-.mobile-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.5px;
-}
-
-.mobile-header-actions {
-  display: flex;
-  gap: 16px;
-}
-
-.mobile-action-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-primary);
-  background: transparent;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  padding: 0;
-  transition: opacity 0.2s;
-}
-
-.mobile-action-btn:active {
-  opacity: 0.6;
 }
 
 .sidebar.is-mobile .nav-list {

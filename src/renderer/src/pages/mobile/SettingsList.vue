@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import AppHeader from '../../components/AppHeader.vue'
+import MobileTabBar from '../../components/MobileTabBar.vue'
+
 const router = useRouter()
+const { customTitle } = useAppHeader()
 
 const handleTabChange = (tabName: string, tabItem: any) => {
     router.push(`/mobile/settings/${tabName}?name=${tabItem.name}`)
@@ -8,15 +12,25 @@ const handleTabChange = (tabName: string, tabItem: any) => {
 
 <template>
     <div class="mobile-settings-list">
-        <!-- Pass a dummy activeTab or manage it if needed, mainly we just want the list -->
-        <SettingsSidebar active-tab="" @tab-change="handleTabChange" />
+        <AppHeader :custom-title="customTitle" current-view="settings" mode="list" />
+        <div class="list-content">
+            <SettingsSidebar active-tab="" @tab-change="handleTabChange" />
+        </div>
+        <MobileTabBar />
     </div>
 </template>
 
 <style scoped>
 .mobile-settings-list {
     width: 100%;
-    height: 100%;
+    height: var(--vh, 100dvh);
     background-color: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+}
+
+.list-content {
+    flex: 1;
+    overflow: hidden;
 }
 </style>

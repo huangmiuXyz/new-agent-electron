@@ -139,7 +139,7 @@ const handleTouchEnd = (e: TouchEvent) => {
 
 <template>
   <div class="app-layout" v-if="route.path !== '/temp-chat'">
-    <AppHeader :current-view="currentView" :custom-title="customTitle" />
+    <AppHeader v-if="!isMobile" :current-view="currentView" :custom-title="customTitle" />
 
     <div class="app-body" v-if="!isMobile">
       <AppNavBar :current-view="currentView" @switch="switchView" />
@@ -302,25 +302,20 @@ const handleTouchEnd = (e: TouchEvent) => {
 
 html {
   background-color: var(--bg-app);
-  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 body {
   font-family: var(--font-stack);
   background-color: var(--bg-app);
-  height: 100%;
+  height: 100dvh;
   width: 100%;
   display: flex;
   color: var(--text-primary);
   overflow: hidden;
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
-}
-
-#app {
-  width: 100%;
-  height: 100%;
-  height: var(--vh, 100%);
 }
 
 #app {
@@ -368,8 +363,7 @@ body {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100vh;
-  height: var(--vh, 100vh);
+  height: var(--vh, 100dvh);
   overflow: hidden;
   background-color: var(--bg-app);
   position: fixed;

@@ -1,10 +1,20 @@
 <script setup lang="ts">
+import AppHeader from '../../components/AppHeader.vue'
+import MobileTabBar from '../../components/MobileTabBar.vue'
 const { Document } = useIcon([
     'Document',
 ])
 
+const { customTitle, setTitle } = useAppHeader()
 const notesStore = useNotesStore()
 const { currentNote } = storeToRefs(notesStore)
+
+// 移动端设置标题
+watch(currentNote, (note) => {
+    if (isMobile.value) {
+        setTitle(note?.title || '笔记')
+    }
+}, { immediate: true })
 
 const noteTitle = ref('')
 const noteContent = ref('')
@@ -49,24 +59,29 @@ onUnmounted(() => {
 
 <template>
     <div class="note-editor" :class="{ 'is-mobile': isMobile }">
-        <!-- 无笔记选中时的空状态 -->
-        <div v-if="!currentNote" class="empty-state">
-            <div class="empty-icon">
-                <Document />
+        <AppHeader v-if="isMobile" :custom-title="customTitle" current-view="notes" />
+
+        <div class="editor-main-content">
+            <!-- 无笔记选中时的空状态 -->
+            <div v-if="!currentNote" class="empty-state">
+                <div class="empty-icon">
+                    <Document />
+                </div>
+                <h3>选择一个笔记开始编辑</h3>
+                <p>从左侧选择一个笔记，或创建一个新笔记</p>
             </div>
-            <h3>选择一个笔记开始编辑</h3>
-            <p>从左侧选择一个笔记，或创建一个新笔记</p>
+
+            <!-- 笔记编辑区域 -->
+            <div v-else class="editor-container">
+                <!-- 笔记内容 -->
+                <div class="note-content">
+                    <RichTextEditor v-model="noteContent" placeholder="开始输入笔记内容..." class="content-editor"
+                        @change="onContentChange" />
+                </div>
+            </div>
         </div>
 
-        <!-- 笔记编辑区域 -->
-        <div v-else class="editor-container">
-
-            <!-- 笔记内容 -->
-            <div class="note-content">
-                <RichTextEditor v-model="noteContent" placeholder="开始输入笔记内容..." class="content-editor"
-                    @change="onContentChange" />
-            </div>
-        </div>
+        <MobileTabBar v-if="isMobile" />
     </div>
 </template>
 
@@ -78,6 +93,13 @@ onUnmounted(() => {
     width: 100%;
     background: var(--bg-card);
     overflow: hidden;
+}
+
+.editor-main-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .note-editor.is-mobile {

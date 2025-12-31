@@ -46,9 +46,6 @@ const handleTabChange = (tabName: string) => {
 
 <template>
   <div class="settings-sidebar" :class="{ 'is-mobile': isMobile }">
-    <div v-if="isMobile" class="mobile-header">
-      <h1 class="mobile-title">设置</h1>
-    </div>
     <!-- 设置选项 -->
     <List class="settings-sidebar-list" :items="settingsList" :active-id="activeTab" :key-field="'id'"
       :main-field="'name'" :logo-field="'icon'" :show-header="isMobile" :render-header="(item) => item.section"
@@ -80,24 +77,6 @@ const handleTabChange = (tabName: string) => {
   flex-direction: column;
   overflow: hidden;
   /* 防止容器本身产生多余滚动条 */
-}
-
-.mobile-header {
-  flex-shrink: 0;
-  /* 禁止头部压缩 */
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background-color: var(--bg-sidebar);
-  padding: calc(20px + env(safe-area-inset-top, 24px)) 20px 10px;
-}
-
-.mobile-title {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin: 0;
-  letter-spacing: -0.5px;
 }
 
 .settings-sidebar.is-mobile :deep(.settings-sidebar-list) {
