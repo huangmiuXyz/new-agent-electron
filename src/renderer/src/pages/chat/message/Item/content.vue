@@ -84,14 +84,14 @@ const retry = () => {
     <div v-if="!isEditing" class="msg-bubble">
       <div class="blocks-container">
         <div v-for="(block, idx) in message.parts" :key="idx" class="view-block">
-          <span v-if="block.type === 'text'">
+          <div v-if="block.type === 'text'" class="text-block">
             <Markdown v-if="markdown && block.text" :block="block" :message="message" />
             <template v-else>
               <div class="text-content">
                 {{ block.text }}
               </div>
             </template>
-          </span>
+          </div>
           <FileUpload :removable="false" v-if="block.type === 'file'"
             :files="[{ ...block, blobUrl: anyUrlToBlobUrl(block.url) }]" />
           <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'" :reasoning_content="block.text" />
@@ -123,12 +123,30 @@ const retry = () => {
   </div>
 </template>
 
-<style>
+<style scoped>
 .msg-bubble {
   font-size: 14px;
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.blocks-container {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.view-block {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.text-block {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .edit-wrapper {

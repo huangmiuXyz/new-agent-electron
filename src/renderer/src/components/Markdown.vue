@@ -54,8 +54,32 @@ onMounted(() => {
   incremark.render(props.block.text)
 })
 </script>
-<style>
+<style scoped>
 .incremark {
   background-color: transparent !important;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.incremark :deep(pre) {
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+  overflow-x: auto;
+}
+
+.incremark :deep(code) {
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+}
+
+.incremark :deep(table) {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.incremark :deep(img) {
+  max-width: 100%;
+  height: auto;
 }
 </style>
