@@ -48,6 +48,10 @@ const handleSearch = (value: string) => {
 const triggerClick = () => {
   visiable.value = !visiable.value
 }
+const emits = defineEmits(['ok'])
+const onOk = () => {
+  emits('ok')
+}
 </script>
 
 <template>
@@ -56,7 +60,7 @@ const triggerClick = () => {
       <slot name="trigger"></slot>
     </div>
 
-    <BaseModal :title="title!" v-if="isMobile && visiable">
+    <BaseModal @ok="onOk" :title="title!" v-if="isMobile && visiable">
       <div v-if="$slots.content" class="content">
         <slot name="content"></slot>
       </div>

@@ -500,7 +500,7 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
                 <Search />
               </template>
             </Button>
-            <SelectorPopover v-model:visiable="showBatchSettings" title="知识库设置" width="240px" position="bottom">
+            <SelectorPopover @ok="batchSettingsActions.submit()" v-model:visiable="showBatchSettings" title="知识库设置" width="240px" position="bottom">
               <template #trigger>
                 <Button :class="{ active: showBatchSettings }" size="sm" type="button" variant="text">
                   <template #icon>
@@ -512,7 +512,7 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
                 <div class="popover-header">批处理设置</div>
                 <div class="popover-content">
                   <BatchSettingsForm />
-                  <div style="display: flex; justify-content: flex-end; gap: 12px">
+                  <div v-if="!isMobile" style="display: flex; justify-content: flex-end; gap: 12px">
                     <Button size="sm" variant="text" @click="showBatchSettings = false">取消</Button>
                     <Button size="sm" variant="primary" @click="batchSettingsActions.submit()">确定</Button>
                   </div>
