@@ -48,26 +48,57 @@ const isRecording = ref(false)
 const isListening = ref(false)
 const isProcessingVoice = ref(false)
 
+const partialSpeechText = ref('')
+
 const { start: startVoice, stop: stopVoice, state: voiceState, isActive: voiceIsActive } = useContinuousVoiceRecorder({
   volumeThreshold: 0.02,
   silenceDuration: 800,
-  onSpeechEnd: async (audio: Blob) => {
+  onData: (data: Float32Array) => {
+    // 缓存 sampleRate 避免重复创建 AudioContext
+    if (!(window as any)._audioSampleRate) {
+      (window as any)._audioSampleRate = new (window.AudioContext || (window as any).webkitAudioContext)().sampleRate
+    }
+    const sampleRate = (window as any)._audioSampleRate
+    triggerHook('speech.stream.data', { data, sampleRate })
+  },
+  onSpeechEnd: async () => {
     try {
       if (voiceState.value !== 'callback') return
       isProcessingVoice.value = true
-      const results = await triggerHook('speech.recognize', audio)
-      const recognizedText = results.find(r => typeof r === 'string')
-      if (recognizedText) {
-        message.value += (message.value ? ' ' : '') + recognizedText
-        adjustTextareaHeight({ target: textareaRef.value } as any)
-      } else {
-        console.warn('未找到语音识别结果')
-      }
+
+      // 停止流式识别并获取可能的结果
+      await triggerHook('speech.stream.stop')
     } catch (error) {
-      console.error('语音识别失败:', error)
+      console.error('语音识别停止失败:', error)
     } finally {
       isProcessingVoice.value = false
+      partialSpeechText.value = ''
     }
+  }
+})
+
+// 监听识别状态变化以启动/停止流
+watch(voiceState, async (newState) => {
+  if (newState === 'recording') {
+    if (!(window as any)._audioSampleRate) {
+      (window as any)._audioSampleRate = new (window.AudioContext || (window as any).webkitAudioContext)().sampleRate
+    }
+    const sampleRate = (window as any)._audioSampleRate
+    await triggerHook('speech.stream.start', {
+      sampleRate,
+      onResult: (text: string) => {
+        if (text) {
+          message.value += (message.value ? ' ' : '') + text
+          partialSpeechText.value = ''
+          nextTick(() => {
+            adjustTextareaHeight({ target: textareaRef.value } as any)
+          })
+        }
+      },
+      onPartial: (text: string) => {
+        partialSpeechText.value = text
+      }
+    })
   }
 })
 
@@ -148,11 +179,14 @@ const _sendMessage = async () => {
       <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
         @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
-      <textarea ref="textareaRef" class="input-field" rows="1"
-        :placeholder="isProcessingVoice ? '正在处理语音...' : (currentSelectedModel?.name && currentSelectedProvider?.name ? `${currentSelectedProvider?.name}：${currentSelectedModel?.name}` : '请选择模型')"
-        v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="handleEnterKey"
-        @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
-        :disabled="isProcessingVoice"></textarea>
+      <div class="input-wrapper">
+        <textarea ref="textareaRef" class="input-field" rows="1"
+          :placeholder="isProcessingVoice ? '正在处理语音...' : (currentSelectedModel?.name && currentSelectedProvider?.name ? `${currentSelectedProvider?.name}：${currentSelectedModel?.name}` : '请选择模型')"
+          v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="handleEnterKey"
+          @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
+          :disabled="isProcessingVoice"></textarea>
+        <div v-if="partialSpeechText" class="partial-text">{{ partialSpeechText }}</div>
+      </div>
 
       <div class="input-actions">
         <div class="action-left">
@@ -254,6 +288,23 @@ const _sendMessage = async () => {
 .drag-message svg {
   width: 32px;
   height: 32px;
+}
+
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.partial-text {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  opacity: 0.7;
 }
 
 .input-field {

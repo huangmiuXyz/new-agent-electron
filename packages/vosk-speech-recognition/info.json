@@ -1,0 +1,10 @@
+{
+  "name": "vosk-speech-recognition",
+  "version": "1.0.0",
+  "description": "Vosk 语音识别插件",
+  "author": "Agent-Qi",
+  "main": "index.js",
+  "extraAssets": [
+    "vosk-model-small-cn-0.22.zip"
+  ]
+}

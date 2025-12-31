@@ -32,17 +32,17 @@ export class PluginManager {
    * @param pluginName 插件名称
    */
   unregisterPlugin(pluginName: string): void {
-    
+
     this.plugins.delete(pluginName);
 
-    
+
     for (const [commandName, command] of this.commands.entries()) {
       if (command.pluginName === pluginName) {
         this.commands.delete(commandName);
       }
     }
 
-    
+
     for (const [hookName, hooks] of this.hooks.entries()) {
       const filteredHooks = hooks.filter(hook => hook.pluginName !== pluginName);
       if (filteredHooks.length === 0) {
@@ -52,7 +52,7 @@ export class PluginManager {
       }
     }
 
-    
+
     const toolNames = this.pluginBuiltinTools.get(pluginName);
     if (toolNames) {
       for (const toolName of toolNames) {
@@ -71,6 +71,7 @@ export class PluginManager {
   createContext(pluginName: string): PluginContext {
     return {
       app: this.app,
+      api: window.api,
       pinia: this.pinia,
       registerCommand: (name: string, handler: Function) => {
         this.registerCommand(pluginName, name, handler);
@@ -83,7 +84,7 @@ export class PluginManager {
       },
       registerBuiltinTool: (name: string, tool: any) => {
         this.builtinTools.set(name, markRaw(tool));
-        
+
         if (!this.pluginBuiltinTools.has(pluginName)) {
           this.pluginBuiltinTools.set(pluginName, new Set());
         }
@@ -105,7 +106,7 @@ export class PluginManager {
       throw new Error('Pinia instance not available');
     }
 
-    
+
     const storeMap: Record<string, () => Promise<any>> = {
       notes: async () => {
         return useNotesStore(this.pinia);
@@ -139,7 +140,7 @@ export class PluginManager {
    * @param handler 命令处理器
    */
   registerCommand(pluginName: string, name: string, handler: Function): void {
-    
+
     if (this.commands.has(name)) {
       throw new Error(`Command "${name}" is already registered`);
     }
@@ -241,11 +242,11 @@ export class PluginManager {
     }
 
     if (!handler) {
-      
+
       return this.hooks.delete(name);
     }
 
-    
+
     const hooks = this.hooks.get(name)!;
     const filteredHooks = hooks.filter(hook => hook.handler !== handler);
 
@@ -360,16 +361,16 @@ export class PluginManager {
    * @returns 是否成功注销
    */
   unregisterBuiltinTool(pluginName: string, name: string): boolean {
-    
+
     const toolNames = this.pluginBuiltinTools.get(pluginName);
     if (!toolNames || !toolNames.has(name)) {
       return false;
     }
 
-    
+
     const deleted = this.builtinTools.delete(name);
 
-    
+
     if (deleted) {
       toolNames.delete(name);
       if (toolNames.size === 0) {

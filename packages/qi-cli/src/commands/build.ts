@@ -43,35 +43,30 @@ export const buildCommand = new Command('build')
         process.exit(1);
       }
 
-      // 检查 index.js 是否存在
-      const mainFile = info.main || 'index.js';
-      const mainFilePath = path.join(distDir, mainFile);
-      try {
-        await fs.access(mainFilePath);
-      } catch {
-        spinner.fail(
-          chalk.red(`未找到 ${mainFile}，请确保已编译插件`)
-        );
-        process.exit(1);
-      }
-
       // 创建 ZIP 文件
       const zip = new JSZip();
 
       // 添加 info.json
       zip.file('info.json', infoContent);
 
-      // 添加主文件
-      const mainFileContent = await fs.readFile(mainFilePath);
-      zip.file('index.js', mainFileContent);
+      // 递归添加 dist 目录下的所有文件
+      await addDirectoryToZip(zip, distDir, '');
 
-      // 添加其他 .js 文件（如果存在）
-      const distFiles = await fs.readdir(distDir);
-      for (const file of distFiles) {
-        if (file.endsWith('.js') && file !== mainFile) {
-          const filePath = path.join(distDir, file);
-          const content = await fs.readFile(filePath);
-          zip.file(file, content);
+      // 处理 info.json 中定义的 extraAssets
+      if (Array.isArray(info.extraAssets)) {
+        for (const assetPath of info.extraAssets) {
+          const fullPath = path.resolve(path.dirname(infoJsonPath), assetPath);
+          try {
+            const stats = await fs.stat(fullPath);
+            if (stats.isFile()) {
+              const content = await fs.readFile(fullPath);
+              zip.file(assetPath, content);
+            } else if (stats.isDirectory()) {
+              await addDirectoryToZip(zip, fullPath, assetPath);
+            }
+          } catch (e) {
+            console.warn(chalk.yellow(`警告: 无法读取资源 ${assetPath}，已跳过`));
+          }
         }
       }
 
@@ -95,7 +90,7 @@ export const buildCommand = new Command('build')
       console.log(`  ${chalk.cyan('版本:')} ${info.version || '1.0.0'}`);
       console.log(`  ${chalk.cyan('描述:')} ${info.description || ''}`);
       console.log(`  ${chalk.cyan('作者:')} ${info.author || ''}`);
-      console.log(`  ${chalk.cyan('文件大小:')} ${(stats.size / 1024).toFixed(2)} KB`);
+      console.log(`  ${chalk.cyan('文件大小:')} ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
       console.log('');
     } catch (error) {
       spinner.fail(chalk.red('构建插件失败'));
@@ -105,6 +100,24 @@ export const buildCommand = new Command('build')
       process.exit(1);
     }
   });
+
+/**
+ * 递归添加目录到 ZIP
+ */
+async function addDirectoryToZip(zip: JSZip, dirPath: string, rootInZip: string) {
+  const files = await fs.readdir(dirPath);
+  for (const file of files) {
+    const filePath = path.join(dirPath, file);
+    const stats = await fs.stat(filePath);
+    const zipPath = path.join(rootInZip, file);
+    if (stats.isDirectory()) {
+      await addDirectoryToZip(zip, filePath, zipPath);
+    } else {
+      const content = await fs.readFile(filePath);
+      zip.file(zipPath, content);
+    }
+  }
+}
 
 /**
  * 查找 info.json 文件

@@ -6,6 +6,7 @@ interface UseContinuousVoiceRecorderOptions {
   volumeThreshold?: number
   silenceDuration?: number
   onSpeechEnd: (audio: Blob) => Promise<void> | void
+  onData?: (data: Float32Array) => void
 }
 
 export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOptions) {
@@ -18,6 +19,7 @@ export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOp
   let audioContext: AudioContext
   let analyser: AnalyserNode
   let source: MediaStreamAudioSourceNode
+  let processor: ScriptProcessorNode
   let mediaRecorder: MediaRecorder
 
   let chunks: BlobPart[] = []
@@ -93,6 +95,18 @@ export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOp
     source = audioContext.createMediaStreamSource(stream)
     source.connect(analyser)
 
+    // Set up real-time data processing
+    processor = audioContext.createScriptProcessor(4096, 1, 1)
+    processor.onaudioprocess = (e) => {
+      if (state.value === 'recording' && options.onData) {
+        const inputData = e.inputBuffer.getChannelData(0)
+        // Pass a copy to avoid issues with buffer reuse
+        options.onData(new Float32Array(inputData))
+      }
+    }
+    source.connect(processor)
+    processor.connect(audioContext.destination)
+
     mediaRecorder = new MediaRecorder(stream)
     setupRecorder()
 
@@ -107,6 +121,8 @@ export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOp
     state.value = 'end'
     silenceTimer && clearTimeout(silenceTimer)
     stream?.getTracks().forEach((t) => t.stop())
+    processor?.disconnect()
+    source?.disconnect()
     audioContext?.close()
   }
 

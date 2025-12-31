@@ -22,6 +22,8 @@ export interface Plugin {
 export interface PluginContext {
   /** 应用实例 */
   app: any;
+  /** Electron API */
+  api: any;
   /** Pinia 实例 */
   pinia: any;
   /** 注册命令 */
