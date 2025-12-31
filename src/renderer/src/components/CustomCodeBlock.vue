@@ -3,6 +3,9 @@
         <div class="header">
             <span class="language">{{ lang }}</span>
             <div class="actions">
+                <button v-if="isHtml" class="browser-btn" @click="openInBrowser" title="在浏览器中打开">
+                    <Globe />
+                </button>
                 <button v-if="isHtml" class="preview-btn" @click="showPreviewModal">
                     预览
                 </button>
@@ -22,12 +25,14 @@ import { common, createLowlight } from 'lowlight'
 import { toHtml } from 'hast-util-to-html'
 import { useSettingsStore } from '@renderer/stores/settings'
 import HtmlPreview from './HtmlPreview.vue'
+import { useIcon } from '@renderer/composables/useIcon'
 import 'highlight.js/styles/github.css'
 import 'highlight.js/styles/atom-one-dark.css'
 
 const lowlight = createLowlight(common)
 const { display } = storeToRefs(useSettingsStore())
 const { confirm } = useModal()
+const Globe = useIcon('Globe')
 
 const props = defineProps<{
     codeStr: string
@@ -64,6 +69,16 @@ async function showPreviewModal() {
         confirmText: '关闭',
         showFooter: true
     })
+}
+
+async function openInBrowser() {
+    if (!props.codeStr) return
+    const htmlContent = props.codeStr
+    const tempDir = window.api.getPath('temp')
+    const fileName = `temp-${Date.now()}.html`
+    const filePath = window.api.path.join(tempDir, fileName)
+    window.api.fs.writeFileSync(filePath, htmlContent, 'utf-8')
+    await window.api.shell.openPath(filePath)
 }
 
 async function copy() {
@@ -131,6 +146,25 @@ async function copy() {
     gap: 8px;
 }
 
+.browser-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid var(--button-border);
+    background: var(--button-bg);
+    color: var(--button-color);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.browser-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
 .preview-btn,
 .copy-btn {
     padding: 4px 12px;
@@ -144,7 +178,8 @@ async function copy() {
 }
 
 .preview-btn:hover,
-.copy-btn:hover {
+.copy-btn:hover,
+.browser-btn:hover {
     background: var(--button-hover-bg);
     border-color: var(--button-hover-border);
 }
