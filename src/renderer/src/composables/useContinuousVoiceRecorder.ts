@@ -5,12 +5,14 @@ type RecorderState = 'listening' | 'recording' | 'callback' | 'end'
 interface UseContinuousVoiceRecorderOptions {
   volumeThreshold?: number
   silenceDuration?: number
-  onSpeechEnd: (audio: Blob) => Promise<void> | void
+  onSpeechEnd?: (audio: Blob) => Promise<void> | void
   onData?: (data: Float32Array) => void
+  onStart?: () => void
+  onStop?: () => void
 }
 
 export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOptions) {
-  const { volumeThreshold = 0.02, silenceDuration = 800, onSpeechEnd } = options
+  const { volumeThreshold = 0.02, silenceDuration = 800, onSpeechEnd, onStart, onStop } = options
 
   const state = ref<RecorderState>('listening')
   const isActive = ref(false)
@@ -75,7 +77,7 @@ export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOp
       const blob = new Blob(chunks, { type: 'audio/webm' })
 
       try {
-        await onSpeechEnd(blob)
+        await onSpeechEnd?.(blob)
       } finally {
         chunks = []
         state.value = 'listening'
@@ -98,7 +100,7 @@ export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOp
     // Set up real-time data processing
     processor = audioContext.createScriptProcessor(4096, 1, 1)
     processor.onaudioprocess = (e) => {
-      if (state.value === 'recording' && options.onData) {
+      if (isActive.value && options.onData) {
         const inputData = e.inputBuffer.getChannelData(0)
         // Pass a copy to avoid issues with buffer reuse
         options.onData(new Float32Array(inputData))
@@ -113,10 +115,13 @@ export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOp
     isActive.value = true
     state.value = 'listening'
 
+    onStart?.()
+
     loop()
   }
 
   function stop() {
+    if (!isActive.value) return
     isActive.value = false
     state.value = 'end'
     silenceTimer && clearTimeout(silenceTimer)
@@ -124,6 +129,7 @@ export function useContinuousVoiceRecorder(options: UseContinuousVoiceRecorderOp
     processor?.disconnect()
     source?.disconnect()
     audioContext?.close()
+    onStop?.()
   }
 
   onUnmounted(stop)

@@ -54,32 +54,13 @@ const { start: startVoice, stop: stopVoice, state: voiceState, isActive: voiceIs
   volumeThreshold: 0.02,
   silenceDuration: 800,
   onData: (data: Float32Array) => {
-    // 缓存 sampleRate 避免重复创建 AudioContext
     if (!(window as any)._audioSampleRate) {
       (window as any)._audioSampleRate = new (window.AudioContext || (window as any).webkitAudioContext)().sampleRate
     }
     const sampleRate = (window as any)._audioSampleRate
     triggerHook('speech.stream.data', { data, sampleRate })
   },
-  onSpeechEnd: async () => {
-    try {
-      if (voiceState.value !== 'callback') return
-      isProcessingVoice.value = true
-
-      // 停止流式识别并获取可能的结果
-      await triggerHook('speech.stream.stop')
-    } catch (error) {
-      console.error('语音识别停止失败:', error)
-    } finally {
-      isProcessingVoice.value = false
-      partialSpeechText.value = ''
-    }
-  }
-})
-
-// 监听识别状态变化以启动/停止流
-watch(voiceState, async (newState) => {
-  if (newState === 'recording') {
+  onStart: async () => {
     if (!(window as any)._audioSampleRate) {
       (window as any)._audioSampleRate = new (window.AudioContext || (window as any).webkitAudioContext)().sampleRate
     }
@@ -99,6 +80,15 @@ watch(voiceState, async (newState) => {
         partialSpeechText.value = text
       }
     })
+  },
+  onStop: async () => {
+    try {
+      await triggerHook('speech.stream.stop')
+    } catch (error) {
+      console.error('语音识别停止失败:', error)
+    } finally {
+      partialSpeechText.value = ''
+    }
   }
 })
 
