@@ -27,8 +27,7 @@ const plugin: Plugin = {
             closeLoading = context.notification.loading('正在加载语音识别模型...', '语音识别');
           }
 
-          const pluginsPath = context.api.getPluginsPath();
-          const fullPath = context.api.path.join(pluginsPath, plugin.name, 'vosk-model-small-cn-0.22.zip');
+          const fullPath = context.api.path.join(context.basePath, 'vosk-model-small-cn-0.22.zip');
 
           console.log('正在通过 fs 读取 Vosk 模型:', fullPath);
           const buffer = context.api.fs.readFileSync(fullPath);

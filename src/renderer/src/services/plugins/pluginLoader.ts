@@ -8,9 +8,27 @@ import JSZip from 'jszip';
 export class PluginLoader {
   private pluginManager: PluginManager;
   private loadedPlugins: Map<string, PluginInfo> = new Map();
+  private devPlugins: Map<string, string> = new Map(); // pluginName -> localPath
+  private watchers: Map<string, () => void> = new Map(); // pluginName -> unwatch function
 
   constructor(app: any, pinia?: any) {
     this.pluginManager = new PluginManager(app, pinia);
+  }
+
+  /**
+   * 解析插件本地路径
+   * @param pluginName 插件名称
+   */
+  private resolvePluginPath(pluginName: string): string {
+    const path = window.api.path;
+    if (!path) throw new Error('Path API not available');
+
+    let pluginDir = this.devPlugins.get(pluginName);
+    if (!pluginDir) {
+      const pluginsPath = window.api.getPluginsPath();
+      pluginDir = path.join(pluginsPath, pluginName);
+    }
+    return pluginDir;
   }
 
   /**
@@ -25,9 +43,8 @@ export class PluginLoader {
       throw new Error('Path API not available');
     }
 
-    const pluginsPath = window.api.getPluginsPath();
-    const pluginDir = path.join(pluginsPath, pluginName);
-
+    // 优先从开发模式目录加载
+    const pluginDir = this.resolvePluginPath(pluginName);
 
     const possiblePaths = [
       path.join(pluginDir, 'index.js'),
@@ -49,8 +66,79 @@ export class PluginLoader {
 
 
     throw new Error(
-      `Plugin entry file not found. Tried: ${possiblePaths.join(', ')}`
+      `Plugin entry file not found in ${pluginDir}. Tried: ${possiblePaths.join(', ')}`
     );
+  }
+
+  /**
+   * 以开发模式加载插件
+   * @param localPath 插件本地目录
+   */
+  async loadPluginDev(localPath: string): Promise<PluginInfo> {
+    const fs = window.api.fs;
+    const path = window.api.path;
+
+    if (!fs || !path) {
+      throw new Error('File system API not available');
+    }
+
+    const infoPath = path.join(localPath, 'info.json');
+    if (!fs.existsSync(infoPath)) {
+      throw new Error('info.json not found in the selected directory');
+    }
+
+    const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+    const pluginName = info.name;
+
+    if (!pluginName) {
+      throw new Error('Plugin name not found in info.json');
+    }
+
+    // 记录开发目录
+    this.devPlugins.set(pluginName, localPath);
+
+    // 如果已经在加载，先卸载
+    if (this.isPluginLoaded(pluginName)) {
+      await this.unloadPlugin(pluginName);
+    }
+
+    // 加载插件
+    const pluginInfo = await this.loadPlugin(pluginName);
+
+    // 开始监听变化
+    this.watchPlugin(pluginName, localPath);
+
+    return pluginInfo;
+  }
+
+  /**
+   * 监听插件变化
+   * @param pluginName 插件名称
+   * @param localPath 本地路径
+   */
+  private watchPlugin(pluginName: string, localPath: string): void {
+    // 停止之前的监听
+    if (this.watchers.has(pluginName)) {
+      this.watchers.get(pluginName)!();
+    }
+
+    console.log(`Watching plugin "${pluginName}" at ${localPath}`);
+
+    let timer: any = null;
+    const unwatch = window.api.watch(localPath, (event, filename) => {
+      // 简单防抖，避免频繁触发
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(async () => {
+        console.log(`Plugin "${pluginName}" changed (${filename}), reloading...`);
+        try {
+          await this.reloadPlugin(pluginName);
+        } catch (err) {
+          console.error(`Failed to reload plugin "${pluginName}":`, err);
+        }
+      }, 500);
+    });
+
+    this.watchers.set(pluginName, unwatch);
   }
 
   /**
@@ -101,8 +189,8 @@ export class PluginLoader {
       this.loadedPlugins.set(plugin.name, pluginInfo);
 
       try {
-
-        const context = this.pluginManager.createContext(plugin.name);
+        const basePath = this.resolvePluginPath(plugin.name);
+        const context = this.pluginManager.createContext(plugin.name, basePath);
         await plugin.install(context);
 
 
@@ -145,9 +233,10 @@ export class PluginLoader {
 
       pluginInfo.status = 'unloading' as PluginStatus;
 
-
+// 卸载插件
       if (pluginInfo.plugin.uninstall) {
-        const context = this.pluginManager.createContext(pluginName);
+        const basePath = this.resolvePluginPath(pluginName);
+        const context = this.pluginManager.createContext(pluginName, basePath);
         await pluginInfo.plugin.uninstall(context);
       }
 
@@ -156,6 +245,13 @@ export class PluginLoader {
 
 
       this.loadedPlugins.delete(pluginName);
+
+      // 停止监听
+      if (this.watchers.has(pluginName)) {
+        this.watchers.get(pluginName)!();
+        this.watchers.delete(pluginName);
+      }
+      this.devPlugins.delete(pluginName);
 
       return true;
     } catch (error) {
@@ -222,6 +318,14 @@ export class PluginLoader {
    */
   isPluginLoaded(pluginName: string): boolean {
     return this.loadedPlugins.has(pluginName);
+  }
+
+  /**
+   * 检查插件是否处于开发模式
+   * @param pluginName 插件名称
+   */
+  isDevMode(pluginName: string): boolean {
+    return this.devPlugins.has(pluginName);
   }
 
   /**

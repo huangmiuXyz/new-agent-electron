@@ -173,7 +173,8 @@ const icons = {
   Moon,
   Sun,
   NoteAdd24Regular,
-  Globe
+  Globe,
+  Code
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =

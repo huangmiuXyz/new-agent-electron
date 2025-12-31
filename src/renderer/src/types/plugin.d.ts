@@ -27,6 +27,8 @@ declare global {
     api: any;
     /** Pinia 实例 */
     pinia: any;
+    /** 插件根路径 */
+    basePath: string;
     /** 注册命令 */
     registerCommand: (name: string, handler: Function) => void;
     /** 注册钩子 */
@@ -110,6 +112,7 @@ declare global {
     version: string;
     status: PluginStatus;
     type: 'loaded' | 'available';
+    isDev?: boolean;
     error?: string;
     path?: string;
     plugin?: any;

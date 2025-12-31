@@ -64,14 +64,15 @@ export class PluginManager {
   /**
    * 创建插件上下文
    * @param pluginName 插件名称
-   * @param options 插件上下文选项
+   * @param basePath 插件根路径
    * @returns 插件上下文
    */
-  createContext(pluginName: string): PluginContext {
+  createContext(pluginName: string, basePath: string): PluginContext {
     return {
       app: this.app,
       api: window.api,
       pinia: this.pinia,
+      basePath,
       registerCommand: (name: string, handler: Function) => {
         this.registerCommand(pluginName, name, handler);
       },

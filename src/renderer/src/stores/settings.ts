@@ -3,7 +3,7 @@ import data from '@renderer/assets/data/provider.json'
 export const useSettingsStore = defineStore(
   'settings',
   () => {
-    
+
     const getDefaultProviders = () => {
       return data.map((p) => ({
         ...p,
@@ -12,7 +12,7 @@ export const useSettingsStore = defineStore(
         models: []
       }))
     }
-    
+
     const display = ref({
       darkMode: false,
       compactDensity: true,
@@ -23,12 +23,12 @@ export const useSettingsStore = defineStore(
       terminalHeight: 200
     })
 
-    
+
     const terminal = ref({
       fontSize: 14,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       cursorBlink: true,
-      
+
       backgroundColor: '#ffffff',
       foregroundColor: '#333333',
       cursorColor: '#333333',
@@ -39,8 +39,10 @@ export const useSettingsStore = defineStore(
 
     const mcpServers = ref<ClientConfig>({})
 
-    
+
     const loadedPlugins = ref<string[]>([])
+
+    const devPluginPaths = ref<Record<string, string>>({})
 
     const defaultModels = ref({
       titleGenerationModelId: '',
@@ -51,7 +53,7 @@ export const useSettingsStore = defineStore(
       searchProviderId: ''
     })
 
-    
+
     const thinkingMode = ref(false)
 
     const updateThinkingMode = (mode: boolean) => {
@@ -111,19 +113,19 @@ export const useSettingsStore = defineStore(
       defaultModels.value = { ...defaultModels.value, ...settings }
     }
 
-    
+
     const updateLoadedPlugins = (plugins: string[]) => {
       loadedPlugins.value = plugins
     }
 
-    
+
     const addLoadedPlugin = (pluginName: string) => {
       if (!loadedPlugins.value.includes(pluginName)) {
         loadedPlugins.value.push(pluginName)
       }
     }
 
-    
+
     const removeLoadedPlugin = (pluginName: string) => {
       const index = loadedPlugins.value.indexOf(pluginName)
       if (index > -1) {
@@ -131,7 +133,15 @@ export const useSettingsStore = defineStore(
       }
     }
 
-    
+    const addDevPluginPath = (pluginName: string, path: string) => {
+      devPluginPaths.value[pluginName] = path
+    }
+
+    const removeDevPluginPath = (pluginName: string) => {
+      delete devPluginPaths.value[pluginName]
+    }
+
+
     const resetProviderBaseUrl = (providerId: string) => {
       const defaultProviders = getDefaultProviders()
       const defaultProvider = defaultProviders.find((p) => p.id === providerId)
@@ -164,7 +174,7 @@ export const useSettingsStore = defineStore(
       return { model: provider?.models.find((m) => m.id === mid)!, provider }
     }
 
-    
+
     const getTitleGenerationModel = computed(() => {
       const provider = providers.value.find(
         (p) => p.id === defaultModels.value.titleGenerationProviderId
@@ -195,6 +205,7 @@ export const useSettingsStore = defineStore(
       providers,
       mcpServers,
       loadedPlugins,
+      devPluginPaths,
       defaultModels,
       thinkingMode,
       updateDisplaySettings,
@@ -207,6 +218,8 @@ export const useSettingsStore = defineStore(
       updateLoadedPlugins,
       addLoadedPlugin,
       removeLoadedPlugin,
+      addDevPluginPath,
+      removeDevPluginPath,
       selectedModelId,
       selectedProviderId,
       currentSelectedProvider,

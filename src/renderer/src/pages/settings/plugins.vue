@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { FormItem } from '@renderer/composables/useForm'
-const { Plugin: PluginIcon, Trash, Refresh, Check, Dismiss, Play, Download } = useIcon([
+const { Plugin: PluginIcon, Trash, Refresh, Check, Dismiss, Play, Download, Code } = useIcon([
   'Plugin',
   'Trash',
   'Refresh',
   'Check',
   'Dismiss',
   'Play',
-  'Download'
+  'Download',
+  'Code'
 ])
 
 // 使用 usePlugins composable
@@ -18,6 +19,7 @@ const {
   activePluginId,
   activePlugin,
   installPlugin,
+  loadPluginDev,
   refreshPlugins,
   loadPlugin,
   unloadPlugin,
@@ -99,6 +101,12 @@ const handleUninstallPlugin = async (pluginName: string) => {
     <List title="插件" :items="allPlugins" :active-id="activePluginId" :loading="loading" key-field="id" main-field="name"
       sub-field="description" :logo-field="'PluginIcon'" @select="handleSelectPlugin">
       <template #title-tool>
+        <Button @click="loadPluginDev" size="sm" type="button" variant="text" :loading="installing">
+          <template #icon>
+            <Code />
+          </template>
+          开发模式
+        </Button>
         <Button @click="installPlugin" size="sm" type="button" variant="text" :loading="installing">
           <template #icon>
             <Download />
@@ -127,7 +135,10 @@ const handleUninstallPlugin = async (pluginName: string) => {
           <div class="info-card">
             <div class="info-header">
               <div class="info-title">
-                <h2>{{ activePlugin.name }}</h2>
+                <div class="title-with-badge">
+                  <h2>{{ activePlugin.name }}</h2>
+                  <div v-if="activePlugin.isDev" class="dev-badge">DEV</div>
+                </div>
                 <div class="status-badge" :style="{ color: getStatusColor(activePlugin.status) }">
                   <component v-if="getStatusIcon(activePlugin.status)" :is="getStatusIcon(activePlugin.status)" />
                   {{ getStatusText(activePlugin.status) }}
@@ -236,7 +247,24 @@ const handleUninstallPlugin = async (pluginName: string) => {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0 0 8px 0;
+  margin: 0;
+}
+
+.title-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dev-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  background: var(--color-warning);
+  color: #000;
+  border-radius: 4px;
+  line-height: 1;
 }
 
 .status-badge {

@@ -16,6 +16,39 @@ export function usePlugins() {
   const settingsStore = useSettingsStore();
 
   /**
+   * 开发模式加载插件（从本地目录）
+   */
+  const loadPluginDev = async (): Promise<void> => {
+    try {
+      installing.value = true;
+
+      const result = await window.api.showOpenDialog({
+        title: '选择插件本地目录',
+        properties: ['openDirectory']
+      });
+
+      if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+        return;
+      }
+
+      const localPath = result.filePaths[0];
+
+      if (pluginLoader) {
+        const pluginInfo = await pluginLoader.loadPluginDev(localPath);
+        const pluginName = pluginInfo.plugin.name;
+        settingsStore.addDevPluginPath(pluginName, localPath);
+        await refreshPlugins();
+        alert('开发模式插件加载成功，已开启自动重载！');
+      }
+    } catch (err) {
+      console.error('Failed to load dev plugin:', err);
+      alert(`开发模式加载失败: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      installing.value = false;
+    }
+  };
+
+  /**
    * 安装插件
    */
   const installPlugin = async (): Promise<void> => {
@@ -98,6 +131,7 @@ export function usePlugins() {
         await pluginLoader.unloadPlugin(pluginName);
 
         settingsStore.removeLoadedPlugin(pluginName);
+        settingsStore.removeDevPluginPath(pluginName);
         await refreshPlugins();
       }
     } catch (err) {
@@ -115,6 +149,7 @@ export function usePlugins() {
         await pluginLoader.uninstallPlugin(pluginName);
 
         settingsStore.removeLoadedPlugin(pluginName);
+        settingsStore.removeDevPluginPath(pluginName);
         await refreshPlugins();
       }
     } catch (err) {
@@ -128,12 +163,28 @@ export function usePlugins() {
    */
   const restorePlugins = async (): Promise<void> => {
     const savedPlugins = settingsStore.loadedPlugins;
-    if (savedPlugins.length === 0) {
+    const devPlugins = settingsStore.devPluginPaths;
+
+    if (savedPlugins.length === 0 && Object.keys(devPlugins).length === 0) {
       return;
     }
 
-    console.log('Restoring plugins:', savedPlugins);
+    console.log('Restoring plugins:', { savedPlugins, devPlugins });
 
+    // 恢复开发模式插件
+    for (const [pluginName, localPath] of Object.entries(devPlugins)) {
+      try {
+        if (pluginLoader && !pluginLoader.isPluginLoaded(pluginName)) {
+          await pluginLoader.loadPluginDev(localPath);
+          console.log(`Dev plugin "${pluginName}" restored from ${localPath}`);
+        }
+      } catch (err) {
+        console.error(`Failed to restore dev plugin "${pluginName}":`, err);
+        settingsStore.removeDevPluginPath(pluginName);
+      }
+    }
+
+    // 恢复普通插件
     for (const pluginName of savedPlugins) {
       try {
         if (pluginLoader && !pluginLoader.isPluginLoaded(pluginName)) {
@@ -224,7 +275,8 @@ export function usePlugins() {
         status: p.status,
         type: 'loaded' as const,
         error: p.error,
-        plugin: p.plugin
+        plugin: p.plugin,
+        isDev: pluginLoader?.isDevMode(p.plugin.name) || false
       })),
       ...available.map(p => ({
         id: p.name,
@@ -270,6 +322,7 @@ export function usePlugins() {
     activePluginId,
     activePlugin,
     installPlugin,
+    loadPluginDev,
     refreshPlugins,
     loadPlugin,
     unloadPlugin,

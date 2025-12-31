@@ -37,9 +37,9 @@ const plugin: Plugin = {
       title: '示例工具',
       execute: async (args: any) => {
         const { message } = args;
-        
+
         // 参数已由 zod 自动验证
-        
+
         return {
           toolResult: {
             content: [
@@ -65,7 +65,7 @@ const plugin: Plugin = {
   async uninstall(context) {
     // 注销内置工具（可选，如果插件注册了内置工具）
     context.unregisterBuiltinTool('{{pluginName}}.example');
-    
+
     console.log('{{pluginName}} plugin uninstalled!');
   }
 };
@@ -100,8 +100,12 @@ export interface Plugin {
 export interface PluginContext {
   /** 应用实例 */
   app: any;
+  /** Electron API */
+  api: any;
   /** Pinia 实例 */
   pinia: any;
+  /** 插件根路径 */
+  basePath: string;
   /** 注册命令 */
   registerCommand: (name: string, handler: Function) => void;
   /** 注册钩子 */

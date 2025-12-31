@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import { initCommand } from './commands/init.js';
 import { buildCommand } from './commands/build.js';
+import { devCommand } from './commands/dev.js';
 
 const program = new Command();
 
@@ -16,6 +17,7 @@ const codeCommand = new Command('code')
 
 codeCommand.addCommand(initCommand);
 codeCommand.addCommand(buildCommand);
+codeCommand.addCommand(devCommand);
 
 program.addCommand(codeCommand);
 

@@ -65,6 +65,10 @@ export const api = {
   },
   exec,
   os,
+  watch: (path: string, callback: (event: string, filename: string) => void) => {
+    const watcher = fs.watch(path, { recursive: true }, callback)
+    return () => watcher.close()
+  },
   createTempChat: (data: any) => electronAPI.ipcRenderer.invoke('window:create-temp-chat', data),
   getTempChatData: (windowId: string) =>
     electronAPI.ipcRenderer.invoke('window:get-temp-chat-data', windowId),
