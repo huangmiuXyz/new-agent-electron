@@ -3,8 +3,11 @@ import { FileUIPart, TextUIPart } from 'ai'
 import { useTerminal } from '@renderer/composables/useTerminal'
 import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
 
+import { usePlugins } from '@renderer/composables/usePlugins'
+
 const message = ref('')
 const chatStore = useChatsStores()
+const { triggerHook } = usePlugins()
 const selectedFiles = ref<Array<UploadFile>>([])
 
 const {
@@ -52,8 +55,16 @@ const { start: startVoice, stop: stopVoice, state: voiceState, isActive: voiceIs
     try {
       if (voiceState.value !== 'callback') return
       isProcessingVoice.value = true
-      console.log('语音录制完成:', audio)
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const results = await triggerHook('speech.recognize', audio)
+      const recognizedText = results.find(r => typeof r === 'string')
+      if (recognizedText) {
+        message.value += (message.value ? ' ' : '') + recognizedText
+        adjustTextareaHeight({ target: textareaRef.value } as any)
+      } else {
+        console.warn('未找到语音识别结果')
+      }
+    } catch (error) {
+      console.error('语音识别失败:', error)
     } finally {
       isProcessingVoice.value = false
     }

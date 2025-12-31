@@ -2,17 +2,17 @@ import { getPluginLoader } from '@renderer/services/plugins/pluginLoaderInstance
 import { useSettingsStore } from '@renderer/stores/settings';
 
 export function usePlugins() {
-  
+
   const plugins = ref<PluginInfo[]>([]);
   const availablePlugins = ref<PluginInfoData[]>([]);
   const loading = ref(false);
   const installing = ref(false);
   const activePluginId = ref('');
 
-  
+
   const pluginLoader = getPluginLoader();
 
-  
+
   const settingsStore = useSettingsStore();
 
   /**
@@ -22,7 +22,7 @@ export function usePlugins() {
     try {
       installing.value = true;
 
-      
+
       const result = await window.api.showOpenDialog({
         title: '选择插件文件',
         filters: [
@@ -38,12 +38,12 @@ export function usePlugins() {
 
       const zipFilePath = result.filePaths[0];
 
-      
+
       if (pluginLoader) {
         await pluginLoader.installPlugin(zipFilePath);
       }
 
-      
+
       await refreshPlugins();
       alert('插件安装成功！');
     } catch (err) {
@@ -96,7 +96,7 @@ export function usePlugins() {
     try {
       if (pluginLoader) {
         await pluginLoader.unloadPlugin(pluginName);
-        
+
         settingsStore.removeLoadedPlugin(pluginName);
         await refreshPlugins();
       }
@@ -113,7 +113,7 @@ export function usePlugins() {
     try {
       if (pluginLoader) {
         await pluginLoader.uninstallPlugin(pluginName);
-        
+
         settingsStore.removeLoadedPlugin(pluginName);
         await refreshPlugins();
       }
@@ -142,7 +142,7 @@ export function usePlugins() {
         }
       } catch (err) {
         console.error(`Failed to restore plugin "${pluginName}":`, err);
-        
+
         settingsStore.removeLoadedPlugin(pluginName);
       }
     }
@@ -162,6 +162,22 @@ export function usePlugins() {
     } catch (err) {
       console.error('Failed to execute command:', err);
       throw err;
+    }
+  };
+
+  /**
+   * 触发钩子
+   */
+  const triggerHook = async (hookName: string, data?: any): Promise<any[]> => {
+    try {
+      if (pluginLoader) {
+        const manager = pluginLoader.getPluginManager();
+        return await manager.triggerHook(hookName, data);
+      }
+      return [];
+    } catch (err) {
+      console.error(`Failed to trigger hook "${hookName}":`, err);
+      return [];
     }
   };
 
@@ -264,6 +280,7 @@ export function usePlugins() {
     getStatusColor,
     getPluginCommands,
     selectPlugin,
-    pluginLoader
+    pluginLoader,
+    triggerHook
   };
 }
