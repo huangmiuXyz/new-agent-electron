@@ -23,6 +23,7 @@ import { toHtml } from 'hast-util-to-html'
 import { useSettingsStore } from '@renderer/stores/settings'
 import HtmlPreview from './HtmlPreview.vue'
 import 'highlight.js/styles/github.css'
+import 'highlight.js/styles/atom-one-dark.css'
 
 const lowlight = createLowlight(common)
 const { display } = storeToRefs(useSettingsStore())
@@ -81,20 +82,44 @@ async function copy() {
     border: 1px solid var(--border-color, #e1e4e8);
 }
 
+.code-block.dark {
+    --border-color: #30363d;
+    --header-bg: #161b22;
+    --language-color: #8b949e;
+    --button-border: #30363d;
+    --button-bg: #21262d;
+    --button-color: #c9d1d9;
+    --button-hover-bg: #30363d;
+    --button-hover-border: #484f58;
+    --code-bg: #0d1117;
+}
+
+.code-block.light {
+    --border-color: #e1e4e8;
+    --header-bg: #f6f8fa;
+    --language-color: #586069;
+    --button-border: #d1d5da;
+    --button-bg: #ffffff;
+    --button-color: #24292e;
+    --button-hover-bg: #f3f4f6;
+    --button-hover-border: #c0c4cc;
+    --code-bg: #f6f8fa;
+}
+
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 8px 16px;
-    background: var(--header-bg, #f6f8fa);
-    border-bottom: 1px solid var(--border-color, #e1e4e8);
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .language {
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
-    color: var(--language-color, #586069);
+    color: var(--language-color);
 }
 
 .actions {
@@ -106,9 +131,9 @@ async function copy() {
 .copy-btn {
     padding: 4px 12px;
     font-size: 12px;
-    border: 1px solid var(--button-border, #d1d5da);
-    background: var(--button-bg, #ffffff);
-    color: var(--button-color, #24292e);
+    border: 1px solid var(--button-border);
+    background: var(--button-bg);
+    color: var(--button-color);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
@@ -116,15 +141,15 @@ async function copy() {
 
 .preview-btn:hover,
 .copy-btn:hover {
-    background: var(--button-hover-bg, #f3f4f6);
-    border-color: var(--button-hover-border, #c0c4cc);
+    background: var(--button-hover-bg);
+    border-color: var(--button-hover-border);
 }
 
 .code-content {
     margin: 0;
     padding: 16px;
     overflow-x: auto;
-    background: var(--code-bg, #f6f8fa);
+    background: var(--code-bg);
 }
 
 .code-content code {
@@ -133,5 +158,15 @@ async function copy() {
     line-height: 1.6;
     white-space: pre-wrap;
     word-break: break-all;
+}
+
+/* 亮色主题：使用 github.css 样式 */
+.code-block.light :deep(.hljs) {
+    background: transparent !important;
+}
+
+/* 暗色主题：使用 atom-one-dark.css 样式 */
+.code-block.dark :deep(.hljs) {
+    background: transparent !important;
 }
 </style>
