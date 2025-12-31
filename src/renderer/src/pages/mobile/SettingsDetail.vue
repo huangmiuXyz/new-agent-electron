@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AppHeader from '../../components/AppHeader.vue'
 const route = useRoute()
 const activeTab = computed(() => route.params.tab as string)
 const { setTitle, customTitle } = useAppHeader()

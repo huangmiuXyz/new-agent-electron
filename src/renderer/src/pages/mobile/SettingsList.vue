@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import AppHeader from '../../components/AppHeader.vue'
-import MobileTabBar from '../../components/MobileTabBar.vue'
-
 const router = useRouter()
 const { customTitle } = useAppHeader()
 

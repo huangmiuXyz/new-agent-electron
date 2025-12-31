@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AppHeader from '../../components/AppHeader.vue'
 const settingsStore = useSettingsStore()
 const { setTitle, customTitle } = useAppHeader()
 const { currentChat } = storeToRefs(useChatsStores())

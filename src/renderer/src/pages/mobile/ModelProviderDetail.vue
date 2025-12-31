@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AppHeader from '../../components/AppHeader.vue'
 const route = useRoute()
 const { setTitle, customTitle } = useAppHeader()
 const settingsStore = useSettingsStore()
