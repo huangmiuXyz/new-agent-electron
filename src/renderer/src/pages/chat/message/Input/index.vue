@@ -258,6 +258,7 @@ const _sendMessage = async () => {
   overflow-y: auto;
   line-height: 1.4;
   background: transparent;
+  color: var(--text-primary);
 }
 
 .input-actions {
