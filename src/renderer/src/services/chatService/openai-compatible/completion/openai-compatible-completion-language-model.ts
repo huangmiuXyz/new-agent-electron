@@ -53,7 +53,7 @@ export class OpenAICompatibleCompletionLanguageModel
   readonly modelId: OpenAICompatibleCompletionModelId;
   private readonly config: OpenAICompatibleCompletionConfig;
   private readonly failedResponseHandler: ResponseHandler<APICallError>;
-  private readonly chunkSchema; // type inferred via constructor
+  private readonly chunkSchema; 
 
   constructor(
     modelId: OpenAICompatibleCompletionModelId,
@@ -62,7 +62,7 @@ export class OpenAICompatibleCompletionLanguageModel
     this.modelId = modelId;
     this.config = config;
 
-    // initialize error handling:
+    
     const errorStructure =
       config.errorStructure ?? defaultOpenAICompatibleErrorStructure;
     this.chunkSchema = createOpenAICompatibleCompletionChunkSchema(
@@ -100,7 +100,7 @@ export class OpenAICompatibleCompletionLanguageModel
   }: Parameters<LanguageModelV3['doGenerate']>[0]) {
     const warnings: SharedV3Warning[] = [];
 
-    // Parse provider options
+    
     const completionOptions =
       (await parseProviderOptions({
         provider: this.providerOptionsName,
@@ -135,16 +135,16 @@ export class OpenAICompatibleCompletionLanguageModel
 
     return {
       args: {
-        // model id:
+        
         model: this.modelId,
 
-        // model specific settings:
+        
         echo: completionOptions.echo,
         logit_bias: completionOptions.logitBias,
         suffix: completionOptions.suffix,
         user: completionOptions.user,
 
-        // standardized settings:
+        
         max_tokens: maxOutputTokens,
         temperature,
         top_p: topP,
@@ -153,10 +153,10 @@ export class OpenAICompatibleCompletionLanguageModel
         seed,
         ...providerOptions?.[this.providerOptionsName],
 
-        // prompt:
+        
         prompt: completionPrompt,
 
-        // stop sequences:
+        
         stop: stop.length > 0 ? stop : undefined,
       },
       warnings,
@@ -190,7 +190,7 @@ export class OpenAICompatibleCompletionLanguageModel
     const choice = response.choices[0];
     const content: Array<LanguageModelV3Content> = [];
 
-    // text content:
+    
     if (choice.text != null && choice.text.length > 0) {
       content.push({ type: 'text', text: choice.text });
     }
@@ -218,7 +218,7 @@ export class OpenAICompatibleCompletionLanguageModel
       ...args,
       stream: true,
 
-      // only include stream_options when in strict compatibility mode:
+      
       stream_options: this.config.includeUsage
         ? { include_usage: true }
         : undefined,
@@ -264,7 +264,7 @@ export class OpenAICompatibleCompletionLanguageModel
               controller.enqueue({ type: 'raw', rawValue: chunk.rawValue });
             }
 
-            // handle failed chunk parsing / validation:
+            
             if (!chunk.success) {
               finishReason = 'error';
               controller.enqueue({ type: 'error', error: chunk.error });
@@ -273,7 +273,7 @@ export class OpenAICompatibleCompletionLanguageModel
 
             const value = chunk.value;
 
-            // handle error chunks:
+            
             if ('error' in value) {
               finishReason = 'error';
               controller.enqueue({ type: 'error', error: value.error });
@@ -340,8 +340,8 @@ const usageSchema = z.object({
   total_tokens: z.number(),
 });
 
-// limited version of the schema, focussed on what is needed for the implementation
-// this approach limits breakages when the API changes and increases efficiency
+
+
 const openaiCompatibleCompletionResponseSchema = z.object({
   id: z.string().nullish(),
   created: z.number().nullish(),
@@ -355,8 +355,8 @@ const openaiCompatibleCompletionResponseSchema = z.object({
   usage: usageSchema.nullish(),
 });
 
-// limited version of the schema, focussed on what is needed for the implementation
-// this approach limits breakages when the API changes and increases efficiency
+
+
 const createOpenAICompatibleCompletionChunkSchema = <
   ERROR_SCHEMA extends z.core.$ZodType,
 >(

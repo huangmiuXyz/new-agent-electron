@@ -28,11 +28,11 @@ export class PluginLoader {
     const pluginsPath = window.api.getPluginsPath();
     const pluginDir = path.join(pluginsPath, pluginName);
 
-    // 尝试多个可能的入口文件位置
+    
     const possiblePaths = [
-      path.join(pluginDir, 'index.js'),      // 根目录的 index.js
-      path.join(pluginDir, 'dist', 'index.js'), // dist 目录的 index.js
-      path.join(pluginDir, 'build', 'index.js')  // build 目录的 index.js
+      path.join(pluginDir, 'index.js'),      
+      path.join(pluginDir, 'dist', 'index.js'), 
+      path.join(pluginDir, 'build', 'index.js')  
     ];
 
     const fs = window.api.fs;
@@ -40,14 +40,14 @@ export class PluginLoader {
       throw new Error('File system API not available');
     }
 
-    // 查找第一个存在的入口文件
+    
     for (const entryPath of possiblePaths) {
       if (fs.existsSync(entryPath)) {
         return `file://${entryPath}`;
       }
     }
 
-    // 如果都不存在，抛出错误
+    
     throw new Error(
       `Plugin entry file not found. Tried: ${possiblePaths.join(', ')}`
     );
@@ -60,10 +60,10 @@ export class PluginLoader {
    */
   async loadPlugin(pluginName: string): Promise<PluginInfo> {
     try {
-      // 解析插件 URL
+      
       const pluginUrl = this.resolvePluginUrl(pluginName);
 
-      // 使用 fetch 获取插件代码
+      
       const response = await fetch(pluginUrl);
 
       if (!response.ok) {
@@ -78,7 +78,7 @@ export class PluginLoader {
       const getPlugin = new Function(wrappedCode);
       const plugin = getPlugin();
 
-      // 验证插件接口
+      
       if (!plugin || typeof plugin !== 'object') {
         throw new Error('Invalid plugin: plugin must be an object');
       }
@@ -87,12 +87,12 @@ export class PluginLoader {
         throw new Error('Invalid plugin: must have name and install function');
       }
 
-      // 检查插件是否已加载
+      
       if (this.loadedPlugins.has(plugin.name)) {
         throw new Error(`Plugin "${plugin.name}" is already loaded`);
       }
 
-      // 创建插件信息
+      
       const pluginInfo: PluginInfo = {
         plugin,
         status: 'loading' as PluginStatus,
@@ -101,20 +101,20 @@ export class PluginLoader {
       this.loadedPlugins.set(plugin.name, pluginInfo);
 
       try {
-        // 调用插件的 install 方法
+        
         const context = this.pluginManager.createContext(plugin.name);
         await plugin.install(context);
 
-        // 更新插件状态
+        
         pluginInfo.status = 'loaded' as PluginStatus;
         pluginInfo.loadTime = Date.now();
 
-        // 注册到插件管理器
+        
         this.pluginManager.registerPlugin(plugin);
 
         return pluginInfo;
       } catch (error) {
-        // 安装失败，清理状态
+        
         this.loadedPlugins.delete(plugin.name);
         pluginInfo.status = 'error' as PluginStatus;
         pluginInfo.error = error instanceof Error ? error.message : String(error);
@@ -142,19 +142,19 @@ export class PluginLoader {
     }
 
     try {
-      // 更新状态为卸载中
+      
       pluginInfo.status = 'unloading' as PluginStatus;
 
-      // 调用插件的 uninstall 方法（如果存在）
+      
       if (pluginInfo.plugin.uninstall) {
         const context = this.pluginManager.createContext(pluginName);
         await pluginInfo.plugin.uninstall(context);
       }
 
-      // 从插件管理器中移除
+      
       this.pluginManager.unregisterPlugin(pluginName);
 
-      // 从已加载列表中移除
+      
       this.loadedPlugins.delete(pluginName);
 
       return true;
@@ -179,16 +179,16 @@ export class PluginLoader {
     }
 
     try {
-      // 先从内存中卸载插件
+      
       await this.unloadPlugin(pluginName);
 
-      // 获取插件目录路径
+      
       const pluginsDir = window.api.getPluginsPath();
       const pluginDir = path.join(pluginsDir, pluginName);
 
-      // 检查插件目录是否存在
+      
       if (fs.existsSync(pluginDir)) {
-        // 删除插件目录及其所有内容
+        
         fs.rmSync(pluginDir, { recursive: true, force: true });
       }
 
@@ -295,17 +295,17 @@ export class PluginLoader {
       throw new Error('File system API not available');
     }
 
-    // 读取zip文件
+    
     const zipData = fs.readFileSync(zipFilePath);
     const zip = await JSZip.loadAsync(zipData);
 
-    // 检查是否包含info.json
+    
     const infoFile = zip.file('info.json');
     if (!infoFile) {
       throw new Error('插件文件必须包含info.json');
     }
 
-    // 读取info.json获取插件名称
+    
     const infoContent = await infoFile.async('string');
     const info: PluginInfoData = JSON.parse(infoContent);
 
@@ -313,30 +313,30 @@ export class PluginLoader {
       throw new Error('info.json必须包含name字段');
     }
 
-    // 检查是否包含index.js
+    
     const indexFile = zip.file('index.js');
     if (!indexFile) {
       throw new Error('插件文件必须包含index.js');
     }
 
-    // 获取插件目录路径
+    
     const pluginsDir = window.api.getPluginsPath();
     const pluginDir = path.join(pluginsDir, info.name);
 
-    // 如果插件已存在，提示覆盖
+    
     if (fs.existsSync(pluginDir)) {
       const shouldOverwrite = confirm(`插件 "${info.name}" 已存在，是否覆盖？`);
       if (!shouldOverwrite) {
         return;
       }
-      // 删除现有插件目录
+      
       fs.rmSync(pluginDir, { recursive: true, force: true });
     }
 
-    // 创建插件目录
+    
     fs.mkdirSync(pluginDir, { recursive: true });
 
-    // 解压文件
+    
     const files = Object.keys(zip.files);
     for (const filename of files) {
       const zipEntry = zip.files[filename];
@@ -361,19 +361,19 @@ export class PluginLoader {
         throw new Error('File system API not available');
       }
 
-      // 获取插件目录路径（从userData读取）
+      
       const pluginsDir = window.api.getPluginsPath();
 
-      // 确保插件目录存在
+      
       if (!fs.existsSync(pluginsDir)) {
         fs.mkdirSync(pluginsDir, { recursive: true });
         return [];
       }
 
-      // 读取目录内容
+      
       const files = fs.readdirSync(pluginsDir);
 
-      // 过滤出目录
+      
       const pluginDirs = files.filter((file: string) => {
         const filePath = path.join(pluginsDir, file);
         try {
@@ -384,7 +384,7 @@ export class PluginLoader {
         }
       });
 
-      // 生成插件列表
+      
       const pluginList: PluginInfoData[] = [];
       for (const dir of pluginDirs) {
         const infoPath = path.join(pluginsDir, dir, 'info.json');

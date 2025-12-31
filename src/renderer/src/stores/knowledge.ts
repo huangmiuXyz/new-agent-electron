@@ -1,7 +1,7 @@
 export const useKnowledgeStore = defineStore(
   'knowledge',
   () => {
-    // 知识库设置
+    
     const knowledgeBases = ref<KnowledgeBase[]>([
       {
         id: 'default-local',
@@ -27,7 +27,7 @@ export const useKnowledgeStore = defineStore(
         }
       }
     )
-    // 知识库相关方法
+    
     const updateKnowledgeBase = (knowledgeBaseId: string, knowledgeBaseData: KnowledgeBase) => {
       const index = knowledgeBases.value.findIndex((kb) => kb.id === knowledgeBaseId)
       if (index !== -1) {
@@ -62,7 +62,7 @@ export const useKnowledgeStore = defineStore(
           if (!knowledgeBase.documents) {
             knowledgeBase.documents = []
           }
-          // 创建新数组以触发响应式更新
+          
           knowledgeBase.documents = [...knowledgeBase.documents, document]
         }
       }

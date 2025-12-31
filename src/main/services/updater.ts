@@ -9,12 +9,12 @@ export function setupUpdaterHandlers(mainWindow: BrowserWindow) {
 
   autoUpdater.autoDownload = false
 
-  // 获取当前版本
+  
   ipcMain.handle('updater:get-version', () => {
     return autoUpdater.currentVersion.version
   })
 
-  // 检查更新
+  
   ipcMain.handle('updater:check-for-updates', async () => {
     try {
       const result = await autoUpdater.checkForUpdates()
@@ -25,17 +25,17 @@ export function setupUpdaterHandlers(mainWindow: BrowserWindow) {
     }
   })
 
-  // 开始下载更新
+  
   ipcMain.handle('updater:download-update', async () => {
     return await autoUpdater.downloadUpdate()
   })
 
-  // 退出并安装
+  
   ipcMain.handle('updater:quit-and-install', () => {
     autoUpdater.quitAndInstall()
   })
 
-  // 监听更新事件并发送到渲染进程
+  
   autoUpdater.on('checking-for-update', () => {
     mainWindow.webContents.send('updater:status', { status: 'checking' })
   })

@@ -26,13 +26,13 @@ export function useBackButton(options?: BackButtonOptions) {
 
     const currentDepth = (route.meta.depth as number) || 0
 
-    // 如果当前页面深度大于1，则返回上一页
+    
     if (currentDepth > 1) {
       router.back()
       return
     }
 
-    // 如果在深度为1的页面（如列表页），则执行退出逻辑
+    
     const now = Date.now()
     if (now - lastBackPressTime.value < EXIT_THRESHOLD) {
       App.exitApp()

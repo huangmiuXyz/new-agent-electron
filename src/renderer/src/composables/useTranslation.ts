@@ -49,10 +49,10 @@ export function useTranslation() {
         return
       }
 
-      // 创建 AbortController 用于停止翻译
+      
       const translationController = new AbortController()
 
-      // 设置翻译加载状态并存储 AbortController
+      
       if (message.metadata) {
         updateMessageMetadata(currentChat.value!.id, message.id!, {
           ...message.metadata,
@@ -85,7 +85,7 @@ export function useTranslation() {
           timestamp: Date.now()
         })
 
-        // 清除翻译加载状态并更新翻译结果
+        
         if (message.metadata) {
           updateMessageMetadata(currentChat.value!.id, message.id!, {
             ...message.metadata,
@@ -99,12 +99,12 @@ export function useTranslation() {
       messageApi.success('翻译完成')
     } catch (error) {
       console.error('翻译失败:', error)
-      // 如果是手动中止的错误，不显示错误消息
+      
       if ((error as Error).name !== 'AbortError') {
         messageApi.error(`翻译失败: ${(error as Error).message}`)
       }
 
-      // 翻译失败时也要清除加载状态
+      
       if (message.metadata) {
         updateMessageMetadata(currentChat.value!.id, message.id!, {
           ...message.metadata,

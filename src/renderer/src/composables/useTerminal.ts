@@ -29,7 +29,7 @@ export const useTerminal = () => {
   const settingsStore = useSettingsStore()
   const agentStore = useAgentStore()
 
-  // 使用设置中的终端高度，如果没有设置则使用默认值 200
+  
   const terminalHeight = computed({
     get: () => settingsStore.display.terminalHeight || 200,
     set: (value: number) => {
@@ -37,7 +37,7 @@ export const useTerminal = () => {
     }
   })
 
-  // 获取终端设置
+  
   const terminalSettings = computed(() => settingsStore.terminal)
   const setExecuting = (id: string, executing: boolean, exitCode?: number | null) => {
     const tab = tabs.value.find((t) => t.id === id)
@@ -101,7 +101,7 @@ export const useTerminal = () => {
     tabs.value[tabIndex].instance = term
     tabs.value[tabIndex].addon = fitAddon
 
-    // 注册 OSC 633 处理程序 (Shell Integration)
+    
     term.parser.registerOscHandler(633, (data) => {
       const parts = data.split(';')
       const type = parts[0]
@@ -111,23 +111,23 @@ export const useTerminal = () => {
       if (!currentTab.isReady) currentTab.isReady = true
 
       switch (type) {
-        case 'A': // Prompt start
+        case 'A': 
           setExecuting(id, false)
           break
-        case 'B': // Command start
+        case 'B': 
           setExecuting(id, true)
           break
-        case 'C': // Command executed (output start)
+        case 'C': 
           setExecuting(id, true)
           break
-        case 'D': // Command finished
+        case 'D': 
           setExecuting(id, false, parts[1] ? parseInt(parts[1]) : null)
           break
       }
       return true
     })
 
-    // 获取当前选中智能体的终端启动位置
+    
     const selectedAgent = agentStore.selectedAgent
     const cwd = selectedAgent?.terminalStartupPath || undefined
     await window.api.pty.spawn({ id, cols: term.cols, rows: term.rows, cwd })
@@ -166,7 +166,7 @@ export const useTerminal = () => {
       term.write('\r\n\x1b[31m连接已断开\x1b[0m')
     })
 
-    // 先保存原始的清理函数，稍后会重新定义
+    
     const originalCleanup = () => {
       cleanupData()
       cleanupExit()
@@ -191,7 +191,7 @@ export const useTerminal = () => {
       window.api.pty.resize(id, term.cols, term.rows)
     }, 50)
 
-    // 监听终端设置变化，动态更新主题
+    
     const unwatchSettings = watch(
       () => terminalSettings.value,
       (newSettings) => {
@@ -210,7 +210,7 @@ export const useTerminal = () => {
       { deep: true }
     )
 
-    // 在标签页清理时移除监听器
+    
     tabs.value[tabIndex]._cleanup = () => {
       unwatchSettings()
       originalCleanup()
@@ -272,7 +272,7 @@ export const useTerminal = () => {
 
     await waitForReady(id)
 
-    // 清空之前的输出
+    
     tab.currentOutput = ''
 
     setExecuting(id, true)
@@ -406,7 +406,7 @@ export const useTerminal = () => {
       if (!tab) return resolve(false)
 
       const checkReady = () => {
-        // 必须同时满足：1. 已经准备好（看到过提示符） 2. 当前没有正在执行的命令（如初始化脚本）
+        
         return tab.isReady && !tab.isExecuting
       }
 

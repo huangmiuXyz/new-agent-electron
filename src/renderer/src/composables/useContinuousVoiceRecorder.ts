@@ -1,4 +1,3 @@
-// useContinuousVoiceRecorder.ts
 import { ref, onUnmounted } from 'vue'
 
 type RecorderState = 'listening' | 'recording' | 'callback' | 'end'

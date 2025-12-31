@@ -87,7 +87,7 @@ interface BaseField<T> {
   ifShow?: (data: T) => boolean
 }
 
-// 文本输入字段
+
 export interface TextField<T> extends BaseField<T> {
   type?: 'text' | 'password' | 'email' | 'number'
   placeholder?: string
@@ -95,12 +95,12 @@ export interface TextField<T> extends BaseField<T> {
   rest?: () => VNode
 }
 
-// 布尔字段（开关）
+
 export interface BooleanField<T> extends BaseField<T> {
   type?: 'boolean'
 }
 
-// 滑块字段
+
 export interface SliderField<T> extends BaseField<T> {
   type?: 'slider'
   min?: number
@@ -110,7 +110,7 @@ export interface SliderField<T> extends BaseField<T> {
   unlimited?: boolean
 }
 
-// 选择字段
+
 export interface SelectField<T> extends BaseField<T> {
   type?: 'select'
   options: { label: string; value: string | number }[]
@@ -118,7 +118,7 @@ export interface SelectField<T> extends BaseField<T> {
   clearable?: boolean
 }
 
-// 文本域字段
+
 export interface TextareaField<T> extends BaseField<T> {
   type?: 'textarea'
   placeholder?: string
@@ -127,26 +127,26 @@ export interface TextareaField<T> extends BaseField<T> {
   autoResize?: boolean
 }
 
-// 数组字段（用于参数列表）
+
 export interface ArrayField<T> extends BaseField<T> {
   type?: 'array'
   placeholder?: string
 }
 
-// 对象字段（用于环境变量）
+
 export interface ObjectField<T> extends BaseField<T> {
   type?: 'object'
   keyPlaceholder?: string
   valuePlaceholder?: string
 }
 
-// 复选框组字段（用于多选）
+
 export interface CheckboxGroupField<T> extends BaseField<T> {
   type?: 'checkboxGroup'
   options: CheckboxOption[]
 }
 
-// 模型选择器字段
+
 export interface ModelSelectorField<T> extends BaseField<T> {
   type?: 'modelSelector'
   placeholder?: string
@@ -154,7 +154,7 @@ export interface ModelSelectorField<T> extends BaseField<T> {
   modelCategory?: ModelCategory
 }
 
-// 颜色选择器字段
+
 export interface ColorField<T> extends BaseField<T> {
   type?: 'color'
   placeholder?: string
@@ -162,7 +162,7 @@ export interface ColorField<T> extends BaseField<T> {
   showAlpha?: boolean
 }
 
-// 路径选择器字段
+
 export interface PathSelectorField<T> extends BaseField<T> {
   type?: 'path'
   placeholder?: string
@@ -210,12 +210,12 @@ export interface FormActions<T> {
   updateFieldProps: (field: string, props: Record<string, any>) => void
 }
 
-// 辅助函数：获取嵌套对象的值
+
 const getNestedValue = (obj: any, path: string) => {
   return path.split('.').reduce((current, key) => current?.[key], obj)
 }
 
-// 辅助函数：设置嵌套对象的值
+
 const setNestedValue = (obj: any, path: string, value: any) => {
   const keys = path.split('.')
   const lastKey = keys.pop()!
@@ -229,13 +229,13 @@ const setNestedValue = (obj: any, path: string, value: any) => {
 }
 
 export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
-  // 初始化表单数据
+  
   const formData = ref<T>({} as T)
 
-  // 存储动态字段属性
+  
   const dynamicFieldProps = ref<Record<string, Record<string, any>>>({})
 
-  // 根据字段类型获取默认值的辅助函数
+  
   const getDefaultValue = (fieldType: string, field: any) => {
     switch (fieldType) {
       case 'boolean':
@@ -265,20 +265,20 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
   }
 
-  // 初始化单个字段的辅助函数
+  
   const initializeField = (field: any) => {
     const isNestedField = field.name.includes('.')
     let initialValue
 
     if (isNestedField) {
-      // 处理嵌套字段
+      
       initialValue = getNestedValue(config.initialData || {}, field.name)
       if (initialValue === undefined) {
         initialValue = getDefaultValue(field.type, field)
       }
       setNestedValue(formData.value, field.name, initialValue)
     } else {
-      // 处理非嵌套字段
+      
       if (
         config.initialData &&
         field.name in config.initialData &&
@@ -292,18 +292,18 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
   }
 
-  // 初始化所有字段值
+  
   config.fields.forEach(initializeField)
 
-  // 表单验证状态
+  
   const errors = ref<Record<string, string>>({})
 
-  // 表单操作函数
+  
   const validate = () => {
     const newErrors: Record<string, string> = {}
 
     config.fields.forEach((field) => {
-      // 跳过隐藏的字段
+      
       if (field.ifShow && !field.ifShow(formData.value)) {
         return
       }
@@ -321,7 +321,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     const newErrors: Record<string, string> = {}
 
     config.fields.forEach((field) => {
-      // 跳过隐藏的字段
+      
       if (field.ifShow && !field.ifShow(formData.value)) {
         return
       }
@@ -348,17 +348,17 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
   const setFieldValue = (field: string, value: any) => {
     if (field.includes('.')) {
-      // 处理嵌套字段
+      
       setNestedValue(formData.value, field, value)
     } else {
-      // 处理非嵌套字段
+      
       formData.value[field] = value
     }
-    // 触发 onChange 回调
+    
     config.onChange?.(field as keyof T, value as T[keyof T], formData.value)
   }
   const setFieldsValue = (data: T) => {
-    // 处理嵌套字段的设置
+    
     Object.keys(data).forEach((key) => {
       if (key.includes('.')) {
         setNestedValue(formData.value, key, data[key])
@@ -371,10 +371,10 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
   const getFieldValue = (field: string) => {
     if (field.includes('.')) {
-      // 处理嵌套字段
+      
       return getNestedValue(formData.value, field)
     } else {
-      // 处理非嵌套字段
+      
       return formData.value[field]
     }
   }
@@ -394,7 +394,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     Object.assign(dynamicFieldProps.value[field], props)
   }
 
-  // 表单组件
+  
   const FormComponent = defineComponent({
     setup(_, { slots }) {
       return () => {
@@ -406,13 +406,13 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             <div class="form-content">
               <div class="form-wrapper">
                 {config.fields.map((field) => {
-                  // 检查字段是否应该显示
+                  
                   if (field.ifShow && !field.ifShow(formData.value)) {
                     return null
                   }
 
                   const hasError = errors.value[field.name]
-                  // 获取动态字段属性
+                  
                   const dynamicProps = dynamicFieldProps.value[field.name] || {}
 
                   switch (field.type) {
@@ -710,7 +710,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
   })
 
-  // 动态添加样式到文档头部
+  
   if (typeof document !== 'undefined' && !document.getElementById('use-form-styles')) {
     const style = document.createElement('style')
     style.id = 'use-form-styles'
@@ -803,7 +803,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     document.head.appendChild(style)
   }
 
-  // 表单操作对象
+  
   const actions: FormActions<T> = {
     getData,
     setData,

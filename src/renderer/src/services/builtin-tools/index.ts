@@ -19,8 +19,8 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
         }
 
         try {
-          // 使用Function构造器安全地计算表达式
-          // 只允许数学相关的函数和操作符
+          
+          
           const safeExpression = expression
             .replace(/[^0-9+\-*/.()sqrt Math\spower^]/g, '')
             .replace(/sqrt/g, 'Math.sqrt')
@@ -91,7 +91,7 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
           throw new Error('必须指定传输方式(stdio、http或sse)')
         }
 
-        // 验证传输方式对应的必需参数
+        
         if (transport === 'stdio' && !command) {
           throw new Error('stdio传输方式必须指定命令')
         }
@@ -101,16 +101,16 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
         }
 
         try {
-          // 获取当前设置存储
+          
           const settingsStore = useSettingsStore()
           const currentServers = settingsStore.mcpServers || {}
 
-          // 检查服务器名称是否已存在
+          
           if (currentServers[name]) {
             throw new Error(`MCP服务器名称"${name}"已存在，请使用不同的名称`)
           }
 
-          // 构建服务器配置
+          
           const serverConfig: any = {
             name,
             transport,
@@ -118,10 +118,10 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
             tools: []
           }
 
-          // 添加可选字段
+          
           if (description) serverConfig.description = description
 
-          // 根据传输方式添加特定配置
+          
           if (transport === 'stdio') {
             serverConfig.command = command
             if (cmdArgs && cmdArgs.length > 0) serverConfig.args = cmdArgs
@@ -131,11 +131,11 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
             if (headers && Object.keys(headers).length > 0) serverConfig.headers = headers
           }
 
-          // 添加服务器配置
+          
           currentServers[name] = serverConfig
           settingsStore.mcpServers = currentServers
 
-          // 如果需要自动激活，尝试获取工具列表
+          
           let toolsInfo = ''
           if (auto_activate) {
             try {
@@ -208,7 +208,7 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
           throw new Error('必须提供候选回复一个建议')
         }
 
-        // 验证每个建议的结构
+        
         for (const suggestion of suggestions) {
           if (!suggestion.id || !suggestion.text) {
             throw new Error('候选回复必须包含ID和文本内容')

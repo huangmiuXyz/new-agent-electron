@@ -3,7 +3,7 @@ import data from '@renderer/assets/data/provider.json'
 export const useSettingsStore = defineStore(
   'settings',
   () => {
-    // 获取默认的提供商数据
+    
     const getDefaultProviders = () => {
       return data.map((p) => ({
         ...p,
@@ -12,7 +12,7 @@ export const useSettingsStore = defineStore(
         models: []
       }))
     }
-    // 显示设置
+    
     const display = ref({
       darkMode: false,
       compactDensity: true,
@@ -23,12 +23,12 @@ export const useSettingsStore = defineStore(
       terminalHeight: 200
     })
 
-    // 终端设置
+    
     const terminal = ref({
       fontSize: 14,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       cursorBlink: true,
-      // 终端颜色设置
+      
       backgroundColor: '#ffffff',
       foregroundColor: '#333333',
       cursorColor: '#333333',
@@ -39,7 +39,7 @@ export const useSettingsStore = defineStore(
 
     const mcpServers = ref<ClientConfig>({})
 
-    // 已加载的插件列表（持久化）
+    
     const loadedPlugins = ref<string[]>([])
 
     const defaultModels = ref({
@@ -51,7 +51,7 @@ export const useSettingsStore = defineStore(
       searchProviderId: ''
     })
 
-    // 思考模式设置
+    
     const thinkingMode = ref(false)
 
     const updateThinkingMode = (mode: boolean) => {
@@ -111,19 +111,19 @@ export const useSettingsStore = defineStore(
       defaultModels.value = { ...defaultModels.value, ...settings }
     }
 
-    // 更新已加载的插件列表
+    
     const updateLoadedPlugins = (plugins: string[]) => {
       loadedPlugins.value = plugins
     }
 
-    // 添加已加载的插件
+    
     const addLoadedPlugin = (pluginName: string) => {
       if (!loadedPlugins.value.includes(pluginName)) {
         loadedPlugins.value.push(pluginName)
       }
     }
 
-    // 移除已加载的插件
+    
     const removeLoadedPlugin = (pluginName: string) => {
       const index = loadedPlugins.value.indexOf(pluginName)
       if (index > -1) {
@@ -131,7 +131,7 @@ export const useSettingsStore = defineStore(
       }
     }
 
-    // 重置提供商的请求地址为默认值
+    
     const resetProviderBaseUrl = (providerId: string) => {
       const defaultProviders = getDefaultProviders()
       const defaultProvider = defaultProviders.find((p) => p.id === providerId)
@@ -164,7 +164,7 @@ export const useSettingsStore = defineStore(
       return { model: provider?.models.find((m) => m.id === mid)!, provider }
     }
 
-    // 获取默认模型信息
+    
     const getTitleGenerationModel = computed(() => {
       const provider = providers.value.find(
         (p) => p.id === defaultModels.value.titleGenerationProviderId

@@ -2,17 +2,17 @@ import { getPluginLoader } from '@renderer/services/plugins/pluginLoaderInstance
 import { useSettingsStore } from '@renderer/stores/settings';
 
 export function usePlugins() {
-  // 响应式状态
+  
   const plugins = ref<PluginInfo[]>([]);
   const availablePlugins = ref<PluginInfoData[]>([]);
   const loading = ref(false);
   const installing = ref(false);
   const activePluginId = ref('');
 
-  // 获取插件加载器实例
+  
   const pluginLoader = getPluginLoader();
 
-  // 获取 settings store
+  
   const settingsStore = useSettingsStore();
 
   /**
@@ -22,7 +22,7 @@ export function usePlugins() {
     try {
       installing.value = true;
 
-      // 打开文件选择对话框，选择.qi文件
+      
       const result = await window.api.showOpenDialog({
         title: '选择插件文件',
         filters: [
@@ -38,12 +38,12 @@ export function usePlugins() {
 
       const zipFilePath = result.filePaths[0];
 
-      // 调用插件加载器的安装方法
+      
       if (pluginLoader) {
         await pluginLoader.installPlugin(zipFilePath);
       }
 
-      // 刷新插件列表
+      
       await refreshPlugins();
       alert('插件安装成功！');
     } catch (err) {
@@ -96,7 +96,7 @@ export function usePlugins() {
     try {
       if (pluginLoader) {
         await pluginLoader.unloadPlugin(pluginName);
-        // 从已加载列表中移除插件
+        
         settingsStore.removeLoadedPlugin(pluginName);
         await refreshPlugins();
       }
@@ -113,7 +113,7 @@ export function usePlugins() {
     try {
       if (pluginLoader) {
         await pluginLoader.uninstallPlugin(pluginName);
-        // 从已加载列表中移除插件
+        
         settingsStore.removeLoadedPlugin(pluginName);
         await refreshPlugins();
       }
@@ -142,7 +142,7 @@ export function usePlugins() {
         }
       } catch (err) {
         console.error(`Failed to restore plugin "${pluginName}":`, err);
-        // 移除加载失败的插件
+        
         settingsStore.removeLoadedPlugin(pluginName);
       }
     }

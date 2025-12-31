@@ -32,17 +32,17 @@ export class PluginManager {
    * @param pluginName 插件名称
    */
   unregisterPlugin(pluginName: string): void {
-    // 移除插件
+    
     this.plugins.delete(pluginName);
 
-    // 移除该插件注册的所有命令
+    
     for (const [commandName, command] of this.commands.entries()) {
       if (command.pluginName === pluginName) {
         this.commands.delete(commandName);
       }
     }
 
-    // 移除该插件注册的所有钩子
+    
     for (const [hookName, hooks] of this.hooks.entries()) {
       const filteredHooks = hooks.filter(hook => hook.pluginName !== pluginName);
       if (filteredHooks.length === 0) {
@@ -52,7 +52,7 @@ export class PluginManager {
       }
     }
 
-    // 移除该插件注册的所有内置工具
+    
     const toolNames = this.pluginBuiltinTools.get(pluginName);
     if (toolNames) {
       for (const toolName of toolNames) {
@@ -83,7 +83,7 @@ export class PluginManager {
       },
       registerBuiltinTool: (name: string, tool: any) => {
         this.builtinTools.set(name, markRaw(tool));
-        // 跟踪该插件注册的内置工具
+        
         if (!this.pluginBuiltinTools.has(pluginName)) {
           this.pluginBuiltinTools.set(pluginName, new Set());
         }
@@ -105,7 +105,7 @@ export class PluginManager {
       throw new Error('Pinia instance not available');
     }
 
-    // 动态导入 store
+    
     const storeMap: Record<string, () => Promise<any>> = {
       notes: async () => {
         return useNotesStore(this.pinia);
@@ -139,7 +139,7 @@ export class PluginManager {
    * @param handler 命令处理器
    */
   registerCommand(pluginName: string, name: string, handler: Function): void {
-    // 检查命令是否已存在
+    
     if (this.commands.has(name)) {
       throw new Error(`Command "${name}" is already registered`);
     }
@@ -241,11 +241,11 @@ export class PluginManager {
     }
 
     if (!handler) {
-      // 移除所有同名钩子
+      
       return this.hooks.delete(name);
     }
 
-    // 移除指定的钩子处理器
+    
     const hooks = this.hooks.get(name)!;
     const filteredHooks = hooks.filter(hook => hook.handler !== handler);
 
@@ -360,16 +360,16 @@ export class PluginManager {
    * @returns 是否成功注销
    */
   unregisterBuiltinTool(pluginName: string, name: string): boolean {
-    // 检查工具是否由该插件注册
+    
     const toolNames = this.pluginBuiltinTools.get(pluginName);
     if (!toolNames || !toolNames.has(name)) {
       return false;
     }
 
-    // 从内置工具映射中移除
+    
     const deleted = this.builtinTools.delete(name);
 
-    // 从插件跟踪中移除
+    
     if (deleted) {
       toolNames.delete(name);
       if (toolNames.size === 0) {

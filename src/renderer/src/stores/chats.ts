@@ -2,7 +2,7 @@ export const useChatsStores = defineStore(
   'chats',
   () => {
     const chats = ref<Chat[]>([])
-    const tempChats = ref<Chat[]>([]) // 临时会话列表
+    const tempChats = ref<Chat[]>([]) 
     const activeChatId = ref<string | null>(null)
     const titleGeneratingChats = ref<Set<string>>(new Set())
 
@@ -43,7 +43,7 @@ export const useChatsStores = defineStore(
       return allChats.value.find((c) => c.id === id)
     }
     const deleteChat = (id: string) => {
-      // Try deleting from main chats
+      
       const initialLength = chats.value.length
       chats.value = chats.value.filter((c) => {
         if (c.id === id) {
@@ -54,7 +54,7 @@ export const useChatsStores = defineStore(
         return c.id !== id
       })
 
-      // If not found/deleted in main, try temp chats
+      
       if (chats.value.length === initialLength) {
         tempChats.value = tempChats.value.filter((c) => {
           if (c.id === id) {
@@ -70,12 +70,12 @@ export const useChatsStores = defineStore(
         activeChatId.value = allChats.value[0]?.id || null
       }
     }
-    // ... rest of the functions use getChatById so they should work with allChats
-    // except addMessageToChat uses currentChat which uses allChats
-    // activeChatId works across both
+    
+    
+    
 
-    // The other functions can remain largely the same if they rely on getChatById
-    // But let's check addMessageToChat
+    
+    
     const addMessageToChat = (msg: BaseMessage) => {
       currentChat.value!.messages.push(msg)
       return msg.id
@@ -170,7 +170,7 @@ export const useChatsStores = defineStore(
   {
     persist: {
       storage: indexedDBStorage,
-      paths: ['chats', 'activeChatId'] // tempChats shouldn't be here by default unless 'paths' matches all refs if undefined. Explicitly setting paths is safer.
+      paths: ['chats', 'activeChatId'] 
     }
   }
 )

@@ -16,10 +16,10 @@ export function convertToOpenAICompatibleCompletionPrompt({
   prompt: string;
   stopSequences?: string[];
 } {
-  // transform to a chat message format:
+  
   let text = '';
 
-  // if first message is a system message, add it to the text:
+  
   if (prompt[0].role === 'system') {
     text += `${prompt[0].content}\n\n`;
     prompt = prompt.slice(1);
@@ -85,7 +85,7 @@ export function convertToOpenAICompatibleCompletionPrompt({
     }
   }
 
-  // Assistant message prefix:
+  
   text += `${assistant}:\n`;
 
   return {

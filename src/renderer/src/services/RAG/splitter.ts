@@ -31,7 +31,7 @@ function getTextSplitter({ type, chunkSize, chunkOverlap }: SplitOptions) {
       })
 
     default:
-      // Default to text splitter for unknown types
+      
       return new RecursiveCharacterTextSplitter({
         chunkSize,
         chunkOverlap,

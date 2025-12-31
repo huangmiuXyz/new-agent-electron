@@ -1,4 +1,3 @@
-// 菜单项配置接口
 export interface MenuItem<T = unknown> {
   label?: string
   icon?: VNode
@@ -8,19 +7,19 @@ export interface MenuItem<T = unknown> {
   disabled?: boolean
   type?: 'divider'
   onClick?: (data: T) => void
-  children?: MenuItem<T>[] // 子菜单项
+  children?: MenuItem<T>[] 
   ifShow?: (data: T) => boolean
 }
 
-// 全局单例状态
+
 const visible = ref(false)
 const position = reactive({ x: 0, y: 0 })
-const contextData = ref<unknown>(null) // 存储触发右键时的业务数据（如消息对象）
-const menuOptions = ref<MenuItem<any>[]>([]) // 存储当前要渲染的菜单项配置
-const submenuVisible = ref(false) // 子菜单是否可见
-const submenuPosition = reactive({ x: 0, y: 0 }) // 子菜单位置
-const submenuOptions = ref<MenuItem<any>[]>([]) // 子菜单项配置
-const parentItem = ref<MenuItem<any> | null>(null) // 当前子菜单的父菜单项
+const contextData = ref<unknown>(null) 
+const menuOptions = ref<MenuItem<any>[]>([]) 
+const submenuVisible = ref(false) 
+const submenuPosition = reactive({ x: 0, y: 0 }) 
+const submenuOptions = ref<MenuItem<any>[]>([]) 
+const parentItem = ref<MenuItem<any> | null>(null) 
 
 export function useContextMenu<T = unknown>() {
   /**
@@ -44,7 +43,7 @@ export function useContextMenu<T = unknown>() {
 
   const hideContextMenu = () => {
     visible.value = false
-    submenuVisible.value = false // 隐藏主菜单时也隐藏子菜单
+    submenuVisible.value = false 
   }
 
   const showSubmenu = (itemElement: HTMLElement, item: MenuItem<T>) => {
@@ -52,7 +51,7 @@ export function useContextMenu<T = unknown>() {
       return
     }
 
-    // 检查菜单项元素是否存在
+    
     if (!itemElement) {
       return
     }
@@ -60,10 +59,10 @@ export function useContextMenu<T = unknown>() {
     submenuOptions.value = item.children
     parentItem.value = item
 
-    // 计算子菜单位置，基于菜单项元素的位置
+    
     const rect = itemElement.getBoundingClientRect()
-    submenuPosition.x = rect.right // 父菜单项的右侧
-    submenuPosition.y = rect.top // 与父菜单项顶部对齐
+    submenuPosition.x = rect.right 
+    submenuPosition.y = rect.top 
 
     submenuVisible.value = true
   }

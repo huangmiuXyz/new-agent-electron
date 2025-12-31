@@ -76,7 +76,7 @@ export class OpenAICompatibleImageModel implements ImageModelV3 {
 
     const currentDate = this.config._internal?.currentDate?.() ?? new Date();
 
-    // Image editing mode - use form data and /images/edits endpoint
+    
     if (files != null && files.length > 0) {
       const { value: response, responseHeaders } = await postFormDataToApi({
         url: this.config.url({
@@ -114,7 +114,7 @@ export class OpenAICompatibleImageModel implements ImageModelV3 {
       };
     }
 
-    // Standard image generation mode - use JSON and /images/generations endpoint
+    
     const { value: response, responseHeaders } = await postJsonToApi({
       url: this.config.url({
         path: '/images/generations',
@@ -151,8 +151,8 @@ export class OpenAICompatibleImageModel implements ImageModelV3 {
   }
 }
 
-// minimal version of the schema, focussed on what is needed for the implementation
-// this approach limits breakages when the API changes and increases efficiency
+
+
 const openaiCompatibleImageResponseSchema = z.object({
   data: z.array(z.object({ b64_json: z.string() })),
 });

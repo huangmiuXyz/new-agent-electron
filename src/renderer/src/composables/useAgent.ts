@@ -6,7 +6,7 @@ export const useAgent = () => {
 
   const { confirm, remove } = useModal()
 
-  // 获取内置工具选项
+  
   const getBuiltinToolOptions = () => {
     const tools = getBuiltinTools()
     return Object.entries(tools).map(([key, tool]: [string, Tool]) => ({
@@ -16,7 +16,7 @@ export const useAgent = () => {
     }))
   }
 
-  // 知识库选项
+  
   const getKnowledgeBaseOptions = () => {
     return knowledgeBases.value.map((kb) => ({
       label: kb.name,
@@ -24,7 +24,7 @@ export const useAgent = () => {
     }))
   }
 
-  // 获取所有MCP服务器的选项列表
+  
   const getMcpServerOptions = () => {
     return Object.entries(mcpServers.value).map(([name, server]) => {
       const desc =

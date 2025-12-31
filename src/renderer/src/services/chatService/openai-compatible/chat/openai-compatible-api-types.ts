@@ -8,8 +8,8 @@ export type OpenAICompatibleMessage =
   | OpenAICompatibleAssistantMessage
   | OpenAICompatibleToolMessage;
 
-// Allow for arbitrary additional properties for general purpose
-// provider-metadata-specific extensibility.
+
+
 type JsonRecord<T = never> = Record<
   string,
   JSONValue | JSONValue[] | T | T[] | undefined
