@@ -39,48 +39,6 @@ const createNewChat = () => {
 
 const notesStore = useNotesStore()
 const { confirm } = useModal()
-
-const createNewNote = async () => {
-  // If no folder is selected, select the first one or prompt?
-  // For simplicity, let's use the first root folder or create one if none exists
-  let folderId = notesStore.currentFolderId
-  if (!folderId) {
-    if (notesStore.folders.length === 0) {
-      const folder = notesStore.createFolder('默认文件夹')
-      folderId = folder.id
-    } else {
-      folderId = notesStore.folders[0].id
-    }
-  }
-
-  const [FormComponent, formActions] = useForm({
-    fields: [
-      {
-        name: 'title',
-        label: '笔记标题',
-        type: 'text',
-        placeholder: '请输入笔记标题',
-        required: true
-      }
-    ],
-    onSubmit: (data) => {
-      if (data.title) {
-        const newNote = notesStore.createNote(data.title, folderId!)
-        notesStore.setCurrentNote(newNote.id)
-        if (isMobile.value) {
-          useRouter().push('/mobile/notes/editor')
-        }
-      }
-    }
-  })
-
-  await confirm({
-    title: '新建笔记',
-    content: FormComponent,
-
-  }) && formActions.submit()
-}
-
 const { back } = useMobile()
 const route = useRoute()
 
@@ -116,9 +74,6 @@ const route = useRoute()
         </button>
         <button v-if="route.path.includes('/chat')" class="mobile-action-btn" @click="createNewChat">
           <component :is="CommentAdd16Regular" />
-        </button>
-        <button v-if="route.path.includes('/notes')" class="mobile-action-btn" @click="createNewNote">
-          <component :is="NoteAdd24Regular" />
         </button>
       </div>
     </div>
