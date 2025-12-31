@@ -78,8 +78,9 @@ async function copy() {
 .code-block {
     margin: 16px 0;
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid var(--border-color, #e1e4e8);
+    position: relative;
 }
 
 .code-block.dark {
@@ -113,6 +114,9 @@ async function copy() {
     padding: 8px 16px;
     background: var(--header-bg);
     border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .language {
@@ -149,6 +153,7 @@ async function copy() {
     margin: 0;
     overflow-x: auto;
     background: var(--code-bg);
+    border-radius: 0 0 8px 8px;
 }
 
 .code-content code {
