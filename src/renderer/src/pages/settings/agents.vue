@@ -83,19 +83,11 @@ const getKnowledgeBaseName = (kbId: string) => {
               </div>
               <div v-if="agent.builtinTools && agent.builtinTools.length > 0" class="tools-list">
                 <div class="tools-list-label">内置工具:</div>
-                <div class="tools-tags">
-                  <span v-for="tool in agent.builtinTools" :key="tool" class="tool-tag">
-                    {{ tool }}
-                  </span>
-                </div>
+                <Tags color='orange' :tags="agent.builtinTools" />
               </div>
               <div v-if="agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0" class="knowledge-list">
                 <div class="knowledge-list-label">关联知识库:</div>
-                <div class="knowledge-tags">
-                  <span v-for="kbId in agent.knowledgeBaseIds" :key="kbId" class="knowledge-tag">
-                    {{ getKnowledgeBaseName(kbId) }}
-                  </span>
-                </div>
+                <Tags color="blue" :tags="agent.knowledgeBaseIds.map(e => getKnowledgeBaseName(e))" />
               </div>
             </div>
           </div>
