@@ -103,7 +103,7 @@ async function copy() {
     --button-color: #24292e;
     --button-hover-bg: #f3f4f6;
     --button-hover-border: #c0c4cc;
-    --code-bg: #f6f8fa;
+    --code-bg: #fff;
 }
 
 .header {
