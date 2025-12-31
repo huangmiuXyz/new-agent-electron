@@ -26,6 +26,5 @@ watch(() => route.params.id, (newId) => {
     width: 100%;
     height: 100%;
     background: var(--bg-card);
-    padding-top: calc(56px + env(safe-area-inset-top));
 }
 </style>

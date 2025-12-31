@@ -22,7 +22,8 @@ setTitle(currentChat.value?.title || '新的对话')
     display: flex;
     flex-direction: column;
     background: var(--bg-card);
-    padding-top: calc(56px + env(safe-area-inset-top));
+    position: relative;
+    overflow: hidden;
 }
 
 .main-chat {

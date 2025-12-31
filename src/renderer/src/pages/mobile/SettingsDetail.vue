@@ -26,7 +26,7 @@ useAppHeader().setTitle(route.query.name as string)
     background: var(--bg-card);
     display: flex;
     flex-direction: column;
-    padding-top: calc(56px + env(safe-area-inset-top));
+    overflow-y: auto;
 }
 
 /* Ensure inner components take full height if needed */

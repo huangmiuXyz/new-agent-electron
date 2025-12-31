@@ -182,4 +182,11 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   flex-direction: column;
   gap: 8px;
 }
+
+:deep(.auto-scroll-container),
+.auto-scroll-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
 </style>

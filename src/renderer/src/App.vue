@@ -26,6 +26,34 @@ useBackButton()
 
 const { resetTitle, customTitle } = useAppHeader()
 
+// 处理移动端键盘弹出时视口高度变化
+const updateViewportHeight = () => {
+  if (isMobile.value) {
+    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight
+    document.documentElement.style.setProperty('--vh', `${vh}px`)
+
+    // 强制滚动到顶部，防止键盘弹出导致页面偏移
+    if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+      window.scrollTo(0, 0)
+    }
+  } else {
+    document.documentElement.style.setProperty('--vh', '100%')
+  }
+}
+
+onMounted(() => {
+  updateViewportHeight()
+  window.visualViewport?.addEventListener('resize', updateViewportHeight)
+  window.visualViewport?.addEventListener('scroll', updateViewportHeight)
+  window.addEventListener('resize', updateViewportHeight)
+})
+
+onUnmounted(() => {
+  window.visualViewport?.removeEventListener('resize', updateViewportHeight)
+  window.visualViewport?.removeEventListener('scroll', updateViewportHeight)
+  window.removeEventListener('resize', updateViewportHeight)
+})
+
 provide('switchView', switchView)
 const route = useRoute()
 
@@ -292,6 +320,12 @@ body {
 #app {
   width: 100%;
   height: 100%;
+  height: var(--vh, 100%);
+}
+
+#app {
+  width: 100%;
+  height: 100%;
 }
 
 /* 隐藏滚动条但保持滚动功能 */
@@ -334,9 +368,13 @@ body {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100%;
+  height: 100vh;
+  height: var(--vh, 100vh);
   overflow: hidden;
   background-color: var(--bg-app);
+  position: fixed;
+  top: 0;
+  left: 0;
 }
 
 .app-body {
@@ -348,6 +386,7 @@ body {
 
 .app-body.isMobile {
   flex-direction: column;
+  overflow: hidden;
 }
 
 .app-content {
@@ -376,6 +415,7 @@ a {
 
 .router-container.h-full {
   height: 100vh;
+  height: var(--vh, 100vh);
 }
 
 .slide-left-enter-active,

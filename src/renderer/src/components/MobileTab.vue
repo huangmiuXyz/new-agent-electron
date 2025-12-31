@@ -57,7 +57,7 @@ const switchTab = (tab) => {
 
 .content-viewport {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   position: relative;
 }
 

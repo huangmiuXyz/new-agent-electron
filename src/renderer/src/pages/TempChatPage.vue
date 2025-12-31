@@ -84,6 +84,7 @@ onMounted(async () => {
   font-family: var(--font-stack);
   background-color: var(--bg-app);
   height: 100vh;
+  height: var(--vh, 100vh);
   width: 100vw;
   display: flex;
   flex-direction: column;
