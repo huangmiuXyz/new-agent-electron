@@ -123,6 +123,8 @@ async function copy() {
 }
 
 .header {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
