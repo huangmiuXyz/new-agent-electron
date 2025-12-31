@@ -58,11 +58,8 @@ const renameChat = async (chatId: string) => {
     }
   }
 }
-const { Edit, Delete, Search, CommentAdd16Regular } = useIcon(['Edit', 'Delete', 'Plus', 'Search', 'CommentAdd16Regular'])
+const { Edit, Delete } = useIcon(['Edit', 'Delete', 'Plus', 'Search', 'CommentAdd16Regular'])
 const showSearch = ref(false)
-const openSearch = () => {
-  showSearch.value = true
-}
 
 const getLastMessage = (chat: Chat) => {
   if (!chat.messages || chat.messages.length === 0) return '开始你的第一次对话吧'
