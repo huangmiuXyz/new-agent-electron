@@ -28,11 +28,11 @@ export class PluginLoader {
     const pluginsPath = window.api.getPluginsPath();
     const pluginDir = path.join(pluginsPath, pluginName);
 
-    
+
     const possiblePaths = [
-      path.join(pluginDir, 'index.js'),      
-      path.join(pluginDir, 'dist', 'index.js'), 
-      path.join(pluginDir, 'build', 'index.js')  
+      path.join(pluginDir, 'index.js'),
+      path.join(pluginDir, 'dist', 'index.js'),
+      path.join(pluginDir, 'build', 'index.js')
     ];
 
     const fs = window.api.fs;
@@ -40,14 +40,14 @@ export class PluginLoader {
       throw new Error('File system API not available');
     }
 
-    
+
     for (const entryPath of possiblePaths) {
       if (fs.existsSync(entryPath)) {
         return `file://${entryPath}`;
       }
     }
 
-    
+
     throw new Error(
       `Plugin entry file not found. Tried: ${possiblePaths.join(', ')}`
     );
@@ -60,10 +60,10 @@ export class PluginLoader {
    */
   async loadPlugin(pluginName: string): Promise<PluginInfo> {
     try {
-      
-      const pluginUrl = this.resolvePluginUrl(pluginName);
 
-      
+      const pluginUrl = `${this.resolvePluginUrl(pluginName)}?t=${Date.now()}`;
+
+
       const response = await fetch(pluginUrl);
 
       if (!response.ok) {
@@ -78,7 +78,7 @@ export class PluginLoader {
       const getPlugin = new Function(wrappedCode);
       const plugin = getPlugin();
 
-      
+
       if (!plugin || typeof plugin !== 'object') {
         throw new Error('Invalid plugin: plugin must be an object');
       }
@@ -87,12 +87,12 @@ export class PluginLoader {
         throw new Error('Invalid plugin: must have name and install function');
       }
 
-      
+
       if (this.loadedPlugins.has(plugin.name)) {
         throw new Error(`Plugin "${plugin.name}" is already loaded`);
       }
 
-      
+
       const pluginInfo: PluginInfo = {
         plugin,
         status: 'loading' as PluginStatus,
@@ -101,20 +101,20 @@ export class PluginLoader {
       this.loadedPlugins.set(plugin.name, pluginInfo);
 
       try {
-        
+
         const context = this.pluginManager.createContext(plugin.name);
         await plugin.install(context);
 
-        
+
         pluginInfo.status = 'loaded' as PluginStatus;
         pluginInfo.loadTime = Date.now();
 
-        
+
         this.pluginManager.registerPlugin(plugin);
 
         return pluginInfo;
       } catch (error) {
-        
+
         this.loadedPlugins.delete(plugin.name);
         pluginInfo.status = 'error' as PluginStatus;
         pluginInfo.error = error instanceof Error ? error.message : String(error);
@@ -142,19 +142,19 @@ export class PluginLoader {
     }
 
     try {
-      
+
       pluginInfo.status = 'unloading' as PluginStatus;
 
-      
+
       if (pluginInfo.plugin.uninstall) {
         const context = this.pluginManager.createContext(pluginName);
         await pluginInfo.plugin.uninstall(context);
       }
 
-      
+
       this.pluginManager.unregisterPlugin(pluginName);
 
-      
+
       this.loadedPlugins.delete(pluginName);
 
       return true;
@@ -179,16 +179,16 @@ export class PluginLoader {
     }
 
     try {
-      
+
       await this.unloadPlugin(pluginName);
 
-      
+
       const pluginsDir = window.api.getPluginsPath();
       const pluginDir = path.join(pluginsDir, pluginName);
 
-      
+
       if (fs.existsSync(pluginDir)) {
-        
+
         fs.rmSync(pluginDir, { recursive: true, force: true });
       }
 
@@ -295,17 +295,17 @@ export class PluginLoader {
       throw new Error('File system API not available');
     }
 
-    
+
     const zipData = fs.readFileSync(zipFilePath);
     const zip = await JSZip.loadAsync(zipData);
 
-    
+
     const infoFile = zip.file('info.json');
     if (!infoFile) {
       throw new Error('插件文件必须包含info.json');
     }
 
-    
+
     const infoContent = await infoFile.async('string');
     const info: PluginInfoData = JSON.parse(infoContent);
 
@@ -313,30 +313,30 @@ export class PluginLoader {
       throw new Error('info.json必须包含name字段');
     }
 
-    
+
     const indexFile = zip.file('index.js');
     if (!indexFile) {
       throw new Error('插件文件必须包含index.js');
     }
 
-    
+
     const pluginsDir = window.api.getPluginsPath();
     const pluginDir = path.join(pluginsDir, info.name);
 
-    
+
     if (fs.existsSync(pluginDir)) {
       const shouldOverwrite = confirm(`插件 "${info.name}" 已存在，是否覆盖？`);
       if (!shouldOverwrite) {
         return;
       }
-      
+
       fs.rmSync(pluginDir, { recursive: true, force: true });
     }
 
-    
+
     fs.mkdirSync(pluginDir, { recursive: true });
 
-    
+
     const files = Object.keys(zip.files);
     for (const filename of files) {
       const zipEntry = zip.files[filename];
@@ -361,19 +361,19 @@ export class PluginLoader {
         throw new Error('File system API not available');
       }
 
-      
+
       const pluginsDir = window.api.getPluginsPath();
 
-      
+
       if (!fs.existsSync(pluginsDir)) {
         fs.mkdirSync(pluginsDir, { recursive: true });
         return [];
       }
 
-      
+
       const files = fs.readdirSync(pluginsDir);
 
-      
+
       const pluginDirs = files.filter((file: string) => {
         const filePath = path.join(pluginsDir, file);
         try {
@@ -384,7 +384,7 @@ export class PluginLoader {
         }
       });
 
-      
+
       const pluginList: PluginInfoData[] = [];
       for (const dir of pluginDirs) {
         const infoPath = path.join(pluginsDir, dir, 'info.json');
