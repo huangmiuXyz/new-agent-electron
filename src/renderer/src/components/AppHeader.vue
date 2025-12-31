@@ -37,8 +37,6 @@ const createNewChat = () => {
   chatsStore.createChat()
 }
 
-const notesStore = useNotesStore()
-const { confirm } = useModal()
 const { back } = useMobile()
 const route = useRoute()
 
