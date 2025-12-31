@@ -86,6 +86,7 @@ const handleBlur = (e: Event) => {
   position: relative;
   display: flex;
   align-items: center;
+  flex: 1;
 }
 
 .slider-input {
