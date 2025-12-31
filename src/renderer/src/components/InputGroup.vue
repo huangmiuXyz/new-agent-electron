@@ -262,22 +262,22 @@ const updateObjectValue = (id: string, newValue: string, isPending: boolean) => 
     width: 100%;
     padding: 4px;
     border: 1px dashed var(--border-subtle);
-    background: var(--bg-hover);
+    background: var(--bg-tertiary);
     color: var(--text-secondary);
     font-size: 13px;
     font-weight: 500;
-    border-radius: 8px;
+    border-radius: 4px;
     cursor: pointer;
 }
 
 .add-btn:hover:not(:disabled) {
     border-color: var(--text-primary);
-    background: var(--border-color-light);
-    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
 }
 
 .add-btn:active:not(:disabled) {
-    background: var(--border-color-medium);
+    background: var(--border-color);
 }
 
 .add-btn:disabled {
