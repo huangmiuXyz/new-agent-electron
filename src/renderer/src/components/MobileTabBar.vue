@@ -1,6 +1,5 @@
 <template>
   <nav class="mobile-tab-bar">
-    <div class="slider-bar" :style="{ transform: `translateX(${currentIndex * 50}%)` }"></div>
     <div v-for="(tab, index) in tabs" :key="tab.key" class="tab-item" :class="{ active: activeTab === tab.key }"
       @click="switchTab(tab)">
       <div class="icon-box">
@@ -21,6 +20,7 @@ const route = useRoute()
 
 const tabs = [
   { key: 'chat', label: '聊天', icon: useIcon('Chat'), path: '/mobile/chat/list' },
+  { key: 'notes', label: '笔记', icon: useIcon('File'), path: '/mobile/notes/list' },
   { key: 'settings', label: '设置', icon: useIcon('Settings'), path: '/mobile/settings/list' }
 ]
 
@@ -48,24 +48,6 @@ const switchTab = (tab) => {
   padding-bottom: env(safe-area-inset-bottom);
   box-shadow: 0 -1px 0 var(--border-subtle);
   flex-shrink: 0;
-}
-
-.slider-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 50%;
-  height: 3px;
-  background: linear-gradient(90deg,
-      transparent 0%,
-      var(--accent-color) 30%,
-      var(--accent-color) 70%,
-      transparent 100%);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-  z-index: 10;
-  pointer-events: none;
-  border-radius: 2px;
 }
 
 .tab-item {

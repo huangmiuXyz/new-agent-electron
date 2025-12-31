@@ -44,9 +44,17 @@ const router = createRouter({
     },
     {
       path: '/mobile/notes',
-      redirect: '/mobile/notes/editor',
+      redirect: '/mobile/notes/list',
       meta: { sort: 2 },
       children: [
+        {
+          path: '/mobile/notes/list',
+          component: () => import('../pages/mobile/NoteList.vue'),
+          meta: {
+            showTabBar: true,
+            depth: 1
+          }
+        },
         {
           path: '/mobile/notes/editor',
           component: () => import('../pages/notes/editor.vue'),

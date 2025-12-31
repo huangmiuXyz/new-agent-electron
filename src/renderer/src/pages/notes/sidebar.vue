@@ -1,24 +1,29 @@
 <script setup lang="ts">
 import { isMobile } from '@renderer/composables/useDeviceType'
+import { formatTime } from '@renderer/utils/time'
 
-const { Plus, ArrowLeft, Folder, File } = useIcon([
+const { Plus, ArrowLeft, Folder, File, ChevronRight } = useIcon([
     'Plus',
     'MoreHorizontal',
     'ArrowLeft',
     'Folder',
-    'File'
+    'File',
+    'ChevronRight'
 ])
 
 const notesStore = useNotesStore()
 const { confirm } = useModal()
+const router = useRouter()
 
 const { showContextMenu } = useContextMenu()
 
 // 初始化数据
 onMounted(() => {
     notesStore.initializeData()
-    // 清除之前保存的 currentFolderId，让用户从文件夹列表开始
-    notesStore.setCurrentFolder(null)
+    // 只有在非移动端时才清除 currentFolderId，或者如果当前没有选中文件夹
+    if (!isMobile.value && !notesStore.currentFolderId) {
+        notesStore.setCurrentFolder(null)
+    }
 })
 
 
@@ -28,6 +33,9 @@ const handleFolderSelect = (folderId: string) => {
 
 const handleNoteSelect = (noteId: string) => {
     notesStore.setCurrentNote(noteId)
+    if (isMobile.value) {
+        router.push('/mobile/notes/editor')
+    }
 }
 
 // 返回到文件夹列表
@@ -68,6 +76,7 @@ const combinedList = computed(() => {
                 name: note.title,
                 type: 'note',
                 icon: File,
+                content: note.content,
                 createdAt: note.createdAt,
                 updatedAt: note.updatedAt
             })
@@ -104,6 +113,20 @@ const handleItemClick = (id: string) => {
         handleNoteSelect(note.id)
         return
     }
+}
+
+// 获取笔记预览内容
+const getNotePreview = (content: string) => {
+    if (!content) return '无内容'
+    // 移除 markdown 标签等，简单取前 50 个字符
+    return content.replace(/[#*`]/g, '').slice(0, 50).trim() || '无内容'
+}
+
+// 获取文件夹下的项目数量
+const getFolderItemCount = (folderId: string) => {
+    const notesCount = notesStore.notes.filter(n => n.folderId === folderId).length
+    const subFoldersCount = notesStore.folders.filter(f => f.parentId === folderId).length
+    return notesCount + subFoldersCount
 }
 
 // 显示右键菜单
@@ -357,9 +380,6 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
 
 <template>
     <div class="notes-sidebar" :class="{ 'is-mobile': isMobile }">
-        <div v-if="isMobile" class="mobile-header">
-            <h1 class="mobile-title">笔记</h1>
-        </div>
         <!-- 统一的文件夹和笔记列表 -->
         <ListContainer class="combined-list">
             <List :title="notesStore.currentFolder ? notesStore.currentFolder.name : '笔记'" :items="combinedList"
@@ -373,6 +393,36 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
                     <Button variant="icon" size="sm" @click="showCreateMenu" title="新建">
                         <Plus />
                     </Button>
+                </template>
+
+                <template #main="{ item }">
+                    <!-- Mobile Premium Layout -->
+                    <div v-if="isMobile" class="note-row" :class="{ 'is-folder': item.type === 'folder' }">
+                        <div class="icon-container" :class="item.type">
+                            <component :is="item.icon" />
+                        </div>
+                        <div class="content-container">
+                            <div class="top-row">
+                                <span class="note-name">{{ item.name }}</span>
+                                <span class="note-time">{{ formatTime(item.updatedAt || item.createdAt) }}</span>
+                            </div>
+                            <div class="bottom-row">
+                                <p v-if="item.type === 'note'" class="note-preview-text">
+                                    {{ getNotePreview(item.content) }}
+                                </p>
+                                <p v-else class="note-preview-text">
+                                    {{ getFolderItemCount(item.id) }} 个项目
+                                </p>
+                            </div>
+                        </div>
+                        <div v-if="item.type === 'folder'" class="chevron-container">
+                            <ChevronRight />
+                        </div>
+                    </div>
+                    <!-- PC Original Minimalist Layout -->
+                    <div v-else class="note-title-container">
+                        <span class="note-title">{{ item.name }}</span>
+                    </div>
                 </template>
             </List>
         </ListContainer>
@@ -390,5 +440,151 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
 
 .combined-list {
     height: 100%;
+}
+
+/* Mobile Styles */
+.notes-sidebar.is-mobile {
+    background-color: var(--bg-card);
+    width: 100% !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.notes-sidebar.is-mobile :deep(.list-container) {
+    padding: 0;
+}
+
+.notes-sidebar.is-mobile :deep(.list-header) {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.notes-sidebar.is-mobile :deep(.list-item) {
+    padding: 0 !important;
+    background: transparent !important;
+    margin: 0 !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+    display: block !important;
+}
+
+.notes-sidebar.is-mobile :deep(.item-content) {
+    width: 100% !important;
+    max-width: none !important;
+    flex: none !important;
+}
+
+.notes-sidebar.is-mobile :deep(.item-actions),
+.notes-sidebar.is-mobile :deep(.item-media) {
+    display: none !important;
+}
+
+.note-row {
+    display: flex;
+    width: 100%;
+    padding: 12px 16px;
+    gap: 12px;
+    position: relative;
+    background: var(--bg-sidebar);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    align-items: center;
+}
+
+.note-row::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    left: 56px;
+    height: 0.5px;
+    background-color: var(--border-color);
+    transition: opacity 0.2s;
+    opacity: 0.5;
+}
+
+.note-row:active {
+    background-color: var(--bg-active);
+}
+
+.icon-container {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.icon-container.folder {
+    background-color: rgba(var(--color-warning-rgb, 255, 193, 7), 0.15);
+    color: var(--color-warning, #ffc107);
+}
+
+.icon-container.note {
+    background-color: rgba(var(--color-primary-rgb, 33, 150, 243), 0.15);
+    color: var(--color-primary, #2196f3);
+}
+
+.content-container {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+
+.top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.note-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.note-time {
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.note-preview-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chevron-container {
+    color: var(--text-tertiary);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+}
+
+/* PC Styles */
+.note-title-container {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+}
+
+.note-title {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 </style>

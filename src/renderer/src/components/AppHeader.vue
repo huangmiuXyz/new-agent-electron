@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isMobile } from '@renderer/composables/useDeviceType'
 
 const props = defineProps<{
   currentView: string
@@ -7,19 +8,20 @@ const props = defineProps<{
 
 const isListMode = computed(() => {
   if (props.mode) return props.mode === 'list'
-  return isMobile.value && (route.path === '/mobile/chat/list' || route.path === '/mobile/settings/list' || route.path === '/mobile/notes/editor')
+  return isMobile.value && (route.path === '/mobile/chat/list' || route.path === '/mobile/settings/list' || route.path === '/mobile/notes/list')
 })
 
 const { customTitle } = useAppHeader()
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 
-const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp } = useIcon([
+const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp, NoteAdd24Regular } = useIcon([
   'Search',
   'PanelOpen',
   'PanelClose',
   'CommentAdd16Regular',
-  'ArrowBackIosNewSharp'
+  'ArrowBackIosNewSharp',
+  'NoteAdd24Regular'
 ])
 const showSearch = ref(false)
 
@@ -33,6 +35,50 @@ const toggleSidebar = () => {
 
 const createNewChat = () => {
   chatsStore.createChat()
+}
+
+const notesStore = useNotesStore()
+const { confirm } = useModal()
+
+const createNewNote = async () => {
+  // If no folder is selected, select the first one or prompt?
+  // For simplicity, let's use the first root folder or create one if none exists
+  let folderId = notesStore.currentFolderId
+  if (!folderId) {
+    if (notesStore.folders.length === 0) {
+      const folder = notesStore.createFolder('默认文件夹')
+      folderId = folder.id
+    } else {
+      folderId = notesStore.folders[0].id
+    }
+  }
+
+  const [FormComponent, formActions] = useForm({
+    fields: [
+      {
+        name: 'title',
+        label: '笔记标题',
+        type: 'text',
+        placeholder: '请输入笔记标题',
+        required: true
+      }
+    ],
+    onSubmit: (data) => {
+      if (data.title) {
+        const newNote = notesStore.createNote(data.title, folderId!)
+        notesStore.setCurrentNote(newNote.id)
+        if (isMobile.value) {
+          useRouter().push('/mobile/notes/editor')
+        }
+      }
+    }
+  })
+
+  await confirm({
+    title: '新建笔记',
+    content: FormComponent,
+
+  }) && formActions.submit()
 }
 
 const { back } = useMobile()
@@ -64,12 +110,15 @@ const route = useRoute()
     <div v-if="isListMode" class="mobile-list-header no-drag">
       <h1 class="mobile-title">{{ route.path.includes('/chat') ? '对话' : (route.path.includes('/settings') ?
         '设置' : '笔记') }}</h1>
-      <div v-if="route.path.includes('/chat')" class="mobile-header-actions">
-        <button class="mobile-action-btn" @click="openSearch">
+      <div v-if="route.path.includes('/chat') || route.path.includes('/notes')" class="mobile-header-actions">
+        <button v-if="route.path.includes('/chat')" class="mobile-action-btn" @click="openSearch">
           <component :is="Search" />
         </button>
-        <button class="mobile-action-btn" @click="createNewChat">
+        <button v-if="route.path.includes('/chat')" class="mobile-action-btn" @click="createNewChat">
           <component :is="CommentAdd16Regular" />
+        </button>
+        <button v-if="route.path.includes('/notes')" class="mobile-action-btn" @click="createNewNote">
+          <component :is="NoteAdd24Regular" />
         </button>
       </div>
     </div>

@@ -72,15 +72,16 @@ import {
   Puzzle,
   X,
   Download,
-  Moon,
-  Sun
-} from '@vicons/tabler'
+    Moon,
+    Sun
+  } from '@vicons/tabler'
 import {
   CommentAdd16Regular,
   ErrorCircle24Filled,
   Library16Filled,
   Mic16Filled,
-  Wrench20Regular
+  Wrench20Regular,
+  NoteAdd24Regular
 } from '@vicons/fluent'
 import { Mic, MicOff, Sparkles } from '@vicons/ionicons5'
 import { ArrowBackIosNewSharp, EditNoteFilled } from '@vicons/material'
@@ -170,7 +171,8 @@ const icons = {
   Dismiss: X,
   Download,
   Moon,
-  Sun
+  Sun,
+  NoteAdd24Regular
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
