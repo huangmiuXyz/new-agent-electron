@@ -1,0 +1,137 @@
+<template>
+    <div class="code-block" :class="display.darkMode ? 'dark' : 'light'">
+        <div class="header">
+            <span class="language">{{ lang }}</span>
+            <div class="actions">
+                <button v-if="isHtml" class="preview-btn" @click="showPreviewModal">
+                    预览
+                </button>
+                <button class="copy-btn" @click="copy">
+                    {{ copied ? '✓' : '复制' }}
+                </button>
+            </div>
+        </div>
+
+        <pre class="code-content" v-html="highlightedCode"></pre>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { h, computed, ref } from 'vue'
+import { common, createLowlight } from 'lowlight'
+import { toHtml } from 'hast-util-to-html'
+import { useSettingsStore } from '@renderer/stores/settings'
+import HtmlPreview from './HtmlPreview.vue'
+import 'highlight.js/styles/github.css'
+
+const lowlight = createLowlight(common)
+const { display } = storeToRefs(useSettingsStore())
+const { confirm } = useModal()
+
+const props = defineProps<{
+    codeStr: string
+    lang?: string
+}>()
+
+const copied = ref(false)
+
+const lang = computed(() => props.lang || 'text')
+const lowerLang = computed(() => lang.value.toLowerCase())
+const isHtml = computed(
+    () => lowerLang.value === 'html' || lowerLang.value === 'htm'
+)
+
+const highlightedCode = computed(() => {
+    try {
+        const tree = lowlight.highlight(lowerLang.value, props.codeStr)
+        const html = toHtml(tree)
+        return `<code class="hljs language-${lang.value}">${html}</code>`
+    } catch {
+        return `<code class="hljs">${props.codeStr
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')}</code>`
+    }
+})
+
+async function showPreviewModal() {
+    await confirm({
+        title: 'HTML 预览',
+        content: h(HtmlPreview, { html: props.codeStr }),
+        width: '90%',
+        height: '90vh',
+        confirmText: '关闭',
+        showFooter: true
+    })
+}
+
+async function copy() {
+    if (!props.codeStr) return
+    await navigator.clipboard.writeText(props.codeStr)
+    copied.value = true
+    setTimeout(() => (copied.value = false), 2000)
+}
+</script>
+
+<style scoped>
+.code-block {
+    margin: 16px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border-color, #e1e4e8);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--header-bg, #f6f8fa);
+    border-bottom: 1px solid var(--border-color, #e1e4e8);
+}
+
+.language {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--language-color, #586069);
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+}
+
+.preview-btn,
+.copy-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    border: 1px solid var(--button-border, #d1d5da);
+    background: var(--button-bg, #ffffff);
+    color: var(--button-color, #24292e);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.preview-btn:hover,
+.copy-btn:hover {
+    background: var(--button-hover-bg, #f3f4f6);
+    border-color: var(--button-hover-border, #c0c4cc);
+}
+
+.code-content {
+    margin: 0;
+    padding: 16px;
+    overflow-x: auto;
+    background: var(--code-bg, #f6f8fa);
+}
+
+.code-content code {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+</style>

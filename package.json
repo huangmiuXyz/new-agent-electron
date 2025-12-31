@@ -73,6 +73,7 @@
     "dayjs": "^1.11.19",
     "electron-updater": "^6.3.9",
     "es-toolkit": "^1.42.0",
+    "hast-util-to-html": "^9.0.5",
     "highlight.js": "^11.11.1",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",
