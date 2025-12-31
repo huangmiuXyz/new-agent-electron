@@ -27,19 +27,16 @@ const plugin: Plugin = {
             closeLoading = context.notification.loading('正在加载语音识别模型...', '语音识别');
           }
 
-          const fullPath = context.api.path.join(context.basePath, 'vosk-model-small-cn-0.22.zip');
+          const fullPath = context.api.path.join(context.basePath || '', 'vosk-model-small-cn-0.22.zip');
+          console.log('Vosk fullPath:', fullPath);
 
-          console.log('正在通过 fs 读取 Vosk 模型:', fullPath);
-          const buffer = context.api.fs.readFileSync(fullPath);
-          const blob = new Blob([buffer], { type: 'application/zip' });
-          const modelUrl = URL.createObjectURL(blob);
+          const normalizedPath = fullPath.replace(/\\/g, '/');
+          const modelUrl = `plugin-resource://${normalizedPath}`;
 
-          console.log('正在加载 Vosk 模型 (ObjectURL):', modelUrl);
+          console.log('正在加载 Vosk 模型 (固定地址):', modelUrl);
+
           model = await Vosk.createModel(modelUrl);
-          console.log('Vosk 模型加载成功');
-
-          // 加载完成后释放 ObjectURL
-          URL.revokeObjectURL(modelUrl);
+          console.log('Vosk 模型加载成功 (通过自定义协议)');
 
           if (closeLoading) {
             closeLoading();

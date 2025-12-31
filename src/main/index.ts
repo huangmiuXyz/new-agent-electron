@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, net } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, net, protocol } from 'electron'
 import { join } from 'path'
 import { setupSqliteHandlers, initSqlite } from './services/sqlite'
 import { setupUpdaterHandlers } from './services/updater'
@@ -8,6 +8,20 @@ import { initTray } from './initTray'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import '@electron/remote/main'
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'plugin-resource',
+    privileges: {
+      secure: true,
+      standard: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true
+    }
+  }
+])
+
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 900,
@@ -22,10 +36,17 @@ function createWindow(): BrowserWindow {
       allowRunningInsecureContent: true
     },
     transparent: true,
-    titleBarStyle: 'hidden'
-  })
+  titleBarStyle: 'hidden'
+})
 
-  mainWindow.on('ready-to-show', () => {
+protocol.handle('plugin-resource', (request) => {
+  const url = request.url.replace('plugin-resource://', '')
+  const decodedPath = decodeURIComponent(url)
+  const filePath = decodedPath.startsWith('/') ? decodedPath : `/${decodedPath}`
+  return net.fetch(`file://${filePath}`)
+})
+
+mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
 
