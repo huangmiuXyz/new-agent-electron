@@ -87,7 +87,9 @@ const retry = () => {
           <span v-if="block.type === 'text'">
             <Markdown v-if="markdown && block.text" :block="block" :message="message" />
             <template v-else>
-              {{ block.text }}
+              <div class="text-content">
+                {{ block.text }}
+              </div>
             </template>
           </span>
           <FileUpload :removable="false" v-if="block.type === 'file'"
@@ -144,6 +146,10 @@ const retry = () => {
 .edit-block-row {
   display: flex;
   flex-direction: column;
+}
+
+.text-content {
+  color: #fff
 }
 
 .edit-textarea {

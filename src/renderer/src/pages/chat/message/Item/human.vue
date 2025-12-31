@@ -49,8 +49,7 @@ const props = defineProps<{
 .msg-bubble {
   font-size: 14px;
   line-height: 1.5;
-  /* 自己的气泡样式 */
-  background-color: var(--bubble-me, var(--accent-color));
+  background-color: #000;
   color: var(--accent-text);
   padding: 8px 14px;
   border-radius: 12px 12px 2px 12px;

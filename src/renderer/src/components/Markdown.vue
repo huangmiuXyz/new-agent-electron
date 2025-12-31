@@ -16,7 +16,6 @@ const props = defineProps<{
 const settingsStore = useSettingsStore()
 const { display } = storeToRefs(settingsStore)
 
-// 根据 darkMode 动态切换主题
 const incremarkTheme = computed(() => {
   return display.value.darkMode ? 'dark' : 'default'
 })
