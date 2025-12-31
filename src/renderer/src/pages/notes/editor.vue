@@ -183,13 +183,4 @@ onUnmounted(() => {
 .back-button {
     flex-shrink: 0;
 }
-
-
-.note-editor.is-mobile .note-content {
-    padding: 16px 20px;
-}
-
-.note-editor.is-mobile .content-textarea {
-    font-size: 16px;
-}
 </style>
