@@ -145,7 +145,7 @@ const handleClick = (event: MouseEvent) => {
 /* 危险按钮样式 */
 .btn--danger {
   background: var(--color-danger) !important;
-  color: var(--accent-text) !important;
+  color: #fff !important;
 }
 
 .btn--danger:hover:not(.btn--disabled) {
