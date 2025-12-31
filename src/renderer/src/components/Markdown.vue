@@ -12,13 +12,9 @@ const props = defineProps<{
   block: TextUIPart
   message: BaseMessage
 }>()
-
+const incremarkTheme = ref<any>('default')
 const settingsStore = useSettingsStore()
 const { display } = storeToRefs(settingsStore)
-
-const incremarkTheme = computed(() => {
-  return display.value.darkMode ? 'dark' : 'default'
-})
 
 const incremark = useIncremark({
   gfm: true
@@ -37,7 +33,11 @@ watch(
     deep: true
   }
 )
+watch(() => display.value.darkMode, () => {
+  incremarkTheme.value = display.value.darkMode ? 'dark' : 'default'
+})
 onMounted(() => {
+  incremarkTheme.value = display.value.darkMode ? 'dark' : 'default'
   incremark.render(props.block.text)
 })
 </script>
