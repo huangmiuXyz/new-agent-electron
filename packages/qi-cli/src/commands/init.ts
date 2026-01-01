@@ -133,83 +133,6 @@ export default plugin;
 `;
 
 /**
- * 语音识别插件模板 (React TSX)
- */
-const PLUGIN_SPEECH_TEMPLATE = `import { Plugin } from './types';
-import React from 'react';
-import { flushSync } from 'react-dom';
-import { createRoot } from 'react-dom/client';
-
-const renderToHtml = (element: React.ReactElement): string => {
-  const container = document.createElement('div');
-  const root = createRoot(container);
-  flushSync(() => { root.render(element); });
-  const html = container.innerHTML;
-  root.unmount();
-  return html;
-};
-
-const MicIcon: React.FC<{ active: boolean }> = ({ active }) => (
-  <svg viewBox="0 0 24 24" width="14" height="14" fill={active ? "#f44336" : "currentColor"}>
-    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-  </svg>
-);
-
-const plugin: Plugin = {
-  name: '{{pluginName}}',
-  version: '{{version}}',
-  description: '{{description}}',
-
-  async install(context) {
-    // 初始化状态
-    context.notification.status('{{pluginName}}-status', '', {
-      html: renderToHtml(<MicIcon active={false} />),
-      tooltip: '语音识别就绪'
-    });
-
-    // 注册语音识别开始钩子
-    context.registerHook('speech.stream.start', async (options: { sampleRate: number, onResult?: (text: string) => void, onPartial?: (text: string) => void }) => {
-      console.log('Speech recognition starting...', options);
-
-      context.notification.status('{{pluginName}}-status', '', {
-        html: renderToHtml(<MicIcon active={true} />),
-        tooltip: '正在录音...'
-      });
-
-      return { success: true };
-    });
-
-    // 注册音频数据处理钩子
-    context.registerHook('speech.stream.data', async (options: { data: Float32Array, sampleRate: number }) => {
-      // 在这里处理音频数据 (options.data)
-      // 例如发送给语音识别引擎
-    });
-
-    // 注册语音识别停止钩子
-    context.registerHook('speech.stream.stop', async () => {
-      console.log('Speech recognition stopped');
-
-      context.notification.status('{{pluginName}}-status', '', {
-        html: renderToHtml(<MicIcon active={false} />),
-        tooltip: '语音识别就绪'
-      });
-
-      return { success: true };
-    });
-
-    context.notification.info('语音识别插件 {{pluginName}} 已就绪', '插件系统');
-  },
-
-  async uninstall(context) {
-    context.notification.removeStatus('{{pluginName}}-status');
-  }
-};
-
-export default plugin;
-`;
-
-/**
  * 类型定义文件内容
  */
 const TYPES_TEMPLATE = `/**
@@ -333,15 +256,6 @@ qi code build
 - \`after.chat\`: 聊天后触发
 - \`before.message\`: 消息前触发
 - \`after.message\`: 消息后触发
-
-### 语音识别钩子 (可选)
-
-如果你的插件实现了语音识别功能，可以使用以下钩子：
-
-- \`speech.stream.start\`: 语音识别开始
-- \`speech.stream.data\`: 音频数据流 (Float32Array)
-- \`speech.stream.stop\`: 语音识别停止
-- \`speech.recognize\`: 单次语音识别
 `;
 
 /**
@@ -438,8 +352,7 @@ export const initCommand = new Command('init')
         message: '请选择插件模板类型:',
         choices: [
           { name: '基础模板 (TypeScript)', value: 'basic' },
-          { name: 'React 模板 (支持自定义 UI 状态)', value: 'react' },
-          { name: '语音识别模板 (参考 Vosk 插件实现)', value: 'speech' }
+          { name: 'React 模板 (支持自定义 UI 状态)', value: 'react' }
         ]
       });
 
@@ -447,7 +360,7 @@ export const initCommand = new Command('init')
       description = description || answers.description;
       author = author || answers.author;
       pluginType = answers.pluginType;
-      isReact = pluginType === 'react' || pluginType === 'speech';
+      isReact = pluginType === 'react';
       spinner.start();
 
       const variables: Record<string, string> = {
@@ -471,8 +384,6 @@ export const initCommand = new Command('init')
       let selectedTemplate = PLUGIN_TEMPLATE;
       if (pluginType === 'react') {
         selectedTemplate = PLUGIN_REACT_TEMPLATE;
-      } else if (pluginType === 'speech') {
-        selectedTemplate = PLUGIN_SPEECH_TEMPLATE;
       }
 
       // 写入文件
