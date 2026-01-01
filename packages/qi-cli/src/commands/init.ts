@@ -6,7 +6,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 /**
- * 插件模板内容
+ * 插件模板内容 (TypeScript)
  */
 const PLUGIN_TEMPLATE = `import { Plugin } from './types';
 
@@ -62,6 +62,147 @@ const plugin: Plugin = {
     context.unregisterBuiltinTool('{{pluginName}}.example');
 
     console.log('{{pluginName}} plugin uninstalled!');
+  }
+};
+
+export default plugin;
+`;
+
+/**
+ * 插件模板内容 (React TSX)
+ */
+const PLUGIN_REACT_TEMPLATE = `import { Plugin } from './types';
+import React from 'react';
+import { flushSync } from 'react-dom';
+import { createRoot } from 'react-dom/client';
+
+/**
+ * 渲染 React 组件为 HTML 字符串
+ * 用于 context.notification.status 等接口
+ */
+const renderToHtml = (element: React.ReactElement): string => {
+  const container = document.createElement('div');
+  const root = createRoot(container);
+
+  flushSync(() => {
+    root.render(element);
+  });
+
+  const html = container.innerHTML;
+  root.unmount();
+
+  return html;
+};
+
+// 示例状态图标组件
+const StatusIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+    <circle cx="12" cy="12" r="10" fill="#4caf50" />
+  </svg>
+);
+
+const plugin: Plugin = {
+  name: '{{pluginName}}',
+  version: '{{version}}',
+  description: '{{description}}',
+
+  async install(context) {
+    // 注册一个带图标的状态栏项
+    context.notification.status('{{pluginName}}-status', '', {
+      html: renderToHtml(<StatusIcon />),
+      tooltip: '{{pluginName}} 插件已就绪'
+    });
+
+    // 注册命令示例
+    context.registerCommand('{{pluginName}}.hello', async () => {
+      const message = 'Hello from {{pluginName}} React plugin!';
+      context.notification.success(message, '来自插件的消息');
+      return message;
+    });
+
+    context.notification.info('{{pluginName}} React 插件已成功安装！', '插件系统');
+  },
+
+  async uninstall(context) {
+    context.notification.removeStatus('{{pluginName}}-status');
+    console.log('{{pluginName}} plugin uninstalled!');
+  }
+};
+
+export default plugin;
+`;
+
+/**
+ * 语音识别插件模板 (React TSX)
+ */
+const PLUGIN_SPEECH_TEMPLATE = `import { Plugin } from './types';
+import React from 'react';
+import { flushSync } from 'react-dom';
+import { createRoot } from 'react-dom/client';
+
+const renderToHtml = (element: React.ReactElement): string => {
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  flushSync(() => { root.render(element); });
+  const html = container.innerHTML;
+  root.unmount();
+  return html;
+};
+
+const MicIcon: React.FC<{ active: boolean }> = ({ active }) => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill={active ? "#f44336" : "currentColor"}>
+    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+  </svg>
+);
+
+const plugin: Plugin = {
+  name: '{{pluginName}}',
+  version: '{{version}}',
+  description: '{{description}}',
+
+  async install(context) {
+    // 初始化状态
+    context.notification.status('{{pluginName}}-status', '', {
+      html: renderToHtml(<MicIcon active={false} />),
+      tooltip: '语音识别就绪'
+    });
+
+    // 注册语音识别开始钩子
+    context.registerHook('speech.stream.start', async (options: { sampleRate: number, onResult?: (text: string) => void, onPartial?: (text: string) => void }) => {
+      console.log('Speech recognition starting...', options);
+
+      context.notification.status('{{pluginName}}-status', '', {
+        html: renderToHtml(<MicIcon active={true} />),
+        tooltip: '正在录音...'
+      });
+
+      return { success: true };
+    });
+
+    // 注册音频数据处理钩子
+    context.registerHook('speech.stream.data', async (options: { data: Float32Array, sampleRate: number }) => {
+      // 在这里处理音频数据 (options.data)
+      // 例如发送给语音识别引擎
+    });
+
+    // 注册语音识别停止钩子
+    context.registerHook('speech.stream.stop', async () => {
+      console.log('Speech recognition stopped');
+
+      context.notification.status('{{pluginName}}-status', '', {
+        html: renderToHtml(<MicIcon active={false} />),
+        tooltip: '语音识别就绪'
+      });
+
+      return { success: true };
+    });
+
+    context.notification.info('语音识别插件 {{pluginName}} 已就绪', '插件系统');
+  },
+
+  async uninstall(context) {
+    context.notification.removeStatus('{{pluginName}}-status');
   }
 };
 
@@ -192,6 +333,15 @@ qi code build
 - \`after.chat\`: 聊天后触发
 - \`before.message\`: 消息前触发
 - \`after.message\`: 消息后触发
+
+### 语音识别钩子 (可选)
+
+如果你的插件实现了语音识别功能，可以使用以下钩子：
+
+- \`speech.stream.start\`: 语音识别开始
+- \`speech.stream.data\`: 音频数据流 (Float32Array)
+- \`speech.stream.stop\`: 语音识别停止
+- \`speech.recognize\`: 单次语音识别
 `;
 
 /**
@@ -261,31 +411,44 @@ export const initCommand = new Command('init')
       // 询问其他信息（如果没有通过选项提供）
       let description = options.description;
       let author = options.author;
+      let pluginType = 'basic';
+      let isReact = false;
 
-      if (!description || !author) {
-        spinner.stop();
-        const promptQuestions: any[] = [];
-        if (!description) {
-          promptQuestions.push({
-            type: 'input',
-            name: 'description',
-            message: '请输入插件描述:',
-            default: `${pluginName} 插件`
-          });
-        }
-        if (!author) {
-          promptQuestions.push({
-            type: 'input',
-            name: 'author',
-            message: '请输入作者名称:',
-            default: ''
-          });
-        }
-        const answers = await inquirer.prompt(promptQuestions);
-        description = description || answers.description;
-        author = author || answers.author;
-        spinner.start();
+      spinner.stop();
+      const promptQuestions: any[] = [];
+      if (!description) {
+        promptQuestions.push({
+          type: 'input',
+          name: 'description',
+          message: '请输入插件描述:',
+          default: `${pluginName} 插件`
+        });
       }
+      if (!author) {
+        promptQuestions.push({
+          type: 'input',
+          name: 'author',
+          message: '请输入作者名称:',
+          default: ''
+        });
+      }
+      promptQuestions.push({
+        type: 'list',
+        name: 'pluginType',
+        message: '请选择插件模板类型:',
+        choices: [
+          { name: '基础模板 (TypeScript)', value: 'basic' },
+          { name: 'React 模板 (支持自定义 UI 状态)', value: 'react' },
+          { name: '语音识别模板 (参考 Vosk 插件实现)', value: 'speech' }
+        ]
+      });
+
+      const answers = await inquirer.prompt(promptQuestions);
+      description = description || answers.description;
+      author = author || answers.author;
+      pluginType = answers.pluginType;
+      isReact = pluginType === 'react' || pluginType === 'speech';
+      spinner.start();
 
       const variables: Record<string, string> = {
         pluginName,
@@ -302,10 +465,20 @@ export const initCommand = new Command('init')
       const srcDir = path.join(projectDir, 'src');
       await ensureDir(srcDir);
 
+      // 确定主入口文件名和模板
+      const extension = isReact ? 'tsx' : 'ts';
+      const mainFile = `index.${extension}`;
+      let selectedTemplate = PLUGIN_TEMPLATE;
+      if (pluginType === 'react') {
+        selectedTemplate = PLUGIN_REACT_TEMPLATE;
+      } else if (pluginType === 'speech') {
+        selectedTemplate = PLUGIN_SPEECH_TEMPLATE;
+      }
+
       // 写入文件
       await fs.writeFile(
-        path.join(srcDir, 'index.ts'),
-        replaceTemplate(PLUGIN_TEMPLATE, variables)
+        path.join(srcDir, mainFile),
+        replaceTemplate(selectedTemplate, variables)
       );
 
       await fs.writeFile(
@@ -323,15 +496,21 @@ export const initCommand = new Command('init')
         replaceTemplate(README_TEMPLATE, variables)
       );
 
-      await fs.writeFile(
-        path.join(projectDir, 'vite.config.ts'),
-        `import { defineConfig } from 'vite';
+      // 生成 vite.config.ts
+      const viteConfig = `import { defineConfig } from 'vite';
 import { resolve } from 'path';
+${isReact ? "import react from '@vitejs/plugin-react';" : ""}
 
 export default defineConfig({
+  ${isReact ? "plugins: [react()]," : ""}
+  define: {
+    'process.env.NODE_ENV': JSON.stringify('production'),
+    'process.env': JSON.stringify({ NODE_ENV: 'production' }),
+    'process.emit': 'undefined'
+  },
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: resolve(__dirname, 'src/${mainFile}'),
       name: 'plugin',
       fileName: 'index',
       formats: ['iife']
@@ -356,58 +535,67 @@ export default defineConfig({
     }
   }
 });
-`
-      );
+`;
+      await fs.writeFile(path.join(projectDir, 'vite.config.ts'), viteConfig);
+
+      // 生成 tsconfig.json
+      const tsconfig: any = {
+        compilerOptions: {
+          target: 'ES2022',
+          module: 'ES2022',
+          lib: ['ES2022', 'DOM', 'DOM.Iterable'],
+          moduleResolution: 'node',
+          outDir: './dist',
+          rootDir: './src',
+          strict: true,
+          esModuleInterop: true,
+          skipLibCheck: true,
+          forceConsistentCasingInFileNames: true,
+          declaration: false,
+          sourceMap: false
+        },
+        include: ['src/**/*'],
+        exclude: ['node_modules', 'dist']
+      };
+
+      if (isReact) {
+        tsconfig.compilerOptions.jsx = 'react-jsx';
+      }
 
       await fs.writeFile(
         path.join(projectDir, 'tsconfig.json'),
-        JSON.stringify(
-          {
-            compilerOptions: {
-              target: 'ES2022',
-              module: 'ES2022',
-              lib: ['ES2022'],
-              moduleResolution: 'node',
-              outDir: './dist',
-              rootDir: './src',
-              strict: true,
-              esModuleInterop: true,
-              skipLibCheck: true,
-              forceConsistentCasingInFileNames: true,
-              declaration: false,
-              sourceMap: false
-            },
-            include: ['src/**/*'],
-            exclude: ['node_modules', 'dist']
-          },
-          null,
-          2
-        )
+        JSON.stringify(tsconfig, null, 2)
       );
+
+      // 生成 package.json
+      const pkg: any = {
+        name: variables.pluginName,
+        version: variables.version,
+        description: variables.description,
+        author: variables.author,
+        main: 'dist/index.js',
+        scripts: {
+          build: 'vite build',
+          'build:watch': 'vite build --watch'
+        },
+        dependencies: {},
+        devDependencies: {
+          typescript: '^5.9.2',
+          vite: '^5.0.0'
+        }
+      };
+
+      if (isReact) {
+        pkg.dependencies.react = '^19.2.3';
+        pkg.dependencies['react-dom'] = '^19.2.3';
+        pkg.devDependencies['@types/react'] = '^19.2.7';
+        pkg.devDependencies['@types/react-dom'] = '^19.2.3';
+        pkg.devDependencies['@vitejs/plugin-react'] = '^5.1.2';
+      }
 
       await fs.writeFile(
         path.join(projectDir, 'package.json'),
-        JSON.stringify(
-          {
-            name: variables.pluginName,
-            version: variables.version,
-            description: variables.description,
-            author: variables.author,
-            main: 'dist/index.js',
-            scripts: {
-              build: 'vite build',
-              'build:watch': 'vite build --watch'
-            },
-            dependencies: {
-            },
-            devDependencies: {
-              typescript: '^5.9.2',
-              vite: '^5.0.0'
-            }
-          },
-          null,
-          2
-        )
+        JSON.stringify(pkg, null, 2)
       );
 
       // 创建 .gitignore
