@@ -10,16 +10,6 @@ const [DisplayForm] = useForm({
       label: '深色模式'
     },
     {
-      name: 'compactDensity',
-      type: 'boolean',
-      label: '紧凑消息密度'
-    },
-    {
-      name: 'showTimestamps',
-      type: 'boolean',
-      label: '显示时间戳'
-    },
-    {
       name: 'fontSize',
       type: 'slider',
       label: '字体大小',
