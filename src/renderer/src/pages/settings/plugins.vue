@@ -28,8 +28,20 @@ const {
   getStatusText,
   getStatusColor,
   getPluginCommands,
-  selectPlugin
+  selectPlugin,
+  togglePluginNotification,
+  isPluginNotificationDisabled
 } = usePlugins()
+
+// 通知开关逻辑
+const notificationDisabled = computed({
+  get: () => activePlugin.value ? isPluginNotificationDisabled(activePlugin.value.name) : false,
+  set: (val: boolean) => {
+    if (activePlugin.value) {
+      togglePluginNotification(activePlugin.value.name, val)
+    }
+  }
+})
 
 // 获取状态图标
 const getStatusIcon = (status: PluginStatus) => {
@@ -132,7 +144,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
       <template v-if="activePlugin">
         <!-- 插件基本信息 -->
         <FormItem label="插件信息">
-          <div class="info-card">
+          <Card padding="16px">
             <div class="info-header">
               <div class="info-title">
                 <div class="title-with-badge">
@@ -179,7 +191,19 @@ const handleUninstallPlugin = async (pluginName: string) => {
                 <span class="info-value error-value">{{ activePlugin.error }}</span>
               </div>
             </div>
-          </div>
+          </Card>
+        </FormItem>
+        <!-- 插件设置 -->
+        <FormItem v-if="activePlugin.type === 'loaded'" label="插件设置">
+          <Card padding="16px">
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-title">禁用插件通知</div>
+                <div class="setting-desc">开启后，该插件将不再显示任何弹窗或状态栏通知</div>
+              </div>
+              <Switch v-model="notificationDisabled" />
+            </div>
+          </Card>
         </FormItem>
         <!-- 插件命令 -->
         <FormItem v-if="activePlugin.type === 'loaded'" label="可用命令">
@@ -227,11 +251,27 @@ const handleUninstallPlugin = async (pluginName: string) => {
   flex-direction: column;
 }
 
-.info-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  padding: 16px;
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setting-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.setting-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .info-header {

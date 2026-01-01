@@ -1,4 +1,6 @@
 import { markRaw } from 'vue';
+import { useSettingsStore } from '../../stores/settings';
+import { notificationApi } from '../../utils/notifications';
 /**
  * 插件管理器
  * 负责维护插件注册表、命令系统和钩子系统
@@ -82,7 +84,47 @@ export class PluginManager {
       getStore: async (storeName: string) => {
         return await this.getStore(storeName);
       },
-      notification: notificationApi,
+      notification: {
+        info: (content: string, title?: string, duration?: number) => {
+          const settingsStore = useSettingsStore(this.pinia);
+          const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
+          if (pluginConfig?.notificationsDisabled) return () => {};
+          return notificationApi.info(content, title, duration);
+        },
+        success: (content: string, title?: string, duration?: number) => {
+          const settingsStore = useSettingsStore(this.pinia);
+          const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
+          if (pluginConfig?.notificationsDisabled) return () => {};
+          return notificationApi.success(content, title, duration);
+        },
+        error: (content: string, title?: string, duration?: number) => {
+          const settingsStore = useSettingsStore(this.pinia);
+          const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
+          if (pluginConfig?.notificationsDisabled) return () => {};
+          return notificationApi.error(content, title, duration);
+        },
+        warning: (content: string, title?: string, duration?: number) => {
+          const settingsStore = useSettingsStore(this.pinia);
+          const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
+          if (pluginConfig?.notificationsDisabled) return () => {};
+          return notificationApi.warning(content, title, duration);
+        },
+        loading: (content: string, title?: string, duration?: number) => {
+          const settingsStore = useSettingsStore(this.pinia);
+          const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
+          if (pluginConfig?.notificationsDisabled) return () => {};
+          return notificationApi.loading(content, title, duration);
+        },
+        status: (id: string, text: string, options?: any) => {
+          const settingsStore = useSettingsStore(this.pinia);
+          const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
+          if (pluginConfig?.notificationsDisabled) return;
+          notificationApi.status(id, text, options);
+        },
+        removeStatus: (id: string) => {
+          notificationApi.removeStatus(id);
+        }
+      },
       registerBuiltinTool: (name: string, tool: any) => {
         this.builtinTools.set(name, markRaw(tool));
 

@@ -40,9 +40,10 @@ export const useSettingsStore = defineStore(
     const mcpServers = ref<ClientConfig>({})
 
 
-    const loadedPlugins = ref<string[]>([])
+    const loadedPlugins = ref<LoadedPluginConfig[]>([])
 
     const devPluginPaths = ref<Record<string, string>>({})
+
 
     const defaultModels = ref({
       titleGenerationModelId: '',
@@ -66,6 +67,19 @@ export const useSettingsStore = defineStore(
 
     const updateTerminalSettings = (settings: Partial<typeof terminal.value>) => {
       terminal.value = { ...terminal.value, ...settings }
+    }
+
+    const togglePluginNotification = (pluginName: string, disabled: boolean) => {
+      const plugin = loadedPlugins.value.find((p) => p.name === pluginName)
+      if (plugin) {
+        plugin.notificationsDisabled = disabled
+      } else {
+        // 如果插件不在加载列表中，可能是还没保存，先加进去
+        loadedPlugins.value.push({
+          name: pluginName,
+          notificationsDisabled: disabled
+        })
+      }
     }
 
     const updateProvider = (providerId: string, providerData: Provider) => {
@@ -114,20 +128,20 @@ export const useSettingsStore = defineStore(
     }
 
 
-    const updateLoadedPlugins = (plugins: string[]) => {
+    const updateLoadedPlugins = (plugins: LoadedPluginConfig[]) => {
       loadedPlugins.value = plugins
     }
 
 
     const addLoadedPlugin = (pluginName: string) => {
-      if (!loadedPlugins.value.includes(pluginName)) {
-        loadedPlugins.value.push(pluginName)
+      if (!loadedPlugins.value.find((p) => p.name === pluginName)) {
+        loadedPlugins.value.push({ name: pluginName })
       }
     }
 
 
     const removeLoadedPlugin = (pluginName: string) => {
-      const index = loadedPlugins.value.indexOf(pluginName)
+      const index = loadedPlugins.value.findIndex((p) => p.name === pluginName)
       if (index > -1) {
         loadedPlugins.value.splice(index, 1)
       }
@@ -211,6 +225,7 @@ export const useSettingsStore = defineStore(
       updateDisplaySettings,
       updateTerminalSettings,
       updateThinkingMode,
+      togglePluginNotification,
       updateProvider,
       addModelToProvider,
       deleteModelFromProvider,

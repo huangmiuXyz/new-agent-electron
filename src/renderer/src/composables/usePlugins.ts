@@ -185,7 +185,8 @@ export function usePlugins() {
     }
 
     // 恢复普通插件
-    for (const pluginName of savedPlugins) {
+    for (const pluginConfig of savedPlugins) {
+      const pluginName = pluginConfig.name;
       try {
         if (pluginLoader && !pluginLoader.isPluginLoaded(pluginName)) {
           await pluginLoader.loadPlugin(pluginName);
@@ -313,6 +314,21 @@ export function usePlugins() {
     activePluginId.value = pluginId;
   };
 
+  /**
+   * 切换插件通知状态
+   */
+  const togglePluginNotification = (pluginName: string, disabled: boolean) => {
+    settingsStore.togglePluginNotification(pluginName, disabled);
+  };
+
+  /**
+   * 检查插件通知是否禁用
+   */
+  const isPluginNotificationDisabled = (pluginName: string): boolean => {
+    const plugin = settingsStore.loadedPlugins.find((p) => p.name === pluginName);
+    return !!plugin?.notificationsDisabled;
+  };
+
   return {
     plugins,
     availablePlugins,
@@ -334,6 +350,8 @@ export function usePlugins() {
     getPluginCommands,
     selectPlugin,
     pluginLoader,
-    triggerHook
+    triggerHook,
+    togglePluginNotification,
+    isPluginNotificationDisabled
   };
 }

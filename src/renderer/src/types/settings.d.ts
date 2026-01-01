@@ -44,6 +44,12 @@ declare global {
     mcpServers: ClientConfig
     defaultModels: DefaultModelsSettings
   }
+
+  // 加载的插件配置
+  interface LoadedPluginConfig {
+    name: string
+    notificationsDisabled?: boolean
+  }
 }
 
 export {}
