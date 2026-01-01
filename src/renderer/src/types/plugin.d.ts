@@ -42,6 +42,14 @@ declare global {
       error: (content: string, title?: string, duration?: number) => () => void;
       warning: (content: string, title?: string, duration?: number) => () => void;
       loading: (content: string, title?: string, duration?: number) => () => void;
+      status: (id: string, text: string, options?: {
+        icon?: string;
+        html?: string;
+        color?: string;
+        tooltip?: string;
+        pluginName?: string;
+      }) => void;
+      removeStatus: (id: string) => void;
     };
     /** 注册内置工具 */
     registerBuiltinTool: (name: string, tool: Tool) => void;

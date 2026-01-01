@@ -105,4 +105,20 @@ const toggleDarkMode = () => {
 .nav-item.active .nav-icon {
     transform: scale(1);
 }
+
+.notification-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background-color: #ef4444;
+    color: white;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 10px;
+    line-height: 1;
+    min-width: 12px;
+    text-align: center;
+    border: 2px solid var(--bg-header);
+    transform: translate(25%, -25%);
+}
 </style>

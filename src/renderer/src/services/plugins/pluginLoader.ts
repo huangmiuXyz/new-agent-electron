@@ -124,30 +124,19 @@ export class PluginLoader {
     console.log(`Watching plugin "${pluginName}" at ${localPath}`);
 
     let timer: any = null;
-    const unwatch = window.api.watch(localPath, (event, filename) => {
-      // 忽略不需要触发重载的文件/目录
+    const unwatch = window.api.watch(localPath, (_event, filename) => {
+
       if (filename.includes('node_modules') || filename.startsWith('.')) {
         return;
       }
-
-      // 简单防抖，避免频繁触发
       if (timer) clearTimeout(timer);
       timer = setTimeout(async () => {
-        // 如果改变的是 dist 目录下的文件，说明构建已完成，可以触发重载
-        // 或者如果改变的是 index.js（根目录下）
-        const isEntryChanged = filename === 'index.js' ||
-                              filename.startsWith('dist/') ||
-                              filename.startsWith('build/');
 
-        // 对于 TS 项目，通常监听 dist 目录的变化更准确
-        // 但为了通用性，我们这里只要文件有变动就尝试重载，
-        // 但增加一个检查：入口文件必须存在
         try {
           this.resolvePluginUrl(pluginName);
           console.log(`Plugin "${pluginName}" changed (${filename}), reloading...`);
           await this.reloadPlugin(pluginName);
         } catch (err) {
-          // 如果是因为入口文件还没生成（正在构建中），则静默等待下一次触发
           console.log(`Waiting for plugin "${pluginName}" build to complete...`);
         }
       }, 500);

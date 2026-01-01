@@ -2,6 +2,7 @@
 import ChatPage from './pages/chat/index.vue'
 import NotesPage from './pages/notes/index.vue'
 import SettingsPage from './pages/settings/index.vue'
+import AppFooter from './components/AppFooter.vue'
 import { useSettingsStore } from './stores/settings'
 
 const currentView = ref('chat')
@@ -143,12 +144,15 @@ const handleTouchEnd = (e: TouchEvent) => {
 
     <div class="app-body" v-if="!isMobile">
       <AppNavBar :current-view="currentView" @switch="switchView" />
+      <NotificationPanel />
       <main class="app-content">
         <ChatPage v-show="currentView === 'chat'" />
         <NotesPage v-show="currentView === 'notes'" />
         <SettingsPage v-show="currentView === 'settings'" />
       </main>
     </div>
+
+    <AppFooter v-if="!isMobile" />
 
     <div class="app-body isMobile" v-else @touchstart="handleTouchStart" @touchmove="handleTouchMove"
       @touchend="handleTouchEnd">
@@ -182,6 +186,8 @@ const handleTouchEnd = (e: TouchEvent) => {
   --bg-settings-mobile-sidebar: #f7f7f8;
   --accent-color: #000000;
   --accent-text: #ffffff;
+  --footer-bg: #fbfbfb;
+  --footer-text: #86868b;
 
   --text-primary: #1d1d1f;
   --text-secondary: #86868b;
@@ -249,6 +255,8 @@ const handleTouchEnd = (e: TouchEvent) => {
 
   --accent-color: #ffffff;
   --accent-text: #000000;
+  --footer-bg: #1c1c1e;
+  --footer-text: #a1a1a6;
 
   --text-primary: #f5f5f7;
   --text-secondary: #a1a1a6;

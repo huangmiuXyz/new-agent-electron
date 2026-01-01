@@ -1,6 +1,7 @@
 import { createVNode, render, ref, TransitionGroup, defineComponent, h } from 'vue'
+import { useNotificationStore, type NotificationType, type NotificationItem as StoreNotificationItem } from '../stores/notifications'
 
-export type NotificationType = 'success' | 'error' | 'warning' | 'info' | 'loading'
+export type { NotificationType }
 
 export interface NotificationItem {
   id: number
@@ -19,6 +20,8 @@ export interface NotificationApi {
   error: NotificationHandler
   warning: NotificationHandler
   loading: NotificationHandler
+  status: (id: string, text: string, options?: { icon?: string; color?: string; tooltip?: string; pluginName?: string }) => void
+  removeStatus: (id: string) => void
 }
 
 const styleId = 'nexus-notification-style'
@@ -30,59 +33,82 @@ if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
   style.innerHTML = `
     .nexus-notification-container {
         position: fixed;
-        bottom: 24px;
-        right: 24px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
         z-index: 9999;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
         pointer-events: none;
-        min-width: 320px;
-        min-height: 10px;
     }
 
     .nexus-notification-item {
-        margin-top: 12px;
-        padding: 16px;
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        padding: 14px 16px;
         background: #ffffff;
-        border: 1px solid rgba(0, 0, 0, 0.12);
-        border-radius: 12px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         display: flex;
-        flex-direction: column;
-        gap: 8px;
+        gap: 12px;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         pointer-events: auto;
-        width: 320px;
+        width: 360px;
         box-sizing: border-box;
-        position: relative;
+        transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.3s linear;
     }
 
-    .nexus-notification-header {
+    .nexus-notification-content-wrapper {
+        flex: 1;
+        min-width: 0;
         display: flex;
-        align-items: center;
-        gap: 8px;
+        flex-direction: column;
+        gap: 4px;
     }
 
     .nexus-notification-title {
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 600;
         color: #111827;
+        line-height: 1.4;
     }
 
-    .nexus-notification-content {
+    .nexus-notification-message {
         font-size: 13px;
         color: #4b5563;
         line-height: 1.5;
-        margin-left: 24px;
+        word-break: break-word;
+    }
+
+    .nexus-notification-close {
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #9ca3af;
+        border-radius: 4px;
+        transition: all 0.2s;
+        margin-top: -2px;
+        margin-right: -4px;
+    }
+
+    .nexus-notification-close:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: #374151;
     }
 
     .nexus-notification-icon {
-        font-size: 16px;
+        width: 18px;
+        height: 18px;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        margin-top: 2px;
     }
 
     @keyframes nexus-spin {
@@ -93,32 +119,33 @@ if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
         animation: nexus-spin 1s linear infinite;
     }
 
-    /* 动画 */
+    /* 移除 TransitionGroup 默认类名干扰 */
     .nexus-notification-move,
     .nexus-notification-enter-active,
     .nexus-notification-leave-active {
-        transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.3s linear;
+    }
+
+    .nexus-notification-leave-active {
+        position: fixed; /* 保持固定定位 */
+        z-index: 0;
+        pointer-events: none;
     }
 
     .nexus-notification-enter-from {
         opacity: 0;
-        transform: translateX(100%) scale(0.9);
+        transform: translate3d(100%, 0, 0);
     }
 
     .nexus-notification-leave-to {
         opacity: 0;
-        transform: translateX(100%) scale(0.9);
-    }
-
-    .nexus-notification-leave-active {
-        position: absolute;
+        transform: translate3d(100%, 0, 0);
     }
   `
   document.head.appendChild(style)
 }
 
 const notifications = ref<NotificationItem[]>([])
-let seed = 0
 
 const NotificationComponent = defineComponent({
   name: 'NexusNotification',
@@ -130,39 +157,66 @@ const NotificationComponent = defineComponent({
         {
           default: () =>
             notifications.value.map((notif) => {
-              let iconClass = ''
+              let iconPath = ''
               let iconColor = ''
               let extraClass = ''
 
               switch (notif.type) {
                 case 'success':
-                  iconClass = 'ph-fill ph-check-circle'
+                  iconPath = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'
                   iconColor = '#10B981'
                   break
                 case 'error':
-                  iconClass = 'ph-fill ph-x-circle'
+                  iconPath = 'M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z'
                   iconColor = '#EF4444'
                   break
                 case 'warning':
-                  iconClass = 'ph-fill ph-warning-circle'
+                  iconPath = 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'
                   iconColor = '#F59E0B'
                   break
                 case 'loading':
-                  iconClass = 'ph ph-spinner'
+                  iconPath = 'M12 4V2m0 20v-2m8-8h2M2 12h2m13.657-5.657l1.414-1.414m-14.142 14.142l1.414-1.414M17.657 17.657l1.414 1.414M4.343 4.343l1.414 1.414'
                   iconColor = '#6B7280'
                   extraClass = 'nexus-spin'
                   break
                 default:
-                  iconClass = 'ph-fill ph-info'
+                  iconPath = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'
                   iconColor = '#3B82F6'
               }
 
-              return h('div', { key: notif.id, class: 'nexus-notification-item' }, [
-                h('div', { class: 'nexus-notification-header' }, [
-                  h('i', { class: [iconClass, 'nexus-notification-icon', extraClass], style: { color: iconColor } }),
-                  notif.title ? h('span', { class: 'nexus-notification-title' }, notif.title) : null
+              const index = notifications.value.findIndex((n) => n.id === notif.id)
+              const offset = (notifications.value.length - 1 - index) * 84 // 假设高度约 84px
+
+              return h('div', {
+                key: notif.id,
+                class: 'nexus-notification-item',
+                style: {
+                  transform: `translate3d(0, -${offset}px, 0)`
+                }
+              }, [
+                h('div', { class: ['nexus-notification-icon', extraClass], style: { color: iconColor } }, [
+                  h('svg', { viewBox: '0 0 24 24', width: '18', height: '18', fill: notif.type === 'loading' ? 'none' : 'currentColor', stroke: notif.type === 'loading' ? 'currentColor' : 'none', 'stroke-width': '2' }, [
+                    h('path', { d: iconPath })
+                  ])
                 ]),
-                h('div', { class: 'nexus-notification-content' }, notif.content)
+                h('div', { class: 'nexus-notification-content-wrapper' }, [
+                  notif.title ? h('div', { class: 'nexus-notification-title' }, notif.title) : null,
+                  h('div', { class: 'nexus-notification-message' }, notif.content)
+                ]),
+                h('div', {
+                  class: 'nexus-notification-close',
+                  onClick: (e: MouseEvent) => {
+                    e.stopPropagation()
+                    const index = notifications.value.findIndex((n) => n.id === notif.id)
+                    if (index !== -1) {
+                      notifications.value.splice(index, 1)
+                    }
+                  }
+                }, [
+                  h('svg', { viewBox: '0 0 24 24', width: '14', height: '14', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [
+                    h('path', { d: 'M18 6L6 18M6 6l12 12' })
+                  ])
+                ])
               ])
             })
         }
@@ -194,12 +248,19 @@ const addNotification = (
   if (typeof window === 'undefined') return () => {}
 
   mountContainer()
-  const id = seed++
+
+  let id = Date.now()
+  try {
+    const store = useNotificationStore()
+    id = store.addNotification({ type, content, title, duration })
+  } catch (e) {
+    console.warn('Notification store not available yet:', e)
+  }
 
   const finalDuration = duration !== undefined ? duration : type === 'loading' ? 0 : 4500
 
-  const notifObj: NotificationItem = { id, type, content, title, duration: finalDuration }
-  notifications.value.push(notifObj)
+  const toastItem: NotificationItem = { id, type, content, title, duration: finalDuration }
+  notifications.value.push(toastItem)
   console.log('Current notifications:', notifications.value.length);
 
   const close: CloseNotification = () => {
@@ -222,5 +283,21 @@ export const notificationApi: NotificationApi = {
   success: (content, title, duration) => addNotification('success', content, title, duration),
   error: (content, title, duration) => addNotification('error', content, title, duration),
   warning: (content, title, duration) => addNotification('warning', content, title, duration),
-  loading: (content, title, duration) => addNotification('loading', content, title, duration)
+  loading: (content, title, duration) => addNotification('loading', content, title, duration),
+  status: (id, text, options) => {
+    try {
+      const store = useNotificationStore()
+      store.setStatus(id, { text, ...options })
+    } catch (e) {
+      console.warn('Notification store not available for status:', e)
+    }
+  },
+  removeStatus: (id) => {
+    try {
+      const store = useNotificationStore()
+      store.removeStatus(id)
+    } catch (e) {
+      console.warn('Notification store not available for removeStatus:', e)
+    }
+  }
 }

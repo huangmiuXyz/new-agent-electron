@@ -73,7 +73,8 @@ import {
   X,
   Download,
   Moon,
-  Sun
+  Sun,
+  Bell
 } from '@vicons/tabler'
 import {
   CommentAdd16Regular,
@@ -174,7 +175,8 @@ const icons = {
   Sun,
   NoteAdd24Regular,
   Globe,
-  Code
+  Code,
+  Bell
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
