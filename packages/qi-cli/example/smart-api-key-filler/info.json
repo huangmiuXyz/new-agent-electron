@@ -3,5 +3,6 @@
   "version": "1.0.0",
   "description": "批量填充提供商API密钥，支持一次性填充多个提供商的密钥",
   "author": "Qi Team",
-  "main": "index.js"
+  "main": "index.js",
+  "extraAssets": []
 }

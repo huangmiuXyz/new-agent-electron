@@ -67,6 +67,10 @@ const plugin: Plugin = {
           const successCount = results.filter((r) => r.success).length;
           const totalCount = results.length;
 
+          if (successCount > 0) {
+            context.notification.success(`已成功填充 ${successCount} 个提供商的 API 密钥`, '密钥填充成功');
+          }
+
           let report = `密钥填充处理完成：\n`;
           report += `- 总处理数: ${totalCount}\n`;
           report += `- 成功数: ${successCount}\n`;
@@ -97,12 +101,14 @@ const plugin: Plugin = {
             }
           };
         } catch (error) {
+          const errorMessage = (error as Error).message;
+          context.notification.error(`密钥填充失败: ${errorMessage}`, '密钥填充错误');
           return {
             toolResult: {
               content: [
                 {
                   type: 'text',
-                  text: `密钥填充失败: ${(error as Error).message}`
+                  text: `密钥填充失败: ${errorMessage}`
                 }
               ]
             }

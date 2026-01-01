@@ -4,17 +4,11 @@ import chalk from 'chalk';
 import ora from 'ora';
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 /**
  * 插件模板内容
  */
 const PLUGIN_TEMPLATE = `import { Plugin } from './types';
-import { z } from 'zod';
 
 const plugin: Plugin = {
   name: '{{pluginName}}',
@@ -24,21 +18,21 @@ const plugin: Plugin = {
   async install(context) {
     // 注册命令示例
     context.registerCommand('{{pluginName}}.hello', async () => {
-      console.log('Hello from {{pluginName}} plugin!');
-      return 'Hello from {{pluginName}} plugin!';
+      const message = 'Hello from {{pluginName}} plugin!';
+      console.log(message);
+
+      // 使用通知示例
+      context.notification.success(message, '来自插件的消息');
+
+      return message;
     });
 
-    // 注册内置工具示例（使用 zod 进行参数验证）
+    // 注册内置工具示例
     context.registerBuiltinTool('{{pluginName}}.example', {
-      description: '示例工具，使用 zod 进行参数验证',
-      inputSchema: z.object({
-        message: z.string().min(1, '消息不能为空')
-      }),
+      description: '示例工具',
       title: '示例工具',
       execute: async (args: any) => {
-        const { message } = args;
-
-        // 参数已由 zod 自动验证
+        const { message = '默认消息' } = args;
 
         return {
           toolResult: {
@@ -59,6 +53,7 @@ const plugin: Plugin = {
       return data;
     });
 
+    context.notification.info('{{pluginName}} 插件已成功安装！', '插件系统');
     console.log('{{pluginName}} plugin installed successfully!');
   },
 
@@ -112,6 +107,22 @@ export interface PluginContext {
   registerHook: (name: string, handler: Function) => void;
   /** 获取 store */
   getStore: (storeName: string) => Promise<any>;
+  /** 通知接口 */
+  notification: {
+    info: (content: string, title?: string, duration?: number) => () => void;
+    success: (content: string, title?: string, duration?: number) => () => void;
+    error: (content: string, title?: string, duration?: number) => () => void;
+    warning: (content: string, title?: string, duration?: number) => () => void;
+    loading: (content: string, title?: string, duration?: number) => () => void;
+    status: (id: string, text: string, options?: {
+      icon?: string;
+      html?: string;
+      color?: string;
+      tooltip?: string;
+      pluginName?: string;
+    }) => void;
+    removeStatus: (id: string) => void;
+  };
   /** 注册内置工具 */
   registerBuiltinTool: (name: string, tool: any) => void;
   /** 注销内置工具 */
@@ -127,7 +138,8 @@ const INFO_JSON_TEMPLATE = `{
   "version": "{{version}}",
   "description": "{{description}}",
   "author": "{{author}}",
-  "main": "index.js"
+  "main": "index.js",
+  "extraAssets": []
 }
 `;
 
@@ -303,17 +315,7 @@ export const initCommand = new Command('init')
 
       await fs.writeFile(
         path.join(projectDir, 'info.json'),
-        JSON.stringify(
-          {
-            name: variables.pluginName,
-            version: variables.version,
-            description: variables.description,
-            author: variables.author,
-            main: 'index.js'
-          },
-          null,
-          2
-        )
+        replaceTemplate(INFO_JSON_TEMPLATE, variables)
       );
 
       await fs.writeFile(
@@ -397,7 +399,6 @@ export default defineConfig({
               'build:watch': 'vite build --watch'
             },
             dependencies: {
-              zod: '^4.2.1'
             },
             devDependencies: {
               typescript: '^5.9.2',
