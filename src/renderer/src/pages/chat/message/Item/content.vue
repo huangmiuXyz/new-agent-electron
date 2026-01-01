@@ -6,7 +6,7 @@ const props = defineProps<{
   markdown?: boolean
 }>()
 const { currentChat } = storeToRefs(useChatsStores())
-const { currentSelectedModel } = storeToRefs(useSettingsStore())
+const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
 const { updateMessage } = useChatsStores()
 
 const messageEdit = inject('messageEdit') as {
@@ -20,6 +20,10 @@ const { Check, Close } = useIcon(['Check', 'Close'])
 const isEditing = computed(() => {
   return messageEdit.editingMessageId.value === props.message.id
 })
+
+const contentStyle = computed(() => ({
+  fontSize: `${display.value.fontSize}px`
+}))
 
 const draftContent = ref<Array<FileUIPart | TextUIPart>>([])
 const blobUrlMap = ref<Map<string, string>>(new Map())
@@ -84,7 +88,7 @@ const retry = () => {
     <div v-if="!isEditing" class="msg-bubble">
       <div class="blocks-container">
         <div v-for="(block, idx) in message.parts" :key="idx" class="view-block">
-          <div v-if="block.type === 'text'" class="text-block">
+          <div v-if="block.type === 'text'" class="text-block" :style="contentStyle">
             <Markdown v-if="markdown && block.text" :block="block" :message="message" />
             <template v-else>
               <div class="text-content">

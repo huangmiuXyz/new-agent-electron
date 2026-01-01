@@ -17,7 +17,7 @@ export const useSettingsStore = defineStore(
       darkMode: false,
       compactDensity: true,
       showTimestamps: true,
-      fontSize: 13,
+      fontSize: 16,
       sidebarCollapsed: false,
       showTerminal: false,
       terminalHeight: 200

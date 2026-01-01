@@ -14,7 +14,7 @@ const [DisplayForm] = useForm({
       type: 'slider',
       label: '字体大小',
       min: 10,
-      max: 18,
+      max: 30,
       unit: 'px'
     }
   ],
