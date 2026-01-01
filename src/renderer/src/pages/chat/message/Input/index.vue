@@ -71,9 +71,7 @@ const { start: startVoice, stop: stopVoice, state: voiceState, isActive: voiceIs
         if (text) {
           message.value += (message.value ? ' ' : '') + text
           partialSpeechText.value = ''
-          nextTick(() => {
-            adjustTextareaHeight({ target: textareaRef.value } as any)
-          })
+          _sendMessage()
         }
       },
       onPartial: (text: string) => {
@@ -141,6 +139,9 @@ const _sendMessage = async () => {
 
   if (hasContent) {
     message.value = ''
+    nextTick(() => {
+      adjustTextareaHeight({ target: textareaRef.value } as any)
+    })
     if (chatStore.chats.length === 0) {
       chatStore.createChat()
     }
