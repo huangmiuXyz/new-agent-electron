@@ -38,11 +38,6 @@ const StatusIcon = defineComponent({
           </div>
         </div>
       </template>
-        <div v-else class="status-item" title="系统就绪">
-          <div class="icon-wrapper">
-            <StatusIcon icon="Check" />
-          </div>
-        </div>
       </div>
 
       <div class="status-bar-right">
