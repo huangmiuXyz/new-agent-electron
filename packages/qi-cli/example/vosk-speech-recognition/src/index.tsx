@@ -36,13 +36,15 @@ const LoadingIcon: React.FC = () => (
 );
 
 const ReadyIcon: React.FC<{ modelName: string }> = ({ modelName }) => (
-  <div style={{ position: 'relative', display: 'inline-block' }} className="plugin-icon-container">
+  <div className="plugin-icon-container">
     <style>{`
       .plugin-icon-container {
         position: relative;
-        display: inline-flex;
+        display: flex;
         align-items: center;
         justify-content: center;
+        width: 100%;
+        height: 100%
       }
       .plugin-tooltip {
           position: absolute;

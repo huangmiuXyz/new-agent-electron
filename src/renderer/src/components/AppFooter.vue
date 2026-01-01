@@ -70,13 +70,13 @@ const StatusIcon = defineComponent({
 
 .status-item {
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   height: 100%;
-  padding: 0 10px;
   transition: background 0.2s;
-  min-width: 36px;
+  min-width: 26px;
   gap: 4px;
 }
 
@@ -141,9 +141,11 @@ const StatusIcon = defineComponent({
 }
 
 .status-html {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
 :deep(.status-html svg) {
