@@ -1,18 +1,4 @@
 <script setup lang="tsx">
-import { computed, onMounted, ref } from 'vue'
-import { useLocalStorage } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
-import { useSettingsStore } from '@renderer/stores/settings'
-import { useIcon } from '@renderer/composables/useIcon'
-import { useModal } from '@renderer/composables/useModal'
-import { useForm, FormField } from '@renderer/composables/useForm'
-import { usePlugins } from '@renderer/composables/usePlugins'
-import Button from '@renderer/components/Button.vue'
-import Input from '@renderer/components/Input.vue'
-import Select from '@renderer/components/Select.vue'
-import Table from '@renderer/components/Table.vue'
-import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
-import ModelSelector from '@renderer/components/ModelSelector.vue'
 import { FormItem } from '@renderer/composables/useForm'
 
 const { getAllProviders, providers } = storeToRefs(useSettingsStore())
