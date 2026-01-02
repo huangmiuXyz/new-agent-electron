@@ -10,3 +10,11 @@ Components({
   directoryAsNamespace: true,
   dts: 'src/components.d.ts'
 })
+2.大部分类型都被在src/renderer/src/types/index.d.ts中定义，因此不要在每个组件中重复引入，以下是全局注册的类型的配置：
+```typescript
+export * from './common'
+export * from './components'
+export * from './services'
+export * from './stores'
+export * from './utils'
+```
