@@ -35,7 +35,6 @@ const activeProvider = computed(() => {
   return providers.value.find((p) => p.id === activeProviderId.value)
 })
 
-const showSearch = ref(false)
 const searchKeyword = ref('')
 
 const filteredModels = computed(() => {
@@ -308,11 +307,7 @@ const handleDeleteModel = async (row: any) => {
 }
 
 const searchInputRef = useTemplateRef('searchInputRef')
-const handleShowSearch = async () => {
-  showSearch.value = true
-  await nextTick()
-  searchInputRef.value?.focus()
-}
+
 
 import { useRouter, useRoute } from 'vue-router'
 const router = useRouter()
@@ -332,6 +327,125 @@ const selectProvider = (providerId: string) => {
 // Mobile/Desktop View Logic
 const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
+const ModelList = () => {
+  const showSearch = ref(false)
+  const handleShowSearch = async () => {
+  showSearch.value = true
+  await nextTick()
+  searchInputRef.value?.focus()
+}
+  return (
+    <FormItem label="模型列表">
+      {{
+        label: () => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>模型列表</span>
+            <Button onClick={showAddCustomModelModal} size="sm" type="button" variant="text">
+              {{
+                icon: () => <Plus />
+              }}
+            </Button>
+            {showSearch.value ? (
+              <div>
+                <SearchInput
+                  searchKey="id"
+                  search-data={activeProvider.value!.models}
+                  onAi-search={setAISearchValue}
+                  ref={searchInputRef}
+                  v-model={searchKeyword.value}
+                  onUpdate:modelValue={() => {
+                    aiSearchModels.value = []
+                  }}
+                  placeholder="搜索模型..."
+                  size="sm"
+                  variant="default"
+                  show-icon={true}
+                  debounce={0}
+                  onBlur={() => !searchKeyword.value && (showSearch.value = false)}
+                  class="provider-search-input"
+                />
+              </div>
+            ) : (
+              <Button type="button" variant="text" size="sm" onClick={handleShowSearch}>
+                {{
+                  icon: () => <Search />
+                }}
+              </Button>
+            )}
+          </div>
+        ),
+        tool: () => (
+          <Button onClick={refreshModels} size="sm" type="button" variant="text">
+            {{
+              icon: () => <Refresh />
+            }}
+            刷新模型列表
+          </Button>
+        ),
+        default: () => (
+          <Table
+            loading={loading.value}
+            columns={tableColumns}
+            data={aiSearchModels.value.length ? aiSearchModels.value : filteredModels.value}
+          >
+            {{
+              category: ({ row }: any) => (
+                <Tags
+                  tags={[getCategoryLabel(row.category)]}
+                  color={
+                    row.category === 'text'
+                      ? 'blue'
+                      : row.category === 'embedding'
+                        ? 'green'
+                        : row.category === 'image'
+                          ? 'orange'
+                          : row.category === 'rerank'
+                            ? 'purple'
+                            : 'blue'
+                  }
+                />
+              ),
+              active: ({ row }: any) => (
+                <Switch
+                  v-model={row.active}
+                />
+              ),
+              actions: ({ row }: any) => (
+                <>
+                  <Button
+                    type="button"
+                    variant="text"
+                    size="sm"
+                    onClick={() => showEditModelModal(row)}
+                    title="编辑模型"
+                  >
+                    {{
+                      icon: () => <Edit />
+                    }}
+                  </Button>
+                  {isCustomModel(row) && (
+                    <Button
+                      type="button"
+                      variant="text"
+                      size="sm"
+                      onClick={() => handleDeleteModel(row)}
+                      title="删除模型"
+                      class="text-red-500 hover:text-red-700"
+                    >
+                      {{
+                        icon: () => <Delete />
+                      }}
+                    </Button>
+                  )}
+                </>
+              )
+            }}
+          </Table>
+        )
+      }}
+    </FormItem>
+  )
+}
 </script>
 
 <template>
@@ -348,70 +462,7 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
       </div>
       <ProviderForm v-else>
         <template #models>
-          <FormItem label="模型列表">
-            <template #label>
-              <div style="display: flex; align-items: center; gap: 8px">
-                <span>模型列表</span>
-                <Button @click="showAddCustomModelModal" size="sm" type="button" variant="text">
-                  <template #icon>
-                    <Plus />
-                  </template>
-                </Button>
-                <div v-if="showSearch">
-                  <SearchInput searchKey="id" :search-data="activeProvider!.models" @ai-search="setAISearchValue"
-                    ref="searchInputRef" v-model="searchKeyword" @update:model-value="aiSearchModels = []"
-                    placeholder="搜索模型..." size="sm" variant="default" :show-icon="true" :debounce="0"
-                    @blur="!searchKeyword && (showSearch = false)" class="provider-search-input" />
-                </div>
-                <Button v-else type="button" variant="text" size="sm" @click="handleShowSearch">
-                  <template #icon>
-                    <Search />
-                  </template>
-                </Button>
-              </div>
-            </template>
-            <template #tool>
-              <Button @click="refreshModels" size="sm" type="button" variant="text">
-                <template #icon>
-                  <Refresh />
-                </template>
-                刷新模型列表
-              </Button>
-            </template>
-
-            <Table :loading="loading" :columns="tableColumns"
-              :data="aiSearchModels.length ? aiSearchModels : filteredModels">
-              <template #category="{ row }">
-                <Tags :tags="[getCategoryLabel(row.category)]" :color="row.category === 'text'
-                  ? 'blue'
-                  : row.category === 'embedding'
-                    ? 'green'
-                    : row.category === 'image'
-                      ? 'orange'
-                      : row.category === 'rerank'
-                        ? 'purple'
-                        : 'blue'
-                  " />
-              </template>
-              <template #active="{ row }">
-                <Switch v-model="row.active" />
-              </template>
-
-              <template #actions="{ row }">
-                <Button type="button" variant="text" size="sm" @click="showEditModelModal(row)" title="编辑模型">
-                  <template #icon>
-                    <Edit />
-                  </template>
-                </Button>
-                <Button v-if="isCustomModel(row)" type="button" variant="text" size="sm" @click="handleDeleteModel(row)"
-                  title="删除模型" class="text-red-500 hover:text-red-700">
-                  <template #icon>
-                    <Delete />
-                  </template>
-                </Button>
-              </template>
-            </Table>
-          </FormItem>
+          <ModelList />
         </template>
       </ProviderForm>
     </template>
