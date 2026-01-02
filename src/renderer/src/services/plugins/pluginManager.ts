@@ -148,31 +148,31 @@ export class PluginManager {
         info: (content: string, title?: string, duration?: number) => {
           const settingsStore = useSettingsStore(this.pinia);
           const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
-          if (pluginConfig?.notificationsDisabled) return () => {};
+          if (pluginConfig?.notificationsDisabled) return () => { };
           return notificationApi.info(content, title, duration);
         },
         success: (content: string, title?: string, duration?: number) => {
           const settingsStore = useSettingsStore(this.pinia);
           const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
-          if (pluginConfig?.notificationsDisabled) return () => {};
+          if (pluginConfig?.notificationsDisabled) return () => { };
           return notificationApi.success(content, title, duration);
         },
         error: (content: string, title?: string, duration?: number) => {
           const settingsStore = useSettingsStore(this.pinia);
           const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
-          if (pluginConfig?.notificationsDisabled) return () => {};
+          if (pluginConfig?.notificationsDisabled) return () => { };
           return notificationApi.error(content, title, duration);
         },
         warning: (content: string, title?: string, duration?: number) => {
           const settingsStore = useSettingsStore(this.pinia);
           const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
-          if (pluginConfig?.notificationsDisabled) return () => {};
+          if (pluginConfig?.notificationsDisabled) return () => { };
           return notificationApi.warning(content, title, duration);
         },
         loading: (content: string, title?: string, duration?: number) => {
           const settingsStore = useSettingsStore(this.pinia);
           const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
-          if (pluginConfig?.notificationsDisabled) return () => {};
+          if (pluginConfig?.notificationsDisabled) return () => { };
           return notificationApi.loading(content, title, duration);
         },
         status: (id: string, text: string, options?: any) => {
@@ -201,25 +201,6 @@ export class PluginManager {
         options?: { name?: string; form?: any; models?: Model[] }
       ) => {
         const settingsStore = useSettingsStore(this.pinia);
-
-        // 确保提供商在 providers 列表中存在，以便用户可以在 UI 中选择它
-        let provider = settingsStore.providers.find((p) => p.id === providerId);
-        if (!provider) {
-          settingsStore.providers.push({
-            id: providerId,
-            name: options?.name || `${pluginName}`,
-            logo: '',
-            baseUrl: '',
-            providerType: 'openai-compatible',
-            models: options?.models || [],
-            pluginName
-          });
-        } else if (options?.models) {
-          // 如果已存在且传入了模型列表，则合并模型
-          const existingModelIds = new Set(provider.models.map((m) => m.id));
-          const newModels = options.models.filter((m) => !existingModelIds.has(m.id));
-          provider.models.push(...newModels);
-        }
 
         const exists = settingsStore.registeredProviders.find(
           (p) => p.providerId === providerId && p.pluginName === pluginName
