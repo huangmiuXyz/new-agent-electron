@@ -103,6 +103,10 @@ const toggleVoiceRecording = async () => {
   if (voiceIsActive.value) {
     stopVoice()
   } else {
+    if (!defaultModels.value.speechModelId) {
+      messageApi.error('请先在设置中选择默认语音引擎模型')
+      return
+    }
     await startVoice()
   }
 }
