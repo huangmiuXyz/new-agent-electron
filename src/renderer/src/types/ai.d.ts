@@ -39,7 +39,7 @@ declare global {
   type Tools = Awaited<ReturnType<typeof window.api.list_tools>>
   type Tool = Tools[keyof Tools]
   type ContentBlock = UIMessagePart
-  type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank'
+  type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank' | 'speech'
   interface Model extends openAIModel {
     name: string
     description?: string

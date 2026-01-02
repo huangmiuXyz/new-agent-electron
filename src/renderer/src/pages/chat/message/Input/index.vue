@@ -16,7 +16,8 @@ const {
   selectedProviderId,
   currentSelectedProvider,
   thinkingMode,
-  display
+  display,
+  defaultModels
 } = storeToRefs(useSettingsStore())
 const { updateThinkingMode } = useSettingsStore()
 const { toggleTerminal } = useTerminal()
@@ -67,6 +68,7 @@ const { start: startVoice, stop: stopVoice, state: voiceState, isActive: voiceIs
     const sampleRate = (window as any)._audioSampleRate
     await triggerHook('speech.stream.start', {
       sampleRate,
+      providerId: defaultModels.value.speechProviderId || selectedProviderId.value,
       onResult: (text: string) => {
         if (text) {
           message.value += (message.value ? ' ' : '') + text

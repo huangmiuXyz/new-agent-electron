@@ -175,6 +175,11 @@ export interface PathSelectorField<T> extends BaseField<T> {
   }
 }
 
+export interface CustomField<T> extends BaseField<T> {
+  type: 'custom'
+  render: (data: T) => VNode | null
+}
+
 export type FormField<T> =
   | TextField<T>
   | BooleanField<T>
@@ -187,6 +192,7 @@ export type FormField<T> =
   | ModelSelectorField<T>
   | ColorField<T>
   | PathSelectorField<T>
+  | CustomField<T>
 
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
@@ -229,13 +235,13 @@ const setNestedValue = (obj: any, path: string, value: any) => {
 }
 
 export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
-  
+
   const formData = ref<T>({} as T)
 
-  
+
   const dynamicFieldProps = ref<Record<string, Record<string, any>>>({})
 
-  
+
   const getDefaultValue = (fieldType: string, field: any) => {
     switch (fieldType) {
       case 'boolean':
@@ -260,25 +266,27 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         return '#000000'
       case 'path':
         return ''
+      case 'custom':
+        return null
       default:
         return ''
     }
   }
 
-  
+
   const initializeField = (field: any) => {
     const isNestedField = field.name.includes('.')
     let initialValue
 
     if (isNestedField) {
-      
+
       initialValue = getNestedValue(config.initialData || {}, field.name)
       if (initialValue === undefined) {
         initialValue = getDefaultValue(field.type, field)
       }
       setNestedValue(formData.value, field.name, initialValue)
     } else {
-      
+
       if (
         config.initialData &&
         field.name in config.initialData &&
@@ -292,18 +300,18 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
   }
 
-  
+
   config.fields.forEach(initializeField)
 
-  
+
   const errors = ref<Record<string, string>>({})
 
-  
+
   const validate = () => {
     const newErrors: Record<string, string> = {}
 
     config.fields.forEach((field) => {
-      
+
       if (field.ifShow && !field.ifShow(formData.value)) {
         return
       }
@@ -321,7 +329,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     const newErrors: Record<string, string> = {}
 
     config.fields.forEach((field) => {
-      
+
       if (field.ifShow && !field.ifShow(formData.value)) {
         return
       }
@@ -348,17 +356,17 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
   const setFieldValue = (field: string, value: any) => {
     if (field.includes('.')) {
-      
+
       setNestedValue(formData.value, field, value)
     } else {
-      
+
       formData.value[field] = value
     }
-    
+
     config.onChange?.(field as keyof T, value as T[keyof T], formData.value)
   }
   const setFieldsValue = (data: T) => {
-    
+
     Object.keys(data).forEach((key) => {
       if (key.includes('.')) {
         setNestedValue(formData.value, key, data[key])
@@ -371,10 +379,10 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
   const getFieldValue = (field: string) => {
     if (field.includes('.')) {
-      
+
       return getNestedValue(formData.value, field)
     } else {
-      
+
       return formData.value[field]
     }
   }
@@ -394,7 +402,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     Object.assign(dynamicFieldProps.value[field], props)
   }
 
-  
+
   const FormComponent = defineComponent({
     setup(_, { slots }) {
       return () => {
@@ -406,13 +414,13 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             <div class="form-content">
               <div class="form-wrapper">
                 {config.fields.map((field) => {
-                  
+
                   if (field.ifShow && !field.ifShow(formData.value)) {
                     return null
                   }
 
                   const hasError = errors.value[field.name]
-                  
+
                   const dynamicProps = dynamicFieldProps.value[field.name] || {}
 
                   switch (field.type) {
@@ -697,6 +705,19 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                         </FormItem>
                       )
 
+                    case 'custom':
+                      return (
+                        <FormItem
+                          label={field.label}
+                          error={hasError}
+                          hint={field.hint}
+                          required={field.required}
+                          layout="default"
+                        >
+                          {slots[field.name]?.(formData.value) || field.render(formData.value)}
+                        </FormItem>
+                      )
+
                     default:
                       return null
                   }
@@ -710,7 +731,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
   })
 
-  
+
   if (typeof document !== 'undefined' && !document.getElementById('use-form-styles')) {
     const style = document.createElement('style')
     style.id = 'use-form-styles'
@@ -803,7 +824,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     document.head.appendChild(style)
   }
 
-  
+
   const actions: FormActions<T> = {
     getData,
     setData,

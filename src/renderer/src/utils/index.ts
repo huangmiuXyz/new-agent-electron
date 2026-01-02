@@ -243,6 +243,8 @@ export const getCategoryLabel = (category: string) => {
       return '图像'
     case 'rerank':
       return '重排'
+    case 'speech':
+      return '语音'
     default:
       return '文本'
   }

@@ -81,13 +81,15 @@ const ollamaFormFields = () => {
     ifShow: (provider: Provider) => provider.providerType === 'ollama'
   })) as FormField<Provider>[]
 }
+const { registeredProviders } = storeToRefs(useSettingsStore())
+const registeredPlugin = computed(() => {
+  return registeredProviders.value.find((p) => p.providerId === activeProviderId.value)
+})
+
 const [ProviderForm, formActions] = useForm({
   title: `${activeProvider.value?.name} 设置`,
   showHeader: false,
   fields: [
-    {
-      name: 'models'
-    },
     {
       name: 'apiKey',
       type: 'password',
@@ -125,8 +127,12 @@ const [ProviderForm, formActions] = useForm({
         { value: 'ollama', label: 'Ollama' }
       ]
     },
-    ...ollamaFormFields()
-  ],
+    ...ollamaFormFields(),
+    {
+      name: 'models',
+      type: 'custom'
+    },
+  ] as FormField<Provider>[],
   initialData: activeProvider.value,
   onChange: (_field, _value, data) => {
     if (activeProviderId.value) {
@@ -338,9 +344,42 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
   <!-- 表单视图 -->
   <FormContainer v-if="showForm" header-title="模型提供商">
     <template #content>
-      <ProviderForm>
-        <template #footer>
+      <div v-if="registeredPlugin?.form" class="p-4">
+        <component :is="registeredPlugin.form" />
+      </div>
+      <ProviderForm v-else>
+        <template #models>
           <FormItem label="模型列表">
+            <template #label>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <span>模型列表</span>
+                <Button @click="showAddCustomModelModal" size="sm" type="button" variant="text">
+                  <template #icon>
+                    <Plus />
+                  </template>
+                </Button>
+                <div v-if="showSearch">
+                  <SearchInput searchKey="id" :search-data="activeProvider!.models" @ai-search="setAISearchValue"
+                    ref="searchInputRef" v-model="searchKeyword" @update:model-value="aiSearchModels = []"
+                    placeholder="搜索模型..." size="sm" variant="default" :show-icon="true" :debounce="0"
+                    @blur="!searchKeyword && (showSearch = false)" class="provider-search-input" />
+                </div>
+                <Button v-else type="button" variant="text" size="sm" @click="handleShowSearch">
+                  <template #icon>
+                    <Search />
+                  </template>
+                </Button>
+              </div>
+            </template>
+            <template #tool>
+              <Button @click="refreshModels" size="sm" type="button" variant="text">
+                <template #icon>
+                  <Refresh />
+                </template>
+                刷新模型列表
+              </Button>
+            </template>
+
             <Table :loading="loading" :columns="tableColumns"
               :data="aiSearchModels.length ? aiSearchModels : filteredModels">
               <template #category="{ row }">
@@ -373,35 +412,6 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
                 </Button>
               </template>
             </Table>
-            <template #tool>
-              <Button @click="refreshModels" size="sm" type="button" variant="text">
-                <template #icon>
-                  <Refresh />
-                </template>
-                刷新模型列表
-              </Button>
-            </template>
-            <template #label>
-              <div style="display: flex">
-                <Button @click="showAddCustomModelModal" size="sm" type="button" variant="text">
-                  <template #icon>
-                    <Plus />
-                  </template>
-                  模型列表
-                </Button>
-                <div v-if="showSearch">
-                  <SearchInput searchKey="id" :search-data="activeProvider!.models" @ai-search="setAISearchValue"
-                    ref="searchInputRef" v-model="searchKeyword" @update:model-value="aiSearchModels = []"
-                    placeholder="搜索模型..." size="sm" variant="default" :show-icon="true" :debounce="0"
-                    @blur="!searchKeyword && (showSearch = false)" class="provider-search-input" />
-                </div>
-                <Button v-else type="button" variant="text" size="sm" @click="handleShowSearch">
-                  <template #icon>
-                    <Search />
-                  </template>
-                </Button>
-              </div>
-            </template>
           </FormItem>
         </template>
       </ProviderForm>

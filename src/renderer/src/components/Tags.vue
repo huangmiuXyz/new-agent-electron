@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-type BadgeColor = 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'gray';
+type BadgeColor = 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'gray' | 'cyan';
 
 interface Props {
   tags: string[]
@@ -92,6 +92,13 @@ withDefaults(defineProps<Props>(), {
   color: var(--text-secondary);
   border: 1px solid var(--bg-hover);
 }
+
+.tag-cyan {
+  background-color: rgba(var(--color-cyan-rgb, 56, 240, 240), 0.15);
+  color: var(--color-cyan);
+  border: 1px solid rgba(var(--color-cyan-rgb, 56, 240, 240), 0.15);
+}
+
 
 .empty-placeholder {
   font-size: 12px;

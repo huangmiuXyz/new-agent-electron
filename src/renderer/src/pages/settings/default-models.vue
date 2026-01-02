@@ -12,19 +12,29 @@ const [DefaultModelsForm] = useForm({
             name: 'titleGenerationModel',
             type: 'modelSelector',
             label: '标题生成模型',
-            popupPosition: 'bottom'
+            popupPosition: 'bottom',
+            modelCategory: 'text'
         },
         {
             name: 'translationModel',
             type: 'modelSelector',
             label: '翻译模型',
-            popupPosition: 'bottom'
+            popupPosition: 'bottom',
+            modelCategory: 'text'
         },
         {
             name: 'searchModel',
             type: 'modelSelector',
             label: '搜索模型',
-            popupPosition: 'bottom'
+            popupPosition: 'bottom',
+            modelCategory: 'text'
+        },
+        {
+            name: 'speechModel',
+            type: 'modelSelector',
+            label: '语音引擎模型',
+            popupPosition: 'bottom',
+            modelCategory: 'speech'
         }
     ],
     initialData: {
@@ -39,6 +49,10 @@ const [DefaultModelsForm] = useForm({
         searchModel: {
             modelId: defaultModels.value.searchModelId,
             providerId: defaultModels.value.searchProviderId
+        },
+        speechModel: {
+            modelId: defaultModels.value.speechModelId,
+            providerId: defaultModels.value.speechProviderId
         }
     },
     onChange: (_field, _value, data) => {
@@ -48,7 +62,9 @@ const [DefaultModelsForm] = useForm({
             translationModelId: data.translationModel?.modelId || '',
             translationProviderId: data.translationModel?.providerId || '',
             searchModelId: data.searchModel?.modelId || '',
-            searchProviderId: data.searchModel?.providerId || ''
+            searchProviderId: data.searchModel?.providerId || '',
+            speechModelId: data.speechModel?.modelId || '',
+            speechProviderId: data.speechModel?.providerId || ''
         })
     }
 })

@@ -126,6 +126,57 @@ const plugin: Plugin = {
 
   async install(context) {
     console.log('Vosk Speech Recognition 插件正在执行 install...');
+
+    // 注册 Vosk 提供商
+    const STORAGE_KEY = 'vosk-config';
+    const savedConfig = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+    const [VoskForm] = context.useForm({
+      fields: [
+        {
+          name: 'modelPath',
+          type: 'text',
+          label: '模型路径',
+          placeholder: '留空使用默认内置模型',
+          hint: '自定义 Vosk 模型目录的绝对路径'
+        },
+        {
+          name: 'language',
+          type: 'select',
+          label: '识别语言',
+          options: [
+            { label: '中文 (简体)', value: 'zh-CN' },
+            { label: '英语', value: 'en-US' }
+          ],
+          initialData: 'zh-CN'
+        }
+      ],
+      initialData: {
+        modelPath: savedConfig.modelPath || '',
+        language: savedConfig.language || 'zh-CN'
+      },
+      onChange: (_field: string, _value: any, data: any) => {
+        console.log('Vosk 配置更新:', data);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+    });
+
+    context.registerProvider('vosk-local', {
+      name: 'Vosk 语音引擎 (插件)',
+      form: VoskForm,
+      models: [
+        {
+          id: 'vosk-cn',
+          name: 'Vosk 中文模型',
+          active: true,
+          category: 'speech',
+          created: Date.now(),
+          object: 'model',
+          owned_by: 'vosk-speech-recognition'
+        }
+      ]
+    });
+
     const initModel = async (silent = false) => {
       if (model) return model;
       if (modelLoadingPromise) return modelLoadingPromise;
@@ -189,9 +240,19 @@ const plugin: Plugin = {
       console.error('后台预加载 Vosk 模型失败:', err);
     });
 
-    context.registerHook('speech.stream.start', async (options: { sampleRate: number, onResult?: (text: string) => void, onPartial?: (text: string) => void }) => {
+    context.registerHook('speech.stream.start', async (options: { sampleRate: number, providerId?: string, onResult?: (text: string) => void, onPartial?: (text: string) => void }) => {
       try {
-        const { sampleRate, onResult, onPartial } = options;
+        const { sampleRate, providerId, onResult, onPartial } = options;
+
+        // 检查是否是注册的提供商
+        const registeredProviders = context.getRegisteredProviders();
+        const isRegistered = registeredProviders.some(p => p.providerId === providerId);
+
+        if (!isRegistered) {
+          console.log(`Provider ${providerId} is not registered for Vosk. Skipping.`);
+          return { success: false, skip: true };
+        }
+
         const m = await initModel(false); // 钩子调用时如果还没加载完，显示加载提示
         if (recognizer) {
           recognizer.remove();
@@ -246,7 +307,10 @@ const plugin: Plugin = {
     });
   },
 
-  async uninstall() {
+  async uninstall(context) {
+    // 注销 Vosk 提供商
+    context.unregisterProvider('vosk-local');
+
     if (recognizer) {
       recognizer.remove();
       recognizer = null;

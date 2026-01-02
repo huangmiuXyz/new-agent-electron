@@ -51,9 +51,12 @@ export const useSettingsStore = defineStore(
       translationModelId: '',
       translationProviderId: '',
       searchModelId: '',
-      searchProviderId: ''
+      searchProviderId: '',
+      speechModelId: '',
+      speechProviderId: ''
     })
 
+    const registeredProviders = ref<RegisteredProvider[]>([])
 
     const thinkingMode = ref(false)
 
@@ -67,6 +70,17 @@ export const useSettingsStore = defineStore(
 
     const updateTerminalSettings = (settings: Partial<typeof terminal.value>) => {
       terminal.value = { ...terminal.value, ...settings }
+    }
+
+    const addRegisteredProvider = (provider: RegisteredProvider) => {
+      registeredProviders.value.push(provider)
+    }
+
+    const removeRegisteredProvider = (id: string) => {
+      const index = registeredProviders.value.findIndex((p) => p.id === id)
+      if (index > -1) {
+        registeredProviders.value.splice(index, 1)
+      }
     }
 
     const togglePluginNotification = (pluginName: string, disabled: boolean) => {
@@ -221,10 +235,13 @@ export const useSettingsStore = defineStore(
       loadedPlugins,
       devPluginPaths,
       defaultModels,
+      registeredProviders,
       thinkingMode,
       updateDisplaySettings,
       updateTerminalSettings,
       updateThinkingMode,
+      addRegisteredProvider,
+      removeRegisteredProvider,
       togglePluginNotification,
       updateProvider,
       addModelToProvider,
@@ -250,6 +267,20 @@ export const useSettingsStore = defineStore(
   {
     persist: {
       storage: indexedDBStorage,
+      // 自定义序列化，过滤掉插件注册的提供商
+      serializer: {
+        deserialize: (value) => {
+          return JSON.parse(value)
+        },
+        serialize: (state: any) => {
+          const copy = { ...state }
+          if (copy.providers) {
+            copy.providers = copy.providers.filter((p: any) => !p.pluginName)
+          }
+          delete copy.registeredProviders
+          return JSON.stringify(copy)
+        }
+      },
       afterRestore: async () => {
         const { restorePlugins } = usePlugins()
         restorePlugins()

@@ -1,6 +1,5 @@
-import { markRaw } from 'vue';
-import { useSettingsStore } from '../../stores/settings';
-import { notificationApi } from '../../utils/notifications';
+import { useForm } from '@renderer/composables/useForm';
+
 /**
  * 插件管理器
  * 负责维护插件注册表、命令系统和钩子系统
@@ -61,6 +60,63 @@ export class PluginManager {
       }
       this.pluginBuiltinTools.delete(pluginName);
     }
+
+    // 注销该插件注册的所有提供商
+    const settingsStore = useSettingsStore(this.pinia);
+    const registeredProviders = settingsStore.registeredProviders.filter(
+      (p) => p.pluginName === pluginName
+    );
+
+    for (const provider of registeredProviders) {
+      const providerId = provider.providerId;
+      settingsStore.removeRegisteredProvider(provider.id);
+
+      // 同时从主提供商列表中移除（如果该提供商是由插件注册的）
+      const providerIndex = settingsStore.providers.findIndex((p) => p.id === providerId);
+      if (providerIndex !== -1) {
+        // 检查是否有其他插件也注册了这个提供商
+        const otherPluginRegistered = settingsStore.registeredProviders.some(
+          (p) => p.providerId === providerId && p.pluginName !== pluginName
+        );
+        if (!otherPluginRegistered) {
+          settingsStore.providers.splice(providerIndex, 1);
+
+          // 清理默认模型设置
+          const dm = settingsStore.defaultModels;
+          if (dm.speechProviderId === providerId) {
+            settingsStore.updateDefaultModels({ speechProviderId: '', speechModelId: '' });
+          }
+          if (dm.titleGenerationProviderId === providerId) {
+            settingsStore.updateDefaultModels({
+              titleGenerationProviderId: '',
+              titleGenerationModelId: ''
+            });
+          }
+          if (dm.translationProviderId === providerId) {
+            settingsStore.updateDefaultModels({
+              translationProviderId: '',
+              translationModelId: ''
+            });
+          }
+          if (dm.searchProviderId === providerId) {
+            settingsStore.updateDefaultModels({
+              searchProviderId: '',
+              searchModelId: ''
+            });
+          }
+
+          // 如果是当前选中的提供商，切换
+          if (settingsStore.selectedProviderId === providerId) {
+            if (settingsStore.providers.length > 0) {
+              settingsStore.selectedProviderId = settingsStore.providers[0].id;
+              if (settingsStore.providers[0].models?.length > 0) {
+                settingsStore.selectedModelId = settingsStore.providers[0].models[0].id;
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -75,6 +131,7 @@ export class PluginManager {
       api: window.api,
       pinia: this.pinia,
       basePath,
+      useForm,
       registerCommand: (name: string, handler: Function) => {
         this.registerCommand(pluginName, name, handler);
       },
@@ -133,6 +190,129 @@ export class PluginManager {
       unregisterBuiltinTool: (name: string) => {
         return this.unregisterBuiltinTool(pluginName, name);
       },
+      /**
+       * 注册提供商到当前插件
+       */
+      registerProvider: (
+        providerId: string,
+        options?: { name?: string; form?: any; models?: Model[] }
+      ) => {
+        const settingsStore = useSettingsStore(this.pinia);
+
+        // 确保提供商在 providers 列表中存在，以便用户可以在 UI 中选择它
+        let provider = settingsStore.providers.find((p) => p.id === providerId);
+        if (!provider) {
+          settingsStore.providers.push({
+            id: providerId,
+            name: options?.name || `${pluginName}`,
+            logo: '',
+            baseUrl: '',
+            providerType: 'openai-compatible',
+            models: options?.models || [],
+            pluginName
+          });
+        } else if (options?.models) {
+          // 如果已存在且传入了模型列表，则合并模型
+          const existingModelIds = new Set(provider.models.map((m) => m.id));
+          const newModels = options.models.filter((m) => !existingModelIds.has(m.id));
+          provider.models.push(...newModels);
+        }
+
+        const exists = settingsStore.registeredProviders.find(
+          (p) => p.providerId === providerId && p.pluginName === pluginName
+        );
+
+        // 包装 form 为 markRaw，避免 Vue 对组件实例进行代理
+        const form = options?.form ? markRaw(options.form) : undefined;
+
+        if (!exists) {
+          settingsStore.addRegisteredProvider({
+            id: `${pluginName}-${providerId}`,
+            name: options?.name || `${pluginName}`,
+            providerId,
+            pluginName,
+            form,
+            models: options?.models
+          });
+        } else {
+          // 如果已存在，则替换对象以触发响应式更新
+          const index = settingsStore.registeredProviders.findIndex(
+            (p) => p.providerId === providerId && p.pluginName === pluginName
+          );
+          if (index !== -1) {
+            const updatedProviders = [...settingsStore.registeredProviders];
+            updatedProviders[index] = {
+              ...exists,
+              form: form || exists.form,
+              models: options?.models || exists.models,
+              name: options?.name || exists.name
+            };
+            settingsStore.registeredProviders = updatedProviders;
+          }
+        }
+      },
+      unregisterProvider: (providerId: string) => {
+        const settingsStore = useSettingsStore(this.pinia);
+        const registered = settingsStore.registeredProviders.find(
+          (p) => p.providerId === providerId && p.pluginName === pluginName
+        );
+        if (registered) {
+          settingsStore.removeRegisteredProvider(registered.id);
+
+          // 同时从主提供商列表中移除（如果该提供商是由插件注册的）
+          const providerIndex = settingsStore.providers.findIndex((p) => p.id === providerId);
+          if (providerIndex !== -1) {
+            // 检查是否有其他插件也注册了这个提供商（理论上不应该，但为了安全）
+            const otherPluginRegistered = settingsStore.registeredProviders.some(
+              (p) => p.providerId === providerId && p.pluginName !== pluginName
+            );
+            if (!otherPluginRegistered) {
+              settingsStore.providers.splice(providerIndex, 1);
+
+              // 如果该提供商被设为默认模型，需要清理
+              const dm = settingsStore.defaultModels;
+              if (dm.speechProviderId === providerId) {
+                settingsStore.updateDefaultModels({ speechProviderId: '', speechModelId: '' });
+              }
+              if (dm.titleGenerationProviderId === providerId) {
+                settingsStore.updateDefaultModels({
+                  titleGenerationProviderId: '',
+                  titleGenerationModelId: ''
+                });
+              }
+              if (dm.translationProviderId === providerId) {
+                settingsStore.updateDefaultModels({
+                  translationProviderId: '',
+                  translationModelId: ''
+                });
+              }
+              if (dm.searchProviderId === providerId) {
+                settingsStore.updateDefaultModels({
+                  searchProviderId: '',
+                  searchModelId: ''
+                });
+              }
+
+              // 如果是当前选中的提供商，切换到第一个
+              if (settingsStore.selectedProviderId === providerId) {
+                if (settingsStore.providers.length > 0) {
+                  settingsStore.selectedProviderId = settingsStore.providers[0].id;
+                  if (settingsStore.providers[0].models?.length > 0) {
+                    settingsStore.selectedModelId = settingsStore.providers[0].models[0].id;
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      /**
+       * 获取当前插件已注册的提供商
+       */
+      getRegisteredProviders: () => {
+        const settingsStore = useSettingsStore(this.pinia);
+        return settingsStore.registeredProviders.filter((p) => p.pluginName === pluginName);
+      }
     };
   }
 

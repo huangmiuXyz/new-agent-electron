@@ -26,6 +26,7 @@ declare global {
     baseUrl: string
     providerType: providerType
     models: Model[]
+    pluginName?: string // 标记是否由插件注册
   }
   // 默认模型设置接口
   interface DefaultModelsSettings {
@@ -33,6 +34,19 @@ declare global {
     titleGenerationProviderId: string
     translationModelId: string
     translationProviderId: string
+    searchModelId: string
+    searchProviderId: string
+    speechModelId: string
+    speechProviderId: string
+  }
+
+  interface RegisteredProvider {
+    id: string
+    name: string
+    providerId: string
+    pluginName: string
+    form?: any
+    models?: Model[]
   }
 
   // 设置状态接口
@@ -43,6 +57,7 @@ declare global {
     activeProviderId: string
     mcpServers: ClientConfig
     defaultModels: DefaultModelsSettings
+    registeredProviders: RegisteredProvider[]
   }
 
   // 加载的插件配置
