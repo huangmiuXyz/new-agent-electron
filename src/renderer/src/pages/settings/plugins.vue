@@ -231,11 +231,11 @@ const handleUninstallPlugin = async (pluginName: string) => {
 
         <!-- 注册钩子 -->
         <FormItem v-if="activePlugin.type === 'loaded' && getPluginHooks(activePlugin.name).length > 0" label="注册钩子">
-          <Table :data="getPluginHooks(activePlugin.name)" :columns="[
-            { key: 'name', label: '钩子名称', width: '3fr' },
-            { key: 'count', label: '注册数量', width: '1fr' }
-          ]">
-          </Table>
+          <div class="tool-tags">
+            <span v-for="hook in getPluginHooks(activePlugin.name)" :key="hook" class="tool-tag">
+              {{ hook }}
+            </span>
+          </div>
         </FormItem>
 
         <!-- 内置工具 -->

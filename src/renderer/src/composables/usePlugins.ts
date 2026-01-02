@@ -310,18 +310,15 @@ export function usePlugins() {
   /**
    * 获取插件的钩子列表
    */
-  const getPluginHooks = (pluginName: string): any[] => {
+  const getPluginHooks = (pluginName: string): string[] => {
     if (!pluginLoader) return [];
     const allHooks = pluginLoader.getPluginManager().getAllHooks();
-    const pluginHooks: any[] = [];
+    const pluginHooks: string[] = [];
 
     for (const [hookName, hooks] of allHooks.entries()) {
       const filtered = hooks.filter((h: any) => h.pluginName === pluginName);
       if (filtered.length > 0) {
-        pluginHooks.push({
-          name: hookName,
-          count: filtered.length
-        });
+        pluginHooks.push(hookName);
       }
     }
 
