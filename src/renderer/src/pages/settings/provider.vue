@@ -345,7 +345,6 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
   <!-- 表单视图 -->
   <FormContainer v-if="showForm" header-title="模型提供商">
     <template #content>
-      {{ activeProviderId }}
       <div v-if="registeredPlugin?.form" class="p-4">
         <component :is="registeredPlugin.form" />
       </div>
