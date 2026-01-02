@@ -162,7 +162,7 @@ const plugin: Plugin = {
     })
 
     context.registerProvider('vosk-local', {
-      name: 'Vosk 语音引擎 (插件)',
+      name: 'Vosk',
       form: VoskForm,
       models: [
         {
