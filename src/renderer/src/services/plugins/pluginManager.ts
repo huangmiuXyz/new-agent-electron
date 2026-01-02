@@ -1,5 +1,5 @@
 import { useForm } from '@renderer/composables/useForm';
-
+import localforage from 'localforage'
 /**
  * 插件管理器
  * 负责维护插件注册表、命令系统和钩子系统
@@ -135,7 +135,9 @@ export class PluginManager {
       registerCommand: (name: string, handler: Function) => {
         this.registerCommand(pluginName, name, handler);
       },
-      indexedDBStorage: indexedDBStorage,
+      localforage: localforage.createInstance({
+        name: pluginName
+      }),
       registerHook: (name: string, handler: Function) => {
         this.registerHook(pluginName, name, handler);
       },

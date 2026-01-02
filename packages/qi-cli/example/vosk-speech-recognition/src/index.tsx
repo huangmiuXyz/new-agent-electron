@@ -133,10 +133,9 @@ const plugin: Plugin = {
 
   async install(context) {
     console.log('Vosk Speech Recognition 插件正在执行 install...')
-
     // 注册 Vosk 提供商
     const STORAGE_KEY = 'vosk-config'
-    const savedConfig = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+    const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
 
     const [VoskForm, { getFieldValue }] = context.useForm({
       fields: [
@@ -158,7 +157,7 @@ const plugin: Plugin = {
       },
       onChange: (_field: string, _value: any, data: any) => {
         console.log('Vosk 配置更新:', data)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+        context.localforage.setItem(STORAGE_KEY, JSON.stringify(data))
       }
     })
 
@@ -204,7 +203,7 @@ const plugin: Plugin = {
           const fullPath = context.api.path.join(context.basePath || '', MODEL_NAME)
           console.log('Vosk fullPath:', fullPath || modelPath)
 
-          const normalizedPath = (fullPath || modelPath).replace(/\\/g, '/')
+          const normalizedPath = (modelPath || fullPath).replace(/\\/g, '/')
           const modelUrl = `plugin-resource://${normalizedPath}`
 
           console.log('正在加载 Vosk 模型 (固定地址):', modelUrl)

@@ -172,6 +172,11 @@ export interface PluginContext {
   /** 获取 store */
   getStore: (storeName: string) => Promise<any>;
   /** 通知接口 */
+  localforage: {
+      getItem: (key: string) => Promise<any>;
+      setItem: (key: string, value: any) => Promise<void>;
+      removeItem: (key: string) => Promise<void>;
+  };
   notification: {
     info: (content: string, title?: string, duration?: number) => () => void;
     success: (content: string, title?: string, duration?: number) => () => void;

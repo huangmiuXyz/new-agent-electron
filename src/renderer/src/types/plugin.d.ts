@@ -34,7 +34,11 @@ declare global {
     /** 注册钩子 */
     registerHook: (name: string, handler: Function) => void;
     /** 索引数据库存储 */
-    indexedDBStorage: typeof indexedDBStorage;
+    localforage: {
+      getItem: (key: string) => Promise<any>;
+      setItem: (key: string, value: any) => Promise<void>;
+      removeItem: (key: string) => Promise<void>;
+    }
     /** 获取 store */
     getStore: (storeName: string) => Promise<any>;
     /** 通知接口 */
@@ -59,9 +63,9 @@ declare global {
     unregisterBuiltinTool: (name: string) => boolean;
     /** 注册提供商到当前插件 */
     registerProvider: (providerId: string, options?: {
-        name?: string;
-        form?: any;
-        models?: Model[];
+      name?: string;
+      form?: any;
+      models?: Model[];
     }) => void;
     /** 获取 useForm 工具 */
     useForm: any;
