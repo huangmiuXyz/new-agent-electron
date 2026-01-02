@@ -218,7 +218,6 @@ export class PluginManager {
             models: options?.models
           });
         } else {
-          // 如果已存在，则替换对象以触发响应式更新
           const index = settingsStore.registeredProviders.findIndex(
             (p) => p.providerId === providerId && p.pluginName === pluginName
           );
