@@ -308,6 +308,50 @@ export function usePlugins() {
   };
 
   /**
+   * 获取插件的钩子列表
+   */
+  const getPluginHooks = (pluginName: string): any[] => {
+    if (!pluginLoader) return [];
+    const allHooks = pluginLoader.getPluginManager().getAllHooks();
+    const pluginHooks: any[] = [];
+
+    for (const [hookName, hooks] of allHooks.entries()) {
+      const filtered = hooks.filter((h: any) => h.pluginName === pluginName);
+      if (filtered.length > 0) {
+        pluginHooks.push({
+          name: hookName,
+          count: filtered.length
+        });
+      }
+    }
+
+    return pluginHooks;
+  };
+
+  /**
+   * 获取插件的内置工具列表
+   */
+  const getPluginBuiltinTools = (pluginName: string): string[] => {
+    if (!pluginLoader) return [];
+    // 假设 PluginManager 有个方法可以按插件获取工具
+    // 根据 PluginManager.ts, 有个 pluginBuiltinTools Map
+    // 但是没有公开的 getter，我可能需要加一个或者通过 getBuiltinTools 过滤
+    const manager = pluginLoader.getPluginManager();
+    // 既然 pluginBuiltinTools 是私有的，我们可以通过查看哪些工具被这个插件注册了来获取
+    // 或者我们直接在 PluginManager 中加一个方法
+    // 暂时先通过 getBuiltinTools 过滤，但 builtinTools 没有存 pluginName
+    // 让我们去 PluginManager.ts 增加一个方法
+    return manager.getPluginBuiltinToolNames(pluginName);
+  };
+
+  /**
+   * 获取插件的提供商列表
+   */
+  const getPluginProviders = (pluginName: string): any[] => {
+    return settingsStore.registeredProviders.filter((p) => p.pluginName === pluginName);
+  };
+
+  /**
    * 选择插件
    */
   const selectPlugin = (pluginId: string): void => {
@@ -348,6 +392,9 @@ export function usePlugins() {
     getStatusText,
     getStatusColor,
     getPluginCommands,
+    getPluginHooks,
+    getPluginBuiltinTools,
+    getPluginProviders,
     selectPlugin,
     pluginLoader,
     triggerHook,

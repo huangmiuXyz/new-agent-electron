@@ -557,6 +557,16 @@ export class PluginManager {
   }
 
   /**
+   * 获取插件注册的内置工具名称
+   * @param pluginName 插件名称
+   * @returns 工具名称数组
+   */
+  getPluginBuiltinToolNames(pluginName: string): string[] {
+    const toolNames = this.pluginBuiltinTools.get(pluginName);
+    return toolNames ? Array.from(toolNames) : [];
+  }
+
+  /**
    * 注销内置工具
    * @param pluginName 插件名称
    * @param name 工具名称

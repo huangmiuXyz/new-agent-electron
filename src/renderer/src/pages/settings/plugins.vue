@@ -28,6 +28,9 @@ const {
   getStatusText,
   getStatusColor,
   getPluginCommands,
+  getPluginHooks,
+  getPluginBuiltinTools,
+  getPluginProviders,
   selectPlugin,
   togglePluginNotification,
   isPluginNotificationDisabled
@@ -206,7 +209,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
           </Card>
         </FormItem>
         <!-- 插件命令 -->
-        <FormItem v-if="activePlugin.type === 'loaded'" label="可用命令">
+        <FormItem v-if="activePlugin.type === 'loaded' && getPluginCommands(activePlugin.name).length > 0" label="可用命令">
           <Table :data="getPluginCommands(activePlugin.name)" :columns="[
             { key: 'name', label: '命令名称', width: '2fr' },
             { key: 'description', label: '描述', width: '2fr' },
@@ -222,6 +225,37 @@ const handleUninstallPlugin = async (pluginName: string) => {
                 </template>
                 执行
               </Button>
+            </template>
+          </Table>
+        </FormItem>
+
+        <!-- 注册钩子 -->
+        <FormItem v-if="activePlugin.type === 'loaded' && getPluginHooks(activePlugin.name).length > 0" label="注册钩子">
+          <Table :data="getPluginHooks(activePlugin.name)" :columns="[
+            { key: 'name', label: '钩子名称', width: '3fr' },
+            { key: 'count', label: '注册数量', width: '1fr' }
+          ]">
+          </Table>
+        </FormItem>
+
+        <!-- 内置工具 -->
+        <FormItem v-if="activePlugin.type === 'loaded' && getPluginBuiltinTools(activePlugin.name).length > 0" label="内置工具">
+          <div class="tool-tags">
+            <span v-for="tool in getPluginBuiltinTools(activePlugin.name)" :key="tool" class="tool-tag">
+              {{ tool }}
+            </span>
+          </div>
+        </FormItem>
+
+        <!-- 模型提供商 -->
+        <FormItem v-if="activePlugin.type === 'loaded' && getPluginProviders(activePlugin.name).length > 0" label="模型提供商">
+          <Table :data="getPluginProviders(activePlugin.name)" :columns="[
+            { key: 'name', label: '提供商名称', width: '2fr' },
+            { key: 'id', label: 'ID', width: '2fr' },
+            { key: 'models', label: '模型数量', width: '1fr' }
+          ]">
+            <template #models="{ row }">
+              {{ row.models?.length || 0 }}
             </template>
           </Table>
         </FormItem>
@@ -375,5 +409,20 @@ const handleUninstallPlugin = async (pluginName: string) => {
 .empty-state p {
   font-size: 14px;
   margin: 0;
+}
+
+.tool-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tool-tag {
+  padding: 4px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
 }
 </style>
