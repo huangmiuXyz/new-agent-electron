@@ -267,20 +267,20 @@ export const useSettingsStore = defineStore(
   {
     persist: {
       storage: indexedDBStorage,
-      // 自定义序列化，过滤掉插件注册的提供商
-      serializer: {
-        deserialize: (value) => {
-          return JSON.parse(value)
-        },
-        serialize: (state: any) => {
-          const copy = { ...state }
-          if (copy.providers) {
-            copy.providers = copy.providers.filter((p: any) => !p.pluginName)
-          }
-          delete copy.registeredProviders
-          return JSON.stringify(copy)
-        }
-      },
+      paths: [
+        'display',
+        'terminal',
+        'providers',
+        'mcpServers',
+        'loadedPlugins',
+        'devPluginPaths',
+        'defaultModels',
+        'thinkingMode',
+        'selectedModelId',
+        'selectedProviderId',
+        'currentSelectedProvider',
+        'currentSelectedModel'
+      ],
       afterRestore: async () => {
         const { restorePlugins } = usePlugins()
         restorePlugins()
