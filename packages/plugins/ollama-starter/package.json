@@ -1,0 +1,16 @@
+{
+  "name": "ollama-starter",
+  "version": "1.0.0",
+  "description": "ollama-starter 插件",
+  "author": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "build:watch": "vite build --watch"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^5.0.0"
+  }
+}

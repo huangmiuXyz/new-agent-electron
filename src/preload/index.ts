@@ -7,7 +7,7 @@ import path from 'path'
 import mime from 'mime-types'
 import url from 'url'
 import { app } from '@electron/remote'
-import { exec } from 'child_process'
+import { exec, spawn } from 'child_process'
 import os from 'os'
 
 
@@ -64,6 +64,7 @@ export const api = {
     search: (options: any) => electronAPI.ipcRenderer.invoke('sqlite:search', options)
   },
   exec,
+  spawn,
   os,
   watch: (path: string, callback: (event: string, filename: string) => void) => {
     const watcher = fs.watch(path, { recursive: true }, callback)

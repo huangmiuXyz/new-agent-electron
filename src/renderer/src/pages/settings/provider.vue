@@ -1,5 +1,20 @@
 <script setup lang="tsx">
+import { computed, onMounted, ref } from 'vue'
+import { useLocalStorage } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
+import { useSettingsStore } from '@renderer/stores/settings'
+import { useIcon } from '@renderer/composables/useIcon'
+import { useModal } from '@renderer/composables/useModal'
+import { useForm, FormField } from '@renderer/composables/useForm'
+import { usePlugins } from '@renderer/composables/usePlugins'
+import Button from '@renderer/components/Button.vue'
+import Input from '@renderer/components/Input.vue'
+import Select from '@renderer/components/Select.vue'
+import Table from '@renderer/components/Table.vue'
+import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
+import ModelSelector from '@renderer/components/ModelSelector.vue'
 import { FormItem } from '@renderer/composables/useForm'
+
 const { getAllProviders, providers } = storeToRefs(useSettingsStore())
 const { updateProvider, addModelToProvider, deleteModelFromProvider, resetProviderBaseUrl } =
   useSettingsStore()
@@ -12,6 +27,14 @@ const { Refresh, Plus, Search, Edit, Delete }: any = useIcon([
   'Delete'
 ])
 const { confirm } = useModal()
+const { triggerHook } = usePlugins()
+
+const pluginFields = ref<FormField<Provider>[]>([])
+
+onMounted(async () => {
+  const results = await triggerHook('provider:form-fields')
+  pluginFields.value = results.flat().filter(Boolean)
+})
 
 
 const setActiveProvider = (providerId: string) => {
@@ -70,18 +93,7 @@ const handleResetBaseUrl = async () => {
     }
   }
 }
-const ollamaFormFields = () => {
-  return [
-    {
-      name: 'autoStartOllama',
-      type: 'boolean',
-      label: '自动启动'
-    }
-  ].map((e) => ({
-    ...e,
-    ifShow: (provider: Provider) => provider.providerType === 'ollama'
-  })) as FormField<Provider>[]
-}
+
 const { registeredProviders } = storeToRefs(useSettingsStore())
 const registeredPlugin = computed(() => {
   return registeredProviders.value.find((p) => p.providerId === activeProviderId.value)
@@ -90,7 +102,7 @@ const registeredPlugin = computed(() => {
 const [ProviderForm, formActions] = useForm({
   title: `${activeProvider.value?.name} 设置`,
   showHeader: false,
-  fields: [
+  fields: computed(() => [
     {
       name: 'apiKey',
       type: 'password',
@@ -128,12 +140,12 @@ const [ProviderForm, formActions] = useForm({
         { value: 'ollama', label: 'Ollama' }
       ]
     },
-    ...ollamaFormFields(),
+    ...pluginFields.value,
     {
       name: 'models',
       type: 'custom'
-    },
-  ] as FormField<Provider>[],
+    }
+  ] as FormField<Provider>[]),
   initialData: activeProvider.value,
   onChange: (_field, _value, data) => {
     if (activeProviderId.value) {

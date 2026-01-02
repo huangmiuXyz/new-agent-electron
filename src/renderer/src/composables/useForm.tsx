@@ -9,7 +9,7 @@ import ModelSelector from '@renderer/components/ModelSelector.vue'
 import ColorPicker from '@renderer/components/ColorPicker.vue'
 import PathSelector from '@renderer/components/PathSelector.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
-import { VNode } from 'vue'
+import { VNode, MaybeRefOrGetter, toValue } from 'vue'
 
 export const FormItem = defineComponent({
   props: {
@@ -197,7 +197,7 @@ export type FormField<T> =
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
   showHeader?: boolean
-  fields: FormField<T>[]
+  fields: MaybeRefOrGetter<FormField<T>[]>
   initialData?: T
   onSubmit?: (data: T) => void
   onReset?: () => void
@@ -274,19 +274,19 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   }
 
 
+  const fields = computed(() => toValue(config.fields))
+
   const initializeField = (field: any) => {
     const isNestedField = field.name.includes('.')
     let initialValue
 
     if (isNestedField) {
-
       initialValue = getNestedValue(config.initialData || {}, field.name)
       if (initialValue === undefined) {
         initialValue = getDefaultValue(field.type, field)
       }
       setNestedValue(formData.value, field.name, initialValue)
     } else {
-
       if (
         config.initialData &&
         field.name in config.initialData &&
@@ -300,8 +300,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
   }
 
-
-  config.fields.forEach(initializeField)
+  fields.value.forEach(initializeField)
 
 
   const errors = ref<Record<string, string>>({})
@@ -310,8 +309,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   const validate = () => {
     const newErrors: Record<string, string> = {}
 
-    config.fields.forEach((field) => {
-
+    fields.value.forEach((field) => {
       if (field.ifShow && !field.ifShow(formData.value)) {
         return
       }
@@ -328,8 +326,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   const submit = () => {
     const newErrors: Record<string, string> = {}
 
-    config.fields.forEach((field) => {
-
+    fields.value.forEach((field) => {
       if (field.ifShow && !field.ifShow(formData.value)) {
         return
       }
@@ -349,7 +346,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   }
 
   const reset = () => {
-    config.fields.forEach(initializeField)
+    fields.value.forEach(initializeField)
     errors.value = {}
     config.onReset?.()
   }
@@ -413,8 +410,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             {hasHeader && <header class="form-header">{config.title}</header>}
             <div class="form-content">
               <div class="form-wrapper">
-                {config.fields.map((field) => {
-
+                {fields.value.map((field) => {
                   if (field.ifShow && !field.ifShow(formData.value)) {
                     return null
                   }

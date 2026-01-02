@@ -21,7 +21,6 @@ type Tools = Awaited<ReturnType<MCPClient['tools']>>
 
 interface aiServiceResult {
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
-  startOllama: () => void
 }
 
 export const aiServices = (): aiServiceResult => {
@@ -93,28 +92,8 @@ export const aiServices = (): aiServiceResult => {
 
     return toolsCache
   }
-  const startOllama = () => {
-    const platform = os.platform()
-    if (platform === 'darwin') {
-      spawn('open', ['-a', 'Ollama'], {
-        detached: true,
-        stdio: 'ignore'
-      })
-    } else if (platform === 'win32') {
-      spawn('cmd', ['/c', 'start', '', 'Ollama'], {
-        detached: true,
-        stdio: 'ignore'
-      })
-    } else {
-      spawn('ollama', ['serve'], {
-        detached: true,
-        stdio: 'ignore'
-      })
-    }
-  }
 
   return {
-    list_tools,
-    startOllama
+    list_tools
   }
 }

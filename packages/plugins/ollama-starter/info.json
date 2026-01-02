@@ -1,0 +1,8 @@
+{
+  "name": "ollama-starter",
+  "version": "1.0.0",
+  "description": "ollama-starter 插件",
+  "author": "",
+  "main": "index.js",
+  "extraAssets": []
+}
