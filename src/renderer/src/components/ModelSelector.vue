@@ -100,7 +100,7 @@ const handleModelSelect = (id: string) => {
     <template #trigger>
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
         <div class="model-btn-content">
-          <Image v-if="selectedModelId" style="width: 10px; border-radius: 2px" :src="currentSelectedProvider?.logo"
+          <Image v-if="selectedModelId && currentSelectedProvider?.logo" style="width: 10px; border-radius: 2px" :src="currentSelectedProvider?.logo"
             alt="" />
           <span>{{ currentModelLabel }}</span>
         </div>
