@@ -204,7 +204,7 @@ const plugin: Plugin = {
           const fullPath = context.api.path.join(context.basePath || '', MODEL_NAME)
           console.log('Vosk fullPath:', fullPath || modelPath)
 
-          const normalizedPath = fullPath.replace(/\\/g, '/')
+          const normalizedPath = (fullPath || modelPath).replace(/\\/g, '/')
           const modelUrl = `plugin-resource://${normalizedPath}`
 
           console.log('正在加载 Vosk 模型 (固定地址):', modelUrl)
