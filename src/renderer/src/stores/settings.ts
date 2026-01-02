@@ -57,7 +57,9 @@ export const useSettingsStore = defineStore(
     })
 
     const registeredProviders = ref<RegisteredProvider[]>([])
-
+    const getAllProviders = computed(() => {
+      return [...providers.value, ...registeredProviders.value]
+    })
     const thinkingMode = ref(false)
 
     const updateThinkingMode = (mode: boolean) => {
@@ -261,7 +263,8 @@ export const useSettingsStore = defineStore(
       getTitleGenerationModel,
       getTranslationModel,
       getValidTools,
-      resetProviderBaseUrl
+      resetProviderBaseUrl,
+      getAllProviders
     }
   },
   {

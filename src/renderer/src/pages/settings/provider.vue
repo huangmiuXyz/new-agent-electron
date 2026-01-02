@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { FormItem } from '@renderer/composables/useForm'
-const { providers } = storeToRefs(useSettingsStore())
+const { getAllProviders, providers } = storeToRefs(useSettingsStore())
 const { updateProvider, addModelToProvider, deleteModelFromProvider, resetProviderBaseUrl } =
   useSettingsStore()
 
@@ -16,8 +16,8 @@ const { confirm } = useModal()
 
 const setActiveProvider = (providerId: string) => {
   activeProviderId.value = providerId
-  const provider = providers.value.find((p) => p.id === providerId)
-  formActions.setData(provider!)
+  const provider = getAllProviders.value.find((p) => p.id === providerId)
+  formActions.setData(provider! as Provider)
 }
 const activeProviderId = useLocalStorage<string>('activeProviderId', 'OpenAI')
 
