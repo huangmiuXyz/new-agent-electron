@@ -135,6 +135,7 @@ export class PluginManager {
       registerCommand: (name: string, handler: Function) => {
         this.registerCommand(pluginName, name, handler);
       },
+      indexedDBStorage: indexedDBStorage,
       registerHook: (name: string, handler: Function) => {
         this.registerHook(pluginName, name, handler);
       },

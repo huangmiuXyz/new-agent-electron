@@ -33,6 +33,8 @@ declare global {
     registerCommand: (name: string, handler: Function) => void;
     /** 注册钩子 */
     registerHook: (name: string, handler: Function) => void;
+    /** 索引数据库存储 */
+    indexedDBStorage: typeof indexedDBStorage;
     /** 获取 store */
     getStore: (storeName: string) => Promise<any>;
     /** 通知接口 */
