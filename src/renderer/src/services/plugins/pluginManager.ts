@@ -206,7 +206,6 @@ export class PluginManager {
           (p) => p.providerId === providerId && p.pluginName === pluginName
         );
 
-        // 包装 form 为 markRaw，避免 Vue 对组件实例进行代理
         const form = options?.form ? markRaw(options.form) : undefined;
 
         if (!exists) {
