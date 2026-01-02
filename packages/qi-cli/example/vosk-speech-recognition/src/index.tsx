@@ -140,16 +140,6 @@ const plugin: Plugin = {
           placeholder: '留空使用默认内置模型',
           hint: '自定义 Vosk 模型目录的绝对路径'
         },
-        {
-          name: 'language',
-          type: 'select',
-          label: '识别语言',
-          options: [
-            { label: '中文 (简体)', value: 'zh-CN' },
-            { label: '英语', value: 'en-US' }
-          ],
-          initialData: 'zh-CN'
-        }
       ],
       initialData: {
         modelPath: savedConfig.modelPath || '',
