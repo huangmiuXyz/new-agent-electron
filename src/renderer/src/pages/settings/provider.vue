@@ -17,6 +17,7 @@ const { confirm } = useModal()
 const setActiveProvider = (providerId: string) => {
   activeProviderId.value = providerId
   const provider = getAllProviders.value.find((p) => p.id === providerId)
+  if (provider?.pluginName) return
   formActions.setData(provider! as Provider)
 }
 const activeProviderId = useLocalStorage<string>('activeProviderId', 'OpenAI')
@@ -338,12 +339,13 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
 <template>
   <!-- 列表视图 -->
   <ListContainer v-if="showList">
-    <List title="提供商" :items="providers" :active-id="activeProviderId" @select="selectProvider" />
+    <List title="提供商" :items="getAllProviders" :active-id="activeProviderId" @select="selectProvider" />
   </ListContainer>
 
   <!-- 表单视图 -->
   <FormContainer v-if="showForm" header-title="模型提供商">
     <template #content>
+      {{ activeProviderId }}
       <div v-if="registeredPlugin?.form" class="p-4">
         <component :is="registeredPlugin.form" />
       </div>

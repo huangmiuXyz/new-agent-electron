@@ -210,7 +210,7 @@ export class PluginManager {
 
         if (!exists) {
           settingsStore.addRegisteredProvider({
-            id: `${pluginName}-${providerId}`,
+            id: providerId,
             name: options?.name || `${pluginName}`,
             providerId,
             pluginName,
