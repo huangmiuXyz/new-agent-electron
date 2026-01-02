@@ -199,7 +199,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
             <div class="setting-item">
               <div class="setting-info">
                 <div class="setting-title">禁用插件通知</div>
-                <div class="setting-desc">开启后，该插件将不再显示任何弹窗或状态栏通知</div>
+                <div class="setting-desc">开启后，该插件将不再显示任何弹窗</div>
               </div>
               <Switch v-model="notificationDisabled" />
             </div>

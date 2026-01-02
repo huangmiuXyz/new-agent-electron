@@ -116,9 +116,6 @@ export class PluginManager {
           return notificationApi.loading(content, title, duration);
         },
         status: (id: string, text: string, options?: any) => {
-          const settingsStore = useSettingsStore(this.pinia);
-          const pluginConfig = settingsStore.loadedPlugins.find(p => p.name === pluginName);
-          if (pluginConfig?.notificationsDisabled) return;
           notificationApi.status(id, text, options);
         },
         removeStatus: (id: string) => {
