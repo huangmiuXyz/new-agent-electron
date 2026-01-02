@@ -33,13 +33,13 @@ const getIcon = (type: string) => {
 const getIconColor = (type: string) => {
   switch (type) {
     case 'success':
-      return '#10B981'
+      return 'var(--color-success)'
     case 'error':
-      return '#EF4444'
+      return 'var(--color-danger)'
     case 'warning':
-      return '#F59E0B'
+      return 'var(--color-warning)'
     case 'info':
-      return '#3B82F6'
+      return 'var(--color-info)'
     default:
       return 'var(--text-secondary)'
   }
@@ -128,7 +128,11 @@ const formatTime = (timestamp: number) => {
   display: flex;
   flex-direction: column;
   z-index: 1000;
-  box-shadow: -10px 0 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
+}
+
+.dark-mode .notification-panel {
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.4);
 }
 
 .panel-header {

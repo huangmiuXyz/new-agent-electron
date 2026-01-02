@@ -46,13 +46,13 @@ if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
         bottom: 24px;
         right: 24px;
         padding: 14px 16px;
-        background: #ffffff;
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 4px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-xl);
         display: flex;
         gap: 12px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: var(--font-stack);
         pointer-events: auto;
         width: 360px;
         box-sizing: border-box;
@@ -70,13 +70,13 @@ if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
     .nexus-notification-title {
         font-size: 13px;
         font-weight: 600;
-        color: #111827;
+        color: var(--text-primary);
         line-height: 1.4;
     }
 
     .nexus-notification-message {
         font-size: 13px;
-        color: #4b5563;
+        color: var(--text-secondary);
         line-height: 1.5;
         word-break: break-word;
     }
@@ -89,16 +89,16 @@ if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        color: #9ca3af;
-        border-radius: 4px;
+        color: var(--text-tertiary);
+        border-radius: var(--radius-sm);
         transition: all 0.2s;
         margin-top: -2px;
         margin-right: -4px;
     }
 
     .nexus-notification-close:hover {
-        background: rgba(0, 0, 0, 0.05);
-        color: #374151;
+        background: var(--bg-hover);
+        color: var(--text-primary);
     }
 
     .nexus-notification-icon {
@@ -164,24 +164,24 @@ const NotificationComponent = defineComponent({
               switch (notif.type) {
                 case 'success':
                   iconPath = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'
-                  iconColor = '#10B981'
+                  iconColor = 'var(--color-success)'
                   break
                 case 'error':
                   iconPath = 'M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z'
-                  iconColor = '#EF4444'
+                  iconColor = 'var(--color-danger)'
                   break
                 case 'warning':
                   iconPath = 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'
-                  iconColor = '#F59E0B'
+                  iconColor = 'var(--color-warning)'
                   break
                 case 'loading':
                   iconPath = 'M12 4V2m0 20v-2m8-8h2M2 12h2m13.657-5.657l1.414-1.414m-14.142 14.142l1.414-1.414M17.657 17.657l1.414 1.414M4.343 4.343l1.414 1.414'
-                  iconColor = '#6B7280'
+                  iconColor = 'var(--text-secondary)'
                   extraClass = 'nexus-spin'
                   break
                 default:
                   iconPath = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'
-                  iconColor = '#3B82F6'
+                  iconColor = 'var(--color-info)'
               }
 
               const index = notifications.value.findIndex((n) => n.id === notif.id)
