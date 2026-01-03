@@ -143,6 +143,8 @@ const plugin: Plugin = {
 
   async install(context) {
     console.log('Vosk Speech Recognition 插件正在执行 install...')
+    // 获取 settingsStore
+    const settingsStore = await context.getStore('settings')
     // 注册 Vosk 提供商
     const STORAGE_KEY = 'vosk-config'
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
@@ -168,6 +170,17 @@ const plugin: Plugin = {
                 })
                 setData(newData)
                 setFieldValue('models', newData)
+
+                // 同步到 settingsStore
+                const index = settingsStore.registeredProviders.findIndex(
+                  (p: any) => p.id === 'vosk-local'
+                )
+                if (index !== -1) {
+                  const provider = settingsStore.registeredProviders[index]
+                  const updatedProviders = [...settingsStore.registeredProviders]
+                  updatedProviders[index] = { ...provider, models: newData }
+                  settingsStore.registeredProviders = updatedProviders
+                }
               }
             })
         },
@@ -185,6 +198,17 @@ const plugin: Plugin = {
                   const newData = currentData.filter((item: any) => item.id !== row.id)
                   setData(newData)
                   setFieldValue('models', newData)
+
+                  // 同步到 settingsStore
+                  const index = settingsStore.registeredProviders.findIndex(
+                    (p: any) => p.id === 'vosk-local'
+                  )
+                  if (index !== -1) {
+                    const provider = settingsStore.registeredProviders[index]
+                    const updatedProviders = [...settingsStore.registeredProviders]
+                    updatedProviders[index] = { ...provider, models: newData }
+                    settingsStore.registeredProviders = updatedProviders
+                  }
                 }
               },
               '删除'
