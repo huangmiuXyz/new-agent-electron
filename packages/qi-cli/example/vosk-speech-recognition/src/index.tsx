@@ -138,7 +138,10 @@ const plugin: Plugin = {
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
     const [TableComponent, { setData }] = context.useTable({
       data: [],
-      columns: () => ([])
+      columns: () => [
+        { key: 'name', label: '模型名称', width: '2fr' },
+        { key: 'id', label: '模型ID', width: '2fr' }
+      ]
     })
     const [VoskForm, { getFieldValue }] = context.useForm({
       fields: [
