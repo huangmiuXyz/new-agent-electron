@@ -176,7 +176,8 @@ const [ProviderForm, formActions] = useForm({
     ...pluginFields.value,
     {
       name: 'models',
-      render: ModelList
+      render: ModelList,
+      type: 'custom'
     }
   ] as FormField<Provider>[]),
   initialData: activeProvider.value,
