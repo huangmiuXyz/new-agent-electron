@@ -73,7 +73,6 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
   )
 
   const TableComponent = defineComponent({
-    name: 'TableComponent',
     setup() {
       return () => (
         <div class="table-wrapper" style={{ gridTemplateColumns: gridTemplate.value }}>
