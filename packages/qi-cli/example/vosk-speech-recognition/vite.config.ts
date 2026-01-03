@@ -1,9 +1,13 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
-import react from '@vitejs/plugin-react';
+import vue from '@vitejs/plugin-vue';
+import vueJsx from '@vitejs/plugin-vue-jsx';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    vue(),
+    vueJsx()
+  ],
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
     'process.env': JSON.stringify({ NODE_ENV: 'production' }),

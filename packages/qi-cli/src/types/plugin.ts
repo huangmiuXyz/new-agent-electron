@@ -44,13 +44,14 @@ export interface PluginContext {
     status: (id: string, text: string, options?: {
       icon?: string;
       html?: string;
+      render?: any;
       color?: string;
       tooltip?: string;
       pluginName?: string;
     }) => void;
     removeStatus: (id: string) => void;
   };
-  useform:any;
+  useForm:any;
   useTable:any;
   components: Record<string, any>;
   /** 注册内置工具 */

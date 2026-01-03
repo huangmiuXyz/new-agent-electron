@@ -17,7 +17,8 @@ export interface StatusItem {
   id: string
   text?: string
   icon?: string
-  html?: string // 支持自定义 HTML 图标内容
+  html?: string
+  render?: any
   color?: string
   tooltip?: string
   pluginName?: string

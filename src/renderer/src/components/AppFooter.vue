@@ -19,6 +19,24 @@ const StatusIcon = defineComponent({
     }
   }
 })
+
+const StatusRender = defineComponent({
+  props: ['render'],
+  setup(props) {
+    return () => {
+      if (!props.render) return null
+      if (typeof props.render === 'function') {
+        return props.render()
+      }
+      // 如果看起来像是一个已经渲染好的 VNode，直接返回
+      if (props.render && typeof props.render === 'object' && ('__v_isVNode' in props.render || 'type' in props.render)) {
+        return props.render
+      }
+      // 否则将其作为组件类型处理
+      return h(props.render)
+    }
+  }
+})
 </script>
 
 <template>
@@ -26,18 +44,18 @@ const StatusIcon = defineComponent({
     <div class="status-bar">
       <div class="status-bar-left">
         <template v-if="notificationStore.statusItems.length > 0">
-        <div
-          v-for="item in notificationStore.statusItems"
-          :key="item.id"
-          class="status-item"
-          :title="item.tooltip || item.text"
-        >
-          <div v-if="item.html" v-html="item.html" class="status-html"></div>
-          <div v-else class="icon-wrapper">
-            <StatusIcon :icon="item.icon" :color="item.color" />
+          <div v-for="item in notificationStore.statusItems" :key="item.id" class="status-item"
+            :title="item.tooltip || item.text">
+            <div v-if="item.html" v-html="item.html" class="status-html"></div>
+            <div v-else-if="item.render" class="status-html">
+              <StatusRender :render="item.render" />
+            </div>
+            <div v-else class="icon-wrapper">
+              <StatusIcon :icon="item.icon" :color="item.color" />
+            </div>
+            <span v-if="item.text" class="status-text">{{ item.text }}</span>
           </div>
-        </div>
-      </template>
+        </template>
       </div>
 
       <div class="status-bar-right">
@@ -136,8 +154,13 @@ const StatusIcon = defineComponent({
 
 /* 插件可以给自己的 HTML 元素添加旋转效果 */
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .status-html {

@@ -1,125 +1,135 @@
 import { Plugin } from './types'
 import * as Vosk from 'vosk-browser'
-import React from 'react'
-import { flushSync } from 'react-dom'
-import { createRoot } from 'react-dom/client'
+import { defineComponent, h, onMounted, onUnmounted, ref, markRaw } from 'vue'
 
-const renderToHtml = (element: React.ReactElement): string => {
-  const container = document.createElement('div')
-  const root = createRoot(container)
+// 定义 Vue 组件
+const LoadingIcon = defineComponent({
+  setup() {
+    const dots = ref('.')
+    let timer: any
 
-  flushSync(() => {
-    root.render(element)
-  })
+    onMounted(() => {
+      timer = setInterval(() => {
+        dots.value = dots.value.length >= 3 ? '.' : dots.value + '.'
+      }, 500)
+    })
 
-  const html = container.innerHTML
-  console.log('Generated HTML:', html)
+    onUnmounted(() => {
+      clearInterval(timer)
+    })
 
-  root.unmount()
-
-  return html
-}
-
-// 定义 React 组件
-const LoadingIcon: React.FC = () => (
-  <React.Fragment>
-    <style>{`
-      @keyframes plugin-spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-    `}</style>
-    <svg
-      style={{ animation: 'plugin-spin 1s linear infinite' }}
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="currentColor"
-    >
-      <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-    </svg>
-  </React.Fragment>
-)
-
-const ReadyIcon: React.FC<{ modelName: string }> = ({ modelName }) => (
-  <div className="plugin-icon-container">
-    <style>{`
-      .plugin-icon-container {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%
-      }
-      .plugin-tooltip {
-          position: absolute;
-          bottom: 100%;
-          left: 0;
-          transform: translateY(-8px);
-          background: #ffffff;
-          color: #333333;
-          padding: 8px 12px;
-          border-radius: 6px;
-          font-size: 12px;
-          white-space: nowrap;
-          visibility: hidden;
-          opacity: 0;
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          z-index: 10000;
-          border: 1px solid #e0e0e0;
-        }
-        /* 黑暗模式适配 */
-        html.dark-mode .plugin-tooltip {
-          background: #2d2d2d;
-          color: #ffffff;
-          border-color: #444444;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-        }
-        .plugin-icon-container:hover .plugin-tooltip {
-          visibility: visible;
-          opacity: 1;
-          transform: translateY(-12px);
-        }
-        .plugin-tooltip::after {
-          content: "";
-          position: absolute;
-          top: 100%;
-          left: 10px;
-          border: 6px solid transparent;
-          border-top-color: #ffffff;
-        }
-        html.dark-mode .plugin-tooltip::after {
-          border-top-color: #2d2d2d;
-        }
-        .model-tag {
-          background: #f0f0f0;
-          padding: 2px 6px;
-          border-radius: 4px;
-          margin-left: 8px;
-          font-family: monospace;
-          color: #007acc;
-        }
-        html.dark-mode .model-tag {
-          background: #444444;
-          color: #61dafb;
-        }
-    `}</style>
-
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-      <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-      <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
-    </svg>
-
-    <div className="plugin-tooltip">
-      <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Vosk 语音识别</div>
-      <div style={{ color: '#aaa' }}>
-        当前模型: <span className="model-tag">{modelName}</span>
+    return () => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <style>{`
+          @keyframes plugin-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <svg
+          style={{ animation: 'plugin-spin 1s linear infinite' }}
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="currentColor"
+        >
+          <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+        </svg>
+        <span style={{ fontSize: '12px', minWidth: '20px' }}>{dots.value}</span>
       </div>
-    </div>
-  </div>
-)
+    )
+  }
+})
+
+const ReadyIcon = defineComponent({
+  props: {
+    modelName: {
+      type: String,
+      required: true
+    }
+  },
+  setup(props) {
+    return () => (
+      <div className="plugin-icon-container">
+        <style>{`
+          .plugin-icon-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%
+          }
+          .plugin-tooltip {
+              position: absolute;
+              bottom: 100%;
+              left: 0;
+              transform: translateY(-8px);
+              background: #ffffff;
+              color: #333333;
+              padding: 8px 12px;
+              border-radius: 6px;
+              font-size: 12px;
+              white-space: nowrap;
+              visibility: hidden;
+              opacity: 0;
+              transition: all 0.2s ease;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+              z-index: 10000;
+              border: 1px solid #e0e0e0;
+            }
+            /* 黑暗模式适配 */
+            html.dark-mode .plugin-tooltip {
+              background: #2d2d2d;
+              color: #ffffff;
+              border-color: #444444;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            }
+            .plugin-icon-container:hover .plugin-tooltip {
+              visibility: visible;
+              opacity: 1;
+              transform: translateY(-12px);
+            }
+            .plugin-tooltip::after {
+              content: "";
+              position: absolute;
+              top: 100%;
+              left: 10px;
+              border: 6px solid transparent;
+              border-top-color: #ffffff;
+            }
+            html.dark-mode .plugin-tooltip::after {
+              border-top-color: #2d2d2d;
+            }
+            .model-tag {
+              background: #f0f0f0;
+              padding: 2px 6px;
+              border-radius: 4px;
+              margin-left: 8px;
+              font-family: monospace;
+              color: #007acc;
+            }
+            html.dark-mode .model-tag {
+              background: #444444;
+              color: #61dafb;
+            }
+        `}</style>
+
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+        </svg>
+
+        <div className="plugin-tooltip">
+          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Vosk 语音识别</div>
+          <div style={{ color: '#aaa' }}>
+            当前模型: <span className="model-tag">{props.modelName}</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+})
 
 let model: Vosk.Model | null = null
 let recognizer: Vosk.KaldiRecognizer | null = null
@@ -217,7 +227,7 @@ const plugin: Plugin = {
 
           if (!silent) {
             context.notification.status('vosk-status', '', {
-              html: renderToHtml(<LoadingIcon />),
+              render: markRaw(LoadingIcon),
               color: '#fff',
               tooltip: '正在加载 Vosk 模型...'
             })
@@ -240,7 +250,7 @@ const plugin: Plugin = {
 
           if (!silent) {
             context.notification.status('vosk-status', '', {
-              html: renderToHtml(<ReadyIcon modelName={MODEL_NAME} />),
+              render: markRaw(() => h(ReadyIcon, { modelName: MODEL_NAME })),
               color: '#fff',
               tooltip: `Vosk 语音识别已就绪 (模型: ${MODEL_NAME})`
             })
