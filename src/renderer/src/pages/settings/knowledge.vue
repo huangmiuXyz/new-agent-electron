@@ -1,6 +1,5 @@
-<script setup lang="ts">
+<script setup lang="tsx">
 import { FormItem } from '@renderer/composables/useForm'
-import { isMobile } from '@renderer/composables/useDeviceType'
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 const {
   updateKnowledgeBase,
@@ -365,6 +364,132 @@ const openFolder = (path: string) => {
 
 const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
+
+const [DocTable] = useTable<KnowledgeDocument>({
+  loading: () => loading.value,
+  data: () => filteredDocuments.value,
+  columns: [
+    {
+      key: 'name',
+      label: '文档名称',
+      width: '2fr',
+      render: (row) => (
+        <div class="file-name-cell">
+          <Button onClick={() => openFolder(row.path)} variant="text" size="sm" class="name-text">
+            {{
+              icon: () => (
+                <span class="file-icon">
+                  {useIcon(getFileIcon({ name: row.name, mediaType: row.type }))}
+                </span>
+              ),
+              default: () => row.name
+            }}
+          </Button>
+        </div>
+      )
+    },
+    { key: 'type', label: '类型', width: '1fr' },
+    {
+      key: 'size',
+      label: '大小',
+      width: '1fr',
+      render: (row) => formatFileSize(row.size)
+    },
+    {
+      key: 'status',
+      label: '状态',
+      width: '1fr',
+      render: (row) => (
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          {row.status === 'processed' ? (
+            <Tags color="blue" tags={['成功']} />
+          ) : !row.currentChunk && !row.chunks?.length ? (
+            <Tags color="gray" tags={['未开始']} />
+          ) : (
+            <div style="width: 100%; display: flex; align-items: center; gap: 8px">
+              <div
+                style="
+                  flex: 1;
+                  height: 4px;
+                  background-color: var(--border-color-light);
+                  border-radius: 2px;
+                  overflow: hidden;
+                "
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    backgroundColor: 'var(--accent-color)',
+                    transition: 'width 0.3s ease',
+                    width: `${Math.round((row.currentChunk! / (row.chunks?.length || 1)) * 100)}%`
+                  }}
+                ></div>
+              </div>
+              <span style="font-size: 12px; color: var(--text-secondary)">
+                {row.currentChunk || 0}/{row.chunks?.length || 0}
+              </span>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'actions',
+      label: '操作',
+      width: '1.1fr',
+      render: (row) => (
+        <div style="display: flex; align-items: center; gap: 8px">
+          {!activeKnowledgeBase.value.embeddingModel.modelId && (
+            <Tags color="red" tags={['未选择嵌入模型']} />
+          )}
+          {activeKnowledgeBase.value?.embeddingModel?.modelId && (
+            <Button
+              onClick={() =>
+                embedding(row, activeKnowledgeBase.value, false, batchSize.value, {
+                  input_type: 'passage'
+                })
+              }
+              size="sm"
+              type="button"
+              variant="text"
+            >
+              {{ icon: () => Refresh }}
+            </Button>
+          )}
+          {activeKnowledgeBase.value?.embeddingModel?.modelId &&
+            !row.abortController?.signal.aborted &&
+            row.status !== 'processed' && (
+              <Button
+                onClick={() =>
+                  embedding(row, activeKnowledgeBase.value, true, batchSize.value, {
+                    input_type: 'passage'
+                  })
+                }
+                size="sm"
+                type="button"
+                variant="text"
+              >
+                {{ icon: () => Play }}
+              </Button>
+            )}
+          {row.status === 'processing' && row.abortController?.signal.aborted && (
+            <Button onClick={() => handleAbortDocument(row)} size="sm" type="button" variant="text">
+              {{ icon: () => Stop }}
+            </Button>
+          )}
+          <Button
+            onClick={() => showDeleteDocumentModal(row)}
+            size="sm"
+            type="button"
+            variant="text"
+          >
+            {{ icon: () => Trash }}
+          </Button>
+        </div>
+      )
+    }
+  ]
+})
 </script>
 
 <template>
@@ -378,8 +503,8 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
       <template #title-tool>
         <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="text">
           <template #icon>
-            <Plus />
-          </template>
+              <component :is="Plus" />
+            </template>
         </Button>
       </template>
     </List>
@@ -389,99 +514,7 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
   <FormContainer v-if="showForm" header-title="知识库管理">
     <template #content>
       <FormItem label="文档列表">
-        <Table :loading="loading" :data="filteredDocuments" :columns="[
-          { key: 'name', label: '文档名称', width: '2fr' },
-          { key: 'type', label: '类型', width: '1fr' },
-          { key: 'size', label: '大小', width: '1fr' },
-          { key: 'status', label: '状态', width: '1fr' },
-          { key: 'actions', label: '操作', width: '1.1fr' }
-        ]">
-          <template #name="{ row }">
-            <div class="file-name-cell">
-              <Button @click="openFolder(row.path)" variant="text" size="sm" class="name-text">
-                <template #icon>
-                  <component :is="useIcon(
-                    getFileIcon({
-                      name: row.name,
-                      mediaType: row.type
-                    })
-                  )
-                    " class="file-icon" />
-                </template>
-                {{ row.name }}
-              </Button>
-            </div>
-          </template>
-          <template #size="props">
-            {{ formatFileSize(props.row.size) }}
-          </template>
-          <template #created="props">
-            {{ formatTime(props.row.created) }}
-          </template>
-          <template #status="props">
-            <div style="display: flex; flex-direction: column; gap: 4px">
-              <Tags v-if="props.row.status === 'processed'" color="blue" :tags="['成功']" />
-              <Tags v-else-if="!props.row.currentChunk! && !props.row.chunks?.length" color="gray" :tags="['未开始']" />
-              <div v-else style="width: 100%; display: flex; align-items: center; gap: 8px">
-                <div style="
-                    flex: 1;
-                    height: 4px;
-                    background-color: var(--border-color-light);
-                    border-radius: 2px;
-                    overflow: hidden;
-                  ">
-                  <div style="height: 100%; background-color: var(--accent-color); transition: width 0.3s ease" :style="{
-                    width: `${Math.round((props.row.currentChunk! / (props.row.chunks?.length || 0)) * 100)}%`
-                  }"></div>
-                </div>
-                <span style="font-size: 12px; color: var(--text-secondary)">
-                  {{ props.row.currentChunk || 0 }}/{{ props.row.chunks?.length || 0 }}
-                </span>
-              </div>
-            </div>
-          </template>
-          <template #chunks="props">
-            {{ props.row.chunks?.length || 0 }}
-          </template>
-          <template #actions="props">
-            <div style="display: flex; align-items: center; gap: 8px">
-              <Tags v-if="!activeKnowledgeBase.embeddingModel.modelId" color="red" :tags="['未选择嵌入模型']" />
-              <Button v-if="activeKnowledgeBase?.embeddingModel?.modelId" @click="
-                embedding(props.row, activeKnowledgeBase, false, batchSize, {
-                  input_type: 'passage'
-                })
-                " size="sm" type="button" variant="text">
-                <template #icon>
-                  <Refresh />
-                </template>
-              </Button>
-              <Button v-if="
-                activeKnowledgeBase?.embeddingModel?.modelId &&
-                !props.row.abortController?.abort &&
-                props.row.status !== 'processed'
-              " @click="
-                embedding(props.row, activeKnowledgeBase, true, batchSize, {
-                  input_type: 'passage'
-                })
-                " size="sm" type="button" variant="text">
-                <template #icon>
-                  <Play />
-                </template>
-              </Button>
-              <Button v-if="props.row.status === 'processing' && props.row.abortController?.abort"
-                @click="handleAbortDocument(props.row)" size="sm" type="button" variant="text">
-                <template #icon>
-                  <Stop />
-                </template>
-              </Button>
-              <Button @click="showDeleteDocumentModal(props.row)" size="sm" type="button" variant="text">
-                <template #icon>
-                  <Trash />
-                </template>
-              </Button>
-            </div>
-          </template>
-        </Table>
+        <DocTable />
         <template #label>
           <div style="display: flex">
             <Button @click="addDocument" size="sm" type="button" variant="text">

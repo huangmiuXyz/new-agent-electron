@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="tsx">
 import { FormItem } from '@renderer/composables/useForm'
 const { Plugin: PluginIcon, Trash, Refresh, Check, Dismiss, Play, Download, Code } = useIcon([
   'Plugin',
@@ -10,7 +10,6 @@ const { Plugin: PluginIcon, Trash, Refresh, Check, Dismiss, Play, Download, Code
   'Download',
   'Code'
 ])
-
 // 使用 usePlugins composable
 const {
   allPlugins,
@@ -84,6 +83,48 @@ const handleSelectPlugin = (pluginId: string) => {
 
 const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
+
+// 插件命令表
+const [CommandTable] = useTable<{ name: string; description?: string }>({
+  data: () => (activePlugin.value ? getPluginCommands(activePlugin.value.name) : []),
+  columns: [
+    { key: 'name', label: '命令名称', width: '2fr' },
+    {
+      key: 'description',
+      label: '描述',
+      width: '2fr',
+      render: (row) => row.description || '暂无描述'
+    },
+    {
+      key: 'actions',
+      label: '操作',
+      width: '1fr',
+      render: (row) => (
+        <Button size="sm" variant="text" onClick={() => executeCommand(row.name)}>
+          {{
+            icon: () => Play
+          }}
+          执行
+        </Button>
+      )
+    }
+  ]
+})
+
+// 模型提供商表
+const [ProviderTable] = useTable<Provider>({
+  data: () => (activePlugin.value ? getPluginProviders(activePlugin.value.name) : []),
+  columns: [
+    { key: 'name', label: '提供商名称', width: '2fr' },
+    { key: 'id', label: 'ID', width: '2fr' },
+    {
+      key: 'models',
+      label: '模型数量',
+      width: '1fr',
+      render: (row) => row.models?.length || 0
+    }
+  ]
+})
 
 // 卸载插件（从内存中移除）
 const handleUnloadPlugin = async (pluginName: string) => {
@@ -210,23 +251,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
         </FormItem>
         <!-- 插件命令 -->
         <FormItem v-if="activePlugin.type === 'loaded' && getPluginCommands(activePlugin.name).length > 0" label="可用命令">
-          <Table :data="getPluginCommands(activePlugin.name)" :columns="[
-            { key: 'name', label: '命令名称', width: '2fr' },
-            { key: 'description', label: '描述', width: '2fr' },
-            { key: 'actions', label: '操作', width: '1fr' }
-          ]">
-            <template #description="{ row }">
-              {{ row.description || '暂无描述' }}
-            </template>
-            <template #actions="{ row }">
-              <Button size="sm" variant="text" @click="executeCommand(row.name)">
-                <template #icon>
-                  <Play />
-                </template>
-                执行
-              </Button>
-            </template>
-          </Table>
+          <CommandTable />
         </FormItem>
 
         <!-- 注册钩子 -->
@@ -249,15 +274,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
 
         <!-- 模型提供商 -->
         <FormItem v-if="activePlugin.type === 'loaded' && getPluginProviders(activePlugin.name).length > 0" label="模型提供商">
-          <Table :data="getPluginProviders(activePlugin.name)" :columns="[
-            { key: 'name', label: '提供商名称', width: '2fr' },
-            { key: 'id', label: 'ID', width: '2fr' },
-            { key: 'models', label: '模型数量', width: '1fr' }
-          ]">
-            <template #models="{ row }">
-              {{ row.models?.length || 0 }}
-            </template>
-          </Table>
+          <ProviderTable />
         </FormItem>
       </template>
       <!-- 空状态 -->

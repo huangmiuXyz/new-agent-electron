@@ -1,6 +1,4 @@
-<script setup lang="ts">
-import { useModal } from '@renderer/composables/useModal'
-
+<script setup lang="tsx">
 type FileCategory = 'image' | 'document' | 'data' | 'other'
 
 interface FileItem {
@@ -146,6 +144,61 @@ const deleteFile = async (file: FileItem) => {
   }
 }
 
+const [FileTable] = useTable<FileItem>({
+  loading: () => loading.value,
+  data: () => categorizedFiles.value,
+  columns: [
+    {
+      key: 'name',
+      label: '文件名称',
+      width: 'auto',
+      render: (row) => (
+        <div class="file-name-cell">
+          <Button onClick={() => openFolder(row.path)} variant="text" size="sm" class="name-text">
+            {{
+              icon: () => (
+                <span class="file-icon">
+                  {useIcon(getFileIcon({ name: row.name, mediaType: row.type }))}
+                </span>
+              ),
+              default: () => row.name
+            }}
+          </Button>
+        </div>
+      )
+    },
+    { key: 'type', label: '类型', width: 60 },
+    {
+      key: 'size',
+      label: '大小',
+      width: 80,
+      render: (row) => formatFileSize(row.size)
+    },
+    {
+      key: 'created',
+      label: '创建时间',
+      width: 200,
+      render: (row) => formatTime(row.created)
+    },
+    {
+      key: 'actions',
+      label: '操作',
+      width: 'auto',
+      render: (row) => (
+        <Button
+          onClick={() => deleteFile(row)}
+          size="sm"
+          variant="text"
+          loading={deletingFile.value === row.name}
+          class="delete-btn"
+        >
+          <component is={Trash} />
+        </Button>
+      )
+    }
+  ]
+})
+
 onMounted(loadFiles)
 </script>
 
@@ -175,44 +228,7 @@ onMounted(loadFiles)
 
         <!-- File List -->
         <div class="file-table-wrapper">
-          <Table :loading="loading" :data="categorizedFiles" :columns="[
-            { key: 'name', label: '文件名称', width: 'auto' },
-            { key: 'type', label: '类型', width: 60 },
-            { key: 'size', label: '大小', width: 80 },
-            { key: 'created', label: '创建时间', width: 200 },
-            { key: 'actions', label: '操作', width: 'auto' }
-          ]">
-            <template #name="{ row }">
-              <div class="file-name-cell">
-                <Button @click="openFolder(row.path)" variant="text" size="sm" class="name-text">
-                  <template #icon>
-                    <component :is="useIcon(
-                      getFileIcon({
-                        name: row.name,
-                        mediaType: row.type
-                      })
-                    )
-                      " class="file-icon" />
-                  </template>
-                  {{ row.name }}
-                </Button>
-              </div>
-            </template>
-            <template #size="{ row }">
-              {{ formatFileSize(row.size) }}
-            </template>
-            <template #created="{ row }">
-              {{ formatTime(row.created) }}
-            </template>
-            <template #actions="{ row }">
-              <Button @click="deleteFile(row)" size="sm" variant="text" :loading="deletingFile === row.name"
-                class="delete-btn">
-                <template #icon>
-                  <Trash />
-                </template>
-              </Button>
-            </template>
-          </Table>
+          <FileTable />
           <div v-if="files.length === 0 && !loading" class="empty-state">
             <div class="empty-text">暂无文件</div>
           </div>

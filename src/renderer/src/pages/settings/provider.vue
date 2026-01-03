@@ -5,7 +5,7 @@ const { getAllProviders, providers } = storeToRefs(useSettingsStore())
 const { updateProvider, addModelToProvider, deleteModelFromProvider, resetProviderBaseUrl } =
   useSettingsStore()
 
-const { Refresh, Plus, Search, Edit, Delete }: any = useIcon([
+const { Refresh, Plus, Search, Edit, Delete } = useIcon([
   'Refresh',
   'Plus',
   'Search',
@@ -19,7 +19,7 @@ const pluginFields = ref<FormField<Provider>[]>([])
 
 onMounted(async () => {
   const results = await triggerHook('provider:form-fields')
-  pluginFields.value = results.flat().filter(Boolean)
+  pluginFields.value = (results.flat() as FormField<Provider>[]).filter(Boolean)
 })
 
 
@@ -49,13 +49,7 @@ const aiSearchModels = ref<Model[]>([])
 const setAISearchValue = (values: Model[]) => {
   aiSearchModels.value = values
 }
-const tableColumns = [
-  { key: 'name', label: '模型名称', width: '2fr' },
-  { key: 'id', label: '模型ID', width: '2fr' },
-  { key: 'category', label: '模型类型', width: '1fr' },
-  { key: 'active', label: '启用', width: '1fr' },
-  { key: 'actions', label: '操作', width: '1fr' }
-]
+
 
 const editingModelId = ref<string | null>(null)
 
@@ -107,7 +101,7 @@ const [ProviderForm, formActions] = useForm({
           title="重置为默认地址"
           class="ml-2"
         >
-          <Refresh />
+        <component is={Refresh} />
         </Button>
       )
     },
@@ -212,7 +206,7 @@ const refreshModels = async () => {
   }
 }
 
-const handleSaveCustomModel = (data: any) => {
+const handleSaveCustomModel = (data: Partial<Model>) => {
   if (!activeProvider.value) return
 
   if (editingModelId.value) {
@@ -229,9 +223,9 @@ const handleSaveCustomModel = (data: any) => {
     }
   } else {
     const newModel: Model = {
-      id: data.id,
-      name: data.name,
-      description: data.description,
+      id: data.id!,
+      name: data.name!,
+      description: data.description!,
       category: data.category || 'text',
       active: true,
       created: +new Date(),
@@ -263,7 +257,7 @@ const showAddCustomModelModal = async () => {
   }
 }
 
-const showEditModelModal = async (row: any) => {
+const showEditModelModal = async (row: Model) => {
   if (!activeProvider.value) return
 
   editingModelId.value = row.id
@@ -284,11 +278,11 @@ const showEditModelModal = async (row: any) => {
   }
 }
 
-const isCustomModel = (model: any) => {
+const isCustomModel = (model: Model) => {
   return model.created && model.owned_by === activeProvider.value?.name
 }
 
-const handleDeleteModel = async (row: any) => {
+const handleDeleteModel = async (row: Model) => {
   if (!activeProvider.value) return
 
   if (!isCustomModel(row)) {
@@ -327,13 +321,79 @@ const selectProvider = (providerId: string) => {
 // Mobile/Desktop View Logic
 const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
+const [ModelTable] = useTable<Model>({
+  loading: () => loading.value,
+  columns: [
+    { key: 'name', label: '模型名称', width: '2fr' },
+    { key: 'id', label: '模型ID', width: '2fr' },
+    {
+      key: 'category',
+      label: '模型类型',
+      width: '1fr',
+      render: (row) => (
+        <Tags
+          tags={[getCategoryLabel(row.category)]}
+          color={
+            row.category === 'text'
+              ? 'blue'
+              : row.category === 'embedding'
+                ? 'green'
+                : row.category === 'image'
+                  ? 'orange'
+                  : row.category === 'rerank'
+                    ? 'purple'
+                    : 'blue'
+          }
+        />
+      )
+    },
+    {
+      key: 'active',
+      label: '启用',
+      width: '1fr',
+      render: (row) => <Switch v-model={row.active} />
+    },
+    {
+      key: 'actions',
+      label: '操作',
+      width: '1fr',
+      render: (row) => (
+        <>
+          <Button
+            type="button"
+            variant="text"
+            size="sm"
+            onClick={() => showEditModelModal(row)}
+            title="编辑模型"
+          >
+            <component is={Edit} />
+          </Button>
+          {isCustomModel(row) && (
+            <Button
+              type="button"
+              variant="text"
+              size="sm"
+              onClick={() => handleDeleteModel(row)}
+              title="删除模型"
+              class="text-red-500 hover:text-red-700"
+            >
+              <component is={Delete} />
+            </Button>
+          )}
+        </>
+      )
+    }
+  ],
+  data: () => (aiSearchModels.value.length ? aiSearchModels.value : filteredModels.value)
+})
+
 const ModelList = () => {
   const showSearch = ref(false)
   const handleShowSearch = async () => {
-  showSearch.value = true
-  await nextTick()
-  searchInputRef.value?.focus()
-}
+    showSearch.value = true
+    await nextTick()
+    searchInputRef.value?.focus()
+  }
   return (
     <FormItem label="模型列表">
       {{
@@ -341,9 +401,7 @@ const ModelList = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>模型列表</span>
             <Button onClick={showAddCustomModelModal} size="sm" type="button" variant="text">
-              {{
-                icon: () => <Plus />
-              }}
+              <component is={Plus} />
             </Button>
             {showSearch.value ? (
               <div>
@@ -367,81 +425,18 @@ const ModelList = () => {
               </div>
             ) : (
               <Button type="button" variant="text" size="sm" onClick={handleShowSearch}>
-                {{
-                  icon: () => <Search />
-                }}
+                <component is={Search} />
               </Button>
             )}
           </div>
         ),
         tool: () => (
           <Button onClick={refreshModels} size="sm" type="button" variant="text">
-            {{
-              icon: () => <Refresh />
-            }}
+            <component is={Refresh} />
             刷新模型列表
           </Button>
         ),
-        default: () => (
-          <Table
-            loading={loading.value}
-            columns={tableColumns}
-            data={aiSearchModels.value.length ? aiSearchModels.value : filteredModels.value}
-          >
-            {{
-              category: ({ row }: any) => (
-                <Tags
-                  tags={[getCategoryLabel(row.category)]}
-                  color={
-                    row.category === 'text'
-                      ? 'blue'
-                      : row.category === 'embedding'
-                        ? 'green'
-                        : row.category === 'image'
-                          ? 'orange'
-                          : row.category === 'rerank'
-                            ? 'purple'
-                            : 'blue'
-                  }
-                />
-              ),
-              active: ({ row }: any) => (
-                <Switch
-                  v-model={row.active}
-                />
-              ),
-              actions: ({ row }: any) => (
-                <>
-                  <Button
-                    type="button"
-                    variant="text"
-                    size="sm"
-                    onClick={() => showEditModelModal(row)}
-                    title="编辑模型"
-                  >
-                    {{
-                      icon: () => <Edit />
-                    }}
-                  </Button>
-                  {isCustomModel(row) && (
-                    <Button
-                      type="button"
-                      variant="text"
-                      size="sm"
-                      onClick={() => handleDeleteModel(row)}
-                      title="删除模型"
-                      class="text-red-500 hover:text-red-700"
-                    >
-                      {{
-                        icon: () => <Delete />
-                      }}
-                    </Button>
-                  )}
-                </>
-              )
-            }}
-          </Table>
-        )
+        default: () => <ModelTable />
       }}
     </FormItem>
   )
