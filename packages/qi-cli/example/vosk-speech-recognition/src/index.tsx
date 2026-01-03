@@ -115,6 +115,77 @@ const plugin: Plugin = {
         { key: 'name', label: '模型名称', width: '2fr' },
         { key: 'id', label: '模型ID', width: '2fr' },
         {
+          key: 'status',
+          label: '状态/操作',
+          width: '2fr',
+          render: (row: any) => {
+            return h(defineComponent({
+              setup() {
+                const isDownloading = ref(false)
+                const exists = ref(false)
+
+                const checkExists = () => {
+                  if (!row.file) {
+                    exists.value = true
+                    return
+                  }
+                  try {
+                    const fullPath = context.api.path.join(context.basePath || '', row.file)
+                    exists.value = context.api.fs.existsSync(fullPath)
+                  } catch (e) {
+                    console.error('Check exists error:', e)
+                    exists.value = false
+                  }
+                }
+
+                checkExists()
+
+                const download = async () => {
+                  if (!row.file) return
+                  isDownloading.value = true
+                  const fullPath = context.api.path.join(context.basePath || '', row.file)
+                  const url = `https://alphacephei.com/vosk/models/${row.file}`
+
+                  try {
+                    const closeLoading = context.notification.loading(`正在下载模型 ${row.name}...`, '模型下载')
+                    const result = await context.api.net.download({ url, destPath: fullPath })
+                    closeLoading()
+
+                    if (result.ok) {
+                      context.notification.success(`模型 ${row.name} 下载成功`, '模型下载')
+                      exists.value = true
+                    } else {
+                      throw new Error(result.error)
+                    }
+                  } catch (err: any) {
+                    context.notification.error(`下载失败: ${err.message}`, '模型下载')
+                  } finally {
+                    isDownloading.value = false
+                    checkExists()
+                  }
+                }
+
+                return () => {
+                  if (exists.value) {
+                    return h('span', { style: { color: '#52c41a', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' } }, [
+                      h('svg', { viewBox: '0 0 24 24', width: '14', height: '14', fill: 'currentColor' }, [
+                        h('path', { d: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z' })
+                      ]),
+                      '已就绪'
+                    ])
+                  }
+
+                  return context.components.Button({
+                    size: 'sm',
+                    loading: isDownloading.value,
+                    onClick: download
+                  }, '下载模型')
+                }
+              }
+            }))
+          }
+        },
+        {
           key: 'active',
           label: '启用',
           width: '1fr',
@@ -129,12 +200,50 @@ const plugin: Plugin = {
         {
           key: 'action',
           label: '操作',
-          width: '2fr',
-          render: (row: any) => context.components.Button({
-            danger: true,
-            size: 'sm',
-            onClick: () => syncModels(getData().filter((item: any) => item.id !== row.id))
-          }, '删除')
+          width: '1.5fr',
+          render: (row: any) => {
+            return h(defineComponent({
+              setup() {
+                const exists = ref(false)
+
+                const checkExists = () => {
+                  if (!row.file) return
+                  try {
+                    const fullPath = context.api.path.join(context.basePath || '', row.file)
+                    exists.value = context.api.fs.existsSync(fullPath)
+                  } catch (e) {
+                    exists.value = false
+                  }
+                }
+
+                checkExists()
+
+                const deleteFile = async () => {
+                  if (!row.file) return
+                  try {
+                    const fullPath = context.api.path.join(context.basePath || '', row.file)
+                    if (context.api.fs.existsSync(fullPath)) {
+                      context.api.fs.unlinkSync(fullPath)
+                      context.notification.success(`模型文件 ${row.file} 已删除`, '模型管理')
+                      // 触发表格刷新以更新状态列
+                      setData([...getData()])
+                    }
+                  } catch (err: any) {
+                    context.notification.error(`删除失败: ${err.message}`, '模型管理')
+                  }
+                }
+
+                return () => h('div', { style: { display: 'flex', gap: '8px' } }, [
+                  context.components.Button({
+                    danger: true,
+                    size: 'sm',
+                    disabled: !exists.value,
+                    onClick: deleteFile
+                  }, '删除模型文件')
+                ])
+              }
+            }))
+          }
         }
       ]
     })
@@ -153,16 +262,19 @@ const plugin: Plugin = {
           name: 'models',
           type: 'custom',
           render: (row: any) => {
-            setData(row.models)
+            if (row.models && row.models.length > 0) {
+              setData(row.models)
+            }
             return TableComponent
           }
         }
       ],
       initialData: {
         modelPath: savedConfig.modelPath || '',
-        models: savedConfig.models || [{
+        models: (savedConfig.models && savedConfig.models.length > 0) ? savedConfig.models : [{
           id: 'vosk-cn',
           name: 'Vosk 中文模型',
+          file: MODEL_NAME,
           active: true,
           category: 'speech',
           created: Date.now(),
@@ -202,6 +314,12 @@ const plugin: Plugin = {
           const modelPath = getFieldValue('modelPath')
           const fullPath = context.api.path.join(context.basePath || '', MODEL_NAME)
           const normalizedPath = (modelPath || fullPath).replace(/\\/g, '/')
+
+          // 检查模型文件是否存在
+          if (!modelPath && !context.api.fs.existsSync(fullPath)) {
+            throw new Error(`找不到默认模型文件 ${MODEL_NAME}，请在插件设置中下载模型`)
+          }
+
           const modelUrl = `plugin-resource://${normalizedPath}`
 
           console.log('正在加载 Vosk 模型:', modelUrl)

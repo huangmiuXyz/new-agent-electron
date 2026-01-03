@@ -88,7 +88,8 @@ export const api = {
     }
   },
   net: {
-    fetch: (url: string, options?: any) => electronAPI.ipcRenderer.invoke('net:fetch', url, options)
+    fetch: (url: string, options?: any) => electronAPI.ipcRenderer.invoke('net:fetch', url, options),
+    download: (options: { url: string; destPath: string }) => electronAPI.ipcRenderer.invoke('net:download', options)
   }
 }
 

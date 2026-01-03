@@ -140,6 +140,21 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('net:download', async (event, { url, destPath }) => {
+    try {
+      const response = await net.fetch(url)
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+      
+      const buffer = await response.arrayBuffer()
+      const fs = require('fs')
+      fs.writeFileSync(destPath, Buffer.from(buffer))
+      
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, error: (error as Error).message }
+    }
+  })
+
   ipcMain.handle('window:get-temp-chat-data', async (_event, windowId) => {
     if (global.tempChatData && global.tempChatData[windowId]) {
       const data = global.tempChatData[windowId]
