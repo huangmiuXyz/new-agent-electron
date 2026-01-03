@@ -1,4 +1,5 @@
 import { useForm } from '@renderer/composables/useForm';
+import { useTable } from '@renderer/composables/useTable';
 import localforage from 'localforage'
 /**
  * 插件管理器
@@ -132,6 +133,7 @@ export class PluginManager {
       pinia: this.pinia,
       basePath,
       useForm,
+      useTable,
       registerCommand: (name: string, handler: Function) => {
         this.registerCommand(pluginName, name, handler);
       },

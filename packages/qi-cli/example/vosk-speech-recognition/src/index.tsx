@@ -136,7 +136,10 @@ const plugin: Plugin = {
     // 注册 Vosk 提供商
     const STORAGE_KEY = 'vosk-config'
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
-
+    const [TableComponent, { setData }] = context.useTable({
+      data: [],
+      columns: () => ({})
+    })
     const [VoskForm, { getFieldValue }] = context.useForm({
       fields: [
         {
@@ -149,11 +152,29 @@ const plugin: Plugin = {
             properties: ['openFile'],
             title: '选择 Vosk 模型'
           }
+        },
+        {
+          name: 'models',
+          type: 'custom',
+          render: (row: any) => {
+            setData(row.models)
+            return TableComponent
+          }
         }
       ],
       initialData: {
         modelPath: savedConfig.modelPath || '',
-        language: savedConfig.language || 'zh-CN'
+        models: [
+          {
+            id: 'vosk-cn',
+            name: 'Vosk 中文模型',
+            active: true,
+            category: 'speech',
+            created: Date.now(),
+            object: 'model',
+            owned_by: 'vosk-speech-recognition'
+          }
+        ]
       },
       onChange: (_field: string, _value: any, data: any) => {
         console.log('Vosk 配置更新:', data)
@@ -164,17 +185,7 @@ const plugin: Plugin = {
     context.registerProvider('vosk-local', {
       name: 'Vosk',
       form: VoskForm,
-      models: [
-        {
-          id: 'vosk-cn',
-          name: 'Vosk 中文模型',
-          active: true,
-          category: 'speech',
-          created: Date.now(),
-          object: 'model',
-          owned_by: 'vosk-speech-recognition'
-        }
-      ]
+      models: []
     })
 
     const initModel = async (silent = false) => {

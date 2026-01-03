@@ -50,6 +50,8 @@ export interface PluginContext {
     }) => void;
     removeStatus: (id: string) => void;
   };
+  useform:any;
+  useTable:any;
   /** 注册内置工具 */
   registerBuiltinTool: (name: string, tool: any) => void;
   /** 注销内置工具 */
