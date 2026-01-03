@@ -140,7 +140,13 @@ const plugin: Plugin = {
       data: [],
       columns: () => [
         { key: 'name', label: '模型名称', width: '2fr' },
-        { key: 'id', label: '模型ID', width: '2fr' }
+        { key: 'id', label: '模型ID', width: '2fr' },
+        {
+          key: 'action',
+          label: '操作',
+          width: '2fr',
+          render: (row: any) => context.Button()
+        }
       ]
     })
     const [VoskForm, { getFieldValue }] = context.useForm({

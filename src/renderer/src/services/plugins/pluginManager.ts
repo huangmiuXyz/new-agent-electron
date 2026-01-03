@@ -1,5 +1,6 @@
 import { useForm } from '@renderer/composables/useForm';
 import { useTable } from '@renderer/composables/useTable';
+import Button from '@renderer/components/Button.vue'
 import localforage from 'localforage'
 /**
  * 插件管理器
@@ -134,6 +135,9 @@ export class PluginManager {
       basePath,
       useForm,
       useTable,
+      Button: (props: any) => defineComponent({
+        setup: () => h(Button, props)
+      }),
       registerCommand: (name: string, handler: Function) => {
         this.registerCommand(pluginName, name, handler);
       },

@@ -68,6 +68,7 @@ export interface PluginContext {
   /** 获取 useForm 工具 */
   useForm: any;
   useTable: any
+  Button: any;
   /** 从当前插件注销提供商 */
   unregisterProvider: (providerId: string) => void;
   /** 获取当前插件已注册的提供商 */

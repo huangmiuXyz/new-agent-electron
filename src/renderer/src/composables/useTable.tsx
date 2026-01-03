@@ -5,7 +5,8 @@ import {
   MaybeRefOrGetter,
   toValue,
   VNode,
-  watchEffect
+  watchEffect,
+  isVNode
 } from 'vue'
 
 export interface TableColumn<T = any> {
@@ -95,17 +96,28 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
             ) : (
               tableData.value.map((row, rowIndex) => (
                 <div
-                  key={(row as Record<string, unknown>).id as string | number || rowIndex}
+                  key={((row as Record<string, unknown>).id as string | number) || rowIndex}
                   class="table-row"
                   onClick={() => config.onRowClick?.(row)}
                 >
-                  {tableColumns.value.map((col) => (
-                    <div key={col.key} class="table-cell">
-                      {col.render
-                        ? col.render(row, rowIndex)
-                        : (row as Record<string, unknown>)[col.key] as string | number}
-                    </div>
-                  ))}
+                  {tableColumns.value.map((col) => {
+                    debugger
+                    const result = col.render?.(row, rowIndex) as any
+                    if (!isVNode(result) && result?.setup) {
+                      return (
+                        <div key={col.key} class="table-cell">
+                          {h(result)}
+                        </div>
+                      )
+                    }
+                    return (
+                      <div key={col.key} class="table-cell">
+                        {col.render
+                          ? col.render(row, rowIndex)
+                          : ((row as Record<string, unknown>)[col.key] as string | number)}
+                      </div>
+                    )
+                  })}
                 </div>
               ))
             )}
