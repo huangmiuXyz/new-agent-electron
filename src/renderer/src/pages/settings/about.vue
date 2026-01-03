@@ -53,6 +53,10 @@ const installUpdate = () => {
   window.api.updater.quitAndInstall()
 }
 
+const openDevTools = () => {
+  window.api.openDevTools()
+}
+
 let removeListener: (() => void) | null = null
 
 onMounted(async () => {
@@ -127,6 +131,21 @@ onUnmounted(() => {
             <!-- Release Notes -->
             <div v-if="updateInfo?.releaseNotes && updateStatus === 'available'" class="release-notes">
               <div class="notes-content" v-html="updateInfo.releaseNotes"></div>
+            </div>
+          </Card>
+        </FormItem>
+
+        <FormItem label="开发者">
+          <Card>
+            <div class="update-row">
+              <div class="update-status-text">
+                <span>调试窗口</span>
+              </div>
+              <div class="update-actions">
+                <Button @click="openDevTools">
+                  打开调试窗口
+                </Button>
+              </div>
             </div>
           </Card>
         </FormItem>

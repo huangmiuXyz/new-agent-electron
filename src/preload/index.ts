@@ -6,7 +6,7 @@ import fs from 'fs'
 import path from 'path'
 import mime from 'mime-types'
 import url from 'url'
-import { app } from '@electron/remote'
+import { app, getCurrentWindow } from '@electron/remote'
 import { exec, spawn } from 'child_process'
 import os from 'os'
 
@@ -43,6 +43,7 @@ export const api = {
       options
     )) as Electron.OpenDialogReturnValue,
   app,
+  openDevTools: () => getCurrentWindow().webContents.openDevTools(),
   isPackaged: app.isPackaged,
   getPath: app.getPath,
   getAppPath: app.getAppPath,
