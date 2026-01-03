@@ -171,6 +171,13 @@ const plugin: Plugin = {
                 setData(newData)
                 setFieldValue('models', newData)
 
+                // 持久化保存，直接构造最新数据确保同步
+                const updatedConfig = {
+                  ...getFormData(),
+                  models: newData
+                }
+                context.localforage.setItem(STORAGE_KEY, JSON.stringify(updatedConfig))
+
                 // 同步到 settingsStore
                 const index = settingsStore.registeredProviders.findIndex(
                   (p: any) => p.id === 'vosk-local'
@@ -198,6 +205,13 @@ const plugin: Plugin = {
                   const newData = currentData.filter((item: any) => item.id !== row.id)
                   setData(newData)
                   setFieldValue('models', newData)
+
+                  // 持久化保存，直接构造最新数据确保同步
+                  const updatedConfig = {
+                    ...getFormData(),
+                    models: newData
+                  }
+                  context.localforage.setItem(STORAGE_KEY, JSON.stringify(updatedConfig))
 
                   // 同步到 settingsStore
                   const index = settingsStore.registeredProviders.findIndex(
@@ -240,7 +254,7 @@ const plugin: Plugin = {
       ],
       initialData: {
         modelPath: savedConfig.modelPath || '',
-        models: [
+        models: savedConfig.models || [
           {
             id: 'vosk-cn',
             name: 'Vosk 中文模型',
