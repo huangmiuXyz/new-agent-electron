@@ -143,15 +143,82 @@
     ]
   },
   "build": {
+    "appId": "com.electron.app",
+    "productName": "agent-qi",
+    "directories": {
+      "buildResources": "build"
+    },
+    "extraMetadata": {
+      "dependencies": {
+        "vosk-speech-recognition": null,
+        "ollama-starter": null,
+        "smart-api-key-filler": null,
+        "qi-cli": null
+      }
+    },
+    "files": [
+      "!packages/**/*",
+      "!node_modules/vosk-speech-recognition",
+      "!node_modules/ollama-starter",
+      "!node_modules/smart-api-key-filler",
+      "!**/.vscode/*",
+      "!src/*",
+      "!electron.vite.config.{js,ts,mjs,cjs}",
+      "!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}",
+      "!{.env,.env.*,.npmrc,pnpm-lock.yaml}",
+      "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
+    ],
+    "asarUnpack": [
+      "resources/**"
+    ],
+    "win": {
+      "executableName": "agent-qi"
+    },
+    "nsis": {
+      "artifactName": "${name}-${version}-setup.${ext}",
+      "shortcutName": "${productName}",
+      "uninstallDisplayName": "${productName}",
+      "createDesktopShortcut": "always"
+    },
     "mac": {
       "category": "public.app-category.utilities",
       "extendInfo": {
-        "LSUIElement": true
+        "LSUIElement": true,
+        "NSCameraUsageDescription": "Application requests access to the device's camera.",
+        "NSMicrophoneUsageDescription": "Application requests access to the device's microphone.",
+        "NSDocumentsFolderUsageDescription": "Application requests access to the user's Documents folder.",
+        "NSDownloadsFolderUsageDescription": "Application requests access to the user's Downloads folder."
       },
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": false,
       "target": [
         "zip",
         "dmg"
       ]
+    },
+    "dmg": {
+      "artifactName": "${name}-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "snap",
+        "deb"
+      ],
+      "maintainer": "electronjs.org",
+      "category": "Utility"
+    },
+    "appImage": {
+      "artifactName": "${name}-${version}.${ext}"
+    },
+    "npmRebuild": false,
+    "publish": {
+      "provider": "github",
+      "owner": "huangmiuXyz",
+      "repo": "new-agent-electron"
+    },
+    "electronDownload": {
+      "mirror": "https://npmmirror.com/mirrors/electron/"
     }
   }
 }
