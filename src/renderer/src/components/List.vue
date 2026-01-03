@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { computed } from 'vue'
+import { assetsHandler } from '@renderer/utils'
 
 interface Props {
   items: T[]
@@ -41,7 +42,12 @@ const emit = defineEmits<{
 const viewItems = computed(() => {
   const items = props.items.map((item, index) => {
     const key = item[props.keyField] ?? JSON.stringify(item)
-    const logo = item[props.logoField]
+    let logo = item[props.logoField]
+    const isIcon = typeof logo === 'object' || typeof logo === 'function'
+
+    if (!isIcon && typeof logo === 'string') {
+      logo = assetsHandler(logo)
+    }
 
     const groupKey =
       props.showHeader && props.renderHeader
@@ -63,7 +69,7 @@ const viewItems = computed(() => {
       main: item[props.mainField] ?? key,
       sub: props.subField ? item[props.subField] : '',
       logo,
-      isIcon: typeof logo === 'object' || typeof logo === 'function',
+      isIcon,
       isActive: props.isSelected?.(item) || props.activeId === key,
       groupKey,
       groupTitle

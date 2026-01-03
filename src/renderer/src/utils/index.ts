@@ -21,6 +21,21 @@ export const anyUrlToBlobUrl = (url: string): string => {
     return ''
   }
 }
+
+export const assetsHandler = (path: string): string => {
+  if (!path) return ''
+  if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('file:')) {
+    return path
+  }
+  // 处理以 / 开头的路径，使其相对于根目录
+  try {
+    return new URL(path, import.meta.url).href
+  } catch (e) {
+    console.error('assetsHandler error:', e)
+    return path
+  }
+}
+
 export const copyText = (text: string) => {
   if (text) {
     navigator.clipboard
