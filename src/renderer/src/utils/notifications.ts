@@ -1,5 +1,5 @@
 import { createVNode, render, ref, TransitionGroup, defineComponent, h } from 'vue'
-import { useNotificationStore, type NotificationType, type NotificationItem as StoreNotificationItem } from '../stores/notifications'
+import { useNotificationStore, type NotificationType } from '../stores/notifications'
 
 export type { NotificationType }
 
@@ -245,7 +245,7 @@ const addNotification = (
   duration?: number
 ): CloseNotification => {
   console.log('Adding notification:', { type, content, title });
-  if (typeof window === 'undefined') return () => {}
+  if (typeof window === 'undefined') return () => { }
 
   mountContainer()
 

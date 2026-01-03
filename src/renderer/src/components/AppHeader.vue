@@ -15,7 +15,7 @@ const { customTitle } = useAppHeader()
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 
-const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp, NoteAdd24Regular } = useIcon([
+const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp } = useIcon([
   'Search',
   'PanelOpen',
   'PanelClose',

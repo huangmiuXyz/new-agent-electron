@@ -44,10 +44,6 @@ const getIconColor = (type: string) => {
       return 'var(--text-secondary)'
   }
 }
-
-const formatTime = (timestamp: number) => {
-  return dayjs(timestamp).format('MM-dd HH:mm')
-}
 </script>
 
 <template>
