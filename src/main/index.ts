@@ -140,15 +140,15 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('net:download', async (event, { url, destPath }) => {
+  ipcMain.handle('net:download', async (_event, { url, destPath }) => {
     try {
       const response = await net.fetch(url)
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-      
+
       const buffer = await response.arrayBuffer()
       const fs = require('fs')
       fs.writeFileSync(destPath, Buffer.from(buffer))
-      
+
       return { ok: true }
     } catch (error) {
       return { ok: false, error: (error as Error).message }
