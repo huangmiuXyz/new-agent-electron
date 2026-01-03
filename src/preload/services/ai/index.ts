@@ -2,8 +2,6 @@ import { createMCPClient, type MCPClient } from '@ai-sdk/mcp'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js'
-import { spawn } from 'child_process'
-import os from 'os'
 type ClientConfig = Record<
   string,
   {
