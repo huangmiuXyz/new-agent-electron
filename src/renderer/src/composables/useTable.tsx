@@ -14,6 +14,7 @@ export interface TableColumn<T = any> {
   label: string
   width?: string | number // number => px
   headerClass?: string
+  renderType?: 'html'
   render?: (row: T, index: number) => VNode | string | number | null
 }
 
@@ -102,6 +103,20 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
                 >
                   {tableColumns.value.map((col) => {
                     const result = col.render?.(row, rowIndex) as any
+
+                    if (col.renderType === 'html') {
+                      const htmlContent = col.render
+                        ? col.render(row, rowIndex)
+                        : ((row as Record<string, unknown>)[col.key] as string | number)
+                      return (
+                        <div
+                          key={col.key}
+                          class="table-cell"
+                          innerHTML={String(htmlContent || '')}
+                        ></div>
+                      )
+                    }
+
                     if (!isVNode(result) && result?.setup) {
                       return (
                         <div key={col.key} class="table-cell">
