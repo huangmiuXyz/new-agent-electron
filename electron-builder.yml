@@ -3,6 +3,7 @@ productName: agent-qi
 directories:
   buildResources: build
 files:
+  - '!packages/**/*'
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
