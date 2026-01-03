@@ -78,6 +78,60 @@ const registeredPlugin = computed(() => {
   return registeredProviders.value.find((p) => p.providerId === activeProviderId.value)
 })
 
+const ModelList = (): VNode => {
+  const showSearch = ref(false)
+  const handleShowSearch = async () => {
+    showSearch.value = true
+    await nextTick()
+    searchInputRef.value?.focus()
+  }
+  return (
+    <FormItem label="模型列表">
+      {{
+        label: () => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>模型列表</span>
+            <Button onClick={showAddCustomModelModal} size="sm" type="button" variant="text">
+              <component is={Plus} />
+            </Button>
+            {showSearch.value ? (
+              <div>
+                <SearchInput
+                  searchKey="id"
+                  search-data={activeProvider.value!.models}
+                  onAi-search={setAISearchValue}
+                  ref={searchInputRef}
+                  v-model={searchKeyword.value}
+                  onUpdate:modelValue={() => {
+                    aiSearchModels.value = []
+                  }}
+                  placeholder="搜索模型..."
+                  size="sm"
+                  variant="default"
+                  show-icon={true}
+                  debounce={0}
+                  onBlur={() => !searchKeyword.value && (showSearch.value = false)}
+                  class="provider-search-input"
+                />
+              </div>
+            ) : (
+              <Button type="button" variant="text" size="sm" onClick={handleShowSearch}>
+                <component is={Search} />
+              </Button>
+            )}
+          </div>
+        ),
+        tool: () => (
+          <Button onClick={refreshModels} size="sm" type="button" variant="text">
+            <component is={Refresh} />
+            刷新模型列表
+          </Button>
+        ),
+        default: () => <ModelTable />
+      }}
+    </FormItem>
+  )
+}
 const [ProviderForm, formActions] = useForm({
   title: `${activeProvider.value?.name} 设置`,
   showHeader: false,
@@ -101,7 +155,7 @@ const [ProviderForm, formActions] = useForm({
           title="重置为默认地址"
           class="ml-2"
         >
-        <component is={Refresh} />
+          <component is={Refresh} />
         </Button>
       )
     },
@@ -122,7 +176,7 @@ const [ProviderForm, formActions] = useForm({
     ...pluginFields.value,
     {
       name: 'models',
-      type: 'custom'
+      render: ModelList
     }
   ] as FormField<Provider>[]),
   initialData: activeProvider.value,
@@ -387,60 +441,6 @@ const [ModelTable] = useTable<Model>({
   data: () => (aiSearchModels.value.length ? aiSearchModels.value : filteredModels.value)
 })
 
-const ModelList = () => {
-  const showSearch = ref(false)
-  const handleShowSearch = async () => {
-    showSearch.value = true
-    await nextTick()
-    searchInputRef.value?.focus()
-  }
-  return (
-    <FormItem label="模型列表">
-      {{
-        label: () => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>模型列表</span>
-            <Button onClick={showAddCustomModelModal} size="sm" type="button" variant="text">
-              <component is={Plus} />
-            </Button>
-            {showSearch.value ? (
-              <div>
-                <SearchInput
-                  searchKey="id"
-                  search-data={activeProvider.value!.models}
-                  onAi-search={setAISearchValue}
-                  ref={searchInputRef}
-                  v-model={searchKeyword.value}
-                  onUpdate:modelValue={() => {
-                    aiSearchModels.value = []
-                  }}
-                  placeholder="搜索模型..."
-                  size="sm"
-                  variant="default"
-                  show-icon={true}
-                  debounce={0}
-                  onBlur={() => !searchKeyword.value && (showSearch.value = false)}
-                  class="provider-search-input"
-                />
-              </div>
-            ) : (
-              <Button type="button" variant="text" size="sm" onClick={handleShowSearch}>
-                <component is={Search} />
-              </Button>
-            )}
-          </div>
-        ),
-        tool: () => (
-          <Button onClick={refreshModels} size="sm" type="button" variant="text">
-            <component is={Refresh} />
-            刷新模型列表
-          </Button>
-        ),
-        default: () => <ModelTable />
-      }}
-    </FormItem>
-  )
-}
 </script>
 
 <template>
@@ -456,9 +456,6 @@ const ModelList = () => {
         <component :is="registeredPlugin.form" />
       </div>
       <ProviderForm v-else>
-        <template #models>
-          <ModelList />
-        </template>
       </ProviderForm>
     </template>
   </FormContainer>

@@ -87,7 +87,6 @@ interface BaseField<T> {
   ifShow?: (data: T) => boolean
 }
 
-
 export interface TextField<T> extends BaseField<T> {
   type?: 'text' | 'password' | 'email' | 'number'
   placeholder?: string
@@ -95,11 +94,9 @@ export interface TextField<T> extends BaseField<T> {
   rest?: () => VNode
 }
 
-
 export interface BooleanField<T> extends BaseField<T> {
   type?: 'boolean'
 }
-
 
 export interface SliderField<T> extends BaseField<T> {
   type?: 'slider'
@@ -110,14 +107,12 @@ export interface SliderField<T> extends BaseField<T> {
   unlimited?: boolean
 }
 
-
 export interface SelectField<T> extends BaseField<T> {
   type?: 'select'
   options: { label: string; value: string | number }[]
   placeholder?: string
   clearable?: boolean
 }
-
 
 export interface TextareaField<T> extends BaseField<T> {
   type?: 'textarea'
@@ -127,12 +122,10 @@ export interface TextareaField<T> extends BaseField<T> {
   autoResize?: boolean
 }
 
-
 export interface ArrayField<T> extends BaseField<T> {
   type?: 'array'
   placeholder?: string
 }
-
 
 export interface ObjectField<T> extends BaseField<T> {
   type?: 'object'
@@ -140,12 +133,10 @@ export interface ObjectField<T> extends BaseField<T> {
   valuePlaceholder?: string
 }
 
-
 export interface CheckboxGroupField<T> extends BaseField<T> {
   type?: 'checkboxGroup'
   options: CheckboxOption[]
 }
-
 
 export interface ModelSelectorField<T> extends BaseField<T> {
   type?: 'modelSelector'
@@ -154,14 +145,12 @@ export interface ModelSelectorField<T> extends BaseField<T> {
   modelCategory?: ModelCategory
 }
 
-
 export interface ColorField<T> extends BaseField<T> {
   type?: 'color'
   placeholder?: string
   presetColors?: string[]
   showAlpha?: boolean
 }
-
 
 export interface PathSelectorField<T> extends BaseField<T> {
   type?: 'path'
@@ -216,11 +205,9 @@ export interface FormActions<T> {
   updateFieldProps: (field: string, props: Record<string, any>) => void
 }
 
-
 const getNestedValue = (obj: any, path: string) => {
   return path.split('.').reduce((current, key) => current?.[key], obj)
 }
-
 
 const setNestedValue = (obj: any, path: string, value: any) => {
   const keys = path.split('.')
@@ -235,12 +222,9 @@ const setNestedValue = (obj: any, path: string, value: any) => {
 }
 
 export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
-
   const formData = ref<T>({} as T)
 
-
   const dynamicFieldProps = ref<Record<string, Record<string, any>>>({})
-
 
   const getDefaultValue = (fieldType: string, field: any) => {
     switch (fieldType) {
@@ -273,7 +257,6 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
   }
 
-
   const fields = computed(() => toValue(config.fields))
 
   const initializeField = (field: any) => {
@@ -302,9 +285,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
   fields.value.forEach(initializeField)
 
-
   const errors = ref<Record<string, string>>({})
-
 
   const validate = () => {
     const newErrors: Record<string, string> = {}
@@ -353,17 +334,14 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
   const setFieldValue = (field: string, value: any) => {
     if (field.includes('.')) {
-
       setNestedValue(formData.value, field, value)
     } else {
-
       formData.value[field] = value
     }
 
     config.onChange?.(field as keyof T, value as T[keyof T], formData.value)
   }
   const setFieldsValue = (data: T) => {
-
     Object.keys(data).forEach((key) => {
       if (key.includes('.')) {
         setNestedValue(formData.value, key, data[key])
@@ -376,10 +354,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
   const getFieldValue = (field: string) => {
     if (field.includes('.')) {
-
       return getNestedValue(formData.value, field)
     } else {
-
       return formData.value[field]
     }
   }
@@ -398,7 +374,6 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
     Object.assign(dynamicFieldProps.value[field], props)
   }
-
 
   const FormComponent = defineComponent({
     setup(_, { slots }) {
@@ -702,7 +677,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                       )
 
                     case 'custom':
-                      return (
+                      return field.render ? (
+                        field.render(formData.value)
+                      ) : (
                         <FormItem
                           label={field.label}
                           error={hasError}
@@ -710,10 +687,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                           required={field.required}
                           layout="default"
                         >
-                          {slots[field.name]?.(formData.value) || field.render(formData.value)}
+                          {slots[field.name]?.(formData.value)}
                         </FormItem>
                       )
-
                     default:
                       return null
                   }
@@ -726,7 +702,6 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       }
     }
   })
-
 
   if (typeof document !== 'undefined' && !document.getElementById('use-form-styles')) {
     const style = document.createElement('style')
@@ -819,7 +794,6 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     `
     document.head.appendChild(style)
   }
-
 
   const actions: FormActions<T> = {
     getData,
