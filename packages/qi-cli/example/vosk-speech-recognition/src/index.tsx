@@ -152,21 +152,47 @@ const plugin: Plugin = {
         { key: 'name', label: '模型名称', width: '2fr' },
         { key: 'id', label: '模型ID', width: '2fr' },
         {
+          key: 'active',
+          label: '启用',
+          width: '1fr',
+          render: (row: any) =>
+            context.components.Switch({
+              modelValue: row.active,
+              'onUpdate:modelValue': (val: boolean) => {
+                const currentData = getData()
+                const newData = currentData.map((item: any) => {
+                  if (item.id === row.id) {
+                    return { ...item, active: val }
+                  }
+                  return item
+                })
+                setData(newData)
+                setFieldValue('models', newData)
+              }
+            })
+        },
+        {
           key: 'action',
           label: '操作',
           width: '2fr',
-          render: (row: any) => context.components.Button({
-            danger: true,
-            size: 'sm',
-            onClick: () => {
-              const currentData = getData();
-              setData(currentData.filter((item: any) => item.id !== row.id));
-            }
-          }, '删除')
+          render: (row: any) =>
+            context.components.Button(
+              {
+                danger: true,
+                size: 'sm',
+                onClick: () => {
+                  const currentData = getData()
+                  const newData = currentData.filter((item: any) => item.id !== row.id)
+                  setData(newData)
+                  setFieldValue('models', newData)
+                }
+              },
+              '删除'
+            )
         }
       ]
     })
-    const [VoskForm, { getFieldValue }] = context.useForm({
+    const [VoskForm, { getFieldValue, setFieldValue, getData: getFormData }] = context.useForm({
       fields: [
         {
           name: 'modelPath',
@@ -211,7 +237,7 @@ const plugin: Plugin = {
     context.registerProvider('vosk-local', {
       name: 'Vosk',
       form: VoskForm,
-      models: []
+      ...getFormData()
     })
 
     const initModel = async (silent = false) => {

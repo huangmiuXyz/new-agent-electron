@@ -58,7 +58,7 @@ export const useSettingsStore = defineStore(
 
     const registeredProviders = ref<RegisteredProvider[]>([])
     const getAllProviders = computed(() => {
-      return [...providers.value, ...registeredProviders.value]
+      return [...providers.value, ...registeredProviders.value] as Provider[]
     })
     const thinkingMode = ref(false)
 

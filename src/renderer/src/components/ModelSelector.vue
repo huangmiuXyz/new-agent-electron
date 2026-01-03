@@ -13,17 +13,17 @@ const props = withDefaults(
     category: 'text'
   }
 )
-const { providers } = storeToRefs(useSettingsStore())
+const { providers, getAllProviders } = storeToRefs(useSettingsStore())
 
 const currentSelectedModel = computed(() => {
   if (!selectedModelId.value || !selectedProviderId.value) return null
 
-  const provider = providers.value.find((p) => p.id === selectedProviderId.value)
+  const provider = getAllProviders.value.find((p) => p.id === selectedProviderId.value)
   return provider?.models?.find((m) => m.id === selectedModelId.value) || null
 })
 
 const currentSelectedProvider = computed(() => {
-  return providers.value.find((p) => p.id === selectedProviderId.value) || null
+  return getAllProviders.value.find((p) => p.id === selectedProviderId.value) || null
 })
 
 const isPopupOpen = ref(false)
@@ -37,7 +37,8 @@ const currentModelLabel = computed(() => {
 
 const filteredModels = computed(() => {
   const result: { provider: Provider; models: Model[] }[] = []
-  providers.value.forEach((provider) => {
+  debugger
+  getAllProviders.value.forEach((provider) => {
     const filteredModels = provider.models?.filter(
       (model) => model.active && model.category === props.category
     )
@@ -100,8 +101,8 @@ const handleModelSelect = (id: string) => {
     <template #trigger>
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
         <div class="model-btn-content">
-          <Image v-if="selectedModelId && currentSelectedProvider?.logo" style="width: 10px; border-radius: 2px" :src="currentSelectedProvider?.logo"
-            alt="" />
+          <Image v-if="selectedModelId && currentSelectedProvider?.logo" style="width: 10px; border-radius: 2px"
+            :src="currentSelectedProvider?.logo" alt="" />
           <span>{{ currentModelLabel }}</span>
         </div>
         <ChevronDown v-if="!selectedModelId" />

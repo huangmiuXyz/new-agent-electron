@@ -73,6 +73,7 @@ export interface PluginContext {
   useTable: any
   components: {
     Button: any
+    Switch: any
   }
   /** 从当前插件注销提供商 */
   unregisterProvider: (providerId: string) => void;
