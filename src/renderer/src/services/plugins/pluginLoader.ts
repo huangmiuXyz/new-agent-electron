@@ -344,6 +344,14 @@ export class PluginLoader {
   }
 
   /**
+   * 注册组件到插件上下文
+   * @param components 组件映射对象
+   */
+  registerComponents(components: Record<string, any>): void {
+    this.pluginManager.registerComponents(components);
+  }
+
+  /**
    * 获取所有内置工具
    * @returns 内置工具映射
    */

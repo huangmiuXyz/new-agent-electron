@@ -52,6 +52,7 @@ export interface PluginContext {
   };
   useform:any;
   useTable:any;
+  components: Record<string, any>;
   /** 注册内置工具 */
   registerBuiltinTool: (name: string, tool: any) => void;
   /** 注销内置工具 */

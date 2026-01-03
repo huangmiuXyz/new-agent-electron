@@ -101,7 +101,6 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
                   onClick={() => config.onRowClick?.(row)}
                 >
                   {tableColumns.value.map((col) => {
-                    debugger
                     const result = col.render?.(row, rowIndex) as any
                     if (!isVNode(result) && result?.setup) {
                       return (

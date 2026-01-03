@@ -1,3 +1,4 @@
+import { defineComponent, h, markRaw } from 'vue';
 import { useForm } from '@renderer/composables/useForm';
 import { useTable } from '@renderer/composables/useTable';
 import Button from '@renderer/components/Button.vue'
@@ -13,6 +14,7 @@ export class PluginManager {
   private commands: Map<string, Command> = new Map();
   private hooks: Map<string, Hook[]> = new Map();
   private builtinTools: Map<string, any> = new Map();
+  private registeredComponents: Map<string, any> = new Map();
   /** 跟踪每个插件注册的内置工具名称 */
   private pluginBuiltinTools: Map<string, Set<string>> = new Map();
 
@@ -27,6 +29,16 @@ export class PluginManager {
    */
   registerPlugin(plugin: Plugin): void {
     this.plugins.set(plugin.name, plugin);
+  }
+
+  /**
+   * 注册组件到插件上下文
+   * @param components 组件映射对象
+   */
+  registerComponents(components: Record<string, any>): void {
+    for (const [name, component] of Object.entries(components)) {
+      this.registeredComponents.set(name, component);
+    }
   }
 
   /**
@@ -128,6 +140,11 @@ export class PluginManager {
    * @returns 插件上下文
    */
   createContext(pluginName: string, basePath: string): PluginContext {
+    const components: Record<string, any> = {};
+    this.registeredComponents.forEach((component, name) => {
+      components[name] = (props: any, children: any) => h(component, props, typeof children === 'function' ? children : { default: () => children });
+    });
+
     return {
       app: this.app,
       api: window.api,
@@ -135,9 +152,7 @@ export class PluginManager {
       basePath,
       useForm,
       useTable,
-      Button: (props: any) => defineComponent({
-        setup: () => h(Button, props)
-      }),
+      components,
       registerCommand: (name: string, handler: Function) => {
         this.registerCommand(pluginName, name, handler);
       },

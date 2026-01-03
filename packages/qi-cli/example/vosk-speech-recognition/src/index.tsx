@@ -136,7 +136,7 @@ const plugin: Plugin = {
     // 注册 Vosk 提供商
     const STORAGE_KEY = 'vosk-config'
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
-    const [TableComponent, { setData }] = context.useTable({
+    const [TableComponent, { setData, getData }] = context.useTable({
       data: [],
       columns: () => [
         { key: 'name', label: '模型名称', width: '2fr' },
@@ -145,7 +145,14 @@ const plugin: Plugin = {
           key: 'action',
           label: '操作',
           width: '2fr',
-          render: (row: any) => context.Button()
+          render: (row: any) => context.components.Button({
+            danger: true,
+            size: 'sm',
+            onClick: () => {
+              const currentData = getData();
+              setData(currentData.filter((item: any) => item.id !== row.id));
+            }
+          }, '删除')
         }
       ]
     })
