@@ -9,7 +9,7 @@ import ModelSelector from '@renderer/components/ModelSelector.vue'
 import ColorPicker from '@renderer/components/ColorPicker.vue'
 import PathSelector from '@renderer/components/PathSelector.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
-import { VNode, MaybeRefOrGetter, toValue } from 'vue'
+import { VNode, MaybeRefOrGetter, toValue, isVNode, h } from 'vue'
 
 export const FormItem = defineComponent({
   props: {
@@ -677,9 +677,14 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                       )
 
                     case 'custom':
-                      return field.render ? (
-                        field.render(formData.value)
-                      ) : (
+                      if (field.render) {
+                        const result = field.render(formData.value) as any
+                        if (!isVNode(result) && result.setup) {
+                          return h(result)
+                        }
+                        return result
+                      }
+                      return (
                         <FormItem
                           label={field.label}
                           error={hasError}

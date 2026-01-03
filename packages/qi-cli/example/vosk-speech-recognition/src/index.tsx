@@ -138,7 +138,7 @@ const plugin: Plugin = {
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
     const [TableComponent, { setData }] = context.useTable({
       data: [],
-      columns: () => ({})
+      columns: () => ([])
     })
     const [VoskForm, { getFieldValue }] = context.useForm({
       fields: [
