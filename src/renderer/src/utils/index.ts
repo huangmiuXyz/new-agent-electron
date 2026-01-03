@@ -27,12 +27,16 @@ export const assetsHandler = (path: string): string => {
   if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('file:')) {
     return path
   }
-  // 处理以 / 开头的路径，使其相对于根目录
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  if (import.meta.env.DEV) {
+    return normalizedPath
+  }
   try {
-    return new URL(path, import.meta.url).href
+    const relativePath = `..${normalizedPath}`
+    return new URL(relativePath, import.meta.url).href
   } catch (e) {
-    console.error('assetsHandler error:', e)
-    return path
+    return normalizedPath
   }
 }
 
