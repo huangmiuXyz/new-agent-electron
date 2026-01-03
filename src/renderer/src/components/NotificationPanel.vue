@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useNotificationStore } from '../stores/notifications'
 import { useIcon } from '../composables/useIcon'
-import dayjs from 'dayjs'
 
 const notificationStore = useNotificationStore()
 
