@@ -11,10 +11,140 @@ let modelLoadingPromise: Promise<Vosk.Model | null> | null = null
 let currentLoadedModelId: string | null = null
 const MODELS = [
   {
+    id: 'vosk-cn-small',
+    name: 'Vosk 中文模型 (精简版)',
+    file: 'vosk-model-small-cn-0.22.zip',
+    active: true,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
     id: 'vosk-cn',
     name: 'Vosk 中文模型',
-    file: MODEL_NAME,
-    active: true,
+    file: 'vosk-model-cn-0.22.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-en-small',
+    name: 'Vosk English Model (Small)',
+    file: 'vosk-model-small-en-us-0.15.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-en',
+    name: 'Vosk English Model',
+    file: 'vosk-model-en-us-0.22.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-ru-small',
+    name: 'Vosk Russian Model (Small)',
+    file: 'vosk-model-small-ru-0.22.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-fr-small',
+    name: 'Vosk French Model (Small)',
+    file: 'vosk-model-small-fr-0.22.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-de-small',
+    name: 'Vosk German Model (Small)',
+    file: 'vosk-model-small-de-0.15.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-es-small',
+    name: 'Vosk Spanish Model (Small)',
+    file: 'vosk-model-small-es-0.42.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-pt-small',
+    name: 'Vosk Portuguese Model (Small)',
+    file: 'vosk-model-small-pt-0.3.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-it-small',
+    name: 'Vosk Italian Model (Small)',
+    file: 'vosk-model-small-it-0.22.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-ja-small',
+    name: 'Vosk Japanese Model (Small)',
+    file: 'vosk-model-small-ja-0.22.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-ko-small',
+    name: 'Vosk Korean Model (Small)',
+    file: 'vosk-model-small-ko-0.22.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-vn-small',
+    name: 'Vosk Vietnamese Model (Small)',
+    file: 'vosk-model-small-vn-0.4.zip',
+    active: false,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  },
+  {
+    id: 'vosk-tr-small',
+    name: 'Vosk Turkish Model (Small)',
+    file: 'vosk-model-small-tr-0.3.zip',
+    active: false,
     category: 'speech',
     created: Date.now(),
     object: 'model',
