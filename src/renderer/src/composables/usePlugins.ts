@@ -379,7 +379,7 @@ export function usePlugins() {
    * 清除插件缓存和数据
    */
   const clearPluginData = async (pluginName: string): Promise<void> => {
-    const confirmed = confirm(`确定要清除插件 "${pluginName}" 的缓存和所有数据吗？\n\n此操作将删除该插件的所有存储数据和已下载的模型文件（如果插件支持）。`)
+    const confirmed = confirm(`确定要清除插件 "${pluginName}" 的缓存和所有数据吗？`)
     if (!confirmed) {
       return
     }
