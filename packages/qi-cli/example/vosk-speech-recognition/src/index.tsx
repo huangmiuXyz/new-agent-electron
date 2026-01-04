@@ -95,20 +95,12 @@ const plugin: Plugin = {
       props: {
         error: { type: String, default: '' }
       },
-      setup(props: any) {
+      setup() {
         return () => (
           <div class="plugin-icon-container">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="#ff4d4f">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
             </svg>
-            <div class="plugin-tooltip">
-              <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#ff4d4f' }}>
-                加载失败
-              </div>
-              <div style={{ fontSize: '11px', whiteSpace: 'normal', maxWidth: '200px' }}>
-                {props.error || '模型加载出错，请检查设置'}
-              </div>
-            </div>
           </div>
         )
       }
