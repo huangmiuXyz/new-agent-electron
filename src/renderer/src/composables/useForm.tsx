@@ -716,7 +716,6 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         display: flex;
         flex-direction: column;
         width: 100%;
-        height: 100%;
       }
 
       .form-header {
@@ -730,10 +729,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       }
 
       .form-content {
-        flex: 1;
         overflow-y: auto;
         padding: 0;
-        height: 100%;
       }
 
       .form-item {

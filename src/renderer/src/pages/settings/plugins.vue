@@ -35,15 +35,35 @@ const {
   isPluginNotificationDisabled
 } = usePlugins()
 
-// 通知开关逻辑
-const notificationDisabled = computed({
-  get: () => activePlugin.value ? isPluginNotificationDisabled(activePlugin.value.name) : false,
-  set: (val: boolean) => {
-    if (activePlugin.value) {
-      togglePluginNotification(activePlugin.value.name, val)
+// 插件设置表单
+const [SettingsForm, settingsFormActions] = useForm({
+  fields: [
+    {
+      name: 'notificationDisabled',
+      type: 'boolean',
+      label: '禁用插件通知',
+      hint: '开启后，该插件将不再显示任何弹窗'
+    }
+  ],
+  onChange: (field, value) => {
+    if (field === 'notificationDisabled' && activePlugin.value) {
+      togglePluginNotification(activePlugin.value.name, value as boolean)
     }
   }
 })
+
+// 当激活插件改变时，更新表单数据
+watch(
+  activePlugin,
+  (plugin) => {
+    if (plugin) {
+      settingsFormActions.setFieldsValue({
+        notificationDisabled: isPluginNotificationDisabled(plugin.name)
+      })
+    }
+  },
+  { immediate: true }
+)
 
 // 获取状态图标
 const getStatusIcon = (status: PluginStatus) => {
@@ -242,17 +262,8 @@ const handleUninstallPlugin = async (pluginName: string) => {
           </Card>
         </FormItem>
         <!-- 插件设置 -->
-        <FormItem v-if="activePlugin.type === 'loaded'" label="插件设置">
-          <Card padding="16px">
-            <div class="setting-item">
-              <div class="setting-info">
-                <div class="setting-title">禁用插件通知</div>
-                <div class="setting-desc">开启后，该插件将不再显示任何弹窗</div>
-              </div>
-              <Switch v-model="notificationDisabled" />
-            </div>
-          </Card>
-        </FormItem>
+
+        <SettingsForm />
         <!-- 插件命令 -->
         <FormItem v-if="activePlugin.type === 'loaded' && getPluginCommands(activePlugin.name).length > 0" label="可用命令">
           <CommandTable />
@@ -306,29 +317,6 @@ const handleUninstallPlugin = async (pluginName: string) => {
 .plugin-detail {
   display: flex;
   flex-direction: column;
-}
-
-.setting-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.setting-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.setting-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.setting-desc {
-  font-size: 12px;
-  color: var(--text-secondary);
 }
 
 .info-header {
