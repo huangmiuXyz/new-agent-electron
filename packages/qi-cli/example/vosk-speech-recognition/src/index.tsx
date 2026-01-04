@@ -145,6 +145,7 @@ const plugin: Plugin = {
       let unlisten: (() => void) | null = null
       if (context.api.net.onDownloadProgress) {
         unlisten = context.api.net.onDownloadProgress(row.id, (progress: any) => {
+          console.log(progress)
           const updatedData = getData().map((item: any) =>
             item.id === row.id ? { ...item, progress } : item
           )
@@ -225,26 +226,38 @@ const plugin: Plugin = {
               )
             }
             if (row.isDownloading) {
+              const percent = row.progress?.percent || 0
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: '100%',
+                    padding: '4px 0',
+                    gap: '4px'
+                  }}
+                >
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      marginBottom: '4px'
+                      justifyContent: 'space-between',
+                      width: '100%'
                     }}
                   >
-                    {context.components.Button(
-                      {
-                        size: 'sm',
-                        loading: true,
-                        disabled: true
-                      },
-                      '正在下载'
-                    )}
-                    <span style={{ fontSize: '12px', color: '#888' }}>
-                      {row.progress ? `${row.progress.percent}%` : '连接中...'}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {context.components.Button(
+                        {
+                          size: 'sm',
+                          loading: true,
+                          disabled: true,
+                          style: { height: '24px', padding: '0 8px', fontSize: '11px' }
+                        },
+                        '正在下载'
+                      )}
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#1890ff', fontWeight: 'bold' }}>
+                      {row.progress ? `${percent}%` : '连接中...'}
                     </span>
                   </div>
                   {row.progress && (
@@ -252,18 +265,19 @@ const plugin: Plugin = {
                       <div
                         style={{
                           height: '4px',
-                          background: '#f0f0f0',
+                          background: 'rgba(0,0,0,0.05)',
                           borderRadius: '2px',
                           overflow: 'hidden'
                         }}
                       >
                         <div
                           style={{
-                            width: `${row.progress.percent}%`,
+                            width: `${percent}%`,
                             height: '100%',
                             background: '#1890ff',
-                            transition: 'width 0.2s ease',
-                            borderRadius: '2px'
+                            transition: 'width 0.3s ease',
+                            borderRadius: '2px',
+                            boxShadow: '0 0 4px rgba(24, 144, 255, 0.5)'
                           }}
                         />
                       </div>
@@ -271,9 +285,10 @@ const plugin: Plugin = {
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
-                          marginTop: '4px',
+                          marginTop: '2px',
                           fontSize: '10px',
-                          color: '#999'
+                          color: '#999',
+                          fontFamily: 'monospace'
                         }}
                       >
                         <span>{formatSize(row.progress.downloaded)}</span>
@@ -346,7 +361,15 @@ const plugin: Plugin = {
           type: 'custom',
           render: (row: any) => {
             if (row.models && row.models.length > 0) {
-              setData(row.models)
+              const currentData = getData()
+              const mergedModels = row.models.map((m: any) => {
+                const current = currentData.find((cm: any) => cm.id === m.id)
+                if (current && current.isDownloading) {
+                  return { ...m, ...current }
+                }
+                return m
+              })
+              setData(mergedModels)
             }
             return TableComponent
           }

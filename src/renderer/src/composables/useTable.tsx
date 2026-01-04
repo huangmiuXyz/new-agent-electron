@@ -175,13 +175,11 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
       .header-cell,
       .table-cell {
         box-sizing: border-box;
-        padding: 0 8px;
-        height: 36px;
+        padding: 4px 8px;
+        min-height: 36px;
         display: flex;
         align-items: center;
         overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
         border-bottom: 1px solid var(--border-subtle);
       }
 
