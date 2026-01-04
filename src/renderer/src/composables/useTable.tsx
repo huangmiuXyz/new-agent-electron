@@ -13,6 +13,7 @@ export interface TableColumn<T = any> {
   key: string
   label: string
   width?: string | number // number => px
+  align?: 'left' | 'center' | 'right'
   headerClass?: string
   renderType?: 'html'
   render?: (row: T, index: number) => VNode | string | number | null
@@ -68,6 +69,13 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
   const getData = () => tableData.value
   const getLoading = () => tableLoading.value
 
+  const getAlignStyle = (align?: 'left' | 'center' | 'right') => {
+    if (!align) return {}
+    return {
+      justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start'
+    }
+  }
+
   const gridTemplate = computed(() =>
     tableColumns.value
       .map((col) => (typeof col.width === 'number' ? `${col.width}px` : col.width || '1fr'))
@@ -81,7 +89,11 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
           {/* 表头行 */}
           <div class="table-header">
             {tableColumns.value.map((col) => (
-              <div key={col.key} class={['header-cell', col.headerClass]}>
+              <div
+                key={col.key}
+                class={['header-cell', col.headerClass]}
+                style={getAlignStyle(col.align)}
+              >
                 {col.label}
               </div>
             ))}
@@ -112,6 +124,7 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
                         <div
                           key={col.key}
                           class="table-cell"
+                          style={getAlignStyle(col.align)}
                           innerHTML={String(htmlContent || '')}
                         ></div>
                       )
@@ -119,13 +132,13 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
 
                     if (!isVNode(result) && result?.setup) {
                       return (
-                        <div key={col.key} class="table-cell">
+                        <div key={col.key} class="table-cell" style={getAlignStyle(col.align)}>
                           {h(result)}
                         </div>
                       )
                     }
                     return (
-                      <div key={col.key} class="table-cell">
+                      <div key={col.key} class="table-cell" style={getAlignStyle(col.align)}>
                         {col.render
                           ? col.render(row, rowIndex)
                           : ((row as Record<string, unknown>)[col.key] as string | number)}
