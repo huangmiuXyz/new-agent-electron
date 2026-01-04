@@ -48,7 +48,7 @@ export const api = {
   getPath: app.getPath,
   getAppPath: app.getAppPath,
   getPluginsDataPath: (pluginName: string) => {
-    return path.join(window.api?.getPath('userData'),
+    return path.join(app?.getPath('userData'),
       'Data',
       'Plugins',
       pluginName,
