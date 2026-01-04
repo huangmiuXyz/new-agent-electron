@@ -7,7 +7,6 @@
       "DOM",
       "DOM.Iterable"
     ],
-    "jsx": "react-jsx",
     "moduleResolution": "node",
     "outDir": "./dist",
     "rootDir": "./src",

@@ -60,8 +60,6 @@ export interface PluginContext {
   registerBuiltinTool: (name: string, tool: any) => void;
   /** 注销内置工具 */
   unregisterBuiltinTool: (name: string) => boolean;
-  /** 渲染 React 组件为 Vue 组件 */
-  renderReact: (ReactComponent: any, props: any, react: any, reactDom: any) => any;
   /** 注册提供商到当前插件 */
   registerProvider: (providerId: string, options?: {
     name?: string;
