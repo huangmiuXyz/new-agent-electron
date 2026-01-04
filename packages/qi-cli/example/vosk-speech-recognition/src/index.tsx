@@ -7,7 +7,7 @@ const PROVIDER_ID = 'vosk-local'
 
 let model: Vosk.Model | null = null
 let recognizer: Vosk.KaldiRecognizer | null = null
-let modelLoadingPromise: Promise<Vosk.Model> | null = null
+let modelLoadingPromise: Promise<Vosk.Model | null> | null = null
 
 const plugin: Plugin = {
   name: 'vosk-speech-recognition',
@@ -17,7 +17,6 @@ const plugin: Plugin = {
   async install(context: PluginContext) {
     const { ref, h, onMounted, onUnmounted, markRaw, defineComponent, watch } = context.vue
 
-    // 定义 Vue 组件
     const LoadingIcon = defineComponent({
       setup() {
         const dots = ref('.')
@@ -426,6 +425,11 @@ const plugin: Plugin = {
         try {
           if (!context.api) throw new Error('应用 API 未就绪')
 
+          if (settingsStore.defaultModels?.speechProviderId !== PROVIDER_ID) {
+            modelLoadingPromise = null
+            return null
+          }
+
           if (!silent) {
             context.notification.status('vosk-status', '', {
               render: markRaw(LoadingIcon),
@@ -442,7 +446,6 @@ const plugin: Plugin = {
           const fullPath = context.api.path.join(context.basePath || '', MODEL_NAME)
           const normalizedPath = (modelPath || fullPath).replace(/\\/g, '/')
 
-          // 检查模型文件是否存在
           if (!modelPath && !context.api.fs.existsSync(fullPath)) {
             throw new Error(`找不到默认模型文件 ${MODEL_NAME}，请在插件设置中下载模型`)
           }
@@ -487,7 +490,19 @@ const plugin: Plugin = {
       return modelLoadingPromise
     }
 
-    initModel(false).catch((err) => console.error('后台预加载 Vosk 模型失败:', err))
+    if (watch) {
+      watch(
+        () => settingsStore.defaultModels?.speechProviderId,
+        (newId: string) => {
+          if (newId === PROVIDER_ID) {
+            initModel(false).catch((err) => console.error('后台预加载 Vosk 模型失败:', err))
+          } else {
+            context.notification.removeStatus('vosk-status')
+          }
+        },
+        { immediate: true }
+      )
+    }
 
     context.registerHook('speech.stream.start', async (options: any) => {
       try {
@@ -499,6 +514,8 @@ const plugin: Plugin = {
         if (!isRegistered) return { success: false, skip: true }
 
         const m = await initModel(false)
+        if (!m) return { success: false, skip: true, error: 'Vosk 不是当前选中的提供商' }
+
         if (recognizer) recognizer.remove()
         recognizer = new m.KaldiRecognizer(sampleRate)
 
@@ -537,7 +554,12 @@ const plugin: Plugin = {
 
     context.registerHook('speech.recognize', async () => {
       try {
-        await initModel()
+        // 只有当 Vosk 是当前选中的提供商时才响应执行
+        if (settingsStore.defaultModels?.speechProviderId !== PROVIDER_ID) {
+          return { skip: true }
+        }
+        const m = await initModel()
+        if (!m) return { skip: true }
         return { text: '识别结果' }
       } catch (err) {
         console.error('Vosk 识别失败:', err)
