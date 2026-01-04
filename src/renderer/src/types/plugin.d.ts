@@ -75,6 +75,7 @@ declare global {
     useDownload: any;
     components: Record<string, any>;
     vue: any;
+    getPluginsDataPath: () => string;
     /** 从当前插件注销提供商 */
     unregisterProvider: (providerId: string) => void;
     /** 获取当前插件已注册的提供商 */

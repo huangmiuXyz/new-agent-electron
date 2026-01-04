@@ -47,6 +47,13 @@ export const api = {
   isPackaged: app.isPackaged,
   getPath: app.getPath,
   getAppPath: app.getAppPath,
+  getPluginsDataPath: (pluginName: string) => {
+    return path.join(app.getPath('userData'),
+      'Data',
+      'Plugins',
+      pluginName,
+      'models')
+  },
   getPluginsPath: () => {
     return path.join(app.getPath('userData'), 'plugins')
   },

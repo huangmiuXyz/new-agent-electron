@@ -249,14 +249,7 @@ const plugin: Plugin = {
 
     const settingsStore = await context.getStore('settings')
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
-    const userDataPath = await context.api.getPath('userData')
-    const DEFAULT_MODEL_PATH = context.api.path.join(
-      userDataPath,
-      'Data',
-      'Plugins',
-      'vosk-speech-recognition',
-      'models'
-    )
+    const DEFAULT_MODEL_PATH = context.getPluginsDataPath()
     console.log('Vosk Speech Recognition 插件正在执行 install...')
 
     let getFieldValue: any, setFieldValue: any, getFormData: any, setData: any, getData: any

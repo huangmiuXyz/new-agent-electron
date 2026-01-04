@@ -165,6 +165,9 @@ export class PluginManager {
         isRef,
         isReactive
       },
+      getPluginsDataPath: () => {
+        return window.api.getPluginsDataPath(pluginName);
+      },
       basePath,
       useForm,
       useTable,
