@@ -28,7 +28,7 @@ const currentSelectedProvider = computed(() => {
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
-const { ChevronDown, Check, Close } = useIcon(['ChevronDown', 'Check', 'Close'])
+const { ChevronDown, Check, Close, Box } = useIcon(['ChevronDown', 'Check', 'Close', 'Box'])
 
 const currentModelLabel = computed(() => {
   if (!currentSelectedModel.value || !currentSelectedProvider.value) return '选择模型'
@@ -59,6 +59,22 @@ const flatModelList = computed(() => {
 
   return result
 })
+
+// 如果当前选择的模型不在列表中，则清空选择
+watch(
+  [flatModelList, selectedModelId],
+  ([newList, currentId]) => {
+    if (currentId) {
+      const exists = newList.some((item) => item.model.id === currentId)
+      if (!exists) {
+        selectedModelId.value = ''
+        selectedProviderId.value = ''
+      }
+    }
+  },
+  { immediate: true }
+)
+
 const searchModels = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return flatModelList.value.filter(
@@ -102,13 +118,16 @@ const handleModelSelect = (id: string) => {
         <div class="model-btn-content">
           <Image v-if="selectedModelId && currentSelectedProvider?.logo" style="width: 10px; border-radius: 2px"
             :src="currentSelectedProvider?.logo" alt="" />
+          <Box v-else-if="selectedModelId" style="font-size: 10px;" />
           <span>{{ currentModelLabel }}</span>
         </div>
         <ChevronDown v-if="!selectedModelId" />
         <Close v-else class="clear-btn" @click.stop="clearSelection" />
       </div>
       <Button v-else variant="icon" size="sm">
-        <Image style="width: 15px; border-radius: 2px" :src="currentSelectedProvider?.logo" alt="" />
+        <Image v-if="selectedModelId && currentSelectedProvider?.logo" style="width: 15px; border-radius: 2px"
+          :src="currentSelectedProvider?.logo" alt="" />
+        <Box v-else style="font-size: 16px;" />
       </Button>
     </template>
 
