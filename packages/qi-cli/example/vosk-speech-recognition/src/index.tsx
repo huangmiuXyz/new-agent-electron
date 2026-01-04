@@ -187,7 +187,14 @@ const plugin: Plugin = {
           context.notification.success(`模型 ${row.name} 下载成功`, '模型下载')
           const updatedData = getData().map((item: any) =>
             item.id === row.id
-              ? { ...item, exists: true, isDownloading: false, isPaused: false, progress: null }
+              ? {
+                  ...item,
+                  exists: true,
+                  isDownloading: false,
+                  isPaused: false,
+                  isCompleted: true,
+                  progress: null
+                }
               : item
           )
           await syncModels(updatedData)
@@ -226,7 +233,9 @@ const plugin: Plugin = {
           context.api.fs.unlinkSync(fullPath)
           context.notification.success(`模型文件 ${row.file} 已删除`, '模型管理')
           const newData = getData().map((item: any) =>
-            item.id === row.id ? { ...item, exists: false } : item
+            item.id === row.id
+              ? { ...item, exists: false, isCompleted: false, progress: null }
+              : item
           )
           await syncModels(newData)
         }
@@ -265,7 +274,7 @@ const plugin: Plugin = {
                 />
               )
             }
-            if (row.exists) {
+            if (row.exists && row.isCompleted) {
               return (
                 <span
                   style={{
@@ -368,7 +377,8 @@ const plugin: Plugin = {
           ...m,
           exists: checkFileExists(m.file),
           isDownloading: m.isDownloading || false,
-          isPaused: m.isPaused || false
+          isPaused: m.isPaused || false,
+          isCompleted: m.isCompleted || false
         }))
       },
       onChange: (_field: string, _value: any, data: any) => {
