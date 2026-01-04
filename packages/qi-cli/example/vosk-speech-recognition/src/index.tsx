@@ -249,12 +249,39 @@ const plugin: Plugin = {
 
     const settingsStore = await context.getStore('settings')
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
+    const userDataPath = await context.api.getPath('userData')
+    const DEFAULT_MODEL_PATH = context.api.path.join(
+      userDataPath,
+      'Data',
+      'Plugins',
+      'vosk-speech-recognition',
+      'models'
+    )
     console.log('Vosk Speech Recognition 插件正在执行 install...')
+
+    let getFieldValue: any, setFieldValue: any, getFormData: any, setData: any, getData: any
+
+    const getModelFilePath = (filename: string) => {
+      let modelDir = ''
+      try {
+        // 只有当 getFieldValue 已定义且可用时才调用它
+        if (typeof getFieldValue === 'function') {
+          modelDir = getFieldValue('modelPath')
+        } else {
+          modelDir =
+            savedConfig.modelPath !== undefined ? savedConfig.modelPath : DEFAULT_MODEL_PATH
+        }
+      } catch (e) {
+        modelDir = savedConfig.modelPath !== undefined ? savedConfig.modelPath : DEFAULT_MODEL_PATH
+      }
+      if (!modelDir) modelDir = context.basePath || ''
+      return context.api.path.join(modelDir, filename)
+    }
 
     const checkFileExists = (file: string) => {
       if (!file) return true
       try {
-        const fullPath = context.api.path.join(context.basePath || '', file)
+        const fullPath = getModelFilePath(file)
         return context.api.fs.existsSync(fullPath)
       } catch (e) {
         return false
@@ -279,14 +306,6 @@ const plugin: Plugin = {
       }
     }
 
-    const formatSize = (bytes: number) => {
-      if (bytes === 0) return '0 B'
-      const k = 1024
-      const sizes = ['B', 'KB', 'MB', 'GB']
-      const i = Math.floor(Math.log(bytes) / Math.log(k))
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-    }
-
     const download = async (row: any) => {
       if (!row.file || (row.isDownloading && !row.isPaused)) return
       const offset = row.progress?.downloaded || 0
@@ -298,7 +317,7 @@ const plugin: Plugin = {
       )
       await syncModels(newData)
 
-      const fullPath = context.api.path.join(context.basePath || '', row.file)
+      const fullPath = getModelFilePath(row.file)
       const url = `https://alphacephei.com/vosk/models/${row.file}`
 
       let unlisten: (() => void) | null = null
@@ -376,7 +395,7 @@ const plugin: Plugin = {
     const deleteFile = async (row: any) => {
       if (!row.file) return
       try {
-        const fullPath = context.api.path.join(context.basePath || '', row.file)
+        const fullPath = getModelFilePath(row.file)
         if (context.api.fs.existsSync(fullPath)) {
           context.api.fs.unlinkSync(fullPath)
           context.notification.success(`模型文件 ${row.file} 已删除`, '模型管理')
@@ -399,7 +418,8 @@ const plugin: Plugin = {
       }
     }
 
-    const [TableComponent, { setData, getData }] = context.useTable({
+    let TableComponent: any
+    ;[TableComponent, { setData, getData }] = context.useTable({
       data: [],
       columns: () => [
         { key: 'name', label: '模型名称', width: '2fr' },
@@ -494,15 +514,16 @@ const plugin: Plugin = {
       ]
     })
 
-    const [VoskForm, { getFieldValue, setFieldValue, getData: getFormData }] = context.useForm({
+    let VoskForm: any
+    ;[VoskForm, { getFieldValue, setFieldValue, getData: getFormData }] = context.useForm({
       fields: [
         {
           name: 'modelPath',
           type: 'path',
-          label: '模型路径',
+          label: '模型保存路径',
           placeholder: '留空使用默认内置模型',
-          hint: '自定义 Vosk 模型目录的绝对路径',
-          dialogOptions: { properties: ['openFile'], title: '选择 Vosk 模型' }
+          hint: `下载模型的保存路径，默认：${DEFAULT_MODEL_PATH}`,
+          dialogOptions: { properties: ['openDirectory'], title: '选择模型保存目录' }
         },
         {
           name: 'models',
@@ -513,7 +534,7 @@ const plugin: Plugin = {
         }
       ],
       initialData: {
-        modelPath: savedConfig.modelPath || '',
+        modelPath: savedConfig.modelPath !== undefined ? savedConfig.modelPath : DEFAULT_MODEL_PATH,
         models: (savedConfig.models && savedConfig.models.length > 0
           ? savedConfig.models
           : MODELS
@@ -603,11 +624,10 @@ const plugin: Plugin = {
             )
           }
 
-          const modelPath = getFieldValue('modelPath')
-          const fullPath = context.api.path.join(context.basePath || '', targetFile)
-          const normalizedPath = (modelPath || fullPath).replace(/\\/g, '/')
+          const fullPath = getModelFilePath(targetFile)
+          const normalizedPath = fullPath.replace(/\\/g, '/')
 
-          if (!modelPath && !context.api.fs.existsSync(fullPath)) {
+          if (!context.api.fs.existsSync(fullPath)) {
             throw new Error(`找不到模型文件 ${targetFile}，请在插件设置中下载模型`)
           }
 
@@ -740,7 +760,7 @@ const plugin: Plugin = {
       for (const m of models) {
         if (m.file) {
           try {
-            const fullPath = context.api.path.join(context.basePath || '', m.file)
+            const fullPath = getModelFilePath(m.file)
             if (context.api.fs.existsSync(fullPath)) {
               context.api.fs.unlinkSync(fullPath)
               console.log(`已删除模型文件: ${m.file}`)
