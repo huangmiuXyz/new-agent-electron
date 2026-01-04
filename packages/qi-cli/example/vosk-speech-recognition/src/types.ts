@@ -69,6 +69,7 @@ export interface PluginContext {
   /** 获取 useForm 工具 */
   useForm: any;
   useTable: any
+  vue: any
   components: {
     Button: any
     Switch: any

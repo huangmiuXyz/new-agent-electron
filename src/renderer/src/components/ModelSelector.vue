@@ -37,7 +37,6 @@ const currentModelLabel = computed(() => {
 
 const filteredModels = computed(() => {
   const result: { provider: Provider; models: Model[] }[] = []
-  debugger
   getAllProviders.value.forEach((provider) => {
     const filteredModels = provider.models?.filter(
       (model) => model.active && model.category === props.category
