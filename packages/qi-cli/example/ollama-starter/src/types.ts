@@ -28,6 +28,7 @@ export interface PluginContext {
   pinia: any;
   /** 插件根路径 */
   basePath: string;
+  vue: any;
   /** 注册命令 */
   registerCommand: (name: string, handler: Function) => void;
   /** 注册钩子 */
