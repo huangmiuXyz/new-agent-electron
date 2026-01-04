@@ -425,6 +425,7 @@ const plugin: Plugin = {
           key: 'status',
           label: '状态/操作',
           width: '2fr',
+          align: true,
           render: (row: any) => {
             if (row.isDownloading || row.isPaused) {
               return (
@@ -467,9 +468,14 @@ const plugin: Plugin = {
             return context.components.Button(
               {
                 size: 'sm',
-                onClick: () => download(row)
+                onClick: () => download(row),
+                variant: 'text'
               },
-              '下载模型'
+              () => {
+                return {
+                  icon: context.useIcon('Download')
+                }
+              }
             )
           }
         },
@@ -497,12 +503,16 @@ const plugin: Plugin = {
               <div style={{ display: 'flex', gap: '8px' }}>
                 {context.components.Button(
                   {
-                    danger: true,
                     size: 'sm',
+                    variant: 'icon',
                     disabled: !row.exists,
                     onClick: () => deleteFile(row)
                   },
-                  '删除模型文件'
+                  () => {
+                    return {
+                      icon: context.useIcon('Delete')
+                    }
+                  }
                 )}
               </div>
             )
