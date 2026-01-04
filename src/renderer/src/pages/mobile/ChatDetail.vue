@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const settingsStore = useSettingsStore()
+const agentStore = useAgentStore()
 const { setTitle, customTitle } = useAppHeader()
 const { currentChat } = storeToRefs(useChatsStores())
 setTitle(currentChat.value?.title || '新的对话')
@@ -7,6 +8,7 @@ setTitle(currentChat.value?.title || '新的对话')
 
 <template>
     <div class="mobile-chat-detail">
+        <AgentBackground :backgrounds="agentStore.selectedAgent?.backgrounds" />
         <AppHeader :custom-title="customTitle" current-view="chat" mode="detail" />
         <main class="main-chat">
             <ChatMessageList />
@@ -22,7 +24,7 @@ setTitle(currentChat.value?.title || '新的对话')
     height: var(--vh, 100dvh);
     display: flex;
     flex-direction: column;
-    background: var(--bg-card);
+    background: transparent;
     position: relative;
     overflow: hidden;
 }
@@ -31,7 +33,7 @@ setTitle(currentChat.value?.title || '新的对话')
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: var(--bg-card);
+    background: transparent;
     position: relative;
     overflow: hidden;
 }

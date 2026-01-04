@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { useSettingsStore } from '@renderer/stores/settings'
+import { useAgentStore } from '@renderer/stores/agent'
 import Term from '@renderer/components/term.vue'
 
 const settingsStore = useSettingsStore()
+const agentStore = useAgentStore()
 </script>
 
 <template>
   <div class="chat-app">
+    <!-- 背景层 -->
+    <AgentBackground :backgrounds="agentStore.selectedAgent?.backgrounds" />
+
     <!-- 左侧边栏 -->
     <div v-if="!isMobile" class="sidebar-wrapper"
       :class="{ isMobile, collapsed: settingsStore.display.sidebarCollapsed }">
@@ -39,6 +44,7 @@ const settingsStore = useSettingsStore()
   font-size: 13px;
   /* 保持精细的字体大小 */
   -webkit-font-smoothing: antialiased;
+  position: relative;
 }
 
 /* === 主区域：干净、通透 === */
@@ -46,7 +52,7 @@ const settingsStore = useSettingsStore()
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--bg-card);
+  background: transparent;
   position: relative;
 }
 

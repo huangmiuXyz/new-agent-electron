@@ -14,6 +14,13 @@ declare global {
     knowledgeBaseIds?: string[] // 关联的知识库ID列表
     ragEnabled?: boolean // 是否启用RAG，将检索上下文插入到用户输入中
     terminalStartupPath?: string // 终端启动位置
+    backgrounds?: AgentBackground[] // 背景图片或视频列表
+  }
+
+  // 智能体背景接口
+  interface AgentBackground {
+    type: 'image' | 'video'
+    url: string
   }
 
   // 智能体状态接口

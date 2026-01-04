@@ -1,3 +1,6 @@
+import { h } from 'vue'
+import BackgroundManager from '@renderer/components/BackgroundManager.vue'
+
 export const useAgent = () => {
   const agentStore = useAgentStore()
   const settingsStore = useSettingsStore()
@@ -6,7 +9,7 @@ export const useAgent = () => {
 
   const { confirm, remove } = useModal()
 
-  
+
   const getBuiltinToolOptions = () => {
     const tools = getBuiltinTools()
     return Object.entries(tools).map(([key, tool]: [string, Tool]) => ({
@@ -16,7 +19,7 @@ export const useAgent = () => {
     }))
   }
 
-  
+
   const getKnowledgeBaseOptions = () => {
     return knowledgeBases.value.map((kb) => ({
       label: kb.name,
@@ -24,7 +27,7 @@ export const useAgent = () => {
     }))
   }
 
-  
+
   const getMcpServerOptions = () => {
     return Object.entries(mcpServers.value).map(([name, server]) => {
       const desc =
@@ -74,7 +77,8 @@ export const useAgent = () => {
         tools: [...(agent.tools || [])],
         builtinTools: [...(agent.builtinTools || [])],
         ragEnabled: agent.ragEnabled ?? false,
-        terminalStartupPath: agent.terminalStartupPath || ''
+        terminalStartupPath: agent.terminalStartupPath || '',
+        backgrounds: agent.backgrounds ? [...agent.backgrounds] : []
       }
       : {
         name: '',
@@ -85,7 +89,8 @@ export const useAgent = () => {
         tools: [],
         builtinTools: [],
         ragEnabled: false,
-        terminalStartupPath: ''
+        terminalStartupPath: '',
+        backgrounds: []
       }
 
     let previousMcpServers = initialData.mcpServers || []
@@ -159,6 +164,17 @@ export const useAgent = () => {
             properties: ['openDirectory'],
             title: '选择终端启动目录'
           }
+        },
+        {
+          name: 'backgrounds',
+          type: 'custom',
+          label: '背景图片/视频',
+          render: (data) => h(BackgroundManager, {
+            modelValue: data.backgrounds,
+            'onUpdate:modelValue': (val: any) => {
+              data.backgrounds = val
+            }
+          })
         }
       ],
       onChange: (field, value, formData) => {
