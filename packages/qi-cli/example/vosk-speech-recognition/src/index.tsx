@@ -312,6 +312,12 @@ const plugin: Plugin = {
       const fullPath = getModelFilePath(row.file)
       const url = `https://alphacephei.com/vosk/models/${row.file}`
 
+      // 确保目录存在
+      const modelDir = context.api.path.dirname(fullPath)
+      if (!context.api.fs.existsSync(modelDir)) {
+        context.api.fs.mkdirSync(modelDir, { recursive: true })
+      }
+
       let unlisten: (() => void) | null = null
       if (context.api.net.onDownloadProgress) {
         unlisten = context.api.net.onDownloadProgress(row.id, (progress: any) => {

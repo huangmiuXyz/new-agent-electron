@@ -45,6 +45,13 @@ export function useDownload() {
         }
 
         try {
+            // 确保下载目录存在
+            if (window.api?.fs && window.api?.path) {
+                const destDir = window.api.path.dirname(options.destPath)
+                if (!window.api.fs.existsSync(destDir)) {
+                    window.api.fs.mkdirSync(destDir, { recursive: true })
+                }
+            }
             const result = await window.api.net.download({
                 url: options.url,
                 destPath: options.destPath,
