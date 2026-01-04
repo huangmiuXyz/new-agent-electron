@@ -75,7 +75,7 @@ const analyzeBrightness = (url: string) => {
 
 watch(currentBackground, (newBg) => {
   if (newBg?.type === 'image') {
-    analyzeBrightness(newBg.url)
+    analyzeBrightness(anyUrlToBlobUrl(newBg.url))
   } else {
     // 视频默认当作深色背景处理，或者根据主题设置
     document.documentElement.removeAttribute('data-bg-dark')
@@ -107,12 +107,13 @@ onUnmounted(() => {
       <div :key="currentIndex" class="background-content">
         <img
           v-if="currentBackground.type === 'image'"
-          :src="currentBackground.url"
+          :src="anyUrlToBlobUrl(currentBackground.url)"
           class="bg-media"
         />
         <video
           v-else-if="currentBackground.type === 'video'"
-          :src="currentBackground.url"
+          ref="videoRef"
+          :src="anyUrlToBlobUrl(currentBackground.url)"
           class="bg-media"
           autoplay
           muted

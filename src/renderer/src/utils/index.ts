@@ -95,7 +95,7 @@ export const saveFilesToUserData = async (
 
   for (const file of files) {
     const filePath = window.api.path.join(uploadDir, file.name)
-    const buffer = Buffer.from(file.buffer)
+    const buffer = typeof Buffer !== 'undefined' ? Buffer.from(file.buffer) : new Uint8Array(file.buffer)
 
     window.api.fs.writeFileSync(filePath, buffer)
 

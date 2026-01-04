@@ -12,13 +12,30 @@ const emit = defineEmits<{
 const backgrounds = ref<AgentBackground[]>(props.modelValue || [])
 const fileUploadRef = ref<any>(null)
 
-const handleFilesSelected = (files: any[]) => {
-  const newBackgrounds: AgentBackground[] = files.map(file => ({
-    type: file.mediaType?.startsWith('video/') ? 'video' : 'image',
-    url: file.blobUrl || file.url
-  }))
-  backgrounds.value = [...backgrounds.value, ...newBackgrounds]
-  emit('update:modelValue', backgrounds.value)
+const handleFilesSelected = async (files: any[]) => {
+  try {
+    const fileData = await Promise.all(files.map(async file => {
+      const response = await fetch(file.blobUrl || file.url)
+      const blob = await response.blob()
+      const buffer = await blob.arrayBuffer()
+      return {
+        name: `${Date.now()}-${file.filename || file.name}`,
+        buffer
+      }
+    }))
+
+    const savedFiles = await saveFilesToUserData(fileData)
+
+    const newBackgrounds: AgentBackground[] = savedFiles.map((f, index) => ({
+      type: files[index].mediaType?.startsWith('video/') ? 'video' : 'image',
+      url: `file://${f.path}`
+    }))
+
+    backgrounds.value = [...backgrounds.value, ...newBackgrounds]
+    emit('update:modelValue', backgrounds.value)
+  } catch (error) {
+    console.error('Failed to save background files:', error)
+  }
 }
 
 const removeBackground = (index: number) => {
@@ -36,8 +53,8 @@ const triggerUpload = () => {
     <div class="background-list">
       <div v-for="(bg, index) in backgrounds" :key="index" class="background-item">
         <div class="preview-container">
-          <img v-if="bg.type === 'image'" :src="bg.url" class="preview-media" />
-          <video v-else :src="bg.url" class="preview-media" muted />
+          <img v-if="bg.type === 'image'" :src="anyUrlToBlobUrl(bg.url)" class="preview-media" />
+          <video v-else :src="anyUrlToBlobUrl(bg.url)" class="preview-media" muted />
           <div class="type-badge">{{ bg.type === 'video' ? '视频' : '图片' }}</div>
         </div>
         <button class="remove-btn" @click="removeBackground(index)">
