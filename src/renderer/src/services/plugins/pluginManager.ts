@@ -166,7 +166,8 @@ export class PluginManager {
         isReactive
       },
       getPluginsDataPath: () => {
-        return window.api.getPluginsDataPath(pluginName);
+        const userDataPath = window.api?.getPath('userData')
+        return window.api?.path.join(userDataPath, 'Data', 'Plugins', pluginName, 'models')
       },
       basePath,
       useForm,
