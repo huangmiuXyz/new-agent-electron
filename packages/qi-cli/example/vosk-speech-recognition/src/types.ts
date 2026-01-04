@@ -78,12 +78,14 @@ export interface PluginContext {
   }) => void;
   /** 获取 useForm 工具 */
   useForm: any;
-  useTable: any
-  vue: any
+  useTable: any;
+  useDownload: any;
+  vue: any;
   components: {
-    Button: any
-    Switch: any
-  }
+    Button: any;
+    Switch: any;
+    DownloadProgress: any;
+  };
   /** 从当前插件注销提供商 */
   unregisterProvider: (providerId: string) => void;
   /** 获取当前插件已注册的提供商 */

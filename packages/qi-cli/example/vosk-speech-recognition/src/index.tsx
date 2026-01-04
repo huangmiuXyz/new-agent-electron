@@ -249,133 +249,23 @@ const plugin: Plugin = {
               )
             }
             if (row.isDownloading || row.isPaused) {
-              const percent = row.progress?.percent || 0
               return (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    width: '100%',
-                    padding: '4px 0',
-                    gap: '4px'
+                <context.components.DownloadProgress
+                  progress={row.progress}
+                  isDownloading={row.isDownloading}
+                  isPaused={row.isPaused}
+                  onPause={() => stopDownload(row)}
+                  onResume={() => download(row)}
+                  onCancel={async () => {
+                    if (context.api.net.cancelDownload) await context.api.net.cancelDownload(row.id)
+                    const updatedData = getData().map((item: any) =>
+                      item.id === row.id
+                        ? { ...item, isDownloading: false, isPaused: false, progress: null }
+                        : item
+                    )
+                    await syncModels(updatedData)
                   }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      width: '100%'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '11px', color: '#888' }}>
-                        {row.isPaused ? '已暂停' : '正在下载...'}
-                      </span>
-                      <div
-                        onClick={() => (row.isPaused ? download(row) : stopDownload(row))}
-                        style={{
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '4px',
-                          color: row.isPaused ? '#1890ff' : '#faad14',
-                          background: row.isPaused
-                            ? 'rgba(24, 144, 255, 0.1)'
-                            : 'rgba(250, 173, 20, 0.1)',
-                          transition: 'all 0.2s ease'
-                        }}
-                        class="download-control-btn"
-                        title={row.isPaused ? '继续下载' : '暂停下载'}
-                      >
-                        <style>{`
-                          .download-control-btn:hover { transform: scale(1.1); filter: brightness(1.1); }
-                        `}</style>
-                        {row.isPaused ? (
-                          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        ) : (
-                          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div
-                        onClick={async () => {
-                          if (context.api.net.cancelDownload)
-                            await context.api.net.cancelDownload(row.id)
-                          const updatedData = getData().map((item: any) =>
-                            item.id === row.id
-                              ? { ...item, isDownloading: false, isPaused: false, progress: null }
-                              : item
-                          )
-                          await syncModels(updatedData)
-                        }}
-                        style={{
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '4px',
-                          color: '#ff4d4f',
-                          background: 'rgba(255, 77, 79, 0.1)',
-                          transition: 'all 0.2s ease'
-                        }}
-                        class="cancel-download-btn"
-                        title="完全停止下载"
-                      >
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-                          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-                        </svg>
-                      </div>
-                    </div>
-                    <span style={{ fontSize: '11px', color: '#1890ff', fontWeight: 'bold' }}>
-                      {row.progress ? `${percent}%` : '连接中...'}
-                    </span>
-                  </div>
-                  {row.progress && (
-                    <div style={{ width: '100%' }}>
-                      <div
-                        style={{
-                          height: '4px',
-                          background: 'rgba(0,0,0,0.05)',
-                          borderRadius: '2px',
-                          overflow: 'hidden'
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: `${percent}%`,
-                            height: '100%',
-                            background: '#1890ff',
-                            transition: 'width 0.3s ease',
-                            borderRadius: '2px',
-                            boxShadow: '0 0 4px rgba(24, 144, 255, 0.5)'
-                          }}
-                        />
-                      </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          marginTop: '2px',
-                          fontSize: '10px',
-                          color: '#999',
-                          fontFamily: 'monospace'
-                        }}
-                      >
-                        <span>{formatSize(row.progress.downloaded)}</span>
-                        <span>{formatSize(row.progress.total)}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                />
               )
             }
             return context.components.Button(

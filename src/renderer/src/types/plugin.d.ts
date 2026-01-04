@@ -72,6 +72,7 @@ declare global {
     /** 获取 useForm 工具 */
     useForm: any;
     useTable: any;
+    useDownload: any;
     components: Record<string, any>;
     vue: any;
     /** 从当前插件注销提供商 */
