@@ -38,11 +38,11 @@ export function usePlugins() {
         const pluginName = pluginInfo.plugin.name;
         settingsStore.addDevPluginPath(pluginName, localPath);
         await refreshPlugins();
-        alert('开发模式插件加载成功，已开启自动重载！');
+        messageApi.success('开发模式插件加载成功，已开启自动重载！');
       }
     } catch (err) {
       console.error('Failed to load dev plugin:', err);
-      alert(`开发模式加载失败: ${err instanceof Error ? err.message : String(err)}`);
+      messageApi.error(`开发模式加载失败: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       installing.value = false;
     }
@@ -78,10 +78,10 @@ export function usePlugins() {
 
 
       await refreshPlugins();
-      alert('插件安装成功！');
+      messageApi.success('插件安装成功！');
     } catch (err) {
       console.error('Failed to install plugin:', err);
-      alert(`插件安装失败: ${err instanceof Error ? err.message : String(err)}`);
+      messageApi.error(`插件安装失败: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       installing.value = false;
     }
@@ -379,7 +379,12 @@ export function usePlugins() {
    * 清除插件缓存和数据
    */
   const clearPluginData = async (pluginName: string): Promise<void> => {
-    const confirmed = confirm(`确定要清除插件 "${pluginName}" 的缓存和所有数据吗？`)
+    const { confirm, remove } = useModal()
+    const confirmed = await confirm({
+      title: '清除插件数据',
+      content: `确定要清除插件 "${pluginName}" 的缓存和所有数据吗？\n\n此操作将删除该插件的所有存储数据和已下载的模型文件（如果插件支持）。`
+    })
+
     if (!confirmed) {
       return
     }
@@ -395,13 +400,14 @@ export function usePlugins() {
         name: pluginName
       })
 
-      alert('缓存和数据已清除')
+      messageApi.success('缓存和数据已清除')
       await refreshPlugins()
     } catch (err) {
       console.error('Failed to clear plugin data:', err)
-      alert(`清除失败: ${err instanceof Error ? err.message : String(err)}`)
+      messageApi.error(`清除失败: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       loading.value = false
+      remove()
     }
   }
 

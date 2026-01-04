@@ -11,6 +11,7 @@ const { Plugin: PluginIcon, Trash, Refresh, Check, Dismiss, Play, Download, Code
   'Code'
 ])
 // 使用 usePlugins composable
+const { confirm, remove } = useModal()
 const {
   allPlugins,
   loading,
@@ -151,23 +152,29 @@ const [ProviderTable] = useTable<Provider>({
 const handleUnloadPlugin = async (pluginName: string) => {
   try {
     await unloadPlugin(pluginName)
+    messageApi.success('插件已停用')
   } catch (err) {
-    alert(`卸载失败: ${err instanceof Error ? err.message : String(err)}`)
+    messageApi.error(`停用失败: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
 
 // 完全卸载插件（从内存和文件系统中移除）
 const handleUninstallPlugin = async (pluginName: string) => {
-  const confirmed = confirm(`确定要完全卸载插件 "${pluginName}" 吗？\n\n此操作将从内存和文件系统中删除该插件的所有文件。`)
+  const confirmed = await confirm({
+    title: '卸载插件',
+    content: `确定要完全卸载插件 "${pluginName}" 吗？\n\n此操作将从内存和文件系统中删除该插件的所有文件。`
+  })
   if (!confirmed) {
     return
   }
 
   try {
     await uninstallPlugin(pluginName)
-    alert('插件已完全卸载')
+    messageApi.success('插件已完全卸载')
   } catch (err) {
-    alert(`卸载失败: ${err instanceof Error ? err.message : String(err)}`)
+    messageApi.error(`卸载失败: ${err instanceof Error ? err.message : String(err)}`)
+  } finally {
+    remove()
   }
 }
 </script>

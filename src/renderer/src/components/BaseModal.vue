@@ -19,7 +19,7 @@
           </slot>
         </div>
         <div class="modal-footer">
-          <Button class="btn btn-secondary" type="button" @click="handleCancel">{{
+          <Button v-if="showCancel" class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
             }}</Button>
           <Button ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button"
@@ -43,9 +43,10 @@
           </slot>
         </div>
         <div v-if="showFooter" class="drawer-footer">
-          <Button :class="{ isMobile }" class="btn btn-secondary" type="button" @click="handleCancel">{{
-            props.cancelText ||
-            '取消' }}</Button>
+          <Button v-if="showCancel" :class="{ isMobile }" class="btn btn-secondary" type="button"
+            @click="handleCancel">{{
+              props.cancelText ||
+              '取消' }}</Button>
           <Button :class="{ isMobile }" ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button"
             @click="handleConfirm">
             {{ props.confirmText || '确认' }}
@@ -65,6 +66,7 @@ import { useBackButton } from '@renderer/composables/useBackButton'
 const props = withDefaults(defineProps<BaseModalProps>(), {
   variant: isMobile.value ? 'drawer' : 'center',
   showFooter: true,
+  showCancel: true,
   maxHeight: '90vh'
 })
 const Close = useIcon('Close')

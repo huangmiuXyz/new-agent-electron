@@ -17,6 +17,7 @@ export interface BaseModalProps {
   height?: string
   maxHeight?: string
   cancelText?: string
+  showCancel?: boolean
   confirmText?: string
   onCancel?: () => void
   onClose?: () => void
