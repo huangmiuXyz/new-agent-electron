@@ -44,7 +44,7 @@ const currentStatusText = computed(() => {
             <div class="status-info">
                 <span class="status-label">{{ currentStatusText }}</span>
                 <div class="controls">
-                    <button class="control-btn pause-resume" :class="{ resume: isPaused }"
+                    <button v-if="percent < 100" class="control-btn pause-resume" :class="{ resume: isPaused }"
                         @click="isPaused ? emit('resume') : emit('pause')" :title="isPaused ? '继续下载' : '暂停下载'">
                         <svg v-if="isPaused" viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
                             <path d="M8 5v14l11-7z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -53,7 +53,7 @@ const currentStatusText = computed(() => {
                             <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
                         </svg>
                     </button>
-                    <button class="control-btn cancel" @click="emit('cancel')" title="完全停止下载">
+                    <button v-if="percent < 100" class="control-btn cancel" @click="emit('cancel')" title="完全停止下载">
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
                             <path
                                 d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
