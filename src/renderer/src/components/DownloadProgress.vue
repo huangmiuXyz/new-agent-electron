@@ -32,8 +32,9 @@ const formatSize = (bytes: number) => {
 
 const currentStatusText = computed(() => {
     if (props.isPaused) return '已暂停'
+    if (percent.value >= 100) return '下载完成'
     if (props.isDownloading) return props.statusText || '正在下载...'
-    return ''
+    return '已完成'
 })
 </script>
 
@@ -64,7 +65,8 @@ const currentStatusText = computed(() => {
         </div>
 
         <div class="progress-track">
-            <div class="progress-bar" :style="{ width: `${percent}%` }" :class="{ paused: isPaused }"></div>
+            <div class="progress-bar" :style="{ width: `${percent}%` }"
+                :class="{ paused: isPaused, completed: percent >= 100 }"></div>
         </div>
 
         <div v-if="progress" class="size-info">
@@ -222,7 +224,13 @@ html.dark-mode .progress-track {
     box-shadow: none;
 }
 
-.progress-bar.paused::after {
+.progress-bar.completed {
+    background: linear-gradient(90deg, #52c41a, #b7eb8f);
+    box-shadow: 0 0 8px rgba(82, 196, 26, 0.3);
+}
+
+.progress-bar.paused::after,
+.progress-bar.completed::after {
     display: none;
 }
 
