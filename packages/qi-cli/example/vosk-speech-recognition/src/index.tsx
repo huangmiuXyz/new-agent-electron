@@ -1,6 +1,6 @@
 import { Plugin, PluginContext } from './types'
 import * as Vosk from 'vosk-browser'
-import { defineComponent, h, onMounted, onUnmounted, ref, markRaw } from 'vue'
+import { defineComponent, onMounted, onUnmounted, ref, markRaw } from 'vue'
 
 const STORAGE_KEY = 'vosk-config'
 const MODEL_NAME = 'vosk-model-small-cn-0.22.zip'
@@ -170,29 +170,21 @@ const plugin: Plugin = {
 
                 return () => {
                   if (exists.value) {
-                    return h(
-                      'span',
-                      {
-                        style: {
+                    return (
+                      <span
+                        style={{
                           color: '#52c41a',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '4px',
                           fontSize: '12px'
-                        }
-                      },
-                      [
-                        h(
-                          'svg',
-                          { viewBox: '0 0 24 24', width: '14', height: '14', fill: 'currentColor' },
-                          [
-                            h('path', {
-                              d: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z'
-                            })
-                          ]
-                        ),
-                        '已就绪'
-                      ]
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                        </svg>
+                        已就绪
+                      </span>
                     )
                   }
 
@@ -260,9 +252,9 @@ const plugin: Plugin = {
                   }
                 }
 
-                return () =>
-                  h('div', { style: { display: 'flex', gap: '8px' } }, [
-                    context.components.Button(
+                return () => (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {context.components.Button(
                       {
                         danger: true,
                         size: 'sm',
@@ -270,8 +262,9 @@ const plugin: Plugin = {
                         onClick: deleteFile
                       },
                       '删除模型文件'
-                    )
-                  ])
+                    )}
+                  </div>
+                )
               }
             })
           }
@@ -366,7 +359,7 @@ const plugin: Plugin = {
 
           if (!silent) {
             context.notification.status('vosk-status', '', {
-              render: markRaw(() => h(ReadyIcon, { modelName: MODEL_NAME })),
+              render: markRaw(() => <ReadyIcon modelName={MODEL_NAME} />),
               color: '#fff',
               tooltip: `Vosk 语音识别已就绪 (模型: ${MODEL_NAME})`
             })
