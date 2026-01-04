@@ -268,18 +268,21 @@ export function usePlugins() {
     const loadedNames = new Set(plugins.value.map(p => p.plugin.name));
     const available = availablePlugins.value.filter(p => !loadedNames.has(p.name));
     return [
-      ...plugins.value.map(p => ({
-        id: p.plugin.name,
-        name: p.plugin.name,
-        description: p.plugin.description || '',
-        version: p.plugin.version || '1.0.0',
-        status: p.status,
-        type: 'loaded' as const,
-        error: p.error,
-        plugin: p.plugin,
-        updatedAt: p.plugin.updatedAt,
-        isDev: pluginLoader?.isDevMode(p.plugin.name) || false
-      })),
+      ...plugins.value.map(p => {
+        const metadata = availablePlugins.value.find(ap => ap.name === p.plugin.name);
+        return {
+          id: p.plugin.name,
+          name: p.plugin.name,
+          description: p.plugin.description || metadata?.description || '',
+          version: p.plugin.version || metadata?.version || '1.0.0',
+          status: p.status,
+          type: 'loaded' as const,
+          error: p.error,
+          plugin: p.plugin,
+          updatedAt: p.plugin.updatedAt || metadata?.updatedAt,
+          isDev: pluginLoader?.isDevMode(p.plugin.name) || false
+        }
+      }),
       ...available.map(p => ({
         id: p.name,
         name: p.name,

@@ -115,6 +115,8 @@ async function copyTemplateDir(
             info.description = variables.description;
             info.author = variables.author;
             info.version = variables.version;
+            const now = new Date();
+            info.updatedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
             content = JSON.stringify(info, null, 2);
           } catch (e) {
             // 如果 JSON 解析失败，则保持原样

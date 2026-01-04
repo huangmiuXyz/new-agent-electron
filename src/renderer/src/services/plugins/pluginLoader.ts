@@ -194,6 +194,24 @@ export class PluginLoader {
 
       try {
         const basePath = this.resolvePluginPath(plugin.name);
+
+        // 加载 info.json 中的 metadata
+        const fs = window.api.fs;
+        const path = window.api.path;
+        if (fs && path) {
+          const infoPath = path.join(basePath, 'info.json');
+          if (fs.existsSync(infoPath)) {
+            try {
+              const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+              if (info.updatedAt && !plugin.updatedAt) {
+                plugin.updatedAt = info.updatedAt;
+              }
+            } catch (e) {
+              console.warn(`Failed to read metadata from info.json for ${plugin.name}:`, e);
+            }
+          }
+        }
+
         const context = this.pluginManager.createContext(plugin.name, basePath);
         await plugin.install(context);
 
