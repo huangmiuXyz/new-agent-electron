@@ -421,7 +421,7 @@ const [ModelTable] = useTable<Model>({
             onClick={() => showEditModelModal(row)}
             title="编辑模型"
           >
-            <component is={Edit} />
+            <Edit />
           </Button>
           {isCustomModel(row) && (
             <Button
