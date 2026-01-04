@@ -504,6 +504,8 @@ const plugin: Plugin = {
           throw err
         }
       })()
+
+      return modelLoadingPromise
     }
 
     // 监听默认提供商和具体模型的选择变化
