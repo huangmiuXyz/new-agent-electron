@@ -64,10 +64,8 @@ export const buildCommand = new Command('build')
       info.updatedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
       const updatedInfoContent = JSON.stringify(info, null, 2);
-
       await fs.writeFile(infoJsonPath, updatedInfoContent);
 
-      // 检查 dist 目录是否存在
       const distDir = path.join(path.dirname(infoJsonPath), 'dist');
       try {
         await fs.access(distDir);
