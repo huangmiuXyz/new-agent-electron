@@ -91,6 +91,29 @@ const plugin: Plugin = {
       }
     })
 
+    const ErrorIcon = defineComponent({
+      props: {
+        error: { type: String, default: '' }
+      },
+      setup(props: any) {
+        return () => (
+          <div class="plugin-icon-container">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="#ff4d4f">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+            </svg>
+            <div class="plugin-tooltip">
+              <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#ff4d4f' }}>
+                加载失败
+              </div>
+              <div style={{ fontSize: '11px', whiteSpace: 'normal', maxWidth: '200px' }}>
+                {props.error || '模型加载出错，请检查设置'}
+              </div>
+            </div>
+          </div>
+        )
+      }
+    })
+
     const settingsStore = await context.getStore('settings')
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
     console.log('Vosk Speech Recognition 插件正在执行 install...')
@@ -440,11 +463,14 @@ const plugin: Plugin = {
         } catch (err) {
           console.error('Vosk 模型加载失败:', err)
           if (closeLoading) closeLoading()
+          const errorMessage = err instanceof Error ? err.message : String(err)
           if (!silent) {
-            context.notification.error(
-              `模型加载失败: ${err instanceof Error ? err.message : String(err)}`,
-              '语音识别'
-            )
+            context.notification.status('vosk-status', '', {
+              render: markRaw(() => <ErrorIcon error={errorMessage} />),
+              color: '#fff',
+              tooltip: `Vosk 加载失败: ${errorMessage}`
+            })
+            context.notification.error(`模型加载失败: ${errorMessage}`, '语音识别')
           }
           modelLoadingPromise = null
           throw err
