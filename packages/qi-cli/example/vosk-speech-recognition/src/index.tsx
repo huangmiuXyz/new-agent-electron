@@ -91,21 +91,86 @@ const plugin: Plugin = {
       }
     })
 
-    console.log('Vosk Speech Recognition 插件正在执行 install...')
     const settingsStore = await context.getStore('settings')
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
+    console.log('Vosk Speech Recognition 插件正在执行 install...')
+
+    const checkFileExists = (file: string) => {
+      if (!file) return true
+      try {
+        const fullPath = context.api.path.join(context.basePath || '', file)
+        return context.api.fs.existsSync(fullPath)
+      } catch (e) {
+        return false
+      }
+    }
 
     const syncModels = async (newData: any[]) => {
-      setData(newData)
-      setFieldValue('models', newData)
-      const updatedConfig = { ...getFormData(), models: newData }
+      setData([...newData])
+      setFieldValue('models', [...newData])
+      const updatedConfig = { ...getFormData(), models: [...newData] }
       await context.localforage.setItem(STORAGE_KEY, JSON.stringify(updatedConfig))
 
       const index = settingsStore.registeredProviders.findIndex((p: any) => p.id === PROVIDER_ID)
       if (index !== -1) {
         const updatedProviders = [...settingsStore.registeredProviders]
-        updatedProviders[index] = { ...updatedProviders[index], models: newData }
+        updatedProviders[index] = {
+          ...updatedProviders[index],
+          models: [...newData],
+          ...updatedConfig
+        }
         settingsStore.registeredProviders = updatedProviders
+      }
+    }
+
+    const download = async (row: any) => {
+      if (!row.file || row.isDownloading) return
+
+      const newData = getData().map((item: any) =>
+        item.id === row.id ? { ...item, isDownloading: true } : item
+      )
+      await syncModels(newData)
+
+      const fullPath = context.api.path.join(context.basePath || '', row.file)
+      const url = `https://alphacephei.com/vosk/models/${row.file}`
+
+      try {
+        const closeLoading = context.notification.loading(`正在下载模型 ${row.name}...`, '模型下载')
+        const result = await context.api.net.download({ url, destPath: fullPath })
+        closeLoading()
+
+        if (result.ok) {
+          context.notification.success(`模型 ${row.name} 下载成功`, '模型下载')
+          const updatedData = getData().map((item: any) =>
+            item.id === row.id ? { ...item, exists: true, isDownloading: false } : item
+          )
+          await syncModels(updatedData)
+        } else {
+          throw new Error(result.error)
+        }
+      } catch (err: any) {
+        context.notification.error(`下载失败: ${err.message}`, '模型下载')
+        const resetData = getData().map((item: any) =>
+          item.id === row.id ? { ...item, isDownloading: false } : item
+        )
+        await syncModels(resetData)
+      }
+    }
+
+    const deleteFile = async (row: any) => {
+      if (!row.file) return
+      try {
+        const fullPath = context.api.path.join(context.basePath || '', row.file)
+        if (context.api.fs.existsSync(fullPath)) {
+          context.api.fs.unlinkSync(fullPath)
+          context.notification.success(`模型文件 ${row.file} 已删除`, '模型管理')
+          const newData = getData().map((item: any) =>
+            item.id === row.id ? { ...item, exists: false } : item
+          )
+          await syncModels(newData)
+        }
+      } catch (err: any) {
+        context.notification.error(`删除失败: ${err.message}`, '模型管理')
       }
     }
 
@@ -119,85 +184,33 @@ const plugin: Plugin = {
           label: '状态/操作',
           width: '2fr',
           render: (row: any) => {
-            return defineComponent({
-              setup() {
-                const isDownloading = ref(false)
-                const exists = ref(false)
-
-                const checkExists = () => {
-                  if (!row.file) {
-                    exists.value = true
-                    return
-                  }
-                  try {
-                    const fullPath = context.api.path.join(context.basePath || '', row.file)
-                    exists.value = context.api.fs.existsSync(fullPath)
-                  } catch (e) {
-                    console.error('Check exists error:', e)
-                    exists.value = false
-                  }
-                }
-
-                checkExists()
-
-                const download = async () => {
-                  if (!row.file) return
-                  isDownloading.value = true
-                  const fullPath = context.api.path.join(context.basePath || '', row.file)
-                  const url = `https://alphacephei.com/vosk/models/${row.file}`
-
-                  try {
-                    const closeLoading = context.notification.loading(
-                      `正在下载模型 ${row.name}...`,
-                      '模型下载'
-                    )
-                    const result = await context.api.net.download({ url, destPath: fullPath })
-                    closeLoading()
-
-                    if (result.ok) {
-                      context.notification.success(`模型 ${row.name} 下载成功`, '模型下载')
-                      exists.value = true
-                    } else {
-                      throw new Error(result.error)
-                    }
-                  } catch (err: any) {
-                    context.notification.error(`下载失败: ${err.message}`, '模型下载')
-                  } finally {
-                    isDownloading.value = false
-                    checkExists()
-                  }
-                }
-
-                return () => {
-                  if (exists.value) {
-                    return (
-                      <span
-                        style={{
-                          color: '#52c41a',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          fontSize: '12px'
-                        }}
-                      >
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                        </svg>
-                        已就绪
-                      </span>
-                    )
-                  }
-                  return context.components.Button(
-                    {
-                      size: 'sm',
-                      disabled: isDownloading.value,
-                      onClick: download
-                    },
-                    '下载模型'
-                  )
-                }
-              }
-            })
+            if (row.exists) {
+              return (
+                <span
+                  style={{
+                    color: '#52c41a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '12px'
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                  </svg>
+                  已就绪
+                </span>
+              )
+            }
+            return context.components.Button(
+              {
+                size: 'sm',
+                loading: row.isDownloading,
+                disabled: row.isDownloading,
+                onClick: () => download(row)
+              },
+              '下载模型'
+            )
           }
         },
         {
@@ -220,50 +233,19 @@ const plugin: Plugin = {
           label: '操作',
           width: '1.5fr',
           render: (row: any) => {
-            return defineComponent({
-              setup() {
-                const exists = ref(false)
-
-                const checkExists = () => {
-                  if (!row.file) return
-                  try {
-                    const fullPath = context.api.path.join(context.basePath || '', row.file)
-                    exists.value = context.api.fs.existsSync(fullPath)
-                  } catch (e) {
-                    exists.value = false
-                  }
-                }
-
-                checkExists()
-
-                const deleteFile = async () => {
-                  if (!row.file) return
-                  try {
-                    const fullPath = context.api.path.join(context.basePath || '', row.file)
-                    if (context.api.fs.existsSync(fullPath)) {
-                      context.api.fs.unlinkSync(fullPath)
-                      context.notification.success(`模型文件 ${row.file} 已删除`, '模型管理')
-                    }
-                  } catch (err: any) {
-                    context.notification.error(`删除失败: ${err.message}`, '模型管理')
-                  }
-                }
-
-                return () => (
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    {context.components.Button(
-                      {
-                        danger: true,
-                        size: 'sm',
-                        disabled: !exists.value,
-                        onClick: deleteFile
-                      },
-                      '删除模型文件'
-                    )}
-                  </div>
-                )
-              }
-            })
+            return (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {context.components.Button(
+                  {
+                    danger: true,
+                    size: 'sm',
+                    disabled: !row.exists,
+                    onClick: () => deleteFile(row)
+                  },
+                  '删除模型文件'
+                )}
+              </div>
+            )
           }
         }
       ]
@@ -292,21 +274,25 @@ const plugin: Plugin = {
       ],
       initialData: {
         modelPath: savedConfig.modelPath || '',
-        models:
-          savedConfig.models && savedConfig.models.length > 0
-            ? savedConfig.models
-            : [
-                {
-                  id: 'vosk-cn',
-                  name: 'Vosk 中文模型',
-                  file: MODEL_NAME,
-                  active: true,
-                  category: 'speech',
-                  created: Date.now(),
-                  object: 'model',
-                  owned_by: 'vosk-speech-recognition'
-                }
-              ]
+        models: (savedConfig.models && savedConfig.models.length > 0
+          ? savedConfig.models
+          : [
+              {
+                id: 'vosk-cn',
+                name: 'Vosk 中文模型',
+                file: MODEL_NAME,
+                active: true,
+                category: 'speech',
+                created: Date.now(),
+                object: 'model',
+                owned_by: 'vosk-speech-recognition'
+              }
+            ]
+        ).map((m: any) => ({
+          ...m,
+          exists: checkFileExists(m.file),
+          isDownloading: false
+        }))
       },
       onChange: (_field: string, _value: any, data: any) => {
         context.localforage.setItem(STORAGE_KEY, JSON.stringify(data))
