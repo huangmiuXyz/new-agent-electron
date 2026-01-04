@@ -470,16 +470,15 @@ const plugin: Plugin = {
       }
     })
 
-    // 安全地同步表单数据到表格，避免在 render 函数中产生侧边效应引起死循环
     if (watch) {
       watch(
         () => getFieldValue('models'),
-        (newModels) => {
+        (newModels: any[]) => {
           if (newModels && Array.isArray(newModels)) {
             const currentData = getData()
             const mergedModels = newModels.map((m: any) => {
               const current = currentData.find((cm: any) => cm.id === m.id)
-              // 如果当前正在下载，则保留进度的响应式状态
+
               if (current && current.isDownloading) {
                 return { ...m, ...current }
               }
