@@ -23,7 +23,14 @@ export interface PluginContext {
   /** 应用实例 */
   app: any;
   /** Electron API */
-  api: any;
+  api: {
+    net: {
+      fetch: (url: string, options?: any) => Promise<any>;
+      download: (options: { url: string; destPath: string; id?: string }) => Promise<{ ok: boolean; error?: string }>;
+      onDownloadProgress: (id: string, callback: (progress: { total: number; downloaded: number; percent: number }) => void) => () => void;
+    };
+    [key: string]: any;
+  };
   /** Pinia 实例 */
   pinia: any;
   /** 插件根路径 */

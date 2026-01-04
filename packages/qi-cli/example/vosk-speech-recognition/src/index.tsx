@@ -123,26 +123,46 @@ const plugin: Plugin = {
       }
     }
 
+    const formatSize = (bytes: number) => {
+      if (bytes === 0) return '0 B'
+      const k = 1024
+      const sizes = ['B', 'KB', 'MB', 'GB']
+      const i = Math.floor(Math.log(bytes) / Math.log(k))
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    }
+
     const download = async (row: any) => {
       if (!row.file || row.isDownloading) return
 
       const newData = getData().map((item: any) =>
-        item.id === row.id ? { ...item, isDownloading: true } : item
+        item.id === row.id ? { ...item, isDownloading: true, progress: null } : item
       )
       await syncModels(newData)
 
       const fullPath = context.api.path.join(context.basePath || '', row.file)
       const url = `https://alphacephei.com/vosk/models/${row.file}`
 
+      let unlisten: (() => void) | null = null
+      if (context.api.net.onDownloadProgress) {
+        unlisten = context.api.net.onDownloadProgress(row.id, (progress: any) => {
+          const updatedData = getData().map((item: any) =>
+            item.id === row.id ? { ...item, progress } : item
+          )
+          setData(updatedData)
+        })
+      }
+
       try {
         const closeLoading = context.notification.loading(`正在下载模型 ${row.name}...`, '模型下载')
-        const result = await context.api.net.download({ url, destPath: fullPath })
+        const result = await context.api.net.download({ url, destPath: fullPath, id: row.id })
         closeLoading()
 
         if (result.ok) {
           context.notification.success(`模型 ${row.name} 下载成功`, '模型下载')
           const updatedData = getData().map((item: any) =>
-            item.id === row.id ? { ...item, exists: true, isDownloading: false } : item
+            item.id === row.id
+              ? { ...item, exists: true, isDownloading: false, progress: null }
+              : item
           )
           await syncModels(updatedData)
         } else {
@@ -151,9 +171,11 @@ const plugin: Plugin = {
       } catch (err: any) {
         context.notification.error(`下载失败: ${err.message}`, '模型下载')
         const resetData = getData().map((item: any) =>
-          item.id === row.id ? { ...item, isDownloading: false } : item
+          item.id === row.id ? { ...item, isDownloading: false, progress: null } : item
         )
         await syncModels(resetData)
+      } finally {
+        if (unlisten) unlisten()
       }
     }
 
@@ -202,11 +224,69 @@ const plugin: Plugin = {
                 </span>
               )
             }
+            if (row.isDownloading) {
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: '4px'
+                    }}
+                  >
+                    {context.components.Button(
+                      {
+                        size: 'sm',
+                        loading: true,
+                        disabled: true
+                      },
+                      '正在下载'
+                    )}
+                    <span style={{ fontSize: '12px', color: '#888' }}>
+                      {row.progress ? `${row.progress.percent}%` : '连接中...'}
+                    </span>
+                  </div>
+                  {row.progress && (
+                    <div style={{ width: '100%' }}>
+                      <div
+                        style={{
+                          height: '4px',
+                          background: '#f0f0f0',
+                          borderRadius: '2px',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${row.progress.percent}%`,
+                            height: '100%',
+                            background: '#1890ff',
+                            transition: 'width 0.2s ease',
+                            borderRadius: '2px'
+                          }}
+                        />
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginTop: '4px',
+                          fontSize: '10px',
+                          color: '#999'
+                        }}
+                      >
+                        <span>{formatSize(row.progress.downloaded)}</span>
+                        <span>{formatSize(row.progress.total)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            }
             return context.components.Button(
               {
                 size: 'sm',
-                loading: row.isDownloading,
-                disabled: row.isDownloading,
                 onClick: () => download(row)
               },
               '下载模型'

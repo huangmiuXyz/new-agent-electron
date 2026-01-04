@@ -89,7 +89,13 @@ export const api = {
   },
   net: {
     fetch: (url: string, options?: any) => electronAPI.ipcRenderer.invoke('net:fetch', url, options),
-    download: (options: { url: string; destPath: string }) => electronAPI.ipcRenderer.invoke('net:download', options)
+    download: (options: { url: string; destPath: string; id?: string }) =>
+      electronAPI.ipcRenderer.invoke('net:download', options),
+    onDownloadProgress: (id: string, callback: (progress: any) => void) => {
+      const listener = (_event: any, progress: any) => callback(progress)
+      electronAPI.ipcRenderer.on(`net:download-progress:${id}`, listener)
+      return () => electronAPI.ipcRenderer.removeListener(`net:download-progress:${id}`, listener)
+    }
   }
 }
 

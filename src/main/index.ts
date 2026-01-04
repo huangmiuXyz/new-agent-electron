@@ -36,17 +36,17 @@ function createWindow(): BrowserWindow {
       allowRunningInsecureContent: true
     },
     transparent: true,
-  titleBarStyle: 'hidden'
-})
+    titleBarStyle: 'hidden'
+  })
 
-protocol.handle('plugin-resource', (request) => {
-  const url = request.url.replace('plugin-resource://', '')
-  const decodedPath = decodeURIComponent(url)
-  const filePath = decodedPath.startsWith('/') ? decodedPath : `/${decodedPath}`
-  return net.fetch(`file://${filePath}`)
-})
+  protocol.handle('plugin-resource', (request) => {
+    const url = request.url.replace('plugin-resource://', '')
+    const decodedPath = decodeURIComponent(url)
+    const filePath = decodedPath.startsWith('/') ? decodedPath : `/${decodedPath}`
+    return net.fetch(`file://${filePath}`)
+  })
 
-mainWindow.on('ready-to-show', () => {
+  mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
 
@@ -140,14 +140,38 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('net:download', async (_event, { url, destPath }) => {
+  ipcMain.handle('net:download', async (event, { url, destPath, id }) => {
     try {
-      const response = await net.fetch(url)
+      const { fetch } = require('electron').net
+      const response = await fetch(url)
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
 
-      const buffer = await response.arrayBuffer()
+      const totalBytes = parseInt(response.headers.get('content-length') || '0')
+      let downloadedBytes = 0
+
+      const reader = (response.body as any).getReader()
       const fs = require('fs')
-      fs.writeFileSync(destPath, Buffer.from(buffer))
+      const fileStream = fs.createWriteStream(destPath)
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          downloadedBytes += value.length
+          fileStream.write(Buffer.from(value))
+
+          if (id) {
+            event.sender.send(`net:download-progress:${id}`, {
+              total: totalBytes,
+              downloaded: downloadedBytes,
+              percent: totalBytes ? Math.round((downloadedBytes / totalBytes) * 100) : 0
+            })
+          }
+        }
+      } finally {
+        fileStream.end()
+      }
 
       return { ok: true }
     } catch (error) {
