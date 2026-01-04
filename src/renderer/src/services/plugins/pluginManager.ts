@@ -1,6 +1,7 @@
 import { useForm } from '@renderer/composables/useForm';
 import { useTable } from '@renderer/composables/useTable';
 import { useDownload } from '@renderer/composables/useDownload';
+import { useIcon } from '@renderer/composables/useIcon';
 import localforage from 'localforage'
 /**
  * 插件管理器
@@ -173,6 +174,7 @@ export class PluginManager {
       useForm,
       useTable,
       useDownload,
+      useIcon,
       components,
       registerCommand: (name: string, handler: Function) => {
         this.registerCommand(pluginName, name, handler);

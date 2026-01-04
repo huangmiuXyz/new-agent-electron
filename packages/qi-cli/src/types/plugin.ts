@@ -55,6 +55,7 @@ export interface PluginContext {
   };
   useForm: any;
   useTable: any;
+  useIcon: any;
   components: Record<string, any>;
   vue: any;
   getPluginsDataPath: () => string;

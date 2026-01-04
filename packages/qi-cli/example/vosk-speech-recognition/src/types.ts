@@ -80,6 +80,7 @@ export interface PluginContext {
   useForm: any;
   useTable: any;
   useDownload: any;
+  useIcon: any;
   vue: any;
   components: {
     Button: any;
