@@ -248,7 +248,7 @@ const plugin: Plugin = {
                 </span>
               )
             }
-            if (row.isDownloading) {
+            if (row.isDownloading || row.isPaused) {
               const percent = row.progress?.percent || 0
               return (
                 <div
