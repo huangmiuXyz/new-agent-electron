@@ -256,15 +256,15 @@ const plugin: Plugin = {
 
     const getModelFilePath = (filename: string) => {
       let modelDir = ''
+      debugger
       try {
         if (typeof getFieldValue === 'function') {
           modelDir = getFieldValue('modelPath')
         } else {
-          modelDir =
-            savedConfig.modelPath !== undefined ? savedConfig.modelPath : DEFAULT_MODEL_PATH
+          modelDir = savedConfig.modelPath ? savedConfig.modelPath : DEFAULT_MODEL_PATH
         }
       } catch (e) {
-        modelDir = savedConfig.modelPath !== undefined ? savedConfig.modelPath : DEFAULT_MODEL_PATH
+        modelDir = savedConfig.modelPath ? savedConfig.modelPath : DEFAULT_MODEL_PATH
       }
       if (!modelDir) modelDir = context.basePath || ''
       return context.api.path.join(modelDir, filename)
@@ -526,7 +526,7 @@ const plugin: Plugin = {
         }
       ],
       initialData: {
-        modelPath: savedConfig.modelPath !== undefined ? savedConfig.modelPath : DEFAULT_MODEL_PATH,
+        modelPath: savedConfig.modelPath ? savedConfig.modelPath : DEFAULT_MODEL_PATH,
         models: (savedConfig.models && savedConfig.models.length > 0
           ? savedConfig.models
           : MODELS
