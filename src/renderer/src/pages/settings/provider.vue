@@ -92,7 +92,7 @@ const ModelList = (): VNode => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>模型列表</span>
             <Button onClick={showAddCustomModelModal} size="sm" type="button" variant="text">
-              <component is={Plus} />
+              {Plus}
             </Button>
             {showSearch.value ? (
               <div>
@@ -421,7 +421,7 @@ const [ModelTable] = useTable<Model>({
             onClick={() => showEditModelModal(row)}
             title="编辑模型"
           >
-            <Edit />
+            {Edit}
           </Button>
           {isCustomModel(row) && (
             <Button
@@ -432,7 +432,7 @@ const [ModelTable] = useTable<Model>({
               title="删除模型"
               class="text-red-500 hover:text-red-700"
             >
-              <component is={Delete} />
+              {Delete}
             </Button>
           )}
         </>
