@@ -9,7 +9,18 @@ let model: Vosk.Model | null = null
 let recognizer: Vosk.KaldiRecognizer | null = null
 let modelLoadingPromise: Promise<Vosk.Model | null> | null = null
 let currentLoadedModelId: string | null = null
-
+const MODELS = [
+  {
+    id: 'vosk-cn',
+    name: 'Vosk 中文模型',
+    file: MODEL_NAME,
+    active: true,
+    category: 'speech',
+    created: Date.now(),
+    object: 'model',
+    owned_by: 'vosk-speech-recognition'
+  }
+]
 const plugin: Plugin = {
   name: 'vosk-speech-recognition',
   version: '1.0.0',
@@ -361,18 +372,7 @@ const plugin: Plugin = {
         modelPath: savedConfig.modelPath || '',
         models: (savedConfig.models && savedConfig.models.length > 0
           ? savedConfig.models
-          : [
-              {
-                id: 'vosk-cn',
-                name: 'Vosk 中文模型',
-                file: MODEL_NAME,
-                active: true,
-                category: 'speech',
-                created: Date.now(),
-                object: 'model',
-                owned_by: 'vosk-speech-recognition'
-              }
-            ]
+          : MODELS
         ).map((m: any) => ({
           ...m,
           exists: checkFileExists(m.file),
