@@ -13,7 +13,6 @@ const plugin: Plugin = {
   name: 'vosk-speech-recognition',
   version: '1.0.0',
   description: 'Vosk 实时语音识别插件',
-  updatedAt: '2026-01-04 13:19:52',
 
   async install(context: PluginContext) {
     const { ref, h, onMounted, onUnmounted, markRaw, defineComponent } = context.vue
