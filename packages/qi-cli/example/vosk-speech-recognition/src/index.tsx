@@ -519,7 +519,7 @@ const plugin: Plugin = {
           type: 'path',
           label: '模型保存路径',
           placeholder: '留空使用默认内置模型',
-          hint: `下载模型的保存路径，默认：${DEFAULT_MODEL_PATH}`,
+          hint: `下载模型的保存路径`,
           dialogOptions: { properties: ['openDirectory'], title: '选择模型保存目录' }
         },
         {
