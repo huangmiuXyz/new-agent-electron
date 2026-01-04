@@ -8,6 +8,7 @@ const PROVIDER_ID = 'vosk-local'
 let model: Vosk.Model | null = null
 let recognizer: Vosk.KaldiRecognizer | null = null
 let modelLoadingPromise: Promise<Vosk.Model | null> | null = null
+let currentLoadedModelId: string | null = null
 
 const plugin: Plugin = {
   name: 'vosk-speech-recognition',
@@ -417,6 +418,17 @@ const plugin: Plugin = {
     })
 
     const initModel = async (silent = false) => {
+      const selectedModelId = settingsStore.defaultModels?.speechModelId
+
+      if (model && currentLoadedModelId !== selectedModelId) {
+        model = null
+        modelLoadingPromise = null
+        if (recognizer) {
+          recognizer.remove()
+          recognizer = null
+        }
+      }
+
       if (model) return model
       if (modelLoadingPromise) return modelLoadingPromise
 
@@ -430,41 +442,47 @@ const plugin: Plugin = {
             return null
           }
 
+          const models = getFieldValue('models') || []
+          const targetConfig = models.find((m: any) => m.id === selectedModelId)
+          const targetFile = targetConfig?.file || MODEL_NAME
+          const targetName = targetConfig?.name || targetFile
+
           if (!silent) {
             context.notification.status('vosk-status', '', {
               render: markRaw(LoadingIcon),
               color: '#fff',
-              tooltip: '正在加载 Vosk 模型...'
+              tooltip: `正在加载 Vosk 模型: ${targetName}...`
             })
             closeLoading = context.notification.loading(
-              `正在初始化语音识别引擎并加载 Vosk 模型 (${MODEL_NAME})...`,
+              `正在初始化语音识别引擎并加载 Vosk 模型 (${targetName})...`,
               '语音识别'
             )
           }
 
           const modelPath = getFieldValue('modelPath')
-          const fullPath = context.api.path.join(context.basePath || '', MODEL_NAME)
+          const fullPath = context.api.path.join(context.basePath || '', targetFile)
           const normalizedPath = (modelPath || fullPath).replace(/\\/g, '/')
 
           if (!modelPath && !context.api.fs.existsSync(fullPath)) {
-            throw new Error(`找不到默认模型文件 ${MODEL_NAME}，请在插件设置中下载模型`)
+            throw new Error(`找不到模型文件 ${targetFile}，请在插件设置中下载模型`)
           }
 
           const modelUrl = `plugin-resource://${normalizedPath}`
 
           console.log('正在加载 Vosk 模型:', modelUrl)
           model = await Vosk.createModel(modelUrl)
+          currentLoadedModelId = selectedModelId
 
           if (!silent) {
             context.notification.status('vosk-status', '', {
-              render: markRaw(() => <ReadyIcon modelName={MODEL_NAME} />),
+              render: markRaw(() => <ReadyIcon modelName={targetName} />),
               color: '#fff',
-              tooltip: `Vosk 语音识别已就绪 (模型: ${MODEL_NAME})`
+              tooltip: `Vosk 语音识别已就绪 (模型: ${targetName})`
             })
             if (closeLoading) {
               closeLoading()
               context.notification.success(
-                `语音识别模型 (Vosk: ${MODEL_NAME}) 加载成功，已就绪`,
+                `语音识别模型 (Vosk: ${targetName}) 加载成功，已就绪`,
                 '语音识别'
               )
             }
@@ -488,15 +506,18 @@ const plugin: Plugin = {
       })()
 
       return modelLoadingPromise
-    }
-
+    // 监听默认提供商和具体模型的选择变化
     if (watch) {
       watch(
-        () => settingsStore.defaultModels?.speechProviderId,
-        (newId: string) => {
-          if (newId === PROVIDER_ID) {
+        [
+          () => settingsStore.defaultModels?.speechProviderId,
+          () => settingsStore.defaultModels?.speechModelId
+        ],
+        ([newProviderId]) => {
+          if (newProviderId === PROVIDER_ID) {
             initModel(false).catch((err) => console.error('后台预加载 Vosk 模型失败:', err))
           } else {
+            // 如果切走了，清除状态栏图标
             context.notification.removeStatus('vosk-status')
           }
         },
