@@ -425,7 +425,7 @@ const plugin: Plugin = {
           key: 'status',
           label: '状态/操作',
           width: '2fr',
-          align: true,
+          align: 'center',
           render: (row: any) => {
             if (row.isDownloading || row.isPaused) {
               return (
