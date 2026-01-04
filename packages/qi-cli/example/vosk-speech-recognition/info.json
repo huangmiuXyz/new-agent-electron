@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Vosk 语音识别插件",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-04 15:10:46",
+  "updatedAt": "2026-01-04 15:46:01",
   "main": "index.js",
   "extraAssets": []
 }
