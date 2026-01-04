@@ -325,6 +325,10 @@ const plugin: Plugin = {
         closeLoading()
 
         if (result.ok) {
+          if (unlisten) {
+            unlisten()
+            unlisten = null
+          }
           context.notification.success(`模型 ${row.name} 下载成功`, '模型下载')
           const updatedData = getData().map((item: any) =>
             item.id === row.id
@@ -351,7 +355,10 @@ const plugin: Plugin = {
         )
         await syncModels(currentData)
       } finally {
-        if (unlisten) unlisten()
+        if (unlisten) {
+          unlisten()
+          unlisten = null
+        }
       }
     }
 
@@ -375,7 +382,14 @@ const plugin: Plugin = {
           context.notification.success(`模型文件 ${row.file} 已删除`, '模型管理')
           const newData = getData().map((item: any) =>
             item.id === row.id
-              ? { ...item, exists: false, isCompleted: false, progress: null }
+              ? {
+                  ...item,
+                  exists: false,
+                  isCompleted: false,
+                  isDownloading: false,
+                  isPaused: false,
+                  progress: null
+                }
               : item
           )
           await syncModels(newData)
