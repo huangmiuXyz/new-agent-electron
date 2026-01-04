@@ -45,7 +45,6 @@ const updateMarkdown = (newText: string) => {
 watch(
   () => props.message,
   () => {
-    console.log('Message state:', props.block.state)
     if (props.block.state === 'done') {
       incremark.finalize()
     } else {
@@ -59,8 +58,6 @@ watch(() => display.value.darkMode, () => {
 })
 
 onMounted(() => {
-  console.log('Markdown mounted, customCodeBlocks:', customCodeBlocks)
-  console.log('Markdown mounted, blocks:', blocks.value)
   incremarkTheme.value = display.value.darkMode ? 'dark' : 'default'
   incremark.render(props.block.text)
 })
