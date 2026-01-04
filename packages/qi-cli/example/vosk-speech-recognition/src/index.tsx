@@ -245,24 +245,6 @@ const plugin: Plugin = {
           label: '状态/操作',
           width: '2fr',
           render: (row: any) => {
-            if (row.exists) {
-              return (
-                <span
-                  style={{
-                    color: '#52c41a',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '12px'
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                  </svg>
-                  已就绪
-                </span>
-              )
-            }
             if (row.isDownloading || row.isPaused) {
               return (
                 <context.components.DownloadProgress
@@ -281,6 +263,24 @@ const plugin: Plugin = {
                     await syncModels(updatedData)
                   }}
                 />
+              )
+            }
+            if (row.exists) {
+              return (
+                <span
+                  style={{
+                    color: '#52c41a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '12px'
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                  </svg>
+                  已就绪
+                </span>
               )
             }
             return context.components.Button(
@@ -367,7 +367,8 @@ const plugin: Plugin = {
         ).map((m: any) => ({
           ...m,
           exists: checkFileExists(m.file),
-          isDownloading: false
+          isDownloading: m.isDownloading || false,
+          isPaused: m.isPaused || false
         }))
       },
       onChange: (_field: string, _value: any, data: any) => {
@@ -383,8 +384,12 @@ const plugin: Plugin = {
             const currentData = getData()
             const mergedModels = newModels.map((m: any) => {
               const current = currentData.find((cm: any) => cm.id === m.id)
-
-              if (current && current.isDownloading) {
+              if (
+                current &&
+                (current.isDownloading || current.isPaused) &&
+                !m.isDownloading &&
+                !m.isPaused
+              ) {
                 return { ...m, ...current }
               }
               return m
