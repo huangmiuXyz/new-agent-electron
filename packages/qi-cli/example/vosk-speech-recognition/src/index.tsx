@@ -14,7 +14,7 @@ const MODELS = [
     id: 'vosk-cn-small',
     name: 'Vosk 中文模型 (精简版)',
     file: 'vosk-model-small-cn-0.22.zip',
-    active: true,
+    active: false,
     category: 'speech',
     created: Date.now(),
     object: 'model',
