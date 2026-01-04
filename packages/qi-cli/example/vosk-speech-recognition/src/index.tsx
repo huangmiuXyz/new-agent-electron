@@ -145,7 +145,6 @@ const plugin: Plugin = {
       let unlisten: (() => void) | null = null
       if (context.api.net.onDownloadProgress) {
         unlisten = context.api.net.onDownloadProgress(row.id, (progress: any) => {
-          console.log(progress)
           const updatedData = getData().map((item: any) =>
             item.id === row.id ? { ...item, progress } : item
           )

@@ -162,11 +162,15 @@ app.whenReady().then(() => {
           fileStream.write(Buffer.from(value))
 
           if (id) {
-            event.sender.send(`net:download-progress:${id}`, {
+            const progress = {
               total: totalBytes,
               downloaded: downloadedBytes,
               percent: totalBytes ? Math.round((downloadedBytes / totalBytes) * 100) : 0
-            })
+            }
+            if (downloadedBytes === 0 || progress.percent % 10 === 0 || done) {
+              console.log(`Download progress for ${id}: ${progress.percent}% (${downloadedBytes}/${totalBytes})`)
+            }
+            event.sender.send(`net:download-progress:${id}`, progress)
           }
         }
       } finally {
