@@ -729,8 +729,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       }
 
       .form-content {
-        overflow-y: auto;
         padding: 0;
+        height: 100%;
       }
 
       .form-item {

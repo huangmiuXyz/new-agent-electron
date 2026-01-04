@@ -256,7 +256,6 @@ const plugin: Plugin = {
 
     const getModelFilePath = (filename: string) => {
       let modelDir = ''
-      debugger
       try {
         if (typeof getFieldValue === 'function') {
           modelDir = getFieldValue('modelPath')
