@@ -21,9 +21,9 @@ const Stop = useIcon('Stop')
         <div style="display: flex; align-items: center;justify-content: space-between;flex: 1">
           <div class="msg-meta-content" :class="{ isMobile }">
             <span class="msg-name">{{ message.metadata?.model }}</span>
-            <span class="msg-time">{{
+            <!-- <span class="msg-time">{{
               new Date(message.metadata?.date || '').toLocaleString()
-            }}</span>
+            }}</span> -->
           </div>
           <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
             variant="icon" type="button">
@@ -97,8 +97,9 @@ const Stop = useIcon('Stop')
 .msg-meta-content {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   height: 32px;
+  align-items: center;
 }
 
 .msg-meta.isMobile {
