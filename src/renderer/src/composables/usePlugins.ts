@@ -277,6 +277,7 @@ export function usePlugins() {
         type: 'loaded' as const,
         error: p.error,
         plugin: p.plugin,
+        updatedAt: p.plugin.updatedAt,
         isDev: pluginLoader?.isDevMode(p.plugin.name) || false
       })),
       ...available.map(p => ({
@@ -287,7 +288,8 @@ export function usePlugins() {
         status: 'unloaded' as PluginStatus,
         type: 'available' as const,
         path: p.path,
-        error: undefined
+        error: undefined,
+        updatedAt: p.updatedAt
       }))
     ];
   });

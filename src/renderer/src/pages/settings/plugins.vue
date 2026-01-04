@@ -230,6 +230,10 @@ const handleUninstallPlugin = async (pluginName: string) => {
                 <span class="info-label">版本:</span>
                 <span class="info-value">{{ activePlugin.version }}</span>
               </div>
+              <div v-if="activePlugin.updatedAt" class="info-row">
+                <span class="info-label">更新时间:</span>
+                <span class="info-value">{{ activePlugin.updatedAt }}</span>
+              </div>
               <div v-if="activePlugin.error" class="info-row">
                 <span class="info-label error-label">错误:</span>
                 <span class="info-value error-value">{{ activePlugin.error }}</span>
@@ -264,7 +268,8 @@ const handleUninstallPlugin = async (pluginName: string) => {
         </FormItem>
 
         <!-- 内置工具 -->
-        <FormItem v-if="activePlugin.type === 'loaded' && getPluginBuiltinTools(activePlugin.name).length > 0" label="内置工具">
+        <FormItem v-if="activePlugin.type === 'loaded' && getPluginBuiltinTools(activePlugin.name).length > 0"
+          label="内置工具">
           <div class="tool-tags">
             <span v-for="tool in getPluginBuiltinTools(activePlugin.name)" :key="tool" class="tool-tag">
               {{ tool }}
@@ -273,7 +278,8 @@ const handleUninstallPlugin = async (pluginName: string) => {
         </FormItem>
 
         <!-- 模型提供商 -->
-        <FormItem v-if="activePlugin.type === 'loaded' && getPluginProviders(activePlugin.name).length > 0" label="模型提供商">
+        <FormItem v-if="activePlugin.type === 'loaded' && getPluginProviders(activePlugin.name).length > 0"
+          label="模型提供商">
           <ProviderTable />
         </FormItem>
       </template>

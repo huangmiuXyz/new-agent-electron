@@ -32,6 +32,10 @@ export const buildCommand = new Command('build')
         process.exit(1);
       }
 
+      // 添加更新时间
+      info.updatedAt = new Date().toISOString();
+      const updatedInfoContent = JSON.stringify(info, null, 2);
+
       // 检查 dist 目录是否存在
       const distDir = path.join(path.dirname(infoJsonPath), 'dist');
       try {
@@ -47,7 +51,7 @@ export const buildCommand = new Command('build')
       const zip = new JSZip();
 
       // 添加 info.json
-      zip.file('info.json', infoContent);
+      zip.file('info.json', updatedInfoContent);
 
       // 递归添加 dist 目录下的所有文件
       await addDirectoryToZip(zip, distDir, '');

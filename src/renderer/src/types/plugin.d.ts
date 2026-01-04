@@ -10,6 +10,8 @@ declare global {
     version?: string;
     /** 插件描述 */
     description?: string;
+    /** 更新时间 */
+    updatedAt?: string;
     /** 插件安装函数，在插件加载时调用 */
     install: (context: PluginContext) => void | Promise<void>;
     /** 插件卸载函数，在插件卸载时调用 */
@@ -144,6 +146,7 @@ declare global {
     isDev?: boolean;
     error?: string;
     path?: string;
+    updatedAt?: string;
     plugin?: any;
   }
   type PluginStatus = 'unloaded' | 'loading' | 'loaded' | 'unloading' | 'error';
