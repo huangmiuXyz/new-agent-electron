@@ -257,7 +257,6 @@ const plugin: Plugin = {
     const getModelFilePath = (filename: string) => {
       let modelDir = ''
       try {
-        // 只有当 getFieldValue 已定义且可用时才调用它
         if (typeof getFieldValue === 'function') {
           modelDir = getFieldValue('modelPath')
         } else {
