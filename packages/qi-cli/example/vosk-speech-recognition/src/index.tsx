@@ -15,7 +15,7 @@ const plugin: Plugin = {
   description: 'Vosk 实时语音识别插件',
 
   async install(context: PluginContext) {
-    const { ref, onMounted, onUnmounted, markRaw, defineComponent } = context.vue
+    const { ref, h, onMounted, onUnmounted, markRaw, defineComponent } = context.vue
 
     // 定义 Vue 组件
     const LoadingIcon = defineComponent({
