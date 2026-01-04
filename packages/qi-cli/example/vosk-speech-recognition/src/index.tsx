@@ -15,7 +15,7 @@ const plugin: Plugin = {
   description: 'Vosk 实时语音识别插件',
 
   async install(context: PluginContext) {
-    const { ref, h, onMounted, onUnmounted, markRaw, defineComponent } = context.vue
+    const { ref, h, onMounted, onUnmounted, markRaw, defineComponent, watch } = context.vue
 
     // 定义 Vue 组件
     const LoadingIcon = defineComponent({
@@ -132,10 +132,13 @@ const plugin: Plugin = {
     }
 
     const download = async (row: any) => {
-      if (!row.file || row.isDownloading) return
+      if (!row.file || (row.isDownloading && !row.isPaused)) return
+      const offset = row.progress?.downloaded || 0
 
       const newData = getData().map((item: any) =>
-        item.id === row.id ? { ...item, isDownloading: true, progress: null } : item
+        item.id === row.id
+          ? { ...item, isDownloading: true, isPaused: false, progress: item.progress || null }
+          : item
       )
       await syncModels(newData)
 
@@ -146,22 +149,30 @@ const plugin: Plugin = {
       if (context.api.net.onDownloadProgress) {
         unlisten = context.api.net.onDownloadProgress(row.id, (progress: any) => {
           const updatedData = getData().map((item: any) =>
-            item.id === row.id ? { ...item, progress } : item
+            item.id === row.id ? { ...item, progress, isPaused: false, isDownloading: true } : item
           )
           setData(updatedData)
         })
       }
 
       try {
-        const closeLoading = context.notification.loading(`正在下载模型 ${row.name}...`, '模型下载')
-        const result = await context.api.net.download({ url, destPath: fullPath, id: row.id })
+        const closeLoading = context.notification.loading(
+          `${offset > 0 ? '正在续传' : '正在下载'}模型 ${row.name}...`,
+          '模型下载'
+        )
+        const result = await context.api.net.download({
+          url,
+          destPath: fullPath,
+          id: row.id,
+          offset
+        })
         closeLoading()
 
         if (result.ok) {
           context.notification.success(`模型 ${row.name} 下载成功`, '模型下载')
           const updatedData = getData().map((item: any) =>
             item.id === row.id
-              ? { ...item, exists: true, isDownloading: false, progress: null }
+              ? { ...item, exists: true, isDownloading: false, isPaused: false, progress: null }
               : item
           )
           await syncModels(updatedData)
@@ -169,13 +180,26 @@ const plugin: Plugin = {
           throw new Error(result.error)
         }
       } catch (err: any) {
-        context.notification.error(`下载失败: ${err.message}`, '模型下载')
-        const resetData = getData().map((item: any) =>
-          item.id === row.id ? { ...item, isDownloading: false, progress: null } : item
+        if (err.name !== 'AbortError') {
+          context.notification.error(`下载失败: ${err.message}`, '模型下载')
+        }
+        const currentData = getData().map((item: any) =>
+          item.id === row.id ? { ...item, isDownloading: false } : item
         )
-        await syncModels(resetData)
+        await syncModels(currentData)
       } finally {
         if (unlisten) unlisten()
+      }
+    }
+
+    const stopDownload = async (row: any) => {
+      if (context.api.net.cancelDownload) {
+        await context.api.net.cancelDownload(row.id)
+        context.notification.info(`已暂停下载模型 ${row.name}`, '模型下载')
+        const updatedData = getData().map((item: any) =>
+          item.id === row.id ? { ...item, isDownloading: false, isPaused: true } : item
+        )
+        await syncModels(updatedData)
       }
     }
 
@@ -245,15 +269,71 @@ const plugin: Plugin = {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {context.components.Button(
-                        {
-                          size: 'sm',
-                          loading: true,
-                          disabled: true,
-                          style: { height: '24px', padding: '0 8px', fontSize: '11px' }
-                        },
-                        '正在下载'
-                      )}
+                      <span style={{ fontSize: '11px', color: '#888' }}>
+                        {row.isPaused ? '已暂停' : '正在下载...'}
+                      </span>
+                      <div
+                        onClick={() => (row.isPaused ? download(row) : stopDownload(row))}
+                        style={{
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '4px',
+                          color: row.isPaused ? '#1890ff' : '#faad14',
+                          background: row.isPaused
+                            ? 'rgba(24, 144, 255, 0.1)'
+                            : 'rgba(250, 173, 20, 0.1)',
+                          transition: 'all 0.2s ease'
+                        }}
+                        class="download-control-btn"
+                        title={row.isPaused ? '继续下载' : '暂停下载'}
+                      >
+                        <style>{`
+                          .download-control-btn:hover { transform: scale(1.1); filter: brightness(1.1); }
+                        `}</style>
+                        {row.isPaused ? (
+                          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div
+                        onClick={async () => {
+                          if (context.api.net.cancelDownload)
+                            await context.api.net.cancelDownload(row.id)
+                          const updatedData = getData().map((item: any) =>
+                            item.id === row.id
+                              ? { ...item, isDownloading: false, isPaused: false, progress: null }
+                              : item
+                          )
+                          await syncModels(updatedData)
+                        }}
+                        style={{
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '4px',
+                          color: '#ff4d4f',
+                          background: 'rgba(255, 77, 79, 0.1)',
+                          transition: 'all 0.2s ease'
+                        }}
+                        class="cancel-download-btn"
+                        title="完全停止下载"
+                      >
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                        </svg>
+                      </div>
                     </div>
                     <span style={{ fontSize: '11px', color: '#1890ff', fontWeight: 'bold' }}>
                       {row.progress ? `${percent}%` : '连接中...'}
@@ -358,18 +438,7 @@ const plugin: Plugin = {
         {
           name: 'models',
           type: 'custom',
-          render: (row: any) => {
-            if (row.models && row.models.length > 0) {
-              const currentData = getData()
-              const mergedModels = row.models.map((m: any) => {
-                const current = currentData.find((cm: any) => cm.id === m.id)
-                if (current && current.isDownloading) {
-                  return { ...m, ...current }
-                }
-                return m
-              })
-              setData(mergedModels)
-            }
+          render: () => {
             return TableComponent
           }
         }
@@ -400,6 +469,28 @@ const plugin: Plugin = {
         context.localforage.setItem(STORAGE_KEY, JSON.stringify(data))
       }
     })
+
+    // 安全地同步表单数据到表格，避免在 render 函数中产生侧边效应引起死循环
+    if (watch) {
+      watch(
+        () => getFieldValue('models'),
+        (newModels) => {
+          if (newModels && Array.isArray(newModels)) {
+            const currentData = getData()
+            const mergedModels = newModels.map((m: any) => {
+              const current = currentData.find((cm: any) => cm.id === m.id)
+              // 如果当前正在下载，则保留进度的响应式状态
+              if (current && current.isDownloading) {
+                return { ...m, ...current }
+              }
+              return m
+            })
+            setData(mergedModels)
+          }
+        },
+        { immediate: true, deep: true }
+      )
+    }
 
     context.registerProvider(PROVIDER_ID, {
       name: 'Vosk',

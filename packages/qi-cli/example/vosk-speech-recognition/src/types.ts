@@ -28,8 +28,9 @@ export interface PluginContext {
   api: {
     net: {
       fetch: (url: string, options?: any) => Promise<any>;
-      download: (options: { url: string; destPath: string; id?: string }) => Promise<{ ok: boolean; error?: string }>;
+      download: (options: { url: string; destPath: string; id?: string; offset?: number }) => Promise<{ ok: boolean; error?: string }>;
       onDownloadProgress: (id: string, callback: (progress: { total: number; downloaded: number; percent: number }) => void) => () => void;
+      cancelDownload: (id: string) => Promise<boolean>;
     };
     [key: string]: any;
   };

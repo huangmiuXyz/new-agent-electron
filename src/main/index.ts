@@ -140,18 +140,41 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('net:download', async (event, { url, destPath, id }) => {
+  const downloadControllers = new Map<string, AbortController>()
+
+  ipcMain.handle('net:download', async (event, { url, destPath, id, offset = 0 }) => {
+    const controller = new AbortController()
+    if (id) {
+      if (downloadControllers.has(id)) {
+        downloadControllers.get(id)?.abort()
+      }
+      downloadControllers.set(id, controller)
+    }
+
     try {
       const { fetch } = require('electron').net
-      const response = await fetch(url)
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+      const headers: Record<string, string> = {}
+      if (offset > 0) {
+        headers['Range'] = `bytes=${offset}-`
+      }
 
-      const totalBytes = parseInt(response.headers.get('content-length') || '0')
-      let downloadedBytes = 0
+      const response = await fetch(url, {
+        signal: controller.signal as any,
+        headers
+      })
+
+      if (!response.ok && response.status !== 206) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const contentLength = parseInt(response.headers.get('content-length') || '0')
+      const totalBytes = offset > 0 ? (offset + contentLength) : contentLength
+      let downloadedBytes = offset
 
       const reader = (response.body as any).getReader()
       const fs = require('fs')
-      const fileStream = fs.createWriteStream(destPath)
+      // 如果是续传，使用 'a' (append) 模式
+      const fileStream = fs.createWriteStream(destPath, { flags: offset > 0 ? 'a' : 'w' })
 
       try {
         while (true) {
@@ -167,20 +190,35 @@ app.whenReady().then(() => {
               downloaded: downloadedBytes,
               percent: totalBytes ? Math.round((downloadedBytes / totalBytes) * 100) : 0
             }
-            if (downloadedBytes === 0 || progress.percent % 10 === 0 || done) {
+            if (downloadedBytes === offset || progress.percent % 10 === 0 || done) {
               console.log(`Download progress for ${id}: ${progress.percent}% (${downloadedBytes}/${totalBytes})`)
             }
             event.sender.send(`net:download-progress:${id}`, progress)
           }
         }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.log(`Download ${id} was paused/aborted at ${downloadedBytes} bytes`)
+        }
+        throw err
       } finally {
         fileStream.end()
+        if (id) downloadControllers.delete(id)
       }
 
       return { ok: true }
     } catch (error) {
       return { ok: false, error: (error as Error).message }
     }
+  })
+
+  ipcMain.handle('net:cancel-download', async (_event, id) => {
+    if (id && downloadControllers.has(id)) {
+      downloadControllers.get(id)?.abort()
+      downloadControllers.delete(id)
+      return true
+    }
+    return false
   })
 
   ipcMain.handle('window:get-temp-chat-data', async (_event, windowId) => {

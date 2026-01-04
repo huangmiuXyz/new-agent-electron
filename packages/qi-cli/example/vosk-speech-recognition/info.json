@@ -1,9 +1,9 @@
 {
   "name": "vosk-speech-recognition",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "description": "Vosk 语音识别插件",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-04 13:42:30",
+  "updatedAt": "2026-01-04 13:43:57",
   "main": "index.js",
   "extraAssets": []
 }
