@@ -49,7 +49,7 @@ const ReadyIcon = defineComponent({
   },
   setup(props) {
     return () => (
-      <div className="plugin-icon-container">
+      <div class="plugin-icon-container">
         <style>{`
           .plugin-icon-container { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100% }
           .plugin-tooltip {
@@ -70,10 +70,10 @@ const ReadyIcon = defineComponent({
           <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
           <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
         </svg>
-        <div className="plugin-tooltip">
+        <div class="plugin-tooltip">
           <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Vosk 语音识别</div>
           <div style={{ color: '#aaa' }}>
-            当前模型: <span className="model-tag">{props.modelName}</span>
+            当前模型: <span class="model-tag">{props.modelName}</span>
           </div>
         </div>
       </div>
@@ -90,7 +90,7 @@ const plugin: Plugin = {
   version: '1.0.0',
   description: 'Vosk 实时语音识别插件',
 
-  async install(context) {
+  async install(context: PluginContext) {
     console.log('Vosk Speech Recognition 插件正在执行 install...')
     const settingsStore = await context.getStore('settings')
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
@@ -318,7 +318,7 @@ const plugin: Plugin = {
                 }
               ]
       },
-      onChange: (field: string, value: any, data: any) => {
+      onChange: (_field: string, _value: any, data: any) => {
         context.localforage.setItem(STORAGE_KEY, JSON.stringify(data))
       }
     })
