@@ -718,6 +718,35 @@ const plugin: Plugin = {
         return { error: String(err) }
       }
     })
+
+    context.registerHook('plugin.clearData', async (data: { pluginName: string }) => {
+      if (data.pluginName !== plugin.name) return
+      console.log('Vosk 插件收到清除数据请求')
+      const models = getFieldValue('models') || []
+      for (const m of models) {
+        if (m.file) {
+          try {
+            const fullPath = context.api.path.join(context.basePath || '', m.file)
+            if (context.api.fs.existsSync(fullPath)) {
+              context.api.fs.unlinkSync(fullPath)
+              console.log(`已删除模型文件: ${m.file}`)
+            }
+          } catch (e) {
+            console.error(`删除模型文件 ${m.file} 失败:`, e)
+          }
+        }
+      }
+      // 重置模型状态
+      const resetModels = MODELS.map((m: any) => ({
+        ...m,
+        exists: false,
+        isCompleted: false,
+        isDownloading: false,
+        isPaused: false,
+        progress: null
+      }))
+      await syncModels(resetModels)
+    })
   },
 
   async uninstall(context) {

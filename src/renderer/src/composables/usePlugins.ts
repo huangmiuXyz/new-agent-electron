@@ -375,6 +375,36 @@ export function usePlugins() {
     return !!plugin?.notificationsDisabled;
   };
 
+  /**
+   * 清除插件缓存和数据
+   */
+  const clearPluginData = async (pluginName: string): Promise<void> => {
+    const confirmed = confirm(`确定要清除插件 "${pluginName}" 的缓存和所有数据吗？\n\n此操作将删除该插件的所有存储数据和已下载的模型文件（如果插件支持）。`)
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      loading.value = true
+      // 1. 触发清除钩子
+      await triggerHook('plugin.clearData', { pluginName })
+
+      // 2. 清除 localforage
+      const localforage = (await import('localforage')).default
+      await localforage.dropInstance({
+        name: pluginName
+      })
+
+      alert('缓存和数据已清除')
+      await refreshPlugins()
+    } catch (err) {
+      console.error('Failed to clear plugin data:', err)
+      alert(`清除失败: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     plugins,
     availablePlugins,
@@ -401,6 +431,7 @@ export function usePlugins() {
     pluginLoader,
     triggerHook,
     togglePluginNotification,
-    isPluginNotificationDisabled
+    isPluginNotificationDisabled,
+    clearPluginData
   };
 }

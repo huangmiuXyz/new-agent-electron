@@ -32,7 +32,8 @@ const {
   getPluginProviders,
   selectPlugin,
   togglePluginNotification,
-  isPluginNotificationDisabled
+  isPluginNotificationDisabled,
+  clearPluginData
 } = usePlugins()
 
 // 插件设置表单
@@ -231,6 +232,13 @@ const handleUninstallPlugin = async (pluginName: string) => {
                     <Trash />
                   </template>
                   完全卸载
+                </Button>
+                <Button v-if="activePlugin.type === 'loaded'" size="sm" danger
+                  @click="clearPluginData(activePlugin.name)">
+                  <template #icon>
+                    <Trash />
+                  </template>
+                  清除缓存
                 </Button>
                 <Button v-if="activePlugin.type === 'available' && activePlugin.path" size="sm"
                   @click="loadPlugin(activePlugin.path)">
