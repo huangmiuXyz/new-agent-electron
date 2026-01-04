@@ -504,8 +504,8 @@ const plugin: Plugin = {
           throw err
         }
       })()
+    }
 
-      return modelLoadingPromise
     // 监听默认提供商和具体模型的选择变化
     if (watch) {
       watch(
@@ -513,11 +513,10 @@ const plugin: Plugin = {
           () => settingsStore.defaultModels?.speechProviderId,
           () => settingsStore.defaultModels?.speechModelId
         ],
-        ([newProviderId]) => {
+        ([newProviderId]: [string, string]) => {
           if (newProviderId === PROVIDER_ID) {
             initModel(false).catch((err) => console.error('后台预加载 Vosk 模型失败:', err))
           } else {
-            // 如果切走了，清除状态栏图标
             context.notification.removeStatus('vosk-status')
           }
         },
