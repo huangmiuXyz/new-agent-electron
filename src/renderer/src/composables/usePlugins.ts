@@ -382,7 +382,7 @@ export function usePlugins() {
     const { confirm, remove } = useModal()
     const confirmed = await confirm({
       title: '清除插件数据',
-      content: `确定要清除插件 "${pluginName}" 的缓存和所有数据吗？\n\n此操作将删除该插件的所有存储数据和已下载的模型文件（如果插件支持）。`
+      content: `确定要清除插件 "${pluginName}" 的缓存和所有数据吗？`
     })
 
     if (!confirmed) {
