@@ -4,6 +4,7 @@ import ora from 'ora';
 import fs from 'fs/promises';
 import path from 'path';
 import JSZip from 'jszip';
+import inquirer from 'inquirer';
 
 /**
  * 构建命令
@@ -11,9 +12,11 @@ import JSZip from 'jszip';
 export const buildCommand = new Command('build')
   .description('构建插件为 .qi 文件')
   .option('-o, --output <path>', '输出文件路径')
+  .option('-v, --version <version>', '设置插件版本')
   .option('-w, --watch', '监听文件变化自动重新构建')
+  .option('-y, --yes', '跳过所有交互确认')
   .action(async (options: any) => {
-    const spinner = ora('正在构建插件...').start();
+    let spinner = ora('正在初始化构建...').start();
 
     try {
       // 查找 info.json
@@ -30,6 +33,30 @@ export const buildCommand = new Command('build')
       if (!info.name) {
         spinner.fail(chalk.red('info.json 中缺少 name 字段'));
         process.exit(1);
+      }
+
+      const currentVersion = info.version || '1.0.0';
+      let targetVersion = options.version;
+
+      // 交互式设计：如果未提供版本且非监听模式，且未开启 -y，则弹窗询问
+      if (!targetVersion && !options.watch && !options.yes) {
+        spinner.stop();
+        console.log(chalk.bold(`\n📦 正在构建插件: ${chalk.cyan(info.name)}`));
+        const answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'version',
+            message: `请输入构建版本号:`,
+            default: currentVersion
+          }
+        ]);
+        targetVersion = answers.version;
+        spinner = ora('正在构建插件...').start();
+      }
+
+      // 处理版本号
+      if (targetVersion) {
+        info.version = targetVersion;
       }
 
       // 添加更新时间

@@ -203,8 +203,11 @@ export class PluginLoader {
           if (fs.existsSync(infoPath)) {
             try {
               const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-              if (info.updatedAt && !plugin.updatedAt) {
+              if (info.updatedAt) {
                 plugin.updatedAt = info.updatedAt;
+              }
+              if (info.version) {
+                plugin.version = info.version;
               }
             } catch (e) {
               console.warn(`Failed to read metadata from info.json for ${plugin.name}:`, e);
