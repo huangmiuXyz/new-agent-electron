@@ -67,7 +67,7 @@ const Stop = useIcon('Stop')
 }
 
 .msg-row:hover {
-  background-color: var(--bg-tertiary-hover);
+  /* background-color: var(--bg-tertiary-hover); */
 }
 
 .msg-avatar-area {

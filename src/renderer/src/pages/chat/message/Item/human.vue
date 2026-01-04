@@ -39,7 +39,7 @@ const props = defineProps<{
 }
 
 .msg-row:hover {
-  background-color: var(--bg-hover);
+  /* background-color: var(--bg-hover); */
 }
 
 .msg-row.has-gap {
