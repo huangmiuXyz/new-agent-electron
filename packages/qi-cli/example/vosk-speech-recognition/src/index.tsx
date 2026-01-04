@@ -119,7 +119,7 @@ const plugin: Plugin = {
           label: '状态/操作',
           width: '2fr',
           render: (row: any) => {
-            return h(defineComponent({
+            return defineComponent({
               setup() {
                 const isDownloading = ref(false)
                 const exists = ref(false)
@@ -147,7 +147,10 @@ const plugin: Plugin = {
                   const url = `https://alphacephei.com/vosk/models/${row.file}`
 
                   try {
-                    const closeLoading = context.notification.loading(`正在下载模型 ${row.name}...`, '模型下载')
+                    const closeLoading = context.notification.loading(
+                      `正在下载模型 ${row.name}...`,
+                      '模型下载'
+                    )
                     const result = await context.api.net.download({ url, destPath: fullPath })
                     closeLoading()
 
@@ -167,42 +170,66 @@ const plugin: Plugin = {
 
                 return () => {
                   if (exists.value) {
-                    return h('span', { style: { color: '#52c41a', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' } }, [
-                      h('svg', { viewBox: '0 0 24 24', width: '14', height: '14', fill: 'currentColor' }, [
-                        h('path', { d: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z' })
-                      ]),
-                      '已就绪'
-                    ])
+                    return h(
+                      'span',
+                      {
+                        style: {
+                          color: '#52c41a',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '12px'
+                        }
+                      },
+                      [
+                        h(
+                          'svg',
+                          { viewBox: '0 0 24 24', width: '14', height: '14', fill: 'currentColor' },
+                          [
+                            h('path', {
+                              d: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z'
+                            })
+                          ]
+                        ),
+                        '已就绪'
+                      ]
+                    )
                   }
 
-                  return context.components.Button({
-                    size: 'sm',
-                    loading: isDownloading.value,
-                    onClick: download
-                  }, '下载模型')
+                  return context.components.Button(
+                    {
+                      size: 'sm',
+                      loading: isDownloading.value,
+                      onClick: download
+                    },
+                    '下载模型'
+                  )
                 }
               }
-            }))
+            })
           }
         },
         {
           key: 'active',
           label: '启用',
           width: '1fr',
-          render: (row: any) => context.components.Switch({
-            modelValue: row.active,
-            'onUpdate:modelValue': (val: boolean) => {
-              const newData = getData().map((item: any) => item.id === row.id ? { ...item, active: val } : item)
-              syncModels(newData)
-            }
-          })
+          render: (row: any) =>
+            context.components.Switch({
+              modelValue: row.active,
+              'onUpdate:modelValue': (val: boolean) => {
+                const newData = getData().map((item: any) =>
+                  item.id === row.id ? { ...item, active: val } : item
+                )
+                syncModels(newData)
+              }
+            })
         },
         {
           key: 'action',
           label: '操作',
           width: '1.5fr',
           render: (row: any) => {
-            return h(defineComponent({
+            return defineComponent({
               setup() {
                 const exists = ref(false)
 
@@ -233,16 +260,20 @@ const plugin: Plugin = {
                   }
                 }
 
-                return () => h('div', { style: { display: 'flex', gap: '8px' } }, [
-                  context.components.Button({
-                    danger: true,
-                    size: 'sm',
-                    disabled: !exists.value,
-                    onClick: deleteFile
-                  }, '删除模型文件')
-                ])
+                return () =>
+                  h('div', { style: { display: 'flex', gap: '8px' } }, [
+                    context.components.Button(
+                      {
+                        danger: true,
+                        size: 'sm',
+                        disabled: !exists.value,
+                        onClick: deleteFile
+                      },
+                      '删除模型文件'
+                    )
+                  ])
               }
-            }))
+            })
           }
         }
       ]
@@ -271,16 +302,21 @@ const plugin: Plugin = {
       ],
       initialData: {
         modelPath: savedConfig.modelPath || '',
-        models: (savedConfig.models && savedConfig.models.length > 0) ? savedConfig.models : [{
-          id: 'vosk-cn',
-          name: 'Vosk 中文模型',
-          file: MODEL_NAME,
-          active: true,
-          category: 'speech',
-          created: Date.now(),
-          object: 'model',
-          owned_by: 'vosk-speech-recognition'
-        }]
+        models:
+          savedConfig.models && savedConfig.models.length > 0
+            ? savedConfig.models
+            : [
+                {
+                  id: 'vosk-cn',
+                  name: 'Vosk 中文模型',
+                  file: MODEL_NAME,
+                  active: true,
+                  category: 'speech',
+                  created: Date.now(),
+                  object: 'model',
+                  owned_by: 'vosk-speech-recognition'
+                }
+              ]
       },
       onChange: (field: string, value: any, data: any) => {
         context.localforage.setItem(STORAGE_KEY, JSON.stringify(data))
@@ -308,7 +344,10 @@ const plugin: Plugin = {
               color: '#fff',
               tooltip: '正在加载 Vosk 模型...'
             })
-            closeLoading = context.notification.loading(`正在初始化语音识别引擎并加载 Vosk 模型 (${MODEL_NAME})...`, '语音识别')
+            closeLoading = context.notification.loading(
+              `正在初始化语音识别引擎并加载 Vosk 模型 (${MODEL_NAME})...`,
+              '语音识别'
+            )
           }
 
           const modelPath = getFieldValue('modelPath')
@@ -333,7 +372,10 @@ const plugin: Plugin = {
             })
             if (closeLoading) {
               closeLoading()
-              context.notification.success(`语音识别模型 (Vosk: ${MODEL_NAME}) 加载成功，已就绪`, '语音识别')
+              context.notification.success(
+                `语音识别模型 (Vosk: ${MODEL_NAME}) 加载成功，已就绪`,
+                '语音识别'
+              )
             }
           }
           return model
@@ -341,7 +383,10 @@ const plugin: Plugin = {
           console.error('Vosk 模型加载失败:', err)
           if (closeLoading) closeLoading()
           if (!silent) {
-            context.notification.error(`模型加载失败: ${err instanceof Error ? err.message : String(err)}`, '语音识别')
+            context.notification.error(
+              `模型加载失败: ${err instanceof Error ? err.message : String(err)}`,
+              '语音识别'
+            )
           }
           modelLoadingPromise = null
           throw err
@@ -351,12 +396,14 @@ const plugin: Plugin = {
       return modelLoadingPromise
     }
 
-    initModel(false).catch(err => console.error('后台预加载 Vosk 模型失败:', err))
+    initModel(false).catch((err) => console.error('后台预加载 Vosk 模型失败:', err))
 
     context.registerHook('speech.stream.start', async (options: any) => {
       try {
         const { sampleRate, providerId, onResult, onPartial } = options
-        const isRegistered = context.getRegisteredProviders().some(p => p.providerId === providerId)
+        const isRegistered = context
+          .getRegisteredProviders()
+          .some((p) => p.providerId === providerId)
 
         if (!isRegistered) return { success: false, skip: true }
 
@@ -381,9 +428,12 @@ const plugin: Plugin = {
       }
     })
 
-    context.registerHook('speech.stream.data', async (options: { data: Float32Array; sampleRate: number }) => {
-      if (recognizer) recognizer.acceptWaveformFloat(options.data, options.sampleRate)
-    })
+    context.registerHook(
+      'speech.stream.data',
+      async (options: { data: Float32Array; sampleRate: number }) => {
+        if (recognizer) recognizer.acceptWaveformFloat(options.data, options.sampleRate)
+      }
+    )
 
     context.registerHook('speech.stream.stop', async () => {
       if (recognizer) {
@@ -420,4 +470,3 @@ const plugin: Plugin = {
 }
 
 export default plugin
-

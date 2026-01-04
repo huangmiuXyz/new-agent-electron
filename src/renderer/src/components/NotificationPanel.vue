@@ -48,13 +48,14 @@ const getIconColor = (type: string) => {
 <template>
   <Transition name="slide-panel">
     <div v-if="notificationStore.isPanelOpen" class="notification-panel" @click.stop>
-      <div class="panel-header">
+      <div class="panel-header no-drag">
         <div class="header-title">
           <component :is="Bell" class="header-icon" />
           通知中心
         </div>
         <div class="header-actions">
-          <button v-if="notificationStore.notifications.length > 0" class="action-btn" @click="notificationStore.clearAll" title="清空全部">
+          <button v-if="notificationStore.notifications.length > 0" class="action-btn"
+            @click="notificationStore.clearAll" title="清空全部">
             <component :is="Trash" />
           </button>
           <button class="action-btn" @click="notificationStore.togglePanel" title="关闭">
@@ -70,13 +71,8 @@ const getIconColor = (type: string) => {
         </div>
 
         <TransitionGroup v-else name="list" tag="div" class="notification-list">
-          <div
-            v-for="item in notificationStore.notifications"
-            :key="item.id"
-            class="notification-item"
-            :class="{ unread: !item.read }"
-            @click="notificationStore.markAsRead(item.id)"
-          >
+          <div v-for="item in notificationStore.notifications" :key="item.id" class="notification-item"
+            :class="{ unread: !item.read }" @click="notificationStore.markAsRead(item.id)">
             <div class="item-icon" :style="{ color: getIconColor(item.type) }">
               <component :is="getIcon(item.type)" />
             </div>
@@ -116,7 +112,8 @@ const getIconColor = (type: string) => {
   position: fixed;
   top: 0;
   right: 0;
-  bottom: 22px; /* AppFooter height */
+  bottom: 22px;
+  /* AppFooter height */
   width: 320px;
   background: var(--bg-sidebar);
   border-left: 1px solid var(--border-subtle);
@@ -311,7 +308,8 @@ const getIconColor = (type: string) => {
 
 .list-leave-active {
   position: absolute;
-  width: calc(100% - 24px); /* 100% minus padding */
+  width: calc(100% - 24px);
+  /* 100% minus padding */
 }
 
 .list-move {
