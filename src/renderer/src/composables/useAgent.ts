@@ -1,5 +1,6 @@
 import { h } from 'vue'
 import BackgroundManager from '@renderer/components/BackgroundManager.vue'
+import AvatarUpload from '@renderer/components/AvatarUpload.vue'
 
 export const useAgent = () => {
   const agentStore = useAgentStore()
@@ -78,7 +79,8 @@ export const useAgent = () => {
         builtinTools: [...(agent.builtinTools || [])],
         ragEnabled: agent.ragEnabled ?? false,
         terminalStartupPath: agent.terminalStartupPath || '',
-        backgrounds: agent.backgrounds ? [...agent.backgrounds] : []
+        backgrounds: agent.backgrounds ? [...agent.backgrounds] : [],
+        avatar: agent.avatar || ''
       }
       : {
         name: '',
@@ -90,7 +92,8 @@ export const useAgent = () => {
         builtinTools: [],
         ragEnabled: false,
         terminalStartupPath: '',
-        backgrounds: []
+        backgrounds: [],
+        avatar: ''
       }
 
     let previousMcpServers = initialData.mcpServers || []
@@ -100,6 +103,19 @@ export const useAgent = () => {
       showHeader: false,
       initialData,
       fields: [
+        {
+          name: 'avatar',
+          type: 'custom',
+          label: '头像',
+          render: (data) => h(FormItem, { label: '头像' }, [
+            h(AvatarUpload, {
+              modelValue: data.avatar,
+              'onUpdate:modelValue': (val: string) => {
+                data.avatar = val
+              }
+            })
+          ])
+        },
         {
           name: 'name',
           type: 'text',

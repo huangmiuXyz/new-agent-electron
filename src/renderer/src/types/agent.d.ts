@@ -9,6 +9,7 @@ declare global {
     tools: string[] // 工具名称列表，格式为 "服务器名.工具名"
     builtinTools: string[] // 内置工具名称列表
     icon?: string
+    avatar?: string
     createdAt: number
     updatedAt: number
     knowledgeBaseIds?: string[] // 关联的知识库ID列表

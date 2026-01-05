@@ -22,8 +22,10 @@ const { Robot, ChevronDown, Wrench20Regular, Check, Edit } = useIcon([
   'Edit'
 ])
 
+const selectedAgent = computed(() => agentStore.selectedAgent)
+
 const selectedAgentLabel = computed(() => {
-  const agent = agentStore.selectedAgent
+  const agent = selectedAgent.value
   if (!agent) return '选择智能体'
   return agent.name + (tempAgents.value.some((a) => a.id === agent.id) ? ' (临时)' : '')
 })
@@ -60,18 +62,29 @@ const { openAgentModal } = useAgent()
     noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0" width="300px" title="选择智能体">
     <template #trigger>
       <div class="agent-btn" v-if="type === 'select'" :title="selectedAgentLabel">
-        <Robot />
+        <Image v-if="selectedAgent?.avatar" class="agent-avatar"
+          :src="selectedAgent.avatar" alt="" />
+        <Robot v-else />
         <span class="agent-name">{{ selectedAgentLabel }}</span>
         <ChevronDown class="arrow-icon" />
       </div>
       <Button v-else variant="icon" size="sm">
-        <Robot />
+        <Image v-if="selectedAgent?.avatar" class="agent-avatar"
+          :src="selectedAgent.avatar" alt="" />
+        <Robot v-else />
       </Button>
     </template>
 
     <div class="agent-list">
       <div v-for="agent in filteredAgents" :key="agent.id" class="agent-item"
         :class="{ selected: isAgentSelected(agent.id) }" @click="selectAgent(agent.id)">
+        <div class="agent-icon-container">
+          <Image v-if="agent.avatar" class="agent-avatar-list"
+            :src="agent.avatar" alt="" />
+          <div v-else class="agent-icon">
+            <Robot />
+          </div>
+        </div>
         <div class="agent-content">
           <div class="agent-title">
             {{ agent.name }}
@@ -124,6 +137,24 @@ const { openAgentModal } = useAgent()
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.agent-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.agent-avatar-list {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.agent-icon-container {
+  flex-shrink: 0;
 }
 
 .arrow-icon {
