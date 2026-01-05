@@ -143,15 +143,30 @@ export const chatService = () => {
       originalMessages: messages,
       messageMetadata: ({ part }) => {
         const lastMessage = messages[messages.length - 1]
-        return {
-          ...lastMessage.metadata,
-          loading: part.type !== 'finish' && part.type !== 'abort',
-          provider,
-          date: Date.now(),
-          model,
-          cid,
-          stop: () => controller.abort(),
+        if (part.type === 'finish-step' && part.finishReason === 'stop') {
+          return {
+            ...lastMessage.metadata,
+            loading: false,
+            provider,
+            date: Date.now(),
+            model,
+            cid,
+            usage: part.usage,
+            providerMetadata: part.providerMetadata![providerType],
+            stop: () => controller.abort(),
+          }
+        } else {
+          return {
+            ...lastMessage.metadata,
+            loading: part.type !== 'finish' && part.type !== 'abort',
+            provider,
+            date: Date.now(),
+            model,
+            cid,
+            stop: () => controller.abort(),
+          }
         }
+
       }
     })
     return uiStream

@@ -60,14 +60,6 @@ onMounted(() => {
   incremarkTheme.value = display.value.darkMode ? 'dark' : 'default'
 })
 
-watch(blocks, (newBlocks) => {
-  console.log('Blocks updated:', newBlocks.map(b => ({
-    type: b.node?.type,
-    lang: (b.node as any)?.lang,
-    status: b.status,
-    stableId: b.stableId
-  })))
-}, { deep: true })
 </script>
 <style scoped>
 .incremark {
