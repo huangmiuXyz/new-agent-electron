@@ -23,6 +23,16 @@ export const useSettingsStore = defineStore(
       terminalHeight: 200
     })
 
+    const speech = ref({
+      tts: {
+        enabled: false,
+        voice: '',
+        rate: 1,
+        pitch: 1,
+        volume: 1
+      }
+    })
+
 
     const terminal = ref({
       fontSize: 14,
@@ -68,6 +78,10 @@ export const useSettingsStore = defineStore(
 
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
       display.value = { ...display.value, ...settings }
+    }
+
+    const updateSpeechSettings = (settings: Partial<typeof speech.value>) => {
+      speech.value = { ...speech.value, ...settings }
     }
 
     const updateTerminalSettings = (settings: Partial<typeof terminal.value>) => {
@@ -231,17 +245,18 @@ export const useSettingsStore = defineStore(
 
     return {
       display,
+      speech,
       terminal,
       providers,
       mcpServers,
       loadedPlugins,
       devPluginPaths,
       defaultModels,
-      registeredProviders,
       thinkingMode,
-      updateDisplaySettings,
-      updateTerminalSettings,
       updateThinkingMode,
+      updateDisplaySettings,
+      updateSpeechSettings,
+      updateTerminalSettings,
       addRegisteredProvider,
       removeRegisteredProvider,
       togglePluginNotification,
@@ -264,7 +279,8 @@ export const useSettingsStore = defineStore(
       getTranslationModel,
       getValidTools,
       resetProviderBaseUrl,
-      getAllProviders
+      getAllProviders,
+      registeredProviders
     }
   },
   {
@@ -272,6 +288,7 @@ export const useSettingsStore = defineStore(
       storage: indexedDBStorage,
       paths: [
         'display',
+        'speech',
         'terminal',
         'providers',
         'mcpServers',

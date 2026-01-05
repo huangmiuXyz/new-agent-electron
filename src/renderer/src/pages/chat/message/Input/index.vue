@@ -17,9 +17,10 @@ const {
   currentSelectedProvider,
   thinkingMode,
   display,
+  speech,
   defaultModels
 } = storeToRefs(useSettingsStore())
-const { updateThinkingMode } = useSettingsStore()
+const { updateThinkingMode, updateSpeechSettings } = useSettingsStore()
 const { toggleTerminal } = useTerminal()
 
 // 图标
@@ -28,6 +29,8 @@ const Bulb = useIcon('Bulb')
 const TerminalIcon = useIcon('Terminal')
 const MicIcon = useIcon('Mic')
 const MicOffIcon = useIcon('MicOff')
+const VolumeIcon = useIcon('VolumeMedium')
+const VolumeOffIcon = useIcon('VolumeMute')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -209,6 +212,14 @@ const _sendMessage = async () => {
             <MicOffIcon v-else />
           </Button>
 
+          <!-- 语音朗读开关按钮 -->
+          <Button variant="icon" size="sm" :class="{ 'tts-active': speech.tts.enabled }"
+            @click="updateSpeechSettings({ tts: { ...speech.tts, enabled: !speech.tts.enabled } })"
+            :title="speech.tts.enabled ? '点击关闭朗读' : '点击开启朗读'">
+            <VolumeIcon v-if="speech.tts.enabled" />
+            <VolumeOffIcon v-else />
+          </Button>
+
           <!-- 智能体选择器 -->
           <ChatAgentSelector type="icon" />
           <!-- 模型选择器 -->
@@ -349,6 +360,11 @@ const _sendMessage = async () => {
   color: var(--color-primary);
   background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
   animation: pulse 1.5s infinite;
+}
+
+.tts-active {
+  color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
 }
 
 @keyframes pulse {

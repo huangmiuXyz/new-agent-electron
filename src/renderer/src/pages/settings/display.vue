@@ -33,3 +33,6 @@ const [DisplayForm] = useForm({
     </template>
   </FormContainer>
 </template>
+
+<style scoped>
+</style>

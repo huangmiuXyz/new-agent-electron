@@ -38,6 +38,9 @@ const switchTab = (tabName: string) => {
       <!-- 显示设置 -->
       <SettingsDisplay v-else-if="activeTab === 'display'" />
 
+      <!-- 语音设置 -->
+      <SettingsSpeech v-else-if="activeTab === 'speech'" />
+
       <!-- MCP 设置 -->
       <SettingsMcp v-else-if="activeTab === 'mcp'" />
 
