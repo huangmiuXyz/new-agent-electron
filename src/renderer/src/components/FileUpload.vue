@@ -1,199 +1,263 @@
 <script setup lang="ts">
 interface Props {
-    files?: Array<UploadFile>;
-    removable?: boolean;
-    dropZoneRef?: HTMLElement;
-    inputRef?: HTMLTextAreaElement;
-    onRemove?: (index: number) => void;
+  modelValue?: string | string[]
+  files?: Array<UploadFile>
+  multiple?: boolean
+  removable?: boolean
+  showUpload?: boolean
+  dropZoneRef?: HTMLElement
+  inputRef?: HTMLTextAreaElement
+  onRemove?: (index: number) => void
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    removable: true,
-});
+  multiple: true,
+  removable: true,
+  showUpload: false
+})
 
 const emit = defineEmits<{
-    remove: [index: number];
-    filesSelected: [files: Array<UploadFile>]
-}>();
+  'update:modelValue': [value: string | string[]]
+  remove: [index: number]
+  filesSelected: [files: Array<UploadFile>]
+}>()
+
+// 统一处理初始文件列表
+const initialFiles = computed(() => {
+  if (props.files) return props.files
+  const value = props.modelValue
+  if (!value) return []
+  const urls = Array.isArray(value) ? value : [value]
+  return urls.map((url) => ({
+    url,
+    mediaType: 'image/jpeg',
+    type: 'file' as const
+  }))
+})
+
+// 监听外部数据变化并同步到内部状态
+watch(() => [props.files, props.modelValue], () => {
+  selectedFiles.value = initialFiles.value
+}, { deep: true })
 
 const {
-    selectedFiles,
-    isDragOver,
-    isOverDropZone,
-    removeFile,
-    triggerUpload,
-    handlePaste
+  selectedFiles,
+  isDragOver,
+  isOverDropZone,
+  removeFile,
+  triggerUpload,
+  handlePaste
 } = useUpload({
-    files: props.files as UploadFile[],
-    dropZoneRef: ref(props.dropZoneRef),
-    inputRef: ref(props.inputRef),
-    onFilesSelected: (files) => emit('filesSelected', files as Array<UploadFile>),
-    onRemove: (index) => {
-        if (props.onRemove) {
-            props.onRemove(index);
-        } else {
-            emit('remove', index);
-        }
+  files: initialFiles.value,
+  dropZoneRef: ref(props.dropZoneRef),
+  inputRef: ref(props.inputRef),
+  onFilesSelected: (files) => {
+    let newValue: string | string[]
+    if (props.multiple) {
+      const urls = selectedFiles.value.map((f) => f.url || f.blobUrl || '')
+      newValue = urls
+    } else {
+      const lastFile = files[files.length - 1]
+      const url = lastFile.url || lastFile.blobUrl || ''
+      selectedFiles.value = [lastFile]
+      newValue = url
     }
-});
-
+    emit('update:modelValue', newValue)
+    emit('filesSelected', files as Array<UploadFile>)
+  },
+  onRemove: (index) => {
+    if (props.onRemove) {
+      props.onRemove(index)
+    } else {
+      emit('remove', index)
+    }
+    const urls = selectedFiles.value.map((f) => f.url || f.blobUrl || '')
+    emit('update:modelValue', props.multiple ? urls : urls[0] || '')
+  }
+})
 
 const handleRemove = (index: number) => {
-    removeFile(index);
-};
+  removeFile(index)
+}
+
+const handleTriggerUpload = () => {
+  // 智能体头像和背景图强制使用用户数据目录
+  triggerUpload(true)
+}
+
+const showAddButton = computed(() => {
+  if (!props.showUpload) return false
+  if (props.multiple) return true
+  return selectedFiles.value.length === 0
+})
+
+const { Plus } = useIcon(['Plus'])
+
+const getIcon = (file: UploadFile) => {
+  return useIcon(getFileIcon(file))
+}
 
 // 暴露给父组件的方法和状态
 defineExpose({
-    selectedFiles,
-    isDragOver,
-    isOverDropZone,
-    triggerUpload,
-    handlePaste
-});
+  selectedFiles,
+  isDragOver,
+  isOverDropZone,
+  triggerUpload,
+  handlePaste
+})
 </script>
 
 <template>
-    <div class="file-upload-preview" :class="{ 'drag-over': isDragOver || isOverDropZone }">
-        <!-- 文件预览区域 -->
-        <div v-if="selectedFiles.length > 0" class="file-preview-container">
-            <div v-for="(file, index) in selectedFiles" :key="index" class="file-preview-item">
-                <Image v-if="file.mediaType?.startsWith?.('image/')"
-                    :src="file.blobUrl || file.url || anyUrlToBlobUrl(file.url)" class="preview-file" />
+  <div class="file-upload-preview" :class="{ 'drag-over': isDragOver || isOverDropZone }">
+    <!-- 文件预览区域 -->
+    <div class="file-preview-container">
+      <div v-for="(file, index) in selectedFiles" :key="index" class="file-preview-item">
+        <Image
+          v-if="file.mediaType?.startsWith?.('image/') || !file.mediaType"
+          :src="file.blobUrl || anyUrlToBlobUrl(file.url)"
+          class="preview-file"
+        />
 
-                <div v-else class="preview-generic">
-                    <div class="generic-icon">
-                        <component :is="useIcon(getFileIcon(file))" v-if="useIcon(getFileIcon(file))" />
-                        <span v-else>📄</span>
-                    </div>
-                    <span class="file-name" :title="file.filename">{{ file.filename }}</span>
-                </div>
-
-                <button v-if="removable" class="remove-file-btn" @click="handleRemove(index)">×</button>
-            </div>
+        <div v-else class="preview-generic">
+          <div class="generic-icon">
+            <component :is="getIcon(file)" />
+          </div>
+          <span class="file-name" :title="file.filename">{{ file.filename }}</span>
         </div>
+
+        <button v-if="removable" class="remove-file-btn" @click.stop="handleRemove(index)">×</button>
+      </div>
+
+      <!-- 添加按钮 -->
+      <div v-if="showAddButton" class="upload-box" @click="handleTriggerUpload">
+        <Plus class="upload-icon" />
+        <span>上传</span>
+      </div>
     </div>
+  </div>
 </template>
 
 <style scoped>
 .file-upload-preview {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
 }
 
 .file-preview-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .file-preview-item {
-    position: relative;
-    width: 80px;
-    height: 80px;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid var(--border-color);
-    background: var(--bg-hover);
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background: var(--bg-hover);
+  box-sizing: border-box;
 }
 
 .preview-file {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.upload-box {
+  width: 80px;
+  height: 80px;
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  background: var(--bg-card);
+  box-sizing: border-box;
+}
+
+.upload-box:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  background: var(--bg-hover);
+}
+
+.upload-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--text-primary);
+}
+
+.upload-box span {
+  font-size: 12px;
 }
 
 .preview-generic {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
 }
 
 .generic-icon {
-    font-size: 24px;
-    color: var(--text-secondary);
-    margin-bottom: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  font-size: 24px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .file-name {
-    font-size: 10px;
-    color: var(--text-primary);
-    text-align: center;
-    width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 0 2px;
+  font-size: 10px;
+  color: var(--text-primary);
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
 }
 
 .remove-file-btn {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: rgba(var(--text-rgb), 0.6);
-    color: var(--bg-card);
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    line-height: 1;
-    transition: background 0.2s;
-    z-index: 10;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  transition: background 0.2s;
+  z-index: 10;
 }
 
 .remove-file-btn:hover {
-    background: rgba(var(--text-rgb), 0.8);
-}
-
-.upload-section {
-    display: flex;
-    align-items: center;
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .drag-over {
-    border-color: var(--accent-color);
-    background-color: rgba(var(--accent-rgb), 0.05);
-}
-
-.drag-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(var(--accent-rgb), 0.1);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-    pointer-events: none;
-}
-
-.drag-message {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    color: var(--accent-color);
-    font-weight: 500;
-}
-
-.drag-message svg {
-    width: 32px;
-    height: 32px;
+  border-color: var(--accent-color);
+  background-color: rgba(var(--accent-rgb), 0.05);
 }
 </style>

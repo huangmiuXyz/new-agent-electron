@@ -75,11 +75,11 @@ export function useUpload(options: UseUploadOptions = {}) {
           const file = window.api.fs.readFileSync(path)
           const blob = arrayBufferToBlob(file.buffer)
           selectedFiles.value.push({
-            url: 'file://' + path,
+            url: '',
             mediaType: window.api.mime.lookup(path) as string,
             blobUrl: URL.createObjectURL(blob),
             filename: window.api.path.basename(path),
-            path: 'file://' + path,
+            path: 'file://' + filePaths,
             name: window.api.path.basename(path),
             type: 'file' as const,
             size: blob.size

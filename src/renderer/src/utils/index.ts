@@ -24,8 +24,11 @@ export const anyUrlToBlobUrl = (url: string): string => {
 
 export const assetsHandler = (path: string): string => {
   if (!path) return ''
-  if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('file:')) {
+  if (path.startsWith('http') || path.startsWith('blob:')) {
     return path
+  }
+  if (path.startsWith('data:') || path.startsWith('file:')) {
+    return anyUrlToBlobUrl(path)
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`

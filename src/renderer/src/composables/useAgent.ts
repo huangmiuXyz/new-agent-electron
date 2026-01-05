@@ -1,6 +1,4 @@
 import { h } from 'vue'
-import BackgroundManager from '@renderer/components/BackgroundManager.vue'
-import AvatarUpload from '@renderer/components/AvatarUpload.vue'
 
 export const useAgent = () => {
   const agentStore = useAgentStore()
@@ -105,16 +103,9 @@ export const useAgent = () => {
       fields: [
         {
           name: 'avatar',
-          type: 'custom',
           label: '头像',
-          render: (data) => h(FormItem, { label: '头像' }, [
-            h(AvatarUpload, {
-              modelValue: data.avatar,
-              'onUpdate:modelValue': (val: string) => {
-                data.avatar = val
-              }
-            })
-          ])
+          type: 'upload',
+          multiple: false
         },
         {
           name: 'name',
@@ -183,15 +174,9 @@ export const useAgent = () => {
         },
         {
           name: 'backgrounds',
-          type: 'custom',
-          label: '背景图片/视频',
-          render: (data) => h(FormItem, { label: '背景图片/视频' }, [
-            h(BackgroundManager, {
-              modelValue: data.backgrounds,
-              'onUpdate:modelValue': (val: any) => {
-                data.backgrounds = val
-              }
-            })])
+          label: '背景图',
+          type: 'upload',
+          multiple: true
         }
       ],
       onChange: (field, value, formData) => {

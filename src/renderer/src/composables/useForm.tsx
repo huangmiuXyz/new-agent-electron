@@ -8,6 +8,7 @@ import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
 import ModelSelector from '@renderer/components/ModelSelector.vue'
 import ColorPicker from '@renderer/components/ColorPicker.vue'
 import PathSelector from '@renderer/components/PathSelector.vue'
+import FileUpload from '@renderer/components/FileUpload.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
 import { VNode, MaybeRefOrGetter, toValue, isVNode, h } from 'vue'
 
@@ -164,6 +165,11 @@ export interface PathSelectorField<T> extends BaseField<T> {
   }
 }
 
+export interface UploadField<T> extends BaseField<T> {
+  type: 'upload'
+  multiple?: boolean
+}
+
 export interface CustomField<T> extends BaseField<T> {
   type: 'custom'
   render: (data: T) => VNode | null
@@ -181,6 +187,7 @@ export type FormField<T> =
   | ModelSelectorField<T>
   | ColorField<T>
   | PathSelectorField<T>
+  | UploadField<T>
   | CustomField<T>
 
 export interface FormConfig<T extends Record<string, any>> {
@@ -250,6 +257,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         return '#000000'
       case 'path':
         return ''
+      case 'upload':
+        return field.multiple ? [] : ''
       case 'custom':
         return null
       default:
@@ -667,6 +676,29 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                             disabled={field.disabled}
                             readonly={field.readonly}
                             dialogOptions={field.dialogOptions}
+                            modelValue={getNestedValue(formData.value, field.name)}
+                            onUpdate:modelValue={(value) => {
+                              setFieldValue(field.name, value)
+                            }}
+                            {...dynamicProps}
+                          />
+                        </FormItem>
+                      )
+
+
+
+                    case 'upload':
+                      return (
+                        <FormItem
+                          label={field.label}
+                          error={hasError}
+                          hint={field.hint}
+                          required={field.required}
+                          layout="default"
+                        >
+                          <FileUpload
+                            showUpload
+                            multiple={field.multiple}
                             modelValue={getNestedValue(formData.value, field.name)}
                             onUpdate:modelValue={(value) => {
                               setFieldValue(field.name, value)
