@@ -504,7 +504,7 @@ const plugin: Plugin = {
                 {context.components.Button(
                   {
                     size: 'sm',
-                    variant: 'icon',
+                    variant: 'text',
                     disabled: !row.exists,
                     onClick: () => deleteFile(row)
                   },
