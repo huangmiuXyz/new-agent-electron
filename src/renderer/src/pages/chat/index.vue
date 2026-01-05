@@ -59,7 +59,7 @@ const agentStore = useAgentStore()
 .sidebar-wrapper {
   width: auto;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 180px;
+  width: 180px;
 }
 
 .sidebar-wrapper.isMobile {
