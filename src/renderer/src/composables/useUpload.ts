@@ -71,7 +71,7 @@ export function useUpload(options: UseUploadOptions = {}) {
         if (shouldSaveFileToUserData) {
           filePaths = (await copyFilesToUserData(filePaths)).map((e) => e.destPath)
         }
-        filePaths.forEach((path) => {
+        for (const path of filePaths) {
           const file = window.api.fs.readFileSync(path)
           const blob = arrayBufferToBlob(file.buffer)
           selectedFiles.value.push({
@@ -79,12 +79,12 @@ export function useUpload(options: UseUploadOptions = {}) {
             mediaType: window.api.mime.lookup(path) as string,
             blobUrl: URL.createObjectURL(blob),
             filename: window.api.path.basename(path),
-            path: 'file://' + filePaths,
+            path: path,
             name: window.api.path.basename(path),
             type: 'file' as const,
             size: blob.size
           })
-        })
+        }
         if (onFilesSelected) {
           onFilesSelected(selectedFiles.value)
         }
