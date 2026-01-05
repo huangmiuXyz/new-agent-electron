@@ -56,11 +56,11 @@ export const copyText = (text: string) => {
 export const indexedDBStorage = {
   async getItem(key: string): Promise<string | null> {
     const value = await localforage.getItem<string>(key)
-    return value ?? null
+    return JSON.stringify(value) ?? null
   },
 
   async setItem(key: string, value: string): Promise<void> {
-    await localforage.setItem(key, value)
+    await localforage.setItem(key, JSON.parse(value))
   },
 
   async removeItem(key: string): Promise<void> {
