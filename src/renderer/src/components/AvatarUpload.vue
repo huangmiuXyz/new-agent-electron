@@ -16,25 +16,9 @@ const { Trash, Plus } = useIcon(['Trash', 'Plus'])
 
 const handleFilesSelected = async (files: any[]) => {
   if (files.length === 0) return
-
-  try {
-    const file = files[0]
-    const response = await fetch(file.blobUrl || file.url)
-    const blob = await response.blob()
-    const buffer = await blob.arrayBuffer()
-
-    const savedFiles = await saveFilesToUserData([{
-      name: `avatar-${Date.now()}-${file.filename || file.name}`,
-      buffer
-    }])
-
-    if (savedFiles.length > 0) {
-      avatarUrl.value = `file://${savedFiles[0].path}`
-      emit('update:modelValue', avatarUrl.value)
-    }
-  } catch (error) {
-    console.error('Failed to save avatar file:', error)
-  }
+  const file = files[0]
+  avatarUrl.value = file.path || file.url || file.blobUrl || ''
+  emit('update:modelValue', avatarUrl.value)
 }
 
 const removeAvatar = () => {
@@ -43,7 +27,7 @@ const removeAvatar = () => {
 }
 
 const triggerUpload = () => {
-  fileUploadRef.value?.triggerUpload()
+  fileUploadRef.value?.triggerUpload(true)
 }
 </script>
 
