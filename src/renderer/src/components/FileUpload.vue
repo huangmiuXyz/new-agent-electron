@@ -54,11 +54,11 @@ const {
   onFilesSelected: (files) => {
     let newValue: string | string[]
     if (props.multiple) {
-      const urls = selectedFiles.value.map((f) => f.url || f.blobUrl || '')
+      const urls = selectedFiles.value.map((f) => f.path || f.url || '')
       newValue = urls
     } else {
       const lastFile = files[files.length - 1]
-      const url = lastFile.url || lastFile.blobUrl || ''
+      const url = lastFile.path || lastFile.url || ''
       selectedFiles.value = [lastFile]
       newValue = url
     }
