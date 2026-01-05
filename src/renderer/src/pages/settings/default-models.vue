@@ -32,7 +32,7 @@ const [DefaultModelsForm] = useForm({
         {
             name: 'speechModel',
             type: 'modelSelector',
-            label: '语音引擎模型',
+            label: '语音转文字模型',
             popupPosition: 'bottom',
             modelCategory: 'speech'
         }
