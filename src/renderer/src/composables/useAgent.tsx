@@ -185,7 +185,7 @@ export const useAgent = () => {
               onMouseover={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
               onMouseout={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
             >
-              <span>重置模型参数为默认值</span>
+              <span>重置</span>
             </button>
           </div>
         )
