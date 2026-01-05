@@ -1,12 +1,18 @@
-import { ref, onUnmounted } from 'vue'
+import { ref } from 'vue'
+
+interface MessageQueueItem {
+  messageId: string
+  fullText: string
+  lastProcessedIndex: number
+  pendingText: string
+  isComplete: boolean
+}
 
 // Global state to persist across component unmounts
 const isSpeaking = ref(false)
 const currentMessageId = ref<string | null>(null)
-const currentSpeakingText = ref('')
 const currentSpeakingSentence = ref('')
-let lastProcessedIndex = 0
-let pendingText = ''
+const messageQueue = ref<MessageQueueItem[]>([])
 let utterances: SpeechSynthesisUtterance[] = []
 
 export const useTTS = () => {
@@ -16,21 +22,16 @@ export const useTTS = () => {
   const stop = () => {
     synth.cancel()
     utterances = []
-    pendingText = ''
-    lastProcessedIndex = 0
+    messageQueue.value = []
     isSpeaking.value = false
     currentMessageId.value = null
-    currentSpeakingText.value = ''
     currentSpeakingSentence.value = ''
   }
 
   const speakChunk = (text: string, messageId: string) => {
-    console.log('TTS Speak Chunk:', text)
     if (!text.trim()) return
 
     const utterance = new SpeechSynthesisUtterance(text)
-
-    // Use settings from store if available, otherwise defaults
     const ttsSettings = settingsStore.speech.tts
     if (!ttsSettings?.enabled) return
 
@@ -55,41 +56,57 @@ export const useTTS = () => {
     utterance.onend = () => {
       utterances = utterances.filter((u) => u !== utterance)
       if (utterances.length === 0) {
-        isSpeaking.value = false
-        // Don't clear messageId here, so UI can keep highlight until next chunk or stop
+        // When one utterance ends, check if there's more in the current message or next message
+        processNext()
       }
     }
 
     utterance.onerror = () => {
       utterances = utterances.filter((u) => u !== utterance)
-      if (utterances.length === 0) {
-        isSpeaking.value = false
-      }
+      processNext()
     }
 
     utterances.push(utterance)
     synth.speak(utterance)
   }
 
-  const processBuffer = (messageId: string, isComplete: boolean) => {
-    const punctuationRegex = /[.!?。！？\n]/g
-    let match
-
-    let searchIndex = 0
-    while ((match = punctuationRegex.exec(pendingText.substring(searchIndex))) !== null) {
-      const pIndex = searchIndex + match.index
-      const chunk = pendingText.substring(0, pIndex + 1)
-      if (chunk.trim()) {
-        speakChunk(chunk, messageId)
+  const processNext = () => {
+    if (synth.speaking || messageQueue.value.length === 0) {
+      if (messageQueue.value.length === 0 && !synth.speaking) {
+        isSpeaking.value = false
       }
-      pendingText = pendingText.substring(pIndex + 1)
-      punctuationRegex.lastIndex = 0
-      searchIndex = 0
+      return
     }
 
-    if (isComplete && pendingText.trim()) {
-      speakChunk(pendingText, messageId)
-      pendingText = ''
+    const currentItem = messageQueue.value[0]
+    const punctuationRegex = /[.!?。！？\n]/g
+    let match
+    let searchIndex = 0
+
+    while ((match = punctuationRegex.exec(currentItem.pendingText.substring(searchIndex))) !== null) {
+      const pIndex = searchIndex + match.index
+      const chunk = currentItem.pendingText.substring(0, pIndex + 1)
+      if (chunk.trim()) {
+        speakChunk(chunk, currentItem.messageId)
+      }
+      currentItem.pendingText = currentItem.pendingText.substring(pIndex + 1)
+      punctuationRegex.lastIndex = 0
+      searchIndex = 0
+
+      // If we started speaking, stop processing this buffer for now
+      if (synth.speaking) return
+    }
+
+    if (currentItem.isComplete && currentItem.pendingText.trim()) {
+      speakChunk(currentItem.pendingText, currentItem.messageId)
+      currentItem.pendingText = ''
+      return
+    }
+
+    // If current item is complete and no more pending text, move to next message
+    if (currentItem.isComplete && !currentItem.pendingText.trim() && !synth.speaking) {
+      messageQueue.value.shift()
+      processNext()
     }
   }
 
@@ -97,22 +114,27 @@ export const useTTS = () => {
     const ttsSettings = settingsStore.speech.tts
     if (!ttsSettings?.enabled) return
 
-    // If messageId changes, we are starting a new message
-    if (currentMessageId.value && currentMessageId.value !== messageId) {
-      // If we're already speaking a different message, we might want to stop or queue
-      // For now, let's stop and start the new one
-      stop()
+    let item = messageQueue.value.find((i) => i.messageId === messageId)
+
+    if (!item) {
+      item = {
+        messageId,
+        fullText: '',
+        lastProcessedIndex: 0,
+        pendingText: '',
+        isComplete: false
+      }
+      messageQueue.value.push(item)
     }
 
-    currentMessageId.value = messageId
-    currentSpeakingText.value = fullText
-
-    const newText = fullText.substring(lastProcessedIndex)
-    if (!newText && !isComplete) return
-
-    pendingText += newText
-    lastProcessedIndex = fullText.length
-    processBuffer(messageId, isComplete)
+    const newText = fullText.substring(item.lastProcessedIndex)
+    if (newText || isComplete) {
+      item.pendingText += newText
+      item.lastProcessedIndex = fullText.length
+      item.isComplete = isComplete
+      item.fullText = fullText
+      processNext()
+    }
   }
 
   return {
@@ -120,7 +142,6 @@ export const useTTS = () => {
     stop,
     isSpeaking,
     currentMessageId,
-    currentSpeakingText,
     currentSpeakingSentence
   }
 }
