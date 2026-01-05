@@ -214,7 +214,7 @@ const handleTouchEnd = (e: TouchEvent) => {
 
   /* 额外的颜色变量 */
   --bg-card: #fff;
-  --bg-input: #fff;
+  --bg-input: #ffffff99;
   --bg-disabled: #f5f5f5;
   --border-color-light: #e5e7eb;
   --border-color-medium: #d1d5db;

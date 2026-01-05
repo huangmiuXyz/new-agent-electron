@@ -9,14 +9,13 @@ interface FileItem {
   type: string
 }
 
-const { Folder, Refresh, Trash } = useIcon([
+const { Folder, Refresh } = useIcon([
   'Folder',
   'Refresh',
   'File',
   'FileText',
   'FileImage',
   'FileCode',
-  'Trash'
 ])
 const files = ref<FileItem[]>([])
 const loading = ref(false)
@@ -192,7 +191,7 @@ const [FileTable] = useTable<FileItem>({
           loading={deletingFile.value === row.name}
           class="delete-btn"
         >
-          <component is={Trash} />
+          {useIcon('Trash')}
         </Button>
       )
     }
