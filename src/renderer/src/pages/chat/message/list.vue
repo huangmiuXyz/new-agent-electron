@@ -74,7 +74,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       }
     },
     {
-      label: '创建聊天分支',
+      label: '创建分支',
       icon: Branch,
       onClick: (data) => {
         const { forkChat } = useChatsStores()
@@ -82,7 +82,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       }
     },
     {
-      label: '创建聊天分支并继续',
+      label: '创建分支并继续',
       icon: Branch,
       onClick: (data) => {
         const { forkChat } = useChatsStores()
