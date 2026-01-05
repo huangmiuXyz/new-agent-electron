@@ -1,18 +1,15 @@
 import { app, Tray, Menu, BrowserWindow, nativeImage } from 'electron'
-import path from 'path'
+import trayIconPath from '../../resources/Q.png?asset'
 
 let tray: Tray | null = null
 let isQuitting = false
 
 export function initTray(mainWindow: BrowserWindow): void {
-  const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'Q.png')
-    : path.join(app.getAppPath(), 'resources/Q.png')
-
-  const trayIcon = nativeImage.createFromPath(iconPath)
+  const trayIcon = nativeImage.createFromPath(trayIconPath)
 
   if (trayIcon.isEmpty()) {
-    throw new Error('Tray icon image is invalid')
+    console.error('Tray icon image is invalid at path:', trayIconPath)
+    return
   }
   trayIcon.setTemplateImage(true)
 
