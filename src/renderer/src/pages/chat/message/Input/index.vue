@@ -23,7 +23,7 @@ const { updateThinkingMode } = useSettingsStore()
 const { toggleTerminal } = useTerminal()
 
 // 图标
-const FileUploadIcon = useIcon('FileUpload')
+const FileUploadIcon = useIcon('UploadOutlined')
 const Bulb = useIcon('Bulb')
 const TerminalIcon = useIcon('Terminal')
 const MicIcon = useIcon('Mic')

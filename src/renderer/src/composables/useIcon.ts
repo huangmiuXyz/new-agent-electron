@@ -85,7 +85,7 @@ import {
   NoteAdd24Regular
 } from '@vicons/fluent'
 import { Globe, Mic, MicOff, Sparkles } from '@vicons/ionicons5'
-import { ArrowBackIosNewSharp, EditNoteFilled } from '@vicons/material'
+import { ArrowBackIosNewSharp, EditNoteFilled, UploadOutlined } from '@vicons/material'
 const icons = {
   Edit,
   Pencil: Edit,
@@ -176,7 +176,8 @@ const icons = {
   NoteAdd24Regular,
   Globe,
   Code,
-  Bell
+  Bell,
+  UploadOutlined
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
