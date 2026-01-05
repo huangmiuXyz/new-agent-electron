@@ -1,6 +1,6 @@
 <template>
   <ThemeProvider :theme="incremarkTheme">
-    <Incremark :blocks="blocks" :customCodeBlocks="customCodeBlocks" />
+    <Incremark class="incremark" :blocks="blocks" :customCodeBlocks="customCodeBlocks" />
   </ThemeProvider>
 </template>
 <script setup lang="ts">
@@ -45,10 +45,9 @@ const updateMarkdown = (newText: string) => {
 watch(
   () => props.message,
   () => {
+    updateMarkdown(props.block.text)
     if (props.block.state === 'done') {
       incremark.finalize()
-    } else {
-      updateMarkdown(props.block.text)
     }
   },
   { immediate: true, deep: true }
@@ -59,7 +58,6 @@ watch(() => display.value.darkMode, () => {
 
 onMounted(() => {
   incremarkTheme.value = display.value.darkMode ? 'dark' : 'default'
-  incremark.render(props.block.text)
 })
 
 watch(blocks, (newBlocks) => {
