@@ -23,4 +23,5 @@ export interface BaseModalProps {
   onClose?: () => void
   variant?: 'center' | 'drawer'
   showFooter?: boolean
+  modalBodyStyle?: HTMLAttributes
 }

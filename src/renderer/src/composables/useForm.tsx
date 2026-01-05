@@ -10,7 +10,7 @@ import ColorPicker from '@renderer/components/ColorPicker.vue'
 import PathSelector from '@renderer/components/PathSelector.vue'
 import FileUpload from '@renderer/components/FileUpload.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
-import { VNode, MaybeRefOrGetter, toValue, isVNode, h } from 'vue'
+import { VNode, MaybeRefOrGetter, toValue, isVNode, h, PropType } from 'vue'
 
 export const FormItem = defineComponent({
   props: {
@@ -385,16 +385,23 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   }
 
   const FormComponent = defineComponent({
-    setup(_, { slots }) {
+    props: {
+      fields: {
+        type: Array as PropType<FormField<T>[]>,
+        default: undefined
+      }
+    },
+    setup(props, { slots }) {
       return () => {
         const hasHeader = config.showHeader !== false && config.title
+        const displayFields = props.fields || fields.value
 
         return (
           <div class="form-container">
             {hasHeader && <header class="form-header">{config.title}</header>}
             <div class="form-content">
               <div class="form-wrapper">
-                {fields.value.map((field) => {
+                {displayFields.map((field) => {
                   if (field.ifShow && !field.ifShow(formData.value)) {
                     return null
                   }

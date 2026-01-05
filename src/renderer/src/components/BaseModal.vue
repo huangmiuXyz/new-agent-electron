@@ -10,7 +10,7 @@
             <Close />
           </Button>
         </div>
-        <div class="modal-body" :style="{ height, maxHeight }">
+        <div class="modal-body" :style="{ height, maxHeight, ...(modalBodyStyle || {}) }">
           <slot>
             <div v-if="content" class="modal-desc">
               <template v-if="typeof content === 'string'">{{ content }}</template>

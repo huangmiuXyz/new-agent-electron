@@ -27,6 +27,12 @@ interface ChatServiceConfig {
   knowledgeBaseIds?: string[]
   thinkingMode?: boolean
   ragEnabled?: boolean
+  temperature?: number
+  topP?: number
+  topK?: number
+  presencePenalty?: number
+  frequencyPenalty?: number
+  maxOutputTokens?: number
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
 }
 export const chatService = () => {
@@ -42,6 +48,12 @@ export const chatService = () => {
       knowledgeBaseIds,
       thinkingMode,
       ragEnabled,
+      temperature,
+      topP,
+      topK,
+      presencePenalty,
+      frequencyPenalty,
+      maxOutputTokens,
       onBeforeToolExecute
     }: ChatServiceConfig,
     updateMessageMetadata?: (mid: string, metadata: Partial<MetaData>) => void
@@ -120,6 +132,12 @@ export const chatService = () => {
           return result
         }
       })),
+      temperature,
+      topP,
+      topK,
+      presencePenalty,
+      frequencyPenalty,
+      maxOutputTokens,
       instructions,
       stopWhen: [
         ({ steps }) => {

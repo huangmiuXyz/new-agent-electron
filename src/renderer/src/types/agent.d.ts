@@ -16,6 +16,13 @@ declare global {
     ragEnabled?: boolean // 是否启用RAG，将检索上下文插入到用户输入中
     terminalStartupPath?: string // 终端启动位置
     backgrounds?: AgentBackground[] // 背景图片或视频列表
+    temperature?: number // 温度
+    topP?: number // top-p
+    topK?: number // top-k
+    presencePenalty?: number // 话题新鲜度 (presence penalty)
+    frequencyPenalty?: number // 频率惩罚 (frequency penalty)
+    maxOutputTokens?: number // 最大输出 token 数
+    contextCount?: number // 上下文条数
   }
 
   // 智能体背景接口

@@ -18,9 +18,12 @@ export const useChat = (chatId: string) => {
   const createChat = (messages: BaseMessage[]): _useChat<BaseMessage> => {
     const scope = effectScope()
 
+    const contextCount = agent.selectedAgent?.contextCount ?? 10
+    const slicedMessages = messages.length > contextCount ? messages.slice(-contextCount) : messages
+
     return scope.run(() => {
       const chat = new _useChat<BaseMessage>({
-        messages,
+        messages: slicedMessages,
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         transport: {
           sendMessages: ({ messages }) => {
@@ -41,7 +44,13 @@ export const useChat = (chatId: string) => {
                 builtinTools,
                 knowledgeBaseIds: agent.selectedAgent?.knowledgeBaseIds,
                 thinkingMode: thinkingMode.value,
-                ragEnabled: agent.selectedAgent?.ragEnabled
+                ragEnabled: agent.selectedAgent?.ragEnabled,
+                temperature: agent.selectedAgent?.temperature,
+                topP: agent.selectedAgent?.topP,
+                topK: agent.selectedAgent?.topK,
+                presencePenalty: agent.selectedAgent?.presencePenalty,
+                frequencyPenalty: agent.selectedAgent?.frequencyPenalty,
+                maxOutputTokens: agent.selectedAgent?.maxOutputTokens
               },
               (_mid: string, metadata: Partial<MetaData>) => {
                 chat.lastMessage.metadata = { ...chat.lastMessage.metadata, ...metadata }

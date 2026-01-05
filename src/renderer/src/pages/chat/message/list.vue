@@ -40,6 +40,11 @@ provide('messageEdit', {
 })
 
 const { currentSelectedModel } = storeToRefs(useSettingsStore())
+const { selectedAgent } = storeToRefs(useAgentStore())
+
+const contextCount = computed(() => {
+  return selectedAgent.value?.contextCount ?? 10
+})
 
 const lastMessageIndex = computed(() => {
   if (!currentChat.value || currentChat.value.messages.length === 0) return -1
@@ -163,6 +168,12 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   <AutoScrollContainer ref="messageScrollRef" :enabled="autoScrollEnabled" :threshold="0">
     <div class="messages-content">
       <template v-for="(message, index) in currentChat?.messages" :key="`${message.id}-${index}`">
+        <div v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
+          class="context-divider">
+          <div class="divider-line"></div>
+          <span class="divider-text">上下文分割线</span>
+          <div class="divider-line"></div>
+        </div>
         <ChatMessageItemHuman v-if="message.role === 'user'" :message="message"
           :ref="index === lastMessageIndex - 1 ? 'prevMessageRef' : undefined"
           @contextmenu="onMessageRightClick($event, message)" />
@@ -181,6 +192,28 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.context-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 0 20px;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+  opacity: 0.5;
+}
+
+.divider-text {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 :deep(.auto-scroll-container),
