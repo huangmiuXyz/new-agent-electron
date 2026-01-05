@@ -1,4 +1,4 @@
-import { UIMessage, UIMessagePart, UIMessageChunk } from 'ai'
+import { UIMessage, UIMessagePart, SharedV3ProviderMetadata, UIMessageChunk, LanguageModelUsage, ProviderMetadata } from 'ai'
 import type { Model as openAIModel } from 'openai/resources'
 declare global {
   type providerType =
@@ -22,6 +22,8 @@ declare global {
     error?: Error
     ragSearching?: boolean
     ragSearchDetails?: RagSearchDetail[]
+    usage?: LanguageModelUsage
+    providerMetadata?: SharedV3ProviderMetadata
   }
 
   interface RagSearchDetail {
@@ -61,4 +63,4 @@ declare global {
   >
 }
 
-export {}
+export { }

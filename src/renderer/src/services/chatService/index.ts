@@ -152,7 +152,7 @@ export const chatService = () => {
             model,
             cid,
             usage: part.usage,
-            providerMetadata: part.providerMetadata![providerType],
+            providerMetadata: part.providerMetadata!,
             stop: () => controller.abort(),
           }
         } else {
