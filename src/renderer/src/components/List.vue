@@ -261,8 +261,10 @@ const handleAction = (
 .item-content {
   flex: 1;
   min-width: 0;
-  display: flex;
   flex-direction: column;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis
 }
 
 .text-truncate {
