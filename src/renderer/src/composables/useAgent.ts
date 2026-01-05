@@ -169,12 +169,13 @@ export const useAgent = () => {
           name: 'backgrounds',
           type: 'custom',
           label: '背景图片/视频',
-          render: (data) => h(FormItem, { label: '背景图片/视频' }, [h(BackgroundManager, {
-            modelValue: data.backgrounds,
-            'onUpdate:modelValue': (val: any) => {
-              data.backgrounds = val
-            }
-          })])
+          render: (data) => h(FormItem, { label: '背景图片/视频' }, [
+            h(BackgroundManager, {
+              modelValue: data.backgrounds,
+              'onUpdate:modelValue': (val: any) => {
+                data.backgrounds = val
+              }
+            })])
         }
       ],
       onChange: (field, value, formData) => {
