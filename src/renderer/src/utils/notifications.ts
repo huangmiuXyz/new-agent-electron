@@ -1,7 +1,4 @@
 import { createVNode, render, ref, TransitionGroup, defineComponent, h } from 'vue'
-import { useNotificationStore, type NotificationType } from '../stores/notifications'
-
-export type { NotificationType }
 
 export interface NotificationItem {
   id: number
