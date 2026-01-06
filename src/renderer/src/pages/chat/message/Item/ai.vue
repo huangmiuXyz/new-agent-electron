@@ -3,8 +3,9 @@ const props = defineProps<{
   message: BaseMessage
 }>()
 const { getProviderById } = useSettingsStore()
-const { selectedAgent } = storeToRefs(useAgentStore())
+const { getAgentById } = useAgentStore()
 const Stop = useIcon('Stop')
+const { currentChat } = storeToRefs(useChatsStores())
 </script>
 
 <template>
@@ -35,7 +36,7 @@ const Stop = useIcon('Stop')
         </div>
       </div>
       <ChatMessageItemRagSearch
-        :searching="!message.metadata?.ragSearchDetails?.length && selectedAgent!.ragEnabled"
+        :searching="!message.metadata?.ragSearchDetails?.length && getAgentById(currentChat?.agentId!)!.ragEnabled"
         :search-details="message.metadata?.ragSearchDetails" />
       <div v-if="
         !message.metadata?.error &&
