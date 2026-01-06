@@ -95,6 +95,8 @@ export const useTTS = () => {
     if (synth.speaking || messageQueue.value.length === 0) {
       if (messageQueue.value.length === 0 && !synth.speaking) {
         isSpeaking.value = false
+        currentMessageId.value = null
+        currentSpeakingSentence.value = ''
       }
       return
     }
