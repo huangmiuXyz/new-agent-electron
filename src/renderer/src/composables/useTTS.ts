@@ -71,6 +71,12 @@ export const useTTS = () => {
   }
 
   const processNext = () => {
+    const ttsSettings = settingsStore.speech.tts
+    if (!ttsSettings?.enabled) {
+      stop()
+      return
+    }
+
     if (synth.speaking || messageQueue.value.length === 0) {
       if (messageQueue.value.length === 0 && !synth.speaking) {
         isSpeaking.value = false
@@ -112,7 +118,12 @@ export const useTTS = () => {
 
   const update = (messageId: string, fullText: string, isComplete: boolean = false) => {
     const ttsSettings = settingsStore.speech.tts
-    if (!ttsSettings?.enabled) return
+    if (!ttsSettings?.enabled) {
+      if (isSpeaking.value || messageQueue.value.length > 0) {
+        stop()
+      }
+      return
+    }
 
     let item = messageQueue.value.find((i) => i.messageId === messageId)
 
