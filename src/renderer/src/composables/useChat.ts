@@ -25,6 +25,9 @@ export const useChat = (chatId: string) => {
       const chat = new _useChat<BaseMessage>({
         messages: slicedMessages,
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+        onData: (data) => {
+          console.log(data)
+        },
         transport: {
           sendMessages: ({ messages }) => {
             return service.createAgent(
@@ -73,6 +76,10 @@ export const useChat = (chatId: string) => {
       }
 
       const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
+
+      watch(() => chat.messages, (messages) => {
+        chats!.messages = messages
+      })
       return chat!
     })!
   }
@@ -81,53 +88,16 @@ export const useChat = (chatId: string) => {
     const chat = createChat(chats?.messages!)
     const parts: Array<FileUIPart | TextUIPart> =
       typeof content === 'string' ? [{ type: 'text', text: content }] : content
-
-    chats!.messages.push({
+    chat.sendMessage({
       id: chat.generateId(),
       role: 'user',
       parts
     })
-    chats!.messages.push({
-      id: chat.generateId(),
-      role: 'assistant',
-      parts: []
-    })
-    chat.sendMessage()
   }
 
   const regenerate = (messageId: string) => {
-    const index = chats?.messages.findIndex((m) => m.id === messageId)!
-    if (index === -1) return
-
-    let targetIndex = index
-    const message = chats!.messages[index]
-
-    if (message.role === 'user') {
-      const nextMessage = chats!.messages[index + 1]
-      if (nextMessage && nextMessage.role === 'assistant') {
-        targetIndex = index + 1
-      } else {
-        const newAssistantMessage = {
-          id: nanoid(),
-          role: 'assistant' as const,
-          parts: []
-        }
-        chats!.messages.splice(index + 1, 0, newAssistantMessage)
-        targetIndex = index + 1
-      }
-    }
-
-    const messages = chats?.messages.slice(0, targetIndex)!
-    const assistantMessage = {
-      id: nanoid(),
-      role: 'assistant' as const,
-      parts: [],
-      metadata: { cid: nanoid() } as MetaData
-    }
-    chats!.messages[targetIndex] = assistantMessage
-    messages.push(assistantMessage)
-    const chat = createChat(messages)
-    chat.sendMessage()
+    const chat = createChat(chats?.messages!)
+    chat.regenerate({ messageId })
   }
   const approval = (part: ToolUIPart, approved: boolean) => {
     const chat = createChat(chats?.messages!)

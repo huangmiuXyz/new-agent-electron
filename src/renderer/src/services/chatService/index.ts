@@ -1,9 +1,10 @@
 import {
-  convertToModelMessages,
   generateText as _generateText,
   ToolLoopAgent,
   ToolChoice,
-  wrapLanguageModel
+  wrapLanguageModel,
+  createAgentUIStream,
+  createAgentUIStreamResponse
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
@@ -151,14 +152,10 @@ export const chatService = () => {
         }
       ]
     })
-    const modalMessages = await convertToModelMessages(messages)
     const controller = new AbortController()
-    const stream = await agent.stream({
-      messages: modalMessages,
-      abortSignal: controller.signal
-    })
-    const uiStream = stream.toUIMessageStream({
-      originalMessages: messages,
+    const uiStream = createAgentUIStream({
+      agent,
+      uiMessages: JSON.parse(JSON.stringify(messages)),
       messageMetadata: ({ part }) => {
         const lastMessage = messages[messages.length - 1]
         if (part.type === 'finish-step' && part.finishReason === 'stop') {
