@@ -210,7 +210,6 @@ const toggleCollapse = () => {
   gap: 6px;
   padding: 6px 10px;
   background-color: var(--border-color-light);
-  border-bottom: 1px solid var(--border-color-light);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -275,7 +274,6 @@ const toggleCollapse = () => {
   background-color: var(--bg-card);
   max-height: 300px;
   overflow-y: auto;
-  border-top: 1px solid transparent;
   transition: all 0.2s ease;
 }
 
