@@ -5,7 +5,6 @@ const props = defineProps<{
 const { getProviderById } = useSettingsStore()
 const { selectedAgent } = storeToRefs(useAgentStore())
 const Stop = useIcon('Stop')
-const { currentChat } = storeToRefs(useChatsStores())
 </script>
 
 <template>
