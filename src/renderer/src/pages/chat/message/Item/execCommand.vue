@@ -37,7 +37,7 @@ const handleApproval = (resolve: boolean) => {
 </script>
 
 <template>
-  <ChatMessageItemDynamicTool :tool_part="tool_part">
+  <ChatMessageItemDynamicTool :key="tool_part.state" :tool_part="tool_part">
     <template #status>
       <template v-if="tool_part.state === 'approval-requested'">
         <Button size="sm" variant='primary' class="force-continue-btn" @click.stop="handleApproval(true)">
