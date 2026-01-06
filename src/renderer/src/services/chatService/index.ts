@@ -3,8 +3,7 @@ import {
   ToolLoopAgent,
   ToolChoice,
   wrapLanguageModel,
-  createAgentUIStream,
-  createAgentUIStreamResponse
+  createAgentUIStream
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
@@ -56,8 +55,7 @@ export const chatService = () => {
       frequencyPenalty,
       maxOutputTokens,
       onBeforeToolExecute
-    }: ChatServiceConfig,
-    updateMessageMetadata?: (mid: string, metadata: Partial<MetaData>) => void
+    }: ChatServiceConfig
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
     let tools: Tools = {}
@@ -97,21 +95,6 @@ export const chatService = () => {
           createRagMiddleware({
             knowledgeBaseIds,
             ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0 && ragEnabled,
-            onRagSearchStart: () => {
-              const lastMessage = messages[messages.length - 1]
-              if (lastMessage && updateMessageMetadata) {
-                updateMessageMetadata(lastMessage.id, { ragSearching: true })
-              }
-            },
-            onRagSearchComplete: (details) => {
-              const lastMessage = messages[messages.length - 1]
-              if (lastMessage && updateMessageMetadata) {
-                updateMessageMetadata(lastMessage.id, {
-                  ragSearching: false,
-                  ragSearchDetails: details
-                })
-              }
-            }
           })
         ]
       }),

@@ -55,9 +55,6 @@ export const useChat = (chatId: string) => {
                 frequencyPenalty: agent.selectedAgent?.frequencyPenalty,
                 maxOutputTokens: agent.selectedAgent?.maxOutputTokens
               },
-              (_mid: string, metadata: Partial<MetaData>) => {
-                chat.lastMessage.metadata = { ...chat.lastMessage.metadata, ...metadata }
-              }
             )
           },
           reconnectToStream: undefined as any
