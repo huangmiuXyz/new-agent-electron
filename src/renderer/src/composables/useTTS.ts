@@ -8,7 +8,6 @@ interface MessageQueueItem {
   isComplete: boolean
 }
 
-// Global state to persist across component unmounts
 const isSpeaking = ref(false)
 const currentMessageId = ref<string | null>(null)
 const currentSpeakingSentence = ref('')
@@ -26,7 +25,6 @@ export const useTTS = () => {
     currentSpeakingSentence.value = ''
   }
 
-  // Initialize global watcher once
   if (!isWatcherInitialized) {
     watch(
       () => settingsStore.speech?.tts?.enabled,
@@ -47,7 +45,6 @@ export const useTTS = () => {
       return
     }
 
-    // Use ttsService to check speaking status
     if (ttsService.isSpeaking() || messageQueue.value.length === 0) {
       if (messageQueue.value.length === 0 && !ttsService.isSpeaking()) {
         isSpeaking.value = false
@@ -59,7 +56,6 @@ export const useTTS = () => {
 
     const currentItem = messageQueue.value[0]
 
-    // Use the service for text splitting
     const { chunks, remaining } = ttsService.splitText(
       currentItem.pendingText,
       ttsSettings.triggerMode
