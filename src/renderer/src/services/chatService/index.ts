@@ -145,32 +145,26 @@ export const chatService = () => {
       uiMessages: JSON.parse(JSON.stringify(messages)),
       messageMetadata: ({ part }) => {
         const lastMessage = messages[messages.length - 1]
+        let result = {}
         if (part.type === 'finish-step' && part.finishReason === 'stop') {
-          return {
-            ...lastMessage.metadata,
-            loading: false,
-            provider,
-            date: Date.now(),
-            model,
-            cid,
+          result = {
             usage: part.usage,
             providerMetadata: part.providerMetadata!,
-            stop: () => controller.abort(),
-            ragSearchDetails: ragSearchDetails.value,
-            ragEnabled
           }
         } else {
-          return {
-            ...lastMessage.metadata,
-            loading: part.type !== 'finish' && part.type !== 'abort',
-            provider,
-            date: Date.now(),
-            model,
-            cid,
-            stop: () => controller.abort(),
-            ragSearchDetails: ragSearchDetails.value,
-            ragEnabled
-          }
+          result = {}
+        }
+        return {
+          ...lastMessage.metadata,
+          loading: part.type !== 'finish' && part.type !== 'abort',
+          provider,
+          date: Date.now(),
+          model,
+          cid,
+          stop: () => controller.abort(),
+          ragSearchDetails: ragSearchDetails.value,
+          ragEnabled,
+          ...result
         }
       }
     })
