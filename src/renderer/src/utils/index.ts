@@ -48,7 +48,6 @@ export const copyText = (text: string) => {
     navigator.clipboard
       .writeText(text)
       .then(() => {
-        console.log('消息已复制到剪贴板')
       })
       .catch((err) => {
         console.error('复制失败:', err)

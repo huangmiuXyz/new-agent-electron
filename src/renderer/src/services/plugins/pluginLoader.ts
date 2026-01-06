@@ -121,7 +121,6 @@ export class PluginLoader {
       this.watchers.get(pluginName)!();
     }
 
-    console.log(`Watching plugin "${pluginName}" at ${localPath}`);
 
     let timer: any = null;
     const unwatch = window.api.watch(localPath, (_event, filename) => {
@@ -134,10 +133,8 @@ export class PluginLoader {
 
         try {
           this.resolvePluginUrl(pluginName);
-          console.log(`Plugin "${pluginName}" changed (${filename}), reloading...`);
           await this.reloadPlugin(pluginName);
         } catch (err) {
-          console.log(`Waiting for plugin "${pluginName}" build to complete...`);
         }
       }, 500);
     });

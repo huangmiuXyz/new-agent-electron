@@ -35,7 +35,6 @@ export const useTTS = () => {
       () => settingsStore.speech?.tts?.enabled,
       (enabled) => {
         if (!enabled) {
-          console.log('TTS disabled via settings, stopping immediately')
           stop()
         }
       },

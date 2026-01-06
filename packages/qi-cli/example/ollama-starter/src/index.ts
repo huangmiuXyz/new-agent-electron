@@ -93,14 +93,12 @@ const plugin: Plugin = {
       }
     });
 
-    console.log('ollama-starter plugin installed successfully!');
   },
 
   async uninstall(context) {
     // 注销内置工具（可选，如果插件注册了内置工具）
     context.unregisterBuiltinTool('ollama-starter.example');
 
-    console.log('ollama-starter plugin uninstalled!');
   }
 };
 

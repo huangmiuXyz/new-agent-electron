@@ -74,7 +74,6 @@ app.whenReady().then(() => {
     require('@electron/remote/main').enable(window.webContents)
   })
 
-  ipcMain.on('ping', () => console.log('pong'))
 
   ipcMain.handle('dialog:showOpenDialog', async (_event, options) => {
     const result = await dialog.showOpenDialog(options)
@@ -191,14 +190,12 @@ app.whenReady().then(() => {
               percent: totalBytes ? Math.round((downloadedBytes / totalBytes) * 100) : 0
             }
             if (downloadedBytes === offset || progress.percent % 10 === 0 || done) {
-              console.log(`Download progress for ${id}: ${progress.percent}% (${downloadedBytes}/${totalBytes})`)
             }
             event.sender.send(`net:download-progress:${id}`, progress)
           }
         }
       } catch (err: any) {
         if (err.name === 'AbortError') {
-          console.log(`Download ${id} was paused/aborted at ${downloadedBytes} bytes`)
         }
         throw err
       } finally {

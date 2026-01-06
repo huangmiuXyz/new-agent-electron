@@ -228,14 +228,11 @@ let container: HTMLElement | null = null
 
 function mountContainer(): void {
   if (container) return
-  console.log('Mounting notification container...');
   container = document.createElement('div')
   container.id = 'nexus-notification-root'
   document.body.appendChild(container)
-  console.log('Container appended to body');
   const vnode = createVNode(NotificationComponent)
   render(vnode, container)
-  console.log('Notification component rendered');
 }
 
 const addNotification = (
@@ -244,7 +241,6 @@ const addNotification = (
   title?: string,
   duration?: number
 ): CloseNotification => {
-  console.log('Adding notification:', { type, content, title });
   if (typeof window === 'undefined') return () => { }
 
   mountContainer()
@@ -261,10 +257,8 @@ const addNotification = (
 
   const toastItem: NotificationItem = { id, type, content, title, duration: finalDuration }
   notifications.value.push(toastItem)
-  console.log('Current notifications:', notifications.value.length);
 
   const close: CloseNotification = () => {
-    console.log('Closing notification:', id);
     const index = notifications.value.findIndex((n) => n.id === id)
     if (index !== -1) {
       notifications.value.splice(index, 1)

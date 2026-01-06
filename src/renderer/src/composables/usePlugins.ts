@@ -169,14 +169,12 @@ export function usePlugins() {
       return;
     }
 
-    console.log('Restoring plugins:', { savedPlugins, devPlugins });
 
     // 恢复开发模式插件
     for (const [pluginName, localPath] of Object.entries(devPlugins)) {
       try {
         if (pluginLoader && !pluginLoader.isPluginLoaded(pluginName)) {
           await pluginLoader.loadPluginDev(localPath);
-          console.log(`Dev plugin "${pluginName}" restored from ${localPath}`);
         }
       } catch (err) {
         console.error(`Failed to restore dev plugin "${pluginName}":`, err);
@@ -190,7 +188,6 @@ export function usePlugins() {
       try {
         if (pluginLoader && !pluginLoader.isPluginLoaded(pluginName)) {
           await pluginLoader.loadPlugin(pluginName);
-          console.log(`Plugin "${pluginName}" restored successfully`);
         }
       } catch (err) {
         console.error(`Failed to restore plugin "${pluginName}":`, err);

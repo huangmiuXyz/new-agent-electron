@@ -41,7 +41,6 @@ export const buildCommand = new Command('build')
       // 交互式设计：如果未提供版本且非监听模式，且未开启 -y，则弹窗询问
       if (!targetVersion && !options.watch && !options.yes) {
         spinner.stop();
-        console.log(chalk.bold(`\n📦 正在构建插件: ${chalk.cyan(info.name)}`));
         const answers = await inquirer.prompt([
           {
             type: 'input',
@@ -117,14 +116,6 @@ export const buildCommand = new Command('build')
 
       // 显示文件信息
       const stats = await fs.stat(outputPath);
-      console.log('');
-      console.log(chalk.bold('插件信息:'));
-      console.log(`  ${chalk.cyan('名称:')} ${info.name}`);
-      console.log(`  ${chalk.cyan('版本:')} ${info.version || '1.0.0'}`);
-      console.log(`  ${chalk.cyan('描述:')} ${info.description || ''}`);
-      console.log(`  ${chalk.cyan('作者:')} ${info.author || ''}`);
-      console.log(`  ${chalk.cyan('文件大小:')} ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
-      console.log('');
     } catch (error) {
       spinner.fail(chalk.red('构建插件失败'));
       if (error instanceof Error) {

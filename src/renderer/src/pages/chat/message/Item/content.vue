@@ -70,7 +70,6 @@ watch(
         .filter((p) => p.type === 'text')
         .map((p) => (p as TextUIPart).text)
         .join('')
-      console.log('[Content] Loading finished:', { textLength: text.length })
       updateTTS(props.message.id!, text, true)
     }
   }

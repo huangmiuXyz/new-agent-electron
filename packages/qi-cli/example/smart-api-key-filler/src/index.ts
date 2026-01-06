@@ -117,11 +117,9 @@ const plugin: Plugin = {
       }
     });
 
-    console.log('smart-api-key-filler plugin installed successfully!');
   },
 
   async uninstall(context) {
-    console.log('smart-api-key-filler plugin uninstalled!');
   }
 };
 

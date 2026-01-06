@@ -250,7 +250,6 @@ const plugin: Plugin = {
     const settingsStore = await context.getStore('settings')
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
     const DEFAULT_MODEL_PATH = context.getPluginsDataPath()
-    console.log('Vosk Speech Recognition 插件正在执行 install...')
 
     let getFieldValue: any, setFieldValue: any, getFormData: any, setData: any, getData: any
 
@@ -640,7 +639,6 @@ const plugin: Plugin = {
 
           const modelUrl = `plugin-resource://${normalizedPath}`
 
-          console.log('正在加载 Vosk 模型:', modelUrl)
           model = await Vosk.createModel(modelUrl)
           currentLoadedModelId = selectedModelId
 
@@ -762,7 +760,6 @@ const plugin: Plugin = {
 
     context.registerHook('plugin.clearData', async (data: { pluginName: string }) => {
       if (data.pluginName !== plugin.name) return
-      console.log('Vosk 插件收到清除数据请求')
       const models = getFieldValue('models') || []
       for (const m of models) {
         if (m.file) {
@@ -770,7 +767,6 @@ const plugin: Plugin = {
             const fullPath = getModelFilePath(m.file)
             if (context.api.fs.existsSync(fullPath)) {
               context.api.fs.unlinkSync(fullPath)
-              console.log(`已删除模型文件: ${m.file}`)
             }
           } catch (e) {
             console.error(`删除模型文件 ${m.file} 失败:`, e)
@@ -800,7 +796,6 @@ const plugin: Plugin = {
       model.terminate()
       model = null
     }
-    console.log('Vosk Speech Recognition 插件已卸载')
   }
 }
 
