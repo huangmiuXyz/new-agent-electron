@@ -102,7 +102,13 @@ export const useTTS = () => {
     }
 
     const currentItem = messageQueue.value[0]
-    const punctuationRegex = /[.!?。！？\n]/g
+
+    // Check trigger mode
+    if (ttsSettings.triggerMode === 'complete' && !currentItem.isComplete) {
+      return
+    }
+
+    const punctuationRegex = ttsSettings.triggerMode === 'paragraph' ? /[\n]/g : /[.!?。！？\n]/g
     let match
     let searchIndex = 0
 

@@ -52,6 +52,17 @@ const [TTSForm] = useForm({
       max: 1,
       step: 0.1,
       ifShow: (data) => data.enabled
+    },
+    {
+      name: 'triggerMode',
+      type: 'select',
+      label: '朗读触发时机',
+      options: [
+        { label: '实时 (每句话结束)', value: 'sentence' },
+        { label: '每段结束 (换行)', value: 'paragraph' },
+        { label: '完全生成后', value: 'complete' }
+      ],
+      ifShow: (data) => data.enabled
     }
   ]),
   initialData: settingsStore.speech.tts,

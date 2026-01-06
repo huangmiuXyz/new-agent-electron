@@ -29,7 +29,8 @@ export const useSettingsStore = defineStore(
         voice: '',
         rate: 1,
         pitch: 1,
-        volume: 1
+        volume: 1,
+        triggerMode: 'sentence' // 'sentence' | 'paragraph' | 'complete'
       }
     })
 
