@@ -427,7 +427,6 @@ export const useAgent = () => {
                       activeCategory.value === cat.id
                         ? 'var(--text-primary)'
                         : 'var(--text-secondary)',
-                    transition: 'all 0.2s ease',
                     flexShrink: 0
                   }}
                   onClick={() => (activeCategory.value = cat.id)}
