@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 interface MessageQueueItem {
   messageId: string
@@ -14,6 +14,7 @@ const currentMessageId = ref<string | null>(null)
 const currentSpeakingSentence = ref('')
 const messageQueue = ref<MessageQueueItem[]>([])
 let utterances: SpeechSynthesisUtterance[] = []
+let isWatcherInitialized = false
 
 export const useTTS = () => {
   const synth = window.speechSynthesis
@@ -26,6 +27,21 @@ export const useTTS = () => {
     isSpeaking.value = false
     currentMessageId.value = null
     currentSpeakingSentence.value = ''
+  }
+
+  // Initialize global watcher once
+  if (!isWatcherInitialized) {
+    watch(
+      () => settingsStore.speech?.tts?.enabled,
+      (enabled) => {
+        if (!enabled) {
+          console.log('TTS disabled via settings, stopping immediately')
+          stop()
+        }
+      },
+      { immediate: true }
+    )
+    isWatcherInitialized = true
   }
 
   const speakChunk = (text: string, messageId: string) => {

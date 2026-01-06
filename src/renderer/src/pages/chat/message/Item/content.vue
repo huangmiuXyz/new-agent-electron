@@ -54,7 +54,6 @@ watch(
         .filter((p) => p.type === 'text')
         .map((p) => (p as TextUIPart).text)
         .join('')
-      console.log('[Content] Message changed:', { textLength: text.length, loading: msg.metadata?.loading })
       if (text) {
         updateTTS(msg.id!, text, false)
       }
