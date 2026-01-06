@@ -39,13 +39,6 @@ watch(isEditing, (newVal) => {
   }
 })
 
-const fullText = computed(() => {
-  return props.message.parts
-    .filter((p) => p.type === 'text')
-    .map((p) => (p as TextUIPart).text)
-    .join('')
-})
-
 watch(
   () => props.message,
   (msg) => {
