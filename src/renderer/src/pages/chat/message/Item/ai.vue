@@ -3,9 +3,7 @@ const props = defineProps<{
   message: BaseMessage
 }>()
 const { getProviderById } = useSettingsStore()
-const { selectedAgent } = storeToRefs(useAgentStore())
 const Stop = useIcon('Stop')
-const { currentChat } = storeToRefs(useChatsStores())
 </script>
 
 <template>
