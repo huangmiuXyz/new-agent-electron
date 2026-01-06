@@ -86,7 +86,6 @@ export const chatService = () => {
         close()
       }
     }
-    const ragSearching = ref()
     const ragSearchDetails = ref()
     const agent = new ToolLoopAgent({
       model: wrapLanguageModel({
@@ -97,12 +96,8 @@ export const chatService = () => {
           createRagMiddleware({
             knowledgeBaseIds,
             ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0 && ragEnabled,
-            onRagSearchStart: () => {
-              ragSearching.value = true
-            },
             onRagSearchComplete: (details) => {
               ragSearchDetails.value = details
-              ragSearching.value = false
             }
           })
         ]
@@ -161,7 +156,6 @@ export const chatService = () => {
             usage: part.usage,
             providerMetadata: part.providerMetadata!,
             stop: () => controller.abort(),
-            ragSearching: ragSearching.value,
             ragSearchDetails: ragSearchDetails.value
           }
         } else {
@@ -173,7 +167,6 @@ export const chatService = () => {
             model,
             cid,
             stop: () => controller.abort(),
-            ragSearching: ragSearching.value,
             ragSearchDetails: ragSearchDetails.value
           }
         }

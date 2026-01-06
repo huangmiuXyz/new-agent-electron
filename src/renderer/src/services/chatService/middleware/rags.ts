@@ -3,7 +3,6 @@ import type { LanguageModelV3Middleware } from '@ai-sdk/provider'
 interface RagMiddlewareOptions {
   knowledgeBaseIds?: string[]
   ragEnabled?: boolean
-  onRagSearchStart?: () => void
   onRagSearchComplete?: (details: RagSearchDetail[]) => void
 }
 
@@ -14,7 +13,7 @@ interface RagSearchDetail {
 }
 
 export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageModelV3Middleware => {
-  const { knowledgeBaseIds, ragEnabled, onRagSearchStart, onRagSearchComplete } = options
+  const { knowledgeBaseIds, ragEnabled, onRagSearchComplete } = options
   return {
     specificationVersion: 'v3',
     transformParams: async ({ params }) => {
@@ -30,7 +29,6 @@ export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageMode
       }
 
       try {
-        onRagSearchStart?.()
         const { search } = useKnowledge()
         const { knowledgeBases } = useKnowledgeStore()
 
