@@ -170,7 +170,6 @@ export const chatService = () => {
             ragSearchDetails: ragSearchDetails.value
           }
         }
-
       }
     })
     return uiStream

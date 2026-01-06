@@ -20,7 +20,6 @@ declare global {
     translationLoading?: boolean
     translationController?: AbortController['abort']
     error?: Error
-    ragSearching?: boolean
     ragSearchDetails?: RagSearchDetail[]
     usage?: LanguageModelUsage
     providerMetadata?: SharedV3ProviderMetadata
