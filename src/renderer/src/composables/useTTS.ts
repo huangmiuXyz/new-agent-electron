@@ -85,7 +85,6 @@ export const useTTS = () => {
       return
     }
 
-    // Special case for 'complete' mode or final chunk
     if (currentItem.isComplete && currentItem.pendingText.trim()) {
       ttsService.speak(currentItem.pendingText, ttsSettings, {
         onStart: (text) => {
