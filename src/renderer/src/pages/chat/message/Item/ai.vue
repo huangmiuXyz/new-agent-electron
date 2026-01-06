@@ -36,7 +36,7 @@ const { currentChat } = storeToRefs(useChatsStores())
         </div>
       </div>
       <ChatMessageItemRagSearch
-        :searching="!message.metadata?.ragSearchDetails?.length && selectedAgent!.ragEnabled"
+        :searching="!message.metadata?.ragSearchDetails?.length && message.metadata!.ragEnabled"
         :search-details="message.metadata?.ragSearchDetails" />
       <div v-if="
         !message.metadata?.error &&

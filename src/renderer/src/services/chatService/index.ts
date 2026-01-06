@@ -156,7 +156,8 @@ export const chatService = () => {
             usage: part.usage,
             providerMetadata: part.providerMetadata!,
             stop: () => controller.abort(),
-            ragSearchDetails: ragSearchDetails.value
+            ragSearchDetails: ragSearchDetails.value,
+            ragEnabled
           }
         } else {
           return {
@@ -167,7 +168,8 @@ export const chatService = () => {
             model,
             cid,
             stop: () => controller.abort(),
-            ragSearchDetails: ragSearchDetails.value
+            ragSearchDetails: ragSearchDetails.value,
+            ragEnabled
           }
         }
       }

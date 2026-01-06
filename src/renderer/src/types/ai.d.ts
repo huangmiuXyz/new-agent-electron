@@ -21,6 +21,7 @@ declare global {
     translationController?: AbortController['abort']
     error?: Error
     ragSearchDetails?: RagSearchDetail[]
+    ragEnabled?: boolean
     usage?: LanguageModelUsage
     providerMetadata?: SharedV3ProviderMetadata
   }
