@@ -457,7 +457,7 @@ const [DocTable] = useTable<KnowledgeDocument>({
             </Button>
           )}
           {activeKnowledgeBase.value?.embeddingModel?.modelId &&
-            !row.abortController?.signal.aborted &&
+            !row.abortController?.signal?.aborted &&
             row.status !== 'processed' && (
               <Button
                 onClick={() =>
