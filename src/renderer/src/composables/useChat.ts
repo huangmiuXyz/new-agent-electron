@@ -82,13 +82,16 @@ export const useChat = (chatId: string) => {
       const generateSpeech = async (text: string, message: BaseMessage) => {
         if (!text.trim()) return
 
+        const voice = agent.selectedAgent?.speechVoice || defaultModels.value.speechVoice
+        const mode = agent.selectedAgent?.speechMode || defaultModels.value.speechMode
+
         try {
           const chunk = await tts.generateAndPlay({
             text,
             messageId: message.id,
             modelId: defaultModels.value.speechModelId,
             providerId: defaultModels.value.speechProviderId,
-            voice: defaultModels.value.speechVoice
+            voice
           })
 
           if (chunk) {
@@ -96,7 +99,7 @@ export const useChat = (chatId: string) => {
             if (!message.metadata.audio) {
               message.metadata.audio = {
                 chunks: [],
-                voice: defaultModels.value.speechVoice,
+                voice,
                 model: defaultModels.value.speechModelId
               }
             }
@@ -112,7 +115,7 @@ export const useChat = (chatId: string) => {
 
       watch(() => chat.lastMessage?.content, (newContent) => {
         if (!newContent || chat.lastMessage.role !== 'assistant') return
-        const mode = defaultModels.value.speechMode as string
+        const mode = (agent.selectedAgent?.speechMode || defaultModels.value.speechMode) as string
         if (mode === 'full') return
 
         const currentText = newContent.slice(processedText.length)

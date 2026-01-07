@@ -23,6 +23,8 @@ declare global {
     frequencyPenalty?: number // 频率惩罚 (frequency penalty)
     maxOutputTokens?: number // 最大输出 token 数
     contextCount?: number // 上下文条数
+    speechVoice?: string // 语音名称
+    speechMode?: 'sentence' | 'paragraph' | 'full' // 语音生成模式
   }
 
   // 智能体背景接口

@@ -61,13 +61,14 @@ export const useAgent = () => {
     const isEdit = !!agent
     const modalTitle = isEdit ? '编辑智能体' : '创建智能体'
 
-    const { Robot, Settings, Wrench20Regular, Library16Filled, Screen, FormatImage } = useIcon([
+    const { Robot, Settings, Wrench20Regular, Library16Filled, Screen, FormatImage, Speaker224Regular } = useIcon([
       'Robot',
       'Settings',
       'Wrench20Regular',
       'Library16Filled',
       'Screen',
-      'FormatImage'
+      'FormatImage',
+      'Speaker224Regular'
     ] as any) as any
 
     const initialData: Partial<Agent> = agent
@@ -89,7 +90,9 @@ export const useAgent = () => {
           presencePenalty: agent.presencePenalty ?? 0,
           frequencyPenalty: agent.frequencyPenalty ?? 0,
           maxOutputTokens: agent.maxOutputTokens ?? 2000,
-          contextCount: agent.contextCount ?? 10
+          contextCount: agent.contextCount ?? 10,
+          speechVoice: agent.speechVoice || '',
+          speechMode: agent.speechMode || 'sentence'
         }
       : {
           name: '',
@@ -109,7 +112,9 @@ export const useAgent = () => {
           presencePenalty: 0,
           frequencyPenalty: 0,
           maxOutputTokens: 2000,
-          contextCount: 10
+          contextCount: 10,
+          speechVoice: '',
+          speechMode: 'sentence'
         }
 
     let previousMcpServers = initialData.mcpServers || []
@@ -251,6 +256,27 @@ export const useAgent = () => {
       } as TextField<Partial<Agent>>
     ]
 
+    const speechFields: FormField<Partial<Agent>>[] = [
+      {
+        name: 'speechVoice',
+        type: 'text',
+        label: '默认语音',
+        placeholder: '例如: alloy, echo, fable, onyx, nova, shimmer',
+        hint: '如果为空，将使用全局默认设置。'
+      } as TextField<Partial<Agent>>,
+      {
+        name: 'speechMode',
+        type: 'select',
+        label: '生成模式',
+        options: [
+          { label: '一句一生成', value: 'sentence' },
+          { label: '一段一生成', value: 'paragraph' },
+          { label: '回复后生成', value: 'full' }
+        ],
+        hint: '控制语音生成的颗粒度。'
+      } as SelectField<Partial<Agent>>
+    ]
+
     const toolFields: FormField<Partial<Agent>>[] = [
       {
         name: 'mcpServers',
@@ -315,6 +341,7 @@ export const useAgent = () => {
     const allFields = [
       ...basicFields,
       ...modelFields,
+      ...speechFields,
       ...toolFields,
       ...knowledgeFields,
       ...appearanceFields,
@@ -378,6 +405,7 @@ export const useAgent = () => {
         const categories = [
           { id: 'basic', name: '基本信息', icon: Robot, fields: basicFields },
           { id: 'model', name: '模型参数', icon: Settings, fields: modelFields },
+          { id: 'speech', name: '语音配置', icon: Speaker224Regular, fields: speechFields },
           { id: 'tools', name: '工具配置', icon: Wrench20Regular, fields: toolFields },
           { id: 'knowledge', name: '知识库', icon: Library16Filled, fields: knowledgeFields },
           { id: 'appearance', name: '外观设置', icon: FormatImage, fields: appearanceFields },

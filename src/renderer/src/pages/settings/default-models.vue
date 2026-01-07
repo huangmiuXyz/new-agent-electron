@@ -39,18 +39,20 @@ const [DefaultModelsForm] = useForm({
         {
             name: 'speechVoice',
             type: 'text',
-            label: '默认语音',
-            placeholder: '例如: alloy, echo, fable, onyx, nova, shimmer'
+            label: '全局默认语音',
+            placeholder: '例如: alloy, echo, fable, onyx, nova, shimmer',
+            hint: '智能体未设置语音时使用的兜底音色。'
         },
         {
             name: 'speechMode',
             type: 'select',
-            label: '生成模式',
+            label: '全局生成模式',
             options: [
                 { label: '一句一生成', value: 'sentence' },
                 { label: '一段一生成', value: 'paragraph' },
                 { label: '回复后生成', value: 'full' }
-            ]
+            ],
+            hint: '智能体未设置生成模式时使用的兜底配置。'
         }
     ],
     initialData: {
