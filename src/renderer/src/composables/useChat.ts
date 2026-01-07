@@ -83,8 +83,6 @@ export const useChat = (chatId: string) => {
         if (!text.trim()) return
 
         const voice = agent.selectedAgent?.speechVoice || defaultModels.value.speechVoice
-        const mode = agent.selectedAgent?.speechMode || defaultModels.value.speechMode
-
         try {
           const chunk = await tts.generateAndPlay({
             text,
