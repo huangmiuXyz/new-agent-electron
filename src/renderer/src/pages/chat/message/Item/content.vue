@@ -17,10 +17,6 @@ const messageEdit = inject('messageEdit') as {
 
 const { Check, Close } = useIcon(['Check', 'Close'])
 
-const { update: updateTTS, currentMessageId, currentSpeakingSentence } = useTTS()
-
-const isSpeaking = computed(() => currentMessageId.value === props.message.id)
-
 const isEditing = computed(() => {
   return messageEdit.editingMessageId.value === props.message.id
 })
@@ -38,35 +34,6 @@ watch(isEditing, (newVal) => {
     adjustAllTextareaHeight()
   }
 })
-
-watch(
-  () => props.message,
-  (msg) => {
-    if (msg.role === 'assistant' && msg.metadata?.loading) {
-      const text = msg.parts
-        .filter((p) => p.type === 'text')
-        .map((p) => (p as TextUIPart).text)
-        .join('')
-      if (text) {
-        updateTTS(msg.id!, text, false)
-      }
-    }
-  },
-  { deep: true, immediate: true }
-)
-
-watch(
-  () => props.message.metadata?.loading,
-  (loading) => {
-    if (!loading && props.message.role === 'assistant') {
-      const text = props.message.parts
-        .filter((p) => p.type === 'text')
-        .map((p) => (p as TextUIPart).text)
-        .join('')
-      updateTTS(props.message.id!, text, true)
-    }
-  }
-)
 
 onUnmounted(() => {
   blobUrlMap.value.forEach((blobUrl) => {
@@ -122,15 +89,7 @@ const retry = () => {
       <div class="blocks-container">
         <div v-for="(block, idx) in message.parts" :key="idx" class="view-block">
           <div v-if="block.type === 'text'" class="text-block" :style="contentStyle">
-            <template v-if="isSpeaking && currentSpeakingSentence">
-              <span v-for="(seg, sIdx) in block.text.split(currentSpeakingSentence)" :key="sIdx">
-                {{ seg }}
-                <span v-if="sIdx < block.text.split(currentSpeakingSentence).length - 1" class="speaking-highlight">
-                  {{ currentSpeakingSentence }}
-                </span>
-              </span>
-            </template>
-            <Markdown v-else-if="markdown && block.text" :block="block" :message="message" />
+            <Markdown v-if="markdown && block.text" :block="block" :message="message" />
             <template v-else>
               <div class="text-content">
                 {{ block.text }}
@@ -213,13 +172,6 @@ const retry = () => {
 
 .text-content {
   color: #fff
-}
-
-.speaking-highlight {
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.15);
-  border-radius: 2px;
-  padding: 0 2px;
-  transition: background-color 0.2s;
 }
 
 .edit-textarea {

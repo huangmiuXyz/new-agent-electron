@@ -4,7 +4,7 @@ import { isMobile } from '@renderer/composables/useDeviceType'
 interface Props {
   activeTab: string
 }
-const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, ChevronRight, Plugin, Volume } = useIcon([
+const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, ChevronRight, Plugin } = useIcon([
   'Cpu',
   'Server',
   'Robot',
@@ -15,13 +15,11 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
   'Terminal',
   'ChevronRight',
   'Plugin',
-  'Eye',
-  'Volume'
+  'Eye'
 ])
 
 const settingsList = [
   { id: 'display', name: '显示设置', icon: useIcon('Eye'), section: '通用设置' },
-  { id: 'speech', name: '语音设置', icon: Volume, section: '通用设置' },
   { id: 'agents', name: '智能体', icon: Robot, section: '智能助手' },
   { id: 'models', name: '模型提供商', icon: Cpu, section: '智能助手' },
   { id: 'defaultModels', name: '默认模型', icon: Box, section: '智能助手' },
