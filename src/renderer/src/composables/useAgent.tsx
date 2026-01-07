@@ -38,6 +38,34 @@ export const useAgent = () => {
     })
   }
 
+  const getSpeechVoiceOptions = () => {
+    const { speechModelId, speechProviderId } = settingsStore.defaultModels
+    const modelIds = Array.isArray(speechModelId) ? speechModelId : [speechModelId]
+    const providerIds = Array.isArray(speechProviderId) ? speechProviderId : [speechProviderId]
+
+    const options: { label: string; value: string }[] = []
+
+    modelIds.forEach((mId, index) => {
+      const pId = providerIds[index]
+      if (!mId || !pId) return
+
+      const provider = settingsStore.getAllProviders.find((p) => p.id === pId)
+      if (!provider) return
+
+      const model = provider.models?.find((m) => m.id === mId)
+      if (!model || !model.voices) return
+
+      model.voices.forEach((v) => {
+        options.push({
+          label: `${v.name} (${model.name})`,
+          value: v.id
+        })
+      })
+    })
+
+    return options
+  }
+
   const getAllToolOptions = (selectedMcpServers: string[]) => {
     const toolOptions: { label: string; value: string; description?: string }[] = []
 
@@ -259,11 +287,11 @@ export const useAgent = () => {
     const speechFields: FormField<Partial<Agent>>[] = [
       {
         name: 'speechVoice',
-        type: 'text',
+        type: 'select',
         label: '默认语音',
-        placeholder: '例如: alloy, echo, fable, onyx, nova, shimmer',
-        hint: '如果为空，将使用全局默认设置。'
-      } as TextField<Partial<Agent>>,
+        options: getSpeechVoiceOptions(),
+        placeholder: '请选择音色'
+      } as SelectField<Partial<Agent>>,
       {
         name: 'speechMode',
         type: 'select',

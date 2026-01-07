@@ -48,7 +48,9 @@ export const speechService = () => {
       const { audio } = await generateSpeech({
         model: registry.speechModel(modelString as any),
         text,
-        voice
+        voice,
+        // Hume 专属配置，如果 provider 是 hume
+        ...(provider.providerType === 'hume' ? { providerOptions: { hume: {} } } : {})
       })
 
       const base64 = audio.base64

@@ -34,25 +34,8 @@ const [DefaultModelsForm] = useForm({
             type: 'modelSelector',
             label: '文字转语音模型',
             popupPosition: 'bottom',
-            modelCategory: 'speech'
-        },
-        {
-            name: 'speechVoice',
-            type: 'text',
-            label: '全局默认语音',
-            placeholder: '例如: alloy, echo, fable, onyx, nova, shimmer',
-            hint: '智能体未设置语音时使用的兜底音色。'
-        },
-        {
-            name: 'speechMode',
-            type: 'select',
-            label: '全局生成模式',
-            options: [
-                { label: '一句一生成', value: 'sentence' },
-                { label: '一段一生成', value: 'paragraph' },
-                { label: '回复后生成', value: 'full' }
-            ],
-            hint: '智能体未设置生成模式时使用的兜底配置。'
+            modelCategory: 'speech',
+            multiple: true
         }
     ],
     initialData: {
@@ -71,9 +54,7 @@ const [DefaultModelsForm] = useForm({
         speechModel: {
             modelId: defaultModels.value.speechModelId,
             providerId: defaultModels.value.speechProviderId
-        },
-        speechVoice: defaultModels.value.speechVoice,
-        speechMode: defaultModels.value.speechMode
+        }
     },
     onChange: (_field, _value, data) => {
         updateDefaultModels({
@@ -85,8 +66,8 @@ const [DefaultModelsForm] = useForm({
             searchProviderId: data.searchModel?.providerId || '',
             speechModelId: data.speechModel?.modelId || '',
             speechProviderId: data.speechModel?.providerId || '',
-            speechVoice: data.speechVoice || 'alloy',
-            speechMode: data.speechMode || 'sentence'
+            speechVoice: defaultModels.value.speechVoice,
+            speechMode: defaultModels.value.speechMode
         })
     }
 })

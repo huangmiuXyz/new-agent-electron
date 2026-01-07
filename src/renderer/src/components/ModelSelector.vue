@@ -1,21 +1,33 @@
 <script setup lang="ts">
-const selectedModelId = defineModel<string>('modelId', { default: '' })
-const selectedProviderId = defineModel<string>('providerId', { default: '' })
+const selectedModelId = defineModel<any>('modelId', { default: '' })
+const selectedProviderId = defineModel<any>('providerId', { default: '' })
 
 const props = withDefaults(
   defineProps<{
     type?: 'icon' | 'select'
     popupPosition?: 'top' | 'bottom'
     category?: ModelCategory
+    multiple?: boolean
   }>(),
   {
     type: 'select',
-    category: 'text'
+    category: 'text',
+    multiple: false
   }
 )
 const { providers, getAllProviders } = storeToRefs(useSettingsStore())
 
+const isSelected = (modelId: string, providerId: string) => {
+  if (props.multiple) {
+    const modelIds = Array.isArray(selectedModelId.value) ? selectedModelId.value : []
+    const providerIds = Array.isArray(selectedProviderId.value) ? selectedProviderId.value : []
+    return modelIds.includes(modelId) && providerIds[modelIds.indexOf(modelId)] === providerId
+  }
+  return selectedModelId.value === modelId && selectedProviderId.value === providerId
+}
+
 const currentSelectedModel = computed(() => {
+  if (props.multiple) return null
   if (!selectedModelId.value || !selectedProviderId.value) return null
 
   const provider = getAllProviders.value.find((p) => p.id === selectedProviderId.value)
@@ -23,14 +35,24 @@ const currentSelectedModel = computed(() => {
 })
 
 const currentSelectedProvider = computed(() => {
+  if (props.multiple) return null
   return getAllProviders.value.find((p) => p.id === selectedProviderId.value) || null
 })
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
-const { ChevronDown, Check, Close, Box } = useIcon(['ChevronDown', 'Check', 'Close', 'Box'])
+const { ChevronDown, Check, Close, Box } = useIcon([
+  'ChevronDown',
+  'Check',
+  'Close',
+  'Box'
+])
 
 const currentModelLabel = computed(() => {
+  if (props.multiple) {
+    const count = Array.isArray(selectedModelId.value) ? selectedModelId.value.length : 0
+    return count > 0 ? `已选 ${count} 个模型` : '选择模型'
+  }
   if (!currentSelectedModel.value || !currentSelectedProvider.value) return '选择模型'
   return currentSelectedModel.value?.name || '选择模型'
 })
@@ -64,7 +86,8 @@ const flatModelList = computed(() => {
 watch(
   [flatModelList, selectedModelId],
   ([newList, currentId]) => {
-    if (currentId) {
+    if (props.multiple) return // 多选模式暂时不自动清理，逻辑较复杂
+    if (currentId && typeof currentId === 'string') {
       const exists = newList.some((item) => item.model.id === currentId)
       if (!exists) {
         selectedModelId.value = ''
@@ -83,14 +106,35 @@ const searchModels = computed(() => {
   )
 })
 const selectModel = (model: Model, providerId: string) => {
-  selectedModelId.value = model.id
-  selectedProviderId.value = providerId
-  isPopupOpen.value = false
+  if (props.multiple) {
+    const modelIds = Array.isArray(selectedModelId.value) ? [...selectedModelId.value] : []
+    const providerIds = Array.isArray(selectedProviderId.value) ? [...selectedProviderId.value] : []
+
+    const index = modelIds.indexOf(model.id)
+    if (index > -1 && providerIds[index] === providerId) {
+      modelIds.splice(index, 1)
+      providerIds.splice(index, 1)
+    } else {
+      modelIds.push(model.id)
+      providerIds.push(providerId)
+    }
+    selectedModelId.value = modelIds
+    selectedProviderId.value = providerIds
+  } else {
+    selectedModelId.value = model.id
+    selectedProviderId.value = providerId
+    isPopupOpen.value = false
+  }
 }
 
 const clearSelection = () => {
-  selectedModelId.value = ''
-  selectedProviderId.value = ''
+  if (props.multiple) {
+    selectedModelId.value = []
+    selectedProviderId.value = []
+  } else {
+    selectedModelId.value = ''
+    selectedProviderId.value = ''
+  }
   isPopupOpen.value = false
 }
 
@@ -100,7 +144,7 @@ const renderProviderHeader = (item: any) => {
 }
 
 const isModelSelected = (item: any) => {
-  return item.id === selectedModelId.value
+  return isSelected(item.id, item.providerId)
 }
 
 const handleModelSelect = (id: string) => {
@@ -142,7 +186,7 @@ const handleModelSelect = (id: string) => {
         <Check :style="{
           fontSize: '12px',
           color: 'var(--bg-card)'
-        }" v-if="item.id === selectedModelId" />
+        }" v-if="isSelected(item.id, item.providerId)" />
       </template>
     </List>
   </SelectorPopover>

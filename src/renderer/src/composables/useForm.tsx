@@ -144,6 +144,7 @@ export interface ModelSelectorField<T> extends BaseField<T> {
   placeholder?: string
   popupPosition?: 'bottom' | 'top'
   modelCategory?: ModelCategory
+  multiple?: boolean
 }
 
 export interface ColorField<T> extends BaseField<T> {
@@ -613,6 +614,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                           <ModelSelector
                             category={field.modelCategory}
                             popupPosition={field.popupPosition}
+                            multiple={field.multiple}
                             modelId={getNestedValue(formData.value, field.name)?.modelId || ''}
                             providerId={
                               getNestedValue(formData.value, field.name)?.providerId || ''

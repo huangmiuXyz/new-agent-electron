@@ -6,7 +6,9 @@ import {
   toValue,
   VNode,
   watchEffect,
-  isVNode
+  isVNode,
+  ref,
+  h
 } from 'vue'
 
 export interface TableColumn<T = any> {
@@ -24,6 +26,7 @@ export interface TableConfig<T extends Record<string, any>> {
   data?: MaybeRefOrGetter<T[]>
   loading?: MaybeRefOrGetter<boolean>
   onRowClick?: (row: T) => void
+  expandRender?: (row: T) => VNode | string | number | null
 }
 
 export interface TableActions<T> {
@@ -32,12 +35,25 @@ export interface TableActions<T> {
   setColumns: (columns: TableColumn<T>[]) => void
   getData: () => T[]
   getLoading: () => boolean
+  toggleExpand: (id: string | number) => void
+  isExpanded: (id: string | number) => boolean
 }
 
 export function useTable<T extends Record<string, any>>(config: TableConfig<T>) {
   const tableData = shallowRef<T[]>((toValue(config.data) || []) as T[])
   const tableLoading = shallowRef<boolean>(toValue(config.loading) || false)
   const tableColumns = shallowRef<TableColumn<T>[]>(toValue(config.columns) || [])
+  const expandedRows = ref(new Set<string | number>())
+
+  const toggleExpand = (id: string | number) => {
+    if (expandedRows.value.has(id)) {
+      expandedRows.value.delete(id)
+    } else {
+      expandedRows.value.add(id)
+    }
+  }
+
+  const isExpanded = (id: string | number) => expandedRows.value.has(id)
 
   watchEffect(() => {
     const data = toValue(config.data)
@@ -110,41 +126,54 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
               tableData.value.map((row, rowIndex) => (
                 <div
                   key={((row as Record<string, unknown>).id as string | number) || rowIndex}
-                  class="table-row"
-                  onClick={() => config.onRowClick?.(row)}
+                  class="table-row-container"
                 >
-                  {tableColumns.value.map((col) => {
-                    const result = col.render?.(row, rowIndex) as any
+                  <div
+                    class="table-row"
+                    onClick={() => config.onRowClick?.(row)}
+                  >
+                    {tableColumns.value.map((col) => {
+                      const result = col.render?.(row, rowIndex) as any
 
-                    if (col.renderType === 'html') {
-                      const htmlContent = col.render
-                        ? col.render(row, rowIndex)
-                        : ((row as Record<string, unknown>)[col.key] as string | number)
-                      return (
-                        <div
-                          key={col.key}
-                          class="table-cell"
-                          style={getAlignStyle(col.align)}
-                          innerHTML={String(htmlContent || '')}
-                        ></div>
-                      )
-                    }
+                      if (col.renderType === 'html') {
+                        const htmlContent = col.render
+                          ? col.render(row, rowIndex)
+                          : ((row as Record<string, unknown>)[col.key] as string | number)
+                        return (
+                          <div
+                            key={col.key}
+                            class="table-cell"
+                            style={getAlignStyle(col.align)}
+                            innerHTML={String(htmlContent || '')}
+                          ></div>
+                        )
+                      }
 
-                    if (!isVNode(result) && result?.setup) {
+                      if (!isVNode(result) && result?.setup) {
+                        return (
+                          <div key={col.key} class="table-cell" style={getAlignStyle(col.align)}>
+                            {h(result)}
+                          </div>
+                        )
+                      }
                       return (
                         <div key={col.key} class="table-cell" style={getAlignStyle(col.align)}>
-                          {h(result)}
+                          {col.render
+                            ? col.render(row, rowIndex)
+                            : ((row as Record<string, unknown>)[col.key] as string | number)}
                         </div>
                       )
-                    }
-                    return (
-                      <div key={col.key} class="table-cell" style={getAlignStyle(col.align)}>
-                        {col.render
-                          ? col.render(row, rowIndex)
-                          : ((row as Record<string, unknown>)[col.key] as string | number)}
+                    })}
+                  </div>
+                  {config.expandRender &&
+                    isExpanded(((row as Record<string, unknown>).id as string | number) || rowIndex) && (
+                      <div
+                        class="expand-row"
+                        style={{ gridColumn: `1 / span ${tableColumns.value.length}` }}
+                      >
+                        {config.expandRender(row)}
                       </div>
-                    )
-                  })}
+                    )}
                 </div>
               ))
             )}
@@ -159,7 +188,9 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
     setLoading,
     setColumns,
     getData,
-    getLoading
+    getLoading,
+    toggleExpand,
+    isExpanded
   }
 
   if (typeof document !== 'undefined' && !document.getElementById('use-table-styles')) {
@@ -177,12 +208,18 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
       }
 
       .table-header,
-      .table-row {
+      .table-row,
+      .table-row-container {
         display: contents;
       }
 
       .table-body {
         display: contents;
+      }
+
+      .expand-row {
+        background: var(--bg-hover);
+        padding: 8px 16px;
       }
 
       .header-cell,

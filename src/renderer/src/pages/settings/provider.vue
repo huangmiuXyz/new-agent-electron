@@ -5,12 +5,14 @@ const { getAllProviders, providers } = storeToRefs(useSettingsStore())
 const { updateProvider, addModelToProvider, deleteModelFromProvider, resetProviderBaseUrl } =
   useSettingsStore()
 
-const { Refresh, Plus, Search, Edit, Delete } = useIcon([
+const { Refresh, Plus, Search, Edit, Delete, ChevronRight, ChevronDown } = useIcon([
   'Refresh',
   'Plus',
   'Search',
   'Edit',
-  'Delete'
+  'Delete',
+  'ChevronRight',
+  'ChevronDown'
 ])
 const { confirm } = useModal()
 const { triggerHook } = usePlugins()
@@ -169,6 +171,7 @@ const [ProviderForm, formActions] = useForm({
         { value: 'deepseek', label: 'DeepSeek' },
         { value: 'google', label: 'Google' },
         { value: 'xai', label: 'xAI' },
+        { value: 'hume', label: 'Hume AI' },
         { value: 'openai-compatible', label: 'OpenAI 兼容' },
         { value: 'ollama', label: 'Ollama' }
       ]
@@ -242,26 +245,26 @@ const refreshModels = async () => {
       ...activeProvider.value!,
       models: data.map((m) => {
         const result = { ...m, name: m.id, category: 'text' }
-        if (
-          result.id.toLowerCase().includes('embed') ||
-          result.name.toLowerCase().includes('embed')
-        ) {
-          result.category = 'embedding'
+          if (
+            result.id.toLowerCase().includes('embed') ||
+            result.name.toLowerCase().includes('embed')
+          ) {
+            result.category = 'embedding'
         }
         if (
-          result.id.toLowerCase().includes('rerank') ||
-          result.name.toLowerCase().includes('rerank')
-        ) {
-          result.category = 'rerank'
+            result.id.toLowerCase().includes('rerank') ||
+            result.name.toLowerCase().includes('rerank')
+          ) {
+            result.category = 'rerank'
         }
         if (
-          result.id.toLowerCase().includes('tts') ||
-          result.id.toLowerCase().includes('speech') ||
-          result.name.toLowerCase().includes('tts') ||
-          result.name.toLowerCase().includes('speech')
-        ) {
-          result.category = 'speech'
-        }
+            result.id.toLowerCase().includes('tts') ||
+            result.id.toLowerCase().includes('speech') ||
+            result.name.toLowerCase().includes('tts') ||
+            result.name.toLowerCase().includes('speech')
+          ) {
+            result.category = 'speech'
+          }
         return result
       })
     })
@@ -385,9 +388,29 @@ const selectProvider = (providerId: string) => {
 // Mobile/Desktop View Logic
 const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
-const [ModelTable] = useTable<Model>({
+const [ModelTable, modelTableActions] = useTable<Model>({
   loading: () => loading.value,
   columns: [
+    {
+      key: 'expand',
+      label: '',
+      width: '32px',
+      render: (row) =>
+        row.voices && row.voices.length > 0 ? (
+          <Button
+            type="button"
+            variant="text"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              modelTableActions.toggleExpand(row.id)
+            }}
+            style={{ padding: 0, width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            {modelTableActions.isExpanded(row.id) ? ChevronDown : ChevronRight}
+          </Button>
+        ) : null
+    },
     { key: 'name', label: '模型名称', width: '2fr' },
     { key: 'id', label: '模型ID', width: '2fr' },
     {
@@ -448,7 +471,44 @@ const [ModelTable] = useTable<Model>({
       )
     }
   ],
-  data: () => (aiSearchModels.value.length ? aiSearchModels.value : filteredModels.value)
+  data: () => (aiSearchModels.value.length ? aiSearchModels.value : filteredModels.value),
+  expandRender: (row) => <VoiceTable voices={row.voices} />
+})
+
+// 定义嵌套的声音表格组件
+const VoiceTable = defineComponent({
+  props: {
+    voices: {
+      type: Array as PropType<any[]>,
+      default: () => []
+    }
+  },
+  setup(props) {
+    const [Table] = useTable({
+      columns: [
+        { key: 'name', label: '声音名称', width: '2fr' },
+        {
+          key: 'id',
+          label: '声音ID',
+          width: '2fr',
+          render: (row) => <span style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{row.id}</span>
+        },
+        {
+          key: 'type',
+          label: '类型',
+          width: '1fr',
+          render: () => <Tags tags={['语音']} color="purple" style={{ transform: 'scale(0.85)', transformOrigin: 'left' }} />
+        }
+      ],
+      data: () => props.voices
+    })
+
+    return () => (
+      <div class="voice-table-wrapper" style={{ padding: 0 }}>
+        <Table />
+      </div>
+    )
+  }
 })
 
 </script>
@@ -470,4 +530,19 @@ const [ModelTable] = useTable<Model>({
     </template>
   </FormContainer>
 </template>
-<style scoped></style>
+<style scoped>
+.voice-table-container {
+  background: var(--bg-tertiary);
+}
+:deep(.expand-row) {
+  padding: 0 !important;
+}
+:deep(.voice-table-wrapper .table-wrapper) {
+  border: none !important;
+  border-radius: 0 !important;
+}
+:deep(.voice-table-wrapper .table-cell),
+:deep(.voice-table-wrapper .header-cell) {
+  border-bottom: none !important;
+}
+</style>

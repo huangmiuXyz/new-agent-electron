@@ -92,12 +92,39 @@ export const useChat = (chatId: string) => {
         if (!text.trim()) return
 
         const voice = agent.selectedAgent?.speechVoice || defaultModels.value.speechVoice
+
+        // Find correct model and provider for this voice
+        let targetModelId = ''
+        let targetProviderId = ''
+
+        const { speechModelId, speechProviderId } = defaultModels.value
+        const modelIds = Array.isArray(speechModelId) ? speechModelId : [speechModelId]
+        const providerIds = Array.isArray(speechProviderId) ? speechProviderId : [speechProviderId]
+
+        for (let i = 0; i < modelIds.length; i++) {
+          const mId = modelIds[i]
+          const pId = providerIds[i]
+          const provider = useSettingsStore().getAllProviders.find(p => p.id === pId)
+          const model = provider?.models?.find(m => m.id === mId)
+          if (model?.voices?.some(v => v.id === voice)) {
+            targetModelId = mId
+            targetProviderId = pId
+            break
+          }
+        }
+
+        // Fallback to first selected model if not found
+        if (!targetModelId && modelIds.length > 0) {
+          targetModelId = modelIds[0]
+          targetProviderId = providerIds[0]
+        }
+
         try {
           const chunk = await tts.generateAndPlay({
             text,
             messageId: message.id,
-            modelId: defaultModels.value.speechModelId,
-            providerId: defaultModels.value.speechProviderId,
+            modelId: targetModelId,
+            providerId: targetProviderId,
             voice
           })
 
@@ -107,7 +134,7 @@ export const useChat = (chatId: string) => {
               message.metadata.audio = {
                 chunks: [],
                 voice,
-                model: defaultModels.value.speechModelId
+                model: targetModelId
               }
             }
             message.metadata.audio.chunks.push({

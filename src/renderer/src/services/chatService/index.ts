@@ -238,6 +238,9 @@ export const chatService = () => {
         url = `${baseURL}/models`
         headers['x-api-key'] = apiKey
         headers['anthropic-version'] = '2023-06-01'
+      } else if (providerType === 'hume') {
+        url = `${baseURL}/v0/tts/voices?provider=HUME_AI`
+        headers['X-Hume-Api-Key'] = apiKey
       } else {
         headers['Authorization'] = `Bearer ${apiKey}`
       }
@@ -269,6 +272,23 @@ export const chatService = () => {
             name: m.display_name || m.id,
             category: 'text'
           }))
+        }
+      } else if (providerType === 'hume') {
+        return {
+          data: [
+            {
+              id: 'hume-tts',
+              name: 'Hume TTS',
+              category: 'speech',
+              voices: (result.voices_page || []).map((v: any) => ({
+                id: v.id,
+                name: v.name
+              })),
+              object: 'model',
+              created: Date.now(),
+              owned_by: 'hume'
+            }
+          ]
         }
       } else {
         return {

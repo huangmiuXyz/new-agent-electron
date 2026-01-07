@@ -5,6 +5,7 @@ import { createXai } from '@ai-sdk/xai'
 import { createProviderRegistry } from 'ai'
 import { createOpenAICompatible } from './openai-compatible'
 import { createOpenAI } from '@ai-sdk/openai'
+import { createHume } from '@ai-sdk/hume'
 export const createRegistry = (options: { apiKey: string; baseURL: string; name: string }) => {
   return createProviderRegistry({
     anthropic: createAnthropic(options),
@@ -12,6 +13,7 @@ export const createRegistry = (options: { apiKey: string; baseURL: string; name:
     google: createGoogleGenerativeAI(options),
     xai: createXai(options),
     openai: createOpenAI({ ...options, name: options.name }),
+    hume: createHume(options) as any,
     'openai-compatible': createOpenAICompatible({ ...options, name: options.name }),
     ollama: createOpenAICompatible({ ...options, name: options.name })
   })

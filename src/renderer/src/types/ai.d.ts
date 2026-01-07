@@ -9,6 +9,7 @@ declare global {
     | 'xai'
     | 'openai-compatible'
     | 'ollama'
+    | 'hume'
   interface MetaData {
     provider: string
     date: number
@@ -50,11 +51,16 @@ declare global {
   type Tool = Tools[keyof Tools]
   type ContentBlock = UIMessagePart
   type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank' | 'speech'
+  interface ModelVoice {
+    id: string
+    name: string
+  }
   interface Model extends openAIModel {
     name: string
     description?: string
     active?: boolean
     category: ModelCategory
+    voices?: ModelVoice[]
   }
   type ClientConfig = Record<
     string,

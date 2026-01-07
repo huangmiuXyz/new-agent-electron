@@ -7,6 +7,13 @@
     "providerType": "openai"
   },
   {
+    "name": "Hume AI",
+    "baseUrl": "https://api.hume.ai",
+    "id": "hume",
+    "logo": "/images/providers/hume.png",
+    "providerType": "hume"
+  },
+  {
     "name": "Gemini",
     "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
     "id": "Gemini",

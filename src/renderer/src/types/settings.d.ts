@@ -36,8 +36,8 @@ declare global {
     translationProviderId: string
     searchModelId: string
     searchProviderId: string
-    speechModelId: string
-    speechProviderId: string
+    speechModelId: string | string[]
+    speechProviderId: string | string[]
     speechVoice: string
     speechMode: 'sentence' | 'paragraph' | 'full'
   }
