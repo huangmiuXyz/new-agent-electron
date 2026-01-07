@@ -166,7 +166,6 @@ export const useChat = (chatId: string) => {
         } else if (mode === 'paragraph') {
           const paragraphs = currentText.split(/\n+/)
           if (paragraphs.length > 1) {
-            // All but the last one (which might be incomplete)
             for (let i = 0; i < paragraphs.length - 1; i++) {
               const p = paragraphs[i]
               if (p.trim()) {
