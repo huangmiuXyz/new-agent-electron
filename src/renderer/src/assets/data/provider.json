@@ -10,7 +10,7 @@
     "name": "Hume AI",
     "baseUrl": "https://api.hume.ai",
     "id": "hume",
-    "logo": "/images/providers/hume.png",
+    "logo": "/images/providers/hume.svg",
     "providerType": "hume"
   },
   {
