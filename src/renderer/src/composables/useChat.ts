@@ -112,9 +112,9 @@ export const useChat = (chatId: string) => {
 
       watch(() => chat.lastMessage?.content, (newContent) => {
         if (!newContent || chat.lastMessage.role !== 'assistant') return
-        if (defaultModels.value.speechMode === 'full') return
+        const mode = defaultModels.value.speechMode as string
+        if (mode === 'full') return
 
-        const mode = defaultModels.value.speechMode
         const currentText = newContent.slice(processedText.length)
 
         if (mode === 'sentence') {
