@@ -24,6 +24,14 @@ export const useChat = (chatId: string) => {
     const contextCount = agent.selectedAgent?.contextCount ?? 10
     const slicedMessages = messages.length > contextCount ? messages.slice(-contextCount) : messages
 
+    const getMessageText = (message: BaseMessage) => {
+      if (!message || !message.parts) return ''
+      return message.parts
+        .filter((part): part is TextUIPart => part.type === 'text')
+        .map((part) => part.text)
+        .join('')
+    }
+
     return scope.run(() => {
       let processedText = ''
       const chat = new _useChat<BaseMessage>({
@@ -66,7 +74,8 @@ export const useChat = (chatId: string) => {
         },
         onFinish: () => {
           // Final speech generation if there's remaining text
-          const remainingText = chat.lastMessage.content.slice(processedText.length).trim()
+          const fullText = getMessageText(chat.lastMessage)
+          const remainingText = fullText.slice(processedText.length).trim()
           if (remainingText) {
             generateSpeech(remainingText, chat.lastMessage)
           }
@@ -111,12 +120,13 @@ export const useChat = (chatId: string) => {
         }
       }
 
-      watch(() => chat.lastMessage?.content, (newContent) => {
-        if (!newContent || chat.lastMessage.role !== 'assistant') return
+      watch(() => chat.lastMessage?.parts, (newParts) => {
+        if (!newParts || chat.lastMessage.role !== 'assistant') return
         const mode = (agent.selectedAgent?.speechMode || defaultModels.value.speechMode) as string
         if (mode === 'full') return
 
-        const currentText = newContent.slice(processedText.length)
+        const fullText = getMessageText(chat.lastMessage)
+        const currentText = fullText.slice(processedText.length)
 
         if (mode === 'sentence') {
           const sentences = currentText.match(/[^.!?。！？]+[.!?。！？]+/g)
