@@ -195,24 +195,7 @@ export const useChat = (chatId: string) => {
       const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
 
       watch(() => chat.messages, (newMessages) => {
-        if (!chats) return
-        const updatedMessages = newMessages.map(newMsg => {
-          const existingMsg = chats.messages.find(m => m.id === newMsg.id)
-          if (existingMsg) {
-            console.log(newMsg.metadata?.audio);
-            return {
-              ...newMsg,
-              metadata: {
-                ...existingMsg.metadata,
-                ...newMsg.metadata,
-                audio: newMsg.metadata?.audio || existingMsg.metadata?.audio
-              }
-            }
-          }
-          return newMsg
-        })
-
-        chats.messages = updatedMessages!
+        chats!.messages = newMessages!
       }, { deep: true })
 
       return chat
