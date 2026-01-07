@@ -3,15 +3,6 @@ import { ref, computed } from 'vue'
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info' | 'loading'
 
-export interface NotificationItem {
-  id: number
-  type: NotificationType
-  title?: string
-  content: string
-  duration?: number
-  timestamp: number
-  read: boolean
-}
 
 export interface StatusItem {
   id: string

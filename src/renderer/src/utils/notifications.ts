@@ -6,8 +6,9 @@ export interface NotificationItem {
   title?: string
   content: string
   duration?: number
+  timestamp?: number
+  read?: boolean
 }
-
 export type CloseNotification = () => void
 export type NotificationHandler = (content: string, title?: string, duration?: number) => CloseNotification
 
