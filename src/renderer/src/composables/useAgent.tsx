@@ -89,7 +89,15 @@ export const useAgent = () => {
     const isEdit = !!agent
     const modalTitle = isEdit ? '编辑智能体' : '创建智能体'
 
-    const { Robot, Settings, Wrench20Regular, Library16Filled, Screen, FormatImage, Speaker224Regular } = useIcon([
+    const {
+      Robot,
+      Settings,
+      Wrench20Regular,
+      Library16Filled,
+      Screen,
+      FormatImage,
+      Speaker224Regular
+    } = useIcon([
       'Robot',
       'Settings',
       'Wrench20Regular',
@@ -97,7 +105,7 @@ export const useAgent = () => {
       'Screen',
       'FormatImage',
       'Speaker224Regular'
-    ] as any) as any
+    ])
 
     const initialData: Partial<Agent> = agent
       ? {

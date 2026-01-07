@@ -85,7 +85,8 @@ import {
   Library16Filled,
   Mic16Filled,
   Wrench20Regular,
-  NoteAdd24Regular
+  NoteAdd24Regular,
+  Speaker224Regular
 } from '@vicons/fluent'
 import { Globe, Mic, MicOff, Sparkles, VolumeMute, VolumeMedium } from '@vicons/ionicons5'
 import { ArrowBackIosNewSharp, EditNoteFilled, UploadOutlined } from '@vicons/material'
@@ -185,7 +186,8 @@ const icons = {
   Volume3,
   VolumeMedium,
   VolumeMute,
-  UploadOutlined
+  UploadOutlined,
+  Speaker224Regular
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
