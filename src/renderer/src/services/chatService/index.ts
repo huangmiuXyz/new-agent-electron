@@ -144,7 +144,6 @@ export const chatService = () => {
       agent,
       uiMessages: JSON.parse(JSON.stringify(messages)),
       messageMetadata: ({ part }) => {
-        const lastMessage = messages[messages.length - 1]
         let result = {}
         if (part.type === 'finish-step' && part.finishReason === 'stop') {
           result = {
@@ -155,7 +154,6 @@ export const chatService = () => {
           result = {}
         }
         return {
-          ...lastMessage.metadata,
           loading: part.type !== 'finish' && part.type !== 'abort',
           provider,
           date: Date.now(),
@@ -164,7 +162,7 @@ export const chatService = () => {
           stop: () => controller.abort(),
           ragSearchDetails: ragSearchDetails.value,
           ragEnabled,
-          ...result
+          ...result,
         }
       }
     })
