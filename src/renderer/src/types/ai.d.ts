@@ -24,6 +24,14 @@ declare global {
     ragEnabled?: boolean
     usage?: LanguageModelUsage
     providerMetadata?: SharedV3ProviderMetadata
+    audio?: {
+      chunks: {
+        data: string // base64
+        text: string
+      }[]
+      voice: string
+      model: string
+    }
   }
 
   interface RagSearchDetail {

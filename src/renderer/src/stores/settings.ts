@@ -52,7 +52,9 @@ export const useSettingsStore = defineStore(
       searchModelId: '',
       searchProviderId: '',
       speechModelId: '',
-      speechProviderId: ''
+      speechProviderId: '',
+      speechVoice: 'alloy',
+      speechMode: 'sentence' as 'sentence' | 'paragraph' | 'full'
     })
 
     const registeredProviders = ref<RegisteredProvider[]>([])

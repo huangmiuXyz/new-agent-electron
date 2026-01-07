@@ -38,6 +38,8 @@ declare global {
     searchProviderId: string
     speechModelId: string
     speechProviderId: string
+    speechVoice: string
+    speechMode: 'sentence' | 'paragraph' | 'full'
   }
 
   interface RegisteredProvider {

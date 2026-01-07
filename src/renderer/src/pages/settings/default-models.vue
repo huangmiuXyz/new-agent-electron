@@ -32,9 +32,25 @@ const [DefaultModelsForm] = useForm({
         {
             name: 'speechModel',
             type: 'modelSelector',
-            label: '语音转文字模型',
+            label: '文字转语音模型',
             popupPosition: 'bottom',
             modelCategory: 'speech'
+        },
+        {
+            name: 'speechVoice',
+            type: 'text',
+            label: '默认语音',
+            placeholder: '例如: alloy, echo, fable, onyx, nova, shimmer'
+        },
+        {
+            name: 'speechMode',
+            type: 'select',
+            label: '生成模式',
+            options: [
+                { label: '一句一生成', value: 'sentence' },
+                { label: '一段一生成', value: 'paragraph' },
+                { label: '回复后生成', value: 'full' }
+            ]
         }
     ],
     initialData: {
@@ -53,7 +69,9 @@ const [DefaultModelsForm] = useForm({
         speechModel: {
             modelId: defaultModels.value.speechModelId,
             providerId: defaultModels.value.speechProviderId
-        }
+        },
+        speechVoice: defaultModels.value.speechVoice,
+        speechMode: defaultModels.value.speechMode
     },
     onChange: (_field, _value, data) => {
         updateDefaultModels({
@@ -64,7 +82,9 @@ const [DefaultModelsForm] = useForm({
             searchModelId: data.searchModel?.modelId || '',
             searchProviderId: data.searchModel?.providerId || '',
             speechModelId: data.speechModel?.modelId || '',
-            speechProviderId: data.speechModel?.providerId || ''
+            speechProviderId: data.speechModel?.providerId || '',
+            speechVoice: data.speechVoice || 'alloy',
+            speechMode: data.speechMode || 'sentence'
         })
     }
 })

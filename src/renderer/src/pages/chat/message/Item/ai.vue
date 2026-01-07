@@ -1,9 +1,36 @@
 <script setup lang="ts">
+import { nanoid } from 'nanoid'
 const props = defineProps<{
   message: BaseMessage
 }>()
 const { getProviderById } = useSettingsStore()
+const speechStore = useSpeechStore()
 const Stop = useIcon('Stop')
+const VolumeMedium = useIcon('VolumeMedium')
+
+const isCurrentPlaying = computed(() => {
+  return speechStore.isPlaying && speechStore.queue.some(chunk => chunk.messageId === props.message.id && !chunk.played)
+})
+
+const handlePlay = () => {
+  if (isCurrentPlaying.value) {
+    speechStore.stop()
+  } else {
+    // If we have chunks in metadata, replay them
+    if (props.message.metadata?.audio?.chunks) {
+      speechStore.clearQueue()
+      props.message.metadata.audio.chunks.forEach(chunk => {
+        speechStore.addToQueue({
+          id: nanoid(),
+          messageId: props.message.id,
+          text: chunk.text,
+          audioData: chunk.data,
+          played: false
+        })
+      })
+    }
+  }
+}
 </script>
 
 <template>
@@ -21,16 +48,21 @@ const Stop = useIcon('Stop')
         <div style="display: flex; align-items: center;justify-content: space-between;flex: 1">
           <div class="msg-meta-content" :class="{ isMobile }">
             <span class="msg-name">{{ message.metadata?.model }}</span>
-            <!-- <span class="msg-time">{{
-              new Date(message.metadata?.date || '').toLocaleString()
-            }}</span> -->
           </div>
-          <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
-            variant="icon" type="button">
-            <template #icon>
-              <Stop style="color: red" />
-            </template>
-          </Button>
+          <div style="display: flex; gap: 8px">
+            <Button v-if="message.metadata?.audio?.chunks?.length" size="sm" @click="handlePlay"
+              variant="icon" type="button" :class="{ 'is-playing': isCurrentPlaying }">
+              <template #icon>
+                <VolumeMedium :style="{ color: isCurrentPlaying ? 'var(--accent-color)' : 'inherit' }" />
+              </template>
+            </Button>
+            <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
+              variant="icon" type="button">
+              <template #icon>
+                <Stop style="color: red" />
+              </template>
+            </Button>
+          </div>
         </div>
       </div>
       <ChatMessageItemRagSearch
