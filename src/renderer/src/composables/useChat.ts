@@ -149,6 +149,8 @@ export const useChat = (chatId: string) => {
             }
           }
         }
+      }, {
+        deep: true
       })
 
       const _update = (error?: Error) => {
