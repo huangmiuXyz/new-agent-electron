@@ -129,18 +129,27 @@ export const useChat = (chatId: string) => {
           })
 
           if (chunk) {
-            if (!message.metadata) message.metadata = {} as MetaData
-            if (!message.metadata.audio) {
-              message.metadata.audio = {
+            const chatsStore = useChatsStores()
+            const currentChat = chatsStore.getChatById(chatId)
+            const currentMsg = currentChat?.messages.find(m => m.id === message.id)
+            const metadata = { ...(currentMsg?.metadata || message.metadata || {}) } as MetaData
+            if (!metadata.audio) {
+              metadata.audio = {
                 chunks: [],
                 voice,
                 model: targetModelId
               }
             }
-            message.metadata.audio.chunks.push({
-              data: chunk.audioData,
-              text: chunk.text
-            })
+            metadata.audio.chunks = [
+              ...metadata.audio.chunks,
+              {
+                data: chunk.audioData,
+                text: chunk.text
+              }
+            ]
+
+            chatsStore.updateMessageMetadata(chatId, message.id, metadata)
+            message.metadata = metadata
           }
         } catch (error) {
           console.error('TTS error in useChat:', error)
@@ -185,10 +194,28 @@ export const useChat = (chatId: string) => {
 
       const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
 
-      watch(() => chat.messages, (messages) => {
-        chats!.messages = messages
-      })
-      return chat!
+      watch(() => chat.messages, (newMessages) => {
+        if (!chats) return
+        const updatedMessages = newMessages.map(newMsg => {
+          const existingMsg = chats.messages.find(m => m.id === newMsg.id)
+          if (existingMsg) {
+            console.log(newMsg.metadata?.audio);
+            return {
+              ...newMsg,
+              metadata: {
+                ...existingMsg.metadata,
+                ...newMsg.metadata,
+                audio: newMsg.metadata?.audio || existingMsg.metadata?.audio
+              }
+            }
+          }
+          return newMsg
+        })
+
+        chats.messages = updatedMessages!
+      }, { deep: true })
+
+      return chat
     })!
   }
 
