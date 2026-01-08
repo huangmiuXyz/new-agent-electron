@@ -87,7 +87,7 @@ export const useAgent = () => {
 
   const openAgentModal = async (agent?: Agent) => {
     const isEdit = !!agent
-    const modalTitle = isEdit ? '编辑智能体' : '创建智能体'
+    const modalTitle = isEdit ? '配置智能体' : '创建智能体'
 
     const {
       Robot,
