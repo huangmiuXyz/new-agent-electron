@@ -1,9 +1,0 @@
-{
-  "name": "index-tts",
-  "version": "1.0.0",
-  "description": "index-tts 插件",
-  "author": "",
-  "updatedAt": "2026-01-07 17:13:56",
-  "main": "index.js",
-  "extraAssets": []
-}
