@@ -455,7 +455,8 @@ export const useAgent = () => {
             style={{
               display: 'flex',
               flexDirection: 'column',
-              height: '600px',
+              height: '650px',
+              maxHeight: '80vh',
               overflow: 'hidden'
             }}
           >
@@ -510,7 +511,7 @@ export const useAgent = () => {
                 </div>
               ))}
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 32px 16px' }}>
               <Form fields={categories.find((c) => c.id === activeCategory.value)?.fields || []} />
             </div>
           </div>
