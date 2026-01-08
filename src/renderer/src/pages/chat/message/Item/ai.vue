@@ -48,6 +48,12 @@ const handlePlay = () => {
         <div style="display: flex; align-items: center;justify-content: space-between;flex: 1">
           <div class="msg-meta-content" :class="{ isMobile }">
             <span class="msg-name">{{ message.metadata?.model }}</span>
+
+            <div v-if="message.metadata?.usage" class="msg-usage">
+              <span>Tokens: {{ message.metadata.usage.totalTokens }}</span>
+              <span>↑{{ message.metadata.usage.inputTokens }}</span>
+              <span>↓{{ message.metadata.usage.outputTokens }}</span>
+            </div>
           </div>
           <div style="display: flex; gap: 8px">
             <Button v-if="message.metadata?.audio?.chunks?.length" size="sm" @click="handlePlay"
@@ -130,8 +136,23 @@ const handlePlay = () => {
 .msg-meta-content {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  height: 32px;
+  justify-content: space-evenly;
+  min-height: 32px;
+  align-items: flex-start;
+}
+
+.msg-usage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-top: 1px;
+  line-height: 1;
+}
+
+.msg-usage span {
+  display: flex;
   align-items: center;
 }
 
