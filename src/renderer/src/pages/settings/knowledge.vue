@@ -457,7 +457,7 @@ const [DocTable] = useTable<KnowledgeDocument>({
             </Button>
           )}
           {activeKnowledgeBase.value?.embeddingModel?.modelId &&
-            !row.abortController?.signal?.aborted &&
+            !row.abortController &&
             row.status !== 'processed' && (
               <Button
                 onClick={() =>
@@ -472,7 +472,7 @@ const [DocTable] = useTable<KnowledgeDocument>({
                 {{ icon: () => Play }}
               </Button>
             )}
-          {row.status === 'processing' && row.abortController?.signal.aborted && (
+          {row.status === 'processing' && !row.abortController?.signal.aborted && (
             <Button onClick={() => handleAbortDocument(row)} size="sm" type="button" variant="text">
               {{ icon: () => Stop }}
             </Button>
@@ -503,8 +503,8 @@ const [DocTable] = useTable<KnowledgeDocument>({
       <template #title-tool>
         <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="text">
           <template #icon>
-              <component :is="Plus" />
-            </template>
+            <component :is="Plus" />
+          </template>
         </Button>
       </template>
     </List>
@@ -533,7 +533,8 @@ const [DocTable] = useTable<KnowledgeDocument>({
                 <Search />
               </template>
             </Button>
-            <SelectorPopover @ok="batchSettingsActions.submit()" v-model:visiable="showBatchSettings" title="知识库设置" width="240px" position="bottom">
+            <SelectorPopover @ok="batchSettingsActions.submit()" v-model:visiable="showBatchSettings" title="知识库设置"
+              width="240px" position="bottom">
               <template #trigger>
                 <Button :class="{ active: showBatchSettings }" size="sm" type="button" variant="text">
                   <template #icon>
