@@ -55,11 +55,6 @@ export const speechService = () => {
         voice,
         speed,
         language,
-        // 专属配置
-        providerOptions: {
-          ...(provider.providerType === 'hume' ? { hume: {} } : {}),
-          ...(provider.providerType === 'elevenlabs' ? { elevenlabs: {} } : {})
-        }
       })
 
       const base64 = audio.base64
