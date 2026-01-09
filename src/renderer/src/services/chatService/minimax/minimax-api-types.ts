@@ -2,12 +2,17 @@ export interface MiniMaxSpeechAPITypes {
   model: string;
   text: string;
   stream?: boolean;
+  stream_options?: {
+    exclude_aggregated_audio?: boolean;
+  };
   voice_setting?: {
     voice_id: string;
     speed?: number;
     vol?: number;
     pitch?: number;
     emotion?: string;
+    text_normalization?: boolean;
+    latex_read?: boolean;
   };
   pronunciation_dict?: {
     tone?: string[];
@@ -17,8 +22,22 @@ export interface MiniMaxSpeechAPITypes {
     bitrate?: number;
     format?: 'mp3' | 'wav' | 'pcm' | 'flac';
     channel?: number;
+    force_cbr?: boolean;
+  };
+  timber_weights?: {
+    voice_id: string;
+    weight: number;
+  }[];
+  language_boost?: string | null;
+  voice_modify?: {
+    pitch?: number;
+    intensity?: number;
+    timbre?: number;
+    sound_effects?: string;
   };
   subtitle_enable?: boolean;
+  output_format?: 'url' | 'hex';
+  aigc_watermark?: boolean;
 }
 
 export interface MiniMaxSpeechAPIResponse {

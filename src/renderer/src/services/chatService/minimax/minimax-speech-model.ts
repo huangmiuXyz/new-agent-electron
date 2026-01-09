@@ -43,46 +43,25 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
     const requestBody: MiniMaxSpeechAPITypes = {
       model: this.modelId,
       text,
-      stream: false,
       voice_setting: {
+        ...miniMaxOptions!.voice_setting,
         voice_id: voice,
-        speed: speed ?? 1.0,
-        vol: 1.0,
-        pitch: 0,
+        speed: speed,
       },
-      audio_setting: {
-        sample_rate: 32000,
-        bitrate: 128000,
-        format: 'mp3',
-        channel: 1,
-      },
+      ...miniMaxOptions,
     };
 
-    if (outputFormat && ['mp3', 'wav', 'pcm', 'flac'].includes(outputFormat)) {
-      requestBody.audio_setting!.format = outputFormat as any;
+    if (outputFormat && !requestBody.audio_setting?.format) {
+      requestBody.audio_setting = {
+        ...requestBody.audio_setting,
+        format: outputFormat as any,
+      };
     }
 
-    if (miniMaxOptions) {
-      if (miniMaxOptions.voice_setting) {
-        requestBody.voice_setting = {
-          voice_id: miniMaxOptions.voice_setting.voice_id ?? voice,
-          speed: miniMaxOptions.voice_setting.speed ?? speed ?? 1.0,
-          vol: miniMaxOptions.voice_setting.vol ?? 1.0,
-          pitch: miniMaxOptions.voice_setting.pitch ?? 0,
-          emotion: miniMaxOptions.voice_setting.emotion,
-        };
-      }
-      if (miniMaxOptions.pronunciation_dict) {
-        requestBody.pronunciation_dict = miniMaxOptions.pronunciation_dict;
-      }
-      if (miniMaxOptions.audio_setting) {
-        requestBody.audio_setting = {
-          ...requestBody.audio_setting,
-          ...miniMaxOptions.audio_setting,
-        };
-      }
-      if (miniMaxOptions.subtitle_enable !== undefined) {
-        requestBody.subtitle_enable = miniMaxOptions.subtitle_enable;
+    // 如果提供了 timber_weights，根据 API 要求需要清空 voice_id
+    if (requestBody.timber_weights && requestBody.timber_weights.length > 0) {
+      if (requestBody.voice_setting) {
+        requestBody.voice_setting.voice_id = '';
       }
     }
 
