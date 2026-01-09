@@ -73,7 +73,6 @@ export const useChat = (chatId: string) => {
           reconnectToStream: undefined as any
         },
         onFinish: () => {
-          // Final speech generation if there's remaining text
           const fullText = getMessageText(chat.lastMessage)
           const remainingText = fullText.slice(processedText.length).trim()
           if (remainingText) {
