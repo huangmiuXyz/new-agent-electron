@@ -135,13 +135,11 @@ export const useChat = (chatId: string) => {
                 model: targetModelId
               }
             }
-            metadata.audio.chunks = [
-              ...metadata.audio.chunks,
+            metadata.audio.chunks.push(
               {
                 data: chunk.audioData,
                 text: chunk.text
-              }
-            ]
+              })
 
             updateMessageMetadata(chatId, message.id, metadata)
             message.metadata = metadata
