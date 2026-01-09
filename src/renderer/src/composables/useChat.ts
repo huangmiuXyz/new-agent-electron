@@ -83,7 +83,7 @@ export const useChat = (chatId: string) => {
           scope.stop()
         },
         onError: (error) => {
-          update(error)
+          chat.lastMessage.metadata = { ...chat.lastMessage.metadata, error }
         }
       })
 
@@ -182,12 +182,6 @@ export const useChat = (chatId: string) => {
       }, {
         deep: true
       })
-
-      const _update = (error?: Error) => {
-        chat.lastMessage.metadata = { ...chat.lastMessage.metadata, error }
-      }
-
-      const update = throttle(_update, 150, { edges: ['leading', 'trailing'] })
 
       watch(() => chat.messages, (newMessages) => {
         chats!.messages = newMessages!
