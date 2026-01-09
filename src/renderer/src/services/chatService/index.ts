@@ -257,6 +257,32 @@ export const chatService = () => {
 
       const result = await response.json()
 
+      if (providerType === 'openai') {
+        const models = (result.data || []).map((m: any) => ({
+          id: m.id,
+          name: m.id,
+          category: m.id.includes('tts') ? 'speech' : m.id.includes('embed') ? 'embedding' : 'text',
+          voices: m.id.includes('tts')
+            ? [
+                { id: 'alloy', name: 'Alloy' },
+                { id: 'ash', name: 'Ash' },
+                { id: 'ballad', name: 'Ballad' },
+                { id: 'coral', name: 'Coral' },
+                { id: 'echo', name: 'Echo' },
+                { id: 'fable', name: 'Fable' },
+                { id: 'onyx', name: 'Onyx' },
+                { id: 'nova', name: 'Nova' },
+                { id: 'sage', name: 'Sage' },
+                { id: 'shimmer', name: 'Shimmer' },
+                { id: 'verse', name: 'Verse' },
+                { id: 'marin', name: 'Marin' },
+                { id: 'cedar', name: 'Cedar' }
+              ]
+            : undefined
+        }))
+        return { data: models }
+      }
+
       if (providerType === 'elevenlabs') {
         // Fetch models for ElevenLabs
         const modelsResponse = await fetch(`${baseURL}/v1/models`, {
