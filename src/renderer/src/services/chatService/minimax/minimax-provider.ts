@@ -136,7 +136,6 @@ export function createMiniMax(
 
   provider.listModels = async () => {
     try {
-      debugger
       const headers = getHeaders()
       const response = await fetch(`${baseURL}/get_voice`, {
         method: 'POST',
