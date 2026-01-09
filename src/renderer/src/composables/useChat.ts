@@ -121,6 +121,26 @@ export const useChat = (chatId: string) => {
           return
         }
 
+        // Initialize audio metadata synchronously to preserve chunk order
+        const currentMsg = chats?.messages.find(m => m.id === message.id)
+        const metadata = { ...(currentMsg?.metadata || message.metadata || {}) } as MetaData
+        if (!metadata.audio) {
+          metadata.audio = {
+            chunks: [],
+            voice,
+            model: targetModelId
+          }
+        }
+        const chunkIndex = metadata.audio.chunks.length
+        metadata.audio.chunks.push({
+          data: '', // placeholder
+          text
+        })
+        updateMessageMetadata(chatId, message.id, metadata)
+        if (message.id === chat.lastMessage?.id) {
+          chat.lastMessage.metadata = metadata
+        }
+
         try {
           const chunk = await tts.generateAndPlay({
             text,
@@ -133,23 +153,15 @@ export const useChat = (chatId: string) => {
           })
 
           if (chunk) {
-            const currentMsg = chats?.messages.find(m => m.id === message.id)
-            const metadata = { ...(currentMsg?.metadata || message.metadata || {}) } as MetaData
-            if (!metadata.audio) {
-              metadata.audio = {
-                chunks: [],
-                voice,
-                model: targetModelId
+            const updatedMsg = chats?.messages.find(m => m.id === message.id)
+            const updatedMetadata = { ...(updatedMsg?.metadata || {}) } as MetaData
+            if (updatedMetadata.audio && updatedMetadata.audio.chunks[chunkIndex]) {
+              updatedMetadata.audio.chunks[chunkIndex].data = chunk.audioData || ''
+              updateMessageMetadata(chatId, message.id, updatedMetadata)
+              if (message.id === chat.lastMessage?.id) {
+                chat.lastMessage.metadata = updatedMetadata
               }
             }
-            metadata.audio!.chunks.push(
-              {
-                data: chunk.audioData,
-                text: chunk.text
-              })
-
-            updateMessageMetadata(chatId, message.id, metadata)
-            message.metadata = metadata
           }
         } catch (error) {
           console.error('TTS error in useChat:', error)

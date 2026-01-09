@@ -27,6 +27,10 @@ export const speechService = () => {
       language
     } = params
 
+    const chunkId = nanoid()
+    // Create placeholder immediately to preserve order in the queue
+    const placeholder = speechStore.createPlaceholder(chunkId, messageId, text)
+
     if (!modelId || !providerId) {
       console.warn('Speech model or provider not configured')
       return
@@ -59,18 +63,13 @@ export const speechService = () => {
 
       const base64 = audio.base64
 
-      const chunk: AudioChunk = {
-        id: nanoid(),
-        messageId,
-        text,
-        audioData: base64,
-        played: false
-      }
-
-      speechStore.addToQueue(chunk)
-      return chunk
+      speechStore.fulfillChunk(chunkId, base64)
+      return placeholder
     } catch (error) {
       console.error('Speech generation failed:', error)
+      // Remove the failed placeholder from queue if needed, or mark it as played to skip
+      const chunk = speechStore.queue.find(c => c.id === chunkId)
+      if (chunk) chunk.played = true 
       throw error
     }
   }
