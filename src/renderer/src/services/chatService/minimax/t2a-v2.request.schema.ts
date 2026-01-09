@@ -106,7 +106,7 @@ export const T2AVoiceSettingSchema = z.object({
   ).hidden(),
   speed: z.number().min(0.5).max(2).optional().describe(
     "合成音频的语速，取值越大，语速越快。取值范围 `[0.5,2]`，默认值为1.0"
-  ),
+  ).hidden(),
   vol: z.number().gt(0).max(10).optional().describe(
     "合成音频的音量，取值越大，音量越高。取值范围 `(0,10]`，默认值为 1.0"
   ),
