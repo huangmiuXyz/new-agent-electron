@@ -10,6 +10,7 @@ declare global {
     | 'openai-compatible'
     | 'ollama'
     | 'hume'
+    | 'elevenlabs'
   interface MetaData {
     provider: string
     date: number

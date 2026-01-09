@@ -117,7 +117,7 @@ const [ApiKeyForm, apiKeyFormActions] = useForm({
     { name: 'name', type: 'text', label: '密钥名称', required: true, placeholder: '例如：生产环境密钥' },
     { name: 'key', type: 'password', label: 'API 密钥', required: true, placeholder: '输入您的 API Key' }
   ],
-    onSubmit: (data) => {
+  onSubmit: (data) => {
     if (!activeProvider.value) return
     const newApiKey: ApiKeyInfo = {
       id: nanoid(),
@@ -319,6 +319,7 @@ const [ProviderForm, formActions] = useForm({
         { value: 'google', label: 'Google' },
         { value: 'xai', label: 'xAI' },
         { value: 'hume', label: 'Hume AI' },
+        { value: 'elevenlabs', label: 'ElevenLabs' },
         { value: 'openai-compatible', label: 'OpenAI 兼容' },
         { value: 'ollama', label: 'Ollama' }
       ]
@@ -367,7 +368,7 @@ const refreshModels = async () => {
     formActions.setFieldsValue({
       ...activeProvider.value!,
       models: data.map((m) => {
-        const result = { ...m, name: m.id, category: 'text' }
+        const result = { category: 'text', ...m, name: m.id }
         if (result.id.toLowerCase().includes('embed') || result.name.toLowerCase().includes('embed')) result.category = 'embedding'
         if (result.id.toLowerCase().includes('rerank') || result.name.toLowerCase().includes('rerank')) result.category = 'rerank'
         if (result.id.toLowerCase().includes('tts') || result.id.toLowerCase().includes('speech') || result.name.toLowerCase().includes('tts') || result.name.toLowerCase().includes('speech')) result.category = 'speech'
@@ -515,16 +516,53 @@ const VoiceTable = defineComponent({
 </template>
 
 <style scoped>
-.font-mono { font-family: var(--font-mono, monospace); }
-.text-xs { font-size: 12px; }
-.flex { display: flex; }
-.justify-end { justify-content: flex-end; }
-.gap-1 { gap: 4px; }
-.text-green-500 { color: #10b981; }
-.text-red-500 { color: #ef4444; }
-.items-center { align-items: center; }
-.voice-table-container { background: var(--bg-tertiary); }
-:deep(.expand-row) { padding: 0 !important; }
-:deep(.voice-table-wrapper .table-wrapper) { border: none !important; border-radius: 0 !important; }
-:deep(.voice-table-wrapper .table-cell), :deep(.voice-table-wrapper .header-cell) { border-bottom: none !important; }
+.font-mono {
+  font-family: var(--font-mono, monospace);
+}
+
+.text-xs {
+  font-size: 12px;
+}
+
+.flex {
+  display: flex;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.gap-1 {
+  gap: 4px;
+}
+
+.text-green-500 {
+  color: #10b981;
+}
+
+.text-red-500 {
+  color: #ef4444;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.voice-table-container {
+  background: var(--bg-tertiary);
+}
+
+:deep(.expand-row) {
+  padding: 0 !important;
+}
+
+:deep(.voice-table-wrapper .table-wrapper) {
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+:deep(.voice-table-wrapper .table-cell),
+:deep(.voice-table-wrapper .header-cell) {
+  border-bottom: none !important;
+}
 </style>

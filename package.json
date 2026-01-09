@@ -28,6 +28,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "3.0.9",
     "@ai-sdk/deepseek": "2.0.4",
+    "@ai-sdk/elevenlabs": "^2.0.4",
     "@ai-sdk/google": "3.0.6",
     "@ai-sdk/hume": "2.0.4",
     "@ai-sdk/mcp": "1.0.5",

@@ -239,6 +239,9 @@ export const chatService = () => {
       } else if (providerType === 'hume') {
         url = `${baseURL}/v0/tts/voices?provider=HUME_AI`
         headers['X-Hume-Api-Key'] = apiKey
+      } else if (providerType === 'elevenlabs') {
+        url = `${baseURL}/v1/voices`
+        headers['xi-api-key'] = apiKey
       } else {
         headers['Authorization'] = `Bearer ${apiKey}`
       }
@@ -253,6 +256,32 @@ export const chatService = () => {
       }
 
       const result = await response.json()
+
+      if (providerType === 'elevenlabs') {
+        // Fetch models for ElevenLabs
+        const modelsResponse = await fetch(`${baseURL}/v1/models`, {
+          method: 'GET',
+          headers
+        })
+        const modelsResult = await modelsResponse.json()
+        const voices = (result.voices || []).map((v: any) => ({
+          id: v.voice_id,
+          name: v.name
+        }))
+
+        return {
+          data: (modelsResult || []).map((m: any) => ({
+            id: m.model_id,
+            name: m.name,
+            description: m.description,
+            category: 'speech',
+            voices: voices,
+            object: 'model',
+            created: Date.now(),
+            owned_by: 'elevenlabs'
+          }))
+        }
+      }
 
       if (providerType === 'google') {
         return {

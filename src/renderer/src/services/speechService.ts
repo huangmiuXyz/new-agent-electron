@@ -49,8 +49,11 @@ export const speechService = () => {
         model: registry.speechModel(modelString as any),
         text,
         voice,
-        // Hume 专属配置，如果 provider 是 hume
-        ...(provider.providerType === 'hume' ? { providerOptions: { hume: {} } } : {})
+        // 专属配置
+        providerOptions: {
+          ...(provider.providerType === 'hume' ? { hume: {} } : {}),
+          ...(provider.providerType === 'elevenlabs' ? { elevenlabs: {} } : {})
+        }
       })
 
       const base64 = audio.base64

@@ -6,6 +6,7 @@ import { createProviderRegistry } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createHume } from '@ai-sdk/hume'
+import { createElevenLabs } from '@ai-sdk/elevenlabs'
 import { ProviderV3 } from '@ai-sdk/provider'
 
 export const createRegistry = (options: { apiKey: string; baseURL: string; name: string }) => {
@@ -17,6 +18,7 @@ export const createRegistry = (options: { apiKey: string; baseURL: string; name:
     openai: createOpenAI({ ...options, name: options.name }),
     ollama: createOpenAICompatible(options),
     hume: createHume(options) as unknown as ProviderV3,
+    elevenlabs: createElevenLabs(options),
     'openai-compatible': createOpenAICompatible({ ...options, name: options.name }),
   })
 }

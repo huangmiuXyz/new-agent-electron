@@ -14,6 +14,9 @@ importers:
       '@ai-sdk/deepseek':
         specifier: 2.0.4
         version: 2.0.4(zod@4.2.1)
+      '@ai-sdk/elevenlabs':
+        specifier: ^2.0.4
+        version: 2.0.4(zod@4.2.1)
       '@ai-sdk/google':
         specifier: 3.0.6
         version: 3.0.6(zod@4.2.1)
@@ -378,6 +381,12 @@ packages:
 
   '@ai-sdk/deepseek@2.0.4':
     resolution: {integrity: sha512-fw5ayjMYkcDAbq5Qc6cNKSqcOkeJwBEfK1v9TC7RAvEqmIgFxNfCtnWzEobQ4nk0AknPJfg6uFjZl+YdwCdLaw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/elevenlabs@2.0.4':
+    resolution: {integrity: sha512-pGbz2Qm28DtoVxa73AdlPAAkgtHrXhCgijqqBYJD1XcO76sGP/xV1Z1skhjjsjk8+EojEOyy2sBsTaZhiDOFTQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -5286,6 +5295,12 @@ snapshots:
       zod: 4.2.1
 
   '@ai-sdk/deepseek@2.0.4(zod@4.2.1)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.2
+      '@ai-sdk/provider-utils': 4.0.4(zod@4.2.1)
+      zod: 4.2.1
+
+  '@ai-sdk/elevenlabs@2.0.4(zod@4.2.1)':
     dependencies:
       '@ai-sdk/provider': 3.0.2
       '@ai-sdk/provider-utils': 4.0.4(zod@4.2.1)

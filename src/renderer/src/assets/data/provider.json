@@ -124,5 +124,12 @@
     "id": "ollama",
     "logo": "/images/providers/ollama.png",
     "providerType": "ollama"
+  },
+  {
+    "name": "ElevenLabs",
+    "baseUrl": "https://api.elevenlabs.io",
+    "id": "elevenlabs",
+    "logo": "/images/providers/elevenlabs.png",
+    "providerType": "elevenlabs"
   }
 ]
