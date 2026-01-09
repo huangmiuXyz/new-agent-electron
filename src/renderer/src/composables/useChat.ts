@@ -95,6 +95,8 @@ export const useChat = (chatId: string) => {
         if (!text.trim() || !speechEnabled.value) return
 
         const voice = agent.selectedAgent?.speechVoice || defaultModels.value.speechVoice
+        const speed = agent.selectedAgent?.speechSpeed || defaultModels.value.speechSpeed
+        const language = agent.selectedAgent?.speechLanguage || defaultModels.value.speechLanguage
 
         let targetModelId = ''
         let targetProviderId = ''
@@ -125,7 +127,9 @@ export const useChat = (chatId: string) => {
             messageId: message.id,
             modelId: targetModelId,
             providerId: targetProviderId,
-            voice
+            voice,
+            speed,
+            language
           })
 
           if (chunk) {
