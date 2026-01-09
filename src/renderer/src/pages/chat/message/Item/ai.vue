@@ -30,11 +30,29 @@ const handlePlay = () => {
           messageId: props.message.id,
           text: chunk.text,
           audioData: chunk.data,
-          played: false
+          played: false,
+          loading: false
         })
       })
     }
   }
+}
+
+const showQueue = ref(false)
+let hoverTimer: any = null
+
+const handleMouseEnter = () => {
+  hoverTimer = setTimeout(() => {
+    showQueue.value = true
+  }, 600)
+}
+
+const handleMouseLeave = () => {
+  if (hoverTimer) {
+    clearTimeout(hoverTimer)
+    hoverTimer = null
+  }
+  showQueue.value = false
 }
 </script>
 
@@ -61,12 +79,26 @@ const handlePlay = () => {
             </div>
           </div>
           <div style="display: flex; gap: 8px">
-            <Button v-if="message.metadata?.audio?.chunks?.length" size="sm" @click="handlePlay"
-              variant="icon" type="button" :class="{ 'is-playing': isCurrentPlaying }">
-              <template #icon>
-                <VolumeMedium :style="{ color: isCurrentPlaying ? 'var(--accent-color)' : 'inherit' }" />
-              </template>
-            </Button>
+            <div class="speech-control-wrapper" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
+              <Button v-if="message.metadata?.audio?.chunks?.length" size="sm" @click="handlePlay"
+                variant="icon" type="button" :class="{ 'is-playing': isCurrentPlaying }">
+                <template #icon>
+                  <VolumeMedium :style="{ color: isCurrentPlaying ? 'var(--accent-color)' : 'inherit' }" />
+                </template>
+              </Button>
+
+              <div v-if="showQueue && speechStore.queue.length > 0" class="speech-queue-popup">
+                <div class="queue-title">播放队列 ({{ speechStore.queue.length }})</div>
+                <div class="queue-list">
+                  <div v-for="chunk in speechStore.queue" :key="chunk.id" class="queue-item"
+                    :class="{ 'is-playing': speechStore.currentChunkId === chunk.id, 'is-played': chunk.played, 'is-loading': chunk.loading }">
+                    <div class="queue-item-text">{{ chunk.text }}</div>
+                    <div v-if="chunk.loading" class="queue-item-status">加载中...</div>
+                    <div v-else-if="speechStore.currentChunkId === chunk.id" class="queue-item-status">播放中</div>
+                  </div>
+                </div>
+              </div>
+            </div>
             <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
               variant="icon" type="button">
               <template #icon>
@@ -221,5 +253,89 @@ const handlePlay = () => {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+.speech-control-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.speech-queue-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  max-height: 400px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.queue-title {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.queue-list {
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.queue-item {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-color-light);
+  transition: background-color 0.2s;
+}
+
+.queue-item:last-child {
+  border-bottom: none;
+}
+
+.queue-item.is-played {
+  opacity: 0.5;
+}
+
+.queue-item.is-playing {
+  background: rgba(var(--accent-rgb), 0.1);
+  border-left: 3px solid var(--accent-color);
+}
+
+.queue-item.is-loading {
+  font-style: italic;
+}
+
+.queue-item-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.queue-item-status {
+  font-size: 11px;
+  color: var(--accent-color);
+  font-weight: 500;
 }
 </style>
