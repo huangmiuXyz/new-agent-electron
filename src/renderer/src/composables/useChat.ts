@@ -111,7 +111,6 @@ export const useChat = (chatId: string) => {
           }
         }
 
-        // Fallback to first selected model if not found
         if (!targetModelId && modelIds.length > 0) {
           targetModelId = modelIds[0]
           targetProviderId = providerIds[0]
