@@ -326,8 +326,9 @@ export const useAgent = () => {
                 ifShow: (data: Partial<Agent>) => {
                   if (!data.speechVoice) return false
                   return (
-                    provider.models?.some((m) => m.voices?.some((v) => v.id === data.speechVoice)) ||
-                    false
+                    provider.models?.some((m) =>
+                      m.voices?.some((v) => v.id === data.speechVoice)
+                    ) || false
                   )
                 }
               }))
