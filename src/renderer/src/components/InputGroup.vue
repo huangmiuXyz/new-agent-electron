@@ -2,7 +2,7 @@
 /**
  * InputGroup 组件
  * 用于动态添加/删除参数和环境变量
- * 
+ *
  * mode='array': 用于参数列表（字符串数组）
  * mode='object': 用于环境变量（键值对对象）
  */
@@ -26,10 +26,21 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { Plus, Close } = useIcon(['Plus', 'Close'])
 
-// 数组模式的数据
-const arrayModel = defineModel<string[]>('arrayValue', { default: [] })
-// 对象模式的数据
-const objectModel = defineModel<Record<string, string>>('objectValue', { default: {} })
+const modelValue = defineModel<string[] | Record<string, string>>({ default: [] })
+
+const arrayModel = computed({
+    get: () => (props.mode === 'array' ? (modelValue.value as string[]) : []),
+    set: (val) => {
+        if (props.mode === 'array') modelValue.value = val
+    }
+})
+
+const objectModel = computed({
+    get: () => (props.mode === 'object' ? (modelValue.value as Record<string, string>) : {}),
+    set: (val) => {
+        if (props.mode === 'object') modelValue.value = val
+    }
+})
 
 // 对象模式的待添加项（尚未保存到 model 的新项）
 interface PendingItem {
@@ -162,10 +173,6 @@ const updateObjectValue = (id: string, newValue: string, isPending: boolean) => 
 
 <template>
     <div class="input-group">
-        <div v-if="label" class="input-group-header">
-            <span class="input-group-label">{{ label }}</span>
-        </div>
-
         <TransitionGroup name="list" tag="div" class="input-group-list">
             <!-- 数组模式 -->
             <template v-if="mode === 'array'">
