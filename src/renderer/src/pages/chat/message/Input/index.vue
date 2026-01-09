@@ -23,6 +23,7 @@ const {
 const { updateThinkingMode, updateSpeechEnabled } = useSettingsStore()
 const { toggleTerminal } = useTerminal()
 const speechStore = useSpeechStore()
+const agentStore = useAgentStore()
 
 // 图标
 const FileUploadIcon = useIcon('UploadOutlined')
@@ -117,6 +118,20 @@ const toggleVoiceRecording = async () => {
 
 const toggleSpeech = () => {
   const newState = !speechEnabled.value
+
+  if (newState) {
+    if (!defaultModels.value.speechModelId) {
+      messageApi.error('请先在设置中选择默认文字转语音模型')
+      return
+    }
+
+    const voice = agentStore.selectedAgent?.speechVoice || defaultModels.value.speechVoice
+    if (!voice) {
+      messageApi.error('请先在智能体设置或默认设置中选择语音音色')
+      return
+    }
+  }
+
   updateSpeechEnabled(newState)
   if (!newState) {
     speechStore.stop()
