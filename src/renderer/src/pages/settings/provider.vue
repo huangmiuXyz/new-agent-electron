@@ -47,7 +47,7 @@ const [ApiKeyTable, apiKeyTableActions] = useTable<ApiKeyInfo>({
       width: '60px',
       align: 'center',
       render: (row) =>
-        activeProvider.value?.apiKey === row.key ? (
+        activeProvider.value?.activeApiKeyId === row.id ? (
           <span class="text-green-500 flex items-center justify-center">{Active}</span>
         ) : (
           <span class="text-gray-400 flex items-center justify-center opacity-30">{Inactive}</span>
@@ -102,8 +102,12 @@ watch(
 // 2. 定义相关操作
 const handleSwitchApiKey = (apiKey: ApiKeyInfo) => {
   if (!activeProvider.value) return
-  switchApiKeyForProvider(activeProviderId.value, apiKey.id)
-  formActions.setFieldValue('apiKey', apiKey.key)
+  // 直接更新表单数据，让表单的 onChange 自动同步到 store
+  formActions.setFieldsValue({
+    ...activeProvider.value,
+    apiKey: apiKey.key,
+    activeApiKeyId: apiKey.id
+  } as Provider)
 }
 
 const [ApiKeyForm, apiKeyFormActions] = useForm({
@@ -116,14 +120,25 @@ const [ApiKeyForm, apiKeyFormActions] = useForm({
     onSubmit: (data) => {
     if (!activeProvider.value) return
     const newApiKey: ApiKeyInfo = {
-      id: Date.now().toString(),
+      id: nanoid(),
       name: data.name!,
       key: data.key!
     }
+
+    // 记录添加前的状态
+    const wasEmpty = !activeProvider.value.apiKey
+
     addApiKeyToProvider(activeProviderId.value, newApiKey)
+
     // 触发表单更新以确保持久化
     const updatedApiKeys = activeProvider.value.apiKeys || []
     formActions.setFieldValue('apiKeys', [...updatedApiKeys])
+
+    // 如果之前为空，则新添加的密钥会被自动选中，需要同步更新表单中的 apiKey 字段
+    if (wasEmpty) {
+      formActions.setFieldValue('apiKey', newApiKey.key)
+      formActions.setFieldValue('activeApiKeyId', newApiKey.id)
+    }
   }
 })
 
@@ -145,9 +160,14 @@ const handleDeleteApiKey = async (apiKey: ApiKeyInfo) => {
   })
   if (result) {
     deleteApiKeyFromProvider(activeProviderId.value, apiKey.id)
+
     // 触发表单更新以确保持久化
-    const updatedApiKeys = activeProvider.value.apiKeys || []
-    formActions.setFieldValue('apiKeys', [...updatedApiKeys])
+    const updatedProvider = providers.value.find((p) => p.id === activeProviderId.value)
+    if (updatedProvider) {
+      formActions.setFieldValue('apiKeys', [...(updatedProvider.apiKeys || [])])
+      formActions.setFieldValue('apiKey', updatedProvider.apiKey || '')
+      formActions.setFieldValue('activeApiKeyId', updatedProvider.activeApiKeyId || '')
+    }
   }
 }
 

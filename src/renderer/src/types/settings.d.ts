@@ -31,6 +31,7 @@ declare global {
     logo: string
     apiKey?: string
     apiKeys?: ApiKeyInfo[]
+    activeApiKeyId?: string
     baseUrl: string
     providerType: providerType
     models: Model[]

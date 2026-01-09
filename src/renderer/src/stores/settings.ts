@@ -146,6 +146,11 @@ export const useSettingsStore = defineStore(
       if (index !== -1) {
         const provider = { ...providers.value[index] }
         provider.apiKeys = [...(provider.apiKeys || []), apiKey]
+        // 如果当前没有设置 API Key，则默认使用这一个
+        if (!provider.apiKey) {
+          provider.apiKey = apiKey.key
+          provider.activeApiKeyId = apiKey.id
+        }
         providers.value[index] = provider
       }
     }
@@ -155,7 +160,28 @@ export const useSettingsStore = defineStore(
       if (index !== -1) {
         const provider = { ...providers.value[index] }
         if (provider.apiKeys) {
+          const deleteIndex = provider.apiKeys.findIndex((k) => k.id === apiKeyId)
+          if (deleteIndex === -1) return
+
+          const keyToDelete = provider.apiKeys[deleteIndex]
+          const isCurrentActive = provider.activeApiKeyId === apiKeyId
+
           provider.apiKeys = provider.apiKeys.filter((k) => k.id !== apiKeyId)
+
+          // 如果删除的是当前激活的密钥
+          if (isCurrentActive) {
+            if (provider.apiKeys.length > 0) {
+              // 优先切换到原位置的下一个（现在的 deleteIndex），如果已经是最后一个则切到上一个
+              const nextActiveKey = provider.apiKeys[deleteIndex] || provider.apiKeys[provider.apiKeys.length - 1]
+              provider.apiKey = nextActiveKey.key
+              provider.activeApiKeyId = nextActiveKey.id
+            } else {
+              // 如果没有密钥了，清空 apiKey
+              provider.apiKey = ''
+              provider.activeApiKeyId = ''
+            }
+          }
+
           providers.value[index] = provider
         }
       }
@@ -169,6 +195,7 @@ export const useSettingsStore = defineStore(
           const apiKeyInfo = provider.apiKeys.find((k) => k.id === apiKeyId)
           if (apiKeyInfo) {
             provider.apiKey = apiKeyInfo.key
+            provider.activeApiKeyId = apiKeyInfo.id
             providers.value[index] = provider
           }
         }
