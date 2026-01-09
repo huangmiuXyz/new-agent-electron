@@ -94,9 +94,9 @@ export const useChat = (chatId: string) => {
       const generateSpeech = async (text: string, message: BaseMessage) => {
         if (!text.trim() || !speechEnabled.value) return
 
-        const voice = agent.selectedAgent?.speechVoice || defaultModels.value.speechVoice
-        const speed = agent.selectedAgent?.speechSpeed || defaultModels.value.speechSpeed
-        const language = agent.selectedAgent?.speechLanguage || defaultModels.value.speechLanguage
+        const voice = agent.selectedAgent?.speechVoice!
+        const speed = agent.selectedAgent?.speechSpeed
+        const language = agent.selectedAgent?.speechLanguage
 
         let targetModelId = ''
         let targetProviderId = ''
@@ -142,7 +142,7 @@ export const useChat = (chatId: string) => {
                 model: targetModelId
               }
             }
-            metadata.audio.chunks.push(
+            metadata.audio!.chunks.push(
               {
                 data: chunk.audioData,
                 text: chunk.text
@@ -158,7 +158,7 @@ export const useChat = (chatId: string) => {
 
       watch(() => chat.lastMessage?.parts, (newParts) => {
         if (!newParts || chat.lastMessage.role !== 'assistant' || !speechEnabled.value) return
-        const mode = (agent.selectedAgent?.speechMode || defaultModels.value.speechMode) as string
+        const mode = (agent.selectedAgent?.speechMode) as string
         if (mode === 'full') return
 
         const fullText = getMessageText(chat.lastMessage)

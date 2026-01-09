@@ -22,9 +22,9 @@ export const speechService = () => {
       messageId,
       modelId = settingsStore.defaultModels.speechModelId,
       providerId = settingsStore.defaultModels.speechProviderId,
-      voice = settingsStore.defaultModels.speechVoice,
-      speed = settingsStore.defaultModels.speechSpeed,
-      language = settingsStore.defaultModels.speechLanguage
+      voice,
+      speed,
+      language
     } = params
 
     if (!modelId || !providerId) {

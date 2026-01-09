@@ -69,7 +69,14 @@ export function createMiniMax(
 
   provider.speech = createSpeechModel;
   provider.speechModel = createSpeechModel;
-
+  provider.getSpeechModel = [
+    'speech-2.6-hd',
+    'speech-2.6-turbo',
+    'speech-02-hd',
+    'speech-02-turbo',
+    'speech-01-hd',
+    'speech-01-turbo',
+  ];
   return provider satisfies MiniMaxProvider;
 }
 
