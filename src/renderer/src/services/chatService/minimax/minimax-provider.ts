@@ -15,6 +15,11 @@ export interface MiniMaxProvider extends Pick<ProviderV3, 'speechModel'> {
    * Creates a model for speech synthesis.
    */
   speech(modelId?: string): SpeechModelV3;
+
+  /**
+   * List of available models.
+   */
+  listModels: Model[];
 }
 
 export interface MiniMaxProviderSettings {
@@ -69,14 +74,55 @@ export function createMiniMax(
 
   provider.speech = createSpeechModel;
   provider.speechModel = createSpeechModel;
-  provider.listModels = [
-    'speech-2.6-hd',
-    'speech-2.6-turbo',
-    'speech-02-hd',
-    'speech-02-turbo',
-    'speech-01-hd',
-    'speech-01-turbo',
-  ];
+  provider.listModels = [{
+    id: 'speech-2.6-hd',
+    category: 'speech',
+    name: 'MiniMax Speech 2.6 HD',
+    created: 1694521600,
+    object: 'model',
+    owned_by: 'minimax',
+  },
+  {
+    id: 'speech-2.6-turbo',
+    category: 'speech',
+    name: 'MiniMax Speech 2.6 Turbo',
+    created: 1694521600,
+    object: 'model',
+    owned_by: 'minimax',
+  },
+  {
+    id: 'speech-02-hd',
+    category: 'speech',
+    name: 'MiniMax Speech 02 HD',
+    created: 1694521600,
+    object: 'model',
+    owned_by: 'minimax',
+  },
+  {
+    id: 'speech-02-turbo',
+    category: 'speech',
+    name: 'MiniMax Speech 02 Turbo',
+    created: 1694521600,
+    object: 'model',
+    owned_by: 'minimax',
+  },
+  {
+    id: 'speech-01-hd',
+    category: 'speech',
+    name: 'MiniMax Speech 01 HD',
+    created: 1694521600,
+    object: 'model',
+    owned_by: 'minimax',
+  },
+  {
+    id: 'speech-01-turbo',
+    category: 'speech',
+    name: 'MiniMax Speech 01 Turbo',
+    created: 1694521600,
+    object: 'model',
+    owned_by: 'minimax',
+  }
+  ] as Model[];
   return provider satisfies MiniMaxProvider;
 }
 
