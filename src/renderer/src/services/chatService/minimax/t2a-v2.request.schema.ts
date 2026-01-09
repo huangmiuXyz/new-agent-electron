@@ -103,7 +103,7 @@ export const T2AStreamOptionSchema = z.object({
 export const T2AVoiceSettingSchema = z.object({
   voice_id: z.string().describe(
     "合成音频的音色编号。若需要设置混合音色，请设置 timbre_weights 参数，本参数设置为空值。支持系统音色、复刻音色以及文生音色三种类型。系统支持的全部音色可查看 [系统音色列表](/faq/system-voice-id)，也可使用 [查询可用音色 API](/api-reference/voice-management-get) 查询系统支持的全部音色"
-  ),
+  ).hidden(),
   speed: z.number().min(0.5).max(2).optional().describe(
     "合成音频的语速，取值越大，语速越快。取值范围 `[0.5,2]`，默认值为1.0"
   ),
@@ -198,14 +198,14 @@ export const VoiceModifySchema = z.object({
  * ========================= */
 
 export const T2aV2RequestSchema = z.object({
-  model: ModelEnum,
+  model: ModelEnum.hidden(),
   text: z.string().max(10000).describe(
     "需要合成语音的文本，长度限制小于 10000 字符，若文本长度大于 3000 字符，推荐使用流式输出"
-  ),
-  stream: z.boolean().optional().describe(
+  ).hidden(),
+  stream: z.boolean().optional().hidden().describe(
     "控制是否流式输出。默认 false，即不开启流式"
   ),
-  stream_options: T2AStreamOptionSchema.optional(),
+  stream_options: T2AStreamOptionSchema.optional().hidden(),
   voice_setting: T2AVoiceSettingSchema.optional(),
   audio_setting: T2AAudioSettingSchema.optional(),
   pronunciation_dict: PronunciationDictSchema.optional(),
@@ -217,7 +217,7 @@ export const T2aV2RequestSchema = z.object({
   subtitle_enable: z.boolean().optional().describe(
     "控制是否开启字幕服务，默认值为 false。此参数仅在非流式输出场景下有效，且仅对 `speech-2.6-hd` `speech-2.6-turbo` `speech-02-turbo` `speech-02-hd` `speech-01-turbo` `speech-01-hd` 模型有效"
   ),
-  output_format: OutputFormatEnum.optional().describe(
+  output_format: OutputFormatEnum.optional().hidden().describe(
     "控制输出结果形式的参数，可选值范围为[`url`, `hex`]，默认值为 `hex` 。该参数仅在非流式场景生效，流式场景仅支持返回 hex 形式。返回的 url 有效期为 24 小时"
   ),
   aigc_watermark: z.boolean().optional().describe(

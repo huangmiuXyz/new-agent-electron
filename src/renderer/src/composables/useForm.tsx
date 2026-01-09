@@ -438,7 +438,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   }
 
   const renderField = (field: FormField<T>): VNode | null => {
-    if (field.ifShow && !field.ifShow(formData.value)) {
+    debugger
+    const show = field.ifShow ? field.ifShow(formData.value) : true
+    if (!show) {
       return null
     }
 

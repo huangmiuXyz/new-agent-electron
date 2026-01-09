@@ -46,17 +46,33 @@ function convertZodTypeToField(
   required: boolean,
   parentDescription?: string
 ): FormField<any> | null {
-  const description = zodType.description || parentDescription
+  const isHidden = (zodType.def as any).isHidden === true
+
+  // 解包以获取实际类型，但保留 description 和 isHidden
+  let actualType = zodType
+  while (true) {
+    if (actualType instanceof z.ZodOptional || actualType instanceof z.ZodNullable || actualType instanceof z.ZodDefault) {
+      actualType = actualType.unwrap() as z.ZodTypeAny
+    } else if (actualType instanceof z.ZodPipe) {
+      actualType = actualType.in as z.ZodTypeAny
+    } else {
+      break
+    }
+  }
+
+  const description = zodType.description || actualType.description || parentDescription
+
   const commonProps = {
     name,
     label,
     required,
-    hint: description
+    hint: description,
+    ifShow: isHidden ? () => false : undefined
   }
 
-  // 1. 处理对象 (嵌套)
-  if (zodType instanceof z.ZodObject) {
-    const children = zodSchemaToFormfields(zodType, name)
+  // 使用 actualType 进行类型判断
+  if (actualType instanceof z.ZodObject) {
+    const children = zodSchemaToFormfields(actualType, name)
     if (children.length === 0) return null
     return {
       ...commonProps,
@@ -65,14 +81,13 @@ function convertZodTypeToField(
     }
   }
 
-  // 2. 处理基础类型
-  if (zodType instanceof z.ZodString) {
+  if (actualType instanceof z.ZodString) {
     return { ...commonProps, type: 'text' }
   }
 
-  if (zodType instanceof z.ZodNumber) {
-    const min = zodType.minValue
-    const max = zodType.maxValue
+  if (actualType instanceof z.ZodNumber) {
+    const min = actualType.minValue
+    const max = actualType.maxValue
 
     if (min !== null && max !== null) {
       return { ...commonProps, type: 'slider', min, max, step: 0.1 }
@@ -80,19 +95,14 @@ function convertZodTypeToField(
     return { ...commonProps, type: 'text' }
   }
 
-  if (zodType instanceof z.ZodBoolean) {
+  if (actualType instanceof z.ZodBoolean) {
     return { ...commonProps, type: 'boolean' }
   }
 
-  if (zodType instanceof z.ZodArray) {
-    // 检查数组元素类型，目前只支持基础类型的数组
-    let elementType = zodType.element as z.ZodTypeAny
+  if (actualType instanceof z.ZodArray) {
+    let elementType = actualType.element as z.ZodTypeAny
     while (elementType instanceof z.ZodOptional || elementType instanceof z.ZodNullable || elementType instanceof z.ZodDefault) {
       elementType = elementType.unwrap() as z.ZodTypeAny
-    }
-
-    if (elementType instanceof z.ZodString || elementType instanceof z.ZodNumber || elementType instanceof z.ZodEnum) {
-      return { ...commonProps, type: 'array' }
     }
 
     if (elementType instanceof z.ZodObject) {
@@ -102,12 +112,15 @@ function convertZodTypeToField(
         children: zodSchemaToFormfields(elementType, name)
       }
     }
+
+    if (elementType instanceof z.ZodString || elementType instanceof z.ZodNumber || elementType instanceof z.ZodEnum) {
+      return { ...commonProps, type: 'array' }
+    }
     return null
   }
 
-  if (zodType instanceof z.ZodRecord) {
-    // 目前只支持值是基础类型的 Record
-    let valueType = zodType.valueType as z.ZodTypeAny
+  if (actualType instanceof z.ZodRecord) {
+    let valueType = actualType.valueType as z.ZodTypeAny
     while (valueType instanceof z.ZodOptional || valueType instanceof z.ZodNullable || valueType instanceof z.ZodDefault) {
       valueType = valueType.unwrap() as z.ZodTypeAny
     }
@@ -117,25 +130,25 @@ function convertZodTypeToField(
     return null
   }
 
-  if (zodType instanceof z.ZodEnum) {
-    const options = zodType.options.map((v) => ({
+  if (actualType instanceof z.ZodEnum) {
+    const options = actualType.options.map((v) => ({
       label: String(v),
       value: v
     }))
     return { ...commonProps, type: 'select', options, clearable: !required }
   }
 
-  if (zodType instanceof z.ZodLiteral) {
+  if (actualType instanceof z.ZodLiteral) {
     return {
       ...commonProps,
       type: 'select',
-      options: [{ label: String(zodType.value), value: zodType.value as string | number }],
+      options: [{ label: String(actualType.value), value: actualType.value as string | number }],
       clearable: !required
     }
   }
 
-  if (zodType instanceof z.ZodUnion) {
-    const options = zodType.options
+  if (actualType instanceof z.ZodUnion) {
+    const options = actualType.options
       .filter((opt): opt is z.ZodLiteral<string | number> => opt instanceof z.ZodLiteral && (typeof opt.value === 'string' || typeof opt.value === 'number'))
       .map((opt) => {
         const val = opt.value
@@ -145,15 +158,6 @@ function convertZodTypeToField(
     if (options.length > 0) {
       return { ...commonProps, type: 'select', options, clearable: !required }
     }
-  }
-
-  // 3. 处理包装类型 (Optional, Default, etc.)
-  if (zodType instanceof z.ZodOptional || zodType instanceof z.ZodNullable || zodType instanceof z.ZodDefault) {
-    return convertZodTypeToField(zodType.unwrap() as z.ZodTypeAny, name, label, required, description)
-  }
-
-  if (zodType instanceof z.ZodPipe) {
-    return convertZodTypeToField(zodType.in as z.ZodTypeAny, name, label, required, description)
   }
 
   return null

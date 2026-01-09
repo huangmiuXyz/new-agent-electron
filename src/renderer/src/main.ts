@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import piniaPersist from 'pinia-plugin-persistedstate-async'
 
+import './utils/zod-extensions'
 import App from './App.vue'
 import router from './router'
 import Button from './components/Button.vue'

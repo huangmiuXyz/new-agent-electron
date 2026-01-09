@@ -322,7 +322,6 @@ export const useAgent = () => {
 
             dynamicFields.push(
               ...fields.map((field) => ({
-                ...field,
                 ifShow: (data: Partial<Agent>) => {
                   if (!data.speechVoice) return false
                   return (
@@ -330,7 +329,8 @@ export const useAgent = () => {
                       m.voices?.some((v) => v.id === data.speechVoice)
                     ) || false
                   )
-                }
+                },
+                ...field,
               }))
             )
           }
