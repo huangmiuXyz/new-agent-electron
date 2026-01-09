@@ -61,7 +61,7 @@ declare global {
     name: string
     description?: string
     active?: boolean
-    category: ModelCategory
+    category?: ModelCategory
     voices?: ModelVoice[]
   }
   type ClientConfig = Record<

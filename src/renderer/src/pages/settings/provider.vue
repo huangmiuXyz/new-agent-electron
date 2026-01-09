@@ -361,19 +361,20 @@ const loading = ref(false)
 const refreshModels = async () => {
   loading.value = true
   try {
-    const { data } = await chatService().list_models({
+    const models = await chatService().list_models({
       apiKey: activeProvider.value!.apiKey!,
       baseURL: activeProvider.value!.baseUrl!,
-      providerType: activeProvider.value!.providerType!
+      providerType: activeProvider.value!.providerType!,
+      name: activeProvider.value!.name
     })
     formActions.setFieldsValue({
       ...activeProvider.value!,
-      models: data.map((m) => {
+      models: models.map((m) => {
         const result = { category: 'text', ...m, name: m.id }
         if (result.id.toLowerCase().includes('embed') || result.name.toLowerCase().includes('embed')) result.category = 'embedding'
         if (result.id.toLowerCase().includes('rerank') || result.name.toLowerCase().includes('rerank')) result.category = 'rerank'
         if (result.id.toLowerCase().includes('tts') || result.id.toLowerCase().includes('speech') || result.name.toLowerCase().includes('tts') || result.name.toLowerCase().includes('speech')) result.category = 'speech'
-        return result
+        return result as Model
       })
     })
   } finally {
@@ -463,7 +464,7 @@ const [ModelTable, modelTableActions] = useTable<Model>({
       key: 'category',
       label: '模型类型',
       width: '1fr',
-      render: (row) => <Tags tags={[getCategoryLabel(row.category)]} color={row.category === 'text' ? 'blue' : row.category === 'embedding' ? 'green' : row.category === 'image' ? 'orange' : row.category === 'rerank' ? 'purple' : 'blue'} />
+      render: (row) => <Tags tags={[getCategoryLabel(row.category || 'text')]} color={row.category === 'text' ? 'blue' : row.category === 'embedding' ? 'green' : row.category === 'image' ? 'orange' : row.category === 'rerank' ? 'purple' : 'blue'} />
     },
     { key: 'active', label: '启用', width: '1fr', render: (row) => <Switch v-model={row.active} /> },
     {

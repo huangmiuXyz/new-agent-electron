@@ -69,7 +69,7 @@ export function createMiniMax(
 
   provider.speech = createSpeechModel;
   provider.speechModel = createSpeechModel;
-  provider.getSpeechModel = [
+  provider.listModels = [
     'speech-2.6-hd',
     'speech-2.6-turbo',
     'speech-02-hd',
