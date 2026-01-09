@@ -9,6 +9,7 @@ export const useSettingsStore = defineStore(
         ...p,
         providerType: p.providerType as Provider['providerType'],
         apiKey: '',
+        apiKeys: [],
         models: []
       }))
     }
@@ -140,6 +141,40 @@ export const useSettingsStore = defineStore(
       }
     }
 
+    const addApiKeyToProvider = (providerId: string, apiKey: ApiKeyInfo) => {
+      const index = providers.value.findIndex((p) => p.id === providerId)
+      if (index !== -1) {
+        const provider = { ...providers.value[index] }
+        provider.apiKeys = [...(provider.apiKeys || []), apiKey]
+        providers.value[index] = provider
+      }
+    }
+
+    const deleteApiKeyFromProvider = (providerId: string, apiKeyId: string) => {
+      const index = providers.value.findIndex((p) => p.id === providerId)
+      if (index !== -1) {
+        const provider = { ...providers.value[index] }
+        if (provider.apiKeys) {
+          provider.apiKeys = provider.apiKeys.filter((k) => k.id !== apiKeyId)
+          providers.value[index] = provider
+        }
+      }
+    }
+
+    const switchApiKeyForProvider = (providerId: string, apiKeyId: string) => {
+      const index = providers.value.findIndex((p) => p.id === providerId)
+      if (index !== -1) {
+        const provider = { ...providers.value[index] }
+        if (provider.apiKeys) {
+          const apiKeyInfo = provider.apiKeys.find((k) => k.id === apiKeyId)
+          if (apiKeyInfo) {
+            provider.apiKey = apiKeyInfo.key
+            providers.value[index] = provider
+          }
+        }
+      }
+    }
+
     const updateDefaultModels = (settings: Partial<typeof defaultModels.value>) => {
       defaultModels.value = { ...defaultModels.value, ...settings }
     }
@@ -248,6 +283,9 @@ export const useSettingsStore = defineStore(
       updateProvider,
       addModelToProvider,
       deleteModelFromProvider,
+      addApiKeyToProvider,
+      deleteApiKeyFromProvider,
+      switchApiKeyForProvider,
       updateDefaultModels,
       updateLoadedPlugins,
       addLoadedPlugin,

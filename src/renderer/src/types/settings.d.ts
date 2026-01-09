@@ -17,12 +17,20 @@ declare global {
   interface ollamaSettings {
     autoStart?: boolean
   }
+
+  interface ApiKeyInfo {
+    id: string
+    name: string
+    key: string
+  }
+
   // 模型提供商接口
   interface Provider extends ollamaSettings {
     id: string
     name: string
     logo: string
     apiKey?: string
+    apiKeys?: ApiKeyInfo[]
     baseUrl: string
     providerType: providerType
     models: Model[]

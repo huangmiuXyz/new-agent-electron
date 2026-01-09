@@ -33,6 +33,9 @@ import {
   Image,
   Table,
   Checkmark,
+  CheckmarkFilled,
+  RadioButton,
+  RadioButtonChecked,
   SubtractAlt
 } from '@vicons/carbon'
 import {
@@ -171,6 +174,8 @@ const icons = {
   FormatHorizontalRule: SubtractAlt,
   FormatTable: Table,
   CheckCircle: Checkmark,
+  Active: CheckmarkFilled,
+  Inactive: RadioButton,
   EditNoteFilled,
   Plugin: Puzzle,
   Dismiss: X,
