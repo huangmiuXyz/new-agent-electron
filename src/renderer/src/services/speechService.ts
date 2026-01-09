@@ -14,13 +14,17 @@ export const speechService = () => {
     modelId?: string
     providerId?: string
     voice?: string
+    speed?: number
+    language?: string
   }) => {
     const {
       text,
       messageId,
       modelId = settingsStore.defaultModels.speechModelId,
       providerId = settingsStore.defaultModels.speechProviderId,
-      voice = settingsStore.defaultModels.speechVoice
+      voice = settingsStore.defaultModels.speechVoice,
+      speed = settingsStore.defaultModels.speechSpeed,
+      language = settingsStore.defaultModels.speechLanguage
     } = params
 
     if (!modelId || !providerId) {
@@ -49,6 +53,8 @@ export const speechService = () => {
         model: registry.speechModel(modelString as any),
         text,
         voice,
+        speed,
+        language,
         // 专属配置
         providerOptions: {
           ...(provider.providerType === 'hume' ? { hume: {} } : {}),

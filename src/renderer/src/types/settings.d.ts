@@ -49,6 +49,8 @@ declare global {
     speechProviderId: string | string[]
     speechVoice: string
     speechMode: 'sentence' | 'paragraph' | 'full'
+    speechSpeed?: number
+    speechLanguage?: string
   }
 
   interface RegisteredProvider {

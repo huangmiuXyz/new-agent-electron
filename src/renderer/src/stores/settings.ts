@@ -55,7 +55,9 @@ export const useSettingsStore = defineStore(
       speechModelId: '',
       speechProviderId: '',
       speechVoice: 'alloy',
-      speechMode: 'sentence' as 'sentence' | 'paragraph' | 'full'
+      speechMode: 'sentence' as 'sentence' | 'paragraph' | 'full',
+      speechSpeed: 1,
+      speechLanguage: 'auto'
     })
 
     const registeredProviders = ref<RegisteredProvider[]>([])

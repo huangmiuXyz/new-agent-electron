@@ -25,6 +25,8 @@ declare global {
     contextCount?: number // 上下文条数
     speechVoice?: string // 语音名称
     speechMode?: 'sentence' | 'paragraph' | 'full' // 语音生成模式
+    speechSpeed?: number // 语音速度
+    speechLanguage?: string // 语音语言
   }
 
   // 智能体背景接口
