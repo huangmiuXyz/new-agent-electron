@@ -223,10 +223,9 @@ export const chatService = () => {
     await onUseAIBefore({ providerType, apiKey, baseURL })
     const registry = createRegistry({ apiKey, baseURL, name: name || providerType })
     const providerInstance = registry.getProvider(providerType)
-    const listModelsResult = typeof providerInstance?.listModels === 'function'
-      ? await providerInstance.listModels()
-      : (providerInstance?.listModels || [])
-    return listModelsResult
+    const listModelsResult =
+      await providerInstance.listModels?.()
+    return listModelsResult || []
   }
   const list_tools = async (config: ClientConfig, cache?: boolean) => {
     try {

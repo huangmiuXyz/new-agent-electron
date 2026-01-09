@@ -43,3 +43,24 @@ export interface MiniMaxSpeechAPIResponse {
     status_msg: string;
   };
 }
+
+export interface MiniMaxGetVoiceReq {
+  voice_type: 'system' | 'voice_cloning' | 'voice_generation' | 'all';
+}
+
+export interface VoiceInfo {
+  voice_id: string;
+  voice_name?: string;
+  description: string[];
+  created_time?: string;
+}
+
+export interface MiniMaxGetVoiceResp {
+  system_voice?: VoiceInfo[];
+  voice_cloning?: VoiceInfo[];
+  voice_generation?: VoiceInfo[];
+  base_resp: {
+    status_code: number;
+    status_msg: string;
+  };
+}
