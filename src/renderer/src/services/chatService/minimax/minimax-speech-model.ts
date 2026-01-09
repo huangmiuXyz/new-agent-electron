@@ -8,38 +8,14 @@ import { z } from 'zod/v4';
 import { MiniMaxConfig } from './minimax-config';
 import { miniMaxFailedResponseHandler } from './minimax-error';
 import { MiniMaxSpeechAPITypes, MiniMaxSpeechAPIResponse } from './minimax-api-types';
-
-const miniMaxSpeechCallOptionsSchema = z.object({
-  voice_setting: z
-    .object({
-      voice_id: z.string().optional(),
-      speed: z.number().optional(),
-      vol: z.number().optional(),
-      pitch: z.number().optional(),
-      emotion: z.string().optional(),
-    })
-    .optional(),
-  pronunciation_dict: z
-    .object({
-      tone: z.array(z.string()).optional(),
-    })
-    .optional(),
-  audio_setting: z
-    .object({
-      sample_rate: z.number().optional(),
-      bitrate: z.number().optional(),
-      format: z.enum(['mp3', 'wav', 'pcm', 'flac']).optional(),
-      channel: z.number().optional(),
-    })
-    .optional(),
-  subtitle_enable: z.boolean().optional(),
-});
+import { T2aV2RequestSchema } from './t2a-v2.request.schema'
+const miniMaxSpeechCallOptionsSchema = T2aV2RequestSchema
 
 export type MiniMaxSpeechCallOptions = z.infer<typeof miniMaxSpeechCallOptionsSchema>;
 
 export class MiniMaxSpeechModel implements SpeechModelV3 {
   readonly specificationVersion = 'v3';
-
+  public static readonly speechCallOptionsSchema = miniMaxSpeechCallOptionsSchema;
   get provider(): string {
     return this.config.provider;
   }
@@ -47,7 +23,7 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
   constructor(
     readonly modelId: string,
     private readonly config: MiniMaxConfig,
-  ) {}
+  ) { }
 
   private async getArgs({
     text,
@@ -61,7 +37,7 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
     const miniMaxOptions = await parseProviderOptions({
       provider: 'minimax',
       providerOptions,
-      schema: miniMaxSpeechCallOptionsSchema,
+      schema: MiniMaxSpeechModel.speechCallOptionsSchema,
     });
 
     const requestBody: MiniMaxSpeechAPITypes = {

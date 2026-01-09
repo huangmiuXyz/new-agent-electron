@@ -9,8 +9,10 @@ import { createHume } from '@ai-sdk/hume'
 import { createElevenLabs } from '@ai-sdk/elevenlabs'
 import { ProviderV3 } from '@ai-sdk/provider'
 import { createMiniMax } from './minimax'
+import { z } from 'zod'
 interface ProviderV3Extends extends ProviderV3 {
   listModels?: () => Promise<Model[]>
+  speechCallOptionsSchema?: z.ZodSchema
 }
 interface ProviderRegistryProviderExtends<T extends Record<string, ProviderV3Extends>> extends ProviderRegistryProvider<T> {
   getProvider: (providerType: keyof T) => T[keyof T]

@@ -82,7 +82,7 @@ export function createMiniMax(
 
   provider.speech = createSpeechModel;
   provider.speechModel = createSpeechModel;
-
+  provider.speechCallOptionsSchema = MiniMaxSpeechModel.speechCallOptionsSchema;
   const defaultModels = [
     {
       id: 'speech-2.6-hd',
