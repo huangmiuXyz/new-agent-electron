@@ -3,7 +3,9 @@ import { nanoid } from 'nanoid'
 const props = defineProps<{
   message: BaseMessage
 }>()
-const { getProviderById } = useSettingsStore()
+const settingsStore = useSettingsStore()
+const { speechEnabled } = storeToRefs(settingsStore)
+const { getProviderById } = settingsStore
 const speechStore = useSpeechStore()
 const Stop = useIcon('Stop')
 const VolumeMedium = useIcon('VolumeMedium')
@@ -13,6 +15,9 @@ const isCurrentPlaying = computed(() => {
 })
 
 const handlePlay = () => {
+  if (!speechEnabled.value && !isCurrentPlaying.value) {
+    return
+  }
   if (isCurrentPlaying.value) {
     speechStore.stop()
   } else {

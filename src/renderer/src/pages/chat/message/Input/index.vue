@@ -16,11 +16,13 @@ const {
   selectedProviderId,
   currentSelectedProvider,
   thinkingMode,
+  speechEnabled,
   display,
   defaultModels
 } = storeToRefs(useSettingsStore())
-const { updateThinkingMode } = useSettingsStore()
+const { updateThinkingMode, updateSpeechEnabled } = useSettingsStore()
 const { toggleTerminal } = useTerminal()
+const speechStore = useSpeechStore()
 
 // 图标
 const FileUploadIcon = useIcon('UploadOutlined')
@@ -28,6 +30,8 @@ const Bulb = useIcon('Bulb')
 const TerminalIcon = useIcon('Terminal')
 const MicIcon = useIcon('Mic')
 const MicOffIcon = useIcon('MicOff')
+const VolumeIcon = useIcon('VolumeMedium')
+const VolumeMuteIcon = useIcon('VolumeMute')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -108,6 +112,15 @@ const toggleVoiceRecording = async () => {
       return
     }
     await startVoice()
+  }
+}
+
+const toggleSpeech = () => {
+  const newState = !speechEnabled.value
+  updateSpeechEnabled(newState)
+  if (!newState) {
+    speechStore.stop()
+    speechStore.clearQueue()
   }
 }
 
@@ -207,6 +220,13 @@ const _sendMessage = async () => {
             :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'">
             <MicIcon v-if="!voiceIsActive" />
             <MicOffIcon v-else />
+          </Button>
+
+          <!-- 文字转语音按钮 -->
+          <Button variant="icon" size="sm" :class="{ 'speech-active': speechEnabled }" @click="toggleSpeech"
+            :title="speechEnabled ? '关闭语音播报' : '开启语音播报'">
+            <VolumeIcon v-if="speechEnabled" />
+            <VolumeMuteIcon v-else />
           </Button>
 
           <!-- 智能体选择器 -->
@@ -349,6 +369,11 @@ const _sendMessage = async () => {
   color: var(--color-primary);
   background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
   animation: pulse 1.5s infinite;
+}
+
+.speech-active {
+  color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
 }
 
 @keyframes pulse {

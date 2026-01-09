@@ -7,7 +7,7 @@ export const useChat = (chatId: string) => {
   const { getChatById, updateMessageMetadata } = useChatsStores()
   const chats = getChatById(chatId)
 
-  const { currentSelectedProvider, currentSelectedModel, thinkingMode, defaultModels } =
+  const { currentSelectedProvider, currentSelectedModel, thinkingMode, speechEnabled, defaultModels } =
     storeToRefs(useSettingsStore())
   const { getProviderById } =
     useSettingsStore()
@@ -75,10 +75,12 @@ export const useChat = (chatId: string) => {
           reconnectToStream: undefined as any
         },
         onFinish: () => {
-          const fullText = getMessageText(chat.lastMessage)
-          const remainingText = fullText.slice(processedText.length).trim()
-          if (remainingText) {
-            generateSpeech(remainingText, chat.lastMessage)
+          if (speechEnabled.value) {
+            const fullText = getMessageText(chat.lastMessage)
+            const remainingText = fullText.slice(processedText.length).trim()
+            if (remainingText) {
+              generateSpeech(remainingText, chat.lastMessage)
+            }
           }
 
           useTitle(chatId).generateTitle()
@@ -90,7 +92,7 @@ export const useChat = (chatId: string) => {
       })
 
       const generateSpeech = async (text: string, message: BaseMessage) => {
-        if (!text.trim()) return
+        if (!text.trim() || !speechEnabled.value) return
 
         const voice = agent.selectedAgent?.speechVoice || defaultModels.value.speechVoice
 
@@ -151,7 +153,7 @@ export const useChat = (chatId: string) => {
       }
 
       watch(() => chat.lastMessage?.parts, (newParts) => {
-        if (!newParts || chat.lastMessage.role !== 'assistant') return
+        if (!newParts || chat.lastMessage.role !== 'assistant' || !speechEnabled.value) return
         const mode = (agent.selectedAgent?.speechMode || defaultModels.value.speechMode) as string
         if (mode === 'full') return
 

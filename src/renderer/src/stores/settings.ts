@@ -63,9 +63,14 @@ export const useSettingsStore = defineStore(
       return [...providers.value, ...registeredProviders.value] as Provider[]
     })
     const thinkingMode = ref(false)
+    const speechEnabled = ref(false)
 
     const updateThinkingMode = (mode: boolean) => {
       thinkingMode.value = mode
+    }
+
+    const updateSpeechEnabled = (enabled: boolean) => {
+      speechEnabled.value = enabled
     }
 
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
@@ -301,7 +306,9 @@ export const useSettingsStore = defineStore(
       devPluginPaths,
       defaultModels,
       thinkingMode,
+      speechEnabled,
       updateThinkingMode,
+      updateSpeechEnabled,
       updateDisplaySettings,
       updateTerminalSettings,
       addRegisteredProvider,
@@ -345,6 +352,7 @@ export const useSettingsStore = defineStore(
         'devPluginPaths',
         'defaultModels',
         'thinkingMode',
+        'speechEnabled',
         'selectedModelId',
         'selectedProviderId',
         'currentSelectedProvider',
