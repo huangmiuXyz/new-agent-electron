@@ -10,6 +10,7 @@ import ColorPicker from '@renderer/components/ColorPicker.vue'
 import PathSelector from '@renderer/components/PathSelector.vue'
 import FileUpload from '@renderer/components/FileUpload.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
+import Markdown from '@renderer/components/Markdown.vue'
 import { VNode, MaybeRefOrGetter, toValue, PropType } from 'vue'
 
 export const FormItem = defineComponent({
@@ -51,7 +52,14 @@ export const FormItem = defineComponent({
                 <div class="form-item-title">
                   {slots.label?.() ? slots.label?.() : props.label}
                   {props.required && <span class="form-item-required">*</span>}
-                  {props.hint && <div class="form-item-hint">{props.hint}</div>}
+                  {props.hint && (
+                    <div class="form-item-hint">
+                      <Markdown
+                        block={{ text: props.hint, state: 'done', type: 'text' }}
+                        message={{ content: props.hint, role: 'assistant', id: 'hint' } as any}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div class="form-item-tool">{slots.tool?.()}</div>
               </div>
@@ -70,7 +78,14 @@ export const FormItem = defineComponent({
               )}
               <div class="form-item-content">{slots.default?.()}</div>
               {props.error && <div class="form-item-error">{props.error}</div>}
-              {props.hint && <div class="form-item-hint">{props.hint}</div>}
+              {props.hint && (
+                <div class="form-item-hint">
+                  <Markdown
+                    block={{ text: props.hint, state: 'done', type: 'text' }}
+                    message={{ content: props.hint, role: 'assistant', id: 'hint' } as any}
+                  />
+                </div>
+              )}
             </>
           )}
         </div>
