@@ -9,6 +9,8 @@ export const useChat = (chatId: string) => {
 
   const { currentSelectedProvider, currentSelectedModel, thinkingMode, defaultModels } =
     storeToRefs(useSettingsStore())
+  const { getProviderById } =
+    useSettingsStore()
   const agent = useAgentStore()
   const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
   const service = chatService()
@@ -102,7 +104,7 @@ export const useChat = (chatId: string) => {
         for (let i = 0; i < modelIds.length; i++) {
           const mId = modelIds[i]
           const pId = providerIds[i]
-          const provider = useSettingsStore().getAllProviders.find(p => p.id === pId)
+          const provider = getProviderById(pId)
           const model = provider?.models?.find(m => m.id === mId)
           if (model?.voices?.some(v => v.id === voice)) {
             targetModelId = mId
@@ -112,8 +114,7 @@ export const useChat = (chatId: string) => {
         }
 
         if (!targetModelId && modelIds.length > 0) {
-          targetModelId = modelIds[0]
-          targetProviderId = providerIds[0]
+          return
         }
 
         try {
