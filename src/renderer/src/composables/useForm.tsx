@@ -462,7 +462,6 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             case 'modelSelector': {
               const val = getFieldValue(field.name) || { modelId: '', providerId: '' }
               const f = field as ModelSelectorField<T>
-              // 排除掉 field.type ('modelSelector')，否则会覆盖组件默认的 type ('select')
               const { type: _type, ...restFieldProps } = fieldProps
               return (
                 <ModelSelector
