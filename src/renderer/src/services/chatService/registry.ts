@@ -15,7 +15,7 @@ interface ProviderV3Extends extends ProviderV3 {
 interface ProviderRegistryProviderExtends<T extends Record<string, ProviderV3Extends>> extends ProviderRegistryProvider<T> {
   getProvider: (providerType: keyof T) => T[keyof T]
 }
-const mergeFun = <T extends ProviderV3>(provider: T, funs: Partial<ProviderV3Extends>): ProviderV3Extends => {
+const mergeFun = <T extends ProviderV3Extends>(provider: Partial<T>, funs: Partial<ProviderV3Extends>): ProviderV3Extends => {
   return {
     ...provider,
     ...funs,
@@ -209,7 +209,7 @@ export const createRegistry = (options: { apiKey: string; baseURL: string; name:
         })) as Model[]
       }
     }),
-    minimax: createMiniMax(options) as unknown as ProviderV3Extends,
+    minimax: mergeFun(createMiniMax(options), createOpenAICompatible(options)) as unknown as ProviderV3Extends,
     'openai-compatible': mergeFun(createOpenAICompatible({ ...options, name: options.name }), {
       listModels: async () => {
         const response = await fetch(`${options.baseURL}/models`, {
