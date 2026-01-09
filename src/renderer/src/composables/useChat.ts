@@ -4,7 +4,7 @@ import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai';
 import { speechService } from '../services/speechService'
 
 export const useChat = (chatId: string) => {
-  const { getChatById } = useChatsStores()
+  const { getChatById, updateMessageMetadata } = useChatsStores()
   const chats = getChatById(chatId)
 
   const { currentSelectedProvider, currentSelectedModel, thinkingMode, defaultModels } =
@@ -126,9 +126,7 @@ export const useChat = (chatId: string) => {
           })
 
           if (chunk) {
-            const chatsStore = useChatsStores()
-            const currentChat = chatsStore.getChatById(chatId)
-            const currentMsg = currentChat?.messages.find(m => m.id === message.id)
+            const currentMsg = chats?.messages.find(m => m.id === message.id)
             const metadata = { ...(currentMsg?.metadata || message.metadata || {}) } as MetaData
             if (!metadata.audio) {
               metadata.audio = {
@@ -145,7 +143,7 @@ export const useChat = (chatId: string) => {
               }
             ]
 
-            chatsStore.updateMessageMetadata(chatId, message.id, metadata)
+            updateMessageMetadata(chatId, message.id, metadata)
             message.metadata = metadata
           }
         } catch (error) {
