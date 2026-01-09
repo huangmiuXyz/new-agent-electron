@@ -128,7 +128,9 @@ export const useAgent = () => {
           maxOutputTokens: agent.maxOutputTokens ?? 2000,
           contextCount: agent.contextCount ?? 10,
           speechVoice: agent.speechVoice || '',
-          speechMode: agent.speechMode || 'sentence'
+          speechMode: agent.speechMode || 'sentence',
+          speechSpeed: agent.speechSpeed ?? 1,
+          speechLanguage: agent.speechLanguage || 'auto'
         }
       : {
           name: '',
@@ -150,7 +152,9 @@ export const useAgent = () => {
           maxOutputTokens: 2000,
           contextCount: 10,
           speechVoice: '',
-          speechMode: 'sentence'
+          speechMode: 'sentence',
+          speechSpeed: 1,
+          speechLanguage: 'auto'
         }
 
     let previousMcpServers = initialData.mcpServers || []
@@ -310,7 +314,23 @@ export const useAgent = () => {
           { label: '回复后生成', value: 'full' }
         ],
         hint: '控制语音生成的颗粒度。'
-      } as SelectField<Partial<Agent>>
+      } as SelectField<Partial<Agent>>,
+      {
+        name: 'speechSpeed',
+        type: 'number',
+        label: '语速',
+        min: 0.1,
+        max: 2,
+        step: 0.1,
+        hint: '语音生成的播放速度 (0.1 - 2.0)。'
+      } as TextField<Partial<Agent>>,
+      {
+        name: 'speechLanguage',
+        type: 'text',
+        label: '语言',
+        placeholder: '例如: en, zh, ja 或 auto',
+        hint: '语音生成的语言代码 (ISO 639-1) 或 auto。'
+      } as TextField<Partial<Agent>>
     ]
 
     const toolFields: FormField<Partial<Agent>>[] = [
