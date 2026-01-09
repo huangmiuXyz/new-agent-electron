@@ -118,14 +118,14 @@ const ModelList = (): VNode => {
               </div>
             ) : (
               <Button type="button" variant="text" size="sm" onClick={handleShowSearch}>
-                <component is={Search} />
+                {Search}
               </Button>
             )}
           </div>
         ),
         tool: () => (
           <Button onClick={refreshModels} size="sm" type="button" variant="text">
-            <component is={Refresh} />
+            {Refresh}
             刷新模型列表
           </Button>
         ),
