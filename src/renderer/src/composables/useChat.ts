@@ -92,7 +92,6 @@ export const useChat = (chatId: string) => {
 
         const voice = agent.selectedAgent?.speechVoice || defaultModels.value.speechVoice
 
-        // Find correct model and provider for this voice
         let targetModelId = ''
         let targetProviderId = ''
 
