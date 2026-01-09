@@ -157,7 +157,7 @@ const [ProviderForm, formActions] = useForm({
           title="重置为默认地址"
           class="ml-2"
         >
-          <component is={Refresh} />
+          {Refresh}
         </Button>
       )
     },
@@ -245,26 +245,26 @@ const refreshModels = async () => {
       ...activeProvider.value!,
       models: data.map((m) => {
         const result = { ...m, name: m.id, category: 'text' }
-          if (
-            result.id.toLowerCase().includes('embed') ||
-            result.name.toLowerCase().includes('embed')
-          ) {
-            result.category = 'embedding'
+        if (
+          result.id.toLowerCase().includes('embed') ||
+          result.name.toLowerCase().includes('embed')
+        ) {
+          result.category = 'embedding'
         }
         if (
-            result.id.toLowerCase().includes('rerank') ||
-            result.name.toLowerCase().includes('rerank')
-          ) {
-            result.category = 'rerank'
+          result.id.toLowerCase().includes('rerank') ||
+          result.name.toLowerCase().includes('rerank')
+        ) {
+          result.category = 'rerank'
         }
         if (
-            result.id.toLowerCase().includes('tts') ||
-            result.id.toLowerCase().includes('speech') ||
-            result.name.toLowerCase().includes('tts') ||
-            result.name.toLowerCase().includes('speech')
-          ) {
-            result.category = 'speech'
-          }
+          result.id.toLowerCase().includes('tts') ||
+          result.id.toLowerCase().includes('speech') ||
+          result.name.toLowerCase().includes('tts') ||
+          result.name.toLowerCase().includes('speech')
+        ) {
+          result.category = 'speech'
+        }
         return result
       })
     })
@@ -534,13 +534,16 @@ const VoiceTable = defineComponent({
 .voice-table-container {
   background: var(--bg-tertiary);
 }
+
 :deep(.expand-row) {
   padding: 0 !important;
 }
+
 :deep(.voice-table-wrapper .table-wrapper) {
   border: none !important;
   border-radius: 0 !important;
 }
+
 :deep(.voice-table-wrapper .table-cell),
 :deep(.voice-table-wrapper .header-cell) {
   border-bottom: none !important;
