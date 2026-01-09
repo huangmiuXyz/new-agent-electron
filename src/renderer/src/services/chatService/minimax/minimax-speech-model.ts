@@ -55,6 +55,7 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
       requestBody.audio_setting = {
         ...requestBody.audio_setting,
         format: outputFormat as any,
+        ...miniMaxOptions!.audio_setting,
       };
     }
 
