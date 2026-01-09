@@ -176,6 +176,11 @@ export interface CustomField<T> extends BaseField<T> {
   render: (data: T) => VNode | null
 }
 
+export interface GroupField<T> extends BaseField<T> {
+  type: 'group'
+  children: FormField<T>[]
+}
+
 export type FormField<T> =
   | TextField<T>
   | BooleanField<T>
@@ -190,6 +195,7 @@ export type FormField<T> =
   | PathSelectorField<T>
   | UploadField<T>
   | CustomField<T>
+  | GroupField<T>
 
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
@@ -262,6 +268,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         return field.multiple ? [] : ''
       case 'custom':
         return null
+      case 'group':
+        return undefined
       default:
         return ''
     }
@@ -270,6 +278,10 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   const fields = computed(() => toValue(config.fields))
 
   const initializeField = (field: any) => {
+    if (field.type === 'group' && field.children) {
+      field.children.forEach(initializeField)
+      return
+    }
     const isNestedField = field.name.includes('.')
     let initialValue
 
@@ -300,15 +312,22 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   const validate = () => {
     const newErrors: Record<string, string> = {}
 
-    fields.value.forEach((field) => {
+    const validateField = (field: any) => {
       if (field.ifShow && !field.ifShow(formData.value)) {
+        return
+      }
+
+      if (field.type === 'group' && field.children) {
+        field.children.forEach(validateField)
         return
       }
 
       if (field.required && !getNestedValue(formData.value, field.name)) {
         newErrors[field.name] = `${field.label || field.name} 是必填项`
       }
-    })
+    }
+
+    fields.value.forEach(validateField)
 
     errors.value = newErrors
     return Object.keys(newErrors).length === 0
@@ -317,15 +336,22 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   const submit = () => {
     const newErrors: Record<string, string> = {}
 
-    fields.value.forEach((field) => {
+    const validateField = (field: any) => {
       if (field.ifShow && !field.ifShow(formData.value)) {
+        return
+      }
+
+      if (field.type === 'group' && field.children) {
+        field.children.forEach(validateField)
         return
       }
 
       if (field.required && !getNestedValue(formData.value, field.name)) {
         newErrors[field.name] = `${field.label || field.name} 是必填项`
       }
-    })
+    }
+
+    fields.value.forEach(validateField)
 
     errors.value = newErrors
 
@@ -385,6 +411,96 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     Object.assign(dynamicFieldProps.value[field], props)
   }
 
+  const renderField = (field: FormField<T>): VNode | null => {
+    if (field.ifShow && !field.ifShow(formData.value)) {
+      return null
+    }
+
+    if (field.type === 'group') {
+      return (
+        <div class="form-group" key={field.name}>
+          {field.label && <div class="form-group-title">{field.label}</div>}
+          <div class="form-group-children">{field.children.map((child) => renderField(child))}</div>
+        </div>
+      )
+    }
+
+    const fieldProps = {
+      ...field,
+      ...(dynamicFieldProps.value[field.name] || {}),
+      modelValue: getFieldValue(field.name),
+      'onUpdate:modelValue': (val: any) => setFieldValue(field.name, val)
+    }
+
+    const error = errors.value[field.name]
+
+    return (
+      <FormItem
+        key={field.name}
+        label={field.label}
+        error={error}
+        hint={field.hint}
+        required={field.required}
+        layout={field.type === 'boolean' ? 'toggle' : 'default'}
+      >
+        {() => {
+          switch (field.type) {
+            case 'boolean':
+              return <Switch {...fieldProps} />
+            case 'slider':
+              return <Slider {...fieldProps} />
+            case 'select':
+              return <Select {...fieldProps} />
+            case 'textarea':
+              return <Textarea {...fieldProps} />
+            case 'array':
+              return <InputGroup {...fieldProps} />
+            case 'object':
+              return <InputGroup {...fieldProps} type="object" />
+            case 'checkboxGroup':
+              return <CheckboxGroup {...fieldProps} />
+            case 'modelSelector': {
+              const val = getFieldValue(field.name) || { modelId: '', providerId: '' }
+              const f = field as ModelSelectorField<T>
+              // 排除掉 field.type ('modelSelector')，否则会覆盖组件默认的 type ('select')
+              const { type: _type, ...restFieldProps } = fieldProps
+              return (
+                <ModelSelector
+                  {...restFieldProps}
+                  category={f.modelCategory}
+                  modelId={val.modelId}
+                  providerId={val.providerId}
+                  onUpdate:modelId={(v) =>
+                    setFieldValue(field.name, { ...val, modelId: v })
+                  }
+                  onUpdate:providerId={(v) =>
+                    setFieldValue(field.name, { ...val, providerId: v })
+                  }
+                />
+              )
+            }
+            case 'color':
+              return <ColorPicker {...fieldProps} />
+            case 'path':
+              return <PathSelector {...fieldProps} />
+            case 'upload':
+              return <FileUpload {...fieldProps} />
+            case 'custom':
+              return (field as CustomField<T>).render(formData.value)
+            default:
+              return (
+                <Input
+                  {...fieldProps}
+                  type={(field as TextField<T>).type || 'text'}
+                  placeholder={(field as TextField<T>).placeholder}
+                />
+              )
+          }
+        }}
+      </FormItem>
+    )
+  }
+
   const FormComponent = defineComponent({
     props: {
       fields: {
@@ -402,344 +518,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             {hasHeader && <header class="form-header">{config.title}</header>}
             <div class="form-content">
               <div class="form-wrapper">
-                {displayFields.map((field) => {
-                  if (field.ifShow && !field.ifShow(formData.value)) {
-                    return null
-                  }
-
-                  const hasError = errors.value[field.name]
-
-                  const dynamicProps = dynamicFieldProps.value[field.name] || {}
-
-                  switch (field.type) {
-                    case 'text':
-                    case 'password':
-                    case 'email':
-                    case 'number':
-                      return (
-                        <FormItem
-                          label={field.label}
-                          error={hasError}
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                          rest={field.rest}
-                        >
-                          <div style={{ display: 'flex', gap: '4px' }}>
-                            <Input
-                              type={field.type}
-                              placeholder={field.placeholder}
-                              disabled={field.disabled}
-                              readonly={field.readonly}
-                              modelValue={getNestedValue(formData.value, field.name)}
-                              onUpdate:modelValue={(value) => {
-                                setFieldValue(field.name, value)
-                              }}
-                              {...dynamicProps}
-                            />
-                            {field.rest?.()}
-                          </div>
-                        </FormItem>
-                      )
-
-                    case 'boolean':
-                      return (
-                        <FormItem
-                          hint={field.hint}
-                          label={field.label}
-                          required={field.required}
-                          layout="toggle"
-                        >
-                          <Switch
-                            modelValue={getNestedValue(formData.value, field.name)}
-                            onUpdate:modelValue={(value) => {
-                              setFieldValue(field.name, value)
-                            }}
-                            {...dynamicProps}
-                          />
-                        </FormItem>
-                      )
-
-                    case 'slider':
-                      return (
-                        <FormItem
-                          label={
-                            field.label
-                              ? `${field.label}: ${getNestedValue(formData.value, field.name)}${field.unit || ''}`
-                              : ''
-                          }
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                        >
-                          <Slider
-                            modelValue={getNestedValue(formData.value, field.name)}
-                            min={field.min}
-                            max={field.max}
-                            step={field.step}
-                            unit={field.unit}
-                            unlimited={field.unlimited}
-                            onUpdate:modelValue={(value) => {
-                              setFieldValue(field.name, value)
-                            }}
-                            {...dynamicProps}
-                          />
-                        </FormItem>
-                      )
-
-                    case 'select':
-                      return (
-                        <FormItem
-                          label={field.label}
-                          error={hasError}
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                        >
-                          <Select
-                            options={field.options}
-                            placeholder={field.placeholder}
-                            disabled={field.disabled}
-                            modelValue={getNestedValue(formData.value, field.name)}
-                            onUpdate:modelValue={(value) => {
-                              setFieldValue(field.name, value)
-                            }}
-                            clearable={field.clearable}
-                            {...dynamicProps}
-                          />
-                        </FormItem>
-                      )
-
-                    case 'textarea':
-                      return (
-                        <FormItem
-                          label={field.label}
-                          error={hasError}
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                        >
-                          <Textarea
-                            placeholder={field.placeholder}
-                            disabled={field.disabled}
-                            readonly={field.readonly}
-                            rows={field.rows}
-                            autoResize={field.autoResize}
-                            modelValue={getNestedValue(formData.value, field.name)}
-                            onUpdate:modelValue={(value) => {
-                              setFieldValue(field.name, value)
-                            }}
-                            {...dynamicProps}
-                          />
-                        </FormItem>
-                      )
-
-                    case 'array':
-                      return (
-                        <FormItem
-                          label={field.label}
-                          error={hasError}
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                        >
-                          <InputGroup
-                            mode="array"
-                            placeholder={field.placeholder}
-                            disabled={field.disabled}
-                            arrayValue={getNestedValue(formData.value, field.name) as string[]}
-                            onUpdate:arrayValue={(value) => {
-                              setFieldValue(field.name, value)
-                            }}
-                            {...dynamicProps}
-                          />
-                        </FormItem>
-                      )
-
-                    case 'object':
-                      return (
-                        <FormItem
-                          label={field.label}
-                          error={hasError}
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                        >
-                          <InputGroup
-                            mode="object"
-                            keyPlaceholder={field.keyPlaceholder}
-                            valuePlaceholder={field.valuePlaceholder}
-                            disabled={field.disabled}
-                            objectValue={
-                              getNestedValue(formData.value, field.name) as Record<string, string>
-                            }
-                            onUpdate:objectValue={(value) => {
-                              setFieldValue(field.name, value)
-                            }}
-                            {...dynamicProps}
-                          />
-                        </FormItem>
-                      )
-
-                    case 'checkboxGroup':
-                      return (
-                        <FormItem
-                          label={field.label}
-                          error={hasError}
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                        >
-                          <CheckboxGroup
-                            options={field.options}
-                            disabled={field.disabled}
-                            modelValue={getNestedValue(formData.value, field.name)}
-                            onUpdate:modelValue={(value) => {
-                              setFieldValue(field.name, value)
-                            }}
-                            {...dynamicProps}
-                          />
-                        </FormItem>
-                      )
-
-                    case 'modelSelector':
-                      return (
-                        <FormItem
-                          label={field.label}
-                          error={hasError}
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                        >
-                          <ModelSelector
-                            category={field.modelCategory}
-                            popupPosition={field.popupPosition}
-                            multiple={field.multiple}
-                            modelId={getNestedValue(formData.value, field.name)?.modelId || ''}
-                            providerId={
-                              getNestedValue(formData.value, field.name)?.providerId || ''
-                            }
-                            onUpdate:modelId={(value: string) => {
-                              const currentValue = getNestedValue(formData.value, field.name) || {}
-                              setNestedValue(formData.value, field.name, {
-                                ...currentValue,
-                                modelId: value
-                              })
-                              config.onChange?.(
-                                field.name as keyof T,
-                                getNestedValue(formData.value, field.name) as T[keyof T],
-                                formData.value
-                              )
-                            }}
-                            onUpdate:providerId={(value: string) => {
-                              const currentValue = getNestedValue(formData.value, field.name) || {}
-                              setNestedValue(formData.value, field.name, {
-                                ...currentValue,
-                                providerId: value
-                              })
-                              config.onChange?.(
-                                field.name as keyof T,
-                                getNestedValue(formData.value, field.name) as T[keyof T],
-                                formData.value
-                              )
-                            }}
-                            {...dynamicProps}
-                          />
-                        </FormItem>
-                      )
-
-                    case 'color':
-                      return (
-                        <FormItem
-                          label={field.label}
-                          error={hasError}
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                        >
-                          <ColorPicker
-                            placeholder={field.placeholder}
-                            disabled={field.disabled}
-                            presetColors={field.presetColors}
-                            showAlpha={field.showAlpha}
-                            modelValue={getNestedValue(formData.value, field.name)}
-                            onUpdate:modelValue={(value) => {
-                              setFieldValue(field.name, value)
-                            }}
-                            {...dynamicProps}
-                          />
-                        </FormItem>
-                      )
-
-                    case 'path':
-                      return (
-                        <FormItem
-                          label={field.label}
-                          error={hasError}
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                        >
-                          <PathSelector
-                            placeholder={field.placeholder}
-                            disabled={field.disabled}
-                            readonly={field.readonly}
-                            dialogOptions={field.dialogOptions}
-                            modelValue={getNestedValue(formData.value, field.name)}
-                            onUpdate:modelValue={(value) => {
-                              setFieldValue(field.name, value)
-                            }}
-                            {...dynamicProps}
-                          />
-                        </FormItem>
-                      )
-
-
-
-                    case 'upload':
-                      return (
-                        <FormItem
-                          label={field.label}
-                          error={hasError}
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                        >
-                          <FileUpload
-                            showUpload
-                            multiple={field.multiple}
-                            modelValue={getNestedValue(formData.value, field.name)}
-                            onUpdate:modelValue={(value) => {
-                              setFieldValue(field.name, value)
-                            }}
-                            {...dynamicProps}
-                          />
-                        </FormItem>
-                      )
-
-                    case 'custom':
-                      if (field.render) {
-                        const result = field.render(formData.value) as any
-                        if (!isVNode(result) && result.setup) {
-                          return h(result)
-                        }
-                        return result
-                      }
-                      return (
-                        <FormItem
-                          label={field.label}
-                          error={hasError}
-                          hint={field.hint}
-                          required={field.required}
-                          layout="default"
-                        >
-                          {slots[field.name]?.(formData.value)}
-                        </FormItem>
-                      )
-                    default:
-                      return null
-                  }
-                })}
+                {displayFields.map((field) => renderField(field))}
                 {slots.footer?.()}
               </div>
             </div>
@@ -833,6 +612,29 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
       .form-item-hint {
         color: var(--text-tertiary);
+      }
+
+      .form-group {
+        margin-bottom: 24px;
+        padding: 16px;
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        background: var(--bg-secondary-soft);
+      }
+
+      .form-group-title {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--border-subtle);
+        padding-bottom: 8px;
+      }
+
+      .form-group-children {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
       }
     `
     document.head.appendChild(style)

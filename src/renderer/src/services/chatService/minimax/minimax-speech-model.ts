@@ -9,7 +9,7 @@ import { MiniMaxConfig } from './minimax-config';
 import { miniMaxFailedResponseHandler } from './minimax-error';
 import { MiniMaxSpeechAPITypes, MiniMaxSpeechAPIResponse } from './minimax-api-types';
 import { T2aV2RequestSchema } from './t2a-v2.request.schema'
-const miniMaxSpeechCallOptionsSchema = T2aV2RequestSchema
+export const miniMaxSpeechCallOptionsSchema = T2aV2RequestSchema
 
 export type MiniMaxSpeechCallOptions = z.infer<typeof miniMaxSpeechCallOptionsSchema>;
 

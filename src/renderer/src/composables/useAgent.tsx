@@ -1,3 +1,6 @@
+import { zodSchemaToFormfields } from '../utils/zod-to-form'
+import { createRegistry } from '../services/chatService/registry'
+
 export const useAgent = () => {
   const agentStore = useAgentStore()
   const settingsStore = useSettingsStore()
@@ -130,7 +133,8 @@ export const useAgent = () => {
           speechVoice: agent.speechVoice || '',
           speechMode: agent.speechMode || 'sentence',
           speechSpeed: agent.speechSpeed ?? 1,
-          speechLanguage: agent.speechLanguage || 'auto'
+          speechLanguage: agent.speechLanguage || 'auto',
+          speechOptions: agent.speechOptions ? { ...agent.speechOptions } : {}
         }
       : {
           name: '',
@@ -154,7 +158,8 @@ export const useAgent = () => {
           speechVoice: '',
           speechMode: 'sentence',
           speechSpeed: 1,
-          speechLanguage: 'auto'
+          speechLanguage: 'auto',
+          speechOptions: {}
         }
 
     let previousMcpServers = initialData.mcpServers || []
@@ -296,6 +301,45 @@ export const useAgent = () => {
       } as TextField<Partial<Agent>>
     ]
 
+    const getDynamicSpeechFields = () => {
+      const dynamicFields: FormField<Partial<Agent>>[] = []
+      const providers = settingsStore.getAllProviders
+
+      for (const provider of providers) {
+        try {
+          const registry = createRegistry({
+            apiKey: provider.apiKey || '',
+            baseURL: provider.baseUrl,
+            name: provider.name
+          })
+
+          const providerInstance = registry.getProvider(provider.providerType)
+          if (providerInstance?.speechCallOptionsSchema) {
+            const fields = zodSchemaToFormfields<Partial<Agent>>(
+              providerInstance.speechCallOptionsSchema,
+              'speechOptions'
+            )
+
+            dynamicFields.push(
+              ...fields.map((field) => ({
+                ...field,
+                ifShow: (data: Partial<Agent>) => {
+                  if (!data.speechVoice) return false
+                  return (
+                    provider.models?.some((m) => m.voices?.some((v) => v.id === data.speechVoice)) ||
+                    false
+                  )
+                }
+              }))
+            )
+          }
+        } catch (e) {
+          console.warn(`Failed to get speech fields for provider ${provider.id}:`, e)
+        }
+      }
+      return dynamicFields
+    }
+
     const speechFields: FormField<Partial<Agent>>[] = [
       {
         name: 'speechVoice',
@@ -330,7 +374,8 @@ export const useAgent = () => {
         label: '语言',
         placeholder: '例如: en, zh, ja 或 auto',
         hint: '语音生成的语言代码 (ISO 639-1) 或 auto。'
-      } as TextField<Partial<Agent>>
+      } as TextField<Partial<Agent>>,
+      ...getDynamicSpeechFields()
     ]
 
     const toolFields: FormField<Partial<Agent>>[] = [
