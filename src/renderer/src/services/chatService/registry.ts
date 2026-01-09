@@ -8,6 +8,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createHume } from '@ai-sdk/hume'
 import { createElevenLabs } from '@ai-sdk/elevenlabs'
 import { ProviderV3 } from '@ai-sdk/provider'
+import { createMiniMax } from './minimax'
 
 export const createRegistry = (options: { apiKey: string; baseURL: string; name: string }) => {
   return createProviderRegistry({
@@ -19,6 +20,7 @@ export const createRegistry = (options: { apiKey: string; baseURL: string; name:
     ollama: createOpenAICompatible(options),
     hume: createHume(options) as unknown as ProviderV3,
     elevenlabs: createElevenLabs(options),
+    minimax: createMiniMax(options) as unknown as ProviderV3,
     'openai-compatible': createOpenAICompatible({ ...options, name: options.name }),
   })
 }

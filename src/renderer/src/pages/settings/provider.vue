@@ -321,6 +321,7 @@ const [ProviderForm, formActions] = useForm({
         { value: 'hume', label: 'Hume AI' },
         { value: 'elevenlabs', label: 'ElevenLabs' },
         { value: 'openai-compatible', label: 'OpenAI 兼容' },
+        { value: 'minimax', label: 'MiniMax' },
         { value: 'ollama', label: 'Ollama' }
       ]
     },
