@@ -185,7 +185,7 @@ defineExpose({
             autocomplete="off" />
 
         <!-- 清除按钮 -->
-        <Button v-if="clearable && localValue && !disabled" variant="text" @click="handleClear" @mousedown.prevent>
+        <Button v-if="clearable && localValue && !disabled" class="search-input__clear" variant="text" @click="handleClear" @mousedown.prevent>
             <Close />
         </Button>
 
@@ -354,6 +354,13 @@ defineExpose({
     margin-right: 4px;
     border-radius: 2px;
     transition: all 0.2s ease;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.search-input-container:hover .search-input__clear {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .search-input__clear:hover {

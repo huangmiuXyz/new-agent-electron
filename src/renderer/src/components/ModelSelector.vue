@@ -165,8 +165,10 @@ const handleModelSelect = (id: string) => {
           <Box v-else-if="selectedModelId" style="font-size: 10px;" />
           <span>{{ currentModelLabel }}</span>
         </div>
-        <ChevronDown v-if="!selectedModelId" />
-        <Close v-else class="clear-btn" @click.stop="clearSelection" />
+        <div class="model-btn-icons">
+          <Close v-if="selectedModelId && !isPopupOpen" class="clear-btn" @click.stop="clearSelection" />
+          <ChevronDown class="arrow-icon" />
+        </div>
       </div>
       <Button v-else variant="icon" size="sm">
         <Image v-if="selectedModelId && currentSelectedProvider?.logo" style="width: 15px; border-radius: 2px"
@@ -213,6 +215,43 @@ const handleModelSelect = (id: string) => {
   display: flex;
   align-items: center;
   gap: 6px;
+  overflow: hidden;
+}
+
+.model-btn-content span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-btn-icons {
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.clear-btn {
+  position: absolute;
+  right: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s;
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+
+.model-btn:hover .clear-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.model-btn:hover .arrow-icon {
+  opacity: 0;
+}
+
+.arrow-icon {
+  transition: opacity 0.2s;
 }
 
 .model-btn:hover {

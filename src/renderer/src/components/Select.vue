@@ -99,11 +99,17 @@ const clearValue = () => {
     display: flex;
     align-items: center;
     cursor: pointer;
-    opacity: 0.7;
+    opacity: 0;
     transition: opacity 0.2s;
+    pointer-events: none;
 }
 
-.select-clear:hover {
+.select-wrapper:hover .select-clear {
+    opacity: 0.7;
+    pointer-events: auto;
+}
+
+.select-wrapper:hover .select-clear:hover {
     opacity: 1;
 }
 
