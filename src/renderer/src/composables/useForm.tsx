@@ -10,7 +10,7 @@ import ColorPicker from '@renderer/components/ColorPicker.vue'
 import PathSelector from '@renderer/components/PathSelector.vue'
 import FileUpload from '@renderer/components/FileUpload.vue'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
-import { VNode, MaybeRefOrGetter, toValue, isVNode, h, PropType } from 'vue'
+import { VNode, MaybeRefOrGetter, toValue, PropType } from 'vue'
 
 export const FormItem = defineComponent({
   props: {
@@ -443,7 +443,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         required={field.required}
         layout={field.type === 'boolean' ? 'toggle' : 'default'}
       >
-        {() => {
+        {(() => {
           switch (field.type) {
             case 'boolean':
               return <Switch {...fieldProps} />
@@ -462,19 +462,21 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             case 'modelSelector': {
               const val = getFieldValue(field.name) || { modelId: '', providerId: '' }
               const f = field as ModelSelectorField<T>
-              const { type: _type, ...restFieldProps } = fieldProps
               return (
                 <ModelSelector
-                  {...restFieldProps}
+                  popupPosition={f.popupPosition}
+                  multiple={f.multiple}
                   category={f.modelCategory}
                   modelId={val.modelId}
                   providerId={val.providerId}
-                  onUpdate:modelId={(v) =>
-                    setFieldValue(field.name, { ...val, modelId: v })
-                  }
-                  onUpdate:providerId={(v) =>
-                    setFieldValue(field.name, { ...val, providerId: v })
-                  }
+                  onUpdate:modelId={(v) => {
+                    const current = getFieldValue(field.name) || { modelId: '', providerId: '' }
+                    setFieldValue(field.name, { ...current, modelId: v })
+                  }}
+                  onUpdate:providerId={(v) => {
+                    const current = getFieldValue(field.name) || { modelId: '', providerId: '' }
+                    setFieldValue(field.name, { ...current, providerId: v })
+                  }}
                 />
               )
             }
@@ -495,7 +497,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                 />
               )
           }
-        }}
+        })()}
       </FormItem>
     )
   }
