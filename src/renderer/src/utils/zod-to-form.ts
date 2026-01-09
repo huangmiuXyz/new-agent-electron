@@ -95,11 +95,10 @@ function convertZodTypeToField(
       return { ...commonProps, type: 'array' }
     }
 
-    // 如果数组元素是对象（ZodObject），递归渲染
     if (elementType instanceof z.ZodObject) {
       return {
         ...commonProps,
-        type: 'group',
+        type: 'array-group',
         children: zodSchemaToFormfields(elementType, name)
       }
     }
@@ -123,14 +122,15 @@ function convertZodTypeToField(
       label: String(v),
       value: v
     }))
-    return { ...commonProps, type: 'select', options }
+    return { ...commonProps, type: 'select', options, clearable: !required }
   }
 
   if (zodType instanceof z.ZodLiteral) {
     return {
       ...commonProps,
       type: 'select',
-      options: [{ label: String(zodType.value), value: zodType.value as string | number }]
+      options: [{ label: String(zodType.value), value: zodType.value as string | number }],
+      clearable: !required
     }
   }
 
@@ -143,7 +143,7 @@ function convertZodTypeToField(
       })
 
     if (options.length > 0) {
-      return { ...commonProps, type: 'select', options }
+      return { ...commonProps, type: 'select', options, clearable: !required }
     }
   }
 

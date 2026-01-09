@@ -9,6 +9,8 @@ import ModelSelector from '@renderer/components/ModelSelector.vue'
 import ColorPicker from '@renderer/components/ColorPicker.vue'
 import PathSelector from '@renderer/components/PathSelector.vue'
 import FileUpload from '@renderer/components/FileUpload.vue'
+import Button from '@renderer/components/Button.vue'
+import { useIcon } from './useIcon'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
 import Markdown from '@renderer/components/Markdown.vue'
 import { VNode, MaybeRefOrGetter, toValue, PropType } from 'vue'
@@ -196,6 +198,12 @@ export interface GroupField<T> extends BaseField<T> {
   children: FormField<T>[]
 }
 
+export interface ArrayGroupField<T> extends BaseField<T> {
+  type: 'array-group'
+  children: FormField<T>[]
+  max?: number
+}
+
 export type FormField<T> =
   | TextField<T>
   | BooleanField<T>
@@ -211,6 +219,7 @@ export type FormField<T> =
   | UploadField<T>
   | CustomField<T>
   | GroupField<T>
+  | ArrayGroupField<T>
 
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
@@ -271,6 +280,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         return []
       case 'object':
         return {}
+      case 'array-group':
+        return []
       case 'checkboxGroup':
         return []
       case 'modelSelector':
@@ -431,6 +442,61 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       return null
     }
 
+    if (field.type === 'array-group') {
+      const value = (getFieldValue(field.name) || []) as any[]
+      const icons = useIcon(['Plus', 'Close'])
+      const PlusIcon = icons.Plus as any
+      const CloseIcon = icons.Close as any
+
+      const addItem = () => {
+        const newItem = {} as any
+        field.children.forEach((child: any) => {
+          const childName = child.name.split('.').pop()!
+          newItem[childName] = getDefaultValue(child.type, child)
+        })
+        setFieldValue(field.name, [...value, newItem])
+      }
+
+      const removeItem = (index: number) => {
+        const newValue = [...value]
+        newValue.splice(index, 1)
+        setFieldValue(field.name, newValue)
+      }
+
+      return (
+        <div class="form-array-group" key={field.name}>
+          {field.label && <div class="form-group-title">{field.label}</div>}
+          <div class="form-array-items">
+            {value.map((item, index) => (
+              <div class="form-array-item" key={`${field.name}-${index}`}>
+                <div class="form-array-item-content">
+                  {field.children.map((child: any) => {
+                    const childName = child.name.split('.').pop()!
+                    const fieldName = `${field.name}.${index}.${childName}`
+
+                    // Create a virtual field for the child
+                    const childField = {
+                      ...child,
+                      name: fieldName,
+                      label: child.label || childName
+                    }
+                    return renderField(childField)
+                  })}
+                </div>
+                <Button variant="text" size="sm" class="remove-item-btn" onClick={() => removeItem(index)}>
+                  <CloseIcon />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <button type="button" class="add-item-btn" onClick={addItem}>
+            <PlusIcon />
+            <span>添加{field.label || '项'}</span>
+          </button>
+        </div>
+      )
+    }
+
     if (field.type === 'group') {
       return (
         <div class="form-group" key={field.name}>
@@ -465,7 +531,12 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             case 'slider':
               return <Slider {...fieldProps} />
             case 'select':
-              return <Select {...fieldProps} />
+              return (
+                <Select
+                  {...fieldProps}
+                  clearable={(field as SelectField<T>).clearable ?? !field.required}
+                />
+              )
             case 'textarea':
               return <Textarea {...fieldProps} />
             case 'array':
@@ -651,6 +722,79 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         display: flex;
         flex-direction: column;
         gap: 4px;
+      }
+
+      .form-array-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        padding: 12px;
+        background: var(--bg-secondary);
+      }
+
+      .form-array-items {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .form-array-item {
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        border: 1px solid var(--border-subtle);
+      }
+
+      .form-array-item-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .remove-item-btn {
+        margin-top: 4px;
+        color: var(--text-tertiary);
+        transition: all 0.2s;
+        padding: 4px !important;
+        height: 24px !important;
+        width: 24px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 4px !important;
+      }
+
+      .remove-item-btn:hover {
+        color: #ff4d4f !important;
+        background: rgba(255, 77, 79, 0.1) !important;
+      }
+
+      .add-item-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        width: 100%;
+        padding: 6px;
+        border: 1px dashed var(--border-subtle);
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 500;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .add-item-btn:hover {
+        border-color: var(--text-secondary);
+        color: var(--text-primary);
+        background: var(--bg-secondary);
       }
     `
     document.head.appendChild(style)
