@@ -125,7 +125,7 @@ const toggleSpeech = () => {
       return
     }
 
-    const voice = agentStore.selectedAgent?.speechVoice || defaultModels.value.speechVoice
+    const voice = agentStore.selectedAgent?.speechVoice
     if (!voice) {
       messageApi.error('请先在智能体设置或默认设置中选择语音音色')
       return

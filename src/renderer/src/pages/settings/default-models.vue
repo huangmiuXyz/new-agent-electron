@@ -66,8 +66,6 @@ const [DefaultModelsForm] = useForm({
             searchProviderId: data.searchModel?.providerId || '',
             speechModelId: data.speechModel?.modelId || '',
             speechProviderId: data.speechModel?.providerId || '',
-            speechVoice: defaultModels.value.speechVoice,
-            speechMode: defaultModels.value.speechMode
         })
     }
 })
