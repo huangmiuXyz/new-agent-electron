@@ -74,7 +74,7 @@
     "baseUrl": "https://api.minimaxi.com/v1",
     "id": "MiniMax",
     "logo": "/images/providers/minimax.png",
-    "providerType": "openai-compatible"
+    "providerType": "minimax"
   },
   {
     "name": "魔搭",
