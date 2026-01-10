@@ -3,24 +3,14 @@ import {
   combineHeaders,
   parseProviderOptions,
 } from '@ai-sdk/provider-utils';
-import { z } from 'zod';
 import { SiliconFlowConfig } from './siliconflow-config';
 import { siliconFlowFailedResponseHandler } from './siliconflow-error';
 import { SiliconFlowSpeechAPITypes } from './siliconflow-api-types';
-
-export const siliconFlowSpeechCallOptionsSchema = z.object({
-  response_format: z.enum(['mp3', 'wav', 'pcm', 'flac', 'aac', 'opus']).optional(),
-  sample_rate: z.number().optional(),
-  stream: z.boolean().optional(),
-  speed: z.number().optional(),
-  gain: z.number().optional(),
-});
-
-export type SiliconFlowSpeechCallOptions = z.infer<typeof siliconFlowSpeechCallOptionsSchema>;
+import { siliconFlowCreateSpeechRequestSchema } from './siliconflow-schema';
 
 export class SiliconFlowSpeechModel implements SpeechModelV3 {
   readonly specificationVersion = 'v3';
-  public static readonly speechCallOptionsSchema = siliconFlowSpeechCallOptionsSchema;
+  public static readonly speechCallOptionsSchema = siliconFlowCreateSpeechRequestSchema;
 
   get provider(): string {
     return this.config.provider;
