@@ -70,7 +70,6 @@ function convertZodTypeToField(
     ifShow: isHidden ? () => false : undefined
   }
 
-  // 使用 actualType 进行类型判断
   if (actualType instanceof z.ZodObject) {
     const children = zodSchemaToFormfields(actualType, name)
     if (children.length === 0) return null
