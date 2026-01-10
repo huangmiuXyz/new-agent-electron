@@ -19,7 +19,6 @@ export type ProviderFactory = (options: { apiKey: string; baseURL: string; name:
 
 interface ProviderRegistryProviderExtends<T extends Record<string, ProviderV3Extends>> extends ProviderRegistryProvider<T> {
   getProvider: (providerType: keyof T) => T[keyof T]
-  getProviders: () => T
 }
 
 export const mergeFun = <T extends ProviderV3Extends>(provider: Partial<T>, funs: Partial<ProviderV3Extends>): ProviderV3Extends => {
@@ -251,7 +250,5 @@ export const createRegistry = (options: { apiKey: string; baseURL: string; name:
   })
 
   const registry = createProviderRegistry(providers) as ProviderRegistryProviderExtends<Record<string, ProviderV3Extends>>
-  registry.getProvider = (providerType: string) => providers[providerType]
-  registry.getProviders = () => providers
   return registry
 }
