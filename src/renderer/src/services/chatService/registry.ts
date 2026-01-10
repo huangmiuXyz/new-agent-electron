@@ -9,6 +9,7 @@ import { createHume } from '@ai-sdk/hume'
 import { createElevenLabs } from '@ai-sdk/elevenlabs'
 import { ProviderV3 } from '@ai-sdk/provider'
 import { z } from 'zod'
+import { shallowReactive } from 'vue'
 export interface ProviderV3Extends extends ProviderV3 {
   listModels?: () => Promise<Model[]>
   speechCallOptionsSchema?: z.ZodSchema
@@ -16,14 +17,9 @@ export interface ProviderV3Extends extends ProviderV3 {
 
 export type ProviderFactory = (options: { apiKey: string; baseURL: string; name: string }) => ProviderV3Extends
 
-const providerRegistry = new Map<string, ProviderFactory>()
-
-export const registerProviderFactory = (name: string, factory: ProviderFactory) => {
-  providerRegistry.set(name, factory)
-}
-
 interface ProviderRegistryProviderExtends<T extends Record<string, ProviderV3Extends>> extends ProviderRegistryProvider<T> {
   getProvider: (providerType: keyof T) => T[keyof T]
+  getProviders: () => T
 }
 
 export const mergeFun = <T extends ProviderV3Extends>(provider: Partial<T>, funs: Partial<ProviderV3Extends>): ProviderV3Extends => {
@@ -54,196 +50,205 @@ interface CommonModelResponse {
   }[]
 }
 
-export const createRegistry = (options: { apiKey: string; baseURL: string; name: string }) => {
-  const providers: Record<string, ProviderV3Extends> = {
-    anthropic: mergeFun(createAnthropic(options), {
-      listModels: async () => {
-        const response = await fetch(`${options.baseURL}/models`, {
-          headers: {
-            'x-api-key': options.apiKey,
-            'anthropic-version': '2023-06-01'
-          }
-        })
-        const result = (await response.json()) as CommonModelResponse
-        return (result.data || []).map((m) => ({
-          id: m.id,
-          name: m.display_name || m.id,
-          category: 'text'
-        })) as Model[]
-      }
-    }),
-    deepseek: mergeFun(createDeepSeek(options), {
-      listModels: async () => {
-        const response = await fetch(`${options.baseURL}/models`, {
-          headers: {
-            'Authorization': `Bearer ${options.apiKey}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        const result = (await response.json()) as CommonModelResponse
-        return (result.data || []).map((m) => ({
-          ...m,
-          id: m.id,
-          name: m.id,
-          category: 'text'
-        })) as Model[]
-      }
-    }),
-    google: mergeFun(createGoogleGenerativeAI(options), {
-      listModels: async () => {
-        const params = new URLSearchParams()
-        params.append('key', options.apiKey)
-        params.append('pageSize', '500')
-        const response = await fetch(`${options.baseURL}/models?${params.toString()}`)
-        const result = (await response.json()) as CommonModelResponse
-        return (result.models || []).map((m) => ({
-          id: m.name.replace('models/', ''),
-          name: m.displayName || m.name.replace('models/', ''),
-          description: m.description,
-          category: 'text'
-        })) as Model[]
-      }
-    }),
-    xai: mergeFun(createXai(options), {
-      listModels: async () => {
-        const response = await fetch(`${options.baseURL}/models`, {
-          headers: {
-            'Authorization': `Bearer ${options.apiKey}`
-          }
-        })
-        const result = (await response.json()) as CommonModelResponse
-        return (result.data || []).map((m) => ({
-          ...m,
-          id: m.id,
-          name: m.id,
-          category: 'text'
-        })) as Model[]
-      }
-    }),
-    openai: mergeFun(createOpenAI({ ...options, name: options.name }), {
-      listModels: async () => {
-        const response = await fetch(`${options.baseURL}/models`, {
-          headers: {
-            'Authorization': `Bearer ${options.apiKey}`
-          }
-        })
-        const result = (await response.json()) as CommonModelResponse
-        return (result.data || []).map((m) => ({
-          id: m.id,
-          name: m.id,
-          category: (m.id.includes('tts') ? 'speech' : m.id.includes('embed') ? 'embedding' : 'text') as ModelCategory,
-          voices: m.id.includes('tts')
-            ? [
-              { id: 'alloy', name: 'Alloy' },
-              { id: 'ash', name: 'Ash' },
-              { id: 'ballad', name: 'Ballad' },
-              { id: 'coral', name: 'Coral' },
-              { id: 'echo', name: 'Echo' },
-              { id: 'fable', name: 'Fable' },
-              { id: 'onyx', name: 'Onyx' },
-              { id: 'nova', name: 'Nova' },
-              { id: 'sage', name: 'Sage' },
-              { id: 'shimmer', name: 'Shimmer' },
-              { id: 'verse', name: 'Verse' },
-              { id: 'marin', name: 'Marin' },
-              { id: 'cedar', name: 'Cedar' }
-            ]
-            : undefined
-        })) as Model[]
-      }
-    }),
-    ollama: mergeFun(createOpenAICompatible(options), {
-      listModels: async () => {
-        const response = await fetch(`${options.baseURL}/models`, {
-          headers: {
-            'Authorization': `Bearer ${options.apiKey}`
-          }
-        })
-        const result = (await response.json()) as CommonModelResponse
-        return (result.data || []).map((m) => ({
-          ...m,
-          id: m.id,
-          name: m.id,
-          category: 'text'
-        })) as Model[]
-      }
-    }),
-    hume: mergeFun(createHume(options) as unknown as ProviderV3, {
-      listModels: async () => {
-        const response = await fetch(`${options.baseURL}/v0/tts/voices?provider=HUME_AI`, {
-          headers: {
-            'X-Hume-Api-Key': options.apiKey
-          }
-        })
-        const result = (await response.json()) as CommonModelResponse
-        return [
-          {
-            id: 'hume-tts',
-            name: 'Hume TTS',
-            category: 'speech',
-            voices: (result.voices_page || []).map((v) => ({
-              id: v.id,
-              name: v.name
-            })),
-            object: 'model',
-            created: Date.now(),
-            owned_by: 'hume'
-          }
-        ] as Model[]
-      }
-    }),
-    elevenlabs: mergeFun(createElevenLabs(options), {
-      listModels: async () => {
-        const headers = {
-          'xi-api-key': options.apiKey
+const providerFactories = shallowReactive<Record<string, ProviderFactory>>({
+  anthropic: (options) => mergeFun(createAnthropic(options), {
+    listModels: async () => {
+      const response = await fetch(`${options.baseURL}/models`, {
+        headers: {
+          'x-api-key': options.apiKey,
+          'anthropic-version': '2023-06-01'
         }
-        const [voicesResponse, modelsResponse] = await Promise.all([
-          fetch(`${options.baseURL}/v1/voices`, { headers }),
-          fetch(`${options.baseURL}/v1/models`, { headers })
-        ])
-        const voicesResult = (await voicesResponse.json()) as CommonModelResponse
-        const modelsResult = (await modelsResponse.json()) as { model_id: string; name: string; description: string }[]
-        const voices = (voicesResult.voices || []).map((v) => ({
-          id: v.voice_id,
-          name: v.name
-        }))
-
-        return (modelsResult || []).map((m) => ({
-          id: m.model_id,
-          name: m.name,
-          description: m.description,
+      })
+      const result = (await response.json()) as CommonModelResponse
+      return (result.data || []).map((m) => ({
+        id: m.id,
+        name: m.display_name || m.id,
+        category: 'text'
+      })) as Model[]
+    }
+  }),
+  deepseek: (options) => mergeFun(createDeepSeek(options), {
+    listModels: async () => {
+      const response = await fetch(`${options.baseURL}/models`, {
+        headers: {
+          'Authorization': `Bearer ${options.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      const result = (await response.json()) as CommonModelResponse
+      return (result.data || []).map((m) => ({
+        ...m,
+        id: m.id,
+        name: m.id,
+        category: 'text'
+      })) as Model[]
+    }
+  }),
+  google: (options) => mergeFun(createGoogleGenerativeAI(options), {
+    listModels: async () => {
+      const params = new URLSearchParams()
+      params.append('key', options.apiKey)
+      params.append('pageSize', '500')
+      const response = await fetch(`${options.baseURL}/models?${params.toString()}`)
+      const result = (await response.json()) as CommonModelResponse
+      return (result.models || []).map((m) => ({
+        id: m.name.replace('models/', ''),
+        name: m.displayName || m.name.replace('models/', ''),
+        description: m.description,
+        category: 'text'
+      })) as Model[]
+    }
+  }),
+  xai: (options) => mergeFun(createXai(options), {
+    listModels: async () => {
+      const response = await fetch(`${options.baseURL}/models`, {
+        headers: {
+          'Authorization': `Bearer ${options.apiKey}`
+        }
+      })
+      const result = (await response.json()) as CommonModelResponse
+      return (result.data || []).map((m) => ({
+        ...m,
+        id: m.id,
+        name: m.id,
+        category: 'text'
+      })) as Model[]
+    }
+  }),
+  openai: (options) => mergeFun(createOpenAI(options), {
+    listModels: async () => {
+      const response = await fetch(`${options.baseURL}/models`, {
+        headers: {
+          'Authorization': `Bearer ${options.apiKey}`
+        }
+      })
+      const result = (await response.json()) as CommonModelResponse
+      return (result.data || []).map((m) => ({
+        id: m.id,
+        name: m.id,
+        category: (m.id.includes('tts') ? 'speech' : m.id.includes('embed') ? 'embedding' : 'text') as ModelCategory,
+        voices: m.id.includes('tts')
+          ? [
+            { id: 'alloy', name: 'Alloy' },
+            { id: 'ash', name: 'Ash' },
+            { id: 'ballad', name: 'Ballad' },
+            { id: 'coral', name: 'Coral' },
+            { id: 'echo', name: 'Echo' },
+            { id: 'fable', name: 'Fable' },
+            { id: 'onyx', name: 'Onyx' },
+            { id: 'nova', name: 'Nova' },
+            { id: 'sage', name: 'Sage' },
+            { id: 'shimmer', name: 'Shimmer' },
+            { id: 'verse', name: 'Verse' },
+            { id: 'marin', name: 'Marin' },
+            { id: 'cedar', name: 'Cedar' }
+          ]
+          : undefined
+      })) as Model[]
+    }
+  }),
+  ollama: (options) => mergeFun(createOpenAICompatible(options), {
+    listModels: async () => {
+      const response = await fetch(`${options.baseURL}/models`, {
+        headers: {
+          'Authorization': `Bearer ${options.apiKey}`
+        }
+      })
+      const result = (await response.json()) as CommonModelResponse
+      return (result.data || []).map((m) => ({
+        ...m,
+        id: m.id,
+        name: m.id,
+        category: 'text'
+      })) as Model[]
+    }
+  }),
+  hume: (options) => mergeFun(createHume(options) as unknown as ProviderV3, {
+    listModels: async () => {
+      const response = await fetch(`${options.baseURL}/v0/tts/voices?provider=HUME_AI`, {
+        headers: {
+          'X-Hume-Api-Key': options.apiKey
+        }
+      })
+      const result = (await response.json()) as CommonModelResponse
+      return [
+        {
+          id: 'hume-tts',
+          name: 'Hume TTS',
           category: 'speech',
-          voices: voices,
+          voices: (result.voices_page || []).map((v) => ({
+            id: v.id,
+            name: v.name
+          })),
           object: 'model',
           created: Date.now(),
-          owned_by: 'elevenlabs'
-        })) as Model[]
+          owned_by: 'hume'
+        }
+      ] as Model[]
+    }
+  }),
+  elevenlabs: (options) => mergeFun(createElevenLabs(options), {
+    listModels: async () => {
+      const headers = {
+        'xi-api-key': options.apiKey
       }
-    }),
-    'openai-compatible': mergeFun(createOpenAICompatible({ ...options, name: options.name }), {
-      listModels: async () => {
-        const response = await fetch(`${options.baseURL}/models`, {
-          headers: {
-            'Authorization': `Bearer ${options.apiKey}`
-          }
-        })
-        const result = (await response.json()) as CommonModelResponse
-        return (result.data || []).map((m) => ({
-          ...m,
-          id: m.id,
-          name: m.id,
-          category: 'text'
-        })) as Model[]
-      }
-    }),
-  }
+      const [voicesResponse, modelsResponse] = await Promise.all([
+        fetch(`${options.baseURL}/v1/voices`, { headers }),
+        fetch(`${options.baseURL}/v1/models`, { headers })
+      ])
+      const voicesResult = (await voicesResponse.json()) as CommonModelResponse
+      const modelsResult = (await modelsResponse.json()) as { model_id: string; name: string; description: string }[]
+      const voices = (voicesResult.voices || []).map((v) => ({
+        id: v.voice_id,
+        name: v.name
+      }))
 
-  // 合并插件注册的提供商
-  providerRegistry.forEach((factory, name) => {
-    providers[name] = factory(options)
+      return (modelsResult || []).map((m) => ({
+        id: m.model_id,
+        name: m.name,
+        description: m.description,
+        category: 'speech',
+        voices: voices,
+        object: 'model',
+        created: Date.now(),
+        owned_by: 'elevenlabs'
+      })) as Model[]
+    }
+  }),
+  'openai-compatible': (options) => mergeFun(createOpenAICompatible({ ...options, name: options.name }), {
+    listModels: async () => {
+      const response = await fetch(`${options.baseURL}/models`, {
+        headers: {
+          'Authorization': `Bearer ${options.apiKey}`
+        }
+      })
+      const result = (await response.json()) as CommonModelResponse
+      return (result.data || []).map((m) => ({
+        ...m,
+        id: m.id,
+        name: m.id,
+        category: 'text'
+      })) as Model[]
+    }
+  })
+})
+
+export const registerProviderFactory = (name: string, factory: ProviderFactory) => {
+  providerFactories[name] = factory
+}
+
+export const getProviderTypes = () => {
+  return Object.keys(providerFactories)
+}
+
+export const createRegistry = (options: { apiKey: string; baseURL: string; name: string }) => {
+  const providers: Record<string, ProviderV3Extends> = {}
+  Object.keys(providerFactories).forEach((key) => {
+    providers[key] = providerFactories[key](options)
   })
 
   const registry = createProviderRegistry(providers) as ProviderRegistryProviderExtends<Record<string, ProviderV3Extends>>
   registry.getProvider = (providerType: string) => providers[providerType]
+  registry.getProviders = () => providers
   return registry
 }

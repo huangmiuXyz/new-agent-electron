@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { FormItem } from '@renderer/composables/useForm'
+import { createRegistry, getProviderTypes } from '@renderer/services/chatService/registry'
 
 const { getAllProviders, providers } = storeToRefs(useSettingsStore())
 const {
@@ -291,6 +292,13 @@ const ModelList = defineComponent({
   }
 })
 
+const providerOptions = computed(() => {
+  return getProviderTypes().map((key) => ({
+    value: key,
+    label: key
+  }))
+})
+
 const [ProviderForm, formActions] = useForm({
   title: `${activeProvider.value?.name} 设置`,
   showHeader: false,
@@ -312,17 +320,7 @@ const [ProviderForm, formActions] = useForm({
       name: 'providerType',
       type: 'select',
       label: '模型类型',
-      options: [
-        { value: 'anthropic', label: 'Anthropic' },
-        { value: 'openai', label: 'OpenAI' },
-        { value: 'deepseek', label: 'DeepSeek' },
-        { value: 'google', label: 'Google' },
-        { value: 'xai', label: 'xAI' },
-        { value: 'hume', label: 'Hume AI' },
-        { value: 'elevenlabs', label: 'ElevenLabs' },
-        { value: 'openai-compatible', label: 'OpenAI 兼容' },
-        { value: 'ollama', label: 'Ollama' }
-      ]
+      options: providerOptions.value
     },
     ...pluginFields.value,
     { name: 'models', render: () => <ModelList />, type: 'custom' }
