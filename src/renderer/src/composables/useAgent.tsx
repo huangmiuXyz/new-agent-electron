@@ -322,15 +322,16 @@ export const useAgent = () => {
 
             dynamicFields.push(
               ...fields.map((field) => ({
+                ...field,
                 ifShow: (data: Partial<Agent>) => {
+                  if (field.ifShow && !field.ifShow(data)) return false
                   if (!data.speechVoice) return false
                   return (
                     provider.models?.some((m) =>
                       m.voices?.some((v) => v.id === data.speechVoice)
                     ) || false
                   )
-                },
-                ...field,
+                }
               }))
             )
           }
