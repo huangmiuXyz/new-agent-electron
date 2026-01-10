@@ -98,48 +98,36 @@ export const useChat = (chatId: string) => {
         const speed = agent.selectedAgent?.speechSpeed
         const language = agent.selectedAgent?.speechLanguage
 
-        let targetModelId = ''
-        let targetProviderId = ''
+        const { getModelByVoice } = useSettingsStore()
+        const modelInfo = getModelByVoice(voice)
 
-        const { speechModelId, speechProviderId } = defaultModels.value
-        const modelIds = Array.isArray(speechModelId) ? speechModelId : [speechModelId]
-        const providerIds = Array.isArray(speechProviderId) ? speechProviderId : [speechProviderId]
-
-        for (let i = 0; i < modelIds.length; i++) {
-          const mId = modelIds[i]
-          const pId = providerIds[i]
-          const provider = getProviderById(pId)
-          const model = provider?.models?.find(m => m.id === mId)
-          if (model?.voices?.some(v => v.id === voice)) {
-            targetModelId = mId
-            targetProviderId = pId
-            break
-          }
-        }
-
-        if (!targetModelId && modelIds.length > 0) {
+        if (!modelInfo) {
           return
         }
 
-        // Initialize audio metadata synchronously to preserve chunk order
-        const currentMsg = chats?.messages.find(m => m.id === message.id)
-        const metadata = { ...(currentMsg?.metadata || message.metadata || {}) } as MetaData
-        if (!metadata.audio) {
-          metadata.audio = {
+        const { modelId: targetModelId, providerId: targetProviderId } = modelInfo
+
+        if (!message.metadata) {
+          message.metadata = {} as MetaData
+        }
+
+        if (!message.metadata.audio) {
+          message.metadata.audio = {
             chunks: [],
             voice,
             model: targetModelId
           }
         }
-        const chunkIndex = metadata.audio.chunks.length
-        metadata.audio.chunks.push({
+
+        const chunks = message.metadata.audio.chunks
+        const chunkIndex = chunks.length
+        chunks.push({
           data: '', // placeholder
           text
         })
-        updateMessageMetadata(chatId, message.id, metadata)
-        if (message.id === chat.lastMessage?.id) {
-          chat.lastMessage.metadata = metadata
-        }
+
+        // Sync to store
+        updateMessageMetadata(chatId, message.id, message.metadata)
 
         try {
           const chunk = await tts.generateAndPlay({
@@ -152,16 +140,9 @@ export const useChat = (chatId: string) => {
             language
           })
 
-          if (chunk) {
-            const updatedMsg = chats?.messages.find(m => m.id === message.id)
-            const updatedMetadata = { ...(updatedMsg?.metadata || {}) } as MetaData
-            if (updatedMetadata.audio && updatedMetadata.audio.chunks[chunkIndex]) {
-              updatedMetadata.audio.chunks[chunkIndex].data = chunk.audioData || ''
-              updateMessageMetadata(chatId, message.id, updatedMetadata)
-              if (message.id === chat.lastMessage?.id) {
-                chat.lastMessage.metadata = updatedMetadata
-              }
-            }
+          if (chunk && message.metadata?.audio?.chunks[chunkIndex]) {
+            message.metadata.audio.chunks[chunkIndex].data = chunk.audioData || ''
+            updateMessageMetadata(chatId, message.id, message.metadata)
           }
         } catch (error) {
           console.error('TTS error in useChat:', error)

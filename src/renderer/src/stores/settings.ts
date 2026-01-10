@@ -270,6 +270,23 @@ export const useSettingsStore = defineStore(
       return { model: provider?.models.find((m) => m.id === mid)!, provider }
     }
 
+    const getModelByVoice = (voice: string) => {
+      const { speechModelId, speechProviderId } = defaultModels.value
+      const modelIds = Array.isArray(speechModelId) ? speechModelId : [speechModelId]
+      const providerIds = Array.isArray(speechProviderId) ? speechProviderId : [speechProviderId]
+
+      for (let i = 0; i < modelIds.length; i++) {
+        const mId = modelIds[i]
+        const pId = providerIds[i]
+        const provider = getProviderById(pId)
+        const model = provider?.models?.find((m) => m.id === mId)
+        if (model?.voices?.some((v) => v.id === voice)) {
+          return { modelId: mId, providerId: pId }
+        }
+      }
+      return null
+    }
+
 
     const getTitleGenerationModel = computed(() => {
       const provider = providers.value.find(
@@ -335,7 +352,8 @@ export const useSettingsStore = defineStore(
       getValidTools,
       resetProviderBaseUrl,
       getAllProviders,
-      registeredProviders
+      registeredProviders,
+      getModelByVoice
     }
   },
   {
