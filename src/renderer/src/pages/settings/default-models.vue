@@ -35,7 +35,6 @@ const [DefaultModelsForm] = useForm({
             label: '文字转语音模型',
             popupPosition: 'bottom',
             modelCategory: 'speech',
-            multiple: true
         }
     ],
     initialData: {
