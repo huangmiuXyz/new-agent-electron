@@ -1,164 +1,182 @@
-import { z } from 'zod'
-import type { FormField } from '../composables/useForm'
+import {
+  ZodType,
+  ZodObject,
+  ZodString,
+  ZodNumber,
+  ZodBoolean,
+  ZodEnum,
+  ZodArray,
+} from 'zod'
+
+interface UnwrapResult {
+  schema: ZodType<any, any>
+  required: boolean
+  defaultValue?: any
+}
+
+function unwrap(schema: any): UnwrapResult {
+  let current: any = schema
+  let required = true
+  let defaultValue: unknown = undefined
+
+  while (current?.def) {
+    switch (current.def.type) {
+      case 'default':
+        defaultValue = current.def.defaultValue
+        required = false
+        current = current.def.innerType
+        continue
+
+      case 'optional':
+        required = false
+        current = current.def.innerType
+        continue
+
+      case 'effects':
+        current = current.def.schema
+        continue
+
+      case 'pipeline':
+        current = current.def.out
+        continue
+    }
+
+    break
+  }
+
+  return {
+    schema: current,
+    required,
+    defaultValue
+  }
+}
+
+function buildName(parent: string | undefined, key: string) {
+  return parent ? `${parent}.${key}` : key
+}
 
 export function zodSchemaToFormfields<T extends Record<string, any>>(
-  schema: z.ZodTypeAny,
-  prefix = ''
+  schema: ZodObject,
+  rootName?: string
+): FormField<T>[] {
+  return parseObject(schema, rootName)
+}
+
+function parseObject<T>(
+  schema: ZodObject,
+  parentName?: string
 ): FormField<T>[] {
   const fields: FormField<T>[] = []
-
-  let actualSchema: z.ZodTypeAny = schema
-
-  while (true) {
-    if (actualSchema instanceof z.ZodOptional || actualSchema instanceof z.ZodNullable || actualSchema instanceof z.ZodDefault) {
-      actualSchema = actualSchema.unwrap() as z.ZodTypeAny
-    } else if (actualSchema instanceof z.ZodPipe) {
-      actualSchema = actualSchema.in as z.ZodTypeAny
-    } else {
-      break
-    }
-  }
-
-  if (!(actualSchema instanceof z.ZodObject)) {
-    return []
-  }
-
-  const shape = actualSchema.shape
+  const shape = schema.shape
 
   for (const key in shape) {
-    const fieldSchema = shape[key]
-    const name = prefix ? `${prefix}.${key}` : key
-    const label = key
+    const raw = shape[key]
+    const { schema: inner, required, defaultValue } = unwrap(raw)
 
-    const field = convertZodTypeToField(fieldSchema, name, label, !fieldSchema.isOptional())
-    if (field) {
-      fields.push(field as FormField<T>)
+    const name = buildName(parentName, key)
+    const label = key
+    const hint = inner.description
+
+    // object → group
+    if (inner instanceof ZodObject) {
+      fields.push({
+        type: 'group',
+        name,
+        label,
+        hint,
+        children: parseObject(inner, name)
+      })
+      continue
     }
+
+    // array
+    if (inner instanceof ZodArray) {
+      const element = unwrap(inner.element).schema
+      if (element instanceof ZodObject) {
+        fields.push({
+          type: 'array-group',
+          name,
+          label,
+          hint,
+          required,
+          defaultValue,
+          children: parseObject(element)
+        })
+      } else {
+        fields.push({
+          type: 'array',
+          name,
+          label,
+          hint,
+          required,
+          defaultValue
+        })
+      }
+      continue
+    }
+
+    if (inner instanceof ZodString) {
+      fields.push({
+        type: 'text',
+        name,
+        label,
+        hint,
+        required,
+        defaultValue
+      })
+      continue
+    }
+
+    if (inner instanceof ZodNumber) {
+      fields.push({
+        type: 'number',
+        name,
+        label,
+        hint,
+        required,
+        defaultValue
+      })
+      continue
+    }
+
+    if (inner instanceof ZodBoolean) {
+      fields.push({
+        type: 'boolean',
+        name,
+        label,
+        hint,
+        required,
+        defaultValue
+      })
+      continue
+    }
+
+    if (inner instanceof ZodEnum) {
+      fields.push({
+        type: 'select',
+        name,
+        label,
+        hint,
+        required,
+        defaultValue,
+        options: inner.options.map((v) => ({
+          label: String(v),
+          value: String(v)
+        }))
+      })
+      continue
+    }
+
+    // fallback
+    fields.push({
+      type: 'text',
+      name,
+      label,
+      hint,
+      required,
+      defaultValue
+    })
   }
 
   return fields
 }
-
-function convertZodTypeToField(
-  zodType: z.ZodTypeAny,
-  name: string,
-  label: string,
-  required: boolean,
-  parentDescription?: string
-): FormField<any> | null {
-  const isHidden = (zodType.def as any).isHidden === true
-
-  // 解包以获取实际类型，但保留 description 和 isHidden
-  let actualType = zodType
-  while (true) {
-    if (actualType instanceof z.ZodOptional || actualType instanceof z.ZodNullable || actualType instanceof z.ZodDefault) {
-      actualType = actualType.unwrap() as z.ZodTypeAny
-    } else if (actualType instanceof z.ZodPipe) {
-      actualType = actualType.in as z.ZodTypeAny
-    } else {
-      break
-    }
-  }
-
-  const description = zodType.description || actualType.description || parentDescription
-
-  const commonProps = {
-    name,
-    label,
-    required,
-    hint: description,
-    ifShow: isHidden ? () => false : undefined
-  }
-
-  if (actualType instanceof z.ZodObject) {
-    const children = zodSchemaToFormfields(actualType, name)
-    if (children.length === 0) return null
-    return {
-      ...commonProps,
-      type: 'group',
-      children
-    }
-  }
-
-  if (actualType instanceof z.ZodString) {
-    return { ...commonProps, type: 'text' }
-  }
-
-  if (actualType instanceof z.ZodNumber) {
-    const min = actualType.minValue
-    const max = actualType.maxValue
-
-    if (min !== null && max !== null) {
-      return { ...commonProps, type: 'slider', min, max, step: 0.1 }
-    }
-    return { ...commonProps, type: 'text' }
-  }
-
-  if (actualType instanceof z.ZodBoolean) {
-    return { ...commonProps, type: 'boolean' }
-  }
-
-  if (actualType instanceof z.ZodArray) {
-    let elementType = actualType.element as z.ZodTypeAny
-    while (elementType instanceof z.ZodOptional || elementType instanceof z.ZodNullable || elementType instanceof z.ZodDefault) {
-      elementType = elementType.unwrap() as z.ZodTypeAny
-    }
-
-    if (elementType instanceof z.ZodObject) {
-      return {
-        ...commonProps,
-        type: 'array-group',
-        children: zodSchemaToFormfields(elementType, name)
-      }
-    }
-
-    if (elementType instanceof z.ZodString || elementType instanceof z.ZodNumber || elementType instanceof z.ZodEnum) {
-      return { ...commonProps, type: 'array' }
-    }
-    return null
-  }
-
-  if (actualType instanceof z.ZodRecord) {
-    let valueType = actualType.valueType as z.ZodTypeAny
-    while (valueType instanceof z.ZodOptional || valueType instanceof z.ZodNullable || valueType instanceof z.ZodDefault) {
-      valueType = valueType.unwrap() as z.ZodTypeAny
-    }
-    if (valueType instanceof z.ZodString || valueType instanceof z.ZodNumber) {
-      return { ...commonProps, type: 'object' }
-    }
-    return null
-  }
-
-  if (actualType instanceof z.ZodEnum) {
-    const options = actualType.options.map((v) => ({
-      label: String(v),
-      value: v
-    }))
-    return { ...commonProps, type: 'select', options, clearable: !required }
-  }
-
-  if (actualType instanceof z.ZodLiteral) {
-    return {
-      ...commonProps,
-      type: 'select',
-      options: [{ label: String(actualType.value), value: actualType.value as string | number }],
-      clearable: !required
-    }
-  }
-
-  if (actualType instanceof z.ZodUnion) {
-    const options = actualType.options
-      .filter((opt): opt is z.ZodLiteral<string | number> => opt instanceof z.ZodLiteral && (typeof opt.value === 'string' || typeof opt.value === 'number'))
-      .map((opt) => {
-        const val = opt.value
-        return { label: String(val), value: val }
-      })
-
-    if (options.length > 0) {
-      return { ...commonProps, type: 'select', options, clearable: !required }
-    }
-  }
-
-  return null
-}
-

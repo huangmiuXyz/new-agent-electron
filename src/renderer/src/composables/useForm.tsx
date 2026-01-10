@@ -103,6 +103,7 @@ interface BaseField<T> {
   disabled?: boolean
   hint?: string
   ifShow?: (data: T) => boolean
+  defaultValue?: T
 }
 
 export interface TextField<T> extends BaseField<T> {

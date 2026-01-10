@@ -12,7 +12,7 @@ import { z } from 'zod'
 import { shallowReactive } from 'vue'
 export interface ProviderV3Extends extends ProviderV3 {
   listModels?: () => Promise<Model[]>
-  speechCallOptionsSchema?: z.ZodSchema
+  speechCallOptionsSchema?: z.ZodObject
 }
 
 export type ProviderFactory = (options: { apiKey: string; baseURL: string; name: string }) => ProviderV3Extends
