@@ -8,6 +8,7 @@ export interface AudioChunk {
   audioData?: string // base64, optional while loading
   played: boolean
   loading: boolean
+  duration?: number // duration in seconds
 }
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -15,10 +16,22 @@ export const useSpeechStore = defineStore('speech', () => {
   const isPlaying = ref(false)
   const isWaiting = ref(false)
   const currentChunkId = ref<string | null>(null)
+  const currentTime = ref(0)
+  const duration = ref(0)
   const audioPlayer = new Audio()
 
+  // Update current time during playback
+  audioPlayer.ontimeupdate = () => {
+    currentTime.value = audioPlayer.currentTime
+    duration.value = audioPlayer.duration || 0
+  }
+
+  const currentChunkIndex = computed(() =>
+    queue.value.findIndex(chunk => chunk.id === currentChunkId.value)
+  )
+
   const currentChunk = computed(() =>
-    queue.value.find(chunk => chunk.id === currentChunkId.value)
+    queue.value[currentChunkIndex.value]
   )
 
   const createPlaceholder = (id: string, messageId: string, text: string) => {
@@ -38,6 +51,13 @@ export const useSpeechStore = defineStore('speech', () => {
     if (chunk) {
       chunk.audioData = audioData
       chunk.loading = false
+
+      // Get duration from audio data
+      const tempAudio = new Audio(`data:audio/mpeg;base64,${audioData}`)
+      tempAudio.onloadedmetadata = () => {
+        chunk.duration = tempAudio.duration
+      }
+
       if (isWaiting.value || !isPlaying.value) {
         isWaiting.value = false
         playNext()
@@ -59,6 +79,8 @@ export const useSpeechStore = defineStore('speech', () => {
       isPlaying.value = false
       isWaiting.value = false
       currentChunkId.value = null
+      currentTime.value = 0
+      duration.value = 0
       return
     }
 
@@ -95,13 +117,42 @@ export const useSpeechStore = defineStore('speech', () => {
     }
   }
 
+  const seek = (time: number) => {
+    audioPlayer.currentTime = time
+  }
+
+  const jumpToChunk = (id: string) => {
+    const index = queue.value.findIndex(c => c.id === id)
+    if (index !== -1) {
+      // Mark all chunks before this as played, and this and after as unplayed
+      queue.value.forEach((c, i) => {
+        if (i < index) c.played = true
+        else c.played = false
+      })
+      playNext()
+    }
+  }
+
+  const togglePlay = () => {
+    if (isPlaying.value) {
+      audioPlayer.pause()
+      isPlaying.value = false
+    } else if (currentChunkId.value) {
+      audioPlayer.play()
+      isPlaying.value = true
+    } else {
+      playNext()
+    }
+  }
+
   const stop = () => {
     audioPlayer.pause()
     isPlaying.value = false
     isWaiting.value = false
     currentChunkId.value = null
-    // Mark all current queue as played or clear it?
-    // User might want to stop the current speech sequence.
+    currentTime.value = 0
+    duration.value = 0
+    // Mark all current queue as played
     queue.value.forEach(chunk => chunk.played = true)
   }
 
@@ -113,11 +164,18 @@ export const useSpeechStore = defineStore('speech', () => {
   return {
     queue,
     isPlaying,
+    isWaiting,
     currentChunkId,
     currentChunk,
+    currentChunkIndex,
+    currentTime,
+    duration,
     addToQueue,
     createPlaceholder,
     fulfillChunk,
+    seek,
+    jumpToChunk,
+    togglePlay,
     stop,
     clearQueue
   }

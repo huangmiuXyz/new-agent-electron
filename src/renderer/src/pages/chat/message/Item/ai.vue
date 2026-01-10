@@ -14,14 +14,18 @@ const isCurrentPlaying = computed(() => {
   return speechStore.isPlaying && speechStore.queue.some(chunk => chunk.messageId === props.message.id && !chunk.played)
 })
 
-const handlePlay = () => {
-  if (!speechEnabled.value && !isCurrentPlaying.value) {
-    return
-  }
+const showPlayer = ref(false)
+const togglePlayer = () => {
   if (isCurrentPlaying.value) {
     speechStore.stop()
-  } else {
-    // If we have chunks in metadata, replay them
+    showPlayer.value = false
+    return
+  }
+
+  showPlayer.value = !showPlayer.value
+
+  // Auto-play when showing player if not already playing
+  if (showPlayer.value) {
     if (props.message.metadata?.audio?.chunks) {
       speechStore.clearQueue()
       props.message.metadata.audio.chunks.forEach(chunk => {
@@ -38,22 +42,12 @@ const handlePlay = () => {
   }
 }
 
-const showQueue = ref(false)
-let hoverTimer: any = null
-
-const handleMouseEnter = () => {
-  hoverTimer = setTimeout(() => {
-    showQueue.value = true
-  }, 600)
-}
-
-const handleMouseLeave = () => {
-  if (hoverTimer) {
-    clearTimeout(hoverTimer)
-    hoverTimer = null
+// Auto show player when playback starts for this message
+watch(isCurrentPlaying, (playing) => {
+  if (playing) {
+    showPlayer.value = true
   }
-  showQueue.value = false
-}
+})
 </script>
 
 <template>
@@ -79,26 +73,12 @@ const handleMouseLeave = () => {
             </div>
           </div>
           <div style="display: flex; gap: 8px">
-            <div class="speech-control-wrapper" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
-              <Button v-if="message.metadata?.audio?.chunks?.length" size="sm" @click="handlePlay"
-                variant="icon" type="button" :class="{ 'is-playing': isCurrentPlaying }">
-                <template #icon>
-                  <VolumeMedium :style="{ color: isCurrentPlaying ? 'var(--accent-color)' : 'inherit' }" />
-                </template>
-              </Button>
-
-              <div v-if="showQueue && speechStore.queue.length > 0" class="speech-queue-popup">
-                <div class="queue-title">播放队列 ({{ speechStore.queue.length }})</div>
-                <div class="queue-list">
-                  <div v-for="chunk in speechStore.queue" :key="chunk.id" class="queue-item"
-                    :class="{ 'is-playing': speechStore.currentChunkId === chunk.id, 'is-played': chunk.played, 'is-loading': chunk.loading }">
-                    <div class="queue-item-text">{{ chunk.text }}</div>
-                    <div v-if="chunk.loading" class="queue-item-status">加载中...</div>
-                    <div v-else-if="speechStore.currentChunkId === chunk.id" class="queue-item-status">播放中</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <Button v-if="message.metadata?.audio?.chunks?.length" size="sm" @click="togglePlayer"
+              variant="icon" type="button" :class="{ 'is-active': showPlayer }">
+              <template #icon>
+                <VolumeMedium :style="{ color: showPlayer ? 'var(--accent-color)' : 'inherit' }" />
+              </template>
+            </Button>
             <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
               variant="icon" type="button">
               <template #icon>
@@ -123,6 +103,10 @@ const handleMouseLeave = () => {
         </div>
       </div>
       <ChatMessageItemContent markdown :message="message" />
+
+      <SpeechPlayer v-if="showPlayer && message.metadata?.audio?.chunks"
+        :message-id="message.id"
+        :chunks="message.metadata.audio.chunks" />
 
       <MessageTranslation v-if="message.metadata?.translations || message.metadata?.translationLoading"
         :translations="message.metadata.translations" :translationLoading="message.metadata.translationLoading"

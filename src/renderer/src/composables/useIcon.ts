@@ -36,7 +36,8 @@ import {
   CheckmarkFilled,
   RadioButton,
   RadioButtonChecked,
-  SubtractAlt
+  SubtractAlt,
+  Pause
 } from '@vicons/carbon'
 import {
   Cpu,
@@ -192,7 +193,8 @@ const icons = {
   VolumeMedium,
   VolumeMute,
   UploadOutlined,
-  Speaker224Regular
+  Speaker224Regular,
+  Pause
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
