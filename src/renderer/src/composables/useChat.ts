@@ -7,10 +7,9 @@ export const useChat = (chatId: string) => {
   const { getChatById, updateMessageMetadata } = useChatsStores()
   const chats = getChatById(chatId)
 
-  const { currentSelectedProvider, currentSelectedModel, thinkingMode, speechEnabled, defaultModels } =
+  const { currentSelectedProvider, currentSelectedModel, thinkingMode, speechEnabled } =
     storeToRefs(useSettingsStore())
-  const { getProviderById } =
-    useSettingsStore()
+
   const agent = useAgentStore()
   const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
   const service = chatService()
