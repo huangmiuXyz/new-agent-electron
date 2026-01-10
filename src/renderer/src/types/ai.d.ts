@@ -11,7 +11,6 @@ declare global {
     | 'ollama'
     | 'hume'
     | 'elevenlabs'
-    | 'minimax'
   interface MetaData {
     provider: string
     date: number
