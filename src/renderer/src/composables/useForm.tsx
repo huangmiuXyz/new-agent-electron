@@ -311,11 +311,10 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
     const isNestedField = field.name.includes('.')
     let initialValue
-
     if (isNestedField) {
-      initialValue = getNestedValue(config.initialData || {}, field.name)
+      initialValue = field.defaultValue || getNestedValue(config.initialData || {}, field.name)
       if (initialValue === undefined) {
-        initialValue = field.defaultValue || getDefaultValue(field.type!, field)
+        initialValue = getDefaultValue(field.type!, field)
       }
       setNestedValue(formData.value, field.name, initialValue)
     } else {
