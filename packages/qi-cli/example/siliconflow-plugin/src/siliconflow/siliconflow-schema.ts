@@ -21,7 +21,7 @@ const siliconFlowSpeechReferenceSchema = z.object({
     .string()
     .describe(
       "音频内容，可以是音频文件的 URL，也可以是 Base64 编码的音频字符串。"
-    ),
+    ).meta({ ifShow: false }),
 });
 
 /**
@@ -39,11 +39,9 @@ export const siliconFlowCreateSpeechRequestSchema = z
       ])
       .describe(
         "MOSS-TTSD（文本转语音对话）是一个开源的双语语音对话合成模型，支持中文和英文。"
-      ),
+      )
+      .meta({ ifShow: false }),
 
-    /**
-     * 输入的对话文本
-     */
     input: z
       .string()
       .min(1)
