@@ -471,9 +471,9 @@ const [ModelTable, modelTableActions] = useTable<Model>({
       render: (row) => (
         <>
           <Button type="button" variant="text" size="sm" onClick={() => showEditModelModal(row)} title="编辑模型">{Edit}</Button>
-          {isCustomModel(row) && (
+          {isCustomModel(row) ? (
             <Button type="button" variant="text" size="sm" onClick={() => handleDeleteModel(row)} title="删除模型" class="text-red-500 hover:text-red-700">{Delete}</Button>
-          )}
+          ) : null}
         </>
       )
     }

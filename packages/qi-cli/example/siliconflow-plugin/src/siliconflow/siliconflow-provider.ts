@@ -6,7 +6,7 @@ import {
 } from '@ai-sdk/provider-utils';
 import { SiliconFlowSpeechModel } from './siliconflow-speech-model';
 import { Model, ModelVoice } from '../types';
-import { SiliconFlowGetModelsResp, SiliconFlowGetVoicesResp } from './siliconflow-api-types';
+import { SiliconFlowGetModelsResp } from './siliconflow-api-types';
 
 const VERSION = '1.0.0';
 
@@ -87,22 +87,26 @@ export function createSiliconFlow(
   provider.speechModel = createSpeechModel;
   provider.speechCallOptionsSchema = SiliconFlowSpeechModel.speechCallOptionsSchema;
 
+  const baseVoices = [
+    'alex',
+    'anna',
+    'bella',
+    'benjamin',
+    'charles',
+    'claire',
+    'david',
+    'diana',
+  ];
+
   provider.listModels = async () => {
     try {
       const headers = getHeaders();
       const customFetch = options.fetch ?? fetch;
 
-      // 并行获取模型列表和音色列表
-      const [modelsResponse, voicesResponse] = await Promise.all([
-        customFetch(`${baseURL}/models`, {
-          method: 'GET',
-          headers: { ...headers, 'Content-Type': 'application/json' },
-        }),
-        customFetch(`${baseURL}/audio/voice/list`, {
-          method: 'GET',
-          headers: { ...headers, 'Content-Type': 'application/json' },
-        }),
-      ]);
+      const modelsResponse = await customFetch(`${baseURL}/models`, {
+        method: 'GET',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
 
       if (!modelsResponse.ok) {
         throw new Error(`Failed to fetch models: ${modelsResponse.statusText}`);
@@ -110,24 +114,18 @@ export function createSiliconFlow(
 
       const modelsData = (await modelsResponse.json()) as SiliconFlowGetModelsResp;
 
-      let voicesByModel: Record<string, ModelVoice[]> = {};
-      if (voicesResponse.ok) {
-        const voicesData = (await voicesResponse.json()) as SiliconFlowGetVoicesResp;
-        (voicesData.results || []).forEach(v => {
-          if (v.model) {
-            if (!voicesByModel[v.model]) {
-              voicesByModel[v.model] = [];
-            }
-            voicesByModel[v.model].push({
-              id: v.uri,
-              name: v.customName || v.name || v.uri.split(':').slice(0, 2).join(':')
-            });
-          }
-        });
-      }
-
       return modelsData.data.map((m) => {
-        const isSpeech = m.id.includes('speech') || m.id.includes('tts') || m.id.includes('fishaudio');
+        const lowerID = m.id.toLowerCase()
+        const isSpeech = lowerID.includes('speech') || lowerID.includes('tts') || lowerID.includes('voice');
+
+        let voices: ModelVoice[] | undefined = undefined;
+        if (isSpeech) {
+          voices = baseVoices.map((v) => ({
+            id: `${m.id}:${v}`,
+            name: v.charAt(0).toUpperCase() + v.slice(1),
+          }));
+        }
+
         return {
           id: m.id,
           category: (isSpeech ? 'speech' : 'text') as 'speech' | 'text',
@@ -135,11 +133,11 @@ export function createSiliconFlow(
           created: m.created,
           object: 'model',
           owned_by: m.owned_by || 'siliconflow',
-          voices: voicesByModel[m.id],
+          voices,
         };
       });
     } catch (error) {
-      console.error('Failed to fetch SiliconFlow data:', error);
+      console.error('Failed to fetch SiliconFlow models:', error);
       return [];
     }
   };

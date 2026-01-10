@@ -16,18 +16,6 @@ export interface SiliconFlowModel {
   owned_by: string;
 }
 
-export interface SiliconFlowVoice {
-  uri: string;
-  name?: string;
-  customName?: string;
-  model?: string;
-  gender?: string;
-}
-
-export interface SiliconFlowGetVoicesResp {
-  results: SiliconFlowVoice[];
-}
-
 export interface SiliconFlowGetModelsResp {
   data: SiliconFlowModel[];
 }
