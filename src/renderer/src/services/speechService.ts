@@ -1,7 +1,7 @@
 import { experimental_generateSpeech as generateSpeech } from 'ai'
 import { createRegistry } from './chatService/registry'
 import { useSettingsStore } from '../stores/settings'
-import { useSpeechStore, AudioChunk } from '../stores/speech'
+import { useSpeechStore } from '../stores/speech'
 import { nanoid } from 'nanoid'
 
 export const speechService = () => {
