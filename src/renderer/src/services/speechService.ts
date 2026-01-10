@@ -49,8 +49,6 @@ export const speechService = () => {
         name: provider.name
       })
 
-      // We need to determine the provider prefix for the registry
-      // Similar to chatService: `${providerType}:${model}`
       const modelString = `${provider.providerType}:${modelId}`
 
       const { audio } = await generateSpeech({
@@ -69,7 +67,7 @@ export const speechService = () => {
       console.error('Speech generation failed:', error)
       // Remove the failed placeholder from queue if needed, or mark it as played to skip
       const chunk = speechStore.queue.find(c => c.id === chunkId)
-      if (chunk) chunk.played = true 
+      if (chunk) chunk.played = true
       throw error
     }
   }
