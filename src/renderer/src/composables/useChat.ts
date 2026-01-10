@@ -126,7 +126,6 @@ export const useChat = (chatId: string) => {
           text
         })
 
-        // Sync to store
         updateMessageMetadata(chatId, message.id, message.metadata)
 
         try {
