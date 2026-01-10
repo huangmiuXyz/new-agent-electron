@@ -24,7 +24,8 @@ interface TemplateInfo {
 const DEFAULT_TEMPLATES: TemplateInfo[] = [
   { name: '基础模板 (TypeScript)', value: 'ollama-starter', description: '简单的 TypeScript 插件模板，包含基础钩子示例' },
   { name: '工具模板 (智能密钥填充)', value: 'smart-api-key-filler', description: '包含自定义工具和设置存储交互的模板' },
-  { name: 'React 模板 (语音识别)', value: 'vosk-speech-recognition', description: '支持 React UI 和复杂交互的模板' }
+  { name: 'React 模板 (语音识别)', value: 'vosk-speech-recognition', description: '支持 React UI 和复杂交互的模板' },
+  { name: '提供商模板 (Provider Compatible)', value: 'minimax-plugin', description: '用于创建自定义模型提供商适配的模板' }
 ];
 
 /**

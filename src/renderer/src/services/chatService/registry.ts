@@ -8,16 +8,25 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createHume } from '@ai-sdk/hume'
 import { createElevenLabs } from '@ai-sdk/elevenlabs'
 import { ProviderV3 } from '@ai-sdk/provider'
-import { createMiniMax } from './minimax'
 import { z } from 'zod'
-interface ProviderV3Extends extends ProviderV3 {
+export interface ProviderV3Extends extends ProviderV3 {
   listModels?: () => Promise<Model[]>
   speechCallOptionsSchema?: z.ZodSchema
 }
+
+export type ProviderFactory = (options: { apiKey: string; baseURL: string; name: string }) => ProviderV3Extends
+
+const providerRegistry = new Map<string, ProviderFactory>()
+
+export const registerProviderFactory = (name: string, factory: ProviderFactory) => {
+  providerRegistry.set(name, factory)
+}
+
 interface ProviderRegistryProviderExtends<T extends Record<string, ProviderV3Extends>> extends ProviderRegistryProvider<T> {
   getProvider: (providerType: keyof T) => T[keyof T]
 }
-const mergeFun = <T extends ProviderV3Extends>(provider: Partial<T>, funs: Partial<ProviderV3Extends>): ProviderV3Extends => {
+
+export const mergeFun = <T extends ProviderV3Extends>(provider: Partial<T>, funs: Partial<ProviderV3Extends>): ProviderV3Extends => {
   return {
     ...provider,
     ...funs,
@@ -211,7 +220,6 @@ export const createRegistry = (options: { apiKey: string; baseURL: string; name:
         })) as Model[]
       }
     }),
-    minimax: mergeFun(createMiniMax(options), createOpenAICompatible(options)) as unknown as ProviderV3Extends,
     'openai-compatible': mergeFun(createOpenAICompatible({ ...options, name: options.name }), {
       listModels: async () => {
         const response = await fetch(`${options.baseURL}/models`, {
@@ -229,6 +237,12 @@ export const createRegistry = (options: { apiKey: string; baseURL: string; name:
       }
     }),
   }
+
+  // 合并插件注册的提供商
+  providerRegistry.forEach((factory, name) => {
+    providers[name] = factory(options)
+  })
+
   const registry = createProviderRegistry(providers) as ProviderRegistryProviderExtends<Record<string, ProviderV3Extends>>
   registry.getProvider = (providerType: string) => providers[providerType]
   return registry

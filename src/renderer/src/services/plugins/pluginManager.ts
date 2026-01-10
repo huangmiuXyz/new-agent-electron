@@ -2,6 +2,7 @@ import { useForm } from '@renderer/composables/useForm';
 import { useTable } from '@renderer/composables/useTable';
 import { useDownload } from '@renderer/composables/useDownload';
 import { useIcon } from '@renderer/composables/useIcon';
+import { registerProviderFactory, ProviderFactory } from '../chatService/registry';
 import localforage from 'localforage'
 /**
  * 插件管理器
@@ -334,6 +335,12 @@ export class PluginManager {
             }
           }
         }
+      },
+      /**
+       * 注册提供商工厂到全局注册表
+       */
+      registerRegistry: (name: string, factory: ProviderFactory) => {
+        registerProviderFactory(name, factory);
       },
       /**
        * 获取当前插件已注册的提供商

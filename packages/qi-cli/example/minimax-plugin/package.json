@@ -1,0 +1,22 @@
+{
+  "name": "minimax-plugin",
+  "version": "1.0.0",
+  "description": "minimax ai provider plugin",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "2.0.4",
+    "@ai-sdk/provider": "^3.0.2",
+    "@ai-sdk/provider-utils": "^4.0.4",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  },
+  "author": "Agent-Qi"
+}

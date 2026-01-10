@@ -20,7 +20,7 @@ declare global {
 
   /**
    * 插件上下文
-   * 提供给插件的应用上下文和 API
+   * 提供给插件的应用上下文 and API
    */
   interface PluginContext {
     /** 应用实例 */
@@ -64,11 +64,14 @@ declare global {
     /** 注销内置工具 */
     unregisterBuiltinTool: (name: string) => boolean;
     /** 注册提供商到当前插件 */
-    registerProvider: (providerId: string, options?: {
-      name?: string;
-      form?: any;
-      models?: Model[];
-    }) => void;
+    registerProvider: (
+      providerId: string,
+      options?: { name?: string; form?: any; models?: Model[] }
+    ) => void;
+    /** 注销提供商 */
+    unregisterProvider: (providerId: string) => void;
+    /** 注册提供商工厂到全局注册表 */
+    registerRegistry: (name: string, factory: any) => void;
     /** 获取 useForm 工具 */
     useForm: any;
     useTable: any;
@@ -77,8 +80,6 @@ declare global {
     components: Record<string, any>;
     vue: any;
     getPluginsDataPath: () => string;
-    /** 从当前插件注销提供商 */
-    unregisterProvider: (providerId: string) => void;
     /** 获取当前插件已注册的提供商 */
     getRegisteredProviders: () => any[];
   }
@@ -152,8 +153,6 @@ declare global {
     updatedAt?: string;
     plugin?: any;
   }
-  type PluginStatus = 'unloaded' | 'loading' | 'loaded' | 'unloading' | 'error';
-
 
   /**
    * 命令定义
