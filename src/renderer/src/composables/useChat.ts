@@ -140,11 +140,29 @@ export const useChat = (chatId: string) => {
           })
 
           if (chunk && message.metadata?.audio?.chunks[chunkIndex]) {
-            message.metadata.audio.chunks[chunkIndex].data = chunk.audioData || ''
+            message.metadata.audio.chunks[chunkIndex] = {
+              ...message.metadata.audio.chunks[chunkIndex],
+              data: chunk.audioData || '',
+              duration: chunk.duration,
+              error: undefined
+            }
             updateMessageMetadata(chatId, message.id, message.metadata)
+          } else {
+            // Mark error if generation returned nothing
+            if (message.metadata?.audio?.chunks[chunkIndex]) {
+              message.metadata.audio.chunks[chunkIndex].error = '生成失败：未返回音频数据'
+              updateMessageMetadata(chatId, message.id, message.metadata)
+            }
           }
         } catch (error) {
           console.error('TTS error in useChat:', error)
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          // Mark error on chunk instead of removing it
+          if (message.metadata?.audio?.chunks[chunkIndex]) {
+            message.metadata.audio.chunks[chunkIndex].error = `生成失败：${errorMessage}`
+            updateMessageMetadata(chatId, message.id, message.metadata)
+          }
+          messageApi.error('语音合成失败: ' + errorMessage)
         }
       }
 

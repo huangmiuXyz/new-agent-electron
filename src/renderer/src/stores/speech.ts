@@ -9,6 +9,7 @@ export interface AudioChunk {
   played: boolean
   loading: boolean
   duration?: number // duration in seconds
+  error?: string
 }
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -46,18 +47,44 @@ export const useSpeechStore = defineStore('speech', () => {
     return chunk
   }
 
-  const fulfillChunk = (id: string, audioData: string) => {
-    const chunk = queue.value.find(c => c.id === id)
-    if (chunk) {
-      chunk.audioData = audioData
-      chunk.loading = false
+  const fulfillChunk = (id: string, audioData: string): Promise<number> => {
+    return new Promise((resolve) => {
+      const chunk = queue.value.find((c) => c.id === id)
+      if (chunk) {
+        chunk.audioData = audioData
+        chunk.loading = false
+        chunk.error = undefined // Clear error on success
 
-      // Get duration from audio data
-      const tempAudio = new Audio(`data:audio/mpeg;base64,${audioData}`)
-      tempAudio.onloadedmetadata = () => {
-        chunk.duration = tempAudio.duration
+        // Get duration from audio data
+        const tempAudio = new Audio(`data:audio/mpeg;base64,${audioData}`)
+        tempAudio.onloadedmetadata = () => {
+          chunk.duration = tempAudio.duration
+
+          if (isWaiting.value || !isPlaying.value) {
+            isWaiting.value = false
+            playNext()
+          }
+          resolve(tempAudio.duration)
+        }
+        tempAudio.onerror = () => {
+          if (isWaiting.value || !isPlaying.value) {
+            isWaiting.value = false
+            playNext()
+          }
+          resolve(0)
+        }
+      } else {
+        resolve(0)
       }
+    })
+  }
 
+  const markChunkError = (id: string, errorMessage: string) => {
+    const chunk = queue.value.find((c) => c.id === id)
+    if (chunk) {
+      chunk.loading = false
+      chunk.error = errorMessage
+      chunk.played = true // Mark as played to skip automatically
       if (isWaiting.value || !isPlaying.value) {
         isWaiting.value = false
         playNext()
@@ -69,6 +96,21 @@ export const useSpeechStore = defineStore('speech', () => {
     queue.value.push(chunk)
     if (!isPlaying.value && !isWaiting.value) {
       playNext()
+    }
+  }
+
+  const removeChunk = (id: string) => {
+    const index = queue.value.findIndex((c) => c.id === id)
+    if (index !== -1) {
+      const isCurrent = currentChunkId.value === id
+      queue.value.splice(index, 1)
+      if (isCurrent) {
+        audioPlayer.pause()
+        playNext()
+      } else if (isWaiting.value) {
+        // Re-check if we should continue playing if we were waiting for this chunk
+        playNext()
+      }
     }
   }
 
@@ -173,6 +215,8 @@ export const useSpeechStore = defineStore('speech', () => {
     addToQueue,
     createPlaceholder,
     fulfillChunk,
+    markChunkError,
+    removeChunk,
     seek,
     jumpToChunk,
     togglePlay,

@@ -127,10 +127,13 @@ watch(activeChunkIndex, (newIndex) => {
         :class="{
           'is-active': chunk.id === speechStore.currentChunkId,
           'is-played': chunk.played && chunk.id !== speechStore.currentChunkId,
-          'is-loading': chunk.loading
+          'is-loading': chunk.loading,
+          'is-error': !!chunk.error
         }"
+        :title="chunk.error"
         @click="handleChunkClick(chunk.id)"
       >
+        <span v-if="chunk.error" class="error-icon">⚠️</span>
         {{ chunk.text }}
       </div>
     </div>
@@ -241,5 +244,16 @@ watch(activeChunkIndex, (newIndex) => {
 .lyric-line.is-loading {
   opacity: 0.5;
   font-style: italic;
+}
+
+.lyric-line.is-error {
+  color: var(--error-color, #ff4d4f);
+  text-decoration: line-through;
+  text-decoration-style: dotted;
+}
+
+.error-icon {
+  margin-right: 4px;
+  font-size: 12px;
 }
 </style>

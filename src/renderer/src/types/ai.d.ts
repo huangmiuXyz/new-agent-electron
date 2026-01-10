@@ -31,6 +31,8 @@ declare global {
       chunks: {
         data: string // base64
         text: string
+        duration?: number // duration in seconds
+        error?: string
       }[]
       voice: string
       model: string

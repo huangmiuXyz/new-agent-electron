@@ -61,13 +61,12 @@ export const speechService = () => {
 
       const base64 = audio.base64
 
-      speechStore.fulfillChunk(chunkId, base64)
-      return placeholder
+      const duration = await speechStore.fulfillChunk(chunkId, base64)
+      return { ...placeholder, audioData: base64, loading: false, duration }
     } catch (error) {
       console.error('Speech generation failed:', error)
-      // Remove the failed placeholder from queue if needed, or mark it as played to skip
-      const chunk = speechStore.queue.find(c => c.id === chunkId)
-      if (chunk) chunk.played = true
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      speechStore.markChunkError(chunkId, errorMessage)
       throw error
     }
   }
