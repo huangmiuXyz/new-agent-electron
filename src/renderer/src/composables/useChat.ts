@@ -1,5 +1,5 @@
 import { Chat as _useChat } from '@ai-sdk/vue'
-import type { FileUIPart, TextUIPart, ToolUIPart } from 'ai'
+import type { APICallError, FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai';
 import { speechService } from '../services/speechService'
 
@@ -154,9 +154,8 @@ export const useChat = (chatId: string) => {
             }
           }
         } catch (error) {
-          console.error('TTS error in useChat:', error)
-          const errorMessage = error instanceof Error ? error.message : String(error)
-          // Mark error on chunk instead of removing it
+          const err = error as APICallError
+          const errorMessage = err.message || err.name || String(error)
           if (message.metadata?.audio?.chunks[chunkIndex]) {
             message.metadata.audio.chunks[chunkIndex].error = `生成失败：${errorMessage}`
             updateMessageMetadata(chatId, message.id, message.metadata)
