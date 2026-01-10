@@ -126,16 +126,28 @@ function parseObject<T>(
       })
       continue
     }
-
     if (inner instanceof ZodNumber) {
-      fields.push({
-        type: 'number',
-        name,
-        label,
-        hint,
-        required,
-        defaultValue
-      })
+      if (inner.maxValue && inner.minValue && !inner.isInt && !inner.isFinite) {
+        fields.push({
+          type: 'slider',
+          name,
+          label,
+          hint,
+          required,
+          defaultValue,
+          min: inner.minValue!,
+          max: inner.maxValue!
+        })
+      } else {
+        fields.push({
+          type: 'number',
+          name,
+          label,
+          hint,
+          required,
+          defaultValue
+        })
+      }
       continue
     }
 
