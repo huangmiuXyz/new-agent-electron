@@ -56,8 +56,8 @@ export const siliconFlowCreateSpeechRequestSchema = z
      * 最大 Token 数
      */
     max_tokens: z
-      .number()
       .int()
+      .min(0)
       .optional()
       .default(2048)
       .describe(

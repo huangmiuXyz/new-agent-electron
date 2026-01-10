@@ -12,42 +12,56 @@ interface UnwrapResult {
   schema: ZodType<any, any>
   required: boolean
   defaultValue?: any
+  description?: string
 }
 
 function unwrap(schema: ZodType): UnwrapResult {
   let current: any = schema
   let required = true
   let defaultValue: unknown = undefined
+  let description: string | undefined = undefined
 
-  while (current?.def) {
-    switch (current.def.type) {
-      case 'default':
-        defaultValue = current.def.defaultValue
-        required = false
-        current = current.def.innerType
-        continue
-
-      case 'optional':
-        required = false
-        current = current.def.innerType
-        continue
-
-      case 'effects':
-        current = current.def.schema
-        continue
-
-      case 'pipeline':
-        current = current.def.out
-        continue
+  const updateDescription = (s: any) => {
+    if (!description) {
+      const def = s.def
+      description = s.description || def?.description
     }
-
-    break
   }
+
+  // 递归展开包装类型（optional, default, effects, pipeline, nullable）
+  while (current) {
+    updateDescription(current)
+
+    const def = current.def
+    if (!def) break
+
+    const type = def.type
+
+    if (type === 'default') {
+      defaultValue =
+        typeof def.defaultValue === 'function' ? def.defaultValue() : def.defaultValue
+      required = false
+      current = def.innerType
+    } else if (type === 'optional' || type === 'nullable') {
+      required = false
+      current = def.innerType
+    } else if (type === 'effects') {
+      current = def.schema
+    } else if (type === 'pipeline') {
+      current = def.out
+    } else {
+      break
+    }
+  }
+
+  // 最后检查最内层 schema 的描述
+  updateDescription(current)
 
   return {
     schema: current,
     required,
-    defaultValue
+    defaultValue,
+    description
   }
 }
 
@@ -56,26 +70,34 @@ function buildName(parent: string | undefined, key: string) {
 }
 
 export function zodSchemaToFormfields<T extends Record<string, any>>(
-  schema: ZodObject,
+  schema: ZodObject<any>,
   rootName?: string
 ): FormField<T>[] {
   return parseObject(schema, rootName)
 }
+function getNumberRange(schema: ZodNumber) {
+  const bag = schema?._zod?.bag
+  if (!bag) return null
 
-function parseObject<T>(
-  schema: ZodObject,
-  parentName?: string
-): FormField<T>[] {
+  const min =
+    typeof bag.minimum === 'number' ? bag.minimum : undefined
+  const max =
+    typeof bag.maximum === 'number' ? bag.maximum : undefined
+
+  return { min, max }
+}
+
+function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<T>[] {
   const fields: FormField<T>[] = []
   const shape = schema.shape
 
   for (const key in shape) {
     const raw = shape[key]
-    const { schema: inner, required, defaultValue } = unwrap(raw)
+    const { schema: inner, required, defaultValue, description } = unwrap(raw)
 
     const name = buildName(parentName, key)
     const label = key
-    const hint = inner.description
+    const hint = description
 
     // object → group
     if (inner instanceof ZodObject) {
@@ -91,7 +113,8 @@ function parseObject<T>(
 
     // array
     if (inner instanceof ZodArray) {
-      const element = unwrap(inner.element as ZodType).schema
+      const elementResult = unwrap(inner.element as ZodType)
+      const element = elementResult.schema
       if (element instanceof ZodObject) {
         fields.push({
           type: 'array-group',
@@ -116,18 +139,26 @@ function parseObject<T>(
     }
 
     if (inner instanceof ZodString) {
+      const def = (inner as any).def
+      const checks = def?.checks || []
+      const isEmail = checks.some((c: any) => c.kind === 'email')
+      const isUrl = checks.some((c: any) => c.kind === 'url')
+
       fields.push({
         type: 'text',
         name,
         label,
         hint,
         required,
-        defaultValue
-      })
+        defaultValue,
+        placeholder: isEmail ? 'example@email.com' : isUrl ? 'https://...' : undefined
+      } as any)
       continue
     }
+
     if (inner instanceof ZodNumber) {
-      if (inner.maxValue && inner.minValue && !inner.isInt && !inner.isFinite) {
+      const range = getNumberRange(inner)
+      if (typeof (range?.max) === 'number' && typeof range.min === 'number') {
         fields.push({
           type: 'slider',
           name,
@@ -135,8 +166,8 @@ function parseObject<T>(
           hint,
           required,
           defaultValue,
-          min: inner.minValue!,
-          max: inner.maxValue!
+          min: range.min!,
+          max: range.max!
         })
       } else {
         fields.push({
@@ -146,7 +177,7 @@ function parseObject<T>(
           hint,
           required,
           defaultValue
-        })
+        } as any)
       }
       continue
     }
