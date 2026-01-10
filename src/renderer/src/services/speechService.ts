@@ -16,6 +16,7 @@ export const speechService = () => {
     voice?: string
     speed?: number
     language?: string
+    providerOptions?: Record<string, any>
   }) => {
     const {
       text,
@@ -24,7 +25,8 @@ export const speechService = () => {
       providerId = settingsStore.defaultModels.speechProviderId,
       voice,
       speed,
-      language
+      language,
+      providerOptions
     } = params
 
     const chunkId = nanoid()
@@ -57,6 +59,9 @@ export const speechService = () => {
         voice,
         speed,
         language,
+        providerOptions: {
+          [provider.providerType]: providerOptions || {}
+        }
       })
 
       const base64 = audio.base64

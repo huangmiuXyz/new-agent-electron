@@ -96,6 +96,7 @@ export const useChat = (chatId: string) => {
         const voice = agent.selectedAgent?.speechVoice!
         const speed = agent.selectedAgent?.speechSpeed
         const language = agent.selectedAgent?.speechLanguage
+        const providerOptions = agent.selectedAgent?.speechOptions
 
         const { getModelByVoice } = useSettingsStore()
         const modelInfo = getModelByVoice(voice)
@@ -135,7 +136,8 @@ export const useChat = (chatId: string) => {
             providerId: targetProviderId,
             voice,
             speed,
-            language
+            language,
+            providerOptions
           })
 
           if (chunk && message.metadata?.audio?.chunks[chunkIndex]) {
