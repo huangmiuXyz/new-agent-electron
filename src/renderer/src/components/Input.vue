@@ -10,7 +10,7 @@ interface Props {
   size?: 'md' | 'sm'
 }
 
-const modelValue = defineModel<string>()
+const modelValue = defineModel<string | number>()
 const props = withDefaults(defineProps<Props>(), {
   type: 'text',
   placeholder: '',

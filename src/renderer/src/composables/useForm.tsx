@@ -304,7 +304,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
   const fields = computed(() => toValue(config.fields))
 
-  const initializeField = (field: any) => {
+  const initializeField = (field: FormField<T>) => {
     if (field.type === 'group' && field.children) {
       field.children.forEach(initializeField)
       return
@@ -315,7 +315,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     if (isNestedField) {
       initialValue = getNestedValue(config.initialData || {}, field.name)
       if (initialValue === undefined) {
-        initialValue = getDefaultValue(field.type, field)
+        initialValue = field.defaultValue || getDefaultValue(field.type!, field)
       }
       setNestedValue(formData.value, field.name, initialValue)
     } else {
@@ -326,7 +326,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       ) {
         initialValue = config.initialData[field.name]
       } else {
-        initialValue = getDefaultValue(field.type, field)
+        initialValue = field.defaultValue || getDefaultValue(field.type!, field)
       }
       formData.value[field.name] = initialValue
     }
@@ -485,7 +485,12 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                     return renderField(childField)
                   })}
                 </div>
-                <Button variant="text" size="sm" class="remove-item-btn" onClick={() => removeItem(index)}>
+                <Button
+                  variant="text"
+                  size="sm"
+                  class="remove-item-btn"
+                  onClick={() => removeItem(index)}
+                >
                   <CloseIcon />
                 </Button>
               </div>
