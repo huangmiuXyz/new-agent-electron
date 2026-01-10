@@ -34,6 +34,8 @@ const togglePlayer = () => {
           messageId: props.message.id,
           text: chunk.text,
           audioData: chunk.data,
+          duration: chunk.duration,
+          error: chunk.error,
           played: false,
           loading: false
         })

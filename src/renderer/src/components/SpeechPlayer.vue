@@ -3,7 +3,7 @@ import { useSpeechStore } from '../stores/speech'
 
 const props = defineProps<{
   messageId: string
-  chunks: Array<{ text: string; data?: string }>
+  chunks: Array<{ text: string; data?: string; duration?: number; error?: string }>
 }>()
 
 const speechStore = useSpeechStore()
