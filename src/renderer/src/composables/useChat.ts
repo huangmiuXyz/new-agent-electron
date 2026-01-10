@@ -122,7 +122,7 @@ export const useChat = (chatId: string) => {
         const chunks = message.metadata.audio.chunks
         const chunkIndex = chunks.length
         chunks.push({
-          data: '', // placeholder
+          data: '',
           text
         })
 
