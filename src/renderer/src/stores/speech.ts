@@ -44,6 +44,12 @@ export const useSpeechStore = defineStore('speech', () => {
       loading: true
     }
     queue.value.push(chunk)
+
+    // Auto-trigger playback state if not already playing or waiting
+    if (!isPlaying.value && !isWaiting.value) {
+      playNext()
+    }
+
     return chunk
   }
 
