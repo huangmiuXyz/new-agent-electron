@@ -14,7 +14,7 @@ interface UnwrapResult {
   defaultValue?: any
 }
 
-function unwrap(schema: any): UnwrapResult {
+function unwrap(schema: ZodType): UnwrapResult {
   let current: any = schema
   let required = true
   let defaultValue: unknown = undefined
@@ -91,7 +91,7 @@ function parseObject<T>(
 
     // array
     if (inner instanceof ZodArray) {
-      const element = unwrap(inner.element).schema
+      const element = unwrap(inner.element as ZodType).schema
       if (element instanceof ZodObject) {
         fields.push({
           type: 'array-group',
