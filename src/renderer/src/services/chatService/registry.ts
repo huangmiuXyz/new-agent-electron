@@ -24,8 +24,8 @@ interface ProviderRegistryProviderExtends<T extends Record<string, ProviderV3Ext
 
 export const mergeFun = <T extends ProviderV3Extends>(provider: Partial<T>, funs: Partial<ProviderV3Extends>): ProviderV3Extends => {
   return {
-    ...provider,
     ...funs,
+    ...provider,
   } as ProviderV3Extends
 }
 
