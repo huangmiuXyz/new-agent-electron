@@ -12,26 +12,22 @@ interface UnwrapResult {
   schema: ZodType<any, any>
   required: boolean
   defaultValue?: any
-  description?: string
+  metadata?: any
 }
 
 function unwrap(schema: ZodType): UnwrapResult {
   let current: any = schema
   let required = true
   let defaultValue: unknown = undefined
-  let description: string | undefined = undefined
+  let metadata: any[] = []
 
-  const updateDescription = (s: any) => {
-    if (!description) {
-      const def = s.def
-      description = s.description || def?.description
-    }
+  const updateMetadata = (s: any) => {
+    metadata.push(s.meta())
   }
 
   // 递归展开包装类型（optional, default, effects, pipeline, nullable）
   while (current) {
-    updateDescription(current)
-
+    updateMetadata(current)
     const def = current.def
     if (!def) break
 
@@ -55,13 +51,13 @@ function unwrap(schema: ZodType): UnwrapResult {
   }
 
   // 最后检查最内层 schema 的描述
-  updateDescription(current)
+  updateMetadata(current)
 
   return {
     schema: current,
     required,
     defaultValue,
-    description
+    metadata: metadata.filter(Boolean)?.[0]
   }
 }
 
@@ -93,13 +89,12 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
 
   for (const key in shape) {
     const raw = shape[key]
-    const metadata = raw.meta()
-    const { schema: inner, required, defaultValue, description } = unwrap(raw)
+
+    const { schema: inner, required, defaultValue, metadata } = unwrap(raw)
 
     const name = buildName(parentName, key)
     const label = key
-    const hint = description
-
+    const hint = metadata?.description || ''
     // object → group
     if (inner instanceof ZodObject) {
       fields.push({
