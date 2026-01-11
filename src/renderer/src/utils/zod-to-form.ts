@@ -93,6 +93,7 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
 
   for (const key in shape) {
     const raw = shape[key]
+    const metadata = raw.meta()
     const { schema: inner, required, defaultValue, description } = unwrap(raw)
 
     const name = buildName(parentName, key)
@@ -106,7 +107,8 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
         name,
         label,
         hint,
-        children: parseObject(inner, name)
+        children: parseObject(inner, name),
+        ...metadata
       })
       continue
     }
@@ -123,7 +125,8 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
           hint,
           required,
           defaultValue,
-          children: parseObject(element)
+          children: parseObject(element),
+          ...metadata
         })
       } else {
         fields.push({
@@ -132,7 +135,8 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
           label,
           hint,
           required,
-          defaultValue
+          defaultValue,
+          ...metadata
         })
       }
       continue
@@ -151,7 +155,8 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
         hint,
         required,
         defaultValue,
-        placeholder: isEmail ? 'example@email.com' : isUrl ? 'https://...' : undefined
+        placeholder: isEmail ? 'example@email.com' : isUrl ? 'https://...' : undefined,
+        ...metadata
       } as any)
       continue
     }
@@ -167,7 +172,8 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
           required,
           defaultValue,
           min: range.min!,
-          max: range.max!
+          max: range.max!,
+          ...metadata
         })
       } else {
         fields.push({
@@ -176,7 +182,8 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
           label,
           hint,
           required,
-          defaultValue
+          defaultValue,
+          ...metadata
         } as any)
       }
       continue
@@ -189,7 +196,8 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
         label,
         hint,
         required,
-        defaultValue
+        defaultValue,
+        ...metadata
       })
       continue
     }
@@ -205,7 +213,8 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
         options: inner.options.map((v) => ({
           label: String(v),
           value: String(v)
-        }))
+        })),
+        ...metadata
       })
       continue
     }
@@ -217,9 +226,9 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
       label,
       hint,
       required,
-      defaultValue
+      defaultValue,
+      ...metadata
     })
   }
-
   return fields
 }
