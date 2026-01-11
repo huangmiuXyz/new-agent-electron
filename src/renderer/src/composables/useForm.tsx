@@ -102,7 +102,7 @@ interface BaseField<T> {
   required?: boolean
   disabled?: boolean
   hint?: string
-  ifShow?: (data: T) => boolean
+  ifShow?: boolean | ((data: T) => boolean)
   defaultValue?: T[keyof T]
 }
 
@@ -339,7 +339,14 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     const newErrors: Record<string, string> = {}
 
     const validateField = (field: any) => {
-      if (field.ifShow && !field.ifShow(formData.value)) {
+      const isShow =
+        field.ifShow !== undefined
+          ? typeof field.ifShow === 'function'
+            ? field.ifShow(formData.value)
+            : field.ifShow
+          : true
+
+      if (!isShow) {
         return
       }
 
@@ -363,7 +370,14 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     const newErrors: Record<string, string> = {}
 
     const validateField = (field: any) => {
-      if (field.ifShow && !field.ifShow(formData.value)) {
+      const isShow =
+        field.ifShow !== undefined
+          ? typeof field.ifShow === 'function'
+            ? field.ifShow(formData.value)
+            : field.ifShow
+          : true
+
+      if (!isShow) {
         return
       }
 
@@ -438,7 +452,13 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   }
 
   const renderField = (field: FormField<T>): VNode | null => {
-    const show = field.ifShow ? field.ifShow(formData.value) : true
+    debugger
+    const show =
+      field.ifShow !== undefined
+        ? typeof field.ifShow === 'function'
+          ? field.ifShow(formData.value)
+          : field.ifShow
+        : true
     if (!show) {
       return null
     }
