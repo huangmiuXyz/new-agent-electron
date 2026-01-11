@@ -134,7 +134,9 @@ export const useAgent = () => {
           speechMode: agent.speechMode || 'sentence',
           speechSpeed: agent.speechSpeed ?? 1,
           speechLanguage: agent.speechLanguage || 'auto',
-          speechProviderOptions: agent.speechProviderOptions ? { ...agent.speechProviderOptions } : {}
+          speechProviderOptions: agent.speechProviderOptions
+            ? { ...agent.speechProviderOptions }
+            : {}
         }
       : {
           name: '',
@@ -312,12 +314,11 @@ export const useAgent = () => {
             baseURL: provider.baseUrl,
             name: provider.name
           })
-
           const providerInstance = registry.getProvider(provider.providerType)
           if (providerInstance?.speechCallOptionsSchema) {
             const fields = zodSchemaToFormfields<Partial<Agent>>(
               providerInstance.speechCallOptionsSchema,
-              `speechProviderOptions.${provider.providerType}`
+              `speechProviderOptions.${provider.id}`
             )
 
             dynamicFields.push(
