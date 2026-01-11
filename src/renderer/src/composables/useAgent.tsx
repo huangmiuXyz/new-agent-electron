@@ -134,7 +134,7 @@ export const useAgent = () => {
           speechMode: agent.speechMode || 'sentence',
           speechSpeed: agent.speechSpeed ?? 1,
           speechLanguage: agent.speechLanguage || 'auto',
-          speechOptions: agent.speechOptions ? { ...agent.speechOptions } : {}
+          speechProviderOptions: agent.speechProviderOptions ? { ...agent.speechProviderOptions } : {}
         }
       : {
           name: '',
@@ -159,7 +159,7 @@ export const useAgent = () => {
           speechMode: 'sentence',
           speechSpeed: 1,
           speechLanguage: 'auto',
-          speechOptions: {}
+          speechProviderOptions: {}
         }
 
     let previousMcpServers = initialData.mcpServers || []
@@ -317,7 +317,7 @@ export const useAgent = () => {
           if (providerInstance?.speechCallOptionsSchema) {
             const fields = zodSchemaToFormfields<Partial<Agent>>(
               providerInstance.speechCallOptionsSchema,
-              'speechOptions'
+              `speechProviderOptions.${provider.id}`
             )
 
             dynamicFields.push(

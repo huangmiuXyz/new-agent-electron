@@ -96,8 +96,6 @@ export const useChat = (chatId: string) => {
         const voice = agent.selectedAgent?.speechVoice!
         const speed = agent.selectedAgent?.speechSpeed
         const language = agent.selectedAgent?.speechLanguage
-        const providerOptions = agent.selectedAgent?.speechOptions
-
         const { getModelByVoice } = useSettingsStore()
         const modelInfo = getModelByVoice(voice)
 
@@ -106,6 +104,9 @@ export const useChat = (chatId: string) => {
         }
 
         const { modelId: targetModelId, providerId: targetProviderId } = modelInfo
+
+        const rawOptions = agent.selectedAgent?.speechProviderOptions
+        const providerOptions = rawOptions?.[targetProviderId] ?? rawOptions
 
         if (!message.metadata) {
           message.metadata = {} as MetaData
