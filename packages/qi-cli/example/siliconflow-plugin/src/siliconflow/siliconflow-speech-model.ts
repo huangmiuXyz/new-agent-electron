@@ -36,14 +36,14 @@ export class SiliconFlowSpeechModel implements SpeechModelV3 {
       schema: SiliconFlowSpeechModel.speechCallOptionsSchema,
     });
 
-    const requestBody: SiliconFlowSpeechAPITypes = {
-      ...siliconFlowOptions,
-      model: this.modelId,
-      input: text,
-      voice,
-      speed,
-      response_format: (outputFormat as any) ?? siliconFlowOptions?.response_format,
-    };
+    const requestBody: SiliconFlowSpeechAPITypes =
+      Object.assign({}, siliconFlowOptions, {
+        model: this.modelId,
+        input: text,
+        voice,
+        speed,
+        response_format: (outputFormat as any) ?? siliconFlowOptions?.response_format,
+      });
 
     return {
       requestBody,
