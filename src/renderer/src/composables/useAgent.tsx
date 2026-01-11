@@ -324,7 +324,11 @@ export const useAgent = () => {
               ...fields.map((field) => ({
                 ...field,
                 ifShow: (data: Partial<Agent>) => {
-                  if (field.ifShow && !field.ifShow(data)) return false
+                  if (
+                    (typeof field.ifShow === 'boolean' && !field.ifShow) ||
+                    (typeof field.ifShow === 'function' && !field.ifShow?.(data))
+                  )
+                    return false
                   if (!data.speechVoice) return false
                   return (
                     provider.models?.some((m) =>

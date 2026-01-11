@@ -21,7 +21,7 @@ const siliconFlowSpeechReferenceSchema = z.object({
     .string()
     .describe(
       "音频内容，可以是音频文件的 URL，也可以是 Base64 编码的音频字符串。"
-    ).meta({ ifShow: false }),
+    )
 });
 
 /**
@@ -46,6 +46,7 @@ export const siliconFlowCreateSpeechRequestSchema = z
       .string()
       .min(1)
       .max(128000)
+      .meta({ ifShow: false })
       .describe(
         "对话文本使用说话人标签来指示轮次：[S1] 和 [S2]。"
       ),
