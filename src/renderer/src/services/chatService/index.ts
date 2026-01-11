@@ -115,7 +115,7 @@ export const chatService = () => {
           await onBeforeToolExecute?.({ tool: t, input, options })
           const result = await t.execute(input, {
             ...JSON.parse(JSON.stringify(options)),
-            abortSignal: undefined
+            abortSignal: controller.signal
           })
           return result
         }
@@ -143,6 +143,7 @@ export const chatService = () => {
     const uiStream = createAgentUIStream({
       agent,
       uiMessages: JSON.parse(JSON.stringify(messages)),
+      abortSignal: controller.signal,
       messageMetadata: ({ part }) => {
         let result = {}
         if (part.type === 'finish-step' && part.finishReason === 'stop') {
