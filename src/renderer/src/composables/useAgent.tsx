@@ -317,7 +317,7 @@ export const useAgent = () => {
           if (providerInstance?.speechCallOptionsSchema) {
             const fields = zodSchemaToFormfields<Partial<Agent>>(
               providerInstance.speechCallOptionsSchema,
-              `speechProviderOptions.${provider.id}`
+              `speechProviderOptions.${provider.providerType}`
             )
 
             dynamicFields.push(
