@@ -115,7 +115,7 @@ const [ApiKeyForm, apiKeyFormActions] = useForm({
   title: '添加 API 密钥',
   showHeader: false,
   fields: [
-    { name: 'name', type: 'text', label: '密钥名称', required: true, placeholder: '例如：生产环境密钥' },
+    { name: 'name', type: 'text', label: '密钥名称', required: true, placeholder: '例如：生产环境密钥', defaultValue: '默认密钥' },
     { name: 'key', type: 'password', label: 'API 密钥', required: true, placeholder: '输入您的 API Key' }
   ],
   onSubmit: (data) => {
