@@ -91,7 +91,8 @@ export const siliconFlowCreateSpeechRequestSchema = z
       .optional()
       .describe(
         '“voice”字段目前不支持两种音色。如果您需要上传两种音色，请使用“reference”。'
-      ),
+      )
+      .meta({ ifShow: false }),
 
     /**
      * 音频输出格式
@@ -102,7 +103,8 @@ export const siliconFlowCreateSpeechRequestSchema = z
       .default("mp3")
       .describe(
         "音频输出格式。支持的格式有 mp3、opus、wav、pcm。"
-      ),
+      )
+      .meta({ ifShow: false }),
 
     /**
      * 采样率
@@ -122,7 +124,8 @@ export const siliconFlowCreateSpeechRequestSchema = z
       .boolean()
       .optional()
       .default(true)
-      .describe("是否使用流式传输"),
+      .describe("是否使用流式传输")
+      .meta({ ifShow: false }),
 
     /**
      * 语速
