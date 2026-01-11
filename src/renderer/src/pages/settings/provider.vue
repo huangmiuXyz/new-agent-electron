@@ -250,8 +250,8 @@ const ModelList = defineComponent({
       <FormItem label="模型列表">
         {{
           label: () => (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>模型列表</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWrap: 'nowrap', height: '20px' }}>
+              <span style={{ textWrap: 'nowrap' }}>模型列表</span>
               <Button onClick={showAddCustomModelModal} size="sm" type="button" variant="text">
                 {Plus}
               </Button>
@@ -564,4 +564,5 @@ const VoiceTable = defineComponent({
 :deep(.voice-table-wrapper .header-cell) {
   border-bottom: none !important;
 }
+
 </style>
