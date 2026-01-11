@@ -53,6 +53,19 @@ export const speechService = () => {
 
       const modelString = `${provider.providerType}:${modelId}`
 
+      const cleanObject = (obj: any): any => {
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj
+        return Object.fromEntries(
+          Object.entries(obj)
+            .filter(([_, v]) => {
+              if (v === '' || v === null || v === undefined) return false
+              if (Array.isArray(v) && v.length === 0) return false
+              return true
+            })
+            .map(([k, v]) => [k, cleanObject(v)])
+        )
+      }
+
       const { audio } = await generateSpeech({
         model: registry.speechModel(modelString as any),
         text,
@@ -60,7 +73,7 @@ export const speechService = () => {
         speed,
         language,
         providerOptions: {
-          [provider.providerType]: providerOptions || {}
+          [provider.providerType]: cleanObject(providerOptions || {})
         }
       })
 

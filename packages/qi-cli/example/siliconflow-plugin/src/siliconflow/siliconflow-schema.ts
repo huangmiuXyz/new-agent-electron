@@ -168,40 +168,13 @@ export const siliconFlowCreateSpeechRequestSchema =
   siliconFlowCreateSpeechRequestBaseSchema.superRefine(validateRefinements);
 
 /**
- * 专门用于 providerOptions 的校验 Schema，所有字段可选，且处理空字符串
+ * 专门用于 providerOptions 的校验 Schema，所有字段可选
  */
-export const siliconFlowSpeechProviderOptionsSchema = z
-  .object({
-    model: emptyToUndefined.pipe(
-      siliconFlowCreateSpeechRequestBaseSchema.shape.model.optional()
-    ),
-    input: emptyToUndefined.pipe(
-      siliconFlowCreateSpeechRequestBaseSchema.shape.input.optional()
-    ),
-    voice: emptyToUndefined.pipe(
-      siliconFlowCreateSpeechRequestBaseSchema.shape.voice.optional()
-    ),
-    max_tokens: emptyToUndefined.pipe(
-      siliconFlowCreateSpeechRequestBaseSchema.shape.max_tokens.optional()
-    ),
-    references: emptyToUndefined.pipe(
-      siliconFlowCreateSpeechRequestBaseSchema.shape.references.optional()
-    ),
-    response_format: emptyToUndefined.pipe(
-      siliconFlowCreateSpeechRequestBaseSchema.shape.response_format.optional()
-    ),
-    sample_rate: emptyToUndefined.pipe(
-      siliconFlowCreateSpeechRequestBaseSchema.shape.sample_rate.optional()
-    ),
-    stream: emptyToUndefined.pipe(
-      siliconFlowCreateSpeechRequestBaseSchema.shape.stream.optional()
-    ),
-    speed: emptyToUndefined.pipe(
-      siliconFlowCreateSpeechRequestBaseSchema.shape.speed.optional()
-    ),
-    gain: emptyToUndefined.pipe(
-      siliconFlowCreateSpeechRequestBaseSchema.shape.gain.optional()
-    ),
-  })
-  .superRefine(validateRefinements);
+export const siliconFlowSpeechProviderOptionsSchema =
+  siliconFlowCreateSpeechRequestBaseSchema.partial();
+
+
+
+
+
 

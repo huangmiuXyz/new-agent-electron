@@ -36,14 +36,19 @@ export class SiliconFlowSpeechModel implements SpeechModelV3 {
       schema: SiliconFlowSpeechModel.speechCallOptionsSchema,
     });
 
-    const requestBody: SiliconFlowSpeechAPITypes =
-      Object.assign({}, siliconFlowOptions, {
-        model: this.modelId,
-        input: text,
-        voice,
-        speed,
-        response_format: (outputFormat as any) ?? siliconFlowOptions?.response_format,
-      });
+    // 互斥校验：references 与 voice 不能同时存在
+    if (siliconFlowOptions?.references && siliconFlowOptions?.voice) {
+      throw new Error('voice 和 references 字段是互斥的');
+    }
+
+    const requestBody: SiliconFlowSpeechAPITypes = {
+      model: siliconFlowOptions?.model ?? this.modelId,
+      input: siliconFlowOptions?.input ?? text,
+      voice: siliconFlowOptions?.voice ?? voice,
+      speed: speed ?? siliconFlowOptions?.speed,
+      response_format: (outputFormat as any) ?? siliconFlowOptions?.response_format,
+      ...siliconFlowOptions,
+    };
 
     return {
       requestBody,
