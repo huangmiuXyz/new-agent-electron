@@ -6,11 +6,11 @@ import {
 import { SiliconFlowConfig } from './siliconflow-config';
 import { siliconFlowFailedResponseHandler } from './siliconflow-error';
 import { SiliconFlowSpeechAPITypes } from './siliconflow-api-types';
-import { siliconFlowCreateSpeechRequestSchema } from './siliconflow-schema';
+import { siliconFlowSpeechProviderOptionsSchema } from './siliconflow-schema';
 
 export class SiliconFlowSpeechModel implements SpeechModelV3 {
   readonly specificationVersion = 'v3';
-  public static readonly speechCallOptionsSchema = siliconFlowCreateSpeechRequestSchema;
+  public static readonly speechCallOptionsSchema = siliconFlowSpeechProviderOptionsSchema;
 
   get provider(): string {
     return this.config.provider;
