@@ -37,12 +37,12 @@ export class SiliconFlowSpeechModel implements SpeechModelV3 {
     });
 
     const requestBody: SiliconFlowSpeechAPITypes = {
+      ...siliconFlowOptions,
       model: this.modelId,
       input: text,
-      voice: voice,
-      speed: speed ?? siliconFlowOptions?.speed,
+      voice,
+      speed,
       response_format: (outputFormat as any) ?? siliconFlowOptions?.response_format,
-      ...siliconFlowOptions,
     };
 
     return {
