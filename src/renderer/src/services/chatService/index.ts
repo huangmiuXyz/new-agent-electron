@@ -1,5 +1,6 @@
 import {
   generateText as _generateText,
+  generateImage as _generateImage,
   ToolLoopAgent,
   ToolChoice,
   wrapLanguageModel,
@@ -198,6 +199,47 @@ export const chatService = () => {
     }
   }
 
+  const generateImage = async (
+    prompt: string,
+    {
+      model,
+      apiKey,
+      baseURL,
+      provider,
+      providerType,
+      n,
+      size,
+      aspectRatio,
+      seed,
+      providerOptions
+    }: ChatServiceOptions & {
+      n?: number
+      size?: `${number}x${number}`
+      aspectRatio?: `${number}:${number}`
+      seed?: number
+      providerOptions?: any
+    }
+  ) => {
+    await onUseAIBefore({ model, providerType, apiKey, baseURL })
+    try {
+      const result = await _generateImage({
+        model: createRegistry({ apiKey, baseURL, name: provider }).imageModel(
+          `${providerType}:${model}`
+        ),
+        prompt,
+        n,
+        size: size as `${number}x${number}`,
+        aspectRatio: aspectRatio as `${number}:${number}`,
+        seed,
+        providerOptions
+      })
+      return result
+    } catch (error) {
+      messageApi.error((error as Error).message)
+      throw error
+    }
+  }
+
   const translateText = async (
     text: string,
     targetLanguage: string = '中文',
@@ -250,6 +292,7 @@ export const chatService = () => {
     list_models,
     list_tools,
     generateText,
-    translateText
+    translateText,
+    generateImage
   }
 }
