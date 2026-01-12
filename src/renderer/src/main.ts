@@ -7,6 +7,8 @@ import App from './App.vue'
 import router from './router'
 import Button from './components/Button.vue'
 import Switch from './components/Switch.vue'
+import Input from './components/Input.vue'
+
 import DownloadProgress from './components/DownloadProgress.vue'
 import Image from './components/Image.vue'
 import Loading from './components/Loading.vue'
@@ -28,7 +30,8 @@ pluginLoader.registerComponents({
   Switch,
   DownloadProgress,
   Image,
-  Loading
+  Loading,
+  Input,
 })
 
 

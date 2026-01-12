@@ -14,7 +14,7 @@ const plugin: Plugin = {
 
   install: async (context: PluginContext) => {
     const { defineComponent, watch, ref, onMounted, onUnmounted, markRaw } = context.vue
-    const { Image, Loading } = context.components
+    const { Image, Loading, Input } = context.components
     const message = ref()
 
     const PROVIDER_ID = 'modelscope'
@@ -39,6 +39,7 @@ const plugin: Plugin = {
       },
       setup(props: any) {
         const tempModelId = ref(props.modelId)
+        const showTooltip = ref(false)
 
         const saveEdit = async () => {
           if (tempModelId.value && tempModelId.value !== props.modelId) {
@@ -48,53 +49,84 @@ const plugin: Plugin = {
           }
         }
 
-        return () => (
-          <div class="plugin-icon-container">
-            <style>{`
-              .plugin-icon-container { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
-              .plugin-tooltip {
-                position: absolute; bottom: 100%; left: 0; transform: translateY(-8px);
-                background: #ffffff; color: #333333; padding: 8px 12px; border-radius: 6px;
-                font-size: 12px; white-space: nowrap; visibility: hidden; opacity: 0;
-                transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                z-index: 10000; border: 1px solid #e0e0e0;
-              }
-              html.dark-mode .plugin-tooltip { background: #2d2d2d; color: #ffffff; border-color: #444444; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-              .plugin-icon-container:hover .plugin-tooltip { visibility: visible; opacity: 1; transform: translateY(-12px); }
-              .plugin-tooltip::after { content: ""; position: absolute; top: 100%; left: 10px; border: 6px solid transparent; border-top-color: #ffffff; }
-              html.dark-mode .plugin-tooltip::after { border-top-color: #2d2d2d; }
+        const toggleTooltip = (e: MouseEvent) => {
+          e.stopPropagation()
+          showTooltip.value = !showTooltip.value
+        }
 
-              .model-tag-input {
-                background: #f0f0f0; border: 1px solid transparent; padding: 1px 4px;
-                border-radius: 4px; margin-left: 8px; font-family: monospace; color: #007acc;
-                width: 140px; font-size: 11px; outline: none; transition: all 0.2s;
+        const closeTooltip = () => {
+          showTooltip.value = false
+        }
+
+        onMounted(() => {
+          window.addEventListener('click', closeTooltip)
+        })
+
+        onUnmounted(() => {
+          window.removeEventListener('click', closeTooltip)
+        })
+
+        return () => (
+          <div class="plugin-icon-container" onClick={toggleTooltip}>
+            <style>{`
+              .plugin-icon-container { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; cursor: pointer; }
+              .plugin-tooltip {
+                position: absolute;
+                bottom: 100%;
+                left: 0;
+                margin-bottom: 10px;
+                visibility: hidden;
+                opacity: 0;
+                transition: opacity 0.15s ease, visibility 0.15s;
+                z-index: 10000;
               }
-              .model-tag-input:focus { background: var(--bg-card); border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1); }
-              html.dark-mode .model-tag-input { background: #444444; color: #61dafb; }
-              html.dark-mode .model-tag-input:focus { background: #1e1e1e; }
+              .plugin-tooltip.is-show {
+                visibility: visible;
+                opacity: 1;
+              }
+              .plugin-tooltip-content {
+                background: #ffffff; color: #333333; padding: 12px 16px; border-radius: 8px;
+                font-size: 13px; white-space: nowrap;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+                border: 1px solid #e0e0e0;
+                min-width: 320px;
+              }
+              html.dark-mode .plugin-tooltip-content { background: #2d2d2d; color: #ffffff; border-color: #444444; box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+
+              .plugin-tooltip-content :deep(.input-wrapper) {
+                margin-left: 12px;
+                flex: 1;
+              }
+
+              /* 确保使用组件原生样式，不强制重写高度和字体 */
+              .plugin-tooltip-content :deep(.form-input) {
+                width: 100%;
+              }
             `}</style>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
               <path d="M21 16.5C21 16.88 20.79 17.21 20.47 17.38L12.57 21.82C12.41 21.94 12.21 22 12 22C11.79 22 11.59 21.94 11.43 21.82L3.53 17.38C3.21 17.21 3 16.88 3 16.5V7.5C3 7.12 3.21 6.79 3.53 6.62L11.43 2.18C11.59 2.06 11.79 2 12 2C12.21 2 12.41 2.06 12.57 2.18L20.47 6.62C20.79 6.79 21 7.12 21 7.5V16.5Z" />
             </svg>
 
-            <div class="plugin-tooltip" onClick={(e: MouseEvent) => e.stopPropagation()}>
-              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>ModelScope 绘图</div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span>当前模型:</span>
-                <input
-                  class="model-tag-input"
-                  v-model={tempModelId.value}
-                  onBlur={saveEdit}
-                  onKeydown={(e: KeyboardEvent) => {
-                    if (e.key === 'Enter') saveEdit()
-                    if (e.key === 'Escape') {
-                      tempModelId.value = props.modelId
-                      const target = e.target as HTMLInputElement
-                      target.blur()
-                    }
-                  }}
-                  placeholder="输入模型 ID..."
-                />
+            <div class={['plugin-tooltip', showTooltip.value && 'is-show']} onClick={(e: MouseEvent) => e.stopPropagation()}>
+              <div class="plugin-tooltip-content">
+                <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>ModelScope 绘图</div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span>当前模型:</span>
+                  <Input
+                    v-model={tempModelId.value}
+                    onBlur={saveEdit}
+                    onKeydown={(e: KeyboardEvent) => {
+                      if (e.key === 'Enter') saveEdit()
+                      if (e.key === 'Escape') {
+                        tempModelId.value = props.modelId
+                        const target = e.target as HTMLInputElement
+                        target.blur()
+                      }
+                    }}
+                    placeholder="输入模型 ID..."
+                    size="sm"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -166,7 +198,6 @@ const plugin: Plugin = {
       inputSchema: z.object({
         prompt: z.string().describe('生成图片的正向提示词，建议使用英文描述以获得更好效果。'),
         negative_prompt: z.string().optional().describe('负向提示词，用于排除不需要的元素。'),
-        model: z.string().optional().describe('要使用的模型 ID'),
         size: z
           .string()
           .optional()
