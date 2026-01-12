@@ -113,7 +113,7 @@ const plugin: Plugin = {
           const baseURL = provider.baseURL || 'https://api-inference.modelscope.cn/'
 
           // 创建模型实例
-          const model = new ModelScopeImageModel(modelId || 'Qwen/Qwen-Image', {
+          const model = new ModelScopeImageModel(modelId || 'Tongyi-MAI/Z-Image-Turbo', {
             apiKey,
             baseURL
           })
