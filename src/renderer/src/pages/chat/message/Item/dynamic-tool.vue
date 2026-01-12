@@ -58,7 +58,7 @@ const customRender = computed(() => {
           </div>
           <span class="tool-name">{{
             (tool_part as DynamicToolUIPart)?.toolName || tool_part?.title || toolName
-          }}</span>
+            }}</span>
         </div>
         <div class="tool-status">
           <slot name="status">
@@ -69,7 +69,8 @@ const customRender = computed(() => {
       </div>
       <div class="tool-content" :class="{ collapsed: isCollapsed }">
         <slot name="content">
-          <component v-if="customRender" :message="message" :is="customRender" :args="tool_part.input" :result="tool_part.output" />
+          <component v-if="customRender" :message="message" :is="customRender" :args="tool_part.input"
+            :result="tool_part.output" :tool_part="tool_part" />
           <div v-else class="io-container">
             <div class="io-section io-input">
               <div class="io-header" @click="toggleInputCollapse">

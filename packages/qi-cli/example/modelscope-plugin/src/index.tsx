@@ -44,9 +44,10 @@ const plugin: Plugin = {
         props: {
           args: { type: Object },
           result: { type: Object },
-          message: { type: Object }
+          message: { type: Object },
+          tool_part: { type: Object }
         },
-        setup(props: { args?: any; result?: any; message: any }) {
+        setup(props: { args?: any; result?: any; message: any; tool_part: any }) {
           const localResult = ref(null) as any
           const isPolling = ref(false)
           const abortController = new AbortController()
@@ -71,6 +72,42 @@ const plugin: Plugin = {
               const result = await model.waitForTask(taskId, abortController.signal)
               if (result && result.images) {
                 localResult.value = { images: result.images }
+                const chatsStore = await context.getStore('chats')
+                const cid = props.message?.metadata?.cid
+                const mid = props.message?.id
+                if (cid && mid) {
+                  const chat = chatsStore.getChatById(cid)
+                  const msg = chat?.messages.find((m: any) => m.id === mid)
+                  if (msg && msg.parts) {
+                    const partIndex = msg.parts.findIndex(
+                      (p: any) => p.toolCallId === props.tool_part?.toolCallId
+                    )
+                    if (partIndex !== -1) {
+                      const newParts = [...msg.parts]
+                      const report = (result.images as any[])
+                        .map((base64: string, index: number) => {
+                          return `![Generated Image ${index + 1}](data:image/png;base64,${base64})`
+                        })
+                        .join('\n\n')
+
+                      newParts[partIndex] = {
+                        ...newParts[partIndex],
+                        output: {
+                          images: result.images,
+                          toolResult: {
+                            content: [
+                              {
+                                type: 'text',
+                                text: `<|stop|>图片生成成功！\n\n${report}`
+                              }
+                            ]
+                          }
+                        }
+                      }
+                      chatsStore.updateMessage(cid, mid, newParts)
+                    }
+                  }
+                }
               }
             } catch (error: any) {
               console.error('ModelScope polling failed:', error)
