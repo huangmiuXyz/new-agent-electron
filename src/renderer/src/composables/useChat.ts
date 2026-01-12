@@ -168,6 +168,7 @@ export const useChat = (chatId: string) => {
       }
 
       watch(() => chat.lastMessage?.parts, (newParts) => {
+        chats!.messages = chat.messages!
         if (!newParts || chat.lastMessage.role !== 'assistant' || !speechEnabled.value) return
         const mode = (agent.selectedAgent?.speechMode) as string
         if (mode === 'full') return
@@ -198,10 +199,6 @@ export const useChat = (chatId: string) => {
       }, {
         deep: true
       })
-
-      watch(() => chat.messages, (newMessages) => {
-        chats!.messages = newMessages!
-      }, { deep: true })
 
       return chat
     })!
