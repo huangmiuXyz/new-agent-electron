@@ -16,7 +16,7 @@ const toolName = computed(() => {
     :suggestionsData="tool_part.input as SuggestionsData" />
   <ChatMessageItemExecCommand :message="message" v-else-if="toolName === 'exec_command'" :tool_part="tool_part" />
 
-  <ChatMessageItemDynamicTool v-else :tool_part="tool_part" />
+  <ChatMessageItemDynamicTool v-else :tool_part="tool_part" allow-custom-render />
 </template>
 
 <style scoped>

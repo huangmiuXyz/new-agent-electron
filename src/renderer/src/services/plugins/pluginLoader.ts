@@ -6,7 +6,7 @@ import JSZip from 'jszip';
  * 负责插件的动态加载、卸载和生命周期管理
  */
 export class PluginLoader {
-  private pluginManager: PluginManager;
+  public pluginManager: PluginManager;
   private loadedPlugins: Map<string, PluginInfo> = new Map();
   private devPlugins: Map<string, string> = new Map(); // pluginName -> localPath
   private watchers: Map<string, () => void> = new Map(); // pluginName -> unwatch function

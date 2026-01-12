@@ -123,7 +123,7 @@ const handleClick = (event: MouseEvent) => {
 
 /* 文本按钮样式 - 无背景hover效果 */
 .btn--text {
-  background: transparent;
+  background: transparent !important;
   color: var(--text-secondary);
   padding: 4px;
   border-radius: 4px;
@@ -144,16 +144,16 @@ const handleClick = (event: MouseEvent) => {
 
 /* 危险按钮样式 */
 .btn--danger {
-  background: var(--color-danger) !important;
-  color: #fff !important;
+  background: var(--color-danger);
+  color: #fff;
 }
 
 .btn--danger:hover:not(.btn--disabled) {
-  background: var(--color-danger-hover, rgba(var(--color-danger-rgb, 239, 68, 68), 0.8)) !important;
+  background: var(--color-danger-hover, rgba(var(--color-danger-rgb, 239, 68, 68), 0.8));
 }
 
 .btn--danger:active:not(.btn--disabled) {
-  background: var(--color-danger-active, rgba(var(--color-danger-rgb, 239, 68, 68), 0.7)) !important;
+  background: var(--color-danger-active, rgba(var(--color-danger-rgb, 239, 68, 68), 0.7));
 }
 
 /* 危险次要按钮样式 */

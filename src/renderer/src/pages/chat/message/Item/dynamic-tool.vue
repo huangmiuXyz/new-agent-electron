@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { DynamicToolUIPart, ToolUIPart } from 'ai'
+import { getPluginLoader } from '@renderer/services/plugins/pluginLoaderInstance'
 
-defineProps<{
+const props = defineProps<{
   tool_part: DynamicToolUIPart | ToolUIPart
+  allowCustomRender?: boolean
 }>()
 const isCollapsed = ref(true)
 
@@ -20,6 +22,24 @@ const toggleOutputCollapse = () => {
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
 }
+
+const toolName = computed(() => {
+  if ('toolName' in props.tool_part) {
+    return props.tool_part.toolName
+  }
+  return props.tool_part.type?.split('-')[1]
+})
+
+const customRender = computed(() => {
+  if (!props.allowCustomRender || !toolName.value) return null
+  try {
+    const loader = getPluginLoader()
+    const tool = loader.pluginManager.getBuiltinTool(toolName.value)
+    return tool?.render || null
+  } catch (e) {
+    return null
+  }
+})
 </script>
 
 <template>
@@ -35,7 +55,7 @@ const toggleCollapse = () => {
             </svg>
           </div>
           <span class="tool-name">{{
-            (tool_part as DynamicToolUIPart)?.toolName || tool_part?.title
+            (tool_part as DynamicToolUIPart)?.toolName || tool_part?.title || toolName
           }}</span>
         </div>
         <div class="tool-status">
@@ -47,7 +67,8 @@ const toggleCollapse = () => {
       </div>
       <div class="tool-content" :class="{ collapsed: isCollapsed }">
         <slot name="content">
-          <div class="io-container">
+          <component v-if="customRender" :is="customRender" :args="tool_part.input" :result="tool_part.output" />
+          <div v-else class="io-container">
             <div class="io-section io-input">
               <div class="io-header" @click="toggleInputCollapse">
                 <div class="io-left">

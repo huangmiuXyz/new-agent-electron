@@ -233,16 +233,10 @@ const handleUninstallPlugin = async (pluginName: string) => {
                 </Button>
                 <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm"
                   @click="handleUninstallPlugin(activePlugin.name)">
-                  <template #icon>
-                    <Trash />
-                  </template>
-                  完全卸载
+                  卸载
                 </Button>
                 <Button v-if="activePlugin.type === 'loaded'" size="sm" danger
-                  @click="clearPluginData(activePlugin.name)">
-                  <template #icon>
-                    <Trash />
-                  </template>
+                  @click="clearPluginData(activePlugin.name)" variant="text">
                   清除缓存
                 </Button>
                 <Button v-if="activePlugin.type === 'available' && activePlugin.path" size="sm"

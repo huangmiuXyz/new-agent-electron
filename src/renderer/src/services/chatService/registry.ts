@@ -234,7 +234,7 @@ const providerFactories = shallowReactive<Record<string, ProviderFactory>>({
 
 export const registerProviderFactory = (name: string, factory: ProviderFactory) => {
   providerFactories[name] = (options) => {
-    const provider = mergeFun(factory(options), createOpenAICompatible(options))
+    const provider = mergeFun(factory(options), providerFactories['openai-compatible'](options))
     return provider
   }
 }

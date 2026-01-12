@@ -13,6 +13,8 @@ const plugin: Plugin = {
   author: 'Zhuanz',
 
   install: async (context: PluginContext) => {
+    const { defineComponent } = context.vue;
+
     // 注册内置工具
     context.registerBuiltinTool('modelscope_image_generator', {
       description: '使用 ModelScope AIGC 模型生成图片。支持多种模型，可以指定提示词、图片尺寸等参数。',
@@ -24,6 +26,51 @@ const plugin: Plugin = {
         seed: z.number().optional().describe('随机种子，用于复现生成的图片。')
       }),
       title: 'ModelScope 绘图',
+      render: defineComponent({
+        name: 'ModelScopeImageRender',
+        props: {
+          args: { type: Object, required: true },
+          result: { type: Object, required: true }
+        },
+        setup(props: { args: any, result: any }) {
+          return () => {
+            const images = props.result?.images || [];
+            const error = props.result?.error;
+            const prompt = props.args?.prompt;
+
+            if (error) {
+              return (
+                <div style="padding: 12px; color: var(--color-error); background: var(--bg-card); border: 1px solid var(--color-error); border-radius: 8px; font-size: 13px;">
+                  <div style="font-weight: 600; margin-bottom: 4px;">Generation Failed</div>
+                  {error}
+                </div>
+              );
+            }
+
+            return (
+              <div style="display: flex; flex-direction: column; gap: 12px; padding: 8px;">
+                {prompt && (
+                  <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                    <span style="font-weight: 600; color: var(--text-primary); margin-right: 4px;">Prompt:</span>
+                    {prompt}
+                  </div>
+                )}
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+                  {images.map((base64: string, index: number) => (
+                    <div key={index} style="position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background: var(--bg-card);">
+                      <img
+                        src={`data:image/png;base64,${base64}`}
+                        style="width: 100%; height: auto; display: block;"
+                        alt={`Generated image ${index + 1}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          };
+        }
+      }),
       execute: async (args: any) => {
         const { prompt, negative_prompt, model: modelId, size, seed } = args;
 
@@ -77,6 +124,7 @@ const plugin: Plugin = {
             }).join('\n\n');
 
             return {
+              images,
               toolResult: {
                 content: [
                   {
@@ -93,6 +141,7 @@ const plugin: Plugin = {
           context.notification.removeStatus('modelscope-gen');
           context.notification.error(`图片生成失败: ${error.message}`);
           return {
+            error: error.message,
             toolResult: {
               content: [
                 {

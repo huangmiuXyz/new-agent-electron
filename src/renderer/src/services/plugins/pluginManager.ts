@@ -611,6 +611,15 @@ export class PluginManager {
   }
 
   /**
+   * 获取特定内置工具
+   * @param name 工具名称
+   * @returns 工具定义
+   */
+  getBuiltinTool(name: string): any {
+    return this.builtinTools.get(name);
+  }
+
+  /**
    * 获取插件注册的内置工具名称
    * @param pluginName 插件名称
    * @returns 工具名称数组
