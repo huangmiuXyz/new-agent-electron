@@ -13,15 +13,151 @@ const plugin: Plugin = {
   author: 'Zhuanz',
 
   install: async (context: PluginContext) => {
-    const { defineComponent, watch, ref, onMounted, onUnmounted } = context.vue
+    const { defineComponent, watch, ref, onMounted, onUnmounted, markRaw } = context.vue
     const { Image, Loading } = context.components
     const message = ref()
 
-    const getProvider = async () => {
-      const settingsStore = await context.getStore('settings')
-      const providers = settingsStore.getAllProviders
-      return providers.find((p: any) => p.id === '魔搭' || p.providerType === 'modelscope')
+    const PROVIDER_ID = 'modelscope'
+    const STORAGE_KEY_MODEL_ID = 'modelscope_model_id'
+    const DEFAULT_MODEL_ID = 'Tongyi-MAI/Z-Image-Turbo'
+
+    const currentModelId = ref(DEFAULT_MODEL_ID)
+
+    // 初始化加载配置
+    const initConfig = async () => {
+      const savedModelId = await context.localforage.getItem(STORAGE_KEY_MODEL_ID)
+      if (savedModelId) {
+        currentModelId.value = savedModelId
+      }
+      updateStatus()
     }
+
+    // 状态图标组件 - 准备就绪
+    const ReadyIcon = defineComponent({
+      props: {
+        modelId: { type: String, required: true }
+      },
+      setup(props: any) {
+        const tempModelId = ref(props.modelId)
+
+        const saveEdit = async () => {
+          if (tempModelId.value && tempModelId.value !== props.modelId) {
+            currentModelId.value = tempModelId.value
+            await context.localforage.setItem(STORAGE_KEY_MODEL_ID, tempModelId.value)
+            updateStatus()
+          }
+        }
+
+        return () => (
+          <div class="plugin-icon-container">
+            <style>{`
+              .plugin-icon-container { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+              .plugin-tooltip {
+                position: absolute; bottom: 100%; left: 0; transform: translateY(-8px);
+                background: #ffffff; color: #333333; padding: 8px 12px; border-radius: 6px;
+                font-size: 12px; white-space: nowrap; visibility: hidden; opacity: 0;
+                transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000; border: 1px solid #e0e0e0;
+              }
+              html.dark-mode .plugin-tooltip { background: #2d2d2d; color: #ffffff; border-color: #444444; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+              .plugin-icon-container:hover .plugin-tooltip { visibility: visible; opacity: 1; transform: translateY(-12px); }
+              .plugin-tooltip::after { content: ""; position: absolute; top: 100%; left: 10px; border: 6px solid transparent; border-top-color: #ffffff; }
+              html.dark-mode .plugin-tooltip::after { border-top-color: #2d2d2d; }
+
+              .model-tag-input {
+                background: #f0f0f0; border: 1px solid transparent; padding: 1px 4px;
+                border-radius: 4px; margin-left: 8px; font-family: monospace; color: #007acc;
+                width: 140px; font-size: 11px; outline: none; transition: all 0.2s;
+              }
+              .model-tag-input:focus { background: var(--bg-card); border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1); }
+              html.dark-mode .model-tag-input { background: #444444; color: #61dafb; }
+              html.dark-mode .model-tag-input:focus { background: #1e1e1e; }
+            `}</style>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M21 16.5C21 16.88 20.79 17.21 20.47 17.38L12.57 21.82C12.41 21.94 12.21 22 12 22C11.79 22 11.59 21.94 11.43 21.82L3.53 17.38C3.21 17.21 3 16.88 3 16.5V7.5C3 7.12 3.21 6.79 3.53 6.62L11.43 2.18C11.59 2.06 11.79 2 12 2C12.21 2 12.41 2.06 12.57 2.18L20.47 6.62C20.79 6.79 21 7.12 21 7.5V16.5Z" />
+            </svg>
+
+            <div class="plugin-tooltip" onClick={(e: MouseEvent) => e.stopPropagation()}>
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>ModelScope 绘图</div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <span>当前模型:</span>
+                <input
+                  class="model-tag-input"
+                  v-model={tempModelId.value}
+                  onBlur={saveEdit}
+                  onKeydown={(e: KeyboardEvent) => {
+                    if (e.key === 'Enter') saveEdit()
+                    if (e.key === 'Escape') {
+                      tempModelId.value = props.modelId
+                      const target = e.target as HTMLInputElement
+                      target.blur()
+                    }
+                  }}
+                  placeholder="输入模型 ID..."
+                />
+              </div>
+            </div>
+          </div>
+        )
+      }
+    })
+
+    // 状态图标组件 - 加载中
+    const LoadingIcon = defineComponent({
+      setup() {
+        return () => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <style>{`
+              @keyframes plugin-spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
+            <svg
+              style={{ animation: 'plugin-spin 1s linear infinite' }}
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="currentColor"
+            >
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+            </svg>
+          </div>
+        )
+      }
+    })
+
+    const updateStatus = async (isLoading = false) => {
+      const modelId = currentModelId.value
+
+      if (isLoading) {
+        context.notification.status('modelscope-status', '', {
+          render: markRaw(LoadingIcon),
+          color: 'var(--color-primary)',
+          tooltip: `ModelScope 正在生成图片...`
+        })
+      } else {
+        context.notification.status('modelscope-status', '', {
+          render: markRaw(() => <ReadyIcon modelId={modelId} />),
+          color: 'var(--color-primary)',
+          tooltip: `ModelScope 已就绪 (模型: ${modelId})`
+        })
+      }
+    }
+
+    const getModelConfig = async () => {
+      const settingsStore = await context.getStore('settings')
+      // 从已有的提供商列表中查找 ModelScope 的配置（包含用户在界面填写的 API Key）
+      const provider = settingsStore.providers?.find((p: any) => p.id === PROVIDER_ID)
+      return {
+        modelId: currentModelId.value,
+        apiKey: provider?.apiKey || '',
+        baseURL: provider?.baseUrl || 'https://api-inference.modelscope.cn/'
+      }
+    }
+
+    // 初始化
+    initConfig()
 
     // 注册内置工具
     context.registerBuiltinTool('modelscope_image_generator', {
@@ -58,19 +194,20 @@ const plugin: Plugin = {
 
             isPolling.value = true
             try {
-              const provider = await getProvider()
-              if (!provider || !provider.apiKey) return
+              const config = await getModelConfig()
+              const modelId = props.args?.model || config.modelId
 
-              const modelId = props.args?.model || 'Tongyi-MAI/Z-Image-Turbo'
-              const baseURL = provider.baseURL || 'https://api-inference.modelscope.cn/'
+              // 显示正在恢复的状态
+              await updateStatus(true)
 
               const model = new ModelScopeImageModel(modelId, {
-                apiKey: provider.apiKey,
-                baseURL
+                apiKey: config.apiKey,
+                baseURL: config.baseURL
               })
 
               const result = await model.waitForTask(taskId, abortController.signal)
               if (result && result.images) {
+                await updateStatus(false)
                 localResult.value = { images: result.images }
                 const chatsStore = await context.getStore('chats')
                 const cid = props.message?.metadata?.cid
@@ -110,6 +247,7 @@ const plugin: Plugin = {
                 }
               }
             } catch (error: any) {
+              await updateStatus(false)
               console.error('ModelScope polling failed:', error)
               localResult.value = { error: error.message }
             } finally {
@@ -189,26 +327,17 @@ const plugin: Plugin = {
         const { prompt, negative_prompt, model: modelId, size, seed } = args
 
         try {
-          const provider = await getProvider()
-
-          if (!provider || !provider.apiKey) {
-            throw new Error('请先在“设置 -> 模型提供商”中配置 ModelScope 的 API Key (SDK Token)')
-          }
-
-          const apiKey = provider.apiKey
-          const baseURL = provider.baseURL || 'https://api-inference.modelscope.cn/'
+          const config = await getModelConfig()
 
           // 创建模型实例
-          const model = new ModelScopeImageModel(modelId || 'Tongyi-MAI/Z-Image-Turbo', {
-            apiKey,
-            baseURL
+          const targetModelId = modelId || config.modelId
+          const model = new ModelScopeImageModel(targetModelId, {
+            apiKey: config.apiKey,
+            baseURL: config.baseURL
           })
 
           // 显示生成状态
-          context.notification.status('modelscope-gen', '正在通过 ModelScope 生成图片...', {
-            icon: 'Loading',
-            color: 'var(--color-primary)'
-          })
+          await updateStatus(true)
 
           // 执行生成
           const result = await model.doGenerate({
@@ -237,7 +366,7 @@ const plugin: Plugin = {
             }
           })
 
-          context.notification.removeStatus('modelscope-gen')
+          await updateStatus(false)
 
           // 返回结果
           const images = result.images
@@ -263,7 +392,7 @@ const plugin: Plugin = {
             throw new Error('模型未返回任何图片数据')
           }
         } catch (error: any) {
-          context.notification.removeStatus('modelscope-gen')
+          await updateStatus(false)
           context.notification.error(`图片生成失败: ${error.message}`)
           return {
             error: error.message,
@@ -288,7 +417,6 @@ const plugin: Plugin = {
 
   uninstall: (context: PluginContext) => {
     // 卸载逻辑
-    context.unregisterProvider('modelscope')
   }
 }
 
