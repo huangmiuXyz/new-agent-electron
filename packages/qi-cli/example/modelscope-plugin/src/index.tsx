@@ -98,7 +98,6 @@ const plugin: Plugin = {
         const { prompt, negative_prompt, model: modelId, size, seed } = args
 
         try {
-          // 获取设置 store 以读取 API Key
           const settingsStore = await context.getStore('settings')
           const providers = settingsStore.getAllProviders
           const provider = providers.find(
