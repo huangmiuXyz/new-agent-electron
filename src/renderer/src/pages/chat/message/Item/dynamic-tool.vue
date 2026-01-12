@@ -7,7 +7,8 @@ const props = defineProps<{
   allowCustomRender?: boolean
   message?: BaseMessage
 }>()
-const isCollapsed = ref(true)
+const { display } = storeToRefs(useSettingsStore())
+const isCollapsed = ref(!display.value.expandToolsByDefault)
 
 const isInputCollapsed = ref(true)
 const isOutputCollapsed = ref(true)

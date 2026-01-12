@@ -16,6 +16,16 @@ const [DisplayForm] = useForm({
       min: 10,
       max: 30,
       unit: 'px'
+    },
+    {
+      name: 'expandToolsByDefault',
+      type: 'boolean',
+      label: '默认展开工具'
+    },
+    {
+      name: 'expandThoughtByDefault',
+      type: 'boolean',
+      label: '默认展开思考内容'
     }
   ],
   initialData: settingsStore.display,

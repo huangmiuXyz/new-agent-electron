@@ -21,7 +21,9 @@ export const useSettingsStore = defineStore(
       fontSize: 16,
       sidebarCollapsed: false,
       showTerminal: false,
-      terminalHeight: 200
+      terminalHeight: 200,
+      expandToolsByDefault: true,
+      expandThoughtByDefault: true
     })
 
     const terminal = ref({

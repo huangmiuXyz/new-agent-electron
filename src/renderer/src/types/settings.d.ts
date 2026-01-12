@@ -5,6 +5,8 @@ declare global {
     compactDensity: boolean
     showTimestamps: boolean
     fontSize: number
+    expandToolsByDefault: boolean
+    expandThoughtByDefault: boolean
   }
 
   // 终端设置接口

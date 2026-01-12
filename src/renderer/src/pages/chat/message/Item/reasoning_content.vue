@@ -21,8 +21,9 @@
     </div>
 </template>
 <script lang="ts" setup>
+const { display } = storeToRefs(useSettingsStore())
 defineProps<{ reasoning_content: string }>()
-const isReasoningExpanded = ref(false)
+const isReasoningExpanded = ref(display.value.expandThoughtByDefault)
 const toggleReasoning = () => {
     isReasoningExpanded.value = !isReasoningExpanded.value
 }
