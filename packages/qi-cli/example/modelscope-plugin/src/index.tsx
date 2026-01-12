@@ -13,8 +13,15 @@ const plugin: Plugin = {
   author: 'Zhuanz',
 
   install: async (context: PluginContext) => {
-    const { defineComponent, watch } = context.vue
+    const { defineComponent, watch, ref, onMounted, onUnmounted } = context.vue
     const { Image, Loading } = context.components
+    const message = ref()
+
+    const getProvider = async () => {
+      const settingsStore = await context.getStore('settings')
+      const providers = settingsStore.getAllProviders
+      return providers.find((p: any) => p.id === '魔搭' || p.providerType === 'modelscope')
+    }
 
     // 注册内置工具
     context.registerBuiltinTool('modelscope_image_generator', {
@@ -40,14 +47,55 @@ const plugin: Plugin = {
           message: { type: Object }
         },
         setup(props: { args?: any; result?: any; message: any }) {
+          const localResult = ref(null) as any
+          const isPolling = ref(false)
+          const abortController = new AbortController()
+
+          const pollStatus = async () => {
+            const taskId = props.message?.metadata?.task_id
+            if (!taskId || props.result || localResult.value || isPolling.value) return
+
+            isPolling.value = true
+            try {
+              const provider = await getProvider()
+              if (!provider || !provider.apiKey) return
+
+              const modelId = props.args?.model || 'Tongyi-MAI/Z-Image-Turbo'
+              const baseURL = provider.baseURL || 'https://api-inference.modelscope.cn/'
+
+              const model = new ModelScopeImageModel(modelId, {
+                apiKey: provider.apiKey,
+                baseURL
+              })
+
+              const result = await model.waitForTask(taskId, abortController.signal)
+              if (result && result.images) {
+                localResult.value = { images: result.images }
+              }
+            } catch (error: any) {
+              console.error('ModelScope polling failed:', error)
+              localResult.value = { error: error.message }
+            } finally {
+              isPolling.value = false
+            }
+          }
+
+          onMounted(() => {
+            pollStatus()
+          })
+
+          onUnmounted(() => {
+            abortController.abort()
+          })
+
           return () => {
-            const images = props.result?.images || []
-            const error = props.result?.error
+            const images = props.result?.images || localResult.value?.images || []
+            const error = props.result?.error || localResult.value?.error
             const prompt = props.args?.prompt
             watch(
               () => props.message,
               () => {
-                console.log(props.message)
+                message.value = props.message
               },
               { immediate: true }
             )
@@ -60,12 +108,12 @@ const plugin: Plugin = {
               )
             }
 
-            if (!props.result && !error) {
+            if (!props.result && !localResult.value && !error) {
               return (
                 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; gap: 12px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
                   <Loading size="large" />
                   <div style="font-size: 13px; color: var(--text-secondary);">
-                    正在生成图片，请稍候...
+                    正在{isPolling.value ? '恢复生成状态' : '生成图片'}，请稍候...
                   </div>
                 </div>
               )
@@ -104,11 +152,7 @@ const plugin: Plugin = {
         const { prompt, negative_prompt, model: modelId, size, seed } = args
 
         try {
-          const settingsStore = await context.getStore('settings')
-          const providers = settingsStore.getAllProviders
-          const provider = providers.find(
-            (p: any) => p.id === '魔搭' || p.providerType === 'modelscope'
-          )
+          const provider = await getProvider()
 
           if (!provider || !provider.apiKey) {
             throw new Error('请先在“设置 -> 模型提供商”中配置 ModelScope 的 API Key (SDK Token)')
@@ -140,15 +184,25 @@ const plugin: Plugin = {
             aspectRatio: undefined,
             providerOptions: {
               modelscope: {
-                negative_prompt
-              }
+                negative_prompt,
+                onStart: async (task_id: string) => {
+                  const chatsStore = await context.getStore('chats')
+                  if (message.value?.metadata?.cid) {
+                    const metadata = { ...message.value.metadata, task_id }
+                    chatsStore.updateMessageMetadata(
+                      message.value.metadata.cid,
+                      message.value.id,
+                      metadata
+                    )
+                  }
+                }
+              } as any
             }
           })
 
           context.notification.removeStatus('modelscope-gen')
 
           // 返回结果
-          // 我们可以返回 markdown 格式的图片预览，也可以尝试直接返回图片对象
           const images = result.images
           if (images && images.length > 0) {
             const report = images

@@ -36,6 +36,7 @@ export const useChat = (chatId: string) => {
     return scope.run(() => {
       let processedText = ''
       const chat = new _useChat<BaseMessage>({
+        id: chatId,
         messages: slicedMessages,
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         onData: (data) => {

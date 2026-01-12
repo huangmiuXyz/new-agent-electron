@@ -8,7 +8,7 @@ export class ModelScopeImageModel implements ImageModelV3 {
   constructor(
     readonly modelId: string,
     private readonly settings: { apiKey: string; baseURL: string }
-  ) {}
+  ) { }
 
   get provider(): string {
     return 'modelscope';
@@ -46,13 +46,19 @@ export class ModelScopeImageModel implements ImageModelV3 {
 
     const data = (await response.json()) as ModelScopeImageGenerationResponse;
     const taskId = data.task_id;
+    const onStart = providerOptions?.modelscope?.onStart as ((task_id: string) => void) | undefined;
+    onStart?.(taskId);
+    return this.waitForTask(taskId, options.abortSignal);
+  }
 
+  async waitForTask(taskId: string, abortSignal?: AbortSignal): Promise<Awaited<ReturnType<ImageModelV3['doGenerate']>>> {
+    const baseURL = this.settings.baseURL.endsWith('/') ? this.settings.baseURL : `${this.settings.baseURL}/`;
     // 2. Poll for results
     let attempts = 0;
     const maxAttempts = 60; // 5 minutes with 5s interval
 
     while (attempts < maxAttempts) {
-      if (options.abortSignal?.aborted) {
+      if (abortSignal?.aborted) {
         throw new Error('Task aborted');
       }
 
@@ -61,7 +67,7 @@ export class ModelScopeImageModel implements ImageModelV3 {
           'Authorization': `Bearer ${this.settings.apiKey}`,
           'X-ModelScope-Task-Type': 'image_generation',
         },
-        signal: options.abortSignal,
+        signal: abortSignal,
       });
 
       if (!statusResponse.ok) {
