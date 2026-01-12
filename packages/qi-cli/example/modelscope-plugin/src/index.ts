@@ -26,7 +26,7 @@ const plugin: Plugin = {
       title: 'ModelScope 绘图',
       execute: async (args: any) => {
         const { prompt, negative_prompt, model: modelId, size, seed } = args;
-        debugger
+
         try {
           // 获取设置 store 以读取 API Key
           const settingsStore = await context.getStore('settings');
