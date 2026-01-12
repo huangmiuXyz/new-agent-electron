@@ -13,7 +13,7 @@ const plugin: Plugin = {
   author: 'Zhuanz',
 
   install: async (context: PluginContext) => {
-    const { defineComponent } = context.vue
+    const { defineComponent, watch } = context.vue
     const { Image, Loading } = context.components
 
     // 注册内置工具
@@ -44,7 +44,13 @@ const plugin: Plugin = {
             const images = props.result?.images || []
             const error = props.result?.error
             const prompt = props.args?.prompt
-
+            watch(
+              () => props.message,
+              () => {
+                console.log(props.message)
+              },
+              { immediate: true }
+            )
             if (error) {
               return (
                 <div style="padding: 12px; color: var(--color-error); background: var(--bg-card); border: 1px solid var(--color-error); border-radius: 8px; font-size: 13px;">

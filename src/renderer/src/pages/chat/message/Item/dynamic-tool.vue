@@ -5,7 +5,7 @@ import { getPluginLoader } from '@renderer/services/plugins/pluginLoaderInstance
 const props = defineProps<{
   tool_part: DynamicToolUIPart | ToolUIPart
   allowCustomRender?: boolean
-  message: BaseMessage
+  message?: BaseMessage
 }>()
 const isCollapsed = ref(true)
 
