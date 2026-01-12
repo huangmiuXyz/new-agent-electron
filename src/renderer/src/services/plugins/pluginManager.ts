@@ -38,7 +38,7 @@ export class PluginManager {
    */
   registerComponents(components: Record<string, any>): void {
     for (const [name, component] of Object.entries(components)) {
-      this.registeredComponents.set(name, component);
+      this.registeredComponents.set(name, markRaw(component));
     }
   }
 
@@ -143,7 +143,7 @@ export class PluginManager {
   createContext(pluginName: string, basePath: string): PluginContext {
     const components: Record<string, any> = {};
     this.registeredComponents.forEach((component, name) => {
-      components[name] = (props: any, context: any) => {
+      components[name] = markRaw((props: any, context: any) => {
         if (context && typeof context === 'object' && 'slots' in context) {
           return h(component, props, context.slots);
         }
@@ -153,7 +153,7 @@ export class PluginManager {
             children ? { default: () => children } : undefined
           )
         );
-      };
+      });
     });
 
     return {
