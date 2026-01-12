@@ -99,7 +99,7 @@ const retry = () => {
           <FileUpload :removable="false" v-if="block.type === 'file'"
             :files="[{ ...block, blobUrl: anyUrlToBlobUrl(block.url) }]" />
           <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'" :reasoning_content="block.text" />
-          <ChatMessageItemDynamicTool v-if="block.type === 'dynamic-tool'" :tool_part="block" />
+          <ChatMessageItemDynamicTool :message="message" v-if="block.type === 'dynamic-tool'" :tool_part="block" />
           <ChatMessageItemTool v-if="block.type.startsWith('tool')" :tool_part="(block as ToolUIPart)"
             :message="message" />
         </div>

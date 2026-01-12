@@ -5,6 +5,7 @@ import { getPluginLoader } from '@renderer/services/plugins/pluginLoaderInstance
 const props = defineProps<{
   tool_part: DynamicToolUIPart | ToolUIPart
   allowCustomRender?: boolean
+  message: BaseMessage
 }>()
 const isCollapsed = ref(true)
 
@@ -67,7 +68,7 @@ const customRender = computed(() => {
       </div>
       <div class="tool-content" :class="{ collapsed: isCollapsed }">
         <slot name="content">
-          <component v-if="customRender" :is="customRender" :args="tool_part.input" :result="tool_part.output" />
+          <component v-if="customRender" :message="message" :is="customRender" :args="tool_part.input" :result="tool_part.output" />
           <div v-else class="io-container">
             <div class="io-section io-input">
               <div class="io-header" @click="toggleInputCollapse">

@@ -36,9 +36,10 @@ const plugin: Plugin = {
         name: 'ModelScopeImageRender',
         props: {
           args: { type: Object },
-          result: { type: Object }
+          result: { type: Object },
+          message: { type: Object }
         },
-        setup(props: { args?: any; result?: any }) {
+        setup(props: { args?: any; result?: any; message: any }) {
           return () => {
             const images = props.result?.images || []
             const error = props.result?.error
@@ -57,7 +58,9 @@ const plugin: Plugin = {
               return (
                 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; gap: 12px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
                   <Loading size="large" />
-                  <div style="font-size: 13px; color: var(--text-secondary);">正在生成图片，请稍候...</div>
+                  <div style="font-size: 13px; color: var(--text-secondary);">
+                    正在生成图片，请稍候...
+                  </div>
                 </div>
               )
             }
