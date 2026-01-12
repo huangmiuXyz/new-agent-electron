@@ -33,6 +33,10 @@ export const FormItem = defineComponent({
       type: Boolean,
       default: false
     },
+    size: {
+      type: String as PropType<'sm' | 'md' | 'lg'>,
+      default: 'md'
+    },
     layout: {
       type: String as () => 'default' | 'toggle',
       default: 'default'
@@ -47,7 +51,7 @@ export const FormItem = defineComponent({
       const isToggleLayout = props.layout === 'toggle'
 
       return (
-        <div class="form-item" data-layout={props.layout}>
+        <div class="form-item" data-layout={props.layout} data-size={props.size}>
           {isToggleLayout ? (
             <>
               <div class="form-item-label">
@@ -102,6 +106,7 @@ interface BaseField<T> {
   required?: boolean
   disabled?: boolean
   hint?: string
+  size?: 'sm' | 'md' | 'lg'
   ifShow?: boolean | ((data: T) => boolean)
   defaultValue?: T[keyof T]
 }
@@ -225,6 +230,7 @@ export type FormField<T> =
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
   showHeader?: boolean
+  size?: 'sm' | 'md' | 'lg'
   fields: MaybeRefOrGetter<FormField<T>[]>
   initialData?: T
   onSubmit?: (data: T) => void
@@ -451,7 +457,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     Object.assign(dynamicFieldProps.value[field], props)
   }
 
-  const renderField = (field: FormField<T>): VNode | null => {
+  const renderField = (field: FormField<T>, formSize?: 'sm' | 'md' | 'lg'): VNode | null => {
 
     const show =
       field.ifShow !== undefined
@@ -501,7 +507,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                       name: fieldName,
                       label: child.label || childName
                     }
-                    return renderField(childField)
+                    return renderField(childField, formSize)
                   })}
                 </div>
                 <Button
@@ -527,7 +533,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       return (
         <div class="form-group" key={field.name}>
           {field.label && <div class="form-group-title">{field.label}</div>}
-          <div class="form-group-children">{field.children.map((child) => renderField(child))}</div>
+          <div class="form-group-children">{field.children.map((child) => renderField(child, formSize))}</div>
         </div>
       )
     }
@@ -548,6 +554,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         error={error}
         hint={field.hint}
         required={field.required}
+        size={field.size || formSize || config.size}
         layout={field.type === 'boolean' ? 'toggle' : 'default'}
       >
         {(() => {
@@ -619,19 +626,24 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       fields: {
         type: Array as PropType<FormField<T>[]>,
         default: undefined
+      },
+      size: {
+        type: String as PropType<'sm' | 'md' | 'lg'>,
+        default: undefined
       }
     },
     setup(props, { slots }) {
       return () => {
         const hasHeader = config.showHeader !== false && config.title
         const displayFields = props.fields || fields.value
+        const formSize = props.size || config.size
 
         return (
-          <div class="form-container">
+          <div class="form-container" data-size={formSize}>
             {hasHeader && <header class="form-header">{config.title}</header>}
             <div class="form-content">
               <div class="form-wrapper">
-                {displayFields.map((field) => renderField(field))}
+                {displayFields.map((field) => renderField(field, formSize))}
                 {slots.footer?.()}
               </div>
             </div>
@@ -672,6 +684,16 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         margin-top: 20px;
       }
 
+      .form-item[data-size="sm"] {
+        margin-bottom: 8px;
+        margin-top: 10px;
+      }
+
+      .form-item[data-size="lg"] {
+        margin-bottom: 24px;
+        margin-top: 30px;
+      }
+
       .form-item:first-child {
         margin-top: 0 !important;
         padding-top: 0 !important;
@@ -684,6 +706,10 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         padding: 12px 0;
         border-bottom: 1px solid #f5f5f5;
         margin-top: 0;
+      }
+
+      .form-item[data-layout="toggle"][data-size="sm"] {
+        padding: 6px 0;
       }
 
       .form-item-label {

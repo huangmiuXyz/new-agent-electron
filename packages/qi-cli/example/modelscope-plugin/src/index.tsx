@@ -19,35 +19,85 @@ const plugin: Plugin = {
 
     const PROVIDER_ID = '魔搭'
     const STORAGE_KEY_MODEL_ID = 'modelscope_model_id'
+    const STORAGE_KEY_NEGATIVE_PROMPT = 'modelscope_negative_prompt'
+    const STORAGE_KEY_SIZE = 'modelscope_size'
+
     const DEFAULT_MODEL_ID = 'Tongyi-MAI/Z-Image-Turbo'
+    const DEFAULT_NEGATIVE_PROMPT = 'low quality, bad quality, blurry, distorted'
+    const DEFAULT_SIZE = '1024x1024'
 
     const currentModelId = ref(DEFAULT_MODEL_ID)
+    const currentNegativePrompt = ref(DEFAULT_NEGATIVE_PROMPT)
+    const currentSize = ref(DEFAULT_SIZE)
+
+    let ConfigForm: any
+    let formActions: any
+    ;[ConfigForm, formActions] = context.useForm({
+      fields: [
+        {
+          name: 'modelId',
+          type: 'text',
+          label: '当前模型',
+          placeholder: '输入模型 ID...',
+          size: 'sm'
+        },
+        {
+          name: 'negativePrompt',
+          type: 'text',
+          label: '负面提示词',
+          placeholder: '输入负面提示词...',
+          size: 'sm'
+        },
+        {
+          name: 'size',
+          type: 'text',
+          label: '生成尺寸',
+          placeholder: '如 1024x1024...',
+          size: 'sm'
+        }
+      ],
+      initialData: {
+        modelId: currentModelId.value,
+        negativePrompt: currentNegativePrompt.value,
+        size: currentSize.value
+      },
+      onChange: async (_field: string, _value: any, data: any) => {
+        currentModelId.value = data.modelId
+        currentNegativePrompt.value = data.negativePrompt
+        currentSize.value = data.size
+        await Promise.all([
+          context.localforage.setItem(STORAGE_KEY_MODEL_ID, data.modelId),
+          context.localforage.setItem(STORAGE_KEY_NEGATIVE_PROMPT, data.negativePrompt),
+          context.localforage.setItem(STORAGE_KEY_SIZE, data.size)
+        ])
+        updateStatus()
+      }
+    })
 
     // 初始化加载配置
     const initConfig = async () => {
-      const savedModelId = await context.localforage.getItem(STORAGE_KEY_MODEL_ID)
-      if (savedModelId) {
-        currentModelId.value = savedModelId
-      }
+      const [savedModelId, savedNegativePrompt, savedSize] = await Promise.all([
+        context.localforage.getItem(STORAGE_KEY_MODEL_ID),
+        context.localforage.getItem(STORAGE_KEY_NEGATIVE_PROMPT),
+        context.localforage.getItem(STORAGE_KEY_SIZE)
+      ])
+      if (savedModelId) currentModelId.value = savedModelId
+      if (savedNegativePrompt) currentNegativePrompt.value = savedNegativePrompt
+      if (savedSize) currentSize.value = savedSize
+
+      formActions.setFieldsValue({
+        modelId: currentModelId.value,
+        negativePrompt: currentNegativePrompt.value,
+        size: currentSize.value
+      })
+
       updateStatus()
     }
 
     // 状态图标组件 - 准备就绪
     const ReadyIcon = defineComponent({
-      props: {
-        modelId: { type: String, required: true }
-      },
-      setup(props: any) {
-        const tempModelId = ref(props.modelId)
+      setup() {
         const showTooltip = ref(false)
-
-        const saveEdit = async () => {
-          if (tempModelId.value && tempModelId.value !== props.modelId) {
-            currentModelId.value = tempModelId.value
-            await context.localforage.setItem(STORAGE_KEY_MODEL_ID, tempModelId.value)
-            updateStatus()
-          }
-        }
 
         const toggleTooltip = (e: MouseEvent) => {
           e.stopPropagation()
@@ -86,21 +136,28 @@ const plugin: Plugin = {
               }
               .plugin-tooltip-content {
                 background: #ffffff; color: #333333; padding: 12px 16px; border-radius: 8px;
-                font-size: 13px; white-space: nowrap;
+                font-size: 13px;
                 box-shadow: 0 4px 16px rgba(0,0,0,0.15);
                 border: 1px solid #e0e0e0;
                 min-width: 320px;
               }
               html.dark-mode .plugin-tooltip-content { background: #2d2d2d; color: #ffffff; border-color: #444444; box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
 
-              .plugin-tooltip-content :deep(.input-wrapper) {
-                margin-left: 12px;
-                flex: 1;
+              .plugin-tooltip-content :deep(.form-item) {
+                margin-bottom: 8px;
+                margin-top: 0;
               }
-
-              /* 确保使用组件原生样式，不强制重写高度和字体 */
-              .plugin-tooltip-content :deep(.form-input) {
-                width: 100%;
+              .plugin-tooltip-content :deep(.form-item-label) {
+                width: 80px;
+                margin-bottom: 0;
+                flex-shrink: 0;
+              }
+              .plugin-tooltip-content :deep(.form-item) {
+                display: flex;
+                align-items: center;
+              }
+              .plugin-tooltip-content :deep(.form-item-content) {
+                flex: 1;
               }
             `}</style>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -112,24 +169,8 @@ const plugin: Plugin = {
               onClick={(e: MouseEvent) => e.stopPropagation()}
             >
               <div class="plugin-tooltip-content">
-                <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>ModelScope 绘图</div>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span>当前模型:</span>
-                  <Input
-                    v-model={tempModelId.value}
-                    onBlur={saveEdit}
-                    onKeydown={(e: KeyboardEvent) => {
-                      if (e.key === 'Enter') saveEdit()
-                      if (e.key === 'Escape') {
-                        tempModelId.value = props.modelId
-                        const target = e.target as HTMLInputElement
-                        target.blur()
-                      }
-                    }}
-                    placeholder="输入模型 ID..."
-                    size="sm"
-                  />
-                </div>
+                <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>ModelScope 绘图配置</div>
+                <ConfigForm />
               </div>
             </div>
           </div>
@@ -164,6 +205,8 @@ const plugin: Plugin = {
 
     const updateStatus = async (isLoading = false) => {
       const modelId = currentModelId.value
+      const negativePrompt = currentNegativePrompt.value
+      const size = currentSize.value
 
       if (isLoading) {
         context.notification.status('modelscope-status', '', {
@@ -173,7 +216,9 @@ const plugin: Plugin = {
         })
       } else {
         context.notification.status('modelscope-status', '', {
-          render: markRaw(() => <ReadyIcon modelId={modelId} />),
+          render: markRaw(() => (
+            <ReadyIcon modelId={modelId} negativePrompt={negativePrompt} size={size} />
+          )),
           color: 'var(--color-primary)',
           tooltip: `ModelScope 已就绪 (模型: ${modelId})`
         })
@@ -185,6 +230,8 @@ const plugin: Plugin = {
       const provider = settingsStore.providers?.find((p: any) => p.id === PROVIDER_ID)
       return {
         modelId: currentModelId.value,
+        negativePrompt: currentNegativePrompt.value,
+        size: currentSize.value,
         apiKey: provider?.apiKey || '',
         baseURL: provider?.baseUrl || 'https://api-inference.modelscope.cn/'
       }
@@ -199,12 +246,6 @@ const plugin: Plugin = {
         '使用 ModelScope AIGC 模型生成图片。支持多种模型，可以指定提示词、图片尺寸等参数。',
       inputSchema: z.object({
         prompt: z.string().describe('生成图片的正向提示词，建议使用英文描述以获得更好效果。'),
-        negative_prompt: z.string().optional().describe('负向提示词，用于排除不需要的元素。'),
-        size: z
-          .string()
-          .optional()
-          .default('1024x1024')
-          .describe('生成图片的尺寸，如 1024x1024, 720x1280 等。'),
         seed: z.number().optional().describe('随机种子，用于复现生成的图片。')
       }),
       title: 'ModelScope 绘图',
@@ -228,7 +269,7 @@ const plugin: Plugin = {
             isPolling.value = true
             try {
               const config = await getModelConfig()
-              const modelId = props.args?.model || config.modelId
+              const modelId = config.modelId
 
               // 显示正在恢复的状态
               await updateStatus(true)
@@ -355,13 +396,13 @@ const plugin: Plugin = {
         }
       }),
       execute: async (args: any) => {
-        const { prompt, negative_prompt, model: modelId, size, seed } = args
+        const { prompt, seed } = args
 
         try {
           const config = await getModelConfig()
 
           // 创建模型实例
-          const targetModelId = modelId || config.modelId
+          const targetModelId = config.modelId
           const model = new ModelScopeImageModel(targetModelId, {
             apiKey: config.apiKey,
             baseURL: config.baseURL
@@ -376,12 +417,12 @@ const plugin: Plugin = {
             files: [],
             mask: undefined,
             n: 1,
-            size,
+            size: config.size,
             seed,
             aspectRatio: undefined,
             providerOptions: {
               modelscope: {
-                negative_prompt,
+                negative_prompt: config.negativePrompt,
                 onStart: async (task_id: string) => {
                   const chatsStore = await context.getStore('chats')
                   if (message.value?.metadata?.cid) {
