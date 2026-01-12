@@ -89,84 +89,6 @@ export const useChat = (chatId: string) => {
           chat.lastMessage.metadata = { ...chat.lastMessage.metadata, error }
         }
       })
-
-      const generateSpeech = async (text: string, message: BaseMessage) => {
-        if (!text.trim() || !speechEnabled.value) return
-
-        const voice = agent.selectedAgent?.speechVoice!
-        const speed = agent.selectedAgent?.speechSpeed
-        const language = agent.selectedAgent?.speechLanguage
-        const { getModelByVoice } = useSettingsStore()
-        const modelInfo = getModelByVoice(voice)
-
-        if (!modelInfo) {
-          return
-        }
-
-        const { modelId: targetModelId, providerId: targetProviderId } = modelInfo
-
-        const rawOptions = agent.selectedAgent?.speechProviderOptions
-        const providerOptions = rawOptions?.[targetProviderId] ?? rawOptions
-
-        if (!message.metadata) {
-          message.metadata = {} as MetaData
-        }
-
-        if (!message.metadata.audio) {
-          message.metadata.audio = {
-            chunks: [],
-            voice,
-            model: targetModelId
-          }
-        }
-
-        const chunks = message.metadata.audio.chunks
-        const chunkIndex = chunks.length
-        chunks.push({
-          data: '',
-          text
-        })
-
-        updateMessageMetadata(chatId, message.id, message.metadata)
-
-        try {
-          const chunk = await tts.generateAndPlay({
-            text,
-            messageId: message.id,
-            modelId: targetModelId,
-            providerId: targetProviderId,
-            voice,
-            speed,
-            language,
-            providerOptions
-          })
-
-          if (chunk && message.metadata?.audio?.chunks[chunkIndex]) {
-            message.metadata.audio.chunks[chunkIndex] = {
-              ...message.metadata.audio.chunks[chunkIndex],
-              data: chunk.audioData || '',
-              duration: chunk.duration,
-              error: undefined
-            }
-            updateMessageMetadata(chatId, message.id, message.metadata)
-          } else {
-            // Mark error if generation returned nothing
-            if (message.metadata?.audio?.chunks[chunkIndex]) {
-              message.metadata.audio.chunks[chunkIndex].error = '生成失败：未返回音频数据'
-              updateMessageMetadata(chatId, message.id, message.metadata)
-            }
-          }
-        } catch (error) {
-          const err = error as APICallError
-          const errorMessage = err.message || err.name || String(error)
-          if (message.metadata?.audio?.chunks[chunkIndex]) {
-            message.metadata.audio.chunks[chunkIndex].error = `生成失败：${errorMessage}`
-            updateMessageMetadata(chatId, message.id, message.metadata)
-          }
-          messageApi.error('语音合成失败: ' + errorMessage)
-        }
-      }
-
       watch(() => chat.lastMessage?.parts, (newParts) => {
         chats!.messages = chat.messages!
         if (!newParts || chat.lastMessage.role !== 'assistant' || !speechEnabled.value) return
@@ -202,6 +124,84 @@ export const useChat = (chatId: string) => {
 
       return chat
     })!
+  }
+
+
+  const generateSpeech = async (text: string, message: BaseMessage) => {
+    if (!text.trim() || !speechEnabled.value) return
+
+    const voice = agent.selectedAgent?.speechVoice!
+    const speed = agent.selectedAgent?.speechSpeed
+    const language = agent.selectedAgent?.speechLanguage
+    const { getModelByVoice } = useSettingsStore()
+    const modelInfo = getModelByVoice(voice)
+
+    if (!modelInfo) {
+      return
+    }
+
+    const { modelId: targetModelId, providerId: targetProviderId } = modelInfo
+
+    const rawOptions = agent.selectedAgent?.speechProviderOptions
+    const providerOptions = rawOptions?.[targetProviderId] ?? rawOptions
+
+    if (!message.metadata) {
+      message.metadata = {} as MetaData
+    }
+
+    if (!message.metadata.audio) {
+      message.metadata.audio = {
+        chunks: [],
+        voice,
+        model: targetModelId
+      }
+    }
+
+    const chunks = message.metadata.audio.chunks
+    const chunkIndex = chunks.length
+    chunks.push({
+      data: '',
+      text
+    })
+
+    updateMessageMetadata(chatId, message.id, message.metadata)
+
+    try {
+      const chunk = await tts.generateAndPlay({
+        text,
+        messageId: message.id,
+        modelId: targetModelId,
+        providerId: targetProviderId,
+        voice,
+        speed,
+        language,
+        providerOptions
+      })
+
+      if (chunk && message.metadata?.audio?.chunks[chunkIndex]) {
+        message.metadata.audio.chunks[chunkIndex] = {
+          ...message.metadata.audio.chunks[chunkIndex],
+          data: chunk.audioData || '',
+          duration: chunk.duration,
+          error: undefined
+        }
+        updateMessageMetadata(chatId, message.id, message.metadata)
+      } else {
+        // Mark error if generation returned nothing
+        if (message.metadata?.audio?.chunks[chunkIndex]) {
+          message.metadata.audio.chunks[chunkIndex].error = '生成失败：未返回音频数据'
+          updateMessageMetadata(chatId, message.id, message.metadata)
+        }
+      }
+    } catch (error) {
+      const err = error as APICallError
+      const errorMessage = err.message || err.name || String(error)
+      if (message.metadata?.audio?.chunks[chunkIndex]) {
+        message.metadata.audio.chunks[chunkIndex].error = `生成失败：${errorMessage}`
+        updateMessageMetadata(chatId, message.id, message.metadata)
+      }
+      messageApi.error('语音合成失败: ' + errorMessage)
+    }
   }
 
   const sendMessages = async (content: string | Array<FileUIPart | TextUIPart>) => {
