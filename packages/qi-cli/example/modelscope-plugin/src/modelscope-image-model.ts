@@ -1,5 +1,6 @@
 import { ImageModelV3, ImageModelV3CallOptions } from '@ai-sdk/provider';
 import { ModelScopeImageGenerationRequest, ModelScopeImageGenerationResponse, ModelScopeTaskResponse } from './modelscope-api-types';
+import { DEFAULT_BASE_URL } from './constants';
 
 export class ModelScopeImageModel implements ImageModelV3 {
   readonly specificationVersion = 'v3';
@@ -17,7 +18,7 @@ export class ModelScopeImageModel implements ImageModelV3 {
   async doGenerate(options: ImageModelV3CallOptions): Promise<Awaited<ReturnType<ImageModelV3['doGenerate']>>> {
     const { prompt, n = 1, size, seed, providerOptions } = options;
 
-    const baseURL = this.settings.baseURL.endsWith('/') ? this.settings.baseURL : `${this.settings.baseURL}/`;
+    const baseURL = (this.settings.baseURL || DEFAULT_BASE_URL).endsWith('/') ? this.settings.baseURL : `${this.settings.baseURL}/`;
 
     // 1. Submit task
     const requestBody: ModelScopeImageGenerationRequest = {
