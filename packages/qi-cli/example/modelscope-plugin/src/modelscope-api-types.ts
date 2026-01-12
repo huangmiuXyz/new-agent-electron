@@ -18,5 +18,8 @@ export interface ModelScopeTaskResponse {
   task_id: string;
   task_status: 'PENDING' | 'RUNNING' | 'SUCCEED' | 'FAILED';
   output_images?: string[];
-  message?: string;
+  errors?: {
+    code: number;
+    message: string;
+  }
 }

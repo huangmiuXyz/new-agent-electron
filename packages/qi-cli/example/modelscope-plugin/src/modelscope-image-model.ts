@@ -100,7 +100,7 @@ export class ModelScopeImageModel implements ImageModelV2 {
           },
         };
       } else if (taskData.task_status === 'FAILED') {
-        throw new Error(`ModelScope task failed: ${taskData.message || 'Unknown error'}`);
+        throw new Error(`ModelScope task failed: ${taskData.errors?.message || 'Unknown error'}`);
       }
 
       // Wait 5 seconds before next poll
