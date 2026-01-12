@@ -129,7 +129,7 @@ const plugin: Plugin = {
                 content: [
                   {
                     type: 'text',
-                    text: `图片生成成功！\n\n${report}`
+                    text: `<|stop|>图片生成成功！\n\n${report}`
                   }
                 ]
               }
@@ -146,7 +146,7 @@ const plugin: Plugin = {
               content: [
                 {
                   type: 'text',
-                  text: `图片生成失败: ${error.message}`
+                  text: `<|stop|>图片生成失败: ${error.message}`
                 }
               ]
             }
