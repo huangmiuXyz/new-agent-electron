@@ -143,10 +143,17 @@ export class PluginManager {
   createContext(pluginName: string, basePath: string): PluginContext {
     const components: Record<string, any> = {};
     this.registeredComponents.forEach((component, name) => {
-      components[name] = (props: any, children: any) => h(component, props,
-        typeof children === 'function' ? children() : {
-          default: () => children
-        });
+      components[name] = (props: any, context: any) => {
+        if (context && typeof context === 'object' && 'slots' in context) {
+          return h(component, props, context.slots);
+        }
+        const children = context;
+        return h(component, props,
+          typeof children === 'function' ? children() : (
+            children ? { default: () => children } : undefined
+          )
+        );
+      };
     });
 
     return {

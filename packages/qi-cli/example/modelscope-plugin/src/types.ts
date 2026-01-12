@@ -36,6 +36,8 @@ export interface PluginContext {
   registerBuiltinTool: (name: string, tool: any) => void;
   /** 注销内置工具 */
   unregisterBuiltinTool: (name: string) => boolean;
+  /** 组件库 */
+  components: Record<string, any>;
   /** 注册提供商工厂到全局注册表 */
   registerRegistry: (name: string, factory: any) => void;
   /** 注册提供商到当前插件 */

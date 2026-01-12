@@ -14,6 +14,7 @@ const plugin: Plugin = {
 
   install: async (context: PluginContext) => {
     const { defineComponent, watch } = context.vue
+    const { Image, Loading } = context.components
 
     // 注册内置工具
     context.registerBuiltinTool('modelscope_image_generator', {
@@ -52,6 +53,15 @@ const plugin: Plugin = {
               )
             }
 
+            if (!props.result && !error) {
+              return (
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; gap: 12px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
+                  <Loading size="large" />
+                  <div style="font-size: 13px; color: var(--text-secondary);">正在生成图片，请稍候...</div>
+                </div>
+              )
+            }
+
             return (
               <div style="display: flex; flex-direction: column; gap: 12px; padding: 8px;">
                 {prompt && (
@@ -68,7 +78,7 @@ const plugin: Plugin = {
                       key={index}
                       style="position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background: var(--bg-card);"
                     >
-                      <img
+                      <Image
                         src={`data:image/png;base64,${base64}`}
                         style="width: 100%; height: auto; display: block;"
                         alt={`Generated image ${index + 1}`}
