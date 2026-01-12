@@ -126,7 +126,6 @@ export const useChat = (chatId: string) => {
     })!
   }
 
-
   const generateSpeech = async (text: string, message: BaseMessage) => {
     if (!text.trim() || !speechEnabled.value) return
 
