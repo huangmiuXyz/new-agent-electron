@@ -107,7 +107,10 @@ const plugin: Plugin = {
               <path d="M21 16.5C21 16.88 20.79 17.21 20.47 17.38L12.57 21.82C12.41 21.94 12.21 22 12 22C11.79 22 11.59 21.94 11.43 21.82L3.53 17.38C3.21 17.21 3 16.88 3 16.5V7.5C3 7.12 3.21 6.79 3.53 6.62L11.43 2.18C11.59 2.06 11.79 2 12 2C12.21 2 12.41 2.06 12.57 2.18L20.47 6.62C20.79 6.79 21 7.12 21 7.5V16.5Z" />
             </svg>
 
-            <div class={['plugin-tooltip', showTooltip.value && 'is-show']} onClick={(e: MouseEvent) => e.stopPropagation()}>
+            <div
+              class={['plugin-tooltip', showTooltip.value && 'is-show']}
+              onClick={(e: MouseEvent) => e.stopPropagation()}
+            >
               <div class="plugin-tooltip-content">
                 <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>ModelScope 绘图</div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -313,41 +316,39 @@ const plugin: Plugin = {
               )
             }
 
-            if (!props.result && !localResult.value && !error) {
-              return (
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; gap: 12px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
-                  <Loading size="large" />
-                  <div style="font-size: 13px; color: var(--text-secondary);">
-                    正在{isPolling.value ? '恢复生成状态' : '生成图片'}，请稍候...
-                  </div>
-                </div>
-              )
-            }
-
             return (
               <div style="display: flex; flex-direction: column; gap: 12px; padding: 8px;">
                 {prompt && (
                   <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
                     <span style="font-weight: 600; color: var(--text-primary); margin-right: 4px;">
-                      Prompt:
+                      提示词:
                     </span>
                     {prompt}
                   </div>
                 )}
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
-                  {images.map((base64: string, index: number) => (
-                    <div
-                      key={index}
-                      style="position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background: var(--bg-card);"
-                    >
-                      <Image
-                        src={`data:image/png;base64,${base64}`}
-                        style="width: 100%; height: auto; display: block;"
-                        alt={`Generated image ${index + 1}`}
-                      />
+                {!props.result && !localResult.value && !error ? (
+                  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; gap: 12px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <Loading size="large" />
+                    <div style="font-size: 13px; color: var(--text-secondary);">
+                      正在{isPolling.value ? '恢复生成状态' : '生成图片'}，请稍候...
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+                    {images.map((base64: string, index: number) => (
+                      <div
+                        key={index}
+                        style="position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background: var(--bg-card);"
+                      >
+                        <Image
+                          src={`data:image/png;base64,${base64}`}
+                          style="width: 100%; height: auto; display: block;"
+                          alt={`Generated image ${index + 1}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           }
