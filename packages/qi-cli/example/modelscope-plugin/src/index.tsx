@@ -17,7 +17,7 @@ const plugin: Plugin = {
     const { Image, Loading, Input } = context.components
     const message = ref()
 
-    const PROVIDER_ID = 'modelscope'
+    const PROVIDER_ID = '魔搭'
     const STORAGE_KEY_MODEL_ID = 'modelscope_model_id'
     const DEFAULT_MODEL_ID = 'Tongyi-MAI/Z-Image-Turbo'
 
@@ -179,7 +179,6 @@ const plugin: Plugin = {
 
     const getModelConfig = async () => {
       const settingsStore = await context.getStore('settings')
-      // 从已有的提供商列表中查找 ModelScope 的配置（包含用户在界面填写的 API Key）
       const provider = settingsStore.providers?.find((p: any) => p.id === PROVIDER_ID)
       return {
         modelId: currentModelId.value,

@@ -28,7 +28,7 @@ export class ModelScopeImageModel implements ImageModelV3 {
       ...((providerOptions?.modelscope as any) || {}),
     };
 
-    const response = await fetch(`${baseURL}v1/images/generations`, {
+    const response = await fetch(`${baseURL}images/generations`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.settings.apiKey}`,
@@ -62,7 +62,7 @@ export class ModelScopeImageModel implements ImageModelV3 {
         throw new Error('Task aborted');
       }
 
-      const statusResponse = await fetch(`${baseURL}v1/tasks/${taskId}`, {
+      const statusResponse = await fetch(`${baseURL}tasks/${taskId}`, {
         headers: {
           'Authorization': `Bearer ${this.settings.apiKey}`,
           'X-ModelScope-Task-Type': 'image_generation',
