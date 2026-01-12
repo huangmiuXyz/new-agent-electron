@@ -1,8 +1,8 @@
-import { ImageModelV2, ImageModelV2CallOptions } from '@ai-sdk/provider';
+import { ImageModelV3, ImageModelV3CallOptions } from '@ai-sdk/provider';
 import { ModelScopeImageGenerationRequest, ModelScopeImageGenerationResponse, ModelScopeTaskResponse } from './modelscope-api-types';
 
-export class ModelScopeImageModel implements ImageModelV2 {
-  readonly specificationVersion = 'v2';
+export class ModelScopeImageModel implements ImageModelV3 {
+  readonly specificationVersion = 'v3';
   readonly maxImagesPerCall = 1;
 
   constructor(
@@ -14,7 +14,7 @@ export class ModelScopeImageModel implements ImageModelV2 {
     return 'modelscope';
   }
 
-  async doGenerate(options: ImageModelV2CallOptions): Promise<Awaited<ReturnType<ImageModelV2['doGenerate']>>> {
+  async doGenerate(options: ImageModelV3CallOptions): Promise<Awaited<ReturnType<ImageModelV3['doGenerate']>>> {
     const { prompt, n = 1, size, seed, providerOptions } = options;
 
     const baseURL = this.settings.baseURL.endsWith('/') ? this.settings.baseURL : `${this.settings.baseURL}/`;

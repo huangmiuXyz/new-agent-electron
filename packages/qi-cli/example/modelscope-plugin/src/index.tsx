@@ -127,6 +127,8 @@ const plugin: Plugin = {
           // 执行生成
           const result = await model.doGenerate({
             prompt,
+            files: [],
+            mask: undefined,
             n: 1,
             size,
             seed,
