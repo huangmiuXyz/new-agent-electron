@@ -13,7 +13,7 @@ const plugin: Plugin = {
   author: 'Zhuanz',
 
   install: async (context: PluginContext) => {
-    const { defineComponent, watch } = context.vue
+    const { defineComponent } = context.vue
     const { Image, Loading } = context.components
 
     // 注册内置工具
