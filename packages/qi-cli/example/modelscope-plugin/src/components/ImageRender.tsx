@@ -97,6 +97,8 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         const images = props.result?.images || localResult.value?.images || []
         const error = props.result?.error || localResult.value?.error
         const prompt = props.args?.prompt
+        const modelscopeMetadata = props.message?.metadata?.[PLUGIN_NAME]
+        const config = modelscopeMetadata?.config
 
         if (error) {
           return (
@@ -107,16 +109,72 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
           )
         }
 
+        const renderLoras = (loras: any) => {
+          if (!loras) return null
+          if (typeof loras === 'string') return loras
+          const entries = Object.entries(loras)
+          if (entries.length === 0) return null
+          return entries
+            .map(([name, weight]) => `${name}: ${weight}`)
+            .join(', ')
+        }
+
+        const hasLoras = config?.loras && (typeof config.loras === 'string' || Object.keys(config.loras).length > 0)
+
         return (
           <div style="display: flex; flex-direction: column; gap: 12px; padding: 8px;">
-            {prompt && (
-              <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-                <span style="font-weight: 600; color: var(--text-primary); margin-right: 4px;">
-                  提示词:
-                </span>
-                {prompt}
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              {prompt && (
+                <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                  <span style="font-weight: 600; color: var(--text-primary); margin-right: 4px;">
+                    提示词:
+                  </span>
+                  {prompt}
+                </div>
+              )}
+              {config?.negative_prompt && (
+                <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; opacity: 0.8;">
+                  <span style="font-weight: 600; color: var(--text-primary); margin-right: 4px;">
+                    负面提示词:
+                    </span>
+                  {config.negative_prompt}
+                </div>
+              )}
+              <div style="display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 11px; color: var(--text-secondary); opacity: 0.7;">
+                {config?.model && (
+                  <div>
+                    <span style="font-weight: 600; color: var(--text-primary); margin-right: 4px;">
+                      模型:
+                    </span>
+                    {config.model}
+                  </div>
+                )}
+                {config?.size && (
+                  <div>
+                    <span style="font-weight: 600; color: var(--text-primary); margin-right: 4px;">
+                      尺寸:
+                    </span>
+                    {config.size}
+                  </div>
+                )}
+                {config?.seed !== undefined && (
+                  <div>
+                    <span style="font-weight: 600; color: var(--text-primary); margin-right: 4px;">
+                      种子:
+                    </span>
+                    {config.seed}
+                  </div>
+                )}
+                {hasLoras && (
+                  <div>
+                    <span style="font-weight: 600; color: var(--text-primary); margin-right: 4px;">
+                      LoRAs:
+                    </span>
+                    {renderLoras(config.loras)}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
             {!props.result && !localResult.value && !error ? (
               <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; gap: 12px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
                 <Loading size="large" />

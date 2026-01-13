@@ -147,7 +147,14 @@ const plugin: Plugin = {
                       ...msg.metadata,
                       [PLUGIN_NAME]: {
                         task_id,
-                        chatId
+                        chatId,
+                        config: {
+                          model: modelConfig.model,
+                          negative_prompt: modelConfig.negative_prompt,
+                          size: modelConfig.size,
+                          seed: seed ?? modelConfig.seed,
+                          loras: modelConfig.loras
+                        }
                       }
                     }
                   }
