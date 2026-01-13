@@ -6,6 +6,8 @@ import { usePluginConfig } from './hooks/use-plugin-config'
 import { createLoadingIcon } from './components/LoadingIcon'
 import { createImageRender } from './components/ImageRender'
 import { PROVIDER_ID, DEFAULT_BASE_URL } from './constants'
+import { ModelScopeErrorData } from './modelscope/modelscope-error'
+import { APICallError } from '@ai-sdk/provider'
 /**
  * ModelScope AI Provider Plugin
  */
@@ -46,11 +48,15 @@ const plugin: Plugin = {
                     </div>
                   ),
                   content: () => (
-                    <div style={{
-                      maxHeight: '450px',
-                      overflowY: 'auto',
-                    }}>
-                      <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>ModelScope 绘图配置</div>
+                    <div
+                      style={{
+                        maxHeight: '450px',
+                        overflowY: 'auto'
+                      }}
+                    >
+                      <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>
+                        ModelScope 绘图配置
+                      </div>
                       <config.ConfigForm />
                     </div>
                   )
@@ -167,14 +173,15 @@ const plugin: Plugin = {
             throw new Error('模型未返回任何图片数据')
           }
         } catch (error: any) {
+          const body = JSON.parse(error.responseBody) as ModelScopeErrorData
           await updateStatus(false)
           return {
-            error: error.message,
+            error: body?.errors?.message || error.message,
             toolResult: {
               content: [
                 {
                   type: 'text',
-                  text: `<|stop|>图片生成失败: ${error.message}`
+                  text: `<|stop|>图片生成失败: ${body?.errors?.message || error.message}`
                 }
               ]
             }

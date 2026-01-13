@@ -5,16 +5,12 @@ export const modelScopeErrorDataSchema = z.object({
   errors: z.object({
     code: z.number(),
     message: z.string(),
-  }).optional(),
-  base_resp: z.object({
-    status_code: z.number(),
-    status_msg: z.string(),
-  }).optional(),
+  }).optional()
 });
 
 export type ModelScopeErrorData = z.infer<typeof modelScopeErrorDataSchema>;
 
 export const modelScopeFailedResponseHandler = createJsonErrorResponseHandler({
   errorSchema: modelScopeErrorDataSchema,
-  errorToMessage: data => data.errors?.message || data.base_resp?.status_msg || 'Unknown error',
+  errorToMessage: data => data.errors?.message || 'Unknown error',
 });
