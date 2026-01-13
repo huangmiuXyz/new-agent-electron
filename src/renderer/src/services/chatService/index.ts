@@ -116,7 +116,7 @@ export const chatService = () => {
           await onBeforeToolExecute?.({ tool: t, input, options })
           const result = await t.execute(input, {
             ...JSON.parse(JSON.stringify(options)),
-            cid,
+            chatId: cid,
             abortSignal: controller.signal
           })
           return result

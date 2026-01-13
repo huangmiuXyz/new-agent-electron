@@ -100,7 +100,7 @@ const plugin: Plugin = {
       render: ImageRender,
       execute: async (args: any, options: any) => {
         const { prompt, seed } = args
-        const { toolCallId, cid } = options
+        const { toolCallId, chatId } = options
 
         try {
           const modelConfig = await getModelConfig()
@@ -137,14 +137,14 @@ const plugin: Plugin = {
             {
               onStart: async (task_id: string) => {
                 const chatsStore = await context.getStore('chats')
-                if (cid) {
-                  const chat = chatsStore.getChatById(cid)
+                if (chatId) {
+                  const chat = chatsStore.getChatById(chatId)
                   const msg = chat?.messages.find((m: any) =>
                     m.parts?.some((p: any) => p?.toolCallId === toolCallId)
                   )
                   if (msg) {
-                    const metadata = { ...msg.metadata, task_id, cid }
-                    chatsStore.updateMessageMetadata(cid, msg.id, metadata)
+                    const metadata = { ...msg.metadata, task_id, chatId }
+                    chatsStore.updateMessageMetadata(chatId, msg.id, metadata)
                   }
                 }
               }
