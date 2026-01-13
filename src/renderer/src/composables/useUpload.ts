@@ -1,4 +1,6 @@
 import { useDropZone } from '@vueuse/core'
+import { assetsHandler, formatFileSize, getFileCategory, uploadDir } from '@renderer/utils'
+import { arrayBufferToBlob, blobToDataURL } from 'blob-util'
 import { FileUIPart } from 'ai'
 export interface UploadFile extends FileUIPart {
   blobUrl?: string
@@ -232,8 +234,11 @@ export function useUpload(options: UseUploadOptions = {}) {
 
     const fileOptions = files.map((file) => ({
       label: `${file.name} (${formatFileSize(file.size)})`,
-      value: file.path
+      value: file.path,
+      image: getFileCategory(file) === 'image' ? `file://${assetsHandler(file.path)}` : undefined
     }))
+
+
 
     const [FileSelectorForm, { submit }] = useForm({
       showHeader: true,

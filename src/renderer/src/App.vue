@@ -469,4 +469,10 @@ a {
 .fade-leave-to {
   opacity: 0;
 }
+
+
+.file-icon {
+  display: flex;
+  align-items: center;
+}
 </style>

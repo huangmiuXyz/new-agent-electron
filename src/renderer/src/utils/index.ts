@@ -77,6 +77,60 @@ export const formatFileSize = (bytes: number): string => {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
+
+export type FileCategory = 'image' | 'document' | 'data' | 'other'
+
+export interface FileItem {
+  name: string
+  path: string
+  size: number
+  created: number
+  type: string
+}
+
+export const FILE_CATEGORY_RULES: Record<
+  FileCategory,
+  {
+    mimeStartsWith?: string[]
+    mimeIncludes?: string[]
+    extensions?: string[]
+  }
+> = {
+  image: {
+    mimeStartsWith: ['image/'],
+    extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp']
+  },
+  document: {
+    mimeIncludes: ['pdf', 'word', 'text'],
+    extensions: ['txt', 'md', 'pdf', 'doc', 'docx']
+  },
+  data: {
+    mimeIncludes: ['json', 'xml', 'csv'],
+    extensions: ['json', 'xml', 'csv', 'db', 'sqlite']
+  },
+  other: {}
+}
+
+export function getFileCategory(file: FileItem | { name: string; type: string }): FileCategory {
+  const name = file.name.toLowerCase()
+  const mime = file.type || ''
+  const ext = name.split('.').pop() || ''
+
+  for (const [category, rule] of Object.entries(FILE_CATEGORY_RULES)) {
+    const r = rule as any
+    if (r.mimeStartsWith?.some((m) => mime.startsWith(m))) {
+      return category as FileCategory
+    }
+    if (r.mimeIncludes?.some((m) => mime.includes(m))) {
+      return category as FileCategory
+    }
+    if (r.extensions?.includes(ext)) {
+      return category as FileCategory
+    }
+  }
+  return 'other'
+}
+
 const userDataPath = window.api?.getPath('userData')
 export const uploadDir = window.api?.path.join(userDataPath, 'Data', 'Files')
 

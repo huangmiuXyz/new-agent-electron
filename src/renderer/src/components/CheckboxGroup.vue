@@ -5,6 +5,7 @@ export interface CheckboxOption {
     label: string
     value: string
     description?: string
+    image?: string
 }
 
 interface Props {
@@ -46,9 +47,14 @@ const checkIcon = useIcon('Check')
                 </div>
             </div>
             <div class="checkbox-content">
-                <div class="checkbox-label">{{ option.label }}</div>
-                <div v-if="option.description" class="checkbox-description">
-                    {{ option.description }}
+                <div v-if="option.image" class="checkbox-image">
+                    <Image :src="option.image" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />
+                </div>
+                <div class="checkbox-text">
+                    <div class="checkbox-label">{{ option.label }}</div>
+                    <div v-if="option.description" class="checkbox-description">
+                        {{ option.description }}
+                    </div>
                 </div>
             </div>
         </div>
@@ -65,7 +71,7 @@ const checkIcon = useIcon('Check')
 
 .checkbox-item {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
     padding: 10px;
     border: 1px solid var(--border-subtle);
@@ -119,14 +125,33 @@ const checkIcon = useIcon('Check')
 
 .checkbox-content {
     flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.checkbox-image {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    overflow: hidden;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+}
+
+.checkbox-text {
+    flex: 1;
     min-width: 0;
 }
 
 .checkbox-label {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--text-primary);
-    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .checkbox-description {

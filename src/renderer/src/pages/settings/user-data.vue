@@ -1,14 +1,6 @@
 <script setup lang="tsx">
 import Image from '@renderer/components/Image.vue'
-type FileCategory = 'image' | 'document' | 'data' | 'other'
-
-interface FileItem {
-  name: string
-  path: string
-  size: number
-  created: number
-  type: string
-}
+import { getFileCategory, type FileItem, type FileCategory } from '@renderer/utils'
 
 const { Folder, Refresh } = useIcon([
   'Folder',
@@ -31,47 +23,6 @@ const categories = [
   { id: 'data', name: '数据' },
   { id: 'other', name: '其他' }
 ]
-const FILE_CATEGORY_RULES: Record<
-  FileCategory,
-  {
-    mimeStartsWith?: string[]
-    mimeIncludes?: string[]
-    extensions?: string[]
-  }
-> = {
-  image: {
-    mimeStartsWith: ['image/'],
-    extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp']
-  },
-  document: {
-    mimeIncludes: ['pdf', 'word', 'text'],
-    extensions: ['txt', 'md', 'pdf', 'doc', 'docx']
-  },
-  data: {
-    mimeIncludes: ['json', 'xml', 'csv'],
-    extensions: ['json', 'xml', 'csv', 'db', 'sqlite']
-  },
-  other: {}
-}
-
-function getFileCategory(file: FileItem): FileCategory {
-  const name = file.name.toLowerCase()
-  const mime = file.type || ''
-  const ext = name.split('.').pop() || ''
-
-  for (const [category, rule] of Object.entries(FILE_CATEGORY_RULES)) {
-    if (rule.mimeStartsWith?.some((m) => mime.startsWith(m))) {
-      return category as FileCategory
-    }
-    if (rule.mimeIncludes?.some((m) => mime.includes(m))) {
-      return category as FileCategory
-    }
-    if (rule.extensions?.includes(ext)) {
-      return category as FileCategory
-    }
-  }
-  return 'other'
-}
 
 const loadFiles = async () => {
   loading.value = true
