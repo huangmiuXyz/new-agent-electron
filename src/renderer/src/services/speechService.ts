@@ -21,8 +21,8 @@ export const speechService = () => {
     const {
       text,
       messageId,
-      modelId = settingsStore.defaultModels.speechModelId,
-      providerId = settingsStore.defaultModels.speechProviderId,
+      modelId = settingsStore.defaultModels.ttsModelId,
+      providerId = settingsStore.defaultModels.ttsProviderId,
       voice,
       speed,
       language,

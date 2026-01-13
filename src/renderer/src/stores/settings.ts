@@ -56,6 +56,8 @@ export const useSettingsStore = defineStore(
       searchProviderId: '',
       speechModelId: '',
       speechProviderId: '',
+      ttsModelId: '',
+      ttsProviderId: '',
     })
 
     const registeredProviders = ref<RegisteredProvider[]>([])
@@ -273,9 +275,9 @@ export const useSettingsStore = defineStore(
     }
 
     const getModelByVoice = (voice: string) => {
-      const { speechModelId, speechProviderId } = defaultModels.value
-      const modelIds = Array.isArray(speechModelId) ? speechModelId : [speechModelId]
-      const providerIds = Array.isArray(speechProviderId) ? speechProviderId : [speechProviderId]
+      const { ttsModelId, ttsProviderId } = defaultModels.value
+      const modelIds = Array.isArray(ttsModelId) ? ttsModelId : [ttsModelId]
+      const providerIds = Array.isArray(ttsProviderId) ? ttsProviderId : [ttsProviderId]
 
       for (let i = 0; i < modelIds.length; i++) {
         const mId = modelIds[i]

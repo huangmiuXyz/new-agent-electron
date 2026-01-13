@@ -53,7 +53,7 @@ declare global {
   type Tools = Awaited<ReturnType<typeof window.api.list_tools>>
   type Tool = Tools[keyof Tools]
   type ContentBlock = UIMessagePart
-  type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank' | 'speech'
+  type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank' | 'speech' | 'tts'
   interface ModelVoice {
     id: string
     name: string
