@@ -25,7 +25,7 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         isPolling.value = true
         try {
           const config = await getModelConfig()
-          const modelId = config.modelId
+          const modelId = config.model
 
           const model = new ModelScopeImageModel(modelId, {
             provider: 'modelscope.image',

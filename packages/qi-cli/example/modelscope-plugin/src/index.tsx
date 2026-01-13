@@ -21,7 +21,7 @@ const plugin: Plugin = {
     const message = ref()
 
     const updateStatus = async (isLoading = false) => {
-      const modelId = config.currentModelId.value
+      const modelId = config.config.value.model
 
       if (isLoading) {
         context.notification.status('modelscope-status', '', {
@@ -44,12 +44,9 @@ const plugin: Plugin = {
 
     const getModelConfig = async () => {
       const settingsStore = await context.getStore('settings')
-      console.log(config)
       const provider = settingsStore.providers?.find((p: any) => p.id === PROVIDER_ID)
       return {
-        modelId: config.currentModelId.value,
-        negativePrompt: config.currentNegativePrompt.value,
-        size: config.currentSize.value,
+        ...config.config.value,
         apiKey: provider?.apiKey || '',
         baseURL: provider?.baseUrl || DEFAULT_BASE_URL
       }
@@ -77,7 +74,7 @@ const plugin: Plugin = {
           const modelConfig = await getModelConfig()
 
           // 创建模型实例
-          const targetModelId = modelConfig.modelId
+          const targetModelId = modelConfig.model as string
           const model = new ModelScopeImageModel(targetModelId, {
             provider: 'modelscope.image',
             url: ({ path }) => `${modelConfig.baseURL}${path}`,
@@ -96,12 +93,12 @@ const plugin: Plugin = {
               files: [],
               mask: undefined,
               n: 1,
-              size: modelConfig.size,
-              seed,
+              size: modelConfig.size as `${number}x${number}`,
+              seed: seed ?? (modelConfig.seed as number),
               aspectRatio: undefined,
               providerOptions: {
                 modelscope: {
-                  negative_prompt: modelConfig.negativePrompt
+                  ...modelConfig
                 }
               }
             },
