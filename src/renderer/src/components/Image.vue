@@ -16,10 +16,10 @@
                 <div class="error-text">图片加载失败</div>
             </slot>
         </div>
-        <ImageViewer 
-            v-if="preview" 
-            v-model:visible="showViewer" 
-            :src="computedSrc" 
+        <ImageViewer
+            v-if="preview"
+            v-model:visible="showViewer"
+            :src="computedSrc"
             :images="images"
             :initial-index="viewerIndex"
         />

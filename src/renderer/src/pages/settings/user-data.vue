@@ -1,4 +1,5 @@
 <script setup lang="tsx">
+import Image from '@renderer/components/Image.vue'
 type FileCategory = 'image' | 'document' | 'data' | 'other'
 
 interface FileItem {
@@ -148,23 +149,50 @@ const [FileTable] = useTable<FileItem>({
   data: () => categorizedFiles.value,
   columns: [
     {
+      key: 'thumbnail',
+      label: '缩略图',
+      width: 60,
+      render: (row) => {
+        const isImage = getFileCategory(row) === 'image'
+        if (!isImage) return null
+        const imageUrl = assetsHandler(row.path)
+        return (
+          <div class="file-thumbnail">
+            <Image
+              src={`file://${imageUrl}`}
+              preview={true}
+              style={{ height: '40px', width: '40px', objectFit: 'cover' }}
+              images={categorizedFiles.value
+                .filter((f) => getFileCategory(f) === 'image')
+                .map((f) => `file://${assetsHandler(f.path)}`)}
+              initialIndex={categorizedFiles.value
+                .filter((f) => getFileCategory(f) === 'image')
+                .findIndex((f) => f.path === row.path)}
+            />
+          </div>
+        )
+      }
+    },
+    {
       key: 'name',
       label: '文件名称',
       width: 'auto',
-      render: (row) => (
-        <div class="file-name-cell">
-          <Button onClick={() => openFolder(row.path)} variant="text" size="sm" class="name-text">
-            {{
-              icon: () => (
-                <span class="file-icon">
-                  {useIcon(getFileIcon({ name: row.name, mediaType: row.type }))}
-                </span>
-              ),
-              default: () => row.name
-            }}
-          </Button>
-        </div>
-      )
+      render: (row) => {
+        return (
+          <div class="file-name-cell">
+            <Button onClick={() => openFolder(row.path)} variant="text" size="sm" class="name-text">
+              {{
+                icon: () => (
+                  <span class="file-icon">
+                    {useIcon(getFileIcon({ name: row.name, mediaType: row.type }))}
+                  </span>
+                ),
+                default: () => row.name
+              }}
+            </Button>
+          </div>
+        )
+      }
     },
     { key: 'type', label: '类型', width: 60 },
     {
@@ -281,9 +309,28 @@ onMounted(loadFiles)
 }
 
 .file-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.file-thumbnail {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-thumbnail :deep(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .name-text {
