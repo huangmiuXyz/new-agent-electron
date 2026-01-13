@@ -65,7 +65,7 @@ function buildName(parent: string | undefined, key: string) {
   return parent ? `${parent}.${key}` : key
 }
 
-export function zodSchemaToFormfields<T extends Record<string, any>>(
+export function zodSchemasToFormfields<T extends Record<string, any>>(
   schema: ZodObject<any>,
   rootName?: string
 ): FormField<T>[] {

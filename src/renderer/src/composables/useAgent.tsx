@@ -1,4 +1,4 @@
-import { zodSchemaToFormfields } from '../utils/zod-to-form'
+import { zodSchemasToFormfields } from '../utils/zod-to-form'
 import { createRegistry } from '../services/chatService/registry'
 
 export const useAgent = () => {
@@ -316,7 +316,7 @@ export const useAgent = () => {
           })
           const providerInstance = registry.getProvider(provider.providerType)
           if (providerInstance?.speechCallOptionsSchema) {
-            const fields = zodSchemaToFormfields<Partial<Agent>>(
+            const fields = zodSchemasToFormfields<Partial<Agent>>(
               providerInstance.speechCallOptionsSchema,
               `speechProviderOptions.${provider.id}`
             )

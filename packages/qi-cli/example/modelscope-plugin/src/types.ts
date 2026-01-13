@@ -19,6 +19,11 @@ export interface PluginContext {
   notification: {
     status: (id: string, title: string, options: any) => void;
   };
+  localforage: {
+    getItem: (key: string) => Promise<any>;
+    setItem: (key: string, value: any) => Promise<void>;
+  }
+  useForm: any
   /** 注册内置工具 */
   registerBuiltinTool: (name: string, tool: any) => void;
   /** 注销内置工具 */

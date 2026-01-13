@@ -7,6 +7,7 @@ import {
   DEFAULT_NEGATIVE_PROMPT,
   DEFAULT_SIZE
 } from '../constants'
+import { modelScopeImageCallOptionsSchema } from '../modelscope/modelscope-api-types'
 
 export function usePluginConfig(context: PluginContext, onConfigChange?: () => void) {
   const { ref } = context.vue
@@ -16,29 +17,7 @@ export function usePluginConfig(context: PluginContext, onConfigChange?: () => v
   const currentSize = ref(DEFAULT_SIZE)
 
   const [ConfigForm, formActions] = context.useForm({
-    fields: [
-      {
-        name: 'modelId',
-        type: 'text',
-        label: '当前模型',
-        placeholder: '输入模型 ID...',
-        size: 'sm'
-      },
-      {
-        name: 'negativePrompt',
-        type: 'text',
-        label: '负面提示词',
-        placeholder: '输入负面提示词...',
-        size: 'sm'
-      },
-      {
-        name: 'size',
-        type: 'text',
-        label: '生成尺寸',
-        placeholder: '如 1024x1024...',
-        size: 'sm'
-      }
-    ],
+    schemas: modelScopeImageCallOptionsSchema,
     initialData: {
       modelId: currentModelId.value,
       negativePrompt: currentNegativePrompt.value,
