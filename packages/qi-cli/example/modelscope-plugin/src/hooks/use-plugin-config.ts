@@ -8,7 +8,7 @@ import {
 import { modelScopeImageCallOptionsSchema } from '../modelscope/modelscope-api-types'
 
 export function usePluginConfig(context: PluginContext, onConfigChange?: () => void) {
-  const { ref } = context.vue
+  const { ref, toRaw } = context.vue
 
   const config = ref({
     model: DEFAULT_MODEL_ID,
@@ -20,8 +20,10 @@ export function usePluginConfig(context: PluginContext, onConfigChange?: () => v
     schemas: modelScopeImageCallOptionsSchema,
     initialData: config.value,
     onChange: async (_field: string, _value: any, data: any) => {
-      config.value = data
-      await context.localforage.setItem(STORAGE_KEY_CONFIG, data)
+      // 确保保存的是纯对象，避免 DataCloneError
+      const plainData = JSON.parse(JSON.stringify(toRaw(data)))
+      config.value = plainData
+      await context.localforage.setItem(STORAGE_KEY_CONFIG, plainData)
       onConfigChange?.()
     }
   })
