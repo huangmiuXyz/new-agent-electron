@@ -16,7 +16,13 @@
                 <div class="error-text">图片加载失败</div>
             </slot>
         </div>
-        <ImageViewer v-if="preview" v-model:visible="showViewer" :src="computedSrc" />
+        <ImageViewer 
+            v-if="preview" 
+            v-model:visible="showViewer" 
+            :src="computedSrc" 
+            :images="images"
+            :initial-index="viewerIndex"
+        />
     </div>
 </template>
 
@@ -26,11 +32,14 @@ import { assetsHandler } from '@renderer/utils'
 const props = defineProps<{
     src?: string
     preview?: boolean
+    images?: string[]
+    initialIndex?: number
 }>()
 
 const isLoading = ref(true)
 const hasError = ref(false)
 const showViewer = ref(false)
+const viewerIndex = ref(props.initialIndex || 0)
 
 const computedSrc = computed(() => {
     return assetsHandler(props.src || '')
@@ -38,6 +47,7 @@ const computedSrc = computed(() => {
 
 const handlePreview = () => {
     if (props.preview && !hasError.value) {
+        viewerIndex.value = props.initialIndex || 0
         showViewer.value = true
     }
 }

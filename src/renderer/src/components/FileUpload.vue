@@ -115,6 +115,8 @@ defineExpose({
         <Image
           v-if="file.mediaType?.startsWith?.('image/') || !file.mediaType"
           :src="file.blobUrl || anyUrlToBlobUrl(file.url)"
+          :images="selectedFiles.map(f => f.blobUrl || anyUrlToBlobUrl(f.url))"
+          :initial-index="index"
           class="preview-file"
           preview
         />

@@ -37,7 +37,9 @@ import {
   RadioButton,
   RadioButtonChecked,
   SubtractAlt,
-  Pause
+  Pause,
+  RotateCounterclockwise,
+  RotateClockwise
 } from '@vicons/carbon'
 import {
   Cpu,
@@ -49,6 +51,7 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
+  ChevronLeft,
   Dots,
   Robot,
   LayoutSidebar,
@@ -81,7 +84,9 @@ import {
   Bell,
   Volume,
   Volume2,
-  Volume3
+  Volume3,
+  ZoomIn,
+  ZoomOut
 } from '@vicons/tabler'
 import {
   CommentAdd16Regular,
@@ -121,6 +126,11 @@ const icons = {
   ChevronDown,
   ChevronUp,
   ChevronRight,
+  ChevronLeft,
+  ZoomIn,
+  ZoomOut,
+  RotateLeft: RotateCounterclockwise,
+  RotateRight: RotateClockwise,
   MoreHorizontal: Dots,
   CommentAdd16Regular,
   FileUpload,
