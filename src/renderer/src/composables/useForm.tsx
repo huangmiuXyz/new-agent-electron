@@ -550,7 +550,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       ...field,
       ...(dynamicFieldProps.value[field.name] || {}),
       modelValue: getFieldValue(field.name),
-      'onUpdate:modelValue': (val: any) => setFieldValue(field.name, val)
+      'onUpdate:modelValue': (val: any) => setFieldValue(field.name, val),
+      size: formSize || field.size
     }
 
     const error = errors.value[field.name]

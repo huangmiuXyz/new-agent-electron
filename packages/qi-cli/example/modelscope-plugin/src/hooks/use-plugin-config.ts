@@ -19,6 +19,7 @@ export function usePluginConfig(context: PluginContext, onConfigChange?: () => v
   const [ConfigForm, formActions] = context.useForm({
     schemas: modelScopeImageCallOptionsSchema,
     initialData: config.value,
+    size: 'sm',
     onChange: async (_field: string, _value: any, data: any) => {
       // 确保保存的是纯对象，避免 DataCloneError
       const plainData = JSON.parse(JSON.stringify(toRaw(data)))
