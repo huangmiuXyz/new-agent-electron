@@ -62,8 +62,7 @@ const plugin: Plugin = {
       description:
         '使用 ModelScope AIGC 模型生成图片。支持多种模型，可以指定提示词、图片尺寸等参数。',
       inputSchema: z.object({
-        prompt: z.string().describe('生成图片的正向提示词，建议使用英文描述以获得更好效果。'),
-        seed: z.number().optional().describe('随机种子，用于复现生成的图片。')
+        prompt: z.string().describe('生成图片的正向提示词，建议使用英文描述以获得更好效果。')
       }),
       title: 'ModelScope 绘图',
       render: ImageRender,
