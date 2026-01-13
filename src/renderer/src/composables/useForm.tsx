@@ -16,6 +16,7 @@ import { zodSchemasToFormfields } from '../utils/zod-to-form'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
 import Markdown from '@renderer/components/Markdown.vue'
 import { VNode, MaybeRefOrGetter, toValue, PropType } from 'vue'
+import { isEqual } from 'es-toolkit'
 
 export const FormItem = defineComponent({
   props: {
@@ -239,6 +240,7 @@ export interface FormConfig<T extends Record<string, any>> {
   onSubmit?: (data: T) => void
   onReset?: () => void
   onChange?: (field: keyof T | undefined, value: T[keyof T] | undefined, data: T) => void
+  filterDefaultValues?: boolean
 }
 
 export interface FormActions<T> {
@@ -317,6 +319,40 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
     return toValue(config.fields) || []
   })
+
+  const flatFields = computed(() => {
+    const flat: FormField<T>[] = []
+    const collectFields = (fields: FormField<T>[]) => {
+      fields.forEach((f) => {
+        if (f.type === 'group' && f.children) {
+          collectFields(f.children)
+        } else {
+          flat.push(f)
+        }
+      })
+    }
+    collectFields(fields.value)
+    return flat
+  })
+
+  const getFilteredData = (data: T) => {
+    if (!config.filterDefaultValues) return data
+
+    const filtered = {} as T
+    flatFields.value.forEach((field) => {
+      const value = getNestedValue(data, field.name)
+      const defaultValue = field.defaultValue ?? getDefaultValue(field.type!, field)
+
+      if (!isEqual(value, defaultValue)) {
+        if (field.name.includes('.')) {
+          setNestedValue(filtered, field.name, value)
+        } else {
+          filtered[field.name as keyof T] = value
+        }
+      }
+    })
+    return filtered
+  }
 
   const initializeField = (field: FormField<T>) => {
     if (field.type === 'group' && field.children) {
@@ -410,7 +446,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     errors.value = newErrors
 
     if (Object.keys(newErrors).length === 0) {
-      config.onSubmit?.(formData.value)
+      config.onSubmit?.(getFilteredData(formData.value))
       return true
     }
     return false
@@ -429,7 +465,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       formData.value[field] = value
     }
 
-    config.onChange?.(field as keyof T, value as T[keyof T], formData.value)
+    config.onChange?.(field as keyof T, value as T[keyof T], getFilteredData(formData.value))
   }
   const setFieldsValue = (data: T) => {
     Object.keys(data).forEach((key) => {
@@ -439,7 +475,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         formData.value[key] = data[key]
       }
     })
-    config.onChange?.(undefined, undefined, formData.value)
+    config.onChange?.(undefined, undefined, getFilteredData(formData.value))
   }
 
   const getFieldValue = (field: string) => {
