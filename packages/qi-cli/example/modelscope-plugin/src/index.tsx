@@ -11,6 +11,8 @@ import { APICallError } from '@ai-sdk/provider'
 /**
  * ModelScope AI Provider Plugin
  */
+
+const TOOLNAME = 'tool-modelscope_image_generator'
 const plugin: Plugin = {
   name: 'modelscope-plugin',
   version: '1.0.0',
@@ -20,7 +22,6 @@ const plugin: Plugin = {
   install: async (context: PluginContext) => {
     const { markRaw, ref } = context.vue
     const { SelectorPopover } = context.components
-    const message = ref()
 
     const updateStatus = async (isLoading = false) => {
       const modelId = config.config.value.model
@@ -97,8 +98,10 @@ const plugin: Plugin = {
       }),
       title: 'ModelScope 绘图',
       render: ImageRender,
-      execute: async (args: any) => {
+      execute: async (args: any, options: any) => {
         const { prompt, seed } = args
+        const { toolCallId, cid } = options
+        debugger
 
         try {
           const modelConfig = await getModelConfig()
@@ -135,13 +138,15 @@ const plugin: Plugin = {
             {
               onStart: async (task_id: string) => {
                 const chatsStore = await context.getStore('chats')
-                if (message.value?.metadata?.cid) {
-                  const metadata = { ...message.value.metadata, task_id }
-                  chatsStore.updateMessageMetadata(
-                    message.value.metadata.cid,
-                    message.value.id,
-                    metadata
+                if (cid) {
+                  const chat = chatsStore.getChatById(cid)
+                  const msg = chat?.messages.find((m: any) =>
+                    m.parts?.some((p: any) => p?.toolCallId === toolCallId)
                   )
+                  if (msg) {
+                    const metadata = { ...msg.metadata, task_id, cid }
+                    chatsStore.updateMessageMetadata(cid, msg.id, metadata)
+                  }
                 }
               }
             }
