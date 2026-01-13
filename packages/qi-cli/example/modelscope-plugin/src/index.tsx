@@ -210,18 +210,6 @@ const plugin: Plugin = {
     context.registerRegistry('modelscope', (options: any) => {
       return createModelScope(options)
     })
-
-    // 注册提供商信息和模型列表
-    const modelscope = createModelScope()
-    const models = await modelscope.listModels()
-    context.registerProvider('modelscope', {
-      name: 'ModelScope',
-      models: models.map((m) => ({
-        id: m.id,
-        name: m.name,
-        category: m.category
-      }))
-    })
   },
 
   uninstall: () => {
