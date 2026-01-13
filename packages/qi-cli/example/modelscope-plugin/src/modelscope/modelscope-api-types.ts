@@ -9,12 +9,20 @@ export const modelScopeImageCallOptionsSchema = z.object({
   steps: z.number().int().min(1).max(100).optional().describe('采样步数'),
   guidance: z.number().min(1.5).max(20).optional().describe('提示词引导系数'),
   image_url: z.string().url().optional().describe('待编辑图片的url地址'),
-  loras: z.union([z.string(), z.record(z.string(), z.number())]).optional().describe('LoRA模型'),
+  loras: z.record(z.string(), z.number()).optional().describe('LoRA模型'),
 });
 
-export type ModelScopeImageCallOptions = z.infer<typeof modelScopeImageCallOptionsSchema>;
-
-export interface ModelScopeImageAPITypes extends ModelScopeImageCallOptions {}
+export type ModelScopeImageAPITypes = {
+  model: string;
+  prompt: string;
+  negative_prompt?: string;
+  size?: string;
+  seed?: number;
+  steps?: number;
+  guidance?: number;
+  image_url?: string;
+  loras?: string | Record<string, number>;
+};
 
 export interface ModelScopeImageAPIResponse {
   task_id: string;

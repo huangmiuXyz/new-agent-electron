@@ -40,12 +40,21 @@ export class ModelScopeImageModel implements ImageModelV3 {
       schema: ModelScopeImageModel.imageCallOptionsSchema,
     });
 
+    let loras: string | Record<string, number> | undefined = modelScopeOptions?.loras;
+    if (loras && typeof loras === 'object') {
+      const keys = Object.keys(loras);
+      if (keys.length === 1) {
+        loras = keys[0];
+      }
+    }
+
     const requestBody: ModelScopeImageAPITypes = {
       model: this.modelId,
       prompt: prompt ?? '',
       size,
       seed,
       ...modelScopeOptions,
+      loras,
     };
 
     return {
