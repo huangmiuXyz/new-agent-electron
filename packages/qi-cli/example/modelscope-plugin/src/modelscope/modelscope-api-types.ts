@@ -8,7 +8,7 @@ export const modelScopeImageCallOptionsSchema = z.object({
   seed: z.number().int().min(0).max(2147483647).optional().describe('随机种子'),
   steps: z.number().int().min(1).max(100).optional().describe('采样步数'),
   guidance: z.number().min(1.5).max(20).optional().describe('提示词引导系数'),
-  image_url: z.string().url().optional().describe('待编辑图片的url地址'),
+  image_url: z.url().optional().describe('待编辑图片的url地址'),
   loras: z.record(z.string(), z.number()).optional().describe('LoRA模型'),
 });
 
