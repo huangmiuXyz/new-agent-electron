@@ -42,9 +42,9 @@ export const useAgent = () => {
   }
 
   const getSpeechVoiceOptions = () => {
-    const { speechModelId, speechProviderId } = settingsStore.defaultModels
-    const modelIds = Array.isArray(speechModelId) ? speechModelId : [speechModelId]
-    const providerIds = Array.isArray(speechProviderId) ? speechProviderId : [speechProviderId]
+    const { ttsModelId, ttsProviderId } = settingsStore.defaultModels
+    const modelIds = Array.isArray(ttsModelId) ? ttsModelId : [ttsModelId]
+    const providerIds = Array.isArray(ttsProviderId) ? ttsProviderId : [ttsProviderId]
 
     const options: { label: string; value: string }[] = []
 
