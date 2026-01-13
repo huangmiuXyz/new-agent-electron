@@ -1,7 +1,7 @@
 {
   "name": "modelscope-plugin",
   "version": "1.0.0",
-  "description": "modelscope-plugin 插件",
+  "description": "ModelScope AI Provider Plugin",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
@@ -9,7 +9,6 @@
     "dev": "vite build --watch"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "2.0.4",
     "@ai-sdk/provider": "^3.0.2",
     "@ai-sdk/provider-utils": "^4.0.4",
     "zod": "^4.3.5"
@@ -18,5 +17,5 @@
     "typescript": "^5.4.5",
     "vite": "^5.2.11"
   },
-  "author": ""
+  "author": "Agent-Qi"
 }

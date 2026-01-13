@@ -1,7 +1,7 @@
 import { Plugin, PluginContext } from './types'
-import { createModelScope } from './modelscope-provider'
-import { z } from 'zod'
-import { ModelScopeImageModel } from './modelscope-image-model'
+import { createModelScope } from './modelscope/modelscope-provider'
+import { z } from 'zod/v4'
+import { ModelScopeImageModel } from './modelscope/modelscope-image-model'
 import { usePluginConfig } from './hooks/use-plugin-config'
 import { createConfigIcon } from './components/ConfigIcon'
 import { createLoadingIcon } from './components/LoadingIcon'
@@ -79,39 +79,46 @@ const plugin: Plugin = {
           // 创建模型实例
           const targetModelId = modelConfig.modelId
           const model = new ModelScopeImageModel(targetModelId, {
-            apiKey: modelConfig.apiKey,
-            baseURL: modelConfig.baseURL
+            provider: 'modelscope.image',
+            url: ({ path }) => `${modelConfig.baseURL}${path}`,
+            headers: () => ({
+              Authorization: `Bearer ${modelConfig.apiKey}`
+            })
           })
 
           // 显示生成状态
           await updateStatus(true)
 
           // 执行生成
-          const result = await model.doGenerate({
-            prompt,
-            files: [],
-            mask: undefined,
-            n: 1,
-            size: modelConfig.size,
-            seed,
-            aspectRatio: undefined,
-            providerOptions: {
-              modelscope: {
-                negative_prompt: modelConfig.negativePrompt,
-                onStart: async (task_id: string) => {
-                  const chatsStore = await context.getStore('chats')
-                  if (message.value?.metadata?.cid) {
-                    const metadata = { ...message.value.metadata, task_id }
-                    chatsStore.updateMessageMetadata(
-                      message.value.metadata.cid,
-                      message.value.id,
-                      metadata
-                    )
-                  }
+          const result = await model.doGenerate(
+            {
+              prompt,
+              files: [],
+              mask: undefined,
+              n: 1,
+              size: modelConfig.size,
+              seed,
+              aspectRatio: undefined,
+              providerOptions: {
+                modelscope: {
+                  negative_prompt: modelConfig.negativePrompt
                 }
-              } as any
+              }
+            },
+            {
+              onStart: async (task_id: string) => {
+                const chatsStore = await context.getStore('chats')
+                if (message.value?.metadata?.cid) {
+                  const metadata = { ...message.value.metadata, task_id }
+                  chatsStore.updateMessageMetadata(
+                    message.value.metadata.cid,
+                    message.value.id,
+                    metadata
+                  )
+                }
+              }
             }
-          })
+          )
 
           await updateStatus(false)
 
@@ -158,6 +165,18 @@ const plugin: Plugin = {
     // 注册到全局模型注册表
     context.registerRegistry('modelscope', (options: any) => {
       return createModelScope(options)
+    })
+
+    // 注册提供商信息和模型列表
+    const modelscope = createModelScope()
+    const models = await modelscope.listModels()
+    context.registerProvider('modelscope', {
+      name: 'ModelScope',
+      models: models.map((m) => ({
+        id: m.id,
+        name: m.name,
+        category: m.category
+      }))
     })
   },
 
