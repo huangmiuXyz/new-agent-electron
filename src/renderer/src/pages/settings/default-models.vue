@@ -37,7 +37,7 @@ const [DefaultModelsForm] = useForm({
             modelCategory: 'speech',
         },
         {
-            name: 'speechModel',
+            name: 'ttsModel',
             type: 'modelSelector',
             label: '文字转语音模型',
             popupPosition: 'bottom',
