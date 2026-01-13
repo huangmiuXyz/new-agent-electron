@@ -583,7 +583,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             case 'array':
               return <InputGroup {...fieldProps} />
             case 'object':
-              return <InputGroup {...fieldProps} type="object" />
+              return <InputGroup {...fieldProps} mode="object" />
             case 'checkboxGroup':
               return <CheckboxGroup {...fieldProps} />
             case 'modelSelector': {

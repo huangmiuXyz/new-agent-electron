@@ -6,6 +6,7 @@ import {
   ZodBoolean,
   ZodEnum,
   ZodArray,
+  ZodRecord,
 } from 'zod'
 
 interface UnwrapResult {
@@ -135,6 +136,20 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
           ...metadata
         })
       }
+      continue
+    }
+
+    // record
+    if (inner instanceof ZodRecord) {
+      fields.push({
+        type: 'object',
+        name,
+        label,
+        hint,
+        required,
+        defaultValue,
+        ...metadata
+      } as any)
       continue
     }
 
