@@ -44,6 +44,7 @@ const plugin: Plugin = {
 
     const getModelConfig = async () => {
       const settingsStore = await context.getStore('settings')
+      console.log(config)
       const provider = settingsStore.providers?.find((p: any) => p.id === PROVIDER_ID)
       return {
         modelId: config.currentModelId.value,
