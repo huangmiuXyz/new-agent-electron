@@ -116,6 +116,7 @@ defineExpose({
           v-if="file.mediaType?.startsWith?.('image/') || !file.mediaType"
           :src="file.blobUrl || anyUrlToBlobUrl(file.url)"
           class="preview-file"
+          preview
         />
 
         <div v-else class="preview-generic">

@@ -1,5 +1,5 @@
 <template>
-    <div class="image-container" :class="{ 'is-loading': isLoading }">
+    <div class="image-container" :class="{ 'is-loading': isLoading, 'is-previewable': preview && !hasError }">
         <div v-if="isLoading" class="loading-overlay">
             <Loading size="small" />
         </div>
@@ -8,6 +8,7 @@
             :src="computedSrc"
             @load="handleLoad"
             @error="handleError"
+            @click="handlePreview"
             :style="{ opacity: isLoading ? 0 : 1 }"
         />
         <div v-if="hasError && !isLoading" class="error-placeholder">
@@ -15,6 +16,7 @@
                 <div class="error-text">图片加载失败</div>
             </slot>
         </div>
+        <ImageViewer v-if="preview" v-model:visible="showViewer" :src="computedSrc" />
     </div>
 </template>
 
@@ -23,14 +25,22 @@ import { assetsHandler } from '@renderer/utils'
 
 const props = defineProps<{
     src?: string
+    preview?: boolean
 }>()
 
 const isLoading = ref(true)
 const hasError = ref(false)
+const showViewer = ref(false)
 
 const computedSrc = computed(() => {
     return assetsHandler(props.src || '')
 })
+
+const handlePreview = () => {
+    if (props.preview && !hasError.value) {
+        showViewer.value = true
+    }
+}
 
 watch(
     () => props.src,
@@ -66,6 +76,10 @@ const handleError = () => {
     overflow: hidden;
     width: 100%;
     height: 100%;
+}
+
+.is-previewable img {
+    cursor: zoom-in;
 }
 
 .loading-overlay {

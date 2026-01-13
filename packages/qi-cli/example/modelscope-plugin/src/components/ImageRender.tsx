@@ -193,6 +193,7 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
                       src={`data:image/png;base64,${base64}`}
                       style="width: 100%; height: auto; display: block;"
                       alt={`Generated image ${index + 1}`}
+                      preview={true}
                     />
                   </div>
                 ))}
