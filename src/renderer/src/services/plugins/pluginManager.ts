@@ -347,8 +347,7 @@ export class PluginManager {
       getRegisteredProviders: () => {
         const settingsStore = useSettingsStore(this.pinia);
         return settingsStore.registeredProviders.filter((p) => p.pluginName === pluginName);
-      },
-      zodSchemaToFormfields
+      }
     };
   }
 
