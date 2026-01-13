@@ -1,5 +1,6 @@
 import { PluginContext } from '../types'
 import { ModelScopeImageModel } from  '../modelscope/modelscope-image-model'
+import { PLUGIN_NAME } from '../constants'
 
 export function createImageRender(context: PluginContext, getModelConfig: () => Promise<any>) {
   const { defineComponent, ref, onMounted, onUnmounted } = context.vue
@@ -19,7 +20,8 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
       const abortController = new AbortController()
 
       const pollStatus = async () => {
-        const taskId = props.message?.metadata?.task_id
+        const modelscopeMetadata = props.message?.metadata?.[PLUGIN_NAME]
+        const taskId = modelscopeMetadata?.task_id
         if (!taskId || props.result || localResult.value || isPolling.value) return
 
         isPolling.value = true
@@ -39,7 +41,7 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
           if (result && result.images) {
             localResult.value = { images: result.images }
             const chatsStore = await context.getStore('chats')
-            const cid = props.message?.metadata?.cid
+            const cid = modelscopeMetadata?.chatId || props.message?.metadata?.cid
             const mid = props.message?.id
             if (cid && mid) {
               const chat = chatsStore.getChatById(cid)

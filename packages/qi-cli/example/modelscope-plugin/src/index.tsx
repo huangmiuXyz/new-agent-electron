@@ -5,7 +5,7 @@ import { ModelScopeImageModel } from './modelscope/modelscope-image-model'
 import { usePluginConfig } from './hooks/use-plugin-config'
 import { createLoadingIcon } from './components/LoadingIcon'
 import { createImageRender } from './components/ImageRender'
-import { PROVIDER_ID, DEFAULT_BASE_URL } from './constants'
+import { PROVIDER_ID, DEFAULT_BASE_URL, PLUGIN_NAME } from './constants'
 import { ModelScopeErrorData } from './modelscope/modelscope-error'
 import { APICallError } from '@ai-sdk/provider'
 /**
@@ -14,7 +14,7 @@ import { APICallError } from '@ai-sdk/provider'
 
 const TOOLNAME = 'tool-modelscope_image_generator'
 const plugin: Plugin = {
-  name: 'modelscope-plugin',
+  name: PLUGIN_NAME,
   version: '1.0.0',
   description: 'ModelScope AIGC Image Generation Plugin',
   author: 'Zhuanz',
@@ -143,8 +143,13 @@ const plugin: Plugin = {
                     m.parts?.some((p: any) => p?.toolCallId === toolCallId)
                   )
                   if (msg) {
-                    const metadata = { ...msg.metadata, task_id, chatId }
-                    chatsStore.updateMessageMetadata(chatId, msg.id, metadata)
+                    msg.metadata = {
+                      ...msg.metadata,
+                      [PLUGIN_NAME]: {
+                        task_id,
+                        chatId
+                      }
+                    }
                   }
                 }
               }
