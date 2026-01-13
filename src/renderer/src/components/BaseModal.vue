@@ -21,7 +21,7 @@
         <div class="modal-footer">
           <Button v-if="showCancel" class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
-            }}</Button>
+          }}</Button>
           <Button ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button"
             @click="handleConfirm">
             {{ props.confirmText || '确认' }}
@@ -43,11 +43,10 @@
           </slot>
         </div>
         <div v-if="showFooter" class="drawer-footer">
-          <Button v-if="showCancel" :class="{ isMobile }" class="btn btn-secondary" type="button"
-            @click="handleCancel">{{
-              props.cancelText ||
-              '取消' }}</Button>
-          <Button :class="{ isMobile }" ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button"
+          <Button variant='secondary' v-if="showCancel" :class="{ isMobile }" type="button" @click="handleCancel">{{
+            props.cancelText ||
+            '取消' }}</Button>
+          <Button variant='primary' :class="{ isMobile }" ref="confirmButton" v-bind="confirmProps" type="button"
             @click="handleConfirm">
             {{ props.confirmText || '确认' }}
           </Button>
