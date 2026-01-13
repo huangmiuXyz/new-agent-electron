@@ -11,6 +11,8 @@ import PathSelector from '@renderer/components/PathSelector.vue'
 import FileUpload from '@renderer/components/FileUpload.vue'
 import Button from '@renderer/components/Button.vue'
 import { useIcon } from './useIcon'
+import zod from 'zod'
+import { zodSchemaToFormfields } from '../utils/zod-to-form'
 import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
 import Markdown from '@renderer/components/Markdown.vue'
 import { VNode, MaybeRefOrGetter, toValue, PropType } from 'vue'
@@ -231,7 +233,8 @@ export interface FormConfig<T extends Record<string, any>> {
   title?: string
   showHeader?: boolean
   size?: 'sm' | 'md' | 'lg'
-  fields: MaybeRefOrGetter<FormField<T>[]>
+  fields?: MaybeRefOrGetter<FormField<T>[]>
+  schema?: zod.ZodObject
   initialData?: T
   onSubmit?: (data: T) => void
   onReset?: () => void
@@ -308,7 +311,12 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
   }
 
-  const fields = computed(() => toValue(config.fields))
+  const fields = computed<FormField<T>[]>(() => {
+    if (config.schema) {
+      return zodSchemaToFormfields(config.schema)
+    }
+    return toValue(config.fields) || []
+  })
 
   const initializeField = (field: FormField<T>) => {
     if (field.type === 'group' && field.children) {
