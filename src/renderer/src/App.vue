@@ -60,6 +60,12 @@ const route = useRoute()
 
 const router = useRouter()
 
+const mobileTabs = computed(() => {
+  return router.getRoutes()
+    .filter((r) => r.path.startsWith('/mobile/') && r.meta?.sort !== undefined)
+    .sort((a, b) => (a.meta.sort as number) - (b.meta.sort as number))
+})
+
 watch(() => route.path, () => {
   resetTitle()
 })
@@ -121,17 +127,23 @@ const handleTouchEnd = (e: TouchEvent) => {
   const deltaY = touchEndY - touchStartY.value
 
   if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
+    const currentTabRoute = route.matched.find((r) => r.meta?.sort !== undefined)
+    if (!currentTabRoute) return
+
+    const tabs = mobileTabs.value
+    const currentIndex = tabs.findIndex((t) => t.path === currentTabRoute.path)
+
+    if (currentIndex === -1) return
+
     if (deltaX < 0) {
-      if (route.path.includes('/mobile/chat')) {
-        router.push('/mobile/notes')
-      } else if (route.path.includes('/mobile/notes')) {
-        router.push('/mobile/settings')
+      // 向左划，去下一个
+      if (currentIndex < tabs.length - 1) {
+        router.push(tabs[currentIndex + 1].path)
       }
     } else {
-      if (route.path.includes('/mobile/settings')) {
-        router.push('/mobile/notes')
-      } else if (route.path.includes('/mobile/notes')) {
-        router.push('/mobile/chat')
+      // 向右划，去上一个
+      if (currentIndex > 0) {
+        router.push(tabs[currentIndex - 1].path)
       }
     }
   }
