@@ -125,7 +125,7 @@ const providerFactories = shallowReactive<Record<string, ProviderFactory>>({
       return (result.data || []).map((m) => ({
         id: m.id,
         name: m.id,
-        category: (m.id.includes('tts') ? 'speech' : m.id.includes('embed') ? 'embedding' : 'text') as ModelCategory,
+        category: (m.id.includes('tts') ? 'tts' : m.id.includes('embed') ? 'embedding' : 'text') as ModelCategory,
         voices: m.id.includes('tts')
           ? [
             { id: 'alloy', name: 'Alloy' },
@@ -174,7 +174,7 @@ const providerFactories = shallowReactive<Record<string, ProviderFactory>>({
         {
           id: 'hume-tts',
           name: 'Hume TTS',
-          category: 'speech',
+          category: 'tts',
           voices: (result.voices_page || []).map((v) => ({
             id: v.id,
             name: v.name
@@ -206,7 +206,7 @@ const providerFactories = shallowReactive<Record<string, ProviderFactory>>({
         id: m.model_id,
         name: m.name,
         description: m.description,
-        category: 'speech',
+        category: 'tts',
         voices: voices,
         object: 'model',
         created: Date.now(),

@@ -37,7 +37,7 @@ export interface ModelVoice {
 export interface Model {
   id: string;
   name: string;
-  category: 'text' | 'image' | 'speech';
+  category: 'text' | 'image' | 'speech' | 'tts';
   voices?: ModelVoice[];
   [key: string]: any;
 }

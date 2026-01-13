@@ -128,7 +128,7 @@ export function createSiliconFlow(
 
         return {
           id: m.id,
-          category: (isSpeech ? 'speech' : 'text') as 'speech' | 'text',
+          category: (isSpeech ? 'tts' : 'text') as 'tts' | 'text',
           name: m.id.split('/').pop() || m.id,
           created: m.created,
           object: 'model',

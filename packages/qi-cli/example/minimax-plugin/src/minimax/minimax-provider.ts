@@ -87,7 +87,7 @@ export function createMiniMax(
   const defaultModels = [
     {
       id: 'speech-2.6-hd',
-      category: 'speech',
+      category: 'tts',
       name: 'MiniMax Speech 2.6 HD',
       created: 1694521600,
       object: 'model',
@@ -95,7 +95,7 @@ export function createMiniMax(
     },
     {
       id: 'speech-2.6-turbo',
-      category: 'speech',
+      category: 'tts',
       name: 'MiniMax Speech 2.6 Turbo',
       created: 1694521600,
       object: 'model',
@@ -103,7 +103,7 @@ export function createMiniMax(
     },
     {
       id: 'speech-02-hd',
-      category: 'speech',
+      category: 'tts',
       name: 'MiniMax Speech 02 HD',
       created: 1694521600,
       object: 'model',
@@ -111,7 +111,7 @@ export function createMiniMax(
     },
     {
       id: 'speech-02-turbo',
-      category: 'speech',
+      category: 'tts',
       name: 'MiniMax Speech 02 Turbo',
       created: 1694521600,
       object: 'model',
@@ -119,7 +119,7 @@ export function createMiniMax(
     },
     {
       id: 'speech-01-hd',
-      category: 'speech',
+      category: 'tts',
       name: 'MiniMax Speech 01 HD',
       created: 1694521600,
       object: 'model',
@@ -127,7 +127,7 @@ export function createMiniMax(
     },
     {
       id: 'speech-01-turbo',
-      category: 'speech',
+      category: 'tts',
       name: 'MiniMax Speech 01 Turbo',
       created: 1694521600,
       object: 'model',

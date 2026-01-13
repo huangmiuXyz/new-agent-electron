@@ -535,7 +535,7 @@ const plugin: Plugin = {
           name: 'models',
           type: 'custom',
           render: () => {
-            return TableComponent
+            return <TableComponent />
           }
         }
       ],

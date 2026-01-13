@@ -347,7 +347,7 @@ const [CustomModelForm, customModelFormActions] = useForm({
         { value: 'embedding', label: '嵌入式' },
         { value: 'image', label: '图像' },
         { value: 'rerank', label: '重排' },
-        { value: 'speech', label: '语音' }
+        { value: 'tts', label: '语音' }
       ]
     }
   ],
@@ -370,7 +370,7 @@ const refreshModels = async () => {
         const result = { category: 'text', ...m, name: m.id }
         if (result.id.toLowerCase().includes('embed') || result.name.toLowerCase().includes('embed')) result.category = 'embedding'
         if (result.id.toLowerCase().includes('rerank') || result.name.toLowerCase().includes('rerank')) result.category = 'rerank'
-        if (result.id.toLowerCase().includes('tts') || result.id.toLowerCase().includes('speech') || result.name.toLowerCase().includes('tts') || result.name.toLowerCase().includes('speech')) result.category = 'speech'
+        if (result.id.toLowerCase().includes('tts') || result.id.toLowerCase().includes('speech') || result.name.toLowerCase().includes('tts') || result.name.toLowerCase().includes('speech')) result.category = 'tts'
         return result as Model
       })
     })
