@@ -51,10 +51,8 @@ function unwrap(schema: ZodType): UnwrapResult {
     }
   }
 
-  // 最后检查最内层 schema 的描述
   updateMetadata(current)
 
-  console.log(metadata);
   return {
     schema: current,
     required,
