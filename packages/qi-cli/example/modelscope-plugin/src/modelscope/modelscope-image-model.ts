@@ -99,7 +99,7 @@ export class ModelScopeImageModel implements ImageModelV3 {
     return this.waitForTask(taskId, options.abortSignal);
   }
 
-  private async waitForTask(
+  public async waitForTask(
     taskId: string,
     abortSignal?: AbortSignal,
   ): Promise<Awaited<ReturnType<ImageModelV3['doGenerate']>>> {

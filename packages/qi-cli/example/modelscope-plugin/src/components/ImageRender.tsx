@@ -1,8 +1,8 @@
 import { PluginContext } from '../types'
-import { ModelScopeImageModel } from '../modelscope-image-model'
+import { ModelScopeImageModel } from  '../modelscope/modelscope-image-model'
 
 export function createImageRender(context: PluginContext, getModelConfig: () => Promise<any>) {
-  const { defineComponent, ref, onMounted, onUnmounted, watch } = context.vue
+  const { defineComponent, ref, onMounted, onUnmounted } = context.vue
   const { Image, Loading } = context.components
 
   return defineComponent({
@@ -28,8 +28,11 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
           const modelId = config.modelId
 
           const model = new ModelScopeImageModel(modelId, {
-            apiKey: config.apiKey,
-            baseURL: config.baseURL
+            provider: 'modelscope.image',
+            url: ({ path }) => `${config.baseURL}${path}`,
+            headers: () => ({
+              Authorization: `Bearer ${config.apiKey}`
+            })
           })
 
           const result = await model.waitForTask(taskId, abortController.signal)

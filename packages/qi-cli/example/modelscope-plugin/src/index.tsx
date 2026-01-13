@@ -7,7 +7,6 @@ import { createConfigIcon } from './components/ConfigIcon'
 import { createLoadingIcon } from './components/LoadingIcon'
 import { createImageRender } from './components/ImageRender'
 import { PROVIDER_ID, DEFAULT_BASE_URL } from './constants'
-
 /**
  * ModelScope AI Provider Plugin
  */
@@ -180,7 +179,7 @@ const plugin: Plugin = {
     })
   },
 
-  uninstall: (context: PluginContext) => {
+  uninstall: () => {
     // 卸载逻辑
   }
 }

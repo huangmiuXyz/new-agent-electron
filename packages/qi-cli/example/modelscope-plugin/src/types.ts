@@ -13,6 +13,7 @@ export interface PluginContext {
   api: any;
   pinia: any;
   vue: any;
+  components: any;
   getPluginsDataPath: () => string;
   getStore: (name: string) => Promise<any>;
   notification: {

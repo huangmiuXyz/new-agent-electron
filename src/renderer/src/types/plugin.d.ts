@@ -82,6 +82,8 @@ declare global {
     getPluginsDataPath: () => string;
     /** 获取当前插件已注册的提供商 */
     getRegisteredProviders: () => any[];
+    /** 将 Zod 模式转换为表单字段 */
+    zodSchemaToFormfields: (schema: any, rootName?: string) => any[];
   }
 
   /**

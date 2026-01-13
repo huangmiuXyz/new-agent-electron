@@ -4,6 +4,7 @@ import { useDownload } from '@renderer/composables/useDownload';
 import { useIcon } from '@renderer/composables/useIcon';
 import { registerProviderFactory, ProviderFactory } from '../chatService/registry';
 import localforage from 'localforage'
+import { zodSchemaToFormfields } from '@renderer/utils/zod-to-form'
 /**
  * 插件管理器
  * 负责维护插件注册表、命令系统和钩子系统
@@ -248,9 +249,6 @@ export class PluginManager {
       unregisterBuiltinTool: (name: string) => {
         return this.unregisterBuiltinTool(pluginName, name);
       },
-      /**
-       * 注册提供商到当前插件
-       */
       registerProvider: (
         providerId: string,
         options?: { name?: string; form?: any; models?: Model[] }
@@ -343,19 +341,14 @@ export class PluginManager {
           }
         }
       },
-      /**
-       * 注册提供商工厂到全局注册表
-       */
       registerRegistry: (name: string, factory: ProviderFactory) => {
         registerProviderFactory(name, factory);
       },
-      /**
-       * 获取当前插件已注册的提供商
-       */
       getRegisteredProviders: () => {
         const settingsStore = useSettingsStore(this.pinia);
         return settingsStore.registeredProviders.filter((p) => p.pluginName === pluginName);
-      }
+      },
+      zodSchemaToFormfields
     };
   }
 
