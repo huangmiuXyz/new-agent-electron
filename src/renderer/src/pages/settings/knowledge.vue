@@ -516,7 +516,7 @@ const [DocTable] = useTable<KnowledgeDocument>({
       <FormItem label="文档列表">
         <DocTable />
         <template #label>
-          <div style="display: flex">
+          <div style="display: flex; gap: 4px;">
             <Button @click="addDocument" size="sm" type="button" variant="text">
               <template #icon>
                 <Plus />
