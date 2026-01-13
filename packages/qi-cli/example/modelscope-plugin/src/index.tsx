@@ -101,7 +101,6 @@ const plugin: Plugin = {
       execute: async (args: any, options: any) => {
         const { prompt, seed } = args
         const { toolCallId, cid } = options
-        debugger
 
         try {
           const modelConfig = await getModelConfig()
