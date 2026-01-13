@@ -315,6 +315,12 @@ export class PluginManager {
               if (dm.speechProviderId === providerId) {
                 settingsStore.updateDefaultModels({ speechProviderId: '', speechModelId: '' });
               }
+              if (dm.ttsProviderId === providerId) {
+                settingsStore.updateDefaultModels({
+                  ttsProviderId: '',
+                  ttsModelId: ''
+                });
+              }
               if (dm.titleGenerationProviderId === providerId) {
                 settingsStore.updateDefaultModels({
                   titleGenerationProviderId: '',
