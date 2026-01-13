@@ -17,7 +17,7 @@ defineExpose({
   focus: () => buttonRef.value?.focus?.()
 })
 const buttonClasses = computed(() => {
-  const classes = ['btn', `btn--${props.variant}`, `btn--${props.size}`]
+  const classes = ['btn', `btn--${props.variant}`, `btn--${props.size}`, `btn--${props.type}`]
 
   if (props.disabled) {
     classes.push('btn--disabled')
@@ -54,6 +54,7 @@ const handleClick = (event: MouseEvent) => {
   gap: 4px;
   align-items: center;
 }
+
 /* 基础按钮样式 */
 .btn {
   display: inline-flex;
@@ -143,6 +144,11 @@ const handleClick = (event: MouseEvent) => {
 
 /* 危险按钮样式 */
 .btn--danger {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.btn--danger.btn--primary.btn--button {
   background: var(--color-danger);
   color: #fff;
 }
