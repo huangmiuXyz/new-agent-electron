@@ -3,7 +3,6 @@ import { createModelScope } from './modelscope/modelscope-provider'
 import { z } from 'zod/v4'
 import { ModelScopeImageModel } from './modelscope/modelscope-image-model'
 import { usePluginConfig } from './hooks/use-plugin-config'
-import { createConfigIcon } from './components/ConfigIcon'
 import { createLoadingIcon } from './components/LoadingIcon'
 import { createImageRender } from './components/ImageRender'
 import { PROVIDER_ID, DEFAULT_BASE_URL } from './constants'
@@ -18,6 +17,7 @@ const plugin: Plugin = {
 
   install: async (context: PluginContext) => {
     const { markRaw, ref } = context.vue
+    const { SelectorPopover } = context.components
     const message = ref()
 
     const updateStatus = async (isLoading = false) => {
@@ -25,13 +25,39 @@ const plugin: Plugin = {
 
       if (isLoading) {
         context.notification.status('modelscope-status', '', {
-          render: markRaw(LoadingIcon),
+          render: markRaw(() => <LoadingIcon />),
           color: 'var(--color-primary)',
           tooltip: `ModelScope 正在生成图片...`
         })
       } else {
         context.notification.status('modelscope-status', '', {
-          render: markRaw(() => <ConfigIcon />),
+          render: markRaw(() => (
+            <div
+              style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;"
+              onClick={(e: MouseEvent) => e.stopPropagation()}
+            >
+              <SelectorPopover width="400px">
+                {{
+                  trigger: () => (
+                    <div style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; cursor: pointer;">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                        <path d="M21 16.5C21 16.88 20.79 17.21 20.47 17.38L12.57 21.82C12.41 21.94 12.21 22 12 22C11.79 22 11.59 21.94 11.43 21.82L3.53 17.38C3.21 17.21 3 16.88 3 16.5V7.5C3 7.12 3.21 6.79 3.53 6.62L11.43 2.18C11.59 2.06 11.79 2 12 2C12.21 2 12.41 2.06 12.57 2.18L20.47 6.62C20.79 6.79 21 7.12 21 7.5V16.5Z" />
+                      </svg>
+                    </div>
+                  ),
+                  content: () => (
+                    <div style={{
+                      maxHeight: '450px',
+                      overflowY: 'auto',
+                    }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>ModelScope 绘图配置</div>
+                      <config.ConfigForm />
+                    </div>
+                  )
+                }}
+              </SelectorPopover>
+            </div>
+          )),
           color: 'var(--color-primary)',
           tooltip: `ModelScope 已就绪 (模型: ${modelId})`
         })
@@ -39,7 +65,6 @@ const plugin: Plugin = {
     }
 
     const config = usePluginConfig(context, () => updateStatus())
-    const ConfigIcon = createConfigIcon(context, config.ConfigForm)
     const LoadingIcon = createLoadingIcon(context)
 
     const getModelConfig = async () => {
