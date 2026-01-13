@@ -141,6 +141,10 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
 
     // record
     if (inner instanceof ZodRecord) {
+      const valueSchema = inner.valueType
+      const { schema: valueInner } = unwrap(valueSchema as ZodType)
+      const isNumberValue = valueInner instanceof ZodNumber
+
       fields.push({
         type: 'object',
         name,
@@ -148,6 +152,7 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
         hint,
         required,
         defaultValue,
+        valueType: isNumberValue ? 'number' : 'string',
         ...metadata
       } as any)
       continue

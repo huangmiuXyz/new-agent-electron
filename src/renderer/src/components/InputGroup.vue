@@ -9,6 +9,7 @@
 
 interface Props {
     mode?: 'array' | 'object'
+    valueType?: 'string' | 'number'
     placeholder?: string
     keyPlaceholder?: string
     valuePlaceholder?: string
@@ -18,6 +19,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
     mode: 'array',
+    valueType: 'string',
     placeholder: '添加项',
     keyPlaceholder: '键',
     valuePlaceholder: '值',
@@ -26,7 +28,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { Plus, Close } = useIcon(['Plus', 'Close'])
 
-const modelValue = defineModel<string[] | Record<string, string>>({ default: [] })
+const modelValue = defineModel<string[] | Record<string, string | number>>({ default: [] })
 
 const arrayModel = computed({
     get: () => (props.mode === 'array' ? (modelValue.value as string[]) : []),
@@ -36,7 +38,7 @@ const arrayModel = computed({
 })
 
 const objectModel = computed({
-    get: () => (props.mode === 'object' ? (modelValue.value as Record<string, string>) : {}),
+    get: () => (props.mode === 'object' ? (modelValue.value as Record<string, string | number>) : {}),
     set: (val) => {
         if (props.mode === 'object') modelValue.value = val
     }
@@ -46,7 +48,7 @@ const objectModel = computed({
 interface PendingItem {
     id: string
     key: string
-    value: string
+    value: string | number
 }
 const pendingItems = ref<PendingItem[]>([])
 
@@ -82,7 +84,7 @@ const addItem = () => {
         pendingItems.value.push({
             id: `pending_${nanoid()}`,
             key: '',
-            value: ''
+            value: props.valueType === 'number' ? 0 : ''
         })
     }
 }
@@ -129,7 +131,8 @@ const updateObjectKey = (id: string, newKey: string, isPending: boolean) => {
         if (item) {
             item.key = newKey
             // 如果键和值都有内容，保存到 model
-            if (newKey.trim() && item.value.trim()) {
+            const hasValue = props.valueType === 'number' ? typeof item.value === 'number' : String(item.value).trim()
+            if (newKey.trim() && hasValue) {
                 objectModel.value = { ...objectModel.value, [newKey]: item.value }
                 pendingItems.value = pendingItems.value.filter(i => i.id !== id)
             }
@@ -150,23 +153,26 @@ const updateObjectKey = (id: string, newKey: string, isPending: boolean) => {
 }
 
 // 更新对象的值
-const updateObjectValue = (id: string, newValue: string, isPending: boolean) => {
+const updateObjectValue = (id: string, newValue: string | number, isPending: boolean) => {
     if (props.disabled) return
+
+    const finalValue = props.valueType === 'number' ? Number(newValue) : newValue
 
     if (isPending) {
         // 更新待添加项的值
         const item = pendingItems.value.find(item => item.id === id)
         if (item) {
-            item.value = newValue
+            item.value = finalValue
             // 如果键和值都有内容，保存到 model
-            if (item.key.trim() && newValue.trim()) {
-                objectModel.value = { ...objectModel.value, [item.key]: newValue }
+            const hasValue = props.valueType === 'number' ? !isNaN(Number(finalValue)) : String(finalValue).trim()
+            if (item.key.trim() && hasValue) {
+                objectModel.value = { ...objectModel.value, [item.key]: finalValue }
                 pendingItems.value = pendingItems.value.filter(i => i.id !== id)
             }
         }
     } else {
         // 更新已保存项的值
-        objectModel.value = { ...objectModel.value, [id]: newValue }
+        objectModel.value = { ...objectModel.value, [id]: finalValue }
     }
 }
 </script>
@@ -194,7 +200,7 @@ const updateObjectValue = (id: string, newValue: string, isPending: boolean) => 
                         @update:model-value="(newKey) => updateObjectKey(entry.id, newKey as string, entry.isPending)" />
                     <span class="separator">=</span>
                     <Input :model-value="entry.value" :placeholder="valuePlaceholder" :disabled="disabled" size="sm"
-                        class="value-input"
+                        class="value-input" :type="valueType === 'number' ? 'number' : 'text'"
                         @update:model-value="(newValue) => updateObjectValue(entry.id, newValue as string, entry.isPending)" />
                     <Button variant="text" size="sm" :disabled="disabled"
                         @click="removeItem(entry.id, entry.isPending)">
