@@ -319,7 +319,7 @@ const [ProviderForm, formActions] = useForm({
     {
       name: 'providerType',
       type: 'select',
-      label: '模型类型',
+      label: '提供商类型',
       options: providerOptions.value
     },
     ...pluginFields.value,
