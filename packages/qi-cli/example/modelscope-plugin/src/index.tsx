@@ -7,12 +7,7 @@ import { createLoadingIcon } from './components/LoadingIcon'
 import { createImageRender } from './components/ImageRender'
 import { PROVIDER_ID, DEFAULT_BASE_URL, PLUGIN_NAME } from './constants'
 import { ModelScopeErrorData } from './modelscope/modelscope-error'
-import { APICallError } from '@ai-sdk/provider'
-/**
- * ModelScope AI Provider Plugin
- */
 
-const TOOLNAME = 'tool-modelscope_image_generator'
 const plugin: Plugin = {
   name: PLUGIN_NAME,
   version: '1.0.0',
