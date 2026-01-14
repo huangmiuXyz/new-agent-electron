@@ -195,6 +195,7 @@ export interface PathSelectorField<T> extends BaseField<T> {
 export interface UploadField<T> extends BaseField<T> {
   type: 'upload'
   multiple?: boolean
+  showUpload?: boolean
 }
 
 export interface CustomField<T> extends BaseField<T> {
@@ -649,7 +650,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             case 'path':
               return <PathSelector {...fieldProps} />
             case 'upload':
-              return <FileUpload {...fieldProps} />
+              return <FileUpload showUpload={true} {...fieldProps} />
             case 'custom':
               return (field as CustomField<T>).render(formData.value)
             default:

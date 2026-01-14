@@ -78,7 +78,7 @@ export const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-export type FileCategory = 'image' | 'document' | 'data' | 'other'
+export type FileCategory = 'image' | 'video' | 'document' | 'data' | 'other'
 
 export interface FileItem {
   name: string
@@ -100,6 +100,10 @@ export const FILE_CATEGORY_RULES: Record<
     mimeStartsWith: ['image/'],
     extensions: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp']
   },
+  video: {
+    mimeStartsWith: ['video/'],
+    extensions: ['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv', 'mkv', 'flv', 'm4v', '3gp']
+  },
   document: {
     mimeIncludes: ['pdf', 'word', 'text'],
     extensions: ['txt', 'md', 'pdf', 'doc', 'docx']
@@ -118,10 +122,10 @@ export function getFileCategory(file: FileItem | { name: string; type: string })
 
   for (const [category, rule] of Object.entries(FILE_CATEGORY_RULES)) {
     const r = rule as any
-    if (r.mimeStartsWith?.some((m) => mime.startsWith(m))) {
+    if (r.mimeStartsWith?.some((m: string) => mime.startsWith(m))) {
       return category as FileCategory
     }
-    if (r.mimeIncludes?.some((m) => mime.includes(m))) {
+    if (r.mimeIncludes?.some((m: string) => mime.includes(m))) {
       return category as FileCategory
     }
     if (r.extensions?.includes(ext)) {
@@ -129,6 +133,20 @@ export function getFileCategory(file: FileItem | { name: string; type: string })
     }
   }
   return 'other'
+}
+
+export function isVideoUrl(url: string): boolean {
+  if (!url) return false
+  const name = url.toLowerCase().split('?')[0]
+  const ext = name.split('.').pop() || ''
+  return FILE_CATEGORY_RULES.video.extensions?.includes(ext) || false
+}
+
+export function isImageUrl(url: string): boolean {
+  if (!url) return false
+  const name = url.toLowerCase().split('?')[0]
+  const ext = name.split('.').pop() || ''
+  return FILE_CATEGORY_RULES.image.extensions?.includes(ext) || false
 }
 
 const userDataPath = window.api?.getPath('userData')

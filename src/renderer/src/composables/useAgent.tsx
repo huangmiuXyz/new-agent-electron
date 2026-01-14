@@ -1,6 +1,10 @@
 import { zodSchemasToFormfields } from '../utils/zod-to-form'
 import { createRegistry } from '../services/chatService/registry'
 
+interface AgentFormData extends Omit<Agent, 'backgrounds' | 'id' | 'createdAt' | 'updatedAt'> {
+  backgrounds: string[]
+}
+
 export const useAgent = () => {
   const agentStore = useAgentStore()
   const settingsStore = useSettingsStore()
@@ -110,7 +114,7 @@ export const useAgent = () => {
       'Speaker224Regular'
     ])
 
-    const initialData: Partial<Agent> = agent
+    const initialData: AgentFormData = agent
       ? {
           name: agent.name,
           description: agent.description,
@@ -121,7 +125,7 @@ export const useAgent = () => {
           builtinTools: [...(agent.builtinTools || [])],
           ragEnabled: agent.ragEnabled ?? false,
           terminalStartupPath: agent.terminalStartupPath || '',
-          backgrounds: agent.backgrounds ? [...agent.backgrounds] : [],
+          backgrounds: agent.backgrounds ? agent.backgrounds.map((bg) => bg.url) : [],
           avatar: agent.avatar || '',
           temperature: agent.temperature ?? 0.7,
           topP: agent.topP ?? 1,
@@ -167,27 +171,27 @@ export const useAgent = () => {
     let previousMcpServers = initialData.mcpServers || []
 
     // 定义表单字段，按类别分组
-    const basicFields: FormField<Partial<Agent>>[] = [
+    const basicFields: FormField<AgentFormData>[] = [
       {
         name: 'avatar',
         label: '头像',
         type: 'upload',
         multiple: false
-      } as UploadField<Partial<Agent>>,
+      } as UploadField<AgentFormData>,
       {
         name: 'name',
         type: 'text',
         label: '名称',
         placeholder: '智能体名称',
         required: true
-      } as TextField<Partial<Agent>>,
+      } as TextField<AgentFormData>,
       {
         name: 'description',
         type: 'textarea',
         label: '描述',
         placeholder: '简单描述智能体的功能',
         rows: 2
-      } as TextareaField<Partial<Agent>>,
+      } as TextareaField<AgentFormData>,
       {
         name: 'systemPrompt',
         type: 'textarea',
@@ -195,10 +199,10 @@ export const useAgent = () => {
         placeholder: '定义智能体的行为和角色...',
         required: true,
         rows: 10
-      } as TextareaField<Partial<Agent>>
+      } as TextareaField<AgentFormData>
     ]
 
-    const modelFields: FormField<Partial<Agent>>[] = [
+    const modelFields: FormField<AgentFormData>[] = [
       {
         name: 'reset_model_params',
         type: 'custom',
@@ -241,7 +245,7 @@ export const useAgent = () => {
             </button>
           </div>
         )
-      } as CustomField<Partial<Agent>>,
+      } as CustomField<AgentFormData>,
       {
         name: 'temperature',
         label: '温度 (Temperature)',
@@ -250,7 +254,7 @@ export const useAgent = () => {
         max: 2,
         step: 0.1,
         hint: '控制回复的随机性。值越大，回复越随机。'
-      } as SliderField<Partial<Agent>>,
+      } as SliderField<AgentFormData>,
       {
         name: 'topP',
         label: 'Top-P (Nucleus Sampling)',
@@ -259,7 +263,7 @@ export const useAgent = () => {
         max: 1,
         step: 0.05,
         hint: '另一种控制随机性的方式，仅从累积概率达到 P 的候选词中采样。'
-      } as SliderField<Partial<Agent>>,
+      } as SliderField<AgentFormData>,
       {
         name: 'topK',
         label: 'Top-K Sampling',
@@ -268,7 +272,7 @@ export const useAgent = () => {
         max: 100,
         step: 1,
         hint: '仅从概率最高的 K 个词中采样。'
-      } as SliderField<Partial<Agent>>,
+      } as SliderField<AgentFormData>,
       {
         name: 'presencePenalty',
         label: '话题新鲜度 (Presence Penalty)',
@@ -277,7 +281,7 @@ export const useAgent = () => {
         max: 2,
         step: 0.1,
         hint: '惩罚已出现的词，促使模型讨论新话题。'
-      } as SliderField<Partial<Agent>>,
+      } as SliderField<AgentFormData>,
       {
         name: 'frequencyPenalty',
         label: '频率惩罚 (Frequency Penalty)',
@@ -286,7 +290,7 @@ export const useAgent = () => {
         max: 2,
         step: 0.1,
         hint: '根据词出现的频率进行惩罚，减少重复用词。'
-      } as SliderField<Partial<Agent>>,
+      } as SliderField<AgentFormData>,
       {
         name: 'maxOutputTokens',
         label: '最大输出 Token (Max Output Tokens)',
@@ -294,17 +298,17 @@ export const useAgent = () => {
         min: 1,
         max: 128000,
         hint: '模型允许生成的最大 Token 数量。'
-      } as TextField<Partial<Agent>>,
+      } as TextField<AgentFormData>,
       {
         name: 'contextCount',
         type: 'number',
         label: '历史上下文条数',
         hint: '发送给模型进行参考的历史消息条数。'
-      } as TextField<Partial<Agent>>
+      } as TextField<AgentFormData>
     ]
 
     const getDynamicSpeechFields = () => {
-      const dynamicFields: FormField<Partial<Agent>>[] = []
+      const dynamicFields: FormField<AgentFormData>[] = []
       const providers = settingsStore.getAllProviders
 
       for (const provider of providers) {
@@ -316,7 +320,7 @@ export const useAgent = () => {
           })
           const providerInstance = registry.getProvider(provider.providerType)
           if (providerInstance?.speechCallOptionsSchema) {
-            const fields = zodSchemasToFormfields<Partial<Agent>>(
+            const fields = zodSchemasToFormfields<AgentFormData>(
               providerInstance.speechCallOptionsSchema,
               `speechProviderOptions.${provider.id}`
             )
@@ -324,7 +328,7 @@ export const useAgent = () => {
             dynamicFields.push(
               ...fields.map((field) => ({
                 ...field,
-                ifShow: (data: Partial<Agent>) => {
+                ifShow: (data: AgentFormData) => {
                   if (
                     (typeof field.ifShow === 'boolean' && !field.ifShow) ||
                     (typeof field.ifShow === 'function' && !field.ifShow?.(data))
@@ -347,14 +351,14 @@ export const useAgent = () => {
       return dynamicFields
     }
 
-    const speechFields: FormField<Partial<Agent>>[] = [
+    const speechFields: FormField<AgentFormData>[] = [
       {
         name: 'speechVoice',
         type: 'select',
         label: '默认语音',
         options: getSpeechVoiceOptions(),
         placeholder: '请选择音色'
-      } as SelectField<Partial<Agent>>,
+      } as SelectField<AgentFormData>,
       {
         name: 'speechMode',
         type: 'select',
@@ -365,7 +369,7 @@ export const useAgent = () => {
           { label: '回复后生成', value: 'full' }
         ],
         hint: '控制语音生成的颗粒度。'
-      } as SelectField<Partial<Agent>>,
+      } as SelectField<AgentFormData>,
       {
         name: 'speechSpeed',
         type: 'number',
@@ -374,65 +378,65 @@ export const useAgent = () => {
         max: 2,
         step: 0.1,
         hint: '语音生成的播放速度 (0.1 - 2.0)。'
-      } as TextField<Partial<Agent>>,
+      } as TextField<AgentFormData>,
       {
         name: 'speechLanguage',
         type: 'text',
         label: '语言',
         placeholder: '例如: en, zh, ja 或 auto',
         hint: '语音生成的语言代码 (ISO 639-1) 或 auto。'
-      } as TextField<Partial<Agent>>,
+      } as TextField<AgentFormData>,
       ...getDynamicSpeechFields()
     ]
 
-    const toolFields: FormField<Partial<Agent>>[] = [
+    const toolFields: FormField<AgentFormData>[] = [
       {
         name: 'mcpServers',
         type: 'checkboxGroup',
         label: 'MCP 服务器',
         options: getMcpServerOptions()
-      } as CheckboxGroupField<Partial<Agent>>,
+      } as CheckboxGroupField<AgentFormData>,
       {
         name: 'tools',
         type: 'checkboxGroup',
         label: 'MCP工具',
         options: [],
         ifShow: (data) => data.mcpServers! && data.mcpServers!.length > 0
-      } as CheckboxGroupField<Partial<Agent>>,
+      } as CheckboxGroupField<AgentFormData>,
       {
         name: 'builtinTools',
         type: 'checkboxGroup',
         label: '内置工具',
         options: getBuiltinToolOptions()
-      } as CheckboxGroupField<Partial<Agent>>
+      } as CheckboxGroupField<AgentFormData>
     ]
 
-    const knowledgeFields: FormField<Partial<Agent>>[] = [
+    const knowledgeFields: FormField<AgentFormData>[] = [
       {
         name: 'knowledgeBaseIds',
         type: 'checkboxGroup',
         label: '关联知识库',
         options: getKnowledgeBaseOptions()
-      } as CheckboxGroupField<Partial<Agent>>,
+      } as CheckboxGroupField<AgentFormData>,
       {
         name: 'ragEnabled',
         type: 'boolean',
         label: '启用RAG',
         hint: '启用后，将自动从关联的知识库中检索相关内容并插入到用户输入中',
         ifShow: (data) => data.knowledgeBaseIds! && data.knowledgeBaseIds!.length > 0
-      } as BooleanField<Partial<Agent>>
+      } as BooleanField<AgentFormData>
     ]
 
-    const appearanceFields: FormField<Partial<Agent>>[] = [
+    const appearanceFields: FormField<AgentFormData>[] = [
       {
         name: 'backgrounds',
         label: '背景图',
         type: 'upload',
         multiple: true
-      } as UploadField<Partial<Agent>>
+      } as UploadField<AgentFormData>
     ]
 
-    const advancedFields: FormField<Partial<Agent>>[] = [
+    const advancedFields: FormField<AgentFormData>[] = [
       {
         name: 'terminalStartupPath',
         type: 'path',
@@ -443,10 +447,10 @@ export const useAgent = () => {
           properties: ['openDirectory'],
           title: '选择终端启动目录'
         }
-      } as PathSelectorField<Partial<Agent>>
+      } as PathSelectorField<AgentFormData>
     ]
 
-    const allFields = [
+    const allFields: FormField<AgentFormData>[] = [
       ...basicFields,
       ...modelFields,
       ...speechFields,
@@ -456,7 +460,7 @@ export const useAgent = () => {
       ...advancedFields
     ]
 
-    const [Form, formActions] = useForm({
+    const [Form, formActions] = useForm<AgentFormData>({
       title: modalTitle,
       showHeader: false,
       initialData,
@@ -494,12 +498,22 @@ export const useAgent = () => {
         }
       },
       onSubmit: (data) => {
-        // useForm 的 formData 会自动包含 fields 中定义的所有字段
-        // 这里直接透传 data 即可，确保 updateAgent 和 createAgent 接收完整数据
+        const finalData = {
+          ...data,
+          backgrounds:
+            data.backgrounds?.map((url) => {
+              const isVideo = isVideoUrl(url)
+              return {
+                type: isVideo ? 'video' : 'image',
+                url
+              }
+            }) || []
+        } as Partial<Agent>
+
         if (isEdit && agent) {
-          agentStore.updateAgent(agent.id, data as Partial<Agent>)
+          agentStore.updateAgent(agent.id, finalData)
         } else {
-          agentStore.createAgent(data as Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>)
+          agentStore.createAgent(finalData as Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>)
         }
       }
     })
