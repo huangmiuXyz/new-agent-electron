@@ -169,8 +169,6 @@ export const useSettingsStore = defineStore(
         if (provider.apiKeys) {
           const deleteIndex = provider.apiKeys.findIndex((k) => k.id === apiKeyId)
           if (deleteIndex === -1) return
-
-          const keyToDelete = provider.apiKeys[deleteIndex]
           const isCurrentActive = provider.activeApiKeyId === apiKeyId
 
           provider.apiKeys = provider.apiKeys.filter((k) => k.id !== apiKeyId)

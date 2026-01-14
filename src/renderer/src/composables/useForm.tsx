@@ -538,7 +538,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         <div class="form-array-group" key={field.name}>
           {field.label && <div class="form-group-title">{field.label}</div>}
           <div class="form-array-items">
-            {value.map((item, index) => (
+            {value.map((_item, index) => (
               <div class="form-array-item" key={`${field.name}-${index}`}>
                 <div class="form-array-item-content">
                   {field.children.map((child: any) => {

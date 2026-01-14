@@ -35,7 +35,6 @@ import {
   Checkmark,
   CheckmarkFilled,
   RadioButton,
-  RadioButtonChecked,
   SubtractAlt,
   Pause,
   RotateCounterclockwise,

@@ -4,7 +4,6 @@ import { useDownload } from '@renderer/composables/useDownload';
 import { useIcon } from '@renderer/composables/useIcon';
 import { registerProviderFactory, ProviderFactory } from '../chatService/registry';
 import localforage from 'localforage'
-import { zodSchemasToFormfields } from '@renderer/utils/zod-to-form'
 /**
  * 插件管理器
  * 负责维护插件注册表、命令系统和钩子系统

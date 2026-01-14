@@ -4,7 +4,6 @@ const props = defineProps<{
   message: BaseMessage
 }>()
 const settingsStore = useSettingsStore()
-const { speechEnabled } = storeToRefs(settingsStore)
 const { getProviderById } = settingsStore
 const speechStore = useSpeechStore()
 const Stop = useIcon('Stop')

@@ -107,32 +107,18 @@ watch(activeChunkIndex, (newIndex) => {
 
       <div class="progress-container">
         <span class="time">{{ formatTime(totalProgress / 100 * totalDuration) }}</span>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          :value="totalProgress"
-          class="progress-bar"
-          @input="handleSeek"
-        />
+        <input type="range" min="0" max="100" :value="totalProgress" class="progress-bar" @input="handleSeek" />
         <span class="time">{{ formatTime(totalDuration) }}</span>
       </div>
     </div>
 
     <div class="lyrics-container" ref="lyricsContainer">
-      <div
-        v-for="(chunk, index) in messageChunks"
-        :key="chunk.id"
-        class="lyric-line"
-        :class="{
-          'is-active': chunk.id === speechStore.currentChunkId,
-          'is-played': chunk.played && chunk.id !== speechStore.currentChunkId,
-          'is-loading': chunk.loading,
-          'is-error': !!chunk.error
-        }"
-        :title="chunk.error"
-        @click="handleChunkClick(chunk.id)"
-      >
+      <div v-for="chunk in messageChunks" :key="chunk.id" class="lyric-line" :class="{
+        'is-active': chunk.id === speechStore.currentChunkId,
+        'is-played': chunk.played && chunk.id !== speechStore.currentChunkId,
+        'is-loading': chunk.loading,
+        'is-error': !!chunk.error
+      }" :title="chunk.error" @click="handleChunkClick(chunk.id)">
         <span v-if="chunk.error" class="error-icon">⚠️</span>
         {{ chunk.text }}
       </div>
