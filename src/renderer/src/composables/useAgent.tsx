@@ -341,7 +341,7 @@ export const useAgent = () => {
             )
           }
         } catch (e) {
-          console.warn(`Failed to get speech fields for provider ${provider.id}:`, e)
+          // console.warn(`Failed to get speech fields for provider ${provider.id}:`, e)
         }
       }
       return dynamicFields
