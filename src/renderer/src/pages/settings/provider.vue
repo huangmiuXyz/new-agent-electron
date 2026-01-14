@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { FormItem } from '@renderer/composables/useForm'
-import { createRegistry, getProviderTypes } from '@renderer/services/chatService/registry'
+import { getProviderTypes } from '@renderer/services/chatService/registry'
 
 const { getAllProviders, providers } = storeToRefs(useSettingsStore())
 const {
@@ -9,8 +9,7 @@ const {
   deleteModelFromProvider,
   resetProviderBaseUrl,
   addApiKeyToProvider,
-  deleteApiKeyFromProvider,
-  switchApiKeyForProvider
+  deleteApiKeyFromProvider
 } = useSettingsStore()
 
 const { Refresh, Plus, Search, Edit, Delete, ChevronRight, ChevronDown, Active, Inactive } = useIcon([
@@ -564,5 +563,4 @@ const VoiceTable = defineComponent({
 :deep(.voice-table-wrapper .header-cell) {
   border-bottom: none !important;
 }
-
 </style>
