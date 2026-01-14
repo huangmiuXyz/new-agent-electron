@@ -49,7 +49,7 @@ interface CommonModelResponse {
   }[]
 }
 
-const providerFactories = shallowReactive<Record<string, ProviderFactory>>({
+export const providerFactories = shallowReactive<Record<string, ProviderFactory>>({
   anthropic: (options) => mergeFun(createAnthropic(options), {
     listModels: async () => {
       const response = await fetch(`${options.baseURL}/models`, {

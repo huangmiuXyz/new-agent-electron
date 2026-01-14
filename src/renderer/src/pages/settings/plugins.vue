@@ -1,8 +1,7 @@
 <script setup lang="tsx">
 import { FormItem } from '@renderer/composables/useForm'
-const { Plugin: PluginIcon, Trash, Refresh, Check, Dismiss, Play, Download, Code } = useIcon([
+const { Plugin: PluginIcon, Refresh, Check, Dismiss, Play, Download, Code } = useIcon([
   'Plugin',
-  'Trash',
   'Refresh',
   'Check',
   'Dismiss',
@@ -30,6 +29,7 @@ const {
   getPluginCommands,
   getPluginHooks,
   getPluginBuiltinTools,
+  getPluginRegistries,
   getPluginProviders,
   selectPlugin,
   togglePluginNotification,
@@ -89,6 +89,7 @@ onMounted(async () => {
 
 // 移动端路由处理
 import { useRouter, useRoute } from 'vue-router'
+import { providerFactories } from '@renderer/services/chatService/registry'
 const router = useRouter()
 const route = useRoute()
 
@@ -144,6 +145,46 @@ const [ProviderTable] = useTable<Provider>({
       label: '模型数量',
       width: '1fr',
       render: (row) => row.models?.length || 0
+    }
+  ]
+})
+
+// 模型注册表
+const getRegistryCapabilities = (name: string) => {
+  const factory = providerFactories[name]
+  if (!factory) return []
+  try {
+    // 使用 dummy 选项探测能力，避免因为缺少 key 而报错
+    const provider = factory({ apiKey: 'dummy', baseURL: 'http://dummy', name: 'dummy' }) as any
+    const capabilities: any[] = []
+    // 检查常见能力
+    if (provider.chat) capabilities.push('chat')
+    if (provider.completion) capabilities.push('completion')
+    if (provider.embedding) capabilities.push('embedding')
+    if (provider.speech) capabilities.push('speech')
+    if (provider.speechModel) capabilities.push('speechModel')
+    if (provider.speechCallOptionsSchema) capabilities.push('speechCallOptionsSchema')
+    return capabilities
+  } catch (e) {
+    return []
+  }
+}
+
+const [RegistryTable] = useTable<{ name: string }>({
+  data: () => (activePlugin.value ? getPluginRegistries(activePlugin.value.id).map(name => ({ name })) : []),
+  columns: [
+    {
+      key: 'name',
+      label: '注册名称',
+      width: '1fr'
+    },
+    {
+      key: 'capabilities',
+      label: '注册能力',
+      width: '2fr',
+      render: (row) => (
+        <Tags tags={getRegistryCapabilities(row.name)} color="gray" />
+      )
     }
   ]
 })
@@ -278,27 +319,25 @@ const handleUninstallPlugin = async (pluginName: string) => {
 
         <!-- 注册钩子 -->
         <FormItem v-if="activePlugin.type === 'loaded' && getPluginHooks(activePlugin.name).length > 0" label="注册钩子">
-          <div class="tool-tags">
-            <span v-for="hook in getPluginHooks(activePlugin.name)" :key="hook" class="tool-tag">
-              {{ hook }}
-            </span>
-          </div>
+          <Tags :tags="getPluginHooks(activePlugin.name)" color="purple" />
         </FormItem>
 
         <!-- 内置工具 -->
         <FormItem v-if="activePlugin.type === 'loaded' && getPluginBuiltinTools(activePlugin.name).length > 0"
           label="内置工具">
-          <div class="tool-tags">
-            <span v-for="tool in getPluginBuiltinTools(activePlugin.name)" :key="tool" class="tool-tag">
-              {{ tool }}
-            </span>
-          </div>
+          <Tags :tags="getPluginBuiltinTools(activePlugin.name)" color="cyan" />
         </FormItem>
 
         <!-- 模型提供商 -->
         <FormItem v-if="activePlugin.type === 'loaded' && getPluginProviders(activePlugin.name).length > 0"
           label="模型提供商">
           <ProviderTable />
+        </FormItem>
+
+        <!-- 模型注册 -->
+        <FormItem v-if="activePlugin.type === 'loaded' && getPluginRegistries(activePlugin.id).length > 0"
+          label="模型注册 (Registry)">
+          <RegistryTable />
         </FormItem>
       </template>
       <!-- 空状态 -->
@@ -427,20 +466,5 @@ const handleUninstallPlugin = async (pluginName: string) => {
 .empty-state p {
   font-size: 14px;
   margin: 0;
-}
-
-.tool-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tool-tag {
-  padding: 4px 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
-  font-size: 13px;
-  color: var(--text-primary);
 }
 </style>

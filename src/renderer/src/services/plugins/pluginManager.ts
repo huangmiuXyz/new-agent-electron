@@ -19,6 +19,8 @@ export class PluginManager {
   private registeredComponents: Map<string, any> = new Map();
   /** 跟踪每个插件注册的内置工具名称 */
   private pluginBuiltinTools: Map<string, Set<string>> = new Map();
+  /** 跟踪每个插件注册的注册表名称 */
+  private pluginRegistries: Map<string, Set<string>> = reactive(new Map());
 
   constructor(app: any, pinia?: any) {
     this.app = app;
@@ -76,6 +78,8 @@ export class PluginManager {
       }
       this.pluginBuiltinTools.delete(pluginName);
     }
+
+    this.pluginRegistries.delete(pluginName);
 
     // 注销该插件注册的所有提供商
     const settingsStore = useSettingsStore(this.pinia);
@@ -354,6 +358,10 @@ export class PluginManager {
         }
       },
       registerRegistry: (name: string, factory: ProviderFactory) => {
+        if (!this.pluginRegistries.has(pluginName)) {
+          this.pluginRegistries.set(pluginName, new Set());
+        }
+        this.pluginRegistries.get(pluginName)!.add(name);
         registerProviderFactory(name, factory);
       },
       getRegisteredProviders: () => {
@@ -638,6 +646,16 @@ export class PluginManager {
   getPluginBuiltinToolNames(pluginName: string): string[] {
     const toolNames = this.pluginBuiltinTools.get(pluginName);
     return toolNames ? Array.from(toolNames) : [];
+  }
+
+  /**
+   * 获取插件注册的注册表名称
+   * @param pluginName 插件名称
+   * @returns 注册表名称数组
+   */
+  getPluginRegistries(pluginName: string): string[] {
+    const names = this.pluginRegistries.get(pluginName);
+    return names ? Array.from(names) : [];
   }
 
   /**

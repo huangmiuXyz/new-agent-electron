@@ -344,6 +344,14 @@ export function usePlugins() {
   };
 
   /**
+   * 获取插件的注册表列表
+   */
+  const getPluginRegistries = (pluginName: string): string[] => {
+    if (!pluginLoader) return [];
+    return pluginLoader.getPluginManager().getPluginRegistries(pluginName);
+  };
+
+  /**
    * 获取插件的提供商列表
    */
   const getPluginProviders = (pluginName: string): any[] => {
@@ -429,6 +437,7 @@ export function usePlugins() {
     getPluginCommands,
     getPluginHooks,
     getPluginBuiltinTools,
+    getPluginRegistries,
     getPluginProviders,
     selectPlugin,
     pluginLoader,
