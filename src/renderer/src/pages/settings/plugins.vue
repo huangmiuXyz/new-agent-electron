@@ -154,17 +154,32 @@ const getRegistryCapabilities = (name: string) => {
   const factory = providerFactories[name]
   if (!factory) return []
   try {
-    // 使用 dummy 选项探测能力，避免因为缺少 key 而报错
-    const provider = factory({ apiKey: 'dummy', baseURL: 'http://dummy', name: 'dummy' }) as any
-    const capabilities: any[] = []
-    // 检查常见能力
-    if (provider.chat) capabilities.push('chat')
-    if (provider.completion) capabilities.push('completion')
-    if (provider.embedding) capabilities.push('embedding')
-    if (provider.speech) capabilities.push('speech')
-    if (provider.speechModel) capabilities.push('speechModel')
-    if (provider.speechCallOptionsSchema) capabilities.push('speechCallOptionsSchema')
-    return capabilities
+    const options = { apiKey: 'dummy', baseURL: 'http://dummy', name: 'dummy' }
+    const provider = factory(options) as any
+    const baseProvider = providerFactories['openai-compatible']?.(options) as any
+
+    const keys = new Set<string>()
+    Object.keys(provider).forEach((k) => keys.add(k))
+    Object.getOwnPropertyNames(provider).forEach((k) => keys.add(k))
+
+    const baseKeys = new Set<string>()
+    if (baseProvider) {
+      Object.keys(baseProvider).forEach((k) => baseKeys.add(k))
+      Object.getOwnPropertyNames(baseProvider).forEach((k) => baseKeys.add(k))
+    }
+
+    return Array.from(keys).filter((key) => {
+      if (!baseKeys.has(key)) return true
+
+      const v1 = provider[key]
+      const v2 = baseProvider[key]
+
+      if (typeof v1 === 'function' && typeof v2 === 'function') {
+        return v1.toString() !== v2.toString()
+      }
+
+      return v1 !== v2
+    })
   } catch (e) {
     return []
   }
