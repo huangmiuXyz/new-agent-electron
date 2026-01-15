@@ -78,7 +78,7 @@ const plugin: Plugin = {
       title: 'ModelScope 绘图',
       render: ImageRender,
       execute: async (args: any, options: any) => {
-        const { prompt, seed } = args
+        const { prompt } = args
         const { toolCallId, chatId } = options
 
         try {
@@ -102,7 +102,7 @@ const plugin: Plugin = {
               mask: undefined,
               n: 1,
               size: modelConfig.size as `${number}x${number}`,
-              seed: seed ?? (modelConfig.seed as number),
+              seed: modelConfig.seed as number,
               aspectRatio: undefined,
               providerOptions: {
                 modelscope: {
@@ -130,7 +130,7 @@ const plugin: Plugin = {
                             model: modelConfig.model,
                             negative_prompt: modelConfig.negative_prompt,
                             size: modelConfig.size,
-                            seed: seed ?? modelConfig.seed,
+                            seed: modelConfig.seed,
                             loras: modelConfig.loras
                           }
                         }
@@ -162,7 +162,7 @@ const plugin: Plugin = {
                   model: modelConfig.model,
                   negative_prompt: modelConfig.negative_prompt,
                   size: modelConfig.size,
-                  seed: seed ?? modelConfig.seed,
+                  seed: modelConfig.seed,
                   loras: modelConfig.loras
                 }
               },
@@ -182,16 +182,17 @@ const plugin: Plugin = {
           }
         } catch (error: any) {
           const body = JSON.parse(error.responseBody || '{}') as ModelScopeErrorData
-
+          const { model, size, seed, loras, negative_prompt } = await getModelConfig()
           return {
             error: body?.errors?.message || error.message,
-            // 失败时也尝试返回元数据，以便用户可以尝试重新生成（如果配置还在）
             modelscope_metadata: {
               chatId,
               config: {
-                model: (await getModelConfig()).model,
-                size: (await getModelConfig()).size,
-                seed: seed ?? (await getModelConfig()).seed
+                model,
+                size,
+                seed,
+                loras,
+                negative_prompt
               }
             },
             toolResult: {
