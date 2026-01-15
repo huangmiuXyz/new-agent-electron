@@ -36,7 +36,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
           (modelscopeMetadata?.task_id ? [modelscopeMetadata.task_id] : [])
         const finishedTaskIds = modelscopeMetadata?.finished_task_ids || []
 
-        // 如果所有任务都已处理（成功或失败），则不需要轮询
         if (taskIds.length <= finishedTaskIds.length) return
 
         isPolling.value = true
@@ -48,7 +47,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
           })
           const model = modelScope.image(config.model) as ModelScopeImageModel
 
-          // 从第一个未处理的任务开始轮询
           for (let i = finishedTaskIds.length; i < taskIds.length; i++) {
             const taskId = taskIds[i]
             let success = false
@@ -63,10 +61,8 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
             } catch (pollError: any) {
               console.error(`Task ${taskId} failed:`, pollError)
               localResult.value = { ...localResult.value, error: pollError.message }
-              // 即使失败，我们也继续处理下一个任务，并将此任务标记为已完成
             }
 
-            // 无论成功还是失败，都更新消息状态
             const chatsStore = await context.getStore('chats')
             const cid = modelscopeMetadata?.chatId || props.message?.metadata?.cid
             const mid = props.message?.id
@@ -107,7 +103,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
                     }
                   }
 
-                  // 同步更新本地状态和持久化存储
                   chatsStore.updateMessage(cid, mid, newParts)
                   localResult.value = { ...localResult.value, images: updatedImages }
                 }
