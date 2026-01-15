@@ -39,9 +39,6 @@ export const useChat = (chatId: string) => {
         id: chatId,
         messages: slicedMessages,
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
-        onData: (data) => {
-          console.log(data)
-        },
         transport: {
           sendMessages: ({ messages }) => {
             processedText = ''
