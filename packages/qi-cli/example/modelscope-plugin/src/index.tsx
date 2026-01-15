@@ -206,15 +206,12 @@ const plugin: Plugin = {
       }
     })
 
-    // 注册到全局模型注册表
     context.registerRegistry('modelscope', (options: any) => {
       return createModelScope(options)
     })
   },
 
-  uninstall: () => {
-    // 卸载逻辑
-  }
+  uninstall: () => {}
 }
 
 export default plugin
