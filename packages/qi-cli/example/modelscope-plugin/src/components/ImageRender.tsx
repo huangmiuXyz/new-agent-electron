@@ -95,12 +95,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
                   }
 
                   const newParts = [...msg.parts]
-                  const report = (updatedImages as any[])
-                    .map((base64: string, index: number) => {
-                      return `![Generated Image ${index + 1}](data:image/png;base64,${base64})`
-                    })
-                    .join('\n\n')
-
                   newParts[partIndex] = {
                     ...newParts[partIndex],
                     output: {
@@ -108,7 +102,7 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
                       images: updatedImages,
                       modelscope_metadata: updatedMetadata,
                       toolResult: {
-                        content: [{ type: 'text', text: `<|stop|>图片生成成功！\n\n${report}` }]
+                        content: [{ type: 'text', text: `<|stop|>图片生成成功！` }]
                       }
                     }
                   }

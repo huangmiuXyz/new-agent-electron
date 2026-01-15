@@ -143,12 +143,6 @@ const plugin: Plugin = {
           // 返回结果
           const images = result.images
           if (images && images.length > 0) {
-            const report = images
-              .map((base64, index) => {
-                return `![Generated Image ${index + 1}](data:image/png;base64,${base64})`
-              })
-              .join('\n\n')
-
             const toolResult = {
               images,
               modelscope_metadata: {
@@ -166,7 +160,7 @@ const plugin: Plugin = {
                 content: [
                   {
                     type: 'text',
-                    text: `<|stop|>图片生成成功！\n\n${report}`
+                    text: `<|stop|>图片生成成功！`
                   }
                 ]
               }
