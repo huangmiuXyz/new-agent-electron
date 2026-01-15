@@ -57,7 +57,6 @@ const plugin: Plugin = {
       const provider = settingsStore.providers?.find(
         (p: { id: string; apiKey?: string; baseUrl?: string }) => p.id === PROVIDER_ID
       )
-      debugger
       return {
         ...config.config.value,
         apiKey: provider?.apiKey || '',
