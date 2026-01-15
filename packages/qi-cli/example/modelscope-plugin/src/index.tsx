@@ -57,6 +57,7 @@ const plugin: Plugin = {
       const provider = settingsStore.providers?.find(
         (p: { id: string; apiKey?: string; baseUrl?: string }) => p.id === PROVIDER_ID
       )
+      debugger
       return {
         ...config.config.value,
         apiKey: provider?.apiKey || '',
@@ -100,7 +101,7 @@ const plugin: Plugin = {
             baseURL: modelConfig.baseURL
           })
           const model = modelScope.image(modelConfig.model as string)
-
+          debugger
           const { task_id } = await (model as ModelScopeImageModel).createTask({
             prompt,
             files: [],
