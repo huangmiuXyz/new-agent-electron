@@ -5,7 +5,7 @@ import { PLUGIN_NAME } from '../constants'
 
 export function createImageRender(context: PluginContext, getModelConfig: () => Promise<any>) {
   const { defineComponent, ref, onMounted, onUnmounted } = context.vue
-  const { Image, Loading, Button } = context.components
+  const { Image, Button } = context.components
 
   return defineComponent({
     name: 'ModelScopeImageRender',
@@ -31,7 +31,9 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
             ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId]
             : props.message?.metadata?.[PLUGIN_NAME])
 
-        const taskIds = modelscopeMetadata?.task_ids || (modelscopeMetadata?.task_id ? [modelscopeMetadata.task_id] : [])
+        const taskIds =
+          modelscopeMetadata?.task_ids ||
+          (modelscopeMetadata?.task_id ? [modelscopeMetadata.task_id] : [])
         const finishedTaskIds = modelscopeMetadata?.finished_task_ids || []
 
         // 如果所有任务都已处理（成功或失败），则不需要轮询
@@ -82,7 +84,10 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
                   const latestImages = latestOutput.images || []
 
                   const updatedImages = success ? [...latestImages, ...resultImages] : latestImages
-                  const updatedFinishedTaskIds = [...(latestMetadata.finished_task_ids || []), taskId]
+                  const updatedFinishedTaskIds = [
+                    ...(latestMetadata.finished_task_ids || []),
+                    taskId
+                  ]
 
                   const updatedMetadata = {
                     ...latestMetadata,
@@ -172,7 +177,10 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
 
                     if (partIndex !== -1) {
                       const currentOutput = msg.parts[partIndex].output || {}
-                      const currentMetadata = currentOutput.modelscope_metadata || msg.metadata?.[PLUGIN_NAME]?.[toolCallId] || {}
+                      const currentMetadata =
+                        currentOutput.modelscope_metadata ||
+                        msg.metadata?.[PLUGIN_NAME]?.[toolCallId] ||
+                        {}
                       const currentTaskIds = currentMetadata.task_ids || []
                       const updatedTaskIds = [...currentTaskIds, taskId]
 
@@ -235,7 +243,9 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         const toolCallId = props.tool_part?.toolCallId
         const modelscopeMetadata =
           props.tool_part?.output?.modelscope_metadata ||
-          (toolCallId ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId] : props.message?.metadata?.[PLUGIN_NAME])
+          (toolCallId
+            ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId]
+            : props.message?.metadata?.[PLUGIN_NAME])
         const config = modelscopeMetadata?.config
 
         const renderLoras = (loras: any) => {
@@ -328,10 +338,7 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
               ))}
               {(isPolling.value || isRegenerating.value) && (
                 <div style="position: relative; border-radius: 8px; overflow: hidden; border: 1px dashed var(--border-color); background: var(--bg-card);">
-                  <Image
-                    style="width: 100%; height: 200px; display: block;"
-                    loading={true}
-                  />
+                  <Image style="width: 100%; height: 200px; display: block;" loading={true} />
                 </div>
               )}
             </div>
