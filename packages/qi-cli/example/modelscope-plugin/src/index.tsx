@@ -118,7 +118,6 @@ const plugin: Plugin = {
 
           metadata.task_ids = [task_id]
 
-          // 返回初始结果，让 ImageRender 接管轮询
           return {
             images: [],
             modelscope_metadata: metadata,
