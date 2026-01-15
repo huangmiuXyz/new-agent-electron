@@ -207,7 +207,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         pollStatus()
       })
 
-      // 监听任务列表变化，自动触发轮询
       context.vue.watch(
         () => {
           const toolCallId = props.tool_part?.toolCallId
