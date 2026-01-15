@@ -1,7 +1,6 @@
 import { PluginContext } from '../types'
 import { ModelScopeImageModel } from '../modelscope/modelscope-image-model'
 import { createModelScope } from '../modelscope/modelscope-provider'
-import { PLUGIN_NAME } from '../constants'
 
 export function createImageRender(context: PluginContext, getModelConfig: () => Promise<any>) {
   const { defineComponent, ref, onUnmounted, watch } = context.vue
@@ -147,61 +146,50 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
             baseURL: config.baseURL
           })
           const model = modelScope.image(config.model) as ModelScopeImageModel
-          await model.doGenerate(
-            {
-              prompt: props.args?.prompt || '',
-              n: 1,
-              size: modelscopeMetadata.config.size,
-              seed: modelscopeMetadata.config.seed,
-              aspectRatio: undefined,
-              files: [],
-              mask: undefined,
-              providerOptions: {
-                modelscope: modelscopeMetadata.config
-              }
-            },
-            {
-              onStart: async (taskId: string) => {
-                const chatsStore = await context.getStore('chats')
-                const cid = modelscopeMetadata.chatId
-                const mid = props.message.id
-                if (cid && mid) {
-                  const chat = chatsStore.getChatById(cid)
-                  const msg = chat?.messages.find((m: any) => m.id === mid)
+          const { task_id } = await model.createTask({
+            prompt: props.args?.prompt || '',
+            n: 1,
+            size: modelscopeMetadata.config.size,
+            seed: modelscopeMetadata.config.seed,
+            aspectRatio: undefined,
+            files: [],
+            mask: undefined,
+            providerOptions: {
+              modelscope: modelscopeMetadata.config
+            }
+          })
 
-                  if (msg && msg.parts) {
-                    const partIndex = msg.parts.findIndex(
-                      (p: any) => p.toolCallId === props.tool_part?.toolCallId
-                    )
+          const chatsStore = await context.getStore('chats')
+          const cid = modelscopeMetadata.chatId
+          const mid = props.message.id
+          if (cid && mid) {
+            const chat = chatsStore.getChatById(cid)
+            const msg = chat?.messages.find((m: any) => m.id === mid)
 
-                    if (partIndex !== -1) {
-                      const currentOutput = msg.parts[partIndex].output || {}
-                      const currentMetadata =
-                        currentOutput.modelscope_metadata ||
-                        msg.metadata?.[PLUGIN_NAME]?.[toolCallId] ||
-                        {}
-                      const currentTaskIds = currentMetadata.task_ids || []
-                      const updatedTaskIds = [...currentTaskIds, taskId]
+            if (msg && msg.parts) {
+              const partIndex = msg.parts.findIndex(
+                (p: any) => p.toolCallId === props.tool_part?.toolCallId
+              )
 
-                      const updatedMetadata = {
-                        ...currentMetadata,
-                        task_ids: updatedTaskIds
-                      }
-                      if (msg.metadata?.[PLUGIN_NAME]?.[toolCallId]) {
-                        msg.metadata[PLUGIN_NAME][toolCallId].task_ids = updatedTaskIds
-                      }
+              if (partIndex !== -1) {
+                const currentOutput = msg.parts[partIndex].output || {}
+                const currentMetadata = currentOutput.modelscope_metadata || {}
+                const currentTaskIds = currentMetadata.task_ids || []
+                const updatedTaskIds = [...currentTaskIds, task_id]
 
-                      msg.parts[partIndex].output = {
-                        ...currentOutput,
-                        modelscope_metadata: updatedMetadata
-                      }
-                      chatsStore.updateMessage(cid, mid, [...msg.parts])
-                    }
-                  }
+                const updatedMetadata = {
+                  ...currentMetadata,
+                  task_ids: updatedTaskIds
                 }
+
+                msg.parts[partIndex].output = {
+                  ...currentOutput,
+                  modelscope_metadata: updatedMetadata
+                }
+                chatsStore.updateMessage(cid, mid, [...msg.parts])
               }
             }
-          )
+          }
         } catch (error: any) {
           console.error('Regeneration failed:', error)
           localResult.value = { ...localResult.value, error: error.message }
@@ -233,6 +221,9 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         const prompt = props.args?.prompt
         const modelscopeMetadata = props.tool_part?.output?.modelscope_metadata
         const config = modelscopeMetadata?.config
+        const taskIds = modelscopeMetadata?.task_ids || []
+        const finishedTaskIds = modelscopeMetadata?.finished_task_ids || []
+        const pendingCount = Math.max(0, taskIds.length - finishedTaskIds.length)
 
         const renderLoras = (loras: any) => {
           if (!loras) return null
@@ -322,11 +313,14 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
                   />
                 </div>
               ))}
-              {(isPolling.value || isRegenerating.value) && (
-                <div style="position: relative; border-radius: 8px; overflow: hidden; border: 1px dashed var(--border-color); background: var(--bg-card);">
+              {Array.from({ length: pendingCount }).map((_, i) => (
+                <div
+                  key={`loading-${i}`}
+                  style="position: relative; border-radius: 8px; overflow: hidden; border: 1px dashed var(--border-color); background: var(--bg-card);"
+                >
                   <Image style="width: 100%; height: 200px; display: block;" loading={true} />
                 </div>
-              )}
+              ))}
             </div>
             <div style="margin-top: 4px; display: flex;">
               <Button
