@@ -91,9 +91,8 @@ export const useChat = (chatId: string) => {
         const updatedMessages = [...chat.messages!]
         const lastIndex = updatedMessages.length - 1
         if (lastIndex >= 0) {
-          updatedMessages[lastIndex] = cloneDeep(updatedMessages[lastIndex])
+          chats!.messages[lastIndex] = cloneDeep(updatedMessages[lastIndex])
         }
-        chats!.messages = updatedMessages
 
         if (!newParts || chat.lastMessage.role !== 'assistant' || !speechEnabled.value) return
         const mode = (agent.selectedAgent?.speechMode) as string
