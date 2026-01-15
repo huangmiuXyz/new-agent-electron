@@ -144,7 +144,7 @@ const plugin: Plugin = {
                       [PLUGIN_NAME]: {
                         ...(msg.metadata?.[PLUGIN_NAME] || {}),
                         [toolCallId]: {
-                          task_id,
+                          task_ids: [task_id],
                           chatId,
                           config: {
                             model: modelConfig.model,
@@ -156,6 +156,7 @@ const plugin: Plugin = {
                         }
                       }
                     }
+                    chatsStore.updateMessage(chatId, msg.id, [...msg.parts])
                   }
                 }
               }
@@ -173,8 +174,20 @@ const plugin: Plugin = {
               })
               .join('\n\n')
 
-            return {
+            const toolResult = {
               images,
+              // 将元数据放入 output 中，这部分是持久化的 parts 之一
+              modelscope_metadata: {
+                task_ids: [result.task_id], // 确保包含当前任务 ID
+                chatId,
+                config: {
+                  model: modelConfig.model,
+                  negative_prompt: modelConfig.negative_prompt,
+                  size: modelConfig.size,
+                  seed: seed ?? modelConfig.seed,
+                  loras: modelConfig.loras
+                }
+              },
               toolResult: {
                 content: [
                   {
@@ -184,14 +197,26 @@ const plugin: Plugin = {
                 ]
               }
             }
+
+            return toolResult
           } else {
             throw new Error('模型未返回任何图片数据')
           }
         } catch (error: any) {
           const body = JSON.parse(error.responseBody || '{}') as ModelScopeErrorData
           await updateStatus(false, toolCallId)
+
           return {
             error: body?.errors?.message || error.message,
+            // 失败时也尝试返回元数据，以便用户可以尝试重新生成（如果配置还在）
+            modelscope_metadata: {
+              chatId,
+              config: {
+                model: (await getModelConfig()).model,
+                size: (await getModelConfig()).size,
+                seed: seed ?? (await getModelConfig()).seed
+              }
+            },
             toolResult: {
               content: [
                 {

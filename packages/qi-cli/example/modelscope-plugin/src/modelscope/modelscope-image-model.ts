@@ -66,7 +66,7 @@ export class ModelScopeImageModel implements ImageModelV3 {
   async doGenerate(
     options: ImageModelV3CallOptions,
     hooks?: { onStart?: (taskId: string) => void },
-  ): Promise<Awaited<ReturnType<ImageModelV3['doGenerate']>>> {
+  ): Promise<Awaited<ReturnType<ImageModelV3['doGenerate']>> & { task_id?: string }> {
     const { requestBody } = await this.getArgs(options);
 
     const { value: responseValue } = await postJsonToApi<ModelScopeImageAPIResponse>({
@@ -96,7 +96,11 @@ export class ModelScopeImageModel implements ImageModelV3 {
       hooks.onStart(taskId);
     }
 
-    return this.waitForTask(taskId, options.abortSignal);
+    const result = await this.waitForTask(taskId, options.abortSignal);
+    return {
+      ...result,
+      task_id: taskId
+    };
   }
 
   public async waitForTask(

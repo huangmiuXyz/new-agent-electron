@@ -1,10 +1,10 @@
 import { PluginContext } from '../types'
-import { ModelScopeImageModel } from  '../modelscope/modelscope-image-model'
+import { ModelScopeImageModel } from '../modelscope/modelscope-image-model'
 import { PLUGIN_NAME } from '../constants'
 
 export function createImageRender(context: PluginContext, getModelConfig: () => Promise<any>) {
   const { defineComponent, ref, onMounted, onUnmounted } = context.vue
-  const { Image, Loading } = context.components
+  const { Image, Loading, Button } = context.components
 
   return defineComponent({
     name: 'ModelScopeImageRender',
@@ -17,15 +17,128 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
     setup(props: { args?: any; result?: any; message: any; tool_part: any }) {
       const localResult = ref(null) as any
       const isPolling = ref(false)
+      const isRegenerating = ref(false)
       const abortController = new AbortController()
 
       const pollStatus = async () => {
+        if (isPolling.value) return
+
         const toolCallId = props.tool_part?.toolCallId
-        const modelscopeMetadata = toolCallId ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId] : props.message?.metadata?.[PLUGIN_NAME]
-        const taskId = modelscopeMetadata?.task_id
-        if (!taskId || props.result || localResult.value || isPolling.value) return
+        const modelscopeMetadata =
+          props.tool_part?.output?.modelscope_metadata ||
+          (toolCallId
+            ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId]
+            : props.message?.metadata?.[PLUGIN_NAME])
+
+        const taskIds = modelscopeMetadata?.task_ids || (modelscopeMetadata?.task_id ? [modelscopeMetadata.task_id] : [])
+        const finishedTaskIds = modelscopeMetadata?.finished_task_ids || []
+
+        // 如果所有任务都已处理（成功或失败），则不需要轮询
+        if (taskIds.length <= finishedTaskIds.length) return
 
         isPolling.value = true
+        try {
+          const config = await getModelConfig()
+          const modelId = config.model
+          const model = new ModelScopeImageModel(modelId, {
+            provider: 'modelscope.image',
+            url: ({ path }) => `${config.baseURL}${path}`,
+            headers: () => ({
+              Authorization: `Bearer ${config.apiKey}`
+            })
+          })
+
+          // 从第一个未处理的任务开始轮询
+          for (let i = finishedTaskIds.length; i < taskIds.length; i++) {
+            const taskId = taskIds[i]
+            let success = false
+            let resultImages: any[] = []
+
+            try {
+              const result = await model.waitForTask(taskId, abortController.signal)
+              if (result && result.images) {
+                success = true
+                resultImages = result.images
+              }
+            } catch (pollError: any) {
+              console.error(`Task ${taskId} failed:`, pollError)
+              localResult.value = { ...localResult.value, error: pollError.message }
+              // 即使失败，我们也继续处理下一个任务，并将此任务标记为已完成
+            }
+
+            // 无论成功还是失败，都更新消息状态
+            const chatsStore = await context.getStore('chats')
+            const cid = modelscopeMetadata?.chatId || props.message?.metadata?.cid
+            const mid = props.message?.id
+
+            if (cid && mid) {
+              const chat = chatsStore.getChatById(cid)
+              const msg = chat?.messages.find((m: any) => m.id === mid)
+              if (msg && msg.parts) {
+                const partIndex = msg.parts.findIndex(
+                  (p: any) => p.toolCallId === props.tool_part?.toolCallId
+                )
+                if (partIndex !== -1) {
+                  const latestOutput = msg.parts[partIndex].output || {}
+                  const latestMetadata = latestOutput.modelscope_metadata || modelscopeMetadata
+                  const latestImages = latestOutput.images || []
+
+                  const updatedImages = success ? [...latestImages, ...resultImages] : latestImages
+                  const updatedFinishedTaskIds = [...(latestMetadata.finished_task_ids || []), taskId]
+
+                  const updatedMetadata = {
+                    ...latestMetadata,
+                    finished_task_ids: updatedFinishedTaskIds
+                  }
+
+                  const newParts = [...msg.parts]
+                  const report = (updatedImages as any[])
+                    .map((base64: string, index: number) => {
+                      return `![Generated Image ${index + 1}](data:image/png;base64,${base64})`
+                    })
+                    .join('\n\n')
+
+                  newParts[partIndex] = {
+                    ...newParts[partIndex],
+                    output: {
+                      ...newParts[partIndex].output,
+                      images: updatedImages,
+                      modelscope_metadata: updatedMetadata,
+                      toolResult: {
+                        content: [{ type: 'text', text: `<|stop|>图片生成成功！\n\n${report}` }]
+                      }
+                    }
+                  }
+
+                  // 同步更新本地状态和持久化存储
+                  chatsStore.updateMessage(cid, mid, newParts)
+                  localResult.value = { ...localResult.value, images: updatedImages }
+                }
+              }
+            }
+          }
+        } catch (error: any) {
+          console.error('ModelScope polling flow error:', error)
+          localResult.value = { ...localResult.value, error: error.message }
+        } finally {
+          isPolling.value = false
+        }
+      }
+
+      const handleRegenerate = async () => {
+        // 允许并发点击，只检查是否正在发起请求的瞬时状态
+        if (isRegenerating.value) return
+
+        const toolCallId = props.tool_part?.toolCallId
+        const modelscopeMetadata =
+          props.tool_part?.output?.modelscope_metadata ||
+          (toolCallId
+            ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId]
+            : props.message?.metadata?.[PLUGIN_NAME])
+
+        if (!modelscopeMetadata || !modelscopeMetadata.config) return
+
+        isRegenerating.value = true
         try {
           const config = await getModelConfig()
           const modelId = config.model
@@ -38,57 +151,93 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
             })
           })
 
-          const result = await model.waitForTask(taskId, abortController.signal)
-          if (result && result.images) {
-            localResult.value = { images: result.images }
-            const chatsStore = await context.getStore('chats')
-            const cid = modelscopeMetadata?.chatId || props.message?.metadata?.cid
-            const mid = props.message?.id
-            if (cid && mid) {
-              const chat = chatsStore.getChatById(cid)
-              const msg = chat?.messages.find((m: any) => m.id === mid)
-              if (msg && msg.parts) {
-                const partIndex = msg.parts.findIndex(
-                  (p: any) => p.toolCallId === props.tool_part?.toolCallId
-                )
-                if (partIndex !== -1) {
-                  const newParts = [...msg.parts]
-                  const report = (result.images as any[])
-                    .map((base64: string, index: number) => {
-                      return `![Generated Image ${index + 1}](data:image/png;base64,${base64})`
-                    })
-                    .join('\n\n')
+          // 只需发起生成请求，onStart 回调会更新 task_ids，
+          // 随后 watcher 会触发 pollStatus 来处理轮询和结果保存。
+          await model.doGenerate(
+            {
+              prompt: props.args?.prompt || '',
+              n: 1,
+              size: modelscopeMetadata.config.size,
+              seed: modelscopeMetadata.config.seed,
+              aspectRatio: undefined,
+              files: [],
+              mask: undefined,
+              providerOptions: {
+                modelscope: modelscopeMetadata.config
+              }
+            },
+            {
+              onStart: async (taskId: string) => {
+                const chatsStore = await context.getStore('chats')
+                const cid = modelscopeMetadata.chatId
+                const mid = props.message.id
+                if (cid && mid) {
+                  const chat = chatsStore.getChatById(cid)
+                  const msg = chat?.messages.find((m: any) => m.id === mid)
 
-                  newParts[partIndex] = {
-                    ...newParts[partIndex],
-                    output: {
-                      images: result.images,
-                      toolResult: {
-                        content: [
-                          {
-                            type: 'text',
-                            text: `<|stop|>图片生成成功！\n\n${report}`
-                          }
-                        ]
+                  if (msg && msg.parts) {
+                    const partIndex = msg.parts.findIndex(
+                      (p: any) => p.toolCallId === props.tool_part?.toolCallId
+                    )
+
+                    if (partIndex !== -1) {
+                      const currentOutput = msg.parts[partIndex].output || {}
+                      const currentMetadata = currentOutput.modelscope_metadata || msg.metadata?.[PLUGIN_NAME]?.[toolCallId] || {}
+                      const currentTaskIds = currentMetadata.task_ids || []
+                      const updatedTaskIds = [...currentTaskIds, taskId]
+
+                      const updatedMetadata = {
+                        ...currentMetadata,
+                        task_ids: updatedTaskIds
                       }
+
+                      // 更新 metadata
+                      if (msg.metadata?.[PLUGIN_NAME]?.[toolCallId]) {
+                        msg.metadata[PLUGIN_NAME][toolCallId].task_ids = updatedTaskIds
+                      }
+
+                      msg.parts[partIndex].output = {
+                        ...currentOutput,
+                        modelscope_metadata: updatedMetadata
+                      }
+
+                      // 触发保存并更新本地状态以允许 pollStatus 运行
+                      chatsStore.updateMessage(cid, mid, [...msg.parts])
                     }
                   }
-                  chatsStore.updateMessage(cid, mid, newParts)
                 }
               }
             }
-          }
+          )
         } catch (error: any) {
-          console.error('ModelScope polling failed:', error)
-          localResult.value = { error: error.message }
+          console.error('Regeneration failed:', error)
+          localResult.value = { ...localResult.value, error: error.message }
         } finally {
-          isPolling.value = false
+          isRegenerating.value = false
         }
       }
 
       onMounted(() => {
         pollStatus()
       })
+
+      // 监听任务列表变化，自动触发轮询
+      context.vue.watch(
+        () => {
+          const toolCallId = props.tool_part?.toolCallId
+          const metadata =
+            props.tool_part?.output?.modelscope_metadata ||
+            (toolCallId
+              ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId]
+              : props.message?.metadata?.[PLUGIN_NAME])
+          return metadata?.task_ids?.length || 0
+        },
+        (newLen: number, oldLen: number) => {
+          if (newLen > oldLen) {
+            pollStatus()
+          }
+        }
+      )
 
       onUnmounted(() => {
         abortController.abort()
@@ -99,29 +248,22 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         const error = props.result?.error || localResult.value?.error
         const prompt = props.args?.prompt
         const toolCallId = props.tool_part?.toolCallId
-        const modelscopeMetadata = toolCallId ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId] : props.message?.metadata?.[PLUGIN_NAME]
+        const modelscopeMetadata =
+          props.tool_part?.output?.modelscope_metadata ||
+          (toolCallId ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId] : props.message?.metadata?.[PLUGIN_NAME])
         const config = modelscopeMetadata?.config
-
-        if (error) {
-          return (
-            <div style="padding: 12px; color: var(--color-error); background: var(--bg-card); border: 1px solid var(--color-error); border-radius: 8px; font-size: 13px;">
-              <div style="font-weight: 600; margin-bottom: 4px;">Generation Failed</div>
-              {error}
-            </div>
-          )
-        }
 
         const renderLoras = (loras: any) => {
           if (!loras) return null
           if (typeof loras === 'string') return loras
           const entries = Object.entries(loras)
           if (entries.length === 0) return null
-          return entries
-            .map(([name, weight]) => `${name}: ${weight}`)
-            .join(', ')
+          return entries.map(([name, weight]) => `${name}: ${weight}`).join(', ')
         }
 
-        const hasLoras = config?.loras && (typeof config.loras === 'string' || Object.keys(config.loras).length > 0)
+        const hasLoras =
+          config?.loras &&
+          (typeof config.loras === 'string' || Object.keys(config.loras).length > 0)
 
         return (
           <div style="display: flex; flex-direction: column; gap: 12px; padding: 8px;">
@@ -138,7 +280,7 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
                 <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; opacity: 0.8;">
                   <span style="font-weight: 600; color: var(--text-primary); margin-right: 4px;">
                     负面提示词:
-                    </span>
+                  </span>
                   {config.negative_prompt}
                 </div>
               )}
@@ -177,30 +319,48 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
                 )}
               </div>
             </div>
-            {!props.result && !localResult.value && !error ? (
-              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; gap: 12px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
-                <Loading size="large" />
-                <div style="font-size: 13px; color: var(--text-secondary);">
-                  正在{isPolling.value ? '恢复生成状态' : '生成图片'}，请稍候...
+            {error && (
+              <div style="padding: 10px; color: var(--color-error); background: var(--bg-card-soft); border-left: 3px solid var(--color-error); border-radius: 4px; font-size: 12px; margin-bottom: 4px;">
+                <div style="font-weight: 600; margin-bottom: 2px; display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 14px;">⚠️</span> Generation Failed
                 </div>
-              </div>
-            ) : (
-              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
-                {images.map((base64: string, index: number) => (
-                  <div
-                    key={index}
-                    style="position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background: var(--bg-card);"
-                  >
-                    <Image
-                      src={`data:image/png;base64,${base64}`}
-                      style="width: 100%; height: auto; display: block;"
-                      alt={`Generated image ${index + 1}`}
-                      preview={true}
-                    />
-                  </div>
-                ))}
+                <div style="opacity: 0.9; line-height: 1.4;">{error}</div>
               </div>
             )}
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+              {images.map((base64: string, index: number) => (
+                <div
+                  key={index}
+                  style="position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background: var(--bg-card);"
+                >
+                  <Image
+                    src={`data:image/png;base64,${base64}`}
+                    style="width: 100%; height: auto; display: block;"
+                    alt={`Generated image ${index + 1}`}
+                    preview={true}
+                  />
+                </div>
+              ))}
+              {(isPolling.value || isRegenerating.value) && (
+                <div style="position: relative; border-radius: 8px; overflow: hidden; border: 1px dashed var(--border-color); background: var(--bg-card);">
+                  <Image
+                    style="width: 100%; height: 200px; display: block;"
+                    loading={true}
+                  />
+                </div>
+              )}
+            </div>
+            <div style="margin-top: 4px; display: flex;">
+              <Button
+                type="primary"
+                size="sm"
+                onClick={handleRegenerate}
+                loading={isRegenerating.value}
+                disabled={isRegenerating.value}
+              >
+                重新生成
+              </Button>
+            </div>
           </div>
         )
       }

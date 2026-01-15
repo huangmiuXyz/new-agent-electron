@@ -1,6 +1,6 @@
 <template>
-    <div class="image-container" :class="{ 'is-loading': isLoading, 'is-previewable': preview && !hasError }">
-        <div v-if="isLoading" class="loading-overlay">
+    <div class="image-container" :class="{ 'is-loading': computedLoading, 'is-previewable': preview && !hasError }">
+        <div v-if="computedLoading" class="loading-overlay">
             <Loading size="small" />
         </div>
         <img
@@ -9,9 +9,9 @@
             @load="handleLoad"
             @error="handleError"
             @click="handlePreview"
-            :style="{ opacity: isLoading ? 0 : 1 }"
+            :style="{ opacity: computedLoading ? 0 : 1 }"
         />
-        <div v-if="hasError && !isLoading" class="error-placeholder">
+        <div v-if="hasError && !computedLoading" class="error-placeholder">
             <slot name="error">
                 <div class="error-text">图片加载失败</div>
             </slot>
@@ -34,12 +34,17 @@ const props = defineProps<{
     preview?: boolean
     images?: string[]
     initialIndex?: number
+    loading?: boolean
 }>()
 
-const isLoading = ref(true)
+const internalLoading = ref(true)
 const hasError = ref(false)
 const showViewer = ref(false)
 const viewerIndex = ref(props.initialIndex || 0)
+
+const computedLoading = computed(() => {
+    return props.loading !== undefined ? props.loading : internalLoading.value
+})
 
 const computedSrc = computed(() => {
     return assetsHandler(props.src || '')
@@ -56,10 +61,10 @@ watch(
     () => props.src,
     (newSrc) => {
         if (newSrc) {
-            isLoading.value = true
+            internalLoading.value = true
             hasError.value = false
         } else {
-            isLoading.value = false
+            internalLoading.value = false
             hasError.value = true
         }
     },
@@ -67,12 +72,12 @@ watch(
 )
 
 const handleLoad = () => {
-    isLoading.value = false
+    internalLoading.value = false
     hasError.value = false
 }
 
 const handleError = () => {
-    isLoading.value = false
+    internalLoading.value = false
     hasError.value = true
 }
 </script>
