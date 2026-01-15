@@ -180,8 +180,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
                         ...currentMetadata,
                         task_ids: updatedTaskIds
                       }
-
-                      // 更新 metadata
                       if (msg.metadata?.[PLUGIN_NAME]?.[toolCallId]) {
                         msg.metadata[PLUGIN_NAME][toolCallId].task_ids = updatedTaskIds
                       }
@@ -190,8 +188,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
                         ...currentOutput,
                         modelscope_metadata: updatedMetadata
                       }
-
-                      // 触发保存并更新本地状态以允许 pollStatus 运行
                       chatsStore.updateMessage(cid, mid, [...msg.parts])
                     }
                   }
