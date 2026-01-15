@@ -35,7 +35,8 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
           // 使用 while 循环，以便在轮询期间动态发现新添加的任务
           let finishedCount = 0
           const chatsStore = await context.getStore('chats')
-          const cid = props.message?.metadata?.cid || props.tool_part?.output?.modelscope_metadata?.chatId
+          const cid =
+            props.message?.metadata?.cid || props.tool_part?.output?.modelscope_metadata?.chatId
           const mid = props.message?.id
 
           while (true) {
@@ -133,7 +134,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
       const handleRegenerate = async () => {
         if (isRegenerating.value) return
 
-        const toolCallId = props.tool_part?.toolCallId
         const modelscopeMetadata = props.tool_part?.output?.modelscope_metadata
 
         if (!modelscopeMetadata || !modelscopeMetadata.config) return
