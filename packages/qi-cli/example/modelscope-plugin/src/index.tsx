@@ -54,7 +54,9 @@ const plugin: Plugin = {
     })
     const getModelConfig = async () => {
       const settingsStore = await context.getStore('settings')
-      const provider = settingsStore.providers?.find((p: { id: string; apiKey?: string; baseUrl?: string }) => p.id === PROVIDER_ID)
+      const provider = settingsStore.providers?.find(
+        (p: { id: string; apiKey?: string; baseUrl?: string }) => p.id === PROVIDER_ID
+      )
       return {
         ...config.config.value,
         apiKey: provider?.apiKey || '',
@@ -76,7 +78,10 @@ const plugin: Plugin = {
       }),
       title: 'ModelScope 绘图',
       render: ImageRender,
-      execute: async (args: { prompt: string }, options: { toolCallId: string; chatId: string }) => {
+      execute: async (
+        args: { prompt: string },
+        options: { toolCallId: string; chatId: string }
+      ) => {
         const { prompt } = args
         const { toolCallId, chatId } = options
 
@@ -148,9 +153,8 @@ const plugin: Plugin = {
 
             const toolResult = {
               images,
-              // 将元数据放入 output 中，这部分是持久化的 parts 之一
               modelscope_metadata: {
-                task_ids: [result.task_id], // 确保包含当前任务 ID
+                task_ids: [result.task_id],
                 chatId,
                 config: {
                   model: modelConfig.model,
