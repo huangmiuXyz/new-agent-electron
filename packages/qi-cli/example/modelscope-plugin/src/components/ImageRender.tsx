@@ -124,7 +124,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
       }
 
       const handleRegenerate = async () => {
-        // 允许并发点击，只检查是否正在发起请求的瞬时状态
         if (isRegenerating.value) return
 
         const toolCallId = props.tool_part?.toolCallId
