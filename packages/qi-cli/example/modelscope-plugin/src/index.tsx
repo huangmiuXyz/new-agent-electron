@@ -66,10 +66,8 @@ const plugin: Plugin = {
 
     const ImageRender = createImageRender(context, getModelConfig)
 
-    // 初始化
     config.initConfig()
 
-    // 注册内置工具
     context.registerBuiltinTool('modelscope_image_generator', {
       description:
         '使用 ModelScope AIGC 模型生成图片。支持多种模型，可以指定提示词、图片尺寸等参数。',
