@@ -63,6 +63,35 @@ export class ModelScopeImageModel implements ImageModelV3 {
     };
   }
 
+  async createTask(
+    options: ImageModelV3CallOptions,
+  ): Promise<{ task_id: string }> {
+    const { requestBody } = await this.getArgs(options);
+
+    const { value: responseValue } = await postJsonToApi<ModelScopeImageAPIResponse>({
+      url: this.config.url({
+        modelId: this.modelId,
+        path: '/images/generations',
+      }),
+      headers: combineHeaders(this.config.headers(), options.headers, {
+        'X-ModelScope-Async-Mode': 'true',
+      }),
+      body: requestBody,
+      failedResponseHandler: modelScopeFailedResponseHandler,
+      successfulResponseHandler: async ({ response }) => {
+        const json = (await response.json()) as ModelScopeImageAPIResponse;
+        return {
+          value: json,
+          responseHeaders: Object.fromEntries(response.headers.entries()),
+        };
+      },
+      abortSignal: options.abortSignal,
+      fetch: this.config.fetch,
+    });
+
+    return { task_id: responseValue.task_id };
+  }
+
   async doGenerate(
     options: ImageModelV3CallOptions,
     hooks?: { onStart?: (taskId: string) => void },

@@ -4,7 +4,7 @@ import { createModelScope } from '../modelscope/modelscope-provider'
 import { PLUGIN_NAME } from '../constants'
 
 export function createImageRender(context: PluginContext, getModelConfig: () => Promise<any>) {
-  const { defineComponent, ref, onMounted, onUnmounted } = context.vue
+  const { defineComponent, ref, onUnmounted, watch } = context.vue
   const { Image, Button } = context.components
 
   return defineComponent({
@@ -24,20 +24,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
       const pollStatus = async () => {
         if (isPolling.value) return
 
-        const toolCallId = props.tool_part?.toolCallId
-        const modelscopeMetadata =
-          props.tool_part?.output?.modelscope_metadata ||
-          (toolCallId
-            ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId]
-            : props.message?.metadata?.[PLUGIN_NAME])
-
-        const taskIds =
-          modelscopeMetadata?.task_ids ||
-          (modelscopeMetadata?.task_id ? [modelscopeMetadata.task_id] : [])
-        const finishedTaskIds = modelscopeMetadata?.finished_task_ids || []
-
-        if (taskIds.length <= finishedTaskIds.length) return
-
         isPolling.value = true
         try {
           const config = await getModelConfig()
@@ -47,8 +33,40 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
           })
           const model = modelScope.image(config.model) as ModelScopeImageModel
 
-          for (let i = finishedTaskIds.length; i < taskIds.length; i++) {
-            const taskId = taskIds[i]
+          // 使用 while 循环，以便在轮询期间动态发现新添加的任务
+          let finishedCount = 0
+          const chatsStore = await context.getStore('chats')
+          const cid = props.message?.metadata?.cid || props.tool_part?.output?.modelscope_metadata?.chatId
+          const mid = props.message?.id
+
+          while (true) {
+            const chat = chatsStore.getChatById(cid)
+            const msg = chat?.messages.find((m: any) => m.id === mid)
+            const toolCallId = props.tool_part?.toolCallId
+
+            let modelscopeMetadata: any = null
+            if (msg) {
+              const part = msg.parts?.find((p: any) => p.toolCallId === toolCallId)
+              modelscopeMetadata = part?.output?.modelscope_metadata
+            }
+
+            if (!modelscopeMetadata) {
+              // 回退到 props
+              modelscopeMetadata = props.tool_part?.output?.modelscope_metadata
+            }
+
+            const taskIds = modelscopeMetadata?.task_ids || []
+            const finishedTaskIds = modelscopeMetadata?.finished_task_ids || []
+
+            // 确定下一个要处理的任务索引
+            // 优先使用 finished_task_ids 的长度作为起点
+            const nextIndex = Math.max(finishedCount, finishedTaskIds.length)
+
+            if (nextIndex >= taskIds.length) {
+              break // 所有任务已处理
+            }
+
+            const taskId = taskIds[nextIndex]
             let success = false
             let resultImages: any[] = []
 
@@ -62,10 +80,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
               console.error(`Task ${taskId} failed:`, pollError)
               localResult.value = { ...localResult.value, error: pollError.message }
             }
-
-            const chatsStore = await context.getStore('chats')
-            const cid = modelscopeMetadata?.chatId || props.message?.metadata?.cid
-            const mid = props.message?.id
 
             if (cid && mid) {
               const chat = chatsStore.getChatById(cid)
@@ -121,11 +135,7 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         if (isRegenerating.value) return
 
         const toolCallId = props.tool_part?.toolCallId
-        const modelscopeMetadata =
-          props.tool_part?.output?.modelscope_metadata ||
-          (toolCallId
-            ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId]
-            : props.message?.metadata?.[PLUGIN_NAME])
+        const modelscopeMetadata = props.tool_part?.output?.modelscope_metadata
 
         if (!modelscopeMetadata || !modelscopeMetadata.config) return
 
@@ -200,25 +210,17 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         }
       }
 
-      onMounted(() => {
-        pollStatus()
-      })
-
-      context.vue.watch(
+      watch(
         () => {
-          const toolCallId = props.tool_part?.toolCallId
-          const metadata =
-            props.tool_part?.output?.modelscope_metadata ||
-            (toolCallId
-              ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId]
-              : props.message?.metadata?.[PLUGIN_NAME])
-          return metadata?.task_ids?.length || 0
+          const modelscopeMetadata = props.tool_part?.output?.modelscope_metadata
+          return modelscopeMetadata?.task_ids?.length || 0
         },
         (newLen: number, oldLen: number) => {
-          if (newLen > oldLen) {
+          if (newLen > (oldLen || 0)) {
             pollStatus()
           }
-        }
+        },
+        { immediate: true }
       )
 
       onUnmounted(() => {
@@ -229,12 +231,7 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         const images = props.result?.images || localResult.value?.images || []
         const error = props.result?.error || localResult.value?.error
         const prompt = props.args?.prompt
-        const toolCallId = props.tool_part?.toolCallId
-        const modelscopeMetadata =
-          props.tool_part?.output?.modelscope_metadata ||
-          (toolCallId
-            ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId]
-            : props.message?.metadata?.[PLUGIN_NAME])
+        const modelscopeMetadata = props.tool_part?.output?.modelscope_metadata
         const config = modelscopeMetadata?.config
 
         const renderLoras = (loras: any) => {

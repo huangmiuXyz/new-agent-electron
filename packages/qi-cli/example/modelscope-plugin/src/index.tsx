@@ -81,110 +81,61 @@ const plugin: Plugin = {
         options: { toolCallId: string; chatId: string }
       ) => {
         const { prompt } = args
-        const { toolCallId, chatId } = options
+        const { chatId } = options
+        const modelConfig = await getModelConfig()
+        const metadata: any = {
+          chatId,
+          config: {
+            model: modelConfig.model,
+            negative_prompt: modelConfig.negative_prompt,
+            size: modelConfig.size,
+            seed: modelConfig.seed,
+            loras: modelConfig.loras
+          }
+        }
 
         try {
-          const modelConfig = await getModelConfig()
-
           const modelScope = createModelScope({
             apiKey: modelConfig.apiKey,
             baseURL: modelConfig.baseURL
           })
           const model = modelScope.image(modelConfig.model as string)
 
-          const result = await (model as ModelScopeImageModel).doGenerate(
-            {
-              prompt,
-              files: [],
-              mask: undefined,
-              n: 1,
-              size: modelConfig.size as `${number}x${number}`,
-              seed: modelConfig.seed as number,
-              aspectRatio: undefined,
-              providerOptions: {
-                modelscope: {
-                  ...modelConfig
-                }
-              }
-            },
-            {
-              onStart: async (task_id: string) => {
-                const chatsStore = await context.getStore('chats')
-                if (chatId) {
-                  const chat = chatsStore.getChatById(chatId)
-                  const msg = chat?.messages.find((m: any) =>
-                    m.parts?.some((p: any) => p?.toolCallId === toolCallId)
-                  )
-                  if (msg) {
-                    msg.metadata = {
-                      ...msg.metadata,
-                      [PLUGIN_NAME]: {
-                        ...(msg.metadata?.[PLUGIN_NAME] || {}),
-                        [toolCallId]: {
-                          task_ids: [task_id],
-                          chatId,
-                          config: {
-                            model: modelConfig.model,
-                            negative_prompt: modelConfig.negative_prompt,
-                            size: modelConfig.size,
-                            seed: modelConfig.seed,
-                            loras: modelConfig.loras
-                          }
-                        }
-                      }
-                    }
-                    chatsStore.updateMessage(chatId, msg.id, msg.parts)
-                  }
-                }
+          const { task_id } = await (model as ModelScopeImageModel).createTask({
+            prompt,
+            files: [],
+            mask: undefined,
+            n: 1,
+            size: modelConfig.size as `${number}x${number}`,
+            seed: modelConfig.seed as number,
+            aspectRatio: undefined,
+            providerOptions: {
+              modelscope: {
+                ...modelConfig
               }
             }
-          )
+          })
 
-          // 返回结果
-          const images = result.images
-          if (images && images.length > 0) {
-            const toolResult = {
-              images,
-              modelscope_metadata: {
-                task_ids: [result.task_id],
-                chatId,
-                config: {
-                  model: modelConfig.model,
-                  negative_prompt: modelConfig.negative_prompt,
-                  size: modelConfig.size,
-                  seed: modelConfig.seed,
-                  loras: modelConfig.loras
+          metadata.task_ids = [task_id]
+
+          // 返回初始结果，让 ImageRender 接管轮询
+          return {
+            images: [],
+            modelscope_metadata: metadata,
+            toolResult: {
+              content: [
+                {
+                  type: 'text',
+                  text: `正在生成图片... (任务ID: ${task_id})`
                 }
-              },
-              toolResult: {
-                content: [
-                  {
-                    type: 'text',
-                    text: `<|stop|>图片生成成功！`
-                  }
-                ]
-              }
+              ]
             }
-
-            return toolResult
-          } else {
-            throw new Error('模型未返回任何图片数据')
           }
         } catch (error: any) {
           const body = JSON.parse(error.responseBody || '{}') as ModelScopeErrorData
-          const { model, size, seed, loras, negative_prompt } = await getModelConfig()
           return {
             error: body?.errors?.message || error.message,
-            modelscope_metadata: {
-              chatId,
-              config: {
-                model,
-                size,
-                seed,
-                loras,
-                negative_prompt
-              }
-            },
+            modelscope_metadata: metadata,
             toolResult: {
               content: [
                 {
