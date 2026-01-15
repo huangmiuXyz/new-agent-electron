@@ -54,7 +54,7 @@ const plugin: Plugin = {
     })
     const getModelConfig = async () => {
       const settingsStore = await context.getStore('settings')
-      const provider = settingsStore.providers?.find((p: any) => p.id === PROVIDER_ID)
+      const provider = settingsStore.providers?.find((p: { id: string; apiKey?: string; baseUrl?: string }) => p.id === PROVIDER_ID)
       return {
         ...config.config.value,
         apiKey: provider?.apiKey || '',
@@ -76,25 +76,22 @@ const plugin: Plugin = {
       }),
       title: 'ModelScope 绘图',
       render: ImageRender,
-      execute: async (args: any, options: any) => {
+      execute: async (args: { prompt: string }, options: { toolCallId: string; chatId: string }) => {
         const { prompt } = args
         const { toolCallId, chatId } = options
 
         try {
           const modelConfig = await getModelConfig()
 
-          // 创建模型实例
-          const targetModelId = modelConfig.model as string
-          const model = new ModelScopeImageModel(targetModelId, {
-            provider: 'modelscope.image',
-            url: ({ path }) => `${modelConfig.baseURL}${path}`,
-            headers: () => ({
-              Authorization: `Bearer ${modelConfig.apiKey}`
-            })
+          // 使用 provider 创建模型实例
+          const modelScope = createModelScope({
+            apiKey: modelConfig.apiKey,
+            baseURL: modelConfig.baseURL
           })
+          const model = modelScope.image(modelConfig.model as string)
 
           // 执行生成
-          const result = await model.doGenerate(
+          const result = await (model as ModelScopeImageModel).doGenerate(
             {
               prompt,
               files: [],

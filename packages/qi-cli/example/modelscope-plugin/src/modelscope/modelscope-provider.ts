@@ -6,6 +6,7 @@ import {
 } from '@ai-sdk/provider-utils';
 import { ModelScopeImageModel } from './modelscope-image-model';
 import { Model } from '../types';
+import { DEFAULT_BASE_URL, DEFAULT_MODEL_ID } from '../constants';
 
 const VERSION = '1.0.0';
 
@@ -18,11 +19,6 @@ export interface ModelScopeProvider extends Pick<ProviderV3, 'imageModel'> {
    * Creates a model for image generation.
    */
   image(modelId?: string): ImageModelV3;
-
-  /**
-   * List of available models.
-   */
-  listModels: () => Promise<Model[]>;
 }
 
 export interface ModelScopeProviderSettings {
@@ -66,9 +62,9 @@ export function createModelScope(
       `ai-sdk/modelscope/${VERSION}`,
     );
 
-  const baseURL = options.baseURL ?? 'https://api.modelscope.cn/api/v1';
+  const baseURL = options.baseURL ?? DEFAULT_BASE_URL;
 
-  const createImageModel = (modelId: string = 'majicflus_v1') =>
+  const createImageModel = (modelId: string = DEFAULT_MODEL_ID) =>
     new ModelScopeImageModel(modelId, {
       provider: `modelscope.image`,
       url: ({ path }) => `${baseURL}${path}`,
@@ -85,21 +81,6 @@ export function createModelScope(
   provider.image = createImageModel;
   provider.imageModel = createImageModel;
   provider.imageCallOptionsSchema = ModelScopeImageModel.imageCallOptionsSchema;
-
-  provider.listModels = async () => {
-    return [
-      {
-        id: 'majicflus_v1',
-        name: 'ModelScope majicflus_v1',
-        category: 'image',
-      },
-      {
-        id: 'MAILAND',
-        name: 'ModelScope MAILAND',
-        category: 'image',
-      },
-    ];
-  };
 
   return provider as unknown as ModelScopeProvider;
 }

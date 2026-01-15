@@ -1,5 +1,6 @@
 import { PluginContext } from '../types'
 import { ModelScopeImageModel } from '../modelscope/modelscope-image-model'
+import { createModelScope } from '../modelscope/modelscope-provider'
 import { PLUGIN_NAME } from '../constants'
 
 export function createImageRender(context: PluginContext, getModelConfig: () => Promise<any>) {
@@ -39,14 +40,11 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         isPolling.value = true
         try {
           const config = await getModelConfig()
-          const modelId = config.model
-          const model = new ModelScopeImageModel(modelId, {
-            provider: 'modelscope.image',
-            url: ({ path }) => `${config.baseURL}${path}`,
-            headers: () => ({
-              Authorization: `Bearer ${config.apiKey}`
-            })
+          const modelScope = createModelScope({
+            apiKey: config.apiKey,
+            baseURL: config.baseURL
           })
+          const model = modelScope.image(config.model) as ModelScopeImageModel
 
           // 从第一个未处理的任务开始轮询
           for (let i = finishedTaskIds.length; i < taskIds.length; i++) {
@@ -141,15 +139,11 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         isRegenerating.value = true
         try {
           const config = await getModelConfig()
-          const modelId = config.model
-
-          const model = new ModelScopeImageModel(modelId, {
-            provider: 'modelscope.image',
-            url: ({ path }) => `${config.baseURL}${path}`,
-            headers: () => ({
-              Authorization: `Bearer ${config.apiKey}`
-            })
+          const modelScope = createModelScope({
+            apiKey: config.apiKey,
+            baseURL: config.baseURL
           })
+          const model = modelScope.image(config.model) as ModelScopeImageModel
 
           // 只需发起生成请求，onStart 回调会更新 task_ids，
           // 随后 watcher 会触发 pollStatus 来处理轮询和结果保存。
