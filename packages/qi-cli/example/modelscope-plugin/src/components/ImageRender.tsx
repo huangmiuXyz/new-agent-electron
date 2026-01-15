@@ -51,19 +51,16 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
             }
 
             if (!modelscopeMetadata) {
-              // 回退到 props
               modelscopeMetadata = props.tool_part?.output?.modelscope_metadata
             }
 
             const taskIds = modelscopeMetadata?.task_ids || []
             const finishedTaskIds = modelscopeMetadata?.finished_task_ids || []
 
-            // 确定下一个要处理的任务索引
-            // 优先使用 finished_task_ids 的长度作为起点
             const nextIndex = Math.max(finishedCount, finishedTaskIds.length)
 
             if (nextIndex >= taskIds.length) {
-              break // 所有任务已处理
+              break
             }
 
             const taskId = taskIds[nextIndex]
