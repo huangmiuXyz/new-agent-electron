@@ -143,9 +143,6 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
             baseURL: config.baseURL
           })
           const model = modelScope.image(config.model) as ModelScopeImageModel
-
-          // 只需发起生成请求，onStart 回调会更新 task_ids，
-          // 随后 watcher 会触发 pollStatus 来处理轮询和结果保存。
           await model.doGenerate(
             {
               prompt: props.args?.prompt || '',
