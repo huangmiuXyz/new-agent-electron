@@ -83,14 +83,12 @@ const plugin: Plugin = {
         try {
           const modelConfig = await getModelConfig()
 
-          // 使用 provider 创建模型实例
           const modelScope = createModelScope({
             apiKey: modelConfig.apiKey,
             baseURL: modelConfig.baseURL
           })
           const model = modelScope.image(modelConfig.model as string)
 
-          // 执行生成
           const result = await (model as ModelScopeImageModel).doGenerate(
             {
               prompt,
