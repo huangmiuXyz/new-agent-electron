@@ -15,61 +15,44 @@ const plugin: Plugin = {
   author: 'Zhuanz',
 
   install: async (context: PluginContext) => {
-    const { markRaw, ref } = context.vue
+    const { markRaw } = context.vue
     const { SelectorPopover } = context.components
 
-    const updateStatus = async (isLoading = false, toolCallId?: string) => {
-      const modelId = config.config.value.model
-      const statusId = toolCallId ? `modelscope-status-${toolCallId}` : 'modelscope-status'
-
-      if (isLoading) {
-        context.notification.status(statusId, '', {
-          render: markRaw(() => <LoadingIcon />),
-          color: 'var(--color-primary)',
-          tooltip: `ModelScope 正在生成图片...`
-        })
-      } else {
-        context.notification.status(statusId, '', {
-          render: markRaw(() => (
-            <div
-              style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;"
-              onClick={(e: MouseEvent) => e.stopPropagation()}
-            >
-              <SelectorPopover width="400px">
-                {{
-                  trigger: () => (
-                    <div style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; cursor: pointer;">
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                        <path d="M21 16.5C21 16.88 20.79 17.21 20.47 17.38L12.57 21.82C12.41 21.94 12.21 22 12 22C11.79 22 11.59 21.94 11.43 21.82L3.53 17.38C3.21 17.21 3 16.88 3 16.5V7.5C3 7.12 3.21 6.79 3.53 6.62L11.43 2.18C11.59 2.06 11.79 2 12 2C12.21 2 12.41 2.06 12.57 2.18L20.47 6.62C20.79 6.79 21 7.12 21 7.5V16.5Z" />
-                      </svg>
-                    </div>
-                  ),
-                  content: () => (
-                    <div
-                      style={{
-                        maxHeight: '450px',
-                        overflowY: 'auto'
-                      }}
-                    >
-                      <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>
-                        ModelScope 绘图配置
-                      </div>
-                      <config.ConfigForm />
-                    </div>
-                  )
-                }}
-              </SelectorPopover>
-            </div>
-          )),
-          color: 'var(--color-primary)',
-          tooltip: `ModelScope 已就绪 (模型: ${modelId})`
-        })
-      }
-    }
-
-    const config = usePluginConfig(context, () => updateStatus())
-    const LoadingIcon = createLoadingIcon(context)
-
+    const config = usePluginConfig(context)
+    context.notification.status('modelscope-status', '', {
+      render: markRaw(() => (
+        <div
+          style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;"
+          onClick={(e: MouseEvent) => e.stopPropagation()}
+        >
+          <SelectorPopover width="400px">
+            {{
+              trigger: () => (
+                <div style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; cursor: pointer;">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M21 16.5C21 16.88 20.79 17.21 20.47 17.38L12.57 21.82C12.41 21.94 12.21 22 12 22C11.79 22 11.59 21.94 11.43 21.82L3.53 17.38C3.21 17.21 3 16.88 3 16.5V7.5C3 7.12 3.21 6.79 3.53 6.62L11.43 2.18C11.59 2.06 11.79 2 12 2C12.21 2 12.41 2.06 12.57 2.18L20.47 6.62C20.79 6.79 21 7.12 21 7.5V16.5Z" />
+                  </svg>
+                </div>
+              ),
+              content: () => (
+                <div
+                  style={{
+                    maxHeight: '450px',
+                    overflowY: 'auto'
+                  }}
+                >
+                  <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>
+                    ModelScope 绘图配置
+                  </div>
+                  <config.ConfigForm />
+                </div>
+              )
+            }}
+          </SelectorPopover>
+        </div>
+      )),
+      color: 'var(--color-primary)'
+    })
     const getModelConfig = async () => {
       const settingsStore = await context.getStore('settings')
       const provider = settingsStore.providers?.find((p: any) => p.id === PROVIDER_ID)
@@ -110,9 +93,6 @@ const plugin: Plugin = {
               Authorization: `Bearer ${modelConfig.apiKey}`
             })
           })
-
-          // 显示生成状态
-          await updateStatus(true, toolCallId)
 
           // 执行生成
           const result = await model.doGenerate(
@@ -163,8 +143,6 @@ const plugin: Plugin = {
             }
           )
 
-          await updateStatus(false, toolCallId)
-
           // 返回结果
           const images = result.images
           if (images && images.length > 0) {
@@ -204,7 +182,6 @@ const plugin: Plugin = {
           }
         } catch (error: any) {
           const body = JSON.parse(error.responseBody || '{}') as ModelScopeErrorData
-          await updateStatus(false, toolCallId)
 
           return {
             error: body?.errors?.message || error.message,

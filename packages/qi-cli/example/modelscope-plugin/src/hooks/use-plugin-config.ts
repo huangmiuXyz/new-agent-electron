@@ -7,7 +7,7 @@ import {
 } from '../constants'
 import { modelScopeImageCallOptionsSchema } from '../modelscope/modelscope-api-types'
 
-export function usePluginConfig(context: PluginContext, onConfigChange?: () => void) {
+export function usePluginConfig(context: PluginContext) {
   const { ref, toRaw } = context.vue
 
   const config = ref({
@@ -26,7 +26,6 @@ export function usePluginConfig(context: PluginContext, onConfigChange?: () => v
       const plainData = JSON.parse(JSON.stringify(toRaw(data)))
       config.value = plainData
       await context.localforage.setItem(STORAGE_KEY_CONFIG, plainData)
-      onConfigChange?.()
     }
   })
 
@@ -37,8 +36,6 @@ export function usePluginConfig(context: PluginContext, onConfigChange?: () => v
     }
 
     formActions.setFieldsValue(config.value)
-
-    onConfigChange?.()
   }
 
   return {
