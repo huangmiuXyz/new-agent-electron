@@ -87,15 +87,18 @@ export const useChat = (chatId: string) => {
           chat.lastMessage.metadata = { ...chat.lastMessage.metadata, error }
         }
       })
-      watch(() => chat.lastMessage?.parts, (newParts) => {
+
+      const syncMessageToStore = () => {
         const updatedMessages = [...chat.messages!]
         const lastIndex = updatedMessages.length - 1
         if (lastIndex >= 0) {
           chats!.messages[lastIndex] = cloneDeep(updatedMessages[lastIndex])
         }
+      }
 
+      const processStreamingSpeech = (newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined) => {
         if (!newParts || chat.lastMessage.role !== 'assistant' || !speechEnabled.value) return
-        const mode = (agent.selectedAgent?.speechMode) as string
+        const mode = agent.selectedAgent?.speechMode as string
         if (mode === 'full') return
 
         const fullText = getMessageText(chat.lastMessage)
@@ -104,7 +107,7 @@ export const useChat = (chatId: string) => {
         if (mode === 'sentence') {
           const sentences = currentText.match(/[^.!?。！？]+[.!?。！？]+/g)
           if (sentences) {
-            sentences.forEach(sentence => {
+            sentences.forEach((sentence) => {
               generateSpeech(sentence, chat.lastMessage)
               processedText += sentence
             })
@@ -121,9 +124,18 @@ export const useChat = (chatId: string) => {
             }
           }
         }
-      }, {
-        deep: true
-      })
+      }
+
+      watch(
+        () => chat.lastMessage?.parts,
+        (newParts) => {
+          syncMessageToStore()
+          processStreamingSpeech(newParts)
+        },
+        {
+          deep: true
+        }
+      )
 
       return chat
     })!
