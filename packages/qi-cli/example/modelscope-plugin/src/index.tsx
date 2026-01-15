@@ -133,7 +133,7 @@ const plugin: Plugin = {
                         }
                       }
                     }
-                    chatsStore.updateMessage(chatId, msg.id, [...msg.parts])
+                    chatsStore.updateMessage(chatId, msg.id, msg.parts)
                   }
                 }
               }
