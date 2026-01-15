@@ -18,17 +18,18 @@ const plugin: Plugin = {
     const { markRaw, ref } = context.vue
     const { SelectorPopover } = context.components
 
-    const updateStatus = async (isLoading = false) => {
+    const updateStatus = async (isLoading = false, toolCallId?: string) => {
       const modelId = config.config.value.model
+      const statusId = toolCallId ? `modelscope-status-${toolCallId}` : 'modelscope-status'
 
       if (isLoading) {
-        context.notification.status('modelscope-status', '', {
+        context.notification.status(statusId, '', {
           render: markRaw(() => <LoadingIcon />),
           color: 'var(--color-primary)',
           tooltip: `ModelScope 正在生成图片...`
         })
       } else {
-        context.notification.status('modelscope-status', '', {
+        context.notification.status(statusId, '', {
           render: markRaw(() => (
             <div
               style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;"
@@ -111,7 +112,7 @@ const plugin: Plugin = {
           })
 
           // 显示生成状态
-          await updateStatus(true)
+          await updateStatus(true, toolCallId)
 
           // 执行生成
           const result = await model.doGenerate(
@@ -141,14 +142,17 @@ const plugin: Plugin = {
                     msg.metadata = {
                       ...msg.metadata,
                       [PLUGIN_NAME]: {
-                        task_id,
-                        chatId,
-                        config: {
-                          model: modelConfig.model,
-                          negative_prompt: modelConfig.negative_prompt,
-                          size: modelConfig.size,
-                          seed: seed ?? modelConfig.seed,
-                          loras: modelConfig.loras
+                        ...(msg.metadata?.[PLUGIN_NAME] || {}),
+                        [toolCallId]: {
+                          task_id,
+                          chatId,
+                          config: {
+                            model: modelConfig.model,
+                            negative_prompt: modelConfig.negative_prompt,
+                            size: modelConfig.size,
+                            seed: seed ?? modelConfig.seed,
+                            loras: modelConfig.loras
+                          }
                         }
                       }
                     }
@@ -158,7 +162,7 @@ const plugin: Plugin = {
             }
           )
 
-          await updateStatus(false)
+          await updateStatus(false, toolCallId)
 
           // 返回结果
           const images = result.images
@@ -184,8 +188,8 @@ const plugin: Plugin = {
             throw new Error('模型未返回任何图片数据')
           }
         } catch (error: any) {
-          const body = JSON.parse(error.responseBody) as ModelScopeErrorData
-          await updateStatus(false)
+          const body = JSON.parse(error.responseBody || '{}') as ModelScopeErrorData
+          await updateStatus(false, toolCallId)
           return {
             error: body?.errors?.message || error.message,
             toolResult: {

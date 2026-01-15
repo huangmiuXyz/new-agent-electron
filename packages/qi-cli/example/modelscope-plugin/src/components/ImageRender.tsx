@@ -20,7 +20,8 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
       const abortController = new AbortController()
 
       const pollStatus = async () => {
-        const modelscopeMetadata = props.message?.metadata?.[PLUGIN_NAME]
+        const toolCallId = props.tool_part?.toolCallId
+        const modelscopeMetadata = toolCallId ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId] : props.message?.metadata?.[PLUGIN_NAME]
         const taskId = modelscopeMetadata?.task_id
         if (!taskId || props.result || localResult.value || isPolling.value) return
 
@@ -97,7 +98,8 @@ export function createImageRender(context: PluginContext, getModelConfig: () => 
         const images = props.result?.images || localResult.value?.images || []
         const error = props.result?.error || localResult.value?.error
         const prompt = props.args?.prompt
-        const modelscopeMetadata = props.message?.metadata?.[PLUGIN_NAME]
+        const toolCallId = props.tool_part?.toolCallId
+        const modelscopeMetadata = toolCallId ? props.message?.metadata?.[PLUGIN_NAME]?.[toolCallId] : props.message?.metadata?.[PLUGIN_NAME]
         const config = modelscopeMetadata?.config
 
         if (error) {
