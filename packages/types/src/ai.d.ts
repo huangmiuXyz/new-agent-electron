@@ -1,6 +1,10 @@
-import { UIMessage, UIMessagePart, ProviderMetadata, UIMessageChunk, LanguageModelUsage, ProviderMetadata } from 'ai'
+import { UIMessage, UIMessagePart, SharedV3ProviderMetadata, UIMessageChunk, LanguageModelUsage, ProviderMetadata } from 'ai'
 import type { Model as openAIModel } from 'openai/resources'
 declare global {
+  interface Window {
+    api: any
+  }
+
   type providerType =
     | 'anthropic'
     | 'openai'
@@ -11,21 +15,22 @@ declare global {
     | 'ollama'
     | 'hume'
     | 'elevenlabs'
+    | (string & {})
   interface MetaData {
     provider: string
     date: number
     model: string
-    stop: AbortController['abort']
+    stop: () => void
     loading: boolean
     cid: string
     translations?: TranslationResult[]
     translationLoading?: boolean
-    translationController?: AbortController['abort']
+    translationController?: () => void
     error?: Error
     ragSearchDetails?: RagSearchDetail[]
     ragEnabled?: boolean
     usage?: LanguageModelUsage
-    providerMetadata?: ProviderMetadata
+    providerMetadata?: SharedV3ProviderMetadata
     audio?: {
       chunks: {
         data: string // base64
