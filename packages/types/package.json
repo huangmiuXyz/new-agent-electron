@@ -1,0 +1,39 @@
+{
+  "name": "@agent-qi/types",
+  "version": "1.0.0",
+  "description": "Type definitions for Agent Qi",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "keywords": [
+    "agent-qi",
+    "types",
+    "ai"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@ai-sdk/mcp": "1.0.5",
+    "@types/node": "^20.0.0",
+    "ai": "6.0.19",
+    "openai": "^6.9.1",
+    "typescript": "^5.0.0",
+    "vite": "^6.0.0",
+    "vite-plugin-dts": "^4.3.0",
+    "vue": "^3.5.22",
+    "zod": "^4.3.5"
+  },
+  "peerDependencies": {
+    "@ai-sdk/mcp": "*",
+    "ai": "*",
+    "openai": "*",
+    "vue": "*"
+  }
+}
