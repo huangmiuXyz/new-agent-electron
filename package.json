@@ -9,6 +9,9 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
+    "build:mac": "turbo build:mac",
+    "build:win": "turbo build:win",
+    "build:linux": "turbo build:linux",
     "lint": "turbo lint",
     "format": "prettier --write .",
     "typecheck": "turbo typecheck"

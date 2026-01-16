@@ -6,6 +6,18 @@
       "inputs": ["src/**", "public/**", "package.json", "tsconfig.json", "vite.config.ts"],
       "outputs": ["dist/**", "out/**"]
     },
+    "build:mac": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "out/**"]
+    },
+    "build:win": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "out/**"]
+    },
+    "build:linux": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "out/**"]
+    },
     "lint": {
       "inputs": ["src/**", "package.json"]
     },
