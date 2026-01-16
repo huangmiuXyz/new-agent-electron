@@ -1,5 +1,6 @@
 import { UIMessage, UIMessagePart, ProviderMetadata, UIMessageChunk, LanguageModelUsage, ProviderMetadata } from 'ai'
 import type { Model as openAIModel } from 'openai/resources'
+import { type MCPClient } from '@ai-sdk/mcp'
 declare global {
   type providerType =
     | 'anthropic'
@@ -49,8 +50,23 @@ declare global {
     targetLanguage: string
     timestamp: number
   }
+  type ClientConfig = Record<
+    string,
+    {
+      command?: string
+      args?: string[]
+      url?: string
+      transport?: 'http' | 'sse' | 'stdio'
+      headers?: Record<string, string>
+      active: boolean
+      tools: Tools
+      [key: string]: any
+    }
+  >
+  type Tools = Awaited<ReturnType<MCPClient['tools']>>
+
   type BaseMessage = UIMessage<MetaData, UIMessageChunk>
-  type Tools = Awaited<ReturnType<typeof window.api.list_tools>>
+  type Tools = (config: ClientConfig, cache?: boolean) => Promise<Tools>
   type Tool = Tools[keyof Tools]
   type ContentBlock = UIMessagePart
   type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank' | 'speech' | 'tts'
