@@ -14,9 +14,9 @@
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
-    "prettier": "^3.6.2",
-    "turbo": "latest",
-    "typescript": "^5.9.2"
+    "prettier": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
