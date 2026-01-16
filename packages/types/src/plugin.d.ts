@@ -129,13 +129,17 @@ declare global {
     /** 插件名称 */
     name: string;
     /** 插件路径 */
-    path: string;
+    path?: string;
     /** 插件描述 */
     description?: string;
     /** 插件版本 */
     version?: string;
+    /** 更新时间 */
+    updatedAt?: string;
     /** 插件作者 */
     author?: string;
+    /** 主入口文件 */
+    main?: string;
     /** 其他属性 */
     [key: string]: any;
   }

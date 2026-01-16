@@ -7,6 +7,7 @@
     "src/preload/*.d.ts"
   ],
   "compilerOptions": {
+    "moduleResolution": "bundler",
     "composite": false,
     "baseUrl": ".",
     "paths": {

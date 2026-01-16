@@ -7,7 +7,7 @@
       "DOM",
       "DOM.Iterable"
     ],
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
