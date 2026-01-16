@@ -1,3 +1,4 @@
+import { Embedding } from 'ai'
 declare global {
   // 知识库接口
   interface KnowledgeBase {

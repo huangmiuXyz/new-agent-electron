@@ -53,7 +53,6 @@ declare global {
       status: (id: string, text: string, options?: {
         icon?: string;
         html?: string;
-        render?: any;
         color?: string;
         tooltip?: string;
         pluginName?: string;
@@ -77,7 +76,7 @@ declare global {
     useForm: any;
     useTable: any;
     useDownload: any;
-    useIcon: any;
+    useIcon: any
     components: Record<string, any>;
     vue: any;
     getPluginsDataPath: () => string;
