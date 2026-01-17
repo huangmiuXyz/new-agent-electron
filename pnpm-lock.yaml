@@ -240,6 +240,9 @@ catalogs:
     eslint-plugin-vue:
       specifier: ^10.4.0
       version: 10.6.2
+    formango:
+      specifier: 3.2.0-beta.4
+      version: 3.2.0-beta.4
     hast-util-to-html:
       specifier: ^9.0.5
       version: 9.0.5
@@ -519,6 +522,9 @@ importers:
       es-toolkit:
         specifier: 'catalog:'
         version: 1.43.0
+      formango:
+        specifier: 'catalog:'
+        version: 3.2.0-beta.4(vue@3.5.26(typescript@5.9.3))(zod@4.3.5)
       hast-util-to-html:
         specifier: 'catalog:'
         version: 9.0.5

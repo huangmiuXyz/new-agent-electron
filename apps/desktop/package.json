@@ -75,6 +75,7 @@
     "dayjs": "catalog:",
     "electron-updater": "catalog:",
     "es-toolkit": "catalog:",
+    "formango": "catalog:",
     "hast-util-to-html": "catalog:",
     "highlight.js": "catalog:",
     "jszip": "catalog:",
