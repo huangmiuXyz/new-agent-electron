@@ -1,7 +1,7 @@
 import { z } from 'zod/v4';
 
 export const modelScopeImageCallOptionsSchema = z.object({
-  model: z.string().optional().describe('模型id'),
+  model: z.string().optional().describe('模型id').meta({ ifShow: false }),
   prompt: z.string().max(2000).optional().describe('正向提示词').meta({ ifShow: false }),
   negative_prompt: z.string().max(2000).optional().describe('负向提示词'),
   size: z.string().optional().describe('生成图像分辨率大小'),
