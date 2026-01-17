@@ -111,10 +111,13 @@ const isModelSelected = computed(() => {
   return !!settingsStore.imageGenerationForm.model?.modelId
 })
 
-const scrollToBottom = () => {
+const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
   nextTick(() => {
     if (resultsContainer.value) {
-      resultsContainer.value.scrollTop = resultsContainer.value.scrollHeight
+      resultsContainer.value.scrollTo({
+        top: resultsContainer.value.scrollHeight,
+        behavior
+      })
     }
   })
 }
@@ -191,6 +194,7 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
             }
             return item
           })
+          scrollToBottom()
         }
       }
     } catch (error: any) {
@@ -255,8 +259,8 @@ const downloadImage = (item: string | { loading: boolean }) => {
       </template>
 
       <template #content>
-        <div class="results-container" ref="resultsContainer">
-          <div class="results-content">
+        <div class="results-container">
+          <div class="results-content" ref="resultsContainer">
             <div v-if="generatedBatches.length === 0" class="empty-state">
               <div class="empty-icon">
                 <ImageIcon />
