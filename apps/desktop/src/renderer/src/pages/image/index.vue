@@ -1,72 +1,127 @@
 <script setup lang="tsx">
+import { ImageGenerateOptions } from '@renderer/services/chatService';
+import { createRegistry } from '@renderer/services/chatService/registry';
 import { useSettingsStore } from '@renderer/stores/settings'
+import { FormField } from '@renderer/composables/useForm'
 
 const service = chatService()
 const settingsStore = useSettingsStore()
 const generatedImages = ref<(string | { loading: boolean; id: number })[]>([])
 
-// 图像生成表单
-const [ImageForm, formActions] = useForm({
-  fields: [
-    {
-      name: 'prompt',
-      type: 'textarea',
-      label: '提示词',
-      placeholder: '描述你想要生成的图像...',
-      required: true,
-      rows: 4
-    },
-    {
-      name: 'model',
-      type: 'modelSelector',
-      label: '生成模型',
-      modelCategory: 'image',
-      required: true
-    },
-    {
-      name: 'size',
-      type: 'select',
-      label: '图像尺寸',
-      options: [
-        { label: '1024x1024', value: '1024x1024' },
-        { label: '512x512', value: '512x512' },
-        { label: '256x256', value: '256x256' },
-        { label: '1024x1792', value: '1024x1792' },
-        { label: '1792x1024', value: '1792x1024' }
-      ],
-      defaultValue: '1024x1024'
-    },
-    {
-      name: 'n',
-      type: 'slider',
-      label: '生成数量',
-      min: 1,
-      max: 4,
-      step: 1,
-      defaultValue: 1
-    },
-    {
-      name: 'seed',
-      label: '随机种子',
-      placeholder: '留空则随机生成...',
-      type: 'number',
-      rest: () => (
-        <Button
-          variant="text"
-          size="sm"
-          onClick={() => {
-            const randomSeed = Math.floor(Math.random() * 1000000)
-            formActions.setFieldValue('seed', randomSeed)
-          }}
-        >
-          {Dices}
-        </Button>
-      )
+
+const getDynamicImageFields = (providerId: string) => {
+  const provider = settingsStore.getProviderById(providerId)
+  if (!provider) return null
+
+  const registry = createRegistry({
+    apiKey: provider.apiKey || '',
+    baseURL: provider.baseUrl,
+    name: provider.name
+  })
+  const providerInstance = registry.getProvider(provider.providerType)
+  if (!providerInstance || !providerInstance.imageCallOptionsSchema) return null
+
+  const fields = zodSchemasToFormfields(
+    providerInstance.imageCallOptionsSchema,
+    `providerOptions.${provider.id}`
+  )
+
+  if (fields.length === 0) return null
+
+  return {
+    name: `providerOptions.${provider.id}`,
+    type: 'group',
+    label: '模型参数',
+    collapsible: true,
+    defaultCollapsed: false,
+    children: fields
+  } as FormField<any>
+}
+
+const dynamicField = ref<FormField<any> | null>(null)
+
+const baseFields = [
+  {
+    name: 'prompt',
+    type: 'textarea',
+    label: '提示词',
+    placeholder: '描述你想要生成的图像...',
+    required: true,
+    rows: 4
+  },
+  {
+    name: 'model',
+    type: 'modelSelector',
+    label: '生成模型',
+    modelCategory: 'image',
+    required: true,
+    onChange: ({ providerId }) => {
+      dynamicField.value = getDynamicImageFields(providerId)
     }
-  ],
+  },
+  {
+    name: 'size',
+    type: 'select',
+    label: '图像尺寸',
+    options: [
+      { label: '1024x1024', value: '1024x1024' },
+      { label: '512x512', value: '512x512' },
+      { label: '256x256', value: '256x256' },
+      { label: '1024x1792', value: '1024x1792' },
+      { label: '1792x1024', value: '1792x1024' }
+    ],
+    defaultValue: '1024x1024'
+  },
+  {
+    name: 'n',
+    type: 'slider',
+    label: '生成数量',
+    min: 1,
+    max: 4,
+    step: 1,
+    defaultValue: 1
+  },
+  {
+    name: 'seed',
+    label: '随机种子',
+    placeholder: '留空则随机生成...',
+    type: 'number',
+    rest: () => (
+      <Button
+        variant="text"
+        size="sm"
+        onClick={() => {
+          const randomSeed = Math.floor(Math.random() * 1000000)
+          formActions.setFieldValue('seed', randomSeed)
+        }}
+      >
+        {Dices}
+      </Button>
+    )
+  }
+]
+
+const allFields = computed<FormField<any>[]>(() => {
+  const fields = [...baseFields] as FormField<any>[]
+  if (dynamicField.value) {
+    fields.push(dynamicField.value)
+  }
+  return fields
+})
+
+// 图像生成表单
+const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
+  model: { modelId: string, providerId: string },
+  prompt: string,
+  providerOptions?: Record<string, any>
+}>({
+  fields: allFields,
+  initialData: settingsStore.imageGenerationForm,
+  onChange: (_field, _value, data) => {
+    settingsStore.updateImageGenerationForm(data)
+  },
   onSubmit: async (data) => {
     const n = data.n || 1
-    // 添加占位图
     const batchId = Date.now()
     const currentPlaceholders = Array(n).fill(null).map((_, i) => ({
       loading: true,
@@ -74,7 +129,6 @@ const [ImageForm, formActions] = useForm({
     }))
     const placeholderIds = new Set(currentPlaceholders.map(p => p.id))
     generatedImages.value = [...currentPlaceholders, ...generatedImages.value]
-
     try {
       const provider = settingsStore.getProviderById(data.model.providerId)
       if (!provider) {
@@ -89,7 +143,8 @@ const [ImageForm, formActions] = useForm({
         providerType: provider.providerType,
         size: data.size,
         n: n,
-        seed: data.seed ? Number(data.seed) : undefined
+        seed: data.seed ? Number(data.seed) : undefined,
+        providerOptions: data.providerOptions?.[provider.id]
       })
 
       if (result.images) {
@@ -125,6 +180,12 @@ const [ImageForm, formActions] = useForm({
 
 // 初始设置默认模型：尝试寻找第一个可用的图像模型
 onMounted(() => {
+  // 如果已经有持久化的数据，优先加载
+  if (settingsStore.imageGenerationForm?.model?.providerId) {
+    dynamicField.value = getDynamicImageFields(settingsStore.imageGenerationForm.model.providerId)
+    return
+  }
+
   const providers = settingsStore.getAllProviders
   for (const provider of providers) {
     const imageModel = provider.models?.find(m => m.category === 'image')
@@ -133,6 +194,8 @@ onMounted(() => {
         modelId: imageModel.id,
         providerId: provider.id
       })
+      // 初始化动态字段
+      dynamicField.value = getDynamicImageFields(provider.id)
       break
     }
   }

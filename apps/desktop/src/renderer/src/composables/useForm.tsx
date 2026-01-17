@@ -71,11 +71,11 @@ export const FormItem = defineComponent({
                   )}
                 </div>
                 <div class="form-item-tool">
-                    {slots.tool?.()}
-                    {props.rest?.()}
-                  </div>
+                  {slots.tool?.()}
+                  {props.rest?.()}
                 </div>
-                <div class="form-item-content">{slots.default?.()}</div>
+              </div>
+              <div class="form-item-content">{slots.default?.()}</div>
             </>
           ) : (
             <>
@@ -177,6 +177,7 @@ export interface ModelSelectorField<T> extends BaseField<T> {
   popupPosition?: 'bottom' | 'top'
   modelCategory?: ModelCategory
   multiple?: boolean
+  onChange?: (value: { modelId: string; providerId: string }) => void
 }
 
 export interface ColorField<T> extends BaseField<T> {
@@ -212,6 +213,8 @@ export interface CustomField<T> extends BaseField<T> {
 export interface GroupField<T> extends BaseField<T> {
   type: 'group'
   children: FormField<T>[]
+  collapsible?: boolean
+  defaultCollapsed?: boolean
 }
 
 export interface ArrayGroupField<T> extends BaseField<T> {
@@ -282,6 +285,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   const formData = ref<T>({} as T)
 
   const dynamicFieldProps = ref<Record<string, Record<string, any>>>({})
+  const collapsedStates = ref<Record<string, boolean>>({})
 
   const getDefaultValue = (fieldType: string, field: any) => {
     switch (fieldType) {
@@ -509,7 +513,6 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   }
 
   const renderField = (field: FormField<T>, formSize?: 'sm' | 'md' | 'lg'): VNode | null => {
-
     const show =
       field.ifShow !== undefined
         ? typeof field.ifShow === 'function'
@@ -581,10 +584,38 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     }
 
     if (field.type === 'group') {
+      const g = field as GroupField<T>
+      if (g.collapsible && collapsedStates.value[field.name] === undefined) {
+        collapsedStates.value[field.name] = g.defaultCollapsed ?? false
+      }
+      const isCollapsed = collapsedStates.value[field.name]
+      const { ChevronDown, ChevronRight } = useIcon(['ChevronDown', 'ChevronRight'])
+      const ChevronIcon = (isCollapsed ? ChevronRight : ChevronDown) as any
+
       return (
-        <div class="form-group" key={field.name}>
-          {field.label && <div class="form-group-title">{field.label}</div>}
-          <div class="form-group-children">{field.children.map((child) => renderField(child, formSize))}</div>
+        <div class={['form-group', g.collapsible && 'collapsible']} key={field.name}>
+          {field.label && (
+            <div
+              class="form-group-title"
+              onClick={() => {
+                if (g.collapsible) {
+                  collapsedStates.value[field.name] = !isCollapsed
+                }
+              }}
+            >
+              {field.label}
+              {g.collapsible && (
+                <div class="collapse-icon">
+                  <ChevronIcon />
+                </div>
+              )}
+            </div>
+          )}
+          {!isCollapsed && (
+            <div class="form-group-children">
+              {field.children.map((child) => renderField(child, formSize))}
+            </div>
+          )}
         </div>
       )
     }
@@ -644,10 +675,12 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                   onUpdate:modelId={(v) => {
                     const current = getFieldValue(field.name) || { modelId: '', providerId: '' }
                     setFieldValue(field.name, { ...current, modelId: v })
+                    f.onChange?.({ ...current, modelId: v })
                   }}
                   onUpdate:providerId={(v) => {
                     const current = getFieldValue(field.name) || { modelId: '', providerId: '' }
                     setFieldValue(field.name, { ...current, providerId: v })
+                    f.onChange?.({ ...current, providerId: v })
                   }}
                 />
               )
@@ -821,6 +854,27 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         color: var(--text-primary);
         border-bottom: 1px solid var(--border-subtle);
         padding-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        user-select: none;
+      }
+
+      .form-group.collapsible .form-group-title {
+        cursor: pointer;
+        padding: 4px 0;
+        transition: color 0.2s;
+      }
+
+      .form-group.collapsible .form-group-title:hover {
+        color: var(--text-secondary);
+      }
+
+      .collapse-icon {
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        opacity: 0.5;
       }
 
       .form-group-children {

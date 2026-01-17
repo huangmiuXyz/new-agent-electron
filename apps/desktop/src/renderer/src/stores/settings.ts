@@ -315,6 +315,12 @@ export const useSettingsStore = defineStore(
       })
     }
 
+    const imageGenerationForm = ref<any>({})
+
+    const updateImageGenerationForm = (data: any) => {
+      imageGenerationForm.value = data
+    }
+
     return {
       display,
       terminal,
@@ -325,6 +331,8 @@ export const useSettingsStore = defineStore(
       defaultModels,
       thinkingMode,
       speechEnabled,
+      imageGenerationForm,
+      updateImageGenerationForm,
       updateThinkingMode,
       updateSpeechEnabled,
       updateDisplaySettings,
@@ -375,7 +383,8 @@ export const useSettingsStore = defineStore(
         'selectedModelId',
         'selectedProviderId',
         'currentSelectedProvider',
-        'currentSelectedModel'
+        'currentSelectedModel',
+        'imageGenerationForm'
       ],
       afterRestore: async () => {
         const { restorePlugins } = usePlugins()

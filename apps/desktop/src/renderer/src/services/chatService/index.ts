@@ -36,6 +36,14 @@ interface ChatServiceConfig {
   maxOutputTokens?: number
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
 }
+
+export interface ImageGenerateOptions {
+  n?: number
+  size?: `${number}x${number}`
+  aspectRatio?: `${number}:${number}`
+  seed?: number
+  providerOptions?: any
+}
 export const chatService = () => {
   const createAgent = async (
     cid: string,
@@ -213,13 +221,7 @@ export const chatService = () => {
       aspectRatio,
       seed,
       providerOptions
-    }: ChatServiceOptions & {
-      n?: number
-      size?: `${number}x${number}`
-      aspectRatio?: `${number}:${number}`
-      seed?: number
-      providerOptions?: any
-    }
+    }: ImageGenerateOptions & ChatServiceOptions
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
     try {
