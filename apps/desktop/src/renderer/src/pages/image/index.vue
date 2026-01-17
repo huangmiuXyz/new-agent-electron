@@ -158,14 +158,12 @@ const downloadImage = (item: string | { loading: boolean }) => {
       <template #content>
         <ImageForm>
           <template #footer>
-            <div class="form-footer">
-              <Button variant="primary" size="lg" block @click="formActions.submit()">
-                <template #icon>
-                  <Sparkles />
-                </template>
-                立即生成
-              </Button>
-            </div>
+            <Button variant="primary" block @click="formActions.submit()">
+              <template #icon>
+                <Sparkles />
+              </template>
+              立即生成
+            </Button>
           </template>
         </ImageForm>
       </template>
@@ -241,9 +239,11 @@ const downloadImage = (item: string | { loading: boolean }) => {
 .results-section :deep(.settings-header) {
   justify-content: space-between;
 }
-:deep(.setting-content){
+
+:deep(.setting-content) {
   flex: 1;
 }
+
 .results-content {
   padding: 24px;
   overflow-y: auto;
