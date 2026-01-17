@@ -36,7 +36,6 @@ withDefaults(defineProps<Props>(), {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  width: 100%;
 }
 
 /* === 基础样式 (结构) === */

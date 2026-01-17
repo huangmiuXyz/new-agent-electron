@@ -205,7 +205,11 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
   }
 })
 
-const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Box, Screen } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen'])
+const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Box, Screen, Copy } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy'])
+
+const copyPrompt = (prompt: string) => {
+  copyText(prompt)
+}
 
 const clearImages = () => {
   imgStore.clearBatches()
@@ -268,52 +272,58 @@ const downloadImage = (item: string | { loading: boolean }) => {
               <p>在下方输入提示词，开启你的创作之旅</p>
             </div>
             <div v-else class="batches-list">
-              <div v-for="batch in generatedBatches" :key="batch.id" class="generation-results">
-                <div class="prompt-display">
+              <Card v-for="batch in generatedBatches" :key="batch.id" padding="20px" radius="16px"
+                class="generation-results">
+                <div class="prompt-card">
                   <div class="prompt-header">
-                    <span class="prompt-text">{{ batch.prompt }}</span>
+                    <div class="prompt-content">
+                      <span class="prompt-label">提示词</span>
+                      <p class="prompt-text">{{ batch.prompt }}</p>
+                    </div>
                     <div class="prompt-actions">
-                      <Button variant="icon" size="sm" @click="reEdit(batch)">
+                      <Button variant="icon" size="sm" title="复制提示词" @click="copyPrompt(batch.prompt)">
+                        <Copy />
+                      </Button>
+                      <Button variant="icon" size="sm" title="重新编辑" @click="reEdit(batch)">
                         <Edit />
                       </Button>
-                      <Button variant="icon" size="sm" class="delete-btn" @click="deleteBatch(batch.id)">
+                      <Button variant="icon" size="sm" class="delete-btn" title="删除批次" @click="deleteBatch(batch.id)">
                         <Trash />
                       </Button>
                     </div>
                   </div>
                   <div class="prompt-meta">
-                    <span v-if="batch.modelName" class="meta-item">
-                      <Box /> {{ batch.modelName }}
-                    </span>
-                    <span v-if="batch.size" class="meta-item">
-                      <Screen /> {{ batch.size }}
-                    </span>
+                    <Tags v-if="batch.modelName" :tags="[batch.modelName]" color="blue" />
+                    <Tags v-if="batch.size" :tags="[batch.size]" color="green" />
                   </div>
                 </div>
 
                 <div class="image-grid">
                   <div v-for="(img, index) in batch.images" :key="index" class="image-item">
                     <template v-if="typeof img === 'object' && img.loading">
-                      <Image loading preview />
+                      <div class="image-loading">
+                        <div class="loading-spinner"></div>
+                        <span>生成中...</span>
+                      </div>
                     </template>
                     <template v-else>
                       <Image :src="(img as string)" preview
                         :images="(batch.images.filter(i => typeof i === 'string') as string[])"
                         :initial-index="batch.images.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1" />
-                      <div class="image-actions">
-                        <Button variant="icon" size="sm" @click="downloadImage(img)">
+                      <div class="image-overlay">
+                        <Button variant="icon" size="sm" class="download-overlay-btn" @click="downloadImage(img)">
                           <Download />
                         </Button>
                       </div>
                     </template>
                   </div>
                 </div>
-              </div>
+              </Card>
             </div>
           </div>
 
           <div class="floating-input-area">
-            <div class="input-box-wrapper" :class="{ disabled: !isModelSelected }">
+            <Card class="input-box-wrapper" :class="{ disabled: !isModelSelected }" radius="24px" padding="8px 16px">
               <div class="input-top">
                 <textarea v-model="rightInput" :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'"
                   :disabled="!isModelSelected" @keydown.enter.exact.prevent="handleRightInputSubmit"
@@ -325,7 +335,7 @@ const downloadImage = (item: string | { loading: boolean }) => {
                   </template>
                 </Button>
               </div>
-            </div>
+            </Card>
           </div>
         </div>
       </template>
@@ -370,48 +380,66 @@ const downloadImage = (item: string | { loading: boolean }) => {
   flex-direction: column;
   height: 100%;
   position: relative;
-  background: var(--bg-app);
+  background: var(--bg-secondary);
 }
 
 .results-content {
   flex: 1;
-  padding: 24px;
+  padding: 32px;
   overflow-y: auto;
   min-height: 0;
+  scroll-behavior: smooth;
 }
 
 .batches-list {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding-bottom: 24px;
+  gap: 32px;
+  padding-bottom: 32px;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
-.generation-results {
-  background: var(--bg-secondary);
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid var(--border-color);
-}
-
-.prompt-display {
-  margin-bottom: 16px;
-  background: var(--bg-tertiary);
-  padding: 12px;
-  border-radius: 8px;
+.prompt-card {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .prompt-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.prompt-content {
+  flex: 1;
+}
+
+.prompt-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.prompt-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  word-break: break-word;
+  margin: 0;
+  font-weight: 500;
 }
 
 .prompt-actions {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   opacity: 0;
   transition: opacity 0.2s;
 }
@@ -422,41 +450,34 @@ const downloadImage = (item: string | { loading: boolean }) => {
 
 .delete-btn:hover {
   color: var(--error-color, #ff4d4f) !important;
-}
-
-.prompt-text {
-  font-size: 14px;
-  color: var(--text-primary);
-  line-height: 1.5;
-  word-break: break-word;
+  background: rgba(255, 77, 79, 0.1) !important;
 }
 
 .prompt-meta {
   display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .image-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px;
-  margin-bottom: 16px;
 }
 
 .image-item {
   position: relative;
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.image-item:hover {
+  transform: scale(1.02);
+  z-index: 1;
 }
 
 .image-item :deep(.n-image) {
@@ -468,20 +489,68 @@ const downloadImage = (item: string | { loading: boolean }) => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: filter 0.3s;
 }
 
-.image-actions {
+.image-item:hover :deep(img) {
+  filter: brightness(0.9);
+}
+
+.image-overlay {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 60%, rgba(0, 0, 0, 0.4));
   display: flex;
-  gap: 8px;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 10px;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.3s;
+  pointer-events: none;
 }
 
-.image-item:hover .image-actions {
+.image-item:hover .image-overlay {
   opacity: 1;
+}
+
+.download-overlay-btn {
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(8px);
+  color: white !important;
+  border-radius: 8px !important;
+}
+
+.download-overlay-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.image-loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  background: var(--bg-secondary);
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .action-group {
@@ -499,12 +568,14 @@ const downloadImage = (item: string | { loading: boolean }) => {
 .input-box-wrapper {
   width: 100%;
   max-width: 800px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 24px;
-  padding: 8px 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-box-wrapper:focus-within {
+  border-color: var(--accent-color);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
 }
 
 .input-box-wrapper.disabled {
@@ -556,12 +627,29 @@ const downloadImage = (item: string | { loading: boolean }) => {
   justify-content: center;
   height: 100%;
   color: var(--text-tertiary);
-  gap: 16px;
+  gap: 20px;
+  padding: 40px;
+  text-align: center;
 }
 
 .empty-icon {
-  font-size: 48px;
-  opacity: 0.2;
+  font-size: 64px;
+  opacity: 0.15;
+  background: var(--bg-secondary);
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  font-size: 16px;
+  font-weight: 500;
+  max-width: 300px;
+  line-height: 1.6;
 }
 
 :deep(.form-container) {
