@@ -4,13 +4,14 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-    (e: 'switch', view: 'chat' | 'notes' | 'settings'): void
+    (e: 'switch', view: 'chat' | 'notes' | 'settings' | 'image'): void
 }>()
 
 const settingsStore = useSettingsStore()
 
 const ChatIcon = useIcon('Chat')
 const EditNoteFilled = useIcon('EditNoteFilled')
+const Image = useIcon('Image')
 const SettingsIcon = useIcon('Settings')
 const MoonIcon = useIcon('Moon')
 const SunIcon = useIcon('Sun')
@@ -33,6 +34,10 @@ const toggleDarkMode = () => {
             <div class="nav-item" :class="{ active: currentView === 'notes' }" @click="emit('switch', 'notes')"
                 title="笔记">
                 <EditNoteFilled class="nav-icon" />
+            </div>
+            <div class="nav-item" :class="{ active: currentView === 'image' }" @click="emit('switch', 'image')"
+                title="绘画">
+                <Image class="nav-icon" />
             </div>
         </div>
 

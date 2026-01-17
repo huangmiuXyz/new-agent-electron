@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ChatPage from './pages/chat/index.vue'
 import NotesPage from './pages/notes/index.vue'
+import ImagePage from './pages/image/index.vue'
 import SettingsPage from './pages/settings/index.vue'
 import AppFooter from './components/AppFooter.vue'
 import { useSettingsStore } from './stores/settings'
@@ -19,7 +20,7 @@ watchEffect(() => {
   }
 })
 
-const switchView = (view: 'chat' | 'notes' | 'settings') => {
+const switchView = (view: 'chat' | 'notes' | 'settings' | 'image') => {
   currentView.value = view
 }
 
@@ -160,6 +161,7 @@ const handleTouchEnd = (e: TouchEvent) => {
       <main class="app-content">
         <ChatPage v-show="currentView === 'chat'" />
         <NotesPage v-show="currentView === 'notes'" />
+        <ImagePage v-show="currentView === 'image'" />
         <SettingsPage v-show="currentView === 'settings'" />
       </main>
     </div>

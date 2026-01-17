@@ -203,7 +203,8 @@ const icons = {
   VolumeMute,
   UploadOutlined,
   Speaker224Regular,
-  Pause
+  Pause,
+  Image
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
