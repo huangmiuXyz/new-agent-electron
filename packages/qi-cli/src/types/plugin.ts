@@ -1,1 +1,1 @@
-export * from '@agent-qi/types/plugin'
+export * from '@agent-qi/types'

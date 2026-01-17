@@ -1,10 +1,6 @@
 import { Plugin } from './types';
 import { createGenie } from './genie-provider';
 
-/**
- * Genie TTS Plugin
- * 参考 minimax-plugin 的实现方式，并使用 registerProvider 的 form 参数
- */
 const plugin: Plugin = {
   name: 'genie-tts',
   version: '1.0.0',
@@ -60,25 +56,19 @@ const plugin: Plugin = {
         const checkStatus = async (url?: string) => {
           try {
             const baseUrlClean = (url || 'http://127.0.0.1:8000').replace(/\/$/, '');
-            const res = await fetch(`${baseUrlClean}/load_character`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ character_name: 'test', check_only: true })
-            });
-            isRunning.value = res.status !== 404 || res.ok;
+            await fetch(`${baseUrlClean}/`);
+            isRunning.value = true;
           } catch (e) {
             isRunning.value = false;
           }
         };
 
-        // 初始化：从 localforage 加载已有配置
         context.vue.onMounted(async () => {
           const savedConfig = await context.localforage.getItem('genie_config');
           if (savedConfig) {
             formActions.setData(savedConfig);
             checkStatus((savedConfig as any).baseUrl);
           } else {
-            // 如果没有保存过配置，直接检查 useForm 定义的默认地址
             checkStatus('http://127.0.0.1:8000');
           }
         });
@@ -106,7 +96,6 @@ const plugin: Plugin = {
       ]
     });
 
-    // 初始化默认配置到 localforage（如果不存在）
     context.localforage.getItem('genie_config').then(async (config) => {
       if (!config) {
         await context.localforage.setItem('genie_config', {
@@ -123,7 +112,6 @@ const plugin: Plugin = {
       const config = await context.localforage.getItem<any>('genie_config');
       const autoStartGenie = config?.autoStartGenie ?? true;
       const baseURL = config?.baseUrl || 'http://127.0.0.1:8000';
-
       if (autoStartGenie) {
         // 如果当前没有检查任务，则创建一个
         if (!checkLock) {
@@ -131,17 +119,12 @@ const plugin: Plugin = {
             const isGenieRunning = async () => {
               try {
                 const baseUrlClean = baseURL.replace(/\/$/, '');
-                const res = await fetch(`${baseUrlClean}/load_character`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ character_name: 'test', check_only: true })
-                });
-                return res.status !== 404 || res.ok;
+                await fetch(`${baseUrlClean}/`);
+                return true;
               } catch (e) {
                 return false;
               }
             };
-
             if (!(await isGenieRunning())) {
               context.notification.info('正在尝试启动 Genie TTS 服务...', 'Genie TTS');
               if (context.useTerminal) {
@@ -149,7 +132,69 @@ const plugin: Plugin = {
                   ? context.basePath.replace(/\/src$/, '/Genie-TTS')
                   : `${context.basePath}/Genie-TTS`;
                 const installCmd = `python3 -m pip install -r requirements.txt --quiet`;
-                const startCmd = `export GENIE_DATA_DIR="${geniePath}/GenieData" && python3 -c "import sys, os; sys.path.append(os.path.join('${geniePath}', 'src')); import genie_tts; genie_tts.start_server()"`;
+                const pythonCode = `
+import sys, os, base64
+sys.path.append(os.path.join('${geniePath}', 'src'))
+from genie_tts import Server, Internal
+from pydantic import BaseModel
+from fastapi.routing import APIRoute
+
+# Remove old route
+for r in Server.app.routes[:]:
+    if isinstance(r, APIRoute) and r.path == '/load_character':
+        Server.app.routes.remove(r)
+
+class LoadPredefinedPayload(BaseModel):
+    character_name: str
+
+def load_predefined_endpoint(payload: LoadPredefinedPayload):
+    try:
+        name = payload.character_name.lower().strip()
+        save_path = Internal.download_chara(name)
+        real_name = Internal.CHARA_ALIAS_MAP.get(name, name)
+
+        model_dir = os.path.join(save_path, 'tts_models')
+        if not os.path.exists(os.path.join(model_dir, 'vits_fp32.bin')):
+            if os.path.exists(os.path.join(save_path, 'vits_fp32.bin')):
+                model_dir = save_path
+
+        Internal.model_manager.load_character(
+            character_name=payload.character_name,
+            model_dir=model_dir,
+            language=Internal.CHARA_LANG[real_name],
+        )
+
+        import json
+        with open(os.path.join(save_path, "prompt_wav.json"), "r", encoding="utf-8") as f:
+            prompt_wav_dict = json.load(f)
+
+        audio_text = prompt_wav_dict["Normal"]["text"]
+        audio_path = os.path.join(save_path, "prompt_wav", prompt_wav_dict["Normal"]["wav"])
+
+        ref_data = {
+            'audio_path': audio_path,
+            'audio_text': audio_text,
+            'language': Internal.CHARA_LANG[real_name],
+        }
+        Server._reference_audios[payload.character_name] = ref_data
+
+        from genie_tts.Audio.ReferenceAudio import ReferenceAudio
+        Internal.context.current_prompt_audio = ReferenceAudio(
+            prompt_wav=audio_path,
+            prompt_text=audio_text,
+            language=Internal.CHARA_LANG[real_name],
+        )
+
+        return {'status': 'success', 'message': f'Character {payload.character_name} loaded.'}
+    except Exception as e:
+        import traceback
+        return {'status': 'error', 'message': f"{str(e)}\\n{traceback.format_exc()}"}
+
+Server.app.add_api_route('/load_character', load_predefined_endpoint, methods=['POST'])
+Server.start_server()
+`;
+                const encodedCode = btoa(unescape(encodeURIComponent(pythonCode)));
+                const startCmd = `export GENIE_DATA_DIR="${geniePath}/GenieData" && python3 -c "import base64; exec(base64.b64decode('${encodedCode}').decode('utf-8'))"`;
 
                 const terminal = context.useTerminal();
 
