@@ -1,0 +1,3 @@
+[submodule "packages/qi-cli/example/genie-tts/Genie-TTS"]
+	path = packages/qi-cli/example/genie-tts/Genie-TTS
+	url = https://github.com/High-Logic/Genie-TTS.git
