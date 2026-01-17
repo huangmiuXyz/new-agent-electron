@@ -199,7 +199,6 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
       }
     } catch (error: any) {
       console.error('图像生成失败:', error)
-      // 移除失败的批次或更新状态
       generatedBatches.value = generatedBatches.value.filter(b => b.id !== batchId)
     }
   }
