@@ -9,7 +9,7 @@ export interface GenieConfig {
   headers: () => Record<string, string>;
   fetch?: typeof fetch;
 }
-
+let loadingPromises: Map<string, Promise<void>> = new Map();
 export class GenieSpeechModel implements SpeechModelV3 {
   readonly specificationVersion = 'v3';
 
@@ -22,16 +22,14 @@ export class GenieSpeechModel implements SpeechModelV3 {
     private readonly config: GenieConfig,
   ) { }
 
-  private loadingPromises: Map<string, Promise<void>> = new Map();
-
   async doGenerate(
     options: Parameters<SpeechModelV3['doGenerate']>[0],
   ): Promise<Awaited<ReturnType<SpeechModelV3['doGenerate']>>> {
     const { text, voice, providerOptions } = options;
     const characterName = voice || this.modelId;
 
-    if (this.loadingPromises.has(characterName)) {
-      await this.loadingPromises.get(characterName);
+    if (loadingPromises.has(characterName)) {
+      await loadingPromises.get(characterName);
     } else {
       const loadPromise = (async () => {
         const loadResponse = await (this.config.fetch || fetch)(`${this.config.baseURL}/load_character`, {
@@ -51,19 +49,18 @@ export class GenieSpeechModel implements SpeechModelV3 {
         }
       })();
 
-      this.loadingPromises.set(characterName, loadPromise);
+      loadingPromises.set(characterName, loadPromise);
       try {
         await loadPromise;
       } finally {
-        setTimeout(() => this.loadingPromises.delete(characterName), 5000);
+        setTimeout(() => loadingPromises.delete(characterName), 5000);
       }
     }
 
     const requestBody = {
       character_name: characterName,
       text,
-      split_sentence: providerOptions?.split_sentence ?? true,
-      ...providerOptions,
+      split_sentence: providerOptions?.split_sentence ?? true
     };
 
     const url = `${this.config.baseURL}/tts`;
