@@ -198,7 +198,7 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
   }
 })
 
-const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Cpu, Screen } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Cpu', 'Screen'])
+const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Box, Screen } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen'])
 
 const clearImages = () => {
   imgStore.clearBatches()
@@ -268,7 +268,7 @@ const downloadImage = (item: string | { loading: boolean }) => {
                   </div>
                   <div class="prompt-meta">
                     <span v-if="batch.modelName" class="meta-item">
-                      <Cpu /> {{ batch.modelName }}
+                      <Box /> {{ batch.modelName }}
                     </span>
                     <span v-if="batch.size" class="meta-item">
                       <Screen /> {{ batch.size }}
