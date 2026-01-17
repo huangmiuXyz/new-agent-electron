@@ -475,10 +475,6 @@ const downloadImage = (item: string | { loading: boolean }) => {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.image-item:hover {
-  transform: scale(1.02);
-  z-index: 1;
-}
 
 .image-item :deep(.n-image) {
   width: 100%;
@@ -492,9 +488,6 @@ const downloadImage = (item: string | { loading: boolean }) => {
   transition: filter 0.3s;
 }
 
-.image-item:hover :deep(img) {
-  filter: brightness(0.9);
-}
 
 .image-overlay {
   position: absolute;
@@ -509,9 +502,6 @@ const downloadImage = (item: string | { loading: boolean }) => {
   pointer-events: none;
 }
 
-.image-item:hover .image-overlay {
-  opacity: 1;
-}
 
 .download-overlay-btn {
   pointer-events: auto;
@@ -521,9 +511,6 @@ const downloadImage = (item: string | { loading: boolean }) => {
   border-radius: 8px !important;
 }
 
-.download-overlay-btn:hover {
-  background: rgba(255, 255, 255, 0.3) !important;
-}
 
 .image-loading {
   width: 100%;
