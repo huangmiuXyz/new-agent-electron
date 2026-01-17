@@ -75,7 +75,7 @@ catalog:
   "@types/inquirer": ^9.0.7
 
   # Utilities & Others
-  dayjs: ^11.11.19
+  dayjs: ^1.11.19
   jszip: ^3.10.1
   "@types/jszip": ^3.4.1
   nanoid: ^5.1.6
@@ -129,4 +129,5 @@ catalog:
   "@incremark/core": ^0.2.4
   "@incremark/theme": ^0.2.4
   "@incremark/vue": ^0.2.4
+  "formango": "3.2.0-beta.4"
   turbo: latest
