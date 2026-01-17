@@ -24,13 +24,13 @@ const getDynamicImageFields = (providerId: string) => {
 
   const fields = zodSchemasToFormfields(
     providerInstance.imageCallOptionsSchema,
-    `providerOptions.${provider.id}`
+    `providerOptions.${provider.providerType}`
   )
 
   if (fields.length === 0) return null
 
   return {
-    name: `providerOptions.${provider.id}`,
+    name: `providerOptions.${provider.providerType}`,
     type: 'group',
     label: '更多设置',
     collapsible: true,
