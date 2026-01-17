@@ -76,7 +76,11 @@ declare global {
     useForm: any;
     useTable: any;
     useDownload: any;
-    useIcon: any
+    useIcon: any;
+    useTerminal: () => {
+      show: () => void;
+      createTab: (options: any) => Promise<any>;
+    };
     components: Record<string, any>;
     vue: any;
     getPluginsDataPath: () => string;

@@ -59,9 +59,12 @@ declare global {
     id: string
     name: string
     providerId: string
+    providerType: string
     pluginName: string
     form?: any
     models?: Model[]
+    baseUrl?: string
+    apiKey?: string
   }
 
   // 设置状态接口

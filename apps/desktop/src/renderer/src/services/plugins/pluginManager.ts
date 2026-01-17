@@ -2,6 +2,7 @@ import { useForm } from '@renderer/composables/useForm';
 import { useTable } from '@renderer/composables/useTable';
 import { useDownload } from '@renderer/composables/useDownload';
 import { useIcon } from '@renderer/composables/useIcon';
+import { useTerminal } from '@renderer/composables/useTerminal';
 import { registerProviderFactory, ProviderFactory } from '../chatService/registry';
 import localforage from 'localforage'
 /**
@@ -196,6 +197,13 @@ export class PluginManager {
       useTable,
       useDownload,
       useIcon,
+      useTerminal: () => {
+        const terminal = useTerminal();
+        return {
+          show: () => terminal.showTerminal(),
+          createTab: (options: any) => terminal.createTab(options)
+        };
+      },
       components,
       registerCommand: (name: string, handler: Function) => {
         this.registerCommand(pluginName, name, handler);
@@ -260,7 +268,7 @@ export class PluginManager {
       },
       registerProvider: (
         providerId: string,
-        options?: { name?: string; form?: any; models?: Model[] }
+        options?: { name?: string; providerType?: string; form?: any; models?: Model[] }
       ) => {
         const settingsStore = useSettingsStore(this.pinia);
 
@@ -275,6 +283,7 @@ export class PluginManager {
             id: providerId,
             name: options?.name || `${pluginName}`,
             providerId,
+            providerType: options?.providerType || providerId,
             pluginName,
             form,
             models: options?.models
@@ -287,6 +296,7 @@ export class PluginManager {
             const updatedProviders = [...settingsStore.registeredProviders];
             updatedProviders[index] = {
               ...exists,
+              providerType: options?.providerType || exists.providerType,
               form: form || exists.form,
               models: options?.models || exists.models,
               name: options?.name || exists.name

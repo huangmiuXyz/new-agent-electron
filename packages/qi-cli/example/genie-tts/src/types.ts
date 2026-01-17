@@ -60,13 +60,25 @@ export interface PluginContext {
   /** 注册提供商到当前插件 */
   registerProvider: (
     providerId: string,
-    options?: { name?: string; form?: any; models?: Model[] }
+    options?: { name?: string; providerType?: string; form?: any; models?: any[] }
   ) => void;
   /** 注销提供商 */
   unregisterProvider: (providerId: string) => void;
   /** 获取当前插件已注册的提供商 */
   getRegisteredProviders: () => any[];
-  useForm: any
+  useForm: any;
+  /** 使用终端 */
+  useTerminal: () => {
+    show: () => void;
+    createTab: (options: any) => Promise<any>;
+  };
+  /** 本地存储实例 */
+  localforage: {
+    getItem: <T>(key: string) => Promise<T | null>;
+    setItem: <T>(key: string, value: T) => Promise<T>;
+    removeItem: (key: string) => Promise<void>;
+    clear: () => Promise<void>;
+  };
 }
 
 export interface ModelVoice {

@@ -11,6 +11,8 @@ const plugin: Plugin = {
   description: 'Genie TTS 语音合成插件',
 
   async install(context) {
+    let checkLock: Promise<void> | null = null;
+
     context.registerRegistry('genie', (options: any) => {
       return createGenie(options);
     });
@@ -50,11 +52,7 @@ const plugin: Plugin = {
             }
           ],
           onChange: async (_field: string, _value: any, data: any) => {
-            const settingsStore = await context.getStore('settings');
-            const providerId = settingsStore.activeProviderId;
-            if (providerId) {
-              settingsStore.updateProvider(providerId, data);
-            }
+            await context.localforage.setItem('genie_config', data);
             checkStatus(data.baseUrl);
           }
         });
@@ -73,12 +71,15 @@ const plugin: Plugin = {
           }
         };
 
-        // 初始化
-        context.getStore('settings').then(settingsStore => {
-          const provider = settingsStore.providers.find((p: any) => p.id === settingsStore.activeProviderId);
-          if (provider) {
-            formActions.setData(provider);
-            checkStatus(provider.baseUrl);
+        // 初始化：从 localforage 加载已有配置
+        context.vue.onMounted(async () => {
+          const savedConfig = await context.localforage.getItem('genie_config');
+          if (savedConfig) {
+            formActions.setData(savedConfig);
+            checkStatus((savedConfig as any).baseUrl);
+          } else {
+            // 如果没有保存过配置，直接检查 useForm 定义的默认地址
+            checkStatus('http://127.0.0.1:8000');
           }
         });
 
@@ -88,6 +89,7 @@ const plugin: Plugin = {
 
     context.registerProvider('genie', {
       name: 'Genie TTS',
+      providerType: 'genie',
       form: ConfigForm,
       models: [
         {
@@ -104,58 +106,86 @@ const plugin: Plugin = {
       ]
     });
 
-    context.registerHook('ai:before-use', async (params: any) => {
-      const { providerType, baseURL } = params;
-      if (providerType !== 'genie') return;
+    // 初始化默认配置到 localforage（如果不存在）
+    context.localforage.getItem('genie_config').then(async (config) => {
+      if (!config) {
+        await context.localforage.setItem('genie_config', {
+          baseUrl: 'http://127.0.0.1:8000',
+          autoStartGenie: true
+        });
+      }
+    });
 
-      const settingsStore = await context.getStore('settings');
-      const provider = settingsStore.providers.find((p: any) =>
-        p.providerType === 'genie' && p.baseUrl === baseURL
-      );
+    context.registerHook('ai:before-tts-use', async (params: any) => {
+      const { providerId } = params;
+      if (providerId !== 'genie') return;
 
-      if (provider && provider.autoStartGenie) {
-        const isGenieRunning = async () => {
-          try {
-            const baseUrlClean = (baseURL || '').replace(/\/$/, '');
-            if (!baseUrlClean) return false;
-            const res = await fetch(`${baseUrlClean}/load_character`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ character_name: 'test', check_only: true })
-            });
-            return res.status !== 404 || res.ok;
-          } catch (e) {
-            return false;
-          }
-        };
+      const config = await context.localforage.getItem<any>('genie_config');
+      const autoStartGenie = config?.autoStartGenie ?? true;
+      const baseURL = config?.baseUrl || 'http://127.0.0.1:8000';
 
-        if (!(await isGenieRunning())) {
-          context.notification.info('正在尝试启动 Genie TTS 服务...', 'Genie TTS');
-
-          if (context.api && context.api.spawn) {
-            context.api.spawn('python', ['-c', 'import genie_tts; genie_tts.start_server(host="127.0.0.1", port=8000)'], {
-              detached: true,
-              stdio: 'ignore'
-            });
-
-            let retry = 0;
-            let started = false;
-            while (retry < 5) {
-              await new Promise((resolve) => setTimeout(resolve, 3000));
-              if (await isGenieRunning()) {
-                started = true;
-                break;
+      if (autoStartGenie) {
+        // 如果当前没有检查任务，则创建一个
+        if (!checkLock) {
+          checkLock = (async () => {
+            const isGenieRunning = async () => {
+              try {
+                const baseUrlClean = baseURL.replace(/\/$/, '');
+                const res = await fetch(`${baseUrlClean}/load_character`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ character_name: 'test', check_only: true })
+                });
+                return res.status !== 404 || res.ok;
+              } catch (e) {
+                return false;
               }
-              retry++;
-            }
+            };
 
-            if (started) {
-              context.notification.success('Genie TTS 服务已成功启动', 'Genie TTS');
-            } else {
-              context.notification.error('Genie TTS 启动超时，请确保已安装 genie-tts 并在终端手动运行', 'Genie TTS');
+            if (!(await isGenieRunning())) {
+              context.notification.info('正在尝试启动 Genie TTS 服务...', 'Genie TTS');
+              if (context.useTerminal) {
+                let geniePath = context.basePath.endsWith('src')
+                  ? context.basePath.replace(/\/src$/, '/Genie-TTS')
+                  : `${context.basePath}/Genie-TTS`;
+
+                const cmd = `import sys, os; sys.path.append(os.path.join('${geniePath}', 'src')); import genie_tts; genie_tts.start_server()`;
+
+                const terminal = context.useTerminal();
+
+                // 异步执行启动命令
+                terminal.createTab({
+                  id: 'genie-tts-server',
+                  command: `python3 -c "${cmd.replace(/"/g, '\\"')}"`,
+                  showTerminal: true,
+                });
+
+                let retry = 0;
+                let started = false;
+                while (retry < 5) {
+                  await new Promise((resolve) => setTimeout(resolve, 3000));
+                  if (await isGenieRunning()) {
+                    started = true;
+                    break;
+                  }
+                  retry++;
+                }
+
+                if (started) {
+                  context.notification.success('Genie TTS 服务已成功启动', 'Genie TTS');
+                } else {
+                  context.notification.error('Genie TTS 启动超时，请确保已安装 genie-tts 并在终端手动运行', 'Genie TTS');
+                  // 启动失败，清除 lock 允许下次尝试
+                  checkLock = null;
+                  throw new Error('Genie TTS startup failed');
+                }
+              }
             }
-          }
+          })();
         }
+
+        // 所有请求都会 await 这个同一个 Promise
+        await checkLock;
       }
     });
   },

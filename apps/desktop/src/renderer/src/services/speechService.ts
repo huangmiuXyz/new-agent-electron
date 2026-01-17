@@ -65,7 +65,8 @@ export const speechService = () => {
             .map(([k, v]) => [k, cleanObject(v)])
         )
       }
-
+      const { triggerHook } = usePlugins()
+      await triggerHook('ai:before-tts-use', params)
       const { audio } = await generateSpeech({
         model: registry.speechModel(modelString as any),
         text,
