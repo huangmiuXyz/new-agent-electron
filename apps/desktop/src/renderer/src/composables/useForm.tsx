@@ -70,9 +70,12 @@ export const FormItem = defineComponent({
                     </div>
                   )}
                 </div>
-                <div class="form-item-tool">{slots.tool?.()}</div>
-              </div>
-              <div class="form-item-content">{slots.default?.()}</div>
+                <div class="form-item-tool">
+                    {slots.tool?.()}
+                    {props.rest?.()}
+                  </div>
+                </div>
+                <div class="form-item-content">{slots.default?.()}</div>
             </>
           ) : (
             <>
@@ -82,7 +85,10 @@ export const FormItem = defineComponent({
                     {slots.label?.() ? slots.label?.() : props.label}
                     {props.required && <span class="form-item-required">*</span>}
                   </div>
-                  <div class="form-item-tool">{slots.tool?.()}</div>
+                  <div class="form-item-tool">
+                    {slots.tool?.()}
+                    {props.rest?.()}
+                  </div>
                 </div>
               )}
               <div class="form-item-content">{slots.default?.()}</div>
@@ -112,13 +118,13 @@ interface BaseField<T> {
   size?: 'sm' | 'md' | 'lg'
   ifShow?: boolean | ((data: T) => boolean)
   defaultValue?: T[keyof T]
+  rest?: () => VNode
 }
 
 export interface TextField<T> extends BaseField<T> {
   type?: 'text' | 'password' | 'email' | 'number'
   placeholder?: string
   readonly?: boolean
-  rest?: () => VNode
 }
 
 export interface BooleanField<T> extends BaseField<T> {
@@ -602,6 +608,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         required={field.required}
         size={field.size || formSize || config.size}
         layout={field.type === 'boolean' ? 'toggle' : 'default'}
+        rest={field.rest}
       >
         {(() => {
           switch (field.type) {
