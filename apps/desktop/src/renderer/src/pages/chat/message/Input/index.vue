@@ -120,7 +120,7 @@ const toggleSpeech = () => {
   const newState = !speechEnabled.value
 
   if (newState) {
-    if (!defaultModels.value.speechModelId) {
+    if (!defaultModels.value.ttsModelId) {
       messageApi.error('请先在设置中选择默认文字转语音模型')
       return
     }
