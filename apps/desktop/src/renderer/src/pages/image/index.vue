@@ -153,7 +153,7 @@ const downloadImage = (item: string | { loading: boolean }) => {
 </script>
 
 <template>
-  <FormContainer header-title="图像生成">
+  <FormContainer header-title="图像生成" no-padding>
     <template #header>
       <div class="header-content">
         <span>图像生成</span>
@@ -230,13 +230,18 @@ const downloadImage = (item: string | { loading: boolean }) => {
 .image-page-container {
   display: grid;
   grid-template-columns: 350px 1fr;
-  gap: 24px;
   height: 100%;
 }
 
 .form-section {
   border-right: 1px solid var(--border-subtle);
-  padding-right: 24px;
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.results-section {
+  padding: 24px;
   height: 100%;
   overflow-y: auto;
 }

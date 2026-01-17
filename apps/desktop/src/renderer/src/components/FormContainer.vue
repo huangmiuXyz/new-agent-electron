@@ -2,11 +2,13 @@
 interface Props {
   showHeader?: boolean
   headerTitle?: string
+  noPadding?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
   showHeader: true,
-  headerTitle: ''
+  headerTitle: '',
+  noPadding: false
 })
 </script>
 
@@ -20,7 +22,7 @@ withDefaults(defineProps<Props>(), {
     </header>
 
     <!-- 内容插槽 -->
-    <div class="setting-content">
+    <div class="setting-content" :class="{ 'no-padding': noPadding }">
       <slot name="content"></slot>
     </div>
   </div>
@@ -48,5 +50,9 @@ withDefaults(defineProps<Props>(), {
   flex: 1;
   overflow-y: auto;
   padding: 20px 20px;
+}
+
+.setting-content.no-padding {
+  padding: 0;
 }
 </style>
