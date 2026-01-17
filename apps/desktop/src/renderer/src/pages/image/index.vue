@@ -153,37 +153,37 @@ const downloadImage = (item: string | { loading: boolean }) => {
 </script>
 
 <template>
-  <FormContainer header-title="图像生成" no-padding>
-    <template #header>
-      <div class="header-content">
-        <span>图像生成</span>
+  <div class="image-page-container">
+    <FormContainer :show-header="false" class="form-section">
+      <template #content>
+        <ImageForm>
+          <template #footer>
+            <div class="form-footer">
+              <Button variant="primary" size="lg" block @click="formActions.submit()">
+                <template #icon>
+                  <Sparkles />
+                </template>
+                立即生成
+              </Button>
+            </div>
+          </template>
+        </ImageForm>
+      </template>
+    </FormContainer>
+
+    <FormContainer class="results-section" no-padding>
+      <template #header>
+        <span>生成结果</span>
         <div class="header-actions">
           <Button v-if="generatedImages.length > 0" variant="text" size="sm" @click="clearImages">
             <Trash />
             清空结果
           </Button>
         </div>
-      </div>
-    </template>
+      </template>
 
-    <template #content>
-      <div class="image-page-container">
-        <div class="form-section">
-          <ImageForm>
-            <template #footer>
-              <div class="form-footer">
-                <Button variant="primary" size="lg" block @click="formActions.submit()">
-                  <template #icon>
-                    <Sparkles />
-                  </template>
-                  立即生成
-                </Button>
-              </div>
-            </template>
-          </ImageForm>
-        </div>
-
-        <div class="results-section">
+      <template #content>
+        <div class="results-content">
           <div v-if="generatedImages.length === 0" class="empty-state">
             <div class="empty-icon">
               <Sparkles />
@@ -209,52 +209,49 @@ const downloadImage = (item: string | { loading: boolean }) => {
             </div>
           </div>
         </div>
-      </div>
-    </template>
-  </FormContainer>
+      </template>
+    </FormContainer>
+  </div>
 </template>
 
 <style scoped>
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
 .header-actions {
   display: flex;
   gap: 8px;
 }
 
 .image-page-container {
-  display: grid;
-  grid-template-columns: 350px 1fr;
+  display: flex;
   height: 100%;
+  width: 100%;
 }
 
 .form-section {
+  width: 350px;
+  flex-shrink: 0;
   border-right: 1px solid var(--border-subtle);
-  padding: 24px;
   height: 100%;
-  overflow-y: auto;
-}
-
-.results-section {
-  padding: 24px;
-  height: 100%;
-  overflow-y: auto;
-}
-
-.form-footer {
-  margin-top: 24px;
 }
 
 .results-section {
   flex: 1;
-  height: 100%;
+  min-width: 0;
+}
+
+.results-section :deep(.settings-header) {
+  justify-content: space-between;
+}
+:deep(.setting-content){
+  flex: 1;
+}
+.results-content {
+  padding: 24px;
   overflow-y: auto;
-  min-height: 400px;
+  height: 100%;
+}
+
+.form-footer {
+  margin-top: 24px;
 }
 
 .empty-state {
@@ -273,8 +270,8 @@ const downloadImage = (item: string | { loading: boolean }) => {
 }
 
 .image-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   padding-bottom: 24px;
 }
@@ -282,6 +279,9 @@ const downloadImage = (item: string | { loading: boolean }) => {
 .image-item {
   position: relative;
   aspect-ratio: 1;
+  width: calc(33.333% - 11px);
+  min-width: 200px;
+  flex-grow: 1;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border-subtle);
@@ -325,14 +325,16 @@ const downloadImage = (item: string | { loading: boolean }) => {
 
 @media (max-width: 900px) {
   .image-page-container {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    width: 100%;
   }
 
   .form-section {
+    width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--border-subtle);
-    padding-right: 0;
     padding-bottom: 24px;
+    height: auto;
   }
 }
 </style>
