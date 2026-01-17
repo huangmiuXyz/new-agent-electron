@@ -153,7 +153,6 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
     }
 
     generatedBatches.value.push(newBatch)
-    scrollToBottom()
 
     try {
       const provider = settingsStore.getProviderById(data.model.providerId)
@@ -221,6 +220,7 @@ const handleRightInputSubmit = () => {
   formActions.submit()
   nextTick(() => {
     rightInput.value = ''
+    scrollToBottom()
   })
 }
 
@@ -312,7 +312,8 @@ const downloadImage = (item: string | { loading: boolean }) => {
             <div class="input-box-wrapper" :class="{ disabled: !isModelSelected }">
               <div class="input-top">
                 <textarea v-model="rightInput" :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'"
-                  :disabled="!isModelSelected" @keydown.enter.exact.prevent="handleRightInputSubmit" rows="1"></textarea>
+                  :disabled="!isModelSelected" @keydown.enter.exact.prevent="handleRightInputSubmit"
+                  rows="1"></textarea>
                 <Button variant="primary" size="sm" class="send-btn" :disabled="!isModelSelected || !rightInput.trim()"
                   @click="handleRightInputSubmit">
                   <template #icon>
