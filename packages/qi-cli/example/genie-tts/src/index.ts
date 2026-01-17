@@ -149,20 +149,20 @@ const plugin: Plugin = {
                   ? context.basePath.replace(/\/src$/, '/Genie-TTS')
                   : `${context.basePath}/Genie-TTS`;
 
-                const cmd = `import sys, os; sys.path.append(os.path.join('${geniePath}', 'src')); import genie_tts; genie_tts.start_server()`;
+                const installCmd = `python3 -m pip install -r "${geniePath}/requirements.txt"`;
+                const startCmd = `python3 -c "import sys, os; sys.path.append(os.path.join('${geniePath}', 'src')); import genie_tts; genie_tts.start_server()"`;
 
                 const terminal = context.useTerminal();
 
-                // 异步执行启动命令
                 terminal.createTab({
                   id: 'genie-tts-server',
-                  command: `python3 -c "${cmd.replace(/"/g, '\\"')}"`,
+                  command: `${installCmd} && ${startCmd}`,
                   showTerminal: true,
                 });
 
                 let retry = 0;
                 let started = false;
-                while (retry < 5) {
+                while (retry < 9999) {
                   await new Promise((resolve) => setTimeout(resolve, 3000));
                   if (await isGenieRunning()) {
                     started = true;

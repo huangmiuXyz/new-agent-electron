@@ -17,7 +17,7 @@ const {
 
 onMounted(async () => {
   await new Promise((resolve) => setTimeout(resolve, 500))
-  createTab()
+  // createTab()
   window.addEventListener('resize', handleWindowResize)
 
   await nextTick()
