@@ -66,7 +66,6 @@ declare global {
   type Tools = Awaited<ReturnType<MCPClient['tools']>>
 
   type BaseMessage = UIMessage<MetaData, UIMessageChunk>
-  type Tools = (config: ClientConfig, cache?: boolean) => Promise<Tools>
   type Tool = Tools[keyof Tools]
   type ContentBlock = UIMessagePart
   type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank' | 'speech' | 'tts'
