@@ -148,15 +148,14 @@ const plugin: Plugin = {
                 let geniePath = context.basePath.endsWith('src')
                   ? context.basePath.replace(/\/src$/, '/Genie-TTS')
                   : `${context.basePath}/Genie-TTS`;
-
-                const installCmd = `python3 -m pip install -r "${geniePath}/requirements.txt"`;
-                const startCmd = `python3 -c "import sys, os; sys.path.append(os.path.join('${geniePath}', 'src')); import genie_tts; genie_tts.start_server()"`;
+                const installCmd = `python3 -m pip install -r requirements.txt --quiet`;
+                const startCmd = `export GENIE_DATA_DIR="${geniePath}/GenieData" && python3 -c "import sys, os; sys.path.append(os.path.join('${geniePath}', 'src')); import genie_tts; genie_tts.start_server()"`;
 
                 const terminal = context.useTerminal();
 
                 terminal.createTab({
                   id: 'genie-tts-server',
-                  command: `${installCmd} && ${startCmd}`,
+                  command: `cd "${geniePath}" && ${installCmd} && ${startCmd}`,
                   showTerminal: true,
                 });
 
