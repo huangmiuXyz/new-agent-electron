@@ -322,19 +322,4 @@ const downloadImage = (item: string | { loading: boolean }) => {
 :deep(.form-content) {
   padding: 0;
 }
-
-@media (max-width: 900px) {
-  .image-page-container {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .form-section {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border-subtle);
-    padding-bottom: 24px;
-    height: auto;
-  }
-}
 </style>
