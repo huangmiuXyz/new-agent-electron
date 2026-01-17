@@ -208,6 +208,10 @@ const reEdit = (batch: ImageBatch) => {
   rightInput.value = batch.prompt
 }
 
+const deleteBatch = (batchId: number) => {
+  imgStore.removeBatch(batchId)
+}
+
 const handleRightInputSubmit = () => {
   if (!rightInput.value.trim()) return
   formActions.submit()
@@ -263,6 +267,9 @@ const downloadImage = (item: string | { loading: boolean }) => {
                     <div class="prompt-actions">
                       <Button variant="icon" size="sm" @click="reEdit(batch)">
                         <Edit />
+                      </Button>
+                      <Button variant="icon" size="sm" class="delete-btn" @click="deleteBatch(batch.id)">
+                        <Trash />
                       </Button>
                     </div>
                   </div>
@@ -391,6 +398,21 @@ const downloadImage = (item: string | { loading: boolean }) => {
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 8px;
+}
+
+.prompt-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.generation-results:hover .prompt-actions {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  color: var(--error-color, #ff4d4f) !important;
 }
 
 .prompt-text {
