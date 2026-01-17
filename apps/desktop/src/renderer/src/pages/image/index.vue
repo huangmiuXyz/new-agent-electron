@@ -137,7 +137,7 @@ onMounted(() => {
     }
   }
 })
-const { Trash, Download, Sparkles, Dices } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices'])
+const { Trash, Download, Sparkles, Dices, Image } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image'])
 
 const clearImages = () => {
   generatedImages.value = []
@@ -186,7 +186,7 @@ const downloadImage = (item: string | { loading: boolean }) => {
         <div class="results-content">
           <div v-if="generatedImages.length === 0" class="empty-state">
             <div class="empty-icon">
-              <Sparkles />
+              <Image />
             </div>
             <p>在左侧输入提示词，开启你的创作之旅</p>
           </div>
