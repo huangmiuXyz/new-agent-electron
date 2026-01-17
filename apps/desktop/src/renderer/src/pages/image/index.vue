@@ -204,7 +204,7 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
   }
 })
 
-const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Box, Screen, Copy } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy'])
+const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Copy } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy'])
 
 const copyPrompt = (prompt: string) => {
   copyText(prompt)
