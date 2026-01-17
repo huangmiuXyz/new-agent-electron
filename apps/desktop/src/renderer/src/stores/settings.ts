@@ -266,7 +266,7 @@ export const useSettingsStore = defineStore(
     })
 
     const getProviderById = (id: string) => {
-      return providers.value.find((p) => p.id === id)
+      return getAllProviders.value.find((p) => p.id === id)
     }
     const getModelById = (pid: string, mid: string) => {
       const provider = getProviderById(pid)!

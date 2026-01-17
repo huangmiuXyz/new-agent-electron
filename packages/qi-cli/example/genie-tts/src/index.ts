@@ -15,42 +15,91 @@ const plugin: Plugin = {
       return createGenie(options);
     });
 
-    const [Form] = context.useForm({
-      fields: [
-        {
-          name: 'autoStartGenie',
-          type: 'boolean',
-          label: '自动启动服务',
-          defaultValue: true
-        },
-        {
-          name: 'baseUrl',
-          type: 'string',
-          label: '服务地址',
-          placeholder: 'http://127.0.0.1:8000',
-          defaultValue: 'http://127.0.0.1:8000'
-        }
-      ],
-    });
+    // 2. 定义配置表单组件
+    const ConfigForm = context.vue.markRaw(context.vue.defineComponent({
+      setup() {
+        const isRunning = context.vue.ref(false);
+        const [Form, formActions] = context.useForm({
+          fields: [
+            {
+              name: 'autoStartGenie',
+              type: 'boolean',
+              label: '自动启动服务',
+              defaultValue: true
+            },
+            {
+              name: 'baseUrl',
+              type: 'string',
+              label: '服务地址',
+              placeholder: 'http://127.0.0.1:8000',
+              defaultValue: 'http://127.0.0.1:8000',
+              rest: () => context.vue.h('div', { style: "margin-left: 8px; display: flex; align-items: center;" }, [
+                context.vue.h('span', {
+                  style: {
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: isRunning.value ? '#52c41a' : '#ff4d4f',
+                    marginRight: '4px'
+                  }
+                }),
+                context.vue.h('span', {
+                  style: "font-size: 12px; color: var(--text-secondary)"
+                }, isRunning.value ? '服务在线' : '服务离线')
+              ])
+            }
+          ],
+          onChange: async (_field: string, _value: any, data: any) => {
+            const settingsStore = await context.getStore('settings');
+            const providerId = settingsStore.activeProviderId;
+            if (providerId) {
+              settingsStore.updateProvider(providerId, data);
+            }
+            checkStatus(data.baseUrl);
+          }
+        });
+
+        const checkStatus = async (url?: string) => {
+          try {
+            const baseUrlClean = (url || 'http://127.0.0.1:8000').replace(/\/$/, '');
+            const res = await fetch(`${baseUrlClean}/load_character`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ character_name: 'test', check_only: true })
+            });
+            isRunning.value = res.status !== 404 || res.ok;
+          } catch (e) {
+            isRunning.value = false;
+          }
+        };
+
+        // 初始化
+        context.getStore('settings').then(settingsStore => {
+          const provider = settingsStore.providers.find((p: any) => p.id === settingsStore.activeProviderId);
+          if (provider) {
+            formActions.setData(provider);
+            checkStatus(provider.baseUrl);
+          }
+        });
+
+        return () => context.vue.h(Form);
+      }
+    }));
 
     context.registerProvider('genie', {
       name: 'Genie TTS',
-      form: Form,
+      form: ConfigForm,
       models: [
         {
-          id: 'mika',
+          id: 'genie-tts',
           category: 'tts',
-          name: 'Mika (聖園ミカ)',
-        },
-        {
-          id: '37',
-          category: 'tts',
-          name: 'ThirtySeven (37)',
-        },
-        {
-          id: 'feibi',
-          category: 'tts',
-          name: 'Feibi (菲比)',
+          name: 'Genie TTS',
+          active: true,
+          voices: [
+            { id: 'mika', name: 'Mika (聖園ミカ)' },
+            { id: '37', name: 'ThirtySeven (37)' },
+            { id: 'feibi', name: 'Feibi (菲比)' }
+          ]
         }
       ]
     });

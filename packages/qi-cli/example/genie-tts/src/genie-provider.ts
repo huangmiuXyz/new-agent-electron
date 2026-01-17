@@ -41,19 +41,15 @@ export function createGenie(
   provider.listModels = async () => {
     return [
       {
-        id: 'mika',
+        id: 'genie-tts',
         category: 'tts',
-        name: 'Mika (聖園ミカ)',
-      },
-      {
-        id: '37',
-        category: 'tts',
-        name: 'ThirtySeven (37)',
-      },
-      {
-        id: 'feibi',
-        category: 'tts',
-        name: 'Feibi (菲比)',
+        name: 'Genie TTS',
+        active: true,
+        voices: [
+          { id: 'mika', name: 'Mika (聖園ミカ)' },
+          { id: '37', name: 'ThirtySeven (37)' },
+          { id: 'feibi', name: 'Feibi (菲比)' }
+        ]
       }
     ] as Model[];
   };
