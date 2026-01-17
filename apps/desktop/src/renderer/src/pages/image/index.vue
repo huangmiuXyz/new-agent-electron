@@ -185,7 +185,7 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
   }
 })
 
-const { Trash, Download, Sparkles, Dices, Image, Edit, Refresh, MoreHorizontal, FileUpload, Search } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Refresh', 'MoreHorizontal', 'FileUpload', 'Search'])
+const { Trash, Download, Sparkles, Dices, Image, Edit, Refresh, MoreHorizontal } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Refresh', 'MoreHorizontal', 'FileUpload', 'Search'])
 
 const clearImages = () => {
   generatedImages.value = []
