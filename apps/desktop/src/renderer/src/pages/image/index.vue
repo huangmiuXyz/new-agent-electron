@@ -389,6 +389,7 @@ const downloadImage = (item: string | { loading: boolean }) => {
   overflow-y: auto;
   min-height: 0;
   scroll-behavior: smooth;
+  padding-bottom: 100px;
 }
 
 .batches-list {
