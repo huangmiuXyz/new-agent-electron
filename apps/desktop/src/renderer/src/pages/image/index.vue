@@ -563,6 +563,10 @@ const downloadImage = (item: string | { loading: boolean }) => {
   padding: 20px 40px 40px;
   display: flex;
   justify-content: center;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  left: 0;
 }
 
 .input-box-wrapper {
