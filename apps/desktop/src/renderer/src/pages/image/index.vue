@@ -6,14 +6,18 @@ import { FormField } from '@renderer/composables/useForm'
 
 const service = chatService()
 const settingsStore = useSettingsStore()
-const generatedImages = ref<(string | { loading: boolean; id: number })[]>([])
-const lastGeneration = ref<{
+
+interface ImageBatch {
+  id: number;
   prompt: string;
   size?: string;
-  n?: number;
-  model?: string;
+  n: number;
+  model: string;
   modelName?: string;
-} | null>(null)
+  images: (string | { loading: boolean; id: number })[];
+}
+
+const generatedBatches = ref<ImageBatch[]>([])
 
 const getDynamicImageFields = (providerId: string) => {
   const provider = settingsStore.getProviderById(providerId)
@@ -109,6 +113,17 @@ const allFields = computed<FormField<any>[]>(() => {
   return fields
 })
 
+const rightInput = ref('')
+const resultsContainer = ref<HTMLElement | null>(null)
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (resultsContainer.value) {
+      resultsContainer.value.scrollTop = resultsContainer.value.scrollHeight
+    }
+  })
+}
+
 const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
   model: { modelId: string, providerId: string },
   prompt: string,
@@ -120,21 +135,38 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
     settingsStore.updateImageGenerationForm(data)
   },
   onSubmit: async (data) => {
+    const prompt = data.prompt || rightInput.value.trim()
+    if (!prompt) {
+      return
+    }
+
     const n = data.n || 1
     const batchId = Date.now()
     const currentPlaceholders = Array(n).fill(null).map((_, i) => ({
       loading: true,
       id: batchId + i
     }))
-    const placeholderIds = new Set(currentPlaceholders.map(p => p.id))
-    generatedImages.value = [...currentPlaceholders, ...generatedImages.value]
+
+    const newBatch: ImageBatch = {
+      id: batchId,
+      prompt: prompt,
+      size: data.size,
+      n: n,
+      model: data.model.modelId,
+      modelName: settingsStore.getModelById(data.model.providerId, data.model.modelId).model?.name,
+      images: currentPlaceholders
+    }
+
+    generatedBatches.value.push(newBatch)
+    scrollToBottom()
+
     try {
       const provider = settingsStore.getProviderById(data.model.providerId)
       if (!provider) {
         throw new Error('未找到所选模型的提供商')
       }
 
-      const result = await service.generateImage(data.prompt, {
+      const result = await service.generateImage(prompt, {
         model: data.model.modelId,
         apiKey: provider.apiKey || '',
         baseURL: provider.baseUrl || '',
@@ -146,14 +178,6 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
         providerOptions: data.providerOptions?.[provider.id]
       })
 
-      lastGeneration.value = {
-        prompt: data.prompt,
-        size: data.size,
-        n: n,
-        model: data.model.modelId,
-        modelName: settingsStore.getModelById(data.model.providerId, data.model.modelId).model?.name
-      }
-
       if (result.images) {
         const newImages = result.images.map((img: any) => {
           if (typeof img === 'string') return img
@@ -164,59 +188,57 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
         }).filter(Boolean)
 
         // 替换占位图
-        let placeholderIndex = 0
-        generatedImages.value = generatedImages.value.map(item => {
-          if (typeof item === 'object' && item.loading && placeholderIds.has(item.id)) {
-            return newImages[placeholderIndex++] || item
-          }
-          return item
-        })
+        const batch = generatedBatches.value.find(b => b.id === batchId)
+        if (batch) {
+          let placeholderIndex = 0
+          batch.images = batch.images.map(item => {
+            if (typeof item === 'object' && item.loading) {
+              return newImages[placeholderIndex++] || item
+            }
+            return item
+          })
+        }
       }
     } catch (error: any) {
       console.error('图像生成失败:', error)
-      // 移除当前批次的占位图
-      generatedImages.value = generatedImages.value.filter(item => {
-        if (typeof item === 'object' && item.loading && placeholderIds.has(item.id)) {
-          return false
-        }
-        return true
-      })
+      // 移除失败的批次或更新状态
+      generatedBatches.value = generatedBatches.value.filter(b => b.id !== batchId)
     }
   }
 })
 
-const { Trash, Download, Sparkles, Dices, Image, Edit, Refresh, MoreHorizontal } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Refresh', 'MoreHorizontal', 'FileUpload', 'Search'])
+const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Refresh, MoreHorizontal, FileUpload, Search, Cpu, Screen } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Refresh', 'MoreHorizontal', 'FileUpload', 'Search', 'Cpu', 'Screen'])
 
 const clearImages = () => {
-  generatedImages.value = []
-  lastGeneration.value = null
+  generatedBatches.value = []
 }
 
-const reEdit = () => {
-  if (!lastGeneration.value) return
-  formActions.setFieldValue('prompt', lastGeneration.value.prompt)
-  // Optionally scroll to prompt textarea or focus it
+const reEdit = (batch: ImageBatch) => {
+  rightInput.value = batch.prompt
 }
 
-const generateAgain = () => {
-  if (!lastGeneration.value) return
-  formActions.submit()
+const generateAgain = (batch: ImageBatch) => {
+  formActions.setFieldValue('prompt', batch.prompt)
+  nextTick(() => {
+    formActions.submit()
+  })
 }
 
-const rightInput = ref('')
 const handleRightInputSubmit = () => {
   if (!rightInput.value.trim()) return
-  formActions.setFieldValue('prompt', rightInput.value)
   formActions.submit()
-  rightInput.value = ''
+  nextTick(() => {
+    rightInput.value = ''
+  })
 }
 
 const downloadImage = (item: string | { loading: boolean }) => {
-  if (typeof item !== 'string') return
-  const link = document.createElement('a')
-  link.href = item.startsWith('data:') ? item : `data:image/png;base64,${item}`
-  link.download = `generated-image-${Date.now()}.png`
-  link.click()
+  if (typeof item === 'string') {
+    const link = document.createElement('a')
+    link.href = item
+    link.download = `image-${Date.now()}.png`
+    link.click()
+  }
 }
 </script>
 
@@ -233,7 +255,7 @@ const downloadImage = (item: string | { loading: boolean }) => {
       <template #header>
         <span>生成结果</span>
         <div class="header-actions">
-          <Button v-if="generatedImages.length > 0" variant="text" size="sm" @click="clearImages">
+          <Button v-if="generatedBatches.length > 0" variant="text" size="sm" @click="clearImages">
             <Trash />
             清空结果
           </Button>
@@ -241,64 +263,52 @@ const downloadImage = (item: string | { loading: boolean }) => {
       </template>
 
       <template #content>
-        <div class="results-container">
+        <div class="results-container" ref="resultsContainer">
           <div class="results-content">
-            <div v-if="generatedImages.length === 0" class="empty-state">
+            <div v-if="generatedBatches.length === 0" class="empty-state">
               <div class="empty-icon">
-                <Image />
+                <ImageIcon />
               </div>
-              <p>在左侧输入提示词，开启你的创作之旅</p>
+              <p>在下方输入提示词，开启你的创作之旅</p>
             </div>
-
-            <div v-else class="generation-results">
-              <div v-if="lastGeneration" class="generation-info">
-                <div class="prompt-text">{{ lastGeneration.prompt }}</div>
-                <div class="parameters">
-                  <span class="param-item">图片 {{ lastGeneration.n }}</span>
-                  <span class="divider">|</span>
-                  <span class="param-item">{{ lastGeneration.size }}</span>
-                  <span class="divider">|</span>
-                  <span class="param-item">{{ lastGeneration.modelName || lastGeneration.model }}</span>
-                </div>
-              </div>
-
-              <div class="image-grid">
-                <div v-for="(img, index) in generatedImages" :key="index" class="image-item">
-                  <div class="ai-badge">AI生成</div>
-                  <template v-if="typeof img === 'object' && img.loading">
-                    <Image loading preview />
-                  </template>
-                  <template v-else>
-                    <Image :src="(img as string)" preview
-                      :images="(generatedImages.filter(i => typeof i === 'string') as string[])"
-                      :initial-index="generatedImages.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1" />
-                    <div class="image-actions">
-                      <Button variant="icon" size="sm" @click="downloadImage(img)">
-                        <Download />
+            <div v-else class="batches-list">
+              <div v-for="batch in generatedBatches" :key="batch.id" class="generation-results">
+                <div class="prompt-display">
+                  <div class="prompt-header">
+                    <span class="prompt-text">{{ batch.prompt }}</span>
+                    <div class="prompt-actions">
+                      <Button variant="icon" size="sm" @click="reEdit(batch)">
+                        <Edit />
                       </Button>
                     </div>
-                  </template>
+                  </div>
+                  <div class="prompt-meta">
+                    <span v-if="batch.modelName" class="meta-item">
+                      <Cpu /> {{ batch.modelName }}
+                    </span>
+                    <span v-if="batch.size" class="meta-item">
+                      <Screen /> {{ batch.size }}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div class="generation-actions">
-                <Button variant="secondary" size="sm" @click="reEdit">
-                  <template #icon>
-                    <Edit />
-                  </template>
-                  重新编辑
-                </Button>
-                <Button variant="secondary" size="sm" @click="generateAgain">
-                  <template #icon>
-                    <Refresh />
-                  </template>
-                  再次生成
-                </Button>
-                <Button variant="secondary" size="sm">
-                  <template #icon>
-                    <MoreHorizontal />
-                  </template>
-                </Button>
+                <div class="image-grid">
+                  <div v-for="(img, index) in batch.images" :key="index" class="image-item">
+                    <template v-if="typeof img === 'object' && img.loading">
+                      <Image loading preview />
+                    </template>
+                    <template v-else>
+                      <Image :src="(img as string)" preview
+                        :images="(batch.images.filter(i => typeof i === 'string') as string[])"
+                        :initial-index="batch.images.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1" />
+                      <div class="image-actions">
+                        <Button variant="icon" size="sm" @click="downloadImage(img)">
+                          <Download />
+                        </Button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -370,72 +380,79 @@ const downloadImage = (item: string | { loading: boolean }) => {
   min-height: 0;
 }
 
+.batches-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 24px;
+}
+
 .generation-results {
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
 }
 
-.generation-info {
-  margin-bottom: 24px;
+.prompt-display {
+  margin-bottom: 16px;
+  background: var(--bg-tertiary);
+  padding: 12px;
+  border-radius: 8px;
 }
 
-.prompt-text {
-  font-size: 16px;
-  line-height: 1.6;
-  color: var(--text-primary);
+.prompt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 8px;
 }
 
-.parameters {
+.prompt-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.prompt-meta {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 12px;
   font-size: 12px;
   color: var(--text-tertiary);
 }
 
-.divider {
-  opacity: 0.3;
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .image-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .image-item {
   position: relative;
   aspect-ratio: 1;
-  width: calc(25% - 9px);
-  min-width: 180px;
-  flex-grow: 0;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-secondary);
-  transition: all 0.2s ease;
+  background: var(--bg-tertiary);
 }
 
-.image-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.image-item :deep(.n-image) {
+  width: 100%;
+  height: 100%;
 }
 
-.ai-badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
-  color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  z-index: 2;
-  pointer-events: none;
+.image-item :deep(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .image-actions {
@@ -443,20 +460,19 @@ const downloadImage = (item: string | { loading: boolean }) => {
   top: 8px;
   right: 8px;
   display: flex;
-  gap: 4px;
+  gap: 8px;
   opacity: 0;
-  transition: opacity 0.2s ease;
-  z-index: 2;
+  transition: opacity 0.2s;
 }
 
 .image-item:hover .image-actions {
   opacity: 1;
 }
 
-.generation-actions {
+.action-group {
   display: flex;
   gap: 12px;
-  margin-bottom: 40px;
+  justify-content: flex-end;
 }
 
 .floating-input-area {
