@@ -3,8 +3,7 @@ import { useSettingsStore } from '@renderer/stores/settings'
 
 const service = chatService()
 const settingsStore = useSettingsStore()
-const generatedImages = ref<string[]>([])
-const isGenerating = ref(false)
+const generatedImages = ref<(string | { loading: boolean; id: number })[]>([])
 
 // 图像生成表单
 const [ImageForm, formActions] = useForm({
@@ -66,8 +65,16 @@ const [ImageForm, formActions] = useForm({
     }
   ],
   onSubmit: async (data) => {
-    if (isGenerating.value) return
-    isGenerating.value = true
+    const n = data.n || 1
+    // 添加占位图
+    const batchId = Date.now()
+    const currentPlaceholders = Array(n).fill(null).map((_, i) => ({
+      loading: true,
+      id: batchId + i
+    }))
+    const placeholderIds = new Set(currentPlaceholders.map(p => p.id))
+    generatedImages.value = [...currentPlaceholders, ...generatedImages.value]
+
     try {
       const provider = settingsStore.getProviderById(data.model.providerId)
       if (!provider) {
@@ -81,7 +88,7 @@ const [ImageForm, formActions] = useForm({
         provider: provider.id,
         providerType: provider.providerType,
         size: data.size,
-        n: data.n,
+        n: n,
         seed: data.seed ? Number(data.seed) : undefined
       })
 
@@ -94,12 +101,24 @@ const [ImageForm, formActions] = useForm({
           return img.url || ''
         }).filter(Boolean)
 
-        generatedImages.value = [...newImages, ...generatedImages.value]
+        // 替换占位图
+        let placeholderIndex = 0
+        generatedImages.value = generatedImages.value.map(item => {
+          if (typeof item === 'object' && item.loading && placeholderIds.has(item.id)) {
+            return newImages[placeholderIndex++] || item
+          }
+          return item
+        })
       }
     } catch (error: any) {
       console.error('图像生成失败:', error)
-    } finally {
-      isGenerating.value = false
+      // 移除当前批次的占位图
+      generatedImages.value = generatedImages.value.filter(item => {
+        if (typeof item === 'object' && item.loading && placeholderIds.has(item.id)) {
+          return false
+        }
+        return true
+      })
     }
   }
 })
@@ -118,16 +137,16 @@ onMounted(() => {
     }
   }
 })
-
 const { Trash, Download, Sparkles, Dices } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices'])
 
 const clearImages = () => {
   generatedImages.value = []
 }
 
-const downloadImage = (base64: string) => {
+const downloadImage = (item: string | { loading: boolean }) => {
+  if (typeof item !== 'string') return
   const link = document.createElement('a')
-  link.href = base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`
+  link.href = item.startsWith('data:') ? item : `data:image/png;base64,${item}`
   link.download = `generated-image-${Date.now()}.png`
   link.click()
 }
@@ -153,11 +172,11 @@ const downloadImage = (base64: string) => {
           <ImageForm>
             <template #footer>
               <div class="form-footer">
-                <Button variant="primary" size="lg" block :loading="isGenerating" @click="formActions.submit()">
+                <Button variant="primary" size="lg" block @click="formActions.submit()">
                   <template #icon>
-                    <Sparkles v-if="!isGenerating" />
+                    <Sparkles />
                   </template>
-                  {{ isGenerating ? '正在生成...' : '立即生成' }}
+                  立即生成
                 </Button>
               </div>
             </template>
@@ -165,7 +184,7 @@ const downloadImage = (base64: string) => {
         </div>
 
         <div class="results-section">
-          <div v-if="generatedImages.length === 0 && !isGenerating" class="empty-state">
+          <div v-if="generatedImages.length === 0" class="empty-state">
             <div class="empty-icon">
               <Sparkles />
             </div>
@@ -173,16 +192,20 @@ const downloadImage = (base64: string) => {
           </div>
 
           <div v-else class="image-grid">
-            <div v-if="isGenerating" class="image-item loading">
-              <Image loading preview />
-            </div>
             <div v-for="(img, index) in generatedImages" :key="index" class="image-item">
-              <Image :src="img" preview :images="generatedImages" :initial-index="index" />
-              <div class="image-actions">
-                <Button variant="icon" size="sm" @click="downloadImage(img)">
-                  <Download />
-                </Button>
-              </div>
+              <template v-if="typeof img === 'object' && img.loading">
+                <Image loading preview />
+              </template>
+              <template v-else>
+                <Image :src="(img as string)" preview
+                  :images="(generatedImages.filter(i => typeof i === 'string') as string[])"
+                  :initial-index="generatedImages.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1" />
+                <div class="image-actions">
+                  <Button variant="icon" size="sm" @click="downloadImage(img)">
+                    <Download />
+                  </Button>
+                </div>
+              </template>
             </div>
           </div>
         </div>
