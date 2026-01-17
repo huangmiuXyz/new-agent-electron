@@ -107,6 +107,10 @@ const allFields = computed<FormField<any>[]>(() => {
 const rightInput = ref('')
 const resultsContainer = ref<HTMLElement | null>(null)
 
+const isModelSelected = computed(() => {
+  return !!settingsStore.imageGenerationForm.model?.modelId
+})
+
 const scrollToBottom = () => {
   nextTick(() => {
     if (resultsContainer.value) {
@@ -305,11 +309,11 @@ const downloadImage = (item: string | { loading: boolean }) => {
           </div>
 
           <div class="floating-input-area">
-            <div class="input-box-wrapper">
+            <div class="input-box-wrapper" :class="{ disabled: !isModelSelected }">
               <div class="input-top">
-                <textarea v-model="rightInput" placeholder="说说今天想做点什么"
-                  @keydown.enter.exact.prevent="handleRightInputSubmit" rows="1"></textarea>
-                <Button variant="primary" size="sm" class="send-btn" :disabled="!rightInput.trim()"
+                <textarea v-model="rightInput" :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'"
+                  :disabled="!isModelSelected" @keydown.enter.exact.prevent="handleRightInputSubmit" rows="1"></textarea>
+                <Button variant="primary" size="sm" class="send-btn" :disabled="!isModelSelected || !rightInput.trim()"
                   @click="handleRightInputSubmit">
                   <template #icon>
                     <Sparkles />
@@ -495,6 +499,17 @@ const downloadImage = (item: string | { loading: boolean }) => {
   border-radius: 24px;
   padding: 8px 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s;
+}
+
+.input-box-wrapper.disabled {
+  background: var(--bg-secondary);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.input-box-wrapper.disabled textarea {
+  cursor: not-allowed;
 }
 
 .input-top {
