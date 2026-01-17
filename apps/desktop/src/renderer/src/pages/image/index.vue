@@ -166,7 +166,7 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
         size: data.size,
         n: n,
         seed: data.seed ? Number(data.seed) : undefined,
-        providerOptions: data.providerOptions?.[provider.id]
+        providerOptions: data.providerOptions?.[provider.providerType]
       })
 
       if (result.images) {
