@@ -45,6 +45,24 @@ const [ImageForm, formActions] = useForm({
       max: 4,
       step: 1,
       defaultValue: 1
+    },
+    {
+      name: 'seed',
+      label: '随机种子',
+      placeholder: '留空则随机生成...',
+      type: 'number',
+      rest: () => (
+        <Button
+          variant="text"
+          size="sm"
+          onClick={() => {
+            const randomSeed = Math.floor(Math.random() * 1000000)
+            formActions.setFieldValue('seed', randomSeed)
+          }}
+        >
+          {Dices}
+        </Button>
+      )
     }
   ],
   onSubmit: async (data) => {
@@ -63,7 +81,8 @@ const [ImageForm, formActions] = useForm({
         provider: provider.id,
         providerType: provider.providerType,
         size: data.size,
-        n: data.n
+        n: data.n,
+        seed: data.seed ? Number(data.seed) : undefined
       })
 
       if (result.images) {
@@ -100,7 +119,7 @@ onMounted(() => {
   }
 })
 
-const { Trash, Download, Sparkles } = useIcon(['Trash', 'Download', 'Sparkles'])
+const { Trash, Download, Sparkles, Dices } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices'])
 
 const clearImages = () => {
   generatedImages.value = []
@@ -134,14 +153,10 @@ const downloadImage = (base64: string) => {
           <ImageForm>
             <template #footer>
               <div class="form-footer">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  block
-                  :loading="isGenerating"
-                  @click="formActions.submit()"
-                >
-                  <Sparkles v-if="!isGenerating" />
+                <Button variant="primary" size="lg" block :loading="isGenerating" @click="formActions.submit()">
+                  <template #icon>
+                    <Sparkles v-if="!isGenerating" />
+                  </template>
                   {{ isGenerating ? '正在生成...' : '立即生成' }}
                 </Button>
               </div>
