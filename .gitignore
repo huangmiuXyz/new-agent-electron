@@ -4,8 +4,8 @@ out
 .DS_Store
 .eslintcache
 *.log*
-src/renderer/src/auto-imports.d.ts
-src/renderer/src/components.d.ts
+apps/desktop/src/renderer/src/auto-imports.d.ts
+apps/desktop/src/renderer/src/components.d.ts
 data
 src/pty/target
 packages/qi-cli/example/index-tts/index-tts/
