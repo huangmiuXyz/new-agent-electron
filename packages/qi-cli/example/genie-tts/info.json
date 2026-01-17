@@ -1,0 +1,9 @@
+{
+  "name": "genie-tts",
+  "version": "1.0.0",
+  "description": "genie-tts 插件",
+  "author": "",
+  "main": "index.js",
+  "extraAssets": [],
+  "updatedAt": "2026-01-17 20:36:00"
+}
