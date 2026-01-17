@@ -767,6 +767,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         padding: 0;
         height: 100%;
       }
+      .form-wrapper {
+        padding-bottom: 16px;
+      }
 
       .form-item {
         width: 100%;
@@ -785,7 +788,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
       .form-item:first-child {
         margin-top: 0 !important;
-        padding-top: 0 !important;
+      }
+      .form-item:last-child {
+        margin-bottom: 0 !important;
       }
 
       .form-item[data-layout="toggle"] {
@@ -846,8 +851,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       }
 
       .form-group {
-        margin-bottom: 24px;
         padding: 16px;
+        margin-bottom: 16px;
         border: 1px solid var(--border-subtle);
         border-radius: 8px;
         background: var(--bg-secondary-soft);
