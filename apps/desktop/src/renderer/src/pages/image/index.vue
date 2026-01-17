@@ -3,21 +3,12 @@ import { ImageGenerateOptions } from '@renderer/services/chatService';
 import { createRegistry } from '@renderer/services/chatService/registry';
 import { useSettingsStore } from '@renderer/stores/settings'
 import { FormField } from '@renderer/composables/useForm'
+import { ImageBatch, useImageStore } from '@renderer/stores/image'
 
 const service = chatService()
 const settingsStore = useSettingsStore()
-
-interface ImageBatch {
-  id: number;
-  prompt: string;
-  size?: string;
-  n: number;
-  model: string;
-  modelName?: string;
-  images: (string | { loading: boolean; id: number })[];
-}
-
-const generatedBatches = ref<ImageBatch[]>([])
+const imgStore = useImageStore()
+const { generatedBatches } = storeToRefs(imgStore)
 
 const getDynamicImageFields = (providerId: string) => {
   const provider = settingsStore.getProviderById(providerId)
@@ -207,21 +198,14 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
   }
 })
 
-const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Refresh, MoreHorizontal, FileUpload, Search, Cpu, Screen } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Refresh', 'MoreHorizontal', 'FileUpload', 'Search', 'Cpu', 'Screen'])
+const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Cpu, Screen } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Cpu', 'Screen'])
 
 const clearImages = () => {
-  generatedBatches.value = []
+  imgStore.clearBatches()
 }
 
 const reEdit = (batch: ImageBatch) => {
   rightInput.value = batch.prompt
-}
-
-const generateAgain = (batch: ImageBatch) => {
-  formActions.setFieldValue('prompt', batch.prompt)
-  nextTick(() => {
-    formActions.submit()
-  })
 }
 
 const handleRightInputSubmit = () => {
