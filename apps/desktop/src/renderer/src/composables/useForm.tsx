@@ -215,6 +215,7 @@ export interface GroupField<T> extends BaseField<T> {
   children: FormField<T>[]
   collapsible?: boolean
   defaultCollapsed?: boolean
+  noStyle?: boolean
 }
 
 export interface ArrayGroupField<T> extends BaseField<T> {
@@ -593,7 +594,10 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       const ChevronIcon = (isCollapsed ? ChevronRight : ChevronDown) as any
 
       return (
-        <div class={['form-group', g.collapsible && 'collapsible']} key={field.name}>
+        <div
+          class={['form-group', g.collapsible && 'collapsible', g.noStyle && 'no-style']}
+          key={field.name}
+        >
           {field.label && (
             <div
               class="form-group-title"
@@ -767,7 +771,6 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       .form-item {
         width: 100%;
         margin-bottom: 16px;
-        margin-top: 20px;
       }
 
       .form-item[data-size="sm"] {
@@ -830,6 +833,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         font-size: 11px;
         margin-top: 4px;
       }
+      .form-item-hint .incremark-paragraph {
+        margin: 4px;
+      }
 
       .form-item-error {
         color: #ff4757;
@@ -847,10 +853,15 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         background: var(--bg-secondary-soft);
       }
 
+      .form-group.no-style {
+        padding: 0 !important;
+        border: none !important;
+        background: transparent !important;
+      }
+
       .form-group-title {
         font-size: 13px;
         font-weight: 600;
-        margin-bottom: 16px;
         color: var(--text-primary);
         border-bottom: 1px solid var(--border-subtle);
         padding-bottom: 8px;
@@ -862,7 +873,6 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
       .form-group.collapsible .form-group-title {
         cursor: pointer;
-        padding: 4px 0;
         transition: color 0.2s;
       }
 
@@ -881,6 +891,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         display: flex;
         flex-direction: column;
         gap: 4px;
+        margin-top: 12px;
       }
 
       .form-array-group {

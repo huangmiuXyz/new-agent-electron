@@ -31,10 +31,11 @@ const getDynamicImageFields = (providerId: string) => {
   return {
     name: `providerOptions.${provider.id}`,
     type: 'group',
-    label: '模型参数',
+    label: '更多设置',
     collapsible: true,
     defaultCollapsed: false,
-    children: fields
+    children: fields,
+    noStyle: true
   } as FormField<any>
 }
 
@@ -109,7 +110,6 @@ const allFields = computed<FormField<any>[]>(() => {
   return fields
 })
 
-// 图像生成表单
 const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
   model: { modelId: string, providerId: string },
   prompt: string,
@@ -178,28 +178,6 @@ const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
   }
 })
 
-// 初始设置默认模型：尝试寻找第一个可用的图像模型
-onMounted(() => {
-  // 如果已经有持久化的数据，优先加载
-  if (settingsStore.imageGenerationForm?.model?.providerId) {
-    dynamicField.value = getDynamicImageFields(settingsStore.imageGenerationForm.model.providerId)
-    return
-  }
-
-  const providers = settingsStore.getAllProviders
-  for (const provider of providers) {
-    const imageModel = provider.models?.find(m => m.category === 'image')
-    if (imageModel) {
-      formActions.setFieldValue('model', {
-        modelId: imageModel.id,
-        providerId: provider.id
-      })
-      // 初始化动态字段
-      dynamicField.value = getDynamicImageFields(provider.id)
-      break
-    }
-  }
-})
 const { Trash, Download, Sparkles, Dices, Image } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image'])
 
 const clearImages = () => {
