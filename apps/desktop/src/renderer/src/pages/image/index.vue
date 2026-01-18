@@ -402,8 +402,7 @@ onMounted(async () => {
                   <Button variant="primary" size="sm" class="send-btn"
                     :disabled="!isModelSelected || !rightInput.trim() || isOptimizing" @click="handleRightInputSubmit">
                     <template #icon>
-                      <Sparkles v-if="!isOptimizing" />
-                      <div v-else class="btn-loading-spinner"></div>
+                      <Sparkles />
                     </template>
                   </Button>
                 </div>
