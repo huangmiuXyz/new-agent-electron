@@ -9,12 +9,18 @@ export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
     build: {
+      lib: {
+        entry: resolve('src/main/index.ts')
+      },
       sourcemap: true
     }
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {
+      lib: {
+        entry: resolve('src/preload/index.ts')
+      },
       sourcemap: true
     }
   },

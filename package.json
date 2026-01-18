@@ -8,7 +8,7 @@
   "packageManager": "pnpm@10.24.0",
   "scripts": {
     "turbo": "turbo dev",
-    "dev": "electron-vite dev",
+    "dev": "pnpm --filter desktop dev",
     "build": "turbo build",
     "build:mac": "turbo build:mac",
     "build:win": "turbo build:win",
