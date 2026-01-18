@@ -172,7 +172,6 @@ const optimizePrompt = async (mId?: string, pId?: string) => {
 const handleOptimizeModelChange = (val: { modelId: string, providerId: string }) => {
   optimizeModelId.value = val.modelId
   optimizeProviderId.value = val.providerId
-  optimizePrompt(val.modelId, val.providerId)
 }
 
 const isModelSelected = computed(() => {
@@ -382,11 +381,6 @@ onMounted(async () => {
                       <Image :src="(img as string)" preview
                         :images="(batch.images.filter(i => typeof i === 'string') as string[])"
                         :initial-index="batch.images.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1" />
-                      <div class="image-overlay">
-                        <Button variant="icon" size="sm" class="download-overlay-btn" @click="downloadImage(img)">
-                          <Download />
-                        </Button>
-                      </div>
                     </template>
                   </div>
                 </div>
