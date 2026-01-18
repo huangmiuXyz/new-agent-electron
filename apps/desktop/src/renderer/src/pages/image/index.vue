@@ -1,5 +1,4 @@
 <script setup lang="tsx">
-import { ImageGenerateOptions } from '@renderer/services/chatService';
 import { createRegistry } from '@renderer/services/chatService/registry';
 import { useSettingsStore } from '@renderer/stores/settings'
 import { FormField } from '@renderer/composables/useForm'
