@@ -71,7 +71,6 @@ const baseFields = [
     type: 'slider',
     label: '生成数量',
     min: 1,
-    max: 99,
     step: 1,
     defaultValue: 1
   },
