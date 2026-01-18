@@ -4,6 +4,7 @@ export interface ButtonProps {
   disabled?: boolean
   type?: 'button' | 'submit' | 'reset'
   danger?: boolean
+  loading?: boolean
 }
 
 export interface BaseModalProps {

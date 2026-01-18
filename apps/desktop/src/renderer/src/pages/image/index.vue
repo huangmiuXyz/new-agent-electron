@@ -392,10 +392,11 @@ onMounted(async () => {
                     popup-position="top" type="icon" category="text" class="optimize-model-selector"
                     @update:model-id="(id) => handleOptimizeModelChange({ modelId: id, providerId: optimizeProviderId })"
                     @update:provider-id="(id) => handleOptimizeModelChange({ modelId: optimizeModelId, providerId: id })" />
-                  <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="optimize-btn" title="优化提示词"
-                    @click="() => optimizePrompt()">
-                    <Bulb />
-                  </Button>
+                  <Button v-if="rightInput || isOptimizing" variant="text" size="sm" class="optimize-btn" title="优化提示词"
+                     :loading="isOptimizing"
+                     @click="() => optimizePrompt()">
+                     <Bulb />
+                   </Button>
                   <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="clear-btn"
                     @click="rightInput = ''">
                     <X />
@@ -645,7 +646,6 @@ onMounted(async () => {
 
 .input-box-wrapper:focus-within {
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
-  transform: translateY(-2px);
 }
 
 .input-box-wrapper.disabled {

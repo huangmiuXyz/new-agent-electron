@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import type { ButtonProps } from '@renderer/types/components'
+interface ButtonProps {
+  variant?: 'primary' | 'secondary' | 'icon' | 'text'
+  size?: 'sm' | 'md' | 'lg'
+  disabled?: boolean
+  type?: 'button' | 'submit' | 'reset'
+  danger?: boolean
+  loading?: boolean
+}
 
 const props = withDefaults(defineProps<ButtonProps>(), {
   variant: 'primary',
   size: 'md',
   disabled: false,
   type: 'button',
-  danger: false
+  danger: false,
+  loading: false
 })
 
 const buttonRef = useTemplateRef('buttonRef')
@@ -37,8 +45,9 @@ const handleClick = (event: MouseEvent) => {
 </script>
 
 <template>
-  <button class="no-drag" ref="buttonRef" :type="type" :class="buttonClasses" :disabled="disabled" @click="handleClick">
-    <template v-if="$slots.icon">
+  <button class="no-drag" ref="buttonRef" :type="props.type" :class="buttonClasses" :disabled="props.disabled || props.loading" @click="handleClick">
+    <div v-if="props.loading" class="btn-spinner"></div>
+    <template v-else-if="$slots.icon">
       <div class="icon-btn">
         <slot name="icon" />
         <slot />
@@ -49,6 +58,20 @@ const handleClick = (event: MouseEvent) => {
 </template>
 
 <style scoped>
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.8s linear infinite;
+}
+
+@keyframes btn-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .icon-btn {
   display: flex;
   gap: 4px;
