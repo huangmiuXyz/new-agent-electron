@@ -33,7 +33,6 @@ export class ModelScopeImageModel implements ImageModelV3 {
     providerOptions,
   }: Parameters<ImageModelV3['doGenerate']>[0]) {
     const warnings: SharedV3Warning[] = [];
-
     const modelScopeOptions = await parseProviderOptions({
       provider: 'modelscope',
       providerOptions,

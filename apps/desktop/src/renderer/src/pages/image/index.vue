@@ -225,7 +225,6 @@ const [ImageForm, formActions] = useForm({
       if (!provider) {
         throw new Error('未找到所选模型的提供商')
       }
-
       const result = await service.generateImage(prompt, {
         model: data.model.modelId,
         apiKey: provider.apiKey || '',
@@ -383,9 +382,8 @@ onMounted(async () => {
             <Card class="input-box-wrapper" :class="{ disabled: !isModelSelected }" radius="24px" padding="8px 16px">
               <div class="input-top">
                 <textarea ref="textareaRef" v-model="rightInput"
-                  :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'"
-                  :disabled="!isModelSelected || isOptimizing" @keydown.enter.exact.prevent="handleRightInputSubmit"
-                  rows="1" @input="handleInput"></textarea>
+                  :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'" :disabled="!isModelSelected || isOptimizing"
+                  @keydown.enter.exact.prevent="handleRightInputSubmit" rows="1" @input="handleInput"></textarea>
 
                 <div class="input-actions">
                   <ModelSelector v-model:modelId="optimizeModelId" v-model:providerId="optimizeProviderId"
@@ -393,10 +391,9 @@ onMounted(async () => {
                     @update:model-id="(id) => handleOptimizeModelChange({ modelId: id, providerId: optimizeProviderId })"
                     @update:provider-id="(id) => handleOptimizeModelChange({ modelId: optimizeModelId, providerId: id })" />
                   <Button v-if="rightInput || isOptimizing" variant="text" size="sm" class="optimize-btn" title="优化提示词"
-                     :loading="isOptimizing"
-                     @click="() => optimizePrompt()">
-                     <Bulb />
-                   </Button>
+                    :loading="isOptimizing" @click="() => optimizePrompt()">
+                    <Bulb />
+                  </Button>
                   <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="clear-btn"
                     @click="rightInput = ''">
                     <X />
