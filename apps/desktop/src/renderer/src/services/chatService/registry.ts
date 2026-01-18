@@ -2,7 +2,7 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { createDeepSeek } from '@ai-sdk/deepseek'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createXai } from '@ai-sdk/xai'
-import { createProviderRegistry, ProviderRegistryProvider } from 'ai'
+import { createProviderRegistry, ProviderRegistryProvider, generateImage } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createHume } from '@ai-sdk/hume'
@@ -14,6 +14,10 @@ export interface ProviderV3Extends extends ProviderV3 {
   listModels?: () => Promise<Model[]>
   speechCallOptionsSchema?: z.ZodObject
   imageCallOptionsSchema?: z.ZodObject
+  generateImageAsyncTask: (params: Parameters<typeof generateImage>[0]) => {
+    task_id: string
+  }
+  asyncResult: ({ task_id }) => ReturnType<typeof generateImage>
 }
 
 export type ProviderFactory = (options: { apiKey: string; baseURL: string; name: string }) => ProviderV3Extends

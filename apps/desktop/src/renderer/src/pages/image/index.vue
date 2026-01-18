@@ -1,3 +1,7 @@
+<script lang="tsx">
+const activeProcessingIds = new Set<number>()
+</script>
+
 <script setup lang="tsx">
 import { createRegistry } from '@renderer/services/chatService/registry';
 import { useSettingsStore } from '@renderer/stores/settings'
@@ -208,6 +212,11 @@ const [ImageForm, formActions] = useForm({
       id: batchId + i
     }))
 
+    const provider = settingsStore.getProviderById(data.model.providerId)
+    if (!provider) {
+      throw new Error('未找到所选模型的提供商')
+    }
+
     const newBatch: ImageBatch = {
       id: batchId,
       prompt: prompt,
@@ -215,56 +224,166 @@ const [ImageForm, formActions] = useForm({
       n: n,
       model: data.model.modelId,
       modelName: settingsStore.getModelById(data.model.providerId, data.model.modelId).model?.name,
-      images: currentPlaceholders
+      images: currentPlaceholders,
+      providerId: data.model.providerId,
+      status: 'pending',
+      params: {
+        seed: data.seed ? Number(data.seed) : undefined,
+        providerOptions: data.providerOptions?.[provider.providerType]
+      }
     }
 
     generatedBatches.value.push(newBatch)
 
-    try {
-      const provider = settingsStore.getProviderById(data.model.providerId)
-      if (!provider) {
-        throw new Error('未找到所选模型的提供商')
-      }
-      const result = await service.generateImage(prompt, {
-        model: data.model.modelId,
+    if (!activeProcessingIds.has(newBatch.id)) {
+      startGeneration(newBatch)
+    }
+  }
+})
+
+const getProviderInstance = (providerId: string) => {
+  const provider = settingsStore.getProviderById(providerId)
+  if (!provider) {
+    throw new Error('未找到所选模型的提供商')
+  }
+
+  const registry = createRegistry({
+    apiKey: provider.apiKey || '',
+    baseURL: provider.baseUrl,
+    name: provider.name
+  })
+  return {
+    instance: registry.getProvider(provider.providerType) as any,
+    provider
+  }
+}
+
+const startGeneration = async (batch: ImageBatch) => {
+  if (activeProcessingIds.has(batch.id)) return
+  activeProcessingIds.add(batch.id)
+
+  try {
+    const { instance: providerInstance, provider } = getProviderInstance(batch.providerId!)
+
+    // 优先使用异步生成
+    if (providerInstance?.generateImageAsyncTask) {
+      const { task_id } = await providerInstance.generateImageAsyncTask({
+        model: providerInstance.imageModel(batch.model),
+        prompt: batch.prompt,
+        size: batch.size as `${number}x${number}`,
+        n: batch.n,
+        ...batch.params
+      })
+
+      imgStore.updateBatch(batch.id, { taskId: task_id, status: 'processing' })
+      await pollAsyncResult(batch.id, task_id, providerInstance)
+    } else {
+      // 回退到同步生成
+      const result = await service.generateImage(batch.prompt, {
+        model: batch.model,
         apiKey: provider.apiKey || '',
         baseURL: provider.baseUrl || '',
         provider: provider.id,
         providerType: provider.providerType,
-        size: data.size,
-        n: n,
-        seed: data.seed ? Number(data.seed) : undefined,
-        providerOptions: data.providerOptions?.[provider.providerType]
+        size: batch.size as `${number}x${number}`,
+        n: batch.n,
+        seed: batch.params?.seed,
+        providerOptions: batch.params?.providerOptions
       })
 
       if (result.images) {
-        const newImages = result.images.map((img: any) => {
-          if (typeof img === 'string') return img
-          if (img.base64) {
-            return img.base64.startsWith('data:') ? img.base64 : `data:image/png;base64,${img.base64}`
-          }
-          return img.url || ''
-        }).filter(Boolean)
+        processImages(batch.id, result.images)
+      }
+    }
+  } catch (error: any) {
+    console.error('图像生成失败:', error)
+    imgStore.updateBatch(batch.id, { status: 'failed', error: error.message })
+    const b = generatedBatches.value.find((b) => b.id === batch.id)
+    if (b && (!b.images || b.images.every((img) => typeof img === 'object' && img.loading))) {
+      generatedBatches.value = generatedBatches.value.filter((b) => b.id !== batch.id)
+    }
+  } finally {
+    activeProcessingIds.delete(batch.id)
+  }
+}
 
-        // 替换占位图
-        const batch = generatedBatches.value.find(b => b.id === batchId)
-        if (batch) {
-          let placeholderIndex = 0
-          batch.images = batch.images.map(item => {
-            if (typeof item === 'object' && item.loading) {
-              return newImages[placeholderIndex++] || item
-            }
-            return item
-          })
-          scrollToBottom()
-        }
+const resumeGeneration = async (batch: ImageBatch) => {
+  if (activeProcessingIds.has(batch.id)) return
+  activeProcessingIds.add(batch.id)
+
+  try {
+    const { instance: providerInstance } = getProviderInstance(batch.providerId!)
+    if (batch.taskId && providerInstance?.asyncResult) {
+      await pollAsyncResult(batch.id, batch.taskId, providerInstance)
+    }
+  } catch (error: any) {
+    console.error('恢复图像生成失败:', error)
+    imgStore.updateBatch(batch.id, { status: 'failed', error: error.message })
+  } finally {
+    activeProcessingIds.delete(batch.id)
+  }
+}
+
+const activePolls = new Set<number>()
+
+const pollAsyncResult = async (batchId: number, taskId: string, providerInstance: any) => {
+  if (activePolls.has(batchId)) return
+  activePolls.add(batchId)
+
+  const poll = async () => {
+    try {
+      // 检查任务是否还在列表中（可能被用户删除了）
+      const exists = generatedBatches.value.some((b) => b.id === batchId)
+      if (!exists) {
+        activePolls.delete(batchId)
+        return
+      }
+
+      const result = await providerInstance.asyncResult({ task_id: taskId })
+      if (result.images && result.images.length > 0) {
+        processImages(batchId, result.images)
+        activePolls.delete(batchId)
+      } else if (result.status === 'failed') {
+        throw new Error(result.error || '生成失败')
+      } else {
+        // 继续轮询
+        setTimeout(poll, 3000)
       }
     } catch (error: any) {
-      console.error('图像生成失败:', error)
-      generatedBatches.value = generatedBatches.value.filter(b => b.id !== batchId)
+      console.error('异步获取图像失败:', error)
+      activePolls.delete(batchId)
+      imgStore.updateBatch(batchId, { status: 'failed', error: error.message })
     }
   }
-})
+
+  poll()
+}
+
+const processImages = (batchId: number, rawImages: any[]) => {
+  const newImages = rawImages.map((img: any) => {
+    if (typeof img === 'string') return img
+    if (img.base64) {
+      return img.base64.startsWith('data:') ? img.base64 : `data:image/png;base64,${img.base64}`
+    }
+    return img.url || ''
+  }).filter(Boolean)
+
+  const batch = generatedBatches.value.find(b => b.id === batchId)
+  if (batch) {
+    let placeholderIndex = 0
+    const updatedImages = batch.images.map(item => {
+      if (typeof item === 'object' && item.loading) {
+        return newImages[placeholderIndex++] || item
+      }
+      return item
+    })
+    imgStore.updateBatch(batchId, {
+      images: updatedImages,
+      status: 'completed'
+    })
+    scrollToBottom()
+  }
+}
 
 const { Trash, Sparkles, Dices, Image: ImageIcon, Edit, Copy, X, Bulb } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X', 'Bulb'])
 
@@ -297,9 +416,18 @@ const handleRightInputSubmit = () => {
 }
 
 onMounted(async () => {
-  await settingsStore.isAfterRestore
+  await Promise.all([settingsStore.isAfterRestore, imgStore.isAfterRestore])
   formActions.setData(settingsStore.imageGenerationForm)
   dynamicField.value = getDynamicImageFields(settingsStore.imageGenerationForm?.model.providerId!)
+
+  // 恢复未完成的任务
+  generatedBatches.value.forEach(batch => {
+    if (activeProcessingIds.has(batch.id)) return
+
+    if (batch.taskId) {
+      resumeGeneration(batch)
+    }
+  })
 })
 </script>
 
@@ -362,9 +490,18 @@ onMounted(async () => {
                 <div class="image-grid">
                   <div v-for="(img, index) in batch.images" :key="index" class="image-item">
                     <template v-if="typeof img === 'object' && img.loading">
-                      <div class="image-loading">
-                        <div class="loading-spinner"></div>
-                        <span>生成中...</span>
+                      <div class="image-loading" :class="{ 'is-failed': batch.status === 'failed' }">
+                        <template v-if="batch.status === 'failed'">
+                          <div class="error-icon">
+                            <X />
+                          </div>
+                          <span class="error-text">生成失败</span>
+                          <p v-if="batch.error" class="error-detail">{{ batch.error }}</p>
+                        </template>
+                        <template v-else>
+                          <div class="loading-spinner"></div>
+                          <span>生成中...</span>
+                        </template>
                       </div>
                     </template>
                     <template v-else>
@@ -594,7 +731,38 @@ onMounted(async () => {
   gap: 12px;
   color: var(--text-tertiary);
   font-size: 13px;
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
+}
+
+.image-loading.is-failed {
+  color: var(--color-error);
+  padding: 16px;
+  text-align: center;
+}
+
+.error-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(var(--color-error-rgb), 0.1);
+  margin-bottom: 4px;
+}
+
+.error-text {
+  font-weight: 600;
+}
+
+.error-detail {
+  font-size: 11px;
+  opacity: 0.8;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 4px;
 }
 
 .loading-spinner {

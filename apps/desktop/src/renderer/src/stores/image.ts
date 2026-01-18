@@ -10,7 +10,17 @@ export interface ImageBatch {
   model: string
   modelName?: string
   images: (string | { loading: boolean; id: number })[]
+  taskId?: string
+  providerId?: string
+  status?: 'pending' | 'processing' | 'completed' | 'failed'
+  error?: string
+  params?: any
 }
+
+let resolveRestore: () => void
+const restorePromise = new Promise<void>((resolve) => {
+  resolveRestore = resolve
+})
 
 export const useImageStore = defineStore(
   'image',
@@ -36,17 +46,23 @@ export const useImageStore = defineStore(
       generatedBatches.value = []
     }
 
+    const isAfterRestore = restorePromise
+
     return {
       generatedBatches,
       addBatch,
       updateBatch,
       removeBatch,
-      clearBatches
+      clearBatches,
+      isAfterRestore
     }
   },
   {
     persist: {
-      storage: indexedDBStorage
+      storage: indexedDBStorage,
+      afterRestore: () => {
+        resolveRestore()
+      }
     }
   }
 )

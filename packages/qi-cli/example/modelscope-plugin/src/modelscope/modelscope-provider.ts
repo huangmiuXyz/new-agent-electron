@@ -10,7 +10,7 @@ import { DEFAULT_BASE_URL, DEFAULT_MODEL_ID } from '../constants';
 
 const VERSION = '1.0.0';
 
-export interface ModelScopeProvider extends Pick<ProviderV3, 'imageModel'> {
+export interface ModelScopeProvider extends ProviderV3 {
   (settings?: {}): {
     image: (modelId?: string) => ModelScopeImageModel;
   };
@@ -19,6 +19,10 @@ export interface ModelScopeProvider extends Pick<ProviderV3, 'imageModel'> {
    * Creates a model for image generation.
    */
   image(modelId?: string): ImageModelV3;
+  imageModel(modelId?: string): ImageModelV3;
+  imageCallOptionsSchema?: any;
+  generateImageAsyncTask: (params: any) => Promise<{ task_id: string }>;
+  asyncResult: (params: { task_id: string }) => Promise<any>;
 }
 
 export interface ModelScopeProviderSettings {
@@ -81,6 +85,20 @@ export function createModelScope(
   provider.image = createImageModel;
   provider.imageModel = createImageModel;
   provider.imageCallOptionsSchema = ModelScopeImageModel.imageCallOptionsSchema;
+
+  provider.generateImageAsyncTask = async (params: any) => {
+    const model = params.model as ModelScopeImageModel;
+    return model.createTask(params);
+  };
+
+  provider.asyncResult = async ({ task_id }: { task_id: string }) => {
+    const model = createImageModel();
+    const result = await model.waitForTask(task_id);
+    return {
+      images: result.images.map((base64) => ({ base64 })),
+      warnings: result.warnings,
+    };
+  };
 
   return provider as unknown as ModelScopeProvider;
 }
