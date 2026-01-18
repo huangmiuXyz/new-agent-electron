@@ -121,8 +121,8 @@ watch(rightInput, () => {
 })
 
 const isOptimizing = ref(false)
-const optimizeModelId = ref(settingsStore.selectedModelId)
-const optimizeProviderId = ref(settingsStore.selectedProviderId)
+const optimizeModelId = useLocalStorage('optimizeModelId', settingsStore.selectedModelId)
+const optimizeProviderId = useLocalStorage('optimizeProviderId', settingsStore.selectedProviderId)
 
 const optimizePrompt = async (mId?: string, pId?: string) => {
   if (!rightInput.value.trim() || isOptimizing.value) return
