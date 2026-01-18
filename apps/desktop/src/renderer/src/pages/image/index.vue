@@ -105,6 +105,21 @@ const allFields = computed<FormField<any>[]>(() => {
 
 const rightInput = ref('')
 const resultsContainer = ref<HTMLElement | null>(null)
+const textareaRef = ref<HTMLTextAreaElement | null>(null)
+
+const handleInput = () => {
+  if (textareaRef.value) {
+    textareaRef.value.style.height = '44px' // Reset to min-height first
+    const scrollHeight = textareaRef.value.scrollHeight
+    if (scrollHeight > 44) {
+      textareaRef.value.style.height = `${scrollHeight}px`
+    }
+  }
+}
+
+watch(rightInput, () => {
+  nextTick(handleInput)
+})
 
 const isModelSelected = computed(() => {
   return !!settingsStore.imageGenerationForm?.model?.modelId
@@ -199,7 +214,7 @@ const [ImageForm, formActions] = useForm({
   }
 })
 
-const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Copy } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy'])
+const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Copy, X } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X'])
 
 const copyPrompt = (prompt: string) => {
   copyText(prompt)
@@ -222,6 +237,9 @@ const handleRightInputSubmit = () => {
   formActions.submit()
   nextTick(() => {
     rightInput.value = ''
+    if (textareaRef.value) {
+      textareaRef.value.style.height = '44px'
+    }
     scrollToBottom()
   })
 }
@@ -325,15 +343,21 @@ onMounted(async () => {
           <div class="floating-input-area">
             <Card class="input-box-wrapper" :class="{ disabled: !isModelSelected }" radius="24px" padding="8px 16px">
               <div class="input-top">
-                <textarea v-model="rightInput" :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'"
-                  :disabled="!isModelSelected" @keydown.enter.exact.prevent="handleRightInputSubmit"
-                  rows="1"></textarea>
-                <Button variant="primary" size="sm" class="send-btn" :disabled="!isModelSelected || !rightInput.trim()"
-                  @click="handleRightInputSubmit">
-                  <template #icon>
-                    <Sparkles />
-                  </template>
-                </Button>
+                <textarea ref="textareaRef" v-model="rightInput"
+                  :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'" :disabled="!isModelSelected"
+                  @keydown.enter.exact.prevent="handleRightInputSubmit" rows="1" @input="handleInput"></textarea>
+
+                <div class="input-actions">
+                  <Button v-if="rightInput" variant="text" size="sm" class="clear-btn" @click="rightInput = ''">
+                    <X />
+                  </Button>
+                  <Button variant="primary" size="sm" class="send-btn"
+                    :disabled="!isModelSelected || !rightInput.trim()" @click="handleRightInputSubmit">
+                    <template #icon>
+                      <Sparkles />
+                    </template>
+                  </Button>
+                </div>
               </div>
             </Card>
           </div>
@@ -548,32 +572,37 @@ onMounted(async () => {
 }
 
 .floating-input-area {
-  padding: 20px 40px 40px;
+  padding: 24px 40px 40px;
   display: flex;
   justify-content: center;
   position: absolute;
   bottom: 0;
   width: 100%;
   left: 0;
+  background: linear-gradient(to top, var(--bg-secondary) 30%, transparent);
+  pointer-events: none;
 }
 
 .input-box-wrapper {
   width: 100%;
   max-width: 800px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-subtle) !important;
+  pointer-events: auto;
 }
 
 .input-box-wrapper:focus-within {
-  border-color: var(--accent-color);
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
   transform: translateY(-2px);
 }
 
 .input-box-wrapper.disabled {
-  background: var(--bg-secondary);
-  opacity: 0.7;
+  background: var(--bg-secondary) !important;
+  opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .input-box-wrapper.disabled textarea {
@@ -583,7 +612,7 @@ onMounted(async () => {
 .input-top {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: flex-end;
 }
 
 .input-top textarea {
@@ -591,14 +620,38 @@ onMounted(async () => {
   border: none;
   background: transparent;
   resize: none;
-  padding: 12px 0;
+  padding: 10px 4px;
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--text-primary);
   outline: none;
   min-height: 44px;
+  max-height: 200px;
   display: flex;
   align-items: center;
+  overflow-y: auto;
+}
+
+.input-top textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.input-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-bottom: 6px;
+}
+
+.clear-btn {
+  color: var(--text-tertiary) !important;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.clear-btn:hover {
+  opacity: 1;
+  background: transparent !important;
 }
 
 .send-btn {
@@ -610,6 +663,19 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.3);
+  transition: all 0.2s;
+}
+
+.send-btn:not(:disabled):hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.4);
+}
+
+.send-btn:disabled {
+  background: var(--bg-secondary) !important;
+  color: var(--text-disabled) !important;
+  box-shadow: none;
 }
 
 .empty-state {
