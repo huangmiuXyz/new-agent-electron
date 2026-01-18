@@ -297,15 +297,6 @@ const handleRightInputSubmit = () => {
   })
 }
 
-const downloadImage = (item: string | { loading: boolean }) => {
-  if (typeof item === 'string') {
-    const link = document.createElement('a')
-    link.href = item
-    link.download = `image-${Date.now()}.png`
-    link.click()
-  }
-}
-
 onMounted(async () => {
   await settingsStore.isAfterRestore
   formActions.setData(settingsStore.imageGenerationForm)
@@ -400,8 +391,8 @@ onMounted(async () => {
                     popup-position="top" type="icon" category="text" class="optimize-model-selector"
                     @update:model-id="(id) => handleOptimizeModelChange({ modelId: id, providerId: optimizeProviderId })"
                     @update:provider-id="(id) => handleOptimizeModelChange({ modelId: optimizeModelId, providerId: id })" />
-                  <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="optimize-btn"
-                    title="优化提示词" @click="() => optimizePrompt()">
+                  <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="optimize-btn" title="优化提示词"
+                    @click="() => optimizePrompt()">
                     <Bulb />
                   </Button>
                   <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="clear-btn"
@@ -747,7 +738,8 @@ onMounted(async () => {
 }
 
 .optimize-btn:hover {
-  color: #f1c40f !important; /* Golden color for magic/bulb */
+  color: #f1c40f !important;
+  /* Golden color for magic/bulb */
 }
 
 .btn-loading-spinner {
