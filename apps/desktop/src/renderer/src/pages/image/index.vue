@@ -108,7 +108,7 @@ const rightInput = ref('')
 const resultsContainer = ref<HTMLElement | null>(null)
 
 const isModelSelected = computed(() => {
-  return !!settingsStore.imageGenerationForm.model?.modelId
+  return !!settingsStore.imageGenerationForm?.model?.modelId
 })
 
 const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
@@ -122,11 +122,7 @@ const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
   })
 }
 
-const [ImageForm, formActions] = useForm<ImageGenerateOptions & {
-  model: { modelId: string, providerId: string },
-  prompt: string,
-  providerOptions?: Record<string, any>
-}>({
+const [ImageForm, formActions] = useForm({
   fields: allFields,
   initialData: settingsStore.imageGenerationForm,
   onChange: (_field, _value, data) => {
@@ -239,6 +235,12 @@ const downloadImage = (item: string | { loading: boolean }) => {
     link.click()
   }
 }
+
+onMounted(async () => {
+  await settingsStore.isAfterRestore
+  formActions.setData(settingsStore.imageGenerationForm)
+  dynamicField.value = getDynamicImageFields(settingsStore.imageGenerationForm?.model.providerId!)
+})
 </script>
 
 <template>

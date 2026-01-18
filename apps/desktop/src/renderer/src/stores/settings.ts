@@ -1,4 +1,10 @@
 import data from '@renderer/assets/data/provider.json'
+import { ImageGenerateOptions } from '@renderer/services/chatService'
+
+let resolveRestore: () => void
+const restorePromise = new Promise<void>((resolve) => {
+  resolveRestore = resolve
+})
 
 export const useSettingsStore = defineStore(
   'settings',
@@ -315,13 +321,19 @@ export const useSettingsStore = defineStore(
       })
     }
 
-    const imageGenerationForm = ref<any>({})
+    const imageGenerationForm = ref<ImageGenerateOptions & {
+      model: { modelId: string, providerId: string },
+      prompt: string,
+      providerOptions?: Record<string, any>
+    }>()
 
     const updateImageGenerationForm = (data: any) => {
       imageGenerationForm.value = data
     }
+    const isAfterRestore = restorePromise
 
     return {
+      isAfterRestore,
       display,
       terminal,
       providers,
@@ -387,8 +399,12 @@ export const useSettingsStore = defineStore(
         'imageGenerationForm'
       ],
       afterRestore: async () => {
-        const { restorePlugins } = usePlugins()
-        restorePlugins()
+        try {
+          const { restorePlugins } = usePlugins()
+          await restorePlugins()
+        } finally {
+          resolveRestore()
+        }
       }
     }
   }
