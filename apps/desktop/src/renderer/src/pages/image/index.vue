@@ -121,6 +121,61 @@ watch(rightInput, () => {
   nextTick(handleInput)
 })
 
+const isOptimizing = ref(false)
+const optimizeModelId = ref(settingsStore.selectedModelId)
+const optimizeProviderId = ref(settingsStore.selectedProviderId)
+
+const optimizePrompt = async (mId?: string, pId?: string) => {
+  if (!rightInput.value.trim() || isOptimizing.value) return
+
+  const modelId = mId || optimizeModelId.value
+  const providerId = pId || optimizeProviderId.value
+
+  if (!modelId || !providerId) {
+    messageApi.warning('请先选择一个用于优化的语言模型')
+    return
+  }
+
+  const provider = settingsStore.getProviderById(providerId)
+  if (!provider) return
+
+  isOptimizing.value = true
+  const originalPrompt = rightInput.value
+  rightInput.value = ''
+
+  try {
+    await service.streamText(
+      `你是一个专业的 AI 绘画提示词专家。你的任务是将用户提供的简单描述，改写并扩充成详细、生动且专业的 AI 绘画提示词。请遵循以下规则：\n1. 使用英语（除非用户特别要求其他语言）。\n2. 增加关于光影、构图、风格、艺术媒介、细节描述的词汇。\n3. 保持原始意图，不要改变主题。\n4. 只返回优化后的提示词内容，不要有任何解释性文字。\n\n用户描述：${originalPrompt}`,
+      {
+        model: modelId,
+        apiKey: provider.apiKey || '',
+        baseURL: provider.baseUrl || '',
+        provider: provider.id,
+        providerType: provider.providerType,
+        onData: (text) => {
+          rightInput.value += text
+          nextTick(handleInput)
+        },
+        onFinish: () => {
+          isOptimizing.value = false
+        }
+      }
+    )
+  } catch (error) {
+    console.error('Prompt optimization failed:', error)
+    if (!rightInput.value) {
+      rightInput.value = originalPrompt
+    }
+    isOptimizing.value = false
+  }
+}
+
+const handleOptimizeModelChange = (val: { modelId: string, providerId: string }) => {
+  optimizeModelId.value = val.modelId
+  optimizeProviderId.value = val.providerId
+  optimizePrompt(val.modelId, val.providerId)
+}
+
 const isModelSelected = computed(() => {
   return !!settingsStore.imageGenerationForm?.model?.modelId
 })
@@ -214,7 +269,7 @@ const [ImageForm, formActions] = useForm({
   }
 })
 
-const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Copy, X } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X'])
+const { Trash, Download, Sparkles, Dices, Image: ImageIcon, Edit, Copy, X, Bulb } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X', 'Bulb'])
 
 const copyPrompt = (prompt: string) => {
   copyText(prompt)
@@ -348,13 +403,23 @@ onMounted(async () => {
                   @keydown.enter.exact.prevent="handleRightInputSubmit" rows="1" @input="handleInput"></textarea>
 
                 <div class="input-actions">
-                  <Button v-if="rightInput" variant="text" size="sm" class="clear-btn" @click="rightInput = ''">
+                  <ModelSelector v-model:modelId="optimizeModelId" v-model:providerId="optimizeProviderId"
+                    popup-position="top" type="icon" category="text" class="optimize-model-selector"
+                    @update:model-id="(id) => handleOptimizeModelChange({ modelId: id, providerId: optimizeProviderId })"
+                    @update:provider-id="(id) => handleOptimizeModelChange({ modelId: optimizeModelId, providerId: id })" />
+                  <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="optimize-btn"
+                    title="优化提示词" @click="() => optimizePrompt()">
+                    <Bulb />
+                  </Button>
+                  <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="clear-btn"
+                    @click="rightInput = ''">
                     <X />
                   </Button>
                   <Button variant="primary" size="sm" class="send-btn"
-                    :disabled="!isModelSelected || !rightInput.trim()" @click="handleRightInputSubmit">
+                    :disabled="!isModelSelected || !rightInput.trim() || isOptimizing" @click="handleRightInputSubmit">
                     <template #icon>
-                      <Sparkles />
+                      <Sparkles v-if="!isOptimizing" />
+                      <div v-else class="btn-loading-spinner"></div>
                     </template>
                   </Button>
                 </div>
@@ -591,6 +656,7 @@ onMounted(async () => {
   background: var(--bg-card) !important;
   border: 1px solid var(--border-subtle) !important;
   pointer-events: auto;
+  overflow: visible !important;
 }
 
 .input-box-wrapper:focus-within {
@@ -641,17 +707,63 @@ onMounted(async () => {
   gap: 8px;
   align-items: center;
   padding-bottom: 6px;
+  position: relative;
+  z-index: 10;
 }
 
-.clear-btn {
+.clear-btn,
+.optimize-btn,
+.optimize-model-selector {
   color: var(--text-tertiary) !important;
   opacity: 0.6;
-  transition: opacity 0.2s;
+  transition: all 0.2s;
 }
 
-.clear-btn:hover {
+.clear-btn:hover,
+.optimize-btn:hover,
+.optimize-model-selector:hover {
   opacity: 1;
+  background: var(--bg-hover) !important;
+  color: var(--accent-color) !important;
+}
+
+.optimize-model-selector {
+  margin-right: -4px;
+}
+
+.optimize-model-selector:hover {
   background: transparent !important;
+}
+
+:deep(.optimize-model-selector button) {
+  padding: 4px !important;
+  height: 28px !important;
+  width: 28px !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.optimize-model-selector button:hover) {
+  background: var(--bg-hover) !important;
+  color: var(--accent-color) !important;
+}
+
+.optimize-btn:hover {
+  color: #f1c40f !important; /* Golden color for magic/bulb */
+}
+
+.btn-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
 .send-btn {
