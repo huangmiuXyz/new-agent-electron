@@ -159,10 +159,10 @@ const handleTouchEnd = (e: TouchEvent) => {
       <AppNavBar :current-view="currentView" @switch="switchView" />
       <NotificationPanel />
       <main class="app-content">
-        <ChatPage v-show="currentView === 'chat'" />
-        <NotesPage v-show="currentView === 'notes'" />
-        <ImagePage v-show="currentView === 'image'" />
-        <SettingsPage v-show="currentView === 'settings'" />
+        <ChatPage v-if="currentView === 'chat'" />
+        <NotesPage v-if="currentView === 'notes'" />
+        <ImagePage v-if="currentView === 'image'" />
+        <SettingsPage v-if="currentView === 'settings'" />
       </main>
     </div>
 
