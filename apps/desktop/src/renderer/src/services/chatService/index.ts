@@ -4,7 +4,8 @@ import {
   ToolLoopAgent,
   ToolChoice,
   wrapLanguageModel,
-  createAgentUIStream
+  createAgentUIStream,
+  streamText as _streamText
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
@@ -207,6 +208,39 @@ export const chatService = () => {
       throw error
     }
   }
+  const streamText = async (
+    prompt: string,
+    {
+      model,
+      apiKey,
+      baseURL,
+      provider,
+      providerType,
+      tools,
+      toolChoice = 'auto',
+      onData,
+      onFinish
+    }: ChatServiceOptions & { onData: (text: string) => void, onFinish: () => void }
+  ) => {
+    await onUseAIBefore({ model, providerType, apiKey, baseURL })
+    try {
+      const result = _streamText({
+        model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
+          `${providerType}:${model}`
+        ),
+        tools,
+        prompt,
+        toolChoice,
+        onFinish
+      })
+      for await (const data of result.textStream) {
+        onData(data)
+      }
+    } catch (error) {
+      messageApi.error((error as Error).message)
+      throw error
+    }
+  }
 
   const generateImage = async (
     prompt: string,
@@ -295,6 +329,7 @@ export const chatService = () => {
     list_models,
     list_tools,
     generateText,
+    streamText,
     translateText,
     generateImage
   }
