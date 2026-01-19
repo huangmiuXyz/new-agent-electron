@@ -70,7 +70,6 @@ export function createCivitai(
         url.searchParams.append('page', String(params.page));
       }
 
-      // 默认获取图像生成相关的模型
       url.searchParams.append('types', 'Checkpoint');
       urlString = url.toString();
     }
