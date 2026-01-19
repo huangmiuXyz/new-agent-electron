@@ -264,7 +264,7 @@ const startGeneration = async (batch: ImageBatch) => {
 
   try {
     const { instance: providerInstance, provider } = getProviderInstance(batch.providerId!)
-    debugger
+
     // 优先使用异步生成
     if (providerInstance?.generateImageAsyncTask) {
       const { task_id } = await providerInstance.generateImageAsyncTask({
@@ -423,7 +423,6 @@ onMounted(async () => {
   // 恢复未完成的任务
   generatedBatches.value.forEach(batch => {
     if (activeProcessingIds.has(batch.id)) return
-    debugger
     if (batch.taskId) {
       resumeGeneration(batch)
     }
