@@ -66,8 +66,6 @@ export function createCivitai(
 
       if (params.query) {
         url.searchParams.append('query', params.query);
-        // Civitai API: Cannot use page param with query search.
-        // Must use cursor-based pagination for subsequent pages.
       } else if (params.page) {
         url.searchParams.append('page', String(params.page));
       }
