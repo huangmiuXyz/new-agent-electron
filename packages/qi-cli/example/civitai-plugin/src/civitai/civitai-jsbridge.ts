@@ -36,97 +36,98 @@ export class CivitaiSDKBridge {
 
     const serverPath = api.path.join(this.pluginPath, 'dist', 'server.cjs');
 
-    // 启动服务器的命令
-    // 我们将 API Key 作为环境变量传递
     const isWin = navigator.platform.toLowerCase().includes('win');
     const apiKeyEnv = this.apiKey || 'DUMMY_KEY';
     const command = isWin
       ? `set CIVITAI_API_KEY=${apiKeyEnv} && set PORT=${this.serverPort} && node "${serverPath}"`
       : `CIVITAI_API_KEY=${apiKeyEnv} PORT=${this.serverPort} node "${serverPath}"`;
 
-    // 异步执行，不等待结束（因为它是一个长运行的服务）
-    api.exec(command, (error: any) => {
+    // 异步执行并捕获输出
+    api.exec(command, (error: any, stdout: string, stderr: string) => {
       if (error) {
-        console.error('Failed to start Civitai server:', error);
+        console.error('Civitai Server Error:', error);
       }
+      if (stdout) console.log('[Civitai Server]:', stdout);
+      if (stderr) console.error('[Civitai Server Error]:', stderr);
     });
 
-    // 等待服务器启动
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 15; i++) {
       try {
         const response = await fetch(`${this.serverUrl}/health`);
         if (response.ok) return;
       } catch (e) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     throw new Error('Timeout waiting for Civitai server to start');
   }
 
   /**
-   * 更新服务器配置 (如 API Key)
+   * 更新配置 (如 API Key)
    */
   async updateConfig(apiKey: string) {
     this.apiKey = apiKey;
-    await this.ensureServer();
-    const response = await fetch(`${this.serverUrl}/api/config`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey })
-    });
-    return response.json();
+    try {
+      await fetch(`${this.serverUrl}/api/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey })
+      });
+    } catch (e) {
+      // Server might not be running yet
+    }
   }
 
   /**
-   * 生成图片
+   * 生成图片 - 通过本地 Node 服务器代理
    */
   async generateImage(params: any) {
-    console.log('JSBridge: Starting generateImage');
+    console.log('JSBridge: Starting generateImage via Node Server Proxy', params);
     await this.ensureServer();
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s 超时
 
     try {
-      console.log('JSBridge: Fetching /api/generate');
       const response = await fetch(`${this.serverUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ params, apiKey: this.apiKey }),
-        signal: controller.signal
+        body: JSON.stringify({ params, apiKey: this.apiKey })
       });
-      
-      clearTimeout(timeoutId);
-      console.log('JSBridge: /api/generate response received');
-      
+
       const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      if (data.error) {
+        console.error('JSBridge: Server returned error:', data);
+        throw new Error(`Server Error: ${data.error}. Details: ${JSON.stringify(data.details || data.errorBody)}`);
+      }
+      console.log('JSBridge: Generate success:', data);
       return data;
     } catch (error: any) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        throw new Error('Generate request timed out after 30s. The server might be busy or stuck.');
-      }
+      console.error('JSBridge: Fetch failed:', error);
       throw error;
     }
   }
 
   /**
-   * 获取任务状态
+   * 获取任务状态 - 通过本地 Node 服务器代理
    */
   async getJobStatus(jobId: string) {
+    console.log('JSBridge: Getting status for jobId:', jobId);
     await this.ensureServer();
-    const url = new URL(`${this.serverUrl}/api/jobs/${jobId}`);
-    if (this.apiKey) url.searchParams.append('apiKey', this.apiKey);
 
-    const response = await fetch(url.toString());
-    const data = await response.json();
-    if (data.error) throw new Error(data.error);
-    return data;
+    try {
+      const response = await fetch(`${this.serverUrl}/api/jobs/${jobId}?apiKey=${this.apiKey}`);
+      const data = await response.json();
+      if (data.error) {
+        console.error('JSBridge: Status check failed:', data);
+        throw new Error(`Status Error: ${data.error}`);
+      }
+      return data;
+    } catch (error: any) {
+      console.error('JSBridge: Status fetch failed:', error);
+      throw error;
+    }
   }
 
   /**
-   * 获取模型列表 - 直接使用 fetch API 请求 Civitai 官方接口
+   * 获取模型列表 - 直接 fetch
    */
   async listModels(params: any = {}) {
     const { nextUrl, ...restParams } = params;
