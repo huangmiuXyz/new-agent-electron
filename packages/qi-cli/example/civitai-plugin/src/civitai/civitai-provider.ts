@@ -98,7 +98,6 @@ export function createCivitai(
 
       for (const item of (data.items || [])) {
         if (item.modelVersions && item.modelVersions.length > 0) {
-          // 使用第一个版本作为模型的 ID
           const latestVersion = item.modelVersions[0];
           models.push({
             id: String(latestVersion.id),
