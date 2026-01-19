@@ -87,7 +87,7 @@ router.post('/api/generate', async (ctx) => {
     return;
   }
 
-  const jobInput: any = {
+  const jobInput = {
     model: String(params.model),
     params: {
       prompt: params.params.prompt,
@@ -99,29 +99,10 @@ router.post('/api/generate', async (ctx) => {
       height: Number(params.params.height) || 512,
       clipSkip: params.params.clipSkip !== undefined ? Number(params.params.clipSkip) : 2,
     },
-    quantity: Number(params.batchSize) || 1
+    additionalNetworks: params.additionalNetworks,
+    controlNets: params.controlNets,
+    batchSize: Number(params.batchSize) || 1
   };
-
-  if (params.additionalNetworks && Object.keys(params.additionalNetworks).length > 0) {
-    jobInput.additionalNetworks = params.additionalNetworks;
-  }
-
-  if (params.controlNets && Array.isArray(params.controlNets) && params.controlNets.length > 0) {
-    jobInput.controlNets = params.controlNets;
-  }
-
-  // 只有当 seed 有效且不是 -1 时才传递
-  const seed = Number(params.params.seed);
-  if (!isNaN(seed) && seed !== -1) {
-    jobInput.params.seed = seed;
-  }
-
-  // 只有当 callbackUrl 有效时才传递
-  if (params.callbackUrl && typeof params.callbackUrl === 'string' && params.callbackUrl.startsWith('http')) {
-    jobInput.callbackUrl = params.callbackUrl;
-  }
-
-  console.log('Sending SDK request to Civitai with input:', JSON.stringify(jobInput, null, 2));
 
   try {
     const result = await instance.image.fromText(jobInput);

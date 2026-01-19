@@ -40,7 +40,7 @@ export function createCivitai(
     pluginPath: options.pluginPath || '',
   });
 
-  const createImageModel = (modelId: string = 'civitai-image') =>
+  const createImageModel = (modelId: string = 'urn:air:sdxl:checkpoint:civitai:101055@128078') =>
     new CivitaiImageModel(modelId, {
       provider: 'civitai.image',
       bridge,
@@ -57,6 +57,51 @@ export function createCivitai(
   provider.imageModel = createImageModel;
   provider.imageCallOptionsSchema = CivitaiImageModel.imageCallOptionsSchema;
 
+  // 映射 Civitai 的 baseModel 到 AIR 前缀
+  const baseModelMapping: Record<string, string> = {
+    // SD 1.x
+    'SD 1.5': 'sd1',
+    'SD 1.4': 'sd1',
+    'SD 1.5 LCM': 'sd1',
+    'SD 1.5 Hyper': 'sd1',
+
+    // SDXL
+    'SDXL 1.0': 'sdxl',
+    'SDXL Lightning': 'sdxl',
+    'SDXL Turbo': 'sdxl',
+    'SDXL Hyper': 'sdxl',
+    'Stable Diffusion XL': 'sdxl',
+
+    // SD 2.x
+    'SD 2.0': 'sd2',
+    'SD 2.1': 'sd2',
+
+    // SD 3.x
+    'SD 3': 'sd3',
+    'SD 3.5': 'sd3',
+    'SD 3.5 Medium': 'sd3',
+    'SD 3.5 Large': 'sd3',
+    'SD 3.5 Large Turbo': 'sd3',
+
+    // Flux
+    'Flux.1 S': 'flux1s',
+    'Flux.1 Schnell': 'flux1s',
+    'Flux.1 D': 'flux1d',
+    'Flux.1 Dev': 'flux1d',
+
+    // Other popular architectures
+    'Pony': 'pony',
+    'Pony Diffusion': 'pony',
+    'Illustrious': 'illustrious',
+    'NoobAI': 'noobai',
+    'Aura Flow': 'auraflow',
+    'PixArt-a': 'pixart',
+    'PixArt-Sigma': 'pixart',
+    'Hunyuan 1': 'hunyuan',
+    'Kolors': 'kolors',
+    'Playground V2': 'pg2',
+  };
+
   provider.listModels = async (params: { query?: string; page?: number; limit?: number; nextUrl?: string } = {}) => {
     try {
       const data = await bridge.listModels(params);
@@ -65,8 +110,31 @@ export function createCivitai(
       for (const item of (data.items || [])) {
         if (item.modelVersions && item.modelVersions.length > 0) {
           const latestVersion = item.modelVersions[0];
+
+          // 构建 AIR 格式的 ID: urn:air:{baseModel}:{type}:civitai:{modelId}@{versionId}
+          const baseModel = latestVersion.baseModel || 'SD 1.5';
+
+          // 尝试从映射中获取，如果没有，则进行简单的字符串处理作为 fallback
+          let baseModelAir = baseModelMapping[baseModel];
+          if (!baseModelAir) {
+            const lowerBase = baseModel.toLowerCase();
+            if (lowerBase.includes('sdxl') || lowerBase.includes('stable diffusion xl')) baseModelAir = 'sdxl';
+            else if (lowerBase.includes('sd 1.')) baseModelAir = 'sd1';
+            else if (lowerBase.includes('sd 2.')) baseModelAir = 'sd2';
+            else if (lowerBase.includes('sd 3.')) baseModelAir = 'sd3';
+            else if (lowerBase.includes('flux')) {
+              if (lowerBase.includes('schnell') || lowerBase.includes('.1 s')) baseModelAir = 'flux1s';
+              else baseModelAir = 'flux1d';
+            }
+            else if (lowerBase.includes('pony')) baseModelAir = 'pony';
+            else baseModelAir = 'sd1'; // 最后的保底
+          }
+
+          const typeAir = (item.type || 'Checkpoint').toLowerCase();
+          const airId = `urn:air:${baseModelAir}:${typeAir}:civitai:${item.id}@${latestVersion.id}`;
+
           models.push({
-            id: String(latestVersion.id),
+            id: airId,
             name: `${item.name} - ${latestVersion.name}`,
             category: 'image',
             description: item.description || '',
