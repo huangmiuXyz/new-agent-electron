@@ -100,7 +100,7 @@ const plugin: Plugin = {
             baseURL: modelConfig.baseURL
           })
           const model = modelScope.image(modelConfig.model as string)
-          debugger
+
           const { task_id } = await (model as ModelScopeImageModel).createTask({
             prompt,
             files: [],

@@ -92,12 +92,18 @@ export class CivitaiImageModel implements ImageModelV3 {
   async createTask(options: ImageModelV3CallOptions) {
     const { requestBody } = await this.getArgs(options);
     const response = await this.config.bridge.generateImage(requestBody);
-    const jobId = response.token || response.jobId;
+
+    let jobId = response.jobId || response.token;
+
+    if (!jobId && response.jobs && Array.isArray(response.jobs) && response.jobs.length > 0) {
+      jobId = response.jobs[0].jobId;
+    }
 
     if (!jobId) {
       throw new Error(`Failed to start Civitai job: ${JSON.stringify(response)}`);
     }
 
+    console.log(`Civitai job created successfully, using jobId: ${jobId}`);
     return { task_id: jobId };
   }
 
@@ -130,42 +136,59 @@ export class CivitaiImageModel implements ImageModelV3 {
       const jobStatus = await this.config.bridge.getJobStatus(jobId);
 
       // 根据 Civitai SDK 的实际响应格式进行处理
-      if (jobStatus.status === 'completed' || jobStatus.status === 'SUCCEEDED') {
-        const imageUrl = jobStatus.result?.blobUrl || jobStatus.images?.[0]?.url;
-        if (!imageUrl) {
-          throw new Error('Job completed but no image URL found');
+      // 必定没有顶层 status，通过 jobs 数组判断完成状态
+      const hasJobs = jobStatus.jobs && Array.isArray(jobStatus.jobs) && jobStatus.jobs.length > 0;
+      
+      // 检查是否所有 job 都有可用的 blobUrl
+      let imageUrl: string | undefined = undefined;
+      
+      if (hasJobs) {
+        for (const job of jobStatus.jobs) {
+          if (job.result && Array.isArray(job.result)) {
+            const res = job.result.find((r: any) => r.blobUrl && r.available !== false);
+            if (res) {
+              imageUrl = res.blobUrl;
+              break;
+            }
+          }
         }
+      }
 
+      if (imageUrl) {
+        console.log('Found image URL:', imageUrl);
         // 下载图片并转为 base64
         const imgRes = await fetch(imageUrl);
-        const buffer = await imgRes.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
-        let binary = '';
-        for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
+          const buffer = await imgRes.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          let binary = '';
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const base64 = btoa(binary);
+
+          return {
+            images: [base64] as any,
+            warnings: [],
+            response: {
+              timestamp: new Date(),
+              modelId: this.modelId,
+              headers: {},
+            },
+          };
         }
-        const base64 = btoa(binary);
 
-        return {
-          images: [base64] as any,
-          warnings: [],
-          response: {
-            timestamp: new Date(),
-            modelId: this.modelId,
-            headers: {},
-          },
-        };
+        // 如果代码运行到这里，说明任务还没真正完成（或者还没拿到 URL）
+        // 检查是否有明确的失败标志
+        const isFailed = jobStatus.status === 'failed' || jobStatus.status === 'FAILED' || (hasJobs && jobStatus.jobs.some((j: any) => j.status === 'failed' || j.status === 'FAILED'));
+        if (isFailed) {
+          throw new Error(`Civitai job failed: ${jobStatus.error || 'Unknown error'}`);
+        }
+
+        // 继续轮询
+        attempts++;
+        await new Promise((resolve) => setTimeout(resolve, 5000));
       }
 
-      if (jobStatus.status === 'failed' || jobStatus.status === 'FAILED') {
-        throw new Error(`Civitai job failed: ${jobStatus.error || 'Unknown error'}`);
-      }
-
-      // 等待一段时间再次轮询
-      attempts++;
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      throw new Error('Civitai job timed out');
     }
-
-    throw new Error('Civitai job timed out');
-  }
 }

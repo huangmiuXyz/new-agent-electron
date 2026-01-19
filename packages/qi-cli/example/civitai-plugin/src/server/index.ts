@@ -7,8 +7,6 @@ import { Civitai } from 'civitai';
 const port = process.env.PORT || 18888;
 const apiKey = process.env.CIVITAI_API_KEY;
 
-let civitaiInstance = new Civitai({ auth: apiKey! })
-
 const app = new Koa();
 const router = new Router();
 
@@ -89,31 +87,8 @@ router.post('/api/generate', async (ctx) => {
     return;
   }
 
-  const modelId = String(params.model);
-  const baseModel = params.baseModel;
-
-  // 核心修复：根据 SDK 的 Zod 校验规则，model 字段必须是字符串。
-  let modelValue: string = modelId;
-  if (!isNaN(Number(modelId)) && !modelId.includes(':')) {
-    // 构造 AIR 格式：不再根据 ID 猜测，直接根据传入的 baseModel 处理
-    let airBase = "sd1-5";
-    if (baseModel) {
-      const lowerBase = baseModel.toLowerCase();
-      if (lowerBase.includes("sdxl")) {
-        airBase = "sdxl";
-      } else if (lowerBase.includes("pony")) {
-        airBase = "pony";
-      } else if (lowerBase.includes("sd 1.5")) {
-        airBase = "sd1-5";
-      }
-    }
-
-    modelValue = `urn:air:${airBase}:checkpoint:civitai:${modelId}`;
-    console.log(`Converting numeric ID ${modelId} to AIR format with provided base ${baseModel}: ${modelValue}`);
-  }
-
   const jobInput: any = {
-    model: modelValue,
+    model: String(params.model),
     params: {
       prompt: params.params.prompt,
       negativePrompt: params.params.negativePrompt || '',
@@ -124,8 +99,7 @@ router.post('/api/generate', async (ctx) => {
       height: Number(params.params.height) || 512,
       clipSkip: params.params.clipSkip !== undefined ? Number(params.params.clipSkip) : 2,
     },
-    quantity: Number(params.batchSize) || 1,
-    baseModel: baseModel
+    quantity: Number(params.batchSize) || 1
   };
 
   if (params.additionalNetworks && Object.keys(params.additionalNetworks).length > 0) {
@@ -185,11 +159,24 @@ router.get('/api/jobs/:jobId', async (ctx) => {
   }
 
   try {
-    const status = await instance.jobs.getById(jobId);
-    ctx.body = status;
+    console.log(`Querying job status for ID: ${jobId}`);
+    try {
+      // 首先尝试通过 ID 获取
+      const status = await instance.jobs.getById(jobId);
+      ctx.body = status;
+    } catch (idError: any) {
+      console.log(`Failed to get job by ID, trying by token...`);
+      // 如果 ID 获取失败（比如传入的是 token），尝试通过 Token 获取
+      const status = await instance.jobs.getByToken(jobId);
+      ctx.body = status;
+    }
   } catch (error: any) {
+    console.error('Civitai getJob error:', error);
     ctx.status = error.status || 500;
-    ctx.body = { error: error.message };
+    ctx.body = {
+      error: error.message,
+      details: error.body || error.stack
+    };
   }
 });
 
