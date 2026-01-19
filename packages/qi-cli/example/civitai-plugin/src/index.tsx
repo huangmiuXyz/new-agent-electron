@@ -50,7 +50,6 @@ const CivitaiPlugin: Plugin = {
           const models = result.items
           nextUrl.value = result.nextPage
 
-          // 合并激活状态
           const formattedModels = models.map((m: any) => ({
             ...m,
             active: !!activeModelsMap.value[m.id]
