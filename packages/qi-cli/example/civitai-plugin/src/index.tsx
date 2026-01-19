@@ -22,11 +22,55 @@ const CivitaiPlugin: Plugin = {
     const historyUrls = vue.ref([])
     const currentUrl = vue.ref(undefined)
 
-    const updateProvider = () => {
+    const updateProvider = async () => {
+      const saved: any = await localforage.getItem(STORAGE_KEY)
+      console.log('Updating Civitai provider with config:', saved)
+      const provider = createCivitai({
+        apiKey: saved?.apiKey,
+        pluginPath: context.basePath
+      })
+
+      const models = Object.values(activeModelsMap.value).map((m: any) => ({
+        ...m,
+        active: true
+      }))
+      console.log('Registering models:', models)
+
+      // 使用 getStore 更新 settingsStore 中的 API Key
+      try {
+        const settingsStore = await context.getStore('settings')
+        if (settingsStore) {
+          // 查找是否已经注册过这个提供商
+          const existing = settingsStore.registeredProviders.find(
+            (p: any) => p.providerId === PROVIDER_ID
+          )
+          if (existing) {
+            // 如果已存在，更新它的 apiKey
+            // 注意：registeredProviders 是一个 ref 数组，我们需要更新它
+            const index = settingsStore.registeredProviders.findIndex(
+              (p: any) => p.providerId === PROVIDER_ID
+            )
+            if (index !== -1) {
+              const updatedProviders = [...settingsStore.registeredProviders]
+              updatedProviders[index] = {
+                ...updatedProviders[index],
+                apiKey: saved?.apiKey,
+                models: models
+              }
+              settingsStore.registeredProviders = updatedProviders
+              console.log('Updated settingsStore with new API Key and models')
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to update settingsStore:', e)
+      }
+
       registerProvider(PROVIDER_ID, {
+        ...provider,
         name: 'Civitai',
         form: ConfigForm,
-        models: Object.values(activeModelsMap.value)
+        models
       })
     }
 
@@ -89,10 +133,11 @@ const CivitaiPlugin: Plugin = {
                   delete activeModelsMap.value[row.id]
                 }
 
-                localforage.getItem(STORAGE_KEY).then((saved) => {
+                localforage.getItem(STORAGE_KEY).then((saved: any) => {
                   const newData = { ...saved, activeModelsMap: vue.toRaw(activeModelsMap.value) }
-                  localforage.setItem(STORAGE_KEY, newData)
-                  updateProvider()
+                  localforage.setItem(STORAGE_KEY, newData).then(() => {
+                    updateProvider()
+                  })
                 })
               }
             })
@@ -175,22 +220,16 @@ const CivitaiPlugin: Plugin = {
           historyUrls.value = []
           fetchModels()
         }
-        localforage.setItem(STORAGE_KEY, vue.toRaw(data))
+        localforage.getItem(STORAGE_KEY).then((saved: any) => {
+          const newData = { ...saved, ...vue.toRaw(data), activeModelsMap: vue.toRaw(activeModelsMap.value) }
+          localforage.setItem(STORAGE_KEY, newData).then(() => {
+            updateProvider()
+          })
+        })
       }
     })
 
-    // 加载保存的配置
-    localforage.getItem(STORAGE_KEY).then(async (saved: any) => {
-      if (saved) {
-        formActions.setFieldsValue(saved)
-        if (saved.activeModelsMap) {
-          activeModelsMap.value = saved.activeModelsMap
-        }
-      }
-      updateProvider()
-      await fetchModels()
-    })
-
+    // 1. 注册提供商
     registerRegistry(PROVIDER_ID, (options: any) => {
       return createCivitai({
         apiKey: options.apiKey,
@@ -199,18 +238,20 @@ const CivitaiPlugin: Plugin = {
       })
     })
 
-    // 3. 注册提供商到 UI
-    registerProvider(PROVIDER_ID, {
-      name: 'Civitai',
-      form: ConfigForm,
-      models: [
-        {
-          id: 'civitai-image',
-          name: 'Civitai Image Generation',
-          category: 'image'
-        }
-      ]
-    })
+    // 加载保存的配置
+    const saved: any = await localforage.getItem(STORAGE_KEY)
+    if (saved) {
+      formActions.setFieldsValue(saved)
+      if (saved.activeModelsMap) {
+        activeModelsMap.value = saved.activeModelsMap
+      }
+    }
+
+    // 注册提供商到 UI
+    await updateProvider()
+
+    // 初始加载模型列表
+    fetchModels()
 
     console.log('Civitai Plugin installed')
   },

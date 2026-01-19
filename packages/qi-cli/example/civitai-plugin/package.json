@@ -14,9 +14,12 @@
     "@ai-sdk/provider": "^3.0.2",
     "@ai-sdk/provider-utils": "^4.0.4",
     "civitai": "latest",
+    "express": "^5.2.1",
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "typescript": "^5.4.5",
     "vite": "^5.2.11"
   },

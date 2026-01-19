@@ -296,7 +296,7 @@ const startGeneration = async (batch: ImageBatch) => {
       }
     }
   } catch (error: any) {
-    console.error('图像生成失败:', error)
+    console.error('图像生成失败:', { error })
     imgStore.updateBatch(batch.id, { status: 'failed', error: error.message })
     const b = generatedBatches.value.find((b) => b.id === batch.id)
     if (b && (!b.images || b.images.every((img) => typeof img === 'object' && img.loading))) {

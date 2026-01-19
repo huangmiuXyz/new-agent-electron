@@ -12,7 +12,7 @@ export default defineConfig({
       external: ['http', 'path', 'fs', 'url', 'events'],
       output: {
         dir: 'dist',
-        entryFileNames: 'server.js',
+        entryFileNames: 'server.cjs',
       }
     },
     outDir: 'dist',

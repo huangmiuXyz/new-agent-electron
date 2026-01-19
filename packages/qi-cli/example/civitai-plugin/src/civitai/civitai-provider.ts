@@ -58,41 +58,8 @@ export function createCivitai(
   provider.imageCallOptionsSchema = CivitaiImageModel.imageCallOptionsSchema;
 
   provider.listModels = async (params: { query?: string; page?: number; limit?: number; nextUrl?: string } = {}) => {
-    let urlString = params.nextUrl;
-
-    if (!urlString) {
-      const url = new URL('https://civitai.com/api/v1/models');
-      url.searchParams.append('limit', String(params.limit || 20));
-
-      if (params.query) {
-        url.searchParams.append('query', params.query);
-      } else if (params.page) {
-        url.searchParams.append('page', String(params.page));
-      }
-
-      url.searchParams.append('types', 'Checkpoint');
-      urlString = url.toString();
-    }
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    if (apiKey) {
-      headers['Authorization'] = `Bearer ${apiKey}`;
-    }
-
     try {
-      const response = await fetch(urlString, {
-        method: 'GET',
-        headers,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch models: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await bridge.listModels(params);
       const models: Model[] = [];
 
       for (const item of (data.items || [])) {

@@ -1,79 +1,117 @@
-import http from 'http';
+import express from 'express';
+import cors from 'cors';
 import { Civitai } from 'civitai';
 
 const port = process.env.PORT || 18888;
 const apiKey = process.env.CIVITAI_API_KEY;
 
-if (!apiKey) {
-  console.error('CIVITAI_API_KEY is required');
-  process.exit(1);
-}
+let civitai = apiKey && apiKey !== 'DUMMY_KEY' ? new Civitai({ auth: apiKey }) : null;
 
-const civitai = new Civitai({ auth: apiKey });
+const app = express();
 
-const server = http.createServer(async (req, res) => {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+// 捕获未处理的异常，防止服务器崩溃
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
 
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
-  if (req.method === 'POST') {
-    let body = '';
-    req.on('data', chunk => {
-      body += chunk.toString();
-    });
+app.use(cors());
+app.use(express.json());
 
-    req.on('end', async () => {
-      try {
-        const { action, params } = JSON.parse(body);
+// 健康检查
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    hasApiKey: !!civitai
+  });
+});
 
-        let result;
-        if (action === 'generateImage') {
-          result = await civitai.image.fromText(params);
-        } else if (action === 'getJobStatus') {
-          result = await (civitai as any).jobs.get(params.jobId);
-        } else if (action === 'listModels') {
-          // SDK 内部可能没有直接的 listModels，我们直接调用 REST API
-          const url = new URL('https://civitai.com/api/v1/models');
-          Object.entries(params).forEach(([key, value]) => {
-            if (value !== undefined) url.searchParams.append(key, String(value));
-          });
-          if (!url.searchParams.has('limit')) url.searchParams.append('limit', '20');
-          if (!url.searchParams.has('types')) url.searchParams.append('types', 'Checkpoint');
+// API 路由
 
-          const response = await fetch(url.toString(), {
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          result = await response.json();
-        } else {
-          throw new Error(`Unknown action: ${action}`);
-        }
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result));
-      } catch (err: any) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: err.message }));
-      }
-    });
-  } else if (req.method === 'GET' && req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok' }));
+// 更新配置 (API Key)
+app.post('/api/config', (req, res) => {
+  const { apiKey: newApiKey } = req.body;
+  if (newApiKey && newApiKey !== 'DUMMY_KEY') {
+    civitai = new Civitai({ auth: newApiKey });
+    res.json({ success: true });
   } else {
-    res.writeHead(404);
-    res.end();
+    res.status(400).json({ error: 'Invalid API Key' });
   }
 });
 
-server.listen(port, () => {
+// 生成图片
+app.post('/api/generate', async (req, res) => {
+  console.log('Received /api/generate request');
+  try {
+    const { params, apiKey: newApiKey } = req.body;
+    if (newApiKey && newApiKey !== 'DUMMY_KEY') {
+      civitai = new Civitai({ auth: newApiKey });
+    }
+    if (!civitai) {
+      throw new Error('CIVITAI_API_KEY is not configured.');
+    }
+
+    const modelId = String(params.model);
+
+    const sdkParams = {
+      model: modelId,
+      params: {
+        prompt: params.params.prompt,
+        negativePrompt: params.params.negativePrompt || '',
+        scheduler: params.params.scheduler || 'EulerA',
+        steps: params.params.steps || 20,
+        cfgScale: params.params.cfgScale || 7,
+        width: Number(params.params.width) || 512,
+        height: Number(params.params.height) || 512,
+        seed: params.params.seed !== undefined ? Number(params.params.seed) : undefined,
+        clipSkip: params.params.clipSkip !== undefined ? Number(params.params.clipSkip) : 2,
+      },
+      additionalNetworks: params.additionalNetworks,
+      controlNets: params.controlNets,
+      callbackUrl: params.callbackUrl,
+      quantity: Number(params.batchSize) || 1,
+    };
+
+    const result = await civitai.image.fromText(sdkParams, false);
+    res.json(result);
+  } catch (err: any) {
+    let errorBody = null;
+    if (err.body) {
+      errorBody = err.body;
+    }
+
+    res.status(500).json({
+      error: err.message,
+      errorBody: errorBody,
+      details: err.stack,
+      sentParams: req.body.params
+    });
+  }
+});
+
+// 获取任务状态
+app.get('/api/jobs/:jobId', async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { apiKey: queryApiKey } = req.query;
+
+    if (queryApiKey && queryApiKey !== 'DUMMY_KEY') {
+      civitai = new Civitai({ auth: queryApiKey as string });
+    }
+
+    if (!civitai) {
+      throw new Error('CIVITAI_API_KEY is not configured.');
+    }
+    const result = await civitai.jobs.getById(jobId);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.listen(port, () => {
   console.log(`Civitai server listening on port ${port}`);
 });
