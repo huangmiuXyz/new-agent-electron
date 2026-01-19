@@ -83,8 +83,6 @@ const CivitaiPlugin: Plugin = {
                   item.id === row.id ? { ...item, active: val } : item
                 )
                 setData(updatedData)
-
-                // 更新激活模型映射并持久化
                 if (val) {
                   activeModelsMap.value[row.id] = vue.toRaw(row)
                 } else {
