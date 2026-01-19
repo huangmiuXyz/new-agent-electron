@@ -44,6 +44,9 @@ const switchTab = (tabName: string) => {
       <!-- User Data 设置 -->
       <SettingsUserData v-else-if="activeTab === 'userData'" />
 
+      <!-- 备份与恢复 -->
+      <SettingsBackup v-else-if="activeTab === 'backup'" />
+
       <!-- 关于我们 -->
       <SettingsAbout v-else-if="activeTab === 'about'" />
     </div>

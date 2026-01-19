@@ -86,7 +86,8 @@ import {
   Volume3,
   ZoomIn,
   ZoomOut,
-  Dice
+  Dice,
+  Database
 } from '@vicons/tabler'
 import {
   CommentAdd16Regular,
@@ -203,10 +204,12 @@ const icons = {
   VolumeMedium,
   VolumeMute,
   UploadOutlined,
+  Upload: UploadOutlined,
   Speaker224Regular,
   Pause,
   Image,
-  Dices: Dice
+  Dices: Dice,
+  Database
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =

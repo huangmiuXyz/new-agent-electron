@@ -162,6 +162,30 @@ export const setupSqliteHandlers = () => {
         }))
     }
   )
+
+  ipcMain.handle('sqlite:getAllChunks', async () => {
+    const chunks = db.prepare('SELECT * FROM chunks').all() as any[]
+    const result: any[] = []
+
+    for (const chunk of chunks) {
+      const dimension = chunk.dimension
+      if (dimension > 0) {
+        const vssRow = db
+          .prepare(`SELECT vector FROM vss_chunks_${dimension} WHERE rowid = ?`)
+          .get(chunk.rowid) as { vector: string }
+        if (vssRow) {
+          result.push({
+            id: chunk.id,
+            doc_id: chunk.doc_id,
+            kb_id: chunk.kb_id,
+            content: chunk.content,
+            embedding: JSON.parse(vssRow.vector)
+          })
+        }
+      }
+    }
+    return result
+  })
 }
 
 const deleteChunks = (field: 'doc_id' | 'kb_id', value: string) => {

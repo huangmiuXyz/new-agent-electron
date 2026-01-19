@@ -18,6 +18,7 @@ setTitle(route.query.name as string)
             <SettingsDisplay v-else-if="activeTab === 'display'" />
             <SettingsMcp v-else-if="activeTab === 'mcp'" />
             <SettingsUserData v-else-if="activeTab === 'userData'" />
+            <SettingsBackup v-else-if="activeTab === 'backup'" />
             <SettingsAbout v-else-if="activeTab === 'about'" />
         </div>
     </div>
