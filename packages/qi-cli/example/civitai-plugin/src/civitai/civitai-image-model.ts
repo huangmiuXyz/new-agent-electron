@@ -138,10 +138,10 @@ export class CivitaiImageModel implements ImageModelV3 {
       // 根据 Civitai SDK 的实际响应格式进行处理
       // 必定没有顶层 status，通过 jobs 数组判断完成状态
       const hasJobs = jobStatus.jobs && Array.isArray(jobStatus.jobs) && jobStatus.jobs.length > 0;
-      
+
       // 检查是否所有 job 都有可用的 blobUrl
       let imageUrl: string | undefined = undefined;
-      
+
       if (hasJobs) {
         for (const job of jobStatus.jobs) {
           if (job.result && Array.isArray(job.result)) {
