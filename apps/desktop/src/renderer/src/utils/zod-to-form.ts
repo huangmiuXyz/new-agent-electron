@@ -141,18 +141,31 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
     if (inner instanceof ZodRecord) {
       const valueSchema = inner.valueType
       const { schema: valueInner } = unwrap(valueSchema as ZodType)
-      const isNumberValue = valueInner instanceof ZodNumber
 
-      fields.push({
-        type: 'object',
-        name,
-        label,
-        hint,
-        required,
-        defaultValue,
-        valueType: isNumberValue ? 'number' : 'string',
-        ...metadata
-      } as any)
+      if (valueInner instanceof ZodObject) {
+        fields.push({
+          type: 'record-group',
+          name,
+          label,
+          hint,
+          required,
+          defaultValue,
+          children: parseObject(valueInner),
+          ...metadata
+        } as any)
+      } else {
+        const isNumberValue = valueInner instanceof ZodNumber
+        fields.push({
+          type: 'object',
+          name,
+          label,
+          hint,
+          required,
+          defaultValue,
+          valueType: isNumberValue ? 'number' : 'string',
+          ...metadata
+        } as any)
+      }
       continue
     }
 

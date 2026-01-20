@@ -22,8 +22,18 @@ const civitaiImageCallOptionsSchema = z.object({
   clipSkip: z.number().optional(),
   callbackUrl: z.string().url().optional(),
   batchSize: z.number().min(1).max(10).optional(),
-  additionalNetworks: z.record(z.string(), z.any()).optional(),
-  controlNets: z.array(z.any()).optional(),
+  additionalNetworks: z.record(z.string(), z.object({
+    type: z.enum(['Lora', 'Hypernetwork', 'TextualInversion', 'Lycoris', 'Checkpoint', 'Vae', 'LoCon']),
+    strength: z.number().optional(),
+    triggerWord: z.string().optional(),
+  })).optional(),
+  controlNets: z.array(z.object({
+    preprocessor: z.enum(['Canny', 'DepthZoe', 'SoftedgePidinet', 'Rembg']).nullable().optional(),
+    weight: z.number().nullable().optional(),
+    startStep: z.number().nullable().optional(),
+    endStep: z.number().nullable().optional(),
+    imageUrl: z.string().nullable().optional(),
+  })).optional(),
 });
 
 export class CivitaiImageModel implements ImageModelV3 {

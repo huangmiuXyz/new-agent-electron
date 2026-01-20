@@ -224,6 +224,12 @@ export interface ArrayGroupField<T> extends BaseField<T> {
   max?: number
 }
 
+export interface RecordGroupField<T> extends BaseField<T> {
+  type: 'record-group'
+  children: FormField<T>[]
+  keyPlaceholder?: string
+}
+
 export type FormField<T> =
   | TextField<T>
   | BooleanField<T>
@@ -240,6 +246,7 @@ export type FormField<T> =
   | CustomField<T>
   | GroupField<T>
   | ArrayGroupField<T>
+  | RecordGroupField<T>
 
 export interface FormConfig<T extends Record<string, any>> {
   title?: string
@@ -303,6 +310,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       case 'array':
         return []
       case 'object':
+        return {}
+      case 'record-group':
         return {}
       case 'array-group':
         return []
@@ -573,6 +582,82 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                 >
                   <CloseIcon />
                 </Button>
+              </div>
+            ))}
+          </div>
+          <button type="button" class="add-item-btn" onClick={addItem}>
+            <PlusIcon />
+            <span>添加{field.label || '项'}</span>
+          </button>
+        </div>
+      )
+    }
+
+    if (field.type === 'record-group') {
+      const value = (getFieldValue(field.name) || {}) as Record<string, any>
+      const icons = useIcon(['Plus', 'Close'])
+      const PlusIcon = icons.Plus as any
+      const CloseIcon = icons.Close as any
+
+      const addItem = () => {
+        const newKey = `item_${Object.keys(value).length + 1}`
+        const newItem = {} as any
+        field.children.forEach((child: any) => {
+          const childName = child.name.split('.').pop()!
+          newItem[childName] = getDefaultValue(child.type, child)
+        })
+        setFieldValue(field.name, { ...value, [newKey]: newItem })
+      }
+
+      const removeItem = (key: string) => {
+        const newValue = { ...value }
+        delete newValue[key]
+        setFieldValue(field.name, newValue)
+      }
+
+      const updateKey = (oldKey: string, newKey: string) => {
+        if (oldKey === newKey || !newKey.trim()) return
+        const newValue = { ...value }
+        const itemValue = newValue[oldKey]
+        delete newValue[oldKey]
+        newValue[newKey] = itemValue
+        setFieldValue(field.name, newValue)
+      }
+
+      return (
+        <div class="form-record-group" key={field.name}>
+          {field.label && <div class="form-group-title">{field.label}</div>}
+          <div class="form-record-items">
+            {Object.entries(value).map(([key, _item]) => (
+              <div class="form-record-item" key={`${field.name}-${key}`}>
+                <div class="form-record-item-header">
+                  <Input
+                    modelValue={key}
+                    placeholder={(field as any).keyPlaceholder || '键'}
+                    size="sm"
+                    onBlur={(e: any) => updateKey(key, e.target.value)}
+                  />
+                  <Button
+                    variant="text"
+                    size="sm"
+                    class="remove-item-btn"
+                    onClick={() => removeItem(key)}
+                  >
+                    <CloseIcon />
+                  </Button>
+                </div>
+                <div class="form-record-item-content">
+                  {field.children.map((child: any) => {
+                    const childName = child.name.split('.').pop()!
+                    const fieldName = `${field.name}.${key}.${childName}`
+                    const childField = {
+                      ...child,
+                      name: fieldName,
+                      label: child.label || childName
+                    }
+                    return renderField(childField, formSize)
+                  })}
+                </div>
               </div>
             ))}
           </div>
@@ -926,6 +1011,46 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
       .form-array-item-content {
         flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .form-record-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        padding: 12px;
+        background: var(--bg-secondary);
+      }
+
+      .form-record-items {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .form-record-item {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 8px;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        border: 1px solid var(--border-subtle);
+      }
+
+      .form-record-item-header {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        border-bottom: 1px solid var(--border-subtle);
+        padding-bottom: 8px;
+      }
+
+      .form-record-item-content {
         display: flex;
         flex-direction: column;
         gap: 8px;
