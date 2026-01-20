@@ -556,7 +556,19 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
       return (
         <div class="form-array-group" key={field.name}>
-          {field.label && <div class="form-group-title">{field.label}</div>}
+          {field.label && (
+            <div class="form-group-title">
+              {field.label}
+              {field.hint && (
+                <div class="form-item-hint">
+                  <Markdown
+                    block={{ text: field.hint, state: 'done', type: 'text' }}
+                    message={{ content: field.hint, role: 'assistant', id: 'hint' } as any}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           <div class="form-array-items">
             {value.map((_item, index) => (
               <div class="form-array-item" key={`${field.name}-${index}`}>
@@ -626,7 +638,19 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
       return (
         <div class="form-record-group" key={field.name}>
-          {field.label && <div class="form-group-title">{field.label}</div>}
+          {field.label && (
+            <div class="form-group-title">
+              {field.label}
+              {field.hint && (
+                <div class="form-item-hint">
+                  <Markdown
+                    block={{ text: field.hint, state: 'done', type: 'text' }}
+                    message={{ content: field.hint, role: 'assistant', id: 'hint' } as any}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           <div class="form-record-items">
             {Object.entries(value).map(([key, _item]) => (
               <div class="form-record-item" key={`${field.name}-${key}`}>
@@ -693,6 +717,14 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
               }}
             >
               {field.label}
+              {field.hint && !isCollapsed && (
+                <div class="form-item-hint">
+                  <Markdown
+                    block={{ text: field.hint, state: 'done', type: 'text' }}
+                    message={{ content: field.hint, role: 'assistant', id: 'hint' } as any}
+                  />
+                </div>
+              )}
               {g.collapsible && (
                 <div class="collapse-icon">
                   <ChevronIcon />
@@ -957,8 +989,16 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         padding-bottom: 8px;
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
         justify-content: space-between;
         user-select: none;
+      }
+
+      .form-group-title .form-item-hint {
+        width: 100%;
+        margin-top: 0;
+        font-weight: normal;
       }
 
       .form-group.collapsible .form-group-title {

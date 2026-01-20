@@ -10,30 +10,30 @@ export interface CivitaiImageConfig {
 }
 
 const civitaiImageCallOptionsSchema = z.object({
-  negativePrompt: z.string().optional(),
+  negativePrompt: z.string().describe('可选。图像生成的负向提示词。').optional(),
   scheduler: z.enum([
     'EulerA', 'Euler', 'LMS', 'Heun', 'DPM2', 'DPM2A', 'DPM2SA', 'DPM2M',
     'DPMSDE', 'DPMFast', 'DPMAdaptive', 'LMSKarras', 'DPM2Karras', 'DPM2AKarras',
     'DPM2SAKarras', 'DPM2MKarras', 'DPMSDEKarras', 'DDIM', 'PLMS', 'UniPC',
     'Undefined', 'LCM', 'DDPM', 'DEIS'
-  ]).optional(),
-  steps: z.number().optional(),
-  cfgScale: z.number().optional(),
-  clipSkip: z.number().optional(),
-  callbackUrl: z.string().url().optional(),
-  batchSize: z.number().min(1).max(10).optional(),
+  ]).describe('可选。要使用的调度算法。').optional(),
+  steps: z.number().describe('可选。图像生成过程的步数。').optional(),
+  cfgScale: z.number().describe('可选。图像生成的 CFG 比例。').optional(),
+  clipSkip: z.number().describe('可选。图像生成的 CLIP 跳过数。').optional(),
+  callbackUrl: z.string().url().describe('可选。作业完成后将调用的 URL。').optional(),
+  batchSize: z.number().min(1).max(10).describe('可选。批次大小。').optional(),
   additionalNetworks: z.record(z.string(), z.object({
-    type: z.enum(['Lora', 'Hypernetwork', 'TextualInversion', 'Lycoris', 'Checkpoint', 'Vae', 'LoCon']),
-    strength: z.number().optional(),
-    triggerWord: z.string().optional(),
-  })).optional(),
+    type: z.enum(['Lora', 'Hypernetwork', 'TextualInversion', 'Lycoris', 'Checkpoint', 'Vae', 'LoCon']).describe('资产类型。'),
+    strength: z.number().describe('可选。对于 LoRa 和 LoCon，设置网络强度。').optional(),
+    triggerWord: z.string().describe('可选。对于 TextualInversion，设置网络的触发词。').optional(),
+  })).describe('可选。一个关联列表，其中包含其他网络，以网络的 AIR 为键。').optional(),
   controlNets: z.array(z.object({
-    preprocessor: z.enum(['Canny', 'DepthZoe', 'SoftedgePidinet', 'Rembg']).nullable().optional(),
-    weight: z.number().nullable().optional(),
-    startStep: z.number().nullable().optional(),
-    endStep: z.number().nullable().optional(),
-    imageUrl: z.string().nullable().optional(),
-  })).optional(),
+    preprocessor: z.enum(['Canny', 'DepthZoe', 'SoftedgePidinet', 'Rembg']).nullable().describe('可选。指定要作为预处理器应用的图像转换器。').optional(),
+    weight: z.number().nullable().describe('可选。控制网的权重。').optional(),
+    startStep: z.number().nullable().describe('可选。控制网络开始生效的步数。').optional(),
+    endStep: z.number().nullable().describe('可选。控制网络停止应用的步数。').optional(),
+    imageUrl: z.string().nullable().describe('可选。与控制网络关联的图像 URL。').optional(),
+  })).describe('可选。可应用于图像生成过程的控制网络数组。').optional(),
 });
 
 export class CivitaiImageModel implements ImageModelV3 {

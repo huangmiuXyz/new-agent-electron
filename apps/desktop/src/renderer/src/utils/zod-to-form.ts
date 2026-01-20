@@ -23,7 +23,11 @@ function unwrap(schema: ZodType): UnwrapResult {
   let metadata: any[] = []
 
   const updateMetadata = (s: any) => {
-    metadata.push(s.meta())
+    const meta = typeof s.meta === 'function' ? s.meta() : undefined
+    const description = s.description || s._def?.description
+    if (meta || description) {
+      metadata.push({ ...meta, description })
+    }
   }
 
   // 递归展开包装类型（optional, default, effects, pipeline, nullable）
