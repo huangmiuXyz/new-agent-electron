@@ -61,7 +61,7 @@ function unwrap(schema: ZodType): UnwrapResult {
     schema: current,
     required,
     defaultValue,
-    metadata: metadata.filter(Boolean)?.[0]
+    metadata: metadata.filter(Boolean).reduce((acc, curr) => ({ ...acc, ...curr }), {})
   }
 }
 

@@ -6,6 +6,8 @@ import SettingsPage from './pages/settings/index.vue'
 import AppFooter from './components/AppFooter.vue'
 import { useSettingsStore } from './stores/settings'
 
+const route = useRoute()
+const router = useRouter()
 const currentView = ref('chat')
 const settingsStore = useSettingsStore()
 const { display } = storeToRefs(settingsStore)
@@ -22,6 +24,10 @@ watchEffect(() => {
 
 const switchView = (view: 'chat' | 'notes' | 'settings' | 'image') => {
   currentView.value = view
+  // 同步更新路由
+  if (!isMobile.value) {
+    router.push(`/${view}`)
+  }
 }
 
 useBackButton()
@@ -57,9 +63,6 @@ onUnmounted(() => {
 })
 
 provide('switchView', switchView)
-const route = useRoute()
-
-const router = useRouter()
 
 const mobileTabs = computed(() => {
   return router.getRoutes()
@@ -67,9 +70,20 @@ const mobileTabs = computed(() => {
     .sort((a, b) => (a.meta.sort as number) - (b.meta.sort as number))
 })
 
-watch(() => route.path, () => {
-  resetTitle()
-})
+// 监听路由变化，同步更新 currentView
+watch(
+  () => route.path,
+  (path) => {
+    if (!isMobile.value) {
+      if (path.startsWith('/chat')) currentView.value = 'chat'
+      else if (path.startsWith('/notes')) currentView.value = 'notes'
+      else if (path.startsWith('/image')) currentView.value = 'image'
+      else if (path.startsWith('/settings')) currentView.value = 'settings'
+    }
+    resetTitle()
+  },
+  { immediate: true }
+)
 
 
 const transitionName = ref('fade')
