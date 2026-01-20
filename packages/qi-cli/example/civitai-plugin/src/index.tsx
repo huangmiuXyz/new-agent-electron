@@ -226,14 +226,44 @@ const CivitaiPlugin: Plugin = {
                               const settingsStore = await context.getStore('settings')
                               if (!settingsStore) return
 
+                              // 获取当前选择的模型版本 AIR
+                              const currentModelAir = details.air
+
+                              // 自动激活模型
+                              if (currentModelAir && !activeModelsMap.value[currentModelAir]) {
+                                const modelToActivate = {
+                                  ...row,
+                                  id: currentModelAir,
+                                  active: true,
+                                  loading: false
+                                }
+                                activeModelsMap.value[currentModelAir] = vue.toRaw(modelToActivate)
+
+                                // 同步到本地存储并更新提供商
+                                const saved: any = await localforage.getItem(STORAGE_KEY)
+                                const newData = {
+                                  ...saved,
+                                  activeModelsMap: vue.toRaw(activeModelsMap.value)
+                                }
+                                await localforage.setItem(STORAGE_KEY, newData)
+                                await updateProvider()
+
+                                // 更新表格数据中的激活状态
+                                const currentData = getData()
+                                setData(
+                                  currentData.map((item: any) =>
+                                    item.versionId === row.versionId
+                                      ? { ...item, active: true, id: currentModelAir }
+                                      : item
+                                  )
+                                )
+                              }
+
                               // 查找 Civitai 提供商和模型
                               const civitaiProvider = settingsStore.getAllProviders.find(
                                 (p: any) => p.providerId === PROVIDER_ID
                               )
                               if (!civitaiProvider) return
-
-                              // 获取当前选择的模型版本 AIR
-                              const currentModelAir = details.air
 
                               // 填充表单
                               const formData = {
@@ -242,7 +272,7 @@ const CivitaiPlugin: Plugin = {
                                   modelId: currentModelAir || civitaiProvider.models[0]?.id,
                                   providerId: civitaiProvider.id
                                 },
-                                prompt: meta.prompt || '',
+                                prompt: meta.prompt || meta.Prompt || meta['Positive prompt'] || '',
                                 size: meta.Size || meta.size || '1024x1024',
                                 n: 1,
                                 seed: meta.seed || meta.Seed,
