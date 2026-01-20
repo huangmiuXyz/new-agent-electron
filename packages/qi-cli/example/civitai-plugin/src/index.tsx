@@ -146,9 +146,6 @@ const CivitaiPlugin: Plugin = {
                   <span style={{ background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                     <strong>下载量:</strong> {row.stats?.downloadCount?.toLocaleString() || 0}
                   </span>
-                  <span style={{ background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <strong>评分:</strong> {row.stats?.rating?.toFixed(1) || 'N/A'}
-                  </span>
                 </div>
                 <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {row.tags?.map((tag: string) => (
