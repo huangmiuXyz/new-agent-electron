@@ -197,6 +197,7 @@ export class PluginManager {
       useTable,
       useDownload,
       useIcon,
+      useModal,
       useTerminal: () => {
         const terminal = useTerminal();
         return {

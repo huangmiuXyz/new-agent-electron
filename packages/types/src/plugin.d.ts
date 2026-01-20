@@ -77,6 +77,7 @@ declare global {
     useTable: any;
     useDownload: any;
     useIcon: any;
+    useModal: any;
     useTerminal: () => {
       show: () => void;
       createTab: (options: any) => Promise<any>;

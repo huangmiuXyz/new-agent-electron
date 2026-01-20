@@ -141,6 +141,12 @@ export function createCivitai(
             created: Math.floor(Date.now() / 1000),
             object: 'model',
             owned_by: item.creator?.username || 'civitai',
+            // 额外信息用于 UI 显示
+            images: latestVersion.images?.map((img: any) => img.url) || [],
+            tags: item.tags || [],
+            stats: item.stats || {},
+            type: item.type,
+            nsfw: item.nsfw
           });
         }
       }

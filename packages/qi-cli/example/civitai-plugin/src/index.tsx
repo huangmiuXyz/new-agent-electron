@@ -12,7 +12,7 @@ const CivitaiPlugin: Plugin = {
   updatedAt: '2026-01-19 12:00:00',
 
   install: async (context: PluginContext) => {
-    const { vue, registerRegistry, registerProvider, useForm, useTable, localforage } = context
+    const { vue, registerRegistry, registerProvider, useForm, useTable, useModal, localforage } = context
 
     const currentPage = vue.ref(1)
     const searchQuery = vue.ref('')
@@ -21,6 +21,8 @@ const CivitaiPlugin: Plugin = {
     const nextUrl = vue.ref(undefined)
     const historyUrls = vue.ref([])
     const currentUrl = vue.ref(undefined)
+
+    const modal = useModal()
 
     const updateProvider = async () => {
       const saved: any = await localforage.getItem(STORAGE_KEY)
@@ -109,6 +111,73 @@ const CivitaiPlugin: Plugin = {
 
     const [TableComponent, { setData, getData }] = useTable({
       data: [],
+      onRowClick: (row: any) => {
+        modal.confirm({
+          title: row.name,
+          width: '80%',
+          showCancel: false,
+          confirmText: '关闭',
+          content: (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+                {row.images?.map((url: string) => (
+                  <img
+                    key={url}
+                    src={url}
+                    style={{
+                      width: '180px',
+                      height: '240px',
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      flexShrink: 0
+                    }}
+                  />
+                ))}
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
+                <div style={{ marginBottom: '12px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <strong>类型:</strong> {row.type}
+                  </span>
+                  <span style={{ background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <strong>NSFW:</strong> {row.nsfw ? '是' : '否'}
+                  </span>
+                  <span style={{ background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <strong>下载量:</strong> {row.stats?.downloadCount?.toLocaleString() || 0}
+                  </span>
+                  <span style={{ background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <strong>评分:</strong> {row.stats?.rating?.toFixed(1) || 'N/A'}
+                  </span>
+                </div>
+                <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {row.tags?.map((tag: string) => (
+                    <span key={tag} style={{ background: 'var(--accent-color-soft)', color: 'var(--accent-color)', padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '500' }}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                {row.description && (
+                  <div
+                    innerHTML={row.description}
+                    style={{
+                      maxHeight: '300px',
+                      overflowY: 'auto',
+                      padding: '16px',
+                      background: 'var(--bg-primary)',
+                      borderRadius: '8px',
+                      lineHeight: '1.6',
+                      fontSize: '13px',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-color)'
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          )
+        })
+      },
       columns: () => [
         { key: 'name', label: '模型名称', width: '2fr' },
         { key: 'id', label: '模型ID', width: '1.5fr' },

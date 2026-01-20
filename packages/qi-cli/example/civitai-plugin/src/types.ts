@@ -27,6 +27,7 @@ export interface PluginContext {
   useForm: any
   useTable: any
   useIcon: any
+  useModal: any
   /** 注册内置工具 */
   registerBuiltinTool: (name: string, tool: any) => void;
   /** 注销内置工具 */
