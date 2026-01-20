@@ -135,7 +135,13 @@ export class CivitaiSDKBridge {
 
     if (!urlString) {
       const url = new URL('https://civitai.com/api/v1/models');
-      Object.entries(restParams).forEach(([key, value]) => {
+
+      const searchParams = { ...restParams };
+      if (searchParams.query && searchParams.page) {
+        delete searchParams.page;
+      }
+
+      Object.entries(searchParams).forEach(([key, value]) => {
         if (value !== undefined) url.searchParams.append(key, String(value));
       });
       if (!url.searchParams.has('limit')) url.searchParams.append('limit', '20');
