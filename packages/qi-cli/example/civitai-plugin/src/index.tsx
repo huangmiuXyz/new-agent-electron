@@ -197,6 +197,7 @@ const CivitaiPlugin: Plugin = {
                 onChange={async (e) => {
                   const target = e.target as HTMLSelectElement
                   const newVersionId = Number(target.value)
+                  const oldVersionId = row.versionId
                   const selectedVersion = row.versions.find((v: any) => v.id === newVersionId)
                   if (!selectedVersion) return
 
@@ -208,12 +209,12 @@ const CivitaiPlugin: Plugin = {
                     item.modelId === row.modelId ? { ...item, loading: true } : item
                   ))
 
-                  // 如果当前是激活状态，需要先取消旧版本的激活，再激活新版本（或者保持激活但更新 ID）
-                  let newId = String(row.modelId)
+                  try {
+                    // 如果当前是激活状态，需要先取消旧版本的激活，再激活新版本（或者保持激活但更新 ID）
+                    let newId = String(row.modelId)
 
-                  if (isCurrentlyActive) {
-                    // 如果已激活，尝试获取新版本的 AIR
-                    try {
+                    if (isCurrentlyActive) {
+                      // 如果已激活，尝试获取新版本的 AIR
                       const saved: any = await localforage.getItem(STORAGE_KEY)
                       const provider = createCivitai({
                         apiKey: saved?.apiKey,
@@ -223,45 +224,50 @@ const CivitaiPlugin: Plugin = {
                         const versionInfo = await provider.getModelVersion(newVersionId)
                         if (versionInfo.air) {
                           newId = versionInfo.air
+                        } else {
+                          throw new Error('No AIR found for this version')
                         }
                       }
-                    } catch (err) {
-                      console.error('Failed to fetch new version air:', err)
                     }
-                  } else {
-                    // 未激活状态下切换版本，ID 依然是原始 ID，不需要额外处理，newId 已经是 row.modelId 了
-                  }
 
-                  const updatedRow = {
-                    ...row,
-                    id: newId,
-                    versionId: newVersionId,
-                    images: selectedVersion.images || row.images,
-                    description: selectedVersion.description || row.description,
-                    loading: false
-                  }
+                    const updatedRow = {
+                      ...row,
+                      id: newId,
+                      versionId: newVersionId,
+                      images: selectedVersion.images || row.images,
+                      description: selectedVersion.description || row.description,
+                      loading: false
+                    }
 
-                  const updatedData = getData().map((item: any) =>
-                    item.modelId === row.modelId ? updatedRow : item
-                  )
-                  setData(updatedData)
-
-                  if (isCurrentlyActive) {
-                    // 更新 activeModelsMap
-                    const oldKeyToDelete = Object.keys(activeModelsMap.value).find(
-                      key => activeModelsMap.value[key].modelId === row.modelId
+                    const updatedData = getData().map((item: any) =>
+                      item.modelId === row.modelId ? updatedRow : item
                     )
-                    if (oldKeyToDelete) {
-                      delete activeModelsMap.value[oldKeyToDelete]
-                    }
-                    activeModelsMap.value[newId] = vue.toRaw(updatedRow)
+                    setData(updatedData)
 
-                    localforage.getItem(STORAGE_KEY).then((saved: any) => {
-                      const newData = { ...saved, activeModelsMap: vue.toRaw(activeModelsMap.value) }
-                      localforage.setItem(STORAGE_KEY, newData).then(() => {
-                        updateProvider()
+                    if (isCurrentlyActive) {
+                      // 更新 activeModelsMap
+                      const oldKeyToDelete = Object.keys(activeModelsMap.value).find(
+                        key => activeModelsMap.value[key].modelId === row.modelId
+                      )
+                      if (oldKeyToDelete) {
+                        delete activeModelsMap.value[oldKeyToDelete]
+                      }
+                      activeModelsMap.value[newId] = vue.toRaw(updatedRow)
+
+                      localforage.getItem(STORAGE_KEY).then((saved: any) => {
+                        const newData = { ...saved, activeModelsMap: vue.toRaw(activeModelsMap.value) }
+                        localforage.setItem(STORAGE_KEY, newData).then(() => {
+                          updateProvider()
+                        })
                       })
-                    })
+                    }
+                  } catch (err) {
+                    console.error('Failed to switch version:', err)
+                    // 失败回滚：恢复原版本 ID 和 loading 状态
+                    const rollbackData = getData().map((item: any) =>
+                      item.modelId === row.modelId ? { ...row, loading: false } : item
+                    )
+                    setData(rollbackData)
                   }
                 }}
                 style={{
@@ -302,10 +308,10 @@ const CivitaiPlugin: Plugin = {
                     item.versionId === row.versionId ? { ...item, loading: true } : item
                   ))
 
-                  let updatedRow = { ...row, active: val, loading: false }
+                  try {
+                    let updatedRow = { ...row, active: val, loading: false }
 
-                  if (val && row.versionId) {
-                    try {
+                    if (val && row.versionId) {
                       const saved: any = await localforage.getItem(STORAGE_KEY)
                       const provider = createCivitai({
                         apiKey: saved?.apiKey,
@@ -315,39 +321,46 @@ const CivitaiPlugin: Plugin = {
                         const versionInfo = await provider.getModelVersion(row.versionId)
                         if (versionInfo.air) {
                           updatedRow.id = versionInfo.air
+                        } else {
+                          throw new Error('No AIR found for this version')
                         }
                       }
-                    } catch (e) {
-                      console.error('Failed to fetch model version air:', e)
+                    } else {
+                      // 如果取消激活，还原 ID 为原始 ID
+                      updatedRow.id = String(row.modelId)
                     }
-                  } else {
-                    // 如果取消激活，还原 ID 为原始 ID
-                    updatedRow.id = String(row.modelId)
-                  }
 
-                  const finalData = getData().map((item: any) =>
-                    item.versionId === row.versionId ? updatedRow : item
-                  )
-                  setData(finalData)
-
-                  if (val) {
-                    activeModelsMap.value[updatedRow.id] = vue.toRaw(updatedRow)
-                  } else {
-                    // 查找并删除具有相同 versionId 的模型
-                    const keyToDelete = Object.keys(activeModelsMap.value).find(
-                      key => activeModelsMap.value[key].versionId === row.versionId
+                    const finalData = getData().map((item: any) =>
+                      item.versionId === row.versionId ? updatedRow : item
                     )
-                    if (keyToDelete) {
-                      delete activeModelsMap.value[keyToDelete]
-                    }
-                  }
+                    setData(finalData)
 
-                  localforage.getItem(STORAGE_KEY).then((saved: any) => {
-                    const newData = { ...saved, activeModelsMap: vue.toRaw(activeModelsMap.value) }
-                    localforage.setItem(STORAGE_KEY, newData).then(() => {
-                      updateProvider()
+                    if (val) {
+                      activeModelsMap.value[updatedRow.id] = vue.toRaw(updatedRow)
+                    } else {
+                      // 查找并删除具有相同 versionId 的模型
+                      const keyToDelete = Object.keys(activeModelsMap.value).find(
+                        key => activeModelsMap.value[key].versionId === row.versionId
+                      )
+                      if (keyToDelete) {
+                        delete activeModelsMap.value[keyToDelete]
+                      }
+                    }
+
+                    localforage.getItem(STORAGE_KEY).then((saved: any) => {
+                      const newData = { ...saved, activeModelsMap: vue.toRaw(activeModelsMap.value) }
+                      localforage.setItem(STORAGE_KEY, newData).then(() => {
+                        updateProvider()
+                      })
                     })
-                  })
+                  } catch (e) {
+                    console.error('Failed to update activation state:', e)
+                    // 失败回滚：恢复原状态并关闭 loading
+                    const rollbackData = getData().map((item: any) =>
+                      item.versionId === row.versionId ? { ...row, active: !val, loading: false } : item
+                    )
+                    setData(rollbackData)
+                  }
                 }
               })}
             </div>
