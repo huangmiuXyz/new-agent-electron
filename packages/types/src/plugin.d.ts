@@ -29,6 +29,8 @@ declare global {
     api: any;
     /** Pinia 实例 */
     pinia: any;
+    /** 路由实例 */
+    router: any;
     /** 插件根路径 */
     basePath: string;
     /** 注册命令 */

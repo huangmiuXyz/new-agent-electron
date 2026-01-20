@@ -11,8 +11,8 @@ export class PluginLoader {
   private devPlugins: Map<string, string> = new Map(); // pluginName -> localPath
   private watchers: Map<string, () => void> = new Map(); // pluginName -> unwatch function
 
-  constructor(app: any, pinia?: any) {
-    this.pluginManager = new PluginManager(app, pinia);
+  constructor(app: any, pinia?: any, router?: any) {
+    this.pluginManager = new PluginManager(app, pinia, router);
   }
 
   /**

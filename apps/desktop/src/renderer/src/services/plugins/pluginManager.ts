@@ -12,6 +12,7 @@ import localforage from 'localforage'
 export class PluginManager {
   private app: any;
   private pinia: any;
+  private router: any;
   private plugins: Map<string, Plugin> = new Map();
   private commands: Map<string, Command> = new Map();
   private hooks: Map<string, Hook[]> = new Map();
@@ -22,9 +23,10 @@ export class PluginManager {
   /** 跟踪每个插件注册的注册表名称 */
   private pluginRegistries: Map<string, Set<string>> = reactive(new Map());
 
-  constructor(app: any, pinia?: any) {
+  constructor(app: any, pinia?: any, router?: any) {
     this.app = app;
     this.pinia = pinia;
+    this.router = router;
   }
 
   /**
@@ -171,6 +173,7 @@ export class PluginManager {
       app: this.app,
       api: window.api,
       pinia: this.pinia,
+      router: this.router,
       vue: {
         ref,
         reactive,

@@ -24,7 +24,7 @@ app.use(pinia)
 app.use(router)
 
 
-const pluginLoader = new PluginLoader(app, pinia)
+const pluginLoader = new PluginLoader(app, pinia, router)
 pluginLoader.registerComponents({
   Button,
   Switch,

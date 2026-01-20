@@ -12,6 +12,7 @@ export interface PluginContext {
   app: any;
   api: any;
   pinia: any;
+  router: any;
   vue: any;
   components: any;
   basePath: string;

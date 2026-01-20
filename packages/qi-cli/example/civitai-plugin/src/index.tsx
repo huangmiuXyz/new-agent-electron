@@ -125,9 +125,11 @@ const CivitaiPlugin: Plugin = {
           try {
             // 设置表格行加载状态（如果支持）
             const currentData = getData()
-            setData(currentData.map((item: any) =>
-              item.versionId === row.versionId ? { ...item, loading: true } : item
-            ))
+            setData(
+              currentData.map((item: any) =>
+                item.versionId === row.versionId ? { ...item, loading: true } : item
+              )
+            )
 
             const saved: any = await localforage.getItem(STORAGE_KEY)
             const provider = createCivitai({
@@ -141,9 +143,11 @@ const CivitaiPlugin: Plugin = {
             console.error('Failed to fetch model details:', e)
           } finally {
             const currentData = getData()
-            setData(currentData.map((item: any) =>
-              item.versionId === row.versionId ? { ...item, loading: false } : item
-            ))
+            setData(
+              currentData.map((item: any) =>
+                item.versionId === row.versionId ? { ...item, loading: false } : item
+              )
+            )
           }
         }
 
@@ -213,20 +217,77 @@ const CivitaiPlugin: Plugin = {
                       }}
                     >
                       <h4 style={{ margin: 0, fontSize: '14px' }}>生成参数</h4>
-                      <context.components.Button
-                        size="xs"
-                        type="text"
-                        onClick={() => {
-                          const text = Object.entries(meta)
-                            .map(
-                              ([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`
-                            )
-                            .join('\n')
-                          navigator.clipboard.writeText(text)
-                        }}
-                      >
-                        复制全部
-                      </context.components.Button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <context.components.Button
+                          size="xs"
+                          type="text"
+                          onClick={async () => {
+                            try {
+                              const settingsStore = await context.getStore('settings')
+                              if (!settingsStore) return
+
+                              // 查找 Civitai 提供商和模型
+                              const civitaiProvider = settingsStore.getAllProviders.find(
+                                (p: any) => p.providerId === PROVIDER_ID
+                              )
+                              if (!civitaiProvider) return
+
+                              // 获取当前选择的模型版本 AIR
+                              const currentModelAir = details.air
+
+                              // 填充表单
+                              const formData = {
+                                ...settingsStore.imageGenerationForm,
+                                model: {
+                                  modelId: currentModelAir || civitaiProvider.models[0]?.id,
+                                  providerId: civitaiProvider.id
+                                },
+                                prompt: meta.prompt || '',
+                                size: meta.Size || meta.size || '1024x1024',
+                                n: 1,
+                                seed: meta.seed || meta.Seed,
+                                providerOptions: {
+                                  ...settingsStore.imageGenerationForm?.providerOptions,
+                                  civitai: {
+                                    negativePrompt:
+                                      meta.negativePrompt || meta['Negative prompt'] || '',
+                                    cfgScale: meta.cfgScale || meta['CFG scale'],
+                                    steps: meta.steps || meta.Steps,
+                                    sampler: meta.sampler || meta.Sampler,
+                                    clipSkip: meta.clipSkip || meta['Clip skip']
+                                  }
+                                }
+                              }
+
+                              settingsStore.updateImageGenerationForm(formData)
+
+                              // 跳转到图片生成页面
+                              const router = context.router
+                              if (router) {
+                                router.push('/image')
+                              }
+                            } catch (e) {
+                              console.error('Failed to generate with one-click:', e)
+                            }
+                          }}
+                        >
+                          一键生成
+                        </context.components.Button>
+                        <context.components.Button
+                          size="xs"
+                          type="text"
+                          onClick={() => {
+                            const text = Object.entries(meta)
+                              .map(
+                                ([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`
+                              )
+                              .join('\n')
+                            navigator.clipboard.writeText(text)
+                          }}
+                        >
+                          复制全部
+                        </context.components.Button>
+                      </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       {Object.entries(meta).map(([key, value]: [string, any]) => (
