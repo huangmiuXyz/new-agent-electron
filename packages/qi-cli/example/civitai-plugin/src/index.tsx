@@ -185,7 +185,106 @@ const CivitaiPlugin: Plugin = {
       },
       columns: () => [
         { key: 'name', label: '模型名称', width: '2fr' },
-        { key: 'id', label: '模型ID', width: '1.5fr' },
+        {
+          key: 'version',
+          label: '版本',
+          width: '1.5fr',
+          render: (row: any) => (
+            <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <select
+                disabled={row.loading}
+                value={row.versionId}
+                onChange={async (e) => {
+                  const target = e.target as HTMLSelectElement
+                  const newVersionId = Number(target.value)
+                  const selectedVersion = row.versions.find((v: any) => v.id === newVersionId)
+                  if (!selectedVersion) return
+
+                  const currentData = getData()
+                  const isCurrentlyActive = row.active
+
+                  // 设置 loading 状态
+                  setData(currentData.map((item: any) =>
+                    item.modelId === row.modelId ? { ...item, loading: true } : item
+                  ))
+
+                  // 如果当前是激活状态，需要先取消旧版本的激活，再激活新版本（或者保持激活但更新 ID）
+                  let newId = String(row.modelId)
+
+                  if (isCurrentlyActive) {
+                    // 如果已激活，尝试获取新版本的 AIR
+                    try {
+                      const saved: any = await localforage.getItem(STORAGE_KEY)
+                      const provider = createCivitai({
+                        apiKey: saved?.apiKey,
+                        pluginPath: context.basePath
+                      })
+                      if (provider.getModelVersion) {
+                        const versionInfo = await provider.getModelVersion(newVersionId)
+                        if (versionInfo.air) {
+                          newId = versionInfo.air
+                        }
+                      }
+                    } catch (err) {
+                      console.error('Failed to fetch new version air:', err)
+                    }
+                  } else {
+                    // 未激活状态下切换版本，ID 依然是原始 ID，不需要额外处理，newId 已经是 row.modelId 了
+                  }
+
+                  const updatedRow = {
+                    ...row,
+                    id: newId,
+                    versionId: newVersionId,
+                    images: selectedVersion.images || row.images,
+                    description: selectedVersion.description || row.description,
+                    loading: false
+                  }
+
+                  const updatedData = getData().map((item: any) =>
+                    item.modelId === row.modelId ? updatedRow : item
+                  )
+                  setData(updatedData)
+
+                  if (isCurrentlyActive) {
+                    // 更新 activeModelsMap
+                    const oldKeyToDelete = Object.keys(activeModelsMap.value).find(
+                      key => activeModelsMap.value[key].modelId === row.modelId
+                    )
+                    if (oldKeyToDelete) {
+                      delete activeModelsMap.value[oldKeyToDelete]
+                    }
+                    activeModelsMap.value[newId] = vue.toRaw(updatedRow)
+
+                    localforage.getItem(STORAGE_KEY).then((saved: any) => {
+                      const newData = { ...saved, activeModelsMap: vue.toRaw(activeModelsMap.value) }
+                      localforage.setItem(STORAGE_KEY, newData).then(() => {
+                        updateProvider()
+                      })
+                    })
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  opacity: row.loading ? 0.6 : 1,
+                  cursor: row.loading ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {row.versions?.map((v: any) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )
+        },
         { key: 'owned_by', label: '作者', width: '1fr' },
         {
           key: 'active',
@@ -200,7 +299,7 @@ const CivitaiPlugin: Plugin = {
                   const currentData = getData()
                   // 设置 loading 状态
                   setData(currentData.map((item: any) =>
-                    item.id === row.id ? { ...item, loading: true } : item
+                    item.versionId === row.versionId ? { ...item, loading: true } : item
                   ))
 
                   let updatedRow = { ...row, active: val, loading: false }
@@ -221,10 +320,13 @@ const CivitaiPlugin: Plugin = {
                     } catch (e) {
                       console.error('Failed to fetch model version air:', e)
                     }
+                  } else {
+                    // 如果取消激活，还原 ID 为原始 ID
+                    updatedRow.id = String(row.modelId)
                   }
 
                   const finalData = getData().map((item: any) =>
-                    item.id === row.id ? updatedRow : item
+                    item.versionId === row.versionId ? updatedRow : item
                   )
                   setData(finalData)
 

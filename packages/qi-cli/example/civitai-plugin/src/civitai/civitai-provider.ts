@@ -114,40 +114,28 @@ export function createCivitai(
 
       for (const item of (data.items || [])) {
         if (item.modelVersions && item.modelVersions.length > 0) {
+          const versions = item.modelVersions.map((v: any) => ({
+            id: v.id,
+            name: v.name,
+            baseModel: v.baseModel,
+            images: v.images?.map((img: any) => img.url) || [],
+            description: v.description
+          }));
+
           const latestVersion = item.modelVersions[0];
-
-          // 构建 AIR 格式的 ID: urn:air:{baseModel}:{type}:civitai:{modelId}@{versionId}
-          const baseModel = latestVersion.baseModel || 'SD 1.5';
-
-          // 尝试从映射中获取，如果没有，则进行简单的字符串处理作为 fallback
-          let baseModelAir = baseModelMapping[baseModel];
-          if (!baseModelAir) {
-            const lowerBase = baseModel.toLowerCase();
-            if (lowerBase.includes('sdxl') || lowerBase.includes('stable diffusion xl')) baseModelAir = 'sdxl';
-            else if (lowerBase.includes('sd 1.')) baseModelAir = 'sd1';
-            else if (lowerBase.includes('sd 2.')) baseModelAir = 'sd2';
-            else if (lowerBase.includes('sd 3.')) baseModelAir = 'sd3';
-            else if (lowerBase.includes('flux')) {
-              if (lowerBase.includes('schnell') || lowerBase.includes('.1 s')) baseModelAir = 'flux1s';
-              else baseModelAir = 'flux1d';
-            }
-            else if (lowerBase.includes('pony')) baseModelAir = 'pony';
-            else baseModelAir = 'sd1'; // 最后的保底
-          }
-
-          const typeAir = (item.type || 'Checkpoint').toLowerCase();
-          // const airId = `urn:air:${baseModelAir}:${typeAir}:civitai:${item.id}@${latestVersion.id}`;
 
           models.push({
             id: String(item.id),
+            modelId: item.id,
             versionId: latestVersion.id,
-            name: `${item.name} - ${latestVersion.name}`,
+            versions: versions,
+            name: item.name,
             category: 'image',
             description: item.description || '',
             created: Math.floor(Date.now() / 1000),
             object: 'model',
             owned_by: item.creator?.username || 'civitai',
-            // 额外信息用于 UI 显示
+            // 默认显示最新版本的信息
             images: latestVersion.images?.map((img: any) => img.url) || [],
             tags: item.tags || [],
             stats: item.stats || {},

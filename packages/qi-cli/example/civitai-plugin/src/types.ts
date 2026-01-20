@@ -50,7 +50,9 @@ export interface ModelVoice {
 
 export interface Model {
   id: string;
+  modelId?: number;
   versionId?: number;
+  versions?: any[];
   loading?: boolean;
   name: string;
   category: 'text' | 'image' | 'speech';
