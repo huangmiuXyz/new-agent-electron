@@ -12,7 +12,8 @@ const CivitaiPlugin: Plugin = {
   updatedAt: '2026-01-19 12:00:00',
 
   install: async (context: PluginContext) => {
-    const { vue, registerRegistry, registerProvider, useForm, useTable, useModal, localforage } = context
+    const { vue, registerRegistry, registerProvider, useForm, useTable, useModal, localforage } =
+      context
 
     const currentPage = vue.ref(1)
     const searchQuery = vue.ref('')
@@ -36,7 +37,6 @@ const CivitaiPlugin: Plugin = {
         ...m,
         active: true
       }))
-      console.log('Registering models:', models)
 
       // 使用 getStore 更新 settingsStore 中的 API Key
       try {
@@ -96,17 +96,17 @@ const CivitaiPlugin: Plugin = {
           nextUrl.value = result.nextPage
 
           const formattedModels = models.map((m: any) => {
-             // 检查模型是否已激活。由于存储的 ID 可能是 AIR 格式，我们需要通过 versionId 来匹配
-             const activeModel: any = Object.values(activeModelsMap.value).find(
-               (am: any) => am.versionId === m.versionId
-             )
-             return {
-               ...m,
-               id: activeModel ? activeModel.id : m.id,
-               active: !!activeModel,
-               loading: false
-             }
-           })
+            // 检查模型是否已激活。由于存储的 ID 可能是 AIR 格式，我们需要通过 versionId 来匹配
+            const activeModel: any = Object.values(activeModelsMap.value).find(
+              (am: any) => am.versionId === m.versionId
+            )
+            return {
+              ...m,
+              id: activeModel ? activeModel.id : m.id,
+              active: !!activeModel,
+              loading: false
+            }
+          })
 
           setData(formattedModels)
         }
@@ -127,7 +127,9 @@ const CivitaiPlugin: Plugin = {
           confirmText: '关闭',
           content: (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+              <div
+                style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}
+              >
                 {row.images?.map((url: string) => (
                   <img
                     key={url}
@@ -144,20 +146,61 @@ const CivitaiPlugin: Plugin = {
                 ))}
               </div>
               <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
-                <div style={{ marginBottom: '12px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                <div
+                  style={{
+                    marginBottom: '12px',
+                    display: 'flex',
+                    gap: '16px',
+                    alignItems: 'center',
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <span
+                    style={{
+                      background: 'var(--bg-primary)',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)'
+                    }}
+                  >
                     <strong>类型:</strong> {row.type}
                   </span>
-                  <span style={{ background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <span
+                    style={{
+                      background: 'var(--bg-primary)',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)'
+                    }}
+                  >
                     <strong>NSFW:</strong> {row.nsfw ? '是' : '否'}
                   </span>
-                  <span style={{ background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <span
+                    style={{
+                      background: 'var(--bg-primary)',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)'
+                    }}
+                  >
                     <strong>下载量:</strong> {row.stats?.downloadCount?.toLocaleString() || 0}
                   </span>
                 </div>
-                <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                <div
+                  style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}
+                >
                   {row.tags?.map((tag: string) => (
-                    <span key={tag} style={{ background: 'var(--accent-color-soft)', color: 'var(--accent-color)', padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '500' }}>
+                    <span
+                      key={tag}
+                      style={{
+                        background: 'var(--accent-color-soft)',
+                        color: 'var(--accent-color)',
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '500'
+                      }}
+                    >
                       {tag}
                     </span>
                   ))}
@@ -190,7 +233,10 @@ const CivitaiPlugin: Plugin = {
           label: '版本',
           width: '1.5fr',
           render: (row: any) => (
-            <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
+            >
               <select
                 disabled={row.loading}
                 value={row.versionId}
@@ -205,9 +251,11 @@ const CivitaiPlugin: Plugin = {
                   const isCurrentlyActive = row.active
 
                   // 设置 loading 状态
-                  setData(currentData.map((item: any) =>
-                    item.modelId === row.modelId ? { ...item, loading: true } : item
-                  ))
+                  setData(
+                    currentData.map((item: any) =>
+                      item.modelId === row.modelId ? { ...item, loading: true } : item
+                    )
+                  )
 
                   try {
                     // 如果当前是激活状态，需要先取消旧版本的激活，再激活新版本（或者保持激活但更新 ID）
@@ -247,7 +295,7 @@ const CivitaiPlugin: Plugin = {
                     if (isCurrentlyActive) {
                       // 更新 activeModelsMap
                       const oldKeyToDelete = Object.keys(activeModelsMap.value).find(
-                        key => activeModelsMap.value[key].modelId === row.modelId
+                        (key) => activeModelsMap.value[key].modelId === row.modelId
                       )
                       if (oldKeyToDelete) {
                         delete activeModelsMap.value[oldKeyToDelete]
@@ -255,7 +303,10 @@ const CivitaiPlugin: Plugin = {
                       activeModelsMap.value[newId] = vue.toRaw(updatedRow)
 
                       localforage.getItem(STORAGE_KEY).then((saved: any) => {
-                        const newData = { ...saved, activeModelsMap: vue.toRaw(activeModelsMap.value) }
+                        const newData = {
+                          ...saved,
+                          activeModelsMap: vue.toRaw(activeModelsMap.value)
+                        }
                         localforage.setItem(STORAGE_KEY, newData).then(() => {
                           updateProvider()
                         })
@@ -304,9 +355,11 @@ const CivitaiPlugin: Plugin = {
                 'onUpdate:modelValue': async (val: boolean) => {
                   const currentData = getData()
                   // 设置 loading 状态
-                  setData(currentData.map((item: any) =>
-                    item.versionId === row.versionId ? { ...item, loading: true } : item
-                  ))
+                  setData(
+                    currentData.map((item: any) =>
+                      item.versionId === row.versionId ? { ...item, loading: true } : item
+                    )
+                  )
 
                   try {
                     let updatedRow = { ...row, active: val, loading: false }
@@ -340,7 +393,7 @@ const CivitaiPlugin: Plugin = {
                     } else {
                       // 查找并删除具有相同 versionId 的模型
                       const keyToDelete = Object.keys(activeModelsMap.value).find(
-                        key => activeModelsMap.value[key].versionId === row.versionId
+                        (key) => activeModelsMap.value[key].versionId === row.versionId
                       )
                       if (keyToDelete) {
                         delete activeModelsMap.value[keyToDelete]
@@ -348,7 +401,10 @@ const CivitaiPlugin: Plugin = {
                     }
 
                     localforage.getItem(STORAGE_KEY).then((saved: any) => {
-                      const newData = { ...saved, activeModelsMap: vue.toRaw(activeModelsMap.value) }
+                      const newData = {
+                        ...saved,
+                        activeModelsMap: vue.toRaw(activeModelsMap.value)
+                      }
                       localforage.setItem(STORAGE_KEY, newData).then(() => {
                         updateProvider()
                       })
@@ -357,7 +413,9 @@ const CivitaiPlugin: Plugin = {
                     console.error('Failed to update activation state:', e)
                     // 失败回滚：恢复原状态并关闭 loading
                     const rollbackData = getData().map((item: any) =>
-                      item.versionId === row.versionId ? { ...row, active: !val, loading: false } : item
+                      item.versionId === row.versionId
+                        ? { ...row, active: !val, loading: false }
+                        : item
                     )
                     setData(rollbackData)
                   }
@@ -445,7 +503,11 @@ const CivitaiPlugin: Plugin = {
           fetchModels()
         }
         localforage.getItem(STORAGE_KEY).then((saved: any) => {
-          const newData = { ...saved, ...vue.toRaw(data), activeModelsMap: vue.toRaw(activeModelsMap.value) }
+          const newData = {
+            ...saved,
+            ...vue.toRaw(data),
+            activeModelsMap: vue.toRaw(activeModelsMap.value)
+          }
           localforage.setItem(STORAGE_KEY, newData).then(() => {
             updateProvider()
           })
