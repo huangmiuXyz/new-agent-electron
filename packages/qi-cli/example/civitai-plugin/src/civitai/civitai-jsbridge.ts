@@ -137,9 +137,7 @@ export class CivitaiSDKBridge {
       const url = new URL('https://civitai.com/api/v1/models');
 
       const searchParams = { ...restParams };
-      if (searchParams.query && searchParams.page) {
-        delete searchParams.page;
-      }
+      delete searchParams.page;
 
       Object.entries(searchParams).forEach(([key, value]) => {
         if (value !== undefined) url.searchParams.append(key, String(value));

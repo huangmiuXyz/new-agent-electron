@@ -86,7 +86,6 @@ const CivitaiPlugin: Plugin = {
         if (provider.listModels) {
           const result = await provider.listModels({
             query: searchQuery.value,
-            page: currentPage.value,
             limit: 10,
             nextUrl: useUrl
           })
