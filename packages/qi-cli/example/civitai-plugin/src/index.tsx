@@ -119,7 +119,154 @@ const CivitaiPlugin: Plugin = {
 
     const [TableComponent, { setData, getData }] = useTable({
       data: [],
-      onRowClick: (row: any) => {
+      onRowClick: async (row: any) => {
+        let details = row
+        if (row.versionId) {
+          try {
+            // 设置表格行加载状态（如果支持）
+            const currentData = getData()
+            setData(currentData.map((item: any) =>
+              item.versionId === row.versionId ? { ...item, loading: true } : item
+            ))
+
+            const saved: any = await localforage.getItem(STORAGE_KEY)
+            const provider = createCivitai({
+              apiKey: saved?.apiKey,
+              pluginPath: context.basePath
+            })
+            if (provider.getModelVersion) {
+              details = await provider.getModelVersion(row.versionId)
+            }
+          } catch (e) {
+            console.error('Failed to fetch model details:', e)
+          } finally {
+            const currentData = getData()
+            setData(currentData.map((item: any) =>
+              item.versionId === row.versionId ? { ...item, loading: false } : item
+            ))
+          }
+        }
+
+        const showImageDetail = (image: any) => {
+          const imageUrl = typeof image === 'string' ? image : image.url
+          const meta = typeof image === 'string' ? null : image.meta
+
+          modal.confirm({
+            title: '图片详情',
+            width: '90%',
+            showCancel: false,
+            confirmText: '关闭',
+            content: (
+              <div style={{ display: 'flex', gap: '20px', height: '70vh' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    position: 'relative'
+                  }}
+                >
+                  <img
+                    src={imageUrl}
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                  />
+                  {typeof image === 'object' && image.width && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '12px',
+                        right: '12px',
+                        background: 'rgba(0,0,0,0.5)',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {image.width} x {image.height}
+                    </div>
+                  )}
+                </div>
+                {meta && (
+                  <div
+                    style={{
+                      width: '350px',
+                      overflowY: 'auto',
+                      padding: '16px',
+                      background: 'var(--bg-primary)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '16px'
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <h4 style={{ margin: 0, fontSize: '14px' }}>生成参数</h4>
+                      <context.components.Button
+                        size="xs"
+                        type="text"
+                        onClick={() => {
+                          const text = Object.entries(meta)
+                            .map(
+                              ([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`
+                            )
+                            .join('\n')
+                          navigator.clipboard.writeText(text)
+                        }}
+                      >
+                        复制全部
+                      </context.components.Button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {Object.entries(meta).map(([key, value]: [string, any]) => (
+                        <div key={key}>
+                          <div
+                            style={{
+                              fontSize: '11px',
+                              color: 'var(--text-tertiary)',
+                              marginBottom: '2px',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            {key.toUpperCase()}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '12px',
+                              color: 'var(--text-primary)',
+                              wordBreak: 'break-all',
+                              whiteSpace: 'pre-wrap',
+                              background: 'var(--bg-secondary)',
+                              padding: '8px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-color)'
+                            }}
+                          >
+                            {typeof value === 'object'
+                              ? JSON.stringify(value, null, 2)
+                              : String(value)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        }
+
         modal.confirm({
           title: row.name,
           width: '80%',
@@ -128,22 +275,46 @@ const CivitaiPlugin: Plugin = {
           content: (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div
-                style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}
+                style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '12px' }}
               >
-                {row.images?.map((url: string) => (
-                  <img
-                    key={url}
-                    src={url}
-                    style={{
-                      width: '180px',
-                      height: '240px',
-                      objectFit: 'cover',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-color)',
-                      flexShrink: 0
-                    }}
-                  />
-                ))}
+                {(details.images || row.images)?.map((img: any, index: number) => {
+                  const url = typeof img === 'string' ? img : img.url
+                  return (
+                    <div key={url + index} style={{ position: 'relative', flexShrink: 0 }}>
+                      <img
+                        src={url}
+                        onClick={() => showImageDetail(img)}
+                        style={{
+                          width: '180px',
+                          height: '240px',
+                          objectFit: 'cover',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-color)',
+                          cursor: 'zoom-in',
+                          transition: 'transform 0.2s'
+                        }}
+                        onMouseover={(e: any) => (e.currentTarget.style.transform = 'scale(1.02)')}
+                        onMouseout={(e: any) => (e.currentTarget.style.transform = 'scale(1)')}
+                      />
+                      {img.nsfw && img.nsfw !== 'None' && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: '8px',
+                            right: '8px',
+                            background: 'rgba(255,0,0,0.7)',
+                            color: 'white',
+                            fontSize: '10px',
+                            padding: '2px 6px',
+                            borderRadius: '4px'
+                          }}
+                        >
+                          NSFW
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
               <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
                 <div
@@ -185,6 +356,18 @@ const CivitaiPlugin: Plugin = {
                   >
                     <strong>下载量:</strong> {row.stats?.downloadCount?.toLocaleString() || 0}
                   </span>
+                  {details.baseModel && (
+                    <span
+                      style={{
+                        background: 'var(--bg-primary)',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)'
+                      }}
+                    >
+                      <strong>基础模型:</strong> {details.baseModel}
+                    </span>
+                  )}
                 </div>
                 <div
                   style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}
@@ -205,9 +388,9 @@ const CivitaiPlugin: Plugin = {
                     </span>
                   ))}
                 </div>
-                {row.description && (
+                {(details.description || row.description) && (
                   <div
-                    innerHTML={row.description}
+                    innerHTML={details.description || row.description}
                     style={{
                       maxHeight: '300px',
                       overflowY: 'auto',

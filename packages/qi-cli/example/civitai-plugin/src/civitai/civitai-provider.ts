@@ -62,51 +62,6 @@ export function createCivitai(
     return bridge.getModelVersion(versionId);
   };
 
-  // 映射 Civitai 的 baseModel 到 AIR 前缀
-  const baseModelMapping: Record<string, string> = {
-    // SD 1.x
-    'SD 1.5': 'sd1',
-    'SD 1.4': 'sd1',
-    'SD 1.5 LCM': 'sd1',
-    'SD 1.5 Hyper': 'sd1',
-
-    // SDXL
-    'SDXL 1.0': 'sdxl',
-    'SDXL Lightning': 'sdxl',
-    'SDXL Turbo': 'sdxl',
-    'SDXL Hyper': 'sdxl',
-    'Stable Diffusion XL': 'sdxl',
-
-    // SD 2.x
-    'SD 2.0': 'sd2',
-    'SD 2.1': 'sd2',
-
-    // SD 3.x
-    'SD 3': 'sd3',
-    'SD 3.5': 'sd3',
-    'SD 3.5 Medium': 'sd3',
-    'SD 3.5 Large': 'sd3',
-    'SD 3.5 Large Turbo': 'sd3',
-
-    // Flux
-    'Flux.1 S': 'flux1s',
-    'Flux.1 Schnell': 'flux1s',
-    'Flux.1 D': 'flux1d',
-    'Flux.1 Dev': 'flux1d',
-
-    // Other popular architectures
-    'Pony': 'pony',
-    'Pony Diffusion': 'pony',
-    'Illustrious': 'illustrious',
-    'NoobAI': 'noobai',
-    'Aura Flow': 'auraflow',
-    'PixArt-a': 'pixart',
-    'PixArt-Sigma': 'pixart',
-    'Hunyuan 1': 'hunyuan',
-    'Kolors': 'kolors',
-    'Playground V2': 'pg2',
-  };
-
   provider.listModels = async (params: { query?: string; page?: number; limit?: number; nextUrl?: string } = {}) => {
     try {
       const data = await bridge.listModels(params);
@@ -118,7 +73,7 @@ export function createCivitai(
             id: v.id,
             name: v.name,
             baseModel: v.baseModel,
-            images: v.images?.map((img: any) => img.url) || [],
+            images: v.images || [],
             description: v.description
           }));
 
@@ -136,7 +91,7 @@ export function createCivitai(
             object: 'model',
             owned_by: item.creator?.username || 'civitai',
             // 默认显示最新版本的信息
-            images: latestVersion.images?.map((img: any) => img.url) || [],
+            images: latestVersion.images || [],
             tags: item.tags || [],
             stats: item.stats || {},
             type: item.type,
