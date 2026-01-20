@@ -95,10 +95,18 @@ const CivitaiPlugin: Plugin = {
           const models = result.items
           nextUrl.value = result.nextPage
 
-          const formattedModels = models.map((m: any) => ({
-            ...m,
-            active: !!activeModelsMap.value[m.id]
-          }))
+          const formattedModels = models.map((m: any) => {
+             // 检查模型是否已激活。由于存储的 ID 可能是 AIR 格式，我们需要通过 versionId 来匹配
+             const activeModel: any = Object.values(activeModelsMap.value).find(
+               (am: any) => am.versionId === m.versionId
+             )
+             return {
+               ...m,
+               id: activeModel ? activeModel.id : m.id,
+               active: !!activeModel,
+               loading: false
+             }
+           })
 
           setData(formattedModels)
         }
@@ -183,29 +191,65 @@ const CivitaiPlugin: Plugin = {
           key: 'active',
           label: '激活',
           width: '0.8fr',
-          render: (row: any) =>
-            context.components.Switch({
-              modelValue: row.active,
-              'onUpdate:modelValue': (val: boolean) => {
-                const currentData = getData()
-                const updatedData = currentData.map((item: any) =>
-                  item.id === row.id ? { ...item, active: val } : item
-                )
-                setData(updatedData)
-                if (val) {
-                  activeModelsMap.value[row.id] = vue.toRaw(row)
-                } else {
-                  delete activeModelsMap.value[row.id]
-                }
+          render: (row: any) => (
+            <div onClick={(e) => e.stopPropagation()}>
+              {context.components.Switch({
+                modelValue: row.active,
+                loading: row.loading,
+                'onUpdate:modelValue': async (val: boolean) => {
+                  const currentData = getData()
+                  // 设置 loading 状态
+                  setData(currentData.map((item: any) =>
+                    item.id === row.id ? { ...item, loading: true } : item
+                  ))
 
-                localforage.getItem(STORAGE_KEY).then((saved: any) => {
-                  const newData = { ...saved, activeModelsMap: vue.toRaw(activeModelsMap.value) }
-                  localforage.setItem(STORAGE_KEY, newData).then(() => {
-                    updateProvider()
+                  let updatedRow = { ...row, active: val, loading: false }
+
+                  if (val && row.versionId) {
+                    try {
+                      const saved: any = await localforage.getItem(STORAGE_KEY)
+                      const provider = createCivitai({
+                        apiKey: saved?.apiKey,
+                        pluginPath: context.basePath
+                      })
+                      if (provider.getModelVersion) {
+                        const versionInfo = await provider.getModelVersion(row.versionId)
+                        if (versionInfo.air) {
+                          updatedRow.id = versionInfo.air
+                        }
+                      }
+                    } catch (e) {
+                      console.error('Failed to fetch model version air:', e)
+                    }
+                  }
+
+                  const finalData = getData().map((item: any) =>
+                    item.id === row.id ? updatedRow : item
+                  )
+                  setData(finalData)
+
+                  if (val) {
+                    activeModelsMap.value[updatedRow.id] = vue.toRaw(updatedRow)
+                  } else {
+                    // 查找并删除具有相同 versionId 的模型
+                    const keyToDelete = Object.keys(activeModelsMap.value).find(
+                      key => activeModelsMap.value[key].versionId === row.versionId
+                    )
+                    if (keyToDelete) {
+                      delete activeModelsMap.value[keyToDelete]
+                    }
+                  }
+
+                  localforage.getItem(STORAGE_KEY).then((saved: any) => {
+                    const newData = { ...saved, activeModelsMap: vue.toRaw(activeModelsMap.value) }
+                    localforage.setItem(STORAGE_KEY, newData).then(() => {
+                      updateProvider()
+                    })
                   })
-                })
-              }
-            })
+                }
+              })}
+            </div>
+          )
         }
       ]
     })

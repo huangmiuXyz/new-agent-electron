@@ -15,6 +15,7 @@ export interface CivitaiProvider extends ProviderV3 {
   imageModel(modelId?: string): ImageModelV3;
   imageCallOptionsSchema?: any;
   listModels?: (params?: { query?: string; page?: number; limit?: number; nextUrl?: string }) => Promise<{ items: Model[]; nextPage?: string }>;
+  getModelVersion?: (versionId: string | number) => Promise<any>;
   generateImageAsyncTask: (params: any) => Promise<{ task_id: string }>;
   asyncResult: (params: { task_id: string }) => Promise<any>;
 }
@@ -56,6 +57,10 @@ export function createCivitai(
   provider.image = createImageModel;
   provider.imageModel = createImageModel;
   provider.imageCallOptionsSchema = CivitaiImageModel.imageCallOptionsSchema;
+
+  provider.getModelVersion = async (versionId: string | number) => {
+    return bridge.getModelVersion(versionId);
+  };
 
   // 映射 Civitai 的 baseModel 到 AIR 前缀
   const baseModelMapping: Record<string, string> = {
@@ -131,10 +136,11 @@ export function createCivitai(
           }
 
           const typeAir = (item.type || 'Checkpoint').toLowerCase();
-          const airId = `urn:air:${baseModelAir}:${typeAir}:civitai:${item.id}@${latestVersion.id}`;
+          // const airId = `urn:air:${baseModelAir}:${typeAir}:civitai:${item.id}@${latestVersion.id}`;
 
           models.push({
-            id: airId,
+            id: String(item.id),
+            versionId: latestVersion.id,
             name: `${item.name} - ${latestVersion.name}`,
             category: 'image',
             description: item.description || '',

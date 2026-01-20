@@ -161,4 +161,23 @@ export class CivitaiSDKBridge {
 
     return response.json();
   }
+
+  /**
+   * 获取模型版本详情
+   */
+  async getModelVersion(versionId: string | number) {
+    const response = await fetch(`https://civitai.com/api/v1/model-versions/${versionId}`, {
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to fetch model version: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
