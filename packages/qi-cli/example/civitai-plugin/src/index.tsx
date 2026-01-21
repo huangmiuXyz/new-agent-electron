@@ -3,7 +3,7 @@ import { createCivitai } from './civitai/civitai-provider'
 import { STORAGE_KEY, PROVIDER_ID } from './constants'
 import { ImageDetail } from './components/ImageDetail'
 import { ModelDetail } from './components/ModelDetail'
-import { getFormFields, getFilterFormFields } from './config/form-fields'
+import { getFilterFormFields } from './config/form-fields'
 import { getTableColumns } from './config/table-columns'
 import { debounce } from './utils'
 
@@ -28,23 +28,6 @@ const CivitaiPlugin: Plugin = {
     // 加载保存的配置
     const savedConfig: any = await localforage.getItem(STORAGE_KEY)
     let initialApiKey = savedConfig?.apiKey || ''
-
-    // 如果本地存储没有 API Key，尝试从 settingsStore 获取
-    if (!initialApiKey) {
-      try {
-        const settingsStore = await context.getStore('settings')
-        if (settingsStore) {
-          const existing = settingsStore.registeredProviders.find(
-            (p: any) => p.providerId === PROVIDER_ID
-          )
-          if (existing?.apiKey) {
-            initialApiKey = existing.apiKey
-          }
-        }
-      } catch (e) {
-        console.error('Failed to get initial API Key from settingsStore:', e)
-      }
-    }
 
     // 筛选参数
     const filters = vue.ref({
@@ -101,35 +84,6 @@ const CivitaiPlugin: Plugin = {
         ...m,
         active: true
       }))
-
-      // 使用 getStore 更新 settingsStore 中的 API Key
-      try {
-        const settingsStore = await context.getStore('settings')
-        if (settingsStore) {
-          // 查找是否已经注册过这个提供商
-          const existing = settingsStore.registeredProviders.find(
-            (p: any) => p.providerId === PROVIDER_ID
-          )
-          if (existing) {
-            // 如果已存在，更新它的 apiKey
-            const index = settingsStore.registeredProviders.findIndex(
-              (p: any) => p.providerId === PROVIDER_ID
-            )
-            if (index !== -1) {
-              const updatedProviders = [...settingsStore.registeredProviders]
-              updatedProviders[index] = {
-                ...updatedProviders[index],
-                apiKey: currentApiKey,
-                models: models
-              }
-              settingsStore.registeredProviders = updatedProviders
-              console.log('Updated settingsStore with new API Key and models')
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Failed to update settingsStore:', e)
-      }
 
       registerProvider(PROVIDER_ID, {
         ...provider,
