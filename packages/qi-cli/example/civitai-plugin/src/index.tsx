@@ -24,6 +24,7 @@ const CivitaiPlugin: Plugin = {
     const currentUrl = vue.ref(undefined)
 
     const modal = useModal()
+    const imageDetailModal = useModal()
 
     const updateProvider = async () => {
       const saved: any = await localforage.getItem(STORAGE_KEY)
@@ -155,7 +156,7 @@ const CivitaiPlugin: Plugin = {
           const imageUrl = typeof image === 'string' ? image : image.url
           const meta = typeof image === 'string' ? null : image.meta
 
-          modal.confirm({
+          imageDetailModal.confirm({
             title: '图片详情',
             width: '90%',
             showCancel: false,
@@ -393,6 +394,10 @@ const CivitaiPlugin: Plugin = {
                               }
 
                               settingsStore.updateImageGenerationForm(formData)
+
+                              // 关闭弹窗
+                              imageDetailModal.remove()
+                              modal.remove()
 
                               // 跳转到图片生成页面
                               const router = context.router
