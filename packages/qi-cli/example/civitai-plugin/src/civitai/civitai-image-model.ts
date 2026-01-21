@@ -17,12 +17,12 @@ const civitaiImageCallOptionsSchema = z.object({
     'DPM2SAKarras', 'DPM2MKarras', 'DPMSDEKarras', 'DDIM', 'PLMS', 'UniPC',
     'Undefined', 'LCM', 'DDPM', 'DEIS'
   ]).describe('可选。要使用的调度算法。').optional(),
-  steps: z.number().describe('可选。图像生成过程的步数。').optional(),
-  cfgScale: z.number().describe('可选。图像生成的 CFG 比例。').optional(),
-  clipSkip: z.number().describe('可选。图像生成的 CLIP 跳过数。').optional(),
+  steps: z.number().min(10).max(50).describe('可选。图像生成过程的步数。').optional(),
+  cfgScale: z.number().min(1).max(30).describe('可选。图像生成的 CFG 比例。').optional(),
+  clipSkip: z.number().min(1).max(3).describe('可选。图像生成的 CLIP 跳过数。').optional(),
   callbackUrl: z.string().url().describe('可选。作业完成后将调用的 URL。').optional(),
   additionalNetworks: z.record(z.string(), z.object({
-    type: z.enum(['Lora', 'Hypernetwork', 'TextualInversion', 'Lycoris', 'Checkpoint', 'Vae', 'LoCon']).describe('资产类型。'),
+    type: z.enum(['Lora', 'Hypernetwork', 'TextualInversion', 'Lycoris', 'Checkpoint', 'Vae', 'LoCon']).describe('资产类型。').optional(),
     strength: z.number().describe('可选。对于 LoRa 和 LoCon，设置网络强度。').optional(),
     triggerWord: z.string().describe('可选。对于 TextualInversion，设置网络的触发词。').optional(),
   })).describe('可选。一个关联列表，其中包含其他网络，以网络的 AIR 为键。').optional(),
@@ -166,37 +166,37 @@ export class CivitaiImageModel implements ImageModelV3 {
         console.log('Found image URL:', imageUrl);
         // 下载图片并转为 base64
         const imgRes = await fetch(imageUrl);
-          const buffer = await imgRes.arrayBuffer();
-          const bytes = new Uint8Array(buffer);
-          let binary = '';
-          for (let i = 0; i < bytes.byteLength; i++) {
-            binary += String.fromCharCode(bytes[i]);
-          }
-          const base64 = btoa(binary);
-
-          return {
-            images: [base64] as any,
-            warnings: [],
-            response: {
-              timestamp: new Date(),
-              modelId: this.modelId,
-              headers: {},
-            },
-          };
+        const buffer = await imgRes.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
         }
+        const base64 = btoa(binary);
 
-        // 如果代码运行到这里，说明任务还没真正完成（或者还没拿到 URL）
-        // 检查是否有明确的失败标志
-        const isFailed = jobStatus.status === 'failed' || jobStatus.status === 'FAILED' || (hasJobs && jobStatus.jobs.some((j: any) => j.status === 'failed' || j.status === 'FAILED'));
-        if (isFailed) {
-          throw new Error(`Civitai job failed: ${jobStatus.error || 'Unknown error'}`);
-        }
-
-        // 继续轮询
-        attempts++;
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        return {
+          images: [base64] as any,
+          warnings: [],
+          response: {
+            timestamp: new Date(),
+            modelId: this.modelId,
+            headers: {},
+          },
+        };
       }
 
-      throw new Error('Civitai job timed out');
+      // 如果代码运行到这里，说明任务还没真正完成（或者还没拿到 URL）
+      // 检查是否有明确的失败标志
+      const isFailed = jobStatus.status === 'failed' || jobStatus.status === 'FAILED' || (hasJobs && jobStatus.jobs.some((j: any) => j.status === 'failed' || j.status === 'FAILED'));
+      if (isFailed) {
+        throw new Error(`Civitai job failed: ${jobStatus.error || 'Unknown error'}`);
+      }
+
+      // 继续轮询
+      attempts++;
+      await new Promise((resolve) => setTimeout(resolve, 5000));
     }
+
+    throw new Error('Civitai job timed out');
+  }
 }
