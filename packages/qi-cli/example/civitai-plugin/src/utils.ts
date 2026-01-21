@@ -1,0 +1,110 @@
+/**
+ * 映射调度器
+ */
+export const mapScheduler = (sampler: string) => {
+  if (!sampler) return 'EulerA'
+  // 移除空格和特殊字符进行匹配
+  const s = sampler.toLowerCase().replace(/[^a-z0-9+]/g, '')
+
+  if (s.includes('eulera')) return 'EulerA'
+  if (s.includes('euler')) return 'Euler'
+
+  // DPM++ 系列
+  if (s.includes('dpm++2sakarras') || s.includes('dpm2sakarras')) return 'DPM2SAKarras'
+  if (s.includes('dpm++2mkarras') || s.includes('dpm2mkarras')) return 'DPM2MKarras'
+  if (s.includes('dpm++sdekarras') || s.includes('dpmsdekarras')) return 'DPMSDEKarras'
+  if (s.includes('dpm++2sa') || s.includes('dpm2sa')) return 'DPM2SA'
+  if (s.includes('dpm++2m') || s.includes('dpm2m')) return 'DPM2M'
+  if (s.includes('dpm++sde') || s.includes('dpmsde')) return 'DPMSDE'
+
+  // DPM2 系列
+  if (s.includes('dpm2akarras')) return 'DPM2AKarras'
+  if (s.includes('dpm2a')) return 'DPM2A'
+  if (s.includes('dpm2karras')) return 'DPM2Karras'
+  if (s.includes('dpm2')) return 'DPM2'
+
+  // 其他
+  if (s.includes('lmskarras')) return 'LMSKarras'
+  if (s.includes('lms')) return 'LMS'
+  if (s.includes('heun')) return 'Heun'
+  if (s.includes('dpmfast')) return 'DPMFast'
+  if (s.includes('dpmadaptive')) return 'DPMAdaptive'
+  if (s.includes('ddim')) return 'DDIM'
+  if (s.includes('plms')) return 'PLMS'
+  if (s.includes('unipc')) return 'UniPC'
+  if (s.includes('lcm')) return 'LCM'
+  if (s.includes('ddpm')) return 'DDPM'
+  if (s.includes('deis')) return 'DEIS'
+
+  return 'EulerA'
+}
+
+/**
+ * 解析尺寸
+ */
+export const parseSize = (meta: any) => {
+  const rawSize = meta.Size || meta.size
+  if (rawSize && typeof rawSize === 'string') {
+    // 处理 "512x768" 格式
+    if (rawSize.includes('x')) return rawSize
+    // 处理 "512, 768" 格式
+    if (rawSize.includes(',')) return rawSize.replace(/\s/g, '').replace(',', 'x')
+  }
+  // 处理独立的 width 和 height 字段
+  const w = meta.width || meta.Width || meta.ADetailer_inpaint_width
+  const h = meta.height || meta.Height || meta.ADetailer_inpaint_height
+  if (w && h) return `${w}x${h}`
+
+  return '1024x1024'
+}
+
+/**
+ * 处理 additionalNetworks (Lora, Vae, Hypernetwork 等)
+ */
+export const parseAdditionalNetworks = (meta: any, details: any) => {
+  const additionalNetworks: any = {}
+  const typeMap: any = {
+    lora: 'Lora',
+    locon: 'LoCon',
+    vae: 'Vae',
+    hypernetwork: 'Hypernetwork',
+    textualinversion: 'TextualInversion',
+    lycoris: 'Lycoris',
+    checkpoint: 'Checkpoint'
+  }
+
+  if (meta.resources && Array.isArray(meta.resources)) {
+    meta.resources.forEach((res: any) => {
+      const mappedType = typeMap[res.type?.toLowerCase()]
+      if (mappedType) {
+        // 优先使用 AIR，如果没有则尝试构造
+        let air = res.air
+        if (!air && res.id && res.versionId) {
+          const base = (details.baseModel || '').toLowerCase().includes('sdxl') ? 'sdxl' : 'sd1'
+          const type = res.type.toLowerCase()
+          air = `urn:air:${base}:${type}:civitai:${res.id}@${res.versionId}`
+        }
+        if (air) {
+          additionalNetworks[air] = {
+            type: mappedType,
+            strength: res.weight || 1
+          }
+        }
+      }
+    })
+  }
+  return additionalNetworks
+}
+
+/**
+ * 简单的 debounce 函数
+ */
+export const debounce = (fn: Function, delay: number) => {
+  let timer: any = null
+  return (...args: any[]) => {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => {
+      fn(...args)
+    }, delay)
+  }
+}

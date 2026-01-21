@@ -45,9 +45,9 @@ export const FormItem = defineComponent({
       default: 'default'
     },
     rest: {
-      type: Function,
-      default: () => null
-    }
+    type: [Function, Object] as PropType<any>,
+    default: () => null
+  }
   },
   setup(props, { slots }) {
     return () => {
@@ -72,7 +72,7 @@ export const FormItem = defineComponent({
                 </div>
                 <div class="form-item-tool">
                   {slots.tool?.()}
-                  {props.rest?.()}
+                  {typeof props.rest === 'function' ? props.rest() : props.rest}
                 </div>
               </div>
               <div class="form-item-content">{slots.default?.()}</div>
@@ -87,7 +87,7 @@ export const FormItem = defineComponent({
                   </div>
                   <div class="form-item-tool">
                     {slots.tool?.()}
-                    {props.rest?.()}
+                    {typeof props.rest === 'function' ? props.rest() : props.rest}
                   </div>
                 </div>
               )}
@@ -930,6 +930,13 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         color: var(--text-secondary);
         margin-bottom: 6px;
         justify-content: space-between;
+        align-items: center;
+      }
+
+      .form-item-tool {
+        display: flex;
+        align-items: center;
+        gap: 4px;
       }
 
       .form-item[data-layout="toggle"] .form-item-label {

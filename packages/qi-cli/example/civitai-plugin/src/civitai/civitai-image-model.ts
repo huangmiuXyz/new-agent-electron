@@ -73,6 +73,20 @@ export class CivitaiImageModel implements ImageModelV3 {
       }
     }
 
+    // Civitai SDK validation: height must be less than or equal to 1440
+    if (height > 1440) {
+      console.warn(`Height ${height} exceeds maximum limit of 1440. Scaling down.`);
+      const ratio = 1440 / height;
+      height = 1440;
+      width = Math.round(width * ratio);
+    }
+    if (width > 1440) {
+      console.warn(`Width ${width} exceeds maximum limit of 1440. Scaling down.`);
+      const ratio = 1440 / width;
+      width = 1440;
+      height = Math.round(height * ratio);
+    }
+
     const requestBody = {
       model: this.modelId,
       params: {

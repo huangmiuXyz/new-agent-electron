@@ -140,10 +140,23 @@ export class CivitaiSDKBridge {
       delete searchParams.page;
 
       Object.entries(searchParams).forEach(([key, value]) => {
-        if (value !== undefined) url.searchParams.append(key, String(value));
-      });
+        if (value !== undefined && value !== '' && value !== null) {
+          if (Array.isArray(value)) {
+            value.forEach((v) => url.searchParams.append(key, String(v)))
+          } else if (typeof value === 'boolean') {
+            // 显式处理布尔值：只发送为 true 的布尔值
+            // 如果 API 报错 "expected boolean, received string"，可能是因为后端对 query params 的校验过于严格
+            // 且不支持 "false" 字符串的 coerce。
+            // 通常 API 的布尔参数默认值为 false，所以只在 true 时发送 'true' 可能是更安全的做法。
+            if (value) {
+              url.searchParams.append(key, 'true')
+            }
+          } else {
+            url.searchParams.append(key, String(value))
+          }
+        }
+      })
       if (!url.searchParams.has('limit')) url.searchParams.append('limit', '20');
-      if (!url.searchParams.has('types')) url.searchParams.append('types', 'Checkpoint');
       urlString = url.toString();
     }
 

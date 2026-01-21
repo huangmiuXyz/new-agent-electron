@@ -14,7 +14,19 @@ export interface CivitaiProvider extends ProviderV3 {
   image(modelId?: string): ImageModelV3;
   imageModel(modelId?: string): ImageModelV3;
   imageCallOptionsSchema?: any;
-  listModels?: (params?: { query?: string; page?: number; limit?: number; nextUrl?: string }) => Promise<{ items: Model[]; nextPage?: string }>;
+  listModels?: (params?: {
+    query?: string;
+    page?: number;
+    limit?: number;
+    nextUrl?: string;
+    types?: string | string[];
+    tag?: string;
+    username?: string;
+    nsfw?: boolean;
+    sort?: 'Highest Rated' | 'Most Downloaded' | 'Newest' | 'Most Liked' | 'Most Discussed';
+    period?: 'AllTime' | 'Year' | 'Month' | 'Week' | 'Day';
+    baseModels?: string | string[];
+  }) => Promise<{ items: Model[]; nextPage?: string }>;
   getModelVersion?: (versionId: string | number) => Promise<any>;
   generateImageAsyncTask: (params: any) => Promise<{ task_id: string }>;
   asyncResult: (params: { task_id: string }) => Promise<any>;
@@ -62,7 +74,7 @@ export function createCivitai(
     return bridge.getModelVersion(versionId);
   };
 
-  provider.listModels = async (params: { query?: string; page?: number; limit?: number; nextUrl?: string } = {}) => {
+  provider.listModels = async (params: any = {}) => {
     try {
       const data = await bridge.listModels(params);
       const models: Model[] = [];

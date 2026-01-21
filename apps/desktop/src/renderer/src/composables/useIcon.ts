@@ -38,7 +38,8 @@ import {
   SubtractAlt,
   Pause,
   RotateCounterclockwise,
-  RotateClockwise
+  RotateClockwise,
+  Filter
 } from '@vicons/carbon'
 import {
   Cpu,
@@ -209,7 +210,8 @@ const icons = {
   Pause,
   Image,
   Dices: Dice,
-  Database
+  Database,
+  Filter
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
