@@ -455,9 +455,8 @@ const CivitaiPlugin: Plugin = {
     // 1. 注册提供商工厂
     registerRegistry(PROVIDER_ID, (options: any) => {
       return createCivitai({
-        apiKey: options.apiKey,
-        pluginPath: context.basePath,
-        ...options
+        apiKey: formActions.getFieldValue('apiKey'),
+        pluginPath: context.basePath
       })
     })
 
