@@ -1,3 +1,5 @@
+import { AssetType, ImageJobNetworkParams } from './types'
+
 /**
  * 映射调度器
  */
@@ -62,8 +64,8 @@ export const parseSize = (meta: any) => {
  * 处理 additionalNetworks (Lora, Vae, Hypernetwork 等)
  */
 export const parseAdditionalNetworks = (meta: any, details: any) => {
-  const additionalNetworks: any = {}
-  const typeMap: any = {
+  const additionalNetworks: Record<string, ImageJobNetworkParams> = {}
+  const typeMap: Record<string, AssetType> = {
     lora: 'Lora',
     locon: 'LoCon',
     vae: 'Vae',
@@ -85,10 +87,21 @@ export const parseAdditionalNetworks = (meta: any, details: any) => {
           air = `urn:air:${base}:${type}:civitai:${res.id}@${res.versionId}`
         }
         if (air) {
-          additionalNetworks[air] = {
-            type: mappedType,
-            strength: res.weight || 1
+          const params: ImageJobNetworkParams = {
+            type: mappedType
           }
+
+          // In case of Lora and LoCon, set the strength of the network.
+          if (mappedType === 'Lora' || mappedType === 'LoCon') {
+            params.strength = res.weight || 1
+          }
+
+          // In case of a TextualInversion, set the trigger word of the network.
+          if (mappedType === 'TextualInversion' && res.name) {
+            params.triggerWord = res.name
+          }
+
+          additionalNetworks[air] = params
         }
       }
     })
