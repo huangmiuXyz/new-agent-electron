@@ -28,10 +28,13 @@ export const ImageDetail = ({
   modal
 }: ImageDetailProps) => {
   const { vue, localforage } = context
+  const generating = vue.ref(false)
   const imageUrl = typeof image === 'string' ? image : image.url
   const meta = typeof image === 'string' ? null : image.meta
 
   const handleOneClickGenerate = async () => {
+    if (generating.value) return
+    generating.value = true
     try {
       const settingsStore = await context.getStore('settings')
       if (!settingsStore) return
@@ -73,7 +76,7 @@ export const ImageDetail = ({
       )
       if (!civitaiProvider) return
 
-      const additionalNetworks = parseAdditionalNetworks(meta, details)
+      const additionalNetworks = await parseAdditionalNetworks(meta, details)
 
       // 填充表单
       const formData = {
@@ -113,6 +116,8 @@ export const ImageDetail = ({
       }
     } catch (e) {
       console.error('Failed to generate with one-click:', e)
+    } finally {
+      generating.value = false
     }
   }
 
@@ -178,7 +183,13 @@ export const ImageDetail = ({
           >
             <h4 style={{ margin: 0, fontSize: '14px' }}>生成参数</h4>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <context.components.Button size="xs" type="text" onClick={handleOneClickGenerate}>
+              <context.components.Button
+                size="xs"
+                type="text"
+                onClick={handleOneClickGenerate}
+                loading={generating.value}
+                disabled={generating.value}
+              >
                 一键生成
               </context.components.Button>
               <context.components.Button size="xs" type="text" onClick={handleCopyAll}>

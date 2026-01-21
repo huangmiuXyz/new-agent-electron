@@ -61,9 +61,31 @@ export const parseSize = (meta: any) => {
 }
 
 /**
+ * 根据 hash 获取 AIR
+ */
+const airCache: Record<string, string> = {}
+export const getAirByHash = async (hash: string) => {
+  if (!hash) return null
+  if (airCache[hash]) return airCache[hash]
+
+  try {
+    const response = await fetch(`https://civitai.com/api/v1/model-versions/by-hash/${hash}`)
+    if (!response.ok) return null
+    const data = await response.json()
+    if (data && data.air) {
+      airCache[hash] = data.air
+      return data.air
+    }
+  } catch (e) {
+    console.error(`Failed to fetch AIR for hash ${hash}:`, e)
+  }
+  return null
+}
+
+/**
  * 处理 additionalNetworks (Lora, Vae, Hypernetwork 等)
  */
-export const parseAdditionalNetworks = (meta: any, details: any) => {
+export const parseAdditionalNetworks = async (meta: any, details: any) => {
   const additionalNetworks: Record<string, ImageJobNetworkParams> = {}
   const typeMap: Record<string, AssetType> = {
     lora: 'Lora',
@@ -76,35 +98,34 @@ export const parseAdditionalNetworks = (meta: any, details: any) => {
   }
 
   if (meta.resources && Array.isArray(meta.resources)) {
-    meta.resources.forEach((res: any) => {
+    for (const res of meta.resources) {
+      debugger
       const mappedType = typeMap[res.type?.toLowerCase()]
       if (mappedType) {
-        // 优先使用 AIR，如果没有则尝试构造
-        let air = res.air
-        if (!air && res.id && res.versionId) {
-          const base = (details.baseModel || '').toLowerCase().includes('sdxl') ? 'sdxl' : 'sd1'
-          const type = res.type.toLowerCase()
-          air = `urn:air:${base}:${type}:civitai:${res.id}@${res.versionId}`
+        let air = null
+        const hash = meta[res.name] || meta[`"${res.name}`] || meta[`\\"${res.name}`]
+
+        if (hash && typeof hash === 'string') {
+          air = await getAirByHash(hash.replace(/[\\"]/g, ''))
         }
-        if (air) {
-          const params: ImageJobNetworkParams = {
-            type: mappedType
-          }
 
-          // In case of Lora and LoCon, set the strength of the network.
-          if (mappedType === 'Lora' || mappedType === 'LoCon') {
-            params.strength = res.weight || 1
-          }
-
-          // In case of a TextualInversion, set the trigger word of the network.
-          if (mappedType === 'TextualInversion' && res.name) {
-            params.triggerWord = res.name
-          }
-
-          additionalNetworks[air] = params
+        const params: ImageJobNetworkParams = {
+          type: mappedType
         }
+
+        // In case of Lora and LoCon, set the strength of the network.
+        if (mappedType === 'Lora' || mappedType === 'LoCon') {
+          params.strength = res.weight || 1
+        }
+
+        // In case of a TextualInversion, set the trigger word of the network.
+        if (mappedType === 'TextualInversion' && res.name) {
+          params.triggerWord = res.name
+        }
+
+        additionalNetworks[air] = params
       }
-    })
+    }
   }
   return additionalNetworks
 }
