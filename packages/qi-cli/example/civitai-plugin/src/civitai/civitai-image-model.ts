@@ -21,7 +21,6 @@ const civitaiImageCallOptionsSchema = z.object({
   cfgScale: z.number().describe('可选。图像生成的 CFG 比例。').optional(),
   clipSkip: z.number().describe('可选。图像生成的 CLIP 跳过数。').optional(),
   callbackUrl: z.string().url().describe('可选。作业完成后将调用的 URL。').optional(),
-  batchSize: z.number().min(1).max(10).describe('可选。批次大小。').optional(),
   additionalNetworks: z.record(z.string(), z.object({
     type: z.enum(['Lora', 'Hypernetwork', 'TextualInversion', 'Lycoris', 'Checkpoint', 'Vae', 'LoCon']).describe('资产类型。'),
     strength: z.number().describe('可选。对于 LoRa 和 LoCon，设置网络强度。').optional(),
@@ -87,10 +86,9 @@ export class CivitaiImageModel implements ImageModelV3 {
         height,
         seed,
       },
-      callbackUrl: civitaiOptions?.callbackUrl,
-      batchSize: civitaiOptions?.batchSize ?? n,
       additionalNetworks: civitaiOptions?.additionalNetworks,
       controlNets: civitaiOptions?.controlNets,
+      callbackUrl: civitaiOptions?.callbackUrl,
     };
 
     return {
