@@ -64,7 +64,6 @@ export interface Model {
 export type AssetType = 'Lora' | 'Hypernetwork' | 'TextualInversion' | 'Lycoris' | 'Checkpoint' | 'Vae' | 'LoCon';
 
 export interface ImageJobNetworkParams {
-  type?: AssetType;
   strength?: number;
   triggerWord?: string;
 }

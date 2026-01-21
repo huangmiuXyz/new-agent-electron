@@ -99,7 +99,6 @@ export const parseAdditionalNetworks = async (meta: any, details: any) => {
 
   if (meta.resources && Array.isArray(meta.resources)) {
     for (const res of meta.resources) {
-      debugger
       const mappedType = typeMap[res.type?.toLowerCase()]
       if (mappedType) {
         let air = null
@@ -109,21 +108,21 @@ export const parseAdditionalNetworks = async (meta: any, details: any) => {
           air = await getAirByHash(hash.replace(/[\\"]/g, ''))
         }
 
-        const params: ImageJobNetworkParams = {
-          type: mappedType
-        }
+        if (air) {
+          const params: ImageJobNetworkParams = {}
 
-        // In case of Lora and LoCon, set the strength of the network.
-        if (mappedType === 'Lora' || mappedType === 'LoCon') {
-          params.strength = res.weight || 1
-        }
+          // In case of Lora and LoCon, set the strength of the network.
+          if (mappedType === 'Lora' || mappedType === 'LoCon') {
+            params.strength = res.weight || 1
+          }
 
-        // In case of a TextualInversion, set the trigger word of the network.
-        if (mappedType === 'TextualInversion' && res.name) {
-          params.triggerWord = res.name
-        }
+          // In case of a TextualInversion, set the trigger word of the network.
+          if (mappedType === 'TextualInversion' && res.name) {
+            params.triggerWord = res.name
+          }
 
-        additionalNetworks[air] = params
+          additionalNetworks[air] = params
+        }
       }
     }
   }
