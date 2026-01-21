@@ -53,12 +53,6 @@ export function createCivitai(
     pluginPath: options.pluginPath || '',
   });
 
-  // 如果提供了 API Key，尝试更新正在运行的服务器配置
-  if (apiKey) {
-    bridge.updateConfig(apiKey).catch(err => {
-      console.warn('Failed to update bridge config (server might not be running yet):', err);
-    });
-  }
 
   const createImageModel = (modelId: string = 'urn:air:sdxl:checkpoint:civitai:101055@128078') =>
     new CivitaiImageModel(modelId, {

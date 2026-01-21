@@ -63,22 +63,6 @@ export class CivitaiSDKBridge {
   }
 
   /**
-   * 更新配置 (如 API Key)
-   */
-  async updateConfig(apiKey: string) {
-    this.apiKey = apiKey;
-    try {
-      await fetch(`${this.serverUrl}/api/config`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey })
-      });
-    } catch (e) {
-      // Server might not be running yet
-    }
-  }
-
-  /**
    * 生成图片 - 通过本地 Node 服务器代理
    */
   async generateImage(params: any) {

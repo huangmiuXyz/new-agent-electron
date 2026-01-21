@@ -60,19 +60,6 @@ router.get('/health', (ctx) => {
   };
 });
 
-// 更新全局配置 (API Key)
-router.post('/api/config', (ctx) => {
-  const { apiKey: newApiKey } = ctx.request.body as any;
-  if (newApiKey && newApiKey !== 'DUMMY_KEY') {
-    // 更新全局变量
-    process.env.CIVITAI_API_KEY = newApiKey;
-    // 这里的 apiKey 是闭包里的，所以需要直接修改全局引用或重新赋值
-    ctx.body = { success: true };
-  } else {
-    ctx.status = 400;
-    ctx.body = { error: 'Invalid API Key' };
-  }
-});
 
 // 生成图片
 router.post('/api/generate', async (ctx) => {
