@@ -7,6 +7,7 @@ import { createRegistry } from '@renderer/services/chatService/registry';
 import { useSettingsStore } from '@renderer/stores/settings'
 import { FormField } from '@renderer/composables/useForm'
 import { ImageBatch, useImageStore } from '@renderer/stores/image'
+import ImageSizeSelector from '@renderer/components/ImageSizeSelector.vue'
 
 const service = chatService()
 const settingsStore = useSettingsStore()
@@ -59,16 +60,15 @@ const baseFields = [
   },
   {
     name: 'size',
-    type: 'select',
+    type: 'custom',
     label: '图像尺寸',
-    options: [
-      { label: '1024x1024', value: '1024x1024' },
-      { label: '512x512', value: '512x512' },
-      { label: '256x256', value: '256x256' },
-      { label: '1024x1792', value: '1024x1792' },
-      { label: '1792x1024', value: '1792x1024' }
-    ],
-    defaultValue: '1024x1024'
+    defaultValue: '1024x1024',
+    render: (data) => (
+      <ImageSizeSelector
+        modelValue={data.size}
+        onUpdate:modelValue={(val: string) => formActions.setFieldValue('size', val)}
+      />
+    )
   },
   {
     name: 'n',
