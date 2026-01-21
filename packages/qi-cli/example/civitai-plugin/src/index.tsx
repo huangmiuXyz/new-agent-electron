@@ -275,9 +275,12 @@ const CivitaiPlugin: Plugin = {
                                 if (s.includes('euler')) return 'Euler'
 
                                 // DPM++ 系列
-                                if (s.includes('dpm++2sakarras') || s.includes('dpm2sakarras')) return 'DPM2SAKarras'
-                                if (s.includes('dpm++2mkarras') || s.includes('dpm2mkarras')) return 'DPM2MKarras'
-                                if (s.includes('dpm++sdekarras') || s.includes('dpmsdekarras')) return 'DPMSDEKarras'
+                                if (s.includes('dpm++2sakarras') || s.includes('dpm2sakarras'))
+                                  return 'DPM2SAKarras'
+                                if (s.includes('dpm++2mkarras') || s.includes('dpm2mkarras'))
+                                  return 'DPM2MKarras'
+                                if (s.includes('dpm++sdekarras') || s.includes('dpmsdekarras'))
+                                  return 'DPMSDEKarras'
                                 if (s.includes('dpm++2sa') || s.includes('dpm2sa')) return 'DPM2SA'
                                 if (s.includes('dpm++2m') || s.includes('dpm2m')) return 'DPM2M'
                                 if (s.includes('dpm++sde') || s.includes('dpmsde')) return 'DPMSDE'
@@ -311,11 +314,13 @@ const CivitaiPlugin: Plugin = {
                                   // 处理 "512x768" 格式
                                   if (rawSize.includes('x')) return rawSize
                                   // 处理 "512, 768" 格式
-                                  if (rawSize.includes(',')) return rawSize.replace(/\s/g, '').replace(',', 'x')
+                                  if (rawSize.includes(','))
+                                    return rawSize.replace(/\s/g, '').replace(',', 'x')
                                 }
                                 // 处理独立的 width 和 height 字段
                                 const w = meta.width || meta.Width || meta.ADetailer_inpaint_width
-                                const h = meta.height || meta.Height || meta.ADetailer_inpaint_height
+                                const h =
+                                  meta.height || meta.Height || meta.ADetailer_inpaint_height
                                 if (w && h) return `${w}x${h}`
 
                                 return '1024x1024'
@@ -340,7 +345,9 @@ const CivitaiPlugin: Plugin = {
                                     // 优先使用 AIR，如果没有则尝试构造
                                     let air = res.air
                                     if (!air && res.id && res.versionId) {
-                                      const base = (details.baseModel || '').toLowerCase().includes('sdxl')
+                                      const base = (details.baseModel || '')
+                                        .toLowerCase()
+                                        .includes('sdxl')
                                         ? 'sdxl'
                                         : 'sd1'
                                       const type = res.type.toLowerCase()
@@ -355,7 +362,6 @@ const CivitaiPlugin: Plugin = {
                                   }
                                 })
                               }
-
                               // 填充表单
                               const formData = {
                                 ...settingsStore.imageGenerationForm,
@@ -374,9 +380,14 @@ const CivitaiPlugin: Plugin = {
                                       meta.negativePrompt || meta['Negative prompt'] || '',
                                     cfgScale: meta.cfgScale || meta['CFG scale'] || meta.cfg_scale,
                                     steps: meta.steps || meta.Steps || meta.steps,
-                                    scheduler: mapScheduler(meta.sampler || meta.Sampler || meta.scheduler),
+                                    scheduler: mapScheduler(
+                                      meta.sampler || meta.Sampler || meta.scheduler
+                                    ),
                                     clipSkip: meta.clipSkip || meta['Clip skip'] || meta.clip_skip,
-                                    additionalNetworks: Object.keys(additionalNetworks).length > 0 ? additionalNetworks : undefined
+                                    additionalNetworks:
+                                      Object.keys(additionalNetworks).length > 0
+                                        ? additionalNetworks
+                                        : undefined
                                   }
                                 }
                               }
