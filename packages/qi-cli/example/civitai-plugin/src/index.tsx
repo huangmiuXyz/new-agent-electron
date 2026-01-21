@@ -27,6 +27,24 @@ const CivitaiPlugin: Plugin = {
 
     // 加载保存的配置
     const savedConfig: any = await localforage.getItem(STORAGE_KEY)
+    let initialApiKey = savedConfig?.apiKey || ''
+
+    // 如果本地存储没有 API Key，尝试从 settingsStore 获取
+    if (!initialApiKey) {
+      try {
+        const settingsStore = await context.getStore('settings')
+        if (settingsStore) {
+          const existing = settingsStore.registeredProviders.find(
+            (p: any) => p.providerId === PROVIDER_ID
+          )
+          if (existing?.apiKey) {
+            initialApiKey = existing.apiKey
+          }
+        }
+      } catch (e) {
+        console.error('Failed to get initial API Key from settingsStore:', e)
+      }
+    }
 
     // 筛选参数
     const filters = vue.ref({
@@ -58,11 +76,24 @@ const CivitaiPlugin: Plugin = {
     const modal = useModal()
     const imageDetailModal = useModal()
 
-    const updateProvider = async () => {
+    // 获取当前配置的辅助函数
+    const getCurrentConfig = async () => {
       const saved: any = await localforage.getItem(STORAGE_KEY)
-      console.log('Updating Civitai provider with config:', saved)
+      // 只有当 saved 中完全没有 apiKey 键时，才回退到 initialApiKey
+      return {
+        ...saved,
+        apiKey: (saved && 'apiKey' in saved) ? saved.apiKey : initialApiKey
+      }
+    }
+
+    const updateProvider = async () => {
+      const config = await getCurrentConfig()
+      const currentApiKey = config.apiKey
+
+      console.log('Updating Civitai provider. API Key:', currentApiKey ? 'Present' : 'Missing')
+
       const provider = createCivitai({
-        apiKey: saved?.apiKey,
+        apiKey: currentApiKey,
         pluginPath: context.basePath
       })
 
@@ -88,7 +119,7 @@ const CivitaiPlugin: Plugin = {
               const updatedProviders = [...settingsStore.registeredProviders]
               updatedProviders[index] = {
                 ...updatedProviders[index],
-                apiKey: saved?.apiKey,
+                apiKey: currentApiKey,
                 models: models
               }
               settingsStore.registeredProviders = updatedProviders
@@ -127,9 +158,9 @@ const CivitaiPlugin: Plugin = {
               )
             )
 
-            const saved: any = await localforage.getItem(STORAGE_KEY)
+            const config = await getCurrentConfig()
             const provider = createCivitai({
-              apiKey: saved?.apiKey,
+              apiKey: config.apiKey,
               pluginPath: context.basePath
             })
             if (provider.getModelVersion) {
@@ -204,9 +235,9 @@ const CivitaiPlugin: Plugin = {
       isLoading.value = true
       currentUrl.value = useUrl
       try {
-        const saved = await localforage.getItem(STORAGE_KEY)
+        const config = await getCurrentConfig()
         const provider = createCivitai({
-          apiKey: saved?.apiKey,
+          apiKey: config.apiKey,
           pluginPath: context.basePath
         })
         if (provider.listModels) {
@@ -333,9 +364,9 @@ const CivitaiPlugin: Plugin = {
                 historyUrls.value = []
 
                 // 保存到本地
-                const saved: any = await localforage.getItem(STORAGE_KEY)
+                const config = await getCurrentConfig()
                 const newData = {
-                  ...saved,
+                  ...config,
                   ...processedData,
                   activeModelsMap: vue.toRaw(activeModelsMap.value)
                 }
@@ -421,7 +452,7 @@ const CivitaiPlugin: Plugin = {
       ],
       initialData: {
         ...filters.value,
-        apiKey: savedConfig?.apiKey || ''
+        apiKey: initialApiKey
       },
       onChange: (field: string, value: any, data: any) => {
         if (field === 'query') {
@@ -482,7 +513,7 @@ const CivitaiPlugin: Plugin = {
     // 初始加载模型列表
     fetchModels()
 
-    console.log('Civitai Plugin installed')
+    console.log('Civitai Plugin installed, initialApiKey:', initialApiKey ? 'Present' : 'Missing')
   },
 
   uninstall: async (context: PluginContext) => {
