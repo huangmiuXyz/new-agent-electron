@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ImageRender } from './components/ImageRender'
+import ImageRender from './components/ImageRender.vue'
 import { createRegistry } from '@renderer/services/chatService/registry'
 
 export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tools => {
