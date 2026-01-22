@@ -20,7 +20,11 @@ export const getTableColumns = ({
   STORAGE_KEY,
   PROVIDER_ID
 }: GetTableColumnsProps) => {
-  const { vue, localforage } = context
+  const {
+    vue,
+    localforage,
+    components: { Select }
+  } = context
 
   return [
     { key: 'name', label: '模型名称', width: '2fr' },
@@ -33,12 +37,13 @@ export const getTableColumns = ({
           onClick={(e) => e.stopPropagation()}
           style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
         >
-          <select
+          <Select
             disabled={row.loading}
-            value={row.versionId}
-            onChange={async (e) => {
-              const target = e.target as HTMLSelectElement
-              const newVersionId = Number(target.value)
+            modelValue={row.versionId}
+            options={row.versions?.map((v: any) => ({ label: v.name, value: v.id }))}
+            size="sm"
+            onUpdate:modelValue={async (val: any) => {
+              const newVersionId = Number(val)
               const selectedVersion = row.versions.find((v: any) => v.id === newVersionId)
               if (!selectedVersion) return
 
@@ -112,23 +117,9 @@ export const getTableColumns = ({
               }
             }}
             style={{
-              width: '100%',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-              fontSize: '12px',
-              opacity: row.loading ? 0.6 : 1,
-              cursor: row.loading ? 'not-allowed' : 'pointer'
+              width: '100%'
             }}
-          >
-            {row.versions?.map((v: any) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       )
     },
@@ -199,9 +190,7 @@ export const getTableColumns = ({
               } catch (e) {
                 console.error('Failed to update activation state:', e)
                 const rollbackData = getData().map((item: any) =>
-                  item.versionId === row.versionId
-                    ? { ...row, active: !val, loading: false }
-                    : item
+                  item.versionId === row.versionId ? { ...row, active: !val, loading: false } : item
                 )
                 setData(rollbackData)
               }

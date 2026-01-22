@@ -132,7 +132,7 @@ const CivitaiPlugin: Plugin = {
           }
         }
 
-        const showImageDetail = (image: any) => {
+        const showImageDetail = (image: any, currentDetails: any) => {
           imageDetailModal.confirm({
             title: '图片详情',
             width: '90%',
@@ -142,7 +142,7 @@ const CivitaiPlugin: Plugin = {
               <ImageDetail
                 context={context}
                 image={image}
-                details={details}
+                details={currentDetails || details}
                 row={row}
                 activeModelsMap={activeModelsMap}
                 updateProvider={updateProvider}

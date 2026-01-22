@@ -10,6 +10,7 @@ import Switch from './components/Switch.vue'
 import Input from './components/Input.vue'
 import SelectorPopover from './components/SelectorPopover.vue'
 import DownloadProgress from './components/DownloadProgress.vue'
+import Select from './components/Select.vue'
 import Image from './components/Image.vue'
 import Loading from './components/Loading.vue'
 import { PluginLoader } from './services/plugins/pluginLoader'
@@ -32,7 +33,8 @@ pluginLoader.registerComponents({
   Image,
   Loading,
   Input,
-  SelectorPopover
+  SelectorPopover,
+  Select
 })
 
 
