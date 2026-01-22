@@ -25,10 +25,11 @@ watch(() => currentNote.value, (note) => {
 <template>
     <div class="notes-layout">
         <!-- 笔记-左侧侧边栏 -->
-        <div v-if="!isMobile" class="sidebar-wrapper"
-            :class="{ isMobile, collapsed: settingsStore.display.sidebarCollapsed }">
+        <ResizeBox v-if="!isMobile"
+            v-model:width="settingsStore.display.sidebarWidth"
+            v-model:is-collapsed="settingsStore.display.sidebarCollapsed">
             <NotesSidebar />
-        </div>
+        </ResizeBox>
 
         <!-- 笔记-右侧内容区 -->
         <div class="notes-content">
@@ -51,23 +52,5 @@ watch(() => currentNote.value, (note) => {
     min-width: 0;
     z-index: 2;
     background: var(--bg-card);
-}
-
-.sidebar-wrapper {
-    width: auto;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 260px;
-}
-
-.sidebar-wrapper.isMobile {
-    width: 100%;
-    position: absolute;
-    left: 0;
-    z-index: 3;
-    height: 100%;
-}
-
-.sidebar-wrapper.collapsed {
-    width: 0;
 }
 </style>

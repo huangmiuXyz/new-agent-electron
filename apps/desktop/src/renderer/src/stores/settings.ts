@@ -26,6 +26,7 @@ export const useSettingsStore = defineStore(
       showTimestamps: true,
       fontSize: 16,
       sidebarCollapsed: false,
+      sidebarWidth: 200,
       showTerminal: false,
       terminalHeight: 200,
       expandToolsByDefault: true,

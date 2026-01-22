@@ -436,6 +436,7 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
 
 .notes-sidebar {
     height: 100%;
+    width: 100%;
 }
 
 .combined-list {

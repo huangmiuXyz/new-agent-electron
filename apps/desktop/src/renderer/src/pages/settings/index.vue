@@ -11,9 +11,10 @@ const switchTab = (tabName: string) => {
 <template>
   <div class="settings-layout">
     <!-- 设置-左侧分类导航 -->
-    <div class="sidebar-wrapper" :class="{ collapsed: settingsStore.display.sidebarCollapsed }">
+    <ResizeBox v-model:width="settingsStore.display.sidebarWidth"
+      v-model:is-collapsed="settingsStore.display.sidebarCollapsed">
       <SettingsSidebar :active-tab="activeTab" @tab-change="switchTab" />
-    </div>
+    </ResizeBox>
 
     <!-- 设置-右侧内容区 -->
     <div class="settings-content">
@@ -67,23 +68,5 @@ const switchTab = (tabName: string) => {
   min-width: 0;
   z-index: 2;
   background: var(--bg-card);
-}
-
-.sidebar-wrapper {
-  width: auto;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 180px;
-}
-
-.sidebar-wrapper.isMobile {
-  width: 100%;
-  position: absolute;
-  left: 0;
-  z-index: 3;
-  height: 100%;
-}
-
-.sidebar-wrapper.collapsed {
-  width: 0;
 }
 </style>

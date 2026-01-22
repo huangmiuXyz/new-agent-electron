@@ -13,10 +13,11 @@ const agentStore = useAgentStore()
     <AgentBackground :backgrounds="agentStore.selectedAgent?.backgrounds" />
 
     <!-- 左侧边栏 -->
-    <div v-if="!isMobile" class="sidebar-wrapper"
-      :class="{ isMobile, collapsed: settingsStore.display.sidebarCollapsed }">
+    <ResizeBox v-if="!isMobile"
+      v-model:width="settingsStore.display.sidebarWidth"
+      v-model:is-collapsed="settingsStore.display.sidebarCollapsed">
       <ChatSidebar />
-    </div>
+    </ResizeBox>
 
     <!-- 主聊天区域 -->
     <main class="main-chat">
@@ -54,23 +55,5 @@ const agentStore = useAgentStore()
   flex-direction: column;
   background: transparent;
   position: relative;
-}
-
-.sidebar-wrapper {
-  width: auto;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 180px;
-}
-
-.sidebar-wrapper.isMobile {
-  width: 100%;
-  position: absolute;
-  left: 0;
-  z-index: 2;
-  height: 100%;
-}
-
-.sidebar-wrapper.collapsed {
-  width: 0;
 }
 </style>

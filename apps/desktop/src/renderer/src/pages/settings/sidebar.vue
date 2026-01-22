@@ -62,6 +62,7 @@ const handleTabChange = (tabName: string) => {
 <style scoped>
 /* 设置-左侧分类导航 */
 .settings-sidebar:not(.is-mobile) {
+  width: 100%;
   border-right: 1px solid var(--border-subtle);
   padding: 10px;
   display: flex;

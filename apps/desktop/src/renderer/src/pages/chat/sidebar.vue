@@ -439,6 +439,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 
 /* Original styles for PC */
 .sidebar:not(.is-mobile) {
+  width: 100%;
   background-color: var(--bg-sidebar);
   border-right: 1px solid var(--border-subtle);
   display: flex;

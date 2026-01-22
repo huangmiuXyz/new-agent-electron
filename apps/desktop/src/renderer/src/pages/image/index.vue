@@ -436,12 +436,15 @@ onMounted(async () => {
 
 <template>
   <div class="image-page-container">
-    <FormContainer :show-header="false" class="form-section">
-      <template #content>
-        <ImageForm>
-        </ImageForm>
-      </template>
-    </FormContainer>
+    <ResizeBox v-model:width="settingsStore.display.sidebarWidth"
+      v-model:is-collapsed="settingsStore.display.sidebarCollapsed" :min-width="250" :max-width="500">
+      <FormContainer :show-header="false" class="form-section">
+        <template #content>
+          <ImageForm>
+          </ImageForm>
+        </template>
+      </FormContainer>
+    </ResizeBox>
 
     <FormContainer class="results-section" no-padding>
       <template #header>
@@ -567,8 +570,7 @@ onMounted(async () => {
 }
 
 .form-section {
-  width: 350px;
-  flex-shrink: 0;
+  width: 100%;
   border-right: 1px solid var(--border-subtle);
   height: 100%;
 }
