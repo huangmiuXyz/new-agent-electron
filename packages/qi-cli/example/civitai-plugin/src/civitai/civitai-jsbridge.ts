@@ -27,17 +27,8 @@ export class CivitaiSDKBridge {
     }
 
     const serverPath = api.path.join(this.pluginPath, 'dist', 'server.cjs');
-    const isWin = navigator.platform.toLowerCase().includes('win');
-    const apiKeyEnv = this.apiKey || 'DUMMY_KEY';
 
-    api.spawn('node', [serverPath], {
-      env: {
-        ...((window as any).process?.env || {}),
-        CIVITAI_API_KEY: apiKeyEnv,
-        PORT: String(this.serverPort),
-      },
-      shell: isWin
-    });
+    api.spawn('node', [serverPath]);
 
     for (let i = 0; i < 15; i++) {
       try {
