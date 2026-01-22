@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { ImageRender } from './components/ImageRender'
+import { createRegistry } from '@renderer/services/chatService/registry'
 
 export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tools => {
   const { pluginLoader } = usePlugins()
@@ -19,8 +21,8 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
         }
 
         try {
-          
-          
+
+
           const safeExpression = expression
             .replace(/[^0-9+\-*/.()sqrt Math\spower^]/g, '')
             .replace(/sqrt/g, 'Math.sqrt')
@@ -91,7 +93,7 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
           throw new Error('必须指定传输方式(stdio、http或sse)')
         }
 
-        
+
         if (transport === 'stdio' && !command) {
           throw new Error('stdio传输方式必须指定命令')
         }
@@ -101,16 +103,16 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
         }
 
         try {
-          
+
           const settingsStore = useSettingsStore()
           const currentServers = settingsStore.mcpServers || {}
 
-          
+
           if (currentServers[name]) {
             throw new Error(`MCP服务器名称"${name}"已存在，请使用不同的名称`)
           }
 
-          
+
           const serverConfig: any = {
             name,
             transport,
@@ -118,10 +120,10 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
             tools: []
           }
 
-          
+
           if (description) serverConfig.description = description
 
-          
+
           if (transport === 'stdio') {
             serverConfig.command = command
             if (cmdArgs && cmdArgs.length > 0) serverConfig.args = cmdArgs
@@ -131,11 +133,11 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
             if (headers && Object.keys(headers).length > 0) serverConfig.headers = headers
           }
 
-          
+
           currentServers[name] = serverConfig
           settingsStore.mcpServers = currentServers
 
-          
+
           let toolsInfo = ''
           if (auto_activate) {
             try {
@@ -208,7 +210,7 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
           throw new Error('必须提供候选回复一个建议')
         }
 
-        
+
         for (const suggestion of suggestions) {
           if (!suggestion.id || !suggestion.text) {
             throw new Error('候选回复必须包含ID和文本内容')
@@ -444,6 +446,100 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
                 text: `终端ID: ${tabId}\n${result!.output}`
               }
             ]
+          }
+        }
+      }
+    },
+    image_generator: {
+      title: 'AI 绘画',
+      description: '使用 AI 模型生成图片。可以指定提示词、尺寸、模型等参数。',
+      inputSchema: z.object({
+        prompt: z.string().describe('生成图片的提示词，建议使用详细的描述。'),
+      }),
+      render: ImageRender,
+      execute: async (args: { prompt: string }, options: { toolCallId: string; chatId: string }) => {
+        const { prompt } = args
+        const settingsStore = useSettingsStore()
+        const imageForm = settingsStore.imageGenerationForm
+
+        if (!imageForm) {
+          throw new Error('未配置默认绘画模型，请先在绘画页面选择模型')
+        }
+
+        const targetModelId = imageForm.model?.modelId
+        const targetProviderId = imageForm.model?.providerId
+        const targetSize = imageForm.size || '1024x1024'
+        const targetN = imageForm.n || 1
+
+        if (!targetModelId || !targetProviderId) {
+          throw new Error('未配置默认绘画模型，请先在绘画页面选择模型')
+        }
+
+        const provider = settingsStore.getProviderById(targetProviderId)
+        if (!provider) {
+          throw new Error('未找到所选模型的提供商')
+        }
+
+        const metadata = {
+          chatId: options.chatId,
+          providerId: targetProviderId,
+          config: {
+            model: targetModelId,
+            size: targetSize,
+            n: targetN,
+            seed: imageForm.seed,
+            providerOptions: imageForm.providerOptions
+          }
+        }
+
+        try {
+          const registry = createRegistry({
+            apiKey: provider.apiKey || '',
+            baseURL: provider.baseUrl,
+            name: provider.name
+          })
+          const providerInstance = registry.getProvider(provider.providerType)
+
+          if (providerInstance && 'generateImageAsyncTask' in providerInstance) {
+            const { task_id } = await providerInstance.generateImageAsyncTask({
+              model: (providerInstance as any).imageModel(targetModelId),
+              prompt,
+              size: targetSize as `${number}x${number}`,
+              n: targetN,
+              providerOptions: {
+                [provider.providerType]: imageForm.providerOptions?.[provider.providerType]
+              }
+            })
+
+            return {
+              images: [],
+              image_metadata: {
+                ...metadata,
+                task_ids: [task_id]
+              }
+            }
+          } else {
+            const result = await chatService().generateImage(prompt, {
+              model: targetModelId,
+              apiKey: provider.apiKey || '',
+              baseURL: provider.baseUrl || '',
+              provider: provider.id,
+              providerType: provider.providerType,
+              size: targetSize as `${number}x${number}`,
+              n: targetN,
+              seed: imageForm.seed,
+              providerOptions: imageForm.providerOptions
+            })
+
+            return {
+              images: result.images || [],
+              image_metadata: metadata
+            }
+          }
+        } catch (error) {
+          return {
+            error: error instanceof Error ? error.message : String(error),
+            image_metadata: metadata
           }
         }
       }

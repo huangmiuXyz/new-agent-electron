@@ -259,7 +259,7 @@ export class PluginManager {
           notificationApi.removeStatus(id);
         }
       },
-      registerBuiltinTool: (name: string, tool: any) => {
+      registerBuiltinTool: (name: string, tool: Tool) => {
         this.builtinTools.set(name, markRaw(tool));
 
         if (!this.pluginBuiltinTools.has(pluginName)) {
@@ -647,7 +647,7 @@ export class PluginManager {
    * @param name 工具名称
    * @returns 工具定义
    */
-  getBuiltinTool(name: string): any {
+  getBuiltinTool(name: string): Tool | undefined {
     return this.builtinTools.get(name);
   }
 

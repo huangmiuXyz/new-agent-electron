@@ -1,7 +1,12 @@
-import { UIMessage, UIMessagePart, ProviderMetadata, UIMessageChunk, LanguageModelUsage, ProviderMetadata } from 'ai'
+import { UIMessage, UIMessagePart, ProviderMetadata, UIMessageChunk, LanguageModelUsage, generateImage } from 'ai'
 import type { Model as openAIModel } from 'openai/resources'
 import { type MCPClient } from '@ai-sdk/mcp'
+
 declare global {
+  type AsyncImageResult = {
+    images?: Array<{ base64?: string; url?: string } | string>
+    warnings?: any[]
+  }
   type providerType =
     | 'anthropic'
     | 'openai'
@@ -63,7 +68,14 @@ declare global {
       [key: string]: any
     }
   >
-  type Tools = Awaited<ReturnType<MCPClient['tools']>>
+  type Tools = Record<string, {
+    description?: string;
+    inputSchema: import('zod').ZodType<any>;
+    execute: (args: any, options: { toolCallId: string; chatId: string }) => Promise<any>;
+    render?: any;
+    title?: string;
+    needsApproval?: boolean;
+  }>
 
   type BaseMessage = UIMessage<MetaData, UIMessageChunk>
   type Tool = Tools[keyof Tools]

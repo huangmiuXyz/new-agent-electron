@@ -326,13 +326,15 @@ export const useSettingsStore = defineStore(
       })
     }
 
-    const imageGenerationForm = ref<ImageGenerateOptions & {
-      model: { modelId: string, providerId: string },
-      prompt: string,
+    type ImageGenerationFormData = ImageGenerateOptions & {
+      model: { modelId: string; providerId: string }
+      prompt: string
       providerOptions?: Record<string, any>
-    }>()
+    }
 
-    const updateImageGenerationForm = (data: any) => {
+    const imageGenerationForm = ref<ImageGenerationFormData>()
+
+    const updateImageGenerationForm = (data: ImageGenerationFormData) => {
       imageGenerationForm.value = data
     }
     const isAfterRestore = restorePromise

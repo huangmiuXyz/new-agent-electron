@@ -35,8 +35,7 @@ const toolName = computed(() => {
 const customRender = computed(() => {
   if (!props.allowCustomRender || !toolName.value) return null
   try {
-    const loader = getPluginLoader()
-    const tool = loader.pluginManager.getBuiltinTool(toolName.value)
+    const tool = getBuiltinTools()[toolName.value]
     return tool?.render || null
   } catch (e) {
     return null
@@ -58,7 +57,7 @@ const customRender = computed(() => {
           </div>
           <span class="tool-name">{{
             (tool_part as DynamicToolUIPart)?.toolName || tool_part?.title || toolName
-            }}</span>
+          }}</span>
         </div>
         <div class="tool-status">
           <slot name="status">
