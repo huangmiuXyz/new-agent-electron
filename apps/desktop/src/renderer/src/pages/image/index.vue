@@ -420,9 +420,10 @@ onMounted(async () => {
   formActions.setData(settingsStore.imageGenerationForm)
   if (settingsStore.imageGenerationForm?.prompt) {
     rightInput.value = settingsStore.imageGenerationForm.prompt
+    settingsStore.imageGenerationForm.prompt = ''
   }
   dynamicField.value = getDynamicImageFields(settingsStore.imageGenerationForm?.model.providerId!)
-
+  textareaRef.value?.focus()
   // 恢复未完成的任务
   generatedBatches.value.forEach(batch => {
     if (activeProcessingIds.has(batch.id)) return
