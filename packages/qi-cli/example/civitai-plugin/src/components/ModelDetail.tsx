@@ -58,7 +58,6 @@ export const ModelDetail = (props: ModelDetailProps) => {
             transition: 'opacity 0.2s'
           }}
         >
-          {/* 版本切换器 */}
           {props.row.versions && props.row.versions.length > 0 && (
             <div
               style={{
