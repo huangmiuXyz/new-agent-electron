@@ -200,7 +200,7 @@ const [ImageForm, formActions] = useForm({
     settingsStore.updateImageGenerationForm(data)
   },
   onSubmit: async (data) => {
-    const prompt = data.prompt || rightInput.value.trim()
+    const prompt = rightInput.value.trim()
     if (!prompt) {
       return
     }
