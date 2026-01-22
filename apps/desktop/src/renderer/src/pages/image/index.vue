@@ -308,7 +308,7 @@ const startGeneration = async (batch: ImageBatch) => {
 }
 
 const resumeGeneration = async (batch: ImageBatch) => {
-  if (activeProcessingIds.has(batch.id)) return
+  if (activeProcessingIds.has(batch.id) || batch.status === 'completed') return
   activeProcessingIds.add(batch.id)
 
   try {
@@ -426,7 +426,7 @@ onMounted(async () => {
   // 恢复未完成的任务
   generatedBatches.value.forEach(batch => {
     if (activeProcessingIds.has(batch.id)) return
-    if (batch.taskId) {
+    if (batch.taskId && batch.status !== 'completed') {
       resumeGeneration(batch)
     }
   })
