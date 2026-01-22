@@ -437,7 +437,7 @@ onMounted(async () => {
 <template>
   <div class="image-page-container">
     <ResizeBox v-model:width="settingsStore.display.sidebarWidth"
-      v-model:is-collapsed="settingsStore.display.sidebarCollapsed" :min-width="250" :max-width="500">
+      v-model:is-collapsed="settingsStore.display.sidebarCollapsed" :min-size="250" :max-size="500">
       <FormContainer :show-header="false" class="form-section">
         <template #content>
           <ImageForm>

@@ -29,7 +29,7 @@ export const useTerminal = () => {
   const settingsStore = useSettingsStore()
   const agentStore = useAgentStore()
 
-  
+
   const terminalHeight = computed({
     get: () => settingsStore.display.terminalHeight || 200,
     set: (value: number) => {
@@ -37,7 +37,7 @@ export const useTerminal = () => {
     }
   })
 
-  
+
   const terminalSettings = computed(() => settingsStore.terminal)
   const setExecuting = (id: string, executing: boolean, exitCode?: number | null) => {
     const tab = tabs.value.find((t) => t.id === id)
@@ -101,7 +101,7 @@ export const useTerminal = () => {
     tabs.value[tabIndex].instance = term
     tabs.value[tabIndex].addon = fitAddon
 
-    
+
     term.parser.registerOscHandler(633, (data) => {
       const parts = data.split(';')
       const type = parts[0]
@@ -111,23 +111,23 @@ export const useTerminal = () => {
       if (!currentTab.isReady) currentTab.isReady = true
 
       switch (type) {
-        case 'A': 
+        case 'A':
           setExecuting(id, false)
           break
-        case 'B': 
+        case 'B':
           setExecuting(id, true)
           break
-        case 'C': 
+        case 'C':
           setExecuting(id, true)
           break
-        case 'D': 
+        case 'D':
           setExecuting(id, false, parts[1] ? parseInt(parts[1]) : null)
           break
       }
       return true
     })
 
-    
+
     const selectedAgent = agentStore.selectedAgent
     const cwd = selectedAgent?.terminalStartupPath || undefined
     await window.api.pty.spawn({ id, cols: term.cols, rows: term.rows, cwd })
@@ -166,7 +166,7 @@ export const useTerminal = () => {
       term.write('\r\n\x1b[31m连接已断开\x1b[0m')
     })
 
-    
+
     const originalCleanup = () => {
       cleanupData()
       cleanupExit()
@@ -191,7 +191,7 @@ export const useTerminal = () => {
       window.api.pty.resize(id, term.cols, term.rows)
     }, 50)
 
-    
+
     const unwatchSettings = watch(
       () => terminalSettings.value,
       (newSettings) => {
@@ -210,7 +210,7 @@ export const useTerminal = () => {
       { deep: true }
     )
 
-    
+
     tabs.value[tabIndex]._cleanup = () => {
       unwatchSettings()
       originalCleanup()
@@ -272,7 +272,7 @@ export const useTerminal = () => {
 
     await waitForReady(id)
 
-    
+
     tab.currentOutput = ''
 
     setExecuting(id, true)
@@ -323,31 +323,10 @@ export const useTerminal = () => {
     }
   }
 
-  const startResizing = (event: MouseEvent) => {
-    isResizing.value = true
-    const startY = event.clientY
-    const startHeight = terminalHeight.value
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing.value) return
-      const deltaY = startY - e.clientY
-      terminalHeight.value = Math.max(100, Math.min(window.innerHeight - 200, startHeight + deltaY))
-    }
-
-    const handleMouseUp = () => {
-      isResizing.value = false
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-      const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
-      if (activeTab?.addon && activeTab?.instance) {
-        activeTab.addon.fit()
-        window.api.pty.resize(activeTab.id, activeTab.instance.cols, activeTab.instance.rows)
-      }
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-  }
+  // 监听高度变化，自动调整终端大小
+  watch(terminalHeight, () => {
+    handleWindowResize()
+  })
 
   const toggleTerminal = () => {
     if (!settingsStore.display.showTerminal) {
@@ -406,7 +385,7 @@ export const useTerminal = () => {
       if (!tab) return resolve(false)
 
       const checkReady = () => {
-        
+
         return tab.isReady && !tab.isExecuting
       }
 
@@ -441,7 +420,6 @@ export const useTerminal = () => {
     removeTab,
     switchTab,
     setTerminalRef,
-    startResizing,
     handleWindowResize,
     showTerminal,
     hideTerminal,

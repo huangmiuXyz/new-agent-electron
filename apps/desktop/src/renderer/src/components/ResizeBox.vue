@@ -2,75 +2,118 @@
   <div
     ref="containerRef"
     class="resize-box"
-    :style="{
-      width: isCollapsed ? '0px' : `${width}px`,
+    :style="containerStyle"
+    :class="{ 
+      collapsed: isCollapsed, 
+      resizing: isResizing,
+      'is-horizontal': direction === 'horizontal',
+      'is-vertical': direction === 'vertical'
     }"
-    :class="{ collapsed: isCollapsed, resizing: isResizing }"
   >
     <div class="resize-content">
       <slot></slot>
     </div>
     <div
       class="resize-handle"
-      :class="{ 'is-collapsed': isCollapsed }"
+      :class="{ 
+        'is-collapsed': isCollapsed,
+        'is-top': direction === 'vertical' && handlePosition === 'top',
+        'is-bottom': direction === 'vertical' && handlePosition === 'bottom',
+        'is-left': direction === 'horizontal' && handlePosition === 'left',
+        'is-right': direction === 'horizontal' && handlePosition === 'right'
+      }"
       @mousedown="startResizing"
     ></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, computed } from 'vue'
 
 const props = withDefaults(defineProps<{
-  width: number
+  width?: number
+  height?: number
   isCollapsed: boolean
-  minWidth?: number
-  maxWidth?: number
+  minSize?: number
+  maxSize?: number
   collapseThreshold?: number
+  direction?: 'horizontal' | 'vertical'
+  handlePosition?: 'left' | 'right' | 'top' | 'bottom'
 }>(), {
-  minWidth: 150,
-  maxWidth: 500,
-  collapseThreshold: 80
+  minSize: 150,
+  maxSize: 800,
+  collapseThreshold: 80,
+  direction: 'horizontal',
+  handlePosition: 'right'
 })
 
 const emit = defineEmits<{
   (e: 'update:width', value: number): void
+  (e: 'update:height', value: number): void
   (e: 'update:isCollapsed', value: boolean): void
 }>()
 
 const isResizing = ref(false)
 const containerRef = ref<HTMLElement | null>(null)
 
+const containerStyle = computed(() => {
+  if (props.direction === 'horizontal') {
+    return {
+      width: props.isCollapsed ? '0px' : `${props.width}px`,
+    }
+  } else {
+    return {
+      height: props.isCollapsed ? '0px' : `${props.height}px`,
+    }
+  }
+})
+
 const startResizing = (e: MouseEvent) => {
   isResizing.value = true
   const startX = e.clientX
-  const startWidth = props.isCollapsed ? 0 : props.width
-
+  const startY = e.clientY
+  const startSize = props.direction === 'horizontal' 
+    ? (props.isCollapsed ? 0 : (props.width || 0))
+    : (props.isCollapsed ? 0 : (props.height || 0))
+  
   // Add a class to body to prevent text selection and show cursor
-  document.body.style.cursor = 'col-resize'
+  document.body.style.cursor = props.direction === 'horizontal' ? 'col-resize' : 'row-resize'
   document.body.style.userSelect = 'none'
 
   const handleMouseMove = (moveEvent: MouseEvent) => {
     if (!isResizing.value) return
+    
+    let delta = 0
+    if (props.direction === 'horizontal') {
+      delta = moveEvent.clientX - startX
+      if (props.handlePosition === 'left') delta = -delta
+    } else {
+      delta = moveEvent.clientY - startY
+      if (props.handlePosition === 'top') delta = -delta
+    }
 
-    const deltaX = moveEvent.clientX - startX
-    let newWidth = startWidth + deltaX
-
-    if (newWidth < props.collapseThreshold) {
+    let newSize = startSize + delta
+    
+    if (newSize < props.collapseThreshold) {
       if (!props.isCollapsed) {
         emit('update:isCollapsed', true)
       }
     } else {
-      if (newWidth < props.minWidth) {
-        newWidth = props.minWidth
+      if (newSize < props.minSize) {
+        newSize = props.minSize
       }
-      if (newWidth > props.maxWidth) {
-        newWidth = props.maxWidth
+      if (newSize > props.maxSize) {
+        newSize = props.maxSize
       }
       if (props.isCollapsed) {
         emit('update:isCollapsed', false)
       }
-      emit('update:width', newWidth)
+      
+      if (props.direction === 'horizontal') {
+        emit('update:width', newSize)
+      } else {
+        emit('update:height', newSize)
+      }
     }
   }
 
@@ -95,9 +138,16 @@ onUnmounted(() => {
 <style scoped>
 .resize-box {
   position: relative;
-  height: 100%;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
+}
+
+.resize-box.is-horizontal {
+  height: 100%;
+}
+
+.resize-box.is-vertical {
+  width: 100%;
 }
 
 .resize-box.resizing {
@@ -112,13 +162,8 @@ onUnmounted(() => {
 
 .resize-handle {
   position: absolute;
-  top: 0;
-  right: -2px;
-  width: 4px;
-  height: 100%;
-  cursor: col-resize;
   z-index: 100;
-  transition: background-color 0.2s, right 0.2s;
+  transition: background-color 0.2s, right 0.2s, left 0.2s, top 0.2s, bottom 0.2s;
 }
 
 .resize-handle:hover,
@@ -126,7 +171,51 @@ onUnmounted(() => {
   background-color: var(--color-primary, #007bff);
 }
 
-.resize-handle.is-collapsed {
+/* Horizontal styles */
+.is-horizontal .resize-handle {
+  top: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+.resize-handle.is-right {
+  right: -2px;
+}
+
+.resize-handle.is-left {
+  left: -2px;
+}
+
+.resize-handle.is-right.is-collapsed {
   right: -4px;
+}
+
+.resize-handle.is-left.is-collapsed {
+  left: -4px;
+}
+
+/* Vertical styles */
+.is-vertical .resize-handle {
+  left: 0;
+  height: 4px;
+  width: 100%;
+  cursor: row-resize;
+}
+
+.resize-handle.is-top {
+  top: -2px;
+}
+
+.resize-handle.is-bottom {
+  bottom: -2px;
+}
+
+.resize-handle.is-top.is-collapsed {
+  top: -4px;
+}
+
+.resize-handle.is-bottom.is-collapsed {
+  bottom: -4px;
 }
 </style>

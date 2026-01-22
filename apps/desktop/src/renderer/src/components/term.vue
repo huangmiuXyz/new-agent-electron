@@ -4,13 +4,10 @@ import 'xterm/css/xterm.css'
 const {
   tabs,
   activeTabId,
-  terminalHeight,
-  isResizing,
   createTab,
   removeTab,
   switchTab,
   setTerminalRef,
-  startResizing,
   handleWindowResize,
   hideTerminal
 } = useTerminal()
@@ -38,9 +35,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="terminal-container" :style="{ height: terminalHeight + 'px' }" :class="{ 'is-resizing': isResizing }">
-    <div class="resizer" @mousedown="startResizing"></div>
-
+  <div class="terminal-container">
     <div class="terminal-header">
       <div class="tabs-list">
         <div v-for="tab in tabs" :key="tab.id" class="tab-item" :class="{ active: activeTabId === tab.id }"
@@ -72,26 +67,7 @@ onBeforeUnmount(() => {
   background: var(--bg-card);
   position: relative;
   flex-shrink: 0;
-  min-height: 100px;
-}
-
-.terminal-container.is-resizing {
-  user-select: none;
-}
-
-.resizer {
-  position: absolute;
-  top: -3px;
-  left: 0;
-  right: 0;
-  height: 4px;
-  cursor: row-resize;
-  z-index: 10;
-  background: transparent;
-}
-
-.resizer:hover {
-  background: var(--accent-color);
+  height: 100%;
 }
 
 .terminal-header {
