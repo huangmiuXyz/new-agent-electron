@@ -6,7 +6,6 @@ export interface CivitaiBridgeOptions {
 export class CivitaiSDKBridge {
   private apiKey: string;
   private pluginPath: string;
-  private serverPort: number = 18888;
   private serverUrl: string = `http://localhost:18888`;
 
   constructor(options: CivitaiBridgeOptions) {
