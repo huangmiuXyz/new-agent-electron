@@ -24,10 +24,9 @@ watch(() => currentNote.value, (note) => {
 
 <template>
     <div class="notes-layout">
-        <!-- 笔记-左侧侧边栏 -->
-        <ResizeBox v-if="!isMobile"
-            v-model:width="settingsStore.display.sidebarWidth"
-            v-model:is-collapsed="settingsStore.display.sidebarCollapsed">
+        <!-- 侧边栏区域 -->
+        <ResizeBox v-model:width="settingsStore.display.notesSidebarWidth"
+            v-model:is-collapsed="settingsStore.display.sidebarCollapsed" :min-size="200" :max-size="500">
             <NotesSidebar />
         </ResizeBox>
 

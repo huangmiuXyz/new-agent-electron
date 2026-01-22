@@ -14,7 +14,7 @@ const agentStore = useAgentStore()
 
     <!-- 左侧边栏 -->
     <ResizeBox v-if="!isMobile"
-      v-model:width="settingsStore.display.sidebarWidth"
+      v-model:width="settingsStore.display.chatSidebarWidth"
       v-model:is-collapsed="settingsStore.display.sidebarCollapsed">
       <ChatSidebar />
     </ResizeBox>

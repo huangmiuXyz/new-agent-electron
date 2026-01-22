@@ -11,8 +11,8 @@ const switchTab = (tabName: string) => {
 <template>
   <div class="settings-layout">
     <!-- 设置-左侧分类导航 -->
-    <ResizeBox v-model:width="settingsStore.display.sidebarWidth"
-      v-model:is-collapsed="settingsStore.display.sidebarCollapsed">
+    <ResizeBox v-model:width="settingsStore.display.settingsSidebarWidth"
+      v-model:is-collapsed="settingsStore.display.sidebarCollapsed" :min-size="150" :max-size="400">
       <SettingsSidebar :active-tab="activeTab" @tab-change="switchTab" />
     </ResizeBox>
 
