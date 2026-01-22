@@ -68,7 +68,7 @@ router.post('/api/generate', async (ctx) => {
       negativePrompt: params.params.negativePrompt || '',
       scheduler: params.params.scheduler || 'EulerA',
       steps: Number(params.params.steps) || 15,
-      cfgScale: Number(params.params.cfgScale) || 1,
+      cfgScale: Number(params.params.cfgScale) || 3,
       width: Number(params.params.width) || 512,
       height: Number(params.params.height) || 512,
       clipSkip: params.params.clipSkip !== undefined ? Number(params.params.clipSkip) : 2,
