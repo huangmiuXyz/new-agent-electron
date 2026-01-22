@@ -9,12 +9,15 @@ const {
   switchTab,
   setTerminalRef,
   handleWindowResize,
+  showTerminal,
   hideTerminal
 } = useTerminal()
 
 onMounted(async () => {
+  if (tabs.value.length === 0) {
+    showTerminal()
+  }
   await new Promise((resolve) => setTimeout(resolve, 500))
-  // createTab()
   window.addEventListener('resize', handleWindowResize)
 
   await nextTick()

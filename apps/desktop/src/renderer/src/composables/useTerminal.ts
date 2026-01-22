@@ -219,15 +219,17 @@ export const useTerminal = () => {
 
   const showTerminal = async () => {
     settingsStore.display.showTerminal = true
+    if (tabs.value.length === 0) {
+      await createTab()
+      return
+    }
     await waitForReady(activeTabId.value)
     nextTick(() => {
       terminalRefs.get(activeTabId.value)?.focus()
       const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
       if (activeTab?.addon && activeTab?.instance) {
-        if (activeTab.addon && activeTab.instance) {
-          activeTab.addon.fit()
-          window.api.pty.resize(activeTab.id, activeTab.instance.cols, activeTab.instance.rows)
-        }
+        activeTab.addon.fit()
+        window.api.pty.resize(activeTab.id, activeTab.instance.cols, activeTab.instance.rows)
       }
     })
   }
@@ -333,9 +335,6 @@ export const useTerminal = () => {
       showTerminal()
     } else {
       hideTerminal()
-    }
-    if (settingsStore.display.showTerminal && tabs.value.length === 0) {
-      createTab()
     }
   }
 
