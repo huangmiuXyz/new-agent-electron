@@ -42,10 +42,11 @@ export const ModelDetail = (props: ModelDetailProps) => {
         }
       }
 
-      const versionOptions = props.row.versions?.map((v: any) => ({
-        label: `${v.name} ${v.baseModel ? `(${v.baseModel})` : ''}`,
-        value: v.id
-      })) || []
+      const versionOptions =
+        props.row.versions?.map((v: any) => ({
+          label: `${v.name} ${v.baseModel ? `(${v.baseModel})` : ''}`,
+          value: v.id
+        })) || []
 
       return () => (
         <div
@@ -79,23 +80,6 @@ export const ModelDetail = (props: ModelDetailProps) => {
                 style={{ flex: 1 }}
                 disabled={isLoading.value}
               />
-              {isLoading.value && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div
-                    class="animate-spin"
-                    style={{
-                      width: '14px',
-                      height: '14px',
-                      border: '2px solid var(--accent-color)',
-                      borderTopColor: 'transparent',
-                      borderRadius: '50%'
-                    }}
-                  />
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    加载中...
-                  </span>
-                </div>
-              )}
             </div>
           )}
 
@@ -233,5 +217,3 @@ export const ModelDetail = (props: ModelDetailProps) => {
 
   return <Component />
 }
-
-
