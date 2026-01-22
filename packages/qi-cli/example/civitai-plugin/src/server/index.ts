@@ -79,7 +79,7 @@ router.post('/api/generate', async (ctx) => {
   };
 
   try {
-    const result = await instance.image.fromText(jobInput);
+    const result = await instance.image.fromText(jobInput, true);
     ctx.body = result;
   } catch (error: any) {
     const errorInfo = {
