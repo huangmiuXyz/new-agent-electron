@@ -6,7 +6,8 @@
 <script setup lang="ts"></script>
 <style>
 .ListContainer {
-  width: 100%;
+  width: 220px;
+  flex-shrink: 0;
   padding: 12px;
   border-right: 1px solid var(--border-color);
 }

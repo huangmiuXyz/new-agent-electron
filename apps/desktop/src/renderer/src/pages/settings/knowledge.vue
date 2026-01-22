@@ -494,12 +494,23 @@ const [DocTable] = useTable<KnowledgeDocument>({
 
 <template>
   <!-- 列表视图 -->
-  <ListContainer v-if="showList">
-    <List title="知识库" :items="knowledgeBases" :active-id="activeKnowledgeBaseId" @select="selectKnowledgeBase"
+  <ListContainer
+    v-if="showList"
+    @contextmenu="
+      (event, item) =>
+        handleKnowledgeBaseContextMenu(event, knowledgeBases.find((kb) => kb.id === item)!)
+    "
+  >
+    <List
+      title="知识库"
+      :items="knowledgeBases.map((kb) => ({ id: kb.id, name: kb.name }))"
+      :active-id="activeKnowledgeBaseId"
+      @select="selectKnowledgeBase"
       @contextmenu="
         (event, item) =>
           handleKnowledgeBaseContextMenu(event, knowledgeBases.find((kb) => kb.id === item)!)
-      ">
+      "
+    >
       <template #title-tool>
         <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="text">
           <template #icon>

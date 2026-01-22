@@ -441,6 +441,7 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
 
 .combined-list {
     height: 100%;
+    width: 100% !important;
 }
 
 /* Mobile Styles */

@@ -5,13 +5,6 @@ import Term from '@renderer/components/term.vue'
 
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
-
-const isTerminalCollapsed = computed({
-  get: () => !settingsStore.display.showTerminal,
-  set: (val) => {
-    settingsStore.display.showTerminal = !val
-  }
-})
 </script>
 
 <template>
@@ -32,17 +25,9 @@ const isTerminalCollapsed = computed({
       <ChatMessageList />
 
       <!-- 终端区域 -->
-      <ResizeBox
-        v-if="settingsStore.display.showTerminal"
-        v-model:height="settingsStore.display.terminalHeight"
-        v-model:is-collapsed="isTerminalCollapsed"
-        direction="vertical"
-        handle-position="top"
-        :min-size="100"
-        :max-size="600"
-      >
+      <div v-if="settingsStore.display.showTerminal" :style="{ height: settingsStore.display.terminalHeight + 'px' }">
         <Term />
-      </ResizeBox>
+      </div>
 
       <!-- 输入框 -->
       <ChatMessageInput />
