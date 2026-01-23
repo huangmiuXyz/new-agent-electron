@@ -5,7 +5,6 @@ import {
   withUserAgentSuffix,
 } from '@ai-sdk/provider-utils';
 import { ModelScopeImageModel } from './modelscope-image-model';
-import { Model } from '../types';
 import { DEFAULT_BASE_URL, DEFAULT_MODEL_ID } from '../constants';
 
 const VERSION = '1.0.0';
