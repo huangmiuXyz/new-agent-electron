@@ -53,13 +53,13 @@ export class QwenSpeechModel implements SpeechModelV3 {
 
     try {
       const client = await Client.connect(this.config.baseUrl, {
-        query_params: {
-          studio_token: this.config.apiKey,
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
         }
       });
       const result = await client.predict("/generate_custom_voice", {
         text,
-        language: lang,
+        language: lang === 'auto' ? 'Auto' : lang,
         speaker,
         instruct,
         model_size: modelSize,
@@ -68,34 +68,12 @@ export class QwenSpeechModel implements SpeechModelV3 {
       if (!result.data || !result.data[0]) {
         throw new Error("Empty response from Qwen TTS service");
       }
-
       const audioData = result.data[0];
       let audioUint8Array: Uint8Array;
 
-      if (typeof audioData === 'string') {
-        // Handle direct string response if applicable
-        if (audioData.startsWith('data:')) {
-          const base64 = audioData.split(',')[1];
-          audioUint8Array = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-        } else {
-          // Assume it's a URL
-          const response = await fetch(audioData);
-          const buffer = await response.arrayBuffer();
-          audioUint8Array = new Uint8Array(buffer);
-        }
-      } else if (audioData.data) {
-        // Handle object with data property (base64)
-        const base64 = audioData.data.startsWith('data:') ? audioData.data.split(',')[1] : audioData.data;
-        audioUint8Array = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-      } else if (audioData.url) {
-        // Handle object with url property
-        const response = await fetch(audioData.url);
-        const buffer = await response.arrayBuffer();
-        audioUint8Array = new Uint8Array(buffer);
-      } else {
-        console.error('Unexpected audio data format:', audioData);
-        throw new Error("Unexpected audio data format from Qwen TTS service");
-      }
+      const response = await fetch(audioData.url);
+      const buffer = await response.arrayBuffer();
+      audioUint8Array = new Uint8Array(buffer);
 
       return {
         audio: audioUint8Array,
