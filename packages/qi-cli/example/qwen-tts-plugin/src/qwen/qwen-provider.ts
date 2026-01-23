@@ -23,17 +23,23 @@ export interface QwenProviderSettings {
    * Base URL for the Qwen TTS service.
    */
   baseURL?: string;
+  /**
+   * API Key (Studio Token) for authentication.
+   */
+  apiKey: string;
 }
 
 export function createQwen(
-  options: QwenProviderSettings = {},
+  options: QwenProviderSettings,
 ): QwenProvider {
   const baseURL = options.baseURL ?? 'https://qwen-qwen3-tts.ms.show/';
+  const apiKey = options.apiKey
 
   const createSpeechModel = (modelId: string = 'qwen3-tts-1.7b') =>
     new QwenSpeechModel(modelId, {
       provider: `qwen.speech`,
       baseUrl: baseURL,
+      apiKey: apiKey,
     });
 
   const provider = function () {
@@ -44,6 +50,7 @@ export function createQwen(
 
   provider.speech = createSpeechModel;
   provider.speechModel = createSpeechModel;
+  provider.speechCallOptionsSchema = QwenSpeechModel.speechCallOptionsSchema;
 
   const baseVoices = [
     { id: 'Vivian', name: 'Vivian', description: '明亮、略带锐利感的年轻女声。', language: '中文' },
@@ -66,9 +73,10 @@ export function createQwen(
         created: Date.now(),
         object: 'model',
         owned_by: 'qwen',
+        active: true,
         voices: baseVoices.map((v) => ({
-          id: v,
-          name: v,
+          id: v.id,
+          name: v.name,
         })),
       },
     ];

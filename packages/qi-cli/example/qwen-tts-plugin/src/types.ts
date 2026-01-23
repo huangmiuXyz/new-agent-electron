@@ -42,7 +42,7 @@ export interface PluginContext {
   /** 注册提供商到当前插件 */
   registerProvider: (
     providerId: string,
-    options?: { name?: string; form?: any; models?: any[] }
+    options?: { name?: string; form?: any; models?: any[]; providerType: string }
   ) => void;
   /** 注销提供商 */
   unregisterProvider: (providerId: string) => void;

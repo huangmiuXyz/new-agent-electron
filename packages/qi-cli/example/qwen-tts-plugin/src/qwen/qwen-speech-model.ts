@@ -1,13 +1,17 @@
 import { SpeechModelV3 } from '@ai-sdk/provider';
 import { Client } from "@gradio/client";
+import { qwenSpeechProviderOptionsSchema } from './qwen-schema';
+import { parseProviderOptions } from '@ai-sdk/provider-utils';
 
 export interface QwenConfig {
   provider: string;
   baseUrl: string;
+  apiKey: string;
 }
 
 export class QwenSpeechModel implements SpeechModelV3 {
   readonly specificationVersion = 'v3';
+  public static readonly speechCallOptionsSchema = qwenSpeechProviderOptionsSchema;
 
   constructor(
     readonly modelId: string,
@@ -18,19 +22,41 @@ export class QwenSpeechModel implements SpeechModelV3 {
     return this.config.provider;
   }
 
+  private async getArgs(options: Parameters<SpeechModelV3['doGenerate']>[0]) {
+
+    const { voice, language, providerOptions, text } = options;
+
+    const qwenOptions = await parseProviderOptions({
+      provider: 'qwen-tts',
+      providerOptions,
+      schema: QwenSpeechModel.speechCallOptionsSchema,
+    });
+
+    const speaker = voice
+    const lang = language
+    const modelSize = qwenOptions?.model_size
+    const instruct = text
+
+    return {
+      speaker,
+      lang,
+      modelSize,
+      instruct,
+    };
+  }
+
   async doGenerate(
     options: Parameters<SpeechModelV3['doGenerate']>[0],
   ): Promise<Awaited<ReturnType<SpeechModelV3['doGenerate']>>> {
-    const { text, voice, language } = options;
-
-    // Default values based on the user's snippet
-    const speaker = voice || "Vivian";
-    const lang = language || "Chinese";
-    const modelSize = "1.7B"; // From snippet
-    const instruct = "Hello!!"; // From snippet
+    const { text } = options;
+    const { speaker, lang, modelSize, instruct } = await this.getArgs(options);
 
     try {
-      const client = await Client.connect(this.config.baseUrl);
+      const client = await Client.connect(this.config.baseUrl, {
+        query_params: {
+          studio_token: this.config.apiKey,
+        }
+      });
       const result = await client.predict("/generate_custom_voice", {
         text,
         language: lang,

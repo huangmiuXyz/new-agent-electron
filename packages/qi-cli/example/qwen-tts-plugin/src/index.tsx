@@ -2,6 +2,8 @@ import { Plugin, PluginContext } from './types'
 import { createQwen } from './qwen/qwen-provider'
 
 const PLUGIN_NAME = 'qwen-tts-plugin'
+const STORAGE_KEY = 'qwen-tts-config'
+const PROVIDER_ID = 'qwen-tts'
 
 const plugin: Plugin = {
   name: PLUGIN_NAME,
@@ -10,50 +12,55 @@ const plugin: Plugin = {
   author: 'Agent-Qi',
 
   install: async (context: PluginContext) => {
-    const PROVIDER_ID = 'qwen'
-    const STORAGE_KEY = 'qwen-tts-config'
+    const { localforage, useForm, registerRegistry, registerProvider } = context
 
-    const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
+    // 加载保存的配置
+    const savedConfig: any = (await localforage.getItem(STORAGE_KEY)) || {}
 
-    const [QwenForm] = context.useForm({
+    const [ConfigForm] = useForm({
       fields: [
         {
           name: 'baseURL',
-          type: 'input',
-          label: '服务地址',
-          placeholder: 'https://qwen-qwen3-tts.ms.show/',
-          hint: 'Qwen TTS Gradio 服务的 URL'
+          label: 'Base URL',
+          type: 'text',
+          placeholder: '输入 Qwen TTS 服务地址...',
+          hint: 'Qwen TTS 服务的 Gradio 地址，例如: https://qwen-qwen3-tts.ms.show/'
+        },
+        {
+          name: 'apiKey',
+          label: 'API Key',
+          type: 'password',
+          placeholder: '输入 ModelScope Studio Token...',
+          hint: '在 ModelScope 设置中获取 Studio Token。'
         }
       ],
       initialData: {
-        baseURL: savedConfig.baseURL || 'https://qwen-qwen3-tts.ms.show/'
+        baseURL: savedConfig.baseURL || 'https://qwen-qwen3-tts.ms.show/',
+        apiKey: savedConfig.apiKey || ''
       },
-      onChange: (_field: string, _value: any, data: any) => {
-        context.localforage.setItem(STORAGE_KEY, JSON.stringify(data))
+      onChange: async (_field: string, _value: any, data: any) => {
+        await localforage.setItem(STORAGE_KEY, JSON.parse(JSON.stringify(data)))
       }
     })
 
-    // 注册到 AI SDK 注册表
-    context.registerRegistry(PROVIDER_ID, (options: any) => {
-      return createQwen({
-        ...options,
-        baseURL: options.baseURL || savedConfig.baseURL
-      })
+    const qwen = createQwen({
+      baseURL: savedConfig.baseURL,
+      apiKey: savedConfig.apiKey
     })
-
-    // 注册到设置页面的提供商列表
-    const provider = createQwen({ baseURL: savedConfig.baseURL })
-    const models = await provider.listModels()
-
-    context.registerProvider(PROVIDER_ID, {
+    // 初始化注册
+    registerRegistry(PROVIDER_ID, () => {
+      return qwen
+    })
+    registerProvider(PROVIDER_ID, {
       name: 'Qwen TTS',
-      form: QwenForm,
-      models: models
+      providerType: PROVIDER_ID,
+      form: ConfigForm,
+      models: await qwen.listModels()
     })
   },
 
   uninstall: (context: PluginContext) => {
-    context.unregisterProvider('qwen')
+    context.unregisterProvider(PROVIDER_ID)
   }
 }
 
