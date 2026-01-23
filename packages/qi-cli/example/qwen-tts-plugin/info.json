@@ -1,0 +1,9 @@
+{
+  "name": "qwen-tts-plugin",
+  "version": "1.0.0",
+  "description": "Qwen TTS 语音合成插件",
+  "author": "Agent-Qi",
+  "updatedAt": "2026-01-23 12:00:00",
+  "main": "index.js",
+  "extraAssets": []
+}
