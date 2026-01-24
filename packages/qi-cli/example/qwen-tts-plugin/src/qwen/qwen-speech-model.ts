@@ -54,7 +54,7 @@ export class QwenSpeechModel implements SpeechModelV3 {
     try {
       const client = await Client.connect(this.config.baseUrl, {
         headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`,
+          'x-studio-token': this.config.apiKey,
         }
       });
       const result = await client.predict("/generate_custom_voice", {
