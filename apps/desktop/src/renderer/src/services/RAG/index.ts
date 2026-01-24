@@ -92,6 +92,11 @@ export const RAGService = () => {
       } else {
         text = window.api.fs.readFileSync(window.api.url.fileURLToPath(doc.path), 'utf-8')
       }
+
+      // 如果有相对路径，则在开头注入
+      if (doc.metadata?.relativePath) {
+        text = `[File Path]: ${doc.metadata.relativePath}\n\n${text}`
+      }
     } catch (error) {
       doc.url && (text = base64ToText(doc.url))
     }

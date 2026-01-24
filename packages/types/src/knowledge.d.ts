@@ -34,10 +34,11 @@ declare global {
     currentChunk?: number
     isSplitting?: boolean
     metadata?: {
-      modelId: string
-      providerId: string
+      modelId?: string
+      providerId?: string
       chunkSize?: number
       chunkOverlap?: number
+      relativePath?: string
     }
     url?: string
   }

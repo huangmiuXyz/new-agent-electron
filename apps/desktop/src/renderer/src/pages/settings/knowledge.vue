@@ -327,7 +327,14 @@ const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } =
         type: f.mediaType,
         created: Date.now(),
         status: 'processing',
-        url: !f.path ? f.url : undefined
+        url: !f.path ? f.url : undefined,
+        metadata: {
+          modelId: activeKnowledgeBase.value.embeddingModel.modelId,
+          providerId: activeKnowledgeBase.value.embeddingModel.providerId,
+          chunkSize: activeKnowledgeBase.value.embeddingConfig?.chunkSize,
+          chunkOverlap: activeKnowledgeBase.value.embeddingConfig?.chunkOverlap,
+          relativePath: f.relativePath
+        }
       }
       docs.push(doc)
       addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, doc)

@@ -11,6 +11,7 @@ export interface UploadFile extends FileUIPart {
   name?: string
   path?: string
   size?: number
+  relativePath?: string
 }
 
 interface FileItem {
@@ -320,7 +321,8 @@ export function useUpload(options: UseUploadOptions = {}) {
                 path: 'file://' + fullPath,
                 name: entry.name,
                 type: 'file' as const,
-                size: stat.size
+                size: stat.size,
+                relativePath
               })
             }
           }

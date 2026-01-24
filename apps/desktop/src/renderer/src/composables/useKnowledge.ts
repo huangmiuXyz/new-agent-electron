@@ -32,6 +32,7 @@ export const useKnowledge = () => {
       }
     } else {
       doc.metadata = {
+        ...doc.metadata,
         modelId: model.id,
         providerId: provider.id,
         chunkSize: knowledge.embeddingConfig?.chunkSize,
