@@ -228,6 +228,10 @@ export const useChat = (chatId: string) => {
       parts
     })
   }
+  const continueMessages = () => {
+    const chat = createChat(chats?.messages!)
+    chat.sendMessage()
+  }
 
   const regenerate = (messageId: string) => {
     const chat = createChat(chats?.messages!)
@@ -243,6 +247,7 @@ export const useChat = (chatId: string) => {
   return {
     sendMessages,
     regenerate,
-    approval
+    approval,
+    continueMessages
   }
 }

@@ -11,14 +11,15 @@ const autoScrollEnabled = ref(true)
 const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage } = useChatsStores()
-const { Delete, Refresh, Copy, Edit, Branch, Language } = useIcon([
+const { Delete, Refresh, Continue, Copy, Edit, Branch, Language } = useIcon([
   'Delete',
   'Refresh',
   'Copy',
   'Edit',
   'Branch',
   'Language',
-  'Stop'
+  'Stop',
+  'Continue'
 ])
 
 const { translateMessage, translateWithCustomLanguage } = useTranslation()
@@ -157,6 +158,18 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         }
         const { regenerate } = useChat(currentChat.value!.id!)
         regenerate(data.id!)
+      }
+    },
+    {
+      label: '继续',
+      icon: Continue,
+      onClick: async () => {
+        if (!currentSelectedModel.value) {
+          messageApi.error('请先选择模型')
+          return
+        }
+        const { continueMessages } = useChat(currentChat.value!.id!)
+        continueMessages()
       }
     },
     {
