@@ -84,15 +84,15 @@ export const useChat = (chatId: string) => {
           scope.stop()
         },
         onError: (error) => {
-          chat.lastMessage.metadata = { ...chat.lastMessage.metadata, error }
+          syncMessageToStore(error as APICallError)
         }
       })
 
-      const syncMessageToStore = () => {
+      const syncMessageToStore = (error?: APICallError) => {
         const updatedMessages = [...chat.messages!]
         const lastIndex = updatedMessages.length - 1
         if (lastIndex >= 0) {
-          chats!.messages[lastIndex] = cloneDeep(updatedMessages[lastIndex])
+          chats!.messages[lastIndex] = cloneDeep({ ...updatedMessages[lastIndex], metadata: { ...updatedMessages[lastIndex].metadata, error } })
         }
       }
 
