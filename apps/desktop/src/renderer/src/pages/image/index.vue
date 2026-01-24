@@ -397,6 +397,19 @@ const clearImages = () => {
 
 const reEdit = (batch: ImageBatch) => {
   rightInput.value = batch.prompt
+  formActions.setFieldsValue({
+    model: {
+      modelId: batch.model,
+      providerId: batch.providerId
+    },
+    size: batch.size,
+    n: batch.n,
+    seed: batch.params?.seed,
+    providerOptions: batch.params?.providerOptions
+  })
+  if (batch.providerId) {
+    dynamicField.value = getDynamicImageFields(batch.providerId)
+  }
 }
 
 const deleteBatch = (batchId: number) => {
