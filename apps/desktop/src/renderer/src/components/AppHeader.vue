@@ -45,7 +45,7 @@ const route = useRoute()
 <template>
   <header class="app-header drag" :class="{ 'is-mobile-list': isListMode }">
     <div v-if="!isListMode" :style="{
-      marginLeft: isMobile ? '0' : '48px',
+      marginLeft: isMobile ? '0' : '68px',
       justifyContent: props.currentView === 'chat' ? 'space-between' : ''
     }" :class="{ isMobile }" class="header-info drag">
       <Button v-if="!isMobile" variant="icon" size="md" @click="toggleSidebar">
