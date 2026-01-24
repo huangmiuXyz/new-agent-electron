@@ -42,6 +42,7 @@ watch(() => [props.files, props.modelValue], () => {
 
 const {
   selectedFiles,
+  uploadLoading,
   isDragOver,
   isOverDropZone,
   removeFile,
@@ -132,9 +133,14 @@ defineExpose({
       </div>
 
       <!-- 添加按钮 -->
-      <div v-if="showAddButton" class="upload-box" @click="handleTriggerUpload">
-        <Plus class="upload-icon" />
-        <span>上传</span>
+      <div v-if="showAddButton" class="upload-box" :class="{ 'uploading': uploadLoading }" @click="!uploadLoading && handleTriggerUpload">
+        <template v-if="uploadLoading">
+          <div class="btn-spinner"></div>
+        </template>
+        <template v-else>
+          <Plus class="upload-icon" />
+          <span>上传</span>
+        </template>
       </div>
     </div>
   </div>
@@ -193,6 +199,29 @@ defineExpose({
   border-color: var(--accent-color);
   color: var(--accent-color);
   background: var(--bg-hover);
+}
+
+.upload-box.uploading {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .upload-icon {

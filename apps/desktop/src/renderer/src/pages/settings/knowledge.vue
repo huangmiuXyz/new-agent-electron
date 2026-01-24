@@ -9,7 +9,7 @@ const {
   deleteDocumentFromKnowledgeBase
 } = useKnowledgeStore()
 
-const { Plus, Search, Trash, File, Refresh, Stop, Play, Settings } = useIcon([
+const { Plus, Search, Trash, File, Refresh, Stop, Play, Settings, Folder } = useIcon([
   'Stop',
   'Plus',
   'Search',
@@ -17,7 +17,8 @@ const { Plus, Search, Trash, File, Refresh, Stop, Play, Settings } = useIcon([
   'File',
   'Refresh',
   'Play',
-  'Settings'
+  'Settings',
+  'Folder'
 ])
 const { confirm } = useModal()
 const { showContextMenu } = useContextMenu<KnowledgeBase>()
@@ -313,7 +314,8 @@ const showDeleteDocumentModal = async (document: KnowledgeDocument) => {
     deleteDocumentFromKnowledgeBase(activeKnowledgeBaseId.value, document.id)
   }
 }
-const { triggerUpload, clearSeletedFiles } = useUpload({
+const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } = useUpload({
+  onlyText: true,
   onFilesSelected: async (files) => {
     const docs: KnowledgeDocument[] = []
     files.forEach((f) => {
@@ -345,6 +347,9 @@ const { triggerUpload, clearSeletedFiles } = useUpload({
 })
 const addDocument = () => {
   triggerUpload(true)
+}
+const addFolder = () => {
+  triggerFolderUpload()
 }
 const searchInputRef = useTemplateRef('searchInputRef')
 const handleShowSearch = async () => {
@@ -528,11 +533,17 @@ const [DocTable] = useTable<KnowledgeDocument>({
         <DocTable />
         <template #label>
           <div style="display: flex; gap: 4px;">
-            <Button @click="addDocument" size="sm" type="button" variant="text">
+            <Button :loading="uploadLoading" @click="addDocument" size="sm" type="button" variant="text">
               <template #icon>
                 <Plus />
               </template>
               添加文档
+            </Button>
+            <Button :loading="uploadLoading" @click="addFolder" size="sm" type="button" variant="text">
+              <template #icon>
+                <Folder />
+              </template>
+              添加文件夹
             </Button>
             <div v-if="showSearch">
               <SearchInput ref="searchInputRef" v-model="searchKeyword" placeholder="搜索文档..." size="sm"
