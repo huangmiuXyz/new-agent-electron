@@ -499,7 +499,7 @@ const VoiceTable = defineComponent({
 
 <template>
   <ListContainer v-if="showList">
-    <List title="提供商" :items="getAllProviders" :active-id="activeProviderId" @select="selectProvider" />
+    <List :defaultIcon="useIcon('Box')" title="提供商" :items="getAllProviders" :active-id="activeProviderId" @select="selectProvider" />
   </ListContainer>
 
   <FormContainer v-if="showForm" header-title="模型提供商">

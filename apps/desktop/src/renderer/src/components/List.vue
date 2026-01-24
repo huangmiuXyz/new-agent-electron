@@ -1,8 +1,9 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { computed } from 'vue'
+import { computed, VNode } from 'vue'
 import { assetsHandler } from '@renderer/utils'
 
 interface Props {
+  defaultIcon?: VNode
   items: T[]
   title?: string
   activeId?: string
@@ -135,9 +136,10 @@ const handleAction = (
             'is-active': item.isActive,
             'is-last': item.isLastItem
           }" @click="handleAction('select', item)" @contextmenu="handleAction('contextmenu', item, $event)">
-            <div v-if="item.logo" class="item-media">
+            <div v-if="item.logo || defaultIcon" class="item-media">
               <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
-              <Image v-else :src="item.logo" :alt="String(item.main)" class="media-img" />
+              <Image v-else-if="item.logo" :src="item.logo" :alt="String(item.main)" class="media-img" />
+              <component v-else-if="defaultIcon" :is="defaultIcon" class="media-icon" />
             </div>
 
             <div class="item-content">
