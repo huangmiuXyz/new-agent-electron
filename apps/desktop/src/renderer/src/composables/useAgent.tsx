@@ -93,7 +93,6 @@ export const useAgent = () => {
   }
 
   const openAgentModal = async (agent?: Agent) => {
-    debugger
     const isEdit = !!agent
     const modalTitle = isEdit ? '配置智能体' : '创建智能体'
 
