@@ -45,9 +45,9 @@ export const FormItem = defineComponent({
       default: 'default'
     },
     rest: {
-    type: [Function, Object] as PropType<any>,
-    default: () => null
-  }
+      type: [Function, Object] as PropType<any>,
+      default: () => null
+    }
   },
   setup(props, { slots }) {
     return () => {
@@ -383,7 +383,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     const isNestedField = field.name.includes('.')
     let initialValue
     if (isNestedField) {
-      initialValue = field.defaultValue || getNestedValue(config.initialData || {}, field.name)
+      initialValue = getNestedValue(config.initialData || {}, field.name) ?? field.defaultValue
       if (initialValue === undefined) {
         initialValue = getDefaultValue(field.type!, field)
       }
