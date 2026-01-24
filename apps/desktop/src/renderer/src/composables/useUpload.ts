@@ -3,6 +3,7 @@ import { assetsHandler, formatFileSize, getFileCategory, uploadDir } from '@rend
 import { arrayBufferToBlob, blobToDataURL } from 'blob-util'
 import { FileUIPart } from 'ai'
 import ignore from 'ignore'
+// @ts-ignore
 import textExtensions from 'textextensions'
 
 export interface UploadFile extends FileUIPart {
