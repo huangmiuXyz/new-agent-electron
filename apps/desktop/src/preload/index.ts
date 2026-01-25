@@ -10,7 +10,6 @@ import { app, getCurrentWindow } from '@electron/remote'
 import { exec, spawn } from 'child_process'
 import os from 'os'
 
-
 export const api = {
   ...aiServices(),
   pty: {
@@ -63,7 +62,20 @@ export const api = {
     deleteChunksByKb: (kbId: string) =>
       electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByKb', kbId),
     search: (options: any) => electronAPI.ipcRenderer.invoke('sqlite:search', options),
-    getAllChunks: () => electronAPI.ipcRenderer.invoke('sqlite:getAllChunks')
+    getAllChunks: () => electronAPI.ipcRenderer.invoke('sqlite:getAllChunks'),
+    getChunksByDocId: (docId: string) =>
+      electronAPI.ipcRenderer.invoke('sqlite:getChunksByDocId', docId),
+    getKnowledgeBases: () => electronAPI.ipcRenderer.invoke('sqlite:getKnowledgeBases'),
+    upsertKnowledgeBase: (kb: any) => electronAPI.ipcRenderer.invoke('sqlite:upsertKnowledgeBase', kb),
+    deleteKnowledgeBase: (id: string) =>
+      electronAPI.ipcRenderer.invoke('sqlite:deleteKnowledgeBase', id),
+    getDocuments: (kbId: string) => electronAPI.ipcRenderer.invoke('sqlite:getDocuments', kbId),
+    upsertDocument: (doc: any) => electronAPI.ipcRenderer.invoke('sqlite:upsertDocument', doc),
+    deleteDocument: (docId: string) => electronAPI.ipcRenderer.invoke('sqlite:deleteDocument', docId),
+    getDocChunksHash: (docId: string) =>
+      electronAPI.ipcRenderer.invoke('sqlite:getDocChunksHash', docId),
+    deleteChunksByIds: (ids: string[]) =>
+      electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByIds', ids)
   },
   exec,
   spawn,

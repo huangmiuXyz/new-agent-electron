@@ -101,7 +101,17 @@ export const RAGService = () => {
       doc.url && (text = base64ToText(doc.url))
     }
     const result = await splitTextByType(text, splitOptions)
-    return result
+
+    // 计算每个分块的哈希
+    const chunksWithHash = await Promise.all(
+      result.map(async (content) => ({
+        content,
+        content_hash: await hashString(content),
+        embedding: []
+      }))
+    )
+
+    return chunksWithHash
   }
   const embedding = async (
     splitter: Splitter,
@@ -122,6 +132,7 @@ export const RAGService = () => {
       continueFlag: boolean
       batchSize?: number
       providerOptions?: embedProviderOptions
+      existingChunks?: Splitter
     }
   ) => {
     await onUseAIBefore({
@@ -135,6 +146,16 @@ export const RAGService = () => {
     let processed = 0
     const batchSize = options.batchSize || 1
 
+    // 将已有的分块转换为 Map 提高查找效率
+    const existingMap = new Map<string, number[]>()
+    if (options.existingChunks) {
+      options.existingChunks.forEach((ec) => {
+        if (ec.content_hash && ec.embedding) {
+          existingMap.set(ec.content_hash, ec.embedding)
+        }
+      })
+    }
+
     options.onProgress?.(undefined, 0, total)
 
     for (let i = 0; i < total; i += batchSize) {
@@ -144,11 +165,21 @@ export const RAGService = () => {
 
       for (let j = i; j < Math.min(i + batchSize, total); j++) {
         const chunk = splitterClone[j]
-        if (options.continueFlag && options.currentChunk && j < options.currentChunk) {
+
+        // 增量更新逻辑：如果内容哈希相同，直接复用已有的 embedding
+        const existingEmbedding = existingMap.get(chunk.content_hash)
+        if (existingEmbedding && existingEmbedding.length > 0) {
+          splitterClone[j].embedding = existingEmbedding
+          processed++
+          skippedInBatch++
+          continue
+        } else if (options.continueFlag && options.currentChunk && j < options.currentChunk) {
+          // 传统的断点续传逻辑
           processed++
           skippedInBatch++
           continue
         }
+
         batch.push(chunk.content)
         batchIndices.push(j)
       }

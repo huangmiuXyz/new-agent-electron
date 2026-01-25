@@ -5,11 +5,13 @@ import ImagePage from './pages/image/index.vue'
 import SettingsPage from './pages/settings/index.vue'
 import AppFooter from './components/AppFooter.vue'
 import { useSettingsStore } from './stores/settings'
+import { useKnowledgeStore } from './stores/knowledge'
 
 const route = useRoute()
 const router = useRouter()
 const currentView = ref('chat')
 const settingsStore = useSettingsStore()
+const knowledgeStore = useKnowledgeStore()
 const { display } = storeToRefs(settingsStore)
 
 // 监听黑暗模式设置
@@ -54,6 +56,7 @@ onMounted(() => {
   window.visualViewport?.addEventListener('resize', updateViewportHeight)
   window.visualViewport?.addEventListener('scroll', updateViewportHeight)
   window.addEventListener('resize', updateViewportHeight)
+  knowledgeStore.init()
 })
 
 onUnmounted(() => {

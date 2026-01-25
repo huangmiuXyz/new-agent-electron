@@ -47,6 +47,7 @@ declare global {
     content: string
     embedding: number[]
     id?: string | number
+    content_hash?: string
   }
   type Splitter = KnowledgeChunk[]
 }
