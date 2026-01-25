@@ -32,6 +32,7 @@
     ]
   },
   "dependencies": {
+    "istextorbinary": "^9.5.0",
     "textextensions": "^6.11.0"
   }
 }

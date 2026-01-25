@@ -4,7 +4,11 @@ import { arrayBufferToBlob, blobToDataURL } from 'blob-util'
 import { FileUIPart } from 'ai'
 import ignore from 'ignore'
 // @ts-ignore
-import textExtensions from 'textextensions'
+import extensions from 'textextensions'
+
+const textExtensions: string[] = Array.isArray(extensions)
+  ? extensions
+  : (extensions as any).default || []
 
 export interface UploadFile extends FileUIPart {
   blobUrl?: string

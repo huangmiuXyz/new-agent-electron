@@ -4,6 +4,13 @@ export { cloneDeep, throttle, mapValues, retry, debounce } from 'es-toolkit'
 export { blobToDataURL, dataURLToBlob, arrayBufferToBlob } from 'blob-util'
 import { dataURLToBlob as _dataURLToBlob, arrayBufferToBlob as _arrayBufferToBlob } from 'blob-util'
 import stripAnsi from 'strip-ansi'
+// @ts-ignore
+import extensions from 'textextensions'
+
+const textExtensions: string[] = Array.isArray(extensions)
+  ? extensions
+  : (extensions as any).default || []
+
 export { stripAnsi }
 export const anyUrlToBlobUrl = (url: string): string => {
   if (!url) return ''
@@ -106,7 +113,7 @@ export const FILE_CATEGORY_RULES: Record<
   },
   document: {
     mimeIncludes: ['pdf', 'word', 'text'],
-    extensions: ['txt', 'md', 'pdf', 'doc', 'docx']
+    extensions: textExtensions
   },
   data: {
     mimeIncludes: ['json', 'xml', 'csv'],
@@ -216,35 +223,36 @@ export const copyFilesToUserData = async (filePaths: string[]) => {
 export const getFileIcon = (file: { name?: string; mediaType: string }) => {
   const mediaType = file.mediaType || ''
   const fileName = file.name || ''
+  const ext = fileName.split('.').pop()?.toLowerCase() || ''
   if (mediaType.includes('pdf')) {
     return 'FileCertificate'
   } else if (
     mediaType.includes('word') ||
     mediaType.includes('document') ||
-    fileName.endsWith('.doc') ||
-    fileName.endsWith('.docx')
+    ext === 'doc' ||
+    ext === 'docx'
   ) {
     return 'File'
   } else if (
     mediaType.includes('excel') ||
     mediaType.includes('spreadsheet') ||
-    fileName.endsWith('.xls') ||
-    fileName.endsWith('.xlsx')
+    ext === 'xls' ||
+    ext === 'xlsx'
   ) {
     return 'FileAnalytics'
   } else if (
     mediaType.includes('powerpoint') ||
     mediaType.includes('presentation') ||
-    fileName.endsWith('.ppt') ||
-    fileName.endsWith('.pptx')
+    ext === 'ppt' ||
+    ext === 'pptx'
   ) {
     return 'FileInvoice'
-  } else if (fileName.endsWith('.md') || mediaType.includes('markdown')) {
+  } else if (ext === 'md' || mediaType.includes('markdown')) {
     return 'Markdown'
   } else if (
     mediaType.includes('text/') ||
     mediaType.includes('plain') ||
-    fileName.endsWith('.txt')
+    textExtensions.includes(ext)
   ) {
     return 'FileText'
   } else if (
@@ -253,22 +261,24 @@ export const getFileIcon = (file: { name?: string; mediaType: string }) => {
     mediaType.includes('xml') ||
     mediaType.includes('html') ||
     mediaType.includes('css') ||
-    fileName.endsWith('.js') ||
-    fileName.endsWith('.ts') ||
-    fileName.endsWith('.jsx') ||
-    fileName.endsWith('.tsx') ||
-    fileName.endsWith('.json') ||
-    fileName.endsWith('.xml') ||
-    fileName.endsWith('.html') ||
-    fileName.endsWith('.css') ||
-    fileName.endsWith('.py') ||
-    fileName.endsWith('.java') ||
-    fileName.endsWith('.cpp') ||
-    fileName.endsWith('.c') ||
-    fileName.endsWith('.go') ||
-    fileName.endsWith('.rs') ||
-    fileName.endsWith('.php') ||
-    fileName.endsWith('.rb')
+    [
+      'js',
+      'ts',
+      'jsx',
+      'tsx',
+      'json',
+      'xml',
+      'html',
+      'css',
+      'py',
+      'java',
+      'cpp',
+      'c',
+      'go',
+      'rs',
+      'php',
+      'rb'
+    ].includes(ext)
   ) {
     return 'FileCode'
   } else if (
@@ -276,11 +286,7 @@ export const getFileIcon = (file: { name?: string; mediaType: string }) => {
     mediaType.includes('rar') ||
     mediaType.includes('tar') ||
     mediaType.includes('gzip') ||
-    fileName.endsWith('.zip') ||
-    fileName.endsWith('.rar') ||
-    fileName.endsWith('.tar') ||
-    fileName.endsWith('.gz') ||
-    fileName.endsWith('.7z')
+    ['zip', 'rar', 'tar', 'gz', '7z'].includes(ext)
   ) {
     return 'FileZip'
   } else if (
