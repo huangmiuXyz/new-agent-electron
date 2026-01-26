@@ -58,6 +58,7 @@ export const api = {
   sqlite: {
     isSupported: () => electronAPI.ipcRenderer.invoke('sqlite:isSupported'),
     upsertChunks: (chunks: any[]) => electronAPI.ipcRenderer.invoke('sqlite:upsertChunks', chunks),
+    updateChunks: (chunks: any[]) => electronAPI.ipcRenderer.invoke('sqlite:updateChunks', chunks),
     deleteChunksByDoc: (docId: string) =>
       electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByDoc', docId),
     deleteChunksByKb: (kbId: string) =>

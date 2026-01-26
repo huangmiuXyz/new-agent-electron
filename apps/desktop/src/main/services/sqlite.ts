@@ -110,6 +110,44 @@ export const setupSqliteHandlers = () => {
     }
   )
 
+  ipcMain.handle(
+    'sqlite:updateChunks',
+    async (
+      _event,
+      chunks: {
+        id: string
+        doc_id: string
+        kb_id: string
+        content: string
+        embedding: number[]
+      }[]
+    ) => {
+      if (!chunks.length) return true
+
+      const dimension = chunks[0].embedding.length
+      ensureVssTable(dimension)
+
+      const findByContent = db.prepare('SELECT rowid FROM chunks WHERE content = ?')
+      const insertChunk = db.prepare('INSERT INTO chunks VALUES (?, ?, ?, ?, ?)')
+      const insertVss = db.prepare(
+        `INSERT INTO vss_chunks_${dimension} (rowid, vector) VALUES (?, ?)`
+      )
+
+      db.transaction(() => {
+        for (const c of chunks) {
+          const existing = findByContent.get(c.content)
+          if (!existing) {
+            const vector = JSON.stringify(c.embedding)
+            const res = insertChunk.run(c.id, c.doc_id, c.kb_id, c.content, dimension)
+            insertVss.run(res.lastInsertRowid, vector)
+          }
+        }
+      })()
+
+      return true
+    }
+  )
+
   ipcMain.handle('sqlite:deleteChunksByDoc', async (_event, doc_id: string) => {
     deleteChunks('doc_id', doc_id)
     return true
