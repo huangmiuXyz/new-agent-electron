@@ -276,7 +276,8 @@ const showEditKnowledgeBaseModal = async () => {
   isEditMode.value = true
   const result = await confirm({
     title: '编辑知识库',
-    content: KnowledgeBaseForm
+    content: KnowledgeBaseForm,
+    width: '800px'
   })
   if (result) {
     formActions.submit()
