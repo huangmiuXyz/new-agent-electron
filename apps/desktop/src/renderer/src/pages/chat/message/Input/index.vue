@@ -2,6 +2,8 @@
 import { FileUIPart, TextUIPart } from 'ai'
 import { useTerminal } from '@renderer/composables/useTerminal'
 import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
+// @ts-ignore
+import { isText } from 'istextorbinary'
 
 import { usePlugins } from '@renderer/composables/usePlugins'
 
@@ -187,10 +189,22 @@ const _sendMessage = async () => {
       parts.push({ type: 'text', text: input })
     }
 
-    selectedFiles.value.forEach((file) => {
-      const { blobUrl, path, size, name, url, ...aiPart } = file
-      parts.push({ ...aiPart, url: path ? path : url })
-    })
+    for (const file of selectedFiles.value) {
+      const { path, name, url, ...aiPart } = file
+
+      const res = await fetch(path ?? url!)
+      const buffer = new Uint8Array(await res.arrayBuffer())
+
+      if (isText(null, buffer)) {
+        const text = new TextDecoder('utf-8').decode(buffer)
+        parts.push({ type: 'text', text })
+      }
+
+      parts.push({
+        ...aiPart,
+        url: path ?? url
+      })
+    }
     selectedFiles.value = []
     sendMessages(parts)
   }
