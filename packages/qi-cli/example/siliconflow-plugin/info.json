@@ -1,7 +1,7 @@
 {
-  "name": "硅基流动 (SiliconFlow) 插件",
-  "description": "通过 SiliconFlow 接入多种高性能 AI 模型。",
+  "name": "SiliconFlow 语音合成",
+  "description": "集成硅基流动 (SiliconFlow) 的语音合成能力，支持 Fish Audio 等高性能 TTS 模型。",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-27 12:00:00"
+  "updatedAt": "2026-01-27"
 }

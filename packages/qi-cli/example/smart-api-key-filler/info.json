@@ -1,9 +1,7 @@
 {
-  "name": "智能密钥助手",
+  "name": "智能密钥填充器",
+  "description": "内置工具插件，支持通过 AI 或手动方式一键批量填充多个模型提供商的 API 密钥。",
   "version": "1.0.0",
-  "description": "一键批量配置多个 AI 服务商的 API 密钥。",
-  "author": "Qi Team",
-  "updatedAt": "2026-01-27 12:00:00",
-  "main": "index.js",
-  "extraAssets": []
+  "author": "Agent-Qi",
+  "updatedAt": "2026-01-27"
 }

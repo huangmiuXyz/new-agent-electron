@@ -1,7 +1,7 @@
 {
-  "name": "魔搭 (ModelScope) 插件",
-  "description": "接入 ModelScope 平台，支持丰富的开源模型。",
+  "name": "ModelScope 图像生成",
+  "description": "集成魔搭 ModelScope AIGC 能力，支持通过 ModelScope 注册表使用其提供的多种图像生成模型。",
   "version": "1.0.0",
-  "author": "Agent-Qi",
-  "updatedAt": "2026-01-27 12:00:00"
+  "author": "Zhuanz",
+  "updatedAt": "2026-01-27"
 }

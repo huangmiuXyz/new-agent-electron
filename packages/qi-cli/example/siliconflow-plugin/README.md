@@ -1,13 +1,16 @@
-# 硅基流动 (SiliconFlow) 插件
+# SiliconFlow 语音合成插件
 
-通过 SiliconFlow 接入多种高性能 AI 模型。
+集成硅基流动 (SiliconFlow) 平台的高性能语音合成 (TTS) 能力。
 
-## 功能特性
-- 一键接入 DeepSeek, Llama 3 等热门大模型。
-- 高性能推理服务，极速响应。
-- 支持 TTS 语音合成功能。
+## 主要功能
+
+- **高性能 TTS**：支持集成在 SiliconFlow 上的多种主流 TTS 模型（如 fishaudio/fish-speech-1.4）。
+- **多样化音色**：内置多种预置音色，并支持通过 SiliconFlow API 访问更多音色。
+- **全局注册**：将 `siliconflow` 注册到应用的模型工厂注册表，专用于语音服务。
 
 ## 使用说明
-1. 注册 SiliconFlow 账号并获取 API Key。
-2. 在插件设置中填入 API Key。
-3. 即可在应用中使用 SiliconFlow 提供的各类模型。
+
+1. 启用插件。
+2. 在“提供商设置”中新增 `siliconflow` 类型的提供商。
+3. 填入您的 SiliconFlow API Key。
+4. 即可在语音设置中调用高性能的国产语音合成服务。

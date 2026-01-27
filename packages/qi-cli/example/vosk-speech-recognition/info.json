@@ -1,9 +1,7 @@
 {
   "name": "Vosk 离线语音识别",
+  "description": "基于 Vosk-Browser 的纯本地、跨平台离线语音转文字插件，保护隐私且无需联网。",
   "version": "1.0.0",
-  "description": "使用 Vosk 实现完全本地化的离线语音转文字。",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-27 12:00:00",
-  "main": "index.js",
-  "extraAssets": ["README.md"]
+  "updatedAt": "2026-01-27"
 }

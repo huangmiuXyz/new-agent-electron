@@ -1,9 +1,7 @@
 {
-  "name": "通义千问 TTS 插件",
+  "name": "Qwen TTS 创空间适配",
+  "description": "通过 Gradio 接入 ModelScope 创空间上的 Qwen TTS 模型，支持高质量的语音合成服务。",
   "version": "1.0.0",
-  "description": "集成通义千问语音合成服务，提供高质量语音输出。",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-27 12:00:00",
-  "main": "index.js",
-  "extraAssets": []
+  "updatedAt": "2026-01-27"
 }
