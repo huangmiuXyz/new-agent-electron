@@ -60,6 +60,17 @@ const [SettingsForm, settingsFormActions] = useForm({
   }
 })
 
+// 标签页配置
+const activeTab = ref('readme')
+const tabItems = computed(() => {
+  const items = [
+    { id: 'readme', name: '文档' },
+    { id: 'capabilities', name: '能力' },
+    { id: 'settings', name: '设置' }
+  ]
+  return items
+})
+
 // 当激活插件改变时，更新表单数据
 watch(
   activePlugin,
@@ -68,11 +79,16 @@ watch(
       settingsFormActions.setFieldsValue({
         notificationDisabled: isPluginNotificationDisabled(plugin.name)
       })
-      incremark.render(plugin.readme!)
+      incremark.render(plugin.readme || '')
     }
   },
   { immediate: true }
 )
+
+// 当插件 ID 改变时，重置标签页
+watch(activePluginId, () => {
+  activeTab.value = 'readme'
+})
 
 // 获取状态图标
 const getStatusIcon = (status: PluginStatus) => {
@@ -331,43 +347,70 @@ const handleUninstallPlugin = async (pluginName: string) => {
             </div>
           </Card>
         </FormItem>
-        <!-- 插件设置 -->
-        <SettingsForm />
 
-        <!-- 插件介绍 (README) -->
-        <FormItem v-if="activePlugin.readme" label="插件介绍">
-          <Card padding="16px">
-            <Incremark :blocks="blocks" />
-          </Card>
-        </FormItem>
+        <!-- 标签页 -->
+        <div class="plugin-tabs-container">
+          <Tabs v-model="activeTab" :items="tabItems" />
+        </div>
 
-        <!-- 插件命令 -->
-        <FormItem v-if="activePlugin.type === 'loaded' && getPluginCommands(activePlugin.name).length > 0" label="可用命令">
-          <CommandTable />
-        </FormItem>
+        <!-- 标签页内容 -->
+        <div class="tab-content">
+          <!-- 文档 (README) -->
+          <div v-if="activeTab === 'readme'" class="tab-pane">
+            <FormItem v-if="activePlugin.readme" label="插件介绍">
+              <Card padding="16px">
+                <Incremark :blocks="blocks" />
+              </Card>
+            </FormItem>
+            <div v-else class="empty-tab-content">
+              暂无文档信息
+            </div>
+          </div>
 
-        <!-- 注册钩子 -->
-        <FormItem v-if="activePlugin.type === 'loaded' && getPluginHooks(activePlugin.name).length > 0" label="注册钩子">
-          <Tags :tags="getPluginHooks(activePlugin.name)" color="purple" />
-        </FormItem>
+          <!-- 能力 (Capabilities) -->
+          <div v-if="activeTab === 'capabilities'" class="tab-pane">
+            <div v-if="activePlugin.type === 'loaded'">
+              <!-- 插件命令 -->
+              <FormItem v-if="getPluginCommands(activePlugin.name).length > 0" label="可用命令">
+                <CommandTable />
+              </FormItem>
 
-        <!-- 内置工具 -->
-        <FormItem v-if="activePlugin.type === 'loaded' && getPluginBuiltinTools(activePlugin.name).length > 0"
-          label="内置工具">
-          <Tags :tags="getPluginBuiltinTools(activePlugin.name)" color="cyan" />
-        </FormItem>
+              <!-- 注册钩子 -->
+              <FormItem v-if="getPluginHooks(activePlugin.name).length > 0" label="注册钩子">
+                <Tags :tags="getPluginHooks(activePlugin.name)" color="purple" />
+              </FormItem>
 
-        <!-- 模型提供商 -->
-        <FormItem v-if="activePlugin.type === 'loaded' && getPluginProviders(activePlugin.name).length > 0"
-          label="模型提供商">
-          <ProviderTable />
-        </FormItem>
+              <!-- 内置工具 -->
+              <FormItem v-if="getPluginBuiltinTools(activePlugin.name).length > 0" label="内置工具">
+                <Tags :tags="getPluginBuiltinTools(activePlugin.name)" color="cyan" />
+              </FormItem>
 
-        <!-- 模型注册 -->
-        <FormItem v-if="activePlugin.type === 'loaded' && getPluginRegistries(activePlugin.id).length > 0"
-          label="模型注册 (Registry)">
-          <RegistryTable />
-        </FormItem>
+              <!-- 模型提供商 -->
+              <FormItem v-if="getPluginProviders(activePlugin.name).length > 0" label="模型提供商">
+                <ProviderTable />
+              </FormItem>
+
+              <!-- 模型注册 -->
+              <FormItem v-if="getPluginRegistries(activePlugin.id).length > 0" label="模型注册 (Registry)">
+                <RegistryTable />
+              </FormItem>
+
+              <div
+                v-if="getPluginCommands(activePlugin.name).length === 0 && getPluginHooks(activePlugin.name).length === 0 && getPluginBuiltinTools(activePlugin.name).length === 0 && getPluginProviders(activePlugin.name).length === 0 && getPluginRegistries(activePlugin.id).length === 0"
+                class="empty-tab-content">
+                该插件未注册任何显式能力
+              </div>
+            </div>
+            <div v-else class="empty-tab-content">
+              请先加载插件以查看其具体能力
+            </div>
+          </div>
+
+          <!-- 设置 (Settings) -->
+          <div v-if="activeTab === 'settings'" class="tab-pane">
+            <SettingsForm />
+          </div>
+        </div>
       </template>
       <!-- 空状态 -->
       <div v-else class="empty-state">
@@ -495,5 +538,38 @@ const handleUninstallPlugin = async (pluginName: string) => {
 .empty-state p {
   font-size: 14px;
   margin: 0;
+}
+
+.plugin-tabs-container {
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.tab-pane {
+  animation: fade-in 0.2s ease-out;
+}
+
+.empty-tab-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  background: var(--bg-subtle);
+  border-radius: 8px;
+  border: 1px dashed var(--border-subtle);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
