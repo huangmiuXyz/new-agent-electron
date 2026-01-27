@@ -7,12 +7,17 @@ import path from 'path'
 import mime from 'mime-types'
 import url from 'url'
 import { app, getCurrentWindow } from '@electron/remote'
-import { exec, spawn } from 'child_process'
+import { exec, spawn, fork } from 'child_process'
 import os from 'os'
 
 
 export const api = {
   ...aiServices(),
+  process: {
+    platform: process.platform,
+    env: process.env,
+    execPath: process.execPath
+  },
   pty: {
     spawn: (options: {
       id: string
@@ -68,6 +73,7 @@ export const api = {
   },
   exec,
   spawn,
+  fork,
   os,
   watch: (path: string, callback: (event: string, filename: string) => void) => {
     const watcher = fs.watch(path, { recursive: true }, callback)

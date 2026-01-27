@@ -24,10 +24,19 @@ export class CivitaiSDKBridge {
     if (!api || !api.spawn) {
       throw new Error('JSBridge (window.api.spawn) not found. Are you running in Electron?');
     }
-
     const serverPath = api.path.join(this.pluginPath, 'dist', 'server.cjs');
 
-    api.spawn('node', [serverPath]);
+    const execPath = api.process?.execPath || 'node';
+    const isElectron = !!api.process?.execPath;
+
+    api.spawn(execPath, [serverPath], {
+      env: {
+        ...api.process?.env,
+        PORT: '18888',
+        CIVITAI_API_KEY: this.apiKey,
+        ...(isElectron ? { ELECTRON_RUN_AS_NODE: '1' } : {})
+      }
+    });
 
     for (let i = 0; i < 15; i++) {
       try {
