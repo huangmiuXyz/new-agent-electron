@@ -4,7 +4,7 @@ import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai';
 import { speechService } from '../services/speechService'
 
 export const useChat = (chatId: string) => {
-  const { getChatById, updateMessageMetadata } = useChatsStores()
+  const { getChatById, updateMessageMetadata, updateMessages } = useChatsStores()
   const chats = getChatById(chatId)
 
   const { currentSelectedProvider, currentSelectedModel, thinkingMode, speechEnabled } =
@@ -33,7 +33,7 @@ export const useChat = (chatId: string) => {
       let processedText = ''
       const chat = new _useChat<BaseMessage>({
         id: chatId,
-        messages,
+        messages: cloneDeep(messages),
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         transport: {
           sendMessages: ({ messages }) => {
@@ -85,10 +85,19 @@ export const useChat = (chatId: string) => {
       })
 
       const syncMessageToStore = (error?: APICallError) => {
-        const updatedMessages = [...chat.messages!]
-        const lastIndex = updatedMessages.length - 1
-        if (lastIndex >= 0) {
-          chats!.messages[lastIndex] = cloneDeep({ ...updatedMessages[lastIndex], metadata: { ...updatedMessages[lastIndex].metadata, error } })
+        const updatedMessages = [...(chat.messages || [])]
+        if (chats) {
+          updateMessages(chatId, (oldMessages) => {
+            const mergedMessages = [...oldMessages]
+            updatedMessages.forEach((msg, index) => {
+              if (index < mergedMessages.length) {
+                mergedMessages[index] = { ...mergedMessages[index], ...msg, metadata: { ...mergedMessages[index].metadata, ...msg.metadata, error } }
+              } else {
+                mergedMessages.push(msg)
+              }
+            })
+            return mergedMessages
+          })
         }
       }
 
