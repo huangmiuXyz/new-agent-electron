@@ -279,7 +279,7 @@ const CivitaiPlugin: Plugin = {
             filterFormActions.setFieldsValue(vue.toRaw(filters.value))
             filterModal.confirm({
               title: '高级筛选',
-              width: '500px',
+              width: '800px',
               showCancel: true,
               cancelText: '取消',
               confirmText: '确定',
