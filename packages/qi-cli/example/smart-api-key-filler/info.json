@@ -1,8 +1,9 @@
 {
-  "name": "smart-api-key-filler",
+  "name": "智能密钥助手",
   "version": "1.0.0",
-  "description": "批量填充提供商API密钥，支持一次性填充多个提供商的密钥",
+  "description": "一键批量配置多个 AI 服务商的 API 密钥。",
   "author": "Qi Team",
+  "updatedAt": "2026-01-27 12:00:00",
   "main": "index.js",
   "extraAssets": []
 }

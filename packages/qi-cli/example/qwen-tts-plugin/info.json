@@ -1,9 +1,9 @@
 {
-  "name": "qwen-tts-plugin",
+  "name": "通义千问 TTS 插件",
   "version": "1.0.0",
-  "description": "Qwen TTS 语音合成插件",
+  "description": "集成通义千问语音合成服务，提供高质量语音输出。",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-23 12:00:00",
+  "updatedAt": "2026-01-27 12:00:00",
   "main": "index.js",
   "extraAssets": []
 }

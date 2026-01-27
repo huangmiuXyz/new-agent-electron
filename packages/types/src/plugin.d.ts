@@ -16,6 +16,8 @@ declare global {
     install: (context: PluginContext) => void | Promise<void>;
     /** 插件卸载函数，在插件卸载时调用 */
     uninstall?: (context: PluginContext) => void | Promise<void>;
+    /** README 内容 */
+    readme?: string;
   }
 
   /**
@@ -147,6 +149,8 @@ declare global {
     author?: string;
     /** 主入口文件 */
     main?: string;
+    /** README 内容 */
+    readme?: string;
     /** 其他属性 */
     [key: string]: any;
   }
@@ -163,6 +167,7 @@ declare global {
     path?: string;
     updatedAt?: string;
     plugin?: any;
+    readme?: string;
   }
 
   /**

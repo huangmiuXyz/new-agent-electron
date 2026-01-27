@@ -1,44 +1,13 @@
-# smart-api-key-filler
+# 智能密钥助手
 
-批量填充提供商API密钥，支持一次性填充多个提供商的密钥
+一键批量配置多个 AI 服务商的 API 密钥。
 
-## 安装
+## 功能特性
+- 支持快速填入 OpenAI, Claude, Google Gemini 等多种服务的 API Key。
+- 自动检测并分类，省去手动配置的烦恼。
+- 安全存储，即插即用。
 
-将 .qi 文件拖拽到 Qi 应用的插件管理界面进行安装。
-
-## 开发
-
-```bash
-# 构建
-qi code build
-
-# 测试
-# 将构建后的 .qi 文件安装到 Qi 应用进行测试
-```
-
-## 插件 API
-
-### PluginContext
-
-插件通过 `install` 函数接收 `PluginContext` 对象，包含以下属性：
-
-- `app`: 应用实例
-- `pinia`: Pinia 实例
-- `registerCommand(name, handler)`: 注册命令
-- `registerHook(name, handler)`: 注册钩子
-- `getStore(storeName)`: 获取 store
-
-### 可用的 Store
-
-- `notes`: 笔记 store
-- `chats`: 聊天 store
-- `settings`: 设置 store
-- `knowledge`: 知识库 store
-- `agent`: Agent store
-
-### 可用的钩子
-
-- `before.chat`: 聊天前触发
-- `after.chat`: 聊天后触发
-- `before.message`: 消息前触发
-- `after.message`: 消息后触发
+## 使用说明
+1. 运行该插件。
+2. 在弹出的界面中输入或粘贴您的密钥。
+3. 点击“应用”即可完成所有配置。

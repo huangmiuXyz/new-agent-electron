@@ -1,7 +1,7 @@
 {
-  "name": "siliconflow-plugin",
-  "description": "SiliconFlow TTS Provider",
+  "name": "硅基流动 (SiliconFlow) 插件",
+  "description": "通过 SiliconFlow 接入多种高性能 AI 模型。",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-10 15:14:27"
+  "updatedAt": "2026-01-27 12:00:00"
 }

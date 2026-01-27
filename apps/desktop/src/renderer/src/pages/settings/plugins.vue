@@ -1,5 +1,11 @@
 <script setup lang="tsx">
+import { Incremark, useIncremark } from '@incremark/vue'
 import { FormItem } from '@renderer/composables/useForm'
+const incremark = useIncremark({
+  gfm: true
+})
+
+const { blocks } = incremark
 const { Plugin: PluginIcon, Refresh, Check, Dismiss, Play, Download, Code } = useIcon([
   'Plugin',
   'Refresh',
@@ -62,6 +68,7 @@ watch(
       settingsFormActions.setFieldsValue({
         notificationDisabled: isPluginNotificationDisabled(plugin.name)
       })
+      incremark.render(plugin.readme!)
     }
   },
   { immediate: true }
@@ -325,8 +332,15 @@ const handleUninstallPlugin = async (pluginName: string) => {
           </Card>
         </FormItem>
         <!-- 插件设置 -->
-
         <SettingsForm />
+
+        <!-- 插件介绍 (README) -->
+        <FormItem v-if="activePlugin.readme" label="插件介绍">
+          <Card padding="16px">
+            <Incremark :blocks="blocks" />
+          </Card>
+        </FormItem>
+
         <!-- 插件命令 -->
         <FormItem v-if="activePlugin.type === 'loaded' && getPluginCommands(activePlugin.name).length > 0" label="可用命令">
           <CommandTable />

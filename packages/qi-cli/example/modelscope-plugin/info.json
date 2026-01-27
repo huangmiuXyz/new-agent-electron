@@ -1,7 +1,7 @@
 {
-  "name": "modelscope-plugin",
-  "description": "modelscope-plugin 插件",
+  "name": "魔搭 (ModelScope) 插件",
+  "description": "接入 ModelScope 平台，支持丰富的开源模型。",
   "version": "1.0.0",
-  "author": "",
-  "updatedAt": "2026-01-11 21:10:09"
+  "author": "Agent-Qi",
+  "updatedAt": "2026-01-27 12:00:00"
 }

@@ -1,8 +1,9 @@
 {
-  "name": "ollama-starter",
+  "name": "Ollama 入门插件",
   "version": "1.0.0",
-  "description": "ollama-starter 插件",
-  "author": "",
+  "description": "快速连接本地运行的 Ollama 服务。",
+  "author": "Agent-Qi",
+  "updatedAt": "2026-01-27 12:00:00",
   "main": "index.js",
   "extraAssets": []
 }

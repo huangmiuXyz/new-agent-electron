@@ -1,7 +1,7 @@
 {
-  "name": "civitai-plugin",
-  "description": "Civitai 插件，支持通过 JSBridge 调用 Node.js SDK 进行图像生成",
+  "name": "Civitai 图像生成插件",
+  "description": "集成 Civitai 模型，支持多种风格的 AI 图像生成。",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-19 12:00:00"
+  "updatedAt": "2026-01-27 12:00:00"
 }

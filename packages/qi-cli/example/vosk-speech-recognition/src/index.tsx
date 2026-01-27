@@ -152,9 +152,9 @@ const MODELS = [
   }
 ]
 const plugin: Plugin = {
-  name: 'vosk-speech-recognition',
+  name: 'Vosk 离线语音识别',
   version: '1.0.0',
-  description: 'Vosk 实时语音识别插件',
+  description: '使用 Vosk 实现完全本地化的离线语音转文字。',
 
   async install(context: PluginContext) {
     const { ref, h, onMounted, onUnmounted, markRaw, defineComponent, watch } = context.vue
@@ -222,7 +222,7 @@ const plugin: Plugin = {
               <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
             </svg>
             <div class="plugin-tooltip">
-              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Vosk 语音识别</div>
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Vosk 离线语音识别</div>
               <div style={{ color: '#aaa' }}>
                 当前模型: <span class="model-tag">{props.modelName}</span>
               </div>

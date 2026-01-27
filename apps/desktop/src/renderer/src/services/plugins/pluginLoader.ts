@@ -177,20 +177,19 @@ export class PluginLoader {
       }
 
 
-      if (this.loadedPlugins.has(plugin.name)) {
-        throw new Error(`Plugin "${plugin.name}" is already loaded`);
+      if (this.loadedPlugins.has(pluginName)) {
+        throw new Error(`Plugin "${pluginName}" is already loaded`);
       }
-
 
       const pluginInfo: PluginInfo = {
         plugin,
         status: 'loading' as PluginStatus,
       };
 
-      this.loadedPlugins.set(plugin.name, pluginInfo);
+      this.loadedPlugins.set(pluginName, pluginInfo);
 
       try {
-        const basePath = this.resolvePluginPath(plugin.name);
+        const basePath = this.resolvePluginPath(pluginName);
 
         // 加载 info.json 中的 metadata
         const fs = window.api.fs;
@@ -200,14 +199,34 @@ export class PluginLoader {
           if (fs.existsSync(infoPath)) {
             try {
               const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-              if (info.updatedAt) {
-                plugin.updatedAt = info.updatedAt;
-              }
+              // 强制使用 info.json 中的元数据覆盖插件对象的硬编码数据
+              // 如果 info.json 中没有 name，则使用目录名 pluginName
+              plugin.name = info.name || pluginName;
+
               if (info.version) {
                 plugin.version = info.version;
               }
+              if (info.description) {
+                plugin.description = info.description;
+              }
+              if (info.author) {
+                plugin.author = info.author;
+              }
+              if (info.updatedAt) {
+                plugin.updatedAt = info.updatedAt;
+              }
             } catch (e) {
-              console.warn(`Failed to read metadata from info.json for ${plugin.name}:`, e);
+              console.warn(`Failed to read metadata from info.json for ${pluginName}:`, e);
+            }
+          }
+
+          // 加载 README.md (仅从文件系统中读取)
+          const readmePath = path.join(basePath, 'README.md');
+          if (fs.existsSync(readmePath)) {
+            try {
+              plugin.readme = fs.readFileSync(readmePath, 'utf-8');
+            } catch (e) {
+              console.warn(`Failed to read README.md for ${pluginName}:`, e);
             }
           }
         }
@@ -530,13 +549,22 @@ export class PluginLoader {
           try {
             const infoContent = fs.readFileSync(infoPath, 'utf-8');
             const info: PluginInfoData = JSON.parse(infoContent);
+
+            // 读取 README.md
+            let readme = '';
+            const readmePath = path.join(pluginsDir, dir, 'README.md');
+            if (fs.existsSync(readmePath)) {
+              readme = fs.readFileSync(readmePath, 'utf-8');
+            }
+
             pluginList.push({
               ...info,
               name: info.name || dir,
               path: dir,
               description: info.description || `${dir} 插件`,
               version: info.version || '1.0.0',
-              author: info.author
+              author: info.author,
+              readme
             });
           } catch (err) {
             console.error(`Failed to read info.json for plugin ${dir}:`, err);

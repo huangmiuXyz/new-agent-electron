@@ -1,9 +1,9 @@
 {
-  "name": "vosk-speech-recognition",
+  "name": "Vosk 离线语音识别",
   "version": "1.0.0",
-  "description": "Vosk 语音识别插件",
+  "description": "使用 Vosk 实现完全本地化的离线语音转文字。",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-04 16:16:37",
+  "updatedAt": "2026-01-27 12:00:00",
   "main": "index.js",
-  "extraAssets": []
+  "extraAssets": ["README.md"]
 }

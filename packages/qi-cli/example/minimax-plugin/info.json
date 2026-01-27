@@ -1,7 +1,7 @@
 {
-  "name": "minimax-plugin",
-  "description": "MiniMax AI Provider Plugin",
+  "name": "MiniMax AI 插件",
+  "description": "提供 MiniMax 语音合成和语言模型服务。",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-10 12:02:56"
+  "updatedAt": "2026-01-27 12:00:00"
 }

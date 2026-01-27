@@ -277,7 +277,8 @@ export function usePlugins() {
           error: p.error,
           plugin: p.plugin,
           updatedAt: p.plugin.updatedAt || metadata?.updatedAt,
-          isDev: pluginLoader?.isDevMode(p.plugin.name) || false
+          isDev: pluginLoader?.isDevMode(p.plugin.name) || false,
+          readme: p.plugin.readme || metadata?.readme
         }
       }),
       ...available.map(p => ({
@@ -289,7 +290,8 @@ export function usePlugins() {
         type: 'available' as const,
         path: p.path,
         error: undefined,
-        updatedAt: p.updatedAt
+        updatedAt: p.updatedAt,
+        readme: p.readme
       }))
     ];
   });
