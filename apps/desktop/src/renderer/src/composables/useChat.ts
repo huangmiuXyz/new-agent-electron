@@ -21,10 +21,6 @@ export const useChat = (chatId: string) => {
 
   const createChat = (messages: BaseMessage[]): _useChat<BaseMessage> => {
     const scope = effectScope()
-
-    const contextCount = agent.selectedAgent?.contextCount ?? 10
-    const slicedMessages = messages.length > contextCount ? messages.slice(-contextCount) : messages
-
     const getMessageText = (message: BaseMessage) => {
       if (!message || !message.parts) return ''
       return message.parts
@@ -37,7 +33,7 @@ export const useChat = (chatId: string) => {
       let processedText = ''
       const chat = new _useChat<BaseMessage>({
         id: chatId,
-        messages: slicedMessages,
+        messages,
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         transport: {
           sendMessages: ({ messages }) => {
