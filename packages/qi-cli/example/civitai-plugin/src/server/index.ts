@@ -28,12 +28,6 @@ app.use(async (ctx, next) => {
   }
 });
 
-process.on('uncaughtException', (err) => {
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-});
-
 app.use(cors());
 app.use(bodyParser());
 
@@ -131,10 +125,10 @@ app.use(router.routes()).use(router.allowedMethods());
 const server = app.listen(port, () => {
 });
 
-server.on('error', (err: any) => {
+server.on('error', () => {
   process.exit(1);
 });
 
-process.on('exit', (code) => {
+process.on('exit', () => {
 });
 
