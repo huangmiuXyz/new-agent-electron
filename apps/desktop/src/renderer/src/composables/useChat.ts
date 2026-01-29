@@ -3,56 +3,42 @@ import type { APICallError, FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai'
 import { speechService } from '../services/speechService'
 
-function createSentenceStateMachine() {
-  let buffer = ''
-  let inQuote = false
+function createSentenceSegmenter(locale: string = 'und') {
+  const segmenter = new Intl.Segmenter(locale === 'auto' ? 'und' : locale, {
+    granularity: 'sentence'
+  })
 
-  const terminators = new Set(['.', '!', '?', '。', '！', '？'])
-  const quotePairs: Record<string, string> = {
-    '“': '”',
-    '‘': '’',
-    '"': '"'
-  }
-  const leftQuotes = new Set(Object.keys(quotePairs))
-  const rightQuotes = new Set(Object.values(quotePairs))
+  let buffer = ''
 
   function push(text: string, onSentence: (s: string) => void) {
-    for (const ch of text) {
-      buffer += ch
+    buffer += text
 
-      if (leftQuotes.has(ch)) {
-        inQuote = true
-        continue
-      }
+    const segments = segmenter.segment(buffer)
+    let lastConsumedIndex = 0
 
-      if (rightQuotes.has(ch)) {
-        inQuote = false
+    for (const segment of segments) {
+      const end = segment.index + segment.segment.length
 
-        const trimmed = buffer.trim()
-        const lastChar = trimmed[trimmed.length - 1]
-
-        if (terminators.has(lastChar)) {
-          onSentence(trimmed)
-          buffer = ''
+      if (end < buffer.length) {
+        const sentence = segment.segment.trim()
+        if (sentence) {
+          onSentence(sentence)
+          lastConsumedIndex = end
         }
-        continue
       }
+    }
 
-      if (terminators.has(ch) && !inQuote) {
-        const sentence = buffer.trim()
-        if (sentence) onSentence(sentence)
-        buffer = ''
-      }
+    if (lastConsumedIndex > 0) {
+      buffer = buffer.slice(lastConsumedIndex)
     }
   }
 
-
   function flush(onSentence: (s: string) => void) {
-    if (buffer.trim()) {
-      onSentence(buffer.trim())
+    const rest = buffer.trim()
+    if (rest) {
+      onSentence(rest)
     }
     buffer = ''
-    inQuote = false
   }
 
   return { push, flush }
@@ -87,7 +73,9 @@ export const useChat = (chatId: string) => {
 
     return scope.run(() => {
       let processedText = ''
-      let sentenceSM = createSentenceStateMachine()
+      let sentenceSegmenter = createSentenceSegmenter(
+        agent.selectedAgent?.speechLanguage
+      )
 
       const chat = new _useChat<BaseMessage>({
         id: chatId,
@@ -96,7 +84,10 @@ export const useChat = (chatId: string) => {
         transport: {
           sendMessages: ({ messages }) => {
             processedText = ''
-            sentenceSM = createSentenceStateMachine() // ✅ reset 状态机
+            sentenceSegmenter = createSentenceSegmenter(
+              agent.selectedAgent?.speechLanguage || 'und'
+            )
+
             return service.createAgent(
               chat.id,
               {
@@ -132,7 +123,7 @@ export const useChat = (chatId: string) => {
             const mode = agent.selectedAgent?.speechMode as string
 
             if (mode === 'sentence') {
-              sentenceSM.flush((sentence) => {
+              sentenceSegmenter.flush((sentence) => {
                 generateSpeech(sentence, chat.lastMessage)
               })
             } else {
@@ -185,7 +176,7 @@ export const useChat = (chatId: string) => {
         const currentText = fullText.slice(processedText.length)
 
         if (mode === 'sentence') {
-          sentenceSM.push(currentText, (sentence) => {
+          sentenceSegmenter.push(currentText, (sentence) => {
             generateSpeech(sentence, chat.lastMessage)
           })
           processedText = fullText
@@ -197,7 +188,7 @@ export const useChat = (chatId: string) => {
               if (p.trim()) {
                 generateSpeech(p, chat.lastMessage)
               }
-              processedText += paragraphs[i] + (currentText.match(/\n+/)?.[0] || '\n')
+              processedText += paragraphs[i] + '\n'
             }
           }
         }
@@ -209,9 +200,7 @@ export const useChat = (chatId: string) => {
           syncMessageToStore()
           processStreamingSpeech(newParts)
         },
-        {
-          deep: true
-        }
+        { deep: true }
       )
 
       return chat
@@ -285,6 +274,7 @@ export const useChat = (chatId: string) => {
 
       const parts: Array<FileUIPart | TextUIPart> =
         typeof content === 'string' ? [{ type: 'text', text: content }] : content
+
       chat.sendMessage({
         id: chat.generateId(),
         role: 'user',
