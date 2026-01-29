@@ -12,8 +12,3 @@ packages/qi-cli/example/index-tts/index-tts/
 .turbo
 GenieData
 .venv
-# AI Model files
-*.pth
-*.bin
-*.safetensors
-Kokoro-82M-v1___1-zh/
