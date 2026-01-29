@@ -20,10 +20,8 @@ const plugin: Plugin = {
   install: async (context: PluginContext) => {
     const { localforage, useForm, registerRegistry, registerProvider } = context;
 
-    // 1. 加载保存的配置
     let currentConfig: any = (await localforage.getItem(STORAGE_KEY)) || {};
 
-    // 2. 创建设置表单
     const [ConfigForm] = useForm({
       fields: [
         {
@@ -53,15 +51,12 @@ const plugin: Plugin = {
         serverPort: currentConfig.serverPort || 18889
       },
       onChange: async (_field: string, _value: any, data: any) => {
-        // 更新内存中的配置并持久化
         currentConfig = JSON.parse(JSON.stringify(data));
         await localforage.setItem(STORAGE_KEY, currentConfig);
       }
     });
 
-    // 3. 注册提供商工厂到全局注册表
     registerRegistry(PROVIDER_ID, (options: any) => {
-      // 使用内存中的当前配置
       const autoStartEnabled = currentConfig?.autoStartServer ?? true;
       const serverPort = currentConfig?.serverPort ?? 18889;
       const baseURL = options?.baseURL || currentConfig?.baseURL || 'http://localhost:18889';
@@ -83,7 +78,6 @@ const plugin: Plugin = {
       });
     });
 
-    // 4. 注册 Kokoro 提供商
     registerProvider(PROVIDER_ID, {
       name: 'Kokoro TTS',
       form: ConfigForm,
