@@ -1,0 +1,21 @@
+{
+  "name": "kokoro-plugin",
+  "version": "1.0.0",
+  "description": "Kokoro TTS local model plugin",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "^3.0.2",
+    "@ai-sdk/provider-utils": "^4.0.4",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  },
+  "author": "Agent-Qi"
+}
