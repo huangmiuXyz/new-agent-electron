@@ -50,7 +50,7 @@ const plugin: Plugin = {
       initialData: {
         baseURL: currentConfig.baseURL || 'http://localhost:18889',
         autoStartServer: currentConfig.autoStartServer ?? true,
-        serverPort: currentConfig.serverPort || 8000
+        serverPort: currentConfig.serverPort || 18889
       },
       onChange: async (_field: string, _value: any, data: any) => {
         // 更新内存中的配置并持久化
