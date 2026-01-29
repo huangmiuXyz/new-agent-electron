@@ -4,15 +4,10 @@ import { KokoroSpeechModel } from './kokoro-speech-model';
 import { KokoroVoiceInfo, KokoroListVoicesResponse } from './kokoro-api-types';
 import { Model, ModelVoice } from '../types';
 
-const VERSION = '1.0.0';
-
-// Voice mapping from Kokoro model
 export const DEFAULT_VOICES: KokoroVoiceInfo[] = [
-  // English female voices
   { id: 'af_maple', name: 'Maple (English Female)', language: 'en', gender: 'female', description: 'American female voice' },
   { id: 'af_sol', name: 'Sol (English Female)', language: 'en', gender: 'female', description: 'American female voice' },
   { id: 'bf_vale', name: 'Vale (English Female)', language: 'en', gender: 'female', description: 'British female voice' },
-  // Chinese female voices
   { id: 'zf_001', name: '中文女声 001', language: 'zh', gender: 'female', description: '标准中文女声' },
   { id: 'zf_002', name: '中文女声 002', language: 'zh', gender: 'female', description: '温柔中文女声' },
   { id: 'zf_003', name: '中文女声 003', language: 'zh', gender: 'female', description: '活泼中文女声' },
@@ -21,7 +16,6 @@ export const DEFAULT_VOICES: KokoroVoiceInfo[] = [
   { id: 'zf_006', name: '中文女声 006', language: 'zh', gender: 'female', description: '清晰中文女声' },
   { id: 'zf_007', name: '中文女声 007', language: 'zh', gender: 'female', description: '自然中文女声' },
   { id: 'zf_008', name: '中文女声 008', language: 'zh', gender: 'female', description: '优雅中文女声' },
-  // Chinese male voices
   { id: 'zm_009', name: '中文男声 009', language: 'zh', gender: 'male', description: '标准中文男声' },
   { id: 'zm_010', name: '中文男声 010', language: 'zh', gender: 'male', description: '磁性中文男声' },
   { id: 'zm_011', name: '中文男声 011', language: 'zh', gender: 'male', description: '成熟中文男声' },
@@ -36,43 +30,15 @@ export interface KokoroProvider extends Pick<ProviderV3, 'speechModel'> {
   (settings?: {}): {
     speech: (modelId?: string) => KokoroSpeechModel;
   };
-
-  /**
-   * Creates a model for speech synthesis.
-   */
   speech(modelId?: string): SpeechModelV3;
-
-  /**
-   * List of available models.
-   */
   listModels: () => Promise<Model[]>;
-
-  /**
-   * List of available voices.
-   */
   listVoices: () => Promise<KokoroVoiceInfo[]>;
 }
 
 export interface KokoroProviderSettings {
-  /**
-   * Base URL for the Kokoro TTS server.
-   * Default: http://localhost:8000
-   */
   baseURL?: string;
-
-  /**
-   * Custom headers to include in the requests.
-   */
   headers?: Record<string, string>;
-
-  /**
-   * Custom fetch implementation.
-   */
   fetch?: FetchFunction;
-
-  /**
-   * Auto-start configuration.
-   */
   autoStart?: {
     enabled: boolean;
     port: number;
@@ -90,9 +56,6 @@ export interface KokoroProviderSettings {
   };
 }
 
-/**
- * Create a Kokoro provider instance.
- */
 export function createKokoro(
   options: KokoroProviderSettings = {},
 ): KokoroProvider {
@@ -162,7 +125,4 @@ export function createKokoro(
   return provider satisfies KokoroProvider;
 }
 
-/**
- * Default Kokoro provider instance.
- */
 export const kokoro = createKokoro();
