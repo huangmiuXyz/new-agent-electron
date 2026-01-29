@@ -154,8 +154,6 @@ export class KokoroSpeechModel implements SpeechModelV3 {
   ): Promise<Awaited<ReturnType<SpeechModelV3['doGenerate']>>> {
     const { requestBody, warnings } = await this.getArgs(options);
 
-    // 检查并自动启动服务
-    debugger
     const autoStart = this.config.autoStart;
     if (autoStart?.enabled) {
       const isRunning = await this.isServerRunning();
