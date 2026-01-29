@@ -1,7 +1,62 @@
 import { Chat as _useChat } from '@ai-sdk/vue'
 import type { APICallError, FileUIPart, TextUIPart, ToolUIPart } from 'ai'
-import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai';
+import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai'
 import { speechService } from '../services/speechService'
+
+function createSentenceStateMachine() {
+  let buffer = ''
+  let inQuote = false
+
+  const terminators = new Set(['.', '!', '?', '。', '！', '？'])
+  const quotePairs: Record<string, string> = {
+    '“': '”',
+    '‘': '’',
+    '"': '"'
+  }
+  const leftQuotes = new Set(Object.keys(quotePairs))
+  const rightQuotes = new Set(Object.values(quotePairs))
+
+  function push(text: string, onSentence: (s: string) => void) {
+    for (const ch of text) {
+      buffer += ch
+
+      if (leftQuotes.has(ch)) {
+        inQuote = true
+        continue
+      }
+
+      if (rightQuotes.has(ch)) {
+        inQuote = false
+
+        const trimmed = buffer.trim()
+        const lastChar = trimmed[trimmed.length - 1]
+
+        if (terminators.has(lastChar)) {
+          onSentence(trimmed)
+          buffer = ''
+        }
+        continue
+      }
+
+      if (terminators.has(ch) && !inQuote) {
+        const sentence = buffer.trim()
+        if (sentence) onSentence(sentence)
+        buffer = ''
+      }
+    }
+  }
+
+
+  function flush(onSentence: (s: string) => void) {
+    if (buffer.trim()) {
+      onSentence(buffer.trim())
+    }
+    buffer = ''
+    inQuote = false
+  }
+
+  return { push, flush }
+}
 
 export const useChat = (chatId: string) => {
   const { getChatById, updateMessageMetadata, updateMessages } = useChatsStores()
@@ -21,6 +76,7 @@ export const useChat = (chatId: string) => {
 
   const createChat = (messages: BaseMessage[]): _useChat<BaseMessage> => {
     const scope = effectScope()
+
     const getMessageText = (message: BaseMessage) => {
       if (!message || !message.parts) return ''
       return message.parts
@@ -31,6 +87,8 @@ export const useChat = (chatId: string) => {
 
     return scope.run(() => {
       let processedText = ''
+      let sentenceSM = createSentenceStateMachine()
+
       const chat = new _useChat<BaseMessage>({
         id: chatId,
         messages: cloneDeep(messages),
@@ -38,6 +96,7 @@ export const useChat = (chatId: string) => {
         transport: {
           sendMessages: ({ messages }) => {
             processedText = ''
+            sentenceSM = createSentenceStateMachine() // ✅ reset 状态机
             return service.createAgent(
               chat.id,
               {
@@ -62,23 +121,33 @@ export const useChat = (chatId: string) => {
                 presencePenalty: agent.selectedAgent?.presencePenalty,
                 frequencyPenalty: agent.selectedAgent?.frequencyPenalty,
                 maxOutputTokens: agent.selectedAgent?.maxOutputTokens
-              },
+              }
             )
           },
           reconnectToStream: undefined as any
         },
+
         onFinish: () => {
           if (speechEnabled.value) {
-            const fullText = getMessageText(chat.lastMessage)
-            const remainingText = fullText.slice(processedText.length).trim()
-            if (remainingText) {
-              generateSpeech(remainingText, chat.lastMessage)
+            const mode = agent.selectedAgent?.speechMode as string
+
+            if (mode === 'sentence') {
+              sentenceSM.flush((sentence) => {
+                generateSpeech(sentence, chat.lastMessage)
+              })
+            } else {
+              const fullText = getMessageText(chat.lastMessage)
+              const remainingText = fullText.slice(processedText.length).trim()
+              if (remainingText) {
+                generateSpeech(remainingText, chat.lastMessage)
+              }
             }
           }
 
           useTitle(chatId).generateTitle()
           scope.stop()
         },
+
         onError: (error) => {
           syncMessageToStore(error as APICallError)
         }
@@ -91,7 +160,11 @@ export const useChat = (chatId: string) => {
             const mergedMessages = [...oldMessages]
             updatedMessages.forEach((msg, index) => {
               if (index < mergedMessages.length) {
-                mergedMessages[index] = { ...mergedMessages[index], ...msg, metadata: { ...mergedMessages[index].metadata, ...msg.metadata, error } }
+                mergedMessages[index] = {
+                  ...mergedMessages[index],
+                  ...msg,
+                  metadata: { ...mergedMessages[index].metadata, ...msg.metadata, error }
+                }
               } else {
                 mergedMessages.push(msg)
               }
@@ -101,7 +174,9 @@ export const useChat = (chatId: string) => {
         }
       }
 
-      const processStreamingSpeech = (newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined) => {
+      const processStreamingSpeech = (
+        newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
+      ) => {
         if (!newParts || chat.lastMessage.role !== 'assistant' || !speechEnabled.value) return
         const mode = agent.selectedAgent?.speechMode as string
         if (mode === 'full') return
@@ -110,13 +185,10 @@ export const useChat = (chatId: string) => {
         const currentText = fullText.slice(processedText.length)
 
         if (mode === 'sentence') {
-          const sentences = currentText.match(/[^.!?。！？]+[.!?。！？]+["'""''」』]*/g)
-          if (sentences) {
-            sentences.forEach((sentence) => {
-              generateSpeech(sentence, chat.lastMessage)
-              processedText += sentence
-            })
-          }
+          sentenceSM.push(currentText, (sentence) => {
+            generateSpeech(sentence, chat.lastMessage)
+          })
+          processedText = fullText
         } else if (mode === 'paragraph') {
           const paragraphs = currentText.split(/\n+/)
           if (paragraphs.length > 1) {
@@ -155,33 +227,20 @@ export const useChat = (chatId: string) => {
     const { getModelByVoice } = useSettingsStore()
     const modelInfo = getModelByVoice(voice)
 
-    if (!modelInfo) {
-      return
-    }
+    if (!modelInfo) return
 
     const { modelId: targetModelId, providerId: targetProviderId } = modelInfo
-
     const rawOptions = agent.selectedAgent?.speechProviderOptions
     const providerOptions = rawOptions?.[targetProviderId] ?? rawOptions
 
-    if (!message.metadata) {
-      message.metadata = {} as MetaData
-    }
-
+    if (!message.metadata) message.metadata = {} as MetaData
     if (!message.metadata.audio) {
-      message.metadata.audio = {
-        chunks: [],
-        voice,
-        model: targetModelId
-      }
+      message.metadata.audio = { chunks: [], voice, model: targetModelId }
     }
 
     const chunks = message.metadata.audio.chunks
     const chunkIndex = chunks.length
-    chunks.push({
-      data: '',
-      text
-    })
+    chunks.push({ data: '', text })
 
     updateMessageMetadata(chatId, message.id, message.metadata)
 
@@ -205,12 +264,9 @@ export const useChat = (chatId: string) => {
           error: undefined
         }
         updateMessageMetadata(chatId, message.id, message.metadata)
-      } else {
-        // Mark error if generation returned nothing
-        if (message.metadata?.audio?.chunks[chunkIndex]) {
-          message.metadata.audio.chunks[chunkIndex].error = '生成失败：未返回音频数据'
-          updateMessageMetadata(chatId, message.id, message.metadata)
-        }
+      } else if (message.metadata?.audio?.chunks[chunkIndex]) {
+        message.metadata.audio.chunks[chunkIndex].error = '生成失败：未返回音频数据'
+        updateMessageMetadata(chatId, message.id, message.metadata)
       }
     } catch (error) {
       const err = error as APICallError
@@ -223,36 +279,32 @@ export const useChat = (chatId: string) => {
     }
   }
 
-  const sendMessages = async (content: string | Array<FileUIPart | TextUIPart>) => {
-    const chat = createChat(chats?.messages!)
-    const parts: Array<FileUIPart | TextUIPart> =
-      typeof content === 'string' ? [{ type: 'text', text: content }] : content
-    chat.sendMessage({
-      id: chat.generateId(),
-      role: 'user',
-      parts
-    })
-  }
-  const continueMessages = () => {
-    const chat = createChat(chats?.messages!)
-    chat.sendMessage()
-  }
-
-  const regenerate = (messageId: string) => {
-    const chat = createChat(chats?.messages!)
-    chat.regenerate({ messageId })
-  }
-  const approval = (part: ToolUIPart, approved: boolean) => {
-    const chat = createChat(chats?.messages!)
-    chat.addToolApprovalResponse({
-      id: part.approval?.id!,
-      approved
-    })
-  }
   return {
-    sendMessages,
-    regenerate,
-    approval,
-    continueMessages
+    sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
+      const chat = createChat(chats?.messages!)
+
+      const parts: Array<FileUIPart | TextUIPart> =
+        typeof content === 'string' ? [{ type: 'text', text: content }] : content
+      chat.sendMessage({
+        id: chat.generateId(),
+        role: 'user',
+        parts
+      })
+    },
+    continueMessages: () => {
+      const chat = createChat(chats?.messages!)
+      chat.sendMessage()
+    },
+    regenerate: (messageId: string) => {
+      const chat = createChat(chats?.messages!)
+      chat.regenerate({ messageId })
+    },
+    approval: (part: ToolUIPart, approved: boolean) => {
+      const chat = createChat(chats?.messages!)
+      chat.addToolApprovalResponse({
+        id: part.approval?.id!,
+        approved
+      })
+    }
   }
 }
