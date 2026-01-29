@@ -110,7 +110,7 @@ export const useChat = (chatId: string) => {
         const currentText = fullText.slice(processedText.length)
 
         if (mode === 'sentence') {
-          const sentences = currentText.match(/[^.!?。！？]+[.!?。！？]+/g)
+          const sentences = currentText.match(/[^.!?。！？]+[.!?。！？]+["'""''」』]*/g)
           if (sentences) {
             sentences.forEach((sentence) => {
               generateSpeech(sentence, chat.lastMessage)
