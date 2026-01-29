@@ -3,6 +3,7 @@ import { FetchFunction } from '@ai-sdk/provider-utils';
 import { KokoroSpeechModel } from './kokoro-speech-model';
 import { KokoroVoiceInfo, KokoroListVoicesResponse } from './kokoro-api-types';
 import { Model, ModelVoice } from '../types';
+import { KokoroConcurrencyConfig } from './kokoro-config';
 
 export const DEFAULT_VOICES: KokoroVoiceInfo[] = [
   { id: 'af_maple', name: 'Maple (English Female)', language: 'en', gender: 'female', description: 'American female voice' },
@@ -54,6 +55,7 @@ export interface KokoroProviderSettings {
       removeStatus: (id: string) => void;
     };
   };
+  concurrency?: KokoroConcurrencyConfig;
 }
 
 export function createKokoro(
@@ -72,6 +74,7 @@ export function createKokoro(
       headers: getHeaders,
       fetch: options.fetch,
       autoStart: options.autoStart,
+      concurrency: options.concurrency,
     });
 
   const provider = function () {

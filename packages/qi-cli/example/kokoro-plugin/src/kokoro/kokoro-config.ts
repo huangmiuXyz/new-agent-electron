@@ -16,10 +16,15 @@ export interface AutoStartConfig {
   };
 }
 
+export interface KokoroConcurrencyConfig {
+  maxConcurrency?: number;
+}
+
 export type KokoroConfig = {
   provider: string;
   url: (options: { modelId: string; path: string }) => string;
   headers: () => Record<string, string | undefined>;
   fetch?: FetchFunction;
   autoStart?: AutoStartConfig;
+  concurrency?: KokoroConcurrencyConfig;
 };

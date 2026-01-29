@@ -7,10 +7,21 @@ export interface KokoroSpeechCallOptions {
   language?: 'zh' | 'en' | 'auto';
 }
 
+// 模块级共享状态 - 比静态变量更可靠，即使类被重新实例化也能保持
+let globalServerStarted = false;
+let globalServerStarting = false;
+let globalServerStatusPromise: Promise<boolean> | null = null;
+
+// 并发控制
+interface PendingTask {
+  resolve: (value: void) => void;
+  reject: (reason: unknown) => void;
+}
+let activeCount = 0;
+const pendingQueue: PendingTask[] = [];
+
 export class KokoroSpeechModel implements SpeechModelV3 {
   readonly specificationVersion = 'v3';
-  private static serverStarting: boolean = false;
-  private static serverStarted: boolean = false;
 
   get provider(): string {
     return this.config.provider;
@@ -46,9 +57,47 @@ export class KokoroSpeechModel implements SpeechModelV3 {
   }
 
   /**
-   * 检查服务是否运行
+   * 检查服务是否运行（带缓存和并发控制）
+   * 所有并发调用会共享同一个检查结果
    */
   private async isServerRunning(): Promise<boolean> {
+    // 如果已知服务已启动，直接返回
+    if (globalServerStarted) {
+      return true;
+    }
+
+    // 等待正在进行的启动完成
+    if (globalServerStarting) {
+      let waitCount = 0;
+      while (globalServerStarting && waitCount < 30) {
+        await new Promise(r => setTimeout(r, 1000));
+        waitCount++;
+      }
+      return globalServerStarted;
+    }
+
+    // 如果有正在进行的检查，复用它
+    if (globalServerStatusPromise) {
+      return globalServerStatusPromise;
+    }
+
+    // 创建新的检查 Promise，所有并发调用都会等待这个 Promise
+    globalServerStatusPromise = this.checkServerHealth().then(result => {
+      if (result) {
+        globalServerStarted = true;
+      }
+      return result;
+    });
+
+    try {
+      return await globalServerStatusPromise;
+    } finally {
+      // 清理 Promise，供后续调用重新检查（如果失败的话）
+      globalServerStatusPromise = null;
+    }
+  }
+
+  private async checkServerHealth(): Promise<boolean> {
     try {
       const healthUrl = this.config.url({ modelId: this.modelId, path: '/health' });
       const res = await fetch(healthUrl, {
@@ -69,17 +118,17 @@ export class KokoroSpeechModel implements SpeechModelV3 {
       return false;
     }
 
-    if (KokoroSpeechModel.serverStarting) {
+    if (globalServerStarting) {
       // 等待其他调用完成启动
       let waitCount = 0;
-      while (KokoroSpeechModel.serverStarting && waitCount < 30) {
+      while (globalServerStarting && waitCount < 30) {
         await new Promise(r => setTimeout(r, 1000));
         waitCount++;
       }
-      return KokoroSpeechModel.serverStarted;
+      return globalServerStarted;
     }
 
-    KokoroSpeechModel.serverStarting = true;
+    globalServerStarting = true;
 
     try {
       const { spawn, platform, pathJoin, basePath, port, notification } = autoStart;
@@ -126,7 +175,7 @@ export class KokoroSpeechModel implements SpeechModelV3 {
 
       while (retry < 15) {
         await new Promise(r => setTimeout(r, 2000));
-        if (await this.isServerRunning()) {
+        if (await this.checkServerHealth()) {
           started = true;
           break;
         }
@@ -134,7 +183,7 @@ export class KokoroSpeechModel implements SpeechModelV3 {
       }
 
       if (started) {
-        KokoroSpeechModel.serverStarted = true;
+        globalServerStarted = true;
         notification.success('Kokoro TTS 服务已启动', 'Kokoro TTS');
       } else {
         notification.error('Kokoro TTS 服务启动超时', 'Kokoro TTS');
@@ -145,32 +194,72 @@ export class KokoroSpeechModel implements SpeechModelV3 {
       console.error('[Kokoro] Failed to start server:', error);
       return false;
     } finally {
-      KokoroSpeechModel.serverStarting = false;
+      globalServerStarting = false;
+    }
+  }
+
+  /**
+   * 获取执行许可，如果超过并发限制则排队等待
+   */
+  private async acquireConcurrency(): Promise<void> {
+    const maxConcurrency = this.config.concurrency?.maxConcurrency;
+    if (!maxConcurrency || maxConcurrency <= 0) {
+      return;
+    }
+
+    if (activeCount < maxConcurrency) {
+      activeCount++;
+      return;
+    }
+
+    // 超过并发限制，加入等待队列
+    return new Promise<void>((resolve, reject) => {
+      pendingQueue.push({ resolve, reject });
+    });
+  }
+
+  /**
+   * 释放执行许可，让等待队列中的下一个任务执行
+   */
+  private releaseConcurrency(): void {
+    const maxConcurrency = this.config.concurrency?.maxConcurrency;
+    if (!maxConcurrency || maxConcurrency <= 0) {
+      return;
+    }
+
+    const nextTask = pendingQueue.shift();
+    if (nextTask) {
+      nextTask.resolve();
+    } else {
+      activeCount--;
     }
   }
 
   async doGenerate(
     options: Parameters<SpeechModelV3['doGenerate']>[0],
   ): Promise<Awaited<ReturnType<SpeechModelV3['doGenerate']>>> {
-    const { requestBody, warnings } = await this.getArgs(options);
-
-    const autoStart = this.config.autoStart;
-    if (autoStart?.enabled) {
-      const isRunning = await this.isServerRunning();
-      if (!isRunning) {
-        const started = await this.startServer(autoStart);
-        if (!started) {
-          throw new Error('Kokoro TTS 服务启动失败，请检查 Python 环境');
-        }
-      }
-    }
-
-    const url = this.config.url({
-      modelId: this.modelId,
-      path: '/tts',
-    });
+    // 等待获取并发许可
+    await this.acquireConcurrency();
 
     try {
+      const { requestBody, warnings } = await this.getArgs(options);
+
+      const autoStart = this.config.autoStart;
+      if (autoStart?.enabled) {
+        const isRunning = await this.isServerRunning();
+        if (!isRunning) {
+          const started = await this.startServer(autoStart);
+          if (!started) {
+            throw new Error('Kokoro TTS 服务启动失败，请检查 Python 环境');
+          }
+        }
+      }
+
+      const url = this.config.url({
+        modelId: this.modelId,
+        path: '/tts',
+      });
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -213,6 +302,9 @@ export class KokoroSpeechModel implements SpeechModelV3 {
         throw error;
       }
       throw new Error(`Kokoro TTS request failed: ${String(error)}`);
+    } finally {
+      // 释放并发许可
+      this.releaseConcurrency();
     }
   }
 }

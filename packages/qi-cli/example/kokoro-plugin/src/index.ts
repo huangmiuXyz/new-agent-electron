@@ -43,12 +43,20 @@ const plugin: Plugin = {
           type: 'number',
           placeholder: '18889',
           hint: '本地服务监听端口'
+        },
+        {
+          name: 'maxConcurrency',
+          label: '最大并发数',
+          type: 'number',
+          placeholder: '3',
+          hint: '同时进行的TTS请求数量，0或留空表示不限制'
         }
       ],
       initialData: {
         baseURL: currentConfig.baseURL || 'http://localhost:18889',
         autoStartServer: currentConfig.autoStartServer ?? true,
-        serverPort: currentConfig.serverPort || 18889
+        serverPort: currentConfig.serverPort || 18889,
+        maxConcurrency: currentConfig.maxConcurrency ?? 3
       },
       onChange: async (_field: string, _value: any, data: any) => {
         currentConfig = JSON.parse(JSON.stringify(data));
@@ -71,10 +79,13 @@ const plugin: Plugin = {
         notification: context.notification
       } : undefined;
 
+      const maxConcurrency = currentConfig?.maxConcurrency ?? 3;
+
       return createKokoro({
         ...options,
         baseURL,
-        autoStart
+        autoStart,
+        concurrency: maxConcurrency > 0 ? { maxConcurrency } : undefined
       });
     });
 
