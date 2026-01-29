@@ -125,6 +125,8 @@ async def lifespan(app: FastAPI):
         
         # 加载模型 (参考 samples/make_zh.py)
         logger.info(f"正在加载模型: {REPO_ID}")
+        logger.info(f"使用设备: {DEVICE}")
+
         model = KModel(repo_id=REPO_ID).to(DEVICE).eval()
         logger.info("模型加载成功")
         

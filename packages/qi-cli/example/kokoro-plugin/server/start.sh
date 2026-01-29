@@ -8,6 +8,18 @@ export KOKORO_HOST="${KOKORO_HOST:-0.0.0.0}"
 export KOKORO_PORT="${KOKORO_PORT:-18889}"
 export KOKORO_DEVICE="${KOKORO_DEVICE:-cpu}"
 
+# 检测 macOS Apple Silicon (M1/M2/M3/M4) 并启用 GPU 加速
+if [[ "$(uname)" == "Darwin" && "$(uname -m)" == "arm64" ]]; then
+    echo "检测到 Apple Silicon Mac，启用 MPS GPU 加速"
+    export PYTORCH_ENABLE_MPS_FALLBACK=1
+    echo "已设置 PYTORCH_ENABLE_MPS_FALLBACK=1"
+    # 如果用户没有手动指定设备，默认使用 mps
+    if [[ "$KOKORO_DEVICE" == "cpu" ]]; then
+        export KOKORO_DEVICE="mps"
+        echo "自动切换到 MPS 设备 (可通过 KOKORO_DEVICE=cpu 强制使用 CPU)"
+    fi
+fi
+
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
