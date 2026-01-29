@@ -97,12 +97,12 @@ export class KokoroSpeechModel implements SpeechModelV3 {
     }
   }
 
-  private async checkServerHealth(): Promise<boolean> {
+  private async checkServerHealth(timeout = 5000): Promise<boolean> {
     try {
       const healthUrl = this.config.url({ modelId: this.modelId, path: '/health' });
       const res = await fetch(healthUrl, {
         method: 'GET',
-        signal: AbortSignal.timeout(3000)
+        signal: AbortSignal.timeout(timeout)
       });
       return res.ok;
     } catch (e) {
@@ -131,55 +131,38 @@ export class KokoroSpeechModel implements SpeechModelV3 {
     globalServerStarting = true;
 
     try {
-      const { spawn, platform, pathJoin, basePath, port, notification } = autoStart;
+      const { createTab, platform, pathJoin, basePath, notification } = autoStart;
 
       notification.info('正在启动 Kokoro TTS 服务...', 'Kokoro TTS');
 
       const serverPath = pathJoin(basePath, 'server');
+      const command = platform === 'win32'
+        ? `cd "${serverPath}" && start.bat`
+        : `cd "${serverPath}" && bash start.sh`;
 
-      // 设置环境变量
-      const env = {
-        KOKORO_PORT: String(port),
-        KOKORO_HOST: '127.0.0.1'
-      };
+      // 不 await，让命令在后台运行
+      createTab({
+        command,
+        timeout: 120000, // 2分钟超时
+        showTerminal: true // 显示终端面板
+      }).catch(err => {
+        console.error('[Kokoro] createTab error:', err);
+      });
 
-      if (platform === 'darwin' || platform === 'linux') {
-        const startScript = pathJoin(serverPath, 'start.sh');
-        spawn('bash', [startScript], {
-          detached: true,
-          stdio: 'ignore',
-          cwd: serverPath,
-          env
-        });
-      } else if (platform === 'win32') {
-        const startScript = pathJoin(serverPath, 'start.bat');
-        spawn('cmd', ['/c', startScript], {
-          detached: true,
-          stdio: 'ignore',
-          cwd: serverPath,
-          env
-        });
-      } else {
-        const mainScript = pathJoin(serverPath, 'main.py');
-        spawn('python3', [mainScript], {
-          detached: true,
-          stdio: 'ignore',
-          cwd: serverPath,
-          env
-        });
-      }
-
-      // 等待服务启动
+      // 等待服务启动（首次启动需创建虚拟环境和安装依赖，耗时较长）
       let retry = 0;
       let started = false;
+      const maxRetries = 30; // 最多等待 60 秒
+      const retryInterval = 2000; // 每 2 秒检查一次
 
-      while (retry < 15) {
-        await new Promise(r => setTimeout(r, 2000));
-        if (await this.checkServerHealth()) {
+      while (retry < maxRetries) {
+        await new Promise(r => setTimeout(r, retryInterval));
+        if (await this.checkServerHealth(10000)) { // 健康检查超时 10 秒
           started = true;
           break;
         }
         retry++;
+        console.log(`[Kokoro] 等待服务启动... (${retry}/${maxRetries})`);
       }
 
       if (started) {

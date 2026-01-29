@@ -56,6 +56,11 @@ export interface PluginContext {
   };
   /** 创建表单 */
   useForm: (options: any) => any[];
+  /** 使用终端 */
+  useTerminal: () => {
+    show: () => Promise<void>;
+    createTab: (options: { command?: string; timeout?: number; showTerminal?: boolean }) => Promise<{ id: string; result?: { success: boolean; output: string } }>;
+  };
 }
 
 export interface ModelVoice {

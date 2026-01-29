@@ -69,13 +69,16 @@ const plugin: Plugin = {
       const serverPort = currentConfig?.serverPort ?? 18889;
       const baseURL = options?.baseURL || currentConfig?.baseURL || 'http://localhost:18889';
 
-      const autoStart = autoStartEnabled && context.api && context.api.spawn ? {
+      // 使用 useTerminal.createTab 启动服务
+      const terminal = context.useTerminal?.();
+      
+      const autoStart = autoStartEnabled && terminal?.createTab ? {
         enabled: true,
         port: serverPort,
         basePath: context.basePath,
-        spawn: context.api.spawn.bind(context.api),
-        platform: context.api.os?.platform(),
-        pathJoin: context.api.path?.join.bind(context.api.path),
+        createTab: terminal.createTab,
+        platform: context.api?.os?.platform(),
+        pathJoin: context.api?.path?.join.bind(context.api.path),
         notification: context.notification
       } : undefined;
 
