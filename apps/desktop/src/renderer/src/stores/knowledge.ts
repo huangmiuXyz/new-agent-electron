@@ -1,7 +1,7 @@
 export const useKnowledgeStore = defineStore(
   'knowledge',
   () => {
-    
+
     const knowledgeBases = ref<KnowledgeBase[]>([
       {
         id: 'default-local',
@@ -27,7 +27,7 @@ export const useKnowledgeStore = defineStore(
         }
       }
     )
-    
+
     const updateKnowledgeBase = (knowledgeBaseId: string, knowledgeBaseData: KnowledgeBase) => {
       const index = knowledgeBases.value.findIndex((kb) => kb.id === knowledgeBaseId)
       if (index !== -1) {
@@ -62,8 +62,22 @@ export const useKnowledgeStore = defineStore(
           if (!knowledgeBase.documents) {
             knowledgeBase.documents = []
           }
-          
+
           knowledgeBase.documents = [...knowledgeBase.documents, document]
+        }
+      }
+    }
+    const addDocumentsToKnowledgeBase = (knowledgeBaseId: string, documents: KnowledgeDocument[]) => {
+      const index = knowledgeBases.value.findIndex((kb) => kb.id === knowledgeBaseId)
+      if (index !== -1) {
+        const knowledgeBase = knowledgeBases.value[index]
+        if (knowledgeBase) {
+          if (!knowledgeBase.documents) {
+            knowledgeBase.documents = []
+          }
+          documents.forEach((doc) => {
+            knowledgeBase.documents!.push(doc)
+          })
         }
       }
     }
@@ -99,6 +113,7 @@ export const useKnowledgeStore = defineStore(
       addKnowledgeBase,
       deleteKnowledgeBase,
       addDocumentToKnowledgeBase,
+      addDocumentsToKnowledgeBase,
       deleteDocumentFromKnowledgeBase,
       upsertChunksToSqlite
     }

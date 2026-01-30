@@ -6,6 +6,7 @@ const {
   addKnowledgeBase,
   deleteKnowledgeBase,
   addDocumentToKnowledgeBase,
+  addDocumentsToKnowledgeBase,
   deleteDocumentFromKnowledgeBase
 } = useKnowledgeStore()
 
@@ -338,8 +339,8 @@ const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } =
         }
       }
       docs.push(doc)
-      addDocumentToKnowledgeBase(activeKnowledgeBaseId.value, doc)
     })
+    addDocumentsToKnowledgeBase(activeKnowledgeBaseId.value, docs)
     clearSeletedFiles()
     await nextTick()
     for (const doc of docs) {
