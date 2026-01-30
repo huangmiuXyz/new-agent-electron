@@ -406,6 +406,16 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
 const [DocTable] = useTable<KnowledgeDocument>({
   loading: () => loading.value,
   data: () => filteredDocuments.value,
+  autoHeight: {
+    enabled: true,
+    bottomOffset: 40, // 距离底部 40px
+    minHeight: 300
+  },
+  virtualScroll: {
+    enabled: true,
+    itemHeight: 36,
+    overscan: 5
+  },
   columns: [
     {
       key: 'name',
