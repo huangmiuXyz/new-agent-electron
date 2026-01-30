@@ -342,13 +342,22 @@ const showBatchDeleteModal = async () => {
     }
   })
   if (result) {
-    const idChunks = chunk(selectedKeys as string[], 100)
-    for (const idChunk of idChunks) {
+    loading.value = true
+    const idChunks = chunk(selectedKeys as string[], 50)
+    const { start, done } = useIdleChunkAsync(idChunks, async (idChunk) => {
       deleteDocumentsFromKnowledgeBase(activeKnowledgeBaseId.value, idChunk)
       await nextTick()
       await new Promise((resolve) => setTimeout(resolve, 0))
-    }
-    docTableActions.clearSelection()
+    })
+
+    watch(done, (v) => {
+      if (v) {
+        docTableActions.clearSelection()
+        loading.value = false
+      }
+    })
+
+    start()
   }
 }
 const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } = useUpload({
@@ -356,7 +365,7 @@ const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } =
   onFilesSelected: async (files) => {
     const fileChunks = chunk(files, 50)
 
-    const tasks = fileChunks.map((fileChunk) => async () => {
+    const { start, done } = useIdleChunkAsync(fileChunks, async (fileChunk) => {
       const docs: KnowledgeDocument[] = []
       fileChunk.forEach((f) => {
         const doc: KnowledgeDocument = {
@@ -394,11 +403,13 @@ const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } =
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
-    useAsyncQueue(tasks, {
-      onFinished: () => {
+    watch(done, (v) => {
+      if (v) {
         clearSeletedFiles()
       }
     })
+
+    start()
   }
 })
 const addDocument = () => {
