@@ -1,7 +1,6 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { computed, VNode } from 'vue'
 import { assetsHandler } from '@renderer/utils'
-import { useVirtualList } from '@vueuse/core'
 
 interface Props {
   defaultIcon?: VNode
@@ -22,32 +21,7 @@ interface Props {
   showHeader?: boolean
   renderHeader?: (item: T) => string
   isSelected?: (item: T) => boolean
-
-  // Virtual scroll props
-  virtual?: boolean
-  itemHeight?: number
 }
-
-type ListItem<T> =
-  | {
-      type: 'header'
-      key: string
-      groupTitle: string
-      height: number
-    }
-  | {
-      type: 'item'
-      raw: T
-      key: string
-      main: any
-      sub: string
-      logo: any
-      isIcon: boolean
-      isActive: boolean
-      groupKey: string
-      isLastItem: boolean
-      height: number
-    }
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
@@ -58,9 +32,7 @@ const props = withDefaults(defineProps<Props>(), {
   logoField: 'logo',
   selectable: true,
   variant: 'default',
-  showHeader: false,
-  virtual: true,
-  itemHeight: 0
+  showHeader: false
 })
 
 const emit = defineEmits<{
@@ -68,10 +40,8 @@ const emit = defineEmits<{
   contextmenu: [event: MouseEvent, id: string]
 }>()
 
-// Flatten items for virtual scrolling if headers are shown
-const flattenedItems = computed(() => {
-  const result: ListItem<T>[] = []
-  props.items.forEach((item, index) => {
+const viewItems = computed(() => {
+  const items = props.items.map((item, index) => {
     const key = item[props.keyField] ?? JSON.stringify(item)
     let logo = item[props.logoField]
     const isIcon = typeof logo === 'object' || typeof logo === 'function'
@@ -85,28 +55,16 @@ const flattenedItems = computed(() => {
         ? props.renderHeader(item)
         : ''
 
+    let groupTitle = ''
     if (props.showHeader && props.renderHeader) {
       const prevGroupKey =
         index > 0 ? props.renderHeader(props.items[index - 1]!) : null
       if (index === 0 || groupKey !== prevGroupKey) {
-        result.push({
-          type: 'header',
-          key: `header-${groupKey}`,
-          groupTitle: groupKey,
-          height: 20
-        })
+        groupTitle = groupKey
       }
     }
 
-    // Check if it's the last item in its group
-    const nextItem = index < props.items.length - 1 ? props.items[index + 1] : null
-    const nextGroupKey = nextItem && props.showHeader && props.renderHeader
-      ? props.renderHeader(nextItem)
-      : null
-    const isLastItem = !nextItem || groupKey !== nextGroupKey
-
-    result.push({
-      type: 'item',
+    return {
       raw: item,
       key,
       main: item[props.mainField] ?? key,
@@ -115,26 +73,26 @@ const flattenedItems = computed(() => {
       isIcon,
       isActive: props.isSelected?.(item) || props.activeId === key,
       groupKey,
-      isLastItem,
-      height: props.itemHeight || (props.variant === 'card' ? 48 : 44)
-    })
+      groupTitle
+    }
   })
-  return result
-})
 
-const { list, containerProps, wrapperProps, scrollTo } = useVirtualList(flattenedItems, {
-  itemHeight: (index) => flattenedItems.value[index].height,
-  overscan: 10
-})
+  return items.map((item, index) => {
+    const nextItem = index < items.length - 1 ? items[index + 1] : null
 
-defineExpose({
-  scrollTo,
-  containerRef: containerProps.ref
+    const isLastItem =
+      !nextItem || item.groupKey !== nextItem.groupKey
+
+    return {
+      ...item,
+      isLastItem
+    }
+  })
 })
 
 const handleAction = (
   type: 'select' | 'contextmenu',
-  item: Extract<ListItem<T>, { type: 'item' }>,
+  item: typeof viewItems.value[number],
   e?: MouseEvent
 ) => {
   if (type === 'select' && props.selectable) {
@@ -155,52 +113,52 @@ const handleAction = (
       </div>
     </div>
 
-    <div v-bind="containerProps" class="list-scroll-area">
+    <div class="list-scroll-area">
       <div v-if="loading" class="state-container">
         <slot name="loading">
           <Loading />
         </slot>
       </div>
 
-      <div v-else-if="flattenedItems.length === 0" class="state-container">
+      <div v-else-if="viewItems.length === 0" class="state-container">
         <slot name="empty">
           <div class="empty-text">{{ emptyText }}</div>
         </slot>
       </div>
 
-      <div v-else v-bind="wrapperProps">
-        <template v-for="item in list" :key="item.data.key">
-          <div v-if="item.data.type === 'header'" class="group-header">
-            {{ item.data.groupTitle }}
+      <template v-else>
+        <template v-for="item in viewItems" :key="item.key">
+          <div v-if="item.groupTitle" class="group-header">
+            {{ item.groupTitle }}
           </div>
 
-          <div v-else class="list-item" :class="{
-            'is-active': item.data.isActive,
-            'is-last': item.data.isLastItem
-          }" @click="handleAction('select', item.data)" @contextmenu="handleAction('contextmenu', item.data, $event)">
-            <div v-if="item.data.logo || defaultIcon" class="item-media">
-              <component v-if="item.data.isIcon" :is="item.data.logo" class="media-icon" />
-              <Image v-else-if="item.data.logo" :src="item.data.logo" :alt="String(item.data.main)" class="media-img" />
+          <div class="list-item" :class="{
+            'is-active': item.isActive,
+            'is-last': item.isLastItem
+          }" @click="handleAction('select', item)" @contextmenu="handleAction('contextmenu', item, $event)">
+            <div v-if="item.logo || defaultIcon" class="item-media">
+              <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
+              <Image v-else-if="item.logo" :src="item.logo" :alt="String(item.main)" class="media-img" />
               <component v-else-if="defaultIcon" :is="defaultIcon" class="media-icon" />
             </div>
 
             <div class="item-content">
-              <slot name="main" :item="item.data.raw">
+              <slot name="main" :item="item.raw">
                 <div class="main-text text-truncate">
-                  {{ item.data.main }}
+                  {{ item.main }}
                 </div>
               </slot>
-              <div v-if="item.data.sub" class="sub-text text-truncate">
-                {{ item.data.sub }}
+              <div v-if="item.sub" class="sub-text text-truncate">
+                {{ item.sub }}
               </div>
             </div>
 
             <div v-if="$slots.actions" class="item-actions">
-              <slot name="actions" :item="item.data.raw" />
+              <slot name="actions" :item="item.raw" />
             </div>
           </div>
         </template>
-      </div>
+      </template>
     </div>
   </div>
 </template>
