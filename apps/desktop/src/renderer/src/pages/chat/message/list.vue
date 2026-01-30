@@ -1,248 +1,318 @@
-<script setup lang="ts">
-import type { MenuItem } from '@renderer/composables/useContextMenu'
-import { getLanguageFlag } from '@renderer/utils/flagIcons'
-import { useElementSize } from '@vueuse/core'
-import { AutoScrollContainer } from '@incremark/vue'
+<script setup lang="ts" generic="T extends Record<string, any>">
+import { computed, VNode } from 'vue'
+import { assetsHandler } from '@renderer/utils'
 
-const messageScrollRef = useTemplateRef('messageScrollRef')
-const prevMessageRef = ref<HTMLElement>()
+interface Props {
+  defaultIcon?: VNode
+  items: T[]
+  title?: string
+  activeId?: string
 
-const autoScrollEnabled = ref(true)
-const { showContextMenu } = useContextMenu<BaseMessage>()
-const { currentChat } = storeToRefs(useChatsStores())
-const { deleteMessage } = useChatsStores()
-const { Delete, Refresh, Continue, Copy, Edit, Branch, Language } = useIcon([
-  'Delete',
-  'Refresh',
-  'Copy',
-  'Edit',
-  'Branch',
-  'Language',
-  'Stop',
-  'Continue'
-])
+  loading?: boolean
+  emptyText?: string
 
-const { translateMessage, translateWithCustomLanguage } = useTranslation()
+  keyField?: string
+  mainField?: string
+  subField?: string
+  logoField?: string
 
-const editingMessageId = ref<string | null>(null)
-
-const triggerEdit = (messageId: string) => {
-  editingMessageId.value = messageId
+  selectable?: boolean
+  variant?: 'default' | 'card'
+  showHeader?: boolean
+  renderHeader?: (item: T) => string
+  isSelected?: (item: T) => boolean
 }
 
-const cancelEdit = () => {
-  editingMessageId.value = null
-}
-
-provide('messageEdit', {
-  editingMessageId,
-  triggerEdit,
-  cancelEdit
+const props = withDefaults(defineProps<Props>(), {
+  loading: false,
+  emptyText: '暂无数据',
+  keyField: 'id',
+  mainField: 'name',
+  subField: '',
+  logoField: 'logo',
+  selectable: true,
+  variant: 'default',
+  showHeader: false
 })
 
-const { currentSelectedModel } = storeToRefs(useSettingsStore())
-const { selectedAgent } = storeToRefs(useAgentStore())
+const emit = defineEmits<{
+  select: [id: string]
+  contextmenu: [event: MouseEvent, id: string]
+}>()
 
-const contextCount = computed(() => {
-  return selectedAgent.value?.contextCount ?? 10
-})
+const viewItems = computed(() => {
+  const items = props.items.map((item, index) => {
+    const key = item[props.keyField] ?? JSON.stringify(item)
+    let logo = item[props.logoField]
+    const isIcon = typeof logo === 'object' || typeof logo === 'function'
 
-const lastMessageIndex = computed(() => {
-  if (!currentChat.value || currentChat.value.messages.length === 0) return -1
-  return currentChat.value.messages.length - 1
-})
+    if (!isIcon && typeof logo === 'string') {
+      logo = assetsHandler(logo)
+    }
 
-const { height: containerHeight } = useElementSize(messageScrollRef)
-const { height: prevMessageHeight } = useElementSize(prevMessageRef)
+    const groupKey =
+      props.showHeader && props.renderHeader
+        ? props.renderHeader(item)
+        : ''
 
-const lastMessageHeight = computed(() => {
-  if (lastMessageIndex.value >= 0 && containerHeight.value > 0 && prevMessageHeight.value > 0) {
-    const height = containerHeight.value - prevMessageHeight.value - 10
-    return `${Math.max(0, height)}px`
-  }
-  return 'auto'
-})
-
-const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
-  event.preventDefault()
-  event.stopPropagation()
-  const messageMenuOptions: MenuItem<BaseMessage>[] = [
-    {
-      label: '编辑',
-      icon: Edit,
-      onClick: () => {
-        triggerEdit(message.id!)
-      }
-    },
-    {
-      label: '创建分支',
-      icon: Branch,
-      onClick: (data) => {
-        const { forkChat } = useChatsStores()
-        forkChat(currentChat.value!.id, data.id!)
-      }
-    },
-    {
-      label: '创建分支并继续',
-      icon: Branch,
-      onClick: (data) => {
-        const { forkChat } = useChatsStores()
-        forkChat(currentChat.value!.id, data.id!)
-        const { regenerate } = useChat(currentChat.value!.id!)
-        regenerate(currentChat.value?.messages.at(-1)?.id!)
-      }
-    },
-    {
-      label: '复制',
-      icon: Copy,
-      onClick: () => copyText(message.parts.map((e) => (e.type === 'text' ? e.text : '')).join(''))
-    },
-    {
-      label: '翻译',
-      icon: Language,
-      children: [
-        {
-          label: '中文',
-          icon: getLanguageFlag('中文'),
-          onClick: () => translateMessage(message, '中文')
-        },
-        {
-          label: '英文',
-          icon: getLanguageFlag('英文'),
-          onClick: () => translateMessage(message, '英文')
-        },
-        {
-          label: '日文',
-          icon: getLanguageFlag('日文'),
-          onClick: () => translateMessage(message, '日文')
-        },
-        {
-          label: '韩文',
-          icon: getLanguageFlag('韩文'),
-          onClick: () => translateMessage(message, '韩文')
-        },
-        {
-          label: '法文',
-          icon: getLanguageFlag('法文'),
-          onClick: () => translateMessage(message, '法文')
-        },
-        {
-          label: '德文',
-          icon: getLanguageFlag('德文'),
-          onClick: () => translateMessage(message, '德文')
-        },
-        {
-          label: '西班牙文',
-          icon: getLanguageFlag('西班牙文'),
-          onClick: () => translateMessage(message, '西班牙文')
-        },
-        {
-          label: '俄文',
-          icon: getLanguageFlag('俄文'),
-          onClick: () => translateMessage(message, '俄文')
-        },
-        {
-          label: '自定义语言...',
-          icon: getLanguageFlag('custom'),
-          onClick: () => translateWithCustomLanguage(message)
-        }
-      ]
-    },
-    {
-      label: '重试',
-      icon: Refresh,
-      onClick: async (data) => {
-        if (!currentSelectedModel.value) {
-          messageApi.error('请先选择模型')
-          return
-        }
-        const { regenerate } = useChat(currentChat.value!.id!)
-        regenerate(data.id!)
-      }
-    },
-    {
-      label: '继续',
-      icon: Continue,
-      onClick: async () => {
-        if (!currentSelectedModel.value) {
-          messageApi.error('请先选择模型')
-          return
-        }
-        const { continueMessages } = useChat(currentChat.value!.id!)
-        continueMessages()
-      }
-    },
-    {
-      label: '删除',
-      icon: Delete,
-      danger: true,
-      onClick: (data) => {
-        data.metadata?.stop?.()
-        setTimeout(() => {
-          deleteMessage(currentChat.value!.id, message.id!)
-        })
+    let groupTitle = ''
+    if (props.showHeader && props.renderHeader) {
+      const prevGroupKey =
+        index > 0 ? props.renderHeader(props.items[index - 1]!) : null
+      if (index === 0 || groupKey !== prevGroupKey) {
+        groupTitle = groupKey
       }
     }
-  ]
-  showContextMenu(event, messageMenuOptions, message)
+
+    return {
+      raw: item,
+      key,
+      main: item[props.mainField] ?? key,
+      sub: props.subField ? item[props.subField] : '',
+      logo,
+      isIcon,
+      isActive: props.isSelected?.(item) || props.activeId === key,
+      groupKey,
+      groupTitle
+    }
+  })
+
+  return items.map((item, index) => {
+    const nextItem = index < items.length - 1 ? items[index + 1] : null
+
+    const isLastItem =
+      !nextItem || item.groupKey !== nextItem.groupKey
+
+    return {
+      ...item,
+      isLastItem
+    }
+  })
+})
+
+const handleAction = (
+  type: 'select' | 'contextmenu',
+  item: typeof viewItems.value[number],
+  e?: MouseEvent
+) => {
+  if (type === 'select' && props.selectable) {
+    emit('select', item.key)
+  }
+  if (type === 'contextmenu' && e) {
+    emit('contextmenu', e, item.key)
+  }
 }
 </script>
+
 <template>
-  <AutoScrollContainer ref="messageScrollRef" :enabled="autoScrollEnabled" :threshold="0">
-    <div class="messages-content">
-      <template v-for="(message, index) in currentChat?.messages" :key="`${currentChat?.id}-${message.id}-${index}`">
-        <div v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
-          class="context-divider">
-          <div class="divider-line"></div>
-          <span class="divider-text">上下文分割线</span>
-          <div class="divider-line"></div>
-        </div>
-        <ChatMessageItemHuman v-if="message.role === 'user'" :message="message"
-          :ref="index === lastMessageIndex - 1 ? 'prevMessageRef' : undefined"
-          @contextmenu="onMessageRightClick($event, message)" />
-        <ChatMessageItemAi v-if="message.role === 'assistant'" :message="message" :style="{
-          minHeight: index === lastMessageIndex ? lastMessageHeight : 'auto',
-          height: 'auto',
-          flex: 'none'
-        }" @contextmenu="onMessageRightClick($event, message)" />
+  <div class="list-container" :class="[`variant-${variant}`]">
+    <div v-if="title" class="list-title">
+      <div>{{ title }}</div>
+      <div class="list-title-actions">
+        <slot name="title-tool" />
+      </div>
+    </div>
+
+    <div class="list-scroll-area">
+      <div v-if="loading" class="state-container">
+        <slot name="loading">
+          <Loading />
+        </slot>
+      </div>
+
+      <div v-else-if="viewItems.length === 0" class="state-container">
+        <slot name="empty">
+          <div class="empty-text">{{ emptyText }}</div>
+        </slot>
+      </div>
+
+      <template v-else>
+        <template v-for="item in viewItems" :key="item.key">
+          <div v-if="item.groupTitle" class="group-header">
+            {{ item.groupTitle }}
+          </div>
+
+          <div class="list-item" :class="{
+            'is-active': item.isActive,
+            'is-last': item.isLastItem
+          }" @click="handleAction('select', item)" @contextmenu="handleAction('contextmenu', item, $event)">
+            <div v-if="item.logo || defaultIcon" class="item-media">
+              <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
+              <Image v-else-if="item.logo" :src="item.logo" :alt="String(item.main)" class="media-img" />
+              <component v-else-if="defaultIcon" :is="defaultIcon" class="media-icon" />
+            </div>
+
+            <div class="item-content">
+              <slot name="main" :item="item.raw">
+                <div class="main-text text-truncate">
+                  {{ item.main }}
+                </div>
+              </slot>
+              <div v-if="item.sub" class="sub-text text-truncate">
+                {{ item.sub }}
+              </div>
+            </div>
+
+            <div v-if="$slots.actions" class="item-actions">
+              <slot name="actions" :item="item.raw" />
+            </div>
+          </div>
+        </template>
       </template>
     </div>
-  </AutoScrollContainer>
+  </div>
 </template>
 
+
 <style scoped>
-.messages-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.list-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
 }
 
-.context-divider {
+.state-container {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 16px 0;
-  padding: 0 20px;
-}
-
-.divider-line {
-  flex: 1;
-  height: 1px;
-  background: var(--border-color);
-  opacity: 0.5;
-}
-
-.divider-text {
-  font-size: 12px;
+  justify-content: center;
+  height: 100%;
+  min-height: 100px;
+  padding: 20px;
   color: var(--text-tertiary);
+}
+
+.empty-text {
+  font-size: 13px;
+  user-select: none;
+}
+
+.list-container {
+  height: 100%;
+  background-color: var(--bg-card);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Variant: Card */
+.variant-card {
+  background-color: transparent;
+}
+
+.variant-card .list-scroll-area {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+  height: auto;
+  flex: none;
+}
+
+.variant-card .list-item {
+  padding: 12px 16px;
+  margin-bottom: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.variant-card .list-item:last-child {
+  border-bottom: none;
+}
+
+.variant-card .main-text {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.variant-card .item-actions {
+  padding-left: 0;
+}
+
+.list-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+  padding-left: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.list-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.list-item.is-active {
+  background-color: var(--bg-active);
+  color: var(--accent-color);
+}
+
+.item-content {
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
   white-space: nowrap;
+  text-overflow: ellipsis
+}
+
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-actions {
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+.item-media {
+  display: flex;
+}
+
+.sub-text {
+  display: none;
+}
+
+.main-text {
+  font-size: 13px;
   font-weight: 500;
 }
 
-:deep(.auto-scroll-container),
-.auto-scroll-container {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+.media-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.media-icon {
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+.group-header {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  padding: 6px 8px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 </style>
