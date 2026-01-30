@@ -34,10 +34,12 @@ const setActiveKnowledgeBase = (knowledgeBaseId: string) => {
 const activeKnowledgeBaseId = useLocalStorage<string>('activeKnowledgeBaseId', '')
 const isEditMode = ref(false)
 const batchSize = useLocalStorage<number>('embeddingBatchSize', 5)
-const [BatchSettingsForm, batchSettingsActions] = useForm<{ batchSize: number }>({
+const concurrency = useLocalStorage<number>('embeddingConcurrency', 5)
+const [BatchSettingsForm, batchSettingsActions] = useForm<{ batchSize: number; concurrency: number }>({
   showHeader: false,
   initialData: {
-    batchSize: 5
+    batchSize: 5,
+    concurrency: 5
   },
   fields: [
     {
@@ -49,15 +51,25 @@ const [BatchSettingsForm, batchSettingsActions] = useForm<{ batchSize: number }>
       step: 1,
       unlimited: true,
       hint: '设置文档嵌入处理的批处理大小'
+    },
+    {
+      name: 'concurrency',
+      type: 'slider',
+      label: '并发限制',
+      min: 1,
+      max: 10,
+      step: 1,
+      hint: '设置同时进行的文档嵌入任务数量'
     }
   ],
   onSubmit: (data) => {
     batchSize.value = data.batchSize
+    concurrency.value = data.concurrency
     showBatchSettings.value = false
   }
 })
 
-batchSettingsActions.setData({ batchSize: batchSize.value })
+batchSettingsActions.setData({ batchSize: batchSize.value, concurrency: concurrency.value })
 
 watch(
   () => activeKnowledgeBaseId.value,
@@ -343,15 +355,15 @@ const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } =
     addDocumentsToKnowledgeBase(activeKnowledgeBaseId.value, docs)
     clearSeletedFiles()
     await nextTick()
-    for (const doc of docs) {
+    docs.forEach(async (doc) => {
       const docInKnowledgeBase = activeKnowledgeBase.value?.documents?.find((d) => d.id === doc.id)
       if (docInKnowledgeBase) {
         if (!activeKnowledgeBase.value.embeddingModel.modelId) return
-        await embedding(docInKnowledgeBase, activeKnowledgeBase.value, false, batchSize.value, {
+        embedding(docInKnowledgeBase, activeKnowledgeBase.value, false, batchSize.value, {
           input_type: 'passage'
         })
       }
-    }
+    })
   }
 })
 const addDocument = () => {
