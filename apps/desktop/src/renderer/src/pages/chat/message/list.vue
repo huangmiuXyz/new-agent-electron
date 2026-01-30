@@ -2,6 +2,7 @@
 import type { MenuItem } from '@renderer/composables/useContextMenu'
 import { getLanguageFlag } from '@renderer/utils/flagIcons'
 import { useElementSize } from '@vueuse/core'
+import { AutoScrollContainer } from '@incremark/vue'
 
 const messageScrollRef = useTemplateRef('messageScrollRef')
 const prevMessageRef = ref<HTMLElement>()
@@ -10,29 +11,6 @@ const autoScrollEnabled = ref(true)
 const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage } = useChatsStores()
-
-const processedMessages = computed(() => {
-  const messages = currentChat.value?.messages || []
-  const result: any[] = []
-
-  messages.forEach((msg, index) => {
-    const dividerIndex = messages.length - contextCount.value
-    if (index === dividerIndex && contextCount.value < messages.length) {
-      result.push({
-        id: `divider-${currentChat.value?.id}-${dividerIndex}`,
-        virtualType: 'divider'
-      })
-    }
-    result.push({
-      ...msg,
-      virtualType: 'message',
-      index
-    })
-  })
-
-  return result
-})
-
 const { Delete, Refresh, Continue, Copy, Edit, Branch, Language } = useIcon([
   'Delete',
   'Refresh',
@@ -74,7 +52,7 @@ const lastMessageIndex = computed(() => {
   return currentChat.value.messages.length - 1
 })
 
-const { height: containerHeight } = useElementSize(computed(() => (messageScrollRef.value as any)?.$el))
+const { height: containerHeight } = useElementSize(messageScrollRef)
 const { height: prevMessageHeight } = useElementSize(prevMessageRef)
 
 const lastMessageHeight = computed(() => {
@@ -84,35 +62,6 @@ const lastMessageHeight = computed(() => {
   }
   return 'auto'
 })
-
-// 自动滚动到底部
-watch(
-  () => processedMessages.value.length,
-  () => {
-    if (autoScrollEnabled.value) {
-      nextTick(() => {
-        (messageScrollRef.value as any)?.scrollToItem(processedMessages.value.length - 1)
-      })
-    }
-  }
-)
-
-// 处理流式输出时的滚动
-watch(
-  () => currentChat.value?.messages.at(-1)?.parts,
-  () => {
-    if (autoScrollEnabled.value) {
-      (messageScrollRef.value as any)?.scrollToItem(processedMessages.value.length - 1)
-    }
-  },
-  { deep: true }
-)
-
-const onScroll = (event: Event) => {
-  const target = event.target as HTMLElement
-  const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 50
-  autoScrollEnabled.value = isAtBottom
-}
 
 const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   event.preventDefault()
@@ -239,71 +188,33 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 }
 </script>
 <template>
-  <div class="messages-container">
-    <DynamicScroller
-      ref="messageScrollRef"
-      :items="processedMessages"
-      :min-item-size="50"
-      class="scroller"
-      key-field="id"
-      @scroll="onScroll"
-    >
-      <template v-slot="{ item, index, active }">
-        <DynamicScrollerItem
-          :item="item"
-          :active="active"
-          :size-dependencies="[item.parts, item.content]"
-          :data-index="index"
-          :data-active="active"
-        >
-          <template v-if="item.virtualType === 'divider'">
-            <div class="context-divider">
-              <div class="divider-line"></div>
-              <span class="divider-text">上下文分割线</span>
-              <div class="divider-line"></div>
-            </div>
-          </template>
-          <template v-else>
-            <ChatMessageItemHuman
-              v-if="item.role === 'user'"
-              :message="item"
-              :ref="item.index === lastMessageIndex - 1 ? 'prevMessageRef' : undefined"
-              @contextmenu="onMessageRightClick($event, item)"
-            />
-            <ChatMessageItemAi
-              v-if="item.role === 'assistant'"
-              :message="item"
-              :style="{
-                minHeight: item.index === lastMessageIndex ? lastMessageHeight : 'auto',
-                height: 'auto',
-                flex: 'none'
-              }"
-              @contextmenu="onMessageRightClick($event, item)"
-            />
-          </template>
-        </DynamicScrollerItem>
+  <AutoScrollContainer ref="messageScrollRef" :enabled="autoScrollEnabled" :threshold="0">
+    <div class="messages-content">
+      <template v-for="(message, index) in currentChat?.messages" :key="`${currentChat?.id}-${message.id}-${index}`">
+        <div v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
+          class="context-divider">
+          <div class="divider-line"></div>
+          <span class="divider-text">上下文分割线</span>
+          <div class="divider-line"></div>
+        </div>
+        <ChatMessageItemHuman v-if="message.role === 'user'" :message="message"
+          :ref="index === lastMessageIndex - 1 ? 'prevMessageRef' : undefined"
+          @contextmenu="onMessageRightClick($event, message)" />
+        <ChatMessageItemAi v-if="message.role === 'assistant'" :message="message" :style="{
+          minHeight: index === lastMessageIndex ? lastMessageHeight : 'auto',
+          height: 'auto',
+          flex: 'none'
+        }" @contextmenu="onMessageRightClick($event, message)" />
       </template>
-    </DynamicScroller>
-  </div>
+    </div>
+  </AutoScrollContainer>
 </template>
 
 <style scoped>
-.messages-container {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.scroller {
-  flex: 1;
-}
-
-:deep(.vue-recycle-scroller__item-wrapper) {
+.messages-content {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-bottom: 8px;
 }
 
 .context-divider {
@@ -326,5 +237,12 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   color: var(--text-tertiary);
   white-space: nowrap;
   font-weight: 500;
+}
+
+:deep(.auto-scroll-container),
+.auto-scroll-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 </style>
