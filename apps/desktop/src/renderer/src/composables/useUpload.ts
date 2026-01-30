@@ -51,75 +51,48 @@ export function useUpload(options: UseUploadOptions = {}) {
   const isDragOver = ref(false)
   const modal = useModal()
 
-  /**
-   * 分片处理并插入文件，避免 UI 卡顿
-   */
-  const batchInsertFiles = async (
-    files: UploadFile[],
-    onProgress?: (processed: number, total: number) => void
-  ) => {
-    const CHUNK_SIZE = 50 // 每批处理 50 个文件
-    const total = files.length
-    let processed = 0
-
-    uploadLoading.value = true
-
-    try {
-      for (let i = 0; i < files.length; i += CHUNK_SIZE) {
-        const chunk = files.slice(i, i + CHUNK_SIZE)
-        selectedFiles.value.push(...chunk)
-        processed += chunk.length
-
-        if (onProgress) {
-          onProgress(processed, total)
-        }
-
-        // 给 UI 渲染留出时间
-        await nextTick()
-        // 如果数据量特别大，可以额外增加一个小延迟
-        if (total > 500) {
-          await new Promise((resolve) => setTimeout(resolve, 0))
-        }
-      }
-
-      if (onFilesSelected) {
-        onFilesSelected(files)
-      }
-    } finally {
-      uploadLoading.value = false
+  const insertFiles = (files: UploadFile[]) => {
+    selectedFiles.value.push(...files)
+    if (onFilesSelected) {
+      onFilesSelected(files)
     }
   }
 
   const processFiles = async (files: FileList | File[]) => {
-    let fileArray = Array.from(files)
+    uploadLoading.value = true
+    try {
+      let fileArray = Array.from(files)
 
-    // 如果限制只能上传文本，则进行过滤
-    if (onlyText) {
-      fileArray = fileArray.filter((f) => {
-        // 使用文件名判断。在渲染进程中，我们通过 textExtensions 列表匹配后缀
-        const ext = f.name.split('.').pop()?.toLowerCase() || ''
-        return textExtensions.includes(ext)
-      })
+      // 如果限制只能上传文本，则进行过滤
+      if (onlyText) {
+        fileArray = fileArray.filter((f) => {
+          // 使用文件名判断。在渲染进程中，我们通过 textExtensions 列表匹配后缀
+          const ext = f.name.split('.').pop()?.toLowerCase() || ''
+          return textExtensions.includes(ext)
+        })
 
-      if (fileArray.length === 0 && files.length > 0) {
-        messageApi.warning('仅支持上传文本文件')
-        return
+        if (fileArray.length === 0 && files.length > 0) {
+          messageApi.warning('仅支持上传文本文件')
+          return
+        }
       }
+
+      const processedFiles = await Promise.all(
+        fileArray.map(async (f) => ({
+          url: await blobToDataURL(f),
+          mediaType: f.type,
+          blobUrl: URL.createObjectURL(f),
+          filename: f.name,
+          name: f.name,
+          type: 'file' as const,
+          size: f.size
+        }))
+      )
+
+      insertFiles(processedFiles)
+    } finally {
+      uploadLoading.value = false
     }
-
-    const processedFiles = await Promise.all(
-      fileArray.map(async (f) => ({
-        url: await blobToDataURL(f),
-        mediaType: f.type,
-        blobUrl: URL.createObjectURL(f),
-        filename: f.name,
-        name: f.name,
-        type: 'file' as const,
-        size: f.size
-      }))
-    )
-
-    await batchInsertFiles(processedFiles)
   }
 
   const processFileSystemHandles = async (handles: FileSystemFileHandle[]) => {
@@ -132,6 +105,7 @@ export function useUpload(options: UseUploadOptions = {}) {
     await processFiles(files)
   }
   const handleFileSystemPicker = async (shouldSaveFileToUserData: boolean) => {
+    uploadLoading.value = true
     try {
       if (window.api?.showOpenDialog) {
         const result = await window.api.showOpenDialog({
@@ -166,7 +140,7 @@ export function useUpload(options: UseUploadOptions = {}) {
           })
         }
 
-        await batchInsertFiles(processedFiles)
+        insertFiles(processedFiles)
         return
       }
       const pickerOptions: any = {
@@ -193,6 +167,8 @@ export function useUpload(options: UseUploadOptions = {}) {
       if (error.name !== 'AbortError') {
         console.error('文件选择出错:', error)
       }
+    } finally {
+      uploadLoading.value = false
     }
   }
   const { isOverDropZone } = useDropZone(dropZoneRef, {
@@ -274,6 +250,7 @@ export function useUpload(options: UseUploadOptions = {}) {
   }
 
   const triggerFolderUpload = async () => {
+    uploadLoading.value = true
     try {
       if (window.api?.showOpenDialog) {
         const result = await window.api.showOpenDialog({
@@ -335,11 +312,13 @@ export function useUpload(options: UseUploadOptions = {}) {
         readDirRecursive(folderPath)
 
         if (files.length > 0) {
-          await batchInsertFiles(files)
+          insertFiles(files)
         }
       }
     } catch (error) {
       console.error('文件夹选择出错:', error)
+    } finally {
+      uploadLoading.value = false
     }
   }
 
@@ -419,25 +398,30 @@ export function useUpload(options: UseUploadOptions = {}) {
         }
       ],
       onSubmit: async (data) => {
-        if (data.selectedFiles && data.selectedFiles.length > 0) {
-          const selectedFilePaths = data.selectedFiles as string[]
-          const selectedFileItems = files.filter((file) => selectedFilePaths.includes(file.path))
-          const processedFiles = selectedFileItems.map((file) => {
-            const fileBuffer = window.api.fs.readFileSync(file.path)
-            const blob = arrayBufferToBlob(fileBuffer.buffer)
-            return {
-              url: '',
-              mediaType: file.type,
-              blobUrl: URL.createObjectURL(blob),
-              filename: file.name,
-              path: 'file://' + file.path,
-              name: file.name,
-              type: 'file' as const,
-              size: file.size
-            }
-          })
+        uploadLoading.value = true
+        try {
+          if (data.selectedFiles && data.selectedFiles.length > 0) {
+            const selectedFilePaths = data.selectedFiles as string[]
+            const selectedFileItems = files.filter((file) => selectedFilePaths.includes(file.path))
+            const processedFiles = selectedFileItems.map((file) => {
+              const fileBuffer = window.api.fs.readFileSync(file.path)
+              const blob = arrayBufferToBlob(fileBuffer.buffer)
+              return {
+                url: '',
+                mediaType: file.type,
+                blobUrl: URL.createObjectURL(blob),
+                filename: file.name,
+                path: 'file://' + file.path,
+                name: file.name,
+                type: 'file' as const,
+                size: file.size
+              }
+            })
 
-          await batchInsertFiles(processedFiles)
+            insertFiles(processedFiles)
+          }
+        } finally {
+          uploadLoading.value = false
         }
       }
     })
