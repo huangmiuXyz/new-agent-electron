@@ -82,16 +82,16 @@ export const useKnowledgeStore = defineStore(
       }
     }
 
-    const deleteDocumentFromKnowledgeBase = (knowledgeBaseId: string, documentId: string) => {
+    const deleteDocumentsFromKnowledgeBase = (knowledgeBaseId: string, documentIds: string[]) => {
       const index = knowledgeBases.value.findIndex((kb) => kb.id === knowledgeBaseId)
       if (index !== -1) {
         const knowledgeBase = knowledgeBases.value[index]
         if (knowledgeBase && knowledgeBase.documents) {
-          const docIndex = knowledgeBase.documents.findIndex((doc) => doc.id === documentId)
-          if (docIndex !== -1) {
-            knowledgeBase.documents.splice(docIndex, 1)
+          const idsSet = new Set(documentIds)
+          knowledgeBase.documents = knowledgeBase.documents.filter((doc) => !idsSet.has(doc.id))
+          documentIds.forEach((documentId) => {
             window.api.sqlite.deleteChunksByDoc(documentId)
-          }
+          })
         }
       }
     }
@@ -114,7 +114,7 @@ export const useKnowledgeStore = defineStore(
       deleteKnowledgeBase,
       addDocumentToKnowledgeBase,
       addDocumentsToKnowledgeBase,
-      deleteDocumentFromKnowledgeBase,
+      deleteDocumentsFromKnowledgeBase,
       upsertChunksToSqlite
     }
   },

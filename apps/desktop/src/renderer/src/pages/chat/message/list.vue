@@ -41,7 +41,7 @@ const emit = defineEmits<{
 }>()
 
 const viewItems = computed(() => {
-  const items = props.items.map((item, index) => {
+  const items = props.items?.map((item, index) => {
     const key = item[props.keyField] ?? JSON.stringify(item)
     let logo = item[props.logoField]
     const isIcon = typeof logo === 'object' || typeof logo === 'function'
@@ -75,7 +75,7 @@ const viewItems = computed(() => {
       groupKey,
       groupTitle
     }
-  })
+  }) || []
 
   return items.map((item, index) => {
     const nextItem = index < items.length - 1 ? items[index + 1] : null

@@ -14,6 +14,7 @@ import {
   onUnmounted
 } from 'vue'
 import { useVirtualList, useElementBounding, useWindowSize } from '@vueuse/core'
+import Checkbox from '@renderer/components/Checkbox.vue'
 
 export interface TableColumn<T = any> {
   key: string
@@ -43,6 +44,11 @@ export interface TableConfig<T extends Record<string, any>> {
     itemHeight: number
     overscan?: number
   }
+  selection?: {
+    enabled: boolean
+    key?: string // 唯一标识字段，默认 'id'
+    width?: string | number
+  }
 }
 
 export interface TableActions<T> {
@@ -53,6 +59,16 @@ export interface TableActions<T> {
   getLoading: () => boolean
   toggleExpand: (id: string | number) => void
   isExpanded: (id: string | number) => boolean
+  // 选择相关
+  getSelectedKeys: () => (string | number)[]
+  getSelectedRows: () => T[]
+  setSelectedKeys: (keys: (string | number)[]) => void
+  toggleSelect: (key: string | number) => void
+  selectAll: () => void
+  clearSelection: () => void
+  isSelected: (key: string | number) => boolean
+  isAllSelected: () => boolean
+  isIndeterminate: () => boolean
 }
 
 export function useTable<T extends Record<string, any>>(config: TableConfig<T>) {
@@ -65,6 +81,69 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
   const virtualEnabled = config.virtualScroll?.enabled ?? false
   const itemHeight = config.virtualScroll?.itemHeight ?? 36
   const overscan = config.virtualScroll?.overscan ?? 5
+
+  // 选择功能
+  const selectionEnabled = config.selection?.enabled ?? false
+  const selectionKey = config.selection?.key ?? 'id'
+  const selectedKeys = ref(new Set<string | number>())
+
+  const getRowKey = (row: T): string | number => {
+    return (row as Record<string, unknown>)[selectionKey] as string | number
+  }
+
+  const toggleSelect = (key: string | number) => {
+    if (selectedKeys.value.has(key)) {
+      selectedKeys.value.delete(key)
+    } else {
+      selectedKeys.value.add(key)
+    }
+  }
+
+  const isSelected = (key: string | number) => selectedKeys.value.has(key)
+
+  const selectAll = () => {
+    if (isAllSelected()) {
+      selectedKeys.value.clear()
+    } else {
+      tableData.value.forEach((row) => {
+        selectedKeys.value.add(getRowKey(row))
+      })
+    }
+  }
+
+  const isAllSelected = () => {
+    return tableData.value.length > 0 && tableData.value.every((row) => isSelected(getRowKey(row)))
+  }
+
+  const isIndeterminate = () => {
+    const selectedCount = selectedKeys.value.size
+    return selectedCount > 0 && selectedCount < tableData.value.length
+  }
+
+  const clearSelection = () => {
+    selectedKeys.value.clear()
+  }
+
+  const getSelectedKeys = () => Array.from(selectedKeys.value)
+
+  const getSelectedRows = () => {
+    return tableData.value.filter((row) => isSelected(getRowKey(row)))
+  }
+
+  const setSelectedKeys = (keys: (string | number)[]) => {
+    selectedKeys.value = new Set(keys)
+  }
+
+  // 数据变化时清理无效的选择
+  watchEffect(() => {
+    const data = tableData.value
+    const validKeys = new Set(data.map((row) => getRowKey(row)))
+    selectedKeys.value.forEach((key) => {
+      if (!validKeys.has(key)) {
+        selectedKeys.value.delete(key)
+      }
+    })
+  })
 
   const { list: virtualList, containerProps, wrapperProps } = useVirtualList(
     tableData as Ref<T[]>,
@@ -121,17 +200,42 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
     }
   }
 
-  const gridTemplate = computed(() =>
-    tableColumns.value
+  const selectionWidth = computed(() => {
+    if (!selectionEnabled) return ''
+    const width = config.selection?.width ?? 40
+    return typeof width === 'number' ? `${width}px` : width
+  })
+
+  const gridTemplate = computed(() => {
+    const columnsWidth = tableColumns.value
       .map((col) => (typeof col.width === 'number' ? `${col.width}px` : col.width || '1fr'))
       .join(' ')
-  )
+    if (selectionEnabled) {
+      return `${selectionWidth.value} ${columnsWidth}`
+    }
+    return columnsWidth
+  })
+
+  const renderSelectionCell = (row: T) => {
+    const rowKey = getRowKey(row)
+    const checked = isSelected(rowKey)
+    return (
+      <div class="table-cell selection-cell" style={getAlignStyle('center')}>
+        <Checkbox
+          modelValue={checked}
+          onUpdate:modelValue={() => toggleSelect(rowKey)}
+        />
+      </div>
+    )
+  }
 
   const renderRow = (row: T, rowIndex: number) => {
     const rowId = ((row as Record<string, unknown>).id as string | number) || rowIndex
+    const colSpan = tableColumns.value.length + (selectionEnabled ? 1 : 0)
     return (
       <div key={rowId} class="table-row-container">
         <div class="table-row" onClick={() => config.onRowClick?.(row)}>
+          {selectionEnabled && renderSelectionCell(row)}
           {tableColumns.value.map((col) => {
             const result = col.render?.(row, rowIndex) as any
 
@@ -166,7 +270,7 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
           })}
         </div>
         {config.expandRender && isExpanded(rowId) && (
-          <div class="expand-row" style={{ gridColumn: `1 / span ${tableColumns.value.length}` }}>
+          <div class="expand-row" style={{ gridColumn: `1 / span ${colSpan}` }}>
             {config.expandRender(row)}
           </div>
         )}
@@ -219,6 +323,15 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
           >
             {/* 表头行 */}
             <div class="table-header" style={{ gridTemplateColumns: gridTemplateValue }}>
+              {selectionEnabled && (
+                <div class="header-cell selection-header-cell" style={getAlignStyle('center')}>
+                  <Checkbox
+                    modelValue={isAllSelected()}
+                    indeterminate={isIndeterminate()}
+                    onUpdate:modelValue={selectAll}
+                  />
+                </div>
+              )}
               {tableColumns.value.map((col) => (
                 <div
                   key={col.key}
@@ -267,7 +380,16 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
     getData,
     getLoading,
     toggleExpand,
-    isExpanded
+    isExpanded,
+    getSelectedKeys,
+    getSelectedRows,
+    setSelectedKeys,
+    toggleSelect,
+    selectAll,
+    clearSelection,
+    isSelected,
+    isAllSelected,
+    isIndeterminate
   }
 
   if (typeof document !== 'undefined' && !document.getElementById('use-table-styles')) {
@@ -374,6 +496,19 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
         padding: 40px;
         text-align: center;
         color: var(--text-secondary);
+      }
+
+      .selection-header-cell,
+      .selection-cell {
+        width: 40px;
+        min-width: 40px;
+        max-width: 40px;
+        justify-content: center;
+        padding: 4px;
+      }
+
+      .table-row:hover .selection-cell {
+        background: var(--bg-hover);
       }
     `
     document.head.appendChild(style)

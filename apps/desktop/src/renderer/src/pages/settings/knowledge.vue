@@ -5,9 +5,8 @@ const {
   updateKnowledgeBase,
   addKnowledgeBase,
   deleteKnowledgeBase,
-  addDocumentToKnowledgeBase,
   addDocumentsToKnowledgeBase,
-  deleteDocumentFromKnowledgeBase
+  deleteDocumentsFromKnowledgeBase
 } = useKnowledgeStore()
 
 const { Plus, Search, Trash, File, Refresh, Stop, Play, Settings, Folder } = useIcon([
@@ -325,7 +324,31 @@ const showDeleteDocumentModal = async (document: KnowledgeDocument) => {
     }
   })
   if (result) {
-    deleteDocumentFromKnowledgeBase(activeKnowledgeBaseId.value, document.id)
+    deleteDocumentsFromKnowledgeBase(activeKnowledgeBaseId.value, [document.id])
+  }
+}
+
+const selectedDocCount = computed(() => docTableActions.getSelectedKeys().length)
+
+const showBatchDeleteModal = async () => {
+  const selectedKeys = docTableActions.getSelectedKeys()
+  if (selectedKeys.length === 0) return
+
+  const result = await confirm({
+    title: '批量删除文档',
+    content: `确定要删除选中的 ${selectedKeys.length} 个文档吗？此操作不可撤销。`,
+    confirmProps: {
+      danger: true
+    }
+  })
+  if (result) {
+    const idChunks = chunk(selectedKeys as string[], 100)
+    for (const idChunk of idChunks) {
+      deleteDocumentsFromKnowledgeBase(activeKnowledgeBaseId.value, idChunk)
+      await nextTick()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    docTableActions.clearSelection()
   }
 }
 const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } = useUpload({
@@ -403,7 +426,7 @@ const openFolder = (path: string) => {
 const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
 
-const [DocTable] = useTable<KnowledgeDocument>({
+const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
   loading: () => loading.value,
   data: () => filteredDocuments.value,
   autoHeight: {
@@ -415,6 +438,11 @@ const [DocTable] = useTable<KnowledgeDocument>({
     enabled: true,
     itemHeight: 36,
     overscan: 5
+  },
+  selection: {
+    enabled: true,
+    key: 'id',
+    width: 40
   },
   columns: [
     {
@@ -575,7 +603,7 @@ const [DocTable] = useTable<KnowledgeDocument>({
       <FormItem label="文档列表">
         <DocTable />
         <template #label>
-          <div style="display: flex; gap: 4px;">
+          <div style="display: flex; gap: 4px; align-items: center;">
             <Button :loading="uploadLoading" @click="addDocument" size="sm" type="button" variant="text">
               <template #icon>
                 <Plus />
@@ -587,6 +615,19 @@ const [DocTable] = useTable<KnowledgeDocument>({
                 <Folder />
               </template>
               添加文件夹
+            </Button>
+            <Button
+              v-if="selectedDocCount > 0"
+              @click="showBatchDeleteModal"
+              size="sm"
+              type="button"
+              variant="text"
+              danger
+            >
+              <template #icon>
+                <Trash />
+              </template>
+              删除选中({{ selectedDocCount }})
             </Button>
             <div v-if="showSearch">
               <SearchInput ref="searchInputRef" v-model="searchKeyword" placeholder="搜索文档..." size="sm"
