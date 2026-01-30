@@ -1,6 +1,6 @@
 import localforage from 'localforage'
 
-export { cloneDeep, throttle, mapValues, retry, debounce } from 'es-toolkit'
+export { cloneDeep, throttle, mapValues, retry, debounce, chunk } from 'es-toolkit'
 export { blobToDataURL, dataURLToBlob, arrayBufferToBlob } from 'blob-util'
 import { dataURLToBlob as _dataURLToBlob, arrayBufferToBlob as _arrayBufferToBlob } from 'blob-util'
 import stripAnsi from 'strip-ansi'

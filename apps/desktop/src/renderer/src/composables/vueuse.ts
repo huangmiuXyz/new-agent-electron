@@ -1,1 +1,1 @@
-export { useLocalStorage } from '@vueuse/core'
+export { useLocalStorage, useAsyncQueue } from '@vueuse/core'

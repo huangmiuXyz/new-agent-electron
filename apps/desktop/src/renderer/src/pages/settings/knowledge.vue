@@ -331,37 +331,49 @@ const showDeleteDocumentModal = async (document: KnowledgeDocument) => {
 const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } = useUpload({
   onlyText: true,
   onFilesSelected: async (files) => {
-    const docs: KnowledgeDocument[] = []
-    files.forEach((f) => {
-      const doc: KnowledgeDocument = {
-        id: `doc_${nanoid()}`,
-        name: f.filename!,
-        path: f.path!,
-        size: f.size!,
-        type: f.mediaType,
-        created: Date.now(),
-        status: 'processing',
-        url: !f.path ? f.url : undefined,
-        metadata: {
-          modelId: activeKnowledgeBase.value.embeddingModel.modelId,
-          providerId: activeKnowledgeBase.value.embeddingModel.providerId,
-          chunkSize: activeKnowledgeBase.value.embeddingConfig?.chunkSize,
-          chunkOverlap: activeKnowledgeBase.value.embeddingConfig?.chunkOverlap,
-          relativePath: f.relativePath
+    const fileChunks = chunk(files, 50)
+
+    const tasks = fileChunks.map((fileChunk) => async () => {
+      const docs: KnowledgeDocument[] = []
+      fileChunk.forEach((f) => {
+        const doc: KnowledgeDocument = {
+          id: `doc_${nanoid()}`,
+          name: f.filename!,
+          path: f.path!,
+          size: f.size!,
+          type: f.mediaType,
+          created: Date.now(),
+          status: 'processing',
+          url: !f.path ? f.url : undefined,
+          metadata: {
+            modelId: activeKnowledgeBase.value.embeddingModel.modelId,
+            providerId: activeKnowledgeBase.value.embeddingModel.providerId,
+            chunkSize: activeKnowledgeBase.value.embeddingConfig?.chunkSize,
+            chunkOverlap: activeKnowledgeBase.value.embeddingConfig?.chunkOverlap,
+            relativePath: f.relativePath
+          }
         }
-      }
-      docs.push(doc)
+        docs.push(doc)
+      })
+
+      addDocumentsToKnowledgeBase(activeKnowledgeBaseId.value, docs)
+      await nextTick()
+
+      docs.forEach(async (doc) => {
+        const docInKnowledgeBase = activeKnowledgeBase.value?.documents?.find((d) => d.id === doc.id)
+        if (docInKnowledgeBase) {
+          if (!activeKnowledgeBase.value.embeddingModel.modelId) return
+          embedding(docInKnowledgeBase, activeKnowledgeBase.value, false, batchSize.value, {
+            input_type: 'passage'
+          })
+        }
+      })
+      await new Promise((resolve) => setTimeout(resolve, 0))
     })
-    addDocumentsToKnowledgeBase(activeKnowledgeBaseId.value, docs)
-    clearSeletedFiles()
-    await nextTick()
-    docs.forEach(async (doc) => {
-      const docInKnowledgeBase = activeKnowledgeBase.value?.documents?.find((d) => d.id === doc.id)
-      if (docInKnowledgeBase) {
-        if (!activeKnowledgeBase.value.embeddingModel.modelId) return
-        embedding(docInKnowledgeBase, activeKnowledgeBase.value, false, batchSize.value, {
-          input_type: 'passage'
-        })
+
+    useAsyncQueue(tasks, {
+      onFinished: () => {
+        clearSeletedFiles()
       }
     })
   }

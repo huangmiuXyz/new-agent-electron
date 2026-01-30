@@ -1,5 +1,5 @@
-import { useDropZone } from '@vueuse/core'
-import { assetsHandler, formatFileSize, getFileCategory, uploadDir } from '@renderer/utils'
+import { useDropZone, useAsyncQueue } from '@vueuse/core'
+import { assetsHandler, formatFileSize, getFileCategory, uploadDir, chunk } from '@renderer/utils'
 import { arrayBufferToBlob, blobToDataURL } from 'blob-util'
 import { FileUIPart } from 'ai'
 import ignore from 'ignore'
