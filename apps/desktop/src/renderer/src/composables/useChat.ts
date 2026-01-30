@@ -150,11 +150,14 @@ export const useChat = (chatId: string) => {
           updateMessages(chatId, (oldMessages) => {
             const mergedMessages = [...oldMessages]
             updatedMessages.forEach((msg, index) => {
+              if (chat.lastMessage.id === msg.id && error) {
+                msg.metadata.error = error
+              }
               if (index < mergedMessages.length) {
                 mergedMessages[index] = {
                   ...mergedMessages[index],
                   ...msg,
-                  metadata: { ...mergedMessages[index].metadata, ...msg.metadata, error }
+                  metadata: { ...mergedMessages[index].metadata, ...msg.metadata }
                 }
               } else {
                 mergedMessages.push(msg)
