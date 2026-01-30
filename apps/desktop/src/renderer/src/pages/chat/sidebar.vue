@@ -135,7 +135,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 
       <!-- 聊天列表 -->
       <List v-if="chatsStore.allChats.length" :items="chatsStore.allChats" :active-id="chatsStore.activeChatId!"
-        :key-field="'id'" :main-field="'title'" :sub-field="'createdAt'" @select="selectChat"
+        :key-field="'id'" :main-field="'title'" :sub-field="'createdAt'" :item-height="isMobile ? 72 : 40" @select="selectChat"
         @contextmenu="showChatContextMenu">
         <template #main="{ item }">
           <!-- Mobile Premium Layout -->

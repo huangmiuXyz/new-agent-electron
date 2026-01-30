@@ -384,7 +384,7 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
         <ListContainer class="combined-list">
             <List :title="notesStore.currentFolder ? notesStore.currentFolder.name : '笔记'" :items="combinedList"
                 :active-id="activeId!" :key-field="'id'" :main-field="'name'" :logo-field="'icon'" :selectable="true"
-                @select="handleItemClick" @contextmenu="handleContextMenu">
+                :item-height="isMobile ? 72 : 32" @select="handleItemClick" @contextmenu="handleContextMenu">
                 <template #title-tool>
                     <Button v-if="notesStore.currentFolderId" variant="icon" size="sm" @click="handleBackToFolders"
                         title="返回上一级">
