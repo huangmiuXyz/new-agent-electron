@@ -254,13 +254,8 @@ const submenuStyleObject = computed(() => ({
   transformOrigin: submenuTransformOrigin.value
 }))
 
-const handleScroll = () => {
-  if (visible.value) hideContextMenu()
-  if (submenuVisible.value) hideSubmenu()
-}
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll, true)
 
   // 拦截手机返回键，关闭菜单
   useBackButton({
@@ -277,7 +272,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll, true)
   if (hoverTimer) clearTimeout(hoverTimer)
 })
 </script>
