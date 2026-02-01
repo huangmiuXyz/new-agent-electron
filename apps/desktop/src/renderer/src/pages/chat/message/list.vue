@@ -157,6 +157,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
           return
         }
         const { regenerate } = useChat(currentChat.value!.id!)
+        data.metadata?.stop?.()
         regenerate(data.id!)
       }
     },
