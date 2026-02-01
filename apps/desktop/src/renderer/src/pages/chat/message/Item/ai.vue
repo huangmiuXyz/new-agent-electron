@@ -74,14 +74,14 @@ watch(isCurrentPlaying, (playing) => {
             </div>
           </div>
           <div style="display: flex; gap: 8px">
-            <Button v-if="message.metadata?.audio?.chunks?.length" size="sm" @click="togglePlayer"
-              variant="icon" type="button" :class="{ 'is-active': showPlayer }">
+            <Button v-if="message.metadata?.audio?.chunks?.length" size="sm" @click="togglePlayer" variant="icon"
+              type="button" :class="{ 'is-active': showPlayer }">
               <template #icon>
                 <VolumeMedium :style="{ color: showPlayer ? 'var(--accent-color)' : 'inherit' }" />
               </template>
             </Button>
-            <Button v-if="message.metadata?.loading && !message.metadata?.error" size="sm" @click="message.metadata?.stop"
-              variant="icon" type="button">
+            <Button v-if="message.metadata?.loading && !message.metadata?.error && message.metadata.stop" size="sm"
+              @click="message.metadata?.stop" variant="icon" type="button">
               <template #icon>
                 <Stop style="color: red" />
               </template>
@@ -89,8 +89,7 @@ watch(isCurrentPlaying, (playing) => {
           </div>
         </div>
       </div>
-      <ChatMessageItemRagSearch
-        :searching="!message.metadata?.ragSearchDetails?.length && message.metadata!.ragEnabled"
+      <ChatMessageItemRagSearch :searching="!message.metadata?.ragSearchDetails?.length && message.metadata!.ragEnabled"
         :search-details="message.metadata?.ragSearchDetails" />
       <div v-if="
         !message.metadata?.error &&
@@ -105,8 +104,7 @@ watch(isCurrentPlaying, (playing) => {
       </div>
       <ChatMessageItemContent markdown :message="message" />
 
-      <SpeechPlayer v-if="showPlayer && message.metadata?.audio?.chunks"
-        :message-id="message.id"
+      <SpeechPlayer v-if="showPlayer && message.metadata?.audio?.chunks" :message-id="message.id"
         :chunks="message.metadata.audio.chunks" />
 
       <MessageTranslation v-if="message.metadata?.translations || message.metadata?.translationLoading"
@@ -264,8 +262,15 @@ watch(isCurrentPlaying, (playing) => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .queue-title {
