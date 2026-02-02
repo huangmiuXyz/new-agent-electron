@@ -218,6 +218,11 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   gap: 8px;
 }
 
+.messages-content > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
+}
+
 .context-divider {
   display: flex;
   align-items: center;
