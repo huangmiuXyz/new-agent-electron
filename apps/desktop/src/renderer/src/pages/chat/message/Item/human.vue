@@ -56,4 +56,8 @@ const props = defineProps<{
   box-shadow: 0 2px 4px rgba(var(--text-rgb), 0.05);
   word-wrap: break-word;
 }
+
+.msg-content {
+  width: 100%;
+}
 </style>
