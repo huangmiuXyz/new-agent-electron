@@ -9,9 +9,7 @@ import {
   isVNode,
   ref,
   h,
-  Ref,
-  onMounted,
-  onUnmounted
+  Ref
 } from 'vue'
 import { useVirtualList, useElementBounding, useWindowSize } from '@vueuse/core'
 import Checkbox from '@renderer/components/Checkbox.vue'
