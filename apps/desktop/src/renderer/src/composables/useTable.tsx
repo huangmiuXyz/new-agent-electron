@@ -13,68 +13,13 @@ import {
 } from 'vue'
 import { useVirtualList, useElementBounding, useWindowSize } from '@vueuse/core'
 import Checkbox from '@renderer/components/Checkbox.vue'
+import { TableColumn, TableConfig, TableActions } from '@agent-qi/types'
 
-export interface TableColumn<T = any> {
-  key: string
-  label: string
-  width?: string | number // number => px
-  align?: 'left' | 'center' | 'right'
-  headerClass?: string
-  renderType?: 'html'
-  render?: (row: T, index: number) => VNode | string | number | null
-}
-
-export interface TableConfig<T extends Record<string, any>> {
-  columns: MaybeRefOrGetter<TableColumn<T>[]>
-  data?: MaybeRefOrGetter<T[]>
-  loading?: MaybeRefOrGetter<boolean>
-  onRowClick?: (row: T) => void
-  expandRender?: (row: T) => VNode | string | number | null
-  height?: string | number // 表格高度，虚拟滚动时可设置固定高度
-  autoHeight?: {
-    // 自动计算高度，基于视口
-    enabled: boolean
-    bottomOffset?: number // 距离视口底部的距离（默认 20px）
-    minHeight?: number // 最小高度（默认 200px）
-  }
-  virtualScroll?: {
-    enabled: boolean
-    itemHeight: number
-    overscan?: number
-  }
-  selection?: {
-    enabled: boolean
-    key?: string // 唯一标识字段，默认 'id'
-    width?: string | number
-  }
-}
-
-export interface TableActions<T> {
-  setData: (data: T[]) => void
-  setLoading: (loading: boolean) => void
-  setColumns: (columns: TableColumn<T>[]) => void
-  getData: () => T[]
-  getLoading: () => boolean
-  toggleExpand: (id: string | number) => void
-  isExpanded: (id: string | number) => boolean
-  // 选择相关
-  getSelectedKeys: () => (string | number)[]
-  getSelectedRows: () => T[]
-  setSelectedKeys: (keys: (string | number)[]) => void
-  toggleSelect: (key: string | number) => void
-  selectAll: () => void
-  clearSelection: () => void
-  isSelected: (key: string | number) => boolean
-  isAllSelected: () => boolean
-  isIndeterminate: () => boolean
-}
-
-export function useTable<T extends Record<string, any>>(config: TableConfig<T>) {
+export function useTable<T extends Record<string, unknown>>(config: TableConfig<T>) {
   const tableData = shallowRef<T[]>((toValue(config.data) || []) as T[])
   const tableLoading = shallowRef<boolean>(toValue(config.loading) || false)
   const tableColumns = shallowRef<TableColumn<T>[]>(toValue(config.columns) || [])
   const expandedRows = ref(new Set<string | number>())
-  const containerRef = ref<HTMLElement | null>(null)
 
   const virtualEnabled = config.virtualScroll?.enabled ?? false
   const itemHeight = config.virtualScroll?.itemHeight ?? 36

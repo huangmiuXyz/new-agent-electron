@@ -1,20 +1,7 @@
 import { ref, nextTick, watch, computed } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
-
-export interface TerminalTab {
-  id: string
-  title: string
-  instance: Terminal | null
-  addon: FitAddon | null
-  isExecuting?: boolean
-  isExecutingDelayed?: boolean
-  lastExitCode?: number | null
-  isReady?: boolean
-  currentOutput?: string
-  forceContinue?: () => void
-  _cleanup?: () => void
-}
+import { TerminalTab, TerminalActions } from '@agent-qi/types'
 
 const tabs = ref<TerminalTab[]>([])
 const activeTabId = ref<string>('')
@@ -25,7 +12,7 @@ const toolCallToTerminalMap = ref<Record<string, string>>({})
 
 const generateId = () => Math.random().toString(36).substring(2, 9)
 
-export const useTerminal = () => {
+export const useTerminal = (): TerminalActions => {
   const settingsStore = useSettingsStore()
   const agentStore = useAgentStore()
 

@@ -27,7 +27,7 @@ declare global {
     speechMode?: 'sentence' | 'paragraph' | 'full' // 语音生成模式
     speechSpeed?: number // 语音速度
     speechLanguage?: string // 语音语言
-    speechProviderOptions?: Record<string, any> // 语音选项
+    speechProviderOptions?: Record<string, unknown> // 语音选项
   }
 
   // 智能体背景接口

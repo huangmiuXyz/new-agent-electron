@@ -1,4 +1,5 @@
 import { createVNode, render, ref, TransitionGroup, defineComponent, h } from 'vue'
+import type { NotificationType, CloseNotification, NotificationHandler, NotificationApi } from '@agent-qi/types'
 
 export interface NotificationItem {
   id: number
@@ -8,18 +9,6 @@ export interface NotificationItem {
   duration?: number
   timestamp?: number
   read?: boolean
-}
-export type CloseNotification = () => void
-export type NotificationHandler = (content: string, title?: string, duration?: number) => CloseNotification
-
-export interface NotificationApi {
-  info: NotificationHandler
-  success: NotificationHandler
-  error: NotificationHandler
-  warning: NotificationHandler
-  loading: NotificationHandler
-  status: (id: string, text: string, options?: { icon?: string; color?: string; tooltip?: string; pluginName?: string }) => void
-  removeStatus: (id: string) => void
 }
 
 const styleId = 'nexus-notification-style'

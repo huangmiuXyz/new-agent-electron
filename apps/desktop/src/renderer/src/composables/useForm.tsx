@@ -11,12 +11,22 @@ import PathSelector from '@renderer/components/PathSelector.vue'
 import FileUpload from '@renderer/components/FileUpload.vue'
 import Button from '@renderer/components/Button.vue'
 import { useIcon } from './useIcon'
-import zod from 'zod'
 import { zodSchemasToFormfields } from '../utils/zod-to-form'
-import type { CheckboxOption } from '@renderer/components/CheckboxGroup.vue'
 import Markdown from '@renderer/components/Markdown.vue'
-import { VNode, MaybeRefOrGetter, toValue, PropType } from 'vue'
+import zod from 'zod'
+import { VNode, toValue, PropType } from 'vue'
 import { isEqual } from 'es-toolkit'
+import {
+  FormField,
+  FormConfig,
+  FormActions,
+  GroupField,
+  SelectField,
+  ModelSelectorField,
+  CustomField,
+  TextField,
+  CheckboxOption
+} from '@agent-qi/types'
 
 export const FormItem = defineComponent({
   props: {
@@ -45,7 +55,7 @@ export const FormItem = defineComponent({
       default: 'default'
     },
     rest: {
-      type: [Function, Object] as PropType<any>,
+      type: [Function, Object] as PropType<VNode | (() => VNode)>,
       default: () => null
     }
   },
@@ -109,170 +119,6 @@ export const FormItem = defineComponent({
   }
 })
 
-interface BaseField<T> {
-  name: string
-  label?: string
-  required?: boolean
-  disabled?: boolean
-  hint?: string
-  size?: 'sm' | 'md' | 'lg'
-  ifShow?: boolean | ((data: T) => boolean)
-  defaultValue?: T[keyof T]
-  rest?: () => VNode
-}
-
-export interface TextField<T> extends BaseField<T> {
-  type?: 'text' | 'password' | 'email' | 'number'
-  placeholder?: string
-  readonly?: boolean
-}
-
-export interface BooleanField<T> extends BaseField<T> {
-  type?: 'boolean'
-}
-
-export interface SliderField<T> extends BaseField<T> {
-  type?: 'slider'
-  min?: number
-  max?: number
-  step?: number
-  unit?: string
-  unlimited?: boolean
-}
-
-export interface SelectField<T> extends BaseField<T> {
-  type?: 'select'
-  options: { label: string; value: string | number }[]
-  placeholder?: string
-  clearable?: boolean
-}
-
-export interface TextareaField<T> extends BaseField<T> {
-  type?: 'textarea'
-  placeholder?: string
-  readonly?: boolean
-  rows?: number
-  autoResize?: boolean
-}
-
-export interface ArrayField<T> extends BaseField<T> {
-  type?: 'array'
-  placeholder?: string
-}
-
-export interface ObjectField<T> extends BaseField<T> {
-  type?: 'object'
-  keyPlaceholder?: string
-  valuePlaceholder?: string
-}
-
-export interface CheckboxGroupField<T> extends BaseField<T> {
-  type?: 'checkboxGroup'
-  options: CheckboxOption[]
-}
-
-export interface ModelSelectorField<T> extends BaseField<T> {
-  type?: 'modelSelector'
-  placeholder?: string
-  popupPosition?: 'bottom' | 'top'
-  modelCategory?: ModelCategory
-  multiple?: boolean
-  onChange?: (value: { modelId: string; providerId: string }) => void
-}
-
-export interface ColorField<T> extends BaseField<T> {
-  type?: 'color'
-  placeholder?: string
-  presetColors?: string[]
-  showAlpha?: boolean
-}
-
-export interface PathSelectorField<T> extends BaseField<T> {
-  type?: 'path'
-  placeholder?: string
-  readonly?: boolean
-  dialogOptions?: {
-    properties?: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'showHiddenFiles'>
-    filters?: Array<{ name: string; extensions: string[] }>
-    title?: string
-    defaultPath?: string
-  }
-}
-
-export interface UploadField<T> extends BaseField<T> {
-  type: 'upload'
-  multiple?: boolean
-  showUpload?: boolean
-}
-
-export interface CustomField<T> extends BaseField<T> {
-  type: 'custom'
-  render: (data: T) => VNode | null
-}
-
-export interface GroupField<T> extends BaseField<T> {
-  type: 'group'
-  children: FormField<T>[]
-  collapsible?: boolean
-  defaultCollapsed?: boolean
-  noStyle?: boolean
-}
-
-export interface ArrayGroupField<T> extends BaseField<T> {
-  type: 'array-group'
-  children: FormField<T>[]
-  max?: number
-}
-
-export interface RecordGroupField<T> extends BaseField<T> {
-  type: 'record-group'
-  children: FormField<T>[]
-  keyPlaceholder?: string
-}
-
-export type FormField<T> =
-  | TextField<T>
-  | BooleanField<T>
-  | SliderField<T>
-  | SelectField<T>
-  | TextareaField<T>
-  | ArrayField<T>
-  | ObjectField<T>
-  | CheckboxGroupField<T>
-  | ModelSelectorField<T>
-  | ColorField<T>
-  | PathSelectorField<T>
-  | UploadField<T>
-  | CustomField<T>
-  | GroupField<T>
-  | ArrayGroupField<T>
-  | RecordGroupField<T>
-
-export interface FormConfig<T extends Record<string, any>> {
-  title?: string
-  showHeader?: boolean
-  size?: 'sm' | 'md' | 'lg'
-  fields?: MaybeRefOrGetter<FormField<T>[]>
-  schemas?: zod.ZodObject
-  initialData?: T
-  onSubmit?: (data: T) => void
-  onReset?: () => void
-  onChange?: (field: keyof T | undefined, value: T[keyof T] | undefined, data: T) => void
-  filterDefaultValues?: boolean
-}
-
-export interface FormActions<T> {
-  getData: () => T
-  setData: (data: T) => void
-  reset: () => void
-  submit: () => boolean
-  validate: () => boolean
-  setFieldValue: (field: string, value: any) => void
-  setFieldsValue: (data: T) => void
-  getFieldValue: (field: string) => any
-  updateFieldProps: (field: string, props: Record<string, any>) => void
-}
-
 const getNestedValue = (obj: any, path: string) => {
   return path.split('.').reduce((current, key) => current?.[key], obj)
 }
@@ -289,7 +135,7 @@ const setNestedValue = (obj: any, path: string, value: any) => {
   target[lastKey] = value
 }
 
-export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
+export function useForm<T extends Record<string, unknown>>(config: FormConfig<T>) {
   const formData = ref<T>({} as T)
 
   const dynamicFieldProps = ref<Record<string, Record<string, any>>>({})

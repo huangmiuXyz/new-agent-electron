@@ -33,16 +33,20 @@
     "@types/node": "catalog:",
     "ai": "catalog:",
     "openai": "catalog:",
+    "pinia": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plugin-dts": "catalog:",
     "vue": "catalog:",
+    "vue-router": "catalog:",
     "zod": "catalog:"
   },
   "peerDependencies": {
     "@ai-sdk/mcp": "*",
     "ai": "*",
     "openai": "*",
-    "vue": "*"
+    "pinia": "*",
+    "vue": "*",
+    "vue-router": "*"
   }
 }

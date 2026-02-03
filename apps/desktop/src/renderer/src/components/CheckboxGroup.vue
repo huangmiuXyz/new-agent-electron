@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { useIcon } from '../composables/useIcon'
-
-export interface CheckboxOption {
-    label: string
-    value: string
-    description?: string
-    image?: string
-}
+import { CheckboxOption } from '@agent-qi/types'
 
 interface Props {
     options: CheckboxOption[]

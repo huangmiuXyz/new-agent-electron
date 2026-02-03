@@ -1,3 +1,10 @@
+import { App, Ref, VNode, Component } from 'vue';
+import { Pinia } from 'pinia';
+import { Router } from 'vue-router';
+import { Model, Tool } from './ai';
+import { FormActions, FormConfig, TableActions, TableConfig, DownloadProgress, FormField, TableColumn, NotificationApi, ModalActions, TerminalActions } from './components';
+import { RegisteredProvider } from './settings';
+
 /**
  * 插件接口定义
  * 所有插件必须实现此接口
@@ -19,49 +26,71 @@ export interface Plugin {
   readme?: string;
 }
 
+export interface ElectronAPI {
+  getPath: (name: string) => string;
+  getAppPath: () => string;
+  getPluginsPath: () => string;
+  fs: typeof import('fs');
+  path: typeof import('path');
+  shell: {
+    showItemInFolder: (fullPath: string) => void;
+    openPath: (path: string) => Promise<string>;
+    openExternal: (url: string) => Promise<void>;
+    beep: () => void;
+  };
+  pty: {
+    spawn: (options: {
+      id: string;
+      cols?: number;
+      rows?: number;
+      cwd?: string;
+      startupLocation?: string;
+      customLocationPath?: string;
+    }) => Promise<{ id: string }>;
+    write: (id: string, data: string) => Promise<void>;
+    onData: (id: string, callback: (data: string) => void) => () => void;
+    onExit: (id: string, callback: (info: { exitCode: number; signal?: number }) => void) => () => void;
+    resize: (id: string, cols: number, rows: number) => Promise<void>;
+    kill: (id: string) => Promise<void>;
+  };
+  net: {
+    fetch: (url: string, options?: Record<string, unknown>) => Promise<unknown>;
+    download: (options: { url: string; destPath: string; id?: string; offset?: number }) => Promise<{ ok: boolean; error?: string }>;
+    cancelDownload: (id: string) => Promise<void>;
+    onDownloadProgress: (id: string, callback: (progress: DownloadProgress) => void) => () => void;
+  };
+  os: typeof import('os');
+}
+
 /**
  * 插件上下文
  * 提供给插件的应用上下文 and API
  */
 export interface PluginContext {
   /** 应用实例 */
-  app: any;
+  app: App;
   /** Electron API */
-  api: any;
+  api: ElectronAPI;
   /** Pinia 实例 */
-  pinia: any;
+  pinia: Pinia;
   /** 路由实例 */
-  router: any;
+  router: Router;
   /** 插件根路径 */
   basePath: string;
   /** 注册命令 */
-  registerCommand: (name: string, handler: Function) => void;
+  registerCommand: (name: string, handler: (...args: unknown[]) => unknown) => void;
   /** 注册钩子 */
-  registerHook: (name: string, handler: Function) => void;
+  registerHook: (name: string, handler: (...args: unknown[]) => unknown) => void;
   /** 索引数据库存储 */
   localforage: {
-    getItem: (key: string) => Promise<any>;
-    setItem: (key: string, value: any) => Promise<void>;
+    getItem: <T = unknown>(key: string) => Promise<T | null>;
+    setItem: <T = unknown>(key: string, value: T) => Promise<void>;
     removeItem: (key: string) => Promise<void>;
   }
   /** 获取 store */
-  getStore: (storeName: string) => Promise<any>;
+  getStore: <T = unknown>(storeName: string) => Promise<T>;
   /** 通知接口 */
-  notification: {
-    info: (content: string, title?: string, duration?: number) => () => void;
-    success: (content: string, title?: string, duration?: number) => () => void;
-    error: (content: string, title?: string, duration?: number) => () => void;
-    warning: (content: string, title?: string, duration?: number) => () => void;
-    loading: (content: string, title?: string, duration?: number) => () => void;
-    status: (id: string, text: string, options?: {
-      icon?: string;
-      html?: string;
-      color?: string;
-      tooltip?: string;
-      pluginName?: string;
-    }) => void;
-    removeStatus: (id: string) => void;
-  };
+  notification: NotificationApi;
   /** 注册内置工具 */
   registerBuiltinTool: (name: string, tool: Tool) => void;
   /** 注销内置工具 */
@@ -69,27 +98,61 @@ export interface PluginContext {
   /** 注册提供商到当前插件 */
   registerProvider: (
     providerId: string,
-    options?: { name?: string; providerType?: string; form?: any; models?: Model[]; hide?: boolean }
+    options?: { name?: string; providerType?: string; form?: Record<string, unknown>; models?: Model[]; hide?: boolean }
   ) => void;
   /** 注销提供商 */
   unregisterProvider: (providerId: string) => void;
   /** 注册提供商工厂到全局注册表 */
-  registerRegistry: (name: string, factory: any, options?: { hide?: boolean }) => void;
+  registerRegistry: <T = unknown>(name: string, factory: (options: Record<string, unknown>) => T, options?: { hide?: boolean }) => void;
+  /** 注销提供商工厂 */
+  unregisterRegistry: (name: string) => void;
   /** 获取 useForm 工具 */
-  useForm: any;
-  useTable: any;
-  useDownload: any;
-  useIcon: any;
-  useModal: any;
-  useTerminal: () => {
-    show: () => void;
-    createTab: (options: any) => Promise<any>;
+  useForm: <T extends Record<string, unknown> = Record<string, unknown>>(options: FormConfig<T>) => [Component, FormActions<T>];
+  /** 获取 useTable 工具 */
+  useTable: <T extends Record<string, unknown> = Record<string, unknown>>(config: TableConfig<T>) => [Component, TableActions<T>];
+  /** 获取 useDownload 工具 */
+  useDownload: () => {
+    isDownloading: Ref<boolean>;
+    isPaused: Ref<boolean>;
+    progress: Ref<DownloadProgress | null>;
+    startDownload: (options: {
+      url: string
+      destPath: string
+      id: string
+      onSuccess?: () => void
+      onError?: (error: string) => void
+      onProgress?: (progress: DownloadProgress) => void
+    }) => Promise<void>;
+    pauseDownload: (id: string) => Promise<void>;
+    cancelDownload: (id: string) => Promise<void>;
   };
-  components: Record<string, any>;
-  vue: any;
+  /** 获取 useIcon 工具 */
+  useIcon: (iconName: string) => Component;
+  /** 获取 useModal 工具 */
+  useModal: () => ModalActions;
+  /** 获取 useTerminal 工具 */
+  useTerminal: () => TerminalActions;
+  components: Record<string, Component>;
+  vue: {
+    ref: typeof import('vue').ref;
+    reactive: typeof import('vue').reactive;
+    computed: typeof import('vue').computed;
+    watch: typeof import('vue').watch;
+    onMounted: typeof import('vue').onMounted;
+    onUnmounted: typeof import('vue').onUnmounted;
+    nextTick: typeof import('vue').nextTick;
+    markRaw: typeof import('vue').markRaw;
+    h: typeof import('vue').h;
+    defineComponent: typeof import('vue').defineComponent;
+    toRaw: typeof import('vue').toRaw;
+    toRef: typeof import('vue').toRef;
+    toRefs: typeof import('vue').toRefs;
+    isRef: typeof import('vue').isRef;
+    isReactive: typeof import('vue').isReactive;
+  };
   getPluginsDataPath: () => string;
   /** 获取当前插件已注册的提供商 */
-  getRegisteredProviders: () => any[];
+  getRegisteredProviders: () => RegisteredProvider[];
 }
 
 /**
@@ -151,7 +214,7 @@ export interface PluginInfoData {
   /** README 内容 */
   readme?: string;
   /** 其他属性 */
-  [key: string]: any;
+  [key: string]: string | number | boolean | undefined | null | unknown[];
 }
 
 export interface PluginItem {
@@ -165,7 +228,7 @@ export interface PluginItem {
   error?: string;
   path?: string;
   updatedAt?: string;
-  plugin?: any;
+  plugin?: Plugin;
   readme?: string;
 }
 
@@ -176,7 +239,7 @@ export interface Command {
   /** 命令名称 */
   name: string;
   /** 命令处理器 */
-  handler: Function;
+  handler: (...args: unknown[]) => unknown;
   /** 命令所属插件 */
   pluginName: string;
 }
@@ -188,20 +251,20 @@ export interface Hook {
   /** 钩子名称 */
   name: string;
   /** 钩子处理器 */
-  handler: Function;
+  handler: (...args: unknown[]) => unknown;
   /** 钩子所属插件 */
   pluginName: string;
 }
 
 declare global {
-  interface Plugin extends _Plugin { }
-  interface PluginContext extends _PluginContext { }
+  interface Plugin extends _Plugin {}
+  interface PluginContext extends _PluginContext {}
   type PluginStatus = _PluginStatus;
-  interface PluginInfo extends _PluginInfo { }
-  interface PluginInfoData extends _PluginInfoData { }
-  interface PluginItem extends _PluginItem { }
-  interface Command extends _Command { }
-  interface Hook extends _Hook { }
+  interface PluginInfo extends _PluginInfo {}
+  interface PluginInfoData extends _PluginInfoData {}
+  interface PluginItem extends _PluginItem {}
+  interface Command extends _Command {}
+  interface Hook extends _Hook {}
 }
 
 type _Plugin = Plugin;

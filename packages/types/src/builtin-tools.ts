@@ -5,7 +5,7 @@ declare global {
     type: 'string' | 'number' | 'boolean' | 'array' | 'object'
     description: string
     required: boolean
-    default?: any
+    default?: unknown
   }
 
   // 内置工具定义接口
@@ -13,7 +13,7 @@ declare global {
     name: string
     description: string
     parameters: BuiltinToolParameter[]
-    execute: (args: Record<string, any>) => Promise<any>
+    execute: (args: Record<string, unknown>) => Promise<unknown>
   }
 
   // 内置工具类别

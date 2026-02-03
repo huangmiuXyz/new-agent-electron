@@ -1,9 +1,9 @@
-import { UIMessage, UIMessagePart, ProviderMetadata, UIMessageChunk, LanguageModelUsage } from 'ai'
+import { UIMessage, UIMessagePart, ProviderMetadata, UIMessageChunk, LanguageModelUsage, UIDataTypes, UITools } from 'ai'
 import type { Model as openAIModel } from 'openai/resources'
 
 export type AsyncImageResult = {
   images?: Array<{ base64?: string; url?: string } | string>
-  warnings?: any[]
+  warnings?: unknown[]
 }
 export type providerType =
   | 'anthropic'
@@ -40,7 +40,6 @@ export interface MetaData {
     voice: string
     model: string
   }
-  [key: string]: any
 }
 
 export interface RagSearchDetail {
@@ -64,21 +63,20 @@ export type ClientConfig = Record<
     headers?: Record<string, string>
     active: boolean
     tools: Tools
-    [key: string]: any
   }
 >
 export type Tools = Record<string, {
   description?: string;
-  inputSchema: import('zod').ZodType<any>;
-  execute: (args: any, options: { toolCallId: string; chatId: string }) => Promise<any>;
-  render?: any;
+  inputSchema: import('zod').ZodType<unknown>;
+  execute: (args: unknown, options: { toolCallId: string; chatId: string }) => Promise<unknown>;
+  render?: unknown;
   title?: string;
   needsApproval?: boolean;
 }>
 
 export type BaseMessage = UIMessage<MetaData, UIMessageChunk>
 export type Tool = Tools[keyof Tools]
-export type ContentBlock = UIMessagePart<any, any>
+export type ContentBlock<T extends UIDataTypes, K extends UITools> = UIMessagePart<T, K>
 export type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank' | 'speech' | 'tts'
 export interface ModelVoice {
   id: string
@@ -102,7 +100,7 @@ declare global {
   type Tools = _Tools
   type BaseMessage = _BaseMessage
   type Tool = _Tool
-  type ContentBlock = _ContentBlock
+  type ContentBlock<T extends UIDataTypes, K extends UITools> = _ContentBlock<T, K>
   type ModelCategory = _ModelCategory
   interface ModelVoice extends _ModelVoice { }
   interface Model extends _Model { }
@@ -117,7 +115,7 @@ type _ClientConfig = ClientConfig
 type _Tools = Tools
 type _BaseMessage = BaseMessage
 type _Tool = Tool
-type _ContentBlock = ContentBlock
+type _ContentBlock<T extends UIDataTypes, K extends UITools> = ContentBlock<T, K>
 type _ModelCategory = ModelCategory
 type _ModelVoice = ModelVoice
 type _Model = Model
