@@ -193,7 +193,7 @@ export interface FormConfig<T extends Record<string, unknown>> {
   showHeader?: boolean
   size?: 'sm' | 'md' | 'lg'
   fields?: MaybeRefOrGetter<FormField<T>[]>
-  schemas?: zod.AnyZodObject
+  schemas?: zod.ZodObject
   initialData?: T
   onSubmit?: (data: T) => void
   onReset?: () => void

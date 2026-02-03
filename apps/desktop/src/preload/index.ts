@@ -9,9 +9,10 @@ import url from 'url'
 import { app, getCurrentWindow } from '@electron/remote'
 import { exec, spawn, fork } from 'child_process'
 import os from 'os'
+import { type ElectronAPI } from '@agent-qi/types'
 
 
-export const api = {
+export const api: ElectronAPI = {
   ...aiServices(),
   process: {
     platform: process.platform,

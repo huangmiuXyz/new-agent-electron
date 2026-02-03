@@ -4,6 +4,7 @@ import { Router } from 'vue-router';
 import { Model, Tool } from './ai';
 import { FormActions, FormConfig, TableActions, TableConfig, DownloadProgress, FormField, TableColumn, NotificationApi, ModalActions, TerminalActions } from './components';
 import { RegisteredProvider } from './settings';
+import { ElectronAPI } from './electron';
 
 /**
  * 插件接口定义
@@ -24,42 +25,6 @@ export interface Plugin {
   uninstall?: (context: PluginContext) => void | Promise<void>;
   /** README 内容 */
   readme?: string;
-}
-
-export interface ElectronAPI {
-  getPath: (name: string) => string;
-  getAppPath: () => string;
-  getPluginsPath: () => string;
-  fs: typeof import('fs');
-  path: typeof import('path');
-  shell: {
-    showItemInFolder: (fullPath: string) => void;
-    openPath: (path: string) => Promise<string>;
-    openExternal: (url: string) => Promise<void>;
-    beep: () => void;
-  };
-  pty: {
-    spawn: (options: {
-      id: string;
-      cols?: number;
-      rows?: number;
-      cwd?: string;
-      startupLocation?: string;
-      customLocationPath?: string;
-    }) => Promise<{ id: string }>;
-    write: (id: string, data: string) => Promise<void>;
-    onData: (id: string, callback: (data: string) => void) => () => void;
-    onExit: (id: string, callback: (info: { exitCode: number; signal?: number }) => void) => () => void;
-    resize: (id: string, cols: number, rows: number) => Promise<void>;
-    kill: (id: string) => Promise<void>;
-  };
-  net: {
-    fetch: (url: string, options?: Record<string, unknown>) => Promise<unknown>;
-    download: (options: { url: string; destPath: string; id?: string; offset?: number }) => Promise<{ ok: boolean; error?: string }>;
-    cancelDownload: (id: string) => Promise<void>;
-    onDownloadProgress: (id: string, callback: (progress: DownloadProgress) => void) => () => void;
-  };
-  os: typeof import('os');
 }
 
 /**
