@@ -189,31 +189,45 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 }
 </script>
 <template>
-  <AutoScrollContainer ref="messageScrollRef" class="message-scroll-container" :enabled="autoScrollEnabled" :threshold="0">
-    <div class="messages-content">
-      <template v-for="(message, index) in currentChat?.messages" :key="message.id">
-        <div class="message-item-wrapper">
-          <div v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
-            class="context-divider">
-            <div class="divider-line"></div>
-            <span class="divider-text">上下文分割线</span>
-            <div class="divider-line"></div>
+  <div class="message-list-wrapper">
+    <AutoScrollContainer ref="messageScrollRef" class="message-scroll-container" :enabled="autoScrollEnabled"
+      :threshold="0">
+      <div class="messages-content">
+        <template v-for="(message, index) in currentChat?.messages" :key="message.id">
+          <div class="message-item-wrapper">
+            <div v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
+              class="context-divider">
+              <div class="divider-line"></div>
+              <span class="divider-text">上下文分割线</span>
+              <div class="divider-line"></div>
+            </div>
+            <ChatMessageItemHuman v-if="message.role === 'user'" :message="message"
+              :ref="index === lastMessageIndex - 1 ? 'prevMessageRef' : undefined"
+              @contextmenu="onMessageRightClick($event, message)" />
+            <ChatMessageItemAi v-if="message.role === 'assistant'" :message="message" :style="{
+              minHeight: index === lastMessageIndex ? lastMessageHeight : 'auto',
+              height: 'auto',
+              flex: 'none'
+            }" @contextmenu="onMessageRightClick($event, message)" />
           </div>
-          <ChatMessageItemHuman v-if="message.role === 'user'" :message="message"
-            :ref="index === lastMessageIndex - 1 ? 'prevMessageRef' : undefined"
-            @contextmenu="onMessageRightClick($event, message)" />
-          <ChatMessageItemAi v-if="message.role === 'assistant'" :message="message" :style="{
-            minHeight: index === lastMessageIndex ? lastMessageHeight : 'auto',
-            height: 'auto',
-            flex: 'none'
-          }" @contextmenu="onMessageRightClick($event, message)" />
-        </div>
-      </template>
-    </div>
-  </AutoScrollContainer>
+        </template>
+      </div>
+    </AutoScrollContainer>
+
+    <ChatMessageNav :container="messageScrollRef" />
+  </div>
 </template>
 
 <style scoped>
+.message-list-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+
 :deep(.message-scroll-container),
 .message-scroll-container {
   flex: 1;
