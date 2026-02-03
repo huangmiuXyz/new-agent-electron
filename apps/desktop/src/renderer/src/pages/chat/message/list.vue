@@ -191,11 +191,12 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 <template>
   <div class="message-list-wrapper">
     <AutoScrollContainer ref="messageScrollRef" class="message-scroll-container" :enabled="autoScrollEnabled"
-      :threshold="0">
+      :threshold="10">
       <div class="messages-content">
         <template v-for="(message, index) in currentChat?.messages" :key="message.id">
           <div class="message-item-wrapper">
-            <div v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
+            <div
+              v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
               class="context-divider">
               <div class="divider-line"></div>
               <span class="divider-text">上下文分割线</span>
