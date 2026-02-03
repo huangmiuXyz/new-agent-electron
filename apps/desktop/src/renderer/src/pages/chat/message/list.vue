@@ -41,7 +41,7 @@ provide('messageEdit', {
   cancelEdit
 })
 
-const { currentSelectedModel } = storeToRefs(useSettingsStore())
+const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
 const { selectedAgent } = storeToRefs(useAgentStore())
 
 const contextCount = computed(() => {
@@ -190,13 +190,14 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 }
 </script>
 <template>
-  <div class="message-list-wrapper">
+  <div class="message-list-wrapper" :class="{ 'is-centered': display.chatCenteredLayout }">
     <AutoScrollContainer ref="messageScrollRef" class="message-scroll-container" :enabled="autoScrollEnabled"
       :threshold="0">
       <div class="messages-content">
         <template v-for="(message, index) in currentChat?.messages" :key="message.id">
           <div :id="`message-${message.id}`" class="message-item-wrapper">
-            <div v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
+            <div
+              v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
               class="context-divider">
               <div class="divider-line"></div>
               <span class="divider-text">上下文分割线</span>
@@ -229,6 +230,10 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   width: 100%;
 }
 
+.message-list-wrapper.is-centered {
+  max-width: 800px;
+  margin: 0 auto;
+}
 :deep(.message-scroll-container),
 .message-scroll-container {
   flex: 1;
