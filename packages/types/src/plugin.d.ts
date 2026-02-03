@@ -70,12 +70,12 @@ declare global {
     /** 注册提供商到当前插件 */
     registerProvider: (
       providerId: string,
-      options?: { name?: string; form?: any; models?: Model[] }
+      options?: { name?: string; providerType?: string; form?: any; models?: Model[]; hide?: boolean }
     ) => void;
     /** 注销提供商 */
     unregisterProvider: (providerId: string) => void;
     /** 注册提供商工厂到全局注册表 */
-    registerRegistry: (name: string, factory: any) => void;
+    registerRegistry: (name: string, factory: any, options?: { hide?: boolean }) => void;
     /** 获取 useForm 工具 */
     useForm: any;
     useTable: any;

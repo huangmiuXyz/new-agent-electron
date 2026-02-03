@@ -16,7 +16,7 @@ const plugin: Plugin = {
     // 注册到全局模型注册表
     context.registerRegistry('macos-tts', () => {
       return macosProvider;
-    });
+    }, { hide: true });
 
     // 动态获取音色列表并注册提供商
     const models = await macosProvider.listModels();
@@ -24,7 +24,8 @@ const plugin: Plugin = {
     context.registerProvider('macos-tts', {
       name: 'MacOS Native TTS',
       providerType: 'macos-tts',
-      models: models
+      models: models,
+      hide: true
     });
   },
 

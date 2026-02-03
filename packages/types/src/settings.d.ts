@@ -39,6 +39,7 @@ declare global {
     providerType: providerType
     models: Model[]
     pluginName?: string // 标记是否由插件注册
+    hide?: boolean
   }
   // 默认模型设置接口
   interface DefaultModelsSettings {
@@ -66,6 +67,7 @@ declare global {
     models?: Model[]
     baseUrl?: string
     apiKey?: string
+    hide?: boolean
   }
 
   // 设置状态接口

@@ -3,6 +3,7 @@ import { FormItem } from '@renderer/composables/useForm'
 import { getProviderTypes } from '@renderer/services/chatService/registry'
 
 const { getAllProviders, providers } = storeToRefs(useSettingsStore())
+const visibleProviders = computed(() => getAllProviders.value.filter((p) => !p.hide))
 const {
   updateProvider,
   addModelToProvider,
@@ -499,7 +500,7 @@ const VoiceTable = defineComponent({
 
 <template>
   <ListContainer v-if="showList">
-    <List :defaultIcon="useIcon('Box')" title="提供商" :items="getAllProviders" :active-id="activeProviderId" @select="selectProvider" />
+    <List :defaultIcon="useIcon('Box')" title="提供商" :items="visibleProviders" :active-id="activeProviderId" @select="selectProvider" />
   </ListContainer>
 
   <FormContainer v-if="showForm" header-title="模型提供商">

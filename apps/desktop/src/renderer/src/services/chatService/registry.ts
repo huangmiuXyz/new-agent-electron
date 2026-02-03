@@ -237,15 +237,20 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
   })
 })
 
-export const registerProviderFactory = (name: string, factory: ProviderFactory) => {
+export const providerMetadatas = shallowReactive<Record<string, { hide?: boolean }>>({})
+
+export const registerProviderFactory = (name: string, factory: ProviderFactory, options?: { hide?: boolean }) => {
   providerFactories[name] = (options) => {
     const provider = mergeFun(factory(options), providerFactories['openai-compatible'](options))
     return provider
   }
+  if (options?.hide) {
+    providerMetadatas[name] = { hide: true }
+  }
 }
 
 export const getProviderTypes = () => {
-  return Object.keys(providerFactories)
+  return Object.keys(providerFactories).filter((key) => !providerMetadatas[key]?.hide)
 }
 
 export const createRegistry = (options: { apiKey: string; baseURL: string; name: string }) => {

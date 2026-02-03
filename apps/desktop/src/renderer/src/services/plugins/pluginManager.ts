@@ -272,7 +272,7 @@ export class PluginManager {
       },
       registerProvider: (
         providerId: string,
-        options?: { name?: string; providerType?: string; form?: any; models?: Model[] }
+        options?: { name?: string; providerType?: string; form?: any; models?: Model[]; hide?: boolean }
       ) => {
         const settingsStore = useSettingsStore(this.pinia);
 
@@ -290,7 +290,8 @@ export class PluginManager {
             providerType: options?.providerType || providerId,
             pluginName,
             form,
-            models: options?.models
+            models: options?.models,
+            hide: options?.hide
           });
         } else {
           const index = settingsStore.registeredProviders.findIndex(
@@ -303,7 +304,8 @@ export class PluginManager {
               providerType: options?.providerType || exists.providerType,
               form: form || exists.form,
               models: options?.models || exists.models,
-              name: options?.name || exists.name
+              name: options?.name || exists.name,
+              hide: options?.hide ?? exists.hide
             };
             settingsStore.registeredProviders = updatedProviders;
           }
@@ -370,12 +372,12 @@ export class PluginManager {
           }
         }
       },
-      registerRegistry: (name: string, factory: ProviderFactory) => {
+      registerRegistry: (name: string, factory: ProviderFactory, options?: { hide?: boolean }) => {
         if (!this.pluginRegistries.has(pluginName)) {
           this.pluginRegistries.set(pluginName, new Set());
         }
         this.pluginRegistries.get(pluginName)!.add(name);
-        registerProviderFactory(name, factory);
+        registerProviderFactory(name, factory, options);
       },
       getRegisteredProviders: () => {
         const settingsStore = useSettingsStore(this.pinia);
