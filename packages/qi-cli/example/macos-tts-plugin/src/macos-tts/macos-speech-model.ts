@@ -1,6 +1,6 @@
 import { SpeechModelV3 } from '@ai-sdk/provider';
 import { z } from 'zod';
-import { PluginContext } from '../types';
+import type { PluginContext } from '@agent-qi/types';
 
 export const macosSpeechProviderOptionsSchema = z.object({
   /**

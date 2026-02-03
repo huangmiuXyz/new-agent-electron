@@ -1,6 +1,6 @@
 import { SpeechModelV3, ProviderV3 } from '@ai-sdk/provider';
 import { MacOSSpeechModel } from './macos-speech-model';
-import { Model, PluginContext } from '../types';
+import type { Model, PluginContext } from '@agent-qi/types';
 
 export interface MacOSProvider extends Pick<ProviderV3, 'speechModel'> {
   (settings?: {}): {

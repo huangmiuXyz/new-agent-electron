@@ -1,4 +1,4 @@
-import { Plugin, PluginContext } from './types';
+import type { Plugin, PluginContext } from '@agent-qi/types';
 import { createMacOSProvider } from './macos-tts/macos-provider';
 
 /**
@@ -8,7 +8,6 @@ const plugin: Plugin = {
   name: 'macos-tts-plugin',
   version: '1.0.0',
   description: 'MacOS 原生语音合成插件 (say)',
-  author: 'Agent-Qi',
 
   install: async (context: PluginContext) => {
     const macosProvider = createMacOSProvider(context);

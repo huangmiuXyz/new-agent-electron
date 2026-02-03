@@ -1,3 +1,5 @@
+import { VNode, Component, CSSProperties } from 'vue'
+
 export interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'icon' | 'text'
   size?: 'sm' | 'md' | 'lg'
@@ -24,5 +26,5 @@ export interface BaseModalProps {
   onClose?: () => void
   variant?: 'center' | 'drawer'
   showFooter?: boolean
-  modalBodyStyle?: HTMLAttributes
+  modalBodyStyle?: CSSProperties
 }
