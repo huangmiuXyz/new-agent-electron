@@ -1,7 +1,7 @@
-import { ref, nextTick } from 'vue'
+import { AutoScrollContainer } from '@incremark/vue'
 
 // 全局变量，确保在不同组件间共享同一个引用
-const messageScrollRef = ref<any>(null)
+const messageScrollRef = ref<InstanceType<typeof AutoScrollContainer>>()
 
 export const useMessageScroll = () => {
   /**
