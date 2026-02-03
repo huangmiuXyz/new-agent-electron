@@ -212,7 +212,7 @@ const _sendMessage = async () => {
 </script>
 
 <template>
-  <footer class="footer">
+  <footer class="footer" :class="{ 'is-centered': display.chatCenteredLayout }">
     <div class="input-container" ref="inputContainerRef"
       :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
       <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
@@ -281,6 +281,13 @@ const _sendMessage = async () => {
 .footer {
   padding: 10px;
   background: transparent;
+  width: 100%;
+  transition: max-width 0.3s ease, margin 0.3s ease;
+}
+
+.footer.is-centered {
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .input-container {

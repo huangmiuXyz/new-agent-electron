@@ -26,6 +26,12 @@ const [DisplayForm] = useForm({
       name: 'expandThoughtByDefault',
       type: 'boolean',
       label: '默认展开思考内容'
+    },
+    {
+      name: 'chatCenteredLayout',
+      type: 'boolean',
+      label: '聊天内容居中显示',
+      hint: '使聊天内容在宽屏下保持居中固定宽度，提升阅读体验'
     }
   ],
   initialData: settingsStore.display,

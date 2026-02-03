@@ -34,7 +34,8 @@ export const useSettingsStore = defineStore(
       showTerminal: false,
       terminalHeight: 200,
       expandToolsByDefault: true,
-      expandThoughtByDefault: true
+      expandThoughtByDefault: true,
+      chatCenteredLayout: false
     })
 
     const terminal = ref({

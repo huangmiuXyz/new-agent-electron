@@ -7,6 +7,7 @@ declare global {
     fontSize: number
     expandToolsByDefault: boolean
     expandThoughtByDefault: boolean
+    chatCenteredLayout: boolean
   }
 
   // 终端设置接口
