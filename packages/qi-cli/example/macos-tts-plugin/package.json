@@ -1,0 +1,21 @@
+{
+  "name": "macos-tts-plugin",
+  "version": "1.0.0",
+  "description": "MacOS 原生语音合成插件 (say)",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "^3.0.2",
+    "@ai-sdk/provider-utils": "^4.0.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  },
+  "author": "Agent-Qi"
+}

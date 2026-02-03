@@ -1,0 +1,7 @@
+{
+  "name": "macos-tts-plugin",
+  "version": "1.0.0",
+  "description": "MacOS 原生语音合成插件 (say)",
+  "author": "Agent-Qi",
+  "main": "index.js"
+}

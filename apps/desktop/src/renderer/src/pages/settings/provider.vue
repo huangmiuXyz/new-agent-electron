@@ -358,10 +358,10 @@ const refreshModels = async () => {
   loading.value = true
   try {
     const models = await chatService().list_models({
-      apiKey: activeProvider.value!.apiKey!,
-      baseURL: activeProvider.value!.baseUrl!,
-      providerType: activeProvider.value!.providerType!,
-      name: activeProvider.value!.name
+      apiKey: activeProvider.value?.apiKey!,
+      baseURL: activeProvider.value?.baseUrl!,
+      providerType: activeProvider.value?.providerType!,
+      name: activeProvider.value?.name
     })
     formActions.setFieldsValue({
       ...activeProvider.value!,
