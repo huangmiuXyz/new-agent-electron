@@ -107,6 +107,10 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
   ]
   showContextMenu(event, menuOptions, { chatId })
 }
+
+const isChatGenerating = (chat: Chat) => {
+  return chat.messages.some(m => m.metadata?.loading && m.metadata.stop)
+}
 </script>
 
 <template>
@@ -135,8 +139,8 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 
       <!-- 聊天列表 -->
       <List v-if="chatsStore.allChats.length" :items="chatsStore.allChats" :active-id="chatsStore.activeChatId!"
-        :key-field="'id'" :main-field="'title'" :sub-field="'createdAt'" :item-height="isMobile ? 72 : 40" @select="selectChat"
-        @contextmenu="showChatContextMenu">
+        :key-field="'id'" :main-field="'title'" :sub-field="'createdAt'" :item-height="isMobile ? 72 : 40"
+        @select="selectChat" @contextmenu="showChatContextMenu">
         <template #main="{ item }">
           <!-- Mobile Premium Layout -->
           <div v-if="isMobile" class="chat-row">
@@ -149,10 +153,13 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
             </div>
             <div class="content-container">
               <div class="top-row">
-                <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-name">{{
-                  item.title
-                }}</span>
-                <div v-else class="shimmer-title"></div>
+                <div class="chat-name-container">
+                  <div v-if="isChatGenerating(item) && item.id !== chatsStore.activeChatId" class="status-dot generating"></div>
+                  <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-name">{{
+                    item.title
+                    }}</span>
+                  <div v-else class="shimmer-title"></div>
+                </div>
                 <span class="chat-time">{{ formatTime(item.createdAt) }}</span>
               </div>
               <div class="bottom-row">
@@ -162,9 +169,10 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
           </div>
           <!-- PC Original Minimalist Layout -->
           <div v-else class="chat-title-container">
+            <div v-if="isChatGenerating(item) && item.id !== chatsStore.activeChatId" class="status-dot generating"></div>
             <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-title">{{
               item.title
-            }}</span>
+              }}</span>
             <div v-else class="chat-title-loading">
               <div class="loading-spinner-small"></div>
               <span>标题生成中...</span>
@@ -183,6 +191,52 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 <style scoped>
 .chat-title {
   text-wrap: nowrap;
+}
+
+.chat-title-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.chat-name-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.generating {
+  background-color: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+  animation: pulse-dot 1.5s infinite;
+}
+
+@keyframes pulse-dot {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.8);
+  }
+
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
 }
 
 .sidebar.is-mobile {
