@@ -2,7 +2,7 @@ export const useChatsStores = defineStore(
   'chats',
   () => {
     const chats = ref<Chat[]>([])
-    const tempChats = ref<Chat[]>([]) 
+    const tempChats = ref<Chat[]>([])
     const activeChatId = ref<string | null>(null)
     const titleGeneratingChats = ref<Set<string>>(new Set())
 
@@ -43,7 +43,7 @@ export const useChatsStores = defineStore(
       return allChats.value.find((c) => c.id === id)
     }
     const deleteChat = (id: string) => {
-      
+
       const initialLength = chats.value.length
       chats.value = chats.value.filter((c) => {
         if (c.id === id) {
@@ -54,7 +54,7 @@ export const useChatsStores = defineStore(
         return c.id !== id
       })
 
-      
+
       if (chats.value.length === initialLength) {
         tempChats.value = tempChats.value.filter((c) => {
           if (c.id === id) {
@@ -70,12 +70,12 @@ export const useChatsStores = defineStore(
         activeChatId.value = allChats.value[0]?.id || null
       }
     }
-    
-    
-    
 
-    
-    
+
+
+
+
+
     const addMessageToChat = (msg: BaseMessage) => {
       currentChat.value!.messages.push(msg)
       return msg.id
@@ -170,7 +170,7 @@ export const useChatsStores = defineStore(
   {
     persist: {
       storage: indexedDBStorage,
-      paths: ['chats', 'activeChatId'] 
+      paths: ['chats', 'activeChatId']
     }
   }
 )

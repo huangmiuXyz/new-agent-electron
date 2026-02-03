@@ -27,51 +27,67 @@ const scrollContainer = ref<HTMLElement | null>(null)
 
 // 获取聊天存储
 const chatsStore = useChatsStores()
+const { scrollToMessage } = useMessageScroll()
 const settings = useSettingsStore()
-// 生成搜索结果数据
-const searchData = computed(() => {
+
+// 1. 优化 Provider Logo 查找：使用 Map 提高 O(1) 效率
+const providerLogoMap = computed(() => {
+    const map = new Map<string, string>()
+    settings.providers.forEach(p => {
+        if (p.id && p.logo) map.set(p.id, p.logo)
+    })
+    return map
+})
+
+// 2. 优化搜索逻辑：合并 searchData 和 filteredResults，减少全量遍历次数并添加结果上限
+const filteredResults = computed(() => {
+    const searchTrimmed = query.value.trim()
+    if (!searchTrimmed) return []
+
+    const lowerQuery = searchTrimmed.toLowerCase()
     const results: SearchResult[] = []
+    const MAX_RESULTS = 50 // 限制结果数量以保持 UI 响应速度
 
     // 遍历所有聊天
-    chatsStore.chats.forEach(chat => {
+    for (const chat of chatsStore.chats) {
+        if (results.length >= MAX_RESULTS) break
+
+        const chatTitle = chat.title || ''
+        const lowerChatTitle = chatTitle.toLowerCase()
+        const chatTitleMatches = lowerChatTitle.includes(lowerQuery)
+
         // 遍历每个聊天的消息
-        chat.messages.forEach(message => {
-            // 处理消息内容，可能是字符串或ContentBlock数组
-            let contentText = ''
-            contentText = message.parts
+        for (const message of chat.messages) {
+            if (results.length >= MAX_RESULTS) break
+
+            // 提取内容文本
+            const contentText = message.parts
                 .filter(block => block.type === 'text')
                 .map(block => (block as any).text || '')
                 .join('')
-            const metadata = message.metadata
-            // 只搜索有内容的消息
-            if (contentText.trim()) {
+
+            const lowerContent = contentText.toLowerCase()
+            const contentMatches = lowerContent.includes(lowerQuery)
+
+            // 如果标题或内容匹配
+            if (chatTitleMatches || contentMatches) {
+                const metadata = message.metadata
                 results.push({
                     id: `${chat.id}-${message.id}`,
                     chatId: chat.id,
-                    chatTitle: chat.title,
+                    chatTitle: chatTitle,
                     messageId: message.id!,
                     content: contentText,
-                    logo: settings.providers.find(p => p.id === metadata?.provider)?.logo!,
+                    logo: providerLogoMap.value.get(metadata?.provider || '') || '',
                     modelName: metadata?.model || '未知模型',
                     isHuman: message.role === 'user',
                     date: new Date(metadata?.date || chat.createdAt).toLocaleDateString()
                 })
             }
-        })
-    })
+        }
+    }
 
     return results
-})
-
-// 简单的模糊搜索 + 高亮处理
-const filteredResults = computed(() => {
-    if (!query.value.trim()) return []
-
-    const lowerQuery = query.value.toLowerCase()
-    return searchData.value.filter(item =>
-        item.content.toLowerCase().includes(lowerQuery) ||
-        item.chatTitle.toLowerCase().includes(lowerQuery)
-    )
 })
 
 // 监听弹窗打开，自动聚焦并重置状态
@@ -134,17 +150,25 @@ const scrollToActive = () => {
 }
 
 const handleSelect = (item: SearchResult) => {
-    // 设置当前活动聊天
+    // 设置当前活动聊天和目标消息ID
+    scrollToMessage(item.messageId)
     chatsStore.setActiveChat(item.chatId)
     emit('select', item)
     close()
 }
 
-// 关键词高亮渲染
+// 3. 优化高亮逻辑：正则表达式缓存 + 特殊字符转义
+const highlightRegex = computed(() => {
+    const q = query.value.trim()
+    if (!q) return null
+    // 转义正则特殊字符，防止无效正则或 XSS 注入风险
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    return new RegExp(`(${escaped})`, 'gi')
+})
+
 const highlightText = (text: string) => {
-    if (!query.value) return text
-    const reg = new RegExp(`(${query.value})`, 'gi')
-    return text.replace(reg, '<span class="highlight">$1</span>')
+    if (!text || !highlightRegex.value) return text
+    return text.replace(highlightRegex.value, '<span class="highlight">$1</span>')
 }
 
 // 全局快捷键 Cmd/Ctrl + K
@@ -168,7 +192,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
                     <!-- 搜索头部 -->
                     <div class="search-header">
                         <SearchInput ref="searchInputRef" v-model="query" placeholder="搜索聊天记录" size="md"
-                            variant="minimal" :show-icon="true" :debounce="0" @keydown="handleKeydown"
+                            variant="minimal" :show-icon="true" :debounce="200"
                             class="global-search-input" />
                         <div class="shortcut-hint">ESC</div>
                     </div>

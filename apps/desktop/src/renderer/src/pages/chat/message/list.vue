@@ -3,8 +3,9 @@ import type { MenuItem } from '@renderer/composables/useContextMenu'
 import { getLanguageFlag } from '@renderer/utils/flagIcons'
 import { useElementSize } from '@vueuse/core'
 import { AutoScrollContainer } from '@incremark/vue'
+import { useMessageScroll } from '@renderer/composables/useMessageScroll'
 
-const messageScrollRef = useTemplateRef('messageScrollRef')
+const { messageScrollRef } = useMessageScroll()
 const prevMessageRef = ref<HTMLElement>()
 
 const autoScrollEnabled = ref(true)
@@ -40,7 +41,7 @@ provide('messageEdit', {
   cancelEdit
 })
 
-const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
+const { currentSelectedModel } = storeToRefs(useSettingsStore())
 const { selectedAgent } = storeToRefs(useAgentStore())
 
 const contextCount = computed(() => {
@@ -191,12 +192,11 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 <template>
   <div class="message-list-wrapper">
     <AutoScrollContainer ref="messageScrollRef" class="message-scroll-container" :enabled="autoScrollEnabled"
-      :threshold="10">
-      <div class="messages-content" :class="{ 'is-centered': display.chatCenteredLayout }">
+      :threshold="0">
+      <div class="messages-content">
         <template v-for="(message, index) in currentChat?.messages" :key="message.id">
-          <div class="message-item-wrapper">
-            <div
-              v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
+          <div :id="`message-${message.id}`" class="message-item-wrapper">
+            <div v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
               class="context-divider">
               <div class="divider-line"></div>
               <span class="divider-text">上下文分割线</span>
@@ -242,12 +242,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 .messages-content {
   display: block;
   width: 100%;
-  transition: max-width 0.3s ease, margin 0.3s ease;
-}
-
-.messages-content.is-centered {
-  max-width: 800px;
-  margin: 0 auto;
 }
 
 .message-item-wrapper {
@@ -259,6 +253,12 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   will-change: transform;
 
   margin-bottom: 8px;
+  transition: background-color 0.5s ease;
+}
+
+.message-item-wrapper.highlight-jump {
+  background-color: rgba(var(--accent-rgb), 0.15);
+  border-radius: 8px;
 }
 
 .context-divider {
