@@ -57,7 +57,7 @@ const { height: prevMessageHeight } = useElementSize(prevMessageRef)
 
 const lastMessageHeight = computed(() => {
   if (lastMessageIndex.value >= 0 && containerHeight.value > 0 && prevMessageHeight.value > 0) {
-    const height = containerHeight.value - prevMessageHeight.value - 10
+    const height = containerHeight.value - prevMessageHeight.value - 20
     return `${Math.max(0, height)}px`
   }
   return 'auto'
