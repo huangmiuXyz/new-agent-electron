@@ -286,7 +286,6 @@ export const useChat = (chatId: string) => {
 
   return {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
-      // 重新获取最新的聊天数据，确保消息历史是最新的
       const currentChats = getChatById(chatId)
       const chat = createChat(currentChats?.messages || [])
 
