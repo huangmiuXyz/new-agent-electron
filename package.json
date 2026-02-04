@@ -23,6 +23,14 @@
     "typescript": "catalog:"
   },
   "pnpm": {
+    "overrides": {
+      "vite": "^6.0.0"
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "vite": "6"
+      }
+    },
     "onlyBuiltDependencies": [
       "electron",
       "esbuild",
