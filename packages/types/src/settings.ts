@@ -93,4 +93,26 @@ export interface LoadedPluginConfig {
   notificationsDisabled?: boolean
 }
 
+declare global {
+  interface DisplaySettings extends _DisplaySettings {}
+  interface TerminalSettings extends _TerminalSettings {}
+  interface ollamaSettings extends _ollamaSettings {}
+  interface ApiKeyInfo extends _ApiKeyInfo {}
+  interface Provider extends _Provider {}
+  interface DefaultModelsSettings extends _DefaultModelsSettings {}
+  interface RegisteredProvider extends _RegisteredProvider {}
+  interface SettingsState extends _SettingsState {}
+  interface LoadedPluginConfig extends _LoadedPluginConfig {}
+}
+
+type _DisplaySettings = DisplaySettings
+type _TerminalSettings = TerminalSettings
+type _ollamaSettings = ollamaSettings
+type _ApiKeyInfo = ApiKeyInfo
+type _Provider = Provider
+type _DefaultModelsSettings = DefaultModelsSettings
+type _RegisteredProvider = RegisteredProvider
+type _SettingsState = SettingsState
+type _LoadedPluginConfig = LoadedPluginConfig
+
 export {}

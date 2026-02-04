@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useIcon } from '../composables/useIcon'
-import { CheckboxOption } from '@agent-qi/types'
 
 interface Props {
     options: CheckboxOption[]

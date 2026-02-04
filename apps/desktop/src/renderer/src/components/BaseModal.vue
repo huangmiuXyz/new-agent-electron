@@ -57,7 +57,6 @@
 </template>
 
 <script setup lang="ts">
-import type { BaseModalProps } from '@renderer/types/components'
 import Button from './Button.vue'
 import { useIcon } from '@renderer/composables/useIcon'
 import { useBackButton } from '@renderer/composables/useBackButton'

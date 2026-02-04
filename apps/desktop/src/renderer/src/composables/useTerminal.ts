@@ -1,7 +1,6 @@
 import { ref, nextTick, watch, computed } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
-import { TerminalTab, TerminalActions } from '@agent-qi/types'
 
 const tabs = ref<TerminalTab[]>([])
 const activeTabId = ref<string>('')
@@ -226,7 +225,7 @@ export const useTerminal = (): TerminalActions => {
   const createTab = async (options?: {
     toolCallId?: string
     showTerminal?: boolean
-    id: string
+    id?: string
     command?: string
     timeout?: number
   }) => {
@@ -243,8 +242,8 @@ export const useTerminal = (): TerminalActions => {
       tabs.value.push({
         id,
         title,
-        instance: null,
-        addon: null
+        instance: undefined,
+        addon: undefined
       })
       tab = tabs.value[tabs.value.length - 1]
     }
@@ -257,7 +256,7 @@ export const useTerminal = (): TerminalActions => {
 
     if (typeof options?.command !== 'string') return { id }
 
-    if (!tab) return { id, result: { success: false, output: '' } }
+    if (!tab) return { id, result: { success: false, exitCode: null, output: '' } }
 
     await waitForReady(id)
 

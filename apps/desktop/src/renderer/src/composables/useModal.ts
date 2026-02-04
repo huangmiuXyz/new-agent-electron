@@ -1,6 +1,5 @@
 import { createVNode, render, type VNode } from 'vue'
 import BaseModal from '@renderer/components/BaseModal.vue'
-import type { BaseModalProps, ModalActions, ModalResolve } from '@agent-qi/types'
 
 export function useModal(): ModalActions {
   let container: HTMLDivElement | null

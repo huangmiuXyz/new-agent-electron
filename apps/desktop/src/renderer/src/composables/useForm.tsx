@@ -16,17 +16,6 @@ import Markdown from '@renderer/components/Markdown.vue'
 import zod from 'zod'
 import { VNode, toValue, PropType } from 'vue'
 import { isEqual } from 'es-toolkit'
-import {
-  FormField,
-  FormConfig,
-  FormActions,
-  GroupField,
-  SelectField,
-  ModelSelectorField,
-  CustomField,
-  TextField,
-  CheckboxOption
-} from '@agent-qi/types'
 
 export const FormItem = defineComponent({
   props: {

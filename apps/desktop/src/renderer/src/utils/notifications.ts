@@ -1,5 +1,4 @@
 import { createVNode, render, ref, TransitionGroup, defineComponent, h } from 'vue'
-import type { NotificationType, CloseNotification, NotificationHandler, NotificationApi } from '@agent-qi/types'
 
 export interface NotificationItem {
   id: number

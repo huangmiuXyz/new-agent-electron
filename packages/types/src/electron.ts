@@ -90,3 +90,9 @@ export interface ElectronAPI {
     cancelDownload: (id: string) => Promise<void>;
   };
 }
+
+declare global {
+  interface ElectronAPI extends _ElectronAPI {}
+}
+
+type _ElectronAPI = ElectronAPI

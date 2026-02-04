@@ -2,6 +2,9 @@ import { VNode, Component, CSSProperties, MaybeRefOrGetter, Ref } from 'vue'
 import * as zod from 'zod'
 import { ModelCategory } from './ai'
 
+import { Terminal } from 'xterm'
+import { FitAddon } from 'xterm-addon-fit'
+
 export interface DownloadProgress {
   total: number;
   downloaded: number;
@@ -269,8 +272,8 @@ export interface TableActions<T> {
 export interface TerminalTab {
   id: string
   title: string
-  instance: unknown // Terminal
-  addon: unknown // FitAddon
+  instance?: Terminal
+  addon?: FitAddon
   isExecuting?: boolean
   isExecutingDelayed?: boolean
   lastExitCode?: number | null
@@ -285,6 +288,7 @@ export interface TerminalActions {
   activeTabId: Ref<string>
   terminalHeight: Ref<number>
   isResizing: Ref<boolean>
+  terminalSettings: Ref<TerminalSettings>
   createTab: (options?: {
     toolCallId?: string
     showTerminal?: boolean
@@ -294,6 +298,8 @@ export interface TerminalActions {
   }) => Promise<{ id: string; result?: { success: boolean; exitCode: number | null; output: string } }>
   removeTab: (id: string, event?: Event) => void
   switchTab: (id: string) => void
+  setTerminalRef: (el: any, id: string) => void
+  handleWindowResize: () => void
   showTerminal: () => void
   hideTerminal: () => void
   toggleTerminal: () => void
@@ -323,3 +329,76 @@ export interface NotificationApi {
   }) => void
   removeStatus: (id: string) => void
 }
+
+declare global {
+  interface DownloadProgress extends _DownloadProgress {}
+  interface ButtonProps extends _ButtonProps {}
+  interface BaseModalProps extends _BaseModalProps {}
+  interface ModalActions extends _ModalActions {}
+  interface BaseField<T> extends _BaseField<T> {}
+  interface TextField<T> extends _TextField<T> {}
+  interface BooleanField<T> extends _BooleanField<T> {}
+  interface SliderField<T> extends _SliderField<T> {}
+  interface SelectField<T> extends _SelectField<T> {}
+  interface TextareaField<T> extends _TextareaField<T> {}
+  interface ArrayField<T> extends _ArrayField<T> {}
+  interface ObjectField<T> extends _ObjectField<T> {}
+  interface CheckboxOption extends _CheckboxOption {}
+  interface CheckboxGroupField<T> extends _CheckboxGroupField<T> {}
+  interface ModelSelectorField<T> extends _ModelSelectorField<T> {}
+  interface ColorField<T> extends _ColorField<T> {}
+  interface PathSelectorField<T> extends _PathSelectorField<T> {}
+  interface UploadField<T> extends _UploadField<T> {}
+  interface CustomField<T> extends _CustomField<T> {}
+  interface GroupField<T> extends _GroupField<T> {}
+  interface ArrayGroupField<T> extends _ArrayGroupField<T> {}
+  interface RecordGroupField<T> extends _RecordGroupField<T> {}
+  type FormField<T> = _FormField<T>
+  interface FormConfig<T extends Record<string, unknown>> extends _FormConfig<T> {}
+  interface FormActions<T> extends _FormActions<T> {}
+  interface TableColumn<T = unknown> extends _TableColumn<T> {}
+  interface TableConfig<T extends Record<string, unknown>> extends _TableConfig<T> {}
+  interface TableActions<T> extends _TableActions<T> {}
+  interface TerminalTab extends _TerminalTab {}
+  interface TerminalActions extends _TerminalActions {}
+  type NotificationType = _NotificationType
+  type CloseNotification = _CloseNotification
+  type NotificationHandler = _NotificationHandler
+  interface NotificationApi extends _NotificationApi {}
+  type ModalResolve = (value: string | boolean) => void
+}
+
+type _DownloadProgress = DownloadProgress
+type _ButtonProps = ButtonProps
+type _BaseModalProps = BaseModalProps
+type _ModalActions = ModalActions
+type _BaseField<T> = BaseField<T>
+type _TextField<T> = TextField<T>
+type _BooleanField<T> = BooleanField<T>
+type _SliderField<T> = SliderField<T>
+type _SelectField<T> = SelectField<T>
+type _TextareaField<T> = TextareaField<T>
+type _ArrayField<T> = ArrayField<T>
+type _ObjectField<T> = ObjectField<T>
+type _CheckboxOption = CheckboxOption
+type _CheckboxGroupField<T> = CheckboxGroupField<T>
+type _ModelSelectorField<T> = ModelSelectorField<T>
+type _ColorField<T> = ColorField<T>
+type _PathSelectorField<T> = PathSelectorField<T>
+type _UploadField<T> = UploadField<T>
+type _CustomField<T> = CustomField<T>
+type _GroupField<T> = GroupField<T>
+type _ArrayGroupField<T> = ArrayGroupField<T>
+type _RecordGroupField<T> = RecordGroupField<T>
+type _FormField<T> = FormField<T>
+type _FormConfig<T extends Record<string, unknown>> = FormConfig<T>
+type _FormActions<T> = FormActions<T>
+type _TableColumn<T = unknown> = TableColumn<T>
+type _TableConfig<T extends Record<string, unknown>> = TableConfig<T>
+type _TableActions<T> = TableActions<T>
+type _TerminalTab = TerminalTab
+type _TerminalActions = TerminalActions
+type _NotificationType = NotificationType
+type _CloseNotification = CloseNotification
+type _NotificationHandler = NotificationHandler
+type _NotificationApi = NotificationApi

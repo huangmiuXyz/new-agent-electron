@@ -13,7 +13,6 @@ import {
 } from 'vue'
 import { useVirtualList, useElementBounding, useWindowSize } from '@vueuse/core'
 import Checkbox from '@renderer/components/Checkbox.vue'
-import { TableColumn, TableConfig, TableActions } from '@agent-qi/types'
 
 export function useTable<T extends Record<string, unknown>>(config: TableConfig<T>) {
   const tableData = shallowRef<T[]>((toValue(config.data) || []) as T[])

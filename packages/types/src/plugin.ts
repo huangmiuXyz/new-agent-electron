@@ -197,9 +197,6 @@ export interface PluginItem {
   readme?: string;
 }
 
-/**
- * 命令定义
- */
 export interface Command {
   /** 命令名称 */
   name: string;
@@ -209,9 +206,6 @@ export interface Command {
   pluginName: string;
 }
 
-/**
- * 钩子定义
- */
 export interface Hook {
   /** 钩子名称 */
   name: string;
@@ -222,21 +216,24 @@ export interface Hook {
 }
 
 declare global {
-  interface Plugin extends _Plugin {}
-  interface PluginContext extends _PluginContext {}
-  type PluginStatus = _PluginStatus;
-  interface PluginInfo extends _PluginInfo {}
-  interface PluginInfoData extends _PluginInfoData {}
-  interface PluginItem extends _PluginItem {}
-  interface Command extends _Command {}
-  interface Hook extends _Hook {}
+  interface Plugin extends _Plugin { }
+  interface PluginContext extends _PluginContext { }
+  interface PluginContextOptions extends _PluginContextOptions { }
+  type PluginStatus = _PluginStatus
+  interface PluginInfo extends _PluginInfo { }
+  interface PluginInfoData extends _PluginInfoData { }
+  interface PluginItem extends _PluginItem { }
+  interface Command extends _Command { }
+  interface Hook extends _Hook { }
 }
 
-type _Plugin = Plugin;
-type _PluginContext = PluginContext;
-type _PluginStatus = PluginStatus;
-type _PluginInfo = PluginInfo;
-type _PluginInfoData = PluginInfoData;
-type _PluginItem = PluginItem;
-type _Command = Command;
-type _Hook = Hook;
+type _Plugin = Plugin
+type _PluginContext = PluginContext
+type _PluginContextOptions = PluginContextOptions
+type _PluginStatus = PluginStatus
+const _PluginStatus = PluginStatus
+type _PluginInfo = PluginInfo
+type _PluginInfoData = PluginInfoData
+type _PluginItem = PluginItem
+type _Command = Command
+type _Hook = Hook
