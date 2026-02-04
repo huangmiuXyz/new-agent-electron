@@ -5,7 +5,8 @@ import {
   ToolChoice,
   wrapLanguageModel,
   createAgentUIStream,
-  streamText as _streamText
+  streamText as _streamText,
+  isToolUIPart
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
@@ -48,18 +49,31 @@ export interface ImageGenerateOptions {
   providerOptions?: any
 }
 const processMessagesWithToolOutput = (messages: BaseMessage[]): BaseMessage[] => {
-  const processedMessages = JSON.parse(JSON.stringify(messages))
+  const processedMessages = JSON.parse(JSON.stringify(messages)) as BaseMessage[]
   for (const message of processedMessages) {
     if (message.parts && Array.isArray(message.parts)) {
-      for (const part of message.parts) {
-        if (part.toolCallId !== undefined && part.output === undefined) {
-          part.output = {
-            toolResult: {
-              content: [{ type: 'text', text: '' }]
+      message.parts = message.parts.map((part) => {
+        if (!isToolUIPart(part)) {
+          return part
+        }
+        if (!part.output) {
+          const newPart: any = { ...part }
+          delete newPart.title
+          newPart.state = 'output-available'
+          if (newPart.approval !== undefined && newPart.approval.approved === undefined) {
+            newPart.approval = { ...newPart.approval, approved: true }
+          }
+          if (newPart.output === undefined) {
+            newPart.output = {
+              toolResult: {
+                content: [{ type: 'text', text: '' }]
+              }
             }
           }
+          return newPart
         }
-      }
+        return part
+      })
     }
   }
   return processedMessages
@@ -173,6 +187,7 @@ export const chatService = () => {
       ]
     })
     const controller = new AbortController()
+    debugger
     const processedMessages = processMessagesWithToolOutput(messages)
     const uiStream = createAgentUIStream({
       agent,
