@@ -25,7 +25,7 @@ const agentStore = useAgentStore()
       <ChatMessageList />
 
       <!-- 终端区域 -->
-      <div v-if="settingsStore.display.showTerminal" :style="{ height: settingsStore.display.terminalHeight + 'px' }">
+      <div v-show="settingsStore.display.showTerminal" :style="{ height: settingsStore.display.terminalHeight + 'px' }">
         <Term />
       </div>
 
