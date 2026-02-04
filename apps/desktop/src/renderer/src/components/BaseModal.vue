@@ -60,7 +60,7 @@
 import Button from './Button.vue'
 import { useIcon } from '@renderer/composables/useIcon'
 import { useBackButton } from '@renderer/composables/useBackButton'
-
+import { BaseModalProps } from '@renderer/types/components'
 const props = withDefaults(defineProps<BaseModalProps>(), {
   variant: isMobile.value ? 'drawer' : 'center',
   showFooter: true,
