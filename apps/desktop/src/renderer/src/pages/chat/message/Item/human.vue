@@ -40,11 +40,7 @@ const props = defineProps<{
 
 .msg-row:hover {
   /* background-color: var(--bg-hover); */
-}
-
-.msg-row.has-gap {
-  margin-top: 12px;
-}
+} 
 
 .msg-bubble {
   font-size: 14px;
