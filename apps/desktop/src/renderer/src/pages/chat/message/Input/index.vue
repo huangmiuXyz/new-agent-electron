@@ -35,11 +35,25 @@ const MicIcon = useIcon('Mic')
 const MicOffIcon = useIcon('MicOff')
 const VolumeIcon = useIcon('VolumeMedium')
 const VolumeMuteIcon = useIcon('VolumeMute')
+const CloseIcon = useIcon('Close')
+const ClockIcon = useIcon('ClockCircle')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
 const inputContainerRef = useTemplateRef('inputContainerRef')
 const textareaRef = useTemplateRef('textareaRef')
+
+// 当前聊天的预发送消息列表
+const pendingMessages = computed(() => {
+  if (!chatStore.currentChat) return []
+  return chatStore.getPendingMessages(chatStore.currentChat.id)
+})
+
+// 检查是否正在生成回复
+const isGenerating = computed(() => {
+  if (!chatStore.currentChat) return false
+  return chatStore.isChatGenerating(chatStore.currentChat.id)
+})
 
 // 处理文件选择
 const handleFilesSelected = (files: Array<UploadFile>) => {
@@ -49,6 +63,30 @@ const handleFilesSelected = (files: Array<UploadFile>) => {
 // 处理文件移除
 const handleFileRemoved = (index: number) => {
   selectedFiles.value.splice(index, 1)
+}
+
+// 移除预发送消息
+const removePendingMessage = (messageId: string) => {
+  if (!chatStore.currentChat) return
+  chatStore.removePendingMessage(chatStore.currentChat.id, messageId)
+}
+
+// 获取预发送消息的文本预览
+const getPendingMessagePreview = (parts: Array<FileUIPart | TextUIPart>): string => {
+  const textParts = parts.filter((p): p is TextUIPart => p.type === 'text')
+  const fileParts = parts.filter((p): p is FileUIPart => p.type === 'file')
+  
+  let preview = textParts.map(p => p.text).join(' ')
+  if (fileParts.length > 0) {
+    const fileText = fileParts.length === 1 ? '[文件]' : `[${fileParts.length}个文件]`
+    preview = preview ? `${preview} ${fileText}` : fileText
+  }
+  
+  // 截断显示
+  if (preview.length > 50) {
+    preview = preview.substring(0, 50) + '...'
+  }
+  return preview || '[空消息]'
 }
 
 // 语音录制
@@ -173,39 +211,54 @@ const _sendMessage = async () => {
   const input = message.value.trim()
   const hasContent = input || selectedFiles.value.length > 0
 
-  if (hasContent) {
-    message.value = ''
-    nextTick(() => {
-      adjustTextareaHeight({ target: textareaRef.value } as any)
-    })
-    if (chatStore.chats.length === 0) {
-      chatStore.createChat()
+  if (!hasContent) return
+
+  // 构建消息parts
+  const parts: Array<FileUIPart | TextUIPart> = []
+
+  if (input) {
+    parts.push({ type: 'text', text: input })
+  }
+
+  for (const file of selectedFiles.value) {
+    const { path, name, url, ...aiPart } = file
+
+    const res = await fetch(path ?? url!)
+    const buffer = new Uint8Array(await res.arrayBuffer())
+
+    if (isText(null, buffer)) {
+      const text = new TextDecoder('utf-8').decode(buffer)
+      parts.push({ type: 'text', text })
     }
-    const { sendMessages } = useChat(chatStore.currentChat!.id!)
 
-    const parts: Array<FileUIPart | TextUIPart> = []
+    parts.push({
+      ...aiPart,
+      url: path ?? url
+    } as FileUIPart)
+  }
 
-    if (input) {
-      parts.push({ type: 'text', text: input })
-    }
+  // 清空输入
+  message.value = ''
+  selectedFiles.value = []
+  nextTick(() => {
+    adjustTextareaHeight({ target: textareaRef.value } as any)
+  })
 
-    for (const file of selectedFiles.value) {
-      const { path, name, url, ...aiPart } = file
+  // 确保有聊天会话
+  if (chatStore.chats.length === 0) {
+    chatStore.createChat()
+  }
 
-      const res = await fetch(path ?? url!)
-      const buffer = new Uint8Array(await res.arrayBuffer())
+  const chatId = chatStore.currentChat!.id!
+  const { sendMessages } = useChat(chatId)
 
-      if (isText(null, buffer)) {
-        const text = new TextDecoder('utf-8').decode(buffer)
-        parts.push({ type: 'text', text })
-      }
-
-      parts.push({
-        ...aiPart,
-        url: path ?? url
-      })
-    }
-    selectedFiles.value = []
+  // 检查是否正在生成回复
+  if (chatStore.isChatGenerating(chatId)) {
+    // 添加到预发送队列
+    chatStore.addPendingMessage(chatId, parts)
+    messageApi.info('AI正在回复中，消息已进入预发送队列')
+  } else {
+    // 直接发送
     sendMessages(parts)
   }
 }
@@ -213,6 +266,23 @@ const _sendMessage = async () => {
 
 <template>
   <footer class="footer" :class="{ 'is-centered': display.chatCenteredLayout }">
+    <!-- 预发送消息列表 -->
+    <div v-if="pendingMessages.length > 0" class="pending-messages-container">
+      <div class="pending-messages-header">
+        <ClockIcon class="pending-icon" />
+        <span class="pending-title">预发送队列 ({{ pendingMessages.length }})</span>
+        <span v-if="isGenerating" class="pending-status">等待AI回复中...</span>
+      </div>
+      <div class="pending-messages-list">
+        <div v-for="item in pendingMessages" :key="item.id" class="pending-message-item">
+          <span class="pending-message-text">{{ getPendingMessagePreview(item.parts) }}</span>
+          <Button variant="icon" size="sm" class="remove-btn" @click="removePendingMessage(item.id)">
+            <CloseIcon />
+          </Button>
+        </div>
+      </div>
+    </div>
+
     <div class="input-container" ref="inputContainerRef"
       :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
       <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
@@ -263,7 +333,9 @@ const _sendMessage = async () => {
           <!-- 模型选择器 -->
           <ModelSelector type="icon" v-model:model-id="selectedModelId" v-model:provider-id="selectedProviderId" />
         </div>
-        <Button variant="primary" size="md" @click="_sendMessage">发送</Button>
+        <Button variant="primary" size="md" @click="_sendMessage">
+          {{ isGenerating && pendingMessages.length > 0 ? '加入队列' : '发送' }}
+        </Button>
       </div>
 
       <!-- 拖拽提示 -->
@@ -288,6 +360,81 @@ const _sendMessage = async () => {
 .footer.is-centered {
   max-width: 800px;
   margin: 0 auto;
+}
+
+/* 预发送消息列表样式 */
+.pending-messages-container {
+  margin-bottom: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.pending-messages-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.pending-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--color-primary);
+}
+
+.pending-title {
+  font-weight: 500;
+}
+
+.pending-status {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.pending-messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pending-message-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.pending-message-item:hover {
+  background: var(--bg-active);
+}
+
+.pending-message-text {
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.remove-btn {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.remove-btn:hover {
+  opacity: 1;
+  color: var(--color-danger);
 }
 
 .input-container {

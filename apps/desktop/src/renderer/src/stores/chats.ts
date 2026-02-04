@@ -1,3 +1,5 @@
+import { FileUIPart, TextUIPart } from "ai"
+
 export const useChatsStores = defineStore(
   'chats',
   () => {
@@ -27,7 +29,8 @@ export const useChatsStores = defineStore(
         messages: [],
         createdAt: Date.now(),
         agentId: agentStore.selectedAgentId || 'default',
-        isTemp: options?.isTemp
+        isTemp: options?.isTemp,
+        pendingMessages: []
       }
 
       if (options?.isTemp) {
@@ -70,6 +73,7 @@ export const useChatsStores = defineStore(
         activeChatId.value = allChats.value[0]?.id || null
       }
     }
+
 
 
 
@@ -146,6 +150,57 @@ export const useChatsStores = defineStore(
       return newChatId
     }
 
+    // 预发送队列相关方法
+    const getPendingMessages = (chatId: string): PendingMessage[] => {
+      const chat = getChatById(chatId)
+      return chat?.pendingMessages || []
+    }
+
+    const addPendingMessage = (chatId: string, parts: Array<FileUIPart | TextUIPart>): string => {
+      const chat = getChatById(chatId)
+      if (!chat) return ''
+
+      if (!chat.pendingMessages) {
+        chat.pendingMessages = []
+      }
+
+      const id = nanoid()
+      chat.pendingMessages.push({
+        id,
+        parts,
+        timestamp: Date.now()
+      })
+      return id
+    }
+
+    const removePendingMessage = (chatId: string, messageId: string) => {
+      const chat = getChatById(chatId)
+      if (!chat || !chat.pendingMessages) return
+
+      chat.pendingMessages = chat.pendingMessages.filter(m => m.id !== messageId)
+    }
+
+    const clearPendingMessages = (chatId: string) => {
+      const chat = getChatById(chatId)
+      if (!chat) return
+      chat.pendingMessages = []
+    }
+
+    const shiftPendingMessage = (chatId: string): PendingMessage | undefined => {
+      const chat = getChatById(chatId)
+      if (!chat || !chat.pendingMessages || chat.pendingMessages.length === 0) return undefined
+
+      const message = chat.pendingMessages.shift()
+      return message
+    }
+
+    // 检查聊天是否正在生成回复
+    const isChatGenerating = (chatId: string): boolean => {
+      const chat = getChatById(chatId)
+      if (!chat) return false
+      return chat.messages.some(m => m.metadata?.loading && m.metadata.stop)
+    }
+
     return {
       forkChat,
       updateMessages,
@@ -164,7 +219,14 @@ export const useChatsStores = defineStore(
       updateMessage,
       updateMessageMetadata,
       isTitleGenerating,
-      setTitleGenerating
+      setTitleGenerating,
+      // 预发送队列方法
+      getPendingMessages,
+      addPendingMessage,
+      removePendingMessage,
+      clearPendingMessages,
+      shiftPendingMessage,
+      isChatGenerating
     }
   },
   {

@@ -45,7 +45,7 @@ function createSentenceSegmenter(locale: string = 'und') {
 }
 
 export const useChat = (chatId: string) => {
-  const { getChatById, updateMessageMetadata, updateMessages } = useChatsStores()
+  const { getChatById, updateMessageMetadata, updateMessages, shiftPendingMessage, isChatGenerating } = useChatsStores()
   const chats = getChatById(chatId)
 
   const { currentSelectedProvider, currentSelectedModel, thinkingMode, speechEnabled } =
@@ -137,6 +137,17 @@ export const useChat = (chatId: string) => {
 
           useTitle(chatId).generateTitle()
           scope.stop()
+          
+          // 检查并发送预发送队列中的消息
+          const pendingMessage = shiftPendingMessage(chatId)
+          if (pendingMessage) {
+            // 延迟一小段时间再发送，让用户看到回复已完成
+            setTimeout(() => {
+              // 递归调用 useChat 来发送下一条消息
+              const { sendMessages } = useChat(chatId)
+              sendMessages(pendingMessage.parts)
+            }, 100)
+          }
         },
 
         onError: (error) => {
