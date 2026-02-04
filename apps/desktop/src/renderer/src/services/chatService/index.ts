@@ -10,6 +10,7 @@ import {
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
 import { createRagMiddleware } from './middleware/rags'
+import { createContextLimitMiddleware } from './middleware/contextLimit'
 
 interface ChatServiceOptions {
   model: string
@@ -35,6 +36,7 @@ interface ChatServiceConfig {
   presencePenalty?: number
   frequencyPenalty?: number
   maxOutputTokens?: number
+  contextCount?: number
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
 }
 
@@ -64,6 +66,7 @@ export const chatService = () => {
       presencePenalty,
       frequencyPenalty,
       maxOutputTokens,
+      contextCount,
       onBeforeToolExecute
     }: ChatServiceConfig
   ) => {
@@ -103,6 +106,7 @@ export const chatService = () => {
           `${providerType}:${model}`
         ),
         middleware: [
+          createContextLimitMiddleware({ contextCount }),
           createRagMiddleware({
             knowledgeBaseIds,
             ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0 && ragEnabled,

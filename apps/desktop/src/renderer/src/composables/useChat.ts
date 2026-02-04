@@ -111,7 +111,8 @@ export const useChat = (chatId: string) => {
                 topK: agent.selectedAgent?.topK,
                 presencePenalty: agent.selectedAgent?.presencePenalty,
                 frequencyPenalty: agent.selectedAgent?.frequencyPenalty,
-                maxOutputTokens: agent.selectedAgent?.maxOutputTokens
+                maxOutputTokens: agent.selectedAgent?.maxOutputTokens,
+                contextCount: agent.selectedAgent?.contextCount
               }
             )
           },
