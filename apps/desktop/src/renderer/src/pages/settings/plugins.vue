@@ -132,7 +132,7 @@ const showForm = computed(() => !isMobile.value || isDetailResult.value)
 
 // 插件命令表
 const [CommandTable] = useTable<{ name: string; description?: string }>({
-  data: () => (activePlugin.value ? getPluginCommands(activePlugin.value.name) : []),
+  data: activePlugin.value ? getPluginCommands(activePlugin.value.name) : [],
   columns: [
     { key: 'name', label: '命令名称', width: '2fr' },
     {
@@ -209,7 +209,7 @@ const getRegistryCapabilities = (name: string) => {
 }
 
 const [RegistryTable] = useTable<{ name: string }>({
-  data: () => (activePlugin.value ? getPluginRegistries(activePlugin.value.id).map(name => ({ name })) : []),
+  data: activePlugin.value ? getPluginRegistries(activePlugin.value.id).map(name => ({ name })) : [],
   columns: [
     {
       key: 'name',
