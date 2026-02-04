@@ -2,7 +2,7 @@ import { computed, defineComponent, shallowRef, toValue, watchEffect, isVNode, r
 import { useVirtualList, useElementBounding, useWindowSize } from '@vueuse/core'
 import Checkbox from '@renderer/components/Checkbox.vue'
 
-export function useTable<T extends Record<string, unknown>>(config: TableConfig<T>) {
+export function useTable<T>(config: TableConfig<T>) {
   const tableData = shallowRef<T[]>((toValue(config.data) || []) as T[])
   const tableLoading = shallowRef<boolean>(toValue(config.loading) || false)
   const tableColumns = shallowRef<TableColumn<T>[]>(toValue(config.columns) || [])
@@ -231,12 +231,12 @@ export function useTable<T extends Record<string, unknown>>(config: TableConfig<
         const gridTemplateValue = gridTemplate.value
         const virtualStyles = virtualEnabled
           ? {
-              '--virtual-item-height': `${itemHeight}px`,
-              '--virtual-grid-template': gridTemplateValue
-                .split(' ')
-                .map((w) => (w === '1fr' ? 'minmax(0, 1fr)' : w))
-                .join(' ')
-            }
+            '--virtual-item-height': `${itemHeight}px`,
+            '--virtual-grid-template': gridTemplateValue
+              .split(' ')
+              .map((w) => (w === '1fr' ? 'minmax(0, 1fr)' : w))
+              .join(' ')
+          }
           : {}
 
         const wrapperStyle = virtualEnabled
