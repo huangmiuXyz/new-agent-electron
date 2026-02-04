@@ -36,7 +36,7 @@ const MicOffIcon = useIcon('MicOff')
 const VolumeIcon = useIcon('VolumeMedium')
 const VolumeMuteIcon = useIcon('VolumeMute')
 const CloseIcon = useIcon('Close')
-const ClockIcon = useIcon('ClockCircle')
+const PendingIcon = useIcon('FormatListBulleted')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -256,7 +256,6 @@ const _sendMessage = async () => {
   if (chatStore.isChatGenerating(chatId)) {
     // 添加到预发送队列
     chatStore.addPendingMessage(chatId, parts)
-    messageApi.info('AI正在回复中，消息已进入预发送队列')
   } else {
     // 直接发送
     sendMessages(parts)
@@ -269,7 +268,7 @@ const _sendMessage = async () => {
     <!-- 预发送消息列表 -->
     <div v-if="pendingMessages.length > 0" class="pending-messages-container">
       <div class="pending-messages-header">
-        <ClockIcon class="pending-icon" />
+        <PendingIcon class="pending-icon" />
         <span class="pending-title">预发送队列 ({{ pendingMessages.length }})</span>
         <span v-if="isGenerating" class="pending-status">等待AI回复中...</span>
       </div>
