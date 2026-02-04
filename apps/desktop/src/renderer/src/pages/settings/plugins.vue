@@ -159,7 +159,7 @@ const [CommandTable] = useTable<{ name: string; description?: string }>({
 
 // 模型提供商表
 const [ProviderTable] = useTable<Provider>({
-  data: () => (activePlugin.value ? getPluginProviders(activePlugin.value.name) : []),
+  data: activePlugin.value ? getPluginProviders(activePlugin.value.name) : [],
   columns: [
     { key: 'name', label: '提供商名称', width: '2fr' },
     { key: 'id', label: 'ID', width: '2fr' },
