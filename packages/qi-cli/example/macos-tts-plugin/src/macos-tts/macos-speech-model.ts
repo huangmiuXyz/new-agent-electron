@@ -2,12 +2,7 @@ import { SpeechModelV3 } from '@ai-sdk/provider';
 import { z } from 'zod';
 import type { PluginContext } from '@agent-qi/types';
 
-export const macosSpeechProviderOptionsSchema = z.object({
-  /**
-   * 语速
-   */
-  rate: z.number().optional().describe('语速 (words per minute)'),
-});
+export const macosSpeechProviderOptionsSchema = z.object({});
 
 export type MacOSSpeechModelOptions = z.infer<typeof macosSpeechProviderOptionsSchema>;
 
@@ -18,7 +13,7 @@ export class MacOSSpeechModel implements SpeechModelV3 {
   constructor(
     readonly modelId: string,
     private readonly context: PluginContext,
-  ) {}
+  ) { }
 
   get provider(): string {
     return 'macos-tts';
@@ -27,7 +22,7 @@ export class MacOSSpeechModel implements SpeechModelV3 {
   async doGenerate(
     options: Parameters<SpeechModelV3['doGenerate']>[0],
   ): Promise<Awaited<ReturnType<SpeechModelV3['doGenerate']>>> {
-    const { text, voice } = options;
+    const { text, voice, speed = 1.0 } = options;
     const api = this.context.api;
     const fs = api.fs;
     const path = api.path;
@@ -37,11 +32,13 @@ export class MacOSSpeechModel implements SpeechModelV3 {
     const tempFile = path.join(os.tmpdir(), `macos-tts-${Date.now()}.wav`);
 
     try {
-      // say -v <voice> <text> -o <temp_file>.wav --data-format=LEI16@44100
       let command = `say`;
       if (voice) {
         command += ` -v "${voice}"`;
       }
+      const rate = Math.floor(speed * 180);
+      command += ` -r ${rate}`;
+
       command += ` "${text.replace(/"/g, '\\"')}" -o "${tempFile}" --data-format=LEI16@44100`;
 
       await new Promise((resolve, reject) => {
