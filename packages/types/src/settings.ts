@@ -42,7 +42,7 @@ export interface Provider extends ollamaSettings {
   apiKeys?: ApiKeyInfo[]
   activeApiKeyId?: string
   baseUrl: string
-  providerType: string
+  providerType: providerType
   models: Model[]
   pluginName?: string // 标记是否由插件注册
   hide?: boolean
