@@ -284,7 +284,9 @@ export const useChat = (chatId: string) => {
 
   return {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
-      const chat = createChat(chats?.messages!)
+      // 重新获取最新的聊天数据，确保消息历史是最新的
+      const currentChats = getChatById(chatId)
+      const chat = createChat(currentChats?.messages || [])
 
       const parts: Array<FileUIPart | TextUIPart> =
         typeof content === 'string' ? [{ type: 'text', text: content }] : content
@@ -296,15 +298,18 @@ export const useChat = (chatId: string) => {
       })
     },
     continueMessages: () => {
-      const chat = createChat(chats?.messages!)
+      const currentChats = getChatById(chatId)
+      const chat = createChat(currentChats?.messages || [])
       chat.sendMessage()
     },
     regenerate: (messageId: string) => {
-      const chat = createChat(chats?.messages!)
+      const currentChats = getChatById(chatId)
+      const chat = createChat(currentChats?.messages || [])
       chat.regenerate({ messageId })
     },
     approval: (part: ToolUIPart, approved: boolean) => {
-      const chat = createChat(chats?.messages!)
+      const currentChats = getChatById(chatId)
+      const chat = createChat(currentChats?.messages || [])
       chat.addToolApprovalResponse({
         id: part.approval?.id!,
         approved
