@@ -79,7 +79,10 @@ watch(
       settingsFormActions.setFieldsValue({
         notificationDisabled: isPluginNotificationDisabled(plugin.name)
       })
-      incremark.render(plugin.readme || '')
+      incremark.render(plugin.readme ?? '')
+      providerTableActions.setData(getPluginProviders(plugin.name))
+      commandTableActions.setData(getPluginCommands(plugin.name))
+      registryTableActions.setData(getPluginRegistries(plugin.id).map((name) => ({ name })))
     }
   },
   { immediate: true }
@@ -131,8 +134,7 @@ const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
 
 // 插件命令表
-const [CommandTable] = useTable<{ name: string; description?: string }>({
-  data: activePlugin.value ? getPluginCommands(activePlugin.value.name) : [],
+const [CommandTable, commandTableActions] = useTable<{ name: string; description?: string }>({
   columns: [
     { key: 'name', label: '命令名称', width: '2fr' },
     {
@@ -158,8 +160,7 @@ const [CommandTable] = useTable<{ name: string; description?: string }>({
 })
 
 // 模型提供商表
-const [ProviderTable] = useTable<Provider>({
-  data: activePlugin.value ? getPluginProviders(activePlugin.value.name) : [],
+const [ProviderTable, providerTableActions] = useTable<Provider>({
   columns: [
     { key: 'name', label: '提供商名称', width: '2fr' },
     { key: 'id', label: 'ID', width: '2fr' },
@@ -208,8 +209,7 @@ const getRegistryCapabilities = (name: string) => {
   }
 }
 
-const [RegistryTable] = useTable<{ name: string }>({
-  data: activePlugin.value ? getPluginRegistries(activePlugin.value.id).map(name => ({ name })) : [],
+const [RegistryTable, registryTableActions] = useTable<{ name: string }>({
   columns: [
     {
       key: 'name',
