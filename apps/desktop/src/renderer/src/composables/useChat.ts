@@ -2,6 +2,7 @@ import { Chat as _useChat } from '@ai-sdk/vue'
 import type { APICallError, FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai'
 import { speechService } from '../services/speechService'
+import { useMessageScroll } from './useMessageScroll'
 
 function createSentenceSegmenter(locale: string = 'und') {
   const segmenter = new Intl.Segmenter(locale === 'auto' ? 'und' : locale, {
@@ -46,6 +47,7 @@ function createSentenceSegmenter(locale: string = 'und') {
 
 export const useChat = (chatId: string) => {
   const { getChatById, updateMessageMetadata, updateMessages, shiftPendingMessage, isChatGenerating } = useChatsStores()
+  const { messageScrollRef } = useMessageScroll()
   const chats = getChatById(chatId)
 
   const { currentSelectedProvider, currentSelectedModel, thinkingMode, speechEnabled } =
@@ -281,8 +283,15 @@ export const useChat = (chatId: string) => {
     }
   }
 
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messageScrollRef.value?.scrollToBottom()
+    }, 100)
+  }
+
   return {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
+      scrollToBottom()
       const currentChats = getChatById(chatId)
       const chat = createChat(currentChats?.messages || [])
 
@@ -296,11 +305,13 @@ export const useChat = (chatId: string) => {
       })
     },
     continueMessages: () => {
+      scrollToBottom()
       const currentChats = getChatById(chatId)
       const chat = createChat(currentChats?.messages || [])
       chat.sendMessage()
     },
     regenerate: (messageId: string) => {
+      scrollToBottom()
       const currentChats = getChatById(chatId)
       const chat = createChat(currentChats?.messages || [])
       chat.regenerate({ messageId })
