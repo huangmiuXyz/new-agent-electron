@@ -106,7 +106,7 @@ export const useChatsStores = defineStore(
       activeChatId.value = id
     }
 
-    const updateMessage = (cid: string, mid: string, newParts: ContentBlock[]) => {
+    const updateMessage = (cid: string, mid: string, newParts: any[]) => {
       const chat = getChatById(cid)
       if (!chat) return
       const msg = chat.messages.find((m) => m.id === mid)
