@@ -17,7 +17,7 @@ interface ChatServiceOptions {
   baseURL: string
   provider: string
   providerType: providerType
-  tools?: Tools
+  tools?: any
   toolChoice?: ToolChoice<any>
 }
 
