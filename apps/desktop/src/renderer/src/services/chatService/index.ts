@@ -47,6 +47,24 @@ export interface ImageGenerateOptions {
   seed?: number
   providerOptions?: any
 }
+const processMessagesWithToolOutput = (messages: BaseMessage[]): BaseMessage[] => {
+  const processedMessages = JSON.parse(JSON.stringify(messages))
+  for (const message of processedMessages) {
+    if (message.parts && Array.isArray(message.parts)) {
+      for (const part of message.parts) {
+        if (part.toolCallId !== undefined && part.output === undefined) {
+          part.output = {
+            toolResult: {
+              content: [{ type: 'text', text: '' }]
+            }
+          }
+        }
+      }
+    }
+  }
+  return processedMessages
+}
+
 export const chatService = () => {
   const createAgent = async (
     cid: string,
@@ -155,9 +173,10 @@ export const chatService = () => {
       ]
     })
     const controller = new AbortController()
+    const processedMessages = processMessagesWithToolOutput(messages)
     const uiStream = createAgentUIStream({
       agent,
-      uiMessages: JSON.parse(JSON.stringify(messages)),
+      uiMessages: processedMessages,
       abortSignal: controller.signal,
       messageMetadata: ({ part }) => {
         let result = {}

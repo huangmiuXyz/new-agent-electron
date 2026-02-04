@@ -152,6 +152,7 @@ export const useChat = (chatId: string) => {
         },
 
         onError: (error) => {
+          console.log(error);
           syncMessageToStore(error as APICallError)
         }
       })
