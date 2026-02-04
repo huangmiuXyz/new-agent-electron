@@ -138,7 +138,7 @@ export const useChat = (chatId: string) => {
 
           useTitle(chatId).generateTitle()
           scope.stop()
-          
+
           // 检查并发送预发送队列中的消息
           const pendingMessage = shiftPendingMessage(chatId)
           if (pendingMessage) {
@@ -312,7 +312,7 @@ export const useChat = (chatId: string) => {
       const currentChats = getChatById(chatId)
       const chat = createChat(currentChats?.messages || [])
       chat.addToolApprovalResponse({
-        id: part.approval?.id!,
+        id: part.approval!.id!,
         approved
       })
     }
