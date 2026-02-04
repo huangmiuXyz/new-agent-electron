@@ -1,4 +1,4 @@
-import { VNode, Component, CSSProperties, MaybeRefOrGetter, Ref } from 'vue'
+import { VNode, Component, CSSProperties, Ref } from 'vue'
 import * as zod from 'zod'
 import { ModelCategory } from './ai'
 
@@ -191,11 +191,11 @@ export type FormField<T> =
   | ArrayGroupField<T>
   | RecordGroupField<T>
 
-export interface FormConfig<T extends Record<string, unknown>> {
+export interface FormConfig<T> {
   title?: string
   showHeader?: boolean
   size?: 'sm' | 'md' | 'lg'
-  fields?: MaybeRefOrGetter<FormField<T>[]>
+  fields?: FormField<T>[]
   schemas?: zod.ZodObject
   initialData?: T
   onSubmit?: (data: T) => void
@@ -227,9 +227,9 @@ export interface TableColumn<T = unknown> {
 }
 
 export interface TableConfig<T extends Record<string, unknown>> {
-  columns: MaybeRefOrGetter<TableColumn<T>[]>
-  data?: MaybeRefOrGetter<T[]>
-  loading?: MaybeRefOrGetter<boolean>
+  columns: TableColumn<T>[]
+  data?: T[]
+  loading?: boolean
   onRowClick?: (row: T) => void
   expandRender?: (row: T) => VNode | string | number | null
   height?: string | number

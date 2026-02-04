@@ -1,16 +1,4 @@
-import {
-  computed,
-  defineComponent,
-  shallowRef,
-  MaybeRefOrGetter,
-  toValue,
-  VNode,
-  watchEffect,
-  isVNode,
-  ref,
-  h,
-  Ref
-} from 'vue'
+import { computed, defineComponent, shallowRef, toValue, watchEffect, isVNode, ref, h } from 'vue'
 import { useVirtualList, useElementBounding, useWindowSize } from '@vueuse/core'
 import Checkbox from '@renderer/components/Checkbox.vue'
 
@@ -87,13 +75,14 @@ export function useTable<T extends Record<string, unknown>>(config: TableConfig<
     })
   })
 
-  const { list: virtualList, containerProps, wrapperProps } = useVirtualList(
-    tableData as Ref<T[]>,
-    {
-      itemHeight,
-      overscan
-    }
-  )
+  const {
+    list: virtualList,
+    containerProps,
+    wrapperProps
+  } = useVirtualList(tableData.value, {
+    itemHeight,
+    overscan
+  })
 
   const toggleExpand = (id: string | number) => {
     if (expandedRows.value.has(id)) {
@@ -163,10 +152,7 @@ export function useTable<T extends Record<string, unknown>>(config: TableConfig<
     const checked = isSelected(rowKey)
     return (
       <div class="table-cell selection-cell" style={getAlignStyle('center')}>
-        <Checkbox
-          modelValue={checked}
-          onUpdate:modelValue={() => toggleSelect(rowKey)}
-        />
+        <Checkbox modelValue={checked} onUpdate:modelValue={() => toggleSelect(rowKey)} />
       </div>
     )
   }
@@ -220,8 +206,8 @@ export function useTable<T extends Record<string, unknown>>(config: TableConfig<
     )
   }
 
-  const tableWrapperRef = ref<HTMLElement | null>(null)
-  const { top } = useElementBounding(tableWrapperRef)
+  const tableWrapperRef = ref<HTMLElement>()
+  const { top } = useElementBounding(tableWrapperRef.value)
   const { height: windowHeight } = useWindowSize()
 
   const autoHeightEnabled = config.autoHeight?.enabled ?? false
