@@ -85,6 +85,7 @@ export interface SettingsState {
   mcpServers: Record<string, unknown>
   defaultModels: DefaultModelsSettings
   registeredProviders: RegisteredProvider[]
+  providerOptions: Record<string, any>
 }
 
 // 加载的插件配置

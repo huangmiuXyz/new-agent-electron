@@ -46,10 +46,10 @@ function createSentenceSegmenter(locale: string = 'und') {
 }
 
 export const useChat = (chatId: string) => {
-  const { getChatById, updateMessageMetadata, updateMessages, shiftPendingMessage, isChatGenerating } = useChatsStores()
+  const { getChatById, updateMessageMetadata, updateMessages, shiftPendingMessage } = useChatsStores()
   const { messageScrollRef } = useMessageScroll()
 
-  const { currentSelectedProvider, currentSelectedModel, thinkingMode, speechEnabled } =
+  const { currentSelectedProvider, currentSelectedModel, thinkingMode, speechEnabled, providerOptions } =
     storeToRefs(useSettingsStore())
 
   const agent = useAgentStore()
@@ -115,7 +115,8 @@ export const useChat = (chatId: string) => {
                 presencePenalty: agent.selectedAgent?.presencePenalty,
                 frequencyPenalty: agent.selectedAgent?.frequencyPenalty,
                 maxOutputTokens: agent.selectedAgent?.maxOutputTokens,
-                contextCount: agent.selectedAgent?.contextCount
+                contextCount: agent.selectedAgent?.contextCount,
+                providerOptions: providerOptions.value[provider.value]
               }
             )
           },

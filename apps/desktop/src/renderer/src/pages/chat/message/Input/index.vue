@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="tsx">
 import { FileUIPart, TextUIPart } from 'ai'
 import { useTerminal } from '@renderer/composables/useTerminal'
 import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
@@ -6,6 +6,8 @@ import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousV
 import { isText } from 'istextorbinary'
 
 import { usePlugins } from '@renderer/composables/usePlugins'
+import { createRegistry } from '@renderer/services/chatService/registry'
+import { z } from 'zod'
 
 const message = ref('')
 const chatStore = useChatsStores()
@@ -19,13 +21,65 @@ const {
   currentSelectedProvider,
   thinkingMode,
   speechEnabled,
+  providerOptions: allProviderOptions,
   display,
   defaultModels
 } = storeToRefs(useSettingsStore())
-const { updateThinkingMode, updateSpeechEnabled } = useSettingsStore()
+const { updateThinkingMode, updateSpeechEnabled, updateProviderOptions } = useSettingsStore()
+
 const { toggleTerminal } = useTerminal()
 const speechStore = useSpeechStore()
 const agentStore = useAgentStore()
+const modal = useModal()
+
+// 提供商参数设置
+const openProviderOptionsModal = () => {
+  const schema = (() => {
+    try {
+      const registry = createRegistry({
+        apiKey: currentSelectedProvider.value?.apiKey || '',
+        baseURL: currentSelectedProvider.value?.baseUrl || '',
+        name: selectedProviderId.value
+      })
+      const provider = registry.getProvider(currentSelectedProvider.value?.providerType || '')
+      return provider?.chatCallOptionsSchema
+    } catch (e) {
+      console.warn('Failed to get chat options schema:', e)
+      return null
+    }
+  })()
+
+  if (!schema) {
+    modal.confirm({
+      title: '参数设置',
+      content: '当前提供商不支持参数配置',
+      showCancel: false,
+      confirmText: '确定'
+    })
+    return
+  }
+
+  const [FormComponent, formActions] = useForm<Record<string, any>>({
+    schemas: schema as z.ZodObject<any>,
+    initialData: allProviderOptions.value[selectedProviderId.value] || {},
+    size: 'sm',
+    onSubmit: (data) => {
+      updateProviderOptions(selectedProviderId.value, data)
+      modal.remove()
+    }
+  })
+
+  modal.confirm({
+    title: '参数设置',
+    width: '400px',
+    content: FormComponent,
+    confirmText: '应用',
+    cancelText: '取消',
+    onOk: () => {
+      formActions.submit()
+    }
+  })
+}
 
 // 图标
 const FileUploadIcon = useIcon('UploadOutlined')
@@ -37,6 +91,7 @@ const VolumeIcon = useIcon('VolumeMedium')
 const VolumeMuteIcon = useIcon('VolumeMute')
 const CloseIcon = useIcon('Close')
 const PendingIcon = useIcon('FormatListBulleted')
+const SettingsIcon = useIcon('Settings')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -75,13 +130,13 @@ const removePendingMessage = (messageId: string) => {
 const getPendingMessagePreview = (parts: Array<FileUIPart | TextUIPart>): string => {
   const textParts = parts.filter((p): p is TextUIPart => p.type === 'text')
   const fileParts = parts.filter((p): p is FileUIPart => p.type === 'file')
-  
+
   let preview = textParts.map(p => p.text).join(' ')
   if (fileParts.length > 0) {
     const fileText = fileParts.length === 1 ? '[文件]' : `[${fileParts.length}个文件]`
     preview = preview ? `${preview} ${fileText}` : fileText
   }
-  
+
   // 截断显示
   if (preview.length > 50) {
     preview = preview.substring(0, 50) + '...'
@@ -305,6 +360,13 @@ const _sendMessage = async () => {
           <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
             @click="updateThinkingMode(!thinkingMode)" title="思考模式">
             <Bulb />
+          </Button>
+
+          <!-- 提供商参数设置按钮 -->
+          <Button variant="icon" size="sm"
+            :class="{ 'options-active': Object.keys(allProviderOptions[selectedProviderId] || {}).length > 0 }"
+            title="参数设置" @click="openProviderOptionsModal">
+            <SettingsIcon />
           </Button>
 
           <!-- 终端按钮 -->
@@ -538,6 +600,11 @@ const _sendMessage = async () => {
 }
 
 .thinking-active {
+  color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+}
+
+.options-active {
   color: var(--color-primary);
   background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
 }

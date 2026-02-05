@@ -1,4 +1,5 @@
-import { createMoonshotAI } from '@ai-sdk/moonshotai';
+import { createMoonshotAI, type MoonshotAIProvider } from '@ai-sdk/moonshotai';
+import { z, type ZodObject } from 'zod';
 
 export interface MoonshotProviderSettings {
   apiKey?: string;
@@ -6,10 +7,29 @@ export interface MoonshotProviderSettings {
   headers?: Record<string, string>;
 }
 
+/** Moonshot AI 聊天调用参数 Schema */
+export const moonshotChatOptionsSchema = z.object({
+  thinking: z.object({
+    type: z.enum(['enabled', 'disabled']).optional().describe('思考模式'),
+    budgetTokens: z.number().min(0).max(4096).optional().describe('Token 预算'),
+  }).optional().describe('思考模式配置'),
+  reasoningHistory: z.enum(['disabled', 'interleaved', 'preserved']).optional().describe('推理历史保留方式'),
+});
+
+/** 扩展的 Provider 类型 */
+export interface MoonshotProvider extends MoonshotAIProvider {
+  chatCallOptionsSchema?: ZodObject<any>;
+}
+
 export function createMoonshot(options: MoonshotProviderSettings = {}) {
-  return createMoonshotAI({
+  const provider = createMoonshotAI({
     apiKey: options.apiKey,
     baseURL: options.baseURL,
     headers: options.headers,
+  });
+
+  // 扩展 provider，添加 chatCallOptionsSchema
+  return Object.assign(provider, {
+    chatCallOptionsSchema: moonshotChatOptionsSchema,
   });
 }

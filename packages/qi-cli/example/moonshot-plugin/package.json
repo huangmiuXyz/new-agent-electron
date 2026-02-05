@@ -8,7 +8,8 @@
     "dev": "vite build --watch"
   },
   "dependencies": {
-    "@ai-sdk/moonshotai": "*"
+    "@ai-sdk/moonshotai": "*",
+    "zod": "*"
   },
   "devDependencies": {
     "@agent-qi/types": "workspace:*",

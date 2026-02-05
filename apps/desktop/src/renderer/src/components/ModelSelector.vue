@@ -154,7 +154,7 @@ const handleModelSelect = (id: string) => {
 </script>
 
 <template>
-  <SelectorPopover v-model:visiable="isPopupOpen" :data="flatModelList" v-model:searchQuery="searchQuery"
+  <SelectorPopover v-model:visible="isPopupOpen" :data="flatModelList" v-model:searchQuery="searchQuery"
     placeholder="搜索模型..." noResultsText="未找到模型" :hasResults="filteredModels.length > 0" width="240px" title="选择模型"
     :position="popupPosition || 'top'">
     <template #trigger>

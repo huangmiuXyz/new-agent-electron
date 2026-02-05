@@ -156,7 +156,10 @@ export const useChatsStores = defineStore(
       return chat?.pendingMessages || []
     }
 
-    const addPendingMessage = (chatId: string, parts: Array<FileUIPart | TextUIPart>): string => {
+    const addPendingMessage = (
+      chatId: string,
+      parts: Array<FileUIPart | TextUIPart>
+    ): string => {
       const chat = getChatById(chatId)
       if (!chat) return ''
 

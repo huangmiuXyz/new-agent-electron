@@ -78,6 +78,7 @@ export const useSettingsStore = defineStore(
     })
     const thinkingMode = ref(false)
     const speechEnabled = ref(false)
+    const providerOptions = ref<Record<string, any>>({})
 
     const updateThinkingMode = (mode: boolean) => {
       thinkingMode.value = mode
@@ -85,6 +86,10 @@ export const useSettingsStore = defineStore(
 
     const updateSpeechEnabled = (enabled: boolean) => {
       speechEnabled.value = enabled
+    }
+
+    const updateProviderOptions = (id: string, options: Record<string, any>) => {
+      providerOptions.value[id] = options
     }
 
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
@@ -351,10 +356,12 @@ export const useSettingsStore = defineStore(
       defaultModels,
       thinkingMode,
       speechEnabled,
+      providerOptions,
       imageGenerationForm,
       updateImageGenerationForm,
       updateThinkingMode,
       updateSpeechEnabled,
+      updateProviderOptions,
       updateDisplaySettings,
       updateTerminalSettings,
       addRegisteredProvider,
@@ -400,6 +407,7 @@ export const useSettingsStore = defineStore(
         'defaultModels',
         'thinkingMode',
         'speechEnabled',
+        'providerOptions',
         'selectedModelId',
         'selectedProviderId',
         'currentSelectedProvider',

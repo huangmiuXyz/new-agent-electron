@@ -650,7 +650,7 @@ const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
                 <Search />
               </template>
             </Button>
-            <SelectorPopover @ok="batchSettingsActions.submit()" v-model:visiable="showBatchSettings" title="知识库设置"
+            <SelectorPopover @ok="batchSettingsActions.submit()" v-model:visible="showBatchSettings" title="知识库设置"
               width="240px" position="bottom">
               <template #trigger>
                 <Button :class="{ active: showBatchSettings }" size="sm" type="button" variant="text">

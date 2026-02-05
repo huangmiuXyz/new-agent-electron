@@ -38,6 +38,7 @@ interface ChatServiceConfig {
   frequencyPenalty?: number
   maxOutputTokens?: number
   contextCount?: number
+  providerOptions?: Record<string, any>
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
 }
 
@@ -99,6 +100,7 @@ export const chatService = () => {
       frequencyPenalty,
       maxOutputTokens,
       contextCount,
+      providerOptions: customProviderOptions,
       onBeforeToolExecute
     }: ChatServiceConfig
   ) => {
@@ -150,14 +152,17 @@ export const chatService = () => {
       }),
       providerOptions: {
         [providerType]: {
-          thinking: {
-            type: thinkingMode ? 'enabled' : 'disabled'
-          }
+          ...(thinkingMode !== undefined && {
+            thinking: {
+              type: thinkingMode ? 'enabled' : 'disabled'
+            }
+          }),
+          ...customProviderOptions
         }
       },
       tools: mapValues(tools, (t) => ({
         ...t,
-        execute: async (input, options) => {
+        execute: async (input: any, options: any) => {
           await onBeforeToolExecute?.({ tool: t, input, options })
           const result = await t.execute(input, {
             ...JSON.parse(JSON.stringify(options)),

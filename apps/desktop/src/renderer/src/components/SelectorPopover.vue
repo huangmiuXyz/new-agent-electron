@@ -9,13 +9,13 @@ const props = defineProps<{
   data?: Array<any>
   title?: string
 }>()
-const visiable = defineModel<boolean>('visiable')
+const visible = defineModel<boolean>('visible')
 const searchQuery = defineModel<string>('searchQuery')
 
 const containerRef = ref<HTMLElement>()
 
 const closePopup = () => {
-  visiable.value = false
+  visible.value = false
 }
 
 const handleClickOutside = (event: MouseEvent) => {
@@ -26,7 +26,7 @@ const handleClickOutside = (event: MouseEvent) => {
 }
 
 watch(
-  () => visiable.value,
+  () => visible.value,
   (newVal) => {
     if (newVal) {
       nextTick(() => {
@@ -46,7 +46,7 @@ const handleSearch = (value: string) => {
   searchQuery.value = value
 }
 const triggerClick = () => {
-  visiable.value = !visiable.value
+  visible.value = !visible.value
 }
 const emits = defineEmits(['ok'])
 const onOk = () => {
@@ -60,7 +60,7 @@ const onOk = () => {
       <slot name="trigger"></slot>
     </div>
 
-    <BaseModal @ok="onOk" :title="title!" v-if="isMobile && visiable">
+    <BaseModal @ok="onOk" :title="title!" v-if="isMobile && visible">
       <div v-if="$slots.content" class="content">
         <slot name="content"></slot>
       </div>
@@ -80,12 +80,12 @@ const onOk = () => {
     </BaseModal>
     <div v-if="!isMobile" class="selector-wrapper">
       <div class="selector-popup" :class="{
-        show: visiable,
+        show: visible,
         'position-bottom': (position || 'top') === 'top',
         'position-top': position === 'bottom'
       }" :style="{
         width: width || '240px',
-        animation: visiable
+        animation: visible
           ? (position || 'top') === 'top'
             ? 'popupFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'
             : 'popupFadeInTop 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'

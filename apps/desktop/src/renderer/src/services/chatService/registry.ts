@@ -14,6 +14,8 @@ export interface ProviderV3Extends extends ProviderV3 {
   listModels?: () => Promise<Model[]>
   speechCallOptionsSchema?: z.ZodObject
   imageCallOptionsSchema?: z.ZodObject
+  /** 聊天调用的参数选项 Schema */
+  chatCallOptionsSchema?: z.ZodObject<any>
   generateImageAsyncTask: (params: Parameters<typeof generateImage>[0]) => {
     task_id: string
   }

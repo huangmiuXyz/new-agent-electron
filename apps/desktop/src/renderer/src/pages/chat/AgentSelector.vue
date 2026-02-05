@@ -58,8 +58,8 @@ const { openAgentModal } = useAgent()
 </script>
 
 <template>
-  <SelectorPopover v-model:visiable="isPopupOpen" v-model:searchQuery="searchQuery" placeholder="搜索智能体..."
-    noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0" width="300px" title="选择智能体">
+  <SelectorPopover v-model:visible="isPopupOpen" :data="allAgents" v-model:searchQuery="searchQuery"
+    placeholder="搜索智能体..." noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0" width="300px" title="选择智能体">
     <template #trigger>
       <div class="agent-btn" v-if="type === 'select'" :title="selectedAgentLabel">
         <Image v-if="selectedAgent?.avatar" class="agent-avatar"
