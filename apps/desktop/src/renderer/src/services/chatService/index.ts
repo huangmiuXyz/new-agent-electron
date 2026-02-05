@@ -187,7 +187,6 @@ export const chatService = () => {
       ]
     })
     const controller = new AbortController()
-    debugger
     const processedMessages = processMessagesWithToolOutput(messages)
     const uiStream = createAgentUIStream({
       agent,
