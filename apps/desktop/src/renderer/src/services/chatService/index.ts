@@ -12,6 +12,7 @@ import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
 import { createRagMiddleware } from './middleware/rags'
 import { createContextLimitMiddleware } from './middleware/contextLimit'
+import { createCompressContextMiddleware } from './middleware/compressContext'
 
 interface ChatServiceOptions {
   model: string
@@ -140,6 +141,7 @@ export const chatService = () => {
           `${providerType}:${model}`
         ),
         middleware: [
+          createCompressContextMiddleware(),
           createContextLimitMiddleware({ contextCount }),
           createRagMiddleware({
             knowledgeBaseIds,
@@ -167,6 +169,8 @@ export const chatService = () => {
           const result = await t.execute(input, {
             ...JSON.parse(JSON.stringify(options)),
             chatId: cid,
+            model,
+            provider,
             abortSignal: controller.signal
           })
           return result

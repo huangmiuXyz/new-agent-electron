@@ -16,6 +16,7 @@ export type providerType =
   | 'hume'
   | 'elevenlabs'
 export interface MetaData {
+  isCompressedContext?: boolean
   provider: string
   date: number
   model: string
@@ -69,7 +70,11 @@ export type ClientConfig = Record<
 export type Tools = Record<string, {
   description?: string;
   inputSchema: import('zod').ZodType<unknown>;
-  execute: (args: unknown, options: { toolCallId: string; chatId: string }) => Promise<unknown>;
+  execute: (args: unknown, options: {
+    toolCallId: string; chatId: string;
+    model: string,
+    provider: string,
+  }) => Promise<unknown>;
   render?: unknown;
   title?: string;
   needsApproval?: boolean;

@@ -457,7 +457,7 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
         prompt: z.string().describe('生成图片的提示词，建议使用详细的描述。'),
       }),
       render: ImageRender,
-      execute: async (args: { prompt: string }, options: { toolCallId: string; chatId: string }) => {
+      execute: async (args: any, options: any) => {
         const { prompt } = args
         const settingsStore = useSettingsStore()
         const imageForm = settingsStore.imageGenerationForm
@@ -540,6 +540,97 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
           return {
             error: error instanceof Error ? error.message : String(error),
             image_metadata: metadata
+          }
+        }
+      }
+    },
+    compress_context: {
+      title: '压缩上下文',
+      description: '当对话历史过长时，大模型调用此工具提交压缩后的上下文摘要。工具会保存压缩结果并在后续对话中使用。',
+      inputSchema: z.object({
+        compressed_summary: z.string().describe('压缩后的上下文摘要内容，由大模型生成，包含对话的关键信息、结论和需要记住的要点')
+      }),
+      execute: async (args: unknown, options: {
+        chatId: string
+        model: string,
+        provider: string,
+      }) => {
+        const params = args as Record<string, any>
+        const { compressed_summary } = params
+
+        if (!compressed_summary || typeof compressed_summary !== 'string') {
+          return {
+            toolResult: {
+              content: [
+                {
+                  type: 'text',
+                  text: '保存失败：压缩内容不能为空'
+                }
+              ]
+            }
+          }
+        }
+
+        try {
+          const { getChatById, updateMessages } = useChatsStores()
+          const chat = getChatById(options.chatId)
+
+          if (!chat) {
+            return {
+              toolResult: {
+                content: [
+                  {
+                    type: 'text',
+                    text: '保存失败：未找到当前对话'
+                  }
+                ]
+              }
+            }
+          }
+
+          // 创建压缩上下文标记消息
+          const compressedMessage: BaseMessage = {
+            id: nanoid(),
+            role: 'system',
+            parts: [
+              {
+                type: 'text',
+                text: `[上下文已压缩] 以下是之前对话的关键信息摘要：\n${compressed_summary}`
+              }
+            ],
+            metadata: {
+              isCompressedContext: true,
+              date: Date.now(),
+              provider: options.provider,
+              model: options.model,
+              cid: options.chatId
+            } as MetaData
+          }
+
+          updateMessages(options.chatId, (messages) => {
+            return [...messages, compressedMessage]
+          })
+
+          return {
+            toolResult: {
+              content: [
+                {
+                  type: 'text',
+                  text: `上下文压缩已保存。压缩内容长度：${compressed_summary.length}字符。后续对话将基于压缩后的上下文进行。`
+                }
+              ]
+            }
+          }
+        } catch (error) {
+          return {
+            toolResult: {
+              content: [
+                {
+                  type: 'text',
+                  text: `保存压缩上下文失败: ${(error as Error).message}`
+                }
+              ]
+            }
           }
         }
       }
