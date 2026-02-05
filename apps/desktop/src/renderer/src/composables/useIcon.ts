@@ -104,7 +104,7 @@ import {
 } from '@vicons/fluent'
 import { Globe, Mic, MicOff, Sparkles, VolumeMute, VolumeMedium } from '@vicons/ionicons5'
 import { ArrowBackIosNewSharp, EditNoteFilled, UploadOutlined } from '@vicons/material'
-const icons = {
+export const icons = {
   Edit,
   Pencil: Edit,
   Plus: Add,

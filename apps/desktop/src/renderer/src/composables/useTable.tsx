@@ -442,5 +442,5 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
     document.head.appendChild(style)
   }
 
-  return [TableComponent, actions] as const
+  return [TableComponent, actions] as [Component, TableActions<T>]
 }

@@ -1,9 +1,10 @@
 import { useForm } from '@renderer/composables/useForm';
 import { useTable } from '@renderer/composables/useTable';
+import { FormConfig, FormActions, TableConfig, TableActions } from '@agent-qi/types';
 import { useDownload } from '@renderer/composables/useDownload';
-import { useIcon } from '@renderer/composables/useIcon';
+import { useIcon, icons } from '@renderer/composables/useIcon';
 import { useTerminal } from '@renderer/composables/useTerminal';
-import { registerProviderFactory, ProviderFactory } from '../chatService/registry';
+import { registerProviderFactory, ProviderFactory, unregisterProviderFactory } from '../chatService/registry';
 import localforage from 'localforage'
 /**
  * 插件管理器
@@ -196,20 +197,14 @@ export class PluginManager {
         return window.api?.path.join(userDataPath, 'Data', 'Plugins', pluginName, 'models')
       },
       basePath,
-      useForm,
-      useTable,
+      useForm: useForm as <T extends Record<string, any>>(options: FormConfig<T>) => readonly [Component, FormActions<T>],
+      useTable: useTable as <T extends Record<string, any>>(config: TableConfig<T>) => readonly [Component, TableActions<T>],
       useDownload,
-      useIcon,
+      useIcon: (name: string) => useIcon(name as keyof typeof icons) as VNode,
       useModal,
-      useTerminal: () => {
-        const terminal = useTerminal();
-        return {
-          show: () => terminal.showTerminal(),
-          createTab: (options: any) => terminal.createTab(options)
-        };
-      },
+      useTerminal,
       components,
-      registerCommand: (name: string, handler: Function) => {
+      registerCommand: (name: string, handler: (...args: any[]) => any) => {
         this.registerCommand(pluginName, name, handler);
       },
       localforage: localforage.createInstance({
@@ -252,7 +247,7 @@ export class PluginManager {
           if (pluginConfig?.notificationsDisabled) return () => { };
           return notificationApi.loading(content, title, duration);
         },
-        status: (id: string, text: string, options?: any) => {
+        status: (id: string, text: string, options) => {
           notificationApi.status(id, text, options);
         },
         removeStatus: (id: string) => {
@@ -272,7 +267,7 @@ export class PluginManager {
       },
       registerProvider: (
         providerId: string,
-        options?: { name?: string; providerType?: string; form?: any; models?: Model[]; hide?: boolean }
+        options
       ) => {
         const settingsStore = useSettingsStore(this.pinia);
 
@@ -372,12 +367,19 @@ export class PluginManager {
           }
         }
       },
-      registerRegistry: (name: string, factory: ProviderFactory, options?: { hide?: boolean }) => {
+      registerRegistry: <T = unknown>(name: string, factory: (options: Record<string, unknown>) => T, options?: { hide?: boolean }) => {
         if (!this.pluginRegistries.has(pluginName)) {
           this.pluginRegistries.set(pluginName, new Set());
         }
         this.pluginRegistries.get(pluginName)!.add(name);
-        registerProviderFactory(name, factory, options);
+        registerProviderFactory(name, factory as ProviderFactory, options);
+      },
+      unregisterRegistry: (name: string) => {
+        const names = this.pluginRegistries.get(pluginName);
+        if (names && names.has(name)) {
+          names.delete(name);
+          unregisterProviderFactory(name);
+        }
       },
       getRegisteredProviders: () => {
         const settingsStore = useSettingsStore(this.pinia);
@@ -429,7 +431,7 @@ export class PluginManager {
    * @param name 命令名称
    * @param handler 命令处理器
    */
-  registerCommand(pluginName: string, name: string, handler: Function): void {
+  registerCommand(pluginName: string, name: string, handler: (...args: any[]) => any): void {
 
     if (this.commands.has(name)) {
       throw new Error(`Command "${name}" is already registered`);

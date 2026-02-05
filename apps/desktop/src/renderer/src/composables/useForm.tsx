@@ -993,5 +993,5 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     updateFieldProps
   }
 
-  return [FormComponent, actions] as const
+  return [FormComponent, actions] as [Component, FormActions<T>]
 }

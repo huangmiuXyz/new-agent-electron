@@ -210,10 +210,10 @@ export interface FormActions<T> {
   reset: () => void
   submit: () => boolean | Promise<T>
   validate: () => boolean | Promise<boolean>
-  setFieldValue: (field: string, value: unknown) => void
+  setFieldValue: (field: string, value: any) => void
   setFieldsValue: (data: T) => void
-  getFieldValue: (field: string) => unknown
-  updateFieldProps: (field: string, props: Record<string, unknown>) => void
+  getFieldValue: (field: string) => any
+  updateFieldProps: (field: string, props: Record<string, any>) => void
 }
 
 export interface TableColumn<T = unknown> {

@@ -72,9 +72,9 @@ export interface PluginContext {
   /** 注销提供商工厂 */
   unregisterRegistry: (name: string) => void;
   /** 获取 useForm 工具 */
-  useForm: <T extends Record<string, unknown> = Record<string, unknown>>(options: FormConfig<T>) => [Component, FormActions<T>];
+  useForm: <T extends Record<string, any> = Record<string, any>>(options: FormConfig<T>) => readonly [Component, FormActions<T>];
   /** 获取 useTable 工具 */
-  useTable: <T extends Record<string, unknown> = Record<string, unknown>>(config: TableConfig<T>) => [Component, TableActions<T>];
+  useTable: <T extends Record<string, any> = Record<string, any>>(config: TableConfig<T>) => readonly [Component, TableActions<T>];
   /** 获取 useDownload 工具 */
   useDownload: () => {
     isDownloading: Ref<boolean>;
@@ -92,7 +92,7 @@ export interface PluginContext {
     cancelDownload: (id: string) => Promise<void>;
   };
   /** 获取 useIcon 工具 */
-  useIcon: (iconName: string) => Component;
+  useIcon: (iconName: string) => VNode;
   /** 获取 useModal 工具 */
   useModal: () => ModalActions;
   /** 获取 useTerminal 工具 */
@@ -201,7 +201,7 @@ export interface Command {
   /** 命令名称 */
   name: string;
   /** 命令处理器 */
-  handler: (...args: unknown[]) => unknown;
+  handler: Function;
   /** 命令所属插件 */
   pluginName: string;
 }
@@ -210,7 +210,7 @@ export interface Hook {
   /** 钩子名称 */
   name: string;
   /** 钩子处理器 */
-  handler: (...args: unknown[]) => unknown;
+  handler: Function;
   /** 钩子所属插件 */
   pluginName: string;
 }

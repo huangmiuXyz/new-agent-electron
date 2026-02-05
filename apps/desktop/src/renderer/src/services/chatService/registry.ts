@@ -251,6 +251,11 @@ export const registerProviderFactory = (name: string, factory: ProviderFactory, 
   }
 }
 
+export const unregisterProviderFactory = (name: string) => {
+  delete providerFactories[name]
+  delete providerMetadatas[name]
+}
+
 export const getProviderTypes = () => {
   return Object.keys(providerFactories).filter((key) => !providerMetadatas[key]?.hide)
 }

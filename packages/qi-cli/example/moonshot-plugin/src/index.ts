@@ -6,12 +6,12 @@ const plugin: Plugin = {
     version: '1.0.0',
     description: 'Moonshot AI (Kimi) Provider Plugin',
     install: async (context: PluginContext) => {
-        context.registerRegistry('moonshot', (options: any) => {
+        context.registerRegistry('moonshotai', (options: any) => {
             return createMoonshot(options);
         });
     },
     uninstall: (context: PluginContext) => {
-        context.unregisterProvider('moonshot');
+        context.unregisterProvider('moonshotai');
     }
 }
 
