@@ -13,7 +13,6 @@ import Button from '@renderer/components/Button.vue'
 import { useIcon } from './useIcon'
 import { zodSchemasToFormfields } from '../utils/zod-to-form'
 import Markdown from '@renderer/components/Markdown.vue'
-import zod from 'zod'
 import { VNode, toValue, PropType } from 'vue'
 import { isEqual } from 'es-toolkit'
 
