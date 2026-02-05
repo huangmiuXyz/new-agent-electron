@@ -1,0 +1,19 @@
+{
+  "name": "moonshot-plugin",
+  "version": "1.0.0",
+  "description": "Moonshot AI (Kimi) Provider Plugin",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@ai-sdk/moonshotai": "*"
+  },
+  "devDependencies": {
+    "@agent-qi/types": "workspace:*",
+    "typescript": "*",
+    "vite": "*"
+  },
+  "author": "Agent-Qi"
+}

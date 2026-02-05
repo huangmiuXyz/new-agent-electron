@@ -1,0 +1,7 @@
+{
+  "name": "Moonshot AI (Kimi)",
+  "description": "集成 Moonshot AI (Kimi) 大语言模型，支持 kimi-k2、kimi-k2.5 等系列模型及推理能力。",
+  "version": "1.0.0",
+  "author": "Agent-Qi",
+  "updatedAt": "2026-02-05"
+}
