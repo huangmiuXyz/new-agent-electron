@@ -13,7 +13,7 @@ import Button from '@renderer/components/Button.vue'
 import { useIcon } from './useIcon'
 import { zodSchemasToFormfields } from '../utils/zod-to-form'
 import Markdown from '@renderer/components/Markdown.vue'
-import { VNode, toValue, PropType } from 'vue'
+import { VNode, toValue, PropType, defineComponent, DefineComponent } from 'vue'
 import { isEqual } from 'es-toolkit'
 
 export const FormItem = defineComponent({
@@ -215,7 +215,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       return
     }
     const isNestedField = field.name.includes('.')
-    let initialValue
+    let initialValue: any
     if (isNestedField) {
       initialValue = getNestedValue(config.initialData || {}, field.name) ?? field.defaultValue
       if (initialValue === undefined) {
@@ -243,7 +243,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   const validate = () => {
     const newErrors: Record<string, string> = {}
 
-    const validateField = (field: any) => {
+    const validateField = (field: FormField<T>) => {
       const isShow =
         field.ifShow !== undefined
           ? typeof field.ifShow === 'function'
@@ -255,7 +255,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         return
       }
 
-      if (field.type === 'group' && field.children) {
+      if (field.type === 'group' && 'children' in field && field.children) {
         field.children.forEach(validateField)
         return
       }
@@ -274,7 +274,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   const submit = () => {
     const newErrors: Record<string, string> = {}
 
-    const validateField = (field: any) => {
+    const validateField = (field: FormField<T>) => {
       const isShow =
         field.ifShow !== undefined
           ? typeof field.ifShow === 'function'
@@ -286,7 +286,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         return
       }
 
-      if (field.type === 'group' && field.children) {
+      if (field.type === 'group' && 'children' in field && field.children) {
         field.children.forEach(validateField)
         return
       }
@@ -407,7 +407,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
             {value.map((_item, index) => (
               <div class="form-array-item" key={`${field.name}-${index}`}>
                 <div class="form-array-item-content">
-                  {field.children.map((child: any) => {
+                  {field.children.map((child: FormField<T>) => {
                     const childName = child.name.split('.').pop()!
                     const fieldName = `${field.name}.${index}.${childName}`
 
@@ -416,7 +416,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                       ...child,
                       name: fieldName,
                       label: child.label || childName
-                    }
+                    } as FormField<T>
                     return renderField(childField, formSize)
                   })}
                 </div>
@@ -577,7 +577,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
 
     const fieldProps = {
       ...field,
-      ...(dynamicFieldProps.value[field.name] || {}),
+      ...dynamicFieldProps.value[field.name],
       modelValue: getFieldValue(field.name),
       'onUpdate:modelValue': (val: any) => setFieldValue(field.name, val),
       size: formSize || field.size
@@ -627,12 +627,12 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
                   category={f.modelCategory}
                   modelId={val.modelId}
                   providerId={val.providerId}
-                  onUpdate:modelId={(v) => {
+                  onUpdate:modelId={(v: string) => {
                     const current = getFieldValue(field.name) || { modelId: '', providerId: '' }
                     setFieldValue(field.name, { ...current, modelId: v })
                     f.onChange?.({ ...current, modelId: v })
                   }}
-                  onUpdate:providerId={(v) => {
+                  onUpdate:providerId={(v: string) => {
                     const current = getFieldValue(field.name) || { modelId: '', providerId: '' }
                     setFieldValue(field.name, { ...current, providerId: v })
                     f.onChange?.({ ...current, providerId: v })
@@ -993,5 +993,11 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     updateFieldProps
   }
 
-  return [FormComponent, actions] as [Component, FormActions<T>]
+  return [FormComponent, actions] as [
+    DefineComponent<{
+      fields?: FormField<T>[]
+      size?: 'sm' | 'md' | 'lg'
+    }>,
+    FormActions<T>
+  ]
 }
