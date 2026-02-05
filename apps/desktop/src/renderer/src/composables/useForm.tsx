@@ -124,7 +124,7 @@ const setNestedValue = (obj: any, path: string, value: any) => {
   target[lastKey] = value
 }
 
-export function useForm<T extends Record<string, unknown>>(config: FormConfig<T>) {
+export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   const formData = ref<T>({} as T)
 
   const dynamicFieldProps = ref<Record<string, Record<string, any>>>({})

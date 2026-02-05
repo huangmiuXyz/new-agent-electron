@@ -63,6 +63,7 @@ export type ClientConfig = Record<
     headers?: Record<string, string>
     active: boolean
     tools: Tools
+    description?: string;
   }
 >
 export type Tools = Record<string, {
