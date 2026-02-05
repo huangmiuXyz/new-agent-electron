@@ -363,9 +363,7 @@ const _sendMessage = async () => {
           </Button>
 
           <!-- 提供商参数设置按钮 -->
-          <Button variant="icon" size="sm"
-            :class="{ 'options-active': Object.keys(allProviderOptions[selectedProviderId] || {}).length > 0 }"
-            title="参数设置" @click="openProviderOptionsModal">
+          <Button variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
             <SettingsIcon />
           </Button>
 
