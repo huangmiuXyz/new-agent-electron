@@ -1,6 +1,7 @@
 <script setup lang="tsx">
 import { FormItem } from '@renderer/composables/useForm'
 import { getProviderTypes } from '@renderer/services/chatService/registry'
+import providerData from '@renderer/assets/data/provider.json'
 
 const { getAllProviders, providers } = storeToRefs(useSettingsStore())
 const visibleProviders = computed(() => getAllProviders.value.filter((p) => !p.hide))
@@ -13,7 +14,7 @@ const {
   deleteApiKeyFromProvider
 } = useSettingsStore()
 
-const { Refresh, Plus, Search, Edit, Delete, ChevronRight, ChevronDown, Active, Inactive } = useIcon([
+const { Refresh, Plus, Search, Edit, Delete, ChevronRight, ChevronDown, Active, Inactive, Box } = useIcon([
   'Refresh',
   'Plus',
   'Search',
@@ -22,7 +23,8 @@ const { Refresh, Plus, Search, Edit, Delete, ChevronRight, ChevronDown, Active, 
   'ChevronRight',
   'ChevronDown',
   'Active',
-  'Inactive'
+  'Inactive',
+  'Box'
 ])
 const { confirm } = useModal()
 const { triggerHook } = usePlugins()
@@ -37,7 +39,7 @@ onMounted(async () => {
 const activeProviderId = useLocalStorage<string>('activeProviderId', 'OpenAI')
 
 const activeProvider = computed(() => {
-  return providers.value.find((p) => p.id === activeProviderId.value)
+  return getAllProviders.value.find((p) => p.id === activeProviderId.value)
 })
 
 const [ApiKeyTable, apiKeyTableActions] = useTable<ApiKeyInfo>({
@@ -163,7 +165,7 @@ const handleDeleteApiKey = async (apiKey: ApiKeyInfo) => {
     deleteApiKeyFromProvider(activeProviderId.value, apiKey.id)
 
     // 触发表单更新以确保持久化
-    const updatedProvider = providers.value.find((p) => p.id === activeProviderId.value)
+    const updatedProvider = getAllProviders.value.find((p) => p.id === activeProviderId.value)
     if (updatedProvider) {
       formActions.setFieldValue('apiKeys', [...(updatedProvider.apiKeys || [])])
       formActions.setFieldValue('apiKey', updatedProvider.apiKey || '')
@@ -207,6 +209,80 @@ const setActiveProvider = (providerId: string) => {
   })
 }
 
+const providerOptions = computed(() => {
+  return getProviderTypes().map((key) => ({
+    value: key,
+    label: key
+  }))
+})
+
+// 添加自定义提供商相关逻辑
+const { addCustomProvider, removeCustomProvider } = useSettingsStore()
+
+const [CustomProviderForm, customProviderFormActions] = useForm({
+  title: '添加自定义提供商',
+  showHeader: false,
+  fields: [
+    { name: 'id', type: 'text', label: '提供商 ID', required: true, placeholder: '例如：my-custom-provider' },
+    { name: 'name', type: 'text', label: '提供商名称', required: true, placeholder: '例如：我的自定义提供商' },
+    { name: 'baseUrl', type: 'text', label: '基础 URL', required: true, placeholder: '例如：https://api.example.com/v1' },
+    {
+      name: 'providerType',
+      type: 'select',
+      label: '提供商类型',
+      required: true,
+      options: providerOptions.value,
+      defaultValue: 'openai-compatible'
+    }
+  ],
+  onSubmit: (data) => {
+    const newProvider: Provider = {
+      id: data.id!,
+      name: data.name!,
+      baseUrl: data.baseUrl!,
+      providerType: data.providerType as Provider['providerType'],
+      logo: '/images/providers/openai.png', // 使用默认图标
+      models: [],
+      apiKeys: [],
+      apiKey: ''
+    }
+    addCustomProvider(newProvider)
+    // 选中新添加的提供商
+    nextTick(() => {
+      setActiveProvider(newProvider.id)
+    })
+  }
+})
+
+const showAddCustomProviderModal = async () => {
+  customProviderFormActions.reset()
+  customProviderFormActions.setFieldsValue({ id: '', name: '', baseUrl: '', providerType: 'openai-compatible' })
+  const result = await confirm({ title: '添加自定义提供商', content: CustomProviderForm })
+  if (result) customProviderFormActions.submit()
+}
+
+const handleDeleteCustomProvider = async (provider: Provider) => {
+  const result = await confirm({
+    title: '删除自定义提供商',
+    content: `确定要删除自定义提供商 "${provider.name}" 吗？此操作不可恢复。`
+  })
+  if (result) {
+    removeCustomProvider(provider.id)
+    // 如果删除的是当前选中的提供商，切换到第一个可用提供商
+    if (activeProviderId.value === provider.id) {
+      const firstProvider = visibleProviders.value[0]
+      if (firstProvider) {
+        setActiveProvider(firstProvider.id)
+      }
+    }
+  }
+}
+
+const isCustomProvider = (provider: Provider) => {
+  // 自定义提供商没有 pluginName 且不在默认的 provider.json 中
+  return !provider.pluginName && !providerData.find(p => p.id === provider.id)
+}
+
 const searchKeyword = ref('')
 const filteredModels = computed(() => {
   const models = activeProvider.value?.models || []
@@ -227,7 +303,7 @@ const handleResetBaseUrl = async () => {
   })
   if (result) {
     resetProviderBaseUrl(activeProviderId.value)
-    const updatedProvider = providers.value.find((p) => p.id === activeProviderId.value)
+    const updatedProvider = getAllProviders.value.find((p) => p.id === activeProviderId.value)
     if (updatedProvider) {
       formActions.setData({ ...activeProvider.value, baseUrl: updatedProvider.baseUrl })
     }
@@ -290,13 +366,6 @@ const ModelList = defineComponent({
       </FormItem>
     )
   }
-})
-
-const providerOptions = computed(() => {
-  return getProviderTypes().map((key) => ({
-    value: key,
-    label: key
-  }))
 })
 
 const [ProviderForm, formActions] = useForm({
@@ -500,7 +569,26 @@ const VoiceTable = defineComponent({
 
 <template>
   <ListContainer v-if="showList">
-    <List :defaultIcon="useIcon('Box')" title="提供商" :items="visibleProviders" :active-id="activeProviderId" @select="selectProvider" />
+    <List :defaultIcon="Box" title="提供商" :items="visibleProviders" :active-id="activeProviderId" @select="selectProvider">
+      <template #title-tool>
+        <Button type="button" variant="text" size="sm" @click="showAddCustomProviderModal" title="添加自定义提供商">
+          <component :is="Plus" />
+        </Button>
+      </template>
+      <template #actions="{ item }">
+        <Button
+          v-if="isCustomProvider(item)"
+          type="button"
+          variant="text"
+          size="sm"
+          class="text-red-500 hover:text-red-700"
+          @click.stop="handleDeleteCustomProvider(item)"
+          title="删除"
+        >
+          <component :is="Delete" />
+        </Button>
+      </template>
+    </List>
   </ListContainer>
 
   <FormContainer v-if="showForm" header-title="模型提供商">

@@ -73,9 +73,6 @@ export const useSettingsStore = defineStore(
     })
 
     const registeredProviders = ref<RegisteredProvider[]>([])
-    const getAllProviders = computed(() => {
-      return [...providers.value, ...registeredProviders.value] as Provider[]
-    })
     const thinkingMode = ref(false)
     const speechEnabled = ref(false)
     const providerOptions = ref<Record<string, any>>({})
@@ -124,89 +121,88 @@ export const useSettingsStore = defineStore(
       }
     }
 
-    const updateProvider = (providerId: string, providerData: Provider) => {
+    // 辅助函数：查找提供商
+    const findProviderRef = (providerId: string): { index: number; target: typeof providers } | null => {
       const index = providers.value.findIndex((p) => p.id === providerId)
-      if (index !== -1) {
-        const currentProvider = providers.value[index]
-        if (currentProvider) {
-          providers.value[index] = {
-            ...providerData,
-            id: currentProvider.id,
-            name: currentProvider.name,
-            logo: currentProvider.logo
-          }
+      if (index !== -1) return { index, target: providers }
+      return null
+    }
+
+    const updateProvider = (providerId: string, providerData: Provider) => {
+      const result = findProviderRef(providerId)
+      if (!result) return
+      const { index, target } = result
+      const currentProvider = target.value[index]
+      if (currentProvider) {
+        target.value[index] = {
+          ...providerData,
+          id: currentProvider.id,
+          name: currentProvider.name,
+          logo: currentProvider.logo
         }
       }
     }
 
     const addModelToProvider = (providerId: string, model: Model) => {
-      const index = providers.value.findIndex((p) => p.id === providerId)
-      if (index !== -1) {
-        const provider = providers.value[index]
-        if (provider) {
-          if (!provider.models) {
-            provider.models = []
-          }
-          provider.models.unshift(model)
-        }
+      const result = findProviderRef(providerId)
+      if (!result) return
+      const { index, target } = result
+      const provider = target.value[index]
+      if (provider) {
+        if (!provider.models) provider.models = []
+        provider.models.unshift(model)
       }
     }
 
     const deleteModelFromProvider = (providerId: string, modelId: string) => {
-      const providerIndex = providers.value.findIndex((p) => p.id === providerId)
-      if (providerIndex !== -1) {
-        const provider = providers.value[providerIndex]
-        if (provider && provider.models) {
-          const modelIndex = provider.models.findIndex((m) => m.id === modelId)
-          if (modelIndex !== -1) {
-            provider.models.splice(modelIndex, 1)
-          }
-        }
+      const result = findProviderRef(providerId)
+      if (!result) return
+      const { index, target } = result
+      const provider = target.value[index]
+      if (provider?.models) {
+        const modelIndex = provider.models.findIndex((m) => m.id === modelId)
+        if (modelIndex !== -1) provider.models.splice(modelIndex, 1)
       }
     }
 
     const addApiKeyToProvider = (providerId: string, apiKey: ApiKeyInfo) => {
-      const index = providers.value.findIndex((p) => p.id === providerId)
-      if (index !== -1) {
-        const provider = { ...providers.value[index] }
-        provider.apiKeys = [...(provider.apiKeys || []), apiKey]
-        // 如果当前没有设置 API Key，则默认使用这一个
-        if (!provider.apiKey) {
-          provider.apiKey = apiKey.key
-          provider.activeApiKeyId = apiKey.id
-        }
-        providers.value[index] = provider
+      const result = findProviderRef(providerId)
+      if (!result) return
+      const { index, target } = result
+      const provider = { ...target.value[index] }
+      provider.apiKeys = [...(provider.apiKeys || []), apiKey]
+      if (!provider.apiKey) {
+        provider.apiKey = apiKey.key
+        provider.activeApiKeyId = apiKey.id
       }
+      target.value[index] = provider
     }
 
     const deleteApiKeyFromProvider = (providerId: string, apiKeyId: string) => {
-      const index = providers.value.findIndex((p) => p.id === providerId)
-      if (index !== -1) {
-        const provider = { ...providers.value[index] }
-        if (provider.apiKeys) {
-          const deleteIndex = provider.apiKeys.findIndex((k) => k.id === apiKeyId)
-          if (deleteIndex === -1) return
-          const isCurrentActive = provider.activeApiKeyId === apiKeyId
+      const result = findProviderRef(providerId)
+      if (!result) return
+      const { index, target } = result
+      const provider = { ...target.value[index] }
+      if (!provider.apiKeys) return
 
-          provider.apiKeys = provider.apiKeys.filter((k) => k.id !== apiKeyId)
+      const deleteIndex = provider.apiKeys.findIndex((k) => k.id === apiKeyId)
+      if (deleteIndex === -1) return
 
-          // 如果删除的是当前激活的密钥
-          if (isCurrentActive) {
-            if (provider.apiKeys.length > 0) {
-              // 优先切换到原位置的下一个（现在的 deleteIndex），如果已经是最后一个则切到上一个
-              const nextActiveKey = provider.apiKeys[deleteIndex] || provider.apiKeys[provider.apiKeys.length - 1]
-              provider.apiKey = nextActiveKey.key
-              provider.activeApiKeyId = nextActiveKey.id
-            } else {
-              // 如果没有密钥了，清空 apiKey
-              provider.apiKey = ''
-              provider.activeApiKeyId = ''
-            }
-          }
+      const isCurrentActive = provider.activeApiKeyId === apiKeyId
+      provider.apiKeys = provider.apiKeys.filter((k) => k.id !== apiKeyId)
 
-          providers.value[index] = provider
+      if (isCurrentActive) {
+        if (provider.apiKeys.length > 0) {
+          const nextActiveKey = provider.apiKeys[deleteIndex] || provider.apiKeys[provider.apiKeys.length - 1]
+          provider.apiKey = nextActiveKey.key
+          provider.activeApiKeyId = nextActiveKey.id
+        } else {
+          provider.apiKey = ''
+          provider.activeApiKeyId = ''
         }
       }
+
+      target.value[index] = provider
     }
 
     const switchApiKeyForProvider = (providerId: string, apiKeyId: string) => {
@@ -272,6 +268,27 @@ export const useSettingsStore = defineStore(
         }
       }
     }
+
+    // 自定义提供商管理（直接添加到 providers 中）
+    const addCustomProvider = (provider: Provider) => {
+      const existingIndex = providers.value.findIndex((p) => p.id === provider.id)
+      if (existingIndex > -1) {
+        providers.value[existingIndex] = provider
+      } else {
+        providers.value.push(provider)
+      }
+    }
+
+    const removeCustomProvider = (providerId: string) => {
+      const index = providers.value.findIndex((p) => p.id === providerId)
+      if (index > -1) {
+        providers.value.splice(index, 1)
+      }
+    }
+
+    const getAllProviders = computed(() => {
+      return [...providers.value, ...registeredProviders.value] as Provider[]
+    })
 
     const selectedModelId = ref<string>('deepseek-chat')
     const selectedProviderId = ref<string>('深度探索')
@@ -391,7 +408,9 @@ export const useSettingsStore = defineStore(
       resetProviderBaseUrl,
       getAllProviders,
       registeredProviders,
-      getModelByVoice
+      getModelByVoice,
+      addCustomProvider,
+      removeCustomProvider
     }
   },
   {
