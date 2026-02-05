@@ -71,7 +71,7 @@ const openProviderOptionsModal = () => {
 
   modal.confirm({
     title: '参数设置',
-    width: '400px',
+    width: '50%',
     content: FormComponent,
     confirmText: '应用',
     cancelText: '取消',
