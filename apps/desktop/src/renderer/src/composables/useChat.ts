@@ -62,7 +62,7 @@ export const useChat = (chatId: string) => {
   const { apiKey, baseUrl, id: provider, providerType } = toRefs(currentSelectedProvider.value!)
   const { id: model } = toRefs(currentSelectedModel.value!)
 
-  const createChat = (messages: BaseMessage[]): _useChat<BaseMessage> => {
+  const createChat = (messages: BaseMessage[], regenerateMessageId?: string): _useChat<BaseMessage> => {
     const scope = effectScope()
 
     const getMessageText = (message: BaseMessage) => {
@@ -78,6 +78,9 @@ export const useChat = (chatId: string) => {
       let sentenceSegmenter = createSentenceSegmenter(
         agent.selectedAgent?.speechLanguage
       )
+
+      // 记录 regenerate 时的原始消息 ID，用于在 syncMessageToStore 中找到正确的消息
+      const targetMessageId = ref<string | undefined>(regenerateMessageId)
 
       const chat = new _useChat<BaseMessage>({
         id: chatId,
@@ -157,27 +160,49 @@ export const useChat = (chatId: string) => {
       })
 
       const syncMessageToStore = (error?: APICallError) => {
-        const updatedMessages = [...(chat.messages || [])]
-        if (chats) {
-          updateMessages(chatId, (oldMessages) => {
-            const mergedMessages = [...oldMessages]
-            updatedMessages.forEach((msg, index) => {
-              if (chat.lastMessage.id === msg.id && error) {
-                msg.metadata.error = error
-              }
-              if (index < mergedMessages.length) {
-                mergedMessages[index] = {
-                  ...mergedMessages[index],
-                  ...msg,
-                  metadata: { ...mergedMessages[index].metadata, ...msg.metadata }
-                }
-              } else {
-                mergedMessages.push(msg)
-              }
-            })
-            return mergedMessages
-          })
+        const lastMsg = chat.lastMessage
+        if (!lastMsg) return
+
+        const msgToUpdate = {
+          ...lastMsg,
+          metadata: { ...lastMsg.metadata, error }
         }
+
+        updateMessages(chatId, (oldMessages) => {
+          const existingIndex = oldMessages.findIndex((m) => m.id === lastMsg.id)
+          if (existingIndex >= 0) {
+            const copy = [...oldMessages]
+            copy[existingIndex] = msgToUpdate
+            return copy
+          }
+
+          if (!targetMessageId.value) {
+            return [...oldMessages, msgToUpdate]
+          }
+
+          const targetIndex = oldMessages.findIndex((m) => m.id === targetMessageId.value)
+          if (targetIndex < 0) {
+            return [...oldMessages, msgToUpdate]
+          }
+
+          const copy = [...oldMessages]
+          const targetMsg = copy[targetIndex]
+
+          if (targetMsg.role === 'assistant') {
+            copy[targetIndex] = msgToUpdate
+            return copy
+          }
+
+          const nextAssistantIndex = copy.findIndex((m, i) => i > targetIndex && m.role === 'assistant')
+
+          if (nextAssistantIndex >= 0) {
+            copy[nextAssistantIndex] = msgToUpdate
+          } else {
+            copy.splice(targetIndex + 1, 0, msgToUpdate)
+          }
+
+          return copy
+        })
       }
 
       const processStreamingSpeech = (
@@ -286,7 +311,7 @@ export const useChat = (chatId: string) => {
   const scrollToBottom = () => {
     setTimeout(() => {
       messageScrollRef.value?.scrollToBottom()
-    }, 100)
+    }, 1)
   }
 
   return {
@@ -305,15 +330,13 @@ export const useChat = (chatId: string) => {
       })
     },
     continueMessages: () => {
-      scrollToBottom()
       const currentChats = getChatById(chatId)
       const chat = createChat(currentChats?.messages || [])
       chat.sendMessage()
     },
     regenerate: (messageId: string) => {
-      scrollToBottom()
       const currentChats = getChatById(chatId)
-      const chat = createChat(currentChats?.messages || [])
+      const chat = createChat(currentChats?.messages || [], messageId)
       chat.regenerate({ messageId })
     },
     approval: (part: ToolUIPart, approved: boolean) => {
