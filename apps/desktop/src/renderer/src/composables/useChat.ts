@@ -48,7 +48,6 @@ function createSentenceSegmenter(locale: string = 'und') {
 export const useChat = (chatId: string) => {
   const { getChatById, updateMessageMetadata, updateMessages, shiftPendingMessage, isChatGenerating } = useChatsStores()
   const { messageScrollRef } = useMessageScroll()
-  const chats = getChatById(chatId)
 
   const { currentSelectedProvider, currentSelectedModel, thinkingMode, speechEnabled } =
     storeToRefs(useSettingsStore())
@@ -79,7 +78,6 @@ export const useChat = (chatId: string) => {
         agent.selectedAgent?.speechLanguage
       )
 
-      // 记录 regenerate 时的原始消息 ID，用于在 syncMessageToStore 中找到正确的消息
       const targetMessageId = ref<string | undefined>(regenerateMessageId)
 
       const chat = new _useChat<BaseMessage>({
