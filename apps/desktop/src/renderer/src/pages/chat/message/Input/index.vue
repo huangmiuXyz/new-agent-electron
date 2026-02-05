@@ -2,13 +2,8 @@
 import { FileUIPart, TextUIPart } from 'ai'
 import { useTerminal } from '@renderer/composables/useTerminal'
 import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
-import extensions from 'textextensions'
 
 import { usePlugins } from '@renderer/composables/usePlugins'
-
-const textExtensions: string[] = Array.isArray(extensions)
-  ? extensions
-  : (extensions as any).default || []
 import { createRegistry } from '@renderer/services/chatService/registry'
 import { z } from 'zod'
 
@@ -285,8 +280,7 @@ const _sendMessage = async () => {
     const buffer = new Uint8Array(await res.arrayBuffer())
 
     // 通过文件扩展名判断是否为文本文件
-    const ext = name.split('.').pop()?.toLowerCase() || ''
-    if (textExtensions.includes(ext)) {
+    if (isTextFile(name!)) {
       const text = new TextDecoder('utf-8').decode(buffer)
       parts.push({ type: 'text', text })
     }

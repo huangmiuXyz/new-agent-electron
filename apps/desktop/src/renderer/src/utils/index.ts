@@ -11,7 +11,17 @@ const textExtensions: string[] = Array.isArray(extensions)
   ? extensions
   : (extensions as any).default || []
 
-export { stripAnsi }
+export { stripAnsi, textExtensions }
+
+/**
+ * 判断文件是否为文本文件（基于扩展名）
+ * @param filename 文件名
+ * @returns 是否为文本文件
+ */
+export const isTextFile = (filename: string): boolean => {
+  const ext = filename.split('.').pop()?.toLowerCase() || ''
+  return textExtensions.includes(ext)
+}
 export const anyUrlToBlobUrl = (url: string): string => {
   if (!url) return ''
   try {

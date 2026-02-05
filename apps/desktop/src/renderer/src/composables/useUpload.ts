@@ -1,14 +1,8 @@
-import { useDropZone, useAsyncQueue } from '@vueuse/core'
-import { assetsHandler, formatFileSize, getFileCategory, uploadDir, chunk } from '@renderer/utils'
+import { useDropZone } from '@vueuse/core'
+import { assetsHandler, formatFileSize, getFileCategory, isTextFile, textExtensions, uploadDir } from '@renderer/utils'
 import { arrayBufferToBlob, blobToDataURL } from 'blob-util'
 import { FileUIPart } from 'ai'
 import ignore from 'ignore'
-// @ts-ignore
-import extensions from 'textextensions'
-
-const textExtensions: string[] = Array.isArray(extensions)
-  ? extensions
-  : (extensions as any).default || []
 
 export interface UploadFile extends FileUIPart {
   blobUrl?: string
@@ -66,9 +60,8 @@ export function useUpload(options: UseUploadOptions = {}) {
       // 如果限制只能上传文本，则进行过滤
       if (onlyText) {
         fileArray = fileArray.filter((f) => {
-          // 使用文件名判断。在渲染进程中，我们通过 textExtensions 列表匹配后缀
-          const ext = f.name.split('.').pop()?.toLowerCase() || ''
-          return textExtensions.includes(ext)
+          // 使用文件名判断是否为文本文件
+          return isTextFile(f.name)
         })
 
         if (fileArray.length === 0 && files.length > 0) {
@@ -290,8 +283,7 @@ export function useUpload(options: UseUploadOptions = {}) {
               if (entry.name === '.gitignore') continue
 
               if (onlyText) {
-                const ext = window.api.path.extname(fullPath).toLowerCase().replace('.', '')
-                if (!textExtensions.includes(ext)) continue
+                if (!isTextFile(entry.name)) continue
               }
 
               const mediaType = (window.api.mime.lookup(fullPath) as string) || 'application/octet-stream'
@@ -364,10 +356,7 @@ export function useUpload(options: UseUploadOptions = {}) {
     let files = await loadUserDataFiles()
 
     if (onlyText) {
-      files = files.filter((file) => {
-        const ext = file.name.split('.').pop()?.toLowerCase() || ''
-        return textExtensions.includes(ext)
-      })
+      files = files.filter((file) => isTextFile(file.name))
     }
 
     if (files.length === 0) {
