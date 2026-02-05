@@ -149,7 +149,7 @@ export const chatService = () => {
         ]
       }),
       providerOptions: {
-        deepseek: {
+        [providerType]: {
           thinking: {
             type: thinkingMode ? 'enabled' : 'disabled'
           }
