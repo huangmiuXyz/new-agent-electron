@@ -44,6 +44,7 @@ interface ChatServiceConfig {
   compressModel?: { providerId: string; modelId: string }
   providerOptions?: Record<string, any>
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
+  skipAutoApprove?: boolean
 }
 
 export interface ImageGenerateOptions {
@@ -53,7 +54,7 @@ export interface ImageGenerateOptions {
   seed?: number
   providerOptions?: any
 }
-const processMessagesWithToolOutput = (messages: BaseMessage[]): BaseMessage[] => {
+const processMessagesWithToolOutput = (messages: BaseMessage[], skipAutoApprove?: boolean): BaseMessage[] => {
   const processedMessages = JSON.parse(JSON.stringify(messages)) as BaseMessage[]
   for (const message of processedMessages) {
     if (message.parts && Array.isArray(message.parts)) {
@@ -65,7 +66,7 @@ const processMessagesWithToolOutput = (messages: BaseMessage[]): BaseMessage[] =
           const newPart: any = { ...part }
           delete newPart.title
           newPart.state = 'output-available'
-          if (newPart.approval !== undefined && newPart.approval.approved === undefined) {
+          if (!skipAutoApprove && newPart.approval !== undefined && newPart.approval.approved === undefined) {
             newPart.approval = { ...newPart.approval, approved: true }
           }
           if (newPart.output === undefined) {
@@ -259,7 +260,8 @@ export const chatService = () => {
       autoCompressContext: shouldAutoCompress,
       compressModel,
       providerOptions: customProviderOptions,
-      onBeforeToolExecute
+      onBeforeToolExecute,
+      skipAutoApprove
     }: ChatServiceConfig
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
@@ -364,7 +366,7 @@ export const chatService = () => {
       ]
     })
     const controller = new AbortController()
-    const processedMessages = processMessagesWithToolOutput(messages)
+    const processedMessages = processMessagesWithToolOutput(messages, skipAutoApprove)
     const uiStream = createAgentUIStream({
       agent,
       uiMessages: processedMessages,

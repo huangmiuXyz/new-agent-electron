@@ -61,7 +61,8 @@ export const useChat = (chatId: string) => {
   const { apiKey, baseUrl, id: provider, providerType } = toRefs(currentSelectedProvider.value!)
   const { id: model } = toRefs(currentSelectedModel.value!)
 
-  const createChat = (messages: BaseMessage[], regenerateMessageId?: string): _useChat<BaseMessage> => {
+  const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; skipAutoApprove?: boolean }): _useChat<BaseMessage> => {
+    const { regenerateMessageId, skipAutoApprove } = options || {}
     const scope = effectScope()
 
     const getMessageText = (message: BaseMessage) => {
@@ -118,7 +119,8 @@ export const useChat = (chatId: string) => {
                 contextCount: agent.selectedAgent?.contextCount,
                 autoCompressContext: agent.selectedAgent?.autoCompressContext,
                 compressModel: agent.selectedAgent?.compressModel,
-                providerOptions: providerOptions.value[provider.value]
+                providerOptions: providerOptions.value[provider.value],
+                skipAutoApprove
               }
             )
           },
@@ -337,12 +339,12 @@ export const useChat = (chatId: string) => {
     },
     regenerate: (messageId: string) => {
       const currentChats = getChatById(chatId)
-      const chat = createChat(currentChats?.messages || [], messageId)
+      const chat = createChat(currentChats?.messages || [], { regenerateMessageId: messageId })
       chat.regenerate({ messageId })
     },
     approval: (part: ToolUIPart, approved: boolean) => {
       const currentChats = getChatById(chatId)
-      const chat = createChat(currentChats?.messages || [])
+      const chat = createChat(currentChats?.messages || [], { skipAutoApprove: true })
       chat.addToolApprovalResponse({
         id: part.approval!.id!,
         approved
