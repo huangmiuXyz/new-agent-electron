@@ -6,7 +6,6 @@ import { discoverSkills, createLoadSkillTool } from '../skillsService'
 export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tools => {
   const { pluginLoader } = usePlugins()
   const manager = pluginLoader.getPluginManager()
-
   // 发现可用技能
   const skills = discoverSkills()
 

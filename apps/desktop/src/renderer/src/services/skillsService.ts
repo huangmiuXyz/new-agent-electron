@@ -87,13 +87,22 @@ export function discoverSkills(): SkillMetadata[] {
         }
 
         // 读取目录内容
-        const entries = window.api.fs.readdirSync(skillsDir, { withFileTypes: true })
+        const entries = window.api.fs.readdirSync(skillsDir)
 
         for (const entry of entries) {
-            // 只处理目录
-            if (!entry.isDirectory()) continue
+            const skillDir = window.api.path.join(skillsDir, entry)
 
-            const skillDir = window.api.path.join(skillsDir, entry.name)
+            // 只处理目录 (使用 mode 位运算判断，因为 context bridge 会丢失方法)
+            let isDir = false
+            try {
+                const stat = window.api.fs.lstatSync(skillDir)
+                // S_IFDIR = 0o040000, 检查 mode 的高位
+                isDir = (stat.mode & 0o170000) === 0o040000
+            } catch {
+                continue
+            }
+            if (!isDir) continue
+
             const skillFile = window.api.path.join(skillDir, 'SKILL.md')
 
             try {
@@ -106,7 +115,7 @@ export function discoverSkills(): SkillMetadata[] {
                 const frontmatter = parseFrontmatter(content)
 
                 if (!frontmatter.name || !frontmatter.description) {
-                    console.warn(`Skill ${entry.name} missing name or description`)
+                    console.warn(`Skill ${entry} missing name or description`)
                     continue
                 }
 
@@ -120,7 +129,7 @@ export function discoverSkills(): SkillMetadata[] {
                     path: skillDir
                 })
             } catch (error) {
-                console.warn(`Failed to load skill ${entry.name}:`, error)
+                console.warn(`Failed to load skill ${entry}:`, error)
                 continue
             }
         }
