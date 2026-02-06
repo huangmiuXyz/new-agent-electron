@@ -3,12 +3,13 @@
     ref="containerRef"
     class="resize-box"
     :style="containerStyle"
-    :class="{ 
-      collapsed: isCollapsed, 
-      resizing: isResizing,
-      'is-horizontal': direction === 'horizontal',
-      'is-vertical': direction === 'vertical'
-    }"
+  :class="{ 
+    collapsed: isCollapsed, 
+    resizing: isResizing,
+    'is-horizontal': direction === 'horizontal',
+    'is-vertical': direction === 'vertical',
+    'is-mounted': isMounted
+  }"
   >
     <div class="resize-content">
       <slot></slot>
@@ -28,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted, computed } from 'vue'
+import { ref, onUnmounted, computed, onMounted } from 'vue'
 
 const props = withDefaults(defineProps<{
   width?: number
@@ -55,6 +56,14 @@ const emit = defineEmits<{
 
 const isResizing = ref(false)
 const containerRef = ref<HTMLElement | null>(null)
+const isMounted = ref(false)
+
+onMounted(() => {
+  // 挂载后短暂禁用过渡动画，避免初始动画影响子组件尺寸计算
+  requestAnimationFrame(() => {
+    isMounted.value = true
+  })
+})
 
 const containerStyle = computed(() => {
   if (props.direction === 'horizontal') {
@@ -138,8 +147,11 @@ onUnmounted(() => {
 <style scoped>
 .resize-box {
   position: relative;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
+}
+
+.resize-box.is-mounted {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .resize-box.is-horizontal {

@@ -2,9 +2,18 @@
 import { useSettingsStore } from '@renderer/stores/settings'
 import { useAgentStore } from '@renderer/stores/agent'
 import Term from '@renderer/components/term.vue'
+import { computed } from 'vue'
 
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
+
+// isCollapsed 与 showTerminal 相反：显示时展开(false)，隐藏时折叠(true)
+const terminalCollapsed = computed({
+  get: () => !settingsStore.display.showTerminal,
+  set: (val) => {
+    settingsStore.display.showTerminal = !val
+  }
+})
 </script>
 
 <template>
@@ -25,10 +34,9 @@ const agentStore = useAgentStore()
       <ChatMessageList />
 
       <!-- 终端区域 -->
-      <ResizeBox
-        v-if="settingsStore.display.showTerminal"
+      <ResizeBox 
         v-model:height="settingsStore.display.terminalHeight"
-        v-model:is-collapsed="settingsStore.display.showTerminal"
+        v-model:is-collapsed="terminalCollapsed"
         direction="vertical"
         handle-position="top"
         :min-size="150"
@@ -46,7 +54,7 @@ const agentStore = useAgentStore()
 <style scoped>
 .chat-app {
   font-family: var(--font-stack);
-  background-color: var(--bg-app);
+  /* background-color: var(--bg-app); */
   height: 100%;
   width: 100%;
   display: flex;
