@@ -149,9 +149,8 @@ onUnmounted(() => {
   position: relative;
   flex-shrink: 0;
 }
-
-.resize-box.is-mounted {
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.resize-box.is-mounted:not(.resizing) {
+  transition: none;
 }
 
 .resize-box.is-horizontal {
