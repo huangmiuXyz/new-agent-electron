@@ -44,7 +44,6 @@ interface ChatServiceConfig {
   compressModel?: { providerId: string; modelId: string }
   providerOptions?: Record<string, any>
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
-  skipAutoApprove?: boolean
 }
 
 export interface ImageGenerateOptions {
@@ -231,7 +230,6 @@ export const chatService = () => {
       compressModel,
       providerOptions: customProviderOptions,
       onBeforeToolExecute,
-      skipAutoApprove
     }: ChatServiceConfig
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
@@ -339,7 +337,7 @@ export const chatService = () => {
     const controller = new AbortController()
     const uiStream = createAgentUIStream({
       agent,
-      uiMessages: processedMessages,
+      uiMessages: messages,
       abortSignal: controller.signal,
       messageMetadata: ({ part }) => {
         let result = {}
