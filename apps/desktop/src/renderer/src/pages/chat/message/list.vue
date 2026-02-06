@@ -96,7 +96,53 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
     {
       label: '复制',
       icon: Copy,
-      onClick: () => copyText(message.parts.map((e) => (e.type === 'text' ? e.text : '')).join(''))
+      onClick: () => {
+        const selection = window.getSelection()
+        const selectedText = selection?.toString() || ''
+        if (selectedText) {
+          copyText(selectedText)
+        } else {
+          copyText(message.parts.map((e) => (e.type === 'text' ? e.text : '')).join(''))
+        }
+      },
+      children: [
+        {
+          label: '复制选中文字',
+          icon: Copy,
+          onClick: () => {
+            const selection = window.getSelection()
+            const selectedText = selection?.toString() || ''
+            if (selectedText) {
+              copyText(selectedText)
+            }
+          }
+        },
+        {
+          label: '复制当前信息',
+          icon: Copy,
+          onClick: () => copyText(message.parts.map((e) => (e.type === 'text' ? e.text : '')).join(''))
+        },
+        {
+          label: '复制当天话题',
+          icon: Copy,
+          onClick: () => {
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            const todayMessages = currentChat.value?.messages.filter((msg) => {
+              const msgDate = new Date(msg.metadata?.date || Date.now())
+              const msgDay = new Date(msgDate)
+              msgDay.setHours(0, 0, 0, 0)
+              return msgDay.getTime() === today.getTime()
+            }) || []
+            const todayContent = todayMessages.map((msg) => {
+              const role = msg.role === 'user' ? '用户' : '助手'
+              const content = msg.parts.map((e) => (e.type === 'text' ? e.text : '')).join('')
+              return `${role}: ${content}`
+            }).join('\n\n')
+            copyText(todayContent)
+          }
+        }
+      ]
     },
     {
       label: '翻译',

@@ -112,8 +112,16 @@ const emit = defineEmits(['select'])
 const handleItemClick = (item: MenuItem<T>) => {
   if (item.disabled) return
 
-  // 如果有子菜单，不执行点击事件，由 hover 处理
-  if (item.children && item.children.length > 0) return
+  // 如果有子菜单，需要判断是否有 onClick
+  if (item.children && item.children.length > 0) {
+    // 如果配置项有 onClick 处理函数，执行它
+    if (typeof item.onClick === 'function') {
+      item.onClick(contextData.value as T)
+      hideContextMenu()
+    }
+    // 否则由 hover 处理显示子菜单
+    return
+  }
 
   // 1. 如果配置项自带 onClick 处理函数，优先执行
   if (typeof item.onClick === 'function') {
