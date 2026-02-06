@@ -167,13 +167,16 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
     {
       label: '继续',
       icon: Continue,
-      onClick: async () => {
+      onClick: async (data) => {
         if (!currentSelectedModel.value) {
           messageApi.error('请先选择模型')
           return
         }
+        data.metadata?.stop?.()
         const { continueMessages } = useChat(currentChat.value!.id!)
-        continueMessages()
+        setTimeout(() => {
+          continueMessages()
+        })
       }
     },
     {
