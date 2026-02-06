@@ -3,8 +3,10 @@
     <div v-if="visible" ref="modalOverlay" :class="overlayClass" @click.self="handleEsc" @keydown.esc="handleEsc"
       tabindex="-1">
       <!-- 中心弹窗样式 -->
-      <div v-if="variant !== 'drawer'" class="modal-box" :style="{ width: props.width }">
-        <div class="modal-header">
+      <div v-if="variant !== 'drawer'" ref="modalBox" class="modal-box"
+        :class="{ 'is-dragging': isDragging }"
+        :style="[{ width: props.width }, draggableStyle]">
+        <div ref="modalHeader" class="modal-header" :class="{ 'is-draggable': !isMobile && props.variant !== 'drawer' }">
           <span class="modal-title">{{ title }}</span>
           <Button @click="handleEsc" variant="text">
             <Close />
@@ -61,6 +63,7 @@ import Button from './Button.vue'
 import { useIcon } from '@renderer/composables/useIcon'
 import { useBackButton } from '@renderer/composables/useBackButton'
 import { BaseModalProps } from '@renderer/types/components'
+import { useDraggable } from '@vueuse/core'
 const props = withDefaults(defineProps<BaseModalProps>(), {
   variant: isMobile.value ? 'drawer' : 'center',
   showFooter: true,
@@ -72,6 +75,30 @@ const Close = useIcon('Close')
 const visible = ref(false)
 const modalOverlay = useTemplateRef('modalOverlay')
 const confirmButton = useTemplateRef('confirmButton')
+const modalBox = ref<HTMLElement | null>(null)
+const modalHeader = ref<HTMLElement | null>(null)
+
+// 非手机模式下启用拖拽 - 使用 vueuse
+const isDraggableEnabled = computed(() => !isMobile.value && props.variant !== 'drawer' && visible.value)
+
+const { x, y, style: draggableStyle, isDragging } = useDraggable(modalBox, {
+  disabled: computed(() => !isDraggableEnabled.value),
+  handle: modalHeader,
+  initialValue: { x: 0, y: 0 },
+  preventDefault: true
+})
+
+const resetPosition = () => {
+  // 等待 DOM 更新后获取实际高度
+  nextTick(() => {
+    const el = modalBox.value
+    if (el) {
+      const rect = el.getBoundingClientRect()
+      x.value = (window.innerWidth - rect.width) / 2
+      y.value = (window.innerHeight - rect.height) / 2
+    }
+  })
+}
 
 const overlayClass = computed(() => {
   return props.variant === 'drawer' ? 'modal-overlay drawer-overlay' : 'modal-overlay'
@@ -79,6 +106,7 @@ const overlayClass = computed(() => {
 
 onMounted(async () => {
   visible.value = true
+  resetPosition()
   nextTick(() => {
     modalOverlay.value?.focus()
     confirmButton.value?.focus()
@@ -101,13 +129,16 @@ const handleConfirm = () => {
   }
   visible.value = false
   setTimeout(() => {
+    resetPosition()
     props.resolve?.(true)
     props.remove?.()
   }, 200)
 }
+
 const handleEsc = () => {
   visible.value = false
   setTimeout(() => {
+    resetPosition()
     if (props.onClose) {
       props.onClose?.()
       return
@@ -119,6 +150,7 @@ const handleEsc = () => {
 const handleCancel = () => {
   visible.value = false
   setTimeout(() => {
+    resetPosition()
     if (props.onCancel) {
       props.onCancel?.()
       return
@@ -137,9 +169,6 @@ const handleCancel = () => {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 3000;
 }
 
@@ -159,7 +188,11 @@ const handleCancel = () => {
   flex-direction: column;
   overflow: hidden;
   max-height: 90vh;
+  position: fixed;
+  touch-action: none;
 }
+
+
 
 /* 动画部分 */
 .modal-fade-enter-active,
@@ -172,8 +205,8 @@ const handleCancel = () => {
   opacity: 0;
 }
 
-.modal-fade-enter-active .modal-box,
-.modal-fade-leave-active .modal-box {
+.modal-fade-enter-active .modal-box:not(.is-dragging),
+.modal-fade-leave-active .modal-box:not(.is-dragging) {
   transition: transform 0.2s ease;
 }
 
@@ -189,6 +222,14 @@ const handleCancel = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.modal-header.is-draggable {
+  cursor: move;
+}
+
+.modal-header.is-draggable:active {
+  cursor: grabbing;
 }
 
 .modal-title {
