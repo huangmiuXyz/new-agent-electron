@@ -62,11 +62,11 @@ const processMessagesWithToolOutput = (messages: BaseMessage[], skipAutoApprove?
         if (!isToolUIPart(part)) {
           return part
         }
-        if (!part.output) {
+        if (!part.output && !skipAutoApprove) {
           const newPart: any = { ...part }
           delete newPart.title
           newPart.state = 'output-available'
-          if (!skipAutoApprove && newPart.approval !== undefined && newPart.approval.approved === undefined) {
+          if (newPart.approval !== undefined && newPart.approval.approved === undefined) {
             newPart.approval = { ...newPart.approval, approved: true }
           }
           if (newPart.output === undefined) {
