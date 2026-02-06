@@ -54,36 +54,6 @@ export interface ImageGenerateOptions {
   seed?: number
   providerOptions?: any
 }
-const processMessagesWithToolOutput = (messages: BaseMessage[], skipAutoApprove?: boolean): BaseMessage[] => {
-  const processedMessages = JSON.parse(JSON.stringify(messages)) as BaseMessage[]
-  for (const message of processedMessages) {
-    if (message.parts && Array.isArray(message.parts)) {
-      message.parts = message.parts.map((part) => {
-        if (!isToolUIPart(part)) {
-          return part
-        }
-        if (!part.output && !skipAutoApprove) {
-          const newPart: any = { ...part }
-          delete newPart.title
-          newPart.state = 'output-available'
-          if (newPart.approval !== undefined && newPart.approval.approved === undefined) {
-            newPart.approval = { ...newPart.approval, approved: true }
-          }
-          if (newPart.output === undefined) {
-            newPart.output = {
-              toolResult: {
-                content: [{ type: 'text', text: '' }]
-              }
-            }
-          }
-          return newPart
-        }
-        return part
-      })
-    }
-  }
-  return processedMessages
-}
 
 interface AutoCompressOptions {
   cid: string
@@ -367,7 +337,6 @@ export const chatService = () => {
       ]
     })
     const controller = new AbortController()
-    const processedMessages = processMessagesWithToolOutput(messages, skipAutoApprove)
     const uiStream = createAgentUIStream({
       agent,
       uiMessages: processedMessages,
