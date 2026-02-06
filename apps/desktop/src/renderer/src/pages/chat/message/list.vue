@@ -123,23 +123,33 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
           onClick: () => copyText(message.parts.map((e) => (e.type === 'text' ? e.text : '')).join(''))
         },
         {
-          label: '复制当天话题',
+          label: '复制当前话题',
           icon: Copy,
-          onClick: () => {
-            const today = new Date()
-            today.setHours(0, 0, 0, 0)
-            const todayMessages = currentChat.value?.messages.filter((msg) => {
-              const msgDate = new Date(msg.metadata?.date || Date.now())
-              const msgDay = new Date(msgDate)
-              msgDay.setHours(0, 0, 0, 0)
-              return msgDay.getTime() === today.getTime()
-            }) || []
-            const todayContent = todayMessages.map((msg) => {
-              const role = msg.role === 'user' ? '用户' : '助手'
-              const content = msg.parts.map((e) => (e.type === 'text' ? e.text : '')).join('')
-              return `${role}: ${content}`
-            }).join('\n\n')
-            copyText(todayContent)
+          onClick: async () => {
+            const allMessages = currentChat.value?.messages || []
+            if (allMessages.length === 0) return
+
+            // 分片处理，每片 100 条消息
+            const CHUNK_SIZE = 100
+            const contentChunks: string[] = []
+
+            for (let i = 0; i < allMessages.length; i += CHUNK_SIZE) {
+              const chunk = allMessages.slice(i, i + CHUNK_SIZE)
+              const chunkContent = chunk.map((msg) => {
+                const role = msg.role === 'user' ? '用户' : '助手'
+                const content = msg.parts.map((e) => (e.type === 'text' ? e.text : '')).join('')
+                return `${role}: ${content}`
+              }).join('\n\n')
+              contentChunks.push(chunkContent)
+
+              // 每处理一个分片让出控制权，避免阻塞 UI
+              if (i + CHUNK_SIZE < allMessages.length) {
+                await new Promise(resolve => setTimeout(resolve, 0))
+              }
+            }
+
+            const finalContent = contentChunks.join('\n\n')
+            copyText(finalContent)
           }
         }
       ]
