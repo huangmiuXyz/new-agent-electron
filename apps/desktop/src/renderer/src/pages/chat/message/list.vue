@@ -252,8 +252,8 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 </script>
 <template>
   <div class="message-list-wrapper" :class="{ 'is-centered': display.chatCenteredLayout }">
-    <AutoScrollContainer ref="messageScrollRef" class="message-scroll-container" :enabled="autoScrollEnabled"
-      :threshold="0">
+    <AutoScrollContainer  ref="messageScrollRef" :enabled="autoScrollEnabled"
+      :threshold="5">
       <div class="messages-content">
         <template v-for="(message, index) in currentChat?.messages" :key="message.id">
           <div :id="`message-${message.id}`" class="message-item-wrapper">
@@ -295,15 +295,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 .message-list-wrapper.is-centered {
   max-width: 800px;
   margin: 0 auto;
-}
-:deep(.message-scroll-container),
-.message-scroll-container {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  position: relative;
-  /* 确保滚动容器本身是一个层隔离边界 */
-  isolation: isolate;
 }
 
 .messages-content {
