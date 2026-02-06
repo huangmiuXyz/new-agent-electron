@@ -25,9 +25,17 @@ const agentStore = useAgentStore()
       <ChatMessageList />
 
       <!-- 终端区域 -->
-      <div v-show="settingsStore.display.showTerminal" :style="{ height: settingsStore.display.terminalHeight + 'px' }">
+      <ResizeBox
+        v-if="settingsStore.display.showTerminal"
+        v-model:height="settingsStore.display.terminalHeight"
+        v-model:is-collapsed="settingsStore.display.showTerminal"
+        direction="vertical"
+        handle-position="top"
+        :min-size="150"
+        :max-size="600"
+      >
         <Term />
-      </div>
+      </ResizeBox>
 
       <!-- 输入框 -->
       <ChatMessageInput />
