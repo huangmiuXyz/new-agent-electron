@@ -13,6 +13,7 @@ import { getBuiltinTools } from '../builtin-tools'
 import { createRagMiddleware } from './middleware/rags'
 import { createContextLimitMiddleware } from './middleware/contextLimit'
 import { createCompressContextMiddleware } from './middleware/compressContext'
+import { useSettingsStore } from '@renderer/stores/settings'
 
 interface ChatServiceOptions {
   model: string
@@ -39,6 +40,8 @@ interface ChatServiceConfig {
   frequencyPenalty?: number
   maxOutputTokens?: number
   contextCount?: number
+  autoCompressContext?: boolean
+  compressModel?: { providerId: string; modelId: string }
   providerOptions?: Record<string, any>
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
 }
@@ -81,6 +84,158 @@ const processMessagesWithToolOutput = (messages: BaseMessage[]): BaseMessage[] =
   return processedMessages
 }
 
+interface AutoCompressOptions {
+  cid: string
+  messages: BaseMessage[]
+  contextCount?: number
+  compressModel?: { providerId: string; modelId: string }
+}
+
+const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMessage[]> => {
+  const { cid, messages, contextCount, compressModel } = options
+
+  // 当消息数量达到或超过上下文限制时触发压缩
+  const shouldAutoCompress = contextCount &&
+    messages.length >= contextCount &&
+    compressModel?.providerId &&
+    compressModel?.modelId
+
+  if (!shouldAutoCompress) return messages
+
+  // 检查是否已经有压缩标记
+  const hasCompressed = messages.some(m =>
+    m.role === 'system' &&
+    m.parts?.some(p => p.type === 'text' && p.text?.includes('[上下文已压缩]'))
+  )
+
+  if (hasCompressed) return messages
+
+  const compressProvider = useSettingsStore().getProviderById(compressModel.providerId)
+  if (!compressProvider) return messages
+
+  try {
+    // 构建需要压缩的上下文
+    const contextToCompress = messages
+      .filter(m => m.role !== 'system')
+      .map(m => {
+        const text = m.parts?.filter(p => p.type === 'text').map(p => p.text).join('\n') || ''
+        return `${m.role}: ${text}`
+      })
+      .join('\n\n')
+
+    const { updateMessages, getChatById, updateMessage, updateMessageMetadata } = useChatsStores()
+
+    // 创建system消息显示压缩进度
+    const compressingMessageId = nanoid()
+    const compressingMessage: BaseMessage = {
+      id: compressingMessageId,
+      role: 'system',
+      parts: [{
+        type: 'text',
+        text: '🔃 正在压缩上下文...'
+      }],
+      metadata: {
+        isCompressingContext: true,
+        date: Date.now(),
+        provider: compressProvider.id,
+        model: compressModel.modelId,
+        stop: () => { },
+        loading: true,
+        cid
+      } as MetaData
+    }
+
+    // 添加system消息到聊天
+    const chat = getChatById(cid)
+    if (chat) {
+      updateMessages(cid, (msgs) => [...msgs, compressingMessage])
+    }
+
+    let compressedText = ''
+
+    // 流式生成压缩内容
+    const compressStream = _streamText({
+      model: createRegistry({
+        apiKey: compressProvider.apiKey || '',
+        baseURL: compressProvider.baseUrl,
+        name: compressProvider.name
+      }).languageModel(`${compressProvider.providerType}:${compressModel.modelId}`),
+      prompt: `请将以下对话历史压缩成简洁的摘要，保留关键信息和结论：
+
+${contextToCompress}
+
+请生成一个简洁的摘要，包含：
+1. 讨论的主要话题
+2. 关键决策和结论
+3. 需要记住的重要信息
+4. 未解决的问题（如果有）`,
+      onFinish: ({ text }) => {
+        compressedText = text
+      }
+    })
+
+    // 流式接收内容并实时更新system消息
+    let accumulatedText = ''
+    try {
+      for await (const data of compressStream.textStream) {
+        accumulatedText += data
+        if (chat) {
+          // 实时更新system消息显示流式进度（临时显示，不包含标记）
+          updateMessage(cid, compressingMessageId, [{
+            type: 'text',
+            text: `🔃 正在压缩上下文...\n\n${accumulatedText}`
+          }])
+        }
+      }
+
+      // 流式完成，更新为最终状态（包含[上下文已压缩]标记供中间件识别）
+      if (chat && compressedText) {
+        // 先更新为带标记的文本
+        updateMessage(cid, compressingMessageId, [{
+          type: 'text',
+          text: `${compressedText}\n\n[上下文已压缩]`
+        }])
+        // 标记为非加载状态 - 使用 updateMessageMetadata 确保状态被正确保存
+        const msg = chat.messages.find(m => m.id === compressingMessageId)
+        if (msg && msg.metadata) {
+          const newMetadata = { ...msg.metadata, loading: false, isCompressedContext: true } as MetaData
+          updateMessageMetadata(cid, compressingMessageId, newMetadata)
+        }
+      }
+    } catch (streamError) {
+      console.error('流式压缩出错:', streamError)
+      // 流式出错时，显示错误
+      if (chat) {
+        updateMessage(cid, compressingMessageId, [{
+          type: 'text',
+          text: accumulatedText + '\n\n❌ 压缩过程出错，将使用原始上下文继续。'
+        }])
+        // 标记为非加载状态
+        const errorMsg = chat.messages.find(m => m.id === compressingMessageId)
+        if (errorMsg && errorMsg.metadata) {
+          const newMetadata = { ...errorMsg.metadata, loading: false } as MetaData
+          updateMessageMetadata(cid, compressingMessageId, newMetadata)
+        }
+      }
+      return messages
+    }
+
+    // 压缩完成，返回包含system消息的消息列表（system消息已在UI中显示）
+    if (compressedText && chat) {
+      // 找到刚刚创建的system消息并返回
+      const compressingMsg = chat.messages.find(m => m.id === compressingMessageId)
+      if (compressingMsg) {
+        return [...messages, compressingMsg]
+      }
+    }
+
+    return messages
+  } catch (error) {
+    console.error('自动压缩上下文失败:', error)
+    return messages
+  }
+}
+
 export const chatService = () => {
   const createAgent = async (
     cid: string,
@@ -101,11 +256,24 @@ export const chatService = () => {
       frequencyPenalty,
       maxOutputTokens,
       contextCount,
+      autoCompressContext: shouldAutoCompress,
+      compressModel,
       providerOptions: customProviderOptions,
       onBeforeToolExecute
     }: ChatServiceConfig
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
+
+    // 自动压缩上下文
+    if (shouldAutoCompress) {
+      messages = await autoCompressContext({
+        cid,
+        messages,
+        contextCount,
+        compressModel
+      })
+    }
+
     let tools: Tools = {}
 
     const builtinTools = getBuiltinTools({ knowledgeBaseIds })

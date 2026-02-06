@@ -23,6 +23,8 @@ declare global {
     frequencyPenalty?: number // 频率惩罚 (frequency penalty)
     maxOutputTokens?: number // 最大输出 token 数
     contextCount?: number // 上下文条数
+    autoCompressContext?: boolean // 自动压缩上下文
+    compressModel?: { providerId: string; modelId: string } // 用于压缩的模型
     speechVoice?: string // 语音名称
     speechMode?: 'sentence' | 'paragraph' | 'full' // 语音生成模式
     speechSpeed?: number // 语音速度

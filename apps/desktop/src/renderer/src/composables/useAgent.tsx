@@ -134,6 +134,8 @@ export const useAgent = () => {
           frequencyPenalty: agent.frequencyPenalty ?? 0,
           maxOutputTokens: agent.maxOutputTokens ?? 2000,
           contextCount: agent.contextCount ?? 10,
+          autoCompressContext: agent.autoCompressContext ?? false,
+          compressModel: agent.compressModel,
           speechVoice: agent.speechVoice || '',
           speechMode: agent.speechMode || 'sentence',
           speechSpeed: agent.speechSpeed ?? 1,
@@ -161,6 +163,7 @@ export const useAgent = () => {
           frequencyPenalty: 0,
           maxOutputTokens: 2000,
           contextCount: 10,
+          autoCompressContext: false,
           speechVoice: '',
           speechMode: 'sentence',
           speechSpeed: 1,
@@ -298,12 +301,6 @@ export const useAgent = () => {
         min: 1,
         max: 128000,
         hint: '模型允许生成的最大 Token 数量。'
-      } as TextField<AgentFormData>,
-      {
-        name: 'contextCount',
-        type: 'number',
-        label: '历史上下文条数',
-        hint: '发送给模型进行参考的历史消息条数。'
       } as TextField<AgentFormData>
     ]
 
@@ -437,6 +434,26 @@ export const useAgent = () => {
     ]
 
     const advancedFields: FormField<AgentFormData>[] = [
+      {
+        name: 'contextCount',
+        type: 'number',
+        label: '历史上下文条数',
+        hint: '发送给模型进行参考的历史消息条数。当消息数量接近此限制时，将触发自动压缩（如果已启用）。'
+      } as TextField<AgentFormData>,
+      {
+        name: 'autoCompressContext',
+        type: 'boolean',
+        label: '自动压缩上下文',
+        hint: '当对话历史即将超过上下文长度限制时，自动调用压缩工具生成摘要。'
+      } as BooleanField<AgentFormData>,
+      {
+        name: 'compressModel',
+        type: 'modelSelector',
+        label: '压缩模型',
+        hint: '用于生成上下文压缩摘要的模型。建议选择轻量级模型以节省成本。',
+        modelCategory: 'text',
+        ifShow: (data) => data.autoCompressContext === true
+      } as ModelSelectorField<AgentFormData>,
       {
         name: 'terminalStartupPath',
         type: 'path',

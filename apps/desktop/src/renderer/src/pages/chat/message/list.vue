@@ -206,11 +206,12 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
             <ChatMessageItemHuman v-if="message.role === 'user'" :message="message"
               :ref="index === lastMessageIndex - 1 ? 'prevMessageRef' : undefined"
               @contextmenu="onMessageRightClick($event, message)" />
-            <ChatMessageItemAi v-if="message.role === 'assistant'" :message="message" :style="{
+            <ChatMessageItemAi v-else-if="message.role === 'assistant'" :message="message" :style="{
               minHeight: index === lastMessageIndex ? lastMessageHeight : 'auto',
               height: 'auto',
               flex: 'none'
             }" @contextmenu="onMessageRightClick($event, message)" />
+            <ChatMessageItemSystem v-else-if="message.role === 'system'" :message="message" />
           </div>
         </template>
       </div>

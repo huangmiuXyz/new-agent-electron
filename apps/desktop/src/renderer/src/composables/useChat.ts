@@ -116,6 +116,8 @@ export const useChat = (chatId: string) => {
                 frequencyPenalty: agent.selectedAgent?.frequencyPenalty,
                 maxOutputTokens: agent.selectedAgent?.maxOutputTokens,
                 contextCount: agent.selectedAgent?.contextCount,
+                autoCompressContext: agent.selectedAgent?.autoCompressContext,
+                compressModel: agent.selectedAgent?.compressModel,
                 providerOptions: providerOptions.value[provider.value]
               }
             )
