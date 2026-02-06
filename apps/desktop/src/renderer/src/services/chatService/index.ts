@@ -305,6 +305,7 @@ export const chatService = () => {
       }
     }
     const ragSearchDetails = ref()
+
     const agent = new ToolLoopAgent({
       model: wrapLanguageModel({
         model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
