@@ -436,8 +436,11 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
       execute: async (args: any, options: any) => {
         const { command, id } = args
         const { createTab } = useTerminal()
+        const encodedCommand = btoa(String.fromCharCode(...new TextEncoder().encode(command)))
+        const wrappedCommand = `cmd_file="/tmp/agentqi_$(date +%s)_$RANDOM" && echo "${encodedCommand}" | base64 -d > "$cmd_file" && bash "$cmd_file"; rm -f "$cmd_file"`
+
         const { id: tabId, result } = await createTab({
-          command,
+          command: wrappedCommand,
           id,
           toolCallId: options.toolCallId,
           showTerminal: true
