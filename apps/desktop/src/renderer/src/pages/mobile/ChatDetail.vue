@@ -1,5 +1,4 @@
 <script setup lang="ts">
-const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
 const { setTitle, customTitle } = useAppHeader()
 const { currentChat } = storeToRefs(useChatsStores())
