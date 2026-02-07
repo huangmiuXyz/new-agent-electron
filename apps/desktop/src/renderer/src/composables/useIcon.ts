@@ -40,7 +40,8 @@ import {
   RotateCounterclockwise,
   RotateClockwise,
   Filter,
-  Continue
+  Continue,
+  Keyboard
 } from '@vicons/carbon'
 import {
   Cpu,
@@ -221,7 +222,9 @@ export const icons = {
   Filter,
   Continue,
   Fullscreen,
-  FullscreenExit
+  FullscreenExit,
+  Keyboard,
+  RotateCounterclockwise
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =

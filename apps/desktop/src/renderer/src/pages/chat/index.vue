@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { useSettingsStore } from '@renderer/stores/settings'
 import { useAgentStore } from '@renderer/stores/agent'
+import { useShortcuts } from '@renderer/composables/useShortcuts'
 import Term from '@renderer/components/term.vue'
 import { computed } from 'vue'
 
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
+const chatsStore = useChatsStores()
+const { register } = useShortcuts()
 
 // isCollapsed 与 showTerminal 相反：显示时展开(false)，隐藏时折叠(true)
 const terminalCollapsed = computed({
@@ -13,6 +16,20 @@ const terminalCollapsed = computed({
   set: (val) => {
     settingsStore.display.showTerminal = !val
   }
+})
+
+// 注册聊天页面快捷键
+onMounted(() => {
+  // 清空上下文
+  register({
+    id: 'chat.clearContext',
+    handler: () => {
+      const chat = chatsStore.currentChat
+      if (chat && chat.messages.length > 0) {
+        chat.messages = []
+      }
+    }
+  })
 })
 </script>
 

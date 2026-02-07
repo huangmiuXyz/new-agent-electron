@@ -1,5 +1,7 @@
 import data from '@renderer/assets/data/provider.json'
 import { ImageGenerateOptions } from '@renderer/services/chatService'
+import type { ShortcutConfig } from '@renderer/composables/useShortcuts'
+import { BUILTIN_SHORTCUTS } from '@renderer/composables/useShortcuts'
 
 let resolveRestore: () => void
 const restorePromise = new Promise<void>((resolve) => {
@@ -37,6 +39,42 @@ export const useSettingsStore = defineStore(
       expandThoughtByDefault: true,
       chatCenteredLayout: false
     })
+
+    // 快捷键配置
+    const shortcuts = ref<ShortcutConfig[]>(
+      BUILTIN_SHORTCUTS.map(s => ({ ...s }))
+    )
+
+    // 更新快捷键配置
+    const updateShortcut = (id: string, updates: Partial<ShortcutConfig>) => {
+      const index = shortcuts.value.findIndex(s => s.id === id)
+      if (index > -1) {
+        shortcuts.value[index] = { ...shortcuts.value[index], ...updates }
+      }
+    }
+
+    // 重置快捷键为默认值
+    const resetShortcut = (id: string) => {
+      const builtin = BUILTIN_SHORTCUTS.find(s => s.id === id)
+      if (builtin) {
+        updateShortcut(id, {
+          currentKey: undefined,
+          enabled: builtin.enabled
+        })
+      }
+    }
+
+    // 重置所有快捷键
+    const resetAllShortcuts = () => {
+      shortcuts.value = BUILTIN_SHORTCUTS.map(s => ({ ...s }))
+    }
+
+    // 获取生效的快捷键（优先使用 currentKey，否则使用 defaultKey）
+    const getActiveShortcutKey = (id: string): string => {
+      const shortcut = shortcuts.value.find(s => s.id === id)
+      if (!shortcut || !shortcut.enabled) return ''
+      return shortcut.currentKey || shortcut.defaultKey
+    }
 
     const terminal = ref({
       fontSize: 14,
@@ -375,6 +413,7 @@ export const useSettingsStore = defineStore(
       speechEnabled,
       providerOptions,
       imageGenerationForm,
+      shortcuts,
       updateImageGenerationForm,
       updateThinkingMode,
       updateSpeechEnabled,
@@ -410,7 +449,11 @@ export const useSettingsStore = defineStore(
       registeredProviders,
       getModelByVoice,
       addCustomProvider,
-      removeCustomProvider
+      removeCustomProvider,
+      updateShortcut,
+      resetShortcut,
+      resetAllShortcuts,
+      getActiveShortcutKey
     }
   },
   {
@@ -431,7 +474,8 @@ export const useSettingsStore = defineStore(
         'selectedProviderId',
         'currentSelectedProvider',
         'currentSelectedModel',
-        'imageGenerationForm'
+        'imageGenerationForm',
+        'shortcuts'
       ],
       afterRestore: async () => {
         try {

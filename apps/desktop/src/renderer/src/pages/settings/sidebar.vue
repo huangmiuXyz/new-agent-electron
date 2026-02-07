@@ -21,6 +21,7 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
 
 const settingsList = [
   { id: 'display', name: '显示设置', icon: useIcon('Eye'), section: '通用设置' },
+  { id: 'shortcuts', name: '快捷键', icon: useIcon('Keyboard'), section: '通用设置' },
   { id: 'agents', name: '智能体', icon: Robot, section: '智能助手' },
   { id: 'models', name: '模型提供商', icon: Cpu, section: '智能助手' },
   { id: 'defaultModels', name: '默认模型', icon: Box, section: '智能助手' },

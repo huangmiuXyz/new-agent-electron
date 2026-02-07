@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { isMobile } from '@renderer/composables/useDeviceType'
+import { useShortcuts } from '@renderer/composables/useShortcuts'
 
 const props = defineProps<{
   currentView: string
@@ -14,6 +15,8 @@ const isListMode = computed(() => {
 const { customTitle } = useAppHeader()
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
+const { register } = useShortcuts()
+const switchView = inject('switchView') as (view: 'chat' | 'notes' | 'settings' | 'image') => void
 
 const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp } = useIcon([
   'Search',
@@ -39,6 +42,58 @@ const createNewChat = () => {
 
 const { back } = useMobile()
 const route = useRoute()
+
+// 注册全局快捷键
+onMounted(() => {
+  // 全局搜索
+  register({
+    id: 'global.search',
+    handler: () => {
+      showSearch.value = true
+    }
+  })
+
+  // 新建对话
+  register({
+    id: 'global.newChat',
+    handler: () => {
+      if (props.currentView === 'chat') {
+        createNewChat()
+      }
+    }
+  })
+
+  // 切换侧边栏
+  register({
+    id: 'global.toggleSidebar',
+    handler: () => {
+      if (!isMobile.value) {
+        toggleSidebar()
+      }
+    }
+  })
+
+  // 页面切换快捷键
+  register({
+    id: 'navigation.switchToChat',
+    handler: () => switchView('chat')
+  })
+
+  register({
+    id: 'navigation.switchToNotes',
+    handler: () => switchView('notes')
+  })
+
+  register({
+    id: 'navigation.switchToImage',
+    handler: () => switchView('image')
+  })
+
+  register({
+    id: 'navigation.switchToSettings',
+    handler: () => switchView('settings')
+  })
+})
 
 </script>
 

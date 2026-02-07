@@ -171,16 +171,8 @@ const highlightText = (text: string) => {
     return text.replace(highlightRegex.value, '<span class="highlight">$1</span>')
 }
 
-// 全局快捷键 Cmd/Ctrl + K
-const handleGlobalKeydown = (e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        emit('update:modelValue', !props.modelValue)
-    }
-}
-
-onMounted(() => window.addEventListener('keydown', handleGlobalKeydown))
-onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown))
+// 注意：全局搜索快捷键现在由 useShortcuts 统一管理
+// 在 AppHeader.vue 中注册
 </script>
 
 <template>
