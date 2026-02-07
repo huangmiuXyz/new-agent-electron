@@ -1,10 +1,20 @@
 <script setup lang="ts">
 import { useNotificationStore } from '../stores/notifications'
-import { useIcon } from '../composables/useIcon'
-import { defineComponent, h } from 'vue'
+import { useSettingsStore } from '../stores/settings'
+import { useIcon } from '../composables/useIcon' 
+
+const props = defineProps<{
+  currentView: string
+}>()
 
 const notificationStore = useNotificationStore()
-const { Bell, InfoCircle, Refresh, Check, Mic } = useIcon(['Bell', 'InfoCircle', 'Refresh', 'Check', 'Mic'])
+const settingsStore = useSettingsStore()
+const { Bell, InfoCircle, Refresh, Check, Mic, Terminal } = useIcon(['Bell', 'InfoCircle', 'Refresh', 'Check', 'Mic', 'Terminal'])
+
+// 切换终端
+const toggleTerminal = () => {
+  settingsStore.display.showTerminal = !settingsStore.display.showTerminal
+}
 
 const StatusIcon = defineComponent({
   props: ['icon', 'color'],
@@ -59,6 +69,13 @@ const StatusRender = defineComponent({
       </div>
 
       <div class="status-bar-right">
+        <!-- 终端切换按钮 -->
+        <div class="status-item" :class="{ active: settingsStore.display.showTerminal }"
+          title="切换终端" @click="toggleTerminal">
+          <div class="icon-wrapper">
+            <Terminal />
+          </div>
+        </div>
         <div class="status-item" title="通知" @click="notificationStore.togglePanel">
           <div class="icon-wrapper">
             <StatusIcon icon="Bell" />
@@ -100,6 +117,11 @@ const StatusRender = defineComponent({
 
 .status-item:hover {
   background: var(--bg-hover);
+}
+
+.status-item.active {
+  color: var(--accent-color);
+  background: var(--active-bg);
 }
 
 .status-bar {

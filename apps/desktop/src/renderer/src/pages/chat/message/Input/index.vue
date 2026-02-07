@@ -1,6 +1,5 @@
 <script setup lang="tsx">
 import { FileUIPart, TextUIPart } from 'ai'
-import { useTerminal } from '@renderer/composables/useTerminal'
 import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
 
 import { usePlugins } from '@renderer/composables/usePlugins'
@@ -25,7 +24,6 @@ const {
 } = storeToRefs(useSettingsStore())
 const { updateThinkingMode, updateSpeechEnabled, updateProviderOptions } = useSettingsStore()
 
-const { toggleTerminal } = useTerminal()
 const speechStore = useSpeechStore()
 const agentStore = useAgentStore()
 const modal = useModal()
@@ -82,7 +80,6 @@ const openProviderOptionsModal = () => {
 // 图标
 const FileUploadIcon = useIcon('UploadOutlined')
 const Bulb = useIcon('Bulb')
-const TerminalIcon = useIcon('Terminal')
 const MicIcon = useIcon('Mic')
 const MicOffIcon = useIcon('MicOff')
 const VolumeIcon = useIcon('VolumeMedium')
@@ -366,12 +363,6 @@ const _sendMessage = async () => {
             <SettingsIcon />
           </Button>
 
-          <!-- 终端按钮 -->
-          <Button variant="icon" size="sm" :class="{ 'terminal-active': display.showTerminal }" @click="toggleTerminal"
-            title="显示终端">
-            <TerminalIcon />
-          </Button>
-
           <!-- 语音录制按钮 -->
           <Button variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }" @click="toggleVoiceRecording"
             :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'">
@@ -602,11 +593,6 @@ const _sendMessage = async () => {
 }
 
 .options-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
-}
-
-.terminal-active {
   color: var(--color-primary);
   background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
 }

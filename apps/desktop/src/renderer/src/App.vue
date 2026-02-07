@@ -4,6 +4,8 @@ import NotesPage from './pages/notes/index.vue'
 import ImagePage from './pages/image/index.vue'
 import SettingsPage from './pages/settings/index.vue'
 import AppFooter from './components/AppFooter.vue'
+import Term from './components/term.vue'
+import ResizeBox from './components/ResizeBox.vue'
 import { useSettingsStore } from './stores/settings'
 
 const route = useRoute()
@@ -11,6 +13,14 @@ const router = useRouter()
 const currentView = ref('chat')
 const settingsStore = useSettingsStore()
 const { display } = storeToRefs(settingsStore)
+
+// 终端显示控制
+const terminalCollapsed = computed({
+  get: () => !settingsStore.display.showTerminal,
+  set: (val) => {
+    settingsStore.display.showTerminal = !val
+  }
+})
 
 // 监听黑暗模式设置
 watchEffect(() => {
@@ -172,15 +182,29 @@ const handleTouchEnd = (e: TouchEvent) => {
     <div class="app-body" v-if="!isMobile">
       <AppNavBar :current-view="currentView" @switch="switchView" />
       <NotificationPanel />
-      <main class="app-content">
-        <ChatPage v-if="currentView === 'chat'" />
-        <NotesPage v-if="currentView === 'notes'" />
-        <ImagePage v-if="currentView === 'image'" />
-        <SettingsPage v-if="currentView === 'settings'" />
-      </main>
+      <div class="content-wrapper">
+        <main class="app-content">
+          <ChatPage v-if="currentView === 'chat'" />
+          <NotesPage v-if="currentView === 'notes'" />
+          <ImagePage v-if="currentView === 'image'" />
+          <SettingsPage v-if="currentView === 'settings'" />
+        </main>
+        <!-- 全局终端：在 content-wrapper 内，app-content 下方 -->
+        <ResizeBox
+          v-model:height="settingsStore.display.terminalHeight"
+          v-model:is-collapsed="terminalCollapsed"
+          direction="vertical"
+          handle-position="top"
+          :min-size="150"
+          :max-size="600"
+          class="global-terminal"
+        >
+          <Term />
+        </ResizeBox>
+      </div>
     </div>
 
-    <AppFooter v-if="!isMobile" />
+    <AppFooter v-if="!isMobile" :current-view="currentView" />
 
     <div class="app-body isMobile" v-else @touchstart="handleTouchStart" @touchmove="handleTouchMove"
       @touchend="handleTouchEnd">
@@ -419,9 +443,15 @@ body {
   overflow: hidden;
 }
 
+.content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .app-content {
   flex: 1;
-  height: 100%;
   overflow: hidden;
   position: relative;
   display: flex;
@@ -429,6 +459,13 @@ body {
   border-left: 1px solid var(--border-subtle);
   background: var(--bg-card);
   border-top-left-radius: var(--radius-md);
+}
+
+.global-terminal {
+  flex-shrink: 0;
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
 }
 
 a {
