@@ -24,6 +24,53 @@ onMounted(() => {
       }
     }
   })
+
+  // 切换助手
+  register({
+    id: 'chat.switchAgent',
+    handler: () => {
+      const agents = agentStore.allAgents
+      if (agents.length <= 1) return
+
+      const currentIndex = agents.findIndex(a => a.id === agentStore.selectedAgentId)
+      const nextIndex = (currentIndex + 1) % agents.length
+      agentStore.selectAgent(agents[nextIndex].id)
+    }
+  })
+
+  // 切换模型
+  register({
+    id: 'chat.switchModel',
+    handler: () => {
+      const providers = settingsStore.getAllProviders
+      const flatModels: { model: Model; provider: Provider }[] = []
+
+      // 构建模型列表
+      providers.forEach(provider => {
+        provider.models?.forEach(model => {
+          if (model.active && model.category === 'text') {
+            flatModels.push({ model, provider })
+          }
+        })
+      })
+
+      if (flatModels.length <= 1) return
+
+      // 找到当前模型的索引
+      const currentIndex = flatModels.findIndex(
+        item => item.model.id === settingsStore.selectedModelId &&
+                item.provider.id === settingsStore.selectedProviderId
+      )
+
+      const nextIndex = currentIndex === -1
+        ? 0
+        : (currentIndex + 1) % flatModels.length
+
+      const next = flatModels[nextIndex]
+      settingsStore.selectedModelId = next.model.id
+      settingsStore.selectedProviderId = next.provider.id
+    }
+  })
 })
 </script>
 

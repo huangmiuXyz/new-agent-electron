@@ -120,6 +120,24 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         enabled: true,
         editable: true,
         scope: 'global'
+    },
+    {
+        id: 'chat.switchAgent',
+        name: '切换助手',
+        description: '切换到下一个助手',
+        defaultKey: 'CmdOrCtrl+Shift+A',
+        enabled: true,
+        editable: true,
+        scope: 'chat'
+    },
+    {
+        id: 'chat.switchModel',
+        name: '切换模型',
+        description: '切换到下一个模型',
+        defaultKey: 'CmdOrCtrl+Shift+M',
+        enabled: true,
+        editable: true,
+        scope: 'chat'
     }
 ]
 
