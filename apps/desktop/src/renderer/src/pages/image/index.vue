@@ -428,7 +428,6 @@ const handleRightInputSubmit = () => {
 }
 
 onMounted(async () => {
-  await Promise.all([settingsStore.isAfterRestore, imgStore.isAfterRestore])
   formActions.setData(settingsStore.imageGenerationForm!)
   if (settingsStore.imageGenerationForm?.prompt) {
     rightInput.value = settingsStore.imageGenerationForm.prompt

@@ -7,11 +7,15 @@ import AppFooter from './components/AppFooter.vue'
 import Term from './components/term.vue'
 import ResizeBox from './components/ResizeBox.vue'
 import { useSettingsStore } from './stores/settings'
+import { useChatsStores } from './stores/chats'
+import { useImageStore } from './stores/image'
 
 const route = useRoute()
 const router = useRouter()
 const currentView = ref('chat')
 const settingsStore = useSettingsStore()
+const chatsStore = useChatsStores()
+const imageStore = useImageStore()
 const { display } = storeToRefs(settingsStore)
 
 // 终端显示控制
@@ -43,6 +47,43 @@ const switchView = (view: 'chat' | 'notes' | 'settings' | 'image') => {
 useBackButton()
 
 const { resetTitle, customTitle } = useAppHeader()
+
+// 各 store 独立的恢复状态
+const settingsReady = ref(false)
+const chatsReady = ref(false)
+const imageReady = ref(false)
+
+settingsStore.isAfterRestore.then(() => {
+  settingsReady.value = true
+})
+
+chatsStore.isAfterRestore.then(() => {
+  chatsReady.value = true
+})
+
+imageStore.isAfterRestore.then(() => {
+  imageReady.value = true
+})
+
+const isStoreReady = computed(() => {
+  const path = route.path 
+  if (path.startsWith('/chat') || path.startsWith('/mobile/chat') || path === '/') {
+    return settingsReady.value && chatsReady.value
+  } 
+  if (path.startsWith('/notes') || path.startsWith('/mobile/notes')) {
+    return settingsReady.value
+  } 
+  if (path.startsWith('/image')) {
+    return settingsReady.value && imageReady.value
+  } 
+  if (path.startsWith('/settings') || path.startsWith('/mobile/settings')) {
+    return settingsReady.value
+  } 
+  if (path.startsWith('/temp-chat')) {
+    return true
+  } 
+  return settingsReady.value && chatsReady.value
+})
 
 // 处理移动端键盘弹出时视口高度变化
 const updateViewportHeight = () => {
@@ -176,7 +217,7 @@ const handleTouchEnd = (e: TouchEvent) => {
 </script>
 
 <template>
-  <div class="app-layout" v-if="route.path !== '/temp-chat'">
+  <div class="app-layout" v-if="route.path !== '/temp-chat' && isStoreReady">
     <AppHeader v-if="!isMobile" :current-view="currentView" :custom-title="customTitle" />
 
     <div class="app-body" v-if="!isMobile">
@@ -211,12 +252,16 @@ const handleTouchEnd = (e: TouchEvent) => {
       <MobileTab :active-tab="currentView" />
     </div>
   </div>
-  <div v-else class="router-container h-full">
+  <div v-else-if="isStoreReady" class="router-container h-full">
     <router-view v-slot="{ Component }">
       <transition :name="transitionName">
         <component :is="Component" :key="route.path" />
       </transition>
     </router-view>
+  </div>
+  <!-- Store 恢复前的 loading -->
+  <div v-else class="app-loading">
+    <Loading />
   </div>
   <ContextMenu />
 </template>
@@ -527,5 +572,14 @@ a {
 .file-icon {
   display: flex;
   align-items: center;
+}
+
+.app-loading {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-app);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

@@ -1,5 +1,10 @@
 import { FileUIPart, TextUIPart } from "ai"
 
+let resolveRestore: () => void
+const restorePromise = new Promise<void>((resolve) => {
+  resolveRestore = resolve
+})
+
 export const useChatsStores = defineStore(
   'chats',
   () => {
@@ -7,6 +12,7 @@ export const useChatsStores = defineStore(
     const tempChats = ref<Chat[]>([])
     const activeChatId = ref<string | null>(null)
     const titleGeneratingChats = ref<Set<string>>(new Set())
+    const isAfterRestore = restorePromise
 
     const allChats = computed(() => {
       return [...chats.value, ...tempChats.value]
@@ -229,13 +235,17 @@ export const useChatsStores = defineStore(
       removePendingMessage,
       clearPendingMessages,
       shiftPendingMessage,
-      isChatGenerating
+      isChatGenerating,
+      isAfterRestore
     }
   },
   {
     persist: {
       storage: indexedDBStorage,
-      paths: ['chats', 'activeChatId']
+      paths: ['chats', 'activeChatId'],
+      afterRestore: () => {
+        resolveRestore()
+      }
     }
   }
 )
