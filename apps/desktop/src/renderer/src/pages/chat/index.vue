@@ -8,7 +8,7 @@ import { computed } from 'vue'
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
 const chatsStore = useChatsStores()
-const { register } = useShortcuts()
+const { register, setScope } = useShortcuts()
 
 // isCollapsed 与 showTerminal 相反：显示时展开(false)，隐藏时折叠(true)
 const terminalCollapsed = computed({
@@ -20,6 +20,9 @@ const terminalCollapsed = computed({
 
 // 注册聊天页面快捷键
 onMounted(() => {
+  // 设置当前作用域为 chat
+  setScope('chat')
+
   // 清空上下文
   register({
     id: 'chat.clearContext',

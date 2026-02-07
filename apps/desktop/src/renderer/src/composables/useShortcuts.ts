@@ -128,17 +128,33 @@ export function formatShortcut(keyString: string, platform?: 'mac' | 'win' | 'li
         .replace(/\+/g, isMac ? ' ' : '+')
 }
 
-// 将快捷键转换为 useMagicKeys 格式
+// 将快捷键转换为内部匹配格式
 function toMagicKeysFormat(keyString: string): string {
-    return keyString
-        .replace(/CmdOrCtrl/gi, 'meta')
-        .replace(/Cmd/gi, 'meta')
-        .replace(/Ctrl/gi, 'ctrl')
-        .replace(/Shift/gi, 'shift')
-        .replace(/Alt/gi, 'alt')
-        .replace(/Option/gi, 'alt')
-        .replace(/\+/g, '+')
-        .toLowerCase()
+    // 规范化顺序: ctrl/meta > shift > alt > key
+    const parts = keyString.split('+').map(p => p.trim())
+    const modifiers: string[] = []
+    let mainKey = ''
+
+    for (const part of parts) {
+        const lower = part.toLowerCase()
+        if (lower === 'cmdorctrl' || lower === 'cmd') {
+            modifiers.push('meta')
+        } else if (lower === 'ctrl') {
+            modifiers.push('ctrl')
+        } else if (lower === 'shift') {
+            modifiers.push('shift')
+        } else if (lower === 'alt' || lower === 'option') {
+            modifiers.push('alt')
+        } else {
+            mainKey = lower
+        }
+    }
+
+    // 按固定顺序排列修饰符
+    const order = ['ctrl', 'meta', 'shift', 'alt']
+    modifiers.sort((a, b) => order.indexOf(a) - order.indexOf(b))
+
+    return mainKey ? [...modifiers, mainKey].join('+') : modifiers.join('+')
 }
 
 // 全局快捷键管理器
@@ -160,44 +176,26 @@ class ShortcutManager {
     init() {
         if (this.magicKeys) return
 
-        this.magicKeys = useMagicKeys({
-            passive: false,
-            onEventFired: (e) => {
-                // 对于特定快捷键，即使输入框聚焦也要处理
-                const keyCombo = this.getKeyCombo(e)
-                const action = this.findActionByKey(keyCombo)
+        // 只使用 useMagicKeys 来追踪按键状态，不用它的监听功能
+        this.magicKeys = useMagicKeys({ passive: true })
 
-                if (action && this.shouldTrigger(action)) {
-                    e.preventDefault()
-                    this.execute(action.id)
-                }
+        // 使用自定义键盘事件监听，精确匹配
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const keyCombo = this.getKeyCombo(e)
+            console.log('[Shortcut] Key pressed:', keyCombo, 'event:', e.key, e.code, 'ctrl:', e.ctrlKey, 'meta:', e.metaKey, 'shift:', e.shiftKey)
+            const action = this.findActionByKey(keyCombo)
+            console.log('[Shortcut] Action found:', action?.id)
+
+            if (action && this.shouldTrigger(action)) {
+                console.log('[Shortcut] Triggering:', action.id)
+                e.preventDefault()
+                e.stopPropagation()
+                this.execute(action.id)
             }
-        })
+        }
 
-        // 监听所有已注册的快捷键
-        this.configs.forEach((config, id) => {
-            if (!config.enabled) return
-
-            const key = toMagicKeysFormat(config.currentKey || config.defaultKey)
-            if (!key) return
-
-            const shortcut = this.magicKeys?.[key]
-            if (shortcut) {
-                const stop = watch(() => {
-                    // useMagicKeys 返回的是 ComputedRef<boolean> 或 true
-                    const val = typeof shortcut === 'boolean' ? shortcut : shortcut.value
-                    return val
-                }, (pressed) => {
-                    if (pressed) {
-                        const action = this.actions.get(id)
-                        if (action && this.shouldTrigger(action)) {
-                            action.handler()
-                        }
-                    }
-                })
-                this.disposables.push(stop)
-            }
-        })
+        window.addEventListener('keydown', handleKeyDown, true)
+        this.disposables.push(() => window.removeEventListener('keydown', handleKeyDown, true))
     }
 
     // 获取按键组合字符串
@@ -207,7 +205,18 @@ class ShortcutManager {
         if (e.metaKey) parts.push('meta')
         if (e.altKey) parts.push('alt')
         if (e.shiftKey) parts.push('shift')
-        parts.push(e.key.toLowerCase())
+        // 使用 code 获取物理按键（如 KeyK），去掉 "Key" 前缀并转小写
+        // 避免 Shift 导致的大小写问题
+        const code = e.code
+        let key: string
+        if (code.startsWith('Key')) {
+            key = code.slice(3).toLowerCase()
+        } else if (code.startsWith('Digit')) {
+            key = code.slice(5)
+        } else {
+            key = e.key.toLowerCase()
+        }
+        parts.push(key)
         return parts.join('+')
     }
 
@@ -245,7 +254,7 @@ class ShortcutManager {
         if (isInputFocused) {
             const allowedInInput = ['global.search', 'global.settings', 'navigation.switchToChat',
                 'navigation.switchToNotes', 'navigation.switchToImage',
-                'navigation.switchToSettings']
+                'navigation.switchToSettings', 'chat.clearContext']
             if (!allowedInInput.includes(action.id)) return false
         }
 
