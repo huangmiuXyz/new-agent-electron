@@ -6,7 +6,7 @@
       <div v-if="variant !== 'drawer'" ref="modalBox" class="modal-box"
         :class="{ 'is-dragging': isDragging, 'is-fullscreen': isFullscreen }"
         :style="[{ width: isFullscreen ? '100%' : props.width }, draggableStyle]">
-        <div v-if="!isFullscreen" ref="modalHeader" class="modal-header" :class="{ 'is-draggable': !isMobile && props.variant !== 'drawer' }">
+        <div v-show="!isFullscreen" ref="modalHeader" class="modal-header" :class="{ 'is-draggable': !isMobile && props.variant !== 'drawer', 'is-hidden': isFullscreen }">
           <span class="modal-title">{{ title }}</span>
           <div class="modal-actions">
             <Button @click="toggleFullscreen" variant="text" title="全屏">
@@ -28,7 +28,7 @@
         <Button v-if="isFullscreen" @click="exitFullscreen" variant="text" class="fullscreen-exit-btn" title="退出全屏">
           <FullscreenExit />
         </Button>
-        <div v-if="!isFullscreen && showFooter" class="modal-footer">
+        <div v-show="!isFullscreen && showFooter" class="modal-footer" :class="{ 'is-hidden': isFullscreen }">
           <Button v-if="showCancel" class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
           }}</Button>
@@ -193,7 +193,7 @@ const handleCancel = () => {
   }, 200)
 }
 const handleConfirm = () => {
-  // 如果处于全屏状态，先退出全屏
+  // 如果处于全屏状态，先退出全屏，然后继续关闭
   if (isFullscreen.value) {
     exitFullscreen()
   }
@@ -481,6 +481,10 @@ const handleConfirm = () => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.is-hidden {
+  display: none !important;
 }
 
 .modal-box.is-fullscreen {
