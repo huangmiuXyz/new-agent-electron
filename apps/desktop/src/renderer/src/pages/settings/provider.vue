@@ -3,7 +3,7 @@ import { FormItem } from '@renderer/composables/useForm'
 import { getProviderTypes } from '@renderer/services/chatService/registry'
 import providerData from '@renderer/assets/data/provider.json'
 
-const { getAllProviders, providers } = storeToRefs(useSettingsStore())
+const { getAllProviders } = storeToRefs(useSettingsStore())
 const visibleProviders = computed(() => getAllProviders.value.filter((p) => !p.hide))
 const {
   updateProvider,
