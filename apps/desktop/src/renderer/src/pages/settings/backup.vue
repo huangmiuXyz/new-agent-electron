@@ -121,10 +121,11 @@ const importData = async (event: Event) => {
           await window.api.sqlite.upsertChunks(data.sqlite)
         }
 
-        message.success('导入备份成功，请重启应用以确保所有更改生效')
+        // 重新加载插件（因为 afterRestore 只在应用启动时执行一次）
+        const { restorePlugins } = usePlugins()
+        await restorePlugins()
 
-        // Optionally reload the page
-        // window.location.reload()
+        message.success('导入备份成功')
       } catch (err) {
         console.error('解析备份文件失败:', err)
         message.error('解析备份文件失败: ' + (err as Error).message)
