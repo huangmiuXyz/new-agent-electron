@@ -307,7 +307,6 @@ const handleConfirm = () => {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
-  padding-bottom: 12px;
   height: 100%;
 }
 
