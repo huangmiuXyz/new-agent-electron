@@ -91,7 +91,9 @@ import {
   ZoomIn,
   ZoomOut,
   Dice,
-  Database
+  Database,
+  Maximize as Fullscreen,
+  Minimize as FullscreenExit
 } from '@vicons/tabler'
 import {
   CommentAdd16Regular,
@@ -217,7 +219,9 @@ export const icons = {
   Dices: Dice,
   Database,
   Filter,
-  Continue
+  Continue,
+  Fullscreen,
+  FullscreenExit
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =

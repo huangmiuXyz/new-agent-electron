@@ -4,15 +4,20 @@
       tabindex="-1">
       <!-- 中心弹窗样式 -->
       <div v-if="variant !== 'drawer'" ref="modalBox" class="modal-box"
-        :class="{ 'is-dragging': isDragging }"
-        :style="[{ width: props.width }, draggableStyle]">
-        <div ref="modalHeader" class="modal-header" :class="{ 'is-draggable': !isMobile && props.variant !== 'drawer' }">
+        :class="{ 'is-dragging': isDragging, 'is-fullscreen': isFullscreen }"
+        :style="[{ width: isFullscreen ? '100%' : props.width }, draggableStyle]">
+        <div v-if="!isFullscreen" ref="modalHeader" class="modal-header" :class="{ 'is-draggable': !isMobile && props.variant !== 'drawer' }">
           <span class="modal-title">{{ title }}</span>
-          <Button @click="handleEsc" variant="text">
-            <Close />
-          </Button>
+          <div class="modal-actions">
+            <Button @click="toggleFullscreen" variant="text" title="全屏">
+              <Fullscreen />
+            </Button>
+            <Button @click="handleEsc" variant="text" title="关闭">
+              <Close />
+            </Button>
+          </div>
         </div>
-        <div class="modal-body" :style="{ height, maxHeight, ...(modalBodyStyle || {}) }">
+        <div class="modal-body" :class="{ 'is-fullscreen-body': isFullscreen }" :style="{ height: isFullscreen ? '100vh' : height, maxHeight: isFullscreen ? '100vh' : maxHeight, ...(modalBodyStyle || {}) }">
           <slot>
             <div v-if="content" class="modal-desc">
               <template v-if="typeof content === 'string'">{{ content }}</template>
@@ -20,7 +25,10 @@
             </div>
           </slot>
         </div>
-        <div class="modal-footer">
+        <Button v-if="isFullscreen" @click="exitFullscreen" variant="text" class="fullscreen-exit-btn" title="退出全屏">
+          <FullscreenExit />
+        </Button>
+        <div v-if="!isFullscreen && showFooter" class="modal-footer">
           <Button v-if="showCancel" class="btn btn-secondary" type="button" @click="handleCancel">{{
             props.cancelText || '取消'
           }}</Button>
@@ -70,7 +78,35 @@ const props = withDefaults(defineProps<BaseModalProps>(), {
   showCancel: true,
   maxHeight: '90vh'
 })
-const Close = useIcon('Close')
+const { Close, Fullscreen, FullscreenExit } = useIcon(['Close', 'Fullscreen', 'FullscreenExit'])
+
+const isFullscreen = ref(false)
+const showFullscreenTip = ref(false)
+let fullscreenTipTimer: ReturnType<typeof setTimeout> | null = null
+
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value
+
+  if (isFullscreen.value) {
+    // 显示提示
+    showFullscreenTip.value = true
+    if (fullscreenTipTimer) clearTimeout(fullscreenTipTimer)
+    fullscreenTipTimer = setTimeout(() => {
+      showFullscreenTip.value = false
+    }, 2000)
+  } else {
+    showFullscreenTip.value = false
+    if (fullscreenTipTimer) clearTimeout(fullscreenTipTimer)
+  }
+}
+
+const exitFullscreen = () => {
+  if (isFullscreen.value) {
+    isFullscreen.value = false
+    showFullscreenTip.value = false
+    if (fullscreenTipTimer) clearTimeout(fullscreenTipTimer)
+  }
+}
 
 const visible = ref(false)
 const modalOverlay = useTemplateRef('modalOverlay')
@@ -122,20 +158,12 @@ onMounted(async () => {
   })
 })
 
-const handleConfirm = () => {
-  if (props.onOk) {
-    props.onOk()
+const handleEsc = () => {
+  // 如果处于全屏状态，先退出全屏
+  if (isFullscreen.value) {
+    exitFullscreen()
     return
   }
-  visible.value = false
-  setTimeout(() => {
-    resetPosition()
-    props.resolve?.(true)
-    props.remove?.()
-  }, 200)
-}
-
-const handleEsc = () => {
   visible.value = false
   setTimeout(() => {
     resetPosition()
@@ -148,6 +176,11 @@ const handleEsc = () => {
   }, 200)
 }
 const handleCancel = () => {
+  // 如果处于全屏状态，先退出全屏
+  if (isFullscreen.value) {
+    exitFullscreen()
+    return
+  }
   visible.value = false
   setTimeout(() => {
     resetPosition()
@@ -156,6 +189,22 @@ const handleCancel = () => {
       return
     }
     props.resolve?.(false)
+    props.remove?.()
+  }, 200)
+}
+const handleConfirm = () => {
+  // 如果处于全屏状态，先退出全屏
+  if (isFullscreen.value) {
+    exitFullscreen()
+  }
+  if (props.onOk) {
+    props.onOk()
+    return
+  }
+  visible.value = false
+  setTimeout(() => {
+    resetPosition()
+    props.resolve?.(true)
     props.remove?.()
   }, 200)
 }
@@ -258,7 +307,7 @@ const handleCancel = () => {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
-  margin-bottom: 12px;
+  padding-bottom: 12px;
   height: 100%;
 }
 
@@ -426,5 +475,49 @@ const handleCancel = () => {
 .drawer-enter-to .drawer-container,
 .drawer-leave-from .drawer-container {
   transform: translateY(0) scale(1);
+}
+
+/* 全屏相关样式 */
+.modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.modal-box.is-fullscreen {
+  width: 100vw !important;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  transform: none !important;
+}
+
+.modal-box.is-fullscreen .modal-header {
+  cursor: default;
+}
+
+.modal-box.is-fullscreen .modal-body {
+  flex: 1;
+  max-height: 100vh !important;
+  padding: 0;
+}
+ 
+/* 全屏退出按钮 */
+.fullscreen-exit-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  color: white;
+}
+
+.fullscreen-exit-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
 }
 </style>
