@@ -67,6 +67,9 @@ async function showPreviewModal() {
         width: '90%',
         height: '90vh',
         confirmText: '关闭',
+        modalBodyStyle: {
+            padding: 0
+        },
         showFooter: true
     })
 }
