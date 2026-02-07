@@ -24,14 +24,6 @@ onMounted(() => {
       }
     }
   })
-
-  // 切换终端
-  register({
-    id: 'chat.toggleTerminal',
-    handler: () => {
-      settingsStore.display.showTerminal = !settingsStore.display.showTerminal
-    }
-  })
 })
 </script>
 

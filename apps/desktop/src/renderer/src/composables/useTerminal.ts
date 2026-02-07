@@ -15,6 +15,13 @@ export const useTerminal = (): TerminalActions => {
   const settingsStore = useSettingsStore()
   const agentStore = useAgentStore()
 
+  const { register } = useShortcuts()
+  register({
+    id: 'chat.toggleTerminal',
+    handler: () => {
+      settingsStore.display.showTerminal = !settingsStore.display.showTerminal
+    }
+  })
 
   const terminalHeight = computed({
     get: () => settingsStore.display.terminalHeight || 200,
@@ -249,7 +256,7 @@ export const useTerminal = (): TerminalActions => {
     }
 
     activeTabId.value = id
-    ;(options?.showTerminal || settingsStore.display.showTerminal) && showTerminal()
+      ; (options?.showTerminal || settingsStore.display.showTerminal) && showTerminal()
 
     await nextTick()
     await initTerminal(id)
