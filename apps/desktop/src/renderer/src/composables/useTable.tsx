@@ -1,4 +1,4 @@
-import { computed, defineComponent, shallowRef, toValue, watchEffect, isVNode, ref, h } from 'vue'
+import { computed, defineComponent, shallowRef, toValue, watchEffect, isVNode, ref, h, DefineComponent } from 'vue'
 import { useVirtualList, useElementBounding, useWindowSize } from '@vueuse/core'
 import Checkbox from '@renderer/components/Checkbox.vue'
 
@@ -442,5 +442,5 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
     document.head.appendChild(style)
   }
 
-  return [TableComponent, actions] as [Component, TableActions<T>]
+  return [TableComponent, actions] as [DefineComponent, TableActions<T>]
 }
