@@ -111,6 +111,15 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         enabled: true,
         editable: true,
         scope: 'global'
+    },
+    {
+        id: 'chat.toggleTerminal',
+        name: '切换终端',
+        description: '显示/隐藏终端面板',
+        defaultKey: 'CmdOrCtrl+J',
+        enabled: true,
+        editable: true,
+        scope: 'chat'
     }
 ]
 
@@ -254,7 +263,7 @@ class ShortcutManager {
         if (isInputFocused) {
             const allowedInInput = ['global.search', 'global.settings', 'navigation.switchToChat',
                 'navigation.switchToNotes', 'navigation.switchToImage',
-                'navigation.switchToSettings', 'chat.clearContext']
+                'navigation.switchToSettings', 'chat.clearContext', 'chat.toggleTerminal']
             if (!allowedInInput.includes(action.id)) return false
         }
 
