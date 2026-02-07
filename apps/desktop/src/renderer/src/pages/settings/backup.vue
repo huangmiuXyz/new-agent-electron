@@ -169,12 +169,12 @@ const resetData = async () => {
   <FormContainer header-title="备份与恢复">
     <template #content>
       <div class="backup-page">
-        <div class="backup-section">
-          <div class="section-info">
-            <h3 class="section-title">导出数据</h3>
-            <p class="section-desc">将您的所有数据（包括设置、智能体、聊天记录、知识库配置和笔记）导出为一个 JSON 文件，以便在其他设备上恢复或作为备份。</p>
-          </div>
-          <div class="section-action">
+        <Card padding="20px">
+          <div class="setting-item">
+            <div class="item-info">
+              <div class="item-title">导出数据</div>
+              <div class="item-desc">将您的所有数据（包括设置、智能体、聊天记录、知识库配置和笔记）导出为一个 JSON 文件，以便在其他设备上恢复或作为备份。</div>
+            </div>
             <Button @click="exportData" variant="secondary">
               <template #icon>
                 <Download />
@@ -182,16 +182,16 @@ const resetData = async () => {
               导出备份文件
             </Button>
           </div>
-        </div>
+        </Card>
 
-        <div class="backup-section">
-          <div class="section-info">
-            <h3 class="section-title">导入数据</h3>
-            <p class="section-desc">从之前导出的 JSON 文件中恢复数据。注意：这将覆盖您当前的所有数据。</p>
-          </div>
-          <div class="section-action">
+        <Card padding="20px">
+          <div class="setting-item">
+            <div class="item-info">
+              <div class="item-title">导入数据</div>
+              <div class="item-desc">从之前导出的 JSON 文件中恢复数据。注意：这将覆盖您当前的所有数据。</div>
+            </div>
             <div class="upload-wrapper">
-              <Button variant="secondary" class="upload-btn">
+              <Button variant="secondary">
                 <template #icon>
                   <Upload />
                 </template>
@@ -200,22 +200,22 @@ const resetData = async () => {
               </Button>
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div class="backup-section danger">
-          <div class="section-info">
-            <h3 class="section-title">重置所有数据</h3>
-            <p class="section-desc">清除应用中的所有数据并恢复到初始状态。此操作不可撤销。</p>
-          </div>
-          <div class="section-action">
-            <Button @click="resetData" variant="text" class="reset-btn">
+        <Card padding="20px" :border="true" background="transparent">
+          <div class="setting-item">
+            <div class="item-info">
+              <div class="item-title danger">重置所有数据</div>
+              <div class="item-desc">清除应用中的所有数据并恢复到初始状态。此操作不可撤销。</div>
+            </div>
+            <Button @click="resetData" variant="text" danger>
               <template #icon>
                 <Trash />
               </template>
               重置应用数据
             </Button>
           </div>
-        </div>
+        </Card>
       </div>
     </template>
   </FormContainer>
@@ -225,44 +225,37 @@ const resetData = async () => {
 .backup-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 8px 0;
+  gap: 16px;
+  padding: 4px 0;
 }
 
-.backup-section {
+.setting-item {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  padding: 20px;
-  background: var(--bg-sidebar);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
+  align-items: center;
   gap: 24px;
 }
 
-.backup-section.danger {
-  border-color: rgba(220, 53, 69, 0.2);
-}
-
-.section-info {
+.item-info {
   flex: 1;
+  min-width: 0;
 }
 
-.section-title {
-  font-size: 16px;
+.item-title {
+  font-size: 15px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: var(--text-primary);
 }
 
-.section-desc {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.6;
+.item-title.danger {
+  color: var(--color-danger);
 }
 
-.section-action {
-  flex-shrink: 0;
+.item-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 .upload-wrapper {
@@ -279,16 +272,8 @@ const resetData = async () => {
   cursor: pointer;
 }
 
-.reset-btn {
-  color: var(--color-danger);
-}
-
-.reset-btn:hover {
-  background: rgba(220, 53, 69, 0.1);
-}
-
 @media (max-width: 640px) {
-  .backup-section {
+  .setting-item {
     flex-direction: column;
     align-items: stretch;
     gap: 16px;
