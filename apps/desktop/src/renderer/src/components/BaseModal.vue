@@ -259,6 +259,7 @@ const handleCancel = () => {
   color: var(--text-secondary);
   line-height: 1.5;
   margin-bottom: 12px;
+  height: 100%;
 }
 
 /* 表单样式 */
