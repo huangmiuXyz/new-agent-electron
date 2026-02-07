@@ -119,7 +119,7 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+J',
         enabled: true,
         editable: true,
-        scope: 'chat'
+        scope: 'global'
     }
 ]
 
