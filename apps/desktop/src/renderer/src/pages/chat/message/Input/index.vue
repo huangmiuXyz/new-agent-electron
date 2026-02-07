@@ -22,10 +22,11 @@ const {
   display,
   defaultModels
 } = storeToRefs(useSettingsStore())
+const agentStore = useAgentStore()
+const { selectedAgent } = storeToRefs(agentStore)
 const { updateThinkingMode, updateSpeechEnabled, updateProviderOptions } = useSettingsStore()
 
 const speechStore = useSpeechStore()
-const agentStore = useAgentStore()
 const modal = useModal()
 
 // 提供商参数设置
@@ -340,7 +341,7 @@ const _sendMessage = async () => {
 
       <div class="input-wrapper">
         <textarea ref="textareaRef" class="input-field" rows="1"
-          :placeholder="isProcessingVoice ? '正在处理语音...' : (currentSelectedModel?.name && currentSelectedProvider?.name ? `${currentSelectedProvider?.name}：${currentSelectedModel?.name}` : '请选择模型')"
+          :placeholder="isProcessingVoice ? '正在处理语音...' : (currentSelectedModel?.name && currentSelectedProvider?.name ? `${selectedAgent?.name} · ${currentSelectedProvider?.name} · ${currentSelectedModel?.name}` : '请选择模型')"
           v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="handleEnterKey"
           @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
           :disabled="isProcessingVoice"></textarea>
