@@ -210,8 +210,8 @@ export const useTerminal = (): TerminalActions => {
     }
   }
 
-  const showTerminal = async () => {
-    settingsStore.display.showTerminal = true
+  const showTerminal = async (active: boolean = true) => {
+    settingsStore.display.showTerminal = active
     if (tabs.value.length === 0) {
       await createTab()
       return

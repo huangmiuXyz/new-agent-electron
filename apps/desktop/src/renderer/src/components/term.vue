@@ -15,7 +15,7 @@ const {
 
 onMounted(async () => {
   if (tabs.value.length === 0) {
-    showTerminal()
+    showTerminal(false)
   }
   await new Promise((resolve) => setTimeout(resolve, 500))
   window.addEventListener('resize', handleWindowResize)

@@ -300,7 +300,7 @@ export interface TerminalActions {
   switchTab: (id: string) => void
   setTerminalRef: (el: any, id: string) => void
   handleWindowResize: () => void
-  showTerminal: () => void
+  showTerminal: (active: boolean) => void
   hideTerminal: () => void
   toggleTerminal: () => void
   waitForCommand: (id: string, timeout?: number) => Promise<{ success: boolean; exitCode: number | null; output: string }>
@@ -331,40 +331,40 @@ export interface NotificationApi {
 }
 
 declare global {
-  interface DownloadProgress extends _DownloadProgress {}
-  interface ButtonProps extends _ButtonProps {}
-  interface BaseModalProps extends _BaseModalProps {}
-  interface ModalActions extends _ModalActions {}
-  interface BaseField<T> extends _BaseField<T> {}
-  interface TextField<T> extends _TextField<T> {}
-  interface BooleanField<T> extends _BooleanField<T> {}
-  interface SliderField<T> extends _SliderField<T> {}
-  interface SelectField<T> extends _SelectField<T> {}
-  interface TextareaField<T> extends _TextareaField<T> {}
-  interface ArrayField<T> extends _ArrayField<T> {}
-  interface ObjectField<T> extends _ObjectField<T> {}
-  interface CheckboxOption extends _CheckboxOption {}
-  interface CheckboxGroupField<T> extends _CheckboxGroupField<T> {}
-  interface ModelSelectorField<T> extends _ModelSelectorField<T> {}
-  interface ColorField<T> extends _ColorField<T> {}
-  interface PathSelectorField<T> extends _PathSelectorField<T> {}
-  interface UploadField<T> extends _UploadField<T> {}
-  interface CustomField<T> extends _CustomField<T> {}
-  interface GroupField<T> extends _GroupField<T> {}
-  interface ArrayGroupField<T> extends _ArrayGroupField<T> {}
-  interface RecordGroupField<T> extends _RecordGroupField<T> {}
+  interface DownloadProgress extends _DownloadProgress { }
+  interface ButtonProps extends _ButtonProps { }
+  interface BaseModalProps extends _BaseModalProps { }
+  interface ModalActions extends _ModalActions { }
+  interface BaseField<T> extends _BaseField<T> { }
+  interface TextField<T> extends _TextField<T> { }
+  interface BooleanField<T> extends _BooleanField<T> { }
+  interface SliderField<T> extends _SliderField<T> { }
+  interface SelectField<T> extends _SelectField<T> { }
+  interface TextareaField<T> extends _TextareaField<T> { }
+  interface ArrayField<T> extends _ArrayField<T> { }
+  interface ObjectField<T> extends _ObjectField<T> { }
+  interface CheckboxOption extends _CheckboxOption { }
+  interface CheckboxGroupField<T> extends _CheckboxGroupField<T> { }
+  interface ModelSelectorField<T> extends _ModelSelectorField<T> { }
+  interface ColorField<T> extends _ColorField<T> { }
+  interface PathSelectorField<T> extends _PathSelectorField<T> { }
+  interface UploadField<T> extends _UploadField<T> { }
+  interface CustomField<T> extends _CustomField<T> { }
+  interface GroupField<T> extends _GroupField<T> { }
+  interface ArrayGroupField<T> extends _ArrayGroupField<T> { }
+  interface RecordGroupField<T> extends _RecordGroupField<T> { }
   type FormField<T> = _FormField<T>
-  interface FormConfig<T extends Record<string, unknown>> extends _FormConfig<T> {}
-  interface FormActions<T> extends _FormActions<T> {}
-  interface TableColumn<T = unknown> extends _TableColumn<T> {}
-  interface TableConfig<T extends Record<string, unknown>> extends _TableConfig<T> {}
-  interface TableActions<T> extends _TableActions<T> {}
-  interface TerminalTab extends _TerminalTab {}
-  interface TerminalActions extends _TerminalActions {}
+  interface FormConfig<T extends Record<string, unknown>> extends _FormConfig<T> { }
+  interface FormActions<T> extends _FormActions<T> { }
+  interface TableColumn<T = unknown> extends _TableColumn<T> { }
+  interface TableConfig<T extends Record<string, unknown>> extends _TableConfig<T> { }
+  interface TableActions<T> extends _TableActions<T> { }
+  interface TerminalTab extends _TerminalTab { }
+  interface TerminalActions extends _TerminalActions { }
   type NotificationType = _NotificationType
   type CloseNotification = _CloseNotification
   type NotificationHandler = _NotificationHandler
-  interface NotificationApi extends _NotificationApi {}
+  interface NotificationApi extends _NotificationApi { }
   type ModalResolve = (value: string | boolean) => void
 }
 
