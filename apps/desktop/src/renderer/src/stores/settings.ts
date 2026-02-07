@@ -472,7 +472,7 @@ export const useSettingsStore = defineStore(
         'providerOptions',
         'selectedModelId',
         'selectedProviderId',
-        'currentSelectedProvider',
+        'currentSelectedModel',
         'currentSelectedModel',
         'imageGenerationForm',
         'shortcuts'
