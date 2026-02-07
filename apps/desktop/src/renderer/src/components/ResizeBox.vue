@@ -52,6 +52,7 @@ const emit = defineEmits<{
   (e: 'update:width', value: number): void
   (e: 'update:height', value: number): void
   (e: 'update:isCollapsed', value: boolean): void
+  (e: 'expand'): void
 }>()
 
 const isResizing = ref(false)
@@ -65,6 +66,8 @@ onMounted(() => {
   })
 })
 
+const prevCollapsed = ref(props.isCollapsed)
+
 const containerStyle = computed(() => {
   if (props.direction === 'horizontal') {
     return {
@@ -74,6 +77,16 @@ const containerStyle = computed(() => {
     return {
       height: props.isCollapsed ? '0px' : `${props.height}px`,
     }
+  }
+})
+
+// 监听展开状态变化，展开后触发事件
+watch(() => props.isCollapsed, (newVal, oldVal) => {
+  if (oldVal === true && newVal === false) {
+    // 从折叠变为展开，等待过渡完成后触发事件
+    setTimeout(() => {
+      emit('expand')
+    }, 350)
   }
 })
 

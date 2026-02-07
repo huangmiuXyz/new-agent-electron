@@ -48,6 +48,13 @@ useBackButton()
 
 const { resetTitle, customTitle } = useAppHeader()
 
+const termRef = ref<InstanceType<typeof Term> | null>(null)
+
+// 终端展开后重新计算大小
+const handleTerminalExpand = () => {
+  termRef.value?.fitTerminal?.()
+}
+
 // 各 store 独立的恢复状态
 const settingsReady = ref(false)
 const chatsReady = ref(false)
@@ -239,8 +246,9 @@ const handleTouchEnd = (e: TouchEvent) => {
           :min-size="150"
           :max-size="600"
           class="global-terminal"
+          @expand="handleTerminalExpand"
         >
-          <Term />
+          <Term ref="termRef" />
         </ResizeBox>
       </div>
     </div>

@@ -13,6 +13,19 @@ const {
   hideTerminal
 } = useTerminal()
 
+// 重新计算终端大小
+const fitTerminal = () => {
+  const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
+  if (activeTab?.addon && activeTab?.instance) {
+    activeTab.addon.fit()
+    window.api.pty.resize(activeTab.id, activeTab.instance.cols, activeTab.instance.rows)
+  }
+}
+
+defineExpose({
+  fitTerminal
+})
+
 onMounted(async () => {
   if (tabs.value.length === 0) {
     showTerminal(false)
@@ -21,15 +34,10 @@ onMounted(async () => {
   window.addEventListener('resize', handleWindowResize)
 
   await nextTick()
-  const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
-  if (activeTab?.addon && activeTab?.instance) {
-    setTimeout(() => {
-      if (activeTab.addon && activeTab.instance) {
-        activeTab.addon.fit()
-        window.api.pty.resize(activeTab.id, activeTab.instance.cols, activeTab.instance.rows)
-      }
-    }, 100)
-  }
+  // 延迟执行 fit，确保 ResizeBox 高度已正确应用
+  setTimeout(() => {
+    fitTerminal()
+  }, 200)
 })
 
 onBeforeUnmount(() => {

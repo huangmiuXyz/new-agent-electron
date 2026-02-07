@@ -219,11 +219,14 @@ export const useTerminal = (): TerminalActions => {
     await waitForReady(activeTabId.value)
     nextTick(() => {
       terminalRefs.get(activeTabId.value)?.focus()
-      const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
-      if (activeTab?.addon && activeTab?.instance) {
-        activeTab.addon.fit()
-        window.api.pty.resize(activeTab.id, activeTab.instance.cols, activeTab.instance.rows)
-      }
+      // 延迟执行 fit，确保 ResizeBox 从 collapsed 展开后高度已正确应用
+      setTimeout(() => {
+        const activeTab = tabs.value.find((t) => t.id === activeTabId.value)
+        if (activeTab?.addon && activeTab?.instance) {
+          activeTab.addon.fit()
+          window.api.pty.resize(activeTab.id, activeTab.instance.cols, activeTab.instance.rows)
+        }
+      }, 300)
     })
   }
   const hideTerminal = () => {
