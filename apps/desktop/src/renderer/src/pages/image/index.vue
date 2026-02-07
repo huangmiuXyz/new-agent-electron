@@ -5,7 +5,6 @@ const activeProcessingIds = new Set<number>()
 <script setup lang="tsx">
 import { createRegistry } from '@renderer/services/chatService/registry';
 import { useSettingsStore } from '@renderer/stores/settings'
-import { FormField } from '@renderer/composables/useForm'
 import { ImageBatch, useImageStore } from '@renderer/stores/image'
 import ImageSizeSelector from '@renderer/components/ImageSizeSelector.vue'
 
@@ -194,7 +193,7 @@ const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
 }
 
 const [ImageForm, formActions] = useForm({
-  fields: allFields,
+  fields: allFields.value,
   initialData: settingsStore.imageGenerationForm,
   onChange: (_field, _value, data) => {
     settingsStore.updateImageGenerationForm(data)
@@ -430,7 +429,7 @@ const handleRightInputSubmit = () => {
 
 onMounted(async () => {
   await Promise.all([settingsStore.isAfterRestore, imgStore.isAfterRestore])
-  formActions.setData(settingsStore.imageGenerationForm)
+  formActions.setData(settingsStore.imageGenerationForm!)
   if (settingsStore.imageGenerationForm?.prompt) {
     rightInput.value = settingsStore.imageGenerationForm.prompt
     settingsStore.imageGenerationForm.prompt = ''

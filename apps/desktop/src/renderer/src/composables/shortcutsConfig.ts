@@ -1,0 +1,112 @@
+export interface ShortcutConfig {
+    /** 快捷键ID */
+    id: string
+    /** 快捷键名称 */
+    name: string
+    /** 快捷键描述 */
+    description?: string
+    /** 默认按键组合 */
+    defaultKey: string
+    /** 当前按键组合（用户自定义） */
+    currentKey?: string
+    /** 是否启用 */
+    enabled: boolean
+    /** 是否可修改 */
+    editable?: boolean
+    /** 触发范围: 'global'=全局, 'chat'=聊天页面, 'notes'=笔记页面 */
+    scope: 'global' | 'chat' | 'notes' | 'image' | 'settings'
+}
+
+// 内置快捷键定义
+export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
+    {
+        id: 'global.search',
+        name: '全局搜索',
+        description: '打开全局搜索框，搜索聊天记录',
+        defaultKey: 'CmdOrCtrl+K',
+        enabled: true,
+        editable: true,
+        scope: 'global'
+    },
+    {
+        id: 'global.newChat',
+        name: '新建对话',
+        description: '创建一个新的聊天对话',
+        defaultKey: 'CmdOrCtrl+N',
+        enabled: true,
+        editable: true,
+        scope: 'global'
+    },
+    {
+        id: 'chat.clearContext',
+        name: '清空上下文',
+        description: '清空当前对话的上下文',
+        defaultKey: 'CmdOrCtrl+Shift+K',
+        enabled: true,
+        editable: true,
+        scope: 'chat'
+    },
+    {
+        id: 'navigation.switchToChat',
+        name: '切换到对话',
+        description: '切换到对话页面',
+        defaultKey: 'CmdOrCtrl+1',
+        enabled: true,
+        editable: true,
+        scope: 'global'
+    },
+    {
+        id: 'navigation.switchToNotes',
+        name: '切换到笔记',
+        description: '切换到笔记页面',
+        defaultKey: 'CmdOrCtrl+2',
+        enabled: true,
+        editable: true,
+        scope: 'global'
+    },
+    {
+        id: 'navigation.switchToImage',
+        name: '切换到生图',
+        description: '切换到图像生成页面',
+        defaultKey: 'CmdOrCtrl+3',
+        enabled: true,
+        editable: true,
+        scope: 'global'
+    },
+    {
+        id: 'navigation.switchToSettings',
+        name: '切换到设置',
+        description: '切换到设置页面',
+        defaultKey: 'CmdOrCtrl+4',
+        enabled: true,
+        editable: true,
+        scope: 'global'
+    },
+    {
+        id: 'global.toggleSidebar',
+        name: '切换侧边栏',
+        description: '显示/隐藏侧边栏',
+        defaultKey: 'CmdOrCtrl+B',
+        enabled: true,
+        editable: true,
+        scope: 'global'
+    },
+    {
+        id: 'global.focusInput',
+        name: '聚焦输入框',
+        description: '将焦点设置到主输入框',
+        defaultKey: 'CmdOrCtrl+L',
+        enabled: true,
+        editable: true,
+        scope: 'global'
+    },
+    {
+        id: 'chat.toggleTerminal',
+        name: '切换终端',
+        description: '显示/隐藏终端面板',
+        defaultKey: 'CmdOrCtrl+J',
+        enabled: true,
+        editable: true,
+        scope: 'global'
+    }
+]
