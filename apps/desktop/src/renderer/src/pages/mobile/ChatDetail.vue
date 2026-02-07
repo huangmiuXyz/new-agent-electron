@@ -12,7 +12,6 @@ setTitle(currentChat.value?.title || '新的对话')
         <AppHeader :custom-title="customTitle" current-view="chat" mode="detail" />
         <main class="main-chat">
             <ChatMessageList />
-            <Term v-show="settingsStore.display.showTerminal" />
             <ChatMessageInput />
         </main>
     </div>
