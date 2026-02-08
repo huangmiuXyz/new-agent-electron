@@ -1,6 +1,7 @@
 <script setup lang="tsx">
 import { FileUIPart, TextUIPart } from 'ai'
 import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
+import { useShortcuts } from '@renderer/composables/useShortcuts'
 
 import { usePlugins } from '@renderer/composables/usePlugins'
 import { createRegistry } from '@renderer/services/chatService/registry'
@@ -313,6 +314,20 @@ const _sendMessage = async () => {
     sendMessages(parts)
   }
 }
+
+// 注册聚焦输入框快捷键
+const { register, unregister } = useShortcuts()
+onMounted(() => {
+  register({
+    id: 'global.focusInput',
+    handler: () => {
+      textareaRef.value?.focus()
+    }
+  })
+})
+onUnmounted(() => {
+  unregister('global.focusInput')
+})
 </script>
 
 <template>

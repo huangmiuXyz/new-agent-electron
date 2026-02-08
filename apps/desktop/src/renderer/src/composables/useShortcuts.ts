@@ -137,7 +137,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+Shift+A',
         enabled: true,
         editable: true,
-        scope: 'chat'
+        scope: 'chat',
+        allowedInInput: true
     },
     {
         id: 'chat.switchModel',
@@ -146,7 +147,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+Shift+M',
         enabled: true,
         editable: true,
-        scope: 'chat'
+        scope: 'chat',
+        allowedInInput: true
     }
 ]
 
