@@ -149,6 +149,16 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         editable: true,
         scope: 'chat',
         allowedInInput: true
+    },
+    {
+        id: 'chat.regenerateLast',
+        name: '重写最后一条',
+        description: '自动重写最后一条助手消息',
+        defaultKey: 'CmdOrCtrl+R',
+        enabled: true,
+        editable: true,
+        scope: 'chat',
+        allowedInInput: true
     }
 ]
 

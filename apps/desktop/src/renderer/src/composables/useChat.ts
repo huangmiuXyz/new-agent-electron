@@ -338,7 +338,14 @@ export const useChat = (chatId: string) => {
     },
     regenerate: (messageId: string) => {
       const currentChats = getChatById(chatId)
-      const chat = createChat(currentChats?.messages || [], { regenerateMessageId: messageId })
+      const messages = currentChats?.messages || []
+      const isLastMessage = messages.length > 0 && messages[messages.length - 1].id === messageId
+      const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')
+      const isLastUserMessage = lastUserMessage?.id === messageId
+      if (isLastMessage || isLastUserMessage) {
+        scrollToBottom()
+      }
+      const chat = createChat(messages, { regenerateMessageId: messageId })
       chat.regenerate({ messageId })
     },
     approval: (part: ToolUIPart, approved: boolean) => {

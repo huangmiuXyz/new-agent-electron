@@ -2,6 +2,7 @@
 import { useSettingsStore } from '@renderer/stores/settings'
 import { useAgentStore } from '@renderer/stores/agent'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
+import { useChat } from '@renderer/composables/useChat'
 import { computed } from 'vue'
 
 const settingsStore = useSettingsStore()
@@ -69,6 +70,25 @@ onMounted(() => {
       const next = flatModels[nextIndex]
       settingsStore.selectedModelId = next.model.id
       settingsStore.selectedProviderId = next.provider.id
+    }
+  })
+
+  // 重写最后一条消息
+  register({
+    id: 'chat.regenerateLast',
+    handler: () => {
+      const chat = chatsStore.currentChat
+      if (!chat || chat.messages.length === 0) return
+
+      // 获取最后一条消息
+      const lastMessage = chat.messages[chat.messages.length - 1]
+      if (!lastMessage) return
+
+      const { regenerate } = useChat(chat.id!)
+      lastMessage.metadata?.stop?.()
+      setTimeout(() => {
+        regenerate(lastMessage.id!)
+      })
     }
   })
 })
