@@ -267,7 +267,7 @@ const _sendMessage = async () => {
 
   // 构建消息parts
   const parts: Array<FileUIPart | TextUIPart> = []
-  debugger
+
   if (input) {
     parts.push({ type: 'text', text: input })
   }
