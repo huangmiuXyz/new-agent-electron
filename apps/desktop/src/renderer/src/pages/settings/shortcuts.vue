@@ -1,12 +1,22 @@
 <script setup lang="ts">
 import { useSettingsStore } from '@renderer/stores/settings'
-import { formatShortcut, type ShortcutConfig } from '@renderer/composables/useShortcuts'
+import { formatShortcut, useShortcuts, type ShortcutConfig } from '@renderer/composables/useShortcuts'
 import List from '@renderer/components/List.vue'
 
 const settingsStore = useSettingsStore()
 const { shortcuts } = storeToRefs(settingsStore)
+const { updateConfig } = useShortcuts()
 
 const { RotateCounterclockwise } = useIcon(['RotateCounterclockwise'])
+
+// 重置所有快捷键
+const handleResetAll = () => {
+  settingsStore.resetAllShortcuts()
+  // 同步到 ShortcutManager
+  shortcuts.value.forEach(s => {
+    updateConfig(s.id, { currentKey: undefined, enabled: s.enabled })
+  })
+}
 
 // 编辑状态
 const editingId = ref<string | null>(null)
@@ -104,6 +114,7 @@ const saveRecording = () => {
   if (parts.length > 0) {
     const newKey = parts.join('+')
     settingsStore.updateShortcut(editingId.value, { currentKey: newKey })
+    updateConfig(editingId.value, { currentKey: newKey })
   }
 
   cancelRecording()
@@ -112,12 +123,15 @@ const saveRecording = () => {
 // 重置为默认
 const resetToDefault = (shortcut: ShortcutConfig) => {
   settingsStore.resetShortcut(shortcut.id)
+  updateConfig(shortcut.id, { currentKey: undefined, enabled: shortcut.enabled })
 }
 
 // 切换启用状态
 const toggleEnabled = (e: Event, shortcut: ShortcutConfig) => {
   e.stopPropagation()
-  settingsStore.updateShortcut(shortcut.id, { enabled: !shortcut.enabled })
+  const newEnabled = !shortcut.enabled
+  settingsStore.updateShortcut(shortcut.id, { enabled: newEnabled })
+  updateConfig(shortcut.id, { enabled: newEnabled })
 }
 
 // 录制键盘事件
@@ -181,7 +195,7 @@ onUnmounted(() => {
       <div class="shortcuts-container">
         <div class="shortcuts-header">
           <p class="description">自定义应用的键盘快捷键，点击快捷键即可修改</p>
-          <Button size="sm" variant="text" @click="settingsStore.resetAllShortcuts">
+          <Button size="sm" variant="text" @click="handleResetAll">
             <template #icon>
               <RotateCounterclockwise />
             </template>

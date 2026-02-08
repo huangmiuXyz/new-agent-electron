@@ -9,6 +9,7 @@ import ResizeBox from './components/ResizeBox.vue'
 import { useSettingsStore } from './stores/settings'
 import { useChatsStores } from './stores/chats'
 import { useImageStore } from './stores/image'
+import { useShortcuts } from './composables/useShortcuts'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,7 +17,8 @@ const currentView = ref('chat')
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 const imageStore = useImageStore()
-const { display } = storeToRefs(settingsStore)
+const { display, shortcuts } = storeToRefs(settingsStore)
+const { updateConfig } = useShortcuts()
 
 // 终端显示控制
 const terminalCollapsed = computed({
@@ -62,6 +64,10 @@ const imageReady = ref(false)
 
 settingsStore.isAfterRestore.then(() => {
   settingsReady.value = true
+  // 将持久化的快捷键配置同步到 ShortcutManager
+  shortcuts.value.forEach(s => {
+    updateConfig(s.id, { currentKey: s.currentKey, enabled: s.enabled })
+  })
 })
 
 chatsStore.isAfterRestore.then(() => {

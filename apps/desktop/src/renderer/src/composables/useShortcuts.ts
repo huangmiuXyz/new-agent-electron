@@ -336,6 +336,7 @@ class ShortcutManager {
     dispose() {
         this.disposables.forEach(dispose => dispose())
         this.disposables = []
+        this.magicKeys = null
     }
 }
 
