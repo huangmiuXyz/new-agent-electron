@@ -18,6 +18,8 @@ export interface ShortcutConfig {
     editable?: boolean
     /** 触发范围: 'global'=全局, 'chat'=聊天页面, 'notes'=笔记页面 */
     scope: 'global' | 'chat' | 'notes' | 'image' | 'settings'
+    /** 输入框聚焦时是否允许触发 */
+    allowedInInput?: boolean
 }
 
 export interface ShortcutAction {
@@ -38,7 +40,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+K',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
     },
     {
         id: 'global.newChat',
@@ -56,7 +59,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+Shift+K',
         enabled: true,
         editable: true,
-        scope: 'chat'
+        scope: 'chat',
+        allowedInInput: true
     },
     {
         id: 'navigation.switchToChat',
@@ -65,7 +69,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+1',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
     },
     {
         id: 'navigation.switchToNotes',
@@ -74,7 +79,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+2',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
     },
     {
         id: 'navigation.switchToImage',
@@ -83,7 +89,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+3',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
     },
     {
         id: 'navigation.switchToSettings',
@@ -92,7 +99,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+4',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
     },
     {
         id: 'global.toggleSidebar',
@@ -119,7 +127,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+J',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
     },
     {
         id: 'chat.switchAgent',
@@ -278,12 +287,7 @@ class ShortcutManager {
             (activeElement as HTMLElement)?.isContentEditable
 
         // 如果输入框聚焦，只允许特定快捷键
-        if (isInputFocused) {
-            const allowedInInput = ['global.search', 'global.settings', 'navigation.switchToChat',
-                'navigation.switchToNotes', 'navigation.switchToImage',
-                'navigation.switchToSettings', 'chat.clearContext', 'chat.toggleTerminal']
-            if (!allowedInInput.includes(action.id)) return false
-        }
+        if (isInputFocused && !config.allowedInInput) return false
 
         return true
     }
