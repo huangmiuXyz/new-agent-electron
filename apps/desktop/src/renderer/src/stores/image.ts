@@ -15,6 +15,7 @@ export interface ImageBatch {
   status?: 'pending' | 'processing' | 'completed' | 'failed'
   error?: string
   params?: any
+  referenceImages?: string[]
 }
 
 let resolveRestore: () => void

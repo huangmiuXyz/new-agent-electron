@@ -6,7 +6,8 @@ import {
   wrapLanguageModel,
   createAgentUIStream,
   streamText as _streamText,
-  isToolUIPart
+  isToolUIPart,
+  type DataContent
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
@@ -44,6 +45,12 @@ interface ChatServiceConfig {
   compressModel?: { providerId: string; modelId: string }
   providerOptions?: Record<string, any>
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
+}
+
+export interface ImageGeneratePrompt {
+  text: string
+  images?: DataContent[]
+  mask?: DataContent
 }
 
 export interface ImageGenerateOptions {
@@ -427,7 +434,7 @@ export const chatService = () => {
   }
 
   const generateImage = async (
-    prompt: string,
+    prompt: string | ImageGeneratePrompt,
     {
       model,
       apiKey,
