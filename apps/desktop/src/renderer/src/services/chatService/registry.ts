@@ -7,6 +7,8 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createHume } from '@ai-sdk/hume'
 import { createElevenLabs } from '@ai-sdk/elevenlabs'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+
 import { ProviderV3 } from '@ai-sdk/provider'
 import { z } from 'zod'
 import { shallowReactive } from 'vue'
@@ -56,39 +58,61 @@ interface CommonModelResponse {
   }[]
 }
 
+// OpenAI TTS 默认语音列表
+const OPENAI_TTS_VOICES = [
+  { id: 'alloy', name: 'Alloy' },
+  { id: 'ash', name: 'Ash' },
+  { id: 'ballad', name: 'Ballad' },
+  { id: 'coral', name: 'Coral' },
+  { id: 'echo', name: 'Echo' },
+  { id: 'fable', name: 'Fable' },
+  { id: 'onyx', name: 'Onyx' },
+  { id: 'nova', name: 'Nova' },
+  { id: 'sage', name: 'Sage' },
+  { id: 'shimmer', name: 'Shimmer' },
+  { id: 'verse', name: 'Verse' },
+  { id: 'marin', name: 'Marin' },
+  { id: 'cedar', name: 'Cedar' }
+]
+
+// 标准 listModels 工厂函数
+const createStandardListModels = (
+  options: { apiKey: string; baseURL: string },
+  config?: {
+    headers?: Record<string, string>
+    getCategory?: (modelId: string) => string
+    transformModel?: (m: any) => Partial<Model>
+  }
+) => {
+  return async () => {
+    const response = await fetch(`${options.baseURL}/models`, {
+      headers: config?.headers ?? {
+        'Authorization': `Bearer ${options.apiKey}`
+      }
+    })
+    const result = (await response.json()) as CommonModelResponse
+    return (result.data || []).map((m) => ({
+      ...m,
+      id: m.id,
+      name: m.id,
+      category: (config?.getCategory?.(m.id) ?? 'text') as ModelCategory,
+      ...config?.transformModel?.(m)
+    })) as Model[]
+  }
+}
+
 export const providerFactories = shallowReactive<Record<string, ProviderFactory>>({
   anthropic: (options) => mergeFun(createAnthropic(options), {
-    listModels: async () => {
-      const response = await fetch(`${options.baseURL}/models`, {
-        headers: {
-          'x-api-key': options.apiKey,
-          'anthropic-version': '2023-06-01'
-        }
-      })
-      const result = (await response.json()) as CommonModelResponse
-      return (result.data || []).map((m) => ({
-        id: m.id,
-        name: m.display_name || m.id,
-        category: 'text'
-      })) as Model[]
-    }
+    listModels: createStandardListModels(options, {
+      headers: {
+        'x-api-key': options.apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      transformModel: (m) => ({ name: m.display_name || m.id })
+    })
   }),
   deepseek: (options) => mergeFun(createDeepSeek(options), {
-    listModels: async () => {
-      const response = await fetch(`${options.baseURL}/models`, {
-        headers: {
-          'Authorization': `Bearer ${options.apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      const result = (await response.json()) as CommonModelResponse
-      return (result.data || []).map((m) => ({
-        ...m,
-        id: m.id,
-        name: m.id,
-        category: 'text'
-      })) as Model[]
-    }
+    listModels: createStandardListModels(options)
   }),
   google: (options) => mergeFun(createGoogleGenerativeAI(options), {
     listModels: async () => {
@@ -106,68 +130,19 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
     }
   }),
   xai: (options) => mergeFun(createXai(options), {
-    listModels: async () => {
-      const response = await fetch(`${options.baseURL}/models`, {
-        headers: {
-          'Authorization': `Bearer ${options.apiKey}`
-        }
-      })
-      const result = (await response.json()) as CommonModelResponse
-      return (result.data || []).map((m) => ({
-        ...m,
-        id: m.id,
-        name: m.id,
-        category: 'text'
-      })) as Model[]
-    }
+    listModels: createStandardListModels(options)
   }),
   openai: (options) => mergeFun(createOpenAI(options), {
-    listModels: async () => {
-      const response = await fetch(`${options.baseURL}/models`, {
-        headers: {
-          'Authorization': `Bearer ${options.apiKey}`
-        }
-      })
-      const result = (await response.json()) as CommonModelResponse
-      return (result.data || []).map((m) => ({
-        id: m.id,
-        name: m.id,
-        category: (m.id.includes('tts') ? 'tts' : m.id.includes('embed') ? 'embedding' : 'text') as ModelCategory,
-        voices: m.id.includes('tts')
-          ? [
-            { id: 'alloy', name: 'Alloy' },
-            { id: 'ash', name: 'Ash' },
-            { id: 'ballad', name: 'Ballad' },
-            { id: 'coral', name: 'Coral' },
-            { id: 'echo', name: 'Echo' },
-            { id: 'fable', name: 'Fable' },
-            { id: 'onyx', name: 'Onyx' },
-            { id: 'nova', name: 'Nova' },
-            { id: 'sage', name: 'Sage' },
-            { id: 'shimmer', name: 'Shimmer' },
-            { id: 'verse', name: 'Verse' },
-            { id: 'marin', name: 'Marin' },
-            { id: 'cedar', name: 'Cedar' }
-          ]
-          : undefined
-      })) as Model[]
-    }
+    listModels: createStandardListModels(options, {
+      getCategory: (id) => id.includes('tts') ? 'tts' : id.includes('embed') ? 'embedding' : 'text',
+      transformModel: (m) => m.id.includes('tts') ? { voices: OPENAI_TTS_VOICES } : {}
+    })
   }),
   ollama: (options) => mergeFun(createOpenAICompatible(options), {
-    listModels: async () => {
-      const response = await fetch(`${options.baseURL}/models`, {
-        headers: {
-          'Authorization': `Bearer ${options.apiKey}`
-        }
-      })
-      const result = (await response.json()) as CommonModelResponse
-      return (result.data || []).map((m) => ({
-        ...m,
-        id: m.id,
-        name: m.id,
-        category: 'text'
-      })) as Model[]
-    }
+    listModels: createStandardListModels(options)
+  }),
+  openrouter: (options) => mergeFun(createOpenRouter(options), {
+    listModels: createStandardListModels(options)
   }),
   hume: (options) => mergeFun(createHume(options) as unknown as ProviderV3, {
     listModels: async () => {
@@ -222,20 +197,7 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
     }
   }),
   'openai-compatible': (options) => mergeFun(createOpenAICompatible({ ...options, name: options.name }), {
-    listModels: async () => {
-      const response = await fetch(`${options.baseURL}/models`, {
-        headers: {
-          'Authorization': `Bearer ${options.apiKey}`
-        }
-      })
-      const result = (await response.json()) as CommonModelResponse
-      return (result.data || []).map((m) => ({
-        ...m,
-        id: m.id,
-        name: m.id,
-        category: 'text'
-      })) as Model[]
-    }
+    listModels: createStandardListModels(options)
   })
 })
 

@@ -350,6 +350,9 @@ importers:
       '@ai-sdk/moonshotai':
         specifier: ^2.0.1
         version: 2.0.1(zod@4.3.6)
+      '@openrouter/ai-sdk-provider':
+        specifier: ^2.2.1
+        version: 2.2.1(ai@6.0.69(zod@4.3.6))(zod@4.3.6)
       istextorbinary:
         specifier: ^9.5.0
         version: 9.5.0
@@ -1672,6 +1675,13 @@ packages:
     resolution: {integrity: sha512-mJd2Z5TjYWq/ttPLLGqArdtnC74J6bOzg4rMDnN+p1xTacZ2yPRCk2y0oSWQtygLR9YVQXgOcONrwtnk3JupxQ==}
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
     deprecated: This functionality has been moved to @npmcli/fs
+
+  '@openrouter/ai-sdk-provider@2.2.1':
+    resolution: {integrity: sha512-VjTSNTDIymAJsyIWw4+qPCMuezCS1kJCQwrPjszaNI+ZIo8PbIHTWNc2Y5pYO+ymYbOXKEvedFZxXsEkytOJSA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      ai: ^6.0.0
+      zod: ^3.25.0 || ^4.0.0
 
   '@opentelemetry/api@1.9.0':
     resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
@@ -7183,6 +7193,11 @@ snapshots:
     dependencies:
       mkdirp: 1.0.4
       rimraf: 3.0.2
+
+  '@openrouter/ai-sdk-provider@2.2.1(ai@6.0.69(zod@4.3.6))(zod@4.3.6)':
+    dependencies:
+      ai: 6.0.69(zod@4.3.6)
+      zod: 4.3.6
 
   '@opentelemetry/api@1.9.0': {}
 

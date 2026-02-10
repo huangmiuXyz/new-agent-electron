@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@ai-sdk/moonshotai": "^2.0.1",
+    "@openrouter/ai-sdk-provider": "^2.2.1",
     "istextorbinary": "^9.5.0",
     "textextensions": "^6.11.0"
   }
