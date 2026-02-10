@@ -22,7 +22,7 @@ withDefaults(defineProps<Props>(), {
 })
 
 const clearValue = () => {
-    modelValue.value = ''
+    modelValue.value = undefined
 }
 </script>
 
