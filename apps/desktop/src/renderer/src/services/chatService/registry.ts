@@ -18,7 +18,7 @@ const openrouterChatCallOptionsSchema = z.object({
   reasoning: z.object({
     enabled: z.boolean().optional().describe('是否启用推理'),
     exclude: z.boolean().optional().describe('为 true 时从响应中移除推理内容'),
-    max_tokens: z.number().int().optional().describe('推理的最大 token 数'),
+    max_tokens: z.number().int().min(1).optional().describe('推理的最大 token 数'),
     effort: z.enum(['xhigh', 'high', 'medium', 'low', 'minimal', 'none']).optional().default('medium').describe('推理努力程度'),
   }).optional().describe('推理配置'),
 
