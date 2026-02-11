@@ -22,7 +22,6 @@ export function createMoonshot(options: MoonshotProviderSettings = {}) {
     headers: options.headers,
   });
 
-  // 扩展 provider，添加 chatCallOptionsSchema
   return Object.assign(provider, {
     chatCallOptionsSchema: moonshotChatOptionsSchema,
   });
