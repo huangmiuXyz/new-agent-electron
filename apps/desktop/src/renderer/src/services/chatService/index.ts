@@ -47,11 +47,11 @@ interface ChatServiceConfig {
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
 }
 
-export interface ImageGeneratePrompt {
-  text: string
-  images?: DataContent[]
-  mask?: DataContent
-}
+export type GenerateImagePrompt = string | {
+    images: Array<DataContent>;
+    text?: string;
+    mask?: DataContent;
+};
 
 export interface ImageGenerateOptions {
   n?: number
@@ -434,7 +434,7 @@ export const chatService = () => {
   }
 
   const generateImage = async (
-    prompt: string | ImageGeneratePrompt,
+    prompt: string | GenerateImagePrompt,
     {
       model,
       apiKey,
