@@ -9,6 +9,7 @@ import { useSettingsStore } from '@renderer/stores/settings'
 import { ImageBatch, useImageStore } from '@renderer/stores/image'
 import ImageSizeSelector from '@renderer/components/ImageSizeSelector.vue'
 import FileUpload from '@renderer/components/FileUpload.vue'
+import { blobToDataURL } from 'blob-util'
 
 const service = chatService()
 const settingsStore = useSettingsStore()
@@ -27,10 +28,13 @@ const referenceImages = ref<string[]>([])
 
 // 添加参考图片 - 使用 useUpload 的 triggerUpload
 const { triggerUpload } = useUpload({
-  onFilesSelected: (files) => {
+  onFilesSelected: async (files) => {
     for (const file of files) {
       if (file.blobUrl) {
-        referenceImages.value.push(file.blobUrl)
+        const response = await fetch(file.blobUrl)
+        const blob = await response.blob()
+        const base64 = await blobToDataURL(blob)
+        referenceImages.value.push(base64)
       }
     }
   }
@@ -289,15 +293,27 @@ const getProviderInstance = (providerId: string) => {
 const startGeneration = async (batch: ImageBatch) => {
   if (activeProcessingIds.has(batch.id)) return
   activeProcessingIds.add(batch.id)
-  const prompt = batch.referenceImages && batch.referenceImages.length > 0
+
+  // 将参考图片转换为 base64
+  const processedImages = await Promise.all(
+    (batch.referenceImages || []).map(async (img) => {
+      if (img.startsWith('data:')) {
+        return img.split(',')[1]
+      }
+      if (img.startsWith('blob:')) {
+        const response = await fetch(img)
+        const blob = await response.blob()
+        const base64 = await blobToDataURL(blob)
+        return base64.split(',')[1]
+      }
+      return img
+    })
+  )
+
+  const prompt = processedImages.length > 0
     ? {
       text: batch.prompt,
-      images: batch.referenceImages.map(img => {
-        if (img.startsWith('data:')) {
-          return img.split(',')[1]
-        }
-        return img
-      })
+      images: processedImages
     }
     : batch.prompt
   try {
