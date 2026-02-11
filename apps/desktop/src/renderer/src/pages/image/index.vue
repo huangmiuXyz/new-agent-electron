@@ -294,7 +294,6 @@ const startGeneration = async (batch: ImageBatch) => {
   if (activeProcessingIds.has(batch.id)) return
   activeProcessingIds.add(batch.id)
 
-  // 将参考图片转换为 base64
   const processedImages = await Promise.all(
     (batch.referenceImages || []).map(async (img) => {
       if (img.startsWith('data:')) {
