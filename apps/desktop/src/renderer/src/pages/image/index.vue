@@ -425,7 +425,7 @@ const processImages = (batchId: number, rawImages: any[]) => {
   }
 }
 
-const { Trash, Sparkles, Dices, Image: ImageIcon, Edit, Copy, X, Bulb, Plus } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X', 'Bulb', 'Plus'])
+const { Trash, Sparkles, Dices, Image: ImageIcon, Edit, Copy, X, Bulb, Plus, Send } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X', 'Bulb', 'Plus', 'Send'])
 
 const copyPrompt = (prompt: string) => {
   copyText(prompt)
@@ -592,32 +592,34 @@ onMounted(async () => {
               </div>
 
               <div class="input-top">
-                <textarea ref="textareaRef" v-model="rightInput"
-                  :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'" :disabled="!isModelSelected || isOptimizing"
-                  @keydown.enter.exact.prevent="handleRightInputSubmit" rows="1" @input="handleInput"></textarea>
+                <div class="textarea-wrapper">
+                  <Button variant="text" size="sm" class="reference-image-btn" title="添加参考图片"
+                    :disabled="!isModelSelected"
+                    @click="handleAddReferenceImage">
+                    <Plus />
+                  </Button>
+                  <textarea ref="textareaRef" v-model="rightInput"
+                    :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'" :disabled="!isModelSelected || isOptimizing"
+                    @keydown.enter.exact.prevent="handleRightInputSubmit" rows="1" @input="handleInput"></textarea>
+                  <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="clear-btn"
+                    @click="rightInput = ''">
+                    <X />
+                  </Button>
+                </div>
 
                 <div class="input-actions">
                   <ModelSelector v-model:modelId="optimizeModelId" v-model:providerId="optimizeProviderId"
                     popup-position="top" type="icon" category="text" class="optimize-model-selector"
                     @update:model-id="(id) => handleOptimizeModelChange({ modelId: id, providerId: optimizeProviderId })"
                     @update:provider-id="(id) => handleOptimizeModelChange({ modelId: optimizeModelId, providerId: id })" />
-                  <Button variant="text" size="sm" class="reference-image-btn" title="添加参考图片"
-                    :disabled="!isModelSelected"
-                    @click="handleAddReferenceImage">
-                    <Plus />
-                  </Button>
                   <Button v-if="rightInput || isOptimizing" variant="text" size="sm" class="optimize-btn" title="优化提示词"
                     :loading="isOptimizing" @click="() => optimizePrompt()">
                     <Bulb />
                   </Button>
-                  <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="clear-btn"
-                    @click="rightInput = ''">
-                    <X />
-                  </Button>
                   <Button variant="primary" size="sm" class="send-btn"
                     :disabled="!isModelSelected || !rightInput.trim() || isOptimizing" @click="handleRightInputSubmit">
                     <template #icon>
-                      <Sparkles />
+                      <Send style="font-size: 13px;"/>
                     </template>
                   </Button>
                 </div>
@@ -908,12 +910,20 @@ onMounted(async () => {
   align-items: flex-end;
 }
 
-.input-top textarea {
+.textarea-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.textarea-wrapper textarea {
   flex: 1;
   border: none;
   background: transparent;
   resize: none;
-  padding: 10px 4px;
+  padding: 10px 32px 10px 4px;
   font-size: 15px;
   line-height: 1.6;
   color: var(--text-primary);
@@ -923,6 +933,31 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   overflow-y: auto;
+}
+
+.textarea-wrapper .clear-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.textarea-wrapper .reference-image-btn {
+  flex-shrink: 0;
+  color: var(--text-tertiary) !important;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.textarea-wrapper .reference-image-btn:hover:not(:disabled) {
+  opacity: 1;
+  background: var(--bg-hover) !important;
+  color: var(--accent-color) !important;
+}
+
+.textarea-wrapper .reference-image-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .input-top textarea::placeholder {

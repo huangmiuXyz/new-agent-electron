@@ -94,7 +94,8 @@ import {
   Dice,
   Database,
   Maximize as Fullscreen,
-  Minimize as FullscreenExit
+  Minimize as FullscreenExit,
+  Send
 } from '@vicons/tabler'
 import {
   CommentAdd16Regular,
@@ -224,7 +225,8 @@ export const icons = {
   Fullscreen,
   FullscreenExit,
   Keyboard,
-  RotateCounterclockwise
+  RotateCounterclockwise,
+  Send
 }
 
 type IconResult<T extends keyof typeof icons | (keyof typeof icons)[]> =
