@@ -78,12 +78,8 @@ class ShortcutManager {
         // 使用自定义键盘事件监听，精确匹配
         const handleKeyDown = (e: KeyboardEvent) => {
             const keyCombo = this.getKeyCombo(e)
-            console.log('[Shortcut] Key pressed:', keyCombo, 'event:', e.key, e.code, 'ctrl:', e.ctrlKey, 'meta:', e.metaKey, 'shift:', e.shiftKey)
             const action = this.findActionByKey(keyCombo)
-            console.log('[Shortcut] Action found:', action?.id)
-
             if (action && this.shouldTrigger(action)) {
-                console.log('[Shortcut] Triggering:', action.id)
                 e.preventDefault()
                 e.stopPropagation()
                 this.execute(action.id)
