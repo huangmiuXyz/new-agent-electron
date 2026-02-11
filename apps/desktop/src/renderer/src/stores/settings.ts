@@ -1,7 +1,5 @@
 import data from '@renderer/assets/data/provider.json'
 import { ImageGenerateOptions } from '@renderer/services/chatService'
-import type { ShortcutConfig } from '@renderer/composables/useShortcuts'
-import { BUILTIN_SHORTCUTS } from '@renderer/composables/useShortcuts'
 
 let resolveRestore: () => void
 const restorePromise = new Promise<void>((resolve) => {
