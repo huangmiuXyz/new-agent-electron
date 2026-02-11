@@ -285,7 +285,8 @@ export const useSettingsStore = defineStore(
     }
 
     const removeDevPluginPath = (pluginName: string) => {
-      delete devPluginPaths.value[pluginName]
+      const { [pluginName]: _, ...rest } = devPluginPaths.value
+      devPluginPaths.value = rest
     }
 
 

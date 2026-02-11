@@ -87,25 +87,28 @@ export class PluginLoader {
     }
 
     const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-    const pluginName = info.name;
+    // 使用目录名作为插件标识，而不是 info.json 中的 name 字段
+    // 这样可以避免显示名称和标识不一致的问题
+    const pluginId = path.basename(localPath);
+    const pluginName = info.name || pluginId;
 
     if (!pluginName) {
       throw new Error('Plugin name not found in info.json');
     }
 
-    // 记录开发目录
-    this.devPlugins.set(pluginName, localPath);
+    // 记录开发目录（使用目录名作为 key）
+    this.devPlugins.set(pluginId, localPath);
 
     // 如果已经在加载，先卸载
-    if (this.isPluginLoaded(pluginName)) {
-      await this.unloadPlugin(pluginName);
+    if (this.isPluginLoaded(pluginId)) {
+      await this.unloadPlugin(pluginId);
     }
 
     // 加载插件
-    const pluginInfo = await this.loadPlugin(pluginName);
+    const pluginInfo = await this.loadPlugin(pluginId);
 
     // 开始监听变化
-    this.watchPlugin(pluginName, localPath);
+    this.watchPlugin(pluginId, localPath);
 
     return pluginInfo;
   }
@@ -180,6 +183,9 @@ export class PluginLoader {
       if (this.loadedPlugins.has(pluginName)) {
         throw new Error(`Plugin "${pluginName}" is already loaded`);
       }
+
+      // 保存插件ID（目录名）到插件对象，用于后续识别
+      (plugin as any).id = pluginName;
 
       const pluginInfo: PluginInfo = {
         plugin,

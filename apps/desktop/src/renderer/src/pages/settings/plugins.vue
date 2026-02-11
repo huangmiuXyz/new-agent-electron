@@ -307,15 +307,15 @@ const handleUninstallPlugin = async (pluginName: string) => {
               </div>
               <div class="info-actions">
                 <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm"
-                  @click="handleUnloadPlugin(activePlugin.name)">
+                  @click="handleUnloadPlugin(activePlugin.id)">
                   停用
                 </Button>
                 <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm"
-                  @click="handleUninstallPlugin(activePlugin.name)">
+                  @click="handleUninstallPlugin(activePlugin.id)">
                   卸载
                 </Button>
                 <Button v-if="activePlugin.type === 'loaded'" size="sm" danger
-                  @click="clearPluginData(activePlugin.name)" variant="text">
+                  @click="clearPluginData(activePlugin.id)" variant="text">
                   清除缓存
                 </Button>
                 <Button v-if="activePlugin.type === 'available' && activePlugin.path" size="sm"

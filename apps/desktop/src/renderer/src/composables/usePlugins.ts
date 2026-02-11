@@ -32,11 +32,12 @@ export function usePlugins() {
       }
 
       const localPath = result.filePaths[0];
+      // 使用目录名作为插件标识
+      const pluginId = window.api.path.basename(localPath);
 
       if (pluginLoader) {
-        const pluginInfo = await pluginLoader.loadPluginDev(localPath);
-        const pluginName = pluginInfo.plugin.name;
-        settingsStore.addDevPluginPath(pluginName, localPath);
+        await pluginLoader.loadPluginDev(localPath);
+        settingsStore.addDevPluginPath(pluginId, localPath);
         await refreshPlugins();
         messageApi.success('开发模式插件加载成功，已开启自动重载！');
       }
@@ -129,14 +130,15 @@ export function usePlugins() {
     try {
       if (pluginLoader) {
         await pluginLoader.unloadPlugin(pluginName);
-
-        settingsStore.removeLoadedPlugin(pluginName);
-        settingsStore.removeDevPluginPath(pluginName);
-        await refreshPlugins();
       }
     } catch (err) {
       console.error('Failed to unload plugin:', err);
-      throw err;
+      // 即使卸载失败，也要清除 store 中的记录，避免刷新后自动恢复
+    } finally {
+      // 确保 store 记录被清除，防止插件在刷新后自动恢复
+      settingsStore.removeLoadedPlugin(pluginName);
+      settingsStore.removeDevPluginPath(pluginName);
+      await refreshPlugins();
     }
   };
 
@@ -147,14 +149,15 @@ export function usePlugins() {
     try {
       if (pluginLoader) {
         await pluginLoader.uninstallPlugin(pluginName);
-
-        settingsStore.removeLoadedPlugin(pluginName);
-        settingsStore.removeDevPluginPath(pluginName);
-        await refreshPlugins();
       }
     } catch (err) {
       console.error('Failed to uninstall plugin:', err);
-      throw err;
+      // 即使卸载失败，也要清除 store 中的记录，避免刷新后自动恢复
+    } finally {
+      // 确保 store 记录被清除，防止插件在刷新后自动恢复
+      settingsStore.removeLoadedPlugin(pluginName);
+      settingsStore.removeDevPluginPath(pluginName);
+      await refreshPlugins();
     }
   };
 
@@ -262,13 +265,15 @@ export function usePlugins() {
    * 合并所有插件（已加载和可用）
    */
   const allPlugins = computed<PluginItem[]>(() => {
-    const loadedNames = new Set(plugins.value.map(p => p.plugin.name));
-    const available = availablePlugins.value.filter(p => !loadedNames.has(p.name));
+    const loadedIds = new Set(plugins.value.map(p => (p.plugin as any).id || p.plugin.name));
+    const available = availablePlugins.value.filter(p => !loadedIds.has(p.name));
     return [
       ...plugins.value.map(p => {
         const metadata = availablePlugins.value.find(ap => ap.name === p.plugin.name);
+        // 使用保存的 id（目录名）作为标识，如果没有则使用 name
+        const pluginId = (p.plugin as any).id || p.plugin.name;
         return {
-          id: p.plugin.name,
+          id: pluginId,
           name: p.plugin.name,
           description: p.plugin.description || metadata?.description || '',
           version: p.plugin.version || metadata?.version || '1.0.0',
@@ -277,7 +282,7 @@ export function usePlugins() {
           error: p.error,
           plugin: p.plugin,
           updatedAt: p.plugin.updatedAt || metadata?.updatedAt,
-          isDev: pluginLoader?.isDevMode(p.plugin.name) || false,
+          isDev: pluginLoader?.isDevMode(pluginId) || false,
           readme: p.plugin.readme || metadata?.readme
         }
       }),
