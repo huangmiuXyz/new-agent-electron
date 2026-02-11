@@ -1,5 +1,5 @@
-import { createMoonshotAI, type MoonshotAIProvider } from '@ai-sdk/moonshotai';
-import { z, type ZodObject } from 'zod';
+import { createMoonshotAI } from '@ai-sdk/moonshotai';
+import { z } from 'zod';
 
 export interface MoonshotProviderSettings {
   apiKey?: string;
@@ -7,7 +7,6 @@ export interface MoonshotProviderSettings {
   headers?: Record<string, string>;
 }
 
-/** Moonshot AI 聊天调用参数 Schema */
 const moonshotChatOptionsSchema = z.object({
   thinking: z.object({
     type: z.enum(['enabled', 'disabled']).optional().describe('思考模式'),
