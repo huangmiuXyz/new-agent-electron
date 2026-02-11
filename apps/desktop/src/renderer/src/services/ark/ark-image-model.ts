@@ -105,7 +105,6 @@ export class ArkImageModel implements ImageModelV3 {
   > {
     const warnings: Array<SharedV3Warning> = [];
 
-    debugger
     const currentDate = new Date();
 
     const arkOptions = this.getArgs(providerOptions ?? {});
