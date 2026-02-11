@@ -1,0 +1,135 @@
+[
+  {
+    "name": "openai",
+    "baseUrl": "https://api.openai.com/v1",
+    "id": "openai",
+    "logo": "/images/providers/openai.png",
+    "providerType": "openai"
+  },
+  {
+    "name": "Hume AI",
+    "baseUrl": "https://api.hume.ai",
+    "id": "hume",
+    "logo": "/images/providers/hume.svg",
+    "providerType": "hume"
+  },
+  {
+    "name": "Gemini",
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+    "id": "Gemini",
+    "logo": "/images/providers/gemini.png",
+    "providerType": "google"
+  },
+  {
+    "name": "Anthropic",
+    "baseUrl": "https://api.anthropic.com/v1",
+    "id": "Anthropic",
+    "logo": "/images/providers/anthropic.png",
+    "providerType": "anthropic"
+  },
+  {
+    "name": "深度探索",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "id": "深度探索",
+    "logo": "/images/providers/deepseek.png",
+    "providerType": "deepseek"
+  },
+  {
+    "name": "火山引擎",
+    "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+    "id": "火山引擎",
+    "logo": "/images/providers/volcengine.png",
+    "providerType": "openai-compatible"
+  },
+  {
+    "name": "阿里云百炼",
+    "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "id": "阿里云百炼",
+    "logo": "/images/providers/bailian.png",
+    "providerType": "openai-compatible"
+  },
+  {
+    "name": "腾讯混元",
+    "baseUrl": "https://api.hunyuan.cloud.tencent.com/v1",
+    "id": "腾讯混元",
+    "logo": "/images/providers/tencent-cloud-ti.png",
+    "providerType": "openai-compatible"
+  },
+  {
+    "name": "xAi",
+    "baseUrl": "https://api.x.ai/v1",
+    "id": "xAi",
+    "logo": "/images/providers/grok.png",
+    "providerType": "xai"
+  },
+  {
+    "name": "硅基流动",
+    "baseUrl": "https://api.siliconflow.cn/v1",
+    "id": "硅基流动",
+    "logo": "/images/providers/silicon.png",
+    "providerType": "openai-compatible"
+  },
+  {
+    "name": "MiniMax",
+    "baseUrl": "https://api.minimaxi.com/v1",
+    "id": "MiniMax",
+    "logo": "/images/providers/minimax.png",
+    "providerType": "openai-compatible"
+  },
+  {
+    "name": "魔搭",
+    "baseUrl": "https://api-inference.modelscope.cn/v1",
+    "id": "魔搭",
+    "logo": "/images/providers/modelscope.png",
+    "providerType": "openai-compatible"
+  },
+  {
+    "name": "智谱清言",
+    "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+    "id": "智谱清言",
+    "logo": "/images/providers/zhipu.png",
+    "providerType": "openai-compatible"
+  },
+  {
+    "name": "月之暗面",
+    "baseUrl": "https://api.moonshot.cn/v1",
+    "id": "月之暗面",
+    "logo": "/images/providers/moonshot.png",
+    "providerType": "openai-compatible"
+  },
+  {
+    "name": "xiaomi mimo",
+    "baseUrl": "https://api.xiaomimimo.com/v1",
+    "id": "xiaomi-mimo",
+    "logo": "/images/providers/mimo.jpg",
+    "providerType": "openai-compatible"
+  },
+  {
+    "name": "OpenRouter",
+    "baseUrl": "https://openrouter.ai/api/v1",
+    "id": "OpenRouter",
+    "logo": "/images/providers/openrouter.png",
+    "providerType": "openrouter"
+  },
+  {
+    "name": "英伟达",
+    "baseUrl": "https://integrate.api.nvidia.com/v1",
+    "id": "NVIDIA",
+    "logo": "/images/providers/nvidia.png",
+    "providerType": "openai-compatible"
+  },
+  {
+    "name": "ollama",
+    "baseUrl": "http://localhost:11434/v1",
+    "id": "ollama",
+    "logo": "/images/providers/ollama.png",
+    "providerType": "ollama"
+  },
+  {
+    "name": "ElevenLabs",
+    "baseUrl": "https://api.elevenlabs.io",
+    "id": "elevenlabs",
+    "logo": "/images/providers/elevenlabs.png",
+    "providerType": "elevenlabs"
+  }
+]
