@@ -17,12 +17,21 @@ export interface ProviderV3Extends extends ProviderV3 {
   listModels?: () => Promise<Model[]>
   speechCallOptionsSchema?: z.ZodObject
   imageCallOptionsSchema?: z.ZodObject
+  videoCallOptionsSchema?: z.ZodObject
   /** 聊天调用的参数选项 Schema */
   chatCallOptionsSchema?: z.ZodObject<any>
   generateImageAsyncTask: (params: Parameters<typeof generateImage>[0]) => {
     task_id: string
   }
   asyncResult: ({ task_id }) => ReturnType<typeof generateImage>
+  generateVideoAsyncTask?: (params: any) => Promise<{
+    task_id: string
+  }>
+  asyncVideoResult?: ({ task_id }) => Promise<{
+    status: 'pending' | 'running' | 'succeeded' | 'failed'
+    videos?: string[]
+    error?: string
+  }>
 }
 
 export type ProviderFactory = (options: { apiKey: string; baseURL: string; name: string }) => ProviderV3Extends
@@ -212,9 +221,11 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
   'openai-compatible': (options) => mergeFun(createOpenAICompatible({ ...options, name: options.name }), {
     listModels: createStandardListModels(options)
   }),
-  ark: (options) => mergeFun(createArk(options), {
-    listModels: createStandardListModels(options)
-  })
+  ark: (options) => {
+    return mergeFun(createArk(options), {
+      listModels: createStandardListModels(options)
+    });
+  }
 })
 
 export const providerMetadatas = shallowReactive<Record<string, { hide?: boolean }>>({})

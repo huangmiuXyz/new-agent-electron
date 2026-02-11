@@ -49,7 +49,7 @@ const handleAddReferenceImage = () => {
   triggerUpload(true)
 }
 
-const getDynamicImageFields = (providerId: string) => {
+const getDynamicFields = (providerId: string, isVideo: boolean) => {
   const provider = settingsStore.getProviderById(providerId)
   if (!provider) return null
 
@@ -59,10 +59,13 @@ const getDynamicImageFields = (providerId: string) => {
     name: provider.name
   })
   const providerInstance = registry.getProvider(provider.providerType)
-  if (!providerInstance || !providerInstance.imageCallOptionsSchema) return null
+  if (!providerInstance) return null
+
+  const schema = isVideo ? providerInstance.videoCallOptionsSchema : providerInstance.imageCallOptionsSchema
+  if (!schema) return null
 
   const fields = zodSchemasToFormfields(
-    providerInstance.imageCallOptionsSchema,
+    schema,
     `providerOptions.${provider.providerType}`
   )
 
@@ -101,7 +104,7 @@ const baseFields = computed<FormField<any>[]>(() => {
       onChange: ({ providerId, modelId }: { providerId: string; modelId: string }) => {
         const category = getModelCategory(providerId, modelId)
         isVideoMode.value = (category as string) === 'video'
-        dynamicField.value = getDynamicImageFields(providerId)
+        dynamicField.value = getDynamicFields(providerId, isVideoMode.value)
       }
     }
   ]
@@ -127,20 +130,22 @@ const baseFields = computed<FormField<any>[]>(() => {
         name: 'duration',
         type: 'select',
         label: '视频时长',
-        defaultValue: '5',
+        defaultValue: 5,
         options: [
-          { label: '5秒', value: '5' },
-          { label: '10秒', value: '10' }
+          { label: '5秒', value: 5 },
+          { label: '10秒', value: 10 },
+          { label: '15秒', value: 15 }
         ]
       } as FormField<any>,
       {
         name: 'resolution',
         type: 'select',
         label: '分辨率',
-        defaultValue: '1280x720',
+        defaultValue: '720p',
         options: [
-          { label: '720p (1280x720)', value: '1280x720' },
-          { label: '1080p (1920x1080)', value: '1920x1080' }
+          { label: '540p', value: '540p' },
+          { label: '720p', value: '720p' },
+          { label: '1080p', value: '1080p' }
         ]
       } as FormField<any>
     )
@@ -499,26 +504,43 @@ const startVideoGeneration = async (batch: ImageBatch) => {
   activeProcessingIds.add(batch.id)
 
   try {
-    const provider = settingsStore.getProviderById(batch.providerId!)
-    if (!provider) {
-      throw new Error('未找到所选模型的提供商')
-    }
+    const { instance: providerInstance, provider } = getProviderInstance(batch.providerId!)
 
-    const result = await service.generateVideo(batch.prompt, {
-      model: batch.model,
-      apiKey: provider.apiKey || '',
-      baseURL: provider.baseUrl || '',
-      provider: provider.id,
-      providerType: provider.providerType,
-      n: batch.n,
-      duration: batch.duration ? Number(batch.duration) : undefined,
-      resolution: batch.resolution,
-      seed: batch.params?.seed,
-      providerOptions: batch.params?.providerOptions
-    })
+    if (providerInstance?.generateVideoAsyncTask) {
+      const { task_id } = await providerInstance.generateVideoAsyncTask({
+        model: batch.model,
+        prompt: batch.prompt,
+        n: batch.n,
+        duration: batch.duration,
+        resolution: batch.resolution,
+        seed: batch.params?.seed,
+        providerOptions: {
+          ark: {
+            ...batch.params?.providerOptions?.ark,
+            image: batch.referenceImages
+          }
+        }
+      })
 
-    if (result.videos) {
-      processVideos(batch.id, result.videos)
+      imgStore.updateBatch(batch.id, { taskId: task_id, status: 'processing' })
+      await pollAsyncVideoResult(batch.id, task_id, providerInstance)
+    } else {
+      const result = await service.generateVideo(batch.prompt, {
+        model: batch.model,
+        apiKey: provider.apiKey || '',
+        baseURL: provider.baseUrl || '',
+        provider: provider.id,
+        providerType: provider.providerType,
+        n: batch.n,
+        duration: batch.duration ? Number(batch.duration) : undefined,
+        resolution: batch.resolution,
+        seed: batch.params?.seed,
+        providerOptions: batch.params?.providerOptions
+      })
+
+      if (result.videos) {
+        processVideos(batch.id, result.videos)
+      }
     }
   } catch (error: any) {
     console.error('视频生成失败:', { error })
@@ -613,7 +635,7 @@ const reEdit = (batch: ImageBatch) => {
     providerOptions: batch.params?.providerOptions
   })
   if (batch.providerId) {
-    dynamicField.value = getDynamicImageFields(batch.providerId)
+    dynamicField.value = getDynamicFields(batch.providerId, batch.mediaType === 'video')
   }
   // 恢复参考图片
   if (batch.referenceImages && batch.referenceImages.length > 0) {
@@ -643,7 +665,11 @@ onMounted(async () => {
     rightInput.value = settingsStore.imageGenerationForm.prompt
     settingsStore.imageGenerationForm.prompt = ''
   }
-  dynamicField.value = getDynamicImageFields(settingsStore.imageGenerationForm?.model.providerId!)
+  if (settingsStore.imageGenerationForm?.model.providerId) {
+    const category = getModelCategory(settingsStore.imageGenerationForm.model.providerId, settingsStore.imageGenerationForm.model.modelId)
+    isVideoMode.value = (category as string) === 'video'
+    dynamicField.value = getDynamicFields(settingsStore.imageGenerationForm.model.providerId, isVideoMode.value)
+  }
   textareaRef.value?.focus()
   // 恢复未完成的任务
   generatedBatches.value.forEach(batch => {

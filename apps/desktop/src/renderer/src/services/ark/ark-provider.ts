@@ -7,6 +7,7 @@ import {
   withUserAgentSuffix,
 } from '@ai-sdk/provider-utils';
 import { ArkImageModel } from './ark-image-model';
+import { ArkVideoModel } from './ark-video-model';
 import { z } from 'zod';
 
 const VERSION = '1.0.0';
@@ -19,11 +20,50 @@ export const arkImageCallOptionsSchema = z.object({
     mode: z.enum(['standard', 'fast']).optional()
   }).optional().describe('优化提示选项'),
 });
+
+// Ark 视频生成参数 Schema (对齐火山引擎文档)
+export const arkVideoCallOptionsSchema = z.object({
+  // 基础内容
+  image: z.union([z.string(), z.array(z.string())]).optional().describe('参考图片 (图生视频使用)'),
+  video: z.union([z.string(), z.array(z.string())]).optional().describe('视频样片 (上传视频文件，仅 Seedance 1.5 pro)'),
+
+  // 视频规格
+  duration: z.union([z.literal(5), z.literal(10), z.literal(15), z.literal(-1)]).default(5).describe('视频时长 (5s/10s, Seedance 1.5 支持 15s, -1为自动)'),
+  resolution: z.enum(['540p', '720p', '1080p']).default('720p').describe('分辨率 (Seedance 1.0 最高 720p)'),
+  fps: z.union([z.literal(24), z.literal(30), z.literal(60)]).default(24).describe('帧率 (Seedance 1.0 仅支持 24)'),
+  ratio: z.enum(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive']).default('16:9').describe('宽高比'),
+  // 功能开关
+  generate_audio: z.boolean().default(false).describe('生成同步音频 (仅 Seedance 1.5 pro)'),
+  draft: z.boolean().default(false).describe('开启样片模式 (仅 Seedance 1.5 pro, 开启后不支持时长设置)'),
+  camera_fixed: z.boolean().default(false).describe('固定镜头 (保持视角稳定)'),
+  watermark: z.boolean().default(true).describe('添加水印'),
+  return_last_frame: z.boolean().default(false).describe('返回尾帧图像 (用于衔接下一个视频)'),
+
+  // 高级配置
+  service_tier: z.enum(['default', 'flex']).default('default').describe('服务等级 (flex 为离线模式，成本更低)'),
+  execution_expires_after: z.number().int().min(3600).max(259200).default(7200).describe('任务超时阈值 (秒)'),
+});
+
 export interface ArkProvider extends ProviderV3 {
   /**
    * Creates a model for image generation.
    */
   image(modelId: string): ArkImageModel;
+
+  /**
+   * Creates a model for video generation.
+   */
+  video(modelId: string): ArkVideoModel;
+
+  imageCallOptionsSchema: typeof arkImageCallOptionsSchema;
+  videoCallOptionsSchema: typeof arkVideoCallOptionsSchema;
+
+  generateVideoAsyncTask(params: any): Promise<{ task_id: string }>;
+  asyncVideoResult(params: { task_id: string }): Promise<{
+    status: 'pending' | 'running' | 'succeeded' | 'failed';
+    videos?: string[];
+    error?: string;
+  }>;
 }
 
 export interface ArkProviderSettings {
@@ -120,10 +160,101 @@ export function createArk(
       fetch: options.fetch,
     });
 
+  const createVideoModel = (modelId: string) =>
+    new ArkVideoModel(modelId, {
+      provider: 'ark.video',
+      url: ({ path }) => `${baseURL}${path}`,
+      headers: getHeaders,
+      fetch: options.fetch,
+    });
+
+  const generateVideoAsyncTask = async (params: any) => {
+    const model = createVideoModel(params.model);
+    const arkOptions = params.providerOptions?.ark || {};
+
+    // 确保应用 Zod 默认值
+    const validatedOptions = arkVideoCallOptionsSchema.parse(arkOptions);
+
+    const content: any[] = [{ type: 'text', text: params.prompt }];
+
+    if (validatedOptions.image) {
+      const images = Array.isArray(validatedOptions.image) ? validatedOptions.image : [validatedOptions.image];
+
+      images.forEach((img: string, index: number) => {
+        let role: 'first_frame' | 'last_frame' | 'reference_image' | undefined = undefined;
+        if (images.length === 1) {
+          role = 'first_frame';
+        } else if (images.length === 2) {
+          role = index === 0 ? 'first_frame' : 'last_frame';
+        } else {
+          role = 'reference_image';
+        }
+
+        content.push({
+          type: 'image_url',
+          image_url: { url: img },
+          role
+        });
+      });
+    }
+
+    // 处理视频样片 (Draft 视频)
+    if (validatedOptions.video) {
+      const videos = Array.isArray(validatedOptions.video) ? validatedOptions.video : [validatedOptions.video];
+      videos.forEach((videoUrl: string) => {
+        content.push({
+          type: 'draft_task',
+          draft_task: { id: videoUrl }
+        });
+      });
+    }
+
+    // 构造请求体：参数应位于根节点 (对齐火山引擎“新方式”接口规范)
+    const requestBody: any = {
+      content,
+      seed: params.seed,
+      resolution: validatedOptions.resolution || params.resolution,
+      fps: validatedOptions.fps || params.fps,
+      ratio: validatedOptions.ratio || params.aspectRatio,
+      generate_audio: validatedOptions.generate_audio,
+      draft: validatedOptions.draft,
+      camera_fixed: validatedOptions.camera_fixed,
+      watermark: validatedOptions.watermark,
+      return_last_frame: validatedOptions.return_last_frame,
+      service_tier: validatedOptions.service_tier,
+      execution_expires_after: validatedOptions.execution_expires_after,
+      callback_url: (validatedOptions as any).callback_url,
+    };
+
+    // 样片模式 (draft: true) 与 duration 互斥，仅在非样片模式下传递 duration
+    if (!validatedOptions.draft) {
+      requestBody.duration = validatedOptions.duration || params.duration;
+    }
+
+    const task = await model.createTask(requestBody);
+    return { task_id: task.id };
+  };
+
+  const asyncVideoResult = async ({ task_id }: { task_id: string }) => {
+    // 使用默认模型 ID 查询任务状态
+    const model = createVideoModel('default');
+    const status = await model.getTaskStatus(task_id);
+
+    return {
+      status: status.status,
+      videos: status.content?.video?.url ? [status.content.video.url] : [],
+      error: status.error?.message
+    };
+  };
+
   return {
     image: createImageModel,
     imageModel: createImageModel,
+    video: createVideoModel,
     imageCallOptionsSchema: arkImageCallOptionsSchema,
+    videoCallOptionsSchema: arkVideoCallOptionsSchema,
+    generateVideoAsyncTask,
+    asyncVideoResult,
   } as unknown as ArkProvider;
 }
 
