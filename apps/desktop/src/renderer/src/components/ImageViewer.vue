@@ -4,12 +4,13 @@
             <div v-if="visible" class="image-viewer-overlay" @click="close" @keydown.esc="close" tabindex="-1">
                 <div class="image-viewer-content" @click.stop>
                     <!-- Main Image with Transform -->
-                    <div class="image-stage" @wheel.prevent="handleWheel">
+                    <div class="image-stage" @wheel.prevent="handleWheel" @click="close">
                         <img
                             :src="currentSrc"
                             class="viewer-image"
                             :style="imageStyle"
                             @mousedown="startDrag"
+                            @click.stop
                         />
                     </div>
 
