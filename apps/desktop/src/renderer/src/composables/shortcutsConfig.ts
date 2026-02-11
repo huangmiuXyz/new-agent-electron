@@ -15,6 +15,8 @@ export interface ShortcutConfig {
     editable?: boolean
     /** 触发范围: 'global'=全局, 'chat'=聊天页面, 'notes'=笔记页面 */
     scope: 'global' | 'chat' | 'notes' | 'image' | 'settings'
+    /** 是否允许在输入框中使用 */
+    allowedInInput?: boolean
 }
 
 // 内置快捷键定义
