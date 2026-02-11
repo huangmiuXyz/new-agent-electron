@@ -134,7 +134,6 @@ const allFields = computed<FormField<any>[]>(() => {
 })
 
 const rightInput = ref('')
-const resultsContainer = ref<HTMLElement | null>(null)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
 const handleInput = () => {
@@ -671,7 +670,7 @@ onMounted(async () => {
   height: 100% !important;
 }
 
-.results-content > div {
+.results-content>div {
   max-width: 1000px;
   margin: 0 auto;
 }
