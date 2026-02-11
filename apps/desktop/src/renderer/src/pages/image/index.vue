@@ -287,11 +287,20 @@ const getProviderInstance = (providerId: string) => {
 const startGeneration = async (batch: ImageBatch) => {
   if (activeProcessingIds.has(batch.id)) return
   activeProcessingIds.add(batch.id)
-
+  const prompt = batch.referenceImages && batch.referenceImages.length > 0
+    ? {
+      text: batch.prompt,
+      images: batch.referenceImages.map(img => {
+        if (img.startsWith('data:')) {
+          return img.split(',')[1]
+        }
+        return img
+      })
+    }
+    : batch.prompt
   try {
     const { instance: providerInstance, provider } = getProviderInstance(batch.providerId!)
 
-    // 优先使用异步生成
     if (providerInstance?.generateImageAsyncTask) {
       const { task_id } = await providerInstance.generateImageAsyncTask({
         model: providerInstance.imageModel(batch.model),
@@ -304,21 +313,6 @@ const startGeneration = async (batch: ImageBatch) => {
       imgStore.updateBatch(batch.id, { taskId: task_id, status: 'processing' })
       await pollAsyncResult(batch.id, task_id, providerInstance)
     } else {
-      // 回退到同步生成
-      // 构建 prompt，支持参考图片
-      const prompt = batch.referenceImages && batch.referenceImages.length > 0
-        ? {
-            text: batch.prompt,
-            images: batch.referenceImages.map(img => {
-              // 如果是 data URL，提取 base64 部分
-              if (img.startsWith('data:')) {
-                return img.split(',')[1]
-              }
-              return img
-            })
-          }
-        : batch.prompt
-
       const result = await service.generateImage(prompt, {
         model: batch.model,
         apiKey: provider.apiKey || '',
@@ -330,7 +324,6 @@ const startGeneration = async (batch: ImageBatch) => {
         seed: batch.params?.seed,
         providerOptions: batch.params?.providerOptions
       })
-
       if (result.images) {
         processImages(batch.id, result.images)
       }
@@ -581,26 +574,20 @@ onMounted(async () => {
             <Card class="input-box-wrapper" :class="{ disabled: !isModelSelected }" radius="24px" padding="8px 16px">
               <!-- 参考图片预览 -->
               <div v-if="referenceImages.length > 0" class="reference-images-section">
-                <FileUpload
-                  ref="fileUploadRef"
-                  v-model="referenceImages"
-                  :multiple="true"
-                  :removable="true"
-                  :show-upload="true"
-                  @remove="(index) => referenceImages.splice(index, 1)"
-                />
+                <FileUpload ref="fileUploadRef" v-model="referenceImages" :multiple="true" :removable="true"
+                  :show-upload="true" @remove="(index) => referenceImages.splice(index, 1)" />
               </div>
 
               <div class="input-top">
                 <div class="textarea-wrapper">
                   <Button variant="text" size="sm" class="reference-image-btn" title="添加参考图片"
-                    :disabled="!isModelSelected"
-                    @click="handleAddReferenceImage">
+                    :disabled="!isModelSelected" @click="handleAddReferenceImage">
                     <Plus />
                   </Button>
                   <textarea ref="textareaRef" v-model="rightInput"
-                    :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'" :disabled="!isModelSelected || isOptimizing"
-                    @keydown.enter.exact.prevent="handleRightInputSubmit" rows="1" @input="handleInput"></textarea>
+                    :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'"
+                    :disabled="!isModelSelected || isOptimizing" @keydown.enter.exact.prevent="handleRightInputSubmit"
+                    rows="1" @input="handleInput"></textarea>
                   <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="clear-btn"
                     @click="rightInput = ''">
                     <X />
@@ -619,7 +606,7 @@ onMounted(async () => {
                   <Button variant="primary" size="sm" class="send-btn"
                     :disabled="!isModelSelected || !rightInput.trim() || isOptimizing" @click="handleRightInputSubmit">
                     <template #icon>
-                      <Send style="font-size: 13px;"/>
+                      <Send style="font-size: 13px;" />
                     </template>
                   </Button>
                 </div>
