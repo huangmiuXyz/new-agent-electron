@@ -48,6 +48,15 @@ const contextCount = computed(() => {
   return selectedAgent.value?.contextCount ?? 10
 })
 
+// 判断是否存在上下文压缩消息
+const hasCompressedContext = computed(() => {
+  return currentChat.value?.messages.some(msg =>
+    msg.role === 'system' &&
+    (msg.metadata?.isCompressedContext ||
+      msg.parts?.some(p => p.type === 'text' && p.text?.includes('[上下文已压缩]')))
+  )
+})
+
 const lastMessageIndex = computed(() => {
   if (!currentChat.value || currentChat.value.messages.length === 0) return -1
   return currentChat.value.messages.length - 1
@@ -67,6 +76,28 @@ const lastMessageHeight = computed(() => {
 const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   event.preventDefault()
   event.stopPropagation()
+
+  // 判断是否为系统消息
+  const isSystemMessage = message.role === 'system'
+
+  // 系统消息只显示删除选项
+  if (isSystemMessage) {
+    const systemMenuOptions: MenuItem<BaseMessage>[] = [
+      {
+        label: '删除',
+        icon: Delete,
+        danger: true,
+        onClick: () => {
+          setTimeout(() => {
+            deleteMessage(currentChat.value!.id, message.id!)
+          })
+        }
+      }
+    ]
+    showContextMenu(event, systemMenuOptions, message)
+    return
+  }
+
   const messageMenuOptions: MenuItem<BaseMessage>[] = [
     {
       label: '编辑',
@@ -258,7 +289,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         <template v-for="(message, index) in currentChat?.messages" :key="message.id">
           <div :id="`message-${message.id}`" class="message-item-wrapper">
             <div
-              v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length"
+              v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length && !hasCompressedContext"
               class="context-divider">
               <div class="divider-line"></div>
               <span class="divider-text">上下文分割线</span>
@@ -272,7 +303,8 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
               height: 'auto',
               flex: 'none'
             }" @contextmenu="onMessageRightClick($event, message)" />
-            <ChatMessageItemSystem v-else-if="message.role === 'system'" :message="message" />
+            <ChatMessageItemSystem v-else-if="message.role === 'system'" :message="message"
+              @contextmenu="onMessageRightClick($event, message)" />
           </div>
         </template>
       </div>
