@@ -28,7 +28,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+K',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
     },
     {
         id: 'global.newChat',
@@ -46,7 +47,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+Shift+K',
         enabled: true,
         editable: true,
-        scope: 'chat'
+        scope: 'chat',
+        allowedInInput: true
     },
     {
         id: 'navigation.switchToChat',
@@ -55,7 +57,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+1',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
     },
     {
         id: 'navigation.switchToNotes',
@@ -64,7 +67,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+2',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
     },
     {
         id: 'navigation.switchToImage',
@@ -73,7 +77,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+3',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
     },
     {
         id: 'navigation.switchToSettings',
@@ -82,7 +87,8 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+4',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
     },
     {
         id: 'global.toggleSidebar',
@@ -109,7 +115,28 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+J',
         enabled: true,
         editable: true,
-        scope: 'global'
+        scope: 'global',
+        allowedInInput: true
+    },
+    {
+        id: 'chat.switchAgent',
+        name: '切换助手',
+        description: '切换到下一个助手',
+        defaultKey: 'CmdOrCtrl+Shift+A',
+        enabled: true,
+        editable: true,
+        scope: 'chat',
+        allowedInInput: true
+    },
+    {
+        id: 'chat.switchModel',
+        name: '切换模型',
+        description: '切换到下一个模型',
+        defaultKey: 'CmdOrCtrl+Shift+M',
+        enabled: true,
+        editable: true,
+        scope: 'chat',
+        allowedInInput: true
     },
     {
         id: 'chat.regenerateLast',
@@ -118,6 +145,7 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         defaultKey: 'CmdOrCtrl+R',
         enabled: true,
         editable: true,
-        scope: 'chat'
+        scope: 'chat',
+        allowedInInput: true
     }
 ]
