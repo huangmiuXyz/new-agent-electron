@@ -293,6 +293,7 @@ const getProviderInstance = (providerId: string) => {
 const startGeneration = async (batch: ImageBatch) => {
   if (activeProcessingIds.has(batch.id)) return
   activeProcessingIds.add(batch.id)
+  debugger
 
   // 将参考图片转换为 files 参数格式
   const files = await Promise.all(
