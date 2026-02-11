@@ -15,6 +15,13 @@ const settingsStore = useSettingsStore()
 const imgStore = useImageStore()
 const { generatedBatches } = storeToRefs(imgStore)
 
+// 固定高度虚拟滚动
+const ITEM_HEIGHT = 320
+const { list: virtualList, containerProps, wrapperProps, scrollTo } = useVirtualList(generatedBatches, {
+  itemHeight: ITEM_HEIGHT,
+  overscan: 2
+})
+
 // 参考图片 - 使用 FileUpload 组件
 const referenceImages = ref<string[]>([])
 
@@ -509,15 +516,15 @@ onMounted(async () => {
 
       <template #content>
         <div class="results-container">
-          <div class="results-content" ref="resultsContainer">
+          <div class="results-content" v-bind="containerProps">
             <div v-if="generatedBatches.length === 0" class="empty-state">
               <div class="empty-icon">
                 <ImageIcon />
               </div>
               <p>在下方输入提示词，开启你的创作之旅</p>
             </div>
-            <div v-else class="batches-list">
-              <Card v-for="batch in generatedBatches" :key="batch.id" padding="20px" radius="16px"
+            <div v-else class="batches-list" v-bind="wrapperProps">
+              <Card v-for="{ data: batch } in virtualList" :key="batch.id" padding="20px" radius="16px"
                 class="generation-results">
                 <div class="prompt-card">
                   <div class="prompt-header">
@@ -666,6 +673,12 @@ onMounted(async () => {
   min-height: 0;
   scroll-behavior: smooth;
   padding-bottom: 100px;
+  height: 100% !important;
+}
+
+.results-content > div {
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .batches-list {
@@ -673,8 +686,6 @@ onMounted(async () => {
   flex-direction: column;
   gap: 12px;
   padding-bottom: 32px;
-  max-width: 1000px;
-  margin: 0 auto;
 }
 
 .prompt-card {
@@ -693,6 +704,8 @@ onMounted(async () => {
 
 .prompt-content {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .prompt-label {
@@ -709,7 +722,9 @@ onMounted(async () => {
   font-size: 14px;
   color: var(--text-primary);
   line-height: 1.6;
-  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin: 0;
   font-weight: 500;
 }
@@ -737,14 +752,36 @@ onMounted(async () => {
 }
 
 .image-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
   gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.image-grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+.image-grid::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+}
+
+.image-grid::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.image-grid::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
 }
 
 .image-item {
   position: relative;
-  aspect-ratio: 1;
+  flex-shrink: 0;
+  width: 140px;
+  height: 140px;
   border-radius: 12px;
   overflow: hidden;
   background: var(--bg-tertiary);
