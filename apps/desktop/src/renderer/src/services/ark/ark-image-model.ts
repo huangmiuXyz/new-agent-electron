@@ -103,6 +103,9 @@ export class ArkImageModel implements ImageModelV3 {
   }: Parameters<ImageModelV3['doGenerate']>[0]): Promise<
     Awaited<ReturnType<ImageModelV3['doGenerate']>>
   > {
+
+    debugger
+
     const warnings: Array<SharedV3Warning> = [];
 
     const currentDate = new Date();

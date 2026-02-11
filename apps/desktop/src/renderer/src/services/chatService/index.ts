@@ -59,14 +59,6 @@ export interface ImageGenerateOptions {
   aspectRatio?: `${number}:${number}`
   seed?: number
   providerOptions?: any
-  files?: Array<{
-    type: 'file'
-    mediaType: string
-    data: string | Uint8Array
-  } | {
-    type: 'url'
-    url: string
-  }>
 }
 
 interface AutoCompressOptions {
@@ -453,8 +445,7 @@ export const chatService = () => {
       size,
       aspectRatio,
       seed,
-      providerOptions,
-      files
+      providerOptions
     }: ImageGenerateOptions & ChatServiceOptions
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
@@ -468,7 +459,6 @@ export const chatService = () => {
         size: size as `${number}x${number}`,
         aspectRatio: aspectRatio as `${number}:${number}`,
         seed,
-        files,
         providerOptions: {
           [providerType]: providerOptions
         }
