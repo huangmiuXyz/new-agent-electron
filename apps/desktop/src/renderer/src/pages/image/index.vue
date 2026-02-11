@@ -103,8 +103,17 @@ const baseFields = computed<FormField<any>[]>(() => {
       required: true,
       onChange: ({ providerId, modelId }: { providerId: string; modelId: string }) => {
         const category = getModelCategory(providerId, modelId)
-        isVideoMode.value = (category as string) === 'video'
+        const newIsVideoMode = (category as string) === 'video'
+        isVideoMode.value = newIsVideoMode
         dynamicField.value = getDynamicFields(providerId, isVideoMode.value)
+
+        // 切换模式时，尝试恢复对应模式的表单数据
+        const savedForm = newIsVideoMode ? settingsStore.videoGenerationForm : settingsStore.imageGenerationForm
+        if (savedForm) {
+          // 排除 model 字段，避免 setData 覆盖当前正在切换的模型，导致切换失效
+          const { model: _, ...otherData } = savedForm
+          formActions.setFieldsValue(otherData as any)
+        }
       }
     }
   ]
@@ -278,7 +287,10 @@ const [ImageForm, formActions] = useForm({
   fields: () => allFields.value,
   initialData: settingsStore.imageGenerationForm,
   onChange: (_field, _value, data) => {
-    settingsStore.updateImageGenerationForm(data)
+    settingsStore.updateImageGenerationForm({
+      ...data,
+      mediaType: isVideoMode.value ? 'video' : 'image'
+    })
   },
   onSubmit: async (data) => {
     const prompt = rightInput.value.trim()
@@ -660,16 +672,23 @@ const handleRightInputSubmit = () => {
 }
 
 onMounted(async () => {
-  formActions.setData(settingsStore.imageGenerationForm!)
-  if (settingsStore.imageGenerationForm?.prompt) {
-    rightInput.value = settingsStore.imageGenerationForm.prompt
-    settingsStore.imageGenerationForm.prompt = ''
-  }
+  // 根据初始模型判断模式
   if (settingsStore.imageGenerationForm?.model.providerId) {
     const category = getModelCategory(settingsStore.imageGenerationForm.model.providerId, settingsStore.imageGenerationForm.model.modelId)
     isVideoMode.value = (category as string) === 'video'
     dynamicField.value = getDynamicFields(settingsStore.imageGenerationForm.model.providerId, isVideoMode.value)
   }
+
+  // 恢复当前模式的表单数据
+  const initialForm = isVideoMode.value ? settingsStore.videoGenerationForm : settingsStore.imageGenerationForm
+  if (initialForm) {
+    formActions.setData(initialForm)
+    if (initialForm.prompt) {
+      rightInput.value = initialForm.prompt
+      initialForm.prompt = ''
+    }
+  }
+
   textareaRef.value?.focus()
   // 恢复未完成的任务
   generatedBatches.value.forEach(batch => {
