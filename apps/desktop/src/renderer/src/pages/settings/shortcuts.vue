@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useSettingsStore } from '@renderer/stores/settings'
-import { formatShortcut, useShortcuts, type ShortcutConfig } from '@renderer/composables/useShortcuts'
+import { formatShortcut, useShortcuts } from '@renderer/composables/useShortcuts'
 import List from '@renderer/components/List.vue'
 
 const settingsStore = useSettingsStore()
@@ -31,7 +31,7 @@ const recordingModifiers = ref({
 // 按作用域分组并转换格式
 const listItems = computed(() => {
   const items: Array<ShortcutConfig & { group: string }> = []
-  
+
   const scopeNames: Record<string, string> = {
     global: '全局快捷键',
     chat: '对话页面',
@@ -39,14 +39,14 @@ const listItems = computed(() => {
     image: '图像生成',
     settings: '设置页面'
   }
-  
+
   shortcuts.value.forEach(shortcut => {
     items.push({
       ...shortcut,
       group: scopeNames[shortcut.scope] || shortcut.scope
     })
   })
-  
+
   return items
 })
 

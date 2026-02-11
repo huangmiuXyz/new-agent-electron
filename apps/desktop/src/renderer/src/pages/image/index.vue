@@ -219,7 +219,7 @@ const scrollToBottom = () => {
 }
 
 const [ImageForm, formActions] = useForm({
-  fields: allFields.value,
+  fields: () => allFields.value,
   initialData: settingsStore.imageGenerationForm,
   onChange: (_field, _value, data) => {
     settingsStore.updateImageGenerationForm(data)
@@ -294,28 +294,40 @@ const startGeneration = async (batch: ImageBatch) => {
   if (activeProcessingIds.has(batch.id)) return
   activeProcessingIds.add(batch.id)
 
-  // 将参考图片转换为 base64
-  const processedImages = await Promise.all(
-    (batch.referenceImages || []).map(async (img) => {
+  // 将参考图片转换为 files 参数格式
+  const files = await Promise.all(
+    (batch.referenceImages || []).map(async (img): Promise<{ type: 'file'; mediaType: string; data: string }> => {
+      let base64Data: string
+      let mediaType = 'image/png'
+
       if (img.startsWith('data:')) {
-        return img.split(',')[1]
-      }
-      if (img.startsWith('blob:')) {
+        // 解析 data URL
+        const match = img.match(/^data:([^;]+);base64,(.+)$/)
+        if (match) {
+          mediaType = match[1]
+          base64Data = match[2]
+        } else {
+          base64Data = img.split(',')[1]
+        }
+      } else if (img.startsWith('blob:')) {
         const response = await fetch(img)
         const blob = await response.blob()
+        mediaType = blob.type || 'image/png'
         const base64 = await blobToDataURL(blob)
-        return base64.split(',')[1]
+        base64Data = base64.split(',')[1]
+      } else {
+        // 假设是纯 base64 字符串
+        base64Data = img
       }
-      return img
+
+      return {
+        type: 'file',
+        mediaType,
+        data: base64Data
+      }
     })
   )
 
-  const prompt = processedImages.length > 0
-    ? {
-      text: batch.prompt,
-      images: processedImages
-    }
-    : batch.prompt
   try {
     const { instance: providerInstance, provider } = getProviderInstance(batch.providerId!)
 
@@ -331,7 +343,7 @@ const startGeneration = async (batch: ImageBatch) => {
       imgStore.updateBatch(batch.id, { taskId: task_id, status: 'processing' })
       await pollAsyncResult(batch.id, task_id, providerInstance)
     } else {
-      const result = await service.generateImage(prompt, {
+      const result = await service.generateImage(batch.prompt, {
         model: batch.model,
         apiKey: provider.apiKey || '',
         baseURL: provider.baseUrl || '',
@@ -340,7 +352,8 @@ const startGeneration = async (batch: ImageBatch) => {
         size: batch.size as `${number}x${number}`,
         n: batch.n,
         seed: batch.params?.seed,
-        providerOptions: batch.params?.providerOptions
+        providerOptions: batch.params?.providerOptions,
+        files: files.length > 0 ? files : undefined
       })
       if (result.images) {
         processImages(batch.id, result.images)

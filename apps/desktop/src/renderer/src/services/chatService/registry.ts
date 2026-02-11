@@ -8,23 +8,11 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createHume } from '@ai-sdk/hume'
 import { createElevenLabs } from '@ai-sdk/elevenlabs'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createArk } from '../ark'
 
 import { ProviderV3 } from '@ai-sdk/provider'
 import { z } from 'zod'
 
-const openrouterChatCallOptionsSchema = z.object({
-  models: z.array(z.string()).optional().describe('可用的模型列表'),
-
-  reasoning: z.object({
-    enabled: z.boolean().optional().describe('是否启用推理'),
-    exclude: z.boolean().optional().describe('为 true 时从响应中移除推理内容'),
-    max_tokens: z.number().int().min(1).optional().describe('推理的最大 token 数'),
-    effort: z.enum(['xhigh', 'high', 'medium', 'low', 'minimal', 'none']).optional().default('medium').describe('推理努力程度'),
-  }).optional().describe('推理配置'),
-
-  user: z.string().optional().describe('终端用户的唯一标识'),
-});
-import { shallowReactive } from 'vue'
 export interface ProviderV3Extends extends ProviderV3 {
   listModels?: () => Promise<Model[]>
   speechCallOptionsSchema?: z.ZodObject
@@ -156,7 +144,18 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
   }),
   openrouter: (options) => mergeFun(createOpenRouter(options), {
     listModels: createStandardListModels(options),
-    chatCallOptionsSchema: openrouterChatCallOptionsSchema,
+    chatCallOptionsSchema: z.object({
+      models: z.array(z.string()).optional().describe('可用的模型列表'),
+
+      reasoning: z.object({
+        enabled: z.boolean().optional().describe('是否启用推理'),
+        exclude: z.boolean().optional().describe('为 true 时从响应中移除推理内容'),
+        max_tokens: z.number().int().min(1).optional().describe('推理的最大 token 数'),
+        effort: z.enum(['xhigh', 'high', 'medium', 'low', 'minimal', 'none']).optional().default('medium').describe('推理努力程度'),
+      }).optional().describe('推理配置'),
+
+      user: z.string().optional().describe('终端用户的唯一标识'),
+    }),
   }),
   hume: (options) => mergeFun(createHume(options) as unknown as ProviderV3, {
     listModels: async () => {
@@ -211,6 +210,9 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
     }
   }),
   'openai-compatible': (options) => mergeFun(createOpenAICompatible({ ...options, name: options.name }), {
+    listModels: createStandardListModels(options)
+  }),
+  ark: (options) => mergeFun(createArk(options), {
     listModels: createStandardListModels(options)
   })
 })
