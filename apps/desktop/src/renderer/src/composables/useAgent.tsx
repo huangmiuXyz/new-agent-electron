@@ -452,6 +452,7 @@ export const useAgent = () => {
         label: '压缩模型',
         hint: '用于生成上下文压缩摘要的模型。建议选择轻量级模型以节省成本。',
         modelCategory: 'text',
+        popupPosition: 'bottom',
         ifShow: (data) => data.autoCompressContext === true
       } as ModelSelectorField<AgentFormData>,
       {
