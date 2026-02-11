@@ -118,7 +118,7 @@ export interface ModelSelectorField<T> extends BaseField<T> {
   type?: 'modelSelector'
   placeholder?: string
   popupPosition?: 'bottom' | 'top'
-  modelCategory?: ModelCategory
+  modelCategory?: ModelCategory | ModelCategory[]
   multiple?: boolean
   onChange?: (value: { modelId: string; providerId: string }) => void
 }
@@ -195,7 +195,7 @@ export interface FormConfig<T> {
   title?: string
   showHeader?: boolean
   size?: 'sm' | 'md' | 'lg'
-  fields?: FormField<T>[]
+  fields?: FormField<T>[] | (() => FormField<T>[])
   schemas?: zod.ZodObject
   initialData?: T
   onSubmit?: (data: T) => void
@@ -228,8 +228,8 @@ export interface TableColumn<T = unknown> {
 
 export interface TableConfig<T extends Record<string, unknown>> {
   columns: TableColumn<T>[]
-  data?: T[]
-  loading?: boolean
+  data?: T[] | (() => T[])
+  loading?: boolean | (() => boolean)
   onRowClick?: (row: T) => void
   expandRender?: (row: T) => VNode | string | number | null
   height?: string | number

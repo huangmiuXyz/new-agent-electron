@@ -6,7 +6,7 @@ const props = withDefaults(
   defineProps<{
     type?: 'icon' | 'select'
     popupPosition?: 'top' | 'bottom'
-    category?: ModelCategory
+    category?: ModelCategory | ModelCategory[]
     multiple?: boolean
   }>(),
   {
@@ -59,9 +59,10 @@ const currentModelLabel = computed(() => {
 
 const filteredModels = computed(() => {
   const result: { provider: Provider; models: Model[] }[] = []
+  const categories = Array.isArray(props.category) ? props.category : [props.category]
   getAllProviders.value.forEach((provider) => {
     const filteredModels = provider.models?.filter(
-      (model) => model.active && model.category === props.category
+      (model) => model.active && categories.includes(model.category as ModelCategory)
     )
     if (filteredModels?.length > 0) {
       result.push({ provider, models: filteredModels })

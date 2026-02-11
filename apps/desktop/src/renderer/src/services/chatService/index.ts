@@ -1,6 +1,7 @@
 import {
   generateText as _generateText,
   generateImage as _generateImage,
+  experimental_generateVideo as _generateVideo,
   ToolLoopAgent,
   ToolChoice,
   wrapLanguageModel,
@@ -16,6 +17,15 @@ import { createContextLimitMiddleware } from './middleware/contextLimit'
 import { createCompressContextMiddleware } from './middleware/compressContext'
 import { useSettingsStore } from '@renderer/stores/settings'
 
+
+interface VideoGenerateOptions {
+  n?: number
+  duration?: number
+  resolution?: `${number}x${number}`
+  aspectRatio?: `${number}:${number}`
+  seed?: number
+  providerOptions?: any
+}
 interface ChatServiceOptions {
   model: string
   apiKey: string
@@ -48,9 +58,9 @@ interface ChatServiceConfig {
 }
 
 export type GenerateImagePrompt = string | {
-    images: Array<DataContent>;
-    text?: string;
-    mask?: DataContent;
+  images: Array<DataContent>;
+  text?: string;
+  mask?: DataContent;
 };
 
 export interface ImageGenerateOptions {
@@ -492,6 +502,51 @@ export const chatService = () => {
       throw error
     }
   }
+
+  const generateVideo = async (
+    prompt: string,
+    {
+      model,
+      apiKey,
+      baseURL,
+      provider,
+      providerType,
+      n,
+      duration,
+      resolution,
+      aspectRatio,
+      seed,
+      providerOptions
+    }: VideoGenerateOptions & ChatServiceOptions
+  ) => {
+    await onUseAIBefore({ model, providerType, apiKey, baseURL })
+    try {
+      const registry = createRegistry({ apiKey, baseURL, name: provider })
+
+      // 检查 provider 是否支持 videoModel
+      const providerInstance = registry.getProvider(providerType)
+      if (!providerInstance || typeof (providerInstance as any).video !== 'function') {
+        throw new Error(`提供商 ${providerType} 不支持视频生成`)
+      }
+
+      const result = await _generateVideo({
+        model: (providerInstance as any).video(model),
+        prompt,
+        n,
+        duration,
+        resolution,
+        aspectRatio: aspectRatio as `${number}:${number}`,
+        seed,
+        providerOptions: {
+          [providerType]: providerOptions
+        }
+      })
+      return result
+    } catch (error) {
+      messageApi.error((error as Error).message)
+      throw error
+    }
+  }
   const list_models = async ({ baseURL, apiKey, providerType, name }) => {
     await onUseAIBefore({ providerType, apiKey, baseURL })
     const registry = createRegistry({ apiKey, baseURL, name: name || providerType })
@@ -524,6 +579,7 @@ export const chatService = () => {
     generateText,
     streamText,
     translateText,
-    generateImage
+    generateImage,
+    generateVideo
   }
 }

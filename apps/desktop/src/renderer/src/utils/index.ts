@@ -355,6 +355,8 @@ export const getCategoryLabel = (category: string) => {
       return '重排'
     case 'tts':
       return '语音'
+    case 'video':
+      return '视频'
     default:
       return '文本'
   }

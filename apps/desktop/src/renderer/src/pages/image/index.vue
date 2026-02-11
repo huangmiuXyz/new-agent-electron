@@ -10,11 +10,15 @@ import { ImageBatch, useImageStore } from '@renderer/stores/image'
 import ImageSizeSelector from '@renderer/components/ImageSizeSelector.vue'
 import FileUpload from '@renderer/components/FileUpload.vue'
 import { blobToDataURL } from 'blob-util'
+import type { ModelCategory } from '@agent-qi/types'
 
 const service = chatService()
 const settingsStore = useSettingsStore()
 const imgStore = useImageStore()
 const { generatedBatches } = storeToRefs(imgStore)
+
+// 当前是否为视频生成模式（根据选择的模型类别判断）
+const isVideoMode = ref(false)
 
 // 固定高度虚拟滚动
 const ITEM_HEIGHT = 320
@@ -77,60 +81,107 @@ const getDynamicImageFields = (providerId: string) => {
 
 const dynamicField = ref<FormField<any> | null>(null)
 
-const baseFields = [
-  {
-    name: 'model',
-    type: 'modelSelector',
-    popupPosition: 'bottom',
-    label: '生成模型',
-    modelCategory: 'image',
-    required: true,
-    onChange: ({ providerId }) => {
-      dynamicField.value = getDynamicImageFields(providerId)
+// 获取当前选中模型的类别
+const getModelCategory = (providerId: string, modelId: string): ModelCategory => {
+  const provider = settingsStore.getProviderById(providerId)
+  if (!provider) return 'text'
+  const model = provider.models?.find(m => m.id === modelId)
+  return model?.category || 'text'
+}
+
+const baseFields = computed<FormField<any>[]>(() => {
+  const fields: FormField<any>[] = [
+    {
+      name: 'model',
+      type: 'modelSelector',
+      popupPosition: 'bottom',
+      label: '生成模型',
+      modelCategory: ['image', 'video'] as ModelCategory[], // 同时显示图像和视频模型
+      required: true,
+      onChange: ({ providerId, modelId }: { providerId: string; modelId: string }) => {
+        const category = getModelCategory(providerId, modelId)
+        isVideoMode.value = (category as string) === 'video'
+        dynamicField.value = getDynamicImageFields(providerId)
+      }
     }
-  },
-  {
-    name: 'size',
-    type: 'custom',
-    label: '图像尺寸',
-    defaultValue: '1024x1024',
-    render: (data) => (
-      <ImageSizeSelector
-        modelValue={data.size}
-        onUpdate:modelValue={(val: string) => formActions.setFieldValue('size', val)}
-      />
-    )
-  },
-  {
-    name: 'n',
-    type: 'slider',
-    label: '生成数量',
-    min: 1,
-    step: 1,
-    defaultValue: 1
-  },
-  {
-    name: 'seed',
-    label: '随机种子',
-    placeholder: '留空则随机生成...',
-    type: 'number',
-    rest: () => (
-      <Button
-        variant="text"
-        size="sm"
-        onClick={() => {
-          const randomSeed = Math.floor(Math.random() * 1000000)
-          formActions.setFieldValue('seed', randomSeed)
-        }}
-      >
-        {Dices}
-      </Button>
+  ]
+
+  // 图像模式显示尺寸选择
+  if (!isVideoMode.value) {
+    fields.push({
+      name: 'size',
+      type: 'custom',
+      label: '图像尺寸',
+      defaultValue: '1024x1024',
+      render: (data: any) => (
+        <ImageSizeSelector
+          modelValue={data.size}
+          onUpdate:modelValue={(val: string) => formActions.setFieldValue('size', val)}
+        />
+      )
+    } as FormField<any>)
+  } else {
+    // 视频模式显示视频特有配置
+    fields.push(
+      {
+        name: 'duration',
+        type: 'select',
+        label: '视频时长',
+        defaultValue: '5',
+        options: [
+          { label: '5秒', value: '5' },
+          { label: '10秒', value: '10' }
+        ]
+      } as FormField<any>,
+      {
+        name: 'resolution',
+        type: 'select',
+        label: '分辨率',
+        defaultValue: '1280x720',
+        options: [
+          { label: '720p (1280x720)', value: '1280x720' },
+          { label: '1080p (1920x1080)', value: '1920x1080' }
+        ]
+      } as FormField<any>
     )
   }
-]
+
+  // 通用字段
+  fields.push(
+    {
+      name: 'n',
+      type: 'slider',
+      label: isVideoMode.value ? '生成视频数' : '生成数量',
+      min: 1,
+      max: isVideoMode.value ? 1 : 4,
+      step: 1,
+      defaultValue: 1
+    } as FormField<any>,
+    {
+      name: 'seed',
+      label: '随机种子',
+      placeholder: '留空则随机生成...',
+      type: 'number',
+      rest: () => (
+        <Button
+          variant="text"
+          size="sm"
+          onClick={() => {
+            const randomSeed = Math.floor(Math.random() * 1000000)
+            formActions.setFieldValue('seed', randomSeed)
+          }}
+        >
+          {Dices}
+        </Button>
+      )
+    } as FormField<any>
+  )
+
+  return fields
+})
 
 const allFields = computed<FormField<any>[]>(() => {
-  const fields = [...baseFields] as FormField<any>[]
+  const fields = [...baseFields.value]
   if (dynamicField.value) {
     fields.push(dynamicField.value)
   }
@@ -248,7 +299,7 @@ const [ImageForm, formActions] = useForm({
     const newBatch: ImageBatch = {
       id: batchId,
       prompt: prompt,
-      size: data.size,
+      size: isVideoMode.value ? undefined : data.size,
       n: n,
       model: data.model.modelId,
       modelName: settingsStore.getModelById(data.model.providerId, data.model.modelId).model?.name,
@@ -259,7 +310,10 @@ const [ImageForm, formActions] = useForm({
         seed: data.seed ? Number(data.seed) : undefined,
         providerOptions: data.providerOptions
       },
-      referenceImages: refImagesData
+      referenceImages: refImagesData,
+      mediaType: isVideoMode.value ? 'video' : 'image',
+      duration: isVideoMode.value ? data.duration : undefined,
+      resolution: isVideoMode.value ? data.resolution : undefined
     }
 
     generatedBatches.value.push(newBatch)
@@ -268,7 +322,11 @@ const [ImageForm, formActions] = useForm({
     referenceImages.value = []
 
     if (!activeProcessingIds.has(newBatch.id)) {
-      startGeneration(newBatch)
+      if (isVideoMode.value) {
+        startVideoGeneration(newBatch)
+      } else {
+        startGeneration(newBatch)
+      }
     }
   }
 })
@@ -435,6 +493,103 @@ const processImages = (batchId: number, rawImages: any[]) => {
   }
 }
 
+// 视频生成方法
+const startVideoGeneration = async (batch: ImageBatch) => {
+  if (activeProcessingIds.has(batch.id)) return
+  activeProcessingIds.add(batch.id)
+
+  try {
+    const provider = settingsStore.getProviderById(batch.providerId!)
+    if (!provider) {
+      throw new Error('未找到所选模型的提供商')
+    }
+
+    const result = await service.generateVideo(batch.prompt, {
+      model: batch.model,
+      apiKey: provider.apiKey || '',
+      baseURL: provider.baseUrl || '',
+      provider: provider.id,
+      providerType: provider.providerType,
+      n: batch.n,
+      duration: batch.duration ? Number(batch.duration) : undefined,
+      resolution: batch.resolution,
+      seed: batch.params?.seed,
+      providerOptions: batch.params?.providerOptions
+    })
+
+    if (result.videos) {
+      processVideos(batch.id, result.videos)
+    }
+  } catch (error: any) {
+    console.error('视频生成失败:', { error })
+    imgStore.updateBatch(batch.id, { status: 'failed', error: error.message })
+    const b = generatedBatches.value.find((b) => b.id === batch.id)
+    if (b && (!b.images || b.images.every((img) => typeof img === 'object' && img.loading))) {
+      generatedBatches.value = generatedBatches.value.filter((b) => b.id !== batch.id)
+    }
+  } finally {
+    activeProcessingIds.delete(batch.id)
+  }
+}
+
+const processVideos = (batchId: number, rawVideos: any[]) => {
+  const newVideos = rawVideos.map((video: any) => {
+    if (typeof video === 'string') return video
+    if (video.url) return video.url
+    if (video.base64) {
+      return video.base64.startsWith('data:') ? video.base64 : `data:video/mp4;base64,${video.base64}`
+    }
+    return ''
+  }).filter(Boolean)
+
+  const batch = generatedBatches.value.find(b => b.id === batchId)
+  if (batch) {
+    let placeholderIndex = 0
+    const updatedVideos = batch.images.map(item => {
+      if (typeof item === 'object' && item.loading) {
+        return newVideos[placeholderIndex++] || item
+      }
+      return item
+    })
+    imgStore.updateBatch(batchId, {
+      images: updatedVideos,
+      status: 'completed'
+    })
+    scrollToBottom()
+  }
+}
+
+const pollAsyncVideoResult = async (batchId: number, taskId: string, providerInstance: any) => {
+  if (activePolls.has(batchId)) return
+  activePolls.add(batchId)
+
+  const poll = async () => {
+    try {
+      const exists = generatedBatches.value.some((b) => b.id === batchId)
+      if (!exists) {
+        activePolls.delete(batchId)
+        return
+      }
+
+      const result = await providerInstance.asyncVideoResult?.({ task_id: taskId })
+      if (result.videos && result.videos.length > 0) {
+        processVideos(batchId, result.videos)
+        activePolls.delete(batchId)
+      } else if (result.status === 'failed') {
+        throw new Error(result.error || '视频生成失败')
+      } else {
+        setTimeout(poll, 5000)
+      }
+    } catch (error: any) {
+      console.error('异步获取视频失败:', error)
+      activePolls.delete(batchId)
+      imgStore.updateBatch(batchId, { status: 'failed', error: error.message })
+    }
+  }
+
+  poll()
+}
+
 const { Trash, Dices, Image: ImageIcon, Edit, Copy, X, Bulb, Plus, Send } = useIcon(['Trash', 'Download', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X', 'Bulb', 'Plus', 'Send'])
 
 const copyPrompt = (prompt: string) => {
@@ -560,7 +715,8 @@ onMounted(async () => {
                 </div>
 
                 <div class="image-grid">
-                  <div v-for="(img, index) in batch.images" :key="index" class="image-item">
+                  <div v-for="(img, index) in batch.images" :key="index" class="image-item"
+                    :class="{ 'video-item': batch.mediaType === 'video' }">
                     <template v-if="typeof img === 'object' && img.loading">
                       <div class="image-loading" :class="{ 'is-failed': batch.status === 'failed' }">
                         <template v-if="batch.status === 'failed'">
@@ -572,14 +728,27 @@ onMounted(async () => {
                         </template>
                         <template v-else>
                           <div class="loading-spinner"></div>
-                          <span>生成中...</span>
+                          <span>{{ batch.mediaType === 'video' ? '视频生成中...' : '生成中...' }}</span>
                         </template>
                       </div>
                     </template>
                     <template v-else>
-                      <Image :src="(img as string)" preview
-                        :images="(batch.images.filter(i => typeof i === 'string') as string[])"
-                        :initial-index="batch.images.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1" />
+                      <!-- 视频显示 -->
+                      <template v-if="batch.mediaType === 'video'">
+                        <video
+                          :src="(img as string)"
+                          controls
+                          preload="metadata"
+                          class="video-player"
+                          @click.stop
+                        />
+                      </template>
+                      <!-- 图片显示 -->
+                      <template v-else>
+                        <Image :src="(img as string)" preview
+                          :images="(batch.images.filter(i => typeof i === 'string') as string[])"
+                          :initial-index="batch.images.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1" />
+                      </template>
                     </template>
                   </div>
                 </div>
@@ -809,6 +978,18 @@ onMounted(async () => {
   height: 100%;
   object-fit: cover;
   transition: filter 0.3s;
+}
+
+.video-item {
+  width: 240px;
+  height: 135px;
+}
+
+.video-player {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
 }
 
 

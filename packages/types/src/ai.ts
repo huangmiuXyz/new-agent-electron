@@ -83,7 +83,7 @@ export type Tools = Record<string, {
 export type BaseMessage = UIMessage<MetaData, UIMessageChunk>
 export type Tool = Tools[keyof Tools]
 export type ContentBlock<T extends UIDataTypes, K extends UITools> = UIMessagePart<T, K>
-export type ModelCategory = 'text' | 'embedding' | 'image' | 'rerank' | 'speech' | 'tts'
+export type ModelCategory = 'text' | 'embedding' | 'image' | 'video' | 'rerank' | 'speech' | 'tts'
 export interface ModelVoice {
   id: string
   name: string

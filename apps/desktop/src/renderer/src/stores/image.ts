@@ -16,6 +16,11 @@ export interface ImageBatch {
   error?: string
   params?: any
   referenceImages?: string[]
+  // 媒体类型：image 或 video
+  mediaType?: 'image' | 'video'
+  // 视频特有字段
+  duration?: string
+  resolution?: `${number}x${number}`
 }
 
 let resolveRestore: () => void

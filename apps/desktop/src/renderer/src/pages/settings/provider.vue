@@ -416,7 +416,8 @@ const [CustomModelForm, customModelFormActions] = useForm({
         { value: 'embedding', label: '嵌入式' },
         { value: 'image', label: '图像' },
         { value: 'rerank', label: '重排' },
-        { value: 'tts', label: '语音' }
+        { value: 'tts', label: '语音' },
+        { value: 'video', label: '视频' }
       ]
     }
   ],
