@@ -3,6 +3,7 @@ const activeProcessingIds = new Set<number>()
 </script>
 
 <script setup lang="tsx">
+import { useVirtualList } from '@vueuse/core'
 import { createRegistry } from '@renderer/services/chatService/registry';
 import { useSettingsStore } from '@renderer/stores/settings'
 import { ImageBatch, useImageStore } from '@renderer/stores/image'
@@ -660,7 +661,7 @@ onMounted(async () => {
 
 .results-content {
   flex: 1;
-  padding: 32px;
+  padding: 24px;
   overflow-y: auto;
   min-height: 0;
   scroll-behavior: smooth;
@@ -670,7 +671,7 @@ onMounted(async () => {
 .batches-list {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 12px;
   padding-bottom: 32px;
   max-width: 1000px;
   margin: 0 auto;
