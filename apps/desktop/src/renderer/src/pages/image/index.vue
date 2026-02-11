@@ -418,7 +418,7 @@ const processImages = (batchId: number, rawImages: any[]) => {
   }
 }
 
-const { Trash, Sparkles, Dices, Image: ImageIcon, Edit, Copy, X, Bulb, Plus, Send } = useIcon(['Trash', 'Download', 'Sparkles', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X', 'Bulb', 'Plus', 'Send'])
+const { Trash, Dices, Image: ImageIcon, Edit, Copy, X, Bulb, Plus, Send } = useIcon(['Trash', 'Download', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X', 'Bulb', 'Plus', 'Send'])
 
 const copyPrompt = (prompt: string) => {
   copyText(prompt)
