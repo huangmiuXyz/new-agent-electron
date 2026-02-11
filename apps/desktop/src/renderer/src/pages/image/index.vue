@@ -209,14 +209,9 @@ const isModelSelected = computed(() => {
   return !!settingsStore.imageGenerationForm?.model?.modelId
 })
 
-const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+const scrollToBottom = () => {
   nextTick(() => {
-    if (resultsContainer.value) {
-      resultsContainer.value.scrollTo({
-        top: resultsContainer.value.scrollHeight,
-        behavior
-      })
-    }
+    scrollTo(generatedBatches.value.length - 1)
   })
 }
 
