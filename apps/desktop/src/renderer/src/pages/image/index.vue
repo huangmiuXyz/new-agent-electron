@@ -666,14 +666,12 @@ const handleRightInputSubmit = () => {
 }
 
 onMounted(async () => {
-  // 根据初始模型判断模式
   if (settingsStore.imageGenerationForm?.model.providerId) {
     const category = getModelCategory(settingsStore.imageGenerationForm.model.providerId, settingsStore.imageGenerationForm.model.modelId)
     isVideoMode.value = (category as string) === 'video'
     dynamicField.value = getDynamicFields(settingsStore.imageGenerationForm.model.providerId, isVideoMode.value)
   }
 
-  // 恢复当前模式的表单数据
   const initialForm = isVideoMode.value ? settingsStore.videoGenerationForm : settingsStore.imageGenerationForm
   if (initialForm) {
     formActions.setData(initialForm)
