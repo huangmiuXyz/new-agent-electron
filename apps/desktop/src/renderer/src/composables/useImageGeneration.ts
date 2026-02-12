@@ -278,7 +278,7 @@ export function useImageGeneration() {
           seed: batch.seed,
           providerOptions: batch.params?.providerOptions,
           files: processedImages
-        } as any)
+        })
 
         imgStore.updateBatch(batch.id, { taskId: task_id, status: 'processing' })
         await pollAsyncVideoResult(batch.id, task_id, providerInstance)
