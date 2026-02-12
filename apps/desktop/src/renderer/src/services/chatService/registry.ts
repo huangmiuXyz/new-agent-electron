@@ -8,7 +8,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createHume } from '@ai-sdk/hume'
 import { createElevenLabs } from '@ai-sdk/elevenlabs'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { createArk } from '../ark'
+import { createArk } from './provider/ark/index'
 
 import { ProviderV3 } from '@ai-sdk/provider'
 import { z } from 'zod'

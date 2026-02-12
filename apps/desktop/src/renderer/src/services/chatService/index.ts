@@ -468,9 +468,7 @@ export const chatService = () => {
         size: size as `${number}x${number}`,
         aspectRatio: aspectRatio as `${number}:${number}`,
         seed,
-        providerOptions: {
-          [providerType]: providerOptions
-        }
+        providerOptions
       })
       return result
     } catch (error) {
@@ -536,9 +534,7 @@ export const chatService = () => {
         resolution,
         aspectRatio: aspectRatio as `${number}:${number}`,
         seed,
-        providerOptions: {
-          [providerType]: providerOptions
-        }
+        providerOptions
       })
       return result
     } catch (error) {
