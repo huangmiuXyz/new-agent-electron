@@ -29,9 +29,13 @@ const { list: virtualList, containerProps, wrapperProps, scrollTo } = useVirtual
 
 // 参考图片 - 使用 FileUpload 组件
 const referenceImages = ref<string[]>([])
+const dropZoneRef = ref<HTMLElement>()
+const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
 // 添加参考图片 - 使用 useUpload 的 triggerUpload
-const { triggerUpload } = useUpload({
+const { triggerUpload, isDragOver, isOverDropZone } = useUpload({
+  dropZoneRef,
+  inputRef: textareaRef as Ref<HTMLTextAreaElement | undefined>,
   onFilesSelected: async (files) => {
     for (const file of files) {
       if (file.blobUrl) {
@@ -227,7 +231,6 @@ const videoFields = computed<FormField<any>[]>(() => {
 })
 
 const rightInput = ref('')
-const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
 const handleInput = () => {
   if (textareaRef.value) {
@@ -900,10 +903,10 @@ onMounted(async () => {
           </div>
 
           <div class="floating-input-area">
-            <Card class="input-box-wrapper" :class="{ disabled: !isModelSelected }" radius="24px" padding="8px 16px">
+            <Card ref="dropZoneRef" class="input-box-wrapper" :class="{ disabled: !isModelSelected, 'drag-over': isDragOver || isOverDropZone }" radius="24px" padding="8px 16px">
               <!-- 参考图片预览 -->
               <div v-if="referenceImages.length > 0" class="reference-images-section">
-                <FileUpload ref="fileUploadRef" v-model="referenceImages" :multiple="true" :removable="true"
+                <FileUpload v-model="referenceImages" :multiple="true" :removable="true"
                   :show-upload="true" @remove="(index) => referenceImages.splice(index, 1)" />
               </div>
 
@@ -1290,6 +1293,12 @@ onMounted(async () => {
   opacity: 0.6;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.input-box-wrapper.drag-over {
+  border-color: var(--accent-color) !important;
+  background: rgba(var(--accent-rgb), 0.05) !important;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2), 0 16px 48px rgba(0, 0, 0, 0.2) !important;
 }
 
 .input-box-wrapper.disabled textarea {
