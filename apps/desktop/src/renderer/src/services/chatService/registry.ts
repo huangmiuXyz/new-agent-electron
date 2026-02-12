@@ -20,9 +20,9 @@ export interface ProviderV3Extends extends ProviderV3 {
   videoCallOptionsSchema?: z.ZodObject
   /** 聊天调用的参数选项 Schema */
   chatCallOptionsSchema?: z.ZodObject<any>
-  generateImageAsyncTask: (params: Parameters<typeof generateImage>[0]) => {
+  generateImageAsyncTask: (params: Parameters<typeof generateImage>[0]) => Promise<{
     task_id: string
-  }
+  }>
   asyncResult?: ({ task_id }) => ReturnType<typeof generateImage>
   generateVideoAsyncTask?: (params: Parameters<typeof experimental_generateVideo>[0] & { files?: string[] }) => Promise<{
     task_id: string
