@@ -26,7 +26,7 @@ const contentItemSchema = z.union([
   z.object({ type: z.literal('text'), text: z.string() }),
   z.object({
     type: z.literal('image_url'),
-    image_url: z.object({ url: z.string() }),
+    image_url: z.object({ url: z.string().meta({ component: 'upload' }) }),
     role: z.enum(['first_frame', 'last_frame', 'reference_image']).optional()
   }),
   z.object({ type: z.literal('draft_task'), draft_task: z.object({ id: z.string() }) }),
@@ -38,10 +38,7 @@ export const arkVideoCallOptionsSchema = z.object({
   content: z.array(contentItemSchema).describe('内容数组，直接透传给 API'),
 
   // 视频规格
-  duration: z.number().int().min(2).max(12).default(5).describe('视频时长，单位：秒。支持 2~12 秒'),
-  resolution: z.enum(['540p', '720p', '1080p']).default('720p').describe('分辨率 (Seedance 1.0 最高 720p)'),
   frames: z.number().int().min(29).max(289).optional().describe('帧数 (优先级高于duration, 取值范围[29,289], 满足25+4n格式的整数)'),
-  ratio: z.enum(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive']).default('adaptive').describe('宽高比'),
   // 功能开关
   generate_audio: z.boolean().default(false).describe('生成同步音频 (仅 Seedance 1.5 pro)'),
   draft: z.boolean().default(false).describe('开启样片模式 (仅 Seedance 1.5 pro, 开启后不支持时长设置)'),
@@ -178,7 +175,7 @@ export function createArk(
       fetch: options.fetch,
     });
 
-    const generateVideoAsyncTask = async (params: any) => {
+  const generateVideoAsyncTask = async (params: any) => {
     const model = createVideoModel(params.model);
     const arkOptions = params.providerOptions?.ark || {};
 
@@ -189,9 +186,7 @@ export function createArk(
     const requestBody: any = {
       content: validatedOptions.content,
       seed: params.seed,
-      resolution: validatedOptions.resolution || params.resolution,
-      frames: validatedOptions.frames || params.frames,
-      ratio: validatedOptions.ratio || params.aspectRatio,
+      frames: validatedOptions.frames,
       generate_audio: validatedOptions.generate_audio,
       draft: validatedOptions.draft,
       camera_fixed: validatedOptions.camera_fixed,
@@ -199,13 +194,8 @@ export function createArk(
       return_last_frame: validatedOptions.return_last_frame,
       service_tier: validatedOptions.service_tier,
       execution_expires_after: validatedOptions.execution_expires_after,
-      callback_url: (validatedOptions as any).callback_url,
+      duration: params.duration,
     };
-
-    // 样片模式 (draft: true) 与 duration 互斥，仅在非样片模式下传递 duration
-    if (!validatedOptions.draft) {
-      requestBody.duration = validatedOptions.duration || params.duration;
-    }
 
     const task = await model.createTask(requestBody);
     return { task_id: task.id };

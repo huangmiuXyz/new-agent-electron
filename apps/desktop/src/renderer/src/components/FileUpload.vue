@@ -133,7 +133,7 @@ defineExpose({
       </div>
 
       <!-- 添加按钮 -->
-      <div v-if="showAddButton" class="upload-box" :class="{ 'uploading': uploadLoading }" @click="!uploadLoading && handleTriggerUpload">
+      <div v-if="showAddButton" class="upload-box" :class="{ 'uploading': uploadLoading }" @click="!uploadLoading && handleTriggerUpload()">
         <template v-if="uploadLoading">
           <div class="btn-spinner"></div>
         </template>

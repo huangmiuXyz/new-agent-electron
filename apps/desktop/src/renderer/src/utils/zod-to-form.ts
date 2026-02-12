@@ -214,14 +214,20 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
       const isEmail = checks.some((c: any) => c.kind === 'email')
       const isUrl = checks.some((c: any) => c.kind === 'url')
 
+      // 根据 metadata.component 确定类型
+      const fieldType = metadata?.component === 'upload' ? 'upload' : 'text'
+      // ZodString 的 upload 默认只能上传一张
+      const uploadMultiple = fieldType === 'upload' ? false : undefined
+
       fields.push({
-        type: 'text',
+        type: fieldType,
         name,
         label,
         hint,
         required,
         defaultValue,
         placeholder: isEmail ? 'example@email.com' : isUrl ? 'https://...' : undefined,
+        multiple: uploadMultiple,
         ...metadata
       } as any)
       continue
