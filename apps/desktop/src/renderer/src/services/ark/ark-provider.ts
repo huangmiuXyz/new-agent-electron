@@ -37,10 +37,7 @@ const contentItemSchema = z.union([
 export const arkVideoCallOptionsSchema = z.object({
   // 基础内容 - 直接传入 content 数组
   content: z.array(contentItemSchema).describe('内容数组，直接透传给 API'),
-
-  // 视频规格
-  frames: z.number().int().min(29).max(289).optional().describe('帧数 (优先级高于duration, 取值范围[29,289], 满足25+4n格式的整数)'),
-  // 功能开关
+// 功能开关
   generate_audio: z.boolean().default(false).describe('生成同步音频 (仅 Seedance 1.5 pro)'),
   draft: z.boolean().default(false).describe('开启样片模式 (仅 Seedance 1.5 pro, 开启后不支持时长设置)'),
   camera_fixed: z.boolean().default(false).describe('固定镜头 (保持视角稳定)'),
@@ -183,7 +180,6 @@ export function createArk(
     const requestBody: any = {
       content: validatedOptions.content,
       seed: params.seed,
-      frames: validatedOptions.frames,
       generate_audio: validatedOptions.generate_audio,
       draft: validatedOptions.draft,
       camera_fixed: validatedOptions.camera_fixed,
