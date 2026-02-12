@@ -223,10 +223,6 @@ export function useImageGeneration() {
     } catch (error: any) {
       console.error('图像生成失败:', { error })
       imgStore.updateBatch(batch.id, { status: 'failed', error: error.message })
-      const b = generatedBatches.value.find((b) => b.id === batch.id)
-      if (b && (!b.images || b.images.every((img) => typeof img === 'object' && img.loading))) {
-        generatedBatches.value = generatedBatches.value.filter((b) => b.id !== batch.id)
-      }
     } finally {
       activeProcessingIds.delete(batch.id)
     }
@@ -307,10 +303,6 @@ export function useImageGeneration() {
     } catch (error: any) {
       console.error('视频生成失败:', { error })
       imgStore.updateBatch(batch.id, { status: 'failed', error: error.message })
-      const b = generatedBatches.value.find((b) => b.id === batch.id)
-      if (b && (!b.images || b.images.every((img) => typeof img === 'object' && img.loading))) {
-        generatedBatches.value = generatedBatches.value.filter((b) => b.id !== batch.id)
-      }
     } finally {
       activeProcessingIds.delete(batch.id)
     }
