@@ -11,7 +11,7 @@ const emit = defineEmits<{
   (e: 'copyPrompt', prompt: string): void
 }>()
 
-const { Trash, Edit, Copy, X, Image: ImageIcon, Screen } = useIcon(['Trash', 'Download', 'Edit', 'Copy', 'X', 'Image', 'Screen'])
+const { Trash, Edit, Copy, X } = useIcon(['Trash', 'Download', 'Edit', 'Copy', 'X'])
 
 const handleReEdit = () => {
   emit('reEdit', props.batch)
