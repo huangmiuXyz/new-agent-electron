@@ -25,6 +25,10 @@ export interface UseUploadOptions {
   dropZoneRef?: Ref<HTMLElement | undefined>
   inputRef?: Ref<HTMLTextAreaElement | undefined>
   onlyText?: boolean
+  /** 媒体类型过滤，如 'image' 表示只允许上传图片 */
+  media?: 'image' | 'video' | 'audio'
+  /** 返回格式类型：'b64_json' 返回 base64 data URL，'url' 返回文件路径 */
+  returnType?: 'b64_json' | 'url'
   onFilesSelected?: (files: UploadFile[]) => void
   onRemove?: (index: number) => void
 }
@@ -35,6 +39,8 @@ export function useUpload(options: UseUploadOptions = {}) {
     dropZoneRef,
     inputRef,
     onlyText = false,
+    media,
+    returnType,
     onFilesSelected,
     onRemove
   } = options
@@ -70,16 +76,39 @@ export function useUpload(options: UseUploadOptions = {}) {
         }
       }
 
+      // 根据 media 类型过滤文件
+      if (media) {
+        fileArray = fileArray.filter((f) => {
+          if (media === 'image') return f.type.startsWith('image/')
+          if (media === 'video') return f.type.startsWith('video/')
+          if (media === 'audio') return f.type.startsWith('audio/')
+          return true
+        })
+
+        if (fileArray.length === 0 && files.length > 0) {
+          const mediaNames = { image: '图片', video: '视频', audio: '音频' }
+          messageApi.warning(`仅支持上传${mediaNames[media] || media}文件`)
+          return
+        }
+      }
+
       const processedFiles = await Promise.all(
-        fileArray.map(async (f) => ({
-          url: await blobToDataURL(f),
-          mediaType: f.type,
-          blobUrl: URL.createObjectURL(f),
-          filename: f.name,
-          name: f.name,
-          type: 'file' as const,
-          size: f.size
-        }))
+        fileArray.map(async (f) => {
+          let url = await blobToDataURL(f)
+          // 如果 returnType 是 'url'，使用 blobUrl 作为路径
+          if (returnType === 'url') {
+            url = '' // path 会在后面设置
+          }
+          return {
+            url,
+            mediaType: f.type,
+            blobUrl: URL.createObjectURL(f),
+            filename: f.name,
+            name: f.name,
+            type: 'file' as const,
+            size: f.size
+          }
+        })
       )
 
       insertFiles(processedFiles)
@@ -100,19 +129,47 @@ export function useUpload(options: UseUploadOptions = {}) {
   const handleFileSystemPicker = async (shouldSaveFileToUserData: boolean) => {
     uploadLoading.value = true
     try {
+      // 根据媒体类型设置文件过滤器
+      const getFilters = () => {
+        if (onlyText) {
+          return [{ name: 'Text Files', extensions: textExtensions }]
+        }
+        if (media === 'image') {
+          return [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'] }]
+        }
+        if (media === 'video') {
+          return [{ name: 'Videos', extensions: ['mp4', 'webm', 'mov', 'avi', 'mkv'] }]
+        }
+        if (media === 'audio') {
+          return [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'] }]
+        }
+        return []
+      }
+
       if (window.api?.showOpenDialog) {
         const result = await window.api.showOpenDialog({
           properties: ['openFile', 'multiSelections'],
-          filters: onlyText
-            ? [
-              {
-                name: 'Text Files',
-                extensions: textExtensions
-              }
-            ]
-            : []
+          filters: getFilters()
         })
         let filePaths = result.filePaths
+
+        // 根据 media 类型过滤文件
+        if (media) {
+          filePaths = filePaths.filter((path) => {
+            const mimeType = window.api.mime.lookup(path) as string
+            if (media === 'image') return mimeType?.startsWith('image/')
+            if (media === 'video') return mimeType?.startsWith('video/')
+            if (media === 'audio') return mimeType?.startsWith('audio/')
+            return true
+          })
+          if (filePaths.length === 0 && result.filePaths.length > 0) {
+            const mediaNames = { image: '图片', video: '视频', audio: '音频' }
+            messageApi.warning(`仅支持上传${mediaNames[media] || media}文件`)
+            uploadLoading.value = false
+            return
+          }
+        }
+
         if (shouldSaveFileToUserData) {
           filePaths = (await copyFilesToUserData(filePaths)).map((e) => e.destPath)
         }
@@ -120,10 +177,19 @@ export function useUpload(options: UseUploadOptions = {}) {
         const processedFiles: UploadFile[] = []
         for (const path of filePaths) {
           const file = window.api.fs.readFileSync(path)
-          const blob = arrayBufferToBlob(file.buffer)
+          const mimeType = window.api.mime.lookup(path) as string || 'application/octet-stream'
+          const blob = arrayBufferToBlob(file.buffer, mimeType)
+
+          // 根据 returnType 决定 URL 格式
+          let url = ''
+          if (returnType === 'b64_json') {
+            // 使用 blob-util 转换为 base64 data URL
+            url = await blobToDataURL(blob)
+          }
+
           processedFiles.push({
-            url: '',
-            mediaType: window.api.mime.lookup(path) as string,
+            url,
+            mediaType: mimeType,
             blobUrl: URL.createObjectURL(blob),
             filename: window.api.path.basename(path),
             path: 'file://' + path,
@@ -146,6 +212,20 @@ export function useUpload(options: UseUploadOptions = {}) {
             description: 'Text Files',
             accept: {
               'text/*': textExtensions.map((ext) => `.${ext}`)
+            }
+          }
+        ]
+      } else if (media) {
+        const acceptTypes: Record<string, string[]> = {
+          image: ['image/*'],
+          video: ['video/*'],
+          audio: ['audio/*']
+        }
+        pickerOptions.types = [
+          {
+            description: `${media.charAt(0).toUpperCase() + media.slice(1)} Files`,
+            accept: {
+              [`${media}/*`]: acceptTypes[media] || []
             }
           }
         ]
@@ -359,10 +439,23 @@ export function useUpload(options: UseUploadOptions = {}) {
       files = files.filter((file) => isTextFile(file.name))
     }
 
+    // 根据 media 类型过滤文件
+    if (media) {
+      files = files.filter((file) => {
+        if (media === 'image') return file.type?.startsWith('image/')
+        if (media === 'video') return file.type?.startsWith('video/')
+        if (media === 'audio') return file.type?.startsWith('audio/')
+        return true
+      })
+    }
+
     if (files.length === 0) {
+      const emptyMessage = media
+        ? `用户数据目录中没有${media === 'image' ? '图片' : media === 'video' ? '视频' : media === 'audio' ? '音频' : media}文件，请先上传文件。`
+        : '用户数据目录中没有文件，请先上传文件。'
       await modal.confirm({
         title: '文件选择',
-        content: '用户数据目录中没有文件，请先上传文件。'
+        content: emptyMessage
       })
       return
     }
@@ -392,12 +485,21 @@ export function useUpload(options: UseUploadOptions = {}) {
           if (data.selectedFiles && data.selectedFiles.length > 0) {
             const selectedFilePaths = data.selectedFiles as string[]
             const selectedFileItems = files.filter((file) => selectedFilePaths.includes(file.path))
-            const processedFiles = selectedFileItems.map((file) => {
+            const processedFiles = await Promise.all(selectedFileItems.map(async (file) => {
               const fileBuffer = window.api.fs.readFileSync(file.path)
-              const blob = arrayBufferToBlob(fileBuffer.buffer)
+              const mimeType = file.type || 'application/octet-stream'
+              const blob = arrayBufferToBlob(fileBuffer.buffer, mimeType)
+
+              // 根据 returnType 决定 URL 格式
+              let url = ''
+              if (returnType === 'b64_json') {
+                // 使用 blob-util 转换为 base64 data URL
+                url = await blobToDataURL(blob)
+              }
+
               return {
-                url: '',
-                mediaType: file.type,
+                url,
+                mediaType: mimeType,
                 blobUrl: URL.createObjectURL(blob),
                 filename: file.name,
                 path: 'file://' + file.path,
@@ -405,7 +507,7 @@ export function useUpload(options: UseUploadOptions = {}) {
                 type: 'file' as const,
                 size: file.size
               }
-            })
+            }))
 
             insertFiles(processedFiles)
           }

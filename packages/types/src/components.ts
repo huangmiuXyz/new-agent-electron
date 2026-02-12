@@ -146,6 +146,10 @@ export interface UploadField<T> extends BaseField<T> {
   type: 'upload'
   multiple?: boolean
   showUpload?: boolean
+  /** 媒体类型过滤，如 'image' 表示只允许上传图片 */
+  media?: 'image' | 'video' | 'audio'
+  /** 返回格式类型：'b64_json' 返回 base64 data URL，'url' 返回文件路径 */
+  returnType?: 'b64_json' | 'url'
 }
 
 export interface CustomField<T> extends BaseField<T> {

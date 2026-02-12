@@ -37,8 +37,8 @@ const contentItemSchema = z.union([
 // Ark 视频生成参数 Schema (对齐火山引擎文档)
 export const arkVideoCallOptionsSchema = z.object({
   // 图片输入
-  first_frame: z.string().meta({ component: 'upload' }).optional().describe('首帧图片URL'),
-  last_frame: z.string().meta({ component: 'upload' }).optional().describe('尾帧图片URL'),
+  first_frame: z.string().meta({ component: 'upload', media: 'image', type: 'b64_json' }).optional().describe('首帧图片URL'),
+  last_frame: z.string().meta({ component: 'upload', media: 'image', type: 'b64_json' }).optional().describe('尾帧图片URL'),
 
   // 功能开关
   generate_audio: z.boolean().default(false).describe('生成同步音频 (仅 Seedance 1.5 pro)'),
@@ -249,7 +249,7 @@ export function createArk(
     const response = await fetch(videoUrl);
     const arrayBuffer = await response.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
-    
+
     // 将 Uint8Array 转换为 base64
     let binary = '';
     for (let i = 0; i < uint8Array.length; i++) {

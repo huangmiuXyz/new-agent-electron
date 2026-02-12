@@ -8,6 +8,10 @@ interface Props {
   dropZoneRef?: HTMLElement
   inputRef?: HTMLTextAreaElement
   onRemove?: (index: number) => void
+  /** 媒体类型过滤，如 'image' 表示只允许上传图片 */
+  media?: 'image' | 'video' | 'audio'
+  /** 返回格式类型：'b64_json' 返回 base64 data URL，'url' 返回文件路径 */
+  returnType?: 'b64_json' | 'url'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -52,14 +56,24 @@ const {
   files: initialFiles.value,
   dropZoneRef: ref(props.dropZoneRef),
   inputRef: ref(props.inputRef),
+  media: props.media,
+  returnType: props.returnType,
   onFilesSelected: (files) => {
     let newValue: string | string[]
+    // 根据 returnType 决定返回什么格式的值
+    const getFileValue = (f: UploadFile) => {
+      if (props.returnType === 'b64_json') {
+        return f.url || '' // base64 data URL
+      }
+      return f.path || f.url || '' // 文件路径或 URL
+    }
+
     if (props.multiple) {
-      const urls = selectedFiles.value.map((f) => f.path || f.url || '')
+      const urls = selectedFiles.value.map(getFileValue)
       newValue = urls
     } else {
       const lastFile = files[files.length - 1]
-      const url = lastFile.path || lastFile.url || ''
+      const url = getFileValue(lastFile)
       selectedFiles.value = [lastFile]
       newValue = url
     }
@@ -72,7 +86,14 @@ const {
     } else {
       emit('remove', index)
     }
-    const urls = selectedFiles.value.map((f) => f.url || f.blobUrl || '')
+    // 根据 returnType 决定返回什么格式的值
+    const getFileValue = (f: UploadFile) => {
+      if (props.returnType === 'b64_json') {
+        return f.url || ''
+      }
+      return f.url || f.blobUrl || ''
+    }
+    const urls = selectedFiles.value.map(getFileValue)
     emit('update:modelValue', props.multiple ? urls : urls[0] || '')
   }
 })

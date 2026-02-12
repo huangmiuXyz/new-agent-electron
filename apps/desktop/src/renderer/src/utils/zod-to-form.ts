@@ -219,6 +219,9 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
       // ZodString 的 upload 默认只能上传一张
       const uploadMultiple = fieldType === 'upload' ? false : undefined
 
+      // 将 metadata.type 映射为 returnType，避免与字段类型冲突
+      const { component, type: metaType, ...restMetadata } = metadata || {}
+
       fields.push({
         type: fieldType,
         name,
@@ -228,7 +231,8 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
         defaultValue,
         placeholder: isEmail ? 'example@email.com' : isUrl ? 'https://...' : undefined,
         multiple: uploadMultiple,
-        ...metadata
+        ...(component === 'upload' && metaType ? { returnType: metaType } : {}),
+        ...restMetadata
       } as any)
       continue
     }
