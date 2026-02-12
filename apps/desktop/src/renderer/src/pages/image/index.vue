@@ -312,7 +312,6 @@ const scrollToBottom = () => {
 const [ImageForm, imageFormActions] = useForm({
   fields: () => imageFields.value,
   onChange: (_field, _value, data) => {
-    debugger
     settingsStore.updateImageGenerationForm({
       ...data,
       mediaType: 'image'
@@ -372,7 +371,6 @@ const [ImageForm, imageFormActions] = useForm({
 const [VideoForm, videoFormActions] = useForm({
   fields: () => videoFields.value,
   onChange: (_field, _value, data) => {
-    debugger
     settingsStore.updateImageGenerationForm({
       ...data,
       mediaType: 'video'
