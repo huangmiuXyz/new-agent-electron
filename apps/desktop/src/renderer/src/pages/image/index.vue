@@ -285,7 +285,6 @@ const scrollToBottom = () => {
 
 const [ImageForm, formActions] = useForm({
   fields: () => allFields.value,
-  initialData: settingsStore.imageGenerationForm,
   onChange: (_field, _value, data) => {
     settingsStore.updateImageGenerationForm({
       ...data,
