@@ -360,7 +360,7 @@ const getProviderInstance = (providerId: string) => {
     name: provider.name
   })
   return {
-    instance: registry.getProvider(provider.providerType) as any,
+    instance: registry.getProvider(provider.providerType),
     provider
   }
 }

@@ -2,7 +2,7 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { createDeepSeek } from '@ai-sdk/deepseek'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createXai } from '@ai-sdk/xai'
-import { createProviderRegistry, ProviderRegistryProvider, generateImage } from 'ai'
+import { createProviderRegistry, ProviderRegistryProvider, generateImage, experimental_generateVideo } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createHume } from '@ai-sdk/hume'
@@ -23,15 +23,11 @@ export interface ProviderV3Extends extends ProviderV3 {
   generateImageAsyncTask: (params: Parameters<typeof generateImage>[0]) => {
     task_id: string
   }
-  asyncResult: ({ task_id }) => ReturnType<typeof generateImage>
-  generateVideoAsyncTask?: (params: any) => Promise<{
+  asyncResult?: ({ task_id }) => ReturnType<typeof generateImage>
+  generateVideoAsyncTask?: (params: Parameters<typeof experimental_generateVideo>[0]) => Promise<{
     task_id: string
   }>
-  asyncVideoResult?: ({ task_id }) => Promise<{
-    status: 'pending' | 'running' | 'succeeded' | 'failed'
-    videos?: string[]
-    error?: string
-  }>
+  asyncVideoResult?: ({ task_id }) => ReturnType<typeof experimental_generateVideo>
 }
 
 export type ProviderFactory = (options: { apiKey: string; baseURL: string; name: string }) => ProviderV3Extends

@@ -9,6 +9,7 @@ import {
 import { ArkImageModel } from './ark-image-model';
 import { ArkVideoModel } from './ark-video-model';
 import { z } from 'zod';
+import type { GenerateVideoResult, GeneratedFile } from 'ai';
 
 const VERSION = '1.0.0';
 
@@ -66,11 +67,7 @@ export interface ArkProvider extends ProviderV3 {
   videoCallOptionsSchema: typeof arkVideoCallOptionsSchema;
 
   generateVideoAsyncTask(params: any): Promise<{ task_id: string }>;
-  asyncVideoResult(params: { task_id: string }): Promise<{
-    status: 'pending' | 'running' | 'succeeded' | 'failed';
-    videos?: string[];
-    error?: string;
-  }>;
+  asyncVideoResult(params: { task_id: string }): Promise<GenerateVideoResult>;
 }
 
 export interface ArkProviderSettings {
@@ -201,15 +198,43 @@ export function createArk(
     return { task_id: task.id };
   };
 
-  const asyncVideoResult = async ({ task_id }: { task_id: string }) => {
+  const asyncVideoResult = async ({ task_id }: { task_id: string }): Promise<GenerateVideoResult> => {
     // 使用默认模型 ID 查询任务状态
     const model = createVideoModel('default');
     const status = await model.getTaskStatus(task_id);
 
+    if (status.status !== 'succeeded' || !status.content?.video?.url) {
+      throw new Error(status.error?.message ?? `Video generation ${status.status}`);
+    }
+
+    // 从 URL 获取视频内容并转换为 GeneratedFile
+    const videoUrl = status.content.video.url;
+    const response = await fetch(videoUrl);
+    const arrayBuffer = await response.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // 将 Uint8Array 转换为 base64
+    let binary = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+    const base64 = btoa(binary);
+
+    const videoFile: GeneratedFile = {
+      base64,
+      uint8Array,
+      mediaType: 'video/mp4',
+    };
+
     return {
-      status: status.status,
-      videos: status.content?.video?.url ? [status.content.video.url] : [],
-      error: status.error?.message
+      video: videoFile,
+      videos: [videoFile],
+      warnings: [],
+      responses: [{
+        timestamp: new Date(),
+        modelId: 'ark-video',
+      }],
+      providerMetadata: {},
     };
   };
 

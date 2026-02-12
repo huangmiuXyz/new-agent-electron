@@ -79,6 +79,7 @@ export class ArkVideoModel {
       model: this.modelId,
       ...params,
     };
+    debugger
 
     const { value } = await postJsonToApi({
       url: this.config.url({ path: '/contents/generations/tasks' }),
