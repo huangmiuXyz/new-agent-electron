@@ -173,6 +173,22 @@ export interface RecordGroupField<T> extends BaseField<T> {
   keyPlaceholder?: string
 }
 
+export interface UnionField<T> extends BaseField<T> {
+  type: 'union'
+  options: Array<{
+    type: string
+    fields: FormField<T>[]
+  }>
+}
+
+export interface ArrayUnionField<T> extends BaseField<T> {
+  type: 'array-union'
+  options: Array<{
+    type: string
+    fields: FormField<T>[]
+  }>
+}
+
 export type FormField<T> =
   | TextField<T>
   | BooleanField<T>
@@ -190,6 +206,8 @@ export type FormField<T> =
   | GroupField<T>
   | ArrayGroupField<T>
   | RecordGroupField<T>
+  | UnionField<T>
+  | ArrayUnionField<T>
 
 export interface FormConfig<T> {
   title?: string
@@ -353,6 +371,8 @@ declare global {
   interface GroupField<T> extends _GroupField<T> { }
   interface ArrayGroupField<T> extends _ArrayGroupField<T> { }
   interface RecordGroupField<T> extends _RecordGroupField<T> { }
+  interface UnionField<T> extends _UnionField<T> { }
+  interface ArrayUnionField<T> extends _ArrayUnionField<T> { }
   type FormField<T> = _FormField<T>
   interface FormConfig<T extends Record<string, unknown>> extends _FormConfig<T> { }
   interface FormActions<T> extends _FormActions<T> { }
@@ -390,6 +410,8 @@ type _CustomField<T> = CustomField<T>
 type _GroupField<T> = GroupField<T>
 type _ArrayGroupField<T> = ArrayGroupField<T>
 type _RecordGroupField<T> = RecordGroupField<T>
+type _UnionField<T> = UnionField<T>
+type _ArrayUnionField<T> = ArrayUnionField<T>
 type _FormField<T> = FormField<T>
 type _FormConfig<T extends Record<string, unknown>> = FormConfig<T>
 type _FormActions<T> = FormActions<T>

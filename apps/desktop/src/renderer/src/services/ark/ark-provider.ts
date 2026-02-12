@@ -38,10 +38,10 @@ export const arkVideoCallOptionsSchema = z.object({
   content: z.array(contentItemSchema).describe('内容数组，直接透传给 API'),
 
   // 视频规格
-  duration: z.union([z.literal(5), z.literal(10), z.literal(15), z.literal(-1)]).default(5).describe('视频时长 (5s/10s, Seedance 1.5 支持 15s, -1为自动)'),
+  duration: z.number().int().min(2).max(12).default(5).describe('视频时长，单位：秒。支持 2~12 秒'),
   resolution: z.enum(['540p', '720p', '1080p']).default('720p').describe('分辨率 (Seedance 1.0 最高 720p)'),
-  frames: z.union([z.literal(24), z.literal(30), z.literal(60)]).default(24).describe('帧率 (Seedance 1.0 仅支持 24)'),
-  ratio: z.enum(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive']).default('16:9').describe('宽高比'),
+  frames: z.number().int().min(29).max(289).optional().describe('帧数 (优先级高于duration, 取值范围[29,289], 满足25+4n格式的整数)'),
+  ratio: z.enum(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive']).default('adaptive').describe('宽高比'),
   // 功能开关
   generate_audio: z.boolean().default(false).describe('生成同步音频 (仅 Seedance 1.5 pro)'),
   draft: z.boolean().default(false).describe('开启样片模式 (仅 Seedance 1.5 pro, 开启后不支持时长设置)'),

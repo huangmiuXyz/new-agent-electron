@@ -10,6 +10,7 @@ import ColorPicker from '@renderer/components/ColorPicker.vue'
 import PathSelector from '@renderer/components/PathSelector.vue'
 import FileUpload from '@renderer/components/FileUpload.vue'
 import Button from '@renderer/components/Button.vue'
+import UnionFieldComponent from '@renderer/components/UnionField.vue'
 import { useIcon } from './useIcon'
 import { zodSchemasToFormfields } from '../utils/zod-to-form'
 import Markdown from '@renderer/components/Markdown.vue'
@@ -149,6 +150,9 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         return {}
       case 'array-group':
         return []
+      case 'union':
+      case 'array-union':
+        return []
       case 'checkboxGroup':
         return []
       case 'modelSelector':
@@ -172,8 +176,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     if (config.schemas) {
       return zodSchemasToFormfields(config.schemas)
     }
-    const fieldsVal = toValue(config.fields)
-    return (typeof fieldsVal === 'function' ? fieldsVal() : fieldsVal) || []
+    const fieldsVal = config.fields
+    return (typeof fieldsVal === 'function' ? fieldsVal() : toValue(fieldsVal)) || []
   })
 
   const flatFields = computed(() => {
@@ -663,6 +667,18 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
               return <PathSelector {...fieldProps} />
             case 'upload':
               return <FileUpload showUpload={true} {...fieldProps} />
+            case 'union':
+            case 'array-union': {
+              const unionField = field as UnionField<T>
+              return (
+                <UnionFieldComponent
+                  modelValue={getFieldValue(field.name) || []}
+                  onUpdate:modelValue={(v: any[]) => setFieldValue(field.name, v)}
+                  label={field.label}
+                  options={unionField.options}
+                />
+              )
+            }
             case 'custom':
               return (field as CustomField<T>).render(formData.value)
             default:

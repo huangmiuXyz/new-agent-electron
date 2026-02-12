@@ -7,6 +7,8 @@ import {
   ZodEnum,
   ZodArray,
   ZodRecord,
+  ZodUnion,
+  ZodLiteral,
 } from 'zod'
 
 interface UnwrapResult {
@@ -69,6 +71,11 @@ function buildName(parent: string | undefined, key: string) {
   return parent ? `${parent}.${key}` : key
 }
 
+// 获取 ZodLiteral 的值（Zod v4）
+function getLiteralValue(schema: any): unknown {
+  return schema?._zod?.def?.values?.[0]
+}
+
 export function zodSchemasToFormfields<T extends Record<string, any>>(
   schema: ZodObject<any>,
   rootName?: string
@@ -125,6 +132,34 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
           required,
           defaultValue,
           children: parseObject(element),
+          ...metadata
+        })
+      } else if (element instanceof ZodUnion) {
+        const unionOptions = element.options.map((opt) => {
+          const { schema: optSchema } = unwrap(opt as ZodType)
+          if (optSchema instanceof ZodObject) {
+            const shape = (optSchema as ZodObject<any>).shape
+            const typeField = shape.type
+            let typeValue = 'unknown'
+            const unwrappedType = typeField ? unwrap(typeField as ZodType) : null
+            if (unwrappedType?.schema instanceof ZodLiteral) {
+              typeValue = String(getLiteralValue(unwrappedType.schema))
+            }
+            return {
+              type: typeValue,
+              fields: parseObject(optSchema as ZodObject<any>)
+            }
+          }
+          return { type: 'unknown', fields: [] }
+        })
+        fields.push({
+          type: 'array-union',
+          name,
+          label,
+          hint,
+          required,
+          defaultValue,
+          options: unionOptions,
           ...metadata
         })
       } else {
@@ -245,6 +280,42 @@ function parseObject<T>(schema: ZodObject<any>, parentName?: string): FormField<
           label: String(v),
           value: String(v)
         })),
+        ...metadata
+      })
+      continue
+    }
+
+    // union - 用于 content 数组项等多类型场景
+    if (inner instanceof ZodUnion) {
+      const unionOptions = inner.options.map((opt) => {
+        const { schema: optSchema } = unwrap(opt as ZodType)
+        if (optSchema instanceof ZodObject) {
+          const shape = (optSchema as ZodObject<any>).shape
+          const typeField = shape.type
+          let typeValue = 'unknown'
+          // 尝试获取 literal 值，考虑可能的包装层
+          const unwrappedType = typeField ? unwrap(typeField as ZodType) : null
+          if (unwrappedType?.schema instanceof ZodLiteral) {
+            typeValue = String(getLiteralValue(unwrappedType.schema))
+          } else if (typeField instanceof ZodLiteral) {
+            typeValue = String(getLiteralValue(typeField))
+          }
+          return {
+            type: typeValue,
+            fields: parseObject(optSchema as ZodObject<any>)
+          }
+        }
+        return { type: 'unknown', fields: [] }
+      })
+
+      fields.push({
+        type: 'union',
+        name,
+        label,
+        hint,
+        required,
+        defaultValue,
+        options: unionOptions,
         ...metadata
       })
       continue

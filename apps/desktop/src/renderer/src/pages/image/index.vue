@@ -780,13 +780,7 @@ onMounted(async () => {
                     <template v-else>
                       <!-- 视频显示 -->
                       <template v-if="batch.mediaType === 'video'">
-                        <video
-                          :src="(img as string)"
-                          controls
-                          preload="metadata"
-                          class="video-player"
-                          @click.stop
-                        />
+                        <video :src="(img as string)" controls preload="metadata" class="video-player" @click.stop />
                       </template>
                       <!-- 图片显示 -->
                       <template v-else>
