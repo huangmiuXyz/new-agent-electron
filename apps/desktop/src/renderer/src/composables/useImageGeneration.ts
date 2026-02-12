@@ -26,6 +26,7 @@ export interface GenerateVideoOptions {
   duration?: number
   resolution?: string
   providerOptions?: any
+  referenceImages?: string[]
 }
 
 export function useImageGeneration() {
@@ -256,15 +257,32 @@ export function useImageGeneration() {
       const { instance: providerInstance, provider } = getProviderInstance(batch.providerId!)
 
       if (providerInstance?.generateVideoAsyncTask) {
-        const { task_id } = await providerInstance.generateVideoAsyncTask({
+        // 处理参考图片
+        const processedImages = await Promise.all(
+          (batch.referenceImages || []).map(async (img) => {
+            if (img.startsWith('data:')) {
+              return img
+            }
+            if (img.startsWith('blob:')) {
+              const response = await fetch(img)
+              const blob = await response.blob()
+              const base64 = await blobToDataURL(blob)
+              return base64
+            }
+            return img
+          })
+        )
+
+        const { task_id } = await providerInstance.generateVideoAsyncTask!({
           model: batch.model,
           prompt: batch.prompt,
           n: batch.n,
           duration: batch.duration,
           resolution: batch.resolution,
           seed: batch.seed,
-          providerOptions: batch.params?.providerOptions
-        })
+          providerOptions: batch.params?.providerOptions,
+          files: processedImages
+        } as any)
 
         imgStore.updateBatch(batch.id, { taskId: task_id, status: 'processing' })
         await pollAsyncVideoResult(batch.id, task_id, providerInstance)
@@ -352,7 +370,8 @@ export function useImageGeneration() {
       },
       mediaType: 'video',
       duration: options.duration ? Number(options.duration) : undefined,
-      resolution: options.resolution as `${number}x${number}`
+      resolution: options.resolution as `${number}x${number}`,
+      referenceImages: options.referenceImages ? [...options.referenceImages] : undefined
     }
   }
 

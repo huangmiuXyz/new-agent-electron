@@ -257,6 +257,8 @@ const [VideoForm, videoFormActions] = useForm({
     const prompt = rightInput.value.trim()
     if (!prompt) return
 
+    const referenceImages = floatingInputRef.value?.referenceImages || []
+
     const batch = createVideoBatch({
       prompt,
       model: data.model.modelId,
@@ -265,10 +267,12 @@ const [VideoForm, videoFormActions] = useForm({
       seed: data.seed ? Number(data.seed) : undefined,
       duration: data.duration ? Number(data.duration) : undefined,
       resolution: data.resolution,
-      providerOptions: data.providerOptions
+      providerOptions: data.providerOptions,
+      referenceImages: referenceImages.length > 0 ? referenceImages : undefined
     })
 
     generatedBatches.value.push(batch)
+    floatingInputRef.value?.clearReferenceImages()
     startVideoGeneration(batch)
   }
 })

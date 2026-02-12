@@ -24,7 +24,7 @@ export interface ProviderV3Extends extends ProviderV3 {
     task_id: string
   }
   asyncResult?: ({ task_id }) => ReturnType<typeof generateImage>
-  generateVideoAsyncTask?: (params: Parameters<typeof experimental_generateVideo>[0]) => Promise<{
+  generateVideoAsyncTask?: (params: Parameters<typeof experimental_generateVideo>[0] & { files?: string[] }) => Promise<{
     task_id: string
   }>
   asyncVideoResult?: ({ task_id }) => ReturnType<typeof experimental_generateVideo>
