@@ -52,9 +52,7 @@ export interface ArkVideoTaskStatusResponse {
   id: string;
   status: 'pending' | 'running' | 'succeeded' | 'failed';
   content?: {
-    video?: {
-      url: string;
-    };
+    video_url: string
   };
   error?: {
     code: string;

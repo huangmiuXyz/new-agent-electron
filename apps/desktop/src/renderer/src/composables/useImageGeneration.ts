@@ -149,7 +149,7 @@ export function useImageGeneration() {
           activePolls.delete(batchId)
           return
         }
-
+        debugger
         const result = await providerInstance.asyncVideoResult?.({ task_id: taskId })
         if (result.videos && result.videos.length > 0) {
           processVideos(batchId, result.videos)
@@ -234,11 +234,15 @@ export function useImageGeneration() {
 
     try {
       const { instance: providerInstance } = getProviderInstance(batch.providerId!)
-      if (batch.taskId && providerInstance?.asyncResult) {
-        await pollAsyncResult(batch.id, batch.taskId, providerInstance)
+      if (batch.taskId) {
+        if (batch.mediaType === 'video' && providerInstance?.asyncVideoResult) {
+          await pollAsyncVideoResult(batch.id, batch.taskId, providerInstance)
+        } else if (providerInstance?.asyncResult) {
+          await pollAsyncResult(batch.id, batch.taskId, providerInstance)
+        }
       }
     } catch (error: any) {
-      console.error('恢复图像生成失败:', error)
+      console.error('恢复生成失败:', error)
       imgStore.updateBatch(batch.id, { status: 'failed', error: error.message })
     } finally {
       activeProcessingIds.delete(batch.id)

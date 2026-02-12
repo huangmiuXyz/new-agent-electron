@@ -240,12 +240,12 @@ export function createArk(
     const model = createVideoModel('default');
     const status = await model.getTaskStatus(task_id);
 
-    if (status.status !== 'succeeded' || !status.content?.video?.url) {
+    if (status.status !== 'succeeded' || !status.content?.video_url) {
       throw new Error(status.error?.message ?? `Video generation ${status.status}`);
     }
 
     // 从 URL 获取视频内容并转换为 GeneratedFile
-    const videoUrl = status.content.video.url;
+    const videoUrl = status.content.video_url;
     const response = await fetch(videoUrl);
     const arrayBuffer = await response.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
