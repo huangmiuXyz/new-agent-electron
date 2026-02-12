@@ -778,12 +778,6 @@ onMounted(async () => {
     videoDynamicField.value = getDynamicFields(settingsStore.videoGenerationForm.model.providerId, true)
   }
 
-  // 根据是否有图片表单决定初始模式
-  if (settingsStore.imageGenerationForm?.model?.modelId) {
-    isVideoMode.value = false
-  } else if (settingsStore.videoGenerationForm?.model?.modelId) {
-    isVideoMode.value = true
-  }
 
   textareaRef.value?.focus()
   // 恢复未完成的任务
@@ -804,24 +798,16 @@ onMounted(async () => {
         <template #content>
           <!-- 模式切换 -->
           <div class="mode-switcher">
-            <div 
-              class="mode-tab" 
-              :class="{ active: !isVideoMode }" 
-              @click="handleModeSwitch(false)"
-            >
+            <div class="mode-tab" :class="{ active: !isVideoMode }" @click="handleModeSwitch(false)">
               <ImageIcon />
               <span>图片</span>
             </div>
-            <div 
-              class="mode-tab" 
-              :class="{ active: isVideoMode }" 
-              @click="handleModeSwitch(true)"
-            >
+            <div class="mode-tab" :class="{ active: isVideoMode }" @click="handleModeSwitch(true)">
               <Screen />
               <span>视频</span>
             </div>
           </div>
-          
+
           <ImageForm v-if="!isVideoMode">
           </ImageForm>
           <VideoForm v-else>
