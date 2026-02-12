@@ -30,7 +30,7 @@ const contentItemSchema = z.union([
     image_url: z.object({ url: z.string().meta({ component: 'upload' }) }),
     role: z.enum(['first_frame', 'last_frame', 'reference_image']).optional()
   }),
-  z.object({ type: z.literal('draft_task'), draft_task: z.object({ id: z.string() }) }),
+  // z.object({ type: z.literal('draft_task'), draft_task: z.object({ id: z.string() }) }),
 ]);
 
 // Ark 视频生成参数 Schema (对齐火山引擎文档)
