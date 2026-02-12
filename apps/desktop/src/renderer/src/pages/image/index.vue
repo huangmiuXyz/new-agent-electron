@@ -1,23 +1,19 @@
-<script lang="tsx">
-const activeProcessingIds = new Set<number>()
-</script>
-
 <script setup lang="tsx">
 import { useVirtualList } from '@vueuse/core'
-import { createRegistry } from '@renderer/services/chatService/registry';
+import { createRegistry } from '@renderer/services/chatService/registry'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { ImageBatch, useImageStore } from '@renderer/stores/image'
 import ImageSizeSelector from '@renderer/components/ImageSizeSelector.vue'
-import FileUpload from '@renderer/components/FileUpload.vue'
-import { blobToDataURL } from 'blob-util'
+import GenerationResultCard from './GenerationResultCard.vue'
+import FloatingInputArea from './FloatingInputArea.vue'
+import { useImageGeneration } from '@renderer/composables/useImageGeneration'
 import type { ModelCategory } from '@agent-qi/types'
 
-const service = chatService()
 const settingsStore = useSettingsStore()
 const imgStore = useImageStore()
-const { generatedBatches } = storeToRefs(imgStore)
+const { generatedBatches, startGeneration, resumeGeneration, startVideoGeneration, createImageBatch, createVideoBatch } = useImageGeneration()
 
-// 当前是否为视频生成模式（根据选择的模型类别判断）
+// 当前是否为视频生成模式
 const isVideoMode = ref(false)
 
 // 固定高度虚拟滚动
@@ -27,32 +23,7 @@ const { list: virtualList, containerProps, wrapperProps, scrollTo } = useVirtual
   overscan: 2
 })
 
-// 参考图片 - 使用 FileUpload 组件
-const referenceImages = ref<string[]>([])
-const dropZoneRef = ref<HTMLElement>()
-const textareaRef = ref<HTMLTextAreaElement | null>(null)
-
-// 添加参考图片 - 使用 useUpload 的 triggerUpload
-const { triggerUpload, isDragOver, isOverDropZone } = useUpload({
-  dropZoneRef,
-  inputRef: textareaRef as Ref<HTMLTextAreaElement | undefined>,
-  onFilesSelected: async (files) => {
-    for (const file of files) {
-      if (file.blobUrl) {
-        const response = await fetch(file.blobUrl)
-        const blob = await response.blob()
-        const base64 = await blobToDataURL(blob)
-        referenceImages.value.push(base64)
-      }
-    }
-  }
-})
-
-// 添加参考图片
-const handleAddReferenceImage = () => {
-  triggerUpload(true)
-}
-
+// 获取动态字段
 const getDynamicFields = (providerId: string, isVideo: boolean) => {
   const provider = settingsStore.getProviderById(providerId)
   if (!provider) return null
@@ -68,10 +39,7 @@ const getDynamicFields = (providerId: string, isVideo: boolean) => {
   const schema = isVideo ? providerInstance.videoCallOptionsSchema : providerInstance.imageCallOptionsSchema
   if (!schema) return null
 
-  const fields = zodSchemasToFormfields(
-    schema,
-    `providerOptions.${provider.providerType}`
-  )
+  const fields = zodSchemasToFormfields(schema, `providerOptions.${provider.providerType}`)
 
   if (fields.length === 0) return null
 
@@ -231,74 +199,7 @@ const videoFields = computed<FormField<any>[]>(() => {
 })
 
 const rightInput = ref('')
-
-const handleInput = () => {
-  if (textareaRef.value) {
-    textareaRef.value.style.height = '44px' // Reset to min-height first
-    const scrollHeight = textareaRef.value.scrollHeight
-    if (scrollHeight > 44) {
-      textareaRef.value.style.height = `${scrollHeight}px`
-    }
-  }
-}
-
-watch(rightInput, () => {
-  nextTick(handleInput)
-})
-
-const isOptimizing = ref(false)
-const optimizeModelId = useLocalStorage('optimizeModelId', settingsStore.selectedModelId)
-const optimizeProviderId = useLocalStorage('optimizeProviderId', settingsStore.selectedProviderId)
-
-const optimizePrompt = async (mId?: string, pId?: string) => {
-  if (!rightInput.value.trim() || isOptimizing.value) return
-
-  const modelId = mId || optimizeModelId.value
-  const providerId = pId || optimizeProviderId.value
-
-  if (!modelId || !providerId) {
-    messageApi.warning('请先选择一个用于优化的语言模型')
-    return
-  }
-
-  const provider = settingsStore.getProviderById(providerId)
-  if (!provider) return
-
-  isOptimizing.value = true
-  const originalPrompt = rightInput.value
-  rightInput.value = ''
-
-  try {
-    await service.streamText(
-      `你是一个专业的 AI 绘画提示词专家。你的任务是将用户提供的简单描述，改写并扩充成详细、生动且专业的 AI 绘画提示词。请遵循以下规则：\n1. 使用英语（除非用户特别要求其他语言）。\n2. 增加关于光影、构图、风格、艺术媒介、细节描述的词汇。\n3. 保持原始意图，不要改变主题。\n4. 只返回优化后的提示词内容，不要有任何解释性文字。\n\n用户描述：${originalPrompt}`,
-      {
-        model: modelId,
-        apiKey: provider.apiKey || '',
-        baseURL: provider.baseUrl || '',
-        provider: provider.id,
-        providerType: provider.providerType,
-        onData: (text) => {
-          rightInput.value += text
-          nextTick(handleInput)
-        },
-        onFinish: () => {
-          isOptimizing.value = false
-        }
-      }
-    )
-  } catch (error) {
-    console.error('Prompt optimization failed:', error)
-    if (!rightInput.value) {
-      rightInput.value = originalPrompt
-    }
-    isOptimizing.value = false
-  }
-}
-
-const handleOptimizeModelChange = (val: { modelId: string, providerId: string }) => {
-  optimizeModelId.value = val.modelId
-  optimizeProviderId.value = val.providerId
-}
+const floatingInputRef = ref<InstanceType<typeof FloatingInputArea>>()
 
 const isModelSelected = computed(() => {
   const currentForm = isVideoMode.value ? videoFormActions.getData() : imageFormActions.getData()
@@ -322,51 +223,24 @@ const [ImageForm, imageFormActions] = useForm({
   },
   onSubmit: async (data) => {
     const prompt = rightInput.value.trim()
-    if (!prompt) {
-      return
-    }
+    if (!prompt) return
 
-    const n = data.n || 1
-    const batchId = Date.now()
-    const currentPlaceholders = Array(n).fill(null).map((_, i) => ({
-      loading: true,
-      id: batchId + i
-    }))
+    const referenceImages = floatingInputRef.value?.referenceImages || []
 
-    const provider = settingsStore.getProviderById(data.model.providerId)
-    if (!provider) {
-      throw new Error('未找到所选模型的提供商')
-    }
-
-    // 准备参考图片数据
-    const refImagesData = referenceImages.value.length > 0 ? [...referenceImages.value] : undefined
-
-    const newBatch: ImageBatch = {
-      id: batchId,
-      prompt: prompt,
-      size: data.size,
-      n: n,
+    const batch = createImageBatch({
+      prompt,
       model: data.model.modelId,
-      modelName: settingsStore.getModelById(data.model.providerId, data.model.modelId).model?.name,
-      images: currentPlaceholders,
       providerId: data.model.providerId,
-      status: 'pending',
+      size: data.size,
+      n: data.n,
       seed: data.seed ? Number(data.seed) : undefined,
-      params: {
-        providerOptions: data.providerOptions
-      },
-      referenceImages: refImagesData,
-      mediaType: 'image'
-    }
+      providerOptions: data.providerOptions,
+      referenceImages: referenceImages.length > 0 ? referenceImages : undefined
+    })
 
-    generatedBatches.value.push(newBatch)
-
-    // 清空参考图片
-    referenceImages.value = []
-
-    if (!activeProcessingIds.has(newBatch.id)) {
-      startGeneration(newBatch)
-    }
+    generatedBatches.value.push(batch)
+    floatingInputRef.value?.clearReferenceImages()
+    startGeneration(batch)
   }
 })
 
@@ -381,320 +255,25 @@ const [VideoForm, videoFormActions] = useForm({
   },
   onSubmit: async (data) => {
     const prompt = rightInput.value.trim()
-    if (!prompt) {
-      return
-    }
+    if (!prompt) return
 
-    const n = data.n || 1
-    const batchId = Date.now()
-    const currentPlaceholders = Array(n).fill(null).map((_, i) => ({
-      loading: true,
-      id: batchId + i
-    }))
-
-    const provider = settingsStore.getProviderById(data.model.providerId)
-    if (!provider) {
-      throw new Error('未找到所选模型的提供商')
-    }
-
-    const newBatch: ImageBatch = {
-      id: batchId,
-      prompt: prompt,
-      n: n,
+    const batch = createVideoBatch({
+      prompt,
       model: data.model.modelId,
-      modelName: settingsStore.getModelById(data.model.providerId, data.model.modelId).model?.name,
-      images: currentPlaceholders,
       providerId: data.model.providerId,
-      status: 'pending',
+      n: data.n,
       seed: data.seed ? Number(data.seed) : undefined,
-      params: {
-        providerOptions: data.providerOptions
-      },
-      mediaType: 'video',
       duration: data.duration ? Number(data.duration) : undefined,
-      resolution: data.resolution
-    }
+      resolution: data.resolution,
+      providerOptions: data.providerOptions
+    })
 
-    generatedBatches.value.push(newBatch)
-
-    if (!activeProcessingIds.has(newBatch.id)) {
-      startVideoGeneration(newBatch)
-    }
+    generatedBatches.value.push(batch)
+    startVideoGeneration(batch)
   }
 })
 
-const getProviderInstance = (providerId: string) => {
-  const provider = settingsStore.getProviderById(providerId)
-  if (!provider) {
-    throw new Error('未找到所选模型的提供商')
-  }
-
-  const registry = createRegistry({
-    apiKey: provider.apiKey || '',
-    baseURL: provider.baseUrl,
-    name: provider.name
-  })
-  return {
-    instance: registry.getProvider(provider.providerType),
-    provider
-  }
-}
-
-const startGeneration = async (batch: ImageBatch) => {
-  if (activeProcessingIds.has(batch.id)) return
-  activeProcessingIds.add(batch.id)
-
-  const processedImages = await Promise.all(
-    (batch.referenceImages || []).map(async (img) => {
-      if (img.startsWith('data:')) {
-        return img.split(',')[1]
-      }
-      if (img.startsWith('blob:')) {
-        const response = await fetch(img)
-        const blob = await response.blob()
-        const base64 = await blobToDataURL(blob)
-        return base64.split(',')[1]
-      }
-      return img
-    })
-  )
-
-  const prompt = processedImages.length > 0
-    ? {
-      text: batch.prompt,
-      images: processedImages
-    }
-    : batch.prompt
-  try {
-    const { instance: providerInstance, provider } = getProviderInstance(batch.providerId!)
-
-    if (providerInstance?.generateImageAsyncTask) {
-      const { task_id } = await providerInstance.generateImageAsyncTask({
-        model: providerInstance.imageModel(batch.model),
-        prompt: batch.prompt,
-        size: batch.size as `${number}x${number}`,
-        n: batch.n,
-        ...batch.params
-      })
-
-      imgStore.updateBatch(batch.id, { taskId: task_id, status: 'processing' })
-      await pollAsyncResult(batch.id, task_id, providerInstance)
-    } else {
-      const result = await service.generateImage(prompt, {
-        model: batch.model,
-        apiKey: provider.apiKey || '',
-        baseURL: provider.baseUrl || '',
-        provider: provider.id,
-        providerType: provider.providerType,
-        size: batch.size as `${number}x${number}`,
-        n: batch.n,
-        seed: batch.seed,
-        providerOptions: batch.params?.providerOptions
-      })
-      if (result.images) {
-        processImages(batch.id, result.images)
-      }
-    }
-  } catch (error: any) {
-    console.error('图像生成失败:', { error })
-    imgStore.updateBatch(batch.id, { status: 'failed', error: error.message })
-    const b = generatedBatches.value.find((b) => b.id === batch.id)
-    if (b && (!b.images || b.images.every((img) => typeof img === 'object' && img.loading))) {
-      generatedBatches.value = generatedBatches.value.filter((b) => b.id !== batch.id)
-    }
-  } finally {
-    activeProcessingIds.delete(batch.id)
-  }
-}
-
-const resumeGeneration = async (batch: ImageBatch) => {
-  if (activeProcessingIds.has(batch.id) || batch.status === 'completed') return
-  activeProcessingIds.add(batch.id)
-
-  try {
-    const { instance: providerInstance } = getProviderInstance(batch.providerId!)
-    if (batch.taskId && providerInstance?.asyncResult) {
-      await pollAsyncResult(batch.id, batch.taskId, providerInstance)
-    }
-  } catch (error: any) {
-    console.error('恢复图像生成失败:', error)
-    imgStore.updateBatch(batch.id, { status: 'failed', error: error.message })
-  } finally {
-    activeProcessingIds.delete(batch.id)
-  }
-}
-
-const activePolls = new Set<number>()
-
-const pollAsyncResult = async (batchId: number, taskId: string, providerInstance: any) => {
-  if (activePolls.has(batchId)) return
-  activePolls.add(batchId)
-
-  const poll = async () => {
-    try {
-      // 检查任务是否还在列表中（可能被用户删除了）
-      const exists = generatedBatches.value.some((b) => b.id === batchId)
-      if (!exists) {
-        activePolls.delete(batchId)
-        return
-      }
-
-      const result = await providerInstance.asyncResult({ task_id: taskId })
-      if (result.images && result.images.length > 0) {
-        processImages(batchId, result.images)
-        activePolls.delete(batchId)
-      } else if (result.status === 'failed') {
-        throw new Error(result.error || '生成失败')
-      } else {
-        // 继续轮询
-        setTimeout(poll, 3000)
-      }
-    } catch (error: any) {
-      console.error('异步获取图像失败:', error)
-      activePolls.delete(batchId)
-      imgStore.updateBatch(batchId, { status: 'failed', error: error.message })
-    }
-  }
-
-  poll()
-}
-
-const processImages = (batchId: number, rawImages: any[]) => {
-  const newImages = rawImages.map((img: any) => {
-    if (typeof img === 'string') return img
-    if (img.base64) {
-      return img.base64.startsWith('data:') ? img.base64 : `data:image/png;base64,${img.base64}`
-    }
-    return img.url || ''
-  }).filter(Boolean)
-
-  const batch = generatedBatches.value.find(b => b.id === batchId)
-  if (batch) {
-    let placeholderIndex = 0
-    const updatedImages = batch.images.map(item => {
-      if (typeof item === 'object' && item.loading) {
-        return newImages[placeholderIndex++] || item
-      }
-      return item
-    })
-    imgStore.updateBatch(batchId, {
-      images: updatedImages,
-      status: 'completed'
-    })
-    scrollToBottom()
-  }
-}
-
-// 视频生成方法
-const startVideoGeneration = async (batch: ImageBatch) => {
-  if (activeProcessingIds.has(batch.id)) return
-  activeProcessingIds.add(batch.id)
-
-  try {
-    const { instance: providerInstance, provider } = getProviderInstance(batch.providerId!)
-
-    if (providerInstance?.generateVideoAsyncTask) {
-      const { task_id } = await providerInstance.generateVideoAsyncTask({
-        model: batch.model,
-        prompt: batch.prompt,
-        n: batch.n,
-        duration: batch.duration,
-        resolution: batch.resolution,
-        seed: batch.seed,
-        providerOptions: batch.params?.providerOptions
-      })
-
-      imgStore.updateBatch(batch.id, { taskId: task_id, status: 'processing' })
-      await pollAsyncVideoResult(batch.id, task_id, providerInstance)
-    } else {
-      const result = await service.generateVideo(batch.prompt, {
-        model: batch.model,
-        apiKey: provider.apiKey || '',
-        baseURL: provider.baseUrl || '',
-        provider: provider.id,
-        providerType: provider.providerType,
-        n: batch.n,
-        duration: batch.duration ? Number(batch.duration) : undefined,
-        resolution: batch.resolution,
-        seed: batch.seed,
-        providerOptions: batch.params?.providerOptions
-      })
-
-      if (result.videos) {
-        processVideos(batch.id, result.videos)
-      }
-    }
-  } catch (error: any) {
-    console.error('视频生成失败:', { error })
-    imgStore.updateBatch(batch.id, { status: 'failed', error: error.message })
-    const b = generatedBatches.value.find((b) => b.id === batch.id)
-    if (b && (!b.images || b.images.every((img) => typeof img === 'object' && img.loading))) {
-      generatedBatches.value = generatedBatches.value.filter((b) => b.id !== batch.id)
-    }
-  } finally {
-    activeProcessingIds.delete(batch.id)
-  }
-}
-
-const processVideos = (batchId: number, rawVideos: any[]) => {
-  const newVideos = rawVideos.map((video: any) => {
-    if (typeof video === 'string') return video
-    if (video.url) return video.url
-    if (video.base64) {
-      return video.base64.startsWith('data:') ? video.base64 : `data:video/mp4;base64,${video.base64}`
-    }
-    return ''
-  }).filter(Boolean)
-
-  const batch = generatedBatches.value.find(b => b.id === batchId)
-  if (batch) {
-    let placeholderIndex = 0
-    const updatedVideos = batch.images.map(item => {
-      if (typeof item === 'object' && item.loading) {
-        return newVideos[placeholderIndex++] || item
-      }
-      return item
-    })
-    imgStore.updateBatch(batchId, {
-      images: updatedVideos,
-      status: 'completed'
-    })
-    scrollToBottom()
-  }
-}
-
-const pollAsyncVideoResult = async (batchId: number, taskId: string, providerInstance: any) => {
-  if (activePolls.has(batchId)) return
-  activePolls.add(batchId)
-
-  const poll = async () => {
-    try {
-      const exists = generatedBatches.value.some((b) => b.id === batchId)
-      if (!exists) {
-        activePolls.delete(batchId)
-        return
-      }
-
-      const result = await providerInstance.asyncVideoResult?.({ task_id: taskId })
-      if (result.videos && result.videos.length > 0) {
-        processVideos(batchId, result.videos)
-        activePolls.delete(batchId)
-      } else if (result.status === 'failed') {
-        throw new Error(result.error || '视频生成失败')
-      } else {
-        setTimeout(poll, 5000)
-      }
-    } catch (error: any) {
-      console.error('异步获取视频失败:', error)
-      activePolls.delete(batchId)
-      imgStore.updateBatch(batchId, { status: 'failed', error: error.message })
-    }
-  }
-
-  poll()
-}
-
-const { Trash, Dices, Image: ImageIcon, Edit, Copy, X, Bulb, Plus, Send, Screen } = useIcon(['Trash', 'Download', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X', 'Bulb', 'Plus', 'Send'])
+const { Trash, Dices, Image: ImageIcon, Screen } = useIcon(['Trash', 'Dices', 'Image', 'Screen'])
 
 const copyPrompt = (prompt: string) => {
   copyText(prompt)
@@ -738,8 +317,8 @@ const reEdit = (batch: ImageBatch) => {
   }
 
   // 恢复参考图片
-  if (batch.referenceImages && batch.referenceImages.length > 0) {
-    referenceImages.value = [...batch.referenceImages]
+  if (batch.referenceImages && batch.referenceImages.length > 0 && floatingInputRef.value) {
+    floatingInputRef.value.referenceImages = [...batch.referenceImages]
   }
 }
 
@@ -758,9 +337,7 @@ const handleRightInputSubmit = () => {
 
   nextTick(() => {
     rightInput.value = ''
-    if (textareaRef.value) {
-      textareaRef.value.style.height = '44px'
-    }
+    floatingInputRef.value?.clearInput()
     scrollToBottom()
   })
 }
@@ -781,11 +358,8 @@ onMounted(async () => {
     videoDynamicField.value = getDynamicFields(settingsStore.videoGenerationForm.model.providerId, true)
   }
 
-
-  textareaRef.value?.focus()
   // 恢复未完成的任务
-  generatedBatches.value.forEach(batch => {
-    if (activeProcessingIds.has(batch.id)) return
+  generatedBatches.value.forEach((batch) => {
     if (batch.taskId && batch.status !== 'completed') {
       resumeGeneration(batch)
     }
@@ -795,26 +369,28 @@ onMounted(async () => {
 
 <template>
   <div class="image-page-container">
-    <ResizeBox v-model:width="settingsStore.display.imageSidebarWidth"
-      v-model:is-collapsed="settingsStore.display.sidebarCollapsed" :min-size="250" :max-size="500">
+    <ResizeBox
+      v-model:width="settingsStore.display.imageSidebarWidth"
+      v-model:is-collapsed="settingsStore.display.sidebarCollapsed"
+      :min-size="250"
+      :max-size="500"
+    >
       <FormContainer :show-header="false" class="form-section">
         <template #content>
           <!-- 模式切换 -->
           <div class="mode-switcher">
             <div class="mode-tab" :class="{ active: !isVideoMode }" @click="handleModeSwitch(false)">
               <ImageIcon />
-              <span>图片</span>
+              <span>图片生成</span>
             </div>
             <div class="mode-tab" :class="{ active: isVideoMode }" @click="handleModeSwitch(true)">
               <Screen />
-              <span>视频</span>
+              <span>视频生成</span>
             </div>
           </div>
 
-          <ImageForm v-if="!isVideoMode">
-          </ImageForm>
-          <VideoForm v-else>
-          </VideoForm>
+          <ImageForm v-if="!isVideoMode" />
+          <VideoForm v-else />
         </template>
       </FormContainer>
     </ResizeBox>
@@ -840,111 +416,23 @@ onMounted(async () => {
               <p>在下方输入提示词，开启你的创作之旅</p>
             </div>
             <div v-else class="batches-list" v-bind="wrapperProps">
-              <Card v-for="{ data: batch } in virtualList" :key="batch.id" padding="20px" radius="16px"
-                class="generation-results">
-                <div class="prompt-card">
-                  <div class="prompt-header">
-                    <div class="prompt-content">
-                      <span class="prompt-label">提示词</span>
-                      <p class="prompt-text">{{ batch.prompt }}</p>
-                    </div>
-                    <div class="prompt-actions">
-                      <Button variant="icon" size="sm" title="复制提示词" @click="copyPrompt(batch.prompt)">
-                        <Copy />
-                      </Button>
-                      <Button variant="icon" size="sm" title="重新编辑" @click="reEdit(batch)">
-                        <Edit />
-                      </Button>
-                      <Button variant="icon" size="sm" class="delete-btn" title="删除批次" @click="deleteBatch(batch.id)">
-                        <Trash />
-                      </Button>
-                    </div>
-                  </div>
-                  <div class="prompt-meta">
-                    <Tags v-if="batch.modelName" :tags="[batch.modelName]" color="blue" />
-                    <Tags v-if="batch.size" :tags="[batch.size]" color="green" />
-                  </div>
-                </div>
-
-                <div class="image-grid">
-                  <div v-for="(img, index) in batch.images" :key="index" class="image-item"
-                    :class="{ 'video-item': batch.mediaType === 'video' }">
-                    <template v-if="typeof img === 'object' && img.loading">
-                      <div class="image-loading" :class="{ 'is-failed': batch.status === 'failed' }">
-                        <template v-if="batch.status === 'failed'">
-                          <div class="error-icon">
-                            <X />
-                          </div>
-                          <span class="error-text">生成失败</span>
-                          <p v-if="batch.error" class="error-detail">{{ batch.error }}</p>
-                        </template>
-                        <template v-else>
-                          <div class="loading-spinner"></div>
-                          <span>{{ batch.mediaType === 'video' ? '视频生成中...' : '生成中...' }}</span>
-                        </template>
-                      </div>
-                    </template>
-                    <template v-else>
-                      <!-- 视频显示 -->
-                      <template v-if="batch.mediaType === 'video'">
-                        <video :src="(img as string)" controls preload="metadata" class="video-player" @click.stop />
-                      </template>
-                      <!-- 图片显示 -->
-                      <template v-else>
-                        <Image :src="(img as string)" preview
-                          :images="(batch.images.filter(i => typeof i === 'string') as string[])"
-                          :initial-index="batch.images.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1" />
-                      </template>
-                    </template>
-                  </div>
-                </div>
-              </Card>
+              <GenerationResultCard
+                v-for="{ data: batch } in virtualList"
+                :key="batch.id"
+                :batch="batch"
+                @re-edit="reEdit"
+                @delete="deleteBatch"
+                @copy-prompt="copyPrompt"
+              />
             </div>
           </div>
 
-          <div class="floating-input-area">
-            <Card ref="dropZoneRef" class="input-box-wrapper" :class="{ disabled: !isModelSelected, 'drag-over': isDragOver || isOverDropZone }" radius="24px" padding="8px 16px">
-              <!-- 参考图片预览 -->
-              <div v-if="referenceImages.length > 0" class="reference-images-section">
-                <FileUpload v-model="referenceImages" :multiple="true" :removable="true"
-                  :show-upload="true" @remove="(index) => referenceImages.splice(index, 1)" />
-              </div>
-
-              <div class="input-top">
-                <div class="textarea-wrapper">
-                  <Button variant="text" size="sm" class="reference-image-btn" title="添加参考图片"
-                    :disabled="!isModelSelected" @click="handleAddReferenceImage">
-                    <Plus />
-                  </Button>
-                  <textarea ref="textareaRef" v-model="rightInput"
-                    :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'"
-                    :disabled="!isModelSelected || isOptimizing" @keydown.enter.exact.prevent="handleRightInputSubmit"
-                    rows="1" @input="handleInput"></textarea>
-                  <Button v-if="rightInput && !isOptimizing" variant="text" size="sm" class="clear-btn"
-                    @click="rightInput = ''">
-                    <X />
-                  </Button>
-                </div>
-
-                <div class="input-actions">
-                  <ModelSelector v-model:modelId="optimizeModelId" v-model:providerId="optimizeProviderId"
-                    popup-position="top" type="icon" category="text" class="optimize-model-selector"
-                    @update:model-id="(id) => handleOptimizeModelChange({ modelId: id, providerId: optimizeProviderId })"
-                    @update:provider-id="(id) => handleOptimizeModelChange({ modelId: optimizeModelId, providerId: id })" />
-                  <Button v-if="rightInput || isOptimizing" variant="text" size="sm" class="optimize-btn" title="优化提示词"
-                    :loading="isOptimizing" @click="() => optimizePrompt()">
-                    <Bulb />
-                  </Button>
-                  <Button variant="primary" size="sm" class="send-btn"
-                    :disabled="!isModelSelected || !rightInput.trim() || isOptimizing" @click="handleRightInputSubmit">
-                    <template #icon>
-                      <Send style="font-size: 13px;" />
-                    </template>
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
+          <FloatingInputArea
+            ref="floatingInputRef"
+            v-model:input="rightInput"
+            :is-model-selected="isModelSelected"
+            @submit="handleRightInputSubmit"
+          />
         </div>
       </template>
     </FormContainer>
@@ -975,7 +463,7 @@ onMounted(async () => {
   gap: 2px;
   background: var(--bg-tertiary);
   border-radius: 8px;
-  margin-bottom: 8px
+  margin-bottom: 8px;
 }
 
 .mode-tab {
@@ -1034,7 +522,7 @@ onMounted(async () => {
   height: 100% !important;
 }
 
-.results-content>div {
+.results-content > div {
   max-width: 1000px;
   margin: 0 auto;
 }
@@ -1044,444 +532,6 @@ onMounted(async () => {
   flex-direction: column;
   gap: 12px;
   padding-bottom: 32px;
-}
-
-.prompt-card {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.prompt-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.prompt-content {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.prompt-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-}
-
-.prompt-text {
-  font-size: 14px;
-  color: var(--text-primary);
-  line-height: 1.6;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin: 0;
-  font-weight: 500;
-}
-
-.prompt-actions {
-  display: flex;
-  gap: 6px;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.generation-results:hover .prompt-actions {
-  opacity: 1;
-}
-
-.delete-btn:hover {
-  color: var(--error-color, #ff4d4f) !important;
-  background: rgba(255, 77, 79, 0.1) !important;
-}
-
-.prompt-meta {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.image-grid {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 12px;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-
-.image-grid::-webkit-scrollbar {
-  height: 6px;
-}
-
-.image-grid::-webkit-scrollbar-track {
-  background: var(--bg-tertiary);
-  border-radius: 3px;
-}
-
-.image-grid::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 3px;
-}
-
-.image-grid::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
-}
-
-.image-item {
-  position: relative;
-  flex-shrink: 0;
-  width: 140px;
-  height: 140px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-subtle);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-
-.image-item :deep(.n-image) {
-  width: 100%;
-  height: 100%;
-}
-
-.image-item :deep(img) {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: filter 0.3s;
-}
-
-.video-item {
-  width: 240px;
-  height: 135px;
-}
-
-.video-player {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 12px;
-}
-
-
-.image-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, transparent 60%, rgba(0, 0, 0, 0.4));
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  padding: 10px;
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-}
-
-
-.download-overlay-btn {
-  pointer-events: auto;
-  background: rgba(255, 255, 255, 0.2) !important;
-  backdrop-filter: blur(8px);
-  color: white !important;
-  border-radius: 8px !important;
-}
-
-
-.image-loading {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: var(--text-tertiary);
-  font-size: 13px;
-  background: var(--bg-tertiary);
-}
-
-.image-loading.is-failed {
-  color: var(--color-error);
-  padding: 16px;
-  text-align: center;
-}
-
-.error-icon {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: rgba(var(--color-error-rgb), 0.1);
-  margin-bottom: 4px;
-}
-
-.error-text {
-  font-weight: 600;
-}
-
-.error-detail {
-  font-size: 11px;
-  opacity: 0.8;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin-top: 4px;
-}
-
-.loading-spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--border-color);
-  border-top-color: var(--accent-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.action-group {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-}
-
-.floating-input-area {
-  padding: 24px 40px 40px;
-  display: flex;
-  justify-content: center;
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  left: 0;
-  background: linear-gradient(to top, var(--bg-secondary) 30%, transparent);
-  pointer-events: none;
-}
-
-.input-box-wrapper {
-  width: 100%;
-  max-width: 800px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: var(--bg-card) !important;
-  border: 1px solid var(--border-subtle) !important;
-  pointer-events: auto;
-  overflow: visible !important;
-}
-
-.input-box-wrapper:focus-within {
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
-}
-
-.input-box-wrapper.disabled {
-  background: var(--bg-secondary) !important;
-  opacity: 0.6;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.input-box-wrapper.drag-over {
-  border-color: var(--accent-color) !important;
-  background: rgba(var(--accent-rgb), 0.05) !important;
-  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2), 0 16px 48px rgba(0, 0, 0, 0.2) !important;
-}
-
-.input-box-wrapper.disabled textarea {
-  cursor: not-allowed;
-}
-
-.input-top {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-}
-
-.textarea-wrapper {
-  flex: 1;
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.textarea-wrapper textarea {
-  flex: 1;
-  border: none;
-  background: transparent;
-  resize: none;
-  padding: 10px 32px 10px 4px;
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--text-primary);
-  outline: none;
-  min-height: 44px;
-  max-height: 200px;
-  display: flex;
-  align-items: center;
-  overflow-y: auto;
-}
-
-.textarea-wrapper .clear-btn {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.textarea-wrapper .reference-image-btn {
-  flex-shrink: 0;
-  color: var(--text-tertiary) !important;
-  opacity: 0.6;
-  transition: all 0.2s;
-}
-
-.textarea-wrapper .reference-image-btn:hover:not(:disabled) {
-  opacity: 1;
-  background: var(--bg-hover) !important;
-  color: var(--accent-color) !important;
-}
-
-.textarea-wrapper .reference-image-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.input-top textarea::placeholder {
-  color: var(--text-tertiary);
-}
-
-.input-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding-bottom: 6px;
-  position: relative;
-  z-index: 10;
-}
-
-.clear-btn,
-.optimize-btn,
-.optimize-model-selector {
-  color: var(--text-tertiary) !important;
-  opacity: 0.6;
-  transition: all 0.2s;
-}
-
-.clear-btn:hover,
-.optimize-btn:hover,
-.optimize-model-selector:hover {
-  opacity: 1;
-  background: var(--bg-hover) !important;
-  color: var(--accent-color) !important;
-}
-
-.optimize-model-selector {
-  margin-right: -4px;
-}
-
-.reference-image-btn {
-  color: var(--text-tertiary) !important;
-  opacity: 0.6;
-  transition: all 0.2s;
-}
-
-.reference-image-btn:hover:not(:disabled) {
-  opacity: 1;
-  background: var(--bg-hover) !important;
-  color: var(--accent-color) !important;
-}
-
-.reference-image-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.reference-images-section {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 8px;
-}
-
-.reference-images-hint {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  margin-top: 4px;
-  padding-left: 4px;
-}
-
-.optimize-model-selector:hover {
-  background: transparent !important;
-}
-
-:deep(.optimize-model-selector button) {
-  padding: 4px !important;
-  height: 28px !important;
-  width: 28px !important;
-  border: none !important;
-  background: transparent !important;
-  border-radius: 8px !important;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-:deep(.optimize-model-selector button:hover) {
-  background: var(--bg-hover) !important;
-  color: var(--accent-color) !important;
-}
-
-.optimize-btn:hover {
-  color: #f1c40f !important;
-  /* Golden color for magic/bulb */
-}
-
-.btn-loading-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.send-btn {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: 50% !important;
-  padding: 0 !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.3);
-  transition: all 0.2s;
-}
-
-.send-btn:not(:disabled):hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.4);
-}
-
-.send-btn:disabled {
-  background: var(--bg-secondary) !important;
-  color: var(--text-disabled) !important;
-  box-shadow: none;
 }
 
 .empty-state {
