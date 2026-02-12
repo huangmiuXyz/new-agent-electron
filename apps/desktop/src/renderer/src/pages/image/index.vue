@@ -82,45 +82,31 @@ const getDynamicFields = (providerId: string, isVideo: boolean) => {
   } as FormField<any>
 }
 
-const dynamicField = ref<FormField<any> | null>(null)
+// 图片表单动态字段
+const imageDynamicField = ref<FormField<any> | null>(null)
+// 视频表单动态字段
+const videoDynamicField = ref<FormField<any> | null>(null)
 
-// 获取当前选中模型的类别
-const getModelCategory = (providerId: string, modelId: string): ModelCategory => {
-  const provider = settingsStore.getProviderById(providerId)
-  if (!provider) return 'text'
-  const model = provider.models?.find(m => m.id === modelId)
-  return model?.category || 'text'
+// 切换模式的处理
+const handleModeSwitch = (isVideo: boolean) => {
+  isVideoMode.value = isVideo
 }
 
-const baseFields = computed<FormField<any>[]>(() => {
+// 图片表单字段
+const imageFields = computed<FormField<any>[]>(() => {
   const fields: FormField<any>[] = [
     {
       name: 'model',
       type: 'modelSelector',
       popupPosition: 'bottom',
       label: '生成模型',
-      modelCategory: ['image', 'video'] as ModelCategory[], // 同时显示图像和视频模型
+      modelCategory: ['image'] as ModelCategory[],
       required: true,
-      onChange: ({ providerId, modelId }: { providerId: string; modelId: string }) => {
-        const category = getModelCategory(providerId, modelId)
-        const newIsVideoMode = (category as string) === 'video'
-        isVideoMode.value = newIsVideoMode
-        dynamicField.value = getDynamicFields(providerId, isVideoMode.value)
-
-        // 切换模式时，尝试恢复对应模式的表单数据
-        const savedForm = newIsVideoMode ? settingsStore.videoGenerationForm : settingsStore.imageGenerationForm
-        if (savedForm) {
-          // 排除 model 字段，避免 setData 覆盖当前正在切换的模型，导致切换失效
-          const { model: _, ...otherData } = savedForm
-          formActions.setFieldsValue(otherData as any)
-        }
+      onChange: ({ providerId }: { providerId: string; modelId: string }) => {
+        imageDynamicField.value = getDynamicFields(providerId, false)
       }
-    }
-  ]
-
-  // 图像模式显示尺寸选择
-  if (!isVideoMode.value) {
-    fields.push({
+    },
+    {
       name: 'size',
       type: 'custom',
       label: '图像尺寸',
@@ -128,46 +114,16 @@ const baseFields = computed<FormField<any>[]>(() => {
       render: (data: any) => (
         <ImageSizeSelector
           modelValue={data.size}
-          onUpdate:modelValue={(val: string) => formActions.setFieldValue('size', val)}
+          onUpdate:modelValue={(val: string) => imageFormActions.setFieldValue('size', val)}
         />
       )
-    } as FormField<any>)
-  } else {
-    // 视频模式显示视频特有配置
-    fields.push(
-      {
-        name: 'duration',
-        type: 'select',
-        label: '视频时长',
-        defaultValue: 5,
-        options: [
-          { label: '5秒', value: 5 },
-          { label: '10秒', value: 10 },
-          { label: '15秒', value: 15 }
-        ]
-      } as FormField<any>,
-      {
-        name: 'resolution',
-        type: 'select',
-        label: '分辨率',
-        defaultValue: '720p',
-        options: [
-          { label: '540p', value: '540p' },
-          { label: '720p', value: '720p' },
-          { label: '1080p', value: '1080p' }
-        ]
-      } as FormField<any>
-    )
-  }
-
-  // 通用字段
-  fields.push(
+    } as FormField<any>,
     {
       name: 'n',
       type: 'slider',
-      label: isVideoMode.value ? '生成视频数' : '生成数量',
+      label: '生成数量',
       min: 1,
-      max: isVideoMode.value ? 1 : 4,
+      max: 4,
       step: 1,
       defaultValue: 1
     } as FormField<any>,
@@ -182,23 +138,91 @@ const baseFields = computed<FormField<any>[]>(() => {
           size="sm"
           onClick={() => {
             const randomSeed = Math.floor(Math.random() * 1000000)
-            formActions.setFieldValue('seed', randomSeed)
+            imageFormActions.setFieldValue('seed', randomSeed)
           }}
         >
           {Dices}
         </Button>
       )
     } as FormField<any>
-  )
+  ]
+
+  if (imageDynamicField.value) {
+    fields.push(imageDynamicField.value)
+  }
 
   return fields
 })
 
-const allFields = computed<FormField<any>[]>(() => {
-  const fields = [...baseFields.value]
-  if (dynamicField.value) {
-    fields.push(dynamicField.value)
+// 视频表单字段
+const videoFields = computed<FormField<any>[]>(() => {
+  const fields: FormField<any>[] = [
+    {
+      name: 'model',
+      type: 'modelSelector',
+      popupPosition: 'bottom',
+      label: '生成模型',
+      modelCategory: ['video'] as ModelCategory[],
+      required: true,
+      onChange: ({ providerId }: { providerId: string; modelId: string }) => {
+        videoDynamicField.value = getDynamicFields(providerId, true)
+      }
+    },
+    {
+      name: 'duration',
+      type: 'select',
+      label: '视频时长',
+      defaultValue: 5,
+      options: [
+        { label: '5秒', value: 5 },
+        { label: '10秒', value: 10 },
+        { label: '15秒', value: 15 }
+      ]
+    } as FormField<any>,
+    {
+      name: 'resolution',
+      type: 'select',
+      label: '分辨率',
+      defaultValue: '720p',
+      options: [
+        { label: '540p', value: '540p' },
+        { label: '720p', value: '720p' },
+        { label: '1080p', value: '1080p' }
+      ]
+    } as FormField<any>,
+    {
+      name: 'n',
+      type: 'slider',
+      label: '生成视频数',
+      min: 1,
+      max: 1,
+      step: 1,
+      defaultValue: 1
+    } as FormField<any>,
+    {
+      name: 'seed',
+      label: '随机种子',
+      placeholder: '留空则随机生成...',
+      type: 'number',
+      rest: () => (
+        <Button
+          variant="text"
+          size="sm"
+          onClick={() => {
+            const randomSeed = Math.floor(Math.random() * 1000000)
+            videoFormActions.setFieldValue('seed', randomSeed)
+          }}
+        >
+          {Dices}
+        </Button>
+      )
+    } as FormField<any>
+  ]
+
+  if (videoDynamicField.value) {
+    fields.push(videoDynamicField.value)
   }
+
   return fields
 })
 
@@ -274,7 +298,8 @@ const handleOptimizeModelChange = (val: { modelId: string, providerId: string })
 }
 
 const isModelSelected = computed(() => {
-  return !!settingsStore.imageGenerationForm?.model?.modelId
+  const currentForm = isVideoMode.value ? videoFormActions.getData() : imageFormActions.getData()
+  return !!currentForm?.model?.modelId
 })
 
 const scrollToBottom = () => {
@@ -283,12 +308,13 @@ const scrollToBottom = () => {
   })
 }
 
-const [ImageForm, formActions] = useForm({
-  fields: () => allFields.value,
+// 图片生成表单
+const [ImageForm, imageFormActions] = useForm({
+  fields: () => imageFields.value,
   onChange: (_field, _value, data) => {
     settingsStore.updateImageGenerationForm({
       ...data,
-      mediaType: isVideoMode.value ? 'video' : 'image'
+      mediaType: 'image'
     })
   },
   onSubmit: async (data) => {
@@ -315,7 +341,7 @@ const [ImageForm, formActions] = useForm({
     const newBatch: ImageBatch = {
       id: batchId,
       prompt: prompt,
-      size: isVideoMode.value ? undefined : data.size,
+      size: data.size,
       n: n,
       model: data.model.modelId,
       modelName: settingsStore.getModelById(data.model.providerId, data.model.modelId).model?.name,
@@ -327,9 +353,7 @@ const [ImageForm, formActions] = useForm({
         providerOptions: data.providerOptions
       },
       referenceImages: refImagesData,
-      mediaType: isVideoMode.value ? 'video' : 'image',
-      duration: isVideoMode.value ? data.duration : undefined,
-      resolution: isVideoMode.value ? data.resolution : undefined
+      mediaType: 'image'
     }
 
     generatedBatches.value.push(newBatch)
@@ -338,11 +362,60 @@ const [ImageForm, formActions] = useForm({
     referenceImages.value = []
 
     if (!activeProcessingIds.has(newBatch.id)) {
-      if (isVideoMode.value) {
-        startVideoGeneration(newBatch)
-      } else {
-        startGeneration(newBatch)
-      }
+      startGeneration(newBatch)
+    }
+  }
+})
+
+// 视频生成表单
+const [VideoForm, videoFormActions] = useForm({
+  fields: () => videoFields.value,
+  onChange: (_field, _value, data) => {
+    settingsStore.updateImageGenerationForm({
+      ...data,
+      mediaType: 'video'
+    })
+  },
+  onSubmit: async (data) => {
+    const prompt = rightInput.value.trim()
+    if (!prompt) {
+      return
+    }
+
+    const n = data.n || 1
+    const batchId = Date.now()
+    const currentPlaceholders = Array(n).fill(null).map((_, i) => ({
+      loading: true,
+      id: batchId + i
+    }))
+
+    const provider = settingsStore.getProviderById(data.model.providerId)
+    if (!provider) {
+      throw new Error('未找到所选模型的提供商')
+    }
+
+    const newBatch: ImageBatch = {
+      id: batchId,
+      prompt: prompt,
+      n: n,
+      model: data.model.modelId,
+      modelName: settingsStore.getModelById(data.model.providerId, data.model.modelId).model?.name,
+      images: currentPlaceholders,
+      providerId: data.model.providerId,
+      status: 'pending',
+      seed: data.seed ? Number(data.seed) : undefined,
+      params: {
+        providerOptions: data.providerOptions
+      },
+      mediaType: 'video',
+      duration: data.duration ? Number(data.duration) : undefined,
+      resolution: data.resolution
+    }
+
+    generatedBatches.value.push(newBatch)
+
+    if (!activeProcessingIds.has(newBatch.id)) {
+      startVideoGeneration(newBatch)
     }
   }
 })
@@ -618,7 +691,7 @@ const pollAsyncVideoResult = async (batchId: number, taskId: string, providerIns
   poll()
 }
 
-const { Trash, Dices, Image: ImageIcon, Edit, Copy, X, Bulb, Plus, Send } = useIcon(['Trash', 'Download', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X', 'Bulb', 'Plus', 'Send'])
+const { Trash, Dices, Image: ImageIcon, Edit, Copy, X, Bulb, Plus, Send, Screen } = useIcon(['Trash', 'Download', 'Dices', 'Image', 'Edit', 'Box', 'Screen', 'Copy', 'X', 'Bulb', 'Plus', 'Send'])
 
 const copyPrompt = (prompt: string) => {
   copyText(prompt)
@@ -630,19 +703,37 @@ const clearImages = () => {
 
 const reEdit = (batch: ImageBatch) => {
   rightInput.value = batch.prompt
-  formActions.setFieldsValue({
+  isVideoMode.value = batch.mediaType === 'video'
+
+  const formData = {
     model: {
       modelId: batch.model,
       providerId: batch.providerId
     },
-    size: batch.size,
     n: batch.n,
     seed: batch.seed,
     providerOptions: batch.params?.providerOptions
-  })
-  if (batch.providerId) {
-    dynamicField.value = getDynamicFields(batch.providerId, batch.mediaType === 'video')
   }
+
+  if (batch.mediaType === 'video') {
+    videoFormActions.setFieldsValue({
+      ...formData,
+      duration: batch.duration,
+      resolution: batch.resolution
+    } as any)
+    if (batch.providerId) {
+      videoDynamicField.value = getDynamicFields(batch.providerId, true)
+    }
+  } else {
+    imageFormActions.setFieldsValue({
+      ...formData,
+      size: batch.size
+    } as any)
+    if (batch.providerId) {
+      imageDynamicField.value = getDynamicFields(batch.providerId, false)
+    }
+  }
+
   // 恢复参考图片
   if (batch.referenceImages && batch.referenceImages.length > 0) {
     referenceImages.value = [...batch.referenceImages]
@@ -655,7 +746,13 @@ const deleteBatch = (batchId: number) => {
 
 const handleRightInputSubmit = () => {
   if (!rightInput.value.trim()) return
-  formActions.submit()
+
+  if (isVideoMode.value) {
+    videoFormActions.submit()
+  } else {
+    imageFormActions.submit()
+  }
+
   nextTick(() => {
     rightInput.value = ''
     if (textareaRef.value) {
@@ -666,19 +763,26 @@ const handleRightInputSubmit = () => {
 }
 
 onMounted(async () => {
-  if (settingsStore.imageGenerationForm?.model.providerId) {
-    const category = getModelCategory(settingsStore.imageGenerationForm.model.providerId, settingsStore.imageGenerationForm.model.modelId)
-    isVideoMode.value = (category as string) === 'video'
-    dynamicField.value = getDynamicFields(settingsStore.imageGenerationForm.model.providerId, isVideoMode.value)
+  // 恢复图片表单
+  if (settingsStore.imageGenerationForm?.model?.providerId) {
+    imageFormActions.setData(settingsStore.imageGenerationForm)
+    imageDynamicField.value = getDynamicFields(settingsStore.imageGenerationForm.model.providerId, false)
+    if (settingsStore.imageGenerationForm.prompt) {
+      rightInput.value = settingsStore.imageGenerationForm.prompt
+    }
   }
 
-  const initialForm = isVideoMode.value ? settingsStore.videoGenerationForm : settingsStore.imageGenerationForm
-  if (initialForm) {
-    formActions.setData(initialForm)
-    if (initialForm.prompt) {
-      rightInput.value = initialForm.prompt
-      initialForm.prompt = ''
-    }
+  // 恢复视频表单
+  if (settingsStore.videoGenerationForm?.model?.providerId) {
+    videoFormActions.setData(settingsStore.videoGenerationForm)
+    videoDynamicField.value = getDynamicFields(settingsStore.videoGenerationForm.model.providerId, true)
+  }
+
+  // 根据是否有图片表单决定初始模式
+  if (settingsStore.imageGenerationForm?.model?.modelId) {
+    isVideoMode.value = false
+  } else if (settingsStore.videoGenerationForm?.model?.modelId) {
+    isVideoMode.value = true
   }
 
   textareaRef.value?.focus()
@@ -698,8 +802,30 @@ onMounted(async () => {
       v-model:is-collapsed="settingsStore.display.sidebarCollapsed" :min-size="250" :max-size="500">
       <FormContainer :show-header="false" class="form-section">
         <template #content>
-          <ImageForm>
+          <!-- 模式切换 -->
+          <div class="mode-switcher">
+            <div 
+              class="mode-tab" 
+              :class="{ active: !isVideoMode }" 
+              @click="handleModeSwitch(false)"
+            >
+              <ImageIcon />
+              <span>图片</span>
+            </div>
+            <div 
+              class="mode-tab" 
+              :class="{ active: isVideoMode }" 
+              @click="handleModeSwitch(true)"
+            >
+              <Screen />
+              <span>视频</span>
+            </div>
+          </div>
+          
+          <ImageForm v-if="!isVideoMode">
           </ImageForm>
+          <VideoForm v-else>
+          </VideoForm>
         </template>
       </FormContainer>
     </ResizeBox>
@@ -852,6 +978,40 @@ onMounted(async () => {
   width: 100%;
   border-right: 1px solid var(--border-subtle);
   height: 100%;
+}
+
+.mode-switcher {
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  margin-bottom: 8px
+}
+
+.mode-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.mode-tab:hover {
+  color: var(--text-secondary);
+}
+
+.mode-tab.active {
+  background: var(--bg-card);
+  color: var(--accent-color);
 }
 
 .results-section {
