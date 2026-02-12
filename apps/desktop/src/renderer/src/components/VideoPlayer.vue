@@ -32,18 +32,49 @@ const formatTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
+// 拖拽状态
+const isDragging = ref(false)
+const dragProgress = ref(0)
+
 // 进度百分比
 const progress = computed(() => {
+  if (isDragging.value) return dragProgress.value
   if (!duration.value) return 0
   return (currentTime.value / duration.value) * 100
 })
 
-// 跳转进度
-const seekTo = (event: MouseEvent) => {
-  const target = event.currentTarget as HTMLElement
+// 计算进度百分比
+const calcProgress = (clientX: number, target: HTMLElement) => {
   const rect = target.getBoundingClientRect()
-  const percent = (event.clientX - rect.left) / rect.width
-  currentTime.value = percent * duration.value
+  const percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100))
+  return percent
+}
+
+// 开始拖拽
+const startDrag = (event: MouseEvent) => {
+  isDragging.value = true
+  dragProgress.value = calcProgress(event.clientX, event.currentTarget as HTMLElement)
+  document.addEventListener('mousemove', onDrag)
+  document.addEventListener('mouseup', stopDrag)
+}
+
+// 拖拽中
+const onDrag = (event: MouseEvent) => {
+  if (!isDragging.value) return
+  const progressBar = document.querySelector('.progress-bar') as HTMLElement
+  if (progressBar) {
+    dragProgress.value = calcProgress(event.clientX, progressBar)
+  }
+}
+
+// 结束拖拽
+const stopDrag = () => {
+  if (isDragging.value && duration.value) {
+    currentTime.value = (dragProgress.value / 100) * duration.value
+  }
+  isDragging.value = false
+  document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('mouseup', stopDrag)
 }
 
 // 音量图标
@@ -70,6 +101,19 @@ const toggleMute = () => {
 const handleVideoClick = () => {
   togglePlay()
 }
+
+// 键盘控制
+const handleKeydown = (event: KeyboardEvent) => {
+  if (!duration.value) return
+  
+  if (event.key === 'ArrowLeft') {
+    // 后退10秒
+    currentTime.value = Math.max(0, currentTime.value - 10)
+  } else if (event.key === 'ArrowRight') {
+    // 前进10秒
+    currentTime.value = Math.min(duration.value, currentTime.value + 10)
+  }
+}
 </script>
 
 <template>
@@ -81,13 +125,15 @@ const handleVideoClick = () => {
       preload="metadata"
       playsinline
       @click="handleVideoClick"
+      @keydown="handleKeydown"
+      tabindex="0"
     />
 
     <!-- 控制条 -->
     <Transition name="slide-up">
       <div v-show="showControls" class="controls" @click.stop>
         <!-- 进度条 -->
-        <div class="progress-bar" @click="seekTo">
+        <div class="progress-bar" @mousedown="startDrag">
           <div class="progress-buffered" :style="{ width: '100%' }" />
           <div class="progress-played" :style="{ width: `${progress}%` }" />
           <div class="progress-thumb" :style="{ left: `${progress}%` }" />
@@ -153,6 +199,7 @@ const handleVideoClick = () => {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  outline: none;
 }
 
 .controls {
