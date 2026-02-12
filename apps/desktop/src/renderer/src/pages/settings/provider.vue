@@ -531,7 +531,7 @@ const [ModelTable, modelTableActions] = useTable<Model>({
       key: 'category',
       label: '模型类型',
       width: '1fr',
-      render: (row) => <Tags tags={[getCategoryLabel(row.category || 'text')]} color={row.category === 'text' ? 'blue' : row.category === 'embedding' ? 'green' : row.category === 'image' ? 'orange' : row.category === 'rerank' ? 'purple' : 'blue'} />
+      render: (row) => <Tags tags={[getCategoryLabel(row.category || 'text')]} color={row.category === 'text' ? 'blue' : row.category === 'embedding' ? 'green' : row.category === 'image' ? 'orange' : row.category === 'rerank' ? 'purple' : row.category === 'video' ? 'red' : 'blue'} />
     },
     { key: 'active', label: '启用', width: '1fr', render: (row) => <Switch v-model={row.active} /> },
     {
@@ -570,22 +570,16 @@ const VoiceTable = defineComponent({
 
 <template>
   <ListContainer v-if="showList">
-    <List :defaultIcon="Box" title="提供商" :items="visibleProviders" :active-id="activeProviderId" @select="selectProvider">
+    <List :defaultIcon="Box" title="提供商" :items="visibleProviders" :active-id="activeProviderId"
+      @select="selectProvider">
       <template #title-tool>
         <Button type="button" variant="text" size="sm" @click="showAddCustomProviderModal" title="添加自定义提供商">
           <component :is="Plus" />
         </Button>
       </template>
       <template #actions="{ item }">
-        <Button
-          v-if="isCustomProvider(item)"
-          type="button"
-          variant="text"
-          size="sm"
-          class="text-red-500 hover:text-red-700"
-          @click.stop="handleDeleteCustomProvider(item)"
-          title="删除"
-        >
+        <Button v-if="isCustomProvider(item)" type="button" variant="text" size="sm"
+          class="text-red-500 hover:text-red-700" @click.stop="handleDeleteCustomProvider(item)" title="删除">
           <component :is="Delete" />
         </Button>
       </template>
