@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onBeforeUnmount } from 'vue'
 import { useElementHover, useFullscreen, useMediaControls } from '@vueuse/core'
 import { useIcon } from '@renderer/composables/useIcon'
 
@@ -18,6 +19,7 @@ const { Play, Pause, Volume, Volume2, VolumeMute, Fullscreen, FullscreenExit } =
 ])
 
 const videoRef = ref<HTMLVideoElement>()
+const previewVideoRef = ref<HTMLVideoElement>()
 const containerRef = ref<HTMLDivElement>()
 
 const isHovered = useElementHover(containerRef)
@@ -35,6 +37,130 @@ const formatTime = (seconds: number): string => {
 // 拖拽状态
 const isDragging = ref(false)
 const dragProgress = ref(0)
+
+// 悬浮预览状态
+const isHoveringProgress = ref(false)
+const hoverProgress = ref(0)
+const hoverPosition = ref(0)
+const hoverTime = computed(() => {
+  if (!duration.value) return 0
+  return (hoverProgress.value / 100) * duration.value
+})
+
+// 预览缩略图
+const previewThumbnail = ref('')
+let previewTimeout: number | null = null
+let currentBitmap: ImageBitmap | null = null
+
+// 检查是否支持 VideoFrame API
+const supportsVideoFrame = typeof VideoFrame !== 'undefined'
+
+// 使用 VideoFrame API 生成预览缩略图
+const generatePreviewWithVideoFrame = async (time: number): Promise<string | null> => {
+  if (!previewVideoRef.value) return null
+  const video = previewVideoRef.value
+  
+  try {
+    // 设置时间点并等待 seek 完成
+    video.currentTime = time
+    await new Promise<void>((resolve) => {
+      const onSeeked = () => {
+        video.removeEventListener('seeked', onSeeked)
+        resolve()
+      }
+      video.addEventListener('seeked', onSeeked)
+    })
+    
+    // 等待下一帧绘制
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve())
+    })
+    
+    // 使用 VideoFrame API 捕获帧
+    const frame = new VideoFrame(video, { timestamp: 0 })
+    const bitmap = await createImageBitmap(frame, {
+      resizeWidth: 160,
+      resizeHeight: 90,
+      resizeQuality: 'medium'
+    })
+    frame.close()
+    
+    // 释放之前的 bitmap
+    if (currentBitmap) {
+      currentBitmap.close()
+    }
+    currentBitmap = bitmap
+    
+    // 将 bitmap 绘制到 canvas
+    const canvas = document.createElement('canvas')
+    canvas.width = 160
+    canvas.height = 90
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    
+    ctx.drawImage(bitmap, 0, 0)
+    return canvas.toDataURL('image/jpeg', 0.85)
+  } catch {
+    return null
+  }
+}
+
+// 使用传统 Canvas API 作为降级方案
+const generatePreviewFallback = async (time: number): Promise<string | null> => {
+  if (!previewVideoRef.value) return null
+  const video = previewVideoRef.value
+  
+  try {
+    video.currentTime = time
+    await new Promise<void>((resolve) => {
+      const onSeeked = () => {
+        video.removeEventListener('seeked', onSeeked)
+        resolve()
+      }
+      video.addEventListener('seeked', onSeeked)
+    })
+    
+    const canvas = document.createElement('canvas')
+    canvas.width = 160
+    canvas.height = 90
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL('image/jpeg', 0.85)
+  } catch {
+    return null
+  }
+}
+
+// 生成预览缩略图
+const generatePreview = async (time: number) => {
+  const thumbnail = supportsVideoFrame
+    ? await generatePreviewWithVideoFrame(time)
+    : await generatePreviewFallback(time)
+  
+  if (thumbnail) {
+    previewThumbnail.value = thumbnail
+  }
+}
+
+// 节流的预览生成
+const throttledGeneratePreview = (time: number) => {
+  if (previewTimeout) {
+    clearTimeout(previewTimeout)
+  }
+  previewTimeout = window.setTimeout(() => {
+    generatePreview(time)
+  }, 80)
+}
+
+// 组件卸载时清理资源
+onBeforeUnmount(() => {
+  if (currentBitmap) {
+    currentBitmap.close()
+    currentBitmap = null
+  }
+})
 
 // 进度百分比
 const progress = computed(() => {
@@ -75,6 +201,29 @@ const stopDrag = () => {
   isDragging.value = false
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)
+}
+
+// 进度条悬浮
+const handleProgressEnter = () => {
+  isHoveringProgress.value = true
+}
+
+const handleProgressLeave = () => {
+  isHoveringProgress.value = false
+}
+
+const handleProgressMove = (event: MouseEvent) => {
+  if (!isHoveringProgress.value) return
+  const target = event.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  hoverProgress.value = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100))
+  hoverPosition.value = Math.max(0, Math.min(rect.width, event.clientX - rect.left))
+  
+  // 生成预览缩略图
+  const time = hoverTime.value
+  if (time > 0) {
+    throttledGeneratePreview(time)
+  }
 }
 
 // 音量图标
@@ -128,15 +277,43 @@ const handleKeydown = (event: KeyboardEvent) => {
       @keydown="handleKeydown"
       tabindex="0"
     />
+    
+    <!-- 隐藏的预览视频 -->
+    <video
+      ref="previewVideoRef"
+      class="preview-video"
+      :src="src"
+      preload="metadata"
+      muted
+    />
 
     <!-- 控制条 -->
     <Transition name="slide-up">
       <div v-show="showControls" class="controls" @click.stop>
         <!-- 进度条 -->
-        <div class="progress-bar" @mousedown="startDrag">
+        <div
+          class="progress-bar"
+          @mousedown="startDrag"
+          @mouseenter="handleProgressEnter"
+          @mouseleave="handleProgressLeave"
+          @mousemove="handleProgressMove"
+        >
           <div class="progress-buffered" :style="{ width: '100%' }" />
           <div class="progress-played" :style="{ width: `${progress}%` }" />
           <div class="progress-thumb" :style="{ left: `${progress}%` }" />
+          <div
+            v-show="isHoveringProgress"
+            class="progress-preview"
+            :style="{ left: `${hoverPosition}px` }"
+          >
+            <img
+              v-if="previewThumbnail"
+              :src="previewThumbnail"
+              class="preview-thumbnail"
+              alt=""
+            />
+            <span class="preview-time">{{ formatTime(hoverTime) }}</span>
+          </div>
         </div>
 
         <!-- 控制按钮 -->
@@ -219,24 +396,39 @@ const handleKeydown = (event: KeyboardEvent) => {
   border-radius: 2px;
   cursor: pointer;
   margin-bottom: 8px;
+  padding: 8px 0;
+  background-clip: content-box;
 }
 
 .progress-bar:hover {
   height: 6px;
+  padding: 7px 0;
 }
 
 .progress-buffered {
   position: absolute;
-  height: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
   background: rgba(255, 255, 255, 0.3);
   border-radius: 2px;
 }
 
+.progress-bar:hover .progress-buffered {
+  height: 6px;
+}
+
 .progress-played {
   position: absolute;
-  height: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
   background: var(--accent-color, #1890ff);
   border-radius: 2px;
+}
+
+.progress-bar:hover .progress-played {
+  height: 6px;
 }
 
 .progress-thumb {
@@ -254,6 +446,42 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 .progress-bar:hover .progress-thumb {
   opacity: 1;
+}
+
+.progress-preview {
+  position: absolute;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 6px;
+  padding: 4px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.preview-thumbnail {
+  width: 160px;
+  height: 90px;
+  border-radius: 4px;
+  object-fit: cover;
+  margin-bottom: 4px;
+}
+
+.preview-time {
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.preview-video {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
 }
 
 .controls-row {
