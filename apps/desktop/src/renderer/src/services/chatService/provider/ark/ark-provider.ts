@@ -15,6 +15,7 @@ const VERSION = '1.0.0';
 
 // Ark 图片生成参数 Schema
 export const arkImageCallOptionsSchema = z.object({
+  // 功能选项
   sequential_image_generation: z.enum(['auto', 'fixed']).optional().describe('连续图片生成模式'),
   watermark: z.boolean().optional().describe('是否添加水印'),
   optimize_prompt_options: z.object({
@@ -35,9 +36,11 @@ const contentItemSchema = z.union([
 
 // Ark 视频生成参数 Schema (对齐火山引擎文档)
 export const arkVideoCallOptionsSchema = z.object({
-  // 基础内容 - 直接传入 content 数组
-  content: z.array(contentItemSchema).describe('内容数组，直接透传给 API'),
-// 功能开关
+  // 图片输入
+  first_frame: z.string().meta({ component: 'upload' }).optional().describe('首帧图片URL'),
+  last_frame: z.string().meta({ component: 'upload' }).optional().describe('尾帧图片URL'),
+
+  // 功能开关
   generate_audio: z.boolean().default(false).describe('生成同步音频 (仅 Seedance 1.5 pro)'),
   draft: z.boolean().default(false).describe('开启样片模式 (仅 Seedance 1.5 pro, 开启后不支持时长设置)'),
   camera_fixed: z.boolean().default(false).describe('固定镜头 (保持视角稳定)'),
@@ -176,9 +179,47 @@ export function createArk(
     // 确保应用 Zod 默认值
     const validatedOptions = arkVideoCallOptionsSchema.parse(arkOptions);
 
+    // 构建 content 数组
+    const content: Array<{ type: string; text?: string; image_url?: { url: string }; role?: string }> = [];
+
+    // 添加文本 prompt
+    if (params.prompt) {
+      content.push({ type: 'text', text: params.prompt });
+    }
+
+    // 处理首帧图片
+    if (validatedOptions.first_frame) {
+      content.push({
+        type: 'image_url',
+        image_url: { url: validatedOptions.first_frame },
+        role: 'first_frame'
+      });
+    }
+
+    // 处理尾帧图片
+    if (validatedOptions.last_frame) {
+      content.push({
+        type: 'image_url',
+        image_url: { url: validatedOptions.last_frame },
+        role: 'last_frame'
+      });
+    }
+
+    // files 作为参考图片
+    if (params.files && params.files.length > 0) {
+      for (const file of params.files) {
+        const url = typeof file === 'string' ? file : (file.url || file.data);
+        content.push({
+          type: 'image_url',
+          image_url: { url },
+          role: 'reference_image'
+        });
+      }
+    }
+
     // 构造请求体：参数应位于根节点 (对齐火山引擎"新方式"接口规范)
     const requestBody: any = {
-      content: validatedOptions.content,
+      content,
       seed: params.seed,
       generate_audio: validatedOptions.generate_audio,
       draft: validatedOptions.draft,
