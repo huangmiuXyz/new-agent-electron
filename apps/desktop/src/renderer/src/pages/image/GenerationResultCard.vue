@@ -53,12 +53,8 @@ const handleCopyPrompt = () => {
     </div>
 
     <div class="image-grid">
-      <div
-        v-for="(img, index) in batch.images"
-        :key="index"
-        class="image-item"
-        :class="{ 'video-item': batch.mediaType === 'video' }"
-      >
+      <div v-for="(img, index) in batch.images" :key="index" class="image-item"
+        :class="{ 'video-item': batch.mediaType === 'video' }">
         <template v-if="typeof img === 'object' && img.loading">
           <div class="image-loading" :class="{ 'is-failed': batch.status === 'failed' }">
             <template v-if="batch.status === 'failed'">
@@ -66,7 +62,7 @@ const handleCopyPrompt = () => {
                 <X />
               </div>
               <span class="error-text">生成失败</span>
-              <p v-if="batch.error" class="error-detail">{{ batch.error }}</p>
+              <p v-if="batch.error" class="error-detail" :title="batch.error">{{ batch.error }}</p>
             </template>
             <template v-else>
               <div class="loading-spinner"></div>
@@ -81,12 +77,9 @@ const handleCopyPrompt = () => {
           </template>
           <!-- 图片显示 -->
           <template v-else>
-            <Image
-              :src="(img as string)"
-              preview
+            <Image :src="(img as string)" preview
               :images="(batch.images.filter(i => typeof i === 'string') as string[])"
-              :initial-index="batch.images.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1"
-            />
+              :initial-index="batch.images.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1" />
           </template>
         </template>
       </div>
@@ -265,7 +258,7 @@ const handleCopyPrompt = () => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-top: 4px;
+  width: 100%;
 }
 
 .loading-spinner {
