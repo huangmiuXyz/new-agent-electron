@@ -11,11 +11,10 @@ const emit = defineEmits<{
 }>()
 
 const presetOptions = [
-  { label: '1024x1024', value: '1024x1024' },
-  { label: '512x512', value: '512x512' },
-  { label: '256x256', value: '256x256' },
-  { label: '1024x1792', value: '1024x1792' },
-  { label: '1792x1024', value: '1792x1024' }
+  { label: '1K', value: '1024x1024' },
+  { label: '2K', value: '2048x2048' },
+  { label: '4K', value: '4096x4096' },
+  { label: '512x512', value: '512x512' }
 ]
 
 const isCustom = ref(false)
