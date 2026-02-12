@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ImageBatch } from '@renderer/stores/image'
+import VideoPlayer from '@renderer/components/VideoPlayer.vue'
 
 const props = defineProps<{
   batch: ImageBatch
@@ -73,7 +74,7 @@ const handleCopyPrompt = () => {
         <template v-else>
           <!-- 视频显示 -->
           <template v-if="batch.mediaType === 'video'">
-            <video :src="(img as string)" controls preload="metadata" class="video-player" @click.stop />
+            <VideoPlayer :src="(img as string)" />
           </template>
           <!-- 图片显示 -->
           <template v-else>
@@ -206,15 +207,8 @@ const handleCopyPrompt = () => {
 }
 
 .video-item {
-  width: 240px;
-  height: 135px;
-}
-
-.video-player {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 12px;
+  width: 320px;
+  height: 180px;
 }
 
 .image-loading {
