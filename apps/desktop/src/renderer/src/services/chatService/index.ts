@@ -7,7 +7,6 @@ import {
   wrapLanguageModel,
   createAgentUIStream,
   streamText as _streamText,
-  isToolUIPart,
   type DataContent
 } from 'ai'
 import { createRegistry } from './registry'
