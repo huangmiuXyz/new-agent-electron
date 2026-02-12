@@ -172,7 +172,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     if (config.schemas) {
       return zodSchemasToFormfields(config.schemas)
     }
-    return toValue(config.fields) || []
+    const fieldsVal = toValue(config.fields)
+    return (typeof fieldsVal === 'function' ? fieldsVal() : fieldsVal) || []
   })
 
   const flatFields = computed(() => {
@@ -230,13 +231,29 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
       ) {
         initialValue = config.initialData[field.name]
       } else {
-        initialValue = field.defaultValue || getDefaultValue(field.type!, field)
+        initialValue = field.defaultValue ?? getDefaultValue(field.type!, field)
       }
       formData.value[field.name] = initialValue
     }
   }
 
-  fields.value.forEach(initializeField)
+  // 监听 fields 变化，当动态字段增加时，初始化新字段
+  watch(fields, (newFields) => {
+    const init = (f: FormField<T>) => {
+      if (f.type === 'group' && f.children) {
+        f.children.forEach(init)
+        return
+      }
+      const currentVal = f.name.includes('.')
+        ? getNestedValue(formData.value, f.name)
+        : formData.value[f.name]
+
+      if (currentVal === undefined) {
+        initializeField(f)
+      }
+    }
+    newFields.forEach(init)
+  }, { immediate: true, deep: true })
 
   const errors = ref<Record<string, string>>({})
 
