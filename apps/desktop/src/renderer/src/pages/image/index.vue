@@ -323,8 +323,8 @@ const [ImageForm, formActions] = useForm({
       images: currentPlaceholders,
       providerId: data.model.providerId,
       status: 'pending',
+      seed: data.seed ? Number(data.seed) : undefined,
       params: {
-        seed: data.seed ? Number(data.seed) : undefined,
         providerOptions: data.providerOptions
       },
       referenceImages: refImagesData,
@@ -413,7 +413,7 @@ const startGeneration = async (batch: ImageBatch) => {
         providerType: provider.providerType,
         size: batch.size as `${number}x${number}`,
         n: batch.n,
-        seed: batch.params?.seed,
+        seed: batch.seed,
         providerOptions: batch.params?.providerOptions
       })
       if (result.images) {
@@ -525,13 +525,8 @@ const startVideoGeneration = async (batch: ImageBatch) => {
         n: batch.n,
         duration: batch.duration,
         resolution: batch.resolution,
-        seed: batch.params?.seed,
-        providerOptions: {
-          ark: {
-            ...batch.params?.providerOptions?.ark,
-            image: batch.referenceImages
-          }
-        }
+        seed: batch.seed,
+        providerOptions: batch.params?.providerOptions
       })
 
       imgStore.updateBatch(batch.id, { taskId: task_id, status: 'processing' })
@@ -546,7 +541,7 @@ const startVideoGeneration = async (batch: ImageBatch) => {
         n: batch.n,
         duration: batch.duration ? Number(batch.duration) : undefined,
         resolution: batch.resolution,
-        seed: batch.params?.seed,
+        seed: batch.seed,
         providerOptions: batch.params?.providerOptions
       })
 
@@ -643,7 +638,7 @@ const reEdit = (batch: ImageBatch) => {
     },
     size: batch.size,
     n: batch.n,
-    seed: batch.params?.seed,
+    seed: batch.seed,
     providerOptions: batch.params?.providerOptions
   })
   if (batch.providerId) {

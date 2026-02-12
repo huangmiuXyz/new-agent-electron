@@ -14,6 +14,7 @@ export interface ImageBatch {
   providerId?: string
   status?: 'pending' | 'processing' | 'completed' | 'failed'
   error?: string
+  seed?: number
   params?: any
   referenceImages?: string[]
   // 媒体类型：image 或 video
