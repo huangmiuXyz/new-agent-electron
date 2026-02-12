@@ -18,7 +18,7 @@ export const arkImageCallOptionsSchema = z.object({
   sequential_image_generation: z.enum(['auto', 'fixed']).optional().describe('连续图片生成模式'),
   watermark: z.boolean().optional().describe('是否添加水印'),
   optimize_prompt_options: z.object({
-    mode: z.enum(['standard', 'fast']).optional()
+    mode: z.enum(['standard', 'fast']).default('standard').optional()
   }).optional().describe('优化提示选项'),
 });
 
