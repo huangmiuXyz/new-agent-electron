@@ -21,16 +21,26 @@ export const arkImageCallOptionsSchema = z.object({
   }).optional().describe('优化提示选项'),
 });
 
+// Content 数组项的类型定义
+const contentItemSchema = z.union([
+  z.object({ type: z.literal('text'), text: z.string() }),
+  z.object({
+    type: z.literal('image_url'),
+    image_url: z.object({ url: z.string() }),
+    role: z.enum(['first_frame', 'last_frame', 'reference_image']).optional()
+  }),
+  z.object({ type: z.literal('draft_task'), draft_task: z.object({ id: z.string() }) }),
+]);
+
 // Ark 视频生成参数 Schema (对齐火山引擎文档)
 export const arkVideoCallOptionsSchema = z.object({
-  // 基础内容
-  image: z.union([z.string(), z.array(z.string())]).optional().describe('参考图片 (图生视频使用)'),
-  video: z.union([z.string(), z.array(z.string())]).optional().describe('视频样片 (上传视频文件，仅 Seedance 1.5 pro)'),
+  // 基础内容 - 直接传入 content 数组
+  content: z.array(contentItemSchema).describe('内容数组，直接透传给 API'),
 
   // 视频规格
   duration: z.union([z.literal(5), z.literal(10), z.literal(15), z.literal(-1)]).default(5).describe('视频时长 (5s/10s, Seedance 1.5 支持 15s, -1为自动)'),
   resolution: z.enum(['540p', '720p', '1080p']).default('720p').describe('分辨率 (Seedance 1.0 最高 720p)'),
-  fps: z.union([z.literal(24), z.literal(30), z.literal(60)]).default(24).describe('帧率 (Seedance 1.0 仅支持 24)'),
+  frames: z.union([z.literal(24), z.literal(30), z.literal(60)]).default(24).describe('帧率 (Seedance 1.0 仅支持 24)'),
   ratio: z.enum(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive']).default('16:9').describe('宽高比'),
   // 功能开关
   generate_audio: z.boolean().default(false).describe('生成同步音频 (仅 Seedance 1.5 pro)'),
@@ -168,53 +178,19 @@ export function createArk(
       fetch: options.fetch,
     });
 
-  const generateVideoAsyncTask = async (params: any) => {
+    const generateVideoAsyncTask = async (params: any) => {
     const model = createVideoModel(params.model);
     const arkOptions = params.providerOptions?.ark || {};
 
     // 确保应用 Zod 默认值
     const validatedOptions = arkVideoCallOptionsSchema.parse(arkOptions);
 
-    const content: any[] = [{ type: 'text', text: params.prompt }];
-
-    if (validatedOptions.image) {
-      const images = Array.isArray(validatedOptions.image) ? validatedOptions.image : [validatedOptions.image];
-
-      images.forEach((img: string, index: number) => {
-        let role: 'first_frame' | 'last_frame' | 'reference_image' | undefined = undefined;
-        if (images.length === 1) {
-          role = 'first_frame';
-        } else if (images.length === 2) {
-          role = index === 0 ? 'first_frame' : 'last_frame';
-        } else {
-          role = 'reference_image';
-        }
-
-        content.push({
-          type: 'image_url',
-          image_url: { url: img },
-          role
-        });
-      });
-    }
-
-    // 处理视频样片 (Draft 视频)
-    if (validatedOptions.video) {
-      const videos = Array.isArray(validatedOptions.video) ? validatedOptions.video : [validatedOptions.video];
-      videos.forEach((videoUrl: string) => {
-        content.push({
-          type: 'draft_task',
-          draft_task: { id: videoUrl }
-        });
-      });
-    }
-
-    // 构造请求体：参数应位于根节点 (对齐火山引擎“新方式”接口规范)
+    // 构造请求体：参数应位于根节点 (对齐火山引擎"新方式"接口规范)
     const requestBody: any = {
-      content,
+      content: validatedOptions.content,
       seed: params.seed,
       resolution: validatedOptions.resolution || params.resolution,
-      fps: validatedOptions.fps || params.fps,
+      frames: validatedOptions.frames || params.frames,
       ratio: validatedOptions.ratio || params.aspectRatio,
       generate_audio: validatedOptions.generate_audio,
       draft: validatedOptions.draft,
