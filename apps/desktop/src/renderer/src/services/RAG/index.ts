@@ -320,8 +320,8 @@ export const RAGService = () => {
       return rerankedResults.map((result: any) => ({
         content: result.content,
         score: result.score,
-        knowledgeBaseId: candidates[result.index]?.knowledgeBaseId || knowledgeBase.id,
-        documentId: candidates[result.index]?.documentId
+        knowledgeBaseId: result.knowledgeBaseId || knowledgeBase.id,
+        documentId: result.documentId
       }))
     }
 
