@@ -42,7 +42,6 @@ export const arkVideoCallOptionsSchema = z.object({
 
   // 功能开关
   generate_audio: z.boolean().default(false).describe('生成同步音频 (仅 Seedance 1.5 pro)'),
-  draft: z.boolean().default(false).describe('开启样片模式 (仅 Seedance 1.5 pro, 开启后不支持时长设置)'),
   camera_fixed: z.boolean().default(false).describe('固定镜头 (保持视角稳定)'),
   // 高级配置
   service_tier: z.enum(['default', 'flex']).default('default').describe('服务等级 (flex 为离线模式，成本更低)'),
@@ -218,8 +217,7 @@ export function createArk(
       content,
       seed: params.seed,
       generate_audio: validatedOptions.generate_audio,
-      draft: validatedOptions.draft,
-      camera_fixed: validatedOptions.camera_fixed, 
+      camera_fixed: validatedOptions.camera_fixed,
       service_tier: validatedOptions.service_tier,
       duration: params.duration,
     };
