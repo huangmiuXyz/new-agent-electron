@@ -46,7 +46,6 @@ export const arkVideoCallOptionsSchema = z.object({
   camera_fixed: z.boolean().default(false).describe('固定镜头 (保持视角稳定)'),
   // 高级配置
   service_tier: z.enum(['default', 'flex']).default('default').describe('服务等级 (flex 为离线模式，成本更低)'),
-  execution_expires_after: z.number().int().min(3600).max(259200).default(7200).describe('任务超时阈值 (秒)'),
 });
 
 export interface ArkProvider extends ProviderV3 {
@@ -220,11 +219,8 @@ export function createArk(
       seed: params.seed,
       generate_audio: validatedOptions.generate_audio,
       draft: validatedOptions.draft,
-      camera_fixed: validatedOptions.camera_fixed,
-      watermark: validatedOptions.watermark,
-      return_last_frame: validatedOptions.return_last_frame,
+      camera_fixed: validatedOptions.camera_fixed, 
       service_tier: validatedOptions.service_tier,
-      execution_expires_after: validatedOptions.execution_expires_after,
       duration: params.duration,
     };
 
