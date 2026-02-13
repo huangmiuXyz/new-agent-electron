@@ -44,7 +44,6 @@ export const arkVideoCallOptionsSchema = z.object({
   generate_audio: z.boolean().default(false).describe('生成同步音频 (仅 Seedance 1.5 pro)'),
   draft: z.boolean().default(false).describe('开启样片模式 (仅 Seedance 1.5 pro, 开启后不支持时长设置)'),
   camera_fixed: z.boolean().default(false).describe('固定镜头 (保持视角稳定)'),
-  watermark: z.boolean().default(true).describe('添加水印'),
   // 高级配置
   service_tier: z.enum(['default', 'flex']).default('default').describe('服务等级 (flex 为离线模式，成本更低)'),
   execution_expires_after: z.number().int().min(3600).max(259200).default(7200).describe('任务超时阈值 (秒)'),
