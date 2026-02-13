@@ -2,6 +2,14 @@ import { useWebWorkerFn } from '@vueuse/core'
 import { createRegistry } from '../chatService/registry'
 import { splitTextByType } from './splitter'
 import { embedMany, embed, cosineSimilarity, rerank as _rerank, APICallError } from 'ai'
+
+const hashContent = async (content: string): Promise<string> => {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(content)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
 export interface RetrieveOptions {
   similarityThreshold?: number
   topK?: number
@@ -118,6 +126,7 @@ export const RAGService = () => {
       continueFlag: boolean
       batchSize?: number
       providerOptions?: embedProviderOptions
+      existingChunks?: { content_hash: string; embedding: number[] }[]
     }
   ) => {
     await onUseAIBefore({
@@ -131,6 +140,17 @@ export const RAGService = () => {
     let processed = 0
     const batchSize = options.batchSize || 1
 
+    const existingHashMap = new Map<string, number[]>()
+    if (options.existingChunks) {
+      for (const existing of options.existingChunks) {
+        existingHashMap.set(existing.content_hash, existing.embedding)
+      }
+    }
+
+    const contentHashes = await Promise.all(
+      splitterClone.map((chunk) => hashContent(chunk.content))
+    )
+
     options.onProgress?.(undefined, 0, total)
 
     for (let i = 0; i < total; i += batchSize) {
@@ -141,6 +161,14 @@ export const RAGService = () => {
       for (let j = i; j < Math.min(i + batchSize, total); j++) {
         const chunk = splitterClone[j]
         if (options.continueFlag && options.currentChunk && j < options.currentChunk) {
+          processed++
+          skippedInBatch++
+          continue
+        }
+        const contentHash = contentHashes[j]
+        const existingEmbedding = existingHashMap.get(contentHash)
+        if (existingEmbedding) {
+          splitterClone[j].embedding = existingEmbedding
           processed++
           skippedInBatch++
           continue

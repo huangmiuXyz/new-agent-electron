@@ -4,7 +4,7 @@ import { DownloadProgress } from './components';
 export interface ElectronAPI {
   // aiServices
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>;
-  
+
   // process
   process: {
     platform: string;
@@ -50,12 +50,13 @@ export interface ElectronAPI {
   // sqlite
   sqlite: {
     isSupported: () => Promise<boolean>;
-    upsertChunks: (chunks: any[]) => Promise<any>;
+    upsertChunks: (chunks: { id: string; doc_id: string; kb_id: string; model_id: string; content_hash: string; content: string; embedding: number[] }[]) => Promise<boolean>;
     updateChunks: (chunks: any[]) => Promise<any>;
-    deleteChunksByDoc: (docId: string) => Promise<any>;
-    deleteChunksByKb: (kbId: string) => Promise<any>;
-    search: (options: any) => Promise<any>;
+    deleteChunksByDoc: (docId: string) => Promise<boolean>;
+    deleteChunksByKb: (kbId: string) => Promise<boolean>;
+    search: (options: { kb_id: string; queryEmbedding: number[]; topK: number }) => Promise<any>;
     getAllChunks: () => Promise<any>;
+    getChunksByHash: (params: { content_hashes: string[]; model_id: string; dimension: number }) => Promise<{ content_hash: string; embedding: number[] }[]>;
   };
 
   // child_process

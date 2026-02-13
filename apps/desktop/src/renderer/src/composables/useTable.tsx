@@ -1,4 +1,4 @@
-import { computed, defineComponent, shallowRef, toValue, watchEffect, isVNode, ref, h, DefineComponent } from 'vue'
+import { computed, defineComponent, shallowRef, triggerRef, toValue, watchEffect, isVNode, ref, h, DefineComponent } from 'vue'
 import { useVirtualList, useElementBounding, useWindowSize } from '@vueuse/core'
 import Checkbox from '@renderer/components/Checkbox.vue'
 
@@ -79,7 +79,7 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
     list: virtualList,
     containerProps,
     wrapperProps
-  } = useVirtualList(tableData.value, {
+  } = useVirtualList(tableData, {
     itemHeight,
     overscan
   })
@@ -96,7 +96,10 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
 
   watchEffect(() => {
     const data = toValue(config.data)
-    if (data !== undefined) tableData.value = data
+    if (data !== undefined) {
+      tableData.value = data
+      triggerRef(tableData)
+    }
   })
 
   watchEffect(() => {

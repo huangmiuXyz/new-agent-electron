@@ -1,6 +1,14 @@
 const activeTasks = ref(0)
 const queue: (() => void)[] = []
 
+const hashContent = async (content: string): Promise<string> => {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(content)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
 export const useKnowledge = () => {
   const rag = RAGService()
   const { getModelById } = useSettingsStore()
@@ -40,6 +48,7 @@ export const useKnowledge = () => {
         return
       }
       const { model, provider } = getModelById(providerId, modelId)!
+
       if (continueFlag) {
         if (doc.metadata?.modelId !== modelId || doc.metadata.providerId !== providerId) {
           messageApi.error('模型不一致，无法继续')
@@ -61,6 +70,7 @@ export const useKnowledge = () => {
           chunkOverlap: knowledge.embeddingConfig?.chunkOverlap
         }
       }
+
       if (doc.status === 'processing' && doc.abortController) {
         doc.abortController?.abort?.()
       }
@@ -69,8 +79,10 @@ export const useKnowledge = () => {
       if (!continueFlag) {
         doc.isSplitting = false
         doc.chunks = []
+        doc.currentChunk = 0
         await window.api.sqlite.deleteChunksByDoc(doc.id)
       }
+
       const abortController = new AbortController()
       doc.abortController = abortController
       const originalAbort = abortController.abort.bind(abortController)
@@ -98,6 +110,19 @@ export const useKnowledge = () => {
           splitter = doc.chunks!
         }
         const { model, provider } = getModelById(doc.metadata?.providerId!, doc.metadata?.modelId!)!
+
+        let existingChunks: { content_hash: string; embedding: number[] }[] | undefined
+        let contentHashes: string[] = []
+        if (await window.api.sqlite.isSupported()) {
+          const dimension = doc.metadata?.chunkSize || 512
+          contentHashes = await Promise.all(splitter.map((chunk) => hashContent(chunk.content)))
+          existingChunks = await window.api.sqlite.getChunksByHash({
+            content_hashes: contentHashes,
+            model_id: model.id,
+            dimension: dimension
+          })
+        }
+
         await rag.embedding(splitter, {
           apiKey: provider.apiKey!,
           baseURL: provider.baseUrl,
@@ -107,13 +132,18 @@ export const useKnowledge = () => {
           abortController,
           currentChunk: doc.currentChunk,
           providerOptions,
+          existingChunks,
           onProgress: async (data, current, total, batchChunks) => {
             if (current !== undefined && total !== undefined) {
               doc.currentChunk = current
             }
             if (await window.api.sqlite.isSupported()) {
               if (batchChunks && batchChunks.length > 0) {
-                await upsertChunksToSqlite(knowledge.id, doc.id, batchChunks)
+                const batchHashes = batchChunks.map((chunk) => {
+                  const index = splitter.findIndex((s) => s.content === chunk.content)
+                  return contentHashes[index] || ''
+                })
+                await upsertChunksToSqlite(knowledge.id, doc.id, batchChunks, model.id, batchHashes)
               }
             } else {
               if (data) {

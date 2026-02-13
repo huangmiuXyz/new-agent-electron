@@ -364,7 +364,6 @@ const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } =
   onlyText: true,
   onFilesSelected: async (files) => {
     const fileChunks = chunk(files, 50)
-
     const { start, done } = useIdleChunkAsync(fileChunks, async (fileChunk) => {
       const docs: KnowledgeDocument[] = []
       fileChunk.forEach((f) => {
@@ -544,8 +543,7 @@ const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
             </Button>
           )}
           {activeKnowledgeBase.value?.embeddingModel?.modelId &&
-            !row.abortController &&
-            row.status !== 'processed' && (
+            !row.abortController?.abort && row.status !== 'processed' && (
               <Button
                 onClick={() =>
                   embedding(row, activeKnowledgeBase.value, true, batchSize.value, {
@@ -559,7 +557,7 @@ const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
                 {{ icon: () => Play }}
               </Button>
             )}
-          {activeKnowledgeBase.value.embeddingModel.modelId && row.status === 'processing' && !row.abortController?.signal?.aborted && (
+          {row.abortController?.abort && (
             <Button onClick={() => handleAbortDocument(row)} size="sm" type="button" variant="text">
               {{ icon: () => Stop }}
             </Button>
@@ -581,23 +579,15 @@ const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
 
 <template>
   <!-- 列表视图 -->
-  <ListContainer
-    v-if="showList"
-    @contextmenu="
-      (event, item) =>
-        handleKnowledgeBaseContextMenu(event, knowledgeBases.find((kb) => kb.id === item)!)
-    "
-  >
-    <List
-      title="知识库"
-      :items="knowledgeBases.map((kb) => ({ id: kb.id, name: kb.name }))"
-      :active-id="activeKnowledgeBaseId"
-      @select="selectKnowledgeBase"
-      @contextmenu="
+  <ListContainer v-if="showList" @contextmenu="
+    (event, item) =>
+      handleKnowledgeBaseContextMenu(event, knowledgeBases.find((kb) => kb.id === item)!)
+  ">
+    <List title="知识库" :items="knowledgeBases.map((kb) => ({ id: kb.id, name: kb.name }))"
+      :active-id="activeKnowledgeBaseId" @select="selectKnowledgeBase" @contextmenu="
         (event, item) =>
           handleKnowledgeBaseContextMenu(event, knowledgeBases.find((kb) => kb.id === item)!)
-      "
-    >
+      ">
       <template #title-tool>
         <Button @click="showAddKnowledgeBaseModal" size="sm" type="button" variant="text">
           <template #icon>
@@ -627,14 +617,8 @@ const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
               </template>
               添加文件夹
             </Button>
-            <Button
-              v-if="selectedDocCount > 0"
-              @click="showBatchDeleteModal"
-              size="sm"
-              type="button"
-              variant="text"
-              danger
-            >
+            <Button v-if="selectedDocCount > 0" @click="showBatchDeleteModal" size="sm" type="button" variant="text"
+              danger>
               <template #icon>
                 <Trash />
               </template>

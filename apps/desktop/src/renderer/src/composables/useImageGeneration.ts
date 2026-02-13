@@ -149,7 +149,6 @@ export function useImageGeneration() {
           activePolls.delete(batchId)
           return
         }
-        debugger
         const result = await providerInstance.asyncVideoResult?.({ task_id: taskId })
         if (result.videos && result.videos.length > 0) {
           processVideos(batchId, result.videos)

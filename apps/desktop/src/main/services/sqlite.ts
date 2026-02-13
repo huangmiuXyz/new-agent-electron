@@ -32,9 +32,15 @@ export const initSqlite = () => {
       id TEXT PRIMARY KEY,
       doc_id TEXT,
       kb_id TEXT,
+      model_id TEXT,
+      content_hash TEXT,
       content TEXT,
       dimension INTEGER
     );
+  `)
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_chunks_hash_model_dim ON chunks(content_hash, model_id, dimension);
   `)
 }
 
@@ -64,6 +70,8 @@ export const setupSqliteHandlers = () => {
         id: string
         doc_id: string
         kb_id: string
+        model_id: string
+        content_hash: string
         content: string
         embedding: number[]
       }[]
@@ -74,11 +82,10 @@ export const setupSqliteHandlers = () => {
       ensureVssTable(dimension)
 
       const findChunk = db.prepare('SELECT rowid FROM chunks WHERE id = ?')
-      const findDocDim = db.prepare('SELECT DISTINCT dimension FROM chunks WHERE doc_id = ?')
 
-      const insertChunk = db.prepare('INSERT INTO chunks VALUES (?, ?, ?, ?, ?)')
+      const insertChunk = db.prepare('INSERT INTO chunks VALUES (?, ?, ?, ?, ?, ?, ?)')
       const updateChunk = db.prepare(
-        'UPDATE chunks SET doc_id=?, kb_id=?, content=?, dimension=? WHERE id=?'
+        'UPDATE chunks SET doc_id=?, kb_id=?, model_id=?, content_hash=?, content=?, dimension=? WHERE id=?'
       )
 
       const insertVss = db.prepare(
@@ -88,19 +95,14 @@ export const setupSqliteHandlers = () => {
 
       db.transaction(() => {
         for (const c of chunks) {
-          const docDim = findDocDim.get(c.doc_id)?.dimension
-          if (docDim && docDim !== dimension) {
-            throw new Error(`Document ${c.doc_id} embedding dimension mismatch`)
-          }
-
           const vector = JSON.stringify(c.embedding)
           const existing = findChunk.get(c.id)
 
           if (existing) {
-            updateChunk.run(c.doc_id, c.kb_id, c.content, dimension, c.id)
+            updateChunk.run(c.doc_id, c.kb_id, c.model_id, c.content_hash, c.content, dimension, c.id)
             updateVss.run(vector, existing.rowid)
           } else {
-            const res = insertChunk.run(c.id, c.doc_id, c.kb_id, c.content, dimension)
+            const res = insertChunk.run(c.id, c.doc_id, c.kb_id, c.model_id, c.content_hash, c.content, dimension)
             insertVss.run(res.lastInsertRowid, vector)
           }
         }
@@ -224,6 +226,48 @@ export const setupSqliteHandlers = () => {
     }
     return result
   })
+
+  ipcMain.handle(
+    'sqlite:getChunksByHash',
+    async (
+      _event,
+      {
+        content_hashes,
+        model_id,
+        dimension
+      }: { content_hashes: string[]; model_id: string; dimension: number }
+    ) => {
+      if (!content_hashes.length) return []
+
+      const placeholders = content_hashes.map(() => '?').join(',')
+      const chunks = db
+        .prepare(
+          `SELECT * FROM chunks WHERE content_hash IN (${placeholders}) AND model_id = ? AND dimension = ?`
+        )
+        .all(...content_hashes, model_id, dimension) as any[]
+
+      const result: any[] = []
+      for (const chunk of chunks) {
+        if (dimension > 0) {
+          const vssRow = db
+            .prepare(`SELECT vector FROM vss_chunks_${dimension} WHERE rowid = ?`)
+            .get(chunk.rowid) as { vector: string }
+          if (vssRow) {
+            result.push({
+              id: chunk.id,
+              doc_id: chunk.doc_id,
+              kb_id: chunk.kb_id,
+              model_id: chunk.model_id,
+              content_hash: chunk.content_hash,
+              content: chunk.content,
+              embedding: JSON.parse(vssRow.vector)
+            })
+          }
+        }
+      }
+      return result
+    }
+  )
 }
 
 const deleteChunks = (field: 'doc_id' | 'kb_id', value: string) => {

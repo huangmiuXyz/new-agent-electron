@@ -96,11 +96,19 @@ export const useKnowledgeStore = defineStore(
       }
     }
 
-    const upsertChunksToSqlite = async (kbId: string, docId: string, chunks: Splitter) => {
-      const sqliteChunks = chunks.map((c) => ({
+    const upsertChunksToSqlite = async (
+      kbId: string,
+      docId: string,
+      chunks: Splitter,
+      modelId?: string,
+      contentHashes?: string[]
+    ) => {
+      const sqliteChunks = chunks.map((c, i) => ({
         id: `${docId}-${c.id}`,
         doc_id: docId,
         kb_id: kbId,
+        model_id: modelId || '',
+        content_hash: contentHashes?.[i] || '',
         content: c.content,
         embedding: Array.from(c.embedding)
       }))
