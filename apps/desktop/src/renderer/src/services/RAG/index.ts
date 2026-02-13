@@ -22,10 +22,8 @@ const rerank = async (
 ) => {
   const topK = rerankOptions?.topK ?? 5
   const rerankScoreThreshold = rerankOptions?.rerankScoreThreshold ?? 0.3
-  const registry = createRegistry(rerankOptions) as any
-  const model = registry.textEmbeddingModel
-    ? registry.textEmbeddingModel(`${rerankOptions.providerType}:${rerankOptions.model}`)
-    : registry.embeddingModel(`${rerankOptions.providerType}:${rerankOptions.model}`)
+  const registry = createRegistry(rerankOptions)
+  const model = registry.rerankingModel(`${rerankOptions.providerType}:${rerankOptions.model}`)
 
   const response = await _rerank({
     model: model,
@@ -300,10 +298,10 @@ export const RAGService = () => {
         })),
         retrieveOptions
           ? {
-              similarityThreshold: retrieveOptions.similarityThreshold,
-              topK: retrieveOptions.topK,
-              rerankScoreThreshold: retrieveOptions.rerankScoreThreshold
-            }
+            similarityThreshold: retrieveOptions.similarityThreshold,
+            topK: retrieveOptions.topK,
+            rerankScoreThreshold: retrieveOptions.rerankScoreThreshold
+          }
           : undefined
       )
       candidates = searchResults.map((result: any) => ({
