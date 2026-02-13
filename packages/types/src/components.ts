@@ -1,4 +1,4 @@
-import { VNode, Component, CSSProperties, Ref } from 'vue'
+import { VNode, Component, CSSProperties, Ref, MaybeRefOrGetter } from 'vue'
 import * as zod from 'zod'
 import { ModelCategory } from './ai'
 
@@ -217,7 +217,7 @@ export interface FormConfig<T> {
   title?: string
   showHeader?: boolean
   size?: 'sm' | 'md' | 'lg'
-  fields?: FormField<T>[] | (() => FormField<T>[])
+  fields?: FormField<T>[] | (() => FormField<T>[]) | MaybeRefOrGetter<FormField<T>[]>
   schemas?: zod.ZodObject
   initialData?: T
   onSubmit?: (data: T) => void
