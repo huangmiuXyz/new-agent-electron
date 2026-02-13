@@ -89,6 +89,7 @@ const VolumeMuteIcon = useIcon('VolumeMute')
 const CloseIcon = useIcon('Close')
 const PendingIcon = useIcon('FormatListBulleted')
 const SettingsIcon = useIcon('Settings')
+const PlaylistIcon = useIcon('Menu')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -391,6 +392,13 @@ onUnmounted(() => {
             :title="speechEnabled ? '关闭语音播报' : '开启语音播报'">
             <VolumeIcon v-if="speechEnabled" />
             <VolumeMuteIcon v-else />
+          </Button>
+
+          <!-- 播放列表按钮 -->
+          <Button variant="icon" size="sm" :class="{ 'speech-active': !display.speechSidebarCollapsed }"
+            @click="() => { display.speechSidebarCollapsed = !display.speechSidebarCollapsed }"
+            :title="display.speechSidebarCollapsed ? '打开播放列表' : '关闭播放列表'">
+            <PlaylistIcon />
           </Button>
 
           <!-- 智能体选择器 -->

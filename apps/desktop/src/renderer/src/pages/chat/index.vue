@@ -1,13 +1,25 @@
 <script setup lang="ts">
 import { useSettingsStore } from '@renderer/stores/settings'
 import { useAgentStore } from '@renderer/stores/agent'
+import { useSpeechStore } from '@renderer/stores/speech'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
 import { useChat } from '@renderer/composables/useChat'
+import ResizeBox from '@renderer/components/ResizeBox.vue'
+import SpeechSidebar from '@renderer/components/SpeechSidebar.vue'
 
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
+const speechStore = useSpeechStore()
 const chatsStore = useChatsStores()
 const { register, setScope } = useShortcuts()
+
+const VolumeMedium = useIcon('VolumeMedium')
+
+const toggleSpeechSidebar = () => {
+  settingsStore.display.speechSidebarCollapsed = !settingsStore.display.speechSidebarCollapsed
+}
+
+const hasQueue = computed(() => speechStore.queue.length > 0)
 
 // 注册聊天页面快捷键
 onMounted(() => {
@@ -113,6 +125,32 @@ onMounted(() => {
       <!-- 输入框 -->
       <ChatMessageInput />
     </main>
+
+    <!-- 右侧语音播放侧边栏 -->
+    <ResizeBox
+      v-if="!isMobile"
+      v-model:width="settingsStore.display.speechSidebarWidth"
+      v-model:is-collapsed="settingsStore.display.speechSidebarCollapsed"
+      direction="horizontal"
+      handlePosition="left"
+      :minSize="250"
+      :maxSize="500"
+    >
+      <SpeechSidebar :collapsed="settingsStore.display.speechSidebarCollapsed" @close="toggleSpeechSidebar" />
+    </ResizeBox>
+
+    <!-- 移动端语音播放按钮 -->
+    <Button
+      v-if="isMobile && hasQueue"
+      class="mobile-speech-btn"
+      size="lg"
+      variant="primary"
+      @click="toggleSpeechSidebar"
+    >
+      <template #icon>
+        <VolumeMedium />
+      </template>
+    </Button>
   </div>
 </template>
 
@@ -138,5 +176,16 @@ onMounted(() => {
   flex-direction: column;
   background: transparent;
   position: relative;
+}
+
+.mobile-speech-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  z-index: 100;
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 </style>

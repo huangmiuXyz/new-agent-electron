@@ -31,6 +31,8 @@ export const useSettingsStore = defineStore(
       notesSidebarWidth: 260,
       settingsSidebarWidth: 220,
       imageSidebarWidth: 300,
+      speechSidebarWidth: 320,
+      speechSidebarCollapsed: true,
       showTerminal: false,
       terminalHeight: 200,
       expandToolsByDefault: true,

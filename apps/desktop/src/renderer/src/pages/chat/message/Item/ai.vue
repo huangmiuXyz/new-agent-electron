@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { nanoid } from 'nanoid'
 const props = defineProps<{
   message: BaseMessage
 }>()
@@ -9,46 +8,41 @@ const speechStore = useSpeechStore()
 const Stop = useIcon('Stop')
 const VolumeMedium = useIcon('VolumeMedium')
 
+const hasAudioChunks = computed(() => {
+  return (props.message.metadata?.audio?.chunks?.length ?? 0) > 0
+})
+
 const isCurrentPlaying = computed(() => {
   return speechStore.isPlaying && speechStore.queue.some(chunk => chunk.messageId === props.message.id && !chunk.played)
 })
 
-const showPlayer = ref(false)
-const togglePlayer = () => {
+const playMessageAudio = () => {
   if (isCurrentPlaying.value) {
     speechStore.stop()
-    showPlayer.value = false
     return
   }
 
-  showPlayer.value = !showPlayer.value
+  if (props.message.metadata?.audio?.chunks) {
+    const chunksToPlay = props.message.metadata.audio.chunks.filter(chunk => chunk.data)
 
-  // Auto-play when showing player if not already playing
-  if (showPlayer.value) {
-    if (props.message.metadata?.audio?.chunks) {
-      speechStore.clearQueue()
-      props.message.metadata.audio.chunks.forEach(chunk => {
-        speechStore.addToQueue({
-          id: nanoid(),
-          messageId: props.message.id,
-          text: chunk.text,
-          audioData: chunk.data,
-          duration: chunk.duration,
-          error: chunk.error,
-          played: false,
-          loading: false
-        })
+    chunksToPlay.forEach(chunk => {
+      speechStore.addToQueue({
+        id: chunk.text + '-' + Date.now(),
+        messageId: props.message.id,
+        text: chunk.text,
+        audioData: chunk.data,
+        duration: chunk.duration,
+        error: chunk.error,
+        played: false,
+        loading: false
       })
+    })
+
+    if (settingsStore.display.speechSidebarCollapsed) {
+      settingsStore.display.speechSidebarCollapsed = false
     }
   }
 }
-
-// Auto show player when playback starts for this message
-watch(isCurrentPlaying, (playing) => {
-  if (playing) {
-    showPlayer.value = true
-  }
-})
 </script>
 
 <template>
@@ -74,10 +68,10 @@ watch(isCurrentPlaying, (playing) => {
             </div>
           </div>
           <div style="display: flex; gap: 8px">
-            <Button v-if="message.metadata?.audio?.chunks?.length" size="sm" @click="togglePlayer" variant="icon"
-              type="button" :class="{ 'is-active': showPlayer }">
+            <Button v-if="hasAudioChunks" size="sm" @click="playMessageAudio" variant="icon"
+              type="button" :class="{ 'is-active': isCurrentPlaying }">
               <template #icon>
-                <VolumeMedium :style="{ color: showPlayer ? 'var(--accent-color)' : 'inherit' }" />
+                <VolumeMedium :style="{ color: isCurrentPlaying ? 'var(--accent-color)' : 'inherit' }" />
               </template>
             </Button>
             <Button v-if="message.metadata?.loading && !message.metadata?.error && message.metadata.stop" size="sm"
@@ -103,9 +97,6 @@ watch(isCurrentPlaying, (playing) => {
         </div>
       </div>
       <ChatMessageItemContent markdown :message="message" />
-
-      <SpeechPlayer v-if="showPlayer && message.metadata?.audio?.chunks" :message-id="message.id"
-        :chunks="message.metadata.audio.chunks" />
 
       <MessageTranslation v-if="message.metadata?.translations || message.metadata?.translationLoading"
         :translations="message.metadata.translations" :translationLoading="message.metadata.translationLoading"
