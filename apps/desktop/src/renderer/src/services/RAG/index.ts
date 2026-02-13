@@ -33,7 +33,7 @@ const rerank = async (
   })
 
   return response.ranking
-    .filter((r) => r.score > rerankScoreThreshold)
+    .filter((r) => r.score >= rerankScoreThreshold)
     .map((r) => ({
       index: r.originalIndex,
       score: r.score
