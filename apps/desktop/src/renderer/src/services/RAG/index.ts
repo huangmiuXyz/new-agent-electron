@@ -32,12 +32,10 @@ const rerank = async (
     topN: topK
   })
 
-  const results = (response as any).results
-
-  return results
-    .filter((r: any) => r.score > rerankScoreThreshold)
-    .map((r: any) => ({
-      ...chunks[r.index],
+  return response.ranking
+    .filter((r) => r.score > rerankScoreThreshold)
+    .map((r) => ({
+      index: r.originalIndex,
       score: r.score
     }))
 }
@@ -317,11 +315,11 @@ export const RAGService = () => {
         ...rerankOptions,
         query
       })
-      return rerankedResults.map((result: any) => ({
-        content: result.content,
+      return rerankedResults.map((result) => ({
+        content: candidates[result.index].content,
         score: result.score,
-        knowledgeBaseId: result.knowledgeBaseId || knowledgeBase.id,
-        documentId: result.documentId
+        knowledgeBaseId: candidates[result.index].knowledgeBaseId || knowledgeBase.id,
+        documentId: candidates[result.index].documentId
       }))
     }
 
