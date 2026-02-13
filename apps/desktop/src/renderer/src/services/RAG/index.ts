@@ -193,22 +193,6 @@ export const RAGService = () => {
     options.onProgress?.(splitterClone, total, total)
     return splitterClone
   }
-  const syncToSqlite = async (
-    kbId: string,
-    docId: string,
-    chunks: { content: string; embedding: number[] }[]
-  ) => {
-    if (await window.api.sqlite.isSupported()) {
-      const sqliteChunks = chunks.map((c, i) => ({
-        id: `${docId}-${i}`,
-        doc_id: docId,
-        kb_id: kbId,
-        content: c.content,
-        embedding: Array.from(c.embedding)
-      }))
-      await window.api.sqlite.upsertChunks(sqliteChunks)
-    }
-  }
 
   function reportProgress(
     processed: number,
@@ -326,5 +310,5 @@ export const RAGService = () => {
     return candidates.slice(0, topK)
   }
 
-  return { embedding, retrieve, splitter, syncToSqlite }
+  return { embedding, retrieve, splitter }
 }
