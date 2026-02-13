@@ -3,7 +3,6 @@ import { useSettingsStore } from '@renderer/stores/settings'
 import { useAgentStore } from '@renderer/stores/agent'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
 import { useChat } from '@renderer/composables/useChat'
-import { computed } from 'vue'
 
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
