@@ -451,7 +451,7 @@ const refreshModels = async () => {
           }
         }
 
-      const result = { category: 'text', ...m, name: m.id, active: true }
+      const result = { category: 'text', ...m, name: m.id, active: false }
       if (result.id.toLowerCase().includes('embed') || result.name.toLowerCase().includes('embed'))
         result.category = 'embedding'
       if (result.id.toLowerCase().includes('rerank') || result.name.toLowerCase().includes('rerank'))
