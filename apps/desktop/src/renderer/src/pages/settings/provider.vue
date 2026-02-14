@@ -373,6 +373,7 @@ const [ProviderForm, formActions] = useForm({
   showHeader: false,
   fields: computed(() => [
     // { name: 'apiKey', type: 'password', label: 'API 密钥' },
+    { name: 'activeApiKeyId', ifShow: false },
     { name: 'apiKeys', render: () => <ApiKeyList />, type: 'custom' },
     {
       name: 'baseUrl',
