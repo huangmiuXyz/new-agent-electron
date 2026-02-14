@@ -435,15 +435,40 @@ const refreshModels = async () => {
       providerType: activeProvider.value?.providerType!,
       name: activeProvider.value?.name
     })
+
+    const existingModels = activeProvider.value?.models || []
+    const customModels = existingModels.filter(isCustomModel)
+
+    const newModels = models
+      .filter((m) => !customModels.some((cm) => cm.id === m.id))
+      .map((m) => {
+        const existing = existingModels.find((em) => em.id === m.id && !isCustomModel(em))
+        if (existing) {
+          // 保留现有模型的修改信息，如激活状态、分类、自定义名称等
+          return {
+            ...m,
+            ...existing
+          }
+        }
+
+      const result = { category: 'text', ...m, name: m.id, active: true }
+      if (result.id.toLowerCase().includes('embed') || result.name.toLowerCase().includes('embed'))
+        result.category = 'embedding'
+      if (result.id.toLowerCase().includes('rerank') || result.name.toLowerCase().includes('rerank'))
+        result.category = 'rerank'
+      if (
+        result.id.toLowerCase().includes('tts') ||
+        result.id.toLowerCase().includes('speech') ||
+        result.name.toLowerCase().includes('tts') ||
+        result.name.toLowerCase().includes('speech')
+      )
+        result.category = 'tts'
+      return result as Model
+    })
+
     formActions.setFieldsValue({
       ...activeProvider.value!,
-      models: models.map((m) => {
-        const result = { category: 'text', ...m, name: m.id }
-        if (result.id.toLowerCase().includes('embed') || result.name.toLowerCase().includes('embed')) result.category = 'embedding'
-        if (result.id.toLowerCase().includes('rerank') || result.name.toLowerCase().includes('rerank')) result.category = 'rerank'
-        if (result.id.toLowerCase().includes('tts') || result.id.toLowerCase().includes('speech') || result.name.toLowerCase().includes('tts') || result.name.toLowerCase().includes('speech')) result.category = 'tts'
-        return result as Model
-      })
+      models: [...customModels, ...newModels]
     })
   } finally {
     loading.value = false
