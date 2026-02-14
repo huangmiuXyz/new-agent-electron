@@ -1,7 +1,10 @@
 <script setup lang="ts">
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   loading?: boolean
-}>()
+  size?: 'md' | 'sm'
+}>(), {
+  size: 'md'
+})
 
 const modelValue = defineModel<boolean>()
 
@@ -12,7 +15,7 @@ const toggle = () => {
 </script>
 
 <template>
-  <div class="toggle-switch" :class="{ checked: modelValue, loading: props.loading }" @click="toggle">
+  <div class="toggle-switch" :class="[size, { checked: modelValue, loading: props.loading }]" @click="toggle">
     <div class="toggle-knob">
       <svg v-if="loading" class="spinner" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="4"></circle>
@@ -31,6 +34,12 @@ const toggle = () => {
   cursor: pointer;
   transition: background 0.2s, opacity 0.2s;
   -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.toggle-switch.sm {
+  width: 28px;
+  height: 16px;
 }
 
 .toggle-switch.loading {
@@ -55,12 +64,21 @@ const toggle = () => {
   justify-content: center;
 }
 
+.toggle-switch.sm .toggle-knob {
+  width: 12px;
+  height: 12px;
+}
+
 .toggle-switch.checked {
   background: var(--color-success);
 }
 
 .toggle-switch.checked .toggle-knob {
   left: 18px;
+}
+
+.toggle-switch.sm.checked .toggle-knob {
+  left: 14px;
 }
 
 .spinner {

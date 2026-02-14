@@ -269,7 +269,7 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
                   class={['header-cell', col.headerClass]}
                   style={getAlignStyle(col.align)}
                 >
-                  {col.label}
+                  {col.headerRender ? col.headerRender() : col.label}
                 </div>
               ))}
             </div>

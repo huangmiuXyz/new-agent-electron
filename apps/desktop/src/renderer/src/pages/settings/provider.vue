@@ -295,6 +295,23 @@ const aiSearchModels = ref<Model[]>([])
 const setAISearchValue = (values: Model[]) => { aiSearchModels.value = values }
 const editingModelId = ref<string | null>(null)
 
+const isAllActive = computed(() => {
+  const models = filteredModels.value
+  return models.length > 0 && models.every((m) => m.active)
+})
+
+const toggleAllModels = (val: boolean) => {
+  if (!activeProvider.value) return
+  const models = activeProvider.value.models.map((m) => {
+    // 只有在当前过滤列表中的模型才会被批量操作
+    if (filteredModels.value.some((fm) => fm.id === m.id)) {
+      return { ...m, active: val }
+    }
+    return m
+  })
+  updateProvider(activeProviderId.value, { ...activeProvider.value, models })
+}
+
 const handleResetBaseUrl = async () => {
   if (!activeProvider.value) return
   const result = await confirm({
@@ -559,7 +576,18 @@ const [ModelTable, modelTableActions] = useTable<Model>({
       width: '1fr',
       render: (row) => <Tags tags={[getCategoryLabel(row.category || 'text')]} color={row.category === 'text' ? 'blue' : row.category === 'embedding' ? 'green' : row.category === 'image' ? 'orange' : row.category === 'rerank' ? 'purple' : row.category === 'video' ? 'red' : 'blue'} />
     },
-    { key: 'active', label: '启用', width: '1fr', render: (row) => <Switch v-model={row.active} /> },
+    {
+      key: 'active',
+      label: '启用',
+      width: '1fr',
+      headerRender: () => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }} onClick={() => toggleAllModels(!isAllActive.value)}>
+          <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>启用</span>
+          <Switch size="sm" modelValue={isAllActive.value} />
+        </div>
+      ),
+      render: (row) => <Switch v-model={row.active} />
+    },
     {
       key: 'actions',
       label: '操作',

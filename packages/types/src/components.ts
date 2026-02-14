@@ -244,6 +244,7 @@ export interface TableColumn<T = unknown> {
   width?: string | number
   align?: 'left' | 'center' | 'right'
   headerClass?: string
+  headerRender?: () => VNode | string | number | null
   renderType?: 'html'
   render?: (row: T, index: number) => VNode | string | number | null
 }
