@@ -191,6 +191,7 @@ const { Plus, Send, X, Bulb } = useIcon(['Plus', 'Send', 'X', 'Bulb'])
 
 <style scoped>
 .floating-input-area {
+  z-index: 2;
   padding: 24px 40px 40px;
   display: flex;
   justify-content: center;
