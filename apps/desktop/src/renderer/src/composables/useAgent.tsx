@@ -132,7 +132,7 @@ export const useAgent = () => {
           topK: agent.topK ?? 40,
           presencePenalty: agent.presencePenalty ?? 0,
           frequencyPenalty: agent.frequencyPenalty ?? 0,
-          maxOutputTokens: agent.maxOutputTokens ?? 2000,
+          maxOutputTokens: agent.maxOutputTokens,
           contextCount: agent.contextCount ?? 10,
           autoCompressContext: agent.autoCompressContext ?? false,
           compressModel: agent.compressModel,
@@ -161,7 +161,6 @@ export const useAgent = () => {
           topK: 40,
           presencePenalty: 0,
           frequencyPenalty: 0,
-          maxOutputTokens: 2000,
           contextCount: 10,
           autoCompressContext: false,
           speechVoice: '',
@@ -234,7 +233,6 @@ export const useAgent = () => {
                   topK: 40,
                   presencePenalty: 0,
                   frequencyPenalty: 0,
-                  maxOutputTokens: 2000,
                   contextCount: 10
                 }
                 Object.entries(defaultParams).forEach(([key, value]) => {
