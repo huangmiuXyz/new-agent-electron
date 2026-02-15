@@ -336,7 +336,7 @@ export const chatService = () => {
       topK,
       presencePenalty,
       frequencyPenalty,
-      maxOutputTokens,
+      maxOutputTokens: maxOutputTokens || undefined,
       instructions,
       stopWhen: [
         ({ steps }) => {
