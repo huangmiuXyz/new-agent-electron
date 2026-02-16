@@ -9,11 +9,14 @@ import { useIncremark, Incremark, ThemeProvider } from '@incremark/vue'
 import { TextUIPart } from 'ai'
 import { useSettingsStore } from '../stores/settings'
 import CustomCodeBlock from './CustomCodeBlock.vue'
+import { CUSTOM_CODE_BLOCK_COMPLETED_KEY } from './customCodeBlockCompletion'
 
 const props = defineProps<{
   block: TextUIPart
   message: BaseMessage
 }>()
+const isBlockCompleted = computed(() => props.block.state === 'done')
+provide(CUSTOM_CODE_BLOCK_COMPLETED_KEY, isBlockCompleted)
 const incremarkTheme = ref<any>('default')
 const settingsStore = useSettingsStore()
 const { display } = storeToRefs(settingsStore)

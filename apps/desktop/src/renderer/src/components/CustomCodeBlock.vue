@@ -23,12 +23,13 @@
 </template>
 
 <script setup lang="ts">
-import { h, computed, ref, watch, onBeforeUnmount } from 'vue'
+import { h, computed, inject, ref, watch, onBeforeUnmount } from 'vue'
 import { common, createLowlight } from 'lowlight'
 import { toHtml } from 'hast-util-to-html'
 import { useSettingsStore } from '@renderer/stores/settings'
 import HtmlPreview from './HtmlPreview.vue'
 import { useIcon } from '@renderer/composables/useIcon'
+import { CUSTOM_CODE_BLOCK_COMPLETED_KEY } from './customCodeBlockCompletion'
 import 'highlight.js/styles/github.css'
 import 'highlight.js/styles/atom-one-dark.css'
 
@@ -48,7 +49,16 @@ const copied = ref(false)
 
 const lang = computed(() => props.lang || 'text')
 const lowerLang = computed(() => lang.value.toLowerCase())
-const isCompleted = computed(() => props.completed !== false)
+const injectedCompleted = inject(CUSTOM_CODE_BLOCK_COMPLETED_KEY, undefined)
+const isCompleted = computed(() => {
+    if (typeof props.completed === 'boolean') {
+        return props.completed
+    }
+    if (injectedCompleted) {
+        return injectedCompleted.value
+    }
+    return true
+})
 const isHtml = computed(
     () => lowerLang.value === 'html' || lowerLang.value === 'htm'
 )
@@ -92,7 +102,6 @@ function runHighlight(version: number) {
 
     try {
         const tree = lowlight.highlight(lowerLang.value, code)
-        console.log('Highlight success for', lowerLang.value)
         const html = toHtml(tree)
         highlightedCode.value = `<code class="hljs language-${lang.value}">${html}</code>`
         useHighlightedHtml.value = true
@@ -126,7 +135,6 @@ function scheduleHighlight() {
 
         runHighlight(currentVersion)
     }
-
     run()
 }
 
