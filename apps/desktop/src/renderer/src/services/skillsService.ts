@@ -7,11 +7,19 @@ export interface SkillMetadata {
   path: string
 }
 
+export interface LoadedSkill {
+  skillDirectory: string
+  content: string
+}
+
 interface SkillFrontmatter {
   name: string
   description: string
   [key: string]: any
 }
+
+const SKILL_FILE_NAME = 'SKILL.md'
+const LEGACY_PROJECT_SKILLS_DIR = 'skills'
 
 /**
  * 解析 YAML frontmatter
@@ -23,14 +31,15 @@ function parseFrontmatter(content: string): SkillFrontmatter {
   const yaml = match[1]
   const result: Record<string, any> = {}
 
-  // 简单的 YAML 解析（支持基本格式）
+  // Minimal YAML frontmatter parser for key-value fields.
   const lines = yaml.split('\n')
   for (const line of lines) {
+    if (!line.trim() || line.trim().startsWith('#')) continue
     const colonIndex = line.indexOf(':')
     if (colonIndex > 0) {
       const key = line.slice(0, colonIndex).trim()
       let value = line.slice(colonIndex + 1).trim()
-      // 去除引号
+
       if ((value.startsWith('"') && value.endsWith('"')) ||
         (value.startsWith("'") && value.endsWith("'"))) {
         value = value.slice(1, -1)
@@ -51,66 +60,55 @@ function stripFrontmatter(content: string): string {
 }
 
 /**
- * 获取技能目录路径
- * 基于当前选中智能体的终端启动路径 + /skills
+ * 获取技能目录路径列表
+ * 当前仅支持旧的智能体路径：terminalStartupPath/skills
  */
-export function getSkillsDirectory(): string | null {
+export function getSkillsDirectories(): string[] {
   const agentStore = useAgentStore()
   const selectedAgent = agentStore.selectedAgent
 
-  if (!selectedAgent?.terminalStartupPath) {
-    return null
-  }
+  if (!selectedAgent?.terminalStartupPath) return []
 
-  return window.api.path.join(selectedAgent.terminalStartupPath, 'skills')
+  return [window.api.path.join(selectedAgent.terminalStartupPath, LEGACY_PROJECT_SKILLS_DIR)]
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    const stat = window.api.fs.lstatSync(path)
+    return (stat.mode & 0o170000) === 0o040000
+  } catch {
+    return false
+  }
 }
 
 /**
  * 发现技能
- * 扫描技能目录中的所有技能（同步版本）
+ * 扫描技能目录中的所有技能（同步版本，多目录支持）
  */
-export function discoverSkills(): SkillMetadata[] {
-  const skillsDir = getSkillsDirectory()
-
-  if (!skillsDir) {
-    return []
-  }
-
+export function discoverSkills(directories: string[] = getSkillsDirectories()): SkillMetadata[] {
   const skills: SkillMetadata[] = []
   const seenNames = new Set<string>()
 
-  try {
-    // 检查目录是否存在
-    const exists = window.api.fs.existsSync(skillsDir)
-    if (!exists) {
-      return []
-    }
+  for (const skillsDir of directories) {
+    let entries: string[]
 
-    // 读取目录内容
-    const entries = window.api.fs.readdirSync(skillsDir)
+    try {
+      entries = window.api.fs.readdirSync(skillsDir)
+    } catch {
+      continue
+    }
 
     for (const entry of entries) {
       const skillDir = window.api.path.join(skillsDir, entry)
 
-      // 只处理目录 (使用 mode 位运算判断，因为 context bridge 会丢失方法)
-      let isDir = false
-      try {
-        const stat = window.api.fs.lstatSync(skillDir)
-        // S_IFDIR = 0o040000, 检查 mode 的高位
-        isDir = (stat.mode & 0o170000) === 0o040000
-      } catch {
-        continue
-      }
-      if (!isDir) continue
+      if (!isDirectory(skillDir)) continue
 
-      const skillFile = window.api.path.join(skillDir, 'SKILL.md')
+      const skillFile = window.api.path.join(skillDir, SKILL_FILE_NAME)
 
       try {
-        // 检查 SKILL.md 是否存在
         const skillFileExists = window.api.fs.existsSync(skillFile)
         if (!skillFileExists) continue
 
-        // 读取 SKILL.md 内容
         const content = window.api.fs.readFileSync(skillFile, 'utf-8')
         const frontmatter = parseFrontmatter(content)
 
@@ -119,13 +117,13 @@ export function discoverSkills(): SkillMetadata[] {
           continue
         }
 
-        // 同名技能已存在则跳过
-        if (seenNames.has(frontmatter.name)) continue
-        seenNames.add(frontmatter.name)
+        const normalizedName = frontmatter.name.trim().toLowerCase()
+        if (seenNames.has(normalizedName)) continue
+        seenNames.add(normalizedName)
 
         skills.push({
-          name: frontmatter.name,
-          description: frontmatter.description,
+          name: frontmatter.name.trim(),
+          description: frontmatter.description.trim(),
           path: skillDir
         })
       } catch (error) {
@@ -133,8 +131,6 @@ export function discoverSkills(): SkillMetadata[] {
         continue
       }
     }
-  } catch (error) {
-    console.error('Failed to discover skills:', error)
   }
 
   return skills
@@ -144,8 +140,7 @@ export function discoverSkills(): SkillMetadata[] {
  * 加载技能
  * 读取技能的完整内容
  */
-export function loadSkill(skillName: string): { skillDirectory: string; content: string } | null {
-  const skills = discoverSkills()
+export function loadSkill(skillName: string, skills: SkillMetadata[] = discoverSkills()): LoadedSkill | null {
   const skill = skills.find(s => s.name.toLowerCase() === skillName.toLowerCase())
 
   if (!skill) {
@@ -153,7 +148,7 @@ export function loadSkill(skillName: string): { skillDirectory: string; content:
   }
 
   try {
-    const skillFile = window.api.path.join(skill.path, 'SKILL.md')
+    const skillFile = window.api.path.join(skill.path, SKILL_FILE_NAME)
     const content = window.api.fs.readFileSync(skillFile, 'utf-8')
     const body = stripFrontmatter(content)
 
@@ -168,10 +163,9 @@ export function loadSkill(skillName: string): { skillDirectory: string; content:
 }
 
 /**
- * 构建技能列表描述
- * 用于 loadSkill 工具的描述中
+ * 构建技能系统提示词（文档推荐做法）
  */
-export function buildSkillsListDescription(skills: SkillMetadata[]): string {
+export function buildSkillsPrompt(skills: SkillMetadata[]): string {
   if (skills.length === 0) {
     return ''
   }
@@ -180,44 +174,55 @@ export function buildSkillsListDescription(skills: SkillMetadata[]): string {
     .map(s => `- ${s.name}: ${s.description}`)
     .join('\n')
 
-  return `\n\n可用技能列表：\n${skillsList}`
+  return [
+    '## Skills',
+    'Use the `loadSkill` tool to load a skill when the user request would benefit from specialized instructions.',
+    'After loading a skill, use `readFile` to open referenced files under the returned skill directory when needed.',
+    '',
+    'Available skills:',
+    skillsList
+  ].join('\n')
 }
 
 /**
  * 创建 loadSkill 工具定义
  */
 export function createLoadSkillTool(skills: SkillMetadata[]) {
-  const skillsListDesc = buildSkillsListDescription(skills)
-
   return {
     title: '加载技能',
-    description: `加载技能以获取专业指导和指令。当用户请求需要专业技能时，从以下列表中选择合适的技能名称并调用此工具加载。${skillsListDesc}`,
+    description: '加载技能以获取专业指导和指令。',
     inputSchema: z.object({
-      name: z.string().describe('要加载的技能名称，从可用技能列表中选择')
+      name: z.string().describe('要加载的技能名称')
     }),
     execute: async (args: unknown) => {
       const { name } = args as { name: string }
-      const result = loadSkill(name)
+      const result = loadSkill(name, skills)
 
       if (!result) {
+        const error = `技能 '${name}' 未找到。请检查技能名称是否正确。`
         return {
+          error,
           toolResult: {
             content: [
               {
                 type: 'text',
-                text: `技能 '${name}' 未找到。请检查技能名称是否正确。`
+                text: error
               }
             ]
           }
         }
       }
 
+      const resultText = `Skill directory: ${result.skillDirectory}\n\n${result.content}`
+
       return {
+        skillDirectory: result.skillDirectory,
+        content: result.content,
         toolResult: {
           content: [
             {
               type: 'text',
-              text: result.content
+              text: resultText
             }
           ]
         }

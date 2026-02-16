@@ -1,13 +1,12 @@
 import { z } from 'zod'
 import ImageRender from './components/ImageRender.vue'
 import { createRegistry } from '@renderer/services/chatService/registry'
-import { discoverSkills, createLoadSkillTool } from '../skillsService'
+import { discoverSkills, createLoadSkillTool, type SkillMetadata } from '../skillsService'
 
-export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tools => {
+export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[]; skills?: SkillMetadata[] }): Tools => {
   const { pluginLoader } = usePlugins()
   const manager = pluginLoader.getPluginManager()
-  // 发现可用技能
-  const skills = discoverSkills()
+  const skills = options?.skills ?? discoverSkills()
 
   return ({
     calculator: {
@@ -421,6 +420,84 @@ export const getBuiltinTools = (options?: { knowledgeBaseIds?: string[] }): Tool
                 text: uniqueResults.map((r) => r.content).join('\n\n')
               }
             ]
+          }
+        }
+      }
+    },
+    readFile: {
+      title: '读取文件',
+      description: '读取本地文件内容，适用于读取技能目录中的 references、scripts 配置或模板文件',
+      inputSchema: z.object({
+        path: z.string().describe('要读取的文件路径，建议传入绝对路径'),
+        encoding: z.enum(['utf-8']).optional().default('utf-8').describe('文件编码，默认 utf-8')
+      }),
+      execute: async (args: unknown) => {
+        const params = args as Record<string, any>
+        const filePath = params.path as string
+
+        if (!filePath) {
+          return {
+            toolResult: {
+              content: [
+                {
+                  type: 'text',
+                  text: '读取文件失败：path 不能为空'
+                }
+              ]
+            }
+          }
+        }
+
+        try {
+          if (!window.api.fs.existsSync(filePath)) {
+            return {
+              toolResult: {
+                content: [
+                  {
+                    type: 'text',
+                    text: `读取文件失败：文件不存在 ${filePath}`
+                  }
+                ]
+              }
+            }
+          }
+
+          const stat = window.api.fs.lstatSync(filePath)
+          const isDir = (stat.mode & 0o170000) === 0o040000
+          if (isDir) {
+            return {
+              toolResult: {
+                content: [
+                  {
+                    type: 'text',
+                    text: `读取文件失败：目标是目录而非文件 ${filePath}`
+                  }
+                ]
+              }
+            }
+          }
+
+          const content = window.api.fs.readFileSync(filePath, 'utf-8')
+          return {
+            toolResult: {
+              content: [
+                {
+                  type: 'text',
+                  text: content
+                }
+              ]
+            }
+          }
+        } catch (error) {
+          return {
+            toolResult: {
+              content: [
+                {
+                  type: 'text',
+                  text: `读取文件失败: ${(error as Error).message}`
+                }
+              ]
+            }
           }
         }
       }

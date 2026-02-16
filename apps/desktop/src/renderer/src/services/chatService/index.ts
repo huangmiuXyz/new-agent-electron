@@ -11,6 +11,7 @@ import {
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
+import { buildSkillsPrompt, discoverSkills } from '../skillsService'
 import { createRagMiddleware } from './middleware/rags'
 import { createContextLimitMiddleware } from './middleware/contextLimit'
 import { createCompressContextMiddleware } from './middleware/compressContext'
@@ -262,7 +263,11 @@ export const chatService = () => {
 
     let tools: Tools = {}
 
-    const builtinTools = getBuiltinTools({ knowledgeBaseIds })
+    const hasLoadSkillTool = !!selectedBuiltinTools?.includes('loadSkill')
+    const skills = hasLoadSkillTool ? discoverSkills() : []
+    const builtinTools = getBuiltinTools({ knowledgeBaseIds, skills })
+    const skillsPrompt = hasLoadSkillTool ? buildSkillsPrompt(skills) : ''
+    const agentInstructions = [instructions?.trim(), skillsPrompt].filter(Boolean).join('\n\n') || undefined
 
     if (selectedBuiltinTools && selectedBuiltinTools.length > 0) {
       selectedBuiltinTools.forEach((toolKey) => {
@@ -337,7 +342,7 @@ export const chatService = () => {
       presencePenalty,
       frequencyPenalty,
       maxOutputTokens: maxOutputTokens || undefined,
-      instructions,
+      instructions: agentInstructions,
       stopWhen: [
         ({ steps }) => {
           return (
