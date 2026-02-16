@@ -27,30 +27,59 @@ const isChecked = (value: string) => {
     return modelValue.value.includes(value)
 }
 
+const groupedOptions = computed(() => {
+    const groupMap = new Map<string, CheckboxOption[]>()
+    const ungrouped: CheckboxOption[] = []
+
+    for (const option of props.options) {
+        if (option.group && option.group.trim()) {
+            const key = option.group.trim()
+            const list = groupMap.get(key) || []
+            list.push(option)
+            groupMap.set(key, list)
+        } else {
+            ungrouped.push(option)
+        }
+    }
+
+    const groups = Array.from(groupMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b, 'zh-Hans-CN'))
+        .map(([name, options]) => ({ name, options }))
+
+    if (ungrouped.length > 0) {
+        groups.unshift({ name: '', options: ungrouped })
+    }
+
+    return groups
+})
+
 const checkIcon = useIcon('Check')
 </script>
 
 <template>
     <div class="checkbox-group">
-        <div v-for="option in options" :key="option.value" class="checkbox-item"
-            :class="{ disabled, checked: isChecked(option.value) }" @click="toggleOption(option.value)">
-            <div class="checkbox">
-                <div class="checkbox-box">
-                    <checkIcon v-if="isChecked(option.value)" />
+        <template v-for="group in groupedOptions" :key="group.name || '__ungrouped__'">
+            <div v-if="group.name" class="checkbox-group-title">{{ group.name }}</div>
+            <div v-for="option in group.options" :key="option.value" class="checkbox-item"
+                :class="{ disabled, checked: isChecked(option.value) }" @click="toggleOption(option.value)">
+                <div class="checkbox">
+                    <div class="checkbox-box">
+                        <checkIcon v-if="isChecked(option.value)" />
+                    </div>
                 </div>
-            </div>
-            <div class="checkbox-content">
-                <div v-if="option.image" class="checkbox-image">
-                    <Image :src="option.image" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />
-                </div>
-                <div class="checkbox-text">
-                    <div class="checkbox-label">{{ option.label }}</div>
-                    <div v-if="option.description" class="checkbox-description">
-                        {{ option.description }}
+                <div class="checkbox-content">
+                    <div v-if="option.image" class="checkbox-image">
+                        <Image :src="option.image" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />
+                    </div>
+                    <div class="checkbox-text">
+                        <div class="checkbox-label">{{ option.label }}</div>
+                        <div v-if="option.description" class="checkbox-description">
+                            {{ option.description }}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </template>
         <div v-if="options.length === 0" class="empty-message">暂无可用选项</div>
     </div>
 </template>
@@ -72,6 +101,14 @@ const checkIcon = useIcon('Check')
     cursor: pointer;
     transition: all 0.2s;
     background: var(--bg-card);
+}
+
+.checkbox-group-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    margin-bottom: 2px;
 }
 
 .checkbox-item:hover:not(.disabled) {

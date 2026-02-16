@@ -15,11 +15,23 @@ export const useAgent = () => {
 
   const getBuiltinToolOptions = () => {
     const tools = getBuiltinTools()
-    return Object.entries(tools).map(([key, tool]: [string, Tool]) => ({
-      label: tool.title!,
-      value: key,
-      description: tool.description
-    }))
+    const grouped = getBuiltinToolGroups()
+    const groupByTool = new Map<string, string>()
+    Object.entries(grouped).forEach(([group, toolKeys]) => {
+      toolKeys.forEach((toolKey) => groupByTool.set(toolKey, group))
+    })
+
+    return Object.entries(tools)
+      .map(([key, tool]: [string, Tool]) => ({
+        label: tool.title || key,
+        value: key,
+        description: tool.description,
+        group: groupByTool.get(key) || '其他工具'
+      }))
+      .sort((a, b) => {
+        if (a.group !== b.group) return a.group.localeCompare(b.group, 'zh-Hans-CN')
+        return a.label.localeCompare(b.label, 'zh-Hans-CN')
+      })
   }
 
   const getKnowledgeBaseOptions = () => {
@@ -74,22 +86,28 @@ export const useAgent = () => {
   }
 
   const getAllToolOptions = (selectedMcpServers: string[]) => {
-    const toolOptions: { label: string; value: string; description?: string }[] = []
+    const toolOptions: { label: string; value: string; description?: string; group?: string }[] = []
 
     selectedMcpServers.forEach((serverName) => {
       const server = mcpServers.value[serverName]
       if (server && server.tools && Object.keys(server.tools).length > 0) {
         Object.entries(server.tools).forEach(([toolName, tool]: [string, Tool]) => {
           toolOptions.push({
-            label: `${serverName}.${toolName}`,
+            label: toolName,
             value: `${serverName}.${toolName}`,
-            description: tool.description || ''
+            description: tool.description || '',
+            group: serverName
           })
         })
       }
     })
 
-    return toolOptions
+    return toolOptions.sort((a, b) => {
+      const ag = a.group || ''
+      const bg = b.group || ''
+      if (ag !== bg) return ag.localeCompare(bg, 'zh-Hans-CN')
+      return a.label.localeCompare(b.label, 'zh-Hans-CN')
+    })
   }
 
   const openAgentModal = async (agent?: Agent) => {

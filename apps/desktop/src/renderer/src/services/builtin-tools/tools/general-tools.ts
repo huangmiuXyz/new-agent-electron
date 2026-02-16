@@ -1,18 +1,4 @@
 import { z } from 'zod'
-import { useAgentStore } from '@renderer/stores/agent'
-
-const resolvePath = (rawPath: string): string => {
-  const inputPath = rawPath.trim()
-  if (window.api.path.isAbsolute(inputPath)) {
-    return window.api.path.normalize(inputPath)
-  }
-  const agentStore = useAgentStore()
-  const baseDir = agentStore.selectedAgent?.terminalStartupPath
-  if (!baseDir) {
-    throw new Error('无法解析相对路径：未设置 terminalStartupPath')
-  }
-  return window.api.path.resolve(baseDir, inputPath)
-}
 
 export const getGeneralBuiltinTools = (): Partial<Tools> => ({
   calculator: {
@@ -88,78 +74,6 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
         toolResult: {
           content: [{ type: 'text', text: '<|stop|>' }]
         }
-      }
-    }
-  },
-  readFile: {
-    title: '读取文件',
-    description: '读取本地文件内容',
-    inputSchema: z.object({
-      path: z.string().describe('要读取的文件路径，支持相对路径（基于 terminalStartupPath）或绝对路径'),
-      encoding: z.enum(['utf-8']).optional().default('utf-8').describe('文件编码，默认 utf-8')
-    }),
-    execute: async (args: unknown) => {
-      const params = args as Record<string, any>
-      const rawPath = params.path as string
-
-      if (!rawPath) {
-        return { toolResult: { content: [{ type: 'text', text: '读取文件失败：path 不能为空' }] } }
-      }
-
-      try {
-        const filePath = resolvePath(rawPath)
-        if (!window.api.fs.existsSync(filePath)) {
-          return {
-            toolResult: {
-              content: [{ type: 'text', text: `读取文件失败：文件不存在 ${filePath}` }]
-            }
-          }
-        }
-        const stat = window.api.fs.lstatSync(filePath)
-        const isDir = (stat.mode & 0o170000) === 0o040000
-        if (isDir) {
-          return {
-            toolResult: {
-              content: [{ type: 'text', text: `读取文件失败：目标是目录而非文件 ${filePath}` }]
-            }
-          }
-        }
-        const content = window.api.fs.readFileSync(filePath, 'utf-8')
-        return { toolResult: { content: [{ type: 'text', text: content }] } }
-      } catch (error) {
-        return {
-          toolResult: {
-            content: [{ type: 'text', text: `读取文件失败: ${(error as Error).message}` }]
-          }
-        }
-      }
-    }
-  },
-  exec_command: {
-    title: '执行cmd命令',
-    description: '执行cmd命令',
-    inputSchema: z.object({
-      command: z.string().describe('要执行的命令'),
-      id: z
-        .string()
-        .optional()
-        .describe('终端ID，默认创建新终端，创建新终端后才可以获得，用户无法提供')
-    }),
-    needsApproval: true,
-    execute: async (args: any, options: any) => {
-      const { command, id } = args
-      const { createTab } = useTerminal()
-      const encodedCommand = btoa(String.fromCharCode(...new TextEncoder().encode(command)))
-      const wrappedCommand = `cmd_file="/tmp/agentqi_$(date +%s)_$RANDOM" && echo "${encodedCommand}" | base64 -d > "$cmd_file" && bash "$cmd_file"; rm -f "$cmd_file"`
-
-      const { id: tabId, result } = await createTab({
-        command: wrappedCommand,
-        id,
-        toolCallId: options.toolCallId,
-        showTerminal: true
-      })
-      return {
-        toolResult: { content: [{ type: 'stdout', text: `终端ID: ${tabId}\n${result!.output}` }] }
       }
     }
   }

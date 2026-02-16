@@ -12,6 +12,45 @@ const getKnowledgeBaseName = (kbId: string) => {
   const kb = knowledgeBases.value.find((k) => k.id === kbId)
   return kb ? kb.name : kbId
 }
+
+const getGroupedMcpTools = (tools: string[] | undefined) => {
+  const validTools = getValidTools(tools)
+  const groups: Record<string, string[]> = {}
+  validTools.forEach((toolId) => {
+    const [serverName, toolName] = toolId.split('.')
+    if (!serverName || !toolName) return
+    if (!groups[serverName]) groups[serverName] = []
+    groups[serverName].push(toolName)
+  })
+  return Object.entries(groups).map(([group, items]) => ({
+    group,
+    items: items.sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+  }))
+}
+
+const getGroupedBuiltinTools = (toolIds: string[] | undefined) => {
+  const ids = toolIds || []
+  if (ids.length === 0) return []
+  const toolGroups = getBuiltinToolGroups()
+  const toolDefs = getBuiltinTools()
+  const groupByTool = new Map<string, string>()
+  Object.entries(toolGroups).forEach(([group, keys]) => {
+    keys.forEach((key) => groupByTool.set(key, group))
+  })
+  const groups: Record<string, string[]> = {}
+
+  ids.forEach((toolId) => {
+    const group = groupByTool.get(toolId) || '其他工具'
+    const label = toolDefs[toolId]?.title || toolId
+    if (!groups[group]) groups[group] = []
+    groups[group].push(label)
+  })
+
+  return Object.entries(groups).map(([group, items]) => ({
+    group,
+    items: items.sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+  }))
+}
 </script>
 
 <template>
@@ -75,15 +114,29 @@ const getKnowledgeBaseName = (kbId: string) => {
 
               <div v-if="getValidTools(agent.tools).length > 0" class="tools-list">
                 <div class="tools-list-label">工具:</div>
-                <div class="tools-tags">
-                  <span v-for="tool in getValidTools(agent.tools)" :key="tool" class="tool-tag">
-                    {{ tool }}
-                  </span>
+                <div class="tool-groups">
+                  <div v-for="group in getGroupedMcpTools(agent.tools)" :key="group.group" class="tool-group">
+                    <div class="tool-group-name">{{ group.group }}</div>
+                    <div class="tools-tags">
+                      <span v-for="tool in group.items" :key="`${group.group}.${tool}`" class="tool-tag">
+                        {{ tool }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div v-if="agent.builtinTools && agent.builtinTools.length > 0" class="tools-list">
                 <div class="tools-list-label">内置工具:</div>
-                <Tags color='orange' :tags="agent.builtinTools" />
+                <div class="tool-groups">
+                  <div v-for="group in getGroupedBuiltinTools(agent.builtinTools)" :key="group.group" class="tool-group">
+                    <div class="tool-group-name">{{ group.group }}</div>
+                    <div class="tools-tags">
+                      <span v-for="tool in group.items" :key="`${group.group}.${tool}`" class="tool-tag builtin">
+                        {{ tool }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div v-if="agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0" class="knowledge-list">
                 <div class="knowledge-list-label">关联知识库:</div>
@@ -318,6 +371,23 @@ const getKnowledgeBaseName = (kbId: string) => {
   gap: 6px;
 }
 
+.tool-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tool-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-group-name {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
 .tool-tag {
   font-size: 10px;
   background: var(--bg-active);
@@ -329,6 +399,11 @@ const getKnowledgeBaseName = (kbId: string) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tool-tag.builtin {
+  color: var(--color-warning);
+  border-color: rgba(var(--color-warning-rgb, 249, 115, 22), 0.35);
 }
 
 .tool-more {

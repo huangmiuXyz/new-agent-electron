@@ -1,8 +1,417 @@
 import { z } from 'zod'
+import ignore from 'ignore'
 import ApplyPatchRender from '../components/ApplyPatchRender.vue'
 import { applyPatchActions, runParallelExec, validateReadOnlyCommand } from './codex-utils'
 
+const resolvePath = (rawPath: string): string => {
+  const baseDir = useAgentStore().selectedAgent?.terminalStartupPath
+  if (!baseDir) {
+    throw new Error('未设置 terminalStartupPath，已禁止回退路径解析')
+  }
+  const normalizedBaseDir = window.api.path.resolve(window.api.path.normalize(baseDir))
+  const inputPath = rawPath.trim()
+  const resolvedPath = window.api.path.isAbsolute(inputPath)
+    ? window.api.path.resolve(window.api.path.normalize(inputPath))
+    : window.api.path.resolve(normalizedBaseDir, inputPath)
+
+  const relativePath = window.api.path.relative(normalizedBaseDir, resolvedPath)
+  const isInsideBaseDir =
+    relativePath === '' || (!relativePath.startsWith('..') && !window.api.path.isAbsolute(relativePath))
+
+  if (!isInsideBaseDir) {
+    throw new Error(`路径越界：仅允许访问 terminalStartupPath 内文件 (${normalizedBaseDir})`)
+  }
+
+  return resolvedPath
+}
+
+const DEFAULT_EXCLUDE_DIRS = ['node_modules', '.git', 'dist', 'build', 'out', '.turbo']
+const MAX_FILE_SIZE_BYTES = 1024 * 1024
+
+const isProbablyBinary = (content: string): boolean => content.includes('\u0000')
+
+const formatContextPreview = (
+  lines: string[],
+  lineIndex: number,
+  contextLines: number,
+  highlightStart: number,
+  highlightEnd: number
+): string => {
+  const start = Math.max(0, lineIndex - contextLines)
+  const end = Math.min(lines.length - 1, lineIndex + contextLines)
+  const rendered: string[] = []
+
+  for (let i = start; i <= end; i += 1) {
+    const lineNo = i + 1
+    const raw = lines[i] ?? ''
+    const tagged =
+      i === lineIndex
+        ? `${raw.slice(0, highlightStart)}[[${raw.slice(highlightStart, highlightEnd)}]]${raw.slice(highlightEnd)}`
+        : raw
+    rendered.push(`${lineNo} | ${tagged}`)
+  }
+
+  return rendered.join('\n')
+}
+
+type MatchResult = {
+  filePath: string
+  line: number
+  column: number
+  preview: string
+}
+
+const searchInFile = (options: {
+  content: string
+  filePath: string
+  query: string
+  mode: 'substring' | 'regex'
+  caseSensitive: boolean
+  contextLines: number
+  maxResults: number
+  currentResultCount: number
+}): MatchResult[] => {
+  const {
+    content,
+    filePath,
+    query,
+    mode,
+    caseSensitive,
+    contextLines,
+    maxResults,
+    currentResultCount
+  } = options
+  const lines = content.split(/\r?\n/)
+  const matches: MatchResult[] = []
+
+  if (mode === 'regex') {
+    let regex: RegExp
+    try {
+      regex = new RegExp(query, caseSensitive ? 'g' : 'gi')
+    } catch (error) {
+      throw new Error(`正则表达式无效: ${(error as Error).message}`)
+    }
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i] ?? ''
+      regex.lastIndex = 0
+      let match = regex.exec(line)
+      while (match) {
+        const start = match.index
+        const end = start + (match[0]?.length ?? 0)
+        matches.push({
+          filePath,
+          line: i + 1,
+          column: start + 1,
+          preview: formatContextPreview(lines, i, contextLines, start, end)
+        })
+        if (currentResultCount + matches.length >= maxResults) {
+          return matches
+        }
+        if (match[0] === '') {
+          regex.lastIndex += 1
+        }
+        match = regex.exec(line)
+      }
+    }
+    return matches
+  }
+
+  const needle = caseSensitive ? query : query.toLowerCase()
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? ''
+    const haystack = caseSensitive ? line : line.toLowerCase()
+    let from = 0
+    while (true) {
+      const found = haystack.indexOf(needle, from)
+      if (found === -1) break
+      matches.push({
+        filePath,
+        line: i + 1,
+        column: found + 1,
+        preview: formatContextPreview(lines, i, contextLines, found, found + needle.length)
+      })
+      if (currentResultCount + matches.length >= maxResults) {
+        return matches
+      }
+      from = found + Math.max(needle.length, 1)
+    }
+  }
+  return matches
+}
+
+const walkSearchFiles = (rootDir: string, excludeDirs: string[], extensions?: string[]): string[] => {
+  const ig = ignore()
+  const gitignorePath = window.api.path.join(rootDir, '.gitignore')
+  if (window.api.fs.existsSync(gitignorePath)) {
+    try {
+      ig.add(window.api.fs.readFileSync(gitignorePath, 'utf-8'))
+    } catch {
+      // ignore read errors
+    }
+  }
+
+  const queue = [rootDir]
+  const files: string[] = []
+  const normalizedExts = extensions?.map((ext) =>
+    ext.startsWith('.') ? ext.toLowerCase() : `.${ext.toLowerCase()}`
+  )
+
+  while (queue.length > 0) {
+    const currentDir = queue.pop()!
+    let entries: any[] = []
+    try {
+      entries = window.api.fs.readdirSync(currentDir, { withFileTypes: true }) as any[]
+    } catch {
+      continue
+    }
+
+    for (const entry of entries) {
+      const fullPath = window.api.path.join(currentDir, entry.name)
+      const relativePath = window.api.path.relative(rootDir, fullPath).replaceAll('\\', '/')
+      if (relativePath && (ig.ignores(relativePath) || ig.ignores(`${relativePath}/`))) continue
+
+      if (entry.isDirectory?.()) {
+        if (!excludeDirs.includes(entry.name)) {
+          queue.push(fullPath)
+        }
+        continue
+      }
+      if (!entry.isFile?.()) continue
+      if (normalizedExts && normalizedExts.length > 0) {
+        const ext = window.api.path.extname(entry.name).toLowerCase()
+        if (!normalizedExts.includes(ext)) continue
+      }
+      files.push(fullPath)
+    }
+  }
+
+  return files
+}
+
 export const getCodexBuiltinTools = (): Partial<Tools> => ({
+  readFile: {
+    title: '读取文件',
+    description: '读取本地文件内容',
+    inputSchema: z.object({
+      path: z.string().describe('要读取的文件路径，支持相对路径（基于 terminalStartupPath）或绝对路径'),
+      encoding: z.enum(['utf-8']).optional().default('utf-8').describe('文件编码，默认 utf-8')
+    }),
+    execute: async (args: unknown) => {
+      const params = args as Record<string, any>
+      const rawPath = params.path as string
+
+      if (!rawPath) {
+        return { toolResult: { content: [{ type: 'text', text: '读取文件失败：path 不能为空' }] } }
+      }
+
+      try {
+        const filePath = resolvePath(rawPath)
+        if (!window.api.fs.existsSync(filePath)) {
+          return {
+            toolResult: {
+              content: [{ type: 'text', text: `读取文件失败：文件不存在 ${filePath}` }]
+            }
+          }
+        }
+        const stat = window.api.fs.lstatSync(filePath)
+        const isDir = (stat.mode & 0o170000) === 0o040000
+        if (isDir) {
+          return {
+            toolResult: {
+              content: [{ type: 'text', text: `读取文件失败：目标是目录而非文件 ${filePath}` }]
+            }
+          }
+        }
+        const content = window.api.fs.readFileSync(filePath, 'utf-8')
+        return { toolResult: { content: [{ type: 'text', text: content }] } }
+      } catch (error) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: `读取文件失败: ${(error as Error).message}` }]
+          }
+        }
+      }
+    }
+  },
+  search_project: {
+    title: '项目全局搜索',
+    description: '在项目目录中按关键词进行全局搜索，支持正则、扩展名过滤、排除目录和上下文预览',
+    inputSchema: z.object({
+      query: z.string().describe('要搜索的关键词或正则表达式'),
+      path: z
+        .string()
+        .optional()
+        .default('.')
+        .describe('搜索根目录，支持相对路径（基于 terminalStartupPath）或绝对路径'),
+      mode: z
+        .enum(['substring', 'regex'])
+        .optional()
+        .default('substring')
+        .describe('匹配模式：substring 为普通关键词，regex 为正则表达式'),
+      caseSensitive: z.boolean().optional().default(false).describe('是否区分大小写，默认 false'),
+      extensions: z
+        .array(z.string())
+        .optional()
+        .describe('可选扩展名过滤，如 [".ts", ".vue", ".md"]；不传表示搜索全部文件'),
+      excludeDirs: z
+        .array(z.string())
+        .optional()
+        .default(DEFAULT_EXCLUDE_DIRS)
+        .describe(`排除目录名，默认 ${DEFAULT_EXCLUDE_DIRS.join(', ')}`),
+      contextLines: z
+        .number()
+        .int()
+        .min(0)
+        .max(5)
+        .optional()
+        .default(1)
+        .describe('每条匹配前后展示的上下文行数，范围 0-5，默认 1'),
+      maxResults: z
+        .number()
+        .int()
+        .min(1)
+        .max(200)
+        .optional()
+        .default(50)
+        .describe('最大返回条数，范围 1-200，默认 50')
+    }),
+    execute: async (args: unknown) => {
+      const params = args as Record<string, any>
+      const query = String(params.query || '').trim()
+      if (!query) {
+        return { toolResult: { content: [{ type: 'text', text: '搜索失败：query 不能为空' }] } }
+      }
+
+      try {
+        const rootDir = resolvePath(String(params.path || '.'))
+        if (!window.api.fs.existsSync(rootDir)) {
+          return {
+            toolResult: { content: [{ type: 'text', text: `搜索失败：目录不存在 ${rootDir}` }] }
+          }
+        }
+
+        const stat = window.api.fs.lstatSync(rootDir)
+        const isDir = (stat.mode & 0o170000) === 0o040000
+        if (!isDir) {
+          return {
+            toolResult: { content: [{ type: 'text', text: `搜索失败：路径不是目录 ${rootDir}` }] }
+          }
+        }
+
+        const mode = params.mode === 'regex' ? 'regex' : 'substring'
+        const caseSensitive = Boolean(params.caseSensitive)
+        const extensions = Array.isArray(params.extensions)
+          ? params.extensions.filter((ext: unknown) => typeof ext === 'string' && ext.trim().length > 0)
+          : undefined
+        const excludeDirs = Array.isArray(params.excludeDirs)
+          ? params.excludeDirs.filter((dir: unknown) => typeof dir === 'string' && dir.trim().length > 0)
+          : DEFAULT_EXCLUDE_DIRS
+        const contextLines =
+          typeof params.contextLines === 'number' ? Math.max(0, Math.min(5, params.contextLines)) : 1
+        const maxResults =
+          typeof params.maxResults === 'number' ? Math.max(1, Math.min(200, params.maxResults)) : 50
+
+        const files = walkSearchFiles(rootDir, excludeDirs, extensions)
+        const results: MatchResult[] = []
+
+        for (const filePath of files) {
+          if (results.length >= maxResults) break
+          try {
+            const fileStat = window.api.fs.lstatSync(filePath)
+            if (fileStat.size > MAX_FILE_SIZE_BYTES) continue
+            const content = window.api.fs.readFileSync(filePath, 'utf-8')
+            if (isProbablyBinary(content)) continue
+
+            const matches = searchInFile({
+              content,
+              filePath,
+              query,
+              mode,
+              caseSensitive,
+              contextLines,
+              maxResults,
+              currentResultCount: results.length
+            })
+            results.push(...matches)
+          } catch {
+            continue
+          }
+        }
+
+        if (results.length === 0) {
+          return {
+            toolResult: {
+              content: [
+                {
+                  type: 'text',
+                  text:
+                    `未找到匹配结果\nquery: ${query}\npath: ${rootDir}\n` +
+                    `excludeDirs: ${excludeDirs.join(', ')}\n扫描文件数: ${files.length}`
+                }
+              ]
+            }
+          }
+        }
+
+        const output = results
+          .slice(0, maxResults)
+          .map((item, index) => {
+            const relativePath = window.api.path.relative(rootDir, item.filePath) || '.'
+            return `#${index + 1} ${relativePath}:${item.line}:${item.column}\n${item.preview}`
+          })
+          .join('\n\n')
+
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text:
+                  `搜索完成：找到 ${Math.min(results.length, maxResults)} 条结果` +
+                  `${results.length >= maxResults ? `（已截断到 ${maxResults} 条）` : ''}\n` +
+                  `query: ${query}\npath: ${rootDir}\n` +
+                  `excludeDirs: ${excludeDirs.join(', ')}\n扫描文件数: ${files.length}\n\n${output}`
+              }
+            ]
+          }
+        }
+      } catch (error) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: `搜索失败: ${(error as Error).message}` }]
+          }
+        }
+      }
+    }
+  },
+  exec_command: {
+    title: '执行cmd命令',
+    description: '执行cmd命令',
+    inputSchema: z.object({
+      command: z.string().describe('要执行的命令'),
+      id: z
+        .string()
+        .optional()
+        .describe('终端ID，默认创建新终端，创建新终端后才可以获得，用户无法提供')
+    }),
+    needsApproval: true,
+    execute: async (args: any, options: any) => {
+      const { command, id } = args
+      const { createTab } = useTerminal()
+      const encodedCommand = btoa(String.fromCharCode(...new TextEncoder().encode(command)))
+      const wrappedCommand = `cmd_file="/tmp/agentqi_$(date +%s)_$RANDOM" && echo "${encodedCommand}" | base64 -d > "$cmd_file" && bash "$cmd_file"; rm -f "$cmd_file"`
+
+      const { id: tabId, result } = await createTab({
+        command: wrappedCommand,
+        id,
+        toolCallId: options.toolCallId,
+        showTerminal: true
+      })
+      return {
+        toolResult: { content: [{ type: 'stdout', text: `终端ID: ${tabId}\n${result!.output}` }] }
+      }
+    }
+  },
   apply_patch: {
     title: 'apply_patch',
     description:
@@ -29,16 +438,13 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
       }
 
-      const baseDir =
-        useAgentStore().selectedAgent!.terminalStartupPath!
+      const baseDir = useAgentStore().selectedAgent!.terminalStartupPath!
       try {
         const summaries = applyPatchActions(patchText, baseDir)
         return {
           summaries,
           toolResult: {
-            content: [
-              { type: 'text', text: `Patch applied successfully.\n${summaries.join('\n')}` }
-            ]
+            content: [{ type: 'text', text: `Patch applied successfully.\n${summaries.join('\n')}` }]
           }
         }
       } catch (error) {
