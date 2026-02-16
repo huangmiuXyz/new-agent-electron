@@ -15,12 +15,15 @@
             </div>
         </div>
 
-        <pre class="code-content" v-html="highlightedCode"></pre>
+        <pre v-if="useHighlightedHtml" class="code-content" v-html="highlightedCode"></pre>
+        <pre v-else class="code-content">
+            <code class="hljs" :class="`language-${lang}`" v-text="plainCode"></code>
+        </pre>
     </div>
 </template>
 
 <script setup lang="ts">
-import { h, computed, ref } from 'vue'
+import { h, computed, ref, watch, onBeforeUnmount } from 'vue'
 import { common, createLowlight } from 'lowlight'
 import { toHtml } from 'hast-util-to-html'
 import { useSettingsStore } from '@renderer/stores/settings'
@@ -37,27 +40,102 @@ const Globe = useIcon('Globe')
 const props = defineProps<{
     codeStr: string
     lang?: string
+    completed?: boolean
+    takeOver?: boolean
 }>()
 
 const copied = ref(false)
 
 const lang = computed(() => props.lang || 'text')
 const lowerLang = computed(() => lang.value.toLowerCase())
+const isCompleted = computed(() => props.completed !== false)
 const isHtml = computed(
     () => lowerLang.value === 'html' || lowerLang.value === 'htm'
 )
 
-const highlightedCode = computed(() => {
-    try {
-        const tree = lowlight.highlight(lowerLang.value, props.codeStr)
-        const html = toHtml(tree)
-        return `<code class="hljs language-${lang.value}">${html}</code>`
-    } catch {
-        return `<code class="hljs">${props.codeStr
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')}</code>`
+const HIGHLIGHT_MAX_LENGTH = 30000
+
+const highlightedCode = ref('')
+const plainCode = ref('')
+const useHighlightedHtml = ref(false)
+
+let highlightTimer: ReturnType<typeof setTimeout> | null = null
+let idleCallbackId: number | null = null
+let renderVersion = 0
+
+function setPlainCode(code: string) {
+    plainCode.value = code
+    useHighlightedHtml.value = false
+}
+
+function clearHighlightTasks() {
+    if (highlightTimer) {
+        clearTimeout(highlightTimer)
+        highlightTimer = null
     }
+    if (idleCallbackId !== null) {
+        cancelIdleCallback(idleCallbackId)
+        idleCallbackId = null
+    }
+}
+
+function runHighlight(version: number) {
+    if (version !== renderVersion) {
+        return
+    }
+
+    const code = props.codeStr
+    if (!code || code.length > HIGHLIGHT_MAX_LENGTH) {
+        setPlainCode(code || '')
+        return
+    }
+
+    try {
+        const tree = lowlight.highlight(lowerLang.value, code)
+        console.log('Highlight success for', lowerLang.value)
+        const html = toHtml(tree)
+        highlightedCode.value = `<code class="hljs language-${lang.value}">${html}</code>`
+        useHighlightedHtml.value = true
+    } catch (e) {
+        console.error('Highlight error:', e)
+        setPlainCode(code)
+    }
+}
+
+function scheduleHighlight() {
+    clearHighlightTasks()
+    renderVersion += 1
+    const currentVersion = renderVersion
+    const code = props.codeStr || ''
+
+    // Keep streaming lightweight; only upgrade to highlighted HTML after completion.
+    setPlainCode(code)
+
+    if (!isCompleted.value || !code || code.length > HIGHLIGHT_MAX_LENGTH) {
+        return
+    }
+
+    const run = () => {
+        if (typeof requestIdleCallback === 'function') {
+            idleCallbackId = requestIdleCallback(() => {
+                idleCallbackId = null
+                runHighlight(currentVersion)
+            })
+            return
+        }
+
+        runHighlight(currentVersion)
+    }
+
+    run()
+}
+
+watch([() => props.codeStr, () => lowerLang.value, () => isCompleted.value], () => {
+    scheduleHighlight()
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+    clearHighlightTasks()
 })
 
 async function showPreviewModal() {

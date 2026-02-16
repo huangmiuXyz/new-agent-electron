@@ -165,8 +165,12 @@ export const useChat = (chatId: string) => {
         const lastMsg = chat.lastMessage
         if (!lastMsg) return
 
+        // Keep parts immutable when syncing to Pinia so nested text updates stay reactive in children.
+        const nextParts = lastMsg.parts?.map((part) => ({ ...part }))
+
         const msgToUpdate = {
           ...lastMsg,
+          parts: nextParts,
           metadata: { ...lastMsg.metadata, error }
         }
 

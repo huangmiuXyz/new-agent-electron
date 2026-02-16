@@ -81,13 +81,18 @@ const retry = () => {
   const { regenerate } = useChat(currentChat.value!.id!)
   regenerate(props.message.id!)
 }
+
+const getBlockKey = (block: BaseMessage['parts'][number], idx: number) => {
+  const blockId = (block as { id?: string }).id
+  return blockId ? `${block.type}:${blockId}` : `${block.type}:${idx}`
+}
 </script>
 
 <template>
   <div>
     <div v-if="!isEditing" class="msg-bubble">
       <div class="blocks-container">
-        <div v-for="(block, idx) in message.parts" :key="idx" class="view-block">
+        <div v-for="(block, idx) in message.parts" :key="getBlockKey(block, idx)" class="view-block">
           <div v-if="block.type === 'text'" class="text-block" :style="contentStyle">
             <Markdown v-if="markdown && block.text" :block="block" :message="message" />
             <template v-else>
