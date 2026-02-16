@@ -1,4 +1,18 @@
 import { z } from 'zod'
+import { useAgentStore } from '@renderer/stores/agent'
+
+const resolvePath = (rawPath: string): string => {
+  const inputPath = rawPath.trim()
+  if (window.api.path.isAbsolute(inputPath)) {
+    return window.api.path.normalize(inputPath)
+  }
+  const agentStore = useAgentStore()
+  const baseDir = agentStore.selectedAgent?.terminalStartupPath
+  if (!baseDir) {
+    throw new Error('无法解析相对路径：未设置 terminalStartupPath')
+  }
+  return window.api.path.resolve(baseDir, inputPath)
+}
 
 export const getGeneralBuiltinTools = (): Partial<Tools> => ({
   calculator: {
@@ -79,20 +93,21 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
   },
   readFile: {
     title: '读取文件',
-    description: '读取本地文件内容，适用于读取技能目录中的 references、scripts 配置或模板文件',
+    description: '读取本地文件内容',
     inputSchema: z.object({
-      path: z.string().describe('要读取的文件路径，建议传入绝对路径'),
+      path: z.string().describe('要读取的文件路径，支持相对路径（基于 terminalStartupPath）或绝对路径'),
       encoding: z.enum(['utf-8']).optional().default('utf-8').describe('文件编码，默认 utf-8')
     }),
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
-      const filePath = params.path as string
+      const rawPath = params.path as string
 
-      if (!filePath) {
+      if (!rawPath) {
         return { toolResult: { content: [{ type: 'text', text: '读取文件失败：path 不能为空' }] } }
       }
 
       try {
+        const filePath = resolvePath(rawPath)
         if (!window.api.fs.existsSync(filePath)) {
           return {
             toolResult: {
