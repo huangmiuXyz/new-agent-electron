@@ -114,7 +114,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
               index,
               recipient_name: recipientName || '<empty>',
               ok: false,
-              error: `仅支持 recipient_name=functions.exec_command，收到: ${recipientName || '<empty>'}`
+              error: `仅支持 recipient_name=exec_command，收到: ${recipientName || '<empty>'}`
             }
           }
 
