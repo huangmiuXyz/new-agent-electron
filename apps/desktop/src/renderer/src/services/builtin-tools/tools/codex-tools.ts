@@ -2,8 +2,8 @@ import { z } from 'zod'
 import { applyPatchActions, runParallelExec, validateReadOnlyCommand } from './codex-utils'
 
 export const getCodexBuiltinTools = (): Partial<Tools> => ({
-  'functions.apply_patch': {
-    title: 'functions.apply_patch',
+  apply_patch: {
+    title: 'apply_patch',
     description:
       '按 hunk 精确编辑文件。patch 必须使用 *** Begin Patch / *** End Patch 包裹，并使用 Add/Update/Delete File 语法。',
     inputSchema: z.object({
@@ -52,8 +52,8 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       }
     }
   },
-  'multi_tool_use.parallel': {
-    title: 'multi_tool_use.parallel',
+  parallel: {
+    title: 'parallel',
     description:
       '并行执行多个工具调用。当前仅支持 recipient_name 为 functions.exec_command，且命令必须是只读命令。',
     inputSchema: z.object({
