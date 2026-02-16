@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import ApplyPatchRender from '../components/ApplyPatchRender.vue'
 import { applyPatchActions, runParallelExec, validateReadOnlyCommand } from './codex-utils'
 
 export const getCodexBuiltinTools = (): Partial<Tools> => ({
@@ -13,6 +14,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           '完整 patch 文本。必须包含 "*** Begin Patch" 和 "*** End Patch"，并使用 + / - / 空格前缀表示新增、删除、上下文行。'
         )
     }),
+    render: ApplyPatchRender,
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
       const patchText =
