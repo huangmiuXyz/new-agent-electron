@@ -54,12 +54,12 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   parallel: {
     title: 'parallel',
     description:
-      '并行执行多个工具调用。当前仅支持 recipient_name 为 functions.exec_command，且命令必须是只读命令。',
+      '并行执行多个工具调用。当前仅支持 recipient_name 为 exec_command，且命令必须是只读命令。',
     inputSchema: z.object({
       tool_uses: z
         .array(
           z.object({
-            recipient_name: z.string().describe('工具名，当前仅支持 "functions.exec_command"'),
+            recipient_name: z.string().describe('工具名，当前仅支持 "exec_command"'),
             parameters: z
               .object({
                 cmd: z.string().describe('要执行的只读命令'),
@@ -109,7 +109,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           const rawParams = (toolUse?.parameters || {}) as Record<string, any>
           const cmd = typeof rawParams.cmd === 'string' ? rawParams.cmd : ''
 
-          if (recipientName !== 'functions.exec_command') {
+          if (recipientName !== 'exec_command') {
             return {
               index,
               recipient_name: recipientName || '<empty>',
