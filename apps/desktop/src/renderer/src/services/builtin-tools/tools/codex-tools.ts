@@ -30,10 +30,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       }
 
       const baseDir =
-        useAgentStore().selectedAgent?.terminalStartupPath ||
-        window.api.process.env.PWD ||
-        window.api.path.resolve('.')
-
+        useAgentStore().selectedAgent!.terminalStartupPath!
       try {
         const summaries = applyPatchActions(patchText, baseDir)
         return {
