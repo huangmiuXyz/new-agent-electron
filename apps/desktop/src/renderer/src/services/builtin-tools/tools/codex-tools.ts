@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import ignore from 'ignore'
 import ApplyPatchRender from '../components/ApplyPatchRender.vue'
-import { applyPatchActions, runParallelExec, validateReadOnlyCommand } from './codex-utils'
+import { applySearchReplace, runParallelExec, validateReadOnlyCommand } from './codex-utils'
 
 const resolvePath = (rawPath: string): string => {
   const baseDir = useAgentStore().selectedAgent?.terminalStartupPath
@@ -629,36 +629,33 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   apply_patch: {
     title: 'apply_patch',
     description:
-      '按 hunk 精确编辑文件。patch 必须使用 *** Begin Patch / *** End Patch 包裹，并使用 Add/Update/Delete File 语法。',
+      '使用精确的字符串替换来编辑文件。必须提供文件中现有的代码片段 (old_str) 和要替换的新代码片段 (new_str)。',
     inputSchema: z.object({
-      patch: z
-        .string()
-        .describe(
-          '完整 patch 文本。必须包含 "*** Begin Patch" 和 "*** End Patch"，并使用 + / - / 空格前缀表示新增、删除、上下文行。'
-        )
+      file_path: z.string().describe('要编辑的文件的绝对路径或相对路径'),
+      old_str: z.string().describe('要搜索的旧代码片段（必须与文件内容完全匹配）'),
+      new_str: z.string().describe('要替换的新代码片段')
     }),
     render: ApplyPatchRender,
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
-      const patchText =
-        typeof args === 'string' ? args : typeof params.patch === 'string' ? params.patch : ''
+      const { file_path, old_str, new_str } = params
 
-      if (!patchText.trim()) {
+      if (!file_path || !old_str || new_str === undefined) {
         return {
-          error: 'patch 不能为空',
+          error: '缺少必要参数: file_path, old_str, new_str',
           toolResult: {
-            content: [{ type: 'text', text: 'apply_patch 失败：patch 不能为空' }]
+            content: [{ type: 'text', text: 'apply_patch 失败：缺少必要参数' }]
           }
         }
       }
 
       const baseDir = useAgentStore().selectedAgent!.terminalStartupPath!
       try {
-        const summaries = applyPatchActions(patchText, baseDir)
+        const result = applySearchReplace(file_path, old_str, new_str, baseDir)
         return {
-          summaries,
+          summaries: [result],
           toolResult: {
-            content: [{ type: 'text', text: `Patch applied successfully.\n${summaries.join('\n')}` }]
+            content: [{ type: 'text', text: result }]
           }
         }
       } catch (error) {

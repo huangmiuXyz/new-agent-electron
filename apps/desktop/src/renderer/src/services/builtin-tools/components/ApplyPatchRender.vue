@@ -13,6 +13,9 @@ interface PatchAction {
 
 interface ToolInput {
   patch?: string
+  file_path?: string
+  old_str?: string
+  new_str?: string
 }
 
 interface ToolOutput {
@@ -42,7 +45,27 @@ const patchText = computed(() => {
   if (typeof props.args === 'string') {
     return props.args
   }
-  return props.args?.patch || ''
+  if (props.args?.patch) {
+    return props.args.patch
+  }
+  if (props.args?.file_path && props.args?.old_str && props.args?.new_str !== undefined) {
+    const { file_path, old_str, new_str } = props.args
+    const oldLines = old_str.split(/\r?\n/)
+    const newLines = new_str.split(/\r?\n/)
+
+    let patch = `*** Update File: ${file_path}\n`
+    patch += `@@ -1,${oldLines.length} +1,${newLines.length} @@\n`
+
+    oldLines.forEach((line) => {
+      patch += `-${line}\n`
+    })
+    newLines.forEach((line) => {
+      patch += `+${line}\n`
+    })
+
+    return patch
+  }
+  return ''
 })
 
 const parsedActions = computed<PatchAction[]>(() => {
