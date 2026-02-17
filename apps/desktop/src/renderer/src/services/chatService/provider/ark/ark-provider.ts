@@ -16,7 +16,7 @@ const VERSION = '1.0.0';
 // Ark 图片生成参数 Schema
 export const arkImageCallOptionsSchema = z.object({
   // 功能选项
-  sequential_image_generation: z.enum(['auto', 'fixed']).optional().describe('连续图片生成模式'),
+  sequential_image_generation: z.enum(['auto', 'fixed']).default('auto').optional().describe('连续图片生成模式'),
   watermark: z.boolean().optional().describe('是否添加水印'),
   optimize_prompt_options: z.object({
     mode: z.enum(['standard', 'fast']).default('standard').optional()
