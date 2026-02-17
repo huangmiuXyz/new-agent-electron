@@ -1,6 +1,68 @@
 import { z } from 'zod'
 
+const resolvePath = (rawPath: string): string => {
+  const baseDir = useAgentStore().selectedAgent?.terminalStartupPath
+  if (!baseDir) {
+    throw new Error('未设置 terminalStartupPath，已禁止回退路径解析')
+  }
+  const normalizedBaseDir = window.api.path.resolve(window.api.path.normalize(baseDir))
+  const inputPath = rawPath.trim()
+  const resolvedPath = window.api.path.isAbsolute(inputPath)
+    ? window.api.path.resolve(window.api.path.normalize(inputPath))
+    : window.api.path.resolve(normalizedBaseDir, inputPath)
+
+  const relativePath = window.api.path.relative(normalizedBaseDir, resolvedPath)
+  const isInsideBaseDir =
+    relativePath === '' || (!relativePath.startsWith('..') && !window.api.path.isAbsolute(relativePath))
+
+  if (!isInsideBaseDir) {
+    throw new Error(`路径越界：仅允许访问 terminalStartupPath 内文件 (${normalizedBaseDir})`)
+  }
+
+  return resolvedPath
+}
+
 export const getGeneralBuiltinTools = (): Partial<Tools> => ({
+  get_current_path: {
+    title: '获取当前路径',
+    description: '获取当前工作目录的路径',
+    inputSchema: z.object({
+      path: z
+        .string()
+        .optional()
+        .default('.')
+        .describe('可选的路径，默认获取当前工作目录，支持相对路径或绝对路径')
+    }),
+    execute: async (args: unknown) => {
+      const params = args as Record<string, any>
+      const rawPath = params.path || '.'
+
+      try {
+        const currentPath = resolvePath(rawPath)
+        const baseDir = useAgentStore().selectedAgent?.terminalStartupPath
+        const relativePath = baseDir 
+          ? window.api.path.relative(baseDir, currentPath) 
+          : currentPath
+        
+        return {
+          toolResult: {
+            content: [
+              { 
+                type: 'text', 
+                text: `当前路径: ${currentPath}\n相对路径: ${relativePath || '.'}\n工作目录: ${baseDir || '未设置'}` 
+              }
+            ]
+          }
+        }
+      } catch (error) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: `获取路径失败: ${(error as Error).message}` }]
+          }
+        }
+      }
+    }
+  },
   calculator: {
     description: '执行基本的数学计算，支持加、减、乘、除等运算',
     inputSchema: z.object({

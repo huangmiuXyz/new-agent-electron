@@ -30,12 +30,7 @@ const props = defineProps<{
   tool_part: any
 }>()
 
-const isInputCollapsed = ref(true)
 const isOutputCollapsed = ref(false)
-
-const toggleInputCollapse = () => {
-  isInputCollapsed.value = !isInputCollapsed.value
-}
 
 const toggleOutputCollapse = () => {
   isOutputCollapsed.value = !isOutputCollapsed.value
@@ -302,33 +297,6 @@ const hasError = computed(() => {
         </div>
       </div>
     </div>
-
-    <!-- 原始 Patch 输入 -->
-    <div class="patch-input-section">
-      <div class="io-header" @click="toggleInputCollapse">
-        <div class="io-left">
-          <div class="io-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
-          </div>
-          <span class="io-label">原始 Patch</span>
-        </div>
-        <svg class="collapse-icon" :class="{ collapsed: isInputCollapsed }"
-          xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </div>
-      <div class="io-content" :class="{ collapsed: isInputCollapsed }">
-        <pre class="patch-raw">{{ patchText }}</pre>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -336,21 +304,26 @@ const hasError = computed(() => {
 .patch-render {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
 }
 
 .patch-overview {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
 }
 
 .patch-action {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color-light);
-  border-radius: 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color-light);
+  border-radius: 0;
   border-left: 2px solid;
   overflow: hidden;
+}
+
+.patch-action:last-child {
+  border-bottom: none;
 }
 
 .action-header {
@@ -358,7 +331,7 @@ const hasError = computed(() => {
   align-items: center;
   gap: 6px;
   padding: 2px 4px;
-  background: var(--bg-hover);
+  background: transparent;
 }
 
 .action-icon {
@@ -398,7 +371,7 @@ const hasError = computed(() => {
 
 .code-preview {
   padding: 4px;
-  background: var(--bg-card);
+  background: transparent;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 10px;
   line-height: 1.5;
@@ -472,8 +445,9 @@ const hasError = computed(() => {
 }
 
 .result-section {
-  border: 1px solid var(--border-color-light);
-  border-radius: 4px;
+  border: none;
+  border-top: 1px solid var(--border-color-light);
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -491,7 +465,7 @@ const hasError = computed(() => {
   justify-content: space-between;
   gap: 6px;
   padding: 2px 4px;
-  background: var(--bg-hover);
+  background: transparent;
   cursor: pointer;
   user-select: none;
 }
@@ -529,7 +503,7 @@ const hasError = computed(() => {
 
 .result-content {
   padding: 4px;
-  background: var(--bg-card);
+  background: transparent;
   max-height: 200px;
   overflow-y: auto;
   transition: all 0.2s ease;
@@ -562,43 +536,6 @@ const hasError = computed(() => {
   border-radius: 4px;
 }
 
-.patch-input-section {
-  border: 1px solid var(--border-color-light);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.io-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 2px 4px;
-  background: var(--bg-active);
-  cursor: pointer;
-  user-select: none;
-}
-
-.io-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.io-icon {
-  display: flex;
-  align-items: center;
-  color: var(--accent-color);
-}
-
-.io-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--accent-color);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .collapse-icon {
   color: var(--text-secondary);
   transition: transform 0.2s ease;
@@ -606,29 +543,6 @@ const hasError = computed(() => {
 
 .collapse-icon.collapsed {
   transform: rotate(-90deg);
-}
-
-.io-content {
-  max-height: 300px;
-  overflow-y: auto;
-  transition: all 0.2s ease;
-}
-
-.io-content.collapsed {
-  max-height: 0;
-  opacity: 0;
-}
-
-.patch-raw {
-  margin: 0;
-  padding: 4px;
-  font-size: 10px;
-  line-height: 1.5;
-  color: var(--text-primary);
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  white-space: pre-wrap;
-  word-break: break-all;
-  background: var(--bg-card);
 }
 
 /* Scrollbar styling */
