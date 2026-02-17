@@ -18,13 +18,4 @@ declare global {
     prefix_rule?: string[]
     [key: string]: unknown
   }
-
-  interface MultiToolUseParallelToolUse {
-    recipient_name: 'functions.exec_command' | string
-    parameters: FunctionsExecCommandParameters
-  }
-
-  interface MultiToolUseParallelInput {
-    tool_uses: MultiToolUseParallelToolUse[]
-  }
 }
