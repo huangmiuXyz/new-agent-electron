@@ -196,7 +196,7 @@ const hasError = computed(() => {
         :style="{ borderLeftColor: getActionColor(action.type) }">
         <div class="action-header">
           <div class="action-icon" :style="{ color: getActionColor(action.type) }">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path :d="getActionIcon(action.type)" />
             </svg>
@@ -250,13 +250,13 @@ const hasError = computed(() => {
       <div class="result-header" @click="toggleOutputCollapse">
         <div class="result-left">
           <div class="result-icon">
-            <svg v-if="hasError" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+            <svg v-if="hasError" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10" />
               <line x1="15" y1="9" x2="9" y2="15" />
               <line x1="9" y1="9" x2="15" y2="15" />
             </svg>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
@@ -265,7 +265,7 @@ const hasError = computed(() => {
           <span v-if="!hasError" class="result-count">({{ summaries.length }} 个文件)</span>
         </div>
         <svg class="collapse-icon" :class="{ collapsed: isOutputCollapsed }"
-          xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+          xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9" />
         </svg>
@@ -285,7 +285,7 @@ const hasError = computed(() => {
       <div class="io-header" @click="toggleInputCollapse">
         <div class="io-left">
           <div class="io-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
@@ -297,7 +297,7 @@ const hasError = computed(() => {
           <span class="io-label">原始 Patch</span>
         </div>
         <svg class="collapse-icon" :class="{ collapsed: isInputCollapsed }"
-          xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+          xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9" />
         </svg>
@@ -313,28 +313,28 @@ const hasError = computed(() => {
 .patch-render {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
 }
 
 .patch-overview {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
 }
 
 .patch-action {
   background: var(--bg-card);
   border: 1px solid var(--border-color-light);
-  border-radius: 6px;
-  border-left: 3px solid;
+  border-radius: 4px;
+  border-left: 2px solid;
   overflow: hidden;
 }
 
 .action-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 2px 4px;
   background: var(--bg-hover);
 }
 
@@ -347,13 +347,13 @@ const hasError = computed(() => {
 .action-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   min-width: 0;
 }
 
 .action-type {
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -361,23 +361,23 @@ const hasError = computed(() => {
 }
 
 .action-path {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-primary);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   word-break: break-all;
 }
 
 .action-move {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
 .code-preview {
-  padding: 8px 10px;
+  padding: 4px;
   background: var(--bg-card);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
@@ -391,19 +391,19 @@ const hasError = computed(() => {
 
 .chunk-header {
   color: var(--text-secondary);
-  margin-bottom: 4px;
-  font-size: 10px;
+  margin-bottom: 2px;
+  font-size: 9px;
 }
 
 .code-line {
   display: flex;
-  gap: 8px;
-  padding: 1px 0;
+  gap: 4px;
+  padding: 0;
 }
 
 .line-marker {
   flex-shrink: 0;
-  width: 12px;
+  width: 10px;
   text-align: center;
   user-select: none;
 }
@@ -441,25 +441,25 @@ const hasError = computed(() => {
 }
 
 .more-chunks {
-  padding: 4px 10px;
+  padding: 2px 4px;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 10px;
   font-style: italic;
   text-align: center;
 }
 
 .result-section {
   border: 1px solid var(--border-color-light);
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .result-success {
-  border-left: 3px solid var(--color-success);
+  border-left: 2px solid var(--color-success);
 }
 
 .result-error {
-  border-left: 3px solid var(--color-error);
+  border-left: 2px solid var(--color-error);
 }
 
 .result-header {
@@ -467,7 +467,7 @@ const hasError = computed(() => {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 2px 4px;
   background: var(--bg-hover);
   cursor: pointer;
   user-select: none;
@@ -494,18 +494,18 @@ const hasError = computed(() => {
 }
 
 .result-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .result-count {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
 }
 
 .result-content {
-  padding: 10px;
+  padding: 4px;
   background: var(--bg-card);
   max-height: 200px;
   overflow-y: auto;
@@ -514,34 +514,34 @@ const hasError = computed(() => {
 
 .result-content.collapsed {
   max-height: 0;
-  padding: 0 10px;
+  padding: 0 4px;
   opacity: 0;
 }
 
 .error-message {
   color: var(--color-error);
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
 .success-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .success-item {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-primary);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  padding: 4px 8px;
+  padding: 2px 4px;
   background: rgba(var(--color-success-rgb, 34, 197, 94), 0.08);
   border-radius: 4px;
 }
 
 .patch-input-section {
   border: 1px solid var(--border-color-light);
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -550,7 +550,7 @@ const hasError = computed(() => {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 2px 4px;
   background: var(--bg-active);
   cursor: pointer;
   user-select: none;
@@ -569,7 +569,7 @@ const hasError = computed(() => {
 }
 
 .io-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--accent-color);
   text-transform: uppercase;
@@ -598,8 +598,8 @@ const hasError = computed(() => {
 
 .patch-raw {
   margin: 0;
-  padding: 10px;
-  font-size: 11px;
+  padding: 4px;
+  font-size: 10px;
   line-height: 1.5;
   color: var(--text-primary);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
