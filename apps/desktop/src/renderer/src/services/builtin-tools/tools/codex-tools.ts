@@ -626,8 +626,8 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       }
     }
   },
-  apply_patch: {
-    title: 'apply_patch',
+  search_replace: {
+    title: '搜索和替换',
     description:
       '使用精确的字符串替换来编辑文件。必须提供文件中现有的代码片段 (old_str) 和要替换的新代码片段 (new_str)。',
     inputSchema: z.object({
