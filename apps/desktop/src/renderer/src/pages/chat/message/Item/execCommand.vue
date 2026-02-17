@@ -58,10 +58,16 @@ const handleApproval = (resolve: boolean) => {
 
 <style scoped>
 .force-continue-btn {
-  height: 20px;
-  font-size: 10px;
-  padding: 0 6px;
-  margin-left: 8px;
+  height: 22px;
+  font-size: 11px;
+  padding: 0 10px;
+  margin-left: 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .status-dot.executing {
