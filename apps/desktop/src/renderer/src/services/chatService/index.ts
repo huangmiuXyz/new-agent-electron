@@ -5,8 +5,9 @@ import {
   ToolLoopAgent,
   ToolChoice,
   wrapLanguageModel,
-  createAgentUIStream,
   streamText as _streamText,
+  convertToModelMessages,
+  validateUIMessages,
   type DataContent
 } from 'ai'
 import { createRegistry } from './registry'
@@ -15,6 +16,7 @@ import { buildSkillsPrompt, discoverSkills } from '../skillsService'
 import { createRagMiddleware } from './middleware/rags'
 import { createContextLimitMiddleware } from './middleware/contextLimit'
 import { createCompressContextMiddleware } from './middleware/compressContext'
+import { sanitizeUIMessages } from './utils'
 import { useSettingsStore } from '@renderer/stores/settings'
 
 
@@ -55,6 +57,7 @@ interface ChatServiceConfig {
   compressModel?: { providerId: string; modelId: string }
   providerOptions?: Record<string, any>
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
+  isApprovalAction?: boolean
 }
 
 export type GenerateImagePrompt = string | {
@@ -247,6 +250,7 @@ export const chatService = () => {
       compressModel,
       providerOptions: customProviderOptions,
       onBeforeToolExecute,
+      isApprovalAction,
     }: ChatServiceConfig
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
@@ -356,10 +360,34 @@ export const chatService = () => {
       ]
     })
     const controller = new AbortController()
-    const uiStream = createAgentUIStream({
-      agent,
-      uiMessages: messages,
+
+    // 1. Validate UI messages
+    const validatedMessages = await validateUIMessages({
+      messages,
+      tools: agent.tools,
+    })
+
+    // 2. 清洗数据：移除历史中没有结果的工具调用，防止模型报错
+    // 区分 "手动批准" 和 "重试/继续"：
+    // 根据传入的 isApprovalAction 参数判断是否为手动批准触发。
+    const sanitizedMessages = sanitizeUIMessages(validatedMessages, {
+      isManualApproval: isApprovalAction || false
+    })
+
+    // 3. Convert to model messages
+    // 注意：不要启用 ignoreIncompleteToolCalls: true，因为我们已经在 sanitizeUIMessages 中手动处理了。
+    // 如果启用，convertToModelMessages 会再次过滤掉 approval-responded（因为它没有 result），导致工具无法执行。
+    const modelMessages = await convertToModelMessages(sanitizedMessages, {
+      tools: agent.tools,
+    })
+
+    const result = await agent.stream({
+      prompt: modelMessages,
       abortSignal: controller.signal,
+    })
+
+    const uiStream = result.toUIMessageStream({
+      originalMessages: validatedMessages,
       messageMetadata: ({ part }) => {
         let result = {}
         if (part.type === 'finish-step' && part.finishReason === 'stop') {
