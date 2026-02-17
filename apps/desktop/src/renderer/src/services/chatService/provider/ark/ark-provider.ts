@@ -23,17 +23,6 @@ export const arkImageCallOptionsSchema = z.object({
   }).optional().describe('优化提示选项'),
 });
 
-// Content 数组项的类型定义
-const contentItemSchema = z.union([
-  z.object({ type: z.literal('text'), text: z.string() }),
-  z.object({
-    type: z.literal('image_url'),
-    image_url: z.object({ url: z.string().meta({ component: 'upload' }) }),
-    role: z.enum(['first_frame', 'last_frame', 'reference_image']).optional()
-  }),
-  // z.object({ type: z.literal('draft_task'), draft_task: z.object({ id: z.string() }) }),
-]);
-
 // Ark 视频生成参数 Schema (对齐火山引擎文档)
 export const arkVideoCallOptionsSchema = z.object({
   // 图片输入
