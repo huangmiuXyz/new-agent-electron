@@ -40,7 +40,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
           model: targetModelId,
           size: targetSize,
           n: targetN,
-          seed: imageForm.seed,
+          seed: imageForm.seed || undefined,
           providerOptions: imageForm.providerOptions
         }
       }
