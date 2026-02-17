@@ -35,8 +35,45 @@ const formatContextPreview = (
   lineIndex: number,
   contextLines: number,
   highlightStart: number,
-  highlightEnd: number
+  highlightEnd: number,
+  maxPreviewChars: number
 ): string => {
+  const truncateLineForPreview = (
+    rawLine: string,
+    maxChars: number,
+    focusStart?: number,
+    focusEnd?: number
+  ): { text: string; highlightStart: number; highlightEnd: number } => {
+    if (rawLine.length <= maxChars) {
+      return {
+        text: rawLine,
+        highlightStart: focusStart ?? -1,
+        highlightEnd: focusEnd ?? -1
+      }
+    }
+
+    const safeMaxChars = Math.max(20, maxChars)
+    if (typeof focusStart !== 'number' || typeof focusEnd !== 'number') {
+      const text = `${rawLine.slice(0, safeMaxChars - 3)}...`
+      return { text, highlightStart: -1, highlightEnd: -1 }
+    }
+
+    const focusCenter = Math.floor((focusStart + focusEnd) / 2)
+    const maxSliceStart = Math.max(0, rawLine.length - safeMaxChars)
+    const sliceStart = Math.min(Math.max(0, focusCenter - Math.floor(safeMaxChars / 2)), maxSliceStart)
+    const sliceEnd = Math.min(rawLine.length, sliceStart + safeMaxChars)
+    const prefix = sliceStart > 0 ? '...' : ''
+    const suffix = sliceEnd < rawLine.length ? '...' : ''
+    const text = `${prefix}${rawLine.slice(sliceStart, sliceEnd)}${suffix}`
+    const offset = prefix.length - sliceStart
+
+    return {
+      text,
+      highlightStart: Math.max(0, focusStart + offset),
+      highlightEnd: Math.min(text.length, focusEnd + offset)
+    }
+  }
+
   const start = Math.max(0, lineIndex - contextLines)
   const end = Math.min(lines.length - 1, lineIndex + contextLines)
   const rendered: string[] = []
@@ -44,10 +81,17 @@ const formatContextPreview = (
   for (let i = start; i <= end; i += 1) {
     const lineNo = i + 1
     const raw = lines[i] ?? ''
+    const truncated =
+      i === lineIndex
+        ? truncateLineForPreview(raw, maxPreviewChars, highlightStart, highlightEnd)
+        : truncateLineForPreview(raw, maxPreviewChars)
     const tagged =
       i === lineIndex
-        ? `${raw.slice(0, highlightStart)}[[${raw.slice(highlightStart, highlightEnd)}]]${raw.slice(highlightEnd)}`
-        : raw
+        ? `${truncated.text.slice(0, truncated.highlightStart)}[[${truncated.text.slice(
+            truncated.highlightStart,
+            truncated.highlightEnd
+          )}]]${truncated.text.slice(truncated.highlightEnd)}`
+        : truncated.text
     rendered.push(`${lineNo} | ${tagged}`)
   }
 
@@ -68,6 +112,7 @@ const searchInFile = (options: {
   mode: 'substring' | 'regex'
   caseSensitive: boolean
   contextLines: number
+  maxPreviewChars: number
   maxResults: number
   currentResultCount: number
 }): MatchResult[] => {
@@ -78,6 +123,7 @@ const searchInFile = (options: {
     mode,
     caseSensitive,
     contextLines,
+    maxPreviewChars,
     maxResults,
     currentResultCount
   } = options
@@ -102,7 +148,7 @@ const searchInFile = (options: {
           filePath,
           line: i + 1,
           column: start + 1,
-          preview: formatContextPreview(lines, i, contextLines, start, end)
+          preview: formatContextPreview(lines, i, contextLines, start, end, maxPreviewChars)
         })
         if (currentResultCount + matches.length >= maxResults) {
           return matches
@@ -128,7 +174,14 @@ const searchInFile = (options: {
         filePath,
         line: i + 1,
         column: found + 1,
-        preview: formatContextPreview(lines, i, contextLines, found, found + needle.length)
+        preview: formatContextPreview(
+          lines,
+          i,
+          contextLines,
+          found,
+          found + needle.length,
+          maxPreviewChars
+        )
       })
       if (currentResultCount + matches.length >= maxResults) {
         return matches
@@ -283,7 +336,15 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         .max(200)
         .optional()
         .default(50)
-        .describe('最大返回条数，范围 1-200，默认 50')
+        .describe('最大返回条数，范围 1-200，默认 50'),
+      maxPreviewChars: z
+        .number()
+        .int()
+        .min(60)
+        .max(500)
+        .optional()
+        .default(200)
+        .describe('每行预览的最大字符数，范围 60-500，默认 200')
     }),
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
@@ -320,6 +381,10 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           typeof params.contextLines === 'number' ? Math.max(0, Math.min(5, params.contextLines)) : 1
         const maxResults =
           typeof params.maxResults === 'number' ? Math.max(1, Math.min(200, params.maxResults)) : 50
+        const maxPreviewChars =
+          typeof params.maxPreviewChars === 'number'
+            ? Math.max(60, Math.min(500, params.maxPreviewChars))
+            : 200
 
         const files = walkSearchFiles(rootDir, excludeDirs, extensions)
         const results: MatchResult[] = []
@@ -339,6 +404,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
               mode,
               caseSensitive,
               contextLines,
+              maxPreviewChars,
               maxResults,
               currentResultCount: results.length
             })
