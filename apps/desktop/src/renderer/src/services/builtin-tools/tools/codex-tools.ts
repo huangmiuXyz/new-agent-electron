@@ -158,27 +158,37 @@ const walkSearchFiles = (rootDir: string, excludeDirs: string[], extensions?: st
 
   while (queue.length > 0) {
     const currentDir = queue.pop()!
-    let entries: any[] = []
+    let entries: string[] = []
     try {
-      entries = window.api.fs.readdirSync(currentDir, { withFileTypes: true }) as any[]
+      entries = window.api.fs.readdirSync(currentDir) as string[]
     } catch {
       continue
     }
 
-    for (const entry of entries) {
-      const fullPath = window.api.path.join(currentDir, entry.name)
+    for (const entryName of entries) {
+      const fullPath = window.api.path.join(currentDir, entryName)
       const relativePath = window.api.path.relative(rootDir, fullPath).replaceAll('\\', '/')
       if (relativePath && (ig.ignores(relativePath) || ig.ignores(`${relativePath}/`))) continue
 
-      if (entry.isDirectory?.()) {
-        if (!excludeDirs.includes(entry.name)) {
-          queue.push(fullPath)
-        }
+      let stat: any
+      try {
+        stat = window.api.fs.lstatSync(fullPath)
+      } catch {
         continue
       }
-      if (!entry.isFile?.()) continue
+
+      const mode = stat.mode & 0o170000
+      const isDir = mode === 0o040000
+      const isFile = mode === 0o100000
+
+      if (isDir) {
+        if (!excludeDirs.includes(entryName)) queue.push(fullPath)
+        continue
+      }
+      if (!isFile) continue
+
       if (normalizedExts && normalizedExts.length > 0) {
-        const ext = window.api.path.extname(entry.name).toLowerCase()
+        const ext = window.api.path.extname(entryName).toLowerCase()
         if (!normalizedExts.includes(ext)) continue
       }
       files.push(fullPath)
