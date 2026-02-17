@@ -23,6 +23,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
       const targetProviderId = imageForm.model?.providerId
       const targetSize = imageForm.size || '1024x1024'
       const targetN = imageForm.n || 1
+      const targetSeed = imageForm.seed || undefined
 
       if (!targetModelId || !targetProviderId) {
         throw new Error('未配置默认绘画模型，请先在绘画页面选择模型')
@@ -40,7 +41,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
           model: targetModelId,
           size: targetSize,
           n: targetN,
-          seed: imageForm.seed || undefined,
+          seed: targetSeed,
           providerOptions: imageForm.providerOptions
         }
       }
@@ -78,7 +79,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
           providerType: provider.providerType,
           size: targetSize as `${number}x${number}`,
           n: targetN,
-          seed: imageForm.seed,
+          seed: targetSeed,
           providerOptions: imageForm.providerOptions
         })
 
