@@ -103,7 +103,6 @@ const toolName = computed(() => {
   word-break: break-all;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   background-color: var(--bg-card);
-  max-height: 400px;
   overflow-y: auto;
 }
 
