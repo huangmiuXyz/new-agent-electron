@@ -89,14 +89,6 @@ const READ_ONLY_GIT_SUBCOMMANDS = new Set([
   'status'
 ])
 
-const truncateByTokens = (value: string, maxOutputTokens = 2000) => {
-  const safeTokens =
-    Number.isFinite(maxOutputTokens) && maxOutputTokens > 0 ? maxOutputTokens : 2000
-  const maxChars = Math.max(256, Math.min(safeTokens * 4, 200000))
-  if (value.length <= maxChars) return value
-  return `${value.slice(0, maxChars)}\n...[truncated ${value.length - maxChars} chars]`
-}
-
 export const validateReadOnlyCommand = (
   command: string
 ): { ok: true } | { ok: false; reason: string } => {

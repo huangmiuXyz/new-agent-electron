@@ -82,6 +82,11 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
         })
 
         return {
+          toolResult: {
+            content: [
+              { type: 'text', text: '图片生成成功' }
+            ]
+          },
           metadata: {
             ...metadata,
             images: result.images
