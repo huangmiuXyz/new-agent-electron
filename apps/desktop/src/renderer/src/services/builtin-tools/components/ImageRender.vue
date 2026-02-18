@@ -193,6 +193,74 @@ const handleRegenerate = async () => {
         }
       })
       task_id = result.task_id
+    } else {
+      const result = await chatService().generateImage(prompt, {
+        model: metadata.config.model,
+        apiKey: provider.apiKey || '',
+        baseURL: provider.baseUrl || '',
+        provider: provider.id,
+        providerType: provider.providerType,
+        size: metadata.config.size as `${number}x${number}`,
+        n: metadata.config.n || 1,
+        seed: metadata.config.seed,
+        providerOptions: metadata.config.providerOptions
+      })
+
+      const newImages = (result.images || [])
+        .map((img: any) => {
+          if (typeof img === 'string') return img
+          if (img.base64)
+            return img.base64.startsWith('data:')
+              ? img.base64
+              : `data:image/png;base64,${img.base64}`
+          return img.url || ''
+        })
+        .filter(Boolean) as string[]
+
+      if (newImages.length > 0) {
+        const cid = metadata.chatId
+        const mid = props.message?.id
+        const toolCallId = props.tool_part?.toolCallId
+
+        if (cid && mid) {
+          const chat = chatsStore.getChatById(cid)
+          const msg = chat?.messages.find((m: any) => m.id === mid)
+          if (msg && msg.parts) {
+            const partIndex = msg.parts.findIndex((p: any) => p.toolCallId === toolCallId)
+            if (partIndex !== -1) {
+              const latestPart = msg.parts[partIndex] as any
+              const latestOutput = latestPart.output || {}
+              const latestMetadata = latestOutput.metadata || metadata
+              const latestImages = latestMetadata.images || []
+
+              const updatedImages = [...latestImages, ...newImages]
+
+              const updatedMetadata = {
+                ...latestMetadata,
+                images: updatedImages
+              }
+
+              const newParts = [...msg.parts]
+              newParts[partIndex] = {
+                ...latestPart,
+                output: {
+                  ...latestOutput,
+                  metadata: updatedMetadata,
+                  toolResult: {
+                    content: [{ type: 'text', text: `<|stop|>图片生成成功！` }]
+                  }
+                }
+              }
+
+              chatsStore.updateMessage(cid, mid, newParts)
+              localResult.value = {
+                ...localResult.value,
+                metadata: updatedMetadata
+              }
+            }
+          }
+        }
+      }
     }
 
     if (task_id) {
