@@ -18,6 +18,7 @@ import { createContextLimitMiddleware } from './middleware/contextLimit'
 import { createCompressContextMiddleware } from './middleware/compressContext'
 import { sanitizeUIMessages } from './utils'
 import { useSettingsStore } from '@renderer/stores/settings'
+import { createToolMiddleware } from './middleware/createToolMiddleware'
 
 
 interface VideoGenerateOptions {
@@ -305,6 +306,7 @@ export const chatService = () => {
           `${providerType}:${model}`
         ),
         middleware: [
+          createToolMiddleware(),
           createCompressContextMiddleware(),
           createContextLimitMiddleware({ contextCount }),
           createRagMiddleware({

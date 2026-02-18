@@ -6,6 +6,7 @@ interface ImageMetadata {
   providerId: string
   task_ids?: string[]
   finished_task_ids?: string[]
+  images?: string[]
   config?: {
     model: string
     size: string
@@ -16,8 +17,7 @@ interface ImageMetadata {
 }
 
 interface ToolOutput {
-  images?: string[]
-  image_metadata?: ImageMetadata
+  metadata?: ImageMetadata
   error?: string
 }
 
@@ -52,7 +52,7 @@ const pollStatus = async () => {
 
   isPolling.value = true
   try {
-    const metadata = props.tool_part?.output?.image_metadata as ImageMetadata | undefined
+    const metadata = props.tool_part?.output?.metadata as ImageMetadata | undefined
     if (!metadata) return
 
     const providerInstance = getProviderInstance(metadata.providerId)
@@ -61,7 +61,7 @@ const pollStatus = async () => {
     }
 
     let finishedCount = 0
-    const cid = props.message?.metadata?.cid || props.tool_part?.output?.image_metadata?.chatId
+    const cid = props.message?.metadata?.cid || props.tool_part?.output?.metadata?.chatId
     const mid = props.message?.id
     const toolCallId = props.tool_part?.toolCallId
 
@@ -72,11 +72,11 @@ const pollStatus = async () => {
       let currentMetadata: any = null
       if (msg && msg.parts) {
         const part = msg.parts.find((p: any) => p.toolCallId === toolCallId) as any
-        currentMetadata = part?.output?.image_metadata
+        currentMetadata = part?.output?.metadata
       }
 
       if (!currentMetadata) {
-        currentMetadata = props.tool_part?.output?.image_metadata
+        currentMetadata = props.tool_part?.output?.metadata
       }
 
       const taskIds = currentMetadata?.task_ids || []
@@ -118,14 +118,15 @@ const pollStatus = async () => {
           if (partIndex !== -1) {
             const latestPart = msg.parts[partIndex] as any
             const latestOutput = latestPart.output || {}
-            const latestMetadata = latestOutput.image_metadata || currentMetadata
-            const latestImages = latestOutput.images || []
+            const latestMetadata = latestOutput.metadata || currentMetadata
+            const latestImages = latestMetadata.images || []
 
             const updatedImages = success ? [...latestImages, ...resultImages] : latestImages
             const updatedFinishedTaskIds = [...(latestMetadata.finished_task_ids || []), taskId]
 
             const updatedMetadata = {
               ...latestMetadata,
+              images: updatedImages,
               finished_task_ids: updatedFinishedTaskIds
             }
 
@@ -134,8 +135,7 @@ const pollStatus = async () => {
               ...latestPart,
               output: {
                 ...latestOutput,
-                images: updatedImages,
-                image_metadata: updatedMetadata,
+                metadata: updatedMetadata,
                 toolResult: {
                   content: [{ type: 'text', text: `<|stop|>图片生成成功！` }]
                 }
@@ -143,7 +143,10 @@ const pollStatus = async () => {
             }
 
             chatsStore.updateMessage(cid, mid, newParts)
-            localResult.value = { ...localResult.value, images: updatedImages }
+            localResult.value = {
+              ...localResult.value,
+              metadata: updatedMetadata
+            }
           }
         }
       }
@@ -161,7 +164,7 @@ const pollStatus = async () => {
 const handleRegenerate = async () => {
   if (isRegenerating.value) return
 
-  const metadata = props.tool_part?.output?.image_metadata as ImageMetadata | undefined
+  const metadata = props.tool_part?.output?.metadata as ImageMetadata | undefined
   if (!metadata || !metadata.config) return
 
   isRegenerating.value = true
@@ -206,14 +209,14 @@ const handleRegenerate = async () => {
             const latestPart = msg.parts[partIndex] as any
             const newParts = [...msg.parts]
             const currentOutput = (latestPart.output || {}) as ToolOutput
-            const currentMetadata = (currentOutput.image_metadata || {}) as ImageMetadata
+            const currentMetadata = (currentOutput.metadata || {}) as ImageMetadata
             const updatedTaskIds = [...(currentMetadata.task_ids || []), task_id]
 
             newParts[partIndex] = {
               ...latestPart,
               output: {
                 ...currentOutput,
-                image_metadata: {
+                metadata: {
                   ...currentMetadata,
                   task_ids: updatedTaskIds
                 }
@@ -234,7 +237,7 @@ const handleRegenerate = async () => {
 }
 
 watch(
-  () => props.tool_part?.output?.image_metadata?.task_ids?.length,
+  () => props.tool_part?.output?.metadata?.task_ids?.length,
   (newLen) => {
     if (newLen > 0) pollStatus()
   },
@@ -245,7 +248,7 @@ onUnmounted(() => {
   abortController.abort()
 })
 
-const images = computed(() => props.result?.images || localResult.value?.images || [])
+const images = computed(() => props.result?.metadata?.images || localResult.value?.metadata?.images || [])
 const error = computed(() => props.result?.error || localResult.value?.error)
 const prompt = computed(() => props.args?.prompt)
 </script>

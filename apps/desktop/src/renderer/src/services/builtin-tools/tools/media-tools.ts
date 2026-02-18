@@ -66,8 +66,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
           })
 
           return {
-            images: [],
-            image_metadata: { ...metadata, task_ids: [task_id] }
+            metadata: { ...metadata, task_ids: [task_id], images: [] }
           }
         }
         const result = await chatService().generateImage(prompt, {
@@ -83,21 +82,23 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
         })
 
         return {
-          images: result.images
-            .map((img: any) => {
-              if (typeof img === 'string') return img
-              if (img.base64)
-                return img.base64.startsWith('data:')
-                  ? img.base64
-                  : `data:image/png;base64,${img.base64}`
-              return img.url || ''
-            }) || [],
-          image_metadata: metadata
+          metadata: {
+            ...metadata,
+            images: result.images
+              .map((img: any) => {
+                if (typeof img === 'string') return img
+                if (img.base64)
+                  return img.base64.startsWith('data:')
+                    ? img.base64
+                    : `data:image/png;base64,${img.base64}`
+                return img.url || ''
+              }) || []
+          }
         }
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : String(error),
-          image_metadata: metadata
+          metadata: metadata
         }
       }
     }
