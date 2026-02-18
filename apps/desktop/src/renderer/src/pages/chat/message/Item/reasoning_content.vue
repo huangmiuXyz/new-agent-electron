@@ -83,6 +83,6 @@ const toggleReasoning = () => {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     white-space: pre-wrap;
     border-left: 2px solid var(--border-color-light);
-    margin-left: 5px;
+    margin-left: 4px;
 }
 </style>
