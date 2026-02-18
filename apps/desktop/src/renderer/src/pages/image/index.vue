@@ -9,16 +9,63 @@ import FloatingInputArea from './FloatingInputArea.vue'
 import { useImageGeneration } from '@renderer/composables/useImageGeneration'
 import type { ModelCategory } from '@agent-qi/types'
 
+interface ImageMetadata {
+  chatId: string
+  providerId: string
+  task_ids?: string[]
+  finished_task_ids?: string[]
+  images?: string[]
+  config?: {
+    model: string
+    size: string
+    n: number
+    seed?: number
+    providerOptions?: Record<string, any>
+  }
+}
+
+interface ToolOutput {
+  metadata?: ImageMetadata
+  error?: string
+}
+
+const props = defineProps<{
+  args?: Record<string, any>
+  result?: ToolOutput
+  message?: any
+  tool_part?: any
+}>()
+
 const settingsStore = useSettingsStore()
 const imgStore = useImageStore()
 const { generatedBatches, startGeneration, resumeGeneration, startVideoGeneration, createImageBatch, createVideoBatch } = useImageGeneration()
+
+const isRegenerating = ref(false)
+const isToolMode = computed(() => !!props.tool_part)
+
+const normalizeImages = (images: any[] = []) =>
+  images
+    .map((img: any) => {
+      if (typeof img === 'string') return img
+      if (img.base64) {
+        return img.base64.startsWith('data:') ? img.base64 : `data:image/png;base64,${img.base64}`
+      }
+      return img.url || ''
+    })
+    .filter(Boolean) as string[]
 
 // 当前是否为视频生成模式
 const isVideoMode = ref(false)
 
 // 固定高度虚拟滚动
 const ITEM_HEIGHT = 320
-const { list: virtualList, containerProps, wrapperProps, scrollTo } = useVirtualList(generatedBatches, {
+const toolBatchId = computed(() => Number(props.tool_part?.toolCallId?.replace(/\D/g, '') || Date.now()))
+const displayBatches = computed(() => {
+  if (!isToolMode.value) return generatedBatches.value
+  return generatedBatches.value.filter((batch) => batch.id === toolBatchId.value)
+})
+
+const { list: virtualList, containerProps, wrapperProps, scrollTo } = useVirtualList(displayBatches, {
   itemHeight: ITEM_HEIGHT,
   overscan: 2
 })
@@ -212,6 +259,108 @@ const scrollToBottom = () => {
   })
 }
 
+const syncToolBatchFromResult = () => {
+  if (!isToolMode.value) return
+
+  const metadata = props.result?.metadata
+  const resultError = props.result?.error
+  const prompt = props.args?.prompt || ''
+  const batchId = toolBatchId.value
+  const existing = generatedBatches.value.find((batch) => batch.id === batchId)
+
+  const normalizedImages = normalizeImages(metadata?.images || [])
+  const finishedTaskIds = metadata?.finished_task_ids || []
+  const taskIds = metadata?.task_ids || []
+  const pendingTaskId = taskIds.find((id) => !finishedTaskIds.includes(id))
+  const hasPendingTask = !!pendingTaskId
+  const n = metadata?.config?.n || Math.max(normalizedImages.length, 1)
+  const placeholders = hasPendingTask
+    ? Array.from({ length: Math.max(1, n - normalizedImages.length) }, (_v, idx) => ({ loading: true, id: idx + 1 }))
+    : []
+
+  const batchData: Partial<ImageBatch> = {
+    prompt,
+    model: metadata?.config?.model || '',
+    size: metadata?.config?.size,
+    n,
+    providerId: metadata?.providerId,
+    images: [...normalizedImages, ...placeholders],
+    taskId: pendingTaskId,
+    status: hasPendingTask ? 'processing' : resultError ? 'failed' : 'completed',
+    error: resultError,
+    seed: metadata?.config?.seed,
+    params: { providerOptions: metadata?.config?.providerOptions },
+    mediaType: 'image'
+  }
+
+  if (existing) {
+    imgStore.updateBatch(batchId, batchData)
+  } else {
+    imgStore.addBatch({
+      id: batchId,
+      prompt: prompt || '',
+      model: metadata?.config?.model || '',
+      n,
+      images: [...normalizedImages, ...placeholders],
+      providerId: metadata?.providerId,
+      taskId: pendingTaskId,
+      status: hasPendingTask ? 'processing' : resultError ? 'failed' : 'completed',
+      error: resultError,
+      size: metadata?.config?.size,
+      seed: metadata?.config?.seed,
+      params: { providerOptions: metadata?.config?.providerOptions },
+      mediaType: 'image'
+    })
+  }
+
+  const latest = generatedBatches.value.find((batch) => batch.id === batchId)
+  if (latest && latest.taskId && latest.status !== 'completed') {
+    resumeGeneration(latest)
+  }
+}
+
+const handleRegenerate = async () => {
+  if (!isToolMode.value || isRegenerating.value) return
+
+  const metadata = props.result?.metadata
+  if (!metadata || !metadata.config || !metadata.providerId) return
+
+  isRegenerating.value = true
+  try {
+    const newBatch = createImageBatch({
+      prompt: props.args?.prompt || '',
+      model: metadata.config.model,
+      providerId: metadata.providerId,
+      size: metadata.config.size,
+      n: metadata.config.n || 1,
+      seed: metadata.config.seed,
+      providerOptions: metadata.config.providerOptions
+    })
+    const batchId = toolBatchId.value
+    const regenBatch: ImageBatch = {
+      ...newBatch,
+      id: batchId
+    }
+
+    const existing = generatedBatches.value.find((batch) => batch.id === batchId)
+    if (existing) {
+      imgStore.updateBatch(batchId, regenBatch)
+    } else {
+      imgStore.addBatch(regenBatch)
+    }
+    startGeneration(regenBatch)
+  } catch (error) {
+    const e = error as Error
+    console.error('Regeneration failed:', e)
+    imgStore.updateBatch(toolBatchId.value, {
+      status: 'failed',
+      error: e.message
+    })
+  } finally {
+    isRegenerating.value = false
+  }
+}
+
 // 图片生成表单
 const [ImageForm, imageFormActions] = useForm({
   fields: () => imageFields.value,
@@ -347,6 +496,8 @@ const handleRightInputSubmit = () => {
 }
 
 onMounted(async () => {
+  if (isToolMode.value) return
+
   // 恢复图片表单
   if (settingsStore.imageGenerationForm?.model?.providerId) {
     imageFormActions.setData(settingsStore.imageGenerationForm)
@@ -369,11 +520,21 @@ onMounted(async () => {
     }
   })
 })
+
+watch(
+  () => [props.result, props.args?.prompt, props.tool_part?.toolCallId],
+  () => {
+    syncToolBatchFromResult()
+  },
+  { deep: true, immediate: true }
+)
+
 </script>
 
 <template>
-  <div class="image-page-container">
+  <div class="image-page-container" :class="{ 'tool-mode': isToolMode }">
     <ResizeBox
+      v-if="!isToolMode"
       v-model:width="settingsStore.display.imageSidebarWidth"
       v-model:is-collapsed="settingsStore.display.sidebarCollapsed"
       :min-size="250"
@@ -403,7 +564,10 @@ onMounted(async () => {
       <template #header>
         <span>生成结果</span>
         <div class="header-actions">
-          <Button v-if="generatedBatches.length > 0" variant="text" size="sm" @click="clearImages">
+          <Button v-if="isToolMode" size="sm" :loading="isRegenerating" @click="handleRegenerate">
+            {{ isRegenerating ? '重新生成中...' : '重新生成' }}
+          </Button>
+          <Button v-else-if="generatedBatches.length > 0" variant="text" size="sm" @click="clearImages">
             <Trash />
             清空结果
           </Button>
@@ -413,17 +577,18 @@ onMounted(async () => {
       <template #content>
         <div class="results-container">
           <div class="results-content" v-bind="containerProps">
-            <div v-if="generatedBatches.length === 0" class="empty-state">
+            <div v-if="displayBatches.length === 0" class="empty-state">
               <div class="empty-icon">
                 <ImageIcon />
               </div>
-              <p>在下方输入提示词，开启你的创作之旅</p>
+              <p>{{ isToolMode ? '等待生成结果...' : '在下方输入提示词，开启你的创作之旅' }}</p>
             </div>
             <div v-else class="batches-list" v-bind="wrapperProps">
               <GenerationResultCard
                 v-for="{ data: batch } in virtualList"
                 :key="batch.id"
                 :batch="batch"
+                :readonly="isToolMode"
                 @re-edit="reEdit"
                 @delete="deleteBatch"
                 @copy-prompt="copyPrompt"
@@ -432,6 +597,7 @@ onMounted(async () => {
           </div>
 
           <FloatingInputArea
+            v-if="!isToolMode"
             ref="floatingInputRef"
             v-model:input="rightInput"
             :is-model-selected="isModelSelected"
@@ -453,6 +619,15 @@ onMounted(async () => {
   display: flex;
   height: 100%;
   width: 100%;
+}
+
+.image-page-container.tool-mode {
+  height: auto;
+}
+
+.image-page-container.tool-mode .results-content {
+  padding: 8px;
+  padding-bottom: 8px;
 }
 
 .form-section {

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import ImageRender from '../components/ImageRender.vue'
+import ImagePage from '../../../pages/image/index.vue'
 import { createRegistry } from '@renderer/services/chatService/registry'
 
 export const getMediaBuiltinTools = (): Partial<Tools> => ({
@@ -9,7 +9,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
     inputSchema: z.object({
       prompt: z.string().describe('生成图片的提示词，建议使用详细的描述。')
     }),
-    render: ImageRender,
+    render: ImagePage,
     execute: async (args: any, options: any) => {
       const { prompt } = args
       const settingsStore = useSettingsStore()

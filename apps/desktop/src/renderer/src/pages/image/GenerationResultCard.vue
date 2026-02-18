@@ -4,6 +4,7 @@ import VideoPlayer from '@renderer/components/VideoPlayer.vue'
 
 const props = defineProps<{
   batch: ImageBatch
+  readonly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -35,7 +36,7 @@ const handleCopyPrompt = () => {
           <span class="prompt-label">提示词</span>
           <p class="prompt-text">{{ batch.prompt }}</p>
         </div>
-        <div class="prompt-actions">
+        <div v-if="!readonly" class="prompt-actions">
           <Button variant="icon" size="sm" title="复制提示词" @click="handleCopyPrompt">
             <Copy />
           </Button>
