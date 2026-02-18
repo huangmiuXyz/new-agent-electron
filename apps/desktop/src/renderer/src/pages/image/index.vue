@@ -59,7 +59,14 @@ const isVideoMode = ref(false)
 
 // 固定高度虚拟滚动
 const ITEM_HEIGHT = 320
-const toolBatchId = computed(() => Number(props.tool_part?.toolCallId?.replace(/\D/g, '') || Date.now()))
+const fallbackToolBatchId = ref(Date.now())
+const toolBatchId = computed(() => {
+  const rawToolCallId = props.tool_part?.toolCallId
+  if (!rawToolCallId) return fallbackToolBatchId.value
+
+  const parsed = Number(String(rawToolCallId).replace(/\D/g, ''))
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackToolBatchId.value
+})
 const displayBatches = computed(() => {
   if (!isToolMode.value) return generatedBatches.value
   return generatedBatches.value.filter((batch) => batch.id === toolBatchId.value)
@@ -521,13 +528,35 @@ onMounted(async () => {
   })
 })
 
-watch(
-  () => [props.result, props.args?.prompt, props.tool_part?.toolCallId],
-  () => {
-    syncToolBatchFromResult()
-  },
-  { deep: true, immediate: true }
-)
+const toolResultSyncKey = computed(() => {
+  const metadata = props.result?.metadata
+  const images = metadata?.images || []
+  const imageSizeSignature = images
+    .map((img: any) => {
+      if (typeof img === 'string') return `s:${img.length}`
+      if (img?.base64) return `b:${String(img.base64).length}`
+      if (img?.url) return `u:${String(img.url).length}`
+      return 'x:0'
+    })
+    .join(',')
+
+  return [
+    props.tool_part?.toolCallId || '',
+    props.args?.prompt || '',
+    props.result?.error || '',
+    metadata?.providerId || '',
+    metadata?.config?.model || '',
+    metadata?.config?.size || '',
+    metadata?.config?.n || 0,
+    metadata?.task_ids?.join(',') || '',
+    metadata?.finished_task_ids?.join(',') || '',
+    imageSizeSignature
+  ].join('|')
+})
+
+watch(toolResultSyncKey, () => {
+  syncToolBatchFromResult()
+}, { immediate: true })
 
 </script>
 

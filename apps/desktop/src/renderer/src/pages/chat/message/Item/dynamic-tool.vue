@@ -19,22 +19,6 @@ const localInput = ref('')
 const localOutput = ref('')
 const isRunning = ref(false)
 
-const initLocalState = () => {
-  try {
-    localInput.value = typeof props.tool_part.input === 'string'
-      ? props.tool_part.input
-      : JSON.stringify(props.tool_part.input, null, 2)
-
-    localOutput.value = typeof props.tool_part.output === 'string'
-      ? props.tool_part.output
-      : JSON.stringify(props.tool_part.output, null, 2)
-  } catch (e) {
-    console.error('Failed to initialize local state', e)
-  }
-}
-
-watch(() => props.tool_part, initLocalState, { immediate: true, deep: true })
-
 const toggleInputCollapse = () => {
   if (!isEditingInput.value) {
     isInputCollapsed.value = !isInputCollapsed.value
@@ -147,6 +131,30 @@ const customRender = computed(() => {
     return null
   }
 })
+
+const serializeForEditor = (value: unknown) => {
+  if (typeof value === 'string') return value
+  if (value == null) return ''
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+const initLocalState = () => {
+  if (customRender.value) return
+  localInput.value = serializeForEditor(props.tool_part.input)
+  localOutput.value = serializeForEditor(props.tool_part.output)
+}
+
+watch(
+  () => [props.tool_part.input, props.tool_part.output, customRender.value],
+  () => {
+    initLocalState()
+  },
+  { immediate: true }
+)
 </script>
 
 <template>

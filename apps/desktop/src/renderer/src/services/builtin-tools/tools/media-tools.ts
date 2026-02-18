@@ -107,5 +107,117 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
         }
       }
     }
+  },
+  video_generator: {
+    title: 'AI 视频',
+    description: '使用 AI 模型生成视频。可以指定提示词、时长、分辨率、模型等参数。',
+    inputSchema: z.object({
+      prompt: z.string().describe('生成视频的提示词，建议使用详细的描述。')
+    }),
+    render: ImagePage,
+    execute: async (args: any, options: any) => {
+      const { prompt } = args
+      const settingsStore = useSettingsStore()
+      const videoForm = settingsStore.videoGenerationForm
+
+      if (!videoForm) {
+        throw new Error('未配置默认视频模型，请先在绘画页面切换到视频模式并选择模型')
+      }
+
+      const targetModelId = videoForm.model?.modelId
+      const targetProviderId = videoForm.model?.providerId
+      const targetN = videoForm.n || 1
+      const targetSeed = videoForm.seed || undefined
+      const targetDuration = (videoForm as any).duration || undefined
+      const targetResolution = (videoForm as any).resolution || undefined
+
+      if (!targetModelId || !targetProviderId) {
+        throw new Error('未配置默认视频模型，请先在绘画页面切换到视频模式并选择模型')
+      }
+
+      const provider = settingsStore.getProviderById(targetProviderId)
+      if (!provider) {
+        throw new Error('未找到所选模型的提供商')
+      }
+
+      const metadata = {
+        chatId: options.chatId,
+        providerId: targetProviderId,
+        config: {
+          model: targetModelId,
+          n: targetN,
+          seed: targetSeed,
+          duration: targetDuration,
+          resolution: targetResolution,
+          providerOptions: videoForm.providerOptions,
+          mediaType: 'video'
+        }
+      }
+
+      try {
+        const registry = createRegistry({
+          apiKey: provider.apiKey || '',
+          baseURL: provider.baseUrl,
+          name: provider.name
+        })
+        const providerInstance = registry.getProvider(provider.providerType)
+
+        if (providerInstance?.generateVideoAsyncTask) {
+          const { task_id } = await providerInstance.generateVideoAsyncTask({
+            model: targetModelId,
+            prompt,
+            n: targetN,
+            duration: targetDuration ? Number(targetDuration) : undefined,
+            resolution: targetResolution,
+            seed: targetSeed,
+            providerOptions: {
+              [provider.providerType]: videoForm.providerOptions?.[provider.providerType]
+            }
+          })
+
+          return {
+            metadata: { ...metadata, task_ids: [task_id], images: [] }
+          }
+        }
+
+        const result = await chatService().generateVideo(prompt, {
+          model: targetModelId,
+          apiKey: provider.apiKey || '',
+          baseURL: provider.baseUrl || '',
+          provider: provider.id,
+          providerType: provider.providerType,
+          n: targetN,
+          duration: targetDuration ? Number(targetDuration) : undefined,
+          resolution: targetResolution,
+          seed: targetSeed,
+          providerOptions: videoForm.providerOptions
+        })
+
+        return {
+          toolResult: {
+            content: [
+              { type: 'text', text: '视频生成成功' }
+            ]
+          },
+          metadata: {
+            ...metadata,
+            images: result.videos
+              .map((video: any) => {
+                if (typeof video === 'string') return video
+                if (video.base64)
+                  return video.base64.startsWith('data:')
+                    ? video.base64
+                    : `data:video/mp4;base64,${video.base64}`
+                return video.url || ''
+              }) || []
+          }
+        }
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : String(error),
+          metadata: metadata
+        }
+      }
+    }
   }
 })
