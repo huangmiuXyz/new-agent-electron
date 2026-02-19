@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import ignore from 'ignore'
 import ApplyPatchRender from '../components/ApplyPatchRender.vue'
-import { applySearchReplace  } from './codex-utils'
+import { applyPatchDocument, applySearchReplace } from './codex-utils'
 
 const resolvePath = (rawPath: string): string => {
   const baseDir = useAgentStore().selectedAgent?.terminalStartupPath
@@ -623,6 +623,75 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       })
       return {
         toolResult: { content: [{ type: 'stdout', text: `终端ID: ${tabId}\n${result!.output}` }] }
+      }
+    }
+  },
+  apply_patch: {
+    title: '应用补丁',
+    description: `Use the \`apply_patch\` tool to edit files. This is a FREEFORM tool, so do not wrap the patch in JSON.
+IMPORTANT: This tool only accepts string inputs that obey the lark grammar start: begin_patch hunk+ end_patch
+begin_patch: "*** Begin Patch" LF
+end_patch: "*** End Patch" LF?
+
+hunk: add_hunk | delete_hunk | update_hunk
+add_hunk: "*** Add File: " filename LF add_line+
+delete_hunk: "*** Delete File: " filename LF
+update_hunk: "*** Update File: " filename LF change_move? change?
+
+filename: /(.+)/
+add_line: "+" /(.*)/ LF -> line
+
+change_move: "*** Move to: " filename LF
+change: (change_context | change_line)+ eof_line?
+change_context: ("@@" | "@@ " /(.+)/) LF
+change_line: ("+" | "-" | " ") /(.*)/ LF
+eof_line: "*** End of File" LF
+
+%import common.LF`,
+    inputSchema: z.object({
+      patch: z
+        .string()
+        .describe('Raw patch string that must strictly match the grammar in this tool description.')
+    }),
+    render: ApplyPatchRender,
+    execute: async (args: unknown) => {
+      const params = args as Record<string, any>
+      const patch = typeof params.patch === 'string' ? params.patch : ''
+
+      if (!patch.trim()) {
+        return {
+          error: '缺少必要参数: patch',
+          toolResult: {
+            content: [{ type: 'text', text: 'apply_patch 失败：缺少必要参数 patch' }]
+          }
+        }
+      }
+
+      const baseDir = useAgentStore().selectedAgent?.terminalStartupPath
+      if (!baseDir) {
+        return {
+          error: '未设置 terminalStartupPath',
+          toolResult: {
+            content: [{ type: 'text', text: 'apply_patch 失败：未设置 terminalStartupPath' }]
+          }
+        }
+      }
+
+      try {
+        const summaries = applyPatchDocument(patch, baseDir)
+        return {
+          summaries,
+          toolResult: {
+            content: [{ type: 'text', text: summaries.join('\n') || 'Patch applied successfully' }]
+          }
+        }
+      } catch (error) {
+        return {
+          error: (error as Error).message,
+          toolResult: {
+            content: [{ type: 'text', text: `apply_patch 失败: ${(error as Error).message}` }]
+          }
+        }
       }
     }
   },

@@ -6,7 +6,307 @@ const resolvePatchPath = (rawPath: string, baseDir: string) => {
     ? window.api.path.normalize(noPrefixPath)
     : window.api.path.resolve(baseDir, noPrefixPath)
 }
+const resolvePatchPathInBaseDir = (rawPath: string, baseDir: string) => {
+  const targetPath = resolvePatchPath(rawPath, baseDir)
+  const normalizedBaseDir = window.api.path.resolve(window.api.path.normalize(baseDir))
+  const relativePath = window.api.path.relative(normalizedBaseDir, targetPath)
+  const isInsideBaseDir =
+    relativePath === '' || (!relativePath.startsWith('..') && !window.api.path.isAbsolute(relativePath))
 
+  if (!isInsideBaseDir) {
+    throw new Error(`路径越界：仅允许访问 terminalStartupPath 内文件 (${normalizedBaseDir})`)
+  }
+
+  return targetPath
+}
+
+type PatchLine = {
+  op: ' ' | '+' | '-'
+  text: string
+}
+
+type PatchChunk = {
+  header?: string
+  lines: PatchLine[]
+  endOfFile?: boolean
+}
+
+type ParsedPatchHunk =
+  | {
+      type: 'add'
+      path: string
+      lines: string[]
+    }
+  | {
+      type: 'delete'
+      path: string
+    }
+  | {
+      type: 'update'
+      path: string
+      moveTo?: string
+      chunks: PatchChunk[]
+    }
+
+const normalizePatchText = (patch: string) => patch.replace(/\r\n/g, '\n')
+
+const assertPatchHeader = (patch: string) => {
+  if (!patch.startsWith('*** Begin Patch\n')) {
+    throw new Error('补丁格式无效：必须以 "*** Begin Patch" 开头')
+  }
+  if (!(patch.endsWith('\n*** End Patch') || patch.endsWith('\n*** End Patch\n'))) {
+    throw new Error('补丁格式无效：必须以 "*** End Patch" 结尾')
+  }
+}
+
+const parsePatchDocument = (rawPatch: string): ParsedPatchHunk[] => {
+  const patch = normalizePatchText(rawPatch)
+  assertPatchHeader(patch)
+
+  const lines = patch.split('\n')
+  const operations: ParsedPatchHunk[] = []
+  let cursor = 1
+  let foundEndPatch = false
+
+  const ensurePath = (line: string, prefix: string) => {
+    const value = line.slice(prefix.length).trim()
+    if (!value) throw new Error(`补丁格式无效：${prefix} 后缺少路径`)
+    return value
+  }
+
+  while (cursor < lines.length) {
+    const line = lines[cursor]
+
+    if (line === '*** End Patch') {
+      foundEndPatch = true
+      cursor += 1
+      break
+    }
+
+    if (line === '') {
+      cursor += 1
+      continue
+    }
+
+    if (line.startsWith('*** Add File: ')) {
+      const path = ensurePath(line, '*** Add File: ')
+      cursor += 1
+      const addLines: string[] = []
+      while (cursor < lines.length && !lines[cursor].startsWith('*** ')) {
+        const current = lines[cursor]
+        if (!current.startsWith('+')) {
+          throw new Error(`补丁格式无效：Add File 仅允许 '+' 行，实际为 "${current}"`)
+        }
+        addLines.push(current.slice(1))
+        cursor += 1
+      }
+      if (addLines.length === 0) {
+        throw new Error(`补丁格式无效：Add File(${path}) 至少需要一行 '+' 内容`)
+      }
+      operations.push({ type: 'add', path, lines: addLines })
+      continue
+    }
+
+    if (line.startsWith('*** Delete File: ')) {
+      const path = ensurePath(line, '*** Delete File: ')
+      operations.push({ type: 'delete', path })
+      cursor += 1
+      continue
+    }
+
+    if (line.startsWith('*** Update File: ')) {
+      const path = ensurePath(line, '*** Update File: ')
+      cursor += 1
+
+      let moveTo: string | undefined
+      if (cursor < lines.length && lines[cursor].startsWith('*** Move to: ')) {
+        moveTo = ensurePath(lines[cursor], '*** Move to: ')
+        cursor += 1
+      }
+
+      const chunks: PatchChunk[] = []
+      let currentChunk: PatchChunk | null = null
+
+      while (cursor < lines.length) {
+        const current = lines[cursor]
+        if (current.startsWith('*** ')) break
+
+        if (current === '*** End of File') {
+          if (!currentChunk) {
+            currentChunk = { lines: [] }
+            chunks.push(currentChunk)
+          }
+          currentChunk.endOfFile = true
+          cursor += 1
+          continue
+        }
+
+        if (current === '@@' || current.startsWith('@@ ')) {
+          currentChunk = {
+            header: current === '@@' ? undefined : current.slice(3),
+            lines: []
+          }
+          chunks.push(currentChunk)
+          cursor += 1
+          continue
+        }
+
+        if (current.startsWith(' ') || current.startsWith('+') || current.startsWith('-')) {
+          if (!currentChunk) {
+            currentChunk = { lines: [] }
+            chunks.push(currentChunk)
+          }
+          currentChunk.lines.push({ op: current[0] as PatchLine['op'], text: current.slice(1) })
+          cursor += 1
+          continue
+        }
+
+        throw new Error(`补丁格式无效：无法解析 Update File(${path}) 中的行 "${current}"`)
+      }
+
+      operations.push({ type: 'update', path, moveTo, chunks })
+      continue
+    }
+
+    throw new Error(`补丁格式无效：未知区块头 "${line}"`)
+  }
+
+  if (!foundEndPatch) {
+    throw new Error('补丁格式无效：未找到 "*** End Patch"')
+  }
+
+  while (cursor < lines.length) {
+    if (lines[cursor] !== '') {
+      throw new Error(`补丁格式无效：结束标记后存在多余内容 "${lines[cursor]}"`)
+    }
+    cursor += 1
+  }
+
+  if (operations.length === 0) {
+    throw new Error('补丁格式无效：至少需要一个文件操作区块')
+  }
+
+  return operations
+}
+
+const findBlockIndex = (contentLines: string[], block: string[], from: number): number => {
+  if (block.length === 0) return Math.min(from, contentLines.length)
+
+  const findInRange = (start: number) => {
+    for (let i = start; i <= contentLines.length - block.length; i += 1) {
+      let match = true
+      for (let j = 0; j < block.length; j += 1) {
+        if (contentLines[i + j] !== block[j]) {
+          match = false
+          break
+        }
+      }
+      if (match) return i
+    }
+    return -1
+  }
+
+  const fromIndex = Math.max(0, Math.min(from, contentLines.length))
+  const strictMatch = findInRange(fromIndex)
+  if (strictMatch !== -1) return strictMatch
+
+  return fromIndex > 0 ? findInRange(0) : -1
+}
+
+const applyUpdateChunks = (original: string, chunks: PatchChunk[]): string => {
+  const normalizedOriginal = normalizePatchText(original)
+  const lines = normalizedOriginal.split('\n')
+  let cursor = 0
+
+  for (const chunk of chunks) {
+    if (chunk.lines.length === 0) continue
+
+    const oldBlock = chunk.lines.filter((item) => item.op !== '+').map((item) => item.text)
+    const newBlock = chunk.lines.filter((item) => item.op !== '-').map((item) => item.text)
+    const matchIndex = findBlockIndex(lines, oldBlock, cursor)
+
+    if (matchIndex === -1) {
+      const marker = chunk.header ? ` (@@ ${chunk.header})` : ''
+      throw new Error(`补丁应用失败：未找到可替换片段${marker}`)
+    }
+
+    lines.splice(matchIndex, oldBlock.length, ...newBlock)
+    cursor = matchIndex + newBlock.length
+  }
+
+  const preferredEol = original.includes('\r\n') ? '\r\n' : '\n'
+  const updated = lines.join('\n')
+  return preferredEol === '\r\n' ? updated.replace(/\n/g, '\r\n') : updated
+}
+
+const ensureTargetParentDir = (filePath: string) => {
+  const parentDir = window.api.path.dirname(filePath)
+  if (!window.api.fs.existsSync(parentDir)) {
+    window.api.fs.mkdirSync(parentDir, { recursive: true })
+  }
+}
+
+const ensureFilePath = (filePath: string, operation: string) => {
+  if (!window.api.fs.existsSync(filePath)) {
+    throw new Error(`${operation} 失败：文件不存在 ${filePath}`)
+  }
+  const stat = window.api.fs.lstatSync(filePath)
+  if ((stat.mode & 0o170000) === 0o040000) {
+    throw new Error(`${operation} 失败：目标是目录 ${filePath}`)
+  }
+}
+
+export const applyPatchDocument = (patch: string, baseDir: string): string[] => {
+  const operations = parsePatchDocument(patch)
+  const summaries: string[] = []
+
+  for (const operation of operations) {
+    if (operation.type === 'add') {
+      const targetPath = resolvePatchPathInBaseDir(operation.path, baseDir)
+      if (window.api.fs.existsSync(targetPath)) {
+        throw new Error(`Add File 失败：文件已存在 ${targetPath}`)
+      }
+      ensureTargetParentDir(targetPath)
+      window.api.fs.writeFileSync(targetPath, operation.lines.join('\n'), 'utf-8')
+      summaries.push(`Added ${targetPath}`)
+      continue
+    }
+
+    if (operation.type === 'delete') {
+      const targetPath = resolvePatchPathInBaseDir(operation.path, baseDir)
+      ensureFilePath(targetPath, 'Delete File')
+      window.api.fs.unlinkSync(targetPath)
+      summaries.push(`Deleted ${targetPath}`)
+      continue
+    }
+
+    const sourcePath = resolvePatchPathInBaseDir(operation.path, baseDir)
+    ensureFilePath(sourcePath, 'Update File')
+
+    const currentContent = window.api.fs.readFileSync(sourcePath, 'utf-8')
+    const nextContent = applyUpdateChunks(currentContent, operation.chunks)
+    if (nextContent !== currentContent) {
+      window.api.fs.writeFileSync(sourcePath, nextContent, 'utf-8')
+      summaries.push(`Updated ${sourcePath}`)
+    } else {
+      summaries.push(`No changes in ${sourcePath}`)
+    }
+
+    if (operation.moveTo) {
+      const targetPath = resolvePatchPathInBaseDir(operation.moveTo, baseDir)
+      if (sourcePath !== targetPath) {
+        if (window.api.fs.existsSync(targetPath)) {
+          throw new Error(`Move 失败：目标已存在 ${targetPath}`)
+        }
+        ensureTargetParentDir(targetPath)
+        window.api.fs.renameSync(sourcePath, targetPath)
+        summaries.push(`Moved ${sourcePath} -> ${targetPath}`)
+      }
+    }
+  }
+
+  return summaries
+}
 export const applySearchReplace = (
   filePath: string,
   oldStr: string,
