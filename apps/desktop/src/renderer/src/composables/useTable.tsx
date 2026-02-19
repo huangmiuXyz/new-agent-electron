@@ -210,7 +210,7 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
   }
 
   const tableWrapperRef = ref<HTMLElement>()
-  const { top } = useElementBounding(tableWrapperRef.value)
+  const { top } = useElementBounding(tableWrapperRef)
   const { height: windowHeight } = useWindowSize()
 
   const autoHeightEnabled = config.autoHeight?.enabled ?? false
