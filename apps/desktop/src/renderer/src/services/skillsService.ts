@@ -20,6 +20,27 @@ interface SkillFrontmatter {
 
 const SKILL_FILE_NAME = 'SKILL.md'
 const LEGACY_PROJECT_SKILLS_DIR = 'skills'
+const SKILL_NAME_PATTERN = /^[a-z0-9-]+$/
+const MAX_NAME_LENGTH = 64
+const MAX_DESCRIPTION_LENGTH = 1024
+
+function unquote(value: string): string {
+  const trimmed = value.trim()
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    return trimmed.slice(1, -1)
+  }
+  return trimmed
+}
+
+function escapeXml(text: string): string {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;')
+}
 
 /**
  * 解析 YAML frontmatter
@@ -30,25 +51,70 @@ function parseFrontmatter(content: string): SkillFrontmatter {
 
   const yaml = match[1]
   const result: Record<string, any> = {}
-
-  // Minimal YAML frontmatter parser for key-value fields.
   const lines = yaml.split('\n')
+  let nestedKey: string | null = null
+
   for (const line of lines) {
     if (!line.trim() || line.trim().startsWith('#')) continue
-    const colonIndex = line.indexOf(':')
-    if (colonIndex > 0) {
-      const key = line.slice(0, colonIndex).trim()
-      let value = line.slice(colonIndex + 1).trim()
 
-      if ((value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1)
+    // Only parse one-level nested maps (for optional metadata blocks).
+    if (/^[ \t]+/.test(line) && nestedKey) {
+      const trimmed = line.trim()
+      const nestedColonIndex = trimmed.indexOf(':')
+      if (nestedColonIndex > 0) {
+        const key = trimmed.slice(0, nestedColonIndex).trim()
+        const value = unquote(trimmed.slice(nestedColonIndex + 1))
+        if (typeof result[nestedKey] !== 'object' || result[nestedKey] === null) {
+          result[nestedKey] = {}
+        }
+        result[nestedKey][key] = value
       }
-      result[key] = value
+      continue
     }
+
+    const colonIndex = line.indexOf(':')
+    if (colonIndex <= 0) continue
+
+    const key = line.slice(0, colonIndex).trim()
+    const value = line.slice(colonIndex + 1).trim()
+    if (!key) continue
+
+    if (!value) {
+      nestedKey = key
+      if (!(key in result)) {
+        result[key] = {}
+      }
+      continue
+    }
+
+    nestedKey = null
+    result[key] = unquote(value)
   }
 
   return result as SkillFrontmatter
+}
+
+function validateFrontmatter(frontmatter: SkillFrontmatter, dirName: string): { name: string, description: string } | null {
+  const name = frontmatter.name?.trim()
+  const description = frontmatter.description?.trim()
+
+  if (!name || !description) {
+    return null
+  }
+
+  if (name.length > MAX_NAME_LENGTH || description.length > MAX_DESCRIPTION_LENGTH) {
+    return null
+  }
+
+  if (!SKILL_NAME_PATTERN.test(name) || name.startsWith('-') || name.endsWith('-') || name.includes('--')) {
+    return null
+  }
+
+  if (name !== dirName) {
+    return null
+  }
+
+  return { name, description }
 }
 
 /**
@@ -111,19 +177,20 @@ export function discoverSkills(directories: string[] = getSkillsDirectories()): 
 
         const content = window.api.fs.readFileSync(skillFile, 'utf-8')
         const frontmatter = parseFrontmatter(content)
+        const validated = validateFrontmatter(frontmatter, entry)
 
-        if (!frontmatter.name || !frontmatter.description) {
-          console.warn(`Skill ${entry} missing name or description`)
+        if (!validated) {
+          console.warn(`Skill ${entry} has invalid frontmatter for Agent Skills spec`)
           continue
         }
 
-        const normalizedName = frontmatter.name.trim().toLowerCase()
+        const normalizedName = validated.name.toLowerCase()
         if (seenNames.has(normalizedName)) continue
         seenNames.add(normalizedName)
 
         skills.push({
-          name: frontmatter.name.trim(),
-          description: frontmatter.description.trim(),
+          name: validated.name,
+          description: validated.description,
           path: skillDir
         })
       } catch (error) {
@@ -170,17 +237,24 @@ export function buildSkillsPrompt(skills: SkillMetadata[]): string {
     return ''
   }
 
-  const skillsList = skills
-    .map(s => `- ${s.name}: ${s.description}`)
+  const skillsXml = skills
+    .map((s) => [
+      '  <skill>',
+      `    <name>${escapeXml(s.name)}</name>`,
+      `    <description>${escapeXml(s.description)}</description>`,
+      `    <location>${escapeXml(window.api.path.join(s.path, SKILL_FILE_NAME))}</location>`,
+      '  </skill>'
+    ].join('\n'))
     .join('\n')
 
   return [
     '## Skills',
-    'Use the `loadSkill` tool to load a skill when the user request would benefit from specialized instructions.',
-    'After loading a skill, use `readFile` to open referenced files under the returned skill directory when needed.',
+    'Use the `loadSkill` tool when a user request would benefit from specialized instructions.',
+    'After loading a skill, open referenced files under the returned skill directory when needed.',
     '',
-    'Available skills:',
-    skillsList
+    '<available_skills>',
+    skillsXml,
+    '</available_skills>'
   ].join('\n')
 }
 
