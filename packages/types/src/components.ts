@@ -107,9 +107,7 @@ export interface CheckboxOption {
   value: string
   description?: string
   image?: string
-  group?: {
-    name: string
-  }
+  group?: string
 }
 
 export interface CheckboxGroupField<T> extends BaseField<T> {
