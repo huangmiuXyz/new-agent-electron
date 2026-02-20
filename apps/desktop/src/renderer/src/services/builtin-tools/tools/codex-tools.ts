@@ -28,6 +28,20 @@ const resolvePath = (rawPath: string): string => {
 const DEFAULT_EXCLUDE_DIRS = ['node_modules', '.git', 'dist', 'build', 'out', '.turbo']
 const MAX_FILE_SIZE_BYTES = 1024 * 1024
 
+const loadGitignoreMatcher = (rootDir: string): ReturnType<typeof ignore> => {
+  const ig = ignore()
+  const gitignorePath = window.api.path.join(rootDir, '.gitignore')
+  if (!window.api.fs.existsSync(gitignorePath)) {
+    return ig
+  }
+  try {
+    ig.add(window.api.fs.readFileSync(gitignorePath, 'utf-8'))
+  } catch {
+    // ignore read errors
+  }
+  return ig
+}
+
 const isProbablyBinary = (content: string): boolean => content.includes('\u0000')
 
 const formatContextPreview = (
@@ -193,15 +207,7 @@ const searchInFile = (options: {
 }
 
 const walkSearchFiles = (rootDir: string, excludeDirs: string[], extensions?: string[]): string[] => {
-  const ig = ignore()
-  const gitignorePath = window.api.path.join(rootDir, '.gitignore')
-  if (window.api.fs.existsSync(gitignorePath)) {
-    try {
-      ig.add(window.api.fs.readFileSync(gitignorePath, 'utf-8'))
-    } catch {
-      // ignore read errors
-    }
-  }
+  const ig = loadGitignoreMatcher(rootDir)
 
   const queue = [rootDir]
   const files: string[] = []
@@ -348,6 +354,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           }
         }
 
+        const ig = loadGitignoreMatcher(dirPath)
         const results: string[] = []
         let currentLength = 0
 
@@ -390,6 +397,10 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
             if (currentLength >= maxLength) break
 
             const fullPath = window.api.path.join(currentPath, entry)
+            const relativePath = window.api.path.relative(dirPath, fullPath).replaceAll('\\', '/')
+            if (relativePath && (ig.ignores(relativePath) || ig.ignores(`${relativePath}/`))) {
+              continue
+            }
             let isDir = false
             try {
               const s = window.api.fs.lstatSync(fullPath)
