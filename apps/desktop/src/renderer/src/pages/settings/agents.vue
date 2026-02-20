@@ -390,7 +390,6 @@ const getGroupedBuiltinTools = (toolIds: string[] | undefined) => {
 
 .tool-tag {
   font-size: 10px;
-  background: var(--bg-active);
   color: var(--accent-color);
   padding: 2px 6px;
   border-radius: 3px;
