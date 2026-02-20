@@ -256,21 +256,28 @@ const ensureFilePath = (filePath: string, operation: string) => {
   }
 }
 
-export const applySearchReplace = (
-  filePath: string,
-  oldStr: string,
-  newStr: string,
-  baseDir: string
-): string => {
-  const targetPath = resolvePatchPath(filePath, baseDir)
-  if (!window.api.fs.existsSync(targetPath)) {
-    throw new Error(`文件不存在: ${targetPath}`)
-  }
-  const stat = window.api.fs.lstatSync(targetPath)
-  if ((stat.mode & 0o170000) === 0o040000) {
-    throw new Error(`目标是目录，无法编辑: ${targetPath}`)
-  }
+type SearchReplaceType = 'modify' | 'add' | 'delete' | 'move'
 
+type SearchReplaceInput = {
+  type?: SearchReplaceType | 'update' | 'create' | 'remove' | 'rename'
+  filePath: string
+  oldStr?: string
+  newStr?: string
+  targetPath?: string
+  overwrite?: boolean
+}
+
+const normalizeSearchReplaceType = (type?: string): SearchReplaceType => {
+  const normalizedType = (type || 'modify').trim().toLowerCase()
+  if (normalizedType === 'modify' || normalizedType === 'update') return 'modify'
+  if (normalizedType === 'add' || normalizedType === 'create') return 'add'
+  if (normalizedType === 'delete' || normalizedType === 'remove') return 'delete'
+  if (normalizedType === 'move' || normalizedType === 'rename') return 'move'
+  throw new Error(`不支持的 type: ${type}，仅支持 modify/add/delete/move`)
+}
+
+const applyModifySearchReplace = (targetPath: string, oldStr: string, newStr: string): string => {
+  ensureFilePath(targetPath, '修改文件')
   const content = window.api.fs.readFileSync(targetPath, 'utf-8')
 
   const normalize = (s: string) => s.replace(/\r\n/g, '\n')
@@ -278,24 +285,99 @@ export const applySearchReplace = (
   const normalizedOldStr = normalize(oldStr)
 
   const index = normalizedContent.indexOf(normalizedOldStr)
-
   if (index === -1) {
-    throw new Error(`在文件中未找到匹配的旧代码片段 (old_str)。请确保 old_str 与文件中的现有代码完全匹配（包括空格和换行）。`)
+    throw new Error(
+      '在文件中未找到匹配的旧代码片段 (old_str)。请确保 old_str 与文件中的现有代码完全匹配（包括空格和换行）。'
+    )
   }
 
   if (content.includes(oldStr)) {
-      const newContent = content.replace(oldStr, newStr)
-      window.api.fs.writeFileSync(targetPath, newContent, 'utf-8')
-      return `Successfully replaced content in ${targetPath}`
+    const newContent = content.replace(oldStr, newStr)
+    window.api.fs.writeFileSync(targetPath, newContent, 'utf-8')
+    return `Successfully replaced content in ${targetPath}`
   }
 
-  if (index !== -1) {
-      const newContent = normalizedContent.replace(normalizedOldStr, normalize(newStr))
-      window.api.fs.writeFileSync(targetPath, newContent, 'utf-8')
-      return `Successfully replaced content in ${targetPath} (normalized line endings)`
+  const newContent = normalizedContent.replace(normalizedOldStr, normalize(newStr))
+  window.api.fs.writeFileSync(targetPath, newContent, 'utf-8')
+  return `Successfully replaced content in ${targetPath} (normalized line endings)`
+}
+
+const applyAddSearchReplace = (targetPath: string, newStr: string, overwrite: boolean): string => {
+  if (window.api.fs.existsSync(targetPath)) {
+    const stat = window.api.fs.lstatSync(targetPath)
+    if ((stat.mode & 0o170000) === 0o040000) {
+      throw new Error(`新增文件失败：目标是目录 ${targetPath}`)
+    }
+    if (!overwrite) {
+      throw new Error(`新增文件失败：文件已存在 ${targetPath}，如需覆盖请传入 overwrite=true`)
+    }
   }
 
-  throw new Error(`在文件中未找到匹配的旧代码片段 (old_str)。请确保 old_str 与文件中的现有代码完全匹配（包括空格和换行）。`)
+  ensureTargetParentDir(targetPath)
+  window.api.fs.writeFileSync(targetPath, newStr, 'utf-8')
+  return overwrite ? `Successfully wrote file ${targetPath}` : `Successfully created file ${targetPath}`
+}
+
+const applyDeleteSearchReplace = (targetPath: string): string => {
+  ensureFilePath(targetPath, '删除文件')
+  window.api.fs.unlinkSync(targetPath)
+  return `Successfully deleted file ${targetPath}`
+}
+
+const applyMoveSearchReplace = (
+  sourcePath: string,
+  destinationPath: string,
+  overwrite: boolean
+): string => {
+  ensureFilePath(sourcePath, '移动文件')
+
+  if (window.api.path.resolve(sourcePath) === window.api.path.resolve(destinationPath)) {
+    throw new Error('移动文件失败：源路径与目标路径相同')
+  }
+
+  if (window.api.fs.existsSync(destinationPath)) {
+    const stat = window.api.fs.lstatSync(destinationPath)
+    if ((stat.mode & 0o170000) === 0o040000) {
+      throw new Error(`移动文件失败：目标是目录 ${destinationPath}`)
+    }
+    if (!overwrite) {
+      throw new Error(`移动文件失败：目标文件已存在 ${destinationPath}，如需覆盖请传入 overwrite=true`)
+    }
+    window.api.fs.unlinkSync(destinationPath)
+  }
+
+  ensureTargetParentDir(destinationPath)
+  window.api.fs.renameSync(sourcePath, destinationPath)
+  return `Successfully moved file from ${sourcePath} to ${destinationPath}`
+}
+
+export const applySearchReplace = (input: SearchReplaceInput, baseDir: string): string => {
+  const type = normalizeSearchReplaceType(input.type)
+  const sourcePath = resolvePatchPathInBaseDir(input.filePath, baseDir)
+
+  if (type === 'modify') {
+    if (typeof input.oldStr !== 'string' || input.oldStr.length === 0 || typeof input.newStr !== 'string') {
+      throw new Error('type=modify 时缺少必要参数: old_str(非空字符串), new_str')
+    }
+    return applyModifySearchReplace(sourcePath, input.oldStr, input.newStr)
+  }
+
+  if (type === 'add') {
+    if (typeof input.newStr !== 'string') {
+      throw new Error('type=add 时缺少必要参数: new_str（可为空字符串）')
+    }
+    return applyAddSearchReplace(sourcePath, input.newStr, Boolean(input.overwrite))
+  }
+
+  if (type === 'delete') {
+    return applyDeleteSearchReplace(sourcePath)
+  }
+
+  if (typeof input.targetPath !== 'string' || input.targetPath.trim().length === 0) {
+    throw new Error('type=move 时缺少必要参数: target_path')
+  }
+  const targetPath = resolvePatchPathInBaseDir(input.targetPath, baseDir)
+  return applyMoveSearchReplace(sourcePath, targetPath, Boolean(input.overwrite))
 }
 
 const READ_ONLY_COMMANDS = new Set([

@@ -640,29 +640,66 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   search_replace: {
     title: '搜索和替换',
     description:
-      '使用精确的字符串替换来编辑文件。必须提供文件中现有的代码片段 (old_str) 和要替换的新代码片段 (new_str)。',
+      '通过 type 执行文件操作：modify(替换内容)、add(新增文件)、delete(删除文件)、move(移动/重命名文件)。',
     inputSchema: z.object({
-      file_path: z.string().describe('要编辑的文件的绝对路径或相对路径'),
-      old_str: z.string().describe('要搜索的旧代码片段（必须与文件内容完全匹配）'),
-      new_str: z.string().describe('要替换的新代码片段')
+      type: z
+        .enum(['modify', 'add', 'delete', 'move'])
+        .optional()
+        .default('modify')
+        .describe(
+          '操作类型：modify=替换文件内容，add=新增文件，delete=删除文件，move=移动/重命名文件'
+        ),
+      file_path: z.string().describe('源文件路径（add/delete/modify 为目标文件，move 为原路径）'),
+      old_str: z
+        .string()
+        .optional()
+        .describe('type=modify 时必填：要搜索的旧代码片段（必须与文件内容完全匹配）'),
+      new_str: z
+        .string()
+        .optional()
+        .describe('type=modify 时为替换内容；type=add 时为新文件内容（可为空字符串）'),
+      target_path: z.string().optional().describe('type=move 时必填：目标文件路径'),
+      overwrite: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe('type=add 或 move 时可选：目标已存在时是否覆盖，默认 false')
     }),
     render: ApplyPatchRender,
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
-      const { file_path, old_str, new_str } = params
+      const type =
+        typeof params.type === 'string'
+          ? (params.type as 'modify' | 'add' | 'delete' | 'move')
+          : 'modify'
+      const filePath = typeof params.file_path === 'string' ? params.file_path : ''
+      const oldStr = typeof params.old_str === 'string' ? params.old_str : undefined
+      const newStr = typeof params.new_str === 'string' ? params.new_str : undefined
+      const targetPath = typeof params.target_path === 'string' ? params.target_path : undefined
+      const overwrite = Boolean(params.overwrite)
 
-      if (!file_path || !old_str || new_str === undefined) {
+      if (!filePath.trim()) {
         return {
-          error: '缺少必要参数: file_path, old_str, new_str',
+          error: '缺少必要参数: file_path',
           toolResult: {
-            content: [{ type: 'text', text: 'apply_patch 失败：缺少必要参数' }]
+            content: [{ type: 'text', text: 'search_replace 失败：缺少必要参数 file_path' }]
           }
         }
       }
 
       const baseDir = useAgentStore().selectedAgent!.terminalStartupPath!
       try {
-        const result = applySearchReplace(file_path, old_str, new_str, baseDir)
+        const result = applySearchReplace(
+          {
+            type,
+            filePath,
+            oldStr,
+            newStr,
+            targetPath,
+            overwrite
+          },
+          baseDir
+        )
         return {
           summaries: [result],
           toolResult: {
@@ -673,7 +710,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         return {
           error: (error as Error).message,
           toolResult: {
-            content: [{ type: 'text', text: `apply_patch 失败: ${(error as Error).message}` }]
+            content: [{ type: 'text', text: `search_replace 失败: ${(error as Error).message}` }]
           }
         }
       }

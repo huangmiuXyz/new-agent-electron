@@ -13,9 +13,11 @@ interface PatchAction {
 
 interface ToolInput {
   patch?: string
+  type?: 'modify' | 'add' | 'delete' | 'move'
   file_path?: string
   old_str?: string
   new_str?: string
+  target_path?: string
 }
 
 interface ToolOutput {
@@ -43,12 +45,36 @@ const patchText = computed(() => {
   if (props.args?.patch) {
     return props.args.patch
   }
-  if (props.args?.file_path && props.args?.old_str && props.args?.new_str !== undefined) {
-    const { file_path, old_str, new_str } = props.args
-    const oldLines = old_str.split(/\r?\n/)
-    const newLines = new_str.split(/\r?\n/)
+  const inputType = props.args?.type || 'modify'
+  const filePath = props.args?.file_path
+  const oldStr = props.args?.old_str
+  const newStr = props.args?.new_str
+  const targetPath = props.args?.target_path
 
-    let patch = `*** Update File: ${file_path}\n`
+  if (!filePath) return ''
+
+  if (inputType === 'add' && newStr !== undefined) {
+    const newLines = newStr.split(/\r?\n/)
+    let patch = `*** Add File: ${filePath}\n`
+    newLines.forEach((line) => {
+      patch += `+${line}\n`
+    })
+    return patch
+  }
+
+  if (inputType === 'delete') {
+    return `*** Delete File: ${filePath}\n`
+  }
+
+  if (inputType === 'move' && targetPath) {
+    return `*** Update File: ${filePath}\n*** Move to: ${targetPath}\n`
+  }
+
+  if (oldStr && newStr !== undefined) {
+    const oldLines = oldStr.split(/\r?\n/)
+    const newLines = newStr.split(/\r?\n/)
+
+    let patch = `*** Update File: ${filePath}\n`
     patch += `@@ -1,${oldLines.length} +1,${newLines.length} @@\n`
 
     oldLines.forEach((line) => {
@@ -60,6 +86,7 @@ const patchText = computed(() => {
 
     return patch
   }
+
   return ''
 })
 
