@@ -299,20 +299,32 @@ export const chatService = () => {
       }
     }
     const ragSearchDetails = ref()
-    const toolLoopDebugPrefix = '[chatService][tool-loop]'
-    let stepDebugIndex = 0
-
-    const getToolOutputPreview = (output: unknown): string => {
-      if (output == null) return String(output)
+    const toolLoopStopSentinel = '<|stop|>'
+    const hasStopSentinelOutput = (output: unknown): boolean => {
       if (typeof output === 'string') {
-        return output.length > 300 ? `${output.slice(0, 300)}...` : output
+        return output.trim() === toolLoopStopSentinel
       }
-      try {
-        const serialized = JSON.stringify(output)
-        return serialized.length > 300 ? `${serialized.slice(0, 300)}...` : serialized
-      } catch {
-        return '[Unserializable output]'
+
+      if (!output || typeof output !== 'object') return false
+
+      const candidates = [
+        (output as any)?.toolResult?.content,
+        (output as any)?.content
+      ]
+
+      for (const content of candidates) {
+        if (!Array.isArray(content)) continue
+        if (content.some((item) => item?.type === 'text' && item?.text === toolLoopStopSentinel)) {
+          return true
+        }
       }
+
+      return false
+    }
+
+    const shouldStopForToolResult = (toolResult: { toolName?: string; output: unknown }): boolean => {
+      if (toolResult.toolName !== 'candidateReplies') return false
+      return hasStopSentinelOutput(toolResult.output)
     }
 
     const agent = new ToolLoopAgent({
@@ -369,48 +381,15 @@ export const chatService = () => {
           return (
             steps.some((step) =>
               step.toolResults?.some((toolResult) => {
-                return JSON.stringify(toolResult.output).includes('<|stop|>')
+                return shouldStopForToolResult({
+                  toolName: toolResult.toolName,
+                  output: toolResult.output
+                })
               })
             ) ?? false
           )
         }
-      ],
-      onStepFinish: async (step) => {
-        const stepNo = stepDebugIndex++
-        const toolCalls = (step.toolCalls ?? []).map((toolCall) => ({
-          toolCallId: toolCall.toolCallId,
-          toolName: toolCall.toolName,
-          providerExecuted: toolCall.providerExecuted === true
-        }))
-        const toolResults = (step.toolResults ?? []).map((toolResult) => ({
-          toolCallId: toolResult.toolCallId,
-          toolName: toolResult.toolName,
-          providerExecuted: toolResult.providerExecuted === true,
-          outputPreview: getToolOutputPreview(toolResult.output)
-        }))
-        const hasStopSentinel = toolResults.some((result) =>
-          result.outputPreview.includes('<|stop|>')
-        )
-
-        const loopCategory =
-          toolCalls.length === 0
-            ? 'no-tool-calls'
-            : toolResults.length < toolCalls.length
-              ? 'missing-tool-results'
-              : hasStopSentinel
-                ? 'stop-sentinel-detected'
-                : 'tool-calls-completed'
-
-        console.debug(`${toolLoopDebugPrefix} step`, {
-          cid,
-          stepNo,
-          finishReason: step.finishReason,
-          rawFinishReason: step.rawFinishReason,
-          loopCategory,
-          toolCalls,
-          toolResults
-        })
-      }
+      ]
     })
     const controller = new AbortController()
 
