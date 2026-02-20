@@ -256,57 +256,6 @@ const ensureFilePath = (filePath: string, operation: string) => {
   }
 }
 
-export const applyPatchDocument = (patch: string, baseDir: string): string[] => {
-  const operations = parsePatchDocument(patch)
-  const summaries: string[] = []
-
-  for (const operation of operations) {
-    if (operation.type === 'add') {
-      const targetPath = resolvePatchPathInBaseDir(operation.path, baseDir)
-      if (window.api.fs.existsSync(targetPath)) {
-        throw new Error(`Add File 失败：文件已存在 ${targetPath}`)
-      }
-      ensureTargetParentDir(targetPath)
-      window.api.fs.writeFileSync(targetPath, operation.lines.join('\n'), 'utf-8')
-      summaries.push(`Added ${targetPath}`)
-      continue
-    }
-
-    if (operation.type === 'delete') {
-      const targetPath = resolvePatchPathInBaseDir(operation.path, baseDir)
-      ensureFilePath(targetPath, 'Delete File')
-      window.api.fs.unlinkSync(targetPath)
-      summaries.push(`Deleted ${targetPath}`)
-      continue
-    }
-
-    const sourcePath = resolvePatchPathInBaseDir(operation.path, baseDir)
-    ensureFilePath(sourcePath, 'Update File')
-
-    const currentContent = window.api.fs.readFileSync(sourcePath, 'utf-8')
-    const nextContent = applyUpdateChunks(currentContent, operation.chunks)
-    if (nextContent !== currentContent) {
-      window.api.fs.writeFileSync(sourcePath, nextContent, 'utf-8')
-      summaries.push(`Updated ${sourcePath}`)
-    } else {
-      summaries.push(`No changes in ${sourcePath}`)
-    }
-
-    if (operation.moveTo) {
-      const targetPath = resolvePatchPathInBaseDir(operation.moveTo, baseDir)
-      if (sourcePath !== targetPath) {
-        if (window.api.fs.existsSync(targetPath)) {
-          throw new Error(`Move 失败：目标已存在 ${targetPath}`)
-        }
-        ensureTargetParentDir(targetPath)
-        window.api.fs.renameSync(sourcePath, targetPath)
-        summaries.push(`Moved ${sourcePath} -> ${targetPath}`)
-      }
-    }
-  }
-
-  return summaries
-}
 export const applySearchReplace = (
   filePath: string,
   oldStr: string,
