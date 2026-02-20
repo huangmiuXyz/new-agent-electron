@@ -19,7 +19,7 @@ interface SkillFrontmatter {
 }
 
 const SKILL_FILE_NAME = 'SKILL.md'
-const LEGACY_PROJECT_SKILLS_DIR = 'skills'
+const DEFAULT_SKILLS_DIR = '~/.agents/skills'
 const SKILL_NAME_PATTERN = /^[a-z0-9-]+$/
 const MAX_NAME_LENGTH = 64
 const MAX_DESCRIPTION_LENGTH = 1024
@@ -127,15 +127,17 @@ function stripFrontmatter(content: string): string {
 
 /**
  * 获取技能目录路径列表
- * 当前仅支持旧的智能体路径：terminalStartupPath/skills
+ * 优先使用智能体配置的技能目录，留空时回退默认目录
  */
 export function getSkillsDirectories(): string[] {
-  const agentStore = useAgentStore()
-  const selectedAgent = agentStore.selectedAgent
+  const selectedAgent = useAgentStore().selectedAgent
+  const rawPath = selectedAgent?.skillDirectory?.trim() || DEFAULT_SKILLS_DIR
 
-  if (!selectedAgent?.terminalStartupPath) return []
+  if (rawPath.startsWith('~/')) {
+    return [window.api.path.join(window.api.os.homedir(), rawPath.slice(2))]
+  }
 
-  return [window.api.path.join(selectedAgent.terminalStartupPath, LEGACY_PROJECT_SKILLS_DIR)]
+  return [rawPath]
 }
 
 function isDirectory(path: string): boolean {

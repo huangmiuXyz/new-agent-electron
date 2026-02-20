@@ -15,6 +15,7 @@ declare global {
     knowledgeBaseIds?: string[] // 关联的知识库ID列表
     ragEnabled?: boolean // 是否启用RAG，将检索上下文插入到用户输入中
     terminalStartupPath?: string // 终端启动位置
+    skillDirectory?: string // 技能目录
     backgrounds?: AgentBackground[] // 背景图片或视频列表
     temperature?: number // 温度
     topP?: number // top-p

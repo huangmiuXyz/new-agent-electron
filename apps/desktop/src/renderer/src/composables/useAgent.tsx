@@ -5,6 +5,8 @@ interface AgentFormData extends Omit<Agent, 'backgrounds' | 'id' | 'createdAt' |
   backgrounds: string[]
 }
 
+const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
+
 export const useAgent = () => {
   const agentStore = useAgentStore()
   const settingsStore = useSettingsStore()
@@ -143,6 +145,7 @@ export const useAgent = () => {
           builtinTools: [...(agent.builtinTools || [])],
           ragEnabled: agent.ragEnabled ?? false,
           terminalStartupPath: agent.terminalStartupPath || '',
+          skillDirectory: agent.skillDirectory || DEFAULT_SKILL_DIRECTORY,
           backgrounds: agent.backgrounds ? agent.backgrounds.map((bg) => bg.url) : [],
           avatar: agent.avatar || '',
           temperature: agent.temperature ?? 0.7,
@@ -172,6 +175,7 @@ export const useAgent = () => {
           builtinTools: [],
           ragEnabled: false,
           terminalStartupPath: '',
+          skillDirectory: DEFAULT_SKILL_DIRECTORY,
           backgrounds: [],
           avatar: '',
           temperature: 0.7,
@@ -480,6 +484,17 @@ export const useAgent = () => {
         dialogOptions: {
           properties: ['openDirectory'],
           title: '选择终端启动目录'
+        }
+      } as PathSelectorField<AgentFormData>,
+      {
+        name: 'skillDirectory',
+        type: 'path',
+        label: '技能位置',
+        placeholder: '选择或输入技能目录',
+        hint: '用于加载技能的目录。默认：~/.agents/skills',
+        dialogOptions: {
+          properties: ['openDirectory'],
+          title: '选择技能目录'
         }
       } as PathSelectorField<AgentFormData>
     ]
