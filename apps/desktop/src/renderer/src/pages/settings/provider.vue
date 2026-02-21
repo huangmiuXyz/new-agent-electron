@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { FormItem } from '@renderer/composables/useForm'
 import { getProviderTypes } from '@renderer/services/chatService/registry'
-import providerData from '@renderer/assets/data/provider.json'
+import providerData from '@renderer/assets/provider.json'
 
 const { getAllProviders } = storeToRefs(useSettingsStore())
 const visibleProviders = computed(() => getAllProviders.value.filter((p) => !p.hide))

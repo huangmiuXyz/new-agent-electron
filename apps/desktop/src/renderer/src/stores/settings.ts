@@ -1,4 +1,4 @@
-import data from '@renderer/assets/data/provider.json'
+import data from '@renderer/assets/provider.json'
 import { ImageGenerateOptions } from '@renderer/services/chatService'
 
 let resolveRestore: () => void
