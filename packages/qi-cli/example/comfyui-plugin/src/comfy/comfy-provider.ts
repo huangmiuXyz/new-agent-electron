@@ -14,7 +14,7 @@ export interface ComfyUIProvider extends ProviderV3 {
   imageCallOptionsSchema: typeof comfyImageCallOptionsSchema;
   generateImageAsyncTask: (params: any) => Promise<{ task_id: string }>;
   asyncResult: (params: { task_id: string }) => Promise<{
-    status?: 'pending' | 'failed';
+    status?: 'pending' | 'completed' | 'failed';
     error?: string;
     images?: Array<string | { url: string }>;
   }>;
@@ -68,6 +68,7 @@ export function createComfyUI(options: ComfyUIProviderSettings = {}): ComfyUIPro
 
     if (result.status === 'completed') {
       return {
+        status: 'completed',
         images: (result.images || []).map((url) => ({ url }))
       };
     }

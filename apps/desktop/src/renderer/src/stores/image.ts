@@ -35,14 +35,13 @@ export const useImageStore = defineStore(
     const generatedBatches = ref<ImageBatch[]>([])
 
     const addBatch = (batch: ImageBatch) => {
-      generatedBatches.value.push(batch)
+      generatedBatches.value = [...generatedBatches.value, batch]
     }
 
     const updateBatch = (batchId: number, updates: Partial<ImageBatch>) => {
-      const index = generatedBatches.value.findIndex((b) => b.id === batchId)
-      if (index !== -1) {
-        generatedBatches.value[index] = { ...generatedBatches.value[index], ...updates }
-      }
+      generatedBatches.value = generatedBatches.value.map((batch) =>
+        batch.id === batchId ? { ...batch, ...updates } : batch
+      )
     }
 
     const removeBatch = (batchId: number) => {

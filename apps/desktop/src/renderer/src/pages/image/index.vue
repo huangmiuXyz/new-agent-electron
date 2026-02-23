@@ -394,7 +394,7 @@ const [ImageForm, imageFormActions] = useForm({
       referenceImages: referenceImages.length > 0 ? referenceImages : undefined
     })
 
-    generatedBatches.value.push(batch)
+    imgStore.addBatch(batch)
     floatingInputRef.value?.clearReferenceImages()
     startGeneration(batch)
   }
@@ -427,7 +427,7 @@ const [VideoForm, videoFormActions] = useForm({
       referenceImages: referenceImages.length > 0 ? referenceImages : undefined
     })
 
-    generatedBatches.value.push(batch)
+    imgStore.addBatch(batch)
     floatingInputRef.value?.clearReferenceImages()
     startVideoGeneration(batch)
   }

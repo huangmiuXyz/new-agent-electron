@@ -40,7 +40,7 @@ export class ComfyUIImageModel implements ImageModelV3 {
   constructor(
     readonly modelId: string,
     private readonly config: ComfyImageModelConfig
-  ) {}
+  ) { }
 
   private async fetchFn(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const fetchImpl = this.config.fetch ?? globalThis.fetch;
@@ -160,10 +160,9 @@ export class ComfyUIImageModel implements ImageModelV3 {
     }
 
     if (entry.status?.completed) {
-      return {
-        status: 'failed',
-        error: 'ComfyUI task completed, but no image outputs were found in history.'
-      };
+      // Some workflows mark completed slightly earlier than /history output persistence.
+      // Keep polling until timeout instead of failing immediately.
+      return { status: 'pending' };
     }
 
     return { status: 'pending' };
