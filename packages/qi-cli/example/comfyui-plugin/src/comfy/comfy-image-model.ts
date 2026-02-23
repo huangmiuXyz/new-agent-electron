@@ -42,8 +42,9 @@ export class ComfyUIImageModel implements ImageModelV3 {
     private readonly config: ComfyImageModelConfig
   ) {}
 
-  private get fetchFn() {
-    return this.config.fetch ?? fetch;
+  private async fetchFn(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const fetchImpl = this.config.fetch ?? globalThis.fetch;
+    return fetchImpl.call(globalThis, input, init);
   }
 
   private get baseURL(): string {
