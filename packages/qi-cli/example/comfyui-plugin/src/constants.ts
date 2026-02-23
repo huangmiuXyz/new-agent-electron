@@ -2,7 +2,7 @@ export const PLUGIN_NAME = 'comfyui-plugin';
 export const PROVIDER_ID = 'comfyui';
 export const STORAGE_KEY_CONFIG = 'comfyui-config';
 
-export const DEFAULT_BASE_URL = 'http://127.0.0.1:8188';
+export const DEFAULT_BASE_URL = 'http://127.0.0.1:8000';
 export const DEFAULT_MODEL_ID = 'comfyui-workflow';
 
 export const DEFAULT_POLL_INTERVAL_MS = 1500;

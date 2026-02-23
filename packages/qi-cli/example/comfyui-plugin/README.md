@@ -11,7 +11,7 @@ ComfyUI image provider plugin for Agent-Qi.
 
 ## Usage
 
-1. Start ComfyUI (default: `http://127.0.0.1:8188`).
+1. Start ComfyUI (default: `http://127.0.0.1:8000`).
 2. Export your workflow from ComfyUI as **API format JSON**.
 3. Open plugin settings and fill:
    - `Base URL`
