@@ -623,8 +623,12 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     execute: async (args: any, options: any) => {
       const { command, id } = args
       const { createTab } = useTerminal()
+      const platform = window.api.os.platform()
       const encodedCommand = btoa(String.fromCharCode(...new TextEncoder().encode(command)))
-      const wrappedCommand = `cmd_file="/tmp/agentqi_$(date +%s)_$RANDOM" && echo "${encodedCommand}" | base64 -d > "$cmd_file" && bash "$cmd_file"; rm -f "$cmd_file"`
+      const wrappedCommand =
+        platform === 'win32'
+          ? `$cmd = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("${encodedCommand}")); & ([ScriptBlock]::Create($cmd))`
+          : `cmd_file="/tmp/agentqi_$(date +%s)_$RANDOM" && echo "${encodedCommand}" | base64 -d > "$cmd_file" && bash "$cmd_file"; rm -f "$cmd_file"`
 
       const { id: tabId, result } = await createTab({
         command: wrappedCommand,
