@@ -113,9 +113,15 @@ export const useTerminal = (): TerminalActions => {
         case 'C':
           setExecuting(id, true)
           break
-        case 'D':
-          setExecuting(id, false, parts[1] ? parseInt(parts[1]) : null)
+        case 'D': {
+          if (!parts[1]) {
+            setExecuting(id, false, null)
+            break
+          }
+          const exitCode = Number.parseInt(parts[1], 10)
+          setExecuting(id, false, Number.isNaN(exitCode) ? null : exitCode)
           break
+        }
       }
       return true
     })
@@ -144,7 +150,8 @@ export const useTerminal = (): TerminalActions => {
             const platform = window.api.os.platform()
             setExecuting(id, true)
             if (platform === 'win32') {
-              const psScript = `function prompt { $lastExit = $? ; Write-Host -NoNewline "\`e]633;D;$lastExit\`a" ; return "PS $($executionContext.SessionState.Path.CurrentLocation)> " }; Clear-Host`
+              // Use [char]27 for ESC so this works in both Windows PowerShell 5.1 and PowerShell 7+.
+              const psScript = `function prompt { $exitCode = if ($?) { 0 } else { 1 }; [Console]::Write("$([char]27)]633;D;$exitCode$([char]7)"); return "PS $($executionContext.SessionState.Path.CurrentLocation)> " }; Clear-Host`
               window.api.pty.write(id, '\r' + psScript + '\r')
             } else {
               const shellIntegration = `if [ -n "$ZSH_VERSION" ]; then unsetopt PROMPT_SP; precmd() { printf "\\033]633;D;$?\\007"; }; elif [ -n "$BASH_VERSION" ]; then PROMPT_COMMAND='printf "\\033]633;D;$?\\007"'; fi; clear`
