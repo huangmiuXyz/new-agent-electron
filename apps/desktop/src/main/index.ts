@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, net, protocol } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, net, protocol, nativeTheme } from 'electron'
 import { join } from 'path'
 import { setupSqliteHandlers, initSqlite } from './services/sqlite'
 import { setupUpdaterHandlers } from './services/updater'
@@ -22,7 +22,21 @@ protocol.registerSchemesAsPrivileged([
   }
 ])
 
+const WINDOWS_TITLE_BAR_HEIGHT = 40
+const WINDOWS_SYMBOL_COLOR_DARK = '#f5f5f7'
+const WINDOWS_SYMBOL_COLOR_LIGHT = '#1d1d1f'
+
+function getWindowsTitleBarOverlay(isDark: boolean) {
+  return {
+    color: '#00000000',
+    symbolColor: isDark ? WINDOWS_SYMBOL_COLOR_DARK : WINDOWS_SYMBOL_COLOR_LIGHT,
+    height: WINDOWS_TITLE_BAR_HEIGHT
+  }
+}
+
 function createWindow(): BrowserWindow {
+  const isMac = process.platform === 'darwin'
+  const isWindows = process.platform === 'win32'
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -35,8 +49,13 @@ function createWindow(): BrowserWindow {
       webSecurity: false,
       allowRunningInsecureContent: true
     },
-    transparent: true,
-    titleBarStyle: 'hidden'
+    transparent: isMac,
+    titleBarStyle: isMac || isWindows ? 'hidden' : 'default',
+    ...(isWindows
+      ? {
+        titleBarOverlay: getWindowsTitleBarOverlay(nativeTheme.shouldUseDarkColors)
+      }
+      : {})
   })
 
   protocol.handle('plugin-resource', (request) => {
@@ -90,11 +109,25 @@ app.whenReady().then(() => {
       global.tempChatData[windowId] = { model, agentId, agent, history, autoReply }
 
       const win = new BrowserWindow({
+        ...(process.platform === 'darwin'
+          ? {
+            transparent: true,
+            titleBarStyle: 'hidden' as const
+          }
+          : process.platform === 'win32'
+            ? {
+              transparent: false,
+              titleBarStyle: 'hidden' as const,
+              titleBarOverlay: getWindowsTitleBarOverlay(nativeTheme.shouldUseDarkColors)
+            }
+          : {
+            transparent: false,
+            titleBarStyle: 'default' as const
+          }),
         width: 800,
         height: 600,
         show: false,
         autoHideMenuBar: true,
-        titleBarStyle: 'hidden',
         ...(process.platform === 'linux' ? { icon } : {}),
         webPreferences: {
           preload: join(__dirname, '../preload/index.js'),
@@ -122,6 +155,14 @@ app.whenReady().then(() => {
       return windowId
     }
   )
+
+  ipcMain.handle('window:set-title-bar-theme', (event, isDarkMode: boolean) => {
+    if (process.platform !== 'win32') return false
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return false
+    win.setTitleBarOverlay(getWindowsTitleBarOverlay(Boolean(isDarkMode)))
+    return true
+  })
 
   ipcMain.handle('net:fetch', async (_event, url, options) => {
     try {

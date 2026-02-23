@@ -36,6 +36,10 @@ watchEffect(() => {
   } else {
     root.classList.remove('dark-mode')
   }
+
+  if (window.api?.process?.platform === 'win32') {
+    void window.api.setTitleBarTheme(display.value.darkMode)
+  }
 })
 
 const switchView = (view: 'chat' | 'notes' | 'settings' | 'image') => {

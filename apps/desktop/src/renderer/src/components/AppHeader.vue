@@ -42,6 +42,7 @@ const createNewChat = () => {
 
 const { back } = useMobile()
 const route = useRoute()
+const isWindowsDesktop = computed(() => !isMobile.value && window.api?.process?.platform === 'win32')
 
 // 注册全局快捷键
 onMounted(() => {
@@ -98,11 +99,14 @@ onMounted(() => {
 </script>
 
 <template>
-  <header class="app-header drag" :class="{ 'is-mobile-list': isListMode }">
+  <header class="app-header drag" :class="{ 'is-mobile-list': isListMode, 'is-windows-desktop': isWindowsDesktop }">
     <div v-if="!isListMode" :style="{
-      marginLeft: isMobile ? '0' : '68px',
+      marginLeft: (isMobile || isWindowsDesktop) ? '0' : '68px',
       justifyContent: props.currentView === 'chat' ? 'space-between' : ''
-    }" :class="{ isMobile }" class="header-info drag">
+    }" :class="{ isMobile, isWindowsDesktop }" class="header-info drag">
+      <Button v-if="isWindowsDesktop && props.currentView === 'chat'" variant="icon" size="md" class="no-drag windows-search-left" @click="openSearch">
+        <component :is="Search" />
+      </Button>
       <Button v-if="!isMobile" variant="icon" size="md" @click="toggleSidebar">
         <component :is="settingsStore.display.sidebarCollapsed ? PanelOpen : PanelClose" />
       </Button>
@@ -130,7 +134,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="(!isMobile && props.currentView === 'chat')" class="header-actions no-drag">
+    <div v-if="(!isMobile && props.currentView === 'chat' && !isWindowsDesktop)" class="header-actions no-drag">
       <Button v-if="props.currentView === 'chat'" variant="text" size="lg" @click="openSearch">
         <component :is="Search" />
       </Button>
@@ -156,6 +160,14 @@ onMounted(() => {
   top: 0;
   z-index: 10;
   transition: background-color 0.3s, border-color 0.3s;
+}
+
+.app-header.is-windows-desktop {
+  padding-right: 140px;
+}
+
+.windows-search-left {
+  margin-right: 2px;
 }
 
 @media screen and (max-width: 768px) {
@@ -247,6 +259,11 @@ onMounted(() => {
 .header-info.isMobile {
   width: 100%;
   justify-content: space-between;
+}
+
+.header-info.isWindowsDesktop {
+  width: auto;
+  padding-left: 8px;
 }
 
 .header-title-container {

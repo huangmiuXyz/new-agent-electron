@@ -82,6 +82,8 @@ export const api: ElectronAPI = {
     const watcher = fs.watch(path, { recursive: true }, callback)
     return () => watcher.close()
   },
+  setTitleBarTheme: (isDarkMode: boolean) =>
+    electronAPI.ipcRenderer.invoke('window:set-title-bar-theme', isDarkMode),
   createTempChat: (data: any) => electronAPI.ipcRenderer.invoke('window:create-temp-chat', data),
   getTempChatData: (windowId: string) =>
     electronAPI.ipcRenderer.invoke('window:get-temp-chat-data', windowId),

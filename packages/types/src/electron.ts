@@ -71,6 +71,7 @@ export interface ElectronAPI {
   watch: (path: string, callback: (event: string, filename: string) => void) => () => void;
 
   // windows
+  setTitleBarTheme: (isDarkMode: boolean) => Promise<boolean>;
   createTempChat: (data: any) => Promise<any>;
   getTempChatData: (windowId: string) => Promise<any>;
 
