@@ -36,7 +36,7 @@
       "esbuild",
       "better-sqlite3",
       "node-pty",
-      "sqlite-vss"
+      "sqlite-vec"
     ]
   },
   "dependencies": {

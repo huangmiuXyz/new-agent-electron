@@ -98,7 +98,7 @@ catalog:
   pinia-plugin-persistedstate: ^4.7.1
   pinia-plugin-persistedstate-async: ^1.6.3
   prettier: ^3.8.1
-  sqlite-vss: ^0.1.2
+  sqlite-vec: ^0.1.7-alpha.2
   strip-ansi: ^7.1.2
   turbo: ^2.8.3
   typescript: ^5.9.3

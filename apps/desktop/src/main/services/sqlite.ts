@@ -1,11 +1,27 @@
 import Database from 'better-sqlite3'
-import * as sqliteVss from 'sqlite-vss'
+import * as sqliteVec from 'sqlite-vec'
 import { app, ipcMain } from 'electron'
 import { join, dirname } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import { is } from '@electron-toolkit/utils'
 
 let db: Database.Database
+
+const encodeEmbedding = (embedding: number[]) => {
+  const f32 = Float32Array.from(embedding)
+  return Buffer.from(f32.buffer, f32.byteOffset, f32.byteLength)
+}
+
+const decodeEmbedding = (value: Buffer | Uint8Array) => {
+  const bytes = Buffer.isBuffer(value) ? value : Buffer.from(value)
+  return Array.from(
+    new Float32Array(
+      bytes.buffer,
+      bytes.byteOffset,
+      Math.floor(bytes.byteLength / Float32Array.BYTES_PER_ELEMENT)
+    )
+  )
+}
 
 export const initSqlite = () => {
   let dbPath: string
@@ -22,9 +38,9 @@ export const initSqlite = () => {
   db = new Database(dbPath)
 
   try {
-    sqliteVss.load(db)
+    sqliteVec.load(db)
   } catch (e) {
-    console.error('Failed to load sqlite-vss:', e)
+    console.error('Failed to load sqlite-vec:', e)
   }
 
   db.exec(`
@@ -44,11 +60,11 @@ export const initSqlite = () => {
   `)
 }
 
-const ensureVssTable = (dimension: number) => {
+const ensureVecTable = (dimension: number) => {
   if (dimension > 0) {
     db.exec(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS vss_chunks_${dimension}
-      USING vss0(vector(${dimension}));
+      CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks_${dimension}
+      USING vec0(vector float[${dimension}]);
     `)
   }
 }
@@ -56,7 +72,7 @@ const ensureVssTable = (dimension: number) => {
 export const setupSqliteHandlers = () => {
   ipcMain.handle('sqlite:isSupported', async () => {
     try {
-      return !!db.prepare('SELECT vss_version()').get()
+      return !!db.prepare('SELECT vec_version()').get()
     } catch {
       return false
     }
@@ -79,7 +95,7 @@ export const setupSqliteHandlers = () => {
       if (!chunks.length) return true
 
       const dimension = chunks[0].embedding.length
-      ensureVssTable(dimension)
+      ensureVecTable(dimension)
 
       const findChunk = db.prepare('SELECT rowid FROM chunks WHERE id = ?')
 
@@ -88,22 +104,22 @@ export const setupSqliteHandlers = () => {
         'UPDATE chunks SET doc_id=?, kb_id=?, model_id=?, content_hash=?, content=?, dimension=? WHERE id=?'
       )
 
-      const insertVss = db.prepare(
-        `INSERT INTO vss_chunks_${dimension} (rowid, vector) VALUES (?, ?)`
+      const insertVec = db.prepare(
+        `INSERT INTO vec_chunks_${dimension} (rowid, vector) VALUES (?, ?)`
       )
-      const updateVss = db.prepare(`UPDATE vss_chunks_${dimension} SET vector=? WHERE rowid=?`)
+      const updateVec = db.prepare(`UPDATE vec_chunks_${dimension} SET vector=? WHERE rowid=?`)
 
       db.transaction(() => {
         for (const c of chunks) {
-          const vector = JSON.stringify(c.embedding)
+          const vector = encodeEmbedding(c.embedding)
           const existing = findChunk.get(c.id)
 
           if (existing) {
             updateChunk.run(c.doc_id, c.kb_id, c.model_id, c.content_hash, c.content, dimension, c.id)
-            updateVss.run(vector, existing.rowid)
+            updateVec.run(vector, existing.rowid)
           } else {
             const res = insertChunk.run(c.id, c.doc_id, c.kb_id, c.model_id, c.content_hash, c.content, dimension)
-            insertVss.run(res.lastInsertRowid, vector)
+            insertVec.run(res.lastInsertRowid, vector)
           }
         }
       })()
@@ -127,21 +143,19 @@ export const setupSqliteHandlers = () => {
       if (!chunks.length) return true
 
       const dimension = chunks[0].embedding.length
-      ensureVssTable(dimension)
+      ensureVecTable(dimension)
 
       const findByContent = db.prepare('SELECT rowid FROM chunks WHERE content = ?')
       const insertChunk = db.prepare('INSERT INTO chunks VALUES (?, ?, ?, ?, ?)')
-      const insertVss = db.prepare(
-        `INSERT INTO vss_chunks_${dimension} (rowid, vector) VALUES (?, ?)`
-      )
+      const insertVec = db.prepare(`INSERT INTO vec_chunks_${dimension} (rowid, vector) VALUES (?, ?)`)
 
       db.transaction(() => {
         for (const c of chunks) {
           const existing = findByContent.get(c.content)
           if (!existing) {
-            const vector = JSON.stringify(c.embedding)
+            const vector = encodeEmbedding(c.embedding)
             const res = insertChunk.run(c.id, c.doc_id, c.kb_id, c.content, dimension)
-            insertVss.run(res.lastInsertRowid, vector)
+            insertVec.run(res.lastInsertRowid, vector)
           }
         }
       })()
@@ -180,20 +194,21 @@ export const setupSqliteHandlers = () => {
         throw new Error('Query embedding dimension mismatch')
       }
 
-      ensureVssTable(dimension)
+      ensureVecTable(dimension)
 
       return db
         .prepare(
           `
           SELECT c.id, c.content, c.doc_id, v.distance
-          FROM vss_chunks_${dimension} v
+          FROM vec_chunks_${dimension} v
           JOIN chunks c ON v.rowid = c.rowid
-          WHERE vss_search(v.vector, vss_search_params(?, ?))
+          WHERE v.vector MATCH ?
             AND c.kb_id = ?
           ORDER BY v.distance ASC
+          LIMIT ?
         `
         )
-        .all(JSON.stringify(queryEmbedding), Math.max(1, topK || 5), kb_id)
+        .all(encodeEmbedding(queryEmbedding), kb_id, Math.max(1, topK || 5))
         .map((r) => ({
           id: r.id,
           content: r.content,
@@ -204,22 +219,22 @@ export const setupSqliteHandlers = () => {
   )
 
   ipcMain.handle('sqlite:getAllChunks', async () => {
-    const chunks = db.prepare('SELECT * FROM chunks').all() as any[]
+    const chunks = db.prepare('SELECT rowid, * FROM chunks').all() as any[]
     const result: any[] = []
 
     for (const chunk of chunks) {
       const dimension = chunk.dimension
       if (dimension > 0) {
-        const vssRow = db
-          .prepare(`SELECT vector FROM vss_chunks_${dimension} WHERE rowid = ?`)
-          .get(chunk.rowid) as { vector: string }
-        if (vssRow) {
+        const vecRow = db
+          .prepare(`SELECT vector FROM vec_chunks_${dimension} WHERE rowid = ?`)
+          .get(chunk.rowid) as { vector: Buffer | Uint8Array } | undefined
+        if (vecRow) {
           result.push({
             id: chunk.id,
             doc_id: chunk.doc_id,
             kb_id: chunk.kb_id,
             content: chunk.content,
-            embedding: JSON.parse(vssRow.vector)
+            embedding: decodeEmbedding(vecRow.vector)
           })
         }
       }
@@ -242,17 +257,17 @@ export const setupSqliteHandlers = () => {
       const placeholders = content_hashes.map(() => '?').join(',')
       const chunks = db
         .prepare(
-          `SELECT * FROM chunks WHERE content_hash IN (${placeholders}) AND model_id = ? AND dimension = ?`
+          `SELECT rowid, * FROM chunks WHERE content_hash IN (${placeholders}) AND model_id = ? AND dimension = ?`
         )
         .all(...content_hashes, model_id, dimension) as any[]
 
       const result: any[] = []
       for (const chunk of chunks) {
         if (dimension > 0) {
-          const vssRow = db
-            .prepare(`SELECT vector FROM vss_chunks_${dimension} WHERE rowid = ?`)
-            .get(chunk.rowid) as { vector: string }
-          if (vssRow) {
+          const vecRow = db
+            .prepare(`SELECT vector FROM vec_chunks_${dimension} WHERE rowid = ?`)
+            .get(chunk.rowid) as { vector: Buffer | Uint8Array } | undefined
+          if (vecRow) {
             result.push({
               id: chunk.id,
               doc_id: chunk.doc_id,
@@ -260,7 +275,7 @@ export const setupSqliteHandlers = () => {
               model_id: chunk.model_id,
               content_hash: chunk.content_hash,
               content: chunk.content,
-              embedding: JSON.parse(vssRow.vector)
+              embedding: decodeEmbedding(vecRow.vector)
             })
           }
         }
@@ -280,7 +295,7 @@ const deleteChunks = (field: 'doc_id' | 'kb_id', value: string) => {
 
   db.transaction(() => {
     for (const { rowid, dimension } of rows) {
-      db.prepare(`DELETE FROM vss_chunks_${dimension} WHERE rowid = ?`).run(rowid)
+      db.prepare(`DELETE FROM vec_chunks_${dimension} WHERE rowid = ?`).run(rowid)
     }
     db.prepare(`DELETE FROM chunks WHERE ${field} = ?`).run(value)
   })()

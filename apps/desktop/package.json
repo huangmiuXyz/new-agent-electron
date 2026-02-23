@@ -89,7 +89,7 @@
     "pinia": "catalog:",
     "pinia-plugin-persistedstate": "catalog:",
     "pinia-plugin-persistedstate-async": "catalog:",
-    "sqlite-vss": "catalog:",
+    "sqlite-vec": "catalog:",
     "strip-ansi": "catalog:",
     "textextensions": "^6.11.0",
     "vue": "catalog:",
