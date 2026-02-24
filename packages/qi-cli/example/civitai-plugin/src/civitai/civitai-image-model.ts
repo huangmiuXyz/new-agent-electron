@@ -10,6 +10,7 @@ export interface CivitaiImageConfig {
 }
 
 const civitaiImageCallOptionsSchema = z.object({
+  baseModel: z.string().meta({ ifShow: false }),
   negativePrompt: z.string().describe('可选。图像生成的负向提示词。').optional(),
   scheduler: z.enum([
     'EulerA', 'Euler', 'LMS', 'Heun', 'DPM2', 'DPM2A', 'DPM2SA', 'DPM2M',
@@ -95,6 +96,7 @@ export class CivitaiImageModel implements ImageModelV3 {
         steps: civitaiOptions?.steps ?? 20,
         cfgScale: civitaiOptions?.cfgScale ?? 7,
         clipSkip: civitaiOptions?.clipSkip ?? 2,
+        baseModel: civitaiOptions?.baseModel,
         width,
         height,
         seed,
