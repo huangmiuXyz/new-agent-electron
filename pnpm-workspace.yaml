@@ -74,7 +74,6 @@ catalog:
   dayjs: ^1.11.19
   electron: ^40.1.0
   electron-builder: ^26.7.0
-  electron-rebuild: ^3.2.9
   electron-updater: ^6.7.3
   electron-vite: ^5.0.0
   es-toolkit: ^1.44.0
