@@ -110,7 +110,7 @@ export class CivitaiImageModel implements ImageModelV3 {
   }
 
   async createTask(options: ImageModelV3CallOptions) {
-    debugger
+
     const { requestBody } = await this.getArgs(options);
     const response = await this.config.bridge.generateImage(requestBody);
 
