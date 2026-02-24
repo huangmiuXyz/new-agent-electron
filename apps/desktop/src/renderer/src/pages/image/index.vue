@@ -382,7 +382,7 @@ const [ImageForm, imageFormActions] = useForm({
     if (!prompt) return
 
     const referenceImages = floatingInputRef.value?.referenceImages || []
-    const model = settingsStore.getModelById(data.model.providerId, data.model.modelId)
+
     const batch = createImageBatch({
       prompt,
       model: data.model.modelId,
@@ -390,7 +390,7 @@ const [ImageForm, imageFormActions] = useForm({
       size: data.size,
       n: data.n,
       seed: data.seed ? Number(data.seed) : undefined,
-      providerOptions: { ...data.providerOptions, model },
+      providerOptions: data.providerOptions,
       referenceImages: referenceImages.length > 0 ? referenceImages : undefined
     })
 
@@ -415,7 +415,6 @@ const [VideoForm, videoFormActions] = useForm({
 
     const referenceImages = floatingInputRef.value?.referenceImages || []
 
-    const model = settingsStore.getModelById(data.model.providerId, data.model.modelId)
     const batch = createVideoBatch({
       prompt,
       model: data.model.modelId,
@@ -424,7 +423,7 @@ const [VideoForm, videoFormActions] = useForm({
       seed: data.seed ? Number(data.seed) : undefined,
       duration: data.duration ? Number(data.duration) : undefined,
       resolution: data.resolution,
-      providerOptions: { ...data.providerOptions, model },
+      providerOptions: data.providerOptions,
       referenceImages: referenceImages.length > 0 ? referenceImages : undefined
     })
 
@@ -563,8 +562,13 @@ watch(toolResultSyncKey, () => {
 
 <template>
   <div class="image-page-container" :class="{ 'tool-mode': isToolMode }">
-    <ResizeBox v-if="!isToolMode" v-model:width="settingsStore.display.imageSidebarWidth"
-      v-model:is-collapsed="settingsStore.display.sidebarCollapsed" :min-size="250" :max-size="500">
+    <ResizeBox
+      v-if="!isToolMode"
+      v-model:width="settingsStore.display.imageSidebarWidth"
+      v-model:is-collapsed="settingsStore.display.sidebarCollapsed"
+      :min-size="250"
+      :max-size="500"
+    >
       <FormContainer :show-header="false" class="form-section">
         <template #content>
           <!-- 模式切换 -->
@@ -609,13 +613,25 @@ watch(toolResultSyncKey, () => {
               <p>{{ isToolMode ? '等待生成结果...' : '在下方输入提示词，开启你的创作之旅' }}</p>
             </div>
             <div v-else class="batches-list" v-bind="wrapperProps">
-              <GenerationResultCard v-for="{ data: batch } in virtualList" :key="batch.id" :batch="batch"
-                :readonly="isToolMode" @re-edit="reEdit" @delete="deleteBatch" @copy-prompt="copyPrompt" />
+              <GenerationResultCard
+                v-for="{ data: batch } in virtualList"
+                :key="batch.id"
+                :batch="batch"
+                :readonly="isToolMode"
+                @re-edit="reEdit"
+                @delete="deleteBatch"
+                @copy-prompt="copyPrompt"
+              />
             </div>
           </div>
 
-          <FloatingInputArea v-if="!isToolMode" ref="floatingInputRef" v-model:input="rightInput"
-            :is-model-selected="isModelSelected" @submit="handleRightInputSubmit" />
+          <FloatingInputArea
+            v-if="!isToolMode"
+            ref="floatingInputRef"
+            v-model:input="rightInput"
+            :is-model-selected="isModelSelected"
+            @submit="handleRightInputSubmit"
+          />
         </div>
       </template>
     </FormContainer>
@@ -714,7 +730,7 @@ watch(toolResultSyncKey, () => {
   height: 100% !important;
 }
 
-.results-content>div {
+.results-content > div {
   max-width: 1000px;
   margin: 0 auto;
 }
