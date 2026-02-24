@@ -154,6 +154,7 @@ export const getTableColumns = ({
                     const versionInfo = await provider.getModelVersion(row.versionId)
                     if (versionInfo.air) {
                       updatedRow.id = versionInfo.air
+                      updatedRow.baseModel = versionInfo.baseModel
                     } else {
                       throw new Error('No AIR found for this version')
                     }
