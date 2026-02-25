@@ -39,7 +39,11 @@ const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.len
     <div class="prompt-card">
       <div class="prompt-header">
         <div class="prompt-main">
-          <div v-if="referenceImages.length > 0" class="prompt-reference-stack">
+          <div
+            v-if="referenceImages.length > 0"
+            class="prompt-reference-stack"
+            :class="{ single: referenceImages.length === 1 }"
+          >
             <div v-for="(img, index) in visibleReferenceImages" :key="`ref-${index}`" class="prompt-reference">
               <Image :src="img" preview :images="referenceImages" :initial-index="index" />
             </div>
@@ -146,6 +150,10 @@ const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.len
   flex-shrink: 0;
 }
 
+.prompt-reference-stack.single {
+  width: 40px;
+}
+
 .prompt-reference {
   position: absolute;
   top: 0;
@@ -176,6 +184,12 @@ const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.len
   z-index: 1;
 }
 
+.prompt-reference-stack.single .prompt-reference {
+  left: 0;
+  transform: none;
+  z-index: 1;
+}
+
 .prompt-reference :deep(.n-image),
 .prompt-reference :deep(img) {
   width: 100%;
@@ -198,6 +212,10 @@ const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.len
   line-height: 16px;
   text-align: center;
   z-index: 4;
+}
+
+.prompt-reference-stack.single .reference-more {
+  display: none;
 }
 
 .prompt-label {
