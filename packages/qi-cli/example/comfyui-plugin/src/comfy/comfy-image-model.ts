@@ -12,6 +12,7 @@ import {
   createClientId,
   ensureNoTrailingSlash,
   extractComfyError,
+  renderWorkflowJsonTemplate,
   safeJsonParseObject
 } from './comfy-utils';
 import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_SEC } from '../constants';
@@ -60,6 +61,21 @@ export class ComfyUIImageModel implements ImageModelV3 {
     return (parsed ?? {}) as ComfyImageCallOptions;
   }
 
+  private extractPromptText(prompt: ImageModelV3CallOptions['prompt']): string {
+    if (typeof prompt === 'string') {
+      return prompt;
+    }
+
+    if (prompt && typeof prompt === 'object' && 'text' in prompt) {
+      const text = (prompt as { text?: unknown }).text;
+      if (typeof text === 'string') {
+        return text;
+      }
+    }
+
+    return '';
+  }
+
   private async prepareTask(options: ImageModelV3CallOptions): Promise<PreparedTask> {
     const comfyOptions = await this.parseCallOptions(options.providerOptions);
 
@@ -70,7 +86,11 @@ export class ComfyUIImageModel implements ImageModelV3 {
       );
     }
 
-    const workflow = safeJsonParseObject(workflowJson, 'Workflow JSON');
+    const renderedWorkflowJson = renderWorkflowJsonTemplate(workflowJson, {
+      prompt: this.extractPromptText(options.prompt),
+      seed: options.seed
+    });
+    const workflow = safeJsonParseObject(renderedWorkflowJson, 'Workflow JSON');
 
     return { workflow };
   }

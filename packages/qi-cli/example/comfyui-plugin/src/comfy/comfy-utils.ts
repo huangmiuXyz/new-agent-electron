@@ -11,6 +11,11 @@ export interface WorkflowPathMappings {
   batchSizePath?: string;
 }
 
+interface WorkflowTemplateVariables {
+  prompt?: string;
+  seed?: number;
+}
+
 export const ensureNoTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
 
 export const parseSize = (size?: string): { width: number; height: number } | null => {
@@ -106,6 +111,37 @@ export const applyOverrideMap = (
   for (const [path, value] of Object.entries(overrides)) {
     setValueByPath(workflow, path, value);
   }
+};
+
+export const renderWorkflowJsonTemplate = (
+  workflowJson: string,
+  variables: WorkflowTemplateVariables
+): string => {
+  const promptValue = variables.prompt ?? '';
+  const promptJson = JSON.stringify(promptValue);
+  const promptEscaped = promptJson.slice(1, -1);
+
+  const hasSeed = typeof variables.seed === 'number' && Number.isFinite(variables.seed);
+  const seedNumberLiteral = hasSeed ? String(variables.seed) : 'null';
+  const seedEscaped = hasSeed ? String(variables.seed) : '';
+
+  let rendered = workflowJson;
+
+  // Handle unquoted placeholders used as JSON values first.
+  rendered = rendered.replace(
+    /([:\[,]\s*)\$\{prompt\}(\s*[,}\]])/g,
+    `$1${promptJson}$2`
+  );
+  rendered = rendered.replace(
+    /([:\[,]\s*)\$\{seed\}(\s*[,}\]])/g,
+    `$1${seedNumberLiteral}$2`
+  );
+
+  // Replace remaining placeholders inside string values and mixed text.
+  rendered = rendered.replace(/\$\{prompt\}/g, promptEscaped);
+  rendered = rendered.replace(/\$\{seed\}/g, seedEscaped);
+
+  return rendered;
 };
 
 export const buildViewUrl = (baseURL: string, image: ComfyHistoryImageOutput): string => {
