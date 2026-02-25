@@ -76,6 +76,13 @@ export class ComfyUIImageModel implements ImageModelV3 {
     return '';
   }
 
+  private resolveSeed(seed: ImageModelV3CallOptions['seed']): number {
+    if (typeof seed === 'number' && Number.isFinite(seed)) {
+      return Math.floor(seed);
+    }
+    return Math.floor(Math.random() * 2147483648);
+  }
+
   private async prepareTask(options: ImageModelV3CallOptions): Promise<PreparedTask> {
     const comfyOptions = await this.parseCallOptions(options.providerOptions);
 
@@ -86,9 +93,10 @@ export class ComfyUIImageModel implements ImageModelV3 {
       );
     }
 
+    const resolvedSeed = this.resolveSeed(options.seed);
     const renderedWorkflowJson = renderWorkflowJsonTemplate(workflowJson, {
       prompt: this.extractPromptText(options.prompt),
-      seed: options.seed
+      seed: resolvedSeed
     });
     const workflow = safeJsonParseObject(renderedWorkflowJson, 'Workflow JSON');
 
