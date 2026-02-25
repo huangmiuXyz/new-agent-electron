@@ -12,6 +12,7 @@ import {
   createClientId,
   ensureNoTrailingSlash,
   extractComfyError,
+  fillMissingSeedValues,
   renderWorkflowJsonTemplate,
   safeJsonParseObject
 } from './comfy-utils';
@@ -99,6 +100,7 @@ export class ComfyUIImageModel implements ImageModelV3 {
       seed: resolvedSeed
     });
     const workflow = safeJsonParseObject(renderedWorkflowJson, 'Workflow JSON');
+    fillMissingSeedValues(workflow, resolvedSeed);
 
     return { workflow };
   }

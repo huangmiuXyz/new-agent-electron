@@ -144,6 +144,36 @@ export const renderWorkflowJsonTemplate = (
   return rendered;
 };
 
+const SEED_KEYS = new Set(['seed', 'noise_seed', 'random_seed', 'seed_num']);
+
+export const fillMissingSeedValues = (workflow: AnyObject, seed: number): void => {
+  const walk = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        walk(item);
+      }
+      return;
+    }
+
+    if (!isPlainObject(value)) {
+      return;
+    }
+
+    for (const [key, child] of Object.entries(value)) {
+      if (
+        SEED_KEYS.has(key) &&
+        (child === null || child === undefined || child === '${seed}' || child === '')
+      ) {
+        value[key] = seed;
+        continue;
+      }
+      walk(child);
+    }
+  };
+
+  walk(workflow);
+};
+
 export const buildViewUrl = (baseURL: string, image: ComfyHistoryImageOutput): string => {
   const query = new URLSearchParams({
     filename: image.filename,
