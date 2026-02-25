@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ImageBatch } from '@renderer/stores/image'
 import VideoPlayer from '@renderer/components/VideoPlayer.vue'
+import AppImage from '@renderer/components/Image.vue'
 
 const props = defineProps<{
   batch: ImageBatch
@@ -45,7 +46,7 @@ const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.len
             :class="{ single: referenceImages.length === 1 }"
           >
             <div v-for="(img, index) in visibleReferenceImages" :key="`ref-${index}`" class="prompt-reference">
-              <Image :src="img" preview :images="referenceImages" :initial-index="index" />
+              <AppImage :src="img" preview :images="referenceImages" :initial-index="index" />
             </div>
             <div v-if="extraReferenceCount > 0" class="reference-more">+{{ extraReferenceCount }}</div>
           </div>
@@ -100,7 +101,7 @@ const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.len
           </template>
           <!-- 图片显示 -->
           <template v-else>
-            <Image :src="(img as string)" preview
+            <AppImage :src="(img as string)" preview
               :images="(batch.images.filter(i => typeof i === 'string') as string[])"
               :initial-index="batch.images.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1" />
           </template>
