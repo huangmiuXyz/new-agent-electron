@@ -104,10 +104,15 @@ export const setupSqliteHandlers = () => {
         'UPDATE chunks SET doc_id=?, kb_id=?, model_id=?, content_hash=?, content=?, dimension=? WHERE id=?'
       )
 
-      const insertVec = db.prepare(
-        `INSERT INTO vec_chunks_${dimension} (rowid, vector) VALUES (?, ?)`
+      const insertVecByChunkId = db.prepare(
+        `INSERT INTO vec_chunks_${dimension} (rowid, vector)
+         SELECT rowid, ? FROM chunks WHERE id = ?`
       )
-      const updateVec = db.prepare(`UPDATE vec_chunks_${dimension} SET vector=? WHERE rowid=?`)
+      const updateVecByChunkId = db.prepare(
+        `UPDATE vec_chunks_${dimension}
+         SET vector=?
+         WHERE rowid = (SELECT rowid FROM chunks WHERE id = ?)`
+      )
 
       db.transaction(() => {
         for (const c of chunks) {
@@ -116,10 +121,10 @@ export const setupSqliteHandlers = () => {
 
           if (existing) {
             updateChunk.run(c.doc_id, c.kb_id, c.model_id, c.content_hash, c.content, dimension, c.id)
-            updateVec.run(vector, existing.rowid)
+            updateVecByChunkId.run(vector, c.id)
           } else {
-            const res = insertChunk.run(c.id, c.doc_id, c.kb_id, c.model_id, c.content_hash, c.content, dimension)
-            insertVec.run(res.lastInsertRowid, vector)
+            insertChunk.run(c.id, c.doc_id, c.kb_id, c.model_id, c.content_hash, c.content, dimension)
+            insertVecByChunkId.run(vector, c.id)
           }
         }
       })()
@@ -146,16 +151,21 @@ export const setupSqliteHandlers = () => {
       ensureVecTable(dimension)
 
       const findByContent = db.prepare('SELECT rowid FROM chunks WHERE content = ?')
-      const insertChunk = db.prepare('INSERT INTO chunks VALUES (?, ?, ?, ?, ?)')
-      const insertVec = db.prepare(`INSERT INTO vec_chunks_${dimension} (rowid, vector) VALUES (?, ?)`)
+      const insertChunk = db.prepare(
+        'INSERT INTO chunks (id, doc_id, kb_id, model_id, content_hash, content, dimension) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      )
+      const insertVecByChunkId = db.prepare(
+        `INSERT INTO vec_chunks_${dimension} (rowid, vector)
+         SELECT rowid, ? FROM chunks WHERE id = ?`
+      )
 
       db.transaction(() => {
         for (const c of chunks) {
           const existing = findByContent.get(c.content)
           if (!existing) {
             const vector = encodeEmbedding(c.embedding)
-            const res = insertChunk.run(c.id, c.doc_id, c.kb_id, c.content, dimension)
-            insertVec.run(res.lastInsertRowid, vector)
+            insertChunk.run(c.id, c.doc_id, c.kb_id, '', '', c.content, dimension)
+            insertVecByChunkId.run(vector, c.id)
           }
         }
       })()
@@ -203,12 +213,12 @@ export const setupSqliteHandlers = () => {
           FROM vec_chunks_${dimension} v
           JOIN chunks c ON v.rowid = c.rowid
           WHERE v.vector MATCH ?
+            AND v.k = ?
             AND c.kb_id = ?
           ORDER BY v.distance ASC
-          LIMIT ?
         `
         )
-        .all(encodeEmbedding(queryEmbedding), kb_id, Math.max(1, topK || 5))
+        .all(encodeEmbedding(queryEmbedding), Math.max(1, topK || 5), kb_id)
         .map((r) => ({
           id: r.id,
           content: r.content,
