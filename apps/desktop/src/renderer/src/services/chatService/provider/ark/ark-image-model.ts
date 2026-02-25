@@ -55,6 +55,10 @@ export class ArkImageModel implements ImageModelV3 {
     return 'ark';
   }
 
+  private isToolsSupportedModel(): boolean {
+    return /^doubao-seedream-5(?:[.-]0)?-lite(?:-|$)/.test(this.modelId);
+  }
+
   /**
    * 从 providerOptions 中提取 ark 特有的参数
    */
@@ -109,18 +113,23 @@ export class ArkImageModel implements ImageModelV3 {
     const currentDate = new Date();
 
     const arkOptions = this.getArgs(providerOptions ?? {});
+    const { tools, ...otherArkOptions } = arkOptions;
 
     const requestBody: Record<string, unknown> = {
       model: this.modelId,
       prompt,
       size,
-      ...arkOptions,
+      ...otherArkOptions,
       seed,
       response_format: 'b64_json',
       sequential_image_generation_options: {
         max_images: n
       },
     };
+
+    if (this.isToolsSupportedModel() && Array.isArray(tools) && tools.length > 0) {
+      requestBody.tools = tools;
+    }
 
     if (files && files.length > 0) {
       const convertedImages = this.convertFilesToArkFormat(files);
@@ -162,6 +171,7 @@ export class ArkImageModel implements ImageModelV3 {
           images: response.data.map(item => ({
             ...(item.url ? { url: item.url } : {}),
           })),
+          ...(response.usage ? { usage: response.usage } : {}),
         },
       },
     };
@@ -191,6 +201,9 @@ const arkImageResponseSchema = z.object({
     input_tokens: z.number().optional(),
     output_tokens: z.number().optional(),
     total_tokens: z.number().optional(),
+    tool_usage: z.object({
+      web_search: z.number().optional(),
+    }).optional(),
   }).optional(),
   error: z.object({
     message: z.string(),

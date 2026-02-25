@@ -21,6 +21,11 @@ export const arkImageCallOptionsSchema = z.object({
   optimize_prompt_options: z.object({
     mode: z.enum(['standard', 'fast']).default('standard').optional()
   }).optional().describe('优化提示选项'),
+  tools: z.array(
+    z.object({
+      type: z.enum(['web_search']).describe('工具类型，目前仅支持 web_search'),
+    })
+  ).optional().describe('模型工具配置，仅 doubao-seedream-5.0-lite 支持'),
 });
 
 // Ark 视频生成参数 Schema (对齐火山引擎文档)

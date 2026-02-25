@@ -50,7 +50,7 @@ const handleCopyPrompt = () => {
       </div>
       <div class="prompt-meta">
         <Tags v-if="batch.modelName" :tags="[batch.modelName]" color="blue" />
-        <Tags v-if="batch.size" :tags="[batch.size]" color="green" />
+        <Tags v-if="batch.size" :tags="[`分辨率 ${batch.size}`]" color="green" />
       </div>
     </div>
 
