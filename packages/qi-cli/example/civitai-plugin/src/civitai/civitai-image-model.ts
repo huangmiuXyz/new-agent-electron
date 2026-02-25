@@ -10,17 +10,17 @@ export interface CivitaiImageConfig {
 }
 
 const civitaiImageCallOptionsSchema = z.object({
+  baseModel: z.string().meta({ ifShow: false }),
   negativePrompt: z.string().describe('可选。图像生成的负向提示词。').optional(),
   scheduler: z.enum([
     'EulerA', 'Euler', 'LMS', 'Heun', 'DPM2', 'DPM2A', 'DPM2SA', 'DPM2M',
     'DPMSDE', 'DPMFast', 'DPMAdaptive', 'LMSKarras', 'DPM2Karras', 'DPM2AKarras',
     'DPM2SAKarras', 'DPM2MKarras', 'DPMSDEKarras', 'DDIM', 'PLMS', 'UniPC',
     'Undefined', 'LCM', 'DDPM', 'DEIS'
-  ]).describe('可选。要使用的调度算法。').optional(),
+  ]).describe('可选。要使用的调度算法。').default('EulerA').optional(),
   steps: z.number().min(10).max(50).describe('可选。图像生成过程的步数。').optional(),
   cfgScale: z.number().min(1).max(30).describe('可选。图像生成的 CFG 比例。').optional(),
   clipSkip: z.number().min(1).max(3).describe('可选。图像生成的 CLIP 跳过数。').optional(),
-  callbackUrl: z.string().url().describe('可选。作业完成后将调用的 URL。').optional(),
   additionalNetworks: z.record(z.string(), z.object({
     type: z.enum(['Lora', 'Hypernetwork', 'TextualInversion', 'Lycoris', 'Checkpoint', 'Vae', 'LoCon']).describe('资产类型。').optional(),
     strength: z.number().describe('可选。对于 LoRa 和 LoCon，设置网络强度。').optional(),
@@ -96,13 +96,13 @@ export class CivitaiImageModel implements ImageModelV3 {
         steps: civitaiOptions?.steps ?? 20,
         cfgScale: civitaiOptions?.cfgScale ?? 7,
         clipSkip: civitaiOptions?.clipSkip ?? 2,
+        baseModel: civitaiOptions?.baseModel,
         width,
         height,
         seed,
       },
       additionalNetworks: civitaiOptions?.additionalNetworks,
       controlNets: civitaiOptions?.controlNets,
-      callbackUrl: civitaiOptions?.callbackUrl,
     };
 
     return {
@@ -112,6 +112,7 @@ export class CivitaiImageModel implements ImageModelV3 {
   }
 
   async createTask(options: ImageModelV3CallOptions) {
+
     const { requestBody } = await this.getArgs(options);
     const response = await this.config.bridge.generateImage(requestBody);
 

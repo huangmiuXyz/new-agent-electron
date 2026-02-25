@@ -11,9 +11,24 @@ const emit = defineEmits<{
 }>()
 
 const presetOptions = [
-  { label: '1K', value: '1024x1024' },
-  { label: '2K', value: '2048x2048' },
-  { label: '4K', value: '4096x4096' },
+  { label: '1K | 1:1 | 1024x1024', value: '1024x1024' },
+  { label: '2K | 1:1 | 2048x2048', value: '2048x2048' },
+  { label: '2K | 4:3 | 2304x1728', value: '2304x1728' },
+  { label: '2K | 3:4 | 1728x2304', value: '1728x2304' },
+  { label: '2K | 16:9 | 2848x1600', value: '2848x1600' },
+  { label: '2K | 9:16 | 1600x2848', value: '1600x2848' },
+  { label: '2K | 3:2 | 2496x1664', value: '2496x1664' },
+  { label: '2K | 2:3 | 1664x2496', value: '1664x2496' },
+  { label: '2K | 21:9 | 3136x1344', value: '3136x1344' },
+  { label: '3K | 1:1 | 3072x3072', value: '3072x3072' },
+  { label: '3K | 4:3 | 3456x2592', value: '3456x2592' },
+  { label: '3K | 3:4 | 2592x3456', value: '2592x3456' },
+  { label: '3K | 16:9 | 4096x2304', value: '4096x2304' },
+  { label: '3K | 9:16 | 2304x4096', value: '2304x4096' },
+  { label: '3K | 2:3 | 2496x3744', value: '2496x3744' },
+  { label: '3K | 3:2 | 3744x2496', value: '3744x2496' },
+  { label: '3K | 21:9 | 4704x2016', value: '4704x2016' },
+  { label: '4K | 1:1 | 4096x4096', value: '4096x4096' },
   { label: '512x512', value: '512x512' }
 ]
 

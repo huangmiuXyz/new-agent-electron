@@ -3,7 +3,6 @@ import { useVirtualList } from '@vueuse/core'
 import { createRegistry } from '@renderer/services/chatService/registry'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { ImageBatch, useImageStore } from '@renderer/stores/image'
-import ImageSizeSelector from '@renderer/components/ImageSizeSelector.vue'
 import GenerationResultCard from './GenerationResultCard.vue'
 import FloatingInputArea from './FloatingInputArea.vue'
 import { useImageGeneration } from '@renderer/composables/useImageGeneration'
@@ -56,6 +55,77 @@ const normalizeImages = (images: any[] = []) =>
 
 // 当前是否为视频生成模式
 const isVideoMode = ref(false)
+
+type ImageResolutionPreset = '1K' | '2K' | '3K' | '4K'
+
+const IMAGE_SIZE_PRESETS: Record<ImageResolutionPreset, Record<string, `${number}x${number}`>> = {
+  '1K': {
+    '1:1': '1024x1024',
+    '4:3': '1152x864',
+    '3:4': '864x1152',
+    '16:9': '1424x800',
+    '9:16': '800x1424',
+    '3:2': '1248x832',
+    '2:3': '832x1248',
+    '21:9': '1568x672'
+  },
+  '2K': {
+    '1:1': '2048x2048',
+    '4:3': '2304x1728',
+    '3:4': '1728x2304',
+    '16:9': '2848x1600',
+    '9:16': '1600x2848',
+    '3:2': '2496x1664',
+    '2:3': '1664x2496',
+    '21:9': '3136x1344'
+  },
+  '3K': {
+    '1:1': '3072x3072',
+    '4:3': '3456x2592',
+    '3:4': '2592x3456',
+    '16:9': '4096x2304',
+    '9:16': '2304x4096',
+    '2:3': '2496x3744',
+    '3:2': '3744x2496',
+    '21:9': '4704x2016'
+  },
+  '4K': {
+    '1:1': '4096x4096',
+    '4:3': '4608x3456',
+    '3:4': '3456x4608',
+    '16:9': '5696x3200',
+    '9:16': '3200x5696',
+    '3:2': '4992x3328',
+    '2:3': '3328x4992',
+    '21:9': '6272x2688'
+  }
+}
+
+const IMAGE_ASPECT_RATIOS = ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3', '21:9']
+
+const getSizeFromPreset = (resolution: string, aspectRatio: string): string => {
+  const map = IMAGE_SIZE_PRESETS[resolution as keyof typeof IMAGE_SIZE_PRESETS]
+  if (!map) return IMAGE_SIZE_PRESETS['2K']['1:1']
+  return map[aspectRatio] || map['1:1']
+}
+
+const parseSize = (size?: string): { width: number; height: number } => {
+  const [w, h] = String(size || '').split('x').map((v) => Number(v))
+  return {
+    width: Number.isFinite(w) && w > 0 ? w : 1024,
+    height: Number.isFinite(h) && h > 0 ? h : 1024
+  }
+}
+
+const getPresetBySize = (size?: string): { resolution: ImageResolutionPreset; aspectRatio: string; custom: boolean } => {
+  if (!size) return { resolution: '2K', aspectRatio: '1:1', custom: false }
+  for (const resolution of Object.keys(IMAGE_SIZE_PRESETS) as Array<ImageResolutionPreset>) {
+    for (const [aspectRatio, presetSize] of Object.entries(IMAGE_SIZE_PRESETS[resolution])) {
+      if (presetSize === size) return { resolution, aspectRatio, custom: false }
+    }
+  }
+  return { resolution: '2K', aspectRatio: '1:1', custom: true }
+}
 
 // 固定高度虚拟滚动
 const ITEM_HEIGHT = 320
@@ -133,15 +203,57 @@ const imageFields = computed<FormField<any>[]>(() => {
       }
     },
     {
+      name: 'customSizeEnabled',
+      type: 'boolean',
+      label: '自定义分辨率',
+      defaultValue: false
+    } as FormField<any>,
+    {
+      name: 'resolution',
+      type: 'select',
+      label: '分辨率',
+      defaultValue: '2K',
+      options: [
+        { label: '1K', value: '1K' },
+        { label: '2K', value: '2K' },
+        { label: '3K', value: '3K' },
+        { label: '4K', value: '4K' }
+      ],
+      ifShow: (data: any) => !data.customSizeEnabled
+    } as FormField<any>,
+    {
+      name: 'aspectRatio',
+      type: 'select',
+      label: '宽高比',
+      defaultValue: '1:1',
+      options: IMAGE_ASPECT_RATIOS.map((ratio) => ({ label: ratio, value: ratio })),
+      ifShow: (data: any) => !data.customSizeEnabled
+    } as FormField<any>,
+    {
+      name: 'customWidth',
+      type: 'number',
+      label: '自定义宽度',
+      defaultValue: 1024,
+      ifShow: (data: any) => !!data.customSizeEnabled
+    } as FormField<any>,
+    {
+      name: 'customHeight',
+      type: 'number',
+      label: '自定义高度',
+      defaultValue: 1024,
+      ifShow: (data: any) => !!data.customSizeEnabled
+    } as FormField<any>,
+    {
       name: 'size',
       type: 'custom',
-      label: '图像尺寸',
-      defaultValue: '1024x1024',
+      label: '宽高像素值',
+      defaultValue: IMAGE_SIZE_PRESETS['2K']['1:1'],
       render: (data: any) => (
-        <ImageSizeSelector
-          modelValue={data.size}
-          onUpdate:modelValue={(val: string) => imageFormActions.setFieldValue('size', val)}
-        />
+        <div class="resolution-value">
+          {data.size || (data.customSizeEnabled
+            ? `${Number(data.customWidth) || 1024}x${Number(data.customHeight) || 1024}`
+            : getSizeFromPreset(data.resolution, data.aspectRatio))}
+        </div>
       )
     } as FormField<any>,
     {
@@ -371,7 +483,30 @@ const handleRegenerate = async () => {
 // 图片生成表单
 const [ImageForm, imageFormActions] = useForm({
   fields: () => imageFields.value,
-  onChange: (_field, _value, data) => {
+  onChange: (field, _value, data) => {
+    if (field === 'customSizeEnabled') {
+      const nextSize = data.customSizeEnabled
+        ? `${Number(data.customWidth) || 1024}x${Number(data.customHeight) || 1024}`
+        : getSizeFromPreset(data.resolution, data.aspectRatio)
+      if (data.size !== nextSize) {
+        imageFormActions.setFieldValue('size', nextSize)
+        return
+      }
+    }
+    if (!data.customSizeEnabled && (field === 'resolution' || field === 'aspectRatio')) {
+      const nextSize = getSizeFromPreset(data.resolution, data.aspectRatio)
+      if (data.size !== nextSize) {
+        imageFormActions.setFieldValue('size', nextSize)
+        return
+      }
+    }
+    if (data.customSizeEnabled && (field === 'customWidth' || field === 'customHeight')) {
+      const nextSize = `${Number(data.customWidth) || 1024}x${Number(data.customHeight) || 1024}`
+      if (data.size !== nextSize) {
+        imageFormActions.setFieldValue('size', nextSize)
+        return
+      }
+    }
     settingsStore.updateImageGenerationForm({
       ...data,
       mediaType: 'image'
@@ -467,8 +602,15 @@ const reEdit = (batch: ImageBatch) => {
       videoDynamicField.value = getDynamicFields(batch.providerId, true)
     }
   } else {
+    const preset = getPresetBySize(batch.size)
+    const parsed = parseSize(batch.size)
     imageFormActions.setFieldsValue({
       ...formData,
+      customSizeEnabled: preset.custom,
+      resolution: preset.resolution,
+      aspectRatio: preset.aspectRatio,
+      customWidth: parsed.width,
+      customHeight: parsed.height,
       size: batch.size
     } as any)
     if (batch.providerId) {
@@ -508,6 +650,17 @@ onMounted(async () => {
   // 恢复图片表单
   if (settingsStore.imageGenerationForm?.model?.providerId) {
     imageFormActions.setData(settingsStore.imageGenerationForm)
+    const preset = getPresetBySize(settingsStore.imageGenerationForm.size)
+    const parsed = parseSize(settingsStore.imageGenerationForm.size)
+    imageFormActions.setFieldValue('customSizeEnabled', (settingsStore.imageGenerationForm as any).customSizeEnabled ?? preset.custom)
+    imageFormActions.setFieldValue('resolution', (settingsStore.imageGenerationForm as any).resolution || preset.resolution)
+    imageFormActions.setFieldValue('aspectRatio', (settingsStore.imageGenerationForm as any).aspectRatio || preset.aspectRatio)
+    imageFormActions.setFieldValue('customWidth', Number((settingsStore.imageGenerationForm as any).customWidth) || parsed.width)
+    imageFormActions.setFieldValue('customHeight', Number((settingsStore.imageGenerationForm as any).customHeight) || parsed.height)
+    imageFormActions.setFieldValue(
+      'size',
+      settingsStore.imageGenerationForm.size || getSizeFromPreset(preset.resolution, preset.aspectRatio)
+    )
     imageDynamicField.value = getDynamicFields(settingsStore.imageGenerationForm.model.providerId, false)
     if (settingsStore.imageGenerationForm.prompt) {
       rightInput.value = settingsStore.imageGenerationForm.prompt
@@ -697,6 +850,18 @@ watch(toolResultSyncKey, () => {
 .mode-tab.active {
   background: var(--bg-card);
   color: var(--accent-color);
+}
+
+.resolution-value {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 20px;
 }
 
 .results-section {

@@ -59,6 +59,7 @@ router.post('/api/generate', async (ctx) => {
     model: String(params.model),
     params: {
       prompt: params.params.prompt,
+      baseModel: params.params.baseModel || '',
       negativePrompt: params.params.negativePrompt || '',
       scheduler: params.params.scheduler || 'EulerA',
       steps: Number(params.params.steps) || 15,

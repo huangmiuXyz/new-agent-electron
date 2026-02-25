@@ -1,5 +1,9 @@
 <template>
-    <div class="image-container" :class="{ 'is-loading': computedLoading, 'is-previewable': preview && !hasError }">
+    <div
+        class="image-container"
+        :class="{ 'is-loading': computedLoading, 'is-previewable': preview && !hasError }"
+        @contextmenu.prevent.stop="handleContextMenu"
+    >
         <div v-if="computedLoading" class="loading-overlay">
             <Loading size="small" />
         </div>
@@ -9,6 +13,7 @@
             @load="handleLoad"
             @error="handleError"
             @click="handlePreview"
+            @contextmenu.prevent.stop="handleContextMenu"
             :style="{ opacity: computedLoading ? 0 : 1 }"
         />
         <div v-if="hasError && !computedLoading" class="error-placeholder">
@@ -27,7 +32,8 @@
 </template>
 
 <script setup lang="ts">
-import { assetsHandler } from '@renderer/utils'
+import { assetsHandler, copyText } from '@renderer/utils'
+import { useContextMenu, type MenuItem } from '@renderer/composables/useContextMenu'
 
 const props = defineProps<{
     src?: string
@@ -41,6 +47,8 @@ const internalLoading = ref(true)
 const hasError = ref(false)
 const showViewer = ref(false)
 const viewerIndex = ref(props.initialIndex || 0)
+const { showContextMenu } = useContextMenu()
+const { Eye, Copy, Download } = useIcon(['Eye', 'Copy', 'Download'])
 
 const computedLoading = computed(() => {
     return props.loading !== undefined ? props.loading : internalLoading.value
@@ -55,6 +63,72 @@ const handlePreview = () => {
         viewerIndex.value = props.initialIndex || 0
         showViewer.value = true
     }
+}
+
+const downloadImage = async () => {
+    if (!computedSrc.value) return
+    try {
+        const response = await fetch(computedSrc.value)
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `image-${Date.now()}.png`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+    } catch (err) {
+        console.error('Failed to download image:', err)
+    }
+}
+
+const copyImage = async () => {
+    if (!computedSrc.value) return
+    try {
+        if (!navigator.clipboard?.write) {
+            copyText(computedSrc.value)
+            return
+        }
+        const ClipboardItemConstructor = (window as any).ClipboardItem
+        if (!ClipboardItemConstructor) {
+            copyText(computedSrc.value)
+            return
+        }
+        const response = await fetch(computedSrc.value)
+        const blob = await response.blob()
+        const type = blob.type || 'image/png'
+        const item = new ClipboardItemConstructor({ [type]: blob })
+        await navigator.clipboard.write([item])
+    } catch (err) {
+        console.error('复制图片失败:', err)
+    }
+}
+
+const handleContextMenu = (event: MouseEvent) => {
+    const canOperate = !!computedSrc.value && !computedLoading.value && !hasError.value
+    const options: MenuItem[] = [
+        {
+            label: '预览',
+            icon: Eye,
+            disabled: !props.preview || !canOperate,
+            onClick: () => handlePreview()
+        },
+        {
+            label: '复制',
+            icon: Copy,
+            disabled: !canOperate,
+            onClick: () => void copyImage()
+        },
+        {
+            label: '下载',
+            icon: Download,
+            disabled: !canOperate,
+            onClick: () => void downloadImage()
+        }
+    ]
+
+    showContextMenu(event, options)
 }
 
 watch(

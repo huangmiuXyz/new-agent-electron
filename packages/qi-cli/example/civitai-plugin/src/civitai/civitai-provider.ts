@@ -2,6 +2,7 @@ import { ImageModelV3, ProviderV3 } from '@ai-sdk/provider';
 import { CivitaiImageModel } from './civitai-image-model';
 import { CivitaiSDKBridge } from './civitai-jsbridge';
 import { Model } from '../types';
+import { PluginContext } from '../types'
 
 export interface CivitaiProvider extends ProviderV3 {
   (settings?: {}): {
@@ -38,6 +39,7 @@ export interface CivitaiProviderSettings {
   baseUrl?: string;
   headers?: Record<string, string>;
   fetch?: typeof fetch;
+  context?: PluginContext
 }
 
 /**
@@ -125,6 +127,11 @@ export function createCivitai(
 
   provider.generateImageAsyncTask = async (params: any) => {
     const model = params.model as CivitaiImageModel;
+    const settingsStore = await options.context?.getStore('settings')
+    const Model = settingsStore.getModelById('civitai', params.model.modelId);
+    if (!params.providerOptions) params.providerOptions = {};
+    if (!params.providerOptions.civitai) params.providerOptions.civitai = {};
+    params.providerOptions.civitai.baseModel = Model.model.baseModel;
     return model.createTask(params);
   };
 

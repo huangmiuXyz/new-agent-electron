@@ -43,11 +43,14 @@ const CivitaiPlugin: Plugin = {
           : '',
       favorites: savedConfig?.favorites === 'true' || savedConfig?.favorites === true,
       hidden: savedConfig?.hidden === 'true' || savedConfig?.hidden === true,
-      primaryFileOnly: savedConfig?.primaryFileOnly === 'true' || savedConfig?.primaryFileOnly === true,
+      primaryFileOnly:
+        savedConfig?.primaryFileOnly === 'true' || savedConfig?.primaryFileOnly === true,
       allowNoCredit: savedConfig?.allowNoCredit === 'true' || savedConfig?.allowNoCredit === true,
-      allowDerivatives: savedConfig?.allowDerivatives === 'true' || savedConfig?.allowDerivatives === true,
+      allowDerivatives:
+        savedConfig?.allowDerivatives === 'true' || savedConfig?.allowDerivatives === true,
       allowDifferentLicenses:
-        savedConfig?.allowDifferentLicenses === 'true' || savedConfig?.allowDifferentLicenses === true,
+        savedConfig?.allowDifferentLicenses === 'true' ||
+        savedConfig?.allowDifferentLicenses === true,
       supportsGeneration:
         savedConfig?.supportsGeneration === 'true' || savedConfig?.supportsGeneration === true
     })
@@ -65,7 +68,7 @@ const CivitaiPlugin: Plugin = {
       // 只有当 saved 中完全没有 apiKey 键时，才回退到 initialApiKey
       return {
         ...saved,
-        apiKey: (saved && 'apiKey' in saved) ? saved.apiKey : initialApiKey
+        apiKey: saved && 'apiKey' in saved ? saved.apiKey : initialApiKey
       }
     }
 
@@ -77,7 +80,8 @@ const CivitaiPlugin: Plugin = {
 
       const provider = createCivitai({
         apiKey: currentApiKey,
-        pluginPath: context.basePath
+        pluginPath: context.basePath,
+        context
       })
 
       const models = Object.values(activeModelsMap.value).map((m: any) => ({
@@ -115,7 +119,8 @@ const CivitaiPlugin: Plugin = {
             const config = await getCurrentConfig()
             const provider = createCivitai({
               apiKey: config.apiKey,
-              pluginPath: context.basePath
+              pluginPath: context.basePath,
+              context
             })
             if (provider.getModelVersion) {
               details = await provider.getModelVersion(row.versionId)
@@ -192,7 +197,8 @@ const CivitaiPlugin: Plugin = {
         const config = await getCurrentConfig()
         const provider = createCivitai({
           apiKey: config.apiKey,
-          pluginPath: context.basePath
+          pluginPath: context.basePath,
+          context
         })
         if (provider.listModels) {
           // 彻底转换布尔值为标准布尔类型，防止字符串残留
@@ -456,7 +462,8 @@ const CivitaiPlugin: Plugin = {
     registerRegistry(PROVIDER_ID, (options: any) => {
       return createCivitai({
         apiKey: formActions.getFieldValue('apiKey'),
-        pluginPath: context.basePath
+        pluginPath: context.basePath,
+        context
       })
     })
 
