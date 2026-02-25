@@ -26,16 +26,32 @@ const handleDelete = () => {
 const handleCopyPrompt = () => {
   emit('copyPrompt', props.batch.prompt)
 }
+
+const referenceImages = computed(() =>
+  (props.batch.referenceImages || []).filter((img) => typeof img === 'string' && img.trim().length > 0)
+)
+const visibleReferenceImages = computed(() => referenceImages.value.slice(0, 3))
+const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.length - visibleReferenceImages.value.length))
 </script>
 
 <template>
   <Card padding="20px" radius="16px" class="generation-results">
     <div class="prompt-card">
       <div class="prompt-header">
-        <div class="prompt-content">
-          <span class="prompt-label">提示词</span>
-          <p class="prompt-text">{{ batch.prompt }}</p>
+        <div class="prompt-main">
+          <div v-if="referenceImages.length > 0" class="prompt-reference-stack">
+            <div v-for="(img, index) in visibleReferenceImages" :key="`ref-${index}`" class="prompt-reference">
+              <Image :src="img" preview :images="referenceImages" :initial-index="index" />
+            </div>
+            <div v-if="extraReferenceCount > 0" class="reference-more">+{{ extraReferenceCount }}</div>
+          </div>
+
+          <div class="prompt-content">
+            <span class="prompt-label">提示词</span>
+            <p class="prompt-text">{{ batch.prompt }}</p>
+          </div>
         </div>
+
         <div v-if="!readonly" class="prompt-actions">
           <Button variant="icon" size="sm" title="复制提示词" @click="handleCopyPrompt">
             <Copy />
@@ -48,6 +64,7 @@ const handleCopyPrompt = () => {
           </Button>
         </div>
       </div>
+
       <div class="prompt-meta">
         <Tags v-if="batch.modelName" :tags="[batch.modelName]" color="blue" />
         <Tags v-if="batch.size" :tags="[`分辨率 ${batch.size}`]" color="green" />
@@ -86,6 +103,7 @@ const handleCopyPrompt = () => {
         </template>
       </div>
     </div>
+
   </Card>
 </template>
 
@@ -108,10 +126,78 @@ const handleCopyPrompt = () => {
   margin-bottom: 12px;
 }
 
-.prompt-content {
+.prompt-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex: 1;
   min-width: 0;
+}
+
+.prompt-content {
+  min-width: 0;
   overflow: hidden;
+}
+
+.prompt-reference-stack {
+  position: relative;
+  width: 62px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.prompt-reference {
+  position: absolute;
+  top: 0;
+  width: 40px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-tertiary);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.prompt-reference:nth-child(1) {
+  left: 0;
+  transform: rotate(-7deg);
+  z-index: 3;
+}
+
+.prompt-reference:nth-child(2) {
+  left: 12px;
+  transform: rotate(-1deg);
+  z-index: 2;
+}
+
+.prompt-reference:nth-child(3) {
+  left: 24px;
+  transform: rotate(5deg);
+  z-index: 1;
+}
+
+.prompt-reference :deep(.n-image),
+.prompt-reference :deep(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reference-more {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  z-index: 4;
 }
 
 .prompt-label {
