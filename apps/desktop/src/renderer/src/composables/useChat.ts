@@ -297,11 +297,22 @@ export const useChat = (chatId: string) => {
     }, 1)
   }
 
+  const getCurrentMessages = (): BaseMessage[] => {
+    return getChatById(chatId)?.messages || []
+  }
+
+  const createChatFrom = (
+    messages: BaseMessage[] = getCurrentMessages(),
+    options?: { isApproval?: boolean }
+  ): _useChat<BaseMessage> => {
+    return createChat(messages, options)
+  }
+
   return {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
       scrollToBottom()
-      const currentChats = getChatById(chatId)
-      const chat = createChat(currentChats?.messages || [])
+      const messages = getCurrentMessages()
+      const chat = createChatFrom(messages)
 
       const parts: Array<FileUIPart | TextUIPart> =
         typeof content === 'string' ? [{ type: 'text', text: content }] : content
@@ -316,8 +327,7 @@ export const useChat = (chatId: string) => {
       chat.sendMessage(userMessage)
     },
     continueMessages: (messageId?: string) => {
-      const currentChats = getChatById(chatId)
-      const messages = currentChats?.messages || []
+      const messages = getCurrentMessages()
 
       const targetIndex = messages.findIndex(
         (m) => m.id === messageId && m.role === 'assistant'
@@ -325,34 +335,48 @@ export const useChat = (chatId: string) => {
       if (targetIndex < 0) return
 
       const branchMessages = messages.slice(0, targetIndex + 1)
-      const chat = createChat(branchMessages)
+      const chat = createChatFrom(branchMessages)
       chat.sendMessage()
     },
     regenerate: (messageId: string) => {
-      const currentChats = getChatById(chatId)
-      const messages = currentChats?.messages || []
+      const messages = getCurrentMessages()
       const clickedIndex = messages.findIndex((m) => m.id === messageId)
       if (clickedIndex < 0) return
 
       const clickedMessage = messages[clickedIndex]
-      const targetAssistantMessage = clickedMessage.role === 'assistant'
+      let targetAssistantMessage = clickedMessage.role === 'assistant'
         ? clickedMessage
         : messages.find((m, i) => i > clickedIndex && m.role === 'assistant')
+      let currentMessages = messages
+
+      if (!targetAssistantMessage && clickedMessage.role === 'user') {
+        const insertedAssistantMessage: BaseMessage = {
+          id: nanoid(),
+          role: 'assistant',
+          parts: []
+        }
+
+        const nextMessages = [...currentMessages]
+        nextMessages.splice(clickedIndex + 1, 0, insertedAssistantMessage)
+        updateMessages(chatId, nextMessages)
+        currentMessages = nextMessages
+        targetAssistantMessage = insertedAssistantMessage
+      }
 
       if (!targetAssistantMessage) return
 
       const isLastMessage =
-        messages.length > 0 && messages[messages.length - 1].id === targetAssistantMessage.id
+        currentMessages.length > 0 &&
+        currentMessages[currentMessages.length - 1].id === targetAssistantMessage.id
       if (isLastMessage) {
         scrollToBottom()
       }
 
-      const chat = createChat(messages)
+      const chat = createChatFrom(currentMessages)
       chat.regenerate({ messageId: targetAssistantMessage.id })
     },
     approval: (part: ToolUIPart, approved: boolean) => {
-      const currentChats = getChatById(chatId)
-      const chat = createChat(currentChats?.messages || [], { isApproval: true })
+      const chat = createChatFrom(undefined, { isApproval: true })
       chat.addToolApprovalResponse({
         id: part.approval!.id!,
         approved
