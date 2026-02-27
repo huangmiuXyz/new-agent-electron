@@ -2,13 +2,14 @@ import {
   generateText as _generateText,
   generateImage as _generateImage,
   experimental_generateVideo as _generateVideo,
-  ToolLoopAgent,
   ToolChoice,
   wrapLanguageModel,
   streamText as _streamText,
   convertToModelMessages,
   validateUIMessages,
-  type DataContent
+  type DataContent,
+  readUIMessageStream,
+  stepCountIs
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
@@ -59,6 +60,9 @@ interface ChatServiceConfig {
   providerOptions?: Record<string, any>
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
   isApprovalAction?: boolean
+  onMessage?: (message: BaseMessage) => void
+  abortSignal?: AbortSignal
+  responseMessageId?: string
 }
 
 export type GenerateImagePrompt = string | {
@@ -252,6 +256,9 @@ export const chatService = () => {
       providerOptions: customProviderOptions,
       onBeforeToolExecute,
       isApprovalAction,
+      onMessage,
+      abortSignal,
+      responseMessageId,
     }: ChatServiceConfig
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
@@ -327,7 +334,90 @@ export const chatService = () => {
       return hasStopSentinelOutput(toolResult.output)
     }
 
-    const agent = new ToolLoopAgent({
+    const controller = new AbortController()
+    if (abortSignal) {
+      if (abortSignal.aborted) {
+        controller.abort()
+      } else {
+        abortSignal.addEventListener('abort', () => controller.abort(), { once: true })
+      }
+    }
+    const wrappedTools = mapValues(tools, (t) => ({
+      ...t,
+      execute: async (input: any, options: any) => {
+        await onBeforeToolExecute?.({ tool: t, input, options })
+        const result = await t.execute(input, {
+          ...JSON.parse(JSON.stringify(options)),
+          chatId: cid,
+          model,
+          provider,
+          abortSignal: controller.signal
+        })
+        return result
+      }
+    }))
+
+    const validatedMessages = await validateUIMessages({
+      messages,
+      tools: wrappedTools,
+    })
+
+    const sanitizedMessages = sanitizeUIMessages(validatedMessages, {
+      isManualApproval: isApprovalAction || false
+    })
+
+    const modelMessages = await convertToModelMessages(sanitizedMessages, {
+      tools: wrappedTools,
+    })
+
+    const metadataByChunk = (part: {
+      type: 'start' | 'finish-step' | 'finish' | 'abort'
+      finishReason?: string
+      usage?: any
+      providerMetadata?: any
+    }, options?: { includeStop?: boolean }) => {
+      const includeStop = options?.includeStop ?? true
+      let result = {}
+      if (part.type === 'finish-step' && part.finishReason === 'stop') {
+        result = {
+          usage: part.usage,
+          providerMetadata: part.providerMetadata!,
+        }
+      }
+      return {
+        loading: part.type !== 'finish' && part.type !== 'abort',
+        provider,
+        date: Date.now(),
+        model,
+        cid,
+        ...(includeStop ? { stop: () => controller.abort() } : {}),
+        ragSearchDetails: ragSearchDetails.value,
+        ragEnabled,
+        ...result,
+      }
+    }
+    const createMessageMetadata = (includeStop: boolean) => ({ part }: { part: any }) => {
+      if (part.type === 'finish-step') {
+        return metadataByChunk({
+          type: 'finish-step',
+          finishReason: part.finishReason,
+          usage: part.usage,
+          providerMetadata: part.providerMetadata
+        }, { includeStop })
+      }
+      if (part.type === 'finish') {
+        return metadataByChunk({
+          type: 'finish',
+          finishReason: part.finishReason,
+        }, { includeStop })
+      }
+      if (part.type === 'abort') {
+        return metadataByChunk({ type: 'abort' }, { includeStop })
+      }
+      return metadataByChunk({ type: 'start' }, { includeStop })
+    }
+
+    const streamResult = _streamText({
       model: wrapLanguageModel({
         model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
           `${providerType}:${model}`
@@ -345,6 +435,7 @@ export const chatService = () => {
           })
         ]
       }),
+      messages: modelMessages,
       providerOptions: {
         [providerType]: {
           ...(thinkingMode !== undefined && {
@@ -355,28 +446,16 @@ export const chatService = () => {
           ...customProviderOptions
         }
       },
-      tools: mapValues(tools, (t) => ({
-        ...t,
-        execute: async (input: any, options: any) => {
-          await onBeforeToolExecute?.({ tool: t, input, options })
-          const result = await t.execute(input, {
-            ...JSON.parse(JSON.stringify(options)),
-            chatId: cid,
-            model,
-            provider,
-            abortSignal: controller.signal
-          })
-          return result
-        }
-      })),
+      tools: wrappedTools,
       temperature,
       topP,
       topK,
       presencePenalty,
       frequencyPenalty,
       maxOutputTokens: maxOutputTokens || undefined,
-      instructions: agentInstructions,
+      system: agentInstructions,
       stopWhen: [
+        stepCountIs(20),
         ({ steps }) => {
           return (
             steps.some((step) =>
@@ -389,61 +468,38 @@ export const chatService = () => {
             ) ?? false
           )
         }
-      ]
-    })
-    const controller = new AbortController()
-
-    // 1. Validate UI messages
-    const validatedMessages = await validateUIMessages({
-      messages,
-      tools: agent.tools,
-    })
-
-    // 2. 清洗数据：移除历史中没有结果的工具调用，防止模型报错
-    // 区分 "手动批准" 和 "重试/继续"：
-    // 根据传入的 isApprovalAction 参数判断是否为手动批准触发。
-    const sanitizedMessages = sanitizeUIMessages(validatedMessages, {
-      isManualApproval: isApprovalAction || false
-    })
-
-    // 3. Convert to model messages
-    // 注意：不要启用 ignoreIncompleteToolCalls: true，因为我们已经在 sanitizeUIMessages 中手动处理了。
-    // 如果启用，convertToModelMessages 会再次过滤掉 approval-responded（因为它没有 result），导致工具无法执行。
-    const modelMessages = await convertToModelMessages(sanitizedMessages, {
-      tools: agent.tools,
-    })
-
-    const result = await agent.stream({
-      prompt: modelMessages,
+      ],
       abortSignal: controller.signal,
     })
 
-    const uiStream = result.toUIMessageStream({
+    const generatedMessageId = responseMessageId || nanoid()
+    const uiStreamOptions = {
       originalMessages: validatedMessages,
-      messageMetadata: ({ part }) => {
-        let result = {}
-        if (part.type === 'finish-step' && part.finishReason === 'stop') {
-          result = {
-            usage: part.usage,
-            providerMetadata: part.providerMetadata!,
-          }
-        } else {
-          result = {}
-        }
-        return {
-          loading: part.type !== 'finish' && part.type !== 'abort',
-          provider,
-          date: Date.now(),
-          model,
-          cid,
-          stop: () => controller.abort(),
-          ragSearchDetails: ragSearchDetails.value,
-          ragEnabled,
-          ...result,
-        }
-      }
+      generateMessageId: () => generatedMessageId,
+      messageMetadata: createMessageMetadata(true)
+    } as const
+
+    const rawUiStream = streamResult.toUIMessageStream(uiStreamOptions)
+    if (!onMessage) return rawUiStream
+
+    const mirrorStream = streamResult.toUIMessageStream({
+      ...uiStreamOptions,
+      messageMetadata: createMessageMetadata(false)
     })
-    return uiStream
+
+    void (async () => {
+      try {
+        for await (const message of readUIMessageStream<BaseMessage>({
+          stream: mirrorStream,
+        })) {
+          onMessage(message)
+        }
+      } catch (error) {
+        console.error('onMessage stream sync failed:', error)
+      }
+    })()
+
+    return rawUiStream
   }
   const generateText = async (
     prompt: string,

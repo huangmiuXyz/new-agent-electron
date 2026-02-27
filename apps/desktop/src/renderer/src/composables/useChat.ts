@@ -61,8 +61,8 @@ export const useChat = (chatId: string) => {
   const { apiKey, baseUrl, id: provider, providerType } = toRefs(currentSelectedProvider.value!)
   const { id: model } = toRefs(currentSelectedModel.value!)
 
-  const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; isApproval?: boolean }): _useChat<BaseMessage> => {
-    const { regenerateMessageId, isApproval } = options || {}
+  const createChat = (messages: BaseMessage[], options?: { isApproval?: boolean }): _useChat<BaseMessage> => {
+    const { isApproval } = options || {}
     const scope = effectScope()
 
     const getMessageText = (message: BaseMessage) => {
@@ -79,14 +79,12 @@ export const useChat = (chatId: string) => {
         agent.selectedAgent?.speechLanguage
       )
 
-      const targetMessageId = ref<string | undefined>(regenerateMessageId)
-
       const chat = new _useChat<BaseMessage>({
         id: chatId,
         messages: cloneDeep(messages),
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         transport: {
-          sendMessages: ({ messages }) => {
+          sendMessages: ({ messages, abortSignal, trigger, messageId }) => {
             processedText = ''
             sentenceSegmenter = createSentenceSegmenter(
               agent.selectedAgent?.speechLanguage || 'und'
@@ -120,7 +118,13 @@ export const useChat = (chatId: string) => {
                 autoCompressContext: agent.selectedAgent?.autoCompressContext,
                 compressModel: agent.selectedAgent?.compressModel,
                 providerOptions: providerOptions.value[provider.value],
-                isApprovalAction: isApproval
+                isApprovalAction: isApproval,
+                onMessage: (message) => {
+                  syncMessageToStore(message)
+                  processStreamingSpeech(message)
+                },
+                abortSignal,
+                responseMessageId: trigger === 'regenerate-message' ? messageId : undefined
               }
             )
           },
@@ -128,18 +132,25 @@ export const useChat = (chatId: string) => {
         },
 
         onFinish: () => {
-          if (speechEnabled.value) {
-            const mode = agent.selectedAgent?.speechMode as string
+          if (chat.lastMessage) {
+            syncMessageToStore(chat.lastMessage)
+          }
 
-            if (mode === 'sentence') {
-              sentenceSegmenter.flush((sentence) => {
-                generateSpeech(sentence, chat.lastMessage)
-              })
-            } else {
-              const fullText = getMessageText(chat.lastMessage)
-              const remainingText = fullText.slice(processedText.length).trim()
-              if (remainingText) {
-                generateSpeech(remainingText, chat.lastMessage)
+          if (speechEnabled.value) {
+            const lastMessage = chat.lastMessage
+            if (lastMessage) {
+              const mode = agent.selectedAgent?.speechMode as string
+
+              if (mode === 'sentence') {
+                sentenceSegmenter.flush((sentence) => {
+                  generateSpeech(sentence, lastMessage)
+                })
+              } else {
+                const fullText = getMessageText(lastMessage)
+                const remainingText = fullText.slice(processedText.length).trim()
+                if (remainingText) {
+                  generateSpeech(remainingText, lastMessage)
+                }
               }
             }
           }
@@ -158,12 +169,14 @@ export const useChat = (chatId: string) => {
 
         onError: (error) => {
           console.log(error);
-          syncMessageToStore(error as APICallError)
+          const lastMsg = chat.lastMessage
+          if (lastMsg) {
+            syncMessageToStore(lastMsg, error as APICallError)
+          }
         }
       })
 
-      const syncMessageToStore = (error?: APICallError) => {
-        const lastMsg = chat.lastMessage
+      const syncMessageToStore = (lastMsg: BaseMessage, error?: APICallError) => {
         if (!lastMsg) return
 
         // Keep parts immutable when syncing to Pinia so nested text updates stay reactive in children.
@@ -173,7 +186,7 @@ export const useChat = (chatId: string) => {
           ...lastMsg,
           parts: nextParts,
           metadata: { ...lastMsg.metadata, error }
-        }
+        } as BaseMessage
 
         updateMessages(chatId, (oldMessages) => {
           const existingIndex = oldMessages.findIndex((m) => m.id === lastMsg.id)
@@ -182,49 +195,21 @@ export const useChat = (chatId: string) => {
             copy[existingIndex] = msgToUpdate
             return copy
           }
-
-          if (!targetMessageId.value) {
-            return [...oldMessages, msgToUpdate]
-          }
-
-          const targetIndex = oldMessages.findIndex((m) => m.id === targetMessageId.value)
-          if (targetIndex < 0) {
-            return [...oldMessages, msgToUpdate]
-          }
-
-          const copy = [...oldMessages]
-          const targetMsg = copy[targetIndex]
-
-          if (targetMsg.role === 'assistant') {
-            copy[targetIndex] = msgToUpdate
-            return copy
-          }
-
-          const nextAssistantIndex = copy.findIndex((m, i) => i > targetIndex && m.role === 'assistant')
-
-          if (nextAssistantIndex >= 0) {
-            copy[nextAssistantIndex] = msgToUpdate
-          } else {
-            copy.splice(targetIndex + 1, 0, msgToUpdate)
-          }
-
-          return copy
+          return [...oldMessages, msgToUpdate]
         })
       }
 
-      const processStreamingSpeech = (
-        newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
-      ) => {
-        if (!newParts || chat.lastMessage.role !== 'assistant' || !speechEnabled.value) return
+      const processStreamingSpeech = (message: BaseMessage) => {
+        if (!message?.parts || message.role !== 'assistant' || !speechEnabled.value) return
         const mode = agent.selectedAgent?.speechMode as string
         if (mode === 'full') return
 
-        const fullText = getMessageText(chat.lastMessage)
+        const fullText = getMessageText(message)
         const currentText = fullText.slice(processedText.length)
 
         if (mode === 'sentence') {
           sentenceSegmenter.push(currentText, (sentence) => {
-            generateSpeech(sentence, chat.lastMessage)
+            generateSpeech(sentence, message)
           })
           processedText = fullText
         } else if (mode === 'paragraph') {
@@ -233,22 +218,13 @@ export const useChat = (chatId: string) => {
             for (let i = 0; i < paragraphs.length - 1; i++) {
               const p = paragraphs[i]
               if (p.trim()) {
-                generateSpeech(p, chat.lastMessage)
+                generateSpeech(p, message)
               }
               processedText += paragraphs[i] + '\n'
             }
           }
         }
       }
-
-      watch(
-        () => chat.lastMessage?.parts,
-        (newParts) => {
-          syncMessageToStore()
-          processStreamingSpeech(newParts)
-        },
-        { deep: true }
-      )
 
       return chat
     })!
@@ -330,11 +306,14 @@ export const useChat = (chatId: string) => {
       const parts: Array<FileUIPart | TextUIPart> =
         typeof content === 'string' ? [{ type: 'text', text: content }] : content
 
-      chat.sendMessage({
+      const userMessage: BaseMessage = {
         id: chat.generateId(),
         role: 'user',
         parts
-      })
+      }
+
+      updateMessages(chatId, (messages) => [...messages, userMessage])
+      chat.sendMessage(userMessage)
     },
     continueMessages: () => {
       const currentChats = getChatById(chatId)
@@ -344,14 +323,24 @@ export const useChat = (chatId: string) => {
     regenerate: (messageId: string) => {
       const currentChats = getChatById(chatId)
       const messages = currentChats?.messages || []
-      const isLastMessage = messages.length > 0 && messages[messages.length - 1].id === messageId
-      const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')
-      const isLastUserMessage = lastUserMessage?.id === messageId
-      if (isLastMessage || isLastUserMessage) {
+      const clickedIndex = messages.findIndex((m) => m.id === messageId)
+      if (clickedIndex < 0) return
+
+      const clickedMessage = messages[clickedIndex]
+      const targetAssistantMessage = clickedMessage.role === 'assistant'
+        ? clickedMessage
+        : messages.find((m, i) => i > clickedIndex && m.role === 'assistant')
+
+      if (!targetAssistantMessage) return
+
+      const isLastMessage =
+        messages.length > 0 && messages[messages.length - 1].id === targetAssistantMessage.id
+      if (isLastMessage) {
         scrollToBottom()
       }
-      const chat = createChat(messages, { regenerateMessageId: messageId })
-      chat.regenerate({ messageId })
+
+      const chat = createChat(messages)
+      chat.regenerate({ messageId: targetAssistantMessage.id })
     },
     approval: (part: ToolUIPart, approved: boolean) => {
       const currentChats = getChatById(chatId)
