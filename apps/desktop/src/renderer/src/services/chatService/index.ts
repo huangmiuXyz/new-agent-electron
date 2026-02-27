@@ -487,8 +487,17 @@ export const chatService = () => {
     })
 
     const generatedMessageId = responseMessageId || nanoid()
+    const lastValidatedMessage = validatedMessages[validatedMessages.length - 1]
+    const streamOriginalMessages =
+      isRegenerateAction &&
+        !!responseMessageId &&
+        lastValidatedMessage?.role === 'assistant' &&
+        lastValidatedMessage.id !== responseMessageId
+        ? validatedMessages.slice(0, -1)
+        : validatedMessages
+
     const uiStreamOptions = {
-      originalMessages: validatedMessages,
+      originalMessages: streamOriginalMessages,
       generateMessageId: () => generatedMessageId,
       messageMetadata: createMessageMetadata(true)
     } as const

@@ -187,13 +187,17 @@ export const useChat = (chatId: string) => {
       const syncMessageToStore = (lastMsg: BaseMessage, error?: APICallError) => {
         if (!lastMsg) return
 
+        // Mirror stream omits stop handlers; recover it from the runtime chat state.
+        const runtimeMsg = chat.messages.find((m) => m.id === lastMsg.id)
+        const runtimeStop = runtimeMsg?.metadata?.stop
+
         // Keep parts immutable when syncing to Pinia so nested text updates stay reactive in children.
         const nextParts = lastMsg.parts?.map((part) => ({ ...part }))
 
         const msgToUpdate = {
           ...lastMsg,
           parts: nextParts,
-          metadata: { ...lastMsg.metadata, error }
+          metadata: { ...lastMsg.metadata, error, ...(runtimeStop ? { stop: runtimeStop } : {}) }
         } as BaseMessage
 
         updateMessages(chatId, (oldMessages) => {
