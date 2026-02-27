@@ -230,6 +230,33 @@ ${contextToCompress}
     return messages
   }
 }
+const toolLoopStopSentinel = '<|stop|>'
+const hasStopSentinelOutput = (output: unknown): boolean => {
+  if (typeof output === 'string') {
+    return output.trim() === toolLoopStopSentinel
+  }
+
+  if (!output || typeof output !== 'object') return false
+
+  const candidates = [
+    (output as any)?.toolResult?.content,
+    (output as any)?.content
+  ]
+
+  for (const content of candidates) {
+    if (!Array.isArray(content)) continue
+    if (content.some((item) => item?.type === 'text' && item?.text === toolLoopStopSentinel)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+const shouldStopForToolResult = (toolResult: { toolName?: string; output: unknown }): boolean => {
+  if (toolResult.toolName !== 'candidateReplies') return false
+  return hasStopSentinelOutput(toolResult.output)
+}
 
 export const chatService = () => {
   const createAgent = async (
@@ -307,33 +334,6 @@ export const chatService = () => {
     }
     let ragSearchDetails: Array<{ knowledgeBaseId: string; documentId: string; score?: number }> | undefined
     let ragSearchDetailsVersion = 0
-    const toolLoopStopSentinel = '<|stop|>'
-    const hasStopSentinelOutput = (output: unknown): boolean => {
-      if (typeof output === 'string') {
-        return output.trim() === toolLoopStopSentinel
-      }
-
-      if (!output || typeof output !== 'object') return false
-
-      const candidates = [
-        (output as any)?.toolResult?.content,
-        (output as any)?.content
-      ]
-
-      for (const content of candidates) {
-        if (!Array.isArray(content)) continue
-        if (content.some((item) => item?.type === 'text' && item?.text === toolLoopStopSentinel)) {
-          return true
-        }
-      }
-
-      return false
-    }
-
-    const shouldStopForToolResult = (toolResult: { toolName?: string; output: unknown }): boolean => {
-      if (toolResult.toolName !== 'candidateReplies') return false
-      return hasStopSentinelOutput(toolResult.output)
-    }
 
     const controller = new AbortController()
     if (abortSignal) {
@@ -402,16 +402,16 @@ export const chatService = () => {
       return ({ part }: { part: any }) => {
         const baseMetadata = part.type === 'finish-step'
           ? metadataByChunk({
-          type: 'finish-step',
-          finishReason: part.finishReason,
-          usage: part.usage,
-          providerMetadata: part.providerMetadata
-        }, { includeStop })
+            type: 'finish-step',
+            finishReason: part.finishReason,
+            usage: part.usage,
+            providerMetadata: part.providerMetadata
+          }, { includeStop })
           : part.type === 'finish'
             ? metadataByChunk({
-          type: 'finish',
-          finishReason: part.finishReason,
-        }, { includeStop })
+              type: 'finish',
+              finishReason: part.finishReason,
+            }, { includeStop })
             : part.type === 'abort'
               ? metadataByChunk({ type: 'abort' }, { includeStop })
               : metadataByChunk({ type: 'start' }, { includeStop })
