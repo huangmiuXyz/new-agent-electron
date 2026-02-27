@@ -495,6 +495,13 @@ export const chatService = () => {
     const rawUiStream = streamResult.toUIMessageStream(uiStreamOptions)
     if (!onMessage) return rawUiStream
 
+    const lastValidatedAssistantMessage = [...validatedMessages]
+      .reverse()
+      .find((message) => message.role === 'assistant')
+    const continuationBaseMessage = (!responseMessageId && lastValidatedAssistantMessage)
+      ? JSON.parse(JSON.stringify(lastValidatedAssistantMessage))
+      : undefined
+
     const mirrorStream = streamResult.toUIMessageStream({
       ...uiStreamOptions,
       messageMetadata: createMessageMetadata(false)
@@ -503,6 +510,7 @@ export const chatService = () => {
     void (async () => {
       try {
         for await (const message of readUIMessageStream<BaseMessage>({
+          message: continuationBaseMessage,
           stream: mirrorStream,
         })) {
           onMessage(message)
