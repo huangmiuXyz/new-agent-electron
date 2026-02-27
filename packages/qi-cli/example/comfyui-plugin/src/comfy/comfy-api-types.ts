@@ -4,7 +4,7 @@ export const comfyImageCallOptionsSchema = z.object({
   workflowJson: z
     .string()
     .optional()
-    .describe('ComfyUI API workflow JSON. The workflow is sent to API as-is.')
+    .describe('ComfyUI API workflow JSON. Supports ${prompt} and ${seed} placeholders.')
 });
 
 export type ComfyImageCallOptions = z.infer<typeof comfyImageCallOptionsSchema>;

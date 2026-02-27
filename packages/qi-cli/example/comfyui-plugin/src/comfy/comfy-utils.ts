@@ -11,6 +11,11 @@ export interface WorkflowPathMappings {
   batchSizePath?: string;
 }
 
+interface WorkflowTemplateVariables {
+  prompt?: string;
+  seed?: number;
+}
+
 export const ensureNoTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
 
 export const parseSize = (size?: string): { width: number; height: number } | null => {
@@ -106,6 +111,67 @@ export const applyOverrideMap = (
   for (const [path, value] of Object.entries(overrides)) {
     setValueByPath(workflow, path, value);
   }
+};
+
+export const renderWorkflowJsonTemplate = (
+  workflowJson: string,
+  variables: WorkflowTemplateVariables
+): string => {
+  const promptValue = variables.prompt ?? '';
+  const promptJson = JSON.stringify(promptValue);
+  const promptEscaped = promptJson.slice(1, -1);
+
+  const hasSeed = typeof variables.seed === 'number' && Number.isFinite(variables.seed);
+  const seedNumberLiteral = hasSeed ? String(variables.seed) : 'null';
+  const seedEscaped = hasSeed ? String(variables.seed) : '';
+
+  let rendered = workflowJson;
+
+  // Handle unquoted placeholders used as JSON values first.
+  rendered = rendered.replace(
+    /([:\[,]\s*)\$\{prompt\}(\s*[,}\]])/g,
+    `$1${promptJson}$2`
+  );
+  rendered = rendered.replace(
+    /([:\[,]\s*)\$\{seed\}(\s*[,}\]])/g,
+    `$1${seedNumberLiteral}$2`
+  );
+
+  // Replace remaining placeholders inside string values and mixed text.
+  rendered = rendered.replace(/\$\{prompt\}/g, promptEscaped);
+  rendered = rendered.replace(/\$\{seed\}/g, seedEscaped);
+
+  return rendered;
+};
+
+const SEED_KEYS = new Set(['seed', 'noise_seed', 'random_seed', 'seed_num']);
+
+export const fillMissingSeedValues = (workflow: AnyObject, seed: number): void => {
+  const walk = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        walk(item);
+      }
+      return;
+    }
+
+    if (!isPlainObject(value)) {
+      return;
+    }
+
+    for (const [key, child] of Object.entries(value)) {
+      if (
+        SEED_KEYS.has(key) &&
+        (child === null || child === undefined || child === '${seed}' || child === '')
+      ) {
+        value[key] = seed;
+        continue;
+      }
+      walk(child);
+    }
+  };
+
+  walk(workflow);
 };
 
 export const buildViewUrl = (baseURL: string, image: ComfyHistoryImageOutput): string => {
