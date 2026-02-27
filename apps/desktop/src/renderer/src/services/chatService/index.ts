@@ -496,13 +496,12 @@ export const chatService = () => {
     const rawUiStream = streamResult.toUIMessageStream(uiStreamOptions)
     if (!onMessage) return rawUiStream
 
-    const lastValidatedAssistantMessage = [...validatedMessages]
-      .reverse()
-      .find((message) => message.role === 'assistant')
-    const lastValidatedMessage = validatedMessages[validatedMessages.length - 1]
-    const shouldUseContinuationBase = !isRegenerateAction && lastValidatedMessage?.role === 'assistant'
-    const continuationBaseMessage = (shouldUseContinuationBase && lastValidatedAssistantMessage)
-      ? JSON.parse(JSON.stringify(lastValidatedAssistantMessage))
+    const targetAssistantMessage = responseMessageId
+      ? validatedMessages.find((message) => message.id === responseMessageId && message.role === 'assistant')
+      : undefined
+    const shouldUseContinuationBase = !isRegenerateAction && !!targetAssistantMessage
+    const continuationBaseMessage = (shouldUseContinuationBase && targetAssistantMessage)
+      ? JSON.parse(JSON.stringify(targetAssistantMessage))
       : undefined
 
     const mirrorStream = streamResult.toUIMessageStream({

@@ -61,8 +61,12 @@ export const useChat = (chatId: string) => {
   const { apiKey, baseUrl, id: provider, providerType } = toRefs(currentSelectedProvider.value!)
   const { id: model } = toRefs(currentSelectedModel.value!)
 
-  const createChat = (messages: BaseMessage[], options?: { isApproval?: boolean }): _useChat<BaseMessage> => {
-    const { isApproval } = options || {}
+  const createChat = (
+    messages: BaseMessage[],
+    options?: { isApproval?: boolean; responseMessageId?: string; isRegenerateAction?: boolean }
+  ): _useChat<BaseMessage> => {
+    const { isApproval, responseMessageId: forcedResponseMessageId, isRegenerateAction: forcedIsRegenerateAction } =
+      options || {}
     const scope = effectScope()
 
     const getMessageText = (message: BaseMessage) => {
@@ -127,10 +131,8 @@ export const useChat = (chatId: string) => {
                 responseMessageId:
                   trigger === 'regenerate-message'
                     ? messageId
-                    : trigger === 'submit-message' && messages[messages.length - 1]?.role === 'assistant'
-                      ? messages[messages.length - 1]?.id
-                      : undefined,
-                isRegenerateAction: trigger === 'regenerate-message'
+                    : forcedResponseMessageId,
+                isRegenerateAction: forcedIsRegenerateAction ?? trigger === 'regenerate-message'
               }
             )
           },
@@ -309,7 +311,7 @@ export const useChat = (chatId: string) => {
 
   const createChatFrom = (
     messages: BaseMessage[] = getCurrentMessages(),
-    options?: { isApproval?: boolean }
+    options?: { isApproval?: boolean; responseMessageId?: string; isRegenerateAction?: boolean }
   ): _useChat<BaseMessage> => {
     return createChat(messages, options)
   }
@@ -334,14 +336,12 @@ export const useChat = (chatId: string) => {
     },
     continueMessages: (messageId?: string) => {
       const messages = getCurrentMessages()
-
-      const targetIndex = messages.findIndex(
-        (m) => m.id === messageId && m.role === 'assistant'
-      )
-      if (targetIndex < 0) return
-
-      const branchMessages = messages.slice(0, targetIndex + 1)
-      const chat = createChatFrom(branchMessages)
+      const targetMessage = messages.find((m) => m.id === messageId && m.role === 'assistant')
+      if (!targetMessage) return
+      const chat = createChatFrom(messages, {
+        responseMessageId: targetMessage.id,
+        isRegenerateAction: false
+      })
       chat.sendMessage()
     },
     regenerate: (messageId: string) => {
