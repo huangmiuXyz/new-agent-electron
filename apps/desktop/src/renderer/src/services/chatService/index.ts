@@ -305,7 +305,8 @@ export const chatService = () => {
         close()
       }
     }
-    const ragSearchDetails = ref()
+    let ragSearchDetails: Array<{ knowledgeBaseId: string; documentId: string; score?: number }> | undefined
+    let ragSearchDetailsVersion = 0
     const toolLoopStopSentinel = '<|stop|>'
     const hasStopSentinelOutput = (output: unknown): boolean => {
       if (typeof output === 'string') {
@@ -391,30 +392,41 @@ export const chatService = () => {
         model,
         cid,
         ...(includeStop ? { stop: () => controller.abort() } : {}),
-        ragSearchDetails: ragSearchDetails.value,
         ragEnabled,
         ...result,
       }
     }
-    const createMessageMetadata = (includeStop: boolean) => ({ part }: { part: any }) => {
-      if (part.type === 'finish-step') {
-        return metadataByChunk({
+    const createMessageMetadata = (includeStop: boolean) => {
+      let emittedRagSearchDetailsVersion = 0
+
+      return ({ part }: { part: any }) => {
+        const baseMetadata = part.type === 'finish-step'
+          ? metadataByChunk({
           type: 'finish-step',
           finishReason: part.finishReason,
           usage: part.usage,
           providerMetadata: part.providerMetadata
         }, { includeStop })
-      }
-      if (part.type === 'finish') {
-        return metadataByChunk({
+          : part.type === 'finish'
+            ? metadataByChunk({
           type: 'finish',
           finishReason: part.finishReason,
         }, { includeStop })
+            : part.type === 'abort'
+              ? metadataByChunk({ type: 'abort' }, { includeStop })
+              : metadataByChunk({ type: 'start' }, { includeStop })
+
+        const shouldAttachRagDetails =
+          ragSearchDetailsVersion > emittedRagSearchDetailsVersion
+
+        if (!shouldAttachRagDetails) return baseMetadata
+
+        emittedRagSearchDetailsVersion = ragSearchDetailsVersion
+        return {
+          ...baseMetadata,
+          ragSearchDetails: ragSearchDetails?.map((item) => ({ ...item }))
+        }
       }
-      if (part.type === 'abort') {
-        return metadataByChunk({ type: 'abort' }, { includeStop })
-      }
-      return metadataByChunk({ type: 'start' }, { includeStop })
     }
 
     const streamResult = _streamText({
@@ -430,7 +442,8 @@ export const chatService = () => {
             knowledgeBaseIds,
             ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0 && ragEnabled,
             onRagSearchComplete: (details) => {
-              ragSearchDetails.value = details
+              ragSearchDetails = details?.map((item) => ({ ...item }))
+              ragSearchDetailsVersion += 1
             }
           })
         ]
