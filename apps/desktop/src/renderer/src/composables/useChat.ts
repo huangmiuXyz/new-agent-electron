@@ -124,7 +124,13 @@ export const useChat = (chatId: string) => {
                   processStreamingSpeech(message)
                 },
                 abortSignal,
-                responseMessageId: trigger === 'regenerate-message' ? messageId : undefined
+                responseMessageId:
+                  trigger === 'regenerate-message'
+                    ? messageId
+                    : trigger === 'submit-message' && messages[messages.length - 1]?.role === 'assistant'
+                      ? messages[messages.length - 1]?.id
+                      : undefined,
+                isRegenerateAction: trigger === 'regenerate-message'
               }
             )
           },

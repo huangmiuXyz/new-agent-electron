@@ -63,6 +63,7 @@ interface ChatServiceConfig {
   onMessage?: (message: BaseMessage) => void
   abortSignal?: AbortSignal
   responseMessageId?: string
+  isRegenerateAction?: boolean
 }
 
 export type GenerateImagePrompt = string | {
@@ -285,6 +286,7 @@ export const chatService = () => {
       onMessage,
       abortSignal,
       responseMessageId,
+      isRegenerateAction,
     }: ChatServiceConfig
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
@@ -498,9 +500,7 @@ export const chatService = () => {
       .reverse()
       .find((message) => message.role === 'assistant')
     const lastValidatedMessage = validatedMessages[validatedMessages.length - 1]
-    // 仅在“继续生成”（最后一条是 assistant）或“重生成”时复用上一条 assistant。
-    // 普通新消息（最后一条是 user）不复用，避免继承旧内容。
-    const shouldUseContinuationBase = !!responseMessageId || lastValidatedMessage?.role === 'assistant'
+    const shouldUseContinuationBase = !isRegenerateAction && lastValidatedMessage?.role === 'assistant'
     const continuationBaseMessage = (shouldUseContinuationBase && lastValidatedAssistantMessage)
       ? JSON.parse(JSON.stringify(lastValidatedAssistantMessage))
       : undefined
