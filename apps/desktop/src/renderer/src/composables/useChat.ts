@@ -315,9 +315,17 @@ export const useChat = (chatId: string) => {
       updateMessages(chatId, (messages) => [...messages, userMessage])
       chat.sendMessage(userMessage)
     },
-    continueMessages: () => {
+    continueMessages: (messageId?: string) => {
       const currentChats = getChatById(chatId)
-      const chat = createChat(currentChats?.messages || [])
+      const messages = currentChats?.messages || []
+
+      const targetIndex = messages.findIndex(
+        (m) => m.id === messageId && m.role === 'assistant'
+      )
+      if (targetIndex < 0) return
+
+      const branchMessages = messages.slice(0, targetIndex + 1)
+      const chat = createChat(branchMessages)
       chat.sendMessage()
     },
     regenerate: (messageId: string) => {

@@ -89,7 +89,6 @@ interface AutoCompressOptions {
 const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMessage[]> => {
   const { cid, messages, contextCount, compressModel } = options
 
-  // 当消息数量达到或超过上下文限制时触发压缩
   const shouldAutoCompress = contextCount &&
     messages.length >= contextCount &&
     compressModel?.providerId &&
@@ -97,7 +96,6 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
 
   if (!shouldAutoCompress) return messages
 
-  // 检查是否已经有压缩标记
   const hasCompressed = messages.some(m =>
     m.role === 'system' &&
     m.parts?.some(p => p.type === 'text' && p.text?.includes('[上下文已压缩]'))
@@ -109,7 +107,6 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
   if (!compressProvider) return messages
 
   try {
-    // 构建需要压缩的上下文
     const contextToCompress = messages
       .filter(m => m.role !== 'system')
       .map(m => {
@@ -120,7 +117,6 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
 
     const { updateMessages, getChatById, updateMessage, updateMessageMetadata } = useChatsStores()
 
-    // 创建system消息显示压缩进度
     const compressingMessageId = nanoid()
     const compressingMessage: BaseMessage = {
       id: compressingMessageId,
@@ -140,7 +136,6 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
       } as MetaData
     }
 
-    // 添加system消息到聊天
     const chat = getChatById(cid)
     if (chat) {
       updateMessages(cid, (msgs) => [...msgs, compressingMessage])
@@ -148,7 +143,6 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
 
     let compressedText = ''
 
-    // 流式生成压缩内容
     const compressStream = _streamText({
       model: createRegistry({
         apiKey: compressProvider.apiKey || '',
@@ -169,13 +163,11 @@ ${contextToCompress}
       }
     })
 
-    // 流式接收内容并实时更新system消息
     let accumulatedText = ''
     try {
       for await (const data of compressStream.textStream) {
         accumulatedText += data
         if (chat) {
-          // 实时更新system消息显示流式进度（临时显示，不包含标记）
           updateMessage(cid, compressingMessageId, [{
             type: 'text',
             text: `🔃 正在压缩上下文...\n\n${accumulatedText}`
@@ -183,17 +175,21 @@ ${contextToCompress}
         }
       }
 
-      // 流式完成，更新为最终状态（包含[上下文已压缩]标记供中间件识别）
       if (chat && compressedText) {
-        // 先更新为带标记的文本
         updateMessage(cid, compressingMessageId, [{
           type: 'text',
           text: `${compressedText}\n\n[上下文已压缩]`
         }])
-        // 标记为非加载状态 - 使用 updateMessageMetadata 确保状态被正确保存
+      }
+
+      if (chat) {
         const msg = chat.messages.find(m => m.id === compressingMessageId)
         if (msg && msg.metadata) {
-          const newMetadata = { ...msg.metadata, loading: false, isCompressedContext: true } as MetaData
+          const newMetadata = {
+            ...msg.metadata,
+            loading: false,
+            ...(compressedText ? { isCompressedContext: true } : {})
+          } as MetaData
           updateMessageMetadata(cid, compressingMessageId, newMetadata)
         }
       }
@@ -215,12 +211,15 @@ ${contextToCompress}
       return messages
     }
 
-    // 压缩完成，返回包含system消息的消息列表（system消息已在UI中显示）
     if (compressedText && chat) {
-      // 找到刚刚创建的system消息并返回
       const compressingMsg = chat.messages.find(m => m.id === compressingMessageId)
       if (compressingMsg) {
-        return [...messages, compressingMsg]
+        if (messages.length === 0) return [compressingMsg]
+
+        const insertAt = Math.max(messages.length - 1, 0)
+        const mergedMessages = [...messages]
+        mergedMessages.splice(insertAt, 0, compressingMsg)
+        return mergedMessages
       }
     }
 
@@ -498,7 +497,11 @@ export const chatService = () => {
     const lastValidatedAssistantMessage = [...validatedMessages]
       .reverse()
       .find((message) => message.role === 'assistant')
-    const continuationBaseMessage = (!responseMessageId && lastValidatedAssistantMessage)
+    const lastValidatedMessage = validatedMessages[validatedMessages.length - 1]
+    // 仅在“继续生成”（最后一条是 assistant）或“重生成”时复用上一条 assistant。
+    // 普通新消息（最后一条是 user）不复用，避免继承旧内容。
+    const shouldUseContinuationBase = !!responseMessageId || lastValidatedMessage?.role === 'assistant'
+    const continuationBaseMessage = (shouldUseContinuationBase && lastValidatedAssistantMessage)
       ? JSON.parse(JSON.stringify(lastValidatedAssistantMessage))
       : undefined
 

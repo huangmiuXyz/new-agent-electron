@@ -251,7 +251,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         })
       }
     },
-    {
+    ...(message.role === 'assistant' ? [{
       label: '继续',
       icon: Continue,
       onClick: async (data) => {
@@ -262,10 +262,10 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         data.metadata?.stop?.()
         const { continueMessages } = useChat(currentChat.value!.id!)
         setTimeout(() => {
-          continueMessages()
+          continueMessages(data.id!)
         })
       }
-    },
+    }] : []),
     {
       label: '删除',
       icon: Delete,
