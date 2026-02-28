@@ -8,6 +8,7 @@
   "packageManager": "pnpm@10.24.0",
   "scripts": {
     "turbo": "turbo dev",
+    "predev": "pnpm --filter @agent-qi/types build",
     "dev": "pnpm --filter desktop dev",
     "build": "turbo build",
     "build:mac": "turbo build:mac",
