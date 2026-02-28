@@ -7,7 +7,7 @@
   "homepage": "https://electron-vite.org",
   "packageManager": "pnpm@10.24.0",
   "scripts": {
-    "turbo": "turbo dev",
+    "turbo": "turbo dev --filter=!qi-cli",
     "predev": "pnpm --filter @agent-qi/types build",
     "dev": "pnpm --filter desktop dev",
     "build": "turbo build",
