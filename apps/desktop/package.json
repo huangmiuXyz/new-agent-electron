@@ -9,7 +9,7 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
-    "rebuild:native": "node ./node_modules/@electron/rebuild/lib/cli.js -f -w better-sqlite3 -w node-pty -w sqlite-vec",
+    "rebuild:native": "node ./node_modules/@electron/rebuild/lib/cli.js -f -w better-sqlite3,node-pty,sqlite-vec",
     "postinstall": "npm run rebuild:native",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
