@@ -59,6 +59,7 @@ let onServiceStatusChanged: (() => void) | null = null
 let lastRequestAt = Date.now()
 let isIdleStopping = false
 let hasManualLoadStarted = false
+let isStatusPanelOpen = false
 let currentProviderFormComponent: unknown = null
 let isLoadingModel = false
 let cancelLoadRequested = false
@@ -436,9 +437,16 @@ const syncProvider = (context: PluginContext, formComponent?: unknown) => {
 }
 
 const updateServiceStatusIndicator = async (context: PluginContext, force = false) => {
-  const running = hasManualLoadStarted ? await isServerRunning(runtimeConfig) : false
+  let running = lastServiceRunning ?? false
+  const shouldProbe = hasManualLoadStarted && (force || isStatusPanelOpen)
 
-  if (!running && runtimeConfig.loadedModelId) {
+  if (!hasManualLoadStarted) {
+    running = false
+  } else if (shouldProbe) {
+    running = await isServerRunning(runtimeConfig)
+  }
+
+  if (shouldProbe && !running && runtimeConfig.loadedModelId) {
     runtimeConfig = {
       ...runtimeConfig,
       loadedModelId: ''
@@ -462,7 +470,7 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
   const statusRender = context.vue.markRaw(
     context.vue.defineComponent({
       setup() {
-        const isOpen = context.vue.ref(false)
+        const isOpen = context.vue.ref(isStatusPanelOpen)
         const wrapRef = context.vue.ref<HTMLElement | null>(null)
         const loadedModelId = runtimeConfig.loadedModelId
         const loadedModelName = runtimeConfig.models.find((m) => m.id === loadedModelId)?.name || 'None'
@@ -475,6 +483,7 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
           const target = event.target as Node | null
           if (target && !root.contains(target)) {
             isOpen.value = false
+            isStatusPanelOpen = false
           }
         }
 
@@ -484,11 +493,16 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
 
         context.vue.onUnmounted(() => {
           document.removeEventListener('mousedown', onDocumentClick)
+          isStatusPanelOpen = false
         })
 
-        const toggleOpen = (e: MouseEvent) => {
+        const toggleOpen = async (e: MouseEvent) => {
           e.stopPropagation()
           isOpen.value = !isOpen.value
+          isStatusPanelOpen = isOpen.value
+          if (isOpen.value) {
+            void updateServiceStatusIndicator(context, true)
+          }
         }
 
         const handleStop = async (e: MouseEvent) => {
@@ -1019,6 +1033,7 @@ const plugin: Plugin = {
     await updateServiceStatusIndicator(context, true)
     statusTimer = setInterval(() => {
       if (!hasManualLoadStarted || !runtimeConfig.loadedModelId) return
+      if (!isStatusPanelOpen) return
       void checkIdleAutoStop(context)
       void updateServiceStatusIndicator(context)
     }, 3000)
@@ -1180,6 +1195,7 @@ const plugin: Plugin = {
     onServiceStatusChanged = null
     lastServiceRunning = null
     lastStatusLoadedModelId = ''
+    isStatusPanelOpen = false
     context.notification.removeStatus(SERVICE_STATUS_ID)
     context.unregisterProvider(PROVIDER_ID)
     context.unregisterRegistry(REGISTRY_ID)
