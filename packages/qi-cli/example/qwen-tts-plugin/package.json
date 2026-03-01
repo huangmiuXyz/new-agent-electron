@@ -17,8 +17,8 @@
     "vue": "^3.5.13"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^3.0.5",
-    "@ai-sdk/provider-utils": "^4.0.9",
+    "@ai-sdk/provider": "catalog:",
+    "@ai-sdk/provider-utils": "catalog:",
     "@gradio/client": "^1.19.1",
     "zod": "catalog:"
   }
