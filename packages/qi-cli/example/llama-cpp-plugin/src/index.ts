@@ -64,6 +64,7 @@ let currentProviderFormComponent: unknown = null
 let isLoadingModel = false
 let cancelLoadRequested = false
 let loadingModelId = ''
+let currentThinkingMode = false
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -1163,7 +1164,22 @@ const plugin: Plugin = {
       const provider = createOpenAICompatible({
         name: 'llama.cpp',
         baseURL: toBaseURL(runtimeConfig),
-        apiKey: runtimeConfig.apiKey
+        apiKey: runtimeConfig.apiKey,
+        transformRequestBody: (args) => {
+          const request = { ...(args || {}) }
+          const chatTemplateKwargs = {
+            ...((request.chat_template_kwargs && typeof request.chat_template_kwargs === 'object')
+              ? request.chat_template_kwargs
+              : {}),
+            enable_thinking: currentThinkingMode
+          }
+
+          return {
+            ...request,
+            enable_thinking: currentThinkingMode,
+            chat_template_kwargs: chatTemplateKwargs
+          }
+        }
       }) as OpenAICompatibleWithListModels
 
       provider.listModels = async () => {
@@ -1199,6 +1215,19 @@ const plugin: Plugin = {
       const params = (args[0] || {}) as AIBeforeUseParams
       if (params?.providerType !== REGISTRY_ID) return
       lastRequestAt = Date.now()
+
+      try {
+        const settingsStoreUnknown = await context.getStore('settings')
+        const settingsStore = settingsStoreUnknown as { thinkingMode?: boolean | { value?: boolean } }
+        const thinkingModeRaw = settingsStore?.thinkingMode
+        if (typeof thinkingModeRaw === 'boolean') {
+          currentThinkingMode = thinkingModeRaw
+        } else if (thinkingModeRaw && typeof thinkingModeRaw === 'object' && typeof thinkingModeRaw.value === 'boolean') {
+          currentThinkingMode = thinkingModeRaw.value
+        }
+      } catch {
+        // noop
+      }
     })
   },
 

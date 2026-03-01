@@ -9,7 +9,8 @@
     "build:watch": "vite build --watch"
   },
   "dependencies": {
-    "@agent-qi/types": "workspace:*"
+    "@agent-qi/types": "workspace:*",
+    "@ai-sdk/openai-compatible": "^2.0.31"
   },
   "devDependencies": {
     "typescript": "^5.9.2",
