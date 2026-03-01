@@ -1,6 +1,7 @@
 packages:
   - apps/*
   - packages/*
+  - packages/qi-cli/example/*
 
 catalog:
   '@ai-sdk/anthropic': 3.0.36

@@ -63,7 +63,7 @@ export interface PluginContext {
   /** 注册提供商到当前插件 */
   registerProvider: (
     providerId: string,
-    options?: { name?: string; providerType?: string; form?: Record<string, unknown>; models?: Model[]; hide?: boolean }
+    options?: { name?: string; providerType?: string; form?: Record<string, unknown>; models?: Model[]; hide?: boolean; logo?: string }
   ) => void;
   /** 注销提供商 */
   unregisterProvider: (providerId: string) => void;

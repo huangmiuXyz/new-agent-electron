@@ -281,6 +281,7 @@ export class PluginManager {
           settingsStore.addRegisteredProvider({
             id: providerId,
             name: options?.name || `${pluginName}`,
+            logo: options?.logo,
             providerId,
             providerType: options?.providerType || providerId,
             pluginName,
@@ -300,6 +301,7 @@ export class PluginManager {
               form: form || exists.form,
               models: options?.models || exists.models,
               name: options?.name || exists.name,
+              logo: options?.logo || exists.logo,
               hide: options?.hide ?? exists.hide
             };
             settingsStore.registeredProviders = updatedProviders;

@@ -332,7 +332,7 @@ export const useSettingsStore = defineStore(
     const selectedModelId = ref<string>('deepseek-chat')
     const selectedProviderId = ref<string>('深度探索')
     const currentSelectedProvider = computed(() => {
-      return providers.value.find((p) => p.id === selectedProviderId.value)
+      return getAllProviders.value.find((p) => p.id === selectedProviderId.value)
     })
     const currentSelectedModel = computed(() => {
       return currentSelectedProvider.value?.models?.find((p) => p.id === selectedModelId.value)
