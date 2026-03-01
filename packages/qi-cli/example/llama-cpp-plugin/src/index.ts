@@ -402,6 +402,21 @@ const saveConfig = async (context: PluginContext, cfg: LlamaPluginConfig) => {
   await context.localforage.setItem(STORAGE_KEY, runtimeConfig)
 }
 
+const stopStatusPolling = () => {
+  if (!statusTimer) return
+  clearInterval(statusTimer)
+  statusTimer = null
+}
+
+const startStatusPolling = (context: PluginContext) => {
+  if (statusTimer) return
+  statusTimer = setInterval(() => {
+    if (!hasManualLoadStarted || !runtimeConfig.loadedModelId) return
+    void checkIdleAutoStop(context)
+    void updateServiceStatusIndicator(context)
+  }, 3000)
+}
+
 const syncProvider = (context: PluginContext, formComponent?: unknown) => {
   if (formComponent) {
     currentProviderFormComponent = formComponent
@@ -484,6 +499,7 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
           if (target && !root.contains(target)) {
             isOpen.value = false
             isStatusPanelOpen = false
+            stopStatusPolling()
           }
         }
 
@@ -494,6 +510,7 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
         context.vue.onUnmounted(() => {
           document.removeEventListener('mousedown', onDocumentClick)
           isStatusPanelOpen = false
+          stopStatusPolling()
         })
 
         const toggleOpen = async (e: MouseEvent) => {
@@ -501,7 +518,10 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
           isOpen.value = !isOpen.value
           isStatusPanelOpen = isOpen.value
           if (isOpen.value) {
+            startStatusPolling(context)
             void updateServiceStatusIndicator(context, true)
+          } else {
+            stopStatusPolling()
           }
         }
 
@@ -1031,12 +1051,7 @@ const plugin: Plugin = {
     }
     lastRequestAt = Date.now()
     await updateServiceStatusIndicator(context, true)
-    statusTimer = setInterval(() => {
-      if (!hasManualLoadStarted || !runtimeConfig.loadedModelId) return
-      if (!isStatusPanelOpen) return
-      void checkIdleAutoStop(context)
-      void updateServiceStatusIndicator(context)
-    }, 3000)
+    stopStatusPolling()
 
     const renderScannedModelList = () => {
       if (!runtimeConfig.models.length) {
@@ -1188,10 +1203,7 @@ const plugin: Plugin = {
   },
 
   uninstall: async (context: PluginContext) => {
-    if (statusTimer) {
-      clearInterval(statusTimer)
-      statusTimer = null
-    }
+    stopStatusPolling()
     onServiceStatusChanged = null
     lastServiceRunning = null
     lastStatusLoadedModelId = ''
