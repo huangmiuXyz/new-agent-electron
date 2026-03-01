@@ -59,6 +59,10 @@ let onServiceStatusChanged: (() => void) | null = null
 let lastRequestAt = Date.now()
 let isIdleStopping = false
 let hasManualLoadStarted = false
+let currentProviderFormComponent: unknown = null
+let isLoadingModel = false
+let cancelLoadRequested = false
+let loadingModelId = ''
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -257,16 +261,51 @@ const syncScannedModels = (cfg: LlamaPluginConfig, scanned: LlamaModelConfig[]):
 }
 
 const buildProviderModels = (cfg: LlamaPluginConfig): Model[] => {
-  return cfg.models.map((m) => ({
-    id: m.id,
-    name: m.name,
+  const loaded = cfg.models.find((m) => m.id === cfg.loadedModelId)
+  if (!loaded) return []
+
+  return [{
+    id: loaded.id,
+    name: loaded.name,
     category: 'text',
     active: true,
     object: 'model',
     created: Date.now(),
     owned_by: PLUGIN_NAME,
-    description: m.modelPath
-  })) as Model[]
+    description: loaded.modelPath
+  }] as Model[]
+}
+
+const detectServerModelId = async (cfg: LlamaPluginConfig): Promise<string> => {
+  try {
+    const res = await fetch(`${toBaseURL(cfg)}/models`, {
+      headers: {
+        Authorization: `Bearer ${cfg.apiKey || 'sk-local'}`
+      }
+    })
+    if (!res.ok) return ''
+    const json = await res.json() as { data?: Array<{ id?: string }> }
+    const id = String(json?.data?.[0]?.id || '').trim()
+    return id
+  } catch {
+    return ''
+  }
+}
+
+const resolveLoadedModelIdFromServer = (
+  context: PluginContext,
+  cfg: LlamaPluginConfig,
+  serverModelId: string
+): string => {
+  const modelId = String(serverModelId || '').trim()
+  if (!modelId) return ''
+  const normalized = modelId.toLowerCase()
+  const match = cfg.models.find((m) => {
+    const idNorm = String(m.id || '').trim().toLowerCase()
+    const pathNorm = context.api.path.basename(String(m.modelPath || '').trim(), '.gguf').toLowerCase()
+    return idNorm === normalized || pathNorm === normalized
+  })
+  return match?.id || ''
 }
 
 const parseModelArgs = (
@@ -343,8 +382,14 @@ const startLlamaServer = async (
   }
 }
 
-const waitForServerReady = async (cfg: LlamaPluginConfig, retries: number = 30, delayMs: number = 1000): Promise<boolean> => {
+const waitForServerReady = async (
+  cfg: LlamaPluginConfig,
+  retries: number = 30,
+  delayMs: number = 1000,
+  shouldCancel?: () => boolean
+): Promise<boolean> => {
   for (let i = 0; i < retries; i++) {
+    if (shouldCancel?.()) return false
     if (await isServerRunning(cfg)) return true
     await sleep(delayMs)
   }
@@ -356,12 +401,15 @@ const saveConfig = async (context: PluginContext, cfg: LlamaPluginConfig) => {
   await context.localforage.setItem(STORAGE_KEY, runtimeConfig)
 }
 
-const syncProvider = (context: PluginContext, formComponent: unknown) => {
+const syncProvider = (context: PluginContext, formComponent?: unknown) => {
+  if (formComponent) {
+    currentProviderFormComponent = formComponent
+  }
   context.registerProvider(PROVIDER_ID, {
     name: 'llama.cpp Local',
     logo: GGML_PROVIDER_LOGO_URL,
     providerType: REGISTRY_ID,
-    form: formComponent as Record<string, unknown>,
+    form: (currentProviderFormComponent || formComponent) as Record<string, unknown>,
     models: buildProviderModels(runtimeConfig)
   } as Record<string, unknown>)
 
@@ -396,6 +444,7 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
       loadedModelId: ''
     }
     await saveConfig(context, runtimeConfig)
+    syncProvider(context)
   }
 
   if (!force && lastServiceRunning === running && lastStatusLoadedModelId === runtimeConfig.loadedModelId) {
@@ -418,6 +467,7 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
         const loadedModelId = runtimeConfig.loadedModelId
         const loadedModelName = runtimeConfig.models.find((m) => m.id === loadedModelId)?.name || 'None'
         const isLoaded = running && Boolean(loadedModelId)
+        const loadingModelName = runtimeConfig.models.find((m) => m.id === loadingModelId)?.name || loadingModelId || 'Unknown'
 
         const onDocumentClick = (event: MouseEvent) => {
           const root = wrapRef.value
@@ -455,6 +505,13 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
           e.stopPropagation()
           const ok = await reloadModelNow(context, model)
           if (!ok) return
+          await updateServiceStatusIndicator(context, true)
+        }
+
+        const handleCancelLoading = async (e: MouseEvent) => {
+          e.stopPropagation()
+          cancelLoadRequested = true
+          context.notification.info('Cancelling model load...', 'llama.cpp')
           await updateServiceStatusIndicator(context, true)
         }
 
@@ -545,14 +602,25 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
             context.vue.h('div', { class: ['llama-status-tooltip', isOpen.value ? 'open' : ''] }, [
               context.vue.h('div', { class: 'llama-status-title' }, 'llama.cpp Service'),
               context.vue.h('div', { class: 'llama-status-sub' }, `Status: ${running ? 'Running' : 'Stopped'}`),
+              ...(isLoadingModel
+                ? [context.vue.h('div', { class: 'llama-status-sub' }, `Loading: ${loadingModelName}`)]
+                : []),
               context.vue.h('div', { class: 'llama-status-sub' }, `Loaded: ${loadedModelName}`),
               context.vue.h('div', { class: 'llama-status-actions' }, [
-                context.vue.h('button', {
-                  type: 'button',
-                  class: 'llama-status-btn',
-                  onClick: handleStop,
-                  disabled: !running
-                }, 'Stop')
+                ...(running && Boolean(loadedModelId)
+                  ? [context.vue.h('button', {
+                      type: 'button',
+                      class: 'llama-status-btn',
+                      onClick: handleStop
+                    }, 'Stop')]
+                  : []),
+                ...(isLoadingModel
+                  ? [context.vue.h('button', {
+                      type: 'button',
+                      class: 'llama-status-btn',
+                      onClick: handleCancelLoading
+                    }, 'Cancel Load')]
+                  : [])
               ]),
               context.vue.h('div', { class: 'llama-status-title', style: 'margin-bottom:4px;' }, 'Switch / Reload'),
               context.vue.h(
@@ -621,6 +689,7 @@ const stopLlamaServer = async (context: PluginContext): Promise<boolean> => {
         loadedModelId: ''
       }
       await saveConfig(context, runtimeConfig)
+      syncProvider(context)
       await updateServiceStatusIndicator(context, true)
       return true
     }
@@ -706,6 +775,10 @@ const loadModelNow = async (
   model: LlamaModelConfig,
   presetLoadOptions?: LlamaLoadOptions
 ): Promise<boolean> => {
+  if (isLoadingModel) {
+    context.notification.warning('A model is loading. Cancel current load first.', 'llama.cpp')
+    return false
+  }
   hasManualLoadStarted = true
   if (await isServerRunning(runtimeConfig)) {
     if (runtimeConfig.loadedModelId === model.id) {
@@ -725,11 +798,33 @@ const loadModelNow = async (
   }
 
   context.notification.info(`Loading model: ${model.name}`, 'llama.cpp')
-  const started = await startLlamaServer(context, runtimeConfig, model, loadOptions)
-  if (!started) return false
+  isLoadingModel = true
+  cancelLoadRequested = false
+  loadingModelId = model.id
+  await updateServiceStatusIndicator(context, true)
 
-  const ready = await waitForServerReady(runtimeConfig)
+  const started = await startLlamaServer(context, runtimeConfig, model, loadOptions)
+  if (!started) {
+    isLoadingModel = false
+    loadingModelId = ''
+    await updateServiceStatusIndicator(context, true)
+    return false
+  }
+
+  const ready = await waitForServerReady(runtimeConfig, 30, 1000, () => cancelLoadRequested)
+  if (cancelLoadRequested) {
+    await stopLlamaServer(context)
+    isLoadingModel = false
+    cancelLoadRequested = false
+    loadingModelId = ''
+    await updateServiceStatusIndicator(context, true)
+    context.notification.warning(`Model load cancelled: ${model.name}`, 'llama.cpp')
+    return false
+  }
   if (!ready) {
+    isLoadingModel = false
+    loadingModelId = ''
+    await updateServiceStatusIndicator(context, true)
     context.notification.error('Model load timeout. Please check settings.', 'llama.cpp')
     return false
   }
@@ -740,6 +835,10 @@ const loadModelNow = async (
   }
   lastRequestAt = Date.now()
   await saveConfig(context, runtimeConfig)
+  syncProvider(context)
+  isLoadingModel = false
+  cancelLoadRequested = false
+  loadingModelId = ''
   await updateServiceStatusIndicator(context, true)
   context.notification.success(`Model loaded: ${model.name}`, 'llama.cpp')
   return true
@@ -786,6 +885,27 @@ const plugin: Plugin = {
     const saved = await context.localforage.getItem(STORAGE_KEY)
     runtimeConfig = normalizeConfig(parseStoredConfig(saved), DEFAULT_CONFIG)
     runtimeConfig = syncScannedModels(runtimeConfig, scanModelsByRoot(context, runtimeConfig.modelsRoot))
+
+    // Reconcile runtime state on plugin load: if server is already running,
+    // reflect currently loaded model; otherwise clear stale loaded state.
+    const runningAtInstall = await isServerRunning(runtimeConfig)
+    if (runningAtInstall) {
+      hasManualLoadStarted = true
+      const serverModelId = await detectServerModelId(runtimeConfig)
+      const loadedModelId = resolveLoadedModelIdFromServer(context, runtimeConfig, serverModelId)
+      runtimeConfig = {
+        ...runtimeConfig,
+        loadedModelId: loadedModelId || runtimeConfig.loadedModelId
+      }
+    } else {
+      hasManualLoadStarted = false
+      if (runtimeConfig.loadedModelId) {
+        runtimeConfig = {
+          ...runtimeConfig,
+          loadedModelId: ''
+        }
+      }
+    }
     await saveConfig(context, runtimeConfig)
 
     const [ScannedModelTable, scannedModelTableActions] = context.useTable({
