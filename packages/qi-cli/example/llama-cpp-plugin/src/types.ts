@@ -1,5 +1,5 @@
 import type { Model, Plugin, PluginContext } from '@agent-qi/types'
-
+import { OpenAICompatibleProvider } from '@ai-sdk/openai-compatible'
 export type { Model, Plugin, PluginContext }
 
 export interface LlamaModelConfig {
@@ -47,6 +47,6 @@ export interface LlamaLoadOptions {
   extraArgs: string
 }
 
-export interface OpenAICompatibleWithListModels {
+export interface OpenAICompatibleWithListModels extends OpenAICompatibleProvider<string, string, string, string>{
   listModels?: () => Promise<Model[]>
 }
