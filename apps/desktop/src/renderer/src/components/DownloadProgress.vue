@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 interface Progress {
     total: number
@@ -21,6 +21,13 @@ const emit = defineEmits<{
 }>()
 
 const percent = computed(() => props.progress?.percent || 0)
+const downloadSpeed = ref(0)
+const smoothedSpeed = ref(0)
+const lastSampleDownloaded = ref<number | null>(null)
+const lastSampleAt = ref<number | null>(null)
+const speedDebounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+const pendingDisplaySpeed = ref(0)
+const SPEED_DEBOUNCE_MS = 180
 
 const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 B'
@@ -29,6 +36,103 @@ const formatSize = (bytes: number) => {
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
+
+const formatSpeed = (bytesPerSecond: number) => {
+    if (bytesPerSecond <= 0) return '0 B/s'
+    return `${formatSize(bytesPerSecond)}/s`
+}
+
+const applySpeedDisplay = (speed: number) => {
+    pendingDisplaySpeed.value = speed
+
+    if (speedDebounceTimer.value) {
+        clearTimeout(speedDebounceTimer.value)
+    }
+
+    speedDebounceTimer.value = setTimeout(() => {
+        downloadSpeed.value = pendingDisplaySpeed.value
+        speedDebounceTimer.value = null
+    }, SPEED_DEBOUNCE_MS)
+}
+
+const resetSpeedState = () => {
+    if (speedDebounceTimer.value) {
+        clearTimeout(speedDebounceTimer.value)
+        speedDebounceTimer.value = null
+    }
+    smoothedSpeed.value = 0
+    pendingDisplaySpeed.value = 0
+    downloadSpeed.value = 0
+}
+
+onBeforeUnmount(() => {
+    if (speedDebounceTimer.value) {
+        clearTimeout(speedDebounceTimer.value)
+    }
+})
+
+watch(
+    () => props.progress?.downloaded,
+    (downloaded) => {
+        const now = Date.now()
+        if (typeof downloaded !== 'number') {
+            resetSpeedState()
+            lastSampleDownloaded.value = null
+            lastSampleAt.value = null
+            return
+        }
+
+        if (!props.isDownloading || props.isPaused || percent.value >= 100) {
+            resetSpeedState()
+            lastSampleDownloaded.value = downloaded
+            lastSampleAt.value = now
+            return
+        }
+
+        if (lastSampleDownloaded.value === null || lastSampleAt.value === null) {
+            lastSampleDownloaded.value = downloaded
+            lastSampleAt.value = now
+            resetSpeedState()
+            return
+        }
+
+        const bytesDelta = downloaded - lastSampleDownloaded.value
+        const secondsDelta = (now - lastSampleAt.value) / 1000
+        if (bytesDelta > 0 && secondsDelta > 0) {
+            const instantSpeed = bytesDelta / secondsDelta
+            smoothedSpeed.value =
+                smoothedSpeed.value > 0
+                    ? smoothedSpeed.value * 0.6 + instantSpeed * 0.4
+                    : instantSpeed
+            applySpeedDisplay(smoothedSpeed.value)
+        }
+
+        lastSampleDownloaded.value = downloaded
+        lastSampleAt.value = now
+    },
+    { immediate: true }
+)
+
+watch(
+    () => [props.isDownloading, props.isPaused] as const,
+    ([isDownloading, isPaused]) => {
+        if (!isDownloading || isPaused) {
+            resetSpeedState()
+        }
+
+        if (!isDownloading) {
+            lastSampleDownloaded.value = null
+            lastSampleAt.value = null
+            return
+        }
+
+        if (props.progress) {
+            lastSampleDownloaded.value = props.progress.downloaded
+            lastSampleAt.value = Date.now()
+        }
+    },
+    { immediate: true }
+)
 
 const currentStatusText = computed(() => {
     if (props.isPaused) return '已暂停'
@@ -73,6 +177,8 @@ const currentStatusText = computed(() => {
             <span class="downloaded">{{ formatSize(progress.downloaded) }}</span>
             <span class="separator">/</span>
             <span class="total">{{ formatSize(progress.total) }}</span>
+            <span class="separator speed-separator">·</span>
+            <span class="speed">{{ formatSpeed(downloadSpeed) }}</span>
         </div>
     </div>
 </template>
@@ -246,5 +352,13 @@ html.dark-mode .progress-track {
 
 .separator {
     opacity: 0.5;
+}
+
+.speed-separator {
+    margin-left: 2px;
+}
+
+.speed {
+    color: var(--text-secondary, #666);
 }
 </style>
