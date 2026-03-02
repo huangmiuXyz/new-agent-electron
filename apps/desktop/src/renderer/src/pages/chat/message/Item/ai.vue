@@ -83,7 +83,7 @@ const playMessageAudio = () => {
           </div>
         </div>
       </div>
-      <ChatMessageItemRagSearch :searching="!message.metadata?.ragSearchDetails?.length && message.metadata!.ragEnabled"
+      <ChatMessageItemRagSearch :searching="!message.metadata?.ragSearchDetails?.length && !!message.metadata?.ragEnabled"
         :search-details="message.metadata?.ragSearchDetails" />
       <div v-if="
         !message.metadata?.error &&

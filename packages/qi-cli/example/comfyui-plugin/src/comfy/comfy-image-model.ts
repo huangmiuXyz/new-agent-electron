@@ -12,6 +12,8 @@ import {
   createClientId,
   ensureNoTrailingSlash,
   extractComfyError,
+  fillMissingSeedValues,
+  renderWorkflowJsonTemplate,
   safeJsonParseObject
 } from './comfy-utils';
 import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_SEC } from '../constants';
@@ -60,6 +62,28 @@ export class ComfyUIImageModel implements ImageModelV3 {
     return (parsed ?? {}) as ComfyImageCallOptions;
   }
 
+  private extractPromptText(prompt: ImageModelV3CallOptions['prompt']): string {
+    if (typeof prompt === 'string') {
+      return prompt;
+    }
+
+    if (prompt && typeof prompt === 'object' && 'text' in prompt) {
+      const text = (prompt as { text?: unknown }).text;
+      if (typeof text === 'string') {
+        return text;
+      }
+    }
+
+    return '';
+  }
+
+  private resolveSeed(seed: ImageModelV3CallOptions['seed']): number {
+    if (typeof seed === 'number' && Number.isFinite(seed)) {
+      return Math.floor(seed);
+    }
+    return Math.floor(Math.random() * 2147483648);
+  }
+
   private async prepareTask(options: ImageModelV3CallOptions): Promise<PreparedTask> {
     const comfyOptions = await this.parseCallOptions(options.providerOptions);
 
@@ -70,7 +94,13 @@ export class ComfyUIImageModel implements ImageModelV3 {
       );
     }
 
-    const workflow = safeJsonParseObject(workflowJson, 'Workflow JSON');
+    const resolvedSeed = this.resolveSeed(options.seed);
+    const renderedWorkflowJson = renderWorkflowJsonTemplate(workflowJson, {
+      prompt: this.extractPromptText(options.prompt),
+      seed: resolvedSeed
+    });
+    const workflow = safeJsonParseObject(renderedWorkflowJson, 'Workflow JSON');
+    fillMissingSeedValues(workflow, resolvedSeed);
 
     return { workflow };
   }

@@ -2,13 +2,14 @@ import {
   generateText as _generateText,
   generateImage as _generateImage,
   experimental_generateVideo as _generateVideo,
-  ToolLoopAgent,
   ToolChoice,
   wrapLanguageModel,
   streamText as _streamText,
   convertToModelMessages,
   validateUIMessages,
-  type DataContent
+  type DataContent,
+  readUIMessageStream,
+  stepCountIs
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
@@ -60,6 +61,10 @@ interface ChatServiceConfig {
   providerOptions?: Record<string, any>
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
   isApprovalAction?: boolean
+  onMessage?: (message: BaseMessage) => void
+  abortSignal?: AbortSignal
+  responseMessageId?: string
+  isRegenerateAction?: boolean
 }
 
 export type GenerateImagePrompt = string | {
@@ -86,7 +91,6 @@ interface AutoCompressOptions {
 const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMessage[]> => {
   const { cid, messages, contextCount, compressModel } = options
 
-  // 当消息数量达到或超过上下文限制时触发压缩
   const shouldAutoCompress = contextCount &&
     messages.length >= contextCount &&
     compressModel?.providerId &&
@@ -94,7 +98,6 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
 
   if (!shouldAutoCompress) return messages
 
-  // 检查是否已经有压缩标记
   const hasCompressed = messages.some(m =>
     m.role === 'system' &&
     m.parts?.some(p => p.type === 'text' && p.text?.includes('[上下文已压缩]'))
@@ -106,7 +109,6 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
   if (!compressProvider) return messages
 
   try {
-    // 构建需要压缩的上下文
     const contextToCompress = messages
       .filter(m => m.role !== 'system')
       .map(m => {
@@ -117,7 +119,6 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
 
     const { updateMessages, getChatById, updateMessage, updateMessageMetadata } = useChatsStores()
 
-    // 创建system消息显示压缩进度
     const compressingMessageId = nanoid()
     const compressingMessage: BaseMessage = {
       id: compressingMessageId,
@@ -137,7 +138,6 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
       } as MetaData
     }
 
-    // 添加system消息到聊天
     const chat = getChatById(cid)
     if (chat) {
       updateMessages(cid, (msgs) => [...msgs, compressingMessage])
@@ -145,7 +145,6 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
 
     let compressedText = ''
 
-    // 流式生成压缩内容
     const compressStream = _streamText({
       model: createRegistry({
         apiKey: compressProvider.apiKey || '',
@@ -166,13 +165,11 @@ ${contextToCompress}
       }
     })
 
-    // 流式接收内容并实时更新system消息
     let accumulatedText = ''
     try {
       for await (const data of compressStream.textStream) {
         accumulatedText += data
         if (chat) {
-          // 实时更新system消息显示流式进度（临时显示，不包含标记）
           updateMessage(cid, compressingMessageId, [{
             type: 'text',
             text: `🔃 正在压缩上下文...\n\n${accumulatedText}`
@@ -180,17 +177,21 @@ ${contextToCompress}
         }
       }
 
-      // 流式完成，更新为最终状态（包含[上下文已压缩]标记供中间件识别）
       if (chat && compressedText) {
-        // 先更新为带标记的文本
         updateMessage(cid, compressingMessageId, [{
           type: 'text',
           text: `${compressedText}\n\n[上下文已压缩]`
         }])
-        // 标记为非加载状态 - 使用 updateMessageMetadata 确保状态被正确保存
+      }
+
+      if (chat) {
         const msg = chat.messages.find(m => m.id === compressingMessageId)
         if (msg && msg.metadata) {
-          const newMetadata = { ...msg.metadata, loading: false, isCompressedContext: true } as MetaData
+          const newMetadata = {
+            ...msg.metadata,
+            loading: false,
+            ...(compressedText ? { isCompressedContext: true } : {})
+          } as MetaData
           updateMessageMetadata(cid, compressingMessageId, newMetadata)
         }
       }
@@ -212,12 +213,15 @@ ${contextToCompress}
       return messages
     }
 
-    // 压缩完成，返回包含system消息的消息列表（system消息已在UI中显示）
     if (compressedText && chat) {
-      // 找到刚刚创建的system消息并返回
       const compressingMsg = chat.messages.find(m => m.id === compressingMessageId)
       if (compressingMsg) {
-        return [...messages, compressingMsg]
+        if (messages.length === 0) return [compressingMsg]
+
+        const insertAt = Math.max(messages.length - 1, 0)
+        const mergedMessages = [...messages]
+        mergedMessages.splice(insertAt, 0, compressingMsg)
+        return mergedMessages
       }
     }
 
@@ -226,6 +230,33 @@ ${contextToCompress}
     console.error('自动压缩上下文失败:', error)
     return messages
   }
+}
+const toolLoopStopSentinel = '<|stop|>'
+const hasStopSentinelOutput = (output: unknown): boolean => {
+  if (typeof output === 'string') {
+    return output.trim() === toolLoopStopSentinel
+  }
+
+  if (!output || typeof output !== 'object') return false
+
+  const candidates = [
+    (output as any)?.toolResult?.content,
+    (output as any)?.content
+  ]
+
+  for (const content of candidates) {
+    if (!Array.isArray(content)) continue
+    if (content.some((item) => item?.type === 'text' && item?.text === toolLoopStopSentinel)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+const shouldStopForToolResult = (toolResult: { toolName?: string; output: unknown }): boolean => {
+  if (toolResult.toolName !== 'candidateReplies') return false
+  return hasStopSentinelOutput(toolResult.output)
 }
 
 export const chatService = () => {
@@ -253,6 +284,10 @@ export const chatService = () => {
       providerOptions: customProviderOptions,
       onBeforeToolExecute,
       isApprovalAction,
+      onMessage,
+      abortSignal,
+      responseMessageId,
+      isRegenerateAction,
     }: ChatServiceConfig
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
@@ -299,36 +334,104 @@ export const chatService = () => {
         close()
       }
     }
-    const ragSearchDetails = ref()
-    const toolLoopStopSentinel = '<|stop|>'
-    const hasStopSentinelOutput = (output: unknown): boolean => {
-      if (typeof output === 'string') {
-        return output.trim() === toolLoopStopSentinel
+    let ragSearchDetails: Array<{ knowledgeBaseId: string; documentId: string; score?: number }> | undefined
+    let ragSearchDetailsVersion = 0
+
+    const controller = new AbortController()
+    if (abortSignal) {
+      if (abortSignal.aborted) {
+        controller.abort()
+      } else {
+        abortSignal.addEventListener('abort', () => controller.abort(), { once: true })
       }
+    }
+    const wrappedTools = mapValues(tools, (t) => ({
+      ...t,
+      execute: async (input: any, options: any) => {
+        await onBeforeToolExecute?.({ tool: t, input, options })
+        const result = await t.execute(input, {
+          ...JSON.parse(JSON.stringify(options)),
+          chatId: cid,
+          model,
+          provider,
+          abortSignal: controller.signal
+        })
+        return result
+      }
+    }))
 
-      if (!output || typeof output !== 'object') return false
+    const validatedMessages = await validateUIMessages({
+      messages,
+      tools: wrappedTools,
+    })
 
-      const candidates = [
-        (output as any)?.toolResult?.content,
-        (output as any)?.content
-      ]
+    const sanitizedMessages = sanitizeUIMessages(validatedMessages, {
+      isManualApproval: isApprovalAction || false
+    })
 
-      for (const content of candidates) {
-        if (!Array.isArray(content)) continue
-        if (content.some((item) => item?.type === 'text' && item?.text === toolLoopStopSentinel)) {
-          return true
+    const modelMessages = await convertToModelMessages(sanitizedMessages, {
+      tools: wrappedTools,
+    })
+
+    const metadataByChunk = (part: {
+      type: 'start' | 'finish-step' | 'finish' | 'abort'
+      finishReason?: string
+      usage?: any
+      providerMetadata?: any
+    }, options?: { includeStop?: boolean }) => {
+      const includeStop = options?.includeStop ?? true
+      let result = {}
+      if (part.type === 'finish-step' && part.finishReason === 'stop') {
+        result = {
+          usage: part.usage,
+          providerMetadata: part.providerMetadata!,
         }
       }
+      return {
+        loading: part.type !== 'finish' && part.type !== 'abort',
+        provider,
+        date: Date.now(),
+        model,
+        cid,
+        ...(includeStop ? { stop: () => controller.abort() } : {}),
+        ragEnabled,
+        ...result,
+      }
+    }
+    const createMessageMetadata = (includeStop: boolean) => {
+      let emittedRagSearchDetailsVersion = 0
 
-      return false
+      return ({ part }: { part: any }) => {
+        const baseMetadata = part.type === 'finish-step'
+          ? metadataByChunk({
+            type: 'finish-step',
+            finishReason: part.finishReason,
+            usage: part.usage,
+            providerMetadata: part.providerMetadata
+          }, { includeStop })
+          : part.type === 'finish'
+            ? metadataByChunk({
+              type: 'finish',
+              finishReason: part.finishReason,
+            }, { includeStop })
+            : part.type === 'abort'
+              ? metadataByChunk({ type: 'abort' }, { includeStop })
+              : metadataByChunk({ type: 'start' }, { includeStop })
+
+        const shouldAttachRagDetails =
+          ragSearchDetailsVersion > emittedRagSearchDetailsVersion
+
+        if (!shouldAttachRagDetails) return baseMetadata
+
+        emittedRagSearchDetailsVersion = ragSearchDetailsVersion
+        return {
+          ...baseMetadata,
+          ragSearchDetails: ragSearchDetails?.map((item) => ({ ...item }))
+        }
+      }
     }
 
-    const shouldStopForToolResult = (toolResult: { toolName?: string; output: unknown }): boolean => {
-      if (toolResult.toolName !== 'candidateReplies') return false
-      return hasStopSentinelOutput(toolResult.output)
-    }
-
-    const agent = new ToolLoopAgent({
+    const streamResult = _streamText({
       model: wrapLanguageModel({
         model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
           `${providerType}:${model}`
@@ -342,11 +445,13 @@ export const chatService = () => {
             knowledgeBaseIds,
             ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0 && ragEnabled,
             onRagSearchComplete: (details) => {
-              ragSearchDetails.value = details
+              ragSearchDetails = details?.map((item) => ({ ...item }))
+              ragSearchDetailsVersion += 1
             }
           })
         ]
       }),
+      messages: modelMessages,
       providerOptions: {
         [providerType]: {
           ...(thinkingMode !== undefined && {
@@ -357,28 +462,16 @@ export const chatService = () => {
           ...customProviderOptions
         }
       },
-      tools: mapValues(tools, (t) => ({
-        ...t,
-        execute: async (input: any, options: any) => {
-          await onBeforeToolExecute?.({ tool: t, input, options })
-          const result = await t.execute(input, {
-            ...JSON.parse(JSON.stringify(options)),
-            chatId: cid,
-            model,
-            provider,
-            abortSignal: controller.signal
-          })
-          return result
-        }
-      })),
+      tools: wrappedTools,
       temperature,
       topP,
       topK,
       presencePenalty,
       frequencyPenalty,
       maxOutputTokens: maxOutputTokens || undefined,
-      instructions: agentInstructions,
+      system: agentInstructions,
       stopWhen: [
+        stepCountIs(20),
         ({ steps }) => {
           return (
             steps.some((step) =>
@@ -391,61 +484,56 @@ export const chatService = () => {
             ) ?? false
           )
         }
-      ]
-    })
-    const controller = new AbortController()
-
-    // 1. Validate UI messages
-    const validatedMessages = await validateUIMessages({
-      messages,
-      tools: agent.tools,
-    })
-
-    // 2. 清洗数据：移除历史中没有结果的工具调用，防止模型报错
-    // 区分 "手动批准" 和 "重试/继续"：
-    // 根据传入的 isApprovalAction 参数判断是否为手动批准触发。
-    const sanitizedMessages = sanitizeUIMessages(validatedMessages, {
-      isManualApproval: isApprovalAction || false
-    })
-
-    // 3. Convert to model messages
-    // 注意：不要启用 ignoreIncompleteToolCalls: true，因为我们已经在 sanitizeUIMessages 中手动处理了。
-    // 如果启用，convertToModelMessages 会再次过滤掉 approval-responded（因为它没有 result），导致工具无法执行。
-    const modelMessages = await convertToModelMessages(sanitizedMessages, {
-      tools: agent.tools,
-    })
-
-    const result = await agent.stream({
-      prompt: modelMessages,
+      ],
       abortSignal: controller.signal,
     })
 
-    const uiStream = result.toUIMessageStream({
-      originalMessages: validatedMessages,
-      messageMetadata: ({ part }) => {
-        let result = {}
-        if (part.type === 'finish-step' && part.finishReason === 'stop') {
-          result = {
-            usage: part.usage,
-            providerMetadata: part.providerMetadata!,
-          }
-        } else {
-          result = {}
-        }
-        return {
-          loading: part.type !== 'finish' && part.type !== 'abort',
-          provider,
-          date: Date.now(),
-          model,
-          cid,
-          stop: () => controller.abort(),
-          ragSearchDetails: ragSearchDetails.value,
-          ragEnabled,
-          ...result,
-        }
-      }
+    const generatedMessageId = responseMessageId || nanoid()
+    const lastValidatedMessage = validatedMessages[validatedMessages.length - 1]
+    const streamOriginalMessages =
+      isRegenerateAction &&
+        !!responseMessageId &&
+        lastValidatedMessage?.role === 'assistant' &&
+        lastValidatedMessage.id !== responseMessageId
+        ? validatedMessages.slice(0, -1)
+        : validatedMessages
+
+    const uiStreamOptions = {
+      originalMessages: streamOriginalMessages,
+      generateMessageId: () => generatedMessageId,
+      messageMetadata: createMessageMetadata(true)
+    } as const
+
+    const rawUiStream = streamResult.toUIMessageStream(uiStreamOptions)
+    if (!onMessage) return rawUiStream
+
+    const targetAssistantMessage = responseMessageId
+      ? validatedMessages.find((message) => message.id === responseMessageId && message.role === 'assistant')
+      : undefined
+    const shouldUseContinuationBase = !isRegenerateAction && !!targetAssistantMessage
+    const continuationBaseMessage = (shouldUseContinuationBase && targetAssistantMessage)
+      ? JSON.parse(JSON.stringify(targetAssistantMessage))
+      : undefined
+
+    const mirrorStream = streamResult.toUIMessageStream({
+      ...uiStreamOptions,
+      messageMetadata: createMessageMetadata(false)
     })
-    return uiStream
+
+    void (async () => {
+      try {
+        for await (const message of readUIMessageStream<BaseMessage>({
+          message: continuationBaseMessage,
+          stream: mirrorStream,
+        })) {
+          onMessage(message)
+        }
+      } catch (error) {
+        console.error('onMessage stream sync failed:', error)
+      }
+    })()
+
+    return rawUiStream
   }
   const generateText = async (
     prompt: string,

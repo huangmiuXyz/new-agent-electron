@@ -41,6 +41,7 @@ const { generatedBatches, startGeneration, resumeGeneration, startVideoGeneratio
 
 const isRegenerating = ref(false)
 const isToolMode = computed(() => !!props.tool_part)
+const REGENERATE_MIN_LOCK_MS = 1500
 
 const normalizeImages = (images: any[] = []) =>
   images
@@ -145,6 +146,16 @@ const displayBatches = computed(() => {
 const { list: virtualList, containerProps, wrapperProps, scrollTo } = useVirtualList(displayBatches, {
   itemHeight: ITEM_HEIGHT,
   overscan: 2
+})
+const renderedBatches = computed(() => {
+  if (isToolMode.value) {
+    return displayBatches.value.map((batch) => ({ data: batch }))
+  }
+  return virtualList.value
+})
+const renderedWrapperProps = computed(() => {
+  if (isToolMode.value) return {}
+  return wrapperProps.value
 })
 
 // 获取动态字段
@@ -446,28 +457,45 @@ const handleRegenerate = async () => {
 
   isRegenerating.value = true
   try {
-    const newBatch = createImageBatch({
+    const batchId = toolBatchId.value
+    const existing = generatedBatches.value.find((batch) => batch.id === batchId)
+    const placeholder = { loading: true as const, id: Date.now() }
+
+    const regenBatch = createImageBatch({
       prompt: props.args?.prompt || '',
       model: metadata.config.model,
       providerId: metadata.providerId,
       size: metadata.config.size,
-      n: metadata.config.n || 1,
+      n: 1,
       seed: metadata.config.seed,
       providerOptions: metadata.config.providerOptions
     })
-    const batchId = toolBatchId.value
-    const regenBatch: ImageBatch = {
-      ...newBatch,
-      id: batchId
-    }
+    regenBatch.id = batchId
+    regenBatch.images = [placeholder]
+    regenBatch.error = undefined
 
-    const existing = generatedBatches.value.find((batch) => batch.id === batchId)
     if (existing) {
-      imgStore.updateBatch(batchId, regenBatch)
+      imgStore.updateBatch(batchId, {
+        prompt: regenBatch.prompt,
+        model: regenBatch.model,
+        providerId: regenBatch.providerId,
+        size: regenBatch.size,
+        seed: regenBatch.seed,
+        params: regenBatch.params,
+        mediaType: 'image',
+        status: 'pending',
+        error: undefined,
+        n: (existing.n || 0) + 1,
+        images: [...existing.images, placeholder]
+      })
     } else {
       imgStore.addBatch(regenBatch)
     }
-    startGeneration(regenBatch)
+
+    await Promise.all([
+      startGeneration(regenBatch),
+      new Promise((resolve) => setTimeout(resolve, REGENERATE_MIN_LOCK_MS))
+    ])
   } catch (error) {
     const e = error as Error
     console.error('Regeneration failed:', e)
@@ -765,9 +793,9 @@ watch(toolResultSyncKey, () => {
               </div>
               <p>{{ isToolMode ? '等待生成结果...' : '在下方输入提示词，开启你的创作之旅' }}</p>
             </div>
-            <div v-else class="batches-list" v-bind="wrapperProps">
+            <div v-else class="batches-list" v-bind="renderedWrapperProps">
               <GenerationResultCard
-                v-for="{ data: batch } in virtualList"
+                v-for="{ data: batch } in renderedBatches"
                 :key="batch.id"
                 :batch="batch"
                 :readonly="isToolMode"
@@ -810,6 +838,10 @@ watch(toolResultSyncKey, () => {
 .image-page-container.tool-mode .results-content {
   padding: 8px;
   padding-bottom: 8px;
+}
+
+.image-page-container.tool-mode .batches-list {
+  padding-bottom: 0;
 }
 
 .form-section {

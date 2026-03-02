@@ -10,20 +10,54 @@ export const createContextLimitMiddleware = (options: ContextLimitOptions): Lang
   return {
     specificationVersion: 'v3',
     transformParams: async ({ params }) => {
-      // 如果没有设置限制或 prompt 不是数组，直接返回
       if (!contextCount || contextCount <= 0 || !Array.isArray(params.prompt)) {
         return params
       }
 
       const messages = params.prompt
 
-      // 如果消息数量小于等于限制，不需要截断
       if (messages.length <= contextCount) {
         return params
       }
 
-      // 截取最近 contextCount 条消息
-      const truncatedMessages = messages.slice(-contextCount)
+      let lastCompressedIndex = -1
+      for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i]
+        if (msg.role !== 'system' || typeof msg.content !== 'string') continue
+        if (msg.content.includes('[上下文已压缩]')) {
+          lastCompressedIndex = i
+        }
+      }
+
+      if (lastCompressedIndex === -1) {
+        return {
+          ...params,
+          prompt: messages.slice(-contextCount)
+        }
+      }
+
+      const preservedSystems = [] as typeof messages
+
+      const originalSystem = messages.find((msg, index) => {
+        if (index >= lastCompressedIndex) return false
+        return msg.role === 'system' && typeof msg.content === 'string' && !msg.content.includes('[上下文已压缩]')
+      })
+      if (originalSystem) preservedSystems.push(originalSystem)
+
+      preservedSystems.push(messages[lastCompressedIndex])
+
+      const remainingSlots = contextCount - preservedSystems.length
+      if (remainingSlots <= 0) {
+        return {
+          ...params,
+          prompt: preservedSystems.slice(-contextCount)
+        }
+      }
+
+      const tailMessages = messages.slice(lastCompressedIndex + 1)
+      const truncatedTail = tailMessages.slice(-remainingSlots)
+
+      const truncatedMessages = [...preservedSystems, ...truncatedTail]
 
       return {
         ...params,
