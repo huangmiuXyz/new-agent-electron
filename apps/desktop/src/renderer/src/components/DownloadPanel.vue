@@ -113,7 +113,7 @@ const getStatusClass = (status: DownloadTask['status']) => {
               </button>
 
               <button
-                v-if="task.status !== 'downloading'"
+                v-if="task.status === 'completed' || task.status === 'canceled'"
                 class="item-btn"
                 title="移除任务"
                 @click="downloadStore.removeTask(task.id)"

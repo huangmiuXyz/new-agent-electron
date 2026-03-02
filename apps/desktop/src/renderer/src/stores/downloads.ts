@@ -297,9 +297,7 @@ export const useDownloadStore = defineStore(
     const removeTask = async (id: string) => {
       const task = getTaskById(id)
       if (!task) return
-      if (task.status === 'downloading') {
-        await cancelDownload(id)
-      }
+      if (task.status !== 'completed' && task.status !== 'canceled') return
       stopProgressListening(id)
       runTokens.delete(id)
       const index = getTaskIndex(id)
