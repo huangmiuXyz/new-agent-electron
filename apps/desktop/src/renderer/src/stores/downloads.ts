@@ -116,6 +116,10 @@ export const useDownloadStore = defineStore(
     }
 
     const getResumeOffset = (task: DownloadTask) => {
+      const canResumeFromBreakpoint = task.status === 'paused' || task.status === 'error'
+      if (!canResumeFromBreakpoint) {
+        return 0
+      }
       const fileSize = getLocalFileSize(task.destPath)
       return Math.max(task.progress?.downloaded || 0, fileSize)
     }
@@ -173,7 +177,7 @@ export const useDownloadStore = defineStore(
             downloaded: offset,
             percent: startTotal > 0 ? Math.min(100, Math.round((offset / startTotal) * 100)) : 0
           }
-          : task.progress
+          : null
 
       updateTask(task.id, {
         status: 'downloading',
@@ -274,14 +278,20 @@ export const useDownloadStore = defineStore(
       const task = getTaskById(id)
       if (!task) return
 
-      updateTask(id, { status: 'canceled', error: undefined })
+      updateTask(id, { status: 'canceled', error: undefined, progress: null })
       runTokens.delete(id)
 
       try {
         await window.api?.net?.cancelDownload(id)
       } finally {
         stopProgressListening(id)
-        syncTaskProgressWithFile(id)
+        try {
+          if (window.api?.fs?.existsSync(task.destPath)) {
+            window.api.fs.unlinkSync(task.destPath)
+          }
+        } catch {
+        }
+        updateTask(id, { progress: null })
       }
     }
 
@@ -290,7 +300,13 @@ export const useDownloadStore = defineStore(
     }
 
     const retryDownload = async (id: string) => {
-      updateTask(id, { status: 'paused', error: undefined })
+      const task = getTaskById(id)
+      if (!task) {
+        return { ok: false, error: '下载任务不存在' }
+      }
+      if (task.status !== 'canceled') {
+        updateTask(id, { status: 'paused', error: undefined })
+      }
       return await startDownload(id)
     }
 
