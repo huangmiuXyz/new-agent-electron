@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { DownloadTask } from '@renderer/stores/downloads'
 import { useDownloadStore } from '@renderer/stores/downloads'
 import { useIcon } from '../composables/useIcon'
@@ -17,6 +17,38 @@ const { X, Trash, Download, Refresh, Delete, Folder } = useIcon([
 ])
 
 const sortedTasks = computed(() => downloadStore.sortedTasks)
+const activeStatus = ref<'all' | DownloadTask['status']>('all')
+
+const statusTabItems = computed(() => {
+  const counts = {
+    all: sortedTasks.value.length,
+    pending: 0,
+    downloading: 0,
+    paused: 0,
+    completed: 0,
+    error: 0,
+    canceled: 0
+  } as Record<'all' | DownloadTask['status'], number>
+
+  sortedTasks.value.forEach((task) => {
+    counts[task.status] += 1
+  })
+
+  return [
+    { id: 'all', name: `全部 ${counts.all}` },
+    { id: 'pending', name: `等待中 ${counts.pending}` },
+    { id: 'downloading', name: `下载中 ${counts.downloading}` },
+    { id: 'paused', name: `已暂停 ${counts.paused}` },
+    { id: 'error', name: `失败 ${counts.error}` },
+    { id: 'completed', name: `已完成 ${counts.completed}` },
+    { id: 'canceled', name: `已取消 ${counts.canceled}` }
+  ]
+})
+
+const filteredTasks = computed(() => {
+  if (activeStatus.value === 'all') return sortedTasks.value
+  return sortedTasks.value.filter((task) => task.status === activeStatus.value)
+})
 
 const getStatusText = (status: DownloadTask['status']) => {
   switch (status) {
@@ -77,13 +109,21 @@ const openDownloadDirectory = async (task: DownloadTask) => {
       </div>
 
       <div class="panel-content custom-scrollbar">
+        <div v-if="sortedTasks.length > 0" class="status-tabs">
+          <Tabs v-model="activeStatus" :items="statusTabItems" size="sm" />
+        </div>
+
         <div v-if="sortedTasks.length === 0" class="empty-state">
           <component :is="Download" class="empty-icon" />
           <p>暂无下载任务</p>
         </div>
 
+        <div v-else-if="filteredTasks.length === 0" class="empty-state filtered-empty">
+          <p>当前状态下暂无任务</p>
+        </div>
+
         <TransitionGroup v-else name="list" tag="div" class="download-list">
-          <div v-for="task in sortedTasks" :key="task.id" class="download-item">
+          <div v-for="task in filteredTasks" :key="task.id" class="download-item">
             <div class="item-header">
               <div class="name-row">
                 <span class="item-name" :title="task.fileName">{{ task.fileName }}</span>
@@ -91,7 +131,7 @@ const openDownloadDirectory = async (task: DownloadTask) => {
                   {{ getStatusText(task.status) }}
                 </span>
               </div>
-              <span v-if="task.pluginName" class="plugin-tag">{{ task.pluginName }}</span>
+              <!-- <span v-if="task.pluginName" class="plugin-tag">{{ task.pluginName }}</span> -->
             </div>
 
             <div class="item-path" :title="task.destPath">{{ task.destPath }}</div>
@@ -254,6 +294,10 @@ const openDownloadDirectory = async (task: DownloadTask) => {
   padding: 12px;
 }
 
+.status-tabs {
+  margin-bottom: 10px;
+}
+
 .empty-state {
   height: 100%;
   display: flex;
@@ -262,6 +306,10 @@ const openDownloadDirectory = async (task: DownloadTask) => {
   justify-content: center;
   color: var(--text-tertiary);
   gap: 12px;
+}
+
+.filtered-empty {
+  min-height: 120px;
 }
 
 .empty-icon {
