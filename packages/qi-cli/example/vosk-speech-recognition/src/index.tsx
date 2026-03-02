@@ -250,6 +250,7 @@ const plugin: Plugin = {
     const settingsStore = await context.getStore('settings')
     const savedConfig = JSON.parse((await context.localforage.getItem(STORAGE_KEY)) || '{}')
     const DEFAULT_MODEL_PATH = context.getPluginsDataPath()
+    const downloadApi = context.useDownload()
 
     let getFieldValue: any, setFieldValue: any, getFormData: any, setData: any, getData: any
 
@@ -298,7 +299,6 @@ const plugin: Plugin = {
 
     const download = async (row: any) => {
       if (!row.file || (row.isDownloading && !row.isPaused)) return
-      const offset = row.progress?.downloaded || 0
 
       const newData = getData().map((item: any) =>
         item.id === row.id
@@ -316,75 +316,87 @@ const plugin: Plugin = {
         context.api.fs.mkdirSync(modelDir, { recursive: true })
       }
 
-      let unlisten: (() => void) | null = null
-      if (context.api.net.onDownloadProgress) {
-        unlisten = context.api.net.onDownloadProgress(row.id, (progress: any) => {
-          const updatedData = getData().map((item: any) =>
-            item.id === row.id ? { ...item, progress, isPaused: false, isDownloading: true } : item
-          )
-          setData(updatedData)
-        })
+      let localOffset = 0
+      try {
+        localOffset = context.api.fs.existsSync(fullPath) ? context.api.fs.statSync(fullPath).size : 0
+      } catch {
       }
 
       try {
         const closeLoading = context.notification.loading(
-          `${offset > 0 ? '正在续传' : '正在下载'}模型 ${row.name}...`,
+          `${localOffset > 0 ? '正在续传' : '正在下载'}模型 ${row.name}...`,
           '模型下载'
         )
-        const result = await context.api.net.download({
-          url,
-          destPath: fullPath,
-          id: row.id,
-          offset
-        })
-        closeLoading()
-
-        if (result.ok) {
-          if (unlisten) {
-            unlisten()
-            unlisten = null
-          }
-          context.notification.success(`模型 ${row.name} 下载成功`, '模型下载')
-          const updatedData = getData().map((item: any) =>
-            item.id === row.id
-              ? {
-                  ...item,
-                  exists: true,
-                  isDownloading: false,
-                  isPaused: false,
-                  isCompleted: true,
-                  progress: null
-                }
-              : item
-          )
-          await syncModels(updatedData)
-        } else {
-          throw new Error(result.error)
+        try {
+          await downloadApi.startDownload({
+            id: row.id,
+            url,
+            destPath: fullPath,
+            fileName: row.file,
+            onProgress: (progress: any) => {
+              const task = (downloadApi.tasks.value || []).find((t: any) => t.id === row.id)
+              const isPaused = task?.status === 'paused'
+              const isDownloading = task?.status === 'downloading'
+              const updatedData = getData().map((item: any) =>
+                item.id === row.id
+                  ? {
+                    ...item,
+                    progress,
+                    isPaused,
+                    isDownloading
+                  }
+                  : item
+              )
+              setData(updatedData)
+            },
+            onSuccess: async () => {
+              context.notification.success(`模型 ${row.name} 下载成功`, '模型下载')
+              const updatedData = getData().map((item: any) =>
+                item.id === row.id
+                  ? {
+                    ...item,
+                    exists: true,
+                    isDownloading: false,
+                    isPaused: false,
+                    isCompleted: true,
+                    progress: null
+                  }
+                  : item
+              )
+              await syncModels(updatedData)
+            },
+            onError: async (error: string) => {
+              context.notification.error(`下载失败: ${error}`, '模型下载')
+              const currentData = getData().map((item: any) =>
+                item.id === row.id ? { ...item, isDownloading: false, isPaused: false } : item
+              )
+              await syncModels(currentData)
+            },
+            onAborted: async (state: 'paused' | 'canceled' | 'aborted') => {
+              const currentData = getData().map((item: any) =>
+                item.id === row.id
+                  ? {
+                    ...item,
+                    isDownloading: false,
+                    isPaused: state === 'paused'
+                  }
+                  : item
+              )
+              await syncModels(currentData)
+            }
+          })
+        } finally {
+          closeLoading()
         }
       } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          context.notification.error(`下载失败: ${err.message}`, '模型下载')
+        const msg = err?.message || String(err)
+        if (!msg.toLowerCase().includes('abort')) {
+          context.notification.error(`下载失败: ${msg}`, '模型下载')
         }
         const currentData = getData().map((item: any) =>
-          item.id === row.id ? { ...item, isDownloading: false } : item
+          item.id === row.id ? { ...item, isDownloading: false, isPaused: false } : item
         )
         await syncModels(currentData)
-      } finally {
-        if (unlisten) {
-          unlisten()
-          unlisten = null
-        }
-      }
-    }
-
-    const stopDownload = async (row: any) => {
-      if (context.api.net.cancelDownload) {
-        await context.api.net.cancelDownload(row.id)
-        context.notification.info(`已暂停下载模型 ${row.name}`, '模型下载')
-        const updatedData = getData().map((item: any) =>
-          item.id === row.id ? { ...item, isDownloading: false, isPaused: true } : item
-        )
-        await syncModels(updatedData)
       }
     }
 
@@ -428,22 +440,17 @@ const plugin: Plugin = {
           render: (row: any) => {
             if (row.isDownloading || row.isPaused) {
               return (
-                <context.components.DownloadProgress
-                  progress={row.progress}
-                  isDownloading={row.isDownloading}
-                  isPaused={row.isPaused}
-                  onPause={() => stopDownload(row)}
-                  onResume={() => download(row)}
-                  onCancel={async () => {
-                    if (context.api.net.cancelDownload) await context.api.net.cancelDownload(row.id)
-                    const updatedData = getData().map((item: any) =>
-                      item.id === row.id
-                        ? { ...item, isDownloading: false, isPaused: false, progress: null }
-                        : item
-                    )
-                    await syncModels(updatedData)
+                <span
+                  style={{
+                    color: row.isPaused ? '#faad14' : '#1890ff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '12px'
                   }}
-                />
+                >
+                  {row.isPaused ? '已暂停' : '下载中'}
+                </span>
               )
             }
             if (row.exists && row.isCompleted) {
@@ -563,10 +570,14 @@ const plugin: Plugin = {
         (newModels: any[]) => {
           if (newModels && Array.isArray(newModels)) {
             const currentData = getData()
+            const taskMap = new Map((downloadApi.tasks.value || []).map((task: any) => [task.id, task]))
             const mergedModels = newModels.map((m: any) => {
               const current = currentData.find((cm: any) => cm.id === m.id)
+              const task = taskMap.get(m.id)
+              const taskIsActive = task?.status === 'downloading' || task?.status === 'paused'
               if (
                 current &&
+                taskIsActive &&
                 (current.isDownloading || current.isPaused) &&
                 !m.isDownloading &&
                 !m.isPaused
@@ -579,6 +590,72 @@ const plugin: Plugin = {
           }
         },
         { immediate: true, deep: true }
+      )
+
+      watch(
+        () => downloadApi.tasks.value,
+        (tasks: any[]) => {
+          if (!tasks || !Array.isArray(tasks)) return
+          const currentData = getData()
+          if (!currentData || !Array.isArray(currentData)) return
+
+          const taskMap = new Map(tasks.map((task: any) => [task.id, task]))
+          const updatedData = currentData.map((item: any) => {
+            const task = taskMap.get(item.id)
+            if (!task) return item
+
+            if (task.status === 'downloading') {
+              return {
+                ...item,
+                isDownloading: true,
+                isPaused: false,
+                progress: task.progress || item.progress || null
+              }
+            }
+
+            if (task.status === 'paused') {
+              return {
+                ...item,
+                isDownloading: false,
+                isPaused: true,
+                progress: task.progress || item.progress || null
+              }
+            }
+
+            if (task.status === 'completed') {
+              return {
+                ...item,
+                exists: true,
+                isCompleted: true,
+                isDownloading: false,
+                isPaused: false,
+                progress: null
+              }
+            }
+
+            if (task.status === 'error') {
+              return {
+                ...item,
+                isDownloading: false,
+                isPaused: false,
+                progress: task.progress || item.progress || null
+              }
+            }
+
+            if (task.status === 'canceled') {
+              return {
+                ...item,
+                isDownloading: false,
+                isPaused: false
+              }
+            }
+
+            return item
+          })
+
+          setData(updatedData)
+        },
+        { deep: true, immediate: true }
       )
     }
 

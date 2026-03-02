@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useNotificationStore } from '../stores/notifications'
 import { useSettingsStore } from '../stores/settings'
+import { useDownloadStore } from '../stores/downloads'
 import { useIcon } from '../composables/useIcon' 
 
 const props = defineProps<{
@@ -9,18 +10,29 @@ const props = defineProps<{
 
 const notificationStore = useNotificationStore()
 const settingsStore = useSettingsStore()
-const { Bell, InfoCircle, Refresh, Check, Mic, Terminal } = useIcon(['Bell', 'InfoCircle', 'Refresh', 'Check', 'Mic', 'Terminal'])
+const downloadStore = useDownloadStore()
+const { Bell, InfoCircle, Refresh, Check, Mic, Terminal, Download } = useIcon(['Bell', 'InfoCircle', 'Refresh', 'Check', 'Mic', 'Terminal', 'Download'])
 
 // 切换终端
 const toggleTerminal = () => {
   settingsStore.display.showTerminal = !settingsStore.display.showTerminal
 }
 
+const toggleDownloadPanel = () => {
+  downloadStore.togglePanel()
+  notificationStore.isPanelOpen = false
+}
+
+const toggleNotificationPanel = () => {
+  notificationStore.togglePanel()
+  downloadStore.closePanel()
+}
+
 const StatusIcon = defineComponent({
   props: ['icon', 'color'],
   setup(props) {
     return () => {
-      const iconMap = { Bell, InfoCircle, Refresh, Check, Mic }
+      const iconMap = { Bell, InfoCircle, Refresh, Check, Mic, Download }
       const IconComponent = props.icon ? (iconMap[props.icon] || useIcon(props.icon)) : Bell
       return h(IconComponent, {
         style: { color: props.color || 'inherit' },
@@ -69,6 +81,13 @@ const StatusRender = defineComponent({
       </div>
 
       <div class="status-bar-right">
+        <div class="status-item" :class="{ active: downloadStore.isPanelOpen }"
+          title="下载列表" @click="toggleDownloadPanel">
+          <div class="icon-wrapper">
+            <Download />
+            <span v-if="downloadStore.unfinishedCount > 0" class="badge">{{ downloadStore.unfinishedCount }}</span>
+          </div>
+        </div>
         <!-- 终端切换按钮 -->
         <div class="status-item" :class="{ active: settingsStore.display.showTerminal }"
           title="切换终端" @click="toggleTerminal">
@@ -76,7 +95,7 @@ const StatusRender = defineComponent({
             <Terminal />
           </div>
         </div>
-        <div class="status-item" title="通知" @click="notificationStore.togglePanel">
+        <div class="status-item" :class="{ active: notificationStore.isPanelOpen }" title="通知" @click="toggleNotificationPanel">
           <div class="icon-wrapper">
             <StatusIcon icon="Bell" />
             <span v-if="notificationStore.unreadCount > 0" class="badge">{{ notificationStore.unreadCount }}</span>

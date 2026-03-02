@@ -4,6 +4,7 @@ import NotesPage from './pages/notes/index.vue'
 import ImagePage from './pages/image/index.vue'
 import SettingsPage from './pages/settings/index.vue'
 import AppFooter from './components/AppFooter.vue'
+import DownloadPanel from './components/DownloadPanel.vue'
 import Term from './components/term.vue'
 import ResizeBox from './components/ResizeBox.vue'
 import { useSettingsStore } from './stores/settings'
@@ -240,6 +241,7 @@ const handleTouchEnd = (e: TouchEvent) => {
     <div class="app-body" v-if="!isMobile">
       <AppNavBar :current-view="currentView" @switch="switchView" />
       <NotificationPanel />
+      <DownloadPanel />
       <div class="content-wrapper">
         <main class="app-content">
           <ChatPage v-if="currentView === 'chat'" />

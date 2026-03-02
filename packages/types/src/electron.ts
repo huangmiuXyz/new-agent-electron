@@ -87,9 +87,14 @@ export interface ElectronAPI {
   // net
   net: {
     fetch: (url: string, options?: any) => Promise<any>;
-    download: (options: { url: string; destPath: string; id?: string; offset?: number }) => Promise<any>;
+    download: (options: { url: string; destPath: string; id?: string; offset?: number }) => Promise<{
+      ok: boolean;
+      error?: string;
+      aborted?: boolean;
+      alreadyComplete?: boolean;
+    }>;
     onDownloadProgress: (id: string, callback: (progress: DownloadProgress) => void) => () => void;
-    cancelDownload: (id: string) => Promise<void>;
+    cancelDownload: (id: string) => Promise<boolean>;
   };
 }
 

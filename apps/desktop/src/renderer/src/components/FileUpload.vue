@@ -28,7 +28,7 @@ const emit = defineEmits<{
 
 // 统一处理初始文件列表
 const initialFiles = computed(() => {
-  if (props.files) return props.files
+  if (props.files) return props.files.map(file => ({ ...file }))
   const value = props.modelValue
   if (!value) return []
   const urls = Array.isArray(value) ? value : [value]
@@ -41,7 +41,7 @@ const initialFiles = computed(() => {
 
 // 监听外部数据变化并同步到内部状态
 watch(() => [props.files, props.modelValue], () => {
-  selectedFiles.value = initialFiles.value
+  selectedFiles.value = initialFiles.value.map(file => ({ ...file }))
 }, { deep: true })
 
 const {
