@@ -7,12 +7,13 @@ import DownloadProgress from './DownloadProgress.vue'
 
 const downloadStore = useDownloadStore()
 
-const { X, Trash, Download, Refresh, Delete } = useIcon([
+const { X, Trash, Download, Refresh, Delete, Folder } = useIcon([
   'X',
   'Trash',
   'Download',
   'Refresh',
-  'Delete'
+  'Delete',
+  'Folder'
 ])
 
 const sortedTasks = computed(() => downloadStore.sortedTasks)
@@ -42,6 +43,12 @@ const getStatusClass = (status: DownloadTask['status']) => {
   if (status === 'downloading') return 'active'
   if (status === 'paused') return 'paused'
   return 'idle'
+}
+
+const openDownloadDirectory = async (task: DownloadTask) => {
+  if (!window.api?.shell?.openPath || !window.api?.path?.dirname) return
+  const dirPath = window.api.path.dirname(task.destPath)
+  await window.api.shell.openPath(dirPath)
 }
 </script>
 
@@ -89,7 +96,10 @@ const getStatusClass = (status: DownloadTask['status']) => {
 
             <div class="item-path" :title="task.destPath">{{ task.destPath }}</div>
 
-            <div v-if="task.status === 'downloading' || task.status === 'paused'" class="progress-wrap">
+            <div
+              v-if="task.status === 'downloading' || task.status === 'paused'"
+              class="progress-wrap"
+            >
               <DownloadProgress
                 :progress="task.progress"
                 :is-downloading="task.status === 'downloading'"
@@ -97,12 +107,24 @@ const getStatusClass = (status: DownloadTask['status']) => {
                 @pause="downloadStore.pauseDownload(task.id)"
                 @resume="downloadStore.resumeDownload(task.id)"
                 @cancel="downloadStore.cancelDownload(task.id)"
+                @open-directory="openDownloadDirectory(task)"
               />
             </div>
 
-            <div class="error-text" v-if="task.status === 'error' && task.error">{{ task.error }}</div>
+            <div class="error-text" v-if="task.status === 'error' && task.error">
+              {{ task.error }}
+            </div>
 
             <div class="item-actions">
+              <button
+                v-if="task.status !== 'downloading' && task.status !== 'paused'"
+                class="item-btn"
+                title="打开下载目录"
+                @click="openDownloadDirectory(task)"
+              >
+                <component :is="Folder" />
+              </button>
+
               <button
                 v-if="task.status === 'error' || task.status === 'canceled'"
                 class="item-btn primary"
