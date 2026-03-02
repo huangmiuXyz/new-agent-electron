@@ -199,7 +199,7 @@ export class PluginManager {
       basePath,
       useForm: useForm as <T extends Record<string, any>>(options: FormConfig<T>) => readonly [Component, FormActions<T>],
       useTable: useTable as <T extends Record<string, any>>(config: TableConfig<T>) => readonly [Component, TableActions<T>],
-      useDownload,
+      useDownload: () => useDownload(pluginName),
       useIcon: (name: string) => useIcon(name as keyof typeof icons) as VNode,
       useModal,
       useTerminal,
@@ -715,4 +715,3 @@ export class PluginManager {
     this.pluginBuiltinTools.clear();
   }
 }
-

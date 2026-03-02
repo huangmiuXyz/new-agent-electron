@@ -49,7 +49,7 @@ export interface PluginContext {
   /** 索引数据库存储 */
   localforage: {
     getItem: <T = unknown>(key: string) => Promise<T | null>;
-    setItem: <T = unknown>(key: string, value: T) => Promise<void>;
+    setItem: <T = unknown>(key: string, value: T) => Promise<T>;
     removeItem: (key: string) => Promise<void>;
   }
   /** 获取 store */
@@ -84,12 +84,42 @@ export interface PluginContext {
       url: string
       destPath: string
       id: string
+      fileName?: string
+      pluginName?: string
       onSuccess?: () => void
       onError?: (error: string) => void
+      onAborted?: (state: 'paused' | 'canceled' | 'aborted') => void
       onProgress?: (progress: DownloadProgress) => void
     }) => Promise<void>;
     pauseDownload: (id: string) => Promise<void>;
     cancelDownload: (id: string) => Promise<void>;
+    resumeDownload: (id: string) => Promise<{ ok: boolean; aborted?: boolean; error?: string }>;
+    retryDownload: (id: string) => Promise<{ ok: boolean; aborted?: boolean; error?: string }>;
+    removeTask: (id: string) => Promise<void>;
+    task: Ref<{
+      id: string
+      url: string
+      destPath: string
+      fileName: string
+      pluginName?: string
+      status: 'pending' | 'downloading' | 'paused' | 'completed' | 'error' | 'canceled'
+      progress: DownloadProgress | null
+      error?: string
+      createdAt: number
+      updatedAt: number
+    } | null>;
+    tasks: Ref<Array<{
+      id: string
+      url: string
+      destPath: string
+      fileName: string
+      pluginName?: string
+      status: 'pending' | 'downloading' | 'paused' | 'completed' | 'error' | 'canceled'
+      progress: DownloadProgress | null
+      error?: string
+      createdAt: number
+      updatedAt: number
+    }>>;
   };
   /** 获取 useIcon 工具 */
   useIcon: (iconName: string) => VNode;

@@ -206,18 +206,23 @@ app.whenReady().then(() => {
         headers
       })
 
+      if (offset > 0 && response.status === 416) {
+        return { ok: true, alreadyComplete: true }
+      }
+
       if (!response.ok && response.status !== 206) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
+      const canResume = offset > 0 && response.status === 206
+      const resumeOffset = canResume ? offset : 0
       const contentLength = parseInt(response.headers.get('content-length') || '0')
-      const totalBytes = offset > 0 ? (offset + contentLength) : contentLength
-      let downloadedBytes = offset
+      const totalBytes = resumeOffset > 0 ? resumeOffset + contentLength : contentLength
+      let downloadedBytes = resumeOffset
 
       const reader = (response.body as any).getReader()
       const fs = require('fs')
-      // 如果是续传，使用 'a' (append) 模式
-      const fileStream = fs.createWriteStream(destPath, { flags: offset > 0 ? 'a' : 'w' })
+      const fileStream = fs.createWriteStream(destPath, { flags: canResume ? 'a' : 'w' })
 
       try {
         while (true) {
@@ -233,23 +238,32 @@ app.whenReady().then(() => {
               downloaded: downloadedBytes,
               percent: totalBytes ? Math.round((downloadedBytes / totalBytes) * 100) : 0
             }
-            if (downloadedBytes === offset || progress.percent % 10 === 0 || done) {
-            }
             event.sender.send(`net:download-progress:${id}`, progress)
           }
         }
       } catch (err: any) {
-        if (err.name === 'AbortError') {
-        }
         throw err
       } finally {
-        fileStream.end()
+        await new Promise<void>((resolve) => fileStream.end(() => resolve()))
         if (id) downloadControllers.delete(id)
+      }
+
+      if (id) {
+        const progress = {
+          total: totalBytes,
+          downloaded: downloadedBytes,
+          percent: totalBytes ? Math.round((downloadedBytes / totalBytes) * 100) : 100
+        }
+        event.sender.send(`net:download-progress:${id}`, progress)
       }
 
       return { ok: true }
     } catch (error) {
-      return { ok: false, error: (error as Error).message }
+      if (id) downloadControllers.delete(id)
+      const err = error as Error
+      const message = err?.message || String(error)
+      const aborted = err?.name === 'AbortError' || message.toLowerCase().includes('abort')
+      return { ok: false, error: message, aborted }
     }
   })
 

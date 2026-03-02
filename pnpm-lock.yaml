@@ -11588,7 +11588,8 @@ snapshots:
     dependencies:
       semver: 7.7.3
 
-  node-gyp-build@4.8.4: {}
+  node-gyp-build@4.8.4:
+    optional: true
 
   node-gyp@11.5.0:
     dependencies:
