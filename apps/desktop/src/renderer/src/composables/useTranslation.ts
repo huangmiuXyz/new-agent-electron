@@ -43,13 +43,7 @@ export function useTranslation() {
       return
     }
 
-    try {
-      if (!provider.apiKey) {
-        messageApi.error('翻译模型配置不完整，请检查设置')
-        return
-      }
-
-      
+    try {      
       const translationController = new AbortController()
 
       
@@ -67,7 +61,7 @@ export function useTranslation() {
         targetLanguage,
         {
           model: translationModel.id,
-          apiKey: provider.apiKey,
+          apiKey: provider?.apiKey!,
           baseURL: provider.baseUrl,
           provider: provider.id,
           providerType: provider.providerType
