@@ -61,12 +61,8 @@ export const useChat = (chatId: string) => {
   const { apiKey, baseUrl, id: provider, providerType } = toRefs(currentSelectedProvider.value!)
   const { id: model } = toRefs(currentSelectedModel.value!)
 
-  const createChat = (
-    messages: BaseMessage[],
-    options?: { isApproval?: boolean; responseMessageId?: string; isRegenerateAction?: boolean }
-  ): _useChat<BaseMessage> => {
-    const { isApproval, responseMessageId: forcedResponseMessageId, isRegenerateAction: forcedIsRegenerateAction } =
-      options || {}
+  const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; isApproval?: boolean }): _useChat<BaseMessage> => {
+    const { regenerateMessageId, isApproval } = options || {}
     const scope = effectScope()
 
     const getMessageText = (message: BaseMessage) => {
@@ -83,12 +79,14 @@ export const useChat = (chatId: string) => {
         agent.selectedAgent?.speechLanguage
       )
 
+      const targetMessageId = ref<string | undefined>(regenerateMessageId)
+
       const chat = new _useChat<BaseMessage>({
         id: chatId,
         messages: cloneDeep(messages),
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         transport: {
-          sendMessages: ({ messages, abortSignal, trigger, messageId }) => {
+          sendMessages: ({ messages }) => {
             processedText = ''
             sentenceSegmenter = createSentenceSegmenter(
               agent.selectedAgent?.speechLanguage || 'und'
@@ -98,8 +96,8 @@ export const useChat = (chatId: string) => {
               chat.id,
               {
                 model: model.value!,
-                apiKey: apiKey?.value!,
-                baseURL: baseUrl?.value,
+                apiKey: apiKey!.value!,
+                baseURL: baseUrl.value,
                 provider: provider.value,
                 providerType: providerType.value
               },
@@ -122,17 +120,7 @@ export const useChat = (chatId: string) => {
                 autoCompressContext: agent.selectedAgent?.autoCompressContext,
                 compressModel: agent.selectedAgent?.compressModel,
                 providerOptions: providerOptions.value[provider.value],
-                isApprovalAction: isApproval,
-                onMessage: (message) => {
-                  syncMessageToStore(message)
-                  processStreamingSpeech(message)
-                },
-                abortSignal,
-                responseMessageId:
-                  trigger === 'regenerate-message'
-                    ? messageId
-                    : forcedResponseMessageId,
-                isRegenerateAction: forcedIsRegenerateAction ?? trigger === 'regenerate-message'
+                isApprovalAction: isApproval
               }
             )
           },
@@ -140,25 +128,18 @@ export const useChat = (chatId: string) => {
         },
 
         onFinish: () => {
-          if (chat.lastMessage) {
-            syncMessageToStore(chat.lastMessage)
-          }
-
           if (speechEnabled.value) {
-            const lastMessage = chat.lastMessage
-            if (lastMessage) {
-              const mode = agent.selectedAgent?.speechMode as string
+            const mode = agent.selectedAgent?.speechMode as string
 
-              if (mode === 'sentence') {
-                sentenceSegmenter.flush((sentence) => {
-                  generateSpeech(sentence, lastMessage)
-                })
-              } else {
-                const fullText = getMessageText(lastMessage)
-                const remainingText = fullText.slice(processedText.length).trim()
-                if (remainingText) {
-                  generateSpeech(remainingText, lastMessage)
-                }
+            if (mode === 'sentence') {
+              sentenceSegmenter.flush((sentence) => {
+                generateSpeech(sentence, chat.lastMessage)
+              })
+            } else {
+              const fullText = getMessageText(chat.lastMessage)
+              const remainingText = fullText.slice(processedText.length).trim()
+              if (remainingText) {
+                generateSpeech(remainingText, chat.lastMessage)
               }
             }
           }
@@ -177,19 +158,13 @@ export const useChat = (chatId: string) => {
 
         onError: (error) => {
           console.log(error);
-          const lastMsg = chat.lastMessage
-          if (lastMsg) {
-            syncMessageToStore(lastMsg, error as APICallError)
-          }
+          syncMessageToStore(error as APICallError)
         }
       })
 
-      const syncMessageToStore = (lastMsg: BaseMessage, error?: APICallError) => {
+      const syncMessageToStore = (error?: APICallError) => {
+        const lastMsg = chat.lastMessage
         if (!lastMsg) return
-
-        // Mirror stream omits stop handlers; recover it from the runtime chat state.
-        const runtimeMsg = chat.messages.find((m) => m.id === lastMsg.id)
-        const runtimeStop = runtimeMsg?.metadata?.stop
 
         // Keep parts immutable when syncing to Pinia so nested text updates stay reactive in children.
         const nextParts = lastMsg.parts?.map((part) => ({ ...part }))
@@ -197,8 +172,8 @@ export const useChat = (chatId: string) => {
         const msgToUpdate = {
           ...lastMsg,
           parts: nextParts,
-          metadata: { ...lastMsg.metadata, error, ...(runtimeStop ? { stop: runtimeStop } : {}) }
-        } as BaseMessage
+          metadata: { ...lastMsg.metadata, error }
+        }
 
         updateMessages(chatId, (oldMessages) => {
           const existingIndex = oldMessages.findIndex((m) => m.id === lastMsg.id)
@@ -207,21 +182,49 @@ export const useChat = (chatId: string) => {
             copy[existingIndex] = msgToUpdate
             return copy
           }
-          return [...oldMessages, msgToUpdate]
+
+          if (!targetMessageId.value) {
+            return [...oldMessages, msgToUpdate]
+          }
+
+          const targetIndex = oldMessages.findIndex((m) => m.id === targetMessageId.value)
+          if (targetIndex < 0) {
+            return [...oldMessages, msgToUpdate]
+          }
+
+          const copy = [...oldMessages]
+          const targetMsg = copy[targetIndex]
+
+          if (targetMsg.role === 'assistant') {
+            copy[targetIndex] = msgToUpdate
+            return copy
+          }
+
+          const nextAssistantIndex = copy.findIndex((m, i) => i > targetIndex && m.role === 'assistant')
+
+          if (nextAssistantIndex >= 0) {
+            copy[nextAssistantIndex] = msgToUpdate
+          } else {
+            copy.splice(targetIndex + 1, 0, msgToUpdate)
+          }
+
+          return copy
         })
       }
 
-      const processStreamingSpeech = (message: BaseMessage) => {
-        if (!message?.parts || message.role !== 'assistant' || !speechEnabled.value) return
+      const processStreamingSpeech = (
+        newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
+      ) => {
+        if (!newParts || chat.lastMessage.role !== 'assistant' || !speechEnabled.value) return
         const mode = agent.selectedAgent?.speechMode as string
         if (mode === 'full') return
 
-        const fullText = getMessageText(message)
+        const fullText = getMessageText(chat.lastMessage)
         const currentText = fullText.slice(processedText.length)
 
         if (mode === 'sentence') {
           sentenceSegmenter.push(currentText, (sentence) => {
-            generateSpeech(sentence, message)
+            generateSpeech(sentence, chat.lastMessage)
           })
           processedText = fullText
         } else if (mode === 'paragraph') {
@@ -230,13 +233,22 @@ export const useChat = (chatId: string) => {
             for (let i = 0; i < paragraphs.length - 1; i++) {
               const p = paragraphs[i]
               if (p.trim()) {
-                generateSpeech(p, message)
+                generateSpeech(p, chat.lastMessage)
               }
               processedText += paragraphs[i] + '\n'
             }
           }
         }
       }
+
+      watch(
+        () => chat.lastMessage?.parts,
+        (newParts) => {
+          syncMessageToStore()
+          processStreamingSpeech(newParts)
+        },
+        { deep: true }
+      )
 
       return chat
     })!
@@ -309,84 +321,41 @@ export const useChat = (chatId: string) => {
     }, 1)
   }
 
-  const getCurrentMessages = (): BaseMessage[] => {
-    return getChatById(chatId)?.messages || []
-  }
-
-  const createChatFrom = (
-    messages: BaseMessage[] = getCurrentMessages(),
-    options?: { isApproval?: boolean; responseMessageId?: string; isRegenerateAction?: boolean }
-  ): _useChat<BaseMessage> => {
-    return createChat(messages, options)
-  }
-
   return {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
       scrollToBottom()
-      const messages = getCurrentMessages()
-      const chat = createChatFrom(messages)
+      const currentChats = getChatById(chatId)
+      const chat = createChat(currentChats?.messages || [])
 
       const parts: Array<FileUIPart | TextUIPart> =
         typeof content === 'string' ? [{ type: 'text', text: content }] : content
 
-      const userMessage: BaseMessage = {
+      chat.sendMessage({
         id: chat.generateId(),
         role: 'user',
         parts
-      }
-
-      updateMessages(chatId, (messages) => [...messages, userMessage])
-      chat.sendMessage(userMessage)
-    },
-    continueMessages: (messageId?: string) => {
-      const messages = getCurrentMessages()
-      const targetMessage = messages.find((m) => m.id === messageId && m.role === 'assistant')
-      if (!targetMessage) return
-      const chat = createChatFrom(messages, {
-        responseMessageId: targetMessage.id,
-        isRegenerateAction: false
       })
+    },
+    continueMessages: () => {
+      const currentChats = getChatById(chatId)
+      const chat = createChat(currentChats?.messages || [])
       chat.sendMessage()
     },
     regenerate: (messageId: string) => {
-      const messages = getCurrentMessages()
-      const clickedIndex = messages.findIndex((m) => m.id === messageId)
-      if (clickedIndex < 0) return
-
-      const clickedMessage = messages[clickedIndex]
-      let targetAssistantMessage = clickedMessage.role === 'assistant'
-        ? clickedMessage
-        : messages.find((m, i) => i > clickedIndex && m.role === 'assistant')
-      let currentMessages = messages
-
-      if (!targetAssistantMessage && clickedMessage.role === 'user') {
-        const insertedAssistantMessage: BaseMessage = {
-          id: nanoid(),
-          role: 'assistant',
-          parts: []
-        }
-
-        const nextMessages = [...currentMessages]
-        nextMessages.splice(clickedIndex + 1, 0, insertedAssistantMessage)
-        updateMessages(chatId, nextMessages)
-        currentMessages = nextMessages
-        targetAssistantMessage = insertedAssistantMessage
-      }
-
-      if (!targetAssistantMessage) return
-
-      const isLastMessage =
-        currentMessages.length > 0 &&
-        currentMessages[currentMessages.length - 1].id === targetAssistantMessage.id
-      if (isLastMessage) {
+      const currentChats = getChatById(chatId)
+      const messages = currentChats?.messages || []
+      const isLastMessage = messages.length > 0 && messages[messages.length - 1].id === messageId
+      const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')
+      const isLastUserMessage = lastUserMessage?.id === messageId
+      if (isLastMessage || isLastUserMessage) {
         scrollToBottom()
       }
-
-      const chat = createChatFrom(currentMessages)
-      chat.regenerate({ messageId: targetAssistantMessage.id })
+      const chat = createChat(messages, { regenerateMessageId: messageId })
+      chat.regenerate({ messageId })
     },
     approval: (part: ToolUIPart, approved: boolean) => {
-      const chat = createChatFrom(undefined, { isApproval: true })
+      const currentChats = getChatById(chatId)
+      const chat = createChat(currentChats?.messages || [], { isApproval: true })
       chat.addToolApprovalResponse({
         id: part.approval!.id!,
         approved

@@ -2,14 +2,13 @@ import {
   generateText as _generateText,
   generateImage as _generateImage,
   experimental_generateVideo as _generateVideo,
+  ToolLoopAgent,
   ToolChoice,
   wrapLanguageModel,
   streamText as _streamText,
   convertToModelMessages,
   validateUIMessages,
-  type DataContent,
-  readUIMessageStream,
-  stepCountIs
+  type DataContent
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinTools } from '../builtin-tools'
@@ -61,10 +60,7 @@ interface ChatServiceConfig {
   providerOptions?: Record<string, any>
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
   isApprovalAction?: boolean
-  onMessage?: (message: BaseMessage) => void
   abortSignal?: AbortSignal
-  responseMessageId?: string
-  isRegenerateAction?: boolean
 }
 
 export type GenerateImagePrompt = string | {
@@ -284,10 +280,7 @@ export const chatService = () => {
       providerOptions: customProviderOptions,
       onBeforeToolExecute,
       isApprovalAction,
-      onMessage,
       abortSignal,
-      responseMessageId,
-      isRegenerateAction,
     }: ChatServiceConfig
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
@@ -335,7 +328,6 @@ export const chatService = () => {
       }
     }
     let ragSearchDetails: Array<{ knowledgeBaseId: string; documentId: string; score?: number }> | undefined
-    let ragSearchDetailsVersion = 0
 
     const controller = new AbortController()
     if (abortSignal) {
@@ -360,78 +352,7 @@ export const chatService = () => {
       }
     }))
 
-    const validatedMessages = await validateUIMessages({
-      messages,
-      tools: wrappedTools,
-    })
-
-    const sanitizedMessages = sanitizeUIMessages(validatedMessages, {
-      isManualApproval: isApprovalAction || false
-    })
-
-    const modelMessages = await convertToModelMessages(sanitizedMessages, {
-      tools: wrappedTools,
-    })
-
-    const metadataByChunk = (part: {
-      type: 'start' | 'finish-step' | 'finish' | 'abort'
-      finishReason?: string
-      usage?: any
-      providerMetadata?: any
-    }, options?: { includeStop?: boolean }) => {
-      const includeStop = options?.includeStop ?? true
-      let result = {}
-      if (part.type === 'finish-step' && part.finishReason === 'stop') {
-        result = {
-          usage: part.usage,
-          providerMetadata: part.providerMetadata!,
-        }
-      }
-      return {
-        loading: part.type !== 'finish' && part.type !== 'abort',
-        provider,
-        date: Date.now(),
-        model,
-        cid,
-        ...(includeStop ? { stop: () => controller.abort() } : {}),
-        ragEnabled,
-        ...result,
-      }
-    }
-    const createMessageMetadata = (includeStop: boolean) => {
-      let emittedRagSearchDetailsVersion = 0
-
-      return ({ part }: { part: any }) => {
-        const baseMetadata = part.type === 'finish-step'
-          ? metadataByChunk({
-            type: 'finish-step',
-            finishReason: part.finishReason,
-            usage: part.usage,
-            providerMetadata: part.providerMetadata
-          }, { includeStop })
-          : part.type === 'finish'
-            ? metadataByChunk({
-              type: 'finish',
-              finishReason: part.finishReason,
-            }, { includeStop })
-            : part.type === 'abort'
-              ? metadataByChunk({ type: 'abort' }, { includeStop })
-              : metadataByChunk({ type: 'start' }, { includeStop })
-
-        const shouldAttachRagDetails =
-          ragSearchDetailsVersion > emittedRagSearchDetailsVersion
-
-        if (!shouldAttachRagDetails) return baseMetadata
-
-        emittedRagSearchDetailsVersion = ragSearchDetailsVersion
-        return {
-          ...baseMetadata,
-          ragSearchDetails: ragSearchDetails?.map((item) => ({ ...item }))
-        }
-      }
-    }
-
-    const streamResult = _streamText({
+    const agent = new ToolLoopAgent({
       model: wrapLanguageModel({
         model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
           `${providerType}:${model}`
@@ -446,12 +367,10 @@ export const chatService = () => {
             ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0 && ragEnabled,
             onRagSearchComplete: (details) => {
               ragSearchDetails = details?.map((item) => ({ ...item }))
-              ragSearchDetailsVersion += 1
             }
           })
         ]
       }),
-      messages: modelMessages,
       providerOptions: {
         [providerType]: {
           ...(thinkingMode !== undefined && {
@@ -469,71 +388,69 @@ export const chatService = () => {
       presencePenalty,
       frequencyPenalty,
       maxOutputTokens: maxOutputTokens || undefined,
-      system: agentInstructions,
+      instructions: agentInstructions,
       stopWhen: [
-        stepCountIs(20),
         ({ steps }) => {
           return (
-            steps.some((step) =>
+            steps.length >= 20 ||
+            (steps.some((step) =>
               step.toolResults?.some((toolResult) => {
                 return shouldStopForToolResult({
                   toolName: toolResult.toolName,
                   output: toolResult.output
                 })
               })
-            ) ?? false
+            ) ?? false)
           )
         }
       ],
+    })
+
+    // 1. Validate UI messages
+    const validatedMessages = await validateUIMessages({
+      messages,
+      tools: agent.tools,
+    })
+
+    // 2. 清洗数据：移除历史中没有结果的工具调用，防止模型报错
+    const sanitizedMessages = sanitizeUIMessages(validatedMessages, {
+      isManualApproval: isApprovalAction || false
+    })
+
+    // 3. Convert to model messages
+    const modelMessages = await convertToModelMessages(sanitizedMessages, {
+      tools: agent.tools,
+    })
+
+    const result = await agent.stream({
+      prompt: modelMessages,
       abortSignal: controller.signal,
     })
 
-    const generatedMessageId = responseMessageId || nanoid()
-    const lastValidatedMessage = validatedMessages[validatedMessages.length - 1]
-    const streamOriginalMessages =
-      isRegenerateAction &&
-        !!responseMessageId &&
-        lastValidatedMessage?.role === 'assistant' &&
-        lastValidatedMessage.id !== responseMessageId
-        ? validatedMessages.slice(0, -1)
-        : validatedMessages
-
-    const uiStreamOptions = {
-      originalMessages: streamOriginalMessages,
-      generateMessageId: () => generatedMessageId,
-      messageMetadata: createMessageMetadata(true)
-    } as const
-
-    const rawUiStream = streamResult.toUIMessageStream(uiStreamOptions)
-    if (!onMessage) return rawUiStream
-
-    const targetAssistantMessage = responseMessageId
-      ? validatedMessages.find((message) => message.id === responseMessageId && message.role === 'assistant')
-      : undefined
-    const shouldUseContinuationBase = !isRegenerateAction && !!targetAssistantMessage
-    const continuationBaseMessage = (shouldUseContinuationBase && targetAssistantMessage)
-      ? JSON.parse(JSON.stringify(targetAssistantMessage))
-      : undefined
-
-    const mirrorStream = streamResult.toUIMessageStream({
-      ...uiStreamOptions,
-      messageMetadata: createMessageMetadata(false)
-    })
-
-    void (async () => {
-      try {
-        for await (const message of readUIMessageStream<BaseMessage>({
-          message: continuationBaseMessage,
-          stream: mirrorStream,
-        })) {
-          onMessage(message)
+    const uiStream = result.toUIMessageStream({
+      originalMessages: validatedMessages,
+      messageMetadata: ({ part }) => {
+        let finishMetadata = {}
+        if (part.type === 'finish-step' && part.finishReason === 'stop') {
+          finishMetadata = {
+            usage: part.usage,
+            providerMetadata: part.providerMetadata!,
+          }
         }
-      } catch (error) {
-        console.error('onMessage stream sync failed:', error)
+        return {
+          loading: part.type !== 'finish' && part.type !== 'abort',
+          provider,
+          date: Date.now(),
+          model,
+          cid,
+          stop: () => controller.abort(),
+          ragSearchDetails: ragSearchDetails?.map((item) => ({ ...item })),
+          ragEnabled,
+          ...finishMetadata,
+        }
       }
-    })()
-
-    return rawUiStream
+    })
+    return uiStream
   }
   const generateText = async (
     prompt: string,
