@@ -1,0 +1,19 @@
+{
+  "name": "llama-cpp-plugin",
+  "version": "1.0.0",
+  "description": "llama.cpp local provider plugin",
+  "author": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "build:watch": "vite build --watch"
+  },
+  "dependencies": {
+    "@agent-qi/types": "workspace:*",
+    "@ai-sdk/openai-compatible": "^2.0.31"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^5.0.0"
+  }
+}

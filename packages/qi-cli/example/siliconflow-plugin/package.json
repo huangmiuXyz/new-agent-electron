@@ -9,9 +9,8 @@
     "dev": "vite build --watch"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "2.0.4",
-    "@ai-sdk/provider": "^3.0.2",
-    "@ai-sdk/provider-utils": "^4.0.4",
+    "@ai-sdk/provider": "catalog:",
+    "@ai-sdk/provider-utils": "catalog:",
     "zod": "^4.3.5"
   },
   "devDependencies": {

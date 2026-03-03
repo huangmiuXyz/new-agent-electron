@@ -66,6 +66,7 @@ export interface DefaultModelsSettings {
 export interface RegisteredProvider {
   id: string
   name: string
+  logo?: string
   providerId: string
   providerType: string
   pluginName: string

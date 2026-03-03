@@ -8,7 +8,7 @@
     "dev": "vite build --watch"
   },
   "dependencies": {
-    "@ai-sdk/moonshotai": "*",
+    "@ai-sdk/moonshotai": "catalog:",
     "zod": "*"
   },
   "devDependencies": {

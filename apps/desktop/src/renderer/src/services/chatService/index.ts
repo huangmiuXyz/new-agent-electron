@@ -17,6 +17,7 @@ import { buildSkillsPrompt, discoverSkills } from '../skillsService'
 import { createRagMiddleware } from './middleware/rags'
 import { createContextLimitMiddleware } from './middleware/contextLimit'
 import { createCompressContextMiddleware } from './middleware/compressContext'
+import { createUsageGuardMiddleware } from './middleware/usageGuard'
 import { sanitizeUIMessages } from './utils'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { createToolMiddleware } from './middleware/createToolMiddleware'
@@ -436,6 +437,7 @@ export const chatService = () => {
           `${providerType}:${model}`
         ),
         middleware: [
+          createUsageGuardMiddleware(),
           createToolMiddleware(),
           createCompressContextMiddleware(),
           createContextLimitMiddleware({ contextCount }),
