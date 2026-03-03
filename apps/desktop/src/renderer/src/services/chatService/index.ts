@@ -472,7 +472,8 @@ export const chatService = () => {
         ),
         tools,
         prompt,
-        toolChoice
+        toolChoice,
+        frequencyPenalty: 2
       })
       return result
     } catch (error) {
