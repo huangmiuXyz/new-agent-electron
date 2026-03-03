@@ -573,7 +573,7 @@ const plugin: Plugin = {
             const taskMap = new Map((downloadApi.tasks.value || []).map((task: any) => [task.id, task]))
             const mergedModels = newModels.map((m: any) => {
               const current = currentData.find((cm: any) => cm.id === m.id)
-              const task = taskMap.get(m.id)
+              const task = taskMap.get(m.id) as any
               const taskIsActive = task?.status === 'downloading' || task?.status === 'paused'
               if (
                 current &&
