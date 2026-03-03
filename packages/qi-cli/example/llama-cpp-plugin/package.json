@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@agent-qi/types": "workspace:*",
-    "@ai-sdk/openai-compatible": "^2.0.31"
+    "@ai-sdk/openai-compatible": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.2",
