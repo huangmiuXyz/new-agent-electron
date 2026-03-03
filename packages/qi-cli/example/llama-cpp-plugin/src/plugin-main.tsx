@@ -211,11 +211,13 @@ const askLoadOptions = async (
     showHeader: false,
     fields: [
       { name: 'ctxSize', type: 'number', label: 'Context size (ctx-size)', required: true },
-      { name: 'extraArgs', type: 'text', label: '额外参数' }
+      { name: 'extraArgs', type: 'text', label: '额外参数' },
+      { name: 'loadMmproj', type: 'boolean', label: '加载 mmproj', hint: '关闭后本次启动不会传 --mmproj。' }
     ],
     initialData: {
       ctxSize: runtimeConfig.ctxSize,
-      extraArgs: runtimeConfig.extraArgs
+      extraArgs: runtimeConfig.extraArgs,
+      loadMmproj: true
     }
   })
   const ok = await modal.confirm({
@@ -226,7 +228,8 @@ const askLoadOptions = async (
   const data = formActions.getData()
   return {
     ctxSize: Number(data.ctxSize) > 0 ? Math.floor(Number(data.ctxSize)) : runtimeConfig.ctxSize,
-    extraArgs: String(data.extraArgs || '').trim()
+    extraArgs: String(data.extraArgs || '').trim(),
+    loadMmproj: Boolean(data.loadMmproj)
   }
 }
 const loadModelNow = async (

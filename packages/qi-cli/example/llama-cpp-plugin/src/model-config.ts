@@ -242,8 +242,9 @@ export const parseModelArgs = (
     '--port', String(cfg.port)
   ]
 
+  const loadMmproj = loadOptions?.loadMmproj !== false
   const mmprojPath = String(cfg.mmprojMap?.[model.id] || '').trim()
-  if (mmprojPath) {
+  if (loadMmproj && mmprojPath) {
     args.push('--mmproj', mmprojPath)
   }
 

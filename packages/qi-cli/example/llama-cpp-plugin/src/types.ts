@@ -45,6 +45,7 @@ export interface AIBeforeUseParams {
 export interface LlamaLoadOptions {
   ctxSize: number
   extraArgs: string
+  loadMmproj: boolean
 }
 
 export interface OpenAICompatibleWithListModels extends OpenAICompatibleProvider<string, string, string, string>{

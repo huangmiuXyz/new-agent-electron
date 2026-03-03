@@ -96,8 +96,8 @@ export const useChat = (chatId: string) => {
               chat.id,
               {
                 model: model.value!,
-                apiKey: apiKey!.value!,
-                baseURL: baseUrl.value,
+                apiKey: apiKey?.value!,
+                baseURL: baseUrl?.value,
                 provider: provider.value,
                 providerType: providerType.value
               },

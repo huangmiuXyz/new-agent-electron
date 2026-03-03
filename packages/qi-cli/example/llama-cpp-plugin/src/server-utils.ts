@@ -52,8 +52,9 @@ export const startLlamaServer = async (
     return false
   }
 
+  const loadMmproj = loadOptions?.loadMmproj !== false
   const mmprojPath = String(cfg.mmprojMap?.[model.id] || '').trim()
-  if (mmprojPath && !context.api.fs.existsSync(mmprojPath)) {
+  if (loadMmproj && mmprojPath && !context.api.fs.existsSync(mmprojPath)) {
     context.notification.error(`mmproj file not found: ${mmprojPath}`, 'llama.cpp')
     return false
   }
@@ -103,4 +104,3 @@ export const getLlamaServerPathHint = (platform: string): string => {
   if (platform === 'darwin') return '示例：/usr/local/bin/llama-server'
   return '示例：/usr/bin/llama-server'
 }
-
