@@ -365,14 +365,14 @@ export const useSettingsStore = defineStore(
 
 
     const getTitleGenerationModel = computed(() => {
-      const provider = providers.value.find(
+      const provider = getAllProviders.value.find(
         (p) => p.id === defaultModels.value.titleGenerationProviderId
       )
       return provider?.models?.find((m) => m.id === defaultModels.value.titleGenerationModelId)
     })
 
     const getTranslationModel = computed(() => {
-      const provider = providers.value.find(
+      const provider = getAllProviders.value.find(
         (p) => p.id === defaultModels.value.translationProviderId
       )
       return provider?.models?.find((m) => m.id === defaultModels.value.translationModelId)
