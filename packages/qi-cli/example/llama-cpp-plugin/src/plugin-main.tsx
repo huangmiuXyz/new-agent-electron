@@ -567,13 +567,7 @@ const plugin: Plugin = {
         apiKey: runtimeConfig.apiKey,
         transformRequestBody: (args) => {
           const request = { ...(args || {}) }
-          const chatTemplateKwargs = {
-            ...((request.chat_template_kwargs && typeof request.chat_template_kwargs === 'object')
-              ? request.chat_template_kwargs
-              : {}),
-            enable_thinking: currentThinkingMode
-          }
-          return { ...request, enable_thinking: currentThinkingMode, chat_template_kwargs: chatTemplateKwargs }
+          return { ...request, enable_thinking: currentThinkingMode }
         }
       }) as OpenAICompatibleWithListModels
       provider.listModels = async () => {
