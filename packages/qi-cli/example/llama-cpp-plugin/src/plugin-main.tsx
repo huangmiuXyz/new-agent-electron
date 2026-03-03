@@ -10,6 +10,8 @@ import {
 } from './types'
 import { createModelGalleryComponent } from './model-gallery'
 import {
+  buildModelScopeFileDownloadUrl,
+  fetchModelScopeRepoFiles,
   fetchModelScopeModelDetail,
   MODELSCOPE_BASE_URL,
   searchModelScopeModels,
@@ -350,6 +352,87 @@ const plugin: Plugin = {
       formActions?.setFieldValue('mmprojMap', runtimeConfig.mmprojMap)
       syncProvider(context, ConfigForm)
     }
+    const sanitizeTaskId = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '_')
+    const runDownloadTask = async (
+      downloadApi: ReturnType<PluginContext['useDownload']>,
+      options: { id: string; url: string; destPath: string; fileName: string }
+    ): Promise<boolean> => {
+      return await new Promise<boolean>(async (resolve) => {
+        try {
+          await downloadApi.startDownload({
+            ...options,
+            pluginName: PLUGIN_NAME,
+            onSuccess: () => resolve(true),
+            onError: () => resolve(false),
+            onAborted: () => resolve(false)
+          })
+        } catch {
+          resolve(false)
+        }
+      })
+    }
+    const refreshScannedModels = async () => {
+      runtimeConfig = syncScannedModels(runtimeConfig, scanModelsByRoot(context, runtimeConfig.modelsRoot))
+      await saveConfig(context, runtimeConfig)
+      formActions?.setFieldValue('loadedModelId', runtimeConfig.loadedModelId)
+      formActions?.setFieldValue('mmprojMap', runtimeConfig.mmprojMap)
+      syncProvider(context, ConfigForm)
+      await updateServiceStatusIndicator(context, true)
+    }
+    const fetchRemoteFiles = async (modelId: string) => {
+      return await fetchModelScopeRepoFiles(modelId)
+    }
+    const downloadRemoteFile = async (remote: { id: string; name: string }, filePath: string): Promise<boolean> => {
+      if (!runtimeConfig.modelsRoot) {
+        context.notification.warning('请先在设置中配置“模型根目录”。', 'llama.cpp')
+        return false
+      }
+      const [org, repo] = String(remote.id || '').split('/')
+      if (!org || !repo) {
+        context.notification.error('模型 ID 无效，无法下载。', 'llama.cpp')
+        return false
+      }
+      const url = buildModelScopeFileDownloadUrl(remote.id, filePath)
+      if (!url) {
+        context.notification.error('无法生成文件下载地址。', 'llama.cpp')
+        return false
+      }
+      const modelDir = context.api.path.join(runtimeConfig.modelsRoot, org, repo)
+      if (!context.api.fs.existsSync(modelDir)) {
+        context.api.fs.mkdirSync(modelDir, { recursive: true })
+      }
+      const fileName = context.api.path.basename(filePath)
+      const destPath = context.api.path.join(modelDir, fileName)
+      const taskId = `llamacpp_${sanitizeTaskId(remote.id)}_${sanitizeTaskId(fileName)}`
+      const downloadApi = context.useDownload()
+      context.notification.info(`开始下载 ${fileName}`, 'llama.cpp')
+      const ok = await runDownloadTask(downloadApi, {
+        id: taskId,
+        url,
+        destPath,
+        fileName
+      })
+      if (!ok) {
+        context.notification.error(`下载失败: ${fileName}`, 'llama.cpp')
+        return false
+      }
+      await refreshScannedModels()
+      if (/mmproj/i.test(fileName) && /\.gguf$/i.test(fileName)) {
+        const modelName = fileName.toLowerCase().replace(/mmproj[-_]?/g, '').replace(/\.gguf$/i, '')
+        const matched = runtimeConfig.models.find((m) => m.id.toLowerCase().includes(modelName))
+        if (matched) {
+          runtimeConfig = {
+            ...runtimeConfig,
+            mmprojMap: { ...(runtimeConfig.mmprojMap || {}), [matched.id]: destPath }
+          }
+          await saveConfig(context, runtimeConfig)
+          formActions?.setFieldValue('mmprojMap', runtimeConfig.mmprojMap)
+          syncProvider(context, ConfigForm)
+        }
+      }
+      context.notification.success(`下载完成: ${fileName}`, 'llama.cpp')
+      return true
+    }
     const openModelPickerModal = async () => {
       const modal = context.useModal()
       currentModelPickerModal = modal
@@ -371,14 +454,18 @@ const plugin: Plugin = {
           currentModelPickerModal?.remove()
           return true
         },
-        searchRemoteModels: (keyword) => searchModelScopeModels(keyword, GGML_LOGO_DATA_URL),
+        searchRemoteModels: (keyword, page, pageSize) =>
+          searchModelScopeModels(keyword, GGML_LOGO_DATA_URL, page, pageSize),
         fetchRemoteDetail: (modelId) => fetchModelScopeModelDetail(modelId, GGML_LOGO_DATA_URL),
+        fetchRemoteFiles,
+        downloadRemoteFile,
         ggmlLogoDataUrl: GGML_LOGO_DATA_URL,
         modelscopeBaseUrl: MODELSCOPE_BASE_URL
       })
       await modal.confirm({
         title: '模型加载',
         width: '1180px',
+        modalBodyStyle: { overflowY: 'hidden' },
         showCancel: false,
         confirmText: '关闭',
         content: ModelGallery

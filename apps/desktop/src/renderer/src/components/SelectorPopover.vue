@@ -52,6 +52,13 @@ const emits = defineEmits(['ok'])
 const onOk = () => {
   emits('ok')
 }
+
+const modalBodyStyle = {
+  overflowY: 'hidden',
+  padding: '8px',
+  display: 'flex',
+  flexDirection: 'column'
+}
 </script>
 
 <template>
@@ -60,7 +67,8 @@ const onOk = () => {
       <slot name="trigger"></slot>
     </div>
 
-    <BaseModal @ok="onOk" :title="title!" v-if="isMobile && visible">
+    <BaseModal @ok="onOk" :title="title!" :show-footer="false" :modal-body-style="modalBodyStyle"
+      v-if="isMobile && visible">
       <div v-if="$slots.content" class="content">
         <slot name="content"></slot>
       </div>
@@ -203,6 +211,8 @@ const onOk = () => {
 }
 
 .selector-list-container {
+  flex: 1;
+  min-height: 0;
   max-height: 320px;
   overflow-y: auto;
   padding: 4px;
