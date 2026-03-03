@@ -36,7 +36,7 @@ const GGML_LOGO_DATA_URL = `data:image/svg+xml;utf8,${encodeURIComponent(
 )}`
 
 const DEFAULT_CONFIG: LlamaPluginConfig = {
-  apiKey: 'sk-local',
+  apiKey: '',
   host: '127.0.0.1',
   port: 8080,
   ctxSize: 4096,
@@ -702,15 +702,40 @@ const execCommand = async (context: PluginContext, command: string): Promise<{ s
   })
 }
 
+const shellQuote = (value: string): string => {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`
+}
+
+const getLlamaServerPathHint = (platform: string): string => {
+  if (platform === 'win32') return '示例：E:/llama.cpp/build/bin/Release/llama-server.exe'
+  if (platform === 'darwin') return '示例：/usr/local/bin/llama-server'
+  return '示例：/usr/bin/llama-server'
+}
+
 const stopLlamaServer = async (context: PluginContext): Promise<boolean> => {
   const platform = context.api.os.platform()
-  const processName = context.api.path.basename(runtimeConfig.llamaServerPath || 'llama-server.exe')
+  const processName = context.api.path.basename(
+    runtimeConfig.llamaServerPath || (platform === 'win32' ? 'llama-server.exe' : 'llama-server')
+  )
 
   try {
     if (platform === 'win32') {
       await execCommand(context, `taskkill /F /T /IM "${processName}"`)
     } else {
-      await execCommand(context, 'pkill -f llama-server')
+      const candidates = Array.from(new Set([processName, 'llama-server'].map((v) => String(v || '').trim()).filter(Boolean)))
+      let stopped = false
+      for (const candidate of candidates) {
+        try {
+          await execCommand(context, `pkill -f ${shellQuote(candidate)}`)
+          stopped = true
+          break
+        } catch {
+          // try next candidate
+        }
+      }
+      if (!stopped) {
+        throw new Error('No matching llama-server process found')
+      }
     }
   } catch {
     // Continue and check actual process status below.
@@ -1065,13 +1090,14 @@ const plugin: Plugin = {
       title: 'llama.cpp',
       showHeader: false,
       fields: () => {
+        const platform = context.api.os.platform()
         return [
           {
             name: 'llamaServerPath',
             type: 'path',
             label: 'llama-server 路径',
             required: true,
-            hint: '示例：E:/llama.cpp/build/bin/Release/llama-server.exe',
+            hint: getLlamaServerPathHint(platform),
             dialogOptions: {
               properties: ['openFile']
             }

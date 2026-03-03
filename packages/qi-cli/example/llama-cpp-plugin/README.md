@@ -32,12 +32,19 @@ npm run build
    - `ctx-size` (e.g. 4096)
 5. Enable `Auto start llama-server`.
 
-## Equivalent startup command example
+## Equivalent startup command examples
 
 ```powershell
 E:\llama.cpp\build\bin\Release\llama-server.exe \
   --model "E:\llama.cpp\models\Qwen3.5-35B-A3B-GGUF\Qwen3.5-35B-A3B-Q4_K_M.gguf" \
   --mmproj "E:\llama.cpp\models\Qwen3.5-35B-A3B-GGUF\mmproj-Qwen3.5-35B-A3B-BF16.gguf" \
+  --ctx-size 4096
+```
+
+```bash
+/usr/local/bin/llama-server \
+  --model "/Users/you/llama.cpp/models/Qwen3.5-35B-A3B-Q4_K_M.gguf" \
+  --mmproj "/Users/you/llama.cpp/models/mmproj-Qwen3.5-35B-A3B-BF16.gguf" \
   --ctx-size 4096
 ```
 
