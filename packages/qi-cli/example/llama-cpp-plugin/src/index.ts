@@ -1,4 +1,4 @@
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+﻿import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import ggmlLogoSvgRaw from '../GGML_logo.svg?raw'
 import {
   AIBeforeUseParams,
@@ -218,7 +218,8 @@ const gatherGgufFiles = (context: PluginContext, root: string): string[] => {
         continue
       }
 
-      if (String(entry).toLowerCase().endsWith('.gguf')) {
+      const entryLower = String(entry).toLowerCase()
+      if (entryLower.endsWith('.gguf') && !entryLower.includes('mmproj')) {
         results.push(fullPath)
       }
     }
@@ -707,7 +708,7 @@ const shellQuote = (value: string): string => {
 }
 
 const getLlamaServerPathHint = (platform: string): string => {
-  if (platform === 'win32') return '示例：E:/llama.cpp/build/bin/Release/llama-server.exe'
+  if (platform === 'win32') return '示例：G:/llama.cpp/build/bin/Release/llama-server.exe'
   if (platform === 'darwin') return '示例：/usr/local/bin/llama-server'
   return '示例：/usr/bin/llama-server'
 }
@@ -801,7 +802,7 @@ const askLoadOptions = async (
       {
         name: 'ctxSize',
         type: 'number',
-        label: '上下文长度（ctx-size）',
+        label: 'Context size (ctx-size)',
         required: true
       },
       {
@@ -968,38 +969,10 @@ const plugin: Plugin = {
     }
     await saveConfig(context, runtimeConfig)
 
-    const [ScannedModelTable, scannedModelTableActions] = context.useTable({
+    let currentModelPickerModal: ReturnType<PluginContext['useModal']> | null = null
+    const [ModelPickerTable, modelPickerTableActions] = context.useTable<ScannedModelRow>({
       columns: [
-        { key: 'name', label: 'Model', width: '1fr' },
-        {
-          key: 'loaded',
-          label: 'Loaded',
-          width: '0.8fr',
-          render: (row: ScannedModelRow) => {
-            const Switch = context.components?.Switch
-            if (!Switch) return row.loaded ? 'On' : 'Off'
-
-            const onToggle = async (val: boolean) => {
-              if (val) {
-                await reloadModelNow(context, row)
-              } else if (runtimeConfig.loadedModelId === row.id) {
-                context.notification.warning(
-                  'Unload is not supported from UI. Stop llama-server manually if needed.',
-                  'llama.cpp'
-                )
-              }
-              refreshScannedModelTable()
-              formActions.setFieldValue('loadedModelId', runtimeConfig.loadedModelId)
-              syncProvider(context, ConfigForm)
-            }
-
-            return context.vue.h(Switch, {
-              modelValue: row.loaded,
-              'onUpdate:modelValue': onToggle
-            })
-          }
-        },
-        { key: 'modelPath', label: 'Path', width: '2fr' },
+        { key: 'name', label: '模型', width: '1fr' },
         {
           key: 'mmproj',
           label: 'mmproj',
@@ -1008,9 +981,10 @@ const plugin: Plugin = {
             const Button = context.components?.Button
             const current = String(row.mmproj || '').trim()
 
-            const pickMmproj = async () => {
+            const pickMmproj = async (e?: MouseEvent) => {
+              e?.stopPropagation()
               const result = await context.api.showOpenDialog({
-                title: `Select mmproj for ${row.name}`,
+                title: `为 ${row.name} 选择 mmproj`,
                 properties: ['openFile'],
                 filters: [{ name: 'GGUF', extensions: ['gguf'] }]
               })
@@ -1024,7 +998,7 @@ const plugin: Plugin = {
                 }
               }
               await saveConfig(context, runtimeConfig)
-              refreshScannedModelTable()
+              refreshModelPickerTable()
               syncProvider(context, ConfigForm)
             }
 
@@ -1032,7 +1006,7 @@ const plugin: Plugin = {
               if (Button) {
                 return context.vue.h(
                   Button,
-                  { type: 'button', size: 'sm', variant: 'text', onClick: pickMmproj, title: 'Select mmproj' },
+                  { type: 'button', size: 'sm', variant: 'text', onClick: pickMmproj, title: '选择 mmproj' },
                   {
                     default: () => context.vue.h(
                       'svg',
@@ -1052,39 +1026,133 @@ const plugin: Plugin = {
               {
                 type: 'button',
                 onClick: pickMmproj,
-                title: 'Click to reselect mmproj',
+                title: '点击重新选择 mmproj',
                 style: 'border:none;background:transparent;padding:0;font-size:12px;color:var(--text-secondary);word-break:break-all;text-align:left;cursor:pointer;'
               },
               current
             )
+          }
+        },
+        { key: 'modelPath', label: '路径', width: '2fr' },
+        {
+          key: 'action',
+          label: '操作',
+          width: '1fr',
+          render: (row: ScannedModelRow) => {
+            const Button = context.components?.Button
+            const isCurrent = row.id === runtimeConfig.loadedModelId
+            const loadingCurrent = isLoadingModel && loadingModelId === row.id
+
+            const handleLoad = async (e: MouseEvent) => {
+              e.stopPropagation()
+              const ok = await reloadModelNow(context, row)
+              if (!ok) return
+
+              refreshModelPickerTable()
+              formActions.setFieldValue('loadedModelId', runtimeConfig.loadedModelId)
+              syncProvider(context, ConfigForm)
+              await updateServiceStatusIndicator(context, true)
+              currentModelPickerModal?.remove()
+            }
+
+            if (Button) {
+              return context.vue.h(
+                Button,
+                {
+                  type: 'button',
+                  size: 'sm',
+                  variant: isCurrent ? 'secondary' : 'primary',
+                  loading: loadingCurrent,
+                  onClick: handleLoad
+                },
+                {
+                  default: () => (isCurrent
+                    ? context.vue.h(
+                        'svg',
+                        { viewBox: '0 0 24 24', width: '16', height: '16', fill: 'currentColor' },
+                        [
+                          context.vue.h('path', { d: 'M17.65 6.35A7.95 7.95 0 0012 4V1L7 6l5 5V7a5 5 0 11-5 5H5a7 7 0 107.75-6.95 7 7 0 014.9 2.3z' })
+                        ]
+                      )
+                    : '加载')
+                }
+              )
+            }
+
+            return context.vue.h('button', { type: 'button', onClick: handleLoad }, isCurrent ? '重载' : '加载')
           }
         }
       ],
       data: []
     })
 
-    const refreshScannedModelTable = () => {
+    const refreshModelPickerTable = () => {
       const rows = runtimeConfig.models.map((m) => ({
         ...m,
         mmproj: String(runtimeConfig.mmprojMap?.[m.id] || '').trim(),
         loaded: m.id === runtimeConfig.loadedModelId
       }))
-      scannedModelTableActions.setData(rows)
+      modelPickerTableActions.setData(rows)
     }
-    refreshScannedModelTable()
-    onServiceStatusChanged = () => {
-      refreshScannedModelTable()
+    const openModelPickerModal = async () => {
+      if (!runtimeConfig.models.length) {
+        context.notification.warning('没有可用模型，请先设置模型目录并扫描。', 'llama.cpp')
+        return
+      }
+      refreshModelPickerTable()
+      const modal = context.useModal()
+      currentModelPickerModal = modal
+      await modal.confirm({
+        title: '选择模型',
+        width: '860px',
+        showCancel: false,
+        confirmText: '关闭',
+        content: ModelPickerTable
+      })
+      currentModelPickerModal = null
     }
+
+    const renderModelSelector = () => {
+      const Select = context.components?.Select
+      const Button = context.components?.Button
+      const loadedModel = runtimeConfig.models.find((m) => m.id === runtimeConfig.loadedModelId)
+      const loadedModelId = runtimeConfig.loadedModelId || '__none__'
+      const loadedModelName = loadedModel?.name || '未加载'
+
+      if (Select) {
+        return context.vue.h(
+          'div',
+          {
+            title: '点击打开模型列表',
+            onClick: () => { void openModelPickerModal() },
+            style: 'cursor:pointer;'
+          },
+          [
+            context.vue.h(Select, {
+              modelValue: loadedModelId,
+              options: [{ label: loadedModelName, value: loadedModelId }],
+              clearable: false,
+              style: 'pointer-events:none;'
+            })
+          ]
+        )
+      }
+
+      if (Button) {
+        return context.vue.h(
+          Button,
+          { type: 'button', size: 'sm', variant: 'secondary', onClick: () => { void openModelPickerModal() } },
+          { default: () => loadedModelName }
+        )
+      }
+
+      return context.vue.h('button', { type: 'button', onClick: () => { void openModelPickerModal() } }, loadedModelName)
+    }
+
+    refreshModelPickerTable()
     lastRequestAt = Date.now()
     await updateServiceStatusIndicator(context, true)
     stopStatusPolling()
-
-    const renderScannedModelList = () => {
-      if (!runtimeConfig.models.length) {
-        return context.vue.h('div', { style: 'color:var(--text-secondary);font-size:12px' }, 'No GGUF model found in current models root.')
-      }
-      return context.vue.h(ScannedModelTable)
-    }
 
     const [ConfigForm, formActions] = context.useForm({
       title: 'llama.cpp',
@@ -1107,15 +1175,17 @@ const plugin: Plugin = {
             type: 'path',
             label: '模型根目录',
             required: true,
-            hint: '路径变化时会自动重新扫描模型。',
+            hint: '路径变更时会自动重新扫描模型。',
             dialogOptions: {
               properties: ['openDirectory']
             }
           },
           {
-            name: 'scannedModelsReadonly',
+            name: 'loadedModelId',
             type: 'custom',
-            render: () => renderScannedModelList()
+            label: '模型加载',
+            hint: '点击选择框弹出模型列表并加载。',
+            render: () => renderModelSelector()
           },
           {
             name: 'ctxSize',
@@ -1136,7 +1206,7 @@ const plugin: Plugin = {
             label: '空闲自动停止（分钟）',
             required: true,
             defaultValue: 10,
-            hint: 'N 分钟内无请求则自动停止 llama-server；设为 0 表示禁用。'
+            hint: 'N 分钟无请求则自动停止 llama-server；设置为 0 表示禁用。'
           },
           {
             name: 'host',
@@ -1180,11 +1250,16 @@ const plugin: Plugin = {
         }
 
         await saveConfig(context, next)
-        refreshScannedModelTable()
+        refreshModelPickerTable()
         await updateServiceStatusIndicator(context)
         syncProvider(context, ConfigForm)
       }
     })
+
+    onServiceStatusChanged = () => {
+      refreshModelPickerTable()
+      formActions.setFieldValue('loadedModelId', runtimeConfig.loadedModelId)
+    }
 
     context.registerRegistry(REGISTRY_ID, () => {
       const provider = createOpenAICompatible({
@@ -1270,3 +1345,4 @@ const plugin: Plugin = {
 }
 
 export default plugin
+
