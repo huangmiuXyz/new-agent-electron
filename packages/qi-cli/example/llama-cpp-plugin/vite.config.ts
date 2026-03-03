@@ -1,8 +1,10 @@
 import { defineConfig } from 'vite';
+import vueJsx from '@vitejs/plugin-vue-jsx';
 import { resolve } from 'path';
 
 
 export default defineConfig({
+  plugins: [vueJsx()],
   
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
@@ -11,7 +13,7 @@ export default defineConfig({
   },
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: resolve(__dirname, 'src/index.tsx'),
       name: 'plugin',
       fileName: 'index',
       formats: ['iife']
