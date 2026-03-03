@@ -552,7 +552,12 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
         }
 
         return () =>
-          context.vue.h('div', { class: 'llama-status-wrap', ref: wrapRef }, [
+          context.vue.h('div', {
+            class: 'llama-status-wrap',
+            ref: wrapRef,
+            onClick: toggleOpen,
+            title: tooltip
+          }, [
             context.vue.h('style', {}, `
               .llama-status-wrap {
                 position: relative;
@@ -561,7 +566,10 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
                 justify-content: center;
                 width: 100%;
                 height: 100%;
-                padding: 0 6px;
+                cursor: pointer;
+              }
+              .llama-status-wrap:hover {
+                background: var(--bg-hover);
               }
               .llama-status-tooltip {
                 position: absolute;
@@ -614,28 +622,24 @@ const updateServiceStatusIndicator = async (context: PluginContext, force = fals
               .llama-status-model-row.active { border-color: var(--accent-color); color: var(--accent-color); }
               .llama-status-model-row:hover { background: var(--bg-hover); }
             `),
-            context.vue.h('button', {
-              type: 'button',
-              onClick: toggleOpen,
-              title: tooltip,
-              style: 'display:flex;align-items:center;justify-content:center;padding:0;border:none;background:transparent;cursor:pointer;'
-            }, [
-              context.vue.h('div', { style: 'position:relative;display:flex;align-items:center;justify-content:center;width:16px;height:16px;' }, [
-                context.vue.h('span', {
-                  style: 'display:inline-flex;width:16px;height:16px;'
-                }, [
-                  context.vue.h('img', {
-                    src: GGML_LOGO_DATA_URL,
-                    alt: 'GGML',
-                    style: `width:16px;height:16px;opacity:${isLoaded ? '1' : '0.85'};filter:${isLoaded ? 'none' : 'grayscale(1)'};`
-                  })
-                ]),
-                context.vue.h('span', {
-                  style: `position:absolute;right:-2px;bottom:-2px;width:6px;height:6px;border-radius:50%;background:${isLoaded ? '#16a34a' : '#6b7280'};border:1px solid var(--bg-card);`
+            context.vue.h('div', { style: 'position:relative;display:flex;align-items:center;justify-content:center;width:16px;height:16px;' }, [
+              context.vue.h('span', {
+                style: 'display:inline-flex;width:16px;height:16px;'
+              }, [
+                context.vue.h('img', {
+                  src: GGML_LOGO_DATA_URL,
+                  alt: 'GGML',
+                  style: `width:16px;height:16px;opacity:${isLoaded ? '1' : '0.85'};filter:${isLoaded ? 'none' : 'grayscale(1)'};`
                 })
-              ])
+              ]),
+              context.vue.h('span', {
+                style: `position:absolute;right:-2px;bottom:-2px;width:6px;height:6px;border-radius:50%;background:${isLoaded ? '#16a34a' : '#6b7280'};border:1px solid var(--bg-card);`
+              })
             ]),
-            context.vue.h('div', { class: ['llama-status-tooltip', isOpen.value ? 'open' : ''] }, [
+            context.vue.h('div', {
+              class: ['llama-status-tooltip', isOpen.value ? 'open' : ''],
+              onClick: (e: MouseEvent) => e.stopPropagation()
+            }, [
               context.vue.h('div', { class: 'llama-status-title' }, 'llama.cpp Service'),
               context.vue.h('div', { class: 'llama-status-sub' }, `Status: ${running ? 'Running' : 'Stopped'}`),
               ...(isLoadingModel
