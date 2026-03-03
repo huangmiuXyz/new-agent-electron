@@ -2,10 +2,12 @@
 import { computed, ref } from 'vue'
 import type { DownloadTask } from '@renderer/stores/downloads'
 import { useDownloadStore } from '@renderer/stores/downloads'
+import { useModal } from '@renderer/composables/useModal'
 import { useIcon } from '../composables/useIcon'
 import DownloadProgress from './DownloadProgress.vue'
 
 const downloadStore = useDownloadStore()
+const { confirm, remove } = useModal()
 
 const { X, Trash, Download, Refresh, Delete, Folder } = useIcon([
   'X',
@@ -75,6 +77,51 @@ const getStatusClass = (status: DownloadTask['status']) => {
   if (status === 'downloading') return 'active'
   if (status === 'paused') return 'paused'
   return 'idle'
+}
+
+const askCompletedTaskDeleteMode = async (): Promise<'task-only' | 'task-and-file' | 'cancel'> => {
+  return await new Promise((resolve) => {
+    let settled = false
+    const settle = (result: 'task-only' | 'task-and-file' | 'cancel') => {
+      if (settled) return
+      settled = true
+      resolve(result)
+    }
+
+    void confirm({
+      title: '删除下载任务',
+      content: '是否同时删除本地文件？',
+      confirmText: '任务和文件',
+      cancelText: '仅任务',
+      onOk: () => {
+        remove()
+        settle('task-and-file')
+      },
+      onCancel: () => {
+        remove()
+        settle('task-only')
+      },
+      onClose: () => {
+        remove()
+        settle('cancel')
+      }
+    })
+  })
+}
+
+const handleRemoveTask = async (task: DownloadTask) => {
+  if (task.status !== 'completed' && task.status !== 'canceled') return
+
+  if (task.status === 'completed') {
+    const mode = await askCompletedTaskDeleteMode()
+    if (mode === 'cancel') return
+    await downloadStore.removeTask(task.id, {
+      removeLocalFile: mode === 'task-and-file'
+    })
+    return
+  }
+
+  await downloadStore.removeTask(task.id)
 }
 
 const openDownloadDirectory = async (task: DownloadTask) => {
@@ -178,7 +225,7 @@ const openDownloadDirectory = async (task: DownloadTask) => {
                 v-if="task.status === 'completed' || task.status === 'canceled'"
                 class="item-btn"
                 title="移除任务"
-                @click="downloadStore.removeTask(task.id)"
+                @click="handleRemoveTask(task)"
               >
                 <component :is="Delete" />
               </button>

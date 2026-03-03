@@ -32,6 +32,10 @@ export interface DownloadStartOptions {
   pluginName?: string
 }
 
+export interface RemoveTaskOptions {
+  removeLocalFile?: boolean
+}
+
 interface DownloadRunResult {
   ok: boolean
   aborted?: boolean
@@ -310,12 +314,22 @@ export const useDownloadStore = defineStore(
       return await startDownload(id)
     }
 
-    const removeTask = async (id: string) => {
+    const removeTask = async (id: string, options: RemoveTaskOptions = {}) => {
       const task = getTaskById(id)
       if (!task) return
       if (task.status !== 'completed' && task.status !== 'canceled') return
       stopProgressListening(id)
       runTokens.delete(id)
+
+      if (options.removeLocalFile && task.status === 'completed') {
+        try {
+          if (window.api?.fs?.existsSync(task.destPath)) {
+            window.api.fs.unlinkSync(task.destPath)
+          }
+        } catch {
+        }
+      }
+
       const index = getTaskIndex(id)
       if (index !== -1) {
         tasks.value.splice(index, 1)
