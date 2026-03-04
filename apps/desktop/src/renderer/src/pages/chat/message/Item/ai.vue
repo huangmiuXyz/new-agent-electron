@@ -62,14 +62,15 @@ const playMessageAudio = () => {
             <span class="msg-name">{{ message.metadata?.model }}</span>
 
             <div v-if="message.metadata?.usage" class="msg-usage">
-              <span>Tokens: {{ message.metadata.usage.totalTokens }}</span>
-              <span>↑{{ message.metadata.usage.inputTokens }}</span>
-              <span>↓{{ message.metadata.usage.outputTokens }}</span>
+              <span v-if="message.metadata.usage.inputTokens || message.metadata.usage.outputTokens">Tokens: {{
+                message.metadata.usage.totalTokens }}</span>
+              <span v-if="message.metadata.usage.inputTokens">↑{{ message.metadata.usage.inputTokens }}</span>
+              <span v-if="message.metadata.usage.outputTokens">↓{{ message.metadata.usage.outputTokens }}</span>
             </div>
           </div>
           <div style="display: flex; gap: 8px">
-            <Button v-if="hasAudioChunks" size="sm" @click="playMessageAudio" variant="icon"
-              type="button" :class="{ 'is-active': isCurrentPlaying }">
+            <Button v-if="hasAudioChunks" size="sm" @click="playMessageAudio" variant="icon" type="button"
+              :class="{ 'is-active': isCurrentPlaying }">
               <template #icon>
                 <VolumeMedium :style="{ color: isCurrentPlaying ? 'var(--accent-color)' : 'inherit' }" />
               </template>
@@ -83,7 +84,8 @@ const playMessageAudio = () => {
           </div>
         </div>
       </div>
-      <ChatMessageItemRagSearch :searching="!message.metadata?.ragSearchDetails?.length && !!message.metadata?.ragEnabled"
+      <ChatMessageItemRagSearch
+        :searching="!message.metadata?.ragSearchDetails?.length && !!message.metadata?.ragEnabled"
         :search-details="message.metadata?.ragSearchDetails" />
       <div v-if="
         !message.metadata?.error &&
