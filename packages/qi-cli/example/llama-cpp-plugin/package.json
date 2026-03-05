@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@agent-qi/types": "workspace:*",
-    "@ai-sdk/openai-compatible": "workspace:*"
+    "@ai-sdk/openai-compatible": "catalog:"
   },
   "devDependencies": {
     "@vitejs/plugin-vue-jsx": "^4.1.1",
