@@ -149,6 +149,7 @@
       }
     },
     "files": [
+      "out/**",
       "!../../packages/**/*",
       "!node_modules/@capacitor",
       "!node_modules/@capacitor/**/*",
