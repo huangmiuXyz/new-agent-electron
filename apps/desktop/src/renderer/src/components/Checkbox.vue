@@ -19,7 +19,7 @@ const toggle = () => {
 }
 
 const checkIcon = useIcon('Check')
-const minusIcon = useIcon('Remove')
+const minusIcon = useIcon('FormatHorizontalRule')
 </script>
 
 <template>

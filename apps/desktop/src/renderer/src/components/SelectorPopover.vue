@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CSSProperties } from 'vue'
 const props = defineProps<{
   searchQuery?: string
   placeholder?: string
@@ -53,7 +54,7 @@ const onOk = () => {
   emits('ok')
 }
 
-const modalBodyStyle = {
+const modalBodyStyle: CSSProperties = {
   overflowY: 'hidden',
   padding: '8px',
   display: 'flex',

@@ -1,6 +1,5 @@
 <template>
   <div
-    ref="containerRef"
     class="resize-box"
     :style="containerStyle"
   :class="{ 
@@ -56,7 +55,6 @@ const emit = defineEmits<{
 }>()
 
 const isResizing = ref(false)
-const containerRef = ref<HTMLElement | null>(null)
 const isMounted = ref(false)
 
 onMounted(() => {
@@ -65,8 +63,6 @@ onMounted(() => {
     isMounted.value = true
   })
 })
-
-const prevCollapsed = ref(props.isCollapsed)
 
 const containerStyle = computed(() => {
   if (props.direction === 'horizontal') {

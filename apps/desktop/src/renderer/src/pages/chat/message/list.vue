@@ -262,7 +262,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         data.metadata?.stop?.()
         const { continueMessages } = useChat(currentChat.value!.id!)
         setTimeout(() => {
-          continueMessages(data.id!)
+          continueMessages()
         })
       }
     }] : []),

@@ -5,7 +5,6 @@ const speechStore = useSpeechStore()
 const Play = useIcon('Play')
 const Pause = useIcon('Pause')
 const Stop = useIcon('Stop')
-const Close = useIcon('Close')
 
 const props = defineProps<{
   collapsed?: boolean
