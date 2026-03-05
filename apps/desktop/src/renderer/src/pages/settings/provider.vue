@@ -2,6 +2,7 @@
 import { FormItem } from '@renderer/composables/useForm'
 import { getProviderTypes } from '@renderer/services/chatService/registry'
 import providerData from '@renderer/assets/provider.json'
+import { copyText } from '@renderer/utils'
 
 const { getAllProviders } = storeToRefs(useSettingsStore())
 const visibleProviders = computed(() => getAllProviders.value.filter((p) => !p.hide))
@@ -14,12 +15,13 @@ const {
   deleteApiKeyFromProvider
 } = useSettingsStore()
 
-const { Refresh, Plus, Search, Edit, Delete, ChevronRight, ChevronDown, Active, Inactive, Box } = useIcon([
+const { Refresh, Plus, Search, Edit, Delete, Copy, ChevronRight, ChevronDown, Active, Inactive, Box } = useIcon([
   'Refresh',
   'Plus',
   'Search',
   'Edit',
   'Delete',
+  'Copy',
   'ChevronRight',
   'ChevronDown',
   'Active',
@@ -34,6 +36,16 @@ const pluginFields = ref<FormField<Provider>[]>([])
 onMounted(async () => {
   const results = await triggerHook('provider:form-fields')
   pluginFields.value = (results.flat() as FormField<Provider>[]).filter(Boolean)
+
+  // 将历史自定义提供商的默认 OpenAI 图标迁移为「首字母 + 随机色」头像
+  getAllProviders.value.forEach((provider) => {
+    if (isCustomProvider(provider) && provider.logo === '/images/providers/openai.png') {
+      updateProvider(provider.id, {
+        ...provider,
+        logo: generateCustomProviderLogo(provider.name)
+      })
+    }
+  })
 })
 
 const activeProviderId = useLocalStorage<string>('activeProviderId', 'OpenAI')
@@ -41,6 +53,11 @@ const activeProviderId = useLocalStorage<string>('activeProviderId', 'OpenAI')
 const activeProvider = computed(() => {
   return getAllProviders.value.find((p) => p.id === activeProviderId.value)
 })
+
+const handleCopyApiKey = (key: string) => {
+  copyText(key)
+  messageApi.success('已复制密钥')
+}
 
 const [ApiKeyTable, apiKeyTableActions] = useTable<ApiKeyInfo>({
   columns: [
@@ -62,9 +79,23 @@ const [ApiKeyTable, apiKeyTableActions] = useTable<ApiKeyInfo>({
       label: '密钥内容',
       width: '3fr',
       render: (row) => (
-        <span class="font-mono text-xs">
-          {row.key.slice(0, 8)}...{row.key.slice(-4)}
-        </span>
+        <div class="api-key-cell">
+          <span class="font-mono text-xs">
+            {row.key.slice(0, 8)}...{row.key.slice(-4)}
+          </span>
+          <Button
+            type="button"
+            variant="text"
+            size="sm"
+            title="复制密钥"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleCopyApiKey(row.key)
+            }}
+          >
+            {Copy}
+          </Button>
+        </div>
       )
     },
     {
@@ -216,6 +247,24 @@ const providerOptions = computed(() => {
   }))
 })
 
+const getProviderInitial = (name: string) => {
+  const normalized = (name || '').trim()
+  if (!normalized) return 'P'
+  return normalized[0]!.toUpperCase()
+}
+
+const getRandomAvatarColor = () => {
+  const hue = Math.floor(Math.random() * 360)
+  return `hsl(${hue} 70% 45%)`
+}
+
+const generateCustomProviderLogo = (name: string) => {
+  const initial = getProviderInitial(name)
+  const bgColor = getRandomAvatarColor()
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><rect width="96" height="96" rx="24" fill="${bgColor}"/><text x="50%" y="53%" dominant-baseline="middle" text-anchor="middle" fill="#fff" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="46" font-weight="700">${initial}</text></svg>`
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
+}
+
 // 添加自定义提供商相关逻辑
 const { addCustomProvider, removeCustomProvider } = useSettingsStore()
 
@@ -241,7 +290,7 @@ const [CustomProviderForm, customProviderFormActions] = useForm({
       name: data.name!,
       baseUrl: data.baseUrl!,
       providerType: data.providerType as Provider['providerType'],
-      logo: '/images/providers/openai.png', // 使用默认图标
+      logo: generateCustomProviderLogo(data.name!),
       models: [],
       apiKeys: [],
       apiKey: ''
@@ -682,6 +731,13 @@ const VoiceTable = defineComponent({
 
 .items-center {
   align-items: center;
+}
+
+.api-key-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .voice-table-container {

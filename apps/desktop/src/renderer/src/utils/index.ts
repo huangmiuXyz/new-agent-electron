@@ -44,7 +44,10 @@ export const assetsHandler = (path: string): string => {
   if (path.startsWith('http') || path.startsWith('blob:')) {
     return path
   }
-  if (path.startsWith('data:') || path.startsWith('file:')) {
+  if (path.startsWith('data:')) {
+    return path
+  }
+  if (path.startsWith('file:')) {
     return anyUrlToBlobUrl(path)
   }
 
