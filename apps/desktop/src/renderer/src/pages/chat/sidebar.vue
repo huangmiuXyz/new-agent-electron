@@ -3,7 +3,31 @@ import { isMobile } from '@renderer/composables/useDeviceType'
 const chatsStore = useChatsStores()
 const { showContextMenu } = useContextMenu()
 const chatsIcon = useIcon('Chat')
+const { ChevronDown, ChevronRight, Edit, Delete } = useIcon([
+  'ChevronDown',
+  'ChevronRight',
+  'Edit',
+  'Delete'
+])
 const router = useRouter()
+const expandedRootIds = ref<Set<string>>(new Set())
+const rootChats = computed(() => chatsStore.getRootChats())
+
+const getChildChats = (chatId: string) => chatsStore.getChildChats(chatId)
+
+watch(
+  rootChats,
+  (roots) => {
+    const expanded = new Set(expandedRootIds.value)
+    roots.forEach((chat) => {
+      if (getChildChats(chat.id).length > 0 && !expanded.has(chat.id)) {
+        expanded.add(chat.id)
+      }
+    })
+    expandedRootIds.value = expanded
+  },
+  { immediate: true }
+)
 
 const selectChat = (chatId: string) => {
   chatsStore.setActiveChat(chatId)
@@ -31,7 +55,7 @@ const deleteChat = async (chatId: string) => {
 }
 
 const renameChat = async (chatId: string) => {
-  const chat = chatsStore.chats.find((c) => c.id === chatId)
+  const chat = chatsStore.getChatById(chatId)
   if (chat) {
     const [Form, { getFieldValue }] = useForm({
       fields: [
@@ -58,33 +82,17 @@ const renameChat = async (chatId: string) => {
     }
   }
 }
-const { Edit, Delete } = useIcon(['Edit', 'Delete', 'Plus', 'Search', 'CommentAdd16Regular'])
 const showSearch = ref(false)
 
-const getLastMessage = (chat: Chat) => {
-  if (!chat.messages || chat.messages.length === 0) return '开始你的第一次对话吧'
-  const lastMsg = chat.messages[chat.messages.length - 1]
-  const textContent = lastMsg.parts
-    .filter((p) => p.type === 'text')
-    .map((p) => p.text)
-    .join(' ')
-  return textContent || '[媒体内容]'
-}
-
-const getChatAvatar = (title: string) => {
-  const firstChar = title.charAt(0).toUpperCase()
-  // Morandi Palette for a more sophisticated look
-  const colors = [
-    { bg: '#E2E8F0', text: '#475569' }, // Slate
-    { bg: '#FEE2E2', text: '#991B1B' }, // Red
-    { bg: '#FEF3C7', text: '#92400E' }, // Amber
-    { bg: '#D1FAE5', text: '#065F46' }, // Emerald
-    { bg: '#DBEAFE', text: '#1E40AF' }, // Blue
-    { bg: '#F3E8FF', text: '#6B21A8' }  // Purple
-  ]
-  const charCode = firstChar.charCodeAt(0) || 0
-  const theme = colors[charCode % colors.length]
-  return { char: firstChar, background: theme?.bg, color: theme?.text }
+const isExpanded = (chatId: string) => expandedRootIds.value.has(chatId)
+const toggleExpand = (chatId: string) => {
+  const next = new Set(expandedRootIds.value)
+  if (next.has(chatId)) {
+    next.delete(chatId)
+  } else {
+    next.add(chatId)
+  }
+  expandedRootIds.value = next
 }
 
 const showChatContextMenu = (event: MouseEvent, chatId: string) => {
@@ -110,6 +118,19 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 
 const isChatGenerating = (chat: Chat) => {
   return chat.messages.some(m => m.metadata?.loading && m.metadata.stop)
+}
+
+const getSubTaskStatusLabel = (chat: Chat) => {
+  switch (chat.subTask?.status) {
+    case 'completed':
+      return '已完成'
+    case 'failed':
+      return '失败'
+    case 'running':
+      return '执行中'
+    default:
+      return '待执行'
+  }
 }
 </script>
 
@@ -137,52 +158,47 @@ const isChatGenerating = (chat: Chat) => {
         </template>
       </div>
 
-      <!-- 聊天列表 -->
-      <List v-if="chatsStore.allChats.length" :items="chatsStore.allChats" :active-id="chatsStore.activeChatId!"
-        :key-field="'id'" :main-field="'title'" :sub-field="'createdAt'" :item-height="isMobile ? 72 : 40"
-        @select="selectChat" @contextmenu="showChatContextMenu">
-        <template #main="{ item }">
-          <!-- Mobile Premium Layout -->
-          <div v-if="isMobile" class="chat-row">
-            <div class="avatar-container">
-              <div class="squircle-avatar"
-                :style="{ background: getChatAvatar(item.title).background, color: getChatAvatar(item.title).color }">
-                {{ getChatAvatar(item.title).char }}
-              </div>
-              <div v-if="item.isTemp" class="temp-badge"></div>
-            </div>
-            <div class="content-container">
-              <div class="top-row">
-                <div class="chat-name-container">
-                  <div v-if="isChatGenerating(item) && item.id !== chatsStore.activeChatId" class="status-dot generating"></div>
-                  <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-name">{{
-                    item.title
-                    }}</span>
-                  <div v-else class="shimmer-title"></div>
-                </div>
-                <span class="chat-time">{{ formatTime(item.createdAt) }}</span>
-              </div>
-              <div class="bottom-row">
-                <p class="chat-preview-text">{{ getLastMessage(item) }}</p>
-              </div>
+      <div v-if="chatsStore.allChats.length" class="chat-tree-list">
+        <div v-for="rootChat in rootChats" :key="rootChat.id" class="chat-group">
+          <div
+            class="chat-tree-item root-item"
+            :class="{ active: chatsStore.activeChatId === rootChat.id }"
+            @click="selectChat(rootChat.id)"
+            @contextmenu="showChatContextMenu($event, rootChat.id)"
+          >
+            <button
+              v-if="getChildChats(rootChat.id).length > 0"
+              class="expand-btn"
+              @click.stop="toggleExpand(rootChat.id)"
+            >
+              <ChevronDown v-if="isExpanded(rootChat.id)" />
+              <ChevronRight v-else />
+            </button>
+            <span v-else class="expand-placeholder"></span>
+            <div v-if="isChatGenerating(rootChat) && rootChat.id !== chatsStore.activeChatId" class="status-dot generating"></div>
+            <span class="chat-title">{{ rootChat.title }}</span>
+            <span class="item-time">{{ formatTime(rootChat.createdAt) }}</span>
+          </div>
+
+          <div v-if="isExpanded(rootChat.id) && getChildChats(rootChat.id).length > 0" class="subchat-list">
+            <div
+              v-for="subChat in getChildChats(rootChat.id)"
+              :key="subChat.id"
+              class="chat-tree-item sub-item"
+              :class="{ active: chatsStore.activeChatId === subChat.id }"
+              @click="selectChat(subChat.id)"
+              @contextmenu="showChatContextMenu($event, subChat.id)"
+            >
+              <span class="sub-indicator"></span>
+              <div v-if="isChatGenerating(subChat) && subChat.id !== chatsStore.activeChatId" class="status-dot generating"></div>
+              <span class="chat-title">{{ subChat.title }}</span>
+              <span class="task-status" :class="`status-${subChat.subTask?.status || 'pending'}`">
+                {{ getSubTaskStatusLabel(subChat) }}
+              </span>
             </div>
           </div>
-          <!-- PC Original Minimalist Layout -->
-          <div v-else class="chat-title-container">
-            <div v-if="isChatGenerating(item) && item.id !== chatsStore.activeChatId" class="status-dot generating"></div>
-            <span v-if="!chatsStore.isTitleGenerating(item.id)" class="chat-title">{{
-              item.title
-              }}</span>
-            <div v-else class="chat-title-loading">
-              <div class="loading-spinner-small"></div>
-              <span>标题生成中...</span>
-            </div>
-          </div>
-        </template>
-        <template #actions="{ item }">
-          <span v-if="!isMobile && item.createdAt" class="item-time">{{ formatTime(item.createdAt) }}</span>
-        </template>
-      </List>
+        </div>
+      </div>
     </div>
     <GlobalSearch v-model="showSearch" />
   </aside>
@@ -575,5 +591,107 @@ const isChatGenerating = (chat: Chat) => {
 
 .sidebar:not(.is-mobile) .empty-button {
   margin-top: 8px;
+}
+
+.chat-tree-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chat-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.chat-tree-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.chat-tree-item.active {
+  background-color: var(--bg-active);
+}
+
+.expand-btn,
+.expand-placeholder {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.expand-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.subchat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 18px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.sub-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-color-medium);
+  flex-shrink: 0;
+}
+
+.task-status {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.task-status.status-running {
+  color: var(--color-warning);
+}
+
+.task-status.status-completed {
+  color: var(--color-success);
+}
+
+.task-status.status-failed {
+  color: var(--color-danger);
+}
+
+.item-time {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.chat-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

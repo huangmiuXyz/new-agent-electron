@@ -49,17 +49,20 @@ export const useChat = (chatId: string) => {
   const { getChatById, updateMessageMetadata, updateMessages, shiftPendingMessage } = useChatsStores()
   const { messageScrollRef } = useMessageScroll()
 
-  const { currentSelectedProvider, currentSelectedModel, thinkingMode, speechEnabled, providerOptions } =
+  const { thinkingMode, speechEnabled, providerOptions } =
     storeToRefs(useSettingsStore())
+  const settingsStore = useSettingsStore()
 
-  const agent = useAgentStore()
-  const mcpClient = agent.getMcpByAgent(agent.selectedAgent!.id!).mcpServers
+  const agentStore = useAgentStore()
   const service = chatService()
   const tts = speechService()
-  const mcpTools = agent.selectedAgent!.tools! || []
-  const builtinTools = agent.selectedAgent!.builtinTools! || []
-  const { apiKey, baseUrl, id: provider, providerType } = toRefs(currentSelectedProvider.value!)
-  const { id: model } = toRefs(currentSelectedModel.value!)
+
+  const getChatAgent = (): Agent | null => {
+    const chat = getChatById(chatId)
+    const agentId = chat?.agentId
+    if (!agentId) return null
+    return agentStore.getAgentById(agentId) || null
+  }
 
   const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; isApproval?: boolean }): _useChat<BaseMessage> => {
     const { regenerateMessageId, isApproval } = options || {}
@@ -75,9 +78,7 @@ export const useChat = (chatId: string) => {
 
     return scope.run(() => {
       let processedText = ''
-      let sentenceSegmenter = createSentenceSegmenter(
-        agent.selectedAgent?.speechLanguage
-      )
+      let sentenceSegmenter = createSentenceSegmenter(getChatAgent()?.speechLanguage)
 
       const targetMessageId = ref<string | undefined>(regenerateMessageId)
 
@@ -87,39 +88,49 @@ export const useChat = (chatId: string) => {
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         transport: {
           sendMessages: ({ messages }) => {
+            const runtimeAgent = getChatAgent()
+            const runtimeChat = getChatById(chatId)
+            const providerId = runtimeChat?.providerId
+            const modelId = runtimeChat?.modelId
+            const selectedProvider = providerId ? settingsStore.getProviderById(providerId) : null
+            const selectedModel = providerId && modelId ? settingsStore.getModelById(providerId, modelId).model : null
+            if (!runtimeAgent || !selectedProvider || !selectedModel) {
+              throw new Error('未找到会话绑定的智能体或模型配置')
+            }
+
             processedText = ''
             sentenceSegmenter = createSentenceSegmenter(
-              agent.selectedAgent?.speechLanguage || 'und'
+              runtimeAgent?.speechLanguage || 'und'
             )
 
             return service.createAgent(
               chat.id,
               {
-                model: model.value!,
-                apiKey: apiKey?.value!,
-                baseURL: baseUrl?.value,
-                provider: provider.value,
-                providerType: providerType.value
+                model: modelId!,
+                apiKey: selectedProvider.apiKey!,
+                baseURL: selectedProvider.baseUrl!,
+                provider: providerId!,
+                providerType: selectedProvider.providerType
               },
               messages,
               {
-                mcpClient,
-                instructions: agent.selectedAgent?.systemPrompt,
-                mcpTools,
-                builtinTools,
-                knowledgeBaseIds: agent.selectedAgent?.knowledgeBaseIds,
+                mcpClient: agentStore.getMcpByAgent(runtimeAgent.id).mcpServers,
+                instructions: runtimeAgent?.systemPrompt,
+                mcpTools: runtimeAgent?.tools || [],
+                builtinTools: runtimeAgent?.builtinTools || [],
+                knowledgeBaseIds: runtimeAgent?.knowledgeBaseIds,
                 thinkingMode: thinkingMode.value,
-                ragEnabled: agent.selectedAgent?.ragEnabled,
-                temperature: agent.selectedAgent?.temperature,
-                topP: agent.selectedAgent?.topP,
-                topK: agent.selectedAgent?.topK,
-                presencePenalty: agent.selectedAgent?.presencePenalty,
-                frequencyPenalty: agent.selectedAgent?.frequencyPenalty,
-                maxOutputTokens: agent.selectedAgent?.maxOutputTokens,
-                contextCount: agent.selectedAgent?.contextCount,
-                autoCompressContext: agent.selectedAgent?.autoCompressContext,
-                compressModel: agent.selectedAgent?.compressModel,
-                providerOptions: providerOptions.value[provider.value],
+                ragEnabled: runtimeAgent?.ragEnabled,
+                temperature: runtimeAgent?.temperature,
+                topP: runtimeAgent?.topP,
+                topK: runtimeAgent?.topK,
+                presencePenalty: runtimeAgent?.presencePenalty,
+                frequencyPenalty: runtimeAgent?.frequencyPenalty,
+                maxOutputTokens: runtimeAgent?.maxOutputTokens,
+                contextCount: runtimeAgent?.contextCount,
+                autoCompressContext: runtimeAgent?.autoCompressContext,
+                compressModel: runtimeAgent?.compressModel,
+                providerOptions: providerOptions.value[selectedProvider.id],
                 isApprovalAction: isApproval
               }
             )
@@ -129,7 +140,7 @@ export const useChat = (chatId: string) => {
 
         onFinish: () => {
           if (speechEnabled.value) {
-            const mode = agent.selectedAgent?.speechMode as string
+            const mode = getChatAgent()?.speechMode as string
 
             if (mode === 'sentence') {
               sentenceSegmenter.flush((sentence) => {
@@ -216,7 +227,7 @@ export const useChat = (chatId: string) => {
         newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
       ) => {
         if (!newParts || chat.lastMessage.role !== 'assistant' || !speechEnabled.value) return
-        const mode = agent.selectedAgent?.speechMode as string
+        const mode = getChatAgent()?.speechMode as string
         if (mode === 'full') return
 
         const fullText = getMessageText(chat.lastMessage)
@@ -257,16 +268,17 @@ export const useChat = (chatId: string) => {
   const generateSpeech = async (text: string, message: BaseMessage) => {
     if (!text.trim() || !speechEnabled.value) return
 
-    const voice = agent.selectedAgent?.speechVoice!
-    const speed = agent.selectedAgent?.speechSpeed
-    const language = agent.selectedAgent?.speechLanguage
+    const runtimeAgent = getChatAgent()
+    const voice = runtimeAgent?.speechVoice!
+    const speed = runtimeAgent?.speechSpeed
+    const language = runtimeAgent?.speechLanguage
     const { getModelByVoice } = useSettingsStore()
     const modelInfo = getModelByVoice(voice)
 
     if (!modelInfo) return
 
     const { modelId: targetModelId, providerId: targetProviderId } = modelInfo
-    const rawOptions = agent.selectedAgent?.speechProviderOptions
+    const rawOptions = runtimeAgent?.speechProviderOptions
     const providerOptions = rawOptions?.[targetProviderId] ?? rawOptions
 
     if (!message.metadata) message.metadata = {} as MetaData

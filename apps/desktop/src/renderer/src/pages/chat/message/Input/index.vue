@@ -13,10 +13,6 @@ const { triggerHook } = usePlugins()
 const selectedFiles = ref<Array<UploadFile>>([])
 
 const {
-  currentSelectedModel,
-  selectedModelId,
-  selectedProviderId,
-  currentSelectedProvider,
   thinkingMode,
   speechEnabled,
   providerOptions: allProviderOptions,
@@ -24,8 +20,57 @@ const {
   defaultModels
 } = storeToRefs(useSettingsStore())
 const agentStore = useAgentStore()
-const { selectedAgent } = storeToRefs(agentStore)
 const { updateThinkingMode, updateSpeechEnabled, updateProviderOptions } = useSettingsStore()
+const settingsStore = useSettingsStore()
+const currentChatAgent = computed(() => {
+  const agentId = chatStore.currentChat?.agentId
+  return agentId ? agentStore.getAgentById(agentId) : null
+})
+const chatProviderId = computed({
+  get: () => chatStore.currentChat?.providerId || '',
+  set: (value: string) => {
+    if (!value) return
+    let chatId = chatStore.currentChat?.id
+    if (!chatId) {
+      chatId = chatStore.createChat()
+    }
+    const chat = chatStore.getChatById(chatId)
+    const provider = settingsStore.getProviderById(value)
+    const currentModelId = chat?.modelId
+    const modelExists = !!provider?.models?.some((m) => m.id === currentModelId)
+    const fallbackModelId =
+      provider?.models?.find((m) => m.active && m.category === 'text')?.id ||
+      provider?.models?.[0]?.id ||
+      ''
+    const modelId = modelExists ? currentModelId! : fallbackModelId
+    if (!modelId) return
+    chatStore.setChatModel(chatId, value, modelId)
+  }
+})
+const chatModelId = computed({
+  get: () => chatStore.currentChat?.modelId || '',
+  set: (value: string) => {
+    if (!value) return
+    let chatId = chatStore.currentChat?.id
+    if (!chatId) {
+      chatId = chatStore.createChat()
+    }
+    let providerId = chatStore.currentChat?.providerId
+    if (!providerId || !settingsStore.getProviderById(providerId)?.models?.some((m) => m.id === value)) {
+      const provider = settingsStore.getAllProviders.find((p) => p.models?.some((m) => m.id === value))
+      providerId = provider?.id
+    }
+    if (!providerId) return
+    chatStore.setChatModel(chatId, providerId, value)
+  }
+})
+const currentChatProvider = computed(() => {
+  return chatProviderId.value ? settingsStore.getProviderById(chatProviderId.value) : null
+})
+const currentChatModel = computed(() => {
+  if (!chatProviderId.value || !chatModelId.value) return null
+  return settingsStore.getModelById(chatProviderId.value, chatModelId.value).model
+})
 
 const speechStore = useSpeechStore()
 const modal = useModal()
@@ -35,11 +80,11 @@ const openProviderOptionsModal = () => {
   const schema = (() => {
     try {
       const registry = createRegistry({
-        apiKey: currentSelectedProvider.value?.apiKey || '',
-        baseURL: currentSelectedProvider.value?.baseUrl || '',
-        name: selectedProviderId.value
+        apiKey: currentChatProvider.value?.apiKey || '',
+        baseURL: currentChatProvider.value?.baseUrl || '',
+        name: chatProviderId.value
       })
-      const provider = registry.getProvider(currentSelectedProvider.value?.providerType || '')
+      const provider = registry.getProvider(currentChatProvider.value?.providerType || '')
       return provider?.chatCallOptionsSchema
     } catch (e) {
       console.warn('Failed to get chat options schema:', e)
@@ -59,10 +104,12 @@ const openProviderOptionsModal = () => {
 
   const [FormComponent, formActions] = useForm<Record<string, any>>({
     schemas: schema as z.ZodObject<any>,
-    initialData: allProviderOptions.value[selectedProviderId.value] || {},
+    initialData: allProviderOptions.value[chatProviderId.value] || {},
     size: 'sm',
     onSubmit: (data) => {
-      updateProviderOptions(selectedProviderId.value, data)
+      if (chatProviderId.value) {
+        updateProviderOptions(chatProviderId.value, data)
+      }
       modal.remove()
     }
   })
@@ -166,7 +213,7 @@ const { start: startVoice, stop: stopVoice, state: voiceState, isActive: voiceIs
     const sampleRate = (window as any)._audioSampleRate
     await triggerHook('speech.stream.start', {
       sampleRate,
-      providerId: defaultModels.value.speechProviderId || selectedProviderId.value,
+      providerId: defaultModels.value.speechProviderId || chatProviderId.value,
       onResult: (text: string) => {
         if (text) {
           message.value += (message.value ? ' ' : '') + text
@@ -218,7 +265,7 @@ const toggleSpeech = () => {
       return
     }
 
-    const voice = agentStore.selectedAgent?.speechVoice
+    const voice = currentChatAgent.value?.speechVoice
     if (!voice) {
       messageApi.error('请先在智能体设置或默认设置中选择语音音色')
       return
@@ -256,7 +303,7 @@ const handleEnterKey = () => {
 }
 
 const _sendMessage = async () => {
-  if (!currentSelectedModel.value) {
+  if (!currentChatModel.value) {
     messageApi.error('请先选择模型')
     return
   }
@@ -357,7 +404,7 @@ onUnmounted(() => {
 
       <div class="input-wrapper">
         <textarea ref="textareaRef" class="input-field" rows="1"
-          :placeholder="isProcessingVoice ? '正在处理语音...' : (currentSelectedModel?.name && currentSelectedProvider?.name ? `${selectedAgent?.name} · ${currentSelectedProvider?.name} · ${currentSelectedModel?.name}` : '请选择模型')"
+          :placeholder="isProcessingVoice ? '正在处理语音...' : (currentChatModel?.name && currentChatProvider?.name ? `${currentChatAgent?.name || '未绑定智能体'} · ${currentChatProvider?.name} · ${currentChatModel?.name}` : '请选择模型')"
           v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="handleEnterKey"
           @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
           :disabled="isProcessingVoice"></textarea>
@@ -404,7 +451,7 @@ onUnmounted(() => {
           <!-- 智能体选择器 -->
           <ChatAgentSelector type="icon" />
           <!-- 模型选择器 -->
-          <ModelSelector type="icon" v-model:model-id="selectedModelId" v-model:provider-id="selectedProviderId" />
+          <ModelSelector type="icon" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" />
         </div>
         <Button variant="primary" size="md" @click="_sendMessage">
           {{ isGenerating && pendingMessages.length > 0 ? '加入队列' : '发送' }}

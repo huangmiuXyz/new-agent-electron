@@ -12,6 +12,10 @@ const agentStore = useAgentStore()
 const speechStore = useSpeechStore()
 const chatsStore = useChatsStores()
 const { register, setScope } = useShortcuts()
+const currentChatAgent = computed(() => {
+  const agentId = chatsStore.currentChat?.agentId
+  return agentId ? agentStore.getAgentById(agentId) : null
+})
 
 const VolumeMedium = useIcon('VolumeMedium')
 
@@ -43,10 +47,13 @@ onMounted(() => {
     handler: () => {
       const agents = agentStore.allAgents
       if (agents.length <= 1) return
+      const currentChat = chatsStore.currentChat
+      if (!currentChat?.id || !currentChat.agentId) return
 
-      const currentIndex = agents.findIndex(a => a.id === agentStore.selectedAgentId)
+      const currentIndex = agents.findIndex(a => a.id === currentChat.agentId)
       const nextIndex = (currentIndex + 1) % agents.length
-      agentStore.selectAgent(agents[nextIndex].id)
+      const nextAgentId = agents[nextIndex].id
+      chatsStore.setChatAgent(currentChat.id, nextAgentId)
     }
   })
 
@@ -108,7 +115,7 @@ onMounted(() => {
 <template>
   <div class="chat-app">
     <!-- 背景层 -->
-    <AgentBackground :backgrounds="agentStore.selectedAgent?.backgrounds" />
+    <AgentBackground :backgrounds="currentChatAgent?.backgrounds" />
 
     <!-- 左侧边栏 -->
     <ResizeBox v-if="!isMobile"

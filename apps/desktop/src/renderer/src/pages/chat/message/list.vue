@@ -42,10 +42,11 @@ provide('messageEdit', {
 })
 
 const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
-const { selectedAgent } = storeToRefs(useAgentStore())
+const agentStore = useAgentStore()
 
 const contextCount = computed(() => {
-  return selectedAgent.value?.contextCount ?? 10
+  const agentId = currentChat.value?.agentId
+  return (agentId ? agentStore.getAgentById(agentId)?.contextCount : undefined) ?? 10
 })
 
 // 判断是否存在上下文压缩消息

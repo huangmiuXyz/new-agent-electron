@@ -26,17 +26,41 @@ export const useChatsStores = defineStore(
       return titleGeneratingChats.value.has(chatId)
     }
 
-    const createChat = (title = '新的聊天', options?: { isTemp?: boolean }) => {
-      const agentStore = useAgentStore()
+    const createChat = (
+      title = '新的聊天',
+      options?: {
+        isTemp?: boolean
+        activate?: boolean
+        agentId?: string
+        parentChatId?: string
+        subTask?: SubTaskInfo
+      }
+    ) => {
+      const settingsStore = useSettingsStore()
+      const selectedProviderId = settingsStore.selectedProviderId
+      const selectedModelId = settingsStore.selectedModelId
+      const selectedProvider = settingsStore.getProviderById(selectedProviderId)
+      const selectedProviderHasModel = !!selectedProvider?.models?.some((m) => m.id === selectedModelId)
+      const fallbackProvider = settingsStore.getAllProviders.find(
+        (p) => p.models?.some((m) => m.active && m.category === 'text')
+      )
+      const fallbackModel = fallbackProvider?.models?.find((m) => m.active && m.category === 'text')
+      const providerId = selectedProviderHasModel ? selectedProviderId : fallbackProvider?.id || ''
+      const modelId = selectedProviderHasModel ? selectedModelId : fallbackModel?.id || ''
+
       const id = nanoid()
       const chat: Chat = {
         id,
         title,
         messages: [],
         createdAt: Date.now(),
-        agentId: agentStore.selectedAgentId || 'default',
+        agentId: options?.agentId || 'default',
+        providerId,
+        modelId,
         isTemp: options?.isTemp,
-        pendingMessages: []
+        pendingMessages: [],
+        parentChatId: options?.parentChatId,
+        subTask: options?.subTask
       }
 
       if (options?.isTemp) {
@@ -45,38 +69,61 @@ export const useChatsStores = defineStore(
         chats.value.push(chat)
       }
 
-      activeChatId.value = id
+      if (options?.activate !== false) {
+        activeChatId.value = id
+      }
       return id
     }
     const getChatById = (id: string) => {
       return allChats.value.find((c) => c.id === id)
     }
+    const getDescendantChatIds = (id: string): string[] => {
+      const descendants: string[] = []
+      const queue = [id]
+      while (queue.length > 0) {
+        const currentId = queue.shift()!
+        allChats.value
+          .filter((chat) => chat.parentChatId === currentId)
+          .forEach((child) => {
+            descendants.push(child.id)
+            queue.push(child.id)
+          })
+      }
+      return descendants
+    }
+
     const deleteChat = (id: string) => {
+      const allIds = new Set([id, ...getDescendantChatIds(id)])
 
       const initialLength = chats.value.length
       chats.value = chats.value.filter((c) => {
-        if (c.id === id) {
+        if (allIds.has(c.id)) {
           c.messages.forEach((m) => {
             m.metadata?.stop?.()
           })
         }
-        return c.id !== id
+        return !allIds.has(c.id)
       })
 
 
       if (chats.value.length === initialLength) {
         tempChats.value = tempChats.value.filter((c) => {
-          if (c.id === id) {
+          if (allIds.has(c.id)) {
             c.messages.forEach((m) => {
               m.metadata?.stop?.()
             })
           }
-          return c.id !== id
+          return !allIds.has(c.id)
         })
       }
 
-      if (activeChatId.value === id) {
-        activeChatId.value = allChats.value[0]?.id || null
+      if (activeChatId.value && allIds.has(activeChatId.value)) {
+        const fallbackId = allChats.value[0]?.id || null
+        if (fallbackId) {
+          setActiveChat(fallbackId)
+        } else {
+          activeChatId.value = null
+        }
       }
     }
 
@@ -111,6 +158,69 @@ export const useChatsStores = defineStore(
 
     const setActiveChat = (id: string) => {
       activeChatId.value = id
+    }
+
+    const setChatAgent = (chatId: string, agentId: string) => {
+      const chat = getChatById(chatId)
+      if (!chat) return
+      chat.agentId = agentId
+    }
+
+    const setChatModel = (chatId: string, providerId: string, modelId: string) => {
+      const chat = getChatById(chatId)
+      if (!chat) return
+      chat.providerId = providerId
+      chat.modelId = modelId
+    }
+
+    const getChildChats = (parentChatId: string) => {
+      return allChats.value
+        .filter((chat) => chat.parentChatId === parentChatId)
+        .sort((a, b) => a.createdAt - b.createdAt)
+    }
+
+    const getRootChats = () => {
+      return allChats.value
+        .filter((chat) => !chat.parentChatId)
+        .sort((a, b) => b.createdAt - a.createdAt)
+    }
+
+    const createSubChat = (options: {
+      parentChatId: string
+      task: string
+      agentId: string
+      title?: string
+      activate?: boolean
+      isTemp?: boolean
+    }) => {
+      const taskId = nanoid()
+      const now = Date.now()
+      const chatId = createChat(options.title || `子任务: ${options.task.slice(0, 20)}`, {
+        isTemp: options.isTemp,
+        activate: options.activate,
+        agentId: options.agentId,
+        parentChatId: options.parentChatId,
+        subTask: {
+          id: taskId,
+          task: options.task,
+          status: 'running',
+          assignedByChatId: options.parentChatId,
+          assignedToAgentId: options.agentId,
+          assignedAt: now,
+          startedAt: now
+        }
+      })
+      return { chatId, taskId }
+    }
+
+    const updateSubTask = (
+      chatId: string,
+      updater: Partial<SubTaskInfo> | ((task: SubTaskInfo) => SubTaskInfo)
+    ) => {
+      const chat = getChatById(chatId)
+      if (!chat?.subTask) return
+      chat.subTask =
+        typeof updater === 'function' ? updater(chat.subTask) : { ...chat.subTask, ...updater }
     }
 
     const updateMessage = (cid: string, mid: string, newParts: any[]) => {
@@ -223,6 +333,12 @@ export const useChatsStores = defineStore(
       deleteChat,
       renameChat,
       setActiveChat,
+      setChatAgent,
+      setChatModel,
+      getRootChats,
+      getChildChats,
+      createSubChat,
+      updateSubTask,
       addMessageToChat,
       getChatById,
       deleteMessage,

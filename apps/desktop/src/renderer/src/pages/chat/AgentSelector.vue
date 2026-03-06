@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const agentStore = useAgentStore()
-const { allAgents, selectedAgentId, tempAgents } = storeToRefs(agentStore)
+const chatsStore = useChatsStores()
+const { allAgents, tempAgents } = storeToRefs(agentStore)
 const settingsStore = useSettingsStore()
 const { mcpServers } = storeToRefs(settingsStore)
 withDefaults(
@@ -22,7 +23,11 @@ const { Robot, ChevronDown, Wrench20Regular, Check, Edit } = useIcon([
   'Edit'
 ])
 
-const selectedAgent = computed(() => agentStore.selectedAgent)
+const selectedAgent = computed(() => {
+  const currentAgentId = chatsStore.currentChat?.agentId
+  if (!currentAgentId) return null
+  return agentStore.getAgentById(currentAgentId) || null
+})
 
 const selectedAgentLabel = computed(() => {
   const agent = selectedAgent.value
@@ -47,12 +52,14 @@ watch(isPopupOpen, (val) => {
 })
 
 const selectAgent = (agentId: string) => {
-  agentStore.selectAgent(agentId)
+  const currentChatId = chatsStore.currentChat?.id
+  if (!currentChatId) return
+  chatsStore.setChatAgent(currentChatId, agentId)
   isPopupOpen.value = false
 }
 
 const isAgentSelected = (agentId: string) => {
-  return agentId === selectedAgentId.value
+  return agentId === chatsStore.currentChat?.agentId
 }
 const { openAgentModal } = useAgent()
 </script>

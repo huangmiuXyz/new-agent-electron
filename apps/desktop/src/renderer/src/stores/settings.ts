@@ -329,8 +329,41 @@ export const useSettingsStore = defineStore(
       return [...providers.value, ...registeredProviders.value] as Provider[]
     })
 
-    const selectedModelId = ref<string>('deepseek-chat')
-    const selectedProviderId = ref<string>('深度探索')
+    const selectedProviderId = computed<string>({
+      get: () => {
+        const chatStore = useChatsStores()
+        return chatStore.currentChat?.providerId || ''
+      },
+      set: (providerId: string) => {
+        const chatStore = useChatsStores()
+        const chat = chatStore.currentChat
+        if (!chat?.id || !providerId) return
+
+        const provider = getAllProviders.value.find((p) => p.id === providerId)
+        const currentModelId = chat.modelId
+        const currentExists = provider?.models?.some((m) => m.id === currentModelId)
+        const nextModelId =
+          (currentExists ? currentModelId : undefined) ||
+          provider?.models?.find((m) => m.active && m.category === 'text')?.id ||
+          provider?.models?.[0]?.id
+
+        if (!nextModelId) return
+        chatStore.setChatModel(chat.id, providerId, nextModelId)
+      }
+    })
+    const selectedModelId = computed<string>({
+      get: () => {
+        const chatStore = useChatsStores()
+        return chatStore.currentChat?.modelId || ''
+      },
+      set: (modelId: string) => {
+        const chatStore = useChatsStores()
+        const chat = chatStore.currentChat
+        const providerId = chat?.providerId
+        if (!chat?.id || !providerId || !modelId) return
+        chatStore.setChatModel(chat.id, providerId, modelId)
+      }
+    })
     const currentSelectedProvider = computed(() => {
       return getAllProviders.value.find((p) => p.id === selectedProviderId.value)
     })
@@ -478,8 +511,6 @@ export const useSettingsStore = defineStore(
         'thinkingMode',
         'speechEnabled',
         'providerOptions',
-        'selectedModelId',
-        'selectedProviderId',
         'imageGenerationForm',
         'videoGenerationForm',
         'shortcuts'

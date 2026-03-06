@@ -1,7 +1,229 @@
 import { z } from 'zod'
 import { createLoadSkillTool, type SkillMetadata } from '../../skillsService'
 
+const createAgentCommunicateTool = (): Tool => ({
+  title: '智能体通信',
+  description: '在主智能体与子智能体之间发送消息，消息会进入目标会话的通信队列',
+  inputSchema: z.object({
+    message: z.string().describe('发送内容'),
+    targetAgentName: z
+      .string()
+      .optional()
+      .describe('目标子智能体名称。子智能体可不传（默认发给主智能体）；主智能体回信时建议提供'),
+    isFinal: z.boolean().optional().default(false).describe('是否为最终结论'),
+    success: z.boolean().optional().default(true).describe('最终结论是否成功（isFinal=true 时生效）'),
+    error: z.string().optional().describe('失败原因（isFinal=true 且 success=false 时建议填写）')
+  }),
+  execute: async (args: unknown, options: { chatId: string }) => {
+    const params = args as Record<string, any>
+    const chatsStore = useChatsStores()
+    const senderChat = chatsStore.getChatById(options.chatId)
+    if (!senderChat) {
+      return { toolResult: { content: [{ type: 'text', text: '通信失败：未找到当前会话。' }] } }
+    }
+
+    const message = String(params.message || '').trim()
+    if (!message) {
+      return { toolResult: { content: [{ type: 'text', text: '通信失败：message 不能为空。' }] } }
+    }
+
+    const agentStore = useAgentStore()
+    const senderAgentName =
+      agentStore.getAgentById(senderChat.agentId || '')?.name || senderChat.title || '未知智能体'
+    const isSubSender = !!senderChat.parentChatId
+    const targetAgentName = String(params.targetAgentName || '').trim()
+
+    let targetChatId = ''
+    let targetAgentLabel = ''
+    if (isSubSender) {
+      targetChatId = senderChat.parentChatId!
+      const targetChat = chatsStore.getChatById(targetChatId)
+      targetAgentLabel =
+        agentStore.getAgentById(targetChat?.agentId || '')?.name || targetChat?.title || '主智能体'
+    } else {
+      const childChats = chatsStore.getChildChats(senderChat.id)
+      if (childChats.length === 0) {
+        return { toolResult: { content: [{ type: 'text', text: '通信失败：当前主会话没有可通信的子智能体。' }] } }
+      }
+
+      const candidates = childChats.filter((chat) => {
+        const name = agentStore.getAgentById(chat.agentId || '')?.name || chat.title || ''
+        return !targetAgentName || name === targetAgentName
+      })
+
+      if (candidates.length === 0) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: `通信失败：未找到名称为「${targetAgentName}」的子智能体会话。` }]
+          }
+        }
+      }
+
+      const running = candidates.filter((chat) => chat.subTask?.status === 'running')
+      const selected = [...(running.length > 0 ? running : candidates)].sort(
+        (a, b) => b.createdAt - a.createdAt
+      )[0]
+      targetChatId = selected.id
+      targetAgentLabel =
+        agentStore.getAgentById(selected.agentId || '')?.name || selected.title || '子智能体'
+    }
+
+    if (!targetChatId) {
+      return { toolResult: { content: [{ type: 'text', text: '通信失败：无法确定目标智能体。' }] } }
+    }
+
+    const targetChat = chatsStore.getChatById(targetChatId)
+    if (!targetChat) {
+      return { toolResult: { content: [{ type: 'text', text: '通信失败：目标智能体会话不存在。' }] } }
+    }
+
+    if (!isSubSender && targetChat.parentChatId !== senderChat.id) {
+      return {
+        toolResult: {
+          content: [{ type: 'text', text: '通信失败：主智能体仅允许向当前会话的子会话发送消息。' }]
+        }
+      }
+    }
+
+    const isFinal = params.isFinal === true
+    const success = params.success !== false
+    const status: SubTaskStatus = isFinal ? (success ? 'completed' : 'failed') : 'running'
+
+    const noticeText =
+      `[智能体通信]\n` +
+      `来自: ${senderAgentName}\n` +
+      `状态: ${status}\n` +
+      `消息: ${message}` +
+      (isFinal && !success ? `\n错误: ${String(params.error || '未知错误')}` : '')
+
+    chatsStore.addPendingMessage(targetChatId, [{ type: 'text', text: noticeText }])
+
+    if (isSubSender && senderChat.subTask && isFinal) {
+      chatsStore.updateSubTask(senderChat.id, {
+        status,
+        completedAt: Date.now(),
+        result: message,
+        error: success ? undefined : String(params.error || '子任务执行失败')
+      })
+    }
+
+    if (!chatsStore.isChatGenerating(targetChatId)) {
+      const queued = chatsStore.shiftPendingMessage(targetChatId)
+      const parts = queued?.parts
+      if (parts) {
+        setTimeout(() => {
+          useChat(targetChatId).sendMessages(parts)
+        }, 0)
+      }
+    }
+
+    return {
+      toolResult: {
+        content: [
+          {
+            type: 'text',
+            text:
+              `通信已发送并写入目标队列。\n` +
+              `目标智能体: ${targetAgentLabel}\n` +
+              `isFinal: ${isFinal}\n` +
+              `status: ${status}`
+          }
+        ]
+      }
+    }
+  }
+})
+
 export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> => ({
+  delegate_to_sub_agent: {
+    title: '分派子智能体任务',
+    description: '主智能体将任务异步分派给子智能体执行，立即返回，不阻塞当前会话',
+    inputSchema: z.object({
+      task: z.string().describe('要分派给子智能体的任务内容'),
+      agentName: z.string().optional().describe('子智能体名称，建议明确指定'),
+      title: z.string().optional().describe('子会话标题'),
+      switchToSubChat: z.boolean().optional().default(false).describe('是否切换到子会话')
+    }),
+    execute: async (args: unknown, options: { chatId: string }) => {
+      const params = args as Record<string, any>
+      const task = String(params.task || '').trim()
+      if (!task) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: '分派失败：task 不能为空。' }]
+          }
+        }
+      }
+
+      const chatsStore = useChatsStores()
+      const agentStore = useAgentStore()
+      const parentChat = chatsStore.getChatById(options.chatId)
+      if (!parentChat) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: '分派失败：未找到当前主会话。' }]
+          }
+        }
+      }
+
+      const requestedAgentName = String(params.agentName || '').trim()
+      const availableAgents = agentStore.allAgents.filter((agent) => agent.id !== parentChat.agentId)
+      const targetAgent = requestedAgentName
+        ? availableAgents.find((agent) => agent.name === requestedAgentName)
+        : availableAgents[0]
+      if (!targetAgent) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: `分派失败：未找到名称为「${requestedAgentName}」的子智能体。` }]
+          }
+        }
+      }
+
+      const { chatId: subChatId } = chatsStore.createSubChat({
+        parentChatId: parentChat.id,
+        task,
+        agentId: targetAgent.id,
+        title: params.title || `${targetAgent.name} · 子任务`,
+        activate: !!params.switchToSubChat
+      })
+
+      const childPrompt =
+        `你是子智能体，正在执行主智能体分配的任务。\n` +
+        `主智能体: ${agentStore.getAgentById(parentChat.agentId || '')?.name || parentChat.title}\n\n` +
+        `任务内容:\n${task}\n\n` +
+        `要求：默认不要中途通信以节省 token。\n` +
+        `仅在任务阻塞、需要主智能体决策、或发现高风险问题时，才调用 agent_communicate。\n` +
+        `如需中途通信，请合并关键信息一次发送，避免频繁小消息。\n` +
+        `任务结束时必须调用一次 agent_communicate 回传最终结果，并设置 isFinal=true。\n` +
+        `成功请设置 success=true 并在 message 写最终结论；失败请设置 success=false 并填写 error。`
+
+      setTimeout(() => {
+        useChat(subChatId).sendMessages(childPrompt).catch((error) => {
+          chatsStore.updateSubTask(subChatId, {
+            status: 'failed',
+            completedAt: Date.now(),
+            error: (error as Error).message
+          })
+        })
+      }, 0)
+
+      return {
+        toolResult: {
+          content: [
+            {
+              type: 'text',
+              text:
+                `子智能体任务已创建并开始异步执行。\n` +
+                `- 子智能体: ${targetAgent.name}\n` +
+                `- 子任务: ${params.title || `${targetAgent.name} · 子任务`}\n` +
+                `说明：任务执行不会阻塞当前主智能体，主子智能体统一使用 agent_communicate 通信。`
+            }
+          ]
+        }
+      }
+    }
+  },
+  agent_communicate: createAgentCommunicateTool(),
   mcp_installer: {
     description: '自动添加MCP服务器配置到系统中，支持stdio、http和sse传输方式',
     inputSchema: z.object({
