@@ -47,7 +47,11 @@ onMounted(() => {
     handler: () => {
       const agents = agentStore.allAgents
       if (agents.length <= 1) return
-      const currentChat = chatsStore.currentChat
+      let currentChat = chatsStore.currentChat
+      if (!currentChat?.id) {
+        const chatId = chatsStore.createChat()
+        currentChat = chatsStore.getChatById(chatId) || null
+      }
       if (!currentChat?.id || !currentChat.agentId) return
 
       const currentIndex = agents.findIndex(a => a.id === currentChat.agentId)
