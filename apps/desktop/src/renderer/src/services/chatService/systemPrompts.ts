@@ -1,16 +1,3 @@
-import type { SkillMetadata } from '../skillsService'
-
-const SKILL_FILE_NAME = 'SKILL.md'
-
-function escapeXml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&apos;')
-}
-
 const buildSubAgentSystemPrompt = (currentChat: Chat): string => {
   const taskInfo = currentChat.subTask ? `任务内容: ${currentChat.subTask.task}\n` : ''
   return (
@@ -99,30 +86,4 @@ ${contextToCompress}
 
 export const buildTranslationPrompt = (text: string, targetLanguage: string): string => {
   return `请将以下文本翻译为${targetLanguage}，只返回翻译结果，不要添加任何解释或额外内容：\n\n${text}`
-}
-
-export const buildSkillsPrompt = (skills: SkillMetadata[]): string => {
-  if (skills.length === 0) {
-    return ''
-  }
-
-  const skillsXml = skills
-    .map((s) => [
-      '  <skill>',
-      `    <name>${escapeXml(s.name)}</name>`,
-      `    <description>${escapeXml(s.description)}</description>`,
-      `    <location>${escapeXml(window.api.path.join(s.path, SKILL_FILE_NAME))}</location>`,
-      '  </skill>'
-    ].join('\n'))
-    .join('\n')
-
-  return [
-    '## Skills',
-    'Use the `loadSkill` tool when a user request would benefit from specialized instructions.',
-    'After loading a skill, open referenced files under the returned skill directory when needed.',
-    '',
-    '<available_skills>',
-    skillsXml,
-    '</available_skills>'
-  ].join('\n')
 }
