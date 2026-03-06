@@ -137,6 +137,7 @@ const CloseIcon = useIcon('Close')
 const PendingIcon = useIcon('FormatListBulleted')
 const SettingsIcon = useIcon('Settings')
 const PlaylistIcon = useIcon('Menu')
+const StopIcon = useIcon('Stop')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -155,6 +156,11 @@ const isGenerating = computed(() => {
   return chatStore.isChatGenerating(chatStore.currentChat.id)
 })
 
+const isScopeGenerating = computed(() => {
+  if (!chatStore.currentChat) return false
+  return chatStore.isChatScopeGenerating(chatStore.currentChat.id)
+})
+
 // 处理文件选择
 const handleFilesSelected = (files: Array<UploadFile>) => {
   selectedFiles.value.push(...files)
@@ -169,6 +175,12 @@ const handleFileRemoved = (index: number) => {
 const removePendingMessage = (messageId: string) => {
   if (!chatStore.currentChat) return
   chatStore.removePendingMessage(chatStore.currentChat.id, messageId)
+}
+
+const stopAllGeneratingInCurrentChat = () => {
+  const chatId = chatStore.currentChat?.id
+  if (!chatId) return
+  chatStore.stopGeneratingInChatScope(chatId)
 }
 
 // 获取预发送消息的文本预览
@@ -448,14 +460,28 @@ onUnmounted(() => {
             <PlaylistIcon />
           </Button>
 
+          <!-- 停止当前会话内全部生成 -->
+          <Button
+            v-if="isScopeGenerating"
+            variant="icon"
+            size="sm"
+            class="stop-all-btn"
+            title="停止当前聊天内全部生成"
+            @click="stopAllGeneratingInCurrentChat"
+          >
+            <StopIcon />
+          </Button>
+
           <!-- 智能体选择器 -->
           <ChatAgentSelector type="icon" />
           <!-- 模型选择器 -->
           <ModelSelector type="icon" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" />
         </div>
-        <Button variant="primary" size="md" @click="_sendMessage">
-          {{ isGenerating && pendingMessages.length > 0 ? '加入队列' : '发送' }}
-        </Button>
+        <div class="action-right">
+          <Button variant="primary" size="md" @click="_sendMessage">
+            {{ isGenerating && pendingMessages.length > 0 ? '加入队列' : '发送' }}
+          </Button>
+        </div>
       </div>
 
       <!-- 拖拽提示 -->
@@ -656,6 +682,21 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.action-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stop-all-btn {
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+}
+
+.stop-all-btn:hover {
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
 }
 
 .thinking-active {

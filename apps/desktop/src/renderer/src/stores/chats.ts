@@ -321,6 +321,25 @@ export const useChatsStores = defineStore(
       return chat.messages.some(m => m.metadata?.loading && m.metadata.stop)
     }
 
+    const isChatScopeGenerating = (chatId: string): boolean => {
+      const allIds = [chatId, ...getDescendantChatIds(chatId)]
+      return allIds.some(id => isChatGenerating(id))
+    }
+
+    const stopGeneratingInChatScope = (chatId: string) => {
+      const allIds = [chatId, ...getDescendantChatIds(chatId)]
+      allIds.forEach((id) => {
+        const chat = getChatById(id)
+        if (!chat) return
+        chat.messages.forEach((m) => {
+          if (m.metadata?.loading && m.metadata?.stop) {
+            m.metadata.stop()
+          }
+        })
+        chat.pendingMessages = []
+      })
+    }
+
     return {
       forkChat,
       updateMessages,
@@ -353,6 +372,8 @@ export const useChatsStores = defineStore(
       clearPendingMessages,
       shiftPendingMessage,
       isChatGenerating,
+      isChatScopeGenerating,
+      stopGeneratingInChatScope,
       isAfterRestore
     }
   },
