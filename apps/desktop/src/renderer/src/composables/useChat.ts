@@ -57,6 +57,16 @@ export const useChat = (chatId: string) => {
   const service = chatService()
   const tts = speechService()
 
+  const scheduleNextPendingMessage = () => {
+    const pendingMessage = shiftPendingMessage(chatId)
+    if (!pendingMessage) return
+
+    setTimeout(() => {
+      const { sendMessages } = useChat(chatId)
+      sendMessages(pendingMessage.parts)
+    }, 100)
+  }
+
   const getChatAgent = (): Agent | null => {
     const chat = getChatById(chatId)
     const agentId = chat?.agentId
@@ -157,19 +167,14 @@ export const useChat = (chatId: string) => {
 
           useTitle(chatId).generateTitle()
           scope.stop()
-
-          const pendingMessage = shiftPendingMessage(chatId)
-          if (pendingMessage) {
-            setTimeout(() => {
-              const { sendMessages } = useChat(chatId)
-              sendMessages(pendingMessage.parts)
-            }, 100)
-          }
+          scheduleNextPendingMessage()
         },
 
         onError: (error) => {
           console.log(error);
           syncMessageToStore(error as APICallError)
+          scope.stop()
+          scheduleNextPendingMessage()
         }
       })
 

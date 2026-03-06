@@ -46,6 +46,25 @@ const createAgentCommunicateTool = (): Tool => ({
         return { toolResult: { content: [{ type: 'text', text: '通信失败：当前主会话没有可通信的子智能体。' }] } }
       }
 
+      if (!targetAgentName) {
+        const candidateNames = childChats
+          .map((chat) => agentStore.getAgentById(chat.agentId || '')?.name || chat.title || '')
+          .filter(Boolean)
+        const uniqueNames = Array.from(new Set(candidateNames))
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text:
+                  `通信失败：主智能体存在多个可通信子会话，请明确传入 targetAgentName 以避免误投。\n` +
+                  `可选目标: ${uniqueNames.join('、') || '（无）'}`
+              }
+            ]
+          }
+        }
+      }
+
       const candidates = childChats.filter((chat) => {
         const name = agentStore.getAgentById(chat.agentId || '')?.name || chat.title || ''
         return !targetAgentName || name === targetAgentName
