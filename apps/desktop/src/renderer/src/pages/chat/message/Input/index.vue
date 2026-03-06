@@ -138,6 +138,7 @@ const PendingIcon = useIcon('FormatListBulleted')
 const SettingsIcon = useIcon('Settings')
 const PlaylistIcon = useIcon('Menu')
 const StopIcon = useIcon('Stop')
+const ChevronDown = useIcon('ChevronDown')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -207,6 +208,7 @@ const isListening = ref(false)
 const isProcessingVoice = ref(false)
 
 const partialSpeechText = ref('')
+const showMobileTools = ref(false)
 
 const { start: startVoice, stop: stopVoice, state: voiceState, isActive: voiceIsActive } = useContinuousVoiceRecorder({
   volumeThreshold: 0.02,
@@ -298,6 +300,20 @@ const adjustTextareaHeight = (event: Event) => {
 }
 
 const isComposing = ref(false)
+
+const desktopPlaceholder = computed(() => {
+  if (isProcessingVoice.value) return '正在处理语音...'
+  if (currentChatModel.value?.name && currentChatProvider.value?.name) {
+    return `${currentChatAgent.value?.name || '未绑定智能体'} · ${currentChatProvider.value.name} · ${currentChatModel.value.name}`
+  }
+  return '请选择模型'
+})
+
+const mobilePlaceholder = computed(() => {
+  if (isProcessingVoice.value) return '正在处理语音...'
+  if (currentChatModel.value?.name) return `${currentChatAgent.value?.name || '对话'} · ${currentChatModel.value.name}`
+  return '发消息或按住说话...'
+})
 
 const handleCompositionStart = () => {
   isComposing.value = true
@@ -414,53 +430,117 @@ onUnmounted(() => {
       <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
         @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
-      <div class="input-wrapper">
-        <textarea ref="textareaRef" class="input-field" rows="1"
-          :placeholder="isProcessingVoice ? '正在处理语音...' : (currentChatModel?.name && currentChatProvider?.name ? `${currentChatAgent?.name || '未绑定智能体'} · ${currentChatProvider?.name} · ${currentChatModel?.name}` : '请选择模型')"
-          v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="handleEnterKey"
-          @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
-          :disabled="isProcessingVoice"></textarea>
-        <div v-if="partialSpeechText" class="partial-text">{{ partialSpeechText }}</div>
+      <div v-if="!isMobile">
+        <div class="input-wrapper">
+          <textarea ref="textareaRef" class="input-field" rows="1"
+            :placeholder="desktopPlaceholder"
+            v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="handleEnterKey"
+            @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
+            :disabled="isProcessingVoice"></textarea>
+          <div v-if="partialSpeechText" class="partial-text">{{ partialSpeechText }}</div>
+        </div>
+
+        <div class="input-actions">
+          <div class="action-left">
+            <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
+              <FileUploadIcon />
+            </Button>
+            <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
+              @click="updateThinkingMode(!thinkingMode)" title="思考模式">
+              <Bulb />
+            </Button>
+
+            <Button variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
+              <SettingsIcon />
+            </Button>
+
+            <Button variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }" @click="toggleVoiceRecording"
+              :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'">
+              <MicIcon v-if="!voiceIsActive" />
+              <MicOffIcon v-else />
+            </Button>
+
+            <Button variant="icon" size="sm" :class="{ 'speech-active': speechEnabled }" @click="toggleSpeech"
+              :title="speechEnabled ? '关闭语音播报' : '开启语音播报'">
+              <VolumeIcon v-if="speechEnabled" />
+              <VolumeMuteIcon v-else />
+            </Button>
+
+            <Button variant="icon" size="sm" :class="{ 'speech-active': !display.speechSidebarCollapsed }"
+              @click="() => { display.speechSidebarCollapsed = !display.speechSidebarCollapsed }"
+              :title="display.speechSidebarCollapsed ? '打开播放列表' : '关闭播放列表'">
+              <PlaylistIcon />
+            </Button>
+
+            <Button
+              v-if="isScopeGenerating"
+              variant="icon"
+              size="sm"
+              class="stop-all-btn"
+              title="停止当前聊天内全部生成"
+              @click="stopAllGeneratingInCurrentChat"
+            >
+              <StopIcon />
+            </Button>
+
+            <ChatAgentSelector type="icon" />
+            <ModelSelector type="icon" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" />
+          </div>
+          <div class="action-right">
+            <Button variant="primary" size="md" @click="_sendMessage">
+              {{ isGenerating && pendingMessages.length > 0 ? '加入队列' : '发送' }}
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <div class="input-actions">
-        <div class="action-left">
+      <div v-else>
+        <div class="mobile-input-bar">
           <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
             <FileUploadIcon />
           </Button>
-          <!-- 思考模式按钮 -->
-          <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
-            @click="updateThinkingMode(!thinkingMode)" title="思考模式">
-            <Bulb />
-          </Button>
-
-          <!-- 提供商参数设置按钮 -->
-          <Button variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
-            <SettingsIcon />
-          </Button>
-
-          <!-- 语音录制按钮 -->
+          <div class="mobile-input-wrapper">
+            <textarea ref="textareaRef" class="input-field mobile-input-field" rows="1"
+              :placeholder="mobilePlaceholder"
+              v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="handleEnterKey"
+              @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
+              :disabled="isProcessingVoice"></textarea>
+            <div v-if="partialSpeechText" class="partial-text mobile-partial-text">{{ partialSpeechText }}</div>
+          </div>
           <Button variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }" @click="toggleVoiceRecording"
             :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'">
             <MicIcon v-if="!voiceIsActive" />
             <MicOffIcon v-else />
           </Button>
+          <Button variant="icon" size="sm" @click="showMobileTools = !showMobileTools"
+            :title="showMobileTools ? '收起工具' : '展开工具'">
+            <ChevronDown :class="{ 'mobile-toggle-open': showMobileTools }" />
+          </Button>
+          <Button variant="primary" size="sm" class="mobile-send-btn" @click="_sendMessage">
+            {{ isGenerating && pendingMessages.length > 0 ? '队列' : '发送' }}
+          </Button>
+        </div>
 
-          <!-- 文字转语音按钮 -->
+        <div v-if="showMobileTools" class="mobile-tools-panel">
+          <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
+            @click="updateThinkingMode(!thinkingMode)" title="思考模式">
+            <Bulb />
+          </Button>
+          <Button variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
+            <SettingsIcon />
+          </Button>
           <Button variant="icon" size="sm" :class="{ 'speech-active': speechEnabled }" @click="toggleSpeech"
             :title="speechEnabled ? '关闭语音播报' : '开启语音播报'">
             <VolumeIcon v-if="speechEnabled" />
             <VolumeMuteIcon v-else />
           </Button>
-
-          <!-- 播放列表按钮 -->
           <Button variant="icon" size="sm" :class="{ 'speech-active': !display.speechSidebarCollapsed }"
             @click="() => { display.speechSidebarCollapsed = !display.speechSidebarCollapsed }"
             :title="display.speechSidebarCollapsed ? '打开播放列表' : '关闭播放列表'">
             <PlaylistIcon />
           </Button>
-
-          <!-- 停止当前会话内全部生成 -->
+          <ChatAgentSelector type="icon" />
+          <ModelSelector type="icon" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" />
           <Button
             v-if="isScopeGenerating"
             variant="icon"
@@ -471,17 +551,8 @@ onUnmounted(() => {
           >
             <StopIcon />
           </Button>
+        </div>
 
-          <!-- 智能体选择器 -->
-          <ChatAgentSelector type="icon" />
-          <!-- 模型选择器 -->
-          <ModelSelector type="icon" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" />
-        </div>
-        <div class="action-right">
-          <Button variant="primary" size="md" @click="_sendMessage">
-            {{ isGenerating && pendingMessages.length > 0 ? '加入队列' : '发送' }}
-          </Button>
-        </div>
       </div>
 
       <!-- 拖拽提示 -->
@@ -729,6 +800,105 @@ onUnmounted(() => {
 
   50% {
     opacity: 0.6;
+  }
+}
+
+.mobile-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color-light);
+  border-radius: 16px;
+  padding: 7px;
+}
+
+.mobile-input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+}
+
+.mobile-input-field {
+  min-height: 38px;
+  font-size: 14px;
+  padding: 8px 8px;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.mobile-partial-text {
+  top: 7px;
+}
+
+.mobile-tools-panel {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(40px, 1fr));
+  justify-items: center;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color-light);
+  background: var(--bg-input);
+}
+
+.mobile-send-btn {
+  flex-shrink: 0;
+  border-radius: 12px;
+  min-width: 58px;
+  height: 40px;
+}
+
+.mobile-toggle-open {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+@media (max-width: 767px) {
+  .footer {
+    padding: 8px;
+  }
+
+  .input-container {
+    border-radius: 22px;
+    padding: 10px;
+    background: var(--bg-card);
+    border: none;
+    box-shadow: none;
+  }
+
+  .mobile-tools-panel :deep(button),
+  .mobile-input-bar :deep(button:not(.mobile-send-btn)) {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+  }
+}
+
+:global(.dark-mode) .mobile-input-bar {
+  background: color-mix(in srgb, var(--bg-card) 82%, #141519);
+  border-color: var(--border-subtle);
+}
+
+:global(.dark-mode) .mobile-tools-panel {
+  background: color-mix(in srgb, var(--bg-card) 82%, #141519);
+  border-color: var(--border-subtle);
+}
+
+@media (max-width: 767px) {
+  :global(.dark-mode) .input-container {
+    background: color-mix(in srgb, var(--bg-input) 45%, #101114);
+    border: none;
+    box-shadow: none;
   }
 }
 </style>
