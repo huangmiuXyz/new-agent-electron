@@ -59,7 +59,7 @@ const assertPatchHeader = (patch: string) => {
   }
 }
 
-const parsePatchDocument = (rawPatch: string): ParsedPatchHunk[] => {
+export const parsePatchDocument = (rawPatch: string): ParsedPatchHunk[] => {
   const patch = normalizePatchText(rawPatch)
   assertPatchHeader(patch)
 
@@ -213,7 +213,7 @@ const findBlockIndex = (contentLines: string[], block: string[], from: number): 
   return fromIndex > 0 ? findInRange(0) : -1
 }
 
-const applyUpdateChunks = (original: string, chunks: PatchChunk[]): string => {
+export const applyUpdateChunks = (original: string, chunks: PatchChunk[]): string => {
   const normalizedOriginal = normalizePatchText(original)
   const lines = normalizedOriginal.split('\n')
   let cursor = 0
