@@ -701,6 +701,12 @@ const VoiceTable = defineComponent({
 </template>
 
 <style scoped>
+.font-mono,
+:deep(.setting-form-container),
+:deep(.setting-content) {
+  min-height: 0;
+}
+
 .font-mono {
   font-family: var(--font-mono, monospace);
 }

@@ -34,6 +34,7 @@ withDefaults(defineProps<Props>(), {
   display: flex;
   flex-direction: column;
   width: 100%;
+  min-height: 0;
 }
 
 .settings-header {
@@ -48,7 +49,11 @@ withDefaults(defineProps<Props>(), {
 
 .setting-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding: 20px 20px;
 }
 

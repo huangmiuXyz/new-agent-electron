@@ -31,16 +31,31 @@ setTitle(route.query.name as string)
     background: var(--bg-card);
     display: flex;
     flex-direction: column;
+    min-height: 0;
 }
 
 .detail-content {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }
 
 /* Ensure inner components take full height if needed */
 :deep(.detail-content > *) {
-    flex: 1;
-    overflow: hidden;
+    min-height: 0;
+}
+
+:deep(.setting-form-container) {
+    height: auto !important;
+    min-height: 100%;
+}
+
+:deep(.setting-content) {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0;
 }
 </style>

@@ -167,7 +167,11 @@ const handleAction = (
 <style scoped>
 .list-scroll-area {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   position: relative;
 }
 
@@ -188,6 +192,7 @@ const handleAction = (
 
 .list-container {
   height: 100%;
+  min-height: 0;
   background-color: var(--bg-card);
   z-index: 2;
   display: flex;
