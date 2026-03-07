@@ -467,7 +467,7 @@ const plugin: Plugin = {
       })
       await modal.confirm({
         title: '模型加载',
-        width: '1180px',
+        width: '90%',
         modalBodyStyle: { overflowY: 'hidden' },
         showCancel: false,
         confirmText: '关闭',
