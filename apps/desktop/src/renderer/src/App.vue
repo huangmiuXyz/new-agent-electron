@@ -104,10 +104,27 @@ const isStoreReady = computed(() => {
 })
 
 // 处理移动端键盘弹出时视口高度变化
+const getAndroidSafeAreaBottom = () => {
+  const isAndroidPlatform = /android/i.test(navigator.userAgent)
+  if (!isAndroidPlatform) return 0
+
+  const viewport = window.visualViewport
+  if (!viewport) return 12
+
+  const viewportBottom = viewport.height + viewport.offsetTop
+  const occludedBottom = Math.max(0, window.innerHeight - viewportBottom)
+
+  // Keyboard open: avoid inflating bottom safe area with IME height.
+  if (occludedBottom >= 120) return 0
+
+  return Math.max(12, Math.min(occludedBottom, 32))
+}
+
 const updateViewportHeight = () => {
   if (isMobile.value) {
     const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight
     document.documentElement.style.setProperty('--vh', `${vh}px`)
+    document.documentElement.style.setProperty('--safe-area-bottom', `${getAndroidSafeAreaBottom()}px`)
 
     // 强制滚动到顶部，防止键盘弹出导致页面偏移
     if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
@@ -115,6 +132,7 @@ const updateViewportHeight = () => {
     }
   } else {
     document.documentElement.style.setProperty('--vh', '100%')
+    document.documentElement.style.setProperty('--safe-area-bottom', '0px')
   }
 }
 
@@ -353,6 +371,7 @@ const handleTouchEnd = (e: TouchEvent) => {
   --color-warning-rgb: 245, 158, 11;
   --color-danger-rgb: 239, 68, 68;
   --color-info-rgb: 59, 130, 246;
+  --safe-area-bottom: 0px;
 }
 
 /* 黑暗模式 */

@@ -866,6 +866,10 @@ onUnmounted(() => {
   padding: 0;
 }
 
+.footer.is-mobile {
+  padding-bottom: calc(8px + max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px)));
+}
+
 @media (max-width: 767px) {
   .footer {
     padding: 8px;

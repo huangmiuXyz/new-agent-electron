@@ -44,8 +44,8 @@ const switchTab = (tab) => {
   background-color: var(--bg-card);
   display: flex;
   z-index: 100;
-  height: calc(56px + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
+  height: calc(56px + max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px)));
+  padding-bottom: max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px));
   box-shadow: 0 -1px 0 var(--border-subtle);
   flex-shrink: 0;
 }

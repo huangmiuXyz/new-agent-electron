@@ -37,7 +37,7 @@ const { customTitle } = useAppHeader()
 :deep(.sidebar.is-mobile .nav-list) {
     padding: 0;
     overflow-y: auto;
-    padding-bottom: calc(86px + env(safe-area-inset-bottom));
+    padding-bottom: calc(86px + max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px)));
 }
 
 :deep(.sidebar.is-mobile .chat-tree-list) {

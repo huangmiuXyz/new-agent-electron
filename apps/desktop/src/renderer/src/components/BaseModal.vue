@@ -438,7 +438,7 @@ const handleConfirm = () => {
 }
 
 .drawer-footer {
-  padding: 12px 20px;
+  padding: 12px 20px calc(20px + max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px)));
   border-top: 1px solid var(--border-color);
   background: var(--bg-hover);
   display: flex;
