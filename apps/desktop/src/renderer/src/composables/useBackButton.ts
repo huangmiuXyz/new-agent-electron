@@ -1,4 +1,6 @@
 import { App } from '@capacitor/app'
+import type { ComputedRef, Ref } from 'vue'
+import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 
 export interface BackButtonOptions {
   enabled: Ref<boolean> | ComputedRef<boolean>
@@ -10,36 +12,56 @@ let isGlobalListenerAdded = false
 const lastBackPressTime = ref(0)
 const EXIT_THRESHOLD = 2000
 
+export function runRegisteredBackHandlers() {
+  for (let i = registeredHandlers.length - 1; i >= 0; i--) {
+    const h = registeredHandlers[i]
+    if (h.enabled.value && h.handler()) {
+      return true
+    }
+  }
+
+  return false
+}
+
+export function handleDefaultBackNavigation(
+  router: Router,
+  route: RouteLocationNormalizedLoaded
+) {
+  const currentDepth = (route.meta.depth as number) || 0
+
+  if (currentDepth > 1) {
+    router.back()
+    return true
+  }
+
+  const now = Date.now()
+  if (now - lastBackPressTime.value < EXIT_THRESHOLD) {
+    App.exitApp()
+  } else {
+    lastBackPressTime.value = now
+    messageApi.info('再按一次退出应用')
+  }
+
+  return true
+}
+
+export function triggerBackNavigation(
+  router: Router,
+  route: RouteLocationNormalizedLoaded
+) {
+  if (runRegisteredBackHandlers()) {
+    return true
+  }
+
+  return handleDefaultBackNavigation(router, route)
+}
+
 export function useBackButton(options?: BackButtonOptions) {
   const router = useRouter()
   const route = useRoute()
 
   const handleBack = () => {
-    for (let i = registeredHandlers.length - 1; i >= 0; i--) {
-      const h = registeredHandlers[i]
-      if (h.enabled.value) {
-        if (h.handler()) {
-          return
-        }
-      }
-    }
-
-    const currentDepth = (route.meta.depth as number) || 0
-
-    
-    if (currentDepth > 1) {
-      router.back()
-      return
-    }
-
-    
-    const now = Date.now()
-    if (now - lastBackPressTime.value < EXIT_THRESHOLD) {
-      App.exitApp()
-    } else {
-      lastBackPressTime.value = now
-      messageApi.info('再按一次退出应用')
-    }
+    triggerBackNavigation(router, route)
   }
 
   onMounted(() => {

@@ -1,24 +1,16 @@
 import { useRouter, useRoute } from 'vue-router'
+import { triggerBackNavigation } from './useBackButton'
 
 export const useMobile = () => {
   const router = useRouter()
   const route = useRoute()
 
   const back = () => {
-    
     if (window.innerWidth < 768) {
-      if (route.path.split('/').length > 3) {
-        
-        router.back()
-        return
-      }
-      
-      
-      return
+      triggerBackNavigation(router, route)
     }
-    
-    
   }
+
   return {
     back
   }
