@@ -243,6 +243,7 @@ export interface TableColumn<T = unknown> {
   key: string
   label: string
   width?: string | number
+  minWidth?: string | number
   align?: 'left' | 'center' | 'right'
   headerClass?: string
   headerRender?: () => VNode | string | number | null
@@ -251,7 +252,7 @@ export interface TableColumn<T = unknown> {
 }
 
 export interface TableConfig<T extends Record<string, unknown>> {
-  columns: TableColumn<T>[]
+  columns: TableColumn<T>[] | (() => TableColumn<T>[])
   data?: T[] | (() => T[])
   loading?: boolean | (() => boolean)
   onRowClick?: (row: T) => void

@@ -603,45 +603,49 @@ const selectProvider = (providerId: string) => {
 }
 const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
+const hasExpandableModels = computed(() =>
+  (aiSearchModels.value.length ? aiSearchModels.value : filteredModels.value).some((row) => row.voices && row.voices.length > 0)
+)
 
 const [ModelTable, modelTableActions] = useTable<Model>({
   loading: () => loading.value,
-  columns: [
-    {
+  columns: () => [
+    ...(hasExpandableModels.value ? [{
       key: 'expand',
       label: '',
       width: '32px',
-      render: (row) => row.voices && row.voices.length > 0 ? (
+      minWidth: '32px',
+      render: (row: Model) => row.voices && row.voices.length > 0 ? (
         <Button type="button" variant="text" size="sm" onClick={(e) => { e.stopPropagation(); modelTableActions.toggleExpand(row.id) }} style={{ padding: 0, width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {modelTableActions.isExpanded(row.id) ? ChevronDown : ChevronRight}
         </Button>
       ) : null
-    },
+    }] : []),
     { key: 'name', label: '模型名称', width: '2fr' },
     { key: 'id', label: '模型ID', width: '2fr' },
     {
       key: 'category',
       label: '模型类型',
-      width: '1fr',
-      render: (row) => <Tags tags={[getCategoryLabel(row.category || 'text')]} color={row.category === 'text' ? 'blue' : row.category === 'embedding' ? 'green' : row.category === 'image' ? 'orange' : row.category === 'rerank' ? 'purple' : row.category === 'video' ? 'red' : 'blue'} />
+      minWidth: '88px',
+      render: (row: Model) => <Tags tags={[getCategoryLabel(row.category || 'text')]} color={row.category === 'text' ? 'blue' : row.category === 'embedding' ? 'green' : row.category === 'image' ? 'orange' : row.category === 'rerank' ? 'purple' : row.category === 'video' ? 'red' : 'blue'} />
     },
     {
       key: 'active',
       label: '启用',
-      width: '1fr',
+      minWidth: '96px',
       headerRender: () => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }} onClick={() => toggleAllModels(!isAllActive.value)}>
           <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>启用</span>
           <Switch size="sm" modelValue={isAllActive.value} />
         </div>
       ),
-      render: (row) => <Switch v-model={row.active} />
+      render: (row: Model) => <Switch v-model={row.active} />
     },
     {
       key: 'actions',
       label: '操作',
-      width: '1fr',
-      render: (row) => (
+      minWidth: '88px',
+      render: (row: Model) => (
         <>
           <Button type="button" variant="text" size="sm" onClick={() => showEditModelModal(row)} title="编辑模型">{Edit}</Button>
           {isCustomModel(row) ? (
