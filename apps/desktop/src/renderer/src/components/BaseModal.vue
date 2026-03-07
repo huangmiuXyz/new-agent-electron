@@ -2,11 +2,11 @@
   <Transition :name="variant === 'drawer' ? 'drawer' : 'modal-fade'">
     <div v-if="visible" ref="modalOverlay" :class="overlayClass" @click.self="handleEsc" @keydown.esc="handleEsc"
       tabindex="-1">
-      <!-- 中心弹窗样式 -->
       <div v-if="variant !== 'drawer'" ref="modalBox" class="modal-box"
         :class="{ 'is-dragging': isDragging, 'is-fullscreen': isFullscreen }"
         :style="[{ width: isFullscreen ? '100%' : props.width }, draggableStyle]">
-        <div v-show="!isFullscreen" ref="modalHeader" class="modal-header" :class="{ 'is-draggable': !isMobile && props.variant !== 'drawer', 'is-hidden': isFullscreen }">
+        <div v-show="!isFullscreen" ref="modalHeader" class="modal-header"
+          :class="{ 'is-draggable': !isMobile && props.variant !== 'drawer', 'is-hidden': isFullscreen }">
           <span class="modal-title">{{ title }}</span>
           <div class="modal-actions">
             <Button @click="toggleFullscreen" variant="text" title="全屏">
@@ -17,7 +17,8 @@
             </Button>
           </div>
         </div>
-        <div class="modal-body" :class="{ 'is-fullscreen-body': isFullscreen }" :style="{ height: isFullscreen ? '100vh' : height, maxHeight: isFullscreen ? '100vh' : maxHeight, ...(modalBodyStyle || {}) }">
+        <div class="modal-body" :class="{ 'is-fullscreen-body': isFullscreen }"
+          :style="{ height: isFullscreen ? '100vh' : height, maxHeight: isFullscreen ? '100vh' : maxHeight, ...(modalBodyStyle || {}) }">
           <slot>
             <div v-if="content" class="modal-desc">
               <template v-if="typeof content === 'string'">{{ content }}</template>
@@ -29,9 +30,9 @@
           <FullscreenExit />
         </Button>
         <div v-show="!isFullscreen && showFooter" class="modal-footer" :class="{ 'is-hidden': isFullscreen }">
-          <Button v-if="showCancel" class="btn btn-secondary" type="button" @click="handleCancel">{{
-            props.cancelText || '取消'
-          }}</Button>
+          <Button v-if="showCancel" class="btn btn-secondary" type="button" @click="handleCancel">
+            {{ props.cancelText || '取消' }}
+          </Button>
           <Button ref="confirmButton" v-bind="confirmProps" class="btn btn-primary" type="button"
             @click="handleConfirm">
             {{ props.confirmText || '确认' }}
@@ -39,7 +40,6 @@
         </div>
       </div>
 
-      <!-- 抽屉样式 -->
       <div v-else class="drawer-container" :style="{ maxHeight }">
         <div class="drawer-header">
           <div class="drawer-title">{{ title }}</div>
@@ -53,10 +53,10 @@
           </slot>
         </div>
         <div v-if="showFooter" class="drawer-footer">
-          <Button variant='secondary' v-if="showCancel" :class="{ isMobile }" type="button" @click="handleCancel">{{
-            props.cancelText ||
-            '取消' }}</Button>
-          <Button variant='primary' :class="{ isMobile }" ref="confirmButton" v-bind="confirmProps" type="button"
+          <Button variant="secondary" v-if="showCancel" :class="{ isMobile }" type="button" @click="handleCancel">
+            {{ props.cancelText || '取消' }}
+          </Button>
+          <Button variant="primary" :class="{ isMobile }" ref="confirmButton" v-bind="confirmProps" type="button"
             @click="handleConfirm">
             {{ props.confirmText || '确认' }}
           </Button>
@@ -72,23 +72,38 @@ import { useIcon } from '@renderer/composables/useIcon'
 import { useBackButton } from '@renderer/composables/useBackButton'
 import { BaseModalProps } from '@renderer/types/components'
 import { useDraggable } from '@vueuse/core'
+
 const props = withDefaults(defineProps<BaseModalProps>(), {
   variant: isMobile.value ? 'drawer' : 'center',
   showFooter: true,
   showCancel: true,
   maxHeight: '90vh'
 })
-const { Close, Fullscreen, FullscreenExit } = useIcon(['Close', 'Fullscreen', 'FullscreenExit'])
 
+const { Close, Fullscreen, FullscreenExit } = useIcon(['Close', 'Fullscreen', 'FullscreenExit'])
 const isFullscreen = ref(false)
 const showFullscreenTip = ref(false)
 let fullscreenTipTimer: ReturnType<typeof setTimeout> | null = null
+
+const visible = ref(false)
+const modalOverlay = useTemplateRef('modalOverlay')
+const confirmButton = useTemplateRef('confirmButton')
+const modalBox = ref<HTMLElement | null>(null)
+const modalHeader = ref<HTMLElement | null>(null)
+
+const isDraggableEnabled = computed(() => !isMobile.value && props.variant !== 'drawer' && visible.value)
+
+const { x, y, style: draggableStyle, isDragging } = useDraggable(modalBox, {
+  disabled: computed(() => !isDraggableEnabled.value),
+  handle: modalHeader,
+  initialValue: { x: 0, y: 0 },
+  preventDefault: true
+})
 
 const toggleFullscreen = () => {
   isFullscreen.value = !isFullscreen.value
 
   if (isFullscreen.value) {
-    // 显示提示
     showFullscreenTip.value = true
     if (fullscreenTipTimer) clearTimeout(fullscreenTipTimer)
     fullscreenTipTimer = setTimeout(() => {
@@ -101,82 +116,44 @@ const toggleFullscreen = () => {
 }
 
 const exitFullscreen = () => {
-  if (isFullscreen.value) {
-    isFullscreen.value = false
-    showFullscreenTip.value = false
-    if (fullscreenTipTimer) clearTimeout(fullscreenTipTimer)
-  }
+  if (!isFullscreen.value) return
+  isFullscreen.value = false
+  showFullscreenTip.value = false
+  if (fullscreenTipTimer) clearTimeout(fullscreenTipTimer)
 }
-
-const visible = ref(false)
-const modalOverlay = useTemplateRef('modalOverlay')
-const confirmButton = useTemplateRef('confirmButton')
-const modalBox = ref<HTMLElement | null>(null)
-const modalHeader = ref<HTMLElement | null>(null)
-
-// 非手机模式下启用拖拽 - 使用 vueuse
-const isDraggableEnabled = computed(() => !isMobile.value && props.variant !== 'drawer' && visible.value)
-
-const { x, y, style: draggableStyle, isDragging } = useDraggable(modalBox, {
-  disabled: computed(() => !isDraggableEnabled.value),
-  handle: modalHeader,
-  initialValue: { x: 0, y: 0 },
-  preventDefault: true
-})
 
 const resetPosition = () => {
-  // 等待 DOM 更新后获取实际高度
   nextTick(() => {
     const el = modalBox.value
-    if (el) {
-      const rect = el.getBoundingClientRect()
-      x.value = (window.innerWidth - rect.width) / 2
-      y.value = (window.innerHeight - rect.height) / 2
-    }
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    x.value = (window.innerWidth - rect.width) / 2
+    y.value = (window.innerHeight - rect.height) / 2
   })
 }
 
-const overlayClass = computed(() => {
-  return props.variant === 'drawer' ? 'modal-overlay drawer-overlay' : 'modal-overlay'
-})
-
-onMounted(async () => {
-  visible.value = true
-  resetPosition()
-  nextTick(() => {
-    modalOverlay.value?.focus()
-    confirmButton.value?.focus()
-  })
-
-  // 拦截手机返回键，关闭弹窗
-  useBackButton({
-    enabled: computed(() => visible.value),
-    handler: () => {
-      handleEsc()
-      return true // 阻止默认返回行为
+const finalizeClose = (result: boolean) => {
+  visible.value = false
+  setTimeout(() => {
+    resetPosition()
+    if (!result && props.onClose) {
+      props.onClose()
+      return
     }
-  })
-})
+    props.resolve?.(result)
+    props.remove?.()
+  }, 200)
+}
 
 const handleEsc = () => {
-  // 如果处于全屏状态，先退出全屏
   if (isFullscreen.value) {
     exitFullscreen()
     return
   }
-  visible.value = false
-  setTimeout(() => {
-    resetPosition()
-    if (props.onClose) {
-      props.onClose?.()
-      return
-    }
-    props.resolve?.(false)
-    props.remove?.()
-  }, 200)
+  finalizeClose(false)
 }
+
 const handleCancel = () => {
-  // 如果处于全屏状态，先退出全屏
   if (isFullscreen.value) {
     exitFullscreen()
     return
@@ -185,15 +162,15 @@ const handleCancel = () => {
   setTimeout(() => {
     resetPosition()
     if (props.onCancel) {
-      props.onCancel?.()
+      props.onCancel()
       return
     }
     props.resolve?.(false)
     props.remove?.()
   }, 200)
 }
+
 const handleConfirm = () => {
-  // 如果处于全屏状态，先退出全屏，然后继续关闭
   if (isFullscreen.value) {
     exitFullscreen()
   }
@@ -208,6 +185,27 @@ const handleConfirm = () => {
     props.remove?.()
   }, 200)
 }
+
+const overlayClass = computed(() => {
+  return props.variant === 'drawer' ? 'modal-overlay drawer-overlay' : 'modal-overlay'
+})
+
+useBackButton({
+  enabled: computed(() => visible.value),
+  handler: () => {
+    handleEsc()
+    return true
+  }
+})
+
+onMounted(async () => {
+  visible.value = true
+  resetPosition()
+  nextTick(() => {
+    modalOverlay.value?.focus()
+    confirmButton.value?.focus()
+  })
+})
 </script>
 
 <style scoped>
@@ -245,9 +243,6 @@ const handleConfirm = () => {
   touch-action: none;
 }
 
-
-
-/* 动画部分 */
 .modal-fade-enter-active,
 .modal-fade-leave-active {
   transition: opacity 0.2s ease;
@@ -268,7 +263,6 @@ const handleConfirm = () => {
   transform: scale(0.95);
 }
 
-/* 内部布局 */
 .modal-header {
   padding: 8px 10px;
   border-bottom: 1px solid var(--border-color);
@@ -314,7 +308,6 @@ const handleConfirm = () => {
   height: 100%;
 }
 
-/* 表单样式 */
 .form-group {
   margin-top: 8px;
 }
@@ -352,7 +345,6 @@ const handleConfirm = () => {
   gap: 10px;
 }
 
-/* 按钮样式 */
 .btn {
   padding: 0 16px;
   height: 32px;
@@ -390,7 +382,6 @@ const handleConfirm = () => {
   opacity: 0.9;
 }
 
-/* 抽屉样式 */
 .drawer-container {
   width: 100%;
   max-width: 100%;
@@ -446,7 +437,6 @@ const handleConfirm = () => {
   gap: 10px;
 }
 
-/* 抽屉动画 */
 .drawer-enter-active,
 .drawer-leave-active {
   transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -480,7 +470,6 @@ const handleConfirm = () => {
   transform: translateY(0) scale(1);
 }
 
-/* 全屏相关样式 */
 .modal-actions {
   display: flex;
   align-items: center;
@@ -512,8 +501,7 @@ const handleConfirm = () => {
   max-height: 100vh !important;
   padding: 0;
 }
- 
-/* 全屏退出按钮 */
+
 .fullscreen-exit-btn {
   position: absolute;
   top: 8px;

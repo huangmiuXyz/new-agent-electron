@@ -2,17 +2,17 @@
 interface SearchResult {
     id: string
     chatId: string
-    chatTitle: string // 聊天标题
-    messageId: string // 消息ID
-    content: string // 消息内容
-    logo: string // 消息来源logo
-    modelName: string // 模型名称
-    isHuman: boolean // 是否为用户消息
-    date: string // 时间
+    chatTitle: string
+    messageId: string
+    content: string
+    logo: string
+    modelName: string
+    isHuman: boolean
+    date: string
 }
 
 const props = defineProps<{
-    modelValue: boolean // 控制显示隐藏 v-model
+    modelValue: boolean
 }>()
 
 const emit = defineEmits<{
@@ -25,12 +25,10 @@ const query = ref('')
 const selectedIndex = ref(0)
 const scrollContainer = ref<HTMLElement | null>(null)
 
-// 获取聊天存储
 const chatsStore = useChatsStores()
 const { scrollToMessage } = useMessageScroll()
 const settings = useSettingsStore()
 
-// 1. 优化 Provider Logo 查找：使用 Map 提高 O(1) 效率
 const providerLogoMap = computed(() => {
     const map = new Map<string, string>()
     settings.providers.forEach(p => {
@@ -39,16 +37,14 @@ const providerLogoMap = computed(() => {
     return map
 })
 
-// 2. 优化搜索逻辑：合并 searchData 和 filteredResults，减少全量遍历次数并添加结果上限
 const filteredResults = computed(() => {
     const searchTrimmed = query.value.trim()
     if (!searchTrimmed) return []
 
     const lowerQuery = searchTrimmed.toLowerCase()
     const results: SearchResult[] = []
-    const MAX_RESULTS = 50 // 限制结果数量以保持 UI 响应速度
+    const MAX_RESULTS = 50
 
-    // 遍历所有聊天
     for (const chat of chatsStore.chats) {
         if (results.length >= MAX_RESULTS) break
 
@@ -56,11 +52,9 @@ const filteredResults = computed(() => {
         const lowerChatTitle = chatTitle.toLowerCase()
         const chatTitleMatches = lowerChatTitle.includes(lowerQuery)
 
-        // 遍历每个聊天的消息
         for (const message of chat.messages) {
             if (results.length >= MAX_RESULTS) break
 
-            // 提取内容文本
             const contentText = message.parts
                 .filter(block => block.type === 'text')
                 .map(block => (block as any).text || '')
@@ -69,13 +63,12 @@ const filteredResults = computed(() => {
             const lowerContent = contentText.toLowerCase()
             const contentMatches = lowerContent.includes(lowerQuery)
 
-            // 如果标题或内容匹配
             if (chatTitleMatches || contentMatches) {
                 const metadata = message.metadata
                 results.push({
                     id: `${chat.id}-${message.id}`,
                     chatId: chat.id,
-                    chatTitle: chatTitle,
+                    chatTitle,
                     messageId: message.id!,
                     content: contentText,
                     logo: providerLogoMap.value.get(metadata?.provider || '') || '',
@@ -90,7 +83,16 @@ const filteredResults = computed(() => {
     return results
 })
 
-// 监听弹窗打开，自动聚焦并重置状态
+const close = () => emit('update:modelValue', false)
+
+useBackButton({
+    enabled: computed(() => props.modelValue),
+    handler: () => {
+        close()
+        return true
+    }
+})
+
 watch(() => props.modelValue, (val) => {
     if (val) {
         query.value = ''
@@ -99,10 +101,6 @@ watch(() => props.modelValue, (val) => {
     }
 })
 
-// 关闭弹窗
-const close = () => emit('update:modelValue', false)
-
-// 键盘导航
 const handleKeydown = (e: KeyboardEvent) => {
     if (!props.modelValue) return
 
@@ -130,7 +128,6 @@ const handleKeydown = (e: KeyboardEvent) => {
     }
 }
 
-// 自动滚动到选中项
 const scrollToActive = () => {
     nextTick(() => {
         const activeEl = scrollContainer.value?.querySelector('.result-item.active') as HTMLElement
@@ -150,18 +147,15 @@ const scrollToActive = () => {
 }
 
 const handleSelect = (item: SearchResult) => {
-    // 设置当前活动聊天和目标消息ID
     scrollToMessage(item.messageId)
     chatsStore.setActiveChat(item.chatId)
     emit('select', item)
     close()
 }
 
-// 3. 优化高亮逻辑：正则表达式缓存 + 特殊字符转义
 const highlightRegex = computed(() => {
     const q = query.value.trim()
     if (!q) return null
-    // 转义正则特殊字符，防止无效正则或 XSS 注入风险
     const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     return new RegExp(`(${escaped})`, 'gi')
 })
@@ -170,9 +164,6 @@ const highlightText = (text: string) => {
     if (!text || !highlightRegex.value) return text
     return text.replace(highlightRegex.value, '<span class="highlight">$1</span>')
 }
-
-// 注意：全局搜索快捷键现在由 useShortcuts 统一管理
-// 在 AppHeader.vue 中注册
 </script>
 
 <template>
@@ -180,16 +171,12 @@ const highlightText = (text: string) => {
         <Transition name="modal-fade">
             <div v-if="modelValue" class="modal-overlay" @click="close">
                 <div class="modal-content" @click.stop @keydown="handleKeydown">
-
-                    <!-- 搜索头部 -->
                     <div class="search-header">
                         <SearchInput ref="searchInputRef" v-model="query" placeholder="搜索聊天记录" size="md"
-                            variant="minimal" :show-icon="true" :debounce="200"
-                            class="global-search-input" />
+                            variant="minimal" :show-icon="true" :debounce="200" class="global-search-input" />
                         <div class="shortcut-hint">ESC</div>
                     </div>
 
-                    <!-- 结果列表 -->
                     <div class="results-container" ref="scrollContainer">
                         <div v-if="filteredResults.length === 0 && query" class="empty-state">
                             没有找到相关结果
@@ -225,7 +212,6 @@ const highlightText = (text: string) => {
                         </div>
                     </div>
 
-                    <!-- 底部状态栏 -->
                     <div class="search-footer">
                         <span class="footer-item">
                             <kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> 切换
@@ -237,7 +223,6 @@ const highlightText = (text: string) => {
                             {{ filteredResults.length }} 条结果
                         </span>
                     </div>
-
                 </div>
             </div>
         </Transition>
@@ -245,7 +230,6 @@ const highlightText = (text: string) => {
 </template>
 
 <style scoped>
-/* 遮罩层 */
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -253,13 +237,11 @@ const highlightText = (text: string) => {
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    /* 偏上显示 */
     padding-top: 12vh;
     z-index: 9999;
     backdrop-filter: blur(2px);
 }
 
-/* 弹窗主体 */
 .modal-content {
     width: 600px;
     max-width: 90vw;
@@ -272,7 +254,6 @@ const highlightText = (text: string) => {
     overflow: hidden;
 }
 
-/* 搜索头 */
 .search-header {
     display: flex;
     align-items: center;
@@ -311,7 +292,6 @@ const highlightText = (text: string) => {
     padding: 2px 6px;
 }
 
-/* 结果列表 */
 .results-container {
     max-height: 400px;
     overflow-y: auto;
@@ -325,7 +305,6 @@ const highlightText = (text: string) => {
     font-size: 14px;
 }
 
-/* 列表项 */
 .result-item {
     display: flex;
     align-items: center;
@@ -341,7 +320,6 @@ const highlightText = (text: string) => {
     background-color: var(--active-bg);
 }
 
-/* 模型头像容器 */
 .model-avatar {
     width: 32px;
     height: 32px;
@@ -360,7 +338,6 @@ const highlightText = (text: string) => {
     object-fit: cover;
 }
 
-/* 头像占位 */
 .avatar-placeholder {
     width: 32px;
     height: 32px;
@@ -438,7 +415,6 @@ const highlightText = (text: string) => {
     max-width: 100%;
 }
 
-/* 高亮样式 (需要 deep 选择器或全局样式) */
 :deep(.highlight) {
     color: var(--accent-text);
     font-weight: 600;
@@ -453,7 +429,6 @@ const highlightText = (text: string) => {
     padding-right: 4px;
 }
 
-/* 底部 */
 .search-footer {
     padding: 8px 16px;
     background: var(--bg-hover);
@@ -486,15 +461,11 @@ const highlightText = (text: string) => {
     margin-left: auto;
 }
 
-/* ==================
-   动画 (Snappy & Clean)
-   ================== */
 .modal-fade-enter-active,
 .modal-fade-leave-active {
     transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-/* 使用弹簧效果或 Expo 曲线避免拖拉 */
 .modal-fade-enter-active .modal-content {
     transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
