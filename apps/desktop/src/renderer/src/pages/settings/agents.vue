@@ -1,7 +1,8 @@
 <script setup lang="ts">
 const { agents } = storeToRefs(useAgentStore())
-const { mcpServers } = storeToRefs(useSettingsStore())
-const { getValidTools } = useSettingsStore()
+const settingsStore = useSettingsStore()
+const { mcpServers } = storeToRefs(settingsStore)
+const { getValidTools } = settingsStore
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
@@ -141,6 +142,13 @@ const getGroupedBuiltinTools = (toolIds: string[] | undefined) => {
               <div v-if="agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0" class="knowledge-list">
                 <div class="knowledge-list-label">关联知识库:</div>
                 <Tags color="blue" :tags="agent.knowledgeBaseIds.map(e => getKnowledgeBaseName(e))" />
+              </div>
+              <div v-if="agent.defaultModel?.providerId && agent.defaultModel?.modelId" class="default-model-list">
+                <div class="default-model-list-label">默认模型:</div>
+                <span class="default-model-tag">
+                  {{ settingsStore.getProviderById(agent.defaultModel.providerId)?.name || agent.defaultModel.providerId }} / 
+                  {{ settingsStore.getProviderById(agent.defaultModel.providerId)?.models?.find(m => m.id === agent.defaultModel?.modelId)?.name || agent.defaultModel.modelId }}
+                </span>
               </div>
             </div>
           </div>
@@ -441,6 +449,31 @@ const getGroupedBuiltinTools = (toolIds: string[] | undefined) => {
   padding: 3px 8px;
   border-radius: 4px;
   border: 1px solid rgba(var(--color-success-rgb, 34, 197, 94), 0.3);
+}
+
+.default-model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.default-model-list-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.default-model-tag {
+  font-size: 11px;
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--accent-color);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  display: inline-block;
+  width: fit-content;
 }
 
 .rag-status {

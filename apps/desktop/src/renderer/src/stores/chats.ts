@@ -164,6 +164,21 @@ export const useChatsStores = defineStore(
       const chat = getChatById(chatId)
       if (!chat) return
       chat.agentId = agentId
+
+      // 如果智能体有默认模型配置，且当前聊天没有设置模型，则自动切换到默认模型
+      const agentStore = useAgentStore()
+      const agent = agentStore.getAgentById(agentId)
+      if (agent?.defaultModel?.providerId && agent?.defaultModel?.modelId) {
+        // 检查当前模型是否为空或未设置
+        const settingsStore = useSettingsStore()
+        const currentProvider = settingsStore.getProviderById(chat.providerId!)
+        const hasValidModel = currentProvider?.models?.some((m) => m.id === chat.modelId)
+
+        if (!hasValidModel) {
+          chat.providerId = agent.defaultModel.providerId
+          chat.modelId = agent.defaultModel.modelId
+        }
+      }
     }
 
     const setChatModel = (chatId: string, providerId: string, modelId: string) => {

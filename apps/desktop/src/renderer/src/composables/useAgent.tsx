@@ -1,8 +1,9 @@
 import { zodSchemasToFormfields } from '../utils/zod-to-form'
 import { createRegistry } from '../services/chatService/registry'
 
-interface AgentFormData extends Omit<Agent, 'backgrounds' | 'id' | 'createdAt' | 'updatedAt'> {
+interface AgentFormData extends Omit<Agent, 'backgrounds' | 'id' | 'createdAt' | 'updatedAt' | 'defaultModel'> {
   backgrounds: string[]
+  defaultModel?: { providerId: string; modelId: string }
 }
 
 const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
@@ -163,7 +164,8 @@ export const useAgent = () => {
           speechLanguage: agent.speechLanguage || 'auto',
           speechProviderOptions: agent.speechProviderOptions
             ? { ...agent.speechProviderOptions }
-            : {}
+            : {},
+          defaultModel: agent.defaultModel
         }
       : {
           name: '',
@@ -189,13 +191,24 @@ export const useAgent = () => {
           speechMode: 'sentence',
           speechSpeed: 1,
           speechLanguage: 'auto',
-          speechProviderOptions: {}
+          speechProviderOptions: {},
+          defaultModel: undefined
         }
 
     let previousMcpServers = initialData.mcpServers || []
 
     // 定义表单字段，按类别分组
     const basicFields: FormField<AgentFormData>[] = [
+      {
+        name: 'defaultModel',
+        type: 'modelSelector',
+        label: '默认模型',
+        placeholder: '选择默认模型',
+        hint: '切换到该智能体时，如果当前没有设置模型，将自动使用此默认模型',
+        modelCategory: 'text',
+        popupPosition: 'bottom',
+        clearable: true
+      } as ModelSelectorField<AgentFormData>,
       {
         name: 'avatar',
         label: '头像',
@@ -547,6 +560,14 @@ export const useAgent = () => {
         }
       },
       onSubmit: (data) => {
+        // 转换 defaultModel 格式
+        const defaultModel = data.defaultModel?.providerId && data.defaultModel?.modelId
+          ? {
+              providerId: data.defaultModel.providerId,
+              modelId: data.defaultModel.modelId
+            }
+          : undefined
+
         const finalData = {
           ...data,
           backgrounds:
@@ -556,7 +577,8 @@ export const useAgent = () => {
                 type: isVideo ? 'video' : 'image',
                 url
               }
-            }) || []
+            }) || [],
+          defaultModel
         } as Partial<Agent>
 
         if (isEdit && agent) {
