@@ -407,7 +407,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <footer class="footer" :class="{ 'is-centered': display.chatCenteredLayout }">
+  <footer class="footer" :class="{ 'is-centered': display.chatCenteredLayout, 'is-mobile': isMobile }">
     <!-- 预发送消息列表 -->
     <div v-if="pendingMessages.length > 0" class="pending-messages-container">
       <div class="pending-messages-header">
@@ -859,6 +859,13 @@ onUnmounted(() => {
   transition: transform 0.2s ease;
 }
 
+.footer.is-mobile .input-container {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
 @media (max-width: 767px) {
   .footer {
     padding: 8px;
@@ -894,11 +901,9 @@ onUnmounted(() => {
   border-color: var(--border-subtle);
 }
 
-@media (max-width: 767px) {
-  :global(.dark-mode) .input-container {
-    background: color-mix(in srgb, var(--bg-input) 45%, #101114);
-    border: none;
-    box-shadow: none;
-  }
+:global(.dark-mode) .footer.is-mobile .input-container {
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 </style>

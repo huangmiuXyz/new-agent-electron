@@ -326,7 +326,6 @@ const plugin: Plugin = {
     stopStatusPolling()
     const saved = await context.localforage.getItem(STORAGE_KEY)
     runtimeConfig = normalizeConfig(parseStoredConfig(saved), DEFAULT_CONFIG, DEFAULT_CONFIG)
-    runtimeConfig = syncScannedModels(runtimeConfig, scanModelsByRoot(context, runtimeConfig.modelsRoot))
     if (await isServerRunning(runtimeConfig)) {
       hasManualLoadStarted = true
       const serverModelId = await detectServerModelId(runtimeConfig)
@@ -437,6 +436,7 @@ const plugin: Plugin = {
       return true
     }
     const openModelPickerModal = async () => {
+      await refreshScannedModels()
       const modal = context.useModal()
       currentModelPickerModal = modal
       const ModelGallery = createModelGalleryComponent({
@@ -521,7 +521,6 @@ const plugin: Plugin = {
             type: 'path',
             label: '模型根目录',
             required: true,
-            hint: '路径变更时会自动重新扫描模型。',
             dialogOptions: { properties: ['openDirectory'] }
           },
           {
@@ -540,16 +539,9 @@ const plugin: Plugin = {
         ]
       },
       initialData: runtimeConfig,
-      onChange: async (field, _value, data) => {
+      onChange: async (_field, _value, data) => {
         if (isProgrammaticFormUpdate) return
-        let next = normalizeConfig(data, runtimeConfig, DEFAULT_CONFIG)
-        if (field === 'modelsRoot') {
-          next = syncScannedModels(next, scanModelsByRoot(context, next.modelsRoot))
-          isProgrammaticFormUpdate = true
-          actions.setFieldValue('loadedModelId', next.loadedModelId)
-          actions.setFieldValue('mmprojMap', next.mmprojMap)
-          isProgrammaticFormUpdate = false
-        }
+        const next = normalizeConfig(data, runtimeConfig, DEFAULT_CONFIG)
         await saveConfig(context, next)
         await updateServiceStatusIndicator(context)
         syncProvider(context, FormComp)
