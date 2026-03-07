@@ -39,7 +39,7 @@ $ pnpm build:linux
 # APK for local install
 pnpm android:debug
 
-# Release APK
+# Release APK (unsigned unless ANDROID_KEYSTORE_* is configured)
 pnpm android:release
 
 # Release AAB
@@ -47,3 +47,6 @@ pnpm android:bundle
 ```
 
 The Android build requires Java 21. The script will try `JAVA_HOME_21`, then Android Studio's bundled `jbr`.
+
+For local installs, use `pnpm android:debug`.
+For signed release builds, set `ANDROID_KEYSTORE_FILE`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.

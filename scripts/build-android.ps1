@@ -51,6 +51,24 @@ function Require-Command {
   }
 }
 
+function Test-ReleaseSigningConfigured {
+  $requiredVars = @(
+    'ANDROID_KEYSTORE_FILE',
+    'ANDROID_KEYSTORE_PASSWORD',
+    'ANDROID_KEY_ALIAS',
+    'ANDROID_KEY_PASSWORD'
+  )
+
+  foreach ($varName in $requiredVars) {
+    $value = [Environment]::GetEnvironmentVariable($varName)
+    if ([string]::IsNullOrWhiteSpace($value)) {
+      return $false
+    }
+  }
+
+  return Test-Path ([Environment]::GetEnvironmentVariable('ANDROID_KEYSTORE_FILE'))
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $appDir = Join-Path $repoRoot 'apps/desktop'
 $androidDir = Join-Path $appDir 'android'
@@ -115,6 +133,9 @@ try {
 
   if ($artifact) {
     Write-Host "Android artifact ready: $($artifact.FullName)"
+    if ($Mode -eq 'release' -and -not (Test-ReleaseSigningConfigured)) {
+      Write-Warning 'Release signing is not configured. The APK is unsigned and may fail to install. Use pnpm android:debug for local installs or set ANDROID_KEYSTORE_* env vars for a signed release build.'
+    }
   } else {
     Write-Warning "Build finished, but no artifact matched: $artifactPattern"
   }
