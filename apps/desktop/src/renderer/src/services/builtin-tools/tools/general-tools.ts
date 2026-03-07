@@ -1,7 +1,15 @@
 import { z } from 'zod'
 
-const resolvePath = (rawPath: string): string => {
-  const baseDir = useAgentStore().selectedAgent?.terminalStartupPath
+const getAgentByChat = (chatId?: string) => {
+  const chatsStore = useChatsStores()
+  const agentStore = useAgentStore()
+  const chat = chatId ? chatsStore.getChatById(chatId) : chatsStore.currentChat
+  const agentId = chat?.agentId || 'default'
+  return agentStore.getAgentById(agentId) || null
+}
+
+const resolvePath = (rawPath: string, chatId?: string): string => {
+  const baseDir = getAgentByChat(chatId)?.terminalStartupPath
   if (!baseDir) {
     throw new Error('未设置 terminalStartupPath，已禁止回退路径解析')
   }
@@ -33,13 +41,13 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
         .default('.')
         .describe('可选的路径，默认获取当前工作目录，支持相对路径或绝对路径')
     }),
-    execute: async (args: unknown) => {
+    execute: async (args: unknown, options?: { chatId?: string }) => {
       const params = args as Record<string, any>
       const rawPath = params.path || '.'
 
       try {
-        const currentPath = resolvePath(rawPath)
-        const baseDir = useAgentStore().selectedAgent?.terminalStartupPath
+        const currentPath = resolvePath(rawPath, options?.chatId)
+        const baseDir = getAgentByChat(options?.chatId)?.terminalStartupPath
         const relativePath = baseDir 
           ? window.api.path.relative(baseDir, currentPath) 
           : currentPath

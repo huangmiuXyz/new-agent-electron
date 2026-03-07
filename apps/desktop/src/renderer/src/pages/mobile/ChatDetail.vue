@@ -2,12 +2,16 @@
 const agentStore = useAgentStore()
 const { setTitle, customTitle } = useAppHeader()
 const { currentChat } = storeToRefs(useChatsStores())
+const currentAgent = computed(() => {
+    const agentId = currentChat.value?.agentId || 'default'
+    return agentStore.getAgentById(agentId) || null
+})
 setTitle(currentChat.value?.title || '新的对话')
 </script>
 
 <template>
     <div class="mobile-chat-detail">
-        <AgentBackground :backgrounds="agentStore.selectedAgent?.backgrounds" />
+        <AgentBackground :backgrounds="currentAgent?.backgrounds" />
         <AppHeader :custom-title="customTitle" current-view="chat" mode="detail" />
         <main class="main-chat">
             <ChatMessageList />

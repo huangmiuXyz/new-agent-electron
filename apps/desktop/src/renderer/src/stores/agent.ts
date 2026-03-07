@@ -25,15 +25,6 @@ export const useAgentStore = defineStore(
       }
     ])
 
-
-    const selectedAgentId = ref<string | null>('default')
-
-
-    const selectedAgent = computed(() => {
-      return allAgents.value.find((a) => a.id === selectedAgentId.value) || null
-    })
-
-
     const createAgent = (agentData: Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>) => {
       const id = nanoid()
       const now = Date.now()
@@ -85,18 +76,6 @@ export const useAgentStore = defineStore(
         tempAgents.value = tempAgents.value.filter((a) => a.id !== id)
       }
 
-
-      if (selectedAgentId.value === id) {
-        selectedAgentId.value = 'default'
-      }
-    }
-
-
-    const selectAgent = (id: string) => {
-      const agent = allAgents.value.find((a) => a.id === id)
-      if (agent) {
-        selectedAgentId.value = id
-      }
     }
 
 
@@ -146,19 +125,16 @@ export const useAgentStore = defineStore(
       tempAgents,
       allAgents,
       addTempAgent,
-      selectedAgentId,
-      selectedAgent,
       createAgent,
       updateAgent,
       deleteAgent,
-      selectAgent,
       getAgentById,
       getMcpByAgent
     }
   },
   {
     persist: {
-      paths: ['agents', 'selectedAgentId']
+      paths: ['agents']
     }
   }
 )

@@ -130,8 +130,11 @@ function stripFrontmatter(content: string): string {
  * 优先使用智能体配置的技能目录，留空时回退默认目录
  */
 export function getSkillsDirectories(): string[] {
-  const selectedAgent = useAgentStore().selectedAgent
-  const rawPath = selectedAgent?.skillDirectory?.trim() || DEFAULT_SKILLS_DIR
+  const chatsStore = useChatsStores()
+  const agentStore = useAgentStore()
+  const agentId = chatsStore.currentChat?.agentId || 'default'
+  const currentAgent = agentStore.getAgentById(agentId)
+  const rawPath = currentAgent?.skillDirectory?.trim() || DEFAULT_SKILLS_DIR
 
   if (rawPath.startsWith('~/')) {
     return [window.api.path.join(window.api.os.homedir(), rawPath.slice(2))]

@@ -674,12 +674,8 @@ export const useAgent = () => {
     agentStore.deleteAgent(id)
   }
 
-  const selectAgent = (agentId: string) => {
-    agentStore.selectAgent(agentId)
-  }
   return {
     openAgentModal,
-    handleDelete,
-    selectAgent
+    handleDelete
   }
 }

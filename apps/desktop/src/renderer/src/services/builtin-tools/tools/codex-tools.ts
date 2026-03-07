@@ -3,8 +3,15 @@ import ignore from 'ignore'
 import ApplyPatchRender from '../components/ApplyPatchRender.vue'
 import { applySearchReplace } from './codex-utils'
 
+const getCurrentAgent = () => {
+  const chatsStore = useChatsStores()
+  const agentStore = useAgentStore()
+  const agentId = chatsStore.currentChat?.agentId || 'default'
+  return agentStore.getAgentById(agentId) || null
+}
+
 const resolvePath = (rawPath: string): string => {
-  const baseDir = useAgentStore().selectedAgent?.terminalStartupPath
+  const baseDir = getCurrentAgent()?.terminalStartupPath
   if (!baseDir) {
     throw new Error('未设置 terminalStartupPath，已禁止回退路径解析')
   }
@@ -691,7 +698,15 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
       }
 
-      const baseDir = useAgentStore().selectedAgent!.terminalStartupPath!
+      const baseDir = getCurrentAgent()?.terminalStartupPath
+      if (!baseDir) {
+        return {
+          error: '未设置 terminalStartupPath',
+          toolResult: {
+            content: [{ type: 'text', text: 'search_replace 失败：未设置 terminalStartupPath' }]
+          }
+        }
+      }
       try {
         const result = applySearchReplace(
           {

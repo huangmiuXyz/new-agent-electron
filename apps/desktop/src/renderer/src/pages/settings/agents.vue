@@ -5,7 +5,7 @@ const { getValidTools } = useSettingsStore()
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 
 const { Plus, Pencil, Trash } = useIcon(['Plus', 'Pencil', 'Trash'])
-const { openAgentModal, handleDelete, selectAgent } = useAgent()
+const { openAgentModal, handleDelete } = useAgent()
 
 // 根据知识库ID获取知识库名称
 const getKnowledgeBaseName = (kbId: string) => {
@@ -67,7 +67,7 @@ const getGroupedBuiltinTools = (toolIds: string[] | undefined) => {
         </div>
 
         <div class="agent-list">
-          <div v-for="agent in agents" :key="agent.id" class="agent-card" @click="selectAgent(agent.id)">
+          <div v-for="agent in agents" :key="agent.id" class="agent-card">
             <div class="card-header">
               <div class="agent-info">
                 <div class="agent-name-row">

@@ -13,6 +13,7 @@ const generateId = () => Math.random().toString(36).substring(2, 9)
 
 export const useTerminal = (): TerminalActions => {
   const settingsStore = useSettingsStore()
+  const chatsStore = useChatsStores()
   const agentStore = useAgentStore()
 
   const { register } = useShortcuts()
@@ -127,8 +128,8 @@ export const useTerminal = (): TerminalActions => {
     })
 
 
-    const selectedAgent = agentStore.selectedAgent
-    const cwd = selectedAgent?.terminalStartupPath || undefined
+    const currentAgentId = chatsStore.currentChat?.agentId || 'default'
+    const cwd = agentStore.getAgentById(currentAgentId)?.terminalStartupPath || undefined
     await window.api.pty.spawn({ id, cols: term.cols, rows: term.rows, cwd })
 
     const cleanupData = window.api.pty.onData(id, (data) => {

@@ -10,6 +10,11 @@ const chatStore = useChatsStores()
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
 const windowId = route.query.windowId as string
+const { currentChat } = storeToRefs(chatStore)
+const currentAgent = computed(() => {
+  const agentId = currentChat.value?.agentId || 'default'
+  return agentStore.getAgentById(agentId) || null
+})
 
 onMounted(async () => {
   await new Promise(resolve => setTimeout(resolve, 100))
@@ -23,12 +28,10 @@ onMounted(async () => {
       if (data.agent) {
         agentStore.addTempAgent(data.agent)
         await nextTick()
-        agentStore.selectAgent(data.agent.id)
 
         const chat = chatStore.getChatById(chatId)
         if (chat) chat.agentId = data.agent.id
       } else if (data.agentId) {
-        agentStore.selectAgent(data.agentId)
         const chat = chatStore.getChatById(chatId)
         if (chat) chat.agentId = data.agentId
       }
@@ -67,7 +70,7 @@ onMounted(async () => {
   <div class="temp-chat-app">
     <header class="temp-header">
       <div class="header-content">
-        <span class="agent-name">{{ agentStore.selectedAgent?.name || '智能体' }}</span>
+        <span class="agent-name">{{ currentAgent?.name || '智能体' }}</span>
         <span class="temp-badge">临时会话</span>
       </div>
       <div class="drag-region"></div>
