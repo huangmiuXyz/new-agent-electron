@@ -134,10 +134,22 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
       }
 
       const renderButton = (label: string, props: Record<string, unknown> = {}) => {
-        if (Button) {
-          return <Button type="button" size="sm" {...(props as Record<string, unknown>)}>{label}</Button>
+        const buttonProps = { ...(props as Record<string, unknown>) }
+        const isLoading = Boolean(buttonProps.loading)
+        delete buttonProps.loading
+        if (isLoading) {
+          buttonProps.disabled = true
         }
-        return <button type="button" {...(props as Record<string, unknown>)}>{label}</button>
+        const content = (
+          <span class="llama-btn-content">
+            {isLoading ? <span class="llama-inline-spinner" aria-hidden="true" /> : null}
+            <span>{label}</span>
+          </span>
+        )
+        if (Button) {
+          return <Button type="button" size="sm" {...buttonProps}>{content}</Button>
+        }
+        return <button type="button" {...buttonProps}>{content}</button>
       }
 
       context.vue.onMounted(() => {
@@ -190,6 +202,17 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
             .llama-file-name { font-size: 12px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .llama-file-size { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
             .llama-light-text { color: var(--text-secondary); font-size: 12px; }
+            .llama-btn-content { display: inline-flex; align-items: center; gap: 6px; }
+            .llama-inline-spinner {
+              width: 12px;
+              height: 12px;
+              border: 2px solid color-mix(in srgb, var(--text-secondary) 35%, transparent);
+              border-top-color: var(--text-primary);
+              border-radius: 50%;
+              animation: llama-spin 0.7s linear infinite;
+              flex: 0 0 auto;
+            }
+            @keyframes llama-spin { to { transform: rotate(360deg); } }
           `}</style>
 
           <div class="llama-model-tabs">
