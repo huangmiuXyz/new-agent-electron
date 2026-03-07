@@ -143,6 +143,10 @@ export function getSkillsDirectories(): string[] {
   return [rawPath]
 }
 
+export function getPrimarySkillDirectory(): string {
+  return getSkillsDirectories()[0]
+}
+
 function isDirectory(path: string): boolean {
   try {
     const stat = window.api.fs.lstatSync(path)
@@ -238,8 +242,14 @@ export function loadSkill(skillName: string, skills: SkillMetadata[] = discoverS
  * 构建技能系统提示词（文档推荐做法）
  */
 export function buildSkillsPrompt(skills: SkillMetadata[]): string {
+  const targetSkillDirectory = getPrimarySkillDirectory()
+
   if (skills.length === 0) {
-    return ''
+    return [
+      '## Skills',
+      `Current agent skill directory: ${escapeXml(targetSkillDirectory)}`,
+      'When a workflow installs a skill, use this directory as the destination instead of any default skills path.'
+    ].join('\n')
   }
 
   const skillsXml = skills
@@ -256,6 +266,8 @@ export function buildSkillsPrompt(skills: SkillMetadata[]): string {
     '## Skills',
     'Use the `loadSkill` tool when a user request would benefit from specialized instructions.',
     'After loading a skill, open referenced files under the returned skill directory when needed.',
+    `Current agent skill directory: ${escapeXml(targetSkillDirectory)}`,
+    'When a workflow installs a skill, use this directory as the destination instead of any default skills path.',
     '',
     '<available_skills>',
     skillsXml,
