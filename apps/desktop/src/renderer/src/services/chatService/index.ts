@@ -298,17 +298,21 @@ export const chatService = () => {
     const skills = hasLoadSkillTool ? discoverSkills() : []
     const builtinTools = getBuiltinTools({ knowledgeBaseIds, skills })
     const skillsPrompt = hasLoadSkillTool ? buildSkillsPrompt(skills) : ''
+    const currentChat = useChatsStores().getChatById(cid)
+    const isSubAgentChat = !!currentChat?.parentChatId
     const assignedBuiltinTools = selectedBuiltinTools || []
     const hasAssignedAgentTools = assignedBuiltinTools.some((toolName) =>
       toolName === 'delegate_to_sub_agent' || toolName === 'agent_communicate'
     )
-    const multiAgentPrompt = hasAssignedAgentTools ? buildMultiAgentSystemPrompt(cid) : ''
+    const multiAgentPrompt = hasAssignedAgentTools || isSubAgentChat ? buildMultiAgentSystemPrompt(cid) : ''
     const agentInstructions = [instructions?.trim(), skillsPrompt, multiAgentPrompt]
       .filter(Boolean)
       .join('\n\n') || undefined
 
-    const requiredBuiltinTools = ['delegate_to_sub_agent', 'agent_communicate']
-    const builtinToolKeys = new Set<string>([...(selectedBuiltinTools || []), ...requiredBuiltinTools])
+    const builtinToolKeys = new Set<string>(selectedBuiltinTools || [])
+    if (isSubAgentChat) {
+      builtinToolKeys.add('agent_communicate')
+    }
 
     if (builtinToolKeys.size > 0) {
       builtinToolKeys.forEach((toolKey) => {
