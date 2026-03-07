@@ -24,6 +24,10 @@ const SKILL_NAME_PATTERN = /^[a-z0-9-]+$/
 const MAX_NAME_LENGTH = 64
 const MAX_DESCRIPTION_LENGTH = 1024
 
+function hasLocalSkillApi(): boolean {
+  return Boolean(window.api?.fs && window.api?.path && window.api?.os)
+}
+
 function unquote(value: string): string {
   const trimmed = value.trim()
   if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
@@ -130,6 +134,10 @@ function stripFrontmatter(content: string): string {
  * 优先使用智能体配置的技能目录，留空时回退默认目录
  */
 export function getSkillsDirectories(): string[] {
+  if (!hasLocalSkillApi()) {
+    return []
+  }
+
   const chatsStore = useChatsStores()
   const agentStore = useAgentStore()
   const agentId = chatsStore.currentChat?.agentId || 'default'
@@ -144,7 +152,7 @@ export function getSkillsDirectories(): string[] {
 }
 
 export function getPrimarySkillDirectory(): string {
-  return getSkillsDirectories()[0]
+  return getSkillsDirectories()[0] || DEFAULT_SKILLS_DIR
 }
 
 function isDirectory(path: string): boolean {
@@ -161,6 +169,10 @@ function isDirectory(path: string): boolean {
  * 扫描技能目录中的所有技能（同步版本，多目录支持）
  */
 export function discoverSkills(directories: string[] = getSkillsDirectories()): SkillMetadata[] {
+  if (!hasLocalSkillApi() || directories.length === 0) {
+    return []
+  }
+
   const skills: SkillMetadata[] = []
   const seenNames = new Set<string>()
 
@@ -217,6 +229,10 @@ export function discoverSkills(directories: string[] = getSkillsDirectories()): 
  * 读取技能的完整内容
  */
 export function loadSkill(skillName: string, skills: SkillMetadata[] = discoverSkills()): LoadedSkill | null {
+  if (!hasLocalSkillApi()) {
+    return null
+  }
+
   const skill = skills.find(s => s.name.toLowerCase() === skillName.toLowerCase())
 
   if (!skill) {
