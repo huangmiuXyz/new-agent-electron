@@ -154,7 +154,7 @@ export const useAgent = () => {
           presencePenalty: agent.presencePenalty ?? 0,
           frequencyPenalty: agent.frequencyPenalty ?? 0,
           maxOutputTokens: agent.maxOutputTokens,
-          contextCount: agent.contextCount ?? 10,
+          contextCount: agent.contextCount ?? 50,
           autoCompressContext: agent.autoCompressContext ?? false,
           compressModel: agent.compressModel,
           speechVoice: agent.speechVoice || '',
