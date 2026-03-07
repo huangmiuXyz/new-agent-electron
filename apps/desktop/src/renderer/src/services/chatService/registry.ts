@@ -218,9 +218,9 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
     listModels: createStandardListModels(options)
   }),
   ark: (options) => {
-    return mergeFun(createArk(options), {
+    return mergeFun(createArk(options), mergeFun(createOpenAICompatible({ ...options, name: options.name }), {
       listModels: createStandardListModels(options)
-    });
+    }));
   }
 })
 
