@@ -3,6 +3,7 @@ import { join } from 'path'
 import { setupSqliteHandlers, initSqlite } from './services/sqlite'
 import { setupUpdaterHandlers } from './services/updater'
 import { setupPtyHandlers } from './services/pty'
+import { setupComputerHandlers } from './services/computer'
 import { initTray } from './initTray'
 
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -288,6 +289,7 @@ app.whenReady().then(() => {
   initSqlite()
   setupSqliteHandlers()
   setupPtyHandlers()
+  setupComputerHandlers()
 
   const mainWindow = createWindow()
   setupUpdaterHandlers(mainWindow)

@@ -1,5 +1,6 @@
 import { discoverSkills, type SkillMetadata } from '../skillsService'
 import { getAgentBuiltinTools } from './tools/agent-tools'
+import { getComputerBuiltinTools } from './tools/computer-tools'
 import { getCodexBuiltinTools } from './tools/codex-tools'
 import { getGeneralBuiltinTools } from './tools/general-tools'
 import { getMediaBuiltinTools } from './tools/media-tools'
@@ -17,6 +18,7 @@ export const getBuiltinToolGroups = (options?: {
 
   const groups: BuiltinToolGroups = {
     通用工具: Object.keys(getGeneralBuiltinTools()),
+    电脑操作: Object.keys(getComputerBuiltinTools()),
     Agent工具: Object.keys(getAgentBuiltinTools(skills)),
     网络工具: Object.keys(getNetworkBuiltinTools({ knowledgeBaseIds: options?.knowledgeBaseIds })),
     多媒体工具: Object.keys(getMediaBuiltinTools()),
@@ -26,8 +28,8 @@ export const getBuiltinToolGroups = (options?: {
   if (manager?.getBuiltinTools) {
     const pluginTools = manager.getBuiltinTools()
     for (const [key] of pluginTools) {
-      if (!groups['插件工具']) groups['插件工具'] = []
-      groups['插件工具'].push(key)
+      if (!groups.插件工具) groups.插件工具 = []
+      groups.插件工具.push(key)
     }
   }
 
@@ -44,6 +46,7 @@ export const getBuiltinTools = (options?: {
 
   return {
     ...getGeneralBuiltinTools(),
+    ...getComputerBuiltinTools(),
     ...getAgentBuiltinTools(skills),
     ...getNetworkBuiltinTools({ knowledgeBaseIds: options?.knowledgeBaseIds }),
     ...getMediaBuiltinTools(),

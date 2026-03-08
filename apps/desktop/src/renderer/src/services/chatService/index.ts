@@ -248,8 +248,11 @@ const hasStopSentinelOutput = (output: unknown): boolean => {
 }
 
 const shouldStopForToolResult = (toolResult: { toolName?: string; output: unknown }): boolean => {
-  if (toolResult.toolName !== 'candidateReplies') return false
-  return hasStopSentinelOutput(toolResult.output)
+  if (toolResult.toolName === 'candidateReplies') {
+    return hasStopSentinelOutput(toolResult.output)
+  }
+
+  return Boolean((toolResult.output as any)?.queueAsUserMessage)
 }
 
 export const chatService = () => {

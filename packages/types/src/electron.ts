@@ -96,6 +96,93 @@ export interface ElectronAPI {
     onDownloadProgress: (id: string, callback: (progress: DownloadProgress) => void) => () => void;
     cancelDownload: (id: string) => Promise<boolean>;
   };
+
+  computer: {
+    isAvailable: () => Promise<{
+      available: boolean;
+      error?: string;
+      screen?: { width: number; height: number };
+      display?: {
+        displayId: string;
+        bounds: { x: number; y: number; width: number; height: number };
+        scaleFactor: number;
+        robotScreenSize: { width: number; height: number };
+        captureSize: { width: number; height: number };
+      };
+    }>;
+    getScreenSize: () => Promise<{ width: number; height: number }>;
+    getMousePosition: () => Promise<{ x: number; y: number }>;
+    moveMouse: (options: {
+      x: number;
+      y: number;
+      coordinateSpace?: 'screen' | 'screenshot';
+      originX?: number;
+      originY?: number;
+      smooth?: boolean;
+      speed?: number;
+      delayMs?: number;
+    }) => Promise<{ position: { x: number; y: number }; coordinateSpace: 'screen' | 'screenshot' }>;
+    mouseClick: (options?: {
+      button?: 'left' | 'right' | 'middle';
+      double?: boolean;
+      x?: number;
+      y?: number;
+      coordinateSpace?: 'screen' | 'screenshot';
+      originX?: number;
+      originY?: number;
+      smooth?: boolean;
+      speed?: number;
+      delayMs?: number;
+    }) => Promise<{
+      button: 'left' | 'right' | 'middle';
+      double: boolean;
+      position: { x: number; y: number };
+      coordinateSpace: 'screen' | 'screenshot';
+    }>;
+    dragMouse: (options: {
+      x: number;
+      y: number;
+      startX?: number;
+      startY?: number;
+      button?: 'left' | 'right' | 'middle';
+      coordinateSpace?: 'screen' | 'screenshot';
+      originX?: number;
+      originY?: number;
+      smooth?: boolean;
+      speed?: number;
+      delayMs?: number;
+    }) => Promise<{
+      button: 'left' | 'right' | 'middle';
+      position: { x: number; y: number };
+      coordinateSpace: 'screen' | 'screenshot';
+    }>;
+    scrollMouse: (options: { x: number; y: number; delayMs?: number }) => Promise<{
+      x: number;
+      y: number;
+      position: { x: number; y: number };
+    }>;
+    typeText: (options: { text: string; cpm?: number; delayMs?: number }) => Promise<{ textLength: number }>;
+    keyTap: (options: { key: string; modifiers?: string[]; delayMs?: number }) => Promise<{
+      key: string;
+      modifiers: string[];
+    }>;
+    getPixelColor: (options: {
+      x: number;
+      y: number;
+      coordinateSpace?: 'screen' | 'screenshot';
+      originX?: number;
+      originY?: number;
+    }) => Promise<{ x: number; y: number; color: string; coordinateSpace: 'screen' | 'screenshot' }>;
+    captureScreen: (options?: { x?: number; y?: number; width?: number; height?: number }) => Promise<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      bytesPerPixel: number;
+      dataUrl: string;
+      coordinateSpace: 'screenshot';
+    }>;
+  };
 }
 
 declare global {

@@ -110,6 +110,42 @@ export const api: ElectronAPI = {
       return () => electronAPI.ipcRenderer.removeListener(`net:download-progress:${id}`, listener)
     },
     cancelDownload: (id: string) => electronAPI.ipcRenderer.invoke('net:cancel-download', id)
+  },
+  computer: {
+    isAvailable: () => electronAPI.ipcRenderer.invoke('computer:is-available'),
+    getScreenSize: () => electronAPI.ipcRenderer.invoke('computer:get-screen-size'),
+    getMousePosition: () => electronAPI.ipcRenderer.invoke('computer:get-mouse-position'),
+    moveMouse: (options: { x: number; y: number; smooth?: boolean; speed?: number; delayMs?: number }) =>
+      electronAPI.ipcRenderer.invoke('computer:move-mouse', options),
+    mouseClick: (options?: {
+      button?: 'left' | 'right' | 'middle'
+      double?: boolean
+      x?: number
+      y?: number
+      smooth?: boolean
+      speed?: number
+      delayMs?: number
+    }) => electronAPI.ipcRenderer.invoke('computer:mouse-click', options),
+    dragMouse: (options: {
+      x: number
+      y: number
+      startX?: number
+      startY?: number
+      button?: 'left' | 'right' | 'middle'
+      smooth?: boolean
+      speed?: number
+      delayMs?: number
+    }) => electronAPI.ipcRenderer.invoke('computer:drag-mouse', options),
+    scrollMouse: (options: { x: number; y: number; delayMs?: number }) =>
+      electronAPI.ipcRenderer.invoke('computer:scroll-mouse', options),
+    typeText: (options: { text: string; cpm?: number; delayMs?: number }) =>
+      electronAPI.ipcRenderer.invoke('computer:type-text', options),
+    keyTap: (options: { key: string; modifiers?: string[]; delayMs?: number }) =>
+      electronAPI.ipcRenderer.invoke('computer:key-tap', options),
+    getPixelColor: (options: { x: number; y: number }) =>
+      electronAPI.ipcRenderer.invoke('computer:get-pixel-color', options),
+    captureScreen: (options?: { x?: number; y?: number; width?: number; height?: number }) =>
+      electronAPI.ipcRenderer.invoke('computer:capture-screen', options)
   }
 }
 

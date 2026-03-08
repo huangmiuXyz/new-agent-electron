@@ -90,6 +90,7 @@
     "pinia": "catalog:",
     "pinia-plugin-persistedstate": "catalog:",
     "pinia-plugin-persistedstate-async": "catalog:",
+    "robotjs": "^0.6.0",
     "sqlite-vec": "catalog:",
     "strip-ansi": "catalog:",
     "textextensions": "^6.11.0",
