@@ -3,9 +3,13 @@ import { ipcMain, desktopCapturer, screen } from 'electron'
 type RobotModule = typeof import('robotjs')
 type MouseButton = 'left' | 'right' | 'middle'
 type CoordinateSpace = 'screen' | 'screenshot'
+type RobotCoordinateMode = 'dip' | 'physical'
 
 let robotInstance: RobotModule | null = null
 let robotLoadError: Error | null = null
+let lastCaptureDisplayId: string | null = null
+let lastCaptureSourceSize: { width: number; height: number } | null = null
+let cachedRobotCoordinateMode: RobotCoordinateMode | null = null
 
 const normalizeInteger = (value: unknown, name: string): number => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -33,10 +37,17 @@ const normalizeCoordinateSpace = (value: unknown): CoordinateSpace => {
   return 'screen'
 }
 
-const getPrimaryDisplayMetrics = (robot: RobotModule) => {
+const getDisplayMetrics = (
+  robot: RobotModule,
+  display: Electron.Display,
+  sourceSize?: { width: number; height: number } | null
+) => {
   const robotScreenSize = robot.getScreenSize()
-  const display = screen.getPrimaryDisplay()
   const scaleFactor = display.scaleFactor || 1
+  const captureSize = sourceSize || {
+    width: Math.max(1, Math.round(display.bounds.width * scaleFactor)),
+    height: Math.max(1, Math.round(display.bounds.height * scaleFactor))
+  }
 
   return {
     displayId: String(display.id),
@@ -48,19 +59,60 @@ const getPrimaryDisplayMetrics = (robot: RobotModule) => {
     },
     scaleFactor,
     robotScreenSize,
-    captureSize: {
-      width: Math.max(1, Math.round(display.bounds.width * scaleFactor)),
-      height: Math.max(1, Math.round(display.bounds.height * scaleFactor))
-    }
+    captureSize
   }
 }
 
-const captureToRobotX = (value: number, metrics: ReturnType<typeof getPrimaryDisplayMetrics>) => {
-  return Math.round((value * metrics.robotScreenSize.width) / metrics.captureSize.width)
+const getDisplayById = (displayId: unknown) => {
+  if (displayId == null) return null
+  const normalized = String(displayId)
+  return screen.getAllDisplays().find((display) => String(display.id) === normalized) || null
 }
 
-const captureToRobotY = (value: number, metrics: ReturnType<typeof getPrimaryDisplayMetrics>) => {
-  return Math.round((value * metrics.robotScreenSize.height) / metrics.captureSize.height)
+const getActiveDisplay = () => screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+
+const getDefaultDisplay = (displayId?: unknown) => {
+  return getDisplayById(displayId) || getDisplayById(lastCaptureDisplayId) || getActiveDisplay()
+}
+
+const getRobotCoordinateMode = (robot: RobotModule): RobotCoordinateMode => {
+  if (cachedRobotCoordinateMode) return cachedRobotCoordinateMode
+
+  const robotPos = robot.getMousePos()
+  const dipPoint = screen.getCursorScreenPoint()
+  const physicalPoint = screen.dipToScreenPoint(dipPoint)
+  const dipDistance = Math.abs(robotPos.x - dipPoint.x) + Math.abs(robotPos.y - dipPoint.y)
+  const physicalDistance = Math.abs(robotPos.x - physicalPoint.x) + Math.abs(robotPos.y - physicalPoint.y)
+
+  cachedRobotCoordinateMode = physicalDistance < dipDistance ? 'physical' : 'dip'
+  return cachedRobotCoordinateMode
+}
+
+const captureToRobotPoint = (
+  robot: RobotModule,
+  x: number,
+  y: number,
+  metrics: ReturnType<typeof getDisplayMetrics>
+) => {
+  const sourceScaleX = metrics.captureSize.width / Math.max(1, metrics.bounds.width)
+  const sourceScaleY = metrics.captureSize.height / Math.max(1, metrics.bounds.height)
+  const dipPoint = {
+    x: metrics.bounds.x + x / sourceScaleX,
+    y: metrics.bounds.y + y / sourceScaleY
+  }
+
+  if (getRobotCoordinateMode(robot) === 'dip') {
+    return {
+      x: Math.round(dipPoint.x),
+      y: Math.round(dipPoint.y)
+    }
+  }
+
+  const screenPoint = screen.dipToScreenPoint(dipPoint)
+  return {
+    x: Math.round(screenPoint.x),
+    y: Math.round(screenPoint.y)
+  }
 }
 
 const resolvePoint = (
@@ -79,7 +131,8 @@ const resolvePoint = (
 
   const originX = normalizeOptionalInteger(payload.originX, 0, 'originX')
   const originY = normalizeOptionalInteger(payload.originY, 0, 'originY')
-  const metrics = getPrimaryDisplayMetrics(robot)
+  const display = getDefaultDisplay(payload.displayId)
+  const metrics = getDisplayMetrics(robot, display, lastCaptureSourceSize)
 
   const captureX = originX + inputX
   const captureY = originY + inputY
@@ -93,12 +146,15 @@ const resolvePoint = (
     throw new Error('screenshot coordinates are outside the robot screen area')
   }
 
+  const point = captureToRobotPoint(robot, captureX, captureY, metrics)
+
   return {
-    x: captureToRobotX(captureX, metrics),
-    y: captureToRobotY(captureY, metrics),
+    x: point.x,
+    y: point.y,
     coordinateSpace,
     originX,
-    originY
+    originY,
+    displayId: metrics.displayId
   }
 }
 
@@ -153,7 +209,13 @@ export const setupComputerHandlers = () => {
   ipcMain.handle('computer:is-available', async () => {
     try {
       const robot = getRobot()
-      return { available: true, screen: robot.getScreenSize(), display: getPrimaryDisplayMetrics(robot) }
+      return {
+        available: true,
+        screen: robot.getScreenSize(),
+        display: getDisplayMetrics(robot, getActiveDisplay(), lastCaptureSourceSize),
+        coordinateMode: getRobotCoordinateMode(robot),
+        cursorScreenPoint: screen.getCursorScreenPoint()
+      }
     } catch (error) {
       return { available: false, error: (error as Error).message }
     }
@@ -308,7 +370,26 @@ export const setupComputerHandlers = () => {
 
   ipcMain.handle('computer:capture-screen', async (_event, payload: Record<string, unknown> = {}) => {
     const robot = getRobot()
-    const metrics = getPrimaryDisplayMetrics(robot)
+    const display = getDefaultDisplay(payload.displayId)
+    const baseMetrics = getDisplayMetrics(robot, display)
+
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      fetchWindowIcons: false,
+      thumbnailSize: { width: baseMetrics.captureSize.width, height: baseMetrics.captureSize.height }
+    })
+
+    const targetSource =
+      sources.find((source) => source.display_id === baseMetrics.displayId) ||
+      sources.find((source) => source.name.toLowerCase().includes('entire screen')) ||
+      sources[0]
+
+    if (!targetSource || targetSource.thumbnail.isEmpty()) {
+      throw new Error('failed to capture screen with Electron desktopCapturer')
+    }
+
+    const imageSize = targetSource.thumbnail.getSize()
+    const metrics = getDisplayMetrics(robot, display, imageSize)
     const x = normalizeOptionalInteger(payload.x, 0, 'x')
     const y = normalizeOptionalInteger(payload.y, 0, 'y')
     const width = normalizeOptionalInteger(payload.width, metrics.captureSize.width, 'width')
@@ -321,44 +402,21 @@ export const setupComputerHandlers = () => {
     if (
       x < 0 ||
       y < 0 ||
-      x + width > metrics.captureSize.width ||
-      y + height > metrics.captureSize.height
-    ) {
-      throw new Error('requested capture region is outside the primary display bounds')
-    }
-
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      fetchWindowIcons: false,
-      thumbnailSize: { width: metrics.captureSize.width, height: metrics.captureSize.height }
-    })
-
-    const primarySource =
-      sources.find((source) => source.display_id === metrics.displayId) ||
-      sources.find((source) => source.name.toLowerCase().includes('entire screen')) ||
-      sources[0]
-
-    if (!primarySource || primarySource.thumbnail.isEmpty()) {
-      throw new Error('failed to capture screen with Electron desktopCapturer')
-    }
-
-    const imageSize = primarySource.thumbnail.getSize()
-
-    if (
-      x < 0 ||
-      y < 0 ||
       x + width > imageSize.width ||
       y + height > imageSize.height
     ) {
       throw new Error('requested capture region is outside the primary display bounds')
     }
 
-    const cropped = primarySource.thumbnail.crop({
+    const cropped = targetSource.thumbnail.crop({
       width,
       height,
       x,
       y
     })
+
+    lastCaptureDisplayId = metrics.displayId
+    lastCaptureSourceSize = imageSize
 
     return {
       x,
@@ -368,6 +426,7 @@ export const setupComputerHandlers = () => {
       bytesPerPixel: 4,
       dataUrl: cropped.toDataURL(),
       coordinateSpace: 'screenshot',
+      displayId: metrics.displayId,
       display: metrics
     }
   })
