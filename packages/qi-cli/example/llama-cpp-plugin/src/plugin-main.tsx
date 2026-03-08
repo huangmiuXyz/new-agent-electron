@@ -206,22 +206,36 @@ const askLoadOptions = async (
   model: LlamaModelConfig
 ): Promise<LlamaLoadOptions | null> => {
   const modal = context.useModal()
+  const isEmbeddingModel = (model.category || 'text') === 'embedding'
   const [LoadOptionsForm, formActions] = context.useForm<LlamaLoadOptions>({
-    title: '加载参数',
+    title: isEmbeddingModel ? '嵌入模型加载参数' : '文本模型加载参数',
     showHeader: false,
     fields: [
-      { name: 'ctxSize', type: 'number', label: 'Context size (ctx-size)', required: true },
-      { name: 'extraArgs', type: 'text', label: '额外参数' },
-      { name: 'loadMmproj', type: 'boolean', label: '加载 mmproj', hint: '关闭后本次启动不会传 --mmproj。' }
+      {
+        name: 'ctxSize',
+        type: 'number',
+        label: isEmbeddingModel ? 'Embedding 上下文长度（ctx-size）' : 'Context size (ctx-size)',
+        required: true,
+        hint: isEmbeddingModel ? '用于 embedding 推理的上下文长度。' : undefined
+      },
+      {
+        name: 'extraArgs',
+        type: 'text',
+        label: isEmbeddingModel ? 'Embedding 额外参数' : '额外参数',
+        hint: isEmbeddingModel ? '例如：--ubatch-size 512；会与 --embedding/--pooling 一起传给 llama-server。' : undefined
+      },
+      ...(!isEmbeddingModel
+        ? [{ name: 'loadMmproj', type: 'boolean', label: '加载 mmproj', hint: '关闭后本次启动不会传 --mmproj。' }]
+        : [])
     ],
     initialData: {
       ctxSize: runtimeConfig.ctxSize,
       extraArgs: runtimeConfig.extraArgs,
-      loadMmproj: true
+      loadMmproj: !isEmbeddingModel
     }
   })
   const ok = await modal.confirm({
-    title: `加载 ${model.name}`,
+    title: `${isEmbeddingModel ? '加载嵌入模型' : '加载文本模型'} ${model.name}`,
     content: LoadOptionsForm
   })
   if (!ok) return null
@@ -381,6 +395,28 @@ const plugin: Plugin = {
       syncProvider(context, ConfigForm)
       await updateServiceStatusIndicator(context, true)
     }
+    const updateLocalModel = async (
+      modelId: string,
+      patch: Partial<Pick<LlamaModelConfig, 'category' | 'embeddingPooling'>>
+    ) => {
+      runtimeConfig = {
+        ...runtimeConfig,
+        models: runtimeConfig.models.map((model) => {
+          if (model.id !== modelId) return model
+          const nextCategory = patch.category ?? model.category ?? 'text'
+          return {
+            ...model,
+            category: nextCategory,
+            embeddingPooling: nextCategory === 'embedding'
+              ? (patch.embeddingPooling ?? model.embeddingPooling ?? 'cls')
+              : undefined
+          }
+        })
+      }
+      await saveConfig(context, runtimeConfig)
+      syncProvider(context, ConfigForm)
+      formActions?.setFieldValue('loadedModelId', runtimeConfig.loadedModelId)
+    }
     const fetchRemoteFiles = async (modelId: string) => {
       return await fetchModelScopeRepoFiles(modelId)
     }
@@ -447,6 +483,7 @@ const plugin: Plugin = {
         unsubscribeLoadingState: (listener) => {
           if (onModelLoadStateChanged === listener) onModelLoadStateChanged = null
         },
+        updateLocalModel,
         pickMmprojForModel,
         loadLocalModel: async (model) => {
           const ok = await reloadModelNow(context, model)
@@ -467,7 +504,7 @@ const plugin: Plugin = {
       })
       await modal.confirm({
         title: '模型加载',
-        width: '90%',
+        width: '85%',
         modalBodyStyle: { overflowY: 'hidden' },
         showCancel: false,
         confirmText: '关闭',
@@ -573,7 +610,9 @@ const plugin: Plugin = {
           return (json.data || []).map((item) => ({
             id: item.id,
             name: item.id,
-            category: 'text',
+            category: runtimeConfig.loadedModelId === item.id
+              ? (runtimeConfig.models.find((model) => model.id === item.id)?.category || 'text')
+              : (item.id.toLowerCase().includes('embed') ? 'embedding' : 'text'),
             active: true,
             object: 'model',
             created: Date.now(),

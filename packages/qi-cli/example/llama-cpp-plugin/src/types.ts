@@ -2,10 +2,15 @@ import type { Model, Plugin, PluginContext } from '@agent-qi/types'
 import { OpenAICompatibleProvider } from '@ai-sdk/openai-compatible'
 export type { Model, Plugin, PluginContext }
 
+export type LlamaModelCategory = 'text' | 'embedding'
+export type LlamaEmbeddingPooling = 'none' | 'mean' | 'cls' | 'last' | 'rank'
+
 export interface LlamaModelConfig {
   id: string
   name: string
   modelPath: string
+  category?: LlamaModelCategory
+  embeddingPooling?: LlamaEmbeddingPooling
 }
 
 export interface LlamaPluginConfig {

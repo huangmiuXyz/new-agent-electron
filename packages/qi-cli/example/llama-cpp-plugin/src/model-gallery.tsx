@@ -12,6 +12,10 @@ interface CreateModelGalleryOptions {
   getLoadingState: () => LoadingState
   subscribeLoadingState: (listener: () => void) => void
   unsubscribeLoadingState: (listener: () => void) => void
+  updateLocalModel: (
+    modelId: string,
+    patch: Partial<Pick<LlamaModelConfig, 'category' | 'embeddingPooling'>>
+  ) => Promise<void>
   pickMmprojForModel: (model: LlamaModelConfig) => Promise<void>
   loadLocalModel: (model: LlamaModelConfig) => Promise<boolean>
   searchRemoteModels: (keyword: string, page: number, pageSize: number) => Promise<RemoteModelSearchResult>
@@ -26,7 +30,19 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
   const { context } = opts
   const Button = context.components?.Button as any
   const Input = context.components?.Input as any
+  const Select = context.components?.Select as any
+  const categoryOptions: Array<{ label: string; value: 'text' | 'embedding' }> = [
+    { label: 'Text', value: 'text' },
+    { label: 'Embedding', value: 'embedding' }
+  ]
   const Tabs = context.components?.Tabs as any
+  const poolingOptions: Array<{ label: string; value: 'none' | 'mean' | 'cls' | 'last' | 'rank' }> = [
+    { label: 'cls', value: 'cls' },
+    { label: 'mean', value: 'mean' },
+    { label: 'last', value: 'last' },
+    { label: 'rank', value: 'rank' },
+    { label: 'none', value: 'none' }
+  ]
 
   return context.vue.markRaw(context.vue.defineComponent({
     setup() {
@@ -299,7 +315,10 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
                             <div>
                               <div class="llama-model-title">{model.name}</div>
                               <div class="llama-model-sub" title={model.modelPath}>{model.modelPath}</div>
-                              <div class="llama-model-sub" title={currentMmproj || '未设置'}>{`mmproj: ${currentMmproj || '未设置'}`}</div>
+                              <div class="llama-model-sub">{`类型: ${model.category === 'embedding' ? 'Embedding' : 'Text'}${model.category === 'embedding' ? ` / pooling: ${model.embeddingPooling || 'cls'}` : ''}`}</div>
+                              <div class="llama-model-sub" title={currentMmproj || '未设置'}>
+                                {`mmproj: ${model.category === 'embedding' ? 'embedding 模型不使用' : (currentMmproj || '未设置')}`}
+                              </div>
                             </div>
                           </div>
                         )
@@ -338,19 +357,87 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
                     const selected = localModels.value.find((m) => m.id === localSelectedId.value)
                     if (!selected) return <div class="llama-light-text">请选择左侧模型。</div>
                     const currentMmproj = String(cfg.mmprojMap?.[selected.id] || '').trim()
+                    const isEmbeddingModel = (selected.category || 'text') === 'embedding'
                     return (
                       <>
                         <div class="llama-detail-head">
                           <img class="llama-detail-cover" src={opts.ggmlLogoDataUrl} />
                           <div><div class="llama-detail-name">{selected.name}</div><div class="llama-detail-id">{selected.id}</div></div>
                         </div>
-                        <div class="llama-detail-desc">{`模型路径:\n${selected.modelPath}\n\nmmproj:\n${currentMmproj || '未设置'}`}</div>
+                        <div class="llama-detail-desc">{`模型路径:\n${selected.modelPath}\n\n类型:\n${isEmbeddingModel ? 'embedding' : 'text'}${isEmbeddingModel ? `\n\npooling:\n${selected.embeddingPooling || 'cls'}` : ''}\n\nmmproj:\n${isEmbeddingModel ? 'embedding 模型不使用' : (currentMmproj || '未设置')}`}</div>
                         <div class="llama-detail-actions">
-                          {renderButton('选择 mmproj', {
-                            variant: 'secondary',
-                            disabled: loadingModel.value,
-                            onClick: async () => { await opts.pickMmprojForModel(selected); refreshLocalModels() }
-                          })}
+                          {Select
+                            ? (
+                              <Select
+                                modelValue={selected.category || 'text'}
+                                options={categoryOptions}
+                                clearable={false}
+                                disabled={loadingModel.value}
+                                onUpdate:modelValue={async (value: 'text' | 'embedding') => {
+                                  await opts.updateLocalModel(selected.id, {
+                                    category: value || 'text',
+                                    embeddingPooling: value === 'embedding'
+                                      ? (selected.embeddingPooling || 'cls')
+                                      : undefined
+                                  })
+                                  refreshLocalModels()
+                                }}
+                              />
+                            )
+                            : categoryOptions.map((option) => renderButton(option.label, {
+                              variant: (selected.category || 'text') === option.value ? 'primary' : 'secondary',
+                              disabled: loadingModel.value,
+                              onClick: async () => {
+                                await opts.updateLocalModel(selected.id, {
+                                  category: option.value,
+                                  embeddingPooling: option.value === 'embedding'
+                                    ? (selected.embeddingPooling || 'cls')
+                                    : undefined
+                                })
+                                refreshLocalModels()
+                              }
+                            }))}
+                          {!isEmbeddingModel
+                            ? renderButton('选择 mmproj', {
+                              variant: 'secondary',
+                              disabled: loadingModel.value,
+                              onClick: async () => { await opts.pickMmprojForModel(selected); refreshLocalModels() }
+                            })
+                            : null}
+                        </div>
+                        {isEmbeddingModel
+                          ? (
+                            <div class="llama-detail-actions">
+                              {Select
+                                ? (
+                                  <Select
+                                    modelValue={selected.embeddingPooling || 'cls'}
+                                    options={poolingOptions}
+                                    clearable={false}
+                                    onUpdate:modelValue={async (value: 'none' | 'mean' | 'cls' | 'last' | 'rank') => {
+                                      await opts.updateLocalModel(selected.id, {
+                                        category: 'embedding',
+                                        embeddingPooling: value || 'cls'
+                                      })
+                                      refreshLocalModels()
+                                    }}
+                                  />
+                                )
+                                : poolingOptions.map((option) => renderButton(option.label, {
+                                  variant: (selected.embeddingPooling || 'cls') === option.value ? 'primary' : 'secondary',
+                                  disabled: loadingModel.value,
+                                  onClick: async () => {
+                                    await opts.updateLocalModel(selected.id, {
+                                      category: 'embedding',
+                                      embeddingPooling: option.value
+                                    })
+                                    refreshLocalModels()
+                                  }
+                                }))}
+                            </div>
+                          )
+                          : null}
+                        <div class="llama-detail-actions">
                           {renderButton(selected.id === cfg.loadedModelId ? '重载模型' : '加载模型', {
                             variant: selected.id === cfg.loadedModelId ? 'secondary' : 'primary',
                             loading: loadingModel.value && loadingId.value === selected.id,

@@ -54,7 +54,7 @@ export const startLlamaServer = async (
 
   const loadMmproj = loadOptions?.loadMmproj !== false
   const mmprojPath = String(cfg.mmprojMap?.[model.id] || '').trim()
-  if (loadMmproj && mmprojPath && !context.api.fs.existsSync(mmprojPath)) {
+  if ((model.category || 'text') !== 'embedding' && loadMmproj && mmprojPath && !context.api.fs.existsSync(mmprojPath)) {
     context.notification.error(`mmproj file not found: ${mmprojPath}`, 'llama.cpp')
     return false
   }

@@ -3,7 +3,7 @@
   "description": "Use local llama-server with model path, mmproj, and ctx-size settings.",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-03-01 15:13:44",
+  "updatedAt": "2026-03-08 11:55:20",
   "extraAssets": [
     "GGML_logo.svg"
   ]

@@ -5,9 +5,12 @@ Local llama.cpp provider plugin for Agent-Qi.
 ## Features
 
 - Register `llama-cpp` provider compatible with OpenAI API style (`/v1`).
+- Support local `text` and `embedding` models.
 - Configure `llama-server` executable path.
 - Configure model list with per-model:
   - model `.gguf` path
+  - model category (`text` / `embedding`)
+  - embedding pooling (`cls` / `mean` / `last` / `rank` / `none`)
   - optional `mmproj` path
   - `ctx-size`
   - extra startup args
@@ -28,6 +31,8 @@ npm run build
 4. Fill:
    - `llama-server path`
    - one or more model entries (`Model .gguf path`)
+   - if the model is used for embeddings, switch it to `embedding` in the local model panel
+   - choose pooling mode for embedding models if needed
    - optional `mmproj path`
    - `ctx-size` (e.g. 4096)
 5. Enable `Auto start llama-server`.
@@ -49,3 +54,13 @@ E:\llama.cpp\build\bin\Release\llama-server.exe \
 ```
 
 This plugin generates the same core args from your selected model entry.
+
+## Embedding models
+
+When a local model is marked as `embedding`, the plugin starts `llama-server` with:
+
+```bash
+--embedding --pooling <selected-pooling>
+```
+
+This makes the provider usable from Agent-Qi embedding/RAG flows after the model is loaded.

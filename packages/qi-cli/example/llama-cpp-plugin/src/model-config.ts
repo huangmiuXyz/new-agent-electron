@@ -1,7 +1,9 @@
 import {
   FileStatLike,
+  LlamaEmbeddingPooling,
   LlamaConfigInput,
   LlamaLoadOptions,
+  LlamaModelCategory,
   LlamaModelConfig,
   LlamaPluginConfig,
   Model,
@@ -28,7 +30,13 @@ const normalizeModel = (raw: Partial<LlamaModelConfig>, index: number): LlamaMod
   const modelPath = String(raw?.modelPath || '').trim()
   const id = String(raw?.id || fallbackId).trim() || fallbackId
   const name = String(raw?.name || id).trim() || id
-  return { id, name, modelPath }
+  const categoryRaw = String(raw?.category || '').trim().toLowerCase()
+  const category: LlamaModelCategory = categoryRaw === 'embedding' ? 'embedding' : 'text'
+  const poolingRaw = String(raw?.embeddingPooling || '').trim().toLowerCase()
+  const embeddingPooling: LlamaEmbeddingPooling | undefined = category === 'embedding'
+    ? (['none', 'mean', 'cls', 'last', 'rank'].includes(poolingRaw) ? poolingRaw as LlamaEmbeddingPooling : 'cls')
+    : undefined
+  return { id, name, modelPath, category, embeddingPooling }
 }
 
 export const normalizeConfig = (
@@ -178,18 +186,27 @@ export const scanModelsByRoot = (context: PluginContext, root: string): LlamaMod
 
 export const syncScannedModels = (cfg: LlamaPluginConfig, scanned: LlamaModelConfig[]): LlamaPluginConfig => {
   const oldMap = cfg.mmprojMap || {}
+  const oldModelMap = new Map(cfg.models.map((model) => [model.id, model]))
   const mmprojMap: Record<string, string> = {}
 
-  for (const model of scanned) {
+  const models = scanned.map((model) => {
+    const existing = oldModelMap.get(model.id)
     mmprojMap[model.id] = oldMap[model.id] || ''
-  }
+    return {
+      ...model,
+      category: existing?.category || model.category || 'text',
+      embeddingPooling: (existing?.category || model.category) === 'embedding'
+        ? (existing?.embeddingPooling || model.embeddingPooling || 'cls')
+        : undefined
+    }
+  })
 
-  const scannedIds = new Set(scanned.map((m) => m.id))
+  const scannedIds = new Set(models.map((m) => m.id))
   const loadedModelId = scannedIds.has(cfg.loadedModelId) ? cfg.loadedModelId : ''
 
   return {
     ...cfg,
-    models: scanned,
+    models,
     loadedModelId,
     mmprojMap
   }
@@ -202,12 +219,14 @@ export const buildProviderModels = (cfg: LlamaPluginConfig, pluginName: string):
   return [{
     id: loaded.id,
     name: loaded.name,
-    category: 'text',
+    category: loaded.category || 'text',
     active: true,
     object: 'model',
     created: Date.now(),
     owned_by: pluginName,
-    description: loaded.modelPath
+    description: loaded.category === 'embedding'
+      ? `${loaded.modelPath}${loaded.embeddingPooling ? `\nembedding pooling: ${loaded.embeddingPooling}` : ''}`
+      : loaded.modelPath
   }] as Model[]
 }
 
@@ -244,8 +263,15 @@ export const parseModelArgs = (
 
   const loadMmproj = loadOptions?.loadMmproj !== false
   const mmprojPath = String(cfg.mmprojMap?.[model.id] || '').trim()
-  if (loadMmproj && mmprojPath) {
+  if ((model.category || 'text') !== 'embedding' && loadMmproj && mmprojPath) {
     args.push('--mmproj', mmprojPath)
+  }
+
+  if ((model.category || 'text') === 'embedding') {
+    args.push('--embedding')
+    if (model.embeddingPooling) {
+      args.push('--pooling', model.embeddingPooling)
+    }
   }
 
   const mergedExtraArgs = String(loadOptions?.extraArgs ?? cfg.extraArgs ?? '').trim()
