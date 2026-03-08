@@ -5,8 +5,8 @@ interface Props {
   multiple?: boolean
   removable?: boolean
   showUpload?: boolean
-  dropZoneRef?: HTMLElement
-  inputRef?: HTMLTextAreaElement
+  dropZoneRef?: HTMLElement | null
+  inputRef?: HTMLTextAreaElement | null
   onRemove?: (index: number) => void
   /** 媒体类型过滤，如 'image' 表示只允许上传图片 */
   media?: 'image' | 'video' | 'audio'
@@ -19,6 +19,9 @@ const props = withDefaults(defineProps<Props>(), {
   removable: true,
   showUpload: false
 })
+
+const dropZoneRef = toRef(props, 'dropZoneRef')
+const inputRef = toRef(props, 'inputRef')
 
 const emit = defineEmits<{
   'update:modelValue': [value: string | string[]]
@@ -54,8 +57,8 @@ const {
   handlePaste
 } = useUpload({
   files: initialFiles.value,
-  dropZoneRef: ref(props.dropZoneRef),
-  inputRef: ref(props.inputRef),
+  dropZoneRef: dropZoneRef as Ref<HTMLElement | undefined>,
+  inputRef: inputRef as Ref<HTMLTextAreaElement | undefined>,
   media: props.media,
   returnType: props.returnType,
   onFilesSelected: (files) => {
