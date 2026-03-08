@@ -9,6 +9,7 @@ interface LoadingState {
 interface CreateModelGalleryOptions {
   context: PluginContext
   getConfig: () => LlamaPluginConfig
+  refreshLocalModels: () => Promise<void>
   getLoadingState: () => LoadingState
   subscribeLoadingState: (listener: () => void) => void
   unsubscribeLoadingState: (listener: () => void) => void
@@ -49,6 +50,8 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
       const activeTab = context.vue.ref<'local' | 'download'>('local')
       const localModels = context.vue.ref<LlamaModelConfig[]>([])
       const localSelectedId = context.vue.ref('')
+      const localLoading = context.vue.ref(false)
+      const localError = context.vue.ref('')
       const remoteKeyword = context.vue.ref('')
       const remoteLoading = context.vue.ref(false)
       const remoteError = context.vue.ref('')
@@ -64,6 +67,8 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
       const remoteFiles = context.vue.ref<Array<{ path: string; size: number; type: string }>>([])
       const loadingModel = context.vue.ref(false)
       const loadingId = context.vue.ref('')
+      const optimisticLoadingModel = context.vue.ref(false)
+      const optimisticLoadingId = context.vue.ref('')
       const downloadingFileMap = context.vue.ref<Record<string, boolean>>({})
 
       const formatAgo = (unix: number): string => {
@@ -84,11 +89,27 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
         }
       }
 
+      const loadLocalModels = async () => {
+        localLoading.value = true
+        localError.value = ''
+        try {
+          await opts.refreshLocalModels()
+          refreshLocalModels()
+        } catch (error) {
+          localError.value = (error as Error)?.message || '加载本地模型失败。'
+        } finally {
+          localLoading.value = false
+        }
+      }
+
       const syncLoadingState = () => {
         const state = opts.getLoadingState()
         loadingModel.value = state.loading
         loadingId.value = state.loadingModelId
       }
+
+      const isAnyModelLoading = () => loadingModel.value || optimisticLoadingModel.value
+      const activeLoadingId = () => loadingModel.value ? loadingId.value : optimisticLoadingId.value
 
       const loadRemoteModels = async (page = 1) => {
         remoteLoading.value = true
@@ -172,7 +193,10 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
         opts.subscribeLoadingState(syncLoadingState)
         syncLoadingState()
         refreshLocalModels()
-        void loadRemoteModels()
+        setTimeout(() => {
+          void loadLocalModels()
+          void loadRemoteModels()
+        }, 0)
       })
 
       context.vue.onUnmounted(() => {
@@ -235,7 +259,13 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
             {renderButton(`本地模型 (${localModels.value.length})`, {
               class: ['llama-model-tab', activeTab.value === 'local' ? 'active' : ''],
               variant: activeTab.value === 'local' ? 'primary' : 'secondary',
-              onClick: () => { activeTab.value = 'local'; refreshLocalModels() }
+              onClick: () => {
+                activeTab.value = 'local'
+                refreshLocalModels()
+                if (!localModels.value.length && !localLoading.value) {
+                  void loadLocalModels()
+                }
+              }
             })}
             {renderButton('下载模型 (ModelScope)', {
               class: ['llama-model-tab', activeTab.value === 'download' ? 'active' : ''],
@@ -299,12 +329,26 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
                       </div>
                     </div>
                   )
-                  : <div class="llama-light-text">本地模型来自 modelsRoot 扫描结果，可直接加载并配置 mmproj。</div>}
+                  : (
+                    <div class="llama-search-wrap">
+                      <div class="llama-light-text">本地模型来自 modelsRoot 扫描结果，可直接加载并配置 mmproj。</div>
+                      {renderButton(localLoading.value ? '扫描中...' : '刷新', {
+                        variant: 'secondary',
+                        loading: localLoading.value,
+                        disabled: localLoading.value,
+                        onClick: async () => { await loadLocalModels() }
+                      })}
+                    </div>
+                  )}
               </div>
               <div class="llama-pane-body">
                 {activeTab.value === 'local'
                   ? (
-                    localModels.value.length
+                    localLoading.value && !localModels.value.length
+                      ? <div class="llama-light-text">正在扫描本地模型...</div>
+                      : localError.value
+                        ? <div class="llama-light-text">{localError.value}</div>
+                        : localModels.value.length
                       ? localModels.value.map((model) => {
                         const cfg = opts.getConfig()
                         const isCurrent = model.id === cfg.loadedModelId
@@ -368,14 +412,14 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
                         <div class="llama-detail-actions">
                           {Select
                             ? (
-                              <Select
-                                modelValue={selected.category || 'text'}
-                                options={categoryOptions}
-                                clearable={false}
-                                disabled={loadingModel.value}
-                                onUpdate:modelValue={async (value: 'text' | 'embedding') => {
-                                  await opts.updateLocalModel(selected.id, {
-                                    category: value || 'text',
+                                <Select
+                                  modelValue={selected.category || 'text'}
+                                  options={categoryOptions}
+                                  clearable={false}
+                                  disabled={isAnyModelLoading()}
+                                  onUpdate:modelValue={async (value: 'text' | 'embedding') => {
+                                    await opts.updateLocalModel(selected.id, {
+                                      category: value || 'text',
                                     embeddingPooling: value === 'embedding'
                                       ? (selected.embeddingPooling || 'cls')
                                       : undefined
@@ -386,7 +430,7 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
                             )
                             : categoryOptions.map((option) => renderButton(option.label, {
                               variant: (selected.category || 'text') === option.value ? 'primary' : 'secondary',
-                              disabled: loadingModel.value,
+                              disabled: isAnyModelLoading(),
                               onClick: async () => {
                                 await opts.updateLocalModel(selected.id, {
                                   category: option.value,
@@ -400,7 +444,7 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
                           {!isEmbeddingModel
                             ? renderButton('选择 mmproj', {
                               variant: 'secondary',
-                              disabled: loadingModel.value,
+                              disabled: isAnyModelLoading(),
                               onClick: async () => { await opts.pickMmprojForModel(selected); refreshLocalModels() }
                             })
                             : null}
@@ -425,7 +469,7 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
                                 )
                                 : poolingOptions.map((option) => renderButton(option.label, {
                                   variant: (selected.embeddingPooling || 'cls') === option.value ? 'primary' : 'secondary',
-                                  disabled: loadingModel.value,
+                                  disabled: isAnyModelLoading(),
                                   onClick: async () => {
                                     await opts.updateLocalModel(selected.id, {
                                       category: 'embedding',
@@ -440,11 +484,20 @@ export const createModelGalleryComponent = (opts: CreateModelGalleryOptions) => 
                         <div class="llama-detail-actions">
                           {renderButton(selected.id === cfg.loadedModelId ? '重载模型' : '加载模型', {
                             variant: selected.id === cfg.loadedModelId ? 'secondary' : 'primary',
-                            loading: loadingModel.value && loadingId.value === selected.id,
-                            disabled: loadingModel.value && loadingId.value !== selected.id,
+                            loading: isAnyModelLoading() && activeLoadingId() === selected.id,
+                            disabled: isAnyModelLoading() && activeLoadingId() !== selected.id,
                             onClick: async () => {
-                              const ok = await opts.loadLocalModel(selected)
-                              if (ok) refreshLocalModels()
+                              if (isAnyModelLoading()) return
+                              optimisticLoadingModel.value = true
+                              optimisticLoadingId.value = selected.id
+                              try {
+                                const ok = await opts.loadLocalModel(selected)
+                                if (ok) refreshLocalModels()
+                              } finally {
+                                optimisticLoadingModel.value = false
+                                optimisticLoadingId.value = ''
+                                syncLoadingState()
+                              }
                             }
                           })}
                         </div>

@@ -472,12 +472,12 @@ const plugin: Plugin = {
       return true
     }
     const openModelPickerModal = async () => {
-      await refreshScannedModels()
       const modal = context.useModal()
       currentModelPickerModal = modal
       const ModelGallery = createModelGalleryComponent({
         context,
         getConfig: () => runtimeConfig,
+        refreshLocalModels: refreshScannedModels,
         getLoadingState: () => ({ loading: isLoadingModel, loadingModelId }),
         subscribeLoadingState: (listener) => { onModelLoadStateChanged = listener },
         unsubscribeLoadingState: (listener) => {
