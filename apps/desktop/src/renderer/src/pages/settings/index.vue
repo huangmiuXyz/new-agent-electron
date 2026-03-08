@@ -69,6 +69,7 @@ const switchTab = (tabName: string) => {
   flex: 1;
   display: flex;
   min-width: 0;
+  min-height: 0;
   z-index: 2;
   background: var(--bg-card);
 }
