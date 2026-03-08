@@ -2,12 +2,40 @@ import { z } from 'zod'
 import ImagePage from '../../../pages/image/index.vue'
 import { createRegistry } from '@renderer/services/chatService/registry'
 
+const normalizeImageUrls = (images: any[] | undefined): string[] => {
+  return (images || [])
+    .map((img: any) => {
+      if (typeof img === 'string') return img
+      if (img?.base64) {
+        return img.base64.startsWith('data:')
+          ? img.base64
+          : `data:image/png;base64,${img.base64}`
+      }
+      return img?.url || ''
+    })
+    .filter(Boolean)
+}
+
+const normalizeVideoUrls = (videos: any[] | undefined): string[] => {
+  return (videos || [])
+    .map((video: any) => {
+      if (typeof video === 'string') return video
+      if (video?.base64) {
+        return video.base64.startsWith('data:')
+          ? video.base64
+          : `data:video/mp4;base64,${video.base64}`
+      }
+      return video?.url || ''
+    })
+    .filter(Boolean)
+}
+
 export const getMediaBuiltinTools = (): Partial<Tools> => ({
   image_generator: {
-    title: 'AI 绘画',
-    description: '使用 AI 模型生成图片。可以指定提示词、尺寸、模型等参数。',
+    title: 'AI image generator',
+    description: 'Generate images with the configured image model.',
     inputSchema: z.object({
-      prompt: z.string().describe('生成图片的提示词，建议使用详细的描述。')
+      prompt: z.string().describe('Prompt used to generate the image.')
     }),
     render: ImagePage,
     execute: async (args: any, options: any) => {
@@ -16,7 +44,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
       const imageForm = settingsStore.imageGenerationForm
 
       if (!imageForm) {
-        throw new Error('未配置默认绘画模型，请先在绘画页面选择模型')
+        throw new Error('Default image model is not configured.')
       }
 
       const targetModelId = imageForm.model?.modelId
@@ -26,12 +54,12 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
       const targetSeed = imageForm.seed || undefined
 
       if (!targetModelId || !targetProviderId) {
-        throw new Error('未配置默认绘画模型，请先在绘画页面选择模型')
+        throw new Error('Default image model is not configured.')
       }
 
       const provider = settingsStore.getProviderById(targetProviderId)
       if (!provider) {
-        throw new Error('未找到所选模型的提供商')
+        throw new Error('Selected provider was not found.')
       }
 
       const metadata = {
@@ -69,6 +97,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
             metadata: { ...metadata, task_ids: [task_id], images: [] }
           }
         }
+
         const result = await chatService().generateImage(prompt, {
           model: targetModelId,
           apiKey: provider.apiKey || '',
@@ -81,38 +110,36 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
           providerOptions: imageForm.providerOptions
         })
 
+        const images = normalizeImageUrls(result.images)
+
         return {
           toolResult: {
             content: [
-              { type: 'text', text: '图片生成成功' }
+              { type: 'text', text: 'Image generation completed.' },
+              ...images.map((url) => ({
+                type: 'image-url' as const,
+                url
+              }))
             ]
           },
           metadata: {
             ...metadata,
-            images: result.images
-              .map((img: any) => {
-                if (typeof img === 'string') return img
-                if (img.base64)
-                  return img.base64.startsWith('data:')
-                    ? img.base64
-                    : `data:image/png;base64,${img.base64}`
-                return img.url || ''
-              }) || []
+            images
           }
         }
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : String(error),
-          metadata: metadata
+          metadata
         }
       }
     }
   },
   video_generator: {
-    title: 'AI 视频',
-    description: '使用 AI 模型生成视频。可以指定提示词、时长、分辨率、模型等参数。',
+    title: 'AI video generator',
+    description: 'Generate videos with the configured video model.',
     inputSchema: z.object({
-      prompt: z.string().describe('生成视频的提示词，建议使用详细的描述。')
+      prompt: z.string().describe('Prompt used to generate the video.')
     }),
     render: ImagePage,
     execute: async (args: any, options: any) => {
@@ -121,7 +148,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
       const videoForm = settingsStore.videoGenerationForm
 
       if (!videoForm) {
-        throw new Error('未配置默认视频模型，请先在绘画页面切换到视频模式并选择模型')
+        throw new Error('Default video model is not configured.')
       }
 
       const targetModelId = videoForm.model?.modelId
@@ -132,12 +159,12 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
       const targetResolution = (videoForm as any).resolution || undefined
 
       if (!targetModelId || !targetProviderId) {
-        throw new Error('未配置默认视频模型，请先在绘画页面切换到视频模式并选择模型')
+        throw new Error('Default video model is not configured.')
       }
 
       const provider = settingsStore.getProviderById(targetProviderId)
       if (!provider) {
-        throw new Error('未找到所选模型的提供商')
+        throw new Error('Selected provider was not found.')
       }
 
       const metadata = {
@@ -195,27 +222,17 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
 
         return {
           toolResult: {
-            content: [
-              { type: 'text', text: '视频生成成功' }
-            ]
+            content: [{ type: 'text', text: 'Video generation completed.' }]
           },
           metadata: {
             ...metadata,
-            images: result.videos
-              .map((video: any) => {
-                if (typeof video === 'string') return video
-                if (video.base64)
-                  return video.base64.startsWith('data:')
-                    ? video.base64
-                    : `data:video/mp4;base64,${video.base64}`
-                return video.url || ''
-              }) || []
+            images: normalizeVideoUrls(result.videos)
           }
         }
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : String(error),
-          metadata: metadata
+          metadata
         }
       }
     }

@@ -224,29 +224,6 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
     return messages
   }
 }
-const toolLoopStopSentinel = '<|stop|>'
-const hasStopSentinelOutput = (output: unknown): boolean => {
-  if (typeof output === 'string') {
-    return output.trim() === toolLoopStopSentinel
-  }
-
-  if (!output || typeof output !== 'object') return false
-
-  const candidates = [
-    (output as any)?.toolResult?.content,
-    (output as any)?.content
-  ]
-
-  for (const content of candidates) {
-    if (!Array.isArray(content)) continue
-    if (content.some((item) => item?.type === 'text' && item?.text === toolLoopStopSentinel)) {
-      return true
-    }
-  }
-
-  return false
-}
-
 const shouldStopForToolResult = (toolResult: { toolName?: string; output: unknown }): boolean => {
   return Boolean((toolResult.output as any)?.queueAsUserMessage)
 }

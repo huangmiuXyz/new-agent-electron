@@ -26,6 +26,40 @@ export const aiServices = (): aiServiceResult => {
   let lastConfig: ClientConfig = {}
   let toolsCache: Tools | undefined
   const NEEDED_FIELDS = ['command', 'args', 'url', 'transport', 'headers'] as const
+
+  const normalizeAbortSignal = (signal: any) => {
+    if (!signal) return signal
+    if (typeof signal.throwIfAborted === 'function') return signal
+
+    return {
+      ...signal,
+      throwIfAborted() {
+        if (signal.aborted) {
+          throw signal.reason instanceof Error
+            ? signal.reason
+            : new DOMException('This operation was aborted', 'AbortError')
+        }
+      }
+    }
+  }
+
+  const wrapMcpTools = (tools: Tools): Tools => {
+    return Object.fromEntries(
+      Object.entries(tools).map(([name, tool]) => [
+        name,
+        {
+          ...tool,
+          execute: async (input: any, options: any) => {
+            return await tool.execute(input, {
+              ...options,
+              abortSignal: normalizeAbortSignal(options?.abortSignal)
+            })
+          }
+        }
+      ])
+    ) as Tools
+  }
+
   const extractNeededConfig = (cfg: any) => {
     const result: any = {}
     for (const key of NEEDED_FIELDS) result[key] = cfg?.[key]
@@ -84,7 +118,9 @@ export const aiServices = (): aiServiceResult => {
 
     await syncClients(config)
 
-    const toolsList = await Promise.all(Object.values(clientMap).map((client) => client.tools()))
+    const toolsList = await Promise.all(
+      Object.values(clientMap).map(async (client) => wrapMcpTools(await client.tools()))
+    )
 
     toolsCache = toolsList.reduce((acc, curr) => ({ ...acc, ...curr }), {})
 
