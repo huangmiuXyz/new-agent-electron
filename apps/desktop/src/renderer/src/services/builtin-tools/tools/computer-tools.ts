@@ -37,13 +37,6 @@ const queueScreenshotAsUserMessage = (options: {
   const chatsStore = useChatsStores()
   chatsStore.addPendingMessage(options.chatId, [
     {
-      type: 'text',
-      text:
-        `这是当前屏幕截图。截图原点为 (${options.origin.x}, ${options.origin.y})，尺寸为 ${options.size.width}x${options.size.height}。` +
-        '后续如需点击、移动、拖动或取色，只能基于这张截图使用 screenshot 像素坐标。' +
-        '不要使用系统缩放后的逻辑分辨率，不要自行换算 DPI，也不要把屏幕想象成其他尺寸。'
-    },
-    {
       type: 'file',
       mediaType: 'image/png',
       filename: `computer-screenshot-${Date.now()}.png`,
