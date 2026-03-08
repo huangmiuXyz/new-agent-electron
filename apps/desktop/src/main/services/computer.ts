@@ -81,21 +81,21 @@ const resolvePoint = (
   const originY = normalizeOptionalInteger(payload.originY, 0, 'originY')
   const metrics = getPrimaryDisplayMetrics(robot)
 
-  const screenX = originX + inputX
-  const screenY = originY + inputY
+  const captureX = originX + inputX
+  const captureY = originY + inputY
 
   if (
-    screenX < 0 ||
-    screenY < 0 ||
-    screenX >= metrics.robotScreenSize.width ||
-    screenY >= metrics.robotScreenSize.height
+    captureX < 0 ||
+    captureY < 0 ||
+    captureX >= metrics.captureSize.width ||
+    captureY >= metrics.captureSize.height
   ) {
     throw new Error('screenshot coordinates are outside the robot screen area')
   }
 
   return {
-    x: screenX,
-    y: screenY,
+    x: captureToRobotX(captureX, metrics),
+    y: captureToRobotY(captureY, metrics),
     coordinateSpace,
     originX,
     originY
@@ -318,6 +318,15 @@ export const setupComputerHandlers = () => {
       throw new Error('width and height must be greater than 0')
     }
 
+    if (
+      x < 0 ||
+      y < 0 ||
+      x + width > metrics.captureSize.width ||
+      y + height > metrics.captureSize.height
+    ) {
+      throw new Error('requested capture region is outside the primary display bounds')
+    }
+
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       fetchWindowIcons: false,
@@ -333,43 +342,31 @@ export const setupComputerHandlers = () => {
       throw new Error('failed to capture screen with Electron desktopCapturer')
     }
 
-    const cropX = x
-    const cropY = y
     const imageSize = primarySource.thumbnail.getSize()
 
     if (
-      cropX < 0 ||
-      cropY < 0 ||
-      cropX + width > imageSize.width ||
-      cropY + height > imageSize.height
+      x < 0 ||
+      y < 0 ||
+      x + width > imageSize.width ||
+      y + height > imageSize.height
     ) {
       throw new Error('requested capture region is outside the primary display bounds')
     }
 
     const cropped = primarySource.thumbnail.crop({
-      x: cropX,
-      y: cropY,
       width,
-      height
-    })
-
-    const normalizedX = captureToRobotX(x, metrics)
-    const normalizedY = captureToRobotY(y, metrics)
-    const normalizedWidth = Math.max(1, captureToRobotX(width, metrics))
-    const normalizedHeight = Math.max(1, captureToRobotY(height, metrics))
-    const normalizedImage = cropped.resize({
-      width: normalizedWidth,
-      height: normalizedHeight,
-      quality: 'good'
+      height,
+      x,
+      y
     })
 
     return {
-      x: normalizedX,
-      y: normalizedY,
-      width: normalizedWidth,
-      height: normalizedHeight,
+      x,
+      y,
+      width,
+      height,
       bytesPerPixel: 4,
-      dataUrl: normalizedImage.toDataURL(),
+      dataUrl: cropped.toDataURL(),
       coordinateSpace: 'screenshot',
       display: metrics
     }

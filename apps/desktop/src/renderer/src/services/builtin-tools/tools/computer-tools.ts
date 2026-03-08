@@ -53,6 +53,39 @@ const queueScreenshotAsUserMessage = (options: {
 }
 
 export const getComputerBuiltinTools = (): Partial<Tools> => ({
+  computer_get_state: {
+    title: '获取电脑状态',
+    description: '获取当前电脑自动化能力是否可用，以及用于执行鼠标操作的屏幕尺寸和鼠标位置。',
+    inputSchema: z.object({}),
+    execute: async () =>
+      withComputerError(async () => {
+        const availability = await window.api.computer.isAvailable()
+        if (!availability.available) {
+          return {
+            toolResult: {
+              content: [{ type: 'text', text: `robotjs unavailable: ${availability.error || 'unknown error'}` }]
+            }
+          }
+        }
+
+        const mouse = await window.api.computer.getMousePosition()
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text: toToolText([
+                  `available: ${availability.available}`,
+                  `screen: ${availability.screen?.width} x ${availability.screen?.height}`,
+                  `mouse: ${mouse.x}, ${mouse.y}`,
+                  'coordinate rule: after computer_capture_screen, all mouse coordinates must use screenshot pixels from that image'
+                ])
+              }
+            ]
+          }
+        }
+      })
+  },
   computer_capture_screen: {
     title: '截取屏幕',
     description:
@@ -81,6 +114,7 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
         })
 
         return {
+          queueAsUserMessage: true,
           toolResult: {
             content: [
               {
@@ -308,6 +342,38 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
                 text: `pressed ${result.key}${result.modifiers.length ? ` with ${result.modifiers.join(', ')}` : ''}`
               }
             ]
+          }
+        }
+      })
+  },
+  computer_get_pixel_color: {
+    title: '获取像素颜色',
+    description: '读取指定像素点的十六进制颜色值。默认使用 screenshot 坐标系，应传入截图里的像素坐标。',
+    inputSchema: z.object({
+      x: z.number().describe('像素点 X 坐标。'),
+      y: z.number().describe('像素点 Y 坐标。'),
+      coordinateSpace: z
+        .enum(['screen', 'screenshot'])
+        .optional()
+        .default('screenshot')
+        .describe('坐标系。默认 screenshot。除非已明确拿到绝对屏幕坐标，否则不要使用 screen。'),
+      originX: z.number().optional().describe('当 coordinateSpace=screenshot 时，传入截图区域左上角的 X 偏移。'),
+      originY: z.number().optional().describe('当 coordinateSpace=screenshot 时，传入截图区域左上角的 Y 偏移。')
+    }),
+    execute: async (args: unknown) =>
+      withComputerError(async () => {
+        const input = asArgs(args)
+        const result = await window.api.computer.getPixelColor({
+          x: Number(input.x),
+          y: Number(input.y),
+          coordinateSpace: input.coordinateSpace as 'screen' | 'screenshot' | undefined,
+          originX: typeof input.originX === 'number' ? input.originX : undefined,
+          originY: typeof input.originY === 'number' ? input.originY : undefined
+        })
+
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: `pixel ${result.x}, ${result.y} = #${result.color}` }]
           }
         }
       })
