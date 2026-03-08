@@ -32,10 +32,10 @@ const normalizeVideoUrls = (videos: any[] | undefined): string[] => {
 
 export const getMediaBuiltinTools = (): Partial<Tools> => ({
   image_generator: {
-    title: 'AI image generator',
-    description: 'Generate images with the configured image model.',
+    title: 'AI 绘画',
+    description: '使用已配置的图像模型生成图片。',
     inputSchema: z.object({
-      prompt: z.string().describe('Prompt used to generate the image.')
+      prompt: z.string().describe('用于生成图片的提示词。')
     }),
     render: ImagePage,
     execute: async (args: any, options: any) => {
@@ -44,7 +44,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
       const imageForm = settingsStore.imageGenerationForm
 
       if (!imageForm) {
-        throw new Error('Default image model is not configured.')
+        throw new Error('未配置默认图像模型。')
       }
 
       const targetModelId = imageForm.model?.modelId
@@ -54,12 +54,12 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
       const targetSeed = imageForm.seed || undefined
 
       if (!targetModelId || !targetProviderId) {
-        throw new Error('Default image model is not configured.')
+        throw new Error('未配置默认图像模型。')
       }
 
       const provider = settingsStore.getProviderById(targetProviderId)
       if (!provider) {
-        throw new Error('Selected provider was not found.')
+        throw new Error('未找到所选提供商。')
       }
 
       const metadata = {
@@ -115,7 +115,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
         return {
           toolResult: {
             content: [
-              { type: 'text', text: 'Image generation completed.' },
+              { type: 'text', text: '图片生成完成。' },
               ...images.map((url) => ({
                 type: 'image-url' as const,
                 url
@@ -136,10 +136,10 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
     }
   },
   video_generator: {
-    title: 'AI video generator',
-    description: 'Generate videos with the configured video model.',
+    title: 'AI 视频',
+    description: '使用已配置的视频模型生成视频。',
     inputSchema: z.object({
-      prompt: z.string().describe('Prompt used to generate the video.')
+      prompt: z.string().describe('用于生成视频的提示词。')
     }),
     render: ImagePage,
     execute: async (args: any, options: any) => {
@@ -148,7 +148,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
       const videoForm = settingsStore.videoGenerationForm
 
       if (!videoForm) {
-        throw new Error('Default video model is not configured.')
+        throw new Error('未配置默认视频模型。')
       }
 
       const targetModelId = videoForm.model?.modelId
@@ -159,12 +159,12 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
       const targetResolution = (videoForm as any).resolution || undefined
 
       if (!targetModelId || !targetProviderId) {
-        throw new Error('Default video model is not configured.')
+        throw new Error('未配置默认视频模型。')
       }
 
       const provider = settingsStore.getProviderById(targetProviderId)
       if (!provider) {
-        throw new Error('Selected provider was not found.')
+        throw new Error('未找到所选提供商。')
       }
 
       const metadata = {
@@ -222,7 +222,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
 
         return {
           toolResult: {
-            content: [{ type: 'text', text: 'Video generation completed.' }]
+            content: [{ type: 'text', text: '视频生成完成。' }]
           },
           metadata: {
             ...metadata,

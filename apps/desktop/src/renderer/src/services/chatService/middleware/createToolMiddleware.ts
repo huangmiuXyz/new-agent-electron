@@ -136,7 +136,6 @@ const normalizeToolResultOutput = (output: any) => {
 }
 
 export const createToolMiddleware = (): LanguageModelV3Middleware => {
-
   return {
     specificationVersion: 'v3',
     transformParams: async ({ params }) => {
