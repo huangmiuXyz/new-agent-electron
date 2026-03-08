@@ -48,16 +48,16 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
       try {
         const currentPath = resolvePath(rawPath, options?.chatId)
         const baseDir = getAgentByChat(options?.chatId)?.terminalStartupPath
-        const relativePath = baseDir 
-          ? window.api.path.relative(baseDir, currentPath) 
+        const relativePath = baseDir
+          ? window.api.path.relative(baseDir, currentPath)
           : currentPath
-        
+
         return {
           toolResult: {
             content: [
-              { 
-                type: 'text', 
-                text: `当前路径: ${currentPath}\n相对路径: ${relativePath || '.'}\n工作目录: ${baseDir || '未设置'}` 
+              {
+                type: 'text',
+                text: `当前路径: ${currentPath}\n相对路径: ${relativePath || '.'}\n工作目录: ${baseDir || '未设置'}`
               }
             ]
           }
@@ -141,6 +141,7 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
       }
 
       return {
+        queueAsUserMessage: true,
         toolResult: {
           content: [{ type: 'text', text: '<|stop|>' }]
         }
