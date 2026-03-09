@@ -156,6 +156,9 @@ const mobileTabs = computed(() => {
     .filter((r) => r.path.startsWith('/mobile/') && r.meta?.sort !== undefined)
     .sort((a, b) => (a.meta.sort as number) - (b.meta.sort as number))
 })
+const isTabSwipeEnabled = computed(() => {
+  return isMobile.value && route.meta?.showTabBar === true
+})
 
 // 监听路由变化，同步更新 currentView
 watch(
@@ -208,7 +211,7 @@ const isSwiping = ref(false)
 const SWIPE_THRESHOLD = 50
 
 const handleTouchStart = (e: TouchEvent) => {
-  if (!isMobile.value) return
+  if (!isTabSwipeEnabled.value) return
   touchStartX.value = e.touches[0].clientX
   touchStartY.value = e.touches[0].clientY
   isSwiping.value = true
@@ -219,7 +222,7 @@ const handleTouchMove = () => {
 }
 
 const handleTouchEnd = (e: TouchEvent) => {
-  if (!isSwiping.value) return
+  if (!isSwiping.value || !isTabSwipeEnabled.value) return
   isSwiping.value = false
 
   const touchEndX = e.changedTouches[0].clientX
