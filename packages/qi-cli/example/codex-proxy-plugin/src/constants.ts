@@ -1,8 +1,8 @@
-export const PLUGIN_NAME = 'codex-proxy-plugin'
+export const PLUGIN_NAME = 'codex-proxy'
 export const PROVIDER_ID = 'codex-proxy'
 export const REGISTRY_ID = 'codex-proxy'
 export const STORAGE_KEY = 'codex_proxy_plugin_config'
-export const BRIDGE_API_KEY = 'codex-proxy-plugin-local'
+export const BRIDGE_API_KEY = 'codex-proxy-local'
 import type { Model } from '@agent-qi/types'
 import codexColorPng from '../codex-color.png'
 

@@ -1,5 +1,5 @@
 {
-  "name": "codex-proxy-plugin",
+  "name": "codex-proxy",
   "version": "1.0.0",
   "description": "Codex reverse proxy provider plugin",
   "type": "module",

@@ -1,4 +1,4 @@
-# codex-proxy-plugin
+# codex-proxy
 
 在 Agent-Qi 中注册一个本地 `OpenAI-compatible` provider，并通过插件自带的 `server.cjs` 将请求反代到 Codex `/backend-api/codex/responses`。
 
