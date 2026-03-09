@@ -26,6 +26,10 @@ const { Delete, Refresh, Continue, Copy, Edit, Branch, Language } = useIcon([
 const { translateMessage, translateWithCustomLanguage } = useTranslation()
 
 const editingMessageId = ref<string | null>(null)
+const mobileCopyPreviewVisible = ref(false)
+const mobileCopyPreviewText = ref('')
+const mobileCopySelectedText = ref('')
+const mobileSelectionSnapshot = ref('')
 
 const triggerEdit = (messageId: string) => {
   editingMessageId.value = messageId
@@ -74,9 +78,26 @@ const lastMessageHeight = computed(() => {
   return 'auto'
 })
 
+const getMessageText = (message: BaseMessage) => {
+  return message.parts.map((e) => (e.type === 'text' ? e.text : '')).join('')
+}
+
+const openMobileCopyPreview = (message: BaseMessage, selectedText = '') => {
+  mobileCopyPreviewText.value = getMessageText(message)
+  mobileCopySelectedText.value = selectedText
+  mobileCopyPreviewVisible.value = true
+}
+
+const closeMobileCopyPreview = () => {
+  mobileCopyPreviewVisible.value = false
+  mobileCopyPreviewText.value = ''
+  mobileCopySelectedText.value = ''
+}
+
 const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   event.preventDefault()
   event.stopPropagation()
+  mobileSelectionSnapshot.value = window.getSelection()?.toString().trim() || ''
 
   // 判断是否为系统消息
   const isSystemMessage = message.role === 'system'
@@ -130,11 +151,15 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       icon: Copy,
       onClick: () => {
         const selection = window.getSelection()
-        const selectedText = selection?.toString() || ''
+        const selectedText = selection?.toString().trim() || mobileSelectionSnapshot.value
         if (selectedText) {
+          if (isMobile.value) {
+            openMobileCopyPreview(message, selectedText)
+            return
+          }
           copyText(selectedText)
         } else {
-          copyText(message.parts.map((e) => (e.type === 'text' ? e.text : '')).join(''))
+          copyText(getMessageText(message))
         }
       },
       children: [
@@ -143,16 +168,26 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
           icon: Copy,
           onClick: () => {
             const selection = window.getSelection()
-            const selectedText = selection?.toString() || ''
+            const selectedText = selection?.toString().trim() || mobileSelectionSnapshot.value
             if (selectedText) {
+              if (isMobile.value) {
+                openMobileCopyPreview(message, selectedText)
+                return
+              }
               copyText(selectedText)
+              return
             }
+            if (isMobile.value) {
+              openMobileCopyPreview(message)
+              return
+            }
+            messageApi.warning('请先选中文本')
           }
         },
         {
           label: '复制当前信息',
           icon: Copy,
-          onClick: () => copyText(message.parts.map((e) => (e.type === 'text' ? e.text : '')).join(''))
+          onClick: () => copyText(getMessageText(message))
         },
         {
           label: '复制当前话题',
@@ -311,6 +346,24 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
     </AutoScrollContainer>
 
     <ChatMessageNav :container="messageScrollRef" />
+
+    <Teleport to="body">
+      <div v-if="isMobile && mobileCopyPreviewVisible" class="mobile-copy-preview-overlay" @click.self="closeMobileCopyPreview">
+        <div class="mobile-copy-preview-card">
+          <div class="mobile-copy-preview-header">
+            <div class="mobile-copy-preview-title">复制内容</div>
+            <Button size="sm" variant="text" @click="closeMobileCopyPreview">关闭</Button>
+          </div>
+          <div v-if="mobileCopySelectedText" class="mobile-copy-selected-text">
+            已选中: {{ mobileCopySelectedText }}
+          </div>
+          <div class="mobile-copy-preview-content">
+            {{ mobileCopyPreviewText }}
+          </div>
+          <div class="mobile-copy-preview-tip">长按上方文本即可复制</div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -371,5 +424,75 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   color: var(--text-tertiary);
   white-space: nowrap;
   font-weight: 500;
+}
+
+.mobile-copy-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+}
+
+.mobile-copy-preview-card {
+  width: 100%;
+  max-width: 620px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-copy-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobile-copy-preview-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mobile-copy-selected-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border-radius: 8px;
+  padding: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.mobile-copy-preview-content {
+  max-height: 45vh;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color-light);
+  background: var(--bg-hover);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+}
+
+.mobile-copy-preview-tip {
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 </style>
