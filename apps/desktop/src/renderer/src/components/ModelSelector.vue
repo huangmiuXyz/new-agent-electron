@@ -159,10 +159,10 @@ const handleModelSelect = (id: string) => {
     placeholder="搜索模型..." noResultsText="未找到模型" :hasResults="filteredModels.length > 0" width="240px" title="选择模型"
     :position="popupPosition || 'top'">
     <template #trigger>
-      <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
+        <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
         <div class="model-btn-content">
           <Image v-if="selectedModelId && currentSelectedProvider?.logo" style="width: 10px; border-radius: 2px"
-            :src="currentSelectedProvider?.logo" alt="" />
+            :src="currentSelectedProvider?.logo" alt="" :context-menu="false" :draggable="false" class="model-logo" />
           <Box v-else-if="selectedModelId" style="font-size: 10px;" />
           <span>{{ currentModelLabel }}</span>
         </div>
@@ -173,7 +173,7 @@ const handleModelSelect = (id: string) => {
       </div>
       <Button v-else variant="icon" size="sm">
         <Image v-if="selectedModelId && currentSelectedProvider?.logo" style="width: 15px; border-radius: 2px"
-          :src="currentSelectedProvider?.logo" alt="" />
+          :src="currentSelectedProvider?.logo" alt="" :context-menu="false" :draggable="false" class="model-logo" />
         <Box v-else style="font-size: 16px;" />
       </Button>
     </template>
@@ -223,6 +223,11 @@ const handleModelSelect = (id: string) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.model-logo {
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .model-btn-icons {

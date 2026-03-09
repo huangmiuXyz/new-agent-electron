@@ -41,6 +41,7 @@ const props = defineProps<{
     images?: string[]
     initialIndex?: number
     loading?: boolean
+    contextMenu?: boolean
 }>()
 
 const internalLoading = ref(true)
@@ -106,6 +107,7 @@ const copyImage = async () => {
 }
 
 const handleContextMenu = (event: MouseEvent) => {
+    if (props.contextMenu === false) return
     const canOperate = !!computedSrc.value && !computedLoading.value && !hasError.value
     const options: MenuItem[] = [
         {

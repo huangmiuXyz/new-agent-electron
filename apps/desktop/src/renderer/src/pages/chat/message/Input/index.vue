@@ -865,7 +865,9 @@ onUnmounted(() => {
               :disabled="isProcessingVoice"></textarea>
             <div v-if="partialSpeechText" class="partial-text mobile-partial-text">{{ partialSpeechText }}</div>
           </div>
-          <div class="mobile-top-drop-zone mobile-top-right-zone" ref="mobileTopRightZoneRef"
+          <div class="mobile-top-drop-zone mobile-top-right-zone"
+            v-if="mobileTopRightTools.length > 0 || (isMobileToolDragging && mobileHoverDropZone === 'top-right')"
+            ref="mobileTopRightZoneRef"
             :class="{ 'mobile-drop-hover': mobileHoverDropZone === 'top-right' }">
             <template v-for="toolId in mobileTopRightTools" :key="`top-right-${toolId}`">
               <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
@@ -1247,11 +1249,6 @@ onUnmounted(() => {
 .mobile-top-left-zone,
 .mobile-top-right-zone {
   flex-shrink: 0;
-}
-
-.mobile-top-right-zone {
-  min-width: 40px;
-  min-height: 40px;
 }
 
 .mobile-input-wrapper {
