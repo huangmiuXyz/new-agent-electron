@@ -7,7 +7,23 @@
         <div v-if="computedLoading" class="loading-overlay">
             <Loading size="small" />
         </div>
+        <video
+            v-if="isVideo"
+            v-bind="$attrs"
+            :src="computedSrc"
+            autoplay
+            muted
+            loop
+            playsinline
+            preload="auto"
+            @loadeddata="handleLoad"
+            @error="handleError"
+            @click="handlePreview"
+            @contextmenu.prevent.stop="handleContextMenu"
+            :style="{ opacity: computedLoading ? 0 : 1 }"
+        />
         <img
+            v-else
             v-bind="$attrs"
             :src="computedSrc"
             @load="handleLoad"
@@ -59,11 +75,25 @@ const computedSrc = computed(() => {
     return assetsHandler(props.src || '')
 })
 
-const handlePreview = () => {
-    if (props.preview && !hasError.value) {
-        viewerIndex.value = props.initialIndex || 0
-        showViewer.value = true
+const isVideo = computed(() => {
+    const src = computedSrc.value || ''
+    if (!src) return false
+    if (src.startsWith('data:video/')) return true
+    if (src.startsWith('blob:')) {
+        const original = props.src || ''
+        return (
+            original.startsWith('data:video/') ||
+            /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(original)
+        )
     }
+    return /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(src)
+})
+
+const handlePreview = () => {
+        if (props.preview && !hasError.value && !isVideo.value) {
+            viewerIndex.value = props.initialIndex || 0
+            showViewer.value = true
+        }
 }
 
 const downloadImage = async () => {
@@ -87,6 +117,10 @@ const downloadImage = async () => {
 const copyImage = async () => {
     if (!computedSrc.value) return
     try {
+        if (isVideo.value) {
+            copyText(computedSrc.value)
+            return
+        }
         if (!navigator.clipboard?.write) {
             copyText(computedSrc.value)
             return
@@ -173,6 +207,10 @@ const handleError = () => {
     cursor: zoom-in;
 }
 
+.is-previewable video {
+    cursor: pointer;
+}
+
 .loading-overlay {
     position: absolute;
     top: 0;
@@ -186,10 +224,17 @@ const handleError = () => {
     z-index: 1;
 }
 
-img {
+img,
+video {
     transition: opacity 0.3s ease;
     max-width: 100%;
     height: auto;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .error-placeholder {

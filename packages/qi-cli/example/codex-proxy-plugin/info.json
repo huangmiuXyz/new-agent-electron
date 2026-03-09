@@ -1,0 +1,6 @@
+{
+  "name": "codex-proxy-plugin",
+  "version": "1.0.0",
+  "description": "Codex reverse proxy provider plugin",
+  "author": "Agent-Qi"
+}

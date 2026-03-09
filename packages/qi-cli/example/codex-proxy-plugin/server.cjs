@@ -1,0 +1,867 @@
+const http = require('node:http')
+const { URL } = require('node:url')
+const { randomUUID } = require('node:crypto')
+
+const HOST = process.env.CODEX_PROXY_PLUGIN_HOST || '127.0.0.1'
+const PORT = Number(process.env.CODEX_PROXY_PLUGIN_PORT || 18123)
+const ACCESS_TOKEN = String(
+  process.env.CODEX_PROXY_PLUGIN_ACCESS_TOKEN || ''
+).trim()
+const ACCOUNT_ID = String(
+  process.env.CODEX_PROXY_PLUGIN_ACCOUNT_ID || ''
+).trim()
+const SESSION_COOKIE = String(
+  process.env.CODEX_PROXY_PLUGIN_SESSION_COOKIE || ''
+).trim()
+const DEFAULT_MODEL =
+  String(process.env.CODEX_PROXY_PLUGIN_DEFAULT_MODEL || 'codex').trim() ||
+  'codex'
+const API_KEY = String(process.env.CODEX_PROXY_PLUGIN_API_KEY || '').trim()
+const UPSTREAM_BASE_URL = 'https://chatgpt.com/backend-api/codex'
+const CODEX_CLIENT_VERSION = '0.101.0'
+const CODEX_USER_AGENT =
+  'codex_cli_rs/0.101.0 (Mac OS 26.0.1; arm64) Apple_Terminal/464'
+
+const MODEL_ENTRIES = [
+  ['gpt-5.4', 'codex', 'latest flagship coding model'],
+  ['gpt-5.3-codex', '', 'previous flagship agentic coding model'],
+  ['gpt-5.3-codex-spark', '', 'ultra-light coding model'],
+  ['gpt-5.2-codex', '', 'agentic coding model'],
+  ['gpt-5.1-codex-max', 'codex-max', 'deep reasoning coding model'],
+  ['gpt-5.1-codex-mini', 'codex-mini', 'lightweight fast coding model']
+]
+
+const CONFIG_HASH = JSON.stringify({
+  accessToken: ACCESS_TOKEN,
+  accountId: ACCOUNT_ID,
+  sessionCookie: SESSION_COOKIE,
+  defaultModel: DEFAULT_MODEL
+})
+
+const defaultModels = () =>
+  MODEL_ENTRIES.map(([id, alias, description]) => ({
+    id,
+    name:
+      id === DEFAULT_MODEL || alias === DEFAULT_MODEL
+        ? `${alias || id} (default)`
+        : alias || id,
+    description,
+    category: 'text',
+    active: true,
+    object: 'model',
+    created: Date.now(),
+    owned_by: 'codex-proxy'
+  }))
+
+const readJsonBody = (req) =>
+  new Promise((resolve, reject) => {
+    const chunks = []
+    req.on('data', (chunk) => chunks.push(chunk))
+    req.on('end', () => {
+      try {
+        const raw = Buffer.concat(chunks).toString('utf8')
+        resolve(raw ? JSON.parse(raw) : {})
+      } catch (error) {
+        reject(error)
+      }
+    })
+    req.on('error', reject)
+  })
+
+const sendJson = (res, statusCode, payload) => {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8'
+  })
+  res.end(JSON.stringify(payload))
+}
+
+const sendSseHead = (res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive'
+  })
+}
+
+const writeSse = (res, payload) => {
+  res.write(`data: ${JSON.stringify(payload)}\n\n`)
+}
+
+const unauthorized = (res) =>
+  sendJson(res, 401, { error: { message: 'Invalid proxy api key.' } })
+
+const invalidRequest = (res, message) =>
+  sendJson(res, 400, {
+    error: { message, type: 'invalid_request_error' }
+  })
+
+const gatewayError = (res, message) =>
+  sendJson(res, 502, { error: { message } })
+
+const getBearer = (headers) => {
+  const raw = headers.authorization || headers.Authorization || ''
+  const match = /^Bearer\s+(.+)$/i.exec(String(raw))
+  return match ? match[1].trim() : ''
+}
+
+const isAuthorized = (req) => getBearer(req.headers) === API_KEY
+
+const deriveAccountIdFromToken = (token) => {
+  try {
+    const parts = String(token).split('.')
+    if (parts.length < 2) return ''
+    const payload = JSON.parse(
+      Buffer.from(parts[1], 'base64url').toString('utf8')
+    )
+    const candidate =
+      payload.account_id ||
+      payload.chatgpt_account_id ||
+      payload['https://api.openai.com/auth']?.account_id ||
+      payload['https://api.openai.com/profile']?.account_id ||
+      payload.sub
+    return typeof candidate === 'string' ? candidate.trim() : ''
+  } catch {
+    return ''
+  }
+}
+
+const resolveAccountId = () => ACCOUNT_ID || deriveAccountIdFromToken(ACCESS_TOKEN)
+
+const normalizeModelForUpstream = (model) => {
+  const value = String(model || '').trim()
+  if (!value || value === 'codex') return 'gpt-5.4'
+  if (value === 'codex-max') return 'gpt-5.1-codex-max'
+  if (value === 'codex-mini') return 'gpt-5.1-codex-mini'
+  if (value === 'gpt-5-4') return 'gpt-5.4'
+  return value
+}
+
+const normalizeModelForClient = (model) =>
+  String(model || '').replace(/^gpt5\.4/, 'gpt-5.4')
+
+const toInputText = (content) => {
+  if (typeof content === 'string') {
+    return [{ type: 'input_text', text: content }]
+  }
+
+  if (!Array.isArray(content)) {
+    return [{ type: 'input_text', text: String(content || '') }]
+  }
+
+  return content.flatMap((item) => {
+    if (!item) return []
+    if (typeof item === 'string') {
+      return [{ type: 'input_text', text: item }]
+    }
+    if (item.type === 'text') {
+      return [{ type: 'input_text', text: String(item.text || '') }]
+    }
+    if (item.type === 'image_url' && item.image_url?.url) {
+      return [{ type: 'input_image', image_url: item.image_url.url }]
+    }
+    return []
+  })
+}
+
+const convertMessagesToInput = (messages) => {
+  const items = []
+
+  for (const message of messages) {
+    if (!message || typeof message !== 'object') continue
+
+    if (message.role === 'tool') {
+      items.push({
+        type: 'function_call_output',
+        call_id: message.tool_call_id || message.toolCallId || '',
+        output:
+          typeof message.content === 'string'
+            ? message.content
+            : JSON.stringify(message.content || '')
+      })
+      continue
+    }
+
+    if (message.role === 'assistant' && Array.isArray(message.tool_calls)) {
+      for (const toolCall of message.tool_calls) {
+        items.push({
+          type: 'function_call',
+          call_id: toolCall.id || '',
+          name: toolCall.function?.name || '',
+          arguments: toolCall.function?.arguments || ''
+        })
+      }
+
+      if (message.content) {
+        items.push({
+          role: 'assistant',
+          content: toInputText(message.content)
+        })
+      }
+      continue
+    }
+
+    items.push({
+      role: message.role === 'system' ? 'developer' : message.role,
+      content: toInputText(message.content)
+    })
+  }
+
+  return items
+}
+
+const mapTools = (tools) =>
+  Array.isArray(tools)
+    ? tools
+        .filter((tool) => tool?.type === 'function' && tool.function?.name)
+        .map((tool) => ({
+          type: 'function',
+          name: tool.function.name,
+          description: tool.function.description,
+          parameters: tool.function.parameters || {
+            type: 'object',
+            properties: {},
+            additionalProperties: false
+          }
+        }))
+    : undefined
+
+const convertChatRequest = (request) => {
+  if (!Array.isArray(request.messages)) {
+    throw new Error('chat.completions request requires messages')
+  }
+
+  const payload = {
+    model: normalizeModelForUpstream(request.model),
+    stream: true,
+    store: false,
+    instructions: '',
+    input: convertMessagesToInput(request.messages),
+    parallel_tool_calls: request.parallel_tool_calls !== false
+  }
+
+  if (request.reasoning_effort) {
+    payload.reasoning = { effort: request.reasoning_effort }
+  }
+
+  const tools = mapTools(request.tools)
+  if (tools?.length) {
+    payload.tools = tools
+  }
+
+  if (request.tool_choice) {
+    if (typeof request.tool_choice === 'string') {
+      payload.tool_choice = request.tool_choice
+    } else if (
+      request.tool_choice.type === 'function' &&
+      request.tool_choice.function?.name
+    ) {
+      payload.tool_choice = {
+        type: 'function',
+        name: request.tool_choice.function.name
+      }
+    }
+  }
+
+  return {
+    payload,
+    stream: Boolean(request.stream)
+  }
+}
+
+const normalizeResponsesRequest = (request) => ({
+  payload: {
+    ...request,
+    model: normalizeModelForUpstream(request.model),
+    stream: true,
+    store: false
+  },
+  stream: Boolean(request.stream)
+})
+
+class SseDecoder {
+  constructor() {
+    this.buffer = ''
+  }
+
+  push(chunk) {
+    this.buffer += chunk
+    return this.takeReady()
+  }
+
+  finish() {
+    const events = this.takeReady()
+    if (this.buffer.trim()) {
+      const parsed = parseSseBlock(this.buffer)
+      if (parsed) events.push(parsed)
+    }
+    this.buffer = ''
+    return events
+  }
+
+  takeReady() {
+    const events = []
+
+    while (true) {
+      const lfIndex = this.buffer.indexOf('\n\n')
+      const crlfIndex = this.buffer.indexOf('\r\n\r\n')
+      let index = -1
+      let separatorLength = 2
+
+      if (lfIndex !== -1 && (crlfIndex === -1 || lfIndex < crlfIndex)) {
+        index = lfIndex
+        separatorLength = 2
+      } else if (crlfIndex !== -1) {
+        index = crlfIndex
+        separatorLength = 4
+      }
+
+      if (index === -1) break
+
+      const block = this.buffer.slice(0, index)
+      this.buffer = this.buffer.slice(index + separatorLength)
+      const parsed = parseSseBlock(block)
+      if (parsed) events.push(parsed)
+    }
+
+    return events
+  }
+}
+
+const parseSseBlock = (block) => {
+  const lines = String(block).split(/\r?\n/)
+  let event = ''
+  const dataLines = []
+
+  for (const line of lines) {
+    if (line.startsWith('event:')) {
+      event = line.slice(6).trim()
+    }
+    if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).trimStart())
+    }
+  }
+
+  if (!dataLines.length) return null
+  return { event, data: dataLines.join('\n') }
+}
+
+const buildUsage = (usage) => {
+  if (!usage || typeof usage !== 'object') return undefined
+  return {
+    prompt_tokens: usage.input_tokens || 0,
+    completion_tokens: usage.output_tokens || 0,
+    total_tokens: usage.total_tokens || 0
+  }
+}
+
+const extractCompletedResponse = (events) => {
+  for (const event of events) {
+    if (!event?.data) continue
+    try {
+      const parsed = JSON.parse(event.data)
+      if (parsed.type === 'response.completed') {
+        return parsed.response || parsed
+      }
+    } catch {
+      // noop
+    }
+  }
+
+  throw new Error('response.completed event not found in upstream SSE')
+}
+
+const convertCompletedResponseToChat = (response) => {
+  const output = Array.isArray(response.output) ? response.output : []
+  const textParts = []
+  const reasoningParts = []
+  const toolCalls = []
+
+  for (const item of output) {
+    if (!item || typeof item !== 'object') continue
+
+    if (item.type === 'reasoning' && Array.isArray(item.summary)) {
+      for (const summary of item.summary) {
+        if (summary?.type === 'summary_text' && summary.text) {
+          reasoningParts.push(summary.text)
+        }
+      }
+    }
+
+    if (item.type === 'message' && Array.isArray(item.content)) {
+      for (const content of item.content) {
+        if (content?.type === 'output_text' && content.text) {
+          textParts.push(content.text)
+        }
+      }
+    }
+
+    if (item.type === 'function_call') {
+      toolCalls.push({
+        id: item.call_id || '',
+        type: 'function',
+        function: {
+          name: item.name || '',
+          arguments: item.arguments || ''
+        }
+      })
+    }
+  }
+
+  return {
+    id: response.id || `chatcmpl_${randomUUID()}`,
+    object: 'chat.completion',
+    created: response.created_at || Math.floor(Date.now() / 1000),
+    model: normalizeModelForClient(response.model || 'gpt-5.4'),
+    choices: [
+      {
+        index: 0,
+        finish_reason: toolCalls.length ? 'tool_calls' : 'stop',
+        message: {
+          role: 'assistant',
+          content: textParts.join(''),
+          ...(reasoningParts.length
+            ? { reasoning_content: reasoningParts.join('\n\n') }
+            : {}),
+          ...(toolCalls.length ? { tool_calls: toolCalls } : {})
+        }
+      }
+    ],
+    ...(buildUsage(response.usage) ? { usage: buildUsage(response.usage) } : {})
+  }
+}
+
+const buildChatChunk = ({ id, created, model, delta, finishReason, usage }) => ({
+  id,
+  object: 'chat.completion.chunk',
+  created,
+  model: normalizeModelForClient(model),
+  choices: [
+    {
+      index: 0,
+      delta,
+      finish_reason: finishReason || null,
+      native_finish_reason: finishReason || null
+    }
+  ],
+  ...(buildUsage(usage) ? { usage: buildUsage(usage) } : {})
+})
+
+const forwardUpstream = async (payload, incomingHeaders) => {
+  if (!ACCESS_TOKEN) {
+    throw new Error('Missing CODEX_PROXY_PLUGIN_ACCESS_TOKEN')
+  }
+
+  const accountId = resolveAccountId()
+  if (!accountId) {
+    throw new Error(
+      'Missing ChatGPT account id and failed to derive it from the access token'
+    )
+  }
+
+  const headers = {
+    Authorization: `Bearer ${ACCESS_TOKEN}`,
+    'ChatGPT-Account-Id': accountId,
+    Accept: 'text/event-stream',
+    'Content-Type': 'application/json',
+    Originator: 'codex_cli_rs',
+    Version: String(incomingHeaders.version || CODEX_CLIENT_VERSION),
+    Session_id: String(incomingHeaders.session_id || randomUUID()),
+    'User-Agent': String(incomingHeaders['user-agent'] || CODEX_USER_AGENT),
+    Connection: 'keep-alive'
+  }
+
+  if (SESSION_COOKIE) {
+    headers.Cookie = SESSION_COOKIE
+  }
+
+  const response = await fetch(`${UPSTREAM_BASE_URL}/responses`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload)
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(
+      `Codex upstream ${response.status}: ${text || response.statusText}`
+    )
+  }
+
+  return response
+}
+
+const rewriteSseJson = (json) => {
+  if (!json || typeof json !== 'object') return json
+
+  if (typeof json.model === 'string') {
+    json.model = normalizeModelForClient(json.model)
+  }
+
+  if (
+    json.response &&
+    typeof json.response === 'object' &&
+    typeof json.response.model === 'string'
+  ) {
+    json.response.model = normalizeModelForClient(json.response.model)
+  }
+
+  return json
+}
+
+const readAllEvents = async (response) => {
+  const decoder = new SseDecoder()
+  const events = []
+  for await (const chunk of response.body) {
+    const text = Buffer.isBuffer(chunk)
+      ? chunk.toString('utf8')
+      : Buffer.from(chunk).toString('utf8')
+    events.push(...decoder.push(text))
+  }
+  events.push(...decoder.finish())
+  return events
+}
+
+const handleResponses = async (req, res) => {
+  const body = await readJsonBody(req)
+  const { payload, stream } = normalizeResponsesRequest(body)
+  const upstream = await forwardUpstream(payload, req.headers)
+
+  if (!stream) {
+    const events = await readAllEvents(upstream)
+    const completed = rewriteSseJson(extractCompletedResponse(events))
+    return sendJson(res, 200, completed)
+  }
+
+  sendSseHead(res)
+  const decoder = new SseDecoder()
+
+  for await (const chunk of upstream.body) {
+    const text = Buffer.isBuffer(chunk)
+      ? chunk.toString('utf8')
+      : Buffer.from(chunk).toString('utf8')
+    const events = decoder.push(text)
+
+    for (const event of events) {
+      if (!event?.data) continue
+      if (event.data === '[DONE]') continue
+
+      try {
+        const parsed = rewriteSseJson(JSON.parse(event.data))
+        res.write(`event: ${event.event || parsed.type || 'message'}\n`)
+        res.write(`data: ${JSON.stringify(parsed)}\n\n`)
+      } catch {
+        res.write(`event: ${event.event || 'message'}\n`)
+        res.write(`data: ${event.data}\n\n`)
+      }
+    }
+  }
+
+  for (const event of decoder.finish()) {
+    if (!event?.data) continue
+    try {
+      const parsed = rewriteSseJson(JSON.parse(event.data))
+      res.write(`event: ${event.event || parsed.type || 'message'}\n`)
+      res.write(`data: ${JSON.stringify(parsed)}\n\n`)
+    } catch {
+      res.write(`event: ${event.event || 'message'}\n`)
+      res.write(`data: ${event.data}\n\n`)
+    }
+  }
+
+  res.write('data: [DONE]\n\n')
+  res.end()
+}
+
+const handleChatCompletions = async (req, res) => {
+  const body = await readJsonBody(req)
+  const { payload, stream } = convertChatRequest(body)
+  const upstream = await forwardUpstream(payload, req.headers)
+  const created = Math.floor(Date.now() / 1000)
+  const responseId = `chatcmpl_${randomUUID()}`
+
+  if (!stream) {
+    const events = await readAllEvents(upstream)
+    return sendJson(
+      res,
+      200,
+      convertCompletedResponseToChat(extractCompletedResponse(events))
+    )
+  }
+
+  sendSseHead(res)
+  const decoder = new SseDecoder()
+  let functionCallIndex = -1
+  let hasReceivedArgumentsDelta = false
+  let hasToolCallAnnounced = false
+
+  for await (const chunk of upstream.body) {
+    const text = Buffer.isBuffer(chunk)
+      ? chunk.toString('utf8')
+      : Buffer.from(chunk).toString('utf8')
+    const events = decoder.push(text)
+
+    for (const event of events) {
+      if (!event?.data || event.data === '[DONE]') continue
+
+      let parsed
+      try {
+        parsed = JSON.parse(event.data)
+      } catch {
+        continue
+      }
+
+      switch (parsed.type) {
+        case 'response.output_text.delta':
+          writeSse(
+            res,
+            buildChatChunk({
+              id: responseId,
+              created,
+              model: parsed.response?.model || payload.model,
+              delta: { role: 'assistant', content: parsed.delta || '' },
+              usage: parsed.response?.usage
+            })
+          )
+          break
+        case 'response.reasoning_summary_text.delta':
+          writeSse(
+            res,
+            buildChatChunk({
+              id: responseId,
+              created,
+              model: parsed.response?.model || payload.model,
+              delta: {
+                role: 'assistant',
+                reasoning_content: parsed.delta || ''
+              },
+              usage: parsed.response?.usage
+            })
+          )
+          break
+        case 'response.reasoning_summary_text.done':
+          writeSse(
+            res,
+            buildChatChunk({
+              id: responseId,
+              created,
+              model: parsed.response?.model || payload.model,
+              delta: {
+                role: 'assistant',
+                reasoning_content: '\n\n'
+              },
+              usage: parsed.response?.usage
+            })
+          )
+          break
+        case 'response.output_item.added':
+          if (parsed.item?.type === 'function_call') {
+            functionCallIndex += 1
+            hasReceivedArgumentsDelta = false
+            hasToolCallAnnounced = true
+            writeSse(
+              res,
+              buildChatChunk({
+                id: responseId,
+                created,
+                model: parsed.response?.model || payload.model,
+                delta: {
+                  role: 'assistant',
+                  tool_calls: [
+                    {
+                      index: functionCallIndex,
+                      id: parsed.item.call_id || '',
+                      type: 'function',
+                      function: {
+                        name: parsed.item.name || '',
+                        arguments: ''
+                      }
+                    }
+                  ]
+                },
+                usage: parsed.response?.usage
+              })
+            )
+          }
+          break
+        case 'response.function_call_arguments.delta':
+          hasReceivedArgumentsDelta = true
+          writeSse(
+            res,
+            buildChatChunk({
+              id: responseId,
+              created,
+              model: parsed.response?.model || payload.model,
+              delta: {
+                tool_calls: [
+                  {
+                    index: functionCallIndex,
+                    function: {
+                      arguments: parsed.delta || ''
+                    }
+                  }
+                ]
+              },
+              usage: parsed.response?.usage
+            })
+          )
+          break
+        case 'response.function_call_arguments.done':
+          if (!hasReceivedArgumentsDelta) {
+            writeSse(
+              res,
+              buildChatChunk({
+                id: responseId,
+                created,
+                model: parsed.response?.model || payload.model,
+                delta: {
+                  tool_calls: [
+                    {
+                      index: functionCallIndex,
+                      function: {
+                        arguments: parsed.arguments || ''
+                      }
+                    }
+                  ]
+                },
+                usage: parsed.response?.usage
+              })
+            )
+          }
+          break
+        case 'response.output_item.done':
+          if (parsed.item?.type === 'function_call') {
+            if (hasToolCallAnnounced) {
+              hasToolCallAnnounced = false
+              break
+            }
+
+            functionCallIndex += 1
+            writeSse(
+              res,
+              buildChatChunk({
+                id: responseId,
+                created,
+                model: parsed.response?.model || payload.model,
+                delta: {
+                  role: 'assistant',
+                  tool_calls: [
+                    {
+                      index: functionCallIndex,
+                      id: parsed.item.call_id || '',
+                      type: 'function',
+                      function: {
+                        name: parsed.item.name || '',
+                        arguments: parsed.item.arguments || ''
+                      }
+                    }
+                  ]
+                },
+                usage: parsed.response?.usage
+              })
+            )
+          }
+          break
+        case 'response.completed':
+          writeSse(
+            res,
+            buildChatChunk({
+              id: responseId,
+              created,
+              model: parsed.response?.model || payload.model,
+              delta: {},
+              finishReason: functionCallIndex >= 0 ? 'tool_calls' : 'stop',
+              usage: parsed.response?.usage
+            })
+          )
+          break
+        default:
+          break
+      }
+    }
+  }
+
+  for (const event of decoder.finish()) {
+    if (!event?.data || event.data === '[DONE]') continue
+    let parsed
+    try {
+      parsed = JSON.parse(event.data)
+    } catch {
+      continue
+    }
+
+    if (parsed.type === 'response.completed') {
+      writeSse(
+        res,
+        buildChatChunk({
+          id: responseId,
+          created,
+          model: parsed.response?.model || payload.model,
+          delta: {},
+          finishReason: functionCallIndex >= 0 ? 'tool_calls' : 'stop',
+          usage: parsed.response?.usage
+        })
+      )
+    }
+  }
+
+  res.write('data: [DONE]\n\n')
+  res.end()
+}
+
+const server = http.createServer(async (req, res) => {
+  try {
+    const url = new URL(
+      req.url || '/',
+      `http://${req.headers.host || `${HOST}:${PORT}`}`
+    )
+
+    if (req.method === 'GET' && url.pathname === '/health') {
+      return sendJson(res, 200, { ok: true, configHash: CONFIG_HASH })
+    }
+
+    if (req.method === 'POST' && url.pathname === '/shutdown') {
+      const body = await readJsonBody(req)
+      if (body?.apiKey !== API_KEY) {
+        return unauthorized(res)
+      }
+      sendJson(res, 200, { ok: true })
+      setTimeout(() => server.close(), 50)
+      return
+    }
+
+    if (!isAuthorized(req)) {
+      return unauthorized(res)
+    }
+
+    if (req.method === 'GET' && url.pathname === '/v1/models') {
+      return sendJson(res, 200, {
+        object: 'list',
+        data: defaultModels()
+      })
+    }
+
+    if (req.method === 'POST' && url.pathname === '/v1/chat/completions') {
+      return await handleChatCompletions(req, res)
+    }
+
+    if (req.method === 'POST' && url.pathname === '/v1/responses') {
+      return await handleResponses(req, res)
+    }
+
+    return sendJson(res, 404, {
+      error: {
+        message: `Unsupported route: ${req.method} ${url.pathname}`
+      }
+    })
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return invalidRequest(res, `invalid JSON body: ${error.message}`)
+    }
+    return gatewayError(
+      res,
+      error instanceof Error ? error.message : String(error)
+    )
+  }
+})
+
+server.listen(PORT, HOST)
