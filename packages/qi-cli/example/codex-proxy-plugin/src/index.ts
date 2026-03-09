@@ -204,7 +204,8 @@ const resolveProviderLogoUrl = (context: PluginContext) => {
 
   return CODEX_PROVIDER_LOGO_URL
 }
-const syncProvider = (context: PluginContext, form: unknown) => {
+const syncProvider = async (context: PluginContext, form: unknown) => {
+  const models = await listModels(context)
   try {
     context.unregisterProvider(PROVIDER_ID)
   } catch {
@@ -216,7 +217,7 @@ const syncProvider = (context: PluginContext, form: unknown) => {
     logo: resolveProviderLogoUrl(context),
     providerType: REGISTRY_ID,
     form: form as Record<string, unknown>,
-    models: buildDefaultModels(runtimeConfig.defaultModel)
+    models
   })
 }
 
@@ -255,7 +256,7 @@ const plugin: Plugin = {
               formActions?.setFieldsValue(next)
               isProgrammaticFormUpdate = false
               await startBridge(context, next).catch(() => undefined)
-              syncProvider(context, FormComp)
+              await syncProvider(context, FormComp)
               context.notification.success('Detected current Codex login.', 'Codex Proxy')
             } catch (error) {
               context.notification.error(
@@ -357,7 +358,7 @@ const plugin: Plugin = {
         actions.setFieldsValue(runtimeConfig)
         isProgrammaticFormUpdate = false
         await startBridge(context, runtimeConfig).catch(() => undefined)
-        syncProvider(context, FormComp)
+        await syncProvider(context, FormComp)
       }
     })
     formActions = actions
@@ -380,7 +381,7 @@ const plugin: Plugin = {
     })
 
     await startBridge(context, runtimeConfig).catch(() => undefined)
-    syncProvider(context, FormComp)
+    await syncProvider(context, FormComp)
   },
   uninstall: async (context: PluginContext) => {
     await stopBridge(runtimeConfig)
@@ -390,9 +391,3 @@ const plugin: Plugin = {
 }
 
 export default plugin
-
-
-
-
-
-

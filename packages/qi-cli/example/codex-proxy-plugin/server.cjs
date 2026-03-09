@@ -22,7 +22,7 @@ const CODEX_CLIENT_VERSION = '0.101.0'
 const CODEX_USER_AGENT =
   'codex_cli_rs/0.101.0 (Mac OS 26.0.1; arm64) Apple_Terminal/464'
 
-const MODEL_ENTRIES = [
+const FALLBACK_MODEL_ENTRIES = [
   ['gpt-5.4', 'codex', 'latest flagship coding model'],
   ['gpt-5.3-codex', '', 'previous flagship agentic coding model'],
   ['gpt-5.3-codex-spark', '', 'ultra-light coding model'],
@@ -38,8 +38,15 @@ const CONFIG_HASH = JSON.stringify({
   defaultModel: DEFAULT_MODEL
 })
 
+const MODEL_META = Object.fromEntries(
+  FALLBACK_MODEL_ENTRIES.map(([id, alias, description]) => [
+    id,
+    { alias, description }
+  ])
+)
+
 const defaultModels = () =>
-  MODEL_ENTRIES.map(([id, alias, description]) => ({
+  FALLBACK_MODEL_ENTRIES.map(([id, alias, description]) => ({
     id,
     name:
       id === DEFAULT_MODEL || alias === DEFAULT_MODEL
@@ -52,6 +59,113 @@ const defaultModels = () =>
     created: Date.now(),
     owned_by: 'codex-proxy'
   }))
+
+let modelsCache = {
+  expiresAt: 0,
+  data: null
+}
+
+const buildUpstreamHeaders = (incomingHeaders, accept = 'text/event-stream') => {
+  if (!ACCESS_TOKEN) {
+    throw new Error('Missing CODEX_PROXY_PLUGIN_ACCESS_TOKEN')
+  }
+
+  const accountId = resolveAccountId()
+  if (!accountId) {
+    throw new Error(
+      'Missing ChatGPT account id and failed to derive it from the access token'
+    )
+  }
+
+  const headers = {
+    Authorization: `Bearer ${ACCESS_TOKEN}`,
+    'ChatGPT-Account-Id': accountId,
+    Accept: accept,
+    'Content-Type': 'application/json',
+    Originator: 'codex_cli_rs',
+    Version: String(incomingHeaders.version || CODEX_CLIENT_VERSION),
+    Session_id: String(incomingHeaders.session_id || randomUUID()),
+    'User-Agent': String(incomingHeaders['user-agent'] || CODEX_USER_AGENT),
+    Connection: 'keep-alive'
+  }
+
+  if (SESSION_COOKIE) {
+    headers.Cookie = SESSION_COOKIE
+  }
+
+  return headers
+}
+
+const normalizeUpstreamModelList = (payload) => {
+  const raw =
+    payload?.data ||
+    payload?.models ||
+    payload?.items ||
+    payload?.available_models ||
+    payload?.model_list ||
+    []
+  if (!Array.isArray(raw)) return []
+
+  const result = []
+  for (const item of raw) {
+    if (!item) continue
+    const id = String(item.id || item.model || item.slug || '').trim()
+    if (!id) continue
+    const meta = MODEL_META[id] || {}
+    const alias = meta.alias || ''
+    const description = String(item.description || meta.description || '').trim()
+    result.push({
+      id,
+      name:
+        id === DEFAULT_MODEL || alias === DEFAULT_MODEL
+          ? `${alias || item.name || id} (default)`
+          : alias || String(item.name || id),
+      description,
+      category: 'text',
+      active: true,
+      object: 'model',
+      created: Number(item.created || Date.now()),
+      owned_by: String(item.owned_by || item.owner || 'codex-proxy')
+    })
+  }
+
+  return result
+}
+
+const fetchModelsFromUpstream = async (incomingHeaders = {}) => {
+  const now = Date.now()
+  if (modelsCache.data && now < modelsCache.expiresAt) {
+    return modelsCache.data
+  }
+
+  try {
+    const response = await fetch(`${UPSTREAM_BASE_URL}/models`, {
+      method: 'GET',
+      headers: buildUpstreamHeaders(incomingHeaders, 'application/json')
+    })
+    if (!response.ok) {
+      throw new Error(`models endpoint returned ${response.status}`)
+    }
+    const json = await response.json()
+    const normalized = normalizeUpstreamModelList(json)
+    if (normalized.length > 0) {
+      modelsCache = {
+        data: normalized,
+        expiresAt: now + 60 * 1000
+      }
+      return normalized
+    }
+  } catch {
+    // Ignore and fallback to built-in model list.
+  }
+
+  const fallback = defaultModels()
+  modelsCache = {
+    data: fallback,
+    expiresAt: now + 30 * 1000
+  }
+  return fallback
+}
 
 const readJsonBody = (req) =>
   new Promise((resolve, reject) => {
@@ -139,24 +253,26 @@ const normalizeModelForUpstream = (model) => {
 const normalizeModelForClient = (model) =>
   String(model || '').replace(/^gpt5\.4/, 'gpt-5.4')
 
-const toInputText = (content) => {
+const toContentByRole = (content, role = 'user') => {
+  const textType = role === 'assistant' ? 'output_text' : 'input_text'
+
   if (typeof content === 'string') {
-    return [{ type: 'input_text', text: content }]
+    return [{ type: textType, text: content }]
   }
 
   if (!Array.isArray(content)) {
-    return [{ type: 'input_text', text: String(content || '') }]
+    return [{ type: textType, text: String(content || '') }]
   }
 
   return content.flatMap((item) => {
     if (!item) return []
     if (typeof item === 'string') {
-      return [{ type: 'input_text', text: item }]
+      return [{ type: textType, text: item }]
     }
     if (item.type === 'text') {
-      return [{ type: 'input_text', text: String(item.text || '') }]
+      return [{ type: textType, text: String(item.text || '') }]
     }
-    if (item.type === 'image_url' && item.image_url?.url) {
+    if (role !== 'assistant' && item.type === 'image_url' && item.image_url?.url) {
       return [{ type: 'input_image', image_url: item.image_url.url }]
     }
     return []
@@ -194,7 +310,7 @@ const convertMessagesToInput = (messages) => {
       if (message.content) {
         items.push({
           role: 'assistant',
-          content: toInputText(message.content)
+          content: toContentByRole(message.content, 'assistant')
         })
       }
       continue
@@ -202,7 +318,7 @@ const convertMessagesToInput = (messages) => {
 
     items.push({
       role: message.role === 'system' ? 'developer' : message.role,
-      content: toInputText(message.content)
+      content: toContentByRole(message.content, message.role)
     })
   }
 
@@ -447,36 +563,9 @@ const buildChatChunk = ({ id, created, model, delta, finishReason, usage }) => (
 })
 
 const forwardUpstream = async (payload, incomingHeaders) => {
-  if (!ACCESS_TOKEN) {
-    throw new Error('Missing CODEX_PROXY_PLUGIN_ACCESS_TOKEN')
-  }
-
-  const accountId = resolveAccountId()
-  if (!accountId) {
-    throw new Error(
-      'Missing ChatGPT account id and failed to derive it from the access token'
-    )
-  }
-
-  const headers = {
-    Authorization: `Bearer ${ACCESS_TOKEN}`,
-    'ChatGPT-Account-Id': accountId,
-    Accept: 'text/event-stream',
-    'Content-Type': 'application/json',
-    Originator: 'codex_cli_rs',
-    Version: String(incomingHeaders.version || CODEX_CLIENT_VERSION),
-    Session_id: String(incomingHeaders.session_id || randomUUID()),
-    'User-Agent': String(incomingHeaders['user-agent'] || CODEX_USER_AGENT),
-    Connection: 'keep-alive'
-  }
-
-  if (SESSION_COOKIE) {
-    headers.Cookie = SESSION_COOKIE
-  }
-
   const response = await fetch(`${UPSTREAM_BASE_URL}/responses`, {
     method: 'POST',
-    headers,
+    headers: buildUpstreamHeaders(incomingHeaders),
     body: JSON.stringify(payload)
   })
 
@@ -834,9 +923,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/models') {
+      const models = await fetchModelsFromUpstream(req.headers)
       return sendJson(res, 200, {
         object: 'list',
-        data: defaultModels()
+        data: models
       })
     }
 
