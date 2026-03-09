@@ -34,9 +34,9 @@ const getProviderBaseURL = (config = runtimeConfig) =>
 
 const getConfigHash = (config = runtimeConfig) =>
   JSON.stringify({
-    authPath: config.authPath,
     accessToken: config.accessToken,
     accountId: config.accountId,
+    sessionCookie: '',
     defaultModel: config.defaultModel
   })
 
@@ -390,7 +390,6 @@ const plugin: Plugin = {
 }
 
 export default plugin
-
 
 
 
