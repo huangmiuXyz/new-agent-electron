@@ -47,11 +47,22 @@ function resolveJava21Home() {
     }
   }
 
+  let brewOpenJdk21Home = null
+  if (!isWindows) {
+    const brewPrefix = spawnSync('brew', ['--prefix', 'openjdk@21'], { encoding: 'utf8' })
+    if (brewPrefix.status === 0 && brewPrefix.stdout?.trim()) {
+      brewOpenJdk21Home = join(brewPrefix.stdout.trim(), 'libexec', 'openjdk.jdk', 'Contents', 'Home')
+    }
+  }
+
   const candidates = [
     envValue('JAVA_HOME_21'),
     envValue('ANDROID_STUDIO_JBR'),
     envValue('JAVA_HOME'),
     macJavaHome21,
+    brewOpenJdk21Home,
+    '/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home',
+    '/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home',
     isWindows ? 'C:\\Program Files\\Android\\Android Studio\\jbr' : '/Applications/Android Studio.app/Contents/jbr/Contents/Home',
     isWindows ? 'C:\\Program Files\\JetBrains\\Android Studio\\jbr' : '/Applications/Android Studio.app/Contents/jbr'
   ].filter(Boolean)
