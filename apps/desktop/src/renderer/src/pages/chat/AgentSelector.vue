@@ -14,13 +14,14 @@ withDefaults(
 )
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
-const { Robot, ChevronDown, Wrench20Regular, Check, Edit } = useIcon([
+const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus } = useIcon([
   'Wrench20Regular',
   'Robot',
   'ChevronDown',
   'Server',
   'Check',
-  'Edit'
+  'Edit',
+  'Plus'
 ])
 
 const selectedAgent = computed(() => {
@@ -64,32 +65,65 @@ const isAgentSelected = (agentId: string) => {
   return agentId === chatsStore.currentChat?.agentId
 }
 const { openAgentModal } = useAgent()
+
+const openCreateAgentModal = () => {
+  isPopupOpen.value = false
+  openAgentModal()
+}
 </script>
 
 <template>
-  <SelectorPopover v-model:visible="isPopupOpen" :data="allAgents" v-model:searchQuery="searchQuery"
-    placeholder="搜索智能体..." noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0" width="300px" title="选择智能体">
+  <SelectorPopover
+    v-model:visible="isPopupOpen"
+    :data="allAgents"
+    v-model:searchQuery="searchQuery"
+    placeholder="搜索智能体..."
+    noResultsText="未找到智能体"
+    :hasResults="filteredAgents.length > 0"
+    width="300px"
+    title="选择智能体"
+  >
+    <template #search-action>
+      <Button variant="icon" size="sm" title="添加智能体" @click.stop="openCreateAgentModal">
+        <template #icon>
+          <Plus />
+        </template>
+      </Button>
+    </template>
+
     <template #trigger>
       <div class="agent-btn" v-if="type === 'select'" :title="selectedAgentLabel">
-        <Image v-if="selectedAgent?.avatar" class="agent-avatar"
-          :src="selectedAgent.avatar" alt="" />
+        <Image
+          v-if="selectedAgent?.avatar"
+          class="agent-avatar"
+          :src="selectedAgent.avatar"
+          alt=""
+        />
         <Robot v-else />
         <span class="agent-name">{{ selectedAgentLabel }}</span>
         <ChevronDown class="arrow-icon" />
       </div>
       <Button v-else variant="icon" size="sm">
-        <Image v-if="selectedAgent?.avatar" class="agent-avatar"
-          :src="selectedAgent.avatar" alt="" />
+        <Image
+          v-if="selectedAgent?.avatar"
+          class="agent-avatar"
+          :src="selectedAgent.avatar"
+          alt=""
+        />
         <Robot v-else />
       </Button>
     </template>
 
     <div class="agent-list">
-      <div v-for="agent in filteredAgents" :key="agent.id" class="agent-item"
-        :class="{ selected: isAgentSelected(agent.id) }" @click="selectAgent(agent.id)">
+      <div
+        v-for="agent in filteredAgents"
+        :key="agent.id"
+        class="agent-item"
+        :class="{ selected: isAgentSelected(agent.id) }"
+        @click="selectAgent(agent.id)"
+      >
         <div class="agent-icon-container">
-          <Image v-if="agent.avatar" class="agent-avatar-list"
-            :src="agent.avatar" alt="" />
+          <Image v-if="agent.avatar" class="agent-avatar-list" :src="agent.avatar" alt="" />
           <div v-else class="agent-icon">
             <Robot />
           </div>
@@ -102,10 +136,13 @@ const { openAgentModal } = useAgent()
           <div v-if="agent.description" class="agent-desc">{{ agent.description }}</div>
         </div>
         <div class="agent-check">
-          <div v-if="agent.mcpServers.filter((name) => mcpServers[name]).length > 0" class="agent-mcp">
+          <div
+            v-if="agent.mcpServers.filter((name) => mcpServers[name]).length > 0"
+            class="agent-mcp"
+          >
             <Wrench20Regular />
-            <span style="white-space: nowrap">{{ settingsStore.getValidTools(agent.tools).length +
-              agent.builtinTools?.length }}
+            <span style="white-space: nowrap"
+              >{{ settingsStore.getValidTools(agent.tools).length + agent.builtinTools?.length }}
             </span>
           </div>
           <Check v-if="isAgentSelected(agent.id)" />
@@ -181,6 +218,7 @@ const { openAgentModal } = useAgent()
   transition: all 0.15s;
   margin-bottom: 2px;
 }
+
 
 .agent-item:hover {
   background: var(--bg-hover);

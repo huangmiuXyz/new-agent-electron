@@ -597,6 +597,20 @@ const handleDeleteModel = async (row: Model) => {
 const router = useRouter()
 const route = useRoute()
 const isDetailResult = computed(() => !!route.params.id)
+const syncProviderFromRoute = () => {
+  const providerId = route.query.providerId
+  if (!providerId || Array.isArray(providerId)) return
+  if (visibleProviders.value.some((provider) => provider.id === providerId)) {
+    setActiveProvider(providerId)
+  }
+}
+watch(
+  [() => route.query.providerId, visibleProviders],
+  () => {
+    syncProviderFromRoute()
+  },
+  { immediate: true }
+)
 const selectProvider = (providerId: string) => {
   setActiveProvider(providerId)
   if (isMobile.value) router.push(`/mobile/settings/models/${providerId}`)

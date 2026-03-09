@@ -41,27 +41,13 @@ const emit = defineEmits<{
 }>()
 
 const viewItems = computed(() => {
-  const items = props.items.map((item, index) => {
+  const items = props.items.map((item) => {
     const key = item[props.keyField] ?? JSON.stringify(item)
     let logo = item[props.logoField]
     const isIcon = typeof logo === 'object' || typeof logo === 'function'
 
     if (!isIcon && typeof logo === 'string') {
       logo = assetsHandler(logo)
-    }
-
-    const groupKey =
-      props.showHeader && props.renderHeader
-        ? props.renderHeader(item)
-        : ''
-
-    let groupTitle = ''
-    if (props.showHeader && props.renderHeader) {
-      const prevGroupKey =
-        index > 0 ? props.renderHeader(props.items[index - 1]!) : null
-      if (index === 0 || groupKey !== prevGroupKey) {
-        groupTitle = groupKey
-      }
     }
 
     return {
@@ -72,27 +58,32 @@ const viewItems = computed(() => {
       logo,
       isIcon,
       isActive: props.isSelected?.(item) || props.activeId === key,
-      groupKey,
-      groupTitle
+      groupKey: '',
+      groupTitle: ''
     }
   })
 
-  return items.map((item, index) => {
-    const nextItem = index < items.length - 1 ? items[index + 1] : null
+  if (props.showHeader && props.renderHeader) {
+    let prevGroupKey: string | null = null
+    items.forEach((item, index) => {
+      const groupKey = props.renderHeader!(item.raw)
+      item.groupKey = groupKey
+      if (index === 0 || groupKey !== prevGroupKey) {
+        item.groupTitle = groupKey
+      }
+      prevGroupKey = groupKey
+    })
+  }
 
-    const isLastItem =
-      !nextItem || item.groupKey !== nextItem.groupKey
-
-    return {
-      ...item,
-      isLastItem
-    }
-  })
+  return items.map((item, index) => ({
+    ...item,
+    isLastItem: index === items.length - 1 || item.groupKey !== items[index + 1]!.groupKey
+  }))
 })
 
 const handleAction = (
   type: 'select' | 'contextmenu',
-  item: typeof viewItems.value[number],
+  item: (typeof viewItems.value)[number],
   e?: MouseEvent
 ) => {
   if (type === 'select' && props.selectable) {
@@ -129,16 +120,28 @@ const handleAction = (
       <template v-else>
         <template v-for="item in viewItems" :key="item.key">
           <div v-if="item.groupTitle" class="group-header">
-            {{ item.groupTitle }}
+            <slot name="group-header" :title="item.groupTitle" :item="item.raw">
+              {{ item.groupTitle }}
+            </slot>
           </div>
 
-          <div class="list-item" :class="{
-            'is-active': item.isActive,
-            'is-last': item.isLastItem
-          }" @click="handleAction('select', item)" @contextmenu="handleAction('contextmenu', item, $event)">
+          <div
+            class="list-item"
+            :class="{
+              'is-active': item.isActive,
+              'is-last': item.isLastItem
+            }"
+            @click="handleAction('select', item)"
+            @contextmenu="handleAction('contextmenu', item, $event)"
+          >
             <div v-if="item.logo || defaultIcon" class="item-media">
               <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
-              <Image v-else-if="item.logo" :src="item.logo" :alt="String(item.main)" class="media-img" />
+              <Image
+                v-else-if="item.logo"
+                :src="item.logo"
+                :alt="String(item.main)"
+                class="media-img"
+              />
               <component v-else-if="defaultIcon" :is="defaultIcon" class="media-icon" />
             </div>
 
@@ -154,7 +157,7 @@ const handleAction = (
             </div>
 
             <div v-if="$slots.actions" class="item-actions">
-              <slot name="actions" :item="item.raw" />
+              <slot name="actions" :item="item.raw" :is-active="item.isActive" />
             </div>
           </div>
         </template>
@@ -162,7 +165,6 @@ const handleAction = (
     </div>
   </div>
 </template>
-
 
 <style scoped>
 .list-scroll-area {
@@ -173,6 +175,8 @@ const handleAction = (
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   position: relative;
+  contain: content;
+  overscroll-behavior: contain;
 }
 
 .state-container {
@@ -249,7 +253,9 @@ const handleAction = (
   display: flex;
   align-items: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
   gap: 10px;
   padding: 8px 10px;
   margin-bottom: 4px;
@@ -271,7 +277,7 @@ const handleAction = (
   flex-direction: column;
   overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis
+  text-overflow: ellipsis;
 }
 
 .text-truncate {
@@ -319,5 +325,8 @@ const handleAction = (
   padding: 6px 8px 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 </style>

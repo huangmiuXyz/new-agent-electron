@@ -1,7 +1,33 @@
 <script setup lang="ts">
-
 const settingsStore = useSettingsStore()
 const activeTab = ref('models')
+const route = useRoute()
+
+const availableTabs = new Set([
+  'agents',
+  'models',
+  'defaultModels',
+  'knowledge',
+  'plugins',
+  'terminal',
+  'display',
+  'shortcuts',
+  'mcp',
+  'userData',
+  'backup',
+  'about'
+])
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (!tab || Array.isArray(tab)) return
+    if (availableTabs.has(tab)) {
+      activeTab.value = tab
+    }
+  },
+  { immediate: true }
+)
 
 const switchTab = (tabName: string) => {
   activeTab.value = tabName
@@ -11,8 +37,12 @@ const switchTab = (tabName: string) => {
 <template>
   <div class="settings-layout">
     <!-- 设置-左侧分类导航 -->
-    <ResizeBox v-model:width="settingsStore.display.settingsSidebarWidth"
-      v-model:is-collapsed="settingsStore.display.sidebarCollapsed" :min-size="150" :max-size="400">
+    <ResizeBox
+      v-model:width="settingsStore.display.settingsSidebarWidth"
+      v-model:is-collapsed="settingsStore.display.sidebarCollapsed"
+      :min-size="150"
+      :max-size="400"
+    >
       <SettingsSidebar :active-tab="activeTab" @tab-change="switchTab" />
     </ResizeBox>
 

@@ -2,6 +2,7 @@
 import type { CSSProperties } from 'vue'
 const props = defineProps<{
   searchQuery?: string
+  searchDebounce?: number
   placeholder?: string
   noResultsText?: string
   hasResults?: boolean
@@ -68,16 +69,30 @@ const modalBodyStyle: CSSProperties = {
       <slot name="trigger"></slot>
     </div>
 
-    <BaseModal @ok="onOk" :title="title!" :show-footer="false" :modal-body-style="modalBodyStyle"
-      v-if="isMobile && visible">
+    <BaseModal
+      @ok="onOk"
+      :title="title!"
+      :show-footer="false"
+      :modal-body-style="modalBodyStyle"
+      v-if="isMobile && visible"
+    >
       <div v-if="$slots.content" class="content">
         <slot name="content"></slot>
       </div>
       <template v-else>
         <div class="selector-search">
-          <SearchInput :search-data="data" :model-value="searchQuery" @update:model-value="handleSearch"
-            :placeholder="placeholder || '搜索...'" size="sm" variant="minimal" :show-icon="true" :debounce="0"
-            class="selector-search-input" />
+          <SearchInput
+            :search-data="data"
+            :model-value="searchQuery"
+            @update:model-value="handleSearch"
+            :placeholder="placeholder || '搜索...'"
+            size="sm"
+            variant="minimal"
+            :show-icon="true"
+            :debounce="searchDebounce ?? 0"
+            class="selector-search-input"
+          />
+          <slot name="search-action"></slot>
         </div>
         <div class="selector-list-container">
           <div v-if="!hasResults" class="no-results">
@@ -88,26 +103,39 @@ const modalBodyStyle: CSSProperties = {
       </template>
     </BaseModal>
     <div v-if="!isMobile" class="selector-wrapper">
-      <div class="selector-popup" :class="{
-        show: visible,
-        'position-bottom': (position || 'top') === 'top',
-        'position-top': position === 'bottom'
-      }" :style="{
-        width: width || '240px',
-        animation: visible
-          ? (position || 'top') === 'top'
-            ? 'popupFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'
-            : 'popupFadeInTop 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'
-          : 'none'
-      }">
+      <div
+        class="selector-popup"
+        :class="{
+          show: visible,
+          'position-bottom': (position || 'top') === 'top',
+          'position-top': position === 'bottom'
+        }"
+        :style="{
+          width: width || '240px',
+          animation: visible
+            ? (position || 'top') === 'top'
+              ? 'popupFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'
+              : 'popupFadeInTop 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'
+            : 'none'
+        }"
+      >
         <div v-if="$slots.content" class="content">
           <slot name="content"></slot>
         </div>
         <template v-else>
           <div class="selector-search">
-            <SearchInput :search-data="data" :model-value="searchQuery" @update:model-value="handleSearch"
-              :placeholder="placeholder || '搜索...'" size="sm" variant="minimal" :show-icon="true" :debounce="0"
-              class="selector-search-input" />
+            <SearchInput
+              :search-data="data"
+              :model-value="searchQuery"
+              @update:model-value="handleSearch"
+              :placeholder="placeholder || '搜索...'"
+              size="sm"
+              variant="minimal"
+              :show-icon="true"
+              :debounce="searchDebounce ?? 0"
+              class="selector-search-input"
+            />
+            <slot name="search-action"></slot>
           </div>
           <div class="selector-list-container">
             <div v-if="!hasResults" class="no-results">
@@ -135,19 +163,17 @@ const modalBodyStyle: CSSProperties = {
   position: absolute;
   bottom: 38px;
   left: 0;
-  background: rgba(var(--bg-rgb), 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(var(--bg-rgb), 0.98);
   border: 1px solid rgba(var(--text-rgb), 0.08);
   border-radius: 10px;
-  box-shadow:
-    0 4px 20px rgba(var(--text-rgb), 0.12),
-    0 1px 4px rgba(var(--text-rgb), 0.05);
+  box-shadow: 0 6px 16px rgba(var(--text-rgb), 0.08);
   display: none;
   flex-direction: column;
   overflow: hidden;
   z-index: 100;
   transform-origin: bottom left;
+  contain: layout paint;
+  will-change: transform, opacity;
 }
 
 .selector-popup.position-bottom {
@@ -193,10 +219,15 @@ const modalBodyStyle: CSSProperties = {
 .selector-search {
   padding: 4px;
   border-bottom: 1px solid rgba(var(--text-rgb), 0.06);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .selector-search-input {
   width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .selector-search-input :deep(.search-input__field) {
@@ -217,6 +248,20 @@ const modalBodyStyle: CSSProperties = {
   max-height: 320px;
   overflow-y: auto;
   padding: 4px;
+  contain: content;
+  overscroll-behavior: contain;
+}
+
+/* 统一由 selector-list-container 负责滚动，避免与内部 List 双滚动冲突 */
+.selector-list-container :deep(.list-scroll-area) {
+  overflow: visible;
+  max-height: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selector-popup.show {
+    animation: none !important;
+  }
 }
 
 /* Scrollbar styles */
