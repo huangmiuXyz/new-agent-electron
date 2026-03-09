@@ -24,6 +24,13 @@ const inferImageMediaTypeFromUrl = (url: string): string => {
   return 'image/png'
 }
 
+const extractDataUrlPayload = (url: string): string => {
+  if (!url.startsWith('data:')) return url
+
+  const match = url.match(/^data:[^;,]+;base64,(.+)$/)
+  return match?.[1] || url
+}
+
 const createImageFilePart = (part: any): LanguageModelV3FilePart | null => {
   if (part?.type === 'image-data' && typeof part.data === 'string' && isImageMediaType(part.mediaType)) {
     return {
@@ -37,7 +44,7 @@ const createImageFilePart = (part: any): LanguageModelV3FilePart | null => {
   if (part?.type === 'image-url' && typeof part.url === 'string') {
     return {
       type: 'file',
-      data: part.url,
+      data: extractDataUrlPayload(part.url),
       mediaType: inferImageMediaTypeFromUrl(part.url)
     }
   }
@@ -54,7 +61,7 @@ const createImageFilePart = (part: any): LanguageModelV3FilePart | null => {
   if (part?.type === 'file-url' && typeof part.url === 'string') {
     return {
       type: 'file',
-      data: part.url,
+      data: extractDataUrlPayload(part.url),
       mediaType: inferImageMediaTypeFromUrl(part.url),
       ...(part.filename ? { filename: part.filename } : {})
     }

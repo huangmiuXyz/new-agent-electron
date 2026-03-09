@@ -24,31 +24,20 @@ const withComputerError = async <T>(executor: () => Promise<T>) => {
   }
 }
 
-const queueScreenshotAsUserMessage = (options: {
-  chatId?: string
-  dataUrl: string
-  origin: { x: number; y: number }
-  size: { width: number; height: number }
-}) => {
-  if (!options.chatId) {
-    throw new Error('chatId is required to enqueue screenshot as a user message')
-  }
-
-  const chatsStore = useChatsStores()
-  chatsStore.addPendingMessage(options.chatId, [
-    {
-      type: 'file',
-      mediaType: 'image/png',
-      filename: `computer-screenshot-${Date.now()}.png`,
-      url: options.dataUrl
-    }
-  ])
+const screenshotCoordinateSchema = {
+  coordinateSpace: z
+    .enum(['screen', 'screenshot'])
+    .optional()
+    .default('screenshot')
+    .describe('坐标系。默认使用 screenshot。除非已经拿到绝对屏幕坐标，否则不要使用 screen。'),
+  originX: z.number().optional().describe('当 coordinateSpace=screenshot 时，截图区域左上角的 X 偏移。'),
+  originY: z.number().optional().describe('当 coordinateSpace=screenshot 时，截图区域左上角的 Y 偏移。')
 }
 
 export const getComputerBuiltinTools = (): Partial<Tools> => ({
   computer_get_state: {
     title: '获取电脑状态',
-    description: '获取当前电脑自动化能力是否可用，以及用于执行鼠标操作的屏幕尺寸和鼠标位置。',
+    description: '获取当前电脑自动化能力是否可用，以及屏幕尺寸和鼠标位置。',
     inputSchema: z.object({}),
     execute: async () =>
       withComputerError(async () => {
@@ -81,15 +70,14 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
   },
   computer_capture_screen: {
     title: '截取屏幕',
-    description:
-      '截取整个屏幕或指定区域，并返回 screenshot 坐标系下的 origin 和 size。后续鼠标操作必须优先使用这张截图的像素坐标。',
+    description: '截取整个屏幕或指定区域，并返回 screenshot 坐标系下的原点和尺寸。',
     inputSchema: z.object({
       x: z.number().int().optional().describe('可选，截图区域左上角的 X 坐标，默认 0。'),
       y: z.number().int().optional().describe('可选，截图区域左上角的 Y 坐标，默认 0。'),
-      width: z.number().int().positive().optional().describe('可选，截图区域宽度，默认整屏宽度。'),
-      height: z.number().int().positive().optional().describe('可选，截图区域高度，默认整屏高度。')
+      width: z.number().int().positive().optional().describe('可选，截图区域宽度，默认整张截图宽度。'),
+      height: z.number().int().positive().optional().describe('可选，截图区域高度，默认整张截图高度。')
     }),
-    execute: async (args: unknown, options?: { toolCallId?: string; chatId?: string }) =>
+    execute: async (args: unknown) =>
       withComputerError(async () => {
         const input = asArgs(args)
         const result = await window.api.computer.captureScreen({
@@ -99,22 +87,21 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
           height: typeof input.height === 'number' ? input.height : undefined
         })
 
-        queueScreenshotAsUserMessage({
-          chatId: options?.chatId,
-          dataUrl: result.dataUrl,
-          origin: { x: result.x, y: result.y },
-          size: { width: result.width, height: result.height }
-        })
-
         return {
-          queueAsUserMessage: true,
           toolResult: {
             content: [
               {
                 type: 'text',
-                text:
-                  `截图已加入下一轮用户消息：原点 (${result.x}, ${result.y})，尺寸 ${result.width}x${result.height}。` +
-                  '后续如需点击，请直接使用这张截图里的像素坐标。'
+                text: toToolText([
+                  `screenshot origin: (${result.x}, ${result.y})`,
+                  `screenshot size: ${result.width}x${result.height}`,
+                  `pixel reference grid: minor ${result.annotation?.minorGridPx ?? 'N/A'} px, major ${result.annotation?.majorGridPx ?? 'N/A'} px`,
+                  'Use pixel coordinates from the attached screenshot for all follow-up mouse actions.'
+                ])
+              },
+              {
+                type: 'image-url',
+                url: result.dataUrl
               }
             ]
           }
@@ -123,18 +110,11 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
   },
   computer_move_mouse: {
     title: '移动鼠标',
-    description:
-      '将鼠标移动到目标位置。默认使用 screenshot 坐标系，也就是相对于最近一次截图区域左上角的像素坐标。',
+    description: '将鼠标移动到目标位置。默认使用最近一次截图中的 screenshot 像素坐标。',
     inputSchema: z.object({
       x: z.number().describe('目标 X 像素坐标。'),
       y: z.number().describe('目标 Y 像素坐标。'),
-      coordinateSpace: z
-        .enum(['screen', 'screenshot'])
-        .optional()
-        .default('screenshot')
-        .describe('坐标系。默认 screenshot。除非已明确拿到绝对屏幕坐标，否则不要使用 screen。'),
-      originX: z.number().optional().describe('当 coordinateSpace=screenshot 时，传入截图区域左上角的 X 偏移。'),
-      originY: z.number().optional().describe('当 coordinateSpace=screenshot 时，传入截图区域左上角的 Y 偏移。'),
+      ...screenshotCoordinateSchema,
       smooth: z.boolean().optional().default(false).describe('是否平滑移动鼠标。'),
       speed: z.number().optional().describe('可选，平滑移动速度。'),
       delayMs: z.number().optional().describe('可选，鼠标延迟，单位毫秒。')
@@ -162,20 +142,13 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
   },
   computer_mouse_click: {
     title: '点击鼠标',
-    description:
-      '点击指定鼠标按键。默认使用 screenshot 坐标系，优先传入相对于截图区域的像素坐标，不要自己换算系统缩放坐标。',
+    description: '点击指定鼠标按键。优先使用最近一次截图中的 screenshot 像素坐标。',
     inputSchema: z.object({
       button: z.enum(['left', 'right', 'middle']).optional().default('left').describe('要点击的鼠标按键。'),
       double: z.boolean().optional().default(false).describe('是否执行双击。'),
       x: z.number().optional().describe('可选，点击前先移动到的目标 X 像素坐标。'),
       y: z.number().optional().describe('可选，点击前先移动到的目标 Y 像素坐标。'),
-      coordinateSpace: z
-        .enum(['screen', 'screenshot'])
-        .optional()
-        .default('screenshot')
-        .describe('坐标系。默认 screenshot。除非已明确拿到绝对屏幕坐标，否则不要使用 screen。'),
-      originX: z.number().optional().describe('当 coordinateSpace=screenshot 时，传入截图区域左上角的 X 偏移。'),
-      originY: z.number().optional().describe('当 coordinateSpace=screenshot 时，传入截图区域左上角的 Y 偏移。'),
+      ...screenshotCoordinateSchema,
       smooth: z.boolean().optional().default(false).describe('点击前是否平滑移动鼠标。'),
       speed: z.number().optional().describe('可选，平滑移动速度。'),
       delayMs: z.number().optional().describe('可选，鼠标延迟，单位毫秒。')
@@ -210,21 +183,14 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
   },
   computer_drag_mouse: {
     title: '拖动鼠标',
-    description:
-      '按住指定鼠标按键，从可选起点拖动到目标坐标。默认使用 screenshot 坐标系，应传入截图里的像素坐标。',
+    description: '按住指定鼠标按键，从可选起点拖动到目标坐标。优先使用最近一次截图中的 screenshot 像素坐标。',
     inputSchema: z.object({
       x: z.number().describe('目标 X 像素坐标。'),
       y: z.number().describe('目标 Y 像素坐标。'),
       startX: z.number().optional().describe('可选，按下鼠标前先移动到的起始 X 像素坐标。'),
       startY: z.number().optional().describe('可选，按下鼠标前先移动到的起始 Y 像素坐标。'),
       button: z.enum(['left', 'right', 'middle']).optional().default('left').describe('拖动时按住的鼠标按键。'),
-      coordinateSpace: z
-        .enum(['screen', 'screenshot'])
-        .optional()
-        .default('screenshot')
-        .describe('坐标系。默认 screenshot。除非已明确拿到绝对屏幕坐标，否则不要使用 screen。'),
-      originX: z.number().optional().describe('当 coordinateSpace=screenshot 时，传入截图区域左上角的 X 偏移。'),
-      originY: z.number().optional().describe('当 coordinateSpace=screenshot 时，传入截图区域左上角的 Y 偏移。'),
+      ...screenshotCoordinateSchema,
       smooth: z.boolean().optional().default(false).describe('拖动开始前是否平滑移动鼠标。'),
       speed: z.number().optional().describe('可选，平滑移动速度。'),
       delayMs: z.number().optional().describe('可选，鼠标延迟，单位毫秒。')
@@ -341,17 +307,11 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
   },
   computer_get_pixel_color: {
     title: '获取像素颜色',
-    description: '读取指定像素点的十六进制颜色值。默认使用 screenshot 坐标系，应传入截图里的像素坐标。',
+    description: '读取指定像素点的十六进制颜色值。优先使用最近一次截图中的 screenshot 像素坐标。',
     inputSchema: z.object({
       x: z.number().describe('像素点 X 坐标。'),
       y: z.number().describe('像素点 Y 坐标。'),
-      coordinateSpace: z
-        .enum(['screen', 'screenshot'])
-        .optional()
-        .default('screenshot')
-        .describe('坐标系。默认 screenshot。除非已明确拿到绝对屏幕坐标，否则不要使用 screen。'),
-      originX: z.number().optional().describe('当 coordinateSpace=screenshot 时，传入截图区域左上角的 X 偏移。'),
-      originY: z.number().optional().describe('当 coordinateSpace=screenshot 时，传入截图区域左上角的 Y 偏移。')
+      ...screenshotCoordinateSchema
     }),
     execute: async (args: unknown) =>
       withComputerError(async () => {

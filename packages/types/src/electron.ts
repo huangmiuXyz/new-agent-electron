@@ -180,7 +180,21 @@ export interface ElectronAPI {
       height: number;
       bytesPerPixel: number;
       dataUrl: string;
+      rawDataUrl?: string;
+      annotation?: {
+        minorGridPx: number;
+        majorGridPx: number;
+        originMarker: { x: number; y: number; size: number };
+      };
       coordinateSpace: 'screenshot';
+      displayId?: string;
+      display?: {
+        displayId: string;
+        bounds: { x: number; y: number; width: number; height: number };
+        scaleFactor: number;
+        robotScreenSize: { width: number; height: number };
+        captureSize: { width: number; height: number };
+      };
     }>;
   };
 }

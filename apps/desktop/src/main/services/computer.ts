@@ -1,4 +1,4 @@
-import { ipcMain, desktopCapturer, screen } from 'electron'
+import { ipcMain, desktopCapturer, nativeImage, screen } from 'electron'
 
 type RobotModule = typeof import('robotjs')
 type MouseButton = 'left' | 'right' | 'middle'
@@ -10,6 +10,19 @@ let robotLoadError: Error | null = null
 let lastCaptureDisplayId: string | null = null
 let lastCaptureSourceSize: { width: number; height: number } | null = null
 let cachedRobotCoordinateMode: RobotCoordinateMode | null = null
+
+const DIGIT_FONT: Record<string, string[]> = {
+  '0': ['111', '101', '101', '101', '111'],
+  '1': ['010', '110', '010', '010', '111'],
+  '2': ['111', '001', '111', '100', '111'],
+  '3': ['111', '001', '111', '001', '111'],
+  '4': ['101', '101', '111', '001', '001'],
+  '5': ['111', '100', '111', '001', '111'],
+  '6': ['111', '100', '111', '101', '111'],
+  '7': ['111', '001', '010', '010', '010'],
+  '8': ['111', '101', '111', '101', '111'],
+  '9': ['111', '101', '111', '001', '111']
+}
 
 const normalizeInteger = (value: unknown, name: string): number => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -86,6 +99,176 @@ const getRobotCoordinateMode = (robot: RobotModule): RobotCoordinateMode => {
 
   cachedRobotCoordinateMode = physicalDistance < dipDistance ? 'physical' : 'dip'
   return cachedRobotCoordinateMode
+}
+
+const setBitmapPixel = (
+  bitmap: Buffer,
+  bytesPerRow: number,
+  x: number,
+  y: number,
+  rgba: { r: number; g: number; b: number; a: number }
+) => {
+  const index = y * bytesPerRow + x * 4
+  const alpha = rgba.a / 255
+  const invAlpha = 1 - alpha
+
+  bitmap[index] = Math.round(rgba.b * alpha + bitmap[index] * invAlpha)
+  bitmap[index + 1] = Math.round(rgba.g * alpha + bitmap[index + 1] * invAlpha)
+  bitmap[index + 2] = Math.round(rgba.r * alpha + bitmap[index + 2] * invAlpha)
+  bitmap[index + 3] = Math.max(bitmap[index + 3], rgba.a)
+}
+
+const drawHorizontalLine = (
+  bitmap: Buffer,
+  width: number,
+  height: number,
+  bytesPerRow: number,
+  y: number,
+  thickness: number,
+  rgba: { r: number; g: number; b: number; a: number }
+) => {
+  const startY = Math.max(0, y)
+  const endY = Math.min(height, y + thickness)
+  for (let row = startY; row < endY; row += 1) {
+    for (let x = 0; x < width; x += 1) {
+      setBitmapPixel(bitmap, bytesPerRow, x, row, rgba)
+    }
+  }
+}
+
+const drawVerticalLine = (
+  bitmap: Buffer,
+  width: number,
+  height: number,
+  bytesPerRow: number,
+  x: number,
+  thickness: number,
+  rgba: { r: number; g: number; b: number; a: number }
+) => {
+  const startX = Math.max(0, x)
+  const endX = Math.min(width, x + thickness)
+  for (let col = startX; col < endX; col += 1) {
+    for (let y = 0; y < height; y += 1) {
+      setBitmapPixel(bitmap, bytesPerRow, col, y, rgba)
+    }
+  }
+}
+
+const fillRect = (
+  bitmap: Buffer,
+  width: number,
+  height: number,
+  bytesPerRow: number,
+  x: number,
+  y: number,
+  rectWidth: number,
+  rectHeight: number,
+  rgba: { r: number; g: number; b: number; a: number }
+) => {
+  const startX = Math.max(0, x)
+  const startY = Math.max(0, y)
+  const endX = Math.min(width, x + rectWidth)
+  const endY = Math.min(height, y + rectHeight)
+
+  for (let py = startY; py < endY; py += 1) {
+    for (let px = startX; px < endX; px += 1) {
+      setBitmapPixel(bitmap, bytesPerRow, px, py, rgba)
+    }
+  }
+}
+
+const drawDigitText = (
+  bitmap: Buffer,
+  width: number,
+  height: number,
+  bytesPerRow: number,
+  text: string,
+  x: number,
+  y: number,
+  scale: number,
+  rgba: { r: number; g: number; b: number; a: number }
+) => {
+  let cursorX = x
+
+  for (const char of text) {
+    const glyph = DIGIT_FONT[char]
+    if (!glyph) {
+      cursorX += scale * 2
+      continue
+    }
+
+    for (let row = 0; row < glyph.length; row += 1) {
+      for (let col = 0; col < glyph[row].length; col += 1) {
+        if (glyph[row][col] !== '1') continue
+        fillRect(bitmap, width, height, bytesPerRow, cursorX + col * scale, y + row * scale, scale, scale, rgba)
+      }
+    }
+
+    cursorX += 4 * scale
+  }
+}
+
+const annotateScreenshot = (image: Electron.NativeImage) => {
+  const { width, height } = image.getSize()
+  if (width <= 0 || height <= 0) {
+    return {
+      image,
+      annotation: {
+        minorGridPx: 0,
+        majorGridPx: 0,
+        originMarker: { x: 0, y: 0, size: 0 }
+      }
+    }
+  }
+
+  const bitmap = Buffer.from(image.toBitmap())
+  const bytesPerRow = Math.floor(bitmap.length / Math.max(1, height))
+  const minorStep = Math.max(50, Math.round(Math.max(width, height) / 18 / 10) * 10)
+  const majorStep = minorStep * 5
+
+  const minorColor = { r: 24, g: 214, b: 134, a: 54 }
+  const majorColor = { r: 255, g: 159, b: 28, a: 110 }
+  const labelBg = { r: 18, g: 24, b: 38, a: 180 }
+  const labelFg = { r: 255, g: 255, b: 255, a: 255 }
+  const originColor = { r: 255, g: 59, b: 48, a: 220 }
+
+  for (let x = 0; x < width; x += minorStep) {
+    const isMajor = x % majorStep === 0
+    drawVerticalLine(bitmap, width, height, bytesPerRow, x, isMajor ? 2 : 1, isMajor ? majorColor : minorColor)
+  }
+
+  for (let y = 0; y < height; y += minorStep) {
+    const isMajor = y % majorStep === 0
+    drawHorizontalLine(bitmap, width, height, bytesPerRow, y, isMajor ? 2 : 1, isMajor ? majorColor : minorColor)
+  }
+
+  const labelScale = 2
+  const labelHeight = 5 * labelScale + 4
+
+  for (let x = 0; x < width; x += majorStep) {
+    const text = String(x)
+    const labelWidth = text.length * 4 * labelScale
+    fillRect(bitmap, width, height, bytesPerRow, x + 4, 4, labelWidth + 4, labelHeight, labelBg)
+    drawDigitText(bitmap, width, height, bytesPerRow, text, x + 6, 6, labelScale, labelFg)
+  }
+
+  for (let y = 0; y < height; y += majorStep) {
+    const text = String(y)
+    const labelWidth = text.length * 4 * labelScale
+    fillRect(bitmap, width, height, bytesPerRow, 4, y + 4, labelWidth + 4, labelHeight, labelBg)
+    drawDigitText(bitmap, width, height, bytesPerRow, text, 6, y + 6, labelScale, labelFg)
+  }
+
+  fillRect(bitmap, width, height, bytesPerRow, 0, 0, Math.min(10, width), Math.min(10, height), originColor)
+
+  return {
+    image: nativeImage.createFromBitmap(bitmap, { width, height }),
+    annotation: {
+      minorGridPx: minorStep,
+      majorGridPx: majorStep,
+      originMarker: { x: 0, y: 0, size: Math.min(10, width, height) }
+    }
+  }
 }
 
 const captureToRobotPoint = (
@@ -414,6 +597,7 @@ export const setupComputerHandlers = () => {
       x,
       y
     })
+    const annotated = annotateScreenshot(cropped)
 
     lastCaptureDisplayId = metrics.displayId
     lastCaptureSourceSize = imageSize
@@ -424,7 +608,9 @@ export const setupComputerHandlers = () => {
       width,
       height,
       bytesPerPixel: 4,
-      dataUrl: cropped.toDataURL(),
+      dataUrl: annotated.image.toDataURL(),
+      rawDataUrl: cropped.toDataURL(),
+      annotation: annotated.annotation,
       coordinateSpace: 'screenshot',
       displayId: metrics.displayId,
       display: metrics
