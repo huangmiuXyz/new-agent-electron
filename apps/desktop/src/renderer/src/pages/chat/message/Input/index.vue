@@ -325,7 +325,7 @@ const mobileHoverDropZone = ref<MobileDropZone | null>(null)
 
 const isMobileToolDragging = computed(() => !!draggingToolId.value)
 
-const isMobileToolVisible = (toolId: MobileDragToolId) => {
+const isMobileToolVisible = (_toolId: MobileDragToolId) => {
   return true
 }
 const mobileDraggingToolLabel = computed(() => {
@@ -502,7 +502,7 @@ const runMobileToolAction = async (toolId: MobileDragToolId) => {
   if (toolId === 'settings') return openProviderOptionsModal()
   if (toolId === 'speech') return toggleSpeech()
   if (toolId === 'playlist') {
-    display.speechSidebarCollapsed = !display.speechSidebarCollapsed
+    display.value.speechSidebarCollapsed = !display.value.speechSidebarCollapsed
     return
   }
   if (toolId === 'stop') return stopAllGeneratingInCurrentChat()
