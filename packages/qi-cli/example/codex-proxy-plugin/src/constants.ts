@@ -3,6 +3,7 @@ export const PROVIDER_ID = 'codex-proxy'
 export const REGISTRY_ID = 'codex-proxy'
 export const STORAGE_KEY = 'codex_proxy_plugin_config'
 export const BRIDGE_API_KEY = 'codex-proxy-plugin-local'
+import type { Model } from '@agent-qi/types'
 import codexColorPng from '../codex-color.png'
 
 export const CODEX_PROVIDER_LOGO_URL = codexColorPng
@@ -35,7 +36,13 @@ export const DEFAULT_CONFIG: CodexProxyPluginConfig = {
   defaultModel: 'codex'
 }
 
-export const MODELS = [
+type BuiltinModel = {
+  id: string
+  alias?: string
+  description: string
+}
+
+export const MODELS: ReadonlyArray<BuiltinModel> = [
   {
     id: 'gpt-5.4',
     alias: 'codex',
@@ -65,7 +72,7 @@ export const MODELS = [
   }
 ] as const
 
-export const buildDefaultModels = (defaultModel: string) =>
+export const buildDefaultModels = (defaultModel: string): Model[] =>
   MODELS.map(({ id, alias, description }) => ({
     id,
     name:
@@ -75,7 +82,7 @@ export const buildDefaultModels = (defaultModel: string) =>
     description,
     category: 'text' as const,
     active: true,
-    object: 'model',
+    object: 'model' as const,
     created: Date.now(),
     owned_by: 'codex-proxy'
   }))
@@ -101,4 +108,3 @@ export const normalizeConfig = (
     String(input?.defaultModel || DEFAULT_CONFIG.defaultModel).trim() ||
     DEFAULT_CONFIG.defaultModel
 })
-
