@@ -305,30 +305,4 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
         }
       })
   },
-  computer_get_pixel_color: {
-    title: '获取像素颜色',
-    description: '读取指定像素点的十六进制颜色值。优先使用最近一次截图中的 screenshot 像素坐标。',
-    inputSchema: z.object({
-      x: z.number().describe('像素点 X 坐标。'),
-      y: z.number().describe('像素点 Y 坐标。'),
-      ...screenshotCoordinateSchema
-    }),
-    execute: async (args: unknown) =>
-      withComputerError(async () => {
-        const input = asArgs(args)
-        const result = await window.api.computer.getPixelColor({
-          x: Number(input.x),
-          y: Number(input.y),
-          coordinateSpace: input.coordinateSpace as 'screen' | 'screenshot' | undefined,
-          originX: typeof input.originX === 'number' ? input.originX : undefined,
-          originY: typeof input.originY === 'number' ? input.originY : undefined
-        })
-
-        return {
-          toolResult: {
-            content: [{ type: 'text', text: `pixel ${result.x}, ${result.y} = #${result.color}` }]
-          }
-        }
-      })
-  }
 })
