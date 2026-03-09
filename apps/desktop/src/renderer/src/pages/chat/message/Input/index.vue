@@ -209,6 +209,319 @@ const isProcessingVoice = ref(false)
 
 const partialSpeechText = ref('')
 const showMobileTools = ref(false)
+type MobileDragToolId =
+  | 'upload'
+  | 'voice'
+  | 'thinking'
+  | 'settings'
+  | 'speech'
+  | 'playlist'
+  | 'agent'
+  | 'model'
+  | 'stop'
+type MobileDropZone = 'top-left' | 'top-right' | 'bottom'
+const MOBILE_LONG_PRESS_MS = 380
+const MOBILE_POINTER_MOVE_CANCEL_PX = 10
+const MOBILE_TOP_MAX_TOOLS = 4
+const MOBILE_TOOL_LAYOUT_STORAGE_KEY = 'chat.mobile.tool-layout.v1'
+type MobileToolLayoutStorage = {
+  topLeft: MobileDragToolId[]
+  topRight: MobileDragToolId[]
+  bottom: MobileDragToolId[]
+}
+const mobileToolOrder: MobileDragToolId[] = [
+  'upload',
+  'voice',
+  'thinking',
+  'settings',
+  'speech',
+  'playlist',
+  'agent',
+  'model',
+  'stop'
+]
+const mobileToolLabelMap: Record<MobileDragToolId, string> = {
+  upload: '上传',
+  voice: '语音',
+  thinking: '思考',
+  settings: '参数',
+  speech: '播报',
+  playlist: '列表',
+  agent: '助手',
+  model: '模型',
+  stop: '停止'
+}
+const defaultMobileLayout: MobileToolLayoutStorage = {
+  topLeft: ['upload', 'voice'],
+  topRight: [],
+  bottom: [
+    'thinking',
+    'settings',
+    'speech',
+    'playlist',
+    'agent',
+    'model',
+    'stop'
+  ]
+}
+const mobileToolLayout = useLocalStorage<MobileToolLayoutStorage>(MOBILE_TOOL_LAYOUT_STORAGE_KEY, defaultMobileLayout)
+
+function normalizeMobileToolList(list: unknown): MobileDragToolId[] {
+  if (!Array.isArray(list)) return []
+  const validSet = new Set<MobileDragToolId>(mobileToolOrder)
+  const unique: MobileDragToolId[] = []
+  list.forEach((item) => {
+    if (typeof item !== 'string') return
+    const toolId = item as MobileDragToolId
+    if (!validSet.has(toolId) || unique.includes(toolId)) return
+    unique.push(toolId)
+  })
+  return unique
+}
+
+function normalizeMobileLayout(layout: unknown): MobileToolLayoutStorage {
+  const raw = (layout || {}) as Partial<MobileToolLayoutStorage>
+  const topLeft = normalizeMobileToolList(raw.topLeft)
+  const topRight = normalizeMobileToolList(raw.topRight)
+  const bottom = normalizeMobileToolList(raw.bottom)
+  const merged = [...topLeft, ...topRight, ...bottom]
+  const missing = mobileToolOrder.filter((toolId) => !merged.includes(toolId))
+  const uniqueTopLeft = topLeft.filter((toolId, index) => merged.indexOf(toolId) === index)
+  const uniqueTopRight = topRight.filter((toolId) => !uniqueTopLeft.includes(toolId))
+  const uniqueBottom = bottom.filter((toolId) => !uniqueTopLeft.includes(toolId) && !uniqueTopRight.includes(toolId))
+  const mergedTop = [...uniqueTopLeft, ...uniqueTopRight]
+  const keptTop = mergedTop.slice(0, MOBILE_TOP_MAX_TOOLS)
+  const overflowTop = mergedTop.slice(MOBILE_TOP_MAX_TOOLS)
+  const topLeftCapped = keptTop.filter((toolId) => uniqueTopLeft.includes(toolId))
+  const topRightCapped = keptTop.filter((toolId) => uniqueTopRight.includes(toolId))
+  return {
+    topLeft: topLeftCapped,
+    topRight: topRightCapped,
+    bottom: [...overflowTop, ...uniqueBottom, ...missing]
+  }
+}
+
+const normalizedMobileLayout = normalizeMobileLayout(mobileToolLayout.value)
+const mobileTopLeftTools = ref<MobileDragToolId[]>(normalizedMobileLayout.topLeft)
+const mobileTopRightTools = ref<MobileDragToolId[]>(normalizedMobileLayout.topRight)
+const mobileTopBarRef = useTemplateRef('mobileTopBarRef')
+const mobileBottomTools = ref<MobileDragToolId[]>(normalizedMobileLayout.bottom)
+const mobileLayoutSnapshot = computed<MobileToolLayoutStorage>(() => ({
+  topLeft: [...mobileTopLeftTools.value],
+  topRight: [...mobileTopRightTools.value],
+  bottom: [...mobileBottomTools.value]
+}))
+const mobileTopLeftZoneRef = useTemplateRef('mobileTopLeftZoneRef')
+const mobileTopRightZoneRef = useTemplateRef('mobileTopRightZoneRef')
+const mobileBottomZoneRef = useTemplateRef('mobileBottomZoneRef')
+const longPressTimer = ref<number | null>(null)
+const longPressPointerId = ref<number | null>(null)
+const longPressToolId = ref<MobileDragToolId | null>(null)
+const longPressStartPoint = ref<{ x: number, y: number } | null>(null)
+const draggingToolId = ref<MobileDragToolId | null>(null)
+const suppressMobileToolClick = ref(false)
+const mobileDragPointer = ref<{ x: number, y: number }>({ x: 0, y: 0 })
+const mobileHoverDropZone = ref<MobileDropZone | null>(null)
+
+const isMobileToolDragging = computed(() => !!draggingToolId.value)
+
+const isMobileToolVisible = (toolId: MobileDragToolId) => {
+  return true
+}
+const mobileDraggingToolLabel = computed(() => {
+  if (!draggingToolId.value) return ''
+  return mobileToolLabelMap[draggingToolId.value]
+})
+
+watch(
+  mobileLayoutSnapshot,
+  (layout) => {
+    mobileToolLayout.value = normalizeMobileLayout(layout)
+  },
+  { deep: true }
+)
+
+const sortMobileTools = (tools: MobileDragToolId[]) => {
+  return [...tools].sort((a, b) => mobileToolOrder.indexOf(a) - mobileToolOrder.indexOf(b))
+}
+
+const clearLongPressTimer = () => {
+  if (longPressTimer.value) {
+    window.clearTimeout(longPressTimer.value)
+    longPressTimer.value = null
+  }
+}
+
+const mobileToolClass = (toolId: MobileDragToolId) => ({
+  'is-long-pressing': longPressToolId.value === toolId && !draggingToolId.value,
+  'is-dragging': draggingToolId.value === toolId
+})
+
+const startDraggingTool = (toolId: MobileDragToolId) => {
+  draggingToolId.value = toolId
+  suppressMobileToolClick.value = true
+  showMobileTools.value = true
+}
+
+const resolveDropZoneByPoint = (x: number, y: number): MobileDropZone | null => {
+  const target = document.elementFromPoint(x, y) as HTMLElement | null
+  if (!target) return null
+  if (mobileTopLeftZoneRef.value?.contains(target)) return 'top-left'
+  if (mobileTopRightZoneRef.value?.contains(target)) return 'top-right'
+  if (mobileTopBarRef.value?.contains(target)) {
+    const topBarRect = mobileTopBarRef.value.getBoundingClientRect()
+    const rightDropThreshold = topBarRect.right - 120
+    return x >= rightDropThreshold ? 'top-right' : 'top-left'
+  }
+  if (mobileBottomZoneRef.value?.contains(target)) return 'bottom'
+  return null
+}
+
+const moveMobileToolToZone = (toolId: MobileDragToolId, zone: MobileDropZone) => {
+  const nextTopLeft = mobileTopLeftTools.value.filter((id) => id !== toolId)
+  const nextTopRight = mobileTopRightTools.value.filter((id) => id !== toolId)
+  const nextBottom = mobileBottomTools.value.filter((id) => id !== toolId)
+  const wasInTop = mobileTopLeftTools.value.includes(toolId) || mobileTopRightTools.value.includes(toolId)
+  const nextTopCount = nextTopLeft.length + nextTopRight.length
+
+  if (!wasInTop && zone !== 'bottom' && nextTopCount >= MOBILE_TOP_MAX_TOOLS) {
+    messageApi.warning(`上方最多放 ${MOBILE_TOP_MAX_TOOLS} 个按钮`)
+    return
+  }
+
+  if (zone === 'top-left') {
+    mobileTopLeftTools.value = sortMobileTools([...nextTopLeft, toolId])
+    mobileTopRightTools.value = sortMobileTools(nextTopRight)
+    mobileBottomTools.value = sortMobileTools(nextBottom)
+    return
+  }
+  if (zone === 'top-right') {
+    mobileTopRightTools.value = sortMobileTools([...nextTopRight, toolId])
+    mobileTopLeftTools.value = sortMobileTools(nextTopLeft)
+    mobileBottomTools.value = sortMobileTools(nextBottom)
+    return
+  }
+  mobileBottomTools.value = sortMobileTools([...nextBottom, toolId])
+  mobileTopLeftTools.value = sortMobileTools(nextTopLeft)
+  mobileTopRightTools.value = sortMobileTools(nextTopRight)
+}
+
+const finalizeMobileToolDrag = (event: PointerEvent) => {
+  if (!draggingToolId.value) return
+  const dropZone = resolveDropZoneByPoint(event.clientX, event.clientY)
+  if (dropZone) {
+    moveMobileToolToZone(draggingToolId.value, dropZone)
+  }
+}
+
+const resetMobilePressState = () => {
+  clearLongPressTimer()
+  longPressPointerId.value = null
+  longPressToolId.value = null
+  longPressStartPoint.value = null
+  draggingToolId.value = null
+  mobileHoverDropZone.value = null
+  window.setTimeout(() => {
+    suppressMobileToolClick.value = false
+  }, 0)
+}
+
+const bindMobilePointerListeners = () => {
+  window.addEventListener('pointermove', onMobileGlobalPointerMove, { passive: false })
+  window.addEventListener('pointerup', onMobileGlobalPointerUp)
+  window.addEventListener('pointercancel', onMobileGlobalPointerCancel)
+}
+
+const unbindMobilePointerListeners = () => {
+  window.removeEventListener('pointermove', onMobileGlobalPointerMove)
+  window.removeEventListener('pointerup', onMobileGlobalPointerUp)
+  window.removeEventListener('pointercancel', onMobileGlobalPointerCancel)
+}
+
+const onMobileToolPointerDown = (toolId: MobileDragToolId, event: PointerEvent) => {
+  if (!isMobile.value || event.button !== 0) return
+  clearLongPressTimer()
+  bindMobilePointerListeners()
+  longPressPointerId.value = event.pointerId
+  longPressToolId.value = toolId
+  longPressStartPoint.value = { x: event.clientX, y: event.clientY }
+  mobileDragPointer.value = { x: event.clientX, y: event.clientY }
+  longPressTimer.value = window.setTimeout(() => {
+    startDraggingTool(toolId)
+  }, MOBILE_LONG_PRESS_MS)
+}
+
+const onMobileToolPointerMove = (event: PointerEvent) => {
+  if (draggingToolId.value) return
+  if (longPressPointerId.value !== event.pointerId || !longPressStartPoint.value) return
+  const distanceX = Math.abs(event.clientX - longPressStartPoint.value.x)
+  const distanceY = Math.abs(event.clientY - longPressStartPoint.value.y)
+  if (distanceX > MOBILE_POINTER_MOVE_CANCEL_PX || distanceY > MOBILE_POINTER_MOVE_CANCEL_PX) {
+    clearLongPressTimer()
+    longPressToolId.value = null
+  }
+}
+
+const onMobileToolPointerUp = (event: PointerEvent) => {
+  if (draggingToolId.value) {
+    finalizeMobileToolDrag(event)
+  }
+  unbindMobilePointerListeners()
+  resetMobilePressState()
+}
+
+const onMobileToolPointerCancel = () => {
+  unbindMobilePointerListeners()
+  resetMobilePressState()
+}
+
+const onMobileGlobalPointerMove = (event: PointerEvent) => {
+  if (longPressPointerId.value !== event.pointerId) return
+  mobileDragPointer.value = { x: event.clientX, y: event.clientY }
+  onMobileToolPointerMove(event)
+  if (draggingToolId.value) {
+    mobileHoverDropZone.value = resolveDropZoneByPoint(event.clientX, event.clientY)
+    event.preventDefault()
+  }
+}
+
+const onMobileGlobalPointerUp = (event: PointerEvent) => {
+  if (longPressPointerId.value !== event.pointerId) return
+  onMobileToolPointerUp(event)
+}
+
+const onMobileGlobalPointerCancel = (event: PointerEvent) => {
+  if (longPressPointerId.value !== event.pointerId) return
+  onMobileToolPointerCancel()
+}
+
+const runMobileToolAction = async (toolId: MobileDragToolId) => {
+  if (toolId === 'upload') return fileUploadRef.value?.triggerUpload?.()
+  if (toolId === 'voice') return toggleVoiceRecording()
+  if (toolId === 'thinking') return updateThinkingMode(!thinkingMode.value)
+  if (toolId === 'settings') return openProviderOptionsModal()
+  if (toolId === 'speech') return toggleSpeech()
+  if (toolId === 'playlist') {
+    display.speechSidebarCollapsed = !display.speechSidebarCollapsed
+    return
+  }
+  if (toolId === 'stop') return stopAllGeneratingInCurrentChat()
+}
+
+const handleMobileToolClick = async (toolId: MobileDragToolId, event: MouseEvent) => {
+  if (suppressMobileToolClick.value) {
+    event.preventDefault()
+    event.stopPropagation()
+    return
+  }
+  await runMobileToolAction(toolId)
+}
+
+const handleMobileToolWrapperClickCapture = (event: MouseEvent) => {
+  if (!suppressMobileToolClick.value) return
+  event.preventDefault()
+  event.stopPropagation()
+}
 
 const { start: startVoice, stop: stopVoice, state: voiceState, isActive: voiceIsActive } = useContinuousVoiceRecorder({
   volumeThreshold: 0.02,
@@ -403,6 +716,8 @@ onMounted(() => {
 })
 onUnmounted(() => {
   unregister('global.focusInput')
+  unbindMobilePointerListeners()
+  clearLongPressTimer()
 })
 </script>
 
@@ -495,10 +810,53 @@ onUnmounted(() => {
       </div>
 
       <div v-else>
-        <div class="mobile-input-bar">
-          <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
-            <FileUploadIcon />
-          </Button>
+        <div class="mobile-input-bar" ref="mobileTopBarRef"
+          :class="{ 'mobile-drop-active': isMobileToolDragging }">
+          <div class="mobile-top-drop-zone mobile-top-left-zone" ref="mobileTopLeftZoneRef"
+            :class="{ 'mobile-drop-hover': mobileHoverDropZone === 'top-left' }">
+            <template v-for="toolId in mobileTopLeftTools" :key="`top-left-${toolId}`">
+              <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
+                @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
+                @click.capture="handleMobileToolWrapperClickCapture">
+                <Button v-if="toolId === 'upload'" variant="icon" size="sm" @click="handleMobileToolClick('upload', $event)">
+                  <FileUploadIcon />
+                </Button>
+                <Button v-else-if="toolId === 'voice'" variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }"
+                  :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
+                  @click="handleMobileToolClick('voice', $event)">
+                  <MicIcon v-if="!voiceIsActive" />
+                  <MicOffIcon v-else />
+                </Button>
+                <Button v-else-if="toolId === 'thinking'" variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
+                  title="思考模式" @click="handleMobileToolClick('thinking', $event)">
+                  <Bulb />
+                </Button>
+                <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
+                  @click="handleMobileToolClick('settings', $event)">
+                  <SettingsIcon />
+                </Button>
+                <Button v-else-if="toolId === 'speech'" variant="icon" size="sm" :class="{ 'speech-active': speechEnabled }"
+                  :title="speechEnabled ? '关闭语音播报' : '开启语音播报'" @click="handleMobileToolClick('speech', $event)">
+                  <VolumeIcon v-if="speechEnabled" />
+                  <VolumeMuteIcon v-else />
+                </Button>
+                <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
+                  :class="{ 'speech-active': !display.speechSidebarCollapsed }"
+                  :title="display.speechSidebarCollapsed ? '打开播放列表' : '关闭播放列表'"
+                  @click="handleMobileToolClick('playlist', $event)">
+                  <PlaylistIcon />
+                </Button>
+                <ChatAgentSelector v-else-if="toolId === 'agent'" type="icon" />
+                <ModelSelector v-else-if="toolId === 'model'" type="icon" v-model:model-id="chatModelId"
+                  v-model:provider-id="chatProviderId" />
+                <Button v-else-if="toolId === 'stop'" variant="icon" size="sm" class="stop-all-btn"
+                  :class="{ 'is-idle': !isScopeGenerating }" title="停止当前聊天内全部生成"
+                  @click="handleMobileToolClick('stop', $event)">
+                  <StopIcon />
+                </Button>
+              </div>
+            </template>
+          </div>
           <div class="mobile-input-wrapper">
             <textarea ref="textareaRef" class="input-field mobile-input-field" rows="1"
               :placeholder="mobilePlaceholder"
@@ -507,11 +865,51 @@ onUnmounted(() => {
               :disabled="isProcessingVoice"></textarea>
             <div v-if="partialSpeechText" class="partial-text mobile-partial-text">{{ partialSpeechText }}</div>
           </div>
-          <Button variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }" @click="toggleVoiceRecording"
-            :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'">
-            <MicIcon v-if="!voiceIsActive" />
-            <MicOffIcon v-else />
-          </Button>
+          <div class="mobile-top-drop-zone mobile-top-right-zone" ref="mobileTopRightZoneRef"
+            :class="{ 'mobile-drop-hover': mobileHoverDropZone === 'top-right' }">
+            <template v-for="toolId in mobileTopRightTools" :key="`top-right-${toolId}`">
+              <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
+                @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
+                @click.capture="handleMobileToolWrapperClickCapture">
+                <Button v-if="toolId === 'upload'" variant="icon" size="sm" @click="handleMobileToolClick('upload', $event)">
+                  <FileUploadIcon />
+                </Button>
+                <Button v-else-if="toolId === 'voice'" variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }"
+                  :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
+                  @click="handleMobileToolClick('voice', $event)">
+                  <MicIcon v-if="!voiceIsActive" />
+                  <MicOffIcon v-else />
+                </Button>
+                <Button v-else-if="toolId === 'thinking'" variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
+                  title="思考模式" @click="handleMobileToolClick('thinking', $event)">
+                  <Bulb />
+                </Button>
+                <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
+                  @click="handleMobileToolClick('settings', $event)">
+                  <SettingsIcon />
+                </Button>
+                <Button v-else-if="toolId === 'speech'" variant="icon" size="sm" :class="{ 'speech-active': speechEnabled }"
+                  :title="speechEnabled ? '关闭语音播报' : '开启语音播报'" @click="handleMobileToolClick('speech', $event)">
+                  <VolumeIcon v-if="speechEnabled" />
+                  <VolumeMuteIcon v-else />
+                </Button>
+                <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
+                  :class="{ 'speech-active': !display.speechSidebarCollapsed }"
+                  :title="display.speechSidebarCollapsed ? '打开播放列表' : '关闭播放列表'"
+                  @click="handleMobileToolClick('playlist', $event)">
+                  <PlaylistIcon />
+                </Button>
+                <ChatAgentSelector v-else-if="toolId === 'agent'" type="icon" />
+                <ModelSelector v-else-if="toolId === 'model'" type="icon" v-model:model-id="chatModelId"
+                  v-model:provider-id="chatProviderId" />
+                <Button v-else-if="toolId === 'stop'" variant="icon" size="sm" class="stop-all-btn"
+                  :class="{ 'is-idle': !isScopeGenerating }" title="停止当前聊天内全部生成"
+                  @click="handleMobileToolClick('stop', $event)">
+                  <StopIcon />
+                </Button>
+              </div>
+            </template>
+          </div>
           <Button variant="icon" size="sm" @click="showMobileTools = !showMobileTools"
             :title="showMobileTools ? '收起工具' : '展开工具'">
             <ChevronDown :class="{ 'mobile-toggle-open': showMobileTools }" />
@@ -521,38 +919,59 @@ onUnmounted(() => {
           </Button>
         </div>
 
-        <div v-if="showMobileTools" class="mobile-tools-panel">
-          <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
-            @click="updateThinkingMode(!thinkingMode)" title="思考模式">
-            <Bulb />
-          </Button>
-          <Button variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
-            <SettingsIcon />
-          </Button>
-          <Button variant="icon" size="sm" :class="{ 'speech-active': speechEnabled }" @click="toggleSpeech"
-            :title="speechEnabled ? '关闭语音播报' : '开启语音播报'">
-            <VolumeIcon v-if="speechEnabled" />
-            <VolumeMuteIcon v-else />
-          </Button>
-          <Button variant="icon" size="sm" :class="{ 'speech-active': !display.speechSidebarCollapsed }"
-            @click="() => { display.speechSidebarCollapsed = !display.speechSidebarCollapsed }"
-            :title="display.speechSidebarCollapsed ? '打开播放列表' : '关闭播放列表'">
-            <PlaylistIcon />
-          </Button>
-          <ChatAgentSelector type="icon" />
-          <ModelSelector type="icon" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" />
-          <Button
-            v-if="isScopeGenerating"
-            variant="icon"
-            size="sm"
-            class="stop-all-btn"
-            title="停止当前聊天内全部生成"
-            @click="stopAllGeneratingInCurrentChat"
-          >
-            <StopIcon />
-          </Button>
+        <div v-if="showMobileTools" class="mobile-tools-panel" ref="mobileBottomZoneRef"
+          :class="{ 'mobile-drop-active': isMobileToolDragging, 'mobile-drop-hover': mobileHoverDropZone === 'bottom' }">
+          <template v-for="toolId in mobileBottomTools" :key="`bottom-${toolId}`">
+            <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
+              @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
+              @click.capture="handleMobileToolWrapperClickCapture">
+              <Button v-if="toolId === 'upload'" variant="icon" size="sm" @click="handleMobileToolClick('upload', $event)">
+                <FileUploadIcon />
+              </Button>
+              <Button v-else-if="toolId === 'voice'" variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }"
+                :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
+                @click="handleMobileToolClick('voice', $event)">
+                <MicIcon v-if="!voiceIsActive" />
+                <MicOffIcon v-else />
+              </Button>
+              <Button v-else-if="toolId === 'thinking'" variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
+                title="思考模式" @click="handleMobileToolClick('thinking', $event)">
+                <Bulb />
+              </Button>
+              <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
+                @click="handleMobileToolClick('settings', $event)">
+                <SettingsIcon />
+              </Button>
+              <Button v-else-if="toolId === 'speech'" variant="icon" size="sm" :class="{ 'speech-active': speechEnabled }"
+                :title="speechEnabled ? '关闭语音播报' : '开启语音播报'" @click="handleMobileToolClick('speech', $event)">
+                <VolumeIcon v-if="speechEnabled" />
+                <VolumeMuteIcon v-else />
+              </Button>
+              <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
+                :class="{ 'speech-active': !display.speechSidebarCollapsed }"
+                :title="display.speechSidebarCollapsed ? '打开播放列表' : '关闭播放列表'"
+                @click="handleMobileToolClick('playlist', $event)">
+                <PlaylistIcon />
+              </Button>
+              <ChatAgentSelector v-else-if="toolId === 'agent'" type="icon" />
+              <ModelSelector v-else-if="toolId === 'model'" type="icon" v-model:model-id="chatModelId"
+                v-model:provider-id="chatProviderId" />
+              <Button v-else-if="toolId === 'stop'" variant="icon" size="sm" class="stop-all-btn"
+                :class="{ 'is-idle': !isScopeGenerating }" title="停止当前聊天内全部生成"
+                @click="handleMobileToolClick('stop', $event)">
+                <StopIcon />
+              </Button>
+            </div>
+          </template>
         </div>
 
+      </div>
+
+      <div v-if="isMobileToolDragging && draggingToolId" class="mobile-drag-ghost" :style="{
+        left: `${mobileDragPointer.x}px`,
+        top: `${mobileDragPointer.y}px`
+      }">
+        <span>{{ mobileDraggingToolLabel }}</span>
       </div>
 
       <!-- 拖拽提示 -->
@@ -770,6 +1189,10 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--color-danger) 18%, transparent);
 }
 
+.stop-all-btn.is-idle {
+  opacity: 0.45;
+}
+
 .thinking-active {
   color: var(--color-primary);
   background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
@@ -813,6 +1236,24 @@ onUnmounted(() => {
   padding: 7px;
 }
 
+.mobile-top-drop-zone {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10px;
+}
+
+.mobile-top-left-zone,
+.mobile-top-right-zone {
+  flex-shrink: 0;
+}
+
+.mobile-top-right-zone {
+  min-width: 40px;
+  min-height: 40px;
+}
+
 .mobile-input-wrapper {
   flex: 1;
   display: flex;
@@ -845,6 +1286,51 @@ onUnmounted(() => {
   border-radius: 16px;
   border: 1px solid var(--border-color-light);
   background: var(--bg-input);
+}
+
+.mobile-drag-tool {
+  display: inline-flex;
+  touch-action: none;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+  user-select: none;
+}
+
+.mobile-drag-tool.is-long-pressing {
+  opacity: 0.75;
+}
+
+.mobile-drag-tool.is-dragging {
+  opacity: 0.55;
+  transform: scale(0.94);
+}
+
+.mobile-drop-active {
+  outline: 1px dashed color-mix(in srgb, var(--color-primary) 52%, transparent);
+  outline-offset: 2px;
+}
+
+.mobile-drop-hover {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--bg-input));
+}
+
+.mobile-drag-ghost {
+  position: fixed;
+  z-index: 30;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  min-width: 56px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 45%, var(--border-subtle));
+  background: color-mix(in srgb, var(--bg-card) 92%, #ffffff);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 
 .mobile-send-btn {
