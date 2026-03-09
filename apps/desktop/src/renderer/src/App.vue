@@ -447,6 +447,16 @@ const handleTouchEnd = (e: TouchEvent) => {
   overscroll-behavior: none;
 }
 
+@media (max-width: 767px) {
+  *,
+  *::before,
+  *::after {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
 html {
   background-color: var(--bg-app);
   height: 100dvh;
