@@ -417,9 +417,13 @@ const convertMessagesToInput = (messages) => {
     if (!message || typeof message !== 'object') continue
 
     if (message.role === 'tool') {
+      const callId = String(message.tool_call_id || message.toolCallId || '').trim()
+      if (!callId) {
+        continue
+      }
       items.push({
         type: 'function_call_output',
-        call_id: message.tool_call_id || message.toolCallId || '',
+        call_id: callId,
         output:
           typeof message.content === 'string'
             ? message.content
@@ -429,6 +433,14 @@ const convertMessagesToInput = (messages) => {
     }
 
     if (message.role === 'assistant' && Array.isArray(message.tool_calls)) {
+      if (message.content) {
+        items.push({
+          type: 'message',
+          role: 'assistant',
+          content: toContentByRole(message.content, 'assistant')
+        })
+      }
+
       for (const toolCall of message.tool_calls) {
         items.push({
           type: 'function_call',
@@ -437,17 +449,11 @@ const convertMessagesToInput = (messages) => {
           arguments: toolCall.function?.arguments || ''
         })
       }
-
-      if (message.content) {
-        items.push({
-          role: 'assistant',
-          content: toContentByRole(message.content, 'assistant')
-        })
-      }
       continue
     }
 
     items.push({
+      type: 'message',
       role: message.role === 'system' ? 'developer' : message.role,
       content: toContentByRole(message.content, message.role)
     })
@@ -483,11 +489,13 @@ const convertChatRequest = (request) => {
     store: false,
     instructions: '',
     input: convertMessagesToInput(request.messages),
-    parallel_tool_calls: request.parallel_tool_calls !== false
+    parallel_tool_calls: request.parallel_tool_calls !== false,
+    include: ['reasoning.encrypted_content']
   }
 
   payload.reasoning = {
-    effort: request.reasoningEffort || request.reasoning_effort || REASONING_EFFORT
+    effort: request.reasoningEffort || request.reasoning_effort || REASONING_EFFORT,
+    summary: 'auto'
   }
 
   const tools = mapTools(request.tools)
@@ -516,12 +524,39 @@ const convertChatRequest = (request) => {
 }
 
 const normalizeResponsesRequest = (request) => ({
-  payload: {
-    ...request,
-    model: normalizeModelForUpstream(request.model),
-    stream: true,
-    store: false
-  },
+  payload: (() => {
+    const payload = {
+      ...request,
+      model: normalizeModelForUpstream(request.model),
+      stream: true,
+      store: false
+    }
+
+    if (!('instructions' in payload)) {
+      payload.instructions = ''
+    }
+    if (!('parallel_tool_calls' in payload)) {
+      payload.parallel_tool_calls = true
+    }
+
+    if (!payload.reasoning || typeof payload.reasoning !== 'object') {
+      payload.reasoning = {}
+    }
+    if (!payload.reasoning.effort) {
+      payload.reasoning.effort = 'medium'
+    }
+    if (!payload.reasoning.summary) {
+      payload.reasoning.summary = 'auto'
+    }
+
+    const include = Array.isArray(payload.include) ? [...payload.include] : []
+    if (!include.includes('reasoning.encrypted_content')) {
+      include.push('reasoning.encrypted_content')
+    }
+    payload.include = include
+
+    return payload
+  })(),
   stream: Boolean(request.stream)
 })
 
