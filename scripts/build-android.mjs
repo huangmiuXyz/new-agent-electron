@@ -74,11 +74,16 @@ function resolveJava21Home() {
 }
 
 function runOrFail(command, args, options = {}) {
-  const result = spawnSync(command, args, {
+  const spawnOptions = {
     stdio: 'inherit',
     shell: false,
     ...options
-  })
+  }
+  if (isWindows && /\.(cmd|bat)$/i.test(command)) {
+    spawnOptions.shell = true
+  }
+
+  const result = spawnSync(command, args, spawnOptions)
 
   if (result.error) {
     console.error(result.error.message)
@@ -88,6 +93,16 @@ function runOrFail(command, args, options = {}) {
   if (typeof result.status === 'number' && result.status !== 0) {
     process.exit(result.status)
   }
+}
+
+function runPnpmOrFail(args, options = {}) {
+  const npmExecPath = envValue('npm_execpath')
+  if (npmExecPath && npmExecPath.toLowerCase().includes('pnpm')) {
+    runOrFail(process.execPath, [npmExecPath, ...args], options)
+    return
+  }
+
+  runOrFail('pnpm', args, options)
 }
 
 function latestFileInDir(dir, ext) {
@@ -118,6 +133,13 @@ function hasReleaseSigningConfig() {
   return existsSync(process.env.ANDROID_KEYSTORE_FILE)
 }
 
+function resolvePathEnvKey(envObj) {
+  for (const key of Object.keys(envObj)) {
+    if (key.toLowerCase() === 'path') return key
+  }
+  return 'PATH'
+}
+
 if (!existsSync(androidDir)) {
   console.error(`Android project not found: ${androidDir}`)
   process.exit(1)
@@ -131,10 +153,14 @@ if (!java21Home) {
   process.exit(1)
 }
 
+const pathKey = resolvePathEnvKey(process.env)
+const currentPath = process.env[pathKey] ?? process.env.PATH ?? process.env.Path ?? ''
+const mergedPath = `${join(java21Home, 'bin')}${isWindows ? ';' : ':'}${currentPath}`
+
 const env = {
   ...process.env,
   JAVA_HOME: java21Home,
-  PATH: `${join(java21Home, 'bin')}${isWindows ? ';' : ':'}${process.env.PATH ?? ''}`
+  [pathKey]: mergedPath
 }
 
 const gradleTaskByMode = {
@@ -145,10 +171,10 @@ const gradleTaskByMode = {
 
 console.log(`Using JAVA_HOME=${java21Home}`)
 console.log('Building web assets...')
-runOrFail('pnpm', ['--filter', 'desktop', 'build'], { cwd: repoRoot, env })
+runPnpmOrFail(['--filter', 'desktop', 'build'], { cwd: repoRoot, env })
 
 console.log('Syncing Capacitor...')
-runOrFail('pnpm', ['--filter', 'desktop', 'cap:sync'], { cwd: repoRoot, env })
+runPnpmOrFail(['--filter', 'desktop', 'cap:sync'], { cwd: repoRoot, env })
 
 const gradleTask = gradleTaskByMode[mode]
 const gradleCmd = isWindows ? 'gradlew.bat' : './gradlew'
