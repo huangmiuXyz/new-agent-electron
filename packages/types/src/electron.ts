@@ -121,7 +121,12 @@ export interface ElectronAPI {
       smooth?: boolean;
       speed?: number;
       delayMs?: number;
-    }) => Promise<{ position: { x: number; y: number }; coordinateSpace: 'screen' | 'screenshot' }>;
+    }) => Promise<{
+      position: { x: number; y: number };
+      screenPosition?: { x: number; y: number };
+      screenshotPosition?: { x: number; y: number; originX: number; originY: number };
+      coordinateSpace: 'screen' | 'screenshot';
+    }>;
     mouseClick: (options?: {
       button?: 'left' | 'right' | 'middle';
       double?: boolean;
@@ -137,6 +142,8 @@ export interface ElectronAPI {
       button: 'left' | 'right' | 'middle';
       double: boolean;
       position: { x: number; y: number };
+      screenPosition?: { x: number; y: number };
+      screenshotPosition?: { x: number; y: number; originX: number; originY: number };
       coordinateSpace: 'screen' | 'screenshot';
     }>;
     dragMouse: (options: {
@@ -173,7 +180,14 @@ export interface ElectronAPI {
       originX?: number;
       originY?: number;
     }) => Promise<{ x: number; y: number; color: string; coordinateSpace: 'screen' | 'screenshot' }>;
-    captureScreen: (options?: { x?: number; y?: number; width?: number; height?: number }) => Promise<{
+    captureScreen: (options?: {
+      x?: number;
+      y?: number;
+      width?: number;
+      height?: number;
+      format?: 'png' | 'jpeg';
+      quality?: number;
+    }) => Promise<{
       x: number;
       y: number;
       width: number;
@@ -181,6 +195,8 @@ export interface ElectronAPI {
       bytesPerPixel: number;
       dataUrl: string;
       rawDataUrl?: string;
+      imageFormat?: 'png' | 'jpeg';
+      imageQuality?: number;
       annotation?: {
         minorGridPx: number;
         majorGridPx: number;

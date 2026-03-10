@@ -35,57 +35,13 @@ const screenshotCoordinateSchema = {
 }
 
 export const getComputerBuiltinTools = (): Partial<Tools> => ({
-  computer_get_state: {
-    title: '获取电脑状态',
-    description: '获取当前电脑自动化能力是否可用，以及屏幕尺寸和鼠标位置。',
+  computer_capture_screen: {
+    title: '截取屏幕',
+    description: '截取当前屏幕，并返回 screenshot 坐标系下的原点和尺寸。',
     inputSchema: z.object({}),
     execute: async () =>
       withComputerError(async () => {
-        const availability = await window.api.computer.isAvailable()
-        if (!availability.available) {
-          return {
-            toolResult: {
-              content: [{ type: 'text', text: `robotjs unavailable: ${availability.error || 'unknown error'}` }]
-            }
-          }
-        }
-
-        const mouse = await window.api.computer.getMousePosition()
-        return {
-          toolResult: {
-            content: [
-              {
-                type: 'text',
-                text: toToolText([
-                  `available: ${availability.available}`,
-                  `screen: ${availability.screen?.width} x ${availability.screen?.height}`,
-                  `mouse: ${mouse.x}, ${mouse.y}`,
-                  'coordinate rule: after computer_capture_screen, all mouse coordinates must use screenshot pixels from that image'
-                ])
-              }
-            ]
-          }
-        }
-      })
-  },
-  computer_capture_screen: {
-    title: '截取屏幕',
-    description: '截取整个屏幕或指定区域，并返回 screenshot 坐标系下的原点和尺寸。',
-    inputSchema: z.object({
-      x: z.number().int().optional().describe('可选，截图区域左上角的 X 坐标，默认 0。'),
-      y: z.number().int().optional().describe('可选，截图区域左上角的 Y 坐标，默认 0。'),
-      width: z.number().int().positive().optional().describe('可选，截图区域宽度，默认整张截图宽度。'),
-      height: z.number().int().positive().optional().describe('可选，截图区域高度，默认整张截图高度。')
-    }),
-    execute: async (args: unknown) =>
-      withComputerError(async () => {
-        const input = asArgs(args)
-        const result = await window.api.computer.captureScreen({
-          x: typeof input.x === 'number' ? input.x : undefined,
-          y: typeof input.y === 'number' ? input.y : undefined,
-          width: typeof input.width === 'number' ? input.width : undefined,
-          height: typeof input.height === 'number' ? input.height : undefined
-        })
+        const result = await window.api.computer.captureScreen()
 
         return {
           toolResult: {
@@ -101,7 +57,7 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
               },
               {
                 type: 'image-url',
-                url: result.dataUrl
+                url: result.rawDataUrl || result.dataUrl
               }
             ]
           }

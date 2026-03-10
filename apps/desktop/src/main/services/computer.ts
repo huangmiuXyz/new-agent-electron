@@ -4,11 +4,15 @@ type RobotModule = typeof import('robotjs')
 type MouseButton = 'left' | 'right' | 'middle'
 type CoordinateSpace = 'screen' | 'screenshot'
 type RobotCoordinateMode = 'dip' | 'physical'
+type CaptureImageFormat = 'png' | 'jpeg'
+
+const CAPTURE_MAX_SIDE_PX = 1600
 
 let robotInstance: RobotModule | null = null
 let robotLoadError: Error | null = null
 let lastCaptureDisplayId: string | null = null
 let lastCaptureSourceSize: { width: number; height: number } | null = null
+let lastCaptureRegion: { x: number; y: number; width: number; height: number } | null = null
 let cachedRobotCoordinateMode: RobotCoordinateMode | null = null
 
 const DIGIT_FONT: Record<string, string[]> = {
@@ -47,7 +51,65 @@ const normalizeMouseButton = (value: unknown): MouseButton => {
 
 const normalizeCoordinateSpace = (value: unknown): CoordinateSpace => {
   if (value === 'screenshot') return 'screenshot'
-  return 'screen'
+  return 'screenshot'
+}
+
+const normalizeCaptureImageFormat = (value: unknown): CaptureImageFormat => {
+  if (value === 'jpeg') return 'jpeg'
+  return 'png'
+}
+
+const normalizeJpegQuality = (value: unknown, fallback: number): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.min(100, Math.max(1, Math.round(value)))
+}
+
+const normalizeSmoothSpeed = (value: unknown): number | undefined => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+  return Math.min(50, Math.max(1, Math.round(value)))
+}
+
+const toImageDataUrl = (image: Electron.NativeImage, format: CaptureImageFormat, jpegQuality: number): string => {
+  if (format === 'png') {
+    return image.toDataURL()
+  }
+
+  const buffer = image.toJPEG(jpegQuality)
+  return `data:image/jpeg;base64,${buffer.toString('base64')}`
+}
+
+const getThumbnailSize = (size: { width: number; height: number }) => {
+  const maxSide = Math.max(size.width, size.height)
+  if (maxSide <= CAPTURE_MAX_SIDE_PX) {
+    return size
+  }
+
+  const scale = CAPTURE_MAX_SIDE_PX / maxSide
+  return {
+    width: Math.max(1, Math.round(size.width * scale)),
+    height: Math.max(1, Math.round(size.height * scale))
+  }
+}
+
+const mapCaptureRegionToImage = (
+  region: { x: number; y: number; width: number; height: number },
+  sourceSize: { width: number; height: number },
+  imageSize: { width: number; height: number }
+) => {
+  const scaleX = imageSize.width / Math.max(1, sourceSize.width)
+  const scaleY = imageSize.height / Math.max(1, sourceSize.height)
+
+  const mappedX = Math.round(region.x * scaleX)
+  const mappedY = Math.round(region.y * scaleY)
+  const mappedWidth = Math.max(1, Math.round(region.width * scaleX))
+  const mappedHeight = Math.max(1, Math.round(region.height * scaleY))
+
+  return {
+    x: Math.max(0, Math.min(mappedX, Math.max(0, imageSize.width - 1))),
+    y: Math.max(0, Math.min(mappedY, Math.max(0, imageSize.height - 1))),
+    width: Math.max(1, Math.min(mappedWidth, imageSize.width)),
+    height: Math.max(1, Math.min(mappedHeight, imageSize.height))
+  }
 }
 
 const getDisplayMetrics = (
@@ -314,11 +376,13 @@ const resolvePoint = (
 
   const originX = normalizeOptionalInteger(payload.originX, 0, 'originX')
   const originY = normalizeOptionalInteger(payload.originY, 0, 'originY')
+  const effectiveOriginX = typeof payload.originX === 'number' ? originX : (lastCaptureRegion?.x ?? 0)
+  const effectiveOriginY = typeof payload.originY === 'number' ? originY : (lastCaptureRegion?.y ?? 0)
   const display = getDefaultDisplay(payload.displayId)
   const metrics = getDisplayMetrics(robot, display, lastCaptureSourceSize)
 
-  const captureX = originX + inputX
-  const captureY = originY + inputY
+  const captureX = effectiveOriginX + inputX
+  const captureY = effectiveOriginY + inputY
 
   if (
     captureX < 0 ||
@@ -335,8 +399,8 @@ const resolvePoint = (
     x: point.x,
     y: point.y,
     coordinateSpace,
-    originX,
-    originY,
+    originX: effectiveOriginX,
+    originY: effectiveOriginY,
     displayId: metrics.displayId
   }
 }
@@ -377,8 +441,9 @@ const maybeMoveMouse = (
   }
 
   if (smooth) {
-    if (typeof speed === 'number' && Number.isFinite(speed)) {
-      robot.moveMouseSmooth(x, y, speed)
+    const safeSpeed = normalizeSmoothSpeed(speed)
+    if (typeof safeSpeed === 'number') {
+      robot.moveMouseSmooth(x, y, safeSpeed)
     } else {
       robot.moveMouseSmooth(x, y)
     }
@@ -418,8 +483,14 @@ export const setupComputerHandlers = () => {
     const robot = getRobot()
     const point = resolvePoint(robot, payload)
     maybeMoveMouse(robot, point.x, point.y, Boolean(payload.smooth), Number(payload.speed), Number(payload.delayMs))
+    const screenPosition = robot.getMousePos()
     return {
-      position: robot.getMousePos(),
+      position: screenPosition,
+      screenPosition,
+      screenshotPosition:
+        point.coordinateSpace === 'screenshot'
+          ? { x: normalizeInteger(payload.x, 'x'), y: normalizeInteger(payload.y, 'y'), originX: point.originX, originY: point.originY }
+          : undefined,
       coordinateSpace: point.coordinateSpace
     }
   })
@@ -442,11 +513,17 @@ export const setupComputerHandlers = () => {
 
     const button = normalizeMouseButton(payload.button)
     robot.mouseClick(button, Boolean(payload.double))
+    const screenPosition = robot.getMousePos()
 
     return {
       button,
       double: Boolean(payload.double),
-      position: robot.getMousePos(),
+      position: screenPosition,
+      screenPosition,
+      screenshotPosition:
+        point && point.coordinateSpace === 'screenshot' && typeof payload.x === 'number' && typeof payload.y === 'number'
+          ? { x: normalizeInteger(payload.x, 'x'), y: normalizeInteger(payload.y, 'y'), originX: point.originX, originY: point.originY }
+          : undefined,
       coordinateSpace: point?.coordinateSpace || 'screen'
     }
   })
@@ -555,11 +632,12 @@ export const setupComputerHandlers = () => {
     const robot = getRobot()
     const display = getDefaultDisplay(payload.displayId)
     const baseMetrics = getDisplayMetrics(robot, display)
+    const thumbnailSize = getThumbnailSize(baseMetrics.captureSize)
 
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       fetchWindowIcons: false,
-      thumbnailSize: { width: baseMetrics.captureSize.width, height: baseMetrics.captureSize.height }
+      thumbnailSize
     })
 
     const targetSource =
@@ -575,8 +653,10 @@ export const setupComputerHandlers = () => {
     const metrics = getDisplayMetrics(robot, display, imageSize)
     const x = normalizeOptionalInteger(payload.x, 0, 'x')
     const y = normalizeOptionalInteger(payload.y, 0, 'y')
-    const width = normalizeOptionalInteger(payload.width, metrics.captureSize.width, 'width')
-    const height = normalizeOptionalInteger(payload.height, metrics.captureSize.height, 'height')
+    const width = normalizeOptionalInteger(payload.width, baseMetrics.captureSize.width, 'width')
+    const height = normalizeOptionalInteger(payload.height, baseMetrics.captureSize.height, 'height')
+    const format = normalizeCaptureImageFormat(payload.format)
+    const quality = normalizeJpegQuality(payload.quality, 85)
 
     if (width <= 0 || height <= 0) {
       throw new Error('width and height must be greater than 0')
@@ -585,32 +665,52 @@ export const setupComputerHandlers = () => {
     if (
       x < 0 ||
       y < 0 ||
-      x + width > imageSize.width ||
-      y + height > imageSize.height
+      x + width > baseMetrics.captureSize.width ||
+      y + height > baseMetrics.captureSize.height
     ) {
       throw new Error('requested capture region is outside the primary display bounds')
     }
 
+    const mappedRegion = mapCaptureRegionToImage(
+      { x, y, width, height },
+      baseMetrics.captureSize,
+      imageSize
+    )
+
     const cropped = targetSource.thumbnail.crop({
-      width,
-      height,
-      x,
-      y
+      width: mappedRegion.width,
+      height: mappedRegion.height,
+      x: mappedRegion.x,
+      y: mappedRegion.y
     })
-    const annotated = annotateScreenshot(cropped)
+    const annotate = payload.annotate === true
+    const annotated = annotate ? annotateScreenshot(cropped) : null
 
     lastCaptureDisplayId = metrics.displayId
     lastCaptureSourceSize = imageSize
+    lastCaptureRegion = {
+      x: mappedRegion.x,
+      y: mappedRegion.y,
+      width: mappedRegion.width,
+      height: mappedRegion.height
+    }
 
     return {
-      x,
-      y,
-      width,
-      height,
+      x: mappedRegion.x,
+      y: mappedRegion.y,
+      width: mappedRegion.width,
+      height: mappedRegion.height,
       bytesPerPixel: 4,
-      dataUrl: annotated.image.toDataURL(),
-      rawDataUrl: cropped.toDataURL(),
-      annotation: annotated.annotation,
+      dataUrl: toImageDataUrl(annotated?.image || cropped, format, quality),
+      rawDataUrl: toImageDataUrl(cropped, format, quality),
+      imageFormat: format,
+      imageQuality: format === 'jpeg' ? quality : undefined,
+      annotation:
+        annotated?.annotation || {
+          minorGridPx: 0,
+          majorGridPx: 0,
+          originMarker: { x: 0, y: 0, size: 0 }
+        },
       coordinateSpace: 'screenshot',
       displayId: metrics.displayId,
       display: metrics

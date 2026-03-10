@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { FileUIPart, TextUIPart } from 'ai'
 import type { MenuItem } from '@renderer/composables/useContextMenu'
 import { getLanguageFlag } from '@renderer/utils/flagIcons'
 import { useElementSize } from '@vueuse/core'
@@ -11,7 +12,8 @@ const prevMessageRef = ref<HTMLElement>()
 const autoScrollEnabled = ref(true)
 const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
-const { deleteMessage } = useChatsStores()
+const { deleteMessage, updateMessage } = useChatsStores()
+const mobileEditModal = useModal()
 const { Delete, Refresh, Continue, Copy, Edit, Branch, Language } = useIcon([
   'Delete',
   'Refresh',
@@ -30,6 +32,8 @@ const mobileCopyPreviewVisible = ref(false)
 const mobileCopyPreviewText = ref('')
 const mobileCopySelectedText = ref('')
 const mobileSelectionSnapshot = ref('')
+const mobileEditingMessageId = ref<string | null>(null)
+const mobileEditDraftContent = ref<Array<FileUIPart | TextUIPart>>([])
 
 const triggerEdit = (messageId: string) => {
   editingMessageId.value = messageId
@@ -94,6 +98,123 @@ const closeMobileCopyPreview = () => {
   mobileCopySelectedText.value = ''
 }
 
+const resizeEditTextarea = (target: HTMLTextAreaElement) => {
+  target.style.height = 'auto'
+  target.style.height = `${target.scrollHeight}px`
+}
+
+const resetMobileEditState = () => {
+  mobileEditingMessageId.value = null
+  mobileEditDraftContent.value = []
+}
+
+const closeMobileEditModal = () => {
+  resetMobileEditState()
+  mobileEditModal.remove()
+}
+
+const saveMobileEdit = () => {
+  if (!currentChat.value || !mobileEditingMessageId.value) return
+
+  const filteredContent = mobileEditDraftContent.value.filter((part) => {
+    if (part.type === 'text') {
+      return part.text && part.text.trim() !== ''
+    }
+
+    return true
+  })
+
+  updateMessage(currentChat.value.id, mobileEditingMessageId.value, filteredContent)
+  closeMobileEditModal()
+}
+
+const MobileEditContent = defineComponent({
+  setup() {
+    const textareaRefs = ref<Array<HTMLTextAreaElement | null>>([])
+
+    const containerStyle = {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '12px'
+    }
+
+    const tipStyle = {
+      fontSize: '12px',
+      color: 'var(--text-tertiary)'
+    }
+
+    const getTextareaStyle = () => ({
+      width: '100%',
+      minHeight: '88px',
+      padding: '12px',
+      fontSize: `${display.value.fontSize}px`,
+      lineHeight: '1.6',
+      color: 'var(--text-primary)',
+      border: '1px solid var(--border-color)',
+      borderRadius: '10px',
+      outline: 'none',
+      resize: 'none' as const,
+      fontFamily: 'inherit',
+      backgroundColor: 'var(--bg-input)',
+      overflowY: 'hidden' as const,
+      boxSizing: 'border-box' as const
+    })
+
+    const syncTextareaHeights = () => {
+      nextTick(() => {
+        textareaRefs.value.forEach((textarea) => {
+          if (textarea) resizeEditTextarea(textarea)
+        })
+      })
+    }
+
+    onMounted(syncTextareaHeights)
+    onUpdated(syncTextareaHeights)
+
+    return () =>
+      h('div', { style: containerStyle }, [
+        ...mobileEditDraftContent.value
+          .map((block, idx) => {
+            if (block.type !== 'text') return null
+
+            return h('textarea', {
+              key: `mobile-edit-${idx}`,
+              value: block.text,
+              rows: 1,
+              placeholder: '编辑消息内容...',
+              style: getTextareaStyle(),
+              ref: ((el: Element | null) => {
+                textareaRefs.value[idx] = el as HTMLTextAreaElement | null
+              }) as any,
+              onInput: (event: Event) => {
+                const target = event.target as HTMLTextAreaElement
+                block.text = target.value
+                resizeEditTextarea(target)
+              }
+            })
+          })
+          .filter(Boolean),
+        h('div', { style: tipStyle }, '仅支持编辑文本内容，附件会原样保留。')
+      ])
+  }
+})
+
+const openMobileEditModal = (message: BaseMessage) => {
+  mobileEditingMessageId.value = message.id ?? null
+  mobileEditDraftContent.value = JSON.parse(JSON.stringify(message.parts))
+
+  mobileEditModal.confirm({
+    title: '编辑消息',
+    content: MobileEditContent,
+    confirmText: '保存',
+    cancelText: '取消',
+    onOk: saveMobileEdit,
+    onCancel: closeMobileEditModal,
+    onClose: closeMobileEditModal,
+    width: 'min(680px, 100%)'
+  })
+}
+
 const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   event.preventDefault()
   event.stopPropagation()
@@ -125,6 +246,10 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       label: '编辑',
       icon: Edit,
       onClick: () => {
+        if (isMobile.value) {
+          openMobileEditModal(message)
+          return
+        }
         triggerEdit(message.id!)
       }
     },

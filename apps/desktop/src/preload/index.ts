@@ -144,7 +144,14 @@ export const api: ElectronAPI = {
       electronAPI.ipcRenderer.invoke('computer:key-tap', options),
     getPixelColor: (options: { x: number; y: number }) =>
       electronAPI.ipcRenderer.invoke('computer:get-pixel-color', options),
-    captureScreen: (options?: { x?: number; y?: number; width?: number; height?: number }) =>
+    captureScreen: (options?: {
+      x?: number
+      y?: number
+      width?: number
+      height?: number
+      format?: 'png' | 'jpeg'
+      quality?: number
+    }) =>
       electronAPI.ipcRenderer.invoke('computer:capture-screen', options)
   }
 }
