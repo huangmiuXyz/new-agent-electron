@@ -83,6 +83,25 @@ const formatElapsed = (epochSeconds: number | null | undefined) => {
   return `${Math.floor(diff / 86400)}天前`
 }
 
+const formatTimestampText = (value: string | null | undefined) => {
+  const text = String(value || '').trim()
+  if (!text) return '--'
+  const time = Date.parse(text)
+  if (Number.isNaN(time)) return text
+
+  const epochSeconds = Math.floor(time / 1000)
+  const relative = formatElapsed(epochSeconds)
+  const absolute = new Date(time).toLocaleString('zh-CN', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+  return `${relative} (${absolute})`
+}
+
 const formatBalance = (config: Pick<CodexProxyPluginConfig, 'usage' | 'usageError'>) => {
   if (config.usage?.credits?.unlimited) return '无限'
   if (config.usage?.credits?.balance) return config.usage.credits.balance
@@ -795,7 +814,7 @@ const plugin: Plugin = {
         ['ChatGPT 账号 ID', config.accountId || '--'],
         ['套餐类型', config.planType || '--'],
         ['认证模式', config.authMode || '--'],
-        ['最近刷新', config.lastRefresh || '--'],
+        ['认证刷新', formatTimestampText(config.lastRefresh)],
         ['认证文件', config.authPath || '--']
       ]
 
