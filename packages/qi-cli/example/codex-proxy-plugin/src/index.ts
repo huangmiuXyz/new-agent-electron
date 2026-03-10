@@ -496,6 +496,7 @@ const plugin: Plugin = {
     }
 
     const updateStatusIndicator = () => {
+      isStatusPanelOpen = false
       const activeAccount = runtimeConfig.accounts.find(
         (item) => item.id === runtimeConfig.activeAccountId
       )
