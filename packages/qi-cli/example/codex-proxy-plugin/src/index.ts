@@ -10,18 +10,98 @@ import {
   PROVIDER_ID,
   REGISTRY_ID,
   STORAGE_KEY,
+  type CodexProxyAccountProfile,
   type CodexProxyPluginConfig
 } from './constants'
-import { readCodexAuthConfig, resolveDefaultAuthPath } from './auth'
+import {
+  readCodexAuthAccount,
+  readCodexAuthConfig,
+  resolveDefaultAuthPath,
+  writeCodexAuthAccount
+} from './auth'
 
 type OpenAICompatibleWithListModels = ReturnType<typeof createOpenAICompatible> & {
   listModels?: () => Promise<Model[]>
+}
+
+type FormActionsLike = {
+  setFieldsValue: (data: CodexProxyPluginConfig) => void
+  updateFieldProps: (field: string, props: Record<string, unknown>) => void
+  getData: () => CodexProxyPluginConfig
 }
 
 let runtimeConfig: CodexProxyPluginConfig = { ...DEFAULT_CONFIG }
 let isProgrammaticFormUpdate = false
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const getAccountLabel = (account: CodexProxyAccountProfile) =>
+  account.email || account.accountId
+
+const buildRuntimeConfig = (
+  context: PluginContext,
+  input?: Partial<CodexProxyPluginConfig> | null
+): CodexProxyPluginConfig => {
+  const normalized = normalizeConfig(input)
+  const authPath = normalized.authPath || resolveDefaultAuthPath(context)
+  const accounts = [...normalized.accounts]
+  if (
+    accounts.length === 0 &&
+    normalized.accountId &&
+    normalized.accessToken
+  ) {
+    accounts.push({
+      id: normalized.accountId,
+      authPath,
+      accessToken: normalized.accessToken,
+      idToken: '',
+      accountId: normalized.accountId,
+      email: normalized.email,
+      planType: normalized.planType,
+      authMode: normalized.authMode,
+      lastRefresh: normalized.lastRefresh
+    })
+  }
+
+  const activeAccountId =
+    normalized.activeAccountId && accounts.some((item) => item.id === normalized.activeAccountId)
+      ? normalized.activeAccountId
+      : (accounts[0]?.id ?? '')
+  const activeAccount = accounts.find((item) => item.id === activeAccountId)
+  const status = activeAccount
+    ? getAccountLabel(activeAccount)
+    : normalized.status || DEFAULT_CONFIG.status
+
+  return {
+    ...DEFAULT_CONFIG,
+    ...normalized,
+    accounts,
+    activeAccountId,
+    authPath,
+    status,
+    accessToken: activeAccount?.accessToken || '',
+    accountId: activeAccount?.accountId || '',
+    email: activeAccount?.email || '',
+    planType: activeAccount?.planType || '',
+    authMode: activeAccount?.authMode || '',
+    lastRefresh: activeAccount?.lastRefresh || ''
+  }
+}
+
+const getAccountOptions = (config: CodexProxyPluginConfig) =>
+  config.accounts.map((account) => ({
+    label: getAccountLabel(account),
+    value: account.id
+  }))
+
+const updateAccountSelectorProps = (
+  actions: { updateFieldProps: (field: string, props: Record<string, unknown>) => void },
+  config: CodexProxyPluginConfig
+) => {
+  actions.updateFieldProps('activeAccountId', {
+    options: getAccountOptions(config)
+  })
+}
 
 const getBridgeBaseURL = (config = runtimeConfig) =>
   `http://${config.bridgeHost}:${config.bridgePort}`
@@ -88,7 +168,7 @@ const startBridge = async (
 
   const serverPath = context.api.path.join(context.basePath, 'server.cjs')
   if (!context.api.fs.existsSync(serverPath)) {
-    throw new Error(`Bridge server not found: ${serverPath}`)
+    throw new Error(`未找到 bridge 服务文件: ${serverPath}`)
   }
 
   const execPath = context.api.process?.execPath || 'node'
@@ -120,48 +200,57 @@ const saveConfig = async (
   context: PluginContext,
   config: Partial<CodexProxyPluginConfig>
 ) => {
-  const normalized = normalizeConfig(config)
-  const persisted: CodexProxyPluginConfig = {
-    ...DEFAULT_CONFIG,
-    ...normalized,
-    authPath: normalized.authPath || resolveDefaultAuthPath(context),
-    status: DEFAULT_CONFIG.status,
-    email: '',
-    planType: '',
-    authMode: '',
-    lastRefresh: '',
-    accessToken: '',
-    accountId: ''
-  }
+  const persisted = buildRuntimeConfig(context, config)
   await context.localforage.setItem(STORAGE_KEY, persisted)
+}
+
+const loadSavedConfig = async (
+  context: PluginContext,
+  formActions?: FormActionsLike
+) => {
+  const stored =
+    await context.localforage.getItem<CodexProxyPluginConfig>(STORAGE_KEY)
+  runtimeConfig = buildRuntimeConfig(context, stored)
+  if (formActions) {
+    formActions.setFieldsValue(runtimeConfig)
+    updateAccountSelectorProps(formActions, runtimeConfig)
+  }
+  return runtimeConfig
 }
 
 const refreshAuthConfig = async (
   context: PluginContext,
-  formActions?: { setFieldsValue: (data: CodexProxyPluginConfig) => void }
+  formActions?: FormActionsLike
 ) => {
   const stored =
     await context.localforage.getItem<CodexProxyPluginConfig>(STORAGE_KEY)
   runtimeConfig = readCodexAuthConfig(context, stored)
-  formActions?.setFieldsValue(runtimeConfig)
+  await saveConfig(context, runtimeConfig)
+  if (formActions) {
+    formActions.setFieldsValue(runtimeConfig)
+    updateAccountSelectorProps(formActions, runtimeConfig)
+  }
   return runtimeConfig
 }
 
 const ensureBridgeRunning = async (
   context: PluginContext,
-  formActions?: { setFieldsValue: (data: CodexProxyPluginConfig) => void }
+  formActions?: FormActionsLike
 ) => {
-  runtimeConfig = await refreshAuthConfig(context, formActions)
+  runtimeConfig = await loadSavedConfig(context, formActions)
+  if (!runtimeConfig.accessToken) {
+    runtimeConfig = await refreshAuthConfig(context, formActions)
+  }
   if (!runtimeConfig.accessToken) {
     throw new Error(
-      `No active Codex login found. Expected auth file: ${runtimeConfig.authPath}`
+      `未找到可用的 Codex 登录，请检查认证文件: ${runtimeConfig.authPath}`
     )
   }
 
   const ready = await startBridge(context, runtimeConfig)
   if (!ready) {
     throw new Error(
-      `Failed to start Codex bridge on ${getBridgeBaseURL(runtimeConfig)}`
+      `启动 Codex bridge 失败: ${getBridgeBaseURL(runtimeConfig)}`
     )
   }
 }
@@ -213,7 +302,7 @@ const syncProvider = async (context: PluginContext, form: unknown) => {
   }
 
   context.registerProvider(PROVIDER_ID, {
-    name: 'Codex Proxy',
+    name: 'Codex 代理',
     logo: resolveProviderLogoUrl(context),
     providerType: REGISTRY_ID,
     form: form as Record<string, unknown>,
@@ -224,26 +313,111 @@ const syncProvider = async (context: PluginContext, form: unknown) => {
 const plugin: Plugin = {
   name: PLUGIN_NAME,
   version: '1.0.0',
-  description: 'Codex reverse proxy implemented inside the plugin bundle',
+  description: '在插件内实现的 Codex 反向代理',
   install: async (context: PluginContext) => {
     const stored =
       await context.localforage.getItem<CodexProxyPluginConfig>(STORAGE_KEY)
-    const initialConfig = readCodexAuthConfig(context, stored)
+    let initialConfig = buildRuntimeConfig(context, stored)
+    if (!initialConfig.accessToken) {
+      try {
+        initialConfig = readCodexAuthConfig(context, stored)
+        await saveConfig(context, initialConfig)
+      } catch {
+        // Keep local snapshot as-is when auth file is unavailable.
+      }
+    }
     runtimeConfig = initialConfig
 
-    let formActions:
-      | {
-          setFieldsValue: (data: CodexProxyPluginConfig) => void
-        }
-      | undefined
+    let formActions: FormActionsLike | undefined
 
-    const renderRefreshButton = () => {
+    const renderAccountActions = () => {
       const Button = context.components?.Button as
         | Record<string, unknown>
         | undefined
       if (!Button) return null
 
-      return context.vue.h(
+      const saveButton = context.vue.h(
+        Button as never,
+        {
+          type: 'button',
+          size: 'sm',
+          onClick: async () => {
+            try {
+              const currentAuthPath = formActions?.getData().authPath || runtimeConfig.authPath
+              const detected = readCodexAuthAccount(context, currentAuthPath)
+              const merged = buildRuntimeConfig(context, {
+                ...(formActions?.getData() || runtimeConfig),
+                accounts: [
+                  ...runtimeConfig.accounts.filter((item) => item.id !== detected.id),
+                  detected
+                ],
+                activeAccountId: detected.id
+              })
+              await saveConfig(context, merged)
+              runtimeConfig = merged
+              isProgrammaticFormUpdate = true
+              formActions?.setFieldsValue(merged)
+              if (formActions) {
+                updateAccountSelectorProps(formActions, merged)
+              }
+              isProgrammaticFormUpdate = false
+              await startBridge(context, merged).catch(() => undefined)
+              await syncProvider(context, FormComp)
+              context.notification.success('已将当前登录保存到账号列表。', 'Codex 代理')
+            } catch (error) {
+              context.notification.error(
+                error instanceof Error ? error.message : String(error),
+                'Codex 代理'
+              )
+            }
+          }
+        },
+        { default: () => '保存当前登录' }
+      )
+
+      const removeButton = context.vue.h(
+        Button as never,
+        {
+          type: 'button',
+          variant: 'secondary',
+          size: 'sm',
+          onClick: async () => {
+            const current = formActions?.getData() || runtimeConfig
+            if (!current.activeAccountId) {
+              context.notification.error('未选择当前账号。', 'Codex 代理')
+              return
+            }
+
+            const previous = runtimeConfig
+            const accounts = current.accounts.filter(
+              (account) => account.id !== current.activeAccountId
+            )
+            const next = buildRuntimeConfig(context, {
+              ...current,
+              accounts,
+              activeAccountId: accounts[0]?.id || ''
+            })
+            await saveConfig(context, next)
+            runtimeConfig = next
+            isProgrammaticFormUpdate = true
+            formActions?.setFieldsValue(next)
+            if (formActions) {
+              updateAccountSelectorProps(formActions, next)
+            }
+            isProgrammaticFormUpdate = false
+            if (next.accessToken) {
+              await startBridge(context, next).catch(() => undefined)
+            } else {
+              await stopBridge(previous)
+            }
+            await syncProvider(context, FormComp)
+            context.notification.success('已移除当前账号。', 'Codex 代理')
+          }
+        },
+        { default: () => '移除当前账号' }
+      )
+
+      const writeBackButton = context.vue.h(
         Button as never,
         {
           type: 'button',
@@ -251,100 +425,141 @@ const plugin: Plugin = {
           size: 'sm',
           onClick: async () => {
             try {
-              const next = await refreshAuthConfig(context, formActions)
+              const current = formActions?.getData() || runtimeConfig
+              const activeAccount = current.accounts.find(
+                (account) => account.id === current.activeAccountId
+              )
+              if (!activeAccount) {
+                throw new Error('未找到当前激活账号')
+              }
+
+              const authPath = current.authPath || resolveDefaultAuthPath(context)
+              writeCodexAuthAccount(context, authPath, activeAccount)
+              const refreshed = buildRuntimeConfig(context, {
+                ...current,
+                authPath,
+                accounts: current.accounts.map((account) =>
+                  account.id === activeAccount.id
+                    ? {
+                        ...account,
+                        authPath,
+                        lastRefresh: new Date().toISOString()
+                      }
+                    : account
+                )
+              })
+              await saveConfig(context, refreshed)
+              runtimeConfig = refreshed
               isProgrammaticFormUpdate = true
-              formActions?.setFieldsValue(next)
+              formActions?.setFieldsValue(refreshed)
+              if (formActions) {
+                updateAccountSelectorProps(formActions, refreshed)
+              }
               isProgrammaticFormUpdate = false
-              await startBridge(context, next).catch(() => undefined)
-              await syncProvider(context, FormComp)
-              context.notification.success('Detected current Codex login.', 'Codex Proxy')
+              context.notification.success('已将当前账号写回 auth.json。', 'Codex 代理')
             } catch (error) {
               context.notification.error(
                 error instanceof Error ? error.message : String(error),
-                'Codex Proxy'
+                'Codex 代理'
               )
             }
           }
         },
-        { default: () => 'Refresh current login' }
+        { default: () => '写回 auth.json' }
+      )
+
+      return context.vue.h(
+        'div',
+        {
+          style: 'display:flex;gap:8px;flex-wrap:wrap;'
+        },
+        [saveButton, writeBackButton, removeButton]
       )
     }
 
     const [FormComp, actions] = context.useForm<CodexProxyPluginConfig>({
-      title: 'Codex Proxy',
+      title: 'Codex 代理',
       showHeader: false,
       fields: [
         {
+          name: 'activeAccountId',
+          type: 'select',
+          label: '当前账号',
+          options: getAccountOptions(initialConfig),
+          placeholder: '请先保存当前登录',
+          clearable: false
+        },
+        {
+          name: 'accountActions',
+          type: 'custom',
+          label: '账号操作',
+          render: () => renderAccountActions()
+        },
+        {
           name: 'status',
           type: 'text',
-          label: 'Detected Login',
+          label: '已选登录',
           readonly: true
         },
         {
           name: 'email',
           type: 'text',
-          label: 'Email',
+          label: '邮箱',
           readonly: true
         },
         {
           name: 'accountId',
           type: 'text',
-          label: 'ChatGPT Account ID',
+          label: 'ChatGPT 账号 ID',
           readonly: true
         },
         {
           name: 'planType',
           type: 'text',
-          label: 'Plan Type',
+          label: '套餐类型',
           readonly: true
         },
         {
           name: 'authMode',
           type: 'text',
-          label: 'Auth Mode',
+          label: '认证模式',
           readonly: true
         },
         {
           name: 'lastRefresh',
           type: 'text',
-          label: 'Last Refresh',
+          label: '最近刷新',
           readonly: true
         },
         {
           name: 'authPath',
           type: 'path',
-          label: 'Auth File',
+          label: '认证文件',
           readonly: true,
           dialogOptions: {
             properties: ['openFile'],
             filters: [{ name: 'JSON', extensions: ['json'] }]
           },
-          hint: 'Defaults to ~/.codex/auth.json'
-        },
-        {
-          name: 'refreshAction',
-          type: 'custom',
-          label: 'Current Login',
-          render: () => renderRefreshButton()
+          hint: '默认路径：~/.codex/auth.json'
         },
         {
           name: 'bridgeHost',
           type: 'text',
-          label: 'Bridge Host',
+          label: 'Bridge 主机',
           required: true,
           defaultValue: DEFAULT_CONFIG.bridgeHost
         },
         {
           name: 'bridgePort',
           type: 'number',
-          label: 'Bridge Port',
+          label: 'Bridge 端口',
           required: true,
           defaultValue: DEFAULT_CONFIG.bridgePort
         },
         {
           name: 'defaultModel',
           type: 'text',
-          label: 'Default Model',
+          label: '默认模型',
           defaultValue: DEFAULT_CONFIG.defaultModel,
           placeholder: 'codex'
         }
@@ -352,12 +567,18 @@ const plugin: Plugin = {
       initialData: initialConfig,
       onChange: async (_field, _value, data) => {
         if (isProgrammaticFormUpdate) return
-        await saveConfig(context, data)
-        runtimeConfig = readCodexAuthConfig(context, data)
+        runtimeConfig = buildRuntimeConfig(context, {
+          ...runtimeConfig,
+          ...data
+        })
+        await saveConfig(context, runtimeConfig)
         isProgrammaticFormUpdate = true
         actions.setFieldsValue(runtimeConfig)
+        updateAccountSelectorProps(actions, runtimeConfig)
         isProgrammaticFormUpdate = false
-        await startBridge(context, runtimeConfig).catch(() => undefined)
+        if (runtimeConfig.accessToken) {
+          await startBridge(context, runtimeConfig).catch(() => undefined)
+        }
         await syncProvider(context, FormComp)
       }
     })
@@ -365,7 +586,7 @@ const plugin: Plugin = {
 
     context.registerRegistry(REGISTRY_ID, () => {
       const provider = createOpenAICompatible({
-        name: 'Codex Proxy',
+        name: 'Codex 代理',
         baseURL: getProviderBaseURL(runtimeConfig),
         apiKey: BRIDGE_API_KEY
       }) as OpenAICompatibleWithListModels

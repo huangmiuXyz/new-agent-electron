@@ -8,7 +8,21 @@ import codexColorPng from '../codex-color.png'
 
 export const CODEX_PROVIDER_LOGO_URL = codexColorPng
 
+export interface CodexProxyAccountProfile {
+  id: string
+  authPath: string
+  accessToken: string
+  idToken: string
+  accountId: string
+  email: string
+  planType: string
+  authMode: string
+  lastRefresh: string
+}
+
 export interface CodexProxyPluginConfig {
+  accounts: CodexProxyAccountProfile[]
+  activeAccountId: string
   authPath: string
   status: string
   email: string
@@ -23,8 +37,10 @@ export interface CodexProxyPluginConfig {
 }
 
 export const DEFAULT_CONFIG: CodexProxyPluginConfig = {
+  accounts: [],
+  activeAccountId: '',
   authPath: '',
-  status: 'Not detected',
+  status: '未检测到登录',
   email: '',
   accountId: '',
   planType: '',
@@ -46,29 +62,29 @@ export const MODELS: ReadonlyArray<BuiltinModel> = [
   {
     id: 'gpt-5.4',
     alias: 'codex',
-    description: 'latest flagship coding model'
+    description: '最新旗舰编程模型'
   },
   {
     id: 'gpt-5.3-codex',
-    description: 'previous flagship agentic coding model'
+    description: '上一代旗舰智能体编程模型'
   },
   {
     id: 'gpt-5.3-codex-spark',
-    description: 'ultra-light coding model'
+    description: '超轻量编程模型'
   },
   {
     id: 'gpt-5.2-codex',
-    description: 'agentic coding model'
+    description: '智能体编程模型'
   },
   {
     id: 'gpt-5.1-codex-max',
     alias: 'codex-max',
-    description: 'deep reasoning coding model'
+    description: '深度推理编程模型'
   },
   {
     id: 'gpt-5.1-codex-mini',
     alias: 'codex-mini',
-    description: 'lightweight fast coding model'
+    description: '轻量高速编程模型'
   }
 ] as const
 
@@ -90,6 +106,23 @@ export const buildDefaultModels = (defaultModel: string): Model[] =>
 export const normalizeConfig = (
   input: Partial<CodexProxyPluginConfig> | null | undefined
 ): CodexProxyPluginConfig => ({
+  accounts: Array.isArray(input?.accounts)
+    ? input.accounts
+        .filter((item): item is CodexProxyAccountProfile => Boolean(item))
+        .map((item) => ({
+          id: String(item.id || item.accountId || '').trim(),
+          authPath: String(item.authPath || '').trim(),
+          accessToken: String(item.accessToken || '').trim(),
+          idToken: String(item.idToken || '').trim(),
+          accountId: String(item.accountId || '').trim(),
+          email: String(item.email || '').trim(),
+          planType: String(item.planType || '').trim(),
+          authMode: String(item.authMode || '').trim(),
+          lastRefresh: String(item.lastRefresh || '').trim()
+        }))
+        .filter((item) => item.id && item.accountId && item.accessToken)
+    : [],
+  activeAccountId: String(input?.activeAccountId || '').trim(),
   authPath: String(input?.authPath || '').trim(),
   status: String(input?.status || DEFAULT_CONFIG.status).trim() || DEFAULT_CONFIG.status,
   email: String(input?.email || '').trim(),

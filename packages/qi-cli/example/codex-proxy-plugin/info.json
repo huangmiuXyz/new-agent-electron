@@ -1,6 +1,6 @@
 {
   "name": "codex-proxy",
   "version": "1.0.0",
-  "description": "Codex reverse proxy provider plugin",
+  "description": "Codex 反向代理 Provider 插件",
   "author": "Agent-Qi"
 }
