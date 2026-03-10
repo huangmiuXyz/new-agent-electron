@@ -91,6 +91,15 @@ const buildRuntimeConfig = (
   }
 }
 
+const getCurrentConfigSnapshot = (
+  context: PluginContext,
+  formActions?: FormActionsLike
+): CodexProxyPluginConfig =>
+  buildRuntimeConfig(context, {
+    ...runtimeConfig,
+    ...(formActions?.getData() || {})
+  })
+
 const getAccountOptions = (config: CodexProxyPluginConfig) =>
   config.accounts.map((account) => ({
     label: getAccountLabel(account),
@@ -343,7 +352,7 @@ const plugin: Plugin = {
     }
 
     const doSwitchAccount = async (accountId: string) => {
-      const current = formActions?.getData() || runtimeConfig
+      const current = getCurrentConfigSnapshot(context, formActions)
       if (!accountId || accountId === current.activeAccountId) return
       const previous = runtimeConfig
       const next = buildRuntimeConfig(context, {
@@ -364,10 +373,11 @@ const plugin: Plugin = {
     }
 
     const doSaveCurrentLogin = async () => {
-      const currentAuthPath = formActions?.getData().authPath || runtimeConfig.authPath
+      const current = getCurrentConfigSnapshot(context, formActions)
+      const currentAuthPath = current.authPath || runtimeConfig.authPath
       const detected = readCodexAuthAccount(context, currentAuthPath)
       const merged = buildRuntimeConfig(context, {
-        ...(formActions?.getData() || runtimeConfig),
+        ...current,
         accounts: [
           ...runtimeConfig.accounts.filter((item) => item.id !== detected.id),
           detected
@@ -384,7 +394,7 @@ const plugin: Plugin = {
     }
 
     const doWriteBackAuth = async () => {
-      const current = formActions?.getData() || runtimeConfig
+      const current = getCurrentConfigSnapshot(context, formActions)
       const activeAccount = current.accounts.find(
         (account) => account.id === current.activeAccountId
       )
@@ -415,7 +425,7 @@ const plugin: Plugin = {
     }
 
     const doRemoveCurrentAccount = async () => {
-      const current = formActions?.getData() || runtimeConfig
+      const current = getCurrentConfigSnapshot(context, formActions)
       if (!current.activeAccountId) {
         throw new Error('未选择当前账号。')
       }
