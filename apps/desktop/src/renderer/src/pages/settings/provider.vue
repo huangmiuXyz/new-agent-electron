@@ -4,7 +4,8 @@ import { getProviderTypes } from '@renderer/services/chatService/registry'
 import providerData from '@renderer/assets/provider.json'
 import { copyText } from '@renderer/utils'
 
-const { getAllProviders } = storeToRefs(useSettingsStore())
+const settingsStore = useSettingsStore()
+const { getAllProviders, registeredProviders } = storeToRefs(settingsStore)
 const visibleProviders = computed(() => getAllProviders.value.filter((p) => !p.hide))
 const {
   updateProvider,
@@ -12,8 +13,11 @@ const {
   deleteModelFromProvider,
   resetProviderBaseUrl,
   addApiKeyToProvider,
-  deleteApiKeyFromProvider
-} = useSettingsStore()
+  deleteApiKeyFromProvider,
+  addCustomProvider,
+  removeCustomProvider,
+  moveProvider
+} = settingsStore
 
 const { Refresh, Plus, Search, Edit, Delete, Copy, ChevronRight, ChevronDown, Active, Inactive, Box } = useIcon([
   'Refresh',
@@ -265,9 +269,6 @@ const generateCustomProviderLogo = (name: string) => {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 }
 
-// 添加自定义提供商相关逻辑
-const { addCustomProvider, removeCustomProvider } = useSettingsStore()
-
 const [CustomProviderForm, customProviderFormActions] = useForm({
   title: '添加自定义提供商',
   showHeader: false,
@@ -376,8 +377,10 @@ const handleResetBaseUrl = async () => {
   }
 }
 
-const { registeredProviders } = storeToRefs(useSettingsStore())
 const registeredPlugin = computed(() => registeredProviders.value.find(p => p.providerId === activeProviderId.value))
+const handleProviderSort = ({ fromId, toId, after }: { fromId: string; toId: string; after: boolean }) => {
+  moveProvider(fromId, toId, after)
+}
 
 const ModelList = defineComponent({
   setup() {
@@ -691,8 +694,15 @@ const VoiceTable = defineComponent({
 
 <template>
   <ListContainer v-if="showList">
-    <List :defaultIcon="Box" title="提供商" :items="visibleProviders" :active-id="activeProviderId"
-      @select="selectProvider">
+    <List
+      :defaultIcon="Box"
+      title="提供商"
+      :items="visibleProviders"
+      :active-id="activeProviderId"
+      :sortable="true"
+      @select="selectProvider"
+      @sort="handleProviderSort"
+    >
       <template #title-tool>
         <Button type="button" variant="text" size="sm" @click="showAddCustomProviderModal" title="添加自定义提供商">
           <component :is="Plus" />

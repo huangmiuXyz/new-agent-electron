@@ -1,6 +1,10 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { computed, VNode } from 'vue'
+import { computed, ref, VNode, watch } from 'vue'
 import { assetsHandler } from '@renderer/utils'
+import { useTimeoutFn } from '@vueuse/core'
+
+const TRANSPARENT_DRAG_IMAGE =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
 
 interface Props {
   defaultIcon?: VNode
@@ -21,6 +25,9 @@ interface Props {
   showHeader?: boolean
   renderHeader?: (item: T) => string
   isSelected?: (item: T) => boolean
+  sortable?: boolean
+  longPressMs?: number
+  canSortItem?: (item: T) => boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -32,12 +39,15 @@ const props = withDefaults(defineProps<Props>(), {
   logoField: 'logo',
   selectable: true,
   variant: 'default',
-  showHeader: false
+  showHeader: false,
+  sortable: false,
+  longPressMs: 300
 })
 
 const emit = defineEmits<{
   select: [id: string]
   contextmenu: [event: MouseEvent, id: string]
+  sort: [payload: { fromId: string; toId: string; after: boolean }]
 }>()
 
 const viewItems = computed(() => {
@@ -81,6 +91,14 @@ const viewItems = computed(() => {
   }))
 })
 
+const dragPreviewKeys = ref<string[] | null>(null)
+const displayedItems = computed(() => {
+  const preview = dragPreviewKeys.value
+  if (!preview) return viewItems.value
+  const itemMap = new Map(viewItems.value.map((item) => [item.key, item] as const))
+  return preview.map((key) => itemMap.get(key)).filter(Boolean) as (typeof viewItems.value)
+})
+
 const handleAction = (
   type: 'select' | 'contextmenu',
   item: (typeof viewItems.value)[number],
@@ -92,6 +110,163 @@ const handleAction = (
   if (type === 'contextmenu' && e) {
     emit('contextmenu', e, item.key)
   }
+}
+
+const pressCandidateKey = ref<string | null>(null)
+const longPressArmedKey = ref<string | null>(null)
+const draggingKey = ref<string | null>(null)
+const lastDropTarget = ref<{ toId: string; after: boolean } | null>(null)
+const hasCommittedSort = ref(false)
+const isWaitingSortSync = ref(false)
+const suppressNextClick = ref(false)
+const dragImage = new Image()
+dragImage.src = TRANSPARENT_DRAG_IMAGE
+
+const isSameOrder = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((key, index) => key === b[index])
+
+const { start: startLongPress, stop: stopLongPress, isPending: isLongPressPending } = useTimeoutFn(
+  () => {
+    if (pressCandidateKey.value) {
+      longPressArmedKey.value = pressCandidateKey.value
+    }
+  },
+  computed(() => props.longPressMs),
+  { immediate: false }
+)
+
+const canSort = (item: (typeof viewItems.value)[number]) => {
+  if (!props.sortable) return false
+  if (!props.canSortItem) return true
+  return props.canSortItem(item.raw)
+}
+
+const handlePointerDown = (item: (typeof viewItems.value)[number], event: PointerEvent) => {
+  if (!canSort(item)) return
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  if (event.pointerType === 'mouse') {
+    longPressArmedKey.value = item.key
+    pressCandidateKey.value = null
+    stopLongPress()
+    return
+  }
+  pressCandidateKey.value = item.key
+  startLongPress()
+}
+
+const clearPressState = () => {
+  stopLongPress()
+  pressCandidateKey.value = null
+  if (!draggingKey.value) {
+    longPressArmedKey.value = null
+  }
+}
+
+const handleDragStart = (item: (typeof viewItems.value)[number], event: DragEvent) => {
+  if (!props.sortable || longPressArmedKey.value !== item.key || !canSort(item)) {
+    event.preventDefault()
+    return
+  }
+  draggingKey.value = item.key
+  dragPreviewKeys.value = viewItems.value.map((v) => v.key)
+  hasCommittedSort.value = false
+  suppressNextClick.value = true
+  event.dataTransfer?.setData('text/plain', item.key)
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setDragImage(dragImage, 0, 0)
+  }
+}
+
+const handleDrop = (item: (typeof viewItems.value)[number]) => {
+  if (!draggingKey.value) return
+  const dropTarget = lastDropTarget.value || { toId: item.key, after: false }
+  if (draggingKey.value !== dropTarget.toId) {
+    emit('sort', { fromId: draggingKey.value, toId: dropTarget.toId, after: dropTarget.after })
+    hasCommittedSort.value = true
+  }
+}
+
+const moveKeyByTarget = (keys: string[], fromId: string, toId: string, after: boolean) => {
+  if (fromId === toId) return keys
+  const fromIndex = keys.indexOf(fromId)
+  if (fromIndex === -1) return keys
+  const next = [...keys]
+  const [dragged] = next.splice(fromIndex, 1)
+  if (!dragged) return keys
+  const targetIndex = next.indexOf(toId)
+  if (targetIndex === -1) return keys
+  const insertIndex = after ? targetIndex + 1 : targetIndex
+  next.splice(insertIndex, 0, dragged)
+  return next
+}
+
+const handleDragOver = (item: (typeof viewItems.value)[number], event: DragEvent) => {
+  if (!draggingKey.value || !canSort(item) || draggingKey.value === item.key) return
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+  const targetEl = event.currentTarget as HTMLElement | null
+  const rect = targetEl?.getBoundingClientRect()
+  const after = !!rect && event.clientY > rect.top + rect.height / 2
+  lastDropTarget.value = { toId: item.key, after }
+  const baseKeys = dragPreviewKeys.value ?? viewItems.value.map((v) => v.key)
+  dragPreviewKeys.value = moveKeyByTarget(baseKeys, draggingKey.value, item.key, after)
+}
+
+const handleDragEnd = () => {
+  const draggingId = draggingKey.value
+  const previewKeys = dragPreviewKeys.value
+  let shouldWaitForSync = false
+  if (!hasCommittedSort.value && draggingId && previewKeys) {
+    const originKeys = viewItems.value.map((v) => v.key)
+    const changed = !isSameOrder(originKeys, previewKeys)
+    if (changed) {
+      const nextIndex = previewKeys.indexOf(draggingId)
+      if (nextIndex > 0) {
+        emit('sort', { fromId: draggingId, toId: previewKeys[nextIndex - 1]!, after: true })
+        shouldWaitForSync = true
+      } else if (nextIndex === 0 && previewKeys.length > 1) {
+        emit('sort', { fromId: draggingId, toId: previewKeys[1]!, after: false })
+        shouldWaitForSync = true
+      }
+    }
+  } else if (hasCommittedSort.value && previewKeys) {
+    shouldWaitForSync = true
+  }
+  draggingKey.value = null
+  longPressArmedKey.value = null
+  pressCandidateKey.value = null
+  lastDropTarget.value = null
+  hasCommittedSort.value = false
+  isWaitingSortSync.value = shouldWaitForSync
+  if (!shouldWaitForSync) {
+    dragPreviewKeys.value = null
+  }
+  stopLongPress()
+  window.setTimeout(() => {
+    suppressNextClick.value = false
+  }, 150)
+}
+
+watch(
+  () => viewItems.value.map((item) => item.key),
+  (keys) => {
+    if (!isWaitingSortSync.value || !dragPreviewKeys.value) return
+    if (isSameOrder(keys, dragPreviewKeys.value)) {
+      dragPreviewKeys.value = null
+      isWaitingSortSync.value = false
+    }
+  }
+)
+
+const handleItemClick = (item: (typeof viewItems.value)[number]) => {
+  if (props.sortable && suppressNextClick.value) {
+    suppressNextClick.value = false
+    return
+  }
+  handleAction('select', item)
 }
 </script>
 
@@ -118,7 +293,7 @@ const handleAction = (
       </div>
 
       <template v-else>
-        <template v-for="item in viewItems" :key="item.key">
+        <template v-for="item in displayedItems" :key="item.key">
           <div v-if="item.groupTitle" class="group-header">
             <slot name="group-header" :title="item.groupTitle" :item="item.raw">
               {{ item.groupTitle }}
@@ -129,10 +304,22 @@ const handleAction = (
             class="list-item"
             :class="{
               'is-active': item.isActive,
-              'is-last': item.isLastItem
+              'is-last': item.isLastItem,
+              'is-sortable': canSort(item),
+              'is-long-pressing': isLongPressPending && pressCandidateKey === item.key,
+              'is-drag-ready': longPressArmedKey === item.key,
+              'is-dragging': draggingKey === item.key
             }"
-            @click="handleAction('select', item)"
+            :draggable="sortable && longPressArmedKey === item.key && canSort(item)"
+            @click="handleItemClick(item)"
             @contextmenu="handleAction('contextmenu', item, $event)"
+            @pointerdown="handlePointerDown(item, $event)"
+            @pointerup="clearPressState"
+            @pointercancel="clearPressState"
+            @dragstart="handleDragStart(item, $event)"
+            @dragover="handleDragOver(item, $event)"
+            @drop.prevent="handleDrop(item)"
+            @dragend="handleDragEnd"
           >
             <div v-if="item.logo || defaultIcon" class="item-media">
               <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
@@ -260,6 +447,23 @@ const handleAction = (
   padding: 8px 10px;
   margin-bottom: 4px;
   border-radius: var(--radius-sm);
+  user-select: none;
+}
+
+.list-item.is-sortable {
+  touch-action: manipulation;
+}
+
+.list-item.is-long-pressing {
+  transform: scale(0.99);
+}
+
+.list-item.is-drag-ready {
+  cursor: grab;
+}
+
+.list-item.is-dragging {
+  opacity: 0.55;
 }
 
 .list-item:hover {

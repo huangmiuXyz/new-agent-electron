@@ -88,6 +88,7 @@ export const useSettingsStore = defineStore(
     })
 
     const providers = ref<Provider[]>(getDefaultProviders())
+    const providerOrder = ref<string[]>(providers.value.map((p) => p.id))
 
     const mcpServers = ref<ClientConfig>({})
 
@@ -137,6 +138,9 @@ export const useSettingsStore = defineStore(
 
     const addRegisteredProvider = (provider: RegisteredProvider) => {
       registeredProviders.value.push(provider)
+      if (!providerOrder.value.includes(provider.id)) {
+        providerOrder.value.push(provider.id)
+      }
     }
 
     const removeRegisteredProvider = (id: string) => {
@@ -315,6 +319,9 @@ export const useSettingsStore = defineStore(
         providers.value[existingIndex] = provider
       } else {
         providers.value.push(provider)
+        if (!providerOrder.value.includes(provider.id)) {
+          providerOrder.value.push(provider.id)
+        }
       }
     }
 
@@ -323,11 +330,56 @@ export const useSettingsStore = defineStore(
       if (index > -1) {
         providers.value.splice(index, 1)
       }
+      providerOrder.value = providerOrder.value.filter((pid) => pid !== providerId)
+    }
+
+    const moveProvider = (fromId: string, toId: string, after = false) => {
+      if (!fromId || !toId || fromId === toId) return
+      if (!providerOrder.value.includes(fromId)) providerOrder.value.push(fromId)
+      if (!providerOrder.value.includes(toId)) providerOrder.value.push(toId)
+      const fromIndex = providerOrder.value.findIndex((id) => id === fromId)
+      if (fromIndex === -1) return
+      const [providerId] = providerOrder.value.splice(fromIndex, 1)
+      if (!providerId) return
+      const targetIndex = providerOrder.value.findIndex((id) => id === toId)
+      if (targetIndex === -1) {
+        providerOrder.value.push(providerId)
+        return
+      }
+      const insertIndex = after ? targetIndex + 1 : targetIndex
+      providerOrder.value.splice(insertIndex, 0, providerId)
     }
 
     const getAllProviders = computed(() => {
-      return [...providers.value, ...registeredProviders.value] as Provider[]
+      const allProviders = [...providers.value, ...registeredProviders.value] as Provider[]
+      const providerMap = new Map(allProviders.map((provider) => [provider.id, provider] as const))
+      const orderedProviders: Provider[] = []
+      providerOrder.value.forEach((id) => {
+        const provider = providerMap.get(id)
+        if (provider) {
+          orderedProviders.push(provider)
+          providerMap.delete(id)
+        }
+      })
+      providerMap.forEach((provider) => orderedProviders.push(provider))
+      return orderedProviders
     })
+
+    watch(
+      [
+        () => providers.value.map((provider) => provider.id),
+        () => registeredProviders.value.map((provider) => provider.id)
+      ],
+      ([providerIds, registeredIds]) => {
+        const allIds = new Set([...providerIds, ...registeredIds])
+        allIds.forEach((id) => {
+          if (!providerOrder.value.includes(id)) {
+            providerOrder.value.push(id)
+          }
+        })
+      },
+      { immediate: true }
+    )
 
     const selectedProviderId = computed<string>({
       get: () => {
@@ -445,6 +497,7 @@ export const useSettingsStore = defineStore(
       display,
       terminal,
       providers,
+      providerOrder,
       mcpServers,
       loadedPlugins,
       devPluginPaths,
@@ -491,6 +544,7 @@ export const useSettingsStore = defineStore(
       getModelByVoice,
       addCustomProvider,
       removeCustomProvider,
+      moveProvider,
       updateShortcut,
       resetShortcut,
       resetAllShortcuts,
@@ -504,6 +558,7 @@ export const useSettingsStore = defineStore(
         'display',
         'terminal',
         'providers',
+        'providerOrder',
         'mcpServers',
         'loadedPlugins',
         'devPluginPaths',
