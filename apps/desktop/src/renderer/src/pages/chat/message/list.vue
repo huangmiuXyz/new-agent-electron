@@ -620,4 +620,17 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   font-size: 12px;
   color: var(--text-tertiary);
 }
+
+@media (max-width: 767px) {
+  .message-list-wrapper {
+    touch-action: pan-y;
+  }
+
+  .message-list-wrapper :deep(.auto-scroll-container) {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+}
 </style>

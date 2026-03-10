@@ -288,8 +288,8 @@ const handleTouchEnd = (e: TouchEvent) => {
 
     <AppFooter v-if="!isMobile" :current-view="currentView" />
 
-    <div class="app-body isMobile" v-else @touchstart="handleTouchStart" @touchmove="handleTouchMove"
-      @touchend="handleTouchEnd">
+    <div class="app-body isMobile" v-else @touchstart.passive="handleTouchStart" @touchmove.passive="handleTouchMove"
+      @touchend.passive="handleTouchEnd">
       <MobileTab :active-tab="currentView" />
     </div>
   </div>
