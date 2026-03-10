@@ -78,19 +78,19 @@ const modal = useModal()
 // 提供商参数设置
 const openProviderOptionsModal = () => {
   const schema = (() => {
-    try {
-      const registry = createRegistry({
-        apiKey: currentChatProvider.value?.apiKey || '',
-        baseURL: currentChatProvider.value?.baseUrl || '',
-        name: chatProviderId.value
-      })
-      const provider = registry.getProvider(currentChatProvider.value?.providerType || '')
-      return provider?.chatCallOptionsSchema
-    } catch (e) {
-      console.warn('Failed to get chat options schema:', e)
-      return null
-    }
-  })()
+  try {
+    const registry = createRegistry({
+      apiKey: currentChatProvider.value?.apiKey || '',
+      baseURL: currentChatProvider.value?.baseUrl || '',
+      name: chatProviderId.value
+    })
+    const provider = registry.getProvider(currentChatProvider.value?.providerType || '')
+    return provider?.chatCallOptionsSchema || null
+  } catch (e) {
+    console.warn('Failed to get chat options schema:', e)
+    return null
+  }
+})()
 
   if (!schema) {
     modal.confirm({

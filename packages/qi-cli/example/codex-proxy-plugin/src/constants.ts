@@ -41,6 +41,8 @@ export interface CodexProxyUsageSnapshot {
   credits: CodexProxyCreditSnapshot | null
 }
 
+export type CodexReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh'
+
 export interface CodexProxyPluginConfig {
   accounts: CodexProxyAccountProfile[]
   activeAccountId: string
@@ -55,6 +57,7 @@ export interface CodexProxyPluginConfig {
   bridgeHost: string
   bridgePort: number
   defaultModel: string
+  reasoningEffort: CodexReasoningEffort
   usage: CodexProxyUsageSnapshot | null
   usageError: string
   creditsDisplay: string
@@ -79,6 +82,7 @@ export const DEFAULT_CONFIG: CodexProxyPluginConfig = {
   bridgeHost: '127.0.0.1',
   bridgePort: 18123,
   defaultModel: 'codex',
+  reasoningEffort: 'high',
   usage: null,
   usageError: '',
   creditsDisplay: '--',
@@ -177,6 +181,13 @@ export const normalizeConfig = (
   defaultModel:
     String(input?.defaultModel || DEFAULT_CONFIG.defaultModel).trim() ||
     DEFAULT_CONFIG.defaultModel,
+  reasoningEffort:
+    input?.reasoningEffort === 'low' ||
+    input?.reasoningEffort === 'medium' ||
+    input?.reasoningEffort === 'high' ||
+    input?.reasoningEffort === 'xhigh'
+      ? input.reasoningEffort
+      : DEFAULT_CONFIG.reasoningEffort,
   usage:
     input?.usage && typeof input.usage === 'object'
       ? {

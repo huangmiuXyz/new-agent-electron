@@ -1,5 +1,6 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import type { Model, Plugin, PluginContext } from '@agent-qi/types'
+import { z } from 'zod'
 import {
   BRIDGE_API_KEY,
   buildDefaultModels,
@@ -25,6 +26,7 @@ import { createAccountStatusRender } from './status-indicator'
 
 type OpenAICompatibleWithListModels = ReturnType<typeof createOpenAICompatible> & {
   listModels?: () => Promise<Model[]>
+  chatCallOptionsSchema?: z.ZodObject<any>
 }
 
 type FormActionsLike = {
@@ -341,6 +343,7 @@ const startBridge = async (
       CODEX_PROXY_PLUGIN_ACCESS_TOKEN: config.accessToken,
       CODEX_PROXY_PLUGIN_ACCOUNT_ID: config.accountId,
       CODEX_PROXY_PLUGIN_DEFAULT_MODEL: config.defaultModel,
+      CODEX_PROXY_PLUGIN_REASONING_EFFORT: config.reasoningEffort,
       CODEX_PROXY_PLUGIN_API_KEY: BRIDGE_API_KEY,
       ...(isElectron ? { ELECTRON_RUN_AS_NODE: '1' } : {})
     }
@@ -524,6 +527,13 @@ const syncProvider = async (context: PluginContext, form: unknown) => {
     models
   })
 }
+
+const codexChatCallOptionsSchema = z.object({
+  reasoningEffort: z
+    .enum(['low', 'medium', 'high', 'xhigh'])
+    .optional()
+    .describe('Reasoning effort for this request')
+})
 
 const plugin: Plugin = {
   name: PLUGIN_NAME,
@@ -1106,6 +1116,7 @@ const plugin: Plugin = {
       }) as OpenAICompatibleWithListModels
 
       provider.listModels = async () => await listModels(context)
+      provider.chatCallOptionsSchema = codexChatCallOptionsSchema
       return provider
     })
 

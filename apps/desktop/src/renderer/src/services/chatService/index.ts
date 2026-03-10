@@ -338,6 +338,14 @@ export const chatService = () => {
         return result
       }
     }))
+    const mergedProviderOptions = {
+      ...(thinkingMode !== undefined && {
+        thinking: {
+          type: thinkingMode ? 'enabled' : 'disabled'
+        }
+      }),
+      ...customProviderOptions
+    }
 
     const agent = new ToolLoopAgent({
       model: wrapLanguageModel({
@@ -359,14 +367,9 @@ export const chatService = () => {
         ]
       }),
       providerOptions: {
-        [providerType]: {
-          ...(thinkingMode !== undefined && {
-            thinking: {
-              type: thinkingMode ? 'enabled' : 'disabled'
-            }
-          }),
-          ...customProviderOptions
-        }
+        [providerType]: mergedProviderOptions,
+        openaiCompatible: mergedProviderOptions,
+        'openai-compatible': mergedProviderOptions
       },
       tools: wrappedTools,
       temperature,

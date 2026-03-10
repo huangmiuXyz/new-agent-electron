@@ -16,6 +16,10 @@ const SESSION_COOKIE = String(
 const DEFAULT_MODEL =
   String(process.env.CODEX_PROXY_PLUGIN_DEFAULT_MODEL || 'codex').trim() ||
   'codex'
+const REASONING_EFFORT = (() => {
+  const value = String(process.env.CODEX_PROXY_PLUGIN_REASONING_EFFORT || 'high').trim()
+  return value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh' ? value : 'high'
+})()
 const API_KEY = String(process.env.CODEX_PROXY_PLUGIN_API_KEY || '').trim()
 const UPSTREAM_BASE_URL = 'https://chatgpt.com/backend-api/codex'
 const CODEX_CLIENT_VERSION = '0.101.0'
@@ -482,8 +486,8 @@ const convertChatRequest = (request) => {
     parallel_tool_calls: request.parallel_tool_calls !== false
   }
 
-  if (request.reasoning_effort) {
-    payload.reasoning = { effort: request.reasoning_effort }
+  payload.reasoning = {
+    effort: request.reasoningEffort || request.reasoning_effort || REASONING_EFFORT
   }
 
   const tools = mapTools(request.tools)
