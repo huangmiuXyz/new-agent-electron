@@ -54,12 +54,48 @@ const groupedOptions = computed(() => {
 })
 
 const checkIcon = useIcon('Check')
+
+const getGroupSelectionState = (groupOptions: CheckboxOption[]) => {
+    const total = groupOptions.length
+    const selected = groupOptions.filter((option) => modelValue.value.includes(option.value)).length
+    return {
+        total,
+        selected,
+        checked: total > 0 && selected === total,
+        indeterminate: selected > 0 && selected < total
+    }
+}
+
+const toggleGroup = (groupOptions: CheckboxOption[]) => {
+    if (props.disabled) return
+
+    const { checked } = getGroupSelectionState(groupOptions)
+    const groupValues = groupOptions.map((option) => option.value)
+
+    if (checked) {
+        modelValue.value = modelValue.value.filter((value) => !groupValues.includes(value))
+        return
+    }
+
+    const next = new Set(modelValue.value)
+    groupValues.forEach((value) => next.add(value))
+    modelValue.value = Array.from(next)
+}
 </script>
 
 <template>
     <div class="checkbox-group">
         <template v-for="group in groupedOptions" :key="group.name || '__ungrouped__'">
-            <div v-if="group.name" class="checkbox-group-title">{{ group.name }}</div>
+            <div v-if="group.name" class="checkbox-group-title" @click="toggleGroup(group.options)">
+                <div class="checkbox group-checkbox" :class="{ checked: getGroupSelectionState(group.options).checked }">
+                    <div class="checkbox-box"
+                        :class="{ indeterminate: getGroupSelectionState(group.options).indeterminate }">
+                        <checkIcon
+                            v-if="getGroupSelectionState(group.options).checked || getGroupSelectionState(group.options).indeterminate" />
+                    </div>
+                </div>
+                <span>{{ group.name }}</span>
+            </div>
             <div v-for="option in group.options" :key="option.value" class="checkbox-item"
                 :class="{ disabled, checked: isChecked(option.value) }" @click="toggleOption(option.value)">
                 <div class="checkbox">
@@ -104,11 +140,37 @@ const checkIcon = useIcon('Check')
 }
 
 .checkbox-group-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
     margin-top: 4px;
     margin-bottom: 2px;
+    cursor: pointer;
+}
+
+.group-checkbox {
+    padding-top: 0;
+}
+
+.group-checkbox .checkbox-box.indeterminate {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-color);
+}
+
+.group-checkbox.checked .checkbox-box,
+.group-checkbox .checkbox-box.indeterminate {
+    border-color: var(--accent-color);
+}
+
+.group-checkbox.checked .checkbox-box {
+    background: var(--accent-color);
+}
+
+.group-checkbox .checkbox-box :deep(svg) {
+    color: var(--accent-text);
 }
 
 .checkbox-item:hover:not(.disabled) {
