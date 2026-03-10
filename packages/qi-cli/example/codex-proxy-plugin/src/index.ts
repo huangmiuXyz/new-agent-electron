@@ -36,6 +36,30 @@ type FormActionsLike = {
 let runtimeConfig: CodexProxyPluginConfig = { ...DEFAULT_CONFIG }
 let isProgrammaticFormUpdate = false
 let isStatusPanelOpen = false
+let lastBridgeReadyAt = 0
+let bridgeStartPromise: Promise<boolean> | null = null
+let lastUsageRefreshAt = 0
+let modelsProbePromise: Promise<Model[]> | null = null
+let lastModelsProbeAt = 0
+let modelsProbeCache: Model[] | null = null
+let healthCheckPromise: Promise<any> | null = null
+let lastHealthCheckAt = 0
+let lastHealthConfigHash = ''
+let lastHealthResult: any = null
+let lastBeforeUseEnsureAt = 0
+
+const BRIDGE_READY_CACHE_MS = 60_000
+const BRIDGE_WAIT_RETRIES = 6
+const BRIDGE_WAIT_INTERVAL_MS = 300
+const HEALTH_RESULT_CACHE_MS = 10_000
+const USAGE_REFRESH_CACHE_MS = 30_000
+const MODELS_PROBE_CACHE_MS = 5 * 60_000
+const BEFORE_USE_ENSURE_CACHE_MS = 60_000
+const DISABLE_MODELS_PROBE = true
+const HEALTH_REQUEST_TIMEOUT_MS = 1200
+const MODELS_REQUEST_TIMEOUT_MS = 2500
+const USAGE_REQUEST_TIMEOUT_MS = 2500
+const withTimeout = (ms: number) => AbortSignal.timeout(ms)
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -228,16 +252,46 @@ const tryJson = async (url: string, options?: RequestInit) => {
   }
 }
 
+const getHealth = async (config: CodexProxyPluginConfig) => {
+  const now = Date.now()
+  const configHash = getConfigHash(config)
+
+  if (
+    lastHealthResult &&
+    configHash === lastHealthConfigHash &&
+    now - lastHealthCheckAt < HEALTH_RESULT_CACHE_MS
+  ) {
+    return lastHealthResult
+  }
+
+  if (healthCheckPromise) {
+    return await healthCheckPromise
+  }
+
+  healthCheckPromise = tryJson(getHealthURL(config), {
+    signal: withTimeout(HEALTH_REQUEST_TIMEOUT_MS)
+  }).finally(() => {
+    healthCheckPromise = null
+  })
+
+  const result = await healthCheckPromise
+  lastHealthResult = result
+  lastHealthConfigHash = configHash
+  lastHealthCheckAt = Date.now()
+  return result
+}
+
 const waitForBridge = async (
   config: CodexProxyPluginConfig,
-  maxRetries = 20
+  maxRetries = BRIDGE_WAIT_RETRIES
 ) => {
   for (let index = 0; index < maxRetries; index += 1) {
-    const health = await tryJson(getHealthURL(config))
+    const health = await getHealth(config)
     if (health?.ok && health.configHash === getConfigHash(config)) {
+      lastBridgeReadyAt = Date.now()
       return true
     }
-    await sleep(500)
+    await sleep(BRIDGE_WAIT_INTERVAL_MS)
   }
   return false
 }
@@ -254,8 +308,13 @@ const startBridge = async (
   context: PluginContext,
   config: CodexProxyPluginConfig
 ) => {
-  const health = await tryJson(getHealthURL(config))
+  if (Date.now() - lastBridgeReadyAt < BRIDGE_READY_CACHE_MS) {
+    return true
+  }
+
+  const health = await getHealth(config)
   if (health?.ok && health.configHash === getConfigHash(config)) {
+    lastBridgeReadyAt = Date.now()
     return true
   }
 
@@ -292,6 +351,23 @@ const startBridge = async (
   }
 
   return await waitForBridge(config)
+}
+
+const ensureBridgeStartedOnce = async (
+  context: PluginContext,
+  config: CodexProxyPluginConfig
+) => {
+  if (bridgeStartPromise) return await bridgeStartPromise
+
+  bridgeStartPromise = (async () => {
+    try {
+      return await startBridge(context, config)
+    } finally {
+      bridgeStartPromise = null
+    }
+  })()
+
+  return await bridgeStartPromise
 }
 
 const saveConfig = async (
@@ -345,7 +421,7 @@ const ensureBridgeRunning = async (
     )
   }
 
-  const ready = await startBridge(context, runtimeConfig)
+  const ready = await ensureBridgeStartedOnce(context, runtimeConfig)
   if (!ready) {
     throw new Error(
       `启动 Codex bridge 失败: ${getBridgeBaseURL(runtimeConfig)}`
@@ -354,21 +430,42 @@ const ensureBridgeRunning = async (
 }
 
 const listModels = async (context: PluginContext) => {
-  try {
-    await ensureBridgeRunning(context)
-    const response = await fetch(`${getProviderBaseURL(runtimeConfig)}/models`, {
-      headers: {
-        Authorization: `Bearer ${BRIDGE_API_KEY}`
-      }
-    })
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    const json = (await response.json()) as { data?: Model[] }
-    return json.data?.length
-      ? json.data
-      : buildDefaultModels(runtimeConfig.defaultModel)
-  } catch {
+  if (DISABLE_MODELS_PROBE) {
     return buildDefaultModels(runtimeConfig.defaultModel)
   }
+
+  const now = Date.now()
+  if (modelsProbeCache && now - lastModelsProbeAt < MODELS_PROBE_CACHE_MS) {
+    return modelsProbeCache
+  }
+
+  if (!modelsProbePromise) {
+    modelsProbePromise = (async () => {
+      try {
+        await ensureBridgeRunning(context)
+        const response = await fetch(`${getProviderBaseURL(runtimeConfig)}/models`, {
+          headers: {
+            Authorization: `Bearer ${BRIDGE_API_KEY}`
+          },
+          signal: withTimeout(MODELS_REQUEST_TIMEOUT_MS)
+        })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const json = (await response.json()) as { data?: Model[] }
+        const models = json.data?.length
+          ? json.data
+          : buildDefaultModels(runtimeConfig.defaultModel)
+        modelsProbeCache = models
+        lastModelsProbeAt = Date.now()
+        return models
+      } catch {
+        return buildDefaultModels(runtimeConfig.defaultModel)
+      } finally {
+        modelsProbePromise = null
+      }
+    })()
+  }
+
+  return await modelsProbePromise
 }
 
 const fetchUsageSnapshot = async (
@@ -379,7 +476,8 @@ const fetchUsageSnapshot = async (
   const response = await fetch(getUsageURL(runtimeConfig), {
     headers: {
       Authorization: `Bearer ${BRIDGE_API_KEY}`
-    }
+    },
+    signal: withTimeout(USAGE_REQUEST_TIMEOUT_MS)
   })
 
   if (!response.ok) {
@@ -477,7 +575,7 @@ const plugin: Plugin = {
       }
       await syncProvider(context, FormComp)
       updateStatusIndicator()
-      await refreshUsage(false)
+      await refreshUsage(false, true)
       context.notification.success('已切换账号。', 'Codex 代理')
     }
 
@@ -501,7 +599,7 @@ const plugin: Plugin = {
       await startBridge(context, merged).catch(() => undefined)
       await syncProvider(context, FormComp)
       updateStatusIndicator()
-      await refreshUsage(false)
+      await refreshUsage(false, true)
       context.notification.success('已将当前登录保存到账号列表。', 'Codex 代理')
     }
 
@@ -562,11 +660,20 @@ const plugin: Plugin = {
       }
       await syncProvider(context, FormComp)
       updateStatusIndicator()
-      await refreshUsage(false)
+      await refreshUsage(false, true)
       context.notification.success('已移除当前账号。', 'Codex 代理')
     }
 
-    const refreshUsage = async (notify = true) => {
+    const refreshUsage = async (notify = true, force = false) => {
+      if (
+        !force &&
+        runtimeConfig.usage &&
+        !runtimeConfig.usageError &&
+        Date.now() - lastUsageRefreshAt < USAGE_REFRESH_CACHE_MS
+      ) {
+        return
+      }
+
       const current = getCurrentConfigSnapshot(context, formActions)
       if (!current.accessToken || !current.accountId) {
         const next = buildRuntimeConfig(context, {
@@ -590,6 +697,7 @@ const plugin: Plugin = {
         })
         await saveConfig(context, next)
         runtimeConfig = next
+        lastUsageRefreshAt = Date.now()
         syncFormActions(next)
         updateStatusIndicator()
         if (notify) {
@@ -739,7 +847,7 @@ const plugin: Plugin = {
                 size: 'sm',
                 disabled: !config.activeAccountId,
                 onClick: () =>
-                  refreshUsage().catch((error) => {
+                  refreshUsage(true, true).catch((error) => {
                     context.notification.error(
                       error instanceof Error ? error.message : String(error),
                       'Codex 代理'
@@ -766,7 +874,10 @@ const plugin: Plugin = {
               context.vue.h('div', { class: 'codex-settings-usage-progress', 'aria-hidden': 'true' }, [
                 context.vue.h('div', {
                   class: 'codex-settings-usage-progress-bar',
-                  style: { width: `${usedFiveHour}%` }
+                  style: {
+                    width: `${Math.max(0, 100 - usedFiveHour)}%`,
+                    marginLeft: `${usedFiveHour}%`
+                  }
                 })
               ]),
               context.vue.h('div', { class: 'codex-settings-usage-row' }, [
@@ -782,7 +893,10 @@ const plugin: Plugin = {
               context.vue.h('div', { class: 'codex-settings-usage-progress', 'aria-hidden': 'true' }, [
                 context.vue.h('div', {
                   class: 'codex-settings-usage-progress-bar',
-                  style: { width: `${usedOneWeek}%` }
+                  style: {
+                    width: `${Math.max(0, 100 - usedOneWeek)}%`,
+                    marginLeft: `${usedOneWeek}%`
+                  }
                 })
               ]),
               context.vue.h('div', { class: 'codex-settings-usage-row' }, [
@@ -888,7 +1002,7 @@ const plugin: Plugin = {
           await doSwitchAccount(accountId)
         },
         onRefreshUsage: async () => {
-          await refreshUsage()
+          await refreshUsage(true, true)
         },
         onSaveCurrentLogin: async () => {
           await doSaveCurrentLogin()
@@ -998,15 +1112,20 @@ const plugin: Plugin = {
     context.registerHook('ai:before-use', async (params: unknown) => {
       const input = (params || {}) as { providerType?: string }
       if (input.providerType !== REGISTRY_ID) return
-      await ensureBridgeRunning(context, formActions)
-      await refreshUsage(false).catch(() => undefined)
+      if (Date.now() - lastBeforeUseEnsureAt > BEFORE_USE_ENSURE_CACHE_MS) {
+        await ensureBridgeRunning(context, formActions)
+        lastBeforeUseEnsureAt = Date.now()
+      }
+      if (isStatusPanelOpen) {
+        await refreshUsage(false).catch(() => undefined)
+      }
       updateStatusIndicator()
     })
 
     await startBridge(context, runtimeConfig).catch(() => undefined)
     await syncProvider(context, FormComp)
     updateStatusIndicator()
-    await refreshUsage(false).catch(() => undefined)
+    await refreshUsage(false, true).catch(() => undefined)
   },
   uninstall: async (context: PluginContext) => {
     await stopBridge(runtimeConfig)
