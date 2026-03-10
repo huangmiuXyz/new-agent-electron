@@ -12,7 +12,8 @@ import {
   SERVICE_STATUS_ID,
   STORAGE_KEY,
   type CodexProxyAccountProfile,
-  type CodexProxyPluginConfig
+  type CodexProxyPluginConfig,
+  type CodexProxyUsageSnapshot
 } from './constants'
 import {
   readCodexAuthAccount,
@@ -40,6 +41,67 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const getAccountLabel = (account: CodexProxyAccountProfile) =>
   account.email || account.accountId
+
+const clampPercent = (value: number | null | undefined) => {
+  if (value === null || value === undefined || Number.isNaN(value)) return null
+  return Math.max(0, Math.min(100, value))
+}
+
+const formatPercent = (value: number | null | undefined) => {
+  const normalized = clampPercent(value)
+  return normalized === null ? '--' : `${normalized.toFixed(0)}%`
+}
+
+const formatRemaining = (value: number | null | undefined) => {
+  const normalized = clampPercent(value)
+  return normalized === null ? '--' : `${(100 - normalized).toFixed(0)}%`
+}
+
+const formatCountdown = (epochSeconds: number | null | undefined) => {
+  if (!epochSeconds) return '--'
+  const diff = epochSeconds - Math.floor(Date.now() / 1000)
+  if (diff <= 0) return '已重置'
+
+  const days = Math.floor(diff / 86400)
+  const hours = Math.floor((diff % 86400) / 3600)
+  const minutes = Math.floor((diff % 3600) / 60)
+  const seconds = diff % 60
+
+  if (days > 0) return `${days}天${hours}小时后`
+  if (hours > 0) return `${hours}小时${minutes}分后`
+  if (minutes > 0) return `${minutes}分${seconds}秒后`
+  return `${seconds}秒后`
+}
+
+const formatElapsed = (epochSeconds: number | null | undefined) => {
+  if (!epochSeconds) return '--'
+  const diff = Math.max(0, Math.floor(Date.now() / 1000) - epochSeconds)
+  if (diff < 10) return '刚刚'
+  if (diff < 60) return `${diff}秒前`
+  if (diff < 3600) return `${Math.floor(diff / 60)}分前`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
+  return `${Math.floor(diff / 86400)}天前`
+}
+
+const formatBalance = (config: Pick<CodexProxyPluginConfig, 'usage' | 'usageError'>) => {
+  if (config.usage?.credits?.unlimited) return '无限'
+  if (config.usage?.credits?.balance) return config.usage.credits.balance
+  if (config.usageError) return '读取失败'
+  return '--'
+}
+
+const deriveUsageDisplay = (config: Pick<CodexProxyPluginConfig, 'usage' | 'usageError'>) => ({
+  creditsDisplay: formatBalance(config),
+  fiveHourDisplay: config.usage?.fiveHour
+    ? `${formatPercent(config.usage.fiveHour.usedPercent)} / ${formatRemaining(config.usage.fiveHour.usedPercent)}`
+    : '--',
+  fiveHourResetDisplay: formatCountdown(config.usage?.fiveHour?.resetAt),
+  oneWeekDisplay: config.usage?.oneWeek
+    ? `${formatPercent(config.usage.oneWeek.usedPercent)} / ${formatRemaining(config.usage.oneWeek.usedPercent)}`
+    : '--',
+  oneWeekResetDisplay: formatCountdown(config.usage?.oneWeek?.resetAt),
+  usageUpdatedDisplay: formatElapsed(config.usage?.fetchedAt)
+})
 
 const buildRuntimeConfig = (
   context: PluginContext,
@@ -74,6 +136,7 @@ const buildRuntimeConfig = (
   const status = activeAccount
     ? getAccountLabel(activeAccount)
     : normalized.status || DEFAULT_CONFIG.status
+  const usageDisplay = deriveUsageDisplay(normalized)
 
   return {
     ...DEFAULT_CONFIG,
@@ -87,7 +150,8 @@ const buildRuntimeConfig = (
     email: activeAccount?.email || '',
     planType: activeAccount?.planType || '',
     authMode: activeAccount?.authMode || '',
-    lastRefresh: activeAccount?.lastRefresh || ''
+    lastRefresh: activeAccount?.lastRefresh || '',
+    ...usageDisplay
   }
 }
 
@@ -97,7 +161,7 @@ const getCurrentConfigSnapshot = (
 ): CodexProxyPluginConfig =>
   buildRuntimeConfig(context, {
     ...runtimeConfig,
-    ...(formActions?.getData() || {})
+    ...formActions?.getData()
   })
 
 const getAccountOptions = (config: CodexProxyPluginConfig) =>
@@ -123,6 +187,9 @@ const getHealthURL = (config = runtimeConfig) =>
 
 const getProviderBaseURL = (config = runtimeConfig) =>
   `${getBridgeBaseURL(config)}/v1`
+
+const getUsageURL = (config = runtimeConfig) =>
+  `${getBridgeBaseURL(config)}/codex/usage`
 
 const getConfigHash = (config = runtimeConfig) =>
   JSON.stringify({
@@ -285,6 +352,25 @@ const listModels = async (context: PluginContext) => {
   }
 }
 
+const fetchUsageSnapshot = async (
+  context: PluginContext,
+  formActions?: FormActionsLike
+) => {
+  await ensureBridgeRunning(context, formActions)
+  const response = await fetch(getUsageURL(runtimeConfig), {
+    headers: {
+      Authorization: `Bearer ${BRIDGE_API_KEY}`
+    }
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(text || `HTTP ${response.status}`)
+  }
+
+  return (await response.json()) as CodexProxyUsageSnapshot
+}
+
 const resolveProviderLogoUrl = (context: PluginContext) => {
   const candidates = [
     context.api.path.join(context.basePath, 'codex-color.png'),
@@ -342,6 +428,7 @@ const plugin: Plugin = {
 
     let formActions: FormActionsLike | undefined
     let FormComp: unknown
+    let updateStatusIndicator = () => undefined
 
     const syncFormActions = (config: CodexProxyPluginConfig) => {
       if (!formActions) return
@@ -357,7 +444,9 @@ const plugin: Plugin = {
       const previous = runtimeConfig
       const next = buildRuntimeConfig(context, {
         ...current,
-        activeAccountId: accountId
+        activeAccountId: accountId,
+        usage: null,
+        usageError: ''
       })
       await saveConfig(context, next)
       runtimeConfig = next
@@ -369,6 +458,7 @@ const plugin: Plugin = {
       }
       await syncProvider(context, FormComp)
       updateStatusIndicator()
+      await refreshUsage(false)
       context.notification.success('已切换账号。', 'Codex 代理')
     }
 
@@ -382,7 +472,9 @@ const plugin: Plugin = {
           ...runtimeConfig.accounts.filter((item) => item.id !== detected.id),
           detected
         ],
-        activeAccountId: detected.id
+        activeAccountId: detected.id,
+        usage: null,
+        usageError: ''
       })
       await saveConfig(context, merged)
       runtimeConfig = merged
@@ -390,6 +482,7 @@ const plugin: Plugin = {
       await startBridge(context, merged).catch(() => undefined)
       await syncProvider(context, FormComp)
       updateStatusIndicator()
+      await refreshUsage(false)
       context.notification.success('已将当前登录保存到账号列表。', 'Codex 代理')
     }
 
@@ -436,7 +529,9 @@ const plugin: Plugin = {
       const next = buildRuntimeConfig(context, {
         ...current,
         accounts,
-        activeAccountId: accounts[0]?.id || ''
+        activeAccountId: accounts[0]?.id || '',
+        usage: null,
+        usageError: ''
       })
       await saveConfig(context, next)
       runtimeConfig = next
@@ -448,7 +543,54 @@ const plugin: Plugin = {
       }
       await syncProvider(context, FormComp)
       updateStatusIndicator()
+      await refreshUsage(false)
       context.notification.success('已移除当前账号。', 'Codex 代理')
+    }
+
+    const refreshUsage = async (notify = true) => {
+      const current = getCurrentConfigSnapshot(context, formActions)
+      if (!current.accessToken || !current.accountId) {
+        const next = buildRuntimeConfig(context, {
+          ...current,
+          usage: null,
+          usageError: '当前账号缺少 access_token 或 accountId'
+        })
+        await saveConfig(context, next)
+        runtimeConfig = next
+        syncFormActions(next)
+        updateStatusIndicator()
+        return
+      }
+
+      try {
+        const usage = await fetchUsageSnapshot(context, formActions)
+        const next = buildRuntimeConfig(context, {
+          ...getCurrentConfigSnapshot(context, formActions),
+          usage,
+          usageError: ''
+        })
+        await saveConfig(context, next)
+        runtimeConfig = next
+        syncFormActions(next)
+        updateStatusIndicator()
+        if (notify) {
+          context.notification.success('已刷新额度与用量。', 'Codex 代理')
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        const next = buildRuntimeConfig(context, {
+          ...getCurrentConfigSnapshot(context, formActions),
+          usage: null,
+          usageError: message
+        })
+        await saveConfig(context, next)
+        runtimeConfig = next
+        syncFormActions(next)
+        updateStatusIndicator()
+        if (notify) {
+          throw error
+        }
+      }
     }
 
     const renderAccountActions = () => {
@@ -505,7 +647,7 @@ const plugin: Plugin = {
       )
     }
 
-    const updateStatusIndicator = () => {
+    updateStatusIndicator = () => {
       isStatusPanelOpen = false
       const activeAccount = runtimeConfig.accounts.find(
         (item) => item.id === runtimeConfig.activeAccountId
@@ -528,6 +670,9 @@ const plugin: Plugin = {
         },
         onSwitchAccount: async (accountId: string) => {
           await doSwitchAccount(accountId)
+        },
+        onRefreshUsage: async () => {
+          await refreshUsage()
         },
         onSaveCurrentLogin: async () => {
           await doSaveCurrentLogin()
@@ -591,6 +736,48 @@ const plugin: Plugin = {
           name: 'planType',
           type: 'text',
           label: '套餐类型',
+          readonly: true
+        },
+        {
+          name: 'creditsDisplay',
+          type: 'text',
+          label: 'Credits',
+          readonly: true
+        },
+        {
+          name: 'fiveHourDisplay',
+          type: 'text',
+          label: '5 小时',
+          readonly: true
+        },
+        {
+          name: 'fiveHourResetDisplay',
+          type: 'text',
+          label: '5 小时重置',
+          readonly: true
+        },
+        {
+          name: 'oneWeekDisplay',
+          type: 'text',
+          label: '1 周',
+          readonly: true
+        },
+        {
+          name: 'oneWeekResetDisplay',
+          type: 'text',
+          label: '1 周重置',
+          readonly: true
+        },
+        {
+          name: 'usageUpdatedDisplay',
+          type: 'text',
+          label: '用量刷新',
+          readonly: true
+        },
+        {
+          name: 'usageError',
+          type: 'text',
+          label: '用量状态',
           readonly: true
         },
         {
@@ -679,6 +866,7 @@ const plugin: Plugin = {
     await startBridge(context, runtimeConfig).catch(() => undefined)
     await syncProvider(context, FormComp)
     updateStatusIndicator()
+    await refreshUsage(false).catch(() => undefined)
   },
   uninstall: async (context: PluginContext) => {
     await stopBridge(runtimeConfig)

@@ -21,6 +21,26 @@ export interface CodexProxyAccountProfile {
   lastRefresh: string
 }
 
+export interface CodexProxyUsageWindow {
+  usedPercent: number
+  windowSeconds: number
+  resetAt: number | null
+}
+
+export interface CodexProxyCreditSnapshot {
+  hasCredits: boolean
+  unlimited: boolean
+  balance: string | null
+}
+
+export interface CodexProxyUsageSnapshot {
+  fetchedAt: number
+  planType: string | null
+  fiveHour: CodexProxyUsageWindow | null
+  oneWeek: CodexProxyUsageWindow | null
+  credits: CodexProxyCreditSnapshot | null
+}
+
 export interface CodexProxyPluginConfig {
   accounts: CodexProxyAccountProfile[]
   activeAccountId: string
@@ -35,6 +55,14 @@ export interface CodexProxyPluginConfig {
   bridgeHost: string
   bridgePort: number
   defaultModel: string
+  usage: CodexProxyUsageSnapshot | null
+  usageError: string
+  creditsDisplay: string
+  fiveHourDisplay: string
+  fiveHourResetDisplay: string
+  oneWeekDisplay: string
+  oneWeekResetDisplay: string
+  usageUpdatedDisplay: string
 }
 
 export const DEFAULT_CONFIG: CodexProxyPluginConfig = {
@@ -50,7 +78,15 @@ export const DEFAULT_CONFIG: CodexProxyPluginConfig = {
   accessToken: '',
   bridgeHost: '127.0.0.1',
   bridgePort: 18123,
-  defaultModel: 'codex'
+  defaultModel: 'codex',
+  usage: null,
+  usageError: '',
+  creditsDisplay: '--',
+  fiveHourDisplay: '--',
+  fiveHourResetDisplay: '--',
+  oneWeekDisplay: '--',
+  oneWeekResetDisplay: '--',
+  usageUpdatedDisplay: '--'
 }
 
 type BuiltinModel = {
@@ -140,5 +176,63 @@ export const normalizeConfig = (
     DEFAULT_CONFIG.bridgePort,
   defaultModel:
     String(input?.defaultModel || DEFAULT_CONFIG.defaultModel).trim() ||
-    DEFAULT_CONFIG.defaultModel
+    DEFAULT_CONFIG.defaultModel,
+  usage:
+    input?.usage && typeof input.usage === 'object'
+      ? {
+          fetchedAt: Number(input.usage.fetchedAt || 0) || 0,
+          planType:
+            input.usage.planType === null ||
+            input.usage.planType === undefined ||
+            input.usage.planType === ''
+              ? null
+              : String(input.usage.planType),
+          fiveHour:
+            input.usage.fiveHour && typeof input.usage.fiveHour === 'object'
+              ? {
+                  usedPercent: Number(input.usage.fiveHour.usedPercent || 0) || 0,
+                  windowSeconds:
+                    Number(input.usage.fiveHour.windowSeconds || 0) || 0,
+                  resetAt:
+                    input.usage.fiveHour.resetAt === null ||
+                    input.usage.fiveHour.resetAt === undefined
+                      ? null
+                      : Number(input.usage.fiveHour.resetAt || 0) || null
+                }
+              : null,
+          oneWeek:
+            input.usage.oneWeek && typeof input.usage.oneWeek === 'object'
+              ? {
+                  usedPercent: Number(input.usage.oneWeek.usedPercent || 0) || 0,
+                  windowSeconds:
+                    Number(input.usage.oneWeek.windowSeconds || 0) || 0,
+                  resetAt:
+                    input.usage.oneWeek.resetAt === null ||
+                    input.usage.oneWeek.resetAt === undefined
+                      ? null
+                      : Number(input.usage.oneWeek.resetAt || 0) || null
+                }
+              : null,
+          credits:
+            input.usage.credits && typeof input.usage.credits === 'object'
+              ? {
+                  hasCredits: Boolean(input.usage.credits.hasCredits),
+                  unlimited: Boolean(input.usage.credits.unlimited),
+                  balance:
+                    input.usage.credits.balance === null ||
+                    input.usage.credits.balance === undefined ||
+                    input.usage.credits.balance === ''
+                      ? null
+                      : String(input.usage.credits.balance)
+                }
+              : null
+        }
+      : null,
+  usageError: String(input?.usageError || '').trim(),
+  creditsDisplay: String(input?.creditsDisplay || '--').trim() || '--',
+  fiveHourDisplay: String(input?.fiveHourDisplay || '--').trim() || '--',
+  fiveHourResetDisplay: String(input?.fiveHourResetDisplay || '--').trim() || '--',
+  oneWeekDisplay: String(input?.oneWeekDisplay || '--').trim() || '--',
+  oneWeekResetDisplay: String(input?.oneWeekResetDisplay || '--').trim() || '--',
+  usageUpdatedDisplay: String(input?.usageUpdatedDisplay || '--').trim() || '--'
 })

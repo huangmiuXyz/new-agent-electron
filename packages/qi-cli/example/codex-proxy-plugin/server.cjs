@@ -65,6 +65,11 @@ let modelsCache = {
   data: null
 }
 
+let usageCache = {
+  expiresAt: 0,
+  data: null
+}
+
 const buildUpstreamHeaders = (incomingHeaders, accept = 'text/event-stream') => {
   if (!ACCESS_TOKEN) {
     throw new Error('Missing CODEX_PROXY_PLUGIN_ACCESS_TOKEN')
@@ -165,6 +170,128 @@ const fetchModelsFromUpstream = async (incomingHeaders = {}) => {
     expiresAt: now + 30 * 1000
   }
   return fallback
+}
+
+const truncate = (value, max = 160) => {
+  const text = String(value || '')
+  if (text.length <= max) return text
+  return `${text.slice(0, max - 1)}…`
+}
+
+const resolveUsageUrls = () => {
+  const candidates = [
+    'https://chatgpt.com/backend-api/wham/usage',
+    'https://chatgpt.com/wham/usage',
+    'https://chatgpt.com/api/codex/usage'
+  ]
+
+  const deduped = []
+  for (const url of candidates) {
+    if (!deduped.includes(url)) deduped.push(url)
+  }
+  return deduped
+}
+
+const pickNearestWindow = (windows, targetSeconds) => {
+  if (!Array.isArray(windows) || windows.length === 0) return null
+  return windows.reduce((best, current) => {
+    if (!current) return best
+    if (!best) return current
+    return Math.abs((current.limit_window_seconds || 0) - targetSeconds) <
+      Math.abs((best.limit_window_seconds || 0) - targetSeconds)
+      ? current
+      : best
+  }, null)
+}
+
+const toUsageWindow = (window) => {
+  if (!window || typeof window !== 'object') return null
+  return {
+    usedPercent: Number(window.used_percent || 0) || 0,
+    windowSeconds: Number(window.limit_window_seconds || 0) || 0,
+    resetAt:
+      window.reset_at === null || window.reset_at === undefined
+        ? null
+        : Number(window.reset_at || 0) || null
+  }
+}
+
+const mapUsagePayload = (payload) => {
+  const windows = []
+  const pushWindow = (window) => {
+    if (window && typeof window === 'object') windows.push(window)
+  }
+
+  pushWindow(payload?.rate_limit?.primary_window)
+  pushWindow(payload?.rate_limit?.secondary_window)
+
+  if (Array.isArray(payload?.additional_rate_limits)) {
+    for (const limit of payload.additional_rate_limits) {
+      pushWindow(limit?.rate_limit?.primary_window)
+      pushWindow(limit?.rate_limit?.secondary_window)
+    }
+  }
+
+  const fiveHour = toUsageWindow(pickNearestWindow(windows, 5 * 60 * 60))
+  const oneWeek = toUsageWindow(pickNearestWindow(windows, 7 * 24 * 60 * 60))
+  const credits = payload?.credits && typeof payload.credits === 'object'
+    ? {
+        hasCredits: Boolean(payload.credits.has_credits),
+        unlimited: Boolean(payload.credits.unlimited),
+        balance:
+          payload.credits.balance === null || payload.credits.balance === undefined
+            ? null
+            : String(payload.credits.balance)
+      }
+    : null
+
+  return {
+    fetchedAt: Math.floor(Date.now() / 1000),
+    planType:
+      payload?.plan_type === null || payload?.plan_type === undefined
+        ? null
+        : String(payload.plan_type),
+    fiveHour,
+    oneWeek,
+    credits
+  }
+}
+
+const fetchUsageFromUpstream = async (incomingHeaders = {}) => {
+  const now = Date.now()
+  if (usageCache.data && now < usageCache.expiresAt) {
+    return usageCache.data
+  }
+
+  const errors = []
+  for (const usageUrl of resolveUsageUrls()) {
+    try {
+      const response = await fetch(usageUrl, {
+        method: 'GET',
+        headers: buildUpstreamHeaders(incomingHeaders, 'application/json')
+      })
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => '')
+        errors.push(`${usageUrl} -> ${response.status}: ${truncate(body || response.statusText)}`)
+        continue
+      }
+
+      const payload = await response.json()
+      const normalized = mapUsagePayload(payload)
+      usageCache = {
+        data: normalized,
+        expiresAt: now + 30 * 1000
+      }
+      return normalized
+    } catch (error) {
+      errors.push(
+        `${usageUrl} -> ${truncate(error instanceof Error ? error.message : String(error))}`
+      )
+    }
+  }
+
+  throw new Error(`Codex usage endpoint failed: ${errors.slice(0, 2).join(' | ')}`)
 }
 
 const readJsonBody = (req) =>
@@ -928,6 +1055,11 @@ const server = http.createServer(async (req, res) => {
         object: 'list',
         data: models
       })
+    }
+
+    if (req.method === 'GET' && url.pathname === '/codex/usage') {
+      const usage = await fetchUsageFromUpstream(req.headers)
+      return sendJson(res, 200, usage)
     }
 
     if (req.method === 'POST' && url.pathname === '/v1/chat/completions') {

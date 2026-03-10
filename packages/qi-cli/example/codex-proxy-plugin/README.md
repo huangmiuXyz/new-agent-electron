@@ -9,5 +9,6 @@
 - 提供本地 `/v1/models`
 - 提供本地 `/v1/chat/completions`
 - 提供本地 `/v1/responses`
+- 提供本地 `/codex/usage`，查询当前账号的套餐、5 小时/1 周额度和 credits balance
 - 在首次请求前自动拉起本地 bridge 进程
 - 自动解析当前 `~/.codex/auth.json` 中的 `access_token`、`accountId`、`email`、`planType`

@@ -2,7 +2,8 @@ import type { PluginContext } from '@agent-qi/types'
 import {
   CODEX_PROVIDER_LOGO_URL,
   DEFAULT_CONFIG,
-  type CodexProxyPluginConfig
+  type CodexProxyPluginConfig,
+  type CodexProxyUsageWindow
 } from './constants'
 
 interface CreateAccountStatusRenderOptions {
@@ -12,12 +13,68 @@ interface CreateAccountStatusRenderOptions {
   tooltip: string
   onPanelOpenChange: (open: boolean) => void
   onSwitchAccount: (accountId: string) => Promise<void>
+  onRefreshUsage: () => Promise<void>
   onSaveCurrentLogin: () => Promise<void>
   onWriteBackAuth: () => Promise<void>
   onRemoveCurrentAccount: () => Promise<void>
 }
 
 const getAccountLabel = (email: string, accountId: string) => email || accountId
+
+const clampPercent = (value: number | null | undefined) => {
+  if (value === null || value === undefined || Number.isNaN(value)) return null
+  return Math.max(0, Math.min(100, value))
+}
+
+const formatPercent = (value: number | null | undefined) => {
+  const normalized = clampPercent(value)
+  return normalized === null ? '--' : `${normalized.toFixed(0)}%`
+}
+
+const formatRemaining = (window: CodexProxyUsageWindow | null | undefined) => {
+  if (!window) return '--'
+  return formatPercent(100 - window.usedPercent)
+}
+
+const progressWidth = (value: number | null | undefined) => {
+  const normalized = clampPercent(value)
+  return normalized === null ? '0%' : `${normalized}%`
+}
+
+const formatResetAt = (epochSeconds: number | null | undefined) => {
+  if (!epochSeconds) return '--'
+  const diff = epochSeconds - Math.floor(Date.now() / 1000)
+  if (diff <= 0) return '已重置'
+
+  const days = Math.floor(diff / 86400)
+  const hours = Math.floor((diff % 86400) / 3600)
+  const minutes = Math.floor((diff % 3600) / 60)
+  const seconds = diff % 60
+
+  if (days > 0) {
+    return `${days}天${hours}小时后`
+  }
+
+  if (hours > 0) {
+    return `${hours}小时${minutes}分后`
+  }
+
+  if (minutes > 0) {
+    return `${minutes}分${seconds}秒后`
+  }
+
+  return `${seconds}秒后`
+}
+
+const formatBalance = (
+  usage: CodexProxyPluginConfig['usage'],
+  usageError: string
+) => {
+  if (usage?.credits?.unlimited) return '无限'
+  if (usage?.credits?.balance) return usage.credits.balance
+  if (usageError) return '读取失败'
+  return '--'
+}
 
 export const createAccountStatusRender = (
   options: CreateAccountStatusRenderOptions
@@ -29,6 +86,7 @@ export const createAccountStatusRender = (
     tooltip,
     onPanelOpenChange,
     onSwitchAccount,
+    onRefreshUsage,
     onSaveCurrentLogin,
     onWriteBackAuth,
     onRemoveCurrentAccount
@@ -111,6 +169,13 @@ export const createAccountStatusRender = (
           })
         }
 
+        const handleRefreshUsage = async (event: MouseEvent) => {
+          event.stopPropagation()
+          await withBusy(async () => {
+            await onRefreshUsage()
+          })
+        }
+
         const handleWriteBack = async (event: MouseEvent) => {
           event.stopPropagation()
           await withBusy(async () => {
@@ -135,6 +200,12 @@ export const createAccountStatusRender = (
             activeAccount?.accountId ||
             config.status ||
             DEFAULT_CONFIG.status
+          const usage = config.usage
+          const usageError = config.usageError
+          const usageUpdatedText = usage?.fetchedAt
+            ? formatResetAt(usage.fetchedAt)
+            : '未刷新'
+          const balanceText = formatBalance(usage, usageError)
 
           return (
             <div class="codex-status-wrap" onClick={toggleOpen} title={tooltip}>
@@ -198,6 +269,57 @@ export const createAccountStatusRender = (
                   grid-template-columns: repeat(2, minmax(0, 1fr));
                   gap: 6px;
                 }
+                .codex-usage-card {
+                  margin-bottom: 8px;
+                  padding: 8px;
+                  border-radius: 8px;
+                  background: var(--bg-hover);
+                }
+                .codex-usage-head {
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  gap: 8px;
+                  margin-bottom: 6px;
+                  font-size: 12px;
+                  font-weight: 600;
+                }
+                .codex-usage-meta {
+                  display: grid;
+                  gap: 4px;
+                  font-size: 12px;
+                }
+                .codex-usage-block {
+                  display: grid;
+                  gap: 4px;
+                  margin-top: 4px;
+                }
+                .codex-usage-row {
+                  display: flex;
+                  justify-content: space-between;
+                  gap: 8px;
+                }
+                .codex-usage-progress {
+                  position: relative;
+                  height: 8px;
+                  overflow: hidden;
+                  border-radius: 999px;
+                  background: rgba(127, 127, 127, 0.18);
+                }
+                .codex-usage-progress-bar {
+                  height: 100%;
+                  border-radius: inherit;
+                  background: linear-gradient(90deg, #1f7ae0 0%, #41b3ff 100%);
+                }
+                .codex-usage-label {
+                  color: var(--text-secondary);
+                }
+                .codex-usage-error {
+                  margin-top: 6px;
+                  font-size: 12px;
+                  color: var(--color-danger, #d94b4b);
+                  word-break: break-word;
+                }
                 .codex-status-btn.wide {
                   grid-column: 1 / -1;
                 }
@@ -209,6 +331,77 @@ export const createAccountStatusRender = (
               >
                 <div class="codex-status-title">Codex 账号</div>
                 <div class="codex-status-sub">当前：{statusText}</div>
+                <div class="codex-usage-card">
+                  <div class="codex-usage-head">
+                    <span>额度 / 用量</span>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={isBusy.value || !config.activeAccountId}
+                      onClick={handleRefreshUsage}
+                    >
+                      刷新
+                    </Button>
+                  </div>
+                  <div class="codex-usage-meta">
+                    <div class="codex-usage-row">
+                      <span class="codex-usage-label">套餐</span>
+                      <span>{usage?.planType || activeAccount?.planType || '--'}</span>
+                    </div>
+                    <div class="codex-usage-row">
+                      <span class="codex-usage-label">Credits</span>
+                      <span>{balanceText}</span>
+                    </div>
+                    <div class="codex-usage-block">
+                      <div class="codex-usage-row">
+                        <span class="codex-usage-label">5 小时</span>
+                        <span>
+                          {formatPercent(usage?.fiveHour?.usedPercent)} /{' '}
+                          {formatRemaining(usage?.fiveHour)}
+                        </span>
+                      </div>
+                      <div class="codex-usage-progress" aria-hidden="true">
+                        <div
+                          class="codex-usage-progress-bar"
+                          style={{ width: progressWidth(usage?.fiveHour?.usedPercent) }}
+                        />
+                      </div>
+                      <div class="codex-usage-row">
+                        <span class="codex-usage-label">5 小时重置</span>
+                        <span>{formatResetAt(usage?.fiveHour?.resetAt)}</span>
+                      </div>
+                    </div>
+                    <div class="codex-usage-block">
+                      <div class="codex-usage-row">
+                        <span class="codex-usage-label">1 周</span>
+                        <span>
+                          {formatPercent(usage?.oneWeek?.usedPercent)} /{' '}
+                          {formatRemaining(usage?.oneWeek)}
+                        </span>
+                      </div>
+                      <div class="codex-usage-progress" aria-hidden="true">
+                        <div
+                          class="codex-usage-progress-bar"
+                          style={{ width: progressWidth(usage?.oneWeek?.usedPercent) }}
+                        />
+                      </div>
+                      <div class="codex-usage-row">
+                        <span class="codex-usage-label">1 周重置</span>
+                        <span>{formatResetAt(usage?.oneWeek?.resetAt)}</span>
+                      </div>
+                    </div>
+                    <div class="codex-usage-row">
+                      <span class="codex-usage-label">最近刷新</span>
+                      <span>{usageUpdatedText}</span>
+                    </div>
+                  </div>
+                  {usageError ? (
+                    <div class="codex-usage-error" title={usageError}>
+                      {usageError}
+                    </div>
+                  ) : null}
+                </div>
                 <div class="codex-status-select-wrap">
                   <Select
                     size="sm"
