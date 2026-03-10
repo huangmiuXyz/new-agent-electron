@@ -440,6 +440,12 @@ const unbindMobilePointerListeners = () => {
 
 const onMobileToolPointerDown = (toolId: MobileDragToolId, event: PointerEvent) => {
   if (!isMobile.value || event.button !== 0) return
+  const target = event.target as HTMLElement | null
+  if (target?.closest('.modal-overlay, .selector-popup')) {
+    // Selector popover content is rendered inside the tool wrapper on mobile,
+    // so interactions in the popup must not start toolbar drag logic.
+    return
+  }
   clearLongPressTimer()
   bindMobilePointerListeners()
   longPressPointerId.value = event.pointerId
