@@ -9,6 +9,7 @@ import {
   PLUGIN_NAME,
   PROVIDER_ID,
   REGISTRY_ID,
+  SERVICE_STATUS_ID,
   STORAGE_KEY,
   type CodexProxyAccountProfile,
   type CodexProxyPluginConfig
@@ -19,6 +20,7 @@ import {
   resolveDefaultAuthPath,
   writeCodexAuthAccount
 } from './auth'
+import { createAccountStatusRender } from './status-indicator'
 
 type OpenAICompatibleWithListModels = ReturnType<typeof createOpenAICompatible> & {
   listModels?: () => Promise<Model[]>
@@ -32,6 +34,7 @@ type FormActionsLike = {
 
 let runtimeConfig: CodexProxyPluginConfig = { ...DEFAULT_CONFIG }
 let isProgrammaticFormUpdate = false
+let isStatusPanelOpen = false
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -329,6 +332,114 @@ const plugin: Plugin = {
     runtimeConfig = initialConfig
 
     let formActions: FormActionsLike | undefined
+    let FormComp: unknown
+
+    const syncFormActions = (config: CodexProxyPluginConfig) => {
+      if (!formActions) return
+      isProgrammaticFormUpdate = true
+      formActions.setFieldsValue(config)
+      updateAccountSelectorProps(formActions, config)
+      isProgrammaticFormUpdate = false
+    }
+
+    const doSwitchAccount = async (accountId: string) => {
+      const current = formActions?.getData() || runtimeConfig
+      if (!accountId || accountId === current.activeAccountId) return
+      const previous = runtimeConfig
+      const next = buildRuntimeConfig(context, {
+        ...current,
+        activeAccountId: accountId
+      })
+      await saveConfig(context, next)
+      runtimeConfig = next
+      syncFormActions(next)
+      if (next.accessToken) {
+        await startBridge(context, next).catch(() => undefined)
+      } else if (previous.accessToken) {
+        await stopBridge(previous)
+      }
+      await syncProvider(context, FormComp)
+      updateStatusIndicator()
+      context.notification.success('已切换账号。', 'Codex 代理')
+    }
+
+    const doSaveCurrentLogin = async () => {
+      const currentAuthPath = formActions?.getData().authPath || runtimeConfig.authPath
+      const detected = readCodexAuthAccount(context, currentAuthPath)
+      const merged = buildRuntimeConfig(context, {
+        ...(formActions?.getData() || runtimeConfig),
+        accounts: [
+          ...runtimeConfig.accounts.filter((item) => item.id !== detected.id),
+          detected
+        ],
+        activeAccountId: detected.id
+      })
+      await saveConfig(context, merged)
+      runtimeConfig = merged
+      syncFormActions(merged)
+      await startBridge(context, merged).catch(() => undefined)
+      await syncProvider(context, FormComp)
+      updateStatusIndicator()
+      context.notification.success('已将当前登录保存到账号列表。', 'Codex 代理')
+    }
+
+    const doWriteBackAuth = async () => {
+      const current = formActions?.getData() || runtimeConfig
+      const activeAccount = current.accounts.find(
+        (account) => account.id === current.activeAccountId
+      )
+      if (!activeAccount) {
+        throw new Error('未找到当前激活账号')
+      }
+
+      const authPath = current.authPath || resolveDefaultAuthPath(context)
+      writeCodexAuthAccount(context, authPath, activeAccount)
+      const refreshed = buildRuntimeConfig(context, {
+        ...current,
+        authPath,
+        accounts: current.accounts.map((account) =>
+          account.id === activeAccount.id
+            ? {
+                ...account,
+                authPath,
+                lastRefresh: new Date().toISOString()
+              }
+            : account
+        )
+      })
+      await saveConfig(context, refreshed)
+      runtimeConfig = refreshed
+      syncFormActions(refreshed)
+      updateStatusIndicator()
+      context.notification.success('已将当前账号写回 auth.json。', 'Codex 代理')
+    }
+
+    const doRemoveCurrentAccount = async () => {
+      const current = formActions?.getData() || runtimeConfig
+      if (!current.activeAccountId) {
+        throw new Error('未选择当前账号。')
+      }
+      const previous = runtimeConfig
+      const accounts = current.accounts.filter(
+        (account) => account.id !== current.activeAccountId
+      )
+      const next = buildRuntimeConfig(context, {
+        ...current,
+        accounts,
+        activeAccountId: accounts[0]?.id || ''
+      })
+      await saveConfig(context, next)
+      runtimeConfig = next
+      syncFormActions(next)
+      if (next.accessToken) {
+        await startBridge(context, next).catch(() => undefined)
+      } else {
+        await stopBridge(previous)
+      }
+      await syncProvider(context, FormComp)
+      updateStatusIndicator()
+      context.notification.success('已移除当前账号。', 'Codex 代理')
+    }
 
     const renderAccountActions = () => {
       const Button = context.components?.Button as
@@ -336,148 +447,100 @@ const plugin: Plugin = {
         | undefined
       if (!Button) return null
 
-      const saveButton = context.vue.h(
-        Button as never,
-        {
-          type: 'button',
-          size: 'sm',
-          onClick: async () => {
-            try {
-              const currentAuthPath = formActions?.getData().authPath || runtimeConfig.authPath
-              const detected = readCodexAuthAccount(context, currentAuthPath)
-              const merged = buildRuntimeConfig(context, {
-                ...(formActions?.getData() || runtimeConfig),
-                accounts: [
-                  ...runtimeConfig.accounts.filter((item) => item.id !== detected.id),
-                  detected
-                ],
-                activeAccountId: detected.id
-              })
-              await saveConfig(context, merged)
-              runtimeConfig = merged
-              isProgrammaticFormUpdate = true
-              formActions?.setFieldsValue(merged)
-              if (formActions) {
-                updateAccountSelectorProps(formActions, merged)
-              }
-              isProgrammaticFormUpdate = false
-              await startBridge(context, merged).catch(() => undefined)
-              await syncProvider(context, FormComp)
-              context.notification.success('已将当前登录保存到账号列表。', 'Codex 代理')
-            } catch (error) {
-              context.notification.error(
-                error instanceof Error ? error.message : String(error),
-                'Codex 代理'
-              )
-            }
-          }
-        },
-        { default: () => '保存当前登录' }
-      )
-
-      const removeButton = context.vue.h(
-        Button as never,
-        {
-          type: 'button',
-          variant: 'secondary',
-          size: 'sm',
-          onClick: async () => {
-            const current = formActions?.getData() || runtimeConfig
-            if (!current.activeAccountId) {
-              context.notification.error('未选择当前账号。', 'Codex 代理')
-              return
-            }
-
-            const previous = runtimeConfig
-            const accounts = current.accounts.filter(
-              (account) => account.id !== current.activeAccountId
-            )
-            const next = buildRuntimeConfig(context, {
-              ...current,
-              accounts,
-              activeAccountId: accounts[0]?.id || ''
-            })
-            await saveConfig(context, next)
-            runtimeConfig = next
-            isProgrammaticFormUpdate = true
-            formActions?.setFieldsValue(next)
-            if (formActions) {
-              updateAccountSelectorProps(formActions, next)
-            }
-            isProgrammaticFormUpdate = false
-            if (next.accessToken) {
-              await startBridge(context, next).catch(() => undefined)
-            } else {
-              await stopBridge(previous)
-            }
-            await syncProvider(context, FormComp)
-            context.notification.success('已移除当前账号。', 'Codex 代理')
-          }
-        },
-        { default: () => '移除当前账号' }
-      )
-
-      const writeBackButton = context.vue.h(
-        Button as never,
-        {
-          type: 'button',
-          variant: 'secondary',
-          size: 'sm',
-          onClick: async () => {
-            try {
-              const current = formActions?.getData() || runtimeConfig
-              const activeAccount = current.accounts.find(
-                (account) => account.id === current.activeAccountId
-              )
-              if (!activeAccount) {
-                throw new Error('未找到当前激活账号')
-              }
-
-              const authPath = current.authPath || resolveDefaultAuthPath(context)
-              writeCodexAuthAccount(context, authPath, activeAccount)
-              const refreshed = buildRuntimeConfig(context, {
-                ...current,
-                authPath,
-                accounts: current.accounts.map((account) =>
-                  account.id === activeAccount.id
-                    ? {
-                        ...account,
-                        authPath,
-                        lastRefresh: new Date().toISOString()
-                      }
-                    : account
-                )
-              })
-              await saveConfig(context, refreshed)
-              runtimeConfig = refreshed
-              isProgrammaticFormUpdate = true
-              formActions?.setFieldsValue(refreshed)
-              if (formActions) {
-                updateAccountSelectorProps(formActions, refreshed)
-              }
-              isProgrammaticFormUpdate = false
-              context.notification.success('已将当前账号写回 auth.json。', 'Codex 代理')
-            } catch (error) {
-              context.notification.error(
-                error instanceof Error ? error.message : String(error),
-                'Codex 代理'
-              )
-            }
-          }
-        },
-        { default: () => '写回 auth.json' }
-      )
+      const safeCall = async (fn: () => Promise<void>) => {
+        try {
+          await fn()
+        } catch (error) {
+          context.notification.error(
+            error instanceof Error ? error.message : String(error),
+            'Codex 代理'
+          )
+        }
+      }
 
       return context.vue.h(
         'div',
-        {
-          style: 'display:flex;gap:8px;flex-wrap:wrap;'
-        },
-        [saveButton, writeBackButton, removeButton]
+        { style: 'display:flex;gap:8px;flex-wrap:wrap;' },
+        [
+          context.vue.h(
+            Button as never,
+            {
+              type: 'button',
+              size: 'sm',
+              onClick: () => safeCall(doSaveCurrentLogin)
+            },
+            { default: () => '保存当前登录' }
+          ),
+          context.vue.h(
+            Button as never,
+            {
+              type: 'button',
+              variant: 'secondary',
+              size: 'sm',
+              onClick: () => safeCall(doWriteBackAuth)
+            },
+            { default: () => '写回 auth.json' }
+          ),
+          context.vue.h(
+            Button as never,
+            {
+              type: 'button',
+              variant: 'secondary',
+              size: 'sm',
+              onClick: () => safeCall(doRemoveCurrentAccount)
+            },
+            { default: () => '移除当前账号' }
+          )
+        ]
       )
     }
 
-    const [FormComp, actions] = context.useForm<CodexProxyPluginConfig>({
+    const updateStatusIndicator = () => {
+      const activeAccount = runtimeConfig.accounts.find(
+        (item) => item.id === runtimeConfig.activeAccountId
+      )
+      const accountLabel = activeAccount
+        ? getAccountLabel(activeAccount)
+        : DEFAULT_CONFIG.status
+
+      const tooltip = runtimeConfig.accessToken
+        ? `Codex 账号: ${accountLabel}`
+        : 'Codex 未检测到可用登录'
+
+      const statusRender = createAccountStatusRender({
+        context,
+        runtimeConfig,
+        isStatusPanelOpen,
+        tooltip,
+        onPanelOpenChange: (open) => {
+          isStatusPanelOpen = open
+        },
+        onSwitchAccount: async (accountId: string) => {
+          await doSwitchAccount(accountId)
+        },
+        onSaveCurrentLogin: async () => {
+          await doSaveCurrentLogin()
+        },
+        onWriteBackAuth: async () => {
+          await doWriteBackAuth()
+        },
+        onRemoveCurrentAccount: async () => {
+          await doRemoveCurrentAccount()
+        }
+      })
+
+      ;(context.notification.status as unknown as (
+        id: string,
+        text: string,
+        options?: Record<string, unknown>
+      ) => void)(SERVICE_STATUS_ID, '', {
+        render: statusRender,
+        tooltip,
+        color: '#fff'
+      })
+    }
+
+    ;[FormComp, formActions] = context.useForm<CodexProxyPluginConfig>({
       title: 'Codex 代理',
       showHeader: false,
       fields: [
@@ -567,22 +630,22 @@ const plugin: Plugin = {
       initialData: initialConfig,
       onChange: async (_field, _value, data) => {
         if (isProgrammaticFormUpdate) return
+        const previous = runtimeConfig
         runtimeConfig = buildRuntimeConfig(context, {
           ...runtimeConfig,
           ...data
         })
         await saveConfig(context, runtimeConfig)
-        isProgrammaticFormUpdate = true
-        actions.setFieldsValue(runtimeConfig)
-        updateAccountSelectorProps(actions, runtimeConfig)
-        isProgrammaticFormUpdate = false
+        syncFormActions(runtimeConfig)
         if (runtimeConfig.accessToken) {
           await startBridge(context, runtimeConfig).catch(() => undefined)
+        } else if (previous.accessToken) {
+          await stopBridge(previous)
         }
         await syncProvider(context, FormComp)
+        updateStatusIndicator()
       }
     })
-    formActions = actions
 
     context.registerRegistry(REGISTRY_ID, () => {
       const provider = createOpenAICompatible({
@@ -599,15 +662,18 @@ const plugin: Plugin = {
       const input = (params || {}) as { providerType?: string }
       if (input.providerType !== REGISTRY_ID) return
       await ensureBridgeRunning(context, formActions)
+      updateStatusIndicator()
     })
 
     await startBridge(context, runtimeConfig).catch(() => undefined)
     await syncProvider(context, FormComp)
+    updateStatusIndicator()
   },
   uninstall: async (context: PluginContext) => {
     await stopBridge(runtimeConfig)
     context.unregisterProvider(PROVIDER_ID)
     context.unregisterRegistry(REGISTRY_ID)
+    context.notification.removeStatus(SERVICE_STATUS_ID)
   }
 }
 
