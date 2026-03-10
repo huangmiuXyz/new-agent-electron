@@ -647,6 +647,203 @@ const plugin: Plugin = {
       )
     }
 
+    const renderUsageSummary = () => {
+      const config = getCurrentConfigSnapshot(context, formActions)
+      const usage = config.usage
+      const usageError = config.usageError
+      const usedFiveHour = clampPercent(usage?.fiveHour?.usedPercent) ?? 0
+      const usedOneWeek = clampPercent(usage?.oneWeek?.usedPercent) ?? 0
+
+      return context.vue.h(
+        'div',
+        { class: 'codex-settings-usage-card' },
+        [
+          context.vue.h('style', null, `
+            .codex-settings-usage-card {
+              display: grid;
+              gap: 8px;
+              padding: 10px;
+              border-radius: 10px;
+              background: var(--bg-hover);
+              border: 1px solid var(--border-subtle);
+            }
+            .codex-settings-usage-head {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 8px;
+              font-size: 12px;
+              font-weight: 600;
+            }
+            .codex-settings-usage-meta {
+              display: grid;
+              gap: 4px;
+              font-size: 12px;
+            }
+            .codex-settings-usage-row {
+              display: flex;
+              justify-content: space-between;
+              gap: 8px;
+            }
+            .codex-settings-usage-label {
+              color: var(--text-secondary);
+            }
+            .codex-settings-usage-block {
+              display: grid;
+              gap: 4px;
+            }
+            .codex-settings-usage-progress {
+              position: relative;
+              height: 8px;
+              overflow: hidden;
+              border-radius: 999px;
+              background: rgba(127, 127, 127, 0.18);
+            }
+            .codex-settings-usage-progress-bar {
+              height: 100%;
+              border-radius: inherit;
+              background: linear-gradient(90deg, #1f7ae0 0%, #41b3ff 100%);
+            }
+            .codex-settings-usage-error {
+              font-size: 12px;
+              color: var(--color-danger, #d94b4b);
+              word-break: break-word;
+            }
+          `),
+          context.vue.h('div', { class: 'codex-settings-usage-head' }, [
+            context.vue.h('span', null, '额度 / 用量'),
+            context.vue.h(
+              context.components?.Button as never,
+              {
+                type: 'button',
+                variant: 'secondary',
+                size: 'sm',
+                disabled: !config.activeAccountId,
+                onClick: () =>
+                  refreshUsage().catch((error) => {
+                    context.notification.error(
+                      error instanceof Error ? error.message : String(error),
+                      'Codex 代理'
+                    )
+                  })
+              },
+              { default: () => '刷新' }
+            )
+          ]),
+          context.vue.h('div', { class: 'codex-settings-usage-meta' }, [
+            context.vue.h('div', { class: 'codex-settings-usage-row' }, [
+              context.vue.h('span', { class: 'codex-settings-usage-label' }, '套餐'),
+              context.vue.h('span', null, usage?.planType || config.planType || '--')
+            ]),
+            context.vue.h('div', { class: 'codex-settings-usage-row' }, [
+              context.vue.h('span', { class: 'codex-settings-usage-label' }, 'Credits'),
+              context.vue.h('span', null, config.creditsDisplay)
+            ]),
+            context.vue.h('div', { class: 'codex-settings-usage-block' }, [
+              context.vue.h('div', { class: 'codex-settings-usage-row' }, [
+                context.vue.h('span', { class: 'codex-settings-usage-label' }, '5 小时'),
+                context.vue.h('span', null, config.fiveHourDisplay)
+              ]),
+              context.vue.h('div', { class: 'codex-settings-usage-progress', 'aria-hidden': 'true' }, [
+                context.vue.h('div', {
+                  class: 'codex-settings-usage-progress-bar',
+                  style: { width: `${usedFiveHour}%` }
+                })
+              ]),
+              context.vue.h('div', { class: 'codex-settings-usage-row' }, [
+                context.vue.h('span', { class: 'codex-settings-usage-label' }, '5 小时重置'),
+                context.vue.h('span', null, config.fiveHourResetDisplay)
+              ])
+            ]),
+            context.vue.h('div', { class: 'codex-settings-usage-block' }, [
+              context.vue.h('div', { class: 'codex-settings-usage-row' }, [
+                context.vue.h('span', { class: 'codex-settings-usage-label' }, '1 周'),
+                context.vue.h('span', null, config.oneWeekDisplay)
+              ]),
+              context.vue.h('div', { class: 'codex-settings-usage-progress', 'aria-hidden': 'true' }, [
+                context.vue.h('div', {
+                  class: 'codex-settings-usage-progress-bar',
+                  style: { width: `${usedOneWeek}%` }
+                })
+              ]),
+              context.vue.h('div', { class: 'codex-settings-usage-row' }, [
+                context.vue.h('span', { class: 'codex-settings-usage-label' }, '1 周重置'),
+                context.vue.h('span', null, config.oneWeekResetDisplay)
+              ])
+            ]),
+            context.vue.h('div', { class: 'codex-settings-usage-row' }, [
+              context.vue.h('span', { class: 'codex-settings-usage-label' }, '最近刷新'),
+              context.vue.h('span', null, config.usageUpdatedDisplay)
+            ])
+          ]),
+          usageError
+            ? context.vue.h(
+                'div',
+                { class: 'codex-settings-usage-error', title: usageError },
+                usageError
+              )
+            : null
+        ]
+      )
+    }
+
+    const renderAccountSummary = () => {
+      const config = getCurrentConfigSnapshot(context, formActions)
+      const rows = [
+        ['已选登录', config.status || '--'],
+        ['邮箱', config.email || '--'],
+        ['ChatGPT 账号 ID', config.accountId || '--'],
+        ['套餐类型', config.planType || '--'],
+        ['认证模式', config.authMode || '--'],
+        ['最近刷新', config.lastRefresh || '--'],
+        ['认证文件', config.authPath || '--']
+      ]
+
+      return context.vue.h(
+        'div',
+        { class: 'codex-settings-account-card' },
+        [
+          context.vue.h('style', null, `
+            .codex-settings-account-card {
+              display: grid;
+              gap: 6px;
+              padding: 10px;
+              border-radius: 10px;
+              background: var(--bg-hover);
+              border: 1px solid var(--border-subtle);
+            }
+            .codex-settings-account-title {
+              font-size: 12px;
+              font-weight: 600;
+            }
+            .codex-settings-account-row {
+              display: flex;
+              justify-content: space-between;
+              gap: 10px;
+              font-size: 12px;
+            }
+            .codex-settings-account-label {
+              flex: 0 0 auto;
+              color: var(--text-secondary);
+            }
+            .codex-settings-account-value {
+              flex: 1 1 auto;
+              min-width: 0;
+              text-align: right;
+              word-break: break-all;
+            }
+          `),
+          context.vue.h('div', { class: 'codex-settings-account-title' }, '账号信息'),
+          ...rows.map(([label, value]) =>
+            context.vue.h('div', { class: 'codex-settings-account-row' }, [
+              context.vue.h('span', { class: 'codex-settings-account-label' }, label),
+              context.vue.h('span', { class: 'codex-settings-account-value', title: value }, value)
+            ])
+          )
+        ]
+      )
+    }
+
     updateStatusIndicator = () => {
       isStatusPanelOpen = false
       const activeAccount = runtimeConfig.accounts.find(
@@ -715,93 +912,16 @@ const plugin: Plugin = {
           render: () => renderAccountActions()
         },
         {
-          name: 'status',
-          type: 'text',
-          label: '已选登录',
-          readonly: true
+          name: 'usageSummary',
+          type: 'custom',
+          label: '额度 / 用量',
+          render: () => renderUsageSummary()
         },
         {
-          name: 'email',
-          type: 'text',
-          label: '邮箱',
-          readonly: true
-        },
-        {
-          name: 'accountId',
-          type: 'text',
-          label: 'ChatGPT 账号 ID',
-          readonly: true
-        },
-        {
-          name: 'planType',
-          type: 'text',
-          label: '套餐类型',
-          readonly: true
-        },
-        {
-          name: 'creditsDisplay',
-          type: 'text',
-          label: 'Credits',
-          readonly: true
-        },
-        {
-          name: 'fiveHourDisplay',
-          type: 'text',
-          label: '5 小时',
-          readonly: true
-        },
-        {
-          name: 'fiveHourResetDisplay',
-          type: 'text',
-          label: '5 小时重置',
-          readonly: true
-        },
-        {
-          name: 'oneWeekDisplay',
-          type: 'text',
-          label: '1 周',
-          readonly: true
-        },
-        {
-          name: 'oneWeekResetDisplay',
-          type: 'text',
-          label: '1 周重置',
-          readonly: true
-        },
-        {
-          name: 'usageUpdatedDisplay',
-          type: 'text',
-          label: '用量刷新',
-          readonly: true
-        },
-        {
-          name: 'usageError',
-          type: 'text',
-          label: '用量状态',
-          readonly: true
-        },
-        {
-          name: 'authMode',
-          type: 'text',
-          label: '认证模式',
-          readonly: true
-        },
-        {
-          name: 'lastRefresh',
-          type: 'text',
-          label: '最近刷新',
-          readonly: true
-        },
-        {
-          name: 'authPath',
-          type: 'path',
-          label: '认证文件',
-          readonly: true,
-          dialogOptions: {
-            properties: ['openFile'],
-            filters: [{ name: 'JSON', extensions: ['json'] }]
-          },
-          hint: '默认路径：~/.codex/auth.json'
+          name: 'accountSummary',
+          type: 'custom',
+          label: '账号信息',
+          render: () => renderAccountSummary()
         },
         {
           name: 'bridgeHost',

@@ -66,6 +66,16 @@ const formatResetAt = (epochSeconds: number | null | undefined) => {
   return `${seconds}秒后`
 }
 
+const formatElapsed = (epochSeconds: number | null | undefined) => {
+  if (!epochSeconds) return '--'
+  const diff = Math.max(0, Math.floor(Date.now() / 1000) - epochSeconds)
+  if (diff < 10) return '刚刚'
+  if (diff < 60) return `${diff}秒前`
+  if (diff < 3600) return `${Math.floor(diff / 60)}分前`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
+  return `${Math.floor(diff / 86400)}天前`
+}
+
 const formatBalance = (
   usage: CodexProxyPluginConfig['usage'],
   usageError: string
@@ -203,7 +213,7 @@ export const createAccountStatusRender = (
           const usage = config.usage
           const usageError = config.usageError
           const usageUpdatedText = usage?.fetchedAt
-            ? formatResetAt(usage.fetchedAt)
+            ? formatElapsed(usage.fetchedAt)
             : '未刷新'
           const balanceText = formatBalance(usage, usageError)
 
