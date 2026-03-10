@@ -693,6 +693,26 @@ const buildChatChunk = ({ id, created, model, delta, finishReason, usage }) => (
   ...(buildUsage(usage) ? { usage: buildUsage(usage) } : {})
 })
 
+const extractUpstreamErrorMessage = (parsed) => {
+  const candidates = [
+    parsed?.error?.message,
+    parsed?.response?.error?.message,
+    parsed?.message,
+    parsed?.error,
+    parsed?.response?.error
+  ]
+
+  for (const value of candidates) {
+    if (!value) continue
+    if (typeof value === 'string') return value
+    if (typeof value === 'object' && typeof value.message === 'string') {
+      return value.message
+    }
+  }
+
+  return 'Codex upstream returned an error event.'
+}
+
 const forwardUpstream = async (payload, incomingHeaders) => {
   const response = await fetch(`${UPSTREAM_BASE_URL}/responses`, {
     method: 'POST',
@@ -813,6 +833,7 @@ const handleChatCompletions = async (req, res) => {
   let functionCallIndex = -1
   let hasReceivedArgumentsDelta = false
   let hasToolCallAnnounced = false
+  let terminated = false
 
   for await (const chunk of upstream.body) {
     const text = Buffer.isBuffer(chunk)
@@ -831,6 +852,37 @@ const handleChatCompletions = async (req, res) => {
       }
 
       switch (parsed.type) {
+        case 'response.failed':
+        case 'error': {
+          writeSse(
+            res,
+            buildChatChunk({
+              id: responseId,
+              created,
+              model: parsed.response?.model || payload.model,
+              delta: {
+                role: 'assistant',
+                content: `[Codex upstream error] ${extractUpstreamErrorMessage(parsed)}`
+              },
+              usage: parsed.response?.usage
+            })
+          )
+          writeSse(
+            res,
+            buildChatChunk({
+              id: responseId,
+              created,
+              model: parsed.response?.model || payload.model,
+              delta: {},
+              finishReason: 'stop',
+              usage: parsed.response?.usage
+            })
+          )
+          res.write('data: [DONE]\n\n')
+          res.end()
+          terminated = true
+          break
+        }
         case 'response.output_text.delta':
           writeSse(
             res,
@@ -997,8 +1049,14 @@ const handleChatCompletions = async (req, res) => {
         default:
           break
       }
+
+      if (terminated) break
     }
+
+    if (terminated) break
   }
+
+  if (terminated) return
 
   for (const event of decoder.finish()) {
     if (!event?.data || event.data === '[DONE]') continue

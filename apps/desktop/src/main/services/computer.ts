@@ -453,6 +453,8 @@ const maybeMoveMouse = (
   robot.moveMouse(x, y)
 }
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
 export const setupComputerHandlers = () => {
   ipcMain.handle('computer:is-available', async () => {
     try {
@@ -578,15 +580,21 @@ export const setupComputerHandlers = () => {
 
     const cpm =
       typeof payload.cpm === 'number' && Number.isFinite(payload.cpm) ? Math.max(0, Math.round(payload.cpm)) : 0
+    const delayMs =
+      typeof payload.delayMs === 'number' && Number.isFinite(payload.delayMs)
+        ? Math.max(0, Math.round(Number(payload.delayMs)))
+        : 0
+    const cpmDelayMs = cpm > 0 ? Math.max(0, Math.round(60000 / cpm)) : 0
+    const perCharDelayMs = Math.max(delayMs, cpmDelayMs)
 
-    if (typeof payload.delayMs === 'number' && Number.isFinite(payload.delayMs)) {
-      robot.setKeyboardDelay(Math.max(0, Math.round(Number(payload.delayMs))))
+    if (perCharDelayMs <= 0) {
+      robot.typeString(text)
+      return { textLength: text.length }
     }
 
-    if (cpm > 0) {
-      robot.typeStringDelayed(text, cpm)
-    } else {
-      robot.typeString(text)
+    for (const char of Array.from(text)) {
+      robot.typeString(char)
+      await sleep(perCharDelayMs)
     }
 
     return { textLength: text.length }
