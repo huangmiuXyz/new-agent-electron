@@ -36,9 +36,14 @@ const formatRemaining = (window: CodexProxyUsageWindow | null | undefined) => {
   return formatPercent(100 - window.usedPercent)
 }
 
-const progressWidth = (value: number | null | undefined) => {
+const progressStyle = (value: number | null | undefined) => {
   const normalized = clampPercent(value)
-  return normalized === null ? '0%' : `${normalized}%`
+  const used = normalized === null ? 0 : normalized
+  const remaining = Math.max(0, 100 - used)
+  return {
+    width: `${remaining}%`,
+    marginLeft: `${used}%`
+  }
 }
 
 const formatResetAt = (epochSeconds: number | null | undefined) => {
@@ -374,7 +379,7 @@ export const createAccountStatusRender = (
                       <div class="codex-usage-progress" aria-hidden="true">
                         <div
                           class="codex-usage-progress-bar"
-                          style={{ width: progressWidth(usage?.fiveHour?.usedPercent) }}
+                          style={progressStyle(usage?.fiveHour?.usedPercent)}
                         />
                       </div>
                       <div class="codex-usage-row">
@@ -393,7 +398,7 @@ export const createAccountStatusRender = (
                       <div class="codex-usage-progress" aria-hidden="true">
                         <div
                           class="codex-usage-progress-bar"
-                          style={{ width: progressWidth(usage?.oneWeek?.usedPercent) }}
+                          style={progressStyle(usage?.oneWeek?.usedPercent)}
                         />
                       </div>
                       <div class="codex-usage-row">
