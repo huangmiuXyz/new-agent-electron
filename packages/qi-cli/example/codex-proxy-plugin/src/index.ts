@@ -980,6 +980,7 @@ const plugin: Plugin = {
       const input = (params || {}) as { providerType?: string }
       if (input.providerType !== REGISTRY_ID) return
       await ensureBridgeRunning(context, formActions)
+      await refreshUsage(false).catch(() => undefined)
       updateStatusIndicator()
     })
 
