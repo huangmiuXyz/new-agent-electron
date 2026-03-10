@@ -38,7 +38,8 @@ export const createAccountStatusRender = (
     context.vue.defineComponent({
       setup() {
         const Button = context.components?.Button as any
-        if (!Button) return () => null
+        const Select = context.components?.Select as any
+        if (!Button || !Select) return () => null
 
         const isOpen = context.vue.ref(defaultOpen)
         const selectedAccountId = context.vue.ref(config.activeAccountId || '')
@@ -94,8 +95,8 @@ export const createAccountStatusRender = (
           onPanelOpenChange(isOpen.value)
         }
 
-        const handleSwitch = async (event: Event) => {
-          const nextId = String((event.target as HTMLSelectElement)?.value || '')
+        const handleSwitch = async (value: string | number) => {
+          const nextId = String(value || '')
           selectedAccountId.value = nextId
           await withBusy(async () => {
             await onSwitchAccount(nextId)
@@ -189,16 +190,8 @@ export const createAccountStatusRender = (
                   margin-bottom: 8px;
                   word-break: break-all;
                 }
-                .codex-status-select {
-                  width: 100%;
-                  border: 1px solid var(--border-subtle);
-                  background: var(--bg-secondary);
-                  color: var(--text-primary);
-                  border-radius: 6px;
-                  font-size: 12px;
-                  padding: 6px 8px;
+                .codex-status-select-wrap {
                   margin-bottom: 8px;
-                  outline: none;
                 }
                 .codex-status-actions {
                   display: grid;
@@ -216,22 +209,23 @@ export const createAccountStatusRender = (
               >
                 <div class="codex-status-title">Codex 账号</div>
                 <div class="codex-status-sub">当前：{statusText}</div>
-                <select
-                  class="codex-status-select"
-                  value={selectedAccountId.value}
-                  disabled={isBusy.value || config.accounts.length === 0}
-                  onChange={handleSwitch}
-                >
-                  {config.accounts.length ? (
-                    config.accounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {getAccountLabel(account.email, account.accountId)}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">暂无账号，请先保存当前登录</option>
-                  )}
-                </select>
+                <div class="codex-status-select-wrap">
+                  <Select
+                    size="sm"
+                    modelValue={selectedAccountId.value}
+                    disabled={isBusy.value || config.accounts.length === 0}
+                    options={
+                      config.accounts.length
+                        ? config.accounts.map((account) => ({
+                            label: getAccountLabel(account.email, account.accountId),
+                            value: account.id
+                          }))
+                        : [{ label: '暂无账号，请先保存当前登录', value: '' }]
+                    }
+                    clearable={false}
+                    onUpdate:modelValue={handleSwitch}
+                  />
+                </div>
                 <div class="codex-status-actions">
                   <Button
                     type="button"
