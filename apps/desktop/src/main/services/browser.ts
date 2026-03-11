@@ -441,7 +441,6 @@ const getPageSnapshot = async (session: BrowserSession) => {
     true
   )
 }
-'} }
 const navigateSession = async (session: BrowserSession, url: string, timeoutMs: number) => {
   await withTimeout(net.fetch(url, { method: 'GET', redirect: 'follow' }), Math.min(timeoutMs, 15000), `Preflight ${url}`)
   await withTimeout(session.win.loadURL(url), timeoutMs, `loadURL ${url}`)
