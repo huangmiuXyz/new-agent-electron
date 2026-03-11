@@ -154,7 +154,8 @@ function writeJson(res: ServerResponse, status: number, body: unknown) {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Private-Network': 'true'
   })
   res.end(JSON.stringify(body))
 }
@@ -197,7 +198,8 @@ function handleEvents(req: IncomingMessage, res: ServerResponse) {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform',
     Connection: 'keep-alive',
-    'Access-Control-Allow-Origin': '*'
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Private-Network': 'true'
   })
   res.write(`retry: ${SSE_RETRY_MS}\n\n`)
   sseClients.add(res)

@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.WebSettings;
 import androidx.core.view.WindowCompat;
 import com.getcapacitor.BridgeActivity;
 
@@ -24,5 +25,10 @@ public class MainActivity extends BridgeActivity {
         View decorView = getWindow().getDecorView();
         WindowCompat.getInsetsController(getWindow(), decorView).setAppearanceLightStatusBars(true);
         WindowCompat.getInsetsController(getWindow(), decorView).setAppearanceLightNavigationBars(true);
+
+        // Allow HTTPS WebView to access local HTTP sync host on LAN.
+        if (this.bridge != null && this.bridge.getWebView() != null) {
+            this.bridge.getWebView().getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        }
     }
 }

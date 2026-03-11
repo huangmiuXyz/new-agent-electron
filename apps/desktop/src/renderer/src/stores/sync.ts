@@ -22,7 +22,43 @@ type SyncDiffSummary = {
   chatChanges: number
 }
 
-const normalizeUrl = (input: string) => input.trim().replace(/\/+$/, '')
+const normalizeUrl = (input: string) => {
+  const trimmed = input.trim()
+  if (!trimmed) return ''
+
+  const extracted = trimmed.match(/https?:\/\/[^\s]+/i)?.[0] || trimmed
+  let candidate = extracted.replace(/^[^a-zA-Z0-9]+/, '').replace(/[^\S\r\n]+/g, '')
+
+  if (!/^https?:\/\//i.test(candidate)) {
+    candidate = `http://${candidate}`
+  }
+
+  try {
+    const parsed = new URL(candidate)
+    return parsed.toString().replace(/\/+$/, '')
+  } catch {
+    return ''
+  }
+}
+
+const readJsonOrThrow = async <T>(response: Response, errorPrefix: string): Promise<T> => {
+  if (!response.ok) {
+    throw new Error(`${errorPrefix}: ${response.status}`)
+  }
+
+  const contentType = response.headers.get('content-type') || ''
+  const text = await response.text()
+
+  if (!contentType.includes('application/json')) {
+    throw new Error('同步地址返回了网页内容，请确认填写的是电脑端同步地址（例如 http://192.168.x.x:41235）')
+  }
+
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new Error('同步服务返回了非 JSON 数据，请检查同步地址是否正确')
+  }
+}
 
 const clonePersistedState = (state: { chats: Chat[]; activeChatId: string | null }, source: string): SyncSnapshotPayload =>
   JSON.parse(
@@ -197,10 +233,7 @@ export const useSyncStore = defineStore(
       const serverUrl = normalizeUrl(connection.value.serverUrl)
       if (!serverUrl) return
       const response = await fetch(`${serverUrl}/api/sync/endpoints`)
-      if (!response.ok) {
-        throw new Error('无法获取端点列表')
-      }
-      const list = (await response.json()) as SyncEndpoint[]
+      const list = await readJsonOrThrow<SyncEndpoint[]>(response, '无法获取端点列表')
       updateEndpoints(list)
     }
 
@@ -218,10 +251,7 @@ export const useSyncStore = defineStore(
         const serverUrl = normalizeUrl(connection.value.serverUrl)
         if (!serverUrl) return null
         const response = await fetch(`${serverUrl}/api/sync/endpoints/${deviceId}/snapshot`)
-        if (!response.ok) {
-          throw new Error('无法获取端点快照')
-        }
-        snapshot = (await response.json()) as SyncSnapshotPayload | null
+        snapshot = await readJsonOrThrow<SyncSnapshotPayload | null>(response, '无法获取端点快照')
       }
 
       selectedEndpointSnapshot.value = snapshot
@@ -326,9 +356,7 @@ export const useSyncStore = defineStore(
 
       eventSource?.close()
       const statusResponse = await fetch(`${serverUrl}/api/sync/status`)
-      if (!statusResponse.ok) {
-        throw new Error('无法连接到同步服务')
-      }
+      await readJsonOrThrow<SyncHostState>(statusResponse, '无法连接到同步服务')
 
       await registerRemoteEndpoint()
       await publishLocalSnapshot()
