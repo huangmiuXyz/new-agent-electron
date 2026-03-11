@@ -319,14 +319,44 @@ const pageSnapshotEvaluator = () => {
     )
   }
 
-  const isNoiseText = (text: string) => {
-    const lower = text.toLowerCase()
-    return /^(manage cookies|cookie settings|accept|reject|like|dislike|feedback|share|更多|喜欢|不喜欢)$/i.test(lower)
+  const attrText = (el: Element | null) => {
+    if (!el) return ''
+    return [el.getAttribute('id'), el.getAttribute('class'), el.getAttribute('role'), el.getAttribute('aria-label')]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
   }
 
-  const isInMainContent = (el: Element | null, mainEl: Element | null) => {
-    if (!el || !mainEl) return false
-    return el === mainEl || mainEl.contains(el)
+  const hasAncestor = (el: Element | null, selectorText: string) => {
+    if (!el || typeof el.closest !== 'function') return false
+    return Boolean(el.closest(selectorText))
+  }
+
+  const regionOf = (el: Element | null, mainEl: Element | null) => {
+    if (!el) return 'unknown'
+    if (mainEl && (el === mainEl || mainEl.contains(el))) return 'main'
+    if (hasAncestor(el, 'form')) return 'form'
+    if (hasAncestor(el, 'header, [role="banner"]')) return 'header'
+    if (hasAncestor(el, 'nav, [role="navigation"]')) return 'nav'
+    if (hasAncestor(el, 'footer, [role="contentinfo"]')) return 'footer'
+    if (hasAncestor(el, 'aside, [role="complementary"]')) return 'aside'
+    if (hasAncestor(el, '[role="dialog"], dialog, .modal, .popup, .popover, .drawer')) return 'overlay'
+    if (hasAncestor(el, 'article, [role="article"], .result, .results, .search-results, .b_algo, .tF2Cxc, .c-container, .mw-search-result')) {
+      return 'search_result'
+    }
+    return 'unknown'
+  }
+
+  const isStructuralNoise = (el: Element | null) => {
+    if (!el) return false
+    const attrs = attrText(el)
+    return /cookie|consent|privacy|gdpr|reward|feedback|popover|modal|dialog|drawer|tooltip|share/.test(attrs)
+  }
+
+  const isNoiseText = (text: string) => {
+    return /^(manage cookies|cookie settings|accept|reject|allow all|decline|like|dislike|feedback|share|更多|喜欢|不喜欢|microsoft rewards)$/i.test(
+      text.toLowerCase()
+    )
   }
 
   const findMainContent = () => {
@@ -343,6 +373,27 @@ const pageSnapshotEvaluator = () => {
       .sort((a, b) => b.len - a.len)
 
     return candidates[0]?.el || document.body
+  }
+
+  const scoreElement = (el: Element | null, mainEl: Element | null) => {
+    if (!el) return -1000
+    let score = 0
+    const region = regionOf(el, mainEl)
+    if (region === 'main') score += 60
+    else if (region === 'form') score += 50
+    else if (region === 'search_result') score += 45
+    else if (region === 'overlay') score += 10
+    else if (region === 'header' || region === 'nav') score -= 10
+    else if (region === 'footer' || region === 'aside') score -= 20
+
+    if (hasAncestor(el, 'form')) score += 20
+    if (hasAncestor(el, 'main, article, [role="main"]')) score += 15
+    if (isStructuralNoise(el)) score -= 15
+
+    const text = textOf(el)
+    if (isNoiseText(text)) score -= 10
+    if (!text) score -= 5
+    return score
   }
 
   const title = document.title || ''
@@ -363,26 +414,21 @@ const pageSnapshotEvaluator = () => {
 
   const buttons = Array.from(document.querySelectorAll('button,[role="button"],input[type="button"],input[type="submit"]'))
     .filter((el) => visible(el))
-    .filter((el) => {
-      const text = textOf(el)
-      return isInMainContent(el, mainEl) || !isNoiseText(text)
-    })
-    .filter((el) => {
-      const text = textOf(el)
-      return Boolean(text) || Boolean((el as HTMLInputElement).value)
-    })
-    .slice(0, 50)
+    .sort((a, b) => scoreElement(b, mainEl) - scoreElement(a, mainEl))
+    .slice(0, 60)
     .map((el, index) => ({
       id: `btn_${index}`,
       text: textOf(el),
       selector: selector(el),
-      disabled: Boolean((el as HTMLButtonElement | HTMLInputElement).disabled)
+      disabled: Boolean((el as HTMLButtonElement | HTMLInputElement).disabled),
+      priority: scoreElement(el, mainEl),
+      region: regionOf(el, mainEl)
     }))
 
   const inputs = Array.from(document.querySelectorAll('input,textarea,select'))
     .filter((el) => visible(el))
-    .filter((el) => isInMainContent(el, mainEl) || ['search', 'text', 'email', 'password'].includes(el.getAttribute('type') || ''))
-    .slice(0, 50)
+    .sort((a, b) => scoreElement(b, mainEl) - scoreElement(a, mainEl))
+    .slice(0, 60)
     .map((el, index) => {
       const inputEl = el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
       const type = el.getAttribute('type') || ''
@@ -395,23 +441,24 @@ const pageSnapshotEvaluator = () => {
         selector: selector(el),
         placeholder: clean(el.getAttribute('placeholder') || '', 120),
         value: type === 'password' ? (rawValue ? '••••••••' : '') : clean(rawValue, 120),
-        disabled: Boolean(inputEl.disabled)
+        disabled: Boolean(inputEl.disabled),
+        priority: scoreElement(el, mainEl),
+        region: regionOf(el, mainEl)
       }
     })
 
   const links = Array.from(document.querySelectorAll('a[href]'))
     .filter((el) => visible(el))
-    .filter((el) => {
-      const text = textOf(el)
-      if (!text) return false
-      return isInMainContent(el, mainEl) || !isNoiseText(text)
-    })
-    .slice(0, 50)
+    .filter((el) => Boolean(textOf(el)))
+    .sort((a, b) => scoreElement(b, mainEl) - scoreElement(a, mainEl))
+    .slice(0, 80)
     .map((el, index) => ({
       id: `link_${index}`,
       text: textOf(el),
       href: (el as HTMLAnchorElement).href || '',
-      selector: selector(el)
+      selector: selector(el),
+      priority: scoreElement(el, mainEl),
+      region: regionOf(el, mainEl)
     }))
 
   const searchResults = Array.from(document.querySelectorAll('article, .b_algo, .result, .c-container, .g, .mw-search-result, li[data-hveid], .tF2Cxc'))
