@@ -16,6 +16,7 @@ setTitle(route.query.name as string)
             <SettingsPlugins v-else-if="activeTab === 'plugins'" />
             <SettingsTerminal v-else-if="activeTab === 'terminal'" />
             <SettingsDisplay v-else-if="activeTab === 'display'" />
+            <SettingsSync v-else-if="activeTab === 'sync'" />
             <SettingsMcp v-else-if="activeTab === 'mcp'" />
             <SettingsUserData v-else-if="activeTab === 'userData'" />
             <SettingsBackup v-else-if="activeTab === 'backup'" />

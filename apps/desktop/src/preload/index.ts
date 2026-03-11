@@ -111,6 +111,23 @@ export const api: ElectronAPI = {
     },
     cancelDownload: (id: string) => electronAPI.ipcRenderer.invoke('net:cancel-download', id)
   },
+  sync: {
+    startHost: (options?: { displayName?: string; port?: number }) =>
+      electronAPI.ipcRenderer.invoke('sync:start-host', options),
+    stopHost: () => electronAPI.ipcRenderer.invoke('sync:stop-host'),
+    getHostState: () => electronAPI.ipcRenderer.invoke('sync:get-host-state'),
+    updateProfile: (options: { displayName?: string }) =>
+      electronAPI.ipcRenderer.invoke('sync:update-profile', options),
+    publishSnapshot: (payload: { deviceId: string; displayName: string; snapshot: any }) =>
+      electronAPI.ipcRenderer.invoke('sync:publish-snapshot', payload),
+    listEndpoints: () => electronAPI.ipcRenderer.invoke('sync:list-endpoints'),
+    getEndpointSnapshot: (deviceId: string) => electronAPI.ipcRenderer.invoke('sync:get-endpoint-snapshot', deviceId),
+    onEvent: (callback: (event: any) => void) => {
+      const listener = (_event: any, payload: any) => callback(payload)
+      electronAPI.ipcRenderer.on('sync:event', listener)
+      return () => electronAPI.ipcRenderer.removeListener('sync:event', listener)
+    }
+  },
   computer: {
     isAvailable: () => electronAPI.ipcRenderer.invoke('computer:is-available'),
     getScreenSize: () => electronAPI.ipcRenderer.invoke('computer:get-screen-size'),

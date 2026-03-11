@@ -1,6 +1,38 @@
 import { ClientConfig, Tools } from './ai';
 import { DownloadProgress } from './components';
 
+export interface SyncHostState {
+  running: boolean;
+  port: number;
+  displayName: string;
+  deviceId: string;
+  urls: string[];
+  connectedClients: number;
+  snapshotUpdatedAt?: number;
+  error?: string;
+}
+
+export interface SyncSnapshot {
+  chats: Chat[];
+  activeChatId: string | null;
+  updatedAt: number;
+  source: string;
+}
+
+export interface SyncEndpoint {
+  deviceId: string;
+  displayName: string;
+  source: string;
+  lastSeenAt: number;
+  snapshotUpdatedAt?: number;
+  messageCount: number;
+  chatCount: number;
+}
+
+export type SyncEvent =
+  | { type: 'state'; state: SyncHostState }
+  | { type: 'directory'; endpoints: SyncEndpoint[] };
+
 export interface ElectronAPI {
   // aiServices
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>;
@@ -95,6 +127,17 @@ export interface ElectronAPI {
     }>;
     onDownloadProgress: (id: string, callback: (progress: DownloadProgress) => void) => () => void;
     cancelDownload: (id: string) => Promise<boolean>;
+  };
+
+  sync: {
+    startHost: (options?: { displayName?: string; port?: number }) => Promise<SyncHostState>;
+    stopHost: () => Promise<SyncHostState>;
+    getHostState: () => Promise<SyncHostState>;
+    updateProfile: (options: { displayName?: string }) => Promise<SyncHostState>;
+    publishSnapshot: (payload: { deviceId: string; displayName: string; snapshot: SyncSnapshot }) => Promise<{ ok: boolean }>;
+    listEndpoints: () => Promise<SyncEndpoint[]>;
+    getEndpointSnapshot: (deviceId: string) => Promise<SyncSnapshot | null>;
+    onEvent: (callback: (event: SyncEvent) => void) => () => void;
   };
 
   computer: {

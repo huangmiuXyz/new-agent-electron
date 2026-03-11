@@ -3,6 +3,52 @@ import { type ElectronAPI as SharedElectronAPI } from '@agent-qi/types'
 
 type ElectronAPI = SharedElectronAPI & {
   setTitleBarTheme: (isDarkMode: boolean) => Promise<boolean>
+  sync?: {
+    startHost: (options?: { displayName?: string; port?: number }) => Promise<{
+      running: boolean
+      port: number
+      displayName: string
+      deviceId: string
+      urls: string[]
+      connectedClients: number
+      snapshotUpdatedAt?: number
+      error?: string
+    }>
+    stopHost: () => Promise<{
+      running: boolean
+      port: number
+      displayName: string
+      deviceId: string
+      urls: string[]
+      connectedClients: number
+      snapshotUpdatedAt?: number
+      error?: string
+    }>
+    getHostState: () => Promise<{
+      running: boolean
+      port: number
+      displayName: string
+      deviceId: string
+      urls: string[]
+      connectedClients: number
+      snapshotUpdatedAt?: number
+      error?: string
+    }>
+    updateProfile: (options: { displayName?: string }) => Promise<{
+      running: boolean
+      port: number
+      displayName: string
+      deviceId: string
+      urls: string[]
+      connectedClients: number
+      snapshotUpdatedAt?: number
+      error?: string
+    }>
+    publishSnapshot: (payload: { deviceId: string; displayName: string; snapshot: any }) => Promise<{ ok: boolean }>
+    listEndpoints: () => Promise<any[]>
+    getEndpointSnapshot: (deviceId: string) => Promise<any | null>
+    onEvent: (callback: (event: any) => void) => () => void
+  }
 }
 
 declare global {

@@ -10,6 +10,7 @@ import ResizeBox from './components/ResizeBox.vue'
 import { useSettingsStore } from './stores/settings'
 import { useChatsStores } from './stores/chats'
 import { useImageStore } from './stores/image'
+import { useSyncStore } from './stores/sync'
 import { useShortcuts } from './composables/useShortcuts'
 
 const route = useRoute()
@@ -18,6 +19,7 @@ const currentView = ref('chat')
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 const imageStore = useImageStore()
+const syncStore = useSyncStore()
 const { display, shortcuts } = storeToRefs(settingsStore)
 const { updateConfig } = useShortcuts()
 
@@ -81,6 +83,10 @@ chatsStore.isAfterRestore.then(() => {
 
 imageStore.isAfterRestore.then(() => {
   imageReady.value = true
+})
+
+Promise.all([syncStore.isAfterRestore, chatsStore.isAfterRestore]).then(() => {
+  void syncStore.initialize()
 })
 
 const isStoreReady = computed(() => {

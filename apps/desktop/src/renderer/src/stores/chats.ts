@@ -133,8 +133,10 @@ export const useChatsStores = defineStore(
 
 
 
-    const addMessageToChat = (msg: BaseMessage) => {
-      currentChat.value!.messages.push(msg)
+    const addMessageToChat = (msg: BaseMessage, chatId?: string) => {
+      const chat = chatId ? getChatById(chatId) : currentChat.value
+      if (!chat) return ''
+      chat.messages.push(msg)
       return msg.id
     }
     const deleteMessage = (cid: string, mid: string) => {
@@ -355,6 +357,16 @@ export const useChatsStores = defineStore(
       })
     }
 
+    const replacePersistedState = (nextState: { chats: Chat[]; activeChatId: string | null }) => {
+      chats.value.forEach((chat) => {
+        chat.messages.forEach((message) => {
+          message.metadata?.stop?.()
+        })
+      })
+      chats.value = nextState.chats
+      activeChatId.value = nextState.activeChatId
+    }
+
     return {
       forkChat,
       updateMessages,
@@ -389,6 +401,7 @@ export const useChatsStores = defineStore(
       isChatGenerating,
       isChatScopeGenerating,
       stopGeneratingInChatScope,
+      replacePersistedState,
       isAfterRestore
     }
   },

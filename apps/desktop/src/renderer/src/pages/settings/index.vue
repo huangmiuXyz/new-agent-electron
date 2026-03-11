@@ -12,6 +12,7 @@ const availableTabs = new Set([
   'terminal',
   'display',
   'shortcuts',
+  'sync',
   'mcp',
   'userData',
   'backup',
@@ -71,6 +72,9 @@ const switchTab = (tabName: string) => {
 
       <!-- 快捷键设置 -->
       <SettingsShortcuts v-else-if="activeTab === 'shortcuts'" />
+
+      <!-- 同步设置 -->
+      <SettingsSync v-else-if="activeTab === 'sync'" />
 
       <!-- MCP 设置 -->
       <SettingsMcp v-else-if="activeTab === 'mcp'" />

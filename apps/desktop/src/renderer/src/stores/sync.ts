@@ -1,0 +1,476 @@
+let resolveRestore: () => void
+const restorePromise = new Promise<void>((resolve) => {
+  resolveRestore = resolve
+})
+
+type SyncConnectionState = {
+  serverUrl: string
+  connected: boolean
+  lastSyncedAt?: number
+  error?: string
+}
+
+type SyncSnapshotPayload = {
+  chats: Chat[]
+  activeChatId: string | null
+  updatedAt: number
+  source: string
+}
+
+type SyncDiffSummary = {
+  messageChanges: number
+  chatChanges: number
+}
+
+const normalizeUrl = (input: string) => input.trim().replace(/\/+$/, '')
+
+const clonePersistedState = (state: { chats: Chat[]; activeChatId: string | null }, source: string): SyncSnapshotPayload =>
+  JSON.parse(
+    JSON.stringify({
+      chats: state.chats,
+      activeChatId: state.activeChatId,
+      updatedAt: Date.now(),
+      source
+    })
+  ) as SyncSnapshotPayload
+
+const getChatMetaHash = (chat: Chat) =>
+  JSON.stringify({
+    id: chat.id,
+    title: chat.title,
+    createdAt: chat.createdAt,
+    agentId: chat.agentId,
+    providerId: chat.providerId,
+    modelId: chat.modelId,
+    isTemp: chat.isTemp,
+    pendingMessages: chat.pendingMessages,
+    parentChatId: chat.parentChatId,
+    subTask: chat.subTask
+  })
+
+const diffSnapshots = (localSnapshot: SyncSnapshotPayload, remoteSnapshot: SyncSnapshotPayload): SyncDiffSummary => {
+  const localChats = new Map(localSnapshot.chats.map((chat) => [chat.id, chat]))
+  const remoteChats = new Map(remoteSnapshot.chats.map((chat) => [chat.id, chat]))
+  const chatIds = new Set([...localChats.keys(), ...remoteChats.keys()])
+
+  let chatChanges = 0
+  let messageChanges = 0
+
+  chatIds.forEach((chatId) => {
+    const localChat = localChats.get(chatId)
+    const remoteChat = remoteChats.get(chatId)
+
+    if (!localChat || !remoteChat) {
+      chatChanges += 1
+      messageChanges += localChat?.messages.length || remoteChat?.messages.length || 0
+      return
+    }
+
+    if (getChatMetaHash(localChat) !== getChatMetaHash(remoteChat)) {
+      chatChanges += 1
+    }
+
+    const localMessages = new Map(localChat.messages.map((message) => [message.id, JSON.stringify(message)]))
+    const remoteMessages = new Map(remoteChat.messages.map((message) => [message.id, JSON.stringify(message)]))
+    const messageIds = new Set([...localMessages.keys(), ...remoteMessages.keys()])
+
+    messageIds.forEach((messageId) => {
+      if (localMessages.get(messageId) !== remoteMessages.get(messageId)) {
+        messageChanges += 1
+      }
+    })
+  })
+
+  return { messageChanges, chatChanges }
+}
+
+const createDeviceId = () => globalThis.crypto?.randomUUID?.() || `device-${Date.now()}`
+
+export const useSyncStore = defineStore(
+  'sync',
+  () => {
+    const hostEnabled = ref(true)
+    const profile = ref({
+      displayName: '',
+      deviceId: ''
+    })
+    const hostState = ref<SyncHostState>({
+      running: false,
+      port: 41235,
+      displayName: '',
+      deviceId: '',
+      urls: [],
+      connectedClients: 0
+    })
+    const connection = ref<SyncConnectionState>({
+      serverUrl: '',
+      connected: false
+    })
+    const endpoints = ref<SyncEndpoint[]>([])
+    const selectedEndpointId = ref('')
+    const selectedEndpointSnapshot = ref<SyncSnapshotPayload | null>(null)
+    const diffSummary = ref<SyncDiffSummary>({ messageChanges: 0, chatChanges: 0 })
+    const initialized = ref(false)
+    const isPulling = ref(false)
+    const hasDesktopSyncApi = computed(() => Boolean(window.api?.sync))
+    const chatsStore = useChatsStores()
+
+    let unsubscribe: (() => void) | null = null
+    let eventSource: EventSource | null = null
+    let publishTimer: ReturnType<typeof setTimeout> | null = null
+
+    const selfDeviceId = computed(() => {
+      return hasDesktopSyncApi.value ? hostState.value.deviceId : profile.value.deviceId
+    })
+
+    const selectedEndpoint = computed(() => {
+      return endpoints.value.find((endpoint) => endpoint.deviceId === selectedEndpointId.value) || null
+    })
+
+    const getDesktopSyncApi = () => {
+      const api = window.api?.sync
+      if (!api) throw new Error('当前环境不支持桌面同步服务')
+      return api
+    }
+
+    const ensureDeviceId = () => {
+      if (!profile.value.deviceId) {
+        profile.value.deviceId = createDeviceId()
+      }
+    }
+
+    const buildLocalSnapshot = () =>
+      clonePersistedState(
+        {
+          chats: chatsStore.chats,
+          activeChatId: chatsStore.activeChatId
+        },
+        hasDesktopSyncApi.value ? 'desktop' : 'mobile'
+      )
+
+    const recomputeDiff = () => {
+      const snapshot = selectedEndpointSnapshot.value
+      if (!snapshot) {
+        diffSummary.value = { messageChanges: 0, chatChanges: 0 }
+        return
+      }
+      diffSummary.value = diffSnapshots(buildLocalSnapshot(), snapshot)
+    }
+
+    const scheduleAutoPublish = () => {
+      const canPublish = hasDesktopSyncApi.value ? hostState.value.running : connection.value.connected
+      if (!canPublish || !selfDeviceId.value) return
+      if (publishTimer) clearTimeout(publishTimer)
+      publishTimer = setTimeout(() => {
+        publishTimer = null
+        void publishLocalSnapshot().catch((error) => {
+          connection.value.error = error instanceof Error ? error.message : String(error)
+        })
+      }, 300)
+    }
+
+    watch(
+      () => [chatsStore.chats, chatsStore.activeChatId],
+      () => {
+        recomputeDiff()
+        scheduleAutoPublish()
+      },
+      { deep: true }
+    )
+
+    const updateEndpoints = (nextEndpoints: SyncEndpoint[]) => {
+      endpoints.value = nextEndpoints
+      if (!selectedEndpointId.value) {
+        selectedEndpointId.value =
+          nextEndpoints.find((endpoint) => endpoint.deviceId !== selfDeviceId.value)?.deviceId ||
+          nextEndpoints[0]?.deviceId ||
+          ''
+      }
+    }
+
+    const refreshEndpointsDesktop = async () => {
+      const list = await getDesktopSyncApi().listEndpoints()
+      updateEndpoints(list)
+    }
+
+    const refreshEndpointsRemote = async () => {
+      const serverUrl = normalizeUrl(connection.value.serverUrl)
+      if (!serverUrl) return
+      const response = await fetch(`${serverUrl}/api/sync/endpoints`)
+      if (!response.ok) {
+        throw new Error('无法获取端点列表')
+      }
+      const list = (await response.json()) as SyncEndpoint[]
+      updateEndpoints(list)
+    }
+
+    const fetchEndpointSnapshot = async (deviceId: string) => {
+      if (!deviceId) {
+        selectedEndpointSnapshot.value = null
+        recomputeDiff()
+        return null
+      }
+
+      let snapshot: SyncSnapshotPayload | null = null
+      if (hasDesktopSyncApi.value) {
+        snapshot = (await getDesktopSyncApi().getEndpointSnapshot(deviceId)) as SyncSnapshotPayload | null
+      } else {
+        const serverUrl = normalizeUrl(connection.value.serverUrl)
+        if (!serverUrl) return null
+        const response = await fetch(`${serverUrl}/api/sync/endpoints/${deviceId}/snapshot`)
+        if (!response.ok) {
+          throw new Error('无法获取端点快照')
+        }
+        snapshot = (await response.json()) as SyncSnapshotPayload | null
+      }
+
+      selectedEndpointSnapshot.value = snapshot
+      recomputeDiff()
+      return snapshot
+    }
+
+    const publishLocalSnapshot = async () => {
+      const snapshot = buildLocalSnapshot()
+      const payload = {
+        deviceId: selfDeviceId.value,
+        displayName: profile.value.displayName || hostState.value.displayName || selfDeviceId.value,
+        snapshot
+      }
+
+      if (hasDesktopSyncApi.value) {
+        await getDesktopSyncApi().publishSnapshot(payload)
+        await refreshEndpointsDesktop()
+      } else {
+        const serverUrl = normalizeUrl(connection.value.serverUrl)
+        if (!serverUrl) throw new Error('请输入同步地址')
+        const response = await fetch(`${serverUrl}/api/sync/snapshot`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...payload,
+            source: snapshot.source
+          })
+        })
+        if (!response.ok) {
+          throw new Error(`发布失败: ${response.status}`)
+        }
+        await refreshEndpointsRemote()
+      }
+    }
+
+    const registerRemoteEndpoint = async () => {
+      const serverUrl = normalizeUrl(connection.value.serverUrl)
+      if (!serverUrl) throw new Error('请输入同步地址')
+      const response = await fetch(`${serverUrl}/api/sync/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          deviceId: profile.value.deviceId,
+          displayName: profile.value.displayName || profile.value.deviceId,
+          source: 'mobile'
+        })
+      })
+      if (!response.ok) {
+        throw new Error(`注册失败: ${response.status}`)
+      }
+    }
+
+    const handleDesktopEvent = (event: SyncEvent) => {
+      if (event.type === 'state') {
+        hostState.value = event.state
+        return
+      }
+      if (event.type === 'directory') {
+        updateEndpoints(event.endpoints)
+        if (selectedEndpointId.value) {
+          void fetchEndpointSnapshot(selectedEndpointId.value)
+        }
+      }
+    }
+
+    const startDesktopHost = async () => {
+      unsubscribe?.()
+      const syncApi = getDesktopSyncApi()
+      unsubscribe = syncApi.onEvent(handleDesktopEvent)
+      hostState.value = await syncApi.startHost({
+        displayName: profile.value.displayName
+      })
+      profile.value.deviceId = hostState.value.deviceId
+      if (!profile.value.displayName) {
+        profile.value.displayName = hostState.value.displayName
+      }
+      await publishLocalSnapshot()
+    }
+
+    const stopDesktopHost = async () => {
+      unsubscribe?.()
+      unsubscribe = null
+      endpoints.value = []
+      selectedEndpointId.value = ''
+      selectedEndpointSnapshot.value = null
+      recomputeDiff()
+      hostState.value = await getDesktopSyncApi().stopHost()
+    }
+
+    const connectToRemoteHost = async () => {
+      ensureDeviceId()
+      const serverUrl = normalizeUrl(connection.value.serverUrl)
+      if (!serverUrl) {
+        connection.value.error = '请输入同步地址'
+        return
+      }
+
+      eventSource?.close()
+      const statusResponse = await fetch(`${serverUrl}/api/sync/status`)
+      if (!statusResponse.ok) {
+        throw new Error('无法连接到同步服务')
+      }
+
+      await registerRemoteEndpoint()
+      await publishLocalSnapshot()
+
+      eventSource = new EventSource(`${serverUrl}/api/sync/events`)
+      eventSource.addEventListener('directory', (rawEvent) => {
+        const payload = JSON.parse((rawEvent as MessageEvent).data) as SyncEvent
+        if (payload.type === 'directory') {
+          updateEndpoints(payload.endpoints)
+          if (selectedEndpointId.value) {
+            void fetchEndpointSnapshot(selectedEndpointId.value)
+          }
+        }
+      })
+      eventSource.addEventListener('state', () => {
+        connection.value.connected = true
+        connection.value.error = undefined
+      })
+      eventSource.onerror = () => {
+        connection.value.connected = false
+        connection.value.error = '同步连接已断开'
+      }
+
+      connection.value.connected = true
+      connection.value.error = undefined
+      await refreshEndpointsRemote()
+      if (selectedEndpointId.value) {
+        await fetchEndpointSnapshot(selectedEndpointId.value)
+      }
+    }
+
+    const disconnectRemoteHost = () => {
+      eventSource?.close()
+      eventSource = null
+      connection.value.connected = false
+      endpoints.value = []
+      selectedEndpointId.value = ''
+      selectedEndpointSnapshot.value = null
+      recomputeDiff()
+    }
+
+    const initialize = async () => {
+      if (initialized.value) return
+      initialized.value = true
+      ensureDeviceId()
+
+      if (hasDesktopSyncApi.value && hostEnabled.value) {
+        await startDesktopHost()
+      }
+    }
+
+    const setHostEnabled = async (value: boolean) => {
+      hostEnabled.value = value
+      if (!hasDesktopSyncApi.value) return
+      if (value) {
+        await startDesktopHost()
+      } else {
+        await stopDesktopHost()
+      }
+    }
+
+    const updateDisplayName = async (displayName: string) => {
+      profile.value.displayName = displayName
+      if (hasDesktopSyncApi.value && hostEnabled.value) {
+        hostState.value = await getDesktopSyncApi().updateProfile({ displayName })
+        await publishLocalSnapshot()
+      }
+    }
+
+    const setServerUrl = (serverUrl: string) => {
+      connection.value.serverUrl = serverUrl
+    }
+
+    const connect = async () => {
+      if (hasDesktopSyncApi.value) return
+      await connectToRemoteHost()
+    }
+
+    const disconnect = () => {
+      if (hasDesktopSyncApi.value) return
+      disconnectRemoteHost()
+    }
+
+    const selectEndpoint = async (deviceId: string) => {
+      selectedEndpointId.value = deviceId
+      await fetchEndpointSnapshot(deviceId)
+    }
+
+    const pullSelectedEndpoint = async () => {
+      if (!selectedEndpointId.value) return
+      await pullEndpoint(selectedEndpointId.value)
+    }
+
+    const pullEndpoint = async (deviceId: string) => {
+      if (!deviceId) return
+      isPulling.value = true
+      try {
+        selectedEndpointId.value = deviceId
+        const snapshot = await fetchEndpointSnapshot(deviceId)
+        if (!snapshot) return
+        chatsStore.replacePersistedState({
+          chats: snapshot.chats,
+          activeChatId: snapshot.activeChatId
+        })
+        connection.value.lastSyncedAt = Date.now()
+        await publishLocalSnapshot()
+      } finally {
+        isPulling.value = false
+      }
+    }
+
+    return {
+      hostEnabled,
+      profile,
+      hostState,
+      connection,
+      endpoints,
+      selectedEndpointId,
+      selectedEndpoint,
+      diffSummary,
+      hasDesktopSyncApi,
+      selfDeviceId,
+      isPulling,
+      initialize,
+      setHostEnabled,
+      updateDisplayName,
+      setServerUrl,
+      connect,
+      disconnect,
+      selectEndpoint,
+      pullEndpoint,
+      pullSelectedEndpoint,
+      isAfterRestore: restorePromise
+    }
+  },
+  {
+    persist: {
+      storage: indexedDBStorage,
+      paths: ['hostEnabled', 'profile', 'connection.serverUrl'],
+      afterRestore: () => {
+        resolveRestore()
+      }
+    }
+  }
+)
