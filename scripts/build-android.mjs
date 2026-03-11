@@ -14,6 +14,10 @@ const repoRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const appDir = join(repoRoot, 'apps', 'desktop')
 const androidDir = join(appDir, 'android')
 const androidAppGradlePath = join(androidDir, 'app', 'build.gradle')
+const capacitorCliCandidates = [
+  join(appDir, 'node_modules', '@capacitor', 'cli', 'bin', 'capacitor'),
+  join(repoRoot, 'node_modules', '@capacitor', 'cli', 'bin', 'capacitor')
+]
 
 function parseArgs(argv) {
   const options = {
@@ -72,6 +76,65 @@ function parseArgs(argv) {
 function envValue(name) {
   const value = process.env[name]
   return value && value.trim() ? value.trim() : null
+}
+
+function nodeMajorVersion(nodeBin) {
+  const result = spawnSync(nodeBin, ['-v'], { encoding: 'utf8' })
+  if (result.status !== 0) return null
+  const version = (result.stdout ?? '').trim()
+  const match = version.match(/^v(\d+)\./)
+  if (!match) return null
+  return Number(match[1])
+}
+
+function resolveNode22Bin() {
+  const brewNodeCandidates = []
+  if (!isWindows) {
+    for (const formula of ['node@24', 'node@22', 'node']) {
+      const brewPrefix = spawnSync('brew', ['--prefix', formula], { encoding: 'utf8' })
+      if (brewPrefix.status === 0 && brewPrefix.stdout?.trim()) {
+        brewNodeCandidates.push(join(brewPrefix.stdout.trim(), 'bin', 'node'))
+      }
+    }
+  }
+
+  const candidates = [
+    envValue('NODE_HOME_22') ? join(envValue('NODE_HOME_22'), 'bin', 'node') : null,
+    '/opt/homebrew/bin/node',
+    '/usr/local/bin/node',
+    ...brewNodeCandidates
+  ].filter(Boolean)
+
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue
+    const major = nodeMajorVersion(candidate)
+    if (major != null && major >= 22) return candidate
+  }
+
+  return null
+}
+
+function ensureNode22OrReexec() {
+  const currentMajor = Number(process.versions.node.split('.')[0])
+  if (Number.isFinite(currentMajor) && currentMajor >= 22) return
+
+  const node22Bin = resolveNode22Bin()
+  if (!node22Bin) {
+    console.error(`Node ${process.version} is too old. Android build requires Node >=22.0.0.`)
+    console.error('Install Node 22+ or set NODE_HOME_22 to a Node 22+ installation path.')
+    process.exit(1)
+  }
+
+  console.warn(`Node ${process.version} detected, switching to ${node22Bin} ...`)
+  const result = spawnSync(node22Bin, [process.argv[1], ...process.argv.slice(2)], {
+    stdio: 'inherit',
+    env: process.env
+  })
+  if (result.error) {
+    console.error(result.error.message)
+    process.exit(1)
+  }
+  process.exit(result.status ?? 1)
 }
 
 function javaVersionOutput(javaBin) {
@@ -154,6 +217,14 @@ function runPnpmOrFail(args, options = {}) {
   }
 
   runOrFail('pnpm', args, options)
+}
+
+function resolveCapacitorCliPath() {
+  for (const cliPath of capacitorCliCandidates) {
+    if (existsSync(cliPath)) return cliPath
+  }
+  console.error('Capacitor CLI not found in node_modules. Run pnpm install first.')
+  process.exit(1)
 }
 
 function latestFileInDir(dir, ext) {
@@ -268,6 +339,7 @@ async function collectInteractiveOptions(cliOptions, currentVersion) {
 }
 
 async function main() {
+  ensureNode22OrReexec()
   const cliOptions = parseArgs(process.argv.slice(2))
 
   if (!existsSync(androidDir)) {
@@ -325,7 +397,8 @@ async function main() {
   runPnpmOrFail(['--filter', 'desktop', 'build'], { cwd: repoRoot, env })
 
   console.log('Syncing Capacitor...')
-  runPnpmOrFail(['--filter', 'desktop', 'cap:sync'], { cwd: repoRoot, env })
+  const capacitorCliPath = resolveCapacitorCliPath()
+  runOrFail(process.execPath, [capacitorCliPath, 'sync', 'android'], { cwd: appDir, env })
 
   const gradleTask = gradleTaskByMode[mode]
   const gradleCmd = isWindows ? 'gradlew.bat' : './gradlew'
