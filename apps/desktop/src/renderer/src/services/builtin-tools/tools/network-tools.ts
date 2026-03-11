@@ -147,7 +147,7 @@ const fetchPage = async (url: string, raw: boolean) => {
   const isHtml = text.slice(0, 200).toLowerCase().includes('<html') || contentType.includes('text/html') || !contentType
 
   if (isHtml && !raw) {
-    return { prefix: '', content: simplifyHtml(text, url) }
+    return { prefix: '', content: simplifyHtml(text) }
   }
 
   return {
