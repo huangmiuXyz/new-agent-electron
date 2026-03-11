@@ -91,26 +91,12 @@ const getDurationMs = (startedAt: number | null, finishedAt: number | null) => {
   return Math.max(0, finishedAt - startedAt)
 }
 
-const trimForSnapshot = (value: string, maxLength: number) => {
-  if (value.length <= maxLength) return value
-  return `${value.slice(0, maxLength)}…`
-}
-
-const buildElementSelector = (el: Element) => {
-  const tag = el.tagName.toLowerCase()
-  const id = el.getAttribute('id')
-  if (id) return `${tag}#${id}`
-
-  const name = el.getAttribute('name')
-  if (name) return `${tag}[name=${JSON.stringify(name)}]`
-
-  const type = el.getAttribute('type')
-  if (type) return `${tag}[type=${JSON.stringify(type)}]`
-
-  const role = el.getAttribute('role')
-  if (role) return `${tag}[role=${JSON.stringify(role)}]`
-
-  return tag
+const getUrlOrigin = (value: string) => {
+  try {
+    return value ? new URL(value).origin : null
+  } catch {
+    return null
+  }
 }
 
 const buildExecutionMetadata = (session: BrowserSession, state: BrowserExecutionState) => ({
@@ -292,154 +278,200 @@ const extractDirectNavigationUrl = (code: string): string | null => {
   return null
 }
 
-const getPageSnapshot = async (session: BrowserSession) => {
-  return session.win.webContents.executeJavaScript(
-    `(() => {
-      const visible = (el) => {
-        const rect = el.getBoundingClientRect()
-        const style = window.getComputedStyle(el)
-        return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none'
+const pageSnapshotEvaluator = () => {
+  const clean = (value: unknown, max = 200) => {
+    const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim()
+    return text.length > max ? `${text.slice(0, max)}…` : text
+  }
+
+  const visible = (el: Element | null) => {
+    if (!el || typeof (el as HTMLElement).getBoundingClientRect !== 'function') return false
+    const rect = (el as HTMLElement).getBoundingClientRect()
+    const style = window.getComputedStyle(el)
+    return !!style && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0
+  }
+
+  const selector = (el: Element | null) => {
+    if (!el || !el.tagName) return 'unknown'
+    const tag = String(el.tagName).toLowerCase()
+    const id = el.getAttribute('id')
+    if (id) return `${tag}#${id}`
+    const name = el.getAttribute('name')
+    if (name) return `${tag}[name=${JSON.stringify(name)}]`
+    const type = el.getAttribute('type')
+    if (type) return `${tag}[type=${JSON.stringify(type)}]`
+    const role = el.getAttribute('role')
+    if (role) return `${tag}[role=${JSON.stringify(role)}]`
+    return tag
+  }
+
+  const textOf = (el: Element | null, max = 120) => {
+    if (!el) return ''
+    const inputEl = el as HTMLInputElement
+    return clean(
+      (el as HTMLElement).innerText ||
+        el.textContent ||
+        inputEl.value ||
+        el.getAttribute('aria-label') ||
+        el.getAttribute('title') ||
+        '',
+      max
+    )
+  }
+
+  const isNoiseText = (text: string) => {
+    const lower = text.toLowerCase()
+    return /^(manage cookies|cookie settings|accept|reject|like|dislike|feedback|share|更多|喜欢|不喜欢)$/i.test(lower)
+  }
+
+  const isInMainContent = (el: Element | null, mainEl: Element | null) => {
+    if (!el || !mainEl) return false
+    return el === mainEl || mainEl.contains(el)
+  }
+
+  const findMainContent = () => {
+    const selectors = ['main', 'article', '[role="main"]', '#content', '.content', '.main', '.main-content']
+    for (const value of selectors) {
+      const found = document.querySelector(value)
+      if (found && visible(found)) return found
+    }
+
+    const candidates = Array.from(document.querySelectorAll('section, article, main, div'))
+      .filter((el) => visible(el))
+      .map((el) => ({ el, len: textOf(el, 10000).length }))
+      .filter((item) => item.len > 120)
+      .sort((a, b) => b.len - a.len)
+
+    return candidates[0]?.el || document.body
+  }
+
+  const title = document.title || ''
+  const url = location.href || ''
+  const hash = location.hash || ''
+  const readyState = document.readyState || 'unknown'
+  const bodyText = clean(document.body ? document.body.innerText || document.body.textContent || '' : '', 4000)
+  const mainEl = findMainContent()
+  const mainText = clean(textOf(mainEl, 5000) || bodyText, 4000)
+  const activeEl = document.activeElement
+  const active = activeEl && activeEl !== document.body
+    ? {
+        tag: activeEl.tagName ? String(activeEl.tagName).toLowerCase() : 'unknown',
+        selector: selector(activeEl),
+        text: textOf(activeEl)
       }
+    : null
 
-      const trimForSnapshot = (value, max = 200) => {
-        const text = String(value || '').replace(/\s+/g, ' ').trim()
-        return text.length > max ? text.slice(0, max) + '…' : text
-      }
+  const buttons = Array.from(document.querySelectorAll('button,[role="button"],input[type="button"],input[type="submit"]'))
+    .filter((el) => visible(el))
+    .filter((el) => {
+      const text = textOf(el)
+      return isInMainContent(el, mainEl) || !isNoiseText(text)
+    })
+    .filter((el) => {
+      const text = textOf(el)
+      return Boolean(text) || Boolean((el as HTMLInputElement).value)
+    })
+    .slice(0, 50)
+    .map((el, index) => ({
+      id: `btn_${index}`,
+      text: textOf(el),
+      selector: selector(el),
+      disabled: Boolean((el as HTMLButtonElement | HTMLInputElement).disabled)
+    }))
 
-      const norm = (value, max = 200) => trimForSnapshot(value, max)
-
-      const selector = (el) => {
-        const tag = el.tagName.toLowerCase()
-        const id = el.getAttribute('id')
-        if (id) return tag + '#' + id
-        const name = el.getAttribute('name')
-        if (name) return tag + '[name=' + JSON.stringify(name) + ']'
-        const type = el.getAttribute('type')
-        if (type) return tag + '[type=' + JSON.stringify(type) + ']'
-        const role = el.getAttribute('role')
-        if (role) return tag + '[role=' + JSON.stringify(role) + ']'
-        return tag
-      }
-
-      const currentUrl = location.href
-      const currentHash = location.hash || ''
-      const activeElement = document.activeElement
-      const activeElementInfo = activeElement && activeElement !== document.body
-        ? {
-            tag: activeElement.tagName.toLowerCase(),
-            selector: selector(activeElement),
-            text: norm(activeElement.innerText || activeElement.value || activeElement.getAttribute('aria-label') || '', 120)
-          }
-        : null
-
-      const getMainContent = () => {
-        const selectors = ['main', 'article', '[role="main"]', '.mw-parser-output', '#content', '.content', '.main', '.main-content']
-        for (const selector of selectors) {
-          const el = document.querySelector(selector)
-          if (el && visible(el)) return el
-        }
-
-        const candidates = [...document.querySelectorAll('div,section,article,main')]
-          .filter(visible)
-          .map((el) => ({ el, len: norm(el.innerText, 20000).length }))
-          .sort((a, b) => b.len - a.len)
-
-        return candidates[0]?.el || document.body
-      }
-
-      const detectPageState = () => {
-        const title = norm(document.title, 500).toLowerCase()
-        const bodyText = norm(document.body?.innerText || '', 5000).toLowerCase()
-        const url = location.href.toLowerCase()
-
-        if (
-          /captcha|challenge|verify|verification|人机验证|请解决以下难题以继续|最后一步/.test(title + '\n' + bodyText)
-        ) {
-          return 'blocked'
-        }
-        if (
-          /找不到这个页面|页面不存在|no results|没有找到|did not match any documents|未找到/.test(bodyText)
-        ) {
-          return 'not_found'
-        }
-        if (
-          /[?&](wd|q|query|search)=/.test(url) || /百度搜索| - 搜索|search results|搜索结果/.test(title)
-        ) {
-          return 'search_results'
-        }
-        return 'content'
-      }
-
-      const main = getMainContent()
-      const mainText = norm(main?.innerText || document.body?.innerText || '', 4000)
-      const textSample = norm(document.body?.innerText || '', 4000)
-
-      const buttons = [...document.querySelectorAll('button,[role="button"],input[type="button"],input[type="submit"]')]
-        .filter(visible)
-        .slice(0, 50)
-        .map((el, index) => ({
-          id: 'btn_' + index,
-          text: norm(el.innerText || el.value || el.getAttribute('aria-label') || '', 120),
-          selector: selector(el),
-          disabled: 'disabled' in el ? Boolean(el.disabled) : false
-        }))
-
-      const inputs = [...document.querySelectorAll('input,textarea,select')]
-        .filter(visible)
-        .slice(0, 50)
-        .map((el, index) => ({
-          id: 'input_' + index,
-          tag: el.tagName.toLowerCase(),
-          type: el.getAttribute('type') || undefined,
-          name: el.getAttribute('name') || undefined,
-          selector: selector(el),
-          placeholder: norm(el.getAttribute('placeholder') || '', 120),
-          value: 'value' in el ? norm(el.value || '', 120) : '',
-          disabled: 'disabled' in el ? Boolean(el.disabled) : false
-        }))
-
-      const links = [...document.querySelectorAll('a')]
-        .filter(visible)
-        .slice(0, 50)
-        .map((el, index) => ({
-          id: 'link_' + index,
-          text: norm(el.innerText || el.getAttribute('aria-label') || '', 120),
-          href: el.href,
-          selector: selector(el)
-        }))
-
-      const searchResults = [...document.querySelectorAll('article, .b_algo, .result, .c-container, .g, .mw-search-result, li[data-hveid], .tF2Cxc')]
-        .filter(visible)
-        .map((el) => {
-          const link = el.querySelector('a[href]')
-          const titleEl = el.querySelector('h1,h2,h3,h4') || link
-          const text = norm(el.innerText || '', 500)
-          return {
-            title: norm(titleEl?.innerText || link?.textContent || '', 160),
-            url: link?.href || '',
-            snippet: text
-          }
-        })
-        .filter((item) => item.title || item.url || item.snippet)
-        .slice(0, 10)
-
+  const inputs = Array.from(document.querySelectorAll('input,textarea,select'))
+    .filter((el) => visible(el))
+    .filter((el) => isInMainContent(el, mainEl) || ['search', 'text', 'email', 'password'].includes(el.getAttribute('type') || ''))
+    .slice(0, 50)
+    .map((el, index) => {
+      const inputEl = el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      const type = el.getAttribute('type') || ''
+      const rawValue = typeof inputEl.value === 'string' ? inputEl.value : ''
       return {
-        title: document.title,
-        url: currentUrl,
-        hash: currentHash,
-        state: detectPageState(),
-        readyState: document.readyState,
-        activeElement: activeElementInfo,
-        mainText,
-        textSample,
-        searchResults,
-        buttons,
-        inputs,
-        links
+        id: `input_${index}`,
+        tag: el.tagName ? String(el.tagName).toLowerCase() : 'unknown',
+        type,
+        name: el.getAttribute('name') || '',
+        selector: selector(el),
+        placeholder: clean(el.getAttribute('placeholder') || '', 120),
+        value: type === 'password' ? (rawValue ? '••••••••' : '') : clean(rawValue, 120),
+        disabled: Boolean(inputEl.disabled)
       }
-    })()`,
-    true
-  )
+    })
+
+  const links = Array.from(document.querySelectorAll('a[href]'))
+    .filter((el) => visible(el))
+    .filter((el) => {
+      const text = textOf(el)
+      if (!text) return false
+      return isInMainContent(el, mainEl) || !isNoiseText(text)
+    })
+    .slice(0, 50)
+    .map((el, index) => ({
+      id: `link_${index}`,
+      text: textOf(el),
+      href: (el as HTMLAnchorElement).href || '',
+      selector: selector(el)
+    }))
+
+  const searchResults = Array.from(document.querySelectorAll('article, .b_algo, .result, .c-container, .g, .mw-search-result, li[data-hveid], .tF2Cxc'))
+    .filter((el) => visible(el))
+    .slice(0, 10)
+    .map((el) => {
+      const link = el.querySelector('a[href]') as HTMLAnchorElement | null
+      const titleEl = el.querySelector('h1,h2,h3,h4') || link
+      return {
+        title: textOf(titleEl, 160),
+        url: link?.href || '',
+        snippet: textOf(el, 500)
+      }
+    })
+    .filter((item) => item.title || item.url || item.snippet)
+
+  let state = 'content'
+  const lower = `${title}\n${mainText}\n${url}`.toLowerCase()
+  if (/captcha|challenge|verify|verification|人机验证/.test(lower)) state = 'blocked'
+  else if (/[?&](wd|q|query|search)=/.test(url.toLowerCase()) || /search results|搜索结果/.test(lower)) state = 'search_results'
+  else if (/not found|页面不存在|未找到/.test(lower)) state = 'not_found'
+
+  return {
+    title,
+    url,
+    hash,
+    state,
+    readyState,
+    activeElement: active,
+    mainText,
+    textSample: bodyText,
+    searchResults,
+    buttons,
+    inputs,
+    links
+  }
+}
+
+const getPageSnapshot = async (session: BrowserSession) => {
+  const snapshotCode = `(${pageSnapshotEvaluator.toString()})()`
+
+  try {
+    return await session.win.webContents.executeJavaScript(snapshotCode, true)
+  } catch (error) {
+    return {
+      title: session.win.webContents.getTitle(),
+      url: session.win.webContents.getURL(),
+      hash: '',
+      state: 'snapshot_error',
+      readyState: 'unknown',
+      activeElement: null,
+      mainText: '',
+      textSample: '',
+      searchResults: [],
+      buttons: [],
+      inputs: [],
+      links: [],
+      snapshotError: toErrorMessage(error)
+    }
+  }
 }
 const navigateSession = async (session: BrowserSession, url: string, timeoutMs: number) => {
   await withTimeout(net.fetch(url, { method: 'GET', redirect: 'follow' }), Math.min(timeoutMs, 15000), `Preflight ${url}`)
@@ -472,6 +504,12 @@ const executeBrowserCode = async (payload: BrowserActionPayload) => {
       pushExecutionLog(sessionId, 'browser.directNavigation(done)')
       finishExecutionState(sessionId)
       const finalState = getExecutionState(sessionId)
+      pushExecutionLog(sessionId, 'browser.getPageSnapshot(start)')
+      const pageSnapshot = await getPageSnapshot(session)
+      pushExecutionLog(sessionId, `browser.getPageSnapshot(done:${String((pageSnapshot as { state?: unknown })?.state || 'unknown')})`)
+      if (pageSnapshot && typeof pageSnapshot === 'object' && 'snapshotError' in pageSnapshot) {
+        pushExecutionLog(sessionId, `browser.getPageSnapshot(error:${String((pageSnapshot as { snapshotError?: unknown }).snapshotError || '')})`)
+      }
       return {
         sessionId,
         execution: {
@@ -481,13 +519,16 @@ const executeBrowserCode = async (payload: BrowserActionPayload) => {
         },
         navigation: {
           detected: true,
-          type: beforeUrl && new URL(beforeUrl).origin === new URL(directNavigationUrl).origin ? 'full-navigation-same-origin' : 'full-navigation-cross-origin',
+          type:
+            beforeUrl && getUrlOrigin(beforeUrl) && getUrlOrigin(beforeUrl) === getUrlOrigin(directNavigationUrl)
+              ? 'full-navigation-same-origin'
+              : 'full-navigation-cross-origin',
           fromUrl: beforeUrl,
           toUrl: session.win.webContents.getURL()
         },
         page: buildExecutionMetadata(session, finalState),
-        logs: finalState.logs,
-        pageSnapshot: await getPageSnapshot(session)
+        logs: getExecutionState(sessionId).logs,
+        pageSnapshot
       }
     }
 
@@ -567,7 +608,7 @@ const executeBrowserCode = async (payload: BrowserActionPayload) => {
           type:
             beforeWithoutHash === afterWithoutHash
               ? 'same-document'
-              : new URL(beforeUrl).origin === new URL(afterUrl).origin
+              : getUrlOrigin(beforeUrl) && getUrlOrigin(beforeUrl) === getUrlOrigin(afterUrl)
                 ? 'full-navigation-same-origin'
                 : 'full-navigation-cross-origin',
           fromUrl: beforeUrl,
@@ -578,6 +619,12 @@ const executeBrowserCode = async (payload: BrowserActionPayload) => {
 
     finishExecutionState(sessionId)
     const finalState = getExecutionState(sessionId)
+    pushExecutionLog(sessionId, 'browser.getPageSnapshot(start)')
+    const pageSnapshot = await getPageSnapshot(session)
+    pushExecutionLog(sessionId, `browser.getPageSnapshot(done:${String((pageSnapshot as { state?: unknown })?.state || 'unknown')})`)
+    if (pageSnapshot && typeof pageSnapshot === 'object' && 'snapshotError' in pageSnapshot) {
+      pushExecutionLog(sessionId, `browser.getPageSnapshot(error:${String((pageSnapshot as { snapshotError?: unknown }).snapshotError || '')})`)
+    }
 
     return {
       sessionId,
@@ -587,8 +634,8 @@ const executeBrowserCode = async (payload: BrowserActionPayload) => {
       },
       navigation,
       page: buildExecutionMetadata(session, finalState),
-      logs: finalState.logs,
-      pageSnapshot: await getPageSnapshot(session)
+      logs: getExecutionState(sessionId).logs,
+      pageSnapshot
     }
   } catch (error) {
     const details = getErrorDetails(error)
