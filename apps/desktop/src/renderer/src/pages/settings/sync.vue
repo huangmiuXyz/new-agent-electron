@@ -53,8 +53,14 @@ const primaryHostUrl = computed(() => {
   return hostState.value.urls.find((url) => !url.includes('127.0.0.1')) || hostState.value.urls[0] || ''
 })
 
-const secondaryHostUrls = computed(() => {
-  return hostState.value.urls.filter((url) => url !== primaryHostUrl.value)
+const displayHostUrls = computed(() => {
+  const urls = [...hostState.value.urls]
+  const preferredIndex = urls.findIndex((url) => !url.includes('127.0.0.1'))
+  if (preferredIndex > 0) {
+    const [preferred] = urls.splice(preferredIndex, 1)
+    urls.unshift(preferred)
+  }
+  return urls
 })
 
 const endpointBadge = (endpoint: SyncEndpoint) => {
@@ -74,63 +80,52 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
   <FormContainer header-title="同步">
     <template #content>
       <div class="sync-wrapper">
-        <Card v-if="hasDesktopSyncApi">
-          <div class="sync-row">
-            <div class="sync-copy">
-              <div class="sync-title">桌面端同步服务</div>
-              <div class="sync-subtitle">启动后，所有连接到这个地址的端点都能看见彼此</div>
-            </div>
-            <Switch :model-value="hostEnabled" size="sm" @update:modelValue="handleHostEnabledChange" />
+        <div class="sync-row" v-if="hasDesktopSyncApi">
+          <div class="sync-copy">
+            <div class="sync-title">桌面端同步服务</div>
           </div>
-        </Card>
+          <Switch :model-value="hostEnabled" size="sm" @update:modelValue="handleHostEnabledChange" />
+        </div>
 
         <FormItem label="本机名称">
-          <Input
-            v-model="profile.displayName"
-            placeholder="给当前设备起个名字"
-            @blur="updateDisplayName"
-          />
+          <Input v-model="profile.displayName" placeholder="给当前设备起个名字" @blur="updateDisplayName" />
         </FormItem>
 
-        <Card>
-          <div class="status-grid">
-            <div class="status-item">
-              <div class="status-label">状态</div>
-              <div class="status-value">
+        <Card v-if="hasDesktopSyncApi">
+          <div class="sync-overview">
+            <div class="status-compact">
+              <span class="status-label">状态 / 可见端点</span>
+              <span class="status-value">
                 {{ hasDesktopSyncApi ? (hostState.running ? '已启动' : '未启动') : (connection.connected ? '已连接' : '未连接') }}
-              </div>
+                ·
+                {{ endpoints.length }}
+              </span>
             </div>
-            <div class="status-item">
-              <div class="status-label">可见端点</div>
-              <div class="status-value">{{ endpoints.length }}</div>
+            <div class="overview-divider" />
+            <div class="address-panel">
+              <div class="address-section-label">同步地址</div>
+              <div v-if="displayHostUrls.length > 0" class="address-list">
+                <div v-for="url in displayHostUrls" :key="url" class="address-item">{{ url }}</div>
+              </div>
             </div>
           </div>
         </Card>
 
-        <FormItem v-if="hasDesktopSyncApi" label="同步地址">
-          <div class="address-panel">
-            <div v-if="primaryHostUrl" class="address-primary">
-              <div class="address-caption">推荐地址</div>
-              <div class="address-value">{{ primaryHostUrl }}</div>
-            </div>
-            <div v-if="secondaryHostUrls.length > 0" class="address-extra">
-              <div class="address-extra-label">其他地址</div>
-              <div class="address-chip-list">
-                <div v-for="url in secondaryHostUrls" :key="url" class="address-chip">{{ url }}</div>
-              </div>
-            </div>
-            <div v-if="primaryHostUrl" class="address-tip">其他设备连到这个地址后，就会出现在下面的端点列表</div>
-            <div v-if="hostState.urls.length === 0" class="peer-empty">启动同步服务后会显示可连接地址</div>
-          </div>
-        </FormItem>
-
         <template v-else>
+          <Card>
+            <div class="status-compact">
+              <span class="status-label">状态 / 可见端点</span>
+              <span class="status-value">
+                {{ hasDesktopSyncApi ? (hostState.running ? '已启动' : '未启动') : (connection.connected ? '已连接' : '未连接') }}
+                ·
+                {{ endpoints.length }}
+              </span>
+            </div>
+          </Card>
+
           <FormItem label="同步入口地址">
-            <Input
-              :model-value="connection.serverUrl"
-              placeholder="例如 http://192.168.1.8:41235"
-              @update:modelValue="updateServerUrl"
-            />
+            <Input :model-value="connection.serverUrl" placeholder="例如 http://192.168.1.8:41235"
+              @update:modelValue="updateServerUrl" />
           </FormItem>
 
           <Card>
@@ -144,18 +139,12 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
 
         <Card>
           <div class="endpoint-header">
-            <div class="endpoint-title">端点列表</div>
-            <div class="endpoint-subtitle">连接后本机快照会自动出现在这里，任意端点都能从其中任意一端拉取数据覆盖本机</div>
+            <div class="endpoint-title">设备列表</div>
           </div>
           <div v-if="endpoints.length > 0" class="endpoint-list">
-            <button
-              v-for="endpoint in endpoints"
-              :key="endpoint.deviceId"
-              type="button"
-              class="endpoint-item"
+            <button v-for="endpoint in endpoints" :key="endpoint.deviceId" type="button" class="endpoint-item"
               :class="{ selected: selectedEndpointId === endpoint.deviceId }"
-              @click="selectEndpoint(endpoint.deviceId)"
-            >
+              @click="selectEndpoint(endpoint.deviceId)">
               <div class="endpoint-main">
                 <div class="endpoint-name-row">
                   <div class="endpoint-name">{{ endpoint.displayName || endpoint.deviceId }}</div>
@@ -169,13 +158,10 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
                 </div>
               </div>
               <div v-if="endpoint.deviceId !== selfDeviceId" class="endpoint-actions">
-                <Button
-                  size="sm"
-                  variant="secondary"
+                <Button size="sm" variant="secondary"
                   :disabled="(!hasDesktopSyncApi && !connection.connected) || (selectedEndpointId === endpoint.deviceId && diffSummary.messageChanges === 0 && diffSummary.chatChanges === 0)"
                   :loading="isPulling && selectedEndpointId === endpoint.deviceId"
-                  @click.stop="pullEndpoint(endpoint.deviceId)"
-                >
+                  @click.stop="pullEndpoint(endpoint.deviceId)">
                   拉取
                 </Button>
               </div>
@@ -209,7 +195,6 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px;
 }
 
 .sync-copy {
@@ -231,22 +216,25 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
   line-height: 1.6;
 }
 
-.status-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  padding: 16px;
+.sync-overview {
+  padding: 14px 16px;
 }
 
-.status-item {
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--bg-secondary);
+.status-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.overview-divider {
+  margin: 10px 0;
+  height: 1px;
+  background: var(--border-subtle);
 }
 
 .status-label,
-.address-caption,
-.address-extra-label,
+.address-section-label,
 .address-tip,
 .endpoint-meta {
   font-size: 11px;
@@ -254,8 +242,7 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
 }
 
 .status-value {
-  margin-top: 6px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -266,40 +253,15 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
   gap: 8px;
 }
 
-.address-primary {
-  padding: 12px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  background: var(--bg-card);
-}
-
-.address-value {
-  margin-top: 4px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  word-break: break-all;
-}
-
-.address-extra {
+.address-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
-.address-chip-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.address-chip {
-  max-width: 100%;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: var(--bg-secondary);
-  font-size: 11px;
-  color: var(--text-secondary);
+.address-item {
+  font-size: 13px;
+  color: var(--text-primary);
   word-break: break-all;
 }
 
@@ -392,9 +354,6 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
 }
 
 @media (max-width: 720px) {
-  .status-grid {
-    grid-template-columns: 1fr;
-  }
 
   .sync-row,
   .action-bar,
