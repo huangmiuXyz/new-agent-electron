@@ -49,10 +49,6 @@ const selectEndpoint = (deviceId: string) => {
   void syncStore.selectEndpoint(deviceId)
 }
 
-const primaryHostUrl = computed(() => {
-  return hostState.value.urls.find((url) => !url.includes('127.0.0.1')) || hostState.value.urls[0] || ''
-})
-
 const displayHostUrls = computed(() => {
   const urls = [...hostState.value.urls]
   const preferredIndex = urls.findIndex((url) => !url.includes('127.0.0.1'))
