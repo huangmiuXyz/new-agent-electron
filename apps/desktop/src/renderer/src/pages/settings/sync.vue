@@ -98,38 +98,16 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
           <Input v-model="profile.displayName" placeholder="给当前设备起个名字" @blur="updateDisplayName" />
         </FormItem>
 
-        <Card v-if="hasDesktopSyncApi">
-          <div class="sync-overview">
-            <div class="status-compact">
-              <span class="status-label">状态 / 可见端点</span>
-              <span class="status-value">
-                {{ hasDesktopSyncApi ? (hostState.running ? '已启动' : '未启动') : (connection.connected ? '已连接' : '未连接') }}
-                ·
-                {{ endpoints.length }}
-              </span>
-            </div>
-            <div class="overview-divider" />
-            <div class="address-panel">
-              <div class="address-section-label">同步地址</div>
-              <div v-if="displayHostUrls.length > 0" class="address-list">
-                <div v-for="url in displayHostUrls" :key="url" class="address-item">{{ url }}</div>
-              </div>
+        <div v-if="hasDesktopSyncApi" class="sync-overview">
+          <div class="address-panel">
+            <div class="address-section-label">同步地址</div>
+            <div v-if="displayHostUrls.length > 0" class="address-list">
+              <div v-for="url in displayHostUrls" :key="url" class="address-item">{{ url }}</div>
             </div>
           </div>
-        </Card>
+        </div>
 
         <template v-else>
-          <Card>
-            <div class="status-compact">
-              <span class="status-label">状态 / 可见端点</span>
-              <span class="status-value">
-                {{ hasDesktopSyncApi ? (hostState.running ? '已启动' : '未启动') : (connection.connected ? '已连接' : '未连接') }}
-                ·
-                {{ endpoints.length }}
-              </span>
-            </div>
-          </Card>
-
           <FormItem label="同步入口地址">
             <Input :model-value="connection.serverUrl" placeholder="例如 http://192.168.1.8:41235"
               @update:modelValue="updateServerUrl" />
@@ -150,7 +128,8 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
           </div>
           <div v-if="endpoints.length > 0" class="endpoint-list">
             <div v-for="endpoint in endpoints" :key="endpoint.deviceId" class="endpoint-item"
-              :class="{ selected: selectedEndpointId === endpoint.deviceId }" @click="selectEndpoint(endpoint.deviceId)">
+              :class="{ selected: selectedEndpointId === endpoint.deviceId }"
+              @click="selectEndpoint(endpoint.deviceId)">
               <div class="endpoint-main">
                 <div class="endpoint-name-row">
                   <div class="endpoint-name-block">
@@ -173,8 +152,7 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
               <div v-if="endpoint.deviceId !== selfDeviceId" class="endpoint-actions">
                 <Button size="sm" variant="secondary"
                   :disabled="(!hasDesktopSyncApi && !connection.connected) || (selectedEndpointId === endpoint.deviceId && diffSummary.messageChanges === 0 && diffSummary.chatChanges === 0)"
-                  :loading="isPulling && selectedEndpointId === endpoint.deviceId"
-                  @click.stop="pullEndpoint(endpoint)">
+                  :loading="isPulling && selectedEndpointId === endpoint.deviceId" @click.stop="pullEndpoint(endpoint)">
                   拉取
                 </Button>
               </div>
@@ -201,6 +179,9 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  .form-item{
+    margin-bottom: 0;
+  }
 }
 
 .sync-row {
@@ -227,10 +208,6 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
   font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.6;
-}
-
-.sync-overview {
-  padding: 14px 16px;
 }
 
 .status-compact {
@@ -268,8 +245,7 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
 
 .address-list {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 12px;
 }
 
 .address-item {
