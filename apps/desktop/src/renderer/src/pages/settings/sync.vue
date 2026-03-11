@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const syncStore = useSyncStore()
+const { confirm } = useModal()
 const {
   hostEnabled,
   profile,
@@ -37,9 +38,26 @@ const disconnect = () => {
   syncStore.disconnect()
 }
 
-const pullEndpoint = async (deviceId: string) => {
+const pullEndpoint = async (endpoint: SyncEndpoint) => {
   try {
-    await syncStore.pullEndpoint(deviceId)
+    if (selectedEndpointId.value !== endpoint.deviceId) {
+      await syncStore.selectEndpoint(endpoint.deviceId)
+    }
+
+    const targetName = endpoint.displayName || endpoint.deviceId
+    const confirmed = await confirm({
+      title: '确认拉取',
+      content: `将从“${targetName}”拉取并覆盖本机 ${diffSummary.value.messageChanges} 条消息（${diffSummary.value.chatChanges} 个会话），是否继续？`,
+      confirmText: '继续拉取',
+      cancelText: '取消',
+      confirmProps: {
+        danger: true
+      }
+    })
+
+    if (!confirmed) return
+
+    await syncStore.pullEndpoint(endpoint.deviceId)
   } catch (error) {
     connection.value.error = error instanceof Error ? error.message : String(error)
   }
@@ -138,9 +156,8 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
             <div class="endpoint-title">设备列表</div>
           </div>
           <div v-if="endpoints.length > 0" class="endpoint-list">
-            <button v-for="endpoint in endpoints" :key="endpoint.deviceId" type="button" class="endpoint-item"
-              :class="{ selected: selectedEndpointId === endpoint.deviceId }"
-              @click="selectEndpoint(endpoint.deviceId)">
+            <div v-for="endpoint in endpoints" :key="endpoint.deviceId" class="endpoint-item"
+              :class="{ selected: selectedEndpointId === endpoint.deviceId }" @click="selectEndpoint(endpoint.deviceId)">
               <div class="endpoint-main">
                 <div class="endpoint-name-row">
                   <div class="endpoint-name">{{ endpoint.displayName || endpoint.deviceId }}</div>
@@ -157,11 +174,11 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
                 <Button size="sm" variant="secondary"
                   :disabled="(!hasDesktopSyncApi && !connection.connected) || (selectedEndpointId === endpoint.deviceId && diffSummary.messageChanges === 0 && diffSummary.chatChanges === 0)"
                   :loading="isPulling && selectedEndpointId === endpoint.deviceId"
-                  @click.stop="pullEndpoint(endpoint.deviceId)">
+                  @click.stop="pullEndpoint(endpoint)">
                   拉取
                 </Button>
               </div>
-            </button>
+            </div>
           </div>
           <div v-else class="peer-empty">当前还没有可见端点</div>
         </Card>
@@ -281,6 +298,12 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
   background: var(--bg-card);
   cursor: pointer;
   text-align: left;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.endpoint-item:hover {
+  border-color: var(--border-default);
+  background: var(--bg-hover);
 }
 
 .endpoint-item.selected {
@@ -304,6 +327,8 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 .endpoint-badge {
@@ -350,12 +375,88 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
 }
 
 @media (max-width: 720px) {
+  .sync-wrapper {
+    gap: 12px;
+  }
 
-  .sync-row,
-  .action-bar,
+  .sync-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .sync-overview {
+    padding: 12px;
+  }
+
+  .status-compact {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .status-value {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--bg-secondary);
+  }
+
+  .address-item {
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .client-actions {
+    padding: 12px;
+  }
+
+  .client-actions :deep(.btn) {
+    width: 100%;
+    min-height: 36px;
+  }
+
+  .endpoint-header {
+    padding: 14px 14px 8px;
+  }
+
+  .endpoint-list {
+    padding: 0 14px 14px;
+  }
+
+  .endpoint-item {
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+
   .endpoint-name-row {
     align-items: flex-start;
     flex-direction: column;
+    gap: 6px;
+  }
+
+  .endpoint-badge {
+    align-self: flex-start;
+  }
+
+  .endpoint-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .endpoint-actions :deep(.btn) {
+    width: 100%;
+    min-height: 34px;
+  }
+
+  .peer-empty {
+    margin: 0 14px 14px;
+    padding: 14px;
   }
 }
 </style>
