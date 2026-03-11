@@ -74,6 +74,10 @@ export interface ElectronAPI {
 
   // libs
   shell: any;
+  clipboard: {
+    writeText: (text: string) => void;
+    readText: () => string;
+  };
   fs: typeof import('fs');
   path: typeof import('path');
   mime: any;

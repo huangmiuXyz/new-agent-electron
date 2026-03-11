@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { contextBridge, shell } from 'electron'
+import { clipboard, contextBridge, shell } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { aiServices } from './services/ai/index'
 import fs from 'fs'
@@ -57,6 +57,10 @@ export const api: ElectronAPI = {
     return path.join(app.getPath('userData'), 'plugins')
   },
   shell,
+  clipboard: {
+    writeText: (text: string) => clipboard.writeText(text),
+    readText: () => clipboard.readText()
+  },
   fs,
   path,
   mime,
