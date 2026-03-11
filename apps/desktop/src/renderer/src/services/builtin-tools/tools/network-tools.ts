@@ -2,7 +2,7 @@ import TurndownService from 'turndown'
 import { Readability } from '@mozilla/readability'
 import { z } from 'zod'
 
-const USER_AGENT = 'ModelContextProtocol/1.0 (Autonomous; +https://github.com/modelcontextprotocol/servers)'
+const USER_AGENT = "Mozilla/5.0"
 
 const fetchInputSchema = z.object({
   url: z.string().url().describe('URL to fetch'),
@@ -123,14 +123,16 @@ const checkRobotsTxt = async (url: string) => {
 const simplifyHtml = (html: string) => {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const article = new Readability(doc, { keepClasses: false }).parse()
-  if (!article?.content) {
+  const htmlContent = article?.content || doc.body?.innerHTML || ''
+  if (!htmlContent) {
     return '<error>Page failed to be simplified from HTML</error>'
   }
-  const markdown = turndown.turndown(article.content).trim()
+  const markdown = turndown.turndown(htmlContent).trim()
   if (!markdown) {
     return '<error>Page failed to be simplified from HTML</error>'
   }
-  return article.title ? `# ${article.title}\n\n${markdown}` : markdown
+  const title = article?.title || doc.title
+  return title ? `# ${title}\n\n${markdown}` : markdown
 }
 
 const fetchPage = async (url: string, raw: boolean) => {
