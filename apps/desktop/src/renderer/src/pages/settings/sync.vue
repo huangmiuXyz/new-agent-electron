@@ -81,13 +81,6 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
   if (endpoint.deviceId === selfDeviceId.value) return '本机'
   return endpoint.source === 'desktop' ? '桌面端' : '移动端'
 }
-
-const getEndpointSummary = (endpoint: SyncEndpoint) => {
-  if (endpoint.deviceId === selfDeviceId.value) return ''
-  if (selectedEndpointId.value !== endpoint.deviceId) return '点击此项查看差异'
-  if (diffSummary.value.messageChanges === 0 && diffSummary.value.chatChanges === 0) return '当前与本机没有差异'
-  return `拉取后会覆盖本机 ${diffSummary.value.messageChanges} 条消息，涉及 ${diffSummary.value.chatChanges} 个会话`
-}
 </script>
 
 <template>
@@ -160,14 +153,21 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
               :class="{ selected: selectedEndpointId === endpoint.deviceId }" @click="selectEndpoint(endpoint.deviceId)">
               <div class="endpoint-main">
                 <div class="endpoint-name-row">
-                  <div class="endpoint-name">{{ endpoint.displayName || endpoint.deviceId }}</div>
+                  <div class="endpoint-name-block">
+                    <div class="endpoint-name">{{ endpoint.displayName || endpoint.deviceId }}</div>
+                    <div v-if="endpoint.displayName" class="endpoint-id">{{ endpoint.deviceId }}</div>
+                  </div>
                   <div class="endpoint-badge">{{ endpointBadge(endpoint) }}</div>
                 </div>
-                <div class="endpoint-meta">
-                  {{ endpoint.chatCount }} 个会话 / {{ endpoint.messageCount }} 条消息
-                </div>
-                <div v-if="endpoint.deviceId !== selfDeviceId" class="endpoint-summary">
-                  {{ getEndpointSummary(endpoint) }}
+                <div class="endpoint-metrics">
+                  <div class="endpoint-metric">
+                    <span class="metric-value">{{ endpoint.chatCount }}</span>
+                    <span class="metric-label">会话</span>
+                  </div>
+                  <div class="endpoint-metric">
+                    <span class="metric-value">{{ endpoint.messageCount }}</span>
+                    <span class="metric-label">消息</span>
+                  </div>
                 </div>
               </div>
               <div v-if="endpoint.deviceId !== selfDeviceId" class="endpoint-actions">
@@ -292,13 +292,15 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
 .endpoint-item {
   display: flex;
   width: 100%;
-  padding: 12px 14px;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px;
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
   background: var(--bg-card);
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .endpoint-item:hover {
@@ -318,30 +320,71 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
 
 .endpoint-name-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
+.endpoint-name-block {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .endpoint-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1.45;
   word-break: break-word;
 }
 
+.endpoint-id {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
 .endpoint-badge {
   flex-shrink: 0;
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 999px;
   background: var(--bg-secondary);
   font-size: 11px;
   color: var(--text-secondary);
 }
 
+.endpoint-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.endpoint-metric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+
+.metric-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.metric-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
 .endpoint-summary {
-  margin-top: 8px;
+  margin-top: 12px;
   font-size: 11px;
   color: var(--text-secondary);
   line-height: 1.5;
@@ -349,8 +392,9 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
 
 .endpoint-actions {
   display: flex;
-  align-items: center;
-  margin-left: 12px;
+  align-items: stretch;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .client-actions {
@@ -377,6 +421,10 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
 @media (max-width: 720px) {
   .sync-wrapper {
     gap: 12px;
+  }
+
+  :deep(.setting-content) {
+    padding: 14px 12px 20px;
   }
 
   .sync-row {
@@ -417,46 +465,105 @@ const getEndpointSummary = (endpoint: SyncEndpoint) => {
 
   .client-actions :deep(.btn) {
     width: 100%;
-    min-height: 36px;
+    min-height: 40px;
   }
 
   .endpoint-header {
-    padding: 14px 14px 8px;
+    padding: 14px 14px 10px;
   }
 
   .endpoint-list {
     padding: 0 14px 14px;
+    gap: 10px;
   }
 
   .endpoint-item {
     flex-direction: column;
-    gap: 10px;
     padding: 12px;
+    gap: 10px;
   }
 
   .endpoint-name-row {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 6px;
+    gap: 10px;
   }
 
   .endpoint-badge {
     align-self: flex-start;
   }
 
+  .endpoint-name {
+    font-size: 15px;
+  }
+
+  .endpoint-id {
+    font-size: 10px;
+  }
+
+  .endpoint-metrics {
+    margin-top: 10px;
+  }
+
+  .endpoint-metric {
+    padding: 5px 9px;
+  }
+
+  .endpoint-summary {
+    margin-top: 10px;
+  }
+
   .endpoint-actions {
-    margin-left: 0;
     width: 100%;
+    margin-left: 0;
+    padding-top: 2px;
   }
 
   .endpoint-actions :deep(.btn) {
     width: 100%;
-    min-height: 34px;
+    min-height: 40px;
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
   }
 
   .peer-empty {
     margin: 0 14px 14px;
     padding: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .sync-wrapper {
+    max-width: none;
+  }
+
+  .sync-overview {
+    padding: 12px 12px 10px;
+  }
+
+  .endpoint-header,
+  .endpoint-list,
+  .peer-empty {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .endpoint-header {
+    padding: 12px 12px 8px;
+  }
+
+  .endpoint-list {
+    padding: 0 12px 12px;
+  }
+
+  .endpoint-item {
+    padding: 12px;
+    gap: 12px;
+    border-radius: 10px;
+  }
+
+  .endpoint-name-row {
+    flex-direction: column;
+    gap: 8px;
   }
 }
 </style>
