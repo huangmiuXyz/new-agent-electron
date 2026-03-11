@@ -115,6 +115,14 @@ export const api: ElectronAPI = {
     },
     cancelDownload: (id: string) => electronAPI.ipcRenderer.invoke('net:cancel-download', id)
   },
+  browser: {
+    run: (payload: {
+      sessionId?: string
+      action: string
+      [key: string]: unknown
+    }) => electronAPI.ipcRenderer.invoke('browser:run', payload),
+    getState: (sessionId?: string) => electronAPI.ipcRenderer.invoke('browser:get-state', sessionId)
+  },
   sync: {
     startHost: (options?: { displayName?: string; port?: number }) =>
       electronAPI.ipcRenderer.invoke('sync:start-host', options),

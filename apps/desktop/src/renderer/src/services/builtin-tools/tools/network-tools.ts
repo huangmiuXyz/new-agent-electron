@@ -11,6 +11,27 @@ const fetchInputSchema = z.object({
   raw: z.boolean().default(false).describe('Return raw page content instead of simplified markdown')
 })
 
+const browserInputSchema = z.object({
+  session_id: z
+    .string()
+    .min(1)
+    .optional()
+    .default('default')
+    .describe(
+      'Browser session identifier. Reuse the same session_id within a conversation when you want to keep page state, but never run concurrent browser_use calls that navigate within the same session because later navigations will abort earlier ones.'
+    ),
+  timeout_ms: z.number().int().positive().max(300000).optional().default(30000),
+  max_result_length: z.number().int().positive().max(50000).optional().default(8000),
+  headless: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe('Whether to run headless. Prefer headless=false unless the user or environment explicitly requires headless mode.'),
+  code: z.string().min(1).describe(
+    'JavaScript code executed directly inside the page via webContents.executeJavaScript. Use browser globals like window, document, location, fetch, localStorage, and DOM APIs directly. For reliable navigation, return an object like { __browser_goto: "https://example.com" } so the main process performs loadURL(). Important: browser_use calls that navigate must be executed serially per session_id. Do not issue multiple parallel navigations in the same session.'
+  )
+})
+
 const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
 
 type ToolFetchResponse = {
@@ -178,6 +199,169 @@ const buildResultText = async (args: unknown) => {
   return `${prefix}Contents of ${input.url}:\n${chunk}${suffix}`
 }
 
+const toPrettyJson = (value: unknown) => {
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+const isProbablyHtml = (value: string) => {
+  const sample = value.slice(0, 500).toLowerCase()
+  return sample.includes('<html') || sample.includes('<body') || sample.includes('<div') || sample.includes('<!doctype')
+}
+
+const truncateText = (value: string, maxLength: number) => {
+  if (value.length <= maxLength) return value
+  return `${value.slice(0, maxLength)}\n\n<result truncated: ${value.length - maxLength} more characters>`
+}
+
+const formatBrowserResult = (result: unknown, maxLength: number) => {
+  if (typeof result === 'string') {
+    if (isProbablyHtml(result)) {
+      const simplified = simplifyHtml(result)
+      return `result_format: simplified_html\n${truncateText(simplified, maxLength)}`
+    }
+
+    return `result_format: text\n${truncateText(result, maxLength)}`
+  }
+
+  const serialized = toPrettyJson(result)
+  return `result_format: json\n${truncateText(serialized, maxLength)}`
+}
+
+const formatPageSnapshot = (snapshot: unknown, maxLength: number) => {
+  if (!snapshot || typeof snapshot !== 'object') {
+    return 'page_snapshot: unavailable'
+  }
+
+  const data = snapshot as {
+    title?: string
+    url?: string
+    hash?: string
+    state?: string
+    readyState?: string
+    activeElement?: { tag?: string; selector?: string; text?: string } | null
+    mainText?: string
+    textSample?: string
+    searchResults?: Array<{ title?: string; url?: string; snippet?: string }>
+    buttons?: Array<{ id?: string; text?: string; selector?: string; disabled?: boolean }>
+    inputs?: Array<{ id?: string; tag?: string; type?: string; name?: string; selector?: string; placeholder?: string; value?: string; disabled?: boolean }>
+    links?: Array<{ id?: string; text?: string; href?: string; selector?: string }>
+  }
+
+  const lines: string[] = [
+    'page_snapshot:',
+    `title: ${data.title || ''}`,
+    `url: ${data.url || ''}`,
+    `hash: ${data.hash || ''}`,
+    `state: ${data.state || 'unknown'}`,
+    `ready_state: ${data.readyState || 'unknown'}`
+  ]
+
+  if (data.activeElement) {
+    lines.push(
+      `active_element: ${[data.activeElement.tag, data.activeElement.selector, data.activeElement.text].filter(Boolean).join(' | ')}`
+    )
+  }
+
+  if (data.mainText) {
+    lines.push('main_text:')
+    lines.push(data.mainText)
+  } else if (data.textSample) {
+    lines.push('text_sample:')
+    lines.push(data.textSample)
+  }
+
+  const searchResults = (data.searchResults || []).slice(0, 10)
+  lines.push(`search_results (${data.searchResults?.length || 0}):`)
+  if (searchResults.length === 0) {
+    lines.push('- none')
+  } else {
+    for (const item of searchResults) {
+      lines.push(`- ${item.title || ''} -> ${item.url || ''}`.trim())
+      if (item.snippet) lines.push(`  snippet: ${item.snippet}`)
+    }
+  }
+
+  const buttons = (data.buttons || []).slice(0, 20)
+  lines.push(`buttons (${data.buttons?.length || 0}):`)
+  if (buttons.length === 0) {
+    lines.push('- none')
+  } else {
+    for (const button of buttons) {
+      lines.push(
+        `- ${button.id || ''} text=${JSON.stringify(button.text || '')} disabled=${button.disabled ? 'true' : 'false'} selector=${button.selector || ''}`.trim()
+      )
+    }
+  }
+
+  const inputs = (data.inputs || []).slice(0, 20)
+  lines.push(`inputs (${data.inputs?.length || 0}):`)
+  if (inputs.length === 0) {
+    lines.push('- none')
+  } else {
+    for (const input of inputs) {
+      lines.push(
+        `- ${input.id || ''} tag=${input.tag || 'input'} type=${input.type || ''} name=${input.name || ''} disabled=${input.disabled ? 'true' : 'false'} selector=${input.selector || ''} placeholder=${JSON.stringify(input.placeholder || '')}`.trim()
+      )
+    }
+  }
+
+  const links = (data.links || []).slice(0, 20)
+  lines.push(`links (${data.links?.length || 0}):`)
+  if (links.length === 0) {
+    lines.push('- none')
+  } else {
+    for (const link of links) {
+      lines.push(`- ${link.id || ''} text=${JSON.stringify(link.text || '')} selector=${link.selector || ''} -> ${link.href || ''}`.trim())
+    }
+  }
+
+  return truncateText(lines.join('\n'), maxLength)
+}
+
+const waitForBrowserRun = async (input: z.infer<typeof browserInputSchema>) => {
+  const runPromise = window.api.browser.run({
+    sessionId: input.session_id,
+    action: 'execute_code',
+    code: input.code,
+    timeoutMs: input.timeout_ms,
+    headless: input.headless
+  })
+
+  const hungProbeDelayMs = input.timeout_ms + 2000
+
+  const probePromise = new Promise<never>((_, reject) => {
+    window.setTimeout(async () => {
+      try {
+        const state = await window.api.browser.getState(input.session_id)
+        if (state?.running || state?.lastError) {
+          reject(
+            new Error(
+              [
+                state?.lastError ? 'browser_use failed in main process' : 'browser_use appears stuck',
+                `last_step: ${state?.lastStep || 'unknown'}`,
+                state?.lastError ? `last_error: ${state.lastError}` : '',
+                state.logs?.length ? `logs:\n${state.logs.join('\n')}` : ''
+              ]
+                .filter(Boolean)
+                .join('\n\n')
+            )
+          )
+          return
+        }
+      } catch {
+        // Ignore probe failures and continue waiting for the original run result.
+      }
+    }, hungProbeDelayMs)
+  })
+
+  return Promise.race([runPromise, probePromise])
+}
+
 export const getNetworkBuiltinTools = (): Partial<Tools> => ({
   fetch: {
     title: '网页抓取',
@@ -194,6 +378,103 @@ export const getNetworkBuiltinTools = (): Partial<Tools> => ({
         return {
           toolResult: {
             content: [{ type: 'text', text: `fetch failed: ${(error as Error).message}` }]
+          }
+        }
+      }
+    }
+  },
+  browser_use: {
+    title: 'Use Browser',
+    description:
+      'Execute JavaScript directly inside an Electron BrowserWindow page with webContents.executeJavaScript. For reliable page navigation, return { __browser_goto: url } from your JS. The tool returns concise execution results plus a page snapshot of buttons, inputs, and links. Reuse the same session_id when you need page state, prefer headless=false, and never run concurrent navigations in the same session because later navigations will abort earlier ones.',
+    inputSchema: browserInputSchema,
+    execute: async (args: unknown) => {
+      try {
+        const input = browserInputSchema.parse(args)
+        const result = await waitForBrowserRun(input)
+
+        if (!result?.ok) {
+          throw new Error(result?.error || 'browser code execution failed')
+        }
+
+        const data = result.data as {
+          sessionId: string
+          execution?: {
+            mode?: string
+            requestedUrl?: string
+            returnedValue?: unknown
+          }
+          navigation?: {
+            detected?: boolean
+            type?: string
+            fromUrl?: string
+            toUrl?: string
+            requestedUrl?: string
+          }
+          page?: {
+            finalUrl?: string
+            loading?: boolean
+            title?: string
+            timing?: {
+              startedAt?: number | null
+              finishedAt?: number | null
+              durationMs?: number | null
+            }
+          }
+          logs?: string[]
+          pageSnapshot?: unknown
+          screenshot?: {
+            imageDataUrl: string
+            width: number
+            height: number
+          } | null
+        }
+
+        const executionBlock = [
+          `execution_mode: ${data.execution?.mode || 'unknown'}`,
+          data.execution?.requestedUrl ? `execution_requested_url: ${data.execution.requestedUrl}` : '',
+          formatBrowserResult(data.execution?.returnedValue ?? null, input.max_result_length)
+        ]
+          .filter(Boolean)
+          .join('\n')
+
+        const navigationBlock = [
+          'navigation:',
+          `detected: ${data.navigation?.detected ? 'true' : 'false'}`,
+          `type: ${data.navigation?.type || 'unknown'}`,
+          `from_url: ${data.navigation?.fromUrl || ''}`,
+          `to_url: ${data.navigation?.toUrl || ''}`,
+          data.navigation?.requestedUrl ? `requested_url: ${data.navigation.requestedUrl}` : ''
+        ]
+          .filter(Boolean)
+          .join('\n')
+
+        const pageBlock = [
+          'page:',
+          `final_url: ${data.page?.finalUrl || ''}`,
+          `title: ${data.page?.title || ''}`,
+          `loading: ${data.page?.loading ? 'true' : 'false'}`,
+          `duration_ms: ${data.page?.timing?.durationMs ?? ''}`
+        ]
+          .filter(Boolean)
+          .join('\n')
+
+        const content: Array<{ type: 'text'; text: string } | { type: 'image-url'; url: string }> = [
+          {
+            type: 'text',
+            text: `action: execute_code\nsession_id: ${data.sessionId}\n\n${executionBlock}\n\n${navigationBlock}\n\n${pageBlock}\n\n${formatPageSnapshot(data.pageSnapshot, Math.max(1500, Math.floor(input.max_result_length / 2)))}${data.logs?.length ? `\n\nlogs:\n${data.logs.join('\n')}` : ''}`
+          }
+        ]
+
+        return {
+          toolResult: {
+            content
+          }
+        }
+      } catch (error) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: `browser_use failed: ${(error as Error).message}` }]
           }
         }
       }
