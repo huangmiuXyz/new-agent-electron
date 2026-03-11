@@ -48,8 +48,10 @@
   },
   "dependencies": {
     "@ai-sdk/moonshotai": "catalog:",
+    "@mozilla/readability": "^0.6.0",
     "@openrouter/ai-sdk-provider": "^2.2.1",
     "istextorbinary": "^9.5.0",
-    "textextensions": "^6.11.0"
+    "textextensions": "^6.11.0",
+    "turndown": "^7.2.2"
   }
 }
