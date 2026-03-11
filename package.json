@@ -14,6 +14,7 @@
     "android:debug": "node ./scripts/build-android.mjs debug",
     "android:release": "node ./scripts/build-android.mjs release",
     "android:bundle": "node ./scripts/build-android.mjs bundle",
+    "android:interactive": "node ./scripts/build-android.mjs --interactive",
     "build": "turbo build",
     "build:mac": "turbo build:mac",
     "build:win": "turbo build:win",

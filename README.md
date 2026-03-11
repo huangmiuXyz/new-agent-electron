@@ -44,6 +44,12 @@ pnpm android:release
 
 # Release AAB
 pnpm android:bundle
+
+# Interactive build (choose mode + version at runtime)
+pnpm android:interactive
+
+# Non-interactive build with explicit version
+pnpm android:release -- --version-name 1.0.2 --version-code 3
 ```
 
 The Android build requires Java 21. The script will try `JAVA_HOME_21`, then Android Studio's bundled `jbr`.

@@ -7,7 +7,6 @@ const {
   connection,
   endpoints,
   selectedEndpointId,
-  selectedEndpoint,
   diffSummary,
   hasDesktopSyncApi,
   selfDeviceId,
@@ -36,14 +35,6 @@ const connect = async () => {
 
 const disconnect = () => {
   syncStore.disconnect()
-}
-
-const pullSelected = async () => {
-  try {
-    await syncStore.pullSelectedEndpoint()
-  } catch (error) {
-    connection.value.error = error instanceof Error ? error.message : String(error)
-  }
 }
 
 const pullEndpoint = async (deviceId: string) => {
