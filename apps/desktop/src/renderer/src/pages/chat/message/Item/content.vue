@@ -15,7 +15,7 @@ const messageEdit = inject('messageEdit') as {
   cancelEdit: () => void
 }
 
-const { Check, Close } = useIcon(['Check', 'Close'])
+const { Check, Refresh, Close } = useIcon(['Check', 'Refresh', 'Close'])
 
 const isEditing = computed(() => {
   return messageEdit.editingMessageId.value === props.message.id
@@ -73,6 +73,22 @@ const saveEditing = () => {
   messageEdit.cancelEdit()
 }
 
+const saveEditingAndRetry = () => {
+  if (!currentChat.value) return
+  const messageId = props.message.id
+  saveEditing()
+
+  if (!currentSelectedModel.value) {
+    messageApi.error('请先选择模型')
+    return
+  }
+
+  const { regenerate } = useChat(currentChat.value.id)
+  setTimeout(() => {
+    regenerate(messageId)
+  })
+}
+
 const retry = () => {
   if (!currentSelectedModel.value) {
     messageApi.error('请先选择模型')
@@ -124,8 +140,11 @@ const getBlockKey = (block: BaseMessage['parts'][number], idx: number) => {
         <Button variant="text" size="sm" @click="cancelEditing">
           <Close />
         </Button>
-        <Button variant="text" size="sm" @click="saveEditing">
+        <Button variant="text" size="sm" title="保存" @click="saveEditing">
           <Check />
+        </Button>
+        <Button variant="text" size="sm" title="保存并重试" @click="saveEditingAndRetry">
+          <Refresh />
         </Button>
       </div>
     </div>

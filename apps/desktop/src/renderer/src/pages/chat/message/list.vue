@@ -125,7 +125,29 @@ const saveMobileEdit = () => {
   })
 
   updateMessage(currentChat.value.id, mobileEditingMessageId.value, filteredContent)
+}
+
+const saveMobileEditAndClose = () => {
+  saveMobileEdit()
   closeMobileEditModal()
+}
+
+const saveMobileEditAndRetry = () => {
+  if (!currentChat.value || !mobileEditingMessageId.value) return
+
+  const messageId = mobileEditingMessageId.value
+  saveMobileEdit()
+  closeMobileEditModal()
+
+  if (!currentSelectedModel.value) {
+    messageApi.error('请先选择模型')
+    return
+  }
+
+  const { regenerate } = useChat(currentChat.value.id)
+  setTimeout(() => {
+    regenerate(messageId)
+  })
 }
 
 const MobileEditContent = defineComponent({
@@ -206,10 +228,11 @@ const openMobileEditModal = (message: BaseMessage) => {
   mobileEditModal.confirm({
     title: '编辑消息',
     content: MobileEditContent,
-    confirmText: '保存',
-    cancelText: '取消',
-    onOk: saveMobileEdit,
-    onCancel: closeMobileEditModal,
+    cancelText: '保存',
+    confirmText: '保存并重试',
+    showCancel: true,
+    onOk: saveMobileEditAndRetry,
+    onCancel: saveMobileEditAndClose,
     onClose: closeMobileEditModal,
     width: 'min(680px, 100%)'
   })
