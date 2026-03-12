@@ -332,6 +332,92 @@ const pageSnapshotEvaluator = () => {
     return Boolean(el.closest(selectorText))
   }
 
+  const collectDocumentSnapshot = (doc: Document, frameEl: HTMLIFrameElement | null = null) => {
+    const scopeVisible = (el: Element | null) => {
+      if (!el || typeof (el as HTMLElement).getBoundingClientRect !== 'function') return false
+      const rect = (el as HTMLElement).getBoundingClientRect()
+      const style = doc.defaultView?.getComputedStyle(el)
+      return !!style && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0
+    }
+
+    const scopeTextOf = (el: Element | null, max = 120) => {
+      if (!el) return ''
+      const inputEl = el as HTMLInputElement
+      return clean(
+        (el as HTMLElement).innerText ||
+          el.textContent ||
+          inputEl.value ||
+          el.getAttribute('aria-label') ||
+          el.getAttribute('title') ||
+          '',
+        max
+      )
+    }
+
+    const scopeHasAncestor = (el: Element | null, selectorText: string) => {
+      if (!el || typeof el.closest !== 'function') return false
+      return Boolean(el.closest(selectorText))
+    }
+
+    const findMain = () => {
+      const selectors = ['main', 'article', '[role="main"]', '#content', '.content', '.main', '.main-content']
+      for (const value of selectors) {
+        const found = doc.querySelector(value)
+        if (found && scopeVisible(found)) return found
+      }
+      return doc.body
+    }
+
+    const mainEl = findMain()
+    const bodyText = clean(doc.body ? doc.body.innerText || doc.body.textContent || '' : '', 3000)
+    const mainText = clean(scopeTextOf(mainEl, 3500) || bodyText, 3000)
+    const activeEl = doc.activeElement
+
+    return {
+      frameSelector: frameEl ? selector(frameEl) : null,
+      title: doc.title || '',
+      url: doc.defaultView?.location?.href || '',
+      readyState: doc.readyState || 'unknown',
+      activeElement:
+        activeEl && activeEl !== doc.body
+          ? {
+              tag: activeEl.tagName ? String(activeEl.tagName).toLowerCase() : 'unknown',
+              selector: selector(activeEl),
+              text: scopeTextOf(activeEl)
+            }
+          : null,
+      mainText,
+      buttons: Array.from(doc.querySelectorAll('button,[role="button"],input[type="button"],input[type="submit"]'))
+        .filter((el) => scopeVisible(el))
+        .slice(0, 20)
+        .map((el, index) => ({
+          id: `frame_btn_${index}`,
+          text: scopeTextOf(el),
+          selector: selector(el)
+        })),
+      inputs: Array.from(doc.querySelectorAll('input,textarea,select'))
+        .filter((el) => scopeVisible(el))
+        .slice(0, 20)
+        .map((el, index) => ({
+          id: `frame_input_${index}`,
+          tag: el.tagName ? String(el.tagName).toLowerCase() : 'unknown',
+          type: el.getAttribute('type') || '',
+          name: el.getAttribute('name') || '',
+          selector: selector(el)
+        })),
+      links: Array.from(doc.querySelectorAll('a[href]'))
+        .filter((el) => scopeVisible(el))
+        .slice(0, 20)
+        .map((el, index) => ({
+          id: `frame_link_${index}`,
+          text: scopeTextOf(el),
+          href: (el as HTMLAnchorElement).href || '',
+          selector: selector(el)
+        }))
+        .filter((item) => item.text || item.href)
+    }
+  }
+
   const regionOf = (el: Element | null, mainEl: Element | null) => {
     if (!el) return 'unknown'
     if (mainEl && (el === mainEl || mainEl.contains(el))) return 'main'
@@ -475,11 +561,61 @@ const pageSnapshotEvaluator = () => {
     })
     .filter((item) => item.title || item.url || item.snippet)
 
+  const iframes = Array.from(document.querySelectorAll('iframe'))
+    .slice(0, 20)
+    .map((frame, index) => {
+      const iframe = frame as HTMLIFrameElement
+      const base = {
+        id: `frame_${index}`,
+        selector: selector(iframe),
+        src: iframe.src || iframe.getAttribute('src') || '',
+        visible: visible(iframe),
+        active: document.activeElement === iframe,
+        sameOrigin: false,
+        accessible: false,
+        title: '',
+        url: '',
+        mainText: '',
+        buttons: [],
+        inputs: [],
+        links: []
+      }
+
+      try {
+        const doc = iframe.contentDocument
+        const href = iframe.contentWindow?.location?.href || ''
+        const sameOrigin = !!doc && !!href
+        if (!doc || !sameOrigin) {
+          return base
+        }
+
+        const frameSnapshot = collectDocumentSnapshot(doc, iframe)
+        return {
+          ...base,
+          sameOrigin: true,
+          accessible: true,
+          title: frameSnapshot.title,
+          url: frameSnapshot.url,
+          mainText: frameSnapshot.mainText,
+          activeElement: frameSnapshot.activeElement,
+          buttons: frameSnapshot.buttons,
+          inputs: frameSnapshot.inputs,
+          links: frameSnapshot.links
+        }
+      } catch {
+        return base
+      }
+    })
+
   let state = 'content'
   const lower = `${title}\n${mainText}\n${url}`.toLowerCase()
-  if (/captcha|challenge|verify|verification|人机验证/.test(lower)) state = 'blocked'
-  else if (/[?&](wd|q|query|search)=/.test(url.toLowerCase()) || /search results|搜索结果/.test(lower)) state = 'search_results'
-  else if (/not found|页面不存在|未找到/.test(lower)) state = 'not_found'
+  if (/captcha|verify you are human|human verification|security check|access denied|bot detection|人机验证|安全验证/.test(lower)) {
+    state = 'blocked'
+  } else if (/[?&](wd|q|query|search)=/.test(url.toLowerCase()) || /search results|搜索结果/.test(lower)) {
+    state = 'search_results'
+  } else if (/not found|页面不存在|未找到/.test(lower)) {
+    state = 'not_found'
+  }
 
   return {
     title,
@@ -493,7 +629,8 @@ const pageSnapshotEvaluator = () => {
     searchResults,
     buttons,
     inputs,
-    links
+    links,
+    iframes
   }
 }
 
@@ -554,6 +691,20 @@ const executeBrowserCode = async (payload: BrowserActionPayload) => {
       pushExecutionLog(sessionId, 'browser.getPageSnapshot(start)')
       const pageSnapshot = await getPageSnapshot(session)
       pushExecutionLog(sessionId, `browser.getPageSnapshot(done:${String((pageSnapshot as { state?: unknown })?.state || 'unknown')})`)
+      if (pageSnapshot && typeof pageSnapshot === 'object' && 'iframes' in pageSnapshot && Array.isArray((pageSnapshot as { iframes?: unknown[] }).iframes)) {
+        const frames = (pageSnapshot as { iframes: Array<{ visible?: boolean; accessible?: boolean; sameOrigin?: boolean; src?: string }> }).iframes
+        pushExecutionLog(sessionId, `browser.getPageSnapshot(iframes:${frames.length})`)
+        pushExecutionLog(
+          sessionId,
+          `browser.getPageSnapshot(iframes_visible:${frames.filter((item) => item?.visible).length},accessible:${frames.filter((item) => item?.accessible).length},same_origin:${frames.filter((item) => item?.sameOrigin).length})`
+        )
+        for (const [index, frame] of frames.slice(0, 3).entries()) {
+          pushExecutionLog(
+            sessionId,
+            `browser.getPageSnapshot(iframe_${index}:visible=${String(!!frame.visible)},accessible=${String(!!frame.accessible)},sameOrigin=${String(!!frame.sameOrigin)},src=${JSON.stringify(String(frame.src || ''))})`
+          )
+        }
+      }
       if (pageSnapshot && typeof pageSnapshot === 'object' && 'snapshotError' in pageSnapshot) {
         pushExecutionLog(sessionId, `browser.getPageSnapshot(error:${String((pageSnapshot as { snapshotError?: unknown }).snapshotError || '')})`)
       }
@@ -669,6 +820,20 @@ const executeBrowserCode = async (payload: BrowserActionPayload) => {
     pushExecutionLog(sessionId, 'browser.getPageSnapshot(start)')
     const pageSnapshot = await getPageSnapshot(session)
     pushExecutionLog(sessionId, `browser.getPageSnapshot(done:${String((pageSnapshot as { state?: unknown })?.state || 'unknown')})`)
+    if (pageSnapshot && typeof pageSnapshot === 'object' && 'iframes' in pageSnapshot && Array.isArray((pageSnapshot as { iframes?: unknown[] }).iframes)) {
+      const frames = (pageSnapshot as { iframes: Array<{ visible?: boolean; accessible?: boolean; sameOrigin?: boolean; src?: string }> }).iframes
+      pushExecutionLog(sessionId, `browser.getPageSnapshot(iframes:${frames.length})`)
+      pushExecutionLog(
+        sessionId,
+        `browser.getPageSnapshot(iframes_visible:${frames.filter((item) => item?.visible).length},accessible:${frames.filter((item) => item?.accessible).length},same_origin:${frames.filter((item) => item?.sameOrigin).length})`
+      )
+      for (const [index, frame] of frames.slice(0, 3).entries()) {
+        pushExecutionLog(
+          sessionId,
+          `browser.getPageSnapshot(iframe_${index}:visible=${String(!!frame.visible)},accessible=${String(!!frame.accessible)},sameOrigin=${String(!!frame.sameOrigin)},src=${JSON.stringify(String(frame.src || ''))})`
+        )
+      }
+    }
     if (pageSnapshot && typeof pageSnapshot === 'object' && 'snapshotError' in pageSnapshot) {
       pushExecutionLog(sessionId, `browser.getPageSnapshot(error:${String((pageSnapshot as { snapshotError?: unknown }).snapshotError || '')})`)
     }

@@ -247,9 +247,35 @@ const formatPageSnapshot = (snapshot: unknown, maxLength: number) => {
     mainText?: string
     textSample?: string
     searchResults?: Array<{ title?: string; url?: string; snippet?: string }>
-    buttons?: Array<{ id?: string; text?: string; selector?: string; disabled?: boolean }>
-    inputs?: Array<{ id?: string; tag?: string; type?: string; name?: string; selector?: string; placeholder?: string; value?: string; disabled?: boolean }>
-    links?: Array<{ id?: string; text?: string; href?: string; selector?: string }>
+    buttons?: Array<{ id?: string; text?: string; selector?: string; disabled?: boolean; priority?: number; region?: string }>
+    inputs?: Array<{
+      id?: string
+      tag?: string
+      type?: string
+      name?: string
+      selector?: string
+      placeholder?: string
+      value?: string
+      disabled?: boolean
+      priority?: number
+      region?: string
+    }>
+    links?: Array<{ id?: string; text?: string; href?: string; selector?: string; priority?: number; region?: string }>
+    iframes?: Array<{
+      id?: string
+      selector?: string
+      src?: string
+      visible?: boolean
+      active?: boolean
+      sameOrigin?: boolean
+      accessible?: boolean
+      title?: string
+      url?: string
+      mainText?: string
+      buttons?: Array<{ id?: string; text?: string; selector?: string }>
+      inputs?: Array<{ id?: string; tag?: string; type?: string; name?: string; selector?: string }>
+      links?: Array<{ id?: string; text?: string; href?: string; selector?: string }>
+    }>
   }
 
   const lines: string[] = [
@@ -293,7 +319,7 @@ const formatPageSnapshot = (snapshot: unknown, maxLength: number) => {
   } else {
     for (const button of buttons) {
       lines.push(
-        `- ${button.id || ''} text=${JSON.stringify(button.text || '')} disabled=${button.disabled ? 'true' : 'false'} selector=${button.selector || ''}`.trim()
+        `- ${button.id || ''} text=${JSON.stringify(button.text || '')} disabled=${button.disabled ? 'true' : 'false'} selector=${button.selector || ''}${typeof button.priority === 'number' ? ` priority=${button.priority}` : ''}${button.region ? ` region=${button.region}` : ''}`.trim()
       )
     }
   }
@@ -305,7 +331,7 @@ const formatPageSnapshot = (snapshot: unknown, maxLength: number) => {
   } else {
     for (const input of inputs) {
       lines.push(
-        `- ${input.id || ''} tag=${input.tag || 'input'} type=${input.type || ''} name=${input.name || ''} disabled=${input.disabled ? 'true' : 'false'} selector=${input.selector || ''} placeholder=${JSON.stringify(input.placeholder || '')}`.trim()
+        `- ${input.id || ''} tag=${input.tag || 'input'} type=${input.type || ''} name=${input.name || ''} disabled=${input.disabled ? 'true' : 'false'} selector=${input.selector || ''} placeholder=${JSON.stringify(input.placeholder || '')}${typeof input.priority === 'number' ? ` priority=${input.priority}` : ''}${input.region ? ` region=${input.region}` : ''}`.trim()
       )
     }
   }
@@ -316,7 +342,32 @@ const formatPageSnapshot = (snapshot: unknown, maxLength: number) => {
     lines.push('- none')
   } else {
     for (const link of links) {
-      lines.push(`- ${link.id || ''} text=${JSON.stringify(link.text || '')} selector=${link.selector || ''} -> ${link.href || ''}`.trim())
+      lines.push(
+        `- ${link.id || ''} text=${JSON.stringify(link.text || '')} selector=${link.selector || ''}${typeof link.priority === 'number' ? ` priority=${link.priority}` : ''}${link.region ? ` region=${link.region}` : ''} -> ${link.href || ''}`.trim()
+      )
+    }
+  }
+
+  const iframes = (data.iframes || []).slice(0, 10)
+  lines.push(`iframes (${data.iframes?.length || 0}):`)
+  if (iframes.length === 0) {
+    lines.push('- none')
+  } else {
+    for (const frame of iframes) {
+      lines.push(
+        `- ${frame.id || ''} selector=${frame.selector || ''} visible=${frame.visible ? 'true' : 'false'} active=${frame.active ? 'true' : 'false'} same_origin=${frame.sameOrigin ? 'true' : 'false'} accessible=${frame.accessible ? 'true' : 'false'} src=${JSON.stringify(frame.src || '')}`.trim()
+      )
+      if (frame.title || frame.url) {
+        lines.push(`  title=${JSON.stringify(frame.title || '')} url=${frame.url || ''}`)
+      }
+      if (frame.mainText) {
+        lines.push(`  main_text=${JSON.stringify(frame.mainText.slice(0, 240))}`)
+      }
+      if (frame.buttons?.length || frame.inputs?.length || frame.links?.length) {
+        lines.push(
+          `  content: buttons=${frame.buttons?.length || 0} inputs=${frame.inputs?.length || 0} links=${frame.links?.length || 0}`
+        )
+      }
     }
   }
 
