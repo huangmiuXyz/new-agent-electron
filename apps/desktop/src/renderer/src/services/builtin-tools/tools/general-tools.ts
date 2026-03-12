@@ -219,7 +219,7 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
     }
   },
   'multi_tool_use.parallel': {
-    title: 'multi_tool_use.parallel',
+    title: '批量并行工具调用',
     description:
       '用于批量并行调用多个工具。只允许调用当前智能体已启用的内置工具或 MCP 工具。',
     inputSchema: z.object({

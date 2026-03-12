@@ -206,9 +206,9 @@ const runAction = async (action: ComputerAction) => {
 
 export const getComputerBuiltinTools = (): Partial<Tools> => ({
   computer_use: {
-    title: 'Computer Use',
+    title: '电脑操作',
     description:
-      'Use the local computer through a single OpenAI-style action tool. Supported actions: screenshot, click, double_click, scroll, keypress, type, wait.',
+      '通过单个 OpenAI 风格动作工具操作本地电脑。支持的动作包括：截图、单击、双击、滚动、按键、输入文本、等待。',
     inputSchema: computerInputSchema,
     execute: async (args: unknown) =>
       withComputerError(async () => {

@@ -435,9 +435,9 @@ export const getNetworkBuiltinTools = (): Partial<Tools> => ({
     }
   },
   browser_use: {
-    title: 'Use Browser',
+    title: '浏览器操作',
     description:
-      'Execute JavaScript directly inside an Electron BrowserWindow page with webContents.executeJavaScript. For reliable page navigation, return { __browser_goto: url } from your JS. The tool returns concise execution results plus a page snapshot of buttons, inputs, and links. Reuse the same session_id when you need page state, prefer headless=false, and never run concurrent navigations in the same session because later navigations will abort earlier ones.',
+      '在 Electron BrowserWindow 页面中直接执行 JavaScript，并返回精简执行结果以及页面快照，包括按钮、输入框和链接。若需要更可靠的页面跳转，可在 JS 中返回 { __browser_goto: url }。需要保留页面状态时请复用同一个 session_id，建议优先使用 headless=false，并且同一个 session 中不要并发执行多个会导航的调用，否则后发起的导航会中断先前的导航。',
     inputSchema: browserInputSchema,
     execute: async (args: unknown) => {
       try {
