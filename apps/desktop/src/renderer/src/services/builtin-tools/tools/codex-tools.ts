@@ -508,29 +508,29 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     }
   },
   search_project: {
-    title: 'Project Search',
-    description: 'Use ripgrep (rg) to search inside the project. Flags are passed through to rg.',
+    title: '项目搜索',
+    description: '使用 ripgrep (rg) 在项目中搜索，flags 会原样传给 rg。',
     inputSchema: z.object({
-      query: z.string().describe('rg search pattern'),
-      path: z.string().optional().default('.').describe('Working directory for rg, default is current project'),
+      query: z.string().describe('rg 搜索模式'),
+      path: z.string().optional().default('.').describe('rg 执行目录，默认当前项目'),
       flags: z
         .array(z.string())
         .optional()
         .default([])
-        .describe('Arguments passed directly to rg, for example ["-n", "-S", "-g", "*.ts"]')
+        .describe('直接传给 rg 的参数数组，例如 ["-n", "-S", "-g", "*.ts"]')
     }),
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
       const query = String(params.query || '').trim()
       if (!query) {
-        return { toolResult: { content: [{ type: 'text', text: 'search_project failed: query is required' }] } }
+        return { toolResult: { content: [{ type: 'text', text: 'search_project 失败：query 不能为空' }] } }
       }
 
       try {
         const rootDir = resolvePath(String(params.path || '.'))
         if (!window.api.fs.existsSync(rootDir)) {
           return {
-            toolResult: { content: [{ type: 'text', text: `search_project failed: directory not found ${rootDir}` }] }
+            toolResult: { content: [{ type: 'text', text: `search_project 失败：目录不存在 ${rootDir}` }] }
           }
         }
 
@@ -538,7 +538,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         const isDir = (stat.mode & 0o170000) === 0o040000
         if (!isDir) {
           return {
-            toolResult: { content: [{ type: 'text', text: `search_project failed: path is not a directory ${rootDir}` }] }
+            toolResult: { content: [{ type: 'text', text: `search_project 失败：路径不是目录 ${rootDir}` }] }
           }
         }
 
@@ -560,7 +560,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
               content: [
                 {
                   type: 'text',
-                  text: `No matches found\nquery: ${query}\npath: ${rootDir}\nflags: ${flags.join(' ')}`
+                  text: `未找到匹配结果\nquery: ${query}\npath: ${rootDir}\nflags: ${flags.join(' ')}`
                 }
               ]
             }
@@ -568,7 +568,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
 
         if (result.code !== 0 && result.code !== 1) {
-          const message = stderr || stdout || result.error?.message || 'rg execution failed'
+          const message = stderr || stdout || result.error?.message || 'rg 执行失败'
           const missingExecutable =
             /not recognized|command not found|cannot find|not found/i.test(message) && message.includes('rg')
           return {
@@ -577,8 +577,8 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
                 {
                   type: 'text',
                   text: missingExecutable
-                    ? 'search_project failed: bundled rg was not found. Please reinstall the app or ensure ripgrep is available.'
-                    : `search_project failed: ${message}`
+                    ? 'search_project 失败：未找到内置 rg，请重新安装应用或确认 ripgrep 可用。'
+                    : `search_project 失败：${message}`
                 }
               ]
             }
@@ -590,7 +590,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
             content: [
               {
                 type: 'text',
-                text: `rg search completed\nquery: ${query}\npath: ${rootDir}\nflags: ${flags.join(' ')}\n\n${stdout}`
+                text: `rg 搜索完成\nquery: ${query}\npath: ${rootDir}\nflags: ${flags.join(' ')}\n\n${stdout}`
               }
             ]
           }
@@ -598,7 +598,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       } catch (error) {
         return {
           toolResult: {
-            content: [{ type: 'text', text: `search_project failed: ${(error as Error).message}` }]
+            content: [{ type: 'text', text: `search_project 失败：${(error as Error).message}` }]
           }
         }
       }
