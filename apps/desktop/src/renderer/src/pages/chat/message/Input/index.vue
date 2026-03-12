@@ -71,6 +71,27 @@ const currentChatModel = computed(() => {
   if (!chatProviderId.value || !chatModelId.value) return null
   return settingsStore.getModelById(chatProviderId.value, chatModelId.value).model
 })
+const numberFormatter = new Intl.NumberFormat('zh-CN')
+const currentChatTokenUsage = computed(() => {
+  const totals = (chatStore.currentChat?.messages || []).reduce(
+    (acc, message) => {
+      const usage = message.metadata?.usage
+      acc.total += usage?.totalTokens || 0
+      acc.input += usage?.inputTokens || 0
+      acc.output += usage?.outputTokens || 0
+      return acc
+    },
+    { total: 0, input: 0, output: 0 }
+  )
+
+  return {
+    ...totals,
+    hasUsage: totals.total > 0 || totals.input > 0 || totals.output > 0,
+    totalDisplay: numberFormatter.format(totals.total),
+    inputDisplay: numberFormatter.format(totals.input),
+    outputDisplay: numberFormatter.format(totals.output)
+  }
+})
 
 const speechStore = useSpeechStore()
 const modal = useModal()
@@ -751,6 +772,13 @@ onUnmounted(() => {
       <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
         @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
+      <div v-if="currentChatTokenUsage.hasUsage" class="chat-usage-summary">
+        <span class="chat-usage-summary-label">当前聊天总 Token</span>
+        <span class="chat-usage-summary-total">{{ currentChatTokenUsage.totalDisplay }}</span>
+        <span v-if="currentChatTokenUsage.input > 0" class="chat-usage-summary-detail">↑{{ currentChatTokenUsage.inputDisplay }}</span>
+        <span v-if="currentChatTokenUsage.output > 0" class="chat-usage-summary-detail">↓{{ currentChatTokenUsage.outputDisplay }}</span>
+      </div>
+
       <div v-if="!isMobile">
         <div class="input-wrapper">
           <textarea ref="textareaRef" class="input-field" rows="1"
@@ -1095,6 +1123,32 @@ onUnmounted(() => {
   position: relative;
 }
 
+.chat-usage-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border-color-light);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1;
+  flex-wrap: wrap;
+}
+
+.chat-usage-summary-label {
+  color: var(--text-secondary);
+}
+
+.chat-usage-summary-total {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.chat-usage-summary-detail {
+  color: var(--text-tertiary);
+}
+
 .input-container:focus-within {
   border-color: var(--border-focus);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
@@ -1353,6 +1407,11 @@ onUnmounted(() => {
   border: none;
   box-shadow: none;
   padding: 0;
+}
+
+.footer.is-mobile .chat-usage-summary {
+  padding: 0 8px 8px;
+  margin-bottom: 8px;
 }
 
 .footer.is-mobile {
