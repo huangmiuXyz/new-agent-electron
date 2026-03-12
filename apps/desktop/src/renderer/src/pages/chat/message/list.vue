@@ -100,6 +100,14 @@ const closeMobileCopyPreview = () => {
 
 const resizeEditTextarea = (target: HTMLTextAreaElement) => {
   target.style.height = 'auto'
+
+  if (isMobile.value) {
+    const maxHeight = Math.max(window.innerHeight * 0.5, 160)
+    target.style.height = `${Math.min(target.scrollHeight, maxHeight)}px`
+    target.style.overflowY = target.scrollHeight > maxHeight ? 'auto' : 'hidden'
+    return
+  }
+
   target.style.height = `${target.scrollHeight}px`
 }
 
@@ -157,7 +165,12 @@ const MobileEditContent = defineComponent({
     const containerStyle = {
       display: 'flex',
       flexDirection: 'column' as const,
-      gap: '12px'
+      gap: '12px',
+      overflowY: 'auto' as const,
+      overflowX: 'hidden' as const,
+      WebkitOverflowScrolling: 'touch' as const,
+      touchAction: 'pan-y' as const,
+      padding: '12px'
     }
 
     const tipStyle = {
@@ -168,6 +181,7 @@ const MobileEditContent = defineComponent({
     const getTextareaStyle = () => ({
       width: '100%',
       minHeight: '88px',
+      maxHeight: isMobile.value ? '50vh' : 'none',
       padding: '12px',
       fontSize: `${display.value.fontSize}px`,
       lineHeight: '1.6',
@@ -178,7 +192,9 @@ const MobileEditContent = defineComponent({
       resize: 'none' as const,
       fontFamily: 'inherit',
       backgroundColor: 'var(--bg-input)',
-      overflowY: 'hidden' as const,
+      overflowY: isMobile.value ? 'auto' as const : 'hidden' as const,
+      WebkitOverflowScrolling: 'touch' as const,
+      touchAction: 'pan-y' as const,
       boxSizing: 'border-box' as const
     })
 
@@ -234,7 +250,14 @@ const openMobileEditModal = (message: BaseMessage) => {
     onOk: saveMobileEditAndRetry,
     onCancel: saveMobileEditAndClose,
     onClose: closeMobileEditModal,
-    width: 'min(680px, 100%)'
+    width: 'min(680px, 100%)',
+    variant: isMobile.value ? 'drawer' : 'center',
+    maxHeight: isMobile.value ? 'calc(var(--vh, 100vh) - 8px)' : '85vh',
+    modalBodyStyle: isMobile.value ? {
+      padding: '0',
+      overflow: 'hidden',
+      minHeight: '0'
+    } : undefined
   })
 }
 
@@ -497,7 +520,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 
     <Teleport to="body">
       <div v-if="isMobile && mobileCopyPreviewVisible" class="mobile-copy-preview-overlay" @click.self="closeMobileCopyPreview">
-        <div class="mobile-copy-preview-card">
+        <div class="mobile-copy-preview-card" role="dialog" aria-modal="true">
           <div class="mobile-copy-preview-header">
             <div class="mobile-copy-preview-title">复制内容</div>
             <Button size="sm" variant="text" @click="closeMobileCopyPreview">关闭</Button>
@@ -582,19 +605,21 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 12px;
+  padding: 12px 12px max(12px, var(--safe-area-bottom, 0px)) 12px;
 }
 
 .mobile-copy-preview-card {
   width: 100%;
   max-width: 620px;
+  max-height: calc(var(--vh, 100vh) - 24px);
   background: var(--bg-card);
-  border-radius: 12px;
+  border-radius: 16px;
   border: 1px solid var(--border-color);
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow: hidden;
 }
 
 .mobile-copy-preview-header {
@@ -623,8 +648,12 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 }
 
 .mobile-copy-preview-content {
-  max-height: 45vh;
+  flex: 1;
+  min-height: 0;
+  max-height: calc(var(--vh, 100vh) - 180px);
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding: 10px;
   border-radius: 8px;
   border: 1px solid var(--border-color-light);

@@ -40,7 +40,7 @@
         </div>
       </div>
 
-      <div v-else class="drawer-container" :style="{ maxHeight }">
+      <div v-else class="drawer-container" :style="{ maxHeight: props.maxHeight || drawerViewportHeight, height: props.height }">
         <div class="drawer-header">
           <div class="drawer-title">{{ title }}</div>
         </div>
@@ -71,7 +71,7 @@ import Button from './Button.vue'
 import { useIcon } from '@renderer/composables/useIcon'
 import { useBackButton } from '@renderer/composables/useBackButton'
 import { BaseModalProps } from '@renderer/types/components'
-import { useDraggable } from '@vueuse/core'
+import { useDraggable, useWindowSize } from '@vueuse/core'
 
 const props = withDefaults(defineProps<BaseModalProps>(), {
   variant: isMobile.value ? 'drawer' : 'center',
@@ -90,6 +90,8 @@ const modalOverlay = useTemplateRef('modalOverlay')
 const confirmButton = useTemplateRef('confirmButton')
 const modalBox = ref<HTMLElement | null>(null)
 const modalHeader = ref<HTMLElement | null>(null)
+const { height: windowHeight } = useWindowSize()
+const drawerViewportHeight = computed(() => `${windowHeight.value}px`)
 
 const isDraggableEnabled = computed(() => !isMobile.value && props.variant !== 'drawer' && visible.value)
 
@@ -226,6 +228,7 @@ onMounted(async () => {
   align-items: flex-end;
   justify-content: center;
   background: rgba(0, 0, 0, 0.5);
+  padding-top: max(env(safe-area-inset-top), 0px);
 }
 
 .modal-box {
@@ -305,7 +308,12 @@ onMounted(async () => {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
+}
+
+.modal-body > .modal-desc,
+.drawer-content > .modal-desc {
   height: 100%;
+  min-height: 0;
 }
 
 .form-group {
@@ -390,7 +398,7 @@ onMounted(async () => {
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
-  max-height: v-bind('maxHeight || "60vh"');
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -398,6 +406,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex-shrink: 0;
   padding: 12px 16px 8px;
   border-bottom: 1px solid var(--border-color-light);
 }
@@ -410,8 +419,11 @@ onMounted(async () => {
 
 .drawer-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding: 8px;
 }
 
@@ -429,6 +441,7 @@ onMounted(async () => {
 }
 
 .drawer-footer {
+  flex-shrink: 0;
   padding: 12px 20px calc(20px + max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px)));
   border-top: 1px solid var(--border-color);
   background: var(--bg-hover);
