@@ -568,7 +568,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
 
         if (result.code !== 0 && result.code !== 1) {
-          const message = stderr || stdout || result.error?.message || 'rg 执行失败'
+          const message = stderr || stdout || 'rg 执行失败'
           const missingExecutable =
             /not recognized|command not found|cannot find|not found/i.test(message) && message.includes('rg')
           return {
