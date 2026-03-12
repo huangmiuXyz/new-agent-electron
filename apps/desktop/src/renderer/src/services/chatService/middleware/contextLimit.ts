@@ -36,28 +36,28 @@ export const createContextLimitMiddleware = (options: ContextLimitOptions): Lang
         }
       }
 
-      const preservedSystems = [] as typeof messages
+      const maxSystemCount = Math.max(contextCount - 1, 0)
+      const preservedSystems = messages
+        .filter((msg, index) => {
+          if (index >= lastCompressedIndex) return false
+          return msg.role === 'system' && typeof msg.content === 'string' && !msg.content.includes('[上下文已压缩]')
+        })
+        .slice(-maxSystemCount)
 
-      const originalSystem = messages.find((msg, index) => {
-        if (index >= lastCompressedIndex) return false
-        return msg.role === 'system' && typeof msg.content === 'string' && !msg.content.includes('[上下文已压缩]')
-      })
-      if (originalSystem) preservedSystems.push(originalSystem)
+      const preservedMessages = [...preservedSystems, messages[lastCompressedIndex]]
 
-      preservedSystems.push(messages[lastCompressedIndex])
-
-      const remainingSlots = contextCount - preservedSystems.length
+      const remainingSlots = contextCount - preservedMessages.length
       if (remainingSlots <= 0) {
         return {
           ...params,
-          prompt: preservedSystems.slice(-contextCount)
+          prompt: preservedMessages.slice(-contextCount)
         }
       }
 
       const tailMessages = messages.slice(lastCompressedIndex + 1)
       const truncatedTail = tailMessages.slice(-remainingSlots)
 
-      const truncatedMessages = [...preservedSystems, ...truncatedTail]
+      const truncatedMessages = [...preservedMessages, ...truncatedTail]
 
       return {
         ...params,

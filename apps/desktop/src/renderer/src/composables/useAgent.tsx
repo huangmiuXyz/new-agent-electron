@@ -156,6 +156,7 @@ export const useAgent = () => {
           frequencyPenalty: agent.frequencyPenalty ?? 0,
           maxOutputTokens: agent.maxOutputTokens,
           contextCount: agent.contextCount ?? 50,
+          contextTokenCount: agent.contextTokenCount ?? 12000,
           autoCompressContext: agent.autoCompressContext ?? false,
           compressModel: agent.compressModel,
           speechVoice: agent.speechVoice || '',
@@ -186,6 +187,7 @@ export const useAgent = () => {
           presencePenalty: 0,
           frequencyPenalty: 0,
           contextCount: 10,
+          contextTokenCount: 12000,
           autoCompressContext: false,
           speechVoice: '',
           speechMode: 'sentence',
@@ -268,7 +270,8 @@ export const useAgent = () => {
                   topK: 40,
                   presencePenalty: 0,
                   frequencyPenalty: 0,
-                  contextCount: 10
+                  contextCount: 10,
+                  contextTokenCount: 12000
                 }
                 Object.entries(defaultParams).forEach(([key, value]) => {
                   formActions.setFieldValue(key, value)
@@ -474,10 +477,16 @@ export const useAgent = () => {
         hint: '发送给模型进行参考的历史消息条数。当消息数量接近此限制时，将触发自动压缩（如果已启用）。'
       } as TextField<AgentFormData>,
       {
+        name: 'contextTokenCount',
+        type: 'number',
+        label: '历史上下文 Token',
+        hint: '发送给模型的历史消息估算 token 阈值。达到该阈值时，也会触发自动压缩。'
+      } as TextField<AgentFormData>,
+      {
         name: 'autoCompressContext',
         type: 'boolean',
         label: '自动压缩上下文',
-        hint: '当对话历史即将超过上下文长度限制时，自动调用压缩工具生成摘要。'
+        hint: '当对话历史条数或估算 token 接近阈值时，自动调用压缩模型生成摘要。'
       } as BooleanField<AgentFormData>,
       {
         name: 'compressModel',

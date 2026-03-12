@@ -25,6 +25,11 @@ import {
   buildMultiAgentSystemPrompt,
   buildTranslationPrompt
 } from './systemPrompts'
+import {
+  estimateMessageTokens,
+  estimateMessagesTokens,
+  serializeMessageForTokenEstimation
+} from './tokenUsage'
 
 
 interface VideoGenerateOptions {
@@ -60,6 +65,7 @@ interface ChatServiceConfig {
   frequencyPenalty?: number
   maxOutputTokens?: number
   contextCount?: number
+  contextTokenCount?: number
   autoCompressContext?: boolean
   compressModel?: { providerId: string; modelId: string }
   providerOptions?: Record<string, any>
@@ -86,37 +92,132 @@ interface AutoCompressOptions {
   cid: string
   messages: BaseMessage[]
   contextCount?: number
+  contextTokenCount?: number
   compressModel?: { providerId: string; modelId: string }
+  activeModel?: string
+}
+
+const COMPRESSED_CONTEXT_MARKER = '[上下文已压缩]'
+
+const isCompressedContextMessage = (message: BaseMessage): boolean => {
+  return Boolean(
+    message.role === 'system' &&
+    message.parts?.some((part) => part.type === 'text' && part.text?.includes(COMPRESSED_CONTEXT_MARKER))
+  )
+}
+
+const isCompressingContextMessage = (message: BaseMessage): boolean => {
+  return Boolean((message.metadata as { isCompressingContext?: boolean } | undefined)?.isCompressingContext)
+}
+
+const serializeMessageForCompression = (message: BaseMessage): string => {
+  return serializeMessageForTokenEstimation(message)
+}
+
+const findCompressionInsertIndex = (
+  messages: BaseMessage[],
+  options: { recentMessageCount?: number; recentTokenCount?: number; model?: string }
+): number => {
+  const { recentMessageCount, recentTokenCount, model } = options
+  let keptMessages = 0
+  let keptTokens = 0
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'system') continue
+
+    const currentMessageTokens = estimateMessageTokens(messages[i], model)
+    const nextMessageCount = keptMessages + 1
+    const nextTokenCount = keptTokens + currentMessageTokens
+    const exceedsMessageLimit =
+      recentMessageCount != null && recentMessageCount > 0 && nextMessageCount > recentMessageCount
+    const exceedsTokenLimit =
+      recentTokenCount != null && recentTokenCount > 0 && nextTokenCount > recentTokenCount
+
+    if ((exceedsMessageLimit || exceedsTokenLimit) && keptMessages > 0) {
+      return i + 1
+    }
+
+    keptMessages = nextMessageCount
+    keptTokens = nextTokenCount
+  }
+
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i].role !== 'system') return i
+  }
+
+  return messages.length
+}
+
+const normalizeCompressedMessages = (
+  messages: BaseMessage[],
+  compressedMessage: BaseMessage,
+  options: { recentMessageCount?: number; recentTokenCount?: number; model?: string }
+): BaseMessage[] => {
+  const baseMessages = messages.filter(
+    (message) => !isCompressedContextMessage(message) && !isCompressingContextMessage(message)
+  )
+  const insertIndex = findCompressionInsertIndex(baseMessages, options)
+  const nextMessages = [...baseMessages]
+  nextMessages.splice(insertIndex, 0, compressedMessage)
+  return nextMessages
 }
 
 const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMessage[]> => {
-  const { cid, messages, contextCount, compressModel } = options
+  const { cid, messages, contextCount, contextTokenCount, compressModel, activeModel } = options
 
-  const shouldAutoCompress = contextCount &&
-    messages.length >= contextCount &&
+  const messageThresholdReached = Boolean(contextCount && messages.length >= contextCount)
+  const tokenThresholdReached = Boolean(
+    contextTokenCount && estimateMessagesTokens(messages, activeModel) >= contextTokenCount
+  )
+
+  const shouldAutoCompress = (messageThresholdReached || tokenThresholdReached) &&
     compressModel?.providerId &&
     compressModel?.modelId
 
   if (!shouldAutoCompress) return messages
 
-  const hasCompressed = messages.some(m =>
-    m.role === 'system' &&
-    m.parts?.some(p => p.type === 'text' && p.text?.includes('[上下文已压缩]'))
-  )
-
-  if (hasCompressed) return messages
-
   const compressProvider = useSettingsStore().getProviderById(compressModel.providerId)
   if (!compressProvider) return messages
 
   try {
-    const contextToCompress = messages
-      .filter(m => m.role !== 'system')
-      .map(m => {
-        const text = m.parts?.filter(p => p.type === 'text').map(p => p.text).join('\n') || ''
-        return `${m.role}: ${text}`
-      })
+    const recentMessageCount =
+      contextCount && contextCount > 1 ? Math.max(1, Math.min(contextCount - 1, Math.ceil(contextCount / 2))) : undefined
+    const recentTokenCount =
+      contextTokenCount && contextTokenCount > 1 ? Math.max(1, Math.floor(contextTokenCount * 0.5)) : undefined
+    const compressionWindow = {
+      recentMessageCount,
+      recentTokenCount,
+      model: activeModel
+    }
+    const compressionInsertIndex = findCompressionInsertIndex(messages, compressionWindow)
+    const messagesToCompress = messages.slice(0, compressionInsertIndex)
+
+    if (messagesToCompress.length === 0) return messages
+
+    const meaningfulMessagesToCompress = messagesToCompress.filter((message) => {
+      if (isCompressedContextMessage(message)) return true
+      return message.role !== 'system' || Boolean(serializeMessageForCompression(message))
+    })
+
+    const hasPriorSummary = meaningfulMessagesToCompress.some(isCompressedContextMessage)
+    const incrementalMessageCount = meaningfulMessagesToCompress.filter(
+      (message) => !isCompressedContextMessage(message) && message.role !== 'system'
+    ).length
+
+    if (!hasPriorSummary && !messageThresholdReached && !tokenThresholdReached) {
+      return messages
+    }
+
+    if (hasPriorSummary && incrementalMessageCount === 0) {
+      return messages
+    }
+
+    const contextToCompress = meaningfulMessagesToCompress
+      .map((message) => serializeMessageForCompression(message))
+      .filter(Boolean)
       .join('\n\n')
+
+    if (!contextToCompress) return messages
 
     const { updateMessages, getChatById, updateMessage, updateMessageMetadata } = useChatsStores()
 
@@ -141,7 +242,7 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
 
     const chat = getChatById(cid)
     if (chat) {
-      updateMessages(cid, (msgs) => [...msgs, compressingMessage])
+      updateMessages(cid, (msgs) => normalizeCompressedMessages(msgs, compressingMessage, compressionWindow))
     }
 
     let compressedText = ''
@@ -173,7 +274,7 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
       if (chat && compressedText) {
         updateMessage(cid, compressingMessageId, [{
           type: 'text',
-          text: `${compressedText}\n\n[上下文已压缩]`
+          text: `${compressedText}\n\n${COMPRESSED_CONTEXT_MARKER}`
         }])
       }
 
@@ -209,12 +310,7 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
     if (compressedText && chat) {
       const compressingMsg = chat.messages.find(m => m.id === compressingMessageId)
       if (compressingMsg) {
-        if (messages.length === 0) return [compressingMsg]
-
-        const insertAt = Math.max(messages.length - 1, 0)
-        const mergedMessages = [...messages]
-        mergedMessages.splice(insertAt, 0, compressingMsg)
-        return mergedMessages
+        return normalizeCompressedMessages(messages, compressingMsg, compressionWindow)
       }
     }
 
@@ -248,6 +344,7 @@ export const chatService = () => {
       frequencyPenalty,
       maxOutputTokens,
       contextCount,
+      contextTokenCount,
       autoCompressContext: shouldAutoCompress,
       compressModel,
       providerOptions: customProviderOptions,
@@ -264,7 +361,9 @@ export const chatService = () => {
         cid,
         messages,
         contextCount,
-        compressModel
+        contextTokenCount,
+        compressModel,
+        activeModel: model
       })
     }
 
@@ -412,6 +511,8 @@ export const chatService = () => {
       tools: agent.tools,
     })
 
+    const estimatedPromptTokens = estimateMessagesTokens(messages, model)
+
     const result = await agent.stream({
       prompt: modelMessages,
       abortSignal: controller.signal,
@@ -433,6 +534,7 @@ export const chatService = () => {
           date: Date.now(),
           model,
           cid,
+          estimatedInputTokens: estimatedPromptTokens,
           stop: () => controller.abort(),
           ragSearchDetails: ragSearchDetails?.map((item) => ({ ...item })),
           ragEnabled,

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { getFlatTokenUsage } from '@renderer/services/chatService/tokenUsage'
+
 const props = defineProps<{
   message: BaseMessage
 }>()
@@ -17,6 +20,8 @@ const currentAgentAvatar = computed(() => {
 const hasAudioChunks = computed(() => {
   return (props.message.metadata?.audio?.chunks?.length ?? 0) > 0
 })
+
+const flatUsage = computed(() => getFlatTokenUsage(props.message.metadata?.usage))
 
 const isCurrentPlaying = computed(() => {
   return speechStore.isPlaying && speechStore.queue.some(chunk => chunk.messageId === props.message.id && !chunk.played)
@@ -73,11 +78,11 @@ const playMessageAudio = () => {
           <div class="msg-meta-content" :class="{ isMobile }">
             <span class="msg-name">{{ message.metadata?.model }}</span>
 
-            <div v-if="message.metadata?.usage" class="msg-usage">
-              <span v-if="message.metadata.usage.inputTokens || message.metadata.usage.outputTokens">Tokens: {{
-                message.metadata.usage.totalTokens }}</span>
-              <span v-if="message.metadata.usage.inputTokens">↑{{ message.metadata.usage.inputTokens }}</span>
-              <span v-if="message.metadata.usage.outputTokens">↓{{ message.metadata.usage.outputTokens }}</span>
+            <div v-if="flatUsage.totalTokens || flatUsage.inputTokens || flatUsage.outputTokens" class="msg-usage">
+              <span v-if="flatUsage.inputTokens || flatUsage.outputTokens">Tokens: {{
+                flatUsage.totalTokens }}</span>
+              <span v-if="flatUsage.inputTokens">↑{{ flatUsage.inputTokens }}</span>
+              <span v-if="flatUsage.outputTokens">↓{{ flatUsage.outputTokens }}</span>
             </div>
           </div>
           <div style="display: flex; gap: 8px">

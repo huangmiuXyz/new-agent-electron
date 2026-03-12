@@ -81,6 +81,7 @@
     "highlight.js": "catalog:",
     "ignore": "^7.0.5",
     "is-text-path": "^3.0.0",
+    "js-tiktoken": "^1.0.21",
     "jszip": "catalog:",
     "localforage": "catalog:",
     "lowlight": "catalog:",

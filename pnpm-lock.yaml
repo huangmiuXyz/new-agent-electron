@@ -552,6 +552,9 @@ importers:
       is-text-path:
         specifier: ^3.0.0
         version: 3.0.0
+      js-tiktoken:
+        specifier: ^1.0.21
+        version: 1.0.21
       jszip:
         specifier: 'catalog:'
         version: 3.10.1

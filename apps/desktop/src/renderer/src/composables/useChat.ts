@@ -3,6 +3,11 @@ import type { APICallError, FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai'
 import { speechService } from '../services/speechService'
 import { useMessageScroll } from './useMessageScroll'
+import {
+  buildFlatTokenUsage,
+  estimateMessageTokens,
+  getFlatTokenUsage
+} from '@renderer/services/chatService/tokenUsage'
 
 function createSentenceSegmenter(locale: string = 'und') {
   const segmenter = new Intl.Segmenter(locale === 'auto' ? 'und' : locale, {
@@ -138,6 +143,7 @@ export const useChat = (chatId: string) => {
                 frequencyPenalty: runtimeAgent?.frequencyPenalty,
                 maxOutputTokens: runtimeAgent?.maxOutputTokens,
                 contextCount: runtimeAgent?.contextCount,
+                contextTokenCount: runtimeAgent?.contextTokenCount,
                 autoCompressContext: runtimeAgent?.autoCompressContext,
                 compressModel: runtimeAgent?.compressModel,
                 providerOptions: providerOptions.value[selectedProvider.id],
@@ -149,6 +155,8 @@ export const useChat = (chatId: string) => {
         },
 
         onFinish: () => {
+          syncMessageToStore()
+
           if (speechEnabled.value) {
             const mode = getChatAgent()?.speechMode as string
 
@@ -184,11 +192,36 @@ export const useChat = (chatId: string) => {
 
         // Keep parts immutable when syncing to Pinia so nested text updates stay reactive in children.
         const nextParts = lastMsg.parts?.map((part) => ({ ...part }))
+        const nextMetadata = { ...lastMsg.metadata, error } as MetaData
+        const isFinalized = !nextMetadata.loading || !!error
+        const flatUsage = getFlatTokenUsage(nextMetadata.usage)
+
+        if (isFinalized) {
+          const estimatedOutputTokens =
+            flatUsage.outputTokens ?? estimateMessageTokens(lastMsg, nextMetadata.model)
+          const estimatedInputTokens = flatUsage.inputTokens ?? nextMetadata.estimatedInputTokens
+          const hasAnyUsage =
+            flatUsage.totalTokens != null ||
+            flatUsage.inputTokens != null ||
+            flatUsage.outputTokens != null
+
+          if (!hasAnyUsage || flatUsage.inputTokens == null || flatUsage.outputTokens == null) {
+            nextMetadata.usage = buildFlatTokenUsage({
+              inputTokens: estimatedInputTokens,
+              outputTokens: estimatedOutputTokens,
+              totalTokens: flatUsage.totalTokens,
+              estimated: !hasAnyUsage
+            }) as any
+            nextMetadata.tokenUsageSource = hasAnyUsage ? 'mixed' : 'estimated'
+          } else {
+            nextMetadata.tokenUsageSource = 'reported'
+          }
+        }
 
         const msgToUpdate = {
           ...lastMsg,
           parts: nextParts,
-          metadata: { ...lastMsg.metadata, error }
+          metadata: nextMetadata
         }
 
         updateMessages(chatId, (oldMessages) => {

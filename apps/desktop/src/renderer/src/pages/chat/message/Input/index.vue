@@ -5,6 +5,7 @@ import { useShortcuts } from '@renderer/composables/useShortcuts'
 
 import { usePlugins } from '@renderer/composables/usePlugins'
 import { createRegistry } from '@renderer/services/chatService/registry'
+import { getFlatTokenUsage } from '@renderer/services/chatService/tokenUsage'
 import { z } from 'zod'
 
 const message = ref('')
@@ -76,10 +77,10 @@ const numberFormatter = new Intl.NumberFormat('zh-CN')
 const currentChatTokenUsage = computed(() => {
   const totals = (chatStore.currentChat?.messages || []).reduce(
     (acc, message) => {
-      const usage = message.metadata?.usage
-      acc.total += usage?.totalTokens || 0
-      acc.input += usage?.inputTokens || 0
-      acc.output += usage?.outputTokens || 0
+      const usage = getFlatTokenUsage(message.metadata?.usage)
+      acc.total += usage.totalTokens || 0
+      acc.input += usage.inputTokens || 0
+      acc.output += usage.outputTokens || 0
       return acc
     },
     { total: 0, input: 0, output: 0 }

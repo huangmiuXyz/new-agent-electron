@@ -73,11 +73,17 @@ export const buildMultiAgentSystemPrompt = (cid: string): string => {
 }
 
 export const buildContextCompressionPrompt = (contextToCompress: string): string => {
-  return `请将以下对话历史压缩成简洁的摘要，保留关键信息和结论：
+  return `请将以下对话历史压缩成简洁、可持续接力的摘要，保留后续继续对话必须知道的信息。
+
+要求：
+1. 保留用户目标、约束、已确认决策、关键结论、待办和未解决问题。
+2. 如果历史里包含工具调用、文件、代码修改、错误信息或外部检索结果，要保留这些事实，不要只保留口语化结论。
+3. 不要写无意义寒暄，不要遗漏时间、路径、命令、配置项、接口名等关键细节。
+4. 输出适合直接作为后续上下文继续使用，不要提“以上是摘要”之类的说明。
 
 ${contextToCompress}
 
-请生成一个简洁的摘要，包含：
+请输出摘要，至少包含：
 1. 讨论的主要话题
 2. 关键决策和结论
 3. 需要记住的重要信息

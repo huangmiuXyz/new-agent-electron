@@ -17,6 +17,7 @@ export type providerType =
   | 'elevenlabs'
 export interface MetaData {
   isCompressedContext?: boolean
+  isCompressingContext?: boolean
   provider: string
   date: number
   model: string
@@ -30,6 +31,8 @@ export interface MetaData {
   ragSearchDetails?: RagSearchDetail[]
   ragEnabled?: boolean
   usage?: LanguageModelUsage
+  estimatedInputTokens?: number
+  tokenUsageSource?: 'reported' | 'estimated' | 'mixed'
   providerMetadata?: ProviderMetadata
   audio?: {
     chunks: {

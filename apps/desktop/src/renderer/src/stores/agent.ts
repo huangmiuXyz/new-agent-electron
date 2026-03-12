@@ -19,7 +19,8 @@ export const useAgentStore = defineStore(
         topK: 40,
         presencePenalty: 0,
         frequencyPenalty: 0,
-        contextCount: 20,
+        contextCount: 50,
+        contextTokenCount: 128000,
         speechSpeed: 1,
         speechLanguage: 'auto'
       }
