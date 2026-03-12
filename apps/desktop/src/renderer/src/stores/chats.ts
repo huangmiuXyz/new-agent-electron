@@ -142,7 +142,11 @@ export const useChatsStores = defineStore(
     const deleteMessage = (cid: string, mid: string) => {
       const chat = getChatById(cid)!
       chat.messages.find((m) => m.id === mid)?.metadata?.stop?.()
-      chat.messages = chat?.messages.filter((m) => m.id !== mid)
+      setTimeout(() => {
+        {
+          chat.messages = chat?.messages.filter((m) => m.id !== mid)
+        }
+      })
     }
 
     const renameChat = (id: string, title: string) => {
