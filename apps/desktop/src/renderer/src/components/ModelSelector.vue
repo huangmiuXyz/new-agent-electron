@@ -2,17 +2,19 @@
 import { assetsHandler } from '@renderer/utils'
 
 type FlatModelItem = {
+  key: string
   model: Model
   providerId: string
   nameLower: string
   idLower: string
 }
 
-type ListModelItem = Model & { providerId: string }
+type ListModelItem = Model & { providerId: string; key: string }
 
 const selectedModelId = defineModel<any>('modelId', { default: '' })
 const selectedProviderId = defineModel<any>('providerId', { default: '' })
 const router = useRouter()
+const settingsStore = useSettingsStore()
 
 const props = withDefaults(
   defineProps<{
@@ -27,7 +29,7 @@ const props = withDefaults(
     multiple: false
   }
 )
-const { getAllProviders } = storeToRefs(useSettingsStore())
+const { getAllProviders, favoriteModelKeys } = storeToRefs(settingsStore)
 
 const providerById = computed(() => {
   const map = new Map<string, Provider>()
@@ -132,6 +134,7 @@ const flatModelList = computed(() => {
   filteredModels.value.forEach(({ provider, models }) => {
     models.forEach((model) => {
       result.push({
+        key: settingsStore.createFavoriteModelKey(provider.id, model.id),
         model,
         providerId: provider.id,
         nameLower: model.name.toLowerCase(),
@@ -146,8 +149,8 @@ const flatModelList = computed(() => {
 const flatModelById = computed(() => {
   const map = new Map<string, FlatModelItem>()
   flatModelList.value.forEach((item) => {
-    if (!map.has(item.model.id)) {
-      map.set(item.model.id, item)
+    if (!map.has(item.key)) {
+      map.set(item.key, item)
     }
   })
   return map
@@ -185,8 +188,19 @@ const searchModels = computed(() => {
 const listItems = computed<ListModelItem[]>(() =>
   searchModels.value.map((item) => ({
     ...item.model,
-    providerId: item.providerId
+    providerId: item.providerId,
+    key: item.key
   }))
+)
+
+const favoriteModelKeySet = computed(() => new Set(favoriteModelKeys.value))
+
+const favoriteListItems = computed(() =>
+  listItems.value.filter((item) => favoriteModelKeySet.value.has(item.key))
+)
+
+const regularListItems = computed(() =>
+  listItems.value.filter((item) => !favoriteModelKeySet.value.has(item.key))
 )
 
 const selectModel = (model: Model, providerId: string) => {
@@ -241,6 +255,11 @@ const handleModelSelect = (id: string) => {
   if (item) selectModel(item.model, item.providerId)
 }
 
+const toggleFavoriteModel = (item: ListModelItem, event: MouseEvent) => {
+  event.stopPropagation()
+  settingsStore.toggleFavoriteModel(item.providerId, item.id)
+}
+
 const openProviderSettings = (providerId: string) => {
   isPopupOpen.value = false
   if (isMobile.value) {
@@ -266,11 +285,12 @@ const handleModelLogoError = () => {
     v-model:visible="isPopupOpen"
     :data="listItems"
     v-model:searchQuery="searchQuery"
+    desktop-presentation="dialog"
     placeholder="搜索模型..."
     noResultsText="未找到模型"
-    :hasResults="searchModels.length > 0"
+    :hasResults="listItems.length > 0"
     :search-debounce="120"
-    width="240px"
+    width="560px"
     title="选择模型"
     :position="popupPosition || 'top'"
   >
@@ -312,43 +332,107 @@ const handleModelLogoError = () => {
       </Button>
     </template>
 
-    <List
-      :items="listItems"
-      :key-field="'id'"
-      :main-field="'name'"
-      :sub-field="'description'"
-      :show-header="true"
-      :render-header="renderProviderHeader"
-      :selectable="true"
-      :is-selected="isModelSelected"
-      @select="handleModelSelect"
-    >
-      <template #group-header="{ title, item }">
-        <div class="provider-header-row">
-          <span>{{ title }}</span>
-          <Button
-            variant="icon"
-            size="sm"
-            class="provider-settings-btn"
-            title="打开提供商设置"
-            @click.stop="openProviderSettings(item.providerId)"
-          >
-            <template #icon>
-              <Settings style="font-size: 12px" />
-            </template>
-          </Button>
-        </div>
-      </template>
-      <template #actions="{ isActive }">
-        <Check
-          :style="{
-            fontSize: '12px',
-            color: 'var(--bg-card)'
-          }"
-          v-if="isActive"
-        />
-      </template>
-    </List>
+    <div class="model-list-sections">
+      <section v-if="favoriteListItems.length > 0" class="model-section">
+        <div class="section-title">收藏</div>
+        <List
+          :items="favoriteListItems"
+          :key-field="'key'"
+          :main-field="'name'"
+          :sub-field="'description'"
+          :show-header="true"
+          :render-header="renderProviderHeader"
+          :selectable="true"
+          :is-selected="isModelSelected"
+          @select="handleModelSelect"
+        >
+          <template #group-header="{ title, item }">
+            <div class="provider-header-row">
+              <span>{{ title }}</span>
+              <Button
+                variant="icon"
+                size="sm"
+                class="provider-settings-btn"
+                title="打开提供商设置"
+                @click.stop="openProviderSettings(item.providerId)"
+              >
+                <template #icon>
+                  <Settings style="font-size: 12px" />
+                </template>
+              </Button>
+            </div>
+          </template>
+          <template #actions="{ item, isActive }">
+            <div class="model-item-actions">
+              <button
+                class="favorite-toggle"
+                type="button"
+                :class="{ active: favoriteModelKeySet.has(item.key) }"
+                :title="favoriteModelKeySet.has(item.key) ? '取消收藏' : '收藏模型'"
+                @click="toggleFavoriteModel(item, $event)"
+              >★</button>
+              <Check
+                :style="{
+                  fontSize: '12px',
+                  color: 'var(--bg-card)'
+                }"
+                v-if="isActive"
+              />
+            </div>
+          </template>
+        </List>
+      </section>
+
+      <section v-if="regularListItems.length > 0" class="model-section">
+        <div v-if="favoriteListItems.length > 0" class="section-title">全部</div>
+        <List
+          :items="regularListItems"
+          :key-field="'key'"
+          :main-field="'name'"
+          :sub-field="'description'"
+          :show-header="true"
+          :render-header="renderProviderHeader"
+          :selectable="true"
+          :is-selected="isModelSelected"
+          @select="handleModelSelect"
+        >
+          <template #group-header="{ title, item }">
+            <div class="provider-header-row">
+              <span>{{ title }}</span>
+              <Button
+                variant="icon"
+                size="sm"
+                class="provider-settings-btn"
+                title="打开提供商设置"
+                @click.stop="openProviderSettings(item.providerId)"
+              >
+                <template #icon>
+                  <Settings style="font-size: 12px" />
+                </template>
+              </Button>
+            </div>
+          </template>
+          <template #actions="{ item, isActive }">
+            <div class="model-item-actions">
+              <button
+                class="favorite-toggle"
+                type="button"
+                :class="{ active: favoriteModelKeySet.has(item.key) }"
+                :title="favoriteModelKeySet.has(item.key) ? '取消收藏' : '收藏模型'"
+                @click="toggleFavoriteModel(item, $event)"
+              >★</button>
+              <Check
+                :style="{
+                  fontSize: '12px',
+                  color: 'var(--bg-card)'
+                }"
+                v-if="isActive"
+              />
+            </div>
+          </template>
+        </List>
+      </section>
+    </div>
   </SelectorPopover>
 </template>
 
@@ -483,5 +567,73 @@ const handleModelLogoError = () => {
   min-height: 18px;
   padding: 1px;
   border-radius: 3px;
+}
+
+.model-list-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.model-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.section-title {
+  padding: 8px 8px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  letter-spacing: 0.06em;
+}
+
+.model-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.favorite-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.favorite-toggle:hover {
+  color: #f5b301;
+  transform: scale(1.06);
+}
+
+.favorite-toggle.active {
+  color: #f5b301;
+}
+
+:deep(.modal-body .mode-ungap) {
+  background: transparent;
+}
+
+:deep(.modal-body .list-item) {
+  padding: 10px 12px;
+  border-radius: 10px !important;
+  margin-bottom: 4px !important;
+}
+
+:deep(.modal-body .main-text) {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:deep(.modal-body .sub-text) {
+  font-size: 11px;
+}
+
+:deep(.modal-body .group-header) {
+  padding: 12px 8px 6px;
 }
 </style>

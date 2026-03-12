@@ -8,6 +8,7 @@ const props = defineProps<{
   hasResults?: boolean
   width?: string
   position?: 'top' | 'bottom'
+  desktopPresentation?: 'popover' | 'dialog'
   data?: Array<any>
   title?: string
 }>()
@@ -18,6 +19,17 @@ const containerRef = ref<HTMLElement>()
 
 const closePopup = () => {
   visible.value = false
+}
+
+const scrollToActiveItem = () => {
+  if (!containerRef.value) return
+  const activeItem = containerRef.value.querySelector<HTMLElement>(
+    '.list-item.is-active, .agent-item.selected'
+  )
+  activeItem?.scrollIntoView({
+    block: 'center',
+    inline: 'nearest'
+  })
 }
 
 const handleClickOutside = (event: MouseEvent) => {
@@ -33,6 +45,9 @@ watch(
     if (newVal) {
       nextTick(() => {
         document.addEventListener('click', handleClickOutside)
+        requestAnimationFrame(() => {
+          scrollToActiveItem()
+        })
       })
     } else {
       document.removeEventListener('click', handleClickOutside)
@@ -61,6 +76,16 @@ const modalBodyStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column'
 }
+
+const shouldUseDialog = computed(() => !isMobile.value && props.desktopPresentation === 'dialog')
+
+const dialogBodyStyle = computed<CSSProperties>(() => ({
+  overflowY: 'hidden',
+  padding: '0',
+  display: 'flex',
+  flexDirection: 'column',
+  maxHeight: 'min(78vh, 820px)'
+}))
 </script>
 
 <template>
@@ -73,14 +98,17 @@ const modalBodyStyle: CSSProperties = {
       @ok="onOk"
       :title="title!"
       :show-footer="false"
-      :modal-body-style="modalBodyStyle"
-      v-if="isMobile && visible"
+      :modal-body-style="shouldUseDialog ? dialogBodyStyle : modalBodyStyle"
+      :width="width || '240px'"
+      v-if="(isMobile || shouldUseDialog) && visible"
+      :on-close="closePopup"
+      :on-cancel="closePopup"
     >
       <div v-if="$slots.content" class="content">
         <slot name="content"></slot>
       </div>
       <template v-else>
-        <div class="selector-search">
+        <div class="selector-search" :class="{ 'selector-search-dialog': shouldUseDialog }">
           <SearchInput
             :search-data="data"
             :model-value="searchQuery"
@@ -102,7 +130,7 @@ const modalBodyStyle: CSSProperties = {
         </div>
       </template>
     </BaseModal>
-    <div v-if="!isMobile" class="selector-wrapper">
+    <div v-if="!isMobile && !shouldUseDialog" class="selector-wrapper">
       <div
         class="selector-popup"
         :class="{
@@ -224,6 +252,10 @@ const modalBodyStyle: CSSProperties = {
   gap: 4px;
 }
 
+.selector-search-dialog {
+  padding: 8px 10px;
+}
+
 .selector-search-input {
   width: 100%;
   flex: 1;
@@ -250,6 +282,11 @@ const modalBodyStyle: CSSProperties = {
   padding: 4px;
   contain: content;
   overscroll-behavior: contain;
+}
+
+:deep(.modal-body) .selector-list-container {
+  max-height: min(62vh, 640px);
+  padding: 4px 10px 10px;
 }
 
 /* 统一由 selector-list-container 负责滚动，避免与内部 List 双滚动冲突 */

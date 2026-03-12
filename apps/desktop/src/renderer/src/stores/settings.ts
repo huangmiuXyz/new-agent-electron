@@ -89,6 +89,8 @@ export const useSettingsStore = defineStore(
 
     const providers = ref<Provider[]>(getDefaultProviders())
     const providerOrder = ref<string[]>(providers.value.map((p) => p.id))
+    const favoriteAgentIds = ref<string[]>([])
+    const favoriteModelKeys = ref<string[]>([])
 
     const mcpServers = ref<ClientConfig>({})
 
@@ -365,6 +367,31 @@ export const useSettingsStore = defineStore(
       return orderedProviders
     })
 
+    const createFavoriteModelKey = (providerId: string, modelId: string) => `${providerId}::${modelId}`
+
+    const isFavoriteAgent = (agentId: string) => favoriteAgentIds.value.includes(agentId)
+
+    const toggleFavoriteAgent = (agentId: string) => {
+      if (!agentId) return
+      if (favoriteAgentIds.value.includes(agentId)) {
+        favoriteAgentIds.value = favoriteAgentIds.value.filter((id) => id !== agentId)
+      } else {
+        favoriteAgentIds.value = [agentId, ...favoriteAgentIds.value]
+      }
+    }
+
+    const isFavoriteModel = (providerId: string, modelId: string) =>
+      favoriteModelKeys.value.includes(createFavoriteModelKey(providerId, modelId))
+
+    const toggleFavoriteModel = (providerId: string, modelId: string) => {
+      const key = createFavoriteModelKey(providerId, modelId)
+      if (favoriteModelKeys.value.includes(key)) {
+        favoriteModelKeys.value = favoriteModelKeys.value.filter((item) => item !== key)
+      } else {
+        favoriteModelKeys.value = [key, ...favoriteModelKeys.value]
+      }
+    }
+
     watch(
       [
         () => providers.value.map((provider) => provider.id),
@@ -379,6 +406,20 @@ export const useSettingsStore = defineStore(
         })
       },
       { immediate: true }
+    )
+
+    watch(
+      getAllProviders,
+      (providersList) => {
+        const validModelKeys = new Set<string>()
+        providersList.forEach((provider) => {
+          provider.models?.forEach((model) => {
+            validModelKeys.add(createFavoriteModelKey(provider.id, model.id))
+          })
+        })
+        favoriteModelKeys.value = favoriteModelKeys.value.filter((key) => validModelKeys.has(key))
+      },
+      { immediate: true, deep: true }
     )
 
     const selectedProviderId = computed<string>({
@@ -498,6 +539,8 @@ export const useSettingsStore = defineStore(
       terminal,
       providers,
       providerOrder,
+      favoriteAgentIds,
+      favoriteModelKeys,
       mcpServers,
       loadedPlugins,
       devPluginPaths,
@@ -542,6 +585,11 @@ export const useSettingsStore = defineStore(
       getAllProviders,
       registeredProviders,
       getModelByVoice,
+      createFavoriteModelKey,
+      isFavoriteAgent,
+      toggleFavoriteAgent,
+      isFavoriteModel,
+      toggleFavoriteModel,
       addCustomProvider,
       removeCustomProvider,
       moveProvider,
@@ -559,6 +607,8 @@ export const useSettingsStore = defineStore(
         'terminal',
         'providers',
         'providerOrder',
+        'favoriteAgentIds',
+        'favoriteModelKeys',
         'mcpServers',
         'loadedPlugins',
         'devPluginPaths',
