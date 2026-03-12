@@ -10,7 +10,6 @@ const executionDebouncers = new Map<string, ReturnType<typeof debounce>>()
 const toolCallToTerminalMap = ref<Record<string, string>>({})
 
 const generateId = () => Math.random().toString(36).substring(2, 9)
-const CMD_EXIT_MARKER = '__AGENT_QI_CMD_EXIT__:'
 
 export const useTerminal = (): TerminalActions => {
   const settingsStore = useSettingsStore()
@@ -141,18 +140,9 @@ export const useTerminal = (): TerminalActions => {
       const currentTab = tabs.value.find((t) => t.id === id)
       if (currentTab) {
         const cleanText = stripAnsi(data)
-        const cmdExitMatch = cleanText.match(new RegExp(`${CMD_EXIT_MARKER}(\\d+)`, 'g'))
-
-        if (cmdExitMatch && window.api.os.platform() === 'win32') {
-          const lastMatch = cmdExitMatch[cmdExitMatch.length - 1]
-          const exitCode = Number.parseInt(lastMatch.replace(CMD_EXIT_MARKER, ''), 10)
-          currentTab.currentOutput = (currentTab.currentOutput || '').replace(new RegExp(`${CMD_EXIT_MARKER}\\d+`, 'g'), '')
-          setExecuting(id, false, Number.isNaN(exitCode) ? null : exitCode)
-        }
 
         if (currentTab.isExecuting) {
           currentTab.currentOutput = (currentTab.currentOutput || '') + cleanText
-          currentTab.currentOutput = currentTab.currentOutput.replace(new RegExp(`${CMD_EXIT_MARKER}\\d+`, 'g'), '')
         }
 
         if (/[$%#>]\s*$/.test(cleanText)) {
@@ -290,11 +280,7 @@ export const useTerminal = (): TerminalActions => {
     tab.currentOutput = ''
 
     setExecuting(id, true)
-    const platform = window.api.os.platform()
-    const command = platform === 'win32'
-      ? `${options?.command} & echo ${CMD_EXIT_MARKER}%errorlevel%`
-      : options?.command
-    window.api.pty.write(id, command + '\r')
+    window.api.pty.write(id, options?.command + '\r')
 
     const result = await waitForCommand(id, timeout)
     return { id, result }
@@ -368,7 +354,7 @@ export const useTerminal = (): TerminalActions => {
         resolve({
           success: force ? true : ((tab.lastExitCode ?? 0) === 0),
           exitCode: force ? 0 : (tab.lastExitCode ?? 0),
-          output: (tab.currentOutput || '').replace(new RegExp(`${CMD_EXIT_MARKER}\\d+`, 'g'), '')
+          output: tab.currentOutput || ''
         })
       }
 

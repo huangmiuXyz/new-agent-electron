@@ -6,7 +6,10 @@ const ptyProcesses: Map<string, pty.IPty> = new Map()
 
 export function setupPtyHandlers() {
   ipcMain.handle('pty:spawn', (event, { id, cols, rows, cwd }) => {
-    const shell = os.platform() === 'win32' ? process.env.ComSpec || 'cmd.exe' : process.env.SHELL || 'bash'
+    const shell =
+      os.platform() === 'win32'
+        ? process.env.POWERSHELL_PATH || 'powershell.exe'
+        : process.env.SHELL || 'bash'
 
     const ptyProcess = pty.spawn(shell, [], {
       name: 'xterm-256color',
