@@ -3,10 +3,16 @@ const props = defineProps<{
   message: BaseMessage
 }>()
 const settingsStore = useSettingsStore()
-const { getProviderById } = settingsStore
+const chatsStore = useChatsStores()
+const agentStore = useAgentStore()
 const speechStore = useSpeechStore()
-const Stop = useIcon('Stop')
-const VolumeMedium = useIcon('VolumeMedium')
+const { Stop, VolumeMedium, Robot } = useIcon(['Stop', 'VolumeMedium', 'Robot'])
+
+const currentAgentAvatar = computed(() => {
+  const currentAgentId = chatsStore.currentChat?.agentId
+  if (!currentAgentId) return ''
+  return agentStore.getAgentById(currentAgentId)?.avatar || ''
+})
 
 const hasAudioChunks = computed(() => {
   return (props.message.metadata?.audio?.chunks?.length ?? 0) > 0
@@ -48,13 +54,19 @@ const playMessageAudio = () => {
 <template>
   <div class="msg-row them has-avatar">
     <div v-if="!isMobile" class="msg-avatar-area">
-      <Image :src="getProviderById(message.metadata?.provider!)?.logo" class="msg-avatar" alt="avatar" />
+      <Image v-if="currentAgentAvatar" :src="currentAgentAvatar" class="msg-avatar" alt="avatar" />
+      <div v-else class="msg-avatar-fallback">
+        <Robot />
+      </div>
     </div>
 
     <div class="msg-content">
       <div class="msg-meta" :class="{ isMobile }">
         <div v-if="isMobile" class="msg-avatar-area">
-          <Image :src="getProviderById(message.metadata?.provider!)?.logo" class="msg-avatar" alt="avatar" />
+          <Image v-if="currentAgentAvatar" :src="currentAgentAvatar" class="msg-avatar" alt="avatar" />
+          <div v-else class="msg-avatar-fallback">
+            <Robot />
+          </div>
         </div>
 
         <div style="display: flex; align-items: center;justify-content: space-between;flex: 1">
@@ -132,6 +144,17 @@ const playMessageAudio = () => {
   border-radius: 6px;
   background-color: var(--border-color-medium);
   object-fit: cover;
+}
+
+.msg-avatar-fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .msg-content {

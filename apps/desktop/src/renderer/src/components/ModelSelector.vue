@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { assetsHandler } from '@renderer/utils'
+
 type FlatModelItem = {
   model: Model
   providerId: string
@@ -75,6 +77,16 @@ const currentSelectedModel = computed(() => {
 const currentSelectedProvider = computed(() => {
   if (props.multiple) return null
   return providerById.value.get(selectedProviderId.value) || null
+})
+
+const modelLogoLoadFailed = ref(false)
+const currentSelectedProviderLogo = computed(() => {
+  const logo = currentSelectedProvider.value?.logo
+  return logo ? assetsHandler(logo) : ''
+})
+
+watch(currentSelectedProviderLogo, () => {
+  modelLogoLoadFailed.value = false
 })
 
 const isPopupOpen = ref(false)
@@ -243,6 +255,10 @@ const openProviderSettings = (providerId: string) => {
     }
   })
 }
+
+const handleModelLogoError = () => {
+  modelLogoLoadFailed.value = true
+}
 </script>
 
 <template>
@@ -261,14 +277,14 @@ const openProviderSettings = (providerId: string) => {
     <template #trigger>
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
         <div class="model-btn-content">
-          <Image
-            v-if="selectedModelId && currentSelectedProvider?.logo"
+          <img
+            v-if="selectedModelId && currentSelectedProviderLogo && !modelLogoLoadFailed"
             style="width: 10px; border-radius: 2px"
-            :src="currentSelectedProvider?.logo"
+            :src="currentSelectedProviderLogo"
             alt=""
-            :context-menu="false"
             :draggable="false"
             class="model-logo"
+            @error="handleModelLogoError"
           />
           <Box v-else-if="selectedModelId" style="font-size: 10px" />
           <span>{{ currentModelLabel }}</span>
@@ -283,14 +299,14 @@ const openProviderSettings = (providerId: string) => {
         </div>
       </div>
       <Button v-else variant="icon" size="sm">
-        <Image
-          v-if="selectedModelId && currentSelectedProvider?.logo"
+        <img
+          v-if="selectedModelId && currentSelectedProviderLogo && !modelLogoLoadFailed"
           style="width: 15px; border-radius: 2px"
-          :src="currentSelectedProvider?.logo"
+          :src="currentSelectedProviderLogo"
           alt=""
-          :context-menu="false"
           :draggable="false"
           class="model-logo"
+          @error="handleModelLogoError"
         />
         <Box v-else style="font-size: 16px" />
       </Button>
