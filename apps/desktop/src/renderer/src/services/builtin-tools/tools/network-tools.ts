@@ -416,7 +416,7 @@ const waitForBrowserRun = async (input: z.infer<typeof browserInputSchema>) => {
 export const getNetworkBuiltinTools = (): Partial<Tools> => ({
   fetch: {
     title: '网页抓取',
-    description: 'Fetch a URL from the internet and optionally extract its contents as markdown.',
+    description: '从互联网抓取指定 URL 的内容，并可按需将网页正文提取为 Markdown 文本。',
     inputSchema: fetchInputSchema,
     execute: async (args: unknown) => {
       try {
