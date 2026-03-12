@@ -5,12 +5,12 @@ import { useDownloadStore } from '@renderer/stores/downloads'
 import { useModal } from '@renderer/composables/useModal'
 import { useIcon } from '../composables/useIcon'
 import DownloadProgress from './DownloadProgress.vue'
+import RightSlidePanel from './RightSlidePanel.vue'
 
 const downloadStore = useDownloadStore()
 const { confirm, remove } = useModal()
 
-const { X, Trash, Download, Refresh, Delete, Folder } = useIcon([
-  'X',
+const { Trash, Download, Refresh, Delete, Folder } = useIcon([
   'Trash',
   'Download',
   'Refresh',
@@ -132,215 +132,105 @@ const openDownloadDirectory = async (task: DownloadTask) => {
 </script>
 
 <template>
-  <Transition name="slide-panel">
-    <div v-if="downloadStore.isPanelOpen" class="download-panel" @click.stop>
-      <div class="panel-header no-drag">
-        <div class="header-title">
-          <component :is="Download" class="header-icon" />
-          下载列表
-          <span class="header-count">{{ downloadStore.unfinishedCount }}</span>
-        </div>
-        <div class="header-actions">
-          <button
-            v-if="downloadStore.hasTasks"
-            class="action-btn"
-            title="清理已完成/已取消"
-            @click="downloadStore.clearCompleted"
-          >
-            <component :is="Trash" />
-          </button>
-          <button class="action-btn" title="关闭" @click="downloadStore.closePanel">
-            <component :is="X" />
-          </button>
-        </div>
-      </div>
+  <RightSlidePanel
+    :visible="downloadStore.isPanelOpen"
+    title="下载列表"
+    :icon="Download"
+    :badge="downloadStore.unfinishedCount"
+    width="360px"
+    @close="downloadStore.closePanel"
+  >
+    <template #actions>
+      <button
+        v-if="downloadStore.hasTasks"
+        class="action-btn"
+        title="清理已完成/已取消"
+        @click="downloadStore.clearCompleted"
+      >
+        <component :is="Trash" />
+      </button>
+    </template>
 
-      <div class="panel-content custom-scrollbar">
-        <div v-if="sortedTasks.length > 0" class="status-tabs">
-          <Tabs v-model="activeStatus" :items="statusTabItems" size="sm" />
-        </div>
-
-        <div v-if="sortedTasks.length === 0" class="empty-state">
-          <component :is="Download" class="empty-icon" />
-          <p>暂无下载任务</p>
-        </div>
-
-        <div v-else-if="filteredTasks.length === 0" class="empty-state filtered-empty">
-          <p>当前状态下暂无任务</p>
-        </div>
-
-        <TransitionGroup v-else name="list" tag="div" class="download-list">
-          <div v-for="task in filteredTasks" :key="task.id" class="download-item">
-            <div class="item-header">
-              <div class="name-row">
-                <span class="item-name" :title="task.fileName">{{ task.fileName }}</span>
-                <span class="status-chip" :class="getStatusClass(task.status)">
-                  {{ getStatusText(task.status) }}
-                </span>
-              </div>
-              <!-- <span v-if="task.pluginName" class="plugin-tag">{{ task.pluginName }}</span> -->
-            </div>
-
-            <div class="item-path" :title="task.destPath">{{ task.destPath }}</div>
-
-            <div
-              v-if="task.status === 'downloading' || task.status === 'paused'"
-              class="progress-wrap"
-            >
-              <DownloadProgress
-                :progress="task.progress"
-                :is-downloading="task.status === 'downloading'"
-                :is-paused="task.status === 'paused'"
-                @pause="downloadStore.pauseDownload(task.id)"
-                @resume="downloadStore.resumeDownload(task.id)"
-                @cancel="downloadStore.cancelDownload(task.id)"
-                @open-directory="openDownloadDirectory(task)"
-              />
-            </div>
-
-            <div class="error-text" v-if="task.status === 'error' && task.error">
-              {{ task.error }}
-            </div>
-
-            <div class="item-actions">
-              <button
-                v-if="task.status !== 'downloading' && task.status !== 'paused'"
-                class="item-btn"
-                title="打开下载目录"
-                @click="openDownloadDirectory(task)"
-              >
-                <component :is="Folder" />
-              </button>
-
-              <button
-                v-if="task.status === 'error' || task.status === 'canceled'"
-                class="item-btn primary"
-                title="重试"
-                @click="downloadStore.retryDownload(task.id)"
-              >
-                <component :is="Refresh" />
-              </button>
-
-              <button
-                v-if="task.status === 'completed' || task.status === 'canceled'"
-                class="item-btn"
-                title="移除任务"
-                @click="handleRemoveTask(task)"
-              >
-                <component :is="Delete" />
-              </button>
-            </div>
-          </div>
-        </TransitionGroup>
-      </div>
+    <div v-if="sortedTasks.length > 0" class="status-tabs">
+      <Tabs v-model="activeStatus" :items="statusTabItems" size="sm" />
     </div>
-  </Transition>
 
-  <Transition name="fade-overlay">
-    <div
-      v-if="downloadStore.isPanelOpen"
-      class="panel-overlay"
-      @click="downloadStore.closePanel"
-    ></div>
-  </Transition>
+    <div v-if="sortedTasks.length === 0" class="empty-state">
+      <component :is="Download" class="empty-icon" />
+      <p>暂无下载任务</p>
+    </div>
+
+    <div v-else-if="filteredTasks.length === 0" class="empty-state filtered-empty">
+      <p>当前状态下暂无任务</p>
+    </div>
+
+    <TransitionGroup v-else name="list" tag="div" class="download-list">
+      <div v-for="task in filteredTasks" :key="task.id" class="download-item">
+        <div class="item-header">
+          <div class="name-row">
+            <span class="item-name" :title="task.fileName">{{ task.fileName }}</span>
+            <span class="status-chip" :class="getStatusClass(task.status)">
+              {{ getStatusText(task.status) }}
+            </span>
+          </div>
+          <!-- <span v-if="task.pluginName" class="plugin-tag">{{ task.pluginName }}</span> -->
+        </div>
+
+        <div class="item-path" :title="task.destPath">{{ task.destPath }}</div>
+
+        <div
+          v-if="task.status === 'downloading' || task.status === 'paused'"
+          class="progress-wrap"
+        >
+          <DownloadProgress
+            :progress="task.progress"
+            :is-downloading="task.status === 'downloading'"
+            :is-paused="task.status === 'paused'"
+            @pause="downloadStore.pauseDownload(task.id)"
+            @resume="downloadStore.resumeDownload(task.id)"
+            @cancel="downloadStore.cancelDownload(task.id)"
+            @open-directory="openDownloadDirectory(task)"
+          />
+        </div>
+
+        <div class="error-text" v-if="task.status === 'error' && task.error">
+          {{ task.error }}
+        </div>
+
+        <div class="item-actions">
+          <button
+            v-if="task.status !== 'downloading' && task.status !== 'paused'"
+            class="item-btn"
+            title="打开下载目录"
+            @click="openDownloadDirectory(task)"
+          >
+            <component :is="Folder" />
+          </button>
+
+          <button
+            v-if="task.status === 'error' || task.status === 'canceled'"
+            class="item-btn primary"
+            title="重试"
+            @click="downloadStore.retryDownload(task.id)"
+          >
+            <component :is="Refresh" />
+          </button>
+
+          <button
+            v-if="task.status === 'completed' || task.status === 'canceled'"
+            class="item-btn"
+            title="移除任务"
+            @click="handleRemoveTask(task)"
+          >
+            <component :is="Delete" />
+          </button>
+        </div>
+      </div>
+    </TransitionGroup>
+  </RightSlidePanel>
 </template>
 
 <style scoped>
-.fade-overlay-enter-active,
-.fade-overlay-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-overlay-enter-from,
-.fade-overlay-leave-to {
-  opacity: 0;
-}
-
-.download-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 22px;
-  width: 360px;
-  background: var(--bg-sidebar);
-  border-left: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  z-index: 1000;
-  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
-}
-
-.dark-mode .download-panel {
-  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.4);
-}
-
-.panel-header {
-  height: var(--header-h);
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-header);
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.header-count {
-  min-width: 16px;
-  height: 16px;
-  border-radius: 8px;
-  background: var(--active-bg);
-  color: var(--text-primary);
-  font-size: 11px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-}
-
-.header-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.action-btn {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-}
-
 .status-tabs {
   margin-bottom: 10px;
 }
@@ -496,22 +386,5 @@ const openDownloadDirectory = async (task: DownloadTask) => {
 .item-btn.danger {
   color: #cf1322;
   background: rgba(255, 77, 79, 0.12);
-}
-
-.panel-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  background: transparent;
-}
-
-.slide-panel-enter-active,
-.slide-panel-leave-active {
-  transition: transform 0.3s ease;
-}
-
-.slide-panel-enter-from,
-.slide-panel-leave-to {
-  transform: translateX(100%);
 }
 </style>

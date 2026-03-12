@@ -20,7 +20,7 @@ const toggleTerminal = () => {
 
 const toggleDownloadPanel = () => {
   downloadStore.togglePanel()
-  notificationStore.isPanelOpen = false
+  notificationStore.closePanel()
 }
 
 const toggleNotificationPanel = () => {

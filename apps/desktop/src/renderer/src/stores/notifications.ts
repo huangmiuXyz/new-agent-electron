@@ -61,11 +61,21 @@ export const useNotificationStore = defineStore('notifications', () => {
     notifications.value = []
   }
 
+  const openPanel = () => {
+    isPanelOpen.value = true
+    markAllAsRead()
+  }
+
+  const closePanel = () => {
+    isPanelOpen.value = false
+  }
+
   const togglePanel = () => {
-    isPanelOpen.value = !isPanelOpen.value
     if (isPanelOpen.value) {
-      markAllAsRead()
+      closePanel()
+      return
     }
+    openPanel()
   }
 
   const setStatus = (id: string, item: Omit<StatusItem, 'id'>) => {
@@ -94,6 +104,8 @@ export const useNotificationStore = defineStore('notifications', () => {
     markAsRead,
     markAllAsRead,
     clearAll,
+    openPanel,
+    closePanel,
     togglePanel,
     setStatus,
     removeStatus
