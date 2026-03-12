@@ -147,7 +147,7 @@ const parsePatchPreview = (patch: string): PatchAction[] => {
 const parsedActions = computed<PatchAction[]>(() => {
   if (!props.args) return []
 
-  if (typeof props.args === 'string' && props.args.trim()) {
+  if (typeof props.args === 'string' && (props.args as string).trim()) {
     return parsePatchPreview(props.args)
   }
 
