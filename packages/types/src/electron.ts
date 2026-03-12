@@ -160,6 +160,22 @@ export interface ElectronAPI {
     }>;
   };
 
+  searchReplace: {
+    execute: (payload: {
+      baseDir: string;
+      type?: 'modify' | 'add' | 'delete' | 'move' | 'update' | 'create' | 'remove' | 'rename';
+      filePath: string;
+      oldStr?: string;
+      newStr?: string;
+      targetPath?: string;
+      overwrite?: boolean;
+    }) => Promise<{
+      ok: boolean;
+      summary?: string;
+      error?: string;
+    }>;
+  };
+
   sync: {
     startHost: (options?: { displayName?: string; port?: number }) => Promise<SyncHostState>;
     stopHost: () => Promise<SyncHostState>;

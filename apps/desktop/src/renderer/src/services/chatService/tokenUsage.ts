@@ -2,6 +2,7 @@ import { encodingForModel, getEncoding, getEncodingNameForModel } from 'js-tikto
 
 const DEFAULT_ENCODING = 'cl100k_base'
 const encodingCache = new Map<string, ReturnType<typeof getEncoding>>()
+const MAX_SERIALIZED_VALUE_LENGTH = 4000
 
 const toFiniteNumber = (value: unknown): number | undefined => {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
@@ -44,12 +45,17 @@ const getEncodingForModel = (model?: string) => {
 }
 
 export const serializeValueForTokenEstimation = (value: unknown): string => {
-  if (typeof value === 'string') return value
+  const truncate = (text: string) => {
+    if (text.length <= MAX_SERIALIZED_VALUE_LENGTH) return text
+    return `${text.slice(0, MAX_SERIALIZED_VALUE_LENGTH)}...[truncated ${text.length - MAX_SERIALIZED_VALUE_LENGTH} chars]`
+  }
+
+  if (typeof value === 'string') return truncate(value)
   if (value == null) return ''
   try {
-    return JSON.stringify(value)
+    return truncate(JSON.stringify(value))
   } catch {
-    return String(value)
+    return truncate(String(value))
   }
 }
 

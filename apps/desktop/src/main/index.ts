@@ -6,6 +6,7 @@ import { setupUpdaterHandlers } from './services/updater'
 import { setupPtyHandlers } from './services/pty'
 import { setupComputerHandlers } from './services/computer'
 import { setupBrowserHandlers } from './services/browser'
+import { setupSearchReplaceHandlers } from './services/searchReplace'
 import { setupSyncHandlers } from './services/sync'
 import { initTray } from './initTray'
 
@@ -307,6 +308,7 @@ app.whenReady().then(() => {
   setupPtyHandlers()
   setupComputerHandlers()
   setupBrowserHandlers()
+  setupSearchReplaceHandlers()
   setupSyncHandlers()
 
   const mainWindow = createWindow()

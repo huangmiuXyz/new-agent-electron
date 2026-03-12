@@ -32,68 +32,25 @@ const props = defineProps<{
   tool_part: any
 }>()
 
+const MAX_PREVIEW_LINES = 80
+const MAX_PATCH_TEXT_LENGTH = 20000
 const isOutputCollapsed = ref(false)
 
 const toggleOutputCollapse = () => {
   isOutputCollapsed.value = !isOutputCollapsed.value
 }
 
-const patchText = computed(() => {
-  if (typeof props.args === 'string') {
-    return props.args
+const splitPreviewLines = (value: string, maxLines = MAX_PREVIEW_LINES) => {
+  const lines = value.split(/\r?\n/)
+  return {
+    lines: lines.slice(0, maxLines),
+    totalLines: lines.length,
+    truncated: lines.length > maxLines
   }
-  if (props.args?.patch) {
-    return props.args.patch
-  }
-  const inputType = props.args?.type || 'modify'
-  const filePath = props.args?.file_path
-  const oldStr = props.args?.old_str
-  const newStr = props.args?.new_str
-  const targetPath = props.args?.target_path
+}
 
-  if (!filePath) return ''
-
-  if (inputType === 'add' && newStr !== undefined) {
-    const newLines = newStr.split(/\r?\n/)
-    let patch = `*** Add File: ${filePath}\n`
-    newLines.forEach((line) => {
-      patch += `+${line}\n`
-    })
-    return patch
-  }
-
-  if (inputType === 'delete') {
-    return `*** Delete File: ${filePath}\n`
-  }
-
-  if (inputType === 'move' && targetPath) {
-    return `*** Update File: ${filePath}\n*** Move to: ${targetPath}\n`
-  }
-
-  if (oldStr && newStr !== undefined) {
-    const oldLines = oldStr.split(/\r?\n/)
-    const newLines = newStr.split(/\r?\n/)
-
-    let patch = `*** Update File: ${filePath}\n`
-    patch += `@@ -1,${oldLines.length} +1,${newLines.length} @@\n`
-
-    oldLines.forEach((line) => {
-      patch += `-${line}\n`
-    })
-    newLines.forEach((line) => {
-      patch += `+${line}\n`
-    })
-
-    return patch
-  }
-
-  return ''
-})
-
-const parsedActions = computed<PatchAction[]>(() => {
-  const text = patchText.value
-  if (!text) return []
-
+const parsePatchPreview = (patch: string): PatchAction[] => {
+  const text = patch.slice(0, MAX_PATCH_TEXT_LENGTH)
   const actions: PatchAction[] = []
   const lines = text.replace(/\r\n/g, '\n').split('\n')
 
@@ -102,28 +59,27 @@ const parsedActions = computed<PatchAction[]>(() => {
     const line = lines[cursor]
 
     if (line.startsWith('*** Add File: ')) {
-      const path = line.slice('*** Add File: '.length)
+      const targetPath = line.slice('*** Add File: '.length)
       cursor++
       const addLines: string[] = []
       while (cursor < lines.length && !lines[cursor].startsWith('*** ')) {
-        if (lines[cursor].startsWith('+')) {
+        if (lines[cursor].startsWith('+') && addLines.length < 10) {
           addLines.push(lines[cursor].slice(1))
         }
         cursor++
       }
-      actions.push({ type: 'add', path, lines: addLines })
+      actions.push({ type: 'add', path: targetPath, lines: addLines })
       continue
     }
 
     if (line.startsWith('*** Delete File: ')) {
-      const path = line.slice('*** Delete File: '.length)
-      actions.push({ type: 'delete', path })
+      actions.push({ type: 'delete', path: line.slice('*** Delete File: '.length) })
       cursor++
       continue
     }
 
     if (line.startsWith('*** Update File: ')) {
-      const path = line.slice('*** Update File: '.length)
+      const targetPath = line.slice('*** Update File: '.length)
       cursor++
 
       let moveTo: string | undefined
@@ -150,6 +106,7 @@ const parsedActions = computed<PatchAction[]>(() => {
         }
 
         if (current === '@@' || current.startsWith('@@ ')) {
+          if (chunks.length >= 3) break
           currentChunk = {
             header: current === '@@' ? undefined : current.slice(3),
             lines: []
@@ -164,10 +121,12 @@ const parsedActions = computed<PatchAction[]>(() => {
             currentChunk = { lines: [] }
             chunks.push(currentChunk)
           }
-          currentChunk.lines.push({
-            op: current[0] as ' ' | '+' | '-',
-            text: current.slice(1)
-          })
+          if (currentChunk.lines.length < 20) {
+            currentChunk.lines.push({
+              op: current[0] as ' ' | '+' | '-',
+              text: current.slice(1)
+            })
+          }
           cursor++
           continue
         }
@@ -175,7 +134,7 @@ const parsedActions = computed<PatchAction[]>(() => {
         cursor++
       }
 
-      actions.push({ type: 'update', path, moveTo, chunks })
+      actions.push({ type: 'update', path: targetPath, moveTo, chunks: chunks.slice(0, 3) })
       continue
     }
 
@@ -183,6 +142,73 @@ const parsedActions = computed<PatchAction[]>(() => {
   }
 
   return actions
+}
+
+const parsedActions = computed<PatchAction[]>(() => {
+  if (!props.args) return []
+
+  if (typeof props.args === 'string' && props.args.trim()) {
+    return parsePatchPreview(props.args)
+  }
+
+  if (typeof props.args !== 'string' && typeof props.args.patch === 'string' && props.args.patch.trim()) {
+    return parsePatchPreview(props.args.patch)
+  }
+
+  if (typeof props.args !== 'string') {
+    const inputType = props.args.type || 'modify'
+    const filePath = props.args.file_path
+    const oldStr = props.args.old_str
+    const newStr = props.args.new_str
+    const targetPath = props.args.target_path
+
+    if (!filePath) return []
+
+    if (inputType === 'add' && newStr !== undefined) {
+      const preview = splitPreviewLines(newStr, 10)
+      return [{
+        type: 'add',
+        path: filePath,
+        lines: preview.truncated ? [...preview.lines, `... ${preview.totalLines - preview.lines.length} more lines`] : preview.lines
+      }]
+    }
+
+    if (inputType === 'delete') {
+      return [{ type: 'delete', path: filePath }]
+    }
+
+    if (inputType === 'move' && targetPath) {
+      return [{ type: 'update', path: filePath, moveTo: targetPath, chunks: [] }]
+    }
+
+    if (oldStr && newStr !== undefined) {
+      const oldPreview = splitPreviewLines(oldStr, Math.floor(MAX_PREVIEW_LINES / 2))
+      const newPreview = splitPreviewLines(newStr, Math.floor(MAX_PREVIEW_LINES / 2))
+      const lines: { op: ' ' | '+' | '-'; text: string }[] = [
+        ...oldPreview.lines.map((text) => ({ op: '-' as const, text })),
+        ...newPreview.lines.map((text) => ({ op: '+' as const, text }))
+      ]
+
+      if (oldPreview.truncated || newPreview.truncated) {
+        lines.push({
+          op: ' ' as const,
+          text: `... preview truncated (${Math.max(oldPreview.totalLines, newPreview.totalLines) - lines.length} more lines)`
+        })
+      }
+
+      return [{
+        type: 'update',
+        path: filePath,
+        chunks: [{
+          header: `preview old=${oldPreview.totalLines} new=${newPreview.totalLines}`,
+          lines
+        }]
+      }]
+    }
+
+    return []
+  }
+  return []
 })
 
 const getActionIcon = (type: string) => {

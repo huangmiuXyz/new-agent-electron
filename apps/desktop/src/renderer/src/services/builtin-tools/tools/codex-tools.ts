@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import ignore from 'ignore'
 import ApplyPatchRender from '../components/ApplyPatchRender.vue'
-import { applySearchReplace } from './codex-utils'
 
 const getCurrentAgent = () => {
   const chatsStore = useChatsStores()
@@ -460,21 +459,24 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
       }
       try {
-        const result = applySearchReplace(
-          {
-            type,
-            filePath,
-            oldStr,
-            newStr,
-            targetPath,
-            overwrite
-          },
-          baseDir
-        )
+        const result = await window.api.searchReplace.execute({
+          baseDir,
+          type,
+          filePath,
+          oldStr,
+          newStr,
+          targetPath,
+          overwrite
+        })
+
+        if (!result?.ok || !result.summary) {
+          throw new Error(result?.error || 'search_replace failed')
+        }
+
         return {
-          summaries: [result],
+          summaries: [result.summary],
           toolResult: {
-            content: [{ type: 'text', text: result }]
+            content: [{ type: 'text', text: result.summary }]
           }
         }
       } catch (error) {

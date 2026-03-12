@@ -158,6 +158,17 @@ export const api: ElectronAPI = {
     }) => electronAPI.ipcRenderer.invoke('browser:run', payload),
     getState: (sessionId?: string) => electronAPI.ipcRenderer.invoke('browser:get-state', sessionId)
   },
+  searchReplace: {
+    execute: (payload: {
+      baseDir: string
+      type?: 'modify' | 'add' | 'delete' | 'move' | 'update' | 'create' | 'remove' | 'rename'
+      filePath: string
+      oldStr?: string
+      newStr?: string
+      targetPath?: string
+      overwrite?: boolean
+    }) => electronAPI.ipcRenderer.invoke('search-replace:execute', payload)
+  },
   sync: {
     startHost: (options?: { displayName?: string; port?: number }) =>
       electronAPI.ipcRenderer.invoke('sync:start-host', options),
