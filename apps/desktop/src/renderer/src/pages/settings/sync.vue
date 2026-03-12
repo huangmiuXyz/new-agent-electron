@@ -1,6 +1,24 @@
 <script setup lang="ts">
 const syncStore = useSyncStore()
 const { confirm } = useModal()
+
+const [PullOptionsForm, pullOptionsActions] = useForm({
+  showHeader: false,
+  fields: [
+    {
+      name: 'targets',
+      type: 'checkboxGroup',
+      label: '拉取内容',
+      options: [
+        { label: '聊天数据', value: 'chats', description: '覆盖会话、消息和当前会话' },
+        { label: '提供商', value: 'providers', description: '同步非插件创建的提供商和排序' }
+      ],
+      defaultValue: ['chats', 'providers'],
+      required: true
+    }
+  ]
+})
+
 const {
   hostEnabled,
   profile,
@@ -44,10 +62,10 @@ const pullEndpoint = async (endpoint: SyncEndpoint) => {
       await syncStore.selectEndpoint(endpoint.deviceId)
     }
 
-    const targetName = endpoint.displayName || endpoint.deviceId
+    pullOptionsActions.setFieldValue('targets', ['chats', 'providers'])
     const confirmed = await confirm({
       title: '确认拉取',
-      content: `将从“${targetName}”拉取并覆盖本机 ${diffSummary.value.messageChanges} 条消息（${diffSummary.value.chatChanges} 个会话），是否继续？`,
+      content: PullOptionsForm,
       confirmText: '继续拉取',
       cancelText: '取消',
       confirmProps: {
@@ -57,7 +75,11 @@ const pullEndpoint = async (endpoint: SyncEndpoint) => {
 
     if (!confirmed) return
 
-    await syncStore.pullEndpoint(endpoint.deviceId)
+    const targets = (pullOptionsActions.getFieldValue('targets') as string[]) || []
+    await syncStore.pullEndpoint(endpoint.deviceId, {
+      chats: targets.includes('chats'),
+      providers: targets.includes('providers')
+    })
   } catch (error) {
     connection.value.error = error instanceof Error ? error.message : String(error)
   }
@@ -81,13 +103,21 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
   if (endpoint.deviceId === selfDeviceId.value) return '本机'
   return endpoint.source === 'desktop' ? '桌面端' : '移动端'
 }
+
+const hasSelectedDiff = computed(() => {
+  return (
+    diffSummary.value.messageChanges > 0 ||
+    diffSummary.value.chatChanges > 0 ||
+    diffSummary.value.providerChanges > 0
+  )
+})
 </script>
 
 <template>
   <FormContainer header-title="同步">
     <template #content>
       <div class="sync-wrapper">
-        <div class="sync-row" v-if="hasDesktopSyncApi">
+        <div v-if="hasDesktopSyncApi" class="sync-row">
           <div class="sync-copy">
             <div class="sync-title">桌面端同步服务</div>
           </div>
@@ -95,7 +125,7 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
         </div>
 
         <FormItem label="本机名称">
-          <Input v-model="profile.displayName" placeholder="给当前设备起个名字" @blur="updateDisplayName" />
+          <Input v-model="profile.displayName" placeholder="给当前设备起一个名字" @blur="updateDisplayName" />
         </FormItem>
 
         <div v-if="hasDesktopSyncApi" class="sync-overview">
@@ -109,8 +139,11 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
 
         <template v-else>
           <FormItem label="同步入口地址">
-            <Input :model-value="connection.serverUrl" placeholder="例如 http://192.168.1.8:41235"
-              @update:modelValue="updateServerUrl" />
+            <Input
+              :model-value="connection.serverUrl"
+              placeholder="例如 http://192.168.1.8:41235"
+              @update:modelValue="updateServerUrl"
+            />
           </FormItem>
 
           <Card>
@@ -127,9 +160,13 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
             <div class="endpoint-title">设备列表</div>
           </div>
           <div v-if="endpoints.length > 0" class="endpoint-list">
-            <div v-for="endpoint in endpoints" :key="endpoint.deviceId" class="endpoint-item"
+            <div
+              v-for="endpoint in endpoints"
+              :key="endpoint.deviceId"
+              class="endpoint-item"
               :class="{ selected: selectedEndpointId === endpoint.deviceId }"
-              @click="selectEndpoint(endpoint.deviceId)">
+              @click="selectEndpoint(endpoint.deviceId)"
+            >
               <div class="endpoint-main">
                 <div class="endpoint-name-row">
                   <div class="endpoint-name-block">
@@ -147,12 +184,23 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
                     <span class="metric-value">{{ endpoint.messageCount }}</span>
                     <span class="metric-label">消息</span>
                   </div>
+                  <div
+                    v-if="selectedEndpointId === endpoint.deviceId && endpoint.deviceId !== selfDeviceId"
+                    class="endpoint-metric"
+                  >
+                    <span class="metric-value">{{ diffSummary.providerChanges }}</span>
+                    <span class="metric-label">提供商变更</span>
+                  </div>
                 </div>
               </div>
               <div v-if="endpoint.deviceId !== selfDeviceId" class="endpoint-actions">
-                <Button size="sm" variant="secondary"
-                  :disabled="(!hasDesktopSyncApi && !connection.connected) || (selectedEndpointId === endpoint.deviceId && diffSummary.messageChanges === 0 && diffSummary.chatChanges === 0)"
-                  :loading="isPulling && selectedEndpointId === endpoint.deviceId" @click.stop="pullEndpoint(endpoint)">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  :disabled="(!hasDesktopSyncApi && !connection.connected) || (selectedEndpointId === endpoint.deviceId && !hasSelectedDiff)"
+                  :loading="isPulling && selectedEndpointId === endpoint.deviceId"
+                  @click.stop="pullEndpoint(endpoint)"
+                >
                   拉取
                 </Button>
               </div>
@@ -179,9 +227,10 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  .form-item{
-    margin-bottom: 0;
-  }
+}
+
+.sync-wrapper .form-item {
+  margin-bottom: 0;
 }
 
 .sync-row {
@@ -202,39 +251,10 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
   color: var(--text-primary);
 }
 
-.sync-subtitle,
-.endpoint-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
-.status-compact {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.overview-divider {
-  margin: 10px 0;
-  height: 1px;
-  background: var(--border-subtle);
-}
-
-.status-label,
 .address-section-label,
-.address-tip,
 .endpoint-meta {
   font-size: 11px;
   color: var(--text-secondary);
-}
-
-.status-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
 }
 
 .address-panel {
@@ -359,13 +379,6 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
   color: var(--text-secondary);
 }
 
-.endpoint-summary {
-  margin-top: 12px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
 .endpoint-actions {
   display: flex;
   align-items: stretch;
@@ -411,20 +424,6 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
 
   .sync-overview {
     padding: 12px;
-  }
-
-  .status-compact {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
-  .status-value {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: var(--bg-secondary);
   }
 
   .address-item {
@@ -481,10 +480,6 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
 
   .endpoint-metric {
     padding: 5px 9px;
-  }
-
-  .endpoint-summary {
-    margin-top: 10px;
   }
 
   .endpoint-actions {

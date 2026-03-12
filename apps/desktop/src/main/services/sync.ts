@@ -11,6 +11,8 @@ const SSE_RETRY_MS = 3000
 type SyncSnapshot = {
   chats: Chat[]
   activeChatId: string | null
+  providers: Provider[]
+  providerOrder: string[]
   updatedAt: number
   source: string
 }

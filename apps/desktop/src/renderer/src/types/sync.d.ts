@@ -13,6 +13,8 @@ declare global {
   interface SyncSnapshot {
     chats: Chat[]
     activeChatId: string | null
+    providers: Provider[]
+    providerOrder: string[]
     updatedAt: number
     source: string
   }

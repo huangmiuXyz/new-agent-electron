@@ -335,6 +335,30 @@ export const useSettingsStore = defineStore(
       providerOrder.value = providerOrder.value.filter((pid) => pid !== providerId)
     }
 
+    const replaceSyncProviders = (nextProviders: Provider[], nextOrder?: string[]) => {
+      const baseProviders = getDefaultProviders()
+      const baseProviderIds = new Set(baseProviders.map((provider) => provider.id))
+      const incomingProviders = nextProviders.filter((provider) => !provider.pluginName)
+      const incomingProviderMap = new Map(incomingProviders.map((provider) => [provider.id, provider] as const))
+      const incomingCustomProviders = incomingProviders.filter((provider) => !baseProviderIds.has(provider.id))
+      const localPluginProviders = providers.value.filter((provider) => provider.pluginName)
+
+      providers.value = [
+        ...baseProviders.map((provider) => incomingProviderMap.get(provider.id) || provider),
+        ...incomingCustomProviders,
+        ...localPluginProviders
+      ]
+
+      const availableProviderIds = new Set(providers.value.map((provider) => provider.id))
+      const normalizedOrder = (nextOrder || []).filter((id) => availableProviderIds.has(id))
+      providers.value.forEach((provider) => {
+        if (!normalizedOrder.includes(provider.id)) {
+          normalizedOrder.push(provider.id)
+        }
+      })
+      providerOrder.value = normalizedOrder
+    }
+
     const moveProvider = (fromId: string, toId: string, after = false) => {
       if (!fromId || !toId || fromId === toId) return
       if (!providerOrder.value.includes(fromId)) providerOrder.value.push(fromId)
@@ -592,6 +616,7 @@ export const useSettingsStore = defineStore(
       toggleFavoriteModel,
       addCustomProvider,
       removeCustomProvider,
+      replaceSyncProviders,
       moveProvider,
       updateShortcut,
       resetShortcut,
