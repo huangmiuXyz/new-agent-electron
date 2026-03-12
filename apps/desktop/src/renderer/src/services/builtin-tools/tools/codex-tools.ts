@@ -35,18 +35,57 @@ const resolvePath = (rawPath: string): string => {
 const DEFAULT_EXCLUDE_DIRS = ['node_modules', '.git', 'dist', 'build', 'out', '.turbo']
 const MAX_FILE_SIZE_BYTES = 1024 * 1024
 
-const loadGitignoreMatcher = (rootDir: string): ReturnType<typeof ignore> => {
-  const ig = ignore()
-  const gitignorePath = window.api.path.join(rootDir, '.gitignore')
-  if (!window.api.fs.existsSync(gitignorePath)) {
-    return ig
+type IgnoreState = {
+  patterns: string[]
+  matcher: ReturnType<typeof ignore>
+}
+
+const rebaseGitignorePatterns = (content: string, dirRelativeToRoot: string): string[] => {
+  const baseDir = dirRelativeToRoot.replaceAll('\\', '/').replace(/^\.\/?/, '').replace(/\/$/, '')
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .map((line) => {
+      const isNegated = line.startsWith('!')
+      const rawPattern = isNegated ? line.slice(1) : line
+      if (!baseDir) return line
+
+      let rebasedPattern: string
+      if (rawPattern.startsWith('/')) {
+        rebasedPattern = `${baseDir}${rawPattern}`
+      } else if (rawPattern.includes('/')) {
+        rebasedPattern = `${baseDir}/${rawPattern}`
+      } else {
+        rebasedPattern = `${baseDir}/**/${rawPattern}`
+      }
+
+      return isNegated ? `!${rebasedPattern}` : rebasedPattern
+    })
+}
+
+const createIgnoreState = (
+  rootDir: string,
+  currentDir: string,
+  parentState?: IgnoreState
+): IgnoreState => {
+  const patterns = parentState ? [...parentState.patterns] : []
+  const gitignorePath = window.api.path.join(currentDir, '.gitignore')
+
+  if (window.api.fs.existsSync(gitignorePath)) {
+    try {
+      const content = window.api.fs.readFileSync(gitignorePath, 'utf-8')
+      const dirRelativeToRoot = window.api.path.relative(rootDir, currentDir)
+      patterns.push(...rebaseGitignorePatterns(content, dirRelativeToRoot))
+    } catch {
+      // ignore read errors
+    }
   }
-  try {
-    ig.add(window.api.fs.readFileSync(gitignorePath, 'utf-8'))
-  } catch {
-    // ignore read errors
+
+  return {
+    patterns,
+    matcher: ignore().add(patterns)
   }
-  return ig
 }
 
 const isProbablyBinary = (content: string): boolean => content.includes('\u0000')
@@ -214,16 +253,17 @@ const searchInFile = (options: {
 }
 
 const walkSearchFiles = (rootDir: string, excludeDirs: string[], extensions?: string[]): string[] => {
-  const ig = loadGitignoreMatcher(rootDir)
-
-  const queue = [rootDir]
+  const queue: Array<{ dir: string; ignoreState: IgnoreState }> = [
+    { dir: rootDir, ignoreState: createIgnoreState(rootDir, rootDir) }
+  ]
   const files: string[] = []
   const normalizedExts = extensions?.map((ext) =>
     ext.startsWith('.') ? ext.toLowerCase() : `.${ext.toLowerCase()}`
   )
 
   while (queue.length > 0) {
-    const currentDir = queue.pop()!
+    const current = queue.pop()!
+    const currentDir = current.dir
     let entries: string[] = []
     try {
       entries = window.api.fs.readdirSync(currentDir) as string[]
@@ -234,7 +274,6 @@ const walkSearchFiles = (rootDir: string, excludeDirs: string[], extensions?: st
     for (const entryName of entries) {
       const fullPath = window.api.path.join(currentDir, entryName)
       const relativePath = window.api.path.relative(rootDir, fullPath).replaceAll('\\', '/')
-      if (relativePath && (ig.ignores(relativePath) || ig.ignores(`${relativePath}/`))) continue
 
       let stat: any
       try {
@@ -246,9 +285,21 @@ const walkSearchFiles = (rootDir: string, excludeDirs: string[], extensions?: st
       const mode = stat.mode & 0o170000
       const isDir = mode === 0o040000
       const isFile = mode === 0o100000
+      if (
+        relativePath &&
+        (current.ignoreState.matcher.ignores(relativePath) ||
+          (isDir && current.ignoreState.matcher.ignores(`${relativePath}/`)))
+      ) {
+        continue
+      }
 
       if (isDir) {
-        if (!excludeDirs.includes(entryName)) queue.push(fullPath)
+        if (!excludeDirs.includes(entryName)) {
+          queue.push({
+            dir: fullPath,
+            ignoreState: createIgnoreState(rootDir, fullPath, current.ignoreState)
+          })
+        }
         continue
       }
       if (!isFile) continue
@@ -361,11 +412,11 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           }
         }
 
-        const ig = loadGitignoreMatcher(dirPath)
         const results: string[] = []
         let currentLength = 0
+        const rootIgnoreState = createIgnoreState(dirPath, dirPath)
 
-        const processDir = (currentPath: string, currentDepth: number) => {
+        const processDir = (currentPath: string, currentDepth: number, ignoreState: IgnoreState) => {
           if (currentLength >= maxLength) return
           if (currentDepth >= maxDepth) return
 
@@ -404,15 +455,19 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
             if (currentLength >= maxLength) break
 
             const fullPath = window.api.path.join(currentPath, entry)
-            const relativePath = window.api.path.relative(dirPath, fullPath).replaceAll('\\', '/')
-            if (relativePath && (ig.ignores(relativePath) || ig.ignores(`${relativePath}/`))) {
-              continue
-            }
             let isDir = false
             try {
               const s = window.api.fs.lstatSync(fullPath)
               isDir = (s.mode & 0o170000) === 0o040000
             } catch {
+              continue
+            }
+            const relativePath = window.api.path.relative(dirPath, fullPath).replaceAll('\\', '/')
+            if (
+              relativePath &&
+              (ignoreState.matcher.ignores(relativePath) ||
+                (isDir && ignoreState.matcher.ignores(`${relativePath}/`)))
+            ) {
               continue
             }
 
@@ -429,12 +484,12 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
             currentLength += line.length
 
             if (isDir) {
-              processDir(fullPath, currentDepth + 1)
+              processDir(fullPath, currentDepth + 1, createIgnoreState(dirPath, fullPath, ignoreState))
             }
           }
         }
 
-        processDir(dirPath, 0)
+        processDir(dirPath, 0, rootIgnoreState)
 
         return {
           toolResult: {
