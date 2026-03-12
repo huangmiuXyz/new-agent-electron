@@ -71,6 +71,12 @@ export interface ElectronAPI {
   getPath: (name: any) => string;
   getAppPath: () => string;
   getPluginsPath: () => string;
+  getBundledRipgrepPath: () => string | null;
+  execFileCommand: (
+    file: string,
+    args?: string[],
+    options?: { cwd?: string; maxBuffer?: number }
+  ) => Promise<{ code: number | null; stdout: string; stderr: string }>;
 
   // libs
   shell: any;

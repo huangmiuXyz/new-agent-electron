@@ -501,74 +501,36 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       } catch (error) {
         return {
           toolResult: {
-            content: [{ type: 'text', text: `列出目录失败: ${(error as Error).message}` }]
+            content: [{ type: 'text', text: `鍒楀嚭鐩綍澶辫触: ${(error as Error).message}` }]
           }
         }
       }
     }
   },
   search_project: {
-    title: '项目全局搜索',
-    description: '在项目目录中按关键词进行全局搜索，支持正则、扩展名过滤、排除目录和上下文预览',
+    title: 'Project Search',
+    description: 'Use ripgrep (rg) to search inside the project. Flags are passed through to rg.',
     inputSchema: z.object({
-      query: z.string().describe('要搜索的关键词或正则表达式'),
-      path: z
-        .string()
-        .optional()
-        .default('.')
-        .describe('搜索根目录，支持相对路径（基于 terminalStartupPath）或绝对路径'),
-      mode: z
-        .enum(['substring', 'regex'])
-        .optional()
-        .default('substring')
-        .describe('匹配模式：substring 为普通关键词，regex 为正则表达式'),
-      caseSensitive: z.boolean().optional().default(false).describe('是否区分大小写，默认 false'),
-      extensions: z
+      query: z.string().describe('rg search pattern'),
+      path: z.string().optional().default('.').describe('Working directory for rg, default is current project'),
+      flags: z
         .array(z.string())
         .optional()
-        .describe('可选扩展名过滤，如 [".ts", ".vue", ".md"]；不传表示搜索全部文件'),
-      excludeDirs: z
-        .array(z.string())
-        .optional()
-        .default(DEFAULT_EXCLUDE_DIRS)
-        .describe(`排除目录名，默认 ${DEFAULT_EXCLUDE_DIRS.join(', ')}`),
-      contextLines: z
-        .number()
-        .int()
-        .min(0)
-        .max(5)
-        .optional()
-        .default(1)
-        .describe('每条匹配前后展示的上下文行数，范围 0-5，默认 1'),
-      maxResults: z
-        .number()
-        .int()
-        .min(1)
-        .max(200)
-        .optional()
-        .default(50)
-        .describe('最大返回条数，范围 1-200，默认 50'),
-      maxPreviewChars: z
-        .number()
-        .int()
-        .min(60)
-        .max(500)
-        .optional()
-        .default(200)
-        .describe('每行预览的最大字符数，范围 60-500，默认 200')
+        .default([])
+        .describe('Arguments passed directly to rg, for example ["-n", "-S", "-g", "*.ts"]')
     }),
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
       const query = String(params.query || '').trim()
       if (!query) {
-        return { toolResult: { content: [{ type: 'text', text: '搜索失败：query 不能为空' }] } }
+        return { toolResult: { content: [{ type: 'text', text: 'search_project failed: query is required' }] } }
       }
 
       try {
         const rootDir = resolvePath(String(params.path || '.'))
         if (!window.api.fs.existsSync(rootDir)) {
           return {
-            toolResult: { content: [{ type: 'text', text: `搜索失败：目录不存在 ${rootDir}` }] }
+            toolResult: { content: [{ type: 'text', text: `search_project failed: directory not found ${rootDir}` }] }
           }
         }
 
@@ -576,88 +538,59 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         const isDir = (stat.mode & 0o170000) === 0o040000
         if (!isDir) {
           return {
-            toolResult: { content: [{ type: 'text', text: `搜索失败：路径不是目录 ${rootDir}` }] }
+            toolResult: { content: [{ type: 'text', text: `search_project failed: path is not a directory ${rootDir}` }] }
           }
         }
 
-        const mode = params.mode === 'regex' ? 'regex' : 'substring'
-        const caseSensitive = Boolean(params.caseSensitive)
-        const extensions = Array.isArray(params.extensions)
-          ? params.extensions.filter((ext: unknown) => typeof ext === 'string' && ext.trim().length > 0)
-          : undefined
-        const excludeDirs = Array.isArray(params.excludeDirs)
-          ? params.excludeDirs.filter((dir: unknown) => typeof dir === 'string' && dir.trim().length > 0)
-          : DEFAULT_EXCLUDE_DIRS
-        const contextLines =
-          typeof params.contextLines === 'number' ? Math.max(0, Math.min(5, params.contextLines)) : 1
-        const maxResults =
-          typeof params.maxResults === 'number' ? Math.max(1, Math.min(200, params.maxResults)) : 50
-        const maxPreviewChars =
-          typeof params.maxPreviewChars === 'number'
-            ? Math.max(60, Math.min(500, params.maxPreviewChars))
-            : 200
+        const flags = Array.isArray(params.flags)
+          ? params.flags.filter((flag: unknown) => typeof flag === 'string' && flag.trim().length > 0)
+          : []
+        const rgExecutable = window.api.getBundledRipgrepPath?.() || 'rg'
+        const rgArgs = ['--color', 'never', '--line-number', '--no-heading', ...flags, '--', query, '.']
+        const result = await window.api.execFileCommand(rgExecutable, rgArgs, {
+          cwd: rootDir,
+          maxBuffer: 8 * 1024 * 1024
+        })
+        const stdout = result.stdout.trim()
+        const stderr = result.stderr.trim()
 
-        const files = walkSearchFiles(rootDir, excludeDirs, extensions)
-        const results: MatchResult[] = []
-
-        for (const filePath of files) {
-          if (results.length >= maxResults) break
-          try {
-            const fileStat = window.api.fs.lstatSync(filePath)
-            if (fileStat.size > MAX_FILE_SIZE_BYTES) continue
-            const content = window.api.fs.readFileSync(filePath, 'utf-8')
-            if (isProbablyBinary(content)) continue
-
-            const matches = searchInFile({
-              content,
-              filePath,
-              query,
-              mode,
-              caseSensitive,
-              contextLines,
-              maxPreviewChars,
-              maxResults,
-              currentResultCount: results.length
-            })
-            results.push(...matches)
-          } catch {
-            continue
-          }
-        }
-
-        if (results.length === 0) {
+        if (result.code === 1 && !stdout) {
           return {
             toolResult: {
               content: [
                 {
                   type: 'text',
-                  text:
-                    `未找到匹配结果\nquery: ${query}\npath: ${rootDir}\n` +
-                    `excludeDirs: ${excludeDirs.join(', ')}\n扫描文件数: ${files.length}`
+                  text: `No matches found\nquery: ${query}\npath: ${rootDir}\nflags: ${flags.join(' ')}`
                 }
               ]
             }
           }
         }
 
-        const output = results
-          .slice(0, maxResults)
-          .map((item, index) => {
-            const relativePath = window.api.path.relative(rootDir, item.filePath) || '.'
-            return `#${index + 1} ${relativePath}:${item.line}:${item.column}\n${item.preview}`
-          })
-          .join('\n\n')
+        if (result.code !== 0 && result.code !== 1) {
+          const message = stderr || stdout || result.error?.message || 'rg execution failed'
+          const missingExecutable =
+            /not recognized|command not found|cannot find|not found/i.test(message) && message.includes('rg')
+          return {
+            toolResult: {
+              content: [
+                {
+                  type: 'text',
+                  text: missingExecutable
+                    ? 'search_project failed: bundled rg was not found. Please reinstall the app or ensure ripgrep is available.'
+                    : `search_project failed: ${message}`
+                }
+              ]
+            }
+          }
+        }
 
         return {
           toolResult: {
             content: [
               {
                 type: 'text',
-                text:
-                  `搜索完成：找到 ${Math.min(results.length, maxResults)} 条结果` +
-                  `${results.length >= maxResults ? `（已截断到 ${maxResults} 条）` : ''}\n` +
-                  `query: ${query}\npath: ${rootDir}\n` +
-                  `excludeDirs: ${excludeDirs.join(', ')}\n扫描文件数: ${files.length}\n\n${output}`
+                text: `rg search completed\nquery: ${query}\npath: ${rootDir}\nflags: ${flags.join(' ')}\n\n${stdout}`
               }
             ]
           }
@@ -665,7 +598,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       } catch (error) {
         return {
           toolResult: {
-            content: [{ type: 'text', text: `搜索失败: ${(error as Error).message}` }]
+            content: [{ type: 'text', text: `search_project failed: ${(error as Error).message}` }]
           }
         }
       }

@@ -7,9 +7,42 @@ import path from 'path'
 import mime from 'mime-types'
 import url from 'url'
 import { app, getCurrentWindow } from '@electron/remote'
-import { exec, spawn, fork } from 'child_process'
+import { exec, execFile, spawn, fork } from 'child_process'
 import os from 'os'
 import { type ElectronAPI } from '@agent-qi/types'
+import { rgPath } from '@agent-qi/ripgrep'
+
+const getBundledRipgrepPath = (): string | null => {
+  if (!rgPath) return null
+  if (!app.isPackaged) return rgPath
+  return rgPath.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`)
+}
+
+const execFileCommand = (
+  file: string,
+  args: string[] = [],
+  options: { cwd?: string; maxBuffer?: number } = {}
+): Promise<{ code: number | null; stdout: string; stderr: string }> => {
+  return new Promise((resolve) => {
+    execFile(file, args, { windowsHide: true, ...options }, (error, stdout, stderr) => {
+      if (error) {
+        const errorWithCode = error as NodeJS.ErrnoException & { code?: number }
+        resolve({
+          code: typeof errorWithCode.code === 'number' ? errorWithCode.code : null,
+          stdout,
+          stderr
+        })
+        return
+      }
+
+      resolve({
+        code: 0,
+        stdout,
+        stderr
+      })
+    })
+  })
+}
 
 
 export const api: ElectronAPI = {
@@ -56,6 +89,8 @@ export const api: ElectronAPI = {
   getPluginsPath: () => {
     return path.join(app.getPath('userData'), 'plugins')
   },
+  getBundledRipgrepPath,
+  execFileCommand,
   shell,
   clipboard: {
     writeText: (text: string) => clipboard.writeText(text),

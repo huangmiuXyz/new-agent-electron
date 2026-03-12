@@ -1,0 +1,14 @@
+{
+  "name": "@agent-qi/ripgrep",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts"
+  ],
+  "dependencies": {
+    "@vscode/ripgrep": "1.17.1"
+  }
+}

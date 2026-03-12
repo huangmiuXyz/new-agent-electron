@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@agent-qi/types": "workspace:*",
+    "@agent-qi/ripgrep": "workspace:*",
     "@ai-sdk/anthropic": "catalog:",
     "@ai-sdk/deepseek": "catalog:",
     "@ai-sdk/elevenlabs": "catalog:",
@@ -168,7 +169,8 @@
       "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
     ],
     "asarUnpack": [
-      "resources/**"
+      "resources/**",
+      "node_modules/@agent-qi/ripgrep/node_modules/@vscode/ripgrep/bin/**"
     ],
     "win": {
       "executableName": "agent-qi",
