@@ -5,6 +5,7 @@ import { getCodexBuiltinTools } from './tools/codex-tools'
 import { getGeneralBuiltinTools } from './tools/general-tools'
 import { getMediaBuiltinTools } from './tools/media-tools'
 import { getNetworkBuiltinTools } from './tools/network-tools'
+import { getKnowledgeBuiltinTools } from './tools/knowledge-tools'
 
 type BuiltinToolGroups = Record<string, string[]>
 
@@ -20,7 +21,8 @@ export const getBuiltinToolGroups = (options?: {
     通用工具: Object.keys(getGeneralBuiltinTools()),
     电脑操作: Object.keys(getComputerBuiltinTools()),
     Agent工具: Object.keys(getAgentBuiltinTools(skills)),
-    网络工具: Object.keys(getNetworkBuiltinTools({ knowledgeBaseIds: options?.knowledgeBaseIds })),
+    网络工具: Object.keys(getNetworkBuiltinTools()),
+    知识库: Object.keys(getKnowledgeBuiltinTools({ knowledgeBaseIds: options?.knowledgeBaseIds })),
     多媒体工具: Object.keys(getMediaBuiltinTools()),
     Codex工具: Object.keys(getCodexBuiltinTools())
   }
@@ -48,7 +50,8 @@ export const getBuiltinTools = (options?: {
     ...getGeneralBuiltinTools(),
     ...getComputerBuiltinTools(),
     ...getAgentBuiltinTools(skills),
-    ...getNetworkBuiltinTools({ knowledgeBaseIds: options?.knowledgeBaseIds }),
+    ...getNetworkBuiltinTools(),
+    ...getKnowledgeBuiltinTools({ knowledgeBaseIds: options?.knowledgeBaseIds }),
     ...getMediaBuiltinTools(),
     ...getCodexBuiltinTools(),
     ...(manager?.getBuiltinTools ? Object.fromEntries(manager.getBuiltinTools()) : {})
