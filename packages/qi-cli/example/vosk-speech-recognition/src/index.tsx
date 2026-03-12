@@ -279,10 +279,29 @@ const plugin: Plugin = {
       }
     }
 
+    const hydrateModelState = (modelConfig: any, options?: { preserveTaskState?: boolean }) => {
+      const exists = checkFileExists(modelConfig.file)
+      const preserveTaskState = options?.preserveTaskState ?? true
+      const taskActive = preserveTaskState && (modelConfig.isDownloading || modelConfig.isPaused)
+
+      return {
+        ...modelConfig,
+        exists,
+        isCompleted: taskActive ? Boolean(modelConfig.isCompleted) : exists,
+        isDownloading: preserveTaskState ? Boolean(modelConfig.isDownloading) : false,
+        isPaused: preserveTaskState ? Boolean(modelConfig.isPaused) : false,
+        progress: preserveTaskState ? (modelConfig.progress ?? null) : null
+      }
+    }
+
+    const hydrateModelsState = (models: any[], options?: { preserveTaskState?: boolean }) =>
+      models.map((item: any) => hydrateModelState(item, options))
+
     const syncModels = async (newData: any[]) => {
-      setData([...newData])
-      setFieldValue('models', [...newData])
-      const updatedConfig = { ...getFormData(), models: [...newData] }
+      const hydratedData = hydrateModelsState([...newData])
+      setData(hydratedData)
+      setFieldValue('models', hydratedData)
+      const updatedConfig = { ...getFormData(), models: hydratedData }
       await context.localforage.setItem(STORAGE_KEY, JSON.stringify(updatedConfig))
 
       const index = settingsStore.registeredProviders.findIndex((p: any) => p.id === PROVIDER_ID)
@@ -290,7 +309,7 @@ const plugin: Plugin = {
         const updatedProviders = [...settingsStore.registeredProviders]
         updatedProviders[index] = {
           ...updatedProviders[index],
-          models: [...newData],
+          models: hydratedData,
           ...updatedConfig
         }
         settingsStore.registeredProviders = updatedProviders
@@ -453,7 +472,7 @@ const plugin: Plugin = {
                 </span>
               )
             }
-            if (row.exists && row.isCompleted) {
+            if (row.exists) {
               return (
                 <span
                   style={{
@@ -551,13 +570,7 @@ const plugin: Plugin = {
         models: (savedConfig.models && savedConfig.models.length > 0
           ? savedConfig.models
           : MODELS
-        ).map((m: any) => ({
-          ...m,
-          exists: checkFileExists(m.file),
-          isDownloading: m.isDownloading || false,
-          isPaused: m.isPaused || false,
-          isCompleted: m.isCompleted || false
-        }))
+        ).map((m: any) => hydrateModelState(m))
       },
       onChange: (_field: string, _value: any, data: any) => {
         context.localforage.setItem(STORAGE_KEY, JSON.stringify(data))
@@ -571,7 +584,7 @@ const plugin: Plugin = {
           if (newModels && Array.isArray(newModels)) {
             const currentData = getData()
             const taskMap = new Map((downloadApi.tasks.value || []).map((task: any) => [task.id, task]))
-            const mergedModels = newModels.map((m: any) => {
+            const mergedModels = hydrateModelsState(newModels).map((m: any) => {
               const current = currentData.find((cm: any) => cm.id === m.id)
               const task = taskMap.get(m.id) as any
               const taskIsActive = task?.status === 'downloading' || task?.status === 'paused'
@@ -590,6 +603,15 @@ const plugin: Plugin = {
           }
         },
         { immediate: true, deep: true }
+      )
+
+      watch(
+        () => getFieldValue('modelPath'),
+        async () => {
+          const currentModels = getFieldValue('models') || []
+          if (!Array.isArray(currentModels) || currentModels.length === 0) return
+          await syncModels(currentModels)
+        }
       )
 
       watch(
@@ -653,7 +675,7 @@ const plugin: Plugin = {
             return item
           })
 
-          setData(updatedData)
+          setData(hydrateModelsState(updatedData))
         },
         { deep: true, immediate: true }
       )
@@ -714,7 +736,7 @@ const plugin: Plugin = {
             throw new Error(`找不到模型文件 ${targetFile}，请在插件设置中下载模型`)
           }
 
-          const modelUrl = `plugin-resource://${normalizedPath}`
+          const modelUrl = `plugin-resource:///${normalizedPath}`
 
           model = await Vosk.createModel(modelUrl)
           currentLoadedModelId = selectedModelId

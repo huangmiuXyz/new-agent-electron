@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, net, protocol, nativeTheme } from 'electron'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import { setupSqliteHandlers, initSqlite } from './services/sqlite'
 import { setupUpdaterHandlers } from './services/updater'
 import { setupPtyHandlers } from './services/pty'
@@ -62,10 +63,23 @@ function createWindow(): BrowserWindow {
   })
 
   protocol.handle('plugin-resource', (request) => {
-    const url = request.url.replace('plugin-resource://', '')
-    const decodedPath = decodeURIComponent(url)
-    const filePath = decodedPath.startsWith('/') ? decodedPath : `/${decodedPath}`
-    return net.fetch(`file://${filePath}`)
+    const url = new URL(request.url)
+    let filePath = decodeURIComponent(url.pathname)
+
+    // Support Windows drive-letter paths for both:
+    // - plugin-resource:///C:/Users/...
+    // - legacy plugin-resource://C/Users/... (host becomes the drive letter)
+    if (process.platform === 'win32' && url.host && /^[a-z]$/i.test(url.host)) {
+      filePath = `/${url.host.toUpperCase()}:${filePath}`
+    }
+
+    // pathToFileURL('C:/...') is correct on Windows, but pathToFileURL('/C:/...')
+    // is treated as a relative path and becomes file:///E:/C:/... on the current drive.
+    if (process.platform === 'win32' && /^\/[a-z]:\//i.test(filePath)) {
+      filePath = filePath.slice(1)
+    }
+
+    return net.fetch(pathToFileURL(filePath).toString())
   })
 
   mainWindow.on('ready-to-show', () => {
