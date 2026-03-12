@@ -224,41 +224,47 @@ export const useChat = (chatId: string) => {
           metadata: nextMetadata
         }
 
-        updateMessages(chatId, (oldMessages) => {
-          const existingIndex = oldMessages.findIndex((m) => m.id === lastMsg.id)
-          if (existingIndex >= 0) {
-            const copy = [...oldMessages]
-            copy[existingIndex] = msgToUpdate
-            return copy
-          }
+        const storeChat = getChatById(chatId)
+        const oldMessages = storeChat?.messages
+        if (!oldMessages) return
 
-          if (!targetMessageId.value) {
-            return [...oldMessages, msgToUpdate]
-          }
+        const existingIndex = oldMessages.findIndex((m) => m.id === lastMsg.id)
+        if (existingIndex >= 0) {
+          const existingMessage = oldMessages[existingIndex]
+          existingMessage.parts = nextParts
+          existingMessage.metadata = nextMetadata
+          return
+        }
 
-          const targetIndex = oldMessages.findIndex((m) => m.id === targetMessageId.value)
-          if (targetIndex < 0) {
-            return [...oldMessages, msgToUpdate]
-          }
+        if (!targetMessageId.value) {
+          updateMessages(chatId, [...oldMessages, msgToUpdate])
+          return
+        }
 
-          const copy = [...oldMessages]
-          const targetMsg = copy[targetIndex]
+        const targetIndex = oldMessages.findIndex((m) => m.id === targetMessageId.value)
+        if (targetIndex < 0) {
+          updateMessages(chatId, [...oldMessages, msgToUpdate])
+          return
+        }
 
-          if (targetMsg.role === 'assistant') {
-            copy[targetIndex] = msgToUpdate
-            return copy
-          }
+        const copy = [...oldMessages]
+        const targetMsg = copy[targetIndex]
 
-          const nextAssistantIndex = copy.findIndex((m, i) => i > targetIndex && m.role === 'assistant')
+        if (targetMsg.role === 'assistant') {
+          copy[targetIndex] = msgToUpdate
+          updateMessages(chatId, copy)
+          return
+        }
 
-          if (nextAssistantIndex >= 0) {
-            copy[nextAssistantIndex] = msgToUpdate
-          } else {
-            copy.splice(targetIndex + 1, 0, msgToUpdate)
-          }
+        const nextAssistantIndex = copy.findIndex((m, i) => i > targetIndex && m.role === 'assistant')
 
-          return copy
-        })
+        if (nextAssistantIndex >= 0) {
+          copy[nextAssistantIndex] = msgToUpdate
+        } else {
+          copy.splice(targetIndex + 1, 0, msgToUpdate)
+        }
+
+        updateMessages(chatId, copy)
       }
 
       const processStreamingSpeech = (

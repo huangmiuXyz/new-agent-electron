@@ -102,7 +102,6 @@ function createWindow(): BrowserWindow {
 }
 
 app.commandLine.appendSwitch('no-sandbox')
-app.commandLine.appendSwitch('disable-gpu')
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
