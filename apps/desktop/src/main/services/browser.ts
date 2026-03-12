@@ -185,19 +185,23 @@ const waitForPossibleNavigation = async (session: BrowserSession, timeoutMs: num
 
   await withTimeout(
     new Promise<void>((resolve, reject) => {
-      const cleanup = () => {
-        session.win.webContents.removeListener('did-finish-load', onLoad)
-        session.win.webContents.removeListener('did-fail-load', onFail)
-      }
-
       const onLoad = () => {
         cleanup()
         resolve()
       }
 
-      const onFail = (_event: Event, _code: number, description: string) => {
+      const onFail = (
+        _event: Electron.Event,
+        _errorCode: number,
+        errorDescription: string
+      ) => {
         cleanup()
-        reject(new Error(`Navigation failed: ${description}`))
+        reject(new Error(`Navigation failed: ${errorDescription}`))
+      }
+
+      const cleanup = () => {
+        session.win.webContents.off('did-finish-load', onLoad)
+        session.win.webContents.off('did-fail-load', onFail)
       }
 
       session.win.webContents.once('did-finish-load', onLoad)
@@ -352,11 +356,6 @@ const pageSnapshotEvaluator = () => {
           '',
         max
       )
-    }
-
-    const scopeHasAncestor = (el: Element | null, selectorText: string) => {
-      if (!el || typeof el.closest !== 'function') return false
-      return Boolean(el.closest(selectorText))
     }
 
     const findMain = () => {
@@ -675,7 +674,7 @@ const executeBrowserCode = async (payload: BrowserActionPayload) => {
     throw new Error('code is required')
   }
 
-  const state = beginExecutionState(sessionId)
+  beginExecutionState(sessionId)
   const session = getOrCreateSession(sessionId)
   setSessionVisibility(session, !headless)
 
