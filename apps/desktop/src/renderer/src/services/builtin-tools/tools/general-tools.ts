@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { getBuiltinTools } from '../index'
 
 const getAgentByChat = (chatId?: string) => {
   const chatsStore = useChatsStores()
@@ -28,6 +29,75 @@ const resolvePath = (rawPath: string, chatId?: string): string => {
   }
 
   return resolvedPath
+}
+
+const parallelToolUseSchema = z.object({
+  recipient_name: z
+    .string()
+    .min(1)
+    .describe(
+      '要调用的工具名称。内置工具格式为 "builtin.<tool_name>"，MCP 工具格式为 "mcp.<server_name>.<tool_name>"。'
+    ),
+  parameters: z.record(z.string(), z.unknown()).describe('传递给目标工具的参数对象。')
+})
+
+const formatToolOutput = (value: unknown): string => {
+  if (typeof value === 'string') return value
+
+  const toolResult = (value as { toolResult?: { content?: Array<{ type?: string; text?: string }> } })?.toolResult
+  if (toolResult && Array.isArray(toolResult.content)) {
+    const text = toolResult.content
+      .map((item) => (typeof item?.text === 'string' ? item.text : ''))
+      .filter(Boolean)
+      .join('\n')
+    if (text) return text
+  }
+
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+const getAvailableToolContext = (chatId?: string) => {
+  const agentStore = useAgentStore()
+  const settingsStore = useSettingsStore()
+  const agent = getAgentByChat(chatId)
+  const builtinToolNames = new Set(agent?.builtinTools || [])
+  const mcpToolNames = new Set(agent?.tools || [])
+  const mcpServers = agent?.id ? agentStore.getMcpByAgent(agent.id).mcpServers : settingsStore.mcpServers
+
+  return {
+    agent,
+    builtinToolNames,
+    mcpToolNames,
+    mcpServers
+  }
+}
+
+const parseRecipientName = (recipientName: string) => {
+  const parts = recipientName.trim().split('.')
+  const kind = parts[0]
+
+  if (kind === 'builtin' && parts.length === 2) {
+    return {
+      kind: 'builtin' as const,
+      toolName: parts[1]
+    }
+  }
+
+  if (kind === 'mcp' && parts.length >= 3) {
+    return {
+      kind: 'mcp' as const,
+      serverName: parts[1],
+      toolName: parts.slice(2).join('.')
+    }
+  }
+
+  throw new Error(
+    `Invalid recipient_name "${recipientName}". Use "builtin.<tool_name>" or "mcp.<server_name>.<tool_name>".`
+  )
 }
 
 export const getGeneralBuiltinTools = (): Partial<Tools> => ({
@@ -144,6 +214,122 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
         queueAsUserMessage: true,
         toolResult: {
           content: [{ type: 'text', text: '<|stop|>' }]
+        }
+      }
+    }
+  },
+  'multi_tool_use.parallel': {
+    title: 'multi_tool_use.parallel',
+    description:
+      '用于批量并行调用多个工具。只允许调用当前智能体已启用的内置工具或 MCP 工具。',
+    inputSchema: z.object({
+      tool_uses: z
+        .array(parallelToolUseSchema)
+        .min(1)
+        .max(20)
+        .describe('要并行执行的工具列表。')
+    }),
+    execute: async (
+      args: unknown,
+      options?: { toolCallId?: string; chatId?: string; model?: string; provider?: string }
+    ) => {
+      const params = args as {
+        tool_uses?: Array<z.infer<typeof parallelToolUseSchema>>
+      }
+      const toolUses = Array.isArray(params.tool_uses) ? params.tool_uses : []
+
+      if (toolUses.length === 0) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: 'multi_tool_use.parallel 执行失败：tool_uses 至少需要包含一个工具调用。' }]
+          }
+        }
+      }
+
+      const { agent, builtinToolNames, mcpToolNames, mcpServers } = getAvailableToolContext(options?.chatId)
+      const builtinTools = getBuiltinTools({ knowledgeBaseIds: agent?.knowledgeBaseIds })
+      const results = await Promise.all(
+        toolUses.map(async (toolUse, index) => {
+          try {
+            const target = parseRecipientName(toolUse.recipient_name)
+
+            if (toolUse.recipient_name === 'builtin.multi_tool_use.parallel') {
+              throw new Error('multi_tool_use.parallel cannot call itself.')
+            }
+
+            if (target.kind === 'builtin') {
+              if (!builtinToolNames.has(target.toolName)) {
+                throw new Error(`Builtin tool "${target.toolName}" is not enabled for the current agent.`)
+              }
+
+              const tool = builtinTools[target.toolName]
+              if (!tool?.execute) {
+                throw new Error(`Builtin tool "${target.toolName}" was not found.`)
+              }
+
+              const output = await tool.execute(toolUse.parameters || {}, {
+                toolCallId: `${options?.toolCallId || 'multi_tool_use.parallel'}:${index}`,
+                chatId: options?.chatId || '',
+                model: options?.model || '',
+                provider: options?.provider || ''
+              })
+
+              return {
+                recipient_name: toolUse.recipient_name,
+                output,
+                formatted_output: formatToolOutput(output)
+              }
+            }
+
+            const allowedMcpKey = `${target.serverName}.${target.toolName}`
+            if (!mcpToolNames.has(allowedMcpKey)) {
+              throw new Error(`MCP tool "${allowedMcpKey}" is not enabled for the current agent.`)
+            }
+
+            const serverConfig = mcpServers[target.serverName]
+            if (!serverConfig) {
+              throw new Error(`MCP server "${target.serverName}" is not available.`)
+            }
+
+            const serverTools = await window.api.list_tools({ [target.serverName]: serverConfig }, false)
+            const tool = serverTools[target.toolName]
+            if (!tool?.execute) {
+              throw new Error(`MCP tool "${allowedMcpKey}" was not found.`)
+            }
+
+            const output = await tool.execute(toolUse.parameters || {}, {
+              toolCallId: `${options?.toolCallId || 'multi_tool_use.parallel'}:${index}`
+            } as any)
+
+            return {
+              recipient_name: toolUse.recipient_name,
+              output,
+              formatted_output: formatToolOutput(output)
+            }
+          } catch (error) {
+            return {
+              recipient_name: toolUse.recipient_name,
+              error: (error as Error).message
+            }
+          }
+        })
+      )
+
+      return {
+        toolResult: {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  tool_uses: toolUses,
+                  results
+                },
+                null,
+                2
+              )
+            }
+          ]
         }
       }
     }
