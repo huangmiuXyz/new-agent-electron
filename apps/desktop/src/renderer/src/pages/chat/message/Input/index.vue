@@ -71,6 +71,7 @@ const currentChatModel = computed(() => {
   if (!chatProviderId.value || !chatModelId.value) return null
   return settingsStore.getModelById(chatProviderId.value, chatModelId.value).model
 })
+const InfoCircle = useIcon('InfoCircle')
 const numberFormatter = new Intl.NumberFormat('zh-CN')
 const currentChatTokenUsage = computed(() => {
   const totals = (chatStore.currentChat?.messages || []).reduce(
@@ -89,7 +90,15 @@ const currentChatTokenUsage = computed(() => {
     hasUsage: totals.total > 0 || totals.input > 0 || totals.output > 0,
     totalDisplay: numberFormatter.format(totals.total),
     inputDisplay: numberFormatter.format(totals.input),
-    outputDisplay: numberFormatter.format(totals.output)
+    outputDisplay: numberFormatter.format(totals.output),
+    tooltip: totals.total > 0 || totals.input > 0 || totals.output > 0
+      ? [
+          '当前聊天总 Token',
+          `总计: ${numberFormatter.format(totals.total)}`,
+          `输入: ${numberFormatter.format(totals.input)}`,
+          `输出: ${numberFormatter.format(totals.output)}`
+        ].join('\n')
+      : '当前聊天总 Token\n暂无可用统计'
   }
 })
 
@@ -772,13 +781,6 @@ onUnmounted(() => {
       <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
         @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
-      <div v-if="currentChatTokenUsage.hasUsage" class="chat-usage-summary">
-        <span class="chat-usage-summary-label">当前聊天总 Token</span>
-        <span class="chat-usage-summary-total">{{ currentChatTokenUsage.totalDisplay }}</span>
-        <span v-if="currentChatTokenUsage.input > 0" class="chat-usage-summary-detail">↑{{ currentChatTokenUsage.inputDisplay }}</span>
-        <span v-if="currentChatTokenUsage.output > 0" class="chat-usage-summary-detail">↓{{ currentChatTokenUsage.outputDisplay }}</span>
-      </div>
-
       <div v-if="!isMobile">
         <div class="input-wrapper">
           <textarea ref="textareaRef" class="input-field" rows="1"
@@ -802,6 +804,34 @@ onUnmounted(() => {
             <Button variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
               <SettingsIcon />
             </Button>
+            <div class="token-usage-popover">
+              <Button
+                variant="icon"
+                size="sm"
+                class="token-usage-btn"
+                aria-label="当前聊天 Token 统计"
+              >
+                <InfoCircle />
+              </Button>
+              <div class="token-usage-panel">
+                <div class="token-usage-panel-title">当前聊天 Token</div>
+                <template v-if="currentChatTokenUsage.hasUsage">
+                  <div class="token-usage-panel-row">
+                    <span>总计</span>
+                    <strong>{{ currentChatTokenUsage.totalDisplay }}</strong>
+                  </div>
+                  <div class="token-usage-panel-row">
+                    <span>输入</span>
+                    <span>{{ currentChatTokenUsage.inputDisplay }}</span>
+                  </div>
+                  <div class="token-usage-panel-row">
+                    <span>输出</span>
+                    <span>{{ currentChatTokenUsage.outputDisplay }}</span>
+                  </div>
+                </template>
+                <div v-else class="token-usage-panel-empty">暂无可用统计</div>
+              </div>
+            </div>
 
             <Button variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }" @click="toggleVoiceRecording"
               :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'">
@@ -1123,32 +1153,6 @@ onUnmounted(() => {
   position: relative;
 }
 
-.chat-usage-summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 2px 8px;
-  margin-bottom: 6px;
-  border-bottom: 1px solid var(--border-color-light);
-  color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 1;
-  flex-wrap: wrap;
-}
-
-.chat-usage-summary-label {
-  color: var(--text-secondary);
-}
-
-.chat-usage-summary-total {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.chat-usage-summary-detail {
-  color: var(--text-tertiary);
-}
-
 .input-container:focus-within {
   border-color: var(--border-focus);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
@@ -1240,6 +1244,72 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.token-usage-popover {
+  position: relative;
+  display: inline-flex;
+}
+
+.token-usage-btn {
+  color: var(--text-tertiary);
+}
+
+.token-usage-btn:hover {
+  color: var(--text-primary);
+}
+
+.token-usage-panel {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%) translateY(4px);
+  min-width: 150px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-card) 96%, white);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  z-index: 20;
+}
+
+.token-usage-popover:hover .token-usage-panel,
+.token-usage-popover:focus-within .token-usage-panel {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.token-usage-panel-title {
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.token-usage-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.token-usage-panel-row + .token-usage-panel-row {
+  margin-top: 6px;
+}
+
+.token-usage-panel-row strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.token-usage-panel-empty {
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 
 .stop-all-btn {
@@ -1407,11 +1477,6 @@ onUnmounted(() => {
   border: none;
   box-shadow: none;
   padding: 0;
-}
-
-.footer.is-mobile .chat-usage-summary {
-  padding: 0 8px 8px;
-  margin-bottom: 8px;
 }
 
 .footer.is-mobile {
