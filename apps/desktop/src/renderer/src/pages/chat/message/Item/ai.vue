@@ -108,7 +108,7 @@ const playMessageAudio = () => {
         !message.metadata?.error &&
         message.metadata?.loading &&
         message.parts.findIndex((e) => e.type === 'step-start') === -1
-      " class="loading-container">
+      " class="loading-container" :class="{ 'is-mobile': isMobile }">
         <div class="loading-dots">
           <span class="dot"></span>
           <span class="dot"></span>
@@ -216,6 +216,10 @@ const playMessageAudio = () => {
 /* Loading indicator styles */
 .loading-container {
   padding: 8px 0;
+}
+
+.loading-container.is-mobile {
+  padding-top: 14px;
 }
 
 .loading-dots {
