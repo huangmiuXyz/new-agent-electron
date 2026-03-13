@@ -612,6 +612,14 @@ const plugin: Plugin = {
     let updateStatusIndicator = () => undefined
     const bridgeBusyState = context.vue.ref('')
     const modal = context.useModal()
+    const runtimeConfigState = context.vue.ref(runtimeConfig)
+    const isStatusPanelOpenState = context.vue.ref(false)
+    const statusTooltipState = context.vue.ref('')
+    let isStatusRegistered = false
+
+    context.vue.watch(isStatusPanelOpenState, (open) => {
+      isStatusPanelOpen = open
+    })
 
     const syncFormActions = (config: CodexProxyPluginConfig) => {
       if (!formActions) return
@@ -622,6 +630,7 @@ const plugin: Plugin = {
     }
 
     const refreshPluginUI = () => {
+      runtimeConfigState.value = runtimeConfig
       syncFormActions(runtimeConfig)
       updateStatusIndicator()
     }
@@ -1427,7 +1436,6 @@ const plugin: Plugin = {
     }
 
     updateStatusIndicator = () => {
-      isStatusPanelOpen = false
       const activeAccount = runtimeConfig.accounts.find(
         (item) => item.id === runtimeConfig.activeAccountId
       )
@@ -1439,15 +1447,17 @@ const plugin: Plugin = {
         ? `Codex 账号: ${accountLabel}`
         : 'Codex 未检测到可用登录'
 
+      runtimeConfigState.value = runtimeConfig
+      isStatusPanelOpenState.value = isStatusPanelOpen
+      statusTooltipState.value = tooltip
+      if (isStatusRegistered) return
+
       const statusRender = createAccountStatusRender({
         context,
-        runtimeConfig,
-        isStatusPanelOpen,
-        tooltip,
-        busyMessage: bridgeBusyMessage,
-        onPanelOpenChange: (open) => {
-          isStatusPanelOpen = open
-        },
+        runtimeConfigRef: runtimeConfigState,
+        isStatusPanelOpenRef: isStatusPanelOpenState,
+        tooltipRef: statusTooltipState,
+        busyMessageRef: bridgeBusyState,
         onSwitchAccount: async (accountId: string) => {
           await doSwitchAccount(accountId)
         },
@@ -1474,6 +1484,7 @@ const plugin: Plugin = {
         tooltip,
         color: '#fff'
       })
+      isStatusRegistered = true
     }
 
     ;[FormComp, formActions] = context.useForm<CodexProxyPluginConfig>({

@@ -8,11 +8,10 @@ import {
 
 interface CreateAccountStatusRenderOptions {
   context: PluginContext
-  runtimeConfig: CodexProxyPluginConfig
-  isStatusPanelOpen: boolean
-  tooltip: string
-  busyMessage: string
-  onPanelOpenChange: (open: boolean) => void
+  runtimeConfigRef: { value: CodexProxyPluginConfig }
+  isStatusPanelOpenRef: { value: boolean }
+  tooltipRef: { value: string }
+  busyMessageRef: { value: string }
   onSwitchAccount: (accountId: string) => Promise<void>
   onRefreshUsage: () => Promise<void>
   onSaveCurrentLogin: () => Promise<void>
@@ -97,11 +96,10 @@ export const createAccountStatusRender = (
 ): unknown => {
   const {
     context,
-    runtimeConfig: config,
-    isStatusPanelOpen: defaultOpen,
-    tooltip,
-    busyMessage,
-    onPanelOpenChange,
+    runtimeConfigRef,
+    isStatusPanelOpenRef,
+    tooltipRef,
+    busyMessageRef,
     onSwitchAccount,
     onRefreshUsage,
     onSaveCurrentLogin,
@@ -115,22 +113,35 @@ export const createAccountStatusRender = (
         const Button = context.components?.Button as any
         const Select = context.components?.Select as any
         if (!Button || !Select) return () => null
+        const SaveIcon = context.useIcon('Check')
+        const WriteBackIcon = context.useIcon('FileText')
+        const RemoveIcon = context.useIcon('Trash')
 
-        const isOpen = context.vue.ref(defaultOpen)
-        const selectedAccountId = context.vue.ref(config.activeAccountId || '')
+        const isOpen = isStatusPanelOpenRef
+        const selectedAccountId = context.vue.ref(runtimeConfigRef.value.activeAccountId || '')
         const isBusy = context.vue.ref(false)
-        const isActionDisabled = () => isBusy.value || Boolean(busyMessage)
+        const isActionDisabled = () => isBusy.value || Boolean(busyMessageRef.value)
+
+        context.vue.watch(
+          () => runtimeConfigRef.value.activeAccountId,
+          (value) => {
+            selectedAccountId.value = value || ''
+          },
+          { immediate: true }
+        )
 
         const closePanel = () => {
           if (!isOpen.value) return
           isOpen.value = false
-          onPanelOpenChange(false)
         }
 
         const onOutsidePointer = (event: Event) => {
           if (!isOpen.value) return
           const targetEl = event.target as HTMLElement | null
           if (targetEl?.closest?.('.codex-status-wrap')) return
+          if (targetEl?.closest?.('.modal-overlay')) return
+          if (targetEl?.closest?.('.selector-popup')) return
+          if (targetEl?.closest?.('.selector-list-container')) return
           closePanel()
         }
 
@@ -168,7 +179,6 @@ export const createAccountStatusRender = (
         const toggleOpen = (event: MouseEvent) => {
           event.stopPropagation()
           isOpen.value = !isOpen.value
-          onPanelOpenChange(isOpen.value)
         }
 
         const handleSwitch = async (value: string | number) => {
@@ -183,7 +193,7 @@ export const createAccountStatusRender = (
           event.stopPropagation()
           await withBusy(async () => {
             await onSaveCurrentLogin()
-            selectedAccountId.value = config.activeAccountId || ''
+            selectedAccountId.value = runtimeConfigRef.value.activeAccountId || ''
           })
         }
 
@@ -205,11 +215,14 @@ export const createAccountStatusRender = (
           event.stopPropagation()
           await withBusy(async () => {
             await onRemoveCurrentAccount()
-            selectedAccountId.value = config.activeAccountId || ''
+            selectedAccountId.value = runtimeConfigRef.value.activeAccountId || ''
           })
         }
 
         return () => {
+          const config = runtimeConfigRef.value
+          const tooltip = tooltipRef.value
+          const busyMessage = busyMessageRef.value
           const activeAccount = config.accounts.find(
             (item) => item.id === config.activeAccountId
           )
@@ -268,24 +281,59 @@ export const createAccountStatusRender = (
                   opacity: 1;
                   transform: translateY(-12px);
                 }
+                .codex-status-top {
+                  display: flex;
+                  align-items: flex-start;
+                  justify-content: space-between;
+                  gap: 10px;
+                  margin-bottom: 8px;
+                }
+                .codex-status-top-main {
+                  min-width: 0;
+                  display: grid;
+                  gap: 6px;
+                }
                 .codex-status-title {
                   font-size: 12px;
                   font-weight: 600;
-                  margin-bottom: 6px;
                 }
                 .codex-status-sub {
                   font-size: 12px;
                   color: var(--text-secondary);
-                  margin-bottom: 8px;
                   word-break: break-all;
+                }
+                .codex-status-top-actions {
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
+                  flex: 0 0 auto;
+                }
+                .codex-status-icon-btn {
+                  width: 24px;
+                  height: 24px;
+                  display: inline-flex;
+                  align-items: center;
+                  justify-content: center;
+                  border: 1px solid var(--border-subtle);
+                  border-radius: 6px;
+                  background: var(--bg-hover);
+                  color: var(--text-secondary);
+                  cursor: pointer;
+                }
+                .codex-status-icon-btn:hover:not(:disabled) {
+                  color: var(--text-primary);
+                  border-color: rgba(31, 122, 224, 0.35);
+                }
+                .codex-status-icon-btn:disabled {
+                  cursor: not-allowed;
+                  opacity: 0.45;
+                }
+                .codex-status-icon-btn :is(svg, i) {
+                  width: 13px;
+                  height: 13px;
                 }
                 .codex-status-select-wrap {
                   margin-bottom: 8px;
-                }
-                .codex-status-actions {
-                  display: grid;
-                  grid-template-columns: repeat(2, minmax(0, 1fr));
-                  gap: 6px;
                 }
                 .codex-usage-card {
                   margin-bottom: 8px;
@@ -344,17 +392,47 @@ export const createAccountStatusRender = (
                   color: var(--text-secondary);
                   word-break: break-word;
                 }
-                .codex-status-btn.wide {
-                  grid-column: 1 / -1;
-                }
               `}</style>
               <img class="codex-status-icon" src={CODEX_PROVIDER_LOGO_URL} alt="Codex" />
               <div
                 class={['codex-status-panel', isOpen.value ? 'open' : '']}
                 onClick={(event: MouseEvent) => event.stopPropagation()}
               >
-                <div class="codex-status-title">Codex 账号</div>
-                <div class="codex-status-sub">当前：{statusText}</div>
+                <div class="codex-status-top">
+                  <div class="codex-status-top-main">
+                    <div class="codex-status-title">Codex 账号</div>
+                    <div class="codex-status-sub">当前：{statusText}</div>
+                  </div>
+                  <div class="codex-status-top-actions">
+                    <button
+                      type="button"
+                      class="codex-status-icon-btn"
+                      title="保存当前登录"
+                      disabled={isActionDisabled()}
+                      onClick={handleSave}
+                    >
+                      {SaveIcon}
+                    </button>
+                    <button
+                      type="button"
+                      class="codex-status-icon-btn"
+                      title="写回 auth.json"
+                      disabled={isActionDisabled() || !config.activeAccountId}
+                      onClick={handleWriteBack}
+                    >
+                      {WriteBackIcon}
+                    </button>
+                    <button
+                      type="button"
+                      class="codex-status-icon-btn"
+                      title="移除当前账号"
+                      disabled={isActionDisabled() || !config.activeAccountId}
+                      onClick={handleRemove}
+                    >
+                      {RemoveIcon}
+                    </button>
+                  </div>
+                </div>
                 <div class="codex-usage-card">
                   <div class="codex-usage-head">
                     <span>额度 / 用量</span>
@@ -444,38 +522,9 @@ export const createAccountStatusRender = (
                         : [{ label: '暂无账号，请先保存当前登录', value: '' }]
                     }
                     clearable={false}
+                    onClick={(event: MouseEvent) => event.stopPropagation()}
                     onUpdate:modelValue={handleSwitch}
                   />
-                </div>
-                <div class="codex-status-actions">
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={isActionDisabled()}
-                    onClick={handleSave}
-                  >
-                    保存当前登录
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={isActionDisabled() || !config.activeAccountId}
-                    onClick={handleWriteBack}
-                  >
-                    写回 auth.json
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    danger
-                    class="codex-status-btn wide"
-                    disabled={isActionDisabled() || !config.activeAccountId}
-                    onClick={handleRemove}
-                  >
-                    移除当前账号
-                  </Button>
                 </div>
               </div>
             </div>
