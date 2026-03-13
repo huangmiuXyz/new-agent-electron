@@ -413,7 +413,7 @@ export const chatService = () => {
     let tools: Tools = {}
 
     const hasLoadSkillTool = !!selectedBuiltinTools?.includes('loadSkill')
-    const skills = hasLoadSkillTool ? discoverSkills() : []
+    const skills = discoverSkills()
     const builtinTools = getBuiltinTools({ knowledgeBaseIds, skills })
     const skillsPrompt = hasLoadSkillTool ? buildSkillsPrompt(skills) : ''
     const currentChat = useChatsStores().getChatById(cid)

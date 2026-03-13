@@ -266,9 +266,7 @@ const updateSkillMentionState = () => {
   skillMentionQuery.value = query
   skillMentionRange.value = { start, end: cursor }
   isSkillMentionOpen.value = availableSkills.value.length > 0
-  if (!isSkillMentionOpen.value) {
-    isSkillMentionChildOpen.value = false
-  }
+  isSkillMentionChildOpen.value = isSkillMentionOpen.value
 }
 
 const insertSkillMention = (skill: SkillMetadata) => {

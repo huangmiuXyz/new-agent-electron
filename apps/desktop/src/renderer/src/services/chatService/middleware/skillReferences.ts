@@ -6,7 +6,7 @@ interface SkillReferenceMiddlewareOptions {
   skills?: SkillMetadata[]
 }
 
-const SKILL_REFERENCE_REGEX = /(^|[\s([{'"“‘])@([a-z0-9-]{1,64})(?=$|[\s)\]}:;,.!?'"，。！？、】【])|(^|[\s([{'"“‘])@(skills|技能):([a-z0-9-]{1,64})(?=$|[\s)\]}:;,.!?'"，。！？、】【])/gi
+const SKILL_REFERENCE_REGEX = /(^|[\s([{'"“‘])@(?:(?:skills|技能):)?([a-z0-9-]{1,64})(?=$|[\s)\]};,.!?'"，。！？、】【])/gi
 
 export const createSkillReferenceMiddleware = (
   options: SkillReferenceMiddlewareOptions
@@ -59,7 +59,7 @@ export const createSkillReferenceMiddleware = (
 function extractReferencedSkillNames(input: string): string[] {
   const matches = Array.from(input.matchAll(SKILL_REFERENCE_REGEX))
   const names = matches
-    .map((match) => (match[2] || match[5])?.toLowerCase())
+    .map((match) => match[2]?.toLowerCase())
     .filter((name): name is string => Boolean(name))
 
   return [...new Set(names)]
