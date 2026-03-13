@@ -712,19 +712,6 @@ onMounted(() => {
 }
 
 @media (max-width: 1100px) {
-
-  .skills-overview,
-  .skills-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .skills-overview-actions,
-  .skills-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
   .skill-list {
     grid-template-columns: 1fr;
   }
