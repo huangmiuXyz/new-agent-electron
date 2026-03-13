@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { FileUIPart, TextUIPart } from 'ai'
-import AtSkillPanel from './AtSkillPanel.vue'
+import AtPanel from './AtPanel.vue'
 import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
 import { usePlugins } from '@renderer/composables/usePlugins'
@@ -959,7 +959,7 @@ onUnmounted(() => {
 
       <div v-if="!isMobile">
         <div class="input-wrapper">
-          <AtSkillPanel
+          <AtPanel
             v-if="isSkillMentionOpen"
             :skills="filteredMentionSkills"
             :active-index="skillMentionActiveIndex"
@@ -1107,7 +1107,7 @@ onUnmounted(() => {
             </template>
           </div>
           <div class="mobile-input-wrapper">
-            <AtSkillPanel
+            <AtPanel
               v-if="isSkillMentionOpen"
               :skills="filteredMentionSkills"
               :active-index="skillMentionActiveIndex"
