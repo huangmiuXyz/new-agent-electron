@@ -94,6 +94,8 @@ export const useChat = (chatId: string) => {
     return scope.run(() => {
       let processedText = ''
       let sentenceSegmenter = createSentenceSegmenter(getChatAgent()?.speechLanguage)
+      let streamFlushHandle: ReturnType<typeof setTimeout> | null = null
+      let pendingStreamParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
 
       const targetMessageId = ref<string | undefined>(regenerateMessageId)
 
@@ -155,6 +157,7 @@ export const useChat = (chatId: string) => {
         },
 
         onFinish: () => {
+          flushStreamingUpdate()
           syncMessageToStore()
 
           if (speechEnabled.value) {
@@ -180,6 +183,7 @@ export const useChat = (chatId: string) => {
 
         onError: (error) => {
           console.log(error);
+          flushStreamingUpdate()
           syncMessageToStore(error as APICallError)
           scope.stop()
           scheduleNextPendingMessage()
@@ -296,14 +300,43 @@ export const useChat = (chatId: string) => {
         }
       }
 
+      const flushStreamingUpdate = () => {
+        if (streamFlushHandle) {
+          clearTimeout(streamFlushHandle)
+          streamFlushHandle = null
+        }
+
+        syncMessageToStore()
+        processStreamingSpeech(pendingStreamParts)
+      }
+
+      const scheduleStreamingUpdate = (
+        newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
+      ) => {
+        pendingStreamParts = newParts
+
+        if (streamFlushHandle) return
+
+        // Batch token-level updates so markdown parsing and list reactivity do not run on every chunk.
+        streamFlushHandle = setTimeout(() => {
+          flushStreamingUpdate()
+        }, 16)
+      }
+
       watch(
         () => chat.lastMessage?.parts,
         (newParts) => {
-          syncMessageToStore()
-          processStreamingSpeech(newParts)
+          scheduleStreamingUpdate(newParts)
         },
         { deep: true }
       )
+
+      onScopeDispose(() => {
+        if (streamFlushHandle) {
+          clearTimeout(streamFlushHandle)
+          streamFlushHandle = null
+        }
+      })
 
       return chat
     })!
