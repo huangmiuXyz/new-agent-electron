@@ -178,6 +178,7 @@ const inputContainerRef = useTemplateRef('inputContainerRef')
 const textareaRef = useTemplateRef('textareaRef')
 
 const SKILL_MENTION_REGEX = /(^|[\s([{'"“‘])@([a-z0-9-]*)$/i
+const SKILL_MENTION_NAMESPACE_REGEX = /(^|[\s([{'"“‘])@(skills|技能):([a-z0-9-]*)$/i
 
 const availableSkills = computed<SkillMetadata[]>(() => {
   void currentChatAgent.value?.id
@@ -186,6 +187,7 @@ const availableSkills = computed<SkillMetadata[]>(() => {
   return discoverSkills()
 })
 const isSkillMentionOpen = ref(false)
+const isSkillMentionChildOpen = ref(false)
 const skillMentionQuery = ref('')
 const skillMentionActiveIndex = ref(0)
 const skillMentionRange = ref<{ start: number, end: number } | null>(null)
@@ -205,9 +207,18 @@ const filteredMentionSkills = computed(() => {
 
 const closeSkillMention = () => {
   isSkillMentionOpen.value = false
+  isSkillMentionChildOpen.value = false
   skillMentionQuery.value = ''
   skillMentionActiveIndex.value = 0
   skillMentionRange.value = null
+}
+
+const openSkillMentionChild = () => {
+  if (!isSkillMentionOpen.value) return
+  isSkillMentionChildOpen.value = true
+  if (skillMentionActiveIndex.value >= filteredMentionSkills.value.length) {
+    skillMentionActiveIndex.value = 0
+  }
 }
 
 const clearSkillMentionCloseTimer = () => {
@@ -232,6 +243,17 @@ const updateSkillMentionState = () => {
 
   const cursor = textarea.selectionStart ?? message.value.length
   const beforeCursor = message.value.slice(0, cursor)
+  const namespacedMatch = beforeCursor.match(SKILL_MENTION_NAMESPACE_REGEX)
+  if (namespacedMatch) {
+    const query = namespacedMatch[3] || ''
+    const start = cursor - query.length - namespacedMatch[2].length - 2
+    skillMentionQuery.value = query
+    skillMentionRange.value = { start, end: cursor }
+    isSkillMentionOpen.value = availableSkills.value.length > 0
+    isSkillMentionChildOpen.value = isSkillMentionOpen.value
+    return
+  }
+
   const match = beforeCursor.match(SKILL_MENTION_REGEX)
 
   if (!match) {
@@ -244,6 +266,9 @@ const updateSkillMentionState = () => {
   skillMentionQuery.value = query
   skillMentionRange.value = { start, end: cursor }
   isSkillMentionOpen.value = availableSkills.value.length > 0
+  if (!isSkillMentionOpen.value) {
+    isSkillMentionChildOpen.value = false
+  }
 }
 
 const insertSkillMention = (skill: SkillMetadata) => {
@@ -251,7 +276,7 @@ const insertSkillMention = (skill: SkillMetadata) => {
   const range = skillMentionRange.value
   if (!textarea || !range) return
 
-  const mentionText = `@${skill.name} `
+  const mentionText = `@skills:${skill.name} `
   message.value = `${message.value.slice(0, range.start)}${mentionText}${message.value.slice(range.end)}`
   closeSkillMention()
 
@@ -786,7 +811,7 @@ const handleTextareaInput = (event: Event) => {
 }
 
 const handleTextareaKeydown = (event: KeyboardEvent) => {
-  if (isSkillMentionOpen.value && filteredMentionSkills.value.length > 0) {
+  if (isSkillMentionOpen.value && isSkillMentionChildOpen.value && filteredMentionSkills.value.length > 0) {
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       skillMentionActiveIndex.value = (skillMentionActiveIndex.value + 1) % filteredMentionSkills.value.length
@@ -807,7 +832,17 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
 
   if (event.key === 'Escape' && isSkillMentionOpen.value) {
     event.preventDefault()
+    if (isSkillMentionChildOpen.value) {
+      isSkillMentionChildOpen.value = false
+      return
+    }
     closeSkillMention()
+    return
+  }
+
+  if (isSkillMentionOpen.value && !isSkillMentionChildOpen.value && (event.key === 'Enter' || event.key === 'Tab' || event.key === 'ArrowRight')) {
+    event.preventDefault()
+    openSkillMentionChild()
     return
   }
 
@@ -928,6 +963,8 @@ onUnmounted(() => {
             v-if="isSkillMentionOpen"
             :skills="filteredMentionSkills"
             :active-index="skillMentionActiveIndex"
+            :child-open="isSkillMentionChildOpen"
+            @open-child="openSkillMentionChild"
             @select="insertSkillMention"
           />
           <textarea ref="textareaRef" class="input-field" rows="1"
@@ -1074,7 +1111,9 @@ onUnmounted(() => {
               v-if="isSkillMentionOpen"
               :skills="filteredMentionSkills"
               :active-index="skillMentionActiveIndex"
+              :child-open="isSkillMentionChildOpen"
               mobile
+              @open-child="openSkillMentionChild"
               @select="insertSkillMention"
             />
             <textarea ref="textareaRef" class="input-field mobile-input-field" rows="1"
