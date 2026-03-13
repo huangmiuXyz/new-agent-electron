@@ -139,27 +139,6 @@ export interface ElectronAPI {
     cancelDownload: (id: string) => Promise<boolean>;
   };
 
-  browser: {
-    run: (payload: {
-      sessionId?: string;
-      action: string;
-      [key: string]: unknown;
-    }) => Promise<{
-      ok: boolean;
-      data?: unknown;
-      error?: string;
-    }>;
-    getState: (sessionId?: string) => Promise<{
-      sessionId: string;
-      running: boolean;
-      lastStep: string | null;
-      logs: string[];
-      startedAt: number | null;
-      finishedAt: number | null;
-      lastError: string | null;
-    }>;
-  };
-
   searchReplace: {
     execute: (payload: {
       baseDir: string;
