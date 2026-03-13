@@ -19,6 +19,14 @@ declare global {
     id: string
     title: string
     messages: BaseMessage[]
+    compressedContext?: {
+      content: string
+      compressedUpToIndex?: number
+      updatedAt: number
+      provider: string
+      model: string
+      loading?: boolean
+    }
     createdAt: number
     agentId?: string // 关联的智能体ID
     providerId?: string // 会话绑定的模型提供商ID

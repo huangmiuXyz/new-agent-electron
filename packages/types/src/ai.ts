@@ -18,6 +18,7 @@ export type providerType =
 export interface MetaData {
   isCompressedContext?: boolean
   isCompressingContext?: boolean
+  compressedUpToIndex?: number
   provider: string
   date: number
   model: string

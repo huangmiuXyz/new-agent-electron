@@ -22,6 +22,14 @@ declare global {
     subTask?: SubTaskInfo
     providerId?: string
     modelId?: string
+    compressedContext?: {
+      content: string
+      compressedUpToIndex?: number
+      updatedAt: number
+      provider: string
+      model: string
+      loading?: boolean
+    }
   }
 }
 

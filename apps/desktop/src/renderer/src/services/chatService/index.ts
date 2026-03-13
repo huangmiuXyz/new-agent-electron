@@ -26,7 +26,6 @@ import {
   buildTranslationPrompt
 } from './systemPrompts'
 import {
-  estimateMessageTokens,
   estimateMessagesTokens,
   serializeMessageForTokenEstimation
 } from './tokenUsage'
@@ -97,7 +96,13 @@ interface AutoCompressOptions {
   activeModel?: string
 }
 
+type CompressionMetaData = MetaData & {
+  compressedUpToIndex?: number
+}
+
 const COMPRESSED_CONTEXT_MARKER = '[上下文已压缩]'
+const MESSAGE_HEADROOM_AFTER_COMPRESSION = 2
+const TOKEN_HEADROOM_RATIO_AFTER_COMPRESSION = 0.2
 
 const isCompressedContextMessage = (message: BaseMessage): boolean => {
   return Boolean(
@@ -114,61 +119,87 @@ const serializeMessageForCompression = (message: BaseMessage): string => {
   return serializeMessageForTokenEstimation(message)
 }
 
-const findCompressionInsertIndex = (
+const getCompressionBoundaryTailMessages = (
   messages: BaseMessage[],
-  options: { recentMessageCount?: number; recentTokenCount?: number; model?: string }
-): number => {
-  const { recentMessageCount, recentTokenCount, model } = options
-  let keptMessages = 0
-  let keptTokens = 0
+  compressedUpToIndex?: number
+): BaseMessage[] => {
+  const visibleMessages = messages.filter((message) => !isCompressingContextMessage(message))
+  const baseMessages = visibleMessages.filter((message) => !isCompressedContextMessage(message))
 
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === 'system') continue
+  if (compressedUpToIndex == null || compressedUpToIndex < 0) {
+    return baseMessages.filter((message) => message.role !== 'system')
+  }
 
-    const currentMessageTokens = estimateMessageTokens(messages[i], model)
-    const nextMessageCount = keptMessages + 1
-    const nextTokenCount = keptTokens + currentMessageTokens
-    const exceedsMessageLimit =
-      recentMessageCount != null && recentMessageCount > 0 && nextMessageCount > recentMessageCount
-    const exceedsTokenLimit =
-      recentTokenCount != null && recentTokenCount > 0 && nextTokenCount > recentTokenCount
+  if (compressedUpToIndex < baseMessages.length) {
+    return baseMessages.slice(compressedUpToIndex + 1).filter((message) => message.role !== 'system')
+  }
 
-    if ((exceedsMessageLimit || exceedsTokenLimit) && keptMessages > 0) {
-      return i + 1
+  const latestCompressedMessageIndex = (() => {
+    for (let i = visibleMessages.length - 1; i >= 0; i--) {
+      if (isCompressedContextMessage(visibleMessages[i])) {
+        return i
+      }
     }
 
-    keptMessages = nextMessageCount
-    keptTokens = nextTokenCount
+    return -1
+  })()
+
+  if (latestCompressedMessageIndex === -1) {
+    return []
   }
 
-  for (let i = 0; i < messages.length; i++) {
-    if (messages[i].role !== 'system') return i
-  }
-
-  return messages.length
+  return visibleMessages
+    .slice(latestCompressedMessageIndex + 1)
+    .filter((message) => message.role !== 'system' && !isCompressedContextMessage(message))
 }
 
 const normalizeCompressedMessages = (
   messages: BaseMessage[],
   compressedMessage: BaseMessage,
-  options: { recentMessageCount?: number; recentTokenCount?: number; model?: string }
+  _options: { recentMessageCount?: number; recentTokenCount?: number; model?: string }
 ): BaseMessage[] => {
   const baseMessages = messages.filter(
     (message) => !isCompressedContextMessage(message) && !isCompressingContextMessage(message)
   )
-  const insertIndex = findCompressionInsertIndex(baseMessages, options)
-  const nextMessages = [...baseMessages]
-  nextMessages.splice(insertIndex, 0, compressedMessage)
-  return nextMessages
+  return [...baseMessages, compressedMessage]
 }
 
 const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMessage[]> => {
   const { cid, messages, contextCount, contextTokenCount, compressModel, activeModel } = options
-
-  const messageThresholdReached = Boolean(contextCount && messages.length >= contextCount)
-  const tokenThresholdReached = Boolean(
-    contextTokenCount && estimateMessagesTokens(messages, activeModel) >= contextTokenCount
+  const { getChatById } = useChatsStores()
+  const chat = getChatById(cid)
+  const persistedMessages = chat?.messages ?? messages
+  const persistedBaseMessages = persistedMessages.filter(
+    (message) => !isCompressingContextMessage(message) && !isCompressedContextMessage(message)
   )
+  const compressedContext = chat?.compressedContext
+  const compressedBoundaryIndex = compressedContext?.compressedUpToIndex
+
+  const preservedSystemCount = persistedBaseMessages.filter(
+    (message) => message.role === 'system'
+  ).length
+  const recentMessageCount =
+    contextCount && contextCount > 1
+      ? Math.max(
+          1,
+          Math.min(
+            Math.max(1, Math.floor((contextCount - preservedSystemCount - 1) / 2)),
+            contextCount - preservedSystemCount - 1 - MESSAGE_HEADROOM_AFTER_COMPRESSION
+          )
+        )
+      : undefined
+  const recentTokenCount =
+    contextTokenCount && contextTokenCount > 1
+      ? Math.max(1, Math.floor(contextTokenCount * (1 - TOKEN_HEADROOM_RATIO_AFTER_COMPRESSION)))
+      : undefined
+  const hasPriorSummary = Boolean(compressedContext?.content)
+  const unsummarizedTailMessages = getCompressionBoundaryTailMessages(persistedMessages, compressedBoundaryIndex)
+  const messageThresholdReached = hasPriorSummary
+    ? Boolean(contextCount && unsummarizedTailMessages.length > contextCount)
+    : Boolean(contextCount && persistedBaseMessages.length > contextCount)
+  const tokenThresholdReached = hasPriorSummary
+    ? Boolean(contextTokenCount && estimateMessagesTokens(unsummarizedTailMessages, activeModel) > contextTokenCount)
+    : Boolean(contextTokenCount && estimateMessagesTokens(persistedBaseMessages, activeModel) > contextTokenCount)
 
   const shouldAutoCompress = (messageThresholdReached || tokenThresholdReached) &&
     compressModel?.providerId &&
@@ -180,46 +211,40 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
   if (!compressProvider) return messages
 
   try {
-    const recentMessageCount =
-      contextCount && contextCount > 1 ? Math.max(1, Math.min(contextCount - 1, Math.ceil(contextCount / 2))) : undefined
-    const recentTokenCount =
-      contextTokenCount && contextTokenCount > 1 ? Math.max(1, Math.floor(contextTokenCount * 0.5)) : undefined
     const compressionWindow = {
       recentMessageCount,
       recentTokenCount,
       model: activeModel
     }
-    const compressionInsertIndex = findCompressionInsertIndex(messages, compressionWindow)
-    const messagesToCompress = messages.slice(0, compressionInsertIndex)
+    const meaningfulMessagesToCompress = hasPriorSummary
+      ? unsummarizedTailMessages
+      : persistedBaseMessages.filter((message) => {
+          return message.role !== 'system' || Boolean(serializeMessageForCompression(message))
+        })
 
-    if (messagesToCompress.length === 0) return messages
+    if (hasPriorSummary && meaningfulMessagesToCompress.length === 0) return messages
+    if (!hasPriorSummary && meaningfulMessagesToCompress.length === 0) return messages
 
-    const meaningfulMessagesToCompress = messagesToCompress.filter((message) => {
-      if (isCompressedContextMessage(message)) return true
-      return message.role !== 'system' || Boolean(serializeMessageForCompression(message))
-    })
+    const lastCompressedIndex = (() => {
+      for (let i = persistedBaseMessages.length - 1; i >= 0; i--) {
+        if (persistedBaseMessages[i].role !== 'system') {
+          return i
+        }
+      }
 
-    const hasPriorSummary = meaningfulMessagesToCompress.some(isCompressedContextMessage)
-    const incrementalMessageCount = meaningfulMessagesToCompress.filter(
-      (message) => !isCompressedContextMessage(message) && message.role !== 'system'
-    ).length
+      return undefined
+    })()
 
-    if (!hasPriorSummary && !messageThresholdReached && !tokenThresholdReached) {
-      return messages
-    }
-
-    if (hasPriorSummary && incrementalMessageCount === 0) {
-      return messages
-    }
-
-    const contextToCompress = meaningfulMessagesToCompress
+    const compressedPrefix = compressedContext?.content?.trim()
+    const newTailContext = meaningfulMessagesToCompress
       .map((message) => serializeMessageForCompression(message))
       .filter(Boolean)
       .join('\n\n')
+    const contextToCompress = [compressedPrefix, newTailContext].filter(Boolean).join('\n\n')
 
     if (!contextToCompress) return messages
 
-    const { updateMessages, getChatById, updateMessage, updateMessageMetadata } = useChatsStores()
+    const { updateMessages, updateMessage, updateMessageMetadata } = useChatsStores()
 
     const compressingMessageId = nanoid()
     const compressingMessage: BaseMessage = {
@@ -236,12 +261,20 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
         model: compressModel.modelId,
         stop: () => { },
         loading: true,
-        cid
-      } as MetaData
+        cid,
+        compressedUpToIndex: lastCompressedIndex
+      } as CompressionMetaData
     }
 
-    const chat = getChatById(cid)
     if (chat) {
+      chat.compressedContext = {
+        content: compressedContext?.content || '',
+        compressedUpToIndex: compressedBoundaryIndex,
+        updatedAt: Date.now(),
+        provider: compressProvider.id,
+        model: compressModel.modelId,
+        loading: true
+      }
       updateMessages(cid, (msgs) => normalizeCompressedMessages(msgs, compressingMessage, compressionWindow))
     }
 
@@ -272,6 +305,14 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
       }
 
       if (chat && compressedText) {
+        chat.compressedContext = {
+          content: compressedText,
+          compressedUpToIndex: lastCompressedIndex,
+          updatedAt: Date.now(),
+          provider: compressProvider.id,
+          model: compressModel.modelId,
+          loading: false
+        }
         updateMessage(cid, compressingMessageId, [{
           type: 'text',
           text: `${compressedText}\n\n${COMPRESSED_CONTEXT_MARKER}`
@@ -291,13 +332,14 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
       }
     } catch (streamError) {
       console.error('流式压缩出错:', streamError)
-      // 流式出错时，显示错误
       if (chat) {
+        chat.compressedContext = compressedContext
+          ? { ...compressedContext, loading: false }
+          : undefined
         updateMessage(cid, compressingMessageId, [{
           type: 'text',
           text: accumulatedText + '\n\n❌ 压缩过程出错，将使用原始上下文继续。'
         }])
-        // 标记为非加载状态
         const errorMsg = chat.messages.find(m => m.id === compressingMessageId)
         if (errorMsg && errorMsg.metadata) {
           const newMetadata = { ...errorMsg.metadata, loading: false } as MetaData
@@ -310,7 +352,7 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
     if (compressedText && chat) {
       const compressingMsg = chat.messages.find(m => m.id === compressingMessageId)
       if (compressingMsg) {
-        return normalizeCompressedMessages(messages, compressingMsg, compressionWindow)
+        return messages
       }
     }
 
@@ -454,7 +496,7 @@ export const chatService = () => {
         middleware: [
           createUsageGuardMiddleware(),
           createToolMiddleware(),
-          createCompressContextMiddleware(),
+          createCompressContextMiddleware({ cid, contextCount }),
           createContextLimitMiddleware({ contextCount }),
           createRagMiddleware({
             knowledgeBaseIds,
