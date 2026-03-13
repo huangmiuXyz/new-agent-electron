@@ -84,6 +84,7 @@ const { Close, Fullscreen, FullscreenExit } = useIcon(['Close', 'Fullscreen', 'F
 const isFullscreen = ref(false)
 const showFullscreenTip = ref(false)
 let fullscreenTipTimer: ReturnType<typeof setTimeout> | null = null
+let modalResizeObserver: ResizeObserver | null = null
 
 const visible = ref(false)
 const modalOverlay = useTemplateRef('modalOverlay')
@@ -132,6 +133,18 @@ const resetPosition = () => {
     x.value = (window.innerWidth - rect.width) / 2
     y.value = (window.innerHeight - rect.height) / 2
   })
+}
+
+const observeModalSize = () => {
+  if (props.variant === 'drawer') return
+  if (!modalBox.value) return
+
+  modalResizeObserver?.disconnect()
+  modalResizeObserver = new ResizeObserver(() => {
+    if (isDragging.value || isFullscreen.value) return
+    resetPosition()
+  })
+  modalResizeObserver.observe(modalBox.value)
 }
 
 const finalizeClose = (result: boolean) => {
@@ -204,9 +217,15 @@ onMounted(async () => {
   visible.value = true
   resetPosition()
   nextTick(() => {
+    observeModalSize()
     modalOverlay.value?.focus()
     confirmButton.value?.focus()
   })
+})
+
+onBeforeUnmount(() => {
+  modalResizeObserver?.disconnect()
+  modalResizeObserver = null
 })
 </script>
 
@@ -349,8 +368,15 @@ onMounted(async () => {
   border-top: 1px solid var(--border-color);
   background: var(--bg-app);
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.modal-footer-extra {
+  margin-right: auto;
+  display: flex;
+  align-items: center;
 }
 
 .btn {
@@ -446,8 +472,15 @@ onMounted(async () => {
   border-top: 1px solid var(--border-color);
   background: var(--bg-hover);
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.drawer-footer-extra {
+  margin-right: auto;
+  display: flex;
+  align-items: center;
 }
 
 .drawer-enter-active,

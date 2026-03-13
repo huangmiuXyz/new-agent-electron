@@ -98,7 +98,7 @@ function parseFrontmatter(content: string): SkillFrontmatter {
   return result as SkillFrontmatter
 }
 
-function validateFrontmatter(frontmatter: SkillFrontmatter, dirName: string): { name: string, description: string } | null {
+function validateFrontmatter(frontmatter: SkillFrontmatter): { name: string, description: string } | null {
   const name = frontmatter.name?.trim()
   const description = frontmatter.description?.trim()
 
@@ -111,10 +111,6 @@ function validateFrontmatter(frontmatter: SkillFrontmatter, dirName: string): { 
   }
 
   if (!SKILL_NAME_PATTERN.test(name) || name.startsWith('-') || name.endsWith('-') || name.includes('--')) {
-    return null
-  }
-
-  if (name !== dirName) {
     return null
   }
 
@@ -198,7 +194,7 @@ export function discoverSkills(directories: string[] = getSkillsDirectories()): 
 
         const content = window.api.fs.readFileSync(skillFile, 'utf-8')
         const frontmatter = parseFrontmatter(content)
-        const validated = validateFrontmatter(frontmatter, entry)
+        const validated = validateFrontmatter(frontmatter)
 
         if (!validated) {
           console.warn(`Skill ${entry} has invalid frontmatter for Agent Skills spec`)

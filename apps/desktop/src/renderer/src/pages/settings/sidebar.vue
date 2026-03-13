@@ -4,7 +4,7 @@ import { isMobile } from '@renderer/composables/useDeviceType'
 interface Props {
   activeTab: string
 }
-const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, ChevronRight, Plugin, Database } = useIcon([
+const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, ChevronRight, Plugin, Database, Sparkles } = useIcon([
   'Cpu',
   'Server',
   'Robot',
@@ -16,7 +16,8 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
   'ChevronRight',
   'Plugin',
   'Eye',
-  'Database'
+  'Database',
+  'Sparkles'
 ])
 
 const settingsList = [
@@ -28,6 +29,7 @@ const settingsList = [
   { id: 'defaultModels', name: '默认模型', icon: Box, section: '智能助手' },
   { id: 'knowledge', name: '知识库', icon: Library16Filled, section: '资源管理' },
   { id: 'mcp', name: 'MCP 服务器', icon: Server, section: '资源管理' },
+  { id: 'skills', name: '技能', icon: Sparkles, section: '资源管理' },
   { id: 'plugins', name: '插件管理', icon: Plugin, section: '扩展功能' },
   { id: 'terminal', name: '终端设置', icon: Terminal, section: '系统与文件' },
   { id: 'userData', name: '文件管理', icon: Folder, section: '系统与文件' },

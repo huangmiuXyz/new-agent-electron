@@ -23,6 +23,7 @@ export interface ButtonProps {
 export interface BaseModalProps {
   title: string
   content?: string | VNode | Component | (() => VNode)
+  footer?: string | VNode | Component | (() => VNode)
   resolve?: (value: string | boolean) => void
   remove?: () => void
   confirmProps?: ButtonProps
