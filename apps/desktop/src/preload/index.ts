@@ -13,7 +13,7 @@ import { type ElectronAPI } from '@agent-qi/types'
 
 const resolveRipgrepPath = (): string | null => {
   try {
-    const { rgPath } = require('@agent-qi/ripgrep')
+    const { rgPath } = require('@vscode/ripgrep')
     return rgPath ?? null
   } catch {
     return null

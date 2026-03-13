@@ -25,7 +25,6 @@
   },
   "dependencies": {
     "@agent-qi/types": "workspace:*",
-    "@agent-qi/ripgrep": "workspace:*",
     "@ai-sdk/anthropic": "catalog:",
     "@ai-sdk/deepseek": "catalog:",
     "@ai-sdk/elevenlabs": "catalog:",
@@ -68,6 +67,7 @@
     "@tiptap/starter-kit": "catalog:",
     "@tiptap/vue-3": "catalog:",
     "@types/mime-types": "catalog:",
+    "@vscode/ripgrep": "1.17.1",
     "@vicons/fluent": "catalog:",
     "@vicons/ionicons5": "catalog:",
     "@vueuse/core": "catalog:",
@@ -170,7 +170,7 @@
     ],
     "asarUnpack": [
       "resources/**",
-      "node_modules/@agent-qi/ripgrep/node_modules/@vscode/ripgrep/bin/**"
+      "node_modules/@vscode/ripgrep/bin/**"
     ],
     "win": {
       "executableName": "agent-qi",

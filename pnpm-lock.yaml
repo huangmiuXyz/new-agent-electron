@@ -381,9 +381,6 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@agent-qi/ripgrep':
-        specifier: workspace:*
-        version: link:../../packages/ripgrep
       '@agent-qi/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -519,6 +516,9 @@ importers:
       '@vicons/ionicons5':
         specifier: 'catalog:'
         version: 0.13.0
+      '@vscode/ripgrep':
+        specifier: 1.17.1
+        version: 1.17.1
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.2.0(vue@3.5.27(typescript@5.9.3))
@@ -1053,12 +1053,6 @@ importers:
       vue:
         specifier: ^3.5.13
         version: 3.5.27(typescript@5.9.3)
-
-  packages/ripgrep:
-    dependencies:
-      '@vscode/ripgrep':
-        specifier: 1.17.1
-        version: 1.17.1
 
   packages/types:
     devDependencies:
