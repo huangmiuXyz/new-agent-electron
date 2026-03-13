@@ -1,17 +1,13 @@
 <script setup lang="ts">
 const { mcpServers } = storeToRefs(useSettingsStore())
-const { Plus, Pencil, Trash, Refresh, Settings, ChevronDown, ChevronUp } = useIcon([
+const { Plus, Pencil, Trash, Refresh, Settings } = useIcon([
   'Plus',
   'Pencil',
   'Trash',
   'Refresh',
-  'Settings',
-  'ChevronDown',
-  'ChevronUp'
+  'Settings'
 ])
 const { confirm, remove } = useModal()
-
-const expandedKeys = ref<Record<string, boolean>>({})
 
 // 类型推断函数
 const inferServerConfig = (serverName: string, serverConfig: any) => {
@@ -204,7 +200,6 @@ const openServerModal = async (server?: any) => {
 
 const handleDelete = (name: string) => {
   delete mcpServers.value[name]
-  delete expandedKeys.value[name]
 }
 
 const activeMcpLoading = ref<string | null>(null)
@@ -235,9 +230,6 @@ const toggleActive = async (server: any) => {
   }
 }
 
-const toggleExpand = (name: string) => {
-  expandedKeys.value[name] = !expandedKeys.value[name]
-}
 </script>
 
 <template>
@@ -261,7 +253,11 @@ const toggleExpand = (name: string) => {
           </div>
         </div>
         <div class="server-list">
-          <div v-for="(server, name) of mcpServers" :key="name" class="server-card">
+          <div
+            v-for="(server, name) of mcpServers"
+            :key="name"
+            class="server-card"
+          >
             <div class="card-header">
               <div class="server-info">
                 <div class="server-name-row">
@@ -272,12 +268,10 @@ const toggleExpand = (name: string) => {
                   <div class="server-transport-tag">{{ server.transport }}</div>
                 </div>
 
-                <!-- Stdio 信息 -->
                 <template v-if="server.transport === 'stdio'">
                   <div class="server-command">{{ server.command }}</div>
                 </template>
 
-                <!-- HTTP/SSE 信息 -->
                 <template v-if="server.transport === 'http' || server.transport === 'sse'">
                   <div class="server-url">{{ server.url }}</div>
                 </template>
@@ -306,40 +300,6 @@ const toggleExpand = (name: string) => {
                     <Trash />
                   </template>
                 </Button>
-                <Button size="sm" variant="text" @click="toggleExpand(name as string)"
-                  v-if="server.active && Object.keys(server.tools || {})?.length">
-                  <template #icon>
-                    <ChevronUp v-if="expandedKeys[name as string]" />
-                    <ChevronDown v-else />
-                  </template>
-                </Button>
-              </div>
-            </div>
-
-            <!-- 详情区域 -->
-            <div class="card-details" v-if="server.transport === 'stdio'">
-              <div v-if="server.args?.length" class="detail-item">
-                <span class="label">参数:</span>
-                <span class="value">{{ server.args.join(' ') }}</span>
-              </div>
-              <div v-if="server.env && Object.keys(server.env).length" class="detail-item">
-                <span class="label">Env:</span>
-                <span class="value">{{ Object.keys(server.env).length }} 个变量</span>
-              </div>
-            </div>
-
-            <!-- 工具列表区域 -->
-            <div class="tools-container" v-if="server.active && expandedKeys[name as string]">
-              <div class="tools-divider"></div>
-              <div class="tools-grid">
-                <div v-for="(tool, name) of server.tools" :key="name" class="tool-item">
-                  <div class="tool-head">
-                    <span class="tool-name-tag">{{ name }}</span>
-                  </div>
-                  <div class="tool-desc" :title="tool.description">
-                    {{ tool.description || '无描述' }}
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -379,54 +339,64 @@ const toggleExpand = (name: string) => {
 }
 
 .server-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
 }
 
 .server-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  height: 88px;
   transition: all 0.2s;
+  overflow: hidden;
 }
 
 .server-card:hover {
-  box-shadow: 0 2px 8px rgba(var(--text-rgb), 0.05);
   border-color: var(--border-hover);
+  background: var(--bg-hover);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 8px;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
 }
 
 .server-info {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 4px;
   flex: 1;
   overflow: hidden;
-  /* 防止URL过长撑开 */
 }
 
 .server-name-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .server-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tool-count {
-  font-size: 11px;
+  font-size: 10px;
   background: var(--bg-active);
   color: var(--accent-color);
   padding: 1px 6px;
@@ -441,33 +411,46 @@ const toggleExpand = (name: string) => {
   color: var(--text-secondary);
   padding: 1px 4px;
   border-radius: 3px;
+  white-space: nowrap;
 }
 
 .server-description {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .server-command,
 .server-url {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
   font-family: monospace;
-  background: var(--bg-hover);
-  padding: 2px 6px;
-  border-radius: 4px;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
   align-self: flex-start;
-  margin-top: 4px;
-  word-break: break-all;
+  margin-top: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .server-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-left: 16px;
+  gap: 4px;
+  margin-left: 0;
   flex-shrink: 0;
+  padding-top: 0;
+}
+
+.server-actions :deep(.toggle-switch) {
+  margin: 0 4px;
 }
 
 .delete-btn {
@@ -478,72 +461,6 @@ const toggleExpand = (name: string) => {
   color: var(--color-danger);
 }
 
-.card-details {
-  display: flex;
-  gap: 16px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  border-top: 1px solid var(--border-color-light);
-  padding-top: 12px;
-  margin-top: 8px;
-}
-
-.detail-item {
-  display: flex;
-  gap: 6px;
-}
-
-.detail-item .label {
-  color: var(--text-tertiary);
-}
-
-.tools-container {
-  margin-top: 12px;
-}
-
-.tools-divider {
-  height: 1px;
-  background: var(--border-color-light);
-  margin: 12px 0;
-}
-
-.tools-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 8px;
-}
-
-.tool-item {
-  background: var(--bg-hover);
-  border: 1px solid var(--border-color-light);
-  border-radius: 6px;
-  padding: 10px;
-  font-size: 12px;
-}
-
-.tool-head {
-  margin-bottom: 4px;
-}
-
-.tool-name-tag {
-  font-weight: 600;
-  color: var(--text-primary);
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.tool-desc {
-  color: var(--text-secondary);
-  line-height: 1.4;
-  margin-bottom: 6px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 .empty-state {
   text-align: center;
   padding: 40px;
@@ -552,5 +469,11 @@ const toggleExpand = (name: string) => {
   border-radius: 8px;
   border: 1px dashed var(--border-subtle);
   font-size: 13px;
+}
+
+@media (max-width: 1100px) {
+  .server-list {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

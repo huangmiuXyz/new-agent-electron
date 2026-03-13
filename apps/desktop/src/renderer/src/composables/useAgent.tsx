@@ -427,7 +427,8 @@ export const useAgent = () => {
         name: 'mcpServers',
         type: 'checkboxGroup',
         label: 'MCP 服务器',
-        options: getMcpServerOptions()
+        options: getMcpServerOptions(),
+        columns: 2
       } as CheckboxGroupField<AgentFormData>,
       {
         name: 'tools',

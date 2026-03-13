@@ -4,11 +4,13 @@ import { useIcon } from '../composables/useIcon'
 interface Props {
     options: CheckboxOption[]
     disabled?: boolean
+    columns?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
     options: () => [],
-    disabled: false
+    disabled: false,
+    columns: 1
 })
 
 const modelValue = defineModel<string[]>({ default: [] })
@@ -84,8 +86,8 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
 </script>
 
 <template>
-    <div class="checkbox-group">
-        <template v-for="group in groupedOptions" :key="group.name || '__ungrouped__'">
+    <div class="checkbox-group" :style="{ '--checkbox-columns': String(Math.max(columns, 1)) }">
+        <div v-for="group in groupedOptions" :key="group.name || '__ungrouped__'" class="checkbox-section">
             <div v-if="group.name" class="checkbox-group-title" @click="toggleGroup(group.options)">
                 <div class="checkbox group-checkbox" :class="{ checked: getGroupSelectionState(group.options).checked }">
                     <div class="checkbox-box"
@@ -96,26 +98,28 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
                 </div>
                 <span>{{ group.name }}</span>
             </div>
-            <div v-for="option in group.options" :key="option.value" class="checkbox-item"
-                :class="{ disabled, checked: isChecked(option.value) }" @click="toggleOption(option.value)">
-                <div class="checkbox">
-                    <div class="checkbox-box">
-                        <checkIcon v-if="isChecked(option.value)" />
+            <div class="checkbox-grid">
+                <div v-for="option in group.options" :key="option.value" class="checkbox-item"
+                    :class="{ disabled, checked: isChecked(option.value) }" @click="toggleOption(option.value)">
+                    <div class="checkbox">
+                        <div class="checkbox-box">
+                            <checkIcon v-if="isChecked(option.value)" />
+                        </div>
                     </div>
-                </div>
-                <div class="checkbox-content">
-                    <div v-if="option.image" class="checkbox-image">
-                        <Image :src="option.image" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />
-                    </div>
-                    <div class="checkbox-text">
-                        <div class="checkbox-label">{{ option.label }}</div>
-                        <div v-if="option.description" class="checkbox-description">
-                            {{ option.description }}
+                    <div class="checkbox-content">
+                        <div v-if="option.image" class="checkbox-image">
+                            <Image :src="option.image" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />
+                        </div>
+                        <div class="checkbox-text">
+                            <div class="checkbox-label">{{ option.label }}</div>
+                            <div v-if="option.description" class="checkbox-description">
+                                {{ option.description }}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </template>
+        </div>
         <div v-if="options.length === 0" class="empty-message">暂无可用选项</div>
     </div>
 </template>
@@ -124,6 +128,18 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
 .checkbox-group {
     display: flex;
     flex-direction: column;
+    gap: 8px;
+}
+
+.checkbox-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--checkbox-columns, 1), minmax(0, 1fr));
     gap: 8px;
 }
 
@@ -260,5 +276,11 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
     background: var(--bg-tertiary-hover);
     border-radius: 6px;
     border: 1px dashed var(--border-subtle);
+}
+
+@media (max-width: 640px) {
+    .checkbox-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>

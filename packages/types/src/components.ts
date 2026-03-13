@@ -113,6 +113,7 @@ export interface CheckboxOption {
 export interface CheckboxGroupField<T> extends BaseField<T> {
   type?: 'checkboxGroup'
   options: CheckboxOption[]
+  columns?: number
 }
 
 export interface ModelSelectorField<T> extends BaseField<T> {
