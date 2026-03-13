@@ -37,6 +37,8 @@ export const useChatsStores = defineStore(
       }
     ) => {
       const settingsStore = useSettingsStore()
+      const agentStore = useAgentStore()
+      const agentId = options?.agentId || 'default'
       const selectedProviderId = settingsStore.selectedProviderId
       const selectedModelId = settingsStore.selectedModelId
       const selectedProvider = settingsStore.getProviderById(selectedProviderId)
@@ -45,8 +47,25 @@ export const useChatsStores = defineStore(
         (p) => p.models?.some((m) => m.active && m.category === 'text')
       )
       const fallbackModel = fallbackProvider?.models?.find((m) => m.active && m.category === 'text')
-      const providerId = selectedProviderHasModel ? selectedProviderId : fallbackProvider?.id || ''
-      const modelId = selectedProviderHasModel ? selectedModelId : fallbackModel?.id || ''
+      const agentDefaultModel = agentStore.getAgentById(agentId)?.defaultModel
+      const agentDefaultProvider = agentDefaultModel?.providerId
+        ? settingsStore.getProviderById(agentDefaultModel.providerId)
+        : null
+      const agentDefaultModelIsValid = !!(
+        agentDefaultModel?.providerId &&
+        agentDefaultModel?.modelId &&
+        agentDefaultProvider?.models?.some((m) => m.id === agentDefaultModel.modelId)
+      )
+      const providerId = agentDefaultModelIsValid
+        ? agentDefaultModel!.providerId
+        : selectedProviderHasModel
+          ? selectedProviderId
+          : fallbackProvider?.id || ''
+      const modelId = agentDefaultModelIsValid
+        ? agentDefaultModel!.modelId
+        : selectedProviderHasModel
+          ? selectedModelId
+          : fallbackModel?.id || ''
 
       const id = nanoid()
       const chat: Chat = {
@@ -54,7 +73,7 @@ export const useChatsStores = defineStore(
         title,
         messages: [],
         createdAt: Date.now(),
-        agentId: options?.agentId || 'default',
+        agentId,
         providerId,
         modelId,
         isTemp: options?.isTemp,
@@ -170,21 +189,6 @@ export const useChatsStores = defineStore(
       const chat = getChatById(chatId)
       if (!chat) return
       chat.agentId = agentId
-
-      // 如果智能体有默认模型配置，且当前聊天没有设置模型，则自动切换到默认模型
-      const agentStore = useAgentStore()
-      const agent = agentStore.getAgentById(agentId)
-      if (agent?.defaultModel?.providerId && agent?.defaultModel?.modelId) {
-        // 检查当前模型是否为空或未设置
-        const settingsStore = useSettingsStore()
-        const currentProvider = settingsStore.getProviderById(chat.providerId!)
-        const hasValidModel = currentProvider?.models?.some((m) => m.id === chat.modelId)
-
-        if (!hasValidModel) {
-          chat.providerId = agent.defaultModel.providerId
-          chat.modelId = agent.defaultModel.modelId
-        }
-      }
     }
 
     const setChatModel = (chatId: string, providerId: string, modelId: string) => {

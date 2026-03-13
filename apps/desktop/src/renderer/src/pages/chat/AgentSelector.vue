@@ -65,7 +65,9 @@ watch(isPopupOpen, (val) => {
 const selectAgent = (agentId: string) => {
   let currentChatId = chatsStore.currentChat?.id
   if (!currentChatId) {
-    currentChatId = chatsStore.createChat()
+    chatsStore.createChat('新的聊天', { agentId })
+    isPopupOpen.value = false
+    return
   }
   chatsStore.setChatAgent(currentChatId, agentId)
   isPopupOpen.value = false
