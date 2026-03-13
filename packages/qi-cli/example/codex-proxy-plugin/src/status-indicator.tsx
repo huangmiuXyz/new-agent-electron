@@ -11,6 +11,7 @@ interface CreateAccountStatusRenderOptions {
   runtimeConfig: CodexProxyPluginConfig
   isStatusPanelOpen: boolean
   tooltip: string
+  busyMessage: string
   onPanelOpenChange: (open: boolean) => void
   onSwitchAccount: (accountId: string) => Promise<void>
   onRefreshUsage: () => Promise<void>
@@ -99,6 +100,7 @@ export const createAccountStatusRender = (
     runtimeConfig: config,
     isStatusPanelOpen: defaultOpen,
     tooltip,
+    busyMessage,
     onPanelOpenChange,
     onSwitchAccount,
     onRefreshUsage,
@@ -117,6 +119,7 @@ export const createAccountStatusRender = (
         const isOpen = context.vue.ref(defaultOpen)
         const selectedAccountId = context.vue.ref(config.activeAccountId || '')
         const isBusy = context.vue.ref(false)
+        const isActionDisabled = () => isBusy.value || Boolean(busyMessage)
 
         const closePanel = () => {
           if (!isOpen.value) return
@@ -335,6 +338,12 @@ export const createAccountStatusRender = (
                   color: var(--color-danger, #d94b4b);
                   word-break: break-word;
                 }
+                .codex-usage-hint {
+                  margin-top: 6px;
+                  font-size: 12px;
+                  color: var(--text-secondary);
+                  word-break: break-word;
+                }
                 .codex-status-btn.wide {
                   grid-column: 1 / -1;
                 }
@@ -353,7 +362,7 @@ export const createAccountStatusRender = (
                       type="button"
                       variant="secondary"
                       size="sm"
-                      disabled={isBusy.value || !config.activeAccountId}
+                      disabled={isActionDisabled() || !config.activeAccountId}
                       onClick={handleRefreshUsage}
                     >
                       刷新
@@ -415,13 +424,17 @@ export const createAccountStatusRender = (
                     <div class="codex-usage-error" title={usageError}>
                       {usageError}
                     </div>
+                  ) : busyMessage ? (
+                    <div class="codex-usage-hint" title={busyMessage}>
+                      {busyMessage}
+                    </div>
                   ) : null}
                 </div>
                 <div class="codex-status-select-wrap">
                   <Select
                     size="sm"
                     modelValue={selectedAccountId.value}
-                    disabled={isBusy.value || config.accounts.length === 0}
+                    disabled={isActionDisabled() || config.accounts.length === 0}
                     options={
                       config.accounts.length
                         ? config.accounts.map((account) => ({
@@ -438,7 +451,7 @@ export const createAccountStatusRender = (
                   <Button
                     type="button"
                     size="sm"
-                    disabled={isBusy.value}
+                    disabled={isActionDisabled()}
                     onClick={handleSave}
                   >
                     保存当前登录
@@ -447,7 +460,7 @@ export const createAccountStatusRender = (
                     type="button"
                     variant="secondary"
                     size="sm"
-                    disabled={isBusy.value || !config.activeAccountId}
+                    disabled={isActionDisabled() || !config.activeAccountId}
                     onClick={handleWriteBack}
                   >
                     写回 auth.json
@@ -458,7 +471,7 @@ export const createAccountStatusRender = (
                     size="sm"
                     danger
                     class="codex-status-btn wide"
-                    disabled={isBusy.value || !config.activeAccountId}
+                    disabled={isActionDisabled() || !config.activeAccountId}
                     onClick={handleRemove}
                   >
                     移除当前账号

@@ -19,6 +19,8 @@ export interface CodexProxyAccountProfile {
   planType: string
   authMode: string
   lastRefresh: string
+  usage: CodexProxyUsageSnapshot | null
+  usageError: string
 }
 
 export interface CodexProxyUsageWindow {
@@ -159,7 +161,59 @@ export const normalizeConfig = (
           email: String(item.email || '').trim(),
           planType: String(item.planType || '').trim(),
           authMode: String(item.authMode || '').trim(),
-          lastRefresh: String(item.lastRefresh || '').trim()
+          lastRefresh: String(item.lastRefresh || '').trim(),
+          usage:
+            item.usage && typeof item.usage === 'object'
+              ? {
+                  fetchedAt: Number(item.usage.fetchedAt || 0) || 0,
+                  planType:
+                    item.usage.planType === null ||
+                    item.usage.planType === undefined ||
+                    item.usage.planType === ''
+                      ? null
+                      : String(item.usage.planType),
+                  fiveHour:
+                    item.usage.fiveHour && typeof item.usage.fiveHour === 'object'
+                      ? {
+                          usedPercent: Number(item.usage.fiveHour.usedPercent || 0) || 0,
+                          windowSeconds:
+                            Number(item.usage.fiveHour.windowSeconds || 0) || 0,
+                          resetAt:
+                            item.usage.fiveHour.resetAt === null ||
+                            item.usage.fiveHour.resetAt === undefined
+                              ? null
+                              : Number(item.usage.fiveHour.resetAt || 0) || null
+                        }
+                      : null,
+                  oneWeek:
+                    item.usage.oneWeek && typeof item.usage.oneWeek === 'object'
+                      ? {
+                          usedPercent: Number(item.usage.oneWeek.usedPercent || 0) || 0,
+                          windowSeconds:
+                            Number(item.usage.oneWeek.windowSeconds || 0) || 0,
+                          resetAt:
+                            item.usage.oneWeek.resetAt === null ||
+                            item.usage.oneWeek.resetAt === undefined
+                              ? null
+                              : Number(item.usage.oneWeek.resetAt || 0) || null
+                        }
+                      : null,
+                  credits:
+                    item.usage.credits && typeof item.usage.credits === 'object'
+                      ? {
+                          hasCredits: Boolean(item.usage.credits.hasCredits),
+                          unlimited: Boolean(item.usage.credits.unlimited),
+                          balance:
+                            item.usage.credits.balance === null ||
+                            item.usage.credits.balance === undefined ||
+                            item.usage.credits.balance === ''
+                              ? null
+                              : String(item.usage.credits.balance)
+                        }
+                      : null
+                }
+              : null,
+          usageError: String(item.usageError || '').trim()
         }))
         .filter((item) => item.id && item.accountId && item.accessToken)
     : [],

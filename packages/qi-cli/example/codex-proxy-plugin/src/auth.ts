@@ -109,7 +109,9 @@ export const readCodexAuthAccount = (
     email,
     planType,
     authMode,
-    lastRefresh
+    lastRefresh,
+    usage: null,
+    usageError: ''
   }
 }
 

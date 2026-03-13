@@ -38,7 +38,9 @@ type FormActionsLike = {
 let runtimeConfig: CodexProxyPluginConfig = { ...DEFAULT_CONFIG }
 let isProgrammaticFormUpdate = false
 let isStatusPanelOpen = false
+let bridgeBusyMessage = ''
 let lastBridgeReadyAt = 0
+let lastBridgeReadyConfigHash = ''
 let bridgeStartPromise: Promise<boolean> | null = null
 let lastUsageRefreshAt = 0
 let modelsProbePromise: Promise<Model[]> | null = null
@@ -51,7 +53,7 @@ let lastHealthResult: any = null
 let lastBeforeUseEnsureAt = 0
 
 const BRIDGE_READY_CACHE_MS = 60_000
-const BRIDGE_WAIT_RETRIES = 6
+const BRIDGE_WAIT_RETRIES = 100
 const BRIDGE_WAIT_INTERVAL_MS = 300
 const HEALTH_RESULT_CACHE_MS = 10_000
 const USAGE_REFRESH_CACHE_MS = 30_000
@@ -60,7 +62,7 @@ const BEFORE_USE_ENSURE_CACHE_MS = 60_000
 const DISABLE_MODELS_PROBE = true
 const HEALTH_REQUEST_TIMEOUT_MS = 1200
 const MODELS_REQUEST_TIMEOUT_MS = 2500
-const USAGE_REQUEST_TIMEOUT_MS = 2500
+const USAGE_REQUEST_TIMEOUT_MS = 15_000
 const withTimeout = (ms: number) => AbortSignal.timeout(ms)
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -169,7 +171,9 @@ const buildRuntimeConfig = (
       email: normalized.email,
       planType: normalized.planType,
       authMode: normalized.authMode,
-      lastRefresh: normalized.lastRefresh
+      lastRefresh: normalized.lastRefresh,
+      usage: normalized.usage,
+      usageError: normalized.usageError
     })
   }
 
@@ -181,7 +185,9 @@ const buildRuntimeConfig = (
   const status = activeAccount
     ? getAccountLabel(activeAccount)
     : normalized.status || DEFAULT_CONFIG.status
-  const usageDisplay = deriveUsageDisplay(normalized)
+  const usage = normalized.usage || activeAccount?.usage || null
+  const usageError = normalized.usageError || activeAccount?.usageError || ''
+  const usageDisplay = deriveUsageDisplay({ usage, usageError })
 
   return {
     ...DEFAULT_CONFIG,
@@ -196,6 +202,8 @@ const buildRuntimeConfig = (
     planType: activeAccount?.planType || '',
     authMode: activeAccount?.authMode || '',
     lastRefresh: activeAccount?.lastRefresh || '',
+    usage,
+    usageError,
     ...usageDisplay
   }
 }
@@ -215,12 +223,31 @@ const getAccountOptions = (config: CodexProxyPluginConfig) =>
     value: account.id
   }))
 
+const updateAccountUsageCache = (
+  config: CodexProxyPluginConfig,
+  accountId: string,
+  usage: CodexProxyUsageSnapshot | null,
+  usageError: string
+) => ({
+  ...config,
+  accounts: config.accounts.map((account) =>
+    account.id === accountId
+      ? {
+          ...account,
+          usage,
+          usageError
+        }
+      : account
+  )
+})
+
 const updateAccountSelectorProps = (
   actions: { updateFieldProps: (field: string, props: Record<string, unknown>) => void },
   config: CodexProxyPluginConfig
 ) => {
   actions.updateFieldProps('activeAccountId', {
-    options: getAccountOptions(config)
+    options: getAccountOptions(config),
+    disabled: isBridgeBusy() || config.accounts.length === 0
   })
 }
 
@@ -235,6 +262,8 @@ const getProviderBaseURL = (config = runtimeConfig) =>
 
 const getUsageURL = (config = runtimeConfig) =>
   `${getBridgeBaseURL(config)}/codex/usage`
+
+const isBridgeBusy = () => Boolean(bridgeBusyMessage)
 
 const getConfigHash = (config = runtimeConfig) =>
   JSON.stringify({
@@ -291,6 +320,7 @@ const waitForBridge = async (
     const health = await getHealth(config)
     if (health?.ok && health.configHash === getConfigHash(config)) {
       lastBridgeReadyAt = Date.now()
+      lastBridgeReadyConfigHash = getConfigHash(config)
       return true
     }
     await sleep(BRIDGE_WAIT_INTERVAL_MS)
@@ -299,6 +329,8 @@ const waitForBridge = async (
 }
 
 const stopBridge = async (config: CodexProxyPluginConfig) => {
+  lastBridgeReadyAt = 0
+  lastBridgeReadyConfigHash = ''
   await tryJson(`${getBridgeBaseURL(config)}/shutdown`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -310,13 +342,18 @@ const startBridge = async (
   context: PluginContext,
   config: CodexProxyPluginConfig
 ) => {
-  if (Date.now() - lastBridgeReadyAt < BRIDGE_READY_CACHE_MS) {
+  const configHash = getConfigHash(config)
+  if (
+    configHash === lastBridgeReadyConfigHash &&
+    Date.now() - lastBridgeReadyAt < BRIDGE_READY_CACHE_MS
+  ) {
     return true
   }
 
   const health = await getHealth(config)
-  if (health?.ok && health.configHash === getConfigHash(config)) {
+  if (health?.ok && health.configHash === configHash) {
     lastBridgeReadyAt = Date.now()
+    lastBridgeReadyConfigHash = configHash
     return true
   }
 
@@ -426,6 +463,7 @@ const ensureBridgeRunning = async (
 
   const ready = await ensureBridgeStartedOnce(context, runtimeConfig)
   if (!ready) {
+    lastBridgeReadyConfigHash = ''
     throw new Error(
       `启动 Codex bridge 失败: ${getBridgeBaseURL(runtimeConfig)}`
     )
@@ -473,22 +511,38 @@ const listModels = async (context: PluginContext) => {
 
 const fetchUsageSnapshot = async (
   context: PluginContext,
-  formActions?: FormActionsLike
+  formActions?: FormActionsLike,
+  bridgeReady = false
 ) => {
-  await ensureBridgeRunning(context, formActions)
-  const response = await fetch(getUsageURL(runtimeConfig), {
-    headers: {
-      Authorization: `Bearer ${BRIDGE_API_KEY}`
-    },
-    signal: withTimeout(USAGE_REQUEST_TIMEOUT_MS)
-  })
+  if (!bridgeReady) {
+    await ensureBridgeRunning(context, formActions)
+  }
+  const requestUsage = async () => {
+    const response = await fetch(getUsageURL(runtimeConfig), {
+      headers: {
+        Authorization: `Bearer ${BRIDGE_API_KEY}`
+      },
+      signal: withTimeout(USAGE_REQUEST_TIMEOUT_MS)
+    })
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(text || `HTTP ${response.status}`)
+    if (!response.ok) {
+      const text = await response.text().catch(() => '')
+      throw new Error(text || `HTTP ${response.status}`)
+    }
+
+    return (await response.json()) as CodexProxyUsageSnapshot
   }
 
-  return (await response.json()) as CodexProxyUsageSnapshot
+  try {
+    return await requestUsage()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (!/timed out|aborted|abort/i.test(message)) {
+      throw error
+    }
+    await sleep(400)
+    return await requestUsage()
+  }
 }
 
 const resolveProviderLogoUrl = (context: PluginContext) => {
@@ -556,6 +610,8 @@ const plugin: Plugin = {
     let formActions: FormActionsLike | undefined
     let FormComp: unknown
     let updateStatusIndicator = () => undefined
+    const bridgeBusyState = context.vue.ref('')
+    const modal = context.useModal()
 
     const syncFormActions = (config: CodexProxyPluginConfig) => {
       if (!formActions) return
@@ -565,7 +621,24 @@ const plugin: Plugin = {
       isProgrammaticFormUpdate = false
     }
 
+    const refreshPluginUI = () => {
+      syncFormActions(runtimeConfig)
+      updateStatusIndicator()
+    }
+
+    const setBridgeBusy = (message: string) => {
+      bridgeBusyMessage = message
+      bridgeBusyState.value = message
+      refreshPluginUI()
+    }
+
+    const assertBridgeIdle = () => {
+      if (!bridgeBusyMessage) return
+      throw new Error(bridgeBusyMessage)
+    }
+
     const doSwitchAccount = async (accountId: string) => {
+      assertBridgeIdle()
       const current = getCurrentConfigSnapshot(context, formActions)
       if (!accountId || accountId === current.activeAccountId) return
       const previous = runtimeConfig
@@ -578,18 +651,23 @@ const plugin: Plugin = {
       await saveConfig(context, next)
       runtimeConfig = next
       syncFormActions(next)
-      if (next.accessToken) {
-        await startBridge(context, next).catch(() => undefined)
-      } else if (previous.accessToken) {
-        await stopBridge(previous)
+      setBridgeBusy('Codex bridge 重启中，暂时无法切换账号或刷新额度。')
+      try {
+        if (next.accessToken) {
+          await startBridge(context, next).catch(() => undefined)
+        } else if (previous.accessToken) {
+          await stopBridge(previous)
+        }
+        await syncProvider(context, FormComp)
+        await refreshUsage(false, true, true, true)
+      } finally {
+        setBridgeBusy('')
       }
-      await syncProvider(context, FormComp)
-      updateStatusIndicator()
-      await refreshUsage(false, true)
       context.notification.success('已切换账号。', 'Codex 代理')
     }
 
     const doSaveCurrentLogin = async () => {
+      assertBridgeIdle()
       const current = getCurrentConfigSnapshot(context, formActions)
       const currentAuthPath = current.authPath || runtimeConfig.authPath
       const detected = readCodexAuthAccount(context, currentAuthPath)
@@ -606,21 +684,36 @@ const plugin: Plugin = {
       await saveConfig(context, merged)
       runtimeConfig = merged
       syncFormActions(merged)
-      await startBridge(context, merged).catch(() => undefined)
-      await syncProvider(context, FormComp)
-      updateStatusIndicator()
-      await refreshUsage(false, true)
+      setBridgeBusy('Codex bridge 重启中，暂时无法切换账号或刷新额度。')
+      try {
+        await startBridge(context, merged).catch(() => undefined)
+        await syncProvider(context, FormComp)
+        await refreshUsage(false, true, true, true)
+      } finally {
+        setBridgeBusy('')
+      }
       context.notification.success('已将当前登录保存到账号列表。', 'Codex 代理')
     }
 
-    const doWriteBackAuth = async () => {
+    const doWriteBackAuth = async (targetAccountId?: string) => {
+      assertBridgeIdle()
       const current = getCurrentConfigSnapshot(context, formActions)
       const activeAccount = current.accounts.find(
-        (account) => account.id === current.activeAccountId
+        (account) => account.id === (targetAccountId || current.activeAccountId)
       )
       if (!activeAccount) {
         throw new Error('未找到当前激活账号')
       }
+      const confirmed = await modal.confirm({
+        title: '写回 auth.json',
+        content: `确定要将账号 "${getAccountLabel(activeAccount)}" 写回 ${current.authPath || resolveDefaultAuthPath(context)} 吗？`,
+        confirmText: '写回',
+        confirmProps: {
+          variant: 'primary',
+          danger: true
+        }
+      })
+      if (!confirmed) return
 
       const authPath = current.authPath || resolveDefaultAuthPath(context)
       writeCodexAuthAccount(context, authPath, activeAccount)
@@ -644,37 +737,70 @@ const plugin: Plugin = {
       context.notification.success('已将当前账号写回 auth.json。', 'Codex 代理')
     }
 
-    const doRemoveCurrentAccount = async () => {
+    const doRemoveCurrentAccount = async (targetAccountId?: string) => {
+      assertBridgeIdle()
       const current = getCurrentConfigSnapshot(context, formActions)
-      if (!current.activeAccountId) {
+      const removingAccountId = targetAccountId || current.activeAccountId
+      if (!removingAccountId) {
         throw new Error('未选择当前账号。')
       }
+      const removingAccount = current.accounts.find((account) => account.id === removingAccountId)
+      if (!removingAccount) {
+        throw new Error('未找到要移除的账号。')
+      }
+      const confirmed = await modal.confirm({
+        title: '移除账号',
+        content: `确定要移除账号 "${getAccountLabel(removingAccount)}" 吗？此操作不会删除 auth.json 文件中的原始登录，但会从插件账号列表中移除。`,
+        confirmText: '移除',
+        confirmProps: {
+          variant: 'primary',
+          danger: true
+        }
+      })
+      if (!confirmed) return
+      const removingActive = removingAccountId === current.activeAccountId
       const previous = runtimeConfig
       const accounts = current.accounts.filter(
-        (account) => account.id !== current.activeAccountId
+        (account) => account.id !== removingAccountId
       )
       const next = buildRuntimeConfig(context, {
         ...current,
         accounts,
-        activeAccountId: accounts[0]?.id || '',
+        activeAccountId: removingActive ? accounts[0]?.id || '' : current.activeAccountId,
         usage: null,
         usageError: ''
       })
       await saveConfig(context, next)
       runtimeConfig = next
       syncFormActions(next)
-      if (next.accessToken) {
-        await startBridge(context, next).catch(() => undefined)
+      if (removingActive) {
+        setBridgeBusy('Codex bridge 重启中，暂时无法切换账号或刷新额度。')
+        try {
+          if (next.accessToken) {
+            await startBridge(context, next).catch(() => undefined)
+          } else {
+            await stopBridge(previous)
+          }
+          await syncProvider(context, FormComp)
+          await refreshUsage(false, true, true, true)
+        } finally {
+          setBridgeBusy('')
+        }
       } else {
-        await stopBridge(previous)
+        await syncProvider(context, FormComp)
       }
-      await syncProvider(context, FormComp)
-      updateStatusIndicator()
-      await refreshUsage(false, true)
       context.notification.success('已移除当前账号。', 'Codex 代理')
     }
 
-    const refreshUsage = async (notify = true, force = false) => {
+    const refreshUsage = async (
+      notify = true,
+      force = false,
+      allowWhileBridgeBusy = false,
+      bridgeReady = false
+    ) => {
+      if (!allowWhileBridgeBusy) {
+        assertBridgeIdle()
+      }
       if (
         !force &&
         runtimeConfig.usage &&
@@ -699,9 +825,15 @@ const plugin: Plugin = {
       }
 
       try {
-        const usage = await fetchUsageSnapshot(context, formActions)
+        const usage = await fetchUsageSnapshot(context, formActions, bridgeReady)
+        const currentSnapshot = getCurrentConfigSnapshot(context, formActions)
         const next = buildRuntimeConfig(context, {
-          ...getCurrentConfigSnapshot(context, formActions),
+          ...updateAccountUsageCache(
+            currentSnapshot,
+            currentSnapshot.activeAccountId,
+            usage,
+            ''
+          ),
           usage,
           usageError: ''
         })
@@ -715,8 +847,14 @@ const plugin: Plugin = {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
+        const currentSnapshot = getCurrentConfigSnapshot(context, formActions)
         const next = buildRuntimeConfig(context, {
-          ...getCurrentConfigSnapshot(context, formActions),
+          ...updateAccountUsageCache(
+            currentSnapshot,
+            currentSnapshot.activeAccountId,
+            null,
+            message
+          ),
           usage: null,
           usageError: message
         })
@@ -756,6 +894,7 @@ const plugin: Plugin = {
             {
               type: 'button',
               size: 'sm',
+              disabled: isBridgeBusy(),
               onClick: () => safeCall(doSaveCurrentLogin)
             },
             { default: () => '保存当前登录' }
@@ -766,6 +905,7 @@ const plugin: Plugin = {
               type: 'button',
               variant: 'secondary',
               size: 'sm',
+              disabled: isBridgeBusy(),
               onClick: () => safeCall(doWriteBackAuth)
             },
             { default: () => '写回 auth.json' }
@@ -776,6 +916,7 @@ const plugin: Plugin = {
               type: 'button',
               variant: 'secondary',
               size: 'sm',
+              disabled: isBridgeBusy(),
               onClick: () => safeCall(doRemoveCurrentAccount)
             },
             { default: () => '移除当前账号' }
@@ -855,7 +996,7 @@ const plugin: Plugin = {
                 type: 'button',
                 variant: 'secondary',
                 size: 'sm',
-                disabled: !config.activeAccountId,
+                disabled: isBridgeBusy() || !config.activeAccountId,
                 onClick: () =>
                   refreshUsage(true, true).catch((error) => {
                     context.notification.error(
@@ -930,59 +1071,357 @@ const plugin: Plugin = {
       )
     }
 
-    const renderAccountSummary = () => {
+    const renderAccountsOverview = () => {
       const config = getCurrentConfigSnapshot(context, formActions)
-      const rows = [
-        ['已选登录', config.status || '--'],
-        ['邮箱', config.email || '--'],
-        ['ChatGPT 账号 ID', config.accountId || '--'],
-        ['套餐类型', config.planType || '--'],
-        ['认证模式', config.authMode || '--'],
-        ['认证刷新', formatTimestampText(config.lastRefresh)],
-        ['认证文件', config.authPath || '--']
-      ]
+      const busyMessage = bridgeBusyState.value
+      const CheckIcon = context.useIcon('Check')
+      const FileIcon = context.useIcon('FileText')
+      const TrashIcon = context.useIcon('Trash')
 
       return context.vue.h(
         'div',
-        { class: 'codex-settings-account-card' },
+        { class: 'codex-settings-account-list-card' },
         [
           context.vue.h('style', null, `
-            .codex-settings-account-card {
+            .codex-settings-account-list-card {
               display: grid;
-              gap: 6px;
+              gap: 8px;
               padding: 10px;
               border-radius: 10px;
               background: var(--bg-hover);
               border: 1px solid var(--border-subtle);
             }
-            .codex-settings-account-title {
+            .codex-settings-account-list-title {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 8px;
               font-size: 12px;
               font-weight: 600;
             }
-            .codex-settings-account-row {
+            .codex-settings-account-list {
+              display: grid;
+              gap: 6px;
+            }
+            .codex-settings-account-item {
+              display: grid;
+              gap: 4px;
+              padding: 8px 10px;
+              border-radius: 8px;
+              border: 1px solid var(--border-subtle);
+              background: var(--bg-card);
+            }
+            .codex-settings-account-item.active {
+              border-color: rgba(31, 122, 224, 0.45);
+              box-shadow: inset 0 0 0 1px rgba(31, 122, 224, 0.12);
+            }
+            .codex-settings-account-item-head,
+            .codex-settings-account-item-meta,
+            .codex-settings-account-item-usage {
               display: flex;
               justify-content: space-between;
-              gap: 10px;
+              gap: 8px;
               font-size: 12px;
             }
-            .codex-settings-account-label {
+            .codex-settings-account-item-quota {
+              display: grid;
+              gap: 4px;
+            }
+            .codex-settings-account-item-progress {
+              position: relative;
+              height: 6px;
+              overflow: hidden;
+              border-radius: 999px;
+              background: rgba(127, 127, 127, 0.18);
+            }
+            .codex-settings-account-item-progress-bar {
+              height: 100%;
+              border-radius: inherit;
+              background: linear-gradient(90deg, #1f7ae0 0%, #41b3ff 100%);
+            }
+            .codex-settings-account-item-head {
+              font-weight: 600;
+            }
+            .codex-settings-account-item-head-main {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              min-width: 0;
+              flex: 1 1 auto;
+            }
+            .codex-settings-account-item-left {
+              min-width: 0;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+            .codex-settings-account-item-actions {
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              flex: 0 0 auto;
+            }
+            .codex-settings-account-icon-btn {
+              width: 22px;
+              height: 22px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              border: 1px solid var(--border-subtle);
+              border-radius: 6px;
+              background: var(--bg-hover);
+              color: var(--text-secondary);
+              font-size: 12px;
+              line-height: 1;
+              cursor: pointer;
+            }
+            .codex-settings-account-icon-btn :is(svg, i) {
+              width: 13px;
+              height: 13px;
+            }
+            .codex-settings-account-icon-btn:hover:not(:disabled) {
+              color: var(--text-primary);
+              border-color: rgba(31, 122, 224, 0.35);
+            }
+            .codex-settings-account-icon-btn:disabled {
+              cursor: not-allowed;
+              opacity: 0.45;
+            }
+            .codex-settings-account-item-right {
               flex: 0 0 auto;
               color: var(--text-secondary);
             }
-            .codex-settings-account-value {
-              flex: 1 1 auto;
-              min-width: 0;
-              text-align: right;
-              word-break: break-all;
+            .codex-settings-account-item-meta,
+            .codex-settings-account-item-usage {
+              color: var(--text-secondary);
+            }
+            .codex-settings-account-item-chip {
+              flex: 0 0 auto;
+              padding: 0 6px;
+              border-radius: 999px;
+              background: rgba(31, 122, 224, 0.12);
+              color: #1f7ae0;
+              font-size: 11px;
+              line-height: 20px;
+            }
+            .codex-settings-account-empty {
+              font-size: 12px;
+              color: var(--text-secondary);
             }
           `),
-          context.vue.h('div', { class: 'codex-settings-account-title' }, '账号信息'),
-          ...rows.map(([label, value]) =>
-            context.vue.h('div', { class: 'codex-settings-account-row' }, [
-              context.vue.h('span', { class: 'codex-settings-account-label' }, label),
-              context.vue.h('span', { class: 'codex-settings-account-value', title: value }, value)
+          context.vue.h('div', { class: 'codex-settings-account-list-title' }, [
+            context.vue.h('div', { style: 'display:flex;align-items:center;gap:8px;' }, [
+              context.vue.h(
+                context.components?.Button as never,
+                {
+                  type: 'button',
+                  variant: 'secondary',
+                  size: 'sm',
+                  disabled: Boolean(busyMessage) || !config.activeAccountId,
+                  onClick: () =>
+                    refreshUsage(true, true).catch((error) => {
+                      context.notification.error(
+                        error instanceof Error ? error.message : String(error),
+                        'Codex 代理'
+                      )
+                    })
+                },
+                { default: () => '刷新额度' }
+              ),
+              context.vue.h(
+                context.components?.Button as never,
+                {
+                  type: 'button',
+                  variant: 'secondary',
+                  size: 'sm',
+                  disabled: Boolean(busyMessage),
+                  onClick: () =>
+                    doSaveCurrentLogin().catch((error) => {
+                      context.notification.error(
+                        error instanceof Error ? error.message : String(error),
+                        'Codex 代理'
+                      )
+                    })
+                },
+                { default: () => '保存当前登录' }
+              ),
+              context.vue.h('span', { class: 'codex-settings-account-item-right' }, `${config.accounts.length} 个账号`)
             ])
-          )
+          ]),
+          config.accounts.length
+            ? context.vue.h(
+                'div',
+                { class: 'codex-settings-account-list' },
+                config.accounts.map((account) => {
+                  const display = deriveUsageDisplay({
+                    usage: account.usage,
+                    usageError: account.usageError
+                  })
+                  const label = getAccountLabel(account)
+                  const isActive = account.id === config.activeAccountId
+                  const usedFiveHour = clampPercent(account.usage?.fiveHour?.usedPercent) ?? 0
+                  const usedOneWeek = clampPercent(account.usage?.oneWeek?.usedPercent) ?? 0
+                  return context.vue.h(
+                    'div',
+                    {
+                      class: ['codex-settings-account-item', isActive ? 'active' : '']
+                    },
+                    [
+                      context.vue.h('div', { class: 'codex-settings-account-item-head' }, [
+                        context.vue.h('div', { class: 'codex-settings-account-item-head-main' }, [
+                          context.vue.h(
+                            'span',
+                            {
+                              class: 'codex-settings-account-item-left',
+                              title: label
+                            },
+                            label
+                          ),
+                          isActive
+                            ? context.vue.h('span', { class: 'codex-settings-account-item-chip' }, '当前')
+                            : null
+                        ]),
+                        context.vue.h('div', { class: 'codex-settings-account-item-actions' }, [
+                          context.vue.h(
+                            'button',
+                            {
+                              type: 'button',
+                              class: 'codex-settings-account-icon-btn',
+                              title: isActive ? '当前账号' : '切换到此账号',
+                              disabled: Boolean(busyMessage) || isActive,
+                              onClick: (event: Event) => {
+                                event.stopPropagation()
+                                doSwitchAccount(account.id).catch((error) => {
+                                  context.notification.error(
+                                    error instanceof Error ? error.message : String(error),
+                                    'Codex 代理'
+                                  )
+                                })
+                              }
+                            },
+                            CheckIcon
+                          ),
+                          context.vue.h(
+                            'button',
+                            {
+                              type: 'button',
+                              class: 'codex-settings-account-icon-btn',
+                              title: '写回 auth.json',
+                              disabled: Boolean(busyMessage),
+                              onClick: (event: Event) => {
+                                event.stopPropagation()
+                                doWriteBackAuth(account.id).catch((error) => {
+                                  context.notification.error(
+                                    error instanceof Error ? error.message : String(error),
+                                    'Codex 代理'
+                                  )
+                                })
+                              }
+                            },
+                            FileIcon
+                          ),
+                          context.vue.h(
+                            'button',
+                            {
+                              type: 'button',
+                              class: 'codex-settings-account-icon-btn',
+                              title: '移除此账号',
+                              disabled: Boolean(busyMessage),
+                              onClick: (event: Event) => {
+                                event.stopPropagation()
+                                doRemoveCurrentAccount(account.id).catch((error) => {
+                                  context.notification.error(
+                                    error instanceof Error ? error.message : String(error),
+                                    'Codex 代理'
+                                  )
+                                })
+                              }
+                            },
+                            TrashIcon
+                          )
+                        ])
+                      ]),
+                      context.vue.h('div', { class: 'codex-settings-account-item-meta' }, [
+                        context.vue.h(
+                          'span',
+                          { class: 'codex-settings-account-item-left' },
+                          `${account.planType || '--'} / ${account.authMode || '--'}`
+                        ),
+                        context.vue.h(
+                          'span',
+                          { class: 'codex-settings-account-item-right' },
+                          formatTimestampText(account.lastRefresh)
+                        )
+                      ]),
+                      context.vue.h('div', { class: 'codex-settings-account-item-usage' }, [
+                        context.vue.h(
+                          'span',
+                          { class: 'codex-settings-account-item-left' },
+                          `Credits ${display.creditsDisplay}`
+                        ),
+                        context.vue.h(
+                          'span',
+                          { class: 'codex-settings-account-item-right' },
+                          display.usageUpdatedDisplay
+                        )
+                      ]),
+                      context.vue.h('div', { class: 'codex-settings-account-item-quota' }, [
+                        context.vue.h('div', { class: 'codex-settings-account-item-usage' }, [
+                          context.vue.h(
+                            'span',
+                            { class: 'codex-settings-account-item-left' },
+                            `5h ${display.fiveHourDisplay}`
+                          ),
+                          context.vue.h(
+                            'span',
+                            { class: 'codex-settings-account-item-right' },
+                            display.fiveHourResetDisplay
+                          )
+                        ]),
+                        context.vue.h(
+                          'div',
+                          { class: 'codex-settings-account-item-progress', 'aria-hidden': 'true' },
+                          [
+                            context.vue.h('div', {
+                              class: 'codex-settings-account-item-progress-bar',
+                              style: {
+                                width: `${Math.max(0, 100 - usedFiveHour)}%`,
+                                marginLeft: `${usedFiveHour}%`
+                              }
+                            })
+                          ]
+                        ),
+                        context.vue.h('div', { class: 'codex-settings-account-item-usage' }, [
+                          context.vue.h(
+                            'span',
+                            { class: 'codex-settings-account-item-left' },
+                            `1w ${display.oneWeekDisplay}`
+                          ),
+                          context.vue.h(
+                            'span',
+                            { class: 'codex-settings-account-item-right' },
+                            display.oneWeekResetDisplay
+                          )
+                        ]),
+                        context.vue.h(
+                          'div',
+                          { class: 'codex-settings-account-item-progress', 'aria-hidden': 'true' },
+                          [
+                            context.vue.h('div', {
+                              class: 'codex-settings-account-item-progress-bar',
+                              style: {
+                                width: `${Math.max(0, 100 - usedOneWeek)}%`,
+                                marginLeft: `${usedOneWeek}%`
+                              }
+                            })
+                          ]
+                        )
+                      ])
+                    ]
+                  )
+                })
+              )
+            : context.vue.h('div', { class: 'codex-settings-account-empty' }, '暂无已保存账号')
         ]
       )
     }
@@ -1005,6 +1444,7 @@ const plugin: Plugin = {
         runtimeConfig,
         isStatusPanelOpen,
         tooltip,
+        busyMessage: bridgeBusyMessage,
         onPanelOpenChange: (open) => {
           isStatusPanelOpen = open
         },
@@ -1046,25 +1486,28 @@ const plugin: Plugin = {
           label: '当前账号',
           options: getAccountOptions(initialConfig),
           placeholder: '请先保存当前登录',
-          clearable: false
+          clearable: false,
+          ifShow: false
         },
         {
           name: 'accountActions',
           type: 'custom',
           label: '账号操作',
-          render: () => renderAccountActions()
+          render: () => renderAccountActions(),
+          ifShow: false
         },
         {
           name: 'usageSummary',
           type: 'custom',
           label: '额度 / 用量',
-          render: () => renderUsageSummary()
+          render: () => renderUsageSummary(),
+          ifShow: false
         },
         {
-          name: 'accountSummary',
+          name: 'accountsOverview',
           type: 'custom',
-          label: '账号信息',
-          render: () => renderAccountSummary()
+          label: '全部账号',
+          render: () => renderAccountsOverview()
         },
         {
           name: 'bridgeHost',
@@ -1089,8 +1532,17 @@ const plugin: Plugin = {
         }
       ],
       initialData: initialConfig,
-      onChange: async (_field, _value, data) => {
+      onChange: async (field, value, data) => {
         if (isProgrammaticFormUpdate) return
+        if (isBridgeBusy()) {
+          syncFormActions(runtimeConfig)
+          return
+        }
+        if (field === 'activeAccountId') {
+          syncFormActions(runtimeConfig)
+          await doSwitchAccount(String(value || ''))
+          return
+        }
         const previous = runtimeConfig
         runtimeConfig = buildRuntimeConfig(context, {
           ...runtimeConfig,
