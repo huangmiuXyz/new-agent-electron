@@ -96,6 +96,9 @@ export const useChat = (chatId: string) => {
       let sentenceSegmenter = createSentenceSegmenter(getChatAgent()?.speechLanguage)
       let streamFlushHandle: ReturnType<typeof setTimeout> | null = null
       let pendingStreamParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
+      let pendingSpeechMessage: BaseMessage | undefined
+      const pendingSyncMessageIds: string[] = []
+      const pendingSyncMessages = new Map<string, BaseMessage>()
 
       const targetMessageId = ref<string | undefined>(regenerateMessageId)
 
@@ -184,25 +187,24 @@ export const useChat = (chatId: string) => {
         onError: (error) => {
           console.log(error);
           flushStreamingUpdate()
-          syncMessageToStore(error as APICallError)
+          syncMessageToStore(undefined, error as APICallError)
           scope.stop()
           scheduleNextPendingMessage()
         }
       })
 
-      const syncMessageToStore = (error?: APICallError) => {
-        const lastMsg = chat.lastMessage
-        if (!lastMsg) return
+      const createStoreMessageSnapshot = (message?: BaseMessage, error?: APICallError): BaseMessage | null => {
+        if (!message) return null
 
         // Keep parts immutable when syncing to Pinia so nested text updates stay reactive in children.
-        const nextParts = lastMsg.parts?.map((part) => ({ ...part }))
-        const nextMetadata = { ...lastMsg.metadata, error } as MetaData
+        const nextParts = message.parts?.map((part) => ({ ...part }))
+        const nextMetadata = { ...message.metadata, error } as MetaData
         const isFinalized = !nextMetadata.loading || !!error
         const flatUsage = getFlatTokenUsage(nextMetadata.usage)
 
         if (isFinalized) {
           const estimatedOutputTokens =
-            flatUsage.outputTokens ?? estimateMessageTokens(lastMsg, nextMetadata.model)
+            flatUsage.outputTokens ?? estimateMessageTokens(message, nextMetadata.model)
           const estimatedInputTokens = flatUsage.inputTokens ?? nextMetadata.estimatedInputTokens
           const hasAnyUsage =
             flatUsage.totalTokens != null ||
@@ -222,21 +224,26 @@ export const useChat = (chatId: string) => {
           }
         }
 
-        const msgToUpdate = {
-          ...lastMsg,
+        return {
+          ...message,
           parts: nextParts,
           metadata: nextMetadata
         }
+      }
+
+      const syncMessageToStore = (message: BaseMessage | undefined = chat.lastMessage, error?: APICallError) => {
+        const msgToUpdate = createStoreMessageSnapshot(message ?? undefined, error)
+        if (!msgToUpdate) return
 
         const storeChat = getChatById(chatId)
         const oldMessages = storeChat?.messages
         if (!oldMessages) return
 
-        const existingIndex = oldMessages.findIndex((m) => m.id === lastMsg.id)
+        const existingIndex = oldMessages.findIndex((m) => m.id === msgToUpdate.id)
         if (existingIndex >= 0) {
           const existingMessage = oldMessages[existingIndex]
-          existingMessage.parts = nextParts
-          existingMessage.metadata = nextMetadata
+          existingMessage.parts = msgToUpdate.parts
+          existingMessage.metadata = msgToUpdate.metadata
           return
         }
 
@@ -272,18 +279,19 @@ export const useChat = (chatId: string) => {
       }
 
       const processStreamingSpeech = (
+        message: BaseMessage | undefined,
         newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
       ) => {
-        if (!newParts || chat.lastMessage.role !== 'assistant' || !speechEnabled.value) return
+        if (!message || !newParts || message.role !== 'assistant' || !speechEnabled.value) return
         const mode = getChatAgent()?.speechMode as string
         if (mode === 'full') return
 
-        const fullText = getMessageText(chat.lastMessage)
+        const fullText = getMessageText(message)
         const currentText = fullText.slice(processedText.length)
 
         if (mode === 'sentence') {
           sentenceSegmenter.push(currentText, (sentence) => {
-            generateSpeech(sentence, chat.lastMessage)
+            generateSpeech(sentence, message)
           })
           processedText = fullText
         } else if (mode === 'paragraph') {
@@ -292,7 +300,7 @@ export const useChat = (chatId: string) => {
             for (let i = 0; i < paragraphs.length - 1; i++) {
               const p = paragraphs[i]
               if (p.trim()) {
-                generateSpeech(p, chat.lastMessage)
+                generateSpeech(p, message)
               }
               processedText += paragraphs[i] + '\n'
             }
@@ -306,14 +314,32 @@ export const useChat = (chatId: string) => {
           streamFlushHandle = null
         }
 
-        syncMessageToStore()
-        processStreamingSpeech(pendingStreamParts)
+        const messagesToSync = pendingSyncMessageIds
+          .map((id) => pendingSyncMessages.get(id))
+          .filter((message): message is BaseMessage => Boolean(message))
+
+        pendingSyncMessageIds.length = 0
+        pendingSyncMessages.clear()
+
+        messagesToSync.forEach((message) => {
+          syncMessageToStore(message)
+        })
+
+        processStreamingSpeech(pendingSpeechMessage, pendingStreamParts)
+        pendingSpeechMessage = undefined
+        pendingStreamParts = undefined
       }
 
-      const scheduleStreamingUpdate = (
-        newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
-      ) => {
-        pendingStreamParts = newParts
+      const scheduleStreamingUpdate = (message?: BaseMessage) => {
+        const messageSnapshot = createStoreMessageSnapshot(message)
+        if (!messageSnapshot) return
+
+        if (!pendingSyncMessages.has(messageSnapshot.id)) {
+          pendingSyncMessageIds.push(messageSnapshot.id)
+        }
+        pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
+        pendingStreamParts = messageSnapshot.parts as (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
+        pendingSpeechMessage = messageSnapshot.role === 'assistant' ? messageSnapshot : undefined
 
         if (streamFlushHandle) return
 
@@ -324,9 +350,9 @@ export const useChat = (chatId: string) => {
       }
 
       watch(
-        () => chat.lastMessage?.parts,
-        (newParts) => {
-          scheduleStreamingUpdate(newParts)
+        () => chat.lastMessage,
+        (newMessage) => {
+          scheduleStreamingUpdate(newMessage)
         },
         { deep: true }
       )
