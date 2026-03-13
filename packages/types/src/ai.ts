@@ -45,6 +45,7 @@ export interface MetaData {
     voice: string
     model: string
   }
+  retryBranchId?: string | null
 }
 
 export interface RagSearchDetail {

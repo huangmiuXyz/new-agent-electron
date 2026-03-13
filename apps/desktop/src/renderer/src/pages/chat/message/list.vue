@@ -12,15 +12,17 @@ const prevMessageRef = ref<HTMLElement>()
 const autoScrollEnabled = ref(true)
 const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
-const { deleteMessage, updateMessage } = useChatsStores()
+const { cycleRetryBranch, deleteMessage, getRetryBranchVariants, updateMessage } = useChatsStores()
 const mobileEditModal = useModal()
-const { Delete, Refresh, Continue, Copy, Edit, Branch, Language } = useIcon([
+const { Delete, Refresh, Continue, Copy, Edit, Branch, Language, ChevronLeft, ChevronRight } = useIcon([
   'Delete',
   'Refresh',
   'Copy',
   'Edit',
   'Branch',
   'Language',
+  'ChevronLeft',
+  'ChevronRight',
   'Stop',
   'Continue'
 ])
@@ -84,6 +86,24 @@ const lastMessageHeight = computed(() => {
 
 const getMessageText = (message: BaseMessage) => {
   return message.parts.map((e) => (e.type === 'text' ? e.text : '')).join('')
+}
+
+const getRetryBranchControl = (messageId: string) => {
+  if (!currentChat.value?.id) return null
+
+  const branchInfo = getRetryBranchVariants(currentChat.value.id, messageId)
+  if (branchInfo.variants.length <= 1) return null
+
+  const currentIndex = branchInfo.variants.findIndex((variant) => variant.id === branchInfo.currentBranchId)
+  return {
+    currentIndex: currentIndex >= 0 ? currentIndex : 0,
+    total: branchInfo.variants.length
+  }
+}
+
+const switchRetryBranchForMessage = (messageId: string, direction: 'prev' | 'next') => {
+  if (!currentChat.value?.id) return
+  cycleRetryBranch(currentChat.value.id, messageId, direction)
 }
 
 const openMobileCopyPreview = (message: BaseMessage, selectedText = '') => {
@@ -511,6 +531,27 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
             }" @contextmenu="onMessageRightClick($event, message)" />
             <ChatMessageItemSystem v-else-if="message.role === 'system'" :message="message"
               @contextmenu="onMessageRightClick($event, message)" />
+            <div v-if="getRetryBranchControl(message.id!)" class="retry-branch-switcher">
+              <button
+                class="retry-branch-btn"
+                type="button"
+                title="上一个分支"
+                @click="switchRetryBranchForMessage(message.id!, 'prev')"
+              >
+                <ChevronLeft />
+              </button>
+              <span class="retry-branch-indicator">
+                {{ getRetryBranchControl(message.id!)!.currentIndex + 1 }} / {{ getRetryBranchControl(message.id!)!.total }}
+              </span>
+              <button
+                class="retry-branch-btn"
+                type="button"
+                title="下一个分支"
+                @click="switchRetryBranchForMessage(message.id!, 'next')"
+              >
+                <ChevronRight />
+              </button>
+            </div>
           </div>
         </template>
       </div>
@@ -556,6 +597,49 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 .messages-content {
   display: block;
   width: 100%;
+}
+
+.retry-branch-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: fit-content;
+  margin: 4px auto 8px;
+  padding: 2px 4px;
+  border: 1px solid var(--border-color-light);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 84%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.retry-branch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.retry-branch-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.retry-branch-indicator {
+  min-width: 34px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 .message-item-wrapper {

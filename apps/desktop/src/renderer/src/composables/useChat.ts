@@ -51,7 +51,14 @@ function createSentenceSegmenter(locale: string = 'und') {
 }
 
 export const useChat = (chatId: string) => {
-  const { getChatById, updateMessageMetadata, updateMessages, shiftPendingMessage } = useChatsStores()
+  const {
+    createRetryBranch,
+    getChatById,
+    getRetryBranchMessages,
+    shiftPendingMessage,
+    updateMessageMetadata,
+    updateMessagesInRetryBranch
+  } = useChatsStores()
   const { messageScrollRef } = useMessageScroll()
 
   const { thinkingMode, speechEnabled, providerOptions } =
@@ -79,8 +86,8 @@ export const useChat = (chatId: string) => {
     return agentStore.getAgentById(agentId) || null
   }
 
-  const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; isApproval?: boolean }): _useChat<BaseMessage> => {
-    const { regenerateMessageId, isApproval } = options || {}
+  const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; isApproval?: boolean; retryBranchId?: string | null }): _useChat<BaseMessage> => {
+    const { regenerateMessageId, isApproval, retryBranchId = null } = options || {}
     const scope = effectScope()
 
     const getMessageText = (message: BaseMessage) => {
@@ -198,7 +205,7 @@ export const useChat = (chatId: string) => {
 
         // Keep parts immutable when syncing to Pinia so nested text updates stay reactive in children.
         const nextParts = message.parts?.map((part) => ({ ...part }))
-        const nextMetadata = { ...message.metadata, error } as MetaData
+        const nextMetadata = { ...message.metadata, error, retryBranchId } as MetaData
         const isFinalized = !nextMetadata.loading || !!error
         const flatUsage = getFlatTokenUsage(nextMetadata.usage)
 
@@ -236,25 +243,29 @@ export const useChat = (chatId: string) => {
         if (!msgToUpdate) return
 
         const storeChat = getChatById(chatId)
-        const oldMessages = storeChat?.messages
-        if (!oldMessages) return
+        if (!storeChat) return
+        const oldMessages = getRetryBranchMessages(storeChat, retryBranchId)
 
         const existingIndex = oldMessages.findIndex((m) => m.id === msgToUpdate.id)
         if (existingIndex >= 0) {
-          const existingMessage = oldMessages[existingIndex]
-          existingMessage.parts = msgToUpdate.parts
-          existingMessage.metadata = msgToUpdate.metadata
+          updateMessagesInRetryBranch(chatId, retryBranchId, (messages) =>
+            messages.map((message) =>
+              message.id === msgToUpdate.id
+                ? { ...message, parts: msgToUpdate.parts, metadata: msgToUpdate.metadata }
+                : message
+            )
+          )
           return
         }
 
         if (!targetMessageId.value) {
-          updateMessages(chatId, [...oldMessages, msgToUpdate])
+          updateMessagesInRetryBranch(chatId, retryBranchId, [...oldMessages, msgToUpdate])
           return
         }
 
         const targetIndex = oldMessages.findIndex((m) => m.id === targetMessageId.value)
         if (targetIndex < 0) {
-          updateMessages(chatId, [...oldMessages, msgToUpdate])
+          updateMessagesInRetryBranch(chatId, retryBranchId, [...oldMessages, msgToUpdate])
           return
         }
 
@@ -263,19 +274,11 @@ export const useChat = (chatId: string) => {
 
         if (targetMsg.role === 'assistant') {
           copy[targetIndex] = msgToUpdate
-          updateMessages(chatId, copy)
-          return
-        }
-
-        const nextAssistantIndex = copy.findIndex((m, i) => i > targetIndex && m.role === 'assistant')
-
-        if (nextAssistantIndex >= 0) {
-          copy[nextAssistantIndex] = msgToUpdate
         } else {
           copy.splice(targetIndex + 1, 0, msgToUpdate)
         }
 
-        updateMessages(chatId, copy)
+        updateMessagesInRetryBranch(chatId, retryBranchId, copy)
       }
 
       const processStreamingSpeech = (
@@ -436,6 +439,30 @@ export const useChat = (chatId: string) => {
     }, 1)
   }
 
+  const normalizeRegenerateTarget = (messages: BaseMessage[], messageId: string) => {
+    const messageIndex = messages.findIndex((message) => message.id === messageId)
+    if (messageIndex === -1) {
+      return { branchMessageId: messageId, regenerateMessageId: messageId }
+    }
+
+    const targetMessage = messages[messageIndex]
+    if (targetMessage?.role !== 'assistant') {
+      return { branchMessageId: messageId, regenerateMessageId: messageId }
+    }
+
+    for (let index = messageIndex - 1; index >= 0; index -= 1) {
+      const candidate = messages[index]
+      if (candidate?.role === 'user') {
+        return {
+          branchMessageId: candidate.id!,
+          regenerateMessageId: candidate.id!
+        }
+      }
+    }
+
+    return { branchMessageId: messageId, regenerateMessageId: messageId }
+  }
+
   return {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
       scrollToBottom()
@@ -459,14 +486,22 @@ export const useChat = (chatId: string) => {
     regenerate: (messageId: string) => {
       const currentChats = getChatById(chatId)
       const messages = currentChats?.messages || []
+      const { branchMessageId, regenerateMessageId } = normalizeRegenerateTarget(messages, messageId)
       const isLastMessage = messages.length > 0 && messages[messages.length - 1].id === messageId
       const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')
-      const isLastUserMessage = lastUserMessage?.id === messageId
+      const isLastUserMessage = lastUserMessage?.id === branchMessageId
       if (isLastMessage || isLastUserMessage) {
         scrollToBottom()
       }
-      const chat = createChat(messages, { regenerateMessageId: messageId })
-      chat.regenerate({ messageId })
+      const retryBranchId = createRetryBranch(chatId, branchMessageId)
+      const retryChat = getChatById(chatId)
+      if (!retryChat) return
+      const retryMessages = getRetryBranchMessages(retryChat, retryBranchId)
+      const chat = createChat(retryMessages, {
+        regenerateMessageId: regenerateMessageId,
+        retryBranchId
+      })
+      chat.regenerate({ messageId: regenerateMessageId })
     },
     approval: (part: ToolUIPart, approved: boolean) => {
       const currentChats = getChatById(chatId)
