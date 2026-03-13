@@ -146,16 +146,20 @@ export const useTerminal = (): TerminalActions => {
         }
 
         if (/[$%#>]\s*$/.test(cleanText)) {
+          const platform = window.api.os.platform()
+
           if (!currentTab.isReady) {
             currentTab.isReady = true
-            const platform = window.api.os.platform()
             setExecuting(id, true)
-            if (platform === 'win32') {
-              setExecuting(id, false, 0)
-            } else {
+
+            if (platform !== 'win32') {
               const shellIntegration = `if [ -n "$ZSH_VERSION" ]; then unsetopt PROMPT_SP; precmd() { printf "\\033]633;D;$?\\007"; }; elif [ -n "$BASH_VERSION" ]; then PROMPT_COMMAND='printf "\\033]633;D;$?\\007"'; fi; clear`
               window.api.pty.write(id, '\r ' + shellIntegration + '\r')
             }
+          }
+
+          if (platform === 'win32' && currentTab.isExecuting) {
+            setExecuting(id, false, 0)
           }
         }
       }
@@ -346,6 +350,7 @@ export const useTerminal = (): TerminalActions => {
       if (!tab) return resolve({ success: false, exitCode: null, output: '' })
 
       let timer: any = null
+      let unwatch = () => { }
 
       const onDone = (force = false) => {
         if (timer) clearTimeout(timer)
@@ -364,7 +369,7 @@ export const useTerminal = (): TerminalActions => {
         return onDone()
       }
 
-      const unwatch = watch(
+      unwatch = watch(
         () => tab.isExecuting,
         (isExecuting) => {
           if (!isExecuting) {
