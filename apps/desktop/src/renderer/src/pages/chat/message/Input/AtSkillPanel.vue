@@ -24,12 +24,8 @@ const emit = defineEmits<{
 
 <template>
   <div class="skill-mention-panel" :class="{ 'mobile-skill-mention-panel': mobile }">
-    <button
-      class="skill-section-item"
-      :class="{ 'is-active': childOpen }"
-      type="button"
-      @mousedown.prevent="emit('openChild')"
-    >
+    <button class="skill-section-item" :class="{ 'is-active': childOpen }" type="button"
+      @mousedown.prevent="emit('openChild')">
       <span class="skill-section-icon">
         <span class="skill-section-icon-glyph"></span>
       </span>
@@ -39,24 +35,10 @@ const emit = defineEmits<{
       <span class="skill-section-arrow">›</span>
     </button>
 
-    <div
-      v-if="childOpen"
-      class="skill-mention-child-panel"
-      :class="{ 'mobile-skill-mention-child-panel': mobile }"
-    >
-      <div class="skill-mention-list-header">
-        <span class="skill-mention-list-title">技能</span>
-      </div>
-
+    <div v-if="childOpen" class="skill-mention-child-panel" :class="{ 'mobile-skill-mention-child-panel': mobile }">
       <div class="skill-mention-list">
-        <button
-          v-for="(skill, index) in skills"
-          :key="skill.path"
-          class="skill-mention-item"
-          :class="{ 'is-active': index === activeIndex }"
-          type="button"
-          @mousedown.prevent="emit('select', skill)"
-        >
+        <button v-for="(skill, index) in skills" :key="skill.path" class="skill-mention-item"
+          :class="{ 'is-active': index === activeIndex }" type="button" @mousedown.prevent="emit('select', skill)">
           <span class="skill-mention-name">@{{ skill.name }}</span>
           <span class="skill-mention-desc">{{ skill.description }}</span>
         </button>
