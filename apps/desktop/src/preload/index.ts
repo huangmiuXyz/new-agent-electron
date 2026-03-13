@@ -10,9 +10,18 @@ import { app, getCurrentWindow } from '@electron/remote'
 import { exec, execFile, spawn, fork } from 'child_process'
 import os from 'os'
 import { type ElectronAPI } from '@agent-qi/types'
-import { rgPath } from '@agent-qi/ripgrep'
+
+const resolveRipgrepPath = (): string | null => {
+  try {
+    const { rgPath } = require('@agent-qi/ripgrep')
+    return rgPath ?? null
+  } catch {
+    return null
+  }
+}
 
 const getBundledRipgrepPath = (): string | null => {
+  const rgPath = resolveRipgrepPath()
   if (!rgPath) return null
   if (!app.isPackaged) return rgPath
   return rgPath.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`)
