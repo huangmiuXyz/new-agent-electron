@@ -1,11 +1,12 @@
 <script setup lang="tsx">
 import { FileUIPart, TextUIPart } from 'ai'
+import AtSkillPanel from './AtSkillPanel.vue'
 import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
-
 import { usePlugins } from '@renderer/composables/usePlugins'
 import { createRegistry } from '@renderer/services/chatService/registry'
 import { getFlatTokenUsage } from '@renderer/services/chatService/tokenUsage'
+import { discoverSkills, type SkillMetadata } from '@renderer/services/skillsService'
 import { z } from 'zod'
 
 const message = ref('')
@@ -175,6 +176,109 @@ const ChevronDown = useIcon('ChevronDown')
 const fileUploadRef = useTemplateRef('fileUploadRef')
 const inputContainerRef = useTemplateRef('inputContainerRef')
 const textareaRef = useTemplateRef('textareaRef')
+
+const SKILL_MENTION_REGEX = /(^|[\s([{'"“‘])@([a-z0-9-]*)$/i
+
+const availableSkills = computed<SkillMetadata[]>(() => {
+  void currentChatAgent.value?.id
+  void currentChatAgent.value?.skillDirectory
+  void chatStore.currentChat?.id
+  return discoverSkills()
+})
+const isSkillMentionOpen = ref(false)
+const skillMentionQuery = ref('')
+const skillMentionActiveIndex = ref(0)
+const skillMentionRange = ref<{ start: number, end: number } | null>(null)
+let skillMentionCloseTimer: ReturnType<typeof setTimeout> | null = null
+
+const filteredMentionSkills = computed(() => {
+  const query = skillMentionQuery.value.trim().toLowerCase()
+  const exactMatches = availableSkills.value.filter((skill) => skill.name.toLowerCase() === query)
+  const fuzzyMatches = availableSkills.value.filter((skill) => {
+    const name = skill.name.toLowerCase()
+    const description = skill.description.toLowerCase()
+    if (!query) return true
+    return name.includes(query) || description.includes(query)
+  })
+  return query ? [...exactMatches, ...fuzzyMatches.filter((skill) => !exactMatches.includes(skill))] : fuzzyMatches
+})
+
+const closeSkillMention = () => {
+  isSkillMentionOpen.value = false
+  skillMentionQuery.value = ''
+  skillMentionActiveIndex.value = 0
+  skillMentionRange.value = null
+}
+
+const clearSkillMentionCloseTimer = () => {
+  if (!skillMentionCloseTimer) return
+  clearTimeout(skillMentionCloseTimer)
+  skillMentionCloseTimer = null
+}
+
+const scheduleSkillMentionClose = () => {
+  clearSkillMentionCloseTimer()
+  skillMentionCloseTimer = setTimeout(() => {
+    closeSkillMention()
+  }, 120)
+}
+
+const updateSkillMentionState = () => {
+  const textarea = textareaRef.value
+  if (!textarea) {
+    closeSkillMention()
+    return
+  }
+
+  const cursor = textarea.selectionStart ?? message.value.length
+  const beforeCursor = message.value.slice(0, cursor)
+  const match = beforeCursor.match(SKILL_MENTION_REGEX)
+
+  if (!match) {
+    closeSkillMention()
+    return
+  }
+
+  const query = match[2] || ''
+  const start = cursor - query.length - 1
+  skillMentionQuery.value = query
+  skillMentionRange.value = { start, end: cursor }
+  isSkillMentionOpen.value = availableSkills.value.length > 0
+}
+
+const insertSkillMention = (skill: SkillMetadata) => {
+  const textarea = textareaRef.value
+  const range = skillMentionRange.value
+  if (!textarea || !range) return
+
+  const mentionText = `@${skill.name} `
+  message.value = `${message.value.slice(0, range.start)}${mentionText}${message.value.slice(range.end)}`
+  closeSkillMention()
+
+  nextTick(() => {
+    const cursor = range.start + mentionText.length
+    textarea.focus()
+    textarea.setSelectionRange(cursor, cursor)
+    adjustTextareaHeight(textarea)
+  })
+}
+
+watch(filteredMentionSkills, (skills) => {
+  if (!skills.length) {
+    skillMentionActiveIndex.value = 0
+    return
+  }
+  if (skillMentionActiveIndex.value >= skills.length) {
+    skillMentionActiveIndex.value = 0
+  }
+})
+
+watch(message, () => {
+  if (!isSkillMentionOpen.value) return
+  nextTick(() => {
+    updateSkillMentionState()
+  })
+})
 
 // 当前聊天的预发送消息列表
 const pendingMessages = computed(() => {
@@ -643,8 +747,11 @@ const toggleSpeech = () => {
   }
 }
 
-const adjustTextareaHeight = (event: Event) => {
-  const textarea = event.target as HTMLTextAreaElement
+const adjustTextareaHeight = (target: Event | HTMLTextAreaElement | null | undefined) => {
+  const textarea = target instanceof HTMLTextAreaElement
+    ? target
+    : (target?.target as HTMLTextAreaElement | null)
+  if (!textarea) return
   textarea.style.height = 'auto'
   textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
 }
@@ -673,11 +780,42 @@ const handleCompositionEnd = () => {
   isComposing.value = false
 }
 
-const handleEnterKey = () => {
-  if (isComposing.value) {
+const handleTextareaInput = (event: Event) => {
+  adjustTextareaHeight(event)
+  updateSkillMentionState()
+}
+
+const handleTextareaKeydown = (event: KeyboardEvent) => {
+  if (isSkillMentionOpen.value && filteredMentionSkills.value.length > 0) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      skillMentionActiveIndex.value = (skillMentionActiveIndex.value + 1) % filteredMentionSkills.value.length
+      return
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      skillMentionActiveIndex.value =
+        (skillMentionActiveIndex.value - 1 + filteredMentionSkills.value.length) % filteredMentionSkills.value.length
+      return
+    }
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault()
+      insertSkillMention(filteredMentionSkills.value[skillMentionActiveIndex.value])
+      return
+    }
+  }
+
+  if (event.key === 'Escape' && isSkillMentionOpen.value) {
+    event.preventDefault()
+    closeSkillMention()
     return
   }
-  _sendMessage()
+
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    if (isComposing.value) return
+    _sendMessage()
+  }
 }
 
 const _sendMessage = async () => {
@@ -718,9 +856,10 @@ const _sendMessage = async () => {
 
   // 清空输入
   message.value = ''
+  closeSkillMention()
   selectedFiles.value = []
   nextTick(() => {
-    adjustTextareaHeight({ target: textareaRef.value } as any)
+    adjustTextareaHeight(textareaRef.value)
   })
 
   // 确保有聊天会话
@@ -755,6 +894,7 @@ onUnmounted(() => {
   unregister('global.focusInput')
   unbindMobilePointerListeners()
   clearLongPressTimer()
+  clearSkillMentionCloseTimer()
 })
 </script>
 
@@ -784,9 +924,16 @@ onUnmounted(() => {
 
       <div v-if="!isMobile">
         <div class="input-wrapper">
+          <AtSkillPanel
+            v-if="isSkillMentionOpen"
+            :skills="filteredMentionSkills"
+            :active-index="skillMentionActiveIndex"
+            @select="insertSkillMention"
+          />
           <textarea ref="textareaRef" class="input-field" rows="1"
             :placeholder="desktopPlaceholder"
-            v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="handleEnterKey"
+            v-model="message" @input="handleTextareaInput" @keydown="handleTextareaKeydown"
+            @focus="updateSkillMentionState" @click="updateSkillMentionState" @blur="scheduleSkillMentionClose"
             @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
             :disabled="isProcessingVoice"></textarea>
           <div v-if="partialSpeechText" class="partial-text">{{ partialSpeechText }}</div>
@@ -923,9 +1070,17 @@ onUnmounted(() => {
             </template>
           </div>
           <div class="mobile-input-wrapper">
+            <AtSkillPanel
+              v-if="isSkillMentionOpen"
+              :skills="filteredMentionSkills"
+              :active-index="skillMentionActiveIndex"
+              mobile
+              @select="insertSkillMention"
+            />
             <textarea ref="textareaRef" class="input-field mobile-input-field" rows="1"
               :placeholder="mobilePlaceholder"
-              v-model="message" @input="adjustTextareaHeight" @keydown.enter.exact.prevent="handleEnterKey"
+              v-model="message" @input="handleTextareaInput" @keydown="handleTextareaKeydown"
+              @focus="updateSkillMentionState" @click="updateSkillMentionState" @blur="scheduleSkillMentionClose"
               @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
               :disabled="isProcessingVoice"></textarea>
             <div v-if="partialSpeechText" class="partial-text mobile-partial-text">{{ partialSpeechText }}</div>

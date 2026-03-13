@@ -17,6 +17,7 @@ import { createRagMiddleware } from './middleware/rags'
 import { createContextLimitMiddleware } from './middleware/contextLimit'
 import { createCompressContextMiddleware } from './middleware/compressContext'
 import { createUsageGuardMiddleware } from './middleware/usageGuard'
+import { createSkillReferenceMiddleware } from './middleware/skillReferences'
 import { sanitizeUIMessages } from './utils'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { createToolMiddleware } from './middleware/createToolMiddleware'
@@ -504,7 +505,8 @@ export const chatService = () => {
             onRagSearchComplete: (details) => {
               ragSearchDetails = details?.map((item) => ({ ...item }))
             }
-          })
+          }),
+          createSkillReferenceMiddleware({ skills })
         ]
       }),
       providerOptions: {
