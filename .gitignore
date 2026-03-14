@@ -12,5 +12,5 @@ packages/qi-cli/example/index-tts/index-tts/
 .turbo
 GenieData
 .venv
-ai
+packages/ai
 apps/desktop/android/local.properties
