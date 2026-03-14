@@ -29,10 +29,6 @@ export const speechService = () => {
       providerOptions
     } = params
 
-    const chunkId = nanoid()
-    // Create placeholder immediately to preserve order in the queue
-    const placeholder = speechStore.createPlaceholder(chunkId, messageId, text)
-
     if (!modelId || !providerId) {
       console.warn('Speech model or provider not configured')
       return
@@ -43,6 +39,16 @@ export const speechService = () => {
       console.warn(`Provider ${providerId} not found`)
       return
     }
+
+    const chunkId = nanoid()
+    const modelInfo = provider.models?.find((item) => item.id === modelId)
+    const placeholder = speechStore.createPlaceholder(chunkId, messageId, text, {
+      providerId,
+      providerName: provider.name,
+      modelId,
+      modelName: modelInfo?.name || modelId,
+      kind: modelId.startsWith('music-') ? 'music' : 'speech'
+    })
 
     try {
       const modelString = `${provider.providerType}:${modelId}`
@@ -78,7 +84,10 @@ export const speechService = () => {
 
       const base64 = audio.base64
 
-      const duration = await speechStore.fulfillChunk(chunkId, base64)
+      const duration = await speechStore.fulfillChunk(chunkId, base64, {
+        audioMediaType: audio.mediaType || 'audio/mpeg',
+        audioFormat: audio.format
+      })
       return { ...placeholder, audioData: base64, loading: false, duration }
     } catch (error) {
       console.error('Speech generation failed:', error)

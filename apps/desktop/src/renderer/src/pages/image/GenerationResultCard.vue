@@ -95,11 +95,9 @@ const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.len
           </div>
         </template>
         <template v-else>
-          <!-- 视频显示 -->
           <template v-if="batch.mediaType === 'video'">
             <VideoPlayer :src="(img as string)" />
           </template>
-          <!-- 图片显示 -->
           <template v-else>
             <AppImage :src="(img as string)" preview
               :images="(batch.images.filter(i => typeof i === 'string') as string[])"

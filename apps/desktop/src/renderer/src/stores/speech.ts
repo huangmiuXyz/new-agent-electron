@@ -5,10 +5,17 @@ export interface AudioChunk {
   id: string
   messageId: string
   text: string
-  audioData?: string // base64, optional while loading
+  audioData?: string
+  audioMediaType?: string
+  audioFormat?: string
+  providerId?: string
+  providerName?: string
+  modelId?: string
+  modelName?: string
+  kind?: 'speech' | 'music'
   played: boolean
   loading: boolean
-  duration?: number // duration in seconds
+  duration?: number
   error?: string
 }
 
@@ -21,7 +28,6 @@ export const useSpeechStore = defineStore('speech', () => {
   const duration = ref(0)
   const audioPlayer = new Audio()
 
-  // Update current time during playback
   audioPlayer.ontimeupdate = () => {
     currentTime.value = audioPlayer.currentTime
     duration.value = audioPlayer.duration || 0
@@ -35,17 +41,23 @@ export const useSpeechStore = defineStore('speech', () => {
     queue.value[currentChunkIndex.value]
   )
 
-  const createPlaceholder = (id: string, messageId: string, text: string) => {
+  const createPlaceholder = (
+    id: string,
+    messageId: string,
+    text: string,
+    metadata?: Partial<Pick<AudioChunk, 'providerId' | 'providerName' | 'modelId' | 'modelName' | 'kind'>>
+  ) => {
     const chunk: AudioChunk = {
       id,
       messageId,
       text,
       played: false,
-      loading: true
+      loading: true,
+      audioMediaType: 'audio/mpeg',
+      ...metadata
     }
     queue.value.push(chunk)
 
-    // Auto-trigger playback state if not already playing or waiting
     if (!isPlaying.value && !isWaiting.value) {
       playNext()
     }
@@ -53,33 +65,39 @@ export const useSpeechStore = defineStore('speech', () => {
     return chunk
   }
 
-  const fulfillChunk = (id: string, audioData: string): Promise<number> => {
+  const fulfillChunk = (
+    id: string,
+    audioData: string,
+    metadata?: Partial<Pick<AudioChunk, 'audioMediaType' | 'audioFormat'>>
+  ): Promise<number> => {
     return new Promise((resolve) => {
       const chunk = queue.value.find((c) => c.id === id)
-      if (chunk) {
-        chunk.audioData = audioData
-        chunk.loading = false
-        chunk.error = undefined // Clear error on success
+      if (!chunk) {
+        resolve(0)
+        return
+      }
 
-        // Get duration from audio data
-        const tempAudio = new Audio(`data:audio/mpeg;base64,${audioData}`)
-        tempAudio.onloadedmetadata = () => {
-          chunk.duration = tempAudio.duration
+      chunk.audioData = audioData
+      chunk.loading = false
+      chunk.error = undefined
+      chunk.audioMediaType = metadata?.audioMediaType || chunk.audioMediaType || 'audio/mpeg'
+      chunk.audioFormat = metadata?.audioFormat || chunk.audioFormat
 
-          if (isWaiting.value || !isPlaying.value) {
-            isWaiting.value = false
-            playNext()
-          }
-          resolve(tempAudio.duration)
+      const tempAudio = new Audio(`data:${chunk.audioMediaType};base64,${audioData}`)
+      tempAudio.onloadedmetadata = () => {
+        chunk.duration = tempAudio.duration
+
+        if (isWaiting.value || !isPlaying.value) {
+          isWaiting.value = false
+          playNext()
         }
-        tempAudio.onerror = () => {
-          if (isWaiting.value || !isPlaying.value) {
-            isWaiting.value = false
-            playNext()
-          }
-          resolve(0)
+        resolve(tempAudio.duration)
+      }
+      tempAudio.onerror = () => {
+        if (isWaiting.value || !isPlaying.value) {
+          isWaiting.value = false
+          playNext()
         }
-      } else {
         resolve(0)
       }
     })
@@ -90,7 +108,7 @@ export const useSpeechStore = defineStore('speech', () => {
     if (chunk) {
       chunk.loading = false
       chunk.error = errorMessage
-      chunk.played = true // Mark as played to skip automatically
+      chunk.played = true
       if (isWaiting.value || !isPlaying.value) {
         isWaiting.value = false
         playNext()
@@ -114,14 +132,12 @@ export const useSpeechStore = defineStore('speech', () => {
         audioPlayer.pause()
         playNext()
       } else if (isWaiting.value) {
-        // Re-check if we should continue playing if we were waiting for this chunk
         playNext()
       }
     }
   }
 
   const playNext = async () => {
-    // Find the first unplayed chunk.
     const nextIndex = queue.value.findIndex(chunk => !chunk.played)
     if (nextIndex === -1) {
       isPlaying.value = false
@@ -133,11 +149,9 @@ export const useSpeechStore = defineStore('speech', () => {
     }
 
     const nextChunk = queue.value[nextIndex]
-
-    // If the next chunk is still loading, we MUST wait for it to maintain order.
     if (nextChunk.loading || !nextChunk.audioData) {
       isPlaying.value = false
-      isWaiting.value = true // Set waiting flag
+      isWaiting.value = true
       return
     }
 
@@ -145,7 +159,8 @@ export const useSpeechStore = defineStore('speech', () => {
     isPlaying.value = true
     currentChunkId.value = nextChunk.id
 
-    const blob = await fetch(`data:audio/mpeg;base64,${nextChunk.audioData}`).then(r => r.blob())
+    const dataUrl = `data:${nextChunk.audioMediaType || 'audio/mpeg'};base64,${nextChunk.audioData}`
+    const blob = await fetch(dataUrl).then(r => r.blob())
     const url = URL.createObjectURL(blob)
 
     audioPlayer.src = url
@@ -172,7 +187,6 @@ export const useSpeechStore = defineStore('speech', () => {
   const jumpToChunk = (id: string) => {
     const index = queue.value.findIndex(c => c.id === id)
     if (index !== -1) {
-      // Mark all chunks before this as played, and this and after as unplayed
       queue.value.forEach((c, i) => {
         if (i < index) c.played = true
         else c.played = false
@@ -200,8 +214,9 @@ export const useSpeechStore = defineStore('speech', () => {
     currentChunkId.value = null
     currentTime.value = 0
     duration.value = 0
-    // Mark all current queue as played
-    queue.value.forEach(chunk => chunk.played = true)
+    queue.value.forEach(chunk => {
+      chunk.played = true
+    })
   }
 
   const clearQueue = () => {

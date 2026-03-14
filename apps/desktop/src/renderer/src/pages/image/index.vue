@@ -5,6 +5,7 @@ import { ImageBatch, useImageStore } from '@renderer/stores/image'
 import { useSpeechStore } from '@renderer/stores/speech'
 import { useImageGeneration } from '@renderer/composables/useImageGeneration'
 import GenerationResultCard from './GenerationResultCard.vue'
+import SpeechResultPanel from './SpeechResultPanel.vue'
 import FloatingInputArea from './FloatingInputArea.vue'
 import ImageModePanel from './panels/ImageModePanel.vue'
 import VideoModePanel from './panels/VideoModePanel.vue'
@@ -119,15 +120,6 @@ const isModelSelected = computed(() => {
 
 const handleModeSwitch = (mode: GenerationMode) => {
   activeMode.value = mode
-}
-
-const createSpeechAudioSrc = (audioData?: string) => audioData ? `data:audio/mpeg;base64,${audioData}` : ''
-
-const formatDuration = (value?: number) => {
-  if (!value || Number.isNaN(value)) return '--:--'
-  const mins = Math.floor(value / 60)
-  const secs = Math.floor(value % 60)
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
 const scrollToBottom = () => {
@@ -371,12 +363,11 @@ watch(toolResultSyncKey, () => {
   syncToolBatchFromResult()
 }, { immediate: true })
 
-const { Trash, Image: ImageIcon, Screen, VolumeMedium, Play } = useIcon([
+const { Trash, Image: ImageIcon, Screen, VolumeMedium } = useIcon([
   'Trash',
   'Image',
   'Screen',
-  'VolumeMedium',
-  'Play'
+  'VolumeMedium'
 ])
 </script>
 
@@ -420,7 +411,12 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, Play } = useIcon([
           <Button v-if="isToolMode" size="sm" :loading="isRegenerating" @click="handleRegenerate">
             {{ isRegenerating ? '重新生成中...' : '重新生成' }}
           </Button>
-          <Button v-else-if="(isSpeechMode ? speechResults.length : generatedBatches.length) > 0" variant="text" size="sm" @click="clearResults">
+          <Button
+            v-else-if="(isSpeechMode ? speechResults.length : generatedBatches.length) > 0"
+            variant="text"
+            size="sm"
+            @click="clearResults"
+          >
             <Trash />
             清空结果
           </Button>
@@ -440,39 +436,17 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, Play } = useIcon([
               <div class="empty-icon">
                 <ImageIcon />
               </div>
-              <p>{{ isToolMode ? '等待生成结果...' : '在下方输入提示词，开启你的创作之旅' }}</p>
+              <p>{{ isToolMode ? '等待生成结果...' : '在下方输入提示词，开始你的创作' }}</p>
             </div>
             <div v-else-if="isSpeechMode" class="speech-results-list">
-              <div v-for="chunk in speechResults" :key="chunk.id" class="speech-result-card">
-                <div class="speech-result-header">
-                  <div class="speech-result-title">
-                    <VolumeMedium />
-                    <span>{{ chunk.text }}</span>
-                  </div>
-                  <div class="speech-result-actions">
-                    <Button size="sm" variant="text" @click="copyPrompt(chunk.text)">复制文本</Button>
-                    <Button size="sm" variant="text" @click="replaySpeech(chunk.id)">
-                      <Play />
-                      播放
-                    </Button>
-                    <Button size="sm" variant="text" @click="removeSpeechResult(chunk.id)">
-                      <Trash />
-                    </Button>
-                  </div>
-                </div>
-                <div class="speech-result-meta">
-                  <span>{{ chunk.loading ? '生成中...' : chunk.error ? '生成失败' : '生成完成' }}</span>
-                  <span>{{ formatDuration(chunk.duration) }}</span>
-                </div>
-                <div v-if="chunk.error" class="speech-result-error">{{ chunk.error }}</div>
-                <audio
-                  v-else-if="chunk.audioData"
-                  class="speech-audio-player"
-                  :src="createSpeechAudioSrc(chunk.audioData)"
-                  controls
-                  preload="metadata"
-                />
-              </div>
+              <SpeechResultPanel
+                v-for="chunk in speechResults"
+                :key="chunk.id"
+                :chunk="chunk"
+                @copy-prompt="copyPrompt"
+                @replay="replaySpeech"
+                @remove="removeSpeechResult"
+              />
             </div>
             <div v-else class="batches-list" v-bind="renderedWrapperProps">
               <GenerationResultCard
@@ -612,60 +586,6 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, Play } = useIcon([
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.speech-result-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  background: var(--bg-card);
-}
-
-.speech-result-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.speech-result-title {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  color: var(--text-primary);
-  line-height: 1.6;
-}
-
-.speech-result-title span {
-  word-break: break-word;
-}
-
-.speech-result-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.speech-result-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-
-.speech-result-error {
-  color: var(--error-color, #ff4d4f);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.speech-audio-player {
-  width: 100%;
 }
 
 .empty-state {

@@ -1,57 +1,43 @@
-import { SpeechModelV3, ProviderV3 } from '@ai-sdk/provider';
+import { SpeechModelV3, ProviderV3 } from '@ai-sdk/provider'
 import {
   FetchFunction,
   loadApiKey,
   withUserAgentSuffix,
-} from '@ai-sdk/provider-utils';
-import { MiniMaxSpeechModel } from './minimax-speech-model';
-import { MiniMaxGetVoiceResp, MiniMaxGetVoiceReq } from './minimax-api-types';
-import { Model, ModelVoice } from '../types';
+} from '@ai-sdk/provider-utils'
+import { MiniMaxSpeechModel } from './minimax-speech-model'
+import { MiniMaxGetVoiceResp, MiniMaxGetVoiceReq } from './minimax-api-types'
+import { Model, ModelVoice } from '../types'
+
 const VERSION = '1.0.0'
+
 export interface MiniMaxProvider extends Pick<ProviderV3, 'speechModel'> {
   (settings?: {}): {
-    speech: (modelId?: string) => MiniMaxSpeechModel;
-  };
+    speech: (modelId?: string) => MiniMaxSpeechModel
+  }
 
-  /**
-   * Creates a model for speech synthesis.
-   */
-  speech(modelId?: string): SpeechModelV3;
-
-  /**
-   * List of available models.
-   */
-  listModels: () => Promise<Model[]>;
+  speech(modelId?: string): SpeechModelV3
+  listModels: () => Promise<Model[]>
 }
 
 export interface MiniMaxProviderSettings {
-  /**
-   * API key for authenticating requests.
-   */
-  apiKey?: string;
-
-  /**
-   * Base URL for the MiniMax API requests.
-   */
-  baseURL?: string;
-
-  /**
-   * Custom headers to include in the requests.
-   */
-  headers?: Record<string, string>;
-
-  /**
-   * Custom fetch implementation.
-   */
-  fetch?: FetchFunction;
+  apiKey?: string
+  baseURL?: string
+  headers?: Record<string, string>
+  fetch?: FetchFunction
 }
 
-/**
- * Create a MiniMax provider instance.
- */
 export function createMiniMax(
   options: MiniMaxProviderSettings = {},
 ): MiniMaxProvider {
+  const normalizeBaseURL = (value: string) => value.replace(/\/+$/, '')
+  const joinPath = (base: string, path: string) => {
+    const normalizedBase = normalizeBaseURL(base)
+    if (normalizedBase.endsWith('/v1') && path.startsWith('/v1/')) {
+      return `${normalizedBase}${path.slice(3)}`
+    }
+    return `${normalizedBase}${path}`
+  }
+
   const getHeaders = () =>
     withUserAgentSuffix(
       {
@@ -63,27 +49,28 @@ export function createMiniMax(
         ...options.headers,
       },
       `ai-sdk/minimax/${VERSION}`,
-    );
+    )
 
-  const baseURL = options.baseURL ?? 'https://api.minimaxi.com';
+  const baseURL = options.baseURL ?? 'https://api.minimaxi.com'
 
   const createSpeechModel = (modelId: string = 'speech-2.6-hd') =>
     new MiniMaxSpeechModel(modelId, {
-      provider: `minimax.speech`,
-      url: () => `${baseURL}/t2a_v2`,
+      provider: 'minimax.speech',
+      url: ({ path }) => joinPath(baseURL, path),
       headers: getHeaders,
       fetch: options.fetch,
-    });
+    })
 
   const provider = function () {
     return {
       speech: createSpeechModel,
-    };
-  };
+    }
+  }
 
-  provider.speech = createSpeechModel;
-  provider.speechModel = createSpeechModel;
-  provider.speechCallOptionsSchema = MiniMaxSpeechModel.speechCallOptionsSchema;
+  provider.speech = createSpeechModel
+  provider.speechModel = createSpeechModel
+  provider.speechCallOptionsSchema = MiniMaxSpeechModel.speechCallOptionsSchema
+
   const defaultModels = [
     {
       id: 'speech-2.6-hd',
@@ -132,13 +119,29 @@ export function createMiniMax(
       created: 1694521600,
       object: 'model',
       owned_by: 'minimax'
+    },
+    {
+      id: 'music-2.5+',
+      category: 'tts',
+      name: 'MiniMax Music 2.5+',
+      created: 1694521600,
+      object: 'model',
+      owned_by: 'minimax'
+    },
+    {
+      id: 'music-2.5',
+      category: 'tts',
+      name: 'MiniMax Music 2.5',
+      created: 1694521600,
+      object: 'model',
+      owned_by: 'minimax'
     }
   ] as Model[]
 
   provider.listModels = async () => {
     try {
       const headers = getHeaders()
-      const response = await fetch(`${baseURL}/get_voice`, {
+      const response = await fetch(joinPath(baseURL, '/get_voice'), {
         method: 'POST',
         headers: {
           ...headers,
@@ -172,7 +175,7 @@ export function createMiniMax(
 
       return defaultModels.map((m) => ({
         ...m,
-        voices
+        ...(m.id.startsWith('speech-') ? { voices } : {})
       }))
     } catch (error) {
       console.error('Failed to fetch MiniMax voices:', error)
@@ -180,10 +183,7 @@ export function createMiniMax(
     }
   }
 
-  return provider satisfies MiniMaxProvider;
+  return provider satisfies MiniMaxProvider
 }
 
-/**
- * Default MiniMax provider instance.
- */
-export const minimax = createMiniMax();
+export const minimax = createMiniMax()

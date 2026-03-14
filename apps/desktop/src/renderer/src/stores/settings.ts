@@ -554,7 +554,6 @@ export const useSettingsStore = defineStore(
       providerOptions?: Record<string, any>
       mediaType?: 'speech'
     }
-
     const imageGenerationForm = ref<ImageGenerationFormData>()
     const videoGenerationForm = ref<ImageGenerationFormData>()
     const speechGenerationForm = ref<SpeechGenerationFormData>()
