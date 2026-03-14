@@ -73,10 +73,10 @@ interface ChatServiceConfig {
 export type GenerateImagePrompt =
   | string
   | {
-      images: Array<DataContent>
-      text?: string
-      mask?: DataContent
-    }
+    images: Array<DataContent>
+    text?: string
+    mask?: DataContent
+  }
 
 export interface ImageGenerateOptions {
   n?: number
@@ -102,26 +102,6 @@ type CompressionMetaData = MetaData & {
 const COMPRESSED_CONTEXT_MARKER = '[上下文已压缩]'
 const MESSAGE_HEADROOM_AFTER_COMPRESSION = 2
 const TOKEN_HEADROOM_RATIO_AFTER_COMPRESSION = 0.2
-
-const buildOpenAICompatibleTransformRequestBody = (transformRequestBody?: string) => {
-  if (!transformRequestBody?.trim()) return undefined
-
-  try {
-    const parsed = JSON.parse(transformRequestBody)
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      console.warn('transformRequestBody 必须是 JSON 对象字符串')
-      return undefined
-    }
-
-    return (args: Record<string, any>) => ({
-      ...args,
-      ...parsed
-    })
-  } catch (error) {
-    console.warn('transformRequestBody JSON 解析失败:', error)
-    return undefined
-  }
-}
 
 const isCompressedContextMessage = (message: BaseMessage): boolean => {
   return Boolean(
@@ -206,12 +186,12 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
   const recentMessageCount =
     contextCount && contextCount > 1
       ? Math.max(
-          1,
-          Math.min(
-            Math.max(1, Math.floor((contextCount - preservedSystemCount - 1) / 2)),
-            contextCount - preservedSystemCount - 1 - MESSAGE_HEADROOM_AFTER_COMPRESSION
-          )
+        1,
+        Math.min(
+          Math.max(1, Math.floor((contextCount - preservedSystemCount - 1) / 2)),
+          contextCount - preservedSystemCount - 1 - MESSAGE_HEADROOM_AFTER_COMPRESSION
         )
+      )
       : undefined
   const recentTokenCount =
     contextTokenCount && contextTokenCount > 1
@@ -227,13 +207,13 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
     : Boolean(contextCount && persistedBaseMessages.length > contextCount)
   const tokenThresholdReached = hasPriorSummary
     ? Boolean(
-        contextTokenCount &&
-        estimateMessagesTokens(unsummarizedTailMessages, activeModel) > contextTokenCount
-      )
+      contextTokenCount &&
+      estimateMessagesTokens(unsummarizedTailMessages, activeModel) > contextTokenCount
+    )
     : Boolean(
-        contextTokenCount &&
-        estimateMessagesTokens(persistedBaseMessages, activeModel) > contextTokenCount
-      )
+      contextTokenCount &&
+      estimateMessagesTokens(persistedBaseMessages, activeModel) > contextTokenCount
+    )
 
   const shouldAutoCompress =
     (messageThresholdReached || tokenThresholdReached) &&
@@ -254,8 +234,8 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
     const meaningfulMessagesToCompress = hasPriorSummary
       ? unsummarizedTailMessages
       : persistedBaseMessages.filter((message) => {
-          return message.role !== 'system' || Boolean(serializeMessageForCompression(message))
-        })
+        return message.role !== 'system' || Boolean(serializeMessageForCompression(message))
+      })
 
     if (hasPriorSummary && meaningfulMessagesToCompress.length === 0) return messages
     if (!hasPriorSummary && meaningfulMessagesToCompress.length === 0) return messages
@@ -296,7 +276,7 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
         date: Date.now(),
         provider: compressProvider.id,
         model: compressModel.modelId,
-        stop: () => {},
+        stop: () => { },
         loading: true,
         cid,
         compressedUpToIndex: lastCompressedIndex
@@ -527,6 +507,31 @@ export const chatService = () => {
         return result
       }
     }))
+
+
+    const buildOpenAICompatibleTransformRequestBody = (transformRequestBody?: string) => {
+      if (!transformRequestBody?.trim()) return undefined
+
+      try {
+        const parsed = JSON.parse(transformRequestBody)
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          console.warn('transformRequestBody 必须是 JSON 对象字符串')
+          return undefined
+        }
+
+        return (args: Record<string, any>) => ({
+          ...args,
+          ...parsed,
+          thinking: {
+            type: thinkingMode ? 'enabled' : 'disabled'
+          },
+        })
+      } catch (error) {
+        console.warn('transformRequestBody JSON 解析失败:', error)
+        return undefined
+      }
+    }
+
     const transformRequestBody =
       providerType === 'openai-compatible'
         ? buildOpenAICompatibleTransformRequestBody(customProviderOptions?.transformRequestBody)
