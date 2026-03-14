@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { DynamicToolUIPart, ToolUIPart } from 'ai'
 import { getBuiltinTools } from '@renderer/services/builtin-tools'
+import type { MenuItem } from '@renderer/composables/useContextMenu'
 
 const props = defineProps<{
   tool_part: DynamicToolUIPart | ToolUIPart
@@ -8,6 +9,9 @@ const props = defineProps<{
   message?: BaseMessage
 }>()
 const { display } = storeToRefs(useSettingsStore())
+const { currentChat } = storeToRefs(useChatsStores())
+const { showContextMenu } = useContextMenu<{ toolCallId: string }>()
+const { Refresh } = useIcon(['Refresh'])
 const isCollapsed = ref(!display.value.expandToolsByDefault)
 
 const isInputCollapsed = ref(true)
@@ -18,6 +22,7 @@ const isEditingOutput = ref(false)
 const localInput = ref('')
 const localOutput = ref('')
 const isRunning = ref(false)
+const toolCallId = computed(() => (props.tool_part as { toolCallId?: string }).toolCallId || '')
 
 const toggleInputCollapse = () => {
   if (!isEditingInput.value) {
@@ -155,11 +160,47 @@ watch(
   },
   { immediate: true }
 )
+
+const canRetryAroundToolCall = computed(() => {
+  return Boolean(props.message?.role === 'assistant' && toolCallId.value && currentChat.value?.id)
+})
+
+const getRetryMenuItems = (): MenuItem<{ toolCallId: string }>[] => [
+  {
+    label: '从此处以上重试',
+    icon: Refresh,
+    onClick: ({ toolCallId }) => {
+      if (!currentChat.value?.id) return
+      const { retryFromToolCall } = useChat(currentChat.value.id)
+      retryFromToolCall(toolCallId, 'above')
+    }
+  },
+  {
+    label: '从此处以下重试',
+    icon: Refresh,
+    onClick: ({ toolCallId }) => {
+      if (!currentChat.value?.id) return
+      const { retryFromToolCall } = useChat(currentChat.value.id)
+      retryFromToolCall(toolCallId, 'below')
+    }
+  }
+]
+
+const openRetryContextMenu = (event: MouseEvent) => {
+  if (!canRetryAroundToolCall.value) return
+  showContextMenu(event, getRetryMenuItems(), { toolCallId: toolCallId.value })
+}
+
+const openRetryMenuFromButton = (event: MouseEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+  openRetryContextMenu(event)
+}
 </script>
 
 <template>
   <div class="msg-row tool-row">
-    <div class="tool-container" :class="{ 'is-expanded': !isCollapsed }">
+    <div class="tool-container" :class="{ 'is-expanded': !isCollapsed }" @contextmenu="openRetryContextMenu">
       <div class="tool-header" @click="toggleCollapse">
         <div class="tool-info">
           <div class="tool-icon">
@@ -178,6 +219,15 @@ watch(
             <span class="status-dot"></span>
           </slot>
         </div>
+        <button
+          v-if="canRetryAroundToolCall"
+          class="retry-tool-btn"
+          type="button"
+          title="重试选项"
+          @click="openRetryMenuFromButton"
+        >
+          <Refresh />
+        </button>
         <div class="tool-toggle">
            <svg class="header-collapse-icon" :class="{ collapsed: isCollapsed }" xmlns="http://www.w3.org/2000/svg"
             width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -283,12 +333,12 @@ watch(
 .tool-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 2px 4px; /* 极致压缩 header padding */
   cursor: pointer;
   user-select: none;
   border-radius: 4px;
   min-height: 20px;
+  gap: 4px;
 }
 
 .tool-header:hover {
@@ -323,7 +373,6 @@ watch(
   margin-left: auto;
   display: flex;
   align-items: center;
-  padding-right: 6px;
 }
 
 .status-dot {
@@ -332,6 +381,31 @@ watch(
   border-radius: 50%;
   background-color: var(--color-success);
   opacity: 0.8;
+}
+
+.retry-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  flex: none;
+}
+
+.retry-tool-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.retry-tool-btn :deep(svg) {
+  width: 10px;
+  height: 10px;
 }
 
 .tool-toggle {

@@ -96,6 +96,40 @@ export const useChat = (chatId: string) => {
     return getRetryBranchMessages(chat, getActiveRetryBranchId()).filter((message) => !message.metadata?.deletedAt)
   }
 
+  const findToolCallLocation = (messages: BaseMessage[], toolCallId: string) => {
+    for (let messageIndex = 0; messageIndex < messages.length; messageIndex += 1) {
+      const message = messages[messageIndex]
+      if (message.role !== 'assistant') continue
+
+      const partIndex = message.parts.findIndex((part) => {
+        const partToolCallId = (part as { toolCallId?: string }).toolCallId
+        return partToolCallId === toolCallId
+      })
+
+      if (partIndex >= 0) {
+        return { messageIndex, partIndex, message }
+      }
+    }
+
+    return null
+  }
+
+  const clearTransientMetadata = (metadata?: MetaData): MetaData | undefined => {
+    if (!metadata) return metadata
+
+    const nextMetadata: Partial<MetaData> = { ...metadata }
+    delete nextMetadata.loading
+    delete nextMetadata.error
+    delete nextMetadata.stop
+    delete nextMetadata.audio
+    delete nextMetadata.translationLoading
+    delete nextMetadata.translationController
+    delete nextMetadata.translations
+    delete nextMetadata.usage
+    delete nextMetadata.providerMetadata
+    return nextMetadata as MetaData
+  }
+
   const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; isApproval?: boolean; retryBranchId?: string | null }): _useChat<BaseMessage> => {
     const { regenerateMessageId, isApproval, retryBranchId = null } = options || {}
     const scope = effectScope()
@@ -491,6 +525,61 @@ export const useChat = (chatId: string) => {
     continueMessages: () => {
       const retryBranchId = getActiveRetryBranchId()
       const chat = createChat(getVisibleMessages(), { retryBranchId })
+      chat.sendMessage()
+    },
+    retryFromToolCall: (toolCallId: string, position: 'above' | 'below') => {
+      const currentMessages = getVisibleMessages()
+      const toolCallLocation = findToolCallLocation(currentMessages, toolCallId)
+
+      if (!toolCallLocation) {
+        messageApi.error('未找到对应的工具调用')
+        return
+      }
+
+      const { messageIndex, partIndex, message } = toolCallLocation
+      const truncatedParts =
+        position === 'above'
+          ? message.parts.slice(0, partIndex)
+          : message.parts.slice(0, partIndex + 1)
+
+      let branchAnchorMessageId: string | null = null
+      for (let index = messageIndex - 1; index >= 0; index -= 1) {
+        if (currentMessages[index]?.role === 'user') {
+          branchAnchorMessageId = currentMessages[index]?.id || null
+          break
+        }
+      }
+
+      if (!branchAnchorMessageId) {
+        messageApi.error('未找到可重试的用户消息')
+        return
+      }
+
+      message.metadata?.stop?.()
+
+      const retryBranchId = createRetryBranch(chatId, branchAnchorMessageId)
+      if (!retryBranchId) {
+        messageApi.error('创建重试分支失败')
+        return
+      }
+
+      const baseMessages = currentMessages.slice(0, messageIndex)
+      const nextMessages =
+        truncatedParts.length > 0
+          ? [
+            ...baseMessages,
+            {
+              ...message,
+              parts: cloneDeep(truncatedParts),
+              metadata: clearTransientMetadata(message.metadata)
+            }
+          ]
+          : baseMessages
+
+      updateMessagesInRetryBranch(chatId, retryBranchId, cloneDeep(nextMessages))
+
+      scrollToBottom()
+      const chat = createChat(nextMessages, { retryBranchId })
       chat.sendMessage()
     },
     regenerate: (messageId: string) => {
