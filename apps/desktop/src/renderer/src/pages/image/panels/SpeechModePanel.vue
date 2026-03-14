@@ -160,7 +160,7 @@ const speechFields = computed<FormField<any>[]>(() => {
       name: 'language',
       type: 'text',
       label: '语言',
-      placeholder: '例如 zh、en、ja �?auto',
+      placeholder: '例如 zh、en、ja 或 auto',
       defaultValue: 'auto',
       ifShow: (data: any) => !isMusicModel(data)
     } as FormField<any>
