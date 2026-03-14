@@ -56,9 +56,16 @@ const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
 const agentStore = useAgentStore()
 
 const isDeletedMessage = (message: BaseMessage) => !!message.metadata?.deletedAt
+const hasRetryBranchSwitcher = (messageId: string) => {
+  if (!currentChat.value?.id) return false
+  return getRetryBranchVariants(currentChat.value.id, messageId).variants.length > 1
+}
 
 const visibleMessages = computed(() => {
-  return (currentChat.value?.messages || []).filter((message) => !isDeletedMessage(message))
+  return (currentChat.value?.messages || []).filter((message) => {
+    if (!isDeletedMessage(message)) return true
+    return message.role === 'user' && !!message.id && hasRetryBranchSwitcher(message.id)
+  })
 })
 
 const contextCount = computed(() => {
@@ -548,7 +555,14 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
                 <span class="divider-text">上下文分割线</span>
                 <div class="divider-line"></div>
               </div>
-              <ChatMessageItemHuman v-if="message.role === 'user'" :message="message" :style="index === lastMessageIndex ? {
+              <div v-if="isDeletedMessage(message)" class="deleted-message-placeholder" :style="index === lastMessageIndex ? {
+                minHeight: 0,
+                height: 'auto',
+                flex: '1 1 auto'
+              } : undefined">
+                <span class="deleted-message-text">已删除的分支锚点</span>
+              </div>
+              <ChatMessageItemHuman v-else-if="message.role === 'user'" :message="message" :style="index === lastMessageIndex ? {
                 minHeight: 0,
                 height: 'auto',
                 flex: '1 1 auto'
@@ -716,6 +730,25 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   overflow: visible;
   contain: layout style;
   padding-bottom: 24px;
+}
+
+.deleted-message-placeholder {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  padding: 8px 20px;
+}
+
+.deleted-message-text {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 12px 12px 2px 12px;
+  border: 1px dashed var(--border-color);
+  color: var(--text-tertiary);
+  background: color-mix(in srgb, var(--bg-card) 86%, transparent);
+  font-size: 12px;
 }
 
 .context-divider {
