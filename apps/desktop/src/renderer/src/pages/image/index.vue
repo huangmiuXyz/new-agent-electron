@@ -2,7 +2,7 @@
 import { useVirtualList } from '@vueuse/core'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { ImageBatch, useImageStore } from '@renderer/stores/image'
-import { useSpeechStore } from '@renderer/stores/speech'
+import { useAudioStore } from '@renderer/stores/audio'
 import { useImageGeneration } from '@renderer/composables/useImageGeneration'
 import GenerationResultCard from './GenerationResultCard.vue'
 import SpeechResultPanel from './SpeechResultPanel.vue'
@@ -42,7 +42,7 @@ const props = defineProps<{
 
 const settingsStore = useSettingsStore()
 const imgStore = useImageStore()
-const speechStore = useSpeechStore()
+const audioStore = useAudioStore()
 const { generatedBatches, startGeneration, resumeGeneration, createImageBatch } = useImageGeneration()
 
 const activeMode = ref<GenerationMode>('image')
@@ -106,7 +106,7 @@ const renderedWrapperProps = computed(() => {
 })
 
 const speechResults = computed(() =>
-  speechStore.queue
+  audioStore.generatedBatches
     .filter((chunk) => chunk.messageId.startsWith(IMAGE_PAGE_SPEECH_PREFIX))
     .slice()
     .reverse()
@@ -263,18 +263,14 @@ const copyPrompt = (prompt: string) => {
 
 const clearResults = () => {
   if (isSpeechMode.value) {
-    speechResults.value.forEach((chunk) => speechStore.removeChunk(chunk.id))
+    audioStore.clearBatches()
     return
   }
   imgStore.clearBatches()
 }
 
-const replaySpeech = (chunkId: string) => {
-  speechStore.jumpToChunk(chunkId)
-}
-
 const removeSpeechResult = (chunkId: string) => {
-  speechStore.removeChunk(chunkId)
+  audioStore.removeBatch(chunkId)
 }
 
 const reEdit = (batch: ImageBatch) => {
@@ -439,7 +435,6 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium } = useIcon([
                   :key="chunk.id"
                   :chunk="chunk"
                   @copy-prompt="copyPrompt"
-                  @replay="replaySpeech"
                   @remove="removeSpeechResult"
                 />
               </div>

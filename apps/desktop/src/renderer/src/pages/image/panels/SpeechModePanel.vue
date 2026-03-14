@@ -1,11 +1,13 @@
 <script setup lang="tsx">
+import { experimental_generateSpeech as generateSpeech } from 'ai'
 import { createRegistry } from '@renderer/services/chatService/registry'
-import { speechService } from '@renderer/services/speechService'
 import { useSettingsStore } from '@renderer/stores/settings'
+import { useAudioStore } from '@renderer/stores/audio'
 import type { ModelCategory } from '@agent-qi/types'
+import { usePlugins } from '@renderer/composables/usePlugins'
 
 const settingsStore = useSettingsStore()
-const tts = speechService()
+const audioStore = useAudioStore()
 
 const speechDynamicField = ref<FormField<any> | null>(null)
 const speechVoiceOptions = ref<Array<{ label: string; value: string }>>([])
@@ -190,8 +192,37 @@ const submit = async (text: string, messageId: string) => {
   const providerOptions = isMusicModelId(data.model.modelId)
     ? filterProviderOptionsForMusic(data.providerOptions)
     : data.providerOptions
+  const provider = settingsStore.getProviderById(data.model.providerId)!
+  const chunkId = nanoid()
 
-  await tts.generateAndPlay({
+  const modelInfo = provider.models?.find((item) => item.id === data.model.modelId)
+  audioStore.addBatch({
+    id: chunkId,
+    messageId,
+    prompt: text.trim(),
+    model: data.model.modelId,
+    providerId: data.model.providerId,
+    providerName: provider.name,
+    modelName: modelInfo?.name || data.model.modelId,
+    mediaType: isMusicModelId(data.model.modelId) ? 'music' : 'speech',
+    status: 'processing'
+  })
+
+  const modelString = `${provider.providerType}:${data.model.modelId}`
+  const cleanObject = (obj: any): any => {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => {
+          if (v === '' || v === null || v === undefined) return false
+          if (Array.isArray(v) && v.length === 0) return false
+          return true
+        })
+        .map(([k, v]) => [k, cleanObject(v)])
+    )
+  }
+
+  const params = {
     text: text.trim(),
     messageId,
     modelId: data.model.modelId,
@@ -200,7 +231,40 @@ const submit = async (text: string, messageId: string) => {
     speed: data.speed ? Number(data.speed) : undefined,
     language: data.language || undefined,
     providerOptions
-  })
+  }
+
+  try {
+
+    const { audio } = await generateSpeech({
+      model: createRegistry({
+        apiKey: provider.apiKey || '',
+        baseURL: provider.baseUrl,
+        name: provider.name
+      }).speechModel(modelString as any),
+      text: params.text,
+      voice: params.voice,
+      speed: params.speed,
+      language: params.language,
+      providerOptions: {
+        [provider.providerType]: cleanObject(providerOptions || {})
+      }
+    })
+
+    const base64 = audio.base64
+    const mediaType = audio.mediaType || 'audio/mpeg'
+    audioStore.updateBatch(chunkId, {
+      audioData: base64,
+      audioMediaType: mediaType,
+      audioFormat: audio.format,
+      status: 'completed',
+      error: undefined
+    })
+  } catch (error) {
+    console.error('Speech generation failed:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    audioStore.updateBatch(chunkId, { status: 'failed', error: errorMessage })
+    throw error
+  }
 }
 
 const hasModelSelected = () => !!speechFormActions.getData()?.model?.modelId

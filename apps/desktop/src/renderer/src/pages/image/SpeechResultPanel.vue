@@ -1,21 +1,39 @@
 <script setup lang="ts">
-import type { AudioChunk } from '@renderer/stores/speech'
+import type { AudioBatch } from '@renderer/stores/audio'
 
 const props = defineProps<{
-  chunk: AudioChunk
+  chunk: AudioBatch
 }>()
 
 const emit = defineEmits<{
   (e: 'copyPrompt', text: string): void
-  (e: 'replay', chunkId: string): void
   (e: 'remove', chunkId: string): void
 }>()
 
-const isMusicResult = computed(() => props.chunk.kind === 'music' || props.chunk.modelId?.startsWith('music-'))
+const isMusicResult = computed(() => props.chunk.mediaType === 'music' || props.chunk.model?.startsWith('music-'))
 const audioSrc = computed(() => {
   if (!props.chunk.audioData) return ''
   return `data:${props.chunk.audioMediaType || 'audio/mpeg'};base64,${props.chunk.audioData}`
 })
+
+const downloadAudio = async () => {
+  if (!audioSrc.value) return
+  try {
+    const response = await fetch(audioSrc.value)
+    const blob = await response.blob()
+    const extension = (props.chunk.audioFormat || '').toLowerCase() || 'mp3'
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `speech-${Date.now()}.${extension}`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error('Failed to download audio:', err)
+  }
+}
 
 const formatDuration = (value?: number) => {
   if (!value || Number.isNaN(value)) return '--:--'
@@ -24,7 +42,12 @@ const formatDuration = (value?: number) => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
-const { Trash, VolumeMedium, Play, FileMusic } = useIcon(['Trash', 'VolumeMedium', 'Play', 'FileMusic'])
+const { Trash, VolumeMedium, FileMusic, Download } = useIcon([
+  'Trash',
+  'VolumeMedium',
+  'FileMusic',
+  'Download'
+])
 </script>
 
 <template>
@@ -35,8 +58,8 @@ const { Trash, VolumeMedium, Play, FileMusic } = useIcon(['Trash', 'VolumeMedium
           <component :is="isMusicResult ? FileMusic : VolumeMedium" />
         </span>
         <div class="speech-result-title-content">
-          <div class="speech-result-prompt">
-            <span>{{ chunk.text }}</span>
+                    <div class="speech-result-prompt">
+            <span>{{ chunk.prompt }}</span>
             <Tags v-if="chunk.modelName" :tags="[chunk.modelName]" color="blue" />
           </div>
           <div class="speech-result-tags">
@@ -44,21 +67,21 @@ const { Trash, VolumeMedium, Play, FileMusic } = useIcon(['Trash', 'VolumeMedium
           </div>
         </div>
       </div>
-      <div class="speech-result-actions">
-        <Button size="sm" variant="text" @click="emit('copyPrompt', chunk.text)">复制文本</Button>
-        <Button size="sm" variant="text" @click="emit('replay', chunk.id)">
+                  <div class="speech-result-actions">
+        <Button size="sm" variant="text" @click="emit('copyPrompt', chunk.prompt)">复制文本</Button>
+        <Button size="sm" variant="text" :disabled="!chunk.audioData" @click="downloadAudio">
           <template #icon>
-            <Play />
+            <Download />
           </template>
-          播放
+          下载
         </Button>
         <Button size="sm" variant="text" @click="emit('remove', chunk.id)">
           <Trash />
         </Button>
       </div>
     </div>
-    <div class="speech-result-meta">
-      <span>{{ chunk.loading ? '生成中...' : chunk.error ? '生成失败' : isMusicResult ? '音乐已生成' : '语音已生成' }}</span>
+            <div class="speech-result-meta">
+      <span>{{ chunk.status === 'processing' ? '生成中...' : chunk.status === 'failed' || chunk.error ? '生成失败' : isMusicResult ? '音乐已生成' : '语音已生成' }}</span>
       <span>{{ formatDuration(chunk.duration) }}</span>
     </div>
     <div v-if="chunk.error" class="speech-result-error">{{ chunk.error }}</div>
