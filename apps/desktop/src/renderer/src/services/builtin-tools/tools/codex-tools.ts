@@ -374,28 +374,36 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     }
   },
   exec_command: {
-    title: '执行cmd命令',
-    description: '执行cmd命令',
+    title: '在终端中执行命令',
+    description:
+      '在现有终端会话中执行命令。首次调用可不传 terminal_id 来创建新终端；一旦工具返回了终端ID，后续相关命令应优先复用同一个 terminal_id，避免每次创建新终端导致上下文丢失。',
     inputSchema: z.object({
       command: z.string().describe('要执行的命令'),
-      id: z
+      terminal_id: z
         .string()
         .optional()
-        .describe('终端ID，默认创建新终端，创建新终端后才可以获得，用户无法提供')
+        .describe(
+          '要复用的终端ID。留空时会创建新终端；如果之前的 exec_command 已返回终端ID，后续同一任务必须复用该 terminal_id，只有明确需要独立新会话时才留空。'
+        )
     }),
     needsApproval: true,
     execute: async (args: any, options: any) => {
-      const { command, id } = args
+      const { command, terminal_id } = args
       const { createTab } = useTerminal()
 
       const { id: tabId, result } = await createTab({
         command,
-        id,
+        id: terminal_id,
         toolCallId: options.toolCallId,
         showTerminal: true
       })
       return {
-        toolResult: { content: [{ type: 'stdout', text: `终端ID: ${tabId}\n${result!.output}` }] }
+        toolResult: {
+          content: [{
+            type: 'stdout',
+            text: `终端ID: ${tabId}\n后续如果要在同一终端继续执行命令，请复用这个终端ID。\n${result!.output}`
+          }]
+        }
       }
     }
   },
