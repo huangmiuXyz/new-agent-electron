@@ -564,7 +564,8 @@ export const chatService = () => {
           thinkingMode !== undefined && {
           thinking: {
             type: thinkingMode ? 'enabled' : 'disabled'
-          }
+          },
+          enable_thinking: thinkingMode
         }),
         ...runtimeProviderOptions
       }) || {}
