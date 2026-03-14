@@ -1,12 +1,14 @@
-<script setup lang="tsx">
+<script setup lang="ts">
 import { useVirtualList } from '@vueuse/core'
-import { createRegistry } from '@renderer/services/chatService/registry'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { ImageBatch, useImageStore } from '@renderer/stores/image'
+import { useSpeechStore } from '@renderer/stores/speech'
+import { useImageGeneration } from '@renderer/composables/useImageGeneration'
 import GenerationResultCard from './GenerationResultCard.vue'
 import FloatingInputArea from './FloatingInputArea.vue'
-import { useImageGeneration } from '@renderer/composables/useImageGeneration'
-import type { ModelCategory } from '@agent-qi/types'
+import ImageModePanel from './panels/ImageModePanel.vue'
+import VideoModePanel from './panels/VideoModePanel.vue'
+import SpeechModePanel from './panels/SpeechModePanel.vue'
 
 interface ImageMetadata {
   chatId: string
@@ -28,6 +30,8 @@ interface ToolOutput {
   error?: string
 }
 
+type GenerationMode = 'image' | 'video' | 'speech'
+
 const props = defineProps<{
   args?: Record<string, any>
   result?: ToolOutput
@@ -37,11 +41,26 @@ const props = defineProps<{
 
 const settingsStore = useSettingsStore()
 const imgStore = useImageStore()
-const { generatedBatches, startGeneration, resumeGeneration, startVideoGeneration, createImageBatch, createVideoBatch } = useImageGeneration()
+const speechStore = useSpeechStore()
+const { generatedBatches, startGeneration, resumeGeneration, createImageBatch } = useImageGeneration()
+
+const activeMode = ref<GenerationMode>('image')
+const isImageMode = computed(() => activeMode.value === 'image')
+const isVideoMode = computed(() => activeMode.value === 'video')
+const isSpeechMode = computed(() => activeMode.value === 'speech')
 
 const isRegenerating = ref(false)
 const isToolMode = computed(() => !!props.tool_part)
 const REGENERATE_MIN_LOCK_MS = 1500
+const ITEM_HEIGHT = 320
+const IMAGE_PAGE_SPEECH_PREFIX = 'image-page-speech:'
+
+const imagePanelRef = ref<InstanceType<typeof ImageModePanel>>()
+const videoPanelRef = ref<InstanceType<typeof VideoModePanel>>()
+const speechPanelRef = ref<InstanceType<typeof SpeechModePanel>>()
+const rightInput = ref('')
+const resultsContentRef = ref<HTMLElement>()
+const floatingInputRef = ref<InstanceType<typeof FloatingInputArea>>()
 
 const normalizeImages = (images: any[] = []) =>
   images
@@ -54,82 +73,6 @@ const normalizeImages = (images: any[] = []) =>
     })
     .filter(Boolean) as string[]
 
-// 当前是否为视频生成模式
-const isVideoMode = ref(false)
-
-type ImageResolutionPreset = '1K' | '2K' | '3K' | '4K'
-
-const IMAGE_SIZE_PRESETS: Record<ImageResolutionPreset, Record<string, `${number}x${number}`>> = {
-  '1K': {
-    '1:1': '1024x1024',
-    '4:3': '1152x864',
-    '3:4': '864x1152',
-    '16:9': '1424x800',
-    '9:16': '800x1424',
-    '3:2': '1248x832',
-    '2:3': '832x1248',
-    '21:9': '1568x672'
-  },
-  '2K': {
-    '1:1': '2048x2048',
-    '4:3': '2304x1728',
-    '3:4': '1728x2304',
-    '16:9': '2848x1600',
-    '9:16': '1600x2848',
-    '3:2': '2496x1664',
-    '2:3': '1664x2496',
-    '21:9': '3136x1344'
-  },
-  '3K': {
-    '1:1': '3072x3072',
-    '4:3': '3456x2592',
-    '3:4': '2592x3456',
-    '16:9': '4096x2304',
-    '9:16': '2304x4096',
-    '2:3': '2496x3744',
-    '3:2': '3744x2496',
-    '21:9': '4704x2016'
-  },
-  '4K': {
-    '1:1': '4096x4096',
-    '4:3': '4608x3456',
-    '3:4': '3456x4608',
-    '16:9': '5696x3200',
-    '9:16': '3200x5696',
-    '3:2': '4992x3328',
-    '2:3': '3328x4992',
-    '21:9': '6272x2688'
-  }
-}
-
-const IMAGE_ASPECT_RATIOS = ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3', '21:9']
-
-const getSizeFromPreset = (resolution: string, aspectRatio: string): string => {
-  const map = IMAGE_SIZE_PRESETS[resolution as keyof typeof IMAGE_SIZE_PRESETS]
-  if (!map) return IMAGE_SIZE_PRESETS['2K']['1:1']
-  return map[aspectRatio] || map['1:1']
-}
-
-const parseSize = (size?: string): { width: number; height: number } => {
-  const [w, h] = String(size || '').split('x').map((v) => Number(v))
-  return {
-    width: Number.isFinite(w) && w > 0 ? w : 1024,
-    height: Number.isFinite(h) && h > 0 ? h : 1024
-  }
-}
-
-const getPresetBySize = (size?: string): { resolution: ImageResolutionPreset; aspectRatio: string; custom: boolean } => {
-  if (!size) return { resolution: '2K', aspectRatio: '1:1', custom: false }
-  for (const resolution of Object.keys(IMAGE_SIZE_PRESETS) as Array<ImageResolutionPreset>) {
-    for (const [aspectRatio, presetSize] of Object.entries(IMAGE_SIZE_PRESETS[resolution])) {
-      if (presetSize === size) return { resolution, aspectRatio, custom: false }
-    }
-  }
-  return { resolution: '2K', aspectRatio: '1:1', custom: true }
-}
-
-// 固定高度虚拟滚动
-const ITEM_HEIGHT = 320
 const fallbackToolBatchId = ref(Date.now())
 const toolBatchId = computed(() => {
   const rawToolCallId = props.tool_part?.toolCallId
@@ -138,6 +81,7 @@ const toolBatchId = computed(() => {
   const parsed = Number(String(rawToolCallId).replace(/\D/g, ''))
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackToolBatchId.value
 })
+
 const displayBatches = computed(() => {
   if (!isToolMode.value) return generatedBatches.value
   return generatedBatches.value.filter((batch) => batch.id === toolBatchId.value)
@@ -147,245 +91,58 @@ const { list: virtualList, containerProps, wrapperProps, scrollTo } = useVirtual
   itemHeight: ITEM_HEIGHT,
   overscan: 2
 })
+
 const renderedBatches = computed(() => {
   if (isToolMode.value) {
     return displayBatches.value.map((batch) => ({ data: batch }))
   }
   return virtualList.value
 })
+
 const renderedWrapperProps = computed(() => {
   if (isToolMode.value) return {}
   return wrapperProps.value
 })
 
-// 获取动态字段
-const getDynamicFields = (providerId: string, isVideo: boolean) => {
-  const provider = settingsStore.getProviderById(providerId)
-  if (!provider) return null
-
-  const registry = createRegistry({
-    apiKey: provider.apiKey || '',
-    baseURL: provider.baseUrl,
-    name: provider.name
-  })
-  const providerInstance = registry.getProvider(provider.providerType)
-  if (!providerInstance) return null
-
-  const schema = isVideo ? providerInstance.videoCallOptionsSchema : providerInstance.imageCallOptionsSchema
-  if (!schema) return null
-
-  const fields = zodSchemasToFormfields(schema, `providerOptions.${provider.providerType}`)
-
-  if (fields.length === 0) return null
-
-  return {
-    name: `providerOptions.${provider.providerType}`,
-    type: 'group',
-    label: '更多设置',
-    collapsible: true,
-    defaultCollapsed: false,
-    children: fields,
-    noStyle: true
-  } as FormField<any>
-}
-
-// 图片表单动态字段
-const imageDynamicField = ref<FormField<any> | null>(null)
-// 视频表单动态字段
-const videoDynamicField = ref<FormField<any> | null>(null)
-
-// 切换模式的处理
-const handleModeSwitch = (isVideo: boolean) => {
-  isVideoMode.value = isVideo
-}
-
-// 图片表单字段
-const imageFields = computed<FormField<any>[]>(() => {
-  const fields: FormField<any>[] = [
-    {
-      name: 'model',
-      type: 'modelSelector',
-      popupPosition: 'bottom',
-      label: '生成模型',
-      modelCategory: ['image'] as ModelCategory[],
-      required: true,
-      onChange: ({ providerId }: { providerId: string; modelId: string }) => {
-        imageDynamicField.value = getDynamicFields(providerId, false)
-      }
-    },
-    {
-      name: 'customSizeEnabled',
-      type: 'boolean',
-      label: '自定义分辨率',
-      defaultValue: false
-    } as FormField<any>,
-    {
-      name: 'resolution',
-      type: 'select',
-      label: '分辨率',
-      defaultValue: '2K',
-      options: [
-        { label: '1K', value: '1K' },
-        { label: '2K', value: '2K' },
-        { label: '3K', value: '3K' },
-        { label: '4K', value: '4K' }
-      ],
-      ifShow: (data: any) => !data.customSizeEnabled
-    } as FormField<any>,
-    {
-      name: 'aspectRatio',
-      type: 'select',
-      label: '宽高比',
-      defaultValue: '1:1',
-      options: IMAGE_ASPECT_RATIOS.map((ratio) => ({ label: ratio, value: ratio })),
-      ifShow: (data: any) => !data.customSizeEnabled
-    } as FormField<any>,
-    {
-      name: 'customWidth',
-      type: 'number',
-      label: '自定义宽度',
-      defaultValue: 1024,
-      ifShow: (data: any) => !!data.customSizeEnabled
-    } as FormField<any>,
-    {
-      name: 'customHeight',
-      type: 'number',
-      label: '自定义高度',
-      defaultValue: 1024,
-      ifShow: (data: any) => !!data.customSizeEnabled
-    } as FormField<any>,
-    {
-      name: 'size',
-      type: 'custom',
-      label: '宽高像素值',
-      defaultValue: IMAGE_SIZE_PRESETS['2K']['1:1'],
-      render: (data: any) => (
-        <div class="resolution-value">
-          {data.size || (data.customSizeEnabled
-            ? `${Number(data.customWidth) || 1024}x${Number(data.customHeight) || 1024}`
-            : getSizeFromPreset(data.resolution, data.aspectRatio))}
-        </div>
-      )
-    } as FormField<any>,
-    {
-      name: 'n',
-      type: 'slider',
-      label: '生成数量',
-      min: 1,
-      max: 4,
-      step: 1,
-      defaultValue: 1
-    } as FormField<any>,
-    {
-      name: 'seed',
-      label: '随机种子',
-      placeholder: '留空则随机生成...',
-      type: 'number',
-      rest: () => (
-        <Button
-          variant="text"
-          size="sm"
-          onClick={() => {
-            const randomSeed = Math.floor(Math.random() * 1000000)
-            imageFormActions.setFieldValue('seed', randomSeed)
-          }}
-        >
-          {Dices}
-        </Button>
-      )
-    } as FormField<any>
-  ]
-
-  if (imageDynamicField.value) {
-    fields.push(imageDynamicField.value)
-  }
-
-  return fields
-})
-
-// 视频表单字段
-const videoFields = computed<FormField<any>[]>(() => {
-  const fields: FormField<any>[] = [
-    {
-      name: 'model',
-      type: 'modelSelector',
-      popupPosition: 'bottom',
-      label: '生成模型',
-      modelCategory: ['video'] as ModelCategory[],
-      required: true,
-      onChange: ({ providerId }: { providerId: string; modelId: string }) => {
-        videoDynamicField.value = getDynamicFields(providerId, true)
-      }
-    },
-    {
-      name: 'duration',
-      type: 'select',
-      label: '视频时长',
-      defaultValue: 5,
-      options: [
-        { label: '5秒', value: 5 },
-        { label: '10秒', value: 10 },
-        { label: '15秒', value: 15 }
-      ]
-    } as FormField<any>,
-    {
-      name: 'resolution',
-      type: 'select',
-      label: '分辨率',
-      defaultValue: '720p',
-      options: [
-        { label: '540p', value: '540p' },
-        { label: '720p', value: '720p' },
-        { label: '1080p', value: '1080p' }
-      ]
-    } as FormField<any>,
-    {
-      name: 'n',
-      type: 'slider',
-      label: '生成视频数',
-      min: 1,
-      max: 1,
-      step: 1,
-      defaultValue: 1
-    } as FormField<any>,
-    {
-      name: 'seed',
-      label: '随机种子',
-      placeholder: '留空则随机生成...',
-      type: 'number',
-      rest: () => (
-        <Button
-          variant="text"
-          size="sm"
-          onClick={() => {
-            const randomSeed = Math.floor(Math.random() * 1000000)
-            videoFormActions.setFieldValue('seed', randomSeed)
-          }}
-        >
-          {Dices}
-        </Button>
-      )
-    } as FormField<any>
-  ]
-
-  if (videoDynamicField.value) {
-    fields.push(videoDynamicField.value)
-  }
-
-  return fields
-})
-
-const rightInput = ref('')
-const floatingInputRef = ref<InstanceType<typeof FloatingInputArea>>()
+const speechResults = computed(() =>
+  speechStore.queue
+    .filter((chunk) => chunk.messageId.startsWith(IMAGE_PAGE_SPEECH_PREFIX))
+    .slice()
+    .reverse()
+)
 
 const isModelSelected = computed(() => {
-  const currentForm = isVideoMode.value ? videoFormActions.getData() : imageFormActions.getData()
-  return !!currentForm?.model?.modelId
+  if (isSpeechMode.value) return speechPanelRef.value?.hasModelSelected() ?? false
+  if (isVideoMode.value) return videoPanelRef.value?.hasModelSelected() ?? false
+  return imagePanelRef.value?.hasModelSelected() ?? false
 })
+
+const handleModeSwitch = (mode: GenerationMode) => {
+  activeMode.value = mode
+}
+
+const createSpeechAudioSrc = (audioData?: string) => audioData ? `data:audio/mpeg;base64,${audioData}` : ''
+
+const formatDuration = (value?: number) => {
+  if (!value || Number.isNaN(value)) return '--:--'
+  const mins = Math.floor(value / 60)
+  const secs = Math.floor(value % 60)
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+}
 
 const scrollToBottom = () => {
   nextTick(() => {
-    scrollTo(generatedBatches.value.length - 1)
+    if (isSpeechMode.value) {
+      resultsContentRef.value?.scrollTo({
+        top: resultsContentRef.value.scrollHeight,
+        behavior: 'smooth'
+      })
+      return
+    }
+
+    if (generatedBatches.value.length > 0) {
+      scrollTo(generatedBatches.value.length - 1)
+    }
   })
 }
 
@@ -508,145 +265,36 @@ const handleRegenerate = async () => {
   }
 }
 
-// 图片生成表单
-const [ImageForm, imageFormActions] = useForm({
-  fields: () => imageFields.value,
-  onChange: (field, _value, data) => {
-    if (field === 'customSizeEnabled') {
-      const nextSize = data.customSizeEnabled
-        ? `${Number(data.customWidth) || 1024}x${Number(data.customHeight) || 1024}`
-        : getSizeFromPreset(data.resolution, data.aspectRatio)
-      if (data.size !== nextSize) {
-        imageFormActions.setFieldValue('size', nextSize)
-        return
-      }
-    }
-    if (!data.customSizeEnabled && (field === 'resolution' || field === 'aspectRatio')) {
-      const nextSize = getSizeFromPreset(data.resolution, data.aspectRatio)
-      if (data.size !== nextSize) {
-        imageFormActions.setFieldValue('size', nextSize)
-        return
-      }
-    }
-    if (data.customSizeEnabled && (field === 'customWidth' || field === 'customHeight')) {
-      const nextSize = `${Number(data.customWidth) || 1024}x${Number(data.customHeight) || 1024}`
-      if (data.size !== nextSize) {
-        imageFormActions.setFieldValue('size', nextSize)
-        return
-      }
-    }
-    settingsStore.updateImageGenerationForm({
-      ...data,
-      mediaType: 'image'
-    })
-  },
-  onSubmit: async (data) => {
-    const prompt = rightInput.value.trim()
-    if (!prompt) return
-
-    const referenceImages = floatingInputRef.value?.referenceImages || []
-
-    const batch = createImageBatch({
-      prompt,
-      model: data.model.modelId,
-      providerId: data.model.providerId,
-      size: data.size,
-      n: data.n,
-      seed: data.seed ? Number(data.seed) : undefined,
-      providerOptions: data.providerOptions,
-      referenceImages: referenceImages.length > 0 ? referenceImages : undefined
-    })
-
-    imgStore.addBatch(batch)
-    floatingInputRef.value?.clearReferenceImages()
-    startGeneration(batch)
-  }
-})
-
-// 视频生成表单
-const [VideoForm, videoFormActions] = useForm({
-  fields: () => videoFields.value,
-  onChange: (_field, _value, data) => {
-    settingsStore.updateImageGenerationForm({
-      ...data,
-      mediaType: 'video'
-    })
-  },
-  onSubmit: async (data) => {
-    const prompt = rightInput.value.trim()
-    if (!prompt) return
-
-    const referenceImages = floatingInputRef.value?.referenceImages || []
-
-    const batch = createVideoBatch({
-      prompt,
-      model: data.model.modelId,
-      providerId: data.model.providerId,
-      n: data.n,
-      seed: data.seed ? Number(data.seed) : undefined,
-      duration: data.duration ? Number(data.duration) : undefined,
-      resolution: data.resolution,
-      providerOptions: data.providerOptions,
-      referenceImages: referenceImages.length > 0 ? referenceImages : undefined
-    })
-
-    imgStore.addBatch(batch)
-    floatingInputRef.value?.clearReferenceImages()
-    startVideoGeneration(batch)
-  }
-})
-
-const { Trash, Dices, Image: ImageIcon, Screen } = useIcon(['Trash', 'Dices', 'Image', 'Screen'])
-
 const copyPrompt = (prompt: string) => {
   copyText(prompt)
 }
 
-const clearImages = () => {
+const clearResults = () => {
+  if (isSpeechMode.value) {
+    speechResults.value.forEach((chunk) => speechStore.removeChunk(chunk.id))
+    return
+  }
   imgStore.clearBatches()
+}
+
+const replaySpeech = (chunkId: string) => {
+  speechStore.jumpToChunk(chunkId)
+}
+
+const removeSpeechResult = (chunkId: string) => {
+  speechStore.removeChunk(chunkId)
 }
 
 const reEdit = (batch: ImageBatch) => {
   rightInput.value = batch.prompt
-  isVideoMode.value = batch.mediaType === 'video'
-
-  const formData = {
-    model: {
-      modelId: batch.model,
-      providerId: batch.providerId
-    },
-    n: batch.n,
-    seed: batch.seed,
-    providerOptions: batch.params?.providerOptions
-  }
+  activeMode.value = batch.mediaType === 'video' ? 'video' : 'image'
 
   if (batch.mediaType === 'video') {
-    videoFormActions.setFieldsValue({
-      ...formData,
-      duration: batch.duration,
-      resolution: batch.resolution
-    } as any)
-    if (batch.providerId) {
-      videoDynamicField.value = getDynamicFields(batch.providerId, true)
-    }
+    videoPanelRef.value?.restoreFromBatch(batch)
   } else {
-    const preset = getPresetBySize(batch.size)
-    const parsed = parseSize(batch.size)
-    imageFormActions.setFieldsValue({
-      ...formData,
-      customSizeEnabled: preset.custom,
-      resolution: preset.resolution,
-      aspectRatio: preset.aspectRatio,
-      customWidth: parsed.width,
-      customHeight: parsed.height,
-      size: batch.size
-    } as any)
-    if (batch.providerId) {
-      imageDynamicField.value = getDynamicFields(batch.providerId, false)
-    }
+    imagePanelRef.value?.restoreFromBatch(batch)
   }
 
-  // 恢复参考图片
   if (batch.referenceImages && batch.referenceImages.length > 0 && floatingInputRef.value) {
     floatingInputRef.value.referenceImages = [...batch.referenceImages]
   }
@@ -656,52 +304,36 @@ const deleteBatch = (batchId: number) => {
   imgStore.removeBatch(batchId)
 }
 
-const handleRightInputSubmit = () => {
-  if (!rightInput.value.trim()) return
+const handleRightInputSubmit = async () => {
+  const prompt = rightInput.value.trim()
+  if (!prompt) return
 
-  if (isVideoMode.value) {
-    videoFormActions.submit()
+  const referenceImages = floatingInputRef.value?.referenceImages || []
+
+  if (isSpeechMode.value) {
+    await speechPanelRef.value?.submit(
+      prompt,
+      `${IMAGE_PAGE_SPEECH_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    )
+  } else if (isVideoMode.value) {
+    await videoPanelRef.value?.submit(prompt, referenceImages)
   } else {
-    imageFormActions.submit()
+    await imagePanelRef.value?.submit(prompt, referenceImages)
   }
 
-  nextTick(() => {
-    rightInput.value = ''
-    floatingInputRef.value?.clearInput()
-    scrollToBottom()
-  })
+  rightInput.value = ''
+  floatingInputRef.value?.clearInput()
+  floatingInputRef.value?.clearReferenceImages()
+  scrollToBottom()
 }
 
-onMounted(async () => {
+onMounted(() => {
   if (isToolMode.value) return
 
-  // 恢复图片表单
-  if (settingsStore.imageGenerationForm?.model?.providerId) {
-    imageFormActions.setData(settingsStore.imageGenerationForm)
-    const preset = getPresetBySize(settingsStore.imageGenerationForm.size)
-    const parsed = parseSize(settingsStore.imageGenerationForm.size)
-    imageFormActions.setFieldValue('customSizeEnabled', (settingsStore.imageGenerationForm as any).customSizeEnabled ?? preset.custom)
-    imageFormActions.setFieldValue('resolution', (settingsStore.imageGenerationForm as any).resolution || preset.resolution)
-    imageFormActions.setFieldValue('aspectRatio', (settingsStore.imageGenerationForm as any).aspectRatio || preset.aspectRatio)
-    imageFormActions.setFieldValue('customWidth', Number((settingsStore.imageGenerationForm as any).customWidth) || parsed.width)
-    imageFormActions.setFieldValue('customHeight', Number((settingsStore.imageGenerationForm as any).customHeight) || parsed.height)
-    imageFormActions.setFieldValue(
-      'size',
-      settingsStore.imageGenerationForm.size || getSizeFromPreset(preset.resolution, preset.aspectRatio)
-    )
-    imageDynamicField.value = getDynamicFields(settingsStore.imageGenerationForm.model.providerId, false)
-    if (settingsStore.imageGenerationForm.prompt) {
-      rightInput.value = settingsStore.imageGenerationForm.prompt
-    }
+  if (settingsStore.imageGenerationForm?.prompt) {
+    rightInput.value = settingsStore.imageGenerationForm.prompt
   }
 
-  // 恢复视频表单
-  if (settingsStore.videoGenerationForm?.model?.providerId) {
-    videoFormActions.setData(settingsStore.videoGenerationForm)
-    videoDynamicField.value = getDynamicFields(settingsStore.videoGenerationForm.model.providerId, true)
-  }
-
-  // 恢复未完成的任务
   generatedBatches.value.forEach((batch) => {
     if (batch.taskId && batch.status !== 'completed') {
       resumeGeneration(batch)
@@ -739,6 +371,13 @@ watch(toolResultSyncKey, () => {
   syncToolBatchFromResult()
 }, { immediate: true })
 
+const { Trash, Image: ImageIcon, Screen, VolumeMedium, Play } = useIcon([
+  'Trash',
+  'Image',
+  'Screen',
+  'VolumeMedium',
+  'Play'
+])
 </script>
 
 <template>
@@ -752,20 +391,24 @@ watch(toolResultSyncKey, () => {
     >
       <FormContainer :show-header="false" class="form-section">
         <template #content>
-          <!-- 模式切换 -->
           <div class="mode-switcher">
-            <div class="mode-tab" :class="{ active: !isVideoMode }" @click="handleModeSwitch(false)">
+            <div class="mode-tab" :class="{ active: isImageMode }" @click="handleModeSwitch('image')">
               <ImageIcon />
               <span>图片生成</span>
             </div>
-            <div class="mode-tab" :class="{ active: isVideoMode }" @click="handleModeSwitch(true)">
+            <div class="mode-tab" :class="{ active: isVideoMode }" @click="handleModeSwitch('video')">
               <Screen />
               <span>视频生成</span>
             </div>
+            <div class="mode-tab" :class="{ active: isSpeechMode }" @click="handleModeSwitch('speech')">
+              <VolumeMedium />
+              <span>声音生成</span>
+            </div>
           </div>
 
-          <ImageForm v-if="!isVideoMode" />
-          <VideoForm v-else />
+          <SpeechModePanel v-if="isSpeechMode" ref="speechPanelRef" />
+          <VideoModePanel v-else-if="isVideoMode" ref="videoPanelRef" />
+          <ImageModePanel v-else ref="imagePanelRef" />
         </template>
       </FormContainer>
     </ResizeBox>
@@ -777,7 +420,7 @@ watch(toolResultSyncKey, () => {
           <Button v-if="isToolMode" size="sm" :loading="isRegenerating" @click="handleRegenerate">
             {{ isRegenerating ? '重新生成中...' : '重新生成' }}
           </Button>
-          <Button v-else-if="generatedBatches.length > 0" variant="text" size="sm" @click="clearImages">
+          <Button v-else-if="(isSpeechMode ? speechResults.length : generatedBatches.length) > 0" variant="text" size="sm" @click="clearResults">
             <Trash />
             清空结果
           </Button>
@@ -786,12 +429,50 @@ watch(toolResultSyncKey, () => {
 
       <template #content>
         <div class="results-container">
-          <div class="results-content" v-bind="containerProps">
-            <div v-if="displayBatches.length === 0" class="empty-state">
+          <div class="results-content" v-bind="containerProps" ref="resultsContentRef">
+            <div v-if="isSpeechMode && speechResults.length === 0" class="empty-state">
+              <div class="empty-icon">
+                <VolumeMedium />
+              </div>
+              <p>在下方输入文本，生成可播放的声音内容</p>
+            </div>
+            <div v-else-if="displayBatches.length === 0" class="empty-state">
               <div class="empty-icon">
                 <ImageIcon />
               </div>
               <p>{{ isToolMode ? '等待生成结果...' : '在下方输入提示词，开启你的创作之旅' }}</p>
+            </div>
+            <div v-else-if="isSpeechMode" class="speech-results-list">
+              <div v-for="chunk in speechResults" :key="chunk.id" class="speech-result-card">
+                <div class="speech-result-header">
+                  <div class="speech-result-title">
+                    <VolumeMedium />
+                    <span>{{ chunk.text }}</span>
+                  </div>
+                  <div class="speech-result-actions">
+                    <Button size="sm" variant="text" @click="copyPrompt(chunk.text)">复制文本</Button>
+                    <Button size="sm" variant="text" @click="replaySpeech(chunk.id)">
+                      <Play />
+                      播放
+                    </Button>
+                    <Button size="sm" variant="text" @click="removeSpeechResult(chunk.id)">
+                      <Trash />
+                    </Button>
+                  </div>
+                </div>
+                <div class="speech-result-meta">
+                  <span>{{ chunk.loading ? '生成中...' : chunk.error ? '生成失败' : '生成完成' }}</span>
+                  <span>{{ formatDuration(chunk.duration) }}</span>
+                </div>
+                <div v-if="chunk.error" class="speech-result-error">{{ chunk.error }}</div>
+                <audio
+                  v-else-if="chunk.audioData"
+                  class="speech-audio-player"
+                  :src="createSpeechAudioSrc(chunk.audioData)"
+                  controls
+                  preload="metadata"
+                />
+              </div>
             </div>
             <div v-else class="batches-list" v-bind="renderedWrapperProps">
               <GenerationResultCard
@@ -884,18 +565,6 @@ watch(toolResultSyncKey, () => {
   color: var(--accent-color);
 }
 
-.resolution-value {
-  width: 100%;
-  min-height: 32px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 13px;
-  line-height: 20px;
-}
-
 .results-section {
   flex: 1;
   min-width: 0;
@@ -937,6 +606,66 @@ watch(toolResultSyncKey, () => {
   flex-direction: column;
   gap: 12px;
   padding-bottom: 32px;
+}
+
+.speech-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.speech-result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.speech-result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.speech-result-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.speech-result-title span {
+  word-break: break-word;
+}
+
+.speech-result-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.speech-result-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.speech-result-error {
+  color: var(--error-color, #ff4d4f);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.speech-audio-player {
+  width: 100%;
 }
 
 .empty-state {

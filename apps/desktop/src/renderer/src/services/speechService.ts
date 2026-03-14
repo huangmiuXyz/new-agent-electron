@@ -45,12 +45,6 @@ export const speechService = () => {
     }
 
     try {
-      const registry = createRegistry({
-        apiKey: provider.apiKey || '',
-        baseURL: provider.baseUrl,
-        name: provider.name
-      })
-
       const modelString = `${provider.providerType}:${modelId}`
 
       const cleanObject = (obj: any): any => {
@@ -68,7 +62,11 @@ export const speechService = () => {
       const { triggerHook } = usePlugins()
       await triggerHook('ai:before-tts-use', params)
       const { audio } = await generateSpeech({
-        model: registry.speechModel(modelString as any),
+        model: createRegistry({
+          apiKey: provider.apiKey || '',
+          baseURL: provider.baseUrl,
+          name: provider.name
+        }).speechModel(modelString as any),
         text,
         voice,
         speed,

@@ -545,8 +545,19 @@ export const useSettingsStore = defineStore(
       mediaType?: 'image' | 'video'
     }
 
+    type SpeechGenerationFormData = {
+      model: { modelId: string; providerId: string }
+      prompt: string
+      voice?: string
+      speed?: number
+      language?: string
+      providerOptions?: Record<string, any>
+      mediaType?: 'speech'
+    }
+
     const imageGenerationForm = ref<ImageGenerationFormData>()
     const videoGenerationForm = ref<ImageGenerationFormData>()
+    const speechGenerationForm = ref<SpeechGenerationFormData>()
 
     const updateImageGenerationForm = (data: ImageGenerationFormData) => {
       if (data.mediaType === 'video') {
@@ -554,6 +565,10 @@ export const useSettingsStore = defineStore(
       } else {
         imageGenerationForm.value = data
       }
+    }
+
+    const updateSpeechGenerationForm = (data: SpeechGenerationFormData) => {
+      speechGenerationForm.value = data
     }
     const isAfterRestore = restorePromise
 
@@ -574,8 +589,10 @@ export const useSettingsStore = defineStore(
       providerOptions,
       imageGenerationForm,
       videoGenerationForm,
+      speechGenerationForm,
       shortcuts,
       updateImageGenerationForm,
+      updateSpeechGenerationForm,
       updateThinkingMode,
       updateSpeechEnabled,
       updateProviderOptions,
@@ -643,6 +660,7 @@ export const useSettingsStore = defineStore(
         'providerOptions',
         'imageGenerationForm',
         'videoGenerationForm',
+        'speechGenerationForm',
         'shortcuts'
       ],
       afterRestore: async () => {
