@@ -101,8 +101,7 @@ onMounted(() => {
 <template>
   <header class="app-header drag" :class="{ 'is-mobile-list': isListMode, 'is-windows-desktop': isWindowsDesktop }">
     <div v-if="!isListMode" :style="{
-      marginLeft: (isMobile || isWindowsDesktop) ? '0' : '68px',
-      justifyContent: props.currentView === 'chat' ? 'space-between' : ''
+      marginLeft: (isMobile || isWindowsDesktop) ? '0' : '68px'
     }" :class="{ isMobile, isWindowsDesktop }" class="header-info drag">
       <Button v-if="isWindowsDesktop && props.currentView === 'chat'" variant="icon" size="md" class="no-drag windows-search-left" @click="openSearch">
         <component :is="Search" />
