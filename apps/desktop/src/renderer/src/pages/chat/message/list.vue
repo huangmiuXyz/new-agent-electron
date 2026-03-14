@@ -76,7 +76,7 @@ const lastMessageIndex = computed(() => {
 
 const { height: containerHeight } = useElementSize(scrollHostRef)
 const { height: prevMessageHeight } = useElementSize(prevMessageWrapperRef)
-const RETRY_BRANCH_SWITCHER_RESERVED_HEIGHT = 24
+const RETRY_BRANCH_SWITCHER_RESERVED_HEIGHT = 20
 const LAST_MESSAGE_BOTTOM_GAP = 20
 
 const prevMessageHasRetryBranchControl = computed(() => {
