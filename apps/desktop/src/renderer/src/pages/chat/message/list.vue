@@ -77,7 +77,7 @@ const lastMessageIndex = computed(() => {
 const { height: containerHeight } = useElementSize(scrollHostRef)
 const { height: prevMessageHeight } = useElementSize(prevMessageWrapperRef)
 const RETRY_BRANCH_SWITCHER_RESERVED_HEIGHT = 24
-const LAST_MESSAGE_BOTTOM_GAP = 15
+const LAST_MESSAGE_BOTTOM_GAP = 20
 
 const prevMessageHasRetryBranchControl = computed(() => {
   if (!currentChat.value || lastMessageIndex.value <= 0) return false
