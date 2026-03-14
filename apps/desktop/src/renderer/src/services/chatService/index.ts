@@ -26,11 +26,7 @@ import {
   buildMultiAgentSystemPrompt,
   buildTranslationPrompt
 } from './systemPrompts'
-import {
-  estimateMessagesTokens,
-  serializeMessageForTokenEstimation
-} from './tokenUsage'
-
+import { estimateMessagesTokens, serializeMessageForTokenEstimation } from './tokenUsage'
 
 interface VideoGenerateOptions {
   n?: number
@@ -74,11 +70,13 @@ interface ChatServiceConfig {
   abortSignal?: AbortSignal
 }
 
-export type GenerateImagePrompt = string | {
-  images: Array<DataContent>;
-  text?: string;
-  mask?: DataContent;
-};
+export type GenerateImagePrompt =
+  | string
+  | {
+      images: Array<DataContent>
+      text?: string
+      mask?: DataContent
+    }
 
 export interface ImageGenerateOptions {
   n?: number
@@ -105,15 +103,39 @@ const COMPRESSED_CONTEXT_MARKER = '[上下文已压缩]'
 const MESSAGE_HEADROOM_AFTER_COMPRESSION = 2
 const TOKEN_HEADROOM_RATIO_AFTER_COMPRESSION = 0.2
 
+const buildOpenAICompatibleTransformRequestBody = (transformRequestBody?: string) => {
+  if (!transformRequestBody?.trim()) return undefined
+
+  try {
+    const parsed = JSON.parse(transformRequestBody)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      console.warn('transformRequestBody 必须是 JSON 对象字符串')
+      return undefined
+    }
+
+    return (args: Record<string, any>) => ({
+      ...args,
+      ...parsed
+    })
+  } catch (error) {
+    console.warn('transformRequestBody JSON 解析失败:', error)
+    return undefined
+  }
+}
+
 const isCompressedContextMessage = (message: BaseMessage): boolean => {
   return Boolean(
     message.role === 'system' &&
-    message.parts?.some((part) => part.type === 'text' && part.text?.includes(COMPRESSED_CONTEXT_MARKER))
+    message.parts?.some(
+      (part) => part.type === 'text' && part.text?.includes(COMPRESSED_CONTEXT_MARKER)
+    )
   )
 }
 
 const isCompressingContextMessage = (message: BaseMessage): boolean => {
-  return Boolean((message.metadata as { isCompressingContext?: boolean } | undefined)?.isCompressingContext)
+  return Boolean(
+    (message.metadata as { isCompressingContext?: boolean } | undefined)?.isCompressingContext
+  )
 }
 
 const serializeMessageForCompression = (message: BaseMessage): string => {
@@ -132,7 +154,9 @@ const getCompressionBoundaryTailMessages = (
   }
 
   if (compressedUpToIndex < baseMessages.length) {
-    return baseMessages.slice(compressedUpToIndex + 1).filter((message) => message.role !== 'system')
+    return baseMessages
+      .slice(compressedUpToIndex + 1)
+      .filter((message) => message.role !== 'system')
   }
 
   const latestCompressedMessageIndex = (() => {
@@ -194,15 +218,25 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
       ? Math.max(1, Math.floor(contextTokenCount * (1 - TOKEN_HEADROOM_RATIO_AFTER_COMPRESSION)))
       : undefined
   const hasPriorSummary = Boolean(compressedContext?.content)
-  const unsummarizedTailMessages = getCompressionBoundaryTailMessages(persistedMessages, compressedBoundaryIndex)
+  const unsummarizedTailMessages = getCompressionBoundaryTailMessages(
+    persistedMessages,
+    compressedBoundaryIndex
+  )
   const messageThresholdReached = hasPriorSummary
     ? Boolean(contextCount && unsummarizedTailMessages.length > contextCount)
     : Boolean(contextCount && persistedBaseMessages.length > contextCount)
   const tokenThresholdReached = hasPriorSummary
-    ? Boolean(contextTokenCount && estimateMessagesTokens(unsummarizedTailMessages, activeModel) > contextTokenCount)
-    : Boolean(contextTokenCount && estimateMessagesTokens(persistedBaseMessages, activeModel) > contextTokenCount)
+    ? Boolean(
+        contextTokenCount &&
+        estimateMessagesTokens(unsummarizedTailMessages, activeModel) > contextTokenCount
+      )
+    : Boolean(
+        contextTokenCount &&
+        estimateMessagesTokens(persistedBaseMessages, activeModel) > contextTokenCount
+      )
 
-  const shouldAutoCompress = (messageThresholdReached || tokenThresholdReached) &&
+  const shouldAutoCompress =
+    (messageThresholdReached || tokenThresholdReached) &&
     compressModel?.providerId &&
     compressModel?.modelId
 
@@ -251,16 +285,18 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
     const compressingMessage: BaseMessage = {
       id: compressingMessageId,
       role: 'system',
-      parts: [{
-        type: 'text',
-        text: '🔃 正在压缩上下文...'
-      }],
+      parts: [
+        {
+          type: 'text',
+          text: '🔃 正在压缩上下文...'
+        }
+      ],
       metadata: {
         isCompressingContext: true,
         date: Date.now(),
         provider: compressProvider.id,
         model: compressModel.modelId,
-        stop: () => { },
+        stop: () => {},
         loading: true,
         cid,
         compressedUpToIndex: lastCompressedIndex
@@ -276,7 +312,9 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
         model: compressModel.modelId,
         loading: true
       }
-      updateMessages(cid, (msgs) => normalizeCompressedMessages(msgs, compressingMessage, compressionWindow))
+      updateMessages(cid, (msgs) =>
+        normalizeCompressedMessages(msgs, compressingMessage, compressionWindow)
+      )
     }
 
     let compressedText = ''
@@ -298,10 +336,12 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
       for await (const data of compressStream.textStream) {
         accumulatedText += data
         if (chat) {
-          updateMessage(cid, compressingMessageId, [{
-            type: 'text',
-            text: `🔃 正在压缩上下文...\n\n${accumulatedText}`
-          }])
+          updateMessage(cid, compressingMessageId, [
+            {
+              type: 'text',
+              text: `🔃 正在压缩上下文...\n\n${accumulatedText}`
+            }
+          ])
         }
       }
 
@@ -314,14 +354,16 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
           model: compressModel.modelId,
           loading: false
         }
-        updateMessage(cid, compressingMessageId, [{
-          type: 'text',
-          text: `${compressedText}\n\n${COMPRESSED_CONTEXT_MARKER}`
-        }])
+        updateMessage(cid, compressingMessageId, [
+          {
+            type: 'text',
+            text: `${compressedText}\n\n${COMPRESSED_CONTEXT_MARKER}`
+          }
+        ])
       }
 
       if (chat) {
-        const msg = chat.messages.find(m => m.id === compressingMessageId)
+        const msg = chat.messages.find((m) => m.id === compressingMessageId)
         if (msg && msg.metadata) {
           const newMetadata = {
             ...msg.metadata,
@@ -337,11 +379,13 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
         chat.compressedContext = compressedContext
           ? { ...compressedContext, loading: false }
           : undefined
-        updateMessage(cid, compressingMessageId, [{
-          type: 'text',
-          text: accumulatedText + '\n\n❌ 压缩过程出错，将使用原始上下文继续。'
-        }])
-        const errorMsg = chat.messages.find(m => m.id === compressingMessageId)
+        updateMessage(cid, compressingMessageId, [
+          {
+            type: 'text',
+            text: accumulatedText + '\n\n❌ 压缩过程出错，将使用原始上下文继续。'
+          }
+        ])
+        const errorMsg = chat.messages.find((m) => m.id === compressingMessageId)
         if (errorMsg && errorMsg.metadata) {
           const newMetadata = { ...errorMsg.metadata, loading: false } as MetaData
           updateMessageMetadata(cid, compressingMessageId, newMetadata)
@@ -351,7 +395,7 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
     }
 
     if (compressedText && chat) {
-      const compressingMsg = chat.messages.find(m => m.id === compressingMessageId)
+      const compressingMsg = chat.messages.find((m) => m.id === compressingMessageId)
       if (compressingMsg) {
         return messages
       }
@@ -393,7 +437,7 @@ export const chatService = () => {
       providerOptions: customProviderOptions,
       onBeforeToolExecute,
       isApprovalAction,
-      abortSignal,
+      abortSignal
     }: ChatServiceConfig
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
@@ -419,13 +463,14 @@ export const chatService = () => {
     const currentChat = useChatsStores().getChatById(cid)
     const isSubAgentChat = !!currentChat?.parentChatId
     const assignedBuiltinTools = selectedBuiltinTools || []
-    const hasAssignedAgentTools = assignedBuiltinTools.some((toolName) =>
-      toolName === 'delegate_to_sub_agent' || toolName === 'agent_communicate'
+    const hasAssignedAgentTools = assignedBuiltinTools.some(
+      (toolName) => toolName === 'delegate_to_sub_agent' || toolName === 'agent_communicate'
     )
-    const multiAgentPrompt = hasAssignedAgentTools || isSubAgentChat ? buildMultiAgentSystemPrompt(cid) : ''
-    const agentInstructions = [instructions?.trim(), skillsPrompt, multiAgentPrompt]
-      .filter(Boolean)
-      .join('\n\n') || undefined
+    const multiAgentPrompt =
+      hasAssignedAgentTools || isSubAgentChat ? buildMultiAgentSystemPrompt(cid) : ''
+    const agentInstructions =
+      [instructions?.trim(), skillsPrompt, multiAgentPrompt].filter(Boolean).join('\n\n') ||
+      undefined
 
     const builtinToolKeys = new Set<string>(selectedBuiltinTools || [])
     if (isSubAgentChat) {
@@ -456,7 +501,9 @@ export const chatService = () => {
         close()
       }
     }
-    let ragSearchDetails: Array<{ knowledgeBaseId: string; documentId: string; score?: number }> | undefined
+    let ragSearchDetails:
+      | Array<{ knowledgeBaseId: string; documentId: string; score?: number }>
+      | undefined
 
     const controller = new AbortController()
     if (abortSignal) {
@@ -480,20 +527,31 @@ export const chatService = () => {
         return result
       }
     }))
+    const transformRequestBody =
+      providerType === 'openai-compatible'
+        ? buildOpenAICompatibleTransformRequestBody(customProviderOptions?.transformRequestBody)
+        : undefined
+
+    const { transformRequestBody: _transformRequestBody, ...runtimeProviderOptions } =
+      customProviderOptions || {}
+
     const mergedProviderOptions = {
       ...(thinkingMode !== undefined && {
         thinking: {
           type: thinkingMode ? 'enabled' : 'disabled'
         }
       }),
-      ...customProviderOptions
+      ...runtimeProviderOptions
     }
 
     const agent = new ToolLoopAgent({
       model: wrapLanguageModel({
-        model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-          `${providerType}:${model}`
-        ),
+        model: createRegistry({
+          apiKey,
+          baseURL,
+          name: provider,
+          transformRequestBody
+        }).languageModel(`${providerType}:${model}`),
         middleware: [
           createUsageGuardMiddleware(),
           createToolMiddleware(),
@@ -510,9 +568,7 @@ export const chatService = () => {
         ]
       }),
       providerOptions: {
-        [providerType]: mergedProviderOptions,
-        openaiCompatible: mergedProviderOptions,
-        'openai-compatible': mergedProviderOptions
+        [providerType]: mergedProviderOptions
       },
       tools: wrappedTools,
       temperature,
@@ -533,16 +589,17 @@ export const chatService = () => {
                   output: toolResult.output
                 })
               })
-            ) ?? false)
+            ) ??
+              false)
           )
         }
-      ],
+      ]
     })
 
     // 1. Validate UI messages
     const validatedMessages = await validateUIMessages({
       messages,
-      tools: agent.tools,
+      tools: agent.tools
     })
 
     // 2. 清洗数据：移除历史中没有结果的工具调用，防止模型报错
@@ -552,14 +609,14 @@ export const chatService = () => {
 
     // 3. Convert to model messages
     const modelMessages = await convertToModelMessages(sanitizedMessages, {
-      tools: agent.tools,
+      tools: agent.tools
     })
 
     const estimatedPromptTokens = estimateMessagesTokens(messages, model)
 
     const result = await agent.stream({
       prompt: modelMessages,
-      abortSignal: controller.signal,
+      abortSignal: controller.signal
     })
 
     const uiStream = result.toUIMessageStream({
@@ -569,7 +626,7 @@ export const chatService = () => {
         if (part.type === 'finish-step' && part.finishReason === 'stop') {
           finishMetadata = {
             usage: part.usage,
-            providerMetadata: part.providerMetadata!,
+            providerMetadata: part.providerMetadata!
           }
         }
         return {
@@ -582,7 +639,7 @@ export const chatService = () => {
           stop: () => controller.abort(),
           ragSearchDetails: ragSearchDetails?.map((item) => ({ ...item })),
           ragEnabled,
-          ...finishMetadata,
+          ...finishMetadata
         }
       }
     })
@@ -629,7 +686,7 @@ export const chatService = () => {
       toolChoice = 'auto',
       onData,
       onFinish
-    }: ChatServiceOptions & { onData: (text: string) => void, onFinish: () => void }
+    }: ChatServiceOptions & { onData: (text: string) => void; onFinish: () => void }
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
     try {
@@ -755,8 +812,7 @@ export const chatService = () => {
     await onUseAIBefore({ providerType, apiKey, baseURL })
     const registry = createRegistry({ apiKey, baseURL, name: name || providerType })
     const providerInstance = registry.getProvider(providerType)
-    const listModelsResult =
-      await providerInstance.listModels?.()
+    const listModelsResult = await providerInstance.listModels?.()
     return listModelsResult || []
   }
   const list_tools = async (config: ClientConfig, cache?: boolean) => {
