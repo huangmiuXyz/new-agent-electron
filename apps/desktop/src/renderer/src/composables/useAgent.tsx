@@ -1,7 +1,10 @@
 import { zodSchemasToFormfields } from '../utils/zod-to-form'
 import { createRegistry } from '../services/chatService/registry'
 
-interface AgentFormData extends Omit<Agent, 'backgrounds' | 'id' | 'createdAt' | 'updatedAt' | 'defaultModel'> {
+interface AgentFormData extends Omit<
+  Agent,
+  'backgrounds' | 'id' | 'createdAt' | 'updatedAt' | 'defaultModel'
+> {
   backgrounds: string[]
   defaultModel?: { providerId: string; modelId: string }
 }
@@ -435,13 +438,15 @@ export const useAgent = () => {
         type: 'checkboxGroup',
         label: 'MCP工具',
         options: [],
+        columns: 2,
         ifShow: (data) => data.mcpServers! && data.mcpServers!.length > 0
       } as CheckboxGroupField<AgentFormData>,
       {
         name: 'builtinTools',
         type: 'checkboxGroup',
         label: '内置工具',
-        options: getBuiltinToolOptions()
+        options: getBuiltinToolOptions(),
+        columns: 2
       } as CheckboxGroupField<AgentFormData>
     ]
 
@@ -571,12 +576,13 @@ export const useAgent = () => {
       },
       onSubmit: (data) => {
         // 转换 defaultModel 格式
-        const defaultModel = data.defaultModel?.providerId && data.defaultModel?.modelId
-          ? {
-              providerId: data.defaultModel.providerId,
-              modelId: data.defaultModel.modelId
-            }
-          : undefined
+        const defaultModel =
+          data.defaultModel?.providerId && data.defaultModel?.modelId
+            ? {
+                providerId: data.defaultModel.providerId,
+                modelId: data.defaultModel.modelId
+              }
+            : undefined
 
         const finalData = {
           ...data,

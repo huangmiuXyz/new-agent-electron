@@ -86,7 +86,7 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
 </script>
 
 <template>
-    <div class="checkbox-group" :style="{ '--checkbox-columns': String(Math.max(columns, 1)) }">
+    <div class="checkbox-group">
         <div v-for="group in groupedOptions" :key="group.name || '__ungrouped__'" class="checkbox-section">
             <div v-if="group.name" class="checkbox-group-title" @click="toggleGroup(group.options)">
                 <div class="checkbox group-checkbox" :class="{ checked: getGroupSelectionState(group.options).checked }">
@@ -98,7 +98,7 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
                 </div>
                 <span>{{ group.name }}</span>
             </div>
-            <div class="checkbox-grid">
+            <div class="checkbox-grid" :class="`columns-${Math.max(columns, 1)}`">
                 <div v-for="option in group.options" :key="option.value" class="checkbox-item"
                     :class="{ disabled, checked: isChecked(option.value) }" @click="toggleOption(option.value)">
                     <div class="checkbox">
@@ -139,15 +139,31 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
 
 .checkbox-grid {
     display: grid;
-    grid-template-columns: repeat(var(--checkbox-columns, 1), minmax(0, 1fr));
     gap: 8px;
+}
+
+.checkbox-grid.columns-1 {
+    grid-template-columns: 1fr;
+}
+
+.checkbox-grid.columns-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.checkbox-grid.columns-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.checkbox-grid.columns-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .checkbox-item {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px;
+    padding: 6px 10px;
+    min-height: 60px;
     border: 1px solid var(--border-subtle);
     border-radius: 6px;
     cursor: pointer;
@@ -266,6 +282,10 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
     font-size: 11px;
     color: var(--text-tertiary);
     line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .empty-message {
