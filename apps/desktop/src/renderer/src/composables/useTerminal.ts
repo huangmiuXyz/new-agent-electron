@@ -8,7 +8,7 @@ const isResizing = ref(false)
 const terminalRefs = new Map<string, HTMLElement>()
 const executionDebouncers = new Map<string, ReturnType<typeof debounce>>()
 const toolCallToTerminalMap = ref<Record<string, string>>({})
-
+const POWERSHELL_SHELL_INTEGRATION = `$function:__agent_qi_prompt_original=$function:prompt; function prompt { $ec=$global:LASTEXITCODE; Write-Host "$([char]27)]633;D;$ec$([char]7)" -NoNewline; & $function:__agent_qi_prompt_original }; Clear-Host`
 const generateId = () => Math.random().toString(36).substring(2, 9)
 
 export const useTerminal = (): TerminalActions => {
@@ -132,7 +132,7 @@ export const useTerminal = (): TerminalActions => {
     const cwd = agentStore.getAgentById(currentAgentId)?.terminalStartupPath || undefined
     await window.api.pty.spawn({ id, cols: term.cols, rows: term.rows, cwd })
 
-    const cleanupData = window.api.pty.onData(id, (data) => {
+      const cleanupData = window.api.pty.onData(id, (data) => {
       if (data) {
         term.write(data)
       }
@@ -152,13 +152,16 @@ export const useTerminal = (): TerminalActions => {
             currentTab.isReady = true
             setExecuting(id, true)
 
-            if (platform !== 'win32') {
+            if (platform === 'win32') {
+              currentTab.shellIntegrationEnabled = true
+              window.api.pty.write(id, '\r ' + POWERSHELL_SHELL_INTEGRATION + '\r')
+            } else {
               const shellIntegration = `if [ -n "$ZSH_VERSION" ]; then unsetopt PROMPT_SP; precmd() { printf "\\033]633;D;$?\\007"; }; elif [ -n "$BASH_VERSION" ]; then PROMPT_COMMAND='printf "\\033]633;D;$?\\007"'; fi; clear`
               window.api.pty.write(id, '\r ' + shellIntegration + '\r')
             }
           }
 
-          if (platform === 'win32' && currentTab.isExecuting) {
+          if (platform === 'win32' && currentTab.isExecuting && !currentTab.shellIntegrationEnabled) {
             setExecuting(id, false, 0)
           }
         }
@@ -283,8 +286,10 @@ export const useTerminal = (): TerminalActions => {
 
     tab.currentOutput = ''
 
+    tab.lastExitCode = null
+
     setExecuting(id, true)
-    window.api.pty.write(id, options?.command + '\r')
+    window.api.pty.write(id, options.command + '\r')
 
     const result = await waitForCommand(id, timeout)
     return { id, result }

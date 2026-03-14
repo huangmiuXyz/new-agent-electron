@@ -312,6 +312,7 @@ export interface TerminalTab {
   lastExitCode?: number | null
   isReady?: boolean
   currentOutput?: string
+  shellIntegrationEnabled?: boolean
   forceContinue?: () => void
   _cleanup?: () => void
 }
