@@ -11,6 +11,7 @@ export const useAgentStore = defineStore(
         mcpServers: [],
         tools: [],
         builtinTools: [],
+        builtinToolsRequireApproval: [],
         createdAt: Date.now(),
         updatedAt: Date.now(),
         knowledgeBaseIds: [],

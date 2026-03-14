@@ -30,7 +30,10 @@ export const useAgent = () => {
     return normalizedPath
   }
 
-  const getBuiltinToolOptions = () => {
+  const getBuiltinToolOptions = (
+    selectedToolKeys?: string[],
+    approvalToolKeys?: string[]
+  ) => {
     const tools = getBuiltinTools()
     const grouped = getBuiltinToolGroups()
     const groupByTool = new Map<string, string>()
@@ -38,12 +41,20 @@ export const useAgent = () => {
       toolKeys.forEach((toolKey) => groupByTool.set(toolKey, group))
     })
 
+    const selectedSet = selectedToolKeys?.length ? new Set(selectedToolKeys) : null
+    const approvalSet = new Set(approvalToolKeys || [])
+
     return Object.entries(tools)
       .map(([key, tool]: [string, Tool]) => ({
         label: tool.title || key,
         value: key,
         description: tool.description,
-        group: groupByTool.get(key) || '其他工具'
+        group: groupByTool.get(key) || '其他工具',
+        actionActive: approvalSet.has(key),
+        actionDisabled: selectedSet ? !selectedSet.has(key) : false,
+        actionTitle: '配置审批',
+        tags: approvalSet.has(key) ? ['需批准'] : [],
+        tagColor: 'orange'
       }))
       .sort((a, b) => {
         if (a.group !== b.group) return a.group.localeCompare(b.group, 'zh-Hans-CN')
@@ -174,6 +185,7 @@ export const useAgent = () => {
           mcpServers: [...(agent.mcpServers || [])],
           tools: [...(agent.tools || [])],
           builtinTools: [...(agent.builtinTools || [])],
+          builtinToolsRequireApproval: [...(agent.builtinToolsRequireApproval || [])],
           ragEnabled: agent.ragEnabled ?? false,
           terminalStartupPath: agent.terminalStartupPath || '',
           skillDirectory: agent.skillDirectory || DEFAULT_SKILL_DIRECTORY,
@@ -207,6 +219,7 @@ export const useAgent = () => {
           mcpServers: [],
           tools: [],
           builtinTools: [],
+          builtinToolsRequireApproval: [],
           ragEnabled: false,
           terminalStartupPath: '',
           skillDirectory: DEFAULT_SKILL_DIRECTORY,
@@ -502,7 +515,7 @@ export const useAgent = () => {
       ...getDynamicSpeechFields()
     ]
 
-    const toolFields: FormField<AgentFormData>[] = [
+    const mcpFields: FormField<AgentFormData>[] = [
       {
         name: 'mcpServers',
         type: 'checkboxGroup',
@@ -518,12 +531,77 @@ export const useAgent = () => {
         columns: 2,
         ifShow: (data) => data.mcpServers! && data.mcpServers!.length > 0
       } as CheckboxGroupField<AgentFormData>,
+    ]
+
+    const setBuiltinToolApproval = (toolName: string, requiresApproval: boolean) => {
+      const selectedBuiltinTools = (formActions.getFieldValue('builtinTools') as string[]) || []
+      if (!selectedBuiltinTools.includes(toolName)) return
+
+      const currentApprovalTools =
+        (formActions.getFieldValue('builtinToolsRequireApproval') as string[]) || []
+      const nextApprovalTools = requiresApproval
+        ? Array.from(new Set([...currentApprovalTools, toolName]))
+        : currentApprovalTools.filter((name) => name !== toolName)
+
+      formActions.setFieldValue('builtinToolsRequireApproval', nextApprovalTools)
+      formActions.updateFieldProps('builtinTools', {
+        options: getBuiltinToolOptions(selectedBuiltinTools, nextApprovalTools)
+      })
+    }
+
+    const openBuiltinToolApprovalModal = (option: CheckboxOption) => {
+      const selectedBuiltinTools = (formActions.getFieldValue('builtinTools') as string[]) || []
+      if (!selectedBuiltinTools.includes(option.value)) {
+        messageApi.warning('请先启用这个内置工具，再配置审批方式')
+        return
+      }
+
+      const currentApprovalTools =
+        (formActions.getFieldValue('builtinToolsRequireApproval') as string[]) || []
+      const currentValue = currentApprovalTools.includes(option.value)
+
+      const [ApprovalForm, approvalFormActions] = useForm<{ requireApproval: boolean }>({
+        title: `审批设置 · ${option.label}`,
+        showHeader: false,
+        initialData: {
+          requireApproval: currentValue
+        },
+        fields: [
+          {
+            name: 'requireApproval',
+            type: 'boolean',
+            label: '执行前需手动批准',
+            hint: '开启后，这个内置工具每次执行前都会先请求你的批准。'
+          } as BooleanField<{ requireApproval: boolean }>
+        ],
+        onSubmit: (data) => {
+          setBuiltinToolApproval(option.value, !!data.requireApproval)
+          remove()
+        }
+      })
+
+      confirm({
+        title: `审批设置 · ${option.label}`,
+        content: ApprovalForm,
+        width: '420px',
+        maxHeight: '60vh',
+        onOk: async () => {
+          approvalFormActions.submit()
+        }
+      })
+    }
+
+    const builtinToolFields: FormField<AgentFormData>[] = [
       {
         name: 'builtinTools',
         type: 'checkboxGroup',
         label: '内置工具',
-        options: getBuiltinToolOptions(),
-        columns: 2
+        options: getBuiltinToolOptions(
+          initialData.builtinTools || [],
+          initialData.builtinToolsRequireApproval || []
+        ),
+        columns: 2,
+        onOptionAction: (option: CheckboxOption) => openBuiltinToolApprovalModal(option)
       } as CheckboxGroupField<AgentFormData>
     ]
 
@@ -866,11 +944,6 @@ export const useAgent = () => {
             setDisabledSkills(nextDisabledSkills)
           }
 
-          const openDirectory = async () => {
-            if (!skillDirectory) return
-            await window.api.shell.openPath(skillDirectory)
-          }
-
           const openSkillDirectory = async (targetPath: string) => {
             if (!targetPath) return
             await window.api.shell.openPath(targetPath)
@@ -1142,7 +1215,8 @@ export const useAgent = () => {
       ...basicFields,
       ...modelFields,
       ...speechFields,
-      ...toolFields,
+      ...builtinToolFields,
+      ...mcpFields,
       ...skillFields,
       ...knowledgeFields,
       ...appearanceFields,
@@ -1185,6 +1259,17 @@ export const useAgent = () => {
           formActions.setFieldValue('tools', currentTools)
           previousMcpServers = [...selectedMcpServers]
         }
+        if (field === 'builtinTools') {
+          const selectedBuiltinTools = value as string[]
+          const currentApprovalTools =
+            ((formData.builtinToolsRequireApproval as string[]) || []).filter((toolName) =>
+              selectedBuiltinTools.includes(toolName)
+            )
+          formActions.setFieldValue('builtinToolsRequireApproval', currentApprovalTools)
+          formActions.updateFieldProps('builtinTools', {
+            options: getBuiltinToolOptions(selectedBuiltinTools, currentApprovalTools)
+          })
+        }
       },
       onSubmit: (data) => {
         // 转换 defaultModel 格式
@@ -1220,6 +1305,12 @@ export const useAgent = () => {
     formActions.updateFieldProps('tools', {
       options: getAllToolOptions(initialData.mcpServers || [])
     })
+    formActions.updateFieldProps('builtinTools', {
+      options: getBuiltinToolOptions(
+        initialData.builtinTools || [],
+        initialData.builtinToolsRequireApproval || []
+      )
+    })
 
     const ModalContent = defineComponent({
       setup() {
@@ -1227,7 +1318,8 @@ export const useAgent = () => {
           { id: 'basic', name: '基本信息', icon: Robot, fields: basicFields },
           { id: 'model', name: '模型参数', icon: Settings, fields: modelFields },
           { id: 'speech', name: '语音配置', icon: Speaker224Regular, fields: speechFields },
-          { id: 'tools', name: '工具配置', icon: Wrench20Regular, fields: toolFields },
+          { id: 'builtin-tools', name: '内置工具', icon: Wrench20Regular, fields: builtinToolFields },
+          { id: 'mcp', name: 'MCP 服务', icon: Wrench20Regular, fields: mcpFields },
           { id: 'skills', name: '技能配置', icon: Sparkles, fields: skillFields },
           { id: 'knowledge', name: '知识库', icon: Library16Filled, fields: knowledgeFields },
           { id: 'appearance', name: '外观设置', icon: FormatImage, fields: appearanceFields },

@@ -189,6 +189,7 @@ export const useChat = (chatId: string) => {
                 instructions: runtimeAgent?.systemPrompt,
                 mcpTools: runtimeAgent?.tools || [],
                 builtinTools: runtimeAgent?.builtinTools || [],
+                builtinToolsRequireApproval: runtimeAgent?.builtinToolsRequireApproval || [],
                 knowledgeBaseIds: runtimeAgent?.knowledgeBaseIds,
                 thinkingMode: thinkingMode.value,
                 ragEnabled: runtimeAgent?.ragEnabled,

@@ -109,12 +109,18 @@ export interface CheckboxOption {
   description?: string
   image?: string
   group?: string
+  actionActive?: boolean
+  actionDisabled?: boolean
+  actionTitle?: string
+  tags?: string[]
+  tagColor?: 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'gray' | 'cyan'
 }
 
 export interface CheckboxGroupField<T> extends BaseField<T> {
   type?: 'checkboxGroup'
   options: CheckboxOption[]
   columns?: number
+  onOptionAction?: (option: CheckboxOption) => void
 }
 
 export interface ModelSelectorField<T> extends BaseField<T> {

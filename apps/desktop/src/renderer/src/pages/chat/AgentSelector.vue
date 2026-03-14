@@ -3,7 +3,7 @@ const agentStore = useAgentStore()
 const chatsStore = useChatsStores()
 const { allAgents, tempAgents } = storeToRefs(agentStore)
 const settingsStore = useSettingsStore()
-const { mcpServers, favoriteAgentIds } = storeToRefs(settingsStore)
+const { favoriteAgentIds } = storeToRefs(settingsStore)
 withDefaults(
   defineProps<{
     type: 'icon' | 'select'
@@ -47,6 +47,10 @@ const filteredAgents = computed(() => {
 })
 
 const favoriteAgentSet = computed(() => new Set(favoriteAgentIds.value))
+const getAgentToolCount = (agent: Agent) => {
+  return settingsStore.getValidTools(agent.tools).length + (agent.builtinTools?.length || 0)
+}
+const hasAgentTools = (agent: Agent) => getAgentToolCount(agent) > 0
 
 const favoriteAgents = computed(() =>
   filteredAgents.value.filter((agent) => favoriteAgentSet.value.has(agent.id))
@@ -156,14 +160,9 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
             <div v-if="agent.description" class="agent-desc" :title="agent.description">{{ agent.description }}</div>
           </div>
           <div class="agent-check">
-            <div
-              v-if="agent.mcpServers.filter((name) => mcpServers[name]).length > 0"
-              class="agent-mcp"
-            >
+            <div v-if="hasAgentTools(agent)" class="agent-mcp">
               <Wrench20Regular />
-              <span style="white-space: nowrap"
-                >{{ settingsStore.getValidTools(agent.tools).length + agent.builtinTools?.length }}
-              </span>
+              <span style="white-space: nowrap">{{ getAgentToolCount(agent) }}</span>
             </div>
             <button
               class="favorite-toggle"
@@ -205,14 +204,9 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
             <div v-if="agent.description" class="agent-desc" :title="agent.description">{{ agent.description }}</div>
           </div>
           <div class="agent-check">
-            <div
-              v-if="agent.mcpServers.filter((name) => mcpServers[name]).length > 0"
-              class="agent-mcp"
-            >
+            <div v-if="hasAgentTools(agent)" class="agent-mcp">
               <Wrench20Regular />
-              <span style="white-space: nowrap"
-                >{{ settingsStore.getValidTools(agent.tools).length + agent.builtinTools?.length }}
-              </span>
+              <span style="white-space: nowrap">{{ getAgentToolCount(agent) }}</span>
             </div>
             <button
               class="favorite-toggle"

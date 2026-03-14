@@ -386,7 +386,6 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           '要复用的终端ID。留空时会创建新终端；如果之前的 exec_command 已返回终端ID，后续同一任务必须复用该 terminal_id，只有明确需要独立新会话时才留空。'
         )
     }),
-    needsApproval: true,
     execute: async (args: any, options: any) => {
       const { command, terminal_id } = args
       const { createTab } = useTerminal()

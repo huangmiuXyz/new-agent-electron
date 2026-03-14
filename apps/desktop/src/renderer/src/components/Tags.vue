@@ -1,5 +1,5 @@
 <template>
-  <div class="tags-display-container">
+  <div class="tags-display-container" :data-size="size">
     <template v-if="tags && tags.length > 0">
       <!-- 动态绑定颜色类名 -->
       <span v-for="(tag, index) in tags" :key="index" class="tag-badge" :class="`tag-${color}`">
@@ -21,12 +21,14 @@ interface Props {
   tags: string[]
   emptyText?: string
   color?: BadgeColor
+  size?: 'sm' | 'md'
 }
 
 withDefaults(defineProps<Props>(), {
   tags: () => [],
   emptyText: '--',
-  color: 'blue'
+  color: 'blue',
+  size: 'md'
 })
 </script>
 
@@ -54,6 +56,13 @@ withDefaults(defineProps<Props>(), {
   user-select: none;
   cursor: default;
   white-space: nowrap;
+}
+
+.tags-display-container[data-size='sm'] .tag-badge {
+  padding: 2px 8px;
+  height: 18px;
+  font-size: 10px;
+  border-radius: 999px;
 }
 
 .tag-blue {

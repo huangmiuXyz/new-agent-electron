@@ -51,6 +51,7 @@ interface ChatServiceConfig {
   instructions?: string
   mcpTools?: string[]
   builtinTools?: string[]
+  builtinToolsRequireApproval?: string[]
   knowledgeBaseIds?: string[]
   thinkingMode?: boolean
   ragEnabled?: boolean
@@ -424,6 +425,7 @@ export const chatService = () => {
       instructions,
       mcpTools,
       builtinTools: selectedBuiltinTools,
+      builtinToolsRequireApproval,
       knowledgeBaseIds,
       thinkingMode,
       ragEnabled,
@@ -476,6 +478,7 @@ export const chatService = () => {
       undefined
 
     const builtinToolKeys = new Set<string>(selectedBuiltinTools || [])
+    const builtinToolApprovalKeys = new Set<string>(builtinToolsRequireApproval || [])
     if (isSubAgentChat) {
       builtinToolKeys.add('agent_communicate')
     }
@@ -516,20 +519,49 @@ export const chatService = () => {
         abortSignal.addEventListener('abort', () => controller.abort(), { once: true })
       }
     }
-    const wrappedTools = mapValues(tools, (t) => ({
-      ...t,
-      execute: async (input: any, options: any) => {
-        await onBeforeToolExecute?.({ tool: t, input, options })
-        const result = await t.execute(input, {
-          ...JSON.parse(JSON.stringify(options)),
-          chatId: cid,
-          model,
-          provider,
-          abortSignal: controller.signal
-        })
-        return result
-      }
-    }))
+    const wrappedTools = Object.fromEntries(
+      Object.entries(tools).map(([toolName, t]) => {
+        const isConfiguredBuiltinTool = builtinToolKeys.has(toolName)
+        const needsConfiguredApproval =
+          isConfiguredBuiltinTool && builtinToolApprovalKeys.has(toolName)
+
+        const needsApproval =
+          toolName === 'multi_tool_use_parallel' && isConfiguredBuiltinTool
+            ? (input: unknown) => {
+              if (needsConfiguredApproval) return true
+
+              const toolUses = (input as { tool_uses?: Array<{ recipient_name?: string }> })?.tool_uses
+              if (!Array.isArray(toolUses)) return false
+
+              return toolUses.some((toolUse) => {
+                const recipientName = toolUse?.recipient_name || ''
+                if (!recipientName.startsWith('builtin.')) return false
+                const nestedToolName = recipientName.slice('builtin.'.length)
+                return builtinToolApprovalKeys.has(nestedToolName)
+              })
+            }
+            : needsConfiguredApproval
+
+        return [
+          toolName,
+          {
+            ...t,
+            needsApproval,
+            execute: async (input: any, options: any) => {
+              await onBeforeToolExecute?.({ tool: t, input, options })
+              const result = await t.execute(input, {
+                ...JSON.parse(JSON.stringify(options)),
+                chatId: cid,
+                model,
+                provider,
+                abortSignal: controller.signal
+              })
+              return result
+            }
+          }
+        ]
+      })
+    )
     const buildOpenAICompatibleTransformRequestBody = (transformRequestBody?: string) => {
       if (!transformRequestBody?.trim()) return undefined
 

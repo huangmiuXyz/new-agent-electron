@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { useIcon } from '../composables/useIcon'
+import Button from './Button.vue'
+import Tags from './Tags.vue'
 
 interface Props {
     options: CheckboxOption[]
     disabled?: boolean
     columns?: number
+    onOptionAction?: (option: CheckboxOption) => void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -55,7 +58,7 @@ const groupedOptions = computed(() => {
     return groups
 })
 
-const checkIcon = useIcon('Check')
+const { Check, Settings } = useIcon(['Check', 'Settings'])
 
 const getGroupSelectionState = (groupOptions: CheckboxOption[]) => {
     const total = groupOptions.length
@@ -83,6 +86,12 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
     groupValues.forEach((value) => next.add(value))
     modelValue.value = Array.from(next)
 }
+
+const handleOptionAction = (option: CheckboxOption, event: MouseEvent) => {
+    event.stopPropagation()
+    if (props.disabled || option.actionDisabled || !props.onOptionAction) return
+    props.onOptionAction(option)
+}
 </script>
 
 <template>
@@ -103,7 +112,7 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
                     :class="{ disabled, checked: isChecked(option.value) }" @click="toggleOption(option.value)">
                     <div class="checkbox">
                         <div class="checkbox-box">
-                            <checkIcon v-if="isChecked(option.value)" />
+                            <Check v-if="isChecked(option.value)" />
                         </div>
                     </div>
                     <div class="checkbox-content">
@@ -111,12 +120,24 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
                             <Image :src="option.image" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />
                         </div>
                         <div class="checkbox-text">
-                            <div class="checkbox-label">{{ option.label }}</div>
+                            <div class="checkbox-header">
+                                <div class="checkbox-label">{{ option.label }}</div>
+                                <Tags v-if="option.tags?.length" :tags="option.tags" size="sm"
+                                    :color="option.tagColor || 'orange'" />
+                            </div>
                             <div v-if="option.description" class="checkbox-description">
                                 {{ option.description }}
                             </div>
                         </div>
                     </div>
+                    <Button v-if="option.actionTitle" size="sm" variant="text"
+                        :disabled="option.actionDisabled"
+                        :title="option.actionTitle"
+                        @click="handleOptionAction(option, $event)">
+                        <template #icon>
+                            <Settings />
+                        </template>
+                    </Button>
                 </div>
             </div>
         </div>
@@ -254,6 +275,23 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
     gap: 12px;
     min-width: 0;
 }
+
+.checkbox-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.checkbox-item :deep(.btn--text) {
+    flex-shrink: 0;
+}
+
+.checkbox-item :deep(.btn--text svg) {
+    width: 16px;
+    height: 16px;
+}
+
 
 .checkbox-image {
     flex-shrink: 0;
