@@ -7,7 +7,8 @@ import { AutoScrollContainer } from '@incremark/vue'
 import { useMessageScroll } from '@renderer/composables/useMessageScroll'
 
 const { messageScrollRef } = useMessageScroll()
-const prevMessageRef = ref<HTMLElement>()
+const scrollHostRef = ref<HTMLElement | null>(null)
+const prevMessageWrapperRef = ref<HTMLElement | null>(null)
 
 const autoScrollEnabled = ref(true)
 const { showContextMenu } = useContextMenu<BaseMessage>()
@@ -73,12 +74,12 @@ const lastMessageIndex = computed(() => {
   return currentChat.value.messages.length - 1
 })
 
-const { height: containerHeight } = useElementSize(messageScrollRef)
-const { height: prevMessageHeight } = useElementSize(prevMessageRef)
+const { height: containerHeight } = useElementSize(scrollHostRef)
+const { height: prevMessageHeight } = useElementSize(prevMessageWrapperRef)
 
 const lastMessageHeight = computed(() => {
   if (lastMessageIndex.value >= 0 && containerHeight.value > 0 && prevMessageHeight.value > 0) {
-    const height = containerHeight.value - prevMessageHeight.value - 20
+    const height = containerHeight.value - prevMessageHeight.value - 40
     return `${Math.max(0, height)}px`
   }
   return 'auto'
@@ -104,6 +105,10 @@ const getRetryBranchControl = (messageId: string) => {
 const switchRetryBranchForMessage = (messageId: string, direction: 'prev' | 'next') => {
   if (!currentChat.value?.id) return
   cycleRetryBranch(currentChat.value.id, messageId, direction)
+}
+
+const setPrevMessageWrapperRef = (el: Element | null) => {
+  prevMessageWrapperRef.value = el instanceof HTMLElement ? el : null
 }
 
 const openMobileCopyPreview = (message: BaseMessage, selectedText = '') => {
@@ -509,58 +514,62 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 </script>
 <template>
   <div class="message-list-wrapper" :class="{ 'is-centered': display.chatCenteredLayout }">
-    <AutoScrollContainer  ref="messageScrollRef" :enabled="autoScrollEnabled"
-      :threshold="5">
-      <div class="messages-content">
-        <template v-for="(message, index) in currentChat?.messages" :key="message.id">
-          <div :id="`message-${message.id}`" class="message-item-wrapper">
-            <div
-              v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length && !hasCompressedContext"
-              class="context-divider">
-              <div class="divider-line"></div>
-              <span class="divider-text">上下文分割线</span>
-              <div class="divider-line"></div>
+    <div ref="scrollHostRef" class="message-scroll-host">
+      <AutoScrollContainer ref="messageScrollRef" :enabled="autoScrollEnabled" :threshold="5">
+        <div class="messages-content">
+          <template v-for="(message, index) in currentChat?.messages" :key="message.id">
+            <div :id="`message-${message.id}`" class="message-item-wrapper" :class="{
+              'is-last-message': index === lastMessageIndex,
+              'has-retry-branch-switcher': !!getRetryBranchControl(message.id!)
+            }" :style="index === lastMessageIndex ? { minHeight: lastMessageHeight } : undefined"
+              :ref="index === lastMessageIndex - 1 ? (ref) => setPrevMessageWrapperRef(ref as Element) : undefined">
+              <div
+                v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length && !hasCompressedContext"
+                class="context-divider">
+                <div class="divider-line"></div>
+                <span class="divider-text">上下文分割线</span>
+                <div class="divider-line"></div>
+              </div>
+              <ChatMessageItemHuman v-if="message.role === 'user'" :message="message" :style="index === lastMessageIndex ? {
+                minHeight: 0,
+                height: 'auto',
+                flex: '1 1 auto'
+              } : undefined" @contextmenu="onMessageRightClick($event, message)" />
+              <ChatMessageItemAi v-else-if="message.role === 'assistant'" :message="message" :style="{
+                minHeight: index === lastMessageIndex ? 0 : undefined,
+                height: 'auto',
+                flex: index === lastMessageIndex ? '1 1 auto' : 'none'
+              }" @contextmenu="onMessageRightClick($event, message)" />
+              <ChatMessageItemSystem v-else-if="message.role === 'system'" :message="message" :style="index === lastMessageIndex ? {
+                minHeight: 0,
+                height: 'auto',
+                flex: '1 1 auto'
+              } : undefined" @contextmenu="onMessageRightClick($event, message)" />
+              <div v-if="getRetryBranchControl(message.id!)" class="retry-branch-switcher">
+                <button class="retry-branch-btn" type="button" title="上一个分支"
+                  @click="switchRetryBranchForMessage(message.id!, 'prev')">
+                  <ChevronLeft />
+                </button>
+                <span class="retry-branch-indicator">
+                  {{ getRetryBranchControl(message.id!)!.currentIndex + 1 }} / {{
+                    getRetryBranchControl(message.id!)!.total }}
+                </span>
+                <button class="retry-branch-btn" type="button" title="下一个分支"
+                  @click="switchRetryBranchForMessage(message.id!, 'next')">
+                  <ChevronRight />
+                </button>
+              </div>
             </div>
-            <ChatMessageItemHuman v-if="message.role === 'user'" :message="message"
-              :ref="index === lastMessageIndex - 1 ? 'prevMessageRef' : undefined"
-              @contextmenu="onMessageRightClick($event, message)" />
-            <ChatMessageItemAi v-else-if="message.role === 'assistant'" :message="message" :style="{
-              minHeight: index === lastMessageIndex ? lastMessageHeight : 'auto',
-              height: 'auto',
-              flex: 'none'
-            }" @contextmenu="onMessageRightClick($event, message)" />
-            <ChatMessageItemSystem v-else-if="message.role === 'system'" :message="message"
-              @contextmenu="onMessageRightClick($event, message)" />
-            <div v-if="getRetryBranchControl(message.id!)" class="retry-branch-switcher">
-              <button
-                class="retry-branch-btn"
-                type="button"
-                title="上一个分支"
-                @click="switchRetryBranchForMessage(message.id!, 'prev')"
-              >
-                <ChevronLeft />
-              </button>
-              <span class="retry-branch-indicator">
-                {{ getRetryBranchControl(message.id!)!.currentIndex + 1 }} / {{ getRetryBranchControl(message.id!)!.total }}
-              </span>
-              <button
-                class="retry-branch-btn"
-                type="button"
-                title="下一个分支"
-                @click="switchRetryBranchForMessage(message.id!, 'next')"
-              >
-                <ChevronRight />
-              </button>
-            </div>
-          </div>
-        </template>
-      </div>
-    </AutoScrollContainer>
+          </template>
+        </div>
+      </AutoScrollContainer>
+    </div>
 
     <ChatMessageNav :container="messageScrollRef" />
 
     <Teleport to="body">
-      <div v-if="isMobile && mobileCopyPreviewVisible" class="mobile-copy-preview-overlay" @click.self="closeMobileCopyPreview">
+      <div v-if="isMobile && mobileCopyPreviewVisible" class="mobile-copy-preview-overlay"
+        @click.self="closeMobileCopyPreview">
         <div class="mobile-copy-preview-card" role="dialog" aria-modal="true">
           <div class="mobile-copy-preview-header">
             <div class="mobile-copy-preview-title">复制内容</div>
@@ -594,9 +603,22 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   margin: 0 auto;
 }
 
+.message-scroll-host {
+  flex: 1;
+  min-height: 0;
+}
+
 .messages-content {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
+}
+
+.message-list-wrapper :deep(.auto-scroll-container) {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .retry-branch-switcher {
@@ -605,20 +627,26 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   justify-content: center;
   gap: 2px;
   width: fit-content;
-  margin: 4px auto 8px;
-  padding: 2px 4px;
+  margin: 0;
+  padding: 1px 4px;
   border: 1px solid var(--border-color-light);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-card) 84%, transparent);
-  backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  backdrop-filter: blur(4px);
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .retry-branch-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border: none;
   border-radius: 999px;
   background: transparent;
@@ -634,9 +662,9 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 }
 
 .retry-branch-indicator {
-  min-width: 34px;
+  min-width: 30px;
   text-align: center;
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
@@ -647,16 +675,29 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   contain-intrinsic-size: auto 100px;
 
   contain: content;
-  display: flow-root;
+  display: flex;
+  flex-direction: column;
+  flex: none;
   will-change: transform;
+  position: relative;
 
   margin-bottom: 8px;
   transition: background-color 0.5s ease;
 }
 
+.message-item-wrapper.is-last-message {
+  min-height: 0;
+}
+
 .message-item-wrapper.highlight-jump {
   background-color: rgba(var(--accent-rgb), 0.15);
   border-radius: 8px;
+}
+
+.message-item-wrapper.has-retry-branch-switcher {
+  overflow: visible;
+  contain: layout style;
+  padding-bottom: 24px;
 }
 
 .context-divider {
