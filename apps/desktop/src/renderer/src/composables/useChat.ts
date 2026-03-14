@@ -86,6 +86,16 @@ export const useChat = (chatId: string) => {
     return agentStore.getAgentById(agentId) || null
   }
 
+  const getActiveRetryBranchId = () => {
+    return getChatById(chatId)?.retryBranchState?.activeBranchId || null
+  }
+
+  const getVisibleMessages = () => {
+    const chat = getChatById(chatId)
+    if (!chat) return []
+    return getRetryBranchMessages(chat, getActiveRetryBranchId())
+  }
+
   const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; isApproval?: boolean; retryBranchId?: string | null }): _useChat<BaseMessage> => {
     const { regenerateMessageId, isApproval, retryBranchId = null } = options || {}
     const scope = effectScope()
@@ -466,8 +476,8 @@ export const useChat = (chatId: string) => {
   return {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
       scrollToBottom()
-      const currentChats = getChatById(chatId)
-      const chat = createChat(currentChats?.messages || [])
+      const retryBranchId = getActiveRetryBranchId()
+      const chat = createChat(getVisibleMessages(), { retryBranchId })
 
       const parts: Array<FileUIPart | TextUIPart> =
         typeof content === 'string' ? [{ type: 'text', text: content }] : content
@@ -479,8 +489,8 @@ export const useChat = (chatId: string) => {
       })
     },
     continueMessages: () => {
-      const currentChats = getChatById(chatId)
-      const chat = createChat(currentChats?.messages || [])
+      const retryBranchId = getActiveRetryBranchId()
+      const chat = createChat(getVisibleMessages(), { retryBranchId })
       chat.sendMessage()
     },
     regenerate: (messageId: string) => {
@@ -504,8 +514,8 @@ export const useChat = (chatId: string) => {
       chat.regenerate({ messageId: regenerateMessageId })
     },
     approval: (part: ToolUIPart, approved: boolean) => {
-      const currentChats = getChatById(chatId)
-      const chat = createChat(currentChats?.messages || [], { isApproval: true })
+      const retryBranchId = getActiveRetryBranchId()
+      const chat = createChat(getVisibleMessages(), { isApproval: true, retryBranchId })
       chat.addToolApprovalResponse({
         id: part.approval!.id!,
         approved
