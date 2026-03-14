@@ -214,7 +214,7 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
             (tool_part as DynamicToolUIPart)?.toolName || tool_part?.title || toolName
           }}</span>
         </div>
-        <div class="tool-status-right">
+        <div class="tool-status-right" @click.stop @mousedown.stop>
           <slot name="status">
             <span class="status-dot"></span>
           </slot>

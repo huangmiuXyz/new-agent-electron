@@ -26,7 +26,10 @@ const isExecuting = computed(() => {
 const handleForceContinue = () => {
   if (terminalId.value) {
     forceContinue(terminalId.value)
+    return
   }
+
+  messageApi.warning('未找到对应终端，暂时无法强制继续')
 }
 
 const { currentChat } = useChatsStores()
