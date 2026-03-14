@@ -1,17 +1,32 @@
 import { createVNode, render, type VNode } from 'vue'
 import BaseModal from '@renderer/components/BaseModal.vue'
 
+const MODAL_BASE_Z_INDEX = 3000
+const activeModalContainers: HTMLDivElement[] = []
+
+function syncModalStackZIndex() {
+  activeModalContainers.forEach((container, index) => {
+    container.style.setProperty('--modal-z-index', String(MODAL_BASE_Z_INDEX + index))
+  })
+}
+
 export function useModal(): ModalActions {
-  let container: HTMLDivElement | null
-  const remove = (): void => {
-    if (!container) return
-    render(null, container)
-    document.body.removeChild(container)
-    container = null
-  }
   const show = (options: BaseModalProps): Promise<string | boolean> => {
     return new Promise<string | boolean>((resolve: ModalResolve) => {
-      container = document.createElement('div')
+      const container = document.createElement('div')
+      const remove = (): void => {
+        if (!container.isConnected) return
+        render(null, container)
+        document.body.removeChild(container)
+        const index = activeModalContainers.indexOf(container)
+        if (index > -1) {
+          activeModalContainers.splice(index, 1)
+          syncModalStackZIndex()
+        }
+      }
+
+      activeModalContainers.push(container)
+      syncModalStackZIndex()
       document.body.appendChild(container)
       const vnode: VNode = createVNode(BaseModal, {
         ...options,
@@ -28,6 +43,13 @@ export function useModal(): ModalActions {
 
   return {
     confirm,
-    remove
+    remove: () => {
+      const topContainer = activeModalContainers[activeModalContainers.length - 1]
+      if (!topContainer) return
+      render(null, topContainer)
+      document.body.removeChild(topContainer)
+      activeModalContainers.pop()
+      syncModalStackZIndex()
+    }
   }
 }

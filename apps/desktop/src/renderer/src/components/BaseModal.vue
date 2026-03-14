@@ -96,6 +96,14 @@ const drawerViewportHeight = computed(() => `${windowHeight.value}px`)
 
 const isDraggableEnabled = computed(() => !isMobile.value && props.variant !== 'drawer' && visible.value)
 
+const isTopmostModal = () => {
+  const overlay = modalOverlay.value
+  if (!overlay) return false
+  const overlays = Array.from(document.querySelectorAll<HTMLElement>('.modal-overlay'))
+    .filter((item) => item.isConnected)
+  return overlays[overlays.length - 1] === overlay
+}
+
 const { x, y, style: draggableStyle, isDragging } = useDraggable(modalBox, {
   disabled: computed(() => !isDraggableEnabled.value),
   handle: modalHeader,
@@ -161,6 +169,7 @@ const finalizeClose = (result: boolean) => {
 }
 
 const handleEsc = () => {
+  if (!isTopmostModal()) return
   if (isFullscreen.value) {
     exitFullscreen()
     return
@@ -169,6 +178,7 @@ const handleEsc = () => {
 }
 
 const handleCancel = () => {
+  if (!isTopmostModal()) return
   if (isFullscreen.value) {
     exitFullscreen()
     return
@@ -186,6 +196,7 @@ const handleCancel = () => {
 }
 
 const handleConfirm = () => {
+  if (!isTopmostModal()) return
   if (isFullscreen.value) {
     exitFullscreen()
   }
@@ -208,6 +219,7 @@ const overlayClass = computed(() => {
 useBackButton({
   enabled: computed(() => visible.value),
   handler: () => {
+    if (!isTopmostModal()) return false
     handleEsc()
     return true
   }
@@ -240,7 +252,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.4);
-  z-index: 3000;
+  z-index: var(--modal-z-index, 3000);
 }
 
 .drawer-overlay {
