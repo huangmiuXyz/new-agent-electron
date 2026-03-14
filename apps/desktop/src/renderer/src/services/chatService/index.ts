@@ -73,10 +73,10 @@ interface ChatServiceConfig {
 export type GenerateImagePrompt =
   | string
   | {
-      images: Array<DataContent>
-      text?: string
-      mask?: DataContent
-    }
+    images: Array<DataContent>
+    text?: string
+    mask?: DataContent
+  }
 
 export interface ImageGenerateOptions {
   n?: number
@@ -209,12 +209,12 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
   const recentMessageCount =
     contextCount && contextCount > 1
       ? Math.max(
-          1,
-          Math.min(
-            Math.max(1, Math.floor((contextCount - preservedSystemCount - 1) / 2)),
-            contextCount - preservedSystemCount - 1 - MESSAGE_HEADROOM_AFTER_COMPRESSION
-          )
+        1,
+        Math.min(
+          Math.max(1, Math.floor((contextCount - preservedSystemCount - 1) / 2)),
+          contextCount - preservedSystemCount - 1 - MESSAGE_HEADROOM_AFTER_COMPRESSION
         )
+      )
       : undefined
   const recentTokenCount =
     contextTokenCount && contextTokenCount > 1
@@ -230,13 +230,13 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
     : Boolean(contextCount && persistedBaseMessages.length > contextCount)
   const tokenThresholdReached = hasPriorSummary
     ? Boolean(
-        contextTokenCount &&
-        estimateMessagesTokens(unsummarizedTailMessages, activeModel) > contextTokenCount
-      )
+      contextTokenCount &&
+      estimateMessagesTokens(unsummarizedTailMessages, activeModel) > contextTokenCount
+    )
     : Boolean(
-        contextTokenCount &&
-        estimateMessagesTokens(persistedBaseMessages, activeModel) > contextTokenCount
-      )
+      contextTokenCount &&
+      estimateMessagesTokens(persistedBaseMessages, activeModel) > contextTokenCount
+    )
 
   const shouldAutoCompress =
     (messageThresholdReached || tokenThresholdReached) &&
@@ -257,8 +257,8 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
     const meaningfulMessagesToCompress = hasPriorSummary
       ? unsummarizedTailMessages
       : persistedBaseMessages.filter((message) => {
-          return message.role !== 'system' || Boolean(serializeMessageForCompression(message))
-        })
+        return message.role !== 'system' || Boolean(serializeMessageForCompression(message))
+      })
 
     if (hasPriorSummary && meaningfulMessagesToCompress.length === 0) return messages
     if (!hasPriorSummary && meaningfulMessagesToCompress.length === 0) return messages
@@ -299,7 +299,7 @@ const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMe
         date: Date.now(),
         provider: compressProvider.id,
         model: compressModel.modelId,
-        stop: () => {},
+        stop: () => { },
         loading: true,
         cid,
         compressedUpToIndex: lastCompressedIndex
@@ -550,10 +550,8 @@ export const chatService = () => {
       }
     }
 
-    const transformRequestBody =
-      providerType === 'openai-compatible'
-        ? buildOpenAICompatibleTransformRequestBody(customProviderOptions?.transformRequestBody)
-        : undefined
+    const transformRequestBody = buildOpenAICompatibleTransformRequestBody(customProviderOptions?.transformRequestBody)
+
 
     const { transformRequestBody: _transformRequestBody, ...runtimeProviderOptions } =
       customProviderOptions || {}
@@ -564,10 +562,10 @@ export const chatService = () => {
       cleanProviderOptions({
         ...(supportsThinkingToggle &&
           thinkingMode !== undefined && {
-            thinking: {
-              type: thinkingMode ? 'enabled' : 'disabled'
-            }
-          }),
+          thinking: {
+            type: thinkingMode ? 'enabled' : 'disabled'
+          }
+        }),
         ...runtimeProviderOptions
       }) || {}
 

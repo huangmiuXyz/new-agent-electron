@@ -225,7 +225,7 @@ const askLoadOptions = async (
         hint: isEmbeddingModel ? '例如：--ubatch-size 512；会与 --embedding/--pooling 一起传给 llama-server。' : undefined
       },
       ...(!isEmbeddingModel
-        ? [{ name: 'loadMmproj', type: 'boolean', label: '加载 mmproj', hint: '关闭后本次启动不会传 --mmproj。' }]
+        ? [{ name: 'loadMmproj', type: 'text', label: '加载 mmproj', hint: '关闭后本次启动不会传 --mmproj。' }]
         : [])
     ],
     initialData: {
