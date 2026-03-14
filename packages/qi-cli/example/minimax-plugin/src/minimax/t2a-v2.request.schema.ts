@@ -87,6 +87,10 @@ export const SoundEffectsEnum = z.enum([
   'robotic'
 ])
 
+const isMusicModel = (data: any) => data?.model?.modelId?.startsWith('music-')
+const showForMusic = (data: any) => isMusicModel(data)
+const showForSpeech = (data: any) => !isMusicModel(data)
+
 export const T2AStreamOptionSchema = z.object({
   exclude_aggregated_audio: z.boolean().optional()
 })
@@ -117,8 +121,8 @@ export const T2AAudioSettingSchema = z.object({
     '256000'
   ]).transform((value) => Number(value)).optional(),
   format: AudioFormatEnum.optional(),
-  channel: z.enum(['1', '2']).transform((value) => Number(value)).optional(),
-  force_cbr: z.boolean().optional()
+  channel: z.enum(['1', '2']).transform((value) => Number(value)).optional().meta({ ifShow: showForSpeech }),
+  force_cbr: z.boolean().optional().meta({ ifShow: showForSpeech })
 })
 
 export const PronunciationDictSchema = z.object({
@@ -142,18 +146,18 @@ export const T2aV2RequestSchema = z.object({
   text: z.string().max(10000).meta({ ifShow: false }),
   stream: z.boolean().optional().meta({ ifShow: false }),
   stream_options: T2AStreamOptionSchema.optional().meta({ ifShow: false }),
-  voice_setting: T2AVoiceSettingSchema.optional(),
+  voice_setting: T2AVoiceSettingSchema.optional().meta({ ifShow: showForSpeech }),
   audio_setting: T2AAudioSettingSchema.optional(),
-  pronunciation_dict: PronunciationDictSchema.optional(),
-  timber_weights: z.array(TimbreWeightsSchema).max(4).optional(),
-  language_boost: LanguageBoostEnum.nullable().optional(),
-  voice_modify: VoiceModifySchema.optional(),
-  subtitle_enable: z.boolean().optional(),
+  pronunciation_dict: PronunciationDictSchema.optional().meta({ ifShow: showForSpeech }),
+  timber_weights: z.array(TimbreWeightsSchema).max(4).optional().meta({ ifShow: showForSpeech }),
+  language_boost: LanguageBoostEnum.nullable().optional().meta({ ifShow: showForSpeech }),
+  voice_modify: VoiceModifySchema.optional().meta({ ifShow: showForSpeech }),
+  subtitle_enable: z.boolean().optional().meta({ ifShow: showForSpeech }),
   output_format: OutputFormatEnum.optional().meta({ ifShow: false }),
   aigc_watermark: z.boolean().optional(),
-  lyrics: z.string().max(3500).optional(),
-  lyrics_optimizer: z.boolean().optional(),
-  is_instrumental: z.boolean().optional()
+  lyrics: z.string().max(3500).optional().meta({ ifShow: showForMusic }),
+  lyrics_optimizer: z.boolean().optional().meta({ ifShow: showForMusic }),
+  is_instrumental: z.boolean().optional().meta({ ifShow: showForMusic })
 })
 
 export type T2aV2Request = z.infer<typeof T2aV2RequestSchema>

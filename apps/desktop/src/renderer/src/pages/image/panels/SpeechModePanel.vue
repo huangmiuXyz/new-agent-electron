@@ -9,8 +9,37 @@ const tts = speechService()
 
 const speechDynamicField = ref<FormField<any> | null>(null)
 const speechVoiceOptions = ref<Array<{ label: string; value: string }>>([])
+const isMusicModel = (data: any) => data?.model?.modelId?.startsWith('music-')
+const isMusicModelId = (modelId?: string) => !!modelId && modelId.startsWith('music-')
 
-const getSpeechDynamicFields = (providerId: string) => {
+const filterFieldsForMusic = (fields: FormField<any>[]) => {
+  const hiddenGroups = new Set([
+    'providerOptions.voice_setting',
+    'providerOptions.pronunciation_dict',
+    'providerOptions.timber_weights',
+    'providerOptions.language_boost',
+    'providerOptions.voice_modify',
+    'providerOptions.subtitle_enable'
+  ])
+  const hiddenFields = new Set([
+    'providerOptions.audio_setting.channel',
+    'providerOptions.audio_setting.force_cbr'
+  ])
+
+  return fields.flatMap((field) => {
+    if (hiddenGroups.has(field.name) || hiddenFields.has(field.name)) {
+      return []
+    }
+    if (field.type === 'group' && field.children) {
+      const nextChildren = filterFieldsForMusic(field.children)
+      if (nextChildren.length === 0) return []
+      return [{ ...field, children: nextChildren }]
+    }
+    return [field]
+  })
+}
+
+const getSpeechDynamicFields = (providerId: string, modelId?: string) => {
   const provider = settingsStore.getProviderById(providerId)
   if (!provider) return null
 
@@ -22,8 +51,11 @@ const getSpeechDynamicFields = (providerId: string) => {
   const providerInstance = registry.getProvider(provider.providerType)
   if (!providerInstance?.speechCallOptionsSchema) return null
 
-  const fields = zodSchemasToFormfields(providerInstance.speechCallOptionsSchema, 'providerOptions')
+  let fields = zodSchemasToFormfields(providerInstance.speechCallOptionsSchema, 'providerOptions')
   if (fields.length === 0) return null
+  if (isMusicModelId(modelId)) {
+    fields = filterFieldsForMusic(fields)
+  }
 
   return {
     name: 'providerOptions',
@@ -57,7 +89,7 @@ const speechFields = computed<FormField<any>[]>(() => {
       required: true,
       onChange: ({ providerId, modelId }: { providerId: string; modelId: string }) => {
         speechVoiceOptions.value = getSpeechVoiceOptions(providerId, modelId)
-        speechDynamicField.value = getSpeechDynamicFields(providerId)
+        speechDynamicField.value = getSpeechDynamicFields(providerId, modelId)
         const currentVoice = speechFormActions.getFieldValue('voice')
         if (currentVoice && !speechVoiceOptions.value.some((item) => item.value === currentVoice)) {
           speechFormActions.setFieldValue('voice', '')
@@ -70,7 +102,8 @@ const speechFields = computed<FormField<any>[]>(() => {
       label: '音色',
       placeholder: '请选择音色',
       options: speechVoiceOptions.value,
-      clearable: true
+      clearable: true,
+      ifShow: (data: any) => !isMusicModel(data)
     } as FormField<any>,
     {
       name: 'speed',
@@ -79,14 +112,16 @@ const speechFields = computed<FormField<any>[]>(() => {
       min: 0.1,
       max: 4,
       step: 0.1,
-      defaultValue: 1
+      defaultValue: 1,
+      ifShow: (data: any) => !isMusicModel(data)
     } as FormField<any>,
     {
       name: 'language',
       type: 'text',
       label: '语言',
-      placeholder: '例如 zh、en、ja 或 auto',
-      defaultValue: 'auto'
+      placeholder: '例如 zh、en、ja �?auto',
+      defaultValue: 'auto',
+      ifShow: (data: any) => !isMusicModel(data)
     } as FormField<any>
   ]
 
@@ -133,7 +168,10 @@ onMounted(() => {
       settingsStore.speechGenerationForm.model.providerId,
       settingsStore.speechGenerationForm.model.modelId
     )
-    speechDynamicField.value = getSpeechDynamicFields(settingsStore.speechGenerationForm.model.providerId)
+    speechDynamicField.value = getSpeechDynamicFields(
+      settingsStore.speechGenerationForm.model.providerId,
+      settingsStore.speechGenerationForm.model.modelId
+    )
     return
   }
 
@@ -150,7 +188,10 @@ onMounted(() => {
       settingsStore.defaultModels.ttsProviderId,
       settingsStore.defaultModels.ttsModelId
     )
-    speechDynamicField.value = getSpeechDynamicFields(settingsStore.defaultModels.ttsProviderId)
+    speechDynamicField.value = getSpeechDynamicFields(
+      settingsStore.defaultModels.ttsProviderId,
+      settingsStore.defaultModels.ttsModelId
+    )
   }
 })
 
