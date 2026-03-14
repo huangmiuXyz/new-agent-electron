@@ -249,7 +249,6 @@ export const useChat = (chatId: string) => {
       }
 
       const syncMessageToStore = (message: BaseMessage | undefined = chat.lastMessage, error?: APICallError) => {
-        debugger
         const msgToUpdate = createStoreMessageSnapshot(message ?? undefined, error)
         if (!msgToUpdate) return
 
