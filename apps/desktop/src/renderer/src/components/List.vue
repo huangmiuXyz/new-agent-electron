@@ -497,6 +497,11 @@ const handleItemClick = (item: (typeof viewItems.value)[number]) => {
 
 .item-media {
   display: flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
 }
 
 .sub-text {
@@ -516,10 +521,18 @@ const handleItemClick = (item: (typeof viewItems.value)[number]) => {
 }
 
 .media-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 24px;
   height: 24px;
-  font-size: 16px;
+  font-size: 24px;
   color: var(--text-secondary);
+}
+
+.media-icon :deep(svg) {
+  width: 100%;
+  height: 100%;
 }
 
 .group-header {
