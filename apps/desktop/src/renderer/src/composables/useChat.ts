@@ -93,7 +93,7 @@ export const useChat = (chatId: string) => {
   const getVisibleMessages = () => {
     const chat = getChatById(chatId)
     if (!chat) return []
-    return getRetryBranchMessages(chat, getActiveRetryBranchId())
+    return getRetryBranchMessages(chat, getActiveRetryBranchId()).filter((message) => !message.metadata?.deletedAt)
   }
 
   const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; isApproval?: boolean; retryBranchId?: string | null }): _useChat<BaseMessage> => {

@@ -55,6 +55,12 @@ provide('messageEdit', {
 const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
 const agentStore = useAgentStore()
 
+const isDeletedMessage = (message: BaseMessage) => !!message.metadata?.deletedAt
+
+const visibleMessages = computed(() => {
+  return (currentChat.value?.messages || []).filter((message) => !isDeletedMessage(message))
+})
+
 const contextCount = computed(() => {
   const agentId = currentChat.value?.agentId
   return (agentId ? agentStore.getAgentById(agentId)?.contextCount : undefined) ?? 10
@@ -62,7 +68,7 @@ const contextCount = computed(() => {
 
 // 判断是否存在上下文压缩消息
 const hasCompressedContext = computed(() => {
-  return currentChat.value?.messages.some(msg =>
+  return visibleMessages.value.some(msg =>
     msg.role === 'system' &&
     (msg.metadata?.isCompressedContext ||
       msg.parts?.some(p => p.type === 'text' && p.text?.includes('[上下文已压缩]')))
@@ -70,8 +76,8 @@ const hasCompressedContext = computed(() => {
 })
 
 const lastMessageIndex = computed(() => {
-  if (!currentChat.value || currentChat.value.messages.length === 0) return -1
-  return currentChat.value.messages.length - 1
+  if (visibleMessages.value.length === 0) return -1
+  return visibleMessages.value.length - 1
 })
 
 const { height: containerHeight } = useElementSize(scrollHostRef)
@@ -80,9 +86,9 @@ const RETRY_BRANCH_SWITCHER_RESERVED_HEIGHT = 25
 const LAST_MESSAGE_BOTTOM_GAP = 16
 
 const prevMessageHasRetryBranchControl = computed(() => {
-  if (!currentChat.value || lastMessageIndex.value <= 0) return false
+  if (lastMessageIndex.value <= 0) return false
 
-  const prevMessage = currentChat.value.messages[lastMessageIndex.value - 1]
+  const prevMessage = visibleMessages.value[lastMessageIndex.value - 1]
   return !!prevMessage?.id && !!getRetryBranchControl(prevMessage.id)
 })
 
@@ -351,7 +357,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         const { forkChat } = useChatsStores()
         forkChat(currentChat.value!.id, data.id!)
         const { regenerate } = useChat(currentChat.value!.id!)
-        regenerate(currentChat.value?.messages.at(-1)?.id!)
+        regenerate(visibleMessages.value.at(-1)?.id!)
       }
     },
     {
@@ -401,7 +407,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
           label: '复制当前话题',
           icon: Copy,
           onClick: async () => {
-            const allMessages = currentChat.value?.messages || []
+            const allMessages = visibleMessages.value
             if (allMessages.length === 0) return
 
             // 分片处理，每片 100 条消息
@@ -529,14 +535,14 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
     <div ref="scrollHostRef" class="message-scroll-host">
       <AutoScrollContainer ref="messageScrollRef" :enabled="autoScrollEnabled" :threshold="5">
         <div class="messages-content">
-          <template v-for="(message, index) in currentChat?.messages" :key="message.id">
+          <template v-for="(message, index) in visibleMessages" :key="message.id">
             <div :id="`message-${message.id}`" class="message-item-wrapper" :class="{
               'is-last-message': index === lastMessageIndex,
               'has-retry-branch-switcher': !!getRetryBranchControl(message.id!)
             }" :style="index === lastMessageIndex ? { minHeight: lastMessageHeight } : undefined"
               :ref="index === lastMessageIndex - 1 ? (ref) => setPrevMessageWrapperRef(ref as Element) : undefined">
               <div
-                v-if="index === currentChat!.messages.length - contextCount && contextCount < currentChat!.messages.length && !hasCompressedContext"
+                v-if="index === visibleMessages.length - contextCount && contextCount < visibleMessages.length && !hasCompressedContext"
                 class="context-divider">
                 <div class="divider-line"></div>
                 <span class="divider-text">上下文分割线</span>

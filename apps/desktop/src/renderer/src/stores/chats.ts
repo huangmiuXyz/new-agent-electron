@@ -109,6 +109,35 @@ export const useChatsStores = defineStore(
       return ownerBranchId
     }
 
+    const findNearestUserMessageId = (messages: BaseMessage[], messageId: string) => {
+      const messageIndex = messages.findIndex((message) => message.id === messageId)
+      if (messageIndex === -1) return null
+
+      const targetMessage = messages[messageIndex]
+      if (targetMessage?.role === 'user') return targetMessage.id || null
+
+      for (let index = messageIndex - 1; index >= 0; index -= 1) {
+        if (messages[index]?.role === 'user') {
+          return messages[index]?.id || null
+        }
+      }
+
+      return null
+    }
+
+    const hasVisibleRetryContinuation = (messages: BaseMessage[], forkMessageId: string) => {
+      const forkIndex = messages.findIndex((message) => message.id === forkMessageId)
+      if (forkIndex === -1) return false
+
+      return messages.slice(forkIndex + 1).some((message) => {
+        if (message.metadata?.deletedAt) return false
+        if ((message.parts?.length || 0) > 0) return true
+
+        const metadata = message.metadata
+        return !!metadata?.loading || !!metadata?.error
+      })
+    }
+
     const getRetryBranchVariants = (chatId: string, forkMessageId: string) => {
       const chat = getChatById(chatId)
       if (!chat?.retryBranchState) {
@@ -124,9 +153,15 @@ export const useChatsStores = defineStore(
         ownerBranchId == null
           ? chat.createdAt
           : getRetryBranchNode(chat, ownerBranchId)?.createdAt || chat.createdAt
+      const ownerMessages = getRetryBranchMessages(chat, ownerBranchId)
+      const includeOwnerVariant = hasVisibleRetryContinuation(ownerMessages, forkMessageId)
 
       const childVariants = chat.retryBranchState.nodes
-        .filter((node) => node.parentBranchId === ownerBranchId && node.forkMessageId === forkMessageId)
+        .filter((node) =>
+          node.parentBranchId === ownerBranchId &&
+          node.forkMessageId === forkMessageId &&
+          hasVisibleRetryContinuation(node.messages, node.forkMessageId)
+        )
         .sort((a, b) => a.createdAt - b.createdAt)
 
       const selectedChild = getRetryBranchPath(chat).find(
@@ -134,13 +169,17 @@ export const useChatsStores = defineStore(
       )
 
       const variants = [
-        { id: ownerBranchId, createdAt: ownerCreatedAt },
+        ...(includeOwnerVariant ? [{ id: ownerBranchId, createdAt: ownerCreatedAt }] : []),
         ...childVariants.map((node) => ({ id: node.id, createdAt: node.createdAt }))
       ]
+      const preferredCurrentBranchId = selectedChild?.id || ownerBranchId
+      const currentBranchId = variants.some((variant) => variant.id === preferredCurrentBranchId)
+        ? preferredCurrentBranchId
+        : variants[0]?.id || null
 
       return {
         ownerBranchId,
-        currentBranchId: selectedChild?.id || ownerBranchId,
+        currentBranchId,
         variants
       }
     }
@@ -394,9 +433,32 @@ export const useChatsStores = defineStore(
     }
     const deleteMessage = (cid: string, mid: string) => {
       const chat = getChatById(cid)!
+      const currentBranchId = chat.retryBranchState?.activeBranchId || null
+      const forkMessageId = findNearestUserMessageId(chat.messages, mid)
       chat.messages.find((m) => m.id === mid)?.metadata?.stop?.()
       setTimeout(() => {
-        forEachRetryBranchMessages(chat, (messages) => messages.filter((m) => m.id !== mid))
+        forEachRetryBranchMessages(chat, (messages) =>
+          messages.map((message) =>
+            message.id === mid
+              ? {
+                ...message,
+                metadata: {
+                  ...message.metadata,
+                  deletedAt: Date.now()
+                }
+              }
+              : message
+          )
+        )
+
+        if (!forkMessageId) return
+
+        const { variants, currentBranchId: nextBranchId } = getRetryBranchVariants(cid, forkMessageId)
+        if (variants.length === 0) return
+
+        if (!variants.some((variant) => variant.id === currentBranchId) && nextBranchId !== currentBranchId) {
+          switchRetryBranch(cid, nextBranchId)
+        }
       })
     }
 

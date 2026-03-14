@@ -35,6 +35,7 @@ export interface MetaData {
   estimatedInputTokens?: number
   tokenUsageSource?: 'reported' | 'estimated' | 'mixed'
   providerMetadata?: ProviderMetadata
+  deletedAt?: number
   audio?: {
     chunks: {
       data: string // base64
