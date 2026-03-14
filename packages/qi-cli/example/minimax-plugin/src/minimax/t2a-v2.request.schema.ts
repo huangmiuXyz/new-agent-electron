@@ -96,7 +96,7 @@ export const T2AStreamOptionSchema = z.object({
 })
 
 export const T2AVoiceSettingSchema = z.object({
-  voice_id: z.string().meta({ ifShow: false }),
+  voice_id: z.string().optional().meta({ ifShow: false }),
   speed: z.number().min(0.5).max(2).optional().meta({ ifShow: false }),
   vol: z.number().gt(0).max(10).optional(),
   pitch: z.number().int().min(-12).max(12).optional(),
@@ -159,5 +159,9 @@ export const T2aV2RequestSchema = z.object({
   lyrics_optimizer: z.boolean().optional().meta({ ifShow: showForMusic }),
   is_instrumental: z.boolean().optional().meta({ ifShow: showForMusic })
 })
+
+export const MiniMaxSpeechCallOptionsSchema = T2aV2RequestSchema
+  .omit({ model: true, text: true })
+  .partial()
 
 export type T2aV2Request = z.infer<typeof T2aV2RequestSchema>

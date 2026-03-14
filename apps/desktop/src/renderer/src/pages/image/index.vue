@@ -426,27 +426,29 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium } = useIcon([
       <template #content>
         <div class="results-container">
           <div class="results-content" v-bind="containerProps" ref="resultsContentRef">
-            <div v-if="isSpeechMode && speechResults.length === 0" class="empty-state">
-              <div class="empty-icon">
-                <VolumeMedium />
+            <div v-if="isSpeechMode">
+              <div v-if="speechResults.length === 0" class="empty-state">
+                <div class="empty-icon">
+                  <VolumeMedium />
+                </div>
+                <p>在下方输入文本，生成可播放的声音内容</p>
               </div>
-              <p>在下方输入文本，生成可播放的声音内容</p>
+              <div v-else class="speech-results-list">
+                <SpeechResultPanel
+                  v-for="chunk in speechResults"
+                  :key="chunk.id"
+                  :chunk="chunk"
+                  @copy-prompt="copyPrompt"
+                  @replay="replaySpeech"
+                  @remove="removeSpeechResult"
+                />
+              </div>
             </div>
             <div v-else-if="displayBatches.length === 0" class="empty-state">
               <div class="empty-icon">
                 <ImageIcon />
               </div>
-              <p>{{ isToolMode ? '等待生成结果...' : '在下方输入提示词，开始你的创作' }}</p>
-            </div>
-            <div v-else-if="isSpeechMode" class="speech-results-list">
-              <SpeechResultPanel
-                v-for="chunk in speechResults"
-                :key="chunk.id"
-                :chunk="chunk"
-                @copy-prompt="copyPrompt"
-                @replay="replaySpeech"
-                @remove="removeSpeechResult"
-              />
+              <p>{{ isToolMode ? '等待生成结果...' : '在下方输入提示词，开始你的创作?' }}</p>
             </div>
             <div v-else class="batches-list" v-bind="renderedWrapperProps">
               <GenerationResultCard

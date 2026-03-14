@@ -31,11 +31,15 @@ const { Trash, VolumeMedium, Play, FileMusic } = useIcon(['Trash', 'VolumeMedium
   <div class="speech-result-card" :class="{ 'is-music': isMusicResult }">
     <div class="speech-result-header">
       <div class="speech-result-title">
-        <component :is="isMusicResult ? FileMusic : VolumeMedium" />
+        <span class="speech-result-icon">
+          <component :is="isMusicResult ? FileMusic : VolumeMedium" />
+        </span>
         <div class="speech-result-title-content">
-          <span>{{ chunk.text }}</span>
-          <div class="speech-result-tags">
+          <div class="speech-result-prompt">
+            <span>{{ chunk.text }}</span>
             <Tags v-if="chunk.modelName" :tags="[chunk.modelName]" color="blue" />
+          </div>
+          <div class="speech-result-tags">
             <Tags v-if="chunk.audioFormat" :tags="[chunk.audioFormat.toUpperCase()]" color="green" />
           </div>
         </div>
@@ -43,7 +47,9 @@ const { Trash, VolumeMedium, Play, FileMusic } = useIcon(['Trash', 'VolumeMedium
       <div class="speech-result-actions">
         <Button size="sm" variant="text" @click="emit('copyPrompt', chunk.text)">复制文本</Button>
         <Button size="sm" variant="text" @click="emit('replay', chunk.id)">
-          <Play />
+          <template #icon>
+            <Play />
+          </template>
           播放
         </Button>
         <Button size="sm" variant="text" @click="emit('remove', chunk.id)">
@@ -56,13 +62,7 @@ const { Trash, VolumeMedium, Play, FileMusic } = useIcon(['Trash', 'VolumeMedium
       <span>{{ formatDuration(chunk.duration) }}</span>
     </div>
     <div v-if="chunk.error" class="speech-result-error">{{ chunk.error }}</div>
-    <audio
-      v-else-if="chunk.audioData"
-      class="speech-audio-player"
-      :src="audioSrc"
-      controls
-      preload="metadata"
-    />
+    <audio v-else-if="chunk.audioData" class="speech-audio-player" :src="audioSrc" controls preload="metadata" />
   </div>
 </template>
 
@@ -90,18 +90,42 @@ const { Trash, VolumeMedium, Play, FileMusic } = useIcon(['Trash', 'VolumeMedium
 
 .speech-result-title {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   color: var(--text-primary);
   line-height: 1.6;
   min-width: 0;
 }
 
+.speech-result-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.speech-result-icon :deep(svg) {
+  width: 16px;
+  height: 16px;
+}
+
 .speech-result-title-content {
   min-width: 0;
 }
 
-.speech-result-title-content > span {
+.speech-result-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.speech-result-title-content>span {
   display: block;
   word-break: break-word;
 }

@@ -29,18 +29,28 @@ export const speechService = () => {
       providerOptions
     } = params
 
+    const chunkId = nanoid()
     if (!modelId || !providerId) {
+      const placeholder = speechStore.createPlaceholder(chunkId, messageId, text, {
+        kind: 'speech'
+      })
+      speechStore.markChunkError(chunkId, 'Speech model or provider not configured')
       console.warn('Speech model or provider not configured')
-      return
+      return placeholder
     }
 
     const provider = settingsStore.getProviderById(providerId)
     if (!provider) {
+      const placeholder = speechStore.createPlaceholder(chunkId, messageId, text, {
+        providerId,
+        modelId,
+        kind: modelId.startsWith('music-') ? 'music' : 'speech'
+      })
+      speechStore.markChunkError(chunkId, `Provider ${providerId} not found`)
       console.warn(`Provider ${providerId} not found`)
-      return
+      return placeholder
     }
 
-    const chunkId = nanoid()
     const modelInfo = provider.models?.find((item) => item.id === modelId)
     const placeholder = speechStore.createPlaceholder(chunkId, messageId, text, {
       providerId,

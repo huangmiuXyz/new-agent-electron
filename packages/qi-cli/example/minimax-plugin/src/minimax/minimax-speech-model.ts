@@ -13,9 +13,9 @@ import {
   MiniMaxSpeechAPITypes,
   MiniMaxSpeechAPIResponse
 } from './minimax-api-types'
-import { T2aV2RequestSchema } from './t2a-v2.request.schema'
+import { MiniMaxSpeechCallOptionsSchema } from './t2a-v2.request.schema'
 
-export const miniMaxSpeechCallOptionsSchema = T2aV2RequestSchema
+export const miniMaxSpeechCallOptionsSchema = MiniMaxSpeechCallOptionsSchema
 export type MiniMaxSpeechCallOptions = z.infer<typeof miniMaxSpeechCallOptionsSchema>
 
 export class MiniMaxSpeechModel implements SpeechModelV3 {

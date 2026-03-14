@@ -12,6 +12,47 @@ const speechVoiceOptions = ref<Array<{ label: string; value: string }>>([])
 const isMusicModel = (data: any) => data?.model?.modelId?.startsWith('music-')
 const isMusicModelId = (modelId?: string) => !!modelId && modelId.startsWith('music-')
 
+const normalizeAudioSetting = (audioSetting: any) => {
+  if (!audioSetting || typeof audioSetting !== 'object') return audioSetting
+  const normalizeValue = (value: any) => (Array.isArray(value) ? value[0] : value)
+  return {
+    ...audioSetting,
+    sample_rate: normalizeValue(audioSetting.sample_rate),
+    bitrate: normalizeValue(audioSetting.bitrate),
+    channel: normalizeValue(audioSetting.channel)
+  }
+}
+
+const filterProviderOptionsForMusic = (providerOptions: any) => {
+  if (!providerOptions || typeof providerOptions !== 'object') return providerOptions
+  const next = { ...providerOptions }
+  delete next.voice_setting
+  delete next.pronunciation_dict
+  delete next.timber_weights
+  delete next.language_boost
+  delete next.voice_modify
+  delete next.subtitle_enable
+  if (next.audio_setting && typeof next.audio_setting === 'object') {
+    const { channel, force_cbr, ...rest } = next.audio_setting
+    next.audio_setting = rest
+  }
+  return next
+}
+
+const normalizeFormData = (data: any) => {
+  if (!data || typeof data !== 'object') return data
+  const providerOptions = data.providerOptions
+    ? {
+      ...data.providerOptions,
+      audio_setting: normalizeAudioSetting(data.providerOptions.audio_setting)
+    }
+    : data.providerOptions
+  return {
+    ...data,
+    providerOptions
+  }
+}
+
 const filterFieldsForMusic = (fields: FormField<any>[]) => {
   const hiddenGroups = new Set([
     'providerOptions.voice_setting',
@@ -146,6 +187,9 @@ const [SpeechForm, speechFormActions] = useForm({
 const submit = async (text: string, messageId: string) => {
   const data = speechFormActions.getData()
   if (!text.trim() || !data?.model?.modelId || !data?.model?.providerId) return
+  const providerOptions = isMusicModelId(data.model.modelId)
+    ? filterProviderOptionsForMusic(data.providerOptions)
+    : data.providerOptions
 
   await tts.generateAndPlay({
     text: text.trim(),
@@ -155,7 +199,7 @@ const submit = async (text: string, messageId: string) => {
     voice: data.voice || undefined,
     speed: data.speed ? Number(data.speed) : undefined,
     language: data.language || undefined,
-    providerOptions: data.providerOptions
+    providerOptions
   })
 }
 
@@ -163,7 +207,7 @@ const hasModelSelected = () => !!speechFormActions.getData()?.model?.modelId
 
 onMounted(() => {
   if (settingsStore.speechGenerationForm?.model?.providerId) {
-    speechFormActions.setData(settingsStore.speechGenerationForm)
+    speechFormActions.setData(normalizeFormData(settingsStore.speechGenerationForm))
     speechVoiceOptions.value = getSpeechVoiceOptions(
       settingsStore.speechGenerationForm.model.providerId,
       settingsStore.speechGenerationForm.model.modelId
@@ -176,14 +220,14 @@ onMounted(() => {
   }
 
   if (settingsStore.defaultModels.ttsProviderId && settingsStore.defaultModels.ttsModelId) {
-    speechFormActions.setFieldsValue({
+    speechFormActions.setFieldsValue(normalizeFormData({
       model: {
         providerId: settingsStore.defaultModels.ttsProviderId,
         modelId: settingsStore.defaultModels.ttsModelId
       },
       speed: 1,
       language: 'auto'
-    } as any)
+    } as any))
     speechVoiceOptions.value = getSpeechVoiceOptions(
       settingsStore.defaultModels.ttsProviderId,
       settingsStore.defaultModels.ttsModelId
