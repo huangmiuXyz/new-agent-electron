@@ -76,10 +76,22 @@ const lastMessageIndex = computed(() => {
 
 const { height: containerHeight } = useElementSize(scrollHostRef)
 const { height: prevMessageHeight } = useElementSize(prevMessageWrapperRef)
+const RETRY_BRANCH_SWITCHER_RESERVED_HEIGHT = 24
+const LAST_MESSAGE_BOTTOM_GAP = 15
+
+const prevMessageHasRetryBranchControl = computed(() => {
+  if (!currentChat.value || lastMessageIndex.value <= 0) return false
+
+  const prevMessage = currentChat.value.messages[lastMessageIndex.value - 1]
+  return !!prevMessage?.id && !!getRetryBranchControl(prevMessage.id)
+})
 
 const lastMessageHeight = computed(() => {
   if (lastMessageIndex.value >= 0 && containerHeight.value > 0 && prevMessageHeight.value > 0) {
-    const height = containerHeight.value - prevMessageHeight.value - 40
+    const prevHeight = prevMessageHeight.value + (
+      prevMessageHasRetryBranchControl.value ? RETRY_BRANCH_SWITCHER_RESERVED_HEIGHT : 0
+    )
+    const height = containerHeight.value - prevHeight - LAST_MESSAGE_BOTTOM_GAP
     return `${Math.max(0, height)}px`
   }
   return 'auto'
