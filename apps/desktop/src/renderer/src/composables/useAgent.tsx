@@ -519,7 +519,7 @@ export const useAgent = () => {
         type: 'path',
         label: '技能位置',
         placeholder: '选择或输入技能目录',
-        hint: '用于加载技能的目录。默认：~/.agents/skills',
+        hint: '用于加载技能的目录。默认：~/.agents/skills，不推荐修改。',
         dialogOptions: {
           properties: ['openDirectory'],
           title: '选择技能目录'
