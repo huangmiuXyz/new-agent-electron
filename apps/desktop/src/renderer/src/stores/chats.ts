@@ -438,17 +438,17 @@ export const useChatsStores = defineStore(
       chat.messages.find((m) => m.id === mid)?.metadata?.stop?.()
       setTimeout(() => {
         forEachRetryBranchMessages(chat, (messages) =>
-          messages.map((message) =>
-            message.id === mid
-              ? {
-                ...message,
-                metadata: {
-                  ...message.metadata,
-                  deletedAt: Date.now()
-                }
+          messages.map((message) => {
+            if (message.id !== mid || !message.metadata) return message
+
+            return {
+              ...message,
+              metadata: {
+                ...message.metadata,
+                deletedAt: Date.now()
               }
-              : message
-          )
+            } as BaseMessage
+          })
         )
 
         if (!forkMessageId) return
