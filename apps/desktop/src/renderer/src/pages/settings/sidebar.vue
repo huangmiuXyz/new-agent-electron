@@ -4,7 +4,19 @@ import { isMobile } from '@renderer/composables/useDeviceType'
 interface Props {
   activeTab: string
 }
-const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, ChevronRight, Plugin, Database, Sparkles } = useIcon([
+const {
+  Cpu,
+  Server,
+  Robot,
+  Box,
+  Library16Filled,
+  Folder,
+  InfoCircle,
+  Terminal,
+  ChevronRight,
+  Plugin,
+  Database
+} = useIcon([
   'Cpu',
   'Server',
   'Robot',
@@ -16,8 +28,7 @@ const { Cpu, Server, Robot, Box, Library16Filled, Folder, InfoCircle, Terminal, 
   'ChevronRight',
   'Plugin',
   'Eye',
-  'Database',
-  'Sparkles'
+  'Database'
 ])
 
 const settingsList = [
@@ -29,7 +40,6 @@ const settingsList = [
   { id: 'defaultModels', name: '默认模型', icon: Box, section: '智能助手' },
   { id: 'knowledge', name: '知识库', icon: Library16Filled, section: '资源管理' },
   { id: 'mcp', name: 'MCP 服务器', icon: Server, section: '资源管理' },
-  { id: 'skills', name: '技能', icon: Sparkles, section: '资源管理' },
   { id: 'plugins', name: '插件管理', icon: Plugin, section: '扩展功能' },
   { id: 'terminal', name: '终端设置', icon: Terminal, section: '系统与文件' },
   { id: 'userData', name: '文件管理', icon: Folder, section: '系统与文件' },
@@ -37,7 +47,7 @@ const settingsList = [
   { id: 'about', name: '关于我们', icon: InfoCircle, section: '其他' }
 ]
 interface Emits {
-  (e: 'tab-change', tabName: string, tabItem: typeof settingsList[number]): void
+  (e: 'tab-change', tabName: string, tabItem: (typeof settingsList)[number]): void
 }
 
 defineProps<Props>()
@@ -45,17 +55,24 @@ const emit = defineEmits<Emits>()
 const handleTabChange = (tabName: string) => {
   const { setTitle } = useAppHeader()
   setTitle(tabName)
-  emit('tab-change', tabName, settingsList.find(item => item.id === tabName)!)
+  emit('tab-change', tabName, settingsList.find((item) => item.id === tabName)!)
 }
-
 </script>
 
 <template>
   <div class="settings-sidebar" :class="{ 'is-mobile': isMobile }">
     <!-- 设置选项 -->
-    <List class="settings-sidebar-list" :items="settingsList" :active-id="activeTab" :key-field="'id'"
-      :main-field="'name'" :logo-field="'icon'" :show-header="isMobile" :render-header="(item) => item.section"
-      @select="handleTabChange">
+    <List
+      class="settings-sidebar-list"
+      :items="settingsList"
+      :active-id="activeTab"
+      :key-field="'id'"
+      :main-field="'name'"
+      :logo-field="'icon'"
+      :show-header="isMobile"
+      :render-header="(item) => item.section"
+      @select="handleTabChange"
+    >
       <template #actions v-if="isMobile">
         <ChevronRight class="mobile-arrow" />
       </template>
@@ -187,7 +204,7 @@ const handleTabChange = (tabName: string) => {
 
 <style>
 /* 确保分组标题后的第一个列表项也有上圆角 */
-.settings-sidebar.is-mobile .list-scroll-area .group-header+.list-item {
+.settings-sidebar.is-mobile .list-scroll-area .group-header + .list-item {
   border-top-left-radius: 12px !important;
   border-top-right-radius: 12px !important;
 }

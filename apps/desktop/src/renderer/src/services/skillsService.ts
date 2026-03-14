@@ -5,6 +5,7 @@ export interface SkillMetadata {
   name: string
   description: string
   path: string
+  enabled: boolean
 }
 
 export interface LoadedSkill {
@@ -15,7 +16,14 @@ export interface LoadedSkill {
 interface SkillFrontmatter {
   name: string
   description: string
+  enabled?: boolean | string
   [key: string]: any
+}
+
+interface DiscoverSkillsOptions {
+  includeDisabled?: boolean
+  disabledSkillNames?: string[]
+  applyCurrentAgentFilters?: boolean
 }
 
 const SKILL_FILE_NAME = 'SKILL.md'
@@ -30,11 +38,20 @@ function hasLocalSkillApi(): boolean {
 
 function unquote(value: string): string {
   const trimmed = value.trim()
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
     return trimmed.slice(1, -1)
   }
   return trimmed
+}
+
+function parseScalarValue(value: string): string | boolean {
+  const normalized = unquote(value)
+  if (normalized === 'true') return true
+  if (normalized === 'false') return false
+  return normalized
 }
 
 function escapeXml(text: string): string {
@@ -67,7 +84,7 @@ function parseFrontmatter(content: string): SkillFrontmatter {
       const nestedColonIndex = trimmed.indexOf(':')
       if (nestedColonIndex > 0) {
         const key = trimmed.slice(0, nestedColonIndex).trim()
-        const value = unquote(trimmed.slice(nestedColonIndex + 1))
+        const value = parseScalarValue(trimmed.slice(nestedColonIndex + 1))
         if (typeof result[nestedKey] !== 'object' || result[nestedKey] === null) {
           result[nestedKey] = {}
         }
@@ -92,13 +109,17 @@ function parseFrontmatter(content: string): SkillFrontmatter {
     }
 
     nestedKey = null
-    result[key] = unquote(value)
+    result[key] = parseScalarValue(value)
   }
 
   return result as SkillFrontmatter
 }
 
-function validateFrontmatter(frontmatter: SkillFrontmatter): { name: string, description: string } | null {
+function validateFrontmatter(frontmatter: SkillFrontmatter): {
+  name: string
+  description: string
+  enabled: boolean
+} | null {
   const name = frontmatter.name?.trim()
   const description = frontmatter.description?.trim()
 
@@ -110,11 +131,20 @@ function validateFrontmatter(frontmatter: SkillFrontmatter): { name: string, des
     return null
   }
 
-  if (!SKILL_NAME_PATTERN.test(name) || name.startsWith('-') || name.endsWith('-') || name.includes('--')) {
+  if (
+    !SKILL_NAME_PATTERN.test(name) ||
+    name.startsWith('-') ||
+    name.endsWith('-') ||
+    name.includes('--')
+  ) {
     return null
   }
 
-  return { name, description }
+  return {
+    name,
+    description,
+    enabled: true
+  }
 }
 
 /**
@@ -164,13 +194,30 @@ function isDirectory(path: string): boolean {
  * 发现技能
  * 扫描技能目录中的所有技能（同步版本，多目录支持）
  */
-export function discoverSkills(directories: string[] = getSkillsDirectories()): SkillMetadata[] {
+export function discoverSkills(
+  directories: string[] = getSkillsDirectories(),
+  options: DiscoverSkillsOptions = {}
+): SkillMetadata[] {
   if (!hasLocalSkillApi() || directories.length === 0) {
     return []
   }
 
   const skills: SkillMetadata[] = []
   const seenNames = new Set<string>()
+
+  const includeDisabled = options.includeDisabled === true
+  const applyCurrentAgentFilters = options.applyCurrentAgentFilters !== false
+  const chatsStore = useChatsStores()
+  const agentStore = useAgentStore()
+  const currentAgentId = chatsStore.currentChat?.agentId || 'default'
+  const currentAgent = agentStore.getAgentById(currentAgentId)
+  const disabledSkillNames = new Set(
+    (
+      options.disabledSkillNames ||
+      (applyCurrentAgentFilters ? currentAgent?.disabledSkills : []) ||
+      []
+    ).map((name) => name.trim().toLowerCase())
+  )
 
   for (const skillsDir of directories) {
     let entries: string[]
@@ -205,10 +252,14 @@ export function discoverSkills(directories: string[] = getSkillsDirectories()): 
         if (seenNames.has(normalizedName)) continue
         seenNames.add(normalizedName)
 
+        const enabled = !disabledSkillNames.has(normalizedName)
+        if (!includeDisabled && !enabled) continue
+
         skills.push({
           name: validated.name,
           description: validated.description,
-          path: skillDir
+          path: skillDir,
+          enabled
         })
       } catch (error) {
         console.warn(`Failed to load skill ${entry}:`, error)
@@ -224,12 +275,15 @@ export function discoverSkills(directories: string[] = getSkillsDirectories()): 
  * 加载技能
  * 读取技能的完整内容
  */
-export function loadSkill(skillName: string, skills: SkillMetadata[] = discoverSkills()): LoadedSkill | null {
+export function loadSkill(
+  skillName: string,
+  skills: SkillMetadata[] = discoverSkills()
+): LoadedSkill | null {
   if (!hasLocalSkillApi()) {
     return null
   }
 
-  const skill = skills.find(s => s.name.toLowerCase() === skillName.toLowerCase())
+  const skill = skills.find((s) => s.name.toLowerCase() === skillName.toLowerCase())
 
   if (!skill) {
     return null
@@ -265,13 +319,15 @@ export function buildSkillsPrompt(skills: SkillMetadata[]): string {
   }
 
   const skillsXml = skills
-    .map((s) => [
-      '  <skill>',
-      `    <name>${escapeXml(s.name)}</name>`,
-      `    <description>${escapeXml(s.description)}</description>`,
-      `    <location>${escapeXml(window.api.path.join(s.path, SKILL_FILE_NAME))}</location>`,
-      '  </skill>'
-    ].join('\n'))
+    .map((s) =>
+      [
+        '  <skill>',
+        `    <name>${escapeXml(s.name)}</name>`,
+        `    <description>${escapeXml(s.description)}</description>`,
+        `    <location>${escapeXml(window.api.path.join(s.path, SKILL_FILE_NAME))}</location>`,
+        '  </skill>'
+      ].join('\n')
+    )
     .join('\n')
 
   return [

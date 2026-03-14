@@ -8,7 +8,6 @@ const availableTabs = new Set([
   'models',
   'defaultModels',
   'knowledge',
-  'skills',
   'plugins',
   'terminal',
   'display',
@@ -61,9 +60,6 @@ const switchTab = (tabName: string) => {
 
       <!-- 知识库设置 -->
       <SettingsKnowledge v-else-if="activeTab === 'knowledge'" />
-
-      <!-- 技能设置 -->
-      <SettingsSkills v-else-if="activeTab === 'skills'" />
 
       <!-- 插件管理 -->
       <SettingsPlugins v-else-if="activeTab === 'plugins'" />

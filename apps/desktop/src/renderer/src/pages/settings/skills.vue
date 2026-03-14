@@ -1,31 +1,84 @@
 <script setup lang="tsx">
-import {
-  discoverSkills,
-  getPrimarySkillDirectory,
-  loadSkill,
-  type SkillMetadata
-} from '@renderer/services/skillsService'
+import { discoverSkills, loadSkill, type SkillMetadata } from '@renderer/services/skillsService'
 import Markdown from '@renderer/components/Markdown.vue'
 import Button from '@renderer/components/Button.vue'
 
-const { Sparkles, Plus, Refresh, Folder, Eye, Pencil, Trash } = useIcon([
+const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
+const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---/
+
+interface SkillDirectoryEntry {
+  key: string
+  agentId: string
+  agentName: string
+  directory: string
+}
+
+const { Sparkles, Plus, Refresh, Folder, Eye, Pencil, Trash, Active, Inactive } = useIcon([
   'Sparkles',
   'Plus',
   'Refresh',
   'Folder',
   'Eye',
   'Pencil',
-  'Trash'
+  'Trash',
+  'Active',
+  'Inactive'
 ])
 const { confirm, remove } = useModal()
+const agentStore = useAgentStore()
+const chatsStore = useChatsStores()
 
 const skills = ref<SkillMetadata[]>([])
 const searchKeyword = ref('')
-const skillDirectory = ref('')
+const selectedDirectoryKey = ref('')
+
+const resolveSkillDirectory = (rawPath?: string) => {
+  const normalizedPath = rawPath?.trim() || DEFAULT_SKILL_DIRECTORY
+  if (normalizedPath.startsWith('~/')) {
+    return window.api.path.join(window.api.os.homedir(), normalizedPath.slice(2))
+  }
+  return normalizedPath
+}
+
+const skillDirectoryEntries = computed<SkillDirectoryEntry[]>(() => {
+  return agentStore.allAgents.map((agent) => ({
+    key: agent.id,
+    agentId: agent.id,
+    agentName: agent.name || '未命名智能体',
+    directory: resolveSkillDirectory(agent.skillDirectory)
+  }))
+})
+
+const preferredDirectoryKey = computed(() => {
+  const currentAgentId = chatsStore.currentChat?.agentId
+  const matched = skillDirectoryEntries.value.find((entry) => entry.agentId === currentAgentId)
+  return matched?.key || skillDirectoryEntries.value[0]?.key || ''
+})
+
+const activeDirectoryKey = computed(() => {
+  return selectedDirectoryKey.value || preferredDirectoryKey.value
+})
+
+const currentDirectoryEntry = computed(() => {
+  return (
+    skillDirectoryEntries.value.find((entry) => entry.key === activeDirectoryKey.value) ||
+    skillDirectoryEntries.value[0] ||
+    null
+  )
+})
+
+const skillDirectory = computed(() => currentDirectoryEntry.value?.directory || '')
 
 const refreshSkills = () => {
-  skillDirectory.value = getPrimarySkillDirectory()
-  skills.value = discoverSkills()
+  skills.value = skillDirectory.value
+    ? discoverSkills([skillDirectory.value], { includeDisabled: true })
+    : []
+}
+
+const selectSkillDirectory = (directoryKey: string) => {
+  if (!directoryKey || directoryKey === activeDirectoryKey.value) return
+  selectedDirectoryKey.value = directoryKey
+  refreshSkills()
 }
 
 const filteredSkills = computed(() => {
@@ -55,12 +108,13 @@ const stripFrontmatter = (content: string) => {
   return content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim()
 }
 
-const buildSkillFileContent = (name: string, description: string, body: string) => {
+const buildSkillFileContent = (name: string, description: string, body: string, enabled = true) => {
   const normalizedBody = body.trim()
   return [
     '---',
     `name: ${name}`,
     `description: ${description}`,
+    `enabled: ${enabled}`,
     '---',
     '',
     normalizedBody
@@ -68,7 +122,37 @@ const buildSkillFileContent = (name: string, description: string, body: string) 
 }
 
 const validateSkillName = (name: string) => {
-  return /^[a-z0-9-]+$/.test(name) && !name.startsWith('-') && !name.endsWith('-') && !name.includes('--')
+  return (
+    /^[a-z0-9-]+$/.test(name) &&
+    !name.startsWith('-') &&
+    !name.endsWith('-') &&
+    !name.includes('--')
+  )
+}
+
+const setSkillEnabledInContent = (content: string, enabled: boolean) => {
+  const match = content.match(FRONTMATTER_PATTERN)
+  if (!match) return content
+
+  const frontmatter = match[1]
+  const updatedFrontmatter = /(^|\n)enabled:\s*(true|false)\s*($|\n)/.test(frontmatter)
+    ? frontmatter.replace(/(^|\n)enabled:\s*(true|false)\s*($|\n)/, `$1enabled: ${enabled}$3`)
+    : `${frontmatter}\nenabled: ${enabled}`
+
+  return content.replace(FRONTMATTER_PATTERN, `---\n${updatedFrontmatter}\n---`)
+}
+
+const toggleSkillEnabled = (skill: SkillMetadata) => {
+  try {
+    const rawContent = getRawSkillContent(skill)
+    const nextEnabled = !skill.enabled
+    const nextContent = setSkillEnabledInContent(rawContent, nextEnabled)
+    window.api.fs.writeFileSync(getSkillFilePath(skill.path), nextContent, 'utf-8')
+    refreshSkills()
+    messageApi.success(nextEnabled ? `已启用技能：${skill.name}` : `已禁用技能：${skill.name}`)
+  } catch (error) {
+    messageApi.error(`更新技能状态失败：${error instanceof Error ? error.message : String(error)}`)
+  }
 }
 
 const openSkillDetail = (skill: SkillMetadata) => {
@@ -213,7 +297,7 @@ const openEditSkillModal = (skill: SkillMetadata) => {
 
         window.api.fs.writeFileSync(
           nextFile,
-          buildSkillFileContent(nextName, nextDescription, nextBody),
+          buildSkillFileContent(nextName, nextDescription, nextBody, skill.enabled),
           'utf-8'
         )
         refreshSkills()
@@ -254,6 +338,11 @@ const deleteSkill = async (skill: SkillMetadata) => {
 }
 
 const openCreateSkillModal = () => {
+  if (!skillDirectory.value) {
+    messageApi.error('当前没有可用的技能目录，请先切换目录')
+    return
+  }
+
   const [FormComponent, formActions] = useForm({
     title: '新技能',
     showHeader: false,
@@ -324,6 +413,17 @@ const openCreateSkillModal = () => {
 onMounted(() => {
   refreshSkills()
 })
+
+watch(
+  [skillDirectoryEntries, activeDirectoryKey],
+  () => {
+    if (!skillDirectoryEntries.value.some((entry) => entry.key === activeDirectoryKey.value)) {
+      selectedDirectoryKey.value = ''
+    }
+    refreshSkills()
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -335,9 +435,25 @@ onMounted(() => {
             <div class="skills-title-row">
               <div class="skills-title">本地技能</div>
               <div class="skills-count">{{ skills.length }} 个</div>
+              <div v-if="currentDirectoryEntry" class="skills-directory-badge">
+                {{ currentDirectoryEntry.agentName }}
+              </div>
             </div>
             <div class="skills-directory-inline" :title="skillDirectory">
               {{ skillDirectory }}
+            </div>
+            <div v-if="skillDirectoryEntries.length > 1" class="skills-directory-switcher">
+              <button
+                v-for="entry in skillDirectoryEntries"
+                :key="entry.key"
+                type="button"
+                class="skills-directory-chip"
+                :class="{ active: entry.key === activeDirectoryKey }"
+                :title="`${entry.agentName} · ${entry.directory}`"
+                @click="selectSkillDirectory(entry.key)"
+              >
+                {{ entry.agentName }}
+              </button>
             </div>
           </div>
           <div class="skills-overview-actions">
@@ -352,8 +468,12 @@ onMounted(() => {
 
         <div class="skills-toolbar">
           <div class="skills-search">
-            <SearchInput v-model="searchKeyword" placeholder="搜索技能名称、描述或路径" :enable-a-i-search="false"
-              :show-icon="true" />
+            <SearchInput
+              v-model="searchKeyword"
+              placeholder="搜索技能名称、描述或路径"
+              :enable-a-i-search="false"
+              :show-icon="true"
+            />
           </div>
           <div class="skills-actions">
             <Button size="sm" variant="secondary" @click="refreshSkills">
@@ -372,32 +492,61 @@ onMounted(() => {
         </div>
 
         <div class="skill-list">
-          <div v-for="skill in filteredSkills" :key="skill.name" class="skill-card">
+          <div v-for="skillItem in filteredSkills" :key="skillItem.name" class="skill-card">
             <div class="skill-card-icon">
               <Sparkles />
             </div>
             <div class="skill-card-main">
-              <div class="skill-card-name">{{ skill.name }}</div>
-              <div class="skill-card-desc">{{ skill.description }}</div>
-              <div class="skill-card-path" :title="skill.path">{{ skill.path }}</div>
+              <div class="skill-card-name-row">
+                <div class="skill-card-name">{{ skillItem.name }}</div>
+                <div v-if="!skillItem.enabled" class="skill-status-badge">已禁用</div>
+              </div>
+              <div class="skill-card-desc">{{ skillItem.description }}</div>
+              <div class="skill-card-path" :title="skillItem.path">{{ skillItem.path }}</div>
             </div>
             <div class="skill-card-actions">
-              <Button size="sm" variant="text" title="查看详情" @click="openSkillDetail(skill)">
+              <Button
+                size="sm"
+                variant="text"
+                :title="skillItem.enabled ? '禁用技能' : '启用技能'"
+                @click="toggleSkillEnabled(skillItem)"
+              >
+                <template #icon>
+                  <component :is="skillItem.enabled ? Active : Inactive" />
+                </template>
+              </Button>
+              <Button size="sm" variant="text" title="查看详情" @click="openSkillDetail(skillItem)">
                 <template #icon>
                   <Eye />
                 </template>
               </Button>
-              <Button size="sm" variant="text" title="编辑技能" @click="openEditSkillModal(skill)">
+              <Button
+                size="sm"
+                variant="text"
+                title="编辑技能"
+                @click="openEditSkillModal(skillItem)"
+              >
                 <template #icon>
                   <Pencil />
                 </template>
               </Button>
-              <Button size="sm" variant="text" title="打开文件夹" @click="openSkillDirectory(skill.path)">
+              <Button
+                size="sm"
+                variant="text"
+                title="打开文件夹"
+                @click="openSkillDirectory(skillItem.path)"
+              >
                 <template #icon>
                   <Folder />
                 </template>
               </Button>
-              <Button size="sm" variant="text" class="delete-btn" title="删除技能" @click="deleteSkill(skill)">
+              <Button
+                size="sm"
+                variant="text"
+                class="delete-btn"
+                title="删除技能"
+                @click="deleteSkill(skillItem)"
+              >
                 <template #icon>
                   <Trash />
                 </template>
@@ -483,17 +632,63 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+.skills-directory-badge {
+  font-size: 11px;
+  color: var(--accent-color);
+  background: var(--bg-active);
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
 .skills-directory-inline {
   font-size: 12px;
   color: var(--text-secondary);
   font-family: monospace;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.skills-directory-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.skills-directory-chip {
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.3;
+  font-family: monospace;
+  cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.skills-directory-chip:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.skills-directory-chip.active {
+  color: var(--accent-color);
+  border-color: rgba(var(--accent-rgb), 0.35);
+  background: var(--bg-active);
+}
+
 .skills-overview-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -565,6 +760,13 @@ onMounted(() => {
   gap: 4px;
 }
 
+.skill-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .skill-card-name {
   font-size: 15px;
   font-weight: 600;
@@ -573,6 +775,16 @@ onMounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.skill-status-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 1px 6px;
 }
 
 .skill-card-desc {
@@ -712,6 +924,21 @@ onMounted(() => {
 }
 
 @media (max-width: 1100px) {
+  .skills-overview {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .skills-overview-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .skills-directory-chip {
+    max-width: 100%;
+  }
+
   .skill-list {
     grid-template-columns: 1fr;
   }

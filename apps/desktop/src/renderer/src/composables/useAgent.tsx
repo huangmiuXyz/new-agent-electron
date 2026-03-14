@@ -1,5 +1,8 @@
 import { zodSchemasToFormfields } from '../utils/zod-to-form'
 import { createRegistry } from '../services/chatService/registry'
+import { discoverSkills, loadSkill, type SkillMetadata } from '../services/skillsService'
+import Markdown from '@renderer/components/Markdown.vue'
+import Button from '@renderer/components/Button.vue'
 
 interface AgentFormData extends Omit<
   Agent,
@@ -18,6 +21,14 @@ export const useAgent = () => {
   const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 
   const { confirm, remove } = useModal()
+
+  const resolveSkillDirectory = (rawPath?: string) => {
+    const normalizedPath = rawPath?.trim() || DEFAULT_SKILL_DIRECTORY
+    if (normalizedPath.startsWith('~/')) {
+      return window.api.path.join(window.api.os.homedir(), normalizedPath.slice(2))
+    }
+    return normalizedPath
+  }
 
   const getBuiltinToolOptions = () => {
     const tools = getBuiltinTools()
@@ -127,7 +138,15 @@ export const useAgent = () => {
       Library16Filled,
       Screen,
       FormatImage,
-      Speaker224Regular
+      Speaker224Regular,
+      Sparkles,
+      Folder,
+      Active,
+      Inactive,
+      Eye,
+      Pencil,
+      Trash,
+      Plus
     } = useIcon([
       'Robot',
       'Settings',
@@ -135,7 +154,15 @@ export const useAgent = () => {
       'Library16Filled',
       'Screen',
       'FormatImage',
-      'Speaker224Regular'
+      'Speaker224Regular',
+      'Sparkles',
+      'Folder',
+      'Active',
+      'Inactive',
+      'Eye',
+      'Pencil',
+      'Trash',
+      'Plus'
     ])
 
     const initialData: AgentFormData = agent
@@ -150,6 +177,7 @@ export const useAgent = () => {
           ragEnabled: agent.ragEnabled ?? false,
           terminalStartupPath: agent.terminalStartupPath || '',
           skillDirectory: agent.skillDirectory || DEFAULT_SKILL_DIRECTORY,
+          disabledSkills: [...(agent.disabledSkills || [])],
           backgrounds: agent.backgrounds ? agent.backgrounds.map((bg) => bg.url) : [],
           avatar: agent.avatar || '',
           temperature: agent.temperature ?? 0.7,
@@ -182,6 +210,7 @@ export const useAgent = () => {
           ragEnabled: false,
           terminalStartupPath: '',
           skillDirectory: DEFAULT_SKILL_DIRECTORY,
+          disabledSkills: [],
           backgrounds: [],
           avatar: '',
           temperature: 0.7,
@@ -201,6 +230,54 @@ export const useAgent = () => {
         }
 
     let previousMcpServers = initialData.mcpServers || []
+    const skillRefreshVersion = ref(0)
+
+    const getSkillFilePath = (skillPath: string) => window.api.path.join(skillPath, 'SKILL.md')
+
+    const getRawSkillContent = (skill: SkillMetadata) => {
+      return window.api.fs.readFileSync(getSkillFilePath(skill.path), 'utf-8')
+    }
+
+    const stripFrontmatter = (content: string) => {
+      return content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim()
+    }
+
+    const buildSkillFileContent = (name: string, description: string, body: string) => {
+      const normalizedBody = body.trim()
+      return [
+        '---',
+        `name: ${name}`,
+        `description: ${description}`,
+        '---',
+        '',
+        normalizedBody
+      ].join('\n')
+    }
+
+    const validateSkillName = (name: string) => {
+      return (
+        /^[a-z0-9-]+$/.test(name) &&
+        !name.startsWith('-') &&
+        !name.endsWith('-') &&
+        !name.includes('--')
+      )
+    }
+
+    const createSkillTemplate = (name: string, description: string) =>
+      buildSkillFileContent(
+        name,
+        description,
+        [
+          `# ${name}`,
+          '',
+          description,
+          '',
+          '## Instructions',
+          '',
+          '- 在这里编写技能使用说明。',
+          '- 需要引用文件时，使用相对路径。'
+        ].join('\n')
+      )
 
     // 定义表单字段，按类别分组
     const basicFields: FormField<AgentFormData>[] = [
@@ -475,6 +552,551 @@ export const useAgent = () => {
       } as UploadField<AgentFormData>
     ]
 
+    const getDisabledSkills = () =>
+      ((formActions?.getFieldValue('disabledSkills') as string[]) || []).slice()
+
+    const setDisabledSkills = (skillNames: string[]) => {
+      const nextSkillNames = skillNames.filter(
+        (name, index, array) =>
+          array.findIndex((item) => item.toLowerCase() === name.toLowerCase()) === index
+      )
+      formActions.setFieldValue('disabledSkills', nextSkillNames)
+      skillRefreshVersion.value += 1
+    }
+
+    const openSkillDetail = (skill: SkillMetadata, skills: SkillMetadata[]) => {
+      const loaded = loadSkill(skill.name, skills)
+      if (!loaded) {
+        messageApi.error(`加载技能失败：${skill.name}`)
+        return
+      }
+
+      const SkillDetailContent = defineComponent({
+        setup() {
+          const block = {
+            text: loaded.content,
+            state: 'done',
+            type: 'text'
+          } as any
+          const message = {
+            content: loaded.content,
+            role: 'assistant',
+            id: `skill-${skill.name}`
+          } as any
+
+          return {
+            skill,
+            block,
+            message
+          }
+        },
+        render() {
+          return (
+            <div class="skill-detail-modal">
+              <div class="skill-detail-header-card">
+                <div class="skill-detail-meta">
+                  <div>
+                    <div class="skill-detail-name">{this.skill.name}</div>
+                    <div class="skill-detail-desc">{this.skill.description}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="skill-detail-body">
+                <Markdown block={this.block} message={this.message} />
+              </div>
+            </div>
+          )
+        }
+      })
+
+      confirm({
+        title: `技能详情 · ${skill.name}`,
+        content: SkillDetailContent,
+        width: '760px',
+        maxHeight: '80vh',
+        showCancel: false
+      })
+    }
+
+    const openEditSkillModal = (skill: SkillMetadata) => {
+      let rawContent = ''
+      try {
+        rawContent = getRawSkillContent(skill)
+      } catch (error) {
+        messageApi.error(`读取技能失败：${error instanceof Error ? error.message : String(error)}`)
+        return
+      }
+
+      const [SkillForm, skillFormActions] = useForm({
+        title: `编辑技能 · ${skill.name}`,
+        showHeader: false,
+        initialData: {
+          name: skill.name,
+          description: skill.description,
+          body: stripFrontmatter(rawContent)
+        },
+        fields: [
+          {
+            name: 'name',
+            type: 'text',
+            label: '技能名称',
+            required: true,
+            placeholder: '例如：design-review'
+          },
+          {
+            name: 'description',
+            type: 'textarea',
+            label: '技能描述',
+            required: true,
+            placeholder: '简要描述这个技能负责什么'
+          },
+          {
+            name: 'body',
+            type: 'textarea',
+            label: '技能正文',
+            required: true,
+            placeholder: '请输入技能正文 Markdown',
+            rows: 18
+          }
+        ],
+        onSubmit: (data) => {
+          const nextName = data.name.trim()
+          const nextDescription = data.description.trim()
+          const nextBody = data.body.trim()
+
+          if (!nextName || !nextDescription || !nextBody) {
+            messageApi.error('请填写完整的技能名称、描述和正文')
+            return
+          }
+
+          if (!validateSkillName(nextName)) {
+            messageApi.error('技能名称只能包含小写字母、数字和中划线')
+            return
+          }
+
+          const skillDirectory = resolveSkillDirectory(
+            formActions.getFieldValue('skillDirectory') as string
+          )
+          const nextDir = window.api.path.join(skillDirectory, nextName)
+          const nextFile = getSkillFilePath(nextDir)
+          const currentDir = skill.path
+
+          if (nextName !== skill.name && window.api.fs.existsSync(nextDir)) {
+            messageApi.error(`目标技能目录已存在：${nextName}`)
+            return
+          }
+
+          try {
+            if (nextName !== skill.name) {
+              window.api.fs.renameSync(currentDir, nextDir)
+            }
+
+            window.api.fs.writeFileSync(
+              nextFile,
+              buildSkillFileContent(nextName, nextDescription, nextBody),
+              'utf-8'
+            )
+
+            if (nextName !== skill.name) {
+              const nextDisabledSkills = getDisabledSkills().map((name) =>
+                name.toLowerCase() === skill.name.toLowerCase() ? nextName : name
+              )
+              setDisabledSkills(nextDisabledSkills)
+            } else {
+              skillRefreshVersion.value += 1
+            }
+
+            remove()
+            messageApi.success(`已更新技能：${nextName}`)
+          } catch (error) {
+            messageApi.error(
+              `更新技能失败：${error instanceof Error ? error.message : String(error)}`
+            )
+          }
+        }
+      })
+
+      confirm({
+        title: `编辑技能 · ${skill.name}`,
+        content: SkillForm,
+        width: '720px',
+        maxHeight: '80vh',
+        onOk: async () => {
+          skillFormActions.submit()
+        }
+      })
+    }
+
+    const deleteSkill = async (skill: SkillMetadata) => {
+      const confirmed = await confirm({
+        title: '删除技能',
+        content: `确定要删除技能 "${skill.name}" 吗？此操作不可撤销。`
+      })
+
+      if (!confirmed) return
+
+      try {
+        window.api.fs.rmSync(skill.path, { recursive: true, force: true })
+        setDisabledSkills(
+          getDisabledSkills().filter((name) => name.toLowerCase() !== skill.name.toLowerCase())
+        )
+        messageApi.success(`已删除技能：${skill.name}`)
+      } catch (error) {
+        messageApi.error(`删除技能失败：${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    const openCreateSkillModal = () => {
+      const skillDirectory = resolveSkillDirectory(
+        formActions.getFieldValue('skillDirectory') as string
+      )
+      if (!skillDirectory) {
+        messageApi.error('当前没有可用的技能目录，请先设置技能目录')
+        return
+      }
+
+      const [SkillForm, skillFormActions] = useForm({
+        title: '新技能',
+        showHeader: false,
+        initialData: {
+          name: '',
+          description: ''
+        },
+        fields: [
+          {
+            name: 'name',
+            type: 'text',
+            label: '技能名称',
+            required: true,
+            placeholder: '例如：design-review'
+          },
+          {
+            name: 'description',
+            type: 'textarea',
+            label: '技能描述',
+            required: true,
+            placeholder: '简要描述这个技能负责什么'
+          }
+        ],
+        onSubmit: (data) => {
+          const name = data.name.trim()
+          const description = data.description.trim()
+
+          if (!name || !description) {
+            messageApi.error('请填写完整的技能名称和描述')
+            return
+          }
+
+          if (!validateSkillName(name)) {
+            messageApi.error('技能名称只能包含小写字母、数字和中划线')
+            return
+          }
+
+          const targetDir = window.api.path.join(skillDirectory, name)
+          const skillFile = window.api.path.join(targetDir, 'SKILL.md')
+
+          if (window.api.fs.existsSync(targetDir)) {
+            messageApi.error(`技能目录已存在：${name}`)
+            return
+          }
+
+          try {
+            window.api.fs.mkdirSync(targetDir, { recursive: true })
+            window.api.fs.writeFileSync(skillFile, createSkillTemplate(name, description), 'utf-8')
+            skillRefreshVersion.value += 1
+            remove()
+            messageApi.success(`已创建技能：${name}`)
+          } catch (error) {
+            messageApi.error(
+              `创建技能失败：${error instanceof Error ? error.message : String(error)}`
+            )
+          }
+        }
+      })
+
+      confirm({
+        title: '新技能',
+        content: SkillForm,
+        width: '560px',
+        maxHeight: '70vh',
+        onOk: async () => {
+          skillFormActions.submit()
+        }
+      })
+    }
+
+    const skillFields: FormField<AgentFormData>[] = [
+      {
+        name: 'skillDirectory',
+        type: 'path',
+        label: '技能位置',
+        placeholder: '选择或输入技能目录',
+        hint: '智能体会从这个目录读取技能。',
+        dialogOptions: {
+          properties: ['openDirectory'],
+          title: '选择技能目录'
+        }
+      } as PathSelectorField<AgentFormData>,
+      {
+        name: 'disabledSkills',
+        type: 'custom',
+        render: (formData) => {
+          void skillRefreshVersion.value
+          const skillDirectory = resolveSkillDirectory(formData.skillDirectory)
+          const disabledSkillNames = new Set(
+            ((formData.disabledSkills as string[]) || []).map((name) => name.toLowerCase())
+          )
+          const skills = skillDirectory
+            ? discoverSkills([skillDirectory], {
+                includeDisabled: true,
+                disabledSkillNames: formData.disabledSkills as string[],
+                applyCurrentAgentFilters: false
+              })
+            : []
+
+          const toggleSkill = (skill: SkillMetadata) => {
+            const currentDisabledSkills = getDisabledSkills()
+            const nextDisabledSkills = skill.enabled
+              ? currentDisabledSkills
+                  .concat(skill.name)
+                  .filter((value, index, array) => array.indexOf(value) === index)
+              : currentDisabledSkills.filter(
+                  (name) => name.toLowerCase() !== skill.name.toLowerCase()
+                )
+            setDisabledSkills(nextDisabledSkills)
+          }
+
+          const openDirectory = async () => {
+            if (!skillDirectory) return
+            await window.api.shell.openPath(skillDirectory)
+          }
+
+          const openSkillDirectory = async (targetPath: string) => {
+            if (!targetPath) return
+            await window.api.shell.openPath(targetPath)
+          }
+
+          return (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}
+            >
+              {skills.length > 0 ? (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                    gap: '10px'
+                  }}
+                >
+                  {skills.map((skill) => {
+                    const isDisabled = disabledSkillNames.has(skill.name.toLowerCase())
+                    const isEnabled = !isDisabled
+                    return (
+                      <div
+                        key={skill.name}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          background: 'var(--bg-card)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                          minHeight: '88px',
+                          overflow: 'hidden',
+                          opacity: isEnabled ? 1 : 0.7
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '10px',
+                            background: 'var(--bg-hover)',
+                            border: '1px solid var(--border-subtle)',
+                            color: 'var(--text-secondary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}
+                        >
+                          {Sparkles}
+                        </div>
+                        <div
+                          style={{
+                            minWidth: 0,
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px'
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              minWidth: 0
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: '15px',
+                                fontWeight: 600,
+                                color: 'var(--text-primary)',
+                                lineHeight: 1.25,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}
+                            >
+                              {skill.name}
+                            </div>
+                            {!isEnabled && (
+                              <div
+                                style={{
+                                  flexShrink: 0,
+                                  fontSize: '10px',
+                                  color: 'var(--text-tertiary)',
+                                  background: 'var(--bg-hover)',
+                                  border: '1px solid var(--border-subtle)',
+                                  borderRadius: '999px',
+                                  padding: '1px 6px'
+                                }}
+                              >
+                                已禁用
+                              </div>
+                            )}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '11px',
+                              color: 'var(--text-secondary)',
+                              lineHeight: 1.35,
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            {skill.description}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            flexShrink: 0
+                          }}
+                        >
+                          <Button
+                            size="sm"
+                            variant="text"
+                            title={isEnabled ? '禁用技能' : '启用技能'}
+                            onClick={() => toggleSkill(skill)}
+                          >
+                            {isEnabled ? Active : Inactive}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="text"
+                            title="查看详情"
+                            onClick={() => openSkillDetail(skill, skills)}
+                          >
+                            {Eye}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="text"
+                            title="编辑技能"
+                            onClick={() => openEditSkillModal(skill)}
+                          >
+                            {Pencil}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="text"
+                            title="打开文件夹"
+                            onClick={() => openSkillDirectory(skill.path)}
+                          >
+                            {Folder}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="text"
+                            title="删除技能"
+                            onClick={() => void deleteSkill(skill)}
+                          >
+                            {Trash}
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '10px',
+                    textAlign: 'center',
+                    padding: '32px 24px',
+                    background: 'var(--bg-hover)',
+                    borderRadius: '12px',
+                    border: '1px dashed var(--border-subtle)'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '12px',
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    {Sparkles}
+                  </div>
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    还没有技能
+                  </div>
+                  <div
+                    style={{
+                      maxWidth: '560px',
+                      fontSize: '13px',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.6
+                    }}
+                  >
+                    当前智能体会从这个目录自动发现技能。你可以修改技能目录，或直接往目录里放入
+                    `SKILL.md`。
+                  </div>
+                  <Button size="sm" onClick={openCreateSkillModal}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      {Plus}
+                      <span>新建技能</span>
+                    </span>
+                  </Button>
+                </div>
+              )}
+            </div>
+          )
+        }
+      } as CustomField<AgentFormData>
+    ]
+
     const advancedFields: FormField<AgentFormData>[] = [
       {
         name: 'contextCount',
@@ -513,17 +1135,6 @@ export const useAgent = () => {
           properties: ['openDirectory'],
           title: '选择终端启动目录'
         }
-      } as PathSelectorField<AgentFormData>,
-      {
-        name: 'skillDirectory',
-        type: 'path',
-        label: '技能位置',
-        placeholder: '选择或输入技能目录',
-        hint: '用于加载技能的目录。默认：~/.agents/skills，不推荐修改。',
-        dialogOptions: {
-          properties: ['openDirectory'],
-          title: '选择技能目录'
-        }
       } as PathSelectorField<AgentFormData>
     ]
 
@@ -532,6 +1143,7 @@ export const useAgent = () => {
       ...modelFields,
       ...speechFields,
       ...toolFields,
+      ...skillFields,
       ...knowledgeFields,
       ...appearanceFields,
       ...advancedFields
@@ -616,6 +1228,7 @@ export const useAgent = () => {
           { id: 'model', name: '模型参数', icon: Settings, fields: modelFields },
           { id: 'speech', name: '语音配置', icon: Speaker224Regular, fields: speechFields },
           { id: 'tools', name: '工具配置', icon: Wrench20Regular, fields: toolFields },
+          { id: 'skills', name: '技能配置', icon: Sparkles, fields: skillFields },
           { id: 'knowledge', name: '知识库', icon: Library16Filled, fields: knowledgeFields },
           { id: 'appearance', name: '外观设置', icon: FormatImage, fields: appearanceFields },
           { id: 'advanced', name: '高级设置', icon: Screen, fields: advancedFields }
