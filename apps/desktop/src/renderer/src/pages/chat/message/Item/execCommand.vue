@@ -7,6 +7,7 @@ const props = defineProps<{
   tool_part: ToolUIPart
   message: BaseMessage
 }>()
+const { Check, Close, Continue } = useIcon(['Check', 'Close', 'Continue'])
 
 const { getTerminalIdByToolCallId, forceContinue, tabs } = useTerminal()
 
@@ -43,34 +44,62 @@ const handleApproval = (resolve: boolean) => {
   <ChatMessageItemDynamicTool :key="tool_part.state" :tool_part="tool_part" :message="message">
     <template #status>
       <template v-if="tool_part.state === 'approval-requested'">
-        <Button size="sm" variant='primary' class="force-continue-btn" @click.stop="handleApproval(true)">
-          允许
-        </Button>
-        <Button danger size="sm" variant="secondary" class="force-continue-btn" @click.stop="handleApproval(false)">
-          拒绝
-        </Button>
+        <button class="status-icon-btn approve" type="button" title="允许" @click.stop="handleApproval(true)">
+          <Check />
+        </button>
+        <button class="status-icon-btn reject" type="button" title="拒绝" @click.stop="handleApproval(false)">
+          <Close />
+        </button>
       </template>
       <template v-else-if="isExecuting">
-        <Button size="sm" variant="secondary" class="force-continue-btn" @click.stop="handleForceContinue">
-          强制继续
-        </Button>
+        <button class="status-icon-btn continue" type="button" title="强制继续" @click.stop="handleForceContinue">
+          <Continue />
+        </button>
       </template>
     </template>
   </ChatMessageItemDynamicTool>
 </template>
 
 <style scoped>
-.force-continue-btn {
-  height: 22px;
-  font-size: 11px;
-  padding: 0 10px;
-  margin-left: 6px;
-  border-radius: 4px;
-  font-weight: 500;
+.status-icon-btn {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin-left: 4px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-tertiary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 0;
+  flex: none;
+}
+
+.status-icon-btn:hover {
+  background: var(--bg-hover);
+}
+
+.status-icon-btn :deep(svg) {
+  width: 10px;
+  height: 10px;
+  display: block;
+  flex: none;
+}
+
+.status-icon-btn.approve:hover {
+  color: var(--color-success);
+}
+
+.status-icon-btn.reject:hover {
+  color: var(--color-error);
+}
+
+.status-icon-btn.continue:hover {
+  color: var(--accent-color);
 }
 
 .status-dot.executing {
