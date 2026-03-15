@@ -1160,12 +1160,14 @@ const plugin: Plugin = {
               display: flex;
               align-items: center;
               justify-content: space-between;
+              flex-wrap: wrap;
               gap: 8px;
               font-size: 12px;
               font-weight: 600;
             }
             .codex-settings-account-list {
               display: grid;
+              grid-template-columns: repeat(2, minmax(320px, 1fr));
               gap: 6px;
             }
             .codex-settings-account-item {
@@ -1272,6 +1274,11 @@ const plugin: Plugin = {
             .codex-settings-account-empty {
               font-size: 12px;
               color: var(--text-secondary);
+            }
+            @media (max-width: 900px) {
+              .codex-settings-account-list {
+                grid-template-columns: 1fr;
+              }
             }
           `),
           context.vue.h('div', { class: 'codex-settings-account-list-title' }, [
