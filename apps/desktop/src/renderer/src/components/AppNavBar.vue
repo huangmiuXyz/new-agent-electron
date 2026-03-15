@@ -36,7 +36,7 @@ const toggleDarkMode = () => {
                 <EditNoteFilled class="nav-icon" />
             </div>
             <div class="nav-item" :class="{ active: currentView === 'image' }" @click="emit('switch', 'image')"
-                title="绘画">
+                title="生成">
                 <Image class="nav-icon" />
             </div>
         </div>

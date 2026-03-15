@@ -113,14 +113,16 @@ export const T2AAudioSettingSchema = z.object({
     '24000',
     '32000',
     '44100'
-  ]).transform((value) => Number(value)).optional(),
+  ]).transform((value) => Number(value)).optional()
+    .describe('采样率。可选值：`16000`, `24000`, `32000`, `44100`'),
   bitrate: z.enum([
     '32000',
     '64000',
     '128000',
     '256000'
-  ]).transform((value) => Number(value)).optional(),
-  format: AudioFormatEnum.optional(),
+  ]).transform((value) => Number(value)).optional()
+    .describe('比特率。可选值：`32000`, `64000`, `128000`, `256000`'),
+  format: AudioFormatEnum.optional().describe('音频编码格式。'),
   channel: z.enum(['1', '2']).transform((value) => Number(value)).optional().meta({ ifShow: showForSpeech }),
   force_cbr: z.boolean().optional().meta({ ifShow: showForSpeech })
 })
