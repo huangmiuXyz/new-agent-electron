@@ -159,7 +159,7 @@ const openProviderOptionsModal = () => {
 }
 
 // 图标
-const FileUploadIcon = useIcon('UploadOutlined')
+const FileUploadIcon = useIcon('Folder')
 const Bulb = useIcon('Bulb')
 const MicIcon = useIcon('Mic')
 const MicOffIcon = useIcon('MicOff')
