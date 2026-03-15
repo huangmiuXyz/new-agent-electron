@@ -73,7 +73,15 @@ const toggleSidebar = () => {
 }
 provide('toggleImageSidebar', toggleSidebar)
 
-const isMobileImagePage = computed(() => isMobile.value && !isToolMode.value && route.path === '/mobile/image')
+const isMobileImagePage = computed(() => isMobile.value && !isToolMode.value && route.path.startsWith('/mobile/image'))
+const mobileRouteMode = computed<GenerationMode | null>(() => {
+  const mode = route.params.mode
+  if (mode === 'image' || mode === 'video' || mode === 'speech') {
+    return mode
+  }
+
+  return null
+})
 
 useBackButton({
   enabled: isMobileImagePage,
@@ -144,6 +152,10 @@ const isModelSelected = computed(() => {
 })
 
 const handleModeSwitch = (mode: GenerationMode) => {
+  if (isMobile.value && !isToolMode.value && mobileRouteMode.value) {
+    router.replace(`/mobile/image/${mode}`)
+  }
+
   activeMode.value = mode
 }
 
@@ -421,6 +433,16 @@ onUnmounted(() => {
   }
 })
 
+watch(
+  mobileRouteMode,
+  (mode) => {
+    if (!mode) return
+
+    activeMode.value = mode
+  },
+  { immediate: true }
+)
+
 const toolResultSyncKey = computed(() => {
   const metadata = props.result?.metadata
   const images = metadata?.images || []
@@ -451,12 +473,11 @@ watch(toolResultSyncKey, () => {
   syncToolBatchFromResult()
 }, { immediate: true })
 
-const { Trash, Image: ImageIcon, Screen, VolumeMedium, Settings, X } = useIcon([
+const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
   'Trash',
   'Image',
   'Screen',
   'VolumeMedium',
-  'Settings',
   'X'
 ])
 </script>

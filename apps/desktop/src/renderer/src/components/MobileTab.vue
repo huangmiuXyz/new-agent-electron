@@ -7,33 +7,18 @@
         </transition>
       </RouterView>
     </div>
+    <MobileTabBar v-if="showTabBar" />
   </div>
 </template>
 
 <script setup>
-import { computed, ref, inject } from 'vue'
-const router = useRouter()
+import { computed, inject, ref } from 'vue'
+import MobileTabBar from './MobileTabBar.vue'
+
 const route = useRoute()
 const pageTransition = inject('pageTransition', ref('fade'))
 
-const emit = defineEmits(['switch'])
-
-const tabs = [
-  { key: 'chat', label: '聊天', icon: useIcon('Chat'), path: '/mobile/chat/list' },
-  { key: 'settings', label: '设置', icon: useIcon('Settings'), path: '/mobile/settings/list' }
-]
-
-const currentIndex = computed(() => {
-  const sort = route.meta.sort
-  return typeof sort === 'number' ? sort - 1 : 0
-})
-const activeTab = computed(() => {
-  return tabs[currentIndex.value]?.key || tabs[0].key
-})
-
-const switchTab = (tab) => {
-  router.push(tab.path)
-}
+const showTabBar = computed(() => route.meta?.showTabBar === true)
 </script>
 
 <style scoped>
@@ -63,83 +48,9 @@ const switchTab = (tab) => {
   flex-direction: column;
 }
 
-.page-view>* {
+.page-view > * {
   width: 100%;
   height: 100%;
-}
-
-.tab-bar {
-  position: relative;
-  background-color: var(--bg-card);
-  display: flex;
-  z-index: 100;
-  height: calc(56px + max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px)));
-  padding-bottom: max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px));
-}
-
-.slider-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 50%;
-  height: 3px;
-  background: linear-gradient(90deg,
-      transparent 0%,
-      var(--accent-color) 30%,
-      var(--accent-color) 70%,
-      transparent 100%);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-  z-index: 10;
-  pointer-events: none;
-  border-radius: 2px;
-}
-
-.tab-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: all 0.3s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.icon-box {
-  width: 24px;
-  height: 24px;
-  position: relative;
-  transition: transform 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-}
-
-.icon-box :deep(svg) {
-  width: 100%;
-  height: 100%;
-  fill: currentColor;
-}
-
-.tab-text {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.2px;
-}
-
-.tab-item.active {
-  color: var(--accent-color);
-}
-
-.tab-item.active .icon-box {
-  transform: translateY(-2px);
-}
-
-.tab-item:active .icon-box {
-  transform: scale(0.92) translateY(-2px);
 }
 
 .fade-slide-enter-active,

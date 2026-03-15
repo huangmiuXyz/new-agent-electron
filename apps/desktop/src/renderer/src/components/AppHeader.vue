@@ -134,15 +134,12 @@ onMounted(() => {
     <!-- 移动端列表页特有头部 -->
     <div v-if="isListMode" class="mobile-list-header no-drag">
       <h1 class="mobile-title">{{ route.meta.title }}</h1>
-      <div v-if="route.path.includes('/chat') || route.path.includes('/notes') || route.path.includes('/image')" class="mobile-header-actions">
+      <div v-if="route.path.includes('/chat') || route.path.includes('/notes')" class="mobile-header-actions">
         <Button v-if="route.path.includes('/chat')" class="mobile-action-btn" @click="openSearch">
           <component :is="Search" />
         </Button>
         <Button v-if="route.path.includes('/chat')" class="mobile-action-btn" @click="createNewChat">
           <component :is="CommentAdd16Regular" />
-        </Button>
-        <Button v-if="route.path.includes('/image')" class="mobile-action-btn" @click="toggleImageSidebar">
-          <component :is="Settings" />
         </Button>
       </div>
     </div>

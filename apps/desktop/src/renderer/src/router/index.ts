@@ -49,12 +49,18 @@ const router = createRouter({
     },
     {
       path: '/mobile/image',
-      component: () => import('../pages/image/index.vue'),
+      component: () => import('../pages/mobile/CreateList.vue'),
       meta: {
         showTabBar: true,
         sort: 2,
+        depth: 1,
         title: '创作'
       }
+    },
+    {
+      path: '/mobile/image/:mode(image|video|speech)',
+      component: () => import('../pages/image/index.vue'),
+      meta: { depth: 2 }
     },
     {
       path: '/mobile/notes',
