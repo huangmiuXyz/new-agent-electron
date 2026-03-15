@@ -186,13 +186,6 @@ const { Trash, VolumeMedium, FileMusic, Download, Copy, X, Edit, Refresh } = use
         <div v-else-if="item.audioData" class="audio-ready">
           <div class="audio-ready-meta">
             <span>{{ getItemStatusText(item) }}</span>
-            <div class="audio-ready-meta-right">
-              <span>{{ formatDuration(item.duration) }}</span>
-              <Button variant="text" size="sm" @click="downloadAudio(item)">
-                <Download />
-                下载
-              </Button>
-            </div>
           </div>
           <audio class="speech-audio-player" :src="getAudioSrc(item)" controls preload="metadata" />
         </div>
