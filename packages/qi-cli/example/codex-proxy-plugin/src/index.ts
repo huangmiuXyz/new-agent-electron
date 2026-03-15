@@ -265,6 +265,14 @@ const getUsageURL = (config = runtimeConfig) =>
 
 const isBridgeBusy = () => Boolean(bridgeBusyMessage)
 
+const invalidateBridgeStateCache = () => {
+  lastBridgeReadyAt = 0
+  lastBridgeReadyConfigHash = ''
+  lastHealthCheckAt = 0
+  lastHealthConfigHash = ''
+  lastHealthResult = null
+}
+
 const getConfigHash = (config = runtimeConfig) =>
   JSON.stringify({
     accessToken: config.accessToken,
@@ -329,13 +337,45 @@ const waitForBridge = async (
 }
 
 const stopBridge = async (config: CodexProxyPluginConfig) => {
-  lastBridgeReadyAt = 0
-  lastBridgeReadyConfigHash = ''
+  invalidateBridgeStateCache()
   await tryJson(`${getBridgeBaseURL(config)}/shutdown`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ apiKey: BRIDGE_API_KEY })
   })
+}
+
+const applyBridgeConfig = async (config: CodexProxyPluginConfig) => {
+  invalidateBridgeStateCache()
+  const response = await fetch(`${getBridgeBaseURL(config)}/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      apiKey: BRIDGE_API_KEY,
+      accessToken: config.accessToken,
+      accountId: config.accountId,
+      sessionCookie: '',
+      defaultModel: config.defaultModel,
+      reasoningEffort: config.reasoningEffort
+    }),
+    signal: withTimeout(HEALTH_REQUEST_TIMEOUT_MS)
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(text || `HTTP ${response.status}`)
+  }
+
+  const json = (await response.json()) as { ok?: boolean; configHash?: string }
+  if (!json?.ok || json.configHash !== getConfigHash(config)) {
+    throw new Error('bridge 配置更新失败')
+  }
+
+  lastBridgeReadyAt = Date.now()
+  lastBridgeReadyConfigHash = json.configHash
+  lastHealthCheckAt = Date.now()
+  lastHealthConfigHash = json.configHash
+  lastHealthResult = json
 }
 
 const startBridge = async (
@@ -358,8 +398,8 @@ const startBridge = async (
   }
 
   if (health?.ok) {
-    await stopBridge(config)
-    await sleep(300)
+    await applyBridgeConfig(config)
+    return true
   }
 
   const serverPath = context.api.path.join(context.basePath, 'server.cjs')
@@ -641,6 +681,22 @@ const plugin: Plugin = {
       refreshPluginUI()
     }
 
+    const refreshUsageInBackground = (
+      notify = false,
+      force = true,
+      allowWhileBridgeBusy = false,
+      bridgeReady = false
+    ) => {
+      void refreshUsage(notify, force, allowWhileBridgeBusy, bridgeReady).catch(
+        (error) => {
+          context.notification.error(
+            error instanceof Error ? error.message : String(error),
+            'Codex 代理'
+          )
+        }
+      )
+    }
+
     const assertBridgeIdle = () => {
       if (!bridgeBusyMessage) return
       throw new Error(bridgeBusyMessage)
@@ -663,15 +719,15 @@ const plugin: Plugin = {
       setBridgeBusy('Codex bridge 重启中，暂时无法切换账号或刷新额度。')
       try {
         if (next.accessToken) {
-          await startBridge(context, next).catch(() => undefined)
+          await startBridge(context, next)
         } else if (previous.accessToken) {
           await stopBridge(previous)
         }
         await syncProvider(context, FormComp)
-        await refreshUsage(false, true, true, true)
       } finally {
         setBridgeBusy('')
       }
+      refreshUsageInBackground(false, true, false, true)
       context.notification.success('已切换账号。', 'Codex 代理')
     }
 
@@ -695,12 +751,12 @@ const plugin: Plugin = {
       syncFormActions(merged)
       setBridgeBusy('Codex bridge 重启中，暂时无法切换账号或刷新额度。')
       try {
-        await startBridge(context, merged).catch(() => undefined)
+        await startBridge(context, merged)
         await syncProvider(context, FormComp)
-        await refreshUsage(false, true, true, true)
       } finally {
         setBridgeBusy('')
       }
+      refreshUsageInBackground(false, true, false, true)
       context.notification.success('已将当前登录保存到账号列表。', 'Codex 代理')
     }
 
@@ -786,15 +842,15 @@ const plugin: Plugin = {
         setBridgeBusy('Codex bridge 重启中，暂时无法切换账号或刷新额度。')
         try {
           if (next.accessToken) {
-            await startBridge(context, next).catch(() => undefined)
+            await startBridge(context, next)
           } else {
             await stopBridge(previous)
           }
           await syncProvider(context, FormComp)
-          await refreshUsage(false, true, true, true)
         } finally {
           setBridgeBusy('')
         }
+        refreshUsageInBackground(false, true, false, true)
       } else {
         await syncProvider(context, FormComp)
       }

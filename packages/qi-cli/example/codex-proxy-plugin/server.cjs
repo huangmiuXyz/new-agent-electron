@@ -4,20 +4,61 @@ const { randomUUID } = require('node:crypto')
 
 const HOST = process.env.CODEX_PROXY_PLUGIN_HOST || '127.0.0.1'
 const PORT = Number(process.env.CODEX_PROXY_PLUGIN_PORT || 18123)
-const ACCESS_TOKEN = String(
-  process.env.CODEX_PROXY_PLUGIN_ACCESS_TOKEN || ''
-).trim()
-const ACCOUNT_ID = String(
-  process.env.CODEX_PROXY_PLUGIN_ACCOUNT_ID || ''
-).trim()
-const SESSION_COOKIE = String(
-  process.env.CODEX_PROXY_PLUGIN_SESSION_COOKIE || ''
-).trim()
-const DEFAULT_MODEL =
-  String(process.env.CODEX_PROXY_PLUGIN_DEFAULT_MODEL || 'codex').trim() ||
-  'codex'
+const normalizeReasoningEffort = (value) => {
+  const normalized = String(value || 'high').trim()
+  return normalized === 'low' ||
+    normalized === 'medium' ||
+    normalized === 'high' ||
+    normalized === 'xhigh'
+    ? normalized
+    : 'high'
+}
+
+let runtimeConfig = {
+  accessToken: String(process.env.CODEX_PROXY_PLUGIN_ACCESS_TOKEN || '').trim(),
+  accountId: String(process.env.CODEX_PROXY_PLUGIN_ACCOUNT_ID || '').trim(),
+  sessionCookie: String(process.env.CODEX_PROXY_PLUGIN_SESSION_COOKIE || '').trim(),
+  defaultModel:
+    String(process.env.CODEX_PROXY_PLUGIN_DEFAULT_MODEL || 'codex').trim() ||
+    'codex',
+  reasoningEffort: normalizeReasoningEffort(
+    process.env.CODEX_PROXY_PLUGIN_REASONING_EFFORT || 'high'
+  )
+}
+
+const getConfigHash = () =>
+  JSON.stringify({
+    accessToken: runtimeConfig.accessToken,
+    accountId: runtimeConfig.accountId,
+    sessionCookie: runtimeConfig.sessionCookie,
+    defaultModel: runtimeConfig.defaultModel
+  })
+
+const resetRuntimeCaches = () => {
+  modelsCache = {
+    expiresAt: 0,
+    data: null
+  }
+  usageCache = {
+    expiresAt: 0,
+    data: null
+  }
+}
+
+const updateRuntimeConfig = (next) => {
+  runtimeConfig = {
+    ...runtimeConfig,
+    accessToken: String(next?.accessToken || '').trim(),
+    accountId: String(next?.accountId || '').trim(),
+    sessionCookie: String(next?.sessionCookie || '').trim(),
+    defaultModel: String(next?.defaultModel || 'codex').trim() || 'codex',
+    reasoningEffort: normalizeReasoningEffort(next?.reasoningEffort || 'high')
+  }
+  resetRuntimeCaches()
+}
+
 const REASONING_EFFORT = (() => {
-  const value = String(process.env.CODEX_PROXY_PLUGIN_REASONING_EFFORT || 'high').trim()
+  const value = String(runtimeConfig.reasoningEffort || 'high').trim()
   return value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh' ? value : 'high'
 })()
 const API_KEY = String(process.env.CODEX_PROXY_PLUGIN_API_KEY || '').trim()
@@ -35,13 +76,6 @@ const FALLBACK_MODEL_ENTRIES = [
   ['gpt-5.1-codex-mini', 'codex-mini', 'lightweight fast coding model']
 ]
 
-const CONFIG_HASH = JSON.stringify({
-  accessToken: ACCESS_TOKEN,
-  accountId: ACCOUNT_ID,
-  sessionCookie: SESSION_COOKIE,
-  defaultModel: DEFAULT_MODEL
-})
-
 const MODEL_META = Object.fromEntries(
   FALLBACK_MODEL_ENTRIES.map(([id, alias, description]) => [
     id,
@@ -51,9 +85,9 @@ const MODEL_META = Object.fromEntries(
 
 const defaultModels = () =>
   FALLBACK_MODEL_ENTRIES.map(([id, alias, description]) => ({
-    id,
-    name:
-      id === DEFAULT_MODEL || alias === DEFAULT_MODEL
+      id,
+      name:
+      id === runtimeConfig.defaultModel || alias === runtimeConfig.defaultModel
         ? `${alias || id} (default)`
         : alias || id,
     description,
@@ -75,9 +109,10 @@ let usageCache = {
 }
 
 const buildUpstreamHeaders = (incomingHeaders, accept = 'text/event-stream') => {
-  if (!ACCESS_TOKEN) {
+  if (!runtimeConfig.accessToken) {
     throw new Error('Missing CODEX_PROXY_PLUGIN_ACCESS_TOKEN')
   }
+  const { accessToken, sessionCookie } = runtimeConfig
 
   const accountId = resolveAccountId()
   if (!accountId) {
@@ -87,7 +122,7 @@ const buildUpstreamHeaders = (incomingHeaders, accept = 'text/event-stream') => 
   }
 
   const headers = {
-    Authorization: `Bearer ${ACCESS_TOKEN}`,
+    Authorization: `Bearer ${accessToken}`,
     'ChatGPT-Account-Id': accountId,
     Accept: accept,
     'Content-Type': 'application/json',
@@ -98,8 +133,8 @@ const buildUpstreamHeaders = (incomingHeaders, accept = 'text/event-stream') => 
     Connection: 'keep-alive'
   }
 
-  if (SESSION_COOKIE) {
-    headers.Cookie = SESSION_COOKIE
+  if (sessionCookie) {
+    headers.Cookie = sessionCookie
   }
 
   return headers
@@ -126,7 +161,7 @@ const normalizeUpstreamModelList = (payload) => {
     result.push({
       id,
       name:
-        id === DEFAULT_MODEL || alias === DEFAULT_MODEL
+        id === runtimeConfig.defaultModel || alias === runtimeConfig.defaultModel
           ? `${alias || item.name || id} (default)`
           : alias || String(item.name || id),
       description,
@@ -370,7 +405,8 @@ const deriveAccountIdFromToken = (token) => {
   }
 }
 
-const resolveAccountId = () => ACCOUNT_ID || deriveAccountIdFromToken(ACCESS_TOKEN)
+const resolveAccountId = () =>
+  runtimeConfig.accountId || deriveAccountIdFromToken(runtimeConfig.accessToken)
 
 const normalizeModelForUpstream = (model) => {
   const value = String(model || '').trim()
@@ -494,7 +530,11 @@ const convertChatRequest = (request) => {
   }
 
   payload.reasoning = {
-    effort: request.reasoningEffort || request.reasoning_effort || REASONING_EFFORT,
+    effort:
+      request.reasoningEffort ||
+      request.reasoning_effort ||
+      runtimeConfig.reasoningEffort ||
+      REASONING_EFFORT,
     summary: 'auto'
   }
 
@@ -1129,7 +1169,16 @@ const server = http.createServer(async (req, res) => {
     )
 
     if (req.method === 'GET' && url.pathname === '/health') {
-      return sendJson(res, 200, { ok: true, configHash: CONFIG_HASH })
+      return sendJson(res, 200, { ok: true, configHash: getConfigHash() })
+    }
+
+    if (req.method === 'POST' && url.pathname === '/config') {
+      const body = await readJsonBody(req)
+      if (body?.apiKey !== API_KEY) {
+        return unauthorized(res)
+      }
+      updateRuntimeConfig(body)
+      return sendJson(res, 200, { ok: true, configHash: getConfigHash() })
     }
 
     if (req.method === 'POST' && url.pathname === '/shutdown') {
