@@ -5,6 +5,7 @@ import { usePromptOptimize } from '@renderer/composables/usePromptOptimize'
 
 const props = defineProps<{
   isModelSelected: boolean
+  showReferenceUpload?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -108,7 +109,7 @@ const { Plus, Send, X, Bulb } = useIcon(['Plus', 'Send', 'X', 'Bulb'])
       padding="8px 16px"
     >
       <!-- 参考图片预览 -->
-      <div v-if="referenceImages.length > 0" class="reference-images-section">
+      <div v-if="props.showReferenceUpload !== false && referenceImages.length > 0" class="reference-images-section">
         <FileUpload
           v-model="referenceImages"
           :multiple="true"
@@ -121,6 +122,7 @@ const { Plus, Send, X, Bulb } = useIcon(['Plus', 'Send', 'X', 'Bulb'])
       <div class="input-top">
         <div class="textarea-wrapper">
           <Button
+            v-if="props.showReferenceUpload !== false"
             variant="text"
             size="sm"
             class="reference-image-btn"

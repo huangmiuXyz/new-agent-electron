@@ -109,7 +109,13 @@ const { Trash, VolumeMedium, FileMusic, Download, Copy, X, Edit, Refresh } = use
 </script>
 
 <template>
-  <Card padding="20px" radius="16px" class="speech-result-card" :class="{ 'is-music': isMusicResult }">
+  <Card
+    padding="20px"
+    radius="16px"
+    class="speech-result-card"
+    :class="{ 'is-music': isMusicResult }"
+    :data-status="statusText"
+  >
     <div class="prompt-card">
       <div class="prompt-header">
         <div class="prompt-main">

@@ -43,6 +43,7 @@ const props = defineProps<{
 const settingsStore = useSettingsStore()
 const imgStore = useImageStore()
 const audioStore = useAudioStore()
+const { confirm } = useModal()
 const { generatedBatches, startGeneration, resumeGeneration, createImageBatch } = useImageGeneration()
 
 const activeMode = ref<GenerationMode>('image')
@@ -107,7 +108,7 @@ const renderedWrapperProps = computed(() => {
 
 const speechResults = computed(() =>
   audioStore.generatedBatches
-    .filter((chunk) => chunk.messageId.startsWith(IMAGE_PAGE_SPEECH_PREFIX))
+    .filter((chunk) => chunk.messageId?.startsWith(IMAGE_PAGE_SPEECH_PREFIX))
     .slice()
     .reverse()
 )
@@ -267,15 +268,37 @@ const copyPrompt = (prompt: string) => {
   copyText(prompt)
 }
 
-const clearResults = () => {
-  if (isSpeechMode.value) {
+const clearResults = async () => {
+  const isSpeech = isSpeechMode.value
+  const hasResults = isSpeech ? speechResults.value.length > 0 : generatedBatches.value.length > 0
+  if (!hasResults) return
+
+  const confirmed = await confirm({
+    title: isSpeech ? '清空语音结果' : '清空生成结果',
+    content: isSpeech ? '确定要清空全部语音生成内容吗？此操作不可撤销。' : '确定要清空全部生成内容吗？此操作不可撤销。',
+    confirmProps: {
+      danger: true
+    }
+  })
+  if (!confirmed) return
+
+  if (isSpeech) {
     audioStore.clearBatches()
     return
   }
   imgStore.clearBatches()
 }
 
-const removeSpeechResult = (chunkId: string) => {
+const removeSpeechResult = async (chunkId: string) => {
+  const confirmed = await confirm({
+    title: '删除语音结果',
+    content: '确定要删除这条生成内容吗？此操作不可撤销。',
+    confirmProps: {
+      danger: true
+    }
+  })
+  if (!confirmed) return
+
   audioStore.removeBatch(chunkId)
 }
 
@@ -314,7 +337,16 @@ const reEdit = (batch: ImageBatch) => {
   }
 }
 
-const deleteBatch = (batchId: number) => {
+const deleteBatch = async (batchId: number) => {
+  const confirmed = await confirm({
+    title: '删除生成结果',
+    content: '确定要删除这条生成内容吗？此操作不可撤销。',
+    confirmProps: {
+      danger: true
+    }
+  })
+  if (!confirmed) return
+
   imgStore.removeBatch(batchId)
 }
 
@@ -493,6 +525,7 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium } = useIcon([
             ref="floatingInputRef"
             v-model:input="rightInput"
             :is-model-selected="isModelSelected"
+            :show-reference-upload="!isSpeechMode"
             @submit="handleRightInputSubmit"
           />
         </div>
