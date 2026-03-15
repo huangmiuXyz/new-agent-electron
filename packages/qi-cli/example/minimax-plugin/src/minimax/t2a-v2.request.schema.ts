@@ -142,22 +142,35 @@ export const VoiceModifySchema = z.object({
 })
 
 export const T2aV2RequestSchema = z.object({
-  model: ModelEnum.meta({ ifShow: false }),
-  text: z.string().max(10000).meta({ ifShow: false }),
-  stream: z.boolean().optional().meta({ ifShow: false }),
+  model: ModelEnum.describe('使用的模型名称，可选 `music-2.5+`（推荐）或 `music-2.5`').meta({ ifShow: false }),
+  text: z.string().max(10000)
+    .describe('音乐描述，对应音乐生成接口中的 `prompt` 字段，用于指定风格、情绪和场景。')
+    .meta({ ifShow: false }),
+  stream: z.boolean().optional()
+    .describe('是否使用流式传输，默认值为 `false`。')
+    .meta({ ifShow: false }),
   stream_options: T2AStreamOptionSchema.optional().meta({ ifShow: false }),
   voice_setting: T2AVoiceSettingSchema.optional().meta({ ifShow: showForSpeech }),
-  audio_setting: T2AAudioSettingSchema.optional(),
+  audio_setting: T2AAudioSettingSchema.optional().describe('音频输出配置。'),
   pronunciation_dict: PronunciationDictSchema.optional().meta({ ifShow: showForSpeech }),
   timber_weights: z.array(TimbreWeightsSchema).max(4).optional().meta({ ifShow: showForSpeech }),
   language_boost: LanguageBoostEnum.nullable().optional().meta({ ifShow: showForSpeech }),
   voice_modify: VoiceModifySchema.optional().meta({ ifShow: showForSpeech }),
   subtitle_enable: z.boolean().optional().meta({ ifShow: showForSpeech }),
-  output_format: OutputFormatEnum.optional().meta({ ifShow: false }),
-  aigc_watermark: z.boolean().optional(),
-  lyrics: z.string().max(3500).optional().meta({ ifShow: showForMusic }),
-  lyrics_optimizer: z.boolean().optional().meta({ ifShow: showForMusic }),
-  is_instrumental: z.boolean().optional().meta({ ifShow: showForMusic })
+  output_format: OutputFormatEnum.optional()
+    .describe('音频返回格式，可选 `url` 或 `hex`，默认值为 `hex`；当 `stream` 为 `true` 时，仅支持 `hex`。')
+    .meta({ ifShow: false }),
+  aigc_watermark: z.boolean().optional()
+    .describe('是否在音频末尾添加水印，仅在非流式请求时生效。'),
+  lyrics: z.string().max(3500).optional()
+    .describe('歌曲歌词。使用 `\\n` 分隔每行，可加入 `[Intro]`、`[Verse]`、`[Chorus]` 等结构标签优化生成效果。')
+    .meta({ ifShow: showForMusic }),
+  lyrics_optimizer: z.boolean().optional()
+    .describe('是否根据 `prompt` 描述自动生成歌词。仅 `music-2.5` 和 `music-2.5+` 支持。设为 `true` 且 `lyrics` 为空时，系统会根据 prompt 自动生成歌词。默认值为 `false`。')
+    .meta({ ifShow: showForMusic }),
+  is_instrumental: z.boolean().optional()
+    .describe('是否生成纯音乐（无人声）。仅 `music-2.5+` 支持。设为 `true` 时，`lyrics` 字段非必填。默认值为 `false`。')
+    .meta({ ifShow: showForMusic })
 })
 
 export const MiniMaxSpeechCallOptionsSchema = T2aV2RequestSchema
