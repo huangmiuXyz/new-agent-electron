@@ -13,7 +13,6 @@ const handleTabChange = (tabName: string, tabItem: any) => {
         <div class="list-content">
             <SettingsSidebar active-tab="" @tab-change="handleTabChange" />
         </div>
-        <MobileTabBar />
     </div>
 </template>
 

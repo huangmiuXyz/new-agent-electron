@@ -78,8 +78,6 @@ onUnmounted(() => {
                 </div>
             </div>
         </div>
-
-        <MobileTabBar v-if="isMobile" />
     </div>
 </template>
 

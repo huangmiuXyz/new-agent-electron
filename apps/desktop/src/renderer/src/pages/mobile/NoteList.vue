@@ -8,7 +8,6 @@ const { customTitle } = useAppHeader()
         <div class="list-content">
             <NotesSidebar />
         </div>
-        <MobileTabBar />
     </div>
 </template>
 
