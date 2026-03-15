@@ -193,8 +193,12 @@ export class PluginManager {
         isReactive
       },
       getPluginsDataPath: () => {
-        const userDataPath = window.api?.getPath('userData')
-        return window.api?.path.join(userDataPath, 'Data', 'Plugins', pluginName, 'models')
+        const userDataPath = window.api?.getPath?.('userData')
+        const pathApi = window.api?.path
+        if (userDataPath && pathApi?.join) {
+          return pathApi.join(userDataPath, 'Data', 'Plugins', pluginName, 'models')
+        }
+        return `plugins/${pluginName}/models`
       },
       basePath,
       useForm: useForm as <T extends Record<string, any>>(options: FormConfig<T>) => readonly [Component, FormActions<T>],

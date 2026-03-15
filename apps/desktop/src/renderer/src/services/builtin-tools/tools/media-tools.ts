@@ -82,7 +82,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
         })
         const providerInstance = registry.getProvider(provider.providerType)
 
-        if (providerInstance && 'generateImageAsyncTask' in providerInstance) {
+        if (providerInstance?.generateImageAsyncTask) {
           const { task_id } = await providerInstance.generateImageAsyncTask({
             model: (providerInstance as any).imageModel(targetModelId),
             prompt,

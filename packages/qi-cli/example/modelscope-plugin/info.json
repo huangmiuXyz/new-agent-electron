@@ -3,5 +3,6 @@
   "description": "集成魔搭 ModelScope AIGC 能力，支持通过 ModelScope 注册表使用其提供的多种图像生成模型。",
   "version": "1.0.0",
   "author": "Zhuanz",
-  "updatedAt": "2026-01-27"
+  "updatedAt": "2026-01-27",
+  "platforms": ["desktop", "mobile"]
 }

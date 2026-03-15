@@ -1,5 +1,4 @@
 import { UIMessage, UIMessagePart, ProviderMetadata, UIMessageChunk, LanguageModelUsage, UIDataTypes, UITools } from 'ai'
-import type { Model as openAIModel } from 'openai/resources'
 
 export type AsyncImageResult = {
   images?: Array<{ base64?: string; url?: string } | string>
@@ -96,7 +95,11 @@ export interface ModelVoice {
   id: string
   name: string
 }
-export interface Model extends openAIModel {
+export interface Model {
+  id: string
+  created?: number
+  object?: 'model'
+  owned_by?: string
   name: string
   description?: string
   active?: boolean

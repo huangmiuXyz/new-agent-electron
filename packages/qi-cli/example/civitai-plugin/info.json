@@ -3,5 +3,7 @@
   "description": "集成 Civitai 平台，支持浏览、搜索 Civitai 模型并直接在应用中使用其模型进行 AI 图像生成。",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-27"
+  "updatedAt": "2026-01-27",
+  "platforms": ["desktop"],
+  "mobileUnsupportedReason": "Requires the bundled desktop bridge service."
 }

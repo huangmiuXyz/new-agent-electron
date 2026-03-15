@@ -88,6 +88,11 @@ const router = createRouter({
           meta: { depth: 2 }
         },
         {
+          path: '/mobile/settings/plugins/:id',
+          component: () => import('../pages/mobile/SettingsDetail.vue'),
+          meta: { depth: 3 }
+        },
+        {
           path: '/mobile/settings/models/:id',
           component: () => import('../pages/mobile/ModelProviderDetail.vue'),
           meta: { depth: 3 }

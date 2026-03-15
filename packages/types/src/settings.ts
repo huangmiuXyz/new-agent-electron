@@ -93,6 +93,8 @@ export interface SettingsState {
 export interface LoadedPluginConfig {
   name: string
   notificationsDisabled?: boolean
+  platforms?: string[]
+  mobileUnsupportedReason?: string
 }
 
 declare global {

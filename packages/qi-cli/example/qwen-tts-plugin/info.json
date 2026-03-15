@@ -3,5 +3,9 @@
   "description": "通过 Gradio 接入 ModelScope 创空间上的 Qwen TTS 模型，支持高质量的语音合成服务。",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-27"
+  "updatedAt": "2026-03-15 22:03:54",
+  "platforms": [
+    "desktop",
+    "mobile"
+  ]
 }

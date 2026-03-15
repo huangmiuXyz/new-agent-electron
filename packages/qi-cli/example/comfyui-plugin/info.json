@@ -3,5 +3,6 @@
   "description": "ComfyUI local workflow image generation provider plugin",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-02-23"
+  "updatedAt": "2026-02-23",
+  "platforms": ["desktop", "mobile"]
 }

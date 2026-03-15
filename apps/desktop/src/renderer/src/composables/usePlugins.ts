@@ -1,255 +1,211 @@
-import { getPluginLoader } from '@renderer/services/plugins/pluginLoaderInstance';
-import { useSettingsStore } from '@renderer/stores/settings';
+import { getPluginLoader } from '@renderer/services/plugins/pluginLoaderInstance'
+import { useSettingsStore } from '@renderer/stores/settings'
 
 export function usePlugins() {
+  const plugins = ref<PluginInfo[]>([])
+  const availablePlugins = ref<PluginInfoData[]>([])
+  const loading = ref(false)
+  const installing = ref(false)
+  const activePluginId = ref('')
 
-  const plugins = ref<PluginInfo[]>([]);
-  const availablePlugins = ref<PluginInfoData[]>([]);
-  const loading = ref(false);
-  const installing = ref(false);
-  const activePluginId = ref('');
+  const pluginLoader = getPluginLoader()
+  const settingsStore = useSettingsStore()
 
+  const pickPluginFile = async (): Promise<File | null> => {
+    return await new Promise<File | null>((resolve) => {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '.qi,.zip,application/zip,application/octet-stream,*/*'
+      input.style.display = 'none'
+      input.onchange = () => resolve(input.files?.[0] || null)
+      document.body.appendChild(input)
+      input.click()
+      setTimeout(() => {
+        document.body.removeChild(input)
+      }, 0)
+    })
+  }
 
-  const pluginLoader = getPluginLoader();
-
-
-  const settingsStore = useSettingsStore();
-
-  /**
-   * 开发模式加载插件（从本地目录）
-   */
   const loadPluginDev = async (): Promise<void> => {
     try {
-      installing.value = true;
+      installing.value = true
+
+      if (!window.api?.showOpenDialog || !window.api?.path) {
+        throw new Error('Dev plugin loading is not supported in the current environment')
+      }
 
       const result = await window.api.showOpenDialog({
-        title: '选择插件本地目录',
+        title: 'Select plugin directory',
         properties: ['openDirectory']
-      });
+      })
 
       if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
-        return;
+        return
       }
 
-      const localPath = result.filePaths[0];
-      // 使用目录名作为插件标识
-      const pluginId = window.api.path.basename(localPath);
+      const localPath = result.filePaths[0]
+      const pluginId = window.api.path.basename(localPath)
 
-      if (pluginLoader) {
-        await pluginLoader.loadPluginDev(localPath);
-        settingsStore.addDevPluginPath(pluginId, localPath);
-        await refreshPlugins();
-        messageApi.success('开发模式插件加载成功，已开启自动重载！');
-      }
+      await pluginLoader.loadPluginDev(localPath)
+      settingsStore.addDevPluginPath(pluginId, localPath)
+      await refreshPlugins()
+      messageApi.success('Dev plugin loaded successfully')
     } catch (err) {
-      console.error('Failed to load dev plugin:', err);
-      messageApi.error(`开发模式加载失败: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('Failed to load dev plugin:', err)
+      messageApi.error(`Failed to load dev plugin: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
-      installing.value = false;
+      installing.value = false
     }
-  };
+  }
 
-  /**
-   * 安装插件
-   */
   const installPlugin = async (): Promise<void> => {
     try {
-      installing.value = true;
+      installing.value = true
 
+      if (window.api?.showOpenDialog) {
+        const result = await window.api.showOpenDialog({
+          title: 'Select plugin package',
+          filters: [
+            { name: 'Plugin Package', extensions: ['qi', 'zip'] },
+            { name: 'All Files', extensions: ['*'] }
+          ],
+          properties: ['openFile']
+        })
 
-      const result = await window.api.showOpenDialog({
-        title: '选择插件文件',
-        filters: [
-          { name: '插件文件', extensions: ['qi'] },
-          { name: '所有文件', extensions: ['*'] }
-        ],
-        properties: ['openFile']
-      });
+        if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+          return
+        }
 
-      if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
-        return;
+        await pluginLoader.installPlugin(result.filePaths[0])
+      } else {
+        const file = await pickPluginFile()
+        if (!file) {
+          return
+        }
+        await pluginLoader.installPlugin(file)
       }
 
-      const zipFilePath = result.filePaths[0];
-
-
-      if (pluginLoader) {
-        await pluginLoader.installPlugin(zipFilePath);
-      }
-
-
-      await refreshPlugins();
-      messageApi.success('插件安装成功！');
+      await refreshPlugins()
+      messageApi.success('Plugin installed successfully')
     } catch (err) {
-      console.error('Failed to install plugin:', err);
-      messageApi.error(`插件安装失败: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('Failed to install plugin:', err)
+      messageApi.error(`Failed to install plugin: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
-      installing.value = false;
+      installing.value = false
     }
-  };
+  }
 
-  /**
-   * 刷新插件列表
-   */
   const refreshPlugins = async (): Promise<void> => {
-    loading.value = true;
+    loading.value = true
     try {
-      if (pluginLoader) {
-        const result = await pluginLoader.refreshPlugins();
-        plugins.value = result.loaded;
-        availablePlugins.value = result.available;
-      }
+      const result = await pluginLoader.refreshPlugins()
+      plugins.value = result.loaded
+      availablePlugins.value = result.available
     } catch (err) {
-      console.error('Failed to refresh plugins:', err);
+      console.error('Failed to refresh plugins:', err)
     } finally {
-      loading.value = false;
+      loading.value = false
     }
-  };
+  }
 
-  /**
-   * 加载插件
-   */
   const loadPlugin = async (pluginPath: string): Promise<void> => {
     try {
-      if (pluginLoader) {
-        const pluginInfo = await pluginLoader.loadPlugin(pluginPath);
-        const pluginName = pluginInfo.plugin.name;
-        settingsStore.addLoadedPlugin(pluginName);
-        await refreshPlugins();
-      }
+      const pluginInfo = await pluginLoader.loadPlugin(pluginPath)
+      settingsStore.addLoadedPlugin(pluginInfo.plugin.name)
+      await refreshPlugins()
     } catch (err) {
-      console.error('Failed to load plugin:', err);
-      throw err;
+      console.error('Failed to load plugin:', err)
+      throw err
     }
-  };
+  }
 
-  /**
-   * 卸载插件（仅从内存中移除）
-   */
   const unloadPlugin = async (pluginName: string): Promise<void> => {
     try {
-      if (pluginLoader) {
-        await pluginLoader.unloadPlugin(pluginName);
-      }
+      await pluginLoader.unloadPlugin(pluginName)
     } catch (err) {
-      console.error('Failed to unload plugin:', err);
-      // 即使卸载失败，也要清除 store 中的记录，避免刷新后自动恢复
+      console.error('Failed to unload plugin:', err)
     } finally {
-      // 确保 store 记录被清除，防止插件在刷新后自动恢复
-      settingsStore.removeLoadedPlugin(pluginName);
-      settingsStore.removeDevPluginPath(pluginName);
-      await refreshPlugins();
+      settingsStore.removeLoadedPlugin(pluginName)
+      settingsStore.removeDevPluginPath(pluginName)
+      await refreshPlugins()
     }
-  };
+  }
 
-  /**
-   * 完全卸载插件（从内存和文件系统中移除）
-   */
   const uninstallPlugin = async (pluginName: string): Promise<void> => {
     try {
-      if (pluginLoader) {
-        await pluginLoader.uninstallPlugin(pluginName);
-      }
+      await pluginLoader.uninstallPlugin(pluginName)
     } catch (err) {
-      console.error('Failed to uninstall plugin:', err);
-      // 即使卸载失败，也要清除 store 中的记录，避免刷新后自动恢复
+      console.error('Failed to uninstall plugin:', err)
     } finally {
-      // 确保 store 记录被清除，防止插件在刷新后自动恢复
-      settingsStore.removeLoadedPlugin(pluginName);
-      settingsStore.removeDevPluginPath(pluginName);
-      await refreshPlugins();
+      settingsStore.removeLoadedPlugin(pluginName)
+      settingsStore.removeDevPluginPath(pluginName)
+      await refreshPlugins()
     }
-  };
+  }
 
-  /**
-   * 自动加载已保存的插件
-   */
   const restorePlugins = async (): Promise<void> => {
-    const savedPlugins = settingsStore.loadedPlugins;
-    const devPlugins = settingsStore.devPluginPaths;
+    const savedPlugins = settingsStore.loadedPlugins
+    const devPlugins = settingsStore.devPluginPaths
 
     if (savedPlugins.length === 0 && Object.keys(devPlugins).length === 0) {
-      return;
+      return
     }
 
-
-    // 恢复开发模式插件
     for (const [pluginName, localPath] of Object.entries(devPlugins)) {
       try {
-        if (pluginLoader && !pluginLoader.isPluginLoaded(pluginName)) {
-          await pluginLoader.loadPluginDev(localPath);
+        if (!pluginLoader.isPluginLoaded(pluginName)) {
+          await pluginLoader.loadPluginDev(localPath)
         }
       } catch (err) {
-        console.error(`Failed to restore dev plugin "${pluginName}":`, err);
-        settingsStore.removeDevPluginPath(pluginName);
+        console.error(`Failed to restore dev plugin "${pluginName}":`, err)
+        settingsStore.removeDevPluginPath(pluginName)
       }
     }
 
-    // 恢复普通插件
     for (const pluginConfig of savedPlugins) {
-      const pluginName = pluginConfig.name;
+      const pluginName = pluginConfig.name
       try {
-        if (pluginLoader && !pluginLoader.isPluginLoaded(pluginName)) {
-          await pluginLoader.loadPlugin(pluginName);
+        if (!pluginLoader.isPluginLoaded(pluginName)) {
+          await pluginLoader.loadPlugin(pluginName)
         }
       } catch (err) {
-        console.error(`Failed to restore plugin "${pluginName}":`, err);
-
-        settingsStore.removeLoadedPlugin(pluginName);
+        console.error(`Failed to restore plugin "${pluginName}":`, err)
+        settingsStore.removeLoadedPlugin(pluginName)
       }
     }
 
-    await refreshPlugins();
-  };
+    await refreshPlugins()
+  }
 
-  /**
-   * 执行命令
-   */
   const executeCommand = async (commandName: string): Promise<void> => {
     try {
-      if (pluginLoader) {
-        const manager = pluginLoader.getPluginManager();
-        await manager.executeCommand(commandName);
-      }
+      await pluginLoader.getPluginManager().executeCommand(commandName)
     } catch (err) {
-      console.error('Failed to execute command:', err);
-      throw err;
+      console.error('Failed to execute command:', err)
+      throw err
     }
-  };
+  }
 
-  /**
-   * 触发钩子
-   */
   const triggerHook = async (hookName: string, data?: any): Promise<any[]> => {
     try {
-      if (pluginLoader) {
-        const manager = pluginLoader.getPluginManager();
-        return await manager.triggerHook(hookName, data);
-      }
-      return [];
+      return await pluginLoader.getPluginManager().triggerHook(hookName, data)
     } catch (err) {
-      console.error(`Failed to trigger hook "${hookName}":`, err);
-      return [];
+      console.error(`Failed to trigger hook "${hookName}":`, err)
+      return []
     }
-  };
+  }
 
-  /**
-   * 获取状态文本
-   */
   const getStatusText = (status: PluginStatus): string => {
     const statusMap: Record<PluginStatus, string> = {
-      unloaded: '未加载',
-      loading: '加载中',
-      loaded: '已加载',
-      unloading: '卸载中',
-      error: '错误'
-    };
-    return statusMap[status] || status;
-  };
+      unloaded: 'Unloaded',
+      loading: 'Loading',
+      loaded: 'Loaded',
+      unloading: 'Unloading',
+      error: 'Error'
+    }
+    return statusMap[status] || status
+  }
 
-  /**
-   * 获取状态颜色
-   */
   const getStatusColor = (status: PluginStatus): string => {
     const colorMap: Record<PluginStatus, string> = {
       unloaded: '#999',
@@ -257,21 +213,21 @@ export function usePlugins() {
       loaded: '#52c41a',
       unloading: '#faad14',
       error: '#ff4d4f'
-    };
-    return colorMap[status] || '#999';
-  };
+    }
+    return colorMap[status] || '#999'
+  }
 
-  /**
-   * 合并所有插件（已加载和可用）
-   */
   const allPlugins = computed<PluginItem[]>(() => {
-    const loadedIds = new Set(plugins.value.map(p => (p.plugin as any).id || p.plugin.name));
-    const available = availablePlugins.value.filter(p => !loadedIds.has(p.name));
+    const loadedIds = new Set(plugins.value.map((p) => (p.plugin as any).id || p.plugin.name))
+    const available = availablePlugins.value.filter((p) => !loadedIds.has((p.path || p.name) as string))
+
     return [
-      ...plugins.value.map(p => {
-        const metadata = availablePlugins.value.find(ap => ap.name === p.plugin.name);
-        // 使用保存的 id（目录名）作为标识，如果没有则使用 name
-        const pluginId = (p.plugin as any).id || p.plugin.name;
+      ...plugins.value.map((p) => {
+        const pluginId = (p.plugin as any).id || p.plugin.name
+        const metadata = availablePlugins.value.find(
+          (ap) => (ap.path || ap.name) === pluginId || ap.name === p.plugin.name
+        )
+
         return {
           id: pluginId,
           name: p.plugin.name,
@@ -282,12 +238,12 @@ export function usePlugins() {
           error: p.error,
           plugin: p.plugin,
           updatedAt: p.plugin.updatedAt || metadata?.updatedAt,
-          isDev: pluginLoader?.isDevMode(pluginId) || false,
+          isDev: pluginLoader.isDevMode(pluginId),
           readme: p.plugin.readme || metadata?.readme
         }
       }),
-      ...available.map(p => ({
-        id: p.name,
+      ...available.map((p) => ({
+        id: (p.path || p.name) as string,
         name: p.name,
         description: p.description || '',
         version: p.version || '1.0.0',
@@ -298,103 +254,60 @@ export function usePlugins() {
         updatedAt: p.updatedAt,
         readme: p.readme
       }))
-    ];
-  });
+    ]
+  })
 
-  /**
-   * 当前选中的插件
-   */
   const activePlugin = computed(() => {
-    return allPlugins.value.find(p => p.id === activePluginId.value);
-  });
+    return allPlugins.value.find((p) => p.id === activePluginId.value)
+  })
 
-  /**
-   * 获取插件的命令列表
-   */
   const getPluginCommands = (pluginName: string): any[] => {
-    if (!pluginLoader) return [];
-    return pluginLoader.getPluginManager().getAllCommands().filter((c: any) => c.pluginName === pluginName);
-  };
+    return pluginLoader.getPluginManager().getAllCommands().filter((c: any) => c.pluginName === pluginName)
+  }
 
-  /**
-   * 获取插件的钩子列表
-   */
   const getPluginHooks = (pluginName: string): string[] => {
-    if (!pluginLoader) return [];
-    const allHooks = pluginLoader.getPluginManager().getAllHooks();
-    const pluginHooks: string[] = [];
+    const allHooks = pluginLoader.getPluginManager().getAllHooks()
+    const pluginHooks: string[] = []
 
     for (const [hookName, hooks] of allHooks.entries()) {
-      const filtered = hooks.filter((h: any) => h.pluginName === pluginName);
-      if (filtered.length > 0) {
-        pluginHooks.push(hookName);
+      if (hooks.some((hook: any) => hook.pluginName === pluginName)) {
+        pluginHooks.push(hookName)
       }
     }
 
-    return pluginHooks;
-  };
+    return pluginHooks
+  }
 
-  /**
-   * 获取插件的内置工具列表
-   */
   const getPluginBuiltinTools = (pluginName: string): string[] => {
-    if (!pluginLoader) return [];
-    // 假设 PluginManager 有个方法可以按插件获取工具
-    // 根据 PluginManager.ts, 有个 pluginBuiltinTools Map
-    // 但是没有公开的 getter，我可能需要加一个或者通过 getBuiltinTools 过滤
-    const manager = pluginLoader.getPluginManager();
-    // 既然 pluginBuiltinTools 是私有的，我们可以通过查看哪些工具被这个插件注册了来获取
-    // 或者我们直接在 PluginManager 中加一个方法
-    // 暂时先通过 getBuiltinTools 过滤，但 builtinTools 没有存 pluginName
-    // 让我们去 PluginManager.ts 增加一个方法
-    return manager.getPluginBuiltinToolNames(pluginName);
-  };
+    return pluginLoader.getPluginManager().getPluginBuiltinToolNames(pluginName)
+  }
 
-  /**
-   * 获取插件的注册表列表
-   */
   const getPluginRegistries = (pluginName: string): string[] => {
-    if (!pluginLoader) return [];
-    return pluginLoader.getPluginManager().getPluginRegistries(pluginName);
-  };
+    return pluginLoader.getPluginManager().getPluginRegistries(pluginName)
+  }
 
-  /**
-   * 获取插件的提供商列表
-   */
   const getPluginProviders = (pluginName: string): any[] => {
-    return settingsStore.registeredProviders.filter((p) => p.pluginName === pluginName);
-  };
+    return settingsStore.registeredProviders.filter((p) => p.pluginName === pluginName)
+  }
 
-  /**
-   * 选择插件
-   */
   const selectPlugin = (pluginId: string): void => {
-    activePluginId.value = pluginId;
-  };
+    activePluginId.value = pluginId
+  }
 
-  /**
-   * 切换插件通知状态
-   */
   const togglePluginNotification = (pluginName: string, disabled: boolean) => {
-    settingsStore.togglePluginNotification(pluginName, disabled);
-  };
+    settingsStore.togglePluginNotification(pluginName, disabled)
+  }
 
-  /**
-   * 检查插件通知是否禁用
-   */
   const isPluginNotificationDisabled = (pluginName: string): boolean => {
-    const plugin = settingsStore.loadedPlugins.find((p) => p.name === pluginName);
-    return !!plugin?.notificationsDisabled;
-  };
+    const plugin = settingsStore.loadedPlugins.find((p) => p.name === pluginName)
+    return !!plugin?.notificationsDisabled
+  }
 
-  /**
-   * 清除插件缓存和数据
-   */
   const clearPluginData = async (pluginName: string): Promise<void> => {
     const { confirm, remove } = useModal()
     const confirmed = await confirm({
-      title: '清除插件数据',
-      content: `确定要清除插件 "${pluginName}" 的缓存和所有数据吗？`
+      title: 'Clear plugin data',
+      content: `Clear cached data for "${pluginName}"?`
     })
 
     if (!confirmed) {
@@ -403,20 +316,18 @@ export function usePlugins() {
 
     try {
       loading.value = true
-      // 1. 触发清除钩子
       await triggerHook('plugin.clearData', { pluginName })
 
-      // 2. 清除 localforage
       const localforage = (await import('localforage')).default
       await localforage.dropInstance({
         name: pluginName
       })
 
-      messageApi.success('缓存和数据已清除')
+      messageApi.success('Plugin data cleared')
       await refreshPlugins()
     } catch (err) {
       console.error('Failed to clear plugin data:', err)
-      messageApi.error(`清除失败: ${err instanceof Error ? err.message : String(err)}`)
+      messageApi.error(`Failed to clear plugin data: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       loading.value = false
       remove()
@@ -452,5 +363,5 @@ export function usePlugins() {
     togglePluginNotification,
     isPluginNotificationDisabled,
     clearPluginData
-  };
+  }
 }

@@ -1,5 +1,11 @@
 import { PluginManager } from './pluginManager';
 import JSZip from 'jszip';
+import {
+  getMobilePluginPackage,
+  listMobilePluginPackages,
+  removeMobilePluginPackage,
+  saveMobilePluginPackage
+} from './mobilePluginStorage'
 
 /**
  * 插件加载器
@@ -15,11 +21,27 @@ export class PluginLoader {
     this.pluginManager = new PluginManager(app, pinia, router);
   }
 
+  private hasDesktopPluginApi(): boolean {
+    return Boolean(window.api?.fs && window.api?.path && window.api?.getPluginsPath);
+  }
+
+  private isPluginSupportedOnCurrentPlatform(info: PluginInfoData): boolean {
+    const platforms = (info as any).platforms as string[] | undefined;
+    if (!platforms || platforms.length === 0) {
+      return true;
+    }
+    const currentPlatform = this.hasDesktopPluginApi() ? 'desktop' : 'mobile';
+    return platforms.includes(currentPlatform);
+  }
+
   /**
    * 解析插件本地路径
    * @param pluginName 插件名称
    */
   private resolvePluginPath(pluginName: string): string {
+    if (!this.hasDesktopPluginApi()) {
+      return pluginName;
+    }
     const path = window.api.path;
     if (!path) throw new Error('Path API not available');
 
@@ -74,6 +96,9 @@ export class PluginLoader {
    * @param localPath 插件本地目录
    */
   async loadPluginDev(localPath: string): Promise<PluginInfo> {
+    if (!this.hasDesktopPluginApi()) {
+      throw new Error('Current environment does not support dev plugins');
+    }
     const fs = window.api.fs;
     const path = window.api.path;
 
@@ -119,6 +144,9 @@ export class PluginLoader {
    * @param localPath 本地路径
    */
   private watchPlugin(pluginName: string, localPath: string): void {
+    if (!this.hasDesktopPluginApi()) {
+      return;
+    }
     // 停止之前的监听
     if (this.watchers.has(pluginName)) {
       this.watchers.get(pluginName)!();
@@ -153,15 +181,33 @@ export class PluginLoader {
   async loadPlugin(pluginName: string): Promise<PluginInfo> {
     try {
 
-      const pluginUrl = `${this.resolvePluginUrl(pluginName)}?t=${Date.now()}`;
+      let code = '';
+      let basePath = pluginName;
+      let metadata: PluginInfoData | null = null;
 
+      if (this.hasDesktopPluginApi()) {
+        const pluginUrl = `${this.resolvePluginUrl(pluginName)}?t=${Date.now()}`;
+        const response = await fetch(pluginUrl);
 
-      const response = await fetch(pluginUrl);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch plugin: ${response.status} ${response.statusText}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch plugin: ${response.status} ${response.statusText}`);
+        }
+        code = await response.text();
+        basePath = this.resolvePluginPath(pluginName);
+      } else {
+        const storedPlugin = await getMobilePluginPackage(pluginName);
+        if (!storedPlugin) {
+          throw new Error(`Plugin "${pluginName}" not found in mobile storage`);
+        }
+        metadata = storedPlugin.info;
+        if (!this.isPluginSupportedOnCurrentPlatform(metadata)) {
+          throw new Error(
+            ((metadata as any).mobileUnsupportedReason as string | undefined) || 'This plugin is not supported on mobile'
+          );
+        }
+        code = storedPlugin.indexCode;
+        basePath = storedPlugin.id;
       }
-      const code = await response.text();
       const pluginGlobalName = 'plugin';
       const wrappedCode = `
           ${code}
@@ -195,12 +241,12 @@ export class PluginLoader {
       this.loadedPlugins.set(pluginName, pluginInfo);
 
       try {
-        const basePath = this.resolvePluginPath(pluginName);
+        
 
         // 加载 info.json 中的 metadata
-        const fs = window.api.fs;
-        const path = window.api.path;
-        if (fs && path) {
+        const fs = window.api?.fs;
+        const path = window.api?.path;
+        if (this.hasDesktopPluginApi() && fs && path) {
           const infoPath = path.join(basePath, 'info.json');
           if (fs.existsSync(infoPath)) {
             try {
@@ -234,6 +280,23 @@ export class PluginLoader {
             } catch (e) {
               console.warn(`Failed to read README.md for ${pluginName}:`, e);
             }
+          }
+        } else if (metadata) {
+          plugin.name = metadata.name || pluginName;
+          if (metadata.version) {
+            plugin.version = metadata.version;
+          }
+          if (metadata.description) {
+            plugin.description = metadata.description;
+          }
+          if ((metadata as any).author) {
+            plugin.author = (metadata as any).author;
+          }
+          if (metadata.updatedAt) {
+            plugin.updatedAt = metadata.updatedAt;
+          }
+          if (metadata.readme) {
+            plugin.readme = metadata.readme;
           }
         }
 
@@ -317,25 +380,23 @@ export class PluginLoader {
    * @returns 是否成功卸载
    */
   async uninstallPlugin(pluginName: string): Promise<boolean> {
-    const fs = window.api.fs;
-    const path = window.api.path;
-
-    if (!fs || !path) {
-      throw new Error('File system API not available');
-    }
-
     try {
 
-      await this.unloadPlugin(pluginName);
+      if (this.isPluginLoaded(pluginName)) {
+        await this.unloadPlugin(pluginName);
+      }
 
+      if (this.hasDesktopPluginApi()) {
+        const fs = window.api.fs;
+        const path = window.api.path;
+        const pluginsDir = window.api.getPluginsPath();
+        const pluginDir = path.join(pluginsDir, pluginName);
 
-      const pluginsDir = window.api.getPluginsPath();
-      const pluginDir = path.join(pluginsDir, pluginName);
-
-
-      if (fs.existsSync(pluginDir)) {
-
-        fs.rmSync(pluginDir, { recursive: true, force: true });
+        if (fs.existsSync(pluginDir)) {
+          fs.rmSync(pluginDir, { recursive: true, force: true });
+        }
+      } else {
+        await removeMobilePluginPackage(pluginName);
       }
 
       return true;
@@ -450,16 +511,10 @@ export class PluginLoader {
    * @param zipFilePath 插件文件路径
    * @returns 安装结果
    */
-  async installPlugin(zipFilePath: string): Promise<void> {
-    const fs = window.api.fs;
-    const path = window.api.path;
-
-    if (!fs || !path) {
-      throw new Error('File system API not available');
-    }
-
-
-    const zipData = fs.readFileSync(zipFilePath);
+  async installPlugin(zipFilePath: string | File): Promise<void> {
+    const zipData = typeof zipFilePath === 'string'
+      ? window.api.fs.readFileSync(zipFilePath)
+      : await zipFilePath.arrayBuffer();
     const zip = await JSZip.loadAsync(zipData);
 
 
@@ -482,7 +537,26 @@ export class PluginLoader {
       throw new Error('插件文件必须包含index.js');
     }
 
+    const readmeFile = zip.file('README.md');
+    const readme = readmeFile ? await readmeFile.async('string') : info.readme || '';
 
+    if (!this.hasDesktopPluginApi()) {
+      const indexCode = await indexFile.async('string');
+      await saveMobilePluginPackage({
+        id: info.name,
+        info: {
+          ...info,
+          path: info.name,
+          readme
+        },
+        indexCode,
+        readme
+      });
+      return;
+    }
+
+    const fs = window.api.fs;
+    const path = window.api.path;
     const pluginsDir = window.api.getPluginsPath();
     const pluginDir = path.join(pluginsDir, info.name);
 
@@ -517,6 +591,11 @@ export class PluginLoader {
    */
   async getAvailablePlugins(): Promise<PluginInfoData[]> {
     try {
+      if (!this.hasDesktopPluginApi()) {
+        const plugins = await listMobilePluginPackages();
+        return plugins.filter((plugin) => this.isPluginSupportedOnCurrentPlatform(plugin));
+      }
+
       const fs = window.api.fs;
       const path = window.api.path;
 
@@ -563,7 +642,7 @@ export class PluginLoader {
               readme = fs.readFileSync(readmePath, 'utf-8');
             }
 
-            pluginList.push({
+            const pluginData = {
               ...info,
               name: info.name || dir,
               path: dir,
@@ -571,7 +650,10 @@ export class PluginLoader {
               version: info.version || '1.0.0',
               author: info.author,
               readme
-            });
+            };
+            if (this.isPluginSupportedOnCurrentPlatform(pluginData)) {
+              pluginList.push(pluginData);
+            }
           } catch (err) {
             console.error(`Failed to read info.json for plugin ${dir}:`, err);
           }

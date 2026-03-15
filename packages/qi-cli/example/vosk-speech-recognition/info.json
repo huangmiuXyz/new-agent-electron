@@ -3,5 +3,7 @@
   "description": "基于 Vosk-Browser 的纯本地、跨平台离线语音转文字插件，保护隐私且无需联网。",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-03-12 19:25:50"
+  "updatedAt": "2026-03-12 19:25:50",
+  "platforms": ["desktop"],
+  "mobileUnsupportedReason": "Requires desktop file system access for local speech models."
 }

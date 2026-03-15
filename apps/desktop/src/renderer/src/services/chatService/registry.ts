@@ -25,16 +25,16 @@ export interface ProviderV3Extends extends ProviderV3 {
   videoCallOptionsSchema?: z.ZodObject
   /** 聊天调用的参数选项 Schema */
   chatCallOptionsSchema?: z.ZodObject<any>
-  generateImageAsyncTask: (params: Parameters<typeof generateImage>[0]) => Promise<{
+  generateImageAsyncTask?: (params: Parameters<typeof generateImage>[0]) => Promise<{
     task_id: string
   }>
-  asyncResult?: ({ task_id }) => ReturnType<typeof generateImage>
+  asyncResult?: (params: { task_id: string }) => ReturnType<typeof generateImage>
   generateVideoAsyncTask?: (
     params: Parameters<typeof experimental_generateVideo>[0] & { files?: string[] }
   ) => Promise<{
     task_id: string
   }>
-  asyncVideoResult?: ({ task_id }) => ReturnType<typeof experimental_generateVideo>
+  asyncVideoResult?: (params: { task_id: string }) => ReturnType<typeof experimental_generateVideo>
 }
 
 export type ProviderFactory = (options: {
@@ -50,8 +50,8 @@ interface ProviderRegistryProviderExtends<
   getProvider: (providerType: keyof T) => T[keyof T]
 }
 
-export const mergeFun = <T extends ProviderV3Extends>(
-  provider: Partial<T>,
+export const mergeFun = (
+  provider: ProviderV3,
   funs: Partial<ProviderV3Extends>
 ): ProviderV3Extends => {
   return {

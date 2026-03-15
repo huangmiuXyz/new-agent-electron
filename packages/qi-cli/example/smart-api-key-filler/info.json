@@ -3,5 +3,6 @@
   "description": "内置工具插件，支持通过 AI 或手动方式一键批量填充多个模型提供商的 API 密钥。",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-27"
+  "updatedAt": "2026-01-27",
+  "platforms": ["desktop", "mobile"]
 }

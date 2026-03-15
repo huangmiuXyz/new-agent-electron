@@ -3,5 +3,6 @@
   "description": "集成硅基流动 (SiliconFlow) 的语音合成能力，支持 Fish Audio 等高性能 TTS 模型。",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-27"
+  "updatedAt": "2026-01-27",
+  "platforms": ["desktop", "mobile"]
 }

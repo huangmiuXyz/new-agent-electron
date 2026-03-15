@@ -48,6 +48,7 @@
   },
   "dependencies": {
     "@ai-sdk/moonshotai": "catalog:",
+    "@ai-sdk/provider": "catalog:",
     "@mozilla/readability": "^0.6.0",
     "@openrouter/ai-sdk-provider": "^2.3.1",
     "istextorbinary": "^9.5.0",

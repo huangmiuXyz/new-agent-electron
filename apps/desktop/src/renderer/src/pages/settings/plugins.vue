@@ -120,18 +120,34 @@ const router = useRouter()
 const route = useRoute()
 
 const isDetailResult = computed(() => {
-  return !!route.params.id
+  return !!route.params.id || !!route.query.pluginId
 })
 
 const handleSelectPlugin = (pluginId: string) => {
   selectPlugin(pluginId)
   if (isMobile.value) {
-    router.push(`/mobile/settings/plugins/${pluginId}`)
+    router.push({
+      path: '/mobile/settings/plugins',
+      query: {
+        name: activePlugin.value?.name || '插件管理',
+        pluginId
+      }
+    })
   }
 }
 
 const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
+
+watch(
+  () => route.query.pluginId,
+  (pluginId) => {
+    if (typeof pluginId === 'string' && pluginId) {
+      selectPlugin(pluginId)
+    }
+  },
+  { immediate: true }
+)
 
 // 插件命令表
 const [CommandTable, commandTableActions] = useTable<{ name: string; description?: string }>({
@@ -264,7 +280,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
     <List title="插件" :items="allPlugins" :active-id="activePluginId" :loading="loading" key-field="id" main-field="name"
       sub-field="description" :logo-field="'PluginIcon'" @select="handleSelectPlugin">
       <template #title-tool>
-        <Button @click="loadPluginDev" size="sm" type="button" variant="text" :loading="installing">
+        <Button v-if="!isMobile" @click="loadPluginDev" size="sm" type="button" variant="text" :loading="installing">
           <template #icon>
             <Code />
           </template>

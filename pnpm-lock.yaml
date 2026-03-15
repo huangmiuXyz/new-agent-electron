@@ -353,6 +353,9 @@ importers:
       '@ai-sdk/moonshotai':
         specifier: 'catalog:'
         version: 2.0.10(zod@4.3.6)
+      '@ai-sdk/provider':
+        specifier: 'catalog:'
+        version: 3.0.8
       '@mozilla/readability':
         specifier: ^0.6.0
         version: 0.6.0
@@ -408,6 +411,9 @@ importers:
       '@ai-sdk/openai-compatible':
         specifier: 'catalog:'
         version: 2.0.35(zod@4.3.6)
+      '@ai-sdk/provider':
+        specifier: 'catalog:'
+        version: 3.0.8
       '@ai-sdk/vue':
         specifier: 'catalog:'
         version: 3.0.116(vue@3.5.27(typescript@5.9.3))(zod@4.3.6)
@@ -426,6 +432,9 @@ importers:
       '@capacitor/core':
         specifier: 'catalog:'
         version: 8.0.2
+      '@capacitor/filesystem':
+        specifier: ^8.1.2
+        version: 8.1.2(@capacitor/core@8.0.2)
       '@capacitor/ios':
         specifier: 'catalog:'
         version: 8.0.2(@capacitor/core@8.0.2)
@@ -1360,10 +1369,18 @@ packages:
   '@capacitor/core@8.0.2':
     resolution: {integrity: sha512-EXZfxkL6GFJS2cb7TIBR7RiHA5iz6ufDcl1VmUpI2pga3lJ5Ck2+iqbx7N+osL3XYem9ad4XCidJEMm64DX6UQ==}
 
+  '@capacitor/filesystem@8.1.2':
+    resolution: {integrity: sha512-doaaMfGoFR2hWU6aV6u83I+5ZsGyJVq+Gz4r9lMpJzUKMm1eMu0hLnFdV1aXZlU9FlK/RndFrVD8oRZfNOqWgQ==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+
   '@capacitor/ios@8.0.2':
     resolution: {integrity: sha512-7EM7vBxXI3Ku49aYCJcS9su5Y3i6UmXpx7e0y+oQV9PzCnZ6l5B0ACJ+gXAU0bM3q7/f+kGBsOtXMid84rU6MQ==}
     peerDependencies:
       '@capacitor/core': ^8.0.0
+
+  '@capacitor/synapse@1.0.4':
+    resolution: {integrity: sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw==}
 
   '@cfworker/json-schema@4.1.1':
     resolution: {integrity: sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og==}
@@ -7191,9 +7208,16 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  '@capacitor/filesystem@8.1.2(@capacitor/core@8.0.2)':
+    dependencies:
+      '@capacitor/core': 8.0.2
+      '@capacitor/synapse': 1.0.4
+
   '@capacitor/ios@8.0.2(@capacitor/core@8.0.2)':
     dependencies:
       '@capacitor/core': 8.0.2
+
+  '@capacitor/synapse@1.0.4': {}
 
   '@cfworker/json-schema@4.1.1': {}
 

@@ -3,5 +3,6 @@
   "description": "集成 MiniMax (海螺 AI) 的语音合成能力，支持多种高品质系统音色和声音克隆模型。",
   "version": "1.0.0",
   "author": "Agent-Qi",
-  "updatedAt": "2026-01-27"
+  "updatedAt": "2026-01-27",
+  "platforms": ["desktop", "mobile"]
 }
