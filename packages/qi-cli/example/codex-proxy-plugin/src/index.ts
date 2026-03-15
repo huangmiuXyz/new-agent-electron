@@ -1575,27 +1575,6 @@ const plugin: Plugin = {
           type: 'custom',
           label: '全部账号',
           render: () => renderAccountsOverview()
-        },
-        {
-          name: 'bridgeHost',
-          type: 'text',
-          label: 'Bridge 主机',
-          required: true,
-          defaultValue: DEFAULT_CONFIG.bridgeHost
-        },
-        {
-          name: 'bridgePort',
-          type: 'number',
-          label: 'Bridge 端口',
-          required: true,
-          defaultValue: DEFAULT_CONFIG.bridgePort
-        },
-        {
-          name: 'defaultModel',
-          type: 'text',
-          label: '默认模型',
-          defaultValue: DEFAULT_CONFIG.defaultModel,
-          placeholder: 'codex'
         }
       ],
       initialData: initialConfig,
