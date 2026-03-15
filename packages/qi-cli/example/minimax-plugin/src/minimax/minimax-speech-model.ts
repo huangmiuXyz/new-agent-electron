@@ -39,6 +39,27 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
     return new Uint8Array(hex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)))
   }
 
+  private isHexAudio(value: string) {
+    return value.length > 0 && value.length % 2 === 0 && /^[0-9a-f]+$/i.test(value)
+  }
+
+  private async resolveAudioData(audio: string) {
+    if (this.isHexAudio(audio)) {
+      return this.hexToUint8Array(audio)
+    }
+
+    if (/^https?:\/\//i.test(audio)) {
+      const response = await (this.config.fetch ?? fetch)(audio)
+      if (!response.ok) {
+        throw new Error(`MiniMax audio download failed: ${response.status} ${response.statusText}`)
+      }
+
+      return new Uint8Array(await response.arrayBuffer())
+    }
+
+    throw new Error('MiniMax audio data is neither valid hex nor a downloadable URL.')
+  }
+
   private async getArgs({
     text,
     voice = 'male-qn-qingse',
@@ -152,7 +173,7 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
       })
 
       return {
-        audio: this.hexToUint8Array(responseValue.data.audio),
+        audio: await this.resolveAudioData(responseValue.data.audio),
         warnings,
         response: {
           timestamp: new Date(),
@@ -188,7 +209,7 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
     })
 
     return {
-      audio: this.hexToUint8Array(responseValue.data.audio),
+      audio: await this.resolveAudioData(responseValue.data.audio),
       warnings,
       response: {
         timestamp: new Date(),
