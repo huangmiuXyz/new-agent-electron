@@ -34,6 +34,10 @@ const scrollToActiveItem = () => {
 
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
+  // Keep the current selector dialog open when another modal is opened on top of it.
+  if (target.closest('.modal-overlay')) {
+    return
+  }
   if (containerRef.value && !containerRef.value.contains(target)) {
     closePopup()
   }

@@ -83,7 +83,6 @@ const isAgentSelected = (agentId: string) => {
 const { openAgentModal } = useAgent()
 
 const openCreateAgentModal = () => {
-  isPopupOpen.value = false
   openAgentModal()
 }
 

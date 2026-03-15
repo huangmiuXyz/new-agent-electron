@@ -11,19 +11,27 @@ function syncModalStackZIndex() {
 }
 
 export function useModal(): ModalActions {
+  let currentContainer: HTMLDivElement | null = null
+
+  const removeContainer = (container: HTMLDivElement | null): void => {
+    if (!container?.isConnected) return
+    render(null, container)
+    document.body.removeChild(container)
+    const index = activeModalContainers.indexOf(container)
+    if (index > -1) {
+      activeModalContainers.splice(index, 1)
+      syncModalStackZIndex()
+    }
+    if (currentContainer === container) {
+      currentContainer = null
+    }
+  }
+
   const show = (options: BaseModalProps): Promise<string | boolean> => {
     return new Promise<string | boolean>((resolve: ModalResolve) => {
       const container = document.createElement('div')
-      const remove = (): void => {
-        if (!container.isConnected) return
-        render(null, container)
-        document.body.removeChild(container)
-        const index = activeModalContainers.indexOf(container)
-        if (index > -1) {
-          activeModalContainers.splice(index, 1)
-          syncModalStackZIndex()
-        }
-      }
+      currentContainer = container
+      const remove = (): void => removeContainer(container)
 
       activeModalContainers.push(container)
       syncModalStackZIndex()
@@ -43,13 +51,6 @@ export function useModal(): ModalActions {
 
   return {
     confirm,
-    remove: () => {
-      const topContainer = activeModalContainers[activeModalContainers.length - 1]
-      if (!topContainer) return
-      render(null, topContainer)
-      document.body.removeChild(topContainer)
-      activeModalContainers.pop()
-      syncModalStackZIndex()
-    }
+    remove: () => removeContainer(currentContainer)
   }
 }
