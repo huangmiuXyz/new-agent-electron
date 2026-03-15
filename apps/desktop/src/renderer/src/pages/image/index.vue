@@ -64,6 +64,12 @@ const rightInput = ref('')
 const resultsContentRef = ref<HTMLElement>()
 const floatingInputRef = ref<InstanceType<typeof FloatingInputArea>>()
 
+const showSidebar = ref(false)
+const toggleSidebar = () => {
+  showSidebar.value = !showSidebar.value
+}
+provide('toggleImageSidebar', toggleSidebar)
+
 const normalizeImages = (images: any[] = []) =>
   images
     .map((img: any) => {
@@ -417,18 +423,21 @@ watch(toolResultSyncKey, () => {
   syncToolBatchFromResult()
 }, { immediate: true })
 
-const { Trash, Image: ImageIcon, Screen, VolumeMedium } = useIcon([
+const { Trash, Image: ImageIcon, Screen, VolumeMedium, Settings, X } = useIcon([
   'Trash',
   'Image',
   'Screen',
-  'VolumeMedium'
+  'VolumeMedium',
+  'Settings',
+  'X'
 ])
 </script>
 
 <template>
-  <div class="image-page-container" :class="{ 'tool-mode': isToolMode }">
+  <div class="image-page-container" :class="{ 'tool-mode': isToolMode, 'is-mobile': isMobile }">
+    <AppHeader v-if="isMobile && !isToolMode" :current-view="'image'" />
     <ResizeBox
-      v-if="!isToolMode"
+      v-if="!isToolMode && !isMobile"
       v-model:width="settingsStore.display.imageSidebarWidth"
       v-model:is-collapsed="settingsStore.display.sidebarCollapsed"
       :min-size="250"
@@ -458,9 +467,43 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium } = useIcon([
       </FormContainer>
     </ResizeBox>
 
-    <FormContainer class="results-section" no-padding>
+    <!-- Mobile Sidebar Drawer -->
+    <div v-if="isMobile && !isToolMode" class="mobile-sidebar-overlay" :class="{ active: showSidebar }" @click="showSidebar = false">
+      <div class="mobile-sidebar" :class="{ active: showSidebar }" @click.stop>
+        <div class="mobile-sidebar-header">
+          <span>模型配置</span>
+          <Button variant="text" size="sm" @click="showSidebar = false">
+            <X />
+          </Button>
+        </div>
+        <div class="mobile-sidebar-content">
+          <div class="mode-switcher">
+            <div class="mode-tab" :class="{ active: isImageMode }" @click="handleModeSwitch('image')">
+              <ImageIcon />
+              <span>图片</span>
+            </div>
+            <div class="mode-tab" :class="{ active: isVideoMode }" @click="handleModeSwitch('video')">
+              <Screen />
+              <span>视频</span>
+            </div>
+            <div class="mode-tab" :class="{ active: isSpeechMode }" @click="handleModeSwitch('speech')">
+              <VolumeMedium />
+              <span>声音</span>
+            </div>
+          </div>
+
+          <SpeechModePanel v-if="isSpeechMode" ref="speechPanelRef" />
+          <VideoModePanel v-else-if="isVideoMode" ref="videoPanelRef" />
+          <ImageModePanel v-else ref="imagePanelRef" />
+        </div>
+      </div>
+    </div>
+
+    <FormContainer class="results-section" :show-header="!isMobile" no-padding>
       <template #header>
-        <span>生成结果</span>
+        <div class="header-left">
+          <span>生成结果</span>
+        </div>
         <div class="header-actions">
           <Button v-if="isToolMode" size="sm" :loading="isRegenerating" @click="handleRegenerate">
             {{ isRegenerating ? '重新生成中...' : '重新生成' }}
@@ -531,19 +574,100 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium } = useIcon([
         </div>
       </template>
     </FormContainer>
+
+    <MobileTabBar v-if="isMobile && !isToolMode" />
   </div>
 </template>
 
 <style scoped>
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .header-actions {
   display: flex;
   gap: 8px;
+}
+
+.sidebar-toggle-btn {
+  margin-left: -8px;
+  color: var(--text-secondary);
 }
 
 .image-page-container {
   display: flex;
   height: 100%;
   width: 100%;
+}
+
+/* Mobile Sidebar Styles */
+.mobile-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.mobile-sidebar-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.mobile-sidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: min(320px, 85vw);
+  background: var(--bg-card);
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 12px 0 32px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-sidebar.active {
+  transform: translateX(0);
+}
+
+.mobile-sidebar-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.mobile-sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.image-page-container.is-mobile {
+  flex-direction: column;
+}
+
+.image-page-container.is-mobile .results-section {
+  flex: 1;
+  overflow: hidden;
+}
+
+.image-page-container.is-mobile .results-content {
+  padding: 12px;
+  padding-bottom: 140px;
+}
+
+.image-page-container.is-mobile .batches-list {
+  gap: 16px;
 }
 
 .image-page-container.tool-mode {

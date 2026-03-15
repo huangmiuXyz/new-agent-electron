@@ -100,13 +100,13 @@ const { Plus, Send, X, Bulb } = useIcon(['Plus', 'Send', 'X', 'Bulb'])
 </script>
 
 <template>
-  <div class="floating-input-area">
+  <div class="floating-input-area" :class="{ 'is-mobile': isMobile }">
     <Card
       ref="dropZoneRef"
       class="input-box-wrapper"
-      :class="{ disabled: !isModelSelected, 'drag-over': isDragOver || isOverDropZone }"
-      radius="24px"
-      padding="8px 16px"
+      :class="{ disabled: !isModelSelected, 'drag-over': isDragOver || isOverDropZone, 'is-mobile': isMobile }"
+      :radius="isMobile ? '0' : '24px'"
+      :padding="isMobile ? '8px 12px' : '8px 16px'"
     >
       <!-- 参考图片预览 -->
       <div v-if="props.showReferenceUpload !== false && referenceImages.length > 0" class="reference-images-section">
@@ -135,7 +135,7 @@ const { Plus, Send, X, Bulb } = useIcon(['Plus', 'Send', 'X', 'Bulb'])
           <textarea
             ref="textareaRef"
             :value="inputText"
-            :placeholder="isModelSelected ? '说说今天想做点什么' : '请先选择生成模型'"
+            :placeholder="isModelSelected ? (isMobile ? '说说想法...' : '说说今天想做点什么') : '请先选择生成模型'"
             :disabled="!isModelSelected || isOptimizing"
             rows="1"
             @input="inputText = ($event.target as HTMLTextAreaElement).value"
@@ -205,6 +205,14 @@ const { Plus, Send, X, Bulb } = useIcon(['Plus', 'Send', 'X', 'Bulb'])
   pointer-events: none;
 }
 
+.floating-input-area.is-mobile {
+  padding: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-subtle);
+  pointer-events: auto;
+  bottom: 0;
+}
+
 .input-box-wrapper {
   width: 100%;
   max-width: 800px;
@@ -214,6 +222,13 @@ const { Plus, Send, X, Bulb } = useIcon(['Plus', 'Send', 'X', 'Bulb'])
   border: 1px solid var(--border-subtle) !important;
   pointer-events: auto;
   overflow: visible !important;
+}
+
+.input-box-wrapper.is-mobile {
+  max-width: none;
+  box-shadow: none;
+  border: none !important;
+  background: transparent !important;
 }
 
 .input-box-wrapper:focus-within {

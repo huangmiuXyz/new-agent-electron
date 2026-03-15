@@ -9,7 +9,7 @@ const props = defineProps<{
 
 const isListMode = computed(() => {
   if (props.mode) return props.mode === 'list'
-  return isMobile.value && (route.path === '/mobile/chat/list' || route.path === '/mobile/settings/list' || route.path === '/mobile/notes/list')
+  return isMobile.value && (route.path === '/mobile/chat/list' || route.path === '/mobile/settings/list' || route.path === '/mobile/notes/list' || route.path === '/mobile/image')
 })
 
 const { customTitle } = useAppHeader()
@@ -18,15 +18,18 @@ const chatsStore = useChatsStores()
 const { register } = useShortcuts()
 const switchView = inject('switchView') as (view: 'chat' | 'notes' | 'settings' | 'image') => void
 
-const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp } = useIcon([
+const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp, Settings } = useIcon([
   'Search',
   'PanelOpen',
   'PanelClose',
   'CommentAdd16Regular',
   'ArrowBackIosNewSharp',
-  'NoteAdd24Regular'
+  'NoteAdd24Regular',
+  'Settings'
 ])
 const showSearch = ref(false)
+
+const toggleImageSidebar = inject('toggleImageSidebar', null) as (() => void) | null
 
 const openSearch = () => {
   showSearch.value = true
@@ -123,13 +126,16 @@ onMounted(() => {
     <!-- 移动端列表页特有头部 -->
     <div v-if="isListMode" class="mobile-list-header no-drag">
       <h1 class="mobile-title">{{ route.meta.title }}</h1>
-      <div v-if="route.path.includes('/chat') || route.path.includes('/notes')" class="mobile-header-actions">
-        <button v-if="route.path.includes('/chat')" class="mobile-action-btn" @click="openSearch">
+      <div v-if="route.path.includes('/chat') || route.path.includes('/notes') || route.path.includes('/image')" class="mobile-header-actions">
+        <Button v-if="route.path.includes('/chat')" class="mobile-action-btn" @click="openSearch">
           <component :is="Search" />
-        </button>
-        <button v-if="route.path.includes('/chat')" class="mobile-action-btn" @click="createNewChat">
+        </Button>
+        <Button v-if="route.path.includes('/chat')" class="mobile-action-btn" @click="createNewChat">
           <component :is="CommentAdd16Regular" />
-        </button>
+        </Button>
+        <Button v-if="route.path.includes('/image')" class="mobile-action-btn" @click="toggleImageSidebar">
+          <component :is="Settings" />
+        </Button>
       </div>
     </div>
 

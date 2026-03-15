@@ -48,9 +48,18 @@ const router = createRouter({
       ]
     },
     {
+      path: '/mobile/image',
+      component: () => import('../pages/image/index.vue'),
+      meta: {
+        showTabBar: true,
+        sort: 2,
+        title: '创作'
+      }
+    },
+    {
       path: '/mobile/notes',
       redirect: '/mobile/notes/list',
-      meta: { sort: 2 },
+      meta: { sort: 3 },
       children: [
         {
           path: '/mobile/notes/list',
@@ -71,7 +80,7 @@ const router = createRouter({
     {
       path: '/mobile/settings',
       redirect: '/mobile/settings/list',
-      meta: { sort: 3 },
+      meta: { sort: 4 },
       children: [
         {
           path: '/mobile/settings/list',

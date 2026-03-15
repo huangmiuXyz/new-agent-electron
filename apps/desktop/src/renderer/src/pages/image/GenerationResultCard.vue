@@ -36,7 +36,7 @@ const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.len
 </script>
 
 <template>
-  <Card padding="20px" radius="16px" class="generation-results">
+  <Card :padding="isMobile ? '12px' : '20px'" radius="16px" class="generation-results" :class="{ 'is-mobile': isMobile }">
     <div class="prompt-card">
       <div class="prompt-header">
         <div class="prompt-main">
@@ -245,7 +245,8 @@ const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.len
   transition: opacity 0.2s;
 }
 
-.generation-results:hover .prompt-actions {
+.generation-results:hover .prompt-actions,
+.generation-results.is-mobile .prompt-actions {
   opacity: 1;
 }
 

@@ -110,10 +110,10 @@ const { Trash, VolumeMedium, FileMusic, Download, Copy, X, Edit, Refresh } = use
 
 <template>
   <Card
-    padding="20px"
+    :padding="isMobile ? '12px' : '20px'"
     radius="16px"
     class="speech-result-card"
-    :class="{ 'is-music': isMusicResult }"
+    :class="{ 'is-music': isMusicResult, 'is-mobile': isMobile }"
     :data-status="statusText"
   >
     <div class="prompt-card">
@@ -277,7 +277,8 @@ const { Trash, VolumeMedium, FileMusic, Download, Copy, X, Edit, Refresh } = use
   transition: opacity 0.2s;
 }
 
-.speech-result-card:hover .prompt-actions {
+.speech-result-card:hover .prompt-actions,
+.speech-result-card.is-mobile .prompt-actions {
   opacity: 1;
 }
 
