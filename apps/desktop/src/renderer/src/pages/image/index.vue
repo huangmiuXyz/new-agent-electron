@@ -43,8 +43,11 @@ const props = defineProps<{
 const settingsStore = useSettingsStore()
 const imgStore = useImageStore()
 const audioStore = useAudioStore()
+const { setTitle, resetTitle } = useAppHeader()
 const { confirm } = useModal()
 const { generatedBatches, startGeneration, resumeGeneration, createImageBatch } = useImageGeneration()
+const router = useRouter()
+const route = useRoute()
 
 const activeMode = ref<GenerationMode>('image')
 const isImageMode = computed(() => activeMode.value === 'image')
@@ -69,6 +72,21 @@ const toggleSidebar = () => {
   showSidebar.value = !showSidebar.value
 }
 provide('toggleImageSidebar', toggleSidebar)
+
+const isMobileImagePage = computed(() => isMobile.value && !isToolMode.value && route.path === '/mobile/image')
+
+useBackButton({
+  enabled: isMobileImagePage,
+  handler: () => {
+    const previousRoute = window.history.state?.back
+    if (typeof previousRoute === 'string' && previousRoute.length > 0) {
+      router.back()
+    } else {
+      router.replace('/mobile/chat/list')
+    }
+    return true
+  }
+})
 
 const normalizeImages = (images: any[] = []) =>
   images
@@ -380,6 +398,10 @@ const handleRightInputSubmit = async () => {
 }
 
 onMounted(() => {
+  if (isMobile.value && !isToolMode.value) {
+    setTitle('创作')
+  }
+
   if (isToolMode.value) return
 
   if (settingsStore.imageGenerationForm?.prompt) {
@@ -391,6 +413,12 @@ onMounted(() => {
       resumeGeneration(batch)
     }
   })
+})
+
+onUnmounted(() => {
+  if (isMobile.value && !isToolMode.value) {
+    resetTitle()
+  }
 })
 
 const toolResultSyncKey = computed(() => {
@@ -435,7 +463,7 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, Settings, X } = useIcon([
 
 <template>
   <div class="image-page-container" :class="{ 'tool-mode': isToolMode, 'is-mobile': isMobile }">
-    <AppHeader v-if="isMobile && !isToolMode" :current-view="'image'" />
+    <AppHeader v-if="isMobile && !isToolMode" :current-view="'image'" mode="detail" />
     <ResizeBox
       v-if="!isToolMode && !isMobile"
       v-model:width="settingsStore.display.imageSidebarWidth"
@@ -575,7 +603,6 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, Settings, X } = useIcon([
       </template>
     </FormContainer>
 
-    <MobileTabBar v-if="isMobile && !isToolMode" />
   </div>
 </template>
 
@@ -663,7 +690,7 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, Settings, X } = useIcon([
 
 .image-page-container.is-mobile .results-content {
   padding: 12px;
-  padding-bottom: 140px;
+  padding-bottom: calc(96px + max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px)));
 }
 
 .image-page-container.is-mobile .batches-list {

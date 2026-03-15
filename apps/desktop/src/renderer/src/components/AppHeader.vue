@@ -118,6 +118,14 @@ onMounted(() => {
       <div v-if="isMobile" class="header-title-container">
         <div class="header-title">{{ customTitle }}</div>
       </div>
+      <Button
+        v-if="isMobile && !isListMode && props.currentView === 'image' && toggleImageSidebar"
+        variant="icon"
+        size="md"
+        @click="toggleImageSidebar"
+      >
+        <Settings />
+      </Button>
       <Button v-if="props.currentView === 'chat' && !isMobile" variant="icon" size="md" @click="createNewChat">
         <component :is="CommentAdd16Regular" />
       </Button>

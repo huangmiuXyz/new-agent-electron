@@ -206,7 +206,7 @@ const { Plus, Send, X, Bulb } = useIcon(['Plus', 'Send', 'X', 'Bulb'])
 }
 
 .floating-input-area.is-mobile {
-  padding: 0;
+  padding: 0 0 max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px));
   background: var(--bg-card);
   border-top: 1px solid var(--border-subtle);
   pointer-events: auto;
