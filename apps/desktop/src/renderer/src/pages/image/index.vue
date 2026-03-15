@@ -381,15 +381,15 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium } = useIcon([
           <div class="mode-switcher">
             <div class="mode-tab" :class="{ active: isImageMode }" @click="handleModeSwitch('image')">
               <ImageIcon />
-              <span>图片生成</span>
+              <span>图片</span>
             </div>
             <div class="mode-tab" :class="{ active: isVideoMode }" @click="handleModeSwitch('video')">
               <Screen />
-              <span>视频生成</span>
+              <span>视频</span>
             </div>
             <div class="mode-tab" :class="{ active: isSpeechMode }" @click="handleModeSwitch('speech')">
               <VolumeMedium />
-              <span>声音生成</span>
+              <span>声音</span>
             </div>
           </div>
 
