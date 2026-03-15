@@ -122,13 +122,19 @@ const handleModeSwitch = (mode: GenerationMode) => {
   activeMode.value = mode
 }
 
+const scrollToLatestSpeech = () => {
+  nextTick(() => {
+    resultsContentRef.value?.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  })
+}
+
 const scrollToBottom = () => {
   nextTick(() => {
     if (isSpeechMode.value) {
-      resultsContentRef.value?.scrollTo({
-        top: resultsContentRef.value.scrollHeight,
-        behavior: 'smooth'
-      })
+      scrollToLatestSpeech()
       return
     }
 
@@ -273,6 +279,26 @@ const removeSpeechResult = (chunkId: string) => {
   audioStore.removeBatch(chunkId)
 }
 
+const reEditSpeech = async (chunk: any) => {
+  rightInput.value = chunk.prompt
+  activeMode.value = 'speech'
+  await nextTick()
+  speechPanelRef.value?.restoreFromBatch?.(chunk)
+}
+
+const regenerateSpeech = async (chunk: any) => {
+  activeMode.value = 'speech'
+  await nextTick()
+  speechPanelRef.value?.restoreFromBatch?.(chunk)
+  const submitPromise = speechPanelRef.value?.submit(
+    chunk.prompt,
+    `${IMAGE_PAGE_SPEECH_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    chunk.id
+  )
+  scrollToLatestSpeech()
+  await submitPromise
+}
+
 const reEdit = (batch: ImageBatch) => {
   rightInput.value = batch.prompt
   activeMode.value = batch.mediaType === 'video' ? 'video' : 'image'
@@ -413,7 +439,9 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium } = useIcon([
             size="sm"
             @click="clearResults"
           >
-            <Trash />
+            <template #icon>
+              <Trash />
+            </template>
             清空结果
           </Button>
         </div>
@@ -436,6 +464,8 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium } = useIcon([
                   :chunk="chunk"
                   @copy-prompt="copyPrompt"
                   @remove="removeSpeechResult"
+                  @re-edit="reEditSpeech"
+                  @regenerate="regenerateSpeech"
                 />
               </div>
             </div>

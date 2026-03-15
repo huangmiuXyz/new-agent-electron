@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { indexedDBStorage } from '@renderer/utils'
 
 export interface AudioBatch {
   id: string
@@ -17,34 +18,76 @@ export interface AudioBatch {
   params?: any
   mediaType?: 'speech' | 'music'
   duration?: number
+  items?: AudioBatchItem[]
 }
 
-export const useAudioStore = defineStore('audio', () => {
-  const generatedBatches = ref<AudioBatch[]>([])
+export interface AudioBatchItem {
+  id: string
+  audioData?: string
+  audioMediaType?: string
+  audioFormat?: string
+  status?: 'pending' | 'processing' | 'completed' | 'failed'
+  error?: string
+  duration?: number
+}
 
-  const addBatch = (batch: AudioBatch) => {
-    generatedBatches.value = [...generatedBatches.value, batch]
-  }
+export const useAudioStore = defineStore(
+  'audio',
+  () => {
+    const generatedBatches = ref<AudioBatch[]>([])
 
-  const updateBatch = (batchId: string, updates: Partial<AudioBatch>) => {
-    generatedBatches.value = generatedBatches.value.map((batch) =>
-      batch.id === batchId ? { ...batch, ...updates } : batch
-    )
-  }
+    const addBatch = (batch: AudioBatch) => {
+      generatedBatches.value = [...generatedBatches.value, batch]
+    }
 
-  const removeBatch = (batchId: string) => {
-    generatedBatches.value = generatedBatches.value.filter((b) => b.id !== batchId)
-  }
+    const updateBatch = (batchId: string, updates: Partial<AudioBatch>) => {
+      generatedBatches.value = generatedBatches.value.map((batch) =>
+        batch.id === batchId ? { ...batch, ...updates } : batch
+      )
+    }
 
-  const clearBatches = () => {
-    generatedBatches.value = []
-  }
+    const addBatchItem = (batchId: string, item: AudioBatchItem) => {
+      generatedBatches.value = generatedBatches.value.map((batch) =>
+        batch.id === batchId
+          ? { ...batch, items: [...(batch.items || []), item], status: item.status ?? batch.status }
+          : batch
+      )
+    }
 
-  return {
-    generatedBatches,
-    addBatch,
-    updateBatch,
-    removeBatch,
-    clearBatches
+    const updateBatchItem = (batchId: string, itemId: string, updates: Partial<AudioBatchItem>) => {
+      generatedBatches.value = generatedBatches.value.map((batch) =>
+        batch.id === batchId
+          ? {
+              ...batch,
+              items: (batch.items || []).map((item) =>
+                item.id === itemId ? { ...item, ...updates } : item
+              )
+            }
+          : batch
+      )
+    }
+
+    const removeBatch = (batchId: string) => {
+      generatedBatches.value = generatedBatches.value.filter((b) => b.id !== batchId)
+    }
+
+    const clearBatches = () => {
+      generatedBatches.value = []
+    }
+
+    return {
+      generatedBatches,
+      addBatch,
+      updateBatch,
+      addBatchItem,
+      updateBatchItem,
+      removeBatch,
+      clearBatches
+    }
+  },
+  {
+    persist: {
+      storage: indexedDBStorage
+    }
   }
-})
+)

@@ -6,7 +6,7 @@ import {
 } from '@ai-sdk/provider-utils'
 import { z } from 'zod'
 import { MiniMaxConfig } from './minimax-config'
-import { miniMaxFailedResponseHandler } from './minimax-error'
+import { formatMiniMaxError, miniMaxFailedResponseHandler } from './minimax-error'
 import {
   MiniMaxMusicAPITypes,
   MiniMaxMusicAPIResponse,
@@ -58,6 +58,17 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
     }
 
     throw new Error('MiniMax audio data is neither valid hex nor a downloadable URL.')
+  }
+
+  private assertMiniMaxSuccess(response: MiniMaxSpeechAPIResponse | MiniMaxMusicAPIResponse) {
+    if (response.base_resp.status_code === 0) {
+      return
+    }
+
+    throw new Error(formatMiniMaxError({
+      base_resp: response.base_resp,
+      trace_id: response.trace_id,
+    }))
   }
 
   private async getArgs({
@@ -157,12 +168,6 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
         failedResponseHandler: miniMaxFailedResponseHandler,
         successfulResponseHandler: async ({ response }) => {
           const json = (await response.json()) as MiniMaxMusicAPIResponse
-          if (json.base_resp.status_code !== 0) {
-            throw new Error(`MiniMax API Error: ${json.base_resp.status_msg} (${json.base_resp.status_code})`)
-          }
-          if (!json.data?.audio) {
-            throw new Error('MiniMax music generation did not return audio data.')
-          }
           return {
             value: json,
             responseHeaders: Object.fromEntries(response.headers.entries()) as Record<string, string>,
@@ -171,6 +176,12 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
         abortSignal: options.abortSignal,
         fetch: this.config.fetch,
       })
+
+      this.assertMiniMaxSuccess(responseValue)
+
+      if (!responseValue.data?.audio) {
+        throw new Error('MiniMax music generation did not return audio data.')
+      }
 
       return {
         audio: await this.resolveAudioData(responseValue.data.audio),
@@ -196,9 +207,6 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
       failedResponseHandler: miniMaxFailedResponseHandler,
       successfulResponseHandler: async ({ response }) => {
         const json = (await response.json()) as MiniMaxSpeechAPIResponse
-        if (json.base_resp.status_code !== 0) {
-          throw new Error(`MiniMax API Error: ${json.base_resp.status_msg} (${json.base_resp.status_code})`)
-        }
         return {
           value: json,
           responseHeaders: Object.fromEntries(response.headers.entries()) as Record<string, string>,
@@ -207,6 +215,12 @@ export class MiniMaxSpeechModel implements SpeechModelV3 {
       abortSignal: options.abortSignal,
       fetch: this.config.fetch,
     })
+
+    this.assertMiniMaxSuccess(responseValue)
+
+    if (!responseValue.data?.audio) {
+      throw new Error('MiniMax speech generation did not return audio data.')
+    }
 
     return {
       audio: await this.resolveAudioData(responseValue.data.audio),

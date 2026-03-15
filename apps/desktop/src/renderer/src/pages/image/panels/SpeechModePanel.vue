@@ -186,27 +186,69 @@ const [SpeechForm, speechFormActions] = useForm({
   }
 })
 
-const submit = async (text: string, messageId: string) => {
+const submit = async (text: string, messageId: string, batchId?: string) => {
   const data = speechFormActions.getData()
   if (!text.trim() || !data?.model?.modelId || !data?.model?.providerId) return
   const providerOptions = isMusicModelId(data.model.modelId)
     ? filterProviderOptionsForMusic(data.providerOptions)
     : data.providerOptions
   const provider = settingsStore.getProviderById(data.model.providerId)!
-  const chunkId = nanoid()
+  const itemId = nanoid()
+  const targetBatchId = batchId || nanoid()
 
   const modelInfo = provider.models?.find((item) => item.id === data.model.modelId)
-  audioStore.addBatch({
-    id: chunkId,
-    messageId,
-    prompt: text.trim(),
-    model: data.model.modelId,
-    providerId: data.model.providerId,
-    providerName: provider.name,
-    modelName: modelInfo?.name || data.model.modelId,
-    mediaType: isMusicModelId(data.model.modelId) ? 'music' : 'speech',
-    status: 'processing'
-  })
+  const itemPayload = {
+    id: itemId,
+    status: 'processing' as const
+  }
+
+  if (batchId) {
+    audioStore.updateBatch(batchId, {
+      messageId,
+      prompt: text.trim(),
+      model: data.model.modelId,
+      providerId: data.model.providerId,
+      providerName: provider.name,
+      modelName: modelInfo?.name || data.model.modelId,
+      mediaType: isMusicModelId(data.model.modelId) ? 'music' : 'speech',
+      status: 'processing',
+      error: undefined,
+      params: {
+        model: {
+          modelId: data.model.modelId,
+          providerId: data.model.providerId
+        },
+        voice: data.voice || undefined,
+        speed: data.speed ? Number(data.speed) : undefined,
+        language: data.language || undefined,
+        providerOptions
+      }
+    })
+    audioStore.addBatchItem(batchId, itemPayload)
+  } else {
+    audioStore.addBatch({
+      id: targetBatchId,
+      messageId,
+      prompt: text.trim(),
+      model: data.model.modelId,
+      providerId: data.model.providerId,
+      providerName: provider.name,
+      modelName: modelInfo?.name || data.model.modelId,
+      mediaType: isMusicModelId(data.model.modelId) ? 'music' : 'speech',
+      status: 'processing',
+      params: {
+        model: {
+          modelId: data.model.modelId,
+          providerId: data.model.providerId
+        },
+        voice: data.voice || undefined,
+        speed: data.speed ? Number(data.speed) : undefined,
+        language: data.language || undefined,
+        providerOptions
+      },
+      items: [itemPayload]
+    })
+  }
 
   const modelString = `${provider.providerType}:${data.model.modelId}`
   const cleanObject = (obj: any): any => {
@@ -252,7 +294,14 @@ const submit = async (text: string, messageId: string) => {
 
     const base64 = audio.base64
     const mediaType = audio.mediaType || 'audio/mpeg'
-    audioStore.updateBatch(chunkId, {
+    audioStore.updateBatch(targetBatchId, {
+      audioData: base64,
+      audioMediaType: mediaType,
+      audioFormat: audio.format,
+      status: 'completed',
+      error: undefined
+    })
+    audioStore.updateBatchItem(targetBatchId, itemId, {
       audioData: base64,
       audioMediaType: mediaType,
       audioFormat: audio.format,
@@ -262,12 +311,31 @@ const submit = async (text: string, messageId: string) => {
   } catch (error) {
     console.error('Speech generation failed:', error)
     const errorMessage = error instanceof Error ? error.message : String(error)
-    audioStore.updateBatch(chunkId, { status: 'failed', error: errorMessage })
+    audioStore.updateBatch(targetBatchId, { status: 'failed', error: errorMessage })
+    audioStore.updateBatchItem(targetBatchId, itemId, { status: 'failed', error: errorMessage })
     throw error
   }
 }
 
 const hasModelSelected = () => !!speechFormActions.getData()?.model?.modelId
+
+const restoreFromBatch = (batch: any) => {
+  speechFormActions.setFieldsValue(normalizeFormData({
+    model: {
+      modelId: batch.model,
+      providerId: batch.providerId
+    },
+    voice: batch.params?.voice,
+    speed: batch.params?.speed ?? 1,
+    language: batch.params?.language ?? 'auto',
+    providerOptions: batch.params?.providerOptions
+  } as any))
+
+  if (batch.providerId) {
+    speechVoiceOptions.value = getSpeechVoiceOptions(batch.providerId, batch.model)
+    speechDynamicField.value = getSpeechDynamicFields(batch.providerId, batch.model)
+  }
+}
 
 onMounted(() => {
   if (settingsStore.speechGenerationForm?.model?.providerId) {
@@ -305,7 +373,8 @@ onMounted(() => {
 
 defineExpose({
   submit,
-  hasModelSelected
+  hasModelSelected,
+  restoreFromBatch
 })
 </script>
 
