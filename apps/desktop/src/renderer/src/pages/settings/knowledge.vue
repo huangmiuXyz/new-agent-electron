@@ -129,6 +129,11 @@ const isDocumentUnderFolder = (doc: KnowledgeDocument, folderPath: string) => {
   return docFolderPath === folderPath || docFolderPath.startsWith(`${folderPath}/`)
 }
 
+const getDocumentsInFolder = (folderPath: string) => {
+  const documents = activeKnowledgeBase.value?.documents || []
+  return documents.filter((doc) => isDocumentUnderFolder(doc, folderPath))
+}
+
 const matchedDocuments = computed(() => {
   const documents = activeKnowledgeBase.value?.documents || []
   if (!searchKeyword.value) return documents
@@ -434,6 +439,60 @@ const showDeleteDocumentModal = async (document: KnowledgeDocument) => {
   }
 }
 
+const showDeleteFolderModal = async (folder: KnowledgeFolderRow) => {
+  const folderDocuments = getDocumentsInFolder(folder.path)
+  if (folderDocuments.length === 0) return
+
+  const result = await confirm({
+    title: '删除文件夹',
+    content: `确定要删除文件夹 "${folder.name}" 及其下 ${folderDocuments.length} 个文档吗？`,
+    confirmProps: {
+      danger: true
+    }
+  })
+
+  if (result) {
+    deleteDocumentsFromKnowledgeBase(
+      activeKnowledgeBaseId.value,
+      folderDocuments.map((doc) => doc.id)
+    )
+
+    if (currentFolderPath.value === folder.path) {
+      navigateUpFolder()
+    }
+  }
+}
+
+const runFolderEmbedding = async (folder: KnowledgeFolderRow, continueFlag: boolean) => {
+  const folderDocuments = getDocumentsInFolder(folder.path).filter((doc) =>
+    continueFlag ? doc.status !== 'processed' : true
+  )
+
+  if (folderDocuments.length === 0) return
+
+  loading.value = true
+  const docChunks = chunk(folderDocuments, 20)
+  const { start, done } = useIdleChunkAsync(docChunks, async (docChunk) => {
+    await Promise.all(
+      docChunk.map(async (doc) => {
+        await embedding(doc, activeKnowledgeBase.value, continueFlag, batchSize.value, {
+          input_type: 'passage'
+        })
+      })
+    )
+    await nextTick()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+
+  watch(done, (v) => {
+    if (v) {
+      loading.value = false
+    }
+  }, { once: true })
+
+  start()
+}
+
 const selectedDocumentIds = computed(() => {
   const selectedKeys = new Set(docTableActions.getSelectedKeys())
   return currentFolderRows.value
@@ -665,9 +724,38 @@ const [DocTable, docTableActions] = useTable<KnowledgeListRow>({
         <div style="display: flex; align-items: center; gap: 8px">
           {row.rowType === 'folder'
             ? (
-              <Button onClick={() => openFolderView(row.path)} size="sm" type="button" variant="text">
-                {{ icon: () => Folder }}
-              </Button>
+              <>
+                <Button
+                  onClick={() => runFolderEmbedding(row, false)}
+                  size="sm"
+                  type="button"
+                  variant="text"
+                  title="刷新整个文件夹"
+                >
+                  {{ icon: () => Refresh }}
+                </Button>
+                <Button
+                  onClick={() => runFolderEmbedding(row, true)}
+                  size="sm"
+                  type="button"
+                  variant="text"
+                  title="继续处理整个文件夹"
+                >
+                  {{ icon: () => Play }}
+                </Button>
+                <Button
+                  onClick={() => showDeleteFolderModal(row)}
+                  size="sm"
+                  type="button"
+                  variant="text"
+                  title="删除整个文件夹"
+                >
+                  {{ icon: () => Trash }}
+                </Button>
+                <Button onClick={() => openFolderView(row.path)} size="sm" type="button" variant="text">
+                  {{ icon: () => Folder }}
+                </Button>
+              </>
             )
             : (
               <>

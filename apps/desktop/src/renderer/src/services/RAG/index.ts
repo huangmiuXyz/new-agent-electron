@@ -74,17 +74,31 @@ const vectorSearch = async (
   }
   return candidates.slice(0, topK)
 }
-const vectorSearchWorker = useWebWorkerFn(vectorSearch, {
-  localDependencies: [cosineSimilarity],
-  timeout: 50_000
-})
-const { workerFn: vectorSearchInWorker } = vectorSearchWorker
 
-const splitWorker = useWebWorkerFn(prepareChunks, {
-  localDependencies: [prepareChunks],
-  timeout: 50_000
-})
-const { workerFn: prepareChunksInWorker } = splitWorker
+const runInDedicatedWorker = async <T extends (...args: any[]) => any>(
+  fn: T,
+  args: Parameters<T>,
+  options: {
+    localDependencies?: Function[]
+    timeout?: number
+  }
+): Promise<Awaited<ReturnType<T>>> => {
+  const { workerFn, workerTerminate } = useWebWorkerFn(fn, options)
+
+  try {
+    return await (await workerFn(...args))
+  } finally {
+    workerTerminate()
+  }
+}
+
+const vectorSearchInWorker = (
+  ...args: Parameters<typeof vectorSearch>
+): Promise<Awaited<ReturnType<typeof vectorSearch>>> =>
+  runInDedicatedWorker(vectorSearch, args, {
+    localDependencies: [cosineSimilarity],
+    timeout: 50_000
+  })
 
 export const RAGService = () => {
   const splitter = async (doc: KnowledgeDocument, splitOptions: SplitOptions) => {
@@ -103,7 +117,7 @@ export const RAGService = () => {
     } catch (error) {
       doc.url && (text = base64ToText(doc.url))
     }
-    const result = await prepareChunksInWorker(text, splitOptions)
+    const result = await prepareChunks(text, splitOptions)
     return result
   }
   const embedding = async (

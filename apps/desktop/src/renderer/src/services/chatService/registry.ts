@@ -10,6 +10,7 @@ import {
 } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createOpenAI } from '@ai-sdk/openai'
+import { createOllama } from 'ollama-ai-provider-v2';
 // import { createHume } from '@ai-sdk/hume'
 // import { createElevenLabs } from '@ai-sdk/elevenlabs'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
@@ -465,7 +466,7 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
       })
     }),
   ollama: (options) =>
-    mergeFun(createOpenAICompatible(options), {
+    mergeFun(createOllama(options), {
       chatCallOptionsSchema: openAICompatibleChatCallOptionsSchema,
       listModels: createStandardListModels(options)
     }),
