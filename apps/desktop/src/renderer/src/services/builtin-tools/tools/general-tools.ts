@@ -31,6 +31,12 @@ const resolvePath = (rawPath: string, chatId?: string): string => {
   return resolvedPath
 }
 
+const toDisplayPath = (inputPath: string): string => inputPath.replaceAll('\\', '/')
+const toDisplayRelativePath = (inputPath: string): string => {
+  if (!inputPath) return '.'
+  return toDisplayPath(inputPath)
+}
+
 const parallelToolUseSchema = z.object({
   recipient_name: z
     .string()
@@ -127,7 +133,7 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
             content: [
               {
                 type: 'text',
-                text: `当前路径: ${currentPath}\n相对路径: ${relativePath || '.'}\n工作目录: ${baseDir || '未设置'}`
+                text: `当前路径: ${toDisplayPath(currentPath)}\n相对路径: ${toDisplayRelativePath(relativePath)}\n工作目录: ${baseDir ? toDisplayPath(baseDir) : '未设置'}`
               }
             ]
           }

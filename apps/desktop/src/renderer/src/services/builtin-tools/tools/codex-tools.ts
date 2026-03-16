@@ -263,7 +263,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         return {
           toolResult: {
             content: [
-              { type: 'text', text: `Directory listing for ${dirPath}:\n${results.join('')}` }
+              { type: 'text', text: `Directory listing for ${dirPath.replaceAll('\\', '/')}:\n${results.join('')}` }
             ]
           }
         }
@@ -330,7 +330,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
               content: [
                 {
                   type: 'text',
-                  text: `未找到匹配结果\nquery: ${query}\npath: ${rootDir}\nflags: ${flags.join(' ')}`
+                  text: `未找到匹配结果\nquery: ${query}\npath: ${rootDir.replaceAll('\\', '/')}\nflags: ${flags.join(' ')}`
                 }
               ]
             }
@@ -363,7 +363,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
             content: [
               {
                 type: 'text',
-                text: `rg 搜索完成\nquery: ${query}\npath: ${rootDir}\nflags: ${flags.join(' ')}\n\n${stdout}`
+                text: `rg 搜索完成\nquery: ${query}\npath: ${rootDir.replaceAll('\\', '/')}\nflags: ${flags.join(' ')}\n\n${stdout}`
               }
             ]
           }
