@@ -185,6 +185,23 @@ export const setupSqliteHandlers = () => {
   })
 
   ipcMain.handle(
+    'sqlite:getChunkCountsByDoc',
+    async (_event, { doc_ids }: { doc_ids: string[] }) => {
+      if (!doc_ids.length) return []
+
+      const placeholders = doc_ids.map(() => '?').join(',')
+      return db
+        .prepare(
+          `SELECT doc_id, COUNT(*) as count
+           FROM chunks
+           WHERE doc_id IN (${placeholders})
+           GROUP BY doc_id`
+        )
+        .all(...doc_ids) as { doc_id: string; count: number }[]
+    }
+  )
+
+  ipcMain.handle(
     'sqlite:search',
     async (
       _event,

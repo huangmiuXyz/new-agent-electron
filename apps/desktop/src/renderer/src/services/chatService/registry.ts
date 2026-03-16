@@ -10,7 +10,7 @@ import {
 } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createOpenAI } from '@ai-sdk/openai'
-import { createOllama } from 'ollama-ai-provider-v2';
+import { createOllama } from 'ai-sdk-ollama';
 // import { createHume } from '@ai-sdk/hume'
 // import { createElevenLabs } from '@ai-sdk/elevenlabs'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
@@ -121,6 +121,23 @@ const createStandardListModels = (
       name: m.id,
       category: (config?.getCategory?.(m.id) ?? 'text') as ModelCategory,
       ...config?.transformModel?.(m)
+    })) as Model[]
+  }
+}
+
+const createOllamaListModels = (options: { baseURL: string }) => {
+  return async () => {
+    const response = await fetch(`${options.baseURL.replace(/\/$/, '')}/api/tags`)
+    const result = (await response.json()) as {
+      models?: {
+        name: string
+        model?: string
+      }[]
+    }
+    return (result.models || []).map((m) => ({
+      id: m.model || m.name,
+      name: m.name,
+      category: 'text'
     })) as Model[]
   }
 }
@@ -468,7 +485,7 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
   ollama: (options) =>
     mergeFun(createOllama(options), {
       chatCallOptionsSchema: openAICompatibleChatCallOptionsSchema,
-      listModels: createStandardListModels(options)
+      listModels: createOllamaListModels(options)
     }),
   openrouter: (options) =>
     mergeFun(createOpenRouter(options), {

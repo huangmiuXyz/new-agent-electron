@@ -135,7 +135,7 @@ export const RAGService = () => {
         current?: number,
         total?: number,
         batchChunks?: Splitter
-      ) => void
+      ) => void | Promise<void>
       continueFlag: boolean
       batchSize?: number
       providerOptions?: embedProviderOptions
@@ -163,12 +163,13 @@ export const RAGService = () => {
       }
     }
 
-    options.onProgress?.(undefined, 0, total)
+    await options.onProgress?.(undefined, 0, total)
 
     for (let i = 0; i < total; i += batchSize) {
       const batch: string[] = []
       const batchIndices: number[] = []
       let skippedInBatch = 0
+      const reusedBatchChunks: Splitter = []
 
       for (let j = i; j < Math.min(i + batchSize, total); j++) {
         const chunk = splitterClone[j]
@@ -183,6 +184,10 @@ export const RAGService = () => {
           splitterClone[j].embedding = existingEmbedding
           processed++
           skippedInBatch++
+          reusedBatchChunks.push({
+            ...splitterClone[j],
+            id: splitterClone[j].id ?? j
+          })
           continue
         }
         batch.push(chunk.content)
@@ -191,7 +196,7 @@ export const RAGService = () => {
 
       if (batch.length === 0) {
         if (skippedInBatch > 0) {
-          reportProgress(processed, total, splitterClone, options)
+          await reportProgress(processed, total, splitterClone, options, reusedBatchChunks)
         }
         continue
       }
@@ -207,7 +212,7 @@ export const RAGService = () => {
           }
         })
 
-        const batchChunks: Splitter = []
+        const batchChunks: Splitter = [...reusedBatchChunks]
         embeddings.forEach((embedding, index) => {
           const chunkIndex = batchIndices[index]
           splitterClone[chunkIndex].embedding = embedding
@@ -218,7 +223,7 @@ export const RAGService = () => {
           processed++
         })
 
-        reportProgress(processed, total, splitterClone, options, batchChunks)
+        await reportProgress(processed, total, splitterClone, options, batchChunks)
       } catch (error) {
         const err = error as APICallError
         if (err.name === 'AbortError') {
@@ -230,11 +235,11 @@ export const RAGService = () => {
       }
     }
 
-    options.onProgress?.(splitterClone, total, total)
+    await options.onProgress?.(splitterClone, total, total)
     return splitterClone
   }
 
-  function reportProgress(
+  async function reportProgress(
     processed: number,
     total: number,
     splitter: Splitter,
@@ -244,11 +249,11 @@ export const RAGService = () => {
         current?: number,
         total?: number,
         batchChunks?: Splitter
-      ) => void
+      ) => void | Promise<void>
     },
     batchChunks?: Splitter
   ) {
-    options.onProgress?.(splitter, processed, total, batchChunks)
+    await options.onProgress?.(splitter, processed, total, batchChunks)
   }
   const retrieve = async (
     query: string,

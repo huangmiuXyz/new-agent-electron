@@ -110,7 +110,7 @@ export const useKnowledge = () => {
           })
         }
 
-        await rag.embedding(splitter, {
+        const embeddedChunks = await rag.embedding(splitter, {
           apiKey: provider.apiKey!,
           baseURL: provider.baseUrl,
           name: provider.name,
@@ -137,6 +137,17 @@ export const useKnowledge = () => {
           continueFlag,
           batchSize
         })
+        if (sqliteSupported) {
+          const countResult = await window.api.sqlite.getChunkCountsByDoc({ doc_ids: [doc.id] }).catch(() => [])
+          const persistedCount = countResult[0]?.count || 0
+          if (persistedCount < embeddedChunks.length) {
+            await upsertChunksToSqlite(knowledge.id, doc.id, embeddedChunks, model.id)
+          }
+        } else {
+          doc.chunks = embeddedChunks
+        }
+        doc.currentChunk = embeddedChunks.length
+        doc.isSplitting = embeddedChunks.length > 0
         doc.status = 'processed'
       } catch (error) {
         if (abortController.signal.aborted) {

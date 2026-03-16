@@ -1,3 +1,25 @@
+let resolveRestore: () => void
+const restorePromise = new Promise<void>((resolve) => {
+  resolveRestore = resolve
+})
+
+const serializeKnowledgeState = (state: { knowledgeBases: KnowledgeBase[] }) => {
+  return JSON.stringify({
+    ...state,
+    knowledgeBases: state.knowledgeBases.map((knowledgeBase) => ({
+      ...knowledgeBase,
+      documents: (knowledgeBase.documents || []).map((doc) => ({
+        ...doc,
+        abortController: null,
+        chunks: (doc.chunks || []).map((chunk) => ({
+          ...chunk,
+          embedding: []
+        }))
+      }))
+    }))
+  })
+}
+
 export const useKnowledgeStore = defineStore(
   'knowledge',
   () => {
@@ -18,6 +40,7 @@ export const useKnowledgeStore = defineStore(
     ])
 
     const activeKnowledgeBaseId = useLocalStorage<string>('activeKnowledgeBaseId', '')
+    const isAfterRestore = restorePromise
 
     watch(
       () => activeKnowledgeBaseId.value,
@@ -149,20 +172,80 @@ export const useKnowledgeStore = defineStore(
       await window.api.sqlite.upsertChunks(sqliteChunks)
     }
 
+    const reconcileDocumentsAfterRestore = async () => {
+      for (const knowledgeBase of knowledgeBases.value) {
+        for (const doc of knowledgeBase.documents || []) {
+          doc.abortController = null
+        }
+      }
+
+      const sqliteSupported = await window.api.sqlite.isSupported().catch(() => false)
+      if (!sqliteSupported) {
+        for (const knowledgeBase of knowledgeBases.value) {
+          for (const doc of knowledgeBase.documents || []) {
+            if (doc.status === 'processing') {
+              doc.status = 'aborted'
+            }
+          }
+        }
+        return
+      }
+
+      const docIds = knowledgeBases.value.flatMap((kb) => (kb.documents || []).map((doc) => doc.id))
+      if (!docIds.length) return
+
+      const counts = await window.api.sqlite.getChunkCountsByDoc({ doc_ids: docIds }).catch(() => [])
+      const countMap = new Map(counts.map((item) => [item.doc_id, item.count]))
+
+      for (const knowledgeBase of knowledgeBases.value) {
+        for (const doc of knowledgeBase.documents || []) {
+          const totalChunks = doc.chunks?.length || 0
+          const processedChunks = countMap.get(doc.id) || 0
+
+          if (totalChunks > 0) {
+            doc.currentChunk = Math.min(processedChunks, totalChunks)
+            doc.isSplitting = true
+            if (processedChunks >= totalChunks) {
+              doc.status = 'processed'
+            } else if (processedChunks > 0 || doc.status === 'processing') {
+              doc.status = 'aborted'
+            }
+          } else if (doc.status === 'processing') {
+            doc.status = 'aborted'
+          }
+        }
+      }
+    }
+
     return {
       knowledgeBases,
+      isAfterRestore,
       updateKnowledgeBase,
       addKnowledgeBase,
       deleteKnowledgeBase,
       addDocumentToKnowledgeBase,
       addDocumentsToKnowledgeBase,
       deleteDocumentsFromKnowledgeBase,
-      upsertChunksToSqlite
+      upsertChunksToSqlite,
+      reconcileDocumentsAfterRestore
     }
   },
   {
     persist: {
-      storage: indexedDBStorage
+      storage: indexedDBStorage,
+      serializer: {
+        serialize: serializeKnowledgeState,
+        deserialize: JSON.parse
+      },
+      afterRestore: (ctx?: { store?: unknown }) => {
+        Promise.resolve((ctx?.store as any)?.reconcileDocumentsAfterRestore?.())
+          .catch((error) => {
+            console.error('Failed to reconcile knowledge documents after restore:', error)
+          })
+          .finally(() => {
+            resolveRestore()
+          })
+      }
     }
   }
 )

@@ -40,7 +40,7 @@ const plugin: Plugin = {
             // 移除末尾斜杠以确保 URL 正确
             const baseUrlClean = (baseURL || '').replace(/\/$/, '');
             if (!baseUrlClean) return false;
-            const res = await fetch(`${baseUrlClean}/models`);
+            const res = await fetch(`${baseUrlClean}/api/tags`);
             return res.ok;
           } catch (e) {
             return false;

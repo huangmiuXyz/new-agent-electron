@@ -117,6 +117,8 @@ export const api: ElectronAPI = {
       electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByDoc', docId),
     deleteChunksByKb: (kbId: string) =>
       electronAPI.ipcRenderer.invoke('sqlite:deleteChunksByKb', kbId),
+    getChunkCountsByDoc: (params: { doc_ids: string[] }) =>
+      electronAPI.ipcRenderer.invoke('sqlite:getChunkCountsByDoc', params),
     search: (options: any) => electronAPI.ipcRenderer.invoke('sqlite:search', options),
     getAllChunks: () => electronAPI.ipcRenderer.invoke('sqlite:getAllChunks'),
     getChunksByHash: (params: { content_hashes: string[]; model_id: string }) =>

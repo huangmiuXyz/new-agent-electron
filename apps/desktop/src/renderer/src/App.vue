@@ -10,6 +10,7 @@ import ResizeBox from './components/ResizeBox.vue'
 import { useSettingsStore } from './stores/settings'
 import { useChatsStores } from './stores/chats'
 import { useImageStore } from './stores/image'
+import { useKnowledgeStore } from './stores/knowledge'
 import { useSyncStore } from './stores/sync'
 import { useShortcuts } from './composables/useShortcuts'
 
@@ -19,6 +20,7 @@ const currentView = ref('chat')
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 const imageStore = useImageStore()
+const knowledgeStore = useKnowledgeStore()
 const syncStore = useSyncStore()
 const { display, shortcuts } = storeToRefs(settingsStore)
 const { updateConfig } = useShortcuts()
@@ -68,6 +70,7 @@ const handleTerminalExpand = () => {
 const settingsReady = ref(false)
 const chatsReady = ref(false)
 const imageReady = ref(false)
+const knowledgeReady = ref(false)
 
 settingsStore.isAfterRestore.then(() => {
   settingsReady.value = true
@@ -83,6 +86,10 @@ chatsStore.isAfterRestore.then(() => {
 
 imageStore.isAfterRestore.then(() => {
   imageReady.value = true
+})
+
+knowledgeStore.isAfterRestore.then(() => {
+  knowledgeReady.value = true
 })
 
 Promise.all([syncStore.isAfterRestore, chatsStore.isAfterRestore]).then(() => {
@@ -101,7 +108,7 @@ const isStoreReady = computed(() => {
     return settingsReady.value && imageReady.value
   } 
   if (path.startsWith('/settings') || path.startsWith('/mobile/settings')) {
-    return settingsReady.value
+    return settingsReady.value && knowledgeReady.value
   } 
   if (path.startsWith('/temp-chat')) {
     return true
