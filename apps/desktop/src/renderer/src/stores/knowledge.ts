@@ -3,7 +3,7 @@ const restorePromise = new Promise<void>((resolve) => {
   resolveRestore = resolve
 })
 
-const serializeKnowledgeState = (state: { knowledgeBases: KnowledgeBase[] }) => {
+const serializeKnowledgeState = (state: any) => {
   return JSON.stringify({
     ...state,
     knowledgeBases: state.knowledgeBases.map((knowledgeBase) => ({
@@ -210,8 +210,12 @@ export const useKnowledgeStore = defineStore(
       const docIds = knowledgeBases.value.flatMap((kb) => (kb.documents || []).map((doc) => doc.id))
       if (!docIds.length) return
 
-      const counts = await window.api.sqlite.getChunkCountsByDoc({ doc_ids: docIds }).catch(() => [])
-      const countMap = new Map(counts.map((item) => [item.doc_id, item.count]))
+      const counts: { doc_id: string; count: number }[] = await window.api.sqlite
+        .getChunkCountsByDoc({ doc_ids: docIds })
+        .catch(() => [])
+      const countMap = new Map<string, number>(
+        counts.map((item) => [item.doc_id, item.count] as const)
+      )
 
       for (const knowledgeBase of knowledgeBases.value) {
         for (const doc of knowledgeBase.documents || []) {
