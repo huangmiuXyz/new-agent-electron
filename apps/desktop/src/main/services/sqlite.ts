@@ -280,7 +280,8 @@ export const setupSqliteHandlers = () => {
           id: r.id,
           content: r.content,
           doc_id: r.doc_id,
-          score: 1 - r.distance
+          // sqlite-vec returns a distance value; convert it to a monotonic similarity-like score.
+          score: 1 / (1 + Math.max(0, r.distance))
         }))
         .filter((r) => (similarityThreshold == null ? true : r.score > similarityThreshold))
     }
