@@ -24,9 +24,25 @@ const toggleSpeechSidebar = () => {
 }
 
 const hasQueue = computed(() => speechStore.queue.length > 0)
+const chatContentReady = ref(!import.meta.env.PROD)
+
+const runChatStartupStages = async () => {
+  if (!import.meta.env.PROD) {
+    chatContentReady.value = true
+    return
+  }
+
+  chatContentReady.value = false
+
+  await nextTick()
+  await new Promise((resolve) => window.setTimeout(resolve, 0))
+  chatContentReady.value = true
+}
 
 // 注册聊天页面快捷键
 onMounted(() => {
+  void runChatStartupStages()
+
   // 设置当前作用域为 chat
   setScope('chat')
 
@@ -131,10 +147,10 @@ onMounted(() => {
     <!-- 主聊天区域 -->
     <main class="main-chat">
       <!-- 消息列表 -->
-      <ChatMessageList />
+      <ChatMessageList v-if="chatContentReady" />
 
       <!-- 输入框 -->
-      <ChatMessageInput />
+      <ChatMessageInput v-if="chatContentReady" />
     </main>
 
     <!-- 右侧语音播放侧边栏 -->

@@ -29,6 +29,9 @@ protocol.registerSchemesAsPrivileged([
 const WINDOWS_TITLE_BAR_HEIGHT = 40
 const WINDOWS_SYMBOL_COLOR_DARK = '#f5f5f7'
 const WINDOWS_SYMBOL_COLOR_LIGHT = '#1d1d1f'
+const WINDOW_SHOW_FALLBACK_DELAY = 3000
+
+let mainWindow: BrowserWindow | null = null
 
 function getWindowsTitleBarOverlay(isDark: boolean) {
   return {
@@ -82,9 +85,42 @@ function createWindow(): BrowserWindow {
     return net.fetch(pathToFileURL(filePath).toString())
   })
 
+  const fallbackShowTimer = setTimeout(() => {
+    if (!mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      console.warn('[main] Window was not ready-to-show in time, forcing show()')
+      mainWindow.maximize()
+      mainWindow.show()
+    }
+  }, WINDOW_SHOW_FALLBACK_DELAY)
+
   mainWindow.on('ready-to-show', () => {
+    clearTimeout(fallbackShowTimer)
     mainWindow.maximize()
     mainWindow.show()
+  })
+
+  mainWindow.on('closed', () => {
+    clearTimeout(fallbackShowTimer)
+  })
+
+  mainWindow.on('unresponsive', () => {
+    console.error('[main] Main window became unresponsive')
+  })
+
+  mainWindow.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      console.error('[main] did-fail-load', {
+        errorCode,
+        errorDescription,
+        validatedURL,
+        isMainFrame
+      })
+    }
+  )
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[main] render-process-gone', details)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -93,9 +129,13 @@ function createWindow(): BrowserWindow {
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    void mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']).catch((error) => {
+      console.error('[main] Failed to load renderer URL', error)
+    })
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    void mainWindow.loadFile(join(__dirname, '../renderer/index.html')).catch((error) => {
+      console.error('[main] Failed to load renderer HTML', error)
+    })
   }
 
   return mainWindow
@@ -103,8 +143,26 @@ function createWindow(): BrowserWindow {
 
 app.commandLine.appendSwitch('no-sandbox')
 
-app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.electron')
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+
+if (!gotSingleInstanceLock) {
+  app.quit()
+}
+
+app.on('second-instance', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore()
+  }
+
+  mainWindow.show()
+  mainWindow.focus()
+})
+
+if (gotSingleInstanceLock) {
+  app.whenReady().then(() => {
+    electronApp.setAppUserModelId('com.electron')
 
   require('@electron/remote/main').initialize()
 
@@ -302,15 +360,20 @@ app.whenReady().then(() => {
     return null
   })
 
-  initSqlite()
-  setupSqliteHandlers()
-  setupPtyHandlers()
-  setupComputerHandlers()
-  setupSearchReplaceHandlers()
-  setupSyncHandlers()
+    mainWindow = createWindow()
+    setupUpdaterHandlers(mainWindow)
+    initTray(mainWindow)
 
-  const mainWindow = createWindow()
-  setupUpdaterHandlers(mainWindow)
+    try {
+      initSqlite()
+      setupSqliteHandlers()
+    } catch (error) {
+      console.error('[main] Failed to initialize sqlite services', error)
+    }
 
-  initTray(mainWindow)
-})
+    setupPtyHandlers()
+    setupComputerHandlers()
+    setupSearchReplaceHandlers()
+    setupSyncHandlers()
+  })
+}
