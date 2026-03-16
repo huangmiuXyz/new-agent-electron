@@ -7,8 +7,136 @@ export interface RetrieveOptions {
   topK?: number
   rerankScoreThreshold?: number
 }
+
+type RetrievedCandidate = {
+  id?: string | number
+  content: string
+  score: number
+  knowledgeBaseId?: string
+  documentId?: string
+}
+
+type HydratedCandidate = RetrievedCandidate & {
+  chunkIndex?: number
+}
+
+const parseChunkIndex = (candidateId?: string | number) => {
+  if (typeof candidateId === 'number' && Number.isFinite(candidateId)) {
+    return candidateId
+  }
+
+  if (typeof candidateId === 'string') {
+    const match = candidateId.match(/-(\d+)$/)
+    if (match) {
+      const value = Number(match[1])
+      return Number.isFinite(value) ? value : undefined
+    }
+  }
+
+  return undefined
+}
+
+const expandCandidateContent = (
+  candidate: RetrievedCandidate,
+  knowledgeBase: KnowledgeBase,
+  radius: number = 1
+) => {
+  if (!candidate.documentId) return candidate.content
+
+  const doc = knowledgeBase.documents?.find((item) => item.id === candidate.documentId)
+  const chunks = doc?.chunks || []
+  const chunkIndex = parseChunkIndex(candidate.id)
+
+  if (chunkIndex == null || !chunks.length || !chunks[chunkIndex]) {
+    return candidate.content
+  }
+
+  const start = Math.max(0, chunkIndex - radius)
+  const end = Math.min(chunks.length - 1, chunkIndex + radius)
+  const parts: string[] = []
+
+  for (let i = start; i <= end; i++) {
+    const content = String(chunks[i]?.content || '').trim()
+    if (!content) continue
+    if (parts[parts.length - 1] === content) continue
+    parts.push(content)
+  }
+
+  return parts.length > 0 ? parts.join('\n\n') : candidate.content
+}
+
+const hydrateCandidates = (candidates: RetrievedCandidate[], knowledgeBase: KnowledgeBase): HydratedCandidate[] => {
+  return candidates.map((candidate) => ({
+    ...candidate,
+    chunkIndex: parseChunkIndex(candidate.id),
+    content: expandCandidateContent(candidate, knowledgeBase)
+  }))
+}
+
+const aggregateCandidatesByDocument = (
+  candidates: HydratedCandidate[],
+  topK: number,
+  maxSnippetsPerDocument: number = 2
+): RetrievedCandidate[] => {
+  const grouped = new Map<
+    string,
+    {
+      knowledgeBaseId?: string
+      documentId: string
+      snippets: HydratedCandidate[]
+      score: number
+    }
+  >()
+  const ungrouped: HydratedCandidate[] = []
+
+  for (const candidate of candidates) {
+    if (!candidate.documentId) {
+      ungrouped.push(candidate)
+      continue
+    }
+
+    const group = grouped.get(candidate.documentId) || {
+      knowledgeBaseId: candidate.knowledgeBaseId,
+      documentId: candidate.documentId,
+      snippets: [],
+      score: candidate.score
+    }
+
+    const hasOverlap = group.snippets.some((snippet) => {
+      if (snippet.chunkIndex == null || candidate.chunkIndex == null) {
+        return snippet.content === candidate.content
+      }
+      return Math.abs(snippet.chunkIndex - candidate.chunkIndex) <= 2
+    })
+
+    if (!hasOverlap && group.snippets.length < maxSnippetsPerDocument) {
+      group.snippets.push(candidate)
+    }
+
+    group.score = Math.max(group.score, candidate.score)
+    grouped.set(candidate.documentId, group)
+  }
+
+  const aggregated = Array.from(grouped.values())
+    .sort((a, b) => b.score - a.score)
+    .map((group) => ({
+      knowledgeBaseId: group.knowledgeBaseId,
+      documentId: group.documentId,
+      score: group.score,
+      content: group.snippets
+        .map((snippet, index) =>
+          group.snippets.length > 1 ? `[文档片段 ${index + 1}]\n${snippet.content}` : snippet.content
+        )
+        .join('\n\n')
+    }))
+
+  return [...aggregated, ...ungrouped]
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .slice(0, topK)
+}
+
 const rerank = async (
-  chunks: Splitter,
+  chunks: RetrievedCandidate[],
   rerankOptions: {
     query: string
     topK?: number
@@ -49,10 +177,11 @@ const vectorSearch = async (
   }
 ) => {
   const scoredChunks = chunks
-    .map((chunk) => {
+    .map((chunk, index) => {
       try {
         const result = {
           ...chunk,
+          id: chunk.id ?? index,
           score: cosineSimilarity(queryEmbedding, chunk.embedding)
         }
         return result
@@ -64,15 +193,16 @@ const vectorSearch = async (
 
   const similarityThreshold = retrieveOptions?.similarityThreshold ?? 0.2
   const topK = retrieveOptions?.topK ?? 5
+  const candidateTopK = Math.max(topK, 1)
   const candidates = scoredChunks
     .filter((chunk) => chunk.score > similarityThreshold)
     .sort((a, b) => b.score - a.score)
-    .slice(0, Math.max(topK * 4, 20))
+    .slice(0, candidateTopK)
 
   if (candidates.length === 0) {
     return []
   }
-  return candidates.slice(0, topK)
+  return candidates
 }
 
 const runInDedicatedWorker = async <T extends (...args: any[]) => any>(
@@ -301,11 +431,15 @@ export const RAGService = () => {
     let candidates: any[] = []
 
     if (isSqliteSupported) {
+      const topK = retrieveOptions?.topK ?? 5
+      const hasRerank = !!(rerankOptions && rerankOptions.model)
+      const candidateTopK = hasRerank ? Math.max(topK * 4, 20) : Math.max(topK * 3, 12)
       const sqliteResults = await window.api.sqlite.search({
         kb_id: knowledgeBase.id,
         model_id: options.modelId,
         queryEmbedding: Array.from(queryEmbedding),
-        topK: retrieveOptions?.topK ?? 5,
+        topK,
+        candidateTopK,
         similarityThreshold: retrieveOptions?.similarityThreshold
       })
       candidates = sqliteResults.map((result: any) => {
@@ -326,19 +460,21 @@ export const RAGService = () => {
       if (allChunks.length === 0) {
         return []
       }
+      const hasRerank = !!(rerankOptions && rerankOptions.model)
+      const fallbackTopK = retrieveOptions?.topK ?? 5
+      const fallbackCandidateTopK = hasRerank ? Math.max(fallbackTopK * 4, 20) : Math.max(fallbackTopK * 3, 12)
       const searchResults = await vectorSearchInWorker(
         Array.from(queryEmbedding),
-        allChunks.map((c) => ({
+        allChunks.map((c, index) => ({
+          id: index,
           content: c.content,
           embedding: Array.from(c.embedding)
         })),
-        retrieveOptions
-          ? {
-            similarityThreshold: retrieveOptions.similarityThreshold,
-            topK: retrieveOptions.topK,
-            rerankScoreThreshold: retrieveOptions.rerankScoreThreshold
-          }
-          : undefined
+        {
+          similarityThreshold: retrieveOptions?.similarityThreshold,
+          topK: fallbackCandidateTopK,
+          rerankScoreThreshold: retrieveOptions?.rerankScoreThreshold
+        }
       )
       candidates = searchResults.map((result: any) => ({
         ...result,
@@ -348,20 +484,23 @@ export const RAGService = () => {
     }
 
     const topK = retrieveOptions?.topK ?? 5
+    const hydratedCandidates = hydrateCandidates(candidates, knowledgeBase)
+
     if (rerankOptions && rerankOptions.model) {
-      const rerankedResults = await rerank(candidates, {
+      const rerankedResults = await rerank(hydratedCandidates, {
         ...rerankOptions,
-        query
+        query,
+        topK
       })
       return rerankedResults.map((result) => ({
-        content: candidates[result.index].content,
+        content: hydratedCandidates[result.index].content,
         score: result.score,
-        knowledgeBaseId: candidates[result.index].knowledgeBaseId || knowledgeBase.id,
-        documentId: candidates[result.index].documentId
+        knowledgeBaseId: hydratedCandidates[result.index].knowledgeBaseId || knowledgeBase.id,
+        documentId: hydratedCandidates[result.index].documentId
       }))
     }
 
-    return candidates.slice(0, topK)
+    return aggregateCandidatesByDocument(hydratedCandidates, topK)
   }
 
   return { embedding, retrieve, splitter }

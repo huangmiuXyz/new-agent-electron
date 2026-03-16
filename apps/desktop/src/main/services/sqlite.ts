@@ -23,6 +23,25 @@ const decodeEmbedding = (value: Buffer | Uint8Array) => {
   )
 }
 
+const cosineSimilarity = (a: number[], b: number[]) => {
+  if (!a.length || a.length !== b.length) return 0
+
+  let dot = 0
+  let normA = 0
+  let normB = 0
+
+  for (let i = 0; i < a.length; i++) {
+    const av = a[i]
+    const bv = b[i]
+    dot += av * bv
+    normA += av * av
+    normB += bv * bv
+  }
+
+  if (normA === 0 || normB === 0) return 0
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB))
+}
+
 export const initSqlite = () => {
   let dbPath: string
   if (is.dev) {
@@ -210,12 +229,14 @@ export const setupSqliteHandlers = () => {
         model_id,
         queryEmbedding,
         topK,
+        candidateTopK,
         similarityThreshold
       }: {
         kb_id: string
         model_id?: string
         queryEmbedding: number[]
         topK: number
+        candidateTopK?: number
         similarityThreshold?: number
       }
     ) => {
@@ -241,6 +262,7 @@ export const setupSqliteHandlers = () => {
 
       ensureVecTable(dimension)
 
+      const effectiveCandidateTopK = Math.max(1, candidateTopK || topK || 5)
       const results = (model_id
         ? db
           .prepare(
@@ -255,7 +277,7 @@ export const setupSqliteHandlers = () => {
             ORDER BY v.distance ASC
           `
           )
-          .all(encodeEmbedding(queryEmbedding), Math.max(1, topK || 5), kb_id, model_id)
+          .all(encodeEmbedding(queryEmbedding), effectiveCandidateTopK, kb_id, model_id)
         : db
           .prepare(
             `
@@ -268,22 +290,37 @@ export const setupSqliteHandlers = () => {
             ORDER BY v.distance ASC
           `
           )
-          .all(encodeEmbedding(queryEmbedding), Math.max(1, topK || 5), kb_id)) as {
+          .all(encodeEmbedding(queryEmbedding), effectiveCandidateTopK, kb_id)) as {
             id: string
             content: string
             doc_id: string
             distance: number
           }[]
 
-      return results
-        .map((r) => ({
-          id: r.id,
-          content: r.content,
-          doc_id: r.doc_id,
-          // sqlite-vec returns a distance value; convert it to a monotonic similarity-like score.
-          score: 1 / (1 + Math.max(0, r.distance))
-        }))
+      const scoredResults = results
+        .map((r) => {
+          const vecRow = db
+            .prepare(`SELECT vector FROM vec_chunks_${dimension} WHERE rowid = (SELECT rowid FROM chunks WHERE id = ?)`)
+            .get(r.id) as { vector: Buffer | Uint8Array } | undefined
+
+          if (!vecRow) return null
+
+          const score = cosineSimilarity(queryEmbedding, decodeEmbedding(vecRow.vector))
+
+          return {
+            id: r.id,
+            content: r.content,
+            doc_id: r.doc_id,
+            distance: Math.max(0, r.distance),
+            score
+          }
+        })
+        .filter((r): r is { id: string; content: string; doc_id: string; distance: number; score: number } => !!r)
         .filter((r) => (similarityThreshold == null ? true : r.score > similarityThreshold))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, effectiveCandidateTopK)
+
+      return scoredResults
     }
   )
 
