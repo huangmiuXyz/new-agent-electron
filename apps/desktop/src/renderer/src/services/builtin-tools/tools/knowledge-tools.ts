@@ -12,7 +12,6 @@ export const getKnowledgeBuiltinTools = (options?: {
     }),
     execute: async (args: any) => {
       const { query } = args
-      debugger
       const { search } = useKnowledge()
       if (!options?.knowledgeBaseIds) {
         return {
