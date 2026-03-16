@@ -663,12 +663,12 @@ export const useSettingsStore = defineStore(
         'shortcuts'
       ],
       afterRestore: async () => {
-        try {
-          const { restorePlugins } = usePlugins()
-          await restorePlugins()
-        } finally {
-          resolveRestore()
-        }
+        resolveRestore()
+
+        const { restorePlugins } = usePlugins()
+        void restorePlugins().catch((error) => {
+          console.error('Failed to restore plugins in background:', error)
+        })
       }
     }
   }
