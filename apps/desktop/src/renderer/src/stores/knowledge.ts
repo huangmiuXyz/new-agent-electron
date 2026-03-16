@@ -135,15 +135,14 @@ export const useKnowledgeStore = defineStore(
       kbId: string,
       docId: string,
       chunks: Splitter,
-      modelId?: string,
-      contentHashes?: string[]
+      modelId?: string
     ) => {
-      const sqliteChunks = chunks.map((c, i) => ({
+      const sqliteChunks = chunks.map((c) => ({
         id: `${docId}-${c.id}`,
         doc_id: docId,
         kb_id: kbId,
         model_id: modelId || '',
-        content_hash: contentHashes?.[i] || '',
+        content_hash: c.contentHash || '',
         content: c.content,
         embedding: Array.from(c.embedding)
       }))

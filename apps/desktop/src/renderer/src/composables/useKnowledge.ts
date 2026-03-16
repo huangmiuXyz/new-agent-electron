@@ -1,14 +1,6 @@
 const activeTasks = ref(0)
 const queue: (() => void)[] = []
 
-const hashContent = async (content: string): Promise<string> => {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(content)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
-}
-
 export const useKnowledge = () => {
   const rag = RAGService()
   const { getModelById } = useSettingsStore()
@@ -100,10 +92,7 @@ export const useKnowledge = () => {
             chunkSize: doc.metadata?.chunkSize,
             chunkOverlap: doc.metadata?.chunkOverlap
           })
-          splitter = splitterResult.map((e) => ({
-            content: e,
-            embedding: []
-          }))
+          splitter = splitterResult
           doc.isSplitting = true
           doc.chunks = splitter
         } else {
@@ -112,9 +101,9 @@ export const useKnowledge = () => {
         const { model, provider } = getModelById(doc.metadata?.providerId!, doc.metadata?.modelId!)!
 
         let existingChunks: { content_hash: string; embedding: number[] }[] | undefined
-        let contentHashes: string[] = []
-        if (await window.api.sqlite.isSupported()) {
-          contentHashes = await Promise.all(splitter.map((chunk) => hashContent(chunk.content)))
+        const sqliteSupported = await window.api.sqlite.isSupported()
+        if (sqliteSupported) {
+          const contentHashes = splitter.map((chunk) => chunk.contentHash).filter((hash): hash is string => !!hash)
           existingChunks = await window.api.sqlite.getChunksByHash({
             content_hashes: contentHashes,
             model_id: model.id
@@ -135,13 +124,9 @@ export const useKnowledge = () => {
             if (current !== undefined && total !== undefined) {
               doc.currentChunk = current
             }
-            if (await window.api.sqlite.isSupported()) {
+            if (sqliteSupported) {
               if (batchChunks && batchChunks.length > 0) {
-                const batchHashes = batchChunks.map((chunk) => {
-                  const index = splitter.findIndex((s) => s.content === chunk.content)
-                  return contentHashes[index] || ''
-                })
-                await upsertChunksToSqlite(knowledge.id, doc.id, batchChunks, model.id, batchHashes)
+                await upsertChunksToSqlite(knowledge.id, doc.id, batchChunks, model.id)
               }
             } else {
               if (data) {

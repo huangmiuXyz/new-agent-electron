@@ -1,15 +1,7 @@
 import { useWebWorkerFn } from '@vueuse/core'
 import { createRegistry } from '../chatService/registry'
-import { splitTextByType } from './splitter'
+import { prepareChunks } from './splitter'
 import { embedMany, embed, cosineSimilarity, rerank as _rerank, APICallError } from 'ai'
-
-const hashContent = async (content: string): Promise<string> => {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(content)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-}
 export interface RetrieveOptions {
   similarityThreshold?: number
   topK?: number
@@ -87,6 +79,13 @@ const vectorSearchWorker = useWebWorkerFn(vectorSearch, {
   timeout: 50_000
 })
 const { workerFn: vectorSearchInWorker } = vectorSearchWorker
+
+const splitWorker = useWebWorkerFn(prepareChunks, {
+  localDependencies: [prepareChunks],
+  timeout: 50_000
+})
+const { workerFn: prepareChunksInWorker } = splitWorker
+
 export const RAGService = () => {
   const splitter = async (doc: KnowledgeDocument, splitOptions: SplitOptions) => {
     let text = ''
@@ -94,7 +93,7 @@ export const RAGService = () => {
       if (doc.path.startsWith('note://')) {
         text = doc.url || ''
       } else {
-        text = window.api.fs.readFileSync(window.api.url.fileURLToPath(doc.path), 'utf-8')
+        text = await window.api.fs.promises.readFile(window.api.url.fileURLToPath(doc.path), 'utf-8')
       }
 
       // 如果有相对路径，则在开头注入
@@ -104,7 +103,7 @@ export const RAGService = () => {
     } catch (error) {
       doc.url && (text = base64ToText(doc.url))
     }
-    const result = await splitTextByType(text, splitOptions)
+    const result = await prepareChunksInWorker(text, splitOptions)
     return result
   }
   const embedding = async (
@@ -135,7 +134,10 @@ export const RAGService = () => {
       apiKey: options.apiKey,
       baseURL: options.baseURL
     })
-    const splitterClone = JSON.parse(JSON.stringify(splitter))
+    const splitterClone = splitter.map((chunk) => ({
+      ...chunk,
+      embedding: Array.from(chunk.embedding)
+    }))
     const total = splitterClone.length
     let processed = 0
     const batchSize = options.batchSize || 1
@@ -146,10 +148,6 @@ export const RAGService = () => {
         existingHashMap.set(existing.content_hash, existing.embedding)
       }
     }
-
-    const contentHashes = await Promise.all(
-      splitterClone.map((chunk) => hashContent(chunk.content))
-    )
 
     options.onProgress?.(undefined, 0, total)
 
@@ -165,8 +163,8 @@ export const RAGService = () => {
           skippedInBatch++
           continue
         }
-        const contentHash = contentHashes[j]
-        const existingEmbedding = existingHashMap.get(contentHash)
+        const contentHash = splitterClone[j].contentHash
+        const existingEmbedding = contentHash ? existingHashMap.get(contentHash) : undefined
         if (existingEmbedding) {
           splitterClone[j].embedding = existingEmbedding
           processed++
@@ -201,7 +199,7 @@ export const RAGService = () => {
           splitterClone[chunkIndex].embedding = embedding
           batchChunks.push({
             ...splitterClone[chunkIndex],
-            id: chunkIndex
+            id: splitterClone[chunkIndex].id ?? chunkIndex
           })
           processed++
         })
