@@ -33,10 +33,45 @@ export const useKnowledgeStore = defineStore(
       if (index !== -1) {
         const currentKnowledgeBase = knowledgeBases.value[index]
         if (currentKnowledgeBase) {
+          const embeddingConfigChanged =
+            currentKnowledgeBase.embeddingModel.modelId !== knowledgeBaseData.embeddingModel.modelId ||
+            currentKnowledgeBase.embeddingModel.providerId !== knowledgeBaseData.embeddingModel.providerId ||
+            currentKnowledgeBase.embeddingConfig?.chunkSize !== knowledgeBaseData.embeddingConfig?.chunkSize ||
+            currentKnowledgeBase.embeddingConfig?.chunkOverlap !== knowledgeBaseData.embeddingConfig?.chunkOverlap
+
+          if (embeddingConfigChanged) {
+            for (const doc of currentKnowledgeBase.documents || []) {
+              doc.abortController?.abort?.()
+            }
+          }
+
+          const resetDocuments = embeddingConfigChanged
+            ? (currentKnowledgeBase.documents || []).map((doc) => ({
+              ...doc,
+              status: 'processing' as const,
+              chunks: [],
+              abortController: null,
+              currentChunk: 0,
+              isSplitting: false,
+              metadata: {
+                ...doc.metadata,
+                modelId: knowledgeBaseData.embeddingModel.modelId,
+                providerId: knowledgeBaseData.embeddingModel.providerId,
+                chunkSize: knowledgeBaseData.embeddingConfig?.chunkSize,
+                chunkOverlap: knowledgeBaseData.embeddingConfig?.chunkOverlap
+              }
+            }))
+            : currentKnowledgeBase.documents
+
           knowledgeBases.value[index] = {
             ...knowledgeBaseData,
             id: currentKnowledgeBase.id,
-            created: currentKnowledgeBase.created
+            created: currentKnowledgeBase.created,
+            documents: resetDocuments
+          }
+
+          if (embeddingConfigChanged) {
+            void window.api.sqlite.deleteChunksByKb(knowledgeBaseId)
           }
         }
       }

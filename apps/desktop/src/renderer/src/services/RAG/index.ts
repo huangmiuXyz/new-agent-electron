@@ -245,6 +245,7 @@ export const RAGService = () => {
       apiKey: string
       baseURL: string
       providerType: providerType
+      modelId?: string
       model: string
       name: string
     },
@@ -279,8 +280,10 @@ export const RAGService = () => {
     if (isSqliteSupported) {
       const sqliteResults = await window.api.sqlite.search({
         kb_id: knowledgeBase.id,
+        model_id: options.modelId,
         queryEmbedding: Array.from(queryEmbedding),
-        topK: retrieveOptions?.topK ?? 5
+        topK: retrieveOptions?.topK ?? 5,
+        similarityThreshold: retrieveOptions?.similarityThreshold
       })
       candidates = sqliteResults.map((result: any) => {
         return {

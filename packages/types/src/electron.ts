@@ -96,9 +96,9 @@ export interface ElectronAPI {
     updateChunks: (chunks: any[]) => Promise<any>;
     deleteChunksByDoc: (docId: string) => Promise<boolean>;
     deleteChunksByKb: (kbId: string) => Promise<boolean>;
-    search: (options: { kb_id: string; queryEmbedding: number[]; topK: number }) => Promise<any>;
+    search: (options: { kb_id: string; model_id?: string; queryEmbedding: number[]; topK: number; similarityThreshold?: number }) => Promise<any>;
     getAllChunks: () => Promise<any>;
-    getChunksByHash: (params: { content_hashes: string[]; model_id: string; dimension: number }) => Promise<{ content_hash: string; embedding: number[] }[]>;
+    getChunksByHash: (params: { content_hashes: string[]; model_id: string }) => Promise<{ content_hash: string; embedding: number[] }[]>;
   };
 
   // child_process

@@ -114,12 +114,10 @@ export const useKnowledge = () => {
         let existingChunks: { content_hash: string; embedding: number[] }[] | undefined
         let contentHashes: string[] = []
         if (await window.api.sqlite.isSupported()) {
-          const dimension = doc.metadata?.chunkSize || 512
           contentHashes = await Promise.all(splitter.map((chunk) => hashContent(chunk.content)))
           existingChunks = await window.api.sqlite.getChunksByHash({
             content_hashes: contentHashes,
-            model_id: model.id,
-            dimension: dimension
+            model_id: model.id
           })
         }
 
@@ -198,6 +196,7 @@ export const useKnowledge = () => {
         baseURL: provider.baseUrl,
         name: provider.name,
         providerType: provider.providerType,
+        modelId: model.id,
         model: model.name
       },
       knowledge.retrieveConfig,

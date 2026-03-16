@@ -188,15 +188,33 @@ export const setupSqliteHandlers = () => {
     'sqlite:search',
     async (
       _event,
-      { kb_id, queryEmbedding, topK }: { kb_id: string; queryEmbedding: number[]; topK: number }
+      {
+        kb_id,
+        model_id,
+        queryEmbedding,
+        topK,
+        similarityThreshold
+      }: {
+        kb_id: string
+        model_id?: string
+        queryEmbedding: number[]
+        topK: number
+        similarityThreshold?: number
+      }
     ) => {
-      const rows = db
-        .prepare('SELECT DISTINCT dimension FROM chunks WHERE kb_id = ?')
-        .all(kb_id) as { dimension: number }[]
+      const rows = model_id
+        ? (db
+          .prepare('SELECT DISTINCT dimension FROM chunks WHERE kb_id = ? AND model_id = ?')
+          .all(kb_id, model_id) as { dimension: number }[])
+        : (db.prepare('SELECT DISTINCT dimension FROM chunks WHERE kb_id = ?').all(kb_id) as {
+          dimension: number
+        }[])
 
       if (!rows.length) return []
       if (rows.length > 1) {
-        throw new Error(`KB ${kb_id} contains mixed embedding dimensions`)
+        throw new Error(
+          `KB ${kb_id} contains mixed embedding dimensions${model_id ? ` for model ${model_id}` : ''}`
+        )
       }
 
       const dimension = rows[0].dimension
@@ -206,25 +224,48 @@ export const setupSqliteHandlers = () => {
 
       ensureVecTable(dimension)
 
-      return db
-        .prepare(
+      const results = (model_id
+        ? db
+          .prepare(
+            `
+            SELECT c.id, c.content, c.doc_id, v.distance
+            FROM vec_chunks_${dimension} v
+            JOIN chunks c ON v.rowid = c.rowid
+            WHERE v.vector MATCH ?
+              AND v.k = ?
+              AND c.kb_id = ?
+              AND c.model_id = ?
+            ORDER BY v.distance ASC
           `
-          SELECT c.id, c.content, c.doc_id, v.distance
-          FROM vec_chunks_${dimension} v
-          JOIN chunks c ON v.rowid = c.rowid
-          WHERE v.vector MATCH ?
-            AND v.k = ?
-            AND c.kb_id = ?
-          ORDER BY v.distance ASC
-        `
-        )
-        .all(encodeEmbedding(queryEmbedding), Math.max(1, topK || 5), kb_id)
+          )
+          .all(encodeEmbedding(queryEmbedding), Math.max(1, topK || 5), kb_id, model_id)
+        : db
+          .prepare(
+            `
+            SELECT c.id, c.content, c.doc_id, v.distance
+            FROM vec_chunks_${dimension} v
+            JOIN chunks c ON v.rowid = c.rowid
+            WHERE v.vector MATCH ?
+              AND v.k = ?
+              AND c.kb_id = ?
+            ORDER BY v.distance ASC
+          `
+          )
+          .all(encodeEmbedding(queryEmbedding), Math.max(1, topK || 5), kb_id)) as {
+            id: string
+            content: string
+            doc_id: string
+            distance: number
+          }[]
+
+      return results
         .map((r) => ({
           id: r.id,
           content: r.content,
           doc_id: r.doc_id,
           score: 1 - r.distance
         }))
+        .filter((r) => (similarityThreshold == null ? true : r.score > similarityThreshold))
     }
   )
 
@@ -258,21 +299,21 @@ export const setupSqliteHandlers = () => {
       _event,
       {
         content_hashes,
-        model_id,
-        dimension
-      }: { content_hashes: string[]; model_id: string; dimension: number }
+        model_id
+      }: { content_hashes: string[]; model_id: string }
     ) => {
       if (!content_hashes.length) return []
 
       const placeholders = content_hashes.map(() => '?').join(',')
       const chunks = db
         .prepare(
-          `SELECT rowid, * FROM chunks WHERE content_hash IN (${placeholders}) AND model_id = ? AND dimension = ?`
+          `SELECT rowid, * FROM chunks WHERE content_hash IN (${placeholders}) AND model_id = ?`
         )
-        .all(...content_hashes, model_id, dimension) as any[]
+        .all(...content_hashes, model_id) as any[]
 
       const result: any[] = []
       for (const chunk of chunks) {
+        const dimension = chunk.dimension
         if (dimension > 0) {
           const vecRow = db
             .prepare(`SELECT vector FROM vec_chunks_${dimension} WHERE rowid = ?`)
