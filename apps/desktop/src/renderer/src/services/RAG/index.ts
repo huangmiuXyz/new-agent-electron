@@ -226,11 +226,17 @@ export const RAGService = () => {
         await reportProgress(processed, total, splitterClone, options, batchChunks)
       } catch (error) {
         const err = error as APICallError
-        if (err.name === 'AbortError') {
+        const message = err.message || err.responseBody || ''
+        const aborted =
+          err.name === 'AbortError' ||
+          message.toLowerCase().includes('aborted') ||
+          message.toLowerCase().includes('abort')
+
+        if (aborted) {
           throw error
         }
 
-        messageApi.error(err.message || err.responseBody!)
+        messageApi.error(message)
         throw error
       }
     }

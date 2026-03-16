@@ -228,7 +228,7 @@ export const useNotesStore = defineStore('notes', {
           type: 'text',
           size: note.content.length,
           created: Date.now(),
-          status: 'processing',
+          status: 'pending',
           chunks: [],
           url: note.content
         }
@@ -245,7 +245,7 @@ export const useNotesStore = defineStore('notes', {
             type: 'text',
             size: note.content.length,
             created: Date.now(),
-            status: 'processing',
+            status: 'pending',
             chunks: [],
             url: note.content
           }

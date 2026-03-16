@@ -51,6 +51,18 @@ export const useKnowledgeStore = defineStore(
       }
     )
 
+    const abortDocumentProcessing = (doc: KnowledgeDocument) => {
+      doc.cancelRequested = true
+      doc.status = 'aborted'
+      doc.abortController?.abort?.()
+    }
+
+    const abortKnowledgeBaseDocuments = (knowledgeBase?: KnowledgeBase) => {
+      for (const doc of knowledgeBase?.documents || []) {
+        abortDocumentProcessing(doc)
+      }
+    }
+
     const updateKnowledgeBase = (knowledgeBaseId: string, knowledgeBaseData: KnowledgeBase) => {
       const index = knowledgeBases.value.findIndex((kb) => kb.id === knowledgeBaseId)
       if (index !== -1) {
@@ -63,9 +75,7 @@ export const useKnowledgeStore = defineStore(
             currentKnowledgeBase.embeddingConfig?.chunkOverlap !== knowledgeBaseData.embeddingConfig?.chunkOverlap
 
           if (embeddingConfigChanged) {
-            for (const doc of currentKnowledgeBase.documents || []) {
-              doc.abortController?.abort?.()
-            }
+            abortKnowledgeBaseDocuments(currentKnowledgeBase)
           }
 
           const resetDocuments = embeddingConfigChanged
@@ -107,6 +117,7 @@ export const useKnowledgeStore = defineStore(
     const deleteKnowledgeBase = (knowledgeBaseId: string) => {
       const index = knowledgeBases.value.findIndex((kb) => kb.id === knowledgeBaseId)
       if (index !== -1) {
+        abortKnowledgeBaseDocuments(knowledgeBases.value[index])
         knowledgeBases.value.splice(index, 1)
         window.api.sqlite.deleteChunksByKb(knowledgeBaseId)
       }
@@ -146,6 +157,11 @@ export const useKnowledgeStore = defineStore(
         const knowledgeBase = knowledgeBases.value[index]
         if (knowledgeBase && knowledgeBase.documents) {
           const idsSet = new Set(documentIds)
+          knowledgeBase.documents
+            .filter((doc) => idsSet.has(doc.id))
+            .forEach((doc) => {
+              abortDocumentProcessing(doc)
+            })
           knowledgeBase.documents = knowledgeBase.documents.filter((doc) => !idsSet.has(doc.id))
           documentIds.forEach((documentId) => {
             window.api.sqlite.deleteChunksByDoc(documentId)

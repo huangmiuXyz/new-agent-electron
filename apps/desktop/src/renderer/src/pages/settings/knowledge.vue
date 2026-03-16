@@ -92,6 +92,7 @@ const showSearch = ref(false)
 const searchKeyword = ref('')
 const showBatchSettings = ref(false)
 const currentFolderPath = ref('')
+const folderTaskStops = ref<Record<string, () => void>>({})
 
 type KnowledgeFolderRow = {
   id: string
@@ -102,6 +103,10 @@ type KnowledgeFolderRow = {
   size: number
   created: number
   itemCount: number
+  processedCount: number
+  processingCount: number
+  errorCount: number
+  abortedCount: number
 }
 
 type KnowledgeDocumentRow = KnowledgeDocument & {
@@ -132,6 +137,10 @@ const isDocumentUnderFolder = (doc: KnowledgeDocument, folderPath: string) => {
 const getDocumentsInFolder = (folderPath: string) => {
   const documents = activeKnowledgeBase.value?.documents || []
   return documents.filter((doc) => isDocumentUnderFolder(doc, folderPath))
+}
+
+const getKnowledgeDocumentById = (documentId: string) => {
+  return activeKnowledgeBase.value?.documents?.find((doc) => doc.id === documentId)
 }
 
 const matchedDocuments = computed(() => {
@@ -188,8 +197,25 @@ const currentFolderRows = computed<KnowledgeListRow[]>(() => {
           type: 'folder',
           size: 0,
           created: 0,
-          itemCount: 1
+          itemCount: 1,
+          processedCount: 0,
+          processingCount: 0,
+          errorCount: 0,
+          abortedCount: 0
         })
+      }
+
+      const targetFolder = folderMap.get(folderPath)
+      if (targetFolder) {
+        if (doc.status === 'processed') {
+          targetFolder.processedCount += 1
+        } else if (doc.status === 'processing') {
+          targetFolder.processingCount += 1
+        } else if (doc.status === 'error') {
+          targetFolder.errorCount += 1
+        } else if (doc.status === 'aborted') {
+          targetFolder.abortedCount += 1
+        }
       }
     }
   }
@@ -368,6 +394,32 @@ const handleKnowledgeBaseContextMenu = (event: MouseEvent, knowledgeBase: Knowle
 
 const loading = ref(false)
 
+const abortKnowledgeDocument = (doc: KnowledgeDocument) => {
+  doc.cancelRequested = true
+  doc.status = 'aborted'
+  doc.abortController?.abort()
+}
+
+const stopFolderTasksForDocuments = (documents: KnowledgeDocument[]) => {
+  const folderPaths = new Set(
+    documents
+      .map((doc) => getDocumentFolderPath(doc))
+      .filter((folderPath) => Boolean(folderPath) && Boolean(folderTaskStops.value[folderPath]))
+  )
+
+  if (!folderPaths.size) return
+
+  const nextStops = { ...folderTaskStops.value }
+  for (const folderPath of folderPaths) {
+    nextStops[folderPath]?.()
+    delete nextStops[folderPath]
+  }
+  folderTaskStops.value = nextStops
+  if (Object.keys(folderTaskStops.value).length === 0) {
+    loading.value = false
+  }
+}
+
 const showAddKnowledgeBaseModal = async () => {
   formActions.reset()
   isEditMode.value = false
@@ -419,6 +471,8 @@ const showDeleteKnowledgeBaseModal = async () => {
     content: `确定要删除知识库 "${activeKnowledgeBase.value.name}" 吗？此操作不可撤销。`
   })
   if (result) {
+    Object.values(folderTaskStops.value).forEach((stop) => stop())
+    folderTaskStops.value = {}
     deleteKnowledgeBase(activeKnowledgeBaseId.value)
     if (knowledgeBases.value.length > 0) {
       setActiveKnowledgeBase(knowledgeBases.value[0].id)
@@ -435,6 +489,7 @@ const showDeleteDocumentModal = async (document: KnowledgeDocument) => {
     }
   })
   if (result) {
+    stopFolderTasksForDocuments([document])
     deleteDocumentsFromKnowledgeBase(activeKnowledgeBaseId.value, [document.id])
   }
 }
@@ -452,6 +507,7 @@ const showDeleteFolderModal = async (folder: KnowledgeFolderRow) => {
   })
 
   if (result) {
+    stopFolderTasksForDocuments(folderDocuments)
     deleteDocumentsFromKnowledgeBase(
       activeKnowledgeBaseId.value,
       folderDocuments.map((doc) => doc.id)
@@ -464,15 +520,16 @@ const showDeleteFolderModal = async (folder: KnowledgeFolderRow) => {
 }
 
 const runFolderEmbedding = async (folder: KnowledgeFolderRow, continueFlag: boolean) => {
+  folderTaskStops.value[folder.path]?.()
+
   const folderDocuments = getDocumentsInFolder(folder.path).filter((doc) =>
     continueFlag ? doc.status !== 'processed' : true
   )
 
   if (folderDocuments.length === 0) return
 
-  loading.value = true
   const docChunks = chunk(folderDocuments, 20)
-  const { start, done } = useIdleChunkAsync(docChunks, async (docChunk) => {
+  const { start, stop, done } = useIdleChunkAsync(docChunks, async (docChunk) => {
     await Promise.all(
       docChunk.map(async (doc) => {
         await embedding(doc, activeKnowledgeBase.value, continueFlag, batchSize.value, {
@@ -484,13 +541,35 @@ const runFolderEmbedding = async (folder: KnowledgeFolderRow, continueFlag: bool
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
 
+  folderTaskStops.value = {
+    ...folderTaskStops.value,
+    [folder.path]: () => {
+      stop()
+      getDocumentsInFolder(folder.path).forEach((doc) => {
+        abortKnowledgeDocument(doc)
+      })
+    }
+  }
+
   watch(done, (v) => {
     if (v) {
-      loading.value = false
+      const nextStops = { ...folderTaskStops.value }
+      delete nextStops[folder.path]
+      folderTaskStops.value = nextStops
     }
   }, { once: true })
 
   start()
+}
+
+const stopFolderEmbedding = (folder: KnowledgeFolderRow) => {
+  folderTaskStops.value[folder.path]?.()
+  const nextStops = { ...folderTaskStops.value }
+  delete nextStops[folder.path]
+  folderTaskStops.value = nextStops
+  getDocumentsInFolder(folder.path).forEach((doc) => {
+    abortKnowledgeDocument(doc)
+  })
 }
 
 const selectedDocumentIds = computed(() => {
@@ -514,6 +593,10 @@ const showBatchDeleteModal = async () => {
     }
   })
   if (result) {
+    const selectedDocuments = currentFolderRows.value.filter(
+      (row): row is KnowledgeDocumentRow => row.rowType === 'document' && selectedKeys.includes(row.id)
+    )
+    stopFolderTasksForDocuments(selectedDocuments)
     loading.value = true
     const idChunks = chunk(selectedKeys as string[], 50)
     const { start, done } = useIdleChunkAsync(idChunks, async (idChunk) => {
@@ -546,7 +629,7 @@ const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } =
           size: f.size!,
           type: f.mediaType,
           created: Date.now(),
-          status: 'processing',
+          status: 'pending',
           url: !f.path ? f.url : undefined,
           metadata: {
             modelId: activeKnowledgeBase.value.embeddingModel.modelId,
@@ -561,16 +644,6 @@ const { triggerUpload, triggerFolderUpload, clearSeletedFiles, uploadLoading } =
 
       addDocumentsToKnowledgeBase(activeKnowledgeBaseId.value, docs)
       await nextTick()
-
-      docs.forEach(async (doc) => {
-        const docInKnowledgeBase = activeKnowledgeBase.value?.documents?.find((d) => d.id === doc.id)
-        if (docInKnowledgeBase) {
-          if (!activeKnowledgeBase.value.embeddingModel.modelId) return
-          embedding(docInKnowledgeBase, activeKnowledgeBase.value, false, batchSize.value, {
-            input_type: 'passage'
-          })
-        }
-      })
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
@@ -598,8 +671,12 @@ const handleShowSearch = async () => {
 const { embedding } = useKnowledge()
 
 const handleAbortDocument = (doc: KnowledgeDocument) => {
-  doc.abortController?.abort()
+  abortKnowledgeDocument(doc)
 }
+
+const isFolderEmbeddingRunning = (folderPath: string) =>
+  Boolean(folderTaskStops.value[folderPath]) ||
+  getDocumentsInFolder(folderPath).some((doc) => Boolean(doc.abortController))
 
 const openFolder = (path: string) => {
   window.api.shell.openPath(window.api.url.fileURLToPath(path))
@@ -683,7 +760,17 @@ const [DocTable, docTableActions] = useTable<KnowledgeListRow>({
       render: (row) => (
         <div style="display: flex; flex-direction: column; gap: 4px">
           {row.rowType === 'folder'
-            ? <Tags color="amber" tags={[`${row.itemCount} 个项目`]} />
+            ? (
+              row.processedCount === row.itemCount && row.itemCount > 0
+                ? <Tags color="blue" tags={['成功']} />
+                : row.processingCount > 0 || row.processedCount > 0
+                  ? <span style="font-size: 12px; color: var(--text-secondary)">{row.processedCount}/{row.itemCount}</span>
+                  : row.errorCount > 0
+                    ? <Tags color="red" tags={['失败']} />
+                    : row.abortedCount > 0
+                      ? <Tags color="gray" tags={['已暂停']} />
+                      : <Tags color="gray" tags={['未开始']} />
+            )
             : row.status === 'processed'
               ? <Tags color="blue" tags={['成功']} />
               : !row.currentChunk && !row.chunks?.length
@@ -735,13 +822,13 @@ const [DocTable, docTableActions] = useTable<KnowledgeListRow>({
                   {{ icon: () => Refresh }}
                 </Button>
                 <Button
-                  onClick={() => runFolderEmbedding(row, true)}
+                  onClick={() => (isFolderEmbeddingRunning(row.path) ? stopFolderEmbedding(row) : runFolderEmbedding(row, true))}
                   size="sm"
                   type="button"
                   variant="text"
-                  title="继续处理整个文件夹"
+                  title={isFolderEmbeddingRunning(row.path) ? '暂停整个文件夹' : '继续处理整个文件夹'}
                 >
-                  {{ icon: () => Play }}
+                  {{ icon: () => (isFolderEmbeddingRunning(row.path) ? Stop : Play) }}
                 </Button>
                 <Button
                   onClick={() => showDeleteFolderModal(row)}
@@ -764,11 +851,13 @@ const [DocTable, docTableActions] = useTable<KnowledgeListRow>({
                 )}
                 {activeKnowledgeBase.value?.embeddingModel?.modelId && (
                   <Button
-                    onClick={() =>
-                      embedding(row, activeKnowledgeBase.value, false, batchSize.value, {
+                    onClick={() => {
+                      const doc = getKnowledgeDocumentById(row.id)
+                      if (!doc) return
+                      embedding(doc, activeKnowledgeBase.value, false, batchSize.value, {
                         input_type: 'passage'
                       })
-                    }
+                    }}
                     size="sm"
                     type="button"
                     variant="text"
@@ -779,11 +868,13 @@ const [DocTable, docTableActions] = useTable<KnowledgeListRow>({
                 {activeKnowledgeBase.value?.embeddingModel?.modelId &&
                   !row.abortController?.abort && row.status !== 'processed' && (
                     <Button
-                      onClick={() =>
-                        embedding(row, activeKnowledgeBase.value, true, batchSize.value, {
+                      onClick={() => {
+                        const doc = getKnowledgeDocumentById(row.id)
+                        if (!doc) return
+                        embedding(doc, activeKnowledgeBase.value, true, batchSize.value, {
                           input_type: 'passage'
                         })
-                      }
+                      }}
                       size="sm"
                       type="button"
                       variant="text"
@@ -792,12 +883,25 @@ const [DocTable, docTableActions] = useTable<KnowledgeListRow>({
                     </Button>
                   )}
                 {row.abortController?.abort && (
-                  <Button onClick={() => handleAbortDocument(row)} size="sm" type="button" variant="text">
+                  <Button
+                    onClick={() => {
+                      const doc = getKnowledgeDocumentById(row.id)
+                      if (!doc) return
+                      handleAbortDocument(doc)
+                    }}
+                    size="sm"
+                    type="button"
+                    variant="text"
+                  >
                     {{ icon: () => Stop }}
                   </Button>
                 )}
                 <Button
-                  onClick={() => showDeleteDocumentModal(row)}
+                  onClick={() => {
+                    const doc = getKnowledgeDocumentById(row.id)
+                    if (!doc) return
+                    showDeleteDocumentModal(doc)
+                  }}
                   size="sm"
                   type="button"
                   variant="text"

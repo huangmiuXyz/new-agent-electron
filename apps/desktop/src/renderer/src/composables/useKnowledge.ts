@@ -1,5 +1,4 @@
 const activeTasks = ref(0)
-const queue: (() => void)[] = []
 
 export const useKnowledge = () => {
   const rag = RAGService()
@@ -7,20 +6,29 @@ export const useKnowledge = () => {
   const { knowledgeBases } = storeToRefs(useKnowledgeStore())
   const { upsertChunksToSqlite } = useKnowledgeStore()
 
-  const runWithConcurrency = async (task: () => Promise<void>) => {
+  const runWithConcurrency = async (
+    task: () => Promise<void>,
+    shouldCancel?: () => boolean
+  ) => {
     const concurrencyLimit = Number(localStorage.getItem('embeddingConcurrency') || 5)
-    if (activeTasks.value >= concurrencyLimit) {
-      await new Promise<void>((resolve) => queue.push(resolve))
+
+    while (activeTasks.value >= concurrencyLimit) {
+      if (shouldCancel?.()) {
+        return false
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
     }
+
+    if (shouldCancel?.()) {
+      return false
+    }
+
     activeTasks.value++
     try {
       await task()
+      return true
     } finally {
       activeTasks.value--
-      if (queue.length > 0) {
-        const next = queue.shift()
-        next?.()
-      }
     }
   }
 
@@ -31,7 +39,13 @@ export const useKnowledge = () => {
     batchSize?: number,
     providerOptions?: embedProviderOptions
   ) => {
-    await runWithConcurrency(async () => {
+    doc.cancelRequested = false
+    const started = await runWithConcurrency(async () => {
+      if (doc.cancelRequested) {
+        doc.status = 'aborted'
+        return
+      }
+
       const {
         embeddingModel: { modelId, providerId }
       } = knowledge
@@ -67,6 +81,11 @@ export const useKnowledge = () => {
         doc.abortController?.abort?.()
       }
 
+      if (doc.cancelRequested) {
+        doc.status = 'aborted'
+        return
+      }
+
       doc.status = 'processing'
       if (!continueFlag) {
         doc.isSplitting = false
@@ -79,6 +98,7 @@ export const useKnowledge = () => {
       doc.abortController = abortController
       const originalAbort = abortController.abort.bind(abortController)
       abortController.abort = () => {
+        doc.cancelRequested = true
         doc.status = 'aborted'
         originalAbort()
         doc.abortController = null
@@ -158,7 +178,11 @@ export const useKnowledge = () => {
       } finally {
         doc.abortController = null
       }
-    })
+    }, () => Boolean(doc.cancelRequested))
+
+    if (!started) {
+      doc.status = 'aborted'
+    }
   }
 
   const search = async (query: string, knowledgeId: string) => {

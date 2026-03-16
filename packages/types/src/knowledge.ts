@@ -20,7 +20,7 @@ declare global {
       rerankScoreThreshold?: number
     }
   }
-  type KnowledgeDocumentStatus = 'processing' | 'processed' | 'error' | 'aborted'
+  type KnowledgeDocumentStatus = 'pending' | 'processing' | 'processed' | 'error' | 'aborted'
   interface KnowledgeDocument {
     id: string
     name: string
@@ -31,6 +31,7 @@ declare global {
     status: KnowledgeDocumentStatus
     chunks?: KnowledgeChunk[]
     abortController?: AbortController | null
+    cancelRequested?: boolean
     currentChunk?: number
     isSplitting?: boolean
     metadata?: {
