@@ -1,4 +1,5 @@
 <script setup lang="tsx">
+import { h } from 'vue'
 import { FormItem } from '@renderer/composables/useForm'
 const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 const {
@@ -9,7 +10,7 @@ const {
   deleteDocumentsFromKnowledgeBase
 } = useKnowledgeStore()
 
-const { Plus, Search, Trash, File, Refresh, Stop, Play, Settings, Folder } = useIcon([
+const { Plus, Search, Trash, File, Refresh, Stop, Play, Settings, Folder, ArrowLeft, ChevronRight } = useIcon([
   'Stop',
   'Plus',
   'Search',
@@ -18,7 +19,9 @@ const { Plus, Search, Trash, File, Refresh, Stop, Play, Settings, Folder } = use
   'Refresh',
   'Play',
   'Settings',
-  'Folder'
+  'Folder',
+  'ArrowLeft',
+  'ChevronRight'
 ])
 const { confirm } = useModal()
 const { showContextMenu } = useContextMenu<KnowledgeBase>()
@@ -75,7 +78,10 @@ watch(
   (v) => {
     if (!v) {
       activeKnowledgeBaseId.value = knowledgeBases.value[0].id
+      return
     }
+    currentFolderPath.value = ''
+    searchKeyword.value = ''
   }
 )
 const activeKnowledgeBase = computed<KnowledgeBase>(() => {
@@ -85,14 +91,114 @@ const activeKnowledgeBase = computed<KnowledgeBase>(() => {
 const showSearch = ref(false)
 const searchKeyword = ref('')
 const showBatchSettings = ref(false)
+const currentFolderPath = ref('')
 
-const filteredDocuments = computed(() => {
+type KnowledgeFolderRow = {
+  id: string
+  rowType: 'folder'
+  name: string
+  path: string
+  type: 'folder'
+  size: number
+  created: number
+  itemCount: number
+}
+
+type KnowledgeDocumentRow = KnowledgeDocument & {
+  rowType: 'document'
+}
+
+type KnowledgeListRow = KnowledgeFolderRow | KnowledgeDocumentRow
+
+const normalizeRelativePath = (path?: string) => (path || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+
+const getDocumentRelativePath = (doc: KnowledgeDocument) =>
+  normalizeRelativePath(doc.metadata?.relativePath || doc.name)
+
+const getDocumentFolderPath = (doc: KnowledgeDocument) => {
+  if (!doc.metadata?.relativePath) return ''
+  const segments = getDocumentRelativePath(doc).split('/').filter(Boolean)
+  return segments.slice(0, -1).join('/')
+}
+
+const isDocumentInFolder = (doc: KnowledgeDocument, folderPath: string) => getDocumentFolderPath(doc) === folderPath
+
+const isDocumentUnderFolder = (doc: KnowledgeDocument, folderPath: string) => {
+  const docFolderPath = getDocumentFolderPath(doc)
+  if (!folderPath) return true
+  return docFolderPath === folderPath || docFolderPath.startsWith(`${folderPath}/`)
+}
+
+const matchedDocuments = computed(() => {
   const documents = activeKnowledgeBase.value?.documents || []
   if (!searchKeyword.value) return documents
   const lower = searchKeyword.value.toLowerCase()
   return documents.filter(
-    (doc) => doc.name.toLowerCase().includes(lower) || doc.path.toLowerCase().includes(lower)
+    (doc) =>
+      doc.name.toLowerCase().includes(lower) ||
+      doc.path.toLowerCase().includes(lower) ||
+      getDocumentRelativePath(doc).toLowerCase().includes(lower)
   )
+})
+
+const currentFolderSegments = computed(() =>
+  currentFolderPath.value.split('/').filter(Boolean)
+)
+
+const breadcrumbItems = computed(() => {
+  const items = [{ label: '全部文件', path: '' }]
+  let cumulativePath = ''
+  for (const segment of currentFolderSegments.value) {
+    cumulativePath = cumulativePath ? `${cumulativePath}/${segment}` : segment
+    items.push({
+      label: segment,
+      path: cumulativePath
+    })
+  }
+  return items
+})
+
+const currentFolderRows = computed<KnowledgeListRow[]>(() => {
+  const documents = matchedDocuments.value.filter((doc) => isDocumentUnderFolder(doc, currentFolderPath.value))
+  const folderMap = new Map<string, KnowledgeFolderRow>()
+
+  for (const doc of documents) {
+    const docFolderPath = getDocumentFolderPath(doc)
+    const relativeFolderPath = currentFolderPath.value
+      ? docFolderPath.slice(currentFolderPath.value.length).replace(/^\/+/, '')
+      : docFolderPath
+
+    const nextSegment = relativeFolderPath.split('/').filter(Boolean)[0]
+    if (nextSegment) {
+      const folderPath = currentFolderPath.value ? `${currentFolderPath.value}/${nextSegment}` : nextSegment
+      const existing = folderMap.get(folderPath)
+      if (existing) {
+        existing.itemCount += 1
+      } else {
+        folderMap.set(folderPath, {
+          id: `folder:${folderPath}`,
+          rowType: 'folder',
+          name: nextSegment,
+          path: folderPath,
+          type: 'folder',
+          size: 0,
+          created: 0,
+          itemCount: 1
+        })
+      }
+    }
+  }
+
+  const folderRows = Array.from(folderMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+  const documentRows = documents
+    .filter((doc) => isDocumentInFolder(doc, currentFolderPath.value))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((doc) => ({
+      ...doc,
+      rowType: 'document' as const
+    }))
+
+  return [...folderRows, ...documentRows]
 })
 
 const [KnowledgeBaseForm, formActions] = useForm<
@@ -328,10 +434,17 @@ const showDeleteDocumentModal = async (document: KnowledgeDocument) => {
   }
 }
 
-const selectedDocCount = computed(() => docTableActions.getSelectedKeys().length)
+const selectedDocumentIds = computed(() => {
+  const selectedKeys = new Set(docTableActions.getSelectedKeys())
+  return currentFolderRows.value
+    .filter((row): row is KnowledgeDocumentRow => row.rowType === 'document' && selectedKeys.has(row.id))
+    .map((row) => row.id)
+})
+
+const selectedDocCount = computed(() => selectedDocumentIds.value.length)
 
 const showBatchDeleteModal = async () => {
-  const selectedKeys = docTableActions.getSelectedKeys()
+  const selectedKeys = selectedDocumentIds.value
   if (selectedKeys.length === 0) return
 
   const result = await confirm({
@@ -435,10 +548,23 @@ const openFolder = (path: string) => {
 
 const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
+const openFolderView = (folderPath: string) => {
+  currentFolderPath.value = folderPath
+}
 
-const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
+const navigateToBreadcrumb = (folderPath: string) => {
+  currentFolderPath.value = folderPath
+}
+
+const navigateUpFolder = () => {
+  if (!currentFolderPath.value) return
+  const segments = currentFolderSegments.value
+  currentFolderPath.value = segments.slice(0, -1).join('/')
+}
+
+const [DocTable, docTableActions] = useTable<KnowledgeListRow>({
   loading: () => loading.value,
-  data: () => filteredDocuments.value,
+  data: () => currentFolderRows.value,
   autoHeight: {
     enabled: true,
     bottomOffset: 40, // 距离底部 40px
@@ -461,25 +587,35 @@ const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
       width: '2fr',
       render: (row) => (
         <div class="file-name-cell">
-          <Button onClick={() => openFolder(row.path)} variant="text" size="sm" class="name-text">
-            {{
-              icon: () => (
-                <span class="file-icon">
-                  {useIcon(getFileIcon({ name: row.name, mediaType: row.type }))}
-                </span>
-              ),
-              default: () => row.name
-            }}
+          <Button
+            onClick={() => (row.rowType === 'folder' ? openFolderView(row.path) : openFolder(row.path))}
+            variant="text"
+            size="sm"
+            class="name-text"
+          >
+            {row.name}
+            {row.rowType === 'folder' &&
+              h((ChevronRight as any), {
+                style: {
+                  marginLeft: '4px',
+                  opacity: 0.6
+                }
+              })}
           </Button>
         </div>
       )
     },
-    { key: 'type', label: '类型', width: '1fr' },
+    {
+      key: 'type',
+      label: '类型',
+      width: '1fr',
+      render: (row) => (row.rowType === 'folder' ? '文件夹' : row.type)
+    },
     {
       key: 'size',
       label: '大小',
       width: '1fr',
-      render: (row) => formatFileSize(row.size)
+      render: (row) => (row.rowType === 'folder' ? '-' : formatFileSize(row.size))
     },
     {
       key: 'status',
@@ -487,35 +623,37 @@ const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
       width: '1fr',
       render: (row) => (
         <div style="display: flex; flex-direction: column; gap: 4px">
-          {row.status === 'processed' ? (
-            <Tags color="blue" tags={['成功']} />
-          ) : !row.currentChunk && !row.chunks?.length ? (
-            <Tags color="gray" tags={['未开始']} />
-          ) : (
-            <div style="width: 100%; display: flex; align-items: center; gap: 8px">
-              <div
-                style="
-                  flex: 1;
-                  height: 4px;
-                  background-color: var(--border-color-light);
-                  border-radius: 2px;
-                  overflow: hidden;
-                "
-              >
-                <div
-                  style={{
-                    height: '100%',
-                    backgroundColor: 'var(--accent-color)',
-                    transition: 'width 0.3s ease',
-                    width: `${Math.round((row.currentChunk! / (row.chunks?.length || 1)) * 100)}%`
-                  }}
-                ></div>
-              </div>
-              <span style="font-size: 12px; color: var(--text-secondary)">
-                {row.currentChunk || 0}/{row.chunks?.length || 0}
-              </span>
-            </div>
-          )}
+          {row.rowType === 'folder'
+            ? <Tags color="amber" tags={[`${row.itemCount} 个项目`]} />
+            : row.status === 'processed'
+              ? <Tags color="blue" tags={['成功']} />
+              : !row.currentChunk && !row.chunks?.length
+                ? <Tags color="gray" tags={['未开始']} />
+                : (
+                  <div style="width: 100%; display: flex; align-items: center; gap: 8px">
+                    <div
+                      style="
+                        flex: 1;
+                        height: 4px;
+                        background-color: var(--border-color-light);
+                        border-radius: 2px;
+                        overflow: hidden;
+                      "
+                    >
+                      <div
+                        style={{
+                          height: '100%',
+                          backgroundColor: 'var(--accent-color)',
+                          transition: 'width 0.3s ease',
+                          width: `${Math.round((row.currentChunk! / (row.chunks?.length || 1)) * 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                    <span style="font-size: 12px; color: var(--text-secondary)">
+                      {row.currentChunk || 0}/{row.chunks?.length || 0}
+                    </span>
+                  </div>
+                )}
         </div>
       )
     },
@@ -525,51 +663,61 @@ const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
       width: '1.1fr',
       render: (row) => (
         <div style="display: flex; align-items: center; gap: 8px">
-          {!activeKnowledgeBase.value.embeddingModel.modelId && (
-            <Tags color="red" tags={['未选择嵌入模型']} />
-          )}
-          {activeKnowledgeBase.value?.embeddingModel?.modelId && (
-            <Button
-              onClick={() =>
-                embedding(row, activeKnowledgeBase.value, false, batchSize.value, {
-                  input_type: 'passage'
-                })
-              }
-              size="sm"
-              type="button"
-              variant="text"
-            >
-              {{ icon: () => Refresh }}
-            </Button>
-          )}
-          {activeKnowledgeBase.value?.embeddingModel?.modelId &&
-            !row.abortController?.abort && row.status !== 'processed' && (
-              <Button
-                onClick={() =>
-                  embedding(row, activeKnowledgeBase.value, true, batchSize.value, {
-                    input_type: 'passage'
-                  })
-                }
-                size="sm"
-                type="button"
-                variant="text"
-              >
-                {{ icon: () => Play }}
+          {row.rowType === 'folder'
+            ? (
+              <Button onClick={() => openFolderView(row.path)} size="sm" type="button" variant="text">
+                {{ icon: () => Folder }}
               </Button>
+            )
+            : (
+              <>
+                {!activeKnowledgeBase.value.embeddingModel.modelId && (
+                  <Tags color="red" tags={['未选择嵌入模型']} />
+                )}
+                {activeKnowledgeBase.value?.embeddingModel?.modelId && (
+                  <Button
+                    onClick={() =>
+                      embedding(row, activeKnowledgeBase.value, false, batchSize.value, {
+                        input_type: 'passage'
+                      })
+                    }
+                    size="sm"
+                    type="button"
+                    variant="text"
+                  >
+                    {{ icon: () => Refresh }}
+                  </Button>
+                )}
+                {activeKnowledgeBase.value?.embeddingModel?.modelId &&
+                  !row.abortController?.abort && row.status !== 'processed' && (
+                    <Button
+                      onClick={() =>
+                        embedding(row, activeKnowledgeBase.value, true, batchSize.value, {
+                          input_type: 'passage'
+                        })
+                      }
+                      size="sm"
+                      type="button"
+                      variant="text"
+                    >
+                      {{ icon: () => Play }}
+                    </Button>
+                  )}
+                {row.abortController?.abort && (
+                  <Button onClick={() => handleAbortDocument(row)} size="sm" type="button" variant="text">
+                    {{ icon: () => Stop }}
+                  </Button>
+                )}
+                <Button
+                  onClick={() => showDeleteDocumentModal(row)}
+                  size="sm"
+                  type="button"
+                  variant="text"
+                >
+                  {{ icon: () => Trash }}
+                </Button>
+              </>
             )}
-          {row.abortController?.abort && (
-            <Button onClick={() => handleAbortDocument(row)} size="sm" type="button" variant="text">
-              {{ icon: () => Stop }}
-            </Button>
-          )}
-          <Button
-            onClick={() => showDeleteDocumentModal(row)}
-            size="sm"
-            type="button"
-            variant="text"
-          >
-            {{ icon: () => Trash }}
-          </Button>
         </div>
       )
     }
@@ -602,6 +750,21 @@ const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
   <FormContainer v-if="showForm" header-title="知识库管理">
     <template #content>
       <FormItem label="文档列表">
+        <div class="knowledge-folder-toolbar">
+          <Button v-if="currentFolderPath" size="sm" type="button" variant="text" @click="navigateUpFolder">
+            <template #icon>
+              <ArrowLeft />
+            </template>
+            返回上级
+          </Button>
+          <div class="knowledge-breadcrumbs">
+            <button v-for="item in breadcrumbItems" :key="item.path || 'root'" type="button" class="breadcrumb-button"
+              :class="{ active: item.path === currentFolderPath }" @click="navigateToBreadcrumb(item.path)">
+              <span>{{ item.label }}</span>
+              <ChevronRight v-if="item.path !== currentFolderPath" class="breadcrumb-separator" />
+            </button>
+          </div>
+        </div>
         <DocTable />
         <template #label>
           <div style="display: flex; gap: 4px; align-items: center;">
@@ -662,6 +825,67 @@ const [DocTable, docTableActions] = useTable<KnowledgeDocument>({
 </template>
 
 <style scoped>
+.knowledge-folder-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  min-height: 32px;
+}
+
+.knowledge-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.breadcrumb-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.breadcrumb-button.active {
+  color: var(--text-primary);
+  background: var(--hover-color);
+}
+
+.breadcrumb-separator {
+  opacity: 0.6;
+}
+
+.knowledge-row-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+}
+
+.knowledge-row-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  line-height: 24px;
+}
+
+.folder-chevron {
+  opacity: 0.6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+}
+
 .popover-header {
   font-size: 13px;
   font-weight: 600;

@@ -332,6 +332,7 @@ export function useUpload(options: UseUploadOptions = {}) {
         if (result.canceled || result.filePaths.length === 0) return
 
         const folderPath = result.filePaths[0]
+        const rootFolderName = window.api.path.basename(folderPath)
         const files: UploadFile[] = []
 
         // 使用 ignore 库处理 .gitignore
@@ -347,6 +348,7 @@ export function useUpload(options: UseUploadOptions = {}) {
           for (const entry of entries) {
             const fullPath = window.api.path.join(dir, entry.name)
             const relativePath = window.api.path.relative(folderPath, fullPath)
+            const displayRelativePath = [rootFolderName, relativePath].filter(Boolean).join('/')
 
             // 使用 ignore 库进行过滤
             if (ig.ignores(relativePath)) continue
@@ -375,7 +377,7 @@ export function useUpload(options: UseUploadOptions = {}) {
                 name: entry.name,
                 type: 'file' as const,
                 size: stat.size,
-                relativePath
+                relativePath: displayRelativePath
               })
             }
           }
