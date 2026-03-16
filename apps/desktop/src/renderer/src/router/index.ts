@@ -27,6 +27,10 @@ const router = createRouter({
       component: () => import('../pages/image/index.vue')
     },
     {
+      path: '/settings',
+      component: () => import('../pages/settings/index.vue')
+    },
+    {
       path: '/mobile/chat',
       redirect: '/mobile/chat/list',
       meta: { sort: 1 },

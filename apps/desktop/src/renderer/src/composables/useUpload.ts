@@ -52,7 +52,8 @@ export function useUpload(options: UseUploadOptions = {}) {
   const modal = useModal()
 
   const insertFiles = (files: UploadFile[]) => {
-    selectedFiles.value.push(...files)
+    // Avoid passing a very large argument list to Array#push when importing folders.
+    selectedFiles.value = selectedFiles.value.concat(files)
     if (onFilesSelected) {
       onFilesSelected(files)
     }
@@ -348,10 +349,11 @@ export function useUpload(options: UseUploadOptions = {}) {
           for (const entry of entries) {
             const fullPath = window.api.path.join(dir, entry.name)
             const relativePath = window.api.path.relative(folderPath, fullPath)
-            const displayRelativePath = [rootFolderName, relativePath].filter(Boolean).join('/')
+            const normalizedRelativePath = relativePath.replace(/\\/g, '/')
+            const displayRelativePath = [rootFolderName, normalizedRelativePath].filter(Boolean).join('/')
 
             // 使用 ignore 库进行过滤
-            if (ig.ignores(relativePath)) continue
+            if (ig.ignores(normalizedRelativePath)) continue
 
             // 检查是否为目录。在 Electron contextBridge 中，Dirent/Stats 的方法可能丢失，改用 mode 判断
             const stat = window.api.fs.statSync(fullPath)
