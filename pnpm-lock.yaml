@@ -6,27 +6,350 @@ settings:
 
 catalogs:
   default:
+    '@ai-sdk/anthropic':
+      specifier: 3.0.58
+      version: 3.0.58
+    '@ai-sdk/deepseek':
+      specifier: 2.0.24
+      version: 2.0.24
+    '@ai-sdk/elevenlabs':
+      specifier: ^2.0.24
+      version: 2.0.24
+    '@ai-sdk/google':
+      specifier: 3.0.43
+      version: 3.0.43
+    '@ai-sdk/hume':
+      specifier: 2.0.24
+      version: 2.0.24
+    '@ai-sdk/mcp':
+      specifier: 1.0.25
+      version: 1.0.25
     '@ai-sdk/moonshotai':
       specifier: 2.0.10
       version: 2.0.10
+    '@ai-sdk/openai':
+      specifier: 3.0.41
+      version: 3.0.41
+    '@ai-sdk/openai-compatible':
+      specifier: 2.0.35
+      version: 2.0.35
     '@ai-sdk/provider':
       specifier: 3.0.8
       version: 3.0.8
+    '@ai-sdk/provider-utils':
+      specifier: 4.0.19
+      version: 4.0.19
+    '@ai-sdk/vue':
+      specifier: 3.0.116
+      version: 3.0.116
+    '@ai-sdk/xai':
+      specifier: 3.0.67
+      version: 3.0.67
+    '@capacitor/android':
+      specifier: ^8.0.2
+      version: 8.0.2
+    '@capacitor/app':
+      specifier: ^8.0.0
+      version: 8.0.0
+    '@capacitor/cli':
+      specifier: ^8.0.2
+      version: 8.0.2
+    '@capacitor/core':
+      specifier: ^8.0.2
+      version: 8.0.2
+    '@capacitor/ios':
+      specifier: ^8.0.2
+      version: 8.0.2
+    '@electron-toolkit/eslint-config-prettier':
+      specifier: 3.0.0
+      version: 3.0.0
+    '@electron-toolkit/eslint-config-ts':
+      specifier: ^3.1.0
+      version: 3.1.0
+    '@electron-toolkit/preload':
+      specifier: ^3.0.2
+      version: 3.0.2
+    '@electron-toolkit/tsconfig':
+      specifier: ^2.0.0
+      version: 2.0.0
+    '@electron-toolkit/utils':
+      specifier: ^4.0.0
+      version: 4.0.0
+    '@electron/rebuild':
+      specifier: ^4.0.3
+      version: 4.0.3
+    '@electron/remote':
+      specifier: ^2.1.3
+      version: 2.1.3
+    '@incremark/core':
+      specifier: ^0.3.10
+      version: 0.3.10
+    '@incremark/theme':
+      specifier: ^0.3.10
+      version: 0.3.10
+    '@incremark/vue':
+      specifier: ^0.3.10
+      version: 0.3.10
+    '@langchain/core':
+      specifier: ^1.1.19
+      version: 1.1.19
+    '@langchain/textsplitters':
+      specifier: ^1.0.1
+      version: 1.0.1
+    '@modelcontextprotocol/sdk':
+      specifier: ^1.25.3
+      version: 1.25.3
+    '@prettier/plugin-oxc':
+      specifier: ^0.1.3
+      version: 0.1.3
+    '@tiptap/extension-code-block':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-code-block-lowlight':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-color':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-horizontal-rule':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-image':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-placeholder':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-table':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-table-cell':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-table-header':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-table-row':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-task-item':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-task-list':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-text-align':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-text-style':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/starter-kit':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/vue-3':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tsconfig/node22':
+      specifier: ^22.0.5
+      version: 22.0.5
+    '@types/inquirer':
+      specifier: ^9.0.9
+      version: 9.0.9
+    '@types/jszip':
+      specifier: ^3.4.1
+      version: 3.4.1
+    '@types/mime-types':
+      specifier: ^3.0.1
+      version: 3.0.1
+    '@types/node':
+      specifier: ^25.2.0
+      version: 25.2.0
+    '@vicons/carbon':
+      specifier: ^0.13.0
+      version: 0.13.0
+    '@vicons/fluent':
+      specifier: ^0.13.0
+      version: 0.13.0
+    '@vicons/ionicons5':
+      specifier: ^0.13.0
+      version: 0.13.0
+    '@vicons/material':
+      specifier: ^0.13.0
+      version: 0.13.0
+    '@vicons/tabler':
+      specifier: ^0.13.0
+      version: 0.13.0
+    '@vicons/utils':
+      specifier: ^0.1.4
+      version: 0.1.4
+    '@vitejs/plugin-vue':
+      specifier: ^6.0.4
+      version: 6.0.4
+    '@vitejs/plugin-vue-jsx':
+      specifier: ^5.1.4
+      version: 5.1.4
+    '@vue/eslint-config-prettier':
+      specifier: ^10.2.0
+      version: 10.2.0
+    '@vue/eslint-config-typescript':
+      specifier: ^14.6.0
+      version: 14.6.0
+    '@vue/tsconfig':
+      specifier: ^0.8.1
+      version: 0.8.1
+    '@vueuse/core':
+      specifier: ^14.2.0
+      version: 14.2.0
+    ai:
+      specifier: 6.0.116
+      version: 6.0.116
     ai-sdk-ollama:
       specifier: 3.8.0
       version: 3.8.0
+    better-sqlite3:
+      specifier: ^12.6.2
+      version: 12.6.2
+    blob-util:
+      specifier: ^2.0.2
+      version: 2.0.2
+    chalk:
+      specifier: ^5.6.2
+      version: 5.6.2
+    commander:
+      specifier: ^14.0.3
+      version: 14.0.3
+    dayjs:
+      specifier: ^1.11.19
+      version: 1.11.19
+    electron:
+      specifier: ^40.1.0
+      version: 40.1.0
+    electron-builder:
+      specifier: ^26.7.0
+      version: 26.7.0
+    electron-vite:
+      specifier: ^5.0.0
+      version: 5.0.0
+    es-toolkit:
+      specifier: ^1.44.0
+      version: 1.44.0
+    eslint:
+      specifier: ^9.39.2
+      version: 9.39.2
+    eslint-plugin-oxlint:
+      specifier: ~1.43.0
+      version: 1.43.0
+    eslint-plugin-vue:
+      specifier: ^10.7.0
+      version: 10.7.0
+    hast-util-to-html:
+      specifier: ^9.0.5
+      version: 9.0.5
+    highlight.js:
+      specifier: ^11.11.1
+      version: 11.11.1
+    inquirer:
+      specifier: ^13.2.2
+      version: 13.2.2
+    jszip:
+      specifier: ^3.10.1
+      version: 3.10.1
+    localforage:
+      specifier: ^1.10.0
+      version: 1.10.0
+    lowlight:
+      specifier: ^3.3.0
+      version: 3.3.0
+    mime-types:
+      specifier: ^3.0.2
+      version: 3.0.2
+    nanoid:
+      specifier: ^5.1.6
+      version: 5.1.6
+    node-pty:
+      specifier: ^1.1.0
+      version: 1.1.0
+    npm-run-all2:
+      specifier: ^8.0.4
+      version: 8.0.4
+    openai:
+      specifier: ^6.29.0
+      version: 6.29.0
+    ora:
+      specifier: ^9.1.0
+      version: 9.1.0
+    oxlint:
+      specifier: ~1.43.0
+      version: 1.43.0
+    pinia:
+      specifier: ^3.0.4
+      version: 3.0.4
+    pinia-plugin-persistedstate:
+      specifier: ^4.7.1
+      version: 4.7.1
+    pinia-plugin-persistedstate-async:
+      specifier: ^1.6.3
+      version: 1.6.3
     prettier:
       specifier: ^3.8.1
       version: 3.8.1
+    sqlite-vec:
+      specifier: ^0.1.7-alpha.2
+      version: 0.1.7-alpha.2
+    strip-ansi:
+      specifier: ^7.1.2
+      version: 7.1.2
     turbo:
       specifier: ^2.8.3
       version: 2.8.3
     typescript:
       specifier: ^5.9.3
       version: 5.9.3
+    unplugin-auto-import:
+      specifier: ^21.0.0
+      version: 21.0.0
+    unplugin-vue-components:
+      specifier: ^31.0.0
+      version: 31.0.0
+    vite-plugin-dts:
+      specifier: ^4.5.4
+      version: 4.5.4
+    vite-plugin-vue-devtools:
+      specifier: ^8.0.5
+      version: 8.0.5
+    vue:
+      specifier: ^3.5.27
+      version: 3.5.27
+    vue-eslint-parser:
+      specifier: ^10.2.0
+      version: 10.2.0
+    vue-router:
+      specifier: ^5.0.2
+      version: 5.0.2
+    vue-tsc:
+      specifier: ^3.2.4
+      version: 3.2.4
+    xterm:
+      specifier: ^5.3.0
+      version: 5.3.0
+    xterm-addon-fit:
+      specifier: ^0.8.0
+      version: 0.8.0
+    zhipu-ai-provider:
+      specifier: 0.2.2
+      version: 0.2.2
+    zod:
+      specifier: ^4.3.6
+      version: 4.3.6
 
 overrides:
   vite: ^6.0.0
+
+patchedDependencies:
+  node-pty@1.1.0:
+    hash: 0e4c31093afc87010bfe1342e597ba26edd21a7ee867763973e588dbbd4d54cb
+    path: patches/node-pty@1.1.0.patch
 
 importers:
 
@@ -269,7 +592,7 @@ importers:
         version: 5.1.6
       node-pty:
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 1.1.0(patch_hash=0e4c31093afc87010bfe1342e597ba26edd21a7ee867763973e588dbbd4d54cb)
       openai:
         specifier: 'catalog:'
         version: 6.29.0(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)
@@ -4805,10 +5128,6 @@ packages:
     resolution: {integrity: sha512-IPZ167aShDZZUMdRk66cyQAW3qr0WzbHkPdMYa8bzZhlHhO3jALbKdxcaak7W9FfT2rZNpQuUu4Od7ILEpXSaw==}
     engines: {node: 20 || >=22}
 
-  minimatch@10.1.2:
-    resolution: {integrity: sha512-fu656aJ0n2kcXwsnwnv9g24tkU5uSmOlTjd6WyyaKm2Z+h1qmY6bAjrcaIxF/BslFqbZ8UBtbJi7KgQOZD2PTw==}
-    engines: {node: 20 || >=22}
-
   minimatch@10.2.4:
     resolution: {integrity: sha512-oRjTw/97aTBN0RHbYCdtF1MQfvusSIBQM0IZEgzl6426+8jSC0nF1a/GmnVLpfB9yyr6g6FTqWqiZVbxrtaCIg==}
     engines: {node: 18 || 20 || >=22}
@@ -4816,17 +5135,9 @@ packages:
   minimatch@3.1.2:
     resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
 
-  minimatch@5.1.6:
-    resolution: {integrity: sha512-lKwV/1brpG6mBUFHtb7NUmtABCb2WZZmm2wNiOA5hAb8VdCS4B3dtMWyvcoViccwAW/COERjXLt0zP1zXUN26g==}
-    engines: {node: '>=10'}
-
   minimatch@5.1.9:
     resolution: {integrity: sha512-7o1wEA2RyMP7Iu7GNba9vc0RWWGACJOCZBJX2GJWip0ikV+wcOsgVuY9uE8CPiyQhkGFSlhuSkZPavN7u1c2Fw==}
     engines: {node: '>=10'}
-
-  minimatch@9.0.5:
-    resolution: {integrity: sha512-G6T0ZX48xgozx7587koeX9Ys2NYy6Gmv//P89sEte9V9whIapMNF4idKxnW2QtCcLiTWlb/wfCabAtAFWhhBow==}
-    engines: {node: '>=16 || 14 >=14.17'}
 
   minimatch@9.0.9:
     resolution: {integrity: sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==}
@@ -6869,7 +7180,7 @@ snapshots:
       plist: 3.1.0
       prompts: 2.4.2
       rimraf: 6.1.2
-      semver: 7.7.3
+      semver: 7.7.4
       tar: 7.5.7
       tslib: 2.8.1
       xml2js: 0.6.2
@@ -7032,7 +7343,7 @@ snapshots:
       node-gyp: 11.5.0
       ora: 5.4.1
       read-binary-file-arch: 1.0.6
-      semver: 7.7.3
+      semver: 7.7.4
       tar: 7.5.7
       yargs: 17.7.2
     transitivePeerDependencies:
@@ -7061,7 +7372,7 @@ snapshots:
       debug: 4.4.3
       dir-compare: 4.2.0
       fs-extra: 11.3.3
-      minimatch: 9.0.5
+      minimatch: 9.0.9
       plist: 3.1.0
     transitivePeerDependencies:
       - supports-color
@@ -8509,8 +8820,8 @@ snapshots:
       '@typescript-eslint/types': 8.54.0
       '@typescript-eslint/visitor-keys': 8.54.0
       debug: 4.4.3
-      minimatch: 9.0.5
-      semver: 7.7.3
+      minimatch: 9.0.9
+      semver: 7.7.4
       tinyglobby: 0.2.15
       ts-api-utils: 2.4.0(typescript@5.9.3)
       typescript: 5.9.3
@@ -8798,7 +9109,7 @@ snapshots:
       '@vue/compiler-vue2': 2.7.16
       '@vue/shared': 3.5.27
       alien-signals: 0.4.14
-      minimatch: 9.0.5
+      minimatch: 9.0.9
       muggle-string: 0.4.1
       path-browserify: 1.0.1
     optionalDependencies:
@@ -9056,11 +9367,11 @@ snapshots:
       js-yaml: 4.1.1
       json5: 2.2.3
       lazy-val: 1.0.5
-      minimatch: 10.1.2
+      minimatch: 10.2.4
       plist: 3.1.0
       proper-lockfile: 4.1.2
       resedit: 1.7.2
-      semver: 7.7.3
+      semver: 7.7.4
       tar: 7.5.7
       temp-file: 3.4.0
       tiny-async-pool: 1.3.0
@@ -9917,7 +10228,7 @@ snapshots:
       natural-compare: 1.4.0
       nth-check: 2.1.1
       postcss-selector-parser: 7.1.1
-      semver: 7.7.3
+      semver: 7.7.4
       vue-eslint-parser: 10.2.0(eslint@9.39.2(jiti@2.6.1))
       xml-name-validator: 4.0.0
     optionalDependencies:
@@ -10105,7 +10416,7 @@ snapshots:
 
   filelist@1.0.4:
     dependencies:
-      minimatch: 5.1.6
+      minimatch: 5.1.9
 
   fill-range@7.1.1:
     dependencies:
@@ -10259,14 +10570,14 @@ snapshots:
     dependencies:
       foreground-child: 3.3.1
       jackspeak: 3.4.3
-      minimatch: 9.0.5
+      minimatch: 9.0.9
       minipass: 7.1.2
       package-json-from-dist: 1.0.1
       path-scurry: 1.11.1
 
   glob@13.0.1:
     dependencies:
-      minimatch: 10.1.2
+      minimatch: 10.2.4
       minipass: 7.1.2
       path-scurry: 2.0.1
 
@@ -10293,7 +10604,7 @@ snapshots:
       es6-error: 4.1.1
       matcher: 3.0.0
       roarr: 2.15.4
-      semver: 7.7.3
+      semver: 7.7.4
       serialize-error: 7.0.1
     optional: true
 
@@ -10721,7 +11032,7 @@ snapshots:
       chalk: 4.1.2
       console-table-printer: 2.15.0
       p-queue: 6.6.2
-      semver: 7.7.3
+      semver: 7.7.4
       uuid: 10.0.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
@@ -11282,10 +11593,6 @@ snapshots:
     dependencies:
       '@isaacs/brace-expansion': 5.0.1
 
-  minimatch@10.1.2:
-    dependencies:
-      '@isaacs/brace-expansion': 5.0.1
-
   minimatch@10.2.4:
     dependencies:
       brace-expansion: 5.0.4
@@ -11294,15 +11601,7 @@ snapshots:
     dependencies:
       brace-expansion: 1.1.12
 
-  minimatch@5.1.6:
-    dependencies:
-      brace-expansion: 2.0.2
-
   minimatch@5.1.9:
-    dependencies:
-      brace-expansion: 2.0.2
-
-  minimatch@9.0.5:
     dependencies:
       brace-expansion: 2.0.2
 
@@ -11455,11 +11754,11 @@ snapshots:
 
   node-abi@3.87.0:
     dependencies:
-      semver: 7.7.3
+      semver: 7.7.4
 
   node-abi@4.26.0:
     dependencies:
-      semver: 7.7.3
+      semver: 7.7.4
 
   node-addon-api@1.7.2:
     optional: true
@@ -11468,7 +11767,7 @@ snapshots:
 
   node-api-version@0.2.1:
     dependencies:
-      semver: 7.7.3
+      semver: 7.7.4
 
   node-gyp-build@4.8.4: {}
 
@@ -11480,7 +11779,7 @@ snapshots:
       make-fetch-happen: 14.0.3
       nopt: 8.1.0
       proc-log: 5.0.0
-      semver: 7.7.3
+      semver: 7.7.4
       tar: 7.5.7
       tinyglobby: 0.2.15
       which: 5.0.0
@@ -11504,7 +11803,7 @@ snapshots:
       - bluebird
       - supports-color
 
-  node-pty@1.1.0:
+  node-pty@1.1.0(patch_hash=0e4c31093afc87010bfe1342e597ba26edd21a7ee867763973e588dbbd4d54cb):
     dependencies:
       node-addon-api: 7.1.1
 
@@ -12342,7 +12641,7 @@ snapshots:
 
   simple-update-notifier@2.0.0:
     dependencies:
-      semver: 7.7.3
+      semver: 7.7.4
 
   simple-wcswidth@1.1.2: {}
 
@@ -12976,7 +13275,7 @@ snapshots:
       eslint-visitor-keys: 4.2.1
       espree: 10.4.0
       esquery: 1.7.0
-      semver: 7.7.3
+      semver: 7.7.4
     transitivePeerDependencies:
       - supports-color
 

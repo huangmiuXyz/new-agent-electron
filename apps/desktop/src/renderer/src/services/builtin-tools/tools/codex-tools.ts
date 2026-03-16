@@ -322,6 +322,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         })
         const stdout = result.stdout.trim()
         const stderr = result.stderr.trim()
+        const errorMessage = result.errorMessage?.trim() || ''
 
         if (result.code === 1 && !stdout) {
           return {
@@ -337,9 +338,12 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
 
         if (result.code !== 0 && result.code !== 1) {
-          const message = stderr || stdout || 'rg 执行失败'
+          const message = stderr || stdout || errorMessage || 'rg execution failed'
           const missingExecutable =
-            /not recognized|command not found|cannot find|not found/i.test(message) && message.includes('rg')
+            result.errorCode === 'ENOENT' ||
+            ((/not recognized|command not found|cannot find|not found/i.test(message) ||
+              /spawn .*enoent/i.test(message)) &&
+              /(^|[\\/])rg(\.exe)?(\s|$)/i.test(`${rgExecutable} ${message}`))
           return {
             toolResult: {
               content: [

@@ -12,34 +12,65 @@ import os from 'os'
 import { type ElectronAPI } from '@agent-qi/types'
 
 const resolveRipgrepPath = (): string | null => {
+  const executableName = `rg${process.platform === 'win32' ? '.exe' : ''}`
+  const candidates = new Set<string>()
+  const addCandidate = (candidate?: string | null) => {
+    if (!candidate) return
+    candidates.add(path.normalize(candidate))
+  }
+
   try {
     const { rgPath } = require('@vscode/ripgrep')
-    return rgPath ?? null
+    addCandidate(rgPath)
   } catch {
-    return null
+    // ignore module resolution errors and continue with fallbacks
   }
+
+  try {
+    const packageJsonPath = require.resolve('@vscode/ripgrep/package.json')
+    const packageDir = path.dirname(packageJsonPath)
+    addCandidate(path.join(packageDir, 'bin', executableName))
+  } catch {
+    // ignore module resolution errors and continue with fallbacks
+  }
+
+  const appPath = app.getAppPath()
+  addCandidate(path.join(appPath, 'node_modules', '@vscode', 'ripgrep', 'bin', executableName))
+  addCandidate(path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', '@vscode', 'ripgrep', 'bin', executableName))
+  addCandidate(path.join(process.resourcesPath, 'node_modules', '@vscode', 'ripgrep', 'bin', executableName))
+
+  for (const candidate of [...candidates]) {
+    if (candidate.includes(`${path.sep}app.asar${path.sep}`)) {
+      addCandidate(candidate.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`))
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate
+    }
+  }
+
+  return null
 }
 
-const getBundledRipgrepPath = (): string | null => {
-  const rgPath = resolveRipgrepPath()
-  if (!rgPath) return null
-  if (!app.isPackaged) return rgPath
-  return rgPath.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`)
-}
+const getBundledRipgrepPath = (): string | null => resolveRipgrepPath()
 
 const execFileCommand = (
   file: string,
   args: string[] = [],
   options: { cwd?: string; maxBuffer?: number } = {}
-): Promise<{ code: number | null; stdout: string; stderr: string }> => {
+): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
   return new Promise((resolve) => {
     execFile(file, args, { windowsHide: true, ...options }, (error, stdout, stderr) => {
       if (error) {
-        const errorWithCode = error as NodeJS.ErrnoException & { code?: number }
+        const errorWithCode = error as NodeJS.ErrnoException & { code?: number | string }
         resolve({
           code: typeof errorWithCode.code === 'number' ? errorWithCode.code : null,
           stdout,
-          stderr
+          stderr,
+          errorMessage: errorWithCode.message,
+          errorCode: typeof errorWithCode.code === 'string' ? errorWithCode.code : undefined
         })
         return
       }

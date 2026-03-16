@@ -76,7 +76,13 @@ export interface ElectronAPI {
     file: string,
     args?: string[],
     options?: { cwd?: string; maxBuffer?: number }
-  ) => Promise<{ code: number | null; stdout: string; stderr: string }>;
+  ) => Promise<{
+    code: number | null;
+    stdout: string;
+    stderr: string;
+    errorMessage?: string;
+    errorCode?: string;
+  }>;
 
   // libs
   shell: any;

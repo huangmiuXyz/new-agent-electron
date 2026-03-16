@@ -32,6 +32,9 @@
     "overrides": {
       "vite": "^6.0.0"
     },
+    "patchedDependencies": {
+      "node-pty@1.1.0": "patches/node-pty@1.1.0.patch"
+    },
     "peerDependencyRules": {
       "allowedVersions": {
         "vite": "6"
@@ -40,6 +43,7 @@
     "onlyBuiltDependencies": [
       "electron",
       "esbuild",
+      "@vscode/ripgrep",
       "better-sqlite3",
       "node-pty",
       "sqlite-vec",
