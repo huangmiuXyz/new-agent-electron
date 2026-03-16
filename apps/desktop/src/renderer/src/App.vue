@@ -71,34 +71,6 @@ const settingsReady = ref(false)
 const chatsReady = ref(false)
 const imageReady = ref(false)
 const knowledgeReady = ref(false)
-const appShellReady = ref(!import.meta.env.PROD)
-const appTerminalReady = ref(!import.meta.env.PROD)
-const appOverlayReady = ref(!import.meta.env.PROD)
-
-const runStartupStages = async () => {
-  if (!import.meta.env.PROD) {
-    appShellReady.value = true
-    appTerminalReady.value = true
-    appOverlayReady.value = true
-    return
-  }
-
-  appShellReady.value = false
-  appTerminalReady.value = false
-  appOverlayReady.value = false
-
-  await nextTick()
-  await new Promise((resolve) => window.setTimeout(resolve, 0))
-  appShellReady.value = true
-
-  await nextTick()
-  await new Promise((resolve) => window.setTimeout(resolve, 0))
-  appTerminalReady.value = true
-
-  await nextTick()
-  await new Promise((resolve) => window.setTimeout(resolve, 0))
-  appOverlayReady.value = true
-}
 
 settingsStore.isAfterRestore.then(() => {
   settingsReady.value = true
@@ -144,20 +116,6 @@ const isStoreReady = computed(() => {
   return settingsReady.value && chatsReady.value
 })
 
-watch(
-  () => [isStoreReady.value, isMobile.value] as const,
-  ([ready]) => {
-    if (!ready) {
-      appShellReady.value = !import.meta.env.PROD
-      appTerminalReady.value = !import.meta.env.PROD
-      appOverlayReady.value = !import.meta.env.PROD
-      return
-    }
-
-    void runStartupStages()
-  },
-  { immediate: true }
-)
 
 // 处理移动端键盘弹出时视口高度变化
 const getAndroidSafeAreaBottom = () => {
@@ -321,14 +279,13 @@ const handleTouchEnd = (e: TouchEvent) => {
       <DownloadPanel />
       <div class="content-wrapper">
         <main class="app-content">
-          <ChatPage v-if="appShellReady && currentView === 'chat'" />
-          <NotesPage v-if="appShellReady && currentView === 'notes'" />
-          <ImagePage v-if="appShellReady && currentView === 'image'" />
-          <SettingsPage v-if="appShellReady && currentView === 'settings'" />
+          <ChatPage v-if="currentView === 'chat'" />
+          <NotesPage v-if="currentView === 'notes'" />
+          <ImagePage v-if="currentView === 'image'" />
+          <SettingsPage v-if="currentView === 'settings'" />
         </main>
         <!-- 全局终端：在 content-wrapper 内，app-content 下方 -->
         <ResizeBox
-          v-if="appTerminalReady"
           v-model:height="settingsStore.display.terminalHeight"
           v-model:is-collapsed="terminalCollapsed"
           direction="vertical"
@@ -361,7 +318,7 @@ const handleTouchEnd = (e: TouchEvent) => {
   <div v-else class="app-loading">
     <Loading />
   </div>
-  <ContextMenu v-if="appOverlayReady" />
+  <ContextMenu />
 </template>
 
 <style>
