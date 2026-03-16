@@ -7,6 +7,23 @@ import { is } from '@electron-toolkit/utils'
 
 let db: Database.Database
 
+const getSqliteVecBinaryPath = () => {
+  if (is.dev) {
+    return sqliteVec.getLoadablePath()
+  }
+
+  const packagePlatform = process.platform === 'win32' ? 'windows' : process.platform
+  const extension = process.platform === 'win32' ? 'dll' : process.platform === 'darwin' ? 'dylib' : 'so'
+
+  return join(
+    process.resourcesPath,
+    'app.asar.unpacked',
+    'node_modules',
+    `sqlite-vec-${packagePlatform}-${process.arch}`,
+    `vec0.${extension}`
+  )
+}
+
 const encodeEmbedding = (embedding: number[]) => {
   const f32 = Float32Array.from(embedding)
   return Buffer.from(f32.buffer, f32.byteOffset, f32.byteLength)
@@ -57,9 +74,19 @@ export const initSqlite = () => {
   db = new Database(dbPath)
 
   try {
-    sqliteVec.load(db)
+    const sqliteVecBinaryPath = getSqliteVecBinaryPath()
+    db.loadExtension(sqliteVecBinaryPath)
   } catch (e) {
-    console.error('Failed to load sqlite-vec:', e)
+    console.error('Failed to load sqlite-vec:', {
+      error: e,
+      attemptedPath: (() => {
+        try {
+          return getSqliteVecBinaryPath()
+        } catch (pathError) {
+          return `failed to resolve path: ${String(pathError)}`
+        }
+      })()
+    })
   }
 
   db.exec(`

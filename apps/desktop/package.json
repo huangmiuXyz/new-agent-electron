@@ -157,6 +157,7 @@
     },
     "files": [
       "out/**",
+      "resources/**",
       "!../../packages/**/*",
       "!node_modules/@capacitor",
       "!node_modules/@capacitor/**/*",
@@ -172,6 +173,7 @@
     ],
     "asarUnpack": [
       "resources/**",
+      "node_modules/sqlite-vec*/**",
       "node_modules/@vscode/ripgrep/bin/**"
     ],
     "win": {
