@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
+    "qi-cli": "dist/index.js",
     "qi": "dist/index.js"
   },
   "scripts": {

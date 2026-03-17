@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Codex 反向代理 Provider 插件",
   "author": "Agent-Qi",
-  "platforms": ["desktop"],
-  "mobileUnsupportedReason": "Requires spawning a local proxy process."
+  "platforms": [
+    "desktop"
+  ],
+  "mobileUnsupportedReason": "Requires spawning a local proxy process.",
+  "updatedAt": "2026-03-17 22:16:36"
 }
