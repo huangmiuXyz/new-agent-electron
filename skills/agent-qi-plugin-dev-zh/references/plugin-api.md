@@ -20,7 +20,7 @@
   - `unregisterProvider(providerId)`
   - `registerRegistry(name, factory, options?)`
   - `unregisterRegistry(name)`
-- tools / hooks
+- tools / hooks / commands
   - `registerBuiltinTool(name, tool)`
   - `unregisterBuiltinTool(name)`
   - `registerHook(name, handler)`
@@ -31,6 +31,7 @@
   - `useModal()`
   - `useDownload()`
   - `useIcon()`
+  - `useTerminal()`
   - `components`
   - `vue.ref/reactive/computed/watch/h/defineComponent/...`
 - storage / app state
@@ -38,13 +39,187 @@
   - `getStore('settings')`
   - `getRegisteredProviders()`
   - `getPluginsDataPath()`
-- system
-  - `api.fs`
-  - `api.path`
-  - `api.os`
-  - `api.spawn`
 - feedback
   - `notification.success/info/warning/error/loading/status/removeStatus`
+
+## `context.api` 真实能力范围
+
+参考源：
+
+- `packages/types/src/electron.ts`
+- `apps/desktop/src/preload/index.ts`
+
+不要把 `context.api` 简化成只有 `fs/path/os/spawn`。插件上下文里暴露的是一整套 Electron preload API。
+
+### 进程与系统信息
+
+- `api.process`
+  - `platform`
+  - `env`
+  - `execPath`
+- `api.os`
+- `api.exec`
+- `api.spawn`
+- `api.fork`
+- `api.execFileCommand()`
+
+适合：
+
+- 启动本地服务
+- 读取环境变量
+- 调用外部命令
+- 比 `exec` 更稳地执行单个可执行文件
+
+### 文件与路径
+
+- `api.fs`
+- `api.path`
+- `api.watch(path, callback)`
+- `api.getPath(name)`
+- `api.getAppPath()`
+- `api.getPluginsPath()`
+- `api.getBundledRipgrepPath()`
+
+适合：
+
+- 读写插件文件
+- 遍历目录
+- 文件变化监听
+- 找到用户数据目录、插件目录、应用目录
+
+### Shell 与剪贴板
+
+- `api.shell`
+- `api.clipboard.writeText()`
+- `api.clipboard.readText()`
+- `api.url`
+- `api.mime`
+
+适合：
+
+- 打开外部链接或文件
+- 复制文本
+- MIME / URL 处理
+
+### 对话框与应用能力
+
+- `api.showOpenDialog()`
+- `api.app`
+- `api.openDevTools()`
+- `api.isPackaged`
+
+适合：
+
+- 选择文件或目录
+- 判断开发态 / 打包态
+- 访问 Electron app 信息
+
+### 终端与伪终端
+
+- `api.pty.spawn()`
+- `api.pty.write()`
+- `api.pty.resize()`
+- `api.pty.kill()`
+- `api.pty.onData()`
+- `api.pty.onExit()`
+
+适合：
+
+- 构建带交互的终端体验
+- 长时间运行 shell 会话
+
+### 网络与下载
+
+- `api.net.fetch()`
+- `api.net.download()`
+- `api.net.onDownloadProgress()`
+- `api.net.cancelDownload()`
+
+适合：
+
+- 需要主进程网络能力的请求
+- 下载大文件并拿到进度
+
+### SQLite 与本地索引
+
+- `api.sqlite.isSupported()`
+- `api.sqlite.upsertChunks()`
+- `api.sqlite.updateChunks()`
+- `api.sqlite.deleteChunksByDoc()`
+- `api.sqlite.deleteChunksByKb()`
+- `api.sqlite.getChunkCountsByDoc()`
+- `api.sqlite.search()`
+- `api.sqlite.getAllChunks()`
+- `api.sqlite.getChunksByHash()`
+
+适合：
+
+- 插件直接参与本地知识库 / 向量索引流程
+
+### 搜索替换
+
+- `api.searchReplace.execute(...)`
+
+适合：
+
+- 受控的文件级修改
+- 批量搜索替换任务
+
+### 同步能力
+
+- `api.sync.startHost()`
+- `api.sync.stopHost()`
+- `api.sync.getHostState()`
+- `api.sync.updateProfile()`
+- `api.sync.publishSnapshot()`
+- `api.sync.listEndpoints()`
+- `api.sync.getEndpointSnapshot()`
+- `api.sync.onEvent()`
+
+适合：
+
+- 设备间同步或局域网同步相关插件
+
+### 电脑控制能力
+
+- `api.computer.isAvailable()`
+- `api.computer.getScreenSize()`
+- `api.computer.getMousePosition()`
+- `api.computer.moveMouse()`
+- `api.computer.mouseClick()`
+- `api.computer.dragMouse()`
+- `api.computer.scrollMouse()`
+- `api.computer.typeText()`
+- `api.computer.keyTap()`
+- `api.computer.getPixelColor()`
+- `api.computer.captureScreen()`
+
+适合：
+
+- 桌面自动化
+- 截屏
+- 鼠标键盘控制
+
+### 窗口与更新
+
+- `api.setTitleBarTheme()`
+- `api.createTempChat()`
+- `api.getTempChatData()`
+- `api.updater.getVersion()`
+- `api.updater.checkForUpdates()`
+- `api.updater.downloadUpdate()`
+- `api.updater.quitAndInstall()`
+- `api.updater.onStatus()`
+
+适合：
+
+- 和窗口行为、临时聊天、更新状态有关的插件能力
+
+## 写技能时的建议
+
+- 如果插件只需要普通文件与进程能力，文档中优先写 `fs/path/os/spawn/execFileCommand/watch`
+- 如果插件需要下载、终端、桌面自动化、同步、sqlite 等高级能力，要明确点名对应 `api.*` 子域
+- 不要臆测 preload API，优先回到 `packages/types/src/electron.ts` 看定义
 
 ## 常见实现模式
 
