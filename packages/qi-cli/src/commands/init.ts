@@ -4,55 +4,17 @@ import chalk from 'chalk';
 import ora from 'ora';
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import {
+  detectPackageManager,
+  ensureDir,
+  findTemplate,
+  getInstallCommand,
+  loadTemplates,
+  replaceTemplate,
+  resolveExampleDir,
+  type TemplateInfo
+} from '../utils.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-/**
- * 插件模板信息
- */
-interface TemplateInfo {
-  name: string;
-  value: string;
-  description: string;
-}
-
-/**
- * 默认模板 (当无法从 example 目录读取时使用)
- */
-const DEFAULT_TEMPLATES: TemplateInfo[] = [
-  { name: '基础模板 (TypeScript)', value: 'ollama-starter', description: '简单的 TypeScript 插件模板，包含基础钩子示例' },
-  { name: '工具模板 (智能密钥填充)', value: 'smart-api-key-filler', description: '包含自定义工具和设置存储交互的模板' },
-  { name: 'React 模板 (语音识别)', value: 'vosk-speech-recognition', description: '支持 React UI 和复杂交互的模板' },
-  { name: '提供商模板 (Provider Compatible)', value: 'minimax-plugin', description: '用于创建自定义模型提供商适配的模板' }
-];
-
-/**
- * 递归创建目录
- */
-async function ensureDir(dirPath: string): Promise<void> {
-  try {
-    await fs.access(dirPath);
-  } catch {
-    await fs.mkdir(dirPath, { recursive: true });
-  }
-}
-
-/**
- * 替换模板变量
- */
-function replaceTemplate(template: string, variables: Record<string, string>): string {
-  let result = template;
-  for (const [key, value] of Object.entries(variables)) {
-    result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
-  }
-  return result;
-}
-
-/**
- * 递归复制目录并替换模板变量
- */
 async function copyTemplateDir(
   src: string,
   dest: string,
@@ -65,218 +27,387 @@ async function copyTemplateDir(
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
 
-    // 跳过不需要复制的文件和目录
     if (
       entry.name === 'node_modules' ||
       entry.name === 'dist' ||
+      entry.name === '.turbo' ||
+      entry.name === '.vite' ||
       entry.name === '.git' ||
+      entry.name === '.DS_Store' ||
       entry.name.endsWith('.qi') ||
       entry.name === 'package-lock.json' ||
-      entry.name === 'pnpm-lock.yaml'
+      entry.name === 'pnpm-lock.yaml' ||
+      entry.name === 'yarn.lock' ||
+      entry.name === 'bun.lock' ||
+      entry.name === 'bun.lockb'
     ) {
       continue;
     }
 
     if (entry.isDirectory()) {
       await copyTemplateDir(srcPath, destPath, variables);
-    } else {
-      // 检查是否为文本文件
-      const ext = path.extname(entry.name).toLowerCase();
-      const isBinary = [
-        '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.tar', '.gz', '.qi'
-      ].includes(ext);
+      continue;
+    }
 
-      if (isBinary) {
-        await fs.copyFile(srcPath, destPath);
-      } else {
-        let content = await fs.readFile(srcPath, 'utf8');
+    const ext = path.extname(entry.name).toLowerCase();
+    const isBinary = [
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.gif',
+      '.webp',
+      '.ico',
+      '.pdf',
+      '.zip',
+      '.tar',
+      '.gz',
+      '.qi',
+      '.svg'
+    ].includes(ext);
 
-        // 替换模板变量
-        content = replaceTemplate(content, variables);
+    if (isBinary) {
+      await fs.copyFile(srcPath, destPath);
+      continue;
+    }
 
-        // 特殊处理 package.json
-        if (entry.name === 'package.json') {
-          try {
-            const pkg = JSON.parse(content);
-            pkg.name = variables.pluginName;
-            pkg.description = variables.description;
-            pkg.author = variables.author;
-            pkg.version = variables.version;
-            content = JSON.stringify(pkg, null, 2);
-          } catch (e) {
-            // 如果 JSON 解析失败，则保持原样
-          }
-        }
+    let content = await fs.readFile(srcPath, 'utf8');
+    content = replaceTemplate(content, variables);
 
-        // 特殊处理 info.json
-        if (entry.name === 'info.json') {
-          try {
-            const info = JSON.parse(content);
-            info.name = variables.pluginName;
-            info.description = variables.description;
-            info.author = variables.author;
-            info.version = variables.version;
-            const now = new Date();
-            info.updatedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-            content = JSON.stringify(info, null, 2);
-          } catch (e) {
-            // 如果 JSON 解析失败，则保持原样
-          }
-        }
-
-        await fs.writeFile(destPath, content);
+    if (entry.name === 'package.json') {
+      try {
+        const pkg = JSON.parse(content) as Record<string, unknown>;
+        pkg.name = variables.pluginName;
+        pkg.description = variables.description;
+        pkg.author = variables.author;
+        pkg.version = variables.version;
+        content = JSON.stringify(pkg, null, 2);
+      } catch {
+        // keep original content when parsing fails
       }
     }
+
+    if (entry.name === 'info.json') {
+      try {
+        const info = JSON.parse(content) as Record<string, unknown>;
+        info.name = variables.displayName;
+        info.description = variables.description;
+        info.author = variables.author;
+        info.version = variables.version;
+        info.updatedAt = formatTimestamp(new Date());
+        content = JSON.stringify(info, null, 2);
+      } catch {
+        // keep original content when parsing fails
+      }
+    }
+
+    await fs.writeFile(destPath, content);
   }
 }
 
-/**
- * 初始化命令
- */
+async function writeGeneratedFile(projectDir: string, relativePath: string, content: string): Promise<void> {
+  const filePath = path.join(projectDir, relativePath);
+  await ensureDir(path.dirname(filePath));
+  await fs.writeFile(filePath, content.endsWith('\n') ? content : `${content}\n`);
+}
+
+async function createHelloWorldTemplate(
+  projectDir: string,
+  variables: Record<string, string>
+): Promise<void> {
+  await writeGeneratedFile(projectDir, '.gitignore', 'dist\nnode_modules\n');
+
+  await writeGeneratedFile(projectDir, 'README.md', `# ${variables.pluginName}
+
+Minimal Agent-Qi hello world plugin generated by \`qi code init\`.
+
+## Scripts
+
+\`\`\`bash
+pnpm install
+pnpm build
+qi code build
+\`\`\`
+`);
+
+  await writeGeneratedFile(projectDir, 'info.json', JSON.stringify({
+    name: variables.displayName,
+    description: variables.description,
+    version: variables.version,
+    author: variables.author,
+    updatedAt: formatTimestamp(new Date())
+  }, null, 2));
+
+  await writeGeneratedFile(projectDir, 'package.json', JSON.stringify({
+    name: variables.pluginName,
+    version: variables.version,
+    description: variables.description,
+    author: variables.author,
+    main: 'dist/index.js',
+    scripts: {
+      build: 'vite build',
+      'build:watch': 'vite build --watch'
+    },
+    dependencies: {
+      '@agent-qi/types': 'workspace:*'
+    },
+    devDependencies: {
+      typescript: '^5.9.2',
+      vite: '^5.0.0'
+    }
+  }, null, 2));
+
+  await writeGeneratedFile(projectDir, 'tsconfig.json', JSON.stringify({
+    compilerOptions: {
+      target: 'ES2022',
+      module: 'ES2022',
+      lib: ['ES2022', 'DOM'],
+      moduleResolution: 'bundler',
+      outDir: './dist',
+      rootDir: './src',
+      strict: true,
+      esModuleInterop: true,
+      skipLibCheck: true,
+      forceConsistentCasingInFileNames: true,
+      declaration: false,
+      sourceMap: false
+    },
+    include: ['src/**/*'],
+    exclude: ['node_modules', 'dist']
+  }, null, 2));
+
+  await writeGeneratedFile(projectDir, 'vite.config.ts', `import { defineConfig } from 'vite'
+import { resolve } from 'path'
+
+export default defineConfig({
+  build: {
+    lib: {
+      entry: resolve(__dirname, 'src/index.ts'),
+      name: 'plugin',
+      fileName: 'index',
+      formats: ['iife']
+    },
+    rollupOptions: {
+      output: {
+        dir: 'dist',
+        entryFileNames: 'index.js',
+        chunkFileNames: '[name].js',
+        inlineDynamicImports: true
+      }
+    },
+    outDir: 'dist',
+    emptyOutDir: true,
+    minify: false,
+    target: 'esnext'
+  }
+})
+`);
+
+  await writeGeneratedFile(projectDir, 'src/index.ts', `import type { Plugin } from '@agent-qi/types'
+
+const plugin: Plugin = {
+  name: '${variables.pluginName}',
+  version: '${variables.version}',
+  description: '${variables.description}',
+  install: async (context) => {
+    context.notification.success('Hello world plugin loaded.', '${variables.displayName}')
+  }
+}
+
+export default plugin
+`);
+}
+
+function formatTimestamp(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate()
+  ).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(
+    date.getMinutes()
+  ).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+}
+
+function toDisplayName(pluginName: string): string {
+  return pluginName
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function validatePluginName(input: string): true | string {
+  if (!input.trim()) return 'Plugin name is required.';
+  if (!/^[a-z0-9-]+$/.test(input)) {
+    return 'Plugin name can only contain lowercase letters, numbers, and hyphens.';
+  }
+  return true;
+}
+
+async function ensureProjectDirAvailable(projectDir: string): Promise<void> {
+  try {
+    const stat = await fs.stat(projectDir);
+    if (!stat.isDirectory()) {
+      throw new Error(`Target path already exists and is not a directory: ${projectDir}`);
+    }
+
+    const entries = await fs.readdir(projectDir);
+    if (entries.length > 0) {
+      throw new Error(`Target directory is not empty: ${projectDir}`);
+    }
+  } catch (error) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code === 'ENOENT') return;
+    throw error;
+  }
+}
+
+function toTemplateChoices(templates: TemplateInfo[]) {
+  return templates.map((template) => ({
+    name: template.recommended
+      ? `${template.name} (Recommended)${template.description ? ` - ${template.description}` : ''}`
+      : `${template.name}${template.description ? ` - ${template.description}` : ''}`,
+    value: template.value
+  }));
+}
+
 export const initCommand = new Command('init')
-  .description('创建一个新的插件项目')
-  .option('-d, --description <description>', '插件描述')
-  .option('-a, --author <author>', '插件作者')
-  .option('-v, --version <version>', '插件版本', '1.0.0')
-  .argument('[name]', '插件名称')
-  .action(async (name: string | undefined, options: any) => {
-    const spinner = ora('正在初始化...').start();
+  .description('Create a new Qi plugin project from an example template')
+  .option('-d, --description <description>', 'Plugin description')
+  .option('-a, --author <author>', 'Plugin author')
+  .option('-v, --version <version>', 'Plugin version', '1.0.0')
+  .option('-t, --template <template>', 'Template name to use, for example "llama-cpp-plugin"')
+  .option('--list-templates', 'List available templates and exit')
+  .argument('[name]', 'Plugin package name')
+  .action(async (name: string | undefined, options: Record<string, unknown>) => {
+    const spinner = process.stdout.isTTY ? ora('Loading templates...').start() : null;
 
     try {
-      // 确定模板目录路径
-      // 在开发环境下，example 目录在 ../../example
-      // 在编译后的环境下，也应该在相同相对位置
-      let exampleDir = path.resolve(__dirname, '../../example');
+      const exampleDir = await resolveExampleDir();
+      const templates = await loadTemplates(exampleDir);
 
-      // 检查目录是否存在，如果不存在尝试其他可能路径
-      try {
-        await fs.access(exampleDir);
-      } catch {
-        // 兜底路径
-        exampleDir = path.resolve(process.cwd(), 'packages/qi-cli/example');
-      }
-
-      let templates: TemplateInfo[] = [];
-      try {
-        const dirs = await fs.readdir(exampleDir, { withFileTypes: true });
-        for (const dir of dirs) {
-          if (dir.isDirectory()) {
-            const infoPath = path.join(exampleDir, dir.name, 'info.json');
-            try {
-              const info = JSON.parse(await fs.readFile(infoPath, 'utf8'));
-              templates.push({
-                name: `${info.name} (${info.description || '无描述'})`,
-                value: dir.name,
-                description: info.description || ''
-              });
-            } catch {
-              templates.push({
-                name: dir.name,
-                value: dir.name,
-                description: ''
-              });
-            }
-          }
+      if (options.listTemplates) {
+        spinner?.stop();
+        console.log(chalk.bold('Available templates:'));
+        for (const template of templates) {
+          const suffix = template.recommended ? chalk.green(' (recommended)') : '';
+          console.log(`- ${chalk.cyan(template.value)}: ${template.name}${suffix}`);
+          if (template.description) console.log(`  ${template.description}`);
         }
-      } catch (err) {
-        templates = DEFAULT_TEMPLATES;
+        return;
       }
 
-      spinner.stop();
+      spinner?.stop();
 
-      // 如果没有提供名称，通过交互式询问
       let pluginName = name;
       if (!pluginName) {
         const answers = await inquirer.prompt([
           {
             type: 'input',
             name: 'pluginName',
-            message: '请输入插件名称:',
-            validate: (input: string) => {
-              if (!input.trim()) {
-                return '插件名称不能为空';
-              }
-              if (!/^[a-z0-9-]+$/.test(input)) {
-                return '插件名称只能包含小写字母、数字和连字符';
-              }
-              return true;
-            }
+            message: 'Plugin package name:',
+            validate: validatePluginName
           }
         ]);
-        pluginName = answers.pluginName;
+        pluginName = answers.pluginName as string;
       }
 
-      if (!pluginName) {
-        console.error(chalk.red('插件名称不能为空'));
+      const nameValidationResult = validatePluginName(pluginName || '');
+      if (nameValidationResult !== true) {
+        console.error(chalk.red(nameValidationResult));
         process.exit(1);
       }
 
-      // 询问其他信息
+      const requestedTemplate = typeof options.template === 'string' ? options.template : undefined;
+      let selectedTemplate = findTemplate(templates, requestedTemplate);
+
+      if (requestedTemplate && !selectedTemplate) {
+        console.error(chalk.red(`Unknown template: ${requestedTemplate}`));
+        console.log(chalk.gray('Run `qi code init --list-templates` to see valid template names.'));
+        process.exit(1);
+      }
+
       const promptQuestions: any[] = [];
+
       if (!options.description) {
         promptQuestions.push({
           type: 'input',
           name: 'description',
-          message: '请输入插件描述:',
-          default: `${pluginName} 插件`
+          message: 'Plugin description:',
+          default: `${toDisplayName(pluginName!)} plugin`
         });
       }
+
       if (!options.author) {
         promptQuestions.push({
           type: 'input',
           name: 'author',
-          message: '请输入作者名称:',
+          message: 'Author:',
           default: ''
         });
       }
-      promptQuestions.push({
-        type: 'list',
-        name: 'templateName',
-        message: '请选择插件模板:',
-        choices: templates
-      });
 
-      const answers = await inquirer.prompt(promptQuestions);
-      const description = options.description || answers.description;
-      const author = options.author || answers.author;
-      const templateName = answers.templateName;
+      if (!selectedTemplate) {
+        promptQuestions.push({
+          type: 'list',
+          name: 'templateName',
+          message: 'Choose a template:',
+          choices: toTemplateChoices(templates),
+          default: templates.find((template) => template.recommended)?.value
+        });
+      }
 
-      spinner.text = '正在从模板创建项目...';
-      spinner.start();
+      const answers = promptQuestions.length > 0 ? await inquirer.prompt(promptQuestions) : {};
 
-      const variables: Record<string, string> = {
-        pluginName: pluginName as string,
-        version: String(options.version),
-        description: description || '',
-        author: author || ''
-      };
+      selectedTemplate =
+        selectedTemplate || findTemplate(templates, String(answers.templateName || ''));
 
-      // 创建项目目录
-      const projectDir = path.join(process.cwd(), pluginName as string);
-      const templateSrcDir = path.join(exampleDir, templateName);
-
-      // 检查模板目录是否存在
-      try {
-        await fs.access(templateSrcDir);
-      } catch {
-        spinner.fail(chalk.red(`找不到模板目录: ${templateSrcDir}`));
+      if (!selectedTemplate) {
+        console.error(chalk.red('No template selected.'));
         process.exit(1);
       }
 
-      // 复制模板并替换变量
-      await copyTemplateDir(templateSrcDir, projectDir, variables);
+      const description = String(options.description || answers.description || '').trim();
+      const author = String(options.author || answers.author || '').trim();
+      const version = String(options.version || '1.0.0').trim();
 
-      spinner.succeed(chalk.green(`插件项目 "${pluginName}" 创建成功！`));
+      const variables: Record<string, string> = {
+        pluginName: pluginName!,
+        displayName: toDisplayName(pluginName!),
+        version,
+        description,
+        author
+      };
+
+      const projectDir = path.join(process.cwd(), pluginName!);
+      await ensureProjectDirAvailable(projectDir);
+
+      spinner?.start(`Creating plugin from template "${selectedTemplate.value}"...`);
+
+      if (selectedTemplate.value === 'hello-world') {
+        await createHelloWorldTemplate(projectDir, variables);
+      } else {
+        const templateSrcDir = path.join(exampleDir, selectedTemplate.value);
+        await fs.access(templateSrcDir);
+        await copyTemplateDir(templateSrcDir, projectDir, variables);
+      }
+
+      if (spinner) {
+        spinner.succeed(chalk.green(`Created plugin project "${pluginName}" successfully.`));
+      } else {
+        console.log(chalk.green(`Created plugin project "${pluginName}" successfully.`));
+      }
+
+      const packageManager = await detectPackageManager(process.cwd());
+      const installCommand = getInstallCommand(packageManager).join(' ');
 
       console.log('');
-      console.log(chalk.bold('下一步：'));
+      console.log(chalk.bold('Next steps:'));
       console.log(`  ${chalk.cyan('cd')} ${pluginName}`);
-      console.log(`  ${chalk.cyan('npm install')}`);
-      console.log(`  ${chalk.cyan('npm run build')}`);
-      console.log(`  ${chalk.cyan('qi code build')}  # 构建 .qi 插件文件`);
+      console.log(`  ${chalk.cyan(installCommand)}`);
+      console.log(`  ${chalk.cyan(`${packageManager === 'npm' ? 'npm run build' : `${packageManager} build`}`)}`);
+      console.log(`  ${chalk.cyan('qi code build')}  # Build the distributable .qi file`);
       console.log('');
     } catch (error) {
-      spinner.fail(chalk.red('创建插件项目失败'));
+      if (spinner) spinner.fail(chalk.red('Failed to create plugin project'));
+      else console.error(chalk.red('Failed to create plugin project'));
       if (error instanceof Error) {
         console.error(chalk.red(error.message));
       }
