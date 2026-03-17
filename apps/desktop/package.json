@@ -14,7 +14,7 @@
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "node -e \"try{require('child_process').execSync('taskkill /F /IM agent-qi.exe',{stdio:'ignore'})}catch(e){}\" && npm run build && electron-builder --win --config.win.signAndEditExecutable=false --config.forceCodeSigning=false",
+    "build:win": "node -e \"const fs=require('fs'); try{require('child_process').execSync('taskkill /F /IM agent-qi.exe',{stdio:'ignore'})}catch(e){} try{fs.rmSync('dist',{recursive:true,force:true})}catch(e){}\" && npm run build && electron-builder --win --config.win.signAndEditExecutable=false --config.forceCodeSigning=false",
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",
     "cap:sync": "node ./node_modules/@capacitor/cli/bin/capacitor sync android",
@@ -178,13 +178,17 @@
     ],
     "win": {
       "executableName": "agent-qi",
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
     "nsis": {
       "artifactName": "${name}-${version}-setup.${ext}",
       "shortcutName": "${productName}",
       "uninstallDisplayName": "${productName}",
-      "createDesktopShortcut": "always"
+      "createDesktopShortcut": "always",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
     },
     "mac": {
       "category": "public.app-category.utilities",

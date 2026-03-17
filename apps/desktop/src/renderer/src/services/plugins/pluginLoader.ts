@@ -1,5 +1,6 @@
 import { PluginManager } from './pluginManager';
 import JSZip from 'jszip';
+import * as Vue from 'vue';
 import {
   getMobilePluginPackage,
   listMobilePluginPackages,
@@ -213,8 +214,8 @@ export class PluginLoader {
           ${code}
           return ${pluginGlobalName};
         `;
-      const getPlugin = new Function(wrappedCode);
-      const plugin = getPlugin();
+      const getPlugin = new Function('Vue', wrappedCode);
+      const plugin = getPlugin(Vue);
 
 
       if (!plugin || typeof plugin !== 'object') {

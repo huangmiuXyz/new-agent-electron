@@ -5,7 +5,7 @@ import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [vueJsx()],
-  
+
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
     'process.env': JSON.stringify({ NODE_ENV: 'production' }),
@@ -19,12 +19,17 @@ export default defineConfig({
       formats: ['iife']
     },
     rollupOptions: {
+      external: ['vue', 'vue/jsx-runtime'],
       output: {
         dir: 'dist',
         entryFileNames: 'index.js',
         chunkFileNames: '[name].js',
         assetFileNames: '[name][extname]',
-        inlineDynamicImports: true
+        inlineDynamicImports: true,
+        globals: {
+          vue: 'Vue',
+          'vue/jsx-runtime': 'Vue'
+        }
       }
     },
     outDir: 'dist',

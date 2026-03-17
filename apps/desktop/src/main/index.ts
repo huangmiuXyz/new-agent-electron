@@ -162,7 +162,7 @@ app.on('second-instance', () => {
 
 if (gotSingleInstanceLock) {
   app.whenReady().then(() => {
-    electronApp.setAppUserModelId('com.electron')
+    electronApp.setAppUserModelId('com.electron.app')
 
   require('@electron/remote/main').initialize()
 
