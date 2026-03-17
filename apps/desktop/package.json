@@ -9,6 +9,7 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "build:icon:win": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-win-icon.ps1",
     "postinstall": "pnpm rebuild @vscode/ripgrep && pnpm -w rebuild:native",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
@@ -134,7 +135,9 @@
     "eslint-plugin-vue": "catalog:",
     "npm-run-all2": "catalog:",
     "oxlint": "catalog:",
+    "png-to-ico": "^3.0.1",
     "prettier": "catalog:",
+    "rcedit": "^5.0.2",
     "typescript": "catalog:",
     "unplugin-auto-import": "catalog:",
     "unplugin-vue-components": "catalog:",
@@ -149,6 +152,7 @@
     "directories": {
       "buildResources": "build"
     },
+    "afterPack": "./scripts/after-pack.mjs",
     "extraMetadata": {
       "dependencies": {
         "vosk-speech-recognition": null,
