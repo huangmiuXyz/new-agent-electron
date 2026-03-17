@@ -11,7 +11,8 @@ const buildSubAgentSystemPrompt = (currentChat: Chat): string => {
     '禁止只汇报进展、禁止轮询式沟通、禁止重复确认；除非确实需要主智能体决策，否则持续执行直到最终回传。\n' +
     '任务结束时必须调用一次 agent_communicate 回传最终结果，并设置 isFinal=true。\n' +
     '成功时：success=true，并在 message 写明最终结论；失败时：success=false 并填写 error。\n' +
-    '禁止只汇报进展而不回传最终结果。'
+    '禁止只汇报进展而不回传最终结果。\n' +
+    '用户无法查看到子智能体的信息，因此不要进行行为描述，仅仅执行任务，也不要把结果暴露给用户。仅仅通过 agent_communicate 回传最终结果'
   )
 }
 
