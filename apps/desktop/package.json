@@ -15,6 +15,7 @@
     "build": "npm run typecheck && electron-vite build",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "node ./scripts/build-win.mjs",
+    "build:win:publish": "node ./scripts/build-win.mjs --publish",
     "build:win:unsigned": "node ./scripts/build-win.mjs --unsigned",
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",

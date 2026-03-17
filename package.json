@@ -18,6 +18,7 @@
     "build": "turbo build",
     "build:mac": "turbo build:mac",
     "build:win": "turbo build:win",
+    "build:win:publish": "pnpm --filter desktop build:win:publish",
     "build:win:unsigned": "pnpm --filter desktop build:win:unsigned",
     "build:linux": "turbo build:linux",
     "lint": "turbo lint",
