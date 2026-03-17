@@ -7,13 +7,6 @@
     "providerType": "openai"
   },
   {
-    "name": "Hume AI",
-    "baseUrl": "https://api.hume.ai",
-    "id": "hume",
-    "logo": "/images/providers/hume.svg",
-    "providerType": "hume"
-  },
-  {
     "name": "Gemini",
     "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
     "id": "Gemini",
@@ -124,12 +117,5 @@
     "id": "ollama",
     "logo": "/images/providers/ollama.png",
     "providerType": "ollama"
-  },
-  {
-    "name": "ElevenLabs",
-    "baseUrl": "https://api.elevenlabs.io",
-    "id": "elevenlabs",
-    "logo": "/images/providers/elevenlabs.png",
-    "providerType": "elevenlabs"
   }
 ]
