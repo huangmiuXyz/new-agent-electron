@@ -26,12 +26,22 @@ $ pnpm dev
 # For windows
 $ pnpm build:win
 
+# For windows without signing
+$ pnpm build:win:unsigned
+
 # For macOS
 $ pnpm build:mac
 
 # For Linux
 $ pnpm build:linux
 ```
+
+Windows release builds are signed by default. Configure one of these before running `pnpm build:win`:
+
+- `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD`
+- `CSC_LINK` and `CSC_KEY_PASSWORD`
+
+`*_LINK` can be a local path, `file://` URL, HTTPS URL, or base64-encoded certificate supported by electron-builder.
 
 ### Android
 
