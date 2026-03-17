@@ -20,7 +20,7 @@ Reference source: `packages/types/src/plugin.ts`
   - `unregisterProvider(providerId)`
   - `registerRegistry(name, factory, options?)`
   - `unregisterRegistry(name)`
-- tools / hooks
+- tools / hooks / commands
   - `registerBuiltinTool(name, tool)`
   - `unregisterBuiltinTool(name)`
   - `registerHook(name, handler)`
@@ -31,6 +31,7 @@ Reference source: `packages/types/src/plugin.ts`
   - `useModal()`
   - `useDownload()`
   - `useIcon()`
+  - `useTerminal()`
   - `components`
   - `vue.ref/reactive/computed/watch/h/defineComponent/...`
 - storage / app state
@@ -38,13 +39,189 @@ Reference source: `packages/types/src/plugin.ts`
   - `getStore('settings')`
   - `getRegisteredProviders()`
   - `getPluginsDataPath()`
-- system
-  - `api.fs`
-  - `api.path`
-  - `api.os`
-  - `api.spawn`
 - feedback
   - `notification.success/info/warning/error/loading/status/removeStatus`
+
+## Real `context.api` Surface Area
+
+Reference sources:
+
+- `packages/types/src/electron.ts`
+- `apps/desktop/src/preload/index.ts`
+
+Do not reduce `context.api` to only `fs/path/os/spawn`. The plugin context exposes a much broader Electron preload API.
+
+### Process And System
+
+- `api.process`
+  - `platform`
+  - `env`
+  - `execPath`
+- `api.os`
+- `api.exec`
+- `api.spawn`
+- `api.fork`
+- `api.execFileCommand()`
+
+Good for:
+
+- starting local services
+- reading environment variables
+- launching external commands
+- reliably executing a single binary
+
+### Files And Paths
+
+- `api.fs`
+- `api.path`
+- `api.watch(path, callback)`
+- `api.getPath(name)`
+- `api.getAppPath()`
+- `api.getPluginsPath()`
+- `api.getBundledRipgrepPath()`
+
+Good for:
+
+- reading and writing plugin files
+- directory traversal
+- file watching
+- locating user data, plugin directories, and app paths
+
+### Shell And Clipboard
+
+- `api.shell`
+- `api.clipboard.writeText()`
+- `api.clipboard.readText()`
+- `api.url`
+- `api.mime`
+
+Good for:
+
+- opening external links or files
+- copy/paste flows
+- URL and MIME handling
+
+### Dialog And App Capabilities
+
+- `api.showOpenDialog()`
+- `api.app`
+- `api.openDevTools()`
+- `api.isPackaged`
+
+Good for:
+
+- choosing files or directories
+- detecting packaged versus dev environments
+- reading Electron app metadata
+
+### PTY And Terminal
+
+- `api.pty.spawn()`
+- `api.pty.write()`
+- `api.pty.resize()`
+- `api.pty.kill()`
+- `api.pty.onData()`
+- `api.pty.onExit()`
+
+Good for:
+
+- interactive terminal experiences
+- long-running shell sessions
+
+### Network And Download
+
+- `api.net.fetch()`
+- `api.net.download()`
+- `api.net.onDownloadProgress()`
+- `api.net.cancelDownload()`
+
+Good for:
+
+- requests that should go through main-process networking
+- large file downloads with progress reporting
+
+### SQLite And Local Indexing
+
+- `api.sqlite.isSupported()`
+- `api.sqlite.upsertChunks()`
+- `api.sqlite.updateChunks()`
+- `api.sqlite.deleteChunksByDoc()`
+- `api.sqlite.deleteChunksByKb()`
+- `api.sqlite.getChunkCountsByDoc()`
+- `api.sqlite.search()`
+- `api.sqlite.getAllChunks()`
+- `api.sqlite.getChunksByHash()`
+
+Good for:
+
+- plugins participating in local knowledge or embedding/index workflows
+
+### Search And Replace
+
+- `api.searchReplace.execute(...)`
+
+Good for:
+
+- controlled file edits
+- batch search/replace flows
+
+### Sync Features
+
+- `api.sync.startHost()`
+- `api.sync.stopHost()`
+- `api.sync.getHostState()`
+- `api.sync.updateProfile()`
+- `api.sync.publishSnapshot()`
+- `api.sync.listEndpoints()`
+- `api.sync.getEndpointSnapshot()`
+- `api.sync.onEvent()`
+
+Good for:
+
+- device sync or LAN sync style plugins
+
+### Computer Control
+
+- `api.computer.isAvailable()`
+- `api.computer.getScreenSize()`
+- `api.computer.getMousePosition()`
+- `api.computer.moveMouse()`
+- `api.computer.mouseClick()`
+- `api.computer.dragMouse()`
+- `api.computer.scrollMouse()`
+- `api.computer.typeText()`
+- `api.computer.keyTap()`
+- `api.computer.getPixelColor()`
+- `api.computer.captureScreen()`
+
+Good for:
+
+- desktop automation
+- screenshots
+- mouse and keyboard control
+
+### Windows And Updater
+
+- `api.setTitleBarTheme()`
+- `api.createTempChat()`
+- `api.getTempChatData()`
+- `api.updater.getVersion()`
+- `api.updater.checkForUpdates()`
+- `api.updater.downloadUpdate()`
+- `api.updater.quitAndInstall()`
+- `api.updater.onStatus()`
+
+Good for:
+
+- window behavior
+- temporary chat flows
+- app update state
+
+## Documentation Guidance
+
+- If a plugin only needs standard file/process access, document `fs/path/os/spawn/execFileCommand/watch` first
+- If a plugin needs downloads, PTY, automation, sync, or sqlite, call out the relevant `api.*` namespace explicitly
+- Do not guess preload APIs; go back to `packages/types/src/electron.ts`
 
 ## Common Implementation Patterns
 
