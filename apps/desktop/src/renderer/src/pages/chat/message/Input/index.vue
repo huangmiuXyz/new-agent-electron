@@ -1507,16 +1507,18 @@ onUnmounted(() => {
   color: var(--text-tertiary);
 }
 
-.stop-all-btn {
+.stop-all-btn:not(.is-idle) {
   color: var(--color-danger);
   background: color-mix(in srgb, var(--color-danger) 12%, transparent);
 }
 
-.stop-all-btn:hover {
+.stop-all-btn:not(.is-idle):hover {
   background: color-mix(in srgb, var(--color-danger) 18%, transparent);
 }
 
 .stop-all-btn.is-idle {
+  color: var(--text-secondary);
+  background: transparent;
   opacity: 0.45;
 }
 

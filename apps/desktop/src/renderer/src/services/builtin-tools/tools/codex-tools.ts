@@ -129,6 +129,97 @@ const injectBundledRipgrepPath = (command: string): string => {
   return `${leadingWhitespace}${quotedRipgrepPath}${rest}`
 }
 
+const splitCommandLine = (command: string): string[] => {
+  const tokens: string[] = []
+  let current = ''
+  let quote: '"' | "'" | null = null
+
+  for (let i = 0; i < command.length; i++) {
+    const char = command[i]
+
+    if (quote === '"') {
+      if (char === '\\') {
+        const next = command[i + 1]
+        if (next === '"' || next === '\\') {
+          current += next
+          i++
+          continue
+        }
+      }
+
+      if (char === '"') {
+        quote = null
+        continue
+      }
+
+      current += char
+      continue
+    }
+
+    if (quote === "'") {
+      if (char === "'") {
+        quote = null
+        continue
+      }
+
+      current += char
+      continue
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char
+      continue
+    }
+
+    if (/\s/.test(char)) {
+      if (current) {
+        tokens.push(current)
+        current = ''
+      }
+      continue
+    }
+
+    if (char === '\\') {
+      const next = command[i + 1]
+      if (next === '"' || next === "'" || next === '\\') {
+        current += next
+        i++
+        continue
+      }
+    }
+
+    current += char
+  }
+
+  if (quote) {
+    throw new Error('command contains an unclosed quote')
+  }
+
+  if (current) {
+    tokens.push(current)
+  }
+
+  return tokens
+}
+
+const execProjectSearchCommand = async (
+  command: string,
+  options: { cwd?: string; maxBuffer?: number } = {}
+): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
+  const trimmedStart = command.trimStart()
+  if (!/^rg(?:\s|$)/.test(trimmedStart)) {
+    return execCommand(command, options)
+  }
+
+  const ripgrepPath = window.api.getBundledRipgrepPath()
+  if (!ripgrepPath) {
+    return execCommand(command, options)
+  }
+
+  const args = splitCommandLine(trimmedStart).slice(1)
+  return window.api.execFileCommand(ripgrepPath, args, options)
+}
+
 export const getCodexBuiltinTools = (): Partial<Tools> => ({
   readFile: {
     title: '读取文件',
@@ -362,8 +453,10 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
 
       try {
         const rootDir = resolvePath('.')
+
+        debugger
         const resolvedCmd = injectBundledRipgrepPath(cmd)
-        const result = await execCommand(resolvedCmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
+        const result = await execProjectSearchCommand(cmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
         const stdout = result.stdout.trim()
         const stderr = result.stderr.trim()
         const errorMessage = result.errorMessage?.trim() || ''
