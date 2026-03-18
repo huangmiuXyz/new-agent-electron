@@ -84,62 +84,93 @@ const createIgnoreState = (
   }
 }
 
+const execCommand = (
+  command: string,
+  options: { cwd?: string; maxBuffer?: number } = {}
+): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
+  return new Promise((resolve) => {
+    window.api.exec(command, options, (error, stdout, stderr) => {
+      if (error) {
+        const errorWithCode = error as NodeJS.ErrnoException & { code?: number | string }
+        resolve({
+          code: typeof errorWithCode.code === 'number' ? errorWithCode.code : null,
+          stdout,
+          stderr,
+          errorMessage: errorWithCode.message,
+          errorCode: typeof errorWithCode.code === 'string' ? errorWithCode.code : undefined
+        })
+        return
+      }
+
+      resolve({
+        code: 0,
+        stdout,
+        stderr
+      })
+    })
+  })
+}
+
 export const getCodexBuiltinTools = (): Partial<Tools> => ({
   readFile: {
     title: '读取文件',
-    description: '读取本地文件内容',
+    description: '直接执行传入的命令字符串，不对命令内容做任何修改。',
     inputSchema: z.object({
-      path: z.string().describe('要读取的文件路径，支持相对路径（基于 terminalStartupPath）或绝对路径'),
+      cmd: z.string().describe('要原样执行的命令字符串')
     }),
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
-      const rawPath = params.path as string
-      const startLine = typeof params.start_line === 'number' ? params.start_line : undefined
-      const endLine = typeof params.end_line === 'number' ? params.end_line : undefined
-      const maxLength = typeof params.max_length === 'number' ? params.max_length : 20000
-
-      if (!rawPath) {
-        return { toolResult: { content: [{ type: 'text', text: '读取文件失败：path 不能为空' }] } }
-      }
-      if (startLine !== undefined && endLine !== undefined && startLine > endLine) {
-        return {
-          toolResult: {
-            content: [{ type: 'text', text: '读取文件失败：start_line 不能大于 end_line' }]
-          }
-        }
+      const cmd = String(params.cmd || '')
+      if (!cmd.trim()) {
+        return { toolResult: { content: [{ type: 'text', text: '读取文件失败：cmd 不能为空' }] } }
       }
 
       try {
-        const filePath = resolvePath(rawPath)
-        if (!window.api.fs.existsSync(filePath)) {
+        const rootDir = resolvePath('.')
+        const result = await execCommand(cmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
+        const stdout = result.stdout.trim()
+        const stderr = result.stderr.trim()
+        const errorMessage = result.errorMessage?.trim() || ''
+
+        if (result.code === 1 && !stdout) {
           return {
             toolResult: {
-              content: [{ type: 'text', text: `读取文件失败：文件不存在 ${filePath}` }]
+              content: [
+                {
+                  type: 'text',
+                  text: `命令执行完成，无标准输出\ncmd: ${cmd}\ncwd: ${rootDir.replaceAll('\\', '/')}\n${stderr ? `\nstderr:\n${stderr}` : ''}`
+                }
+              ]
             }
           }
         }
-        const stat = window.api.fs.lstatSync(filePath)
-        const isDir = (stat.mode & 0o170000) === 0o040000
-        if (isDir) {
+
+        if (result.code !== 0 && result.code !== 1) {
           return {
             toolResult: {
-              content: [{ type: 'text', text: `读取文件失败：目标是目录而非文件 ${filePath}` }]
+              content: [
+                {
+                  type: 'text',
+                  text: `读取文件失败：${stderr || stdout || errorMessage || 'command execution failed'}`
+                }
+              ]
             }
           }
         }
-        const fileContent = window.api.fs.readFileSync(filePath, 'utf-8')
-        let content = fileContent
 
-        if (startLine !== undefined || endLine !== undefined) {
-          const lines = fileContent.split(/\r?\n/)
-          const startIndex = Math.max(startLine ?? 0, 0)
-          const endIndex = endLine ?? lines.length
-          content = lines.slice(startIndex, endIndex).join('\n')
+        const outputSections = [`命令执行完成\ncmd: ${cmd}\ncwd: ${rootDir.replaceAll('\\', '/')}`]
+        if (stdout) {
+          outputSections.push(`stdout:\n${stdout}`)
+        }
+        if (stderr) {
+          outputSections.push(`stderr:\n${stderr}`)
         }
 
-        content = content.slice(0, maxLength)
-
-        return { toolResult: { content: [{ type: 'text', text: content }] } }
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: outputSections.join('\n\n') }]
+          }
+        }
       } catch (error) {
         return {
           toolResult: {
@@ -299,60 +330,20 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   search_project: {
     title: '项目搜索',
     description:
-      '使用 ripgrep (rg) 在项目中搜索，flags 会原样传给 rg。优先将 path 缩小到相关源码目录。',
+      '请使用rg进行搜索，直接执行传入的命令字符串，不对命令内容做任何修改。',
     inputSchema: z.object({
-      query: z.string().describe('rg 搜索模式'),
-      path: z.string().optional().default('.').describe('rg 执行目录，默认当前项目'),
-      flags: z
-        .array(z.string())
-        .optional()
-        .default([])
-        .describe(
-          '直接传给 rg 的参数数组，例如 ["-n", "-S", "-g", "*.ts"]。'
-        )
+      cmd: z.string().describe('要原样执行的命令字符串')
     }),
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
-      const query = String(params.query || '').trim()
-      if (!query) {
-        return { toolResult: { content: [{ type: 'text', text: 'search_project 失败：query 不能为空' }] } }
+      const cmd = String(params.cmd || '')
+      if (!cmd.trim()) {
+        return { toolResult: { content: [{ type: 'text', text: 'search_project 失败：cmd 不能为空' }] } }
       }
 
       try {
-        const rootDir = resolvePath(String(params.path || '.'))
-        if (!window.api.fs.existsSync(rootDir)) {
-          return {
-            toolResult: { content: [{ type: 'text', text: `search_project 失败：目录不存在 ${rootDir}` }] }
-          }
-        }
-
-        const stat = window.api.fs.lstatSync(rootDir)
-        const isDir = (stat.mode & 0o170000) === 0o040000
-        if (!isDir) {
-          return {
-            toolResult: { content: [{ type: 'text', text: `search_project 失败：路径不是目录 ${rootDir}` }] }
-          }
-        }
-
-        const flags = Array.isArray(params.flags)
-          ? params.flags.filter((flag: unknown) => typeof flag === 'string' && flag.trim().length > 0)
-          : []
-        const rgExecutable = window.api.getBundledRipgrepPath?.() || 'rg'
-        const rgArgs = [
-          '--color',
-          'never',
-          '--line-number',
-          '--no-heading',
-          '--no-require-git',
-          ...flags,
-          '--',
-          query,
-          '.'
-        ]
-        const result = await window.api.execFileCommand(rgExecutable, rgArgs, {
-          cwd: rootDir,
-          maxBuffer: 8 * 1024 * 1024
-        })
+        const rootDir = resolvePath('.')
+        const result = await execCommand(cmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
         const stdout = result.stdout.trim()
         const stderr = result.stderr.trim()
         const errorMessage = result.errorMessage?.trim() || ''
@@ -363,7 +354,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
               content: [
                 {
                   type: 'text',
-                  text: `未找到匹配结果\nquery: ${query}\npath: ${rootDir.replaceAll('\\', '/')}\nflags: ${flags.join(' ')}`
+                  text: `命令执行完成，无标准输出\ncmd: ${cmd}\ncwd: ${rootDir.replaceAll('\\', '/')}\n${stderr ? `\nstderr:\n${stderr}` : ''}`
                 }
               ]
             }
@@ -371,24 +362,24 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
 
         if (result.code !== 0 && result.code !== 1) {
-          const message = stderr || stdout || errorMessage || 'rg execution failed'
-          const missingExecutable =
-            result.errorCode === 'ENOENT' ||
-            ((/not recognized|command not found|cannot find|not found/i.test(message) ||
-              /spawn .*enoent/i.test(message)) &&
-              /(^|[\\/])rg(\.exe)?(\s|$)/i.test(`${rgExecutable} ${message}`))
           return {
             toolResult: {
               content: [
                 {
                   type: 'text',
-                  text: missingExecutable
-                    ? 'search_project 失败：未找到内置 rg，请重新安装应用或确认 ripgrep 可用。'
-                    : `search_project 失败：${message}`
+                  text: `search_project 失败：${stderr || stdout || errorMessage || 'command execution failed'}`
                 }
               ]
             }
           }
+        }
+
+        const outputSections = [`命令执行完成\ncmd: ${cmd}\ncwd: ${rootDir.replaceAll('\\', '/')}`]
+        if (stdout) {
+          outputSections.push(`stdout:\n${stdout}`)
+        }
+        if (stderr) {
+          outputSections.push(`stderr:\n${stderr}`)
         }
 
         return {
@@ -396,7 +387,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
             content: [
               {
                 type: 'text',
-                text: `rg 搜索完成\nquery: ${query}\npath: ${rootDir.replaceAll('\\', '/')}\nflags: ${flags.join(' ')}\n\n${stdout}`
+                text: outputSections.join('\n\n')
               }
             ]
           }
