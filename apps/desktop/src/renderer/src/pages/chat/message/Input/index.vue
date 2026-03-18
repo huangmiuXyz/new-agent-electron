@@ -76,16 +76,18 @@ const currentChatModel = computed(() => {
 const InfoCircle = useIcon('InfoCircle')
 const numberFormatter = new Intl.NumberFormat('zh-CN')
 const currentChatTokenUsage = computed(() => {
-  const totals = (chatStore.currentChat?.messages || []).reduce(
-    (acc, message) => {
-      const usage = getFlatTokenUsage(message.metadata?.usage)
-      acc.total += usage.totalTokens || 0
-      acc.input += usage.inputTokens || 0
-      acc.output += usage.outputTokens || 0
-      return acc
-    },
-    { total: 0, input: 0, output: 0 }
-  )
+  const totals = (chatStore.currentChat?.messages || [])
+    .filter((message) => !message.metadata?.deletedAt)
+    .reduce(
+      (acc, message) => {
+        const usage = getFlatTokenUsage(message.metadata?.usage)
+        acc.total += usage.totalTokens || 0
+        acc.input += usage.inputTokens || 0
+        acc.output += usage.outputTokens || 0
+        return acc
+      },
+      { total: 0, input: 0, output: 0 }
+    )
 
   return {
     ...totals,
