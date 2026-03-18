@@ -226,7 +226,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   readFile: {
     title: '读取文件',
     description: isWindows
-      ? '用于读取文件内容。优先使用 type、findstr 等读取命令；需要搜索内容时请改用 search_project 并优先使用 rg。'
+      ? '用于读取文件内容。优先使用 Get-Content、type、findstr 等读取命令；需要搜索内容时请改用 search_project 并优先使用 rg。'
       : '用于读取文件内容。优先使用 cat、sed、nl 等读取命令；需要搜索内容时请改用 search_project 并优先使用 rg。',
     inputSchema: z.object({
       cmd: z.string().describe('要原样执行的命令字符串')
