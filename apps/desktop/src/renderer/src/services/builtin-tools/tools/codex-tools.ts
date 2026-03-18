@@ -1,4 +1,4 @@
-import { z } from 'zod'
+﻿import { z } from 'zod'
 import ignore from 'ignore'
 import ApplyPatchRender from '../components/ApplyPatchRender.vue'
 
@@ -457,7 +457,6 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       try {
         const rootDir = resolvePath('.')
 
-        debugger
         const resolvedCmd = injectBundledRipgrepPath(cmd)
         const result = await execProjectSearchCommand(cmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
         const stdout = result.stdout.trim()
