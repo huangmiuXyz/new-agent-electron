@@ -189,6 +189,7 @@ export const useChatsStores = defineStore(
       if (!state) return
 
       let changed = false
+      const sortedNodes = [...state.nodes].sort((a, b) => a.createdAt - b.createdAt)
       const keptNodes: RetryBranchNode[] = []
       const keptIds = new Set<string>()
 
@@ -200,7 +201,7 @@ export const useChatsStores = defineStore(
         return parentMessages.some((message) => message.id === node.forkMessageId)
       }
 
-      for (const node of [...state.nodes].sort((a, b) => a.createdAt - b.createdAt)) {
+      for (const node of sortedNodes) {
         if (node.parentBranchId != null && !keptIds.has(node.parentBranchId)) {
           changed = true
           continue
@@ -227,6 +228,37 @@ export const useChatsStores = defineStore(
       if (state.nodes.length === 0 && state.activeBranchId == null) {
         delete chat.retryBranchState
       }
+    }
+
+    const collapseEmptyRetryBranches = (chat: Chat) => {
+      const state = chat.retryBranchState
+      if (!state) return
+
+      const previousNodesById = new Map(state.nodes.map((node) => [node.id, node]))
+      const keptNodes = state.nodes.filter((node) => hasVisibleRetryContinuation(node.messages, node.forkMessageId))
+
+      if (keptNodes.length === state.nodes.length) return
+
+      const keptIds = new Set(keptNodes.map((node) => node.id))
+      state.nodes = keptNodes
+
+      if (state.activeBranchId && !keptIds.has(state.activeBranchId)) {
+        let fallbackBranchId: string | null = null
+        let currentParentBranchId = previousNodesById.get(state.activeBranchId)?.parentBranchId || null
+
+        while (currentParentBranchId) {
+          if (keptIds.has(currentParentBranchId)) {
+            fallbackBranchId = currentParentBranchId
+            break
+          }
+          currentParentBranchId = previousNodesById.get(currentParentBranchId)?.parentBranchId || null
+        }
+
+        state.activeBranchId = fallbackBranchId
+        chat.messages = cloneMessages(getRetryBranchMessages(chat, fallbackBranchId))
+      }
+
+      pruneRetryBranchTree(chat)
     }
 
     const forEachRetryBranchMessages = (chat: Chat, handler: (messages: BaseMessage[]) => BaseMessage[]) => {
@@ -450,6 +482,8 @@ export const useChatsStores = defineStore(
             } as BaseMessage
           })
         )
+
+        collapseEmptyRetryBranches(chat)
 
         if (!forkMessageId) return
 
