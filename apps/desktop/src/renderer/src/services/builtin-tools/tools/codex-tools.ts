@@ -357,7 +357,17 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           ? params.flags.filter((flag: unknown) => typeof flag === 'string' && flag.trim().length > 0)
           : []
         const rgExecutable = window.api.getBundledRipgrepPath?.() || 'rg'
-        const rgArgs = ['--color', 'never', '--line-number', '--no-heading', ...flags, '--', query, '.']
+        const rgArgs = [
+          '--color',
+          'never',
+          '--line-number',
+          '--no-heading',
+          '--no-require-git',
+          ...flags,
+          '--',
+          query,
+          '.'
+        ]
         const result = await window.api.execFileCommand(rgExecutable, rgArgs, {
           cwd: rootDir,
           maxBuffer: 8 * 1024 * 1024
