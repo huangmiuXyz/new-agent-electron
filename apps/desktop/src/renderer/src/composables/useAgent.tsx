@@ -30,10 +30,7 @@ export const useAgent = () => {
     return normalizedPath
   }
 
-  const getBuiltinToolOptions = (
-    selectedToolKeys?: string[],
-    approvalToolKeys?: string[]
-  ) => {
+  const getBuiltinToolOptions = (selectedToolKeys?: string[], approvalToolKeys?: string[]) => {
     const tools = getBuiltinTools()
     const grouped = getBuiltinToolGroups()
     const groupByTool = new Map<string, string>()
@@ -530,7 +527,7 @@ export const useAgent = () => {
         options: [],
         columns: 2,
         ifShow: (data) => data.mcpServers! && data.mcpServers!.length > 0
-      } as CheckboxGroupField<AgentFormData>,
+      } as CheckboxGroupField<AgentFormData>
     ]
 
     const setBuiltinToolApproval = (toolName: string, requiresApproval: boolean) => {
@@ -616,8 +613,7 @@ export const useAgent = () => {
         name: 'ragEnabled',
         type: 'boolean',
         label: '启用RAG',
-        hint: '启用后，将自动从关联的知识库中检索相关内容并插入到用户输入中',
-        ifShow: (data) => data.knowledgeBaseIds! && data.knowledgeBaseIds!.length > 0
+        hint: '启用后，将自动从关联的知识库中检索相关内容并插入到用户输入中'
       } as BooleanField<AgentFormData>
     ]
 
@@ -1261,10 +1257,9 @@ export const useAgent = () => {
         }
         if (field === 'builtinTools') {
           const selectedBuiltinTools = value as string[]
-          const currentApprovalTools =
-            ((formData.builtinToolsRequireApproval as string[]) || []).filter((toolName) =>
-              selectedBuiltinTools.includes(toolName)
-            )
+          const currentApprovalTools = (
+            (formData.builtinToolsRequireApproval as string[]) || []
+          ).filter((toolName) => selectedBuiltinTools.includes(toolName))
           formActions.setFieldValue('builtinToolsRequireApproval', currentApprovalTools)
           formActions.updateFieldProps('builtinTools', {
             options: getBuiltinToolOptions(selectedBuiltinTools, currentApprovalTools)
@@ -1318,7 +1313,12 @@ export const useAgent = () => {
           { id: 'basic', name: '基本信息', icon: Robot, fields: basicFields },
           { id: 'model', name: '模型参数', icon: Settings, fields: modelFields },
           { id: 'speech', name: '语音配置', icon: Speaker224Regular, fields: speechFields },
-          { id: 'builtin-tools', name: '内置工具', icon: Wrench20Regular, fields: builtinToolFields },
+          {
+            id: 'builtin-tools',
+            name: '内置工具',
+            icon: Wrench20Regular,
+            fields: builtinToolFields
+          },
           { id: 'mcp', name: 'MCP 服务', icon: Wrench20Regular, fields: mcpFields },
           { id: 'skills', name: '技能配置', icon: Sparkles, fields: skillFields },
           { id: 'knowledge', name: '知识库', icon: Library16Filled, fields: knowledgeFields },
