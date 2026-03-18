@@ -386,6 +386,7 @@ const READ_ONLY_COMMANDS = new Set([
   'echo',
   'file',
   'find',
+  'get-content',
   'git',
   'grep',
   'head',
@@ -448,16 +449,17 @@ export const validateReadOnlyCommand = (
       return { ok: false, reason: `无法识别命令: ${segment}` }
     }
     const baseCommand = baseMatch[1]
-    if (!READ_ONLY_COMMANDS.has(baseCommand)) {
+    const normalizedBaseCommand = baseCommand.toLowerCase()
+    if (!READ_ONLY_COMMANDS.has(normalizedBaseCommand)) {
       return { ok: false, reason: `仅允许只读命令，禁止: ${baseCommand}` }
     }
-    if (baseCommand === 'git') {
-      const subCommand = cleaned.match(/^git\s+([A-Za-z0-9._-]+)/)?.[1]
+    if (normalizedBaseCommand === 'git') {
+      const subCommand = cleaned.match(/^git\s+([A-Za-z0-9._-]+)/i)?.[1]?.toLowerCase()
       if (!subCommand || !READ_ONLY_GIT_SUBCOMMANDS.has(subCommand)) {
         return { ok: false, reason: `git 子命令不在只读白名单中: ${subCommand || '<empty>'}` }
       }
     }
-    if (baseCommand === 'sed' && /\s-i(\s|$)/.test(cleaned)) {
+    if (normalizedBaseCommand === 'sed' && /\s-i(\s|$)/.test(cleaned)) {
       return { ok: false, reason: 'sed -i 会写入文件，已禁止' }
     }
   }

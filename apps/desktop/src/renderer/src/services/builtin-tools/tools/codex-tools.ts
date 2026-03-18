@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import ignore from 'ignore'
 import ApplyPatchRender from '../components/ApplyPatchRender.vue'
-import { applySearchReplace } from './codex-utils'
+import { execPromise } from '@renderer/utils'
+import { applySearchReplace, validateReadOnlyCommand } from './codex-utils'
 
 const resolvePath = (rawPath: string): string => {
   const baseDir = useAgentStore().selectedAgent?.terminalStartupPath
@@ -604,6 +605,71 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         return {
           toolResult: {
             content: [{ type: 'text', text: `搜索失败: ${(error as Error).message}` }]
+          }
+        }
+      }
+    }
+  },
+  read_file_by_command: {
+    title: '命令读取文件',
+    description: '使用只读命令直接读取文件内容，支持 Get-Content 或 sed 等命令',
+    inputSchema: z.object({
+      command: z.string().describe('直接执行的只读命令，例如 Get-Content ./a.txt 或 sed -n "1,20p" ./a.txt')
+    }),
+    execute: async (args: unknown) => {
+      const params = args as Record<string, any>
+      const command = String(params.command || '').trim()
+
+      if (!command) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: '命令读取文件失败：command 不能为空' }]
+          }
+        }
+      }
+
+      const validation = validateReadOnlyCommand(command)
+      if (!validation.ok) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: `命令读取文件失败：${validation.reason}` }]
+          }
+        }
+      }
+
+      const cwd = useAgentStore().selectedAgent?.terminalStartupPath
+      if (!cwd) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: '命令读取文件失败：未设置 terminalStartupPath' }]
+          }
+        }
+      }
+
+      try {
+        const shellCommand =
+          window.api.os.platform() === 'win32'
+            ? `powershell -NoProfile -EncodedCommand ${Buffer.from(command, 'utf16le').toString('base64')}`
+            : command
+        const { stdout, stderr } = await execPromise(shellCommand, { cwd })
+        const output = [stdout, stderr ? `\n[stderr]\n${stderr}` : ''].join('').trim()
+
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: output || '命令执行完成，无输出' }]
+          }
+        }
+      } catch (error: any) {
+        const stdout = typeof error?.stdout === 'string' && error.stdout ? `\n[stdout]\n${error.stdout}` : ''
+        const stderr = typeof error?.stderr === 'string' && error.stderr ? `\n[stderr]\n${error.stderr}` : ''
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text: `命令读取文件失败: ${error?.message || 'unknown error'}${stdout}${stderr}`
+              }
+            ]
           }
         }
       }
