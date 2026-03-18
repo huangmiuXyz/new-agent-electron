@@ -111,10 +111,29 @@ const execCommand = (
   })
 }
 
+const injectBundledRipgrepPath = (command: string): string => {
+  const trimmedStart = command.trimStart()
+  if (!/^rg(?:\s|$)/.test(trimmedStart)) {
+    return command
+  }
+
+  const ripgrepPath = window.api.getBundledRipgrepPath()
+  if (!ripgrepPath) {
+    return command
+  }
+
+  const leadingWhitespace = command.slice(0, command.length - trimmedStart.length)
+  const rest = trimmedStart.slice(2)
+  const quotedRipgrepPath = `"${ripgrepPath.replaceAll('"', '\\"')}"`
+
+  return `${leadingWhitespace}${quotedRipgrepPath}${rest}`
+}
+
 export const getCodexBuiltinTools = (): Partial<Tools> => ({
   readFile: {
     title: '读取文件',
-    description: '直接执行传入的命令字符串，不对命令内容做任何修改。',
+    description:
+      '用于读取文件内容。优先使用 cat、sed、nl 等读取命令；需要搜索内容时请改用 search_project 并优先使用 rg。',
     inputSchema: z.object({
       cmd: z.string().describe('要原样执行的命令字符串')
     }),
@@ -330,7 +349,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   search_project: {
     title: '项目搜索',
     description:
-      '请使用rg进行搜索，直接执行传入的命令字符串，不对命令内容做任何修改。',
+      '使用rg进行搜索，直接执行传入的命令字符串；',
     inputSchema: z.object({
       cmd: z.string().describe('要原样执行的命令字符串')
     }),
@@ -343,7 +362,8 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
 
       try {
         const rootDir = resolvePath('.')
-        const result = await execCommand(cmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
+        const resolvedCmd = injectBundledRipgrepPath(cmd)
+        const result = await execCommand(resolvedCmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
         const stdout = result.stdout.trim()
         const stderr = result.stderr.trim()
         const errorMessage = result.errorMessage?.trim() || ''
@@ -354,7 +374,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
               content: [
                 {
                   type: 'text',
-                  text: `命令执行完成，无标准输出\ncmd: ${cmd}\ncwd: ${rootDir.replaceAll('\\', '/')}\n${stderr ? `\nstderr:\n${stderr}` : ''}`
+                  text: `命令执行完成，无标准输出\ncmd: ${cmd}${resolvedCmd !== cmd ? `\nresolved_cmd: ${resolvedCmd}` : ''}\ncwd: ${rootDir.replaceAll('\\', '/')}\n${stderr ? `\nstderr:\n${stderr}` : ''}`
                 }
               ]
             }
@@ -374,7 +394,9 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           }
         }
 
-        const outputSections = [`命令执行完成\ncmd: ${cmd}\ncwd: ${rootDir.replaceAll('\\', '/')}`]
+        const outputSections = [
+          `命令执行完成\ncmd: ${cmd}${resolvedCmd !== cmd ? `\nresolved_cmd: ${resolvedCmd}` : ''}\ncwd: ${rootDir.replaceAll('\\', '/')}`
+        ]
         if (stdout) {
           outputSections.push(`stdout:\n${stdout}`)
         }
