@@ -5,6 +5,31 @@ const extractBase64PayloadFromDataUrl = (url: string): string | null => {
   return match?.[1] || null
 }
 
+const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
+  let binary = ''
+  const chunkSize = 0x8000
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize)
+    binary += String.fromCharCode(...chunk)
+  }
+
+  return btoa(binary)
+}
+
+const extractBase64PayloadFromFileUrl = (url: string): string | null => {
+  if (!url.startsWith('file://')) return null
+
+  try {
+    const filePath = window.api.url.fileURLToPath(url)
+    const fileBuffer = window.api.fs.readFileSync(filePath)
+    return uint8ArrayToBase64(new Uint8Array(fileBuffer))
+  } catch (error) {
+    console.warn('Failed to inline local file URL:', error)
+    return null
+  }
+}
+
 /**
  * 清洗 UI 消息，移除没有对应结果的工具调用，以防止模型报错 "insufficient tool messages"。
  *
@@ -75,11 +100,13 @@ export function normalizeInlineFilePartUrls(messages: UIMessage[]): UIMessage[] 
   return messages.map((message) => ({
     ...message,
     parts: message.parts.map((part) => {
-      if (part.type !== 'file' || typeof part.url !== 'string' || !part.url.startsWith('data:')) {
+      if (part.type !== 'file' || typeof part.url !== 'string') {
         return part
       }
 
-      const base64Payload = extractBase64PayloadFromDataUrl(part.url)
+      const base64Payload =
+        extractBase64PayloadFromDataUrl(part.url) || extractBase64PayloadFromFileUrl(part.url)
+
       if (!base64Payload) {
         return part
       }
