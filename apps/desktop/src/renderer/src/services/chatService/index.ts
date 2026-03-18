@@ -18,7 +18,7 @@ import { createContextLimitMiddleware } from './middleware/contextLimit'
 import { createCompressContextMiddleware } from './middleware/compressContext'
 import { createUsageGuardMiddleware } from './middleware/usageGuard'
 import { createSkillReferenceMiddleware } from './middleware/skillReferences'
-import { sanitizeUIMessages } from './utils'
+import { normalizeInlineFilePartUrls, sanitizeUIMessages } from './utils'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { createToolMiddleware } from './middleware/createToolMiddleware'
 import {
@@ -665,8 +665,10 @@ export const chatService = () => {
       isManualApproval: isApprovalAction || false
     })
 
+    const normalizedMessages = normalizeInlineFilePartUrls(sanitizedMessages)
+
     // 3. Convert to model messages
-    const modelMessages = await convertToModelMessages(sanitizedMessages, {
+    const modelMessages = await convertToModelMessages(normalizedMessages, {
       tools: agent.tools
     })
 

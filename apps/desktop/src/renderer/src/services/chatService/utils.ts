@@ -1,5 +1,10 @@
 import { UIMessage, isToolUIPart } from 'ai'
 
+const extractBase64PayloadFromDataUrl = (url: string): string | null => {
+  const match = url.match(/^data:[^;,]+;base64,(.+)$/)
+  return match?.[1] || null
+}
+
 /**
  * 清洗 UI 消息，移除没有对应结果的工具调用，以防止模型报错 "insufficient tool messages"。
  *
@@ -64,4 +69,25 @@ export function sanitizeUIMessages(
       })
     }
   })
+}
+
+export function normalizeInlineFilePartUrls(messages: UIMessage[]): UIMessage[] {
+  return messages.map((message) => ({
+    ...message,
+    parts: message.parts.map((part) => {
+      if (part.type !== 'file' || typeof part.url !== 'string' || !part.url.startsWith('data:')) {
+        return part
+      }
+
+      const base64Payload = extractBase64PayloadFromDataUrl(part.url)
+      if (!base64Payload) {
+        return part
+      }
+
+      return {
+        ...part,
+        url: base64Payload
+      }
+    })
+  }))
 }
