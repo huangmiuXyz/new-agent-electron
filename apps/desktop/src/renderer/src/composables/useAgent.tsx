@@ -49,7 +49,7 @@ export const useAgent = () => {
         group: groupByTool.get(key) || '其他工具',
         actionActive: approvalSet.has(key),
         actionDisabled: selectedSet ? !selectedSet.has(key) : false,
-        actionTitle: '配置审批',
+        actionTitle: '配置',
         tags: approvalSet.has(key) ? ['需批准'] : [],
         tagColor: 'orange'
       }))
@@ -183,6 +183,7 @@ export const useAgent = () => {
           tools: [...(agent.tools || [])],
           builtinTools: [...(agent.builtinTools || [])],
           builtinToolsRequireApproval: [...(agent.builtinToolsRequireApproval || [])],
+          execCommandRunInBackground: agent.execCommandRunInBackground ?? false,
           ragEnabled: agent.ragEnabled ?? false,
           terminalStartupPath: agent.terminalStartupPath || '',
           skillDirectory: agent.skillDirectory || DEFAULT_SKILL_DIRECTORY,
@@ -217,6 +218,7 @@ export const useAgent = () => {
           tools: [],
           builtinTools: [],
           builtinToolsRequireApproval: [],
+          execCommandRunInBackground: false,
           ragEnabled: false,
           terminalStartupPath: '',
           skillDirectory: DEFAULT_SKILL_DIRECTORY,
@@ -549,19 +551,26 @@ export const useAgent = () => {
     const openBuiltinToolApprovalModal = (option: CheckboxOption) => {
       const selectedBuiltinTools = (formActions.getFieldValue('builtinTools') as string[]) || []
       if (!selectedBuiltinTools.includes(option.value)) {
-        messageApi.warning('请先启用这个内置工具，再配置审批方式')
+        messageApi.warning('请先启用这个内置工具，再配置工具设置')
         return
       }
 
       const currentApprovalTools =
         (formActions.getFieldValue('builtinToolsRequireApproval') as string[]) || []
       const currentValue = currentApprovalTools.includes(option.value)
+      const currentExecCommandRunInBackground =
+        (formActions.getFieldValue('execCommandRunInBackground') as boolean) ?? false
+      const isExecCommand = option.value === 'exec_command'
 
-      const [ApprovalForm, approvalFormActions] = useForm<{ requireApproval: boolean }>({
-        title: `审批设置 · ${option.label}`,
+      const [ApprovalForm, approvalFormActions] = useForm<{
+        requireApproval: boolean
+        execCommandRunInBackground: boolean
+      }>({
+        title: `工具设置 · ${option.label}`,
         showHeader: false,
         initialData: {
-          requireApproval: currentValue
+          requireApproval: currentValue,
+          execCommandRunInBackground: currentExecCommandRunInBackground
         },
         fields: [
           {
@@ -569,16 +578,35 @@ export const useAgent = () => {
             type: 'boolean',
             label: '执行前需手动批准',
             hint: '开启后，这个内置工具每次执行前都会先请求你的批准。'
-          } as BooleanField<{ requireApproval: boolean }>
+          } as BooleanField<{
+            requireApproval: boolean
+            execCommandRunInBackground: boolean
+          }>,
+          {
+            name: 'execCommandRunInBackground',
+            type: 'boolean',
+            label: '后台静默执行',
+            hint: '开启后，exec_command 执行时不会自动展开终端面板，命令仍会在后台终端中运行。',
+            ifShow: () => isExecCommand
+          } as BooleanField<{
+            requireApproval: boolean
+            execCommandRunInBackground: boolean
+          }>
         ],
         onSubmit: (data) => {
           setBuiltinToolApproval(option.value, !!data.requireApproval)
+          if (isExecCommand) {
+            formActions.setFieldValue(
+              'execCommandRunInBackground',
+              !!data.execCommandRunInBackground
+            )
+          }
           remove()
         }
       })
 
       confirm({
-        title: `审批设置 · ${option.label}`,
+        title: `工具设置 · ${option.label}`,
         content: ApprovalForm,
         width: '420px',
         maxHeight: '60vh',

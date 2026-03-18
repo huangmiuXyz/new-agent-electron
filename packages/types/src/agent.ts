@@ -9,6 +9,7 @@ declare global {
     tools: string[] // 工具名称列表，格式为 "服务器名.工具名"
     builtinTools: string[] // 内置工具名称列表
     builtinToolsRequireApproval?: string[] // 需要手动批准的内置工具名称列表
+    execCommandRunInBackground?: boolean // exec_command 是否默认在后台静默执行
     icon?: string
     avatar?: string
     createdAt: number

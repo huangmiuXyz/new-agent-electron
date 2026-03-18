@@ -12,6 +12,7 @@ export const useAgentStore = defineStore(
         tools: [],
         builtinTools: [],
         builtinToolsRequireApproval: [],
+        execCommandRunInBackground: false,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         knowledgeBaseIds: [],
