@@ -9,11 +9,10 @@ const program = new Command();
 
 program
   .name('qi')
-  .description('Qi CLI - 创建和打包 Qi 插件')
+  .description('Qi CLI for creating, developing, and packaging Agent-Qi plugins')
   .version('1.0.0');
 
-const codeCommand = new Command('code')
-  .description('插件开发相关命令');
+const codeCommand = new Command('code').description('Plugin development commands');
 
 codeCommand.addCommand(initCommand);
 codeCommand.addCommand(buildCommand);

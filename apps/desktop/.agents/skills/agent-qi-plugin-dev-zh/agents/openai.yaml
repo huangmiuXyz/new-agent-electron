@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent-Qi 插件开发（中文）"
+  short_description: "中文 Agent-Qi 插件开发技能，聚焦 API、示例与实现模式。"
+  default_prompt: "使用此技能来实现或修改 Agent-Qi 插件，并优先参考仓库中的类型定义与示例插件。"

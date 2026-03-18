@@ -1,157 +1,275 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import fs from 'fs/promises';
+import fsp from 'fs/promises';
+import { FSWatcher, watch as watchFs } from 'fs';
 import path from 'path';
 import JSZip from 'jszip';
 import inquirer from 'inquirer';
 
-/**
- * 构建命令
- */
-export const buildCommand = new Command('build')
-  .description('构建插件为 .qi 文件')
-  .option('-o, --output <path>', '输出文件路径')
-  .option('-v, --version <version>', '设置插件版本')
-  .option('-w, --watch', '监听文件变化自动重新构建')
-  .option('-y, --yes', '跳过所有交互确认')
-  .action(async (options: any) => {
-    let spinner = ora('正在初始化构建...').start();
+type PluginInfo = Record<string, unknown> & {
+  name?: string;
+  version?: string;
+  updatedAt?: string;
+  extraAssets?: string[];
+};
 
+type BuildContext = {
+  infoJsonPath: string;
+  projectRoot: string;
+};
+
+function formatTimestamp(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate()
+  ).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(
+    date.getMinutes()
+  ).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+}
+
+function toZipPath(...parts: string[]): string {
+  return parts.join('/').replace(/\\/g, '/');
+}
+
+async function findInfoJson(startDir: string): Promise<string | null> {
+  let currentDir = path.resolve(startDir);
+
+  while (true) {
+    const infoPath = path.join(currentDir, 'info.json');
     try {
-      // 查找 info.json
-      const infoJsonPath = await findInfoJson(process.cwd());
-      if (!infoJsonPath) {
-        spinner.fail(chalk.red('未找到 info.json 文件，请在插件项目根目录下运行此命令'));
-        process.exit(1);
-      }
-
-      // 读取插件信息
-      const infoContent = await fs.readFile(infoJsonPath, 'utf-8');
-      const info = JSON.parse(infoContent);
-
-      if (!info.name) {
-        spinner.fail(chalk.red('info.json 中缺少 name 字段'));
-        process.exit(1);
-      }
-
-      const currentVersion = info.version || '1.0.0';
-      let targetVersion = options.version;
-
-      // 交互式设计：如果未提供版本且非监听模式，且未开启 -y，则弹窗询问
-      if (!targetVersion && !options.watch && !options.yes) {
-        spinner.stop();
-        const answers = await inquirer.prompt([
-          {
-            type: 'input',
-            name: 'version',
-            message: `请输入构建版本号:`,
-            default: currentVersion
-          }
-        ]);
-        targetVersion = answers.version;
-        spinner = ora('正在构建插件...').start();
-      }
-
-      // 处理版本号
-      if (targetVersion) {
-        info.version = targetVersion;
-      }
-
-      // 添加更新时间
-      const now = new Date();
-      info.updatedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-
-      const updatedInfoContent = JSON.stringify(info, null, 2);
-      await fs.writeFile(infoJsonPath, updatedInfoContent);
-
-      const distDir = path.join(path.dirname(infoJsonPath), 'dist');
-      try {
-        await fs.access(distDir);
-      } catch {
-        spinner.fail(
-          chalk.red('dist 目录不存在，请先运行 npm run build 编译插件')
-        );
-        process.exit(1);
-      }
-
-      // 创建 ZIP 文件
-      const zip = new JSZip();
-
-      // 添加 info.json
-      zip.file('info.json', updatedInfoContent);
-
-      // 递归添加 dist 目录下的所有文件
-      await addDirectoryToZip(zip, distDir, '');
-
-      // 处理 info.json 中定义的 extraAssets
-      if (Array.isArray(info.extraAssets)) {
-        for (const assetPath of info.extraAssets) {
-          const fullPath = path.resolve(path.dirname(infoJsonPath), assetPath);
-          try {
-            const stats = await fs.stat(fullPath);
-            if (stats.isFile()) {
-              const content = await fs.readFile(fullPath);
-              zip.file(assetPath, content);
-            } else if (stats.isDirectory()) {
-              await addDirectoryToZip(zip, fullPath, assetPath);
-            }
-          } catch (e) {
-            console.warn(chalk.yellow(`警告: 无法读取资源 ${assetPath}，已跳过`));
-          }
-        }
-      }
-
-      // 生成输出文件名
-      const outputFileName = options.output || `${info.name}.qi`;
-      const outputPath = path.resolve(process.cwd(), outputFileName);
-
-      // 生成 ZIP
-      const buffer = await zip.generateAsync({ type: 'nodebuffer' });
-      await fs.writeFile(outputPath, buffer);
-
-      spinner.succeed(
-        chalk.green(`插件构建成功！输出文件: ${outputPath}`)
-      );
-
-      // 显示文件信息
-      const stats = await fs.stat(outputPath);
-    } catch (error) {
-      spinner.fail(chalk.red('构建插件失败'));
-      if (error instanceof Error) {
-        console.error(chalk.red(error.message));
-      }
-      process.exit(1);
+      await fsp.access(infoPath);
+      return infoPath;
+    } catch {
+      const parentDir = path.dirname(currentDir);
+      if (parentDir === currentDir) return null;
+      currentDir = parentDir;
     }
-  });
+  }
+}
 
-/**
- * 递归添加目录到 ZIP
- */
 async function addDirectoryToZip(zip: JSZip, dirPath: string, rootInZip: string) {
-  const files = await fs.readdir(dirPath);
+  const files = await fsp.readdir(dirPath, { withFileTypes: true });
   for (const file of files) {
-    const filePath = path.join(dirPath, file);
-    const stats = await fs.stat(filePath);
-    const zipPath = path.join(rootInZip, file);
-    if (stats.isDirectory()) {
+    const filePath = path.join(dirPath, file.name);
+    const zipPath = rootInZip ? toZipPath(rootInZip, file.name) : file.name;
+    if (file.isDirectory()) {
       await addDirectoryToZip(zip, filePath, zipPath);
     } else {
-      const content = await fs.readFile(filePath);
+      const content = await fsp.readFile(filePath);
       zip.file(zipPath, content);
     }
   }
 }
 
-/**
- * 查找 info.json 文件
- */
-async function findInfoJson(dir: string): Promise<string | null> {
-  try {
-    const infoPath = path.join(dir, 'info.json');
-    await fs.access(infoPath);
-    return infoPath;
-  } catch {
-    return null;
+async function readBuildContext(cwd: string): Promise<BuildContext> {
+  const infoJsonPath = await findInfoJson(cwd);
+  if (!infoJsonPath) {
+    throw new Error('info.json not found. Run this command inside a plugin project.');
   }
+
+  return {
+    infoJsonPath,
+    projectRoot: path.dirname(infoJsonPath)
+  };
 }
+
+async function buildPlugin(
+  context: BuildContext,
+  options: {
+    output?: string;
+    version?: string;
+    askVersion?: boolean;
+  }
+): Promise<{ outputPath: string; version: string }> {
+  const infoContent = await fsp.readFile(context.infoJsonPath, 'utf8');
+  const info = JSON.parse(infoContent) as PluginInfo;
+
+  if (!info.name || typeof info.name !== 'string') {
+    throw new Error('info.json must contain a valid "name" field.');
+  }
+
+  let targetVersion = options.version?.trim();
+  if (!targetVersion && options.askVersion) {
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'version',
+        message: 'Build version:',
+        default: info.version || '1.0.0'
+      }
+    ]);
+    targetVersion = String(answers.version || '').trim();
+  }
+
+  if (targetVersion) info.version = targetVersion;
+  info.updatedAt = formatTimestamp(new Date());
+
+  const updatedInfoContent = JSON.stringify(info, null, 2);
+  await fsp.writeFile(context.infoJsonPath, updatedInfoContent);
+
+  const distDir = path.join(context.projectRoot, 'dist');
+  try {
+    const distStat = await fsp.stat(distDir);
+    if (!distStat.isDirectory()) {
+      throw new Error();
+    }
+  } catch {
+    throw new Error('dist directory not found. Run your plugin build first.');
+  }
+
+  const zip = new JSZip();
+  zip.file('info.json', updatedInfoContent);
+  await addDirectoryToZip(zip, distDir, '');
+
+  if (Array.isArray(info.extraAssets)) {
+    for (const assetPath of info.extraAssets) {
+      const fullPath = path.resolve(context.projectRoot, assetPath);
+      try {
+        const stats = await fsp.stat(fullPath);
+        if (stats.isFile()) {
+          const content = await fsp.readFile(fullPath);
+          zip.file(toZipPath(assetPath), content);
+        } else if (stats.isDirectory()) {
+          await addDirectoryToZip(zip, fullPath, toZipPath(assetPath));
+        }
+      } catch {
+        console.warn(chalk.yellow(`Warning: skipped missing extra asset ${assetPath}`));
+      }
+    }
+  }
+
+  const outputFileName = options.output || `${info.name}.qi`;
+  const outputPath = path.resolve(context.projectRoot, outputFileName);
+  const buffer = await zip.generateAsync({ type: 'nodebuffer' });
+  await fsp.writeFile(outputPath, buffer);
+
+  return {
+    outputPath,
+    version: String(info.version || '1.0.0')
+  };
+}
+
+async function listWatchDirectories(projectRoot: string, info: PluginInfo): Promise<string[]> {
+  const dirs = new Set<string>([projectRoot, path.join(projectRoot, 'dist')]);
+
+  const collectDirs = async (targetPath: string): Promise<void> => {
+    try {
+      const stat = await fsp.stat(targetPath);
+      if (stat.isDirectory()) {
+        dirs.add(targetPath);
+        const entries = await fsp.readdir(targetPath, { withFileTypes: true });
+        await Promise.all(
+          entries
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => collectDirs(path.join(targetPath, entry.name)))
+        );
+      } else {
+        dirs.add(path.dirname(targetPath));
+      }
+    } catch {
+      dirs.add(path.dirname(targetPath));
+    }
+  };
+
+  for (const assetPath of info.extraAssets || []) {
+    await collectDirs(path.resolve(projectRoot, assetPath));
+  }
+
+  return [...dirs];
+}
+
+async function watchBuild(
+  context: BuildContext,
+  options: { output?: string; version?: string }
+): Promise<void> {
+  const spinner = ora('Building plugin...').start();
+  let watchers: FSWatcher[] = [];
+  let rebuildTimer: NodeJS.Timeout | null = null;
+  let isBuilding = false;
+
+  const closeWatchers = () => {
+    for (const watcher of watchers) watcher.close();
+    watchers = [];
+  };
+
+  const runBuild = async (reason?: string) => {
+    if (isBuilding) return;
+    isBuilding = true;
+    spinner.start(reason ? `Rebuilding plugin (${reason})...` : 'Building plugin...');
+
+    try {
+      const result = await buildPlugin(context, {
+        output: options.output,
+        version: options.version,
+        askVersion: false
+      });
+
+      spinner.succeed(chalk.green(`Built ${path.basename(result.outputPath)} (v${result.version})`));
+
+      const info = JSON.parse(await fsp.readFile(context.infoJsonPath, 'utf8')) as PluginInfo;
+      const directories = await listWatchDirectories(context.projectRoot, info);
+      closeWatchers();
+      watchers = directories.map((directory) =>
+        watchFs(directory, () => {
+          if (rebuildTimer) clearTimeout(rebuildTimer);
+          rebuildTimer = setTimeout(() => {
+            void runBuild(path.relative(context.projectRoot, directory) || '.');
+          }, 150);
+        })
+      );
+    } catch (error) {
+      spinner.fail(chalk.red('Plugin build failed'));
+      if (error instanceof Error) console.error(chalk.red(error.message));
+    } finally {
+      isBuilding = false;
+    }
+  };
+
+  const shutdown = () => {
+    closeWatchers();
+    if (rebuildTimer) clearTimeout(rebuildTimer);
+    process.exit(0);
+  };
+
+  process.once('SIGINT', shutdown);
+  process.once('SIGTERM', shutdown);
+
+  await runBuild();
+  console.log(chalk.gray('Watching info.json, dist, and extra assets for changes...'));
+
+  await new Promise(() => {
+    // keep process alive while watching
+  });
+}
+
+export const buildCommand = new Command('build')
+  .description('Package the current plugin into a .qi file')
+  .option('-o, --output <path>', 'Output file path')
+  .option('-v, --version <version>', 'Override plugin version before packaging')
+  .option('-w, --watch', 'Rebuild automatically when dist/info.json/assets change')
+  .option('-y, --yes', 'Skip interactive prompts')
+  .action(async (options: Record<string, unknown>) => {
+    try {
+      const context = await readBuildContext(process.cwd());
+
+      if (options.watch) {
+        await watchBuild(context, {
+          output: typeof options.output === 'string' ? options.output : undefined,
+          version: typeof options.version === 'string' ? options.version : undefined
+        });
+        return;
+      }
+
+      const spinner = ora('Building plugin...').start();
+      const result = await buildPlugin(context, {
+        output: typeof options.output === 'string' ? options.output : undefined,
+        version: typeof options.version === 'string' ? options.version : undefined,
+        askVersion: !options.yes && !options.version
+      });
+      spinner.succeed(chalk.green(`Plugin built successfully: ${result.outputPath}`));
+    } catch (error) {
+      console.error(chalk.red('Failed to build plugin'));
+      if (error instanceof Error) console.error(chalk.red(error.message));
+      process.exit(1);
+    }
+  });
