@@ -40,25 +40,6 @@ const decodeEmbedding = (value: Buffer | Uint8Array) => {
   )
 }
 
-const cosineSimilarity = (a: number[], b: number[]) => {
-  if (!a.length || a.length !== b.length) return 0
-
-  let dot = 0
-  let normA = 0
-  let normB = 0
-
-  for (let i = 0; i < a.length; i++) {
-    const av = a[i]
-    const bv = b[i]
-    dot += av * bv
-    normA += av * av
-    normB += bv * bv
-  }
-
-  if (normA === 0 || normB === 0) return 0
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB))
-}
-
 export const initSqlite = () => {
   let dbPath: string
   if (is.dev) {
@@ -326,23 +307,16 @@ export const setupSqliteHandlers = () => {
 
       const scoredResults = results
         .map((r) => {
-          const vecRow = db
-            .prepare(`SELECT vector FROM vec_chunks_${dimension} WHERE rowid = (SELECT rowid FROM chunks WHERE id = ?)`)
-            .get(r.id) as { vector: Buffer | Uint8Array } | undefined
-
-          if (!vecRow) return null
-
-          const score = cosineSimilarity(queryEmbedding, decodeEmbedding(vecRow.vector))
+          const distance = Math.max(0, r.distance)
 
           return {
             id: r.id,
             content: r.content,
             doc_id: r.doc_id,
-            distance: Math.max(0, r.distance),
-            score
+            distance,
+            score: 1 / (1 + distance)
           }
         })
-        .filter((r): r is { id: string; content: string; doc_id: string; distance: number; score: number } => !!r)
         .filter((r) => (similarityThreshold == null ? true : r.score > similarityThreshold))
         .sort((a, b) => b.score - a.score)
         .slice(0, effectiveCandidateTopK)

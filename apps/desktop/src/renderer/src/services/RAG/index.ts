@@ -440,7 +440,7 @@ export const RAGService = () => {
         queryEmbedding: Array.from(queryEmbedding),
         topK,
         candidateTopK,
-        similarityThreshold: retrieveOptions?.similarityThreshold
+        similarityThreshold: hasRerank ? undefined : retrieveOptions?.similarityThreshold
       })
       candidates = sqliteResults.map((result: any) => {
         return {
@@ -471,7 +471,7 @@ export const RAGService = () => {
           embedding: Array.from(c.embedding)
         })),
         {
-          similarityThreshold: retrieveOptions?.similarityThreshold,
+          similarityThreshold: hasRerank ? undefined : retrieveOptions?.similarityThreshold,
           topK: fallbackCandidateTopK,
           rerankScoreThreshold: retrieveOptions?.rerankScoreThreshold
         }
