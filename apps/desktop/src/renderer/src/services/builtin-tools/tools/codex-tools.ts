@@ -318,7 +318,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   search_project: {
     title: '项目搜索',
     description:
-      '使用 ripgrep (rg) 在项目中搜索，flags 会原样传给 rg。优先将 path 缩小到相关源码目录；如需从仓库根目录搜索，优先通过 flags 排除 **/node_modules/**、**/.git/**、**/dist/**、**/out/**、**/build/**、**/coverage/** 等依赖和产物目录。',
+      '使用 ripgrep (rg) 在项目中搜索，flags 会原样传给 rg。优先将 path 缩小到相关源码目录。',
     inputSchema: z.object({
       query: z.string().describe('rg 搜索模式'),
       path: z.string().optional().default('.').describe('rg 执行目录，默认当前项目'),
@@ -327,7 +327,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         .optional()
         .default([])
         .describe(
-          '直接传给 rg 的参数数组，例如 ["-n", "-S", "-g", "*.ts"]。如需从仓库根目录搜索，优先添加递归排除规则，例如 ["-g", "!**/node_modules/**", "-g", "!**/.git/**", "-g", "!**/dist/**", "-g", "!**/out/**"]。'
+          '直接传给 rg 的参数数组，例如 ["-n", "-S", "-g", "*.ts"]。'
         )
     }),
     execute: async (args: unknown) => {
