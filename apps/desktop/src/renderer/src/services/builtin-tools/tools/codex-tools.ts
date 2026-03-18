@@ -90,14 +90,42 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     description: '读取本地文件内容',
     inputSchema: z.object({
       path: z.string().describe('要读取的文件路径，支持相对路径（基于 terminalStartupPath）或绝对路径'),
-      encoding: z.enum(['utf-8']).optional().default('utf-8').describe('文件编码，默认 utf-8')
+      start_line: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe('起始行号（从 0 开始，包含该行），默认 0'),
+      end_line: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('结束行号（从 1 开始，包含该行），不传则到最后一行'),
+      max_length: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .default(5000)
+        .describe('最大返回字符数，默认 5000；可传更大值')
     }),
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
       const rawPath = params.path as string
+      const startLine = typeof params.start_line === 'number' ? params.start_line : undefined
+      const endLine = typeof params.end_line === 'number' ? params.end_line : undefined
+      const maxLength = typeof params.max_length === 'number' ? params.max_length : 5000
 
       if (!rawPath) {
         return { toolResult: { content: [{ type: 'text', text: '读取文件失败：path 不能为空' }] } }
+      }
+      if (startLine !== undefined && endLine !== undefined && startLine > endLine) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: '读取文件失败：start_line 不能大于 end_line' }]
+          }
+        }
       }
 
       try {
@@ -118,7 +146,18 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
             }
           }
         }
-        const content = window.api.fs.readFileSync(filePath, 'utf-8')
+        const fileContent = window.api.fs.readFileSync(filePath, 'utf-8')
+        let content = fileContent
+
+        if (startLine !== undefined || endLine !== undefined) {
+          const lines = fileContent.split(/\r?\n/)
+          const startIndex = Math.max(startLine ?? 0, 0)
+          const endIndex = endLine ?? lines.length
+          content = lines.slice(startIndex, endIndex).join('\n')
+        }
+
+        content = content.slice(0, maxLength)
+
         return { toolResult: { content: [{ type: 'text', text: content }] } }
       } catch (error) {
         return {
@@ -279,7 +318,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   search_project: {
     title: '项目搜索',
     description:
-      '使用 ripgrep (rg) 在项目中搜索，flags 会原样传给 rg。优先将 path 缩小到相关源码目录；如需从仓库根目录搜索，优先通过 flags 排除 **/node_modules/**、**/.git/**、**/dist/**、**/out/**、**/build/**、**/coverage/** 等依赖和产物目录。',
+      '使用 ripgrep (rg) 在项目中搜索，flags 会原样传给 rg。优先将 path 缩小到相关源码目录。',
     inputSchema: z.object({
       query: z.string().describe('rg 搜索模式'),
       path: z.string().optional().default('.').describe('rg 执行目录，默认当前项目'),
@@ -288,7 +327,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         .optional()
         .default([])
         .describe(
-          '直接传给 rg 的参数数组，例如 ["-n", "-S", "-g", "*.ts"]。如需从仓库根目录搜索，优先添加递归排除规则，例如 ["-g", "!**/node_modules/**", "-g", "!**/.git/**", "-g", "!**/dist/**", "-g", "!**/out/**"]。'
+          '直接传给 rg 的参数数组，例如 ["-n", "-S", "-g", "*.ts"]。'
         )
     }),
     execute: async (args: unknown) => {
