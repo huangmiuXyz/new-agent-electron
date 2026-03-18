@@ -90,32 +90,13 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     description: '读取本地文件内容',
     inputSchema: z.object({
       path: z.string().describe('要读取的文件路径，支持相对路径（基于 terminalStartupPath）或绝对路径'),
-      start_line: z
-        .number()
-        .int()
-        .min(0)
-        .optional()
-        .describe('起始行号（从 0 开始，包含该行），默认 0'),
-      end_line: z
-        .number()
-        .int()
-        .positive()
-        .optional()
-        .describe('结束行号（从 1 开始，包含该行），不传则到最后一行'),
-      max_length: z
-        .number()
-        .int()
-        .positive()
-        .optional()
-        .default(5000)
-        .describe('最大返回字符数，默认 5000；可传更大值')
     }),
     execute: async (args: unknown) => {
       const params = args as Record<string, any>
       const rawPath = params.path as string
       const startLine = typeof params.start_line === 'number' ? params.start_line : undefined
       const endLine = typeof params.end_line === 'number' ? params.end_line : undefined
-      const maxLength = typeof params.max_length === 'number' ? params.max_length : 5000
+      const maxLength = typeof params.max_length === 'number' ? params.max_length : 20000
 
       if (!rawPath) {
         return { toolResult: { content: [{ type: 'text', text: '读取文件失败：path 不能为空' }] } }
