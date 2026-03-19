@@ -657,6 +657,18 @@ export const useChatsStores = defineStore(
       chat.pendingMessages = []
     }
 
+    const prioritizePendingMessage = (chatId: string, messageId: string) => {
+      const chat = getChatById(chatId)
+      if (!chat?.pendingMessages?.length) return
+
+      const index = chat.pendingMessages.findIndex((message) => message.id === messageId)
+      if (index <= 0) return
+
+      const [message] = chat.pendingMessages.splice(index, 1)
+      if (!message) return
+      chat.pendingMessages.unshift(message)
+    }
+
     const shiftPendingMessage = (chatId: string): PendingMessage | undefined => {
       const chat = getChatById(chatId)
       if (!chat || !chat.pendingMessages || chat.pendingMessages.length === 0) return undefined
@@ -677,7 +689,12 @@ export const useChatsStores = defineStore(
       return allIds.some(id => isChatGenerating(id))
     }
 
-    const stopGeneratingInChatScope = (chatId: string) => {
+    const stopGeneratingInChatScope = (
+      chatId: string,
+      options?: {
+        preservePendingMessages?: boolean
+      }
+    ) => {
       const allIds = [chatId, ...getDescendantChatIds(chatId)]
       allIds.forEach((id) => {
         const chat = getChatById(id)
@@ -687,7 +704,9 @@ export const useChatsStores = defineStore(
             m.metadata.stop()
           }
         })
-        chat.pendingMessages = []
+        if (!options?.preservePendingMessages) {
+          chat.pendingMessages = []
+        }
       })
     }
 
@@ -738,6 +757,7 @@ export const useChatsStores = defineStore(
       addPendingMessage,
       removePendingMessage,
       clearPendingMessages,
+      prioritizePendingMessage,
       shiftPendingMessage,
       isChatGenerating,
       isChatScopeGenerating,

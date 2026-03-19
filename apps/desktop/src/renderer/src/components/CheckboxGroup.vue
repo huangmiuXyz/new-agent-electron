@@ -7,13 +7,16 @@ interface Props {
     options: CheckboxOption[]
     disabled?: boolean
     columns?: number
-    onOptionAction?: (option: CheckboxOption) => void
+    toggleOnCardClick?: boolean
+    optionAction?: (option: CheckboxOption, event?: MouseEvent) => void
+    optionContextMenu?: (option: CheckboxOption, event: MouseEvent) => void
 }
 
 const props = withDefaults(defineProps<Props>(), {
     options: () => [],
     disabled: false,
-    columns: 1
+    columns: 1,
+    toggleOnCardClick: true
 })
 
 const modelValue = defineModel<string[]>({ default: [] })
@@ -26,6 +29,11 @@ const toggleOption = (value: string) => {
     } else {
         modelValue.value = [...modelValue.value, value]
     }
+}
+
+const handleOptionClick = (option: CheckboxOption) => {
+    if (!props.toggleOnCardClick) return
+    toggleOption(option.value)
 }
 
 const isChecked = (value: string) => {
@@ -89,8 +97,12 @@ const toggleGroup = (groupOptions: CheckboxOption[]) => {
 
 const handleOptionAction = (option: CheckboxOption, event: MouseEvent) => {
     event.stopPropagation()
-    if (props.disabled || option.actionDisabled || !props.onOptionAction) return
-    props.onOptionAction(option)
+    if (props.disabled || option.actionDisabled) return
+    props.optionAction?.(option, event)
+}
+
+const handleOptionContextMenu = (option: CheckboxOption, event: MouseEvent) => {
+    props.optionContextMenu?.(option, event)
 }
 </script>
 
@@ -109,7 +121,8 @@ const handleOptionAction = (option: CheckboxOption, event: MouseEvent) => {
             </div>
             <div class="checkbox-grid" :class="`columns-${Math.max(columns, 1)}`">
                 <div v-for="option in group.options" :key="option.value" class="checkbox-item"
-                    :class="{ disabled, checked: isChecked(option.value) }" @click="toggleOption(option.value)">
+                    :class="{ disabled, checked: isChecked(option.value) }" @click="handleOptionClick(option)"
+                    @contextmenu="handleOptionContextMenu(option, $event)">
                     <div class="checkbox">
                         <div class="checkbox-box">
                             <Check v-if="isChecked(option.value)" />
@@ -320,8 +333,9 @@ const handleOptionAction = (option: CheckboxOption, event: MouseEvent) => {
     font-size: 11px;
     color: var(--text-tertiary);
     line-height: 1.3;
+    white-space: pre-line;
     display: -webkit-box;
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }

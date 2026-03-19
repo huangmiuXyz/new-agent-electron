@@ -3,6 +3,8 @@ import { createRegistry } from '../services/chatService/registry'
 import { discoverSkills, loadSkill, type SkillMetadata } from '../services/skillsService'
 import Markdown from '@renderer/components/Markdown.vue'
 import Button from '@renderer/components/Button.vue'
+import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
+import { useContextMenu, type MenuItem } from '@renderer/composables/useContextMenu'
 
 interface AgentFormData extends Omit<
   Agent,
@@ -21,6 +23,7 @@ export const useAgent = () => {
   const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 
   const { confirm, remove } = useModal()
+  const { showContextMenu } = useContextMenu<SkillMetadata>()
 
   const resolveSkillDirectory = (rawPath?: string) => {
     const normalizedPath = rawPath?.trim() || DEFAULT_SKILL_DIRECTORY
@@ -149,8 +152,6 @@ export const useAgent = () => {
       Speaker224Regular,
       Sparkles,
       Folder,
-      Active,
-      Inactive,
       Eye,
       Pencil,
       Trash,
@@ -165,8 +166,6 @@ export const useAgent = () => {
       'Speaker224Regular',
       'Sparkles',
       'Folder',
-      'Active',
-      'Inactive',
       'Eye',
       'Pencil',
       'Trash',
@@ -598,7 +597,7 @@ export const useAgent = () => {
           initialData.builtinToolsRequireApproval || []
         ),
         columns: 2,
-        onOptionAction: (option: CheckboxOption) => openBuiltinToolApprovalModal(option)
+        optionAction: (option: CheckboxOption) => openBuiltinToolApprovalModal(option)
       } as CheckboxGroupField<AgentFormData>
     ]
 
@@ -928,22 +927,61 @@ export const useAgent = () => {
               })
             : []
 
-          const toggleSkill = (skill: SkillMetadata) => {
-            const currentDisabledSkills = getDisabledSkills()
-            const nextDisabledSkills = skill.enabled
-              ? currentDisabledSkills
-                  .concat(skill.name)
-                  .filter((value, index, array) => array.indexOf(value) === index)
-              : currentDisabledSkills.filter(
-                  (name) => name.toLowerCase() !== skill.name.toLowerCase()
-                )
-            setDisabledSkills(nextDisabledSkills)
-          }
-
           const openSkillDirectory = async (targetPath: string) => {
             if (!targetPath) return
             await window.api.shell.openPath(targetPath)
           }
+
+          const getSkillByName = (name: string) => {
+            return skills.find((skill) => skill.name === name)
+          }
+
+          const getSkillMenuOptions = (skill: SkillMetadata): MenuItem<SkillMetadata>[] => [
+            {
+              label: '查看详情',
+              icon: Eye,
+              onClick: () => openSkillDetail(skill, skills)
+            },
+            {
+              label: '编辑技能',
+              icon: Pencil,
+              onClick: () => openEditSkillModal(skill)
+            },
+            {
+              label: '打开文件夹',
+              icon: Folder,
+              onClick: () => void openSkillDirectory(skill.path)
+            },
+            {
+              type: 'divider'
+            },
+            {
+              label: '删除技能',
+              icon: Trash,
+              danger: true,
+              onClick: () => void deleteSkill(skill)
+            }
+          ]
+
+          const openSkillMenu = (skill: SkillMetadata, event: MouseEvent) => {
+            showContextMenu(event, getSkillMenuOptions(skill), skill)
+          }
+
+          const skillOptions: CheckboxOption[] = skills.map((skill) => {
+            const isDisabled = disabledSkillNames.has(skill.name.toLowerCase())
+            return {
+              value: skill.name,
+              label: skill.name,
+              description: `${skill.description}\n${skill.path}`,
+              tags: isDisabled ? ['已禁用'] : [],
+              tagColor: isDisabled ? 'gray' : 'orange',
+              actionTitle: '技能设置'
+            }
+          })
+
+          const enabledSkillNames = skills
+            .filter((skill) => !disabledSkillNames.has(skill.name.toLowerCase()))
+            .map((skill) => skill.name)
 
           return (
             <div
@@ -954,161 +992,25 @@ export const useAgent = () => {
               }}
             >
               {skills.length > 0 ? (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                    gap: '10px'
-                  }}
-                >
-                  {skills.map((skill) => {
-                    const isDisabled = disabledSkillNames.has(skill.name.toLowerCase())
-                    const isEnabled = !isDisabled
-                    return (
-                      <div
-                        key={skill.name}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          background: 'var(--bg-card)',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '10px',
-                          padding: '12px 14px',
-                          minHeight: '88px',
-                          overflow: 'hidden',
-                          opacity: isEnabled ? 1 : 0.7
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '10px',
-                            background: 'var(--bg-hover)',
-                            border: '1px solid var(--border-subtle)',
-                            color: 'var(--text-secondary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0
-                          }}
-                        >
-                          {Sparkles}
-                        </div>
-                        <div
-                          style={{
-                            minWidth: 0,
-                            flex: 1,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px'
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              minWidth: 0
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize: '15px',
-                                fontWeight: 600,
-                                color: 'var(--text-primary)',
-                                lineHeight: 1.25,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                              }}
-                            >
-                              {skill.name}
-                            </div>
-                            {!isEnabled && (
-                              <div
-                                style={{
-                                  flexShrink: 0,
-                                  fontSize: '10px',
-                                  color: 'var(--text-tertiary)',
-                                  background: 'var(--bg-hover)',
-                                  border: '1px solid var(--border-subtle)',
-                                  borderRadius: '999px',
-                                  padding: '1px 6px'
-                                }}
-                              >
-                                已禁用
-                              </div>
-                            )}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '11px',
-                              color: 'var(--text-secondary)',
-                              lineHeight: 1.35,
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden'
-                            }}
-                          >
-                            {skill.description}
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            flexShrink: 0
-                          }}
-                        >
-                          <Button
-                            size="sm"
-                            variant="text"
-                            title={isEnabled ? '禁用技能' : '启用技能'}
-                            onClick={() => toggleSkill(skill)}
-                          >
-                            {isEnabled ? Active : Inactive}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="text"
-                            title="查看详情"
-                            onClick={() => openSkillDetail(skill, skills)}
-                          >
-                            {Eye}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="text"
-                            title="编辑技能"
-                            onClick={() => openEditSkillModal(skill)}
-                          >
-                            {Pencil}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="text"
-                            title="打开文件夹"
-                            onClick={() => openSkillDirectory(skill.path)}
-                          >
-                            {Folder}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="text"
-                            title="删除技能"
-                            onClick={() => void deleteSkill(skill)}
-                          >
-                            {Trash}
-                          </Button>
-                        </div>
-                      </div>
+                <CheckboxGroup
+                  modelValue={enabledSkillNames}
+                  options={skillOptions}
+                  columns={2}
+                  onUpdate:modelValue={(nextEnabledSkillNames: string[]) => {
+                    const nextEnabledNameSet = new Set(
+                      nextEnabledSkillNames.map((name) => name.toLowerCase())
                     )
-                  })}
-                </div>
+                    const nextDisabledSkills = skills
+                      .filter((skill) => !nextEnabledNameSet.has(skill.name.toLowerCase()))
+                      .map((skill) => skill.name)
+                    setDisabledSkills(nextDisabledSkills)
+                  }}
+                  optionAction={(option, event) => {
+                    const skill = getSkillByName(option.value)
+                    if (!skill || !event) return
+                    openSkillMenu(skill, event)
+                  }}
+                />
               ) : (
                 <div
                   style={{

@@ -171,6 +171,7 @@ const SettingsIcon = useIcon('Settings')
 const PlaylistIcon = useIcon('Menu')
 const StopIcon = useIcon('Stop')
 const ChevronDown = useIcon('ChevronDown')
+const SendIcon = useIcon('Send')
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -334,6 +335,24 @@ const handleFileRemoved = (index: number) => {
 const removePendingMessage = (messageId: string) => {
   if (!chatStore.currentChat) return
   chatStore.removePendingMessage(chatStore.currentChat.id, messageId)
+}
+
+const guidePendingMessage = async (messageId: string) => {
+  const chatId = chatStore.currentChat?.id
+  if (!chatId) return
+
+  if (chatStore.isChatGenerating(chatId)) {
+    chatStore.prioritizePendingMessage(chatId, messageId)
+    chatStore.stopGeneratingInChatScope(chatId, { preservePendingMessages: true })
+    return
+  }
+
+  const pendingMessage = chatStore.getPendingMessages(chatId).find((item) => item.id === messageId)
+  if (!pendingMessage) return
+
+  chatStore.removePendingMessage(chatId, messageId)
+  const { sendMessages } = useChat(chatId)
+  sendMessages(pendingMessage.parts.map((part) => ({ ...part })))
 }
 
 const stopAllGeneratingInCurrentChat = () => {
@@ -943,9 +962,23 @@ onUnmounted(() => {
       <div class="pending-messages-list">
         <div v-for="item in pendingMessages" :key="item.id" class="pending-message-item">
           <span class="pending-message-text">{{ getPendingMessagePreview(item.parts) }}</span>
-          <Button variant="icon" size="sm" class="remove-btn" @click="removePendingMessage(item.id)">
-            <CloseIcon />
-          </Button>
+          <div class="pending-message-actions">
+            <Button
+              variant="text"
+              size="sm"
+              class="guide-btn"
+              title="停止当前生成，并让这条消息下一条进入上下文"
+              @click="guidePendingMessage(item.id)"
+            >
+              <template #icon>
+                <SendIcon />
+              </template>
+              引导
+            </Button>
+            <Button variant="icon" size="sm" class="remove-btn" @click="removePendingMessage(item.id)">
+              <CloseIcon />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -1320,6 +1353,22 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-right: 8px;
+}
+
+.pending-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.guide-btn {
+  color: var(--color-primary);
+}
+
+.guide-btn:hover {
+  color: var(--color-primary);
+  opacity: 0.9;
 }
 
 .remove-btn {
