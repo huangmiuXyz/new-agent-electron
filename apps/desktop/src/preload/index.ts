@@ -11,12 +11,28 @@ import { exec, spawn, fork } from 'child_process'
 import os from 'os'
 import { type ElectronAPI } from '@agent-qi/types'
 
+const rewriteAsarExecutablePath = (candidate: string): string => {
+  const normalized = path.normalize(candidate)
+  const asarSegment = `${path.sep}app.asar${path.sep}`
+  if (!normalized.includes(asarSegment)) {
+    return normalized
+  }
+
+  return normalized.replace(asarSegment, `${path.sep}app.asar.unpacked${path.sep}`)
+}
+
 const resolveRipgrepPath = (): string | null => {
   const executableName = `rg${process.platform === 'win32' ? '.exe' : ''}`
   const candidates = new Set<string>()
   const addCandidate = (candidate?: string | null) => {
     if (!candidate) return
-    candidates.add(path.normalize(candidate))
+    const normalized = path.normalize(candidate)
+    candidates.add(normalized)
+
+    const rewritten = rewriteAsarExecutablePath(normalized)
+    if (rewritten !== normalized) {
+      candidates.add(rewritten)
+    }
   }
 
   try {
@@ -39,13 +55,11 @@ const resolveRipgrepPath = (): string | null => {
   addCandidate(path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', '@vscode', 'ripgrep', 'bin', executableName))
   addCandidate(path.join(process.resourcesPath, 'node_modules', '@vscode', 'ripgrep', 'bin', executableName))
 
-  for (const candidate of [...candidates]) {
-    if (candidate.includes(`${path.sep}app.asar${path.sep}`)) {
-      addCandidate(candidate.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`))
-    }
-  }
-
   for (const candidate of candidates) {
+    if (candidate.includes(`${path.sep}app.asar${path.sep}`)) {
+      continue
+    }
+
     if (fs.existsSync(candidate)) {
       return candidate
     }
