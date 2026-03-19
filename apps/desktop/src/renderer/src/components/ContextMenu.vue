@@ -289,14 +289,14 @@ onUnmounted(() => {
 .radix-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1999;
+  z-index: 3999;
   background: transparent;
 }
 
 /* 菜单容器 */
 .radix-menu-content {
   position: fixed;
-  z-index: 2000;
+  z-index: 4000;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -613,7 +613,7 @@ onUnmounted(() => {
 
 /* 子菜单样式 */
 .radix-submenu {
-  z-index: 2001;
+  z-index: 4001;
 }
 
 /* 有子菜单的项 */

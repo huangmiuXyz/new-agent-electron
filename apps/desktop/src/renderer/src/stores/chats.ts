@@ -8,6 +8,7 @@ const restorePromise = new Promise<void>((resolve) => {
 export const useChatsStores = defineStore(
   'chats',
   () => {
+    const DEFAULT_AGENT_ID = 'default'
     const chats = ref<Chat[]>([])
     const tempChats = ref<Chat[]>([])
     const activeChatId = ref<string | null>(null)
@@ -66,6 +67,57 @@ export const useChatsStores = defineStore(
 
     const isRetryBranchVisible = (chat: Chat, branchId: string | null) => {
       return (chat.retryBranchState?.activeBranchId || null) === branchId
+    }
+
+    const resolveChatModelConfig = (
+      agentId: string,
+      currentProviderId?: string,
+      currentModelId?: string
+    ) => {
+      const settingsStore = useSettingsStore()
+      const agentStore = useAgentStore()
+      const selectedProviderId = settingsStore.selectedProviderId
+      const selectedModelId = settingsStore.selectedModelId
+      const selectedProvider = settingsStore.getProviderById(selectedProviderId)
+      const selectedProviderHasModel = !!selectedProvider?.models?.some((m) => m.id === selectedModelId)
+      const fallbackProvider = settingsStore.getAllProviders.find(
+        (p) => p.models?.some((m) => m.active && m.category === 'text')
+      )
+      const fallbackModel = fallbackProvider?.models?.find((m) => m.active && m.category === 'text')
+      const currentProvider = currentProviderId
+        ? settingsStore.getProviderById(currentProviderId)
+        : null
+      const currentModelIsValid = !!(
+        currentProviderId &&
+        currentModelId &&
+        currentProvider?.models?.some((m) => m.id === currentModelId)
+      )
+      const agentDefaultModel = agentStore.getAgentById(agentId)?.defaultModel
+      const agentDefaultProvider = agentDefaultModel?.providerId
+        ? settingsStore.getProviderById(agentDefaultModel.providerId)
+        : null
+      const agentDefaultModelIsValid = !!(
+        agentDefaultModel?.providerId &&
+        agentDefaultModel?.modelId &&
+        agentDefaultProvider?.models?.some((m) => m.id === agentDefaultModel.modelId)
+      )
+
+      const providerId = agentDefaultModelIsValid
+        ? agentDefaultModel!.providerId
+        : currentModelIsValid
+          ? currentProviderId!
+          : selectedProviderHasModel
+            ? selectedProviderId
+            : fallbackProvider?.id || ''
+      const modelId = agentDefaultModelIsValid
+        ? agentDefaultModel!.modelId
+        : currentModelIsValid
+          ? currentModelId!
+          : selectedProviderHasModel
+            ? selectedModelId
+            : fallbackModel?.id || ''
+
+      return { providerId, modelId }
     }
 
     const syncVisibleMessagesToActiveRetryBranch = (chat: Chat) => {
@@ -340,36 +392,13 @@ export const useChatsStores = defineStore(
         subTask?: SubTaskInfo
       }
     ) => {
-      const settingsStore = useSettingsStore()
       const agentStore = useAgentStore()
-      const agentId = options?.agentId || 'default'
-      const selectedProviderId = settingsStore.selectedProviderId
-      const selectedModelId = settingsStore.selectedModelId
-      const selectedProvider = settingsStore.getProviderById(selectedProviderId)
-      const selectedProviderHasModel = !!selectedProvider?.models?.some((m) => m.id === selectedModelId)
-      const fallbackProvider = settingsStore.getAllProviders.find(
-        (p) => p.models?.some((m) => m.active && m.category === 'text')
-      )
-      const fallbackModel = fallbackProvider?.models?.find((m) => m.active && m.category === 'text')
-      const agentDefaultModel = agentStore.getAgentById(agentId)?.defaultModel
-      const agentDefaultProvider = agentDefaultModel?.providerId
-        ? settingsStore.getProviderById(agentDefaultModel.providerId)
-        : null
-      const agentDefaultModelIsValid = !!(
-        agentDefaultModel?.providerId &&
-        agentDefaultModel?.modelId &&
-        agentDefaultProvider?.models?.some((m) => m.id === agentDefaultModel.modelId)
-      )
-      const providerId = agentDefaultModelIsValid
-        ? agentDefaultModel!.providerId
-        : selectedProviderHasModel
-          ? selectedProviderId
-          : fallbackProvider?.id || ''
-      const modelId = agentDefaultModelIsValid
-        ? agentDefaultModel!.modelId
-        : selectedProviderHasModel
-          ? selectedModelId
-          : fallbackModel?.id || ''
+      const normalizeAgentId = (agentId?: string) => {
+        if (!agentId) return DEFAULT_AGENT_ID
+        return agentStore.getAgentById(agentId) ? agentId : DEFAULT_AGENT_ID
+      }
+      const agentId = normalizeAgentId(options?.agentId)
+      const { providerId, modelId } = resolveChatModelConfig(agentId)
 
       const id = nanoid()
       const chat: Chat = {
@@ -516,7 +545,19 @@ export const useChatsStores = defineStore(
     const setChatAgent = (chatId: string, agentId: string) => {
       const chat = getChatById(chatId)
       if (!chat) return
-      chat.agentId = agentId
+      const agentStore = useAgentStore()
+      chat.agentId = agentStore.getAgentById(agentId) ? agentId : DEFAULT_AGENT_ID
+      const { providerId, modelId } = resolveChatModelConfig(chat.agentId, chat.providerId, chat.modelId)
+      chat.providerId = providerId
+      chat.modelId = modelId
+    }
+
+    const ensureChatAgent = (chatId: string) => {
+      const chat = getChatById(chatId)
+      if (!chat) return null
+      setChatAgent(chatId, chat.agentId || DEFAULT_AGENT_ID)
+
+      return chat.agentId
     }
 
     const setChatModel = (chatId: string, providerId: string, modelId: string) => {
@@ -691,6 +732,18 @@ export const useChatsStores = defineStore(
       chat.pendingMessages = []
     }
 
+    const prioritizePendingMessage = (chatId: string, messageId: string) => {
+      const chat = getChatById(chatId)
+      if (!chat?.pendingMessages?.length) return
+
+      const index = chat.pendingMessages.findIndex((message) => message.id === messageId)
+      if (index <= 0) return
+
+      const [message] = chat.pendingMessages.splice(index, 1)
+      if (!message) return
+      chat.pendingMessages.unshift(message)
+    }
+
     const shiftPendingMessage = (chatId: string): PendingMessage | undefined => {
       const chat = getChatById(chatId)
       if (!chat || !chat.pendingMessages || chat.pendingMessages.length === 0) return undefined
@@ -711,7 +764,12 @@ export const useChatsStores = defineStore(
       return allIds.some(id => isChatGenerating(id))
     }
 
-    const stopGeneratingInChatScope = (chatId: string) => {
+    const stopGeneratingInChatScope = (
+      chatId: string,
+      options?: {
+        preservePendingMessages?: boolean
+      }
+    ) => {
       const allIds = [chatId, ...getDescendantChatIds(chatId)]
       allIds.forEach((id) => {
         const chat = getChatById(id)
@@ -721,7 +779,9 @@ export const useChatsStores = defineStore(
             m.metadata.stop()
           }
         })
-        chat.pendingMessages = []
+        if (!options?.preservePendingMessages) {
+          chat.pendingMessages = []
+        }
       })
     }
 
@@ -755,6 +815,7 @@ export const useChatsStores = defineStore(
       renameChat,
       setActiveChat,
       setChatAgent,
+      ensureChatAgent,
       setChatModel,
       getRootChats,
       getChildChats,
@@ -772,6 +833,7 @@ export const useChatsStores = defineStore(
       addPendingMessage,
       removePendingMessage,
       clearPendingMessages,
+      prioritizePendingMessage,
       shiftPendingMessage,
       isChatGenerating,
       isChatScopeGenerating,

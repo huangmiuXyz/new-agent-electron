@@ -10,7 +10,8 @@ declare global {
   }
 
   interface CheckboxGroupField<T> {
-    onOptionAction?: (option: CheckboxOption) => void
+    optionAction?: (option: CheckboxOption, event?: MouseEvent) => void
+    optionContextMenu?: (option: CheckboxOption, event: MouseEvent) => void
   }
 }
 
