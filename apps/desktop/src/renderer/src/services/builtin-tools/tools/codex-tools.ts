@@ -111,6 +111,13 @@ const execCommand = (
   })
 }
 
+const getPowerShellPath = (): string => {
+  const systemRoot = window.api.process.env.SystemRoot
+  return systemRoot
+    ? window.api.path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    : 'powershell.exe'
+}
+
 const injectBundledRipgrepPath = (command: string): string => {
   const trimmedStart = command.trimStart()
   if (!/^rg(?:\s|$)/.test(trimmedStart)) {
@@ -134,7 +141,16 @@ const execProjectSearchCommand = async (
   command: string,
   options: { cwd?: string; maxBuffer?: number } = {}
 ): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
-  return execCommand(injectBundledRipgrepPath(command), options)
+  const resolvedCommand = injectBundledRipgrepPath(command)
+  if (!isWindows) {
+    return execCommand(resolvedCommand, options)
+  }
+
+  return window.api.execFileCommand(
+    getPowerShellPath(),
+    ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', resolvedCommand],
+    options
+  )
 }
 
 const isWindows = navigator.platform.toLowerCase().includes('win')
