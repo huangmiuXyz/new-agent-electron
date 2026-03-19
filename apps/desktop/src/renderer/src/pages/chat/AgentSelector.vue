@@ -4,6 +4,7 @@ const chatsStore = useChatsStores()
 const { allAgents, tempAgents } = storeToRefs(agentStore)
 const settingsStore = useSettingsStore()
 const { favoriteAgentIds } = storeToRefs(settingsStore)
+
 withDefaults(
   defineProps<{
     type: 'icon' | 'select'
@@ -12,6 +13,7 @@ withDefaults(
     type: 'select'
   }
 )
+
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
 const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus } = useIcon([
@@ -47,10 +49,13 @@ const filteredAgents = computed(() => {
 })
 
 const favoriteAgentSet = computed(() => new Set(favoriteAgentIds.value))
+
 const getAgentToolCount = (agent: Agent) => {
   return settingsStore.getValidTools(agent.tools).length + (agent.builtinTools?.length || 0)
 }
+
 const hasAgentTools = (agent: Agent) => getAgentToolCount(agent) > 0
+
 const getAgentTags = (agent: Agent) => {
   if (agent.id === 'default') {
     return agent.tags?.length ? agent.tags : ['默认']
@@ -73,12 +78,13 @@ watch(isPopupOpen, (val) => {
 })
 
 const selectAgent = (agentId: string) => {
-  let currentChatId = chatsStore.currentChat?.id
+  const currentChatId = chatsStore.currentChat?.id
   if (!currentChatId) {
     chatsStore.createChat('新的聊天', { agentId })
     isPopupOpen.value = false
     return
   }
+
   chatsStore.setChatAgent(currentChatId, agentId)
   isPopupOpen.value = false
 }
@@ -86,6 +92,7 @@ const selectAgent = (agentId: string) => {
 const isAgentSelected = (agentId: string) => {
   return agentId === chatsStore.currentChat?.agentId
 }
+
 const { openAgentModal } = useAgent()
 
 const openCreateAgentModal = () => {
@@ -101,8 +108,8 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
 <template>
   <SelectorPopover
     v-model:visible="isPopupOpen"
-    :data="allAgents"
     v-model:searchQuery="searchQuery"
+    :data="allAgents"
     desktop-presentation="dialog"
     placeholder="搜索智能体..."
     noResultsText="未找到智能体"
@@ -119,7 +126,7 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
     </template>
 
     <template #trigger>
-      <div class="agent-btn" v-if="type === 'select'" :title="selectedAgentLabel">
+      <div v-if="type === 'select'" class="agent-btn" :title="selectedAgentLabel">
         <Image
           v-if="selectedAgent?.avatar"
           class="agent-avatar"
@@ -157,38 +164,58 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
           :class="{ selected: isAgentSelected(agent.id) }"
           @click="selectAgent(agent.id)"
         >
-          <div class="agent-icon-container">
-            <Image v-if="agent.avatar" class="agent-avatar-list" :src="agent.avatar" alt="" />
-            <div v-else class="agent-icon">
-              <Robot />
+          <div class="agent-main">
+            <div class="agent-icon-container">
+              <Image v-if="agent.avatar" class="agent-avatar-list" :src="agent.avatar" alt="" />
+              <div v-else class="agent-icon">
+                <Robot />
+              </div>
+            </div>
+
+            <div class="agent-content" :class="{ 'agent-content--center': !agent.description }">
+              <div class="agent-title-row">
+                <div class="agent-title" :title="agent.name">{{ agent.name }}</div>
+                <span v-if="tempAgents.some((a) => a.id === agent.id)" class="temp-tag">临时</span>
+              </div>
+              <div v-if="agent.description" class="agent-desc" :title="agent.description">
+                {{ agent.description }}
+              </div>
             </div>
           </div>
-          <div class="agent-content" :class="{ 'agent-content--center': !agent.description }">
-            <div class="agent-title-row">
-              <div class="agent-title" :title="agent.name">{{ agent.name }}</div>
-              <span v-if="tempAgents.some((a) => a.id === agent.id)" class="temp-tag">临时</span>
+
+          <div class="agent-side">
+            <Tags
+              v-if="getAgentTags(agent).length"
+              :tags="getAgentTags(agent)"
+              color="orange"
+              size="sm"
+              class="agent-tags"
+            />
+
+            <div class="agent-check">
+              <div v-if="hasAgentTools(agent)" class="agent-mcp">
+                <Wrench20Regular />
+                <span class="agent-mcp-count">{{ getAgentToolCount(agent) }}</span>
+              </div>
+
+              <button
+                class="favorite-toggle"
+                type="button"
+                :class="{ active: favoriteAgentSet.has(agent.id) }"
+                :title="favoriteAgentSet.has(agent.id) ? '取消收藏' : '收藏智能体'"
+                @click="toggleFavoriteAgent(agent.id, $event)"
+              >
+                ★
+              </button>
+
+              <Check v-if="isAgentSelected(agent.id)" />
+
+              <Button @click.stop="openAgentModal(agent)" variant="icon" size="sm">
+                <template #icon>
+                  <Edit />
+                </template>
+              </Button>
             </div>
-            <div v-if="agent.description" class="agent-desc" :title="agent.description">{{ agent.description }}</div>
-          </div>
-          <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm" class="agent-tags" />
-          <div class="agent-check">
-            <div v-if="hasAgentTools(agent)" class="agent-mcp">
-              <Wrench20Regular />
-              <span style="white-space: nowrap">{{ getAgentToolCount(agent) }}</span>
-            </div>
-            <button
-              class="favorite-toggle"
-              type="button"
-              :class="{ active: favoriteAgentSet.has(agent.id) }"
-              :title="favoriteAgentSet.has(agent.id) ? '取消收藏' : '收藏智能体'"
-              @click="toggleFavoriteAgent(agent.id, $event)"
-            >★</button>
-            <Check v-if="isAgentSelected(agent.id)" />
-            <Button @click.stop="openAgentModal(agent)" variant="icon" size="sm">
-              <template #icon>
-                <Edit />
-              </template>
-            </Button>
           </div>
         </div>
       </template>
@@ -202,38 +229,58 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
           :class="{ selected: isAgentSelected(agent.id) }"
           @click="selectAgent(agent.id)"
         >
-          <div class="agent-icon-container">
-            <Image v-if="agent.avatar" class="agent-avatar-list" :src="agent.avatar" alt="" />
-            <div v-else class="agent-icon">
-              <Robot />
+          <div class="agent-main">
+            <div class="agent-icon-container">
+              <Image v-if="agent.avatar" class="agent-avatar-list" :src="agent.avatar" alt="" />
+              <div v-else class="agent-icon">
+                <Robot />
+              </div>
+            </div>
+
+            <div class="agent-content" :class="{ 'agent-content--center': !agent.description }">
+              <div class="agent-title-row">
+                <div class="agent-title" :title="agent.name">{{ agent.name }}</div>
+                <span v-if="tempAgents.some((a) => a.id === agent.id)" class="temp-tag">临时</span>
+              </div>
+              <div v-if="agent.description" class="agent-desc" :title="agent.description">
+                {{ agent.description }}
+              </div>
             </div>
           </div>
-          <div class="agent-content" :class="{ 'agent-content--center': !agent.description }">
-            <div class="agent-title-row">
-              <div class="agent-title" :title="agent.name">{{ agent.name }}</div>
-              <span v-if="tempAgents.some((a) => a.id === agent.id)" class="temp-tag">临时</span>
+
+          <div class="agent-side">
+            <Tags
+              v-if="getAgentTags(agent).length"
+              :tags="getAgentTags(agent)"
+              color="orange"
+              size="sm"
+              class="agent-tags"
+            />
+
+            <div class="agent-check">
+              <div v-if="hasAgentTools(agent)" class="agent-mcp">
+                <Wrench20Regular />
+                <span class="agent-mcp-count">{{ getAgentToolCount(agent) }}</span>
+              </div>
+
+              <button
+                class="favorite-toggle"
+                type="button"
+                :class="{ active: favoriteAgentSet.has(agent.id) }"
+                :title="favoriteAgentSet.has(agent.id) ? '取消收藏' : '收藏智能体'"
+                @click="toggleFavoriteAgent(agent.id, $event)"
+              >
+                ★
+              </button>
+
+              <Check v-if="isAgentSelected(agent.id)" />
+
+              <Button @click.stop="openAgentModal(agent)" variant="icon" size="sm">
+                <template #icon>
+                  <Edit />
+                </template>
+              </Button>
             </div>
-            <div v-if="agent.description" class="agent-desc" :title="agent.description">{{ agent.description }}</div>
-          </div>
-          <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm" class="agent-tags" />
-          <div class="agent-check">
-            <div v-if="hasAgentTools(agent)" class="agent-mcp">
-              <Wrench20Regular />
-              <span style="white-space: nowrap">{{ getAgentToolCount(agent) }}</span>
-            </div>
-            <button
-              class="favorite-toggle"
-              type="button"
-              :class="{ active: favoriteAgentSet.has(agent.id) }"
-              :title="favoriteAgentSet.has(agent.id) ? '取消收藏' : '收藏智能体'"
-              @click="toggleFavoriteAgent(agent.id, $event)"
-            >★</button>
-            <Check v-if="isAgentSelected(agent.id)" />
-            <Button @click.stop="openAgentModal(agent)" variant="icon" size="sm">
-              <template #icon>
-                <Edit />
-              </template>
-            </Button>
           </div>
         </div>
       </template>
@@ -296,7 +343,8 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
 .agent-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 12px;
   padding: 10px 8px;
   border-radius: 6px;
   cursor: pointer;
@@ -306,6 +354,23 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
   position: relative;
 }
 
+.agent-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 .agent-section-title {
   padding: 8px 4px 6px;
   font-size: 11px;
@@ -313,7 +378,6 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
   color: var(--text-tertiary);
   letter-spacing: 0.06em;
 }
-
 
 .agent-item:hover {
   background: var(--bg-hover);
@@ -349,7 +413,6 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
 }
 
 .agent-content--center {
-  flex: 0 1 auto;
   gap: 0;
   justify-content: center;
 }
@@ -390,6 +453,10 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
   gap: 4px;
   font-size: 10px;
   color: var(--text-secondary);
+}
+
+.agent-mcp-count {
+  white-space: nowrap;
 }
 
 .agent-mcp :deep(svg) {
