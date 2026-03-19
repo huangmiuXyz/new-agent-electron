@@ -7,6 +7,7 @@ export const useAgentStore = defineStore(
         id: 'default',
         name: '默认助手',
         description: '通用AI助手',
+        tags: ['默认'],
         systemPrompt: '你是一个有帮助的AI助手。',
         mcpServers: [],
         tools: [],

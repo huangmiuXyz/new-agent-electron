@@ -53,6 +53,7 @@ function createSentenceSegmenter(locale: string = 'und') {
 export const useChat = (chatId: string) => {
   const {
     createRetryBranch,
+    ensureChatAgent,
     getChatById,
     getRetryBranchMessages,
     shiftPendingMessage,
@@ -80,8 +81,7 @@ export const useChat = (chatId: string) => {
   }
 
   const getChatAgent = (): Agent | null => {
-    const chat = getChatById(chatId)
-    const agentId = chat?.agentId
+    const agentId = ensureChatAgent(chatId)
     if (!agentId) return null
     return agentStore.getAgentById(agentId) || null
   }

@@ -8,6 +8,7 @@ const restorePromise = new Promise<void>((resolve) => {
 export const useChatsStores = defineStore(
   'chats',
   () => {
+    const DEFAULT_AGENT_ID = 'default'
     const chats = ref<Chat[]>([])
     const tempChats = ref<Chat[]>([])
     const activeChatId = ref<string | null>(null)
@@ -310,7 +311,11 @@ export const useChatsStores = defineStore(
     ) => {
       const settingsStore = useSettingsStore()
       const agentStore = useAgentStore()
-      const agentId = options?.agentId || 'default'
+      const normalizeAgentId = (agentId?: string) => {
+        if (!agentId) return DEFAULT_AGENT_ID
+        return agentStore.getAgentById(agentId) ? agentId : DEFAULT_AGENT_ID
+      }
+      const agentId = normalizeAgentId(options?.agentId)
       const selectedProviderId = settingsStore.selectedProviderId
       const selectedModelId = settingsStore.selectedModelId
       const selectedProvider = settingsStore.getProviderById(selectedProviderId)
@@ -482,7 +487,20 @@ export const useChatsStores = defineStore(
     const setChatAgent = (chatId: string, agentId: string) => {
       const chat = getChatById(chatId)
       if (!chat) return
-      chat.agentId = agentId
+      const agentStore = useAgentStore()
+      chat.agentId = agentStore.getAgentById(agentId) ? agentId : DEFAULT_AGENT_ID
+    }
+
+    const ensureChatAgent = (chatId: string) => {
+      const chat = getChatById(chatId)
+      if (!chat) return null
+      const agentStore = useAgentStore()
+
+      if (!chat.agentId || !agentStore.getAgentById(chat.agentId)) {
+        chat.agentId = DEFAULT_AGENT_ID
+      }
+
+      return chat.agentId
     }
 
     const setChatModel = (chatId: string, providerId: string, modelId: string) => {
@@ -740,6 +758,7 @@ export const useChatsStores = defineStore(
       renameChat,
       setActiveChat,
       setChatAgent,
+      ensureChatAgent,
       setChatModel,
       getRootChats,
       getChildChats,

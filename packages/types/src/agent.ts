@@ -4,6 +4,7 @@ declare global {
     id: string
     name: string
     description?: string
+    tags?: string[]
     systemPrompt: string
     mcpServers: string[] // MCP服务器名称列表
     tools: string[] // 工具名称列表，格式为 "服务器名.工具名"

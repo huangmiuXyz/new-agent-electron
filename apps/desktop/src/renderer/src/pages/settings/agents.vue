@@ -3,6 +3,13 @@ const { agents } = storeToRefs(useAgentStore())
 
 const { Plus, Pencil, Trash, Robot } = useIcon(['Plus', 'Pencil', 'Trash', 'Robot'])
 const { openAgentModal, handleDelete } = useAgent()
+
+const getAgentTags = (agent: Agent) => {
+  if (agent.id === 'default') {
+    return agent.tags?.length ? agent.tags : ['默认']
+  }
+  return agent.tags || []
+}
 </script>
 
 <template>
@@ -28,7 +35,10 @@ const { openAgentModal, handleDelete } = useAgent()
                 </div>
               </div>
               <div class="agent-info" :class="{ 'agent-info--center': !agent.description }">
-                <div class="agent-name">{{ agent.name }}</div>
+                <div class="agent-name-row">
+                  <div class="agent-name">{{ agent.name }}</div>
+                  <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm" />
+                </div>
                 <div v-if="agent.description" class="agent-description">
                   {{ agent.description }}
                 </div>
@@ -152,9 +162,17 @@ const { openAgentModal, handleDelete } = useAgent()
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1.25;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.agent-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .agent-description {
