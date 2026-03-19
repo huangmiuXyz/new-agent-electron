@@ -10,9 +10,13 @@ export interface ShortcutAction {
     handler: () => void | Promise<void>
 }
 
+function isMacPlatform(platform?: 'mac' | 'win' | 'linux'): boolean {
+    return platform === 'mac' || (!platform && navigator.platform.toLowerCase().includes('mac'))
+}
+
 // 格式化快捷键显示
 export function formatShortcut(keyString: string, platform?: 'mac' | 'win' | 'linux'): string {
-    const isMac = platform === 'mac' || (!platform && navigator.platform.toLowerCase().includes('mac'))
+    const isMac = isMacPlatform(platform)
 
     return keyString
         .replace(/CmdOrCtrl/gi, isMac ? '⌘' : 'Ctrl')
@@ -25,7 +29,9 @@ export function formatShortcut(keyString: string, platform?: 'mac' | 'win' | 'li
 }
 
 // 将快捷键转换为内部匹配格式
-function toMagicKeysFormat(keyString: string): string {
+function toMagicKeysFormat(keyString: string, platform?: 'mac' | 'win' | 'linux'): string {
+    const isMac = isMacPlatform(platform)
+
     // 规范化顺序: ctrl/meta > shift > alt > key
     const parts = keyString.split('+').map(p => p.trim())
     const modifiers: string[] = []
@@ -33,9 +39,11 @@ function toMagicKeysFormat(keyString: string): string {
 
     for (const part of parts) {
         const lower = part.toLowerCase()
-        if (lower === 'cmdorctrl' || lower === 'cmd') {
+        if (lower === 'cmdorctrl') {
+            modifiers.push(isMac ? 'meta' : 'ctrl')
+        } else if (lower === 'cmd' || lower === 'meta') {
             modifiers.push('meta')
-        } else if (lower === 'ctrl') {
+        } else if (lower === 'ctrl' || lower === 'control') {
             modifiers.push('ctrl')
         } else if (lower === 'shift') {
             modifiers.push('shift')
@@ -48,9 +56,32 @@ function toMagicKeysFormat(keyString: string): string {
 
     // 按固定顺序排列修饰符
     const order = ['ctrl', 'meta', 'shift', 'alt']
-    modifiers.sort((a, b) => order.indexOf(a) - order.indexOf(b))
+    const normalizedModifiers = Array.from(new Set(modifiers))
+    normalizedModifiers.sort((a, b) => order.indexOf(a) - order.indexOf(b))
 
-    return mainKey ? [...modifiers, mainKey].join('+') : modifiers.join('+')
+    return mainKey ? [...normalizedModifiers, mainKey].join('+') : normalizedModifiers.join('+')
+}
+
+function getKeyCombo(e: KeyboardEvent): string {
+    const parts: string[] = []
+    if (e.ctrlKey) parts.push('ctrl')
+    if (e.metaKey) parts.push('meta')
+    if (e.shiftKey) parts.push('shift')
+    if (e.altKey) parts.push('alt')
+
+    // 使用 code 获取物理按键（如 KeyK），去掉 "Key" 前缀并转小写
+    // 避免 Shift 导致的大小写问题
+    const code = e.code
+    let key: string
+    if (code.startsWith('Key')) {
+        key = code.slice(3).toLowerCase()
+    } else if (code.startsWith('Digit')) {
+        key = code.slice(5)
+    } else {
+        key = e.key.toLowerCase()
+    }
+    parts.push(key)
+    return parts.join('+')
 }
 
 // 全局快捷键管理器
@@ -77,7 +108,7 @@ class ShortcutManager {
 
         // 使用自定义键盘事件监听，精确匹配
         const handleKeyDown = (e: KeyboardEvent) => {
-            const keyCombo = this.getKeyCombo(e)
+            const keyCombo = getKeyCombo(e)
             const action = this.findActionByKey(keyCombo)
             if (action && this.shouldTrigger(action)) {
                 e.preventDefault()
@@ -88,28 +119,6 @@ class ShortcutManager {
 
         window.addEventListener('keydown', handleKeyDown, true)
         this.disposables.push(() => window.removeEventListener('keydown', handleKeyDown, true))
-    }
-
-    // 获取按键组合字符串
-    private getKeyCombo(e: KeyboardEvent): string {
-        const parts: string[] = []
-        if (e.ctrlKey) parts.push('ctrl')
-        if (e.metaKey) parts.push('meta')
-        if (e.altKey) parts.push('alt')
-        if (e.shiftKey) parts.push('shift')
-        // 使用 code 获取物理按键（如 KeyK），去掉 "Key" 前缀并转小写
-        // 避免 Shift 导致的大小写问题
-        const code = e.code
-        let key: string
-        if (code.startsWith('Key')) {
-            key = code.slice(3).toLowerCase()
-        } else if (code.startsWith('Digit')) {
-            key = code.slice(5)
-        } else {
-            key = e.key.toLowerCase()
-        }
-        parts.push(key)
-        return parts.join('+')
     }
 
     // 根据按键查找动作
@@ -274,22 +283,7 @@ export function useShortcut(
 
         if (!whenValue) return
 
-        const magicFormat = toMagicKeysFormat(keyValue)
-        const parts = magicFormat.split('+')
-
-        const ctrlRequired = parts.includes('ctrl')
-        const metaRequired = parts.includes('meta')
-        const shiftRequired = parts.includes('shift')
-        const altRequired = parts.includes('alt')
-        const mainKey = parts.filter(p => !['ctrl', 'meta', 'shift', 'alt'].includes(p)).pop()
-
-        if (
-            e.ctrlKey === ctrlRequired &&
-            e.metaKey === metaRequired &&
-            e.shiftKey === shiftRequired &&
-            e.altKey === altRequired &&
-            e.key.toLowerCase() === mainKey
-        ) {
+        if (getKeyCombo(e) === toMagicKeysFormat(keyValue)) {
             if (prevent) e.preventDefault()
             if (stop) e.stopPropagation()
             handler(e)
