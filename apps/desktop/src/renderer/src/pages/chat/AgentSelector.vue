@@ -166,11 +166,11 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
           <div class="agent-content" :class="{ 'agent-content--center': !agent.description }">
             <div class="agent-title-row">
               <div class="agent-title" :title="agent.name">{{ agent.name }}</div>
-              <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm" />
               <span v-if="tempAgents.some((a) => a.id === agent.id)" class="temp-tag">临时</span>
             </div>
             <div v-if="agent.description" class="agent-desc" :title="agent.description">{{ agent.description }}</div>
           </div>
+          <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm" class="agent-tags" />
           <div class="agent-check">
             <div v-if="hasAgentTools(agent)" class="agent-mcp">
               <Wrench20Regular />
@@ -211,11 +211,11 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
           <div class="agent-content" :class="{ 'agent-content--center': !agent.description }">
             <div class="agent-title-row">
               <div class="agent-title" :title="agent.name">{{ agent.name }}</div>
-              <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm" />
               <span v-if="tempAgents.some((a) => a.id === agent.id)" class="temp-tag">临时</span>
             </div>
             <div v-if="agent.description" class="agent-desc" :title="agent.description">{{ agent.description }}</div>
           </div>
+          <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm" class="agent-tags" />
           <div class="agent-check">
             <div v-if="hasAgentTools(agent)" class="agent-mcp">
               <Wrench20Regular />
@@ -302,6 +302,8 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
   cursor: pointer;
   transition: all 0.15s;
   margin-bottom: 2px;
+  min-height: 52px;
+  position: relative;
 }
 
 .agent-section-title {
@@ -342,12 +344,14 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 4px;
 }
 
 .agent-content--center {
+  flex: 0 1 auto;
   gap: 0;
+  justify-content: center;
 }
 
 .agent-title {
@@ -359,6 +363,7 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+  line-height: 1.4;
 }
 
 .agent-title-row {
