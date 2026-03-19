@@ -69,6 +69,57 @@ export const useChatsStores = defineStore(
       return (chat.retryBranchState?.activeBranchId || null) === branchId
     }
 
+    const resolveChatModelConfig = (
+      agentId: string,
+      currentProviderId?: string,
+      currentModelId?: string
+    ) => {
+      const settingsStore = useSettingsStore()
+      const agentStore = useAgentStore()
+      const selectedProviderId = settingsStore.selectedProviderId
+      const selectedModelId = settingsStore.selectedModelId
+      const selectedProvider = settingsStore.getProviderById(selectedProviderId)
+      const selectedProviderHasModel = !!selectedProvider?.models?.some((m) => m.id === selectedModelId)
+      const fallbackProvider = settingsStore.getAllProviders.find(
+        (p) => p.models?.some((m) => m.active && m.category === 'text')
+      )
+      const fallbackModel = fallbackProvider?.models?.find((m) => m.active && m.category === 'text')
+      const currentProvider = currentProviderId
+        ? settingsStore.getProviderById(currentProviderId)
+        : null
+      const currentModelIsValid = !!(
+        currentProviderId &&
+        currentModelId &&
+        currentProvider?.models?.some((m) => m.id === currentModelId)
+      )
+      const agentDefaultModel = agentStore.getAgentById(agentId)?.defaultModel
+      const agentDefaultProvider = agentDefaultModel?.providerId
+        ? settingsStore.getProviderById(agentDefaultModel.providerId)
+        : null
+      const agentDefaultModelIsValid = !!(
+        agentDefaultModel?.providerId &&
+        agentDefaultModel?.modelId &&
+        agentDefaultProvider?.models?.some((m) => m.id === agentDefaultModel.modelId)
+      )
+
+      const providerId = agentDefaultModelIsValid
+        ? agentDefaultModel!.providerId
+        : currentModelIsValid
+          ? currentProviderId!
+          : selectedProviderHasModel
+            ? selectedProviderId
+            : fallbackProvider?.id || ''
+      const modelId = agentDefaultModelIsValid
+        ? agentDefaultModel!.modelId
+        : currentModelIsValid
+          ? currentModelId!
+          : selectedProviderHasModel
+            ? selectedModelId
+            : fallbackModel?.id || ''
+
+      return { providerId, modelId }
+    }
+
     const syncVisibleMessagesToActiveRetryBranch = (chat: Chat) => {
       const state = chat.retryBranchState
       if (!state) return
@@ -309,40 +360,13 @@ export const useChatsStores = defineStore(
         subTask?: SubTaskInfo
       }
     ) => {
-      const settingsStore = useSettingsStore()
       const agentStore = useAgentStore()
       const normalizeAgentId = (agentId?: string) => {
         if (!agentId) return DEFAULT_AGENT_ID
         return agentStore.getAgentById(agentId) ? agentId : DEFAULT_AGENT_ID
       }
       const agentId = normalizeAgentId(options?.agentId)
-      const selectedProviderId = settingsStore.selectedProviderId
-      const selectedModelId = settingsStore.selectedModelId
-      const selectedProvider = settingsStore.getProviderById(selectedProviderId)
-      const selectedProviderHasModel = !!selectedProvider?.models?.some((m) => m.id === selectedModelId)
-      const fallbackProvider = settingsStore.getAllProviders.find(
-        (p) => p.models?.some((m) => m.active && m.category === 'text')
-      )
-      const fallbackModel = fallbackProvider?.models?.find((m) => m.active && m.category === 'text')
-      const agentDefaultModel = agentStore.getAgentById(agentId)?.defaultModel
-      const agentDefaultProvider = agentDefaultModel?.providerId
-        ? settingsStore.getProviderById(agentDefaultModel.providerId)
-        : null
-      const agentDefaultModelIsValid = !!(
-        agentDefaultModel?.providerId &&
-        agentDefaultModel?.modelId &&
-        agentDefaultProvider?.models?.some((m) => m.id === agentDefaultModel.modelId)
-      )
-      const providerId = agentDefaultModelIsValid
-        ? agentDefaultModel!.providerId
-        : selectedProviderHasModel
-          ? selectedProviderId
-          : fallbackProvider?.id || ''
-      const modelId = agentDefaultModelIsValid
-        ? agentDefaultModel!.modelId
-        : selectedProviderHasModel
-          ? selectedModelId
-          : fallbackModel?.id || ''
+      const { providerId, modelId } = resolveChatModelConfig(agentId)
 
       const id = nanoid()
       const chat: Chat = {
@@ -489,16 +513,15 @@ export const useChatsStores = defineStore(
       if (!chat) return
       const agentStore = useAgentStore()
       chat.agentId = agentStore.getAgentById(agentId) ? agentId : DEFAULT_AGENT_ID
+      const { providerId, modelId } = resolveChatModelConfig(chat.agentId, chat.providerId, chat.modelId)
+      chat.providerId = providerId
+      chat.modelId = modelId
     }
 
     const ensureChatAgent = (chatId: string) => {
       const chat = getChatById(chatId)
       if (!chat) return null
-      const agentStore = useAgentStore()
-
-      if (!chat.agentId || !agentStore.getAgentById(chat.agentId)) {
-        chat.agentId = DEFAULT_AGENT_ID
-      }
+      setChatAgent(chatId, chat.agentId || DEFAULT_AGENT_ID)
 
       return chat.agentId
     }

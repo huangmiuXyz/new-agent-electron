@@ -871,15 +871,28 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
 }
 
 const _sendMessage = async () => {
-  if (!currentChatModel.value) {
-    messageApi.error('请先选择模型')
-    return
-  }
-
   const input = message.value.trim()
   const hasContent = input || selectedFiles.value.length > 0
 
   if (!hasContent) return
+
+  let chatId = chatStore.currentChat?.id
+  if (!chatId) {
+    chatId = chatStore.createChat()
+  }
+
+  chatStore.ensureChatAgent(chatId)
+
+  const currentChat = chatStore.getChatById(chatId)
+  const providerId = currentChat?.providerId
+  const modelId = currentChat?.modelId
+  const selectedModel =
+    providerId && modelId ? settingsStore.getModelById(providerId, modelId).model : null
+
+  if (!selectedModel) {
+    messageApi.error('请先选择模型')
+    return
+  }
 
   // 构建消息parts
   const parts: Array<FileUIPart | TextUIPart> = []
@@ -915,11 +928,10 @@ const _sendMessage = async () => {
   })
 
   // 确保有聊天会话
-  if (chatStore.chats.length === 0) {
-    chatStore.createChat()
+  if (!chatStore.currentChat?.id && chatId) {
+    chatStore.setActiveChat(chatId)
   }
 
-  const chatId = chatStore.currentChat!.id!
   const { sendMessages } = useChat(chatId)
 
   // 检查是否正在生成回复
