@@ -124,7 +124,7 @@ const injectBundledRipgrepPath = (command: string): string => {
 
   const leadingWhitespace = command.slice(0, command.length - trimmedStart.length)
   const rest = trimmedStart.slice(2)
-  const quotedRipgrepPath = `"${ripgrepPath.replaceAll('"', '\\"')}"`
+  const quotedRipgrepPath = `"${ripgrepPath}"`
 
   return `${leadingWhitespace}${quotedRipgrepPath}${rest}`
 }
@@ -490,7 +490,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
 
         const outputSections = [
-          `命令执行完成\ncmd: ${cmd}${resolvedCmd !== cmd ? `\nresolved_cmd: ${resolvedCmd}` : ''}\ncwd: ${rootDir.replaceAll('\\', '/')}`
+          `命令执行完成\ncmd: ${cmd}${resolvedCmd !== cmd ? `\nresolved_cmd: ${resolvedCmd}` : ''}\ncwd: ${rootDir}`
         ]
         if (stdout) {
           outputSections.push(`stdout:\n${stdout}`)

@@ -66,6 +66,59 @@ const formatToolOutput = (value: unknown): string => {
   }
 }
 
+const formatParallelToolUseInput = (toolUses: Array<z.infer<typeof parallelToolUseSchema>>): string => {
+  return toolUses
+    .map((toolUse, index) => {
+      const parametersText = (() => {
+        const params = toolUse.parameters || {}
+        if (
+          params &&
+          typeof params === 'object' &&
+          !Array.isArray(params) &&
+          Object.keys(params).length === 1 &&
+          typeof (params as { cmd?: unknown }).cmd === 'string'
+        ) {
+          return String((params as { cmd: string }).cmd)
+        }
+
+        try {
+          return JSON.stringify(params, null, 2)
+        } catch {
+          return String(params)
+        }
+      })()
+
+      return [
+        `[${index + 1}] ${toolUse.recipient_name}`,
+        'input:',
+        parametersText
+      ].join('\n')
+    })
+    .join('\n\n')
+}
+
+const formatParallelToolUseResults = (
+  results: Array<{ recipient_name: string; output?: unknown; formatted_output?: string; error?: string }>
+): string => {
+  return results
+    .map((result, index) => {
+      if (result.error) {
+        return [
+          `[${index + 1}] ${result.recipient_name}`,
+          'error:',
+          result.error
+        ].join('\n')
+      }
+
+      return [
+        `[${index + 1}] ${result.recipient_name}`,
+        'output:',
+        result.formatted_output || ''
+      ].join('\n')
+    })
+    .join('\n\n')
+}
+
 const getAvailableToolContext = (chatId?: string) => {
   const agentStore = useAgentStore()
   const settingsStore = useSettingsStore()
@@ -326,14 +379,15 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  tool_uses: toolUses,
-                  results
-                },
-                null,
-                2
-              )
+              text: [
+                '批量并行工具调用完成',
+                '',
+                'tool_uses:',
+                formatParallelToolUseInput(toolUses),
+                '',
+                'results:',
+                formatParallelToolUseResults(results)
+              ].join('\n')
             }
           ]
         }

@@ -43,15 +43,7 @@ const toggleCollapse = () => {
 const toggleEditInput = (e: Event) => {
   e.stopPropagation()
   if (isEditingInput.value) {
-    // Save changes
-    try {
-      // Try to parse if it looks like JSON
-      const parsed = JSON.parse(localInput.value)
-      props.tool_part.input = parsed
-    } catch {
-      // If not valid JSON, save as string
-      props.tool_part.input = localInput.value
-    }
+    props.tool_part.input = deserializeEditorInput(localInput.value, props.tool_part.input)
   } else {
     isInputCollapsed.value = false
   }
@@ -82,12 +74,7 @@ const runTool = async (e: Event) => {
     const tool = tools[toolName.value]
 
     if (tool && tool.execute) {
-      let args = localInput.value
-      try {
-        args = JSON.parse(localInput.value)
-      } catch (e) {
-        // use string as is
-      }
+      const args = deserializeEditorInput(localInput.value, props.tool_part.input)
 
       const options = {
         chatId: props.message?.metadata?.cid || (props.message as any)?.chatId,
@@ -137,9 +124,34 @@ const customRender = computed(() => {
   }
 })
 
+const isSingleCmdInput = (value: unknown): value is { cmd: string } => {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === 1 &&
+    typeof (value as { cmd?: unknown }).cmd === 'string'
+  )
+}
+
+const extractToolResultText = (value: unknown) => {
+  const toolResult = (value as { toolResult?: { content?: Array<{ type?: string; text?: string }> } })?.toolResult
+  if (!toolResult || !Array.isArray(toolResult.content)) return ''
+
+  return toolResult.content
+    .map((item) => (typeof item?.text === 'string' ? item.text : ''))
+    .filter(Boolean)
+    .join('\n')
+}
+
 const serializeForEditor = (value: unknown) => {
+  if (isSingleCmdInput(value)) return value.cmd
   if (typeof value === 'string') return value
   if (value == null) return ''
+
+  const toolResultText = extractToolResultText(value)
+  if (toolResultText) return toolResultText
+
   try {
     return JSON.stringify(value, null, 2)
   } catch {
@@ -147,10 +159,34 @@ const serializeForEditor = (value: unknown) => {
   }
 }
 
+const decodeEscapedText = (value: string) => {
+  if (!value || (!value.includes('\\n') && !value.includes('\\r') && !value.includes('\\\\'))) {
+    return value
+  }
+
+  try {
+    return JSON.parse(`"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
+  } catch {
+    return value
+  }
+}
+
+const deserializeEditorInput = (text: string, originalValue: unknown) => {
+  if (isSingleCmdInput(originalValue)) {
+    return { cmd: text }
+  }
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
 const initLocalState = () => {
   if (customRender.value) return
   localInput.value = serializeForEditor(props.tool_part.input)
-  localOutput.value = serializeForEditor(props.tool_part.output)
+  localOutput.value = decodeEscapedText(serializeForEditor(props.tool_part.output))
 }
 
 watch(
@@ -272,7 +308,7 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
               </div>
               <div class="io-content" v-if="!isInputCollapsed">
                 <textarea v-if="isEditingInput" v-model="localInput" class="io-textarea" @click.stop></textarea>
-                <div v-else>{{ tool_part.input }}</div>
+                <div v-else>{{ localInput }}</div>
               </div>
             </div>
             <div class="io-section io-output" v-if="tool_part.output || isEditingOutput">
@@ -297,7 +333,7 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
               </div>
               <div class="io-content" v-if="!isOutputCollapsed">
                 <textarea v-if="isEditingOutput" v-model="localOutput" class="io-textarea" @click.stop></textarea>
-                <div v-else>{{ tool_part.output }}</div>
+                <div v-else>{{ localOutput }}</div>
               </div>
             </div>
           </div>
