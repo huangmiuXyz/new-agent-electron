@@ -7,7 +7,7 @@ import path from 'path'
 import mime from 'mime-types'
 import url from 'url'
 import { app, getCurrentWindow } from '@electron/remote'
-import { exec, spawn, fork } from 'child_process'
+import { exec as childProcessExec, spawn, fork } from 'child_process'
 import os from 'os'
 import { type ElectronAPI } from '@agent-qi/types'
 
@@ -69,6 +69,36 @@ const resolveRipgrepPath = (): string | null => {
 }
 
 const getBundledRipgrepPath = (): string | null => resolveRipgrepPath()
+
+const getPreferredShell = (): string | undefined => {
+  if (process.platform !== 'win32') {
+    return undefined
+  }
+
+  return process.env.SystemRoot
+    ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    : 'powershell.exe'
+}
+
+const exec = (
+  command: string,
+  options?: Parameters<typeof childProcessExec>[1] | Parameters<typeof childProcessExec>[2],
+  callback?: Parameters<typeof childProcessExec>[2]
+) => {
+  const normalizedOptions =
+    typeof options === 'function' || options == null ? {} : options
+  const normalizedCallback =
+    typeof options === 'function' ? options : callback
+
+  return childProcessExec(
+    command,
+    {
+      ...normalizedOptions,
+      shell: (normalizedOptions as { shell?: string }).shell || getPreferredShell()
+    },
+    normalizedCallback
+  )
+}
 
 const execFileCommand = (
   file: string,

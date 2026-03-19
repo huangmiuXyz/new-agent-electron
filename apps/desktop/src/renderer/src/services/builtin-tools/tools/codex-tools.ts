@@ -124,100 +124,17 @@ const injectBundledRipgrepPath = (command: string): string => {
 
   const leadingWhitespace = command.slice(0, command.length - trimmedStart.length)
   const rest = trimmedStart.slice(2)
-  const quotedRipgrepPath = `"${ripgrepPath}"`
+  const escapedRipgrepPath = ripgrepPath.replaceAll('"', '""')
+  const quotedRipgrepPath = isWindows ? `& "${escapedRipgrepPath}"` : `"${ripgrepPath}"`
 
   return `${leadingWhitespace}${quotedRipgrepPath}${rest}`
-}
-
-const splitCommandLine = (command: string): string[] => {
-  const tokens: string[] = []
-  let current = ''
-  let quote: '"' | "'" | null = null
-
-  for (let i = 0; i < command.length; i++) {
-    const char = command[i]
-
-    if (quote === '"') {
-      if (char === '\\') {
-        const next = command[i + 1]
-        if (next === '"' || next === '\\') {
-          current += next
-          i++
-          continue
-        }
-      }
-
-      if (char === '"') {
-        quote = null
-        continue
-      }
-
-      current += char
-      continue
-    }
-
-    if (quote === "'") {
-      if (char === "'") {
-        quote = null
-        continue
-      }
-
-      current += char
-      continue
-    }
-
-    if (char === '"' || char === "'") {
-      quote = char
-      continue
-    }
-
-    if (/\s/.test(char)) {
-      if (current) {
-        tokens.push(current)
-        current = ''
-      }
-      continue
-    }
-
-    if (char === '\\') {
-      const next = command[i + 1]
-      if (next === '"' || next === "'" || next === '\\') {
-        current += next
-        i++
-        continue
-      }
-    }
-
-    current += char
-  }
-
-  if (quote) {
-    throw new Error('command contains an unclosed quote')
-  }
-
-  if (current) {
-    tokens.push(current)
-  }
-
-  return tokens
 }
 
 const execProjectSearchCommand = async (
   command: string,
   options: { cwd?: string; maxBuffer?: number } = {}
 ): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
-  const trimmedStart = command.trimStart()
-  if (!/^rg(?:\s|$)/.test(trimmedStart)) {
-    return execCommand(command, options)
-  }
-
-  const ripgrepPath = window.api.getBundledRipgrepPath()
-  if (!ripgrepPath) {
-    return execCommand(command, options)
-  }
-
-  const args = splitCommandLine(trimmedStart).slice(1)
-  return window.api.execFileCommand(ripgrepPath, args, options)
+  return execCommand(injectBundledRipgrepPath(command), options)
 }
 
 const isWindows = navigator.platform.toLowerCase().includes('win')
