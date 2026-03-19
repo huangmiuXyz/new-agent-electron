@@ -51,6 +51,12 @@ const getAgentToolCount = (agent: Agent) => {
   return settingsStore.getValidTools(agent.tools).length + (agent.builtinTools?.length || 0)
 }
 const hasAgentTools = (agent: Agent) => getAgentToolCount(agent) > 0
+const getAgentTags = (agent: Agent) => {
+  if (agent.id === 'default') {
+    return agent.tags?.length ? agent.tags : ['默认']
+  }
+  return agent.tags || []
+}
 
 const favoriteAgents = computed(() =>
   filteredAgents.value.filter((agent) => favoriteAgentSet.value.has(agent.id))
@@ -122,6 +128,12 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
         />
         <Robot v-else />
         <span class="agent-name">{{ selectedAgentLabel }}</span>
+        <Tags
+          v-if="selectedAgent && getAgentTags(selectedAgent).length"
+          :tags="getAgentTags(selectedAgent)"
+          color="orange"
+          size="sm"
+        />
         <ChevronDown class="arrow-icon" />
       </div>
       <Button v-else variant="icon" size="sm">
@@ -152,8 +164,9 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
             </div>
           </div>
           <div class="agent-content" :class="{ 'agent-content--center': !agent.description }">
-            <div class="agent-title" :title="agent.name">
-              {{ agent.name }}
+            <div class="agent-title-row">
+              <div class="agent-title" :title="agent.name">{{ agent.name }}</div>
+              <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm" />
               <span v-if="tempAgents.some((a) => a.id === agent.id)" class="temp-tag">临时</span>
             </div>
             <div v-if="agent.description" class="agent-desc" :title="agent.description">{{ agent.description }}</div>
@@ -196,8 +209,9 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
             </div>
           </div>
           <div class="agent-content" :class="{ 'agent-content--center': !agent.description }">
-            <div class="agent-title" :title="agent.name">
-              {{ agent.name }}
+            <div class="agent-title-row">
+              <div class="agent-title" :title="agent.name">{{ agent.name }}</div>
+              <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm" />
               <span v-if="tempAgents.some((a) => a.id === agent.id)" class="temp-tag">临时</span>
             </div>
             <div v-if="agent.description" class="agent-desc" :title="agent.description">{{ agent.description }}</div>
@@ -253,6 +267,7 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .agent-avatar {
@@ -339,9 +354,18 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+}
+
+.agent-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   width: 100%;
 }
 
