@@ -11,6 +11,67 @@ const toolCallToTerminalMap = ref<Record<string, string>>({})
 const POWERSHELL_SHELL_INTEGRATION = `$function:__agent_qi_prompt_original=$function:prompt; function prompt { $ec=$global:LASTEXITCODE; Write-Host "$([char]27)]633;D;$ec$([char]7)" -NoNewline; & $function:__agent_qi_prompt_original }; Clear-Host`
 const generateId = () => Math.random().toString(36).substring(2, 9)
 
+const getBufferCursorLine = (term: Terminal): number => {
+  const buffer = term.buffer.active
+  return buffer.baseY + buffer.cursorY
+}
+
+const extractTerminalBufferText = (term: Terminal, startLine: number, endLine: number): string => {
+  const buffer = term.buffer.active
+  const safeStart = Math.max(0, startLine)
+  const safeEnd = Math.min(endLine, buffer.length - 1)
+
+  if (safeStart > safeEnd) return ''
+
+  const lines: string[] = []
+
+  for (let lineIndex = safeStart; lineIndex <= safeEnd; lineIndex += 1) {
+    const line = buffer.getLine(lineIndex)
+    if (!line) continue
+
+    const text = line.translateToString(true)
+    if (line.isWrapped && lines.length > 0) {
+      lines[lines.length - 1] += text
+    } else {
+      lines.push(text)
+    }
+  }
+
+  return lines.join('\n')
+}
+
+const stripCommandEcho = (output: string, command?: string): string => {
+  if (!command) return output.trimEnd()
+
+  const lines = output.replace(/\u00a0/g, ' ').split('\n')
+  const commandLineIndex = lines.findIndex((line) => line.includes(command))
+  if (commandLineIndex === -1) return output.trimEnd()
+
+  const commandLine = lines[commandLineIndex]
+  const commandStart = commandLine.indexOf(command)
+  const afterCommand = commandLine.slice(commandStart + command.length).trimStart()
+  const remaining = [...lines.slice(commandLineIndex + 1)]
+
+  if (afterCommand) {
+    remaining.unshift(afterCommand)
+  }
+
+  return remaining.join('\n').trimEnd()
+}
+
+const captureCommandOutput = (tab: TerminalTab): string => {
+  if (!tab.instance) return tab.currentOutput || ''
+
+  const startLine =
+    tab.captureStartMarker && !tab.captureStartMarker.isDisposed
+      ? tab.captureStartMarker.line
+      : getBufferCursorLine(tab.instance)
+  const endLine = getBufferCursorLine(tab.instance)
+  const rawOutput = extractTerminalBufferText(tab.instance, startLine, endLine)
+
+  return stripCommandEcho(rawOutput, tab.captureCommand)
+}
+
 export const useTerminal = (): TerminalActions => {
   const settingsStore = useSettingsStore()
   const chatsStore = useChatsStores()
@@ -140,11 +201,6 @@ export const useTerminal = (): TerminalActions => {
       const currentTab = tabs.value.find((t) => t.id === id)
       if (currentTab) {
         const cleanText = stripAnsi(data)
-
-        if (currentTab.isExecuting) {
-          currentTab.currentOutput = (currentTab.currentOutput || '') + cleanText
-        }
-
         if (/[$%#>]\s*$/.test(cleanText)) {
           const platform = window.api.os.platform()
 
@@ -284,6 +340,9 @@ export const useTerminal = (): TerminalActions => {
     await waitForReady(id)
 
 
+    tab.captureStartMarker?.dispose()
+    tab.captureStartMarker = tab.instance?.registerMarker(0)
+    tab.captureCommand = options.command
     tab.currentOutput = ''
 
     tab.lastExitCode = null
@@ -361,6 +420,10 @@ export const useTerminal = (): TerminalActions => {
         if (timer) clearTimeout(timer)
         unwatch()
         tab.forceContinue = undefined
+        tab.currentOutput = captureCommandOutput(tab)
+        tab.captureStartMarker?.dispose()
+        tab.captureStartMarker = undefined
+        tab.captureCommand = undefined
         resolve({
           success: force ? true : ((tab.lastExitCode ?? 0) === 0),
           exitCode: force ? 0 : (tab.lastExitCode ?? 0),

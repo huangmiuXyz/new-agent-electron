@@ -2,7 +2,7 @@ import { VNode, Component, CSSProperties, Ref, MaybeRefOrGetter } from 'vue'
 import * as zod from 'zod'
 import { ModelCategory } from './ai'
 
-import { Terminal } from 'xterm'
+import { Terminal, IMarker } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 
 export interface DownloadProgress {
@@ -312,6 +312,8 @@ export interface TerminalTab {
   lastExitCode?: number | null
   isReady?: boolean
   currentOutput?: string
+  captureStartMarker?: IMarker
+  captureCommand?: string
   shellIntegrationEnabled?: boolean
   forceContinue?: () => void
   _cleanup?: () => void
