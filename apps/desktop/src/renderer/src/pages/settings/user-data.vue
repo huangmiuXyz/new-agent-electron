@@ -127,7 +127,7 @@ const [FileTable] = useTable<FileItem>({
     {
       key: 'name',
       label: '文件名称',
-      width: 'auto',
+      width: 300,
       render: (row) => {
         return (
           <div class="file-name-cell">
