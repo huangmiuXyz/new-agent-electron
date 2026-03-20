@@ -193,7 +193,7 @@ export const useTerminal = (): TerminalActions => {
     const cwd = agentStore.getAgentById(currentAgentId)?.terminalStartupPath || undefined
     await window.api.pty.spawn({ id, cols: term.cols, rows: term.rows, cwd })
 
-      const cleanupData = window.api.pty.onData(id, (data) => {
+    const cleanupData = window.api.pty.onData(id, (data) => {
       if (data) {
         term.write(data)
       }
@@ -243,9 +243,11 @@ export const useTerminal = (): TerminalActions => {
     })
 
     term.onTitleChange((newTitle) => {
-      if (newTitle && newTitle.trim() !== '') {
-        tabs.value[tabIndex].title = newTitle
-      }
+      try {
+        if (newTitle && newTitle.trim() !== '') {
+          tabs.value[tabIndex].title = newTitle
+        }
+      } catch { }
     })
 
     setTimeout(() => {
