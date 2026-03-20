@@ -4,6 +4,7 @@ const activeTab = ref('models')
 const route = useRoute()
 
 const availableTabs = new Set([
+  'system',
   'agents',
   'models',
   'defaultModels',
@@ -69,6 +70,9 @@ const switchTab = (tabName: string) => {
 
       <!-- 显示设置 -->
       <SettingsDisplay v-else-if="activeTab === 'display'" />
+
+      <!-- 系统设置 -->
+      <SettingsSystem v-else-if="activeTab === 'system'" />
 
       <!-- 快捷键设置 -->
       <SettingsShortcuts v-else-if="activeTab === 'shortcuts'" />

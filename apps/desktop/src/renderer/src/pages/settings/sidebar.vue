@@ -32,6 +32,7 @@ const {
 ])
 
 const settingsList = [
+  { id: 'system', name: '系统设置', icon: useIcon('Settings'), section: '通用设置' },
   { id: 'display', name: '显示设置', icon: useIcon('Eye'), section: '通用设置' },
   { id: 'shortcuts', name: '快捷键', icon: useIcon('Keyboard'), section: '通用设置' },
   { id: 'sync', name: '同步', icon: useIcon('Globe'), section: '通用设置' },
