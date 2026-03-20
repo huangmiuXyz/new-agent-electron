@@ -307,24 +307,29 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
                   class="table-cell"
                   data-col-index={columnIndex}
                   style={getAlignStyle(col.align)}
-                  innerHTML={String(htmlContent || '')}
-                ></div>
+                >
+                  <div class="table-cell-content" innerHTML={String(htmlContent || '')}></div>
+                </div>
               )
             }
 
             if (!isVNode(result) && result?.setup) {
               return (
                 <div key={col.key} class="table-cell" data-col-index={columnIndex} style={getAlignStyle(col.align)}>
-                  {h(result)}
+                  <div class="table-cell-content">
+                    {h(result)}
+                  </div>
                 </div>
               )
             }
 
             return (
               <div key={col.key} class="table-cell" data-col-index={columnIndex} style={getAlignStyle(col.align)}>
-                {col.render
-                  ? col.render(row, rowIndex)
-                  : ((row as Record<string, unknown>)[col.key] as string | number)}
+                <div class="table-cell-content">
+                  {col.render
+                    ? col.render(row, rowIndex)
+                    : ((row as Record<string, unknown>)[col.key] as string | number)}
+                </div>
               </div>
             )
           })}
@@ -430,7 +435,9 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
                     data-col-index={columnIndex}
                     style={getAlignStyle(col.align)}
                   >
-                    {col.headerRender ? col.headerRender() : col.label}
+                    <div class="table-cell-content">
+                      {col.headerRender ? col.headerRender() : col.label}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -563,11 +570,19 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
         box-sizing: border-box;
         padding: 4px 8px;
         min-height: 36px;
+        min-width: 0;
         display: flex;
         align-items: center;
-        overflow: visible;
-        white-space: nowrap;
+        overflow: hidden;
         border-bottom: 1px solid var(--border-subtle);
+      }
+
+      .table-cell-content {
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: clip;
       }
 
       .header-cell {
