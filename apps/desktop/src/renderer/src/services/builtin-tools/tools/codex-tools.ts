@@ -118,6 +118,8 @@ const getPowerShellPath = (): string => {
     : 'powershell.exe'
 }
 
+const getPosixShellPath = (): string => window.api.process.env.SHELL || '/bin/sh'
+
 const injectBundledRipgrepPath = (command: string): string => {
   const trimmedStart = command.trimStart()
   if (!/^rg(?:\s|$)/.test(trimmedStart)) {
@@ -143,7 +145,7 @@ const execProjectSearchCommand = async (
 ): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
   const resolvedCommand = injectBundledRipgrepPath(command)
   if (!isWindows) {
-    return execCommand(resolvedCommand, options)
+    return window.api.execFileCommand(getPosixShellPath(), ['-lc', resolvedCommand], options)
   }
 
   return window.api.execFileCommand(
