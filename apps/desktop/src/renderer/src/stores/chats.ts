@@ -102,17 +102,17 @@ export const useChatsStores = defineStore(
         agentDefaultProvider?.models?.some((m) => m.id === agentDefaultModel.modelId)
       )
 
-      const providerId = agentDefaultModelIsValid
-        ? agentDefaultModel!.providerId
-        : currentModelIsValid
-          ? currentProviderId!
+      const providerId = currentModelIsValid
+        ? currentProviderId!
+        : agentDefaultModelIsValid
+          ? agentDefaultModel!.providerId
           : selectedProviderHasModel
             ? selectedProviderId
             : fallbackProvider?.id || ''
-      const modelId = agentDefaultModelIsValid
-        ? agentDefaultModel!.modelId
-        : currentModelIsValid
-          ? currentModelId!
+      const modelId = currentModelIsValid
+        ? currentModelId!
+        : agentDefaultModelIsValid
+          ? agentDefaultModel!.modelId
           : selectedProviderHasModel
             ? selectedModelId
             : fallbackModel?.id || ''
