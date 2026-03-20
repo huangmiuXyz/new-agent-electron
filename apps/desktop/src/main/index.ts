@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, net, protocol, nativeTheme } from 'electron'
-import { join } from 'path'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { dirname, join } from 'path'
 import { pathToFileURL } from 'url'
 import { setupSqliteHandlers, initSqlite } from './services/sqlite'
 import { setupUpdaterHandlers } from './services/updater'
@@ -32,6 +33,127 @@ const WINDOWS_SYMBOL_COLOR_LIGHT = '#1d1d1f'
 const WINDOW_SHOW_FALLBACK_DELAY = 3000
 
 let mainWindow: BrowserWindow | null = null
+type VulkanMode = 'auto' | 'on' | 'off'
+interface SystemPreferences {
+  vulkanMode: VulkanMode
+  openAtLogin: boolean
+}
+
+const DEFAULT_SYSTEM_PREFERENCES: SystemPreferences = {
+  vulkanMode: 'auto',
+  openAtLogin: false
+}
+
+function getSystemPreferencesPath() {
+  try {
+    return join(app.getPath('userData'), 'system-preferences.json')
+  } catch {
+    return join(process.cwd(), '.agent-qi-system-preferences.json')
+  }
+}
+
+function readSystemPreferences(): SystemPreferences {
+  try {
+    const filePath = getSystemPreferencesPath()
+    if (!existsSync(filePath)) {
+      return { ...DEFAULT_SYSTEM_PREFERENCES }
+    }
+
+    const raw = JSON.parse(readFileSync(filePath, 'utf-8')) as Partial<SystemPreferences>
+    return {
+      vulkanMode: raw.vulkanMode === 'on' || raw.vulkanMode === 'off' ? raw.vulkanMode : 'auto',
+      openAtLogin: Boolean(raw.openAtLogin)
+    }
+  } catch (error) {
+    console.warn('[main] Failed to read system preferences', error)
+    return { ...DEFAULT_SYSTEM_PREFERENCES }
+  }
+}
+
+function writeSystemPreferences(next: Partial<SystemPreferences>) {
+  const filePath = getSystemPreferencesPath()
+  const preferences = {
+    ...readSystemPreferences(),
+    ...next
+  }
+
+  mkdirSync(dirname(filePath), { recursive: true })
+  writeFileSync(filePath, JSON.stringify(preferences, null, 2), 'utf-8')
+  return preferences
+}
+
+function resolveVulkanMode(): VulkanMode {
+  const arg = process.argv.find((value) => value.startsWith('--vulkan='))
+  const rawValue = arg?.split('=')[1] ?? process.env.AGENT_QI_VULKAN ?? readSystemPreferences().vulkanMode
+  const value = rawValue.trim().toLowerCase()
+
+  if (['1', 'true', 'on', 'force'].includes(value)) {
+    return 'on'
+  }
+
+  if (['0', 'false', 'off', 'disable'].includes(value)) {
+    return 'off'
+  }
+
+  return 'auto'
+}
+
+function shouldEnableVulkan(mode: VulkanMode): boolean {
+  if (mode === 'on') return true
+  if (mode === 'off') return false
+
+  return process.platform === 'win32' || process.platform === 'linux'
+}
+
+function configureGraphicsBackend() {
+  const vulkanMode = resolveVulkanMode()
+
+  if (!shouldEnableVulkan(vulkanMode)) {
+    console.info('[main] Vulkan backend disabled', { vulkanMode, platform: process.platform })
+    return
+  }
+
+  app.commandLine.appendSwitch('use-angle', 'vulkan')
+  app.commandLine.appendSwitch('enable-features', 'Vulkan')
+
+  console.info('[main] Vulkan backend requested', { vulkanMode, platform: process.platform })
+}
+
+function isOpenAtLoginSupported() {
+  return process.platform === 'darwin' || process.platform === 'win32'
+}
+
+function applyOpenAtLoginSetting(enabled: boolean) {
+  if (!isOpenAtLoginSupported()) {
+    return false
+  }
+
+  app.setLoginItemSettings({
+    openAtLogin: enabled,
+    openAsHidden: false,
+    ...(process.platform === 'win32' && process.defaultApp
+      ? {
+        path: process.execPath,
+        args: [app.getAppPath()]
+      }
+      : {})
+  })
+
+  return true
+}
+
+function getSystemSettingsSnapshot() {
+  const preferences = readSystemPreferences()
+  const loginItemSettings = isOpenAtLoginSupported()
+    ? app.getLoginItemSettings()
+    : { openAtLogin: preferences.openAtLogin }
+
+  return {
+    vulkanMode: preferences.vulkanMode,
+    openAtLogin: Boolean(loginItemSettings.openAtLogin),
+    openAtLoginSupported: isOpenAtLoginSupported()
+  }
+}
 
 function getWindowsTitleBarOverlay(isDark: boolean) {
   return {
@@ -141,6 +263,7 @@ function createWindow(): BrowserWindow {
   return mainWindow
 }
 
+configureGraphicsBackend()
 app.commandLine.appendSwitch('no-sandbox')
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
@@ -359,6 +482,25 @@ if (gotSingleInstanceLock) {
     }
     return null
   })
+
+  ipcMain.handle('system:get-settings', () => {
+    return getSystemSettingsSnapshot()
+  })
+
+  ipcMain.handle('system:set-vulkan-mode', (_event, mode: VulkanMode) => {
+    const vulkanMode = mode === 'on' || mode === 'off' ? mode : 'auto'
+    writeSystemPreferences({ vulkanMode })
+    return getSystemSettingsSnapshot()
+  })
+
+  ipcMain.handle('system:set-open-at-login', (_event, enabled: boolean) => {
+    const applied = applyOpenAtLoginSetting(Boolean(enabled))
+    const openAtLogin = applied ? Boolean(enabled) : false
+    writeSystemPreferences({ openAtLogin })
+    return getSystemSettingsSnapshot()
+  })
+
+    applyOpenAtLoginSetting(readSystemPreferences().openAtLogin)
 
     mainWindow = createWindow()
     setupUpdaterHandlers(mainWindow)

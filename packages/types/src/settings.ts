@@ -27,6 +27,11 @@ export interface ollamaSettings {
   autoStart?: boolean
 }
 
+export interface SystemSettings {
+  vulkanMode: 'auto' | 'on' | 'off'
+  openAtLogin: boolean
+}
+
 export interface ApiKeyInfo {
   id: string
   name: string
@@ -80,6 +85,7 @@ export interface RegisteredProvider {
 // 设置状态接口
 export interface SettingsState {
   display: DisplaySettings
+  system: SystemSettings
   terminal: TerminalSettings
   providers: Provider[]
   activeProviderId: string
@@ -101,6 +107,7 @@ declare global {
   interface DisplaySettings extends _DisplaySettings {}
   interface TerminalSettings extends _TerminalSettings {}
   interface ollamaSettings extends _ollamaSettings {}
+  interface SystemSettings extends _SystemSettings {}
   interface ApiKeyInfo extends _ApiKeyInfo {}
   interface Provider extends _Provider {}
   interface DefaultModelsSettings extends _DefaultModelsSettings {}
@@ -112,6 +119,7 @@ declare global {
 type _DisplaySettings = DisplaySettings
 type _TerminalSettings = TerminalSettings
 type _ollamaSettings = ollamaSettings
+type _SystemSettings = SystemSettings
 type _ApiKeyInfo = ApiKeyInfo
 type _Provider = Provider
 type _DefaultModelsSettings = DefaultModelsSettings

@@ -9,6 +9,10 @@ const restorePromise = new Promise<void>((resolve) => {
 export const useSettingsStore = defineStore(
   'settings',
   () => {
+    type LocalSystemSettings = {
+      vulkanMode: 'auto' | 'on' | 'off'
+      openAtLogin: boolean
+    }
 
     const getDefaultProviders = () => {
       return data.map((p) => ({
@@ -38,6 +42,11 @@ export const useSettingsStore = defineStore(
       expandToolsByDefault: true,
       expandThoughtByDefault: true,
       chatCenteredLayout: false
+    })
+
+    const system = ref<LocalSystemSettings>({
+      vulkanMode: 'auto',
+      openAtLogin: false
     })
 
     // 快捷键配置
@@ -132,6 +141,10 @@ export const useSettingsStore = defineStore(
 
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
       display.value = { ...display.value, ...settings }
+    }
+
+    const updateSystemSettings = (settings: Partial<typeof system.value>) => {
+      system.value = { ...system.value, ...settings }
     }
 
     const updateTerminalSettings = (settings: Partial<typeof terminal.value>) => {
@@ -574,6 +587,7 @@ export const useSettingsStore = defineStore(
     return {
       isAfterRestore,
       display,
+      system,
       terminal,
       providers,
       providerOrder,
@@ -596,6 +610,7 @@ export const useSettingsStore = defineStore(
       updateSpeechEnabled,
       updateProviderOptions,
       updateDisplaySettings,
+      updateSystemSettings,
       updateTerminalSettings,
       addRegisteredProvider,
       removeRegisteredProvider,
@@ -645,6 +660,7 @@ export const useSettingsStore = defineStore(
       storage: indexedDBStorage,
       paths: [
         'display',
+        'system',
         'terminal',
         'providers',
         'providerOrder',

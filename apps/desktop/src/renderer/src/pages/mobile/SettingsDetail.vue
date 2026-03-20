@@ -9,7 +9,8 @@ setTitle(route.query.name as string)
   <div class="mobile-settings-detail">
     <AppHeader :custom-title="customTitle" current-view="settings" mode="detail" />
     <div class="detail-content">
-      <SettingsAgents v-if="activeTab === 'agents'" />
+      <SettingsSystem v-if="activeTab === 'system'" />
+      <SettingsAgents v-else-if="activeTab === 'agents'" />
       <SettingsProvider v-else-if="activeTab === 'models'" />
       <SettingsDefaultModels v-else-if="activeTab === 'defaultModels'" />
       <SettingsKnowledge v-else-if="activeTab === 'knowledge'" />
