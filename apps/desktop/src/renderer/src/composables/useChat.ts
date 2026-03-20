@@ -203,6 +203,7 @@ export const useChat = (chatId: string) => {
                 contextTokenCount: runtimeAgent?.contextTokenCount,
                 autoCompressContext: runtimeAgent?.autoCompressContext,
                 compressModel: runtimeAgent?.compressModel,
+                maxToolCalls: runtimeAgent?.maxToolCalls,
                 providerOptions: providerOptions.value[selectedProvider.id],
                 isApprovalAction: isApproval
               }

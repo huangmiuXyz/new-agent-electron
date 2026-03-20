@@ -199,6 +199,7 @@ export const useAgent = () => {
           contextTokenCount: agent.contextTokenCount ?? 12000,
           autoCompressContext: agent.autoCompressContext ?? false,
           compressModel: agent.compressModel,
+          maxToolCalls: agent.maxToolCalls,
           speechVoice: agent.speechVoice || '',
           speechMode: agent.speechMode || 'sentence',
           speechSpeed: agent.speechSpeed ?? 1,
@@ -232,6 +233,7 @@ export const useAgent = () => {
           contextCount: 10,
           contextTokenCount: 12000,
           autoCompressContext: false,
+          maxToolCalls: undefined,
           speechVoice: '',
           speechMode: 'sentence',
           speechSpeed: 1,
@@ -1124,6 +1126,14 @@ export const useAgent = () => {
         popupPosition: 'bottom',
         ifShow: (data) => data.autoCompressContext === true
       } as ModelSelectorField<AgentFormData>,
+      {
+        name: 'maxToolCalls',
+        type: 'number',
+        label: '最大工具调用次数',
+        min: 1,
+        max: 100,
+        hint: '一次对话中允许的最大工具调用次数，默认 20 次。达到限制后将停止工具调用并返回结果。'
+      } as TextField<AgentFormData>,
       {
         name: 'terminalStartupPath',
         type: 'path',

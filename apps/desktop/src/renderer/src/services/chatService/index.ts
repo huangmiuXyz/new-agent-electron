@@ -65,6 +65,7 @@ interface ChatServiceConfig {
   contextTokenCount?: number
   autoCompressContext?: boolean
   compressModel?: { providerId: string; modelId: string }
+  maxToolCalls?: number
   providerOptions?: Record<string, any>
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
   isApprovalAction?: boolean
@@ -439,6 +440,7 @@ export const chatService = () => {
       contextTokenCount,
       autoCompressContext: shouldAutoCompress,
       compressModel,
+      maxToolCalls,
       providerOptions: customProviderOptions,
       onBeforeToolExecute,
       isApprovalAction,
@@ -638,8 +640,9 @@ export const chatService = () => {
       instructions: agentInstructions,
       stopWhen: [
         ({ steps }) => {
+          const maxSteps = maxToolCalls ?? 20
           return (
-            steps.length >= 20 ||
+            steps.length >= maxSteps ||
             (steps.some((step) =>
               step.toolResults?.some((toolResult) => {
                 return shouldStopForToolResult({

@@ -31,6 +31,7 @@ declare global {
     contextTokenCount?: number // 上下文 token 阈值
     autoCompressContext?: boolean // 自动压缩上下文
     compressModel?: { providerId: string; modelId: string } // 用于压缩的模型
+    maxToolCalls?: number // 一次对话中最大调用工具次数，默认 20
     speechVoice?: string // 语音名称
     speechMode?: 'sentence' | 'paragraph' | 'full' // 语音生成模式
     speechSpeed?: number // 语音速度
