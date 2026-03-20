@@ -33,14 +33,11 @@ const WINDOWS_SYMBOL_COLOR_LIGHT = '#1d1d1f'
 const WINDOW_SHOW_FALLBACK_DELAY = 3000
 
 let mainWindow: BrowserWindow | null = null
-type VulkanMode = 'auto' | 'on' | 'off'
 interface SystemPreferences {
-  vulkanMode: VulkanMode
   openAtLogin: boolean
 }
 
 const DEFAULT_SYSTEM_PREFERENCES: SystemPreferences = {
-  vulkanMode: 'auto',
   openAtLogin: false
 }
 
@@ -61,7 +58,6 @@ function readSystemPreferences(): SystemPreferences {
 
     const raw = JSON.parse(readFileSync(filePath, 'utf-8')) as Partial<SystemPreferences>
     return {
-      vulkanMode: raw.vulkanMode === 'on' || raw.vulkanMode === 'off' ? raw.vulkanMode : 'auto',
       openAtLogin: Boolean(raw.openAtLogin)
     }
   } catch (error) {
@@ -80,43 +76,6 @@ function writeSystemPreferences(next: Partial<SystemPreferences>) {
   mkdirSync(dirname(filePath), { recursive: true })
   writeFileSync(filePath, JSON.stringify(preferences, null, 2), 'utf-8')
   return preferences
-}
-
-function resolveVulkanMode(): VulkanMode {
-  const arg = process.argv.find((value) => value.startsWith('--vulkan='))
-  const rawValue = arg?.split('=')[1] ?? process.env.AGENT_QI_VULKAN ?? readSystemPreferences().vulkanMode
-  const value = rawValue.trim().toLowerCase()
-
-  if (['1', 'true', 'on', 'force'].includes(value)) {
-    return 'on'
-  }
-
-  if (['0', 'false', 'off', 'disable'].includes(value)) {
-    return 'off'
-  }
-
-  return 'auto'
-}
-
-function shouldEnableVulkan(mode: VulkanMode): boolean {
-  if (mode === 'on') return true
-  if (mode === 'off') return false
-
-  return process.platform === 'win32' || process.platform === 'linux'
-}
-
-function configureGraphicsBackend() {
-  const vulkanMode = resolveVulkanMode()
-
-  if (!shouldEnableVulkan(vulkanMode)) {
-    console.info('[main] Vulkan backend disabled', { vulkanMode, platform: process.platform })
-    return
-  }
-
-  app.commandLine.appendSwitch('use-angle', 'vulkan')
-  app.commandLine.appendSwitch('enable-features', 'Vulkan')
-
-  console.info('[main] Vulkan backend requested', { vulkanMode, platform: process.platform })
 }
 
 function isOpenAtLoginSupported() {
@@ -149,7 +108,6 @@ function getSystemSettingsSnapshot() {
     : { openAtLogin: preferences.openAtLogin }
 
   return {
-    vulkanMode: preferences.vulkanMode,
     openAtLogin: Boolean(loginItemSettings.openAtLogin),
     openAtLoginSupported: isOpenAtLoginSupported()
   }
@@ -263,7 +221,6 @@ function createWindow(): BrowserWindow {
   return mainWindow
 }
 
-configureGraphicsBackend()
 app.commandLine.appendSwitch('no-sandbox')
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
@@ -484,12 +441,6 @@ if (gotSingleInstanceLock) {
   })
 
   ipcMain.handle('system:get-settings', () => {
-    return getSystemSettingsSnapshot()
-  })
-
-  ipcMain.handle('system:set-vulkan-mode', (_event, mode: VulkanMode) => {
-    const vulkanMode = mode === 'on' || mode === 'off' ? mode : 'auto'
-    writeSystemPreferences({ vulkanMode })
     return getSystemSettingsSnapshot()
   })
 

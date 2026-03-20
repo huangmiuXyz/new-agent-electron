@@ -10,7 +10,6 @@ export const useSettingsStore = defineStore(
   'settings',
   () => {
     type LocalSystemSettings = {
-      vulkanMode: 'auto' | 'on' | 'off'
       openAtLogin: boolean
     }
 
@@ -45,7 +44,6 @@ export const useSettingsStore = defineStore(
     })
 
     const system = ref<LocalSystemSettings>({
-      vulkanMode: 'auto',
       openAtLogin: false
     })
 

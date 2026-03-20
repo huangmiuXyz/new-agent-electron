@@ -245,8 +245,6 @@ export const api: ElectronAPI = {
     electronAPI.ipcRenderer.invoke('window:get-temp-chat-data', windowId),
   system: {
     getSettings: () => electronAPI.ipcRenderer.invoke('system:get-settings'),
-    setVulkanMode: (mode: 'auto' | 'on' | 'off') =>
-      electronAPI.ipcRenderer.invoke('system:set-vulkan-mode', mode),
     setOpenAtLogin: (enabled: boolean) =>
       electronAPI.ipcRenderer.invoke('system:set-open-at-login', enabled)
   },

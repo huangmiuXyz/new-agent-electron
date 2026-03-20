@@ -28,7 +28,6 @@ export interface ollamaSettings {
 }
 
 export interface SystemSettings {
-  vulkanMode: 'auto' | 'on' | 'off'
   openAtLogin: boolean
 }
 

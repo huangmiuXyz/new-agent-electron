@@ -132,17 +132,10 @@ export interface ElectronAPI {
   getTempChatData: (windowId: string) => Promise<any>;
   system: {
     getSettings: () => Promise<{
-      vulkanMode: 'auto' | 'on' | 'off';
-      openAtLogin: boolean;
-      openAtLoginSupported: boolean;
-    }>;
-    setVulkanMode: (mode: 'auto' | 'on' | 'off') => Promise<{
-      vulkanMode: 'auto' | 'on' | 'off';
       openAtLogin: boolean;
       openAtLoginSupported: boolean;
     }>;
     setOpenAtLogin: (enabled: boolean) => Promise<{
-      vulkanMode: 'auto' | 'on' | 'off';
       openAtLogin: boolean;
       openAtLoginSupported: boolean;
     }>;
