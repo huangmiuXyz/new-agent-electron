@@ -122,6 +122,17 @@ const normalizeVideos = (videos: any[] = []) =>
     .filter(Boolean) as string[]
 
 const fallbackToolBatchId = ref(Date.now())
+const resolvedToolResult = computed<ToolOutput | undefined>(() => {
+  const raw = props.result as any
+  if (!raw || typeof raw !== 'object') return raw
+
+  if (raw.type === 'json' && raw.value && typeof raw.value === 'object') {
+    return raw.value as ToolOutput
+  }
+
+  return raw as ToolOutput
+})
+
 const toolBatchId = computed(() => {
   const rawToolCallId = props.tool_part?.toolCallId
   if (!rawToolCallId) return fallbackToolBatchId.value
@@ -198,8 +209,8 @@ const scrollToBottom = () => {
 const syncToolBatchFromResult = () => {
   if (!isToolMode.value) return
 
-  const metadata = props.result?.metadata
-  const resultError = props.result?.error
+  const metadata = resolvedToolResult.value?.metadata
+  const resultError = resolvedToolResult.value?.error
   const prompt = props.args?.prompt || ''
   const batchId = toolBatchId.value
   const existing = generatedBatches.value.find((batch) => batch.id === batchId)
@@ -265,7 +276,7 @@ const syncToolBatchFromResult = () => {
 const handleRegenerate = async () => {
   if (!isToolMode.value || isRegenerating.value) return
 
-  const metadata = props.result?.metadata
+  const metadata = resolvedToolResult.value?.metadata
   if (!metadata || !metadata.config || !metadata.providerId) return
 
   isRegenerating.value = true
@@ -465,7 +476,7 @@ watch(
 )
 
 const toolResultSyncKey = computed(() => {
-  const metadata = props.result?.metadata
+  const metadata = resolvedToolResult.value?.metadata
   const images = metadata?.images || []
   const imageSizeSignature = images
     .map((img: any) => {
@@ -479,7 +490,7 @@ const toolResultSyncKey = computed(() => {
   return [
     props.tool_part?.toolCallId || '',
     props.args?.prompt || '',
-    props.result?.error || '',
+    resolvedToolResult.value?.error || '',
     metadata?.providerId || '',
     metadata?.config?.mediaType || '',
     metadata?.config?.model || '',

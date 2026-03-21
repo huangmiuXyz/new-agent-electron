@@ -220,6 +220,7 @@ export function createArk(
       generate_audio: validatedOptions.generate_audio,
       camera_fixed: validatedOptions.camera_fixed,
       service_tier: validatedOptions.service_tier,
+      duration: params.duration,
       resolution: params.resolution,
     };
 
