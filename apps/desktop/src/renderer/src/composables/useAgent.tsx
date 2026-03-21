@@ -1139,7 +1139,6 @@ export const useAgent = () => {
         type: 'path',
         label: '工作路径',
         placeholder: '选择或输入工作目录',
-        hint: '留空则使用默认工作路径',
         dialogOptions: {
           properties: ['openDirectory'],
           title: '选择工作目录'
