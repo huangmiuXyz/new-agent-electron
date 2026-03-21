@@ -130,7 +130,11 @@ const toolBatchId = computed(() => {
 })
 
 const displayBatches = computed(() => {
-  if (!isToolMode.value) return generatedBatches.value
+  if (!isToolMode.value) {
+    if (isSpeechMode.value) return []
+    const targetMediaType = isVideoMode.value ? 'video' : 'image'
+    return generatedBatches.value.filter((batch) => (batch.mediaType || 'image') === targetMediaType)
+  }
   return generatedBatches.value.filter((batch) => batch.id === toolBatchId.value)
 })
 
@@ -209,8 +213,8 @@ const scrollToBottom = () => {
       return
     }
 
-    if (generatedBatches.value.length > 0) {
-      scrollTo(generatedBatches.value.length - 1)
+    if (displayBatches.value.length > 0) {
+      scrollTo(displayBatches.value.length - 1)
     }
   })
 }
@@ -347,7 +351,7 @@ const copyPrompt = (prompt: string) => {
 
 const clearResults = async () => {
   const isSpeech = isSpeechMode.value
-  const hasResults = isSpeech ? speechResults.value.length > 0 : generatedBatches.value.length > 0
+  const hasResults = isSpeech ? speechResults.value.length > 0 : displayBatches.value.length > 0
   if (!hasResults) return
 
   const confirmed = await confirm({
@@ -363,7 +367,10 @@ const clearResults = async () => {
     audioStore.clearBatches()
     return
   }
-  imgStore.clearBatches()
+  const targetMediaType = isVideoMode.value ? 'video' : 'image'
+  generatedBatches.value
+    .filter((batch) => (batch.mediaType || 'image') === targetMediaType)
+    .forEach((batch) => imgStore.removeBatch(batch.id))
 }
 
 const removeSpeechResult = async (chunkId: string) => {
