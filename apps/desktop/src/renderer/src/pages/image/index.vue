@@ -19,9 +19,12 @@ interface ImageMetadata {
   images?: string[]
   config?: {
     model: string
-    size: string
+    size?: string
     n: number
     seed?: number
+    duration?: number
+    resolution?: `${number}x${number}`
+    mediaType?: 'image' | 'video'
     providerOptions?: Record<string, any>
   }
 }
@@ -107,6 +110,17 @@ const normalizeImages = (images: any[] = []) =>
     })
     .filter(Boolean) as string[]
 
+const normalizeVideos = (videos: any[] = []) =>
+  videos
+    .map((video: any) => {
+      if (typeof video === 'string') return video
+      if (video.base64) {
+        return video.base64.startsWith('data:') ? video.base64 : `data:video/mp4;base64,${video.base64}`
+      }
+      return video.url || ''
+    })
+    .filter(Boolean) as string[]
+
 const fallbackToolBatchId = ref(Date.now())
 const toolBatchId = computed(() => {
   const rawToolCallId = props.tool_part?.toolCallId
@@ -189,15 +203,18 @@ const syncToolBatchFromResult = () => {
   const prompt = props.args?.prompt || ''
   const batchId = toolBatchId.value
   const existing = generatedBatches.value.find((batch) => batch.id === batchId)
+  const mediaType = metadata?.config?.mediaType === 'video' ? 'video' : 'image'
 
-  const normalizedImages = normalizeImages(metadata?.images || [])
+  const normalizedMedia = mediaType === 'video'
+    ? normalizeVideos(metadata?.images || [])
+    : normalizeImages(metadata?.images || [])
   const finishedTaskIds = metadata?.finished_task_ids || []
   const taskIds = metadata?.task_ids || []
   const pendingTaskId = taskIds.find((id) => !finishedTaskIds.includes(id))
   const hasPendingTask = !!pendingTaskId
-  const n = metadata?.config?.n || Math.max(normalizedImages.length, 1)
+  const n = metadata?.config?.n || Math.max(normalizedMedia.length, 1)
   const placeholders = hasPendingTask
-    ? Array.from({ length: Math.max(1, n - normalizedImages.length) }, (_v, idx) => ({ loading: true, id: idx + 1 }))
+    ? Array.from({ length: Math.max(1, n - normalizedMedia.length) }, (_v, idx) => ({ loading: true, id: idx + 1 }))
     : []
 
   const batchData: Partial<ImageBatch> = {
@@ -206,13 +223,15 @@ const syncToolBatchFromResult = () => {
     size: metadata?.config?.size,
     n,
     providerId: metadata?.providerId,
-    images: [...normalizedImages, ...placeholders],
+    images: [...normalizedMedia, ...placeholders],
     taskId: pendingTaskId,
     status: hasPendingTask ? 'processing' : resultError ? 'failed' : 'completed',
     error: resultError,
     seed: metadata?.config?.seed,
     params: { providerOptions: metadata?.config?.providerOptions },
-    mediaType: 'image'
+    mediaType,
+    duration: mediaType === 'video' ? metadata?.config?.duration : undefined,
+    resolution: mediaType === 'video' ? metadata?.config?.resolution : undefined
   }
 
   if (existing) {
@@ -223,7 +242,7 @@ const syncToolBatchFromResult = () => {
       prompt: prompt || '',
       model: metadata?.config?.model || '',
       n,
-      images: [...normalizedImages, ...placeholders],
+      images: [...normalizedMedia, ...placeholders],
       providerId: metadata?.providerId,
       taskId: pendingTaskId,
       status: hasPendingTask ? 'processing' : resultError ? 'failed' : 'completed',
@@ -231,7 +250,9 @@ const syncToolBatchFromResult = () => {
       size: metadata?.config?.size,
       seed: metadata?.config?.seed,
       params: { providerOptions: metadata?.config?.providerOptions },
-      mediaType: 'image'
+      mediaType,
+      duration: mediaType === 'video' ? metadata?.config?.duration : undefined,
+      resolution: mediaType === 'video' ? metadata?.config?.resolution : undefined
     })
   }
 

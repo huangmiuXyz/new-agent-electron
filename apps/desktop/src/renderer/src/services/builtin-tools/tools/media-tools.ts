@@ -226,7 +226,8 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
           },
           metadata: {
             ...metadata,
-            images: normalizeVideoUrls(result.videos)
+            images: normalizeVideoUrls(result.videos),
+            finished_task_ids: [],
           }
         }
       } catch (error) {

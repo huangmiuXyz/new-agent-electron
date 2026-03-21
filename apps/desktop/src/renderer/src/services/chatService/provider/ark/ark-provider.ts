@@ -56,7 +56,14 @@ export interface ArkProvider extends ProviderV3 {
   videoCallOptionsSchema: typeof arkVideoCallOptionsSchema;
 
   generateVideoAsyncTask(params: any): Promise<{ task_id: string }>;
-  asyncVideoResult(params: { task_id: string }): Promise<GenerateVideoResult>;
+  asyncVideoResult(params: { task_id: string }): Promise<
+    | GenerateVideoResult
+    | {
+      status: 'pending' | 'failed';
+      error?: string;
+      videos?: GeneratedFile[];
+    }
+  >;
 }
 
 export interface ArkProviderSettings {
@@ -214,19 +221,41 @@ export function createArk(
       camera_fixed: validatedOptions.camera_fixed,
       service_tier: validatedOptions.service_tier,
       duration: params.duration,
+      resolution: params.resolution,
     };
 
     const task = await model.createTask(requestBody);
     return { task_id: task.id };
   };
 
-  const asyncVideoResult = async ({ task_id }: { task_id: string }): Promise<GenerateVideoResult> => {
+  const asyncVideoResult = async ({ task_id }: { task_id: string }): Promise<
+    | GenerateVideoResult
+    | {
+      status: 'pending' | 'failed';
+      error?: string;
+      videos?: GeneratedFile[];
+    }
+  > => {
     // 使用默认模型 ID 查询任务状态
     const model = createVideoModel('default');
     const status = await model.getTaskStatus(task_id);
 
-    if (status.status !== 'succeeded' || !status.content?.video_url) {
-      throw new Error(status.error?.message ?? `Video generation ${status.status}`);
+    if (status.status === 'pending' || status.status === 'running') {
+      return { status: 'pending' };
+    }
+
+    if (status.status === 'failed') {
+      return {
+        status: 'failed',
+        error: status.error?.message ?? 'Video generation failed'
+      };
+    }
+
+    if (!status.content?.video_url) {
+      return {
+        status: 'failed',
+        error: `Video generation ${status.status}`
+      };
     }
 
     // 从 URL 获取视频内容并转换为 GeneratedFile
