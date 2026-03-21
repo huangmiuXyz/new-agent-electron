@@ -14,7 +14,7 @@ const resolvePatchPathInBaseDir = (rawPath: string, baseDir: string) => {
     relativePath === '' || (!relativePath.startsWith('..') && !window.api.path.isAbsolute(relativePath))
 
   if (!isInsideBaseDir) {
-    throw new Error(`路径越界：仅允许访问 terminalStartupPath 内文件 (${normalizedBaseDir})`)
+    throw new Error(`路径越界：仅允许访问 workPath 内文件 (${normalizedBaseDir})`)
   }
 
   return targetPath

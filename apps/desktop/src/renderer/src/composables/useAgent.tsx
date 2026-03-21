@@ -184,7 +184,7 @@ export const useAgent = () => {
           builtinToolsRequireApproval: [...(agent.builtinToolsRequireApproval || [])],
           execCommandRunInBackground: agent.execCommandRunInBackground ?? false,
           ragEnabled: agent.ragEnabled ?? false,
-          terminalStartupPath: agent.terminalStartupPath || '',
+          workPath: agent.workPath || '',
           skillDirectory: agent.skillDirectory || DEFAULT_SKILL_DIRECTORY,
           disabledSkills: [...(agent.disabledSkills || [])],
           backgrounds: agent.backgrounds ? agent.backgrounds.map((bg) => bg.url) : [],
@@ -220,7 +220,7 @@ export const useAgent = () => {
           builtinToolsRequireApproval: [],
           execCommandRunInBackground: false,
           ragEnabled: false,
-          terminalStartupPath: '',
+          workPath: '',
           skillDirectory: DEFAULT_SKILL_DIRECTORY,
           disabledSkills: [],
           backgrounds: [],
@@ -1135,14 +1135,14 @@ export const useAgent = () => {
         hint: '一次对话中允许的最大工具调用次数，默认 20 次。达到限制后将停止工具调用并返回结果。'
       } as TextField<AgentFormData>,
       {
-        name: 'terminalStartupPath',
+        name: 'workPath',
         type: 'path',
-        label: '终端启动位置',
-        placeholder: '选择或输入终端启动目录',
-        hint: '留空则使用默认启动位置',
+        label: '工作路径',
+        placeholder: '选择或输入工作目录',
+        hint: '留空则使用默认工作路径',
         dialogOptions: {
           properties: ['openDirectory'],
-          title: '选择终端启动目录'
+          title: '选择工作目录'
         }
       } as PathSelectorField<AgentFormData>
     ]

@@ -10,9 +10,9 @@ const getAgentByChat = (chatId?: string) => {
 }
 
 const resolvePath = (rawPath: string, chatId?: string): string => {
-  const baseDir = getAgentByChat(chatId)?.terminalStartupPath
+  const baseDir = getAgentByChat(chatId)?.workPath
   if (!baseDir) {
-    throw new Error('未设置 terminalStartupPath，已禁止回退路径解析')
+    throw new Error('未设置 workPath，已禁止回退路径解析')
   }
   const normalizedBaseDir = window.api.path.resolve(window.api.path.normalize(baseDir))
   const inputPath = rawPath.trim()
@@ -25,7 +25,7 @@ const resolvePath = (rawPath: string, chatId?: string): string => {
     relativePath === '' || (!relativePath.startsWith('..') && !window.api.path.isAbsolute(relativePath))
 
   if (!isInsideBaseDir) {
-    throw new Error(`路径越界：仅允许访问 terminalStartupPath 内文件 (${normalizedBaseDir})`)
+    throw new Error(`路径越界：仅允许访问 workPath 内文件 (${normalizedBaseDir})`)
   }
 
   return resolvedPath
@@ -176,7 +176,7 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
 
       try {
         const currentPath = resolvePath(rawPath, options?.chatId)
-        const baseDir = getAgentByChat(options?.chatId)?.terminalStartupPath
+        const baseDir = getAgentByChat(options?.chatId)?.workPath
         const relativePath = baseDir
           ? window.api.path.relative(baseDir, currentPath)
           : currentPath

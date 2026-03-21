@@ -190,7 +190,7 @@ export const useTerminal = (): TerminalActions => {
 
 
     const currentAgentId = chatsStore.currentChat?.agentId || 'default'
-    const cwd = agentStore.getAgentById(currentAgentId)?.terminalStartupPath || undefined
+    const cwd = agentStore.getAgentById(currentAgentId)?.workPath || undefined
     await window.api.pty.spawn({ id, cols: term.cols, rows: term.rows, cwd })
 
     const cleanupData = window.api.pty.onData(id, (data) => {

@@ -10,9 +10,9 @@ const getCurrentAgent = () => {
 }
 
 const resolvePath = (rawPath: string): string => {
-  const baseDir = getCurrentAgent()?.terminalStartupPath
+  const baseDir = getCurrentAgent()?.workPath
   if (!baseDir) {
-    throw new Error('未设置 terminalStartupPath，已禁止回退路径解析')
+    throw new Error('未设置 workPath，已禁止回退路径解析')
   }
   const normalizedBaseDir = window.api.path.resolve(window.api.path.normalize(baseDir))
   const inputPath = rawPath.trim()
@@ -25,7 +25,7 @@ const resolvePath = (rawPath: string): string => {
     relativePath === '' || (!relativePath.startsWith('..') && !window.api.path.isAbsolute(relativePath))
 
   if (!isInsideBaseDir) {
-    throw new Error(`路径越界：仅允许访问 terminalStartupPath 内文件 (${normalizedBaseDir})`)
+    throw new Error(`路径越界：仅允许访问 workPath 内文件 (${normalizedBaseDir})`)
   }
 
   return resolvedPath
@@ -232,7 +232,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     title: '列出目录',
     description: '列出指定目录下的文件和子目录，支持递归深度限制',
     inputSchema: z.object({
-      path: z.string().describe('要列出的目录路径，支持相对路径（基于 terminalStartupPath）或绝对路径'),
+      path: z.string().describe('要列出的目录路径，支持相对路径（基于 workPath）或绝对路径'),
       max_depth: z
         .number()
         .int()
@@ -538,12 +538,12 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
       }
 
-      const baseDir = getCurrentAgent()?.terminalStartupPath
+      const baseDir = getCurrentAgent()?.workPath
       if (!baseDir) {
         return {
-          error: '未设置 terminalStartupPath',
+          error: '未设置 workPath',
           toolResult: {
-            content: [{ type: 'text', text: 'search_replace 失败：未设置 terminalStartupPath' }]
+            content: [{ type: 'text', text: 'search_replace 失败：未设置 workPath' }]
           }
         }
       }

@@ -36,7 +36,7 @@ const resolvePathInBaseDir = (baseDir: string, rawPath: string) => {
     relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
 
   if (!isInsideBaseDir) {
-    throw new Error(`Path escapes terminalStartupPath: ${normalizedBaseDir}`)
+    throw new Error(`Path escapes workPath: ${normalizedBaseDir}`)
   }
 
   return targetPath
@@ -150,7 +150,7 @@ const applyMove = async (sourcePath: string, destinationPath: string, overwrite:
 const executeSearchReplace = async (payload: SearchReplacePayload) => {
   const baseDir = typeof payload.baseDir === 'string' ? payload.baseDir.trim() : ''
   if (!baseDir) {
-    throw new Error('terminalStartupPath is required')
+    throw new Error('workPath is required')
   }
 
   const filePath = typeof payload.filePath === 'string' ? payload.filePath.trim() : ''
