@@ -54,14 +54,11 @@ const videoFields = computed<FormField<any>[]>(() => {
     },
     {
       name: 'duration',
-      type: 'select',
+      type: 'slider',
       label: '视频时长',
       defaultValue: 5,
-      options: [
-        { label: '5秒', value: 5 },
-        { label: '10秒', value: 10 },
-        { label: '15秒', value: 15 }
-      ]
+      min: 1,
+      step: 1,
     } as FormField<any>,
     {
       name: 'resolution',

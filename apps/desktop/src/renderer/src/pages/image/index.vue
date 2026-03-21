@@ -481,6 +481,7 @@ const toolResultSyncKey = computed(() => {
     props.args?.prompt || '',
     props.result?.error || '',
     metadata?.providerId || '',
+    metadata?.config?.mediaType || '',
     metadata?.config?.model || '',
     metadata?.config?.size || '',
     metadata?.config?.n || 0,

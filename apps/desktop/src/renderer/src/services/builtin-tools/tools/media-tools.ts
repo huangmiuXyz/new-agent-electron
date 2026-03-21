@@ -94,7 +94,15 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
           })
 
           return {
-            metadata: { ...metadata, task_ids: [task_id], images: [] }
+            toolResult: {
+              content: [{ type: 'text', text: '图片生成任务已创建，正在生成中。' }]
+            },
+            metadata: {
+              ...metadata,
+              task_ids: [task_id],
+              finished_task_ids: [],
+              images: []
+            }
           }
         }
 
@@ -203,7 +211,15 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
           })
 
           return {
-            metadata: { ...metadata, task_ids: [task_id], images: [] }
+            toolResult: {
+              content: [{ type: 'text', text: '视频生成任务已创建，正在生成中。' }]
+            },
+            metadata: {
+              ...metadata,
+              task_ids: [task_id],
+              finished_task_ids: [],
+              images: []
+            }
           }
         }
 
