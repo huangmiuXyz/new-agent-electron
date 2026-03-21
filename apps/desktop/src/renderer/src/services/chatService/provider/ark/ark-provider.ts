@@ -240,7 +240,7 @@ export function createArk(
     const model = createVideoModel('default');
     const status = await model.getTaskStatus(task_id);
 
-    if (status.status === 'pending' || status.status === 'running') {
+    if (status.status === 'running' || status.status === 'queued') {
       return { status: 'pending' };
     }
 

@@ -50,7 +50,7 @@ export interface ArkVideoTaskResponse {
 
 export interface ArkVideoTaskStatusResponse {
   id: string;
-  status: 'pending' | 'running' | 'succeeded' | 'failed';
+  status: 'running' | 'succeeded' | 'failed' | 'queued' | 'expired' | 'canceled';
   content?: {
     video_url: string
   };
