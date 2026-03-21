@@ -60,7 +60,6 @@ const isSpeechMode = computed(() => activeMode.value === 'speech')
 const isRegenerating = ref(false)
 const isToolMode = computed(() => !!props.tool_part)
 const REGENERATE_MIN_LOCK_MS = 1500
-const ITEM_HEIGHT = 320
 const IMAGE_PAGE_SPEECH_PREFIX = 'image-page-speech:'
 
 const imagePanelRef = ref<InstanceType<typeof ImageModePanel>>()
@@ -135,10 +134,31 @@ const displayBatches = computed(() => {
   return generatedBatches.value.filter((batch) => batch.id === toolBatchId.value)
 })
 
+const getBatchEstimatedHeight = (index: number) => {
+  const batch = displayBatches.value[index]
+  if (!batch) return 320
+
+  const hasReferenceImages = (batch.referenceImages?.length || 0) > 0
+  const isVideoBatch = batch.mediaType === 'video'
+  const isFailedBatch = batch.status === 'failed'
+
+  if (isVideoBatch) return hasReferenceImages ? 420 : 390
+  if (isFailedBatch) return hasReferenceImages ? 380 : 350
+  return hasReferenceImages ? 360 : 320
+}
+
 const { list: virtualList, containerProps, wrapperProps, scrollTo } = useVirtualList(displayBatches, {
-  itemHeight: ITEM_HEIGHT,
+  itemHeight: getBatchEstimatedHeight,
   overscan: 2
 })
+
+const setResultsContentRefs = (el: Element | ComponentPublicInstance | null) => {
+  const element = el as HTMLElement | null
+  resultsContentRef.value = element || undefined
+
+  const virtualListContainerRef = containerProps.ref as Ref<HTMLElement | null>
+  virtualListContainerRef.value = element
+}
 
 const renderedBatches = computed(() => {
   if (isToolMode.value) {
@@ -595,7 +615,7 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
 
       <template #content>
         <div class="results-container">
-          <div class="results-content" v-bind="containerProps" ref="resultsContentRef">
+          <div class="results-content" v-bind="{ ...containerProps, ref: undefined }" :ref="setResultsContentRefs">
             <div v-if="isSpeechMode">
               <div v-if="speechResults.length === 0" class="empty-state">
                 <div class="empty-icon">
