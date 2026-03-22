@@ -716,9 +716,11 @@ const handleTextareaInput = (event: Event) => {
 }
 
 const handleTextareaKeydown = (event: KeyboardEvent) => {
-  const mentionPayload = atPanelRef.value?.handleKeydown(event, message.value, textareaRef.value)
-  if (mentionPayload) {
-    applySkillMention(mentionPayload)
+  const mentionResult = atPanelRef.value?.handleKeydown(event, message.value, textareaRef.value)
+  if (mentionResult?.handled) {
+    if (mentionResult.payload) {
+      applySkillMention(mentionResult.payload)
+    }
     return
   }
 
