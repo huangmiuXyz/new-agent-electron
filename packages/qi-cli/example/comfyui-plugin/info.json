@@ -1,6 +1,6 @@
 {
-  "name": "ComfyUI Image Generation",
-  "description": "ComfyUI local workflow image generation provider plugin",
+  "name": "ComfyUI 工作流出图",
+  "description": "为 Agent-Qi 扩展 ComfyUI 工作流图像生成能力，支持本地或远程工作流调用。",
   "version": "1.0.0",
   "author": "Agent-Qi",
   "updatedAt": "2026-02-23",

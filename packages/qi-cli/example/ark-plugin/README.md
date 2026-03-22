@@ -1,21 +1,31 @@
-# ark-plugin
+# 火山引擎方舟多模态插件
 
-Volcengine Ark provider plugin for Agent-Qi.
+这个插件为 Agent-Qi 扩展火山引擎方舟 Provider，让应用重新具备 Ark 的文本、图像和视频生成能力，而不是依赖内置提供商列表。
 
-This plugin restores Ark support through the plugin system instead of the built-in desktop provider list.
+## 扩展了什么功能
 
-## Features
+- 注册 `ark` 模型工厂，可在应用中作为独立提供商使用
+- 自动向设置页注入“方舟”提供商配置入口
+- 复用应用现有的 `Base URL`、`API Key`、模型刷新等配置流程
+- 补充 Ark 图像生成与视频生成能力，便于直接在应用里调用
+- 卸载插件时自动清理对应提供商和默认模型绑定，避免残留脏配置
 
-- Registers the `ark` provider factory
-- Adds an `Ark` provider entry to the app settings
-- Keeps the existing provider settings page workflow for base URL, API keys, and model refresh
-- Supports Ark image and video generation helpers
+## 配置方式
 
-## Development
+1. 安装并启用插件。
+2. 打开 Agent-Qi 的“模型提供商”设置。
+3. 新增或编辑“火山引擎方舟”提供商。
+4. 填写 `API Key`，如有需要可改 `Base URL`。
+5. 刷新模型后即可在聊天、图像或视频场景中使用。
+
+## 适用平台
+
+- 桌面端
+- 移动端
+
+## 开发与构建
 
 ```bash
 pnpm install
 pnpm build
 ```
-
-Load the plugin directory in Agent-Qi through the plugin settings page, or package it with the Qi CLI workflow if needed.

@@ -1,29 +1,30 @@
-# ComfyUI Plugin
+# ComfyUI 工作流出图插件
 
-ComfyUI image provider plugin for Agent-Qi.
+这个插件为 Agent-Qi 扩展 ComfyUI 工作流图像生成能力，可以把已有的 ComfyUI API 工作流直接接入应用，用统一的图像生成入口完成出图。
 
-## Features
+## 扩展了什么功能
 
-- Register `comfyui` as a provider type.
-- Submit workflow jobs through ComfyUI `/prompt`.
-- Poll task status from `/history/{prompt_id}`.
-- Render generated images through `/view`.
+- 注册 `comfyui` 提供商类型，接入应用的图像生成面板
+- 通过 ComfyUI 的 `/prompt` 提交工作流任务
+- 通过 `/history/{prompt_id}` 轮询任务执行状态
+- 通过 `/view` 获取最终生成图片并回传给应用
+- 支持将提示词、随机种子、尺寸、批量数等参数映射到指定节点路径
+- 支持用 `Overrides JSON` 覆盖工作流里的固定参数
 
-## Usage
+## 使用方式
 
-1. Start ComfyUI (default: `http://127.0.0.1:8000`).
-2. Export your workflow from ComfyUI as **API format JSON**.
-3. Open plugin settings and fill:
+1. 启动 ComfyUI，默认地址通常为 `http://127.0.0.1:8000`。
+2. 从 ComfyUI 导出 API 格式的工作流 JSON。
+3. 在插件配置中填写：
    - `Base URL`
    - `Workflow JSON`
-   - path mappings (prompt/seed/size/batch)
-4. Select provider `ComfyUI` in image generation page and generate.
+   - 提示词、种子、尺寸、批量等字段的节点路径
+4. 在 Agent-Qi 图像生成功能中选择 `ComfyUI` 提供商并开始生成。
 
-## Notes
+## 配置提示
 
-- If ComfyUI is remote and browser CORS is blocked, start ComfyUI with CORS enabled.
-- `Prompt Path` format example: `6.inputs.text`
-- `Overrides JSON` format example:
+- `Prompt Path` 示例：`6.inputs.text`
+- `Overrides JSON` 示例：
 
 ```json
 {
@@ -31,3 +32,13 @@ ComfyUI image provider plugin for Agent-Qi.
   "3.inputs.steps": 28
 }
 ```
+
+## 适用平台
+
+- 桌面端
+- 移动端
+
+## 注意事项
+
+- 如果使用远程 ComfyUI，需确认服务端允许跨域访问
+- 工作流必须是 API 格式 JSON，普通界面导出文件不能直接使用

@@ -1,6 +1,6 @@
 {
-  "name": "Volcengine Ark",
-  "description": "Volcengine Ark provider plugin for text, image, and video generation.",
+  "name": "火山引擎方舟多模态",
+  "description": "为 Agent-Qi 扩展火山引擎方舟 Provider，支持文本、图像和视频生成能力。",
   "version": "1.0.0",
   "author": "Agent-Qi",
   "updatedAt": "2026-03-22",

@@ -1,66 +1,36 @@
-# llama-cpp-plugin
+# llama.cpp 本地模型服务插件
 
-Local llama.cpp provider plugin for Agent-Qi.
+这个插件为 Agent-Qi 扩展本地 llama.cpp Provider，适合把本机的 GGUF 模型直接接入聊天、向量化和 RAG 场景。
 
-## Features
+## 扩展了什么功能
 
-- Register `llama-cpp` provider compatible with OpenAI API style (`/v1`).
-- Support local `text` and `embedding` models.
-- Configure `llama-server` executable path.
-- Configure model list with per-model:
-  - model `.gguf` path
-  - model category (`text` / `embedding`)
-  - embedding pooling (`cls` / `mean` / `last` / `rank` / `none`)
-  - optional `mmproj` path
-  - `ctx-size`
-  - extra startup args
-- Optional auto start before chat request.
-- Optional GGUF scan from a models folder.
+- 注册 `llama-cpp` 提供商，并兼容 OpenAI 风格 `/v1` 接口
+- 支持本地 `text` 和 `embedding` 两类模型
+- 支持配置 `llama-server` 可执行文件路径
+- 支持为每个模型单独配置 `.gguf`、`mmproj`、`ctx-size`、额外启动参数
+- 支持 embedding pooling 模式配置
+- 支持在调用前自动启动 `llama-server`
+- 支持扫描模型目录，辅助发现本地 GGUF 文件
 
-## Quick start
+## 使用方式
 
-1. Build plugin:
+1. 构建并加载插件。
+2. 在 Agent-Qi 中选择 `llama.cpp 本地模型服务` 提供商。
+3. 配置 `llama-server` 路径和一个或多个模型条目。
+4. 如需多模态模型，可额外填写 `mmproj` 路径。
+5. 如需自动托管服务，开启 `Auto start llama-server`。
 
-```bash
-npm install
-npm run build
-```
+## 适合的场景
 
-2. Load plugin in Agent-Qi plugin settings.
-3. Open Provider settings and choose `llama.cpp Local`.
-4. Fill:
-   - `llama-server path`
-   - one or more model entries (`Model .gguf path`)
-   - if the model is used for embeddings, switch it to `embedding` in the local model panel
-   - choose pooling mode for embedding models if needed
-   - optional `mmproj path`
-   - `ctx-size` (e.g. 4096)
-5. Enable `Auto start llama-server`.
+- 本地聊天模型接入
+- 本地 embedding 与知识库向量化
+- 不依赖云端 API 的离线推理
 
-## Equivalent startup command examples
+## 适用平台
 
-```powershell
-E:\llama.cpp\build\bin\Release\llama-server.exe \
-  --model "E:\llama.cpp\models\Qwen3.5-35B-A3B-GGUF\Qwen3.5-35B-A3B-Q4_K_M.gguf" \
-  --mmproj "E:\llama.cpp\models\Qwen3.5-35B-A3B-GGUF\mmproj-Qwen3.5-35B-A3B-BF16.gguf" \
-  --ctx-size 4096
-```
+- 桌面端
 
-```bash
-/usr/local/bin/llama-server \
-  --model "/Users/you/llama.cpp/models/Qwen3.5-35B-A3B-Q4_K_M.gguf" \
-  --mmproj "/Users/you/llama.cpp/models/mmproj-Qwen3.5-35B-A3B-BF16.gguf" \
-  --ctx-size 4096
-```
+## 注意事项
 
-This plugin generates the same core args from your selected model entry.
-
-## Embedding models
-
-When a local model is marked as `embedding`, the plugin starts `llama-server` with:
-
-```bash
---embedding --pooling <selected-pooling>
-```
-
-This makes the provider usable from Agent-Qi embedding/RAG flows after the model is loaded.
+- 插件依赖本地文件系统和 `llama-server`，移动端不支持
+- embedding 模型会追加 `--embedding --pooling <mode>` 参数启动

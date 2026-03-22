@@ -1,7 +1,7 @@
 {
-  "name": "codex-proxy",
+  "name": "Codex 代理服务",
   "version": "1.0.0",
-  "description": "Codex 反向代理 Provider 插件",
+  "description": "为 Agent-Qi 扩展 Codex 兼容 Provider，并提供本地代理、模型接口和额度查询能力。",
   "author": "Agent-Qi",
   "platforms": [
     "desktop"

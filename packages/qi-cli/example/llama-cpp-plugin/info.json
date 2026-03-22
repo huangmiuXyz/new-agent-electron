@@ -1,6 +1,6 @@
 {
-  "name": "Llama.cpp Local Provider",
-  "description": "Use local llama-server with model path, mmproj, and ctx-size settings.",
+  "name": "llama.cpp 本地模型服务",
+  "description": "为 Agent-Qi 扩展本地 llama.cpp Provider，支持 GGUF 模型、embedding 与自动拉起 llama-server。",
   "version": "1.0.0",
   "author": "Agent-Qi",
   "updatedAt": "2026-03-17 21:13:27",
