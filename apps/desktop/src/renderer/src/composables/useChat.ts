@@ -56,6 +56,7 @@ export const useChat = (chatId: string) => {
     ensureChatAgent,
     getChatById,
     getRetryBranchMessages,
+    switchRetryBranch,
     shiftPendingMessage,
     updateMessageMetadata,
     updateMessagesInRetryBranch
@@ -591,6 +592,7 @@ export const useChat = (chatId: string) => {
         messageApi.error('创建重试分支失败')
         return
       }
+      switchRetryBranch(chatId, retryBranchId)
 
       const baseMessages = currentMessages.slice(0, messageIndex)
       const nextMessages =
@@ -622,6 +624,9 @@ export const useChat = (chatId: string) => {
         scrollToBottom()
       }
       const retryBranchId = createRetryBranch(chatId, branchMessageId)
+      if (retryBranchId) {
+        switchRetryBranch(chatId, retryBranchId)
+      }
       const retryChat = getChatById(chatId)
       if (!retryChat) return
       const retryMessages = getRetryBranchMessages(retryChat, retryBranchId)

@@ -29,6 +29,10 @@ export const useChatsStores = defineStore(
 
     const cloneMessages = (messages: BaseMessage[]) => cloneDeep(messages)
 
+    const setRenderedMessages = (chat: Chat, messages: BaseMessage[]) => {
+      chat.messages = cloneMessages(messages)
+    }
+
     const getRetryBranchNode = (chat: Chat, branchId: string | null) => {
       if (!branchId) return null
       return chat.retryBranchState?.nodes.find((node) => node.id === branchId) || null
@@ -65,8 +69,13 @@ export const useChatsStores = defineStore(
       return getRetryBranchNode(chat, branchId)?.messages || []
     }
 
-    const isRetryBranchVisible = (chat: Chat, branchId: string | null) => {
-      return (chat.retryBranchState?.activeBranchId || null) === branchId
+    const isRetryBranchVisible = (chat: Chat, branchId: string | null) =>
+      (chat.retryBranchState?.activeBranchId || null) === branchId
+
+    const setActiveRetryBranch = (chat: Chat, branchId: string | null) => {
+      if (!chat.retryBranchState) return
+      chat.retryBranchState.activeBranchId = branchId
+      setRenderedMessages(chat, getRetryBranchMessages(chat, branchId))
     }
 
     const resolveChatModelConfig = (
@@ -161,22 +170,6 @@ export const useChatsStores = defineStore(
       return ownerBranchId
     }
 
-    const findNearestUserMessageId = (messages: BaseMessage[], messageId: string) => {
-      const messageIndex = messages.findIndex((message) => message.id === messageId)
-      if (messageIndex === -1) return null
-
-      const targetMessage = messages[messageIndex]
-      if (targetMessage?.role === 'user') return targetMessage.id || null
-
-      for (let index = messageIndex - 1; index >= 0; index -= 1) {
-        if (messages[index]?.role === 'user') {
-          return messages[index]?.id || null
-        }
-      }
-
-      return null
-    }
-
     const hasVisibleRetryContinuation = (messages: BaseMessage[], forkMessageId: string) => {
       const forkIndex = messages.findIndex((message) => message.id === forkMessageId)
       if (forkIndex === -1) return false
@@ -190,7 +183,11 @@ export const useChatsStores = defineStore(
       })
     }
 
-    const getRetryBranchVariants = (chatId: string, forkMessageId: string) => {
+    const getRetryBranchVariants = (
+      chatId: string,
+      forkMessageId: string,
+      mode: 'visible' | 'structural' = 'visible'
+    ) => {
       const chat = getChatById(chatId)
       if (!chat?.retryBranchState) {
         return {
@@ -206,19 +203,24 @@ export const useChatsStores = defineStore(
           ? chat.createdAt
           : getRetryBranchNode(chat, ownerBranchId)?.createdAt || chat.createdAt
       const ownerMessages = getRetryBranchMessages(chat, ownerBranchId)
-      const includeOwnerVariant = hasVisibleRetryContinuation(ownerMessages, forkMessageId)
+      const includeOwnerVariant =
+        mode === 'structural' || hasVisibleRetryContinuation(ownerMessages, forkMessageId)
+
+      const selectedChild = getRetryBranchPath(chat).find(
+        (node) => node.parentBranchId === ownerBranchId && node.forkMessageId === forkMessageId
+      )
 
       const childVariants = chat.retryBranchState.nodes
         .filter((node) =>
           node.parentBranchId === ownerBranchId &&
           node.forkMessageId === forkMessageId &&
-          hasVisibleRetryContinuation(node.messages, node.forkMessageId)
+          (
+            mode === 'structural' ||
+            hasVisibleRetryContinuation(node.messages, node.forkMessageId) ||
+            node.id === selectedChild?.id
+          )
         )
         .sort((a, b) => a.createdAt - b.createdAt)
-
-      const selectedChild = getRetryBranchPath(chat).find(
-        (node) => node.parentBranchId === ownerBranchId && node.forkMessageId === forkMessageId
-      )
 
       const variants = [
         ...(includeOwnerVariant ? [{ id: ownerBranchId, createdAt: ownerCreatedAt }] : []),
@@ -234,6 +236,22 @@ export const useChatsStores = defineStore(
         currentBranchId,
         variants
       }
+    }
+
+    const normalizeActiveRetryBranch = (chat: Chat) => {
+      const state = chat.retryBranchState
+      if (!state?.activeBranchId) return
+
+      const activeNode = getRetryBranchNode(chat, state.activeBranchId)
+      if (!activeNode) {
+        setActiveRetryBranch(chat, null)
+        return
+      }
+
+      const { variants, currentBranchId } = getRetryBranchVariants(chat.id, activeNode.forkMessageId, 'structural')
+      if (variants.some((variant) => variant.id === state.activeBranchId)) return
+
+      setActiveRetryBranch(chat, currentBranchId)
     }
 
     const pruneRetryBranchTree = (chat: Chat) => {
@@ -273,9 +291,10 @@ export const useChatsStores = defineStore(
       }
 
       if (state.activeBranchId && !keptIds.has(state.activeBranchId)) {
-        state.activeBranchId = null
-        chat.messages = cloneMessages(state.rootMessages)
+        setActiveRetryBranch(chat, null)
       }
+
+      normalizeActiveRetryBranch(chat)
 
       if (state.nodes.length === 0 && state.activeBranchId == null) {
         delete chat.retryBranchState
@@ -306,11 +325,11 @@ export const useChatsStores = defineStore(
           currentParentBranchId = previousNodesById.get(currentParentBranchId)?.parentBranchId || null
         }
 
-        state.activeBranchId = fallbackBranchId
-        chat.messages = cloneMessages(getRetryBranchMessages(chat, fallbackBranchId))
+        setActiveRetryBranch(chat, fallbackBranchId)
       }
 
       pruneRetryBranchTree(chat)
+      normalizeActiveRetryBranch(chat)
     }
 
     const forEachRetryBranchMessages = (chat: Chat, handler: (messages: BaseMessage[]) => BaseMessage[]) => {
@@ -325,7 +344,7 @@ export const useChatsStores = defineStore(
         ...node,
         messages: handler(node.messages)
       }))
-      chat.messages = cloneMessages(getActiveRetryMessages(chat))
+      setRenderedMessages(chat, getActiveRetryMessages(chat))
       pruneRetryBranchTree(chat)
     }
 
@@ -334,11 +353,7 @@ export const useChatsStores = defineStore(
       if (!chat?.retryBranchState) return
 
       syncVisibleMessagesToActiveRetryBranch(chat)
-      chat.retryBranchState.activeBranchId = branchId
-      const nextMessages = branchId
-        ? getRetryBranchNode(chat, branchId)?.messages || chat.retryBranchState.rootMessages
-        : chat.retryBranchState.rootMessages
-      chat.messages = cloneMessages(nextMessages)
+      setActiveRetryBranch(chat, branchId)
     }
 
     const cycleRetryBranch = (chatId: string, forkMessageId: string, direction: 'prev' | 'next') => {
@@ -361,7 +376,8 @@ export const useChatsStores = defineStore(
       const chat = getChatById(chatId)
       if (!chat) return null
 
-      const forkIndex = chat.messages.findIndex((message) => message.id === forkMessageId)
+      const activeMessages = getActiveRetryMessages(chat)
+      const forkIndex = activeMessages.findIndex((message) => message.id === forkMessageId)
       if (forkIndex === -1) return null
 
       const state = ensureRetryBranchState(chat)
@@ -372,13 +388,12 @@ export const useChatsStores = defineStore(
         id: nanoid(),
         parentBranchId,
         forkMessageId,
-        messages: cloneMessages(chat.messages.slice(0, forkIndex + 1)),
+        messages: cloneMessages(activeMessages.slice(0, forkIndex + 1)),
         createdAt: Date.now()
       }
 
       state.nodes.push(newNode)
-      state.activeBranchId = newNode.id
-      chat.messages = cloneMessages(newNode.messages)
+      setActiveRetryBranch(chat, newNode.id)
       return newNode.id
     }
 
@@ -490,12 +505,22 @@ export const useChatsStores = defineStore(
       if (!chat) return ''
       chat.messages.push(msg)
       syncVisibleMessagesToActiveRetryBranch(chat)
+      setRenderedMessages(chat, getActiveRetryMessages(chat))
       return msg.id
     }
     const deleteMessage = (cid: string, mid: string) => {
       const chat = getChatById(cid)!
-      const currentBranchId = chat.retryBranchState?.activeBranchId || null
-      const forkMessageId = findNearestUserMessageId(chat.messages, mid)
+      const branchFallbackCandidates = chat.messages
+        .filter((message) => message.role === 'user' && !!message.id)
+        .map((message) => {
+          const branchInfo = getRetryBranchVariants(cid, message.id!)
+          return {
+            forkMessageId: message.id!,
+            currentBranchId: branchInfo.currentBranchId,
+            variants: branchInfo.variants
+          }
+        })
+        .filter((candidate) => candidate.variants.length > 1)
       chat.messages.find((m) => m.id === mid)?.metadata?.stop?.()
       setTimeout(() => {
         forEachRetryBranchMessages(chat, (messages) =>
@@ -514,13 +539,17 @@ export const useChatsStores = defineStore(
 
         collapseEmptyRetryBranches(chat)
 
-        if (!forkMessageId) return
+        for (const candidate of [...branchFallbackCandidates].reverse()) {
+          const { variants, currentBranchId: nextBranchId } = getRetryBranchVariants(cid, candidate.forkMessageId)
+          if (variants.length === 0) continue
 
-        const { variants, currentBranchId: nextBranchId } = getRetryBranchVariants(cid, forkMessageId)
-        if (variants.length === 0) return
-
-        if (!variants.some((variant) => variant.id === currentBranchId) && nextBranchId !== currentBranchId) {
-          switchRetryBranch(cid, nextBranchId)
+          if (
+            !variants.some((variant) => variant.id === candidate.currentBranchId) &&
+            nextBranchId !== candidate.currentBranchId
+          ) {
+            switchRetryBranch(cid, nextBranchId)
+            break
+          }
         }
       })
     }
