@@ -248,7 +248,7 @@ export const useChat = (chatId: string) => {
       const createStoreMessageSnapshot = (message?: BaseMessage, error?: APICallError): BaseMessage | null => {
         if (!message) return null
 
-        // Keep parts immutable when syncing to Pinia so nested text updates stay reactive in children.
+        // Keep par发ts immutable when syncing to Pinia so nested text updates stay reactive in children.
         const nextParts = message.parts?.map((part) => ({ ...part }))
         const nextMetadata = {
           ...message.metadata,
