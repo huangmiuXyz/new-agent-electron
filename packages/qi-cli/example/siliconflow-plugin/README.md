@@ -1,20 +1,24 @@
 # SiliconFlow 语音合成插件
 
-这个插件为 Agent-Qi 扩展硅基流动（SiliconFlow）语音合成能力，用于接入国内常见的云端 TTS 模型。
+该插件用于将 SiliconFlow 的语音合成能力接入 Agent-Qi。
 
-## 扩展了什么功能
+## 主要功能
 
-- 注册 `siliconflow` 语音服务模型工厂
-- 支持对接 SiliconFlow 平台托管的 TTS 模型
-- 支持获取平台音色并接入应用统一语音设置
-- 让应用可直接调用国产云端语音合成服务
+- 注册 `siliconflow` 类型的语音提供商能力
+- 调用平台托管的 TTS 模型
+- 获取平台可用音色并纳入 Agent-Qi 的语音配置流程
+
+## 使用前准备
+
+- SiliconFlow 账号
+- 可用的 API Key
 
 ## 使用方式
 
 1. 启用插件。
-2. 新增 `siliconflow` 类型提供商。
-3. 填写 SiliconFlow API Key。
-4. 在语音设置中选择模型和音色后使用。
+2. 在 Agent-Qi 的模型提供商设置中手动新增 `siliconflow` 类型提供商。
+3. 填写 SiliconFlow API Key 并保存配置。
+4. 在语音设置中选择相应模型和音色。
 
 ## 适用平台
 

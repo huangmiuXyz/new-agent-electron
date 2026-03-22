@@ -1,14 +1,15 @@
 <template>
-  <ThemeProvider :theme="incremarkTheme">
-    <Incremark class="incremark" :blocks="blocks" :customCodeBlocks="customCodeBlocks"
-      :codeBlockConfigs="codeBlockConfigs" />
-  </ThemeProvider>
+  <IncremarkRenderer
+    :blocks="blocks"
+    :customCodeBlocks="customCodeBlocks"
+    :codeBlockConfigs="codeBlockConfigs"
+  />
 </template>
 <script setup lang="ts">
-import { useIncremark, Incremark, ThemeProvider } from '@incremark/vue'
+import { useIncremark } from '@incremark/vue'
 import { TextUIPart } from 'ai'
-import { useSettingsStore } from '../stores/settings'
 import CustomCodeBlock from './CustomCodeBlock.vue'
+import IncremarkRenderer from './IncremarkRenderer.vue'
 import { CUSTOM_CODE_BLOCK_COMPLETED_KEY } from './customCodeBlockCompletion'
 
 const props = defineProps<{
@@ -17,9 +18,6 @@ const props = defineProps<{
 }>()
 const isBlockCompleted = computed(() => props.block.state === 'done')
 provide(CUSTOM_CODE_BLOCK_COMPLETED_KEY, isBlockCompleted)
-const incremarkTheme = ref<any>('default')
-const settingsStore = useSettingsStore()
-const { display } = storeToRefs(settingsStore)
 
 const customCodeBlocks = {
   html: CustomCodeBlock,
@@ -163,14 +161,6 @@ watch(
   { immediate: true }
 )
 
-watch(() => display.value.darkMode, () => {
-  incremarkTheme.value = display.value.darkMode ? 'dark' : 'default'
-})
-
-onMounted(() => {
-  incremarkTheme.value = display.value.darkMode ? 'dark' : 'default'
-})
-
 onBeforeUnmount(() => {
   pendingChunk.value = ''
   cancelAppendFrame()
@@ -178,34 +168,3 @@ onBeforeUnmount(() => {
 })
 
 </script>
-<style scoped>
-.incremark {
-  background-color: transparent !important;
-  max-width: 100%;
-  overflow-wrap: break-word;
-}
-
-.incremark :deep(pre) {
-  white-space: pre !important;
-  word-break: normal !important;
-  overflow-wrap: normal !important;
-  overflow-x: auto;
-}
-
-.incremark :deep(code) {
-  white-space: pre !important;
-  word-break: normal !important;
-  overflow-wrap: normal !important;
-}
-
-.incremark :deep(table) {
-  display: block;
-  width: 100%;
-  overflow-x: auto;
-}
-
-.incremark :deep(img) {
-  max-width: 100%;
-  height: auto;
-}
-</style>

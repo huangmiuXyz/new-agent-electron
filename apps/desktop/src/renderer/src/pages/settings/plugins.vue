@@ -1,5 +1,6 @@
 <script setup lang="tsx">
-import { Incremark, useIncremark } from '@incremark/vue'
+import { useIncremark } from '@incremark/vue'
+import IncremarkRenderer from '@renderer/components/IncremarkRenderer.vue'
 import { FormItem } from '@renderer/composables/useForm'
 const incremark = useIncremark({
   gfm: true
@@ -375,7 +376,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
           <div v-if="activeTab === 'readme'" class="tab-pane">
             <FormItem v-if="activePlugin.readme" label="插件介绍">
               <Card padding="16px">
-                <Incremark :blocks="blocks" />
+                <IncremarkRenderer :blocks="blocks" />
               </Card>
             </FormItem>
             <div v-else class="empty-tab-content">

@@ -1,29 +1,39 @@
 # llama.cpp 本地模型服务插件
 
-这个插件为 Agent-Qi 扩展本地 llama.cpp Provider，适合把本机的 GGUF 模型直接接入聊天、向量化和 RAG 场景。
+这个插件把本机的 llama.cpp 服务接入 Agent-Qi，适合已经有 GGUF 模型、希望在本地完成聊天或向量化任务的用户。
 
-## 扩展了什么功能
+## 这个插件能做什么
 
-- 注册 `llama-cpp` 提供商，并兼容 OpenAI 风格 `/v1` 接口
-- 支持本地 `text` 和 `embedding` 两类模型
-- 支持配置 `llama-server` 可执行文件路径
-- 支持为每个模型单独配置 `.gguf`、`mmproj`、`ctx-size`、额外启动参数
-- 支持 embedding pooling 模式配置
-- 支持在调用前自动启动 `llama-server`
-- 支持扫描模型目录，辅助发现本地 GGUF 文件
+- 把本地 GGUF 模型接入 Agent-Qi
+- 支持聊天模型和 embedding 模型
+- 支持为不同模型单独配置启动参数
+- 支持自动启动 `llama-server`
+- 支持扫描本地模型目录，帮助你发现可用模型文件
 
-## 使用方式
+## 适合谁
 
-1. 构建并加载插件。
+- 已经在使用 llama.cpp 的本地模型用户
+- 希望离线运行聊天模型或 embedding 模型的人
+- 想把本地模型纳入 Agent-Qi 统一管理的人
+
+## 使用前需要准备
+
+- 可用的 `llama-server`
+- 本地 GGUF 模型文件
+- 如果是多模态模型，可能还需要对应的 `mmproj` 文件
+
+## 怎么使用
+
+1. 启用插件。
 2. 在 Agent-Qi 中选择 `llama.cpp 本地模型服务` 提供商。
 3. 配置 `llama-server` 路径和一个或多个模型条目。
-4. 如需多模态模型，可额外填写 `mmproj` 路径。
-5. 如需自动托管服务，开启 `Auto start llama-server`。
+4. 如有需要，填写 `mmproj` 路径、上下文长度或其他额外参数。
+5. 开启自动启动后，就可以在调用模型时由插件自动托管服务。
 
 ## 适合的场景
 
-- 本地聊天模型接入
-- 本地 embedding 与知识库向量化
+- 本地聊天
+- 本地知识库向量化
 - 不依赖云端 API 的离线推理
 
 ## 适用平台
@@ -32,5 +42,5 @@
 
 ## 注意事项
 
-- 插件依赖本地文件系统和 `llama-server`，移动端不支持
-- embedding 模型会追加 `--embedding --pooling <mode>` 参数启动
+- 这个插件依赖本地文件系统和 `llama-server`，移动端不支持
+- embedding 模型会使用不同的启动参数，请按模型类型分别配置
