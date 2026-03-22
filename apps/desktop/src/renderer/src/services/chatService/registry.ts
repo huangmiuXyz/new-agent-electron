@@ -14,7 +14,6 @@ import { createOllama } from 'ai-sdk-ollama';
 // import { createHume } from '@ai-sdk/hume'
 // import { createElevenLabs } from '@ai-sdk/elevenlabs'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { createArk } from './provider/ark/index'
 
 import { ProviderV3 } from '@ai-sdk/provider'
 import { z } from 'zod'
@@ -573,23 +572,7 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
         chatCallOptionsSchema: openAICompatibleChatCallOptionsSchema,
         listModels: createStandardListModels(options)
       }
-    ),
-  ark: (options) => {
-    return mergeFun(
-      createArk(options),
-      mergeFun(
-        createOpenAICompatible({
-          ...options,
-          name: options.name,
-          transformRequestBody: options.transformRequestBody
-        }),
-        {
-          chatCallOptionsSchema: openAICompatibleChatCallOptionsSchema,
-          listModels: createStandardListModels(options)
-        }
-      )
     )
-  }
 })
 
 export const providerMetadatas = shallowReactive<Record<string, { hide?: boolean }>>({})

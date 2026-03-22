@@ -1,0 +1,23 @@
+{
+  "name": "ark-plugin",
+  "version": "1.0.0",
+  "description": "Volcengine Ark provider plugin",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@agent-qi/types": "workspace:*",
+    "@ai-sdk/provider": "catalog:",
+    "@ai-sdk/provider-utils": "catalog:",
+    "ai": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  },
+  "author": "Agent-Qi"
+}

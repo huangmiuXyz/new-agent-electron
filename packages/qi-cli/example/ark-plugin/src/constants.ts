@@ -1,0 +1,5 @@
+export const PLUGIN_NAME = 'ark-plugin'
+export const PROVIDER_ID = 'ark'
+export const PROVIDER_NAME = 'Ark'
+export const DEFAULT_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
+export const PROVIDER_LOGO = '/images/providers/volcengine.png'
