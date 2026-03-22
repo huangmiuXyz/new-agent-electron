@@ -230,7 +230,7 @@ export const useAgent = () => {
           topK: 40,
           presencePenalty: 0,
           frequencyPenalty: 0,
-          contextCount: 10,
+          contextCount: 50,
           contextTokenCount: 12000,
           autoCompressContext: false,
           maxToolCalls: undefined,
@@ -363,7 +363,7 @@ export const useAgent = () => {
                   topK: 40,
                   presencePenalty: 0,
                   frequencyPenalty: 0,
-                  contextCount: 10,
+                  contextCount: 50,
                   contextTokenCount: 12000
                 }
                 Object.entries(defaultParams).forEach(([key, value]) => {
