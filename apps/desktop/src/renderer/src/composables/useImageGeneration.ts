@@ -171,6 +171,7 @@ export function useImageGeneration() {
   const startGeneration = async (batch: ImageBatch) => {
     if (activeProcessingIds.has(batch.id)) return
     activeProcessingIds.add(batch.id)
+    imgStore.updateBatch(batch.id, { status: 'submitting', error: undefined })
 
     const processedImages = await Promise.all(
       (batch.referenceImages || []).map(async (img) => {
@@ -204,6 +205,7 @@ export function useImageGeneration() {
         imgStore.updateBatch(batch.id, { taskId: task_id, status: 'processing' })
         await pollAsyncResult(batch.id, task_id, providerInstance)
       } else {
+        imgStore.updateBatch(batch.id, { status: 'processing' })
         const result = await service.generateImage(prompt, {
           model: batch.model,
           apiKey: provider.apiKey || '',
@@ -251,6 +253,7 @@ export function useImageGeneration() {
   const startVideoGeneration = async (batch: ImageBatch) => {
     if (activeProcessingIds.has(batch.id)) return
     activeProcessingIds.add(batch.id)
+    imgStore.updateBatch(batch.id, { status: 'submitting', error: undefined })
 
     try {
       const { instance: providerInstance, provider } = getProviderInstance(batch.providerId!)
@@ -286,6 +289,7 @@ export function useImageGeneration() {
         imgStore.updateBatch(batch.id, { taskId: task_id, status: 'processing' })
         await pollAsyncVideoResult(batch.id, task_id, providerInstance)
       } else {
+        imgStore.updateBatch(batch.id, { status: 'processing' })
         const result = await service.generateVideo(batch.prompt, {
           model: batch.model,
           apiKey: provider.apiKey || '',
@@ -330,7 +334,7 @@ export function useImageGeneration() {
       modelName: settingsStore.getModelById(options.providerId, options.model).model?.name,
       images: currentPlaceholders,
       providerId: options.providerId,
-      status: 'pending',
+      status: 'submitting',
       seed: options.seed,
       params: {
         providerOptions: options.providerOptions
@@ -358,7 +362,7 @@ export function useImageGeneration() {
       modelName: settingsStore.getModelById(options.providerId, options.model).model?.name,
       images: currentPlaceholders,
       providerId: options.providerId,
-      status: 'pending',
+      status: 'submitting',
       seed: options.seed,
       params: {
         providerOptions: options.providerOptions

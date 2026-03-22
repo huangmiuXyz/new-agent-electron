@@ -13,6 +13,7 @@ const emit = defineEmits<{
 }>()
 
 const isMusicResult = computed(() => props.chunk.mediaType === 'music' || props.chunk.model?.startsWith('music-'))
+const isSubmitting = computed(() => props.chunk.status === 'submitting')
 const isProcessing = computed(() => props.chunk.status === 'processing')
 const isFailed = computed(() => props.chunk.status === 'failed' || !!props.chunk.error)
 const audioItems = computed<AudioBatchItem[]>(() => {
@@ -32,6 +33,7 @@ const audioItems = computed<AudioBatchItem[]>(() => {
 
 const resultTitle = computed(() => (isMusicResult.value ? '音乐结果' : '语音结果'))
 const statusText = computed(() => {
+  if (isSubmitting.value) return '任务提交中...'
   if (isProcessing.value) return isMusicResult.value ? '音乐生成中...' : '语音生成中...'
   if (isFailed.value) return '生成失败'
   return isMusicResult.value ? '音乐已生成' : '语音已生成'
@@ -91,6 +93,7 @@ function formatDuration(value?: number) {
 }
 
 const getItemStatusText = (item: AudioBatchItem) => {
+  if (item.status === 'submitting') return '任务提交中...'
   if (item.status === 'processing') return isMusicResult.value ? '音乐生成中...' : '语音生成中...'
   if (item.status === 'failed' || item.error) return '生成失败'
   return isMusicResult.value ? '音乐已生成' : '语音已生成'
@@ -166,7 +169,7 @@ const { Trash, VolumeMedium, FileMusic, Download, Copy, X, Edit, Refresh } = use
         class="audio-entry"
       >
         <div
-          v-if="item.status === 'processing' || item.status === 'failed' || item.error"
+          v-if="item.status === 'submitting' || item.status === 'processing' || item.status === 'failed' || item.error"
           class="audio-state"
           :class="{ 'is-failed': item.status === 'failed' || !!item.error }"
         >

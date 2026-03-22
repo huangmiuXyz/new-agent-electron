@@ -13,7 +13,7 @@ export interface AudioBatch {
   audioFormat?: string
   providerId?: string
   providerName?: string
-  status?: 'pending' | 'processing' | 'completed' | 'failed'
+  status?: 'pending' | 'submitting' | 'processing' | 'completed' | 'failed'
   error?: string
   params?: any
   mediaType?: 'speech' | 'music'
@@ -26,7 +26,7 @@ export interface AudioBatchItem {
   audioData?: string
   audioMediaType?: string
   audioFormat?: string
-  status?: 'pending' | 'processing' | 'completed' | 'failed'
+  status?: 'pending' | 'submitting' | 'processing' | 'completed' | 'failed'
   error?: string
   duration?: number
 }

@@ -198,7 +198,7 @@ const submit = async (text: string, messageId: string, batchId?: string) => {
   const modelInfo = provider.models?.find((item) => item.id === data.model.modelId)
   const itemPayload = {
     id: itemId,
-    status: 'processing' as const
+    status: 'submitting' as const
   }
 
   if (batchId) {
@@ -210,7 +210,7 @@ const submit = async (text: string, messageId: string, batchId?: string) => {
       providerName: provider.name,
       modelName: modelInfo?.name || data.model.modelId,
       mediaType: isMusicModelId(data.model.modelId) ? 'music' : 'speech',
-      status: 'processing',
+      status: 'submitting',
       error: undefined,
       params: {
         model: {
@@ -234,7 +234,7 @@ const submit = async (text: string, messageId: string, batchId?: string) => {
       providerName: provider.name,
       modelName: modelInfo?.name || data.model.modelId,
       mediaType: isMusicModelId(data.model.modelId) ? 'music' : 'speech',
-      status: 'processing',
+      status: 'submitting',
       params: {
         model: {
           modelId: data.model.modelId,
@@ -275,6 +275,14 @@ const submit = async (text: string, messageId: string, batchId?: string) => {
   }
 
   try {
+    audioStore.updateBatch(targetBatchId, {
+      status: 'processing',
+      error: undefined
+    })
+    audioStore.updateBatchItem(targetBatchId, itemId, {
+      status: 'processing',
+      error: undefined
+    })
 
     const { audio } = await generateSpeech({
       model: createRegistry({

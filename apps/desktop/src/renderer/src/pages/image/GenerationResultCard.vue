@@ -33,6 +33,11 @@ const referenceImages = computed(() =>
 )
 const visibleReferenceImages = computed(() => referenceImages.value.slice(0, 3))
 const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.length - visibleReferenceImages.value.length))
+const loadingText = computed(() => {
+  if (props.batch.status === 'submitting') return '任务提交中...'
+  if (props.batch.mediaType === 'video') return '视频生成中...'
+  return '图片生成中...'
+})
 </script>
 
 <template>
@@ -90,7 +95,7 @@ const extraReferenceCount = computed(() => Math.max(0, referenceImages.value.len
             </template>
             <template v-else>
               <div class="loading-spinner"></div>
-              <span>{{ batch.mediaType === 'video' ? '视频生成中...' : '生成中...' }}</span>
+              <span>{{ loadingText }}</span>
             </template>
           </div>
         </template>

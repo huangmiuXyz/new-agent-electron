@@ -12,7 +12,7 @@ export interface ImageBatch {
   images: (string | { loading: boolean; id: number })[]
   taskId?: string
   providerId?: string
-  status?: 'pending' | 'processing' | 'completed' | 'failed'
+  status?: 'pending' | 'submitting' | 'processing' | 'completed' | 'failed'
   error?: string
   seed?: number
   params?: any
