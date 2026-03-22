@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import type { CascaderPanelItem, CascaderPanelSelectResult } from './CascaderPanel.types'
+import type {
+  CascaderPanelItem,
+  CascaderPanelItemKeydownResult,
+  CascaderPanelSelectResult
+} from './CascaderPanel.types'
 
 interface Props {
   visible?: boolean
@@ -21,6 +25,7 @@ const emit = defineEmits<{
   select: [payload: { item: CascaderPanelItem, path: CascaderPanelItem[] }]
 }>()
 
+const itemRefs = ref(new Map<string, HTMLButtonElement>())
 const activeIndices = ref<number[]>([])
 const expandedDepth = ref(0)
 const activeDepth = ref(0)
@@ -88,6 +93,45 @@ const getChildrenAtDepth = (depth: number, index?: number) => {
 const panelDepths = computed(() => {
   return Array.from({ length: expandedDepth.value + 1 }, (_, index) => index)
 })
+
+const getItemRefKey = (depth: number, index: number) => `${depth}:${index}`
+
+const setItemRef = (depth: number, index: number, el: Element | ComponentPublicInstance | null) => {
+  const key = getItemRefKey(depth, index)
+  if (!el) {
+    itemRefs.value.delete(key)
+    return
+  }
+
+  if (el instanceof HTMLElement) {
+    itemRefs.value.set(key, el as HTMLButtonElement)
+  }
+}
+
+const scrollActiveItemIntoView = () => {
+  nextTick(() => {
+    const activeIndex = activeIndices.value[activeDepth.value]
+    if (activeIndex == null || activeIndex < 0) return
+
+    const target = itemRefs.value.get(getItemRefKey(activeDepth.value, activeIndex))
+    target?.scrollIntoView({
+      block: 'center',
+      inline: 'nearest'
+    })
+  })
+}
+
+const resetActiveIndexAtDepth = (depth: number, focus = false) => {
+  activeIndices.value[depth] = 0
+  if (focus) {
+    activeDepth.value = depth
+  }
+  scrollActiveItemIntoView()
+}
+
+const getActivePath = () => {
+  return getPathToItem(activeDepth.value)
+}
 
 const initializeNavigation = () => {
   activeIndices.value = []
@@ -158,6 +202,17 @@ const moveActiveIndex = (step: number) => {
   return { handled: true }
 }
 
+const buildSelectResult = (depth: number, index?: number): CascaderPanelSelectResult => {
+  const item = getItemAtDepth(depth, index)
+  if (!item) return { handled: false }
+
+  return {
+    handled: true,
+    item,
+    path: getPathToItem(depth, index)
+  }
+}
+
 const selectItem = (depth: number, index?: number): CascaderPanelSelectResult => {
   const item = getItemAtDepth(depth, index)
   if (!item) return { handled: false }
@@ -167,11 +222,7 @@ const selectItem = (depth: number, index?: number): CascaderPanelSelectResult =>
     return { handled: true }
   }
 
-  return {
-    handled: true,
-    item,
-    path: getPathToItem(depth, index)
-  }
+  return buildSelectResult(depth, index)
 }
 
 const handleItemPointerEnter = (depth: number, index: number) => {
@@ -192,6 +243,61 @@ const handleItemPointerDown = (depth: number, index: number) => {
   }
 }
 
+const runItemKeydownAction = (action: CascaderPanelItemKeydownResult, depth: number, index: number) => {
+  if (action.requestClose) {
+    return {
+      handled: true,
+      requestClose: true
+    }
+  }
+
+  if (action.action === 'select') {
+    return buildSelectResult(depth, index)
+  }
+
+  if (action.action === 'open') {
+    return openChildPanel(depth, index, true) ? { handled: true } : { handled: false }
+  }
+
+  if (action.action === 'close') {
+    if (expandedDepth.value === 0) {
+      return { handled: true }
+    }
+
+    resetToDepth(Math.max(expandedDepth.value - 1, 0))
+    return { handled: true }
+  }
+
+  if (action.action === 'stay') {
+    return { handled: true }
+  }
+
+  return { handled: false }
+}
+
+const handleItemKeydownOverride = (event: KeyboardEvent) => {
+  const currentItems = getItemsAtDepth(activeDepth.value)
+  if (!currentItems.length) return null
+
+  const index = clampIndex(activeDepth.value, currentItems.length)
+  const item = index >= 0 ? currentItems[index] : null
+  if (!item?.onKeydown) return null
+
+  const action = item.onKeydown({
+    event,
+    item,
+    path: getPathToItem(activeDepth.value, index),
+    depth: activeDepth.value,
+    index,
+    hasChildren: hasChildren(item)
+  })
+
+  if (!action) return null
+
+  event.preventDefault()
+  return runItemKeydownAction(action, activeDepth.value, index)
+}
+
 const handleKeydown = (event: KeyboardEvent): CascaderPanelSelectResult => {
   if (!props.visible) return { handled: false }
 
@@ -203,6 +309,11 @@ const handleKeydown = (event: KeyboardEvent): CascaderPanelSelectResult => {
   if (event.key === 'ArrowUp') {
     event.preventDefault()
     return moveActiveIndex(-1)
+  }
+
+  const overrideResult = handleItemKeydownOverride(event)
+  if (overrideResult) {
+    return overrideResult
   }
 
   if (event.key === 'ArrowRight' || event.key === 'Enter' || event.key === 'Tab') {
@@ -252,9 +363,16 @@ watch(
   }
 )
 
+watch([activeDepth, activeIndices], () => {
+  if (!props.visible) return
+  scrollActiveItemIntoView()
+}, { deep: true })
+
 defineExpose({
   handleKeydown,
-  initializeNavigation
+  initializeNavigation,
+  resetActiveIndexAtDepth,
+  getActivePath
 })
 </script>
 
@@ -279,6 +397,7 @@ defineExpose({
             <button
               v-for="(item, index) in getItemsAtDepth(depth)"
               :key="item.key"
+              :ref="(el) => setItemRef(depth, index, el)"
               class="cascader-panel__item"
               :class="{
                 'is-active': activeIndices[depth] === index,

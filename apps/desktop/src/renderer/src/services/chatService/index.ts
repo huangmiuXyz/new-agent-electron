@@ -20,6 +20,7 @@ import { createUsageGuardMiddleware } from './middleware/usageGuard'
 import { createSkillReferenceMiddleware } from './middleware/skillReferences'
 import { normalizeInlineFilePartUrls, sanitizeUIMessages } from './utils'
 import { useSettingsStore } from '@renderer/stores/settings'
+import { useAgentStore } from '@renderer/stores/agent'
 import { createToolMiddleware } from './middleware/createToolMiddleware'
 import {
   buildCodexEnvironmentPrompt,
@@ -469,6 +470,9 @@ export const chatService = () => {
     const builtinTools = getBuiltinTools({ knowledgeBaseIds, skills })
     const skillsPrompt = hasLoadSkillTool ? buildSkillsPrompt(skills) : ''
     const currentChat = useChatsStores().getChatById(cid)
+    const agentWorkPath = currentChat?.agentId
+      ? useAgentStore().getAgentById(currentChat.agentId)?.workPath
+      : undefined
     const isSubAgentChat = !!currentChat?.parentChatId
     const assignedBuiltinTools = selectedBuiltinTools || []
     const hasAssignedAgentTools = assignedBuiltinTools.some(
@@ -626,7 +630,7 @@ export const chatService = () => {
               ragSearchDetails = details?.map((item) => ({ ...item }))
             }
           }),
-          createSkillReferenceMiddleware({ skills })
+          createSkillReferenceMiddleware({ skills, workPath: agentWorkPath })
         ]
       }),
       providerOptions: {

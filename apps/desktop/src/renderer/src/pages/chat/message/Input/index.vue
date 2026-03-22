@@ -698,7 +698,7 @@ const handleCompositionEnd = () => {
   isComposing.value = false
 }
 
-const applySkillMention = (payload: { message: string, cursor: number }) => {
+const applyMention = (payload: { message: string, cursor: number }) => {
   message.value = payload.message
 
   nextTick(() => {
@@ -719,7 +719,7 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
   const mentionResult = atPanelRef.value?.handleKeydown(event, message.value, textareaRef.value)
   if (mentionResult?.handled) {
     if (mentionResult.payload) {
-      applySkillMention(mentionResult.payload)
+      applyMention(mentionResult.payload)
     }
     return
   }
@@ -862,7 +862,7 @@ onUnmounted(() => {
 
         <div v-if="!isMobile">
           <div class="input-wrapper">
-          <AtPanel ref="atPanelRef" @apply="applySkillMention" />
+          <AtPanel ref="atPanelRef" @apply="applyMention" />
           <textarea ref="textareaRef" class="input-field" rows="1"
             :placeholder="desktopPlaceholder"
             v-model="message" @input="handleTextareaInput" @keydown="handleTextareaKeydown"
@@ -1005,7 +1005,7 @@ onUnmounted(() => {
             </template>
           </div>
           <div class="mobile-input-wrapper">
-            <AtPanel ref="atPanelRef" mobile @apply="applySkillMention" />
+            <AtPanel ref="atPanelRef" mobile @apply="applyMention" />
             <textarea ref="textareaRef" class="input-field mobile-input-field" rows="1"
               :placeholder="mobilePlaceholder"
               v-model="message" @input="handleTextareaInput" @keydown="handleTextareaKeydown"

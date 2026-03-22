@@ -4,7 +4,22 @@ export interface CascaderPanelItem {
   description?: string
   icon?: 'split'
   children?: CascaderPanelItem[] | ((item: CascaderPanelItem, path: CascaderPanelItem[]) => CascaderPanelItem[])
+  onKeydown?: (context: CascaderPanelItemKeydownContext) => CascaderPanelItemKeydownResult | void
   data?: unknown
+}
+
+export interface CascaderPanelItemKeydownContext {
+  event: KeyboardEvent
+  item: CascaderPanelItem
+  path: CascaderPanelItem[]
+  depth: number
+  index: number
+  hasChildren: boolean
+}
+
+export interface CascaderPanelItemKeydownResult {
+  action: 'select' | 'open' | 'close' | 'stay'
+  requestClose?: boolean
 }
 
 export interface CascaderPanelSelectResult {
