@@ -45,7 +45,14 @@ export interface MetaData {
     voice: string
     model: string
   }
-  retryBranchId?: string | null
+  activeMessageBranchId?: string | null
+  messageBranches?: MessageBranchSnapshot[]
+}
+
+export interface MessageBranchSnapshot {
+  id: string
+  createdAt: number
+  messages: BaseMessage[]
 }
 
 export interface RagSearchDetail {
@@ -111,6 +118,7 @@ declare global {
   type AsyncImageResult = _AsyncImageResult
   type providerType = _providerType
   interface MetaData extends _MetaData { }
+  interface MessageBranchSnapshot extends _MessageBranchSnapshot { }
   interface RagSearchDetail extends _RagSearchDetail { }
   interface TranslationResult extends _TranslationResult { }
   type ClientConfig = _ClientConfig
@@ -126,6 +134,7 @@ declare global {
 type _AsyncImageResult = AsyncImageResult
 type _providerType = providerType
 type _MetaData = MetaData
+type _MessageBranchSnapshot = MessageBranchSnapshot
 type _RagSearchDetail = RagSearchDetail
 type _TranslationResult = TranslationResult
 type _ClientConfig = ClientConfig

@@ -13,7 +13,7 @@ const prevMessageWrapperRef = ref<HTMLElement | null>(null)
 const autoScrollEnabled = ref(true)
 const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
-const { cycleRetryBranch, deleteMessage, getRetryBranchVariants, updateMessage } = useChatsStores()
+const { cycleMessageBranch, deleteMessage, getMessageBranchVariants, updateMessage } = useChatsStores()
 const mobileEditModal = useModal()
 const { Delete, Refresh, Continue, Copy, Edit, Branch, Language, ChevronLeft, ChevronRight } = useIcon([
   'Delete',
@@ -56,15 +56,15 @@ const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
 const agentStore = useAgentStore()
 
 const isDeletedMessage = (message: BaseMessage) => !!message.metadata?.deletedAt
-const hasRetryBranchSwitcher = (messageId: string) => {
+const hasMessageBranchSwitcher = (messageId: string) => {
   if (!currentChat.value?.id) return false
-  return getRetryBranchVariants(currentChat.value.id, messageId, 'structural').variants.length > 1
+  return getMessageBranchVariants(currentChat.value.id, messageId, 'structural').variants.length > 1
 }
 
 const visibleMessages = computed(() => {
   return (currentChat.value?.messages || []).filter((message) => {
     if (!isDeletedMessage(message)) return true
-    return message.role === 'user' && !!message.id && hasRetryBranchSwitcher(message.id)
+    return message.role === 'user' && !!message.id && hasMessageBranchSwitcher(message.id)
   })
 })
 
@@ -89,20 +89,20 @@ const lastMessageIndex = computed(() => {
 
 const { height: containerHeight } = useElementSize(scrollHostRef)
 const { height: prevMessageHeight } = useElementSize(prevMessageWrapperRef)
-const RETRY_BRANCH_SWITCHER_RESERVED_HEIGHT = 25
+const MESSAGE_BRANCH_SWITCHER_RESERVED_HEIGHT = 25
 const LAST_MESSAGE_BOTTOM_GAP = 16
 
-const prevMessageHasRetryBranchControl = computed(() => {
+const prevMessageHasMessageBranchControl = computed(() => {
   if (lastMessageIndex.value <= 0) return false
 
   const prevMessage = visibleMessages.value[lastMessageIndex.value - 1]
-  return !!prevMessage?.id && !!getRetryBranchControl(prevMessage.id)
+  return !!prevMessage?.id && !!getMessageBranchControl(prevMessage.id)
 })
 
 const lastMessageHeight = computed(() => {
   if (lastMessageIndex.value >= 0 && containerHeight.value > 0 && prevMessageHeight.value > 0) {
     const prevHeight = prevMessageHeight.value + (
-      prevMessageHasRetryBranchControl.value ? RETRY_BRANCH_SWITCHER_RESERVED_HEIGHT : 0
+      prevMessageHasMessageBranchControl.value ? MESSAGE_BRANCH_SWITCHER_RESERVED_HEIGHT : 0
     )
     const height = containerHeight.value - prevHeight - LAST_MESSAGE_BOTTOM_GAP
     return `${Math.max(0, height)}px`
@@ -114,10 +114,10 @@ const getMessageText = (message: BaseMessage) => {
   return message.parts.map((e) => (e.type === 'text' ? e.text : '')).join('')
 }
 
-const getRetryBranchControl = (messageId: string) => {
+const getMessageBranchControl = (messageId: string) => {
   if (!currentChat.value?.id) return null
 
-  const branchInfo = getRetryBranchVariants(currentChat.value.id, messageId, 'structural')
+  const branchInfo = getMessageBranchVariants(currentChat.value.id, messageId, 'structural')
   if (branchInfo.variants.length <= 1) return null
 
   const currentIndex = branchInfo.variants.findIndex((variant) => variant.id === branchInfo.currentBranchId)
@@ -127,9 +127,9 @@ const getRetryBranchControl = (messageId: string) => {
   }
 }
 
-const switchRetryBranchForMessage = (messageId: string, direction: 'prev' | 'next') => {
+const switchMessageBranchForMessage = (messageId: string, direction: 'prev' | 'next') => {
   if (!currentChat.value?.id) return
-  cycleRetryBranch(currentChat.value.id, messageId, direction)
+  cycleMessageBranch(currentChat.value.id, messageId, direction)
 }
 
 const setPrevMessageWrapperRef = (el: Element | null) => {
@@ -545,7 +545,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
           <template v-for="(message, index) in visibleMessages" :key="message.id">
             <div :id="`message-${message.id}`" class="message-item-wrapper" :class="{
               'is-last-message': index === lastMessageIndex,
-              'has-retry-branch-switcher': !!getRetryBranchControl(message.id!)
+              'has-retry-branch-switcher': !!getMessageBranchControl(message.id!)
             }" :style="index === lastMessageIndex ? { minHeight: lastMessageHeight } : undefined"
               :ref="index === lastMessageIndex - 1 ? (ref) => setPrevMessageWrapperRef(ref as Element) : undefined">
               <div
@@ -577,17 +577,17 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
                 height: 'auto',
                 flex: '1 1 auto'
               } : undefined" @contextmenu="onMessageRightClick($event, message)" />
-              <div v-if="getRetryBranchControl(message.id!)" class="retry-branch-switcher">
+              <div v-if="getMessageBranchControl(message.id!)" class="retry-branch-switcher">
                 <button class="retry-branch-btn" type="button" title="上一个分支"
-                  @click="switchRetryBranchForMessage(message.id!, 'prev')">
+                  @click="switchMessageBranchForMessage(message.id!, 'prev')">
                   <ChevronLeft />
                 </button>
                 <span class="retry-branch-indicator">
-                  {{ getRetryBranchControl(message.id!)!.currentIndex + 1 }} / {{
-                    getRetryBranchControl(message.id!)!.total }}
+                  {{ getMessageBranchControl(message.id!)!.currentIndex + 1 }} / {{
+                    getMessageBranchControl(message.id!)!.total }}
                 </span>
                 <button class="retry-branch-btn" type="button" title="下一个分支"
-                  @click="switchRetryBranchForMessage(message.id!, 'next')">
+                  @click="switchMessageBranchForMessage(message.id!, 'next')">
                   <ChevronRight />
                 </button>
               </div>

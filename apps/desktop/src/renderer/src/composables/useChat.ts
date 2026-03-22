@@ -52,14 +52,15 @@ function createSentenceSegmenter(locale: string = 'und') {
 
 export const useChat = (chatId: string) => {
   const {
-    createRetryBranch,
+    createMessageBranch,
     ensureChatAgent,
+    getActiveMessageBranchId: getStoreActiveMessageBranchId,
     getChatById,
-    getRetryBranchMessages,
-    switchRetryBranch,
+    getMessageBranchMessages,
+    switchMessageBranch,
     shiftPendingMessage,
     updateMessageMetadata,
-    updateMessagesInRetryBranch
+    updateMessagesInMessageBranch
   } = useChatsStores()
   const { messageScrollRef } = useMessageScroll()
 
@@ -87,14 +88,14 @@ export const useChat = (chatId: string) => {
     return agentStore.getAgentById(agentId) || null
   }
 
-  const getActiveRetryBranchId = () => {
-    return getChatById(chatId)?.retryBranchState?.activeBranchId || null
+  const getActiveMessageBranchId = () => {
+    return getStoreActiveMessageBranchId(chatId)
   }
 
   const getVisibleMessages = () => {
     const chat = getChatById(chatId)
     if (!chat) return []
-    return getRetryBranchMessages(chat, getActiveRetryBranchId()).filter((message) => !message.metadata?.deletedAt)
+    return getMessageBranchMessages(chat, getActiveMessageBranchId()).filter((message) => !message.metadata?.deletedAt)
   }
 
   const findToolCallLocation = (messages: BaseMessage[], toolCallId: string) => {
@@ -131,8 +132,8 @@ export const useChat = (chatId: string) => {
     return nextMetadata as MetaData
   }
 
-  const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; isApproval?: boolean; retryBranchId?: string | null }): _useChat<BaseMessage> => {
-    const { regenerateMessageId, isApproval, retryBranchId = null } = options || {}
+  const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; isApproval?: boolean; messageBranchId?: string | null }): _useChat<BaseMessage> => {
+    const { regenerateMessageId, isApproval, messageBranchId = null } = options || {}
     const scope = effectScope()
 
     const getMessageText = (message: BaseMessage) => {
@@ -253,7 +254,6 @@ export const useChat = (chatId: string) => {
         const nextParts = message.parts?.map((part) => ({ ...part }))
         const nextMetadata = {
           ...message.metadata,
-          retryBranchId,
           ...(error ? { error, loading: false } : {})
         } as MetaData
         const isFinalized = !nextMetadata.loading || !!error
@@ -294,11 +294,11 @@ export const useChat = (chatId: string) => {
 
         const storeChat = getChatById(chatId)
         if (!storeChat) return
-        const oldMessages = getRetryBranchMessages(storeChat, retryBranchId)
+        const oldMessages = getMessageBranchMessages(storeChat, messageBranchId)
 
         const existingIndex = oldMessages.findIndex((m) => m.id === msgToUpdate.id)
         if (existingIndex >= 0) {
-          updateMessagesInRetryBranch(chatId, retryBranchId, (messages) =>
+          updateMessagesInMessageBranch(chatId, messageBranchId, (messages) =>
             messages.map((message) =>
               message.id === msgToUpdate.id
                 ? { ...message, parts: msgToUpdate.parts, metadata: msgToUpdate.metadata }
@@ -309,13 +309,13 @@ export const useChat = (chatId: string) => {
         }
 
         if (!targetMessageId.value) {
-          updateMessagesInRetryBranch(chatId, retryBranchId, [...oldMessages, msgToUpdate])
+          updateMessagesInMessageBranch(chatId, messageBranchId, [...oldMessages, msgToUpdate])
           return
         }
 
         const targetIndex = oldMessages.findIndex((m) => m.id === targetMessageId.value)
         if (targetIndex < 0) {
-          updateMessagesInRetryBranch(chatId, retryBranchId, [...oldMessages, msgToUpdate])
+          updateMessagesInMessageBranch(chatId, messageBranchId, [...oldMessages, msgToUpdate])
           return
         }
 
@@ -328,7 +328,7 @@ export const useChat = (chatId: string) => {
           copy.splice(targetIndex + 1, 0, msgToUpdate)
         }
 
-        updateMessagesInRetryBranch(chatId, retryBranchId, copy)
+        updateMessagesInMessageBranch(chatId, messageBranchId, copy)
       }
 
       const queueMessageSync = (message?: BaseMessage, error?: APICallError) => {
@@ -349,7 +349,6 @@ export const useChat = (chatId: string) => {
 
         message.metadata = {
           ...message.metadata,
-          retryBranchId,
           loading: false,
           ...(error ? { error } : {})
         } as MetaData
@@ -540,8 +539,8 @@ export const useChat = (chatId: string) => {
   return {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
       scrollToBottom()
-      const retryBranchId = getActiveRetryBranchId()
-      const chat = createChat(getVisibleMessages(), { retryBranchId })
+      const messageBranchId = getActiveMessageBranchId()
+      const chat = createChat(getVisibleMessages(), { messageBranchId })
 
       const parts: Array<FileUIPart | TextUIPart> =
         typeof content === 'string' ? [{ type: 'text', text: content }] : content
@@ -553,8 +552,8 @@ export const useChat = (chatId: string) => {
       })
     },
     continueMessages: () => {
-      const retryBranchId = getActiveRetryBranchId()
-      const chat = createChat(getVisibleMessages(), { retryBranchId })
+      const messageBranchId = getActiveMessageBranchId()
+      const chat = createChat(getVisibleMessages(), { messageBranchId })
       chat.sendMessage()
     },
     retryFromToolCall: (toolCallId: string, position: 'above' | 'below') => {
@@ -587,12 +586,12 @@ export const useChat = (chatId: string) => {
 
       message.metadata?.stop?.()
 
-      const retryBranchId = createRetryBranch(chatId, branchAnchorMessageId)
-      if (!retryBranchId) {
+      const messageBranchId = createMessageBranch(chatId, branchAnchorMessageId)
+      if (!messageBranchId) {
         messageApi.error('创建重试分支失败')
         return
       }
-      switchRetryBranch(chatId, retryBranchId)
+      switchMessageBranch(chatId, messageBranchId, branchAnchorMessageId)
 
       const baseMessages = currentMessages.slice(0, messageIndex)
       const nextMessages =
@@ -607,10 +606,10 @@ export const useChat = (chatId: string) => {
           ]
           : baseMessages
 
-      updateMessagesInRetryBranch(chatId, retryBranchId, cloneDeep(nextMessages))
+      updateMessagesInMessageBranch(chatId, messageBranchId, cloneDeep(nextMessages))
 
       scrollToBottom()
-      const chat = createChat(nextMessages, { retryBranchId })
+      const chat = createChat(nextMessages, { messageBranchId })
       chat.sendMessage()
     },
     regenerate: (messageId: string) => {
@@ -623,22 +622,22 @@ export const useChat = (chatId: string) => {
       if (isLastMessage || isLastUserMessage) {
         scrollToBottom()
       }
-      const retryBranchId = createRetryBranch(chatId, branchMessageId)
-      if (retryBranchId) {
-        switchRetryBranch(chatId, retryBranchId)
+      const messageBranchId = createMessageBranch(chatId, branchMessageId)
+      if (messageBranchId) {
+        switchMessageBranch(chatId, messageBranchId, branchMessageId)
       }
       const retryChat = getChatById(chatId)
       if (!retryChat) return
-      const retryMessages = getRetryBranchMessages(retryChat, retryBranchId)
+      const retryMessages = getMessageBranchMessages(retryChat, messageBranchId)
       const chat = createChat(retryMessages, {
         regenerateMessageId: regenerateMessageId,
-        retryBranchId
+        messageBranchId
       })
       chat.regenerate({ messageId: regenerateMessageId })
     },
     approval: (part: ToolUIPart, approved: boolean) => {
-      const retryBranchId = getActiveRetryBranchId()
-      const chat = createChat(getVisibleMessages(), { isApproval: true, retryBranchId })
+      const messageBranchId = getActiveMessageBranchId()
+      const chat = createChat(getVisibleMessages(), { isApproval: true, messageBranchId })
       chat.addToolApprovalResponse({
         id: part.approval!.id!,
         approved

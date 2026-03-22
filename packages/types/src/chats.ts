@@ -1,19 +1,4 @@
 declare global {
-  interface RetryBranchNode {
-    id: string
-    parentBranchId: string | null
-    forkMessageId: string
-    messages: BaseMessage[]
-    createdAt: number
-  }
-
-  interface RetryBranchState {
-    rootMessages: BaseMessage[]
-    activeBranchId: string | null
-    selectedBranchIdsByFork?: Record<string, string | null>
-    nodes: RetryBranchNode[]
-  }
-
   type SubTaskStatus = 'pending' | 'running' | 'completed' | 'failed'
 
   interface SubTaskInfo {
@@ -50,7 +35,6 @@ declare global {
     pendingMessages?: PendingMessage[] // 预发送队列
     parentChatId?: string // 父会话ID，存在则为子智能体会话
     subTask?: SubTaskInfo // 子任务信息（仅子会话）
-    retryBranchState?: RetryBranchState // 消息级隐藏重试分支树
   }
   interface PendingMessage {
     id: string
