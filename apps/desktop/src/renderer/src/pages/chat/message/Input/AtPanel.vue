@@ -84,6 +84,7 @@ const suppressedMessage = ref<string | null>(null)
 const previewScope = ref<Exclude<MentionScope, 'all'> | null>(null)
 const rootPreviewScope = ref<Exclude<MentionScope, 'all'> | null>(null)
 const allowPreviewOnActiveChange = ref(false)
+const lastActivePathKeys = ref<string[]>([])
 const fileItems = ref<CascaderPanelItem[]>([])
 const currentFileDirectory = ref('')
 const fileListStrategy = ref<'search' | 'directory'>('directory')
@@ -312,6 +313,7 @@ const closePanel = (options?: { suppressCurrentMessage?: boolean }) => {
   previewScope.value = null
   rootPreviewScope.value = null
   allowPreviewOnActiveChange.value = false
+  lastActivePathKeys.value = []
   currentFileDirectory.value = ''
   fileListStrategy.value = 'directory'
 }
@@ -586,6 +588,23 @@ const handleCascaderSelect = ({ item }: { item: CascaderPanelItem }) => {
 }
 
 const handleCascaderActiveChange = ({ item, path }: { item: CascaderPanelItem | null, path: CascaderPanelItem[] }) => {
+  const previousPathKeys = lastActivePathKeys.value
+  const nextPathKeys = path.map((pathItem) => pathItem.key)
+  lastActivePathKeys.value = nextPathKeys
+
+  const enteredWorkspaceFromRoot =
+    mentionScope.value === 'all' &&
+    previousPathKeys.length === 1 &&
+    previousPathKeys[0] === 'workspace' &&
+    nextPathKeys.length === 2 &&
+    nextPathKeys[0] === 'workspace'
+
+  if (enteredWorkspaceFromRoot && currentFileDirectory.value) {
+    currentFileDirectory.value = ''
+    fileListStrategy.value = 'directory'
+    resetFileListSelection()
+  }
+
   if (!item || !mentionRange.value || !allowPreviewOnActiveChange.value) return
 
   if (

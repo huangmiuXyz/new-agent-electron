@@ -358,6 +358,13 @@ const handleKeydown = (event: KeyboardEvent): CascaderPanelSelectResult => {
 
   if (event.key === 'Escape') {
     event.preventDefault()
+    if (activeDepth.value > 0 || expandedDepth.value > 0) {
+      resetToDepth(0)
+      activeDepth.value = 0
+      scrollActiveItemIntoView()
+      return { handled: true }
+    }
+
     return { handled: true, requestClose: true }
   }
 
