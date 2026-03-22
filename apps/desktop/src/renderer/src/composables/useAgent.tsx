@@ -1132,6 +1132,7 @@ export const useAgent = () => {
         label: '最大工具调用次数',
         min: 1,
         max: 100,
+        defaultValue: 50,
         hint: '一次对话中允许的最大工具调用次数，默认 20 次。达到限制后将停止工具调用并返回结果。'
       } as TextField<AgentFormData>,
       {

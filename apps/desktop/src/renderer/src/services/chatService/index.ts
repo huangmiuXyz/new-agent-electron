@@ -642,7 +642,7 @@ export const chatService = () => {
       instructions: agentInstructions,
       stopWhen: [
         ({ steps }) => {
-          const maxSteps = maxToolCalls ?? 20
+          const maxSteps = maxToolCalls || 50
           return (
             steps.length >= maxSteps ||
             (steps.some((step) =>
