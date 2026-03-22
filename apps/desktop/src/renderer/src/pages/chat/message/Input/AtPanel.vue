@@ -362,10 +362,11 @@ defineExpose({
 
 .skill-mention-child-panel {
   position: absolute;
-  left: calc(100% + 10px);
-  top: -1px;
+  left: calc(100% + 4px);
+  top: auto;
+  bottom: -1px;
   width: min(248px, 20vw);
-  max-height: 160px;
+  max-height: min(220px, calc(100vh - 240px));
   padding: 4px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
@@ -383,7 +384,8 @@ defineExpose({
   content: '';
   position: absolute;
   left: -5px;
-  top: 11px;
+  top: auto;
+  bottom: 11px;
   width: 10px;
   height: 10px;
   border-left: 1px solid rgba(var(--text-rgb), 0.08);
