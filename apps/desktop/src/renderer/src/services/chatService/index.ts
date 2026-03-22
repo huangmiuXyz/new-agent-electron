@@ -22,6 +22,7 @@ import { normalizeInlineFilePartUrls, sanitizeUIMessages } from './utils'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { createToolMiddleware } from './middleware/createToolMiddleware'
 import {
+  buildCodexEnvironmentPrompt,
   buildContextCompressionPrompt,
   buildMultiAgentSystemPrompt,
   buildTranslationPrompt
@@ -475,8 +476,9 @@ export const chatService = () => {
     )
     const multiAgentPrompt =
       hasAssignedAgentTools || isSubAgentChat ? buildMultiAgentSystemPrompt(cid) : ''
+    const codexEnvironmentPrompt = buildCodexEnvironmentPrompt(cid, messages)
     const agentInstructions =
-      [instructions?.trim(), skillsPrompt, multiAgentPrompt].filter(Boolean).join('\n\n') ||
+      [codexEnvironmentPrompt, instructions?.trim(), skillsPrompt, multiAgentPrompt].filter(Boolean).join('\n\n') ||
       undefined
 
     const builtinToolKeys = new Set<string>(selectedBuiltinTools || [])

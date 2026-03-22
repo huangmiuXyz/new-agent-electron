@@ -1,3 +1,51 @@
+import { getCodexBuiltinTools } from '../builtin-tools/tools/codex-tools'
+
+const CODEX_BUILTIN_TOOL_KEYS = new Set(Object.keys(getCodexBuiltinTools()))
+
+const getTerminalTypeLabel = (): string => {
+  const platform = window.api.os.platform()
+  if (platform === 'win32') {
+    return 'PowerShell'
+  }
+
+  const shellPath = window.api.process.env.SHELL || '/bin/sh'
+  const shellName = shellPath.split(/[/\\]/).pop()
+  return shellName || shellPath
+}
+
+export const buildCodexEnvironmentPrompt = (chatId: string, messages?: BaseMessage[]): string => {
+  const hasCodexToolUsage = (messages || []).some((message) =>
+    (message.parts || []).some((part) => {
+      if (!part.type.startsWith('tool')) {
+        return false
+      }
+
+      const toolName = (part as { toolName?: string }).toolName || part.type.replace(/^tool-/, '')
+      return CODEX_BUILTIN_TOOL_KEYS.has(toolName)
+    })
+  )
+
+  if (!hasCodexToolUsage) {
+    return ''
+  }
+
+  const chatsStore = useChatsStores()
+  const agentStore = useAgentStore()
+  const agentId = chatsStore.getChatById(chatId)?.agentId || 'default'
+  const agent = agentStore.getAgentById(agentId)
+  const platform = window.api.os.platform()
+  const terminalType = getTerminalTypeLabel()
+  const workPath = agent?.workPath?.trim() || '未设置'
+
+  return [
+    'Codex 工具运行环境信息：',
+    `- 平台信息: ${platform}`,
+    `- 终端类型: ${terminalType}`,
+    `- 工作路径: ${workPath}`,
+    '- 使用 exec_command、readFile、list_dir、search_project、search_replace 等 Codex 工具时，请以上述环境信息为准。'
+  ].join('\n')
+}
+
 const buildSubAgentSystemPrompt = (currentChat: Chat): string => {
   const taskInfo = currentChat.subTask ? `任务内容: ${currentChat.subTask.task}\n` : ''
   return (
