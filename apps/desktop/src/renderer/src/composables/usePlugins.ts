@@ -26,6 +26,36 @@ export function usePlugins() {
     })
   }
 
+  const resolveDevPluginDirectories = (selectedPath: string): string[] => {
+    if (!window.api?.fs || !window.api?.path) {
+      return []
+    }
+
+    const fs = window.api.fs
+    const path = window.api.path
+    const infoPath = path.join(selectedPath, 'info.json')
+
+    if (fs.existsSync(infoPath)) {
+      return [selectedPath]
+    }
+
+    const entries = fs.readdirSync(selectedPath)
+    return entries
+      .map((entry: string) => path.join(selectedPath, entry))
+      .filter((entryPath: string) => {
+        try {
+          const stat = fs.statSync(entryPath)
+          if ((stat.mode & 0o170000) !== 0o040000) {
+            return false
+          }
+
+          return fs.existsSync(path.join(entryPath, 'info.json'))
+        } catch {
+          return false
+        }
+      })
+  }
+
   const loadPluginDev = async (): Promise<void> => {
     try {
       installing.value = true
@@ -43,13 +73,53 @@ export function usePlugins() {
         return
       }
 
-      const localPath = result.filePaths[0]
-      const pluginId = window.api.path.basename(localPath)
+      const selectedPath = result.filePaths[0]
+      const pluginDirs = resolveDevPluginDirectories(selectedPath)
 
-      await pluginLoader.loadPluginDev(localPath)
-      settingsStore.addDevPluginPath(pluginId, localPath)
+      if (pluginDirs.length === 0) {
+        throw new Error('所选文件夹中未找到插件，请确认目录本身或其子目录包含 info.json')
+      }
+
+      const loaded: string[] = []
+      const failed: Array<{ name: string; reason: string }> = []
+
+      for (const localPath of pluginDirs) {
+        const pluginId = window.api.path.basename(localPath)
+
+        try {
+          await pluginLoader.loadPluginDev(localPath)
+          settingsStore.addDevPluginPath(pluginId, localPath)
+          loaded.push(pluginId)
+        } catch (error) {
+          failed.push({
+            name: pluginId,
+            reason: error instanceof Error ? error.message : String(error)
+          })
+        }
+      }
+
       await refreshPlugins()
-      messageApi.success('Dev plugin loaded successfully')
+
+      if (loaded.length > 0 && failed.length === 0) {
+        messageApi.success(
+          pluginDirs.length === 1
+            ? `开发插件已加载：${loaded[0]}`
+            : `已批量加载 ${loaded.length} 个开发插件`
+        )
+        return
+      }
+
+      if (loaded.length > 0) {
+        messageApi.warning(
+          `已加载 ${loaded.length} 个插件，${failed.length} 个失败：${failed.map((item) => item.name).join('、')}`
+        )
+        console.warn('Failed to load some dev plugins:', failed)
+        return
+      }
+
+      throw new Error(
+        failed.map((item) => `${item.name}: ${item.reason}`).join('\n') || '开发插件加载失败'
+      )
     } catch (err) {
       console.error('Failed to load dev plugin:', err)
       messageApi.error(`Failed to load dev plugin: ${err instanceof Error ? err.message : String(err)}`)
