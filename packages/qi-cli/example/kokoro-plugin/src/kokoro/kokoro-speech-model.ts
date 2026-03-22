@@ -143,7 +143,7 @@ export class KokoroSpeechModel implements SpeechModelV3 {
       // 不 await，让命令在后台运行
       createTab({
         command,
-        timeout: 120000, // 2分钟超时
+        timeout: 1280000, // 2分钟超时
         showTerminal: true // 显示终端面板
       }).catch(err => {
         console.error('[Kokoro] createTab error:', err);

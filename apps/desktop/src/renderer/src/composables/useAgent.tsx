@@ -196,7 +196,7 @@ export const useAgent = () => {
           frequencyPenalty: agent.frequencyPenalty ?? 0,
           maxOutputTokens: agent.maxOutputTokens,
           contextCount: agent.contextCount ?? 50,
-          contextTokenCount: agent.contextTokenCount ?? 12000,
+          contextTokenCount: agent.contextTokenCount ?? 128000,
           autoCompressContext: agent.autoCompressContext ?? false,
           compressModel: agent.compressModel,
           maxToolCalls: agent.maxToolCalls,
@@ -231,7 +231,7 @@ export const useAgent = () => {
           presencePenalty: 0,
           frequencyPenalty: 0,
           contextCount: 50,
-          contextTokenCount: 12000,
+          contextTokenCount: 128000,
           autoCompressContext: false,
           maxToolCalls: undefined,
           speechVoice: '',
@@ -364,7 +364,7 @@ export const useAgent = () => {
                   presencePenalty: 0,
                   frequencyPenalty: 0,
                   contextCount: 50,
-                  contextTokenCount: 12000
+                  contextTokenCount: 128000
                 }
                 Object.entries(defaultParams).forEach(([key, value]) => {
                   formActions.setFieldValue(key, value)
