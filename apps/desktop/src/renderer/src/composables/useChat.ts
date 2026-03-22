@@ -213,7 +213,7 @@ export const useChat = (chatId: string) => {
         },
 
         onFinish: () => {
-          const finalMessage = chat.lastMessage
+          const finalMessage = chat.lastMessage!
           finalizeMessageSync(finalMessage)
 
           if (speechEnabled.value) {
