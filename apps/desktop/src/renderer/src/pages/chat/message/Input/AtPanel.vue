@@ -1,31 +1,242 @@
 <script setup lang="ts">
-import type { SkillMetadata } from '@renderer/services/skillsService'
+import { discoverSkills, type SkillMetadata } from '@renderer/services/skillsService'
 
 interface Props {
-  skills: SkillMetadata[]
-  activeIndex?: number
   mobile?: boolean
   emptyText?: string
-  childOpen?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
-  activeIndex: 0,
+interface MentionRange {
+  start: number
+  end: number
+}
+
+export interface MentionApplyPayload {
+  message: string
+  cursor: number
+}
+
+const props = withDefaults(defineProps<Props>(), {
   mobile: false,
-  emptyText: '未找到匹配技能',
-  childOpen: false
+  emptyText: '未找到匹配技能'
 })
 
 const emit = defineEmits<{
-  select: [skill: SkillMetadata]
-  openChild: []
+  apply: [payload: MentionApplyPayload]
 }>()
+
+const chatStore = useChatsStores()
+const agentStore = useAgentStore()
+
+const currentChatAgent = computed(() => {
+  const agentId = chatStore.currentChat?.agentId
+  return agentId ? agentStore.getAgentById(agentId) : null
+})
+
+const SKILL_MENTION_REGEX = /(^|[\s([{"'`“‘])@([a-z0-9-]*)$/i
+const SKILL_MENTION_NAMESPACE_REGEX = /(^|[\s([{"'`“‘])@(skills|技能):([a-z0-9-]*)$/i
+
+const availableSkills = computed<SkillMetadata[]>(() => {
+  void currentChatAgent.value?.id
+  void currentChatAgent.value?.skillDirectory
+  void chatStore.currentChat?.id
+  return discoverSkills()
+})
+
+const isOpen = ref(false)
+const childOpen = ref(false)
+const query = ref('')
+const activeIndex = ref(0)
+const mentionRange = ref<MentionRange | null>(null)
+const latestMessage = ref('')
+let closeTimer: ReturnType<typeof setTimeout> | null = null
+
+const filteredSkills = computed(() => {
+  const normalizedQuery = query.value.trim().toLowerCase()
+  const exactMatches = availableSkills.value.filter(
+    (skill) => skill.name.toLowerCase() === normalizedQuery
+  )
+  const fuzzyMatches = availableSkills.value.filter((skill) => {
+    const name = skill.name.toLowerCase()
+    const description = skill.description.toLowerCase()
+    if (!normalizedQuery) return true
+    return name.includes(normalizedQuery) || description.includes(normalizedQuery)
+  })
+
+  return normalizedQuery
+    ? [...exactMatches, ...fuzzyMatches.filter((skill) => !exactMatches.includes(skill))]
+    : fuzzyMatches
+})
+
+const closePanel = () => {
+  isOpen.value = false
+  childOpen.value = false
+  query.value = ''
+  activeIndex.value = 0
+  mentionRange.value = null
+}
+
+const openChild = () => {
+  if (!isOpen.value) return
+  childOpen.value = true
+  if (activeIndex.value >= filteredSkills.value.length) {
+    activeIndex.value = 0
+  }
+}
+
+const clearCloseTimer = () => {
+  if (!closeTimer) return
+  clearTimeout(closeTimer)
+  closeTimer = null
+}
+
+const scheduleClose = () => {
+  clearCloseTimer()
+  closeTimer = setTimeout(() => {
+    closePanel()
+  }, 120)
+}
+
+const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null) => {
+  latestMessage.value = message
+  clearCloseTimer()
+
+  if (!textarea) {
+    closePanel()
+    return
+  }
+
+  const cursor = textarea.selectionStart ?? message.length
+  const beforeCursor = message.slice(0, cursor)
+  const namespacedMatch = beforeCursor.match(SKILL_MENTION_NAMESPACE_REGEX)
+
+  if (namespacedMatch) {
+    const nextQuery = namespacedMatch[3] || ''
+    const start = cursor - nextQuery.length - namespacedMatch[2].length - 2
+    query.value = nextQuery
+    mentionRange.value = { start, end: cursor }
+    isOpen.value = availableSkills.value.length > 0
+    childOpen.value = isOpen.value
+    return
+  }
+
+  const match = beforeCursor.match(SKILL_MENTION_REGEX)
+  if (!match) {
+    closePanel()
+    return
+  }
+
+  const nextQuery = match[2] || ''
+  const start = cursor - nextQuery.length - 1
+  query.value = nextQuery
+  mentionRange.value = { start, end: cursor }
+  isOpen.value = availableSkills.value.length > 0
+  childOpen.value = isOpen.value
+}
+
+const buildMentionPayload = (skill: SkillMetadata): MentionApplyPayload | null => {
+  const range = mentionRange.value
+  if (!range) return null
+
+  const mentionText = `@skills:${skill.name} `
+  const nextMessage = `${latestMessage.value.slice(0, range.start)}${mentionText}${latestMessage.value.slice(range.end)}`
+  const cursor = range.start + mentionText.length
+
+  closePanel()
+
+  return {
+    message: nextMessage,
+    cursor
+  }
+}
+
+const applySkill = (skill: SkillMetadata) => {
+  const payload = buildMentionPayload(skill)
+  if (!payload) return null
+  emit('apply', payload)
+  return payload
+}
+
+const handleKeydown = (
+  event: KeyboardEvent,
+  message: string,
+  textarea?: HTMLTextAreaElement | null
+) => {
+  syncMentionState(message, textarea)
+
+  if (isOpen.value && childOpen.value && filteredSkills.value.length > 0) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      activeIndex.value = (activeIndex.value + 1) % filteredSkills.value.length
+      return null
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      activeIndex.value =
+        (activeIndex.value - 1 + filteredSkills.value.length) % filteredSkills.value.length
+      return null
+    }
+
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault()
+      return applySkill(filteredSkills.value[activeIndex.value])
+    }
+  }
+
+  if (event.key === 'Escape' && isOpen.value) {
+    event.preventDefault()
+    if (childOpen.value) {
+      childOpen.value = false
+      return null
+    }
+    closePanel()
+  }
+
+  return null
+}
+
+watch(filteredSkills, (skills) => {
+  if (!skills.length) {
+    activeIndex.value = 0
+    return
+  }
+
+  if (activeIndex.value >= skills.length) {
+    activeIndex.value = 0
+  }
+})
+
+watch(availableSkills, (skills) => {
+  if (skills.length > 0) return
+  closePanel()
+})
+
+onBeforeUnmount(() => {
+  clearCloseTimer()
+})
+
+defineExpose({
+  syncMentionState,
+  scheduleClose,
+  clearCloseTimer,
+  handleKeydown
+})
 </script>
 
 <template>
-  <div class="skill-mention-panel" :class="{ 'mobile-skill-mention-panel': mobile }">
-    <button class="skill-section-item" :class="{ 'is-active': childOpen }" type="button"
-      @mousedown.prevent="emit('openChild')">
+  <div
+    v-if="isOpen"
+    class="skill-mention-panel"
+    :class="{ 'mobile-skill-mention-panel': mobile }"
+    @mouseenter="clearCloseTimer"
+  >
+    <button
+      class="skill-section-item"
+      :class="{ 'is-active': childOpen }"
+      type="button"
+      @mousedown.prevent="openChild"
+    >
       <span class="skill-section-icon">
         <span class="skill-section-icon-glyph"></span>
       </span>
@@ -35,15 +246,27 @@ const emit = defineEmits<{
       <span class="skill-section-arrow">›</span>
     </button>
 
-    <div v-if="childOpen" class="skill-mention-child-panel" :class="{ 'mobile-skill-mention-child-panel': mobile }">
+    <div
+      v-if="childOpen"
+      class="skill-mention-child-panel"
+      :class="{ 'mobile-skill-mention-child-panel': mobile }"
+    >
       <div class="skill-mention-list">
-        <button v-for="(skill, index) in skills" :key="skill.path" class="skill-mention-item"
-          :class="{ 'is-active': index === activeIndex }" type="button" @mousedown.prevent="emit('select', skill)">
+        <button
+          v-for="(skill, index) in filteredSkills"
+          :key="skill.path"
+          class="skill-mention-item"
+          :class="{ 'is-active': index === activeIndex }"
+          type="button"
+          @mousedown.prevent="applySkill(skill)"
+        >
           <span class="skill-mention-name">@{{ skill.name }}</span>
           <span class="skill-mention-desc">{{ skill.description }}</span>
         </button>
 
-        <div v-if="skills.length === 0" class="skill-mention-empty">{{ emptyText }}</div>
+        <div v-if="filteredSkills.length === 0" class="skill-mention-empty">
+          {{ props.emptyText }}
+        </div>
       </div>
     </div>
   </div>
@@ -167,20 +390,6 @@ const emit = defineEmits<{
   border-bottom: 1px solid rgba(var(--text-rgb), 0.08);
   background: inherit;
   transform: rotate(45deg);
-}
-
-.skill-mention-list-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 6px 5px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.skill-mention-list-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-primary);
 }
 
 .skill-mention-list {
