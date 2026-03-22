@@ -213,21 +213,21 @@ export const useChat = (chatId: string) => {
         },
 
         onFinish: () => {
-          flushStreamingUpdate()
-          syncMessageToStore()
+          const finalMessage = chat.lastMessage
+          finalizeMessageSync(finalMessage)
 
           if (speechEnabled.value) {
             const mode = getChatAgent()?.speechMode as string
 
             if (mode === 'sentence') {
               sentenceSegmenter.flush((sentence) => {
-                generateSpeech(sentence, chat.lastMessage)
+                generateSpeech(sentence, finalMessage)
               })
             } else {
-              const fullText = getMessageText(chat.lastMessage)
+              const fullText = getMessageText(finalMessage)
               const remainingText = fullText.slice(processedText.length).trim()
               if (remainingText) {
-                generateSpeech(remainingText, chat.lastMessage)
+                generateSpeech(remainingText, finalMessage)
               }
             }
           }
@@ -238,9 +238,8 @@ export const useChat = (chatId: string) => {
         },
 
         onError: (error) => {
-          console.log(error);
-          flushStreamingUpdate()
-          syncMessageToStore(undefined, error as APICallError)
+          console.error(error)
+          finalizeMessageSync(chat.lastMessage, error as APICallError)
           scope.stop()
           scheduleNextPendingMessage()
         }
@@ -251,7 +250,11 @@ export const useChat = (chatId: string) => {
 
         // Keep parts immutable when syncing to Pinia so nested text updates stay reactive in children.
         const nextParts = message.parts?.map((part) => ({ ...part }))
-        const nextMetadata = { ...message.metadata, error, retryBranchId } as MetaData
+        const nextMetadata = {
+          ...message.metadata,
+          retryBranchId,
+          ...(error ? { error, loading: false } : {})
+        } as MetaData
         const isFinalized = !nextMetadata.loading || !!error
         const flatUsage = getFlatTokenUsage(nextMetadata.usage)
 
@@ -327,6 +330,33 @@ export const useChat = (chatId: string) => {
         updateMessagesInRetryBranch(chatId, retryBranchId, copy)
       }
 
+      const queueMessageSync = (message?: BaseMessage, error?: APICallError) => {
+        const messageSnapshot = createStoreMessageSnapshot(message, error)
+        if (!messageSnapshot) return
+
+        if (!pendingSyncMessages.has(messageSnapshot.id)) {
+          pendingSyncMessageIds.push(messageSnapshot.id)
+        }
+        pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
+      }
+
+      const finalizeMessageSync = (message?: BaseMessage, error?: APICallError) => {
+        if (!message) {
+          flushStreamingUpdate()
+          return
+        }
+
+        message.metadata = {
+          ...message.metadata,
+          retryBranchId,
+          loading: false,
+          ...(error ? { error } : {})
+        } as MetaData
+
+        queueMessageSync(message, error)
+        flushStreamingUpdate()
+      }
+
       const processStreamingSpeech = (
         message: BaseMessage | undefined,
         newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
@@ -383,10 +413,7 @@ export const useChat = (chatId: string) => {
         const messageSnapshot = createStoreMessageSnapshot(message)
         if (!messageSnapshot) return
 
-        if (!pendingSyncMessages.has(messageSnapshot.id)) {
-          pendingSyncMessageIds.push(messageSnapshot.id)
-        }
-        pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
+        queueMessageSync(messageSnapshot)
         pendingStreamParts = messageSnapshot.parts as (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
         pendingSpeechMessage = messageSnapshot.role === 'assistant' ? messageSnapshot : undefined
 
