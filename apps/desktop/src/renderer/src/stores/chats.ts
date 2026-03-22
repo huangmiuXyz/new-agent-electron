@@ -33,20 +33,89 @@ export const useChatsStores = defineStore(
       chat.messages = cloneMessages(messages)
     }
 
+    const getForkSelectionKey = (ownerBranchId: string | null, forkMessageId: string) =>
+      `${ownerBranchId || '__root__'}:${forkMessageId}`
+
     const getRetryBranchNode = (chat: Chat, branchId: string | null) => {
       if (!branchId) return null
       return chat.retryBranchState?.nodes.find((node) => node.id === branchId) || null
     }
 
-    const ensureRetryBranchState = (chat: Chat) => {
+    const getRetryBranchPathById = (chat: Chat, branchId: string | null) => {
+      const path: RetryBranchNode[] = []
+      let currentId = branchId
+
+      while (currentId) {
+        const currentNode = getRetryBranchNode(chat, currentId)
+        if (!currentNode) break
+        path.unshift(currentNode)
+        currentId = currentNode.parentBranchId
+      }
+
+      return path
+    }
+
+    const ensureRetryBranchState = (chat: Chat): RetryBranchState => {
       if (!chat.retryBranchState) {
         chat.retryBranchState = {
           rootMessages: cloneMessages(chat.messages),
           activeBranchId: null,
+          selectedBranchIdsByFork: {},
           nodes: []
         }
       }
       return chat.retryBranchState
+    }
+
+    const ensureRetryBranchSelections = (chat: Chat) => {
+      const state = chat.retryBranchState
+      if (!state) return null
+
+      if (!state.selectedBranchIdsByFork) {
+        const selections: Record<string, string | null> = {}
+        const activePath = getRetryBranchPathById(chat, state.activeBranchId)
+
+        activePath.forEach((node) => {
+          selections[getForkSelectionKey(node.parentBranchId, node.forkMessageId)] = node.id
+        })
+
+        state.selectedBranchIdsByFork = selections
+      }
+
+      return state.selectedBranchIdsByFork
+    }
+
+    const getSelectedRetryBranchId = (chat: Chat, ownerBranchId: string | null, forkMessageId: string) => {
+      const selections = ensureRetryBranchSelections(chat)
+      if (!selections) return null
+
+      const key = getForkSelectionKey(ownerBranchId, forkMessageId)
+      const selectedBranchId = selections[key] ?? null
+      if (!selectedBranchId) return null
+
+      const selectedNode = getRetryBranchNode(chat, selectedBranchId)
+      if (
+        !selectedNode ||
+        selectedNode.parentBranchId !== ownerBranchId ||
+        selectedNode.forkMessageId !== forkMessageId
+      ) {
+        delete selections[key]
+        return null
+      }
+
+      return selectedBranchId
+    }
+
+    const setSelectedRetryBranchId = (
+      chat: Chat,
+      ownerBranchId: string | null,
+      forkMessageId: string,
+      branchId: string | null
+    ) => {
+      const selections = ensureRetryBranchSelections(chat)
+      if (!selections) return
+
+      selections[getForkSelectionKey(ownerBranchId, forkMessageId)] = branchId
     }
 
     const getActiveRetryMessages = (chat: Chat) => {
@@ -76,6 +145,42 @@ export const useChatsStores = defineStore(
       if (!chat.retryBranchState) return
       chat.retryBranchState.activeBranchId = branchId
       setRenderedMessages(chat, getRetryBranchMessages(chat, branchId))
+    }
+
+    const resolveActiveRetryBranchId = (chat: Chat) => {
+      const state = chat.retryBranchState
+      if (!state) return null
+
+      ensureRetryBranchSelections(chat)
+
+      let currentBranchId: string | null = null
+      let currentMessages = state.rootMessages
+
+      while (true) {
+        let nextBranchId: string | null = null
+
+        for (const message of currentMessages) {
+          if (!message.id) continue
+
+          const selectedBranchId = getSelectedRetryBranchId(chat, currentBranchId, message.id)
+          if (!selectedBranchId) continue
+
+          nextBranchId = selectedBranchId
+          break
+        }
+
+        if (!nextBranchId) {
+          return currentBranchId
+        }
+
+        currentBranchId = nextBranchId
+        currentMessages = getRetryBranchMessages(chat, currentBranchId)
+      }
+    }
+
+    const syncActiveRetryBranch = (chat: Chat) => {
+      if (!chat.retryBranchState) return
+      setActiveRetryBranch(chat, resolveActiveRetryBranchId(chat))
     }
 
     const resolveChatModelConfig = (
@@ -145,15 +250,7 @@ export const useChatsStores = defineStore(
       const state = chat.retryBranchState
       if (!state) return [] as RetryBranchNode[]
 
-      const path: RetryBranchNode[] = []
-      let currentId = branchId ?? state.activeBranchId
-      while (currentId) {
-        const currentNode = getRetryBranchNode(chat, currentId)
-        if (!currentNode) break
-        path.unshift(currentNode)
-        currentId = currentNode.parentBranchId
-      }
-      return path
+      return getRetryBranchPathById(chat, branchId ?? state.activeBranchId)
     }
 
     const getSelectedBranchOwner = (chat: Chat, forkMessageId: string) => {
@@ -168,6 +265,28 @@ export const useChatsStores = defineStore(
       }
 
       return ownerBranchId
+    }
+
+    const getExistingRetryBranchOwner = (chat: Chat, forkMessageId: string) => {
+      const state = chat.retryBranchState
+      if (!state) return null as { ownerBranchId: string | null } | null
+
+      const ownerCandidates: Array<string | null> = [null, ...getRetryBranchPath(chat).map((node) => node.id)]
+
+      for (const candidateOwnerBranchId of ownerCandidates) {
+        const ownerMessages = getRetryBranchMessages(chat, candidateOwnerBranchId)
+        const containsForkMessage = ownerMessages.some((message) => message.id === forkMessageId)
+        if (!containsForkMessage) continue
+
+        const hasExistingBranches = state.nodes.some(
+          (node) => node.parentBranchId === candidateOwnerBranchId && node.forkMessageId === forkMessageId
+        )
+        if (!hasExistingBranches) continue
+
+        return { ownerBranchId: candidateOwnerBranchId }
+      }
+
+      return null
     }
 
     const hasVisibleRetryContinuation = (messages: BaseMessage[], forkMessageId: string) => {
@@ -197,7 +316,8 @@ export const useChatsStores = defineStore(
         }
       }
 
-      const ownerBranchId = getSelectedBranchOwner(chat, forkMessageId)
+      const existingOwner = getExistingRetryBranchOwner(chat, forkMessageId)
+      const ownerBranchId = existingOwner ? existingOwner.ownerBranchId : getSelectedBranchOwner(chat, forkMessageId)
       const ownerCreatedAt =
         ownerBranchId == null
           ? chat.createdAt
@@ -205,10 +325,7 @@ export const useChatsStores = defineStore(
       const ownerMessages = getRetryBranchMessages(chat, ownerBranchId)
       const includeOwnerVariant =
         mode === 'structural' || hasVisibleRetryContinuation(ownerMessages, forkMessageId)
-
-      const selectedChild = getRetryBranchPath(chat).find(
-        (node) => node.parentBranchId === ownerBranchId && node.forkMessageId === forkMessageId
-      )
+      const selectedBranchId = getSelectedRetryBranchId(chat, ownerBranchId, forkMessageId)
 
       const childVariants = chat.retryBranchState.nodes
         .filter((node) =>
@@ -217,7 +334,7 @@ export const useChatsStores = defineStore(
           (
             mode === 'structural' ||
             hasVisibleRetryContinuation(node.messages, node.forkMessageId) ||
-            node.id === selectedChild?.id
+            node.id === selectedBranchId
           )
         )
         .sort((a, b) => a.createdAt - b.createdAt)
@@ -226,7 +343,7 @@ export const useChatsStores = defineStore(
         ...(includeOwnerVariant ? [{ id: ownerBranchId, createdAt: ownerCreatedAt }] : []),
         ...childVariants.map((node) => ({ id: node.id, createdAt: node.createdAt }))
       ]
-      const preferredCurrentBranchId = selectedChild?.id || ownerBranchId
+      const preferredCurrentBranchId = selectedBranchId || ownerBranchId
       const currentBranchId = variants.some((variant) => variant.id === preferredCurrentBranchId)
         ? preferredCurrentBranchId
         : variants[0]?.id || null
@@ -240,18 +357,15 @@ export const useChatsStores = defineStore(
 
     const normalizeActiveRetryBranch = (chat: Chat) => {
       const state = chat.retryBranchState
-      if (!state?.activeBranchId) return
+      if (!state) return
 
-      const activeNode = getRetryBranchNode(chat, state.activeBranchId)
-      if (!activeNode) {
-        setActiveRetryBranch(chat, null)
+      if (state.nodes.length === 0) {
+        state.activeBranchId = null
+        state.selectedBranchIdsByFork = {}
         return
       }
 
-      const { variants, currentBranchId } = getRetryBranchVariants(chat.id, activeNode.forkMessageId, 'structural')
-      if (variants.some((variant) => variant.id === state.activeBranchId)) return
-
-      setActiveRetryBranch(chat, currentBranchId)
+      syncActiveRetryBranch(chat)
     }
 
     const pruneRetryBranchTree = (chat: Chat) => {
@@ -348,19 +462,57 @@ export const useChatsStores = defineStore(
       pruneRetryBranchTree(chat)
     }
 
-    const switchRetryBranch = (chatId: string, branchId: string | null) => {
+    const resolveRetryBranchSelectionContext = (
+      chat: Chat,
+      branchId: string | null,
+      forkMessageId?: string
+    ) => {
+      if (forkMessageId) {
+        const existingOwner = getExistingRetryBranchOwner(chat, forkMessageId)
+        const ownerBranchId = existingOwner ? existingOwner.ownerBranchId : getSelectedBranchOwner(chat, forkMessageId)
+        if (branchId === ownerBranchId) {
+          return { ownerBranchId, forkMessageId, selectedBranchId: null as string | null }
+        }
+
+        const selectedNode = getRetryBranchNode(chat, branchId)
+        if (
+          !selectedNode ||
+          selectedNode.parentBranchId !== ownerBranchId ||
+          selectedNode.forkMessageId !== forkMessageId
+        ) {
+          return null
+        }
+
+        return { ownerBranchId, forkMessageId, selectedBranchId: selectedNode.id }
+      }
+
+      const selectedNode = getRetryBranchNode(chat, branchId)
+      if (!selectedNode) return null
+
+      return {
+        ownerBranchId: selectedNode.parentBranchId,
+        forkMessageId: selectedNode.forkMessageId,
+        selectedBranchId: selectedNode.id
+      }
+    }
+
+    const switchRetryBranch = (chatId: string, branchId: string | null, forkMessageId?: string) => {
       const chat = getChatById(chatId)
       if (!chat?.retryBranchState) return
 
       syncVisibleMessagesToActiveRetryBranch(chat)
-      setActiveRetryBranch(chat, branchId)
+      const context = resolveRetryBranchSelectionContext(chat, branchId, forkMessageId)
+      if (!context) return
+
+      setSelectedRetryBranchId(chat, context.ownerBranchId, context.forkMessageId, context.selectedBranchId)
+      syncActiveRetryBranch(chat)
     }
 
     const cycleRetryBranch = (chatId: string, forkMessageId: string, direction: 'prev' | 'next') => {
       const chat = getChatById(chatId)
       if (!chat) return
 
-      const { variants, currentBranchId } = getRetryBranchVariants(chatId, forkMessageId)
+      const { variants, currentBranchId } = getRetryBranchVariants(chatId, forkMessageId, 'structural')
       if (variants.length <= 1) return
 
       const currentIndex = Math.max(
@@ -369,7 +521,7 @@ export const useChatsStores = defineStore(
       )
       const delta = direction === 'next' ? 1 : -1
       const nextIndex = (currentIndex + delta + variants.length) % variants.length
-      switchRetryBranch(chatId, variants[nextIndex]!.id)
+      switchRetryBranch(chatId, variants[nextIndex]!.id, forkMessageId)
     }
 
     const createRetryBranch = (chatId: string, forkMessageId: string) => {
@@ -393,7 +545,8 @@ export const useChatsStores = defineStore(
       }
 
       state.nodes.push(newNode)
-      setActiveRetryBranch(chat, newNode.id)
+      setSelectedRetryBranchId(chat, parentBranchId, forkMessageId, newNode.id)
+      syncActiveRetryBranch(chat)
       return newNode.id
     }
 
@@ -547,7 +700,7 @@ export const useChatsStores = defineStore(
             !variants.some((variant) => variant.id === candidate.currentBranchId) &&
             nextBranchId !== candidate.currentBranchId
           ) {
-            switchRetryBranch(cid, nextBranchId)
+            switchRetryBranch(cid, nextBranchId, candidate.forkMessageId)
             break
           }
         }

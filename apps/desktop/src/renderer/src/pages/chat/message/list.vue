@@ -58,7 +58,7 @@ const agentStore = useAgentStore()
 const isDeletedMessage = (message: BaseMessage) => !!message.metadata?.deletedAt
 const hasRetryBranchSwitcher = (messageId: string) => {
   if (!currentChat.value?.id) return false
-  return getRetryBranchVariants(currentChat.value.id, messageId).variants.length > 1
+  return getRetryBranchVariants(currentChat.value.id, messageId, 'structural').variants.length > 1
 }
 
 const visibleMessages = computed(() => {
@@ -117,7 +117,7 @@ const getMessageText = (message: BaseMessage) => {
 const getRetryBranchControl = (messageId: string) => {
   if (!currentChat.value?.id) return null
 
-  const branchInfo = getRetryBranchVariants(currentChat.value.id, messageId)
+  const branchInfo = getRetryBranchVariants(currentChat.value.id, messageId, 'structural')
   if (branchInfo.variants.length <= 1) return null
 
   const currentIndex = branchInfo.variants.findIndex((variant) => variant.id === branchInfo.currentBranchId)

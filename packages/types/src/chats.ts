@@ -10,6 +10,7 @@ declare global {
   interface RetryBranchState {
     rootMessages: BaseMessage[]
     activeBranchId: string | null
+    selectedBranchIdsByFork?: Record<string, string | null>
     nodes: RetryBranchNode[]
   }
 
