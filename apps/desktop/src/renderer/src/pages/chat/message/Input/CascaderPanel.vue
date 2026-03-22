@@ -23,6 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   select: [payload: { item: CascaderPanelItem, path: CascaderPanelItem[] }]
+  activeChange: [payload: { item: CascaderPanelItem | null, path: CascaderPanelItem[] }]
 }>()
 
 const itemRefs = ref(new Map<string, HTMLButtonElement>())
@@ -121,8 +122,8 @@ const scrollActiveItemIntoView = () => {
   })
 }
 
-const resetActiveIndexAtDepth = (depth: number, focus = false) => {
-  activeIndices.value[depth] = 0
+const resetActiveIndexAtDepth = (depth: number, focus = false, index = 0) => {
+  activeIndices.value[depth] = index
   if (focus) {
     activeDepth.value = depth
   }
@@ -131,6 +132,14 @@ const resetActiveIndexAtDepth = (depth: number, focus = false) => {
 
 const getActivePath = () => {
   return getPathToItem(activeDepth.value)
+}
+
+const emitActiveChange = () => {
+  const item = getItemAtDepth(activeDepth.value)
+  emit('activeChange', {
+    item,
+    path: item ? getPathToItem(activeDepth.value) : []
+  })
 }
 
 const initializeNavigation = () => {
@@ -316,7 +325,22 @@ const handleKeydown = (event: KeyboardEvent): CascaderPanelSelectResult => {
     return overrideResult
   }
 
-  if (event.key === 'ArrowRight' || event.key === 'Enter' || event.key === 'Tab') {
+  if (event.key === 'ArrowRight') {
+    const currentItems = getItemsAtDepth(activeDepth.value)
+    if (!currentItems.length) return { handled: false }
+
+    event.preventDefault()
+    const currentItem = getItemAtDepth(activeDepth.value)
+    if (!currentItem || !hasChildren(currentItem)) {
+      return { handled: true }
+    }
+
+    return openChildPanel(activeDepth.value, undefined, true)
+      ? { handled: true }
+      : { handled: false }
+  }
+
+  if (event.key === 'Enter' || event.key === 'Tab') {
     const currentItems = getItemsAtDepth(activeDepth.value)
     if (!currentItems.length) return { handled: false }
 
@@ -365,6 +389,7 @@ watch(
 
 watch([activeDepth, activeIndices], () => {
   if (!props.visible) return
+  emitActiveChange()
   scrollActiveItemIntoView()
 }, { deep: true })
 

@@ -4,6 +4,7 @@ import type { CascaderPanelItem, CascaderPanelSelectResult } from './CascaderPan
 import { discoverSkills, type SkillMetadata } from '@renderer/services/skillsService'
 import { debounce } from '@renderer/utils'
 import {
+  getWorkspaceEntry,
   listWorkspaceEntries,
   normalizeWorkspacePath,
   searchWorkspaceEntries,
@@ -44,13 +45,14 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   apply: [payload: MentionApplyPayload]
+  preview: [payload: MentionApplyPayload]
 }>()
 
 const chatStore = useChatsStores()
 const agentStore = useAgentStore()
 const cascaderPanelRef = useTemplateRef<{
   handleKeydown: (event: KeyboardEvent) => CascaderPanelSelectResult
-  resetActiveIndexAtDepth: (depth: number, focus?: boolean) => void
+  resetActiveIndexAtDepth: (depth: number, focus?: boolean, index?: number) => void
   getActivePath: () => CascaderPanelItem[]
 }>('cascaderPanelRef')
 
@@ -63,6 +65,7 @@ const SKILL_MENTION_REGEX = /(^|[\s([{"'`“‘])@([a-z0-9-]*)$/i
 const SKILL_MENTION_NAMESPACE_REGEX = /(^|[\s([{"'`“‘])@(skills|技能):([a-z0-9-]*)$/i
 const FILE_MENTION_NAMESPACE_REGEX =
   /(^|[\s([{"'`“‘])@(file|文件):(?:"([^"\n\r]*)"|'([^'\n\r]*)'|([^\s]*))$/i
+const PARTIAL_MENTION_REGEX = /(^|[\s([{"'`“‘])@([^\s]*)$/i
 
 const availableSkills = computed<SkillMetadata[]>(() => {
   void currentChatAgent.value?.id
@@ -75,7 +78,12 @@ const isOpen = ref(false)
 const mentionScope = ref<MentionScope>('all')
 const query = ref('')
 const mentionRange = ref<MentionRange | null>(null)
-const latestMessage = ref('')
+const sourceMessage = ref('')
+const previewMessage = ref('')
+const suppressedMessage = ref<string | null>(null)
+const previewScope = ref<Exclude<MentionScope, 'all'> | null>(null)
+const rootPreviewScope = ref<Exclude<MentionScope, 'all'> | null>(null)
+const allowPreviewOnActiveChange = ref(false)
 const fileItems = ref<CascaderPanelItem[]>([])
 const currentFileDirectory = ref('')
 const fileListStrategy = ref<'search' | 'directory'>('directory')
@@ -224,7 +232,8 @@ const resetFileListSelection = () => {
       mentionScope.value === 'files' || activePath[0]?.key === 'workspace'
 
     if (!isWorkspaceActive) return
-    cascaderPanelRef.value?.resetActiveIndexAtDepth?.(1, true)
+    const firstSelectableIndex = fileItems.value[0]?.key === 'file-nav:parent' ? 1 : 0
+    cascaderPanelRef.value?.resetActiveIndexAtDepth?.(1, true, firstSelectableIndex)
   })
 }
 
@@ -290,11 +299,19 @@ const panelEmptyText = computed(() => {
   return props.emptyText
 })
 
-const closePanel = () => {
+const closePanel = (options?: { suppressCurrentMessage?: boolean }) => {
+  suppressedMessage.value = options?.suppressCurrentMessage
+    ? (previewMessage.value || sourceMessage.value || suppressedMessage.value)
+    : null
   isOpen.value = false
   mentionScope.value = 'all'
   query.value = ''
   mentionRange.value = null
+  sourceMessage.value = ''
+  previewMessage.value = ''
+  previewScope.value = null
+  rootPreviewScope.value = null
+  allowPreviewOnActiveChange.value = false
   currentFileDirectory.value = ''
   fileListStrategy.value = 'directory'
 }
@@ -308,7 +325,7 @@ const clearCloseTimer = () => {
 const scheduleClose = () => {
   clearCloseTimer()
   closeTimer = setTimeout(() => {
-    closePanel()
+    closePanel({ suppressCurrentMessage: true })
   }, 120)
 }
 
@@ -329,11 +346,71 @@ const applyMentionParseResult = (
     currentFileDirectory.value = ''
   }
 
-  fileListStrategy.value = nextQuery.trim() ? 'search' : 'directory'
+  const normalizedQuery = nextQuery.trim()
+  if (scope === 'files' && normalizedQuery) {
+    const trailingSlashQuery = normalizedQuery.replace(/[\\/]+$/, '')
+    const shouldEnterDirectory = trailingSlashQuery.length > 0 && trailingSlashQuery !== normalizedQuery
+
+    if (shouldEnterDirectory && currentWorkPath.value) {
+      const directoryEntry = getWorkspaceEntry(currentWorkPath.value, trailingSlashQuery)
+      if (directoryEntry?.kind === 'directory') {
+        currentFileDirectory.value = directoryEntry.relativePath
+        fileListStrategy.value = 'directory'
+        return
+      }
+    }
+  }
+
+  fileListStrategy.value = scope === 'files' && normalizedQuery ? 'search' : 'directory'
+}
+
+const isStickyNamespacePrefix = (scope: Exclude<MentionScope, 'all'>, token: string) => {
+  const normalizedToken = token.toLowerCase()
+  if (scope === 'files') {
+    return 'file'.startsWith(normalizedToken) || '文件'.startsWith(token)
+  }
+
+  return 'skills'.startsWith(normalizedToken) || '技能'.startsWith(token)
+}
+
+const getStickyMentionParseResult = (beforeCursor: string, cursor: number) => {
+  const preferredScope =
+    previewScope.value ?? (mentionScope.value === 'all' ? null : mentionScope.value)
+
+  if (!preferredScope) return null
+
+  const match = beforeCursor.match(PARTIAL_MENTION_REGEX)
+  if (!match) return null
+
+  const token = match[2] || ''
+  if (!token || token.includes(':') || !isStickyNamespacePrefix(preferredScope, token)) {
+    return null
+  }
+
+  return {
+    scope: preferredScope,
+    query: '',
+    range: {
+      start: resolveMentionStart(match, cursor),
+      end: cursor
+    }
+  }
 }
 
 const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null) => {
-  latestMessage.value = message
+  if (suppressedMessage.value) {
+    if (message === suppressedMessage.value) {
+      return
+    }
+
+    suppressedMessage.value = null
+  }
+
+  allowPreviewOnActiveChange.value = false
+  if (message !== previewMessage.value) {
+    sourceMessage.value = message
+    rootPreviewScope.value = null
+  }
   clearCloseTimer()
 
   if (!textarea) {
@@ -343,6 +420,27 @@ const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null
 
   const cursor = textarea.selectionStart ?? message.length
   const beforeCursor = message.slice(0, cursor)
+
+  if (
+    message === previewMessage.value &&
+    isOpen.value &&
+    mentionRange.value &&
+    cursor === message.length
+  ) {
+    return
+  }
+
+  if (
+    message === previewMessage.value &&
+    mentionScope.value === 'all' &&
+    rootPreviewScope.value &&
+    cursor === message.length
+  ) {
+    query.value = ''
+    isOpen.value = availableSkills.value.length > 0 || Boolean(currentWorkPath.value)
+    return
+  }
+
   const fileMatch = beforeCursor.match(FILE_MENTION_NAMESPACE_REGEX)
 
   if (fileMatch) {
@@ -365,6 +463,15 @@ const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null
     return
   }
 
+  const stickyMatch = getStickyMentionParseResult(beforeCursor, cursor)
+  if (stickyMatch) {
+    applyMentionParseResult(stickyMatch.scope, stickyMatch.query, stickyMatch.range)
+    isOpen.value = stickyMatch.scope === 'files'
+      ? Boolean(currentWorkPath.value)
+      : availableSkills.value.length > 0
+    return
+  }
+
   const match = beforeCursor.match(SKILL_MENTION_REGEX)
   if (!match) {
     closePanel()
@@ -383,10 +490,12 @@ const buildSkillMentionPayload = (skill: SkillMetadata): MentionApplyPayload | n
   if (!range) return null
 
   const mentionText = `@skills:${skill.name} `
-  const nextMessage = `${latestMessage.value.slice(0, range.start)}${mentionText}${latestMessage.value.slice(range.end)}`
+  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
   const cursor = range.start + mentionText.length
 
-  closePanel()
+  previewMessage.value = nextMessage
+  previewScope.value = 'skills'
+  rootPreviewScope.value = null
 
   return {
     message: nextMessage,
@@ -399,10 +508,40 @@ const buildFileMentionPayload = (entry: WorkspaceFileEntry): MentionApplyPayload
   if (!range) return null
 
   const mentionText = `@file:${formatFileMentionPath(entry.relativePath)} `
-  const nextMessage = `${latestMessage.value.slice(0, range.start)}${mentionText}${latestMessage.value.slice(range.end)}`
+  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
   const cursor = range.start + mentionText.length
 
-  closePanel()
+  previewMessage.value = nextMessage
+  previewScope.value = 'files'
+  rootPreviewScope.value = null
+
+  return {
+    message: nextMessage,
+    cursor
+  }
+}
+
+const buildScopePreviewPayload = (item: CascaderPanelItem, path: CascaderPanelItem[]): MentionApplyPayload | null => {
+  const range = mentionRange.value
+  if (!range) return null
+
+  let mentionText = ''
+
+  if (item.key === 'skills' && path.length === 1) {
+    mentionText = '@skills:'
+  } else if (item.key === 'workspace' && path.length === 1) {
+    mentionText = '@file:'
+  } else {
+    return null
+  }
+
+  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
+  const cursor = range.start + mentionText.length
+  previewMessage.value = nextMessage
+  previewScope.value = item.key === 'workspace' ? 'files' : 'skills'
+  rootPreviewScope.value = mentionScope.value === 'all' && path.length === 1
+    ? previewScope.value
+    : null
 
   return {
     message: nextMessage,
@@ -436,6 +575,7 @@ const applyMentionItem = (data: MentionItemData) => {
   const payload = buildMentionPayload(data)
   if (!payload) return null
   emit('apply', payload)
+  closePanel({ suppressCurrentMessage: true })
   return payload
 }
 
@@ -443,6 +583,31 @@ const handleCascaderSelect = ({ item }: { item: CascaderPanelItem }) => {
   const data = getMentionItemData(item)
   if (!data) return
   applyMentionItem(data)
+}
+
+const handleCascaderActiveChange = ({ item, path }: { item: CascaderPanelItem | null, path: CascaderPanelItem[] }) => {
+  if (!item || !mentionRange.value || !allowPreviewOnActiveChange.value) return
+
+  if (
+    mentionScope.value === 'all' &&
+    !query.value.trim() &&
+    item.key === 'skills' &&
+    !previewMessage.value
+  ) {
+    return
+  }
+
+  const data = getMentionItemData(item)
+  if (data?.type === 'file' || data?.type === 'file-nav') {
+    return
+  }
+
+  const payload = data
+    ? buildMentionPayload(data)
+    : buildScopePreviewPayload(item, path)
+
+  if (!payload) return
+  emit('preview', payload)
 }
 
 const handleKeydown = (
@@ -454,11 +619,24 @@ const handleKeydown = (
 
   if (!isOpen.value) return { handled: false }
 
+  if (event.key === 'Home' || event.key === 'End') {
+    event.preventDefault()
+    return { handled: true }
+  }
+
+  allowPreviewOnActiveChange.value = [
+    'ArrowDown',
+    'ArrowUp',
+    'ArrowLeft',
+    'ArrowRight',
+    'Tab'
+  ].includes(event.key)
+
   const result = cascaderPanelRef.value?.handleKeydown(event)
   if (!result?.handled) return { handled: false }
 
   if (result.requestClose) {
-    closePanel()
+    closePanel({ suppressCurrentMessage: true })
     return { handled: true }
   }
 
@@ -470,9 +648,14 @@ const handleKeydown = (
     return { handled: true }
   }
 
+  const payload = buildMentionPayload(data)
+  if (payload) {
+    closePanel({ suppressCurrentMessage: true })
+  }
+
   return {
     handled: true,
-    payload: buildMentionPayload(data)
+    payload
   }
 }
 
@@ -506,7 +689,7 @@ watch(
     }
 
     const normalizedQuery = nextQuery.trim()
-    if (fileListStrategy.value !== 'search' || !normalizedQuery) {
+    if (scope !== 'files' || fileListStrategy.value !== 'search' || !normalizedQuery) {
       refreshFileItems('')
       resetFileListSelection()
       return
@@ -539,6 +722,7 @@ defineExpose({
     :items="cascaderItems"
     :auto-expand-first="mentionScope !== 'all'"
     @mouseenter="clearCloseTimer"
+    @active-change="handleCascaderActiveChange"
     @select="handleCascaderSelect"
   />
 </template>

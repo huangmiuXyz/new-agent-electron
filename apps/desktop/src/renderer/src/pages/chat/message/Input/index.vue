@@ -710,6 +710,10 @@ const applyMention = (payload: { message: string, cursor: number }) => {
   })
 }
 
+const previewMention = (payload: { message: string, cursor: number }) => {
+  applyMention(payload)
+}
+
 const handleTextareaInput = (event: Event) => {
   adjustTextareaHeight(event)
   atPanelRef.value?.syncMentionState(message.value, textareaRef.value)
@@ -862,12 +866,11 @@ onUnmounted(() => {
 
         <div v-if="!isMobile">
           <div class="input-wrapper">
-          <AtPanel ref="atPanelRef" @apply="applyMention" />
+          <AtPanel ref="atPanelRef" @apply="applyMention" @preview="previewMention" />
           <textarea ref="textareaRef" class="input-field" rows="1"
             :placeholder="desktopPlaceholder"
             v-model="message" @input="handleTextareaInput" @keydown="handleTextareaKeydown"
             @focus="atPanelRef?.syncMentionState(message, textareaRef)"
-            @click="atPanelRef?.syncMentionState(message, textareaRef)"
             @blur="atPanelRef?.scheduleClose()"
             @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
             :disabled="isProcessingVoice"></textarea>
@@ -1005,12 +1008,11 @@ onUnmounted(() => {
             </template>
           </div>
           <div class="mobile-input-wrapper">
-            <AtPanel ref="atPanelRef" mobile @apply="applyMention" />
+            <AtPanel ref="atPanelRef" mobile @apply="applyMention" @preview="previewMention" />
             <textarea ref="textareaRef" class="input-field mobile-input-field" rows="1"
               :placeholder="mobilePlaceholder"
               v-model="message" @input="handleTextareaInput" @keydown="handleTextareaKeydown"
               @focus="atPanelRef?.syncMentionState(message, textareaRef)"
-              @click="atPanelRef?.syncMentionState(message, textareaRef)"
               @blur="atPanelRef?.scheduleClose()"
               @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
               :disabled="isProcessingVoice"></textarea>
