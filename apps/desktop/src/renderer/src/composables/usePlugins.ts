@@ -221,28 +221,32 @@ export function usePlugins() {
       return
     }
 
-    for (const [pluginName, localPath] of Object.entries(devPlugins)) {
-      try {
-        if (!pluginLoader.isPluginLoaded(pluginName)) {
-          await pluginLoader.loadPluginDev(localPath)
+    await Promise.allSettled(
+      Object.entries(devPlugins).map(async ([pluginName, localPath]) => {
+        try {
+          if (!pluginLoader.isPluginLoaded(pluginName)) {
+            await pluginLoader.loadPluginDev(localPath)
+          }
+        } catch (err) {
+          console.error(`Failed to restore dev plugin "${pluginName}":`, err)
+          settingsStore.removeDevPluginPath(pluginName)
         }
-      } catch (err) {
-        console.error(`Failed to restore dev plugin "${pluginName}":`, err)
-        settingsStore.removeDevPluginPath(pluginName)
-      }
-    }
+      })
+    )
 
-    for (const pluginConfig of savedPlugins) {
-      const pluginName = pluginConfig.name
-      try {
-        if (!pluginLoader.isPluginLoaded(pluginName)) {
-          await pluginLoader.loadPlugin(pluginName)
+    await Promise.allSettled(
+      savedPlugins.map(async (pluginConfig) => {
+        const pluginName = pluginConfig.name
+        try {
+          if (!pluginLoader.isPluginLoaded(pluginName)) {
+            await pluginLoader.loadPlugin(pluginName)
+          }
+        } catch (err) {
+          console.error(`Failed to restore plugin "${pluginName}":`, err)
+          settingsStore.removeLoadedPlugin(pluginName)
         }
-      } catch (err) {
-        console.error(`Failed to restore plugin "${pluginName}":`, err)
-        settingsStore.removeLoadedPlugin(pluginName)
-      }
-    }
+      })
+    )
 
     await refreshPlugins()
   }

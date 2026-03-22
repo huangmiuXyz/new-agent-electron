@@ -576,14 +576,21 @@ export class PluginLoader {
 
 
     const files = Object.keys(zip.files);
-    for (const filename of files) {
-      const zipEntry = zip.files[filename];
-      if (!zipEntry.dir) {
+    await Promise.all(
+      files.map(async (filename) => {
+        const zipEntry = zip.files[filename];
+        if (zipEntry.dir) {
+          return;
+        }
+
         const content = await zipEntry.async('uint8array');
         const outputPath = path.join(pluginDir, filename);
+        const outputDir = path.dirname(outputPath);
+
+        fs.mkdirSync(outputDir, { recursive: true });
         fs.writeFileSync(outputPath, content);
-      }
-    }
+      })
+    );
   }
 
   /**
