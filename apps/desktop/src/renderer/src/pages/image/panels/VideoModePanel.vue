@@ -9,6 +9,12 @@ const settingsStore = useSettingsStore()
 const imgStore = useImageStore()
 const { createVideoBatch, startVideoGeneration } = useImageGeneration()
 
+const isSkyReelsProvider = (providerId?: string) => {
+  if (!providerId) return false
+  const provider = settingsStore.getProviderById(providerId)
+  return provider?.providerType === 'skyreels'
+}
+
 const getDynamicFields = (providerId: string) => {
   const provider = settingsStore.getProviderById(providerId)
   if (!provider) return null
@@ -37,6 +43,7 @@ const getDynamicFields = (providerId: string) => {
 }
 
 const videoDynamicField = ref<FormField<any> | null>(null)
+const selectedVideoProviderId = ref('')
 const Dices = useIcon('Dices')
 
 const videoFields = computed<FormField<any>[]>(() => {
@@ -49,7 +56,15 @@ const videoFields = computed<FormField<any>[]>(() => {
       modelCategory: ['video'] as ModelCategory[],
       required: true,
       onChange: ({ providerId }: { providerId: string; modelId: string }) => {
+        selectedVideoProviderId.value = providerId
         videoDynamicField.value = getDynamicFields(providerId)
+        if (isSkyReelsProvider(providerId)) {
+          const currentDuration = Number(videoFormActions.getData()?.duration || 5)
+          videoFormActions.setFieldValue(
+            'duration',
+            Number.isFinite(currentDuration) ? Math.min(15, Math.max(3, currentDuration)) : 5
+          )
+        }
       }
     },
     {
@@ -57,7 +72,8 @@ const videoFields = computed<FormField<any>[]>(() => {
       type: 'slider',
       label: '视频时长',
       defaultValue: 5,
-      min: 1,
+      min: isSkyReelsProvider(selectedVideoProviderId.value) ? 3 : 1,
+      max: isSkyReelsProvider(selectedVideoProviderId.value) ? 15 : undefined,
       step: 1,
     } as FormField<any>,
     {
@@ -152,6 +168,7 @@ const restoreFromBatch = (batch: ImageBatch) => {
   } as any)
 
   if (batch.providerId) {
+    selectedVideoProviderId.value = batch.providerId
     videoDynamicField.value = getDynamicFields(batch.providerId)
   }
 }
@@ -161,6 +178,7 @@ onMounted(() => {
   if (!saved?.model?.providerId) return
 
   videoFormActions.setData(saved)
+  selectedVideoProviderId.value = saved.model.providerId
   videoDynamicField.value = getDynamicFields(saved.model.providerId)
 })
 

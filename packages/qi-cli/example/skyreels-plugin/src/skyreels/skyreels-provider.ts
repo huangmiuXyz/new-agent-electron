@@ -32,7 +32,7 @@ export const skyreelsReferenceImageSchema = z.object({
     .array(z.string().url())
     .min(1)
     .describe('引用图片 URL 列表'),
-  time_stamp: z.number().int().optional().describe('关键帧引用对应的时间戳')
+  time_stamp: z.number().int().min(0).max(15).optional().describe('关键帧引用对应的时间戳')
 })
 
 export const skyreelsReferenceVideoSchema = z.object({
@@ -83,6 +83,7 @@ export const skyreelsVideoCallOptionsSchema = z.object({
     .optional()
     .meta({
       label: '图片引用',
+      hint: '类型说明：`keyframe` 用于关键帧控制，需要配合 `time_stamp`；`subject` 用于固定人物或主体形象；`image` 用于普通图片参考，例如场景、构图或风格。',
       ifShow: (data: any) => getCapability(data) === 'omni'
     })
     .describe('Omni 模式下的图片引用配置'),
