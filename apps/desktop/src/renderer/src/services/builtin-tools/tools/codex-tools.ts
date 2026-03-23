@@ -84,31 +84,19 @@ const createIgnoreState = (
   }
 }
 
-const execCommand = (
+const execCommand = async (
   command: string,
   options: { cwd?: string; maxBuffer?: number } = {}
 ): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
-  return new Promise((resolve) => {
-    window.api.exec(command, options, (error, stdout, stderr) => {
-      if (error) {
-        const errorWithCode = error as NodeJS.ErrnoException & { code?: number | string }
-        resolve({
-          code: typeof errorWithCode.code === 'number' ? errorWithCode.code : null,
-          stdout,
-          stderr,
-          errorMessage: errorWithCode.message,
-          errorCode: typeof errorWithCode.code === 'string' ? errorWithCode.code : undefined
-        })
-        return
-      }
+  if (isWindows) {
+    return window.api.execFileCommand(
+      getPowerShellPath(),
+      ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command],
+      options
+    )
+  }
 
-      resolve({
-        code: 0,
-        stdout,
-        stderr
-      })
-    })
-  })
+  return window.api.execFileCommand(getPosixShellPath(), ['-lc', command], options)
 }
 
 const getPowerShellPath = (): string => {
