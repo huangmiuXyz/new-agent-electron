@@ -480,7 +480,7 @@ export const chatService = () => {
     )
     const multiAgentPrompt =
       hasAssignedAgentTools || isSubAgentChat ? buildMultiAgentSystemPrompt(cid) : ''
-    const codexEnvironmentPrompt = buildCodexEnvironmentPrompt(cid, messages)
+    const codexEnvironmentPrompt = buildCodexEnvironmentPrompt(cid, selectedBuiltinTools)
     const agentInstructions =
       [codexEnvironmentPrompt, instructions?.trim(), skillsPrompt, multiAgentPrompt].filter(Boolean).join('\n\n') ||
       undefined

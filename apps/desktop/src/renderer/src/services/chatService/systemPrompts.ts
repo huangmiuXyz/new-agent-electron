@@ -5,27 +5,33 @@ const CODEX_BUILTIN_TOOL_KEYS = new Set(Object.keys(getCodexBuiltinTools()))
 const getTerminalTypeLabel = (): string => {
   const platform = window.api.os.platform()
   if (platform === 'win32') {
-    return 'PowerShell'
+    return 'powershell'
   }
 
   const shellPath = window.api.process.env.SHELL || '/bin/sh'
   const shellName = shellPath.split(/[/\\]/).pop()
-  return shellName || shellPath
+  return (shellName || shellPath).toLowerCase()
 }
 
-export const buildCodexEnvironmentPrompt = (chatId: string, messages?: BaseMessage[]): string => {
-  const hasCodexToolUsage = (messages || []).some((message) =>
-    (message.parts || []).some((part) => {
-      if (!part.type.startsWith('tool')) {
-        return false
-      }
+const formatCurrentDate = (): string => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
-      const toolName = (part as { toolName?: string }).toolName || part.type.replace(/^tool-/, '')
-      return CODEX_BUILTIN_TOOL_KEYS.has(toolName)
-    })
-  )
+const getCurrentTimezone = (): string => {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+}
 
-  if (!hasCodexToolUsage) {
+export const buildCodexEnvironmentPrompt = (
+  chatId: string,
+  builtinTools?: string[]
+): string => {
+  const hasCodexBuiltinTool = (builtinTools || []).some((toolName) => CODEX_BUILTIN_TOOL_KEYS.has(toolName))
+
+  if (!hasCodexBuiltinTool) {
     return ''
   }
 
@@ -33,16 +39,18 @@ export const buildCodexEnvironmentPrompt = (chatId: string, messages?: BaseMessa
   const agentStore = useAgentStore()
   const agentId = chatsStore.getChatById(chatId)?.agentId || 'default'
   const agent = agentStore.getAgentById(agentId)
-  const platform = window.api.os.platform()
   const terminalType = getTerminalTypeLabel()
   const workPath = agent?.workPath?.trim() || '未设置'
+  const currentDate = formatCurrentDate()
+  const timezone = getCurrentTimezone()
 
   return [
-    'Codex 工具运行环境信息：',
-    `- 平台信息: ${platform}`,
-    `- 终端类型: ${terminalType}`,
-    `- 工作路径: ${workPath}`,
-    '- 使用 exec_command、readFile、list_dir、search_project、search_replace 等 Codex 工具时，请以上述环境信息为准。'
+    '<environment_context>',
+    `  <cwd>${workPath}</cwd>`,
+    `  <shell>${terminalType}</shell>`,
+    `  <current_date>${currentDate}</current_date>`,
+    `  <timezone>${timezone}</timezone>`,
+    '</environment_context>'
   ].join('\n')
 }
 
