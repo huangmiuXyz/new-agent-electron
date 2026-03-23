@@ -14,3 +14,4 @@ GenieData
 .venv
 packages/external
 apps/desktop/android/local.properties
+tsconfig.node.tsbuildinfo

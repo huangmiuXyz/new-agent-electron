@@ -681,7 +681,23 @@ export const useChatsStores = defineStore(
         messages: cloneMessages(nextMessages.slice(anchorIndex + 1))
       }
 
-      chat.messages = updateMessageBranchAnchor(nextMessages, anchorIndex, branches, branchId)
+      const preferredActiveBranchId =
+        selectedAnchor.metadata?.activeMessageBranchId &&
+        branches.some((branch) => branch.id === selectedAnchor.metadata?.activeMessageBranchId)
+          ? selectedAnchor.metadata.activeMessageBranchId
+          : branchId
+      const messagesWithUpdatedBranch = updateMessageBranchAnchor(
+        nextMessages,
+        anchorIndex,
+        branches,
+        preferredActiveBranchId
+      )
+
+      chat.messages =
+        preferredActiveBranchId === branchId
+          ? messagesWithUpdatedBranch
+          : buildMessagesFromVisibleMessageBranch(messagesWithUpdatedBranch, preferredActiveBranchId) ||
+            messagesWithUpdatedBranch
     }
 
     const forkChat = (sourceChatId: string, messageId: string) => {
