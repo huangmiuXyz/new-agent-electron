@@ -24,21 +24,74 @@ const getCapability = (data: any): SkyReelsCapability =>
   data?.providerOptions?.skyreels?.capability || 'text2video'
 
 export const skyreelsReferenceImageSchema = z.object({
-  tag: z.string().startsWith('@').describe('引用标记，必须以 @ 开头，并且需要在提示词中出现'),
+  tag: z
+    .string()
+    .startsWith('@')
+    .meta({
+      label: '引用标记',
+      hint: '引用组的标识符。必须以 `@` 开头，并出现在提示词中，例如 `@subject1`、`@image1`。'
+    })
+    .describe('引用标记，必须以 @ 开头，并且需要在提示词中出现'),
   type: z
     .enum(['keyframe', 'subject', 'image'])
+    .meta({
+      label: '引用图片类型',
+      options: [
+        { label: '关键帧 keyframe', value: 'keyframe' },
+        { label: '主体 subject', value: 'subject' },
+        { label: '普通图片 image', value: 'image' }
+      ],
+      hint: '图片引用类型。可选值：`keyframe`、`subject`、`image`。`keyframe` 用于关键帧参考任务，会与 `time_stamp` 字段配合，在视频指定时间显示某张参考图；`subject` 用于主体参考任务；`image` 用于不属于前两类的一般图片参考任务。'
+    })
     .describe('引用图片类型'),
   image_urls: z
     .array(z.string().url())
     .min(1)
+    .meta({
+      label: '图片 URL 列表',
+      hint: '图片 URL 列表。支持 `jpg/jpeg`、`png`、`gif`、`bmp`。图片数量限制如下：`keyframe` 为 1 张，`subject` 为 1 到 5 张，`image` 为 1 张。'
+    })
     .describe('引用图片 URL 列表'),
-  time_stamp: z.number().int().min(0).max(15).optional().describe('关键帧引用对应的时间戳')
+  time_stamp: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .meta({
+      label: '时间戳',
+      hint: '参考图对应的目标时间戳，仅适用于 `keyframe`。例如 `0` 表示首帧，`duration` 表示最后一帧。'
+    })
+    .describe('关键帧引用对应的时间戳')
 })
 
 export const skyreelsReferenceVideoSchema = z.object({
-  tag: z.string().startsWith('@').describe('引用标记，必须以 @ 开头，并且需要在提示词中出现'),
-  type: z.enum(['reference', 'base']).describe('引用视频类型'),
-  video_url: z.string().url().describe('引用视频 URL')
+  tag: z
+    .string()
+    .startsWith('@')
+    .meta({
+      label: '引用标记',
+      hint: '视频引用的标识符。必须以 `@` 开头，并出现在提示词中，例如 `@video1`。'
+    })
+    .describe('引用标记，必须以 @ 开头，并且需要在提示词中出现'),
+  type: z
+    .enum(['reference', 'base'])
+    .meta({
+      label: '引用视频类型',
+      options: [
+        { label: '动作参考 reference', value: 'reference' },
+        { label: '编辑基底 base', value: 'base' }
+      ],
+      hint: '视频引用类型。支持两种类型：`reference` 和 `base`。`reference` 用于视频参考任务，例如动作参考；`base` 用于视频编辑相关任务。'
+    })
+    .describe('引用视频类型'),
+  video_url: z
+    .string()
+    .url()
+    .meta({
+      label: '视频 URL',
+      hint: '视频 URL。支持 `MP4`、`MOV`，最长 10 秒。'
+    })
+    .describe('引用视频 URL')
 })
 
 export const skyreelsVideoCallOptionsSchema = z.object({
@@ -58,6 +111,7 @@ export const skyreelsVideoCallOptionsSchema = z.object({
     .optional()
     .meta({
       label: '首帧图片',
+      hint: '视频的首帧图片。支持格式：`jpg/jpeg`、`png`、`gif`、`bmp`。必须是 URL。',
       ifShow: (data: any) => getCapability(data) === 'image2video'
     })
     .describe('图生视频时使用的首帧图片 URL'),
@@ -65,16 +119,31 @@ export const skyreelsVideoCallOptionsSchema = z.object({
     .default('16:9')
     .meta({
       label: '视频宽高比',
+      hint: '生成视频的宽高比。支持值：`16:9`、`4:3`、`1:1`、`9:16`、`3:4`。注意：如果提供了 `ref_videos`，该参数会被忽略，输出尺寸会自动与参考视频对齐。',
       ifShow: (data: any) => getCapability(data) !== 'image2video'
     })
     .describe('视频宽高比'),
-  sound: z.boolean().default(false).meta({ label: '生成音效' }).describe('是否生成音效'),
-  mode: modeSchema.default('std').meta({ label: '生成模式' }).describe('生成模式'),
+  sound: z
+    .boolean()
+    .default(false)
+    .meta({
+      label: '生成音效',
+      hint: '生成视频是否包含音效。使用视频引用时，该参数不生效；默认不带音频。'
+    })
+    .describe('是否生成音效'),
+  mode: modeSchema
+    .default('std')
+    .meta({
+      label: '生成模式',
+      hint: '质量/性能模式。支持值：`fast`、`std`、`pro`。`fast` 提供更快的生成速度，`std` 平衡速度与质量，`pro` 提供更高质量。所有模式输出均为 1080p。目前仅支持 `std`，`fast` 和 `pro` 将在后续加入支持。'
+    })
+    .describe('生成模式'),
   prompt_optimizer: z
     .boolean()
     .default(true)
     .meta({
       label: '提示词优化',
+      hint: '启用自动扩写和优化提示词，以获得更高的视觉保真度和更好的提示词对齐效果。',
       ifShow: (data: any) => getCapability(data) === 'omni'
     })
     .describe('是否开启 Omni 提示词优化'),
@@ -83,7 +152,7 @@ export const skyreelsVideoCallOptionsSchema = z.object({
     .optional()
     .meta({
       label: '图片引用',
-      hint: '类型说明：`keyframe` 用于关键帧控制，需要配合 `time_stamp`；`subject` 用于固定人物或主体形象；`image` 用于普通图片参考，例如场景、构图或风格。',
+      hint: '引用图片配置列表（主体、场景、风格、关键帧等）。详见下方 `ReferenceImage` 定义。限制：最多 8 个关键帧引用，最多 4 个主体引用，列表总长度最多 10。',
       ifShow: (data: any) => getCapability(data) === 'omni'
     })
     .describe('Omni 模式下的图片引用配置'),
@@ -92,6 +161,7 @@ export const skyreelsVideoCallOptionsSchema = z.object({
     .optional()
     .meta({
       label: '视频引用',
+      hint: '引用视频配置列表。详见下方 `ReferenceVideo` 定义。`ref_videos` 仅支持单个视频引用（最长 10 秒）。`ref_videos` 只能与 `ref_images` 中 `type=\"image\"` 的图片引用一起使用。',
       ifShow: (data: any) => getCapability(data) === 'omni'
     })
     .describe('Omni 模式下的视频引用配置')

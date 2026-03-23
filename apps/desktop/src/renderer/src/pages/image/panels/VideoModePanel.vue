@@ -75,6 +75,9 @@ const videoFields = computed<FormField<any>[]>(() => {
       min: isSkyReelsProvider(selectedVideoProviderId.value) ? 3 : 1,
       max: isSkyReelsProvider(selectedVideoProviderId.value) ? 15 : undefined,
       step: 1,
+      hint: isSkyReelsProvider(selectedVideoProviderId.value)
+        ? 'SkyReels 支持 3 到 15 秒。在全能参考模式下，如果提供了 `ref_videos`，输出时长会自动与参考视频对齐，最长 10 秒。'
+        : undefined,
     } as FormField<any>,
     {
       name: 'resolution',
