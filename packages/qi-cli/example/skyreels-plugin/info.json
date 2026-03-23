@@ -1,0 +1,8 @@
+{
+  "name": "SkyReels V4 Video",
+  "description": "为 Agent-Qi 扩展 SkyReels V4 视频生成 Provider，自动支持文生视频、图生视频和 Omni Reference。",
+  "version": "1.0.0",
+  "author": "Agent-Qi",
+  "updatedAt": "2026-03-23",
+  "platforms": ["desktop", "mobile"]
+}
