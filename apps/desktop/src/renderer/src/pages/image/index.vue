@@ -539,7 +539,7 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
       v-model:width="settingsStore.display.imageSidebarWidth"
       v-model:is-collapsed="settingsStore.display.sidebarCollapsed"
       :min-size="250"
-      :max-size="500"
+      :max-size="800"
     >
       <FormContainer :show-header="false" class="form-section">
         <template #content>
