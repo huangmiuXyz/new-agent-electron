@@ -33,25 +33,33 @@ const playMessageAudio = () => {
     return
   }
 
-  if (props.message.metadata?.audio?.chunks) {
-    const chunksToPlay = props.message.metadata.audio.chunks.filter(chunk => chunk.data)
+  const currentChatMessages = chatsStore.currentChat?.messages || []
+  const queueChunks = currentChatMessages
+    .filter(message => !message.metadata?.deletedAt)
+    .flatMap((message) => {
+      const audioChunks = message.metadata?.audio?.chunks?.filter(chunk => chunk.data) || []
 
-    chunksToPlay.forEach(chunk => {
-      speechStore.addToQueue({
-        id: chunk.text + '-' + Date.now(),
-        messageId: props.message.id,
+      return audioChunks.map((chunk, chunkIndex) => ({
+        id: `${message.id}-audio-${chunkIndex}`,
+        messageId: message.id,
         text: chunk.text,
         audioData: chunk.data,
         duration: chunk.duration,
         error: chunk.error,
         played: false,
         loading: false
-      })
+      }))
     })
 
-    if (settingsStore.display.speechSidebarCollapsed) {
-      settingsStore.display.speechSidebarCollapsed = false
-    }
+  if (queueChunks.length === 0) {
+    return
+  }
+
+  const targetChunk = queueChunks.find(chunk => chunk.messageId === props.message.id)
+  speechStore.replaceQueue(queueChunks, targetChunk?.id)
+
+  if (settingsStore.display.speechSidebarCollapsed) {
+    settingsStore.display.speechSidebarCollapsed = false
   }
 }
 </script>

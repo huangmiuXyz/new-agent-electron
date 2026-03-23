@@ -123,6 +123,26 @@ export const useSpeechStore = defineStore('speech', () => {
     }
   }
 
+  const replaceQueue = (chunks: AudioChunk[], startChunkId?: string) => {
+    stop()
+    queue.value = chunks.map(chunk => ({
+      ...chunk,
+      played: !!chunk.error && !chunk.audioData,
+      loading: !!chunk.loading
+    }))
+
+    if (queue.value.length === 0) {
+      return
+    }
+
+    if (startChunkId) {
+      jumpToChunk(startChunkId)
+      return
+    }
+
+    playNext()
+  }
+
   const removeChunk = (id: string) => {
     const index = queue.value.findIndex((c) => c.id === id)
     if (index !== -1) {
@@ -209,13 +229,16 @@ export const useSpeechStore = defineStore('speech', () => {
 
   const stop = () => {
     audioPlayer.pause()
+    audioPlayer.currentTime = 0
+    audioPlayer.removeAttribute('src')
+    audioPlayer.load()
     isPlaying.value = false
     isWaiting.value = false
     currentChunkId.value = null
     currentTime.value = 0
     duration.value = 0
     queue.value.forEach(chunk => {
-      chunk.played = true
+      chunk.played = !!chunk.error
     })
   }
 
@@ -234,6 +257,7 @@ export const useSpeechStore = defineStore('speech', () => {
     currentTime,
     duration,
     addToQueue,
+    replaceQueue,
     createPlaceholder,
     fulfillChunk,
     markChunkError,

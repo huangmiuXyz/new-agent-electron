@@ -176,6 +176,7 @@ watch(activeChunkIndex, (newIndex) => {
   gap: 8px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
+  min-width: 0;
 }
 
 .progress-container {
@@ -183,10 +184,12 @@ watch(activeChunkIndex, (newIndex) => {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .progress-bar {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 36px;
   height: 4px;
   -webkit-appearance: none;
   background: var(--border-color);
@@ -213,7 +216,9 @@ watch(activeChunkIndex, (newIndex) => {
   font-size: 11px;
   color: var(--text-tertiary);
   font-family: monospace;
-  min-width: 35px;
+  flex: 0 0 auto;
+  min-width: 40px;
+  white-space: nowrap;
 }
 
 .queue-info {
