@@ -216,6 +216,153 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       }
     }
   },
+  list_dir: {
+    title: '列出目录',
+    description: '列出指定目录下的文件和子目录，支持递归深度限制',
+    inputSchema: z.object({
+      path: z.string().describe('要列出的目录路径，支持相对路径（基于 workPath）或绝对路径'),
+      max_depth: z
+        .number()
+        .int()
+        .min(1)
+        .max(5)
+        .optional()
+        .default(1)
+        .describe('递归深度，默认 1 (仅列出当前目录)，最大 5'),
+      max_length: z
+        .number()
+        .int()
+        .min(100)
+        .max(10000)
+        .optional()
+        .default(5000)
+        .describe('最大输出字符长度，默认 5000')
+    }),
+    execute: async (args: unknown) => {
+      const params = args as Record<string, any>
+      const rawPath = params.path as string
+      const maxDepth = params.max_depth ?? 1
+      const maxLength = params.max_length ?? 5000
+
+      if (!rawPath) {
+        return { toolResult: { content: [{ type: 'text', text: '列出目录失败：path 不能为空' }] } }
+      }
+
+      try {
+        const dirPath = resolvePath(rawPath)
+        if (!window.api.fs.existsSync(dirPath)) {
+          return {
+            toolResult: {
+              content: [{ type: 'text', text: `列出目录失败：路径不存在 ${dirPath}` }]
+            }
+          }
+        }
+
+        const stat = window.api.fs.lstatSync(dirPath)
+        const isDir = (stat.mode & 0o170000) === 0o040000
+        if (!isDir) {
+          return {
+            toolResult: {
+              content: [{ type: 'text', text: `列出目录失败：路径不是目录 ${dirPath}` }]
+            }
+          }
+        }
+
+        const results: string[] = []
+        let currentLength = 0
+        const rootIgnoreState = createIgnoreState(dirPath, dirPath)
+
+        const processDir = (currentPath: string, currentDepth: number, ignoreState: IgnoreState) => {
+          if (currentLength >= maxLength) return
+          if (currentDepth >= maxDepth) return
+
+          let entries: string[] = []
+          try {
+            entries = window.api.fs.readdirSync(currentPath)
+          } catch (e) {
+            const errLine = `${'  '.repeat(currentDepth)}Error: ${(e as Error).message}\n`
+            if (currentLength + errLine.length <= maxLength) {
+              results.push(errLine)
+              currentLength += errLine.length
+            }
+            return
+          }
+
+          // Sort entries: directories first, then files
+          entries.sort((a, b) => {
+            let aIsDir = false
+            let bIsDir = false
+            try {
+              aIsDir =
+                (window.api.fs.lstatSync(window.api.path.join(currentPath, a)).mode & 0o170000) ===
+                0o040000
+            } catch { }
+            try {
+              bIsDir =
+                (window.api.fs.lstatSync(window.api.path.join(currentPath, b)).mode & 0o170000) ===
+                0o040000
+            } catch { }
+            if (aIsDir && !bIsDir) return -1
+            if (!aIsDir && bIsDir) return 1
+            return a.localeCompare(b)
+          })
+
+          for (const entry of entries) {
+            if (currentLength >= maxLength) break
+
+            const fullPath = window.api.path.join(currentPath, entry)
+            let isDir = false
+            try {
+              const s = window.api.fs.lstatSync(fullPath)
+              isDir = (s.mode & 0o170000) === 0o040000
+            } catch {
+              continue
+            }
+            const relativePath = window.api.path.relative(dirPath, fullPath).replaceAll('\\', '/')
+            if (
+              relativePath &&
+              (ignoreState.matcher.ignores(relativePath) ||
+                (isDir && ignoreState.matcher.ignores(`${relativePath}/`)))
+            ) {
+              continue
+            }
+
+            const prefix = isDir ? 'd ' : '- '
+            const line = `${'  '.repeat(currentDepth)}${prefix}${entry}\n`
+
+            if (currentLength + line.length > maxLength) {
+              results.push('... (output truncated)\n')
+              currentLength = maxLength + 1 // Ensure we stop
+              return
+            }
+
+            results.push(line)
+            currentLength += line.length
+
+            if (isDir) {
+              processDir(fullPath, currentDepth + 1, createIgnoreState(dirPath, fullPath, ignoreState))
+            }
+          }
+        }
+
+        processDir(dirPath, 0, rootIgnoreState)
+
+        return {
+          toolResult: {
+            content: [
+              { type: 'text', text: `Directory listing for ${dirPath.replaceAll('\\', '/')}:\n${results.join('')}` }
+            ]
+          }
+        }
+      } catch (error) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: `鍒楀嚭鐩綍澶辫触: ${(error as Error).message}` }]
+          }
+        }
+      }
+    }
+  },
   search_project: {
     title: '项目搜索',
     description:
