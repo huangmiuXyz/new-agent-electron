@@ -214,26 +214,27 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
     return filtered
   }
 
-  const initializeField = (field: FormField<T>) => {
+  const initializeField = (field: FormField<T>, sourceData?: Partial<T>) => {
     if (field.type === 'group' && field.children) {
-      field.children.forEach(initializeField)
+      field.children.forEach((child) => initializeField(child, sourceData))
       return
     }
     const isNestedField = field.name.includes('.')
+    const initialSource = sourceData ?? config.initialData
     let initialValue: any
     if (isNestedField) {
-      initialValue = getNestedValue(config.initialData || {}, field.name) ?? field.defaultValue
+      initialValue = getNestedValue(initialSource || {}, field.name) ?? field.defaultValue
       if (initialValue === undefined) {
         initialValue = getDefaultValue(field.type!, field)
       }
       setNestedValue(formData.value, field.name, initialValue)
     } else {
       if (
-        config.initialData &&
-        field.name in config.initialData &&
-        config.initialData[field.name] !== undefined
+        initialSource &&
+        field.name in initialSource &&
+        initialSource[field.name] !== undefined
       ) {
-        initialValue = config.initialData[field.name]
+        initialValue = initialSource[field.name]
       } else {
         initialValue = field.defaultValue ?? getDefaultValue(field.type!, field)
       }
@@ -367,7 +368,8 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   }
 
   const setData = (data: T) => {
-    Object.assign(formData.value, data)
+    formData.value = {} as T
+    fields.value.forEach((field) => initializeField(field, data))
   }
 
   const updateFieldProps = (field: string, props: Record<string, any>) => {

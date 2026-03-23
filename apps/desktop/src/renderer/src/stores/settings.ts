@@ -198,6 +198,22 @@ export const useSettingsStore = defineStore(
       }
     }
 
+    const updateProviderFields = (providerId: string, updates: Partial<Provider>) => {
+      const result = findProviderRef(providerId)
+      if (!result) return
+      const { index, target } = result
+      const currentProvider = target.value[index]
+      if (currentProvider) {
+        target.value[index] = {
+          ...currentProvider,
+          ...updates,
+          id: currentProvider.id,
+          name: currentProvider.name,
+          logo: currentProvider.logo
+        }
+      }
+    }
+
     const addModelToProvider = (providerId: string, model: Model) => {
       const result = findProviderRef(providerId)
       if (!result) return
@@ -614,6 +630,7 @@ export const useSettingsStore = defineStore(
       removeRegisteredProvider,
       togglePluginNotification,
       updateProvider,
+      updateProviderFields,
       addModelToProvider,
       deleteModelFromProvider,
       addApiKeyToProvider,

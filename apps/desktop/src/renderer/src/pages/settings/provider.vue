@@ -9,6 +9,7 @@ const { getAllProviders, registeredProviders } = storeToRefs(settingsStore)
 const visibleProviders = computed(() => getAllProviders.value.filter((p) => !p.hide))
 const {
   updateProvider,
+  updateProviderFields,
   addModelToProvider,
   deleteModelFromProvider,
   resetProviderBaseUrl,
@@ -465,8 +466,17 @@ const [ProviderForm, formActions] = useForm({
     { name: 'models', render: () => <ModelList />, type: 'custom' }
   ] as FormField<Provider>[]),
   initialData: activeProvider.value,
-  onChange: (_field, _value, data) => {
-    if (activeProviderId.value) updateProvider(activeProviderId.value, data)
+  onChange: (field, value, data) => {
+    if (!activeProviderId.value) return
+
+    if (field) {
+      updateProviderFields(activeProviderId.value, {
+        [field]: value
+      } as Partial<Provider>)
+      return
+    }
+
+    updateProvider(activeProviderId.value, data)
   }
 })
 
