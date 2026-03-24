@@ -1,6 +1,6 @@
 <template>
   <Transition :name="variant === 'drawer' ? 'drawer' : 'modal-fade'">
-    <div v-if="visible" ref="modalOverlay" :class="overlayClass" @click.self="handleEsc" @keydown.esc="handleEsc"
+    <div v-if="visible" ref="modalOverlay" :class="overlayClass" @click.self="handleEsc"
       tabindex="-1">
       <div v-if="variant !== 'drawer'" ref="modalBox" class="modal-box"
         :class="{ 'is-dragging': isDragging, 'is-fullscreen': isFullscreen }"
@@ -85,6 +85,10 @@ const isFullscreen = ref(false)
 const showFullscreenTip = ref(false)
 let fullscreenTipTimer: ReturnType<typeof setTimeout> | null = null
 let modalResizeObserver: ResizeObserver | null = null
+let escHoldTimer: ReturnType<typeof setTimeout> | null = null
+let isEscHolding = false
+let suppressEscUntilKeyUp = false
+const ESC_HOLD_EXIT_MS = 500
 
 const visible = ref(false)
 const modalOverlay = useTemplateRef('modalOverlay')
@@ -133,6 +137,14 @@ const exitFullscreen = () => {
   if (fullscreenTipTimer) clearTimeout(fullscreenTipTimer)
 }
 
+const clearEscHold = () => {
+  isEscHolding = false
+  if (escHoldTimer) {
+    clearTimeout(escHoldTimer)
+    escHoldTimer = null
+  }
+}
+
 const resetPosition = () => {
   nextTick(() => {
     const el = modalBox.value
@@ -171,10 +183,50 @@ const finalizeClose = (result: boolean) => {
 const handleEsc = () => {
   if (!isTopmostModal()) return
   if (isFullscreen.value) {
-    exitFullscreen()
     return
   }
   finalizeClose(false)
+}
+
+const handleGlobalKeyDown = (event: KeyboardEvent) => {
+  if (event.key !== 'Escape' || !visible.value || !isTopmostModal()) return
+  if (suppressEscUntilKeyUp) {
+    event.preventDefault()
+    return
+  }
+
+  if (isFullscreen.value) {
+    event.preventDefault()
+    if (isEscHolding) return
+    isEscHolding = true
+    escHoldTimer = setTimeout(() => {
+      exitFullscreen()
+      suppressEscUntilKeyUp = true
+      clearEscHold()
+    }, ESC_HOLD_EXIT_MS)
+    return
+  }
+
+  event.preventDefault()
+  finalizeClose(false)
+}
+
+const handleGlobalKeyUp = (event: KeyboardEvent) => {
+  if (event.key !== 'Escape') return
+  suppressEscUntilKeyUp = false
+  clearEscHold()
+}
+
+const handlePreviewEscapeEvent = (event: Event) => {
+  const customEvent = event as CustomEvent<{ phase?: 'down' | 'up' }>
+  if (!visible.value || !isTopmostModal()) return
+
+  if (customEvent.detail?.phase === 'down') {
+    handleGlobalKeyDown(new KeyboardEvent('keydown', { key: 'Escape' }))
+    return
+  }
+
+  handleGlobalKeyUp(new KeyboardEvent('keyup', { key: 'Escape' }))
 }
 
 const handleCancel = () => {
@@ -228,6 +280,10 @@ useBackButton({
 onMounted(async () => {
   visible.value = true
   resetPosition()
+  window.addEventListener('keydown', handleGlobalKeyDown, true)
+  window.addEventListener('keyup', handleGlobalKeyUp, true)
+  window.addEventListener('blur', clearEscHold)
+  window.addEventListener('agent-qi-preview-escape', handlePreviewEscapeEvent as EventListener)
   nextTick(() => {
     observeModalSize()
     modalOverlay.value?.focus()
@@ -236,6 +292,11 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  clearEscHold()
+  window.removeEventListener('keydown', handleGlobalKeyDown, true)
+  window.removeEventListener('keyup', handleGlobalKeyUp, true)
+  window.removeEventListener('blur', clearEscHold)
+  window.removeEventListener('agent-qi-preview-escape', handlePreviewEscapeEvent as EventListener)
   modalResizeObserver?.disconnect()
   modalResizeObserver = null
 })

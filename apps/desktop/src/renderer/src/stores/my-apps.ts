@@ -20,11 +20,11 @@ const restorePromise = new Promise<void>((resolve) => {
 export const useMyAppsStore = defineStore(
   'my-apps',
   () => {
-    const apps = ref<SavedAppRecord[]>([])
+    const appRecords = ref<SavedAppRecord[]>([])
     const isAfterRestore = restorePromise
 
     const normalizedApps = computed(() =>
-      apps.value
+      appRecords.value
         .map((app) => ({
           ...app,
           canvas: ensureSandboxState(app.canvas)
@@ -59,23 +59,24 @@ export const useMyAppsStore = defineStore(
         updatedAt: now
       }
 
-      const existingIndex = apps.value.findIndex((item) => item.id === nextRecord.id)
+      const existingIndex = appRecords.value.findIndex((item) => item.id === nextRecord.id)
       if (existingIndex >= 0) {
-        nextRecord.createdAt = apps.value[existingIndex]?.createdAt || now
-        apps.value = apps.value.map((item, index) => (index === existingIndex ? nextRecord : item))
+        nextRecord.createdAt = appRecords.value[existingIndex]?.createdAt || now
+        appRecords.value = appRecords.value.map((item, index) => (index === existingIndex ? nextRecord : item))
         return nextRecord
       }
 
-      apps.value = [nextRecord, ...apps.value]
+      appRecords.value = [nextRecord, ...appRecords.value]
       return nextRecord
     }
 
     const deleteApp = (id: string) => {
-      apps.value = apps.value.filter((item) => item.id !== id)
+      appRecords.value = appRecords.value.filter((item) => item.id !== id)
     }
 
     return {
       apps: normalizedApps,
+      appRecords,
       getAppById,
       saveApp,
       deleteApp,
@@ -85,6 +86,7 @@ export const useMyAppsStore = defineStore(
   {
     persist: {
       storage: indexedDBStorage,
+      paths: ['appRecords'],
       afterRestore: () => {
         resolveRestore()
       }

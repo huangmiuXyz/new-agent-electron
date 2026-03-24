@@ -546,6 +546,14 @@ export const buildSandboxPreviewDocument = (state: SandboxState, channelId: stri
             }
           }
 
+          const head = doc.head || doc.getElementsByTagName('head')[0]
+          if (head) {
+            const style = doc.createElement('style')
+            style.setAttribute('data-agent-qi-preview', 'true')
+            style.textContent = 'html,body{overflow:hidden!important;scrollbar-width:none;-ms-overflow-style:none;}html::-webkit-scrollbar,body::-webkit-scrollbar{display:none;}'
+            head.appendChild(style)
+          }
+
           document.open()
           document.write('<!doctype html>\\n' + doc.documentElement.outerHTML)
           document.close()

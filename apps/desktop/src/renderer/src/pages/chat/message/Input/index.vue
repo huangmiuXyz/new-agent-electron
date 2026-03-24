@@ -560,7 +560,7 @@ const runMobileToolAction = async (toolId: MobileDragToolId) => {
   if (toolId === 'thinking') return updateThinkingMode(!thinkingMode.value)
   if (toolId === 'settings') return openProviderOptionsModal()
   if (toolId === 'speech') return toggleSpeech()
-  if (toolId === 'playlist') return toggleAssistantPanel('playlist')
+  if (toolId === 'playlist') return toggleAssistantPanel()
   if (toolId === 'stop') return stopAllGeneratingInCurrentChat()
 }
 
@@ -662,9 +662,13 @@ const toggleSpeech = () => {
   }
 }
 
-const toggleAssistantPanel = (tab: 'canvas' | 'playlist' = 'playlist') => {
-  const isSameTab = display.value.assistantSidebarTab === tab
-  display.value.assistantSidebarTab = tab
+const toggleAssistantPanel = (tab?: 'canvas' | 'playlist') => {
+  const targetTab = tab ?? display.value.assistantSidebarTab
+  const isSameTab = display.value.assistantSidebarTab === targetTab
+
+  if (tab) {
+    display.value.assistantSidebarTab = targetTab
+  }
 
   if (display.value.speechSidebarCollapsed) {
     display.value.speechSidebarCollapsed = false
@@ -943,7 +947,7 @@ onUnmounted(() => {
             </Button>
 
             <Button variant="icon" size="sm" :class="{ 'speech-active': !display.speechSidebarCollapsed }"
-              @click="toggleAssistantPanel('playlist')"
+              @click="toggleAssistantPanel()"
               :title="display.speechSidebarCollapsed ? '打开侧边面板' : '关闭侧边面板'">
               <PlaylistIcon />
             </Button>

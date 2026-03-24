@@ -1,6 +1,6 @@
 <template>
     <div class="preview-wrapper">
-        <iframe ref="iframeRef" sandbox="allow-scripts allow-same-origin" frameborder="0"></iframe>
+        <iframe ref="iframeRef" sandbox="allow-scripts allow-same-origin" frameborder="0" scrolling="no"></iframe>
     </div>
 </template>
 
@@ -22,6 +22,54 @@ const emit = defineEmits<{
 }>()
 
 const iframeRef = ref<HTMLIFrameElement>()
+let cleanupIframeKeyListeners: (() => void) | null = null
+
+function cleanupKeyBridge() {
+    if (cleanupIframeKeyListeners) {
+        cleanupIframeKeyListeners()
+        cleanupIframeKeyListeners = null
+    }
+}
+
+function attachIframeKeyBridge() {
+    cleanupKeyBridge()
+
+    const iframe = iframeRef.value
+    const win = iframe?.contentWindow
+    const doc = iframe?.contentDocument
+    if (!iframe || !win || !doc) return
+
+    const dispatchEscapeEvent = (phase: 'down' | 'up') => {
+        window.dispatchEvent(new CustomEvent('agent-qi-preview-escape', {
+            detail: {
+                phase,
+                channelId: props.channelId || ''
+            }
+        }))
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== 'Escape') return
+        dispatchEscapeEvent('down')
+    }
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+        if (event.key !== 'Escape') return
+        dispatchEscapeEvent('up')
+    }
+
+    win.addEventListener('keydown', handleKeyDown, true)
+    win.addEventListener('keyup', handleKeyUp, true)
+    doc.addEventListener('keydown', handleKeyDown, true)
+    doc.addEventListener('keyup', handleKeyUp, true)
+
+    cleanupIframeKeyListeners = () => {
+        win.removeEventListener('keydown', handleKeyDown, true)
+        win.removeEventListener('keyup', handleKeyUp, true)
+        doc.removeEventListener('keydown', handleKeyDown, true)
+        doc.removeEventListener('keyup', handleKeyUp, true)
+    }
+}
 
 function updateContent() {
     const iframe = iframeRef.value
@@ -33,6 +81,10 @@ function updateContent() {
     doc.open()
     doc.write(props.srcdoc || props.html)
     doc.close()
+
+    requestAnimationFrame(() => {
+        attachIframeKeyBridge()
+    })
 }
 
 const handleWindowMessage = (event: MessageEvent) => {
@@ -50,6 +102,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     window.removeEventListener('message', handleWindowMessage)
+    cleanupKeyBridge()
 })
 
 watch(() => [props.html, props.srcdoc], updateContent)

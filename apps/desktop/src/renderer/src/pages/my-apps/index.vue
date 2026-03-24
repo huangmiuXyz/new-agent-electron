@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { h } from 'vue'
 import HtmlPreview from '@renderer/components/HtmlPreview.vue'
 import { buildSandboxPreviewDocument, ensureSandboxState } from '@renderer/services/sandbox'
 
@@ -9,7 +10,7 @@ const settingsStore = useSettingsStore()
 const router = useRouter()
 const modal = useModal()
 const { setTitle } = useAppHeader()
-const { Play, Trash, Chat, Sparkles } = useIcon(['Play', 'Trash', 'Chat', 'Sparkles'])
+const { Play, Trash, Chat, Eye } = useIcon(['Play', 'Trash', 'Chat', 'Eye'])
 
 setTitle('我的应用')
 
@@ -22,6 +23,28 @@ const buildPreviewDocument = (id: string) => {
 }
 
 const formatDateTime = (value: number) => new Date(value).toLocaleString()
+const getFileCount = (app: (typeof appCards.value)[number]) => Object.keys(app.canvas.files || {}).length
+
+const openPreviewModal = async (appId: string) => {
+  const app = myAppsStore.getAppById(appId)
+  if (!app) return
+
+  await modal.confirm({
+    title: `预览 · ${app.name}`,
+    content: h(HtmlPreview, {
+      srcdoc: buildPreviewDocument(appId),
+      channelId: `${buildPreviewChannelId(appId)}:modal`
+    }),
+    width: '90%',
+    height: '90vh',
+    confirmText: '关闭',
+    modalBodyStyle: {
+      padding: 0
+    },
+    showFooter: true,
+    showCancel: false
+  })
+}
 
 const useSavedApp = (appId: string) => {
   const app = myAppsStore.getAppById(appId)
@@ -61,169 +84,154 @@ const removeSavedApp = async (appId: string) => {
 </script>
 
 <template>
-  <div class="my-apps-page">
-    <div class="page-hero">
-      <div>
-        <p class="hero-kicker">Saved canvas apps</p>
-        <h2>我的应用</h2>
-        <p class="hero-text">把画布里的原型保存下来，之后一键恢复到聊天画布里继续使用和迭代。</p>
+  <FormContainer no-padding class="my-apps-page">
+    <template #header>
+      <div class="page-header">
+        <span>我的应用</span>
+        <span class="count-badge">{{ appCards.length }} 个应用</span>
       </div>
-      <div class="hero-badge">
-        <Sparkles />
-        <span>{{ appCards.length }} 个应用</span>
-      </div>
-    </div>
+    </template>
 
-    <div v-if="appCards.length === 0" class="empty-state">
-      <div class="empty-icon">
-        <Chat />
-      </div>
-      <h3>还没有保存的应用</h3>
-      <p>先在聊天右侧画布中生成页面，然后点击“保存应用”。</p>
-    </div>
+    <template #content>
+      <div class="page-content">
 
-    <div v-else class="apps-grid">
-      <article v-for="app in appCards" :key="app.id" class="app-card">
-        <div class="app-preview-shell">
-          <HtmlPreview
-            :srcdoc="buildPreviewDocument(app.id)"
-            :channel-id="buildPreviewChannelId(app.id)"
-          />
+        <div v-if="appCards.length === 0" class="empty-state">
+          <div class="empty-icon">
+            <Chat />
+          </div>
+          <h3>还没有保存的应用</h3>
+          <p>先在聊天右侧画布中生成页面，然后点击“保存应用”。</p>
         </div>
 
-        <div class="app-card-body">
-          <div class="app-card-head">
-            <div class="app-meta">
-              <div class="app-icon">{{ app.iconEmoji }}</div>
-              <div>
-                <h3>{{ app.name }}</h3>
-                <p>{{ app.description || '未填写描述' }}</p>
+        <div v-else class="apps-grid">
+          <Card
+            v-for="app in appCards"
+            :key="app.id"
+            padding="0"
+            radius="14px"
+            class="app-card"
+          >
+            <div class="app-card-body">
+              <div class="app-card-head">
+                <div class="app-meta">
+                  <div class="app-icon">{{ app.iconEmoji }}</div>
+                  <div class="app-title-wrap">
+                    <h3>{{ app.name }}</h3>
+                    <p>{{ app.description || '未填写描述' }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="app-stats">
+                <div class="app-stat">
+                  <span class="app-stat-label">更新时间</span>
+                  <span class="app-stat-value">{{ formatDateTime(app.updatedAt) }}</span>
+                </div>
+                <div class="app-stat">
+                  <span class="app-stat-label">文件数</span>
+                  <span class="app-stat-value">{{ getFileCount(app) }} 个</span>
+                </div>
+              </div>
+
+              <div class="app-card-footer">
+                <Button size="sm" variant="secondary" @click="openPreviewModal(app.id)">
+                  <template #icon>
+                    <Eye />
+                  </template>
+                  预览
+                </Button>
+                <Button size="sm" variant="secondary" @click="removeSavedApp(app.id)">
+                  <template #icon>
+                    <Trash />
+                  </template>
+                  删除
+                </Button>
+                <Button size="sm" variant="primary" @click="useSavedApp(app.id)">
+                  <template #icon>
+                    <Play />
+                  </template>
+                  使用
+                </Button>
               </div>
             </div>
-            <div class="app-time">{{ formatDateTime(app.updatedAt) }}</div>
-          </div>
-
-          <div class="app-card-footer">
-            <div class="app-info">
-              <span>{{ Object.keys(app.canvas.files || {}).length }} 个文件</span>
-            </div>
-            <div class="app-actions">
-              <Button size="sm" variant="secondary" @click="removeSavedApp(app.id)">
-                <template #icon>
-                  <Trash />
-                </template>
-                删除
-              </Button>
-              <Button size="sm" variant="primary" @click="useSavedApp(app.id)">
-                <template #icon>
-                  <Play />
-                </template>
-                使用
-              </Button>
-            </div>
-          </div>
+          </Card>
         </div>
-      </article>
-    </div>
-  </div>
+      </div>
+    </template>
+  </FormContainer>
 </template>
 
 <style scoped>
 .my-apps-page {
-  height: 100%;
-  overflow: auto;
-  padding: 24px;
-  background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
-    linear-gradient(180deg, var(--bg-card) 0%, var(--bg-app) 100%);
+  background: var(--bg-card);
 }
 
-.page-hero {
+.page-header {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.hero-kicker {
-  margin-bottom: 8px;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-
-.page-hero h2 {
-  font-size: 28px;
-  line-height: 1.1;
-  color: var(--text-primary);
-}
-
-.hero-text {
-  margin-top: 10px;
-  max-width: 640px;
-  color: var(--text-secondary);
-  line-height: 1.7;
-}
-
-.hero-badge {
-  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.count-badge {
+  font-size: 11px;
+  color: var(--accent-color);
+  background: var(--bg-active);
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
   border-radius: 999px;
-  background: rgba(var(--color-primary-rgb), 0.1);
-  color: var(--text-primary);
-  border: 1px solid rgba(var(--color-primary-rgb), 0.12);
+  padding: 2px 8px;
   white-space: nowrap;
+}
+
+.page-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.page-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.page-intro h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.page-intro p {
+  margin: 0;
+  max-width: 720px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
 }
 
 .apps-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 18px;
+  gap: 12px;
 }
 
 .app-card {
   display: flex;
   flex-direction: column;
-  min-height: 360px;
-  overflow: hidden;
-  border-radius: 18px;
-  border: 1px solid rgba(var(--text-rgb), 0.08);
-  background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.92), rgba(var(--bg-rgb), 0.98));
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08);
-}
-
-.app-preview-shell {
-  height: 220px;
-  padding: 10px;
-  background:
-    linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.08), rgba(16, 185, 129, 0.06)),
-    var(--bg-secondary);
-  border-bottom: 1px solid rgba(var(--text-rgb), 0.08);
-}
-
-.app-preview-shell :deep(.preview-wrapper) {
-  border-radius: 12px;
-  overflow: hidden;
-  background: #fff;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+  min-height: 0;
 }
 
 .app-card-body {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   padding: 16px;
-}
-
-.app-card-head {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .app-meta {
@@ -233,98 +241,138 @@ const removeSavedApp = async (appId: string) => {
 }
 
 .app-icon {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  background: rgba(var(--color-primary-rgb), 0.12);
-  font-size: 20px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  font-size: 18px;
   flex-shrink: 0;
 }
 
+.app-title-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
 .app-meta h3 {
+  margin: 0;
   font-size: 16px;
+  line-height: 1.35;
   color: var(--text-primary);
 }
 
 .app-meta p {
-  margin-top: 4px;
+  margin: 4px 0 0;
+  font-size: 12px;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.app-time {
-  font-size: 12px;
+.app-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.app-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+.app-stat-label {
+  font-size: 11px;
   color: var(--text-tertiary);
+}
+
+.app-stat-value {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .app-card-footer {
   margin-top: auto;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.app-info {
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-
-.app-actions {
-  display: flex;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .empty-state {
-  height: calc(100% - 120px);
-  min-height: 320px;
-  display: grid;
-  place-items: center;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 36px 24px;
   text-align: center;
-  color: var(--text-secondary);
-  border: 1px dashed rgba(var(--text-rgb), 0.12);
-  border-radius: 20px;
-  background: rgba(var(--bg-rgb), 0.5);
+  background: var(--bg-hover);
+  border: 1px dashed var(--border-subtle);
+  border-radius: 14px;
 }
 
 .empty-icon {
-  width: 68px;
-  height: 68px;
-  margin: 0 auto 16px;
-  display: grid;
-  place-items: center;
-  border-radius: 20px;
-  background: rgba(var(--color-primary-rgb), 0.08);
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .empty-state h3 {
-  margin-bottom: 8px;
+  margin: 0;
+  font-size: 16px;
   color: var(--text-primary);
 }
 
+.empty-state p {
+  margin: 0;
+  max-width: 420px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
 @media (max-width: 768px) {
-  .my-apps-page {
-    padding: 18px 16px 24px;
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  .page-hero {
-    flex-direction: column;
-    align-items: flex-start;
+  .page-content {
+    padding: 16px;
   }
 
   .apps-grid {
     grid-template-columns: 1fr;
   }
 
-  .app-card-footer {
-    flex-direction: column;
-    align-items: stretch;
+  .app-stats {
+    grid-template-columns: 1fr;
   }
 
-  .app-actions {
+  .app-card-footer {
     width: 100%;
+    justify-content: space-between;
   }
 }
 </style>
