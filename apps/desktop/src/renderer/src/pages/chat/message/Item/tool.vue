@@ -14,7 +14,11 @@ const toolName = computed(() => {
 <template>
   <ChatMessageItemSuggestions v-if="toolName === 'candidateReplies'"
     :suggestionsData="tool_part.input as SuggestionsData" />
-  <ChatMessageItemExecCommand :message="message" v-else-if="toolName === 'exec_command'" :tool_part="tool_part" />
+  <ChatMessageItemExecCommand
+    :message="message"
+    v-else-if="toolName === 'exec_command' || toolName === 'exec_command_canvas'"
+    :tool_part="tool_part"
+  />
 
   <ChatMessageItemDynamicTool v-else :message="message" :tool_part="tool_part" allow-custom-render />
 </template>

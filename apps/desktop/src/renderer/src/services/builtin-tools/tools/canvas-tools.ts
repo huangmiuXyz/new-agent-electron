@@ -1,5 +1,112 @@
 import { z } from 'zod'
-import { formatSandboxResult } from '@renderer/services/sandbox'
+import { createSandboxState, formatSandboxResult, normalizeSandboxPath, sortSandboxFiles } from '@renderer/services/sandbox'
+
+const isWindows = navigator.platform.toLowerCase().includes('win')
+
+const ensureCanvasTempWorkspace = (chatId?: string) => {
+  const canvasStore = useCanvasStore()
+  const sandbox = canvasStore.getCanvas(chatId)
+  const tempRoot = window.api.path.join(window.api.getPath('temp'), 'agent-qi-canvas-exec')
+  const workspaceId = chatId || 'default'
+  const workspaceDir = window.api.path.join(tempRoot, workspaceId)
+
+  window.api.fs.mkdirSync(workspaceDir, { recursive: true })
+
+  const existingEntries = window.api.fs.readdirSync(workspaceDir, { withFileTypes: true })
+  for (const entry of existingEntries) {
+    window.api.fs.rmSync(window.api.path.join(workspaceDir, entry.name), { recursive: true, force: true })
+  }
+
+  sortSandboxFiles(sandbox).forEach((file) => {
+    const relativePath = file.path.replace(/^\/+/, '')
+    if (!relativePath) return
+
+    const outputPath = window.api.path.join(workspaceDir, ...relativePath.split('/'))
+    const parentDir = window.api.path.dirname(outputPath)
+    window.api.fs.mkdirSync(parentDir, { recursive: true })
+    window.api.fs.writeFileSync(outputPath, file.content, 'utf-8')
+  })
+
+  return { sandbox, workspaceDir }
+}
+
+const readCanvasWorkspace = (workspaceDir: string) => {
+  const nextState = createSandboxState()
+  const fileEntries: Record<string, { path: string; content: string; updatedAt: number }> = {}
+
+  const walk = (currentDir: string) => {
+    const entries = window.api.fs.readdirSync(currentDir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      const fullPath = window.api.path.join(currentDir, entry.name)
+
+      if (entry.isDirectory()) {
+        walk(fullPath)
+        continue
+      }
+
+      if (!entry.isFile()) continue
+
+      const relativePath = window.api.path.relative(workspaceDir, fullPath).replaceAll('\\', '/')
+      const sandboxPath = normalizeSandboxPath(relativePath)
+      const stat = window.api.fs.statSync(fullPath)
+      const content = window.api.fs.readFileSync(fullPath, 'utf-8')
+
+      fileEntries[sandboxPath] = {
+        path: sandboxPath,
+        content,
+        updatedAt: stat.mtimeMs || Date.now()
+      }
+    }
+  }
+
+  walk(workspaceDir)
+
+  nextState.files = fileEntries
+  nextState.updatedAt = Date.now()
+  nextState.activeFilePath = sortSandboxFiles(nextState)[0]?.path || ''
+
+  return nextState
+}
+
+const summarizeCanvasSync = (
+  previousFiles: Record<string, { content: string }>,
+  nextFiles: Record<string, { content: string }>
+) => {
+  let added = 0
+  let updated = 0
+  let deleted = 0
+
+  for (const [path, nextFile] of Object.entries(nextFiles)) {
+    const previousFile = previousFiles[path]
+    if (!previousFile) {
+      added += 1
+      continue
+    }
+
+    if (previousFile.content !== nextFile.content) {
+      updated += 1
+    }
+  }
+
+  for (const path of Object.keys(previousFiles)) {
+    if (!nextFiles[path]) {
+      deleted += 1
+    }
+  }
+
+  return `Canvas 已同步：新增 ${added} 个文件，更新 ${updated} 个文件，删除 ${deleted} 个文件。`
+}
+
+const wrapCanvasCommand = (command: string, workspaceDir: string) => {
+  if (isWindows) {
+    const escapedWorkspaceDir = workspaceDir.replaceAll("'", "''")
+    return `Set-Location -LiteralPath '${escapedWorkspaceDir}'; ${command}`
+  }
+
+  const escapedWorkspaceDir = workspaceDir.replaceAll("'", "'\"'\"'")
+  return `cd '${escapedWorkspaceDir}' && ${command}`
+}
 
 const openCanvasPanel = () => {
   const settingsStore = useSettingsStore()
@@ -21,6 +128,85 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
       return {
         toolResult: {
           content: [{ type: 'text', text: formatSandboxResult(sandbox) }]
+        }
+      }
+    }
+  },
+  exec_command_canvas: {
+    title: '在 Canvas 工作区执行命令',
+    description:
+      '把当前会话 sandbox 文件同步到临时工作区后执行命令。命令会以该工作区为当前目录运行，因此可以直接用相对路径引用 canvas 文件，例如 `type index.html`、`node main.js`、`python scripts/build.py`。',
+    inputSchema: z.object({
+      command: z.string().describe('要执行的命令'),
+      terminal_id: z
+        .string()
+        .optional()
+        .describe('要复用的终端ID。留空时会创建新终端；如果之前已返回 terminal_id，后续同一任务应复用该 ID。')
+    }),
+    execute: async (
+      args: unknown,
+      options?: { toolCallId?: string; chatId?: string; model?: string; provider?: string }
+    ) => {
+      const params = args as {
+        command?: string
+        terminal_id?: string
+      }
+      const command = String(params.command || '').trim()
+
+      if (!command) {
+        return {
+          error: '缺少必要参数: command',
+          toolResult: {
+            content: [{ type: 'text', text: 'exec_command_canvas 失败：缺少必要参数 command' }]
+          }
+        }
+      }
+
+      try {
+        openCanvasPanel()
+
+        const canvasStore = useCanvasStore()
+        const { sandbox, workspaceDir } = ensureCanvasTempWorkspace(options?.chatId)
+        const { createTab } = useTerminal()
+        const wrappedCommand = wrapCanvasCommand(command, workspaceDir)
+        const { id: tabId, result } = await createTab({
+          command: wrappedCommand,
+          id: params.terminal_id,
+          toolCallId: options?.toolCallId,
+          showTerminal: true
+        })
+        const syncedCanvas = readCanvasWorkspace(workspaceDir)
+        const nextActiveFilePath = sandbox.activeFilePath && syncedCanvas.files[sandbox.activeFilePath]
+          ? sandbox.activeFilePath
+          : syncedCanvas.activeFilePath
+        canvasStore.replaceCanvas(
+          {
+            ...syncedCanvas,
+            activeFilePath: nextActiveFilePath
+          },
+          options?.chatId
+        )
+        const syncSummary = summarizeCanvasSync(sandbox.files, syncedCanvas.files)
+
+        return {
+          toolResult: {
+            content: [{
+              type: 'stdout',
+              text:
+                `终端ID: ${tabId}\n` +
+                `Canvas 工作区: ${workspaceDir.replaceAll('\\', '/')}\n` +
+                `${syncSummary}\n` +
+                '后续如果要在同一终端继续执行命令，请复用这个终端ID。\n' +
+                `${result?.output || ''}`
+            }]
+          }
+        }
+      } catch (error) {
+        return {
+          error: (error as Error).message,
+          toolResult: {
+            content: [{ type: 'text', text: `exec_command_canvas 失败: ${(error as Error).message}` }]
+          }
         }
       }
     }

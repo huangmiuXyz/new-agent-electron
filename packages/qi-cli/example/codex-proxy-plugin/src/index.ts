@@ -617,7 +617,6 @@ const syncProvider = async (context: PluginContext, form: unknown) => {
     name: 'Codex 代理',
     logo: resolveProviderLogoUrl(context),
     providerType: REGISTRY_ID,
-    hide: true,
     form: form as Record<string, unknown>,
     models
   })
