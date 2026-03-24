@@ -405,7 +405,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
               content: [
                 {
                   type: 'text',
-                  text: `search_project 失败：${stderr || stdout || errorMessage || 'command execution failed'}`
+                  text: `search_project 失败：${stderr || stdout.substring(0, 10000) || errorMessage || 'command execution failed'}`
                 }
               ]
             }
