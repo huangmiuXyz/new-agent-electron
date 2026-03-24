@@ -34,8 +34,8 @@ const panelTabs = computed(() => ([
     </div>
 
     <div class="chat-side-panel-body">
-      <ChatCanvasPanel v-if="settingsStore.display.assistantSidebarTab === 'canvas'" />
-      <SpeechSidebar v-else />
+      <ChatCanvasPanel v-show="settingsStore.display.assistantSidebarTab === 'canvas'" />
+      <SpeechSidebar v-show="settingsStore.display.assistantSidebarTab === 'playlist'" />
     </div>
   </div>
 </template>

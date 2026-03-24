@@ -94,11 +94,11 @@ const syncCodeScroll = () => {
       <Tabs v-model="settingsStore.display.canvasEditorTab" :items="canvasTabs" size="sm" />
     </div>
 
-    <div v-if="settingsStore.display.canvasEditorTab === 'preview'" class="canvas-preview">
+    <div v-show="settingsStore.display.canvasEditorTab === 'preview'" class="canvas-preview">
       <HtmlPreview :html="previewHtml" />
     </div>
 
-    <div v-else class="canvas-code">
+    <div v-show="settingsStore.display.canvasEditorTab === 'code'" class="canvas-code">
       <div class="canvas-code-editor">
         <pre ref="codeHighlightRef" class="canvas-code-highlight" v-html="highlightedCode"></pre>
         <textarea

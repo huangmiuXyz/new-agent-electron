@@ -556,6 +556,8 @@ body {
 
 .content-wrapper {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -563,6 +565,8 @@ body {
 
 .app-content {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   position: relative;
   display: flex;

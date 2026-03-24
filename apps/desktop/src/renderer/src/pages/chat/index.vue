@@ -186,6 +186,8 @@ onMounted(() => {
 /* === 主区域：干净、通透 === */
 .main-chat {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: transparent;
