@@ -109,14 +109,14 @@ const menuItemRefs = new Map<MenuItem<any>, HTMLElement>()
 // 否则分发 select 事件给父组件
 const emit = defineEmits(['select'])
 
-const handleItemClick = (item: MenuItem<T>) => {
+const handleItemClick = async (item: MenuItem<T>) => {
   if (item.disabled) return
 
   // 如果有子菜单，需要判断是否有 onClick
   if (item.children && item.children.length > 0) {
     // 如果配置项有 onClick 处理函数，执行它
     if (typeof item.onClick === 'function') {
-      item.onClick(contextData.value as T)
+      await item.onClick(contextData.value as T)
       hideContextMenu()
     }
     // 否则由 hover 处理显示子菜单
@@ -125,27 +125,27 @@ const handleItemClick = (item: MenuItem<T>) => {
 
   // 1. 如果配置项自带 onClick 处理函数，优先执行
   if (typeof item.onClick === 'function') {
-    item.onClick(contextData.value as T)
+    hideContextMenu()
+    await item.onClick(contextData.value as T)
   } else {
     // 2. 否则通过 action 字符串通知父组件
     emit('select', { action: item.action, data: contextData.value })
+    hideContextMenu()
   }
-
-  hideContextMenu()
 }
 
-const handleSubmenuItemClick = (item: MenuItem<T>) => {
+const handleSubmenuItemClick = async (item: MenuItem<T>) => {
   if (item.disabled) return
 
   // 1. 如果配置项自带 onClick 处理函数，优先执行
   if (typeof item.onClick === 'function') {
-    item.onClick(contextData.value as T)
+    hideContextMenu()
+    await item.onClick(contextData.value as T)
   } else {
     // 2. 否则通过 action 字符串通知父组件
     emit('select', { action: item.action, data: contextData.value })
+    hideContextMenu()
   }
-
-  hideContextMenu()
 }
 
 const setMenuItemRef = (el: Element | ComponentPublicInstance | null, item: MenuItem<T>) => {

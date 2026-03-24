@@ -5,10 +5,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 
-const props = defineProps<{
-    html: string
+const props = withDefaults(defineProps<{
+    html?: string
+    srcdoc?: string
+    channelId?: string
+}>(), {
+    html: '',
+    srcdoc: '',
+    channelId: ''
+})
+
+const emit = defineEmits<{
+    sandboxEvent: [payload: any]
 }>()
 
 const iframeRef = ref<HTMLIFrameElement>()
@@ -21,12 +31,28 @@ function updateContent() {
     if (!doc) return
     
     doc.open()
-    doc.write(props.html)
+    doc.write(props.srcdoc || props.html)
     doc.close()
 }
 
-onMounted(updateContent)
-watch(() => props.html, updateContent)
+const handleWindowMessage = (event: MessageEvent) => {
+    if (!props.channelId) return
+    if (event.source !== iframeRef.value?.contentWindow) return
+    const data = event.data
+    if (!data || data.source !== 'agent-qi-sandbox' || data.channelId !== props.channelId) return
+    emit('sandboxEvent', data)
+}
+
+onMounted(() => {
+    window.addEventListener('message', handleWindowMessage)
+    updateContent()
+})
+
+onBeforeUnmount(() => {
+    window.removeEventListener('message', handleWindowMessage)
+})
+
+watch(() => [props.html, props.srcdoc], updateContent)
 </script>
 
 <style scoped>

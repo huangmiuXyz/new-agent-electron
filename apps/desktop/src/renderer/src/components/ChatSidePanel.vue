@@ -58,7 +58,7 @@ const panelTabs = computed(() => ([
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 4px;
   border-bottom: 1px solid var(--border-color);
 }
 

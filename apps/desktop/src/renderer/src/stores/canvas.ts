@@ -1,27 +1,16 @@
-type ChatCanvasState = {
-  html: string
-  updatedAt: number
-}
+import {
+  applySandboxOperation,
+  createSandboxState,
+  ensureSandboxState,
+  getSandboxFile,
+  setSandboxActiveFile,
+  sortSandboxFiles,
+  updateSandboxFileContent,
+  type SandboxOperationType,
+  type SandboxState
+} from '@renderer/services/sandbox'
 
-const insertHtmlNearBody = (source: string, fragment: string, position: 'start' | 'end') => {
-  if (!source) return fragment
-
-  if (position === 'start') {
-    const bodyOpenMatch = source.match(/<body[^>]*>/i)
-    if (bodyOpenMatch && bodyOpenMatch.index != null) {
-      const insertIndex = bodyOpenMatch.index + bodyOpenMatch[0].length
-      return `${source.slice(0, insertIndex)}\n${fragment}\n${source.slice(insertIndex)}`
-    }
-    return `${fragment}\n${source}`
-  }
-
-  const bodyCloseMatch = source.match(/<\/body>/i)
-  if (bodyCloseMatch && bodyCloseMatch.index != null) {
-    return `${source.slice(0, bodyCloseMatch.index)}\n${fragment}\n${source.slice(bodyCloseMatch.index)}`
-  }
-
-  return `${source}\n${fragment}`
-}
+type ChatCanvasState = SandboxState
 
 export const useCanvasStore = defineStore(
   'canvas',
@@ -33,15 +22,9 @@ export const useCanvasStore = defineStore(
       return useChatsStores().currentChat?.id || 'default'
     }
 
-    const ensureCanvas = (chatId?: string) => {
+    const createAndStoreCanvas = (chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
-      const existing = canvases.value[resolvedChatId]
-      if (existing) return { chatId: resolvedChatId, canvas: existing }
-
-      const canvas: ChatCanvasState = {
-        html: '',
-        updatedAt: Date.now()
-      }
+      const canvas = createSandboxState()
       canvases.value = {
         ...canvases.value,
         [resolvedChatId]: canvas
@@ -51,40 +34,78 @@ export const useCanvasStore = defineStore(
 
     const getCanvas = (chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
-      return canvases.value[resolvedChatId] || null
+      const existing = canvases.value[resolvedChatId]
+      return existing ? ensureSandboxState(existing) : createSandboxState()
     }
 
-    const getCanvasHtml = (chatId?: string) => {
-      return getCanvas(chatId)?.html || ''
-    }
-
-    const setCanvasHtml = (html: string, chatId?: string) => {
-      const { chatId: resolvedChatId } = ensureCanvas(chatId)
+    const replaceCanvas = (canvas: ChatCanvasState, chatId?: string) => {
+      const resolvedChatId = resolveChatId(chatId)
       canvases.value = {
         ...canvases.value,
-        [resolvedChatId]: {
-          html,
-          updatedAt: Date.now()
-        }
+        [resolvedChatId]: ensureSandboxState(canvas)
       }
     }
 
-    const appendCanvasHtml = (fragment: string, chatId?: string, position: 'start' | 'end' = 'end') => {
-      const nextHtml = insertHtmlNearBody(getCanvasHtml(chatId), fragment, position)
-      setCanvasHtml(nextHtml, chatId)
-      return nextHtml
+    const listCanvasFiles = (chatId?: string) => {
+      return sortSandboxFiles(getCanvas(chatId))
+    }
+
+    const getActiveFilePath = (chatId?: string) => {
+      return getCanvas(chatId).activeFilePath
+    }
+
+    const setActiveFilePath = (filePath: string, chatId?: string) => {
+      replaceCanvas(setSandboxActiveFile(getCanvas(chatId), filePath), chatId)
+    }
+
+    const getActiveFile = (chatId?: string) => {
+      return getSandboxFile(getCanvas(chatId), getActiveFilePath(chatId))
+    }
+
+    const updateFileContent = (filePath: string, content: string, chatId?: string) => {
+      replaceCanvas(updateSandboxFileContent(getCanvas(chatId), filePath, content), chatId)
+    }
+
+    const updateActiveFileContent = (content: string, chatId?: string) => {
+      const activeFilePath = getActiveFilePath(chatId)
+      updateFileContent(activeFilePath, content, chatId)
+    }
+
+    const applyOperation = (
+      operation: {
+        type?: SandboxOperationType
+        filePath: string
+        oldStr?: string
+        newStr?: string
+        targetPath?: string
+        overwrite?: boolean
+      },
+      chatId?: string
+    ) => {
+      const result = applySandboxOperation(getCanvas(chatId), operation)
+      replaceCanvas(result.state, chatId)
+      return result
     }
 
     const clearCanvas = (chatId?: string) => {
-      setCanvasHtml('', chatId)
+      const resolvedChatId = resolveChatId(chatId)
+      if (!canvases.value[resolvedChatId]) {
+        createAndStoreCanvas(chatId)
+        return
+      }
+      replaceCanvas(createSandboxState(), chatId)
     }
 
     return {
       canvases,
       getCanvas,
-      getCanvasHtml,
-      setCanvasHtml,
-      appendCanvasHtml,
+      listCanvasFiles,
+      getActiveFilePath,
+      setActiveFilePath,
+      getActiveFile,
+      updateFileContent,
+      updateActiveFileContent,
+      applyOperation,
       clearCanvas
     }
   },
