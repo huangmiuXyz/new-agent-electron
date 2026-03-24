@@ -2,7 +2,14 @@
 import HtmlPreview from './HtmlPreview.vue'
 import SandboxCodeEditor from './SandboxCodeEditor.vue'
 import Tabs from './Tabs.vue'
-import { buildSandboxPreviewDocument, buildSandboxTree, getSandboxFileLanguage, normalizeSandboxPath } from '@renderer/services/sandbox'
+import JSZip from 'jszip'
+import {
+  buildSandboxPreviewDocument,
+  buildSandboxTree,
+  getSandboxFileLanguage,
+  normalizeSandboxPath,
+  sortSandboxFiles
+} from '@renderer/services/sandbox'
 
 type PreviewLogItem = {
   id: string
@@ -29,6 +36,7 @@ const message = messageApi
 const modal = useModal()
 const {
   Download: DownloadIcon,
+  FileZip: FileZipIcon,
   Plus: AddIcon,
   Trash: TrashIcon,
   Edit: EditIcon,
@@ -36,13 +44,14 @@ const {
   Box: BoxIcon
 } = useIcon([
   'Download',
+  'FileZip',
   'Plus',
   'Trash',
   'Edit',
   'Settings',
   'Box'
 ])
-const { showContextMenu, hideContextMenu } = useContextMenu()
+const { showContextMenu, hideContextMenu } = useContextMenu<TreeRow>()
 
 const canvasTabs = [
   { id: 'preview', name: '预览' },
@@ -104,6 +113,16 @@ const suggestedAppName = computed(() => {
   const title = String(chatsStore.currentChat?.title || '').trim()
   return title || '未命名应用'
 })
+
+const sanitizeDownloadName = (value: string) => {
+  const normalized = String(value || '')
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/\.+$/g, '')
+
+  return normalized || 'untitled-app'
+}
 
 const previewChannelId = computed(() => `sandbox-preview:${currentChatId.value || 'default'}`)
 const previewDocument = computed(() => buildSandboxPreviewDocument(currentCanvas.value, previewChannelId.value))
@@ -289,6 +308,13 @@ const openTreeRowMenu = (event: MouseEvent, row: TreeRow) => {
       icon: EditIcon,
       onClick: (targetRow) => renameTreeRow(targetRow)
     },
+    ...(row.type === 'file'
+      ? [{
+        label: '下载文件',
+        icon: DownloadIcon,
+        onClick: (targetRow: TreeRow) => downloadCurrentFile(targetRow.path)
+      }]
+      : []),
     {
       label: row.type === 'directory' ? '删除目录' : '删除',
       icon: TrashIcon,
@@ -302,8 +328,8 @@ const openTreeRowMenu = (event: MouseEvent, row: TreeRow) => {
   showContextMenu(event, options, row)
 }
 
-const downloadCurrentFile = () => {
-  const file = activeFile.value
+const downloadCurrentFile = (filePath = activeFilePath.value) => {
+  const file = filePath ? currentCanvas.value.files[filePath] : null
   if (!file) {
     message.warning('当前没有可下载文件')
     return
@@ -325,6 +351,38 @@ const downloadCurrentFile = () => {
   } catch (error) {
     console.error('Sandbox download error:', error)
     message.error('下载文件失败')
+  }
+}
+
+const downloadAppAsZip = async () => {
+  if (!hasCanvasFiles.value) {
+    message.warning('当前画布还没有文件，先生成或创建内容后再下载应用')
+    return
+  }
+
+  try {
+    const zip = new JSZip()
+
+    sortSandboxFiles(currentCanvas.value).forEach((file) => {
+      zip.file(file.path.replace(/^\/+/, ''), file.content)
+    })
+
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const fileName = `${sanitizeDownloadName(suggestedAppName.value)}.zip`
+
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    message.success(`已开始下载应用：${fileName}`)
+  } catch (error) {
+    console.error('Sandbox app zip download error:', error)
+    message.error('下载应用失败')
   }
 }
 
@@ -449,20 +507,6 @@ const openSaveAppModal = () => {
   })
 }
 
-const deleteCurrentFile = async () => {
-  const file = activeFile.value
-  if (!file) return
-  await deleteTreeRow({
-    id: file.path,
-    name: file.path.split('/').pop() || file.path,
-    path: file.path,
-    type: 'file',
-    depth: 0,
-    hasChildren: false,
-    isExpanded: false
-  })
-}
-
 const appendPreviewLog = (item: Omit<PreviewLogItem, 'id'>) => {
   previewLogs.value = [
     ...previewLogs.value.slice(-79),
@@ -500,17 +544,19 @@ const handleSandboxEvent = (payload: any) => {
 }
 
 const openActionsMenu = (event: MouseEvent) => {
-  const options: MenuItem[] = [
+  const options: MenuItem<TreeRow>[] = [
     {
       label: '新建文件',
       icon: AddIcon,
       onClick: () => createFile()
     },
     {
-      label: '下载文件',
-      icon: DownloadIcon,
-      disabled: !activeFile.value,
-      onClick: () => downloadCurrentFile()
+      label: '下载应用',
+      icon: FileZipIcon,
+      disabled: !hasCanvasFiles.value,
+      onClick: () => {
+        void downloadAppAsZip()
+      }
     },
     {
       label: '保存应用',
