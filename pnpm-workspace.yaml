@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
   - '!packages/ai'
+  - '!packages/external'
   - packages/qi-cli/example/*
 
 catalog:
