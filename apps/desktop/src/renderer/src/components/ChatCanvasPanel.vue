@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import HtmlPreview from './HtmlPreview.vue'
+import SandboxCodeEditor from './SandboxCodeEditor.vue'
 import Tabs from './Tabs.vue'
 import { buildSandboxPreviewDocument, buildSandboxTree, getSandboxFileLanguage, normalizeSandboxPath } from '@renderer/services/sandbox'
-import { common, createLowlight } from 'lowlight'
-import { toHtml } from 'hast-util-to-html'
-import 'highlight.js/styles/github.css'
-import 'highlight.js/styles/atom-one-dark.css'
 
 type PreviewLogItem = {
   id: string
@@ -20,19 +17,28 @@ type TreeRow = {
   path: string
   type: 'directory' | 'file'
   depth: number
+  hasChildren: boolean
+  isExpanded: boolean
 }
 
 const chatsStore = useChatsStores()
 const settingsStore = useSettingsStore()
 const canvasStore = useCanvasStore()
 const myAppsStore = useMyAppsStore()
-const lowlight = createLowlight(common)
 const message = messageApi
 const modal = useModal()
-const { Download: DownloadIcon, Plus: AddIcon, Trash: TrashIcon, Settings: SettingsIcon, Box: BoxIcon } = useIcon([
+const {
+  Download: DownloadIcon,
+  Plus: AddIcon,
+  Trash: TrashIcon,
+  Edit: EditIcon,
+  Settings: SettingsIcon,
+  Box: BoxIcon
+} = useIcon([
   'Download',
   'Plus',
   'Trash',
+  'Edit',
   'Settings',
   'Box'
 ])
@@ -45,26 +51,34 @@ const canvasTabs = [
 const SANDBOX_TREE_WIDTH_KEY = 'sandbox-tree-width'
 const sandboxTreeWidth = ref(Number(localStorage.getItem(SANDBOX_TREE_WIDTH_KEY)) || 180)
 const sandboxTreeCollapsed = ref(false)
+const expandedDirectoryPaths = ref<string[]>([])
 
 const currentChatId = computed(() => chatsStore.currentChat?.id)
 const currentCanvas = computed(() => canvasStore.getCanvas(currentChatId.value))
+const sandboxTreeNodes = computed(() => buildSandboxTree(currentCanvas.value))
+const expandedDirectoryPathSet = computed(() => new Set(expandedDirectoryPaths.value))
 const sandboxTreeRows = computed<TreeRow[]>(() => {
   const rows: TreeRow[] = []
   const walk = (nodes: ReturnType<typeof buildSandboxTree>, depth = 0) => {
     for (const node of nodes) {
+      const hasChildren = Boolean(node.children?.length)
+      const isExpanded = node.type === 'directory' && expandedDirectoryPathSet.value.has(node.path)
+
       rows.push({
         id: node.id,
         name: node.name,
         path: node.path,
         type: node.type,
-        depth
+        depth,
+        hasChildren,
+        isExpanded
       })
-      if (node.children?.length) {
-        walk(node.children, depth + 1)
+      if (hasChildren && isExpanded) {
+        walk(node.children || [], depth + 1)
       }
     }
   }
-  walk(buildSandboxTree(currentCanvas.value))
+  walk(sandboxTreeNodes.value)
   return rows
 })
 
@@ -95,6 +109,199 @@ const previewChannelId = computed(() => `sandbox-preview:${currentChatId.value |
 const previewDocument = computed(() => buildSandboxPreviewDocument(currentCanvas.value, previewChannelId.value))
 const previewLogs = ref<PreviewLogItem[]>([])
 
+const getAncestorDirectoryPaths = (path?: string) => {
+  if (!path) return []
+  const parts = path.split('/').filter(Boolean)
+  const ancestors: string[] = []
+  let current = ''
+
+  parts.slice(0, -1).forEach((part) => {
+    current += `/${part}`
+    ancestors.push(current)
+  })
+
+  return ancestors
+}
+
+const toggleDirectory = (path: string) => {
+  const next = new Set(expandedDirectoryPaths.value)
+  if (next.has(path)) {
+    next.delete(path)
+  } else {
+    next.add(path)
+  }
+  expandedDirectoryPaths.value = [...next]
+}
+
+const handleTreeRowClick = (row: TreeRow) => {
+  if (row.type === 'directory') {
+    if (row.hasChildren) {
+      toggleDirectory(row.path)
+    }
+    return
+  }
+  activeFilePath.value = row.path
+}
+
+const getFileExtensionLabel = (fileName: string) => {
+  const extension = fileName.split('.').pop()?.trim().toUpperCase()
+  return extension && extension !== fileName.toUpperCase() ? extension.slice(0, 4) : 'TXT'
+}
+
+const getParentPath = (path: string) => {
+  const normalizedPath = normalizeSandboxPath(path)
+  const segments = normalizedPath.split('/').filter(Boolean)
+  if (segments.length <= 1) return ''
+  return `/${segments.slice(0, -1).join('/')}`
+}
+
+const buildSiblingPath = (path: string, nextName: string) => {
+  const parentPath = getParentPath(path)
+  const trimmedName = String(nextName || '').trim().replaceAll('\\', '/')
+  if (!trimmedName || trimmedName.includes('/')) {
+    throw new Error('名称不能为空，且不能包含 / 或 \\')
+  }
+  return normalizeSandboxPath(parentPath ? `${parentPath}/${trimmedName}` : `/${trimmedName}`)
+}
+
+const getRowFilePaths = (row: TreeRow) => {
+  if (row.type === 'file') return [row.path]
+  const prefix = `${row.path}/`
+  return Object.keys(currentCanvas.value.files).filter((path) => path.startsWith(prefix))
+}
+
+const renameTreeRow = (row: TreeRow) => {
+  const [FormComponent, formActions] = useForm({
+    fields: [
+      {
+        name: 'name',
+        label: '名称',
+        type: 'text',
+        placeholder: row.type === 'directory' ? '例如 components' : '例如 index.html',
+        required: true
+      }
+    ],
+    initialData: {
+      name: row.name
+    },
+    onSubmit: (data) => {
+      try {
+        const nextBasePath = buildSiblingPath(row.path, String(data.name || ''))
+        if (nextBasePath === row.path) {
+          modal.remove()
+          return
+        }
+
+        const filePaths = getRowFilePaths(row)
+        if (filePaths.length === 0) {
+          throw new Error(row.type === 'directory' ? '当前目录下没有可重命名的文件' : '文件不存在')
+        }
+
+        const renamePlan = filePaths.map((sourcePath) => ({
+          sourcePath,
+          targetPath: row.type === 'directory'
+            ? normalizeSandboxPath(`${nextBasePath}${sourcePath.slice(row.path.length)}`)
+            : nextBasePath
+        }))
+
+        const occupiedPaths = new Set(Object.keys(currentCanvas.value.files))
+        const movingPaths = new Set(renamePlan.map((item) => item.sourcePath))
+        for (const item of renamePlan) {
+          if (occupiedPaths.has(item.targetPath) && !movingPaths.has(item.targetPath)) {
+            throw new Error(`目标已存在：${item.targetPath}`)
+          }
+        }
+
+        renamePlan.forEach(({ sourcePath, targetPath }) => {
+          canvasStore.applyOperation(
+            {
+              type: 'move',
+              filePath: sourcePath,
+              targetPath
+            },
+            currentChatId.value
+          )
+        })
+
+        message.success(row.type === 'directory' ? `已重命名目录为 ${nextBasePath}` : `已重命名文件为 ${nextBasePath}`)
+        modal.remove()
+      } catch (error) {
+        message.error((error as Error).message)
+      }
+    }
+  })
+
+  modal.confirm({
+    title: row.type === 'directory' ? '重命名目录' : '重命名文件',
+    content: FormComponent,
+    confirmText: '确定',
+    cancelText: '取消',
+    onOk: () => {
+      formActions.submit()
+    }
+  })
+}
+
+const deleteTreeRow = async (row: TreeRow) => {
+  const filePaths = getRowFilePaths(row)
+  if (filePaths.length === 0) {
+    message.warning(row.type === 'directory' ? '当前目录下没有可删除的文件' : '文件不存在')
+    return
+  }
+
+  const confirmed = await modal.confirm({
+    title: row.type === 'directory' ? '删除目录' : '删除文件',
+    content: row.type === 'directory'
+      ? `确定删除 ${row.path} 及其下 ${filePaths.length} 个文件吗？`
+      : `确定删除 ${row.path} 吗？`,
+    confirmProps: {
+      danger: true
+    },
+    confirmText: '删除',
+    cancelText: '取消'
+  })
+  if (!confirmed) return
+
+  try {
+    filePaths.forEach((filePath) => {
+      canvasStore.applyOperation(
+        {
+          type: 'delete',
+          filePath
+        },
+        currentChatId.value
+      )
+    })
+    message.success(row.type === 'directory' ? `已删除目录 ${row.path}` : `已删除文件 ${row.path}`)
+  } catch (error) {
+    message.error((error as Error).message)
+  }
+}
+
+const openTreeRowMenu = (event: MouseEvent, row: TreeRow) => {
+  if (row.type === 'file') {
+    activeFilePath.value = row.path
+  }
+
+  const options: MenuItem<TreeRow>[] = [
+    {
+      label: row.type === 'directory' ? '重命名目录' : '重命名',
+      icon: EditIcon,
+      onClick: (targetRow) => renameTreeRow(targetRow)
+    },
+    {
+      label: row.type === 'directory' ? '删除目录' : '删除',
+      icon: TrashIcon,
+      danger: true,
+      onClick: (targetRow) => {
+        void deleteTreeRow(targetRow)
+      }
+    }
+  ]
+
+  showContextMenu(event, options, row)
+}
+
 const downloadCurrentFile = () => {
   const file = activeFile.value
   if (!file) {
@@ -122,8 +329,21 @@ const downloadCurrentFile = () => {
 }
 
 const clearCanvas = () => {
-  canvasStore.clearCanvas(currentChatId.value)
-  previewLogs.value = []
+  modal.confirm({
+    title: '重置画布',
+    content: '确定要清空当前画布吗？此操作无法撤销',
+    confirmProps: {
+      danger: true
+    },
+    confirmText: '清空',
+    cancelText: '取消',
+    onOk: () => {
+      canvasStore.clearCanvas(currentChatId.value)
+      previewLogs.value = []
+      message.success('画布已清空')
+      modal.remove()
+    }
+  })
 }
 
 const createFile = () => {
@@ -232,62 +452,15 @@ const openSaveAppModal = () => {
 const deleteCurrentFile = async () => {
   const file = activeFile.value
   if (!file) return
-
-  const confirmed = await modal.confirm({
-    title: '删除文件',
-    content: `确定删除 ${file.path} 吗？`,
-    confirmProps: {
-      danger: true
-    },
-    confirmText: '删除',
-    cancelText: '取消'
+  await deleteTreeRow({
+    id: file.path,
+    name: file.path.split('/').pop() || file.path,
+    path: file.path,
+    type: 'file',
+    depth: 0,
+    hasChildren: false,
+    isExpanded: false
   })
-  if (!confirmed) return
-
-  try {
-    canvasStore.applyOperation(
-      {
-        type: 'delete',
-        filePath: file.path
-      },
-      currentChatId.value
-    )
-    message.success(`已删除文件 ${file.path}`)
-  } catch (error) {
-    message.error((error as Error).message)
-  }
-}
-
-const highlightedCode = computed(() => {
-  const content = activeFileContent.value || ''
-  const language = activeLanguage.value
-
-  if (!content) {
-    return `<code class="hljs language-${language}"></code>`
-  }
-
-  try {
-    if (language === 'text') {
-      throw new Error('plain text fallback')
-    }
-    return `<code class="hljs language-${language}">${toHtml(lowlight.highlight(language, content))}</code>`
-  } catch {
-    return `<code class="hljs language-${language}">${content
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')}</code>`
-  }
-})
-
-const codeEditorRef = useTemplateRef('codeEditorRef')
-const codeHighlightRef = useTemplateRef('codeHighlightRef')
-
-const syncCodeScroll = () => {
-  const editor = codeEditorRef.value
-  const highlight = codeHighlightRef.value
-  if (!editor || !highlight) return
-  highlight.scrollTop = editor.scrollTop
-  highlight.scrollLeft = editor.scrollLeft
 }
 
 const appendPreviewLog = (item: Omit<PreviewLogItem, 'id'>) => {
@@ -346,13 +519,6 @@ const openActionsMenu = (event: MouseEvent) => {
       onClick: () => openSaveAppModal()
     },
     {
-      label: '删除文件',
-      icon: TrashIcon,
-      danger: true,
-      disabled: !activeFile.value,
-      onClick: () => deleteCurrentFile()
-    },
-    {
       type: 'divider'
     },
     {
@@ -369,6 +535,45 @@ watch(currentChatId, () => {
   hideContextMenu()
 })
 
+watch(
+  [sandboxTreeNodes, activeFilePath],
+  ([nodes, currentActiveFilePath]) => {
+    const availableDirectoryPaths = new Set<string>()
+
+    const visit = (treeNodes: ReturnType<typeof buildSandboxTree>) => {
+      for (const node of treeNodes) {
+        if (node.type === 'directory') {
+          availableDirectoryPaths.add(node.path)
+          if (node.children?.length) {
+            visit(node.children)
+          }
+        }
+      }
+    }
+
+    visit(nodes)
+
+    const nextExpandedPaths = new Set(
+      expandedDirectoryPaths.value.filter((path) => availableDirectoryPaths.has(path))
+    )
+
+    nodes.forEach((node) => {
+      if (node.type === 'directory') {
+        nextExpandedPaths.add(node.path)
+      }
+    })
+
+    getAncestorDirectoryPaths(currentActiveFilePath).forEach((path) => {
+      if (availableDirectoryPaths.has(path)) {
+        nextExpandedPaths.add(path)
+      }
+    })
+
+    expandedDirectoryPaths.value = [...nextExpandedPaths]
+  },
+  { immediate: true }
+)
+
 watch(sandboxTreeWidth, (value) => {
   localStorage.setItem(SANDBOX_TREE_WIDTH_KEY, String(Math.round(value)))
 })
@@ -376,52 +581,45 @@ watch(sandboxTreeWidth, (value) => {
 
 <template>
   <div class="canvas-panel">
-    <div class="canvas-panel-header">
-      <div class="canvas-panel-left">
-        <div class="canvas-tabs">
-          <Tabs v-model="settingsStore.display.canvasEditorTab" :items="canvasTabs" size="sm" />
-        </div>
-      </div>
-      <div class="canvas-panel-actions">
-        <Button size="sm" variant="secondary" :disabled="!hasCanvasFiles" @click="openSaveAppModal">
-          <template #icon>
-            <BoxIcon />
-          </template>
-          保存应用
-        </Button>
-        <Button size="sm" variant="icon" title="Sandbox 操作" @click="openActionsMenu">
-          <template #icon>
-            <SettingsIcon />
-          </template>
-        </Button>
-      </div>
-    </div>
-
     <div class="sandbox-workspace">
-      <ResizeBox
-        v-model:width="sandboxTreeWidth"
-        v-model:is-collapsed="sandboxTreeCollapsed"
-        :min-size="140"
-        :max-size="360"
-        class="sandbox-sidebar-resize"
-      >
+      <ResizeBox v-model:width="sandboxTreeWidth" v-model:is-collapsed="sandboxTreeCollapsed" :min-size="140"
+        :max-size="360" class="sandbox-sidebar-resize">
         <aside class="sandbox-sidebar">
-          <div v-if="sandboxTreeRows.length === 0" class="sandbox-sidebar-empty">
-            还没有文件。你可以手动新建，或让 AI 通过 sandbox 工具创建。
+          <div class="sandbox-sidebar-header">
+            <div class="canvas-tabs">
+              <Tabs v-model="settingsStore.display.canvasEditorTab" :items="canvasTabs" size="sm" />
+            </div>
+            <div class="sandbox-sidebar-tools">
+              <button type="button" class="sandbox-sidebar-tool" title="更多操作" @click="openActionsMenu">
+                <SettingsIcon />
+              </button>
+            </div>
           </div>
-          <div v-else class="sandbox-tree">
-            <button
-              v-for="row in sandboxTreeRows"
-              :key="row.id"
-              type="button"
-              class="sandbox-tree-row"
-              :class="{ active: row.type === 'file' && row.path === activeFilePath, directory: row.type === 'directory' }"
-              :style="{ paddingLeft: `${12 + row.depth * 16}px` }"
-              @click="row.type === 'file' && (activeFilePath = row.path)"
-            >
-              <span class="sandbox-tree-label">{{ row.type === 'directory' ? `[DIR] ${row.name}` : row.name }}</span>
-            </button>
+          <div class="sandbox-explorer-group">
+            <div class="sandbox-explorer-group-header">
+              <span class="sandbox-explorer-group-title">SANDBOX</span>
+              <span class="sandbox-explorer-group-subtitle">{{ suggestedAppName }}</span>
+            </div>
+            <div class="sandbox-tree">
+              <button v-for="row in sandboxTreeRows" :key="row.id" type="button" class="sandbox-tree-row" :class="{
+                active: row.type === 'file' && row.path === activeFilePath,
+                directory: row.type === 'directory'
+              }" :style="{ paddingLeft: `${8 + row.depth * 14}px` }" @click="handleTreeRowClick(row)"
+                @contextmenu="openTreeRowMenu($event, row)">
+                <span class="sandbox-tree-chevron">
+                  {{ row.type === 'directory' && row.hasChildren ? (row.isExpanded ? '▾' : '▸') : '' }}
+                </span>
+                <span class="sandbox-tree-file-icon" :class="[`type-${row.type}`]">
+                  <span class="sandbox-tree-file-glyph"></span>
+                </span>
+                <span class="sandbox-tree-label">{{ row.name }}</span>
+                <span v-if="row.type === 'file'" class="sandbox-tree-badge">
+                  {{ getFileExtensionLabel(row.name) }}
+                </span>
+              </button>
+            </div>
           </div>
+
         </aside>
       </ResizeBox>
 
@@ -441,12 +639,8 @@ watch(sandboxTreeWidth, (value) => {
             </div>
             <div v-if="previewLogs.length === 0" class="sandbox-logs-empty">等待预览输出...</div>
             <div v-else class="sandbox-log-list">
-              <div
-                v-for="item in previewLogs"
-                :key="item.id"
-                class="sandbox-log-item"
-                :class="[`kind-${item.kind}`, item.level ? `level-${item.level}` : '']"
-              >
+              <div v-for="item in previewLogs" :key="item.id" class="sandbox-log-item"
+                :class="[`kind-${item.kind}`, item.level ? `level-${item.level}` : '']">
                 {{ item.text }}
               </div>
             </div>
@@ -461,16 +655,7 @@ watch(sandboxTreeWidth, (value) => {
                 <span class="canvas-code-lang">{{ activeLanguage }}</span>
               </div>
               <div class="canvas-code-editor">
-                <pre ref="codeHighlightRef" class="canvas-code-highlight" v-html="highlightedCode"></pre>
-                <textarea
-                  ref="codeEditorRef"
-                  v-model="activeFileContent"
-                  class="canvas-code-input"
-                  rows="20"
-                  spellcheck="false"
-                  placeholder="在这里编辑当前文件内容，AI 也可以通过 sandbox 工具读写这些文件。"
-                  @scroll="syncCodeScroll"
-                />
+                <SandboxCodeEditor v-model="activeFileContent" :path="activeFilePath" :language="activeLanguage" />
               </div>
             </div>
           </template>
@@ -493,11 +678,7 @@ watch(sandboxTreeWidth, (value) => {
 }
 
 .canvas-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 4px;
+  display: none;
 }
 
 .canvas-panel-left {
@@ -536,6 +717,19 @@ watch(sandboxTreeWidth, (value) => {
   width: fit-content;
 }
 
+.canvas-tabs :deep(.tabs-container) {
+  border-radius: 6px;
+  padding: 1px;
+  gap: 1px;
+}
+
+.canvas-tabs :deep(.tabs-sm .tab-item) {
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 1.4;
+  border-radius: 4px;
+}
+
 .sandbox-workspace {
   flex: 1;
   min-height: 0;
@@ -562,58 +756,244 @@ watch(sandboxTreeWidth, (value) => {
   width: 100%;
   height: 100%;
   min-height: 0;
-  background: transparent;
+  background: #252526;
   display: flex;
   flex-direction: column;
   padding-right: 8px;
   margin-right: 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .sandbox-sidebar-empty {
-  padding: 6px 8px;
+  padding: 10px 12px;
   color: var(--text-tertiary);
   font-size: 11px;
   line-height: 1.6;
+}
+
+.sandbox-sidebar-header {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.sandbox-sidebar-title-group {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.sandbox-sidebar-title {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.sandbox-sidebar-meta {
+  color: rgba(255, 255, 255, 0.36);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.sandbox-sidebar-tools {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.sandbox-sidebar-tool {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.62);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.sandbox-sidebar-tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sandbox-sidebar-tool:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.sandbox-sidebar-tool :deep(svg) {
+  width: 11px;
+  height: 11px;
+}
+
+.sandbox-explorer-group {
+  min-height: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.sandbox-explorer-group-header {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.sandbox-explorer-group-title {
+  font-weight: 700;
+}
+
+.sandbox-explorer-group-subtitle {
+  min-width: 0;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.34);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sandbox-tree {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 2px 0;
+  padding: 0 0 8px;
 }
 
 .sandbox-tree-row {
   width: 100%;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
+  color: #cccccc;
   text-align: left;
-  padding-top: 3px;
-  padding-bottom: 3px;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-right: 8px;
   cursor: pointer;
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1;
   border-radius: 0;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
 }
 
 .sandbox-tree-row.directory {
-  color: var(--text-tertiary);
-  cursor: default;
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .sandbox-tree-row.active {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-primary);
+  background: rgba(9, 71, 113, 0.52);
+  color: #ffffff;
+}
+
+.sandbox-tree-row:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.sandbox-tree-row.active:hover {
+  background: rgba(9, 71, 113, 0.68);
+}
+
+.sandbox-tree-chevron {
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.sandbox-tree-chevron :deep(svg) {
+  width: 12px;
+  height: 12px;
+}
+
+.sandbox-tree-file-icon {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.sandbox-tree-file-glyph {
+  display: block;
+  width: 12px;
+  height: 14px;
+  position: relative;
+  border-radius: 2px;
+}
+
+.sandbox-tree-file-icon.type-directory .sandbox-tree-file-glyph {
+  width: 13px;
+  height: 10px;
+  margin-top: 1px;
+  border-radius: 2px 2px 2px 2px;
+  background: #dcb67a;
+}
+
+.sandbox-tree-file-icon.type-directory .sandbox-tree-file-glyph::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -3px;
+  width: 7px;
+  height: 4px;
+  border-radius: 2px 2px 0 0;
+  background: #c89d58;
+}
+
+.sandbox-tree-file-icon.type-file .sandbox-tree-file-glyph {
+  background: linear-gradient(180deg, #89c7ff 0%, #5aa9ff 100%);
+  clip-path: polygon(0 0, 78% 0, 100% 22%, 100% 100%, 0 100%);
+}
+
+.sandbox-tree-file-icon.type-file .sandbox-tree-file-glyph::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.55);
+  clip-path: polygon(0 0, 100% 100%, 100% 0);
 }
 
 .sandbox-tree-label {
-  display: inline-block;
-  max-width: 100%;
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  vertical-align: middle;
+}
+
+.sandbox-tree-badge {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sandbox-tree-row.active .sandbox-tree-badge {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .canvas-preview,
@@ -704,7 +1084,7 @@ watch(sandboxTreeWidth, (value) => {
   word-break: break-word;
 }
 
-.sandbox-log-item + .sandbox-log-item {
+.sandbox-log-item+.sandbox-log-item {
   margin-top: 8px;
 }
 
@@ -755,13 +1135,6 @@ watch(sandboxTreeWidth, (value) => {
   text-transform: uppercase;
 }
 
-.canvas-code-input {
-  height: 100%;
-  font-family: Menlo, Monaco, "Courier New", monospace;
-  line-height: 1.6;
-  resize: none;
-}
-
 .canvas-code-editor-shell {
   flex: 1;
   min-height: 0;
@@ -771,107 +1144,9 @@ watch(sandboxTreeWidth, (value) => {
 }
 
 .canvas-code-editor {
-  position: relative;
   flex: 1;
   overflow: hidden;
   background: #1e1e1e;
   color: #d4d4d4;
-}
-
-.canvas-code-highlight,
-.canvas-code-input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  padding: 12px 14px;
-  font-size: 12px;
-  line-height: 1.55;
-  white-space: pre;
-  overflow: auto;
-}
-
-.canvas-code-highlight {
-  pointer-events: none;
-  z-index: 1;
-  color: #d4d4d4;
-}
-
-.canvas-code-input {
-  z-index: 2;
-  width: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: transparent;
-  caret-color: #d4d4d4;
-}
-
-.canvas-code-input::selection {
-  background: rgba(38, 79, 120, 0.85);
-}
-
-.canvas-code-input::placeholder {
-  color: var(--text-placeholder);
-}
-
-.canvas-code-highlight :deep(code),
-.canvas-code-highlight :deep(.hljs) {
-  display: block;
-  min-height: 100%;
-  background: transparent;
-  color: #d4d4d4;
-  font-family: inherit;
-}
-
-:global(.dark) .canvas-code-highlight :deep(.hljs) {
-  background: #1e1e1e;
-  color: #d4d4d4;
-}
-
-:global(.light) .canvas-code-highlight :deep(.hljs) {
-  background: #1e1e1e;
-  color: #d4d4d4;
-}
-
-:global(.light) .canvas-code-input {
-  caret-color: #d4d4d4;
-}
-
-:global(.light) .canvas-code-input::placeholder {
-  color: rgba(212, 212, 212, 0.45);
-}
-
-.canvas-code-highlight :deep(.hljs-selector-tag),
-.canvas-code-highlight :deep(.hljs-selector-class),
-.canvas-code-highlight :deep(.hljs-selector-id),
-.canvas-code-highlight :deep(.hljs-selector-pseudo) {
-  color: #d7ba7d;
-}
-
-.canvas-code-highlight :deep(.hljs-attribute),
-.canvas-code-highlight :deep(.hljs-name),
-.canvas-code-highlight :deep(.hljs-tag) {
-  color: #9cdcfe;
-}
-
-.canvas-code-highlight :deep(.hljs-string),
-.canvas-code-highlight :deep(.hljs-meta-string),
-.canvas-code-highlight :deep(.hljs-regexp) {
-  color: #ce9178;
-}
-
-.canvas-code-highlight :deep(.hljs-number),
-.canvas-code-highlight :deep(.hljs-literal) {
-  color: #b5cea8;
-}
-
-.canvas-code-highlight :deep(.hljs-keyword),
-.canvas-code-highlight :deep(.hljs-built_in) {
-  color: #569cd6;
-}
-
-.canvas-code-highlight :deep(.hljs-comment),
-.canvas-code-highlight :deep(.hljs-quote) {
-  color: #6a9955;
 }
 </style>

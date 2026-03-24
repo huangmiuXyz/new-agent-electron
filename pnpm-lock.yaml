@@ -455,6 +455,9 @@ importers:
       '@electron/remote':
         specifier: 'catalog:'
         version: 2.1.3(electron@40.1.0)
+      '@guolao/vue-monaco-editor':
+        specifier: ^1.6.0
+        version: 1.6.0(monaco-editor@0.55.1)(vue@3.5.27(typescript@5.9.3))
       '@incremark/core':
         specifier: 'catalog:'
         version: 0.3.10
@@ -587,6 +590,9 @@ importers:
       mime-types:
         specifier: 'catalog:'
         version: 3.0.2
+      monaco-editor:
+        specifier: ^0.55.1
+        version: 0.55.1
       nanoid:
         specifier: 'catalog:'
         version: 5.1.6
@@ -772,6 +778,31 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+
+  packages/qi-cli/example/ark-plugin:
+    dependencies:
+      '@agent-qi/types':
+        specifier: workspace:*
+        version: link:../../../types
+      '@ai-sdk/provider':
+        specifier: 'catalog:'
+        version: 3.0.8
+      '@ai-sdk/provider-utils':
+        specifier: 'catalog:'
+        version: 4.0.19(zod@4.3.6)
+      ai:
+        specifier: 'catalog:'
+        version: 6.0.116(zod@4.3.6)
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2)
 
   packages/qi-cli/example/civitai-plugin:
     dependencies:
@@ -1037,6 +1068,31 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.4.5
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2)
+
+  packages/qi-cli/example/skyreels-plugin:
+    dependencies:
+      '@agent-qi/types':
+        specifier: workspace:*
+        version: link:../../../types
+      '@ai-sdk/provider':
+        specifier: 'catalog:'
+        version: 3.0.8
+      '@ai-sdk/provider-utils':
+        specifier: 'catalog:'
+        version: 4.0.19(zod@4.3.6)
+      ai:
+        specifier: 'catalog:'
+        version: 6.0.116(zod@4.3.6)
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
         version: 5.9.3
       vite:
         specifier: ^6.0.0
@@ -1703,6 +1759,16 @@ packages:
     resolution: {integrity: sha512-gzqm46Al412v2kgALSPUxY08Y7PdxA/SY7jJlxd69TWdLqAyzyfTjxxEKYBP2ku0+kz4RhVw8OqkfWMjOtwAuQ==}
     engines: {node: '>=18.0.0'}
 
+  '@guolao/vue-monaco-editor@1.6.0':
+    resolution: {integrity: sha512-w2IiJ6eJGGeuIgCK6EKZOAfhHTTUB5aZwslzwGbZ5e89Hb4avx6++GkLTW8p84Sng/arFMjLPPxSBI56cFudyQ==}
+    peerDependencies:
+      '@vue/composition-api': ^1.7.2
+      monaco-editor: '>=0.43.0'
+      vue: ^2.6.14 || >=3.0.0
+    peerDependenciesMeta:
+      '@vue/composition-api':
+        optional: true
+
   '@hapi/bourne@3.0.0':
     resolution: {integrity: sha512-Waj1cwPXJDucOib4a3bAISsKJVb15MKi9IvmTI/7ssVEm6sywXGjVJDhl6/umt1pK1ZS7PacXU3A1PmFKHEZ2w==}
 
@@ -2052,6 +2118,9 @@ packages:
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
+
+  '@monaco-editor/loader@1.7.0':
+    resolution: {integrity: sha512-gIwR1HrJrrx+vfyOhYmCZ0/JcWqG5kbfG7+d3f/C1LXk2EvzAbHSg3MQ5lO2sMlo9izoAZ04shohfKLVT6crVA==}
 
   '@mozilla/readability@0.6.0':
     resolution: {integrity: sha512-juG5VWh4qAivzTAeMzvY9xs9HY5rAcr2E4I7tiSSCokRFi7XIZCAu92ZkSTsIj1OPceCifL3cpfteP3pDT9/QQ==}
@@ -2837,6 +2906,9 @@ packages:
 
   '@types/through@0.0.33':
     resolution: {integrity: sha512-HsJ+z3QuETzP3cswwtzt2vEIiHBk/dCcHGhbmG5X3ecnwFD/lPrMpliGXxSCg03L9AhrdwA4Oz/qfspkDW+xGQ==}
+
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
   '@types/unist@2.0.11':
     resolution: {integrity: sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA==}
@@ -3879,6 +3951,9 @@ packages:
     engines: {node: '>=8'}
     os: [darwin]
     hasBin: true
+
+  dompurify@3.2.7:
+    resolution: {integrity: sha512-WhL/YuveyGXJaerVlMYGWhvQswa7myDG17P7Vu65EWC05o8vfeNbvNf4d/BOvH99+ZW+LlQsc1GDKMa1vNK6dw==}
 
   dotenv-expand@11.0.7:
     resolution: {integrity: sha512-zIHwmZPRshsCdpMDyVsqGmgyP0yT8GAgXUnkdAoJisxvf33k7yO6OuoKmcTGuXPWSsm8Oh88nZicRLA9Y0rUeA==}
@@ -4928,6 +5003,11 @@ packages:
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
 
+  marked@14.0.0:
+    resolution: {integrity: sha512-uIj4+faQ+MgHgwUW1l2PsPglZLOLOT1uErt06dAPtx2kjteLAkbsd/0FiYg/MGS+i7ZKLb7w2WClxHkzOOuryQ==}
+    engines: {node: '>= 18'}
+    hasBin: true
+
   marked@17.0.1:
     resolution: {integrity: sha512-boeBdiS0ghpWcSwoNm/jJBwdpFaMnZWRzjA6SkUMYb40SVaN1x7mmfGKp0jvexGcx+7y2La5zRZsYFZI6Qpypg==}
     engines: {node: '>= 20'}
@@ -5224,6 +5304,9 @@ packages:
 
   mlly@1.8.0:
     resolution: {integrity: sha512-l8D9ODSRWLe2KHJSifWGwBqpTZXIXTeo8mlKjY+E2HAakaTeNpqAyBZ8GSqLzHgw4XmHmC8whvpjJNMbFZN7/g==}
+
+  monaco-editor@0.55.1:
+    resolution: {integrity: sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A==}
 
   mrmime@2.0.1:
     resolution: {integrity: sha512-Y3wQdFg2Va6etvQ5I82yUhGdsKrcYox6p7FfL1LbK2J4V01F9TGlepTIhnK24t7koZibmg82KGglhA1XK5IsLQ==}
@@ -6179,6 +6262,9 @@ packages:
     resolution: {integrity: sha512-jH9EhtKIjuXZ2cWxmXS8ZP80XyC3iasQxMDV8jzhNJpfDb7VbQLVW4Wvsxz9QZvzV+G4YoSfBUVKDOyxLzi/sg==}
     engines: {node: '>= 6'}
 
+  state-local@1.0.7:
+    resolution: {integrity: sha512-HTEHMNieakEnoe33shBYcZ7NX83ACUjCu8c40iOGEZsngj9zRnkqS9j1pqQPXwobB0ZcVTk27REb7COQ0UR59w==}
+
   statuses@1.5.0:
     resolution: {integrity: sha512-OpZ3zP+jT1PI7I8nemJX4AKmAX070ZkYPVWV/AaKTJl+tXCTGyVdC1a4SL8RUQYEwk/f34ZX8UTykN68FwrqAA==}
     engines: {node: '>= 0.6'}
@@ -6686,6 +6772,17 @@ packages:
 
   vscode-uri@3.1.0:
     resolution: {integrity: sha512-/BpdSx+yCQGnCvecbyXdxHDkuk55/G3xwnC0GqY4gmQ3j+A+g8kzzgB4Nk/SINjqn6+waqw3EgbVF2QKExkRxQ==}
+
+  vue-demi@0.14.10:
+    resolution: {integrity: sha512-nMZBOwuzabUO0nLgIcc6rycZEebF6eeUfaiQx9+WSk8e29IbLvPU9feI6tqW4kTo3hvoYAJkMh8n8D0fuISphg==}
+    engines: {node: '>=12'}
+    hasBin: true
+    peerDependencies:
+      '@vue/composition-api': ^1.0.0-rc.1
+      vue: ^3.0.0-0 || ^2.6.0
+    peerDependenciesMeta:
+      '@vue/composition-api':
+        optional: true
 
   vue-eslint-parser@10.2.0:
     resolution: {integrity: sha512-CydUvFOQKD928UzZhTp4pr2vWz1L+H99t7Pkln2QSPdvmURT0MoC4wUccfCnuEaihNsu9aYYyk+bep8rlfkUXw==}
@@ -7580,6 +7677,13 @@ snapshots:
       - '@types/node'
       - utf-8-validate
 
+  '@guolao/vue-monaco-editor@1.6.0(monaco-editor@0.55.1)(vue@3.5.27(typescript@5.9.3))':
+    dependencies:
+      '@monaco-editor/loader': 1.7.0
+      monaco-editor: 0.55.1
+      vue: 3.5.27(typescript@5.9.3)
+      vue-demi: 0.14.10(vue@3.5.27(typescript@5.9.3))
+
   '@hapi/bourne@3.0.0': {}
 
   '@hono/node-server@1.19.9(hono@4.11.1)':
@@ -8036,6 +8140,10 @@ snapshots:
     transitivePeerDependencies:
       - hono
       - supports-color
+
+  '@monaco-editor/loader@1.7.0':
+    dependencies:
+      state-local: 1.0.7
 
   '@mozilla/readability@0.6.0': {}
 
@@ -8777,6 +8885,9 @@ snapshots:
   '@types/through@0.0.33':
     dependencies:
       '@types/node': 25.2.0
+
+  '@types/trusted-types@2.0.7':
+    optional: true
 
   '@types/unist@2.0.11': {}
 
@@ -10052,6 +10163,10 @@ snapshots:
       verror: 1.10.1
     optional: true
 
+  dompurify@3.2.7:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
+
   dotenv-expand@11.0.7:
     dependencies:
       dotenv: 16.6.1
@@ -11235,6 +11350,8 @@ snapshots:
 
   markdown-table@3.0.4: {}
 
+  marked@14.0.0: {}
+
   marked@17.0.1: {}
 
   matcher@3.0.0:
@@ -11723,6 +11840,11 @@ snapshots:
       pathe: 2.0.3
       pkg-types: 1.3.1
       ufo: 1.6.3
+
+  monaco-editor@0.55.1:
+    dependencies:
+      dompurify: 3.2.7
+      marked: 14.0.0
 
   mrmime@2.0.1: {}
 
@@ -12801,6 +12923,8 @@ snapshots:
 
   stat-mode@1.0.0: {}
 
+  state-local@1.0.7: {}
+
   statuses@1.5.0: {}
 
   statuses@2.0.2: {}
@@ -13327,6 +13451,10 @@ snapshots:
       uuid: 9.0.0
 
   vscode-uri@3.1.0: {}
+
+  vue-demi@0.14.10(vue@3.5.27(typescript@5.9.3)):
+    dependencies:
+      vue: 3.5.27(typescript@5.9.3)
 
   vue-eslint-parser@10.2.0(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
