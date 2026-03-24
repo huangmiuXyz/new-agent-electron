@@ -76,14 +76,17 @@ export const useChatsStores = defineStore(
 
       const anchorMessage = messages[anchorIndex]
       const existingBranches = cloneMessageBranches(getMessageBranches(anchorMessage))
+      const trailingMessages = cloneMessages(messages.slice(anchorIndex + 1))
       const branches =
         existingBranches.length > 0
           ? existingBranches
-          : [{
-            id: nanoid(),
-            createdAt: Date.now(),
-            messages: cloneMessages(messages.slice(anchorIndex + 1))
-          }]
+          : hasVisibleMessageContent(trailingMessages)
+            ? [{
+              id: nanoid(),
+              createdAt: Date.now(),
+              messages: trailingMessages
+            }]
+            : []
       const selectedBranchId =
         anchorMessage.metadata?.activeMessageBranchId &&
         branches.some((branch) => branch.id === anchorMessage.metadata?.activeMessageBranchId)

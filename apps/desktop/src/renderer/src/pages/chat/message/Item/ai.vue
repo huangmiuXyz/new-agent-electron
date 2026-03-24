@@ -82,30 +82,14 @@ const playMessageAudio = () => {
           </div>
         </div>
 
-        <div style="display: flex; align-items: center;justify-content: space-between;flex: 1">
-          <div class="msg-meta-content" :class="{ isMobile }">
-            <span class="msg-name">{{ message.metadata?.model }}</span>
+        <div class="msg-meta-content" :class="{ isMobile }">
+          <span class="msg-name">{{ message.metadata?.model }}</span>
 
-            <div v-if="flatUsage.totalTokens || flatUsage.inputTokens || flatUsage.outputTokens" class="msg-usage">
-              <span v-if="flatUsage.inputTokens || flatUsage.outputTokens">Tokens: {{
-                flatUsage.totalTokens }}</span>
-              <span v-if="flatUsage.inputTokens">↑{{ flatUsage.inputTokens }}</span>
-              <span v-if="flatUsage.outputTokens">↓{{ flatUsage.outputTokens }}</span>
-            </div>
-          </div>
-          <div style="display: flex; gap: 8px">
-            <Button v-if="hasAudioChunks" size="sm" @click="playMessageAudio" variant="icon" type="button"
-              :class="{ 'is-active': isCurrentPlaying }">
-              <template #icon>
-                <VolumeMedium :style="{ color: isCurrentPlaying ? 'var(--accent-color)' : 'inherit' }" />
-              </template>
-            </Button>
-            <Button v-if="message.metadata?.loading && !message.metadata?.error && message.metadata.stop" size="sm"
-              @click="message.metadata?.stop" variant="icon" type="button">
-              <template #icon>
-                <Stop style="color: red" />
-              </template>
-            </Button>
+          <div v-if="flatUsage.totalTokens || flatUsage.inputTokens || flatUsage.outputTokens" class="msg-usage">
+            <span v-if="flatUsage.inputTokens || flatUsage.outputTokens">Tokens: {{
+              flatUsage.totalTokens }}</span>
+            <span v-if="flatUsage.inputTokens">↑{{ flatUsage.inputTokens }}</span>
+            <span v-if="flatUsage.outputTokens">↓{{ flatUsage.outputTokens }}</span>
           </div>
         </div>
       </div>
@@ -124,6 +108,21 @@ const playMessageAudio = () => {
         </div>
       </div>
       <ChatMessageItemContent markdown :message="message" />
+
+      <div v-if="hasAudioChunks || (message.metadata?.loading && !message.metadata?.error && message.metadata.stop)" class="msg-actions">
+        <Button v-if="hasAudioChunks" size="sm" @click="playMessageAudio" variant="icon" type="button"
+          :class="{ 'is-active': isCurrentPlaying }">
+          <template #icon>
+            <VolumeMedium :style="{ color: isCurrentPlaying ? 'var(--accent-color)' : 'inherit' }" />
+          </template>
+        </Button>
+        <Button v-if="message.metadata?.loading && !message.metadata?.error && message.metadata.stop" size="sm"
+          @click="message.metadata?.stop" variant="icon" type="button">
+          <template #icon>
+            <Stop style="color: red" />
+          </template>
+        </Button>
+      </div>
 
       <MessageTranslation v-if="message.metadata?.translations || message.metadata?.translationLoading"
         :translations="message.metadata.translations" :translationLoading="message.metadata.translationLoading"
@@ -208,6 +207,12 @@ const playMessageAudio = () => {
 .msg-meta.isMobile {
   flex-direction: row;
   gap: 8px;
+}
+
+.msg-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .msg-name {
