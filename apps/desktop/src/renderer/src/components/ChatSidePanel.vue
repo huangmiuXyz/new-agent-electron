@@ -30,7 +30,6 @@ const panelTabs = computed(() => ([
   <div class="chat-side-panel" :class="{ collapsed: props.collapsed }">
     <div class="chat-side-panel-header">
       <Tabs v-model="settingsStore.display.assistantSidebarTab" :items="panelTabs" size="sm" />
-      <Button size="sm" variant="secondary" @click="emit('close')">收起</Button>
     </div>
 
     <div class="chat-side-panel-body">
