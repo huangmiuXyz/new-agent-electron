@@ -1,12 +1,7 @@
 import { z } from 'zod'
 import { createLoadSkillTool, type SkillMetadata } from '../../skillsService'
+import { getBuiltinToolGroupEntries } from '../grouped-tools'
 import { getBuiltinTools } from '..'
-import { getCodexBuiltinTools } from './codex-tools'
-import { getComputerBuiltinTools } from './computer-tools'
-import { getGeneralBuiltinTools } from './general-tools'
-import { getKnowledgeBuiltinTools } from './knowledge-tools'
-import { getMediaBuiltinTools } from './media-tools'
-import { getNetworkBuiltinTools } from './network-tools'
 
 const MAX_RESOURCE_LINES = 40
 
@@ -26,18 +21,10 @@ const formatResourceList = (
 }
 
 const buildBuiltinToolReference = (
-  skills: SkillMetadata[],
+  _skills: SkillMetadata[],
   agentToolsWithoutCreator: Partial<Tools>
 ): string => {
-  const toolGroups: Array<{ group: string; tools: Partial<Tools> }> = [
-    { group: '通用工具', tools: getGeneralBuiltinTools() },
-    { group: '电脑操作', tools: getComputerBuiltinTools() },
-    { group: 'Agent工具', tools: agentToolsWithoutCreator },
-    { group: '网络工具', tools: getNetworkBuiltinTools() },
-    { group: '知识库', tools: getKnowledgeBuiltinTools() },
-    { group: '多媒体工具', tools: getMediaBuiltinTools() },
-    { group: 'Codex工具', tools: getCodexBuiltinTools() }
-  ]
+  const toolGroups = getBuiltinToolGroupEntries({ agentTools: agentToolsWithoutCreator })
 
   const lines = toolGroups.flatMap(({ group, tools }) =>
     Object.entries(tools).map(([toolKey, tool]) => {

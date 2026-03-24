@@ -330,7 +330,7 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
   }
 
   const reset = () => {
-    fields.value.forEach(initializeField)
+    fields.value.forEach((field) => initializeField(field))
     errors.value = {}
     config.onReset?.()
   }

@@ -1,11 +1,5 @@
 import { discoverSkills, type SkillMetadata } from '../skillsService'
-import { getAgentBuiltinTools } from './tools/agent-tools'
-import { getComputerBuiltinTools } from './tools/computer-tools'
-import { getCodexBuiltinTools } from './tools/codex-tools'
-import { getGeneralBuiltinTools } from './tools/general-tools'
-import { getMediaBuiltinTools } from './tools/media-tools'
-import { getNetworkBuiltinTools } from './tools/network-tools'
-import { getKnowledgeBuiltinTools } from './tools/knowledge-tools'
+import { getBuiltinToolGroupEntries } from './grouped-tools'
 
 type BuiltinToolGroups = Record<string, string[]>
 
@@ -16,16 +10,14 @@ export const getBuiltinToolGroups = (options?: {
   const { pluginLoader } = usePlugins()
   const manager = pluginLoader.getPluginManager()
   const skills = options?.skills ?? discoverSkills()
+  const groupEntries = getBuiltinToolGroupEntries({
+    knowledgeBaseIds: options?.knowledgeBaseIds,
+    skills
+  })
 
-  const groups: BuiltinToolGroups = {
-    通用工具: Object.keys(getGeneralBuiltinTools()),
-    电脑操作: Object.keys(getComputerBuiltinTools()),
-    Agent工具: Object.keys(getAgentBuiltinTools(skills)),
-    网络工具: Object.keys(getNetworkBuiltinTools()),
-    知识库: Object.keys(getKnowledgeBuiltinTools({ knowledgeBaseIds: options?.knowledgeBaseIds })),
-    多媒体工具: Object.keys(getMediaBuiltinTools()),
-    Codex工具: Object.keys(getCodexBuiltinTools())
-  }
+  const groups: BuiltinToolGroups = Object.fromEntries(
+    groupEntries.map(({ group, tools }) => [group, Object.keys(tools)])
+  )
 
   if (manager?.getBuiltinTools) {
     const pluginTools = manager.getBuiltinTools()
@@ -47,13 +39,13 @@ export const getBuiltinTools = (options?: {
   const skills = options?.skills ?? discoverSkills()
 
   return {
-    ...getGeneralBuiltinTools(),
-    ...getComputerBuiltinTools(),
-    ...getAgentBuiltinTools(skills),
-    ...getNetworkBuiltinTools(),
-    ...getKnowledgeBuiltinTools({ knowledgeBaseIds: options?.knowledgeBaseIds }),
-    ...getMediaBuiltinTools(),
-    ...getCodexBuiltinTools(),
+    ...Object.assign(
+      {},
+      ...getBuiltinToolGroupEntries({
+        knowledgeBaseIds: options?.knowledgeBaseIds,
+        skills
+      }).map(({ tools }) => tools)
+    ),
     ...(manager?.getBuiltinTools ? Object.fromEntries(manager.getBuiltinTools()) : {})
   }
 }

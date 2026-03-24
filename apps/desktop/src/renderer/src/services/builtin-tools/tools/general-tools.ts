@@ -9,34 +9,6 @@ const getAgentByChat = (chatId?: string) => {
   return agentStore.getAgentById(agentId) || null
 }
 
-const resolvePath = (rawPath: string, chatId?: string): string => {
-  const baseDir = getAgentByChat(chatId)?.workPath
-  if (!baseDir) {
-    throw new Error('未设置 workPath，已禁止回退路径解析')
-  }
-  const normalizedBaseDir = window.api.path.resolve(window.api.path.normalize(baseDir))
-  const inputPath = rawPath.trim()
-  const resolvedPath = window.api.path.isAbsolute(inputPath)
-    ? window.api.path.resolve(window.api.path.normalize(inputPath))
-    : window.api.path.resolve(normalizedBaseDir, inputPath)
-
-  const relativePath = window.api.path.relative(normalizedBaseDir, resolvedPath)
-  const isInsideBaseDir =
-    relativePath === '' || (!relativePath.startsWith('..') && !window.api.path.isAbsolute(relativePath))
-
-  if (!isInsideBaseDir) {
-    throw new Error(`路径越界：仅允许访问 workPath 内文件 (${normalizedBaseDir})`)
-  }
-
-  return resolvedPath
-}
-
-const toDisplayPath = (inputPath: string): string => inputPath.replaceAll('\\', '/')
-const toDisplayRelativePath = (inputPath: string): string => {
-  if (!inputPath) return '.'
-  return toDisplayPath(inputPath)
-}
-
 const parallelToolUseSchema = z.object({
   recipient_name: z
     .string()
