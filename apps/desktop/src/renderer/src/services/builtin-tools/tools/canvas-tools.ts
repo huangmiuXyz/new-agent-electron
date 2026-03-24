@@ -39,17 +39,20 @@ const readCanvasWorkspace = (workspaceDir: string) => {
 
     for (const entry of entries) {
       const fullPath = window.api.path.join(currentDir, entry.name)
+      const stat = window.api.fs.statSync(fullPath)
+      const entryType = stat.mode & 0o170000
+      const isDirectory = entryType === 0o040000
+      const isFile = entryType === 0o100000
 
-      if (entry.isDirectory()) {
+      if (isDirectory) {
         walk(fullPath)
         continue
       }
 
-      if (!entry.isFile()) continue
+      if (!isFile) continue
 
       const relativePath = window.api.path.relative(workspaceDir, fullPath).replaceAll('\\', '/')
       const sandboxPath = normalizeSandboxPath(relativePath)
-      const stat = window.api.fs.statSync(fullPath)
       const content = window.api.fs.readFileSync(fullPath, 'utf-8')
 
       fileEntries[sandboxPath] = {
