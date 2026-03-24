@@ -1,5 +1,111 @@
 import { z } from 'zod'
 import { createLoadSkillTool, type SkillMetadata } from '../../skillsService'
+import { getBuiltinToolGroups, getBuiltinTools } from '..'
+
+const MAX_RESOURCE_LINES = 40
+
+const formatResourceList = (
+  lines: string[],
+  emptyText: string,
+  options?: { maxLines?: number }
+): string => {
+  if (lines.length === 0) return emptyText
+  const maxLines = options?.maxLines ?? MAX_RESOURCE_LINES
+  const visibleLines = lines.slice(0, maxLines)
+  const overflowCount = lines.length - visibleLines.length
+  return [
+    ...visibleLines,
+    ...(overflowCount > 0 ? [`- 其余 ${overflowCount} 项请以当前设置页配置为准`] : [])
+  ].join('\n')
+}
+
+const buildBuiltinToolReference = (skills: SkillMetadata[]): string => {
+  const tools = getBuiltinTools({ skills })
+  const groups = getBuiltinToolGroups({ skills })
+  const lines = Object.entries(groups).flatMap(([group, toolKeys]) =>
+    toolKeys
+      .filter((toolKey) => toolKey in tools)
+      .map((toolKey) => {
+        const tool = tools[toolKey]
+        const title = tool?.title || toolKey
+        const description = tool?.description || '无描述'
+        return `- ${toolKey} | ${title} | 分组: ${group} | ${description}`
+      })
+  )
+
+  return formatResourceList(lines, '当前没有可用内置工具。')
+}
+
+const buildMcpServerReference = (): {
+  serverLines: string[]
+  toolLines: string[]
+} => {
+  const settingsStore = useSettingsStore()
+  const serverEntries = Object.entries(settingsStore.mcpServers || {})
+
+  const serverLines = serverEntries.map(([serverName, server]) => {
+    const serverLike = server as typeof server & { command?: string; url?: string }
+    const transport =
+      server.transport || (serverLike.command ? 'stdio' : serverLike.url ? 'http/sse' : 'unknown')
+    const description = server.description || serverLike.command || serverLike.url || '无描述'
+    const toolCount =
+      server.tools && typeof server.tools === 'object' ? Object.keys(server.tools).length : 0
+    return `- ${serverName} | transport: ${transport} | tools: ${toolCount} | ${description}`
+  })
+
+  const toolLines = serverEntries.flatMap(([serverName, server]) => {
+    if (!server.tools || typeof server.tools !== 'object') return []
+    return Object.entries(server.tools).map(([toolName, tool]) => {
+      const title = tool?.title || toolName
+      const description = tool?.description || '无描述'
+      return `- ${serverName}.${toolName} | ${title} | ${description}`
+    })
+  })
+
+  return { serverLines, toolLines }
+}
+
+const buildKnowledgeBaseReference = (): string => {
+  const knowledgeStore = useKnowledgeStore()
+  const lines = (knowledgeStore.knowledgeBases || []).map((knowledgeBase) => {
+    const description = knowledgeBase.description?.trim() || '无描述'
+    return `- ${knowledgeBase.id} | ${knowledgeBase.name} | ${description}`
+  })
+
+  return formatResourceList(lines, '当前没有可选知识库。')
+}
+
+const buildSkillReference = (skills: SkillMetadata[]): string => {
+  const lines = skills.map((skill) => `- ${skill.name} | ${skill.description} | ${skill.path}`)
+  return formatResourceList(lines, '当前没有可选技能。')
+}
+
+const buildAgentCreatorDescription = (skills: SkillMetadata[]): string => {
+  const { serverLines, toolLines } = buildMcpServerReference()
+
+  return [
+    '创建一个新的智能体，并可直接从当前系统配置中选择内置工具、MCP 服务器、MCP 工具、技能和知识库。',
+    '规则：',
+    '- `tools` 只能填写已选 `mcpServers` 对应的工具，格式为 `server.tool`。',
+    '- `skills` 填要启用的技能名；未传表示保持当前目录下技能默认全部启用。',
+    '- `knowledgeBaseIds` 为空时建议同时关闭 `ragEnabled`。',
+    '',
+    '当前可选内置工具：',
+    buildBuiltinToolReference(skills),
+    '',
+    '当前可选 MCP 服务器：',
+    formatResourceList(serverLines, '当前没有已配置的 MCP 服务器。'),
+    '',
+    '当前可选 MCP 工具：',
+    formatResourceList(toolLines, '当前所配置的 MCP 服务器还没有加载出工具。'),
+    '',
+    '当前可选技能：',
+    buildSkillReference(skills),
+    '',
+    '当前可选知识库：',
+    buildKnowledgeBaseReference()
+  ].join('\n')
+}
 
 const createAgentCommunicateTool = (): Tool => ({
   title: '智能体通信',
@@ -11,7 +117,11 @@ const createAgentCommunicateTool = (): Tool => ({
       .optional()
       .describe('目标子智能体名称。子智能体可不传（默认发给主智能体）；主智能体回信时建议提供'),
     isFinal: z.boolean().optional().default(false).describe('是否为最终结论'),
-    success: z.boolean().optional().default(true).describe('最终结论是否成功（isFinal=true 时生效）'),
+    success: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe('最终结论是否成功（isFinal=true 时生效）'),
     error: z.string().optional().describe('失败原因（isFinal=true 且 success=false 时建议填写）')
   }),
   execute: async (args: unknown, options: { chatId: string }) => {
@@ -43,7 +153,11 @@ const createAgentCommunicateTool = (): Tool => ({
     } else {
       const childChats = chatsStore.getChildChats(senderChat.id)
       if (childChats.length === 0) {
-        return { toolResult: { content: [{ type: 'text', text: '通信失败：当前主会话没有可通信的子智能体。' }] } }
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: '通信失败：当前主会话没有可通信的子智能体。' }]
+          }
+        }
       }
 
       if (!targetAgentName) {
@@ -73,7 +187,9 @@ const createAgentCommunicateTool = (): Tool => ({
       if (candidates.length === 0) {
         return {
           toolResult: {
-            content: [{ type: 'text', text: `通信失败：未找到名称为「${targetAgentName}」的子智能体会话。` }]
+            content: [
+              { type: 'text', text: `通信失败：未找到名称为「${targetAgentName}」的子智能体会话。` }
+            ]
           }
         }
       }
@@ -93,7 +209,9 @@ const createAgentCommunicateTool = (): Tool => ({
 
     const targetChat = chatsStore.getChatById(targetChatId)
     if (!targetChat) {
-      return { toolResult: { content: [{ type: 'text', text: '通信失败：目标智能体会话不存在。' }] } }
+      return {
+        toolResult: { content: [{ type: 'text', text: '通信失败：目标智能体会话不存在。' }] }
+      }
     }
 
     if (!isSubSender && targetChat.parentChatId !== senderChat.id) {
@@ -186,14 +304,18 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
       }
 
       const requestedAgentName = String(params.agentName || '').trim()
-      const availableAgents = agentStore.allAgents.filter((agent) => agent.id !== parentChat.agentId)
+      const availableAgents = agentStore.allAgents.filter(
+        (agent) => agent.id !== parentChat.agentId
+      )
       const targetAgent = requestedAgentName
         ? availableAgents.find((agent) => agent.name === requestedAgentName)
         : availableAgents[0]
       if (!targetAgent) {
         return {
           toolResult: {
-            content: [{ type: 'text', text: `分派失败：未找到名称为「${requestedAgentName}」的子智能体。` }]
+            content: [
+              { type: 'text', text: `分派失败：未找到名称为「${requestedAgentName}」的子智能体。` }
+            ]
           }
         }
       }
@@ -217,13 +339,15 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
         `成功请设置 success=true 并在 message 写最终结论；失败请设置 success=false 并填写 error。`
 
       setTimeout(() => {
-        useChat(subChatId).sendMessages(childPrompt).catch((error) => {
-          chatsStore.updateSubTask(subChatId, {
-            status: 'failed',
-            completedAt: Date.now(),
-            error: (error as Error).message
+        useChat(subChatId)
+          .sendMessages(childPrompt)
+          .catch((error) => {
+            chatsStore.updateSubTask(subChatId, {
+              status: 'failed',
+              completedAt: Date.now(),
+              error: (error as Error).message
+            })
           })
-        })
       }, 0)
 
       return {
@@ -337,15 +461,97 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
     }
   },
   agentCreator: {
-    description: '创建一个新的智能体，可以配置名称、描述、系统提示词、MCP服务器、工具等',
+    description: buildAgentCreatorDescription(skills),
     inputSchema: z.object({
-      name: z.string().describe('智能体名称，必须是唯一的'),
-      description: z.string().optional().describe('智能体的功能描述'),
-      systemPrompt: z.string().describe('智能体的系统提示词，定义其行为和角色')
+      name: z.string().describe('智能体名称，必须唯一。'),
+      description: z.string().optional().describe('智能体的功能描述。'),
+      systemPrompt: z.string().describe('智能体的系统提示词，定义其行为和角色。'),
+      mcpServers: z
+        .array(z.string())
+        .optional()
+        .describe(
+          [
+            '要启用的 MCP 服务器名称列表。',
+            '可选值请严格从下列列表中选择：',
+            formatResourceList(
+              buildMcpServerReference().serverLines,
+              '当前没有已配置的 MCP 服务器。'
+            )
+          ].join('\n')
+        ),
+      tools: z
+        .array(z.string())
+        .optional()
+        .describe(
+          [
+            '要启用的 MCP 工具列表，格式必须为 `server.tool`，且 server 必须已包含在 mcpServers 中。',
+            '可选值请严格从下列列表中选择：',
+            formatResourceList(
+              buildMcpServerReference().toolLines,
+              '当前所配置的 MCP 服务器还没有加载出工具。'
+            )
+          ].join('\n')
+        ),
+      builtinTools: z
+        .array(z.string())
+        .optional()
+        .describe(
+          [
+            '要启用的内置工具名称列表。',
+            '可选值请严格从下列列表中选择：',
+            buildBuiltinToolReference(skills)
+          ].join('\n')
+        ),
+      builtinToolsRequireApproval: z
+        .array(z.string())
+        .optional()
+        .describe('需要在执行前手动批准的内置工具名称列表，必须是 builtinTools 的子集。'),
+      knowledgeBaseIds: z
+        .array(z.string())
+        .optional()
+        .describe(
+          [
+            '要关联的知识库 ID 列表。',
+            '可选值请严格从下列列表中选择：',
+            buildKnowledgeBaseReference()
+          ].join('\n')
+        ),
+      ragEnabled: z
+        .boolean()
+        .optional()
+        .describe('是否启用 RAG。只有在 knowledgeBaseIds 非空时才有意义。'),
+      skills: z
+        .array(z.string())
+        .optional()
+        .describe(
+          [
+            '要启用的技能名称列表。未传表示保持当前技能目录中的技能默认全部启用；传入后仅启用所列技能。',
+            '可选值请严格从下列列表中选择：',
+            buildSkillReference(skills)
+          ].join('\n')
+        ),
+      skillDirectory: z
+        .string()
+        .optional()
+        .describe('技能目录路径。未传时使用当前默认技能目录配置。'),
+      icon: z.string().optional().describe('智能体图标或头像标识，可选。')
     }),
     title: '智能体创建器',
     execute: async (args: unknown) => {
-      const params = args as Record<string, any>
+      const params = (args || {}) as {
+        name?: string
+        description?: string
+        systemPrompt?: string
+        mcpServers?: unknown[]
+        tools?: unknown[]
+        builtinTools?: unknown[]
+        builtinToolsRequireApproval?: unknown[]
+        knowledgeBaseIds?: unknown[]
+        ragEnabled?: boolean
+        skills?: unknown[]
+        skillDirectory?: string
+        icon?: string
+      }
       const {
         name,
         description,
@@ -353,6 +559,11 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
         mcpServers = [],
         tools = [],
         builtinTools = [],
+        builtinToolsRequireApproval = [],
+        knowledgeBaseIds = [],
+        ragEnabled = false,
+        skills: enabledSkills,
+        skillDirectory,
         icon
       } = params
       if (!name) throw new Error('智能体名称不能为空')
@@ -360,25 +571,111 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
 
       try {
         const agentStore = useAgentStore()
+        const settingsStore = useSettingsStore()
+        const knowledgeStore = useKnowledgeStore()
         const currentAgents = agentStore.agents || []
         if (currentAgents.some((agent) => agent.name === name)) {
           throw new Error(`智能体名称"${name}"已存在，请使用不同的名称`)
         }
 
-        const now = Date.now()
+        const selectedMcpServers = Array.isArray(mcpServers) ? mcpServers.map(String) : []
+        const selectedMcpTools = Array.isArray(tools) ? tools.map(String) : []
+        const selectedBuiltinTools = Array.isArray(builtinTools) ? builtinTools.map(String) : []
+        const approvalBuiltinTools = Array.isArray(builtinToolsRequireApproval)
+          ? builtinToolsRequireApproval.map(String)
+          : []
+        const selectedKnowledgeBaseIds = Array.isArray(knowledgeBaseIds)
+          ? knowledgeBaseIds.map(String)
+          : []
+        const selectedEnabledSkills = Array.isArray(enabledSkills)
+          ? enabledSkills.map(String)
+          : undefined
+
+        const availableBuiltinTools = new Set(Object.keys(getBuiltinTools({ skills })))
+        const availableMcpServers = new Set(Object.keys(settingsStore.mcpServers || {}))
+        const availableKnowledgeBases = new Set(
+          (knowledgeStore.knowledgeBases || []).map((knowledgeBase) => knowledgeBase.id)
+        )
+        const availableSkills = new Set(skills.map((skill) => skill.name))
+
+        const invalidMcpServers = selectedMcpServers.filter(
+          (serverName) => !availableMcpServers.has(serverName)
+        )
+        if (invalidMcpServers.length > 0) {
+          throw new Error(`以下 MCP 服务器不存在：${invalidMcpServers.join('、')}`)
+        }
+
+        const invalidBuiltinTools = selectedBuiltinTools.filter(
+          (toolName) => !availableBuiltinTools.has(toolName)
+        )
+        if (invalidBuiltinTools.length > 0) {
+          throw new Error(`以下内置工具不存在：${invalidBuiltinTools.join('、')}`)
+        }
+
+        const invalidApprovalTools = approvalBuiltinTools.filter(
+          (toolName) => !selectedBuiltinTools.includes(toolName)
+        )
+        if (invalidApprovalTools.length > 0) {
+          throw new Error(
+            `以下需批准内置工具未在 builtinTools 中启用：${invalidApprovalTools.join('、')}`
+          )
+        }
+
+        const invalidKnowledgeBases = selectedKnowledgeBaseIds.filter(
+          (knowledgeBaseId) => !availableKnowledgeBases.has(knowledgeBaseId)
+        )
+        if (invalidKnowledgeBases.length > 0) {
+          throw new Error(`以下知识库不存在：${invalidKnowledgeBases.join('、')}`)
+        }
+
+        const invalidSkills = (selectedEnabledSkills || []).filter(
+          (skillName) => !availableSkills.has(skillName)
+        )
+        if (invalidSkills.length > 0) {
+          throw new Error(`以下技能不存在：${invalidSkills.join('、')}`)
+        }
+
+        const invalidMcpTools = selectedMcpTools.filter((toolId) => {
+          const [serverName, ...toolParts] = toolId.split('.')
+          const toolName = toolParts.join('.')
+          if (!serverName || !toolName) return true
+          if (!selectedMcpServers.includes(serverName)) return true
+          const server = settingsStore.mcpServers[serverName]
+          return !(server?.tools && toolName in server.tools)
+        })
+        if (invalidMcpTools.length > 0) {
+          throw new Error(
+            `以下 MCP 工具无效、未加载，或不属于已选择的 MCP 服务器：${invalidMcpTools.join('、')}`
+          )
+        }
+
+        const disabledSkills = selectedEnabledSkills
+          ? skills
+              .filter((skill) => !selectedEnabledSkills.includes(skill.name))
+              .map((skill) => skill.name)
+          : []
+
         const newAgent = {
-          id: nanoid(),
           name,
           description: description || '',
           systemPrompt,
-          mcpServers,
-          tools,
-          builtinTools,
+          mcpServers: selectedMcpServers,
+          tools: selectedMcpTools,
+          builtinTools: selectedBuiltinTools,
+          builtinToolsRequireApproval: approvalBuiltinTools,
+          knowledgeBaseIds: selectedKnowledgeBaseIds,
+          ragEnabled: !!selectedKnowledgeBaseIds.length && !!ragEnabled,
+          skillDirectory:
+            typeof skillDirectory === 'string' && skillDirectory.trim()
+              ? skillDirectory.trim()
+              : undefined,
+          disabledSkills,
           icon,
-          createdAt: now,
-          updatedAt: now
+          execCommandRunInBackground: false
         }
-        agentStore.createAgent(newAgent)
+        const agentId = agentStore.createAgent(
+          newAgent as Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>
+        )
         return {
           toolResult: {
             content: [
@@ -389,11 +686,16 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
                   `- 名称: ${name}\n` +
                   `- 描述: ${description || '无'}\n` +
                   `- 系统提示词: ${systemPrompt.substring(0, 100)}${systemPrompt.length > 100 ? '...' : ''}\n` +
-                  `- MCP服务器: ${mcpServers.length > 0 ? mcpServers.join(', ') : '无'}\n` +
-                  `- MCP工具: ${tools.length > 0 ? tools.join(', ') : '无'}\n` +
-                  `- 内置工具: ${builtinTools.length > 0 ? builtinTools.join(', ') : '无'}\n` +
+                  `- MCP服务器: ${selectedMcpServers.length > 0 ? selectedMcpServers.join(', ') : '无'}\n` +
+                  `- MCP工具: ${selectedMcpTools.length > 0 ? selectedMcpTools.join(', ') : '无'}\n` +
+                  `- 内置工具: ${selectedBuiltinTools.length > 0 ? selectedBuiltinTools.join(', ') : '无'}\n` +
+                  `- 需批准内置工具: ${approvalBuiltinTools.length > 0 ? approvalBuiltinTools.join(', ') : '无'}\n` +
+                  `- 知识库: ${selectedKnowledgeBaseIds.length > 0 ? selectedKnowledgeBaseIds.join(', ') : '无'}\n` +
+                  `- RAG: ${selectedKnowledgeBaseIds.length > 0 && ragEnabled ? '开启' : '关闭'}\n` +
+                  `- 技能: ${selectedEnabledSkills && selectedEnabledSkills.length > 0 ? selectedEnabledSkills.join(', ') : '默认全部启用'}\n` +
+                  `- 技能目录: ${typeof skillDirectory === 'string' && skillDirectory.trim() ? skillDirectory.trim() : '默认'}\n` +
                   `- 图标: ${icon || '默认'}\n` +
-                  `- ID: ${newAgent.id}\n`
+                  `- ID: ${agentId}\n`
               }
             ]
           }
