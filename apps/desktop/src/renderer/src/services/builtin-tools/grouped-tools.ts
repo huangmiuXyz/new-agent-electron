@@ -1,5 +1,6 @@
 import type { SkillMetadata } from '../skillsService'
 import { getAgentBuiltinTools } from './tools/agent-tools'
+import { getCanvasBuiltinTools } from './tools/canvas-tools'
 import { getCodexBuiltinTools } from './tools/codex-tools'
 import { getComputerBuiltinTools } from './tools/computer-tools'
 import { getGeneralBuiltinTools } from './tools/general-tools'
@@ -21,6 +22,7 @@ export const getBuiltinToolGroupEntries = (options?: {
 
   return [
     { group: '通用工具', tools: getGeneralBuiltinTools() },
+    { group: '画布工具', tools: getCanvasBuiltinTools() },
     { group: '电脑操作', tools: getComputerBuiltinTools() },
     { group: 'Agent工具', tools: options?.agentTools ?? getAgentBuiltinTools(skills) },
     { group: '网络工具', tools: getNetworkBuiltinTools() },

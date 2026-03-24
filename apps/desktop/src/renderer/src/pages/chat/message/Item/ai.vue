@@ -57,6 +57,7 @@ const playMessageAudio = () => {
 
   const targetChunk = queueChunks.find(chunk => chunk.messageId === props.message.id)
   speechStore.replaceQueue(queueChunks, targetChunk?.id)
+  settingsStore.display.assistantSidebarTab = 'playlist'
 
   if (settingsStore.display.speechSidebarCollapsed) {
     settingsStore.display.speechSidebarCollapsed = false

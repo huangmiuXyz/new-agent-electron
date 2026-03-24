@@ -1,7 +1,6 @@
 export const useAgentStore = defineStore(
   'agent',
   () => {
-
     const agents = ref<Agent[]>([
       {
         id: 'default',

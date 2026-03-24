@@ -5,7 +5,7 @@ import { useSpeechStore } from '@renderer/stores/speech'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
 import { useChat } from '@renderer/composables/useChat'
 import ResizeBox from '@renderer/components/ResizeBox.vue'
-import SpeechSidebar from '@renderer/components/SpeechSidebar.vue'
+import ChatSidePanel from '@renderer/components/ChatSidePanel.vue'
 
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
@@ -20,6 +20,9 @@ const currentChatAgent = computed(() => {
 const VolumeMedium = useIcon('VolumeMedium')
 
 const toggleSpeechSidebar = () => {
+  if (settingsStore.display.speechSidebarCollapsed) {
+    settingsStore.display.assistantSidebarTab = 'playlist'
+  }
   settingsStore.display.speechSidebarCollapsed = !settingsStore.display.speechSidebarCollapsed
 }
 
@@ -145,9 +148,9 @@ onMounted(() => {
       direction="horizontal"
       handlePosition="left"
       :minSize="250"
-      :maxSize="500"
+      :maxSize="1000"
     >
-      <SpeechSidebar :collapsed="settingsStore.display.speechSidebarCollapsed" @close="toggleSpeechSidebar" />
+      <ChatSidePanel :collapsed="settingsStore.display.speechSidebarCollapsed" @close="toggleSpeechSidebar" />
     </ResizeBox>
 
     <!-- 移动端语音播放按钮 -->
