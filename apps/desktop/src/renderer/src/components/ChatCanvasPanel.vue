@@ -10,6 +10,8 @@ const chatsStore = useChatsStores()
 const settingsStore = useSettingsStore()
 const canvasStore = useCanvasStore()
 const lowlight = createLowlight(common)
+const message = messageApi
+const { Download: DownloadIcon } = useIcon(['Download'])
 
 const canvasTabs = [
   { id: 'preview', name: '预览' },
@@ -50,6 +52,34 @@ const clearCanvas = () => {
   canvasStore.clearCanvas(currentChatId.value)
 }
 
+const downloadCanvas = () => {
+  const html = canvasHtml.value.trim()
+
+  if (!html) {
+    message.warning('当前画布为空，暂无可下载内容')
+    return
+  }
+
+  try {
+    const blob = new Blob([canvasHtml.value], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const date = new Date().toISOString().replaceAll(':', '-').slice(0, 19)
+
+    link.href = url
+    link.download = `canvas-${date}.html`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    message.success('HTML 画布已开始下载')
+  } catch (error) {
+    console.error('Canvas download error:', error)
+    message.error('下载 HTML 画布失败')
+  }
+}
+
 const highlightedCode = computed(() => {
   const html = canvasHtml.value || ''
 
@@ -87,7 +117,15 @@ const syncCodeScroll = () => {
         <strong>HTML 画布</strong>
         <span>最后更新：{{ updatedAtText }}</span>
       </div>
-      <Button size="sm" @click="clearCanvas">清空</Button>
+      <div class="canvas-panel-actions">
+        <Button size="sm" variant="secondary" @click="downloadCanvas">
+          <template #icon>
+            <DownloadIcon />
+          </template>
+          下载
+        </Button>
+        <Button size="sm" @click="clearCanvas">清空</Button>
+      </div>
     </div>
 
     <div class="canvas-tabs">
@@ -146,6 +184,12 @@ const syncCodeScroll = () => {
 .canvas-panel-meta span {
   font-size: 12px;
   color: var(--text-tertiary);
+}
+
+.canvas-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .canvas-tabs {
