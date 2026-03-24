@@ -9,6 +9,8 @@ const terminalRefs = new Map<string, HTMLElement>()
 const executionDebouncers = new Map<string, ReturnType<typeof debounce>>()
 const toolCallToTerminalMap = ref<Record<string, string>>({})
 const POWERSHELL_SHELL_INTEGRATION = `$function:__agent_qi_prompt_original=$function:prompt; function prompt { $ec=$global:LASTEXITCODE; Write-Host "$([char]27)]633;D;$ec$([char]7)" -NoNewline; & $function:__agent_qi_prompt_original }; Clear-Host`
+const BRACKETED_PASTE_START = '\x1b[200~'
+const BRACKETED_PASTE_END = '\x1b[201~'
 const generateId = () => Math.random().toString(36).substring(2, 9)
 
 const getBufferCursorLine = (term: Terminal): number => {
@@ -70,6 +72,15 @@ const captureCommandOutput = (tab: TerminalTab): string => {
   const rawOutput = extractTerminalBufferText(tab.instance, startLine, endLine)
 
   return stripCommandEcho(rawOutput, tab.captureCommand)
+}
+
+const encodeCommandForPty = (command: string): string => {
+  if (!command.includes('\n') && !command.includes('\r')) {
+    return `${command}\r`
+  }
+
+  const normalized = command.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  return `${BRACKETED_PASTE_START}${normalized}${BRACKETED_PASTE_END}\r`
 }
 
 export const useTerminal = (): TerminalActions => {
@@ -350,7 +361,7 @@ export const useTerminal = (): TerminalActions => {
     tab.lastExitCode = null
 
     setExecuting(id, true)
-    window.api.pty.write(id, options.command + '\r')
+    window.api.pty.write(id, encodeCommandForPty(options.command))
 
     const result = await waitForCommand(id, timeout)
     return { id, result }
