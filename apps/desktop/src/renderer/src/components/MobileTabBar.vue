@@ -21,6 +21,7 @@ const route = useRoute()
 const tabs = [
   { key: 'chat', label: '聊天', icon: useIcon('Chat'), path: '/mobile/chat/list' },
   { key: 'image', label: '创作', icon: useIcon('Image'), path: '/mobile/image' },
+  { key: 'my-apps', label: '应用', icon: useIcon('Box'), path: '/mobile/my-apps' },
   { key: 'notes', label: '笔记', icon: useIcon('File'), path: '/mobile/notes/list' },
   { key: 'settings', label: '设置', icon: useIcon('Settings'), path: '/mobile/settings/list' }
 ]

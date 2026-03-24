@@ -21,7 +21,6 @@ const { confirm, remove } = useModal()
 const {
   allPlugins,
   loading,
-  installing,
   activePluginId,
   activePlugin,
   installPlugin,

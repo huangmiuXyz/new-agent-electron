@@ -99,6 +99,7 @@ export const useCanvasStore = defineStore(
     return {
       canvases,
       getCanvas,
+      replaceCanvas,
       listCanvasFiles,
       getActiveFilePath,
       setActiveFilePath,

@@ -27,6 +27,10 @@ const router = createRouter({
       component: () => import('../pages/image/index.vue')
     },
     {
+      path: '/my-apps',
+      component: () => import('../pages/my-apps/index.vue')
+    },
+    {
       path: '/settings',
       component: () => import('../pages/settings/index.vue')
     },
@@ -67,9 +71,19 @@ const router = createRouter({
       meta: { depth: 2 }
     },
     {
+      path: '/mobile/my-apps',
+      component: () => import('../pages/my-apps/index.vue'),
+      meta: {
+        showTabBar: true,
+        sort: 3,
+        depth: 1,
+        title: '我的应用'
+      }
+    },
+    {
       path: '/mobile/notes',
       redirect: '/mobile/notes/list',
-      meta: { sort: 3 },
+      meta: { sort: 4 },
       children: [
         {
           path: '/mobile/notes/list',
@@ -90,7 +104,7 @@ const router = createRouter({
     {
       path: '/mobile/settings',
       redirect: '/mobile/settings/list',
-      meta: { sort: 4 },
+      meta: { sort: 5 },
       children: [
         {
           path: '/mobile/settings/list',

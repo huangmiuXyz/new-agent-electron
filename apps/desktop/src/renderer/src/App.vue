@@ -3,6 +3,7 @@ import ChatPage from './pages/chat/index.vue'
 import NotesPage from './pages/notes/index.vue'
 import ImagePage from './pages/image/index.vue'
 import SettingsPage from './pages/settings/index.vue'
+import MyAppsPage from './pages/my-apps/index.vue'
 import AppFooter from './components/AppFooter.vue'
 import DownloadPanel from './components/DownloadPanel.vue'
 import Term from './components/term.vue'
@@ -21,6 +22,7 @@ const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 const imageStore = useImageStore()
 const knowledgeStore = useKnowledgeStore()
+const myAppsStore = useMyAppsStore()
 const syncStore = useSyncStore()
 const { display, shortcuts } = storeToRefs(settingsStore)
 const { updateConfig } = useShortcuts()
@@ -47,11 +49,10 @@ watchEffect(() => {
   }
 })
 
-const switchView = (view: 'chat' | 'notes' | 'settings' | 'image') => {
+const switchView = (view: 'chat' | 'notes' | 'settings' | 'image' | 'my-apps') => {
   currentView.value = view
-  // 同步更新路由
   if (!isMobile.value) {
-    router.push(`/${view}`)
+    router.push(view === 'my-apps' ? '/my-apps' : `/${view}`)
   }
 }
 
@@ -71,6 +72,7 @@ const settingsReady = ref(false)
 const chatsReady = ref(false)
 const imageReady = ref(false)
 const knowledgeReady = ref(false)
+const myAppsReady = ref(false)
 
 settingsStore.isAfterRestore.then(() => {
   settingsReady.value = true
@@ -92,6 +94,10 @@ knowledgeStore.isAfterRestore.then(() => {
   knowledgeReady.value = true
 })
 
+myAppsStore.isAfterRestore.then(() => {
+  myAppsReady.value = true
+})
+
 Promise.all([syncStore.isAfterRestore, chatsStore.isAfterRestore]).then(() => {
   void syncStore.initialize()
 })
@@ -110,6 +116,9 @@ const isStoreReady = computed(() => {
   if (path.startsWith('/settings') || path.startsWith('/mobile/settings')) {
     return settingsReady.value && knowledgeReady.value
   } 
+  if (path.startsWith('/my-apps') || path.startsWith('/mobile/my-apps')) {
+    return settingsReady.value && chatsReady.value && myAppsReady.value
+  }
   if (path.startsWith('/temp-chat')) {
     return true
   } 
@@ -182,6 +191,7 @@ watch(
       if (path.startsWith('/chat')) currentView.value = 'chat'
       else if (path.startsWith('/notes')) currentView.value = 'notes'
       else if (path.startsWith('/image')) currentView.value = 'image'
+      else if (path.startsWith('/my-apps')) currentView.value = 'my-apps'
       else if (path.startsWith('/settings')) currentView.value = 'settings'
     }
     resetTitle()
@@ -282,6 +292,7 @@ const handleTouchEnd = (e: TouchEvent) => {
           <ChatPage v-if="currentView === 'chat'" />
           <NotesPage v-if="currentView === 'notes'" />
           <ImagePage v-if="currentView === 'image'" />
+          <MyAppsPage v-if="currentView === 'my-apps'" />
           <SettingsPage v-if="currentView === 'settings'" />
         </main>
         <!-- 全局终端：在 content-wrapper 内，app-content 下方 -->

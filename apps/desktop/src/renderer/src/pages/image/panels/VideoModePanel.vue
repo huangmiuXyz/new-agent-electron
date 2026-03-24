@@ -12,7 +12,7 @@ const { createVideoBatch, startVideoGeneration } = useImageGeneration()
 const isSkyReelsProvider = (providerId?: string) => {
   if (!providerId) return false
   const provider = settingsStore.getProviderById(providerId)
-  return provider?.providerType === 'skyreels'
+  return String(provider?.providerType || '') === 'skyreels'
 }
 
 const getDynamicFields = (providerId: string) => {

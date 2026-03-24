@@ -25,14 +25,16 @@ type TreeRow = {
 const chatsStore = useChatsStores()
 const settingsStore = useSettingsStore()
 const canvasStore = useCanvasStore()
+const myAppsStore = useMyAppsStore()
 const lowlight = createLowlight(common)
 const message = messageApi
 const modal = useModal()
-const { Download: DownloadIcon, Plus: AddIcon, Trash: TrashIcon, Settings: SettingsIcon } = useIcon([
+const { Download: DownloadIcon, Plus: AddIcon, Trash: TrashIcon, Settings: SettingsIcon, Box: BoxIcon } = useIcon([
   'Download',
   'Plus',
   'Trash',
-  'Settings'
+  'Settings',
+  'Box'
 ])
 const { showContextMenu, hideContextMenu } = useContextMenu()
 
@@ -82,13 +84,12 @@ const activeFileContent = computed({
   }
 })
 
-const updatedAtText = computed(() => {
-  const updatedAt = currentCanvas.value?.updatedAt
-  if (!updatedAt) return '未创建'
-  return new Date(updatedAt).toLocaleString()
-})
-
 const activeLanguage = computed(() => getSandboxFileLanguage(activeFilePath.value || '/index.html'))
+const hasCanvasFiles = computed(() => sandboxTreeRows.value.some((row) => row.type === 'file'))
+const suggestedAppName = computed(() => {
+  const title = String(chatsStore.currentChat?.title || '').trim()
+  return title || '未命名应用'
+})
 
 const previewChannelId = computed(() => `sandbox-preview:${currentChatId.value || 'default'}`)
 const previewDocument = computed(() => buildSandboxPreviewDocument(currentCanvas.value, previewChannelId.value))
@@ -162,6 +163,65 @@ const createFile = () => {
     title: '新建文件',
     content: FormComponent,
     confirmText: '创建',
+    cancelText: '取消',
+    onOk: () => {
+      formActions.submit()
+    }
+  })
+}
+
+const openSaveAppModal = () => {
+  if (!hasCanvasFiles.value) {
+    message.warning('当前画布还没有文件，先生成或创建内容后再保存应用')
+    return
+  }
+
+  const [FormComponent, formActions] = useForm({
+    fields: [
+      {
+        name: 'name',
+        label: '应用名称',
+        type: 'text',
+        placeholder: '给这个应用起个名字',
+        required: true
+      },
+      {
+        name: 'iconEmoji',
+        label: '图标',
+        type: 'text',
+        placeholder: '例如 ✨'
+      },
+      {
+        name: 'description',
+        label: '描述',
+        type: 'textarea',
+        placeholder: '简单描述这个应用是做什么的',
+        rows: 3
+      }
+    ],
+    initialData: {
+      name: suggestedAppName.value,
+      iconEmoji: '✨',
+      description: ''
+    },
+    onSubmit: (data) => {
+      const savedApp = myAppsStore.saveApp({
+        name: String(data.name || '').trim(),
+        description: String(data.description || '').trim(),
+        iconEmoji: String(data.iconEmoji || '').trim() || '✨',
+        canvas: currentCanvas.value,
+        sourceChatId: currentChatId.value || null
+      })
+
+      message.success(`已保存应用：${savedApp.name}`)
+      modal.remove()
+    }
+  })
+
+  modal.confirm({
+    title: '保存应用',
+    content: FormComponent,
+    confirmText: '保存',
     cancelText: '取消',
     onOk: () => {
       formActions.submit()
@@ -280,6 +340,12 @@ const openActionsMenu = (event: MouseEvent) => {
       onClick: () => downloadCurrentFile()
     },
     {
+      label: '保存应用',
+      icon: BoxIcon,
+      disabled: !hasCanvasFiles.value,
+      onClick: () => openSaveAppModal()
+    },
+    {
       label: '删除文件',
       icon: TrashIcon,
       danger: true,
@@ -317,6 +383,12 @@ watch(sandboxTreeWidth, (value) => {
         </div>
       </div>
       <div class="canvas-panel-actions">
+        <Button size="sm" variant="secondary" :disabled="!hasCanvasFiles" @click="openSaveAppModal">
+          <template #icon>
+            <BoxIcon />
+          </template>
+          保存应用
+        </Button>
         <Button size="sm" variant="icon" title="Sandbox 操作" @click="openActionsMenu">
           <template #icon>
             <SettingsIcon />

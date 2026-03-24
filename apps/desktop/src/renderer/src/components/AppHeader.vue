@@ -12,11 +12,11 @@ const isListMode = computed(() => {
   return isMobile.value && (route.path === '/mobile/chat/list' || route.path === '/mobile/settings/list' || route.path === '/mobile/notes/list' || route.path === '/mobile/image')
 })
 
-const { customTitle } = useAppHeader()
+const { customTitle, setTitle } = useAppHeader()
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 const { register } = useShortcuts()
-const switchView = inject('switchView') as (view: 'chat' | 'notes' | 'settings' | 'image') => void
+const switchView = inject('switchView') as (view: 'chat' | 'notes' | 'settings' | 'image' | 'my-apps') => void
 
 const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp, Settings } = useIcon([
   'Search',
@@ -98,6 +98,16 @@ onMounted(() => {
     handler: () => switchView('settings')
   })
 })
+
+watch(
+  () => route.path,
+  () => {
+    if (!isMobile.value && route.path.startsWith('/my-apps')) {
+      setTitle('我的应用')
+    }
+  },
+  { immediate: true }
+)
 
 </script>
 
