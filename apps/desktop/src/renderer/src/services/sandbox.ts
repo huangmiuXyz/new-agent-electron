@@ -3,6 +3,8 @@ export type SandboxOperationType = 'modify' | 'add' | 'delete' | 'move'
 export type SandboxFile = {
   path: string
   content: string
+  encoding?: 'text' | 'data-url'
+  mediaType?: string
   updatedAt: number
 }
 
@@ -24,6 +26,51 @@ type SandboxOperation = {
 
 const normalizeLineEndings = (value: string) => value.replace(/\r\n/g, '\n')
 
+const IMAGE_FILE_RULES = [
+  { extension: '.png', mediaType: 'image/png' },
+  { extension: '.jpg', mediaType: 'image/jpeg' },
+  { extension: '.jpeg', mediaType: 'image/jpeg' },
+  { extension: '.gif', mediaType: 'image/gif' },
+  { extension: '.webp', mediaType: 'image/webp' },
+  { extension: '.bmp', mediaType: 'image/bmp' },
+  { extension: '.svg', mediaType: 'image/svg+xml' },
+  { extension: '.ico', mediaType: 'image/x-icon' },
+  { extension: '.avif', mediaType: 'image/avif' }
+]
+
+const DATA_URL_RE = /^data:([^;,]+)?(?:;charset=[^;,]+)?;base64,([\s\S]+)$/i
+
+export const getSandboxMediaType = (filePath: string): string => {
+  const lower = filePath.toLowerCase()
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'text/html'
+  if (lower.endsWith('.css')) return 'text/css'
+  if (lower.endsWith('.js') || lower.endsWith('.mjs')) return 'text/javascript'
+  if (lower.endsWith('.json')) return 'application/json'
+  if (lower.endsWith('.svg')) return 'image/svg+xml'
+  if (lower.endsWith('.txt')) return 'text/plain'
+  const matched = IMAGE_FILE_RULES.find((rule) => lower.endsWith(rule.extension))
+  return matched?.mediaType || 'text/plain'
+}
+
+export const isSandboxImagePath = (filePath: string): boolean => {
+  const lower = filePath.toLowerCase()
+  return IMAGE_FILE_RULES.some((rule) => lower.endsWith(rule.extension))
+}
+
+export const isSandboxImageFile = (file?: Pick<SandboxFile, 'path' | 'mediaType'> | null): boolean => {
+  if (!file) return false
+  return String(file.mediaType || '').startsWith('image/') || isSandboxImagePath(file.path)
+}
+
+export const parseSandboxDataUrl = (value: string): { mediaType: string; base64: string } | null => {
+  const matched = value.match(DATA_URL_RE)
+  if (!matched) return null
+  return {
+    mediaType: matched[1] || 'application/octet-stream',
+    base64: matched[2] || ''
+  }
+}
+
 export const normalizeSandboxPath = (rawPath: string): string => {
   const trimmed = String(rawPath || '').trim()
   if (!trimmed) {
@@ -43,6 +90,7 @@ export const normalizeSandboxPath = (rawPath: string): string => {
 }
 
 export const getSandboxFileLanguage = (filePath: string): string => {
+  if (isSandboxImagePath(filePath)) return 'binary'
   const lower = filePath.toLowerCase()
   if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'html'
   if (lower.endsWith('.css')) return 'css'
@@ -75,8 +123,12 @@ export const ensureSandboxState = (value?: Partial<SandboxState> | null): Sandbo
         if (!file || typeof file !== 'object') return null
         const path = normalizeSandboxPath((file as SandboxFile).path || key)
         const content = typeof (file as SandboxFile).content === 'string' ? (file as SandboxFile).content : ''
+        const encoding = (file as SandboxFile).encoding === 'data-url' ? 'data-url' : 'text'
+        const mediaType = typeof (file as SandboxFile).mediaType === 'string' && (file as SandboxFile).mediaType
+          ? (file as SandboxFile).mediaType
+          : undefined
         const updatedAt = typeof (file as SandboxFile).updatedAt === 'number' ? (file as SandboxFile).updatedAt : Date.now()
-        return [path, { path, content, updatedAt }]
+        return [path, { path, content, encoding, mediaType, updatedAt }]
       })
       .filter(Boolean) as Array<[string, SandboxFile]>
   )
@@ -163,6 +215,7 @@ export const updateSandboxFileContent = (
       [normalizedPath]: {
         ...file,
         content,
+        encoding: 'text',
         updatedAt: now
       }
     }
@@ -192,6 +245,7 @@ export const applySandboxOperation = (
       nextFiles[sourcePath] = {
         ...file,
         content: content.replace(operation.oldStr, operation.newStr),
+        encoding: 'text',
         updatedAt: now
       }
       return {
@@ -209,6 +263,7 @@ export const applySandboxOperation = (
     nextFiles[sourcePath] = {
       ...file,
       content: normalizedContent.replace(normalizedOldStr, normalizeLineEndings(operation.newStr)),
+      encoding: 'text',
       updatedAt: now
     }
     return {
@@ -229,6 +284,8 @@ export const applySandboxOperation = (
     nextFiles[sourcePath] = {
       path: sourcePath,
       content: operation.newStr,
+      encoding: 'text',
+      mediaType: getSandboxMediaType(sourcePath),
       updatedAt: now
     }
 
@@ -286,6 +343,8 @@ export const applySandboxOperation = (
   nextFiles[targetPath] = {
     path: targetPath,
     content: sourceFile.content,
+    encoding: sourceFile.encoding,
+    mediaType: sourceFile.mediaType,
     updatedAt: now
   }
 
@@ -308,6 +367,9 @@ export const formatSandboxResult = (state: SandboxState): string => {
 
   return files
     .map((file) => {
+      if (file.encoding === 'data-url') {
+        return `文件: ${file.path}\n[binary ${file.mediaType || 'application/octet-stream'}]`
+      }
       const language = getSandboxFileLanguage(file.path)
       return `文件: ${file.path}\n\`\`\`${language}\n${file.content}\n\`\`\``
     })
@@ -379,7 +441,14 @@ const escapeForInlineScript = (value: string) => {
 }
 
 export const buildSandboxPreviewDocument = (state: SandboxState, channelId: string): string => {
-  const files = Object.fromEntries(sortSandboxFiles(state).map((file) => [file.path, file.content]))
+  const files = Object.fromEntries(sortSandboxFiles(state).map((file) => [
+    file.path,
+    {
+      content: file.content,
+      encoding: file.encoding || 'text',
+      mediaType: file.mediaType || getSandboxMediaType(file.path)
+    }
+  ]))
   const entryPath = files['/index.html'] ? '/index.html' : Object.keys(files).find((path) => path.endsWith('.html')) || ''
 
   return `<!doctype html>
@@ -435,15 +504,11 @@ export const buildSandboxPreviewDocument = (state: SandboxState, channelId: stri
           return '/' + fromParts.join('/')
         }
 
+        const getFileRecord = (filePath) => fileMap[filePath]
+
         const mimeTypeForPath = (filePath) => {
-          const lower = filePath.toLowerCase()
-          if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'text/html'
-          if (lower.endsWith('.css')) return 'text/css'
-          if (lower.endsWith('.js') || lower.endsWith('.mjs')) return 'text/javascript'
-          if (lower.endsWith('.json')) return 'application/json'
-          if (lower.endsWith('.svg')) return 'image/svg+xml'
-          if (lower.endsWith('.txt')) return 'text/plain'
-          return 'text/plain'
+          const record = getFileRecord(filePath)
+          return record?.mediaType || 'text/plain'
         }
 
         const rewriteJsImports = (content, currentPath) => {
@@ -464,10 +529,15 @@ export const buildSandboxPreviewDocument = (state: SandboxState, channelId: stri
         }
 
         const createBlobUrl = (filePath) => {
-          if (!fileMap[filePath]) return filePath
+          const record = getFileRecord(filePath)
+          if (!record) return filePath
           if (blobCache.has(filePath)) return blobCache.get(filePath)
+          if (record.encoding === 'data-url' && typeof record.content === 'string' && record.content.startsWith('data:')) {
+            blobCache.set(filePath, record.content)
+            return record.content
+          }
           const mimeType = mimeTypeForPath(filePath)
-          const rawContent = fileMap[filePath]
+          const rawContent = record.content || ''
           const content = mimeType.includes('javascript') ? rewriteJsImports(rawContent, filePath) : rawContent
           const url = URL.createObjectURL(new Blob([content], { type: mimeType }))
           blobCache.set(filePath, url)
@@ -519,7 +589,7 @@ export const buildSandboxPreviewDocument = (state: SandboxState, channelId: stri
           }
 
           const parser = new DOMParser()
-          const doc = parser.parseFromString(fileMap[entryPath], 'text/html')
+          const doc = parser.parseFromString(fileMap[entryPath].content || '', 'text/html')
 
           for (const link of doc.querySelectorAll('link[href]')) {
             const href = link.getAttribute('href') || ''

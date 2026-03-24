@@ -1,7 +1,40 @@
 import { z } from 'zod'
-import { createSandboxState, formatSandboxResult, normalizeSandboxPath, sortSandboxFiles } from '@renderer/services/sandbox'
+import {
+  buildSandboxTree,
+  createSandboxState,
+  getSandboxMediaType,
+  isSandboxImagePath,
+  normalizeSandboxPath,
+  parseSandboxDataUrl,
+  sortSandboxFiles
+} from '@renderer/services/sandbox'
 
 const isWindows = navigator.platform.toLowerCase().includes('win')
+
+const decodeBase64 = (value: string) => {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(value, 'base64')
+  }
+
+  const binary = atob(value)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+const encodeBase64 = (value: Uint8Array) => {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(value).toString('base64')
+  }
+
+  let binary = ''
+  for (let i = 0; i < value.length; i += 1) {
+    binary += String.fromCharCode(value[i]!)
+  }
+  return btoa(binary)
+}
 
 const ensureCanvasTempWorkspace = (chatId?: string) => {
   const canvasStore = useCanvasStore()
@@ -24,6 +57,13 @@ const ensureCanvasTempWorkspace = (chatId?: string) => {
     const outputPath = window.api.path.join(workspaceDir, ...relativePath.split('/'))
     const parentDir = window.api.path.dirname(outputPath)
     window.api.fs.mkdirSync(parentDir, { recursive: true })
+    if (file.encoding === 'data-url') {
+      const parsed = parseSandboxDataUrl(file.content)
+      if (parsed) {
+        window.api.fs.writeFileSync(outputPath, decodeBase64(parsed.base64))
+        return
+      }
+    }
     window.api.fs.writeFileSync(outputPath, file.content, 'utf-8')
   })
 
@@ -32,7 +72,7 @@ const ensureCanvasTempWorkspace = (chatId?: string) => {
 
 const readCanvasWorkspace = (workspaceDir: string) => {
   const nextState = createSandboxState()
-  const fileEntries: Record<string, { path: string; content: string; updatedAt: number }> = {}
+  const fileEntries: typeof nextState.files = {}
 
   const walk = (currentDir: string) => {
     const entries = window.api.fs.readdirSync(currentDir, { withFileTypes: true })
@@ -53,11 +93,20 @@ const readCanvasWorkspace = (workspaceDir: string) => {
 
       const relativePath = window.api.path.relative(workspaceDir, fullPath).replaceAll('\\', '/')
       const sandboxPath = normalizeSandboxPath(relativePath)
-      const content = window.api.fs.readFileSync(fullPath, 'utf-8')
+      const isImageFile = isSandboxImagePath(sandboxPath)
+      const content = isImageFile
+        ? (() => {
+          const bytes = window.api.fs.readFileSync(fullPath)
+          const mediaType = getSandboxMediaType(sandboxPath)
+          return `data:${mediaType};base64,${encodeBase64(bytes)}`
+        })()
+        : window.api.fs.readFileSync(fullPath, 'utf-8')
 
       fileEntries[sandboxPath] = {
         path: sandboxPath,
         content,
+        encoding: isImageFile ? 'data-url' : 'text',
+        mediaType: isImageFile ? getSandboxMediaType(sandboxPath) : undefined,
         updatedAt: stat.mtimeMs || Date.now()
       }
     }
@@ -117,20 +166,235 @@ const openCanvasPanel = () => {
   settingsStore.display.assistantSidebarTab = 'canvas'
 }
 
+const normalizeDirectoryPath = (value?: string) => {
+  if (!value || value === '/') return '/'
+  return normalizeSandboxPath(value)
+}
+
+const formatDirectoryList = (chatId?: string, directoryPath = '/') => {
+  const canvasStore = useCanvasStore()
+  const sandbox = canvasStore.getCanvas(chatId)
+  const normalizedDirectoryPath = normalizeDirectoryPath(directoryPath)
+  const tree = buildSandboxTree(sandbox)
+
+  const findNode = (nodes: ReturnType<typeof buildSandboxTree>, targetPath: string) => {
+    for (const node of nodes) {
+      if (node.path === targetPath) return node
+      if (node.children?.length) {
+        const matched = findNode(node.children, targetPath)
+        if (matched) return matched
+      }
+    }
+    return null
+  }
+
+  const targetChildren = normalizedDirectoryPath === '/'
+    ? tree
+    : findNode(tree, normalizedDirectoryPath)?.children
+
+  if (!targetChildren) {
+    throw new Error(`目录不存在: ${normalizedDirectoryPath}`)
+  }
+
+  if (targetChildren.length === 0) {
+    return `目录 ${normalizedDirectoryPath} 为空。`
+  }
+
+  const lines = targetChildren.map((node) => {
+    if (node.type === 'directory') {
+      return `[DIR] ${node.path}`
+    }
+
+    const file = sandbox.files[node.path]
+    if (!file) return `[FILE] ${node.path}`
+    if (file.encoding === 'data-url') {
+      return `[FILE] ${node.path} (${file.mediaType || 'application/octet-stream'}, binary)`
+    }
+    return `[FILE] ${node.path}`
+  })
+
+  return [`目录: ${normalizedDirectoryPath}`, ...lines].join('\n')
+}
+
+const formatCanvasFileContent = (
+  chatId: string | undefined,
+  filePath: string,
+  options?: { startLine?: number; endLine?: number }
+) => {
+  const canvasStore = useCanvasStore()
+  const sandbox = canvasStore.getCanvas(chatId)
+  const normalizedFilePath = normalizeSandboxPath(filePath)
+  const file = sandbox.files[normalizedFilePath]
+
+  if (!file) {
+    throw new Error(`文件不存在: ${normalizedFilePath}`)
+  }
+
+  if (file.encoding === 'data-url') {
+    return `文件: ${normalizedFilePath}\n[binary ${file.mediaType || 'application/octet-stream'}]`
+  }
+
+  const lines = file.content.split('\n')
+  const hasLineRange = options?.startLine !== undefined || options?.endLine !== undefined
+  const startLine = Math.max(1, options?.startLine || 1)
+  const endLine = Math.max(startLine, options?.endLine || lines.length)
+  const slicedLines = hasLineRange ? lines.slice(startLine - 1, endLine) : lines
+  const content = slicedLines.join('\n')
+  const header = hasLineRange
+    ? `文件: ${normalizedFilePath} (lines ${startLine}-${Math.min(endLine, lines.length)})`
+    : `文件: ${normalizedFilePath}`
+
+  return `${header}\n\`\`\`${'text'}\n${content}\n\`\`\``
+}
+
+const searchCanvasContent = (
+  chatId: string | undefined,
+  query: string,
+  options?: { caseSensitive?: boolean; maxResults?: number }
+) => {
+  const canvasStore = useCanvasStore()
+  const sandbox = canvasStore.getCanvas(chatId)
+  const keyword = String(query || '')
+  if (!keyword.trim()) {
+    throw new Error('缺少必要参数: query')
+  }
+
+  const caseSensitive = Boolean(options?.caseSensitive)
+  const maxResults = Math.max(1, Math.min(options?.maxResults || 20, 100))
+  const needle = caseSensitive ? keyword : keyword.toLowerCase()
+  const matches: string[] = []
+
+  for (const file of sortSandboxFiles(sandbox)) {
+    if (file.encoding === 'data-url') continue
+    const lines = file.content.split('\n')
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index] || ''
+      const haystack = caseSensitive ? line : line.toLowerCase()
+      if (!haystack.includes(needle)) continue
+
+      matches.push(`${file.path}:${index + 1}: ${line}`)
+      if (matches.length >= maxResults) {
+        return [`搜索: ${keyword}`, ...matches, `已达到结果上限 ${maxResults} 条。`].join('\n')
+      }
+    }
+  }
+
+  if (matches.length === 0) {
+    return `未在 sandbox 中找到包含 ${keyword} 的内容。`
+  }
+
+  return [`搜索: ${keyword}`, ...matches].join('\n')
+}
+
 export const getCanvasBuiltinTools = (): Partial<Tools> => ({
-  read_canvas: {
-    title: '读取 Sandbox',
-    description: '读取当前会话 sandbox 中的全部文件内容。',
-    inputSchema: z.object({}),
-    execute: async (_args: unknown, options?: { chatId?: string }) => {
-      const canvasStore = useCanvasStore()
-      const sandbox = canvasStore.getCanvas(options?.chatId)
+  list_canvas_directory: {
+    title: '列出 Canvas 目录',
+    description: '列出当前会话 sandbox 中某个目录下的直接子目录和文件。',
+    inputSchema: z.object({
+      directory_path: z.string().optional().describe('要列出的目录路径，默认为 /')
+    }),
+    execute: async (args: unknown, options?: { chatId?: string }) => {
+      const params = args as { directory_path?: string }
 
-      openCanvasPanel()
+      try {
+        openCanvasPanel()
 
-      return {
-        toolResult: {
-          content: [{ type: 'text', text: formatSandboxResult(sandbox) }]
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: formatDirectoryList(options?.chatId, params.directory_path || '/') }]
+          }
+        }
+      } catch (error) {
+        return {
+          error: (error as Error).message,
+          toolResult: {
+            content: [{ type: 'text', text: `list_canvas_directory 失败: ${(error as Error).message}` }]
+          }
+        }
+      }
+    }
+  },
+  read_canvas_file: {
+    title: '读取 Canvas 文件',
+    description: '读取当前会话 sandbox 中某个指定文件的内容，可按行范围读取。',
+    inputSchema: z.object({
+      file_path: z.string().describe('要读取的文件路径'),
+      start_line: z.number().int().min(1).optional().describe('起始行号，1-based，可选'),
+      end_line: z.number().int().min(1).optional().describe('结束行号，1-based，可选')
+    }),
+    execute: async (args: unknown, options?: { chatId?: string }) => {
+      const params = args as { file_path?: string; start_line?: number; end_line?: number }
+      const filePath = String(params.file_path || '').trim()
+
+      if (!filePath) {
+        return {
+          error: '缺少必要参数: file_path',
+          toolResult: {
+            content: [{ type: 'text', text: 'read_canvas_file 失败：缺少必要参数 file_path' }]
+          }
+        }
+      }
+
+      try {
+        openCanvasPanel()
+
+        return {
+          toolResult: {
+            content: [{
+              type: 'text',
+              text: formatCanvasFileContent(options?.chatId, filePath, {
+                startLine: params.start_line,
+                endLine: params.end_line
+              })
+            }]
+          }
+        }
+      } catch (error) {
+        return {
+          error: (error as Error).message,
+          toolResult: {
+            content: [{ type: 'text', text: `read_canvas_file 失败: ${(error as Error).message}` }]
+          }
+        }
+      }
+    }
+  },
+  search_canvas_content: {
+    title: '搜索 Canvas 内容',
+    description: '在当前会话 sandbox 的文本文件中搜索指定内容，返回匹配文件、行号和文本。',
+    inputSchema: z.object({
+      query: z.string().describe('要搜索的关键词或文本片段'),
+      case_sensitive: z.boolean().optional().default(false).describe('是否区分大小写，默认 false'),
+      max_results: z.number().int().min(1).max(100).optional().default(20).describe('最多返回多少条结果，默认 20')
+    }),
+    execute: async (args: unknown, options?: { chatId?: string }) => {
+      const params = args as {
+        query?: string
+        case_sensitive?: boolean
+        max_results?: number
+      }
+
+      try {
+        openCanvasPanel()
+
+        return {
+          toolResult: {
+            content: [{
+              type: 'text',
+              text: searchCanvasContent(options?.chatId, String(params.query || ''), {
+                caseSensitive: params.case_sensitive,
+                maxResults: params.max_results
+              })
+            }]
+          }
+        }
+      } catch (error) {
+        return {
+          error: (error as Error).message,
+          toolResult: {
+            content: [{ type: 'text', text: `search_canvas_content 失败: ${(error as Error).message}` }]
+          }
         }
       }
     }

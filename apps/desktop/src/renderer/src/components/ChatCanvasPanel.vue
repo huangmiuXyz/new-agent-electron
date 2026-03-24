@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppImage from './Image.vue'
 import HtmlPreview from './HtmlPreview.vue'
 import SandboxCodeEditor from './SandboxCodeEditor.vue'
 import Tabs from './Tabs.vue'
@@ -7,6 +8,8 @@ import {
   buildSandboxPreviewDocument,
   buildSandboxTree,
   getSandboxFileLanguage,
+  isSandboxImageFile,
+  parseSandboxDataUrl,
   normalizeSandboxPath,
   sortSandboxFiles
 } from '@renderer/services/sandbox'
@@ -108,6 +111,7 @@ const activeFileContent = computed({
 })
 
 const activeLanguage = computed(() => getSandboxFileLanguage(activeFilePath.value || '/index.html'))
+const isActiveImageFile = computed(() => isSandboxImageFile(activeFile.value))
 const hasCanvasFiles = computed(() => sandboxTreeRows.value.some((row) => row.type === 'file'))
 const suggestedAppName = computed(() => {
   const title = String(chatsStore.currentChat?.title || '').trim()
@@ -336,7 +340,17 @@ const downloadCurrentFile = (filePath = activeFilePath.value) => {
   }
 
   try {
-    const blob = new Blob([file.content], { type: 'text/plain;charset=utf-8' })
+    const parsedDataUrl = file.encoding === 'data-url' ? parseSandboxDataUrl(file.content) : null
+    const blob = parsedDataUrl
+      ? (() => {
+        const binary = atob(parsedDataUrl.base64)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i)
+        }
+        return new Blob([bytes], { type: parsedDataUrl.mediaType || file.mediaType || 'application/octet-stream' })
+      })()
+      : new Blob([file.content], { type: `${file.mediaType || 'text/plain'};charset=utf-8` })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
 
@@ -364,7 +378,15 @@ const downloadAppAsZip = async () => {
     const zip = new JSZip()
 
     sortSandboxFiles(currentCanvas.value).forEach((file) => {
-      zip.file(file.path.replace(/^\/+/, ''), file.content)
+      const zipPath = file.path.replace(/^\/+/, '')
+      const parsedDataUrl = file.encoding === 'data-url' ? parseSandboxDataUrl(file.content) : null
+
+      if (parsedDataUrl) {
+        zip.file(zipPath, parsedDataUrl.base64, { base64: true })
+        return
+      }
+
+      zip.file(zipPath, file.content)
     })
 
     const blob = await zip.generateAsync({ type: 'blob' })
@@ -700,7 +722,10 @@ watch(sandboxTreeWidth, (value) => {
                 <span class="canvas-code-file">{{ activeFilePath }}</span>
                 <span class="canvas-code-lang">{{ activeLanguage }}</span>
               </div>
-              <div class="canvas-code-editor">
+              <div v-if="isActiveImageFile" class="canvas-image-preview">
+                <AppImage :src="activeFile.content" preview class="canvas-image-preview-media" />
+              </div>
+              <div v-else class="canvas-code-editor">
                 <SandboxCodeEditor v-model="activeFileContent" :path="activeFilePath" :language="activeLanguage" />
               </div>
             </div>
@@ -1092,6 +1117,31 @@ watch(sandboxTreeWidth, (value) => {
   flex: 1;
   display: flex;
   flex-direction: column;
+}
+
+.canvas-image-preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.04) 75%),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.04) 75%);
+  background-position: 0 0, 12px 12px;
+  background-size: 24px 24px;
+}
+
+.canvas-image-preview-media {
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-image-preview-media :deep(img) {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .canvas-preview-frame :deep(.preview-wrapper),

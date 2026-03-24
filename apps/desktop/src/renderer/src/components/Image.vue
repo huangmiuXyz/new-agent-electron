@@ -9,6 +9,7 @@
         </div>
         <video
             v-if="isVideo"
+            v-show="!hasError"
             v-bind="$attrs"
             :src="computedSrc"
             autoplay
@@ -20,17 +21,18 @@
             @error="handleError"
             @click="handlePreview"
             @contextmenu.prevent.stop="handleContextMenu"
-            :style="{ opacity: computedLoading ? 0 : 1 }"
+            :style="{ opacity: computedLoading || hasError ? 0 : 1 }"
         />
         <img
             v-else
+            v-show="!hasError"
             v-bind="$attrs"
             :src="computedSrc"
             @load="handleLoad"
             @error="handleError"
             @click="handlePreview"
             @contextmenu.prevent.stop="handleContextMenu"
-            :style="{ opacity: computedLoading ? 0 : 1 }"
+            :style="{ opacity: computedLoading || hasError ? 0 : 1 }"
         />
         <div v-if="hasError && !computedLoading" class="error-placeholder">
             <slot name="error">
