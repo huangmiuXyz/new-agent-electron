@@ -3,30 +3,72 @@ import {
   createSandboxState,
   ensureSandboxState,
   getSandboxFile,
+  getSandboxTempWorkspacePath,
+  readSandboxWorkspace,
   setSandboxActiveFile,
   sortSandboxFiles,
   updateSandboxFileContent,
+  writeSandboxStateToWorkspace,
   type SandboxOperationType,
   type SandboxState
 } from '@renderer/services/sandbox'
 
 type ChatCanvasState = SandboxState
 
-let resolveRestore: () => void
-const restorePromise = new Promise<void>((resolve) => {
-  resolveRestore = resolve
-})
 const transientActiveFilePaths = reactive<Record<string, string>>({})
 
 export const useCanvasStore = defineStore(
   'canvas',
   () => {
     const canvases = ref<Record<string, ChatCanvasState>>({})
-    const isAfterRestore = restorePromise
+    const isAfterRestore = Promise.resolve()
 
     const resolveChatId = (chatId?: string) => {
       if (chatId) return chatId
       return useChatsStores().currentChat?.id || 'default'
+    }
+
+    const getWorkspaceDir = (chatId?: string) => {
+      return getSandboxTempWorkspacePath(resolveChatId(chatId))
+    }
+
+    const hasWorkspaceSnapshot = (chatId?: string) => {
+      try {
+        const workspaceDir = getWorkspaceDir(chatId)
+        if (!window.api.fs.existsSync(workspaceDir)) return false
+        return window.api.fs.readdirSync(workspaceDir).length > 0
+      } catch {
+        return false
+      }
+    }
+
+    const loadCanvasFromWorkspace = (chatId?: string) => {
+      const resolvedChatId = resolveChatId(chatId)
+      if (!hasWorkspaceSnapshot(resolvedChatId)) return null
+
+      try {
+        const canvas = ensureSandboxState(readSandboxWorkspace(getWorkspaceDir(resolvedChatId)))
+        canvases.value = {
+          ...canvases.value,
+          [resolvedChatId]: canvas
+        }
+        transientActiveFilePaths[resolvedChatId] = canvas.activeFilePath
+        return { chatId: resolvedChatId, canvas }
+      } catch (error) {
+        console.error(`Failed to load canvas workspace for chat ${resolvedChatId}:`, error)
+        return null
+      }
+    }
+
+    const persistCanvasToWorkspace = (canvas: ChatCanvasState, chatId?: string) => {
+      const resolvedChatId = resolveChatId(chatId)
+      writeSandboxStateToWorkspace(canvas, getWorkspaceDir(resolvedChatId))
+    }
+
+    const deleteCanvasWorkspace = (chatId: string) => {
+      const workspaceDir = getWorkspaceDir(chatId)
+      if (!window.api.fs.existsSync(workspaceDir)) return
+      window.api.fs.rmSync(workspaceDir, { recursive: true, force: true })
     }
 
     const createAndStoreCanvas = (chatId?: string) => {
@@ -43,13 +85,16 @@ export const useCanvasStore = defineStore(
     const getCanvas = (chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
       const existing = canvases.value[resolvedChatId]
-      return existing || createSandboxState()
+      if (existing) return existing
+      return loadCanvasFromWorkspace(resolvedChatId)?.canvas || createSandboxState()
     }
 
     const ensureStoredCanvas = (chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
       const existing = canvases.value[resolvedChatId]
       if (existing) return { chatId: resolvedChatId, canvas: existing }
+      const loaded = loadCanvasFromWorkspace(resolvedChatId)
+      if (loaded) return loaded
       return createAndStoreCanvas(resolvedChatId)
     }
 
@@ -61,6 +106,7 @@ export const useCanvasStore = defineStore(
         [resolvedChatId]: normalizedCanvas
       }
       transientActiveFilePaths[resolvedChatId] = normalizedCanvas.activeFilePath
+      persistCanvasToWorkspace(normalizedCanvas, resolvedChatId)
     }
 
     const listCanvasFiles = (chatId?: string) => {
@@ -127,6 +173,7 @@ export const useCanvasStore = defineStore(
       delete nextCanvases[chatId]
       canvases.value = nextCanvases
       delete transientActiveFilePaths[chatId]
+      deleteCanvasWorkspace(chatId)
     }
 
     const deleteCanvases = (chatIds: string[]) => {
@@ -140,10 +187,16 @@ export const useCanvasStore = defineStore(
           delete transientActiveFilePaths[chatId]
         }
       })
+      chatIds.forEach((chatId) => {
+        deleteCanvasWorkspace(chatId)
+      })
     }
 
     const syncWithChats = (chatIds: string[]) => {
       const validIds = new Set(chatIds)
+      const removedChatIds = Object.keys(canvases.value).filter(
+        (chatId) => chatId !== 'default' && !validIds.has(chatId)
+      )
       canvases.value = Object.fromEntries(
         Object.entries(canvases.value).filter(([chatId]) => chatId === 'default' || validIds.has(chatId))
       )
@@ -151,6 +204,9 @@ export const useCanvasStore = defineStore(
         if (chatId !== 'default' && !validIds.has(chatId)) {
           delete transientActiveFilePaths[chatId]
         }
+      })
+      removedChatIds.forEach((chatId) => {
+        deleteCanvasWorkspace(chatId)
       })
     }
 
@@ -170,14 +226,6 @@ export const useCanvasStore = defineStore(
       deleteCanvases,
       syncWithChats,
       isAfterRestore
-    }
-  },
-  {
-    persist: {
-      paths: ['canvases'],
-      afterRestore: () => {
-        resolveRestore()
-      }
     }
   }
 )
