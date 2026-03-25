@@ -125,24 +125,78 @@ const {
   overscan: 10
 })
 
+const availableDirectoryPathSet = computed(() => {
+  const paths = new Set<string>()
+
+  const visit = (nodes: ReturnType<typeof buildSandboxTree>) => {
+    for (const node of nodes) {
+      if (node.type !== 'directory') continue
+      paths.add(node.path)
+      if (node.children?.length) {
+        visit(node.children)
+      }
+    }
+  }
+
+  visit(sandboxTreeNodes.value)
+  return paths
+})
+
 const activeFilePath = computed({
   get: () => canvasStore.getActiveFilePath(currentChatId.value),
   set: (value: string) => canvasStore.setActiveFilePath(value, currentChatId.value)
 })
 
-const activeFile = computed(() => canvasStore.getActiveFile(currentChatId.value))
+const openFileTabs = ref<string[]>([])
+const fileDrafts = ref<Record<string, string>>({})
+const currentTabFilePath = computed(() => {
+  const filePath = activeFilePath.value
+  return filePath && openFileTabs.value.includes(filePath) ? filePath : ''
+})
+const activeFile = computed(() => {
+  const filePath = currentTabFilePath.value
+  return filePath ? currentCanvas.value.files[filePath] || null : null
+})
+
+const ensureFileTabOpen = (filePath: string) => {
+  if (!filePath) return
+  if (!openFileTabs.value.includes(filePath)) {
+    openFileTabs.value = [...openFileTabs.value, filePath]
+  }
+}
+
+const getDraftContent = (filePath: string) => {
+  if (!filePath) return ''
+  if (Object.prototype.hasOwnProperty.call(fileDrafts.value, filePath)) {
+    return fileDrafts.value[filePath] || ''
+  }
+  return currentCanvas.value.files[filePath]?.content || ''
+}
+
+const setDraftContent = (filePath: string, content: string) => {
+  if (!filePath) return
+  fileDrafts.value = {
+    ...fileDrafts.value,
+    [filePath]: content
+  }
+}
 
 const activeFileContent = computed({
-  get: () => activeFile.value?.content || '',
+  get: () => getDraftContent(currentTabFilePath.value),
   set: (value: string) => {
-    const filePath = activeFilePath.value
-    if (!filePath) return
-    canvasStore.updateFileContent(filePath, value, currentChatId.value)
+    setDraftContent(currentTabFilePath.value, value)
   }
 })
 
-const activeLanguage = computed(() => getSandboxFileLanguage(activeFilePath.value || '/index.html'))
-const isActiveImageFile = computed(() => isSandboxImageFile(activeFile.value))
+const isActiveFileDirty = computed(() => {
+  const filePath = currentTabFilePath.value
+  const file = filePath ? currentCanvas.value.files[filePath] : null
+  if (!filePath || !file) return false
+  return getDraftContent(filePath) !== file.content
+})
+
+const activeLanguage = computed(() => getSandboxFileLanguage(currentTabFilePath.value || '/index.html'))
+const isActiveImageFile = computed(() => isSandboxImageFile(currentTabFilePath.value ? activeFile.value : null))
 const isActiveBinaryFile = computed(() => activeFile.value?.encoding === 'data-url' && !isActiveImageFile.value)
 const hasCanvasFiles = computed(() => sandboxTreeRows.value.some((row) => row.type === 'file'))
 const suggestedAppName = computed(() => {
@@ -226,6 +280,7 @@ const handleTreeRowClick = (row: TreeRow) => {
     }
     return
   }
+  ensureFileTabOpen(row.path)
   activeFilePath.value = row.path
 }
 
@@ -233,6 +288,8 @@ const getFileExtensionLabel = (fileName: string) => {
   const extension = fileName.split('.').pop()?.trim().toUpperCase()
   return extension && extension !== fileName.toUpperCase() ? extension.slice(0, 4) : 'TXT'
 }
+
+const getBaseNameFromPath = (path: string) => path.split('/').filter(Boolean).pop() || path || 'untitled'
 
 const getParentPath = (path: string) => {
   const normalizedPath = normalizeSandboxPath(path)
@@ -485,6 +542,59 @@ const downloadCurrentFile = (filePath = activeFilePath.value) => {
   } catch (error) {
     console.error('Sandbox download error:', error)
     message.error('下载文件失败')
+  }
+}
+
+const saveActiveFile = () => {
+  const filePath = currentTabFilePath.value
+  if (!filePath || !activeFile.value) return
+  if (!isActiveFileDirty.value) return
+
+  canvasStore.updateFileContent(filePath, getDraftContent(filePath), currentChatId.value)
+  message.success(`已保存 ${filePath}`)
+}
+
+const handleCanvasKeydown = (event: KeyboardEvent) => {
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 's') return
+  if (settingsStore.display.canvasEditorTab !== 'code') return
+  if (!currentTabFilePath.value || !isActiveFileDirty.value) return
+
+  event.preventDefault()
+  saveActiveFile()
+}
+
+const closeFileTab = async (filePath: string) => {
+  if (!filePath) return
+
+  const currentFile = currentCanvas.value.files[filePath]
+  const draftContent = getDraftContent(filePath)
+  const isDirty = Boolean(currentFile) && draftContent !== currentFile.content
+
+  if (isDirty) {
+    const shouldSave = await modal.confirm({
+      title: '关闭标签页',
+      content: `${filePath} 有未保存修改，是否先保存再关闭？`,
+      confirmText: '保存并关闭',
+      cancelText: '直接关闭'
+    })
+
+    if (shouldSave && currentFile) {
+      canvasStore.updateFileContent(filePath, draftContent, currentChatId.value)
+    }
+  }
+
+  const nextTabs = openFileTabs.value.filter((path) => path !== filePath)
+  openFileTabs.value = nextTabs
+
+  const nextDrafts = { ...fileDrafts.value }
+  delete nextDrafts[filePath]
+  fileDrafts.value = nextDrafts
+
+  if (activeFilePath.value !== filePath) return
+
+  const nextActiveFilePath = nextTabs[nextTabs.length - 1] || ''
+  if (nextActiveFilePath) {
+    activeFilePath.value = nextActiveFilePath
   }
 }
 
@@ -996,43 +1106,35 @@ const openActionsMenu = (event: MouseEvent) => {
   showContextMenu(event, options)
 }
 
-watch(currentChatId, () => {
-  previewLogs.value = []
-  hideContextMenu()
-  resetDragState()
-})
+watch(
+  currentChatId,
+  () => {
+    previewLogs.value = []
+    hideContextMenu()
+    resetDragState()
+    openFileTabs.value = activeFilePath.value ? [activeFilePath.value] : []
+    fileDrafts.value = activeFilePath.value
+      ? { [activeFilePath.value]: currentCanvas.value.files[activeFilePath.value]?.content || '' }
+      : {}
+  },
+  { immediate: true }
+)
 
 watch(
-  [sandboxTreeRows, expandedDirectoryPaths],
+  () => sandboxTreeRows.value.length,
   () => {
     nextTick(() => {
       const containerRef = sandboxTreeContainerProps.ref as Ref<HTMLElement | null>
       containerRef.value?.dispatchEvent(new Event('scroll'))
     })
-  },
-  { deep: true }
+  }
 )
 
 watch(
-  [sandboxTreeNodes, activeFilePath],
-  ([nodes, currentActiveFilePath]) => {
-    const availableDirectoryPaths = new Set<string>()
-
-    const visit = (treeNodes: ReturnType<typeof buildSandboxTree>) => {
-      for (const node of treeNodes) {
-        if (node.type === 'directory') {
-          availableDirectoryPaths.add(node.path)
-          if (node.children?.length) {
-            visit(node.children)
-          }
-        }
-      }
-    }
-
-    visit(nodes)
-
+  [sandboxTreeNodes, availableDirectoryPathSet],
+  ([nodes, availablePaths]) => {
     const nextExpandedPaths = new Set(
-      expandedDirectoryPaths.value.filter((path) => availableDirectoryPaths.has(path))
+      expandedDirectoryPaths.value.filter((path) => availablePaths.has(path))
     )
 
     nodes.forEach((node) => {
@@ -1041,16 +1143,66 @@ watch(
       }
     })
 
-    getAncestorDirectoryPaths(currentActiveFilePath).forEach((path) => {
-      if (availableDirectoryPaths.has(path)) {
+    getAncestorDirectoryPaths(activeFilePath.value).forEach((path) => {
+      if (availablePaths.has(path)) {
         nextExpandedPaths.add(path)
       }
     })
 
-    expandedDirectoryPaths.value = [...nextExpandedPaths]
+    const nextPaths = [...nextExpandedPaths]
+    if (
+      nextPaths.length === expandedDirectoryPaths.value.length &&
+      nextPaths.every((path, index) => path === expandedDirectoryPaths.value[index])
+    ) {
+      return
+    }
+
+    expandedDirectoryPaths.value = nextPaths
   },
   { immediate: true }
 )
+
+watch(
+  activeFilePath,
+  (currentActiveFilePath) => {
+    if (currentActiveFilePath) {
+      ensureFileTabOpen(currentActiveFilePath)
+      if (!Object.prototype.hasOwnProperty.call(fileDrafts.value, currentActiveFilePath)) {
+        setDraftContent(currentActiveFilePath, currentCanvas.value.files[currentActiveFilePath]?.content || '')
+      }
+    }
+
+    const nextExpandedPaths = new Set(expandedDirectoryPaths.value)
+    let changed = false
+
+    getAncestorDirectoryPaths(currentActiveFilePath).forEach((path) => {
+      if (!availableDirectoryPathSet.value.has(path) || nextExpandedPaths.has(path)) return
+      nextExpandedPaths.add(path)
+      changed = true
+    })
+
+    if (!changed) return
+    expandedDirectoryPaths.value = [...nextExpandedPaths]
+  }
+)
+
+watch(
+  () => activeFile.value?.content,
+  (content) => {
+    const filePath = activeFilePath.value
+    if (!filePath) return
+    if (isActiveFileDirty.value) return
+    setDraftContent(filePath, content || '')
+  }
+)
+
+onMounted(() => {
+  window.addEventListener('keydown', handleCanvasKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleCanvasKeydown)
+})
 </script>
 
 <template>
@@ -1167,25 +1319,30 @@ watch(
         <div v-else class="canvas-code">
           <template v-if="activeFile">
             <div class="canvas-panel-surface canvas-code-editor-shell">
-              <div class="canvas-code-toolbar">
-                <span class="canvas-code-file">{{ activeFilePath }}</span>
-                <span class="canvas-code-lang">{{ activeLanguage }}</span>
+              <div v-if="openFileTabs.length > 0" class="canvas-file-tabs">
+                <button v-for="filePath in openFileTabs" :key="filePath" type="button" class="canvas-file-tab"
+                  :class="{ active: filePath === activeFilePath }" @click="activeFilePath = filePath">
+                  <span class="canvas-file-tab-name">{{ getBaseNameFromPath(filePath) }}</span>
+                  <span v-if="getDraftContent(filePath) !== (currentCanvas.files[filePath]?.content || '')"
+                    class="canvas-file-tab-dirty"></span>
+                  <span class="canvas-file-tab-close" @click.stop="void closeFileTab(filePath)">x</span>
+                </button>
               </div>
               <div v-if="isActiveImageFile" class="canvas-image-preview">
                 <AppImage :src="activeFile.content" preview class="canvas-image-preview-media" />
               </div>
               <div v-else-if="isActiveBinaryFile" class="canvas-binary-preview">
                 <strong>二进制文件</strong>
-                <span>{{ activeFilePath }}</span>
+                <span>{{ currentTabFilePath }}</span>
                 <p>该文件已保存在画布工作区中，可直接在终端或 exec_command_canvas 中使用。</p>
               </div>
               <div v-else class="canvas-code-editor">
-                <SandboxCodeEditor v-model="activeFileContent" :path="activeFilePath" :language="activeLanguage" />
+                <SandboxCodeEditor v-model="activeFileContent" :path="currentTabFilePath" :language="activeLanguage" />
               </div>
             </div>
           </template>
           <div v-else class="canvas-empty-state">
-            当前没有选中文件。请先在左侧选择文件，或新建一个文件。
+            当前没有打开的文件。请先在左侧选择文件，或新建一个文件。
           </div>
         </div>
       </div>
@@ -1773,16 +1930,62 @@ watch(
   --sandbox-log-ready: #0f766e;
 }
 
-.canvas-code-toolbar {
+.canvas-file-tabs {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  height: 30px;
-  padding: 0 10px;
-  font-size: 11px;
+  align-items: stretch;
+  gap: 1px;
   border-bottom: 1px solid rgba(var(--text-rgb), 0.08);
   background: rgba(255, 255, 255, 0.02);
+  overflow-x: auto;
+}
+
+.canvas-file-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 0;
+  background: rgba(var(--text-rgb), 0.04);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.canvas-file-tab.active {
+  background: color-mix(in srgb, var(--bg-card) 86%, transparent);
+  color: var(--text-primary);
+}
+
+.canvas-file-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-file-tab-dirty {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #d97706;
+  flex-shrink: 0;
+}
+
+.canvas-file-tab-close {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.canvas-file-tab-close:hover {
+  background: rgba(var(--text-rgb), 0.08);
+  color: var(--text-primary);
 }
 
 .canvas-empty-state {
@@ -1797,15 +2000,6 @@ watch(
   background: rgba(255, 255, 255, 0.02);
 }
 
-.canvas-code-file {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.canvas-code-lang {
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-}
 
 .canvas-code-editor-shell {
   flex: 1;

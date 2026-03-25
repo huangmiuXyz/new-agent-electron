@@ -16,6 +16,7 @@ let resolveRestore: () => void
 const restorePromise = new Promise<void>((resolve) => {
   resolveRestore = resolve
 })
+const transientActiveFilePaths = reactive<Record<string, string>>({})
 
 export const useCanvasStore = defineStore(
   'canvas',
@@ -35,21 +36,31 @@ export const useCanvasStore = defineStore(
         ...canvases.value,
         [resolvedChatId]: canvas
       }
+      transientActiveFilePaths[resolvedChatId] = canvas.activeFilePath
       return { chatId: resolvedChatId, canvas }
     }
 
     const getCanvas = (chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
       const existing = canvases.value[resolvedChatId]
-      return existing ? ensureSandboxState(existing) : createSandboxState()
+      return existing || createSandboxState()
+    }
+
+    const ensureStoredCanvas = (chatId?: string) => {
+      const resolvedChatId = resolveChatId(chatId)
+      const existing = canvases.value[resolvedChatId]
+      if (existing) return { chatId: resolvedChatId, canvas: existing }
+      return createAndStoreCanvas(resolvedChatId)
     }
 
     const replaceCanvas = (canvas: ChatCanvasState, chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
+      const normalizedCanvas = ensureSandboxState(canvas)
       canvases.value = {
         ...canvases.value,
-        [resolvedChatId]: ensureSandboxState(canvas)
+        [resolvedChatId]: normalizedCanvas
       }
+      transientActiveFilePaths[resolvedChatId] = normalizedCanvas.activeFilePath
     }
 
     const listCanvasFiles = (chatId?: string) => {
@@ -57,11 +68,20 @@ export const useCanvasStore = defineStore(
     }
 
     const getActiveFilePath = (chatId?: string) => {
+      const resolvedChatId = resolveChatId(chatId)
+      const storedActiveFilePath = transientActiveFilePaths[resolvedChatId]
+      if (typeof storedActiveFilePath === 'string') {
+        return storedActiveFilePath
+      }
       return getCanvas(chatId).activeFilePath
     }
 
     const setActiveFilePath = (filePath: string, chatId?: string) => {
-      replaceCanvas(setSandboxActiveFile(getCanvas(chatId), filePath), chatId)
+      const { chatId: resolvedChatId, canvas } = ensureStoredCanvas(chatId)
+      const normalizedState = ensureSandboxState(canvas)
+      const nextState = setSandboxActiveFile(normalizedState, filePath)
+      if (transientActiveFilePaths[resolvedChatId] === nextState.activeFilePath) return
+      transientActiveFilePaths[resolvedChatId] = nextState.activeFilePath
     }
 
     const getActiveFile = (chatId?: string) => {
@@ -106,6 +126,7 @@ export const useCanvasStore = defineStore(
       const nextCanvases = { ...canvases.value }
       delete nextCanvases[chatId]
       canvases.value = nextCanvases
+      delete transientActiveFilePaths[chatId]
     }
 
     const deleteCanvases = (chatIds: string[]) => {
@@ -114,6 +135,11 @@ export const useCanvasStore = defineStore(
       canvases.value = Object.fromEntries(
         Object.entries(canvases.value).filter(([chatId]) => !ids.has(chatId))
       )
+      Object.keys(transientActiveFilePaths).forEach((chatId) => {
+        if (ids.has(chatId)) {
+          delete transientActiveFilePaths[chatId]
+        }
+      })
     }
 
     const syncWithChats = (chatIds: string[]) => {
@@ -121,6 +147,11 @@ export const useCanvasStore = defineStore(
       canvases.value = Object.fromEntries(
         Object.entries(canvases.value).filter(([chatId]) => chatId === 'default' || validIds.has(chatId))
       )
+      Object.keys(transientActiveFilePaths).forEach((chatId) => {
+        if (chatId !== 'default' && !validIds.has(chatId)) {
+          delete transientActiveFilePaths[chatId]
+        }
+      })
     }
 
     return {

@@ -75,11 +75,6 @@ const modelPath = computed(() => {
   return `file://${normalized.startsWith('/') ? normalized : `/${normalized}`}`
 })
 
-const editorValue = computed({
-  get: () => props.modelValue,
-  set: (value?: string) => emit('update:modelValue', value || '')
-})
-
 const monacoTheme = computed(() => (settingsStore.display.darkMode ? 'vs-dark' : 'vs'))
 
 const editorOptions = computed<editor.IStandaloneEditorConstructionOptions>(() => ({
@@ -102,40 +97,33 @@ const editorOptions = computed<editor.IStandaloneEditorConstructionOptions>(() =
   smoothScrolling: true
 }))
 
-const createModelUri = () => monaco.Uri.parse(modelPath.value)
+let modelRef: editor.ITextModel | null = null
 
-const getOrCreateModel = () => {
-  const uri = createModelUri()
-  const existingModel = monaco.editor.getModel(uri)
+const getCurrentModel = () => modelRef
 
-  if (existingModel) {
-    if (existingModel.getLanguageId() !== monacoLanguage.value) {
-      monaco.editor.setModelLanguage(existingModel, monacoLanguage.value)
-    }
-    if (existingModel.getValue() !== props.modelValue) {
-      existingModel.setValue(props.modelValue)
-    }
-    return existingModel
-  }
-
-  return monaco.editor.createModel(props.modelValue, monacoLanguage.value, uri)
+const syncCurrentModelValue = (value: string) => {
+  const model = getCurrentModel()
+  if (!model) return
+  if (model.getValue() === value) return
+  model.setValue(value)
 }
 
 const ensureEditor = () => {
   if (!containerRef.value || editorRef.value) return
 
-  const model = getOrCreateModel()
+  modelRef = monaco.editor.createModel(props.modelValue, monacoLanguage.value)
+
   monaco.editor.setTheme(monacoTheme.value)
   editorRef.value = monaco.editor.create(containerRef.value, {
     ...editorOptions.value,
-    model
+    model: modelRef
   })
   editorRef.value.layout()
 
   changeListener = editorRef.value.onDidChangeModelContent(() => {
     const value = editorRef.value?.getValue() || ''
     if (value !== props.modelValue) {
-      editorValue.value = value
+      emit('update:modelValue', value)
     }
   })
 
@@ -163,10 +151,10 @@ onMounted(() => {
 watch(
   [() => modelPath.value, () => monacoLanguage.value],
   () => {
-    if (!editorRef.value) return
-    const nextModel = getOrCreateModel()
-    if (editorRef.value.getModel() !== nextModel) {
-      editorRef.value.setModel(nextModel)
+    const model = getCurrentModel()
+    if (!model) return
+    if (model.getLanguageId() !== monacoLanguage.value) {
+      monaco.editor.setModelLanguage(model, monacoLanguage.value)
     }
   }
 )
@@ -174,11 +162,7 @@ watch(
 watch(
   () => props.modelValue,
   (value) => {
-    const model = editorRef.value?.getModel()
-    if (!model) return
-    if (model.getValue() !== value) {
-      model.setValue(value)
-    }
+    syncCurrentModelValue(value)
   }
 )
 
@@ -213,6 +197,8 @@ onBeforeUnmount(() => {
   changeListener = null
   editorRef.value?.dispose()
   editorRef.value = null
+  modelRef?.dispose()
+  modelRef = null
 })
 </script>
 
