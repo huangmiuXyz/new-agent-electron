@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useVirtualList } from '@vueuse/core'
 import AppImage from './Image.vue'
 import HtmlPreview from './HtmlPreview.vue'
 import SandboxCodeEditor from './SandboxCodeEditor.vue'
@@ -82,11 +83,15 @@ const sandboxLogsCollapsed = ref(false)
 const expandedDirectoryPaths = ref<string[]>([])
 const isCanvasDragOver = ref(false)
 const dragDepth = ref(0)
+const draggingCanvasFilePath = ref('')
+const dragTargetDirectoryPath = ref('')
+const CANVAS_FILE_DRAG_MIME = 'application/x-agent-qi-canvas-file'
 
 const currentChatId = computed(() => chatsStore.currentChat?.id)
 const currentCanvas = computed(() => canvasStore.getCanvas(currentChatId.value))
 const sandboxTreeNodes = computed(() => buildSandboxTree(currentCanvas.value))
 const expandedDirectoryPathSet = computed(() => new Set(expandedDirectoryPaths.value))
+const SANDBOX_TREE_ROW_HEIGHT = 22
 const sandboxTreeRows = computed<TreeRow[]>(() => {
   const rows: TreeRow[] = []
   const walk = (nodes: ReturnType<typeof buildSandboxTree>, depth = 0) => {
@@ -110,6 +115,14 @@ const sandboxTreeRows = computed<TreeRow[]>(() => {
   }
   walk(sandboxTreeNodes.value)
   return rows
+})
+const {
+  list: virtualSandboxTreeRows,
+  containerProps: sandboxTreeContainerProps,
+  wrapperProps: sandboxTreeWrapperProps
+} = useVirtualList(sandboxTreeRows, {
+  itemHeight: SANDBOX_TREE_ROW_HEIGHT,
+  overscan: 10
 })
 
 const activeFilePath = computed({
@@ -139,6 +152,10 @@ const suggestedAppName = computed(() => {
 
 const hasFileDrag = (event: DragEvent) => {
   return Array.from(event.dataTransfer?.types || []).includes('Files')
+}
+
+const hasCanvasFileDrag = (event: DragEvent) => {
+  return Array.from(event.dataTransfer?.types || []).includes(CANVAS_FILE_DRAG_MIME)
 }
 
 const sanitizeDownloadName = (value: string) => {
@@ -196,6 +213,12 @@ const toggleDirectory = (path: string) => {
   expandedDirectoryPaths.value = [...next]
 }
 
+const expandDirectory = (path: string) => {
+  const next = new Set(expandedDirectoryPaths.value)
+  next.add(path)
+  expandedDirectoryPaths.value = [...next]
+}
+
 const handleTreeRowClick = (row: TreeRow) => {
   if (row.type === 'directory') {
     if (row.hasChildren) {
@@ -218,6 +241,10 @@ const getParentPath = (path: string) => {
   return `/${segments.slice(0, -1).join('/')}`
 }
 
+const getBaseName = (path: string) => {
+  return normalizeSandboxPath(path).split('/').filter(Boolean).pop() || ''
+}
+
 const buildSiblingPath = (path: string, nextName: string) => {
   const parentPath = getParentPath(path)
   const trimmedName = String(nextName || '').trim().replaceAll('\\', '/')
@@ -231,6 +258,53 @@ const getRowFilePaths = (row: TreeRow) => {
   if (row.type === 'file') return [row.path]
   const prefix = `${row.path}/`
   return Object.keys(currentCanvas.value.files).filter((path) => path.startsWith(prefix))
+}
+
+const downloadDirectoryAsZip = async (row: TreeRow) => {
+  if (row.type !== 'directory') return
+
+  const filePaths = getRowFilePaths(row)
+  if (filePaths.length === 0) {
+    message.warning('当前目录下没有可下载的文件')
+    return
+  }
+
+  try {
+    const zip = new JSZip()
+
+    filePaths.forEach((filePath) => {
+      const file = currentCanvas.value.files[filePath]
+      if (!file) return
+
+      const zipPath = filePath.slice(row.path.length + 1)
+      if (!zipPath) return
+
+      const parsedDataUrl = file.encoding === 'data-url' ? parseSandboxDataUrl(file.content) : null
+      if (parsedDataUrl) {
+        zip.file(zipPath, parsedDataUrl.base64, { base64: true })
+        return
+      }
+
+      zip.file(zipPath, file.content)
+    })
+
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const fileName = `${sanitizeDownloadName(row.name)}.zip`
+
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    message.success(`已开始下载目录：${row.path}`)
+  } catch (error) {
+    console.error('Sandbox directory zip download error:', error)
+    message.error('下载目录失败')
+  }
 }
 
 const renameTreeRow = (row: TreeRow) => {
@@ -358,7 +432,13 @@ const openTreeRowMenu = (event: MouseEvent, row: TreeRow) => {
         icon: DownloadIcon,
         onClick: (targetRow: TreeRow) => downloadCurrentFile(targetRow.path)
       }]
-      : []),
+      : [{
+        label: '下载目录',
+        icon: DownloadIcon,
+        onClick: (targetRow: TreeRow) => {
+          void downloadDirectoryAsZip(targetRow)
+        }
+      }]),
     {
       label: row.type === 'directory' ? '删除目录' : '删除',
       icon: TrashIcon,
@@ -640,9 +720,12 @@ const syncLocalFolderToCanvas = async () => {
   }
 }
 
-const createCanvasFileFromDrop = async (file: File) => {
+const createCanvasFileFromDrop = async (file: File, directoryPath?: string) => {
   const relativeName = file.webkitRelativePath || file.name
-  const normalizedPath = normalizeSandboxPath(relativeName)
+  const baseDirectory = directoryPath ? normalizeSandboxPath(directoryPath) : ''
+  const normalizedPath = normalizeSandboxPath(
+    baseDirectory ? `${baseDirectory}/${relativeName}` : relativeName
+  )
 
   if (!isTextFile(file.name)) {
     const content = await blobToDataURL(file)
@@ -664,7 +747,7 @@ const createCanvasFileFromDrop = async (file: File) => {
   }
 }
 
-const handleDroppedFiles = async (files: File[]) => {
+const handleDroppedFiles = async (files: File[], directoryPath?: string) => {
   if (files.length === 0) return
 
   try {
@@ -674,7 +757,7 @@ const handleDroppedFiles = async (files: File[]) => {
       updatedAt: Date.now()
     }
 
-    const droppedFiles = await Promise.all(files.map((file) => createCanvasFileFromDrop(file)))
+    const droppedFiles = await Promise.all(files.map((file) => createCanvasFileFromDrop(file, directoryPath)))
 
     droppedFiles.forEach((file) => {
       nextCanvas.files[file.path] = file
@@ -685,11 +768,39 @@ const handleDroppedFiles = async (files: File[]) => {
     }
 
     canvasStore.replaceCanvas(nextCanvas, currentChatId.value)
-    message.success(`已导入 ${droppedFiles.length} 个文件`)
+    const successText = directoryPath
+      ? `已导入 ${droppedFiles.length} 个文件到 ${normalizeSandboxPath(directoryPath)}`
+      : `已导入 ${droppedFiles.length} 个文件`
+    message.success(successText)
   } catch (error) {
     console.error('Canvas drop import error:', error)
     message.error((error as Error).message || '导入文件失败')
   }
+}
+
+const moveCanvasFileToDirectory = (sourcePath: string, directoryPath: string) => {
+  const normalizedSourcePath = normalizeSandboxPath(sourcePath)
+  const normalizedDirectoryPath = normalizeSandboxPath(directoryPath)
+  const targetPath = normalizeSandboxPath(`${normalizedDirectoryPath}/${getBaseName(normalizedSourcePath)}`)
+
+  if (normalizedSourcePath === targetPath) return
+
+  canvasStore.applyOperation(
+    {
+      type: 'move',
+      filePath: normalizedSourcePath,
+      targetPath
+    },
+    currentChatId.value
+  )
+  message.success(`已移动文件到 ${normalizedDirectoryPath}`)
+}
+
+const resetDragState = () => {
+  dragDepth.value = 0
+  isCanvasDragOver.value = false
+  draggingCanvasFilePath.value = ''
+  dragTargetDirectoryPath.value = ''
 }
 
 const handleCanvasDragEnter = (event: DragEvent) => {
@@ -719,9 +830,77 @@ const handleCanvasDragLeave = (event: DragEvent) => {
 const handleCanvasDrop = (event: DragEvent) => {
   if (!hasFileDrag(event)) return
   event.preventDefault()
-  dragDepth.value = 0
-  isCanvasDragOver.value = false
+  resetDragState()
   void handleDroppedFiles(Array.from(event.dataTransfer?.files || []))
+}
+
+const handleTreeRowDragStart = (row: TreeRow, event: DragEvent) => {
+  if (row.type !== 'file' || !event.dataTransfer) return
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData(CANVAS_FILE_DRAG_MIME, row.path)
+  draggingCanvasFilePath.value = row.path
+}
+
+const handleTreeRowDragEnd = () => {
+  draggingCanvasFilePath.value = ''
+  dragTargetDirectoryPath.value = ''
+}
+
+const handleDirectoryDragEnter = (row: TreeRow, event: DragEvent) => {
+  if (row.type !== 'directory') return
+  if (!hasFileDrag(event) && !hasCanvasFileDrag(event)) return
+  event.preventDefault()
+  event.stopPropagation()
+  dragTargetDirectoryPath.value = row.path
+  expandDirectory(row.path)
+}
+
+const handleDirectoryDragOver = (row: TreeRow, event: DragEvent) => {
+  if (row.type !== 'directory') return
+  if (!hasFileDrag(event) && !hasCanvasFileDrag(event)) return
+  event.preventDefault()
+  event.stopPropagation()
+  dragTargetDirectoryPath.value = row.path
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = hasCanvasFileDrag(event) ? 'move' : 'copy'
+  }
+}
+
+const handleDirectoryDragLeave = (row: TreeRow, event: DragEvent) => {
+  if (row.type !== 'directory') return
+  if (!hasFileDrag(event) && !hasCanvasFileDrag(event)) return
+  const currentTarget = event.currentTarget as HTMLElement | null
+  const relatedTarget = event.relatedTarget as Node | null
+  if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (dragTargetDirectoryPath.value === row.path) {
+    dragTargetDirectoryPath.value = ''
+  }
+}
+
+const handleDirectoryDrop = (row: TreeRow, event: DragEvent) => {
+  if (row.type !== 'directory') return
+  if (!hasFileDrag(event) && !hasCanvasFileDrag(event)) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  dragTargetDirectoryPath.value = ''
+  isCanvasDragOver.value = false
+  dragDepth.value = 0
+
+  const canvasFilePath = event.dataTransfer?.getData(CANVAS_FILE_DRAG_MIME) || draggingCanvasFilePath.value
+  if (canvasFilePath) {
+    draggingCanvasFilePath.value = ''
+    try {
+      moveCanvasFileToDirectory(canvasFilePath, row.path)
+    } catch (error) {
+      message.error((error as Error).message || '移动文件失败')
+    }
+    return
+  }
+
+  void handleDroppedFiles(Array.from(event.dataTransfer?.files || []), row.path)
 }
 
 const appendPreviewLog = (item: Omit<PreviewLogItem, 'id'>) => {
@@ -820,7 +999,19 @@ const openActionsMenu = (event: MouseEvent) => {
 watch(currentChatId, () => {
   previewLogs.value = []
   hideContextMenu()
+  resetDragState()
 })
+
+watch(
+  [sandboxTreeRows, expandedDirectoryPaths],
+  () => {
+    nextTick(() => {
+      const containerRef = sandboxTreeContainerProps.ref as Ref<HTMLElement | null>
+      containerRef.value?.dispatchEvent(new Event('scroll'))
+    })
+  },
+  { deep: true }
+)
 
 watch(
   [sandboxTreeNodes, activeFilePath],
@@ -905,23 +1096,34 @@ watch(
               <span class="sandbox-explorer-group-title">SANDBOX</span>
               <span class="sandbox-explorer-group-subtitle">{{ suggestedAppName }}</span>
             </div>
-            <div class="sandbox-tree">
-              <button v-for="row in sandboxTreeRows" :key="row.id" type="button" class="sandbox-tree-row" :class="{
-                active: row.type === 'file' && row.path === activeFilePath,
-                directory: row.type === 'directory'
-              }" :style="{ paddingLeft: `${8 + row.depth * 14}px` }" @click="handleTreeRowClick(row)"
-                @contextmenu="openTreeRowMenu($event, row)">
-                <span class="sandbox-tree-chevron">
-                  {{ row.type === 'directory' && row.hasChildren ? (row.isExpanded ? '▾' : '▸') : '' }}
-                </span>
-                <span class="sandbox-tree-file-icon" :class="[`type-${row.type}`]">
-                  <span class="sandbox-tree-file-glyph"></span>
-                </span>
-                <span class="sandbox-tree-label">{{ row.name }}</span>
-                <span v-if="row.type === 'file'" class="sandbox-tree-badge">
-                  {{ getFileExtensionLabel(row.name) }}
-                </span>
-              </button>
+            <div class="sandbox-tree" v-bind="sandboxTreeContainerProps">
+              <div class="sandbox-tree-wrapper" v-bind="sandboxTreeWrapperProps">
+                <button v-for="item in virtualSandboxTreeRows" :key="item.data.id" type="button" class="sandbox-tree-row"
+                  :class="{
+                    active: item.data.type === 'file' && item.data.path === activeFilePath,
+                    directory: item.data.type === 'directory',
+                    'drop-target': item.data.type === 'directory' && item.data.path === dragTargetDirectoryPath,
+                    dragging: item.data.type === 'file' && item.data.path === draggingCanvasFilePath
+                  }" :style="{
+                    paddingLeft: `${8 + item.data.depth * 14}px`,
+                    height: `${SANDBOX_TREE_ROW_HEIGHT}px`
+                  }" @click="handleTreeRowClick(item.data)" @contextmenu="openTreeRowMenu($event, item.data)"
+                  :draggable="item.data.type === 'file'" @dragstart="handleTreeRowDragStart(item.data, $event)"
+                  @dragend="handleTreeRowDragEnd" @dragenter="handleDirectoryDragEnter(item.data, $event)"
+                  @dragover="handleDirectoryDragOver(item.data, $event)"
+                  @dragleave="handleDirectoryDragLeave(item.data, $event)" @drop="handleDirectoryDrop(item.data, $event)">
+                  <span class="sandbox-tree-chevron">
+                    {{ item.data.type === 'directory' && item.data.hasChildren ? (item.data.isExpanded ? '▾' : '▸') : '' }}
+                  </span>
+                  <span class="sandbox-tree-file-icon" :class="[`type-${item.data.type}`]">
+                    <span class="sandbox-tree-file-glyph"></span>
+                  </span>
+                  <span class="sandbox-tree-label">{{ item.data.name }}</span>
+                  <span v-if="item.data.type === 'file'" class="sandbox-tree-badge">
+                    {{ getFileExtensionLabel(item.data.name) }}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1282,6 +1484,10 @@ watch(
   padding: 0 0 8px;
 }
 
+.sandbox-tree-wrapper {
+  min-width: 100%;
+}
+
 .sandbox-tree-row {
   width: 100%;
   border: none;
@@ -1296,6 +1502,9 @@ watch(
   line-height: 1;
   border-radius: 0;
   min-height: 22px;
+  height: 22px;
+  max-height: 22px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1317,6 +1526,15 @@ watch(
 
 .sandbox-tree-row.active:hover {
   background: var(--sandbox-tree-active-bg-hover);
+}
+
+.sandbox-tree-row.dragging {
+  opacity: 0.56;
+}
+
+.sandbox-tree-row.drop-target {
+  background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.32);
 }
 
 .sandbox-tree-chevron {
