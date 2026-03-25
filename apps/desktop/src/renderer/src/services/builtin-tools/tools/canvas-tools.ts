@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import {
   buildSandboxTree,
-  ensureSandboxTempWorkspace,
+  ensureSandboxTempWorkspaceAsync,
   normalizeSandboxPath,
-  readSandboxWorkspace,
+  readSandboxWorkspaceAsync,
   sortSandboxFiles
 } from '@renderer/services/sandbox'
 
@@ -11,9 +11,7 @@ const ensureCanvasTempWorkspace = (chatId?: string) => {
   const canvasStore = useCanvasStore()
   const sandbox = canvasStore.getCanvas(chatId)
   const workspaceId = chatId || 'default'
-  const workspaceDir = ensureSandboxTempWorkspace(sandbox, workspaceId)
-
-  return { sandbox, workspaceDir }
+  return ensureSandboxTempWorkspaceAsync(sandbox, workspaceId).then((workspaceDir) => ({ sandbox, workspaceDir }))
 }
 
 const summarizeCanvasSync = (
@@ -318,7 +316,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
         openCanvasPanel()
 
         const canvasStore = useCanvasStore()
-        const { sandbox, workspaceDir } = ensureCanvasTempWorkspace(options?.chatId)
+        const { sandbox, workspaceDir } = await ensureCanvasTempWorkspace(options?.chatId)
         const { createTab } = useTerminal()
         const { id: tabId, result } = await createTab({
           command,
@@ -328,7 +326,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
           toolCallId: options?.toolCallId,
           showTerminal: true
         })
-        const syncedCanvas = readSandboxWorkspace(workspaceDir)
+        const syncedCanvas = await readSandboxWorkspaceAsync(workspaceDir)
         const nextActiveFilePath = sandbox.activeFilePath && syncedCanvas.files[sandbox.activeFilePath]
           ? sandbox.activeFilePath
           : syncedCanvas.activeFilePath

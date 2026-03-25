@@ -1,3 +1,5 @@
+import { isTextFile } from '@renderer/utils'
+
 export type SandboxOperationType = 'modify' | 'add' | 'delete' | 'move'
 
 export type SandboxFile = {
@@ -49,7 +51,7 @@ export const getSandboxMediaType = (filePath: string): string => {
   if (lower.endsWith('.svg')) return 'image/svg+xml'
   if (lower.endsWith('.txt')) return 'text/plain'
   const matched = IMAGE_FILE_RULES.find((rule) => lower.endsWith(rule.extension))
-  return matched?.mediaType || 'text/plain'
+  return matched?.mediaType || (window.api.mime.lookup(filePath) as string) || 'application/octet-stream'
 }
 
 export const isSandboxImagePath = (filePath: string): boolean => {
@@ -91,6 +93,7 @@ export const normalizeSandboxPath = (rawPath: string): string => {
 
 export const getSandboxFileLanguage = (filePath: string): string => {
   if (isSandboxImagePath(filePath)) return 'binary'
+  if (!isTextFile(filePath)) return 'binary'
   const lower = filePath.toLowerCase()
   if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'html'
   if (lower.endsWith('.css')) return 'css'
@@ -225,10 +228,50 @@ export const writeSandboxStateToWorkspace = (state: SandboxState, workspaceDir: 
   })
 }
 
-export const ensureSandboxTempWorkspace = (state: SandboxState, workspaceId = 'default') => {
+export const writeSandboxStateToWorkspaceAsync = async (state: SandboxState, workspaceDir: string) => {
+  await window.api.fs.promises.mkdir(workspaceDir, { recursive: true })
+
+  const existingEntries = await window.api.fs.promises.readdir(workspaceDir, { withFileTypes: true })
+  await Promise.all(
+    existingEntries.map((entry) =>
+      window.api.fs.promises.rm(window.api.path.join(workspaceDir, entry.name), { recursive: true, force: true })
+    )
+  )
+
+  for (const file of sortSandboxFiles(state)) {
+    const relativePath = file.path.replace(/^\/+/, '')
+    if (!relativePath) continue
+
+    const outputPath = window.api.path.join(workspaceDir, ...relativePath.split('/'))
+    const parentDir = window.api.path.dirname(outputPath)
+    await window.api.fs.promises.mkdir(parentDir, { recursive: true })
+
+    if (file.encoding === 'data-url') {
+      const parsed = parseSandboxDataUrl(file.content)
+      if (parsed) {
+        await window.api.fs.promises.writeFile(outputPath, decodeSandboxBase64(parsed.base64))
+        continue
+      }
+    }
+
+    await window.api.fs.promises.writeFile(outputPath, file.content, 'utf-8')
+  }
+}
+
+export const getSandboxTempWorkspacePath = (workspaceId = 'default') => {
   const tempRoot = window.api.path.join(window.api.getPath('temp'), 'agent-qi-canvas-exec')
-  const workspaceDir = window.api.path.join(tempRoot, workspaceId)
+  return window.api.path.join(tempRoot, workspaceId)
+}
+
+export const ensureSandboxTempWorkspace = (state: SandboxState, workspaceId = 'default') => {
+  const workspaceDir = getSandboxTempWorkspacePath(workspaceId)
   writeSandboxStateToWorkspace(state, workspaceDir)
+  return workspaceDir
+}
+
+export const ensureSandboxTempWorkspaceAsync = async (state: SandboxState, workspaceId = 'default') => {
+  const workspaceDir = getSandboxTempWorkspacePath(workspaceId)
+  await writeSandboxStateToWorkspaceAsync(state, workspaceDir)
   return workspaceDir
 }
 
@@ -255,8 +298,8 @@ export const readSandboxWorkspace = (workspaceDir: string): SandboxState => {
 
       const relativePath = window.api.path.relative(workspaceDir, fullPath).replaceAll('\\', '/')
       const sandboxPath = normalizeSandboxPath(relativePath)
-      const isImageFile = isSandboxImagePath(sandboxPath)
-      const content = isImageFile
+      const shouldReadAsBinary = !isTextFile(sandboxPath)
+      const content = shouldReadAsBinary
         ? (() => {
           const bytes = window.api.fs.readFileSync(fullPath)
           const mediaType = getSandboxMediaType(sandboxPath)
@@ -267,14 +310,65 @@ export const readSandboxWorkspace = (workspaceDir: string): SandboxState => {
       fileEntries[sandboxPath] = {
         path: sandboxPath,
         content,
-        encoding: isImageFile ? 'data-url' : 'text',
-        mediaType: isImageFile ? getSandboxMediaType(sandboxPath) : undefined,
+        encoding: shouldReadAsBinary ? 'data-url' : 'text',
+        mediaType: shouldReadAsBinary ? getSandboxMediaType(sandboxPath) : undefined,
         updatedAt: stat.mtimeMs || Date.now()
       }
     }
   }
 
   walk(workspaceDir)
+
+  nextState.files = fileEntries
+  nextState.updatedAt = Date.now()
+  nextState.activeFilePath = sortSandboxFiles(nextState)[0]?.path || ''
+
+  return nextState
+}
+
+export const readSandboxWorkspaceAsync = async (workspaceDir: string): Promise<SandboxState> => {
+  const nextState = createSandboxState()
+  const fileEntries: typeof nextState.files = {}
+
+  const walk = async (currentDir: string) => {
+    const entries = await window.api.fs.promises.readdir(currentDir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      const fullPath = window.api.path.join(currentDir, entry.name)
+      const stat = await window.api.fs.promises.stat(fullPath)
+      const entryType = stat.mode & 0o170000
+      const isDirectory = entryType === 0o040000
+      const isFile = entryType === 0o100000
+
+      if (isDirectory) {
+        await walk(fullPath)
+        continue
+      }
+
+      if (!isFile) continue
+
+      const relativePath = window.api.path.relative(workspaceDir, fullPath).replaceAll('\\', '/')
+      const sandboxPath = normalizeSandboxPath(relativePath)
+      const shouldReadAsBinary = !isTextFile(sandboxPath)
+      const content = shouldReadAsBinary
+        ? (() => {
+          const bytes = window.api.fs.readFileSync(fullPath)
+          const mediaType = getSandboxMediaType(sandboxPath)
+          return `data:${mediaType};base64,${encodeSandboxBase64(bytes)}`
+        })()
+        : await window.api.fs.promises.readFile(fullPath, 'utf-8')
+
+      fileEntries[sandboxPath] = {
+        path: sandboxPath,
+        content,
+        encoding: shouldReadAsBinary ? 'data-url' : 'text',
+        mediaType: shouldReadAsBinary ? getSandboxMediaType(sandboxPath) : undefined,
+        updatedAt: stat.mtimeMs || Date.now()
+      }
+    }
+  }
+
+  await walk(workspaceDir)
 
   nextState.files = fileEntries
   nextState.updatedAt = Date.now()

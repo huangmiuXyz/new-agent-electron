@@ -8,13 +8,17 @@ import { useLocalStorage } from '@renderer/composables/vueuse'
 import {
   buildSandboxPreviewDocument,
   buildSandboxTree,
-  ensureSandboxTempWorkspace,
+  ensureSandboxTempWorkspaceAsync,
+  getSandboxTempWorkspacePath,
   getSandboxFileLanguage,
   isSandboxImageFile,
   parseSandboxDataUrl,
+  readSandboxWorkspaceAsync,
   normalizeSandboxPath,
   sortSandboxFiles
 } from '@renderer/services/sandbox'
+import { blobToDataURL } from 'blob-util'
+import { isTextFile } from '@renderer/utils'
 
 type PreviewLogItem = {
   id: string
@@ -44,6 +48,8 @@ const {
   Download: DownloadIcon,
   FileZip: FileZipIcon,
   Plus: AddIcon,
+  Folder: FolderIcon,
+  Refresh: RefreshIcon,
   Trash: TrashIcon,
   Edit: EditIcon,
   Settings: SettingsIcon,
@@ -53,6 +59,8 @@ const {
   'Download',
   'FileZip',
   'Plus',
+  'Folder',
+  'Refresh',
   'Trash',
   'Edit',
   'Settings',
@@ -72,6 +80,8 @@ const sandboxTreeCollapsed = ref(false)
 const sandboxLogsHeight = useLocalStorage<number>(SANDBOX_LOGS_HEIGHT_KEY, 140)
 const sandboxLogsCollapsed = ref(false)
 const expandedDirectoryPaths = ref<string[]>([])
+const isCanvasDragOver = ref(false)
+const dragDepth = ref(0)
 
 const currentChatId = computed(() => chatsStore.currentChat?.id)
 const currentCanvas = computed(() => canvasStore.getCanvas(currentChatId.value))
@@ -120,11 +130,16 @@ const activeFileContent = computed({
 
 const activeLanguage = computed(() => getSandboxFileLanguage(activeFilePath.value || '/index.html'))
 const isActiveImageFile = computed(() => isSandboxImageFile(activeFile.value))
+const isActiveBinaryFile = computed(() => activeFile.value?.encoding === 'data-url' && !isActiveImageFile.value)
 const hasCanvasFiles = computed(() => sandboxTreeRows.value.some((row) => row.type === 'file'))
 const suggestedAppName = computed(() => {
   const title = String(chatsStore.currentChat?.title || '').trim()
   return title || '未命名应用'
 })
+
+const hasFileDrag = (event: DragEvent) => {
+  return Array.from(event.dataTransfer?.types || []).includes('Files')
+}
 
 const sanitizeDownloadName = (value: string) => {
   const normalized = String(value || '')
@@ -560,17 +575,153 @@ const openCanvasInTerminal = async () => {
     return
   }
 
+  const closeLoading = message.loading('正在同步并打开终端...')
   try {
-    const workspaceDir = ensureSandboxTempWorkspace(currentCanvas.value, currentChatId.value || 'default')
+    const workspaceDir = await ensureSandboxTempWorkspaceAsync(currentCanvas.value, currentChatId.value || 'default')
     await createTab({
       cwd: workspaceDir,
       promptLabel: 'canvas',
       showTerminal: true
     })
+    closeLoading()
   } catch (error) {
+    closeLoading()
     console.error('Open canvas in terminal error:', error)
     message.error('在终端打开失败')
   }
+}
+
+const openCanvasInLocalFolder = async () => {
+  if (!hasCanvasFiles.value) {
+    message.warning('当前画布还没有文件，先生成或创建内容后再打开本地文件夹')
+    return
+  }
+
+  const closeLoading = message.loading('正在同步并打开本地文件夹...')
+  try {
+    const workspaceDir = await ensureSandboxTempWorkspaceAsync(currentCanvas.value, currentChatId.value || 'default')
+    await window.api.shell.openPath(workspaceDir)
+    closeLoading()
+  } catch (error) {
+    closeLoading()
+    console.error('Open canvas local folder error:', error)
+    message.error('打开本地文件夹失败')
+  }
+}
+
+const syncLocalFolderToCanvas = async () => {
+  const workspaceDir = getSandboxTempWorkspacePath(currentChatId.value || 'default')
+
+  if (!window.api.fs.existsSync(workspaceDir)) {
+    message.warning('本地文件夹还不存在，请先打开本地文件夹或在终端中打开')
+    return
+  }
+
+  const closeLoading = message.loading('正在从本地文件夹同步...')
+  try {
+    const syncedCanvas = await readSandboxWorkspaceAsync(workspaceDir)
+    const nextActiveFilePath = currentCanvas.value.activeFilePath && syncedCanvas.files[currentCanvas.value.activeFilePath]
+      ? currentCanvas.value.activeFilePath
+      : syncedCanvas.activeFilePath
+
+    canvasStore.replaceCanvas(
+      {
+        ...syncedCanvas,
+        activeFilePath: nextActiveFilePath
+      },
+      currentChatId.value
+    )
+    closeLoading()
+    message.success('已从本地文件夹同步到画布')
+  } catch (error) {
+    closeLoading()
+    console.error('Sync local folder to canvas error:', error)
+    message.error('同步本地文件夹失败')
+  }
+}
+
+const createCanvasFileFromDrop = async (file: File) => {
+  const relativeName = file.webkitRelativePath || file.name
+  const normalizedPath = normalizeSandboxPath(relativeName)
+
+  if (!isTextFile(file.name)) {
+    const content = await blobToDataURL(file)
+    return {
+      path: normalizedPath,
+      content,
+      encoding: 'data-url' as const,
+      mediaType: file.type || undefined,
+      updatedAt: Date.now()
+    }
+  }
+
+  return {
+    path: normalizedPath,
+    content: await file.text(),
+    encoding: 'text' as const,
+    mediaType: file.type || undefined,
+    updatedAt: Date.now()
+  }
+}
+
+const handleDroppedFiles = async (files: File[]) => {
+  if (files.length === 0) return
+
+  try {
+    const nextCanvas = {
+      ...currentCanvas.value,
+      files: { ...currentCanvas.value.files },
+      updatedAt: Date.now()
+    }
+
+    const droppedFiles = await Promise.all(files.map((file) => createCanvasFileFromDrop(file)))
+
+    droppedFiles.forEach((file) => {
+      nextCanvas.files[file.path] = file
+    })
+
+    if (!nextCanvas.activeFilePath && droppedFiles[0]) {
+      nextCanvas.activeFilePath = droppedFiles[0].path
+    }
+
+    canvasStore.replaceCanvas(nextCanvas, currentChatId.value)
+    message.success(`已导入 ${droppedFiles.length} 个文件`)
+  } catch (error) {
+    console.error('Canvas drop import error:', error)
+    message.error((error as Error).message || '导入文件失败')
+  }
+}
+
+const handleCanvasDragEnter = (event: DragEvent) => {
+  if (!hasFileDrag(event)) return
+  event.preventDefault()
+  dragDepth.value += 1
+  isCanvasDragOver.value = true
+}
+
+const handleCanvasDragOver = (event: DragEvent) => {
+  if (!hasFileDrag(event)) return
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+}
+
+const handleCanvasDragLeave = (event: DragEvent) => {
+  if (!hasFileDrag(event)) return
+  event.preventDefault()
+  dragDepth.value = Math.max(0, dragDepth.value - 1)
+  if (dragDepth.value === 0) {
+    isCanvasDragOver.value = false
+  }
+}
+
+const handleCanvasDrop = (event: DragEvent) => {
+  if (!hasFileDrag(event)) return
+  event.preventDefault()
+  dragDepth.value = 0
+  isCanvasDragOver.value = false
+  void handleDroppedFiles(Array.from(event.dataTransfer?.files || []))
 }
 
 const appendPreviewLog = (item: Omit<PreviewLogItem, 'id'>) => {
@@ -639,6 +790,22 @@ const openActionsMenu = (event: MouseEvent) => {
       }
     },
     {
+      label: '打开本地文件夹',
+      icon: FolderIcon,
+      disabled: !hasCanvasFiles.value,
+      onClick: () => {
+        void openCanvasInLocalFolder()
+      }
+    },
+    {
+      label: '同步本地文件夹',
+      icon: RefreshIcon,
+      disabled: !hasCanvasFiles.value,
+      onClick: () => {
+        void syncLocalFolderToCanvas()
+      }
+    },
+    {
       type: 'divider'
     },
     {
@@ -696,7 +863,20 @@ watch(
 </script>
 
 <template>
-  <div class="canvas-panel">
+  <div
+    class="canvas-panel"
+    :class="{ 'is-drag-over': isCanvasDragOver }"
+    @dragenter="handleCanvasDragEnter"
+    @dragover="handleCanvasDragOver"
+    @dragleave="handleCanvasDragLeave"
+    @drop="handleCanvasDrop"
+  >
+    <div v-if="isCanvasDragOver" class="canvas-drop-overlay">
+      <div class="canvas-drop-card">
+        <strong>拖入文件到画布</strong>
+        <span>任意文件都可以拖入，松手后会同步到当前应用和临时工作区</span>
+      </div>
+    </div>
     <div class="sandbox-workspace">
       <ResizeBox v-model:width="sandboxTreeWidth" v-model:is-collapsed="sandboxTreeCollapsed" :min-size="140"
         :max-size="360" class="sandbox-sidebar-resize">
@@ -792,6 +972,11 @@ watch(
               <div v-if="isActiveImageFile" class="canvas-image-preview">
                 <AppImage :src="activeFile.content" preview class="canvas-image-preview-media" />
               </div>
+              <div v-else-if="isActiveBinaryFile" class="canvas-binary-preview">
+                <strong>二进制文件</strong>
+                <span>{{ activeFilePath }}</span>
+                <p>该文件已保存在画布工作区中，可直接在终端或 exec_command_canvas 中使用。</p>
+              </div>
               <div v-else class="canvas-code-editor">
                 <SandboxCodeEditor v-model="activeFileContent" :path="activeFilePath" :language="activeLanguage" />
               </div>
@@ -830,6 +1015,73 @@ watch(
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  position: relative;
+}
+
+.canvas-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.canvas-drop-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: min(420px, calc(100% - 32px));
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
+  background: color-mix(in srgb, var(--bg-card) 88%, white 12%);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.16);
+  text-align: center;
+}
+
+.canvas-drop-card strong {
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.canvas-drop-card span {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.canvas-binary-preview {
+  height: 100%;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.canvas-binary-preview strong {
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.canvas-binary-preview span {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  word-break: break-all;
+}
+
+.canvas-binary-preview p {
+  margin: 0;
+  max-width: 460px;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .canvas-panel-header {
