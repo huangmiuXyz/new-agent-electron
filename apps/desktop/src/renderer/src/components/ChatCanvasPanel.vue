@@ -136,14 +136,6 @@ const sanitizeDownloadName = (value: string) => {
   return normalized || 'untitled-app'
 }
 
-const buildOpenWorkspaceCommand = (workspaceDir: string) => {
-  if (window.api.os.platform() === 'win32') {
-    return `Set-Location -LiteralPath '${workspaceDir.replaceAll("'", "''")}'`
-  }
-
-  return `cd '${workspaceDir.replaceAll("'", "'\"'\"'")}'`
-}
-
 const previewChannelId = computed(() => `sandbox-preview:${currentChatId.value || 'default'}`)
 const previewDocument = computed(() => buildSandboxPreviewDocument(currentCanvas.value, previewChannelId.value))
 const previewLogs = ref<PreviewLogItem[]>([])
@@ -571,13 +563,13 @@ const openCanvasInTerminal = async () => {
   try {
     const workspaceDir = ensureSandboxTempWorkspace(currentCanvas.value, currentChatId.value || 'default')
     await createTab({
-      command: buildOpenWorkspaceCommand(workspaceDir),
+      cwd: workspaceDir,
+      promptLabel: 'canvas',
       showTerminal: true
     })
-    // message.success(`已在终端打开应用目录：${workspaceDir}`)
   } catch (error) {
     console.error('Open canvas in terminal error:', error)
-    // message.error('在终端打开失败')
+    message.error('在终端打开失败')
   }
 }
 

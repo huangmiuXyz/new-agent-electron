@@ -331,6 +331,8 @@ export interface TerminalActions {
     id?: string
     command?: string
     timeout?: number
+    cwd?: string
+    promptLabel?: string
   }) => Promise<{ id: string; result?: { success: boolean; exitCode: number | null; output: string } }>
   removeTab: (id: string, event?: Event) => void
   switchTab: (id: string) => void

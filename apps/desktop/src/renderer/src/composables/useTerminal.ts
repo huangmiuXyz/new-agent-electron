@@ -8,10 +8,18 @@ const isResizing = ref(false)
 const terminalRefs = new Map<string, HTMLElement>()
 const executionDebouncers = new Map<string, ReturnType<typeof debounce>>()
 const toolCallToTerminalMap = ref<Record<string, string>>({})
-const POWERSHELL_SHELL_INTEGRATION = `$function:__agent_qi_prompt_original=$function:prompt; function prompt { $ec=$global:LASTEXITCODE; Write-Host "$([char]27)]633;D;$ec$([char]7)" -NoNewline; & $function:__agent_qi_prompt_original }; Clear-Host`
 const BRACKETED_PASTE_START = '\x1b[200~'
 const BRACKETED_PASTE_END = '\x1b[201~'
 const generateId = () => Math.random().toString(36).substring(2, 9)
+
+const buildPowerShellShellIntegration = (promptLabel?: string) => {
+  if (!promptLabel) {
+    return `$function:__agent_qi_prompt_original=$function:prompt; function prompt { $ec=$global:LASTEXITCODE; Write-Host "$([char]27)]633;D;$ec$([char]7)" -NoNewline; & $function:__agent_qi_prompt_original }; Clear-Host`
+  }
+
+  const escapedLabel = promptLabel.replaceAll("'", "''")
+  return `$function:__agent_qi_prompt_original=$function:prompt; function prompt { $ec=$global:LASTEXITCODE; Write-Host "$([char]27)]633;D;$ec$([char]7)" -NoNewline; "PS ${escapedLabel}> " }; Clear-Host`
+}
 
 const getBufferCursorLine = (term: Terminal): number => {
   const buffer = term.buffer.active
@@ -83,7 +91,7 @@ const encodeCommandForPty = (command: string): string => {
   return `${BRACKETED_PASTE_START}${normalized}${BRACKETED_PASTE_END}\r`
 }
 
-export const useTerminal = (): TerminalActions => {
+export const useTerminal = () => {
   const settingsStore = useSettingsStore()
   const chatsStore = useChatsStores()
   const agentStore = useAgentStore()
@@ -148,7 +156,7 @@ export const useTerminal = (): TerminalActions => {
     }
   }
 
-  const initTerminal = async (id: string) => {
+  const initTerminal = async (id: string, initialCwd?: string, promptLabel?: string) => {
     const tabIndex = tabs.value.findIndex((t) => t.id === id)
     if (tabIndex === -1) return
 
@@ -207,7 +215,7 @@ export const useTerminal = (): TerminalActions => {
 
 
     const currentAgentId = chatsStore.currentChat?.agentId || 'default'
-    const cwd = agentStore.getAgentById(currentAgentId)?.workPath || undefined
+    const cwd = initialCwd || agentStore.getAgentById(currentAgentId)?.workPath || undefined
     await window.api.pty.spawn({ id, cols: term.cols, rows: term.rows, cwd })
 
     const cleanupData = window.api.pty.onData(id, (data) => {
@@ -227,7 +235,7 @@ export const useTerminal = (): TerminalActions => {
 
             if (platform === 'win32') {
               currentTab.shellIntegrationEnabled = true
-              window.api.pty.write(id, '\r ' + POWERSHELL_SHELL_INTEGRATION + '\r')
+              window.api.pty.write(id, '\r ' + buildPowerShellShellIntegration(promptLabel) + '\r')
             } else {
               const shellIntegration = `if [ -n "$ZSH_VERSION" ]; then unsetopt PROMPT_SP; precmd() { printf "\\033]633;D;$?\\007"; }; elif [ -n "$BASH_VERSION" ]; then PROMPT_COMMAND='printf "\\033]633;D;$?\\007"'; fi; clear`
               window.api.pty.write(id, '\r ' + shellIntegration + '\r')
@@ -321,6 +329,8 @@ export const useTerminal = (): TerminalActions => {
     showTerminal?: boolean
     id?: string
     command?: string
+    cwd?: string
+    promptLabel?: string
     timeout?: number
   }) => {
     let id = options?.id || generateId()
@@ -346,7 +356,7 @@ export const useTerminal = (): TerminalActions => {
       ; (options?.showTerminal || settingsStore.display.showTerminal) && showTerminal()
 
     await nextTick()
-    await initTerminal(id)
+    await initTerminal(id, options?.cwd, options?.promptLabel)
 
     if (typeof options?.command !== 'string') return { id }
 

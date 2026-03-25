@@ -7,8 +7,6 @@ import {
   sortSandboxFiles
 } from '@renderer/services/sandbox'
 
-const isWindows = navigator.platform.toLowerCase().includes('win')
-
 const ensureCanvasTempWorkspace = (chatId?: string) => {
   const canvasStore = useCanvasStore()
   const sandbox = canvasStore.getCanvas(chatId)
@@ -45,16 +43,6 @@ const summarizeCanvasSync = (
   }
 
   return `Canvas 已同步：新增 ${added} 个文件，更新 ${updated} 个文件，删除 ${deleted} 个文件。`
-}
-
-const wrapCanvasCommand = (command: string, workspaceDir: string) => {
-  if (isWindows) {
-    const escapedWorkspaceDir = workspaceDir.replaceAll("'", "''")
-    return `Set-Location -LiteralPath '${escapedWorkspaceDir}'; ${command}`
-  }
-
-  const escapedWorkspaceDir = workspaceDir.replaceAll("'", "'\"'\"'")
-  return `cd '${escapedWorkspaceDir}' && ${command}`
 }
 
 const openCanvasPanel = () => {
@@ -332,9 +320,10 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
         const canvasStore = useCanvasStore()
         const { sandbox, workspaceDir } = ensureCanvasTempWorkspace(options?.chatId)
         const { createTab } = useTerminal()
-        const wrappedCommand = wrapCanvasCommand(command, workspaceDir)
         const { id: tabId, result } = await createTab({
-          command: wrappedCommand,
+          command,
+          cwd: workspaceDir,
+          promptLabel: 'canvas',
           id: params.terminal_id,
           toolCallId: options?.toolCallId,
           showTerminal: true
