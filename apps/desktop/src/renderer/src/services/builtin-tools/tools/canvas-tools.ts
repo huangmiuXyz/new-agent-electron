@@ -297,12 +297,15 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
       args: unknown,
       options?: { toolCallId?: string; chatId?: string; model?: string; provider?: string }
     ) => {
+      // 先把工具入参收窄成当前工具实际关心的字段。
       const params = args as {
         command?: string
         terminal_id?: string
       }
+      // 统一转成字符串并去掉首尾空白，避免把空命令传进终端。
       const command = String(params.command || '').trim()
 
+      // 没有命令时直接返回结构化错误，避免后面继续做文件同步和终端创建。
       if (!command) {
         return {
           error: '缺少必要参数: command',
@@ -313,11 +316,16 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
       }
 
       try {
+        // 执行前先把右侧画布面板展开，方便用户看到后续同步和终端结果。
         openCanvasPanel()
 
+        // 取到当前聊天对应的 canvas store，后面需要把工作区改动同步回画布。
         const canvasStore = useCanvasStore()
+        // 先把当前 canvas 文件写到临时工作区，并拿到同步前的原始快照用于后面对比。
         const { sandbox, workspaceDir } = await ensureCanvasTempWorkspace(options?.chatId)
+        // 复用全局终端能力，在已有终端标签或新终端标签里执行命令。
         const { createTab } = useTerminal()
+        // 在临时工作区作为 cwd 的前提下执行命令，这样命令里可以直接用相对路径。
         const { id: tabId, result } = await createTab({
           command,
           cwd: workspaceDir,
@@ -326,10 +334,13 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
           toolCallId: options?.toolCallId,
           showTerminal: true
         })
+        // 命令执行结束后，把临时工作区里的最新文件重新读回成 canvas 状态。
         const syncedCanvas = await readSandboxWorkspaceAsync(workspaceDir)
+        // 尽量保留用户之前选中的文件；如果那个文件已经不存在了，再退回到新的 activeFilePath。
         const nextActiveFilePath = sandbox.activeFilePath && syncedCanvas.files[sandbox.activeFilePath]
           ? sandbox.activeFilePath
           : syncedCanvas.activeFilePath
+        // 用工作区执行后的最新结果覆盖当前聊天里的 canvas。
         canvasStore.replaceCanvas(
           {
             ...syncedCanvas,
@@ -337,8 +348,10 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
           },
           options?.chatId
         )
+        // 生成一段新增/更新/删除统计，方便工具调用结果里快速理解发生了什么。
         const syncSummary = summarizeCanvasSync(sandbox.files, syncedCanvas.files)
 
+        // 返回给模型和界面的结果里包含终端ID、工作区路径、同步摘要和命令输出。
         return {
           toolResult: {
             content: [{
@@ -353,6 +366,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
           }
         }
       } catch (error) {
+        // 兜底把运行期错误转成工具协议可消费的失败结果。
         return {
           error: (error as Error).message,
           toolResult: {
