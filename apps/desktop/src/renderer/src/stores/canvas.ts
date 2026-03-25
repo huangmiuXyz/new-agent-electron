@@ -12,10 +12,16 @@ import {
 
 type ChatCanvasState = SandboxState
 
+let resolveRestore: () => void
+const restorePromise = new Promise<void>((resolve) => {
+  resolveRestore = resolve
+})
+
 export const useCanvasStore = defineStore(
   'canvas',
   () => {
     const canvases = ref<Record<string, ChatCanvasState>>({})
+    const isAfterRestore = restorePromise
 
     const resolveChatId = (chatId?: string) => {
       if (chatId) return chatId
@@ -96,6 +102,27 @@ export const useCanvasStore = defineStore(
       replaceCanvas(createSandboxState(), chatId)
     }
 
+    const deleteCanvas = (chatId: string) => {
+      const nextCanvases = { ...canvases.value }
+      delete nextCanvases[chatId]
+      canvases.value = nextCanvases
+    }
+
+    const deleteCanvases = (chatIds: string[]) => {
+      if (chatIds.length === 0) return
+      const ids = new Set(chatIds)
+      canvases.value = Object.fromEntries(
+        Object.entries(canvases.value).filter(([chatId]) => !ids.has(chatId))
+      )
+    }
+
+    const syncWithChats = (chatIds: string[]) => {
+      const validIds = new Set(chatIds)
+      canvases.value = Object.fromEntries(
+        Object.entries(canvases.value).filter(([chatId]) => chatId === 'default' || validIds.has(chatId))
+      )
+    }
+
     return {
       canvases,
       getCanvas,
@@ -107,12 +134,19 @@ export const useCanvasStore = defineStore(
       updateFileContent,
       updateActiveFileContent,
       applyOperation,
-      clearCanvas
+      clearCanvas,
+      deleteCanvas,
+      deleteCanvases,
+      syncWithChats,
+      isAfterRestore
     }
   },
   {
     persist: {
-      paths: ['canvases']
+      paths: ['canvases'],
+      afterRestore: () => {
+        resolveRestore()
+      }
     }
   }
 )

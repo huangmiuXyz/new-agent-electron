@@ -4,6 +4,7 @@ import HtmlPreview from './HtmlPreview.vue'
 import SandboxCodeEditor from './SandboxCodeEditor.vue'
 import Tabs from './Tabs.vue'
 import JSZip from 'jszip'
+import { useLocalStorage } from '@renderer/composables/vueuse'
 import {
   buildSandboxPreviewDocument,
   buildSandboxTree,
@@ -44,7 +45,8 @@ const {
   Trash: TrashIcon,
   Edit: EditIcon,
   Settings: SettingsIcon,
-  Box: BoxIcon
+  Box: BoxIcon,
+  Terminal: TerminalIcon
 } = useIcon([
   'Download',
   'FileZip',
@@ -52,7 +54,8 @@ const {
   'Trash',
   'Edit',
   'Settings',
-  'Box'
+  'Box',
+  'Terminal'
 ])
 const { showContextMenu, hideContextMenu } = useContextMenu<TreeRow>()
 
@@ -61,8 +64,11 @@ const canvasTabs = [
   { id: 'code', name: '代码' }
 ]
 const SANDBOX_TREE_WIDTH_KEY = 'sandbox-tree-width'
-const sandboxTreeWidth = ref(Number(localStorage.getItem(SANDBOX_TREE_WIDTH_KEY)) || 180)
+const SANDBOX_LOGS_HEIGHT_KEY = 'sandbox-logs-height'
+const sandboxTreeWidth = useLocalStorage<number>(SANDBOX_TREE_WIDTH_KEY, 180)
 const sandboxTreeCollapsed = ref(false)
+const sandboxLogsHeight = useLocalStorage<number>(SANDBOX_LOGS_HEIGHT_KEY, 140)
+const sandboxLogsCollapsed = ref(false)
 const expandedDirectoryPaths = ref<string[]>([])
 
 const currentChatId = computed(() => chatsStore.currentChat?.id)
@@ -131,6 +137,23 @@ const sanitizeDownloadName = (value: string) => {
 const previewChannelId = computed(() => `sandbox-preview:${currentChatId.value || 'default'}`)
 const previewDocument = computed(() => buildSandboxPreviewDocument(currentCanvas.value, previewChannelId.value))
 const previewLogs = ref<PreviewLogItem[]>([])
+const isSandboxRuntimeVisible = computed(
+  () => settingsStore.display.canvasEditorTab === 'preview' && !sandboxLogsCollapsed.value
+)
+
+const toggleSandboxRuntime = () => {
+  if (isSandboxRuntimeVisible.value) {
+    sandboxLogsCollapsed.value = true
+    return
+  }
+
+  settingsStore.display.canvasEditorTab = 'preview'
+  sandboxLogsCollapsed.value = false
+
+  if (sandboxLogsHeight.value < 120) {
+    sandboxLogsHeight.value = 140
+  }
+}
 
 const getAncestorDirectoryPaths = (path?: string) => {
   if (!path) return []
@@ -641,10 +664,6 @@ watch(
   },
   { immediate: true }
 )
-
-watch(sandboxTreeWidth, (value) => {
-  localStorage.setItem(SANDBOX_TREE_WIDTH_KEY, String(Math.round(value)))
-})
 </script>
 
 <template>
@@ -658,6 +677,15 @@ watch(sandboxTreeWidth, (value) => {
               <Tabs v-model="settingsStore.display.canvasEditorTab" :items="canvasTabs" size="sm" />
             </div>
             <div class="sandbox-sidebar-tools">
+              <button
+                type="button"
+                class="sandbox-sidebar-tool"
+                :class="{ active: isSandboxRuntimeVisible }"
+                :title="isSandboxRuntimeVisible ? '隐藏 Sandbox runtime' : '显示 Sandbox runtime'"
+                @click="toggleSandboxRuntime"
+              >
+                <TerminalIcon />
+              </button>
               <button type="button" class="sandbox-sidebar-tool" title="更多操作" @click="openActionsMenu">
                 <SettingsIcon />
               </button>
@@ -700,19 +728,29 @@ watch(sandboxTreeWidth, (value) => {
             </div>
             <HtmlPreview :srcdoc="previewDocument" :channel-id="previewChannelId" @sandbox-event="handleSandboxEvent" />
           </div>
-          <div class="canvas-panel-surface sandbox-logs">
-            <div class="canvas-surface-header">
-              <span class="canvas-surface-title">TERMINAL</span>
-              <span class="canvas-surface-meta">Sandbox runtime</span>
-            </div>
-            <div v-if="previewLogs.length === 0" class="sandbox-logs-empty">等待预览输出...</div>
-            <div v-else class="sandbox-log-list">
-              <div v-for="item in previewLogs" :key="item.id" class="sandbox-log-item"
-                :class="[`kind-${item.kind}`, item.level ? `level-${item.level}` : '']">
-                {{ item.text }}
+          <ResizeBox
+            v-model:height="sandboxLogsHeight"
+            v-model:is-collapsed="sandboxLogsCollapsed"
+            direction="vertical"
+            handle-position="top"
+            :min-size="120"
+            :max-size="360"
+            class="sandbox-logs-resize"
+          >
+            <div class="canvas-panel-surface sandbox-logs">
+              <div class="canvas-surface-header">
+                <span class="canvas-surface-title">TERMINAL</span>
+                <span class="canvas-surface-meta">Sandbox runtime</span>
+              </div>
+              <div v-if="previewLogs.length === 0" class="sandbox-logs-empty">等待预览输出...</div>
+              <div v-else class="sandbox-log-list">
+                <div v-for="item in previewLogs" :key="item.id" class="sandbox-log-item"
+                  :class="[`kind-${item.kind}`, item.level ? `level-${item.level}` : '']">
+                  {{ item.text }}
+                </div>
               </div>
             </div>
-          </div>
+          </ResizeBox>
         </div>
 
         <div v-else class="canvas-code">
@@ -830,9 +868,6 @@ watch(sandboxTreeWidth, (value) => {
   background: #252526;
   display: flex;
   flex-direction: column;
-  padding-right: 8px;
-  margin-right: 12px;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .sandbox-sidebar-empty {
@@ -898,6 +933,11 @@ watch(sandboxTreeWidth, (value) => {
 .sandbox-sidebar-tool:hover {
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.92);
+}
+
+.sandbox-sidebar-tool.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.96);
 }
 
 .sandbox-sidebar-tool :deep(svg) {
@@ -1153,8 +1193,8 @@ watch(sandboxTreeWidth, (value) => {
 
 .sandbox-logs {
   background: #181818;
-  min-height: 140px;
-  max-height: 140px;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }

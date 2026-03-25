@@ -14,6 +14,14 @@
       <slot></slot>
     </div>
     <div
+      v-if="isResizing"
+      class="resize-mask"
+      :class="{
+        'is-horizontal': direction === 'horizontal',
+        'is-vertical': direction === 'vertical'
+      }"
+    ></div>
+    <div
       class="resize-handle"
       :class="{ 
         'is-collapsed': isCollapsed,
@@ -178,6 +186,21 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   overflow: hidden;
+}
+
+.resize-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: transparent;
+}
+
+.resize-mask.is-horizontal {
+  cursor: col-resize;
+}
+
+.resize-mask.is-vertical {
+  cursor: row-resize;
 }
 
 .resize-handle {

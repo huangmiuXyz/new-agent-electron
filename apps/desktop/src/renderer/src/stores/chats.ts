@@ -439,6 +439,7 @@ export const useChatsStores = defineStore(
 
     const deleteChat = (id: string) => {
       const allIds = new Set([id, ...getDescendantChatIds(id)])
+      useCanvasStore().deleteCanvases([...allIds])
 
       const initialLength = chats.value.length
       chats.value = chats.value.filter((c) => {

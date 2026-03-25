@@ -10,6 +10,7 @@ import Term from './components/term.vue'
 import ResizeBox from './components/ResizeBox.vue'
 import { useSettingsStore } from './stores/settings'
 import { useChatsStores } from './stores/chats'
+import { useCanvasStore } from './stores/canvas'
 import { useImageStore } from './stores/image'
 import { useKnowledgeStore } from './stores/knowledge'
 import { useSyncStore } from './stores/sync'
@@ -20,6 +21,7 @@ const router = useRouter()
 const currentView = ref('chat')
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
+const canvasStore = useCanvasStore()
 const imageStore = useImageStore()
 const knowledgeStore = useKnowledgeStore()
 const myAppsStore = useMyAppsStore()
@@ -70,6 +72,7 @@ const handleTerminalExpand = () => {
 // 各 store 独立的恢复状态
 const settingsReady = ref(false)
 const chatsReady = ref(false)
+const canvasReady = ref(false)
 const imageReady = ref(false)
 const knowledgeReady = ref(false)
 const myAppsReady = ref(false)
@@ -84,6 +87,10 @@ settingsStore.isAfterRestore.then(() => {
 
 chatsStore.isAfterRestore.then(() => {
   chatsReady.value = true
+})
+
+canvasStore.isAfterRestore.then(() => {
+  canvasReady.value = true
 })
 
 imageStore.isAfterRestore.then(() => {
@@ -102,10 +109,14 @@ Promise.all([syncStore.isAfterRestore, chatsStore.isAfterRestore]).then(() => {
   void syncStore.initialize()
 })
 
+Promise.all([chatsStore.isAfterRestore, canvasStore.isAfterRestore]).then(() => {
+  canvasStore.syncWithChats(chatsStore.allChats.map((chat) => chat.id))
+})
+
 const isStoreReady = computed(() => {
   const path = route.path 
   if (path.startsWith('/chat') || path.startsWith('/mobile/chat') || path === '/') {
-    return settingsReady.value && chatsReady.value
+    return settingsReady.value && chatsReady.value && canvasReady.value
   } 
   if (path.startsWith('/notes') || path.startsWith('/mobile/notes')) {
     return settingsReady.value
@@ -117,12 +128,12 @@ const isStoreReady = computed(() => {
     return settingsReady.value && knowledgeReady.value
   } 
   if (path.startsWith('/my-apps') || path.startsWith('/mobile/my-apps')) {
-    return settingsReady.value && chatsReady.value && myAppsReady.value
+    return settingsReady.value && chatsReady.value && canvasReady.value && myAppsReady.value
   }
   if (path.startsWith('/temp-chat')) {
     return true
   } 
-  return settingsReady.value && chatsReady.value
+  return settingsReady.value && chatsReady.value && canvasReady.value
 })
 
 
