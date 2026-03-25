@@ -28,6 +28,7 @@ const emit = defineEmits<{
   mount: [editor: editor.IStandaloneCodeEditor]
 }>()
 
+const settingsStore = useSettingsStore()
 const MONACO_CONFIGURED_KEY = '__agentQiMonacoConfigured__'
 const containerRef = useTemplateRef('containerRef')
 const editorRef = shallowRef<editor.IStandaloneCodeEditor | null>(null)
@@ -79,6 +80,8 @@ const editorValue = computed({
   set: (value?: string) => emit('update:modelValue', value || '')
 })
 
+const monacoTheme = computed(() => (settingsStore.display.darkMode ? 'vs-dark' : 'vs'))
+
 const editorOptions = computed<editor.IStandaloneEditorConstructionOptions>(() => ({
   automaticLayout: true,
   minimap: { enabled: false },
@@ -122,7 +125,7 @@ const ensureEditor = () => {
   if (!containerRef.value || editorRef.value) return
 
   const model = getOrCreateModel()
-  monaco.editor.setTheme('vs-dark')
+  monaco.editor.setTheme(monacoTheme.value)
   editorRef.value = monaco.editor.create(containerRef.value, {
     ...editorOptions.value,
     model
@@ -180,6 +183,14 @@ watch(
 )
 
 watch(
+  monacoTheme,
+  (theme) => {
+    monaco.editor.setTheme(theme)
+  },
+  { immediate: true }
+)
+
+watch(
   editorOptions,
   (options) => {
     editorRef.value?.updateOptions(options)
@@ -217,7 +228,7 @@ onBeforeUnmount(() => {
   flex: 1;
   height: 100%;
   min-height: 0;
-  background: #1e1e1e;
+  background: var(--sandbox-editor-bg, #f8fafc);
   overflow: hidden;
 }
 
@@ -225,10 +236,10 @@ onBeforeUnmount(() => {
   height: 100%;
   display: grid;
   place-items: center;
-  color: rgba(212, 212, 212, 0.68);
+  color: var(--text-secondary);
   font-size: 12px;
   letter-spacing: 0.02em;
-  background: #1e1e1e;
+  background: var(--sandbox-editor-bg, #f8fafc);
 }
 
 .sandbox-monaco-inner {
@@ -242,6 +253,10 @@ onBeforeUnmount(() => {
 .sandbox-monaco-editor :deep(.monaco-editor),
 .sandbox-monaco-editor :deep(.monaco-editor-background),
 .sandbox-monaco-editor :deep(.margin) {
-  background: #1e1e1e;
+  background: var(--sandbox-editor-bg, #f8fafc);
+}
+
+:global(.dark-mode) .sandbox-monaco-editor {
+  --sandbox-editor-bg: #1e1e1e;
 }
 </style>

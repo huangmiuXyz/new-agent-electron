@@ -779,6 +779,23 @@ watch(
 
 <style scoped>
 .canvas-panel {
+  --sandbox-sidebar-bg: color-mix(in srgb, var(--bg-secondary) 92%, #111827 8%);
+  --sandbox-sidebar-border: rgba(var(--text-rgb), 0.08);
+  --sandbox-sidebar-text: var(--text-primary);
+  --sandbox-sidebar-muted: var(--text-secondary);
+  --sandbox-sidebar-faint: var(--text-tertiary);
+  --sandbox-tool-hover: rgba(var(--text-rgb), 0.08);
+  --sandbox-tool-active: rgba(var(--text-rgb), 0.12);
+  --sandbox-tree-hover: rgba(var(--text-rgb), 0.06);
+  --sandbox-tree-active-bg: rgba(10, 132, 255, 0.16);
+  --sandbox-tree-active-bg-hover: rgba(10, 132, 255, 0.22);
+  --sandbox-tree-active-text: var(--text-primary);
+  --sandbox-surface-bg: color-mix(in srgb, var(--bg-card) 78%, var(--bg-app) 22%);
+  --sandbox-surface-header-bg: color-mix(in srgb, var(--bg-card) 86%, var(--bg-app) 14%);
+  --sandbox-preview-bg: #f8fafc;
+  --sandbox-log-bg: color-mix(in srgb, var(--bg-card) 72%, #0f172a 28%);
+  --sandbox-log-text: color-mix(in srgb, var(--text-primary) 82%, #94a3b8 18%);
+  --sandbox-log-ready: #0f766e;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -865,7 +882,7 @@ watch(
   width: 100%;
   height: 100%;
   min-height: 0;
-  background: #252526;
+  background: var(--sandbox-sidebar-bg);
   display: flex;
   flex-direction: column;
 }
@@ -884,7 +901,7 @@ watch(
   justify-content: space-between;
   gap: 4px;
   padding: 0 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--sandbox-sidebar-border);
 }
 
 .sandbox-sidebar-title-group {
@@ -918,7 +935,7 @@ watch(
   height: 18px;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--sandbox-sidebar-muted);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -931,13 +948,13 @@ watch(
 }
 
 .sandbox-sidebar-tool:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.92);
+  background: var(--sandbox-tool-hover);
+  color: var(--sandbox-sidebar-text);
 }
 
 .sandbox-sidebar-tool.active {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.96);
+  background: var(--sandbox-tool-active);
+  color: var(--sandbox-sidebar-text);
 }
 
 .sandbox-sidebar-tool :deep(svg) {
@@ -959,7 +976,7 @@ watch(
   justify-content: space-between;
   gap: 8px;
   padding: 0 12px;
-  color: rgba(255, 255, 255, 0.54);
+  color: var(--sandbox-sidebar-muted);
   font-size: 10px;
   letter-spacing: 0.06em;
 }
@@ -971,7 +988,7 @@ watch(
 .sandbox-explorer-group-subtitle {
   min-width: 0;
   font-size: 9px;
-  color: rgba(255, 255, 255, 0.34);
+  color: var(--sandbox-sidebar-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -988,7 +1005,7 @@ watch(
   width: 100%;
   border: none;
   background: transparent;
-  color: #cccccc;
+  color: var(--sandbox-sidebar-muted);
   text-align: left;
   padding-top: 0;
   padding-bottom: 0;
@@ -1005,20 +1022,20 @@ watch(
 }
 
 .sandbox-tree-row.directory {
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--sandbox-sidebar-text);
 }
 
 .sandbox-tree-row.active {
-  background: rgba(9, 71, 113, 0.52);
-  color: #ffffff;
+  background: var(--sandbox-tree-active-bg);
+  color: var(--sandbox-tree-active-text);
 }
 
 .sandbox-tree-row:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--sandbox-tree-hover);
 }
 
 .sandbox-tree-row.active:hover {
-  background: rgba(9, 71, 113, 0.68);
+  background: var(--sandbox-tree-active-bg-hover);
 }
 
 .sandbox-tree-chevron {
@@ -1027,7 +1044,7 @@ watch(
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.56);
+  color: var(--sandbox-sidebar-faint);
 }
 
 .sandbox-tree-chevron :deep(svg) {
@@ -1096,7 +1113,7 @@ watch(
 
 .sandbox-tree-badge {
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--sandbox-sidebar-faint);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1104,7 +1121,7 @@ watch(
 }
 
 .sandbox-tree-row.active .sandbox-tree-badge {
-  color: rgba(255, 255, 255, 0.7);
+  color: color-mix(in srgb, var(--sandbox-tree-active-text) 72%, transparent);
 }
 
 .canvas-preview,
@@ -1123,7 +1140,7 @@ watch(
 .canvas-panel-surface {
   min-height: 0;
   height: 100%;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--sandbox-surface-bg);
   border: 1px solid rgba(var(--text-rgb), 0.08);
   border-radius: 0;
   overflow: hidden;
@@ -1137,7 +1154,7 @@ watch(
   gap: 12px;
   padding: 0 10px;
   border-bottom: 1px solid rgba(var(--text-rgb), 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--sandbox-surface-header-bg);
   font-size: 11px;
 }
 
@@ -1167,8 +1184,8 @@ watch(
   justify-content: center;
   padding: 20px;
   background:
-    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.04) 75%),
-    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.04) 75%);
+    linear-gradient(45deg, rgba(var(--text-rgb), 0.04) 25%, transparent 25%, transparent 75%, rgba(var(--text-rgb), 0.04) 75%),
+    linear-gradient(45deg, rgba(var(--text-rgb), 0.04) 25%, transparent 25%, transparent 75%, rgba(var(--text-rgb), 0.04) 75%);
   background-position: 0 0, 12px 12px;
   background-size: 24px 24px;
 }
@@ -1188,11 +1205,11 @@ watch(
 .canvas-preview-frame :deep(iframe) {
   flex: 1;
   min-height: 0;
-  background: #1e1e1e;
+  background: var(--sandbox-preview-bg);
 }
 
 .sandbox-logs {
-  background: #181818;
+  background: var(--sandbox-log-bg);
   height: 100%;
   min-height: 0;
   display: flex;
@@ -1215,7 +1232,7 @@ watch(
 }
 
 .sandbox-log-item {
-  color: var(--text-secondary);
+  color: var(--sandbox-log-text);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -1234,7 +1251,27 @@ watch(
 }
 
 .sandbox-log-item.kind-ready {
-  color: #0f766e;
+  color: var(--sandbox-log-ready);
+}
+
+:global(.dark-mode) .canvas-panel {
+  --sandbox-sidebar-bg: #252526;
+  --sandbox-sidebar-border: rgba(255, 255, 255, 0.04);
+  --sandbox-sidebar-text: rgba(255, 255, 255, 0.9);
+  --sandbox-sidebar-muted: rgba(255, 255, 255, 0.62);
+  --sandbox-sidebar-faint: rgba(255, 255, 255, 0.38);
+  --sandbox-tool-hover: rgba(255, 255, 255, 0.06);
+  --sandbox-tool-active: rgba(255, 255, 255, 0.08);
+  --sandbox-tree-hover: rgba(255, 255, 255, 0.045);
+  --sandbox-tree-active-bg: rgba(9, 71, 113, 0.52);
+  --sandbox-tree-active-bg-hover: rgba(9, 71, 113, 0.68);
+  --sandbox-tree-active-text: #ffffff;
+  --sandbox-surface-bg: rgba(255, 255, 255, 0.02);
+  --sandbox-surface-header-bg: rgba(255, 255, 255, 0.02);
+  --sandbox-preview-bg: #1e1e1e;
+  --sandbox-log-bg: #181818;
+  --sandbox-log-text: var(--text-secondary);
+  --sandbox-log-ready: #0f766e;
 }
 
 .canvas-code-toolbar {

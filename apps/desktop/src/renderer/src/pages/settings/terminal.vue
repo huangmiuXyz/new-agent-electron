@@ -50,28 +50,70 @@ const [TerminalForm] = useForm({
       label: '光标闪烁'
     },
     {
-      name: 'backgroundColor',
-      type: 'color',
-      label: '背景颜色',
-      placeholder: '选择终端背景颜色'
+      name: 'lightThemeGroup',
+      type: 'group',
+      label: '浅色主题配色',
+      collapsible: true,
+      defaultCollapsed: false,
+      children: [
+        {
+          name: 'lightTheme.backgroundColor',
+          type: 'color',
+          label: '背景颜色',
+          placeholder: '选择浅色模式下的终端背景颜色'
+        },
+        {
+          name: 'lightTheme.foregroundColor',
+          type: 'color',
+          label: '字体颜色',
+          placeholder: '选择浅色模式下的终端字体颜色'
+        },
+        {
+          name: 'lightTheme.cursorColor',
+          type: 'color',
+          label: '光标颜色',
+          placeholder: '选择浅色模式下的终端光标颜色'
+        },
+        {
+          name: 'lightTheme.selectionBackgroundColor',
+          type: 'color',
+          label: '选中文字背景颜色',
+          placeholder: '选择浅色模式下选中文字的背景颜色'
+        }
+      ]
     },
     {
-      name: 'foregroundColor',
-      type: 'color',
-      label: '字体颜色',
-      placeholder: '选择终端字体颜色'
-    },
-    {
-      name: 'cursorColor',
-      type: 'color',
-      label: '光标颜色',
-      placeholder: '选择终端光标颜色'
-    },
-    {
-      name: 'selectionBackgroundColor',
-      type: 'color',
-      label: '选中文字背景颜色',
-      placeholder: '选择选中文字的背景颜色'
+      name: 'darkThemeGroup',
+      type: 'group',
+      label: '深色主题配色',
+      collapsible: true,
+      defaultCollapsed: false,
+      children: [
+        {
+          name: 'darkTheme.backgroundColor',
+          type: 'color',
+          label: '背景颜色',
+          placeholder: '选择深色模式下的终端背景颜色'
+        },
+        {
+          name: 'darkTheme.foregroundColor',
+          type: 'color',
+          label: '字体颜色',
+          placeholder: '选择深色模式下的终端字体颜色'
+        },
+        {
+          name: 'darkTheme.cursorColor',
+          type: 'color',
+          label: '光标颜色',
+          placeholder: '选择深色模式下的终端光标颜色'
+        },
+        {
+          name: 'darkTheme.selectionBackgroundColor',
+          type: 'color',
+          label: '选中文字背景颜色',
+          placeholder: '选择深色模式下选中文字的背景颜色'
+        }
+      ]
     }
   ],
   initialData: settingsStore.terminal,

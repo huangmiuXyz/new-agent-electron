@@ -105,6 +105,17 @@ export const useTerminal = (): TerminalActions => {
 
 
   const terminalSettings = computed(() => settingsStore.terminal)
+  const getTerminalTheme = (settings: typeof terminalSettings.value) => {
+    const activeTheme = settingsStore.display.darkMode ? settings.darkTheme : settings.lightTheme
+
+    return {
+      background: activeTheme.backgroundColor,
+      foreground: activeTheme.foregroundColor,
+      cursor: activeTheme.cursorColor,
+      selectionBackground: activeTheme.selectionBackgroundColor
+    }
+  }
+
   const setExecuting = (id: string, executing: boolean, exitCode?: number | null) => {
     const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return
@@ -152,12 +163,7 @@ export const useTerminal = (): TerminalActions => {
       cursorBlink: terminalSettings.value.cursorBlink,
       convertEol: true,
       fontFamily: terminalSettings.value.fontFamily,
-      theme: {
-        background: terminalSettings.value.backgroundColor,
-        foreground: terminalSettings.value.foregroundColor,
-        cursor: terminalSettings.value.cursorColor,
-        selectionBackground: terminalSettings.value.selectionBackgroundColor
-      }
+      theme: getTerminalTheme(terminalSettings.value)
     })
 
     const fitAddon = new FitAddon()
@@ -268,18 +274,14 @@ export const useTerminal = (): TerminalActions => {
 
 
     const unwatchSettings = watch(
-      () => terminalSettings.value,
+      [() => terminalSettings.value, () => settingsStore.display.darkMode],
       (newSettings) => {
+        const [settings] = newSettings
         if (term) {
-          term.options.theme = {
-            background: newSettings.backgroundColor,
-            foreground: newSettings.foregroundColor,
-            cursor: newSettings.cursorColor,
-            selectionBackground: newSettings.selectionBackgroundColor
-          }
-          term.options.fontSize = newSettings.fontSize
-          term.options.cursorBlink = newSettings.cursorBlink
-          term.options.fontFamily = newSettings.fontFamily
+          term.options.theme = getTerminalTheme(settings)
+          term.options.fontSize = settings.fontSize
+          term.options.cursorBlink = settings.cursorBlink
+          term.options.fontFamily = settings.fontFamily
         }
       },
       { deep: true }

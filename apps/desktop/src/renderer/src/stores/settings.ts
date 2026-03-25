@@ -9,8 +9,73 @@ const restorePromise = new Promise<void>((resolve) => {
 export const useSettingsStore = defineStore(
   'settings',
   () => {
+    type TerminalThemeColors = {
+      backgroundColor: string
+      foregroundColor: string
+      cursorColor: string
+      selectionBackgroundColor: string
+    }
+
+    type TerminalSettings = {
+      fontSize: number
+      fontFamily: string
+      cursorBlink: boolean
+      lightTheme: TerminalThemeColors
+      darkTheme: TerminalThemeColors
+    }
+
     type LocalSystemSettings = {
       openAtLogin: boolean
+    }
+
+    const createLightTerminalTheme = (): TerminalThemeColors => ({
+      backgroundColor: '#ffffff',
+      foregroundColor: '#333333',
+      cursorColor: '#333333',
+      selectionBackgroundColor: '#add6ff'
+    })
+
+    const createDarkTerminalTheme = (): TerminalThemeColors => ({
+      backgroundColor: '#0d1117',
+      foregroundColor: '#e6edf3',
+      cursorColor: '#e6edf3',
+      selectionBackgroundColor: '#264f78'
+    })
+
+    const createDefaultTerminalSettings = (): TerminalSettings => ({
+      fontSize: 14,
+      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      cursorBlink: true,
+      lightTheme: createLightTerminalTheme(),
+      darkTheme: createDarkTerminalTheme()
+    })
+
+    const normalizeTerminalSettings = (settings?: Partial<TerminalSettings> & Partial<TerminalThemeColors>): TerminalSettings => {
+      const defaults = createDefaultTerminalSettings()
+
+      if (!settings) return defaults
+
+      const legacyColors: Partial<TerminalThemeColors> = {
+        backgroundColor: settings.backgroundColor,
+        foregroundColor: settings.foregroundColor,
+        cursorColor: settings.cursorColor,
+        selectionBackgroundColor: settings.selectionBackgroundColor
+      }
+
+      return {
+        fontSize: settings.fontSize ?? defaults.fontSize,
+        fontFamily: settings.fontFamily ?? defaults.fontFamily,
+        cursorBlink: settings.cursorBlink ?? defaults.cursorBlink,
+        lightTheme: {
+          ...defaults.lightTheme,
+          ...legacyColors,
+          ...(settings.lightTheme || {})
+        },
+        darkTheme: {
+          ...defaults.darkTheme,
+          ...(settings.darkTheme || {})
+        }
+      }
     }
 
     const getDefaultProviders = () => {
@@ -85,16 +150,7 @@ export const useSettingsStore = defineStore(
       return shortcut.currentKey || shortcut.defaultKey
     }
 
-    const terminal = ref({
-      fontSize: 14,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      cursorBlink: true,
-
-      backgroundColor: '#ffffff',
-      foregroundColor: '#333333',
-      cursorColor: '#333333',
-      selectionBackgroundColor: '#add6ff'
-    })
+    const terminal = ref<TerminalSettings>(createDefaultTerminalSettings())
 
     const providers = ref<Provider[]>(getDefaultProviders())
     const providerOrder = ref<string[]>(providers.value.map((p) => p.id))
@@ -147,8 +203,19 @@ export const useSettingsStore = defineStore(
       system.value = { ...system.value, ...settings }
     }
 
-    const updateTerminalSettings = (settings: Partial<typeof terminal.value>) => {
-      terminal.value = { ...terminal.value, ...settings }
+    const updateTerminalSettings = (settings: Partial<TerminalSettings>) => {
+      terminal.value = normalizeTerminalSettings({
+        ...terminal.value,
+        ...settings,
+        lightTheme: {
+          ...terminal.value.lightTheme,
+          ...(settings.lightTheme || {})
+        },
+        darkTheme: {
+          ...terminal.value.darkTheme,
+          ...(settings.darkTheme || {})
+        }
+      })
     }
 
     const addRegisteredProvider = (provider: RegisteredProvider) => {
@@ -598,6 +665,8 @@ export const useSettingsStore = defineStore(
     const updateSpeechGenerationForm = (data: SpeechGenerationFormData) => {
       speechGenerationForm.value = data
     }
+    terminal.value = normalizeTerminalSettings(terminal.value as Partial<TerminalSettings> & Partial<TerminalThemeColors>)
+
     const isAfterRestore = restorePromise
 
     return {
@@ -696,6 +765,9 @@ export const useSettingsStore = defineStore(
         'shortcuts'
       ],
       afterRestore: async () => {
+        const settingsStore = useSettingsStore()
+        settingsStore.updateTerminalSettings(settingsStore.terminal as any)
+
         resolveRestore()
 
         const { restorePlugins } = usePlugins()
