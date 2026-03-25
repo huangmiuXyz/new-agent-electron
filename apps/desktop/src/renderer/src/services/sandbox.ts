@@ -172,6 +172,117 @@ export const sortSandboxFiles = (state: SandboxState): SandboxFile[] => {
   })
 }
 
+const decodeSandboxBase64 = (value: string) => {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(value, 'base64')
+  }
+
+  const binary = atob(value)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+const encodeSandboxBase64 = (value: Uint8Array) => {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(value).toString('base64')
+  }
+
+  let binary = ''
+  for (let i = 0; i < value.length; i += 1) {
+    binary += String.fromCharCode(value[i]!)
+  }
+  return btoa(binary)
+}
+
+export const writeSandboxStateToWorkspace = (state: SandboxState, workspaceDir: string) => {
+  window.api.fs.mkdirSync(workspaceDir, { recursive: true })
+
+  const existingEntries = window.api.fs.readdirSync(workspaceDir, { withFileTypes: true })
+  for (const entry of existingEntries) {
+    window.api.fs.rmSync(window.api.path.join(workspaceDir, entry.name), { recursive: true, force: true })
+  }
+
+  sortSandboxFiles(state).forEach((file) => {
+    const relativePath = file.path.replace(/^\/+/, '')
+    if (!relativePath) return
+
+    const outputPath = window.api.path.join(workspaceDir, ...relativePath.split('/'))
+    const parentDir = window.api.path.dirname(outputPath)
+    window.api.fs.mkdirSync(parentDir, { recursive: true })
+
+    if (file.encoding === 'data-url') {
+      const parsed = parseSandboxDataUrl(file.content)
+      if (parsed) {
+        window.api.fs.writeFileSync(outputPath, decodeSandboxBase64(parsed.base64))
+        return
+      }
+    }
+
+    window.api.fs.writeFileSync(outputPath, file.content, 'utf-8')
+  })
+}
+
+export const ensureSandboxTempWorkspace = (state: SandboxState, workspaceId = 'default') => {
+  const tempRoot = window.api.path.join(window.api.getPath('temp'), 'agent-qi-canvas-exec')
+  const workspaceDir = window.api.path.join(tempRoot, workspaceId)
+  writeSandboxStateToWorkspace(state, workspaceDir)
+  return workspaceDir
+}
+
+export const readSandboxWorkspace = (workspaceDir: string): SandboxState => {
+  const nextState = createSandboxState()
+  const fileEntries: typeof nextState.files = {}
+
+  const walk = (currentDir: string) => {
+    const entries = window.api.fs.readdirSync(currentDir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      const fullPath = window.api.path.join(currentDir, entry.name)
+      const stat = window.api.fs.statSync(fullPath)
+      const entryType = stat.mode & 0o170000
+      const isDirectory = entryType === 0o040000
+      const isFile = entryType === 0o100000
+
+      if (isDirectory) {
+        walk(fullPath)
+        continue
+      }
+
+      if (!isFile) continue
+
+      const relativePath = window.api.path.relative(workspaceDir, fullPath).replaceAll('\\', '/')
+      const sandboxPath = normalizeSandboxPath(relativePath)
+      const isImageFile = isSandboxImagePath(sandboxPath)
+      const content = isImageFile
+        ? (() => {
+          const bytes = window.api.fs.readFileSync(fullPath)
+          const mediaType = getSandboxMediaType(sandboxPath)
+          return `data:${mediaType};base64,${encodeSandboxBase64(bytes)}`
+        })()
+        : window.api.fs.readFileSync(fullPath, 'utf-8')
+
+      fileEntries[sandboxPath] = {
+        path: sandboxPath,
+        content,
+        encoding: isImageFile ? 'data-url' : 'text',
+        mediaType: isImageFile ? getSandboxMediaType(sandboxPath) : undefined,
+        updatedAt: stat.mtimeMs || Date.now()
+      }
+    }
+  }
+
+  walk(workspaceDir)
+
+  nextState.files = fileEntries
+  nextState.updatedAt = Date.now()
+  nextState.activeFilePath = sortSandboxFiles(nextState)[0]?.path || ''
+
+  return nextState
+}
+
 export const getSandboxFile = (state: SandboxState, filePath?: string | null): SandboxFile | null => {
   if (!filePath) return null
   try {

@@ -1,124 +1,21 @@
 import { z } from 'zod'
 import {
   buildSandboxTree,
-  createSandboxState,
-  getSandboxMediaType,
-  isSandboxImagePath,
+  ensureSandboxTempWorkspace,
   normalizeSandboxPath,
-  parseSandboxDataUrl,
+  readSandboxWorkspace,
   sortSandboxFiles
 } from '@renderer/services/sandbox'
 
 const isWindows = navigator.platform.toLowerCase().includes('win')
 
-const decodeBase64 = (value: string) => {
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.from(value, 'base64')
-  }
-
-  const binary = atob(value)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i)
-  }
-  return bytes
-}
-
-const encodeBase64 = (value: Uint8Array) => {
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.from(value).toString('base64')
-  }
-
-  let binary = ''
-  for (let i = 0; i < value.length; i += 1) {
-    binary += String.fromCharCode(value[i]!)
-  }
-  return btoa(binary)
-}
-
 const ensureCanvasTempWorkspace = (chatId?: string) => {
   const canvasStore = useCanvasStore()
   const sandbox = canvasStore.getCanvas(chatId)
-  const tempRoot = window.api.path.join(window.api.getPath('temp'), 'agent-qi-canvas-exec')
   const workspaceId = chatId || 'default'
-  const workspaceDir = window.api.path.join(tempRoot, workspaceId)
-
-  window.api.fs.mkdirSync(workspaceDir, { recursive: true })
-
-  const existingEntries = window.api.fs.readdirSync(workspaceDir, { withFileTypes: true })
-  for (const entry of existingEntries) {
-    window.api.fs.rmSync(window.api.path.join(workspaceDir, entry.name), { recursive: true, force: true })
-  }
-
-  sortSandboxFiles(sandbox).forEach((file) => {
-    const relativePath = file.path.replace(/^\/+/, '')
-    if (!relativePath) return
-
-    const outputPath = window.api.path.join(workspaceDir, ...relativePath.split('/'))
-    const parentDir = window.api.path.dirname(outputPath)
-    window.api.fs.mkdirSync(parentDir, { recursive: true })
-    if (file.encoding === 'data-url') {
-      const parsed = parseSandboxDataUrl(file.content)
-      if (parsed) {
-        window.api.fs.writeFileSync(outputPath, decodeBase64(parsed.base64))
-        return
-      }
-    }
-    window.api.fs.writeFileSync(outputPath, file.content, 'utf-8')
-  })
+  const workspaceDir = ensureSandboxTempWorkspace(sandbox, workspaceId)
 
   return { sandbox, workspaceDir }
-}
-
-const readCanvasWorkspace = (workspaceDir: string) => {
-  const nextState = createSandboxState()
-  const fileEntries: typeof nextState.files = {}
-
-  const walk = (currentDir: string) => {
-    const entries = window.api.fs.readdirSync(currentDir, { withFileTypes: true })
-
-    for (const entry of entries) {
-      const fullPath = window.api.path.join(currentDir, entry.name)
-      const stat = window.api.fs.statSync(fullPath)
-      const entryType = stat.mode & 0o170000
-      const isDirectory = entryType === 0o040000
-      const isFile = entryType === 0o100000
-
-      if (isDirectory) {
-        walk(fullPath)
-        continue
-      }
-
-      if (!isFile) continue
-
-      const relativePath = window.api.path.relative(workspaceDir, fullPath).replaceAll('\\', '/')
-      const sandboxPath = normalizeSandboxPath(relativePath)
-      const isImageFile = isSandboxImagePath(sandboxPath)
-      const content = isImageFile
-        ? (() => {
-          const bytes = window.api.fs.readFileSync(fullPath)
-          const mediaType = getSandboxMediaType(sandboxPath)
-          return `data:${mediaType};base64,${encodeBase64(bytes)}`
-        })()
-        : window.api.fs.readFileSync(fullPath, 'utf-8')
-
-      fileEntries[sandboxPath] = {
-        path: sandboxPath,
-        content,
-        encoding: isImageFile ? 'data-url' : 'text',
-        mediaType: isImageFile ? getSandboxMediaType(sandboxPath) : undefined,
-        updatedAt: stat.mtimeMs || Date.now()
-      }
-    }
-  }
-
-  walk(workspaceDir)
-
-  nextState.files = fileEntries
-  nextState.updatedAt = Date.now()
-  nextState.activeFilePath = sortSandboxFiles(nextState)[0]?.path || ''
-
-  return nextState
 }
 
 const summarizeCanvasSync = (
@@ -442,7 +339,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
           toolCallId: options?.toolCallId,
           showTerminal: true
         })
-        const syncedCanvas = readCanvasWorkspace(workspaceDir)
+        const syncedCanvas = readSandboxWorkspace(workspaceDir)
         const nextActiveFilePath = sandbox.activeFilePath && syncedCanvas.files[sandbox.activeFilePath]
           ? sandbox.activeFilePath
           : syncedCanvas.activeFilePath

@@ -8,6 +8,7 @@ import { useLocalStorage } from '@renderer/composables/vueuse'
 import {
   buildSandboxPreviewDocument,
   buildSandboxTree,
+  ensureSandboxTempWorkspace,
   getSandboxFileLanguage,
   isSandboxImageFile,
   parseSandboxDataUrl,
@@ -38,6 +39,7 @@ const canvasStore = useCanvasStore()
 const myAppsStore = useMyAppsStore()
 const message = messageApi
 const modal = useModal()
+const { createTab } = useTerminal()
 const {
   Download: DownloadIcon,
   FileZip: FileZipIcon,
@@ -132,6 +134,14 @@ const sanitizeDownloadName = (value: string) => {
     .replace(/\.+$/g, '')
 
   return normalized || 'untitled-app'
+}
+
+const buildOpenWorkspaceCommand = (workspaceDir: string) => {
+  if (window.api.os.platform() === 'win32') {
+    return `Set-Location -LiteralPath '${workspaceDir.replaceAll("'", "''")}'`
+  }
+
+  return `cd '${workspaceDir.replaceAll("'", "'\"'\"'")}'`
 }
 
 const previewChannelId = computed(() => `sandbox-preview:${currentChatId.value || 'default'}`)
@@ -552,6 +562,25 @@ const openSaveAppModal = () => {
   })
 }
 
+const openCanvasInTerminal = async () => {
+  if (!hasCanvasFiles.value) {
+    message.warning('当前画布还没有文件，先生成或创建内容后再打开终端')
+    return
+  }
+
+  try {
+    const workspaceDir = ensureSandboxTempWorkspace(currentCanvas.value, currentChatId.value || 'default')
+    await createTab({
+      command: buildOpenWorkspaceCommand(workspaceDir),
+      showTerminal: true
+    })
+    // message.success(`已在终端打开应用目录：${workspaceDir}`)
+  } catch (error) {
+    console.error('Open canvas in terminal error:', error)
+    // message.error('在终端打开失败')
+  }
+}
+
 const appendPreviewLog = (item: Omit<PreviewLogItem, 'id'>) => {
   previewLogs.value = [
     ...previewLogs.value.slice(-79),
@@ -608,6 +637,14 @@ const openActionsMenu = (event: MouseEvent) => {
       icon: BoxIcon,
       disabled: !hasCanvasFiles.value,
       onClick: () => openSaveAppModal()
+    },
+    {
+      label: '在终端打开',
+      icon: TerminalIcon,
+      disabled: !hasCanvasFiles.value,
+      onClick: () => {
+        void openCanvasInTerminal()
+      }
     },
     {
       type: 'divider'
