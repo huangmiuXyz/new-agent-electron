@@ -69,6 +69,7 @@ const {
   'Terminal'
 ])
 const { showContextMenu, hideContextMenu } = useContextMenu<TreeRow>()
+const { showContextMenu: showTabContextMenu } = useContextMenu<{ filePath: string }>()
 
 const canvasTabs = [
   { id: 'preview', name: '预览' },
@@ -165,9 +166,11 @@ const ensureFileTabOpen = (filePath: string) => {
   }
 }
 
+const hasDraftForFile = (filePath: string) => Object.prototype.hasOwnProperty.call(fileDrafts.value, filePath)
+
 const getDraftContent = (filePath: string) => {
   if (!filePath) return ''
-  if (Object.prototype.hasOwnProperty.call(fileDrafts.value, filePath)) {
+  if (hasDraftForFile(filePath)) {
     return fileDrafts.value[filePath] || ''
   }
   return currentCanvas.value.files[filePath]?.content || ''
@@ -175,6 +178,15 @@ const getDraftContent = (filePath: string) => {
 
 const setDraftContent = (filePath: string, content: string) => {
   if (!filePath) return
+  const fileContent = currentCanvas.value.files[filePath]?.content || ''
+  if (content === fileContent) {
+    if (!hasDraftForFile(filePath)) return
+    const nextDrafts = { ...fileDrafts.value }
+    delete nextDrafts[filePath]
+    fileDrafts.value = nextDrafts
+    return
+  }
+
   fileDrafts.value = {
     ...fileDrafts.value,
     [filePath]: content
@@ -554,6 +566,14 @@ const saveActiveFile = () => {
   message.success(`已保存 ${filePath}`)
 }
 
+const saveDraftForFile = (filePath: string) => {
+  const currentFile = currentCanvas.value.files[filePath]
+  if (!currentFile) return
+  const draftContent = getDraftContent(filePath)
+  if (draftContent === currentFile.content) return
+  canvasStore.updateFileContent(filePath, draftContent, currentChatId.value)
+}
+
 const handleCanvasKeydown = (event: KeyboardEvent) => {
   if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 's') return
   if (settingsStore.display.canvasEditorTab !== 'code') return
@@ -563,39 +583,103 @@ const handleCanvasKeydown = (event: KeyboardEvent) => {
   saveActiveFile()
 }
 
-const closeFileTab = async (filePath: string) => {
-  if (!filePath) return
+const closeFileTabs = async (filePaths: string[]) => {
+  const targetPaths = Array.from(new Set(filePaths)).filter((filePath) => openFileTabs.value.includes(filePath))
+  if (targetPaths.length === 0) return
 
-  const currentFile = currentCanvas.value.files[filePath]
-  const draftContent = getDraftContent(filePath)
-  const isDirty = Boolean(currentFile) && draftContent !== currentFile.content
+  const dirtyPaths = targetPaths.filter((filePath) => {
+    const currentFile = currentCanvas.value.files[filePath]
+    return Boolean(currentFile) && getDraftContent(filePath) !== currentFile.content
+  })
 
-  if (isDirty) {
+  if (dirtyPaths.length > 0) {
     const shouldSave = await modal.confirm({
-      title: '关闭标签页',
-      content: `${filePath} 有未保存修改，是否先保存再关闭？`,
+      title: targetPaths.length === 1 ? '关闭标签页' : '批量关闭标签页',
+      content: dirtyPaths.length === 1
+        ? `${dirtyPaths[0]} 有未保存修改，是否先保存再关闭？`
+        : `有 ${dirtyPaths.length} 个标签页未保存，是否先保存再关闭？`,
       confirmText: '保存并关闭',
       cancelText: '直接关闭'
     })
 
-    if (shouldSave && currentFile) {
-      canvasStore.updateFileContent(filePath, draftContent, currentChatId.value)
+    if (shouldSave) {
+      dirtyPaths.forEach((filePath) => {
+        saveDraftForFile(filePath)
+      })
     }
   }
 
-  const nextTabs = openFileTabs.value.filter((path) => path !== filePath)
+  const nextTabs = openFileTabs.value.filter((path) => !targetPaths.includes(path))
   openFileTabs.value = nextTabs
 
   const nextDrafts = { ...fileDrafts.value }
-  delete nextDrafts[filePath]
+  targetPaths.forEach((filePath) => {
+    delete nextDrafts[filePath]
+  })
   fileDrafts.value = nextDrafts
 
-  if (activeFilePath.value !== filePath) return
+  if (!targetPaths.includes(activeFilePath.value)) return
 
   const nextActiveFilePath = nextTabs[nextTabs.length - 1] || ''
   if (nextActiveFilePath) {
     activeFilePath.value = nextActiveFilePath
   }
+}
+
+const closeFileTab = async (filePath: string) => {
+  await closeFileTabs([filePath])
+}
+
+const openTabContextMenu = (event: MouseEvent, filePath: string) => {
+  const currentIndex = openFileTabs.value.indexOf(filePath)
+  const rightSideTabs = currentIndex >= 0 ? openFileTabs.value.slice(currentIndex + 1) : []
+  const otherTabs = openFileTabs.value.filter((path) => path !== filePath)
+  const savedTabs = openFileTabs.value.filter((path) => {
+    const currentFile = currentCanvas.value.files[path]
+    return !currentFile || getDraftContent(path) === currentFile.content
+  })
+
+  const options: MenuItem<{ filePath: string }>[] = [
+    {
+      label: '关闭',
+      shortcut: 'Ctrl+F4',
+      onClick: ({ filePath: targetPath }) => {
+        void closeFileTab(targetPath)
+      }
+    },
+    {
+      label: '关闭其他',
+      disabled: otherTabs.length === 0,
+      onClick: () => {
+        void closeFileTabs(otherTabs)
+      }
+    },
+    {
+      label: '关闭右侧标签页',
+      disabled: rightSideTabs.length === 0,
+      onClick: () => {
+        void closeFileTabs(rightSideTabs)
+      }
+    },
+    {
+      label: '关闭已保存',
+      shortcut: 'Ctrl+K U',
+      disabled: savedTabs.length === 0,
+      onClick: () => {
+        void closeFileTabs(savedTabs)
+      }
+    },
+    {
+      label: '全部关闭',
+      shortcut: 'Ctrl+K W',
+      disabled: openFileTabs.value.length === 0,
+      onClick: () => {
+        void closeFileTabs([...openFileTabs.value])
+      }
+    }
+  ]
+
+  showTabContextMenu(event, options, { filePath })
 }
 
 const downloadAppAsZip = async () => {
@@ -1113,9 +1197,7 @@ watch(
     hideContextMenu()
     resetDragState()
     openFileTabs.value = activeFilePath.value ? [activeFilePath.value] : []
-    fileDrafts.value = activeFilePath.value
-      ? { [activeFilePath.value]: currentCanvas.value.files[activeFilePath.value]?.content || '' }
-      : {}
+    fileDrafts.value = {}
   },
   { immediate: true }
 )
@@ -1167,9 +1249,6 @@ watch(
   (currentActiveFilePath) => {
     if (currentActiveFilePath) {
       ensureFileTabOpen(currentActiveFilePath)
-      if (!Object.prototype.hasOwnProperty.call(fileDrafts.value, currentActiveFilePath)) {
-        setDraftContent(currentActiveFilePath, currentCanvas.value.files[currentActiveFilePath]?.content || '')
-      }
     }
 
     const nextExpandedPaths = new Set(expandedDirectoryPaths.value)
@@ -1191,8 +1270,13 @@ watch(
   (content) => {
     const filePath = activeFilePath.value
     if (!filePath) return
-    if (isActiveFileDirty.value) return
-    setDraftContent(filePath, content || '')
+    if (!hasDraftForFile(filePath)) return
+    const draftContent = fileDrafts.value[filePath]
+    if (draftContent !== (content || '')) return
+
+    const nextDrafts = { ...fileDrafts.value }
+    delete nextDrafts[filePath]
+    fileDrafts.value = nextDrafts
   }
 )
 
@@ -1321,7 +1405,8 @@ onBeforeUnmount(() => {
             <div class="canvas-panel-surface canvas-code-editor-shell">
               <div v-if="openFileTabs.length > 0" class="canvas-file-tabs">
                 <button v-for="filePath in openFileTabs" :key="filePath" type="button" class="canvas-file-tab"
-                  :class="{ active: filePath === activeFilePath }" @click="activeFilePath = filePath">
+                  :class="{ active: filePath === activeFilePath }" @click="activeFilePath = filePath"
+                  @contextmenu="openTabContextMenu($event, filePath)">
                   <span class="canvas-file-tab-name">{{ getBaseNameFromPath(filePath) }}</span>
                   <span v-if="getDraftContent(filePath) !== (currentCanvas.files[filePath]?.content || '')"
                     class="canvas-file-tab-dirty"></span>
