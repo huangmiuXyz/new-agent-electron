@@ -642,7 +642,6 @@ const openTabContextMenu = (event: MouseEvent, filePath: string) => {
   const options: MenuItem<{ filePath: string }>[] = [
     {
       label: '关闭',
-      shortcut: 'Ctrl+F4',
       onClick: ({ filePath: targetPath }) => {
         void closeFileTab(targetPath)
       }
@@ -663,7 +662,6 @@ const openTabContextMenu = (event: MouseEvent, filePath: string) => {
     },
     {
       label: '关闭已保存',
-      shortcut: 'Ctrl+K U',
       disabled: savedTabs.length === 0,
       onClick: () => {
         void closeFileTabs(savedTabs)
@@ -671,7 +669,6 @@ const openTabContextMenu = (event: MouseEvent, filePath: string) => {
     },
     {
       label: '全部关闭',
-      shortcut: 'Ctrl+K W',
       disabled: openFileTabs.value.length === 0,
       onClick: () => {
         void closeFileTabs([...openFileTabs.value])
