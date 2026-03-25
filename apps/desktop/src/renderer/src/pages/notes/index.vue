@@ -1,6 +1,5 @@
 <script setup lang="ts">
 const notesStore = useNotesStore()
-const settingsStore = useSettingsStore()
 const { currentFolder, currentNote } = storeToRefs(notesStore)
 
 // 初始化数据
@@ -24,11 +23,9 @@ watch(() => currentNote.value, (note) => {
 
 <template>
     <div class="notes-layout">
-        <!-- 侧边栏区域 -->
-        <ResizeBox v-model:width="settingsStore.display.notesSidebarWidth"
-            v-model:is-collapsed="settingsStore.display.sidebarCollapsed" :min-size="200" :max-size="500">
+        <Teleport v-if="!isMobile" defer to="#global-left-panel-content">
             <NotesSidebar />
-        </ResizeBox>
+        </Teleport>
 
         <!-- 笔记-右侧内容区 -->
         <div class="notes-content">

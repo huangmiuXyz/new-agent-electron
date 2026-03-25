@@ -1,5 +1,4 @@
 <script setup lang="ts">
-const settingsStore = useSettingsStore()
 const activeTab = ref('models')
 const route = useRoute()
 
@@ -38,15 +37,9 @@ const switchTab = (tabName: string) => {
 
 <template>
   <div class="settings-layout">
-    <!-- 设置-左侧分类导航 -->
-    <ResizeBox
-      v-model:width="settingsStore.display.settingsSidebarWidth"
-      v-model:is-collapsed="settingsStore.display.sidebarCollapsed"
-      :min-size="150"
-      :max-size="400"
-    >
+    <Teleport v-if="!isMobile" defer to="#global-left-panel-content">
       <SettingsSidebar :active-tab="activeTab" @tab-change="switchTab" />
-    </ResizeBox>
+    </Teleport>
 
     <!-- 设置-右侧内容区 -->
     <div class="settings-content">

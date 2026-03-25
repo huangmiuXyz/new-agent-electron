@@ -5,9 +5,9 @@ import ImagePage from './pages/image/index.vue'
 import SettingsPage from './pages/settings/index.vue'
 import MyAppsPage from './pages/my-apps/index.vue'
 import AppFooter from './components/AppFooter.vue'
-import DownloadPanel from './components/DownloadPanel.vue'
 import Term from './components/term.vue'
 import ResizeBox from './components/ResizeBox.vue'
+import GlobalRightPanel from './components/GlobalRightPanel.vue'
 import { useSettingsStore } from './stores/settings'
 import { useChatsStores } from './stores/chats'
 import { useCanvasStore } from './stores/canvas'
@@ -28,6 +28,18 @@ const myAppsStore = useMyAppsStore()
 const syncStore = useSyncStore()
 const { display, shortcuts } = storeToRefs(settingsStore)
 const { updateConfig } = useShortcuts()
+const globalLeftPanelViews = new Set(['chat', 'notes', 'settings', 'image'])
+const hasGlobalLeftPanel = computed(() => !isMobile.value && globalLeftPanelViews.has(currentView.value))
+
+const globalLeftPanelWidth = computed({
+  get: () => settingsStore.display.sidebarWidth,
+  set: (value: number) => {
+    settingsStore.display.sidebarWidth = value
+  }
+})
+
+const globalLeftPanelMinSize = computed(() => 150)
+const globalLeftPanelMaxSize = computed(() => 800)
 
 // 终端显示控制
 const terminalCollapsed = computed({
@@ -296,15 +308,26 @@ const handleTouchEnd = (e: TouchEvent) => {
 
     <div class="app-body" v-if="!isMobile">
       <AppNavBar :current-view="currentView" @switch="switchView" />
-      <NotificationPanel />
-      <DownloadPanel />
       <div class="content-wrapper">
         <main class="app-content">
-          <ChatPage v-if="currentView === 'chat'" />
-          <NotesPage v-if="currentView === 'notes'" />
-          <ImagePage v-if="currentView === 'image'" />
-          <MyAppsPage v-if="currentView === 'my-apps'" />
-          <SettingsPage v-if="currentView === 'settings'" />
+          <ResizeBox
+            v-if="hasGlobalLeftPanel"
+            v-model:width="globalLeftPanelWidth"
+            v-model:is-collapsed="settingsStore.display.sidebarCollapsed"
+            :min-size="globalLeftPanelMinSize"
+            :max-size="globalLeftPanelMaxSize"
+          >
+            <div class="global-left-panel">
+              <div id="global-left-panel-content" class="global-left-panel-content"></div>
+            </div>
+          </ResizeBox>
+          <div class="app-page-host">
+            <ChatPage v-if="currentView === 'chat'" />
+            <NotesPage v-if="currentView === 'notes'" />
+            <ImagePage v-if="currentView === 'image'" />
+            <MyAppsPage v-if="currentView === 'my-apps'" />
+            <SettingsPage v-if="currentView === 'settings'" />
+          </div>
         </main>
         <!-- 全局终端：在 content-wrapper 内，app-content 下方 -->
         <ResizeBox
@@ -320,6 +343,16 @@ const handleTouchEnd = (e: TouchEvent) => {
           <Term ref="termRef" />
         </ResizeBox>
       </div>
+      <ResizeBox
+        v-model:width="settingsStore.display.speechSidebarWidth"
+        v-model:is-collapsed="settingsStore.display.speechSidebarCollapsed"
+        direction="horizontal"
+        handlePosition="left"
+        :minSize="280"
+        :maxSize="1000"
+      >
+        <GlobalRightPanel />
+      </ResizeBox>
     </div>
 
     <AppFooter v-if="!isMobile" :current-view="currentView" />
@@ -586,16 +619,39 @@ body {
 }
 
 .app-content {
+  display: flex;
   flex: 1;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   position: relative;
-  display: flex;
   border-top: 1px solid var(--border-subtle);
   border-left: 1px solid var(--border-subtle);
   background: var(--bg-card);
   border-top-left-radius: var(--radius-md);
+}
+
+.app-page-host {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.global-left-panel {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.global-left-panel-content {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 .global-terminal {

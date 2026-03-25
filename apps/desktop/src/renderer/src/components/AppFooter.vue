@@ -11,28 +11,40 @@ const props = defineProps<{
 const notificationStore = useNotificationStore()
 const settingsStore = useSettingsStore()
 const downloadStore = useDownloadStore()
-const { Bell, InfoCircle, Refresh, Check, Mic, Terminal, Download } = useIcon(['Bell', 'InfoCircle', 'Refresh', 'Check', 'Mic', 'Terminal', 'Download'])
+const { Bell, InfoCircle, Refresh, Check, Mic, Terminal, Download, Box, Menu } = useIcon([
+  'Bell',
+  'InfoCircle',
+  'Refresh',
+  'Check',
+  'Mic',
+  'Terminal',
+  'Download',
+  'Box',
+  'Menu'
+])
 
 // 切换终端
 const toggleTerminal = () => {
   settingsStore.display.showTerminal = !settingsStore.display.showTerminal
 }
 
-const toggleDownloadPanel = () => {
-  downloadStore.togglePanel()
-  notificationStore.closePanel()
-}
+const toggleRightPanel = (tab: 'canvas' | 'playlist' | 'downloads' | 'notifications') => {
+  const isSameTab = settingsStore.display.assistantSidebarTab === tab
+  const isCollapsed = settingsStore.display.speechSidebarCollapsed
 
-const toggleNotificationPanel = () => {
-  notificationStore.togglePanel()
-  downloadStore.closePanel()
+  settingsStore.display.assistantSidebarTab = tab
+  settingsStore.display.speechSidebarCollapsed = !isCollapsed && isSameTab
+
+  if (tab === 'notifications' && !settingsStore.display.speechSidebarCollapsed) {
+    notificationStore.markAllAsRead()
+  }
 }
 
 const StatusIcon = defineComponent({
   props: ['icon', 'color'],
   setup(props) {
     return () => {
-      const iconMap = { Bell, InfoCircle, Refresh, Check, Mic, Download }
+      const iconMap = { Bell, InfoCircle, Refresh, Check, Mic, Download, Box, Menu }
       const IconComponent = props.icon ? (iconMap[props.icon] || useIcon(props.icon)) : Bell
       return h(IconComponent, {
         style: { color: props.color || 'inherit' },
@@ -81,8 +93,32 @@ const StatusRender = defineComponent({
       </div>
 
       <div class="status-bar-right">
-        <div class="status-item" :class="{ active: downloadStore.isPanelOpen }"
-          title="下载列表" @click="toggleDownloadPanel">
+        <div
+          class="status-item"
+          :class="{ active: !settingsStore.display.speechSidebarCollapsed && settingsStore.display.assistantSidebarTab === 'canvas' }"
+          title="画布"
+          @click="toggleRightPanel('canvas')"
+        >
+          <div class="icon-wrapper">
+            <Box />
+          </div>
+        </div>
+        <div
+          class="status-item"
+          :class="{ active: !settingsStore.display.speechSidebarCollapsed && settingsStore.display.assistantSidebarTab === 'playlist' }"
+          title="播放列表"
+          @click="toggleRightPanel('playlist')"
+        >
+          <div class="icon-wrapper">
+            <Menu />
+          </div>
+        </div>
+        <div
+          class="status-item"
+          :class="{ active: !settingsStore.display.speechSidebarCollapsed && settingsStore.display.assistantSidebarTab === 'downloads' }"
+          title="下载列表"
+          @click="toggleRightPanel('downloads')"
+        >
           <div class="icon-wrapper">
             <Download />
             <span v-if="downloadStore.unfinishedCount > 0" class="badge">{{ downloadStore.unfinishedCount }}</span>
@@ -95,7 +131,12 @@ const StatusRender = defineComponent({
             <Terminal />
           </div>
         </div>
-        <div class="status-item" :class="{ active: notificationStore.isPanelOpen }" title="通知" @click="toggleNotificationPanel">
+        <div
+          class="status-item"
+          :class="{ active: !settingsStore.display.speechSidebarCollapsed && settingsStore.display.assistantSidebarTab === 'notifications' }"
+          title="通知"
+          @click="toggleRightPanel('notifications')"
+        >
           <div class="icon-wrapper">
             <StatusIcon icon="Bell" />
             <span v-if="notificationStore.unreadCount > 0" class="badge">{{ notificationStore.unreadCount }}</span>

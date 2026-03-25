@@ -946,12 +946,6 @@ onUnmounted(() => {
               <VolumeMuteIcon v-else />
             </Button>
 
-            <Button variant="icon" size="sm" :class="{ 'speech-active': !display.speechSidebarCollapsed }"
-              @click="toggleAssistantPanel()"
-              :title="display.speechSidebarCollapsed ? '打开侧边面板' : '关闭侧边面板'">
-              <PlaylistIcon />
-            </Button>
-
             <Button
               v-if="isScopeGenerating"
               variant="icon"

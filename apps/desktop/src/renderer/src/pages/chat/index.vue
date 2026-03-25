@@ -4,8 +4,6 @@ import { useAgentStore } from '@renderer/stores/agent'
 import { useSpeechStore } from '@renderer/stores/speech'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
 import { useChat } from '@renderer/composables/useChat'
-import ResizeBox from '@renderer/components/ResizeBox.vue'
-import ChatSidePanel from '@renderer/components/ChatSidePanel.vue'
 
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
@@ -124,12 +122,9 @@ onMounted(() => {
     <!-- 背景层 -->
     <AgentBackground :backgrounds="currentChatAgent?.backgrounds" />
 
-    <!-- 左侧边栏 -->
-    <ResizeBox v-if="!isMobile"
-      v-model:width="settingsStore.display.chatSidebarWidth"
-      v-model:is-collapsed="settingsStore.display.sidebarCollapsed">
+    <Teleport v-if="!isMobile" defer to="#global-left-panel-content">
       <ChatSidebar />
-    </ResizeBox>
+    </Teleport>
 
     <!-- 主聊天区域 -->
     <main class="main-chat">
@@ -139,19 +134,6 @@ onMounted(() => {
       <!-- 输入框 -->
       <ChatMessageInput />
     </main>
-
-    <!-- 右侧语音播放侧边栏 -->
-    <ResizeBox
-      v-if="!isMobile"
-      v-model:width="settingsStore.display.speechSidebarWidth"
-      v-model:is-collapsed="settingsStore.display.speechSidebarCollapsed"
-      direction="horizontal"
-      handlePosition="left"
-      :minSize="250"
-      :maxSize="1000"
-    >
-      <ChatSidePanel :collapsed="settingsStore.display.speechSidebarCollapsed" @close="toggleSpeechSidebar" />
-    </ResizeBox>
 
     <!-- 移动端语音播放按钮 -->
     <Button

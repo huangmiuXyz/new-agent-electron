@@ -534,13 +534,7 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
 <template>
   <div class="image-page-container" :class="{ 'tool-mode': isToolMode, 'is-mobile': isMobile }">
     <AppHeader v-if="isMobile && !isToolMode" :current-view="'image'" mode="detail" />
-    <ResizeBox
-      v-if="!isToolMode && !isMobile"
-      v-model:width="settingsStore.display.imageSidebarWidth"
-      v-model:is-collapsed="settingsStore.display.sidebarCollapsed"
-      :min-size="250"
-      :max-size="800"
-    >
+    <Teleport v-if="!isToolMode && !isMobile" defer to="#global-left-panel-content">
       <FormContainer :show-header="false" class="form-section">
         <template #content>
           <div class="mode-switcher">
@@ -563,7 +557,7 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
           <ImageModePanel v-else ref="imagePanelRef" />
         </template>
       </FormContainer>
-    </ResizeBox>
+    </Teleport>
 
     <!-- Mobile Sidebar Drawer -->
     <div v-if="isMobile && !isToolMode" class="mobile-sidebar-overlay" :class="{ active: showSidebar }" @click="showSidebar = false">

@@ -101,7 +101,7 @@ export const useSettingsStore = defineStore(
       imageSidebarWidth: 300,
       speechSidebarWidth: 320,
       speechSidebarCollapsed: true,
-      assistantSidebarTab: 'playlist' as 'canvas' | 'playlist',
+      assistantSidebarTab: 'playlist' as 'canvas' | 'playlist' | 'downloads' | 'notifications',
       canvasEditorTab: 'preview' as 'preview' | 'code',
       showTerminal: false,
       terminalHeight: 200,
