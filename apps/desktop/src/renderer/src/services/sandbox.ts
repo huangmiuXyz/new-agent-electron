@@ -465,6 +465,11 @@ export type SandboxWorkspaceEntry = {
   hasChildren: boolean
 }
 
+const FS_MODE_DIRECTORY = 0o040000
+const getIsDirectoryFromStat = (stat: { mode?: number | null }) => {
+  return (Number(stat.mode) & 0o170000) === FS_MODE_DIRECTORY
+}
+
 export const listSandboxWorkspaceDirectory = (
   workspaceDir: string,
   directoryPath = '/'
@@ -480,20 +485,36 @@ export const listSandboxWorkspaceDirectory = (
   }
 
   return window.api.fs.readdirSync(targetDir, { withFileTypes: true })
-    .map((entry) => {
+    .flatMap((entry) => {
       const fullPath = window.api.path.join(targetDir, entry.name)
-      const stat = window.api.fs.statSync(fullPath)
-      const entryType = stat.mode & 0o170000
-      const isDirectory = entryType === 0o040000
       const sandboxPath = normalizeSandboxPath(
         normalizedDirectoryPath === '/' ? `/${entry.name}` : `${normalizedDirectoryPath}/${entry.name}`
       )
-      return {
-        name: entry.name,
-        path: sandboxPath,
-        type: isDirectory ? 'directory' : 'file',
-        hasChildren: isDirectory ? window.api.fs.readdirSync(fullPath).length > 0 : false
-      } satisfies SandboxWorkspaceEntry
+
+      try {
+        const stat = window.api.fs.statSync(fullPath)
+        const isDirectory = getIsDirectoryFromStat(stat)
+        return [{
+          name: entry.name,
+          path: sandboxPath,
+          type: isDirectory ? 'directory' : 'file',
+          hasChildren: isDirectory ? window.api.fs.readdirSync(fullPath).length > 0 : false
+        } satisfies SandboxWorkspaceEntry]
+      } catch {
+        // pnpm node_modules may contain dangling platform-specific symlinks.
+        // Keep the rest of the directory browsable instead of failing the whole listing.
+        try {
+          const fallbackStat = window.api.fs.lstatSync(fullPath)
+          return [{
+            name: entry.name,
+            path: sandboxPath,
+            type: getIsDirectoryFromStat(fallbackStat) ? 'directory' : 'file',
+            hasChildren: false
+          } satisfies SandboxWorkspaceEntry]
+        } catch {
+          return []
+        }
+      }
     })
     .sort((a, b) => {
       if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
