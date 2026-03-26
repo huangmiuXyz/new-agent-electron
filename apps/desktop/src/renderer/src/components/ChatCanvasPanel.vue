@@ -268,6 +268,7 @@ const gitCommitting = ref(false)
 const gitError = ref('')
 const gitCommitProviderId = ref('')
 const gitCommitModelId = ref('')
+const gitGenerateAfterModelPick = ref(false)
 const isSandboxRuntimeVisible = computed(
   () => settingsStore.display.canvasEditorTab === 'preview' && !sandboxLogsCollapsed.value
 )
@@ -439,6 +440,17 @@ const toggleSandboxRuntime = () => {
     sandboxLogsHeight.value = 140
   }
 }
+
+watch(
+  [gitCommitProviderId, gitCommitModelId],
+  ([providerId, modelId], [prevProviderId, prevModelId]) => {
+    if (!gitGenerateAfterModelPick.value) return
+    if (!providerId || !modelId) return
+    if (providerId === prevProviderId && modelId === prevModelId) return
+    gitGenerateAfterModelPick.value = false
+    void generateGitCommitMessage()
+  }
+)
 
 watch(
   () => settingsStore.display.canvasEditorTab,
@@ -1582,10 +1594,26 @@ onBeforeUnmount(() => {
           </div>
           <div class="sandbox-explorer-group">
             <div class="sandbox-explorer-group-header">
-              <span class="sandbox-explorer-group-title">{{ settingsStore.display.canvasEditorTab === 'git' ? '更改' : 'SANDBOX' }}</span>
-              <span class="sandbox-explorer-group-subtitle">
-                {{ settingsStore.display.canvasEditorTab === 'git' ? `${gitChangedCount} 个文件` : suggestedAppName }}
-              </span>
+              <div class="sandbox-explorer-group-header-row">
+                <span class="sandbox-explorer-group-title">{{ settingsStore.display.canvasEditorTab === 'git' ? '更改' : 'SANDBOX' }}</span>
+                <div v-if="settingsStore.display.canvasEditorTab === 'git'" class="canvas-git-header-actions">
+                  <button type="button" class="sandbox-sidebar-tool" title="刷新" @click="void refreshGitStatus()">↻</button>
+                  <div
+                    class="canvas-git-ai-selector"
+                    :class="{ 'is-loading': gitGeneratingCommitMessage }"
+                    :title="gitGeneratingCommitMessage ? '生成提交信息中' : '生成提交信息'"
+                    @click.capture="gitGenerateAfterModelPick = true"
+                  >
+                    <ModelSelector
+                      v-model:model-id="gitCommitModelId"
+                      v-model:provider-id="gitCommitProviderId"
+                      type="icon"
+                      category="text"
+                      popup-position="bottom"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
             <div v-if="settingsStore.display.canvasEditorTab === 'git'" class="sandbox-tree">
               <div v-if="gitLoading" class="canvas-empty-state sidebar-empty">
@@ -1599,24 +1627,6 @@ onBeforeUnmount(() => {
               </div>
               <template v-else>
                 <div class="canvas-git-compose">
-                  <div class="canvas-git-compose-actions">
-                    <ModelSelector
-                      v-model:model-id="gitCommitModelId"
-                      v-model:provider-id="gitCommitProviderId"
-                      type="icon"
-                      category="text"
-                    />
-                    <button type="button" class="sandbox-sidebar-tool" title="刷新" @click="void refreshGitStatus()">↻</button>
-                    <button
-                      type="button"
-                      class="sandbox-sidebar-tool"
-                      :disabled="gitGeneratingCommitMessage"
-                      title="生成提交信息"
-                      @click="void generateGitCommitMessage()"
-                    >
-                      {{ gitGeneratingCommitMessage ? '…' : 'AI' }}
-                    </button>
-                  </div>
                   <textarea
                     v-model="gitCommitMessage"
                     class="canvas-git-commit-input"
@@ -2043,15 +2053,27 @@ onBeforeUnmount(() => {
 }
 
 .sandbox-explorer-group-header {
-  min-height: 28px;
+  min-height: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 1px;
+  padding: 6px 12px 4px;
+  color: var(--sandbox-sidebar-muted);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.sandbox-explorer-group-header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 12px;
-  color: var(--sandbox-sidebar-muted);
-  font-size: 10px;
-  letter-spacing: 0.06em;
+}
+
+.sandbox-explorer-group-heading {
+  min-width: 0;
 }
 
 .sandbox-explorer-group-title {
@@ -2065,6 +2087,60 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.canvas-git-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.canvas-git-ai-selector {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.canvas-git-ai-selector.is-loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.canvas-git-ai-selector :deep(.btn) {
+  width: auto;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0 3px;
+  border-radius: 2px;
+  color: transparent;
+  position: relative;
+}
+
+.canvas-git-ai-selector :deep(.btn:hover) {
+  background: var(--sandbox-tool-hover);
+}
+
+.canvas-git-ai-selector :deep(.icon-btn),
+.canvas-git-ai-selector :deep(img),
+.canvas-git-ai-selector :deep(svg) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.canvas-git-ai-selector :deep(.btn)::after {
+  content: 'AI';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--sandbox-sidebar-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.canvas-git-ai-selector.is-loading :deep(.btn)::after {
+  content: '…';
 }
 
 .sandbox-tree {
@@ -2114,13 +2190,6 @@ onBeforeUnmount(() => {
   gap: 4px;
   padding: 4px 6px 6px;
   border-bottom: 1px solid var(--sandbox-sidebar-border);
-}
-
-.canvas-git-compose-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
 }
 
 .canvas-git-commit-input {
