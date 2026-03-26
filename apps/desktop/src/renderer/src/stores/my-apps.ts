@@ -1,5 +1,5 @@
 import { indexedDBStorage } from '@renderer/utils'
-import { ensureSandboxState, type SandboxState } from '@renderer/services/sandbox'
+import { type SandboxState } from '@renderer/services/sandbox'
 
 export interface SavedAppRecord {
   id: string
@@ -23,14 +23,7 @@ export const useMyAppsStore = defineStore(
     const appRecords = ref<SavedAppRecord[]>([])
     const isAfterRestore = restorePromise
 
-    const normalizedApps = computed(() =>
-      appRecords.value
-        .map((app) => ({
-          ...app,
-          canvas: ensureSandboxState(app.canvas)
-        }))
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-    )
+    const normalizedApps = computed(() => appRecords.value.slice().sort((a, b) => b.updatedAt - a.updatedAt))
 
     const getAppById = (id: string) => normalizedApps.value.find((item) => item.id === id) || null
 
@@ -53,7 +46,7 @@ export const useMyAppsStore = defineStore(
         name,
         description: String(payload.description || '').trim(),
         iconEmoji: String(payload.iconEmoji || '✨').trim() || '✨',
-        canvas: ensureSandboxState(payload.canvas),
+        canvas: payload.canvas,
         sourceChatId: payload.sourceChatId || null,
         createdAt: now,
         updatedAt: now

@@ -146,57 +146,6 @@ export const createSandboxState = (): SandboxState => {
   }
 }
 
-export const ensureSandboxState = (value?: Partial<SandboxState> | null): SandboxState => {
-  if (!value || typeof value !== 'object' || !value.files || typeof value.files !== 'object') {
-    return createSandboxState()
-  }
-
-  const files = Object.fromEntries(
-    Object.entries(value.files)
-      .map(([key, file]) => {
-        if (!file || typeof file !== 'object') return null
-        const path = normalizeSandboxPath((file as SandboxFile).path || key)
-        const content = typeof (file as SandboxFile).content === 'string' ? (file as SandboxFile).content : ''
-        const encoding = (file as SandboxFile).encoding === 'data-url' ? 'data-url' : 'text'
-        const mediaType = typeof (file as SandboxFile).mediaType === 'string' && (file as SandboxFile).mediaType
-          ? (file as SandboxFile).mediaType
-          : undefined
-        const updatedAt = typeof (file as SandboxFile).updatedAt === 'number' ? (file as SandboxFile).updatedAt : Date.now()
-        return [path, { path, content, encoding, mediaType, updatedAt }]
-      })
-      .filter(Boolean) as Array<[string, SandboxFile]>
-  )
-
-  const filePaths = Object.keys(files)
-  if (filePaths.length === 0) {
-    return createSandboxState()
-  }
-
-  let normalizedActiveFilePath = ''
-  if (typeof value.activeFilePath === 'string') {
-    try {
-      const candidatePath = normalizeSandboxPath(value.activeFilePath)
-      if (files[candidatePath]) {
-        normalizedActiveFilePath = candidatePath
-      }
-    } catch {
-      normalizedActiveFilePath = ''
-    }
-  }
-
-  const activeFilePath =
-    normalizedActiveFilePath ||
-    sortSandboxFiles({ version: 1, files, activeFilePath: '', updatedAt: Date.now() })[0]?.path ||
-    filePaths[0]
-
-  return {
-    version: 1,
-    files,
-    activeFilePath,
-    updatedAt: typeof value.updatedAt === 'number' ? value.updatedAt : Date.now()
-  }
-}
-
 export const sortSandboxFiles = (state: SandboxState): SandboxFile[] => {
   return Object.values(state.files).sort((a, b) => {
     const aPriority = a.path === '/index.html' ? 0 : a.path === '/style.css' ? 1 : a.path === '/main.js' ? 2 : 3
@@ -289,9 +238,110 @@ export const writeSandboxStateToWorkspaceAsync = async (state: SandboxState, wor
   }
 }
 
+export const getSandboxTempWorkspaceRoot = () => {
+  return window.api.path.join(window.api.getPath('temp'), 'agent-qi-canvas-exec')
+}
+
 export const getSandboxTempWorkspacePath = (workspaceId = 'default') => {
-  const tempRoot = window.api.path.join(window.api.getPath('temp'), 'agent-qi-canvas-exec')
-  return window.api.path.join(tempRoot, workspaceId)
+  return window.api.path.join(getSandboxTempWorkspaceRoot(), workspaceId)
+}
+
+export const ensureSandboxWorkspaceDir = (workspaceId = 'default') => {
+  const workspaceDir = getSandboxTempWorkspacePath(workspaceId)
+  window.api.fs.mkdirSync(workspaceDir, { recursive: true })
+  return workspaceDir
+}
+
+export const ensureSandboxWorkspaceDirAsync = async (workspaceId = 'default') => {
+  const workspaceDir = getSandboxTempWorkspacePath(workspaceId)
+  await window.api.fs.promises.mkdir(workspaceDir, { recursive: true })
+  return workspaceDir
+}
+
+export const getSandboxWorkspaceFilePath = (workspaceDir: string, sandboxPath: string) => {
+  const normalizedPath = normalizeSandboxPath(sandboxPath)
+  const relativePath = normalizedPath.replace(/^\/+/, '')
+  if (!relativePath) {
+    throw new Error('file_path 不能为空')
+  }
+  return window.api.path.join(workspaceDir, ...relativePath.split('/'))
+}
+
+export const writeSandboxFileToWorkspace = (workspaceDir: string, file: SandboxFile) => {
+  const outputPath = getSandboxWorkspaceFilePath(workspaceDir, file.path)
+  const parentDir = window.api.path.dirname(outputPath)
+  window.api.fs.mkdirSync(parentDir, { recursive: true })
+
+  if (file.encoding === 'data-url') {
+    const parsed = parseSandboxDataUrl(file.content)
+    if (parsed) {
+      window.api.fs.writeFileSync(outputPath, decodeSandboxBase64(parsed.base64))
+      return outputPath
+    }
+  }
+
+  window.api.fs.writeFileSync(outputPath, file.content, 'utf-8')
+  return outputPath
+}
+
+const removeEmptyParentDirectories = (workspaceDir: string, startPath: string) => {
+  const normalizedWorkspaceDir = window.api.path.resolve(workspaceDir)
+  let currentDir = window.api.path.dirname(startPath)
+
+  while (currentDir.startsWith(normalizedWorkspaceDir) && currentDir !== normalizedWorkspaceDir) {
+    if (!window.api.fs.existsSync(currentDir)) {
+      currentDir = window.api.path.dirname(currentDir)
+      continue
+    }
+
+    if (window.api.fs.readdirSync(currentDir).length > 0) {
+      break
+    }
+
+    window.api.fs.rmdirSync(currentDir)
+    currentDir = window.api.path.dirname(currentDir)
+  }
+}
+
+export const deleteSandboxFileFromWorkspace = (workspaceDir: string, sandboxPath: string) => {
+  const outputPath = getSandboxWorkspaceFilePath(workspaceDir, sandboxPath)
+  if (!window.api.fs.existsSync(outputPath)) {
+    throw new Error(`文件不存在: ${normalizeSandboxPath(sandboxPath)}`)
+  }
+  window.api.fs.rmSync(outputPath, { force: true })
+  removeEmptyParentDirectories(workspaceDir, outputPath)
+}
+
+export const moveSandboxFileInWorkspace = (
+  workspaceDir: string,
+  sourcePath: string,
+  targetPath: string,
+  overwrite = false
+) => {
+  const sourceFsPath = getSandboxWorkspaceFilePath(workspaceDir, sourcePath)
+  const targetFsPath = getSandboxWorkspaceFilePath(workspaceDir, targetPath)
+
+  if (!window.api.fs.existsSync(sourceFsPath)) {
+    throw new Error(`文件不存在: ${normalizeSandboxPath(sourcePath)}`)
+  }
+  if (window.api.fs.existsSync(targetFsPath) && !overwrite) {
+    throw new Error(`Move file failed: destination already exists ${normalizeSandboxPath(targetPath)}. Pass overwrite=true to replace it.`)
+  }
+
+  window.api.fs.mkdirSync(window.api.path.dirname(targetFsPath), { recursive: true })
+  if (window.api.fs.existsSync(targetFsPath)) {
+    window.api.fs.rmSync(targetFsPath, { recursive: true, force: true })
+  }
+  window.api.fs.renameSync(sourceFsPath, targetFsPath)
+  removeEmptyParentDirectories(workspaceDir, sourceFsPath)
+}
+
+export const clearSandboxWorkspace = (workspaceDir: string) => {
+  window.api.fs.mkdirSync(workspaceDir, { recursive: true })
+  const existingEntries = window.api.fs.readdirSync(workspaceDir, { withFileTypes: true })
+  for (const entry of existingEntries) {
+    window.api.fs.rmSync(window.api.path.join(workspaceDir, entry.name), { recursive: true, force: true })
+  }
 }
 
 export const ensureSandboxTempWorkspace = (state: SandboxState, workspaceId = 'default') => {
@@ -406,6 +456,106 @@ export const readSandboxWorkspaceAsync = async (workspaceDir: string): Promise<S
   nextState.activeFilePath = sortSandboxFiles(nextState)[0]?.path || ''
 
   return nextState
+}
+
+export type SandboxWorkspaceEntry = {
+  name: string
+  path: string
+  type: 'directory' | 'file'
+  hasChildren: boolean
+}
+
+export const listSandboxWorkspaceDirectory = (
+  workspaceDir: string,
+  directoryPath = '/'
+): SandboxWorkspaceEntry[] => {
+  const normalizedDirectoryPath = directoryPath === '/' ? '/' : normalizeSandboxPath(directoryPath)
+  const targetDir = normalizedDirectoryPath === '/'
+    ? workspaceDir
+    : getSandboxWorkspaceFilePath(workspaceDir, normalizedDirectoryPath)
+
+  if (!window.api.fs.existsSync(targetDir)) {
+    if (normalizedDirectoryPath === '/') return []
+    throw new Error(`目录不存在: ${normalizedDirectoryPath}`)
+  }
+
+  return window.api.fs.readdirSync(targetDir, { withFileTypes: true })
+    .map((entry) => {
+      const fullPath = window.api.path.join(targetDir, entry.name)
+      const stat = window.api.fs.statSync(fullPath)
+      const entryType = stat.mode & 0o170000
+      const isDirectory = entryType === 0o040000
+      const sandboxPath = normalizeSandboxPath(
+        normalizedDirectoryPath === '/' ? `/${entry.name}` : `${normalizedDirectoryPath}/${entry.name}`
+      )
+      return {
+        name: entry.name,
+        path: sandboxPath,
+        type: isDirectory ? 'directory' : 'file',
+        hasChildren: isDirectory ? window.api.fs.readdirSync(fullPath).length > 0 : false
+      } satisfies SandboxWorkspaceEntry
+    })
+    .sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
+      return a.path.localeCompare(b.path)
+    })
+}
+
+export const readSandboxFileFromWorkspace = (workspaceDir: string, filePath: string): SandboxFile => {
+  const sandboxPath = normalizeSandboxPath(filePath)
+  const fullPath = getSandboxWorkspaceFilePath(workspaceDir, sandboxPath)
+
+  if (!window.api.fs.existsSync(fullPath)) {
+    throw new Error(`文件不存在: ${sandboxPath}`)
+  }
+
+  const stat = window.api.fs.statSync(fullPath)
+  const shouldReadAsBinary = !isTextFile(sandboxPath)
+  const content = shouldReadAsBinary
+    ? (() => {
+      const bytes = window.api.fs.readFileSync(fullPath)
+      const mediaType = getSandboxMediaType(sandboxPath)
+      return `data:${mediaType};base64,${encodeSandboxBase64(bytes)}`
+    })()
+    : window.api.fs.readFileSync(fullPath, 'utf-8')
+
+  return {
+    path: sandboxPath,
+    content,
+    encoding: shouldReadAsBinary ? 'data-url' : 'text',
+    mediaType: shouldReadAsBinary ? getSandboxMediaType(sandboxPath) : undefined,
+    updatedAt: stat.mtimeMs || Date.now()
+  }
+}
+
+export const collectSandboxWorkspaceFiles = (workspaceDir: string, directoryPath = '/'): string[] => {
+  const normalizedDirectoryPath = directoryPath === '/' ? '/' : normalizeSandboxPath(directoryPath)
+  const targetDir = normalizedDirectoryPath === '/'
+    ? workspaceDir
+    : getSandboxWorkspaceFilePath(workspaceDir, normalizedDirectoryPath)
+
+  if (!window.api.fs.existsSync(targetDir)) {
+    return []
+  }
+
+  const files: string[] = []
+  const walk = (currentDir: string, currentPath: string) => {
+    window.api.fs.readdirSync(currentDir, { withFileTypes: true }).forEach((entry) => {
+      const nextPath = normalizeSandboxPath(currentPath === '/' ? `/${entry.name}` : `${currentPath}/${entry.name}`)
+      const fullPath = window.api.path.join(currentDir, entry.name)
+      const stat = window.api.fs.statSync(fullPath)
+      const entryType = stat.mode & 0o170000
+      const isDirectory = entryType === 0o040000
+      if (isDirectory) {
+        walk(fullPath, nextPath)
+        return
+      }
+      files.push(nextPath)
+    })
+  }
+
+  walk(targetDir, normalizedDirectoryPath)
+  return files.sort((a, b) => a.localeCompare(b))
 }
 
 export const getSandboxFile = (state: SandboxState, filePath?: string | null): SandboxFile | null => {

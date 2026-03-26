@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { h } from 'vue'
 import HtmlPreview from '@renderer/components/HtmlPreview.vue'
-import { buildSandboxPreviewDocument, ensureSandboxState } from '@renderer/services/sandbox'
+import { buildSandboxPreviewDocument } from '@renderer/services/sandbox'
 
 const myAppsStore = useMyAppsStore()
 const chatsStore = useChatsStores()
@@ -19,7 +19,8 @@ const appCards = computed(() => myAppsStore.apps)
 const buildPreviewChannelId = (id: string) => `saved-app-preview:${id}`
 const buildPreviewDocument = (id: string) => {
   const app = myAppsStore.getAppById(id)
-  return buildSandboxPreviewDocument(ensureSandboxState(app?.canvas), buildPreviewChannelId(id))
+  if (!app) return ''
+  return buildSandboxPreviewDocument(app.canvas, buildPreviewChannelId(id))
 }
 
 const formatDateTime = (value: number) => new Date(value).toLocaleString()
@@ -51,7 +52,7 @@ const useSavedApp = (appId: string) => {
   if (!app) return
 
   const chatId = chatsStore.createChat(`应用：${app.name}`)
-  canvasStore.replaceCanvas(app.canvas, chatId)
+  canvasStore.importCanvasTemplate(app.canvas, chatId)
   chatsStore.setActiveChat(chatId)
   settingsStore.display.speechSidebarCollapsed = false
   settingsStore.display.assistantSidebarTab = 'canvas'

@@ -1,17 +1,18 @@
 import { z } from 'zod'
 import {
   buildSandboxTree,
-  ensureSandboxTempWorkspaceAsync,
+  ensureSandboxWorkspaceDirAsync,
   normalizeSandboxPath,
   readSandboxWorkspaceAsync,
   sortSandboxFiles
 } from '@renderer/services/sandbox'
 
 const ensureCanvasTempWorkspace = (chatId?: string) => {
-  const canvasStore = useCanvasStore()
-  const sandbox = canvasStore.getCanvas(chatId)
   const workspaceId = chatId || 'default'
-  return ensureSandboxTempWorkspaceAsync(sandbox, workspaceId).then((workspaceDir) => ({ sandbox, workspaceDir }))
+  return ensureSandboxWorkspaceDirAsync(workspaceId).then(async (workspaceDir) => ({
+    sandbox: await readSandboxWorkspaceAsync(workspaceDir),
+    workspaceDir
+  }))
 }
 
 const summarizeCanvasSync = (
@@ -341,13 +342,12 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
           ? sandbox.activeFilePath
           : syncedCanvas.activeFilePath
         // 用工作区执行后的最新结果覆盖当前聊天里的 canvas。
-        canvasStore.replaceCanvas(
-          {
-            ...syncedCanvas,
-            activeFilePath: nextActiveFilePath
-          },
-          options?.chatId
-        )
+        if (nextActiveFilePath) {
+          canvasStore.setActiveFilePath(nextActiveFilePath, options?.chatId)
+        } else {
+          canvasStore.resetActiveFilePath(options?.chatId)
+        }
+        canvasStore.touchWorkspace(options?.chatId)
         // 生成一段新增/更新/删除统计，方便工具调用结果里快速理解发生了什么。
         const syncSummary = summarizeCanvasSync(sandbox.files, syncedCanvas.files)
 

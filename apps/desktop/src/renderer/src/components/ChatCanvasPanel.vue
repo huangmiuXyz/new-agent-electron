@@ -8,15 +8,13 @@ import JSZip from 'jszip'
 import { useLocalStorage } from '@renderer/composables/vueuse'
 import {
   buildSandboxPreviewDocument,
-  buildSandboxTree,
-  ensureSandboxTempWorkspaceAsync,
-  getSandboxTempWorkspacePath,
   getSandboxFileLanguage,
   isSandboxImageFile,
   parseSandboxDataUrl,
-  readSandboxWorkspaceAsync,
   normalizeSandboxPath,
-  sortSandboxFiles
+  sortSandboxFiles,
+  type SandboxFile,
+  type SandboxWorkspaceEntry
 } from '@renderer/services/sandbox'
 import { blobToDataURL } from 'blob-util'
 import { isTextFile } from '@renderer/utils'
@@ -89,32 +87,37 @@ const dragTargetDirectoryPath = ref('')
 const CANVAS_FILE_DRAG_MIME = 'application/x-agent-qi-canvas-file'
 
 const currentChatId = computed(() => chatsStore.currentChat?.id)
-const currentCanvas = computed(() => canvasStore.getCanvas(currentChatId.value))
-const sandboxTreeNodes = computed(() => buildSandboxTree(currentCanvas.value))
+const currentWorkspaceVersion = computed(() => canvasStore.getWorkspaceVersion(currentChatId.value))
+const currentWorkspaceDir = computed(() => canvasStore.getWorkspaceDir(currentChatId.value))
+const isUsingTempWorkspace = computed(() => {
+  const chatId = currentChatId.value || 'default'
+  return currentWorkspaceDir.value === window.api.path.join(window.api.getPath('temp'), 'agent-qi-canvas-exec', chatId)
+})
+const previewReady = ref(false)
+const directoryEntries = ref<Record<string, SandboxWorkspaceEntry[]>>({})
 const expandedDirectoryPathSet = computed(() => new Set(expandedDirectoryPaths.value))
 const SANDBOX_TREE_ROW_HEIGHT = 22
 const sandboxTreeRows = computed<TreeRow[]>(() => {
   const rows: TreeRow[] = []
-  const walk = (nodes: ReturnType<typeof buildSandboxTree>, depth = 0) => {
-    for (const node of nodes) {
-      const hasChildren = Boolean(node.children?.length)
-      const isExpanded = node.type === 'directory' && expandedDirectoryPathSet.value.has(node.path)
-
+  const walk = (directoryPath: string, depth = 0) => {
+    const entries = directoryEntries.value[directoryPath] || []
+    for (const entry of entries) {
+      const isExpanded = entry.type === 'directory' && expandedDirectoryPathSet.value.has(entry.path)
       rows.push({
-        id: node.id,
-        name: node.name,
-        path: node.path,
-        type: node.type,
+        id: entry.path,
+        name: entry.name,
+        path: entry.path,
+        type: entry.type,
         depth,
-        hasChildren,
+        hasChildren: entry.hasChildren,
         isExpanded
       })
-      if (hasChildren && isExpanded) {
-        walk(node.children || [], depth + 1)
+      if (entry.type === 'directory' && isExpanded) {
+        walk(entry.path, depth + 1)
       }
     }
   }
-  walk(sandboxTreeNodes.value)
+  walk('/')
   return rows
 })
 const {
@@ -128,18 +131,16 @@ const {
 
 const availableDirectoryPathSet = computed(() => {
   const paths = new Set<string>()
-
-  const visit = (nodes: ReturnType<typeof buildSandboxTree>) => {
-    for (const node of nodes) {
-      if (node.type !== 'directory') continue
-      paths.add(node.path)
-      if (node.children?.length) {
-        visit(node.children)
-      }
+  Object.entries(directoryEntries.value).forEach(([directoryPath, entries]) => {
+    if (directoryPath !== '/') {
+      paths.add(directoryPath)
     }
-  }
-
-  visit(sandboxTreeNodes.value)
+    entries.forEach((entry) => {
+      if (entry.type === 'directory') {
+        paths.add(entry.path)
+      }
+    })
+  })
   return paths
 })
 
@@ -154,10 +155,7 @@ const currentTabFilePath = computed(() => {
   const filePath = activeFilePath.value
   return filePath && openFileTabs.value.includes(filePath) ? filePath : ''
 })
-const activeFile = computed(() => {
-  const filePath = currentTabFilePath.value
-  return filePath ? currentCanvas.value.files[filePath] || null : null
-})
+const activeFile = ref<SandboxFile | null>(null)
 
 const ensureFileTabOpen = (filePath: string) => {
   if (!filePath) return
@@ -168,17 +166,29 @@ const ensureFileTabOpen = (filePath: string) => {
 
 const hasDraftForFile = (filePath: string) => Object.prototype.hasOwnProperty.call(fileDrafts.value, filePath)
 
+const getPersistedFile = (filePath: string) => {
+  if (!filePath) return null
+  if (activeFile.value?.path === filePath) {
+    return activeFile.value
+  }
+  try {
+    return canvasStore.readFile(filePath, currentChatId.value)
+  } catch {
+    return null
+  }
+}
+
 const getDraftContent = (filePath: string) => {
   if (!filePath) return ''
   if (hasDraftForFile(filePath)) {
     return fileDrafts.value[filePath] || ''
   }
-  return currentCanvas.value.files[filePath]?.content || ''
+  return getPersistedFile(filePath)?.content || ''
 }
 
 const setDraftContent = (filePath: string, content: string) => {
   if (!filePath) return
-  const fileContent = currentCanvas.value.files[filePath]?.content || ''
+  const fileContent = getPersistedFile(filePath)?.content || ''
   if (content === fileContent) {
     if (!hasDraftForFile(filePath)) return
     const nextDrafts = { ...fileDrafts.value }
@@ -202,7 +212,7 @@ const activeFileContent = computed({
 
 const isActiveFileDirty = computed(() => {
   const filePath = currentTabFilePath.value
-  const file = filePath ? currentCanvas.value.files[filePath] : null
+  const file = filePath ? getPersistedFile(filePath) : null
   if (!filePath || !file) return false
   return getDraftContent(filePath) !== file.content
 })
@@ -210,7 +220,10 @@ const isActiveFileDirty = computed(() => {
 const activeLanguage = computed(() => getSandboxFileLanguage(currentTabFilePath.value || '/index.html'))
 const isActiveImageFile = computed(() => isSandboxImageFile(currentTabFilePath.value ? activeFile.value : null))
 const isActiveBinaryFile = computed(() => activeFile.value?.encoding === 'data-url' && !isActiveImageFile.value)
-const hasCanvasFiles = computed(() => sandboxTreeRows.value.some((row) => row.type === 'file'))
+const hasCanvasFiles = computed(() => {
+  currentWorkspaceVersion.value
+  return canvasStore.hasAnyFiles(currentChatId.value)
+})
 const suggestedAppName = computed(() => {
   const title = String(chatsStore.currentChat?.title || '').trim()
   return title || '未命名应用'
@@ -235,7 +248,11 @@ const sanitizeDownloadName = (value: string) => {
 }
 
 const previewChannelId = computed(() => `sandbox-preview:${currentChatId.value || 'default'}`)
-const previewDocument = computed(() => buildSandboxPreviewDocument(currentCanvas.value, previewChannelId.value))
+const previewDocument = computed(() => {
+  if (!isUsingTempWorkspace.value) return ''
+  if (settingsStore.display.canvasEditorTab !== 'preview' || !previewReady.value) return ''
+  return buildSandboxPreviewDocument(canvasStore.getCanvas(currentChatId.value), previewChannelId.value)
+})
 const previewLogs = ref<PreviewLogItem[]>([])
 const isSandboxRuntimeVisible = computed(
   () => settingsStore.display.canvasEditorTab === 'preview' && !sandboxLogsCollapsed.value
@@ -254,6 +271,19 @@ const toggleSandboxRuntime = () => {
     sandboxLogsHeight.value = 140
   }
 }
+
+watch(
+  () => settingsStore.display.canvasEditorTab,
+  (tab) => {
+    if (tab === 'preview' && isUsingTempWorkspace.value) {
+      previewReady.value = true
+      return
+    }
+
+    previewReady.value = false
+  },
+  { immediate: true }
+)
 
 const getAncestorDirectoryPaths = (path?: string) => {
   if (!path) return []
@@ -285,9 +315,17 @@ const expandDirectory = (path: string) => {
   expandedDirectoryPaths.value = [...next]
 }
 
+const loadDirectory = (directoryPath = '/') => {
+  directoryEntries.value = {
+    ...directoryEntries.value,
+    [directoryPath]: canvasStore.listDirectory(directoryPath, currentChatId.value)
+  }
+}
+
 const handleTreeRowClick = (row: TreeRow) => {
   if (row.type === 'directory') {
     if (row.hasChildren) {
+      loadDirectory(row.path)
       toggleDirectory(row.path)
     }
     return
@@ -325,8 +363,7 @@ const buildSiblingPath = (path: string, nextName: string) => {
 
 const getRowFilePaths = (row: TreeRow) => {
   if (row.type === 'file') return [row.path]
-  const prefix = `${row.path}/`
-  return Object.keys(currentCanvas.value.files).filter((path) => path.startsWith(prefix))
+  return canvasStore.collectFilePaths(row.path, currentChatId.value)
 }
 
 const downloadDirectoryAsZip = async (row: TreeRow) => {
@@ -342,7 +379,7 @@ const downloadDirectoryAsZip = async (row: TreeRow) => {
     const zip = new JSZip()
 
     filePaths.forEach((filePath) => {
-      const file = currentCanvas.value.files[filePath]
+      const file = getPersistedFile(filePath)
       if (!file) return
 
       const zipPath = filePath.slice(row.path.length + 1)
@@ -410,7 +447,7 @@ const renameTreeRow = (row: TreeRow) => {
             : nextBasePath
         }))
 
-        const occupiedPaths = new Set(Object.keys(currentCanvas.value.files))
+        const occupiedPaths = new Set(canvasStore.collectFilePaths('/', currentChatId.value))
         const movingPaths = new Set(renamePlan.map((item) => item.sourcePath))
         for (const item of renamePlan) {
           if (occupiedPaths.has(item.targetPath) && !movingPaths.has(item.targetPath)) {
@@ -522,7 +559,7 @@ const openTreeRowMenu = (event: MouseEvent, row: TreeRow) => {
 }
 
 const downloadCurrentFile = (filePath = activeFilePath.value) => {
-  const file = filePath ? currentCanvas.value.files[filePath] : null
+  const file = filePath ? getPersistedFile(filePath) : null
   if (!file) {
     message.warning('当前没有可下载文件')
     return
@@ -567,7 +604,7 @@ const saveActiveFile = () => {
 }
 
 const saveDraftForFile = (filePath: string) => {
-  const currentFile = currentCanvas.value.files[filePath]
+  const currentFile = getPersistedFile(filePath)
   if (!currentFile) return
   const draftContent = getDraftContent(filePath)
   if (draftContent === currentFile.content) return
@@ -588,7 +625,7 @@ const closeFileTabs = async (filePaths: string[]) => {
   if (targetPaths.length === 0) return
 
   const dirtyPaths = targetPaths.filter((filePath) => {
-    const currentFile = currentCanvas.value.files[filePath]
+    const currentFile = getPersistedFile(filePath)
     return Boolean(currentFile) && getDraftContent(filePath) !== currentFile.content
   })
 
@@ -635,7 +672,7 @@ const openTabContextMenu = (event: MouseEvent, filePath: string) => {
   const rightSideTabs = currentIndex >= 0 ? openFileTabs.value.slice(currentIndex + 1) : []
   const otherTabs = openFileTabs.value.filter((path) => path !== filePath)
   const savedTabs = openFileTabs.value.filter((path) => {
-    const currentFile = currentCanvas.value.files[path]
+    const currentFile = getPersistedFile(path)
     return !currentFile || getDraftContent(path) === currentFile.content
   })
 
@@ -680,6 +717,11 @@ const openTabContextMenu = (event: MouseEvent, filePath: string) => {
 }
 
 const downloadAppAsZip = async () => {
+  if (!isUsingTempWorkspace.value) {
+    message.warning('下载应用仅支持临时工作区')
+    return
+  }
+
   if (!hasCanvasFiles.value) {
     message.warning('当前画布还没有文件，先生成或创建内容后再下载应用')
     return
@@ -687,8 +729,9 @@ const downloadAppAsZip = async () => {
 
   try {
     const zip = new JSZip()
+    const canvasSnapshot = canvasStore.getCanvas(currentChatId.value)
 
-    sortSandboxFiles(currentCanvas.value).forEach((file) => {
+    sortSandboxFiles(canvasSnapshot).forEach((file) => {
       const zipPath = file.path.replace(/^\/+/, '')
       const parsedDataUrl = file.encoding === 'data-url' ? parseSandboxDataUrl(file.content) : null
 
@@ -782,6 +825,11 @@ const createFile = () => {
 }
 
 const openSaveAppModal = () => {
+  if (!isUsingTempWorkspace.value) {
+    message.warning('保存应用仅支持临时工作区')
+    return
+  }
+
   if (!hasCanvasFiles.value) {
     message.warning('当前画布还没有文件，先生成或创建内容后再保存应用')
     return
@@ -820,7 +868,7 @@ const openSaveAppModal = () => {
         name: String(data.name || '').trim(),
         description: String(data.description || '').trim(),
         iconEmoji: String(data.iconEmoji || '').trim() || '✨',
-        canvas: currentCanvas.value,
+        canvas: canvasStore.getCanvas(currentChatId.value),
         sourceChatId: currentChatId.value || null
       })
 
@@ -848,7 +896,8 @@ const openCanvasInTerminal = async () => {
 
   const closeLoading = message.loading('正在同步并打开终端...')
   try {
-    const workspaceDir = await ensureSandboxTempWorkspaceAsync(currentCanvas.value, currentChatId.value || 'default')
+    const workspaceDir = currentWorkspaceDir.value
+    await window.api.fs.promises.mkdir(workspaceDir, { recursive: true })
     await createTab({
       cwd: workspaceDir,
       promptLabel: 'canvas',
@@ -863,14 +912,10 @@ const openCanvasInTerminal = async () => {
 }
 
 const openCanvasInLocalFolder = async () => {
-  if (!hasCanvasFiles.value) {
-    message.warning('当前画布还没有文件，先生成或创建内容后再打开本地文件夹')
-    return
-  }
-
   const closeLoading = message.loading('正在同步并打开本地文件夹...')
   try {
-    const workspaceDir = await ensureSandboxTempWorkspaceAsync(currentCanvas.value, currentChatId.value || 'default')
+    const workspaceDir = currentWorkspaceDir.value
+    await window.api.fs.promises.mkdir(workspaceDir, { recursive: true })
     await window.api.shell.openPath(workspaceDir)
     closeLoading()
   } catch (error) {
@@ -881,7 +926,7 @@ const openCanvasInLocalFolder = async () => {
 }
 
 const syncLocalFolderToCanvas = async () => {
-  const workspaceDir = getSandboxTempWorkspacePath(currentChatId.value || 'default')
+  const workspaceDir = currentWorkspaceDir.value
 
   if (!window.api.fs.existsSync(workspaceDir)) {
     message.warning('本地文件夹还不存在，请先打开本地文件夹或在终端中打开')
@@ -890,18 +935,7 @@ const syncLocalFolderToCanvas = async () => {
 
   const closeLoading = message.loading('正在从本地文件夹同步...')
   try {
-    const syncedCanvas = await readSandboxWorkspaceAsync(workspaceDir)
-    const nextActiveFilePath = currentCanvas.value.activeFilePath && syncedCanvas.files[currentCanvas.value.activeFilePath]
-      ? currentCanvas.value.activeFilePath
-      : syncedCanvas.activeFilePath
-
-    canvasStore.replaceCanvas(
-      {
-        ...syncedCanvas,
-        activeFilePath: nextActiveFilePath
-      },
-      currentChatId.value
-    )
+    canvasStore.touchWorkspace(currentChatId.value)
     closeLoading()
     message.success('已从本地文件夹同步到画布')
   } catch (error) {
@@ -909,6 +943,28 @@ const syncLocalFolderToCanvas = async () => {
     console.error('Sync local folder to canvas error:', error)
     message.error('同步本地文件夹失败')
   }
+}
+
+const chooseLocalWorkspaceFolder = async () => {
+  const result = await window.api.showOpenDialog({
+    title: '选择画布工作区文件夹',
+    properties: ['openDirectory', 'createDirectory']
+  })
+
+  if (result.canceled || !result.filePaths?.[0]) return
+
+  canvasStore.setWorkspaceRoot(result.filePaths[0], currentChatId.value)
+  previewReady.value = false
+  settingsStore.display.canvasEditorTab = 'code'
+  loadDirectory('/')
+  message.success(`已切换到本地文件夹：${result.filePaths[0]}`)
+}
+
+const switchToTempWorkspace = () => {
+  canvasStore.resetWorkspaceRoot(currentChatId.value)
+  previewReady.value = false
+  loadDirectory('/')
+  message.success('已切换回临时工作区')
 }
 
 const createCanvasFileFromDrop = async (file: File, directoryPath?: string) => {
@@ -942,23 +998,11 @@ const handleDroppedFiles = async (files: File[], directoryPath?: string) => {
   if (files.length === 0) return
 
   try {
-    const nextCanvas = {
-      ...currentCanvas.value,
-      files: { ...currentCanvas.value.files },
-      updatedAt: Date.now()
-    }
-
     const droppedFiles = await Promise.all(files.map((file) => createCanvasFileFromDrop(file, directoryPath)))
 
     droppedFiles.forEach((file) => {
-      nextCanvas.files[file.path] = file
+      canvasStore.writeFile(file, currentChatId.value)
     })
-
-    if (!nextCanvas.activeFilePath && droppedFiles[0]) {
-      nextCanvas.activeFilePath = droppedFiles[0].path
-    }
-
-    canvasStore.replaceCanvas(nextCanvas, currentChatId.value)
     const successText = directoryPath
       ? `已导入 ${droppedFiles.length} 个文件到 ${normalizeSandboxPath(directoryPath)}`
       : `已导入 ${droppedFiles.length} 个文件`
@@ -1140,7 +1184,7 @@ const openActionsMenu = (event: MouseEvent) => {
     {
       label: '下载应用',
       icon: FileZipIcon,
-      disabled: !hasCanvasFiles.value,
+      disabled: !hasCanvasFiles.value || !isUsingTempWorkspace.value,
       onClick: () => {
         void downloadAppAsZip()
       }
@@ -1148,7 +1192,7 @@ const openActionsMenu = (event: MouseEvent) => {
     {
       label: '保存应用',
       icon: BoxIcon,
-      disabled: !hasCanvasFiles.value,
+      disabled: !hasCanvasFiles.value || !isUsingTempWorkspace.value,
       onClick: () => openSaveAppModal()
     },
     {
@@ -1162,15 +1206,26 @@ const openActionsMenu = (event: MouseEvent) => {
     {
       label: '打开本地文件夹',
       icon: FolderIcon,
-      disabled: !hasCanvasFiles.value,
       onClick: () => {
         void openCanvasInLocalFolder()
       }
     },
     {
+      label: '选择本地文件夹',
+      icon: FolderIcon,
+      onClick: () => {
+        void chooseLocalWorkspaceFolder()
+      }
+    },
+    {
+      label: '切回临时工作区',
+      icon: RefreshIcon,
+      disabled: isUsingTempWorkspace.value,
+      onClick: () => switchToTempWorkspace()
+    },
+    {
       label: '同步本地文件夹',
       icon: RefreshIcon,
-      disabled: !hasCanvasFiles.value,
       onClick: () => {
         void syncLocalFolderToCanvas()
       }
@@ -1193,6 +1248,7 @@ watch(
     previewLogs.value = []
     hideContextMenu()
     resetDragState()
+    loadDirectory('/')
     openFileTabs.value = activeFilePath.value ? [activeFilePath.value] : []
     fileDrafts.value = {}
   },
@@ -1210,17 +1266,11 @@ watch(
 )
 
 watch(
-  [sandboxTreeNodes, availableDirectoryPathSet],
-  ([nodes, availablePaths]) => {
+  [availableDirectoryPathSet, currentWorkspaceVersion],
+  ([availablePaths]) => {
     const nextExpandedPaths = new Set(
       expandedDirectoryPaths.value.filter((path) => availablePaths.has(path))
     )
-
-    nodes.forEach((node) => {
-      if (node.type === 'directory') {
-        nextExpandedPaths.add(node.path)
-      }
-    })
 
     getAncestorDirectoryPaths(activeFilePath.value).forEach((path) => {
       if (availablePaths.has(path)) {
@@ -1237,6 +1287,19 @@ watch(
     }
 
     expandedDirectoryPaths.value = nextPaths
+  },
+  { immediate: true }
+)
+
+watch(
+  currentWorkspaceVersion,
+  () => {
+    loadDirectory('/')
+    expandedDirectoryPaths.value.forEach((path) => {
+      if (path !== '/') {
+        loadDirectory(path)
+      }
+    })
   },
   { immediate: true }
 )
@@ -1260,6 +1323,18 @@ watch(
     if (!changed) return
     expandedDirectoryPaths.value = [...nextExpandedPaths]
   }
+)
+
+watch(
+  [currentTabFilePath, currentWorkspaceVersion],
+  ([filePath]) => {
+    if (!filePath) {
+      activeFile.value = null
+      return
+    }
+    activeFile.value = getPersistedFile(filePath)
+  },
+  { immediate: true }
 )
 
 watch(
@@ -1370,7 +1445,14 @@ onBeforeUnmount(() => {
               <span class="canvas-surface-title">PREVIEW</span>
               <span class="canvas-surface-meta">/index.html</span>
             </div>
-            <HtmlPreview :srcdoc="previewDocument" :channel-id="previewChannelId" @sandbox-event="handleSandboxEvent" />
+            <div v-if="!isUsingTempWorkspace" class="canvas-empty-state">
+              预览仅支持临时工作区。切回临时工作区后可使用预览。
+            </div>
+            <HtmlPreview v-else-if="previewReady" :srcdoc="previewDocument" :channel-id="previewChannelId"
+              @sandbox-event="handleSandboxEvent" />
+            <div v-else class="canvas-empty-state">
+              当前预览尚未准备好。
+            </div>
           </div>
           <ResizeBox
             v-model:height="sandboxLogsHeight"
@@ -1405,7 +1487,7 @@ onBeforeUnmount(() => {
                   :class="{ active: filePath === activeFilePath }" @click="activeFilePath = filePath"
                   @contextmenu="openTabContextMenu($event, filePath)">
                   <span class="canvas-file-tab-name">{{ getBaseNameFromPath(filePath) }}</span>
-                  <span v-if="getDraftContent(filePath) !== (currentCanvas.files[filePath]?.content || '')"
+                  <span v-if="getDraftContent(filePath) !== (getPersistedFile(filePath)?.content || '')"
                     class="canvas-file-tab-dirty"></span>
                   <span class="canvas-file-tab-close" @click.stop="void closeFileTab(filePath)">x</span>
                 </button>
