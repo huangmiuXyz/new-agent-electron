@@ -1803,6 +1803,32 @@ onBeforeUnmount(() => {
   min-height: 0;
   overflow: auto;
   padding: 0 0 8px;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sandbox-sidebar-faint) 72%, transparent) transparent;
+  -ms-overflow-style: auto;
+}
+
+.sandbox-tree::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  display: block;
+}
+
+.sandbox-tree::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sandbox-tree::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--sandbox-sidebar-faint) 68%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.sandbox-tree::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--sandbox-sidebar-text) 54%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .sandbox-tree-wrapper {
