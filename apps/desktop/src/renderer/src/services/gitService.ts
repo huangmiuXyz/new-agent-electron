@@ -259,6 +259,68 @@ export const gitService = {
       })
   },
 
+  async fetch(cwd: string) {
+    const result = await runGit(['fetch', '--all', '--prune'], { cwd })
+    assertGitOk(result)
+    return result.stdout.trim()
+  },
+
+  async pull(cwd: string) {
+    const result = await runGit(['pull'], { cwd })
+    assertGitOk(result)
+    return result.stdout.trim()
+  },
+
+  async push(cwd: string) {
+    const result = await runGit(['push'], { cwd })
+    assertGitOk(result)
+    return result.stdout.trim()
+  },
+
+  async checkoutBranch(cwd: string, branchName: string) {
+    const normalizedBranchName = String(branchName || '').trim()
+    if (!normalizedBranchName) {
+      throw new Error('branchName 不能为空')
+    }
+
+    const result = await runGit(['checkout', normalizedBranchName], { cwd })
+    assertGitOk(result)
+    return result.stdout.trim()
+  },
+
+  async cloneRepository(cwd: string, repoUrl: string, targetDir: string, directoryName?: string) {
+    const normalizedRepoUrl = String(repoUrl || '').trim()
+    const normalizedTargetDir = String(targetDir || '').trim()
+    const normalizedDirectoryName = String(directoryName || '').trim()
+
+    if (!normalizedRepoUrl) {
+      throw new Error('仓库地址不能为空')
+    }
+    if (!normalizedTargetDir) {
+      throw new Error('目标目录不能为空')
+    }
+
+    const inferredName = normalizedRepoUrl
+      .replace(/[\\/]+$/, '')
+      .split(/[\\/]/)
+      .filter(Boolean)
+      .pop()
+      ?.replace(/\.git$/i, '') || 'repository'
+    const finalDirectoryName = normalizedDirectoryName || inferredName
+    const finalPath = window.api.path.join(normalizedTargetDir, finalDirectoryName)
+
+    if (!window.api.fs.existsSync(normalizedTargetDir)) {
+      window.api.fs.mkdirSync(normalizedTargetDir, { recursive: true })
+    }
+    if (window.api.fs.existsSync(finalPath)) {
+      throw new Error('目标目录已存在同名文件夹')
+    }
+
+    const result = await runGit(['clone', normalizedRepoUrl, finalPath], { cwd: cwd || normalizedTargetDir })
+    assertGitOk(result)
+    return finalPath
+  },
+
   async getRecentLog(cwd: string, limit = 20): Promise<GitLogEntry[]> {
     const format = '%H%x1f%an%x1f%ae%x1f%aI%x1f%s'
     const result = await runGit(['log', `--max-count=${Math.max(1, limit)}`, `--format=${format}`], { cwd })
