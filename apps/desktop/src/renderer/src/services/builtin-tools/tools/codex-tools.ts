@@ -1,6 +1,7 @@
 ﻿import { z } from 'zod'
 import ignore from 'ignore'
 import ApplyPatchRender from '../components/ApplyPatchRender.vue'
+import { injectBundledRipgrepPath } from './command-utils'
 
 const getCurrentAgent = () => {
   const chatsStore = useChatsStores()
@@ -107,25 +108,6 @@ const getPowerShellPath = (): string => {
 }
 
 const getPosixShellPath = (): string => window.api.process.env.SHELL || '/bin/sh'
-
-const injectBundledRipgrepPath = (command: string): string => {
-  const trimmedStart = command.trimStart()
-  if (!/^rg(?:\s|$)/.test(trimmedStart)) {
-    return command
-  }
-
-  const ripgrepPath = window.api.getBundledRipgrepPath()
-  if (!ripgrepPath) {
-    return command
-  }
-
-  const leadingWhitespace = command.slice(0, command.length - trimmedStart.length)
-  const rest = trimmedStart.slice(2)
-  const escapedRipgrepPath = ripgrepPath.replaceAll('"', '""')
-  const quotedRipgrepPath = isWindows ? `& "${escapedRipgrepPath}"` : `"${ripgrepPath}"`
-
-  return `${leadingWhitespace}${quotedRipgrepPath}${rest}`
-}
 
 const execProjectSearchCommand = async (
   command: string,

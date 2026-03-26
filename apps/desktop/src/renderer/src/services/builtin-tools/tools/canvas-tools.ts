@@ -1,18 +1,19 @@
 import { z } from 'zod'
 import {
   buildSandboxTree,
-  ensureSandboxWorkspaceDirAsync,
   normalizeSandboxPath,
-  readSandboxWorkspaceAsync,
-  sortSandboxFiles
+  readSandboxWorkspaceAsync
 } from '@renderer/services/sandbox'
+import { execRipgrepSearch, injectBundledRipgrepPath } from './command-utils'
 
-const ensureCanvasTempWorkspace = (chatId?: string) => {
-  const workspaceId = chatId || 'default'
-  return ensureSandboxWorkspaceDirAsync(workspaceId).then(async (workspaceDir) => ({
+const ensureCanvasWorkspace = async (chatId?: string) => {
+  const canvasStore = useCanvasStore()
+  const workspaceDir = canvasStore.getWorkspaceDir(chatId)
+  await window.api.fs.promises.mkdir(workspaceDir, { recursive: true })
+  return {
     sandbox: await readSandboxWorkspaceAsync(workspaceDir),
     workspaceDir
-  }))
+  }
 }
 
 const summarizeCanvasSync = (
@@ -132,12 +133,10 @@ const formatCanvasFileContent = (
 }
 
 const searchCanvasContent = (
-  chatId: string | undefined,
+  workspaceDir: string,
   query: string,
   options?: { caseSensitive?: boolean; maxResults?: number }
-) => {
-  const canvasStore = useCanvasStore()
-  const sandbox = canvasStore.getCanvas(chatId)
+): Promise<string> => {
   const keyword = String(query || '')
   if (!keyword.trim()) {
     throw new Error('缺少必要参数: query')
@@ -145,36 +144,47 @@ const searchCanvasContent = (
 
   const caseSensitive = Boolean(options?.caseSensitive)
   const maxResults = Math.max(1, Math.min(options?.maxResults || 20, 100))
-  const needle = caseSensitive ? keyword : keyword.toLowerCase()
-  const matches: string[] = []
+  return execRipgrepSearch(keyword, {
+    cwd: workspaceDir,
+    caseSensitive,
+    maxBuffer: 8 * 1024 * 1024
+  }).then(({ result, resolvedCmd }) => {
+    const stdout = result.stdout.trim()
+    const stderr = result.stderr.trim()
+    const errorMessage = result.errorMessage?.trim() || ''
 
-  for (const file of sortSandboxFiles(sandbox)) {
-    if (file.encoding === 'data-url') continue
-    const lines = file.content.split('\n')
-
-    for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index] || ''
-      const haystack = caseSensitive ? line : line.toLowerCase()
-      if (!haystack.includes(needle)) continue
-
-      matches.push(`${file.path}:${index + 1}: ${line}`)
-      if (matches.length >= maxResults) {
-        return [`搜索: ${keyword}`, ...matches, `已达到结果上限 ${maxResults} 条。`].join('\n')
-      }
+    if (result.code === 1 && !stdout) {
+      return `命令执行完成，无标准输出\ncmd: rg ${keyword}\nresolved_cmd: ${resolvedCmd}\ncwd: ${workspaceDir.replaceAll('\\', '/')}${stderr ? `\n\nstderr:\n${stderr}` : ''}`
     }
-  }
 
-  if (matches.length === 0) {
-    return `未在 sandbox 中找到包含 ${keyword} 的内容。`
-  }
+    if (result.code !== 0 && result.code !== 1) {
+      throw new Error(stderr || stdout.substring(0, 10000) || errorMessage || 'command execution failed')
+    }
 
-  return [`搜索: ${keyword}`, ...matches].join('\n')
+    const lines = stdout ? stdout.split('\n') : []
+    const limitedLines = lines.slice(0, maxResults)
+    const outputSections = [
+      `命令执行完成\ncmd: rg ${keyword}\nresolved_cmd: ${resolvedCmd}\ncwd: ${workspaceDir.replaceAll('\\', '/')}`
+    ]
+
+    if (limitedLines.length > 0) {
+      outputSections.push(`stdout:\n${limitedLines.join('\n')}`)
+    }
+    if (lines.length > maxResults) {
+      outputSections.push(`已达到结果上限 ${maxResults} 条。`)
+    }
+    if (stderr) {
+      outputSections.push(`stderr:\n${stderr}`)
+    }
+
+    return outputSections.join('\n\n')
+  })
 }
 
 export const getCanvasBuiltinTools = (): Partial<Tools> => ({
   list_canvas_directory: {
     title: '列出 Canvas 目录',
-    description: '列出当前会话 sandbox 中某个目录下的直接子目录和文件。',
+    description: '列出当前 Canvas 工作区中某个目录下的直接子目录和文件。需要搜索文件名、代码或内容时，优先改用 exec_command_canvas 并使用 rg。',
     inputSchema: z.object({
       directory_path: z.string().optional().describe('要列出的目录路径，默认为 /')
     }),
@@ -201,7 +211,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
   },
   read_canvas_file: {
     title: '读取 Canvas 文件',
-    description: '读取当前会话 sandbox 中某个指定文件的内容，可按行范围读取。',
+    description: '用于读取当前 Canvas 工作区中的代码或文件内容，可按行范围读取。需要搜索代码或内容时请改用 search_canvas_content 或 exec_command_canvas，并优先使用 rg。',
     inputSchema: z.object({
       file_path: z.string().describe('要读取的文件路径'),
       start_line: z.number().int().min(1).optional().describe('起始行号，1-based，可选'),
@@ -246,7 +256,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
   },
   search_canvas_content: {
     title: '搜索 Canvas 内容',
-    description: '在当前会话 sandbox 的文本文件中搜索指定内容，返回匹配文件、行号和文本。',
+    description: '使用 rg 在当前 Canvas 工作区中搜索指定代码或内容，返回匹配文件、行号和文本。',
     inputSchema: z.object({
       query: z.string().describe('要搜索的关键词或文本片段'),
       case_sensitive: z.boolean().optional().default(false).describe('是否区分大小写，默认 false'),
@@ -261,12 +271,13 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
 
       try {
         openCanvasPanel()
+        const { workspaceDir } = await ensureCanvasWorkspace(options?.chatId)
 
         return {
           toolResult: {
             content: [{
               type: 'text',
-              text: searchCanvasContent(options?.chatId, String(params.query || ''), {
+              text: await searchCanvasContent(workspaceDir, String(params.query || ''), {
                 caseSensitive: params.case_sensitive,
                 maxResults: params.max_results
               })
@@ -286,7 +297,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
   exec_command_canvas: {
     title: '在 Canvas 工作区执行命令',
     description:
-      '把当前会话 sandbox 文件同步到临时工作区后执行命令。命令会以该工作区为当前目录运行，因此可以直接用相对路径引用 canvas 文件，例如 `type index.html`、`node main.js`、`python scripts/build.py`。',
+      '在现有 Canvas 终端会话中执行命令。首次调用可不传 terminal_id 来创建新终端；一旦工具返回了终端ID，后续相关命令应优先复用同一个 terminal_id。搜索代码、内容或文件时优先使用 rg；读取代码或文件时优先使用 cat、sed、nl 等命令。',
     inputSchema: z.object({
       command: z.string().describe('要执行的命令'),
       terminal_id: z
@@ -322,20 +333,22 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
 
         // 取到当前聊天对应的 canvas store，后面需要把工作区改动同步回画布。
         const canvasStore = useCanvasStore()
-        // 先把当前 canvas 文件写到临时工作区，并拿到同步前的原始快照用于后面对比。
-        const { sandbox, workspaceDir } = await ensureCanvasTempWorkspace(options?.chatId)
+        // 拿到当前聊天实际使用的工作区快照；它可能是默认临时目录，也可能是用户切换后的本地目录。
+        const { sandbox, workspaceDir } = await ensureCanvasWorkspace(options?.chatId)
+        // 像 codex 工具一样，对直接以 rg 开头的命令注入内置 ripgrep 路径，避免环境差异。
+        const resolvedCommand = injectBundledRipgrepPath(command)
         // 复用全局终端能力，在已有终端标签或新终端标签里执行命令。
         const { createTab } = useTerminal()
-        // 在临时工作区作为 cwd 的前提下执行命令，这样命令里可以直接用相对路径。
+        // 以当前画布工作区作为 cwd 执行命令，这样命令里可以直接用相对路径。
         const { id: tabId, result } = await createTab({
-          command,
+          command: resolvedCommand,
           cwd: workspaceDir,
           promptLabel: 'canvas',
           id: params.terminal_id,
           toolCallId: options?.toolCallId,
           showTerminal: true
         })
-        // 命令执行结束后，把临时工作区里的最新文件重新读回成 canvas 状态。
+        // 命令执行结束后，把当前工作区里的最新文件重新读回成 canvas 状态。
         const syncedCanvas = await readSandboxWorkspaceAsync(workspaceDir)
         // 尽量保留用户之前选中的文件；如果那个文件已经不存在了，再退回到新的 activeFilePath。
         const nextActiveFilePath = sandbox.activeFilePath && syncedCanvas.files[sandbox.activeFilePath]
@@ -358,6 +371,8 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
               type: 'stdout',
               text:
                 `终端ID: ${tabId}\n` +
+                `cmd: ${command}\n` +
+                `${resolvedCommand !== command ? `resolved_cmd: ${resolvedCommand}\n` : ''}` +
                 `Canvas 工作区: ${workspaceDir.replaceAll('\\', '/')}\n` +
                 `${syncSummary}\n` +
                 '后续如果要在同一终端继续执行命令，请复用这个终端ID。\n' +
@@ -377,9 +392,9 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
     }
   },
   search_replace_canvas: {
-    title: '搜索和替换 Sandbox',
+    title: '搜索和替换 Canvas',
     description:
-      '在当前会话 sandbox 中执行文件操作：modify(替换内容)、add(新增文件)、delete(删除文件)、move(移动/重命名文件)。',
+      '在当前 Canvas 工作区中执行文件操作：modify(替换内容)、add(新增文件)、delete(删除文件)、move(移动/重命名文件)。',
     inputSchema: z.object({
       type: z
         .enum(['modify', 'add', 'delete', 'move'])
