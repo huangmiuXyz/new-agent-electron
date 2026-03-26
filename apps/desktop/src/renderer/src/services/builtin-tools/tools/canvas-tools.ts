@@ -6,6 +6,32 @@ import {
 } from '@renderer/services/sandbox'
 import { execRipgrepSearch, injectBundledRipgrepPath } from './command-utils'
 
+const isWindows = navigator.platform.toLowerCase().includes('win')
+
+const getPowerShellPath = (): string => {
+  const systemRoot = window.api.process.env.SystemRoot
+  return systemRoot
+    ? window.api.path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    : 'powershell.exe'
+}
+
+const getPosixShellPath = (): string => window.api.process.env.SHELL || '/bin/sh'
+
+const execCommand = async (
+  command: string,
+  options: { cwd?: string; maxBuffer?: number } = {}
+): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
+  if (isWindows) {
+    return window.api.execFileCommand(
+      getPowerShellPath(),
+      ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command],
+      options
+    )
+  }
+
+  return window.api.execFileCommand(getPosixShellPath(), ['-lc', command], options)
+}
+
 const ensureCanvasWorkspace = async (chatId?: string) => {
   const canvasStore = useCanvasStore()
   const workspaceDir = canvasStore.getWorkspaceDir(chatId)
@@ -101,35 +127,36 @@ const formatDirectoryList = (chatId?: string, directoryPath = '/') => {
   return [`目录: ${normalizedDirectoryPath}`, ...lines].join('\n')
 }
 
-const formatCanvasFileContent = (
-  chatId: string | undefined,
+const quotePosixPath = (value: string) => `'${value.replaceAll('\'', '\'\\\'\'')}'`
+
+const quotePowerShellPath = (value: string) => `'${value.replaceAll('\'', '\'\'')}'`
+
+const buildLegacyReadCommand = (
   filePath: string,
   options?: { startLine?: number; endLine?: number }
 ) => {
-  const canvasStore = useCanvasStore()
-  const sandbox = canvasStore.getCanvas(chatId)
   const normalizedFilePath = normalizeSandboxPath(filePath)
-  const file = sandbox.files[normalizedFilePath]
-
-  if (!file) {
-    throw new Error(`文件不存在: ${normalizedFilePath}`)
-  }
-
-  if (file.encoding === 'data-url') {
-    return `文件: ${normalizedFilePath}\n[binary ${file.mediaType || 'application/octet-stream'}]`
-  }
-
-  const lines = file.content.split('\n')
   const hasLineRange = options?.startLine !== undefined || options?.endLine !== undefined
   const startLine = Math.max(1, options?.startLine || 1)
-  const endLine = Math.max(startLine, options?.endLine || lines.length)
-  const slicedLines = hasLineRange ? lines.slice(startLine - 1, endLine) : lines
-  const content = slicedLines.join('\n')
-  const header = hasLineRange
-    ? `文件: ${normalizedFilePath} (lines ${startLine}-${Math.min(endLine, lines.length)})`
-    : `文件: ${normalizedFilePath}`
 
-  return `${header}\n\`\`\`${'text'}\n${content}\n\`\`\``
+  if (isWindows) {
+    const quotedPath = quotePowerShellPath(`.${normalizedFilePath}`)
+    if (!hasLineRange) {
+      return `Get-Content -Path ${quotedPath}`
+    }
+
+    const endLine = Math.max(startLine, options?.endLine || startLine)
+    const lineCount = endLine - startLine + 1
+    return `(Get-Content -Path ${quotedPath}) | Select-Object -Skip ${startLine - 1} -First ${lineCount}`
+  }
+
+  const quotedPath = quotePosixPath(`.${normalizedFilePath}`)
+  if (!hasLineRange) {
+    return `cat ${quotedPath}`
+  }
+
+  const endLine = Math.max(startLine, options?.endLine || startLine)
+  return `sed -n '${startLine},${endLine}p' ${quotedPath}`
 }
 
 const searchCanvasContent = (
@@ -211,36 +238,79 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
   },
   read_canvas_file: {
     title: '读取 Canvas 文件',
-    description: '用于读取当前 Canvas 工作区中的代码或文件内容，可按行范围读取。需要搜索代码或内容时请改用 search_canvas_content 或 exec_command_canvas，并优先使用 rg。',
+    description: isWindows
+      ? '用于读取当前 Canvas 工作区中的文件内容。优先使用 Get-Content、type、findstr 等读取命令；需要搜索内容时请改用 search_canvas_content 或 exec_command_canvas，并优先使用 rg。'
+      : '用于读取当前 Canvas 工作区中的文件内容。优先使用 cat、sed、nl 等读取命令；需要搜索内容时请改用 search_canvas_content 或 exec_command_canvas，并优先使用 rg。',
     inputSchema: z.object({
-      file_path: z.string().describe('要读取的文件路径'),
-      start_line: z.number().int().min(1).optional().describe('起始行号，1-based，可选'),
-      end_line: z.number().int().min(1).optional().describe('结束行号，1-based，可选')
+      cmd: z.string().optional().describe('要原样执行的命令字符串'),
+      file_path: z.string().optional().describe('兼容旧参数：要读取的文件路径'),
+      start_line: z.number().int().min(1).optional().describe('兼容旧参数：起始行号，1-based，可选'),
+      end_line: z.number().int().min(1).optional().describe('兼容旧参数：结束行号，1-based，可选')
     }),
     execute: async (args: unknown, options?: { chatId?: string }) => {
-      const params = args as { file_path?: string; start_line?: number; end_line?: number }
+      const params = args as { cmd?: string; file_path?: string; start_line?: number; end_line?: number }
+      const cmd = String(params.cmd || '').trim()
       const filePath = String(params.file_path || '').trim()
+      const resolvedCmd = cmd || (filePath
+        ? buildLegacyReadCommand(filePath, {
+          startLine: params.start_line,
+          endLine: params.end_line
+        })
+        : '')
 
-      if (!filePath) {
+      if (!resolvedCmd) {
         return {
-          error: '缺少必要参数: file_path',
+          error: '缺少必要参数: cmd',
           toolResult: {
-            content: [{ type: 'text', text: 'read_canvas_file 失败：缺少必要参数 file_path' }]
+            content: [{ type: 'text', text: 'read_canvas_file 失败：缺少必要参数 cmd' }]
           }
         }
       }
 
       try {
         openCanvasPanel()
+        const { workspaceDir } = await ensureCanvasWorkspace(options?.chatId)
+        const result = await execCommand(resolvedCmd, { cwd: workspaceDir, maxBuffer: 8 * 1024 * 1024 })
+        const stdout = result.stdout.trim()
+        const stderr = result.stderr.trim()
+        const errorMessage = result.errorMessage?.trim() || ''
+
+        if (result.code === 1 && !stdout) {
+          return {
+            toolResult: {
+              content: [{
+                type: 'text',
+                text: `命令执行完成，无标准输出\ncmd: ${resolvedCmd}\ncwd: ${workspaceDir.replaceAll('\\', '/')}\n${stderr ? `\nstderr:\n${stderr}` : ''}`
+              }]
+            }
+          }
+        }
+
+        if (result.code !== 0 && result.code !== 1) {
+          return {
+            error: stderr || stdout || errorMessage || 'command execution failed',
+            toolResult: {
+              content: [{
+                type: 'text',
+                text: `read_canvas_file 失败：${stderr || stdout || errorMessage || 'command execution failed'}`
+              }]
+            }
+          }
+        }
+
+        const outputSections = [`命令执行完成\ncmd: ${resolvedCmd}\ncwd: ${workspaceDir.replaceAll('\\', '/')}`]
+        if (stdout) {
+          outputSections.push(`stdout:\n${stdout}`)
+        }
+        if (stderr) {
+          outputSections.push(`stderr:\n${stderr}`)
+        }
 
         return {
           toolResult: {
             content: [{
               type: 'text',
-              text: formatCanvasFileContent(options?.chatId, filePath, {
-                startLine: params.start_line,
-                endLine: params.end_line
-              })
+              text: outputSections.join('\n\n')
             }]
           }
         }
