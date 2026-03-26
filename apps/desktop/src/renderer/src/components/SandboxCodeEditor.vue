@@ -30,6 +30,7 @@ const emit = defineEmits<{
 
 const settingsStore = useSettingsStore()
 const MONACO_CONFIGURED_KEY = '__agentQiMonacoConfigured__'
+const MONACO_DIFF_LANGUAGE_KEY = '__agentQiMonacoDiffLanguageConfigured__'
 const containerRef = useTemplateRef('containerRef')
 const editorRef = shallowRef<editor.IStandaloneCodeEditor | null>(null)
 let changeListener: IDisposable | null = null
@@ -54,6 +55,30 @@ const configureMonaco = () => {
       if (label === 'typescript' || label === 'javascript') return new tsWorker()
       return new editorWorker()
     }
+  }
+
+  if (!monaco.languages.getLanguages().some((language) => language.id === 'diff')) {
+    monaco.languages.register({ id: 'diff' })
+  }
+
+  if (!globalScope[MONACO_DIFF_LANGUAGE_KEY]) {
+    monaco.languages.setMonarchTokensProvider('diff', {
+      tokenizer: {
+        root: [
+          [/^diff --git.*$/, 'keyword'],
+          [/^index .*$/, 'meta'],
+          [/^@@.*@@.*$/, 'number'],
+          [/^\+\+\+ .*$/, 'type'],
+          [/^--- .*$/, 'type'],
+          [/^\+.*$/, 'string'],
+          [/^-.*$/, 'invalid'],
+          [/^Binary files .* differ$/, 'comment'],
+          [/^\\ No newline at end of file$/, 'comment'],
+          [/^.*$/, '']
+        ]
+      }
+    })
+    globalScope[MONACO_DIFF_LANGUAGE_KEY] = true
   }
 
   globalScope[MONACO_CONFIGURED_KEY] = true

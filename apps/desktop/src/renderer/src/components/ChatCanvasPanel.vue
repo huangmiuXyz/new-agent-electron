@@ -2,10 +2,12 @@
 import { useVirtualList } from '@vueuse/core'
 import AppImage from './Image.vue'
 import HtmlPreview from './HtmlPreview.vue'
+import ModelSelector from './ModelSelector.vue'
 import SandboxCodeEditor from './SandboxCodeEditor.vue'
 import Tabs from './Tabs.vue'
 import JSZip from 'jszip'
 import { useLocalStorage } from '@renderer/composables/vueuse'
+import { gitService, type GitRepositoryStatus, type GitStatusEntry } from '@renderer/services/gitService'
 import {
   buildSandboxPreviewDocument,
   getSandboxFileLanguage,
@@ -71,7 +73,8 @@ const { showContextMenu: showTabContextMenu } = useContextMenu<{ filePath: strin
 
 const canvasTabs = [
   { id: 'preview', name: '预览' },
-  { id: 'code', name: '代码' }
+  { id: 'code', name: '代码' },
+  { id: 'git', name: 'Git' }
 ]
 const SANDBOX_TREE_WIDTH_KEY = 'sandbox-tree-width'
 const SANDBOX_LOGS_HEIGHT_KEY = 'sandbox-logs-height'
@@ -254,9 +257,174 @@ const previewDocument = computed(() => {
   return buildSandboxPreviewDocument(canvasStore.getCanvas(currentChatId.value), previewChannelId.value)
 })
 const previewLogs = ref<PreviewLogItem[]>([])
+const gitStatus = ref<GitRepositoryStatus | null>(null)
+const gitSelectedPath = ref('')
+const gitDiffText = ref('')
+const gitCommitMessage = ref('')
+const gitLoading = ref(false)
+const gitDiffLoading = ref(false)
+const gitGeneratingCommitMessage = ref(false)
+const gitCommitting = ref(false)
+const gitError = ref('')
+const gitCommitProviderId = ref('')
+const gitCommitModelId = ref('')
 const isSandboxRuntimeVisible = computed(
   () => settingsStore.display.canvasEditorTab === 'preview' && !sandboxLogsCollapsed.value
 )
+const gitEntries = computed(() => gitStatus.value?.entries || [])
+const gitChangedCount = computed(() => gitEntries.value.length)
+const gitSelectedEntry = computed(() => gitEntries.value.find((entry) => entry.path === gitSelectedPath.value) || null)
+const hasGitRepo = computed(() => Boolean(gitStatus.value))
+const hasStagedGitChanges = computed(() => gitEntries.value.some((entry) => entry.staged))
+const gitDiffEditorPath = computed(() => {
+  const filePath = gitSelectedEntry.value?.path || '/git.diff'
+  return filePath.endsWith('.diff') ? filePath : `${filePath}.diff`
+})
+const gitDiffLanguage = computed(() => getSandboxFileLanguage(gitDiffEditorPath.value))
+
+const ensureGitModelSelection = () => {
+  if (gitCommitProviderId.value && gitCommitModelId.value) return
+  const providerId = settingsStore.selectedProviderId
+  const modelId = settingsStore.selectedModelId
+  const provider = providerId ? settingsStore.getProviderById(providerId) : null
+  const hasTextModel = Boolean(provider?.models?.some((item) => item.id === modelId && item.category === 'text'))
+
+  if (providerId && modelId && hasTextModel) {
+    gitCommitProviderId.value = providerId
+    gitCommitModelId.value = modelId
+    return
+  }
+
+  const fallback = gitService.listCommitMessageModels()[0]
+  gitCommitProviderId.value = fallback?.providerId || ''
+  gitCommitModelId.value = fallback?.modelId || ''
+}
+
+const buildGitDiffPreview = async (cwd: string, entry: GitStatusEntry) => {
+  if (entry.untracked) {
+    return `未跟踪文件：${entry.path}\n\n该文件还未加入 Git。先暂存后才能查看 staged diff。`
+  }
+
+  const sections: string[] = []
+  if (entry.staged) {
+    const stagedDiff = (await gitService.getDiff(cwd, { cached: true, filePath: entry.path })).trim()
+    if (stagedDiff) {
+      sections.push(`--- STAGED ---\n${stagedDiff}`)
+    }
+  }
+  if (entry.workingTreeStatus !== ' ' && entry.workingTreeStatus !== '?') {
+    const workingDiff = (await gitService.getDiff(cwd, { filePath: entry.path })).trim()
+    if (workingDiff) {
+      sections.push(`--- WORKTREE ---\n${workingDiff}`)
+    }
+  }
+  return sections.join('\n\n').trim()
+}
+
+const refreshGitDiff = async (path = gitSelectedPath.value) => {
+  gitSelectedPath.value = path
+  gitDiffText.value = ''
+  const entry = gitEntries.value.find((item) => item.path === path)
+  if (!entry) return
+
+  gitDiffLoading.value = true
+  try {
+    gitDiffText.value = await buildGitDiffPreview(currentWorkspaceDir.value, entry)
+  } catch (error) {
+    gitDiffText.value = `加载 diff 失败：${(error as Error).message}`
+  } finally {
+    gitDiffLoading.value = false
+  }
+}
+
+const refreshGitStatus = async () => {
+  gitLoading.value = true
+  gitError.value = ''
+
+  try {
+    ensureGitModelSelection()
+    const cwd = currentWorkspaceDir.value
+    if (!(await gitService.isGitRepository(cwd))) {
+      gitStatus.value = null
+      gitSelectedPath.value = ''
+      gitDiffText.value = ''
+      return
+    }
+
+    const status = await gitService.getStatus(cwd)
+    gitStatus.value = status
+    const nextPath = status.entries.find((entry) => entry.path === gitSelectedPath.value)?.path || status.entries[0]?.path || ''
+    await refreshGitDiff(nextPath)
+  } catch (error) {
+    gitStatus.value = null
+    gitSelectedPath.value = ''
+    gitDiffText.value = ''
+    gitError.value = (error as Error).message
+  } finally {
+    gitLoading.value = false
+  }
+}
+
+const stageGitEntries = async (paths: string[]) => {
+  if (paths.length === 0) return
+  try {
+    await gitService.stageFiles(currentWorkspaceDir.value, paths)
+    await refreshGitStatus()
+  } catch (error) {
+    message.error((error as Error).message)
+  }
+}
+
+const unstageGitEntries = async (paths: string[]) => {
+  if (paths.length === 0) return
+  try {
+    await gitService.unstageFiles(currentWorkspaceDir.value, paths)
+    await refreshGitStatus()
+  } catch (error) {
+    message.error((error as Error).message)
+  }
+}
+
+const generateGitCommitMessage = async () => {
+  ensureGitModelSelection()
+  if (!gitCommitProviderId.value || !gitCommitModelId.value) {
+    message.warning('请先选择模型')
+    return
+  }
+
+  gitGeneratingCommitMessage.value = true
+  try {
+    gitCommitMessage.value = await gitService.generateCommitMessage(currentWorkspaceDir.value, {
+      providerId: gitCommitProviderId.value,
+      modelId: gitCommitModelId.value,
+      staged: hasStagedGitChanges.value
+    })
+  } catch (error) {
+    message.error((error as Error).message)
+  } finally {
+    gitGeneratingCommitMessage.value = false
+  }
+}
+
+const commitGitChanges = async () => {
+  const commitMessage = gitCommitMessage.value.trim()
+  if (!commitMessage) {
+    message.warning('请先输入提交信息')
+    return
+  }
+
+  gitCommitting.value = true
+  try {
+    await gitService.commit(currentWorkspaceDir.value, commitMessage)
+    gitCommitMessage.value = ''
+    await refreshGitStatus()
+    message.success('提交成功')
+  } catch (error) {
+    message.error((error as Error).message)
+  } finally {
+    gitCommitting.value = false
+  }
+}
 
 const toggleSandboxRuntime = () => {
   if (isSandboxRuntimeVisible.value) {
@@ -278,6 +446,9 @@ watch(
     if (tab === 'preview' && isUsingTempWorkspace.value) {
       previewReady.value = true
       return
+    }
+    if (tab === 'git') {
+      void refreshGitStatus()
     }
 
     previewReady.value = false
@@ -1305,6 +1476,16 @@ watch(
 )
 
 watch(
+  [currentWorkspaceDir, currentWorkspaceVersion],
+  () => {
+    if (settingsStore.display.canvasEditorTab === 'git') {
+      void refreshGitStatus()
+    }
+  },
+  { immediate: true }
+)
+
+watch(
   activeFilePath,
   (currentActiveFilePath) => {
     if (currentActiveFilePath) {
@@ -1401,10 +1582,74 @@ onBeforeUnmount(() => {
           </div>
           <div class="sandbox-explorer-group">
             <div class="sandbox-explorer-group-header">
-              <span class="sandbox-explorer-group-title">SANDBOX</span>
-              <span class="sandbox-explorer-group-subtitle">{{ suggestedAppName }}</span>
+              <span class="sandbox-explorer-group-title">{{ settingsStore.display.canvasEditorTab === 'git' ? '更改' : 'SANDBOX' }}</span>
+              <span class="sandbox-explorer-group-subtitle">
+                {{ settingsStore.display.canvasEditorTab === 'git' ? `${gitChangedCount} 个文件` : suggestedAppName }}
+              </span>
             </div>
-            <div class="sandbox-tree" v-bind="sandboxTreeContainerProps">
+            <div v-if="settingsStore.display.canvasEditorTab === 'git'" class="sandbox-tree">
+              <div v-if="gitLoading" class="canvas-empty-state sidebar-empty">
+                正在加载 Git 状态...
+              </div>
+              <div v-else-if="gitError" class="canvas-empty-state sidebar-empty">
+                {{ gitError }}
+              </div>
+              <div v-else-if="!hasGitRepo" class="canvas-empty-state sidebar-empty">
+                当前工作区不是 Git 仓库。
+              </div>
+              <template v-else>
+                <div class="canvas-git-compose">
+                  <div class="canvas-git-compose-actions">
+                    <ModelSelector
+                      v-model:model-id="gitCommitModelId"
+                      v-model:provider-id="gitCommitProviderId"
+                      type="icon"
+                      category="text"
+                    />
+                    <button type="button" class="sandbox-sidebar-tool" title="刷新" @click="void refreshGitStatus()">↻</button>
+                    <button
+                      type="button"
+                      class="sandbox-sidebar-tool"
+                      :disabled="gitGeneratingCommitMessage"
+                      title="生成提交信息"
+                      @click="void generateGitCommitMessage()"
+                    >
+                      {{ gitGeneratingCommitMessage ? '…' : 'AI' }}
+                    </button>
+                  </div>
+                  <textarea
+                    v-model="gitCommitMessage"
+                    class="canvas-git-commit-input"
+                    rows="1"
+                    :placeholder="`消息 (${hasGitRepo ? `⌘Enter 在“${gitStatus?.branch || 'HEAD'}”提交` : '提交'})`"
+                  />
+                  <button
+                    type="button"
+                    class="canvas-git-commit-primary"
+                    :disabled="gitCommitting || !gitCommitMessage.trim()"
+                    @click="void commitGitChanges()"
+                  >
+                    {{ gitCommitting ? '提交中...' : '提交' }}
+                  </button>
+                </div>
+                <button
+                  v-for="entry in gitEntries"
+                  :key="entry.path"
+                  type="button"
+                  class="sandbox-tree-row canvas-git-tree-row"
+                  :class="{ active: entry.path === gitSelectedPath }"
+                  @click="void refreshGitDiff(entry.path)"
+                >
+                  <span class="sandbox-tree-file-icon type-file">
+                    <span class="sandbox-tree-file-glyph"></span>
+                  </span>
+                  <span class="canvas-git-tree-name">{{ getBaseNameFromPath(entry.path) }}</span>
+                  <span class="canvas-git-tree-dir">{{ getParentPath(entry.path).replace(/^\/+/, '') || '.' }}</span>
+                  <span class="canvas-git-tree-code">{{ entry.untracked ? 'U' : `${entry.indexStatus}`.trim() || `${entry.workingTreeStatus}`.trim() || 'M' }}</span>
+                </button>
+              </template>
+            </div>
+            <div v-else class="sandbox-tree" v-bind="sandboxTreeContainerProps">
               <div class="sandbox-tree-wrapper" v-bind="sandboxTreeWrapperProps">
                 <button v-for="item in virtualSandboxTreeRows" :key="item.data.id" type="button" class="sandbox-tree-row"
                   :class="{
@@ -1480,7 +1725,31 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-else class="canvas-code">
-          <template v-if="activeFile">
+          <template v-if="settingsStore.display.canvasEditorTab === 'git'">
+            <div class="canvas-panel-surface canvas-code-editor-shell">
+              <div v-if="gitSelectedEntry" class="canvas-file-tabs">
+                <button type="button" class="canvas-file-tab active">
+                  <span class="canvas-file-tab-name">{{ getBaseNameFromPath(gitSelectedEntry.path) }}</span>
+                </button>
+              </div>
+              <div class="canvas-code-editor">
+                <div v-if="gitDiffLoading" class="canvas-empty-state">
+                  正在加载 diff...
+                </div>
+                <SandboxCodeEditor
+                  v-else-if="gitDiffText"
+                  :model-value="gitDiffText"
+                  :path="gitDiffEditorPath"
+                  :language="gitDiffLanguage"
+                  read-only
+                />
+                <div v-else class="canvas-empty-state">
+                  选择左侧变更文件后可查看 diff。
+                </div>
+              </div>
+            </div>
+          </template>
+          <template v-else-if="activeFile">
             <div class="canvas-panel-surface canvas-code-editor-shell">
               <div v-if="openFileTabs.length > 0" class="canvas-file-tabs">
                 <button v-for="filePath in openFileTabs" :key="filePath" type="button" class="canvas-file-tab"
@@ -1833,6 +2102,91 @@ onBeforeUnmount(() => {
 
 .sandbox-tree-wrapper {
   min-width: 100%;
+}
+
+.sidebar-empty {
+  min-height: 80px;
+}
+
+.canvas-git-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 6px 6px;
+  border-bottom: 1px solid var(--sandbox-sidebar-border);
+}
+
+.canvas-git-compose-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.canvas-git-commit-input {
+  width: 100%;
+  min-height: 28px;
+  max-height: 56px;
+  resize: none;
+  border: 1px solid var(--sandbox-sidebar-border);
+  background: transparent;
+  color: var(--text-primary);
+  padding: 4px 6px;
+  font: inherit;
+}
+
+.canvas-git-commit-primary {
+  height: 24px;
+  border: 1px solid #0e639c;
+  background: #0e639c;
+  color: #ffffff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.canvas-git-commit-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.canvas-git-tree-row {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.canvas-git-tree-name {
+  color: var(--text-primary);
+}
+
+.canvas-git-tree-dir {
+  min-width: 0;
+  flex: 1;
+  color: var(--sandbox-sidebar-faint);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-git-tree-code {
+  color: #d7ba7d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.canvas-git-diff-toolbar {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--sandbox-sidebar-border);
+}
+
+.canvas-git-diff-hint {
+  color: var(--text-tertiary);
+  font-size: 11px;
 }
 
 .sandbox-tree-row {

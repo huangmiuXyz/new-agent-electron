@@ -125,6 +125,7 @@ export const getSandboxFileLanguage = (filePath: string): string => {
   if (lower.endsWith('.xml') || lower.endsWith('.xaml') || lower.endsWith('.plist')) return 'xml'
   if (lower.endsWith('.toml')) return 'ini'
   if (lower.endsWith('.ini') || lower.endsWith('.cfg') || lower.endsWith('.conf')) return 'ini'
+  if (lower.endsWith('.diff') || lower.endsWith('.patch')) return 'diff'
   if (lower.endsWith('.sql')) return 'sql'
   if (lower.endsWith('.graphql') || lower.endsWith('.gql')) return 'graphql'
   if (lower.endsWith('.dockerfile') || fileName === 'dockerfile') return 'dockerfile'
