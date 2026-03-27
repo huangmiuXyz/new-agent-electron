@@ -786,6 +786,22 @@ const expandDirectory = (path: string) => {
   expandedDirectoryPaths.value = [...next]
 }
 
+const revealFileAncestors = (filePath?: string) => {
+  if (!filePath) return
+
+  const nextExpandedPaths = new Set(expandedDirectoryPaths.value)
+  let changed = false
+
+  getAncestorDirectoryPaths(filePath).forEach((path) => {
+    if (!availableDirectoryPathSet.value.has(path) || nextExpandedPaths.has(path)) return
+    nextExpandedPaths.add(path)
+    changed = true
+  })
+
+  if (!changed) return
+  expandedDirectoryPaths.value = [...nextExpandedPaths]
+}
+
 const loadDirectory = (directoryPath = '/') => {
   directoryEntries.value = {
     ...directoryEntries.value,
@@ -812,14 +828,19 @@ const syncWorkspaceView = () => {
   }
 
   loadDirectory('/')
+  revealFileAncestors(activeFilePath.value)
   openFileTabs.value = activeFilePath.value ? [activeFilePath.value] : []
 }
 
 const handleTreeRowClick = (row: TreeRow) => {
   if (row.type === 'directory') {
     if (row.hasChildren) {
-      loadDirectory(row.path)
-      toggleDirectory(row.path)
+      if (expandedDirectoryPathSet.value.has(row.path)) {
+        toggleDirectory(row.path)
+      } else {
+        loadDirectory(row.path)
+        expandDirectory(row.path)
+      }
     }
     return
   }
@@ -1777,17 +1798,7 @@ watch(
 watch(
   [availableDirectoryPathSet, currentWorkspaceVersion],
   ([availablePaths]) => {
-    const nextExpandedPaths = new Set(
-      expandedDirectoryPaths.value.filter((path) => availablePaths.has(path))
-    )
-
-    getAncestorDirectoryPaths(activeFilePath.value).forEach((path) => {
-      if (availablePaths.has(path)) {
-        nextExpandedPaths.add(path)
-      }
-    })
-
-    const nextPaths = [...nextExpandedPaths]
+    const nextPaths = expandedDirectoryPaths.value.filter((path) => availablePaths.has(path))
     if (
       nextPaths.length === expandedDirectoryPaths.value.length &&
       nextPaths.every((path, index) => path === expandedDirectoryPaths.value[index])
@@ -1829,19 +1840,9 @@ watch(
     if (currentActiveFilePath) {
       ensureFileTabOpen(currentActiveFilePath)
     }
-
-    const nextExpandedPaths = new Set(expandedDirectoryPaths.value)
-    let changed = false
-
-    getAncestorDirectoryPaths(currentActiveFilePath).forEach((path) => {
-      if (!availableDirectoryPathSet.value.has(path) || nextExpandedPaths.has(path)) return
-      nextExpandedPaths.add(path)
-      changed = true
-    })
-
-    if (!changed) return
-    expandedDirectoryPaths.value = [...nextExpandedPaths]
-  }
+    revealFileAncestors(currentActiveFilePath)
+  },
+  { immediate: true }
 )
 
 watch(
