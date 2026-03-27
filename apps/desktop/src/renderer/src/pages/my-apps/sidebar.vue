@@ -11,10 +11,15 @@ defineProps<Props>()
 
 const emit = defineEmits<{
   select: [appId: string]
+  contextmenu: [event: MouseEvent, appId: string]
 }>()
 
 const handleSelect = (appId: string) => {
   emit('select', appId)
+}
+
+const handleContextMenu = (event: MouseEvent, appId: string) => {
+  emit('contextmenu', event, appId)
 }
 </script>
 
@@ -28,8 +33,8 @@ const handleSelect = (appId: string) => {
       :main-field="'name'"
       :sub-field="'description'"
       :empty-text="'暂无应用'"
-      title="应用列表"
       @select="handleSelect"
+      @contextmenu="handleContextMenu"
     >
       <template #empty>
         <div class="sidebar-empty">
@@ -43,9 +48,6 @@ const handleSelect = (appId: string) => {
           <div class="sidebar-app-head">
             <span class="sidebar-app-icon">{{ item.iconEmoji }}</span>
             <span class="sidebar-app-name text-truncate">{{ item.name }}</span>
-          </div>
-          <div class="sidebar-app-desc">
-            {{ item.description || '未填写描述' }}
           </div>
         </div>
       </template>
@@ -78,9 +80,7 @@ const handleSelect = (appId: string) => {
 
 .my-apps-sidebar:not(.is-mobile) :deep(.list-item) {
   align-items: flex-start;
-  padding: 10px;
   margin-bottom: 4px;
-  border-radius: 10px;
   background: transparent;
 }
 

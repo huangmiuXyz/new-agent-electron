@@ -136,9 +136,6 @@ watch(
       >
         <Settings />
       </Button>
-      <Button v-if="props.currentView === 'chat' && !isMobile" variant="icon" size="md" @click="createNewChat">
-        <component :is="CommentAdd16Regular" />
-      </Button>
     </div>
 
     <!-- 移动端列表页特有头部 -->

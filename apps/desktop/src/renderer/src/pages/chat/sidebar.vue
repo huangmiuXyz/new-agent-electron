@@ -3,11 +3,12 @@ import { isMobile } from '@renderer/composables/useDeviceType'
 const chatsStore = useChatsStores()
 const { showContextMenu } = useContextMenu()
 const chatsIcon = useIcon('Chat')
-const { ChevronDown, ChevronRight, Edit, Delete } = useIcon([
+const { ChevronDown, ChevronRight, Edit, Delete, CommentAdd16Regular } = useIcon([
   'ChevronDown',
   'ChevronRight',
   'Edit',
-  'Delete'
+  'Delete',
+  'CommentAdd16Regular'
 ])
 const router = useRouter()
 const expandedRootIds = ref<Set<string>>(new Set())
@@ -137,6 +138,15 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 <template>
   <aside class="sidebar" :class="{ 'is-mobile': isMobile }">
     <div class="nav-list">
+      <div v-if="!isMobile" class="chat-list-title">
+        <div class="chat-list-title-text">聊天</div>
+        <div class="chat-list-title-actions">
+          <Button variant="icon" size="sm" title="新建对话" @click="createNewChat">
+            <component :is="CommentAdd16Regular" />
+          </Button>
+        </div>
+      </div>
+
       <!-- 空状态显示 -->
       <div v-if="!chatsStore.allChats.length" class="empty-state">
         <!-- Mobile Modern Empty State -->
@@ -524,6 +534,26 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   overflow-y: auto;
   padding: 8px;
   background: transparent;
+}
+
+.chat-list-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 8px;
+}
+
+.chat-list-title-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.chat-list-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* 调整List组件的样式以匹配原有样式 */

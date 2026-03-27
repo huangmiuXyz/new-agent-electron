@@ -2,6 +2,7 @@
 import { h } from 'vue'
 import HtmlPreview from '@renderer/components/HtmlPreview.vue'
 import { buildSandboxPreviewDocument } from '@renderer/services/sandbox'
+import type { MenuItem } from '@renderer/composables/useContextMenu'
 
 const myAppsStore = useMyAppsStore()
 const chatsStore = useChatsStores()
@@ -10,7 +11,8 @@ const settingsStore = useSettingsStore()
 const router = useRouter()
 const modal = useModal()
 const { setTitle } = useAppHeader()
-const { Play, Trash, Chat, Eye } = useIcon(['Play', 'Trash', 'Chat', 'Eye'])
+const { showContextMenu } = useContextMenu<{ appId: string }>()
+const { Play, Trash, Chat, Eye, Edit } = useIcon(['Play', 'Trash', 'Chat', 'Eye', 'Edit'])
 
 const appCards = computed(() => myAppsStore.apps)
 const selectedAppId = ref('')
@@ -55,6 +57,65 @@ watch(
 
 const selectApp = (appId: string) => {
   selectedAppId.value = appId
+}
+
+const renameSavedApp = async (appId: string) => {
+  const app = myAppsStore.getAppById(appId)
+  if (!app) return
+
+  const [FormComponent, formActions] = useForm({
+    fields: [
+      {
+        name: 'name',
+        label: '应用名称',
+        type: 'text',
+        placeholder: '请输入新的应用名称',
+        required: true
+      },
+      {
+        name: 'iconEmoji',
+        label: '图标',
+        type: 'text',
+        placeholder: '例如 ✨'
+      },
+      {
+        name: 'description',
+        label: '描述',
+        type: 'textarea',
+        placeholder: '简单描述这个应用是做什么的',
+        rows: 3
+      }
+    ],
+    initialData: {
+      name: app.name,
+      iconEmoji: app.iconEmoji,
+      description: app.description
+    },
+    onSubmit: (data) => {
+      const savedApp = myAppsStore.saveApp({
+        id: app.id,
+        name: String(data.name || '').trim(),
+        description: String(data.description || '').trim(),
+        iconEmoji: String(data.iconEmoji || '').trim() || '✨',
+        canvas: app.canvas,
+        sourceChatId: app.sourceChatId
+      })
+
+      selectedAppId.value = savedApp.id
+      message.success(`已重命名应用：${savedApp.name}`)
+      modal.remove()
+    }
+  })
+
+  modal.confirm({
+    title: '重命名应用',
+    content: FormComponent,
+    confirmText: '保存',
+    cancelText: '取消',
+    onOk: () => {
+      formActions.submit()
+    }
+  })
 }
 
 const openPreviewModal = async (appId: string) => {
@@ -113,12 +174,45 @@ const removeSavedApp = async (appId: string) => {
   if (!confirmed) return
   myAppsStore.deleteApp(appId)
 }
+
+const openAppContextMenu = (event: MouseEvent, appId: string) => {
+  const app = myAppsStore.getAppById(appId)
+  if (!app) return
+
+  selectedAppId.value = app.id
+
+  const options: MenuItem<{ appId: string }>[] = [
+    {
+      label: '使用',
+      icon: Play,
+      onClick: () => useSavedApp(app.id)
+    },
+    {
+      label: '重命名',
+      icon: Edit,
+      onClick: () => renameSavedApp(app.id)
+    },
+    {
+      label: '删除',
+      icon: Trash,
+      danger: true,
+      onClick: () => removeSavedApp(app.id)
+    }
+  ]
+
+  showContextMenu(event, options, { appId: app.id })
+}
 </script>
 
 <template>
   <div class="my-apps-layout">
     <Teleport v-if="!isMobile" defer to="#global-left-panel-content">
-      <MyAppsSidebar :apps="appCards" :active-app-id="selectedAppId" @select="selectApp" />
+      <MyAppsSidebar
+        :apps="appCards"
+        :active-app-id="selectedAppId"
+        @select="selectApp"
+        @contextmenu="openAppContextMenu"
+      />
     </Teleport>
 
     <div class="my-apps-content">
@@ -126,7 +220,12 @@ const removeSavedApp = async (appId: string) => {
         <template #content>
           <div class="page-content">
             <div v-if="isMobile && appCards.length > 0" class="mobile-sidebar-shell">
-              <MyAppsSidebar :apps="appCards" :active-app-id="selectedAppId" @select="selectApp" />
+              <MyAppsSidebar
+                :apps="appCards"
+                :active-app-id="selectedAppId"
+                @select="selectApp"
+                @contextmenu="openAppContextMenu"
+              />
             </div>
 
             <div v-if="appCards.length === 0" class="empty-canvas-state">
