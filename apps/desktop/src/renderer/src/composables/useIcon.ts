@@ -93,6 +93,7 @@ import {
   ZoomOut,
   Dice,
   Database,
+  History,
   Maximize as Fullscreen,
   Minimize as FullscreenExit,
   Send
@@ -108,6 +109,7 @@ import {
 } from '@vicons/fluent'
 import { Globe, Mic, MicOff, Sparkles, VolumeMute, VolumeMedium } from '@vicons/ionicons5'
 import { ArrowBackIosNewSharp, EditNoteFilled, UploadOutlined } from '@vicons/material'
+
 export const icons = {
   Edit,
   Pencil: Edit,
@@ -220,6 +222,7 @@ export const icons = {
   Image,
   Dices: Dice,
   Database,
+  HistoryClock: History,
   Filter,
   Continue,
   Fullscreen,

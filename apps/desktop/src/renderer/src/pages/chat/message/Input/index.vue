@@ -173,6 +173,8 @@ const PlaylistIcon = useIcon('Menu')
 const StopIcon = useIcon('Stop')
 const ChevronDown = useIcon('ChevronDown')
 const SendIcon = useIcon('Send')
+const HistoryIcon = useIcon('HistoryClock')
+const { Edit, Delete, CommentAdd16Regular, Search } = useIcon(['Edit', 'Delete', 'CommentAdd16Regular', 'Search'])
 
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
@@ -196,6 +198,89 @@ const isScopeGenerating = computed(() => {
   if (!chatStore.currentChat) return false
   return chatStore.isChatScopeGenerating(chatStore.currentChat.id)
 })
+
+const showChatSwitcher = ref(false)
+const chatSwitcherQuery = ref('')
+const chatSwitcherMode = ref<'list' | 'create' | 'rename' | 'delete'>('list')
+const chatSwitcherTargetId = ref<string | null>(null)
+const chatSwitcherDraftTitle = ref('')
+const sortedChats = computed(() => [...chatStore.allChats].sort((a, b) => b.createdAt - a.createdAt))
+const filteredChats = computed(() => {
+  const keyword = chatSwitcherQuery.value.trim().toLowerCase()
+  if (!keyword) return sortedChats.value
+  return sortedChats.value.filter((chat) => {
+    const parentTitle = chat.parentChatId ? chatStore.getChatById(chat.parentChatId)?.title || '' : ''
+    return `${chat.title} ${parentTitle}`.toLowerCase().includes(keyword)
+  })
+})
+const chatSwitcherTargetChat = computed(() => (
+  chatSwitcherTargetId.value ? chatStore.getChatById(chatSwitcherTargetId.value) || null : null
+))
+
+const isChatGenerating = (chat: Chat) => {
+  return chat.messages.some((item) => item.metadata?.loading && item.metadata.stop)
+}
+
+const getChatSecondaryText = (chat: Chat) => {
+  if (!chat.parentChatId) return ''
+  return chatStore.getChatById(chat.parentChatId)?.title || '子会话'
+}
+
+const resetChatSwitcherState = () => {
+  chatSwitcherMode.value = 'list'
+  chatSwitcherTargetId.value = null
+  chatSwitcherDraftTitle.value = ''
+}
+
+watch(showChatSwitcher, (visible) => {
+  if (!visible) {
+    chatSwitcherQuery.value = ''
+    resetChatSwitcherState()
+  }
+})
+
+const selectChatFromSwitcher = (chatId: string) => {
+  chatStore.setActiveChat(chatId)
+  showChatSwitcher.value = false
+}
+
+const openCreateChatInline = () => {
+  chatSwitcherMode.value = 'create'
+  chatSwitcherTargetId.value = null
+  chatSwitcherDraftTitle.value = ''
+}
+
+const openRenameChatInline = (chat: Chat) => {
+  chatSwitcherMode.value = 'rename'
+  chatSwitcherTargetId.value = chat.id
+  chatSwitcherDraftTitle.value = chat.title
+}
+
+const openDeleteChatInline = (chat: Chat) => {
+  chatSwitcherMode.value = 'delete'
+  chatSwitcherTargetId.value = chat.id
+  chatSwitcherDraftTitle.value = chat.title
+}
+
+const submitCreateChatInline = () => {
+  chatStore.createChat(chatSwitcherDraftTitle.value.trim() || '新的聊天')
+  showChatSwitcher.value = false
+}
+
+const submitRenameChatInline = () => {
+  const chatId = chatSwitcherTargetId.value
+  const title = chatSwitcherDraftTitle.value.trim()
+  if (!chatId || !title) return
+  chatStore.renameChat(chatId, title)
+  resetChatSwitcherState()
+}
+
+const submitDeleteChatInline = () => {
+  const chatId = chatSwitcherTargetId.value
+  if (!chatId) return
+  chatStore.deleteChat(chatId)
+  resetChatSwitcherState()
+}
 
 // 处理文件选择
 const handleFilesSelected = (files: Array<UploadFile>) => {
@@ -959,6 +1044,128 @@ onUnmounted(() => {
 
             <ChatAgentSelector type="icon" />
             <ModelSelector type="icon" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" />
+            <SelectorPopover
+              v-model:visible="showChatSwitcher"
+              v-model:search-query="chatSwitcherQuery"
+              width="380px"
+              position="top"
+            >
+              <template #trigger>
+                <button
+                  class="chat-switcher-trigger no-drag"
+                  :class="{ active: showChatSwitcher }"
+                  type="button"
+                  title="聊天列表"
+                >
+                  <HistoryIcon />
+                </button>
+              </template>
+              <template #content>
+                <div class="chat-switcher-panel">
+                  <div class="chat-switcher-search-shell">
+                    <Search class="chat-switcher-search-icon" />
+                    <input
+                      v-model="chatSwitcherQuery"
+                      class="chat-switcher-search-input"
+                      placeholder="搜索最近任务"
+                      type="text"
+                    />
+                  </div>
+                  <div class="chat-switcher-toolbar">
+                    <button class="chat-switcher-filter" type="button">
+                      <span>聊天列表</span>
+                      <ChevronDown />
+                    </button>
+                    <Button
+                      variant="icon"
+                      size="sm"
+                      title="新建聊天"
+                      class="chat-switcher-add-btn"
+                      @click.stop="openCreateChatInline"
+                    >
+                      <CommentAdd16Regular />
+                    </Button>
+                  </div>
+
+                  <div
+                    v-if="chatSwitcherMode === 'create' || chatSwitcherMode === 'rename'"
+                    class="chat-switcher-inline-card"
+                  >
+                    <div class="chat-switcher-inline-title">
+                      {{ chatSwitcherMode === 'create' ? '新建聊天' : '重命名聊天' }}
+                    </div>
+                    <input
+                      v-model="chatSwitcherDraftTitle"
+                      class="chat-switcher-input"
+                      :placeholder="chatSwitcherMode === 'create' ? '输入聊天名称' : '输入新的名称'"
+                      @keydown.enter.stop.prevent="
+                        chatSwitcherMode === 'create' ? submitCreateChatInline() : submitRenameChatInline()
+                      "
+                    />
+                    <div class="chat-switcher-inline-actions">
+                      <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState">取消</Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        :disabled="chatSwitcherMode === 'rename' && !chatSwitcherDraftTitle.trim()"
+                        @click.stop="
+                          chatSwitcherMode === 'create' ? submitCreateChatInline() : submitRenameChatInline()
+                        "
+                      >
+                        {{ chatSwitcherMode === 'create' ? '创建' : '保存' }}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div
+                    v-else-if="chatSwitcherMode === 'delete' && chatSwitcherTargetChat"
+                    class="chat-switcher-inline-card danger"
+                  >
+                    <div class="chat-switcher-inline-title">删除聊天</div>
+                    <div class="chat-switcher-delete-text">确定删除“{{ chatSwitcherTargetChat.title }}”吗？</div>
+                    <div class="chat-switcher-inline-actions">
+                      <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState">取消</Button>
+                      <Button variant="primary" size="sm" danger @click.stop="submitDeleteChatInline">删除</Button>
+                    </div>
+                  </div>
+
+                  <div class="chat-switcher-list">
+                    <div
+                      v-for="chat in filteredChats"
+                      :key="chat.id"
+                      class="chat-switcher-item"
+                      :class="{ active: chatStore.activeChatId === chat.id }"
+                      @click="selectChatFromSwitcher(chat.id)"
+                      @keydown.enter.prevent="selectChatFromSwitcher(chat.id)"
+                      tabindex="0"
+                      role="button"
+                    >
+                      <div class="chat-switcher-item-main">
+                        <div class="chat-switcher-item-top">
+                          <span class="chat-switcher-item-title">{{ chat.title }}</span>
+                        </div>
+                        <div class="chat-switcher-item-bottom" v-if="getChatSecondaryText(chat) || chat.parentChatId || isChatGenerating(chat)">
+                      <span v-if="getChatSecondaryText(chat)" class="chat-switcher-item-subtitle">
+                        {{ getChatSecondaryText(chat) }}
+                      </span>
+                      <span v-if="chat.parentChatId" class="chat-switcher-badge">子会话</span>
+                      <span v-if="isChatGenerating(chat)" class="chat-switcher-badge generating">生成中</span>
+                    </div>
+                      </div>
+                      <div class="chat-switcher-item-actions" @click.stop>
+                        <Button variant="icon" size="sm" title="重命名" @click.stop="openRenameChatInline(chat)">
+                          <Edit />
+                        </Button>
+                        <Button variant="icon" size="sm" danger title="删除" @click.stop="openDeleteChatInline(chat)">
+                          <Delete />
+                        </Button>
+                      </div>
+                    </div>
+                    <div v-if="!filteredChats.length" class="chat-switcher-empty">没找到匹配的聊天</div>
+                  </div>
+                </div>
+              </template>
+            </SelectorPopover>
           </div>
           <div class="action-right">
             <Button variant="primary" size="md" @click="_sendMessage">
@@ -1179,6 +1386,300 @@ onUnmounted(() => {
   margin-bottom: 6px;
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+.chat-switcher-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chat-switcher-trigger {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.chat-switcher-trigger:hover,
+.chat-switcher-trigger.active {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.chat-switcher-search-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  transition: border-color 0.2s;
+}
+
+.chat-switcher-search-shell:focus-within {
+  border-color: var(--border-focus);
+}
+
+.chat-switcher-search-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+}
+
+.chat-switcher-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.chat-switcher-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.chat-switcher-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  padding: 0 4px;
+}
+
+.chat-switcher-filter {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.chat-switcher-filter:hover {
+  color: var(--text-primary);
+}
+
+.chat-switcher-add-btn {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.chat-switcher-add-btn:hover {
+  color: var(--text-primary);
+}
+
+.chat-switcher-inline-card {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-hover);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chat-switcher-inline-card.danger {
+  border-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.3);
+  background: rgba(var(--color-danger-rgb, 239, 68, 68), 0.08);
+}
+
+.chat-switcher-inline-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chat-switcher-input {
+  width: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 6px 10px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.chat-switcher-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb, 0, 123, 255), 0.15);
+}
+
+.chat-switcher-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.chat-switcher-delete-text {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chat-switcher-list {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 2px;
+}
+
+.chat-switcher-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chat-switcher-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-switcher-list::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 2px;
+}
+
+.chat-switcher-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+.chat-switcher-item {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0 8px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chat-switcher-item:hover {
+  background: var(--bg-hover);
+}
+
+.chat-switcher-item.active {
+  background: var(--bg-active);
+  border-color: var(--border-subtle);
+}
+
+.chat-switcher-item-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chat-switcher-item-top {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.chat-switcher-item-title {
+  min-width: 0;
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-switcher-item-bottom {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.chat-switcher-item-subtitle {
+  max-width: 120px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-switcher-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.chat-switcher-badge.generating {
+  background: rgba(var(--color-success-rgb, 16, 185, 129), 0.15);
+  color: var(--color-success);
+}
+
+.chat-switcher-item-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.chat-switcher-item:hover .chat-switcher-item-actions,
+.chat-switcher-item.active .chat-switcher-item-actions {
+  opacity: 1;
+}
+
+.chat-switcher-item-actions :deep(.btn--icon) {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 4px;
+}
+
+.chat-switcher-item-actions :deep(.btn--icon svg) {
+  width: 12px;
+  height: 12px;
+}
+
+.chat-switcher-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 12px;
 }
 
 .pending-icon {
