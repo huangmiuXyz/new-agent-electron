@@ -2331,13 +2331,13 @@ onBeforeUnmount(() => {
 }
 
 .sandbox-explorer-group-header {
-  min-height: 32px;
+  min-height: 26px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
   gap: 1px;
-  padding: 6px 12px 4px;
+  padding: 4px 8px 2px;
   color: var(--sandbox-sidebar-muted);
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -2356,6 +2356,8 @@ onBeforeUnmount(() => {
 
 .sandbox-explorer-group-title {
   font-weight: 700;
+  font-size: 11px;
+  line-height: 1;
 }
 
 .sandbox-explorer-group-subtitle {
@@ -2465,25 +2467,26 @@ onBeforeUnmount(() => {
 .canvas-git-compose {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px 6px 6px;
+  gap: 3px;
+  padding: 2px 6px 4px;
   border-bottom: 1px solid var(--sandbox-sidebar-border);
 }
 
 .canvas-git-commit-input {
   width: 100%;
-  min-height: 28px;
-  max-height: 56px;
+  min-height: 24px;
+  max-height: 48px;
   resize: none;
   border: 1px solid var(--sandbox-sidebar-border);
   background: transparent;
   color: var(--text-primary);
-  padding: 4px 6px;
+  padding: 3px 6px;
   font: inherit;
+  line-height: 1.2;
 }
 
 .canvas-git-commit-primary {
-  height: 24px;
+  height: 22px;
   border: 1px solid #0e639c;
   background: #0e639c;
   color: #ffffff;
