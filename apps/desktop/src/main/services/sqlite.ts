@@ -53,6 +53,19 @@ export const initSqlite = () => {
   }
 
   db = new Database(dbPath)
+  const schemaVersion = db.pragma('user_version', { simple: true }) as number
+
+  if (schemaVersion < 1) {
+    const vecTables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'vec_chunks_%'")
+      .all() as { name: string }[]
+
+    db.exec('DROP TABLE IF EXISTS chunks;')
+    for (const { name } of vecTables) {
+      db.exec(`DROP TABLE IF EXISTS "${name}";`)
+    }
+    db.pragma('user_version = 1')
+  }
 
   try {
     const sqliteVecBinaryPath = getSqliteVecBinaryPath()
@@ -91,7 +104,7 @@ const ensureVecTable = (dimension: number) => {
   if (dimension > 0) {
     db.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks_${dimension}
-      USING vec0(vector float[${dimension}]);
+      USING vec0(vector float[${dimension}] distance_metric=cosine);
     `)
   }
 }
@@ -314,7 +327,7 @@ export const setupSqliteHandlers = () => {
             content: r.content,
             doc_id: r.doc_id,
             distance,
-            score: 1 / (1 + distance)
+            score: 1 - distance
           }
         })
         .filter((r) => (similarityThreshold == null ? true : r.score > similarityThreshold))
