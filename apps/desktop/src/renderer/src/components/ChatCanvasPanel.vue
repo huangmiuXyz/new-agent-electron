@@ -1970,16 +1970,6 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div v-if="settingsStore.display.canvasEditorTab === 'git'" class="sandbox-tree">
-              <div v-if="gitLoading" class="canvas-empty-state sidebar-empty">
-                正在加载 Git 状态...
-              </div>
-              <div v-else-if="gitError" class="canvas-empty-state sidebar-empty">
-                {{ gitError }}
-              </div>
-              <div v-else-if="!hasGitRepo" class="canvas-empty-state sidebar-empty">
-                当前工作区不是 Git 仓库。
-              </div>
-              <template v-else>
                 <div class="canvas-git-compose">
                   <textarea
                     v-model="gitCommitMessage"
@@ -2011,7 +2001,7 @@ onBeforeUnmount(() => {
                   <span class="canvas-git-tree-dir">{{ getParentPath(entry.path).replace(/^\/+/, '') || '.' }}</span>
                   <span class="canvas-git-tree-code">{{ entry.untracked ? 'U' : `${entry.indexStatus}`.trim() || `${entry.workingTreeStatus}`.trim() || 'M' }}</span>
                 </button>
-              </template>
+
             </div>
             <div v-else class="sandbox-tree" v-bind="sandboxTreeContainerProps">
               <div class="sandbox-tree-wrapper" v-bind="sandboxTreeWrapperProps">
@@ -2093,10 +2083,7 @@ onBeforeUnmount(() => {
                 </button>
               </div>
               <div class="canvas-code-editor">
-                <div v-if="gitDiffLoading" class="canvas-empty-state">
-                  正在加载 diff...
-                </div>
-                <template v-else-if="gitDiffView">
+                <template v-if="gitDiffView">
                   <SandboxCodeEditor
                     :model-value="gitDiffView.modifiedText"
                     :original-model-value="gitDiffView.originalText"
@@ -2106,12 +2093,6 @@ onBeforeUnmount(() => {
                     read-only
                   />
                 </template>
-                <div v-else-if="gitDiffMessage" class="canvas-empty-state">
-                  {{ gitDiffMessage }}
-                </div>
-                <div v-else class="canvas-empty-state">
-                  选择左侧变更文件后可查看 diff。
-                </div>
               </div>
             </div>
           </template>
@@ -2996,7 +2977,6 @@ onBeforeUnmount(() => {
 .canvas-code-editor {
   flex: 1;
   overflow: hidden;
-  background: #1e1e1e;
   color: #d4d4d4;
 }
 </style>
