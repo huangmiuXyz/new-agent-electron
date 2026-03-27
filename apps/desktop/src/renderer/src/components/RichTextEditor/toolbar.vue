@@ -158,8 +158,10 @@ const toggleTaskList = () => {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
-    background: var(--bg-subtle);
+    min-height: var(--header-h);
+    padding: 4px 10px;
+    box-sizing: border-box;
+    background: var(--bg-card);
     border-bottom: 1px solid var(--border-subtle);
     flex-wrap: wrap;
 }
@@ -176,9 +178,9 @@ const toggleTaskList = () => {
 }
 
 .toolbar-group :deep(.button) {
-    min-width: 32px;
-    height: 32px;
-    padding: 4px 8px;
+    min-width: 28px;
+    height: 28px;
+    padding: 2px 6px;
     border-radius: 4px;
     transition: all 0.2s;
 }

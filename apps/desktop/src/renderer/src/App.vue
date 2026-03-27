@@ -28,7 +28,7 @@ const myAppsStore = useMyAppsStore()
 const syncStore = useSyncStore()
 const { display, shortcuts } = storeToRefs(settingsStore)
 const { updateConfig } = useShortcuts()
-const globalLeftPanelViews = new Set(['chat', 'notes', 'settings', 'image'])
+const globalLeftPanelViews = new Set(['chat', 'notes', 'settings', 'image', 'my-apps'])
 const hasGlobalLeftPanel = computed(() => !isMobile.value && globalLeftPanelViews.has(currentView.value))
 
 const globalLeftPanelWidth = computed({
@@ -307,7 +307,6 @@ const handleTouchEnd = (e: TouchEvent) => {
     <AppHeader v-if="!isMobile" :current-view="currentView" :custom-title="customTitle" />
 
     <div class="app-body" v-if="!isMobile">
-      <AppNavBar :current-view="currentView" @switch="switchView" />
       <div class="content-wrapper">
         <main class="app-content">
           <ResizeBox
@@ -318,15 +317,24 @@ const handleTouchEnd = (e: TouchEvent) => {
             :max-size="globalLeftPanelMaxSize"
           >
             <div class="global-left-panel">
+              <AppNavBar placement="sidebar-top" :current-view="currentView" @switch="switchView" />
               <div id="global-left-panel-content" class="global-left-panel-content"></div>
             </div>
           </ResizeBox>
-          <div class="app-page-host">
+          <div class="app-page-shell" :class="{ 'without-left-panel': !hasGlobalLeftPanel }">
+            <AppNavBar
+              v-if="!hasGlobalLeftPanel"
+              placement="sidebar-top"
+              :current-view="currentView"
+              @switch="switchView"
+            />
+            <div class="app-page-host">
             <ChatPage v-if="currentView === 'chat'" />
             <NotesPage v-if="currentView === 'notes'" />
             <ImagePage v-if="currentView === 'image'" />
             <MyAppsPage v-if="currentView === 'my-apps'" />
             <SettingsPage v-if="currentView === 'settings'" />
+            </div>
           </div>
         </main>
         <!-- 全局终端：在 content-wrapper 内，app-content 下方 -->
@@ -381,6 +389,8 @@ const handleTouchEnd = (e: TouchEvent) => {
   --bg-app: #fbfbfb;
   --bg-sidebar: #fff;
   --bg-header: #fbfbfb;
+  --bg-sidebar-surface: #f3f4f6;
+  --bg-main-surface: #ffffff;
   --bg-secondary: #fff;
   --bg-hover: rgba(0, 0, 0, 0.05);
   --bg-active: rgba(0, 0, 0, 0.08);
@@ -451,6 +461,8 @@ const handleTouchEnd = (e: TouchEvent) => {
   --bg-app: #1c1c1e;
   --bg-sidebar: #2c2c2e;
   --bg-header: #1c1c1e;
+  --bg-sidebar-surface: #242426;
+  --bg-main-surface: #1f1f21;
   --bg-secondary: #2c2c2e;
   --bg-hover: rgba(255, 255, 255, 0.08);
   --bg-active: rgba(255, 255, 255, 0.12);
@@ -626,8 +638,7 @@ body {
   overflow: hidden;
   position: relative;
   border-top: 1px solid var(--border-subtle);
-  border-left: 1px solid var(--border-subtle);
-  background: var(--bg-card);
+  background: var(--bg-main-surface);
   border-top-left-radius: var(--radius-md);
 }
 
@@ -639,12 +650,28 @@ body {
   overflow: hidden;
 }
 
+.app-page-shell {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.app-page-shell.without-left-panel {
+  flex-direction: column;
+  background: var(--bg-main-surface);
+}
+
 .global-left-panel {
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sidebar-surface);
 }
 
 .global-left-panel-content {
@@ -652,6 +679,8 @@ body {
   height: 100%;
   min-width: 0;
   min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .global-terminal {

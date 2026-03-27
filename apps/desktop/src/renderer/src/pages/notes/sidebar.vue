@@ -384,7 +384,7 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
         <ListContainer class="combined-list">
             <List :title="notesStore.currentFolder ? notesStore.currentFolder.name : '笔记'" :items="combinedList"
                 :active-id="activeId!" :key-field="'id'" :main-field="'name'" :logo-field="'icon'" :selectable="true"
-                :item-height="isMobile ? 72 : 32" @select="handleItemClick" @contextmenu="handleContextMenu">
+                :item-height="isMobile ? 72 : 35" @select="handleItemClick" @contextmenu="handleContextMenu">
                 <template #title-tool>
                     <Button v-if="notesStore.currentFolderId" variant="icon" size="sm" @click="handleBackToFolders"
                         title="返回上一级">
@@ -430,13 +430,33 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
 </template>
 
 <style scoped>
-:deep(.list-item) {
-    height: 32px;
-}
-
 .notes-sidebar {
     height: 100%;
     width: 100%;
+    background: var(--bg-sidebar-surface);
+}
+
+.notes-sidebar:not(.is-mobile) :deep(.list-container),
+.notes-sidebar:not(.is-mobile) :deep(.list-scroll-area) {
+    background: transparent;
+}
+
+.notes-sidebar:not(.is-mobile) :deep(.list-item) {
+    height: 35px !important;
+    min-height: 35px !important;
+    margin-bottom: 2px !important;
+    padding: 8px !important;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.2s;
+    background-color: transparent;
+}
+
+.notes-sidebar:not(.is-mobile) :deep(.list-item:hover) {
+    background-color: var(--bg-hover);
+}
+
+.notes-sidebar:not(.is-mobile) :deep(.list-item.is-active) {
+    background-color: var(--bg-active) !important;
 }
 
 .combined-list {
@@ -488,7 +508,7 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
     padding: 12px 16px;
     gap: 12px;
     position: relative;
-    background: var(--bg-sidebar);
+    background: var(--bg-sidebar-surface);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     align-items: center;

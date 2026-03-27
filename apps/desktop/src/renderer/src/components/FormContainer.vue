@@ -56,7 +56,7 @@ withDefaults(defineProps<Props>(), {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  padding: 20px 20px;
+  padding: 12px;
 }
 
 .setting-content.no-padding {

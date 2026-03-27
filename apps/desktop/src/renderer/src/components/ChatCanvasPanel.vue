@@ -21,6 +21,18 @@ import {
 import { blobToDataURL } from 'blob-util'
 import { isTextFile } from '@renderer/utils'
 
+interface Props {
+  chatId?: string
+  hideGitTab?: boolean
+  hideLocalFolderActions?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  chatId: '',
+  hideGitTab: false,
+  hideLocalFolderActions: false
+})
+
 type PreviewLogItem = {
   id: string
   kind: 'console' | 'error' | 'ready'
@@ -88,11 +100,18 @@ const {
 const { showContextMenu, hideContextMenu } = useContextMenu<TreeRow>()
 const { showContextMenu: showTabContextMenu } = useContextMenu<{ filePath: string }>()
 
-const canvasTabs = [
-  { id: 'preview', name: '预览' },
-  { id: 'code', name: '代码' },
-  { id: 'git', name: 'Git' }
-]
+const canvasTabs = computed(() => {
+  const tabs = [
+    { id: 'preview', name: '预览' },
+    { id: 'code', name: '代码' }
+  ]
+
+  if (!props.hideGitTab) {
+    tabs.push({ id: 'git', name: 'Git' })
+  }
+
+  return tabs
+})
 const SANDBOX_TREE_WIDTH_KEY = 'sandbox-tree-width'
 const SANDBOX_LOGS_HEIGHT_KEY = 'sandbox-logs-height'
 const sandboxTreeWidth = useLocalStorage<number>(SANDBOX_TREE_WIDTH_KEY, 180)
@@ -106,7 +125,7 @@ const draggingCanvasFilePath = ref('')
 const dragTargetDirectoryPath = ref('')
 const CANVAS_FILE_DRAG_MIME = 'application/x-agent-qi-canvas-file'
 
-const currentChatId = computed(() => chatsStore.currentChat?.id)
+const currentChatId = computed(() => props.chatId || chatsStore.currentChat?.id)
 const currentWorkspaceVersion = computed(() => canvasStore.getWorkspaceVersion(currentChatId.value))
 const currentWorkspaceDir = computed(() => canvasStore.getWorkspaceDir(currentChatId.value))
 const isPreviewTab = computed(() => settingsStore.display.canvasEditorTab === 'preview')
@@ -1420,6 +1439,28 @@ const syncLocalFolderToCanvas = async () => {
   }
 }
 
+const chooseLocalWorkspaceFolder = async () => {
+  const result = await window.api.showOpenDialog({
+    title: '选择画布工作区文件夹',
+    properties: ['openDirectory', 'createDirectory']
+  })
+
+  if (result.canceled || !result.filePaths?.[0]) return
+
+  canvasStore.setWorkspaceRoot(result.filePaths[0], currentChatId.value)
+  previewReady.value = false
+  settingsStore.display.canvasEditorTab = 'code'
+  syncWorkspaceView()
+  message.success(`已切换到本地文件夹：${result.filePaths[0]}`)
+}
+
+const switchToTempWorkspace = () => {
+  canvasStore.resetWorkspaceRoot(currentChatId.value)
+  previewReady.value = false
+  syncWorkspaceView()
+  message.success('已切换回临时工作区')
+}
+
 const createCanvasFileFromDrop = async (file: File, directoryPath?: string) => {
   const relativeName = file.webkitRelativePath || file.name
   const baseDirectory = directoryPath ? normalizeSandboxPath(directoryPath) : ''
@@ -1657,20 +1698,6 @@ const openActionsMenu = (event: MouseEvent) => {
       }
     },
     {
-      label: '打开本地文件夹',
-      icon: FolderIcon,
-      onClick: () => {
-        void openCanvasInLocalFolder()
-      }
-    },
-    {
-      label: '同步本地文件夹',
-      icon: RefreshIcon,
-      onClick: () => {
-        void syncLocalFolderToCanvas()
-      }
-    },
-    {
       type: 'divider'
     },
     {
@@ -1679,8 +1706,47 @@ const openActionsMenu = (event: MouseEvent) => {
     }
   ]
 
+  if (!props.hideLocalFolderActions) {
+    options.splice(4, 0,
+      {
+        label: '打开本地文件夹',
+        icon: FolderIcon,
+        onClick: () => {
+          void openCanvasInLocalFolder()
+        }
+      },
+      {
+        label: '选择本地文件夹',
+        icon: FolderIcon,
+        onClick: () => {
+          void chooseLocalWorkspaceFolder()
+        }
+      },
+      {
+        label: '切回临时工作区',
+        icon: RefreshIcon,
+        disabled: isUsingTempWorkspace.value,
+        onClick: () => switchToTempWorkspace()
+      },
+      {
+        label: '同步本地文件夹',
+        icon: RefreshIcon,
+        onClick: () => {
+          void syncLocalFolderToCanvas()
+        }
+      }
+    )
+  }
+
   showContextMenu(event, options)
 }
+
+watchEffect(() => {
+  if (!props.hideGitTab) return
+  if (settingsStore.display.canvasEditorTab === 'git') {
+    settingsStore.display.canvasEditorTab = 'preview'
+  }
+})
 
 watch(
   currentChatId,
@@ -2263,7 +2329,6 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   height: 100%;
-  margin-left: 4px;
   display: flex;
   flex-direction: column;
 }
@@ -2863,7 +2928,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   max-width: 220px;
-  height: 30px;
+  height: 24px;
   padding: 0 10px;
   border: none;
   border-radius: 0;

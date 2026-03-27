@@ -85,13 +85,19 @@ const handleTabChange = (tabName: string) => {
 /* 设置-左侧分类导航 */
 .settings-sidebar:not(.is-mobile) {
   width: 100%;
-  border-right: 1px solid var(--border-subtle);
+  border-right: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
   padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: var(--bg-sidebar);
+  background: var(--bg-sidebar-surface);
   height: 100%;
+}
+
+.settings-sidebar:not(.is-mobile) :deep(.settings-sidebar-list),
+.settings-sidebar:not(.is-mobile) :deep(.list-container),
+.settings-sidebar:not(.is-mobile) :deep(.list-scroll-area) {
+  background: transparent;
 }
 
 /* 移动端样式 */
@@ -165,12 +171,14 @@ const handleTabChange = (tabName: string) => {
 }
 
 .settings-sidebar:not(.is-mobile) :deep(.list-item) {
+  height: 35px !important;
+  min-height: 35px !important;
   background-color: transparent;
-  padding: 8px 12px;
+  padding: 8px !important;
   gap: 10px;
-  border-radius: 8px;
-  margin: 2px 4px;
-  transition: all 0.15s ease;
+  border-radius: var(--radius-sm);
+  margin-bottom: 2px !important;
+  transition: background-color 0.2s;
 }
 
 .settings-sidebar:not(.is-mobile) :deep(.list-item:hover) {
@@ -184,8 +192,8 @@ const handleTabChange = (tabName: string) => {
 
 .settings-sidebar:not(.is-mobile) :deep(.main-text) {
   font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .settings-sidebar:not(.is-mobile) :deep(.list-item.is-active .main-text) {

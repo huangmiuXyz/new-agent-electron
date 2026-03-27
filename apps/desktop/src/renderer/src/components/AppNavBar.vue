@@ -1,31 +1,22 @@
 <script setup lang="ts">
 const props = defineProps<{
     currentView: string
+    placement?: 'sidebar-left' | 'sidebar-top'
 }>()
 
 const emit = defineEmits<{
     (e: 'switch', view: 'chat' | 'notes' | 'settings' | 'image' | 'my-apps'): void
 }>()
 
-const settingsStore = useSettingsStore()
-
 const ChatIcon = useIcon('Chat')
 const EditNoteFilled = useIcon('EditNoteFilled')
 const Image = useIcon('Image')
 const BoxIcon = useIcon('Box')
 const SettingsIcon = useIcon('Settings')
-const MoonIcon = useIcon('Moon')
-const SunIcon = useIcon('Sun')
-
-const toggleDarkMode = () => {
-    settingsStore.updateDisplaySettings({
-        darkMode: !settingsStore.display.darkMode
-    })
-}
 </script>
 
 <template>
-    <nav class="app-nav-bar drag">
+    <nav class="app-nav-bar drag" :class="props.placement ?? 'sidebar-left'">
         <!-- Top Section for Main Navigation -->
         <div class="nav-section no-drag">
             <div class="nav-item" :class="{ active: currentView === 'chat' }" @click="emit('switch', 'chat')"
@@ -43,14 +34,6 @@ const toggleDarkMode = () => {
             <div class="nav-item" :class="{ active: currentView === 'my-apps' }" @click="emit('switch', 'my-apps')"
                 title="我的应用">
                 <BoxIcon class="nav-icon" />
-            </div>
-        </div>
-
-        <!-- Bottom Section for Settings/System -->
-        <div class="nav-section   bottom no-drag">
-            <div class="nav-item" @click="toggleDarkMode" title="切换黑暗模式">
-                <MoonIcon v-if="!settingsStore.display.darkMode" class="nav-icon" />
-                <SunIcon v-else class="nav-icon" />
             </div>
             <div class="nav-item" :class="{ active: currentView === 'settings' }" @click="emit('switch', 'settings')"
                 title="设置">
@@ -73,6 +56,17 @@ const toggleDarkMode = () => {
     background: var(--bg-header);
 }
 
+.app-nav-bar.sidebar-top {
+    width: 100%;
+    height: var(--header-h);
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 6px 0 4px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 72%, transparent);
+    background: color-mix(in srgb, var(--bg-sidebar-surface) 88%, var(--bg-header) 12%);
+}
+
 
 
 .nav-section {
@@ -81,6 +75,12 @@ const toggleDarkMode = () => {
     align-items: center;
     gap: 8px;
     width: 100%;
+}
+
+.app-nav-bar.sidebar-top .nav-section {
+    width: auto;
+    flex-direction: row;
+    gap: 2px;
 }
 
 .nav-item {
@@ -94,6 +94,12 @@ const toggleDarkMode = () => {
     color: var(--text-tertiary);
     position: relative;
     transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.app-nav-bar.sidebar-top .nav-item {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
 }
 
 .nav-item:hover {
@@ -110,6 +116,11 @@ const toggleDarkMode = () => {
     width: 18px;
     height: 18px;
     transition: transform 0.2s ease;
+}
+
+.app-nav-bar.sidebar-top .nav-icon {
+    width: 16px;
+    height: 16px;
 }
 
 .nav-item.active .nav-icon {

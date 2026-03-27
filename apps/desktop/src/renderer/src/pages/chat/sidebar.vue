@@ -510,8 +510,8 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 /* Original styles for PC */
 .sidebar:not(.is-mobile) {
   width: 100%;
-  background-color: var(--bg-sidebar);
-  border-right: 1px solid var(--border-subtle);
+  background-color: var(--bg-sidebar-surface);
+  border-right: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -523,6 +523,7 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
+  background: transparent;
 }
 
 /* 调整List组件的样式以匹配原有样式 */
@@ -536,6 +537,7 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 
 .sidebar:not(.is-mobile) :deep(.list-scroll-area) {
   padding: 0;
+  background: transparent;
 }
 
 .sidebar:not(.is-mobile) :deep(.list-item) {

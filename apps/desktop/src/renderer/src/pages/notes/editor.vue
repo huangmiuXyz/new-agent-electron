@@ -173,6 +173,10 @@ onUnmounted(() => {
     min-height: 400px;
 }
 
+.content-editor :deep(.rich-text-editor-content) {
+    padding: 12px;
+}
+
 .note-editor.is-mobile .title-input {
     font-size: 20px;
     flex: 1;

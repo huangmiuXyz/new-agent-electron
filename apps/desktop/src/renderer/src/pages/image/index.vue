@@ -776,8 +776,29 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
 
 .form-section {
   width: 100%;
-  border-right: 1px solid var(--border-subtle);
+  border-right: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
   height: 100%;
+}
+
+.form-section :deep(.form-item) {
+  margin-bottom: 8px;
+}
+
+.form-section :deep(.form-item[data-size="sm"]) {
+  margin-bottom: 4px;
+  margin-top: 4px;
+}
+
+.form-section :deep(.form-item[data-layout="toggle"]) {
+  padding: 8px 0;
+}
+
+.form-section :deep(.form-group-title) {
+  padding-bottom: 4px;
+}
+
+.form-section :deep(.form-group-children) {
+  margin-top: 6px;
 }
 
 .mode-switcher {
@@ -786,7 +807,7 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
   gap: 2px;
   background: var(--bg-tertiary);
   border-radius: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .mode-tab {
@@ -837,11 +858,11 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
 
 .results-content {
   flex: 1;
-  padding: 24px;
+  padding: 12px;
   overflow-y: auto;
   min-height: 0;
   scroll-behavior: smooth;
-  padding-bottom: 100px;
+  padding-bottom: 88px;
   height: 100% !important;
 }
 
