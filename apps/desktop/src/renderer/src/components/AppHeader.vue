@@ -28,6 +28,9 @@ const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp
   'Settings'
 ])
 const showSearch = ref(false)
+const isMacDesktop = computed(() => !isMobile.value && window.api?.process?.platform === 'darwin')
+const isMacNativeFullscreen = ref(false)
+const shouldHideHeader = computed(() => isMacDesktop.value && isMacNativeFullscreen.value)
 
 const toggleImageSidebar = inject('toggleImageSidebar', null) as (() => void) | null
 
@@ -46,9 +49,17 @@ const createNewChat = () => {
 const { back } = useMobile()
 const route = useRoute()
 const isWindowsDesktop = computed(() => !isMobile.value && window.api?.process?.platform === 'win32')
+let removeFullScreenListener: (() => void) | null = null
 
 // 注册全局快捷键
 onMounted(() => {
+  if (isMacDesktop.value) {
+    isMacNativeFullscreen.value = window.api.window.isFullScreen()
+    removeFullScreenListener = window.api.window.onFullScreenChanged((isFullScreen) => {
+      isMacNativeFullscreen.value = isFullScreen
+    })
+  }
+
   // 全局搜索
   register({
     id: 'global.search',
@@ -99,6 +110,11 @@ onMounted(() => {
   })
 })
 
+onUnmounted(() => {
+  removeFullScreenListener?.()
+  removeFullScreenListener = null
+})
+
 watch(
   () => route.path,
   () => {
@@ -112,7 +128,11 @@ watch(
 </script>
 
 <template>
-  <header class="app-header drag" :class="{ 'is-mobile-list': isListMode, 'is-windows-desktop': isWindowsDesktop }">
+  <header
+    v-if="!shouldHideHeader"
+    class="app-header drag"
+    :class="{ 'is-mobile-list': isListMode, 'is-windows-desktop': isWindowsDesktop }"
+  >
     <div v-if="!isListMode" :style="{
       marginLeft: (isMobile || isWindowsDesktop) ? '0' : '68px'
     }" :class="{ isMobile, isWindowsDesktop }" class="header-info drag">
@@ -166,6 +186,7 @@ watch(
 /* 头部：磨砂玻璃效果，极简边框 */
 .app-header {
   --mobile-header-h: 56px;
+  --desktop-header-h: 30px;
   height: calc(var(--header-h) + env(safe-area-inset-top));
   display: flex;
   align-items: center;
@@ -177,6 +198,12 @@ watch(
   top: 0;
   z-index: 10;
   transition: background-color 0.3s, border-color 0.3s;
+}
+
+@media screen and (min-width: 769px) {
+  .app-header {
+    height: calc(var(--desktop-header-h) + env(safe-area-inset-top));
+  }
 }
 
 .app-header.is-windows-desktop {
@@ -296,6 +323,12 @@ watch(
   pointer-events: none;
   z-index: 0;
   max-width: 60%;
+}
+
+@media screen and (min-width: 769px) {
+  .header-title-container {
+    height: var(--desktop-header-h);
+  }
 }
 
 @media screen and (max-width: 768px) {

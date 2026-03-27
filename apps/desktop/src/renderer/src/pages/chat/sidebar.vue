@@ -170,37 +170,29 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 
       <div v-if="chatsStore.allChats.length" class="chat-tree-list">
         <div v-for="rootChat in rootChats" :key="rootChat.id" class="chat-group">
-          <div
-            class="chat-tree-item root-item"
-            :class="{ active: chatsStore.activeChatId === rootChat.id }"
-            @click="selectChat(rootChat.id)"
-            @contextmenu="showChatContextMenu($event, rootChat.id)"
-          >
-            <button
-              v-if="getChildChats(rootChat.id).length > 0"
-              class="expand-btn"
-              @click.stop="toggleExpand(rootChat.id)"
-            >
+          <div class="chat-tree-item root-item" :class="{ active: chatsStore.activeChatId === rootChat.id }"
+            @click="selectChat(rootChat.id)" @contextmenu="showChatContextMenu($event, rootChat.id)">
+            <button v-if="getChildChats(rootChat.id).length > 0" class="expand-btn"
+              @click.stop="toggleExpand(rootChat.id)">
               <ChevronDown v-if="isExpanded(rootChat.id)" />
               <ChevronRight v-else />
             </button>
             <span v-else class="expand-placeholder"></span>
-            <div v-if="isChatGenerating(rootChat) && rootChat.id !== chatsStore.activeChatId" class="status-dot generating"></div>
+            <div v-if="isChatGenerating(rootChat) && rootChat.id !== chatsStore.activeChatId"
+              class="status-dot generating">
+            </div>
             <span class="chat-title">{{ rootChat.title }}</span>
             <span class="item-time">{{ formatTime(rootChat.createdAt) }}</span>
           </div>
 
           <div v-if="isExpanded(rootChat.id) && getChildChats(rootChat.id).length > 0" class="subchat-list">
-            <div
-              v-for="subChat in getChildChats(rootChat.id)"
-              :key="subChat.id"
-              class="chat-tree-item sub-item"
-              :class="{ active: chatsStore.activeChatId === subChat.id }"
-              @click="selectChat(subChat.id)"
-              @contextmenu="showChatContextMenu($event, subChat.id)"
-            >
+            <div v-for="subChat in getChildChats(rootChat.id)" :key="subChat.id" class="chat-tree-item sub-item"
+              :class="{ active: chatsStore.activeChatId === subChat.id }" @click="selectChat(subChat.id)"
+              @contextmenu="showChatContextMenu($event, subChat.id)">
               <span class="sub-indicator"></span>
-              <div v-if="isChatGenerating(subChat) && subChat.id !== chatsStore.activeChatId" class="status-dot generating"></div>
+              <div v-if="isChatGenerating(subChat) && subChat.id !== chatsStore.activeChatId"
+                class="status-dot generating">
+              </div>
               <span class="chat-title">{{ subChat.title }}</span>
               <span class="task-status" :class="`status-${subChat.subTask?.status || 'pending'}`">
                 {{ getSubTaskStatusLabel(subChat) }}
@@ -541,7 +533,8 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 4px 8px;
+  padding: 4px;
+  padding-top: 0;
 }
 
 .chat-list-title-text {

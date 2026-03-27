@@ -3,6 +3,10 @@ import { type ElectronAPI as SharedElectronAPI } from '@agent-qi/types'
 
 type ElectronAPI = SharedElectronAPI & {
   setTitleBarTheme: (isDarkMode: boolean) => Promise<boolean>
+  window: {
+    isFullScreen: () => boolean
+    onFullScreenChanged: (callback: (isFullScreen: boolean) => void) => () => void
+  }
   system: {
     getSettings: () => Promise<{
       openAtLogin: boolean

@@ -243,6 +243,22 @@ export const api: ElectronAPI = {
   createTempChat: (data: any) => electronAPI.ipcRenderer.invoke('window:create-temp-chat', data),
   getTempChatData: (windowId: string) =>
     electronAPI.ipcRenderer.invoke('window:get-temp-chat-data', windowId),
+  window: {
+    isFullScreen: () => getCurrentWindow().isFullScreen(),
+    onFullScreenChanged: (callback: (isFullScreen: boolean) => void) => {
+      const currentWindow = getCurrentWindow()
+      const handleEnter = () => callback(true)
+      const handleLeave = () => callback(false)
+
+      currentWindow.on('enter-full-screen', handleEnter)
+      currentWindow.on('leave-full-screen', handleLeave)
+
+      return () => {
+        currentWindow.removeListener('enter-full-screen', handleEnter)
+        currentWindow.removeListener('leave-full-screen', handleLeave)
+      }
+    }
+  },
   system: {
     getSettings: () => electronAPI.ipcRenderer.invoke('system:get-settings'),
     setOpenAtLogin: (enabled: boolean) =>

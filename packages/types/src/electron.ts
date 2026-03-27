@@ -130,6 +130,10 @@ export interface ElectronAPI {
   setTitleBarTheme: (isDarkMode: boolean) => Promise<boolean>;
   createTempChat: (data: any) => Promise<any>;
   getTempChatData: (windowId: string) => Promise<any>;
+  window: {
+    isFullScreen: () => boolean;
+    onFullScreenChanged: (callback: (isFullScreen: boolean) => void) => () => void;
+  };
   system: {
     getSettings: () => Promise<{
       openAtLogin: boolean;
