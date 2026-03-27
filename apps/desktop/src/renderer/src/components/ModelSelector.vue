@@ -13,6 +13,9 @@ type ListModelItem = Model & { providerId: string; key: string }
 
 const selectedModelId = defineModel<any>('modelId', { default: '' })
 const selectedProviderId = defineModel<any>('providerId', { default: '' })
+const emit = defineEmits<{
+  select: [payload: { modelId: string; providerId: string }]
+}>()
 const router = useRouter()
 const settingsStore = useSettingsStore()
 
@@ -227,6 +230,7 @@ const selectModel = (model: Model, providerId: string) => {
   } else {
     selectedModelId.value = model.id
     selectedProviderId.value = providerId
+    emit('select', { modelId: model.id, providerId })
     isPopupOpen.value = false
   }
 }

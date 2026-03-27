@@ -516,6 +516,14 @@ const generateGitCommitMessage = async () => {
   }
 }
 
+const handleGitCommitModelSelect = ({ modelId, providerId }: { modelId: string; providerId: string }) => {
+  gitCommitProviderId.value = providerId
+  gitCommitModelId.value = modelId
+  if (!gitGenerateAfterModelPick.value) return
+  gitGenerateAfterModelPick.value = false
+  void generateGitCommitMessage()
+}
+
 const commitGitChanges = async () => {
   const commitMessage = gitCommitMessage.value.trim()
   if (!commitMessage) {
@@ -1882,6 +1890,7 @@ onBeforeUnmount(() => {
                       type="icon"
                       category="text"
                       popup-position="bottom"
+                      @select="handleGitCommitModelSelect"
                     />
                   </div>
                   <button
