@@ -295,7 +295,23 @@ const isSandboxRuntimeVisible = computed(
 const gitEntries = computed(() => gitStatus.value?.entries || [])
 const gitSelectedEntry = computed(() => gitEntries.value.find((entry) => entry.path === gitSelectedPath.value) || null)
 const hasGitRepo = computed(() => Boolean(gitStatus.value))
+const hasGitChanges = computed(() => gitEntries.value.length > 0)
 const hasStagedGitChanges = computed(() => gitEntries.value.some((entry) => entry.staged))
+const gitAheadCount = computed(() => Math.max(0, gitStatus.value?.ahead || 0))
+const isGitPrimaryPushAction = computed(() => !hasGitChanges.value && gitAheadCount.value > 0)
+const gitPrimaryButtonLabel = computed(() => {
+  if (isGitPrimaryPushAction.value) {
+    return `推送（${gitAheadCount.value}）`
+  }
+  return '提交'
+})
+const gitPrimaryButtonLoadingLabel = computed(() => (isGitPrimaryPushAction.value ? '推送中...' : '提交中...'))
+const isGitPrimaryButtonDisabled = computed(() => {
+  if (isGitPrimaryPushAction.value) {
+    return gitActionLoading.value
+  }
+  return gitCommitting.value || !gitCommitMessage.value.trim()
+})
 const gitDiffView = computed(() => gitDiffPreview.value?.kind === 'diff' ? gitDiffPreview.value : null)
 const gitDiffMessage = computed(() => gitDiffPreview.value?.kind === 'message' ? gitDiffPreview.value.message : '')
 
@@ -551,6 +567,14 @@ const pushGitChanges = async () => {
   await runGitHeaderAction(async () => {
     await gitService.push(currentWorkspaceDir.value)
   }, '推送完成')
+}
+
+const runGitPrimaryAction = async () => {
+  if (isGitPrimaryPushAction.value) {
+    await pushGitChanges()
+    return
+  }
+  await commitGitChanges()
 }
 
 const fetchGitChanges = async () => {
@@ -1891,10 +1915,10 @@ onBeforeUnmount(() => {
                   <button
                     type="button"
                     class="canvas-git-commit-primary"
-                    :disabled="gitCommitting || !gitCommitMessage.trim()"
-                    @click="void commitGitChanges()"
+                    :disabled="isGitPrimaryButtonDisabled"
+                    @click="void runGitPrimaryAction()"
                   >
-                    {{ gitCommitting ? '提交中...' : '提交' }}
+                    {{ gitCommitting || gitActionLoading ? gitPrimaryButtonLoadingLabel : gitPrimaryButtonLabel }}
                   </button>
                 </div>
                 <button
@@ -2483,6 +2507,13 @@ onBeforeUnmount(() => {
   padding: 3px 6px;
   font: inherit;
   line-height: 1.2;
+}
+
+.canvas-git-commit-input:focus,
+.canvas-git-commit-input:focus-visible {
+  outline: none;
+  border-color: var(--sandbox-sidebar-border);
+  box-shadow: none;
 }
 
 .canvas-git-commit-primary {
