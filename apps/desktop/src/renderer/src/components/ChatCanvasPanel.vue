@@ -866,6 +866,75 @@ const getBaseName = (path: string) => {
   return normalizeSandboxPath(path).split('/').filter(Boolean).pop() || ''
 }
 
+const getWorkspaceFsPath = (sandboxPath = '/') => {
+  if (sandboxPath === '/') return currentWorkspaceDir.value
+  const relativePath = normalizeSandboxPath(sandboxPath).replace(/^\/+/, '')
+  return window.api.path.join(currentWorkspaceDir.value, ...relativePath.split('/'))
+}
+
+const remapSandboxPath = (path: string, sourcePath: string, targetPath: string) => {
+  if (path === sourcePath) return targetPath
+  if (!path.startsWith(`${sourcePath}/`)) return path
+  return normalizeSandboxPath(`${targetPath}${path.slice(sourcePath.length)}`)
+}
+
+const updateClientPathsAfterMove = (sourcePath: string, targetPath: string) => {
+  if (activeFilePath.value) {
+    const nextActiveFilePath = remapSandboxPath(activeFilePath.value, sourcePath, targetPath)
+    if (nextActiveFilePath !== activeFilePath.value) {
+      activeFilePath.value = nextActiveFilePath
+    }
+  }
+
+  openFileTabs.value = openFileTabs.value.map((path) => remapSandboxPath(path, sourcePath, targetPath))
+
+  const nextDrafts = Object.entries(fileDrafts.value).reduce<Record<string, string>>((acc, [path, content]) => {
+    acc[remapSandboxPath(path, sourcePath, targetPath)] = content
+    return acc
+  }, {})
+  fileDrafts.value = nextDrafts
+
+  const nextExpandedPaths = expandedDirectoryPaths.value.map((path) => remapSandboxPath(path, sourcePath, targetPath))
+  expandedDirectoryPaths.value = [...new Set(nextExpandedPaths)]
+}
+
+const removeClientPathsByPrefix = (targetPath: string) => {
+  if (activeFilePath.value === targetPath || activeFilePath.value.startsWith(`${targetPath}/`)) {
+    canvasStore.resetActiveFilePath(currentChatId.value)
+  }
+
+  openFileTabs.value = openFileTabs.value.filter((path) => path !== targetPath && !path.startsWith(`${targetPath}/`))
+
+  fileDrafts.value = Object.entries(fileDrafts.value).reduce<Record<string, string>>((acc, [path, content]) => {
+    if (path !== targetPath && !path.startsWith(`${targetPath}/`)) {
+      acc[path] = content
+    }
+    return acc
+  }, {})
+
+  expandedDirectoryPaths.value = expandedDirectoryPaths.value.filter((path) => path !== targetPath && !path.startsWith(`${targetPath}/`))
+}
+
+const refreshTreeDirectories = (paths: string[] = []) => {
+  const directoriesToReload = new Set<string>(['/'])
+
+  expandedDirectoryPaths.value.forEach((path) => {
+    directoriesToReload.add(path)
+  })
+
+  paths.forEach((path) => {
+    if (!path) return
+    const normalizedPath = path === '/' ? '/' : normalizeSandboxPath(path)
+    directoriesToReload.add(normalizedPath)
+    const parentPath = getParentPath(normalizedPath)
+    directoriesToReload.add(parentPath || '/')
+  })
+
+  directoriesToReload.forEach((path) => {
+    loadDirectory(path)
+  })
+}
+
 const buildSiblingPath = (path: string, nextName: string) => {
   const parentPath = getParentPath(path)
   const trimmedName = String(nextName || '').trim().replaceAll('\\', '/')
@@ -949,36 +1018,20 @@ const renameTreeRow = (row: TreeRow) => {
           return
         }
 
-        const filePaths = getRowFilePaths(row)
-        if (filePaths.length === 0) {
-          throw new Error(row.type === 'directory' ? '当前目录下没有可重命名的文件' : '文件不存在')
+        const sourceFsPath = getWorkspaceFsPath(row.path)
+        const targetFsPath = getWorkspaceFsPath(nextBasePath)
+        if (!window.api.fs.existsSync(sourceFsPath)) {
+          throw new Error(row.type === 'directory' ? '目录不存在' : '文件不存在')
+        }
+        if (window.api.fs.existsSync(targetFsPath)) {
+          throw new Error(`目标已存在：${nextBasePath}`)
         }
 
-        const renamePlan = filePaths.map((sourcePath) => ({
-          sourcePath,
-          targetPath: row.type === 'directory'
-            ? normalizeSandboxPath(`${nextBasePath}${sourcePath.slice(row.path.length)}`)
-            : nextBasePath
-        }))
-
-        const occupiedPaths = new Set(canvasStore.collectFilePaths('/', currentChatId.value))
-        const movingPaths = new Set(renamePlan.map((item) => item.sourcePath))
-        for (const item of renamePlan) {
-          if (occupiedPaths.has(item.targetPath) && !movingPaths.has(item.targetPath)) {
-            throw new Error(`目标已存在：${item.targetPath}`)
-          }
-        }
-
-        renamePlan.forEach(({ sourcePath, targetPath }) => {
-          canvasStore.applyOperation(
-            {
-              type: 'move',
-              filePath: sourcePath,
-              targetPath
-            },
-            currentChatId.value
-          )
-        })
+        window.api.fs.mkdirSync(window.api.path.dirname(targetFsPath), { recursive: true })
+        window.api.fs.renameSync(sourceFsPath, targetFsPath)
+        updateClientPathsAfterMove(row.path, nextBasePath)
+        canvasStore.touchWorkspace(currentChatId.value)
+        refreshTreeDirectories([row.path, nextBasePath])
 
         message.success(row.type === 'directory' ? `已重命名目录为 ${nextBasePath}` : `已重命名文件为 ${nextBasePath}`)
         modal.remove()
@@ -1000,16 +1053,17 @@ const renameTreeRow = (row: TreeRow) => {
 }
 
 const deleteTreeRow = async (row: TreeRow) => {
-  const filePaths = getRowFilePaths(row)
-  if (filePaths.length === 0) {
-    message.warning(row.type === 'directory' ? '当前目录下没有可删除的文件' : '文件不存在')
+  const fsPath = getWorkspaceFsPath(row.path)
+  if (!window.api.fs.existsSync(fsPath)) {
+    message.warning(row.type === 'directory' ? '目录不存在' : '文件不存在')
     return
   }
 
+  const filePaths = getRowFilePaths(row)
   const confirmed = await modal.confirm({
     title: row.type === 'directory' ? '删除目录' : '删除文件',
     content: row.type === 'directory'
-      ? `确定删除 ${row.path} 及其下 ${filePaths.length} 个文件吗？`
+      ? `确定删除 ${row.path}${filePaths.length > 0 ? ` 及其下 ${filePaths.length} 个文件` : ''}吗？`
       : `确定删除 ${row.path} 吗？`,
     confirmProps: {
       danger: true
@@ -1020,15 +1074,10 @@ const deleteTreeRow = async (row: TreeRow) => {
   if (!confirmed) return
 
   try {
-    filePaths.forEach((filePath) => {
-      canvasStore.applyOperation(
-        {
-          type: 'delete',
-          filePath
-        },
-        currentChatId.value
-      )
-    })
+    window.api.fs.rmSync(fsPath, { recursive: true, force: true })
+    removeClientPathsByPrefix(row.path)
+    canvasStore.touchWorkspace(currentChatId.value)
+    refreshTreeDirectories([getParentPath(row.path) || '/'])
     message.success(row.type === 'directory' ? `已删除目录 ${row.path}` : `已删除文件 ${row.path}`)
   } catch (error) {
     message.error((error as Error).message)
@@ -1041,6 +1090,23 @@ const openTreeRowMenu = (event: MouseEvent, row: TreeRow) => {
   }
 
   const options: MenuItem<TreeRow>[] = [
+    ...(row.type === 'directory'
+      ? [
+        {
+          label: '新建文件',
+          icon: AddIcon,
+          onClick: (targetRow: TreeRow) => createFile(targetRow.path)
+        },
+        {
+          label: '新建文件夹',
+          icon: FolderIcon,
+          onClick: (targetRow: TreeRow) => createFolder(targetRow.path)
+        },
+        {
+          type: 'divider' as const
+        }
+      ]
+      : []),
     {
       label: row.type === 'directory' ? '重命名目录' : '重命名',
       icon: EditIcon,
@@ -1295,19 +1361,21 @@ const clearCanvas = () => {
   })
 }
 
-const createFile = () => {
+const createFile = (directoryPath = '/') => {
+  const normalizedDirectoryPath = directoryPath === '/' ? '/' : normalizeSandboxPath(directoryPath)
+  const defaultFilePath = normalizedDirectoryPath === '/' ? '/new-file.js' : `${normalizedDirectoryPath}/new-file.js`
   const [FormComponent, formActions] = useForm({
     fields: [
       {
         name: 'path',
         label: '文件路径',
         type: 'text',
-        placeholder: '例如 /components/card.js',
+        placeholder: normalizedDirectoryPath === '/' ? '例如 /components/card.js' : `例如 ${normalizedDirectoryPath}/index.js`,
         required: true
       }
     ],
     initialData: {
-      path: '/new-file.js'
+      path: defaultFilePath
     },
     onSubmit: (data) => {
       try {
@@ -1320,6 +1388,10 @@ const createFile = () => {
           },
           currentChatId.value
         )
+        ensureFileTabOpen(filePath)
+        activeFilePath.value = filePath
+        revealFileAncestors(filePath)
+        refreshTreeDirectories([getParentPath(filePath) || '/'])
         message.success(`已创建文件 ${filePath}`)
         modal.remove()
       } catch (error) {
@@ -1337,6 +1409,74 @@ const createFile = () => {
       formActions.submit()
     }
   })
+}
+
+const createFolder = (directoryPath = '/') => {
+  const normalizedDirectoryPath = directoryPath === '/' ? '/' : normalizeSandboxPath(directoryPath)
+  const [FormComponent, formActions] = useForm({
+    fields: [
+      {
+        name: 'name',
+        label: '文件夹名称',
+        type: 'text',
+        placeholder: normalizedDirectoryPath === '/' ? '例如 components' : '例如 utils',
+        required: true
+      }
+    ],
+    initialData: {
+      name: 'new-folder'
+    },
+    onSubmit: (data) => {
+      try {
+        const nextDirectoryPath = buildSiblingPath(`${normalizedDirectoryPath}/placeholder`, String(data.name || ''))
+        const targetFsPath = getWorkspaceFsPath(nextDirectoryPath)
+        if (window.api.fs.existsSync(targetFsPath)) {
+          throw new Error(`目标已存在：${nextDirectoryPath}`)
+        }
+
+        window.api.fs.mkdirSync(targetFsPath, { recursive: true })
+        if (normalizedDirectoryPath !== '/') {
+          expandDirectory(normalizedDirectoryPath)
+        }
+        canvasStore.touchWorkspace(currentChatId.value)
+        refreshTreeDirectories([normalizedDirectoryPath, nextDirectoryPath])
+        message.success(`已创建文件夹 ${nextDirectoryPath}`)
+        modal.remove()
+      } catch (error) {
+        message.error((error as Error).message)
+      }
+    }
+  })
+
+  modal.confirm({
+    title: '新建文件夹',
+    content: FormComponent,
+    confirmText: '创建',
+    cancelText: '取消',
+    onOk: () => {
+      formActions.submit()
+    }
+  })
+}
+
+const openTreeBlankMenu = (event: MouseEvent) => {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('.sandbox-tree-row')) return
+
+  const options: MenuItem<TreeRow>[] = [
+    {
+      label: '新建文件',
+      icon: AddIcon,
+      onClick: () => createFile('/')
+    },
+    {
+      label: '新建文件夹',
+      icon: FolderIcon,
+      onClick: () => createFolder('/')
+    }
+  ]
+
+  showContextMenu(event, options)
 }
 
 const openSaveAppModal = () => {
@@ -2004,7 +2144,7 @@ onBeforeUnmount(() => {
                 </button>
 
             </div>
-            <div v-else class="sandbox-tree" v-bind="sandboxTreeContainerProps">
+            <div v-else class="sandbox-tree" v-bind="sandboxTreeContainerProps" @contextmenu.prevent="openTreeBlankMenu">
               <div class="sandbox-tree-wrapper" v-bind="sandboxTreeWrapperProps">
                 <button v-for="item in virtualSandboxTreeRows" :key="item.data.id" type="button" class="sandbox-tree-row"
                   :class="{
@@ -2015,7 +2155,7 @@ onBeforeUnmount(() => {
                   }" :style="{
                     paddingLeft: `${8 + item.data.depth * 14}px`,
                     height: `${SANDBOX_TREE_ROW_HEIGHT}px`
-                  }" @click="handleTreeRowClick(item.data)" @contextmenu="openTreeRowMenu($event, item.data)"
+                  }" @click="handleTreeRowClick(item.data)" @contextmenu.prevent="openTreeRowMenu($event, item.data)"
                   :draggable="item.data.type === 'file'" @dragstart="handleTreeRowDragStart(item.data, $event)"
                   @dragend="handleTreeRowDragEnd" @dragenter="handleDirectoryDragEnter(item.data, $event)"
                   @dragover="handleDirectoryDragOver(item.data, $event)"
