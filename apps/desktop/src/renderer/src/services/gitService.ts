@@ -45,6 +45,12 @@ export type GitDiffOptions = {
   filePath?: string
 }
 
+export type GitFileContentOptions = {
+  ref?: string
+  filePath: string
+  allowMissing?: boolean
+}
+
 export type GitLogEntry = {
   commit: string
   authorName: string
@@ -238,6 +244,31 @@ export const gitService = {
     const result = await runGit(args, { cwd })
     assertGitOk(result)
     return result.stdout
+  },
+
+  async getFileContent(cwd: string, options: GitFileContentOptions) {
+    const filePath = String(options.filePath || '').trim()
+    if (!filePath) {
+      throw new Error('filePath 不能为空')
+    }
+
+    if (!options.ref || options.ref === 'WORKTREE') {
+      if (!window.api.fs.existsSync(filePath)) {
+        if (options.allowMissing) return null
+        throw new Error(`文件不存在：${filePath}`)
+      }
+      return window.api.fs.readFileSync(filePath, 'utf-8')
+    }
+
+    const revision = options.ref === 'INDEX' ? `:${filePath}` : `${options.ref}:${filePath}`
+    const result = await runGit(['show', revision], { cwd })
+    if (result.code === 0) {
+      return result.stdout
+    }
+    if (options.allowMissing) {
+      return null
+    }
+    throw new Error(getGitErrorMessage(result))
   },
 
   async listBranches(cwd: string): Promise<GitBranchInfo[]> {
@@ -436,6 +467,11 @@ export const gitService = {
     const normalizedPaths = normalizePaths(paths)
     if (normalizedPaths.length === 0) return
     const result = await runGit(['add', '--', ...normalizedPaths], { cwd })
+    assertGitOk(result)
+  },
+
+  async stageAll(cwd: string) {
+    const result = await runGit(['add', '-A'], { cwd })
     assertGitOk(result)
   },
 

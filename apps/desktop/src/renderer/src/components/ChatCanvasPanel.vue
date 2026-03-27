@@ -38,6 +38,23 @@ type TreeRow = {
   isExpanded: boolean
 }
 
+type GitDiffMode = 'staged' | 'worktree'
+
+type GitDiffPreview = {
+  kind: 'diff'
+  path: string
+  originalText: string
+  modifiedText: string
+  originalPath: string
+  modifiedPath: string
+  hint: string
+  availableModes: GitDiffMode[]
+  activeMode: GitDiffMode
+} | {
+  kind: 'message'
+  message: string
+}
+
 const chatsStore = useChatsStores()
 const settingsStore = useSettingsStore()
 const canvasStore = useCanvasStore()
@@ -92,6 +109,7 @@ const CANVAS_FILE_DRAG_MIME = 'application/x-agent-qi-canvas-file'
 const currentChatId = computed(() => chatsStore.currentChat?.id)
 const currentWorkspaceVersion = computed(() => canvasStore.getWorkspaceVersion(currentChatId.value))
 const currentWorkspaceDir = computed(() => canvasStore.getWorkspaceDir(currentChatId.value))
+const isPreviewTab = computed(() => settingsStore.display.canvasEditorTab === 'preview')
 const isUsingTempWorkspace = computed(() => {
   const chatId = currentChatId.value || 'default'
   return currentWorkspaceDir.value === window.api.path.join(window.api.getPath('temp'), 'agent-qi-canvas-exec', chatId)
@@ -259,7 +277,8 @@ const previewDocument = computed(() => {
 const previewLogs = ref<PreviewLogItem[]>([])
 const gitStatus = ref<GitRepositoryStatus | null>(null)
 const gitSelectedPath = ref('')
-const gitDiffText = ref('')
+const gitDiffPreview = ref<GitDiffPreview | null>(null)
+const gitDiffMode = ref<GitDiffMode>('worktree')
 const gitCommitMessage = ref('')
 const gitLoading = ref(false)
 const gitDiffLoading = ref(false)
@@ -274,15 +293,11 @@ const isSandboxRuntimeVisible = computed(
   () => settingsStore.display.canvasEditorTab === 'preview' && !sandboxLogsCollapsed.value
 )
 const gitEntries = computed(() => gitStatus.value?.entries || [])
-const gitChangedCount = computed(() => gitEntries.value.length)
 const gitSelectedEntry = computed(() => gitEntries.value.find((entry) => entry.path === gitSelectedPath.value) || null)
 const hasGitRepo = computed(() => Boolean(gitStatus.value))
 const hasStagedGitChanges = computed(() => gitEntries.value.some((entry) => entry.staged))
-const gitDiffEditorPath = computed(() => {
-  const filePath = gitSelectedEntry.value?.path || '/git.diff'
-  return filePath.endsWith('.diff') ? filePath : `${filePath}.diff`
-})
-const gitDiffLanguage = computed(() => getSandboxFileLanguage(gitDiffEditorPath.value))
+const gitDiffView = computed(() => gitDiffPreview.value?.kind === 'diff' ? gitDiffPreview.value : null)
+const gitDiffMessage = computed(() => gitDiffPreview.value?.kind === 'message' ? gitDiffPreview.value.message : '')
 
 const ensureGitModelSelection = () => {
   if (gitCommitProviderId.value && gitCommitModelId.value) return
@@ -318,7 +333,7 @@ const [GitCloneForm, gitCloneFormActions] = useForm({
       label: '目标目录',
       required: true,
       dialogOptions: {
-        properties: ['openDirectory', 'createDirectory']
+        properties: ['openDirectory']
       }
     },
     {
@@ -330,38 +345,107 @@ const [GitCloneForm, gitCloneFormActions] = useForm({
   ]
 })
 
-const buildGitDiffPreview = async (cwd: string, entry: GitStatusEntry) => {
-  if (entry.untracked) {
-    return `未跟踪文件：${entry.path}\n\n该文件还未加入 Git。先暂存后才能查看 staged diff。`
-  }
-
-  const sections: string[] = []
-  if (entry.staged) {
-    const stagedDiff = (await gitService.getDiff(cwd, { cached: true, filePath: entry.path })).trim()
-    if (stagedDiff) {
-      sections.push(`--- STAGED ---\n${stagedDiff}`)
-    }
-  }
-  if (entry.workingTreeStatus !== ' ' && entry.workingTreeStatus !== '?') {
-    const workingDiff = (await gitService.getDiff(cwd, { filePath: entry.path })).trim()
-    if (workingDiff) {
-      sections.push(`--- WORKTREE ---\n${workingDiff}`)
-    }
-  }
-  return sections.join('\n\n').trim()
+const getGitAbsolutePath = (cwd: string, path: string) => {
+  return window.api.path.join(cwd, path)
 }
 
-const refreshGitDiff = async (path = gitSelectedPath.value) => {
+const buildGitDiffPreview = async (cwd: string, entry: GitStatusEntry, preferredMode = gitDiffMode.value): Promise<GitDiffPreview> => {
+  if (entry.untracked) {
+    const absolutePath = getGitAbsolutePath(cwd, entry.path)
+    const content = window.api.fs.existsSync(absolutePath)
+      ? window.api.fs.readFileSync(absolutePath, 'utf-8')
+      : ''
+
+    return {
+      kind: 'diff',
+      path: entry.path,
+      originalText: '',
+      modifiedText: content,
+      originalPath: `/dev/null/${entry.path}`,
+      modifiedPath: entry.path,
+      hint: '未跟踪文件，对比的是空白内容与当前工作区文件。',
+      availableModes: ['worktree'],
+      activeMode: 'worktree'
+    }
+  }
+
+  const availableModes: GitDiffMode[] = []
+  if (entry.staged) {
+    availableModes.push('staged')
+  }
+  if (entry.workingTreeStatus !== ' ' && entry.workingTreeStatus !== '?') {
+    availableModes.push('worktree')
+  }
+  const activeMode = availableModes.includes(preferredMode) ? preferredMode : (availableModes[0] || 'worktree')
+
+  const worktreeAbsolutePath = getGitAbsolutePath(cwd, entry.path)
+
+  if (activeMode === 'staged') {
+    const headPath = entry.originalPath || entry.path
+    const originalText = await gitService.getFileContent(cwd, {
+      ref: 'HEAD',
+      filePath: headPath,
+      allowMissing: true
+    }) || ''
+    const modifiedText = await gitService.getFileContent(cwd, {
+      ref: 'INDEX',
+      filePath: entry.path,
+      allowMissing: true
+    }) || ''
+
+    return {
+      kind: 'diff',
+      path: entry.path,
+      originalText,
+      modifiedText,
+      originalPath: headPath,
+      modifiedPath: entry.path,
+      hint: '暂存区对比：左侧是 HEAD，右侧是 INDEX。',
+      availableModes,
+      activeMode
+    }
+  }
+
+  const indexPath = entry.workingTreeStatus === 'R' && entry.originalPath ? entry.originalPath : entry.path
+  const originalText = await gitService.getFileContent(cwd, {
+    ref: 'INDEX',
+    filePath: indexPath,
+    allowMissing: true
+  }) || ''
+  const modifiedText = window.api.fs.existsSync(worktreeAbsolutePath)
+    ? window.api.fs.readFileSync(worktreeAbsolutePath, 'utf-8')
+    : ''
+
+  return {
+    kind: 'diff',
+    path: entry.path,
+    originalText,
+    modifiedText,
+    originalPath: indexPath,
+    modifiedPath: entry.path,
+    hint: '工作区对比：左侧是 INDEX，右侧是 WORKTREE。',
+    availableModes,
+    activeMode
+  }
+}
+
+const refreshGitDiff = async (path = gitSelectedPath.value, preferredMode = gitDiffMode.value) => {
   gitSelectedPath.value = path
-  gitDiffText.value = ''
+  gitDiffPreview.value = null
   const entry = gitEntries.value.find((item) => item.path === path)
   if (!entry) return
 
   gitDiffLoading.value = true
   try {
-    gitDiffText.value = await buildGitDiffPreview(currentWorkspaceDir.value, entry)
+    gitDiffPreview.value = await buildGitDiffPreview(currentWorkspaceDir.value, entry, preferredMode)
+    if (gitDiffPreview.value.kind === 'diff') {
+      gitDiffMode.value = gitDiffPreview.value.activeMode
+    }
   } catch (error) {
-    gitDiffText.value = `加载 diff 失败：${(error as Error).message}`
+    gitDiffPreview.value = {
+      kind: 'message',
+      message: `加载 diff 失败：${(error as Error).message}`
+    }
   } finally {
     gitDiffLoading.value = false
   }
@@ -377,7 +461,7 @@ const refreshGitStatus = async () => {
     if (!(await gitService.isGitRepository(cwd))) {
       gitStatus.value = null
       gitSelectedPath.value = ''
-      gitDiffText.value = ''
+      gitDiffPreview.value = null
       return
     }
 
@@ -388,30 +472,10 @@ const refreshGitStatus = async () => {
   } catch (error) {
     gitStatus.value = null
     gitSelectedPath.value = ''
-    gitDiffText.value = ''
+    gitDiffPreview.value = null
     gitError.value = (error as Error).message
   } finally {
     gitLoading.value = false
-  }
-}
-
-const stageGitEntries = async (paths: string[]) => {
-  if (paths.length === 0) return
-  try {
-    await gitService.stageFiles(currentWorkspaceDir.value, paths)
-    await refreshGitStatus()
-  } catch (error) {
-    message.error((error as Error).message)
-  }
-}
-
-const unstageGitEntries = async (paths: string[]) => {
-  if (paths.length === 0) return
-  try {
-    await gitService.unstageFiles(currentWorkspaceDir.value, paths)
-    await refreshGitStatus()
-  } catch (error) {
-    message.error((error as Error).message)
   }
 }
 
@@ -442,9 +506,16 @@ const commitGitChanges = async () => {
     message.warning('请先输入提交信息')
     return
   }
+  if (!gitEntries.value.length) {
+    message.warning('当前没有可提交的变更')
+    return
+  }
 
   gitCommitting.value = true
   try {
+    if (!hasStagedGitChanges.value) {
+      await gitService.stageAll(currentWorkspaceDir.value)
+    }
     await gitService.commit(currentWorkspaceDir.value, commitMessage)
     gitCommitMessage.value = ''
     await refreshGitStatus()
@@ -669,6 +740,28 @@ const loadDirectory = (directoryPath = '/') => {
     ...directoryEntries.value,
     [directoryPath]: canvasStore.listDirectory(directoryPath, currentChatId.value)
   }
+}
+
+const syncWorkspaceView = () => {
+  previewLogs.value = []
+  hideContextMenu()
+  resetDragState()
+  directoryEntries.value = {}
+  expandedDirectoryPaths.value = []
+  fileDrafts.value = {}
+  previewReady.value = settingsStore.display.canvasEditorTab === 'preview' && isUsingTempWorkspace.value
+
+  const nextActiveFilePath = canvasStore.getActiveFilePath(currentChatId.value)
+  if (nextActiveFilePath) {
+    try {
+      canvasStore.readFile(nextActiveFilePath, currentChatId.value)
+    } catch {
+      canvasStore.resetActiveFilePath(currentChatId.value)
+    }
+  }
+
+  loadDirectory('/')
+  openFileTabs.value = activeFilePath.value ? [activeFilePath.value] : []
 }
 
 const handleTreeRowClick = (row: TreeRow) => {
@@ -975,7 +1068,8 @@ const closeFileTabs = async (filePaths: string[]) => {
 
   const dirtyPaths = targetPaths.filter((filePath) => {
     const currentFile = getPersistedFile(filePath)
-    return Boolean(currentFile) && getDraftContent(filePath) !== currentFile.content
+    if (!currentFile) return false
+    return getDraftContent(filePath) !== currentFile.content
   })
 
   if (dirtyPaths.length > 0) {
@@ -1294,28 +1388,6 @@ const syncLocalFolderToCanvas = async () => {
   }
 }
 
-const chooseLocalWorkspaceFolder = async () => {
-  const result = await window.api.showOpenDialog({
-    title: '选择画布工作区文件夹',
-    properties: ['openDirectory', 'createDirectory']
-  })
-
-  if (result.canceled || !result.filePaths?.[0]) return
-
-  canvasStore.setWorkspaceRoot(result.filePaths[0], currentChatId.value)
-  previewReady.value = false
-  settingsStore.display.canvasEditorTab = 'code'
-  loadDirectory('/')
-  message.success(`已切换到本地文件夹：${result.filePaths[0]}`)
-}
-
-const switchToTempWorkspace = () => {
-  canvasStore.resetWorkspaceRoot(currentChatId.value)
-  previewReady.value = false
-  loadDirectory('/')
-  message.success('已切换回临时工作区')
-}
-
 const createCanvasFileFromDrop = async (file: File, directoryPath?: string) => {
   const relativeName = file.webkitRelativePath || file.name
   const baseDirectory = directoryPath ? normalizeSandboxPath(directoryPath) : ''
@@ -1560,19 +1632,6 @@ const openActionsMenu = (event: MouseEvent) => {
       }
     },
     {
-      label: '选择本地文件夹',
-      icon: FolderIcon,
-      onClick: () => {
-        void chooseLocalWorkspaceFolder()
-      }
-    },
-    {
-      label: '切回临时工作区',
-      icon: RefreshIcon,
-      disabled: isUsingTempWorkspace.value,
-      onClick: () => switchToTempWorkspace()
-    },
-    {
       label: '同步本地文件夹',
       icon: RefreshIcon,
       onClick: () => {
@@ -1594,14 +1653,17 @@ const openActionsMenu = (event: MouseEvent) => {
 watch(
   currentChatId,
   () => {
-    previewLogs.value = []
-    hideContextMenu()
-    resetDragState()
-    loadDirectory('/')
-    openFileTabs.value = activeFilePath.value ? [activeFilePath.value] : []
-    fileDrafts.value = {}
+    syncWorkspaceView()
   },
   { immediate: true }
+)
+
+watch(
+  currentWorkspaceDir,
+  (nextDir, previousDir) => {
+    if (!nextDir || nextDir === previousDir) return
+    syncWorkspaceView()
+  }
 )
 
 watch(
@@ -1732,11 +1794,31 @@ onBeforeUnmount(() => {
     <div v-if="isCanvasDragOver" class="canvas-drop-overlay">
       <div class="canvas-drop-card">
         <strong>拖入文件到画布</strong>
-        <span>任意文件都可以拖入，松手后会同步到当前应用和临时工作区</span>
+        <span>任意文件都可以拖入，松手后会同步到当前画布工作区</span>
       </div>
     </div>
-    <div class="sandbox-workspace">
-      <ResizeBox v-model:width="sandboxTreeWidth" v-model:is-collapsed="sandboxTreeCollapsed" :min-size="140"
+    <div class="sandbox-workspace" :class="{ 'is-preview-mode': isPreviewTab }">
+      <div v-if="isPreviewTab" class="sandbox-preview-toolbar">
+        <div class="canvas-tabs">
+          <Tabs v-model="settingsStore.display.canvasEditorTab" :items="canvasTabs" size="sm" />
+        </div>
+        <div class="sandbox-sidebar-tools">
+          <button
+            type="button"
+            class="sandbox-sidebar-tool"
+            :class="{ active: isSandboxRuntimeVisible }"
+            :title="isSandboxRuntimeVisible ? '隐藏 Sandbox runtime' : '显示 Sandbox runtime'"
+            @click="toggleSandboxRuntime"
+          >
+            <TerminalIcon />
+          </button>
+          <button type="button" class="sandbox-sidebar-tool" title="更多操作" @click="openActionsMenu">
+            <SettingsIcon />
+          </button>
+        </div>
+      </div>
+
+      <ResizeBox v-if="!isPreviewTab" v-model:width="sandboxTreeWidth" v-model:is-collapsed="sandboxTreeCollapsed" :min-size="140"
         :max-size="360" class="sandbox-sidebar-resize">
         <aside class="sandbox-sidebar">
           <div class="sandbox-sidebar-header">
@@ -1866,15 +1948,11 @@ onBeforeUnmount(() => {
         </aside>
       </ResizeBox>
 
-      <div class="sandbox-main">
-        <div v-if="settingsStore.display.canvasEditorTab === 'preview'" class="canvas-preview">
+      <div class="sandbox-main" :class="{ 'is-preview-mode': isPreviewTab }">
+        <div v-if="isPreviewTab" class="canvas-preview">
           <div class="canvas-panel-surface canvas-preview-frame">
-            <div class="canvas-surface-header">
-              <span class="canvas-surface-title">PREVIEW</span>
-              <span class="canvas-surface-meta">/index.html</span>
-            </div>
             <div v-if="!isUsingTempWorkspace" class="canvas-empty-state">
-              预览仅支持临时工作区。切回临时工作区后可使用预览。
+              预览仅支持临时工作区。当前画布正跟随工作路径，可在未设置工作路径时使用预览。
             </div>
             <HtmlPreview v-else-if="previewReady" :srcdoc="previewDocument" :channel-id="previewChannelId"
               @sandbox-event="handleSandboxEvent" />
@@ -1919,13 +1997,19 @@ onBeforeUnmount(() => {
                 <div v-if="gitDiffLoading" class="canvas-empty-state">
                   正在加载 diff...
                 </div>
-                <SandboxCodeEditor
-                  v-else-if="gitDiffText"
-                  :model-value="gitDiffText"
-                  :path="gitDiffEditorPath"
-                  :language="gitDiffLanguage"
-                  read-only
-                />
+                <template v-else-if="gitDiffView">
+                  <SandboxCodeEditor
+                    :model-value="gitDiffView.modifiedText"
+                    :original-model-value="gitDiffView.originalText"
+                    :path="gitDiffView.modifiedPath"
+                    :original-path="gitDiffView.originalPath"
+                    :language="getSandboxFileLanguage(gitDiffView.path)"
+                    read-only
+                  />
+                </template>
+                <div v-else-if="gitDiffMessage" class="canvas-empty-state">
+                  {{ gitDiffMessage }}
+                </div>
                 <div v-else class="canvas-empty-state">
                   选择左侧变更文件后可查看 diff。
                 </div>
@@ -2120,6 +2204,23 @@ onBeforeUnmount(() => {
   gap: 0;
 }
 
+.sandbox-workspace.is-preview-mode {
+  display: flex;
+  flex-direction: column;
+}
+
+.sandbox-preview-toolbar {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 4px;
+  background: var(--sandbox-sidebar-bg);
+  border-bottom: 1px solid var(--sandbox-sidebar-border);
+  flex-shrink: 0;
+}
+
 .sandbox-sidebar-resize {
   height: 100%;
   min-height: 0;
@@ -2132,6 +2233,10 @@ onBeforeUnmount(() => {
   margin-left: 4px;
   display: flex;
   flex-direction: column;
+}
+
+.sandbox-main.is-preview-mode {
+  margin-left: 0;
 }
 
 .sandbox-sidebar {
@@ -2414,21 +2519,6 @@ onBeforeUnmount(() => {
   color: #d7ba7d;
   font-size: 11px;
   font-weight: 700;
-}
-
-.canvas-git-diff-toolbar {
-  min-height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0 8px;
-  border-bottom: 1px solid var(--sandbox-sidebar-border);
-}
-
-.canvas-git-diff-hint {
-  color: var(--text-tertiary);
-  font-size: 11px;
 }
 
 .sandbox-tree-row {

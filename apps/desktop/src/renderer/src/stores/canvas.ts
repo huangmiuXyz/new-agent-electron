@@ -22,7 +22,6 @@ import {
 type ChatCanvasState = SandboxState
 
 const transientActiveFilePaths = reactive<Record<string, string>>({})
-const workspaceRoots = reactive<Record<string, string>>({})
 
 export const useCanvasStore = defineStore(
   'canvas',
@@ -35,9 +34,17 @@ export const useCanvasStore = defineStore(
       return useChatsStores().currentChat?.id || 'default'
     }
 
+    const getAgentWorkspaceDir = (chatId?: string) => {
+      const resolvedChatId = resolveChatId(chatId)
+      const chat = useChatsStores().allChats.find((item) => item.id === resolvedChatId)
+      const workPath = useAgentStore().getAgentById(chat?.agentId || '')?.workPath?.trim()
+      if (!workPath) return ''
+      return window.api.path.resolve(window.api.path.normalize(workPath))
+    }
+
     const getWorkspaceDir = (chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
-      return workspaceRoots[resolvedChatId] || getSandboxTempWorkspacePath(resolvedChatId)
+      return getAgentWorkspaceDir(resolvedChatId) || getSandboxTempWorkspacePath(resolvedChatId)
     }
 
     const bumpWorkspaceVersion = (chatId?: string) => {
@@ -320,7 +327,6 @@ export const useCanvasStore = defineStore(
 
     const deleteCanvas = (chatId: string) => {
       delete transientActiveFilePaths[chatId]
-      delete workspaceRoots[chatId]
       deleteCanvasWorkspace(chatId)
       bumpWorkspaceVersion(chatId)
     }
@@ -329,7 +335,6 @@ export const useCanvasStore = defineStore(
       if (chatIds.length === 0) return
       chatIds.forEach((chatId) => {
         delete transientActiveFilePaths[chatId]
-        delete workspaceRoots[chatId]
         deleteCanvasWorkspace(chatId)
       })
       workspaceVersions.value = { ...workspaceVersions.value }
@@ -342,11 +347,6 @@ export const useCanvasStore = defineStore(
       Object.keys(transientActiveFilePaths).forEach((chatId) => {
         if (chatId !== 'default' && !validIds.has(chatId)) {
           delete transientActiveFilePaths[chatId]
-        }
-      })
-      Object.keys(workspaceRoots).forEach((chatId) => {
-        if (chatId !== 'default' && !validIds.has(chatId)) {
-          delete workspaceRoots[chatId]
         }
       })
 
@@ -367,19 +367,12 @@ export const useCanvasStore = defineStore(
     }
 
     const setWorkspaceRoot = (workspaceDir: string, chatId?: string) => {
-      const resolvedChatId = resolveChatId(chatId)
-      workspaceRoots[resolvedChatId] = workspaceDir
-      ensureWorkspace(resolvedChatId)
-      delete transientActiveFilePaths[resolvedChatId]
-      bumpWorkspaceVersion(resolvedChatId)
+      void workspaceDir
+      touchWorkspace(chatId)
     }
 
     const resetWorkspaceRoot = (chatId?: string) => {
-      const resolvedChatId = resolveChatId(chatId)
-      delete workspaceRoots[resolvedChatId]
-      delete transientActiveFilePaths[resolvedChatId]
-      ensureWorkspace(resolvedChatId)
-      bumpWorkspaceVersion(resolvedChatId)
+      touchWorkspace(chatId)
     }
 
     const resetActiveFilePath = (chatId?: string) => {

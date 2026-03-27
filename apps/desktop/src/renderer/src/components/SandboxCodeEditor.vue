@@ -12,27 +12,31 @@ import 'monaco-editor/min/vs/editor/editor.main.css'
 const props = withDefaults(
   defineProps<{
     modelValue: string
+    originalModelValue?: string
     language?: string
     path?: string
+    originalPath?: string
     readOnly?: boolean
   }>(),
   {
+    originalModelValue: undefined,
     language: 'text',
     path: '/untitled.txt',
+    originalPath: '/original.txt',
     readOnly: false
   }
 )
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
-  mount: [editor: editor.IStandaloneCodeEditor]
+  mount: [editor: editor.IStandaloneCodeEditor | editor.IStandaloneDiffEditor]
 }>()
 
 const settingsStore = useSettingsStore()
 const MONACO_CONFIGURED_KEY = '__agentQiMonacoConfigured__'
 const MONACO_DIFF_LANGUAGE_KEY = '__agentQiMonacoDiffLanguageConfigured__'
 const containerRef = useTemplateRef('containerRef')
-const editorRef = shallowRef<editor.IStandaloneCodeEditor | null>(null)
+const editorRef = shallowRef<editor.IStandaloneCodeEditor | editor.IStandaloneDiffEditor | null>(null)
 let changeListener: IDisposable | null = null
 let resizeObserver: ResizeObserver | null = null
 
@@ -95,12 +99,8 @@ const monacoLanguage = computed(() => {
   }
 })
 
-const modelPath = computed(() => {
-  const normalized = String(props.path || '/untitled.txt').replaceAll('\\', '/')
-  return `file://${normalized.startsWith('/') ? normalized : `/${normalized}`}`
-})
-
 const monacoTheme = computed(() => (settingsStore.display.darkMode ? 'vs-dark' : 'vs'))
+const isDiffEditor = computed(() => typeof props.originalModelValue === 'string')
 
 const editorOptions = computed<editor.IStandaloneEditorConstructionOptions>(() => ({
   automaticLayout: true,
@@ -122,12 +122,29 @@ const editorOptions = computed<editor.IStandaloneEditorConstructionOptions>(() =
   smoothScrolling: true
 }))
 
+const diffEditorOptions = computed<editor.IDiffEditorConstructionOptions>(() => ({
+  ...editorOptions.value,
+  originalEditable: false,
+  enableSplitViewResizing: true,
+  renderSideBySide: true,
+  useInlineViewWhenSpaceIsLimited: false
+}))
+
 let modelRef: editor.ITextModel | null = null
+let originalModelRef: editor.ITextModel | null = null
 
 const getCurrentModel = () => modelRef
+const getOriginalModel = () => originalModelRef
 
 const syncCurrentModelValue = (value: string) => {
   const model = getCurrentModel()
+  if (!model) return
+  if (model.getValue() === value) return
+  model.setValue(value)
+}
+
+const syncOriginalModelValue = (value: string) => {
+  const model = getOriginalModel()
   if (!model) return
   if (model.getValue() === value) return
   model.setValue(value)
@@ -139,18 +156,34 @@ const ensureEditor = () => {
   modelRef = monaco.editor.createModel(props.modelValue, monacoLanguage.value)
 
   monaco.editor.setTheme(monacoTheme.value)
-  editorRef.value = monaco.editor.create(containerRef.value, {
-    ...editorOptions.value,
-    model: modelRef
-  })
+  if (isDiffEditor.value) {
+    originalModelRef = monaco.editor.createModel(
+      props.originalModelValue || '',
+      monacoLanguage.value
+    )
+    const diffEditor = monaco.editor.createDiffEditor(containerRef.value, diffEditorOptions.value)
+    diffEditor.setModel({
+      original: originalModelRef,
+      modified: modelRef
+    })
+    editorRef.value = diffEditor
+  } else {
+    editorRef.value = monaco.editor.create(containerRef.value, {
+      ...editorOptions.value,
+      model: modelRef
+    })
+  }
   editorRef.value.layout()
 
-  changeListener = editorRef.value.onDidChangeModelContent(() => {
-    const value = editorRef.value?.getValue() || ''
-    if (value !== props.modelValue) {
-      emit('update:modelValue', value)
-    }
-  })
+  if (!isDiffEditor.value) {
+    const codeEditor = editorRef.value as editor.IStandaloneCodeEditor
+    changeListener = codeEditor.onDidChangeModelContent(() => {
+      const value = codeEditor.getValue() || ''
+      if (value !== props.modelValue) {
+        emit('update:modelValue', value)
+      }
+    })
+  }
 
   requestAnimationFrame(() => {
     editorRef.value?.layout()
@@ -174,12 +207,16 @@ onMounted(() => {
 })
 
 watch(
-  [() => modelPath.value, () => monacoLanguage.value],
+  () => monacoLanguage.value,
   () => {
     const model = getCurrentModel()
     if (!model) return
     if (model.getLanguageId() !== monacoLanguage.value) {
       monaco.editor.setModelLanguage(model, monacoLanguage.value)
+    }
+    const originalModel = getOriginalModel()
+    if (originalModel && originalModel.getLanguageId() !== monacoLanguage.value) {
+      monaco.editor.setModelLanguage(originalModel, monacoLanguage.value)
     }
   }
 )
@@ -188,6 +225,14 @@ watch(
   () => props.modelValue,
   (value) => {
     syncCurrentModelValue(value)
+  }
+)
+
+watch(
+  () => props.originalModelValue,
+  (value) => {
+    if (typeof value !== 'string') return
+    syncOriginalModelValue(value)
   }
 )
 
@@ -222,6 +267,8 @@ onBeforeUnmount(() => {
   changeListener = null
   editorRef.value?.dispose()
   editorRef.value = null
+  originalModelRef?.dispose()
+  originalModelRef = null
   modelRef?.dispose()
   modelRef = null
 })
