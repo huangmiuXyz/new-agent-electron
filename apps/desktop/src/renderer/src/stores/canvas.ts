@@ -382,6 +382,21 @@ export const useCanvasStore = defineStore(
       bumpWorkspaceVersion(resolvedChatId)
     }
 
+    const inheritWorkspaceFromChat = (sourceChatId: string, targetChatId: string) => {
+      const sourceWorkspaceDir = getWorkspaceDir(sourceChatId)
+      workspaceRoots[targetChatId] = sourceWorkspaceDir
+
+      const sourceActiveFilePath = transientActiveFilePaths[sourceChatId]
+      if (sourceActiveFilePath) {
+        transientActiveFilePaths[targetChatId] = sourceActiveFilePath
+      } else {
+        delete transientActiveFilePaths[targetChatId]
+      }
+
+      ensureWorkspace(targetChatId)
+      bumpWorkspaceVersion(targetChatId)
+    }
+
     const resetWorkspaceRoot = (chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
       delete workspaceRoots[resolvedChatId]
@@ -416,6 +431,7 @@ export const useCanvasStore = defineStore(
       syncWithChats,
       touchWorkspace,
       setWorkspaceRoot,
+      inheritWorkspaceFromChat,
       resetWorkspaceRoot,
       resetActiveFilePath,
       isAfterRestore

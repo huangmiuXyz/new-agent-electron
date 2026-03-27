@@ -580,6 +580,7 @@ export const useChatsStores = defineStore(
       activate?: boolean
       isTemp?: boolean
     }) => {
+      const agentStore = useAgentStore()
       const taskId = nanoid()
       const now = Date.now()
       const chatId = createChat(options.title || `子任务: ${options.task.slice(0, 20)}`, {
@@ -597,6 +598,10 @@ export const useChatsStores = defineStore(
           startedAt: now
         }
       })
+      const targetAgentWorkPath = agentStore.getAgentById(options.agentId)?.workPath?.trim()
+      if (!targetAgentWorkPath) {
+        useCanvasStore().inheritWorkspaceFromChat(options.parentChatId, chatId)
+      }
       return { chatId, taskId }
     }
 
