@@ -53,19 +53,6 @@ export const initSqlite = () => {
   }
 
   db = new Database(dbPath)
-  const schemaVersion = db.pragma('user_version', { simple: true }) as number
-
-  if (schemaVersion < 1) {
-    const vecTables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'vec_chunks_%'")
-      .all() as { name: string }[]
-
-    db.exec('DROP TABLE IF EXISTS chunks;')
-    for (const { name } of vecTables) {
-      db.exec(`DROP TABLE IF EXISTS "${name}";`)
-    }
-    db.pragma('user_version = 1')
-  }
 
   try {
     const sqliteVecBinaryPath = getSqliteVecBinaryPath()
