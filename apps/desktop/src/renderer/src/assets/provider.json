@@ -105,6 +105,13 @@
     "providerType": "ark"
   },
   {
+    "name": "快手万擎",
+    "baseUrl": "https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints",
+    "id": "wanqing",
+    "logo": "/images/providers/wanqing.png",
+    "providerType": "openai-compatible"
+  },
+  {
     "name": "英伟达",
     "baseUrl": "https://integrate.api.nvidia.com/v1",
     "id": "NVIDIA",
