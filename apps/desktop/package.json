@@ -13,7 +13,7 @@
     "postinstall": "pnpm rebuild @vscode/ripgrep && pnpm -w rebuild:native",
     "start": "electron-vite preview",
     "dev": "electron-vite dev -- --remote-debugging-port=9222",
-    "build": "npm run typecheck && electron-vite build",
+    "build": "npm run typecheck && NODE_OPTIONS='--max-old-space-size=8192' electron-vite build",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "node ./scripts/build-win.mjs",
     "build:win:publish": "node ./scripts/build-win.mjs --publish",
