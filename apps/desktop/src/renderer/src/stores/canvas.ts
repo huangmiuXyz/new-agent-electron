@@ -103,7 +103,6 @@ export const useCanvasStore = defineStore(
 
     const getCanvas = (chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
-      workspaceVersions.value[resolvedChatId]
       return readCanvasFromWorkspace(resolvedChatId)
     }
 
@@ -124,21 +123,18 @@ export const useCanvasStore = defineStore(
     const listDirectory = (directoryPath = '/', chatId?: string): SandboxWorkspaceEntry[] => {
       const resolvedChatId = resolveChatId(chatId)
       const workspaceDir = ensureWorkspace(resolvedChatId).workspaceDir
-      workspaceVersions.value[resolvedChatId]
       return listSandboxWorkspaceDirectory(workspaceDir, directoryPath)
     }
 
     const readFile = (filePath: string, chatId?: string): SandboxFile => {
       const resolvedChatId = resolveChatId(chatId)
       const workspaceDir = ensureWorkspace(resolvedChatId).workspaceDir
-      workspaceVersions.value[resolvedChatId]
       return readSandboxFileFromWorkspace(workspaceDir, filePath)
     }
 
     const collectFilePaths = (directoryPath = '/', chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
       const workspaceDir = ensureWorkspace(resolvedChatId).workspaceDir
-      workspaceVersions.value[resolvedChatId]
       return collectSandboxWorkspaceFiles(workspaceDir, directoryPath)
     }
 
