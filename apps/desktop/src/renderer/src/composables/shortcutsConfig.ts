@@ -100,6 +100,16 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         scope: 'global'
     },
     {
+        id: 'global.toggleRightPanel',
+        name: '切换右侧面板',
+        description: '显示/隐藏右侧面板',
+        defaultKey: 'CmdOrCtrl+Shift+B',
+        enabled: true,
+        editable: true,
+        scope: 'global',
+        allowedInInput: true
+    },
+    {
         id: 'global.focusInput',
         name: '聚焦输入框',
         description: '将焦点设置到主输入框',

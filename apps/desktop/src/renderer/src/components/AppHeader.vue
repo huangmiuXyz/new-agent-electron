@@ -88,6 +88,16 @@ onMounted(() => {
     }
   })
 
+  // 切换右侧面板
+  register({
+    id: 'global.toggleRightPanel',
+    handler: () => {
+      if (!isMobile.value) {
+        settingsStore.display.speechSidebarCollapsed = !settingsStore.display.speechSidebarCollapsed
+      }
+    }
+  })
+
   // 页面切换快捷键
   register({
     id: 'navigation.switchToChat',
