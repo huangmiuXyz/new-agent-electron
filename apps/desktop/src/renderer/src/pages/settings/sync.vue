@@ -11,9 +11,10 @@ const [PullOptionsForm, pullOptionsActions] = useForm({
       label: '拉取内容',
       options: [
         { label: '聊天数据', value: 'chats', description: '覆盖会话、消息和当前会话' },
-        { label: '提供商', value: 'providers', description: '同步非插件创建的提供商和排序' }
+        { label: '提供商', value: 'providers', description: '同步非插件创建的提供商和排序' },
+        { label: '智能体', value: 'agents', description: '同步自定义智能体配置' }
       ],
-      defaultValue: ['chats', 'providers'],
+      defaultValue: ['chats', 'providers', 'agents'],
       required: true
     }
   ]
@@ -62,7 +63,7 @@ const pullEndpoint = async (endpoint: SyncEndpoint) => {
       await syncStore.selectEndpoint(endpoint.deviceId)
     }
 
-    pullOptionsActions.setFieldValue('targets', ['chats', 'providers'])
+    pullOptionsActions.setFieldValue('targets', ['chats', 'providers', 'agents'])
     const confirmed = await confirm({
       title: '确认拉取',
       content: PullOptionsForm,
@@ -78,7 +79,8 @@ const pullEndpoint = async (endpoint: SyncEndpoint) => {
     const targets = (pullOptionsActions.getFieldValue('targets') as string[]) || []
     await syncStore.pullEndpoint(endpoint.deviceId, {
       chats: targets.includes('chats'),
-      providers: targets.includes('providers')
+      providers: targets.includes('providers'),
+      agents: targets.includes('agents')
     })
   } catch (error) {
     connection.value.error = error instanceof Error ? error.message : String(error)

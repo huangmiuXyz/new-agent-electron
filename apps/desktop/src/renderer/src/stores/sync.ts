@@ -15,6 +15,7 @@ type SyncSnapshotPayload = {
   activeChatId: string | null
   providers: Provider[]
   providerOrder: string[]
+  agents: Agent[]
   updatedAt: number
   source: string
 }
@@ -23,6 +24,7 @@ type SyncDiffSummary = {
   messageChanges: number
   chatChanges: number
   providerChanges: number
+  agentChanges: number
 }
 
 const normalizeUrl = (input: string) => {
@@ -69,6 +71,7 @@ const clonePersistedState = (
     activeChatId: string | null
     providers: Provider[]
     providerOrder: string[]
+    agents: Agent[]
   },
   source: string
 ): SyncSnapshotPayload =>
@@ -78,6 +81,7 @@ const clonePersistedState = (
       activeChatId: state.activeChatId,
       providers: state.providers,
       providerOrder: state.providerOrder,
+      agents: state.agents,
       updatedAt: Date.now(),
       source
     })
@@ -105,6 +109,7 @@ const diffSnapshots = (localSnapshot: SyncSnapshotPayload, remoteSnapshot: SyncS
   let chatChanges = 0
   let messageChanges = 0
   let providerChanges = 0
+  let agentChanges = 0
 
   chatIds.forEach((chatId) => {
     const localChat = localChats.get(chatId)
@@ -148,7 +153,21 @@ const diffSnapshots = (localSnapshot: SyncSnapshotPayload, remoteSnapshot: SyncS
     providerChanges += 1
   }
 
-  return { messageChanges, chatChanges, providerChanges }
+  // 计算智能体差异
+  const localAgents = new Map((localSnapshot.agents || []).map((agent) => [agent.id, agent]))
+  const remoteAgents = new Map((remoteSnapshot.agents || []).map((agent) => [agent.id, agent]))
+  const agentIds = new Set([...localAgents.keys(), ...remoteAgents.keys()])
+
+  agentIds.forEach((agentId) => {
+    if (
+      JSON.stringify(localAgents.get(agentId) || null) !==
+      JSON.stringify(remoteAgents.get(agentId) || null)
+    ) {
+      agentChanges += 1
+    }
+  })
+
+  return { messageChanges, chatChanges, providerChanges, agentChanges }
 }
 
 const createDeviceId = () => globalThis.crypto?.randomUUID?.() || `device-${Date.now()}`
@@ -176,7 +195,7 @@ export const useSyncStore = defineStore(
     const endpoints = ref<SyncEndpoint[]>([])
     const selectedEndpointId = ref('')
     const selectedEndpointSnapshot = ref<SyncSnapshotPayload | null>(null)
-    const diffSummary = ref<SyncDiffSummary>({ messageChanges: 0, chatChanges: 0, providerChanges: 0 })
+    const diffSummary = ref<SyncDiffSummary>({ messageChanges: 0, chatChanges: 0, providerChanges: 0, agentChanges: 0 })
     const initialized = ref(false)
     const isPulling = ref(false)
     const hasDesktopSyncApi = computed(() => Boolean(window.api?.sync))
@@ -207,21 +226,24 @@ export const useSyncStore = defineStore(
       }
     }
 
-    const buildLocalSnapshot = () =>
-      clonePersistedState(
+    const buildLocalSnapshot = () => {
+      const agentStore = useAgentStore()
+      return clonePersistedState(
         {
           chats: chatsStore.chats,
           activeChatId: chatsStore.activeChatId,
           providers: settingsStore.providers.filter((provider) => !provider.pluginName),
-          providerOrder: settingsStore.providerOrder
+          providerOrder: settingsStore.providerOrder,
+          agents: agentStore.agents
         },
         hasDesktopSyncApi.value ? 'desktop' : 'mobile'
       )
+    }
 
     const recomputeDiff = () => {
       const snapshot = selectedEndpointSnapshot.value
       if (!snapshot) {
-        diffSummary.value = { messageChanges: 0, chatChanges: 0, providerChanges: 0 }
+        diffSummary.value = { messageChanges: 0, chatChanges: 0, providerChanges: 0, agentChanges: 0 }
         return
       }
       diffSummary.value = diffSnapshots(buildLocalSnapshot(), snapshot)
@@ -250,6 +272,18 @@ export const useSyncStore = defineStore(
 
     watch(
       () => [settingsStore.providers, settingsStore.providerOrder],
+      () => {
+        recomputeDiff()
+        scheduleAutoPublish()
+      },
+      { deep: true }
+    )
+
+    watch(
+      () => {
+        const agentStore = useAgentStore()
+        return agentStore.agents
+      },
       () => {
         recomputeDiff()
         scheduleAutoPublish()
@@ -488,16 +522,17 @@ export const useSyncStore = defineStore(
       await fetchEndpointSnapshot(deviceId)
     }
 
-    const pullSelectedEndpoint = async (options?: { chats?: boolean; providers?: boolean }) => {
+    const pullSelectedEndpoint = async (options?: { chats?: boolean; providers?: boolean; agents?: boolean }) => {
       if (!selectedEndpointId.value) return
       await pullEndpoint(selectedEndpointId.value, options)
     }
 
-    const pullEndpoint = async (deviceId: string, options?: { chats?: boolean; providers?: boolean }) => {
+    const pullEndpoint = async (deviceId: string, options?: { chats?: boolean; providers?: boolean; agents?: boolean }) => {
       if (!deviceId) return
       const shouldPullChats = options?.chats ?? true
       const shouldPullProviders = options?.providers ?? true
-      if (!shouldPullChats && !shouldPullProviders) return
+      const shouldPullAgents = options?.agents ?? true
+      if (!shouldPullChats && !shouldPullProviders && !shouldPullAgents) return
       isPulling.value = true
       try {
         selectedEndpointId.value = deviceId
@@ -511,6 +546,10 @@ export const useSyncStore = defineStore(
         }
         if (shouldPullProviders) {
           settingsStore.replaceSyncProviders(snapshot.providers || [], snapshot.providerOrder || [])
+        }
+        if (shouldPullAgents) {
+          const agentStore = useAgentStore()
+          agentStore.replaceAgents(snapshot.agents || [])
         }
         connection.value.lastSyncedAt = Date.now()
         await publishLocalSnapshot()
