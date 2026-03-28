@@ -248,6 +248,7 @@ export function usePlugins() {
       })
     )
 
+    settingsStore.syncBuiltinProviders()
     await refreshPlugins()
   }
 

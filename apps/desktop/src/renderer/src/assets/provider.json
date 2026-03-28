@@ -108,7 +108,7 @@
     "name": "快手万擎",
     "baseUrl": "https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints",
     "id": "wanqing",
-    "logo": "/images/providers/wanqing.png",
+    "logo": "/images/providers/wanqing.svg",
     "providerType": "openai-compatible"
   },
   {

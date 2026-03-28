@@ -87,6 +87,47 @@ export const useSettingsStore = defineStore(
         models: []
       }))
     }
+    const registeredProviders = ref<RegisteredProvider[]>([])
+
+    const normalizeProvidersWithDefaults = (currentProviders: Provider[]) => {
+      const defaultProviders = getDefaultProviders()
+      const defaultProviderMap = new Map(defaultProviders.map((provider) => [provider.id, provider] as const))
+      const registeredProviderIds = new Set(
+        registeredProviders.value.flatMap((provider) => [provider.id, provider.providerId].filter(Boolean))
+      )
+      const normalizedProviders = defaultProviders.map((defaultProvider) => {
+        const currentProvider = currentProviders.find((provider) => provider.id === defaultProvider.id)
+        if (!currentProvider) return defaultProvider
+
+        return {
+          ...defaultProvider,
+          ...currentProvider,
+          id: defaultProvider.id,
+          name: defaultProvider.name,
+          logo: defaultProvider.logo,
+          providerType: defaultProvider.providerType
+        }
+      })
+
+      const customProviders = currentProviders.filter((provider) => {
+        return provider.pluginName || registeredProviderIds.has(provider.id) || !defaultProviderMap.has(provider.id)
+      })
+
+      return [...normalizedProviders, ...customProviders]
+    }
+
+    const normalizeProviderOrder = (currentProviders: Provider[], currentOrder: string[]) => {
+      const availableProviderIds = new Set(currentProviders.map((provider) => provider.id))
+      const normalizedOrder = currentOrder.filter((id) => availableProviderIds.has(id))
+
+      currentProviders.forEach((provider) => {
+        if (!normalizedOrder.includes(provider.id)) {
+          normalizedOrder.push(provider.id)
+        }
+      })
+
+      return normalizedOrder
+    }
 
     const display = ref({
       darkMode: false,
@@ -152,8 +193,8 @@ export const useSettingsStore = defineStore(
 
     const terminal = ref<TerminalSettings>(createDefaultTerminalSettings())
 
-    const providers = ref<Provider[]>(getDefaultProviders())
-    const providerOrder = ref<string[]>(providers.value.map((p) => p.id))
+    const providers = ref<Provider[]>(normalizeProvidersWithDefaults(getDefaultProviders()))
+    const providerOrder = ref<string[]>(normalizeProviderOrder(providers.value, providers.value.map((p) => p.id)))
     const favoriteAgentIds = ref<string[]>([])
     const favoriteModelKeys = ref<string[]>([])
 
@@ -178,7 +219,6 @@ export const useSettingsStore = defineStore(
       ttsProviderId: '',
     })
 
-    const registeredProviders = ref<RegisteredProvider[]>([])
     const thinkingMode = ref(false)
     const speechEnabled = ref(false)
     const providerOptions = ref<Record<string, any>>({})
@@ -453,6 +493,11 @@ export const useSettingsStore = defineStore(
         }
       })
       providerOrder.value = normalizedOrder
+    }
+
+    const syncBuiltinProviders = () => {
+      providers.value = normalizeProvidersWithDefaults(providers.value)
+      providerOrder.value = normalizeProviderOrder(providers.value, providerOrder.value)
     }
 
     const moveProvider = (fromId: string, toId: string, after = false) => {
@@ -734,6 +779,7 @@ export const useSettingsStore = defineStore(
       addCustomProvider,
       removeCustomProvider,
       replaceSyncProviders,
+      syncBuiltinProviders,
       moveProvider,
       updateShortcut,
       resetShortcut,
@@ -766,6 +812,7 @@ export const useSettingsStore = defineStore(
       ],
       afterRestore: async () => {
         const settingsStore = useSettingsStore()
+        settingsStore.syncBuiltinProviders()
         settingsStore.updateTerminalSettings(settingsStore.terminal as any)
 
         resolveRestore()
