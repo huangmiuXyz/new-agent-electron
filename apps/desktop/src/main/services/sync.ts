@@ -6,6 +6,7 @@ import os from 'os'
 import path from 'path'
 import Koa from 'koa'
 import Router from '@koa/router'
+import bodyParser from 'koa-bodyparser'
 
 const DEFAULT_PORT = 41235
 const SSE_RETRY_MS = 3000
@@ -161,9 +162,7 @@ function emitRendererEvent(event: SyncEvent) {
 
 function broadcastSse(event: SyncEvent) {
   const payload = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`
-  sseClients.forEach((res) => {
-    res.write(payload)
-  })
+  sseClients.forEach((res) => res.write(payload))
 }
 
 function emitState() {
@@ -179,67 +178,49 @@ function emitDirectory() {
   emitState()
 }
 
-interface SyncKoaState {
-  body?: unknown
-}
-
 function setupRouter() {
-  const router = new Router<SyncKoaState>()
+  const router = new Router()
 
-  // GET /api/sync/status
   router.get('/api/sync/status', (ctx) => {
     ctx.body = getState()
   })
 
-  // GET /api/sync/endpoints
   router.get('/api/sync/endpoints', (ctx) => {
     ctx.body = getDirectory()
   })
 
-  // GET /api/sync/endpoints/:id/snapshot
   router.get('/api/sync/endpoints/:id/snapshot', (ctx) => {
-    const { id } = ctx.params
-    const record = endpoints.get(id)
-    ctx.body = record?.snapshot || null
+    ctx.body = endpoints.get(ctx.params.id)?.snapshot || null
   })
 
-  // GET /api/sync/events (SSE)
   router.get('/api/sync/events', (ctx) => {
     ctx.status = 200
     ctx.set('Content-Type', 'text/event-stream')
     ctx.set('Cache-Control', 'no-cache, no-transform')
     ctx.set('Connection', 'keep-alive')
-
-    // Manually write headers
     ctx.res.flushHeaders()
 
     ctx.res.write(`retry: ${SSE_RETRY_MS}\n\n`)
     sseClients.add(ctx.res)
 
     ctx.res.write(`event: state\ndata: ${JSON.stringify({ type: 'state', state: getState() })}\n\n`)
-    ctx.res.write(
-      `event: directory\ndata: ${JSON.stringify({ type: 'directory', endpoints: getDirectory() })}\n\n`
-    )
+    ctx.res.write(`event: directory\ndata: ${JSON.stringify({ type: 'directory', endpoints: getDirectory() })}\n\n`)
 
     ctx.req.on('close', () => {
       sseClients.delete(ctx.res)
       emitState()
     })
 
-    // Keep the connection open - don't call ctx.body = ...
     ctx.respond = false
   })
 
-  // POST /api/sync/register
   router.post('/api/sync/register', (ctx) => {
-    const body = ctx.state.body as { deviceId?: string; displayName?: string; source?: string } | undefined
-
+    const body = ctx.request.body as { deviceId?: string; displayName?: string; source?: string }
     if (!body?.deviceId) {
       ctx.status = 400
       ctx.body = { ok: false, error: '缺少 deviceId' }
       return
     }
-
     upsertEndpoint({
       deviceId: body.deviceId,
       displayName: body.displayName || body.deviceId,
@@ -249,21 +230,18 @@ function setupRouter() {
     ctx.body = { ok: true }
   })
 
-  // POST /api/sync/snapshot
   router.post('/api/sync/snapshot', (ctx) => {
-    const body = ctx.state.body as {
+    const body = ctx.request.body as {
       deviceId?: string
       displayName?: string
       source?: string
       snapshot?: SyncSnapshot
-    } | undefined
-
+    }
     if (!body?.deviceId || !body?.snapshot) {
       ctx.status = 400
       ctx.body = { ok: false, error: '缺少 deviceId 或 snapshot' }
       return
     }
-
     upsertEndpoint({
       deviceId: body.deviceId,
       displayName: body.displayName || body.deviceId,
@@ -300,44 +278,22 @@ async function startSyncHost(options?: { displayName?: string; port?: number }) 
 
   lastError = ''
 
-  const koa = new Koa<SyncKoaState>()
+  const koa = new Koa()
   const router = setupRouter()
 
-  // CORS middleware
   koa.use(async (ctx, next) => {
     ctx.set('Access-Control-Allow-Origin', '*')
     ctx.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
     ctx.set('Access-Control-Allow-Headers', 'Content-Type')
     ctx.set('Access-Control-Allow-Private-Network', 'true')
-
     if (ctx.method === 'OPTIONS') {
       ctx.status = 204
       return
     }
-
     await next()
   })
 
-  // Body parser middleware
-  koa.use(async (ctx, next) => {
-    if (ctx.method === 'POST' || ctx.method === 'PUT') {
-      try {
-        const text = await new Promise<string>((resolve, reject) => {
-          let data = ''
-          ctx.req.on('data', (chunk) => {
-            data += chunk
-          })
-          ctx.req.on('end', () => resolve(data))
-          ctx.req.on('error', reject)
-        })
-        ctx.state.body = text ? JSON.parse(text) : {}
-      } catch {
-        ctx.state.body = {}
-      }
-    }
-    await next()
-  })
-
+  koa.use(bodyParser())
   koa.use(router.routes())
   koa.use(router.allowedMethods())
 
@@ -363,9 +319,7 @@ async function stopSyncHost() {
 
   const activeServer = server
   server = null
-  sseClients.forEach((res) => {
-    res.end()
-  })
+  sseClients.forEach((res) => res.end())
   sseClients.clear()
   await new Promise<void>((resolve) => activeServer.close(() => resolve()))
   emitState()
@@ -377,13 +331,9 @@ export function setupSyncHandlers() {
     return startSyncHost(options)
   })
 
-  ipcMain.handle('sync:stop-host', async () => {
-    return stopSyncHost()
-  })
+  ipcMain.handle('sync:stop-host', async () => stopSyncHost())
 
-  ipcMain.handle('sync:get-host-state', async () => {
-    return getState()
-  })
+  ipcMain.handle('sync:get-host-state', async () => getState())
 
   ipcMain.handle('sync:update-profile', async (_event, options?: { displayName?: string }) => {
     return startSyncHost(options)
@@ -403,15 +353,11 @@ export function setupSyncHandlers() {
     }
   )
 
-  ipcMain.handle('sync:list-endpoints', async () => {
-    return getDirectory()
-  })
+  ipcMain.handle('sync:list-endpoints', async () => getDirectory())
 
   ipcMain.handle('sync:get-endpoint-snapshot', async (_event, endpointId: string) => {
     return endpoints.get(endpointId)?.snapshot || null
   })
 
-  app.on('before-quit', () => {
-    void stopSyncHost()
-  })
+  app.on('before-quit', () => void stopSyncHost())
 }
