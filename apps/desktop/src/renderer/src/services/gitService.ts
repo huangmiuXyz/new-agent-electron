@@ -1,6 +1,3 @@
-import { chatService } from './chatService'
-import { useSettingsStore } from '@renderer/stores/settings'
-
 type GitExecResult = {
   code: number | null
   stdout: string
