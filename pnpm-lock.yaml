@@ -584,6 +584,9 @@ importers:
       koa:
         specifier: ^2.15.3
         version: 2.16.4
+      koa-bodyparser:
+        specifier: ^4.4.1
+        version: 4.4.1
       localforage:
         specifier: 'catalog:'
         version: 1.10.0
@@ -669,6 +672,9 @@ importers:
       '@types/koa':
         specifier: ^2.15.0
         version: 2.15.0
+      '@types/koa-bodyparser':
+        specifier: ^4.3.13
+        version: 4.3.13
       '@types/koa__router':
         specifier: ^12.0.4
         version: 12.0.5
