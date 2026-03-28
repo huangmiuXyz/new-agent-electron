@@ -16,6 +16,7 @@ type SyncSnapshot = {
   activeChatId: string | null
   providers: Provider[]
   providerOrder: string[]
+  agents: Agent[]
   updatedAt: number
   source: string
 }

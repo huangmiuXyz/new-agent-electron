@@ -332,7 +332,6 @@ const isGitPrimaryButtonDisabled = computed(() => {
   return gitCommitting.value || !gitCommitMessage.value.trim()
 })
 const gitDiffView = computed(() => gitDiffPreview.value?.kind === 'diff' ? gitDiffPreview.value : null)
-const gitDiffMessage = computed(() => gitDiffPreview.value?.kind === 'message' ? gitDiffPreview.value.message : '')
 
 const ensureGitModelSelection = () => {
   if (gitCommitProviderId.value && gitCommitModelId.value) return

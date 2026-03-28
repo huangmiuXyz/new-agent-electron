@@ -123,6 +123,40 @@ export const useAgentStore = defineStore(
       return mcpConfig
     }
 
+    const replaceAgents = (newAgents: Agent[]) => {
+      // 确保默认智能体始终存在
+      const hasDefault = newAgents.some((a) => a.id === 'default')
+      if (!hasDefault) {
+        const defaultAgent: Agent = {
+          id: 'default',
+          name: '默认助手',
+          description: '通用AI助手',
+          tags: ['默认'],
+          systemPrompt: '你是一个有帮助的AI助手。',
+          mcpServers: [],
+          tools: [],
+          builtinTools: [],
+          builtinToolsRequireApproval: [],
+          execCommandRunInBackground: false,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          knowledgeBaseIds: [],
+          temperature: 0.7,
+          topP: 1,
+          topK: 40,
+          presencePenalty: 0,
+          frequencyPenalty: 0,
+          contextCount: 50,
+          contextTokenCount: 128000,
+          speechSpeed: 1,
+          speechLanguage: 'auto'
+        }
+        agents.value = [defaultAgent, ...newAgents]
+      } else {
+        agents.value = newAgents
+      }
+    }
+
     return {
       agents,
       tempAgents,
@@ -132,7 +166,8 @@ export const useAgentStore = defineStore(
       updateAgent,
       deleteAgent,
       getAgentById,
-      getMcpByAgent
+      getMcpByAgent,
+      replaceAgents
     }
   },
   {

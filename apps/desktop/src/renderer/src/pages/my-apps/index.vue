@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { h } from 'vue'
-import HtmlPreview from '@renderer/components/HtmlPreview.vue'
-import { buildSandboxPreviewDocument } from '@renderer/services/sandbox'
 import type { MenuItem } from '@renderer/composables/useContextMenu'
 
 const myAppsStore = useMyAppsStore()
@@ -12,22 +9,12 @@ const router = useRouter()
 const modal = useModal()
 const { setTitle } = useAppHeader()
 const { showContextMenu } = useContextMenu<{ appId: string }>()
-const { Play, Trash, Chat, Eye, Edit } = useIcon(['Play', 'Trash', 'Chat', 'Eye', 'Edit'])
+const { Play, Trash, Chat, Edit } = useIcon(['Play', 'Trash', 'Chat', 'Edit'])
 
 const appCards = computed(() => myAppsStore.apps)
 const selectedAppId = ref('')
 const selectedApp = computed(() => myAppsStore.getAppById(selectedAppId.value))
 const selectedAppCanvasChatId = computed(() => (selectedApp.value ? `my-app-preview:${selectedApp.value.id}` : ''))
-
-const buildPreviewChannelId = (id: string) => `saved-app-preview:${id}`
-const buildPreviewDocument = (id: string) => {
-  const app = myAppsStore.getAppById(id)
-  if (!app) return ''
-  return buildSandboxPreviewDocument(app.canvas, buildPreviewChannelId(id))
-}
-
-const formatDateTime = (value: number) => new Date(value).toLocaleString()
-const getFileCount = (app: (typeof appCards.value)[number]) => Object.keys(app.canvas.files || {}).length
 
 watch(
   appCards,
@@ -102,7 +89,6 @@ const renameSavedApp = async (appId: string) => {
       })
 
       selectedAppId.value = savedApp.id
-      message.success(`已重命名应用：${savedApp.name}`)
       modal.remove()
     }
   })
@@ -118,26 +104,6 @@ const renameSavedApp = async (appId: string) => {
   })
 }
 
-const openPreviewModal = async (appId: string) => {
-  const app = myAppsStore.getAppById(appId)
-  if (!app) return
-
-  await modal.confirm({
-    title: `预览 · ${app.name}`,
-    content: h(HtmlPreview, {
-      srcdoc: buildPreviewDocument(appId),
-      channelId: `${buildPreviewChannelId(appId)}:modal`
-    }),
-    width: '90%',
-    height: '90vh',
-    confirmText: '关闭',
-    modalBodyStyle: {
-      padding: 0
-    },
-    showFooter: true,
-    showCancel: false
-  })
-}
 
 const useSavedApp = (appId: string) => {
   const app = myAppsStore.getAppById(appId)
