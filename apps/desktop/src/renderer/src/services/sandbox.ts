@@ -41,6 +41,48 @@ const IMAGE_FILE_RULES = [
 ]
 
 const DATA_URL_RE = /^data:([^;,]+)?(?:;charset=[^;,]+)?;base64,([\s\S]+)$/i
+const INVALID_WORKSPACE_SEGMENT_RE = /[<>:"/\\|?*\u0000-\u001F]/
+const WINDOWS_RESERVED_WORKSPACE_NAMES = new Set([
+  'CON',
+  'PRN',
+  'AUX',
+  'NUL',
+  'COM1',
+  'COM2',
+  'COM3',
+  'COM4',
+  'COM5',
+  'COM6',
+  'COM7',
+  'COM8',
+  'COM9',
+  'LPT1',
+  'LPT2',
+  'LPT3',
+  'LPT4',
+  'LPT5',
+  'LPT6',
+  'LPT7',
+  'LPT8',
+  'LPT9'
+])
+
+const encodeSandboxWorkspaceId = (workspaceId = 'default') => {
+  const normalizedWorkspaceId = String(workspaceId || '').trim() || 'default'
+  const baseName = normalizedWorkspaceId.split('.')[0]?.toUpperCase() || ''
+  const needsEncoding = INVALID_WORKSPACE_SEGMENT_RE.test(normalizedWorkspaceId) ||
+    normalizedWorkspaceId.endsWith('.') ||
+    normalizedWorkspaceId.endsWith(' ') ||
+    normalizedWorkspaceId === '.' ||
+    normalizedWorkspaceId === '..' ||
+    WINDOWS_RESERVED_WORKSPACE_NAMES.has(baseName)
+
+  if (!needsEncoding) {
+    return normalizedWorkspaceId
+  }
+
+  return `workspace-${encodeURIComponent(normalizedWorkspaceId)}`
+}
 
 export const getSandboxMediaType = (filePath: string): string => {
   const lower = filePath.toLowerCase()
@@ -244,7 +286,7 @@ export const getSandboxTempWorkspaceRoot = () => {
 }
 
 export const getSandboxTempWorkspacePath = (workspaceId = 'default') => {
-  return window.api.path.join(getSandboxTempWorkspaceRoot(), workspaceId)
+  return window.api.path.join(getSandboxTempWorkspaceRoot(), encodeSandboxWorkspaceId(workspaceId))
 }
 
 export const ensureSandboxWorkspaceDir = (workspaceId = 'default') => {

@@ -12,6 +12,7 @@ import {
   buildSandboxPreviewDocument,
   getSandboxFileLanguage,
   isSandboxImageFile,
+  getSandboxTempWorkspacePath,
   parseSandboxDataUrl,
   normalizeSandboxPath,
   sortSandboxFiles,
@@ -131,7 +132,7 @@ const currentWorkspaceDir = computed(() => canvasStore.getWorkspaceDir(currentCh
 const isPreviewTab = computed(() => settingsStore.display.canvasEditorTab === 'preview')
 const isUsingTempWorkspace = computed(() => {
   const chatId = currentChatId.value || 'default'
-  return currentWorkspaceDir.value === window.api.path.join(window.api.getPath('temp'), 'agent-qi-canvas-exec', chatId)
+  return currentWorkspaceDir.value === getSandboxTempWorkspacePath(chatId)
 })
 const previewReady = ref(false)
 const directoryEntries = ref<Record<string, SandboxWorkspaceEntry[]>>({})
