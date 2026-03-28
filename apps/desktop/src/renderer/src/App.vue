@@ -617,7 +617,7 @@ body {
 .app-content {
   display: flex;
   flex: 1;
-  min-width: 640px;
+  min-width: 400px;
   min-height: 0;
   overflow: hidden;
   position: relative;

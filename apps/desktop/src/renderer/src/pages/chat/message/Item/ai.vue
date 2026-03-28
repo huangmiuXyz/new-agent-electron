@@ -67,23 +67,17 @@ const playMessageAudio = () => {
 
 <template>
   <div class="msg-row them has-avatar">
-    <div v-if="!isMobile" class="msg-avatar-area">
-      <Image v-if="currentAgentAvatar" :src="currentAgentAvatar" class="msg-avatar" alt="avatar" />
-      <div v-else class="msg-avatar-fallback">
-        <Robot />
-      </div>
-    </div>
 
     <div class="msg-content">
-      <div class="msg-meta" :class="{ isMobile }">
-        <div v-if="isMobile" class="msg-avatar-area">
+      <div class="msg-meta">
+        <div class="msg-avatar-area">
           <Image v-if="currentAgentAvatar" :src="currentAgentAvatar" class="msg-avatar" alt="avatar" />
           <div v-else class="msg-avatar-fallback">
             <Robot />
           </div>
         </div>
 
-        <div class="msg-meta-content" :class="{ isMobile }">
+        <div class="msg-meta-content">
           <span class="msg-name">{{ message.metadata?.model }}</span>
 
           <div v-if="flatUsage.totalTokens || flatUsage.inputTokens || flatUsage.outputTokens" class="msg-usage">
@@ -110,7 +104,8 @@ const playMessageAudio = () => {
       </div>
       <ChatMessageItemContent markdown :message="message" />
 
-      <div v-if="hasAudioChunks || (message.metadata?.loading && !message.metadata?.error && message.metadata.stop)" class="msg-actions">
+      <div v-if="hasAudioChunks || (message.metadata?.loading && !message.metadata?.error && message.metadata.stop)"
+        class="msg-actions">
         <Button v-if="hasAudioChunks" size="sm" @click="playMessageAudio" variant="icon" type="button"
           :class="{ 'is-active': isCurrentPlaying }">
           <template #icon>
@@ -180,6 +175,7 @@ const playMessageAudio = () => {
 .msg-meta {
   display: flex;
   flex-direction: column;
+  margin-bottom: 4px;
 }
 
 .msg-meta-content {
@@ -205,7 +201,7 @@ const playMessageAudio = () => {
   align-items: center;
 }
 
-.msg-meta.isMobile {
+.msg-meta {
   flex-direction: row;
   gap: 8px;
 }
