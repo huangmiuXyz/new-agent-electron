@@ -15,6 +15,7 @@ import { useImageStore } from './stores/image'
 import { useKnowledgeStore } from './stores/knowledge'
 import { useSyncStore } from './stores/sync'
 import { useShortcuts } from './composables/useShortcuts'
+import { useWindowSize } from '@vueuse/core'
 
 const route = useRoute()
 const router = useRouter()
@@ -126,25 +127,25 @@ Promise.all([chatsStore.isAfterRestore, canvasStore.isAfterRestore]).then(() => 
 })
 
 const isStoreReady = computed(() => {
-  const path = route.path 
+  const path = route.path
   if (path.startsWith('/chat') || path.startsWith('/mobile/chat') || path === '/') {
     return settingsReady.value && chatsReady.value && canvasReady.value
-  } 
+  }
   if (path.startsWith('/notes') || path.startsWith('/mobile/notes')) {
     return settingsReady.value
-  } 
+  }
   if (path.startsWith('/image')) {
     return settingsReady.value && imageReady.value
-  } 
+  }
   if (path.startsWith('/settings') || path.startsWith('/mobile/settings')) {
     return settingsReady.value && knowledgeReady.value
-  } 
+  }
   if (path.startsWith('/my-apps') || path.startsWith('/mobile/my-apps')) {
     return settingsReady.value && chatsReady.value && canvasReady.value && myAppsReady.value
   }
   if (path.startsWith('/temp-chat')) {
     return true
-  } 
+  }
   return settingsReady.value && chatsReady.value && canvasReady.value
 })
 
@@ -300,6 +301,8 @@ const handleTouchEnd = (e: TouchEvent) => {
     }
   }
 }
+
+const { width } = useWindowSize()
 </script>
 
 <template>
@@ -309,56 +312,36 @@ const handleTouchEnd = (e: TouchEvent) => {
     <div class="app-body" v-if="!isMobile">
       <div class="content-wrapper">
         <main class="app-content">
-          <ResizeBox
-            v-if="hasGlobalLeftPanel"
-            v-model:width="globalLeftPanelWidth"
-            v-model:is-collapsed="settingsStore.display.sidebarCollapsed"
-            :min-size="globalLeftPanelMinSize"
-            :max-size="globalLeftPanelMaxSize"
-          >
+          <ResizeBox v-if="hasGlobalLeftPanel" v-model:width="globalLeftPanelWidth"
+            v-model:is-collapsed="settingsStore.display.sidebarCollapsed" :min-size="globalLeftPanelMinSize"
+            :max-size="globalLeftPanelMaxSize">
             <div class="global-left-panel">
               <AppNavBar placement="sidebar-top" :current-view="currentView" @switch="switchView" />
               <div id="global-left-panel-content" class="global-left-panel-content"></div>
             </div>
           </ResizeBox>
           <div class="app-page-shell" :class="{ 'without-left-panel': !hasGlobalLeftPanel }">
-            <AppNavBar
-              v-if="!hasGlobalLeftPanel"
-              placement="sidebar-top"
-              :current-view="currentView"
-              @switch="switchView"
-            />
+            <AppNavBar v-if="!hasGlobalLeftPanel" placement="sidebar-top" :current-view="currentView"
+              @switch="switchView" />
             <div class="app-page-host">
-            <ChatPage v-if="currentView === 'chat'" />
-            <NotesPage v-if="currentView === 'notes'" />
-            <ImagePage v-if="currentView === 'image'" />
-            <MyAppsPage v-if="currentView === 'my-apps'" />
-            <SettingsPage v-if="currentView === 'settings'" />
+              <ChatPage v-if="currentView === 'chat'" />
+              <NotesPage v-if="currentView === 'notes'" />
+              <ImagePage v-if="currentView === 'image'" />
+              <MyAppsPage v-if="currentView === 'my-apps'" />
+              <SettingsPage v-if="currentView === 'settings'" />
             </div>
           </div>
         </main>
         <!-- 全局终端：在 content-wrapper 内，app-content 下方 -->
-        <ResizeBox
-          v-model:height="settingsStore.display.terminalHeight"
-          v-model:is-collapsed="terminalCollapsed"
-          direction="vertical"
-          handle-position="top"
-          :min-size="150"
-          :max-size="600"
-          class="global-terminal"
-          @expand="handleTerminalExpand"
-        >
+        <ResizeBox v-model:height="settingsStore.display.terminalHeight" v-model:is-collapsed="terminalCollapsed"
+          direction="vertical" handle-position="top" :min-size="150" :max-size="600" class="global-terminal"
+          @expand="handleTerminalExpand">
           <Term ref="termRef" />
         </ResizeBox>
       </div>
-      <ResizeBox
-        v-model:width="settingsStore.display.speechSidebarWidth"
-        v-model:is-collapsed="settingsStore.display.speechSidebarCollapsed"
-        direction="horizontal"
-        handlePosition="left"
-        :minSize="280"
-        :maxSize="1000"
-      >
+      <ResizeBox v-model:width="settingsStore.display.speechSidebarWidth"
+        v-model:is-collapsed="settingsStore.display.speechSidebarCollapsed" direction="horizontal" handlePosition="left"
+        :minSize="280" :maxSize="width">
         <GlobalRightPanel />
       </ResizeBox>
     </div>
@@ -529,6 +512,7 @@ const handleTouchEnd = (e: TouchEvent) => {
 }
 
 @media (max-width: 767px) {
+
   *,
   *::before,
   *::after {
@@ -633,7 +617,7 @@ body {
 .app-content {
   display: flex;
   flex: 1;
-  min-width: 0;
+  min-width: 640px;
   min-height: 0;
   overflow: hidden;
   position: relative;
