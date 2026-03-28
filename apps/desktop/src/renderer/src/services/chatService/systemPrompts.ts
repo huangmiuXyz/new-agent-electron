@@ -35,12 +35,8 @@ export const buildCodexEnvironmentPrompt = (
     return ''
   }
 
-  const chatsStore = useChatsStores()
-  const agentStore = useAgentStore()
-  const agentId = chatsStore.getChatById(chatId)?.agentId || 'default'
-  const agent = agentStore.getAgentById(agentId)
+  const workPath = useCanvasStore().getWorkPath(chatId) || '未设置'
   const terminalType = getTerminalTypeLabel()
-  const workPath = agent?.workPath?.trim() || '未设置'
   const currentDate = formatCurrentDate()
   const timezone = getCurrentTimezone()
 

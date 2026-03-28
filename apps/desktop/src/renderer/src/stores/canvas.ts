@@ -43,9 +43,19 @@ export const useCanvasStore = defineStore(
       return window.api.path.resolve(window.api.path.normalize(workPath))
     }
 
+    const getWorkspaceRootOverride = (chatId?: string) => {
+      const resolvedChatId = resolveChatId(chatId)
+      return workspaceRoots[resolvedChatId] || ''
+    }
+
+    const getWorkPath = (chatId?: string) => {
+      const resolvedChatId = resolveChatId(chatId)
+      return getWorkspaceRootOverride(resolvedChatId) || getAgentWorkspaceDir(resolvedChatId) || ''
+    }
+
     const getWorkspaceDir = (chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
-      return workspaceRoots[resolvedChatId] || getAgentWorkspaceDir(resolvedChatId) || getSandboxTempWorkspacePath(resolvedChatId)
+      return getWorkPath(resolvedChatId) || getSandboxTempWorkspacePath(resolvedChatId)
     }
 
     const bumpWorkspaceVersion = (chatId?: string) => {
@@ -378,6 +388,14 @@ export const useCanvasStore = defineStore(
       bumpWorkspaceVersion(resolvedChatId)
     }
 
+    const useTempWorkspace = (chatId?: string) => {
+      const resolvedChatId = resolveChatId(chatId)
+      workspaceRoots[resolvedChatId] = getSandboxTempWorkspacePath(resolvedChatId)
+      ensureWorkspace(resolvedChatId)
+      delete transientActiveFilePaths[resolvedChatId]
+      bumpWorkspaceVersion(resolvedChatId)
+    }
+
     const inheritWorkspaceFromChat = (sourceChatId: string, targetChatId: string) => {
       const sourceWorkspaceDir = getWorkspaceDir(sourceChatId)
       workspaceRoots[targetChatId] = sourceWorkspaceDir
@@ -411,6 +429,8 @@ export const useCanvasStore = defineStore(
       getCanvas,
       getWorkspaceVersion,
       getWorkspaceDir,
+      getWorkspaceRootOverride,
+      getWorkPath,
       getActiveFilePath,
       listDirectory,
       readFile,
@@ -427,6 +447,7 @@ export const useCanvasStore = defineStore(
       syncWithChats,
       touchWorkspace,
       setWorkspaceRoot,
+      useTempWorkspace,
       inheritWorkspaceFromChat,
       resetWorkspaceRoot,
       resetActiveFilePath,

@@ -50,6 +50,7 @@ const emit = defineEmits<{
 
 const chatStore = useChatsStores()
 const agentStore = useAgentStore()
+const canvasStore = useCanvasStore()
 const cascaderPanelRef = useTemplateRef<{
   handleKeydown: (event: KeyboardEvent) => CascaderPanelSelectResult
   resetActiveIndexAtDepth: (depth: number, focus?: boolean, index?: number) => void
@@ -91,7 +92,7 @@ const fileListStrategy = ref<'search' | 'directory'>('directory')
 let closeTimer: ReturnType<typeof setTimeout> | null = null
 
 const currentWorkPath = computed(() => {
-  const workPath = currentChatAgent.value?.workPath?.trim()
+  const workPath = canvasStore.getWorkPath(chatStore.currentChat?.id)
   return workPath ? normalizeWorkspacePath(workPath) : ''
 })
 

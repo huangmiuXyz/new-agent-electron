@@ -1616,7 +1616,7 @@ const chooseLocalWorkspaceFolder = async () => {
 }
 
 const switchToTempWorkspace = () => {
-  canvasStore.resetWorkspaceRoot(currentChatId.value)
+  canvasStore.useTempWorkspace(currentChatId.value)
   previewReady.value = false
   syncWorkspaceView()
   message.success('已切换回临时工作区')

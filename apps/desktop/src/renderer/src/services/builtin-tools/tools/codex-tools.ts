@@ -10,8 +10,13 @@ const getCurrentAgent = () => {
   return agentStore.getAgentById(agentId) || null
 }
 
+const getCurrentWorkPath = () => {
+  const chatId = useChatsStores().currentChat?.id
+  return useCanvasStore().getWorkPath(chatId)
+}
+
 const resolvePath = (rawPath: string): string => {
-  const baseDir = getCurrentAgent()?.workPath
+  const baseDir = getCurrentWorkPath()
   if (!baseDir) {
     throw new Error('未设置 workPath，已禁止回退路径解析')
   }
@@ -508,7 +513,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
       }
 
-      const baseDir = getCurrentAgent()?.workPath
+      const baseDir = getCurrentWorkPath()
       if (!baseDir) {
         return {
           error: '未设置 workPath',

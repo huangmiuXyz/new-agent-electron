@@ -215,7 +215,8 @@ export const useTerminal = () => {
 
 
     const currentAgentId = chatsStore.currentChat?.agentId || 'default'
-    const cwd = initialCwd || agentStore.getAgentById(currentAgentId)?.workPath || undefined
+    const currentChatId = chatsStore.currentChat?.id
+    const cwd = initialCwd || useCanvasStore().getWorkPath(currentChatId) || agentStore.getAgentById(currentAgentId)?.workPath || undefined
     await window.api.pty.spawn({ id, cols: term.cols, rows: term.rows, cwd })
 
     const cleanupData = window.api.pty.onData(id, (data) => {

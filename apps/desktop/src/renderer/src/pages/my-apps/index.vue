@@ -110,6 +110,7 @@ const useSavedApp = (appId: string) => {
   if (!app) return
 
   const chatId = chatsStore.createChat(`应用：${app.name}`)
+  canvasStore.useTempWorkspace(chatId)
   canvasStore.importCanvasTemplate(app.canvas, chatId)
   chatsStore.setActiveChat(chatId)
   settingsStore.display.speechSidebarCollapsed = false
