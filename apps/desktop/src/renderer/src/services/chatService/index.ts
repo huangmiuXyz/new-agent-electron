@@ -20,7 +20,6 @@ import { createUsageGuardMiddleware } from './middleware/usageGuard'
 import { createSkillReferenceMiddleware } from './middleware/skillReferences'
 import { normalizeInlineFilePartUrls, sanitizeUIMessages } from './utils'
 import { useSettingsStore } from '@renderer/stores/settings'
-import { useAgentStore } from '@renderer/stores/agent'
 import { createToolMiddleware } from './middleware/createToolMiddleware'
 import {
   buildCodexEnvironmentPrompt,
