@@ -1,8 +1,10 @@
 import { ipcMain, BrowserWindow, app } from 'electron'
 import * as pty from 'node-pty'
 import os from 'os'
+import path from 'path'
 
 const ptyProcesses: Map<string, pty.IPty> = new Map()
+const ptyCwds: Map<string, string> = new Map()
 
 export function setupPtyHandlers() {
   ipcMain.handle('pty:spawn', (event, { id, cols, rows, cwd }) => {
@@ -32,9 +34,11 @@ export function setupPtyHandlers() {
         window.webContents.send(`pty:exit:${id}`, { exitCode, signal })
       }
       ptyProcesses.delete(id)
+      ptyCwds.delete(id)
     })
 
     ptyProcesses.set(id, ptyProcess)
+    ptyCwds.set(id, cwd || process.cwd())
     return true
   })
 
@@ -63,9 +67,31 @@ export function setupPtyHandlers() {
         ptyProcess.kill()
       } catch (e) {}
       ptyProcesses.delete(id)
+      ptyCwds.delete(id)
       return true
     }
     return false
+  })
+
+  ipcMain.handle('pty:killByCwd', (_event, targetCwd: string) => {
+    const normalizedTarget = path.resolve(targetCwd).toLowerCase()
+    const idsToKill: string[] = []
+    for (const [id, cwd] of ptyCwds) {
+      if (cwd.toLowerCase().startsWith(normalizedTarget)) {
+        idsToKill.push(id)
+      }
+    }
+    for (const id of idsToKill) {
+      const ptyProcess = ptyProcesses.get(id)
+      if (ptyProcess) {
+        try {
+          ptyProcess.kill()
+        } catch (e) {}
+        ptyProcesses.delete(id)
+      }
+      ptyCwds.delete(id)
+    }
+    return idsToKill.length
   })
 
   app.on('before-quit', () => {

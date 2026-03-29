@@ -180,6 +180,7 @@ export const api: ElectronAPI = {
     resize: (id: string, cols: number, rows: number) =>
       electronAPI.ipcRenderer.invoke('pty:resize', { id, cols, rows }),
     kill: (id: string) => electronAPI.ipcRenderer.invoke('pty:kill', id),
+    killByCwd: (cwd: string) => electronAPI.ipcRenderer.invoke('pty:killByCwd', cwd),
     onData: (id: string, callback: (data: string) => void) => {
       const listener = (_event: any, data: string) => callback(data)
       electronAPI.ipcRenderer.on(`pty:data:${id}`, listener)

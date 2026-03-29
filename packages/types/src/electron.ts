@@ -57,6 +57,7 @@ export interface ElectronAPI {
     write: (id: string, data: string) => Promise<any>;
     resize: (id: string, cols: number, rows: number) => Promise<any>;
     kill: (id: string) => Promise<any>;
+    killByCwd: (cwd: string) => Promise<number>;
     onData: (id: string, callback: (data: string) => void) => () => void;
     onExit: (id: string, callback: (info: { exitCode: number; signal?: number }) => void) => () => void;
   };

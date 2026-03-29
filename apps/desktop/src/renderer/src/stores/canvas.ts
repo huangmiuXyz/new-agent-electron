@@ -108,7 +108,17 @@ export const useCanvasStore = defineStore(
       const managedTempWorkspace = getSandboxTempWorkspacePath(chatId)
       if (workspaceDir !== managedTempWorkspace) return
       if (!window.api.fs.existsSync(workspaceDir)) return
-      window.api.fs.rmSync(workspaceDir, { recursive: true, force: true })
+      // Kill PTY processes whose cwd is inside the workspace to release file locks on Windows
+      try {
+        window.api.pty.killByCwd(workspaceDir)
+      } catch {
+        // ignore
+      }
+      try {
+        window.api.fs.rmSync(workspaceDir, { recursive: true, force: true })
+      } catch {
+        // Windows EPERM: directory may still be locked by a child process
+      }
     }
 
     const getCanvas = (chatId?: string) => {
