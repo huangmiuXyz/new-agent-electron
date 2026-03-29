@@ -37,6 +37,7 @@ declare global {
     speechSpeed?: number // 语音速度
     speechLanguage?: string // 语音语言
     speechProviderOptions?: Record<string, unknown> // 语音选项
+    speechModel?: { providerId: string; modelId: string } // 语音模型配置
     defaultModel?: { providerId: string; modelId: string } // 默认模型配置
   }
 

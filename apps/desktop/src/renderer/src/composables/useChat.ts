@@ -480,7 +480,8 @@ export const useChat = (chatId: string) => {
         voice,
         speed,
         language,
-        providerOptions
+        providerOptions,
+        agentId: runtimeAgent?.id
       })
 
       if (chunk && message.metadata?.audio?.chunks[chunkIndex]) {

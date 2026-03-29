@@ -24,7 +24,8 @@ export const useAgentStore = defineStore(
         contextCount: 50,
         contextTokenCount: 128000,
         speechSpeed: 1,
-        speechLanguage: 'auto'
+        speechLanguage: 'auto',
+        speechModel: undefined
       }
     ])
 
@@ -149,7 +150,8 @@ export const useAgentStore = defineStore(
           contextCount: 50,
           contextTokenCount: 128000,
           speechSpeed: 1,
-          speechLanguage: 'auto'
+          speechLanguage: 'auto',
+          speechModel: undefined
         }
         agents.value = [defaultAgent, ...newAgents]
       } else {

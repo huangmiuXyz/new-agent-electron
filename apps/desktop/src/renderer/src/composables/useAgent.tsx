@@ -8,10 +8,11 @@ import { useContextMenu, type MenuItem } from '@renderer/composables/useContextM
 
 interface AgentFormData extends Omit<
   Agent,
-  'backgrounds' | 'id' | 'createdAt' | 'updatedAt' | 'defaultModel'
+  'backgrounds' | 'id' | 'createdAt' | 'updatedAt' | 'defaultModel' | 'speechModel'
 > {
   backgrounds: string[]
   defaultModel?: { providerId: string; modelId: string }
+  speechModel?: { providerId: string; modelId: string }
 }
 
 const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
@@ -207,6 +208,7 @@ export const useAgent = () => {
           speechProviderOptions: agent.speechProviderOptions
             ? { ...agent.speechProviderOptions }
             : {},
+          speechModel: agent.speechModel,
           defaultModel: agent.defaultModel
         }
       : {
@@ -239,6 +241,7 @@ export const useAgent = () => {
           speechSpeed: 1,
           speechLanguage: 'auto',
           speechProviderOptions: {},
+          speechModel: undefined,
           defaultModel: undefined
         }
 
@@ -478,6 +481,16 @@ export const useAgent = () => {
     }
 
     const speechFields: FormField<AgentFormData>[] = [
+      {
+        name: 'speechModel',
+        type: 'modelSelector',
+        label: '语音模型',
+        placeholder: '选择语音模型',
+        hint: '选择该智能体使用的语音模型。如果不设置，将使用全局默认语音模型。',
+        modelCategory: 'tts',
+        popupPosition: 'bottom',
+        clearable: true
+      } as ModelSelectorField<AgentFormData>,
       {
         name: 'speechVoice',
         type: 'select',
@@ -1216,6 +1229,15 @@ export const useAgent = () => {
               }
             : undefined
 
+        // 转换 speechModel 格式
+        const speechModel =
+          data.speechModel?.providerId && data.speechModel?.modelId
+            ? {
+                providerId: data.speechModel.providerId,
+                modelId: data.speechModel.modelId
+              }
+            : undefined
+
         const finalData = {
           ...data,
           backgrounds:
@@ -1226,7 +1248,8 @@ export const useAgent = () => {
                 url
               }
             }) || [],
-          defaultModel
+          defaultModel,
+          speechModel
         } as Partial<Agent>
 
         if (isEdit && agent) {

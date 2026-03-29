@@ -2,11 +2,13 @@ import { experimental_generateSpeech as generateSpeech } from 'ai'
 import { createRegistry } from './chatService/registry'
 import { useSettingsStore } from '../stores/settings'
 import { useSpeechStore } from '../stores/speech'
+import { useAgentStore } from '../stores/agent'
 import { nanoid } from 'nanoid'
 
 export const speechService = () => {
   const settingsStore = useSettingsStore()
   const speechStore = useSpeechStore()
+  const agentStore = useAgentStore()
 
   const generateAndPlay = async (params: {
     text: string
@@ -17,17 +19,37 @@ export const speechService = () => {
     speed?: number
     language?: string
     providerOptions?: Record<string, any>
+    agentId?: string
   }) => {
     const {
       text,
       messageId,
-      modelId = settingsStore.defaultModels.ttsModelId,
-      providerId = settingsStore.defaultModels.ttsProviderId,
       voice,
       speed,
       language,
-      providerOptions
+      providerOptions,
+      agentId
     } = params
+
+    // 优先使用智能体配置的语音模型
+    let modelId = params.modelId
+    let providerId = params.providerId
+
+    if (agentId) {
+      const agent = agentStore.getAgentById(agentId)
+      if (agent?.speechModel?.modelId && agent?.speechModel?.providerId) {
+        modelId = agent.speechModel.modelId
+        providerId = agent.speechModel.providerId
+      }
+    }
+
+    // 如果没有智能体配置的模型，使用默认模型
+    if (!modelId) {
+      modelId = settingsStore.defaultModels.ttsModelId
+    }
+    if (!providerId) {
+      providerId = settingsStore.defaultModels.ttsProviderId
+    }
 
     const chunkId = nanoid()
     if (!modelId || !providerId) {
