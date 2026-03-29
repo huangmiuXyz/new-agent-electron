@@ -27,7 +27,7 @@ protocol.registerSchemesAsPrivileged([
   }
 ])
 
-const WINDOWS_TITLE_BAR_HEIGHT = 40
+const WINDOWS_TITLE_BAR_HEIGHT = 30
 const WINDOWS_SYMBOL_COLOR_DARK = '#f5f5f7'
 const WINDOWS_SYMBOL_COLOR_LIGHT = '#1d1d1f'
 const WINDOW_SHOW_FALLBACK_DELAY = 3000
