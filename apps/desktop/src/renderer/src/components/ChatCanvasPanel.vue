@@ -1622,11 +1622,10 @@ const switchToTempWorkspace = () => {
   message.success('已切换回临时工作区')
 }
 
-const createCanvasFileFromDrop = async (file: File, directoryPath?: string) => {
-  const relativeName = file.webkitRelativePath || file.name
+const createCanvasFileFromDrop = async (file: File, relativePath: string, directoryPath?: string) => {
   const baseDirectory = directoryPath ? normalizeSandboxPath(directoryPath) : ''
   const normalizedPath = normalizeSandboxPath(
-    baseDirectory ? `${baseDirectory}/${relativeName}` : relativeName
+    baseDirectory ? `${baseDirectory}/${relativePath}` : relativePath
   )
 
   if (!isTextFile(file.name)) {
@@ -1649,11 +1648,95 @@ const createCanvasFileFromDrop = async (file: File, directoryPath?: string) => {
   }
 }
 
+// 递归读取文件夹中的所有文件
+const readAllFilesFromEntry = async (entry: FileSystemEntry, basePath: string = ''): Promise<{ file: File; relativePath: string }[]> => {
+  const results: { file: File; relativePath: string }[] = []
+
+  if (entry.isFile) {
+    const fileEntry = entry as FileSystemFileEntry
+    const file = await new Promise<File>((resolve, reject) => {
+      fileEntry.file(resolve, reject)
+    })
+    results.push({ file, relativePath: basePath ? `${basePath}/${entry.name}` : entry.name })
+  } else if (entry.isDirectory) {
+    const dirEntry = entry as FileSystemDirectoryEntry
+    const reader = dirEntry.createReader()
+    const entries = await new Promise<FileSystemEntry[]>((resolve, reject) => {
+      reader.readEntries(resolve, reject)
+    })
+
+    for (const childEntry of entries) {
+      const childResults = await readAllFilesFromEntry(childEntry, basePath ? `${basePath}/${entry.name}` : entry.name)
+      results.push(...childResults)
+    }
+  }
+
+  return results
+}
+
+// 从 DataTransfer 获取所有文件（包括文件夹内的文件）
+const getAllFilesFromDataTransfer = async (dataTransfer: DataTransfer): Promise<{ file: File; relativePath: string }[]> => {
+  const results: { file: File; relativePath: string }[] = []
+
+  // 尝试使用 webkitGetAsEntry API 处理文件夹
+  if (dataTransfer.items) {
+    const entries: FileSystemEntry[] = []
+    for (let i = 0; i < dataTransfer.items.length; i++) {
+      const item = dataTransfer.items[i]
+      if (item.kind === 'file') {
+        const entry = item.webkitGetAsEntry?.()
+        if (entry) {
+          entries.push(entry)
+        }
+      }
+    }
+
+    if (entries.length > 0) {
+      for (const entry of entries) {
+        const files = await readAllFilesFromEntry(entry)
+        results.push(...files)
+      }
+      return results
+    }
+  }
+
+  // 回退到传统的 files API
+  const files = Array.from(dataTransfer.files || [])
+  for (const file of files) {
+    results.push({ file, relativePath: file.webkitRelativePath || file.name })
+  }
+
+  return results
+}
+
 const handleDroppedFiles = async (files: File[], directoryPath?: string) => {
   if (files.length === 0) return
 
   try {
-    const droppedFiles = await Promise.all(files.map((file) => createCanvasFileFromDrop(file, directoryPath)))
+    const droppedFiles = await Promise.all(files.map((file) => createCanvasFileFromDrop(file, file.webkitRelativePath || file.name, directoryPath)))
+
+    droppedFiles.forEach((file) => {
+      canvasStore.writeFile(file, currentChatId.value)
+    })
+    const successText = directoryPath
+      ? `已导入 ${droppedFiles.length} 个文件到 ${normalizeSandboxPath(directoryPath)}`
+      : `已导入 ${droppedFiles.length} 个文件`
+    message.success(successText)
+  } catch (error) {
+    console.error('Canvas drop import error:', error)
+    message.error((error as Error).message || '导入文件失败')
+  }
+}
+
+// 处理拖放（支持文件夹）
+const handleDroppedDataTransfer = async (dataTransfer: DataTransfer, directoryPath?: string) => {
+  try {
+    const fileInfos = await getAllFilesFromDataTransfer(dataTransfer)
+    if (fileInfos.length === 0) return
+
+    const droppedFiles = await Promise.all(
+      fileInfos.map(({ file, relativePath }) => createCanvasFileFromDrop(file, relativePath, directoryPath))
+    )
 
     droppedFiles.forEach((file) => {
       canvasStore.writeFile(file, currentChatId.value)
@@ -1721,7 +1804,7 @@ const handleCanvasDrop = (event: DragEvent) => {
   if (!hasFileDrag(event)) return
   event.preventDefault()
   resetDragState()
-  void handleDroppedFiles(Array.from(event.dataTransfer?.files || []))
+  void handleDroppedDataTransfer(event.dataTransfer!)
 }
 
 const handleTreeRowDragStart = (row: TreeRow, event: DragEvent) => {
@@ -1790,7 +1873,7 @@ const handleDirectoryDrop = (row: TreeRow, event: DragEvent) => {
     return
   }
 
-  void handleDroppedFiles(Array.from(event.dataTransfer?.files || []), row.path)
+  void handleDroppedDataTransfer(event.dataTransfer!, row.path)
 }
 
 const appendPreviewLog = (item: Omit<PreviewLogItem, 'id'>) => {
