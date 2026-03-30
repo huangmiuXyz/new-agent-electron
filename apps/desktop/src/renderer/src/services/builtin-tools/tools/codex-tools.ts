@@ -450,9 +450,11 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       const { createTab } = useTerminal()
       const currentAgent = getCurrentAgent(options?.chatId)
       const runInBackground = currentAgent?.execCommandRunInBackground ?? false
+      const cwd = getCurrentWorkPath(options?.chatId) || undefined
 
       const { id: tabId, result } = await createTab({
         command,
+        cwd,
         id: terminal_id,
         toolCallId: options?.toolCallId,
         showTerminal: !runInBackground

@@ -24,6 +24,7 @@ interface DiscoverSkillsOptions {
   includeDisabled?: boolean
   disabledSkillNames?: string[]
   applyCurrentAgentFilters?: boolean
+  chatId?: string
 }
 
 const SKILL_FILE_NAME = 'SKILL.md'
@@ -159,14 +160,14 @@ function stripFrontmatter(content: string): string {
  * 获取技能目录路径列表
  * 优先使用智能体配置的技能目录，留空时回退默认目录
  */
-export function getSkillsDirectories(): string[] {
+export function getSkillsDirectories(chatId?: string): string[] {
   if (!hasLocalSkillApi()) {
     return []
   }
 
   const chatsStore = useChatsStores()
   const agentStore = useAgentStore()
-  const agentId = chatsStore.currentChat?.agentId || 'default'
+  const agentId = chatsStore.getChatById(chatId || '')?.agentId || chatsStore.currentChat?.agentId || 'default'
   const currentAgent = agentStore.getAgentById(agentId)
   const rawPath = currentAgent?.skillDirectory?.trim() || DEFAULT_SKILLS_DIR
 
@@ -177,8 +178,8 @@ export function getSkillsDirectories(): string[] {
   return [rawPath]
 }
 
-export function getPrimarySkillDirectory(): string {
-  return getSkillsDirectories()[0] || DEFAULT_SKILLS_DIR
+export function getPrimarySkillDirectory(chatId?: string): string {
+  return getSkillsDirectories(chatId)[0] || DEFAULT_SKILLS_DIR
 }
 
 function isDirectory(path: string): boolean {
@@ -195,10 +196,11 @@ function isDirectory(path: string): boolean {
  * 扫描技能目录中的所有技能（同步版本，多目录支持）
  */
 export function discoverSkills(
-  directories: string[] = getSkillsDirectories(),
+  directories?: string[],
   options: DiscoverSkillsOptions = {}
 ): SkillMetadata[] {
-  if (!hasLocalSkillApi() || directories.length === 0) {
+  const resolvedDirectories = directories || getSkillsDirectories(options.chatId)
+  if (!hasLocalSkillApi() || resolvedDirectories.length === 0) {
     return []
   }
 
@@ -209,7 +211,8 @@ export function discoverSkills(
   const applyCurrentAgentFilters = options.applyCurrentAgentFilters !== false
   const chatsStore = useChatsStores()
   const agentStore = useAgentStore()
-  const currentAgentId = chatsStore.currentChat?.agentId || 'default'
+  const currentAgentId =
+    chatsStore.getChatById(options.chatId || '')?.agentId || chatsStore.currentChat?.agentId || 'default'
   const currentAgent = agentStore.getAgentById(currentAgentId)
   const disabledSkillNames = new Set(
     (
@@ -219,7 +222,7 @@ export function discoverSkills(
     ).map((name) => name.trim().toLowerCase())
   )
 
-  for (const skillsDir of directories) {
+  for (const skillsDir of resolvedDirectories) {
     let entries: string[]
 
     try {
@@ -307,8 +310,8 @@ export function loadSkill(
 /**
  * 构建技能系统提示词（文档推荐做法）
  */
-export function buildSkillsPrompt(skills: SkillMetadata[]): string {
-  const targetSkillDirectory = getPrimarySkillDirectory()
+export function buildSkillsPrompt(skills: SkillMetadata[], chatId?: string): string {
+  const targetSkillDirectory = getPrimarySkillDirectory(chatId)
 
   if (skills.length === 0) {
     return [
