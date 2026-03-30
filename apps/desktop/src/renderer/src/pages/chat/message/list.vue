@@ -368,7 +368,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         const lastUserMessage = [...(newChat?.messages || [])].reverse().find(m => m.role === 'user')
         if (!lastUserMessage?.parts) return
         const { sendMessages } = useChat(newChatId)
-        sendMessages(lastUserMessage.parts)
+        sendMessages(lastUserMessage.parts as any)
       }
     },
     {

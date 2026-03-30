@@ -1709,26 +1709,7 @@ const getAllFilesFromDataTransfer = async (dataTransfer: DataTransfer): Promise<
   return results
 }
 
-const handleDroppedFiles = async (files: File[], directoryPath?: string) => {
-  if (files.length === 0) return
 
-  try {
-    const droppedFiles = await Promise.all(files.map((file) => createCanvasFileFromDrop(file, file.webkitRelativePath || file.name, directoryPath)))
-
-    droppedFiles.forEach((file) => {
-      canvasStore.writeFile(file, currentChatId.value)
-    })
-    const successText = directoryPath
-      ? `已导入 ${droppedFiles.length} 个文件到 ${normalizeSandboxPath(directoryPath)}`
-      : `已导入 ${droppedFiles.length} 个文件`
-    message.success(successText)
-  } catch (error) {
-    console.error('Canvas drop import error:', error)
-    message.error((error as Error).message || '导入文件失败')
-  }
-}
-
-// 处理拖放（支持文件夹）
 const handleDroppedDataTransfer = async (dataTransfer: DataTransfer, directoryPath?: string) => {
   try {
     const fileInfos = await getAllFilesFromDataTransfer(dataTransfer)
