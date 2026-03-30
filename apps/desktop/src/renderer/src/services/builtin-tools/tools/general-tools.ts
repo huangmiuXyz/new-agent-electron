@@ -194,7 +194,7 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
       if (toolUses.length === 0) {
         return {
           toolResult: {
-            content: [{ type: 'text', text: 'multi_tool_use.parallel 执行失败：tool_uses 至少需要包含一个工具调用。' }]
+            content: [{ type: 'text', text: 'multi_tool_use_parallel 执行失败：tool_uses 至少需要包含一个工具调用。' }]
           }
         }
       }
@@ -206,8 +206,8 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
           try {
             const target = parseRecipientName(toolUse.recipient_name)
 
-            if (toolUse.recipient_name === 'builtin.multi_tool_use.parallel') {
-              throw new Error('multi_tool_use.parallel cannot call itself.')
+            if (toolUse.recipient_name === 'builtin.multi_tool_use_parallel') {
+              throw new Error('multi_tool_use_parallel cannot call itself.')
             }
 
             if (target.kind === 'builtin') {
@@ -221,7 +221,7 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
               }
 
               const output = await tool.execute(toolUse.parameters || {}, {
-                toolCallId: `${options?.toolCallId || 'multi_tool_use.parallel'}:${index}`,
+                toolCallId: `${options?.toolCallId || 'multi_tool_use_parallel'}:${index}`,
                 chatId: options?.chatId || '',
                 model: options?.model || '',
                 provider: options?.provider || ''
@@ -251,7 +251,7 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
             }
 
             const output = await tool.execute(toolUse.parameters || {}, {
-              toolCallId: `${options?.toolCallId || 'multi_tool_use.parallel'}:${index}`
+              toolCallId: `${options?.toolCallId || 'multi_tool_use_parallel'}:${index}`
             } as any)
 
             return {
