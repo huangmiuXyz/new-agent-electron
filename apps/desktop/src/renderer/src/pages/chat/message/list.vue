@@ -538,10 +538,10 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 }
 </script>
 <template>
-  <div class="message-list-wrapper" :class="{ 'is-centered': display.chatCenteredLayout }">
+  <div class="message-list-wrapper">
     <div ref="scrollHostRef" class="message-scroll-host">
       <AutoScrollContainer ref="messageScrollRef" :enabled="autoScrollEnabled" :threshold="5">
-        <div class="messages-content">
+        <div :class="{ 'is-centered': display.chatCenteredLayout }" class="messages-content">
           <template v-for="(message, index) in visibleMessages" :key="message.id">
             <div :id="`message-${message.id}`" class="message-item-wrapper" :class="{
               'is-last-message': index === lastMessageIndex,
@@ -630,7 +630,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   width: 100%;
 }
 
-.message-list-wrapper.is-centered {
+.messages-content.is-centered {
   max-width: 800px;
   margin: 0 auto;
 }
