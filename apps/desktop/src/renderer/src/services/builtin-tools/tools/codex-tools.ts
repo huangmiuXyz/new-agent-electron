@@ -3,20 +3,24 @@ import ignore from 'ignore'
 import ApplyPatchRender from '../components/ApplyPatchRender.vue'
 import { injectBundledRipgrepPath } from './command-utils'
 
-const getCurrentAgent = () => {
+type CodexToolExecuteOptions = {
+  chatId?: string
+  toolCallId?: string
+}
+
+const getCurrentAgent = (chatId?: string) => {
   const chatsStore = useChatsStores()
   const agentStore = useAgentStore()
-  const agentId = chatsStore.currentChat?.agentId || 'default'
+  const agentId = chatsStore.getChatById(chatId || '')?.agentId || chatsStore.currentChat?.agentId || 'default'
   return agentStore.getAgentById(agentId) || null
 }
 
-const getCurrentWorkPath = () => {
-  const chatId = useChatsStores().currentChat?.id
+const getCurrentWorkPath = (chatId?: string) => {
   return useCanvasStore().getWorkPath(chatId)
 }
 
-const resolvePath = (rawPath: string): string => {
-  const baseDir = getCurrentWorkPath()
+const resolvePath = (rawPath: string, chatId?: string): string => {
+  const baseDir = getCurrentWorkPath(chatId)
   if (!baseDir) {
     throw new Error('未设置 workPath，已禁止回退路径解析')
   }
@@ -141,7 +145,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     inputSchema: z.object({
       cmd: z.string().describe('要原样执行的命令字符串')
     }),
-    execute: async (args: unknown) => {
+    execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
       const cmd = String(params.cmd || '')
       if (!cmd.trim()) {
@@ -149,7 +153,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       }
 
       try {
-        const rootDir = resolvePath('.')
+        const rootDir = resolvePath('.', options?.chatId)
         const result = await execCommand(cmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
         const stdout = result.stdout.trim()
         const stderr = result.stderr.trim()
@@ -225,7 +229,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         .default(5000)
         .describe('最大输出字符长度，默认 5000')
     }),
-    execute: async (args: unknown) => {
+    execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
       const rawPath = params.path as string
       const maxDepth = params.max_depth ?? 1
@@ -236,7 +240,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       }
 
       try {
-        const dirPath = resolvePath(rawPath)
+        const dirPath = resolvePath(rawPath, options?.chatId)
         if (!window.api.fs.existsSync(dirPath)) {
           return {
             toolResult: {
@@ -357,7 +361,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     inputSchema: z.object({
       cmd: z.string().describe('要原样执行的命令字符串')
     }),
-    execute: async (args: unknown) => {
+    execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
       const cmd = String(params.cmd || '')
       if (!cmd.trim()) {
@@ -365,7 +369,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       }
 
       try {
-        const rootDir = resolvePath('.')
+        const rootDir = resolvePath('.', options?.chatId)
 
         const resolvedCmd = injectBundledRipgrepPath(cmd)
         const result = await execProjectSearchCommand(cmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
@@ -441,16 +445,16 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           '要复用的终端ID。留空时会创建新终端；如果之前的 exec_command 已返回终端ID，后续同一任务必须复用该 terminal_id，只有明确需要独立新会话时才留空。'
         )
     }),
-    execute: async (args: any, options: any) => {
+    execute: async (args: any, options?: CodexToolExecuteOptions) => {
       const { command, terminal_id } = args
       const { createTab } = useTerminal()
-      const currentAgent = getCurrentAgent()
+      const currentAgent = getCurrentAgent(options?.chatId)
       const runInBackground = currentAgent?.execCommandRunInBackground ?? false
 
       const { id: tabId, result } = await createTab({
         command,
         id: terminal_id,
-        toolCallId: options.toolCallId,
+        toolCallId: options?.toolCallId,
         showTerminal: !runInBackground
       })
       return {
@@ -492,7 +496,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         .describe('type=add 或 move 时可选：目标已存在时是否覆盖，默认 false')
     }),
     render: ApplyPatchRender,
-    execute: async (args: unknown) => {
+    execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
       const type =
         typeof params.type === 'string'
@@ -513,7 +517,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
       }
 
-      const baseDir = getCurrentWorkPath()
+      const baseDir = getCurrentWorkPath(options?.chatId)
       if (!baseDir) {
         return {
           error: '未设置 workPath',
