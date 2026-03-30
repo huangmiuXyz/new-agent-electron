@@ -1766,7 +1766,11 @@ const moveCanvasFileToDirectory = (sourcePath: string, directoryPath: string) =>
     },
     currentChatId.value
   )
-  message.success(`已移动文件到 ${normalizedDirectoryPath}`)
+  const isDirectory = sandboxTreeRows.value.some(
+    (row) => row.path === normalizedSourcePath && row.type === 'directory'
+  )
+  const itemText = isDirectory ? '文件夹' : '文件'
+  message.success(`已移动${itemText}到 ${normalizedDirectoryPath}`)
 }
 
 const resetDragState = () => {
@@ -1808,7 +1812,7 @@ const handleCanvasDrop = (event: DragEvent) => {
 }
 
 const handleTreeRowDragStart = (row: TreeRow, event: DragEvent) => {
-  if (row.type !== 'file' || !event.dataTransfer) return
+  if ((row.type !== 'file' && row.type !== 'directory') || !event.dataTransfer) return
   event.dataTransfer.effectAllowed = 'move'
   event.dataTransfer.setData(CANVAS_FILE_DRAG_MIME, row.path)
   draggingCanvasFilePath.value = row.path
@@ -1831,6 +1835,14 @@ const handleDirectoryDragEnter = (row: TreeRow, event: DragEvent) => {
 const handleDirectoryDragOver = (row: TreeRow, event: DragEvent) => {
   if (row.type !== 'directory') return
   if (!hasFileDrag(event) && !hasCanvasFileDrag(event)) return
+  // 防止文件夹拖放到自己或自己的子目录中
+  if (draggingCanvasFilePath.value) {
+    const normalizedDraggingPath = normalizeSandboxPath(draggingCanvasFilePath.value)
+    const normalizedTargetPath = normalizeSandboxPath(row.path)
+    if (normalizedTargetPath.startsWith(normalizedDraggingPath + '/')) {
+      return
+    }
+  }
   event.preventDefault()
   event.stopPropagation()
   dragTargetDirectoryPath.value = row.path
@@ -2234,12 +2246,12 @@ onBeforeUnmount(() => {
                     active: item.data.type === 'file' && item.data.path === activeFilePath,
                     directory: item.data.type === 'directory',
                     'drop-target': item.data.type === 'directory' && item.data.path === dragTargetDirectoryPath,
-                    dragging: item.data.type === 'file' && item.data.path === draggingCanvasFilePath
+                    dragging: item.data.path === draggingCanvasFilePath
                   }" :style="{
                     paddingLeft: `${8 + item.data.depth * 14}px`,
                     height: `${SANDBOX_TREE_ROW_HEIGHT}px`
                   }" @click="handleTreeRowClick(item.data)" @contextmenu.prevent="openTreeRowMenu($event, item.data)"
-                  :draggable="item.data.type === 'file'" @dragstart="handleTreeRowDragStart(item.data, $event)"
+                  :draggable="item.data.type === 'file' || item.data.type === 'directory'" @dragstart="handleTreeRowDragStart(item.data, $event)"
                   @dragend="handleTreeRowDragEnd" @dragenter="handleDirectoryDragEnter(item.data, $event)"
                   @dragover="handleDirectoryDragOver(item.data, $event)"
                   @dragleave="handleDirectoryDragLeave(item.data, $event)" @drop="handleDirectoryDrop(item.data, $event)">
