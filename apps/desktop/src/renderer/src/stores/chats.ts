@@ -719,10 +719,14 @@ export const useChatsStores = defineStore(
       const messagesToKeep = sourceChat.messages.slice(0, mIndex + 1)
       const clonedMessages = cloneDeep(messagesToKeep)
 
-      const newChatId = createChat(`${sourceChat.title}`)
+      const newChatId = createChat(`${sourceChat.title}`, {
+        agentId: sourceChat.agentId
+      })
       const newChat = getChatById(newChatId)
       if (newChat) {
         newChat.messages = clonedMessages
+        newChat.providerId = sourceChat.providerId
+        newChat.modelId = sourceChat.modelId
       }
       return newChatId
     }

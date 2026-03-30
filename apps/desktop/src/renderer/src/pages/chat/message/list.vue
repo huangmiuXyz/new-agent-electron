@@ -361,10 +361,14 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       label: '创建分支并继续',
       icon: Branch,
       onClick: (data) => {
-        const { forkChat } = useChatsStores()
-        forkChat(currentChat.value!.id, data.id!)
-        const { regenerate } = useChat(currentChat.value!.id!)
-        regenerate(visibleMessages.value.at(-1)?.id!)
+        const chatsStore = useChatsStores()
+        const newChatId = chatsStore.forkChat(currentChat.value!.id, data.id!)
+        if (!newChatId) return
+        const newChat = chatsStore.getChatById(newChatId)
+        const lastUserMessage = [...(newChat?.messages || [])].reverse().find(m => m.role === 'user')
+        if (!lastUserMessage?.parts) return
+        const { sendMessages } = useChat(newChatId)
+        sendMessages(lastUserMessage.parts)
       }
     },
     {
