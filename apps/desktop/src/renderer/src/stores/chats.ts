@@ -540,7 +540,8 @@ export const useChatsStores = defineStore(
       if (!chat) return
       const agentStore = useAgentStore()
       chat.agentId = agentStore.getAgentById(agentId) ? agentId : DEFAULT_AGENT_ID
-      const { providerId, modelId } = resolveChatModelConfig(chat.agentId, chat.providerId, chat.modelId)
+      // 切换智能体时自动切换到智能体的默认模型（不传入当前模型，让智能体默认模型优先）
+      const { providerId, modelId } = resolveChatModelConfig(chat.agentId)
       chat.providerId = providerId
       chat.modelId = modelId
     }
