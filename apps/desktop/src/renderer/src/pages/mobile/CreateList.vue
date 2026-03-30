@@ -51,7 +51,7 @@ const openCreatePage = (path: string) => {
       >
         <div class="create-card-main">
           <div class="create-icon">
-            <component :is="option.icon" />
+            <component :is="option.icon" style="width: 24px; height: 24px;" />
           </div>
           <div class="create-copy">
             <h2>{{ option.title }}</h2>
@@ -69,36 +69,34 @@ const openCreatePage = (path: string) => {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(circle at top left, rgba(var(--accent-rgb), 0.08), transparent 38%),
-    linear-gradient(180deg, var(--bg-app) 0%, var(--bg-secondary) 100%);
+  background: var(--bg-app);
 }
 
 .create-list-content {
   flex: 1;
-  padding: 8px 16px calc(88px + max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px)));
+  padding: 16px 16px calc(88px + max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px)));
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .create-card {
   width: 100%;
-  border: 1px solid var(--border-subtle);
-  border-radius: 22px;
-  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
-  backdrop-filter: blur(14px);
-  padding: 18px 16px;
+  border: none;
+  border-radius: 16px;
+  background: var(--bg-card);
+  padding: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   text-align: left;
   color: var(--text-primary);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
 .create-card:active {
-  transform: scale(0.985);
+  transform: scale(0.98);
+  background: var(--bg-hover);
 }
 
 .create-card-main {
@@ -109,42 +107,46 @@ const openCreatePage = (path: string) => {
 }
 
 .create-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--accent-color) 12%, var(--bg-card));
-  color: var(--accent-color);
+  background: var(--accent-color);
+  color: var(--accent-text);
   flex-shrink: 0;
 }
 
 .create-icon :deep(svg) {
-  width: 24px;
-  height: 24px;
+  width: 24px !important;
+  height: 24px !important;
 }
 
 .create-copy {
   min-width: 0;
+  flex: 1;
 }
 
 .create-copy h2 {
-  font-size: 18px;
-  line-height: 1.2;
-  margin-bottom: 6px;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
 }
 
 .create-copy p {
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.4;
   color: var(--text-secondary);
 }
 
 .create-arrow {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   color: var(--text-tertiary);
   flex-shrink: 0;
+  opacity: 0.6;
 }
 </style>
