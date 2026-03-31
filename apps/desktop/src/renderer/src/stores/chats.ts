@@ -726,7 +726,14 @@ export const useChatsStores = defineStore(
       if (mIndex === -1) return
 
       const messagesToKeep = sourceChat.messages.slice(0, mIndex + 1)
-      const clonedMessages = cloneDeep(messagesToKeep)
+      // 清除分支元数据，避免在新聊天中出现空白的分支
+      const clonedMessages = cloneDeep(messagesToKeep).map((message) => {
+        const { messageBranches, activeMessageBranchId, ...restMetadata } = (message.metadata || {}) as MetaData
+        return {
+          ...message,
+          metadata: restMetadata as MetaData
+        }
+      })
 
       const newChatId = createChat(`${sourceChat.title}`, {
         agentId: sourceChat.agentId
@@ -904,3 +911,4 @@ export const useChatsStores = defineStore(
     }
   }
 )
+
