@@ -89,7 +89,7 @@ export const useChatsStores = defineStore(
             : []
       const selectedBranchId =
         anchorMessage.metadata?.activeMessageBranchId &&
-        branches.some((branch) => branch.id === anchorMessage.metadata?.activeMessageBranchId)
+          branches.some((branch) => branch.id === anchorMessage.metadata?.activeMessageBranchId)
           ? anchorMessage.metadata.activeMessageBranchId
           : branches[0]?.id || null
       const nextMessages = updateMessageBranchAnchor(messages, anchorIndex, branches, selectedBranchId)
@@ -693,7 +693,7 @@ export const useChatsStores = defineStore(
 
       const preferredActiveBranchId =
         selectedAnchor.metadata?.activeMessageBranchId &&
-        branches.some((branch) => branch.id === selectedAnchor.metadata?.activeMessageBranchId)
+          branches.some((branch) => branch.id === selectedAnchor.metadata?.activeMessageBranchId)
           ? selectedAnchor.metadata.activeMessageBranchId
           : branchId
       const messagesWithUpdatedBranch = updateMessageBranchAnchor(
@@ -707,7 +707,7 @@ export const useChatsStores = defineStore(
         preferredActiveBranchId === branchId
           ? messagesWithUpdatedBranch
           : buildMessagesFromVisibleMessageBranch(messagesWithUpdatedBranch, preferredActiveBranchId) ||
-            messagesWithUpdatedBranch
+          messagesWithUpdatedBranch
     }
 
     const forkChat = (sourceChatId: string, messageId: string) => {
@@ -832,6 +832,12 @@ export const useChatsStores = defineStore(
       chats.value = nextState.chats
       activeChatId.value = nextState.activeChatId
     }
+
+    const { scrollToBottom } = useMessageScroll()
+
+    watch(() => activeChatId.value, () => {
+      scrollToBottom()
+    })
 
     return {
       createMessageBranch,
