@@ -361,14 +361,18 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       label: '创建分支并继续',
       icon: Branch,
       onClick: (data) => {
+        if (!currentSelectedModel.value) {
+          messageApi.error('请先选择模型')
+          return
+        }
         const chatsStore = useChatsStores()
+        const selectedMessage = data
         const newChatId = chatsStore.forkChat(currentChat.value!.id, data.id!)
         if (!newChatId) return
-        const newChat = chatsStore.getChatById(newChatId)
-        const lastUserMessage = [...(newChat?.messages || [])].reverse().find(m => m.role === 'user')
-        if (!lastUserMessage?.parts) return
-        const { sendMessages } = useChat(newChatId)
-        sendMessages(lastUserMessage.parts as any)
+        const { regenerate } = useChat(newChatId)
+        setTimeout(() => {
+          regenerate(selectedMessage.id!)
+        })
       }
     },
     {
