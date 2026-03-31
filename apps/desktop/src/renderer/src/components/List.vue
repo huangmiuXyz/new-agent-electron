@@ -279,7 +279,7 @@ const handleItemClick = (item: (typeof viewItems.value)[number]) => {
       </div>
     </div>
 
-    <div class="list-scroll-area">
+    <div v-scroll class="list-scroll-area">
       <div v-if="loading" class="state-container">
         <slot name="loading">
           <Loading />

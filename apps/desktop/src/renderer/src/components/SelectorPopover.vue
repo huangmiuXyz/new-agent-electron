@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CSSProperties } from 'vue'
+
 const props = defineProps<{
   searchQuery?: string
   searchDebounce?: number
@@ -16,6 +17,7 @@ const visible = defineModel<boolean>('visible')
 const searchQuery = defineModel<string>('searchQuery')
 
 const containerRef = ref<HTMLElement>()
+const listContainerRef = ref<HTMLElement>()
 
 const closePopup = () => {
   visible.value = false
@@ -126,12 +128,12 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
           />
           <slot name="search-action"></slot>
         </div>
-        <div class="selector-list-container">
-          <div v-if="!hasResults" class="no-results">
-            {{ noResultsText || '未找到结果' }}
+          <div class="selector-list-container" ref="listContainerRef" v-scroll>
+            <div v-if="!hasResults" class="no-results">
+              {{ noResultsText || '未找到结果' }}
+            </div>
+            <slot v-else></slot>
           </div>
-          <slot v-else></slot>
-        </div>
       </template>
     </BaseModal>
     <div v-if="!isMobile && !shouldUseDialog" class="selector-wrapper">
@@ -169,7 +171,7 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
             />
             <slot name="search-action"></slot>
           </div>
-          <div class="selector-list-container">
+          <div class="selector-list-container" v-scroll>
             <div v-if="!hasResults" class="no-results">
               {{ noResultsText || '未找到结果' }}
             </div>
@@ -204,8 +206,6 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
   overflow: hidden;
   z-index: 100;
   transform-origin: bottom left;
-  contain: layout paint;
-  will-change: transform, opacity;
 }
 
 .selector-popup.position-bottom {
@@ -284,7 +284,6 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
   max-height: 320px;
   overflow-y: auto;
   padding: 4px;
-  contain: content;
   overscroll-behavior: contain;
 }
 
@@ -297,6 +296,12 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
 .selector-list-container :deep(.list-scroll-area) {
   overflow: visible;
   max-height: none;
+  touch-action: auto;
+}
+
+/* 确保 list-item 不阻止滚轮事件 */
+.selector-list-container :deep(.list-item) {
+  touch-action: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
