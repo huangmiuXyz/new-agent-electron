@@ -58,8 +58,8 @@ onMounted(() => {
       const currentIndex = agents.findIndex(a => a.id === currentChat.agentId)
       const nextIndex = (currentIndex + 1) % agents.length
       const nextAgentId = agents[nextIndex].id
-      // 传入当前模型信息，让 setChatAgent 在模型有效时保持不变
-      chatsStore.setChatAgent(currentChat.id, nextAgentId, currentChat.providerId, currentChat.modelId)
+      // 切换智能体时，使用新智能体的默认模型
+      chatsStore.setChatAgent(currentChat.id, nextAgentId)
     }
   })
 

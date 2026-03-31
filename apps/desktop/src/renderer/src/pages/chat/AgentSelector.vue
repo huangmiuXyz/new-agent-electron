@@ -85,9 +85,8 @@ const selectAgent = (agentId: string) => {
     return
   }
 
-  const currentChat = chatsStore.getChatById(currentChatId)
-  // 传入当前模型信息，让 setChatAgent 在模型有效时保持不变
-  chatsStore.setChatAgent(currentChatId, agentId, currentChat?.providerId, currentChat?.modelId)
+  // 切换智能体时，使用新智能体的默认模型
+  chatsStore.setChatAgent(currentChatId, agentId)
   isPopupOpen.value = false
 }
 
