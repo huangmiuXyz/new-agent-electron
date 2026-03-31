@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import {
-  buildSandboxTree,
   normalizeSandboxPath,
   readSandboxWorkspaceAsync
 } from '@renderer/services/sandbox'
@@ -84,44 +83,20 @@ const normalizeDirectoryPath = (value?: string) => {
 
 const formatDirectoryList = (chatId?: string, directoryPath = '/') => {
   const canvasStore = useCanvasStore()
-  const sandbox = canvasStore.getCanvas(chatId)
   const normalizedDirectoryPath = normalizeDirectoryPath(directoryPath)
-  const tree = buildSandboxTree(sandbox)
 
-  const findNode = (nodes: ReturnType<typeof buildSandboxTree>, targetPath: string) => {
-    for (const node of nodes) {
-      if (node.path === targetPath) return node
-      if (node.children?.length) {
-        const matched = findNode(node.children, targetPath)
-        if (matched) return matched
-      }
-    }
-    return null
-  }
+  // 使用 listDirectory 而不是 getCanvas，避免读取整个工作区到内存
+  const entries = canvasStore.listDirectory(normalizedDirectoryPath, chatId)
 
-  const targetChildren = normalizedDirectoryPath === '/'
-    ? tree
-    : findNode(tree, normalizedDirectoryPath)?.children
-
-  if (!targetChildren) {
-    throw new Error(`目录不存在: ${normalizedDirectoryPath}`)
-  }
-
-  if (targetChildren.length === 0) {
+  if (entries.length === 0) {
     return `目录 ${normalizedDirectoryPath} 为空。`
   }
 
-  const lines = targetChildren.map((node) => {
-    if (node.type === 'directory') {
-      return `[DIR] ${node.path}`
+  const lines = entries.map((entry) => {
+    if (entry.type === 'directory') {
+      return `[DIR] ${entry.path}`
     }
-
-    const file = sandbox.files[node.path]
-    if (!file) return `[FILE] ${node.path}`
-    if (file.encoding === 'data-url') {
-      return `[FILE] ${node.path} (${file.mediaType || 'application/octet-stream'}, binary)`
-    }
-    return `[FILE] ${node.path}`
+    return `[FILE] ${entry.path}`
   })
 
   return [`目录: ${normalizedDirectoryPath}`, ...lines].join('\n')
