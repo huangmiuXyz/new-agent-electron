@@ -14,10 +14,11 @@ type SearchReplacePayload = {
   overwrite?: boolean
 }
 
-const normalizeSearchReplaceType = (type?: string): SearchReplaceType => {
+const normalizeSearchReplaceType = (payload?: SearchReplacePayload): SearchReplaceType => {
+  const type = payload?.type
   const normalizedType = (type || 'modify').trim().toLowerCase()
+  if (normalizedType === 'add' || normalizedType === 'create' || ((normalizedType === 'modify' || normalizedType === 'update') && payload?.oldStr === undefined)) return 'add'
   if (normalizedType === 'modify' || normalizedType === 'update') return 'modify'
-  if (normalizedType === 'add' || normalizedType === 'create') return 'add'
   if (normalizedType === 'delete' || normalizedType === 'remove') return 'delete'
   if (normalizedType === 'move' || normalizedType === 'rename') return 'move'
   throw new Error(`Unsupported type: ${type}. Expected modify/add/delete/move.`)
@@ -158,7 +159,7 @@ const executeSearchReplace = async (payload: SearchReplacePayload) => {
     throw new Error('filePath is required')
   }
 
-  const type = normalizeSearchReplaceType(payload.type)
+  const type = normalizeSearchReplaceType(payload)
   const sourcePath = resolvePathInBaseDir(baseDir, filePath)
 
   if (type === 'modify') {

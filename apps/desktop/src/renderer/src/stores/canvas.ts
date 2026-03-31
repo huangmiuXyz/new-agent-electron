@@ -246,6 +246,30 @@ export const useCanvasStore = defineStore(
       const type = operation.type || 'modify'
       const sourcePath = normalizeSandboxPath(operation.filePath)
 
+      if (type === 'add' || (type === 'modify' && operation.oldStr === undefined)) {
+        if (typeof operation.newStr !== 'string') {
+          throw new Error('type=add 需要 new_str')
+        }
+        const targetPath = sourcePath
+        const exists = window.api.fs.existsSync(window.api.path.join(workspaceDir, targetPath.replace(/^\/+/, '')))
+        if (exists && !operation.overwrite) {
+          throw new Error(`Add file failed: file already exists ${targetPath}. Pass overwrite=true to replace it.`)
+        }
+        writeSandboxFileToWorkspace(workspaceDir, {
+          path: targetPath,
+          content: operation.newStr,
+          encoding: 'text',
+          mediaType: getSandboxMediaType(targetPath),
+          updatedAt: Date.now()
+        })
+        transientActiveFilePaths[resolvedChatId] = targetPath
+        bumpWorkspaceVersion(resolvedChatId)
+        return {
+          state: createSandboxState(),
+          summary: exists ? `Successfully wrote file ${targetPath}` : `Successfully created file ${targetPath}`
+        }
+      }
+
       if (type === 'modify') {
         const file = readFile(sourcePath, resolvedChatId)
         if (typeof operation.oldStr !== 'string' || operation.oldStr.length === 0 || typeof operation.newStr !== 'string') {
@@ -278,29 +302,6 @@ export const useCanvasStore = defineStore(
         }
       }
 
-      if (type === 'add') {
-        if (typeof operation.newStr !== 'string') {
-          throw new Error('type=add 需要 new_str')
-        }
-        const targetPath = sourcePath
-        const exists = window.api.fs.existsSync(window.api.path.join(workspaceDir, targetPath.replace(/^\/+/, '')))
-        if (exists && !operation.overwrite) {
-          throw new Error(`Add file failed: file already exists ${targetPath}. Pass overwrite=true to replace it.`)
-        }
-        writeSandboxFileToWorkspace(workspaceDir, {
-          path: targetPath,
-          content: operation.newStr,
-          encoding: 'text',
-          mediaType: getSandboxMediaType(targetPath),
-          updatedAt: Date.now()
-        })
-        transientActiveFilePaths[resolvedChatId] = targetPath
-        bumpWorkspaceVersion(resolvedChatId)
-        return {
-          state: createSandboxState(),
-          summary: exists ? `Successfully wrote file ${targetPath}` : `Successfully created file ${targetPath}`
-        }
-      }
 
       if (type === 'delete') {
         deleteSandboxFileFromWorkspace(workspaceDir, sourcePath)
