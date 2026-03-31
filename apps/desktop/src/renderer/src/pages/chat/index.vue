@@ -58,7 +58,8 @@ onMounted(() => {
       const currentIndex = agents.findIndex(a => a.id === currentChat.agentId)
       const nextIndex = (currentIndex + 1) % agents.length
       const nextAgentId = agents[nextIndex].id
-      chatsStore.setChatAgent(currentChat.id, nextAgentId)
+      // 传入当前模型信息，让 setChatAgent 在模型有效时保持不变
+      chatsStore.setChatAgent(currentChat.id, nextAgentId, currentChat.providerId, currentChat.modelId)
     }
   })
 

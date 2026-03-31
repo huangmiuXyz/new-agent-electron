@@ -535,22 +535,27 @@ export const useChatsStores = defineStore(
       activeChatId.value = id
     }
 
-    const setChatAgent = (chatId: string, agentId: string) => {
+    const setChatAgent = (chatId: string, agentId: string, currentProviderId?: string, currentModelId?: string) => {
       const chat = getChatById(chatId)
       if (!chat) return
       const agentStore = useAgentStore()
-      chat.agentId = agentStore.getAgentById(agentId) ? agentId : DEFAULT_AGENT_ID
-      // 切换智能体时自动切换到智能体的默认模型（不传入当前模型，让智能体默认模型优先）
-      const { providerId, modelId } = resolveChatModelConfig(chat.agentId)
-      chat.providerId = providerId
-      chat.modelId = modelId
+      const normalizedAgentId = agentStore.getAgentById(agentId) ? agentId : DEFAULT_AGENT_ID
+      const agentChanged = chat.agentId !== normalizedAgentId
+      chat.agentId = normalizedAgentId
+      // 只有当智能体真正改变时才重新解析模型配置，避免不必要的模型切换
+      if (agentChanged) {
+        const { providerId, modelId } = resolveChatModelConfig(chat.agentId, currentProviderId, currentModelId)
+        chat.providerId = providerId
+        chat.modelId = modelId
+      }
     }
 
     const ensureChatAgent = (chatId: string) => {
       const chat = getChatById(chatId)
       if (!chat) return null
-      setChatAgent(chatId, chat.agentId || DEFAULT_AGENT_ID)
-
+      const targetAgentId = chat.agentId || DEFAULT_AGENT_ID
+      // 传入当前模型信息，让 resolveChatModelConfig 在当前模型有效时保持不变
+      setChatAgent(chatId, targetAgentId, chat.providerId, chat.modelId)
       return chat.agentId
     }
 
