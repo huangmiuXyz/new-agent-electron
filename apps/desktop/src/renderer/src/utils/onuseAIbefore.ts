@@ -6,6 +6,14 @@ export const onUseAIBefore = async (params: {
   apiKey: string
   baseURL: string
 }) => {
-  const { triggerHook } = usePlugins()
-  await triggerHook('ai:before-use', params)
+  const { pluginLoader } = usePlugins()
+  const manager = pluginLoader.getPluginManager()
+  const hooks = manager.getHooks('ai:before-use')
+
+  if (hooks.length === 0) {
+    return
+  }
+
+  // Execute hooks in parallel since they are independent
+  await manager.triggerHookParallel('ai:before-use', params)
 }

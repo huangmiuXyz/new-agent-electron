@@ -585,6 +585,31 @@ export class PluginManager {
   }
 
   /**
+   * 触发钩子（并行执行，适用于互不依赖的钩子）
+   */
+  async triggerHookParallel(name: string, data?: any): Promise<any[]> {
+    const hooks = this.hooks.get(name);
+
+    if (!hooks || hooks.length === 0) {
+      return [];
+    }
+
+    const results = await Promise.allSettled(
+      hooks.map(async (hook) => {
+        return await hook.handler(data);
+      })
+    );
+
+    return results.map((result) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      }
+      console.error(`Hook "${name}" failed:`, result.reason);
+      return null;
+    });
+  }
+
+  /**
    * 获取钩子
    * @param name 钩子名称
    * @returns 钩子数组
