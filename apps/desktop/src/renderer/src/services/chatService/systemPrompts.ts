@@ -73,12 +73,23 @@ const buildMasterAgentSystemPrompt = (currentChat: Chat): string => {
   const agentStore = useAgentStore()
   const currentAgentId = currentChat.agentId
 
-  const availableAgents = agentStore.allAgents
+  // 获取当前智能体的 allowedSubAgents 配置
+  const currentAgent = agentStore.getAgentById(currentAgentId || '')
+  const allowedSubAgents = currentAgent?.allowedSubAgents
+
+  let availableAgents = agentStore.allAgents
     .filter((agent) => agent.id !== currentAgentId)
     .map((agent) => ({
       name: agent.name,
       description: agent.description || '无'
     }))
+
+  // 如果配置了 allowedSubAgents，则只允许列表中的智能体
+  if (allowedSubAgents && allowedSubAgents.length > 0) {
+    availableAgents = availableAgents.filter((agent) =>
+      allowedSubAgents.includes(agent.name)
+    )
+  }
 
   const childChats = chatsStore.getChildChats(currentChat.id)
   const childChatsText =

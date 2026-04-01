@@ -13,6 +13,7 @@ interface AgentFormData extends Omit<
   backgrounds: string[]
   defaultModel?: { providerId: string; modelId: string }
   speechModel?: { providerId: string; modelId: string }
+  allowedSubAgents?: string[]
 }
 
 const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
@@ -220,7 +221,8 @@ export const useAgent = () => {
             ? { ...agent.speechProviderOptions }
             : {},
           speechModel: agent.speechModel,
-          defaultModel: agent.defaultModel
+          defaultModel: agent.defaultModel,
+          allowedSubAgents: [...(agent.allowedSubAgents || [])]
         }
       : {
           name: '',
@@ -253,7 +255,8 @@ export const useAgent = () => {
           speechLanguage: 'auto',
           speechProviderOptions: {},
           speechModel: undefined,
-          defaultModel: undefined
+          defaultModel: undefined,
+          allowedSubAgents: []
         }
 
     let previousMcpServers = initialData.mcpServers || []
@@ -673,7 +676,13 @@ export const useAgent = () => {
         ),
         columns: 2,
         optionAction: (option: CheckboxOption) => openBuiltinToolApprovalModal(option)
-      } as CheckboxGroupField<AgentFormData>
+      } as CheckboxGroupField<AgentFormData>,
+      // 隐藏字段，用于存储允许调用的子智能体列表
+      {
+        name: 'allowedSubAgents',
+        type: 'text',
+        ifShow: () => false
+      } as TextField<AgentFormData>
     ]
 
     const knowledgeFields: FormField<AgentFormData>[] = [
@@ -1270,6 +1279,9 @@ export const useAgent = () => {
               }
             : undefined
 
+        // 获取 allowedSubAgents（可能不在 fields 中，需要从 formData 中获取）
+        const allowedSubAgents = formActions.getFieldValue('allowedSubAgents') as string[] | undefined
+
         const finalData = {
           ...data,
           backgrounds:
@@ -1281,7 +1293,8 @@ export const useAgent = () => {
               }
             }) || [],
           defaultModel,
-          speechModel
+          speechModel,
+          allowedSubAgents
         } as Partial<Agent>
 
         if (isEdit && agent) {
