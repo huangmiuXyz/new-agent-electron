@@ -86,6 +86,17 @@ export const useAgent = () => {
     })
   }
 
+  const getAvailableSubAgentOptions = (currentAgentId?: string) => {
+    const allAgents = agentStore.agents || []
+    return allAgents
+      .filter((agent) => agent.id !== currentAgentId)
+      .map((agent) => ({
+        label: agent.name,
+        value: agent.name,
+        description: agent.description || '无描述'
+      }))
+  }
+
   const getSpeechVoiceOptions = () => {
     const { ttsModelId, ttsProviderId } = settingsStore.defaultModels
     const modelIds = Array.isArray(ttsModelId) ? ttsModelId : [ttsModelId]
@@ -574,17 +585,22 @@ export const useAgent = () => {
       const currentValue = currentApprovalTools.includes(option.value)
       const currentExecCommandRunInBackground =
         (formActions.getFieldValue('execCommandRunInBackground') as boolean) ?? false
+      const currentAllowedSubAgents =
+        (formActions.getFieldValue('allowedSubAgents') as string[]) || []
       const isExecCommand = option.value === 'exec_command'
+      const isDelegateToSubAgent = option.value === 'delegate_to_sub_agent'
 
       const [ApprovalForm, approvalFormActions] = useForm<{
         requireApproval: boolean
         execCommandRunInBackground: boolean
+        allowedSubAgents: string[]
       }>({
         title: `工具设置 · ${option.label}`,
         showHeader: false,
         initialData: {
           requireApproval: currentValue,
-          execCommandRunInBackground: currentExecCommandRunInBackground
+          execCommandRunInBackground: currentExecCommandRunInBackground,
+          allowedSubAgents: currentAllowedSubAgents
         },
         fields: [
           {
@@ -595,6 +611,7 @@ export const useAgent = () => {
           } as BooleanField<{
             requireApproval: boolean
             execCommandRunInBackground: boolean
+            allowedSubAgents: string[]
           }>,
           {
             name: 'execCommandRunInBackground',
@@ -605,6 +622,19 @@ export const useAgent = () => {
           } as BooleanField<{
             requireApproval: boolean
             execCommandRunInBackground: boolean
+            allowedSubAgents: string[]
+          }>,
+          {
+            name: 'allowedSubAgents',
+            type: 'checkboxGroup',
+            label: '允许调用的子智能体',
+            options: getAvailableSubAgentOptions(agent?.id),
+            hint: '留空表示允许调用所有智能体（除自身外）。选中后，delegate_to_sub_agent 只能分派任务给所选子智能体。',
+            ifShow: () => isDelegateToSubAgent
+          } as CheckboxGroupField<{
+            requireApproval: boolean
+            execCommandRunInBackground: boolean
+            allowedSubAgents: string[]
           }>
         ],
         onSubmit: (data) => {
@@ -614,6 +644,9 @@ export const useAgent = () => {
               'execCommandRunInBackground',
               !!data.execCommandRunInBackground
             )
+          }
+          if (isDelegateToSubAgent) {
+            formActions.setFieldValue('allowedSubAgents', data.allowedSubAgents || [])
           }
           remove()
         }

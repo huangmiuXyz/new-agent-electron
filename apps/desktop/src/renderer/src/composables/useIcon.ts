@@ -105,7 +105,8 @@ import {
   Mic16Filled,
   Wrench20Regular,
   NoteAdd24Regular,
-  Speaker224Regular
+  Speaker224Regular,
+  PeopleTeam20Regular
 } from '@vicons/fluent'
 import { Globe, Mic, MicOff, Sparkles, VolumeMute, VolumeMedium } from '@vicons/ionicons5'
 import { ArrowBackIosNewSharp, EditNoteFilled, UploadOutlined } from '@vicons/material'
@@ -218,6 +219,7 @@ export const icons = {
   UploadOutlined,
   Upload: UploadOutlined,
   Speaker224Regular,
+  PeopleTeam20Regular,
   Pause,
   Image,
   Dices: Dice,

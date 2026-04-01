@@ -81,6 +81,15 @@ const buildSkillReference = (skills: SkillMetadata[]): string => {
   return formatResourceList(lines, '当前没有可选技能。')
 }
 
+const buildAvailableAgentsReference = (): string => {
+  const agentStore = useAgentStore()
+  const lines = (agentStore.allAgents || []).map((agent) => {
+    const description = agent.description?.trim() || '无描述'
+    return `- ${agent.name} | ${description}`
+  })
+  return formatResourceList(lines, '当前没有其他可用智能体。')
+}
+
 const buildAgentCreatorDescription = (
   skills: SkillMetadata[],
   agentToolsWithoutCreator: Partial<Tools>
@@ -308,20 +317,36 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           }
         }
 
+        // 获取当前智能体的 allowedSubAgents 配置
+        const parentAgent = agentStore.getAgentById(parentChat.agentId || '')
+        const allowedSubAgents = parentAgent?.allowedSubAgents
+
         const requestedAgentName = String(params.agentName || '').trim()
-        const availableAgents = agentStore.allAgents.filter(
+        let availableAgents = agentStore.allAgents.filter(
           (agent) => agent.id !== parentChat.agentId
         )
+
+        // 如果配置了 allowedSubAgents，则只允许调用列表中的智能体
+        if (allowedSubAgents && allowedSubAgents.length > 0) {
+          availableAgents = availableAgents.filter((agent) =>
+            allowedSubAgents.includes(agent.name)
+          )
+        }
+
         const targetAgent = requestedAgentName
           ? availableAgents.find((agent) => agent.name === requestedAgentName)
           : availableAgents[0]
         if (!targetAgent) {
+          const allowedList =
+            allowedSubAgents && allowedSubAgents.length > 0
+              ? `允许的子智能体: ${allowedSubAgents.join('、')}`
+              : '当前没有其他可用智能体'
           return {
             toolResult: {
               content: [
                 {
                   type: 'text',
-                  text: `分派失败：未找到名称为「${requestedAgentName}」的子智能体。`
+                  text: `分派失败：未找到名称为「${requestedAgentName}」的子智能体。\n${allowedList}`
                 }
               ]
             }
@@ -615,7 +640,17 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           .string()
           .optional()
           .describe('技能目录路径。未传时使用当前默认技能目录配置。'),
-        icon: z.string().optional().describe('智能体图标或头像标识，可选。')
+        icon: z.string().optional().describe('智能体图标或头像标识，可选。'),
+        allowedSubAgents: z
+          .array(z.string())
+          .optional()
+          .describe(
+            [
+              '允许该智能体调用的子智能体名称列表。留空表示允许调用所有智能体（除自身外）。',
+              '可选值请严格从下列列表中选择：',
+              buildAvailableAgentsReference()
+            ].join('\n')
+          )
       }),
       title: '智能体创建器',
       execute: async (args: unknown) => {
@@ -632,6 +667,7 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           skills?: unknown[]
           skillDirectory?: string
           icon?: string
+          allowedSubAgents?: unknown[]
         }
         const {
           name,
@@ -645,7 +681,8 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           ragEnabled = false,
           skills: enabledSkills,
           skillDirectory,
-          icon
+          icon,
+          allowedSubAgents: rawAllowedSubAgents
         } = params
         if (!name) throw new Error('智能体名称不能为空')
         if (!systemPrompt) throw new Error('系统提示词不能为空')
@@ -736,6 +773,18 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
                 .map((skill) => skill.name)
             : []
 
+          const selectedAllowedSubAgents = Array.isArray(rawAllowedSubAgents)
+            ? rawAllowedSubAgents.map(String)
+            : []
+
+          const allAgentNames = agentStore.allAgents.map((agent) => agent.name)
+          const invalidAllowedSubAgents = selectedAllowedSubAgents.filter(
+            (agentName) => !allAgentNames.includes(agentName)
+          )
+          if (invalidAllowedSubAgents.length > 0) {
+            throw new Error(`以下子智能体不存在：${invalidAllowedSubAgents.join('、')}`)
+          }
+
           const newAgent = {
             name,
             description: description || '',
@@ -752,7 +801,8 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
                 : undefined,
             disabledSkills,
             icon,
-            execCommandRunInBackground: false
+            execCommandRunInBackground: false,
+            allowedSubAgents: selectedAllowedSubAgents.length > 0 ? selectedAllowedSubAgents : undefined
           }
           const agentId = agentStore.createAgent(
             newAgent as Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>
@@ -776,6 +826,7 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
                     `- 技能: ${selectedEnabledSkills && selectedEnabledSkills.length > 0 ? selectedEnabledSkills.join(', ') : '默认全部启用'}\n` +
                     `- 技能目录: ${typeof skillDirectory === 'string' && skillDirectory.trim() ? skillDirectory.trim() : '默认'}\n` +
                     `- 图标: ${icon || '默认'}\n` +
+                    `- 允许调用的子智能体: ${selectedAllowedSubAgents.length > 0 ? selectedAllowedSubAgents.join(', ') : '所有智能体（除自身外）'}\n` +
                     `- ID: ${agentId}\n`
                 }
               ]

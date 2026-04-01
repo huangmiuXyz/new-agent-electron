@@ -5,6 +5,7 @@ declare global {
     tags?: string[]
     builtinToolsRequireApproval?: string[]
     execCommandRunInBackground?: boolean
+    allowedSubAgents?: string[]
   }
 }
 
