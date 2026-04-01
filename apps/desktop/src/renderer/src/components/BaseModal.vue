@@ -253,7 +253,14 @@ const handleConfirm = () => {
     exitFullscreen()
   }
   if (props.onOk) {
-    props.onOk()
+    props.onOk(() => {
+      visible.value = false
+      setTimeout(() => {
+        resetPosition()
+        props.resolve?.(true)
+        props.remove?.()
+      }, 200)
+    })
     return
   }
   visible.value = false

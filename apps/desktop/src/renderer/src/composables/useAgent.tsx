@@ -648,7 +648,6 @@ export const useAgent = () => {
           if (isDelegateToSubAgent) {
             formActions.setFieldValue('allowedSubAgents', data.allowedSubAgents || [])
           }
-          remove()
         }
       })
 
@@ -657,8 +656,8 @@ export const useAgent = () => {
         content: ApprovalForm,
         width: '420px',
         maxHeight: '60vh',
-        onOk: async () => {
-          approvalFormActions.submit()
+        onOk: (removeModal) => {
+          if (approvalFormActions.submit()) removeModal()
         }
       })
     }
@@ -855,12 +854,12 @@ export const useAgent = () => {
               skillRefreshVersion.value += 1
             }
 
-            remove()
             messageApi.success(`已更新技能：${nextName}`)
           } catch (error) {
             messageApi.error(
               `更新技能失败：${error instanceof Error ? error.message : String(error)}`
             )
+            throw error
           }
         }
       })
@@ -870,8 +869,8 @@ export const useAgent = () => {
         content: SkillForm,
         width: '720px',
         maxHeight: '80vh',
-        onOk: async () => {
-          skillFormActions.submit()
+        onOk: (removeModal) => {
+          if (skillFormActions.submit()) removeModal()
         }
       })
     }
@@ -953,12 +952,12 @@ export const useAgent = () => {
             window.api.fs.mkdirSync(targetDir, { recursive: true })
             window.api.fs.writeFileSync(skillFile, createSkillTemplate(name, description), 'utf-8')
             skillRefreshVersion.value += 1
-            remove()
             messageApi.success(`已创建技能：${name}`)
           } catch (error) {
             messageApi.error(
               `创建技能失败：${error instanceof Error ? error.message : String(error)}`
             )
+            throw error
           }
         }
       })
@@ -968,8 +967,8 @@ export const useAgent = () => {
         content: SkillForm,
         width: '560px',
         maxHeight: '70vh',
-        onOk: async () => {
-          skillFormActions.submit()
+        onOk: (removeModal) => {
+          if (skillFormActions.submit()) removeModal()
         }
       })
     }
@@ -1399,8 +1398,8 @@ export const useAgent = () => {
       modalBodyStyle: { padding: 0 },
       maxHeight: '90vh',
       width: '800px',
-      onOk: async () => {
-        if (formActions.submit()) remove()
+      onOk: async (removeModal) => {
+        if (formActions.submit()) removeModal()
       }
     })
   }

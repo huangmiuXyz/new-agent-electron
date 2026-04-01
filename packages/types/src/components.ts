@@ -28,7 +28,7 @@ export interface BaseModalProps {
   remove?: () => void
   confirmProps?: ButtonProps
   width?: string
-  onOk?: () => void | Promise<void>
+  onOk?: (remove: () => void) => void | Promise<void>
   height?: string
   maxHeight?: string
   cancelText?: string
