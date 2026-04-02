@@ -835,6 +835,9 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
   }
 }
 
+// 正则匹配 @agent:xxx 或 @智能体:xxx
+const AGENT_MENTION_REGEX = /@(?:agent|智能体):([^\s]+)/gi
+
 const _sendMessage = async () => {
   const input = message.value.trim()
   const hasContent = input || selectedFiles.value.length > 0
@@ -847,6 +850,28 @@ const _sendMessage = async () => {
   }
 
   chatStore.ensureChatAgent(chatId)
+
+  // 处理 @agent:xxx 智能体切换
+  let processedInput = input
+  const agentMentionMatches = input.match(AGENT_MENTION_REGEX)
+  if (agentMentionMatches && agentMentionMatches.length > 0) {
+    // 获取最后一个匹配的智能体提及（用户可能输入了多个）
+    const lastMention = agentMentionMatches[agentMentionMatches.length - 1]
+    const agentNameMatch = lastMention.match(/@(?:agent|智能体):([^\s]+)/i)
+    if (agentNameMatch) {
+      const agentName = agentNameMatch[1]
+      // 查找匹配的智能体
+      const targetAgent = agentStore.allAgents.find(
+        (agent) => agent.name.toLowerCase() === agentName.toLowerCase()
+      )
+      if (targetAgent) {
+        // 切换到目标智能体
+        chatStore.setChatAgent(chatId, targetAgent.id)
+        // 从消息中移除 @agent:xxx 字符串
+        processedInput = input.replace(AGENT_MENTION_REGEX, '').trim()
+      }
+    }
+  }
 
   const currentChat = chatStore.getChatById(chatId)
   const providerId = currentChat?.providerId
@@ -862,8 +887,8 @@ const _sendMessage = async () => {
   // 构建消息parts
   const parts: Array<FileUIPart | TextUIPart> = []
 
-  if (input) {
-    parts.push({ type: 'text', text: input })
+  if (processedInput) {
+    parts.push({ type: 'text', text: processedInput })
   }
 
   for (const file of selectedFiles.value) {

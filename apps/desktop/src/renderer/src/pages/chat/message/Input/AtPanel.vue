@@ -21,12 +21,13 @@ interface MentionRange {
   end: number
 }
 
-type MentionScope = 'all' | 'skills' | 'files'
+type MentionScope = 'all' | 'skills' | 'files' | 'agents'
 
 type MentionItemData =
   | { type: 'skill'; skill: SkillMetadata }
   | { type: 'file'; entry: WorkspaceFileEntry }
   | { type: 'file-nav'; targetDir: string }
+  | { type: 'agent'; agent: Agent }
 
 export interface MentionApplyPayload {
   message: string
@@ -62,17 +63,32 @@ const currentChatAgent = computed(() => {
   return agentId ? agentStore.getAgentById(agentId) : null
 })
 
-const SKILL_MENTION_REGEX = /(^|[\s([{"'`“‘])@([a-z0-9-]*)$/i
-const SKILL_MENTION_NAMESPACE_REGEX = /(^|[\s([{"'`“‘])@(skills|技能):([a-z0-9-]*)$/i
+const SKILL_MENTION_REGEX = /(^|[\s([{"'`"'])@([a-z0-9-]*)$/i
+const SKILL_MENTION_NAMESPACE_REGEX = /(^|[\s([{"'`"'])@(skills|技能):([a-z0-9-]*)$/i
 const FILE_MENTION_NAMESPACE_REGEX =
-  /(^|[\s([{"'`“‘])@(file|文件):(?:"([^"\n\r]*)"|'([^'\n\r]*)'|([^\s]*))$/i
-const PARTIAL_MENTION_REGEX = /(^|[\s([{"'`“‘])@([^\s]*)$/i
+  /(^|[\s([{"'`"'])@(file|文件):(?:"([^"\n\r]*)"|'([^'\n\r]*)'|([^\s]*))$/i
+const AGENT_MENTION_NAMESPACE_REGEX = /(^|[\s([{"'`"'])@(agent|智能体):([a-z0-9-\u4e00-\u9fa5]*)$/i
+const PARTIAL_MENTION_REGEX = /(^|[\s([{"'`"'])@([^\s]*)$/i
 
 const availableSkills = computed<SkillMetadata[]>(() => {
   void currentChatAgent.value?.id
   void currentChatAgent.value?.skillDirectory
   void chatStore.currentChat?.id
   return discoverSkills()
+})
+
+const availableAgents = computed<Agent[]>(() => {
+  return agentStore.allAgents
+})
+
+const filteredAgents = computed(() => {
+  const normalizedQuery = query.value.trim().toLowerCase()
+  if (!normalizedQuery) return availableAgents.value
+  return availableAgents.value.filter((agent) => {
+    const name = agent.name.toLowerCase()
+    const description = (agent.description || '').toLowerCase()
+    return name.includes(normalizedQuery) || description.includes(normalizedQuery)
+  })
 })
 
 const isOpen = ref(false)
@@ -267,7 +283,22 @@ const workspaceRootItem = reactive<CascaderPanelItem>({
   children: () => fileItems.value
 })
 
-const cascaderItems = ref<CascaderPanelItem[]>([skillsRootItem, workspaceRootItem])
+const agentsRootItem = reactive<CascaderPanelItem>({
+  key: 'agents',
+  label: '智能体',
+  icon: 'split',
+  children: () => filteredAgents.value.map((agent) => ({
+    key: agent.id,
+    label: `@${agent.name}`,
+    description: agent.description || '暂无描述',
+    data: {
+      type: 'agent',
+      agent
+    } satisfies MentionItemData
+  }))
+})
+
+const cascaderItems = ref<CascaderPanelItem[]>([skillsRootItem, workspaceRootItem, agentsRootItem])
 
 const syncCascaderItems = () => {
   workspaceRootItem.description = currentWorkPath.value || '未设置工作路径'
@@ -282,7 +313,12 @@ const syncCascaderItems = () => {
     return
   }
 
-  cascaderItems.value = [skillsRootItem, workspaceRootItem]
+  if (mentionScope.value === 'agents') {
+    cascaderItems.value = [agentsRootItem]
+    return
+  }
+
+  cascaderItems.value = [skillsRootItem, workspaceRootItem, agentsRootItem]
 }
 
 const panelEmptyText = computed(() => {
@@ -292,6 +328,10 @@ const panelEmptyText = computed(() => {
     }
 
     return query.value.trim() && fileListStrategy.value === 'search' ? '未找到匹配文件' : '当前目录为空'
+  }
+
+  if (mentionScope.value === 'agents') {
+    return query.value.trim() ? '未找到匹配智能体' : '暂无可用智能体'
   }
 
   if (mentionScope.value === 'all') {
@@ -371,6 +411,10 @@ const isStickyNamespacePrefix = (scope: Exclude<MentionScope, 'all'>, token: str
   const normalizedToken = token.toLowerCase()
   if (scope === 'files') {
     return 'file'.startsWith(normalizedToken) || '文件'.startsWith(token)
+  }
+
+  if (scope === 'agents') {
+    return 'agent'.startsWith(normalizedToken) || '智能体'.startsWith(token) || '助手'.startsWith(token)
   }
 
   return 'skills'.startsWith(normalizedToken) || '技能'.startsWith(token)
@@ -455,6 +499,17 @@ const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null
     return
   }
 
+  const agentMatch = beforeCursor.match(AGENT_MENTION_NAMESPACE_REGEX)
+
+  if (agentMatch) {
+    applyMentionParseResult('agents', agentMatch[3] || '', {
+      start: resolveMentionStart(agentMatch, cursor),
+      end: cursor
+    })
+    isOpen.value = availableAgents.value.length > 0
+    return
+  }
+
   const namespacedMatch = beforeCursor.match(SKILL_MENTION_NAMESPACE_REGEX)
 
   if (namespacedMatch) {
@@ -485,7 +540,7 @@ const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null
     start: resolveMentionStart(match, cursor),
     end: cursor
   })
-  isOpen.value = availableSkills.value.length > 0 || Boolean(currentWorkPath.value)
+  isOpen.value = availableSkills.value.length > 0 || Boolean(currentWorkPath.value) || availableAgents.value.length > 0
 }
 
 const buildSkillMentionPayload = (skill: SkillMetadata): MentionApplyPayload | null => {
@@ -524,6 +579,24 @@ const buildFileMentionPayload = (entry: WorkspaceFileEntry): MentionApplyPayload
   }
 }
 
+const buildAgentMentionPayload = (agent: Agent): MentionApplyPayload | null => {
+  const range = mentionRange.value
+  if (!range) return null
+
+  const mentionText = `@agent:${agent.name} `
+  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
+  const cursor = range.start + mentionText.length
+
+  previewMessage.value = nextMessage
+  previewScope.value = 'agents'
+  rootPreviewScope.value = null
+
+  return {
+    message: nextMessage,
+    cursor
+  }
+}
+
 const buildScopePreviewPayload = (item: CascaderPanelItem, path: CascaderPanelItem[]): MentionApplyPayload | null => {
   const range = mentionRange.value
   if (!range) return null
@@ -534,6 +607,8 @@ const buildScopePreviewPayload = (item: CascaderPanelItem, path: CascaderPanelIt
     mentionText = '@skills:'
   } else if (item.key === 'workspace' && path.length === 1) {
     mentionText = '@file:'
+  } else if (item.key === 'agents' && path.length === 1) {
+    mentionText = '@agent:'
   } else {
     return null
   }
@@ -541,7 +616,13 @@ const buildScopePreviewPayload = (item: CascaderPanelItem, path: CascaderPanelIt
   const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
   const cursor = range.start + mentionText.length
   previewMessage.value = nextMessage
-  previewScope.value = item.key === 'workspace' ? 'files' : 'skills'
+  if (item.key === 'workspace') {
+    previewScope.value = 'files'
+  } else if (item.key === 'agents') {
+    previewScope.value = 'agents'
+  } else {
+    previewScope.value = 'skills'
+  }
   rootPreviewScope.value = mentionScope.value === 'all' && path.length === 1
     ? previewScope.value
     : null
@@ -564,6 +645,10 @@ const buildMentionPayload = (data: MentionItemData): MentionApplyPayload | null 
 
   if (data.type === 'file') {
     return buildFileMentionPayload(data.entry)
+  }
+
+  if (data.type === 'agent') {
+    return buildAgentMentionPayload(data.agent)
   }
 
   return null
@@ -618,7 +703,7 @@ const handleCascaderActiveChange = ({ item, path }: { item: CascaderPanelItem | 
   }
 
   const data = getMentionItemData(item)
-  if (data?.type === 'file' || data?.type === 'file-nav') {
+  if (data?.type === 'file' || data?.type === 'file-nav' || data?.type === 'agent') {
     return
   }
 
@@ -680,8 +765,8 @@ const handleKeydown = (
 }
 
 watch(availableSkills, (skills) => {
-  if (mentionScope.value === 'files') return
-  if (skills.length > 0 || currentWorkPath.value) return
+  if (mentionScope.value === 'files' || mentionScope.value === 'agents') return
+  if (skills.length > 0 || currentWorkPath.value || availableAgents.value.length > 0) return
   closePanel()
 })
 
