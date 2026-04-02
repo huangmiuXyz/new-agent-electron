@@ -68,18 +68,37 @@ export const useAgentStore = defineStore(
 
 
     const deleteAgent = (id: string) => {
-
       if (id === 'default') return
-
 
       const initialLength = agents.value.length
       agents.value = agents.value.filter((a) => a.id !== id)
 
-
       if (agents.value.length === initialLength) {
         tempAgents.value = tempAgents.value.filter((a) => a.id !== id)
       }
+    }
 
+    const cloneAgent = (id: string) => {
+      const sourceAgent = getAgentById(id)
+      if (!sourceAgent) return null
+
+      const clonedId = nanoid()
+      const now = Date.now()
+      const clonedAgent: Agent = {
+        ...sourceAgent,
+        id: clonedId,
+        name: `${sourceAgent.name} (副本)`,
+        createdAt: now,
+        updatedAt: now
+      }
+
+      if (agents.value.some((a) => a.id === id)) {
+        agents.value.push(clonedAgent)
+      } else {
+        tempAgents.value.push(clonedAgent)
+      }
+
+      return clonedId
     }
 
 
@@ -167,6 +186,7 @@ export const useAgentStore = defineStore(
       createAgent,
       updateAgent,
       deleteAgent,
+      cloneAgent,
       getAgentById,
       getMcpByAgent,
       replaceAgents

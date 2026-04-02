@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useContextMenu, type MenuItem } from '@renderer/composables/useContextMenu'
+import ContextMenu from '@renderer/components/ContextMenu.vue'
+
 const agentStore = useAgentStore()
 const chatsStore = useChatsStores()
 const { allAgents, tempAgents } = storeToRefs(agentStore)
@@ -16,15 +19,19 @@ withDefaults(
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
-const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus } = useIcon([
+const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus, Copy, Delete } = useIcon([
   'Wrench20Regular',
   'Robot',
   'ChevronDown',
   'Server',
   'Check',
   'Edit',
-  'Plus'
+  'Plus',
+  'Copy',
+  'Delete'
 ])
+
+const { showContextMenu } = useContextMenu<Agent>()
 
 const selectedAgent = computed(() => {
   const currentAgentId = chatsStore.currentChat?.agentId
@@ -104,6 +111,57 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
   event.stopPropagation()
   settingsStore.toggleFavoriteAgent(agentId)
 }
+
+const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
+  event.preventDefault()
+  event.stopPropagation()
+
+  const isDefaultAgent = agent.id === 'default'
+
+  const menuItems: MenuItem<Agent>[] = [
+    {
+      label: '克隆智能体',
+      icon: Copy,
+      action: 'clone',
+      disabled: false,
+      onClick: (data: Agent) => {
+        if (data) {
+          const clonedId = agentStore.cloneAgent(data.id)
+          if (clonedId) {
+            // 克隆成功后关闭弹窗并选中新克隆的智能体
+            isPopupOpen.value = false
+            const currentChatId = chatsStore.currentChat?.id
+            if (currentChatId) {
+              chatsStore.setChatAgent(currentChatId, clonedId)
+            }
+          }
+        }
+      }
+    },
+    {
+      type: 'divider'
+    },
+    {
+      label: '删除智能体',
+      icon: Delete,
+      action: 'delete',
+      danger: true,
+      disabled: isDefaultAgent,
+      onClick: (data: Agent) => {
+        if (data && data.id !== 'default') {
+          agentStore.deleteAgent(data.id)
+          // 如果删除的是当前智能体，切换到默认智能体
+          const currentChatId = chatsStore.currentChat?.id
+          if (currentChatId && chatsStore.currentChat?.agentId === data.id) {
+            chatsStore.setChatAgent(currentChatId, 'default')
+          }
+        }
+      }
+    }
+  ]
+
+  showContextMenu(event, menuItems, agent)
+}
 </script>
 
 <template>
@@ -164,6 +222,7 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
           class="agent-item"
           :class="{ selected: isAgentSelected(agent.id) }"
           @click="selectAgent(agent.id)"
+          @contextmenu="handleAgentContextMenu($event, agent)"
         >
           <div class="agent-main">
             <div class="agent-icon-container">
@@ -229,6 +288,7 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
           class="agent-item"
           :class="{ selected: isAgentSelected(agent.id) }"
           @click="selectAgent(agent.id)"
+          @contextmenu="handleAgentContextMenu($event, agent)"
         >
           <div class="agent-main">
             <div class="agent-icon-container">
@@ -287,6 +347,7 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
       </template>
     </div>
   </SelectorPopover>
+  <ContextMenu />
 </template>
 
 <style scoped>
