@@ -49,10 +49,15 @@ export const arkVideoCallOptionsSchema = z.object({
     .describe('Last frame image URL'),
   generate_audio: z.boolean().default(false).describe('Generate synced audio'),
   camera_fixed: z.boolean().default(false).describe('Keep camera fixed'),
-  service_tier: z
-    .enum(['default', 'flex'])
-    .default('default')
-    .describe('Service tier')
+  service_tier: z.enum(['default', 'flex']).default('default').describe('Service tier'),
+  tools: z
+    .array(
+      z.object({
+        type: z.enum(['web_search']).describe('Tool type')
+      })
+    )
+    .optional()
+    .describe('Model tools configuration')
 })
 
 export interface ArkProvider extends ProviderV3 {
@@ -119,6 +124,8 @@ export function createArk(options: ArkProviderSettings = {}): ArkProvider {
       type: string
       text?: string
       image_url?: { url: string }
+      video_url?: { url: string }
+      audio_url?: { url: string }
       role?: string
     }> = []
 
@@ -142,11 +149,27 @@ export function createArk(options: ArkProviderSettings = {}): ArkProvider {
     if (params.files && params.files.length > 0) {
       for (const file of params.files) {
         const url = typeof file === 'string' ? file : file.url || file.data
-        content.push({
-          type: 'image_url',
-          image_url: { url },
-          role: 'reference_image'
-        })
+        const mimeType = typeof file === 'object' ? file.mimeType : null
+
+        if (mimeType?.startsWith('video/')) {
+          content.push({
+            type: 'video_url',
+            video_url: { url },
+            role: 'reference_video'
+          })
+        } else if (mimeType?.startsWith('audio/')) {
+          content.push({
+            type: 'audio_url',
+            audio_url: { url },
+            role: 'reference_audio'
+          })
+        } else {
+          content.push({
+            type: 'image_url',
+            image_url: { url },
+            role: 'reference_image'
+          })
+        }
       }
     }
 
@@ -157,7 +180,8 @@ export function createArk(options: ArkProviderSettings = {}): ArkProvider {
       camera_fixed: validatedOptions.camera_fixed,
       service_tier: validatedOptions.service_tier,
       duration: params.duration,
-      resolution: params.resolution
+      resolution: params.resolution,
+      tools: validatedOptions.tools
     }
 
     const task = await model.createTask(requestBody)

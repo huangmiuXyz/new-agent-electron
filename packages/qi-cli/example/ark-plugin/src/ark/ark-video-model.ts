@@ -18,18 +18,23 @@ export interface ArkVideoModelConfig {
 export interface ArkVideoTaskRequest {
   model: string
   content: Array<{
-    type: 'text' | 'image_url' | 'draft_task'
+    type: 'text' | 'image_url' | 'video_url' | 'audio_url' | 'draft_task'
     text?: string
     image_url?: {
+      url: string
+    }
+    video_url?: {
+      url: string
+    }
+    audio_url?: {
       url: string
     }
     draft_task?: {
       id: string
     }
-    role?: 'first_frame' | 'last_frame' | 'reference_image'
+    role?: 'first_frame' | 'last_frame' | 'reference_image' | 'reference_video' | 'reference_audio'
   }>
   duration?: number
-  fps?: number
   frames?: number
   resolution?: string
   ratio?: string
@@ -42,6 +47,9 @@ export interface ArkVideoTaskRequest {
   service_tier?: 'default' | 'flex'
   execution_expires_after?: number
   callback_url?: string
+  tools?: Array<{
+    type: 'web_search'
+  }>
 }
 
 export interface ArkVideoTaskResponse {
