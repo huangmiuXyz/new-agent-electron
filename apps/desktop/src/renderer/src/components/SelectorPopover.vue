@@ -17,7 +17,6 @@ const visible = defineModel<boolean>('visible')
 const searchQuery = defineModel<string>('searchQuery')
 
 const containerRef = ref<HTMLElement>()
-const listContainerRef = ref<HTMLElement>()
 
 const closePopup = () => {
   visible.value = false
@@ -128,7 +127,7 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
           />
           <slot name="search-action"></slot>
         </div>
-          <div class="selector-list-container" ref="listContainerRef" v-scroll>
+          <div class="selector-list-container" v-scroll>
             <div v-if="!hasResults" class="no-results">
               {{ noResultsText || '未找到结果' }}
             </div>

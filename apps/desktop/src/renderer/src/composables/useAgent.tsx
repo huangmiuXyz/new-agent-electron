@@ -24,7 +24,7 @@ export const useAgent = () => {
   const { mcpServers } = storeToRefs(settingsStore)
   const { knowledgeBases } = storeToRefs(useKnowledgeStore())
 
-  const { confirm, remove } = useModal()
+  const { confirm } = useModal()
   const { showContextMenu } = useContextMenu<SkillMetadata>()
 
   const resolveSkillDirectory = (rawPath?: string) => {
