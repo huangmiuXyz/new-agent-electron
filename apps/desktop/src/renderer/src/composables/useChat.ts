@@ -50,7 +50,13 @@ function createSentenceSegmenter(locale: string = 'und') {
   return { push, flush }
 }
 
+const chatCache = new Map<string, any>()
+
 export const useChat = (chatId: string) => {
+  if (chatCache.has(chatId)) {
+    return chatCache.get(chatId)
+  }
+
   const {
     createMessageBranch,
     ensureChatAgent,
@@ -250,8 +256,25 @@ export const useChat = (chatId: string) => {
       const createStoreMessageSnapshot = (message?: BaseMessage, error?: APICallError): BaseMessage | null => {
         if (!message) return null
 
-        // Keep par发ts immutable when syncing to Pinia so nested text updates stay reactive in children.
-        const nextParts = message.parts?.map((part) => ({ ...part }))
+        const storeChat = getChatById(chatId)
+        const oldMessages = storeChat ? getMessageBranchMessages(storeChat, messageBranchId) : []
+        const existingMessage = oldMessages.find((m) => m.id === message.id)
+
+        // Keep parts immutable when syncing to Pinia so nested text updates stay reactive in children.
+        // 优化：只有当内容发生变化时才创建新对象，减少 reactivity 负担
+        const nextParts = message.parts?.map((part, index) => {
+          const existingPart = existingMessage?.parts?.[index]
+          if (
+            existingPart &&
+            existingPart.type === part.type &&
+            (existingPart as any).text === (part as any).text &&
+            (existingPart as any).state === (part as any).state &&
+            (existingPart as any).reasoning_content === (part as any).reasoning_content
+          ) {
+            return existingPart
+          }
+          return { ...part }
+        })
         const nextMetadata = {
           ...message.metadata,
           ...(error ? { error, loading: false } : {})
@@ -281,6 +304,15 @@ export const useChat = (chatId: string) => {
           }
         }
 
+        // 核心修正：如果内容完全没变，直接返回现有对象，触发 Vue 的优化
+        if (
+          existingMessage &&
+          existingMessage.parts === nextParts &&
+          JSON.stringify(existingMessage.metadata) === JSON.stringify(nextMetadata)
+        ) {
+          return existingMessage
+        }
+
         return {
           ...message,
           parts: nextParts,
@@ -298,6 +330,10 @@ export const useChat = (chatId: string) => {
 
         const existingIndex = oldMessages.findIndex((m) => m.id === msgToUpdate.id)
         if (existingIndex >= 0) {
+          const existingMessage = oldMessages[existingIndex]
+          // 如果引用没变，说明 snapshot 判定内容无变化，跳过 store 更新
+          if (existingMessage === msgToUpdate) return
+
           updateMessagesInMessageBranch(chatId, messageBranchId, (messages) =>
             messages.map((message) =>
               message.id === msgToUpdate.id
@@ -413,7 +449,11 @@ export const useChat = (chatId: string) => {
         const messageSnapshot = createStoreMessageSnapshot(message)
         if (!messageSnapshot) return
 
-        queueMessageSync(messageSnapshot)
+        if (!pendingSyncMessages.has(messageSnapshot.id)) {
+          pendingSyncMessageIds.push(messageSnapshot.id)
+        }
+        pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
+
         pendingStreamParts = messageSnapshot.parts as (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
         pendingSpeechMessage = messageSnapshot.role === 'assistant' ? messageSnapshot : undefined
 
@@ -537,7 +577,7 @@ export const useChat = (chatId: string) => {
     return { branchMessageId: messageId, regenerateMessageId: messageId }
   }
 
-  return {
+  const result = {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
       scrollToBottom()
       const messageBranchId = getActiveMessageBranchId()
@@ -645,4 +685,7 @@ export const useChat = (chatId: string) => {
       })
     }
   }
+
+  chatCache.set(chatId, result)
+  return result
 }

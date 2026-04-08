@@ -103,6 +103,10 @@ export const useChatsStores = defineStore(
     }
 
     const persistVisibleMessageBranches = (messages: BaseMessage[]) => {
+      // 只有当确实存在分支时才进行克隆和处理，避免无谓的性能开销
+      const hasAnyBranch = messages.some(m => (m.metadata?.messageBranches?.length || 0) > 0)
+      if (!hasAnyBranch) return messages
+
       let nextMessages = cloneMessages(messages)
 
       for (let anchorIndex = 0; anchorIndex < nextMessages.length; anchorIndex += 1) {
