@@ -98,15 +98,16 @@ const execCommand = async (
   command: string,
   options: { cwd?: string; maxBuffer?: number } = {}
 ): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
+  const resolvedCommand = injectBundledRipgrepPath(command)
   if (isWindows) {
     return window.api.execFileCommand(
       getPowerShellPath(),
-      ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command],
+      ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', resolvedCommand],
       options
     )
   }
 
-  return window.api.execFileCommand(getPosixShellPath(), ['-lc', command], options)
+  return window.api.execFileCommand(getPosixShellPath(), ['-lc', resolvedCommand], options)
 }
 
 const getPowerShellPath = (): string => {
@@ -372,7 +373,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         const rootDir = resolvePath('.', options?.chatId)
 
         const resolvedCmd = injectBundledRipgrepPath(cmd)
-        const result = await execProjectSearchCommand(cmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
+        const result = await execProjectSearchCommand(resolvedCmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
         const stdout = result.stdout.trim()
         const stderr = result.stderr.trim()
         const errorMessage = result.errorMessage?.trim() || ''
