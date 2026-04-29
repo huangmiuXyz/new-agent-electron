@@ -218,7 +218,7 @@ const chatSwitcherTargetChat = computed(() => (
 ))
 
 const isChatGenerating = (chat: Chat) => {
-  return chat.messages.some((item) => item.metadata?.loading && item.metadata.stop)
+  return chatStore.isChatGenerating(chat.id)
 }
 
 const getChatSecondaryText = (chat: Chat) => {

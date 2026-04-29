@@ -118,7 +118,7 @@ const showChatContextMenu = (event: MouseEvent, chatId: string) => {
 }
 
 const isChatGenerating = (chat: Chat) => {
-  return chat.messages.some(m => m.metadata?.loading && m.metadata.stop)
+  return chatsStore.isChatGenerating(chat.id)
 }
 
 const getSubTaskStatusLabel = (chat: Chat) => {
