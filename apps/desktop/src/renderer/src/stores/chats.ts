@@ -38,6 +38,9 @@ export const useChatsStores = defineStore(
         messages: cloneMessages(branch.messages)
       }))
 
+    const cloneMessageBranchRefs = (branches: MessageBranchSnapshot[]) =>
+      branches.map((branch) => ({ ...branch }))
+
     const hasAnyMessageBranch = (messages: BaseMessage[]): boolean =>
       messages.some((message) => getMessageBranches(message).length > 0)
 
@@ -97,12 +100,15 @@ export const useChatsStores = defineStore(
       messages: BaseMessage[],
       anchorIndex: number,
       branches: MessageBranchSnapshot[],
-      activeMessageBranchId: string | null
+      activeMessageBranchId: string | null,
+      options?: { cloneBranchMessages?: boolean }
     ) => replaceMessageAt(messages, anchorIndex, (message) => ({
       ...message,
       metadata: {
         ...message.metadata,
-        messageBranches: cloneMessageBranches(branches),
+        messageBranches: options?.cloneBranchMessages === false
+          ? cloneMessageBranchRefs(branches)
+          : cloneMessageBranches(branches),
         activeMessageBranchId
       } as MetaData
     }))
@@ -218,11 +224,17 @@ export const useChatsStores = defineStore(
       const location = findVisibleMessageBranch(messages, branchId)
       if (!location) return null
 
-      const branches = cloneMessageBranches(getMessageBranches(messages[location.anchorIndex]))
+      const branches = cloneMessageBranchRefs(getMessageBranches(messages[location.anchorIndex]))
       const selectedBranch = branches[location.branchIndex]
       if (!selectedBranch) return null
 
-      const withSelection = updateMessageBranchAnchor(messages, location.anchorIndex, branches, branchId)
+      const withSelection = updateMessageBranchAnchor(
+        messages,
+        location.anchorIndex,
+        branches,
+        branchId,
+        { cloneBranchMessages: false }
+      )
       return [
         ...cloneMessages(withSelection.slice(0, location.anchorIndex + 1)),
         ...cloneMessages(selectedBranch.messages)
@@ -238,14 +250,20 @@ export const useChatsStores = defineStore(
         for (const branch of branches) {
           const branchMessages = buildMessagesFromMessageBranch(branch.messages, branchId)
           if (branchMessages) {
-            const selectedBranches = cloneMessageBranches(branches)
+            const selectedBranches = cloneMessageBranchRefs(branches)
             const branchIndex = selectedBranches.findIndex((candidate) => candidate.id === branch.id)
             if (branchIndex < 0) return null
             selectedBranches[branchIndex] = {
               ...selectedBranches[branchIndex],
               messages: branchMessages
             }
-            const withSelection = updateMessageBranchAnchor(messages, anchorIndex, selectedBranches, branch.id)
+            const withSelection = updateMessageBranchAnchor(
+              messages,
+              anchorIndex,
+              selectedBranches,
+              branch.id,
+              { cloneBranchMessages: false }
+            )
             return [
               ...cloneMessages(withSelection.slice(0, anchorIndex + 1)),
               ...cloneMessages(branchMessages)
@@ -262,49 +280,53 @@ export const useChatsStores = defineStore(
       branchId: string,
       updater: (branchMessages: BaseMessage[]) => BaseMessage[]
     ): { messages: BaseMessage[]; updated: boolean } => {
-      let updated = false
-      const nextMessages = messages.map((message) => {
+      for (let messageIndex = 0; messageIndex < messages.length; messageIndex += 1) {
+        const message = messages[messageIndex]
         const branches = getMessageBranches(message)
-        if (branches.length === 0) return message
+        if (branches.length === 0) continue
 
-        let branchesChanged = false
-        const nextBranches = branches.map((branch) => {
+        for (let branchIndex = 0; branchIndex < branches.length; branchIndex += 1) {
+          const branch = branches[branchIndex]
           if (branch.id === branchId) {
-            updated = true
-            branchesChanged = true
-            return {
+            const nextBranches = cloneMessageBranchRefs(branches)
+            nextBranches[branchIndex] = {
               ...branch,
               messages: persistVisibleMessageBranches(updater(cloneMessages(branch.messages)))
             }
+            const nextMessages = [...messages]
+            nextMessages[messageIndex] = {
+              ...message,
+              metadata: {
+                ...message.metadata,
+                messageBranches: nextBranches
+              } as MetaData
+            }
+            return { messages: nextMessages, updated: true }
           }
 
           const nested = updateMessageBranchSnapshot(branch.messages, branchId, updater)
           if (nested.updated) {
-            updated = true
-            branchesChanged = true
-            return {
+            const nextBranches = cloneMessageBranchRefs(branches)
+            nextBranches[branchIndex] = {
               ...branch,
               messages: nested.messages
             }
+            const nextMessages = [...messages]
+            nextMessages[messageIndex] = {
+              ...message,
+              metadata: {
+                ...message.metadata,
+                messageBranches: nextBranches
+              } as MetaData
+            }
+            return { messages: nextMessages, updated: true }
           }
-
-          return branch
-        })
-
-        if (!branchesChanged) return message
-
-        return {
-          ...message,
-          metadata: {
-            ...message.metadata,
-            messageBranches: cloneMessageBranches(nextBranches)
-          } as MetaData
         }
-      })
+      }
 
       return {
-        messages: updated ? nextMessages : messages,
-        updated
+        messages,
+        updated: false
       }
     }
 
@@ -834,13 +856,13 @@ export const useChatsStores = defineStore(
           () => cloneMessages(nextMessages.slice(anchorIndex + 1))
         )
         if (updatedSnapshot.updated) {
-          chat.messages = persistVisibleMessageBranches(updatedSnapshot.messages)
+          chat.messages = updatedSnapshot.messages
         }
         return
       }
 
       const anchorMessage = nextMessages[anchorIndex]
-      const branches = cloneMessageBranches(getMessageBranches(anchorMessage))
+      const branches = cloneMessageBranchRefs(getMessageBranches(anchorMessage))
       const branchIndex = branches.findIndex((branch) => branch.id === branchId)
       if (branchIndex < 0) {
         return
@@ -861,7 +883,8 @@ export const useChatsStores = defineStore(
         nextMessages,
         anchorIndex,
         branches,
-        preferredActiveBranchId
+        preferredActiveBranchId,
+        { cloneBranchMessages: false }
       )
 
       chat.messages =
