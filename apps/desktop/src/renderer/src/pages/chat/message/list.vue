@@ -56,10 +56,29 @@ const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
 const agentStore = useAgentStore()
 
 const isDeletedMessage = (message: BaseMessage) => !!message.metadata?.deletedAt
-const hasMessageBranchSwitcher = (messageId: string) => {
-  if (!currentChat.value?.id) return false
-  return getMessageBranchVariants(currentChat.value.id, messageId, 'structural').variants.length > 1
-}
+
+const messageBranchControls = computed(() => {
+  const controls = new Map<string, { currentIndex: number; total: number }>()
+  const chatId = currentChat.value?.id
+  if (!chatId) return controls
+
+  for (const message of currentChat.value?.messages || []) {
+    if (!message.id) continue
+
+    const branchInfo = getMessageBranchVariants(chatId, message.id, 'structural')
+    if (branchInfo.variants.length <= 1) continue
+
+    const currentIndex = branchInfo.variants.findIndex((variant) => variant.id === branchInfo.currentBranchId)
+    controls.set(message.id, {
+      currentIndex: currentIndex >= 0 ? currentIndex : 0,
+      total: branchInfo.variants.length
+    })
+  }
+
+  return controls
+})
+
+const hasMessageBranchSwitcher = (messageId: string) => messageBranchControls.value.has(messageId)
 
 const visibleMessages = computed(() => {
   return (currentChat.value?.messages || []).filter((message) => {
@@ -115,16 +134,7 @@ const getMessageText = (message: BaseMessage) => {
 }
 
 const getMessageBranchControl = (messageId: string) => {
-  if (!currentChat.value?.id) return null
-
-  const branchInfo = getMessageBranchVariants(currentChat.value.id, messageId, 'structural')
-  if (branchInfo.variants.length <= 1) return null
-
-  const currentIndex = branchInfo.variants.findIndex((variant) => variant.id === branchInfo.currentBranchId)
-  return {
-    currentIndex: currentIndex >= 0 ? currentIndex : 0,
-    total: branchInfo.variants.length
-  }
+  return messageBranchControls.value.get(messageId) || null
 }
 
 const switchMessageBranchForMessage = (messageId: string, direction: 'prev' | 'next') => {

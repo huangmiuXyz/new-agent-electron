@@ -320,6 +320,34 @@ export const useChatsStores = defineStore(
       return sets
     }
 
+    const someMessageDeep = (
+      messages: BaseMessage[],
+      predicate: (message: BaseMessage) => boolean
+    ): boolean => {
+      for (const message of messages) {
+        if (predicate(message)) return true
+
+        for (const branch of getMessageBranches(message)) {
+          if (someMessageDeep(branch.messages, predicate)) return true
+        }
+      }
+
+      return false
+    }
+
+    const forEachMessageDeep = (
+      messages: BaseMessage[],
+      callback: (message: BaseMessage) => void
+    ) => {
+      for (const message of messages) {
+        callback(message)
+
+        for (const branch of getMessageBranches(message)) {
+          forEachMessageDeep(branch.messages, callback)
+        }
+      }
+    }
+
     const getMessageBranchMessages = (chat: Chat, branchId: string | null) => {
       if (!branchId) {
         return chat.messages
@@ -928,9 +956,7 @@ export const useChatsStores = defineStore(
     const isChatGenerating = (chatId: string): boolean => {
       const chat = getChatById(chatId)
       if (!chat) return false
-      return collectMessageSets(chat.messages)
-        .flat()
-        .some(m => m.metadata?.loading && m.metadata.stop)
+      return someMessageDeep(chat.messages, (m) => !!(m.metadata?.loading && m.metadata.stop))
     }
 
     const isChatScopeGenerating = (chatId: string): boolean => {
@@ -948,13 +974,11 @@ export const useChatsStores = defineStore(
       allIds.forEach((id) => {
         const chat = getChatById(id)
         if (!chat) return
-        collectMessageSets(chat.messages)
-          .flat()
-          .forEach((m) => {
-            if (m.metadata?.loading && m.metadata?.stop) {
-              m.metadata.stop()
-            }
-          })
+        forEachMessageDeep(chat.messages, (m) => {
+          if (m.metadata?.loading && m.metadata?.stop) {
+            m.metadata.stop()
+          }
+        })
         if (!options?.preservePendingMessages) {
           chat.pendingMessages = []
         }
