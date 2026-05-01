@@ -51,7 +51,7 @@ function createSentenceSegmenter(locale: string = 'und') {
 }
 
 const chatCache = new Map<string, any>()
-const STREAM_SYNC_INTERVAL_MS = 1000
+const STREAM_SYNC_INTERVAL_MS = 80
 
 export const useChat = (chatId: string) => {
   if (chatCache.has(chatId)) {

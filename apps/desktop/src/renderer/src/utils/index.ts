@@ -75,17 +75,76 @@ export const copyText = (text: string) => {
   }
 }
 
+const DEBOUNCED_STORAGE_KEYS = new Set(['chats'])
+const STORAGE_WRITE_DEBOUNCE_MS = 800
+const pendingStorageWrites = new Map<string, {
+  timer: ReturnType<typeof setTimeout> | null
+  value: string
+}>()
+
+const writeStorageValue = async (key: string, value: string) => {
+  await localforage.setItem(key, JSON.parse(value))
+}
+
+const flushPendingStorageWrite = (key: string) => {
+  const pendingWrite = pendingStorageWrites.get(key)
+  if (!pendingWrite) return Promise.resolve()
+
+  if (pendingWrite.timer) {
+    clearTimeout(pendingWrite.timer)
+  }
+
+  pendingStorageWrites.delete(key)
+  return writeStorageValue(key, pendingWrite.value)
+}
+
+export const flushIndexedDBStorage = async (key?: string) => {
+  if (key) {
+    await flushPendingStorageWrite(key)
+    return
+  }
+
+  await Promise.all([...pendingStorageWrites.keys()].map((storageKey) => flushPendingStorageWrite(storageKey)))
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    void flushIndexedDBStorage()
+  })
+}
+
 export const indexedDBStorage = {
   async getItem(key: string): Promise<string | null> {
+    await flushPendingStorageWrite(key)
     const value = await localforage.getItem<string>(key)
     return JSON.stringify(value) ?? null
   },
 
   async setItem(key: string, value: string): Promise<void> {
-    await localforage.setItem(key, JSON.parse(value))
+    if (!DEBOUNCED_STORAGE_KEYS.has(key)) {
+      await writeStorageValue(key, value)
+      return
+    }
+
+    const pendingWrite = pendingStorageWrites.get(key)
+    if (pendingWrite?.timer) {
+      clearTimeout(pendingWrite.timer)
+    }
+
+    pendingStorageWrites.set(key, {
+      value,
+      timer: setTimeout(() => {
+        void flushPendingStorageWrite(key)
+      }, STORAGE_WRITE_DEBOUNCE_MS)
+    })
   },
 
   async removeItem(key: string): Promise<void> {
+    const pendingWrite = pendingStorageWrites.get(key)
+    if (pendingWrite?.timer) {
+      clearTimeout(pendingWrite.timer)
+    }
+    pendingStorageWrites.delete(key)
     await localforage.removeItem(key)
   }
 }
