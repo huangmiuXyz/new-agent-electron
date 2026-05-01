@@ -35,18 +35,18 @@ const incremark = useIncremark({
 
 const { blocks } = incremark
 
-const lastSourceText = ref('')
-const finalized = ref(false)
-const pendingChunk = ref('')
+let lastSourceText = ''
+let finalized = false
+let pendingChunk = ''
 let appendFrameId: number | null = null
 let finalizeTimer: ReturnType<typeof setTimeout> | null = null
 
 const FINALIZE_DELAY_MS = 120
 
 const flushPendingChunk = () => {
-  if (!pendingChunk.value) return
-  incremark.append(pendingChunk.value)
-  pendingChunk.value = ''
+  if (!pendingChunk) return
+  incremark.append(pendingChunk)
+  pendingChunk = ''
 }
 
 const cancelAppendFrame = () => {
@@ -68,7 +68,7 @@ const scheduleAppend = () => {
   appendFrameId = requestAnimationFrame(() => {
     appendFrameId = null
     flushPendingChunk()
-    if (pendingChunk.value) {
+    if (pendingChunk) {
       scheduleAppend()
     }
   })
@@ -76,30 +76,30 @@ const scheduleAppend = () => {
 
 const finalizeFromFullText = () => {
   const finalText = props.block.text || ''
-  pendingChunk.value = ''
+  pendingChunk = ''
   cancelAppendFrame()
   incremark.reset()
-  lastSourceText.value = ''
+  lastSourceText = ''
 
   if (finalText) {
     incremark.append(finalText)
-    lastSourceText.value = finalText
+    lastSourceText = finalText
   }
 
   incremark.finalize()
-  finalized.value = true
+  finalized = true
 }
 
 const resetAndReplay = (nextText: string) => {
-  pendingChunk.value = ''
+  pendingChunk = ''
   cancelAppendFrame()
   incremark.reset()
-  finalized.value = false
-  lastSourceText.value = ''
+  finalized = false
+  lastSourceText = ''
 
   if (nextText) {
-    pendingChunk.value = nextText
-    lastSourceText.value = nextText
+    pendingChunk = nextText
+    lastSourceText = nextText
     scheduleAppend()
   }
 }
@@ -108,18 +108,18 @@ const updateMarkdown = (newText: string) => {
   const nextText = newText || ''
 
   // If late tokens arrive after finalize, replay from scratch to avoid losing the tail.
-  if (finalized.value && nextText !== lastSourceText.value) {
+  if (finalized && nextText !== lastSourceText) {
     resetAndReplay(nextText)
     return
   }
 
-  if (nextText === lastSourceText.value) return
+  if (nextText === lastSourceText) return
 
-  if (nextText.startsWith(lastSourceText.value)) {
-    const chunk = nextText.slice(lastSourceText.value.length)
-    lastSourceText.value = nextText
+  if (nextText.startsWith(lastSourceText)) {
+    const chunk = nextText.slice(lastSourceText.length)
+    lastSourceText = nextText
     if (chunk) {
-      pendingChunk.value += chunk
+      pendingChunk += chunk
       scheduleAppend()
     }
     return
@@ -154,7 +154,7 @@ watch(
     if (state === 'done') {
       scheduleFinalize()
     } else {
-      finalized.value = false
+      finalized = false
       cancelFinalizeTimer()
     }
   },
@@ -162,7 +162,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
-  pendingChunk.value = ''
+  pendingChunk = ''
   cancelAppendFrame()
   cancelFinalizeTimer()
 })

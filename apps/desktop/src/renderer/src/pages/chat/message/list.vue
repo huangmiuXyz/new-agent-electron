@@ -137,6 +137,17 @@ const getMessageBranchControl = (messageId: string) => {
   return messageBranchControls.value.get(messageId) || null
 }
 
+const getMessageBranchMemoKey = (messageId: string) => {
+  const control = getMessageBranchControl(messageId)
+  return control ? `${control.currentIndex}:${control.total}` : ''
+}
+
+const isContextDividerVisible = (index: number) => {
+  return index === visibleMessages.value.length - contextCount.value &&
+    contextCount.value < visibleMessages.value.length &&
+    !hasCompressedContext.value
+}
+
 const switchMessageBranchForMessage = (messageId: string, direction: 'prev' | 'next') => {
   if (!currentChat.value?.id) return
   cycleMessageBranch(currentChat.value.id, messageId, direction)
@@ -561,13 +572,20 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       <AutoScrollContainer ref="messageScrollRef" :enabled="autoScrollEnabled" :threshold="5">
         <div :class="{ 'is-centered': display.chatCenteredLayout }" class="messages-content">
           <template v-for="(message, index) in visibleMessages" :key="message.id">
-            <div :id="`message-${message.id}`" class="message-item-wrapper" :class="{
+            <div v-memo="[
+              message,
+              index === lastMessageIndex,
+              index === lastMessageIndex ? lastMessageHeight : '',
+              getMessageBranchMemoKey(message.id!),
+              editingMessageId === message.id,
+              isContextDividerVisible(index)
+            ]" :id="`message-${message.id}`" class="message-item-wrapper" :class="{
               'is-last-message': index === lastMessageIndex,
               'has-retry-branch-switcher': !!getMessageBranchControl(message.id!)
             }" :style="index === lastMessageIndex ? { minHeight: lastMessageHeight } : undefined"
               :ref="index === lastMessageIndex - 1 ? (ref) => setPrevMessageWrapperRef(ref as Element) : undefined">
               <div
-                v-if="index === visibleMessages.length - contextCount && contextCount < visibleMessages.length && !hasCompressedContext"
+                v-if="isContextDividerVisible(index)"
                 class="context-divider">
                 <div class="divider-line"></div>
                 <span class="divider-text">上下文分割线</span>

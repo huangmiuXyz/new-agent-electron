@@ -335,11 +335,11 @@ export const useChat = (chatId: string) => {
           if (existingMessage === msgToUpdate) return
 
           updateMessagesInMessageBranch(chatId, messageBranchId, (messages) =>
-            messages.map((message) =>
-              message.id === msgToUpdate.id
-                ? { ...message, parts: msgToUpdate.parts, metadata: msgToUpdate.metadata }
-                : message
-            )
+            replaceMessageById(messages, msgToUpdate.id!, (message) => ({
+              ...message,
+              parts: msgToUpdate.parts,
+              metadata: msgToUpdate.metadata
+            }))
           )
           return
         }
@@ -421,6 +421,19 @@ export const useChat = (chatId: string) => {
             }
           }
         }
+      }
+
+      const replaceMessageById = (
+        messages: BaseMessage[],
+        messageId: string,
+        updater: (message: BaseMessage) => BaseMessage
+      ) => {
+        const messageIndex = messages.findIndex((message) => message.id === messageId)
+        if (messageIndex < 0) return messages
+
+        const nextMessages = [...messages]
+        nextMessages[messageIndex] = updater(messages[messageIndex]!)
+        return nextMessages
       }
 
       const flushStreamingUpdate = () => {
