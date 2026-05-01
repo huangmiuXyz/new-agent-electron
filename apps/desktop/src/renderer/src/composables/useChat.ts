@@ -51,6 +51,7 @@ function createSentenceSegmenter(locale: string = 'und') {
 }
 
 const chatCache = new Map<string, any>()
+const STREAM_SYNC_INTERVAL_MS = 1000
 
 export const useChat = (chatId: string) => {
   if (chatCache.has(chatId)) {
@@ -472,10 +473,11 @@ export const useChat = (chatId: string) => {
 
         if (streamFlushHandle) return
 
-        // Batch token-level updates so markdown parsing and list reactivity do not run on every chunk.
+        // Batch token-level updates so markdown parsing, Pinia persistence, and list patching
+        // do not run on every tiny stream chunk.
         streamFlushHandle = setTimeout(() => {
           flushStreamingUpdate()
-        }, 16)
+        }, STREAM_SYNC_INTERVAL_MS)
       }
 
       watch(
