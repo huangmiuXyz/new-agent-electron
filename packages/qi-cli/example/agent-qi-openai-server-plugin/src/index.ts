@@ -91,18 +91,7 @@ const plugin: Plugin = {
         codePath: getServerCodePath(),
         args: [cloneJson(command)],
         detached: options.detached,
-        timeoutMs: options.timeoutMs || (options.detached ? 5_000 : 3_000),
-        modules: {
-          ai: 'ai',
-          openai: '@ai-sdk/openai',
-          openaiCompatible: '@ai-sdk/openai-compatible',
-          anthropic: '@ai-sdk/anthropic',
-          deepseek: '@ai-sdk/deepseek',
-          google: '@ai-sdk/google',
-          xai: '@ai-sdk/xai',
-          ollama: 'ai-sdk-ollama',
-          openrouter: '@openrouter/ai-sdk-provider'
-        }
+        timeoutMs: options.timeoutMs || (options.detached ? 5_000 : 3_000)
       })
     }
 
@@ -269,18 +258,7 @@ const plugin: Plugin = {
         await context.execNodejs({
           codePath,
           args: [{ action: 'stop', config }],
-          timeoutMs: 3_000,
-          modules: {
-            ai: 'ai',
-            openai: '@ai-sdk/openai',
-            openaiCompatible: '@ai-sdk/openai-compatible',
-            anthropic: '@ai-sdk/anthropic',
-            deepseek: '@ai-sdk/deepseek',
-            google: '@ai-sdk/google',
-            xai: '@ai-sdk/xai',
-            ollama: 'ai-sdk-ollama',
-            openrouter: '@openrouter/ai-sdk-provider'
-          }
+          timeoutMs: 3_000
         })
       }
     }

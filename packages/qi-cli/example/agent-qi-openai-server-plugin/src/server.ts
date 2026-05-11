@@ -50,20 +50,8 @@ type ServerConfig = {
   providers: ProviderConfig[]
 }
 
-type RuntimeModules = {
-  ai: typeof import('ai')
-  openai: typeof import('@ai-sdk/openai')
-  openaiCompatible: typeof import('@ai-sdk/openai-compatible')
-  anthropic: typeof import('@ai-sdk/anthropic')
-  deepseek: typeof import('@ai-sdk/deepseek')
-  google: typeof import('@ai-sdk/google')
-  xai: typeof import('@ai-sdk/xai')
-  ollama: typeof import('ai-sdk-ollama')
-  openrouter: typeof import('@openrouter/ai-sdk-provider')
-}
-
 type RuntimeContext = {
-  modules: RuntimeModules
+  modules?: Record<string, any>
 }
 
 type ServerCommand =
@@ -129,62 +117,8 @@ const readJsonBody = (req: any) =>
     req.on('error', reject)
   })
 
-const normalizeContent = (content: unknown): string => {
-  if (typeof content === 'string') return content
-  if (!Array.isArray(content)) return String(content || '')
-  return content
-    .map((part) => {
-      if (typeof part === 'string') return part
-      if (part && typeof part === 'object' && (part as any).type === 'text') {
-        return String((part as any).text || '')
-      }
-      return ''
-    })
-    .filter(Boolean)
-    .join('\n')
-}
-
-const messagesToPrompt = (messages: any[]) =>
-  messages
-    .map((message) => {
-      const role = message?.role || 'user'
-      const text = normalizeContent(message?.content)
-      return text ? `${role}: ${text}` : ''
-    })
-    .filter(Boolean)
-    .join('\n\n')
-
-const buildProvider = (provider: ProviderConfig, modules: RuntimeModules) => {
-  const options = {
-    apiKey: provider.apiKey || '',
-    baseURL: provider.baseUrl,
-    name: provider.name || provider.id
-  }
-
-  switch (provider.providerType) {
-    case 'openai':
-      return modules.openai.createOpenAI(options)
-    case 'anthropic':
-      return modules.anthropic.createAnthropic(options)
-    case 'deepseek':
-      return modules.deepseek.createDeepSeek(options)
-    case 'google':
-      return modules.google.createGoogleGenerativeAI(options)
-    case 'xai':
-      return modules.xai.createXai(options)
-    case 'ollama':
-      return modules.ollama.createOllama(options)
-    case 'openrouter':
-      return modules.openrouter.createOpenRouter(options)
-    case 'openai-compatible':
-    default:
-      return modules.openaiCompatible.createOpenAICompatible(options)
-  }
-}
-
-const createLanguageModel = (
+const resolveProviderAndModel = (
   config: ServerConfig,
-  modules: RuntimeModules,
   requestedModel: string
 ) => {
   const [requestedProviderId, requestedModelId] = String(requestedModel || '').includes(':')
@@ -211,8 +145,7 @@ const createLanguageModel = (
 
   return {
     provider,
-    modelId,
-    model: buildProvider(provider, modules).languageModel(modelId)
+    modelId
   }
 }
 
@@ -229,98 +162,6 @@ const toOpenAIModels = (config: ServerConfig) =>
         description: model.description || ''
       }))
   )
-
-const buildChatCompletion = (params: {
-  id: string
-  model: string
-  text: string
-  finishReason?: string
-  usage?: any
-}) => ({
-  id: params.id,
-  object: 'chat.completion',
-  created: nowSeconds(),
-  model: params.model,
-  choices: [
-    {
-      index: 0,
-      finish_reason: params.finishReason || 'stop',
-      message: {
-        role: 'assistant',
-        content: params.text
-      }
-    }
-  ],
-  ...(params.usage
-    ? {
-        usage: {
-          prompt_tokens: params.usage.inputTokens || params.usage.promptTokens || 0,
-          completion_tokens: params.usage.outputTokens || params.usage.completionTokens || 0,
-          total_tokens: params.usage.totalTokens || 0
-        }
-      }
-    : {})
-})
-
-const buildChatChunk = (params: {
-  id: string
-  model: string
-  delta: Record<string, unknown>
-  finishReason?: string | null
-  usage?: any
-}) => ({
-  id: params.id,
-  object: 'chat.completion.chunk',
-  created: nowSeconds(),
-  model: params.model,
-  choices: [
-    {
-      index: 0,
-      delta: params.delta,
-      finish_reason: params.finishReason ?? null
-    }
-  ],
-  ...(params.usage
-    ? {
-        usage: {
-          prompt_tokens: params.usage.inputTokens || params.usage.promptTokens || 0,
-          completion_tokens: params.usage.outputTokens || params.usage.completionTokens || 0,
-          total_tokens: params.usage.totalTokens || 0
-        }
-      }
-    : {})
-})
-
-const finiteNumber = (value: unknown) =>
-  typeof value === 'number' && Number.isFinite(value) ? value : undefined
-
-const buildGenerationOptions = (body: any) => ({
-  temperature: finiteNumber(body.temperature),
-  topP: finiteNumber(body.top_p),
-  maxOutputTokens:
-    finiteNumber(body.max_completion_tokens) ?? finiteNumber(body.max_tokens)
-})
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
-const writeTextDelta = async (res: any, params: { id: string; model: string; text: string }) => {
-  const text = String(params.text || '')
-  if (!text) return
-
-  const parts = text.match(/[\s\S]{1,24}/g) || []
-  for (const part of parts) {
-    if (res.destroyed || res.writableEnded) return
-    writeSse(
-      res,
-      buildChatChunk({
-        id: params.id,
-        model: params.model,
-        delta: { content: part }
-      })
-    )
-    if (parts.length > 1) await sleep(8)
-  }
-}
 
 const getProviderApiKey = (provider: RawProviderConfig) => {
   if (provider.apiKey) return String(provider.apiKey)
@@ -409,6 +250,57 @@ const requestJson = async (targetUrl: string, options: {
   })
 }
 
+const stripTrailingSlash = (value: string) => String(value || '').replace(/\/+$/, '')
+
+const resolveOpenAIEndpoint = (provider: ProviderConfig, pathname: string) => {
+  const baseUrl = stripTrailingSlash(provider.baseUrl)
+  if (!baseUrl) throw new Error(`Provider "${provider.name}" is missing baseUrl.`)
+  return `${baseUrl}${pathname.startsWith('/') ? pathname : `/${pathname}`}`
+}
+
+const buildUpstreamHeaders = (provider: ProviderConfig, incomingHeaders: Record<string, string | string[] | undefined>) => {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${provider.apiKey}`,
+    'Content-Type': 'application/json',
+    Accept: String(getHeader(incomingHeaders, 'accept') || 'application/json')
+  }
+
+  const userAgent = getHeader(incomingHeaders, 'user-agent')
+  if (userAgent) headers['User-Agent'] = String(userAgent)
+
+  return headers
+}
+
+const pipeUpstreamResponse = async (upstream: any, res: any) => {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Origin': '*'
+  }
+  const contentType = upstream.headers.get('content-type')
+  if (contentType) headers['Content-Type'] = contentType
+  const cacheControl = upstream.headers.get('cache-control')
+  if (cacheControl) headers['Cache-Control'] = cacheControl
+
+  if (contentType?.includes('text/event-stream')) {
+    headers.Connection = 'keep-alive'
+    headers['X-Accel-Buffering'] = 'no'
+  }
+
+  res.writeHead(upstream.status, headers)
+  res.flushHeaders?.()
+
+  if (!upstream.body) {
+    res.end()
+    return
+  }
+
+  for await (const chunk of upstream.body) {
+    if (res.destroyed || res.writableEnded) return
+    res.write(chunk)
+    res.flush?.()
+  }
+  res.end()
+}
+
 const stopServer = async (config: PluginConfig) =>
   await requestJson(`${getBaseURL(config)}/shutdown`, {
     method: 'POST',
@@ -425,11 +317,9 @@ const startServer = async (
 ) => {
   const http = require('node:http')
   const { URL } = require('node:url')
-  const { randomUUID } = require('node:crypto')
 
   const host = normalizeHost(config.host)
   const port = normalizePort(config.port)
-  const modules = runtime.modules
 
   const server = http.createServer(async (req: any, res: any) => {
     try {
@@ -477,67 +367,20 @@ const startServer = async (
           })
         }
 
-        const selected = createLanguageModel(config, modules, body.model)
+        const selected = resolveProviderAndModel(config, body.model)
         const responseModel = `${selected.provider.id}:${selected.modelId}`
-        const prompt = messagesToPrompt(body.messages)
-        const id = `chatcmpl_${randomUUID()}`
-
-        if (body.stream) {
-          sendSseHead(res)
-          writeSse(
-            res,
-            buildChatChunk({
-              id,
-              model: responseModel,
-              delta: { role: 'assistant' }
-            })
-          )
-          const result = modules.ai.streamText({
-            model: selected.model,
-            prompt,
-            ...buildGenerationOptions(body)
-          })
-
-          for await (const delta of result.textStream) {
-            await writeTextDelta(res, {
-              id,
-              model: responseModel,
-              text: delta
-            })
-          }
-
-          writeSse(
-            res,
-            buildChatChunk({
-              id,
-              model: responseModel,
-              delta: {},
-              finishReason: 'stop'
-            })
-          )
-          res.write('data: [DONE]\n\n')
-          res.flush?.()
-          res.end()
-          return
+        const upstreamBody = {
+          ...body,
+          model: selected.modelId
         }
-
-        const result = await modules.ai.generateText({
-          model: selected.model,
-          prompt,
-          ...buildGenerationOptions(body)
+        const upstream = await fetch(resolveOpenAIEndpoint(selected.provider, '/chat/completions'), {
+          method: 'POST',
+          headers: buildUpstreamHeaders(selected.provider, req.headers),
+          body: JSON.stringify(upstreamBody)
         })
 
-        return sendJson(
-          res,
-          200,
-          buildChatCompletion({
-            id,
-            model: responseModel,
-            text: result.text,
-            finishReason: result.finishReason,
-            usage: result.usage
-          })
-        )
+        res.setHeader?.('X-Agent-Qi-Model', responseModel)
+        return await pipeUpstreamResponse(upstream, res)
       }
 
       return sendJson(res, 404, { error: { message: 'Not found.' } })
