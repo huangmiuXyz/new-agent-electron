@@ -195,7 +195,7 @@ const getBlockKey = (block: BaseMessage['parts'][number], idx: number) => {
 }
 
 .text-content {
-  color: #fff
+  color: var(--text-primary);
 }
 
 .edit-textarea {

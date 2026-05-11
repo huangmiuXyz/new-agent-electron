@@ -78,8 +78,6 @@ const theme = computed(() => (display.value.darkMode ? 'dark' : 'default'))
 .incremark-renderer :deep(.incremark-code),
 .incremark-renderer :deep(.shiki),
 .incremark-renderer :deep(.incremark-code-stream) {
-  background: var(--bg-secondary) !important;
-  border: 1px solid var(--border-subtle);
   border-radius: 10px;
 }
 
