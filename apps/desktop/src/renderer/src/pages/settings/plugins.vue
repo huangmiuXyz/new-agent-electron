@@ -37,6 +37,7 @@ const {
   getPluginBuiltinTools,
   getPluginRegistries,
   getPluginProviders,
+  getPluginSettingsForm,
   selectPlugin,
   togglePluginNotification,
   isPluginNotificationDisabled,
@@ -138,6 +139,11 @@ const handleSelectPlugin = (pluginId: string) => {
 
 const showList = computed(() => !isMobile.value || !isDetailResult.value)
 const showForm = computed(() => !isMobile.value || isDetailResult.value)
+const activePluginSettingsForm = computed(() =>
+  activePlugin.value?.type === 'loaded'
+    ? getPluginSettingsForm(activePlugin.value.name)
+    : undefined
+)
 
 watch(
   () => route.query.pluginId,
@@ -424,6 +430,9 @@ const handleUninstallPlugin = async (pluginName: string) => {
 
           <!-- 设置 (Settings) -->
           <div v-if="activeTab === 'settings'" class="tab-pane">
+            <FormItem v-if="activePluginSettingsForm" label="插件配置">
+              <component :is="activePluginSettingsForm" />
+            </FormItem>
             <SettingsForm />
           </div>
         </div>

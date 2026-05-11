@@ -11,6 +11,36 @@ import { exec, spawn, fork } from 'child_process'
 import os from 'os'
 import { type ElectronAPI } from '@agent-qi/types'
 
+type ExecNodejsOptions = {
+  code?: string
+  codePath?: string
+  file?: string
+  args?: unknown[]
+  modules?: string[] | Record<string, string>
+  cwd?: string
+  moduleBasePath?: string
+  env?: Record<string, string | undefined>
+  timeoutMs?: number
+  maxBuffer?: number
+  detached?: boolean
+}
+
+type ExecNodejsResult<T = unknown> = {
+  ok: boolean
+  code: number | null
+  stdout: string
+  stderr: string
+  result?: T
+  pid?: number
+  error?: {
+    name?: string
+    message: string
+    stack?: string
+  }
+  errorMessage?: string
+  errorCode?: string
+}
+
 const rewriteAsarExecutablePath = (candidate: string): string => {
   const normalized = path.normalize(candidate)
   const asarSegment = `${path.sep}app.asar${path.sep}`
@@ -159,6 +189,322 @@ const execFileCommand = (
   })
 }
 
+const NODEJS_BOOTSTRAP = String.raw`
+const fs = require('node:fs')
+const path = require('node:path')
+const { createRequire } = require('node:module')
+const { pathToFileURL } = require('node:url')
+
+const readStdin = () => new Promise((resolve, reject) => {
+  let data = ''
+  process.stdin.setEncoding('utf8')
+  process.stdin.on('data', (chunk) => { data += chunk })
+  process.stdin.on('end', () => resolve(data))
+  process.stdin.on('error', reject)
+})
+
+const serialize = (value) => {
+  try {
+    JSON.stringify(value)
+    return value
+  } catch {
+    return String(value)
+  }
+}
+
+const resolveRequireAnchor = (basePath) => {
+  const normalized = path.resolve(basePath || process.cwd())
+  try {
+    const stat = fs.existsSync(normalized) ? fs.statSync(normalized) : null
+    if (stat?.isFile()) return normalized
+  } catch {
+  }
+  return path.join(normalized, 'package.json')
+}
+
+const loadModule = async (requireFromBase, request) => {
+  try {
+    return requireFromBase(request)
+  } catch (error) {
+    if (error?.code !== 'ERR_REQUIRE_ESM') {
+      throw error
+    }
+    const resolved = requireFromBase.resolve(request)
+    return await import(pathToFileURL(resolved).href)
+  }
+}
+
+const loadModules = async (requireFromBase, modules) => {
+  if (!modules) return {}
+  if (Array.isArray(modules)) {
+    return Object.fromEntries(
+      await Promise.all(modules.map(async (name) => [name, await loadModule(requireFromBase, name)]))
+    )
+  }
+  return Object.fromEntries(await Promise.all(
+    Object.entries(modules).map(async ([alias, request]) => [alias, await loadModule(requireFromBase, request)])
+  )
+  )
+}
+
+const loadCodePath = async (requireFromBase, filePath, cwd, tempDir) => {
+  const resolvedPath = path.isAbsolute(filePath)
+    ? filePath
+    : path.resolve(cwd, filePath)
+  const extension = path.extname(resolvedPath).toLowerCase()
+
+  if (!['.ts', '.tsx', '.mts', '.cts'].includes(extension)) {
+    return await loadModule(requireFromBase, resolvedPath)
+  }
+
+  const ts = await loadModule(requireFromBase, 'typescript').catch((error) => {
+    throw new Error(
+      'Executing TypeScript codePath requires the plugin to include "typescript": ' + (error?.message || error)
+    )
+  })
+  const source = fs.readFileSync(resolvedPath, 'utf8')
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+      jsx: ts.JsxEmit.ReactJSX
+    },
+    fileName: resolvedPath
+  })
+  const outPath = path.join(tempDir, path.basename(resolvedPath) + '.cjs')
+  fs.writeFileSync(outPath, transpiled.outputText, 'utf8')
+  return requireFromBase(outPath)
+}
+
+(async () => {
+  const payload = JSON.parse(await readStdin() || '{}')
+  const cwd = path.resolve(payload.cwd || process.cwd())
+  const moduleBasePath = path.resolve(payload.moduleBasePath || cwd)
+  const requireFromBase = createRequire(resolveRequireAnchor(moduleBasePath))
+  const modules = await loadModules(requireFromBase, payload.modules)
+
+  let result
+  const codePath = payload.codePath || payload.file
+  if (codePath) {
+    const loaded = await loadCodePath(requireFromBase, codePath, cwd, payload.tempDir)
+    const runner = typeof loaded === 'function' ? loaded : loaded?.default
+    result = typeof runner === 'function'
+      ? await runner(...(payload.args || []), { modules, require: requireFromBase, cwd })
+      : loaded
+  } else if (payload.code) {
+    const runner = new Function(
+      'modules',
+      'args',
+      'require',
+      'cwd',
+      'process',
+      'console',
+      'Buffer',
+      'setTimeout',
+      'clearTimeout',
+      '"use strict"; return (async () => { ' + payload.code + '\n })()'
+    )
+    result = await runner(
+      modules,
+      payload.args || [],
+      requireFromBase,
+      cwd,
+      process,
+      console,
+      Buffer,
+      setTimeout,
+      clearTimeout
+    )
+  } else {
+    throw new Error('execNodejs requires code, codePath, or file.')
+  }
+
+  fs.writeFileSync(payload.resultPath, JSON.stringify({ ok: true, result: serialize(result) }), 'utf8')
+})().catch((error) => {
+  try {
+    fs.writeFileSync(process.env.AGENT_QI_EXEC_NODEJS_RESULT_PATH, JSON.stringify({
+      ok: false,
+      error: {
+        name: error && error.name ? String(error.name) : undefined,
+        message: error && error.message ? String(error.message) : String(error),
+        stack: error && error.stack ? String(error.stack) : undefined
+      }
+    }), 'utf8')
+  } catch {
+  }
+  process.exitCode = 1
+})
+`
+
+const execNodejs = <T = unknown>(
+  options: ExecNodejsOptions
+): Promise<ExecNodejsResult<T>> => {
+  return new Promise((resolve) => {
+    const cwd = options.cwd || options.moduleBasePath || app.getPath('userData')
+    const maxBuffer = options.maxBuffer ?? 1024 * 1024
+    const timeoutMs = options.timeoutMs ?? 60_000
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-qi-nodejs-'))
+    const bootstrapPath = path.join(tempDir, 'bootstrap.cjs')
+    const resultPath = path.join(tempDir, 'result.json')
+    fs.writeFileSync(bootstrapPath, NODEJS_BOOTSTRAP, 'utf8')
+
+    const execPath = process.execPath || 'node'
+    const child = spawn(execPath, [bootstrapPath], {
+      cwd,
+      windowsHide: true,
+      detached: Boolean(options.detached),
+      stdio: options.detached ? ['pipe', 'ignore', 'ignore'] : ['pipe', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        ...options.env,
+        ELECTRON_RUN_AS_NODE: '1',
+        AGENT_QI_EXEC_NODEJS_RESULT_PATH: resultPath
+      }
+    })
+
+    let stdout = ''
+    let stderr = ''
+    let stdoutBytes = 0
+    let stderrBytes = 0
+    let settled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    const cleanup = () => {
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      } catch {
+      }
+    }
+
+    const finish = (result: ExecNodejsResult<T>) => {
+      if (settled) return
+      settled = true
+      if (timer) clearTimeout(timer)
+      if (!options.detached) cleanup()
+      resolve(result)
+    }
+
+    if (options.detached) {
+      child.on('error', (error) => {
+        const errorWithCode = error as NodeJS.ErrnoException & { code?: number | string }
+        finish({
+          ok: false,
+          code: typeof errorWithCode.code === 'number' ? errorWithCode.code : null,
+          stdout,
+          stderr,
+          errorMessage: errorWithCode.message,
+          errorCode: typeof errorWithCode.code === 'string' ? errorWithCode.code : undefined
+        })
+      })
+      child.stdin?.end(JSON.stringify({
+        code: options.code,
+        codePath: options.codePath,
+        file: options.file,
+        args: options.args || [],
+        modules: options.modules,
+        cwd,
+        moduleBasePath: options.moduleBasePath || cwd,
+        resultPath,
+        tempDir
+      }))
+      if (typeof child.unref === 'function') child.unref()
+      setTimeout(() => {
+        finish({
+          ok: true,
+          code: null,
+          stdout,
+          stderr,
+          pid: child.pid
+        })
+      }, 50)
+      return
+    }
+
+    const appendChunk = (target: 'stdout' | 'stderr', chunk: Buffer | string) => {
+      const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8')
+      const bytes = Buffer.byteLength(text)
+      if (target === 'stdout') {
+        stdout += text
+        stdoutBytes += bytes
+      } else {
+        stderr += text
+        stderrBytes += bytes
+      }
+      if (stdoutBytes + stderrBytes > maxBuffer) {
+        child.kill()
+        finish({
+          ok: false,
+          code: null,
+          stdout,
+          stderr,
+          errorMessage: `stdout maxBuffer length exceeded: ${maxBuffer}`,
+          errorCode: 'MAX_BUFFER'
+        })
+      }
+    }
+
+    timer = setTimeout(() => {
+      child.kill()
+      finish({
+        ok: false,
+        code: null,
+        stdout,
+        stderr,
+        errorMessage: `execNodejs timed out after ${timeoutMs}ms`,
+        errorCode: 'TIMEOUT'
+      })
+    }, timeoutMs)
+
+    child.stdout?.on('data', (chunk) => appendChunk('stdout', chunk))
+    child.stderr?.on('data', (chunk) => appendChunk('stderr', chunk))
+    child.on('error', (error) => {
+      const errorWithCode = error as NodeJS.ErrnoException & { code?: number | string }
+      finish({
+        ok: false,
+        code: typeof errorWithCode.code === 'number' ? errorWithCode.code : null,
+        stdout,
+        stderr,
+        errorMessage: errorWithCode.message,
+        errorCode: typeof errorWithCode.code === 'string' ? errorWithCode.code : undefined
+      })
+    })
+    child.on('close', (code) => {
+      let payload: { ok?: boolean; result?: T; error?: ExecNodejsResult<T>['error'] } | null = null
+      try {
+        if (fs.existsSync(resultPath)) {
+          payload = JSON.parse(fs.readFileSync(resultPath, 'utf8'))
+        }
+      } catch {
+      }
+
+      finish({
+        ok: Boolean(payload?.ok) && (code === 0 || code === null),
+        code,
+        stdout,
+        stderr,
+        result: payload?.result,
+        error: payload?.error,
+        ...(!payload?.ok && !payload?.error && code
+          ? { errorMessage: stderr.trim() || stdout.trim() || `Node.js execution failed with exit code ${code}` }
+          : {})
+      })
+    })
+
+    child.stdin?.end(JSON.stringify({
+      code: options.code,
+      codePath: options.codePath,
+      file: options.file,
+      args: options.args || [],
+      modules: options.modules,
+      cwd,
+      moduleBasePath: options.moduleBasePath || cwd,
+      resultPath,
+      tempDir
+    }))
+  })
+}
+
 
 export const api: ElectronAPI = {
   ...aiServices(),
@@ -207,6 +553,7 @@ export const api: ElectronAPI = {
   },
   getBundledRipgrepPath,
   execFileCommand,
+  execNodejs,
   shell,
   clipboard: {
     writeText: (text: string) => clipboard.writeText(text),

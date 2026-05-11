@@ -6,6 +6,11 @@ import { useIcon, icons } from '@renderer/composables/useIcon';
 import { useTerminal } from '@renderer/composables/useTerminal';
 import { registerProviderFactory, ProviderFactory, unregisterProviderFactory } from '../chatService/registry';
 import localforage from 'localforage'
+
+const clonePlain = <T>(value: T): T => {
+  if (value === undefined || value === null) return value;
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 /**
  * 插件管理器
  * 负责维护插件注册表、命令系统和钩子系统
@@ -19,6 +24,7 @@ export class PluginManager {
   private hooks: Map<string, Hook[]> = new Map();
   private builtinTools: Map<string, any> = new Map();
   private registeredComponents: Map<string, any> = new Map();
+  private pluginSettingsForms: Map<string, Component> = reactive(new Map());
   /** 跟踪每个插件注册的内置工具名称 */
   private pluginBuiltinTools: Map<string, Set<string>> = new Map();
   /** 跟踪每个插件注册的注册表名称 */
@@ -83,6 +89,7 @@ export class PluginManager {
     }
 
     this.pluginRegistries.delete(pluginName);
+    this.pluginSettingsForms.delete(pluginName);
 
     // 注销该插件注册的所有提供商
     const settingsStore = useSettingsStore(this.pinia);
@@ -201,12 +208,26 @@ export class PluginManager {
         return `plugins/${pluginName}/models`
       },
       basePath,
+      execNodejs: (options) =>
+        window.api.execNodejs(clonePlain({
+          ...options,
+          args: options.args ? clonePlain(options.args) : undefined,
+          env: options.env ? clonePlain(options.env) : undefined,
+          cwd: options.cwd || basePath,
+          moduleBasePath: options.moduleBasePath || basePath
+        })),
       useForm: useForm as <T extends Record<string, any>>(options: FormConfig<T>) => readonly [Component, FormActions<T>],
       useTable: useTable as <T extends Record<string, any>>(config: TableConfig<T>) => readonly [Component, TableActions<T>],
       useDownload: () => useDownload(pluginName),
       useIcon: (name: string) => useIcon(name as keyof typeof icons) as VNode,
       useModal,
       useTerminal,
+      registerSettings: (form: Component) => {
+        this.pluginSettingsForms.set(pluginName, markRaw(form));
+      },
+      unregisterSettings: () => {
+        this.pluginSettingsForms.delete(pluginName);
+      },
       components,
       registerCommand: (name: string, handler: (...args: any[]) => any) => {
         this.registerCommand(pluginName, name, handler);
@@ -704,6 +725,15 @@ export class PluginManager {
   getPluginRegistries(pluginName: string): string[] {
     const names = this.pluginRegistries.get(pluginName);
     return names ? Array.from(names) : [];
+  }
+
+  /**
+   * 获取插件设置表单
+   * @param pluginName 插件名称
+   * @returns 插件设置表单组件
+   */
+  getPluginSettingsForm(pluginName: string): Component | undefined {
+    return this.pluginSettingsForms.get(pluginName);
   }
 
   /**

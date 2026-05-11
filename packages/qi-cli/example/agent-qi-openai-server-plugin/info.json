@@ -1,0 +1,9 @@
+{
+  "name": "Agent-Qi OpenAI 兼容服务",
+  "version": "1.0.0",
+  "description": "将 Agent-Qi 已配置的 AI Provider 通过本机 Node 服务暴露为 OpenAI 兼容接口，可设置 API Key 与端口。",
+  "author": "Agent-Qi",
+  "platforms": ["desktop"],
+  "mobileUnsupportedReason": "Requires spawning a local Node.js server.",
+  "updatedAt": "2026-05-11"
+}

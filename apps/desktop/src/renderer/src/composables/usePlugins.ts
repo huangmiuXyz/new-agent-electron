@@ -365,6 +365,10 @@ export function usePlugins() {
     return settingsStore.registeredProviders.filter((p) => p.pluginName === pluginName)
   }
 
+  const getPluginSettingsForm = (pluginName: string) => {
+    return pluginLoader.getPluginManager().getPluginSettingsForm(pluginName)
+  }
+
   const selectPlugin = (pluginId: string): void => {
     activePluginId.value = pluginId
   }
@@ -432,6 +436,7 @@ export function usePlugins() {
     getPluginBuiltinTools,
     getPluginRegistries,
     getPluginProviders,
+    getPluginSettingsForm,
     selectPlugin,
     pluginLoader,
     triggerHook,

@@ -33,6 +33,36 @@ export type SyncEvent =
   | { type: 'state'; state: SyncHostState }
   | { type: 'directory'; endpoints: SyncEndpoint[] };
 
+export interface ExecNodejsOptions {
+  code?: string;
+  codePath?: string;
+  file?: string;
+  args?: unknown[];
+  modules?: string[] | Record<string, string>;
+  cwd?: string;
+  moduleBasePath?: string;
+  env?: Record<string, string | undefined>;
+  timeoutMs?: number;
+  maxBuffer?: number;
+  detached?: boolean;
+}
+
+export interface ExecNodejsResult<T = unknown> {
+  ok: boolean;
+  code: number | null;
+  stdout: string;
+  stderr: string;
+  result?: T;
+  pid?: number;
+  error?: {
+    name?: string;
+    message: string;
+    stack?: string;
+  };
+  errorMessage?: string;
+  errorCode?: string;
+}
+
 export interface ElectronAPI {
   // aiServices
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>;
@@ -84,6 +114,7 @@ export interface ElectronAPI {
     errorMessage?: string;
     errorCode?: string;
   }>;
+  execNodejs: <T = unknown>(options: ExecNodejsOptions) => Promise<ExecNodejsResult<T>>;
 
   // libs
   shell: any;

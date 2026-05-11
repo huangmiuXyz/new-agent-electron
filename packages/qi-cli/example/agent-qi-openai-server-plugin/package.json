@@ -1,0 +1,30 @@
+{
+  "name": "agent-qi-openai-server",
+  "version": "1.0.0",
+  "description": "Expose Agent-Qi configured AI providers as an OpenAI-compatible local server",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "catalog:",
+    "@ai-sdk/deepseek": "catalog:",
+    "@ai-sdk/google": "catalog:",
+    "@ai-sdk/openai": "catalog:",
+    "@ai-sdk/openai-compatible": "catalog:",
+    "@ai-sdk/xai": "catalog:",
+    "@openrouter/ai-sdk-provider": "^2.3.1",
+    "ai": "catalog:",
+    "ai-sdk-ollama": "catalog:",
+    "typescript": "catalog:"
+  },
+  "devDependencies": {
+    "@agent-qi/types": "workspace:*",
+    "@types/node": "catalog:",
+    "@vitejs/plugin-vue-jsx": "catalog:",
+    "vite": "catalog:"
+  },
+  "author": "Agent-Qi"
+}

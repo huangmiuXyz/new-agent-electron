@@ -4,7 +4,7 @@ import { Router } from 'vue-router';
 import { Model, Tool } from './ai';
 import { FormActions, FormConfig, TableActions, TableConfig, DownloadProgress, FormField, TableColumn, NotificationApi, ModalActions, TerminalActions } from './components';
 import { RegisteredProvider } from './settings';
-import { ElectronAPI } from './electron';
+import { ElectronAPI, ExecNodejsOptions, ExecNodejsResult } from './electron';
 
 /**
  * 插件接口定义
@@ -42,6 +42,8 @@ export interface PluginContext {
   router: Router;
   /** 插件根路径 */
   basePath: string;
+  /** 在独立 Node.js 进程中执行插件脚本，模块默认从插件目录解析 */
+  execNodejs: <T = unknown>(options: ExecNodejsOptions) => Promise<ExecNodejsResult<T>>;
   /** 注册命令 */
   registerCommand: (name: string, handler: (...args: unknown[]) => unknown) => void;
   /** 注册钩子 */
@@ -127,6 +129,10 @@ export interface PluginContext {
   useModal: () => ModalActions;
   /** 获取 useTerminal 工具 */
   useTerminal: () => TerminalActions;
+  /** 注册插件设置表单，显示在插件管理页的设置标签中 */
+  registerSettings: (form: Component) => void;
+  /** 注销插件设置表单 */
+  unregisterSettings: () => void;
   components: Record<string, Component>;
   vue: {
     ref: typeof import('vue').ref;
