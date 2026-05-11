@@ -136,6 +136,7 @@ const execProjectSearchCommand = async (
 }
 
 const isWindows = navigator.platform.toLowerCase().includes('win')
+const startsWithRipgrep = (command: string): boolean => /^rg(?:\s|$)/.test(command.trimStart())
 
 export const getCodexBuiltinTools = (): Partial<Tools> => ({
   readFile: {
@@ -358,9 +359,18 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   search_project: {
     title: '项目搜索',
     description:
-      '使用rg进行搜索，直接执行传入的命令字符串；',
+      [
+        '使用 ripgrep(rg) 在当前 workPath 内搜索项目文件。必须使用 rg。',
+        '常用模式：',
+        '- 搜内容：rg -n "keyword" .',
+        '- 搜文件名：rg --files | rg "keyword"',
+        '- 限定目录或类型：rg -n "keyword" apps/desktop/src -g "*.ts" -g "*.vue"',
+        '- 带上下文：rg -n "keyword" -C 3',
+        '- 搜隐藏文件、ignore 文件或 node_modules：rg -uuu -n "keyword"',
+        '- 输出可能很大时：加具体目录、-g/--glob、--max-count 或更精确关键词。',
+      ].join('\n'),
     inputSchema: z.object({
-      cmd: z.string().describe('要原样执行的命令字符串')
+      cmd: z.string().describe('要原样执行的 rg 搜索命令，例如 rg -n "keyword" . 或 rg --files | rg "keyword"')
     }),
     execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
@@ -373,6 +383,10 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         const rootDir = resolvePath('.', options?.chatId)
 
         const resolvedCmd = injectBundledRipgrepPath(cmd)
+        const isRipgrepCommand = startsWithRipgrep(cmd)
+        const commandHint = isRipgrepCommand
+          ? ''
+          : '\n提示：search_project 是项目搜索工具，搜索内容或文件名时请优先使用 rg，例如 rg -n "keyword" . 或 rg --files | rg "keyword"。'
         const result = await execProjectSearchCommand(resolvedCmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
         const stdout = result.stdout.trim()
         const stderr = result.stderr.trim()
@@ -384,7 +398,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
               content: [
                 {
                   type: 'text',
-                  text: `命令执行完成，无标准输出\ncmd: ${cmd}${resolvedCmd !== cmd ? `\nresolved_cmd: ${resolvedCmd}` : ''}\ncwd: ${rootDir.replaceAll('\\', '/')}\n${stderr ? `\nstderr:\n${stderr}` : ''}`
+                  text: `命令执行完成，无标准输出${isRipgrepCommand ? '（rg 未找到匹配项）' : ''}\ncmd: ${cmd}${resolvedCmd !== cmd ? `\nresolved_cmd: ${resolvedCmd}` : ''}\ncwd: ${rootDir.replaceAll('\\', '/')}${commandHint}\n${stderr ? `\nstderr:\n${stderr}` : ''}`
                 }
               ]
             }
@@ -407,6 +421,9 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         const outputSections = [
           `命令执行完成\ncmd: ${cmd}${resolvedCmd !== cmd ? `\nresolved_cmd: ${resolvedCmd}` : ''}\ncwd: ${rootDir}`
         ]
+        if (commandHint) {
+          outputSections.push(commandHint.trimStart())
+        }
         if (stdout) {
           outputSections.push(`stdout:\n${stdout}`)
         }

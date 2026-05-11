@@ -302,7 +302,17 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
   },
   search_canvas_content: {
     title: '搜索 Canvas 内容',
-    description: '使用 rg 在当前 Canvas 工作区中搜索指定代码或内容，返回匹配文件、行号和文本。',
+    description:
+      [
+        '使用 ripgrep(rg) 当前 Canvas 工作区中搜索指定代码或内容，返回匹配文件、行号和文本。必须使用 rg。',
+        '常用模式：',
+        '- 搜内容：rg -n "keyword" .',
+        '- 搜文件名：rg --files | rg "keyword"',
+        '- 限定目录或类型：rg -n "keyword" apps/desktop/src -g "*.ts" -g "*.vue"',
+        '- 带上下文：rg -n "keyword" -C 3',
+        '- 搜隐藏文件、ignore 文件或 node_modules：rg -uuu -n "keyword"',
+        '- 输出可能很大时：加具体目录、-g/--glob、--max-count 或更精确关键词。',
+      ].join('\n'),
     inputSchema: z.object({
       query: z.string().describe('要搜索的关键词或文本片段'),
       case_sensitive: z.boolean().optional().default(false).describe('是否区分大小写，默认 false'),
