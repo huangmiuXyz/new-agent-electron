@@ -1,3 +1,44 @@
+import { appendFileSync, mkdirSync, existsSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+
+// ====== 日志配置 ======
+// 写到用户主目录下，避免触发项目目录文件监听导致插件重载
+const LOG_DIR = process.env.LOG_DIR || join(homedir(), '.agent-qi', 'logs')
+const LOG_FILE = join(LOG_DIR, 'openai-server.log')
+
+// 确保日志目录存在
+if (!existsSync(LOG_DIR)) {
+  try {
+    mkdirSync(LOG_DIR, { recursive: true })
+  } catch {
+    // 忽略
+  }
+}
+
+type LogLevel = 'INFO' | 'WARN' | 'ERROR'
+
+const logToFile = (level: LogLevel, method: string, pathname: string, status: number, extra?: string) => {
+  const timestamp = new Date().toISOString()
+  const line = `[${timestamp}] [${level}] ${method} ${pathname} -> ${status}${extra ? ` | ${extra}` : ''}\n`
+  try {
+    appendFileSync(LOG_FILE, line, 'utf-8')
+  } catch {
+    // 日志写入失败不影响主服务
+  }
+}
+
+const logEvent = (event: string, detail?: string) => {
+  const timestamp = new Date().toISOString()
+  const line = `[${timestamp}] [EVENT] ${event}${detail ? ` | ${detail}` : ''}\n`
+  try {
+    appendFileSync(LOG_FILE, line, 'utf-8')
+  } catch {
+    // 忽略
+  }
+}
+// ====== 日志配置结束 ======
+
 type ProviderConfig = {
   id: string
   name: string
@@ -75,6 +116,9 @@ const getBearer = (headers: Record<string, string | string[] | undefined>) => {
   return match ? match[1].trim() : ''
 }
 
+let currentRequestMethod = ''
+let currentRequestPath = ''
+
 const sendJson = (res: any, statusCode: number, payload: unknown) => {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -83,6 +127,16 @@ const sendJson = (res: any, statusCode: number, payload: unknown) => {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
   })
   res.end(JSON.stringify(payload))
+
+  // 记录日志（跳过 OPTIONS 预检请求 和 内部健康检查轮询）
+  if (currentRequestMethod !== 'OPTIONS' && currentRequestPath !== '/health') {
+    logToFile(
+      statusCode >= 500 ? 'ERROR' : statusCode >= 400 ? 'WARN' : 'INFO',
+      currentRequestMethod,
+      currentRequestPath,
+      statusCode
+    )
+  }
 }
 
 const sendSseHead = (res: any) => {
@@ -342,6 +396,8 @@ const startServer = async (
   const server = http.createServer(async (req: any, res: any) => {
     try {
       const url = new URL(req.url || '/', `http://${req.headers.host || `${host}:${port}`}`)
+      currentRequestMethod = req.method || 'UNKNOWN'
+      currentRequestPath = url.pathname
 
       if (req.method === 'OPTIONS') {
         return sendJson(res, 204, {})
@@ -361,12 +417,14 @@ const startServer = async (
         if (body?.adminKey !== config.adminKey) {
           return sendJson(res, 401, { error: { message: 'Invalid admin key.' } })
         }
+        logEvent('SERVER_SHUTDOWN', `Admin shutdown via ${req.socket?.remoteAddress || 'unknown'}`)
         sendJson(res, 200, { ok: true })
         setTimeout(() => server.close(() => process.exit(0)), 50)
         return
       }
 
       if (getBearer(req.headers) !== config.apiKey) {
+        logToFile('WARN', currentRequestMethod, currentRequestPath, 401, 'Invalid API key')
         return sendJson(res, 401, { error: { message: 'Invalid API key.' } })
       }
 
@@ -385,6 +443,7 @@ const startServer = async (
           })
         }
 
+        const model = body.model || 'unknown'
         const selected = resolveProviderAndModel(config, body.model)
         const upstreamBody = {
           ...sanitizeOpenAIRequestBody(body),
@@ -396,11 +455,55 @@ const startServer = async (
           body: JSON.stringify(upstreamBody)
         })
 
+        // 记录聊天补全请求日志（流式响应不走 sendJson，单独记录）
+        const logParts: string[] = [
+          `model=${selected.provider.id}:${selected.modelId}`,
+          `messages=${body.messages.length}`,
+          `stream=${!!body.stream}`
+        ]
+
+        // 记录每条消息的完整内容
+        body.messages.forEach((msg: any, i: number) => {
+          const role = msg.role || 'unknown'
+          const content = typeof msg.content === 'string'
+            ? msg.content
+            : JSON.stringify(msg.content)
+          logParts.push(`msg[${i}].role=${role}`)
+          logParts.push(`msg[${i}].content=${content}`)
+          // 如果有 name
+          if (msg.name) logParts.push(`msg[${i}].name=${msg.name}`)
+          // 如果有 tool_calls
+          if (msg.tool_calls) logParts.push(`msg[${i}].tool_calls=${JSON.stringify(msg.tool_calls)}`)
+          // 如果有 tool_call_id
+          if (msg.tool_call_id) logParts.push(`msg[${i}].tool_call_id=${msg.tool_call_id}`)
+        })
+
+        // 记录 tools 定义
+        if (body.tools) {
+          logParts.push(`tools=${JSON.stringify(body.tools)}`)
+        }
+
+        // 记录 tool_choice
+        if (body.tool_choice !== undefined) {
+          logParts.push(`tool_choice=${JSON.stringify(body.tool_choice)}`)
+        }
+
+        // 记录其他常见参数
+        const extraParams = ['temperature', 'top_p', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'stop', 'n', 'seed', 'response_format', 'user']
+        extraParams.forEach((key) => {
+          if (body[key] !== undefined) {
+            logParts.push(`${key}=${JSON.stringify(body[key])}`)
+          }
+        })
+
+        logToFile('INFO', currentRequestMethod, currentRequestPath, upstream.status, logParts.join(' | '))
+
         return await pipeUpstreamResponse(upstream, res)
       }
 
       return sendJson(res, 404, { error: { message: 'Not found.' } })
     } catch (error) {
+      logToFile('ERROR', currentRequestMethod, currentRequestPath, 500, error instanceof Error ? error.message : String(error))
       return sendJson(res, 500, {
         error: {
           message: error instanceof Error ? error.message : String(error)
@@ -410,6 +513,7 @@ const startServer = async (
   })
 
   server.listen(port, host)
+  logEvent('SERVER_START', `Listening on http://${host}:${port} | providers=${config.providers.length} | defaultModel=${config.defaultProviderId}:${config.defaultModelId}`)
 }
 
 export default async function runAgentQiOpenAIServerCommand(
