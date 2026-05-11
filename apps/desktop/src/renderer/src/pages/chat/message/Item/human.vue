@@ -45,12 +45,16 @@ const props = defineProps<{
 .msg-bubble {
   font-size: 14px;
   line-height: 1.5;
-  background-color: #000;
-  color: var(--accent-text);
+  background-color: var(--bubble-me);
+  color: #fff;
   padding: 8px 14px;
   border-radius: 12px 12px 2px 12px;
   box-shadow: 0 2px 4px rgba(var(--text-rgb), 0.05);
   word-wrap: break-word;
+}
+
+.msg-bubble :deep(.text-content) {
+  color: inherit;
 }
 
 .msg-content {
