@@ -1,4 +1,12 @@
-import { UIMessage, UIMessagePart, ProviderMetadata, UIMessageChunk, LanguageModelUsage, UIDataTypes, UITools } from 'ai'
+import {
+  UIMessage,
+  UIMessagePart,
+  ProviderMetadata,
+  UIMessageChunk,
+  LanguageModelUsage,
+  UIDataTypes,
+  UITools
+} from 'ai'
 
 export type AsyncImageResult = {
   images?: Array<{ base64?: string; url?: string } | string>
@@ -34,7 +42,6 @@ export interface MetaData {
   estimatedInputTokens?: number
   tokenUsageSource?: 'reported' | 'estimated' | 'mixed'
   providerMetadata?: ProviderMetadata
-  deletedAt?: number
   audio?: {
     chunks: {
       data: string // base64
@@ -45,14 +52,6 @@ export interface MetaData {
     voice: string
     model: string
   }
-  activeMessageBranchId?: string | null
-  messageBranches?: MessageBranchSnapshot[]
-}
-
-export interface MessageBranchSnapshot {
-  id: string
-  createdAt: number
-  messages: BaseMessage[]
 }
 
 export interface RagSearchDetail {
@@ -78,21 +77,28 @@ export type ClientConfig = Record<
     tools: Tools
     name: string
     env: string
-    description?: string;
+    description?: string
   }
 >
-export type Tools = Record<string, {
-  description?: string;
-  inputSchema: import('zod').ZodType<unknown>;
-  execute: (args: unknown, options: {
-    toolCallId: string; chatId: string;
-    model: string,
-    provider: string,
-  }) => Promise<unknown>;
-  render?: unknown;
-  title?: string;
-  needsApproval?: boolean;
-}>
+export type Tools = Record<
+  string,
+  {
+    description?: string
+    inputSchema: import('zod').ZodType<unknown>
+    execute: (
+      args: unknown,
+      options: {
+        toolCallId: string
+        chatId: string
+        model: string
+        provider: string
+      }
+    ) => Promise<unknown>
+    render?: unknown
+    title?: string
+    needsApproval?: boolean
+  }
+>
 
 export type BaseMessage = UIMessage<MetaData, UIMessageChunk>
 export type Tool = Tools[keyof Tools]
@@ -117,24 +123,22 @@ export interface Model {
 declare global {
   type AsyncImageResult = _AsyncImageResult
   type providerType = _providerType
-  interface MetaData extends _MetaData { }
-  interface MessageBranchSnapshot extends _MessageBranchSnapshot { }
-  interface RagSearchDetail extends _RagSearchDetail { }
-  interface TranslationResult extends _TranslationResult { }
+  interface MetaData extends _MetaData {}
+  interface RagSearchDetail extends _RagSearchDetail {}
+  interface TranslationResult extends _TranslationResult {}
   type ClientConfig = _ClientConfig
   type Tools = _Tools
   type BaseMessage = _BaseMessage
   type Tool = _Tool
   type ContentBlock<T extends UIDataTypes, K extends UITools> = _ContentBlock<T, K>
   type ModelCategory = _ModelCategory
-  interface ModelVoice extends _ModelVoice { }
-  interface Model extends _Model { }
+  interface ModelVoice extends _ModelVoice {}
+  interface Model extends _Model {}
 }
 
 type _AsyncImageResult = AsyncImageResult
 type _providerType = providerType
 type _MetaData = MetaData
-type _MessageBranchSnapshot = MessageBranchSnapshot
 type _RagSearchDetail = RagSearchDetail
 type _TranslationResult = TranslationResult
 type _ClientConfig = ClientConfig

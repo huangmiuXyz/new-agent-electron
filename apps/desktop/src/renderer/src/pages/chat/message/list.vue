@@ -13,17 +13,15 @@ const prevMessageWrapperRef = ref<HTMLElement | null>(null)
 const autoScrollEnabled = ref(true)
 const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
-const { cycleMessageBranch, deleteMessage, getMessageBranchVariants, updateMessage } = useChatsStores()
+const { deleteMessage, updateMessage } = useChatsStores()
 const mobileEditModal = useModal()
-const { Delete, Refresh, Continue, Copy, Edit, Branch, Language, ChevronLeft, ChevronRight } = useIcon([
+const { Delete, Refresh, Continue, Copy, Edit, Branch, Language } = useIcon([
   'Delete',
   'Refresh',
   'Copy',
   'Edit',
   'Branch',
   'Language',
-  'ChevronLeft',
-  'ChevronRight',
   'Stop',
   'Continue'
 ])
@@ -55,36 +53,8 @@ provide('messageEdit', {
 const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
 const agentStore = useAgentStore()
 
-const isDeletedMessage = (message: BaseMessage) => !!message.metadata?.deletedAt
-
-const messageBranchControls = computed(() => {
-  const controls = new Map<string, { currentIndex: number; total: number }>()
-  const chatId = currentChat.value?.id
-  if (!chatId) return controls
-
-  for (const message of currentChat.value?.messages || []) {
-    if (!message.id) continue
-
-    const branchInfo = getMessageBranchVariants(chatId, message.id, 'structural')
-    if (branchInfo.variants.length <= 1) continue
-
-    const currentIndex = branchInfo.variants.findIndex((variant) => variant.id === branchInfo.currentBranchId)
-    controls.set(message.id, {
-      currentIndex: currentIndex >= 0 ? currentIndex : 0,
-      total: branchInfo.variants.length
-    })
-  }
-
-  return controls
-})
-
-const hasMessageBranchSwitcher = (messageId: string) => messageBranchControls.value.has(messageId)
-
 const visibleMessages = computed(() => {
-  return (currentChat.value?.messages || []).filter((message) => {
-    if (!isDeletedMessage(message)) return true
-    return message.role === 'user' && !!message.id && hasMessageBranchSwitcher(message.id)
-  })
+  return currentChat.value?.messages || []
 })
 
 const contextCount = computed(() => {
@@ -94,10 +64,11 @@ const contextCount = computed(() => {
 
 // 判断是否存在上下文压缩消息
 const hasCompressedContext = computed(() => {
-  return visibleMessages.value.some(msg =>
-    msg.role === 'system' &&
-    (msg.metadata?.isCompressedContext ||
-      msg.parts?.some(p => p.type === 'text' && p.text?.includes('[上下文已压缩]')))
+  return visibleMessages.value.some(
+    (msg) =>
+      msg.role === 'system' &&
+      (msg.metadata?.isCompressedContext ||
+        msg.parts?.some((p) => p.type === 'text' && p.text?.includes('[上下文已压缩]')))
   )
 })
 
@@ -108,21 +79,11 @@ const lastMessageIndex = computed(() => {
 
 const { height: containerHeight } = useElementSize(scrollHostRef)
 const { height: prevMessageHeight } = useElementSize(prevMessageWrapperRef)
-const MESSAGE_BRANCH_SWITCHER_RESERVED_HEIGHT = 25
 const LAST_MESSAGE_BOTTOM_GAP = 16
-
-const prevMessageHasMessageBranchControl = computed(() => {
-  if (lastMessageIndex.value <= 0) return false
-
-  const prevMessage = visibleMessages.value[lastMessageIndex.value - 1]
-  return !!prevMessage?.id && !!getMessageBranchControl(prevMessage.id)
-})
 
 const lastMessageHeight = computed(() => {
   if (lastMessageIndex.value >= 0 && containerHeight.value > 0 && prevMessageHeight.value > 0) {
-    const prevHeight = prevMessageHeight.value + (
-      prevMessageHasMessageBranchControl.value ? MESSAGE_BRANCH_SWITCHER_RESERVED_HEIGHT : 0
-    )
+    const prevHeight = prevMessageHeight.value
     const height = containerHeight.value - prevHeight - LAST_MESSAGE_BOTTOM_GAP
     return `${Math.max(0, height)}px`
   }
@@ -133,24 +94,12 @@ const getMessageText = (message: BaseMessage) => {
   return message.parts.map((e) => (e.type === 'text' ? e.text : '')).join('')
 }
 
-const getMessageBranchControl = (messageId: string) => {
-  return messageBranchControls.value.get(messageId) || null
-}
-
-const getMessageBranchMemoKey = (messageId: string) => {
-  const control = getMessageBranchControl(messageId)
-  return control ? `${control.currentIndex}:${control.total}` : ''
-}
-
 const isContextDividerVisible = (index: number) => {
-  return index === visibleMessages.value.length - contextCount.value &&
+  return (
+    index === visibleMessages.value.length - contextCount.value &&
     contextCount.value < visibleMessages.value.length &&
     !hasCompressedContext.value
-}
-
-const switchMessageBranchForMessage = (messageId: string, direction: 'prev' | 'next') => {
-  if (!currentChat.value?.id) return
-  cycleMessageBranch(currentChat.value.id, messageId, direction)
+  )
 }
 
 const setPrevMessageWrapperRef = (el: Element | null) => {
@@ -263,7 +212,7 @@ const MobileEditContent = defineComponent({
       resize: 'none' as const,
       fontFamily: 'inherit',
       backgroundColor: 'var(--bg-input)',
-      overflowY: isMobile.value ? 'auto' as const : 'hidden' as const,
+      overflowY: isMobile.value ? ('auto' as const) : ('hidden' as const),
       WebkitOverflowScrolling: 'touch' as const,
       touchAction: 'pan-y' as const,
       boxSizing: 'border-box' as const
@@ -324,11 +273,13 @@ const openMobileEditModal = (message: BaseMessage) => {
     width: 'min(680px, 100%)',
     variant: isMobile.value ? 'drawer' : 'center',
     maxHeight: isMobile.value ? 'calc(var(--vh, 100vh) - 8px)' : '85vh',
-    modalBodyStyle: isMobile.value ? {
-      padding: '0',
-      overflow: 'hidden',
-      minHeight: '0'
-    } : undefined
+    modalBodyStyle: isMobile.value
+      ? {
+          padding: '0',
+          overflow: 'hidden',
+          minHeight: '0'
+        }
+      : undefined
   })
 }
 
@@ -452,16 +403,18 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 
             for (let i = 0; i < allMessages.length; i += CHUNK_SIZE) {
               const chunk = allMessages.slice(i, i + CHUNK_SIZE)
-              const chunkContent = chunk.map((msg) => {
-                const role = msg.role === 'user' ? '用户' : '助手'
-                const content = msg.parts.map((e) => (e.type === 'text' ? e.text : '')).join('')
-                return `${role}: ${content}`
-              }).join('\n\n')
+              const chunkContent = chunk
+                .map((msg) => {
+                  const role = msg.role === 'user' ? '用户' : '助手'
+                  const content = msg.parts.map((e) => (e.type === 'text' ? e.text : '')).join('')
+                  return `${role}: ${content}`
+                })
+                .join('\n\n')
               contentChunks.push(chunkContent)
 
               // 每处理一个分片让出控制权，避免阻塞 UI
               if (i + CHUNK_SIZE < allMessages.length) {
-                await new Promise(resolve => setTimeout(resolve, 0))
+                await new Promise((resolve) => setTimeout(resolve, 0))
               }
             }
 
@@ -537,21 +490,25 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         })
       }
     },
-    ...(message.role === 'assistant' ? [{
-      label: '继续',
-      icon: Continue,
-      onClick: async (data) => {
-        if (!currentSelectedModel.value) {
-          messageApi.error('请先选择模型')
-          return
-        }
-        data.metadata?.stop?.()
-        const { continueMessages } = useChat(currentChat.value!.id!)
-        setTimeout(() => {
-          continueMessages()
-        })
-      }
-    }] : []),
+    ...(message.role === 'assistant'
+      ? [
+          {
+            label: '继续',
+            icon: Continue,
+            onClick: async (data) => {
+              if (!currentSelectedModel.value) {
+                messageApi.error('请先选择模型')
+                return
+              }
+              data.metadata?.stop?.()
+              const { continueMessages } = useChat(currentChat.value!.id!)
+              setTimeout(() => {
+                continueMessages()
+              })
+            }
+          }
+        ]
+      : []),
     {
       label: '删除',
       icon: Delete,
@@ -572,61 +529,69 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       <AutoScrollContainer ref="messageScrollRef" :enabled="autoScrollEnabled" :threshold="5">
         <div :class="{ 'is-centered': display.chatCenteredLayout }" class="messages-content">
           <template v-for="(message, index) in visibleMessages" :key="message.id">
-            <div v-memo="[
-              message,
-              index === lastMessageIndex,
-              index === lastMessageIndex ? lastMessageHeight : '',
-              getMessageBranchMemoKey(message.id!),
-              editingMessageId === message.id,
-              isContextDividerVisible(index)
-            ]" :id="`message-${message.id}`" class="message-item-wrapper" :class="{
-              'is-last-message': index === lastMessageIndex,
-              'has-retry-branch-switcher': !!getMessageBranchControl(message.id!)
-            }" :style="index === lastMessageIndex ? { minHeight: lastMessageHeight } : undefined"
-              :ref="index === lastMessageIndex - 1 ? (ref) => setPrevMessageWrapperRef(ref as Element) : undefined">
-              <div
-                v-if="isContextDividerVisible(index)"
-                class="context-divider">
+            <div
+              v-memo="[
+                message,
+                index === lastMessageIndex,
+                index === lastMessageIndex ? lastMessageHeight : '',
+                editingMessageId === message.id,
+                isContextDividerVisible(index)
+              ]"
+              :id="`message-${message.id}`"
+              class="message-item-wrapper"
+              :class="{
+                'is-last-message': index === lastMessageIndex
+              }"
+              :style="index === lastMessageIndex ? { minHeight: lastMessageHeight } : undefined"
+              :ref="
+                index === lastMessageIndex - 1
+                  ? (ref) => setPrevMessageWrapperRef(ref as Element)
+                  : undefined
+              "
+            >
+              <div v-if="isContextDividerVisible(index)" class="context-divider">
                 <div class="divider-line"></div>
                 <span class="divider-text">上下文分割线</span>
                 <div class="divider-line"></div>
               </div>
-              <div v-if="isDeletedMessage(message)" class="deleted-message-placeholder" :style="index === lastMessageIndex ? {
-                minHeight: 0,
-                height: 'auto',
-                flex: '1 1 auto'
-              } : undefined">
-                <span class="deleted-message-text">已删除的分支锚点</span>
-              </div>
-              <ChatMessageItemHuman v-else-if="message.role === 'user'" :message="message" :style="index === lastMessageIndex ? {
-                minHeight: 0,
-                height: 'auto',
-                flex: '1 1 auto'
-              } : undefined" @contextmenu="onMessageRightClick($event, message)" />
-              <ChatMessageItemAi v-else-if="message.role === 'assistant'" :message="message" :style="{
-                minHeight: index === lastMessageIndex ? 0 : undefined,
-                height: 'auto',
-                flex: index === lastMessageIndex ? '1 1 auto' : 'none'
-              }" @contextmenu="onMessageRightClick($event, message)" />
-              <ChatMessageItemSystem v-else-if="message.role === 'system'" :message="message" :style="index === lastMessageIndex ? {
-                minHeight: 0,
-                height: 'auto',
-                flex: '1 1 auto'
-              } : undefined" @contextmenu="onMessageRightClick($event, message)" />
-              <div v-if="getMessageBranchControl(message.id!)" class="retry-branch-switcher">
-                <button class="retry-branch-btn" type="button" title="上一个分支"
-                  @click="switchMessageBranchForMessage(message.id!, 'prev')">
-                  <ChevronLeft />
-                </button>
-                <span class="retry-branch-indicator">
-                  {{ getMessageBranchControl(message.id!)!.currentIndex + 1 }} / {{
-                    getMessageBranchControl(message.id!)!.total }}
-                </span>
-                <button class="retry-branch-btn" type="button" title="下一个分支"
-                  @click="switchMessageBranchForMessage(message.id!, 'next')">
-                  <ChevronRight />
-                </button>
-              </div>
+              <ChatMessageItemHuman
+                v-if="message.role === 'user'"
+                :message="message"
+                :style="
+                  index === lastMessageIndex
+                    ? {
+                        minHeight: 0,
+                        height: 'auto',
+                        flex: '1 1 auto'
+                      }
+                    : undefined
+                "
+                @contextmenu="onMessageRightClick($event, message)"
+              />
+              <ChatMessageItemAi
+                v-else-if="message.role === 'assistant'"
+                :message="message"
+                :style="{
+                  minHeight: index === lastMessageIndex ? 0 : undefined,
+                  height: 'auto',
+                  flex: index === lastMessageIndex ? '1 1 auto' : 'none'
+                }"
+                @contextmenu="onMessageRightClick($event, message)"
+              />
+              <ChatMessageItemSystem
+                v-else-if="message.role === 'system'"
+                :message="message"
+                :style="
+                  index === lastMessageIndex
+                    ? {
+                        minHeight: 0,
+                        height: 'auto',
+                        flex: '1 1 auto'
+                      }
+                    : undefined
+                "
+                @contextmenu="onMessageRightClick($event, message)"
+              />
             </div>
           </template>
         </div>
@@ -636,8 +601,11 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
     <ChatMessageNav :container="messageScrollRef" />
 
     <Teleport to="body">
-      <div v-if="isMobile && mobileCopyPreviewVisible" class="mobile-copy-preview-overlay"
-        @click.self="closeMobileCopyPreview">
+      <div
+        v-if="isMobile && mobileCopyPreviewVisible"
+        class="mobile-copy-preview-overlay"
+        @click.self="closeMobileCopyPreview"
+      >
         <div class="mobile-copy-preview-card" role="dialog" aria-modal="true">
           <div class="mobile-copy-preview-header">
             <div class="mobile-copy-preview-title">复制内容</div>
@@ -689,55 +657,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   min-height: 0;
 }
 
-.retry-branch-switcher {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  width: fit-content;
-  margin: 0;
-  padding: 1px 4px;
-  border: 1px solid var(--border-color-light);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
-  backdrop-filter: blur(4px);
-  position: absolute;
-  left: 50%;
-  bottom: 6px;
-  transform: translateX(-50%);
-  z-index: 2;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.retry-branch-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 0;
-}
-
-.retry-branch-btn:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-.retry-branch-indicator {
-  min-width: 30px;
-  text-align: center;
-  font-size: 9px;
-  line-height: 1;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
 .message-item-wrapper {
   content-visibility: auto;
   contain-intrinsic-size: auto 100px;
@@ -760,31 +679,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 .message-item-wrapper.highlight-jump {
   background-color: rgba(var(--accent-rgb), 0.15);
   border-radius: 8px;
-}
-
-.message-item-wrapper.has-retry-branch-switcher {
-  overflow: visible;
-  contain: layout style;
-  padding-bottom: 24px;
-}
-
-.deleted-message-placeholder {
-  display: flex;
-  justify-content: flex-end;
-  width: 100%;
-  padding: 8px 20px;
-}
-
-.deleted-message-text {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 6px 12px;
-  border-radius: 12px 12px 2px 12px;
-  border: 1px dashed var(--border-color);
-  color: var(--text-tertiary);
-  background: color-mix(in srgb, var(--bg-card) 86%, transparent);
-  font-size: 12px;
 }
 
 .context-divider {

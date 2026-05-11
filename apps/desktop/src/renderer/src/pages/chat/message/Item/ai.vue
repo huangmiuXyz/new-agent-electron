@@ -24,7 +24,10 @@ const hasAudioChunks = computed(() => {
 const flatUsage = computed(() => getFlatTokenUsage(props.message.metadata?.usage))
 
 const isCurrentPlaying = computed(() => {
-  return speechStore.isPlaying && speechStore.queue.some(chunk => chunk.messageId === props.message.id && !chunk.played)
+  return (
+    speechStore.isPlaying &&
+    speechStore.queue.some((chunk) => chunk.messageId === props.message.id && !chunk.played)
+  )
 })
 
 const playMessageAudio = () => {
@@ -34,28 +37,26 @@ const playMessageAudio = () => {
   }
 
   const currentChatMessages = chatsStore.currentChat?.messages || []
-  const queueChunks = currentChatMessages
-    .filter(message => !message.metadata?.deletedAt)
-    .flatMap((message) => {
-      const audioChunks = message.metadata?.audio?.chunks?.filter(chunk => chunk.data) || []
+  const queueChunks = currentChatMessages.flatMap((message) => {
+    const audioChunks = message.metadata?.audio?.chunks?.filter((chunk) => chunk.data) || []
 
-      return audioChunks.map((chunk, chunkIndex) => ({
-        id: `${message.id}-audio-${chunkIndex}`,
-        messageId: message.id,
-        text: chunk.text,
-        audioData: chunk.data,
-        duration: chunk.duration,
-        error: chunk.error,
-        played: false,
-        loading: false
-      }))
-    })
+    return audioChunks.map((chunk, chunkIndex) => ({
+      id: `${message.id}-audio-${chunkIndex}`,
+      messageId: message.id,
+      text: chunk.text,
+      audioData: chunk.data,
+      duration: chunk.duration,
+      error: chunk.error,
+      played: false,
+      loading: false
+    }))
+  })
 
   if (queueChunks.length === 0) {
     return
   }
 
-  const targetChunk = queueChunks.find(chunk => chunk.messageId === props.message.id)
+  const targetChunk = queueChunks.find((chunk) => chunk.messageId === props.message.id)
   speechStore.replaceQueue(queueChunks, targetChunk?.id)
   settingsStore.display.assistantSidebarTab = 'playlist'
 
@@ -67,11 +68,15 @@ const playMessageAudio = () => {
 
 <template>
   <div class="msg-row them has-avatar">
-
     <div class="msg-content">
       <div class="msg-meta">
         <div class="msg-avatar-area">
-          <Image v-if="currentAgentAvatar" :src="currentAgentAvatar" class="msg-avatar" alt="avatar" />
+          <Image
+            v-if="currentAgentAvatar"
+            :src="currentAgentAvatar"
+            class="msg-avatar"
+            alt="avatar"
+          />
           <div v-else class="msg-avatar-fallback">
             <Robot />
           </div>
@@ -80,9 +85,13 @@ const playMessageAudio = () => {
         <div class="msg-meta-content">
           <span class="msg-name">{{ message.metadata?.model }}</span>
 
-          <div v-if="flatUsage.totalTokens || flatUsage.inputTokens || flatUsage.outputTokens" class="msg-usage">
-            <span v-if="flatUsage.inputTokens || flatUsage.outputTokens">Tokens: {{
-              flatUsage.totalTokens }}</span>
+          <div
+            v-if="flatUsage.totalTokens || flatUsage.inputTokens || flatUsage.outputTokens"
+            class="msg-usage"
+          >
+            <span v-if="flatUsage.inputTokens || flatUsage.outputTokens"
+              >Tokens: {{ flatUsage.totalTokens }}</span
+            >
             <span v-if="flatUsage.inputTokens">↑{{ flatUsage.inputTokens }}</span>
             <span v-if="flatUsage.outputTokens">↓{{ flatUsage.outputTokens }}</span>
           </div>
@@ -90,12 +99,17 @@ const playMessageAudio = () => {
       </div>
       <ChatMessageItemRagSearch
         :searching="!message.metadata?.ragSearchDetails?.length && !!message.metadata?.ragEnabled"
-        :search-details="message.metadata?.ragSearchDetails" />
-      <div v-if="
-        !message.metadata?.error &&
-        message.metadata?.loading &&
-        message.parts.findIndex((e) => e.type === 'step-start') === -1
-      " class="loading-container" :class="{ 'is-mobile': isMobile }">
+        :search-details="message.metadata?.ragSearchDetails"
+      />
+      <div
+        v-if="
+          !message.metadata?.error &&
+          message.metadata?.loading &&
+          message.parts.findIndex((e) => e.type === 'step-start') === -1
+        "
+        class="loading-container"
+        :class="{ 'is-mobile': isMobile }"
+      >
         <div class="loading-dots">
           <span class="dot"></span>
           <span class="dot"></span>
@@ -104,26 +118,47 @@ const playMessageAudio = () => {
       </div>
       <ChatMessageItemContent markdown :message="message" />
 
-      <div v-if="hasAudioChunks || (message.metadata?.loading && !message.metadata?.error && message.metadata.stop)"
-        class="msg-actions">
-        <Button v-if="hasAudioChunks" size="sm" @click="playMessageAudio" variant="icon" type="button"
-          :class="{ 'is-active': isCurrentPlaying }">
+      <div
+        v-if="
+          hasAudioChunks ||
+          (message.metadata?.loading && !message.metadata?.error && message.metadata.stop)
+        "
+        class="msg-actions"
+      >
+        <Button
+          v-if="hasAudioChunks"
+          size="sm"
+          @click="playMessageAudio"
+          variant="icon"
+          type="button"
+          :class="{ 'is-active': isCurrentPlaying }"
+        >
           <template #icon>
-            <VolumeMedium :style="{ color: isCurrentPlaying ? 'var(--accent-color)' : 'inherit' }" />
+            <VolumeMedium
+              :style="{ color: isCurrentPlaying ? 'var(--accent-color)' : 'inherit' }"
+            />
           </template>
         </Button>
-        <Button v-if="message.metadata?.loading && !message.metadata?.error && message.metadata.stop" size="sm"
-          @click="message.metadata?.stop" variant="icon" type="button">
+        <Button
+          v-if="message.metadata?.loading && !message.metadata?.error && message.metadata.stop"
+          size="sm"
+          @click="message.metadata?.stop"
+          variant="icon"
+          type="button"
+        >
           <template #icon>
             <Stop style="color: red" />
           </template>
         </Button>
       </div>
 
-      <MessageTranslation v-if="message.metadata?.translations || message.metadata?.translationLoading"
-        :translations="message.metadata.translations" :translationLoading="message.metadata.translationLoading"
+      <MessageTranslation
+        v-if="message.metadata?.translations || message.metadata?.translationLoading"
+        :translations="message.metadata.translations"
+        :translationLoading="message.metadata.translationLoading"
         :translationController="message.metadata.translationController"
-        @stopTranslation="() => message.metadata?.translationController?.()" />
+        @stopTranslation="() => message.metadata?.translationController?.()"
+      />
     </div>
   </div>
 </template>
@@ -259,7 +294,6 @@ const playMessageAudio = () => {
 }
 
 @keyframes pulse {
-
   0%,
   80%,
   100% {

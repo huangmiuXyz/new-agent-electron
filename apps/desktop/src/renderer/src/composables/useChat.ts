@@ -59,20 +59,15 @@ export const useChat = (chatId: string) => {
   }
 
   const {
-    createMessageBranch,
     ensureChatAgent,
-    getActiveMessageBranchId: getStoreActiveMessageBranchId,
     getChatById,
-    getMessageBranchMessages,
-    switchMessageBranch,
     shiftPendingMessage,
     updateMessageMetadata,
-    updateMessagesInMessageBranch
+    updateMessages
   } = useChatsStores()
   const { messageScrollRef } = useMessageScroll()
 
-  const { thinkingMode, speechEnabled, providerOptions } =
-    storeToRefs(useSettingsStore())
+  const { thinkingMode, speechEnabled, providerOptions } = storeToRefs(useSettingsStore())
   const settingsStore = useSettingsStore()
 
   const agentStore = useAgentStore()
@@ -95,14 +90,10 @@ export const useChat = (chatId: string) => {
     return agentStore.getAgentById(agentId) || null
   }
 
-  const getActiveMessageBranchId = () => {
-    return getStoreActiveMessageBranchId(chatId)
-  }
-
   const getVisibleMessages = () => {
     const chat = getChatById(chatId)
     if (!chat) return []
-    return getMessageBranchMessages(chat, getActiveMessageBranchId()).filter((message) => !message.metadata?.deletedAt)
+    return chat.messages
   }
 
   const findToolCallLocation = (messages: BaseMessage[], toolCallId: string) => {
@@ -139,8 +130,11 @@ export const useChat = (chatId: string) => {
     return nextMetadata as MetaData
   }
 
-  const createChat = (messages: BaseMessage[], options?: { regenerateMessageId?: string; isApproval?: boolean; messageBranchId?: string | null }): _useChat<BaseMessage> => {
-    const { regenerateMessageId, isApproval, messageBranchId = null } = options || {}
+  const createChat = (
+    messages: BaseMessage[],
+    options?: { regenerateMessageId?: string; isApproval?: boolean }
+  ): _useChat<BaseMessage> => {
+    const { regenerateMessageId, isApproval } = options || {}
     const scope = effectScope()
 
     const getMessageText = (message: BaseMessage) => {
@@ -173,15 +167,14 @@ export const useChat = (chatId: string) => {
             const providerId = runtimeChat?.providerId
             const modelId = runtimeChat?.modelId
             const selectedProvider = providerId ? settingsStore.getProviderById(providerId) : null
-            const selectedModel = providerId && modelId ? settingsStore.getModelById(providerId, modelId).model : null
+            const selectedModel =
+              providerId && modelId ? settingsStore.getModelById(providerId, modelId).model : null
             if (!runtimeAgent || !selectedProvider || !selectedModel) {
               throw new Error('未找到会话绑定的智能体或模型配置')
             }
 
             processedText = ''
-            sentenceSegmenter = createSentenceSegmenter(
-              runtimeAgent?.speechLanguage || 'und'
-            )
+            sentenceSegmenter = createSentenceSegmenter(runtimeAgent?.speechLanguage || 'und')
 
             return service.createAgent(
               chat.id,
@@ -254,11 +247,14 @@ export const useChat = (chatId: string) => {
         }
       })
 
-      const createStoreMessageSnapshot = (message?: BaseMessage, error?: APICallError): BaseMessage | null => {
+      const createStoreMessageSnapshot = (
+        message?: BaseMessage,
+        error?: APICallError
+      ): BaseMessage | null => {
         if (!message) return null
 
         const storeChat = getChatById(chatId)
-        const oldMessages = storeChat ? getMessageBranchMessages(storeChat, messageBranchId) : []
+        const oldMessages = storeChat?.messages || []
         const existingMessage = oldMessages.find((m) => m.id === message.id)
 
         // Keep parts immutable when syncing to Pinia so nested text updates stay reactive in children.
@@ -321,13 +317,16 @@ export const useChat = (chatId: string) => {
         }
       }
 
-      const syncMessageToStore = (message: BaseMessage | undefined = chat.lastMessage, error?: APICallError) => {
+      const syncMessageToStore = (
+        message: BaseMessage | undefined = chat.lastMessage,
+        error?: APICallError
+      ) => {
         const msgToUpdate = createStoreMessageSnapshot(message ?? undefined, error)
         if (!msgToUpdate) return
 
         const storeChat = getChatById(chatId)
         if (!storeChat) return
-        const oldMessages = getMessageBranchMessages(storeChat, messageBranchId)
+        const oldMessages = storeChat.messages
 
         const existingIndex = oldMessages.findIndex((m) => m.id === msgToUpdate.id)
         if (existingIndex >= 0) {
@@ -335,7 +334,7 @@ export const useChat = (chatId: string) => {
           // 如果引用没变，说明 snapshot 判定内容无变化，跳过 store 更新
           if (existingMessage === msgToUpdate) return
 
-          updateMessagesInMessageBranch(chatId, messageBranchId, (messages) =>
+          updateMessages(chatId, (messages) =>
             replaceMessageById(messages, msgToUpdate.id!, (message) => ({
               ...message,
               parts: msgToUpdate.parts,
@@ -346,13 +345,13 @@ export const useChat = (chatId: string) => {
         }
 
         if (!targetMessageId.value) {
-          updateMessagesInMessageBranch(chatId, messageBranchId, [...oldMessages, msgToUpdate])
+          updateMessages(chatId, [...oldMessages, msgToUpdate])
           return
         }
 
         const targetIndex = oldMessages.findIndex((m) => m.id === targetMessageId.value)
         if (targetIndex < 0) {
-          updateMessagesInMessageBranch(chatId, messageBranchId, [...oldMessages, msgToUpdate])
+          updateMessages(chatId, [...oldMessages, msgToUpdate])
           return
         }
 
@@ -365,7 +364,7 @@ export const useChat = (chatId: string) => {
           copy.splice(targetIndex + 1, 0, msgToUpdate)
         }
 
-        updateMessagesInMessageBranch(chatId, messageBranchId, copy)
+        updateMessages(chatId, copy)
       }
 
       const queueMessageSync = (message?: BaseMessage, error?: APICallError) => {
@@ -468,7 +467,9 @@ export const useChat = (chatId: string) => {
         }
         pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
 
-        pendingStreamParts = messageSnapshot.parts as (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
+        pendingStreamParts = messageSnapshot.parts as
+          | (TextUIPart | ToolUIPart | FileUIPart)[]
+          | undefined
         pendingSpeechMessage = messageSnapshot.role === 'assistant' ? messageSnapshot : undefined
 
         if (streamFlushHandle) return
@@ -571,32 +572,31 @@ export const useChat = (chatId: string) => {
   const normalizeRegenerateTarget = (messages: BaseMessage[], messageId: string) => {
     const messageIndex = messages.findIndex((message) => message.id === messageId)
     if (messageIndex === -1) {
-      return { branchMessageId: messageId, regenerateMessageId: messageId }
+      return { retryAnchorMessageId: messageId, regenerateMessageId: messageId }
     }
 
     const targetMessage = messages[messageIndex]
     if (targetMessage?.role !== 'assistant') {
-      return { branchMessageId: messageId, regenerateMessageId: messageId }
+      return { retryAnchorMessageId: messageId, regenerateMessageId: messageId }
     }
 
     for (let index = messageIndex - 1; index >= 0; index -= 1) {
       const candidate = messages[index]
       if (candidate?.role === 'user') {
         return {
-          branchMessageId: candidate.id!,
+          retryAnchorMessageId: candidate.id!,
           regenerateMessageId: candidate.id!
         }
       }
     }
 
-    return { branchMessageId: messageId, regenerateMessageId: messageId }
+    return { retryAnchorMessageId: messageId, regenerateMessageId: messageId }
   }
 
   const result = {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
       scrollToBottom()
-      const messageBranchId = getActiveMessageBranchId()
-      const chat = createChat(getVisibleMessages(), { messageBranchId })
+      const chat = createChat(getVisibleMessages())
 
       const parts: Array<FileUIPart | TextUIPart> =
         typeof content === 'string' ? [{ type: 'text', text: content }] : content
@@ -608,8 +608,7 @@ export const useChat = (chatId: string) => {
       })
     },
     continueMessages: () => {
-      const messageBranchId = getActiveMessageBranchId()
-      const chat = createChat(getVisibleMessages(), { messageBranchId })
+      const chat = createChat(getVisibleMessages())
       chat.sendMessage()
     },
     retryFromToolCall: (toolCallId: string, position: 'above' | 'below') => {
@@ -627,73 +626,68 @@ export const useChat = (chatId: string) => {
           ? message.parts.slice(0, partIndex)
           : message.parts.slice(0, partIndex + 1)
 
-      let branchAnchorMessageId: string | null = null
+      let retryAnchorMessageId: string | null = null
       for (let index = messageIndex - 1; index >= 0; index -= 1) {
         if (currentMessages[index]?.role === 'user') {
-          branchAnchorMessageId = currentMessages[index]?.id || null
+          retryAnchorMessageId = currentMessages[index]?.id || null
           break
         }
       }
 
-      if (!branchAnchorMessageId) {
+      if (!retryAnchorMessageId) {
         messageApi.error('未找到可重试的用户消息')
         return
       }
 
       message.metadata?.stop?.()
 
-      const messageBranchId = createMessageBranch(chatId, branchAnchorMessageId)
-      if (!messageBranchId) {
-        messageApi.error('创建重试分支失败')
-        return
-      }
-      switchMessageBranch(chatId, messageBranchId, branchAnchorMessageId)
-
       const baseMessages = currentMessages.slice(0, messageIndex)
       const nextMessages =
         truncatedParts.length > 0
           ? [
-            ...baseMessages,
-            {
-              ...message,
-              parts: cloneDeep(truncatedParts),
-              metadata: clearTransientMetadata(message.metadata)
-            }
-          ]
+              ...baseMessages,
+              {
+                ...message,
+                parts: cloneDeep(truncatedParts),
+                metadata: clearTransientMetadata(message.metadata)
+              }
+            ]
           : baseMessages
 
-      updateMessagesInMessageBranch(chatId, messageBranchId, cloneDeep(nextMessages))
+      updateMessages(chatId, cloneDeep(nextMessages))
 
       scrollToBottom()
-      const chat = createChat(nextMessages, { messageBranchId })
+      const chat = createChat(nextMessages)
       chat.sendMessage()
     },
     regenerate: (messageId: string) => {
       const currentChats = getChatById(chatId)
       const messages = currentChats?.messages || []
-      const { branchMessageId, regenerateMessageId } = normalizeRegenerateTarget(messages, messageId)
+      const { retryAnchorMessageId, regenerateMessageId } = normalizeRegenerateTarget(
+        messages,
+        messageId
+      )
       const isLastMessage = messages.length > 0 && messages[messages.length - 1].id === messageId
-      const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')
-      const isLastUserMessage = lastUserMessage?.id === branchMessageId
+      const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')
+      const isLastUserMessage = lastUserMessage?.id === retryAnchorMessageId
       if (isLastMessage || isLastUserMessage) {
         scrollToBottom()
       }
-      const messageBranchId = createMessageBranch(chatId, branchMessageId)
-      if (messageBranchId) {
-        switchMessageBranch(chatId, messageBranchId, branchMessageId)
-      }
-      const retryChat = getChatById(chatId)
-      if (!retryChat) return
-      const retryMessages = getMessageBranchMessages(retryChat, messageBranchId)
+      const retryAnchorMessageIndex = messages.findIndex(
+        (message) => message.id === retryAnchorMessageId
+      )
+      const retryMessages =
+        retryAnchorMessageIndex >= 0
+          ? cloneDeep(messages.slice(0, retryAnchorMessageIndex + 1))
+          : cloneDeep(messages)
+      updateMessages(chatId, retryMessages)
       const chat = createChat(retryMessages, {
-        regenerateMessageId: regenerateMessageId,
-        messageBranchId
+        regenerateMessageId
       })
       chat.regenerate({ messageId: regenerateMessageId })
     },
     approval: (part: ToolUIPart, approved: boolean) => {
-      const messageBranchId = getActiveMessageBranchId()
-      const chat = createChat(getVisibleMessages(), { isApproval: true, messageBranchId })
+      const chat = createChat(getVisibleMessages(), { isApproval: true })
       chat.addToolApprovalResponse({
         id: part.approval!.id!,
         approved
