@@ -674,9 +674,7 @@ export const chatService = () => {
     const normalizedMessages = normalizeInlineFilePartUrls(sanitizedMessages)
 
     // 3. Convert to model messages
-    const modelMessages = await convertToModelMessages(normalizedMessages, {
-      tools: agent.tools
-    })
+    const modelMessages = await convertToModelMessages(normalizedMessages)
 
     const estimatedPromptTokens = estimateMessagesTokens(messages, model)
 
