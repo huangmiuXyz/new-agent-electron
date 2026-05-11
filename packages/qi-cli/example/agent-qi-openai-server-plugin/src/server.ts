@@ -301,6 +301,24 @@ const pipeUpstreamResponse = async (upstream: any, res: any) => {
   res.end()
 }
 
+const sanitizeOpenAIRequestBody = (value: any): any => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => sanitizeOpenAIRequestBody(item))
+      .filter((item) => item !== undefined)
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value)
+      .map(([key, nestedValue]) => [key, sanitizeOpenAIRequestBody(nestedValue)] as const)
+      .filter(([, nestedValue]) => nestedValue !== undefined)
+    return Object.fromEntries(entries)
+  }
+
+  if (value === '[undefined]') return undefined
+  return value
+}
+
 const stopServer = async (config: PluginConfig) =>
   await requestJson(`${getBaseURL(config)}/shutdown`, {
     method: 'POST',
@@ -368,9 +386,8 @@ const startServer = async (
         }
 
         const selected = resolveProviderAndModel(config, body.model)
-        const responseModel = `${selected.provider.id}:${selected.modelId}`
         const upstreamBody = {
-          ...body,
+          ...sanitizeOpenAIRequestBody(body),
           model: selected.modelId
         }
         const upstream = await fetch(resolveOpenAIEndpoint(selected.provider, '/chat/completions'), {
@@ -379,7 +396,6 @@ const startServer = async (
           body: JSON.stringify(upstreamBody)
         })
 
-        res.setHeader?.('X-Agent-Qi-Model', responseModel)
         return await pipeUpstreamResponse(upstream, res)
       }
 
