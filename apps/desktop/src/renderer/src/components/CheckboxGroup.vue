@@ -256,7 +256,6 @@ const handleOptionContextMenu = (option: CheckboxOption, event: MouseEvent) => {
 
 .checkbox {
     flex-shrink: 0;
-    padding-top: 2px;
 }
 
 .checkbox-box {
