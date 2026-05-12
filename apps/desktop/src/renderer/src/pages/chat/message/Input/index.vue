@@ -912,16 +912,7 @@ const _sendMessage = async () => {
   }
 
   for (const file of selectedFiles.value) {
-    const { path, name, url, ...aiPart } = file
-
-    const res = await fetch(path ?? url!)
-    const buffer = new Uint8Array(await res.arrayBuffer())
-
-    // 通过文件扩展名判断是否为文本文件
-    if (isTextFile(name!)) {
-      const text = new TextDecoder('utf-8').decode(buffer)
-      parts.push({ type: 'text', text })
-    }
+    const { path, url, ...aiPart } = file
 
     parts.push({
       ...aiPart,
