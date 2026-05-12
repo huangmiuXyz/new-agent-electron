@@ -332,7 +332,7 @@ const handleUninstallPlugin = async (pluginName: string) => {
                   @click="handleUnloadPlugin(activePlugin.id)">
                   停用
                 </Button>
-                <Button v-if="activePlugin.type === 'loaded'" variant="text" size="sm"
+                <Button v-if="activePlugin.type === 'loaded' || activePlugin.type === 'available'" variant="text" size="sm"
                   @click="handleUninstallPlugin(activePlugin.id)">
                   卸载
                 </Button>
