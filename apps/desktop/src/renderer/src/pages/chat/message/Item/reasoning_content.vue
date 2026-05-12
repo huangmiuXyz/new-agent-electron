@@ -101,9 +101,6 @@ const handleReasoningTouchEnd = () => {
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  line-height: 1.2;
-  letter-spacing: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
