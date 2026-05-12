@@ -118,6 +118,10 @@ const theme = computed(() => (display.value.darkMode ? 'dark' : 'default'))
   background: var(--bg-hover);
 }
 
+.incremark-renderer :deep(.incremark-table tr) {
+  background: transparent !important;
+}
+
 .incremark-renderer :deep(img) {
   max-width: 100%;
   height: auto;
