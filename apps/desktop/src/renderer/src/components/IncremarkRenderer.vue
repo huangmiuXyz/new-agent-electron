@@ -118,26 +118,6 @@ const theme = computed(() => (display.value.darkMode ? 'dark' : 'default'))
   background: var(--bg-hover);
 }
 
-.incremark-renderer :deep(.incremark-heading:first-child),
-.incremark-renderer :deep(.incremark-paragraph:first-child),
-.incremark-renderer :deep(.incremark-list:first-child),
-.incremark-renderer :deep(.incremark-blockquote:first-child),
-.incremark-renderer :deep(.incremark-code:first-child),
-.incremark-renderer :deep(.incremark-code-stream:first-child),
-.incremark-renderer :deep(.incremark-table-wrapper:first-child) {
-  margin-top: 0;
-}
-
-.incremark-renderer :deep(.incremark-heading:last-child),
-.incremark-renderer :deep(.incremark-paragraph:last-child),
-.incremark-renderer :deep(.incremark-list:last-child),
-.incremark-renderer :deep(.incremark-blockquote:last-child),
-.incremark-renderer :deep(.incremark-code:last-child),
-.incremark-renderer :deep(.incremark-code-stream:last-child),
-.incremark-renderer :deep(.incremark-table-wrapper:last-child) {
-  margin-bottom: 0;
-}
-
 .incremark-renderer :deep(img) {
   max-width: 100%;
   height: auto;
