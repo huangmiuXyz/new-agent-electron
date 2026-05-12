@@ -40,12 +40,12 @@ const props = defineProps<{
 
 .msg-row:hover {
   /* background-color: var(--bg-hover); */
-} 
+}
 
 .msg-bubble {
   font-size: 14px;
   line-height: 1.5;
-  background-color: var(--bubble-me);
+  background-color: #000;
   color: #fff;
   padding: 8px 14px;
   border-radius: 12px 12px 2px 12px;
