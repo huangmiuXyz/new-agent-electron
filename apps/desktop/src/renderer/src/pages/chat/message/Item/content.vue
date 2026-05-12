@@ -4,6 +4,7 @@ import '@incremark/theme/styles.css'
 const props = defineProps<{
   message: BaseMessage
   markdown?: boolean
+  parts?: BaseMessage['parts']
 }>()
 const { currentChat } = storeToRefs(useChatsStores())
 const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
@@ -102,13 +103,15 @@ const getBlockKey = (block: BaseMessage['parts'][number], idx: number) => {
   const blockId = (block as { id?: string }).id
   return blockId ? `${block.type}:${blockId}` : `${block.type}:${idx}`
 }
+
+const displayParts = computed(() => props.parts ?? props.message.parts)
 </script>
 
 <template>
   <div>
     <div v-if="!isEditing" class="msg-bubble">
       <div class="blocks-container">
-        <div v-for="(block, idx) in message.parts" :key="getBlockKey(block, idx)" class="view-block">
+        <div v-for="(block, idx) in displayParts" :key="getBlockKey(block, idx)" class="view-block">
           <div v-if="block.type === 'text'" class="text-block" :style="contentStyle">
             <Markdown v-if="markdown && block.text" :block="block" :message="message" />
             <template v-else>
@@ -117,22 +120,44 @@ const getBlockKey = (block: BaseMessage['parts'][number], idx: number) => {
               </div>
             </template>
           </div>
-          <FileUpload :removable="false" v-if="block.type === 'file'"
-            :files="[{ ...block, blobUrl: anyUrlToBlobUrl(block.url) }]" />
-          <ChatMessageItemReasoning_content v-if="block.type === 'reasoning'" :reasoning_content="block.text" />
-          <ChatMessageItemDynamicTool :message="message" v-if="block.type === 'dynamic-tool'" :tool_part="block" />
-          <ChatMessageItemTool v-if="block.type.startsWith('tool')" :tool_part="(block as ToolUIPart)"
-            :message="message" />
+          <FileUpload
+            :removable="false"
+            v-if="block.type === 'file'"
+            :files="[{ ...block, blobUrl: anyUrlToBlobUrl(block.url) }]"
+          />
+          <ChatMessageItemReasoning_content
+            v-if="block.type === 'reasoning'"
+            :reasoning_content="block.text"
+          />
+          <ChatMessageItemDynamicTool
+            :message="message"
+            v-if="block.type === 'dynamic-tool'"
+            :tool_part="block"
+          />
+          <ChatMessageItemTool
+            v-if="block.type.startsWith('tool')"
+            :tool_part="block as ToolUIPart"
+            :message="message"
+          />
         </div>
-        <ChatMessageItemError @retry="retry" v-if="message.metadata?.error" :error="message.metadata.error" />
+        <ChatMessageItemError
+          @retry="retry"
+          v-if="message.metadata?.error"
+          :error="message.metadata.error"
+        />
       </div>
     </div>
     <div v-else class="edit-wrapper">
       <div class="edit-container">
         <div v-for="(block, idx) in draftContent" :key="idx" class="edit-block-row">
           <div v-if="block.type === 'text'" class="edit-text-wrapper">
-            <textarea v-model="block.text" class="edit-textarea" rows="1" @input="handleInput"
-              placeholder="Edit text content..."></textarea>
+            <textarea
+              v-model="block.text"
+              class="edit-textarea"
+              rows="1"
+              @input="handleInput"
+              placeholder="Edit text content..."
+            ></textarea>
           </div>
         </div>
       </div>

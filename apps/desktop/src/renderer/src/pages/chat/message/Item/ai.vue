@@ -9,7 +9,13 @@ const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 const agentStore = useAgentStore()
 const speechStore = useSpeechStore()
-const { Stop, VolumeMedium, Robot } = useIcon(['Stop', 'VolumeMedium', 'Robot'])
+const { Stop, VolumeMedium, Robot, ChevronDown } = useIcon([
+  'Stop',
+  'VolumeMedium',
+  'Robot',
+  'ChevronDown'
+])
+const isPreviousContentExpanded = ref(false)
 
 const currentAgentAvatar = computed(() => {
   const currentAgentId = chatsStore.currentChat?.agentId
@@ -22,6 +28,86 @@ const hasAudioChunks = computed(() => {
 })
 
 const flatUsage = computed(() => getFlatTokenUsage(props.message.metadata?.usage))
+
+const renderableParts = computed(() => {
+  const parts = props.message.parts.filter((part) => part.type !== 'step-start')
+  return parts.length > 0 ? parts : props.message.parts
+})
+
+const lastTextPart = computed(() => {
+  for (let index = renderableParts.value.length - 1; index >= 0; index--) {
+    const part = renderableParts.value[index]
+    if (part.type === 'text') return part
+  }
+
+  return undefined
+})
+
+const canCollapsePreviousContent = computed(() => {
+  return renderableParts.value.length > 1 && !!lastTextPart.value
+})
+
+const hiddenPartCount = computed(() => {
+  return canCollapsePreviousContent.value ? renderableParts.value.length - 1 : 0
+})
+
+const displayedParts = computed(() => {
+  if (!canCollapsePreviousContent.value || isPreviousContentExpanded.value) {
+    return props.message.parts
+  }
+
+  return [lastTextPart.value!]
+})
+
+const collapsedContentText = computed(() =>
+  isPreviousContentExpanded.value ? '收起前文' : `已折叠前文 ${hiddenPartCount.value} 项`
+)
+
+const getToolName = (part: BaseMessage['parts'][number]) => {
+  const toolPart = part as { toolName?: string; title?: string; type?: string }
+  if (toolPart.toolName) return toolPart.toolName
+  if (toolPart.title) return toolPart.title
+  return toolPart.type?.replace(/^tool-/, '') || '未知工具'
+}
+
+const getToolActivityText = (part: BaseMessage['parts'][number]) => {
+  const state = (part as { state?: string }).state
+  const toolName = getToolName(part)
+
+  if (state === 'approval-requested') return `等待确认工具 ${toolName}`
+  if (state === 'output-error') return `工具 ${toolName} 调用失败`
+  if (state === 'output-denied') return `工具 ${toolName} 已拒绝`
+  if (state === 'output-available')
+    return props.message.metadata?.loading ? `工具 ${toolName} 已完成` : ''
+
+  return `调用工具 ${toolName} 中`
+}
+
+const activityStatus = computed(() => {
+  if (!props.message.metadata?.loading) return ''
+
+  const currentPart = renderableParts.value[renderableParts.value.length - 1]
+  if (!currentPart) return '正在准备中'
+
+  if (currentPart.type === 'reasoning') return '正在思考中'
+  if (currentPart.type === 'dynamic-tool' || currentPart.type.startsWith('tool-')) {
+    return getToolActivityText(currentPart)
+  }
+  if (currentPart.type === 'text') return '正在回复中'
+
+  return '正在处理中'
+})
+
+const togglePreviousContent = () => {
+  isPreviousContentExpanded.value = !isPreviousContentExpanded.value
+}
+
+watch(
+  () => props.message.id,
+  () => {
+    isPreviousContentExpanded.value = false
+  }
+)
 
 const isCurrentPlaying = computed(() => {
   return (
@@ -116,7 +202,21 @@ const playMessageAudio = () => {
           <span class="dot"></span>
         </div>
       </div>
-      <ChatMessageItemContent markdown :message="message" />
+      <button
+        v-if="canCollapsePreviousContent"
+        class="previous-content-toggle"
+        :class="{ 'is-expanded': isPreviousContentExpanded }"
+        type="button"
+        @click="togglePreviousContent"
+      >
+        <ChevronDown />
+        <span>{{ collapsedContentText }}</span>
+      </button>
+      <div v-if="activityStatus" class="message-activity-status">
+        {{ activityStatus }}
+      </div>
+
+      <ChatMessageItemContent markdown :message="message" :parts="displayedParts" />
 
       <div
         v-if="
@@ -245,6 +345,46 @@ const playMessageAudio = () => {
   display: flex;
   gap: 8px;
   margin-top: 4px;
+}
+
+.previous-content-toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 1px 0 4px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.previous-content-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.previous-content-toggle svg {
+  width: 11px;
+  height: 11px;
+  transform: rotate(-90deg);
+  transition: transform 0.2s ease;
+}
+
+.previous-content-toggle.is-expanded svg {
+  transform: rotate(0deg);
+}
+
+.message-activity-status {
+  align-self: flex-start;
+  margin: 0 0 4px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .msg-name {
