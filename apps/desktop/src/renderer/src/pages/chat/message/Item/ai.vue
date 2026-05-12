@@ -212,14 +212,11 @@ const playMessageAudio = () => {
         <ChevronDown />
         <span>{{ collapsedContentText }}</span>
       </button>
-      <div v-if="activityStatus" class="message-activity-status">
-        {{ activityStatus }}
-      </div>
-
       <ChatMessageItemContent markdown :message="message" :parts="displayedParts" />
 
       <div
         v-if="
+          activityStatus ||
           hasAudioChunks ||
           (message.metadata?.loading && !message.metadata?.error && message.metadata.stop)
         "
@@ -250,6 +247,9 @@ const playMessageAudio = () => {
             <Stop style="color: red" />
           </template>
         </Button>
+        <div v-if="activityStatus" class="message-activity-status">
+          {{ activityStatus }}
+        </div>
       </div>
 
       <MessageTranslation
@@ -342,7 +342,9 @@ const playMessageAudio = () => {
 }
 
 .msg-actions {
+  align-self: stretch;
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-top: 4px;
 }
@@ -380,11 +382,11 @@ const playMessageAudio = () => {
 }
 
 .message-activity-status {
-  align-self: flex-start;
-  margin: 0 0 4px;
+  margin-left: auto;
   color: var(--text-tertiary);
   font-size: 11px;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
 .msg-name {
