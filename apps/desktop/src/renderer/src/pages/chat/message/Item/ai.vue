@@ -52,20 +52,21 @@ const lastTextPart = computed(() => {
 const displayedCollapsedParts = computed(() => {
   if (lastTextPartIndex.value === -1) return []
 
-  let previousTextPartIndex = -1
+  const collapsedParts: BaseMessage['parts'] = []
+  let lastReasoningPartIndex = -1
   for (let index = lastTextPartIndex.value - 1; index >= 0; index--) {
-    if (renderableParts.value[index].type === 'text') {
-      previousTextPartIndex = index
+    if (renderableParts.value[index].type === 'reasoning') {
+      lastReasoningPartIndex = index
       break
     }
   }
 
-  const lastResponseParts = renderableParts.value.slice(
-    previousTextPartIndex + 1,
-    lastTextPartIndex.value + 1
-  )
+  if (lastReasoningPartIndex !== -1) {
+    collapsedParts.push(renderableParts.value[lastReasoningPartIndex])
+  }
+  collapsedParts.push(renderableParts.value[lastTextPartIndex.value])
 
-  return lastResponseParts.filter((part) => part.type === 'reasoning' || part.type === 'text')
+  return collapsedParts
 })
 
 const canCollapsePreviousContent = computed(() => {
