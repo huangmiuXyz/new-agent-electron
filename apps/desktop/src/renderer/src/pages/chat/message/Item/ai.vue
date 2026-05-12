@@ -34,21 +34,48 @@ const renderableParts = computed(() => {
   return parts.length > 0 ? parts : props.message.parts
 })
 
-const lastTextPart = computed(() => {
+const lastTextPartIndex = computed(() => {
   for (let index = renderableParts.value.length - 1; index >= 0; index--) {
     const part = renderableParts.value[index]
-    if (part.type === 'text') return part
+    if (part.type === 'text') return index
   }
 
-  return undefined
+  return -1
+})
+
+const lastTextPart = computed(() => {
+  return lastTextPartIndex.value === -1
+    ? undefined
+    : renderableParts.value[lastTextPartIndex.value]
+})
+
+const displayedCollapsedParts = computed(() => {
+  if (lastTextPartIndex.value === -1) return []
+
+  let previousTextPartIndex = -1
+  for (let index = lastTextPartIndex.value - 1; index >= 0; index--) {
+    if (renderableParts.value[index].type === 'text') {
+      previousTextPartIndex = index
+      break
+    }
+  }
+
+  const lastResponseParts = renderableParts.value.slice(
+    previousTextPartIndex + 1,
+    lastTextPartIndex.value + 1
+  )
+
+  return lastResponseParts.filter((part) => part.type === 'reasoning' || part.type === 'text')
 })
 
 const canCollapsePreviousContent = computed(() => {
-  return renderableParts.value.length > 1 && !!lastTextPart.value
+  return renderableParts.value.length > displayedCollapsedParts.value.length && !!lastTextPart.value
 })
 
 const hiddenPartCount = computed(() => {
-  return canCollapsePreviousContent.value ? renderableParts.value.length - 1 : 0
+  return canCollapsePreviousContent.value
+    ? renderableParts.value.length - displayedCollapsedParts.value.length
+    : 0
 })
 
 const displayedParts = computed(() => {
@@ -56,7 +83,7 @@ const displayedParts = computed(() => {
     return props.message.parts
   }
 
-  return [lastTextPart.value!]
+  return displayedCollapsedParts.value
 })
 
 const collapsedContentText = computed(() =>
