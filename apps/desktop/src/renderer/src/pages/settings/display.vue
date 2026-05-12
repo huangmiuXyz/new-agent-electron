@@ -28,6 +28,11 @@ const [DisplayForm] = useForm({
       label: '默认展开思考内容'
     },
     {
+      name: 'collapsePreviousContent',
+      type: 'boolean',
+      label: '自动折叠历史回复内容'
+    },
+    {
       name: 'chatCenteredLayout',
       type: 'boolean',
       label: '聊天内容居中显示',

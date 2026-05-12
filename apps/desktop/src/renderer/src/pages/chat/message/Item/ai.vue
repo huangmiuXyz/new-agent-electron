@@ -69,7 +69,11 @@ const displayedCollapsedParts = computed(() => {
 })
 
 const canCollapsePreviousContent = computed(() => {
-  return renderableParts.value.length > displayedCollapsedParts.value.length && !!lastTextPart.value
+  return (
+    settingsStore.display.collapsePreviousContent &&
+    renderableParts.value.length > displayedCollapsedParts.value.length &&
+    !!lastTextPart.value
+  )
 })
 
 const hiddenPartCount = computed(() => {
@@ -377,10 +381,11 @@ const playMessageAudio = () => {
 }
 
 .previous-content-toggle {
-  align-self: flex-start;
-  display: inline-flex;
+  align-self: stretch;
+  display: flex;
   align-items: center;
   gap: 4px;
+  width: 100%;
   margin: 1px 0 4px;
   padding: 2px 6px;
   border: none;

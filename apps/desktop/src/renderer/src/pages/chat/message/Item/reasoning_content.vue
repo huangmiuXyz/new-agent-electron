@@ -2,14 +2,12 @@
   <div class="reasoning-block" :class="{ 'is-open': isReasoningExpanded }">
     <div class="reasoning-header" @click="toggleReasoning">
       <div class="reasoning-label">
-        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 256 256" fill="currentColor">
-          <path
-            d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Z">
-          </path>
-        </svg>
-        <span>思考过程</span>
+        <span class="reasoning-mark" aria-hidden="true">
+          <Bulb class="reasoning-bulb" />
+        </span>
+        <span class="reasoning-text">思考过程</span>
       </div>
-      <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 256 256"
+      <svg class="reasoning-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 256 256"
         fill="currentColor">
         <path
           d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z">
@@ -25,6 +23,7 @@
 
 <script lang="ts" setup>
 const { display } = storeToRefs(useSettingsStore())
+const Bulb = useIcon('Bulb')
 
 defineProps<{ reasoning_content: string }>()
 
@@ -65,53 +64,79 @@ const handleReasoningTouchEnd = () => {
 }
 </script>
 
-<style>
+<style scoped>
 .reasoning-block {
-  border: none;
-  border-radius: 4px;
-  background-color: transparent;
-  overflow: hidden;
-  margin-bottom: 2px;
+  width: 100%;
+  max-width: 100%;
+  margin: 2px 0 6px;
 }
 
 .reasoning-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2px 0;
+  gap: 4px;
+  width: 100%;
+  min-height: 20px;
+  padding: 2px 4px;
+  border-radius: 4px;
   cursor: pointer;
   user-select: none;
   background-color: transparent;
-  transition: opacity 0.2s;
-  opacity: 0.7;
+  transition: background-color 0.2s;
 }
 
 .reasoning-header:hover {
-  opacity: 1;
+  background-color: var(--bg-hover);
 }
 
 .reasoning-label {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  gap: 6px;
+  overflow: hidden;
 }
 
-.toggle-icon {
-  color: var(--text-sub);
+.reasoning-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reasoning-mark {
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  flex: none;
+  opacity: 0.8;
+}
+
+.reasoning-bulb {
+  width: 12px;
+  height: 12px;
+}
+
+.reasoning-toggle-icon {
+  color: var(--text-tertiary);
   transition: transform 0.2s ease;
 }
 
-.reasoning-block.is-open .toggle-icon {
+.reasoning-block.is-open .reasoning-toggle-icon {
   transform: rotate(180deg);
 }
 
 .reasoning-body {
-  padding: 2px 4px 4px 14px;
+  margin: 2px 0 2px 6px;
+  padding: 4px 6px 4px 10px;
   font-size: 11px;
   line-height: 1.5;
   color: var(--text-secondary);

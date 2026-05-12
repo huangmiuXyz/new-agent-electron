@@ -26,7 +26,6 @@ const toolName = computed(() => {
 <style scoped>
 .msg-row {
   display: flex;
-  padding: 4px 0px;
   /* Reduced padding for compactness */
   justify-content: flex-start;
   /* Align left like system messages */

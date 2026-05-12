@@ -148,6 +148,7 @@ export const useSettingsStore = defineStore(
       terminalHeight: 200,
       expandToolsByDefault: true,
       expandThoughtByDefault: true,
+      collapsePreviousContent: true,
       chatCenteredLayout: false
     })
 
@@ -812,6 +813,10 @@ export const useSettingsStore = defineStore(
       ],
       afterRestore: async () => {
         const settingsStore = useSettingsStore()
+        settingsStore.display = {
+          ...settingsStore.display,
+          collapsePreviousContent: settingsStore.display.collapsePreviousContent ?? true
+        }
         settingsStore.syncBuiltinProviders()
         settingsStore.updateTerminalSettings(settingsStore.terminal as any)
 
