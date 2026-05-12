@@ -279,7 +279,7 @@ defineExpose({
 
 .file-name {
   font-size: 10px;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   text-align: center;
   width: 100%;
   white-space: nowrap;
