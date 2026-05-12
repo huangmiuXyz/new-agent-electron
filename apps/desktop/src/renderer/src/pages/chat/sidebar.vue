@@ -181,7 +181,8 @@ const getSubTaskStatusLabel = (chat: Chat) => {
             <div v-if="isChatGenerating(rootChat) && rootChat.id !== chatsStore.activeChatId"
               class="status-dot generating">
             </div>
-            <span class="chat-title">{{ rootChat.title }}</span>
+            <span v-if="chatsStore.isTitleGenerating(rootChat.id)" class="chat-title-loading"><Loading size="mini" /></span>
+            <span v-else class="chat-title">{{ rootChat.title }}</span>
             <span class="item-time">{{ formatTime(rootChat.createdAt) }}</span>
           </div>
 
@@ -193,7 +194,8 @@ const getSubTaskStatusLabel = (chat: Chat) => {
               <div v-if="isChatGenerating(subChat) && subChat.id !== chatsStore.activeChatId"
                 class="status-dot generating">
               </div>
-              <span class="chat-title">{{ subChat.title }}</span>
+              <span v-if="chatsStore.isTitleGenerating(subChat.id)" class="chat-title-loading"><Loading size="mini" /></span>
+              <span v-else class="chat-title">{{ subChat.title }}</span>
               <span class="task-status" :class="`status-${subChat.subTask?.status || 'pending'}`">
                 {{ getSubTaskStatusLabel(subChat) }}
               </span>
@@ -486,27 +488,11 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   transform: scale(0.96);
 }
 
-/* Shimmer Loading */
-.shimmer-title {
-  width: 100px;
-  height: 14px;
-  background: var(--bg-hover);
-  border-radius: 4px;
-  animation: shimmer 1.5s infinite linear;
-}
-
-@keyframes shimmer {
-  0% {
-    opacity: 0.5;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0.5;
-  }
+.chat-title-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 1.4em;
 }
 
 /* Original styles for PC */
