@@ -7,9 +7,14 @@ import SandboxCodeEditor from './SandboxCodeEditor.vue'
 import Tabs from './Tabs.vue'
 import JSZip from 'jszip'
 import { useLocalStorage } from '@renderer/composables/vueuse'
-import { gitService, type GitRepositoryStatus, type GitStatusEntry } from '@renderer/services/gitService'
+import {
+  gitService,
+  type GitRepositoryStatus,
+  type GitStatusEntry
+} from '@renderer/services/gitService'
 import {
   buildSandboxPreviewDocument,
+  getSandboxMediaType,
   getSandboxFileLanguage,
   isSandboxImageFile,
   getSandboxTempWorkspacePath,
@@ -53,20 +58,22 @@ type TreeRow = {
 
 type GitDiffMode = 'staged' | 'worktree'
 
-type GitDiffPreview = {
-  kind: 'diff'
-  path: string
-  originalText: string
-  modifiedText: string
-  originalPath: string
-  modifiedPath: string
-  hint: string
-  availableModes: GitDiffMode[]
-  activeMode: GitDiffMode
-} | {
-  kind: 'message'
-  message: string
-}
+type GitDiffPreview =
+  | {
+      kind: 'diff'
+      path: string
+      originalText: string
+      modifiedText: string
+      originalPath: string
+      modifiedPath: string
+      hint: string
+      availableModes: GitDiffMode[]
+      activeMode: GitDiffMode
+    }
+  | {
+      kind: 'message'
+      message: string
+    }
 
 const chatsStore = useChatsStores()
 const settingsStore = useSettingsStore()
@@ -84,6 +91,7 @@ const {
   Trash: TrashIcon,
   Edit: EditIcon,
   Settings: SettingsIcon,
+  Upload: UploadIcon,
   Box: BoxIcon,
   Terminal: TerminalIcon
 } = useIcon([
@@ -95,6 +103,7 @@ const {
   'Trash',
   'Edit',
   'Settings',
+  'Upload',
   'Box',
   'Terminal'
 ])
@@ -143,7 +152,8 @@ const sandboxTreeRows = computed<TreeRow[]>(() => {
   const walk = (directoryPath: string, depth = 0) => {
     const entries = directoryEntries.value[directoryPath] || []
     for (const entry of entries) {
-      const isExpanded = entry.type === 'directory' && expandedDirectoryPathSet.value.has(entry.path)
+      const isExpanded =
+        entry.type === 'directory' && expandedDirectoryPathSet.value.has(entry.path)
       rows.push({
         id: entry.path,
         name: entry.name,
@@ -205,7 +215,8 @@ const ensureFileTabOpen = (filePath: string) => {
   }
 }
 
-const hasDraftForFile = (filePath: string) => Object.prototype.hasOwnProperty.call(fileDrafts.value, filePath)
+const hasDraftForFile = (filePath: string) =>
+  Object.prototype.hasOwnProperty.call(fileDrafts.value, filePath)
 
 const getPersistedFile = (filePath: string) => {
   if (!filePath) return null
@@ -258,9 +269,15 @@ const isActiveFileDirty = computed(() => {
   return getDraftContent(filePath) !== file.content
 })
 
-const activeLanguage = computed(() => getSandboxFileLanguage(currentTabFilePath.value || '/index.html'))
-const isActiveImageFile = computed(() => isSandboxImageFile(currentTabFilePath.value ? activeFile.value : null))
-const isActiveBinaryFile = computed(() => activeFile.value?.encoding === 'data-url' && !isActiveImageFile.value)
+const activeLanguage = computed(() =>
+  getSandboxFileLanguage(currentTabFilePath.value || '/index.html')
+)
+const isActiveImageFile = computed(() =>
+  isSandboxImageFile(currentTabFilePath.value ? activeFile.value : null)
+)
+const isActiveBinaryFile = computed(
+  () => activeFile.value?.encoding === 'data-url' && !isActiveImageFile.value
+)
 const hasCanvasFiles = computed(() => {
   currentWorkspaceVersion.value
   return canvasStore.hasAnyFiles(currentChatId.value)
@@ -292,7 +309,10 @@ const previewChannelId = computed(() => `sandbox-preview:${currentChatId.value |
 const previewDocument = computed(() => {
   if (!isUsingTempWorkspace.value) return ''
   if (settingsStore.display.canvasEditorTab !== 'preview' || !previewReady.value) return ''
-  return buildSandboxPreviewDocument(canvasStore.getCanvas(currentChatId.value), previewChannelId.value)
+  return buildSandboxPreviewDocument(
+    canvasStore.getCanvas(currentChatId.value),
+    previewChannelId.value
+  )
 })
 const previewLogs = ref<PreviewLogItem[]>([])
 const gitStatus = ref<GitRepositoryStatus | null>(null)
@@ -313,7 +333,9 @@ const isSandboxRuntimeVisible = computed(
   () => settingsStore.display.canvasEditorTab === 'preview' && !sandboxLogsCollapsed.value
 )
 const gitEntries = computed(() => gitStatus.value?.entries || [])
-const gitSelectedEntry = computed(() => gitEntries.value.find((entry) => entry.path === gitSelectedPath.value) || null)
+const gitSelectedEntry = computed(
+  () => gitEntries.value.find((entry) => entry.path === gitSelectedPath.value) || null
+)
 const hasGitRepo = computed(() => Boolean(gitStatus.value))
 const hasGitChanges = computed(() => gitEntries.value.length > 0)
 const hasStagedGitChanges = computed(() => gitEntries.value.some((entry) => entry.staged))
@@ -325,21 +347,27 @@ const gitPrimaryButtonLabel = computed(() => {
   }
   return '提交'
 })
-const gitPrimaryButtonLoadingLabel = computed(() => (isGitPrimaryPushAction.value ? '推送中...' : '提交中...'))
+const gitPrimaryButtonLoadingLabel = computed(() =>
+  isGitPrimaryPushAction.value ? '推送中...' : '提交中...'
+)
 const isGitPrimaryButtonDisabled = computed(() => {
   if (isGitPrimaryPushAction.value) {
     return gitActionLoading.value
   }
   return gitCommitting.value || !gitCommitMessage.value.trim()
 })
-const gitDiffView = computed(() => gitDiffPreview.value?.kind === 'diff' ? gitDiffPreview.value : null)
+const gitDiffView = computed(() =>
+  gitDiffPreview.value?.kind === 'diff' ? gitDiffPreview.value : null
+)
 
 const ensureGitModelSelection = () => {
   if (gitCommitProviderId.value && gitCommitModelId.value) return
   const providerId = settingsStore.selectedProviderId
   const modelId = settingsStore.selectedModelId
   const provider = providerId ? settingsStore.getProviderById(providerId) : null
-  const hasTextModel = Boolean(provider?.models?.some((item) => item.id === modelId && item.category === 'text'))
+  const hasTextModel = Boolean(
+    provider?.models?.some((item) => item.id === modelId && item.category === 'text')
+  )
 
   if (providerId && modelId && hasTextModel) {
     gitCommitProviderId.value = providerId
@@ -384,7 +412,11 @@ const getGitAbsolutePath = (cwd: string, path: string) => {
   return window.api.path.join(cwd, path)
 }
 
-const buildGitDiffPreview = async (cwd: string, entry: GitStatusEntry, preferredMode = gitDiffMode.value): Promise<GitDiffPreview> => {
+const buildGitDiffPreview = async (
+  cwd: string,
+  entry: GitStatusEntry,
+  preferredMode = gitDiffMode.value
+): Promise<GitDiffPreview> => {
   if (entry.untracked) {
     const absolutePath = getGitAbsolutePath(cwd, entry.path)
     const content = window.api.fs.existsSync(absolutePath)
@@ -411,22 +443,26 @@ const buildGitDiffPreview = async (cwd: string, entry: GitStatusEntry, preferred
   if (entry.workingTreeStatus !== ' ' && entry.workingTreeStatus !== '?') {
     availableModes.push('worktree')
   }
-  const activeMode = availableModes.includes(preferredMode) ? preferredMode : (availableModes[0] || 'worktree')
+  const activeMode = availableModes.includes(preferredMode)
+    ? preferredMode
+    : availableModes[0] || 'worktree'
 
   const worktreeAbsolutePath = getGitAbsolutePath(cwd, entry.path)
 
   if (activeMode === 'staged') {
     const headPath = entry.originalPath || entry.path
-    const originalText = await gitService.getFileContent(cwd, {
-      ref: 'HEAD',
-      filePath: headPath,
-      allowMissing: true
-    }) || ''
-    const modifiedText = await gitService.getFileContent(cwd, {
-      ref: 'INDEX',
-      filePath: entry.path,
-      allowMissing: true
-    }) || ''
+    const originalText =
+      (await gitService.getFileContent(cwd, {
+        ref: 'HEAD',
+        filePath: headPath,
+        allowMissing: true
+      })) || ''
+    const modifiedText =
+      (await gitService.getFileContent(cwd, {
+        ref: 'INDEX',
+        filePath: entry.path,
+        allowMissing: true
+      })) || ''
 
     return {
       kind: 'diff',
@@ -441,12 +477,14 @@ const buildGitDiffPreview = async (cwd: string, entry: GitStatusEntry, preferred
     }
   }
 
-  const indexPath = entry.workingTreeStatus === 'R' && entry.originalPath ? entry.originalPath : entry.path
-  const originalText = await gitService.getFileContent(cwd, {
-    ref: 'INDEX',
-    filePath: indexPath,
-    allowMissing: true
-  }) || ''
+  const indexPath =
+    entry.workingTreeStatus === 'R' && entry.originalPath ? entry.originalPath : entry.path
+  const originalText =
+    (await gitService.getFileContent(cwd, {
+      ref: 'INDEX',
+      filePath: indexPath,
+      allowMissing: true
+    })) || ''
   const modifiedText = window.api.fs.existsSync(worktreeAbsolutePath)
     ? window.api.fs.readFileSync(worktreeAbsolutePath, 'utf-8')
     : ''
@@ -472,7 +510,11 @@ const refreshGitDiff = async (path = gitSelectedPath.value, preferredMode = gitD
 
   gitDiffLoading.value = true
   try {
-    gitDiffPreview.value = await buildGitDiffPreview(currentWorkspaceDir.value, entry, preferredMode)
+    gitDiffPreview.value = await buildGitDiffPreview(
+      currentWorkspaceDir.value,
+      entry,
+      preferredMode
+    )
     if (gitDiffPreview.value.kind === 'diff') {
       gitDiffMode.value = gitDiffPreview.value.activeMode
     }
@@ -502,7 +544,10 @@ const refreshGitStatus = async () => {
 
     const status = await gitService.getStatus(cwd)
     gitStatus.value = status
-    const nextPath = status.entries.find((entry) => entry.path === gitSelectedPath.value)?.path || status.entries[0]?.path || ''
+    const nextPath =
+      status.entries.find((entry) => entry.path === gitSelectedPath.value)?.path ||
+      status.entries[0]?.path ||
+      ''
     await refreshGitDiff(nextPath)
   } catch (error) {
     gitStatus.value = null
@@ -535,7 +580,13 @@ const generateGitCommitMessage = async () => {
   }
 }
 
-const handleGitCommitModelSelect = ({ modelId, providerId }: { modelId: string; providerId: string }) => {
+const handleGitCommitModelSelect = ({
+  modelId,
+  providerId
+}: {
+  modelId: string
+  providerId: string
+}) => {
   gitCommitProviderId.value = providerId
   gitCommitModelId.value = modelId
   if (!gitGenerateAfterModelPick.value) return
@@ -646,7 +697,12 @@ const cloneGitRepository = async () => {
 
   gitActionLoading.value = true
   try {
-    const clonedPath = await gitService.cloneRepository(currentWorkspaceDir.value, repoUrl, targetDir, directoryName)
+    const clonedPath = await gitService.cloneRepository(
+      currentWorkspaceDir.value,
+      repoUrl,
+      targetDir,
+      directoryName
+    )
     message.success(`克隆完成：${clonedPath}`)
     await window.api.shell.openPath(clonedPath)
   } catch (error) {
@@ -816,7 +872,8 @@ const syncWorkspaceView = () => {
   directoryEntries.value = {}
   expandedDirectoryPaths.value = []
   fileDrafts.value = {}
-  previewReady.value = settingsStore.display.canvasEditorTab === 'preview' && isUsingTempWorkspace.value
+  previewReady.value =
+    settingsStore.display.canvasEditorTab === 'preview' && isUsingTempWorkspace.value
 
   const nextActiveFilePath = canvasStore.getActiveFilePath(currentChatId.value)
   if (nextActiveFilePath) {
@@ -853,7 +910,8 @@ const getFileExtensionLabel = (fileName: string) => {
   return extension && extension !== fileName.toUpperCase() ? extension.slice(0, 4) : 'TXT'
 }
 
-const getBaseNameFromPath = (path: string) => path.split('/').filter(Boolean).pop() || path || 'untitled'
+const getBaseNameFromPath = (path: string) =>
+  path.split('/').filter(Boolean).pop() || path || 'untitled'
 
 const getParentPath = (path: string) => {
   const normalizedPath = normalizeSandboxPath(path)
@@ -886,15 +944,22 @@ const updateClientPathsAfterMove = (sourcePath: string, targetPath: string) => {
     }
   }
 
-  openFileTabs.value = openFileTabs.value.map((path) => remapSandboxPath(path, sourcePath, targetPath))
+  openFileTabs.value = openFileTabs.value.map((path) =>
+    remapSandboxPath(path, sourcePath, targetPath)
+  )
 
-  const nextDrafts = Object.entries(fileDrafts.value).reduce<Record<string, string>>((acc, [path, content]) => {
-    acc[remapSandboxPath(path, sourcePath, targetPath)] = content
-    return acc
-  }, {})
+  const nextDrafts = Object.entries(fileDrafts.value).reduce<Record<string, string>>(
+    (acc, [path, content]) => {
+      acc[remapSandboxPath(path, sourcePath, targetPath)] = content
+      return acc
+    },
+    {}
+  )
   fileDrafts.value = nextDrafts
 
-  const nextExpandedPaths = expandedDirectoryPaths.value.map((path) => remapSandboxPath(path, sourcePath, targetPath))
+  const nextExpandedPaths = expandedDirectoryPaths.value.map((path) =>
+    remapSandboxPath(path, sourcePath, targetPath)
+  )
   expandedDirectoryPaths.value = [...new Set(nextExpandedPaths)]
 }
 
@@ -903,16 +968,23 @@ const removeClientPathsByPrefix = (targetPath: string) => {
     canvasStore.resetActiveFilePath(currentChatId.value)
   }
 
-  openFileTabs.value = openFileTabs.value.filter((path) => path !== targetPath && !path.startsWith(`${targetPath}/`))
+  openFileTabs.value = openFileTabs.value.filter(
+    (path) => path !== targetPath && !path.startsWith(`${targetPath}/`)
+  )
 
-  fileDrafts.value = Object.entries(fileDrafts.value).reduce<Record<string, string>>((acc, [path, content]) => {
-    if (path !== targetPath && !path.startsWith(`${targetPath}/`)) {
-      acc[path] = content
-    }
-    return acc
-  }, {})
+  fileDrafts.value = Object.entries(fileDrafts.value).reduce<Record<string, string>>(
+    (acc, [path, content]) => {
+      if (path !== targetPath && !path.startsWith(`${targetPath}/`)) {
+        acc[path] = content
+      }
+      return acc
+    },
+    {}
+  )
 
-  expandedDirectoryPaths.value = expandedDirectoryPaths.value.filter((path) => path !== targetPath && !path.startsWith(`${targetPath}/`))
+  expandedDirectoryPaths.value = expandedDirectoryPaths.value.filter(
+    (path) => path !== targetPath && !path.startsWith(`${targetPath}/`)
+  )
 }
 
 const refreshTreeDirectories = (paths: string[] = []) => {
@@ -937,7 +1009,9 @@ const refreshTreeDirectories = (paths: string[] = []) => {
 
 const buildSiblingPath = (path: string, nextName: string) => {
   const parentPath = getParentPath(path)
-  const trimmedName = String(nextName || '').trim().replaceAll('\\', '/')
+  const trimmedName = String(nextName || '')
+    .trim()
+    .replaceAll('\\', '/')
   if (!trimmedName || trimmedName.includes('/')) {
     throw new Error('名称不能为空，且不能包含 / 或 \\')
   }
@@ -1033,7 +1107,11 @@ const renameTreeRow = (row: TreeRow) => {
         canvasStore.touchWorkspace(currentChatId.value)
         refreshTreeDirectories([row.path, nextBasePath])
 
-        message.success(row.type === 'directory' ? `已重命名目录为 ${nextBasePath}` : `已重命名文件为 ${nextBasePath}`)
+        message.success(
+          row.type === 'directory'
+            ? `已重命名目录为 ${nextBasePath}`
+            : `已重命名文件为 ${nextBasePath}`
+        )
         modal.remove()
       } catch (error) {
         message.error((error as Error).message)
@@ -1062,9 +1140,10 @@ const deleteTreeRow = async (row: TreeRow) => {
   const filePaths = getRowFilePaths(row)
   const confirmed = await modal.confirm({
     title: row.type === 'directory' ? '删除目录' : '删除文件',
-    content: row.type === 'directory'
-      ? `确定删除 ${row.path}${filePaths.length > 0 ? ` 及其下 ${filePaths.length} 个文件` : ''}吗？`
-      : `确定删除 ${row.path} 吗？`,
+    content:
+      row.type === 'directory'
+        ? `确定删除 ${row.path}${filePaths.length > 0 ? ` 及其下 ${filePaths.length} 个文件` : ''}吗？`
+        : `确定删除 ${row.path} 吗？`,
     confirmProps: {
       danger: true
     },
@@ -1092,20 +1171,43 @@ const openTreeRowMenu = (event: MouseEvent, row: TreeRow) => {
   const options: MenuItem<TreeRow>[] = [
     ...(row.type === 'directory'
       ? [
-        {
-          label: '新建文件',
-          icon: AddIcon,
-          onClick: (targetRow: TreeRow) => createFile(targetRow.path)
-        },
-        {
-          label: '新建文件夹',
-          icon: FolderIcon,
-          onClick: (targetRow: TreeRow) => createFolder(targetRow.path)
-        },
-        {
-          type: 'divider' as const
-        }
-      ]
+          {
+            label: '上传',
+            icon: UploadIcon,
+            children: [
+              {
+                label: '上传文件',
+                icon: UploadIcon,
+                onClick: (targetRow: TreeRow) => {
+                  void uploadCanvasFiles(targetRow.path)
+                }
+              },
+              {
+                label: '上传文件夹',
+                icon: FolderIcon,
+                onClick: (targetRow: TreeRow) => {
+                  void uploadCanvasFolder(targetRow.path)
+                }
+              }
+            ]
+          },
+          {
+            type: 'divider' as const
+          },
+          {
+            label: '新建文件',
+            icon: AddIcon,
+            onClick: (targetRow: TreeRow) => createFile(targetRow.path)
+          },
+          {
+            label: '新建文件夹',
+            icon: FolderIcon,
+            onClick: (targetRow: TreeRow) => createFolder(targetRow.path)
+          },
+          {
+            type: 'divider' as const
+          }
+        ]
       : []),
     {
       label: row.type === 'directory' ? '重命名目录' : '重命名',
@@ -1113,18 +1215,22 @@ const openTreeRowMenu = (event: MouseEvent, row: TreeRow) => {
       onClick: (targetRow) => renameTreeRow(targetRow)
     },
     ...(row.type === 'file'
-      ? [{
-        label: '下载文件',
-        icon: DownloadIcon,
-        onClick: (targetRow: TreeRow) => downloadCurrentFile(targetRow.path)
-      }]
-      : [{
-        label: '下载目录',
-        icon: DownloadIcon,
-        onClick: (targetRow: TreeRow) => {
-          void downloadDirectoryAsZip(targetRow)
-        }
-      }]),
+      ? [
+          {
+            label: '下载文件',
+            icon: DownloadIcon,
+            onClick: (targetRow: TreeRow) => downloadCurrentFile(targetRow.path)
+          }
+        ]
+      : [
+          {
+            label: '下载目录',
+            icon: DownloadIcon,
+            onClick: (targetRow: TreeRow) => {
+              void downloadDirectoryAsZip(targetRow)
+            }
+          }
+        ]),
     {
       label: row.type === 'directory' ? '删除目录' : '删除',
       icon: TrashIcon,
@@ -1149,13 +1255,15 @@ const downloadCurrentFile = (filePath = activeFilePath.value) => {
     const parsedDataUrl = file.encoding === 'data-url' ? parseSandboxDataUrl(file.content) : null
     const blob = parsedDataUrl
       ? (() => {
-        const binary = atob(parsedDataUrl.base64)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i += 1) {
-          bytes[i] = binary.charCodeAt(i)
-        }
-        return new Blob([bytes], { type: parsedDataUrl.mediaType || file.mediaType || 'application/octet-stream' })
-      })()
+          const binary = atob(parsedDataUrl.base64)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i += 1) {
+            bytes[i] = binary.charCodeAt(i)
+          }
+          return new Blob([bytes], {
+            type: parsedDataUrl.mediaType || file.mediaType || 'application/octet-stream'
+          })
+        })()
       : new Blob([file.content], { type: `${file.mediaType || 'text/plain'};charset=utf-8` })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -1201,7 +1309,9 @@ const handleCanvasKeydown = (event: KeyboardEvent) => {
 }
 
 const closeFileTabs = async (filePaths: string[]) => {
-  const targetPaths = Array.from(new Set(filePaths)).filter((filePath) => openFileTabs.value.includes(filePath))
+  const targetPaths = Array.from(new Set(filePaths)).filter((filePath) =>
+    openFileTabs.value.includes(filePath)
+  )
   if (targetPaths.length === 0) return
 
   const dirtyPaths = targetPaths.filter((filePath) => {
@@ -1213,9 +1323,10 @@ const closeFileTabs = async (filePaths: string[]) => {
   if (dirtyPaths.length > 0) {
     const shouldSave = await modal.confirm({
       title: targetPaths.length === 1 ? '关闭标签页' : '批量关闭标签页',
-      content: dirtyPaths.length === 1
-        ? `${dirtyPaths[0]} 有未保存修改，是否先保存再关闭？`
-        : `有 ${dirtyPaths.length} 个标签页未保存，是否先保存再关闭？`,
+      content:
+        dirtyPaths.length === 1
+          ? `${dirtyPaths[0]} 有未保存修改，是否先保存再关闭？`
+          : `有 ${dirtyPaths.length} 个标签页未保存，是否先保存再关闭？`,
       confirmText: '保存并关闭',
       cancelText: '直接关闭'
     })
@@ -1363,14 +1474,18 @@ const clearCanvas = () => {
 
 const createFile = (directoryPath = '/') => {
   const normalizedDirectoryPath = directoryPath === '/' ? '/' : normalizeSandboxPath(directoryPath)
-  const defaultFilePath = normalizedDirectoryPath === '/' ? '/new-file.js' : `${normalizedDirectoryPath}/new-file.js`
+  const defaultFilePath =
+    normalizedDirectoryPath === '/' ? '/new-file.js' : `${normalizedDirectoryPath}/new-file.js`
   const [FormComponent, formActions] = useForm({
     fields: [
       {
         name: 'path',
         label: '文件路径',
         type: 'text',
-        placeholder: normalizedDirectoryPath === '/' ? '例如 /components/card.js' : `例如 ${normalizedDirectoryPath}/index.js`,
+        placeholder:
+          normalizedDirectoryPath === '/'
+            ? '例如 /components/card.js'
+            : `例如 ${normalizedDirectoryPath}/index.js`,
         required: true
       }
     ],
@@ -1428,7 +1543,10 @@ const createFolder = (directoryPath = '/') => {
     },
     onSubmit: (data) => {
       try {
-        const nextDirectoryPath = buildSiblingPath(`${normalizedDirectoryPath}/placeholder`, String(data.name || ''))
+        const nextDirectoryPath = buildSiblingPath(
+          `${normalizedDirectoryPath}/placeholder`,
+          String(data.name || '')
+        )
         const targetFsPath = getWorkspaceFsPath(nextDirectoryPath)
         if (window.api.fs.existsSync(targetFsPath)) {
           throw new Error(`目标已存在：${nextDirectoryPath}`)
@@ -1473,6 +1591,29 @@ const openTreeBlankMenu = (event: MouseEvent) => {
       label: '新建文件夹',
       icon: FolderIcon,
       onClick: () => createFolder('/')
+    },
+    {
+      type: 'divider' as const
+    },
+    {
+      label: '上传',
+      icon: UploadIcon,
+      children: [
+        {
+          label: '上传文件',
+          icon: UploadIcon,
+          onClick: () => {
+            void uploadCanvasFiles('/')
+          }
+        },
+        {
+          label: '上传文件夹',
+          icon: FolderIcon,
+          onClick: () => {
+            void uploadCanvasFolder('/')
+          }
+        }
+      ]
     }
   ]
 
@@ -1622,7 +1763,11 @@ const switchToTempWorkspace = () => {
   message.success('已切换回临时工作区')
 }
 
-const createCanvasFileFromDrop = async (file: File, relativePath: string, directoryPath?: string) => {
+const createCanvasFileFromDrop = async (
+  file: File,
+  relativePath: string,
+  directoryPath?: string
+) => {
   const baseDirectory = directoryPath ? normalizeSandboxPath(directoryPath) : ''
   const normalizedPath = normalizeSandboxPath(
     baseDirectory ? `${baseDirectory}/${relativePath}` : relativePath
@@ -1648,8 +1793,149 @@ const createCanvasFileFromDrop = async (file: File, relativePath: string, direct
   }
 }
 
+const isDirectoryStat = (stat: { mode?: number | null }) => {
+  return (Number(stat.mode) & 0o170000) === 0o040000
+}
+
+const isFileStat = (stat: { mode?: number | null }) => {
+  return (Number(stat.mode) & 0o170000) === 0o100000
+}
+
+const createCanvasFileFromLocalPath = async (
+  absolutePath: string,
+  relativePath: string,
+  directoryPath?: string
+): Promise<SandboxFile> => {
+  const baseDirectory = directoryPath ? normalizeSandboxPath(directoryPath) : ''
+  const normalizedPath = normalizeSandboxPath(
+    baseDirectory ? `${baseDirectory}/${relativePath}` : relativePath
+  )
+  const stat = await window.api.fs.promises.stat(absolutePath)
+  const mediaType = getSandboxMediaType(normalizedPath)
+
+  if (!isTextFile(normalizedPath)) {
+    const bytes = await window.api.fs.promises.readFile(absolutePath)
+    const content = await blobToDataURL(new Blob([bytes as BlobPart], { type: mediaType }))
+    return {
+      path: normalizedPath,
+      content,
+      encoding: 'data-url',
+      mediaType,
+      updatedAt: stat.mtimeMs || Date.now()
+    }
+  }
+
+  return {
+    path: normalizedPath,
+    content: await window.api.fs.promises.readFile(absolutePath, 'utf-8'),
+    encoding: 'text',
+    mediaType,
+    updatedAt: stat.mtimeMs || Date.now()
+  }
+}
+
+const readLocalDirectoryFiles = async (
+  directoryPath: string,
+  basePath = directoryPath
+): Promise<{ absolutePath: string; relativePath: string }[]> => {
+  const results: { absolutePath: string; relativePath: string }[] = []
+  const entries = await window.api.fs.promises.readdir(directoryPath, { withFileTypes: true })
+
+  for (const entry of entries) {
+    const absolutePath = window.api.path.join(directoryPath, entry.name)
+    const stat = await window.api.fs.promises.stat(absolutePath)
+
+    if (isDirectoryStat(stat)) {
+      const childResults = await readLocalDirectoryFiles(absolutePath, basePath)
+      results.push(...childResults)
+      continue
+    }
+
+    if (!isFileStat(stat)) continue
+
+    results.push({
+      absolutePath,
+      relativePath: window.api.path.relative(basePath, absolutePath).replaceAll('\\', '/')
+    })
+  }
+
+  return results
+}
+
+const importLocalPathsToCanvas = async (
+  fileInfos: { absolutePath: string; relativePath: string }[],
+  directoryPath = '/'
+) => {
+  try {
+    if (fileInfos.length === 0) return
+
+    const importedFiles = await Promise.all(
+      fileInfos.map(({ absolutePath, relativePath }) =>
+        createCanvasFileFromLocalPath(absolutePath, relativePath, directoryPath)
+      )
+    )
+
+    importedFiles.forEach((file) => {
+      canvasStore.writeFile(file, currentChatId.value)
+    })
+
+    const normalizedDirectoryPath = normalizeSandboxPath(directoryPath)
+    expandDirectory(normalizedDirectoryPath)
+    refreshTreeDirectories([
+      normalizedDirectoryPath,
+      ...importedFiles.map((file) => getParentPath(file.path) || '/')
+    ])
+
+    const successText =
+      normalizedDirectoryPath === '/'
+        ? `已上传 ${importedFiles.length} 个文件`
+        : `已上传 ${importedFiles.length} 个文件到 ${normalizedDirectoryPath}`
+    message.success(successText)
+  } catch (error) {
+    console.error('Canvas local upload error:', error)
+    message.error((error as Error).message || '上传文件失败')
+  }
+}
+
+const uploadCanvasFiles = async (directoryPath = '/') => {
+  const result = await window.api.showOpenDialog({
+    title: '上传文件到画布',
+    properties: ['openFile', 'multiSelections']
+  })
+
+  if (result.canceled || !result.filePaths?.length) return
+
+  const fileInfos = result.filePaths.map((absolutePath) => ({
+    absolutePath,
+    relativePath: window.api.path.basename(absolutePath)
+  }))
+  await importLocalPathsToCanvas(fileInfos, directoryPath)
+}
+
+const uploadCanvasFolder = async (directoryPath = '/') => {
+  const result = await window.api.showOpenDialog({
+    title: '上传文件夹到画布',
+    properties: ['openDirectory']
+  })
+
+  if (result.canceled || !result.filePaths?.[0]) return
+
+  const selectedDirectoryPath = result.filePaths[0]
+  const directoryName = window.api.path.basename(selectedDirectoryPath)
+  const files = await readLocalDirectoryFiles(selectedDirectoryPath)
+  const fileInfos = files.map((file) => ({
+    ...file,
+    relativePath: [directoryName, file.relativePath].filter(Boolean).join('/')
+  }))
+
+  await importLocalPathsToCanvas(fileInfos, directoryPath)
+}
+
 // 递归读取文件夹中的所有文件
-const readAllFilesFromEntry = async (entry: FileSystemEntry, basePath: string = ''): Promise<{ file: File; relativePath: string }[]> => {
+const readAllFilesFromEntry = async (
+  entry: FileSystemEntry,
+  basePath: string = ''
+): Promise<{ file: File; relativePath: string }[]> => {
   const results: { file: File; relativePath: string }[] = []
 
   if (entry.isFile) {
@@ -1666,7 +1952,10 @@ const readAllFilesFromEntry = async (entry: FileSystemEntry, basePath: string = 
     })
 
     for (const childEntry of entries) {
-      const childResults = await readAllFilesFromEntry(childEntry, basePath ? `${basePath}/${entry.name}` : entry.name)
+      const childResults = await readAllFilesFromEntry(
+        childEntry,
+        basePath ? `${basePath}/${entry.name}` : entry.name
+      )
       results.push(...childResults)
     }
   }
@@ -1675,7 +1964,9 @@ const readAllFilesFromEntry = async (entry: FileSystemEntry, basePath: string = 
 }
 
 // 从 DataTransfer 获取所有文件（包括文件夹内的文件）
-const getAllFilesFromDataTransfer = async (dataTransfer: DataTransfer): Promise<{ file: File; relativePath: string }[]> => {
+const getAllFilesFromDataTransfer = async (
+  dataTransfer: DataTransfer
+): Promise<{ file: File; relativePath: string }[]> => {
   const results: { file: File; relativePath: string }[] = []
 
   // 尝试使用 webkitGetAsEntry API 处理文件夹
@@ -1709,14 +2000,15 @@ const getAllFilesFromDataTransfer = async (dataTransfer: DataTransfer): Promise<
   return results
 }
 
-
 const handleDroppedDataTransfer = async (dataTransfer: DataTransfer, directoryPath?: string) => {
   try {
     const fileInfos = await getAllFilesFromDataTransfer(dataTransfer)
     if (fileInfos.length === 0) return
 
     const droppedFiles = await Promise.all(
-      fileInfos.map(({ file, relativePath }) => createCanvasFileFromDrop(file, relativePath, directoryPath))
+      fileInfos.map(({ file, relativePath }) =>
+        createCanvasFileFromDrop(file, relativePath, directoryPath)
+      )
     )
 
     droppedFiles.forEach((file) => {
@@ -1735,7 +2027,9 @@ const handleDroppedDataTransfer = async (dataTransfer: DataTransfer, directoryPa
 const moveCanvasFileToDirectory = (sourcePath: string, directoryPath: string) => {
   const normalizedSourcePath = normalizeSandboxPath(sourcePath)
   const normalizedDirectoryPath = normalizeSandboxPath(directoryPath)
-  const targetPath = normalizeSandboxPath(`${normalizedDirectoryPath}/${getBaseName(normalizedSourcePath)}`)
+  const targetPath = normalizeSandboxPath(
+    `${normalizedDirectoryPath}/${getBaseName(normalizedSourcePath)}`
+  )
 
   if (normalizedSourcePath === targetPath) return
 
@@ -1855,7 +2149,8 @@ const handleDirectoryDrop = (row: TreeRow, event: DragEvent) => {
   isCanvasDragOver.value = false
   dragDepth.value = 0
 
-  const canvasFilePath = event.dataTransfer?.getData(CANVAS_FILE_DRAG_MIME) || draggingCanvasFilePath.value
+  const canvasFilePath =
+    event.dataTransfer?.getData(CANVAS_FILE_DRAG_MIME) || draggingCanvasFilePath.value
   if (canvasFilePath) {
     draggingCanvasFilePath.value = ''
     try {
@@ -1944,7 +2239,9 @@ const openActionsMenu = (event: MouseEvent) => {
   ]
 
   if (!props.hideLocalFolderActions) {
-    options.splice(4, 0,
+    options.splice(
+      4,
+      0,
       {
         label: '打开本地文件夹',
         icon: FolderIcon,
@@ -1993,13 +2290,10 @@ watch(
   { immediate: true }
 )
 
-watch(
-  currentWorkspaceDir,
-  (nextDir, previousDir) => {
-    if (!nextDir || nextDir === previousDir) return
-    syncWorkspaceView()
-  }
-)
+watch(currentWorkspaceDir, (nextDir, previousDir) => {
+  if (!nextDir || nextDir === previousDir) return
+  syncWorkspaceView()
+})
 
 watch(
   () => sandboxTreeRows.value.length,
@@ -2127,14 +2421,25 @@ onBeforeUnmount(() => {
           >
             <TerminalIcon />
           </button>
-          <button type="button" class="sandbox-sidebar-tool" title="更多操作" @click="openActionsMenu">
+          <button
+            type="button"
+            class="sandbox-sidebar-tool"
+            title="更多操作"
+            @click="openActionsMenu"
+          >
             <SettingsIcon />
           </button>
         </div>
       </div>
 
-      <ResizeBox v-if="!isPreviewTab" v-model:width="sandboxTreeWidth" v-model:is-collapsed="sandboxTreeCollapsed" :min-size="140"
-        :max-size="360" class="sandbox-sidebar-resize">
+      <ResizeBox
+        v-if="!isPreviewTab"
+        v-model:width="sandboxTreeWidth"
+        v-model:is-collapsed="sandboxTreeCollapsed"
+        :min-size="140"
+        :max-size="360"
+        class="sandbox-sidebar-resize"
+      >
         <aside class="sandbox-sidebar">
           <div class="sandbox-sidebar-header">
             <div class="canvas-tabs">
@@ -2150,7 +2455,12 @@ onBeforeUnmount(() => {
               >
                 <TerminalIcon />
               </button>
-              <button type="button" class="sandbox-sidebar-tool" title="更多操作" @click="openActionsMenu">
+              <button
+                type="button"
+                class="sandbox-sidebar-tool"
+                title="更多操作"
+                @click="openActionsMenu"
+              >
                 <SettingsIcon />
               </button>
             </div>
@@ -2158,9 +2468,21 @@ onBeforeUnmount(() => {
           <div class="sandbox-explorer-group">
             <div class="sandbox-explorer-group-header">
               <div class="sandbox-explorer-group-header-row">
-                <span class="sandbox-explorer-group-title">{{ settingsStore.display.canvasEditorTab === 'git' ? '更改' : 'SANDBOX' }}</span>
-                <div v-if="settingsStore.display.canvasEditorTab === 'git'" class="canvas-git-header-actions">
-                  <button type="button" class="sandbox-sidebar-tool" title="刷新" @click="void refreshGitStatus()">↻</button>
+                <span class="sandbox-explorer-group-title">{{
+                  settingsStore.display.canvasEditorTab === 'git' ? '更改' : 'SANDBOX'
+                }}</span>
+                <div
+                  v-if="settingsStore.display.canvasEditorTab === 'git'"
+                  class="canvas-git-header-actions"
+                >
+                  <button
+                    type="button"
+                    class="sandbox-sidebar-tool"
+                    title="刷新"
+                    @click="void refreshGitStatus()"
+                  >
+                    ↻
+                  </button>
                   <div
                     class="canvas-git-ai-selector"
                     :class="{ 'is-loading': gitGeneratingCommitMessage }"
@@ -2182,62 +2504,96 @@ onBeforeUnmount(() => {
                     :disabled="gitActionLoading"
                     title="更多 Git 操作"
                     @click="void openGitActionsMenu($event)"
-                  >⋯</button>
+                  >
+                    ⋯
+                  </button>
                 </div>
               </div>
             </div>
             <div v-if="settingsStore.display.canvasEditorTab === 'git'" class="sandbox-tree">
-                <div class="canvas-git-compose">
-                  <textarea
-                    v-model="gitCommitMessage"
-                    class="canvas-git-commit-input"
-                    rows="1"
-                    :placeholder="`消息 (${hasGitRepo ? `⌘Enter 在“${gitStatus?.branch || 'HEAD'}”提交` : '提交'})`"
-                  />
-                  <button
-                    type="button"
-                    class="canvas-git-commit-primary"
-                    :disabled="isGitPrimaryButtonDisabled"
-                    @click="void runGitPrimaryAction()"
-                  >
-                    {{ gitCommitting || gitActionLoading ? gitPrimaryButtonLoadingLabel : gitPrimaryButtonLabel }}
-                  </button>
-                </div>
+              <div class="canvas-git-compose">
+                <textarea
+                  v-model="gitCommitMessage"
+                  class="canvas-git-commit-input"
+                  rows="1"
+                  :placeholder="`消息 (${hasGitRepo ? `⌘Enter 在“${gitStatus?.branch || 'HEAD'}”提交` : '提交'})`"
+                />
                 <button
-                  v-for="entry in gitEntries"
-                  :key="entry.path"
                   type="button"
-                  class="sandbox-tree-row canvas-git-tree-row"
-                  :class="{ active: entry.path === gitSelectedPath }"
-                  @click="void refreshGitDiff(entry.path)"
+                  class="canvas-git-commit-primary"
+                  :disabled="isGitPrimaryButtonDisabled"
+                  @click="void runGitPrimaryAction()"
                 >
-                  <span class="sandbox-tree-file-icon type-file">
-                    <span class="sandbox-tree-file-glyph"></span>
-                  </span>
-                  <span class="canvas-git-tree-name">{{ getBaseNameFromPath(entry.path) }}</span>
-                  <span class="canvas-git-tree-dir">{{ getParentPath(entry.path).replace(/^\/+/, '') || '.' }}</span>
-                  <span class="canvas-git-tree-code">{{ entry.untracked ? 'U' : `${entry.indexStatus}`.trim() || `${entry.workingTreeStatus}`.trim() || 'M' }}</span>
+                  {{
+                    gitCommitting || gitActionLoading
+                      ? gitPrimaryButtonLoadingLabel
+                      : gitPrimaryButtonLabel
+                  }}
                 </button>
-
+              </div>
+              <button
+                v-for="entry in gitEntries"
+                :key="entry.path"
+                type="button"
+                class="sandbox-tree-row canvas-git-tree-row"
+                :class="{ active: entry.path === gitSelectedPath }"
+                @click="void refreshGitDiff(entry.path)"
+              >
+                <span class="sandbox-tree-file-icon type-file">
+                  <span class="sandbox-tree-file-glyph"></span>
+                </span>
+                <span class="canvas-git-tree-name">{{ getBaseNameFromPath(entry.path) }}</span>
+                <span class="canvas-git-tree-dir">{{
+                  getParentPath(entry.path).replace(/^\/+/, '') || '.'
+                }}</span>
+                <span class="canvas-git-tree-code">{{
+                  entry.untracked
+                    ? 'U'
+                    : `${entry.indexStatus}`.trim() || `${entry.workingTreeStatus}`.trim() || 'M'
+                }}</span>
+              </button>
             </div>
-            <div v-else class="sandbox-tree" v-bind="sandboxTreeContainerProps" @contextmenu.prevent="openTreeBlankMenu">
+            <div
+              v-else
+              class="sandbox-tree"
+              v-bind="sandboxTreeContainerProps"
+              @contextmenu.prevent="openTreeBlankMenu"
+            >
               <div class="sandbox-tree-wrapper" v-bind="sandboxTreeWrapperProps">
-                <button v-for="item in virtualSandboxTreeRows" :key="item.data.id" type="button" class="sandbox-tree-row"
+                <button
+                  v-for="item in virtualSandboxTreeRows"
+                  :key="item.data.id"
+                  type="button"
+                  class="sandbox-tree-row"
                   :class="{
                     active: item.data.type === 'file' && item.data.path === activeFilePath,
                     directory: item.data.type === 'directory',
-                    'drop-target': item.data.type === 'directory' && item.data.path === dragTargetDirectoryPath,
+                    'drop-target':
+                      item.data.type === 'directory' && item.data.path === dragTargetDirectoryPath,
                     dragging: item.data.path === draggingCanvasFilePath
-                  }" :style="{
+                  }"
+                  :style="{
                     paddingLeft: `${8 + item.data.depth * 14}px`,
                     height: `${SANDBOX_TREE_ROW_HEIGHT}px`
-                  }" @click="handleTreeRowClick(item.data)" @contextmenu.prevent="openTreeRowMenu($event, item.data)"
-                  :draggable="item.data.type === 'file' || item.data.type === 'directory'" @dragstart="handleTreeRowDragStart(item.data, $event)"
-                  @dragend="handleTreeRowDragEnd" @dragenter="handleDirectoryDragEnter(item.data, $event)"
+                  }"
+                  @click="handleTreeRowClick(item.data)"
+                  @contextmenu.prevent="openTreeRowMenu($event, item.data)"
+                  :draggable="item.data.type === 'file' || item.data.type === 'directory'"
+                  @dragstart="handleTreeRowDragStart(item.data, $event)"
+                  @dragend="handleTreeRowDragEnd"
+                  @dragenter="handleDirectoryDragEnter(item.data, $event)"
                   @dragover="handleDirectoryDragOver(item.data, $event)"
-                  @dragleave="handleDirectoryDragLeave(item.data, $event)" @drop="handleDirectoryDrop(item.data, $event)">
+                  @dragleave="handleDirectoryDragLeave(item.data, $event)"
+                  @drop="handleDirectoryDrop(item.data, $event)"
+                >
                   <span class="sandbox-tree-chevron">
-                    {{ item.data.type === 'directory' && item.data.hasChildren ? (item.data.isExpanded ? '▾' : '▸') : '' }}
+                    {{
+                      item.data.type === 'directory' && item.data.hasChildren
+                        ? item.data.isExpanded
+                          ? '▾'
+                          : '▸'
+                        : ''
+                    }}
                   </span>
                   <span class="sandbox-tree-file-icon" :class="[`type-${item.data.type}`]">
                     <span class="sandbox-tree-file-glyph"></span>
@@ -2250,7 +2606,6 @@ onBeforeUnmount(() => {
               </div>
             </div>
           </div>
-
         </aside>
       </ResizeBox>
 
@@ -2260,11 +2615,13 @@ onBeforeUnmount(() => {
             <div v-if="!isUsingTempWorkspace" class="canvas-empty-state">
               预览仅支持临时工作区。当前画布正跟随工作路径，可在未设置工作路径时使用预览。
             </div>
-            <HtmlPreview v-else-if="previewReady" :srcdoc="previewDocument" :channel-id="previewChannelId"
-              @sandbox-event="handleSandboxEvent" />
-            <div v-else class="canvas-empty-state">
-              当前预览尚未准备好。
-            </div>
+            <HtmlPreview
+              v-else-if="previewReady"
+              :srcdoc="previewDocument"
+              :channel-id="previewChannelId"
+              @sandbox-event="handleSandboxEvent"
+            />
+            <div v-else class="canvas-empty-state">当前预览尚未准备好。</div>
           </div>
           <ResizeBox
             v-model:height="sandboxLogsHeight"
@@ -2282,8 +2639,12 @@ onBeforeUnmount(() => {
               </div>
               <div v-if="previewLogs.length === 0" class="sandbox-logs-empty">等待预览输出...</div>
               <div v-else class="sandbox-log-list">
-                <div v-for="item in previewLogs" :key="item.id" class="sandbox-log-item"
-                  :class="[`kind-${item.kind}`, item.level ? `level-${item.level}` : '']">
+                <div
+                  v-for="item in previewLogs"
+                  :key="item.id"
+                  class="sandbox-log-item"
+                  :class="[`kind-${item.kind}`, item.level ? `level-${item.level}` : '']"
+                >
                   {{ item.text }}
                 </div>
               </div>
@@ -2296,7 +2657,9 @@ onBeforeUnmount(() => {
             <div class="canvas-panel-surface canvas-code-editor-shell">
               <div v-if="gitSelectedEntry" class="canvas-file-tabs">
                 <button type="button" class="canvas-file-tab active">
-                  <span class="canvas-file-tab-name">{{ getBaseNameFromPath(gitSelectedEntry.path) }}</span>
+                  <span class="canvas-file-tab-name">{{
+                    getBaseNameFromPath(gitSelectedEntry.path)
+                  }}</span>
                 </button>
               </div>
               <div class="canvas-code-editor">
@@ -2316,13 +2679,23 @@ onBeforeUnmount(() => {
           <template v-else-if="activeFile">
             <div class="canvas-panel-surface canvas-code-editor-shell">
               <div v-if="openFileTabs.length > 0" class="canvas-file-tabs">
-                <button v-for="filePath in openFileTabs" :key="filePath" type="button" class="canvas-file-tab"
-                  :class="{ active: filePath === activeFilePath }" @click="activeFilePath = filePath"
-                  @contextmenu="openTabContextMenu($event, filePath)">
+                <button
+                  v-for="filePath in openFileTabs"
+                  :key="filePath"
+                  type="button"
+                  class="canvas-file-tab"
+                  :class="{ active: filePath === activeFilePath }"
+                  @click="activeFilePath = filePath"
+                  @contextmenu="openTabContextMenu($event, filePath)"
+                >
                   <span class="canvas-file-tab-name">{{ getBaseNameFromPath(filePath) }}</span>
-                  <span v-if="getDraftContent(filePath) !== (getPersistedFile(filePath)?.content || '')"
-                    class="canvas-file-tab-dirty"></span>
-                  <span class="canvas-file-tab-close" @click.stop="void closeFileTab(filePath)">x</span>
+                  <span
+                    v-if="getDraftContent(filePath) !== (getPersistedFile(filePath)?.content || '')"
+                    class="canvas-file-tab-dirty"
+                  ></span>
+                  <span class="canvas-file-tab-close" @click.stop="void closeFileTab(filePath)"
+                    >x</span
+                  >
                 </button>
               </div>
               <div v-if="isActiveImageFile" class="canvas-image-preview">
@@ -2334,7 +2707,11 @@ onBeforeUnmount(() => {
                 <p>该文件已保存在画布工作区中，可直接在终端或 exec_command_canvas 中使用。</p>
               </div>
               <div v-else class="canvas-code-editor">
-                <SandboxCodeEditor v-model="activeFileContent" :path="currentTabFilePath" :language="activeLanguage" />
+                <SandboxCodeEditor
+                  v-model="activeFileContent"
+                  :path="currentTabFilePath"
+                  :language="activeLanguage"
+                />
               </div>
             </div>
           </template>
@@ -3004,7 +3381,7 @@ onBeforeUnmount(() => {
 
 .canvas-surface-meta {
   color: var(--text-tertiary);
-  font-family: Menlo, Monaco, "Courier New", monospace;
+  font-family: Menlo, Monaco, 'Courier New', monospace;
   font-size: 10px;
 }
 
@@ -3022,9 +3399,23 @@ onBeforeUnmount(() => {
   justify-content: center;
   padding: 20px;
   background:
-    linear-gradient(45deg, rgba(var(--text-rgb), 0.04) 25%, transparent 25%, transparent 75%, rgba(var(--text-rgb), 0.04) 75%),
-    linear-gradient(45deg, rgba(var(--text-rgb), 0.04) 25%, transparent 25%, transparent 75%, rgba(var(--text-rgb), 0.04) 75%);
-  background-position: 0 0, 12px 12px;
+    linear-gradient(
+      45deg,
+      rgba(var(--text-rgb), 0.04) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(var(--text-rgb), 0.04) 75%
+    ),
+    linear-gradient(
+      45deg,
+      rgba(var(--text-rgb), 0.04) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(var(--text-rgb), 0.04) 75%
+    );
+  background-position:
+    0 0,
+    12px 12px;
   background-size: 24px 24px;
 }
 
@@ -3060,7 +3451,7 @@ onBeforeUnmount(() => {
   min-height: 0;
   overflow: auto;
   padding: 10px 12px 12px;
-  font-family: Menlo, Monaco, "Courier New", monospace;
+  font-family: Menlo, Monaco, 'Courier New', monospace;
   font-size: 11px;
   line-height: 1.55;
 }
@@ -3075,7 +3466,7 @@ onBeforeUnmount(() => {
   word-break: break-word;
 }
 
-.sandbox-log-item+.sandbox-log-item {
+.sandbox-log-item + .sandbox-log-item {
   margin-top: 8px;
 }
 
@@ -3181,7 +3572,6 @@ onBeforeUnmount(() => {
   padding: 24px;
   background: rgba(255, 255, 255, 0.02);
 }
-
 
 .canvas-code-editor-shell {
   flex: 1;
