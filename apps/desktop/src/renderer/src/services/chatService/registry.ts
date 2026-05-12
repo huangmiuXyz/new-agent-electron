@@ -152,24 +152,52 @@ const openAICompatibleChatCallOptionsSchema = z.object({
     .describe('用于合并到请求体的 JSON 字符串，例如 {"custom_field":"value"}')
 })
 
+const ollamaChatCallOptionsSchema = z.object({
+  headers: z.record(z.string(), z.string()).optional(),
+  structuredOutputs: z.boolean().optional()
+})
+
 const openAIChatCallOptionsSchema = z.object({
+  conversation: z.string().nullish(),
+  include: z
+    .array(
+      z.enum([
+        'reasoning.encrypted_content',
+        'file_search_call.results',
+        'message.output_text.logprobs'
+      ])
+    )
+    .nullish(),
+  instructions: z.string().nullish(),
   logitBias: z.record(z.coerce.number(), z.number()).optional(),
   logprobs: z.union([z.number(), z.boolean()]).optional(),
+  maxToolCalls: z.number().nullish(),
   parallelToolCalls: z.boolean().optional(),
+  previousResponseId: z.string().nullish(),
   user: z.string().optional(),
-  reasoningEffort: z.enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh']).optional(),
+  reasoningEffort: z
+    .enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh'])
+    .nullish(),
+  reasoningSummary: z.string().nullish(),
   maxCompletionTokens: z.number().optional(),
-  store: z.boolean().optional(),
-  metadata: z.record(z.string(), z.string()).optional(),
+  store: z.boolean().nullish(),
+  metadata: z.any().nullish(),
   prediction: z.record(z.string(), z.unknown()).optional(),
-  serviceTier: z.enum(['default', 'auto', 'flex', 'priority']).optional(),
-  strictJsonSchema: z.boolean().optional(),
-  textVerbosity: z.enum(['low', 'medium', 'high']).optional(),
-  promptCacheKey: z.string().optional(),
-  promptCacheRetention: z.enum(['in_memory', '24h']).optional(),
-  safetyIdentifier: z.string().optional(),
+  serviceTier: z.enum(['default', 'auto', 'flex', 'priority']).nullish(),
+  strictJsonSchema: z.boolean().nullish(),
+  textVerbosity: z.enum(['low', 'medium', 'high']).nullish(),
+  truncation: z.enum(['auto', 'disabled']).nullish(),
+  promptCacheKey: z.string().nullish(),
+  promptCacheRetention: z.enum(['in_memory', '24h']).nullish(),
+  safetyIdentifier: z.string().nullish(),
   systemMessageMode: z.enum(['remove', 'system', 'developer']).optional(),
-  forceReasoning: z.boolean().optional()
+  forceReasoning: z.boolean().optional(),
+  allowedTools: z
+    .object({
+      toolNames: z.array(z.string()).min(1),
+      mode: z.enum(['auto', 'required']).optional()
+    })
+    .optional()
 })
 
 const anthropicChatCallOptionsSchema = z.object({
@@ -178,7 +206,8 @@ const anthropicChatCallOptionsSchema = z.object({
   thinking: z
     .discriminatedUnion('type', [
       z.object({
-        type: z.literal('adaptive')
+        type: z.literal('adaptive'),
+        display: z.enum(['omitted', 'summarized']).optional()
       }),
       z.object({
         type: z.literal('enabled'),
@@ -194,6 +223,11 @@ const anthropicChatCallOptionsSchema = z.object({
     .object({
       type: z.literal('ephemeral'),
       ttl: z.enum(['5m', '1h']).optional()
+    })
+    .optional(),
+  metadata: z
+    .object({
+      userId: z.string().optional()
     })
     .optional(),
   mcpServers: z
@@ -228,8 +262,17 @@ const anthropicChatCallOptionsSchema = z.object({
     })
     .optional(),
   toolStreaming: z.boolean().optional(),
-  effort: z.enum(['low', 'medium', 'high', 'max']).optional(),
+  effort: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).optional(),
+  taskBudget: z
+    .object({
+      type: z.literal('tokens'),
+      total: z.number().int().min(20000),
+      remaining: z.number().int().min(0).optional()
+    })
+    .optional(),
   speed: z.enum(['fast', 'standard']).optional(),
+  inferenceGeo: z.enum(['us', 'global']).optional(),
+  anthropicBeta: z.array(z.string()).optional(),
   contextManagement: z
     .object({
       edits: z.array(
@@ -297,7 +340,8 @@ const deepSeekChatCallOptionsSchema = z.object({
     .object({
       type: z.enum(['enabled', 'disabled']).optional()
     })
-    .optional()
+    .optional(),
+  reasoningEffort: z.enum(['high', 'max']).optional()
 })
 
 const googleChatCallOptionsSchema = z.object({
@@ -385,11 +429,15 @@ const googleChatCallOptionsSchema = z.object({
         })
         .optional()
     })
-    .optional()
+    .optional(),
+  streamFunctionCallArguments: z.boolean().optional(),
+  serviceTier: z.enum(['standard', 'flex', 'priority']).optional()
 })
 
 const xaiChatCallOptionsSchema = z.object({
   reasoningEffort: z.enum(['low', 'high']).optional(),
+  logprobs: z.boolean().optional(),
+  topLogprobs: z.number().int().min(0).max(8).optional(),
   parallel_function_calling: z.boolean().optional(),
   searchParameters: z
     .object({
@@ -403,28 +451,28 @@ const xaiChatCallOptionsSchema = z.object({
           z.discriminatedUnion('type', [
             z.object({
               type: z.literal('web'),
-              country: z.string().optional(),
-              excludedWebsites: z.array(z.string()).optional(),
-              allowedWebsites: z.array(z.string()).optional(),
+              country: z.string().length(2).optional(),
+              excludedWebsites: z.array(z.string()).max(5).optional(),
+              allowedWebsites: z.array(z.string()).max(5).optional(),
               safeSearch: z.boolean().optional()
             }),
             z.object({
               type: z.literal('x'),
               excludedXHandles: z.array(z.string()).optional(),
               includedXHandles: z.array(z.string()).optional(),
-              postFavoriteCount: z.number().optional(),
-              postViewCount: z.number().optional(),
+              postFavoriteCount: z.number().int().optional(),
+              postViewCount: z.number().int().optional(),
               xHandles: z.array(z.string()).optional()
             }),
             z.object({
               type: z.literal('news'),
-              country: z.string().optional(),
-              excludedWebsites: z.array(z.string()).optional(),
+              country: z.string().length(2).optional(),
+              excludedWebsites: z.array(z.string()).max(5).optional(),
               safeSearch: z.boolean().optional()
             }),
             z.object({
               type: z.literal('rss'),
-              links: z.array(z.string())
+              links: z.array(z.string().url()).max(1)
             })
           ])
         )
@@ -483,7 +531,7 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
     }),
   ollama: (options) =>
     mergeFun(createOllama(options), {
-      chatCallOptionsSchema: openAICompatibleChatCallOptionsSchema,
+      chatCallOptionsSchema: ollamaChatCallOptionsSchema,
       listModels: createOllamaListModels(options)
     }),
   openrouter: (options) =>

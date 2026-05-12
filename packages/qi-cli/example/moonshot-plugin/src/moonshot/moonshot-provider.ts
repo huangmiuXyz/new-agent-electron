@@ -10,7 +10,7 @@ export interface MoonshotProviderSettings {
 const moonshotChatOptionsSchema = z.object({
   thinking: z.object({
     type: z.enum(['enabled', 'disabled']).optional().describe('思考模式'),
-    budgetTokens: z.number().min(0).max(4096).optional().describe('Token 预算'),
+    budgetTokens: z.number().int().min(1024).optional().describe('Token 预算'),
   }).optional().describe('思考模式配置'),
   reasoningHistory: z.enum(['disabled', 'interleaved', 'preserved']).optional().describe('推理历史保留方式'),
 });
