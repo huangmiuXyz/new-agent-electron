@@ -6,7 +6,7 @@ import { setupSqliteHandlers, initSqlite } from './services/sqlite'
 import { setupUpdaterHandlers } from './services/updater'
 import { setupPtyHandlers } from './services/pty'
 import { setupComputerHandlers } from './services/computer'
-import { setupSearchReplaceHandlers } from './services/searchReplace'
+import { setupApplyPatchHandlers } from './services/applyPatch'
 import { setupSyncHandlers } from './services/sync'
 import { initTray } from './initTray'
 
@@ -466,7 +466,7 @@ if (gotSingleInstanceLock) {
 
     setupPtyHandlers()
     setupComputerHandlers()
-    setupSearchReplaceHandlers()
+    setupApplyPatchHandlers()
     setupSyncHandlers()
   })
 }

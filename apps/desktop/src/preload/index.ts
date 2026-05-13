@@ -636,16 +636,11 @@ export const api: ElectronAPI = {
     },
     cancelDownload: (id: string) => electronAPI.ipcRenderer.invoke('net:cancel-download', id)
   },
-  searchReplace: {
+  applyPatch: {
     execute: (payload: {
       baseDir: string
-      type?: 'modify' | 'add' | 'delete' | 'move' | 'update' | 'create' | 'remove' | 'rename'
-      filePath: string
-      oldStr?: string
-      newStr?: string
-      targetPath?: string
-      overwrite?: boolean
-    }) => electronAPI.ipcRenderer.invoke('search-replace:execute', payload)
+      patch: string
+    }) => electronAPI.ipcRenderer.invoke('apply-patch:execute', payload)
   },
   sync: {
     startHost: (options?: { displayName?: string; port?: number }) =>

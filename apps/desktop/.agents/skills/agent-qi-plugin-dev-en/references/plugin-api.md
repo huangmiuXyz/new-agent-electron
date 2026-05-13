@@ -156,14 +156,14 @@ Good for:
 
 - plugins participating in local knowledge or embedding/index workflows
 
-### Search And Replace
+### Apply Patch
 
-- `api.searchReplace.execute(...)`
+- `api.applyPatch.execute(...)`
 
 Good for:
 
 - controlled file edits
-- batch search/replace flows
+- batch patch flows
 
 ### Sync Features
 

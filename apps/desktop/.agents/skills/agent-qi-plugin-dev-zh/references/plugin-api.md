@@ -156,9 +156,9 @@
 
 - 插件直接参与本地知识库 / 向量索引流程
 
-### 搜索替换
+### 应用补丁
 
-- `api.searchReplace.execute(...)`
+- `api.applyPatch.execute(...)`
 
 适合：
 

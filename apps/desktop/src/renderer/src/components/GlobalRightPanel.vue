@@ -30,6 +30,7 @@ const activeTab = computed(() => settingsStore.display.assistantSidebarTab as Ri
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  border: 1px solid var(--border-subtle);
 }
 
 .panel-body {

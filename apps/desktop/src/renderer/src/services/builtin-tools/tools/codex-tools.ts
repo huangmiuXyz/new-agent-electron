@@ -487,52 +487,52 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       }
     }
   },
-  search_replace: {
-    title: '搜索和替换',
-    description:
-      '通过 type 执行文件操作：modify(替换内容)、add(新增文件)、delete(删除文件)、move(移动/重命名文件)。',
+  apply_patch: {
+    title: '应用补丁',
+    description: [
+      '使用 apply_patch 编辑文件。补丁格式：',
+      '*** Begin Patch',
+      '[一个或多个文件操作]',
+      '*** End Patch',
+      '',
+      '支持三种文件操作：',
+      '*** Add File: <path> - 创建新文件，后续每行以 + 开头',
+      '*** Delete File: <path> - 删除文件',
+      '*** Update File: <path> - 修改文件（可选重命名）',
+      '',
+      'Update File 后可跟 *** Move to: <new path> 重命名文件。',
+      '然后是多个 hunk，每个以 @@ 开头（可跟上下文标识）。',
+      'hunk 内每行以 " "（上下文）、"+"（新增）、"-"（删除）开头。',
+      '',
+      '示例：',
+      '*** Begin Patch',
+      '*** Add File: hello.txt',
+      '+Hello world',
+      '*** Update File: src/app.py',
+      '*** Move to: src/main.py',
+      '@@ def greet():',
+      '-print("Hi")',
+      '+print("Hello, world!")',
+      '*** Delete File: obsolete.txt',
+      '*** End Patch',
+    ].join('\n'),
     inputSchema: z.object({
-      type: z
-        .enum(['modify', 'add', 'delete', 'move'])
-        .optional()
-        .default('modify')
+      patch: z
+        .string()
         .describe(
-          '操作类型：modify=替换文件内容，add=新增文件，delete=删除文件，move=移动/重命名文件'
-        ),
-      file_path: z.string().describe('源文件路径（add/delete/modify 为目标文件，move 为原路径）'),
-      old_str: z
-        .string()
-        .optional()
-        .describe('type=modify 时必填：要搜索的旧代码片段（必须与文件内容完全匹配）'),
-      new_str: z
-        .string()
-        .optional()
-        .describe('type=modify 时为替换内容；type=add 时为新文件内容（可为空字符串）'),
-      target_path: z.string().optional().describe('type=move 时必填：目标文件路径'),
-      overwrite: z
-        .boolean()
-        .optional()
-        .default(false)
-        .describe('type=add 或 move 时可选：目标已存在时是否覆盖，默认 false')
+          '补丁文本，必须以 *** Begin Patch 开头，*** End Patch 结尾。支持 Add File、Delete File、Update File 操作。'
+        )
     }),
     render: ApplyPatchRender,
     execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
-      const type =
-        typeof params.type === 'string'
-          ? (params.type as 'modify' | 'add' | 'delete' | 'move')
-          : 'modify'
-      const filePath = typeof params.file_path === 'string' ? params.file_path : ''
-      const oldStr = typeof params.old_str === 'string' ? params.old_str : undefined
-      const newStr = typeof params.new_str === 'string' ? params.new_str : undefined
-      const targetPath = typeof params.target_path === 'string' ? params.target_path : undefined
-      const overwrite = Boolean(params.overwrite)
+      const patch = typeof params.patch === 'string' ? params.patch : ''
 
-      if (!filePath.trim()) {
+      if (!patch.trim()) {
         return {
-          error: '缺少必要参数: file_path',
+          error: '缺少必要参数: patch',
           toolResult: {
-            content: [{ type: 'text', text: 'search_replace 失败：缺少必要参数 file_path' }]
+            content: [{ type: 'text', text: 'apply_patch 失败：缺少必要参数 patch' }]
           }
         }
       }
@@ -542,36 +542,31 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         return {
           error: '未设置 workPath',
           toolResult: {
-            content: [{ type: 'text', text: 'search_replace 失败：未设置 workPath' }]
+            content: [{ type: 'text', text: 'apply_patch 失败：未设置 workPath' }]
           }
         }
       }
       try {
-        const result = await window.api.searchReplace.execute({
+        const result = await window.api.applyPatch.execute({
           baseDir,
-          type,
-          filePath,
-          oldStr,
-          newStr,
-          targetPath,
-          overwrite
+          patch
         })
 
-        if (!result?.ok || !result.summary) {
-          throw new Error(result?.error || 'search_replace failed')
+        if (!result?.ok || !result.summaries) {
+          throw new Error(result?.error || 'apply_patch failed')
         }
 
         return {
-          summaries: [result.summary],
+          summaries: result.summaries,
           toolResult: {
-            content: [{ type: 'text', text: result.summary }]
+            content: [{ type: 'text', text: result.summaries.join('\n') }]
           }
         }
       } catch (error) {
         return {
           error: (error as Error).message,
           toolResult: {
-            content: [{ type: 'text', text: `search_replace 失败: ${(error as Error).message}` }]
+            content: [{ type: 'text', text: `apply_patch 失败: ${(error as Error).message}` }]
           }
         }
       }

@@ -199,18 +199,13 @@ export interface ElectronAPI {
     cancelDownload: (id: string) => Promise<boolean>;
   };
 
-  searchReplace: {
+  applyPatch: {
     execute: (payload: {
       baseDir: string;
-      type?: 'modify' | 'add' | 'delete' | 'move' | 'update' | 'create' | 'remove' | 'rename';
-      filePath: string;
-      oldStr?: string;
-      newStr?: string;
-      targetPath?: string;
-      overwrite?: boolean;
+      patch: string;
     }) => Promise<{
       ok: boolean;
-      summary?: string;
+      summaries?: string[];
       error?: string;
     }>;
   };

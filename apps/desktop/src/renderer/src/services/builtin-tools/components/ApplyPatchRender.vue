@@ -13,11 +13,6 @@ interface PatchAction {
 
 interface ToolInput {
   patch?: string
-  type?: 'modify' | 'add' | 'delete' | 'move'
-  file_path?: string
-  old_str?: string
-  new_str?: string
-  target_path?: string
 }
 
 interface ToolOutput {
@@ -38,15 +33,6 @@ const isOutputCollapsed = ref(false)
 
 const toggleOutputCollapse = () => {
   isOutputCollapsed.value = !isOutputCollapsed.value
-}
-
-const splitPreviewLines = (value: string, maxLines = MAX_PREVIEW_LINES) => {
-  const lines = value.split(/\r?\n/)
-  return {
-    lines: lines.slice(0, maxLines),
-    totalLines: lines.length,
-    truncated: lines.length > maxLines
-  }
 }
 
 const parsePatchPreview = (patch: string): PatchAction[] => {
@@ -155,59 +141,6 @@ const parsedActions = computed<PatchAction[]>(() => {
     return parsePatchPreview(props.args.patch)
   }
 
-  if (typeof props.args !== 'string') {
-    const inputType = props.args.type || 'modify'
-    const filePath = props.args.file_path
-    const oldStr = props.args.old_str
-    const newStr = props.args.new_str
-    const targetPath = props.args.target_path
-
-    if (!filePath) return []
-
-    if (inputType === 'add' && newStr !== undefined) {
-      const preview = splitPreviewLines(newStr, 10)
-      return [{
-        type: 'add',
-        path: filePath,
-        lines: preview.truncated ? [...preview.lines, `... ${preview.totalLines - preview.lines.length} more lines`] : preview.lines
-      }]
-    }
-
-    if (inputType === 'delete') {
-      return [{ type: 'delete', path: filePath }]
-    }
-
-    if (inputType === 'move' && targetPath) {
-      return [{ type: 'update', path: filePath, moveTo: targetPath, chunks: [] }]
-    }
-
-    if (oldStr && newStr !== undefined) {
-      const oldPreview = splitPreviewLines(oldStr, Math.floor(MAX_PREVIEW_LINES / 2))
-      const newPreview = splitPreviewLines(newStr, Math.floor(MAX_PREVIEW_LINES / 2))
-      const lines: { op: ' ' | '+' | '-'; text: string }[] = [
-        ...oldPreview.lines.map((text) => ({ op: '-' as const, text })),
-        ...newPreview.lines.map((text) => ({ op: '+' as const, text }))
-      ]
-
-      if (oldPreview.truncated || newPreview.truncated) {
-        lines.push({
-          op: ' ' as const,
-          text: `... preview truncated (${Math.max(oldPreview.totalLines, newPreview.totalLines) - lines.length} more lines)`
-        })
-      }
-
-      return [{
-        type: 'update',
-        path: filePath,
-        chunks: [{
-          header: `preview old=${oldPreview.totalLines} new=${newPreview.totalLines}`,
-          lines
-        }]
-      }]
-    }
-
-    return []
-  }
   return []
 })
 
