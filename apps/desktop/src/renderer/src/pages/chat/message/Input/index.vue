@@ -21,11 +21,32 @@ const {
   defaultModels
 } = storeToRefs(useSettingsStore())
 const agentStore = useAgentStore()
+const canvasStore = useCanvasStore()
 const { updateThinkingMode, updateSpeechEnabled, updateProviderOptions } = useSettingsStore()
 const settingsStore = useSettingsStore()
 const currentChatAgent = computed(() => {
   const agentId = chatStore.currentChat?.agentId
   return agentId ? agentStore.getAgentById(agentId) : null
+})
+const currentAgentWorkPath = computed(() => currentChatAgent.value?.workPath?.trim() || '')
+const canChooseLocalWorkPath = computed(() => {
+  const api = window.api as Partial<typeof window.api> | undefined
+  return (
+    !isMobile.value &&
+    typeof api?.showOpenDialog === 'function' &&
+    Boolean(api.path && api.fs)
+  )
+})
+const workPathButtonTitle = computed(() => {
+  const agentName = currentChatAgent.value?.name || '当前智能体'
+  return currentAgentWorkPath.value
+    ? `${agentName} 工作路径：${currentAgentWorkPath.value}，右键清空`
+    : `设置 ${agentName} 的工作路径`
+})
+const workPathButtonLabel = computed(() => {
+  if (!currentAgentWorkPath.value) return '工作路径'
+  const api = window.api as Partial<typeof window.api> | undefined
+  return api?.path?.basename(currentAgentWorkPath.value) || currentAgentWorkPath.value.split(/[\\/]/).filter(Boolean).pop() || currentAgentWorkPath.value
 })
 const chatProviderId = computed({
   get: () => chatStore.currentChat?.providerId || '',
@@ -100,17 +121,18 @@ const currentChatTokenUsage = computed(() => {
     tooltip:
       totals.total > 0 || totals.input > 0 || totals.output > 0
         ? [
-            '当前聊天总 Token',
-            `总计: ${numberFormatter.format(totals.total)}`,
-            `输入: ${numberFormatter.format(totals.input)}`,
-            `输出: ${numberFormatter.format(totals.output)}`
-          ].join('\n')
+          '当前聊天总 Token',
+          `总计: ${numberFormatter.format(totals.total)}`,
+          `输入: ${numberFormatter.format(totals.input)}`,
+          `输出: ${numberFormatter.format(totals.output)}`
+        ].join('\n')
         : '当前聊天总 Token\n暂无可用统计'
   }
 })
 
 const speechStore = useSpeechStore()
 const modal = useModal()
+const { showContextMenu } = useContextMenu()
 
 // 提供商参数设置
 const openProviderOptionsModal = () => {
@@ -161,6 +183,67 @@ const openProviderOptionsModal = () => {
       formActions.submit()
     }
   })
+}
+
+const chooseCurrentAgentWorkPath = async () => {
+  if (!canChooseLocalWorkPath.value) {
+    messageApi.warning('移动端暂不支持本机工作路径，请使用临时工作区')
+    return
+  }
+
+  let chatId = chatStore.currentChat?.id
+  if (!chatId) {
+    chatId = chatStore.createChat()
+  }
+
+  const chat = chatStore.getChatById(chatId)
+  const agentId = chat?.agentId || 'default'
+  const agent = agentStore.getAgentById(agentId)
+
+  if (!agent) {
+    messageApi.error('未找到当前智能体')
+    return
+  }
+
+  const result = await window.api.showOpenDialog({
+    title: `选择 ${agent.name} 的工作路径`,
+    properties: ['openDirectory', 'createDirectory'],
+    defaultPath: agent.workPath || undefined
+  })
+
+  if (result.canceled || !result.filePaths?.[0]) return
+
+  const workPath = result.filePaths[0]
+  agentStore.updateAgent(agent.id, { workPath })
+  canvasStore.resetWorkspaceRoot(chatId)
+  messageApi.success(`已设置工作路径：${workPath}`)
+}
+
+const clearCurrentAgentWorkPath = () => {
+  if (!canChooseLocalWorkPath.value || !currentAgentWorkPath.value) return
+
+  const chatId = chatStore.currentChat?.id
+  const agentId = chatStore.currentChat?.agentId || 'default'
+  const agent = agentStore.getAgentById(agentId)
+  if (!agent) return
+
+  agentStore.updateAgent(agent.id, { workPath: '' })
+  if (chatId) {
+    canvasStore.resetWorkspaceRoot(chatId)
+  }
+  messageApi.success('已清空工作路径')
+}
+
+const openWorkPathContextMenu = (event: MouseEvent) => {
+  showContextMenu(event, [
+    {
+      label: '清空工作路径',
+      icon: Delete,
+      danger: true,
+      disabled: !currentAgentWorkPath.value,
+      onClick: clearCurrentAgentWorkPath
+    }
+  ])
 }
 
 // 图标
@@ -685,7 +768,7 @@ const {
   silenceDuration: 800,
   onData: (data: Float32Array) => {
     if (!(window as any)._audioSampleRate) {
-      ;(window as any)._audioSampleRate = new (
+      ; (window as any)._audioSampleRate = new (
         window.AudioContext || (window as any).webkitAudioContext
       )().sampleRate
     }
@@ -694,7 +777,7 @@ const {
   },
   onStart: async () => {
     if (!(window as any)._audioSampleRate) {
-      ;(window as any)._audioSampleRate = new (
+      ; (window as any)._audioSampleRate = new (
         window.AudioContext || (window as any).webkitAudioContext
       )().sampleRate
     }
@@ -963,10 +1046,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <footer
-    class="footer"
-    :class="{ 'is-centered': display.chatCenteredLayout, 'is-mobile': isMobile }"
-  >
+  <footer class="footer" :class="{ 'is-centered': display.chatCenteredLayout, 'is-mobile': isMobile }">
     <!-- 预发送消息列表 -->
     <div v-if="pendingMessages.length > 0" class="pending-messages-container">
       <div class="pending-messages-header">
@@ -978,24 +1058,14 @@ onUnmounted(() => {
         <div v-for="item in pendingMessages" :key="item.id" class="pending-message-item">
           <span class="pending-message-text">{{ getPendingMessagePreview(item.parts) }}</span>
           <div class="pending-message-actions">
-            <Button
-              variant="text"
-              size="sm"
-              class="guide-btn"
-              title="停止当前生成，并让这条消息下一条进入上下文"
-              @click="guidePendingMessage(item.id)"
-            >
+            <Button variant="text" size="sm" class="guide-btn" title="停止当前生成，并让这条消息下一条进入上下文"
+              @click="guidePendingMessage(item.id)">
               <template #icon>
                 <SendIcon />
               </template>
               引导
             </Button>
-            <Button
-              variant="icon"
-              size="sm"
-              class="remove-btn"
-              @click="removePendingMessage(item.id)"
-            >
+            <Button variant="icon" size="sm" class="remove-btn" @click="removePendingMessage(item.id)">
               <CloseIcon />
             </Button>
           </div>
@@ -1003,37 +1073,19 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div
-      class="input-container"
-      ref="inputContainerRef"
-      :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }"
-    >
-      <FileUpload
-        ref="fileUploadRef"
-        :files="selectedFiles"
-        :dropZoneRef="inputContainerRef!"
-        :inputRef="textareaRef!"
-        @files-selected="handleFilesSelected"
-        @remove="handleFileRemoved"
-      />
+    <div class="input-container" ref="inputContainerRef"
+      :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
+      <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
+        @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
 
       <div v-if="!isMobile">
         <div class="input-wrapper">
           <AtPanel ref="atPanelRef" @apply="applyMention" @preview="previewMention" />
-          <textarea
-            ref="textareaRef"
-            class="input-field"
-            rows="1"
-            :placeholder="desktopPlaceholder"
-            v-model="message"
-            @input="handleTextareaInput"
-            @keydown="handleTextareaKeydown"
-            @focus="atPanelRef?.syncMentionState(message, textareaRef)"
-            @blur="atPanelRef?.scheduleClose()"
-            @compositionstart="handleCompositionStart"
-            @compositionend="handleCompositionEnd"
-            :disabled="isProcessingVoice"
-          ></textarea>
+          <textarea ref="textareaRef" class="input-field" rows="1" :placeholder="desktopPlaceholder" v-model="message"
+            @input="handleTextareaInput" @keydown="handleTextareaKeydown"
+            @focus="atPanelRef?.syncMentionState(message, textareaRef)" @blur="atPanelRef?.scheduleClose()"
+            @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
+            :disabled="isProcessingVoice"></textarea>
           <div v-if="partialSpeechText" class="partial-text">{{ partialSpeechText }}</div>
         </div>
 
@@ -1042,13 +1094,8 @@ onUnmounted(() => {
             <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
               <FileUploadIcon />
             </Button>
-            <Button
-              variant="icon"
-              size="sm"
-              :class="{ 'thinking-active': thinkingMode }"
-              @click="updateThinkingMode(!thinkingMode)"
-              title="思考模式"
-            >
+            <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
+              @click="updateThinkingMode(!thinkingMode)" title="思考模式">
               <Bulb />
             </Button>
 
@@ -1056,12 +1103,7 @@ onUnmounted(() => {
               <SettingsIcon />
             </Button>
             <div class="token-usage-popover">
-              <Button
-                variant="icon"
-                size="sm"
-                class="token-usage-btn"
-                aria-label="当前聊天 Token 统计"
-              >
+              <Button variant="icon" size="sm" class="token-usage-btn" aria-label="当前聊天 Token 统计">
                 <InfoCircle />
               </Button>
               <div class="token-usage-panel">
@@ -1084,58 +1126,30 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <Button
-              variant="icon"
-              size="sm"
-              :class="{ 'voice-active': voiceIsActive }"
-              @click="toggleVoiceRecording"
-              :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
-            >
+            <Button variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }" @click="toggleVoiceRecording"
+              :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'">
               <MicIcon v-if="!voiceIsActive" />
               <MicOffIcon v-else />
             </Button>
 
-            <Button
-              variant="icon"
-              size="sm"
-              :class="{ 'speech-active': speechEnabled }"
-              @click="toggleSpeech"
-              :title="speechEnabled ? '关闭语音播报' : '开启语音播报'"
-            >
+            <Button variant="icon" size="sm" :class="{ 'speech-active': speechEnabled }" @click="toggleSpeech"
+              :title="speechEnabled ? '关闭语音播报' : '开启语音播报'">
               <VolumeIcon v-if="speechEnabled" />
               <VolumeMuteIcon v-else />
             </Button>
 
-            <Button
-              v-if="isScopeGenerating"
-              variant="icon"
-              size="sm"
-              class="stop-all-btn"
-              title="停止当前聊天内全部生成"
-              @click="stopAllGeneratingInCurrentChat"
-            >
+            <Button v-if="isScopeGenerating" variant="icon" size="sm" class="stop-all-btn" title="停止当前聊天内全部生成"
+              @click="stopAllGeneratingInCurrentChat">
               <StopIcon />
             </Button>
 
             <ChatAgentSelector type="icon" />
-            <ModelSelector
-              type="icon"
-              v-model:model-id="chatModelId"
-              v-model:provider-id="chatProviderId"
-            />
-            <SelectorPopover
-              v-model:visible="showChatSwitcher"
-              v-model:search-query="chatSwitcherQuery"
-              width="380px"
-              position="top"
-            >
+            <ModelSelector type="icon" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" />
+            <SelectorPopover v-model:visible="showChatSwitcher" v-model:search-query="chatSwitcherQuery" width="380px"
+              position="top">
               <template #trigger>
-                <button
-                  class="chat-switcher-trigger no-drag"
-                  :class="{ active: showChatSwitcher }"
-                  type="button"
-                  title="聊天列表"
-                >
+                <button class="chat-switcher-trigger no-drag" :class="{ active: showChatSwitcher }" type="button"
+                  title="聊天列表">
                   <HistoryIcon />
                 </button>
               </template>
@@ -1143,138 +1157,81 @@ onUnmounted(() => {
                 <div class="chat-switcher-panel">
                   <div class="chat-switcher-search-shell">
                     <Search class="chat-switcher-search-icon" />
-                    <input
-                      v-model="chatSwitcherQuery"
-                      class="chat-switcher-search-input"
-                      placeholder="搜索最近任务"
-                      type="text"
-                    />
+                    <input v-model="chatSwitcherQuery" class="chat-switcher-search-input" placeholder="搜索最近任务"
+                      type="text" />
                   </div>
                   <div class="chat-switcher-toolbar">
                     <button class="chat-switcher-filter" type="button">
                       <span>聊天列表</span>
                       <ChevronDown />
                     </button>
-                    <Button
-                      variant="icon"
-                      size="sm"
-                      title="新建聊天"
-                      class="chat-switcher-add-btn"
-                      @click.stop="openCreateChatInline"
-                    >
+                    <Button variant="icon" size="sm" title="新建聊天" class="chat-switcher-add-btn"
+                      @click.stop="openCreateChatInline">
                       <CommentAdd16Regular />
                     </Button>
                   </div>
 
-                  <div
-                    v-if="chatSwitcherMode === 'create' || chatSwitcherMode === 'rename'"
-                    class="chat-switcher-inline-card"
-                  >
+                  <div v-if="chatSwitcherMode === 'create' || chatSwitcherMode === 'rename'"
+                    class="chat-switcher-inline-card">
                     <div class="chat-switcher-inline-title">
                       {{ chatSwitcherMode === 'create' ? '新建聊天' : '重命名聊天' }}
                     </div>
-                    <input
-                      v-model="chatSwitcherDraftTitle"
-                      class="chat-switcher-input"
-                      :placeholder="chatSwitcherMode === 'create' ? '输入聊天名称' : '输入新的名称'"
-                      @keydown.enter.stop.prevent="
+                    <input v-model="chatSwitcherDraftTitle" class="chat-switcher-input"
+                      :placeholder="chatSwitcherMode === 'create' ? '输入聊天名称' : '输入新的名称'" @keydown.enter.stop.prevent="
                         chatSwitcherMode === 'create'
                           ? submitCreateChatInline()
                           : submitRenameChatInline()
-                      "
-                    />
+                        " />
                     <div class="chat-switcher-inline-actions">
-                      <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState"
-                        >取消</Button
-                      >
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        :disabled="chatSwitcherMode === 'rename' && !chatSwitcherDraftTitle.trim()"
-                        @click.stop="
+                      <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState">取消</Button>
+                      <Button variant="primary" size="sm"
+                        :disabled="chatSwitcherMode === 'rename' && !chatSwitcherDraftTitle.trim()" @click.stop="
                           chatSwitcherMode === 'create'
                             ? submitCreateChatInline()
                             : submitRenameChatInline()
-                        "
-                      >
+                          ">
                         {{ chatSwitcherMode === 'create' ? '创建' : '保存' }}
                       </Button>
                     </div>
                   </div>
 
-                  <div
-                    v-else-if="chatSwitcherMode === 'delete' && chatSwitcherTargetChat"
-                    class="chat-switcher-inline-card danger"
-                  >
+                  <div v-else-if="chatSwitcherMode === 'delete' && chatSwitcherTargetChat"
+                    class="chat-switcher-inline-card danger">
                     <div class="chat-switcher-inline-title">删除聊天</div>
                     <div class="chat-switcher-delete-text">
                       确定删除“{{ chatSwitcherTargetChat.title }}”吗？
                     </div>
                     <div class="chat-switcher-inline-actions">
-                      <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState"
-                        >取消</Button
-                      >
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        danger
-                        @click.stop="submitDeleteChatInline"
-                        >删除</Button
-                      >
+                      <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState">取消</Button>
+                      <Button variant="primary" size="sm" danger @click.stop="submitDeleteChatInline">删除</Button>
                     </div>
                   </div>
 
                   <div class="chat-switcher-list">
-                    <div
-                      v-for="chat in filteredChats"
-                      :key="chat.id"
-                      class="chat-switcher-item"
-                      :class="{ active: chatStore.activeChatId === chat.id }"
-                      @click="selectChatFromSwitcher(chat.id)"
-                      @keydown.enter.prevent="selectChatFromSwitcher(chat.id)"
-                      tabindex="0"
-                      role="button"
-                    >
+                    <div v-for="chat in filteredChats" :key="chat.id" class="chat-switcher-item"
+                      :class="{ active: chatStore.activeChatId === chat.id }" @click="selectChatFromSwitcher(chat.id)"
+                      @keydown.enter.prevent="selectChatFromSwitcher(chat.id)" tabindex="0" role="button">
                       <div class="chat-switcher-item-main">
                         <div class="chat-switcher-item-top">
                           <span class="chat-switcher-item-title">{{ chat.title }}</span>
                         </div>
-                        <div
-                          class="chat-switcher-item-bottom"
-                          v-if="
-                            getChatSecondaryText(chat) ||
-                            chat.parentChatId ||
-                            isChatGenerating(chat)
-                          "
-                        >
-                          <span
-                            v-if="getChatSecondaryText(chat)"
-                            class="chat-switcher-item-subtitle"
-                          >
+                        <div class="chat-switcher-item-bottom" v-if="
+                          getChatSecondaryText(chat) ||
+                          chat.parentChatId ||
+                          isChatGenerating(chat)
+                        ">
+                          <span v-if="getChatSecondaryText(chat)" class="chat-switcher-item-subtitle">
                             {{ getChatSecondaryText(chat) }}
                           </span>
                           <span v-if="chat.parentChatId" class="chat-switcher-badge">子会话</span>
-                          <span v-if="isChatGenerating(chat)" class="chat-switcher-badge generating"
-                            >生成中</span
-                          >
+                          <span v-if="isChatGenerating(chat)" class="chat-switcher-badge generating">生成中</span>
                         </div>
                       </div>
                       <div class="chat-switcher-item-actions" @click.stop>
-                        <Button
-                          variant="icon"
-                          size="sm"
-                          title="重命名"
-                          @click.stop="openRenameChatInline(chat)"
-                        >
+                        <Button variant="icon" size="sm" title="重命名" @click.stop="openRenameChatInline(chat)">
                           <Edit />
                         </Button>
-                        <Button
-                          variant="icon"
-                          size="sm"
-                          danger
-                          title="删除"
-                          @click.stop="openDeleteChatInline(chat)"
-                        >
+                        <Button variant="icon" size="sm" danger title="删除" @click.stop="openDeleteChatInline(chat)">
                           <Delete />
                         </Button>
                       </div>
@@ -1286,6 +1243,11 @@ onUnmounted(() => {
                 </div>
               </template>
             </SelectorPopover>
+            <button v-if="canChooseLocalWorkPath" type="button" class="workpath-trigger no-drag"
+              :class="{ 'workpath-active': currentAgentWorkPath }" :title="workPathButtonTitle"
+              @click="chooseCurrentAgentWorkPath" @contextmenu="openWorkPathContextMenu">
+              {{ workPathButtonLabel }}
+            </button>
           </div>
           <div class="action-right">
             <Button variant="primary" size="md" @click="_sendMessage">
@@ -1296,100 +1258,51 @@ onUnmounted(() => {
       </div>
 
       <div v-else>
-        <div
-          class="mobile-input-bar"
-          ref="mobileTopBarRef"
-          :class="{ 'mobile-drop-active': isMobileToolDragging }"
-        >
-          <div
-            class="mobile-top-drop-zone mobile-top-left-zone"
-            ref="mobileTopLeftZoneRef"
-            :class="{ 'mobile-drop-hover': mobileHoverDropZone === 'top-left' }"
-          >
+        <div class="mobile-input-bar" ref="mobileTopBarRef" :class="{ 'mobile-drop-active': isMobileToolDragging }">
+          <div class="mobile-top-drop-zone mobile-top-left-zone" ref="mobileTopLeftZoneRef"
+            :class="{ 'mobile-drop-hover': mobileHoverDropZone === 'top-left' }">
             <template v-for="toolId in mobileTopLeftTools" :key="`top-left-${toolId}`">
-              <div
-                v-if="isMobileToolVisible(toolId)"
-                class="mobile-drag-tool"
-                :class="mobileToolClass(toolId)"
-                @pointerdown="onMobileToolPointerDown(toolId, $event)"
-                @pointercancel="onMobileToolPointerCancel"
-                @click.capture="handleMobileToolWrapperClickCapture"
-              >
-                <Button
-                  v-if="toolId === 'upload'"
-                  variant="icon"
-                  size="sm"
-                  @click="handleMobileToolClick('upload', $event)"
-                >
+              <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
+                @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
+                @click.capture="handleMobileToolWrapperClickCapture">
+                <Button v-if="toolId === 'upload'" variant="icon" size="sm"
+                  @click="handleMobileToolClick('upload', $event)">
                   <FileUploadIcon />
                 </Button>
-                <Button
-                  v-else-if="toolId === 'voice'"
-                  variant="icon"
-                  size="sm"
+                <Button v-else-if="toolId === 'voice'" variant="icon" size="sm"
                   :class="{ 'voice-active': voiceIsActive }"
                   :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
-                  @click="handleMobileToolClick('voice', $event)"
-                >
+                  @click="handleMobileToolClick('voice', $event)">
                   <MicIcon v-if="!voiceIsActive" />
                   <MicOffIcon v-else />
                 </Button>
-                <Button
-                  v-else-if="toolId === 'thinking'"
-                  variant="icon"
-                  size="sm"
-                  :class="{ 'thinking-active': thinkingMode }"
-                  title="思考模式"
-                  @click="handleMobileToolClick('thinking', $event)"
-                >
+                <Button v-else-if="toolId === 'thinking'" variant="icon" size="sm"
+                  :class="{ 'thinking-active': thinkingMode }" title="思考模式"
+                  @click="handleMobileToolClick('thinking', $event)">
                   <Bulb />
                 </Button>
-                <Button
-                  v-else-if="toolId === 'settings'"
-                  variant="icon"
-                  size="sm"
-                  title="参数设置"
-                  @click="handleMobileToolClick('settings', $event)"
-                >
+                <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
+                  @click="handleMobileToolClick('settings', $event)">
                   <SettingsIcon />
                 </Button>
-                <Button
-                  v-else-if="toolId === 'speech'"
-                  variant="icon"
-                  size="sm"
-                  :class="{ 'speech-active': speechEnabled }"
-                  :title="speechEnabled ? '关闭语音播报' : '开启语音播报'"
-                  @click="handleMobileToolClick('speech', $event)"
-                >
+                <Button v-else-if="toolId === 'speech'" variant="icon" size="sm"
+                  :class="{ 'speech-active': speechEnabled }" :title="speechEnabled ? '关闭语音播报' : '开启语音播报'"
+                  @click="handleMobileToolClick('speech', $event)">
                   <VolumeIcon v-if="speechEnabled" />
                   <VolumeMuteIcon v-else />
                 </Button>
-                <Button
-                  v-else-if="toolId === 'playlist'"
-                  variant="icon"
-                  size="sm"
+                <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
                   :class="{ 'speech-active': !display.speechSidebarCollapsed }"
                   :title="display.speechSidebarCollapsed ? '打开侧边面板' : '关闭侧边面板'"
-                  @click="handleMobileToolClick('playlist', $event)"
-                >
+                  @click="handleMobileToolClick('playlist', $event)">
                   <PlaylistIcon />
                 </Button>
                 <ChatAgentSelector v-else-if="toolId === 'agent'" type="icon" />
-                <ModelSelector
-                  v-else-if="toolId === 'model'"
-                  type="icon"
-                  v-model:model-id="chatModelId"
-                  v-model:provider-id="chatProviderId"
-                />
-                <Button
-                  v-else-if="toolId === 'stop'"
-                  variant="icon"
-                  size="sm"
-                  class="stop-all-btn"
-                  :class="{ 'is-idle': !isScopeGenerating }"
-                  title="停止当前聊天内全部生成"
-                  @click="handleMobileToolClick('stop', $event)"
-                >
+                <ModelSelector v-else-if="toolId === 'model'" type="icon" v-model:model-id="chatModelId"
+                  v-model:provider-id="chatProviderId" />
+                <Button v-else-if="toolId === 'stop'" variant="icon" size="sm" class="stop-all-btn"
+                  :class="{ 'is-idle': !isScopeGenerating }" title="停止当前聊天内全部生成"
+                  @click="handleMobileToolClick('stop', $event)">
                   <StopIcon />
                 </Button>
               </div>
@@ -1397,128 +1310,68 @@ onUnmounted(() => {
           </div>
           <div class="mobile-input-wrapper">
             <AtPanel ref="atPanelRef" mobile @apply="applyMention" @preview="previewMention" />
-            <textarea
-              ref="textareaRef"
-              class="input-field mobile-input-field"
-              rows="1"
-              :placeholder="mobilePlaceholder"
-              v-model="message"
-              @input="handleTextareaInput"
-              @keydown="handleTextareaKeydown"
-              @focus="atPanelRef?.syncMentionState(message, textareaRef)"
-              @blur="atPanelRef?.scheduleClose()"
-              @compositionstart="handleCompositionStart"
-              @compositionend="handleCompositionEnd"
-              :disabled="isProcessingVoice"
-            ></textarea>
+            <textarea ref="textareaRef" class="input-field mobile-input-field" rows="1" :placeholder="mobilePlaceholder"
+              v-model="message" @input="handleTextareaInput" @keydown="handleTextareaKeydown"
+              @focus="atPanelRef?.syncMentionState(message, textareaRef)" @blur="atPanelRef?.scheduleClose()"
+              @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
+              :disabled="isProcessingVoice"></textarea>
             <div v-if="partialSpeechText" class="partial-text mobile-partial-text">
               {{ partialSpeechText }}
             </div>
           </div>
-          <div
-            class="mobile-top-drop-zone mobile-top-right-zone"
-            v-if="
-              mobileTopRightTools.length > 0 ||
-              (isMobileToolDragging && mobileHoverDropZone === 'top-right')
-            "
-            ref="mobileTopRightZoneRef"
-            :class="{ 'mobile-drop-hover': mobileHoverDropZone === 'top-right' }"
-          >
+          <div class="mobile-top-drop-zone mobile-top-right-zone" v-if="
+            mobileTopRightTools.length > 0 ||
+            (isMobileToolDragging && mobileHoverDropZone === 'top-right')
+          " ref="mobileTopRightZoneRef" :class="{ 'mobile-drop-hover': mobileHoverDropZone === 'top-right' }">
             <template v-for="toolId in mobileTopRightTools" :key="`top-right-${toolId}`">
-              <div
-                v-if="isMobileToolVisible(toolId)"
-                class="mobile-drag-tool"
-                :class="mobileToolClass(toolId)"
-                @pointerdown="onMobileToolPointerDown(toolId, $event)"
-                @pointercancel="onMobileToolPointerCancel"
-                @click.capture="handleMobileToolWrapperClickCapture"
-              >
-                <Button
-                  v-if="toolId === 'upload'"
-                  variant="icon"
-                  size="sm"
-                  @click="handleMobileToolClick('upload', $event)"
-                >
+              <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
+                @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
+                @click.capture="handleMobileToolWrapperClickCapture">
+                <Button v-if="toolId === 'upload'" variant="icon" size="sm"
+                  @click="handleMobileToolClick('upload', $event)">
                   <FileUploadIcon />
                 </Button>
-                <Button
-                  v-else-if="toolId === 'voice'"
-                  variant="icon"
-                  size="sm"
+                <Button v-else-if="toolId === 'voice'" variant="icon" size="sm"
                   :class="{ 'voice-active': voiceIsActive }"
                   :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
-                  @click="handleMobileToolClick('voice', $event)"
-                >
+                  @click="handleMobileToolClick('voice', $event)">
                   <MicIcon v-if="!voiceIsActive" />
                   <MicOffIcon v-else />
                 </Button>
-                <Button
-                  v-else-if="toolId === 'thinking'"
-                  variant="icon"
-                  size="sm"
-                  :class="{ 'thinking-active': thinkingMode }"
-                  title="思考模式"
-                  @click="handleMobileToolClick('thinking', $event)"
-                >
+                <Button v-else-if="toolId === 'thinking'" variant="icon" size="sm"
+                  :class="{ 'thinking-active': thinkingMode }" title="思考模式"
+                  @click="handleMobileToolClick('thinking', $event)">
                   <Bulb />
                 </Button>
-                <Button
-                  v-else-if="toolId === 'settings'"
-                  variant="icon"
-                  size="sm"
-                  title="参数设置"
-                  @click="handleMobileToolClick('settings', $event)"
-                >
+                <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
+                  @click="handleMobileToolClick('settings', $event)">
                   <SettingsIcon />
                 </Button>
-                <Button
-                  v-else-if="toolId === 'speech'"
-                  variant="icon"
-                  size="sm"
-                  :class="{ 'speech-active': speechEnabled }"
-                  :title="speechEnabled ? '关闭语音播报' : '开启语音播报'"
-                  @click="handleMobileToolClick('speech', $event)"
-                >
+                <Button v-else-if="toolId === 'speech'" variant="icon" size="sm"
+                  :class="{ 'speech-active': speechEnabled }" :title="speechEnabled ? '关闭语音播报' : '开启语音播报'"
+                  @click="handleMobileToolClick('speech', $event)">
                   <VolumeIcon v-if="speechEnabled" />
                   <VolumeMuteIcon v-else />
                 </Button>
-                <Button
-                  v-else-if="toolId === 'playlist'"
-                  variant="icon"
-                  size="sm"
+                <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
                   :class="{ 'speech-active': !display.speechSidebarCollapsed }"
                   :title="display.speechSidebarCollapsed ? '打开侧边面板' : '关闭侧边面板'"
-                  @click="handleMobileToolClick('playlist', $event)"
-                >
+                  @click="handleMobileToolClick('playlist', $event)">
                   <PlaylistIcon />
                 </Button>
                 <ChatAgentSelector v-else-if="toolId === 'agent'" type="icon" />
-                <ModelSelector
-                  v-else-if="toolId === 'model'"
-                  type="icon"
-                  v-model:model-id="chatModelId"
-                  v-model:provider-id="chatProviderId"
-                />
-                <Button
-                  v-else-if="toolId === 'stop'"
-                  variant="icon"
-                  size="sm"
-                  class="stop-all-btn"
-                  :class="{ 'is-idle': !isScopeGenerating }"
-                  title="停止当前聊天内全部生成"
-                  @click="handleMobileToolClick('stop', $event)"
-                >
+                <ModelSelector v-else-if="toolId === 'model'" type="icon" v-model:model-id="chatModelId"
+                  v-model:provider-id="chatProviderId" />
+                <Button v-else-if="toolId === 'stop'" variant="icon" size="sm" class="stop-all-btn"
+                  :class="{ 'is-idle': !isScopeGenerating }" title="停止当前聊天内全部生成"
+                  @click="handleMobileToolClick('stop', $event)">
                   <StopIcon />
                 </Button>
               </div>
             </template>
           </div>
-          <Button
-            variant="icon"
-            size="sm"
-            @click="showMobileTools = !showMobileTools"
-            :title="showMobileTools ? '收起工具' : '展开工具'"
-          >
+          <Button variant="icon" size="sm" @click="showMobileTools = !showMobileTools"
+            :title="showMobileTools ? '收起工具' : '展开工具'">
             <ChevronDown :class="{ 'mobile-toggle-open': showMobileTools }" />
           </Button>
           <Button variant="primary" size="sm" class="mobile-send-btn" @click="_sendMessage">
@@ -1526,99 +1379,51 @@ onUnmounted(() => {
           </Button>
         </div>
 
-        <div
-          v-if="showMobileTools"
-          class="mobile-tools-panel"
-          ref="mobileBottomZoneRef"
-          :class="{
-            'mobile-drop-active': isMobileToolDragging,
-            'mobile-drop-hover': mobileHoverDropZone === 'bottom'
-          }"
-        >
+        <div v-if="showMobileTools" class="mobile-tools-panel" ref="mobileBottomZoneRef" :class="{
+          'mobile-drop-active': isMobileToolDragging,
+          'mobile-drop-hover': mobileHoverDropZone === 'bottom'
+        }">
           <template v-for="toolId in mobileBottomTools" :key="`bottom-${toolId}`">
-            <div
-              v-if="isMobileToolVisible(toolId)"
-              class="mobile-drag-tool"
-              :class="mobileToolClass(toolId)"
-              @pointerdown="onMobileToolPointerDown(toolId, $event)"
-              @pointercancel="onMobileToolPointerCancel"
-              @click.capture="handleMobileToolWrapperClickCapture"
-            >
-              <Button
-                v-if="toolId === 'upload'"
-                variant="icon"
-                size="sm"
-                @click="handleMobileToolClick('upload', $event)"
-              >
+            <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
+              @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
+              @click.capture="handleMobileToolWrapperClickCapture">
+              <Button v-if="toolId === 'upload'" variant="icon" size="sm"
+                @click="handleMobileToolClick('upload', $event)">
                 <FileUploadIcon />
               </Button>
-              <Button
-                v-else-if="toolId === 'voice'"
-                variant="icon"
-                size="sm"
-                :class="{ 'voice-active': voiceIsActive }"
+              <Button v-else-if="toolId === 'voice'" variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }"
                 :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
-                @click="handleMobileToolClick('voice', $event)"
-              >
+                @click="handleMobileToolClick('voice', $event)">
                 <MicIcon v-if="!voiceIsActive" />
                 <MicOffIcon v-else />
               </Button>
-              <Button
-                v-else-if="toolId === 'thinking'"
-                variant="icon"
-                size="sm"
-                :class="{ 'thinking-active': thinkingMode }"
-                title="思考模式"
-                @click="handleMobileToolClick('thinking', $event)"
-              >
+              <Button v-else-if="toolId === 'thinking'" variant="icon" size="sm"
+                :class="{ 'thinking-active': thinkingMode }" title="思考模式"
+                @click="handleMobileToolClick('thinking', $event)">
                 <Bulb />
               </Button>
-              <Button
-                v-else-if="toolId === 'settings'"
-                variant="icon"
-                size="sm"
-                title="参数设置"
-                @click="handleMobileToolClick('settings', $event)"
-              >
+              <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
+                @click="handleMobileToolClick('settings', $event)">
                 <SettingsIcon />
               </Button>
-              <Button
-                v-else-if="toolId === 'speech'"
-                variant="icon"
-                size="sm"
-                :class="{ 'speech-active': speechEnabled }"
-                :title="speechEnabled ? '关闭语音播报' : '开启语音播报'"
-                @click="handleMobileToolClick('speech', $event)"
-              >
+              <Button v-else-if="toolId === 'speech'" variant="icon" size="sm"
+                :class="{ 'speech-active': speechEnabled }" :title="speechEnabled ? '关闭语音播报' : '开启语音播报'"
+                @click="handleMobileToolClick('speech', $event)">
                 <VolumeIcon v-if="speechEnabled" />
                 <VolumeMuteIcon v-else />
               </Button>
-              <Button
-                v-else-if="toolId === 'playlist'"
-                variant="icon"
-                size="sm"
+              <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
                 :class="{ 'speech-active': !display.speechSidebarCollapsed }"
                 :title="display.speechSidebarCollapsed ? '打开侧边面板' : '关闭侧边面板'"
-                @click="handleMobileToolClick('playlist', $event)"
-              >
+                @click="handleMobileToolClick('playlist', $event)">
                 <PlaylistIcon />
               </Button>
               <ChatAgentSelector v-else-if="toolId === 'agent'" type="icon" />
-              <ModelSelector
-                v-else-if="toolId === 'model'"
-                type="icon"
-                v-model:model-id="chatModelId"
-                v-model:provider-id="chatProviderId"
-              />
-              <Button
-                v-else-if="toolId === 'stop'"
-                variant="icon"
-                size="sm"
-                class="stop-all-btn"
-                :class="{ 'is-idle': !isScopeGenerating }"
-                title="停止当前聊天内全部生成"
-                @click="handleMobileToolClick('stop', $event)"
-              >
+              <ModelSelector v-else-if="toolId === 'model'" type="icon" v-model:model-id="chatModelId"
+                v-model:provider-id="chatProviderId" />
+              <Button v-else-if="toolId === 'stop'" variant="icon" size="sm" class="stop-all-btn"
+                :class="{ 'is-idle': !isScopeGenerating }" title="停止当前聊天内全部生成"
+                @click="handleMobileToolClick('stop', $event)">
                 <StopIcon />
               </Button>
             </div>
@@ -1626,14 +1431,10 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div
-        v-if="isMobileToolDragging && draggingToolId"
-        class="mobile-drag-ghost"
-        :style="{
-          left: `${mobileDragPointer.x}px`,
-          top: `${mobileDragPointer.y}px`
-        }"
-      >
+      <div v-if="isMobileToolDragging && draggingToolId" class="mobile-drag-ghost" :style="{
+        left: `${mobileDragPointer.x}px`,
+        top: `${mobileDragPointer.y}px`
+      }">
         <span>{{ mobileDraggingToolLabel }}</span>
       </div>
 
@@ -2209,7 +2010,7 @@ onUnmounted(() => {
   color: var(--text-secondary);
 }
 
-.token-usage-panel-row + .token-usage-panel-row {
+.token-usage-panel-row+.token-usage-panel-row {
   margin-top: 6px;
 }
 
@@ -2259,7 +2060,41 @@ onUnmounted(() => {
   background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
 }
 
+.workpath-trigger {
+  height: 24px;
+  min-height: 24px;
+  max-width: 120px;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-stack);
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.workpath-trigger:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.workpath-active {
+  color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+}
+
 @keyframes pulse {
+
   0%,
   100% {
     opacity: 1;

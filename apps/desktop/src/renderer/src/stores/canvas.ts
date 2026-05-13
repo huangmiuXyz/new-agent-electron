@@ -36,6 +36,7 @@ export const useCanvasStore = defineStore(
     }
 
     const getAgentWorkspaceDir = (chatId?: string) => {
+      if (isMobile.value || !window.api?.path) return ''
       const resolvedChatId = resolveChatId(chatId)
       const chat = useChatsStores().allChats.find((item) => item.id === resolvedChatId)
       const workPath = useAgentStore().getAgentById(chat?.agentId || '')?.workPath?.trim()
