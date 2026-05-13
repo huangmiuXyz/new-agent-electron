@@ -92,7 +92,6 @@ const getIconColor = (type: string) => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 
 .panel-tools {
