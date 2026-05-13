@@ -27,7 +27,6 @@ const props = defineProps<{
   tool_part: any
 }>()
 
-const MAX_PREVIEW_LINES = 80
 const MAX_PATCH_TEXT_LENGTH = 20000
 const isOutputCollapsed = ref(false)
 

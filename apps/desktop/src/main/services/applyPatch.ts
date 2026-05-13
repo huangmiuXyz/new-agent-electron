@@ -311,11 +311,14 @@ function computeReplacements(
   let lineIndex = 0
 
   for (const chunk of chunks) {
+    let contextMatchEnd: number | null = null
+
     if (chunk.changeContext !== null) {
       const ctxArr = [chunk.changeContext]
       const idx = seekSequence(originalLines, ctxArr, lineIndex, false)
       if (idx !== null) {
         lineIndex = idx + 1
+        contextMatchEnd = lineIndex
       } else {
         throw new PatchParseError(`Failed to find context '${chunk.changeContext}' in ${filePath}`)
       }
@@ -323,9 +326,10 @@ function computeReplacements(
 
     if (chunk.oldLines.length === 0) {
       const insertionIdx =
-        originalLines.length > 0 && originalLines[originalLines.length - 1] === ''
+        contextMatchEnd ??
+        (originalLines.length > 0 && originalLines[originalLines.length - 1] === ''
           ? originalLines.length - 1
-          : originalLines.length
+          : originalLines.length)
       replacements.push({ startIdx: insertionIdx, oldLen: 0, newLines: chunk.newLines })
       continue
     }
@@ -391,6 +395,18 @@ const ensureParentDir = async (filePath: string) => {
   await fs.mkdir(path.dirname(filePath), { recursive: true })
 }
 
+const pathExists = async (filePath: string) => {
+  try {
+    await fs.lstat(filePath)
+    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false
+    }
+    throw error
+  }
+}
+
 type AffectedPaths = {
   added: string[]
   modified: string[]
@@ -418,6 +434,9 @@ async function executeApplyPatch(baseDir: string, patchText: string): Promise<Ap
     switch (hunk.type) {
       case 'AddFile': {
         const absPath = resolvePathInBaseDir(baseDir, hunk.path)
+        if (await pathExists(absPath)) {
+          throw new Error(`Add file failed: target already exists ${absPath}`)
+        }
         await ensureParentDir(absPath)
         await fs.writeFile(absPath, hunk.contents, 'utf-8')
         added.push(hunk.path)
@@ -464,6 +483,9 @@ async function executeApplyPatch(baseDir: string, patchText: string): Promise<Ap
 
         if (hunk.movePath) {
           const destAbsPath = resolvePathInBaseDir(baseDir, hunk.movePath)
+          if (await pathExists(destAbsPath)) {
+            throw new Error(`Move file failed: target already exists ${destAbsPath}`)
+          }
           await ensureParentDir(destAbsPath)
           await fs.writeFile(destAbsPath, newContent, 'utf-8')
 
