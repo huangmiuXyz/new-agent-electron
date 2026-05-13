@@ -272,6 +272,12 @@ export const useChatsStores = defineStore(
       chat.modelId = modelId
     }
 
+    const setChatToolFeaturesEnabled = (chatId: string, enabled: boolean) => {
+      const chat = getChatById(chatId)
+      if (!chat) return
+      chat.toolFeaturesEnabled = enabled
+    }
+
     const getChildChats = (parentChatId: string) => {
       return allChats.value
         .filter((chat) => chat.parentChatId === parentChatId)
@@ -498,6 +504,7 @@ export const useChatsStores = defineStore(
       setChatAgent,
       ensureChatAgent,
       setChatModel,
+      setChatToolFeaturesEnabled,
       getRootChats,
       getChildChats,
       createSubChat,

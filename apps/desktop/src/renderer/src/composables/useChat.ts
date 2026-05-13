@@ -175,6 +175,7 @@ export const useChat = (chatId: string) => {
 
             processedText = ''
             sentenceSegmenter = createSentenceSegmenter(runtimeAgent?.speechLanguage || 'und')
+            const toolFeaturesEnabled = runtimeChat?.toolFeaturesEnabled !== false
 
             return service.createAgent(
               chat.id,
@@ -189,9 +190,12 @@ export const useChat = (chatId: string) => {
               {
                 mcpClient: agentStore.getMcpByAgent(runtimeAgent.id).mcpServers,
                 instructions: runtimeAgent?.systemPrompt,
-                mcpTools: runtimeAgent?.tools || [],
-                builtinTools: runtimeAgent?.builtinTools || [],
-                builtinToolsRequireApproval: runtimeAgent?.builtinToolsRequireApproval || [],
+                mcpTools: toolFeaturesEnabled ? runtimeAgent?.tools || [] : [],
+                builtinTools: toolFeaturesEnabled ? runtimeAgent?.builtinTools || [] : [],
+                builtinToolsRequireApproval: toolFeaturesEnabled
+                  ? runtimeAgent?.builtinToolsRequireApproval || []
+                  : [],
+                skillsEnabled: toolFeaturesEnabled,
                 knowledgeBaseIds: runtimeAgent?.knowledgeBaseIds,
                 thinkingMode: thinkingMode.value,
                 ragEnabled: runtimeAgent?.ragEnabled,

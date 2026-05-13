@@ -22,6 +22,7 @@ declare global {
     subTask?: SubTaskInfo
     providerId?: string
     modelId?: string
+    toolFeaturesEnabled?: boolean
     compressedContext?: {
       content: string
       compressedUpToIndex?: number

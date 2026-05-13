@@ -33,6 +33,7 @@ declare global {
     modelId?: string // 会话绑定的模型ID
     isTemp?: boolean // 是否为临时会话
     pendingMessages?: PendingMessage[] // 预发送队列
+    toolFeaturesEnabled?: boolean // 本对话是否启用技能、内置工具和MCP，默认启用
     parentChatId?: string // 父会话ID，存在则为子智能体会话
     subTask?: SubTaskInfo // 子任务信息（仅子会话）
   }

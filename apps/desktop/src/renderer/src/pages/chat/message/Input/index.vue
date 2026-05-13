@@ -28,6 +28,9 @@ const currentChatAgent = computed(() => {
   const agentId = chatStore.currentChat?.agentId
   return agentId ? agentStore.getAgentById(agentId) : null
 })
+const currentChatToolFeaturesEnabled = computed(
+  () => chatStore.currentChat?.toolFeaturesEnabled !== false
+)
 const currentAgentWorkPath = computed(() => currentChatAgent.value?.workPath?.trim() || '')
 const canChooseLocalWorkPath = computed(() => {
   const api = window.api as Partial<typeof window.api> | undefined
@@ -246,6 +249,15 @@ const openWorkPathContextMenu = (event: MouseEvent) => {
   ])
 }
 
+const toggleCurrentChatToolFeatures = () => {
+  let chatId = chatStore.currentChat?.id
+  if (!chatId) {
+    chatId = chatStore.createChat()
+  }
+
+  chatStore.setChatToolFeaturesEnabled(chatId, !currentChatToolFeaturesEnabled.value)
+}
+
 // 图标
 const FileUploadIcon = useIcon('Folder')
 const Bulb = useIcon('Bulb')
@@ -256,6 +268,7 @@ const VolumeMuteIcon = useIcon('VolumeMute')
 const CloseIcon = useIcon('Close')
 const PendingIcon = useIcon('FormatListBulleted')
 const SettingsIcon = useIcon('Settings')
+const ToolFeaturesIcon = useIcon('Wrench20Regular')
 const PlaylistIcon = useIcon('Menu')
 const StopIcon = useIcon('Stop')
 const ChevronDown = useIcon('ChevronDown')
@@ -1101,6 +1114,15 @@ onUnmounted(() => {
 
             <Button variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
               <SettingsIcon />
+            </Button>
+            <Button
+              variant="icon"
+              size="sm"
+              :class="{ 'tool-features-active': currentChatToolFeaturesEnabled }"
+              :title="currentChatToolFeaturesEnabled ? '本对话已启用技能、内置工具和 MCP' : '本对话已禁用技能、内置工具和 MCP'"
+              @click="toggleCurrentChatToolFeatures"
+            >
+              <ToolFeaturesIcon />
             </Button>
             <div class="token-usage-popover">
               <Button variant="icon" size="sm" class="token-usage-btn" aria-label="当前聊天 Token 统计">
@@ -2040,6 +2062,11 @@ onUnmounted(() => {
 }
 
 .thinking-active {
+  color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+}
+
+.tool-features-active {
   color: var(--color-primary);
   background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
 }

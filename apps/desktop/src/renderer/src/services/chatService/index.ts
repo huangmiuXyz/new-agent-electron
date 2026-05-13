@@ -54,6 +54,7 @@ interface ChatServiceConfig {
   mcpTools?: string[]
   builtinTools?: string[]
   builtinToolsRequireApproval?: string[]
+  skillsEnabled?: boolean
   knowledgeBaseIds?: string[]
   thinkingMode?: boolean
   ragEnabled?: boolean
@@ -429,6 +430,7 @@ export const chatService = () => {
       mcpTools,
       builtinTools: selectedBuiltinTools,
       builtinToolsRequireApproval,
+      skillsEnabled = true,
       knowledgeBaseIds,
       thinkingMode,
       ragEnabled,
@@ -465,8 +467,8 @@ export const chatService = () => {
 
     let tools: Tools = {}
 
-    const hasLoadSkillTool = !!selectedBuiltinTools?.includes('loadSkill')
-    const skills = discoverSkills(undefined, { chatId: cid })
+    const hasLoadSkillTool = skillsEnabled && !!selectedBuiltinTools?.includes('loadSkill')
+    const skills = skillsEnabled ? discoverSkills(undefined, { chatId: cid }) : []
     const builtinTools = getBuiltinTools({ knowledgeBaseIds, skills })
     const skillsPrompt = hasLoadSkillTool ? buildSkillsPrompt(skills, cid) : ''
     const currentChat = useChatsStores().getChatById(cid)
