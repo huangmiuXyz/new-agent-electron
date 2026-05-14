@@ -19,10 +19,37 @@ const getCurrentWorkPath = (chatId?: string) => {
   return useCanvasStore().getWorkPath(chatId)
 }
 
+const resolveWorkspaceRootPath = (rawPath: string, chatId?: string): string => {
+  const inputPath = rawPath.trim()
+  if (!inputPath) {
+    throw new Error('path 不能为空')
+  }
+
+  const currentWorkPath = getCurrentWorkPath(chatId)
+  const resolvedPath =
+    window.api.path.isAbsolute(inputPath)
+      ? window.api.path.resolve(window.api.path.normalize(inputPath))
+      : currentWorkPath
+        ? window.api.path.resolve(window.api.path.normalize(currentWorkPath), inputPath)
+        : window.api.path.resolve(window.api.path.normalize(inputPath))
+
+  if (!window.api.fs.existsSync(resolvedPath)) {
+    throw new Error(`路径不存在：${resolvedPath}`)
+  }
+
+  const stat = window.api.fs.lstatSync(resolvedPath)
+  const isDir = (stat.mode & 0o170000) === 0o040000
+  if (!isDir) {
+    throw new Error(`路径不是目录：${resolvedPath}`)
+  }
+
+  return resolvedPath
+}
+
 const resolvePath = (rawPath: string, chatId?: string): string => {
   const baseDir = getCurrentWorkPath(chatId)
   if (!baseDir) {
-    throw new Error('未设置 workPath，已禁止回退路径解析')
+    throw new Error('未设置 workPath，已禁止回退路径解析，优先使用 `set_work_path` 工具临时设置，禁止使用exec_command执行')
   }
   const normalizedBaseDir = window.api.path.resolve(window.api.path.normalize(baseDir))
   const inputPath = rawPath.trim()
@@ -139,6 +166,49 @@ const isWindows = navigator.platform.toLowerCase().includes('win')
 const startsWithRipgrep = (command: string): boolean => /^rg(?:\s|$)/.test(command.trimStart())
 
 export const getCodexBuiltinTools = (): Partial<Tools> => ({
+  change_working_directory: {
+    title: '切换工作路径',
+    description:
+      '临时切换当前对话后续工具调用使用的工作路径。路径切换仅作用于本次对话的运行时状态，不会修改智能体配置。',
+    inputSchema: z.object({
+      path: z
+        .string()
+        .describe('要切换到的目录路径。支持绝对路径；相对路径会基于当前工作路径解析。')
+    }),
+    execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
+      const params = args as Record<string, any>
+      const rawPath = String(params.path || '')
+
+      try {
+        const canvasStore = useCanvasStore()
+        const previousPath = getCurrentWorkPath(options?.chatId) || ''
+        const nextPath = resolveWorkspaceRootPath(rawPath, options?.chatId)
+        canvasStore.setWorkspaceRoot(nextPath, options?.chatId)
+
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text: [
+                  '工作路径已切换',
+                  `previous_cwd: ${previousPath ? previousPath.replaceAll('\\', '/') : '未设置'}`,
+                  `cwd: ${nextPath.replaceAll('\\', '/')}`,
+                  '后续本对话内置工具调用将使用新的工作路径。'
+                ].join('\n')
+              }
+            ]
+          }
+        }
+      } catch (error) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: `切换工作路径失败：${(error as Error).message}` }]
+          }
+        }
+      }
+    }
+  },
   readFile: {
     title: '读取文件',
     description: isWindows
@@ -542,7 +612,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         return {
           error: '未设置 workPath',
           toolResult: {
-            content: [{ type: 'text', text: 'apply_patch 失败：未设置 workPath' }]
+            content: [{ type: 'text', text: 'apply_patch 失败：未设置 workPath，优先使用 `set_work_path` 工具临时设置' }]
           }
         }
       }
