@@ -28,10 +28,24 @@ export const injectBundledRipgrepPath = (command: string): string => {
   }
 
   const segments = command.split('|')
+  if (segments.length === 1) {
+    return replaceRg(command)
+  }
+
   const replaced = segments.map((segment) => replaceRg(segment.trimStart()))
   const leadingWhitespace = command.slice(0, command.length - command.trimStart().length)
-  const joined = replaced.join(' | ')
-  return `${leadingWhitespace}${joined.trimStart()}`
+
+  if (isWindows) {
+    const piped = replaced.map((segment, index) => {
+      if (index < replaced.length - 1) {
+        return `(${segment.trimStart()}) -join [char]10`
+      }
+      return segment.trimStart()
+    })
+    return `${leadingWhitespace}${piped.join(' | ')}`
+  }
+
+  return `${leadingWhitespace}${replaced.join(' | ')}`
 }
 
 export const execRipgrepSearch = async (
