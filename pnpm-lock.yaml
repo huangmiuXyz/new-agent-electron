@@ -479,6 +479,9 @@ importers:
       '@mozilla/readability':
         specifier: ^0.6.0
         version: 0.6.0
+      '@openai/agents':
+        specifier: ^0.11.4
+        version: 0.11.4(@cfworker/json-schema@4.1.1)(bufferutil@4.1.0)(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)
       '@tiptap/extension-code-block':
         specifier: 'catalog:'
         version: 3.19.0(@tiptap/core@3.19.0(@tiptap/pm@3.19.0))(@tiptap/pm@3.19.0)
@@ -2200,6 +2203,29 @@ packages:
   '@open-draft/until@2.1.0':
     resolution: {integrity: sha512-U69T3ItWHvLwGg5eJ0n3I62nWuE6ilHlmz7zM0npLBRvPRd7e6NYmg54vvRtP5mZG7kZqZCFVdsTWo7BPtBujg==}
 
+  '@openai/agents-core@0.11.4':
+    resolution: {integrity: sha512-K529uAX9oZV8LUnsv0b+c+nWflIJc+LAJeEfZLN74q0J9UYvyt4pddt30e7OsGS1kPVK/lbChnPCOkPhnd1cpg==}
+    peerDependencies:
+      zod: ^4.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
+  '@openai/agents-openai@0.11.4':
+    resolution: {integrity: sha512-NAiiCsUsb+4twlaCIZ4OM8s9WoDNKjHfZBrw1jkE/oXH4sXO5OwRqi85ZM5xtfZNBqBF0IEY5hIuwWOhZntdKg==}
+    peerDependencies:
+      zod: ^4.0.0
+
+  '@openai/agents-realtime@0.11.4':
+    resolution: {integrity: sha512-SZS22YbsKilfPpsVJmHwigYbNX3W+ZHZFTm5+uDdV3OnziodCQu2P/cMag2dcpwmJq/fW0lANUzD+YC4l0qwoA==}
+    peerDependencies:
+      zod: ^4.0.0
+
+  '@openai/agents@0.11.4':
+    resolution: {integrity: sha512-HEOnixfXyziXgYcuRWIx+oJRYLgTxX8VFeJPIAum7LSYxznO5orJsn4u+u3w+7xe1BupoB8eUaJ7dDvOSChKPA==}
+    peerDependencies:
+      zod: ^4.0.0
+
   '@openrouter/ai-sdk-provider@2.9.0':
     resolution: {integrity: sha512-Seva+NCa0WUQnJIUE5GzHsUv1WTIeyqwz0ELl2VtS6NP+eF+77yCXGFVOMbvoCM7QMjlnhv7931e89R+8pJdcQ==}
     engines: {node: '>=18'}
@@ -2953,6 +2979,9 @@ packages:
 
   '@types/web-bluetooth@0.0.21':
     resolution: {integrity: sha512-oIQLCGWtcFZy2JW77j9k8nHzAOpqMHLQejDA48XXMWH6tjCQHz5RCFz1bzsmROyL6PUm+LLnUiI4BCn221inxA==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
@@ -8280,6 +8309,57 @@ snapshots:
 
   '@open-draft/until@2.1.0': {}
 
+  '@openai/agents-core@0.11.4(@cfworker/json-schema@4.1.1)(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)':
+    dependencies:
+      debug: 4.4.3
+      openai: 6.37.0(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)
+    optionalDependencies:
+      '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - supports-color
+      - ws
+
+  '@openai/agents-openai@0.11.4(@cfworker/json-schema@4.1.1)(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)':
+    dependencies:
+      '@openai/agents-core': 0.11.4(@cfworker/json-schema@4.1.1)(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)
+      debug: 4.4.3
+      openai: 6.37.0(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - supports-color
+      - ws
+
+  '@openai/agents-realtime@0.11.4(@cfworker/json-schema@4.1.1)(bufferutil@4.1.0)(zod@4.3.6)':
+    dependencies:
+      '@openai/agents-core': 0.11.4(@cfworker/json-schema@4.1.1)(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)
+      '@types/ws': 8.18.1
+      debug: 4.4.3
+      ws: 8.19.0(bufferutil@4.1.0)
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
+  '@openai/agents@0.11.4(@cfworker/json-schema@4.1.1)(bufferutil@4.1.0)(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)':
+    dependencies:
+      '@openai/agents-core': 0.11.4(@cfworker/json-schema@4.1.1)(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)
+      '@openai/agents-openai': 0.11.4(@cfworker/json-schema@4.1.1)(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)
+      '@openai/agents-realtime': 0.11.4(@cfworker/json-schema@4.1.1)(bufferutil@4.1.0)(zod@4.3.6)
+      debug: 4.4.3
+      openai: 6.37.0(ws@8.19.0(bufferutil@4.1.0))(zod@4.3.6)
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+      - ws
+
   '@openrouter/ai-sdk-provider@2.9.0(ai@6.0.177(zod@4.3.6))(zod@4.3.6)':
     dependencies:
       ai: 6.0.177(zod@4.3.6)
@@ -8980,6 +9060,10 @@ snapshots:
     optional: true
 
   '@types/web-bluetooth@0.0.21': {}
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 25.2.0
 
   '@types/yauzl@2.10.3':
     dependencies:

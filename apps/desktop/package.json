@@ -56,6 +56,7 @@
     "@langchain/textsplitters": "catalog:",
     "@modelcontextprotocol/sdk": "catalog:",
     "@mozilla/readability": "^0.6.0",
+    "@openai/agents": "^0.11.4",
     "@tiptap/extension-code-block": "catalog:",
     "@tiptap/extension-code-block-lowlight": "catalog:",
     "@tiptap/extension-color": "catalog:",

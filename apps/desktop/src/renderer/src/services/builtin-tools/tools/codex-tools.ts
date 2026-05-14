@@ -490,7 +490,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   apply_patch: {
     title: '应用补丁',
     description: [
-      '使用 apply_patch 编辑文件。补丁格式：',
+      '使用 apply_patch 编辑文件。补丁格式为 Codex harness apply_patch 协议：',
       '*** Begin Patch',
       '[一个或多个文件操作]',
       '*** End Patch',
