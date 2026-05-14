@@ -24,7 +24,9 @@
     "cap:open:android": "node ./node_modules/@capacitor/cli/bin/capacitor open android",
     "cap:build:android": "npm run build && npm run cap:sync && cd android && ./gradlew assembleDebug",
     "cap:build:android:release": "npm run build && npm run cap:sync && cd android && ./gradlew assembleRelease",
-    "cap:run:android": "npm run build && npm run cap:sync && cd android && ./gradlew installDebug"
+    "cap:run:android": "npm run build && npm run cap:sync && cd android && ./gradlew installDebug",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@agent-qi/types": "workspace:*",
@@ -152,6 +154,7 @@
     "unplugin-vue-components": "catalog:",
     "vite": "catalog:",
     "vite-plugin-vue-devtools": "catalog:",
+    "vitest": "^4.1.6",
     "vue-eslint-parser": "catalog:",
     "vue-tsc": "catalog:"
   },

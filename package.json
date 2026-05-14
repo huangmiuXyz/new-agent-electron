@@ -28,7 +28,8 @@
   "devDependencies": {
     "prettier": "catalog:",
     "turbo": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "^4.1.6"
   },
   "pnpm": {
     "overrides": {
