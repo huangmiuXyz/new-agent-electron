@@ -5,10 +5,14 @@ import { z } from 'zod'
 const USER_AGENT = "Mozilla/5.0"
 
 const fetchInputSchema = z.object({
-  url: z.string().url().describe('URL to fetch'),
+  url: z.string().url().optional().describe('URL to fetch. Kept for single-address compatibility.'),
+  urls: z.array(z.string().url()).min(1).optional().describe('URLs to fetch. Use this for fetching multiple addresses at once.'),
+  headers: z.record(z.string(), z.string()).optional().describe('Optional HTTP headers to send with each request'),
   max_length: z.number().int().positive().max(999999).default(5000).describe('Maximum number of characters to return'),
   start_index: z.number().int().min(0).default(0).describe('Character offset to start returning content from'),
   raw: z.boolean().default(false).describe('Return raw page content instead of simplified markdown')
+}).refine((input) => input.url || input.urls?.length, {
+  message: 'Either url or urls must be provided.'
 })
 
 const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
@@ -101,10 +105,15 @@ const canFetchByRobots = (url: string, robotsTxt: string) => {
   return matchedRule?.type !== 'disallow'
 }
 
-const checkRobotsTxt = async (url: string) => {
+const buildRequestHeaders = (headers?: Record<string, string>) => ({
+  'User-Agent': USER_AGENT,
+  ...headers
+})
+
+const checkRobotsTxt = async (url: string, headers?: Record<string, string>) => {
   const robotsUrl = getRobotsTxtUrl(url)
   const response = await fetchWithFallback(robotsUrl, {
-    headers: { 'User-Agent': USER_AGENT }
+    headers: buildRequestHeaders(headers)
   })
 
   if (!response.ok) {
@@ -135,9 +144,9 @@ const simplifyHtml = (html: string) => {
   return title ? `# ${title}\n\n${markdown}` : markdown
 }
 
-const fetchPage = async (url: string, raw: boolean) => {
+const fetchPage = async (url: string, raw: boolean, headers?: Record<string, string>) => {
   const response = await fetchWithFallback(url, {
-    headers: { 'User-Agent': USER_AGENT }
+    headers: buildRequestHeaders(headers)
   })
 
   if (!response.ok) {
@@ -158,15 +167,22 @@ const fetchPage = async (url: string, raw: boolean) => {
   }
 }
 
-const buildResultText = async (args: unknown) => {
-  const input = fetchInputSchema.parse(args)
-  await checkRobotsTxt(input.url)
+const getInputUrls = (input: z.infer<typeof fetchInputSchema>) => {
+  const urls = input.urls?.length ? input.urls : input.url ? [input.url] : []
+  return Array.from(new Set(urls))
+}
 
-  const { prefix, content } = await fetchPage(input.url, input.raw)
+const buildSingleResultText = async (
+  url: string,
+  input: Pick<z.infer<typeof fetchInputSchema>, 'headers' | 'max_length' | 'start_index' | 'raw'>
+) => {
+  await checkRobotsTxt(url, input.headers)
+
+  const { prefix, content } = await fetchPage(url, input.raw, input.headers)
   const chunk = content.slice(input.start_index, input.start_index + input.max_length)
 
   if (!chunk) {
-    return `${prefix}Contents of ${input.url}:\n<error>No more content available.</error>`
+    return `${prefix}Contents of ${url}:\n<error>No more content available.</error>`
   }
 
   const nextStart = input.start_index + chunk.length
@@ -175,13 +191,34 @@ const buildResultText = async (args: unknown) => {
       ? `\n\n<error>Content truncated. Call the fetch tool with a start_index of ${nextStart} to get more content.</error>`
       : ''
 
-  return `${prefix}Contents of ${input.url}:\n${chunk}${suffix}`
+  return `${prefix}Contents of ${url}:\n${chunk}${suffix}`
+}
+
+const buildResultText = async (args: unknown) => {
+  const input = fetchInputSchema.parse(args)
+  const urls = getInputUrls(input)
+
+  if (urls.length === 1) {
+    return buildSingleResultText(urls[0], input)
+  }
+
+  const results = await Promise.all(
+    urls.map(async (url) => {
+      try {
+        return await buildSingleResultText(url, input)
+      } catch (error) {
+        return `Contents of ${url}:\n<error>fetch failed: ${(error as Error).message}</error>`
+      }
+    })
+  )
+
+  return results.map((result, index) => `## Result ${index + 1}\n\n${result}`).join('\n\n---\n\n')
 }
 
 export const getNetworkBuiltinTools = (): Partial<Tools> => ({
   fetch: {
     title: '网页抓取',
-    description: '从互联网抓取指定 URL 的内容，并可按需将网页正文提取为 Markdown 文本。',
+    description: '从互联网抓取一个或多个 URL 的内容，并可按需将网页正文提取为 Markdown 文本。',
     inputSchema: fetchInputSchema,
     execute: async (args: unknown) => {
       try {
