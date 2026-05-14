@@ -446,6 +446,21 @@ describe('search_project', () => {
       expect(text).toContain('stdout:')
       expect(text).toContain('src/main.ts')
     })
+
+    it('should handle rg --files with directory and piped rg regex filter', async () => {
+      mockExecFileCommand.mockResolvedValue(successResult(
+        'apps/desktop/src/main/services/database.ts\napps/desktop/src/main/services/fs.ts\napps/desktop/src/main/services/logger.ts'
+      ))
+
+      const tool = getSearchProjectTool()
+      const text = extractText(await tool.execute({ cmd: 'rg --files apps/desktop/src/main/services | rg "\\.ts$"' }, defaultOptions))
+
+      expect(text).toContain('命令执行完成')
+      expect(text).toContain('stdout:')
+      expect(text).toContain('apps/desktop/src/main/services/database.ts')
+      expect(text).toContain('apps/desktop/src/main/services/fs.ts')
+      expect(text).toContain('apps/desktop/src/main/services/logger.ts')
+    })
   })
 
   describe('exception handling', () => {

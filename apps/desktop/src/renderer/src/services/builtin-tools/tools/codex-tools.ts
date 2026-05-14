@@ -150,14 +150,13 @@ const execProjectSearchCommand = async (
   command: string,
   options: { cwd?: string; maxBuffer?: number } = {}
 ): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
-  const resolvedCommand = injectBundledRipgrepPath(command)
   if (!isWindows) {
-    return window.api.execFileCommand(getPosixShellPath(), ['-lc', resolvedCommand], options)
+    return window.api.execFileCommand(getPosixShellPath(), ['-lc', command], options)
   }
 
   return window.api.execFileCommand(
     getPowerShellPath(),
-    ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', resolvedCommand],
+    ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command],
     options
   )
 }
