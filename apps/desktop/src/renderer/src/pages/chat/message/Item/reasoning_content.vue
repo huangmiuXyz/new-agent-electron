@@ -14,53 +14,54 @@
         </path>
       </svg>
     </div>
-    <div class="reasoning-body" v-show="isReasoningExpanded" @touchstart="handleReasoningTouchStart"
-      @touchmove="handleReasoningTouchMove" @touchend="handleReasoningTouchEnd" @touchcancel="handleReasoningTouchEnd">
-      {{ reasoning_content }}
+    <div class="reasoning-body" v-show="isReasoningExpanded">
+      <VirtualParagraphText
+        class="reasoning-virtual-text"
+        :text="reasoning_content"
+        :height="reasoningViewportHeight"
+        split-mode="blank-line"
+        :font-size="11"
+        :line-height="17"
+        :paragraph-padding-block="4"
+        :paragraph-gap="2"
+        :min-paragraph-height="21"
+        stick-to-bottom
+      />
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
+import { estimateParagraphHeight, splitTextIntoParagraphs } from '@renderer/composables/useParagraphVirtualText'
+
 const { display } = storeToRefs(useSettingsStore())
 const Bulb = useIcon('Bulb')
 
-defineProps<{ reasoning_content: string }>()
+const props = defineProps<{ reasoning_content: string }>()
 
 const isReasoningExpanded = ref(display.value.expandThoughtByDefault)
-const lastTouchY = ref<number | null>(null)
+
+const reasoningViewportHeight = computed(() => {
+  const paragraphs = splitTextIntoParagraphs(props.reasoning_content)
+  const estimatedHeight = paragraphs.reduce(
+    (total, paragraph) =>
+      total +
+      estimateParagraphHeight(paragraph.text, {
+        containerWidth: 520,
+        fontSize: 11,
+        lineHeight: 17,
+        paddingBlock: 4,
+        gap: 2,
+        minHeight: 21
+      }),
+    0
+  )
+
+  return Math.min(Math.max(estimatedHeight, 48), isMobile.value ? 260 : 360)
+})
 
 const toggleReasoning = () => {
   isReasoningExpanded.value = !isReasoningExpanded.value
-}
-
-const getMessageScrollContainer = (el: EventTarget | null) => {
-  if (!(el instanceof HTMLElement)) return null
-  return el.closest('.message-list-wrapper')?.querySelector('.auto-scroll-container') as HTMLElement | null
-}
-
-const handleReasoningTouchStart = (event: TouchEvent) => {
-  if (!isMobile.value || event.touches.length === 0) return
-  lastTouchY.value = event.touches[0].clientY
-}
-
-const handleReasoningTouchMove = (event: TouchEvent) => {
-  if (!isMobile.value || event.touches.length === 0) return
-
-  const container = getMessageScrollContainer(event.currentTarget)
-  if (!container || lastTouchY.value === null) return
-
-  const currentY = event.touches[0].clientY
-  const deltaY = lastTouchY.value - currentY
-  if (deltaY === 0) return
-
-  container.scrollTop += deltaY
-  lastTouchY.value = currentY
-  event.preventDefault()
-}
-
-const handleReasoningTouchEnd = () => {
-  lastTouchY.value = null
 }
 </script>
 
@@ -134,19 +135,26 @@ const handleReasoningTouchEnd = () => {
 .reasoning-body {
   margin: 2px 0 2px 6px;
   padding: 4px 6px 4px 10px;
-  font-size: 11px;
-  line-height: 1.5;
   color: var(--text-secondary);
   background-color: transparent;
   border-top: none;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  white-space: pre-wrap;
   border-left: 2px solid var(--border-color-light);
   margin-left: 4px;
 }
 
+.reasoning-virtual-text {
+  color: var(--text-secondary);
+  font-family: inherit;
+  scrollbar-width: thin;
+}
+
+.reasoning-virtual-text :deep(.virtual-paragraph-text__paragraph) {
+  color: var(--text-secondary);
+}
+
 @media (max-width: 767px) {
-  .reasoning-body {
+  .reasoning-virtual-text {
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
   }
