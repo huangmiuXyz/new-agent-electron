@@ -6,6 +6,8 @@ import AppImage from '@renderer/components/Image.vue'
 const props = defineProps<{
   batch: ImageBatch
   readonly?: boolean
+  previewImages?: string[]
+  previewImageOffset?: number
 }>()
 
 const emit = defineEmits<{
@@ -38,6 +40,19 @@ const loadingText = computed(() => {
   if (props.batch.mediaType === 'video') return '视频生成中...'
   return '图片生成中...'
 })
+const generatedImageSources = computed(() =>
+  props.batch.images.filter((img) => typeof img === 'string') as string[]
+)
+const previewImages = computed(() =>
+  props.previewImages && props.previewImages.length > 0 ? props.previewImages : generatedImageSources.value
+)
+const previewImageOffset = computed(() =>
+  props.previewImages && props.previewImages.length > 0 ? props.previewImageOffset || 0 : 0
+)
+const getPreviewIndex = (batchImageIndex: number) =>
+  previewImageOffset.value +
+  props.batch.images.filter((img, index) => typeof img === 'string' && index <= batchImageIndex).length -
+  1
 </script>
 
 <template>
@@ -105,8 +120,8 @@ const loadingText = computed(() => {
           </template>
           <template v-else>
             <AppImage :src="(img as string)" preview
-              :images="(batch.images.filter(i => typeof i === 'string') as string[])"
-              :initial-index="batch.images.filter((i, idx) => typeof i === 'string' && idx <= index).length - 1" />
+              :images="previewImages"
+              :initial-index="getPreviewIndex(index)" />
           </template>
         </template>
       </div>

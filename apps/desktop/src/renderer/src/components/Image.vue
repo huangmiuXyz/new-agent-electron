@@ -43,7 +43,7 @@
             v-if="preview"
             v-model:visible="showViewer"
             :src="computedSrc"
-            :images="images"
+            :images="computedImages"
             :initial-index="viewerIndex"
         />
     </div>
@@ -75,6 +75,10 @@ const computedLoading = computed(() => {
 
 const computedSrc = computed(() => {
     return assetsHandler(props.src || '')
+})
+
+const computedImages = computed(() => {
+    return (props.images || []).map((src) => assetsHandler(src)).filter(Boolean)
 })
 
 const isVideo = computed(() => {

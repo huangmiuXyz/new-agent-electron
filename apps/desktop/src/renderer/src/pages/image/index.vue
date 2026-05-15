@@ -176,6 +176,24 @@ const renderedWrapperProps = computed(() => {
   return wrapperProps.value
 })
 
+const previewImageGallery = computed(() =>
+  displayBatches.value
+    .filter((batch) => (batch.mediaType || 'image') === 'image')
+    .flatMap((batch) => batch.images.filter((img) => typeof img === 'string') as string[])
+)
+
+const getBatchPreviewImageOffset = (batchId: number) => {
+  let offset = 0
+  for (const batch of displayBatches.value) {
+    if (batch.id === batchId) return offset
+    if ((batch.mediaType || 'image') === 'image') {
+      offset += batch.images.filter((img) => typeof img === 'string').length
+    }
+  }
+
+  return 0
+}
+
 const speechResults = computed(() =>
   audioStore.generatedBatches
     .filter((chunk) => chunk.messageId?.startsWith(IMAGE_PAGE_SPEECH_PREFIX))
@@ -669,6 +687,8 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
                 :key="batch.id"
                 :batch="batch"
                 :readonly="isToolMode"
+                :preview-images="previewImageGallery"
+                :preview-image-offset="getBatchPreviewImageOffset(batch.id)"
                 @re-edit="reEdit"
                 @delete="deleteBatch"
                 @copy-prompt="copyPrompt"

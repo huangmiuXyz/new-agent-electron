@@ -101,6 +101,15 @@ const images = computed(() => {
 const currentIndex = ref(props.initialIndex)
 const currentSrc = computed(() => images.value[currentIndex.value] || '')
 
+watch(
+    [() => props.initialIndex, images, () => props.visible],
+    () => {
+        const lastIndex = Math.max(0, images.value.length - 1)
+        currentIndex.value = Math.min(Math.max(props.initialIndex, 0), lastIndex)
+    },
+    { immediate: true }
+)
+
 // Transform state
 const scale = ref(1)
 const rotate = ref(0)
