@@ -5,6 +5,7 @@ import ImagePage from './pages/image/index.vue'
 import SettingsPage from './pages/settings/index.vue'
 import MyAppsPage from './pages/my-apps/index.vue'
 import AppFooter from './components/AppFooter.vue'
+import PageFindBar from './components/PageFindBar.vue'
 import Term from './components/term.vue'
 import ResizeBox from './components/ResizeBox.vue'
 import GlobalRightPanel from './components/GlobalRightPanel.vue'
@@ -364,6 +365,7 @@ const { width } = useWindowSize()
   <div v-else class="app-loading">
     <Loading />
   </div>
+  <PageFindBar />
   <ContextMenu />
 </template>
 

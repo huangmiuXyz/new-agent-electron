@@ -30,6 +30,33 @@ const { FormatBold, FormatItalic, FormatUnderlined, FormatStrikethrough, FormatC
     'CheckCircle'
 ])
 
+const fontSizeOptions = [
+    { label: '默认', value: '' },
+    { label: '12', value: '12px' },
+    { label: '14', value: '14px' },
+    { label: '16', value: '16px' },
+    { label: '18', value: '18px' },
+    { label: '20', value: '20px' },
+    { label: '24', value: '24px' },
+    { label: '28', value: '28px' },
+    { label: '32', value: '32px' },
+    { label: '36', value: '36px' }
+]
+
+const currentFontSize = computed({
+    get: () => props.editor.getAttributes('textStyle').fontSize || '',
+    set: (value: string | number | undefined) => {
+        const fontSize = String(value || '')
+        const chain = props.editor.chain().focus()
+
+        if (fontSize) {
+            chain.setFontSize(fontSize).run()
+            return
+        }
+
+        chain.unsetFontSize().run()
+    }
+})
 
 const toggleTaskList = () => {
     props.editor.chain().focus().toggleTaskList().run()
@@ -92,6 +119,13 @@ const toggleTaskList = () => {
                 @click="editor.chain().focus().toggleHeading({ level: 3 }).run()" title="标题 3">
                 H3
             </Button>
+        </div>
+
+        <Divider vertical />
+
+        <!-- 字号 -->
+        <div class="toolbar-group font-size-group">
+            <Select v-model="currentFontSize" :options="fontSizeOptions" size="sm" title="字号" />
         </div>
 
         <Divider vertical />
@@ -175,6 +209,22 @@ const toggleTaskList = () => {
     display: flex;
     align-items: center;
     gap: 4px;
+}
+
+.font-size-group {
+    width: 72px;
+    flex: 0 0 72px;
+}
+
+.font-size-group :deep(.form-select) {
+    height: 28px;
+    padding-left: 8px;
+    border-color: transparent;
+    background: transparent;
+}
+
+.font-size-group :deep(.form-select:hover) {
+    background: var(--bg-hover);
 }
 
 .toolbar-group :deep(.button) {
