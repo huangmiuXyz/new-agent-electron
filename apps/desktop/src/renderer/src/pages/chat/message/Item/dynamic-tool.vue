@@ -11,7 +11,7 @@ const props = defineProps<{
 const { display } = storeToRefs(useSettingsStore())
 const { currentChat } = storeToRefs(useChatsStores())
 const { showContextMenu } = useContextMenu<{ toolCallId: string }>()
-const { Refresh } = useIcon(['Refresh'])
+const { Check, Close, Refresh } = useIcon(['Check', 'Close', 'Refresh'])
 const isCollapsed = ref(!display.value.expandToolsByDefault)
 
 const isInputCollapsed = ref(true)
@@ -23,6 +23,8 @@ const localInput = ref('')
 const localOutput = ref('')
 const isRunning = ref(false)
 const toolCallId = computed(() => (props.tool_part as { toolCallId?: string }).toolCallId || '')
+const isApprovalRequested = computed(() => props.tool_part.state === 'approval-requested')
+const approvalId = computed(() => (props.tool_part as { approval?: { id?: string } }).approval?.id)
 
 const toggleInputCollapse = () => {
   if (!isEditingInput.value) {
@@ -105,6 +107,13 @@ const runTool = async (e: Event) => {
   } finally {
     isRunning.value = false
   }
+}
+
+const handleApproval = (approved: boolean) => {
+  if (!currentChat.value?.id || !approvalId.value) return
+
+  const { approval } = useChat(currentChat.value.id)
+  approval(props.tool_part as ToolUIPart, approved)
 }
 
 const toolName = computed(() => {
@@ -252,20 +261,29 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
         </div>
         <div class="tool-status-right" @click.stop @mousedown.stop>
           <slot name="status">
-            <span class="status-dot"></span>
+            <template v-if="isApprovalRequested">
+              <div class="approval-inline" aria-label="工具需要批准">
+                <span class="approval-pulse" title="等待批准"></span>
+                <span class="approval-label">需批准</span>
+                <button class="approval-icon-btn approve" type="button" title="允许执行工具" aria-label="允许执行工具"
+                  @click.stop="handleApproval(true)">
+                  <Check />
+                </button>
+                <button class="approval-icon-btn reject" type="button" title="拒绝执行工具" aria-label="拒绝执行工具"
+                  @click.stop="handleApproval(false)">
+                  <Close />
+                </button>
+              </div>
+            </template>
+            <span v-else class="status-dot"></span>
           </slot>
         </div>
-        <button
-          v-if="canRetryAroundToolCall"
-          class="retry-tool-btn"
-          type="button"
-          title="重试选项"
-          @click="openRetryMenuFromButton"
-        >
+        <button v-if="canRetryAroundToolCall" class="retry-tool-btn" type="button" title="重试选项"
+          @click="openRetryMenuFromButton">
           <Refresh />
         </button>
         <div class="tool-toggle">
-           <svg class="header-collapse-icon" :class="{ collapsed: isCollapsed }" xmlns="http://www.w3.org/2000/svg"
+          <svg class="header-collapse-icon" :class="{ collapsed: isCollapsed }" xmlns="http://www.w3.org/2000/svg"
             width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9" />
@@ -282,20 +300,26 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
               <div class="io-header" @click="toggleInputCollapse">
                 <span class="io-label">输入</span>
                 <div class="io-actions">
-                   <button class="icon-btn" @click.stop="runTool" title="运行工具" :disabled="isRunning">
-                    <svg v-if="!isRunning" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <button class="icon-btn" @click.stop="runTool" title="运行工具" :disabled="isRunning">
+                    <svg v-if="!isRunning" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
+                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polygon points="5 3 19 12 5 21 5 3"></polygon>
                     </svg>
-                    <svg v-else class="spin" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg v-else class="spin" xmlns="http://www.w3.org/2000/svg" width="10" height="10"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round">
                       <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
                     </svg>
                   </button>
                   <button class="icon-btn" @click.stop="toggleEditInput" :title="isEditingInput ? '保存' : '编辑'">
-                    <svg v-if="!isEditingInput" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg v-if="!isEditingInput" xmlns="http://www.w3.org/2000/svg" width="10" height="10"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
-                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
+                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </button>
@@ -316,11 +340,14 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
                 <span class="io-label">输出</span>
                 <div class="io-actions">
                   <button class="icon-btn" @click.stop="toggleEditOutput" :title="isEditingOutput ? '保存' : '编辑'">
-                    <svg v-if="!isEditingOutput" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg v-if="!isEditingOutput" xmlns="http://www.w3.org/2000/svg" width="10" height="10"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
-                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
+                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </button>
@@ -333,21 +360,9 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
               </div>
               <div class="io-content" v-if="!isOutputCollapsed">
                 <textarea v-if="isEditingOutput" v-model="localOutput" class="io-textarea" @click.stop></textarea>
-                <VirtualParagraphText
-                  v-else
-                  class="io-virtual-output"
-                  :text="localOutput"
-                  :height="300"
-                  split-mode="newline"
-                  preserve-empty
-                  :font-size="10"
-                  :line-height="15"
-                  :paragraph-padding-block="0"
-                  :paragraph-gap="0"
-                  :min-paragraph-height="15"
-                  :fixed-item-height="15"
-                  stick-to-bottom
-                />
+                <VirtualParagraphText v-else class="io-virtual-output" :text="localOutput" :height="300"
+                  split-mode="newline" preserve-empty :font-size="10" :line-height="15" :paragraph-padding-block="0"
+                  :paragraph-gap="0" :min-paragraph-height="15" :fixed-item-height="15" stick-to-bottom />
               </div>
             </div>
           </div>
@@ -360,12 +375,14 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
 <style scoped>
 .msg-row {
   display: flex;
-  padding: 1px 0px; /* 极致压缩垂直间距 */
+  padding: 1px 0px;
+  /* 极致压缩垂直间距 */
   justify-content: flex-start;
 }
 
 .tool-container {
   width: 100%;
+  position: relative;
   border-radius: 4px;
   transition: all 0.2s;
   /* 默认无边框无背景 */
@@ -377,13 +394,15 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
 .tool-container.is-expanded {
   background-color: var(--bg-card);
   border-color: var(--border-color-light);
-  margin-bottom: 4px; /* 展开时给一点下边距 */
+  margin-bottom: 4px;
+  /* 展开时给一点下边距 */
 }
 
 .tool-header {
   display: flex;
   align-items: center;
-  padding: 2px 4px; /* 极致压缩 header padding */
+  padding: 2px 4px;
+  /* 极致压缩 header padding */
   cursor: pointer;
   user-select: none;
   border-radius: 4px;
@@ -399,6 +418,7 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -412,7 +432,8 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
 .tool-name {
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-secondary); /* 默认用次级颜色，不抢眼 */
+  color: var(--text-secondary);
+  /* 默认用次级颜色，不抢眼 */
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   white-space: nowrap;
   overflow: hidden;
@@ -423,6 +444,7 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
   margin-left: auto;
   display: flex;
   align-items: center;
+  flex: none;
 }
 
 .status-dot {
@@ -431,6 +453,94 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
   border-radius: 50%;
   background-color: var(--color-success);
   opacity: 0.8;
+}
+
+.approval-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 20px;
+  padding: 0 2px;
+  border-radius: 6px;
+}
+
+.approval-pulse {
+  width: 6px;
+  height: 6px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: var(--color-warning, #faad14);
+}
+
+.approval-label {
+  color: color-mix(in srgb, var(--color-warning, #faad14) 72%, var(--text-primary));
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.approval-icon-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+  flex: none;
+}
+
+.approval-icon-btn.approve {
+  color: var(--color-success);
+}
+
+.approval-icon-btn.reject {
+  color: var(--text-tertiary);
+}
+
+.approval-icon-btn:hover {
+  background: var(--bg-hover);
+}
+
+.approval-icon-btn :deep(.xicon),
+.approval-icon-btn :deep(i),
+.approval-icon-btn :deep(span) {
+  width: 10px;
+  height: 10px;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  margin: 0;
+}
+
+.approval-icon-btn :deep(svg) {
+  width: 10px;
+  height: 10px;
+  display: block;
+  flex: none;
+  margin: 0;
+}
+
+.approval-icon-btn.approve :deep(svg) {
+  transform: translateX(-0.5px);
+}
+
+.approval-icon-btn.reject :deep(svg) {
+  transform: translateX(0);
+}
+
+.approval-icon-btn.reject:hover {
+  color: var(--color-danger);
+}
+
+.tool-container:has(.approval-inline) .tool-header {
+  background: color-mix(in srgb, var(--color-warning, #faad14) 4%, transparent);
 }
 
 .retry-tool-btn {
@@ -461,7 +571,8 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
 .tool-toggle {
   display: flex;
   align-items: center;
-  color: var(--text-tertiary); /* 很淡的箭头 */
+  color: var(--text-tertiary);
+  /* 很淡的箭头 */
   padding-left: 0;
 }
 
@@ -501,7 +612,7 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
   cursor: pointer;
   user-select: none;
   font-size: 9px;
-  background-color: rgba(0,0,0,0.01);
+  background-color: rgba(0, 0, 0, 0.01);
 }
 
 .io-header:hover {
@@ -552,13 +663,16 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
   width: 4px;
   height: 4px;
 }
+
 .io-virtual-output::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .io-virtual-output::-webkit-scrollbar-thumb {
   background: var(--border-color-light);
   border-radius: 2px;
 }
+
 .io-virtual-output::-webkit-scrollbar-thumb:hover {
   background: var(--border-color);
 }
@@ -597,8 +711,13 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .io-textarea {

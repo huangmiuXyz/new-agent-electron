@@ -94,6 +94,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
           })
 
           return {
+            queueAsUserMessage: true,
             metadata: { ...metadata, task_ids: [task_id], images: [] }
           }
         }
@@ -113,14 +114,9 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
         const images = normalizeImageUrls(result.images)
 
         return {
+          queueAsUserMessage: true,
           toolResult: {
-            content: [
-              { type: 'text', text: '图片生成完成。' },
-              ...images.map((url) => ({
-                type: 'image-url' as const,
-                url
-              }))
-            ]
+            content: [{ type: 'text', text: `图片生成完成，共 ${images.length} 张。` }]
           },
           metadata: {
             ...metadata,
@@ -203,6 +199,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
           })
 
           return {
+            queueAsUserMessage: true,
             metadata: { ...metadata, task_ids: [task_id], images: [] }
           }
         }
@@ -221,6 +218,7 @@ export const getMediaBuiltinTools = (): Partial<Tools> => ({
         })
 
         return {
+          queueAsUserMessage: true,
           toolResult: {
             content: [{ type: 'text', text: '视频生成完成。' }]
           },
