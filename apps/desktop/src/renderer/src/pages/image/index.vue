@@ -477,22 +477,24 @@ const handleRightInputSubmit = async () => {
   if (!prompt) return
 
   const referenceImages = floatingInputRef.value?.referenceImages || []
+  let submitPromise: Promise<unknown> | undefined
 
   if (isSpeechMode.value) {
-    await speechPanelRef.value?.submit(
+    submitPromise = speechPanelRef.value?.submit(
       prompt,
       `${IMAGE_PAGE_SPEECH_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     )
   } else if (isVideoMode.value) {
-    await videoPanelRef.value?.submit(prompt, referenceImages)
+    submitPromise = videoPanelRef.value?.submit(prompt, referenceImages)
   } else {
-    await imagePanelRef.value?.submit(prompt, referenceImages)
+    submitPromise = imagePanelRef.value?.submit(prompt, referenceImages)
   }
 
   rightInput.value = ''
   floatingInputRef.value?.clearInput()
   floatingInputRef.value?.clearReferenceImages()
   scrollToBottom()
+  await submitPromise
 }
 
 onMounted(() => {
