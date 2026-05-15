@@ -776,6 +776,11 @@ export const useAgent = () => {
     }
 
     const openEditSkillModal = (skill: SkillMetadata) => {
+      if (skill.builtin) {
+        messageApi.info('内置技能不可直接编辑；需要改动时可以复制到本地技能目录')
+        return
+      }
+
       let rawContent = ''
       try {
         rawContent = getRawSkillContent(skill)
@@ -885,6 +890,11 @@ export const useAgent = () => {
     }
 
     const deleteSkill = async (skill: SkillMetadata) => {
+      if (skill.builtin) {
+        messageApi.info('内置技能不可删除')
+        return
+      }
+
       const confirmed = await confirm({
         title: '删除技能',
         content: `确定要删除技能 "${skill.name}" 吗？此操作不可撤销。`
@@ -1027,8 +1037,9 @@ export const useAgent = () => {
               onClick: () => openSkillDetail(skill, skills)
             },
             {
-              label: '编辑技能',
+              label: skill.builtin ? '内置技能不可编辑' : '编辑技能',
               icon: Pencil,
+              disabled: skill.builtin,
               onClick: () => openEditSkillModal(skill)
             },
             {
@@ -1040,9 +1051,10 @@ export const useAgent = () => {
               type: 'divider'
             },
             {
-              label: '删除技能',
+              label: skill.builtin ? '内置技能不可删除' : '删除技能',
               icon: Trash,
               danger: true,
+              disabled: skill.builtin,
               onClick: () => void deleteSkill(skill)
             }
           ]
@@ -1057,7 +1069,7 @@ export const useAgent = () => {
               value: skill.name,
               label: skill.name,
               description: `${skill.description}\n${skill.path}`,
-              tags: isDisabled ? ['已禁用'] : [],
+              tags: [skill.builtin ? '内置' : '', isDisabled ? '已禁用' : ''].filter(Boolean),
               tagColor: isDisabled ? 'gray' : 'orange',
               actionTitle: '技能设置'
             }

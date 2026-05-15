@@ -6,6 +6,7 @@ export interface SkillMetadata {
   description: string
   path: string
   enabled: boolean
+  builtin?: boolean
 }
 
 export interface LoadedSkill {
@@ -25,10 +26,12 @@ interface DiscoverSkillsOptions {
   disabledSkillNames?: string[]
   applyCurrentAgentFilters?: boolean
   chatId?: string
+  includeBuiltin?: boolean
 }
 
 const SKILL_FILE_NAME = 'SKILL.md'
 const DEFAULT_SKILLS_DIR = '~/.agents/skills'
+const BUILTIN_SKILLS_RELATIVE_DIR = 'resources/builtin-skills'
 const SKILL_NAME_PATTERN = /^[a-z0-9-]+$/
 const MAX_NAME_LENGTH = 64
 const MAX_DESCRIPTION_LENGTH = 1024
@@ -182,6 +185,43 @@ export function getPrimarySkillDirectory(chatId?: string): string {
   return getSkillsDirectories(chatId)[0] || DEFAULT_SKILLS_DIR
 }
 
+function getBuiltinSkillsDirectories(): string[] {
+  if (!hasLocalSkillApi()) {
+    return []
+  }
+
+  const candidates = new Set<string>()
+  const addCandidate = (basePath?: string | null) => {
+    if (!basePath) return
+    candidates.add(window.api.path.join(basePath, BUILTIN_SKILLS_RELATIVE_DIR))
+  }
+
+  try {
+    const appPath = window.api.getAppPath?.()
+    addCandidate(appPath)
+
+    if (appPath?.endsWith(`${window.api.path.sep}app.asar`)) {
+      addCandidate(appPath.replace(/app\.asar$/, 'app.asar.unpacked'))
+    }
+  } catch {
+    // Ignore app path lookup failures and continue with dev fallbacks.
+  }
+
+  try {
+    addCandidate(window.api.path.resolve('.'))
+  } catch {
+    // Ignore cwd lookup failures.
+  }
+
+  return [...candidates].filter((directory) => {
+    try {
+      return window.api.fs.existsSync(directory)
+    } catch {
+      return false
+    }
+  })
+}
+
 function isDirectory(path: string): boolean {
   try {
     const stat = window.api.fs.lstatSync(path)
@@ -199,7 +239,10 @@ export function discoverSkills(
   directories?: string[],
   options: DiscoverSkillsOptions = {}
 ): SkillMetadata[] {
-  const resolvedDirectories = directories || getSkillsDirectories(options.chatId)
+  const includeBuiltin = options.includeBuiltin !== false
+  const localDirectories = directories || getSkillsDirectories(options.chatId)
+  const builtinDirectories = includeBuiltin ? getBuiltinSkillsDirectories() : []
+  const resolvedDirectories = [...localDirectories, ...builtinDirectories]
   if (!hasLocalSkillApi() || resolvedDirectories.length === 0) {
     return []
   }
@@ -223,6 +266,7 @@ export function discoverSkills(
   )
 
   for (const skillsDir of resolvedDirectories) {
+    const builtin = builtinDirectories.includes(skillsDir)
     let entries: string[]
 
     try {
@@ -262,7 +306,8 @@ export function discoverSkills(
           name: validated.name,
           description: validated.description,
           path: skillDir,
-          enabled
+          enabled,
+          builtin
         })
       } catch (error) {
         console.warn(`Failed to load skill ${entry}:`, error)

@@ -143,6 +143,11 @@ const setSkillEnabledInContent = (content: string, enabled: boolean) => {
 }
 
 const toggleSkillEnabled = (skill: SkillMetadata) => {
+  if (skill.builtin) {
+    messageApi.info('内置技能随应用提供，始终可用')
+    return
+  }
+
   try {
     const rawContent = getRawSkillContent(skill)
     const nextEnabled = !skill.enabled
@@ -226,6 +231,11 @@ const createSkillTemplate = (name: string, description: string) =>
   )
 
 const openEditSkillModal = (skill: SkillMetadata) => {
+  if (skill.builtin) {
+    messageApi.info('内置技能不可直接编辑；需要改动时可以复制到本地技能目录')
+    return
+  }
+
   let rawContent = ''
   try {
     rawContent = getRawSkillContent(skill)
@@ -321,6 +331,11 @@ const openEditSkillModal = (skill: SkillMetadata) => {
 }
 
 const deleteSkill = async (skill: SkillMetadata) => {
+  if (skill.builtin) {
+    messageApi.info('内置技能不可删除')
+    return
+  }
+
   const confirmed = await confirm({
     title: '删除技能',
     content: `确定要删除技能 "${skill.name}" 吗？此操作不可撤销。`
@@ -499,6 +514,7 @@ watch(
             <div class="skill-card-main">
               <div class="skill-card-name-row">
                 <div class="skill-card-name">{{ skillItem.name }}</div>
+                <div v-if="skillItem.builtin" class="skill-status-badge builtin">内置</div>
                 <div v-if="!skillItem.enabled" class="skill-status-badge">已禁用</div>
               </div>
               <div class="skill-card-desc">{{ skillItem.description }}</div>
@@ -508,7 +524,8 @@ watch(
               <Button
                 size="sm"
                 variant="text"
-                :title="skillItem.enabled ? '禁用技能' : '启用技能'"
+                :title="skillItem.builtin ? '内置技能始终可用' : skillItem.enabled ? '禁用技能' : '启用技能'"
+                :disabled="skillItem.builtin"
                 @click="toggleSkillEnabled(skillItem)"
               >
                 <template #icon>
@@ -523,7 +540,8 @@ watch(
               <Button
                 size="sm"
                 variant="text"
-                title="编辑技能"
+                :title="skillItem.builtin ? '内置技能不可直接编辑' : '编辑技能'"
+                :disabled="skillItem.builtin"
                 @click="openEditSkillModal(skillItem)"
               >
                 <template #icon>
@@ -544,7 +562,8 @@ watch(
                 size="sm"
                 variant="text"
                 class="delete-btn"
-                title="删除技能"
+                :title="skillItem.builtin ? '内置技能不可删除' : '删除技能'"
+                :disabled="skillItem.builtin"
                 @click="deleteSkill(skillItem)"
               >
                 <template #icon>
@@ -785,6 +804,12 @@ watch(
   border: 1px solid var(--border-subtle);
   border-radius: 999px;
   padding: 1px 6px;
+}
+
+.skill-status-badge.builtin {
+  color: var(--accent-color);
+  background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent-color) 24%, var(--border-subtle));
 }
 
 .skill-card-desc {
