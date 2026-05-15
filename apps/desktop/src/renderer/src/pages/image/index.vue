@@ -236,6 +236,11 @@ const syncToolBatchFromResult = () => {
   const mediaType = metadata?.config?.mediaType === 'video' || isVideoTool ? 'video' : 'image'
   const fallbackModel = fallbackForm?.model?.modelId || ''
   const fallbackProviderId = fallbackForm?.model?.providerId
+  const modelId = metadata?.config?.model || fallbackModel
+  const providerId = metadata?.providerId || fallbackProviderId
+  const modelName = providerId && modelId
+    ? settingsStore.getModelById(providerId, modelId).model?.name || modelId
+    : undefined
   const fallbackN = fallbackForm?.n || 1
   const fallbackSize = !isVideoTool ? settingsStore.imageGenerationForm?.size : undefined
   const fallbackSeed = fallbackForm?.seed || undefined
@@ -256,10 +261,11 @@ const syncToolBatchFromResult = () => {
 
   const batchData: Partial<ImageBatch> = {
     prompt,
-    model: metadata?.config?.model || fallbackModel,
+    model: modelId,
+    modelName,
     size: metadata?.config?.size || fallbackSize,
     n,
-    providerId: metadata?.providerId || fallbackProviderId,
+    providerId,
     images: [...normalizedMedia, ...placeholders],
     taskId: pendingTaskId,
     status: shouldShowPlaceholders ? 'processing' : resultError ? 'failed' : 'completed',
@@ -277,10 +283,11 @@ const syncToolBatchFromResult = () => {
     imgStore.addBatch({
       id: batchId,
       prompt: prompt || '',
-      model: metadata?.config?.model || fallbackModel,
+      model: modelId,
+      modelName,
       n,
       images: [...normalizedMedia, ...placeholders],
-      providerId: metadata?.providerId || fallbackProviderId,
+      providerId,
       taskId: pendingTaskId,
       status: shouldShowPlaceholders ? 'processing' : resultError ? 'failed' : 'completed',
       error: resultError,
