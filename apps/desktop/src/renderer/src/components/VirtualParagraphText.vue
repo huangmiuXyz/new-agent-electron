@@ -14,6 +14,7 @@ interface VirtualParagraphTextProps {
   paragraphPaddingBlock?: number
   paragraphGap?: number
   minParagraphHeight?: number
+  fixedItemHeight?: number
   stickToBottom?: boolean
   bottomThreshold?: number
 }
@@ -29,6 +30,7 @@ const props = withDefaults(defineProps<VirtualParagraphTextProps>(), {
   paragraphPaddingBlock: 12,
   paragraphGap: 8,
   minParagraphHeight: 34,
+  fixedItemHeight: undefined,
   stickToBottom: false,
   bottomThreshold: 24
 })
@@ -51,6 +53,8 @@ const viewportHeight = computed(() => {
 })
 
 const getParagraphHeight = (index: number) => {
+  if (props.fixedItemHeight) return props.fixedItemHeight
+
   const paragraph = paragraphs.value[index]
   if (!paragraph) return props.minParagraphHeight
 
@@ -64,8 +68,10 @@ const getParagraphHeight = (index: number) => {
   })
 }
 
+const virtualItemHeight = computed(() => props.fixedItemHeight || getParagraphHeight)
+
 const { list: virtualParagraphs, containerProps, wrapperProps, scrollTo } = useVirtualList(paragraphs, {
-  itemHeight: getParagraphHeight,
+  itemHeight: virtualItemHeight.value,
   overscan: props.overscan
 })
 

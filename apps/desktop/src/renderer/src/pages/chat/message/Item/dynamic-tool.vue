@@ -333,7 +333,21 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
               </div>
               <div class="io-content" v-if="!isOutputCollapsed">
                 <textarea v-if="isEditingOutput" v-model="localOutput" class="io-textarea" @click.stop></textarea>
-                <div v-else>{{ localOutput }}</div>
+                <VirtualParagraphText
+                  v-else
+                  class="io-virtual-output"
+                  :text="localOutput"
+                  :height="300"
+                  split-mode="newline"
+                  preserve-empty
+                  :font-size="10"
+                  :line-height="15"
+                  :paragraph-padding-block="0"
+                  :paragraph-gap="0"
+                  :min-paragraph-height="15"
+                  :fixed-item-height="15"
+                  stick-to-bottom
+                />
               </div>
             </div>
           </div>
@@ -515,27 +529,37 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
   font-size: 10px;
   line-height: 1.5;
   color: var(--text-primary);
-  white-space: pre-wrap;
-  word-break: break-all;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  max-height: 300px;
-  overflow-y: auto;
   background-color: var(--bg-card);
 }
 
+.io-virtual-output {
+  color: var(--text-primary);
+  font-family: inherit;
+  scrollbar-width: thin;
+}
+
+.io-virtual-output :deep(.virtual-paragraph-text__paragraph) {
+  color: var(--text-primary);
+  font-family: inherit;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 /* Scrollbar */
-.io-content::-webkit-scrollbar {
+.io-virtual-output::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
-.io-content::-webkit-scrollbar-track {
+.io-virtual-output::-webkit-scrollbar-track {
   background: transparent;
 }
-.io-content::-webkit-scrollbar-thumb {
+.io-virtual-output::-webkit-scrollbar-thumb {
   background: var(--border-color-light);
   border-radius: 2px;
 }
-.io-content::-webkit-scrollbar-thumb:hover {
+.io-virtual-output::-webkit-scrollbar-thumb:hover {
   background: var(--border-color);
 }
 
