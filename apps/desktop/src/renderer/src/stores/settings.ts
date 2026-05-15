@@ -133,7 +133,7 @@ export const useSettingsStore = defineStore(
       darkMode: false,
       compactDensity: true,
       showTimestamps: true,
-      fontSize: 16,
+      fontSize: 18,
       sidebarCollapsed: false,
       sidebarWidth: 200,
       chatSidebarWidth: 260,
