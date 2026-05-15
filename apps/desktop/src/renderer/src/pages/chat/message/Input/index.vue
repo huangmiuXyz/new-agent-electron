@@ -1119,7 +1119,7 @@ onUnmounted(() => {
               variant="icon"
               size="sm"
               :class="{ 'tool-features-active': currentChatToolFeaturesEnabled }"
-              :title="currentChatToolFeaturesEnabled ? '本对话已启用技能、内置工具和 MCP' : '本对话已禁用技能、内置工具和 MCP'"
+              :title="currentChatToolFeaturesEnabled ? '本对话已启用技能、内置工具和 MCP' : '本对话已禁用自动技能、内置工具和 MCP，@技能引用仍可用'"
               @click="toggleCurrentChatToolFeatures"
             >
               <ToolFeaturesIcon />

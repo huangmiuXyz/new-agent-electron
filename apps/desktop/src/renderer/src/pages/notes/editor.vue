@@ -17,6 +17,16 @@ watch(currentNote, (note) => {
 const noteTitle = ref('')
 const noteContent = ref('')
 
+const plainTextContent = computed(() => {
+    if (!noteContent.value) return ''
+
+    const container = document.createElement('div')
+    container.innerHTML = noteContent.value
+    return container.textContent || ''
+})
+
+const contentCharCount = computed(() => plainTextContent.value.replace(/\s/g, '').length)
+
 // 监听当前笔记变化
 watch(() => notesStore.currentNote, (note) => {
     if (note) {
@@ -75,6 +85,7 @@ onUnmounted(() => {
                 <div class="note-content">
                     <RichTextEditor v-model="noteContent" placeholder="开始输入笔记内容..." class="content-editor"
                         @change="onContentChange" />
+                    <div class="note-word-count">{{ contentCharCount }} 字</div>
                 </div>
             </div>
         </div>
@@ -163,8 +174,26 @@ onUnmounted(() => {
 }
 
 .note-content {
+    position: relative;
     flex: 1;
     overflow-y: auto;
+}
+
+.note-word-count {
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    display: flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 0 7px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    line-height: 1;
+    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+    pointer-events: none;
 }
 
 .content-editor {

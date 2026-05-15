@@ -467,9 +467,10 @@ export const chatService = () => {
 
     let tools: Tools = {}
 
+    const skills = discoverSkills(undefined, { chatId: cid })
     const hasLoadSkillTool = skillsEnabled && !!selectedBuiltinTools?.includes('loadSkill')
-    const skills = skillsEnabled ? discoverSkills(undefined, { chatId: cid }) : []
-    const builtinTools = getBuiltinTools({ knowledgeBaseIds, skills })
+    const skillsForBuiltinTools = skillsEnabled ? skills : []
+    const builtinTools = getBuiltinTools({ knowledgeBaseIds, skills: skillsForBuiltinTools })
     const skillsPrompt = hasLoadSkillTool ? buildSkillsPrompt(skills, cid) : ''
     const currentChat = useChatsStores().getChatById(cid)
     const agentWorkPath = useCanvasStore().getWorkPath(cid) || undefined
