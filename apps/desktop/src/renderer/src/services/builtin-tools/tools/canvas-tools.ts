@@ -1,7 +1,10 @@
 import { z } from 'zod'
 import {
+  createSandboxState,
+  getSandboxTempWorkspacePath,
   normalizeSandboxPath,
-  readSandboxWorkspaceAsync
+  readSandboxWorkspaceAsync,
+  type SandboxState
 } from '@renderer/services/sandbox'
 import { execRipgrepSearch, injectBundledRipgrepPath } from './command-utils'
 
@@ -37,8 +40,24 @@ const ensureCanvasWorkspace = async (chatId?: string) => {
   const workspaceDir = canvasStore.getWorkspaceDir(chatId)
   await window.api.fs.promises.mkdir(workspaceDir, { recursive: true })
   return {
-    sandbox: await readSandboxWorkspaceAsync(workspaceDir),
     workspaceDir
+  }
+}
+
+const isTempCanvasWorkspace = (workspaceDir: string, chatId?: string) => {
+  const resolvedChatId = chatId || useChatsStores().currentChat?.id || 'default'
+  return workspaceDir === getSandboxTempWorkspacePath(resolvedChatId)
+}
+
+const readCanvasSnapshotForSync = async (
+  workspaceDir: string,
+  chatId?: string
+): Promise<SandboxState | null> => {
+  if (!isTempCanvasWorkspace(workspaceDir, chatId)) return null
+  try {
+    return await readSandboxWorkspaceAsync(workspaceDir)
+  } catch {
+    return createSandboxState()
   }
 }
 
@@ -390,7 +409,8 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
         // 取到当前聊天对应的 canvas store，后面需要把工作区改动同步回画布。
         const canvasStore = useCanvasStore()
         // 拿到当前聊天实际使用的工作区快照；它可能是默认临时目录，也可能是用户切换后的本地目录。
-        const { sandbox, workspaceDir } = await ensureCanvasWorkspace(options?.chatId)
+        const { workspaceDir } = await ensureCanvasWorkspace(options?.chatId)
+        const sandbox = await readCanvasSnapshotForSync(workspaceDir, options?.chatId)
         // 像 codex 工具一样，对直接以 rg 开头的命令注入内置 ripgrep 路径，避免环境差异。
         const resolvedCommand = injectBundledRipgrepPath(command)
         // 复用全局终端能力，在已有终端标签或新终端标签里执行命令。
@@ -405,11 +425,11 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
           showTerminal: true
         })
         // 命令执行结束后，把当前工作区里的最新文件重新读回成 canvas 状态。
-        const syncedCanvas = await readSandboxWorkspaceAsync(workspaceDir)
+        const syncedCanvas = await readCanvasSnapshotForSync(workspaceDir, options?.chatId)
         // 尽量保留用户之前选中的文件；如果那个文件已经不存在了，再退回到新的 activeFilePath。
-        const nextActiveFilePath = sandbox.activeFilePath && syncedCanvas.files[sandbox.activeFilePath]
+        const nextActiveFilePath = sandbox?.activeFilePath && syncedCanvas?.files[sandbox.activeFilePath]
           ? sandbox.activeFilePath
-          : syncedCanvas.activeFilePath
+          : syncedCanvas?.activeFilePath
         // 用工作区执行后的最新结果覆盖当前聊天里的 canvas。
         if (nextActiveFilePath) {
           canvasStore.setActiveFilePath(nextActiveFilePath, options?.chatId)
@@ -418,7 +438,9 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
         }
         canvasStore.touchWorkspace(options?.chatId)
         // 生成一段新增/更新/删除统计，方便工具调用结果里快速理解发生了什么。
-        const syncSummary = summarizeCanvasSync(sandbox.files, syncedCanvas.files)
+        const syncSummary = sandbox && syncedCanvas
+          ? summarizeCanvasSync(sandbox.files, syncedCanvas.files)
+          : '非临时工作区已跳过 Canvas 快照同步。'
 
         // 返回给模型和界面的结果里包含终端ID、工作区路径、同步摘要和命令输出。
         return {
