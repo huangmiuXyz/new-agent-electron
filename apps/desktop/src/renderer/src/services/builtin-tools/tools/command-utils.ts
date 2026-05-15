@@ -9,22 +9,43 @@ type ExecCommandResult = {
 }
 
 export const injectBundledRipgrepPath = (command: string): string => {
-  const trimmedStart = command.trimStart()
-  if (!/^rg(?:\s|$)/.test(trimmedStart)) {
-    return command
-  }
-
   const ripgrepPath = window.api.getBundledRipgrepPath()
   if (!ripgrepPath) {
     return command
   }
 
-  const leadingWhitespace = command.slice(0, command.length - trimmedStart.length)
-  const rest = trimmedStart.slice(2)
   const escapedRipgrepPath = ripgrepPath.replaceAll('"', '""')
   const quotedRipgrepPath = isWindows ? `& "${escapedRipgrepPath}"` : `"${ripgrepPath}"`
 
-  return `${leadingWhitespace}${quotedRipgrepPath}${rest}`
+  const replaceRg = (cmd: string): string => {
+    const trimmedStart = cmd.trimStart()
+    if (!/^rg(?:\s|$)/.test(trimmedStart)) {
+      return cmd
+    }
+    const leadingWhitespace = cmd.slice(0, cmd.length - trimmedStart.length)
+    const rest = trimmedStart.slice(2)
+    return `${leadingWhitespace}${quotedRipgrepPath}${rest}`
+  }
+
+  const segments = command.split('|')
+  if (segments.length === 1) {
+    return replaceRg(command)
+  }
+
+  const replaced = segments.map((segment) => replaceRg(segment.trimStart()))
+  const leadingWhitespace = command.slice(0, command.length - command.trimStart().length)
+
+  if (isWindows) {
+    const piped = replaced.map((segment, index) => {
+      if (index < replaced.length - 1) {
+        return `(${segment.trimStart()}) -join [char]10`
+      }
+      return segment.trimStart()
+    })
+    return `${leadingWhitespace}${piped.join(' | ')}`
+  }
+
+  return `${leadingWhitespace}${replaced.join(' | ')}`
 }
 
 export const execRipgrepSearch = async (
