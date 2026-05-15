@@ -1,13 +1,17 @@
 import { ipcMain } from 'electron'
 import { promises as fs } from 'fs'
-import path from 'path'
+import nodePath from 'path'
 
 type SearchReplaceType = 'modify' | 'add' | 'delete' | 'move'
 
 type SearchReplacePayload = {
   baseDir?: string
   type?: SearchReplaceType | 'update' | 'create' | 'remove' | 'rename'
+  path?: string
   filePath?: string
+  old_string?: string
+  new_string?: string
+  target_path?: string
   oldStr?: string
   newStr?: string
   targetPath?: string
@@ -17,7 +21,8 @@ type SearchReplacePayload = {
 const normalizeSearchReplaceType = (payload?: SearchReplacePayload): SearchReplaceType => {
   const type = payload?.type
   const normalizedType = (type || 'modify').trim().toLowerCase()
-  if (normalizedType === 'add' || normalizedType === 'create' || ((normalizedType === 'modify' || normalizedType === 'update') && payload?.oldStr === undefined)) return 'add'
+  const oldString = payload?.old_string ?? payload?.oldStr
+  if (normalizedType === 'add' || normalizedType === 'create' || ((normalizedType === 'modify' || normalizedType === 'update') && oldString === undefined)) return 'add'
   if (normalizedType === 'modify' || normalizedType === 'update') return 'modify'
   if (normalizedType === 'delete' || normalizedType === 'remove') return 'delete'
   if (normalizedType === 'move' || normalizedType === 'rename') return 'move'
@@ -28,13 +33,13 @@ const resolvePathInBaseDir = (baseDir: string, rawPath: string) => {
   const inputPath = rawPath.trim()
   const noPrefixPath =
     inputPath.startsWith('a/') || inputPath.startsWith('b/') ? inputPath.slice(2) : inputPath
-  const targetPath = path.isAbsolute(noPrefixPath)
-    ? path.normalize(noPrefixPath)
-    : path.resolve(baseDir, noPrefixPath)
-  const normalizedBaseDir = path.resolve(path.normalize(baseDir))
-  const relativePath = path.relative(normalizedBaseDir, targetPath)
+  const targetPath = nodePath.isAbsolute(noPrefixPath)
+    ? nodePath.normalize(noPrefixPath)
+    : nodePath.resolve(baseDir, noPrefixPath)
+  const normalizedBaseDir = nodePath.resolve(nodePath.normalize(baseDir))
+  const relativePath = nodePath.relative(normalizedBaseDir, targetPath)
   const isInsideBaseDir =
-    relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
+    relativePath === '' || (!relativePath.startsWith('..') && !nodePath.isAbsolute(relativePath))
 
   if (!isInsideBaseDir) {
     throw new Error(`Path escapes workPath: ${normalizedBaseDir}`)
@@ -44,7 +49,7 @@ const resolvePathInBaseDir = (baseDir: string, rawPath: string) => {
 }
 
 const ensureParentDir = async (filePath: string) => {
-  await fs.mkdir(path.dirname(filePath), { recursive: true })
+  await fs.mkdir(nodePath.dirname(filePath), { recursive: true })
 }
 
 const ensureFilePath = async (filePath: string, operation: string) => {
@@ -65,16 +70,23 @@ const applyModify = async (targetPath: string, oldStr: string, newStr: string) =
   const content = await fs.readFile(targetPath, 'utf-8')
 
   const normalize = (value: string) => value.replace(/\r\n/g, '\n')
+  const countOccurrences = (text: string, search: string) => text.split(search).length - 1
   const normalizedContent = normalize(content)
   const normalizedOldStr = normalize(oldStr)
+  const exactMatchCount = countOccurrences(content, oldStr)
+  const normalizedMatchCount = countOccurrences(normalizedContent, normalizedOldStr)
 
-  if (!normalizedContent.includes(normalizedOldStr)) {
+  if (normalizedMatchCount === 0) {
     throw new Error(
-      'old_str was not found in the file. Ensure the snippet matches exactly, including whitespace and line endings.'
+      'old_string was not found in the file. Ensure the snippet matches exactly, including whitespace and line endings.'
     )
   }
 
-  if (content.includes(oldStr)) {
+  if (exactMatchCount > 1 || (exactMatchCount === 0 && normalizedMatchCount > 1)) {
+    throw new Error('old_string matched multiple locations. Provide a more specific snippet.')
+  }
+
+  if (exactMatchCount === 1) {
     await fs.writeFile(targetPath, content.replace(oldStr, newStr), 'utf-8')
     return `Successfully replaced content in ${targetPath}`
   }
@@ -117,7 +129,7 @@ const applyDelete = async (targetPath: string) => {
 const applyMove = async (sourcePath: string, destinationPath: string, overwrite: boolean) => {
   await ensureFilePath(sourcePath, 'Move file')
 
-  if (path.resolve(sourcePath) === path.resolve(destinationPath)) {
+  if (nodePath.resolve(sourcePath) === nodePath.resolve(destinationPath)) {
     throw new Error('Move file failed: source and destination are the same.')
   }
 
@@ -154,42 +166,64 @@ const executeSearchReplace = async (payload: SearchReplacePayload) => {
     throw new Error('workPath is required')
   }
 
-  const filePath = typeof payload.filePath === 'string' ? payload.filePath.trim() : ''
+  const filePath =
+    typeof payload.path === 'string'
+      ? payload.path.trim()
+      : typeof payload.filePath === 'string'
+        ? payload.filePath.trim()
+        : ''
   if (!filePath) {
-    throw new Error('filePath is required')
+    throw new Error('path is required')
   }
 
   const type = normalizeSearchReplaceType(payload)
   const sourcePath = resolvePathInBaseDir(baseDir, filePath)
+  const oldString = payload.old_string ?? payload.oldStr
+  const newString = payload.new_string ?? payload.newStr
+  const targetPathInput = payload.target_path ?? payload.targetPath ?? (type === 'move' ? newString : undefined)
 
   if (type === 'modify') {
-    if (typeof payload.oldStr !== 'string' || payload.oldStr.length === 0 || typeof payload.newStr !== 'string') {
-      throw new Error('type=modify requires non-empty oldStr and string newStr')
+    if (typeof oldString !== 'string' || oldString.length === 0 || typeof newString !== 'string') {
+      throw new Error('type=modify requires non-empty old_string and string new_string')
     }
-    return applyModify(sourcePath, payload.oldStr, payload.newStr)
+    return applyModify(sourcePath, oldString, newString)
   }
 
   if (type === 'add') {
-    if (typeof payload.newStr !== 'string') {
-      throw new Error('type=add requires newStr')
+    if (typeof newString !== 'string') {
+      throw new Error('type=add requires new_string')
     }
-    return applyAdd(sourcePath, payload.newStr, Boolean(payload.overwrite))
+    return applyAdd(sourcePath, newString, Boolean(payload.overwrite))
   }
 
   if (type === 'delete') {
     return applyDelete(sourcePath)
   }
 
-  if (typeof payload.targetPath !== 'string' || payload.targetPath.trim().length === 0) {
-    throw new Error('type=move requires targetPath')
+  if (typeof targetPathInput !== 'string' || targetPathInput.trim().length === 0) {
+    throw new Error('type=move requires new_string as destination path')
   }
 
-  const targetPath = resolvePathInBaseDir(baseDir, payload.targetPath)
+  const targetPath = resolvePathInBaseDir(baseDir, targetPathInput)
   return applyMove(sourcePath, targetPath, Boolean(payload.overwrite))
 }
 
 export const setupSearchReplaceHandlers = () => {
   ipcMain.handle('search-replace:execute', async (_event, payload: SearchReplacePayload) => {
+    try {
+      return {
+        ok: true,
+        summary: await executeSearchReplace(payload)
+      }
+    } catch (error) {
+      return {
+        ok: false,
+        error: (error as Error).message
+      }
+    }
+  })
+
+  ipcMain.handle('edit-file:execute', async (_event, payload: SearchReplacePayload) => {
     try {
       return {
         ok: true,

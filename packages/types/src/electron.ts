@@ -210,6 +210,21 @@ export interface ElectronAPI {
     }>;
   };
 
+  editFile: {
+    execute: (payload: {
+      baseDir: string;
+      path: string;
+      type: 'add' | 'delete' | 'move' | 'modify';
+      old_string?: string;
+      new_string?: string;
+      overwrite?: boolean;
+    }) => Promise<{
+      ok: boolean;
+      summary?: string;
+      error?: string;
+    }>;
+  };
+
   sync: {
     startHost: (options?: { displayName?: string; port?: number }) => Promise<SyncHostState>;
     stopHost: () => Promise<SyncHostState>;

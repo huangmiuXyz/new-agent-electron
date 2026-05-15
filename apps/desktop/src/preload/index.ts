@@ -642,6 +642,16 @@ export const api: ElectronAPI = {
       patch: string
     }) => electronAPI.ipcRenderer.invoke('apply-patch:execute', payload)
   },
+  editFile: {
+    execute: (payload: {
+      baseDir: string
+      path: string
+      type: 'add' | 'delete' | 'move' | 'modify'
+      old_string?: string
+      new_string?: string
+      overwrite?: boolean
+    }) => electronAPI.ipcRenderer.invoke('edit-file:execute', payload)
+  },
   sync: {
     startHost: (options?: { displayName?: string; port?: number }) =>
       electronAPI.ipcRenderer.invoke('sync:start-host', options),

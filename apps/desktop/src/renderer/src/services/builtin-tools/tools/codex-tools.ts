@@ -1,6 +1,5 @@
 ﻿import { z } from 'zod'
 import ignore from 'ignore'
-import ApplyPatchRender from '../components/ApplyPatchRender.vue'
 import { injectBundledRipgrepPath } from './command-utils'
 
 type CodexToolExecuteOptions = {
@@ -556,52 +555,59 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       }
     }
   },
-  apply_patch: {
-    title: '应用补丁',
+  edit_file: {
+    title: '编辑文件',
     description: [
-      '使用 apply_patch 编辑文件。补丁格式为 Codex harness apply_patch 协议：',
-      '*** Begin Patch',
-      '[一个或多个文件操作]',
-      '*** End Patch',
+      '使用 edit_file 编辑 workPath 内的文件。',
       '',
-      '支持三种文件操作：',
-      '*** Add File: <path> - 创建新文件，后续每行以 + 开头',
-      '*** Delete File: <path> - 删除文件',
-      '*** Update File: <path> - 修改文件（可选重命名）',
+      '支持四种操作：',
+      'type=add：创建文件，path 为文件路径，new_string 为完整文件内容。',
+      'type=modify：替换文件中的一段文本，path 为文件路径，old_string 为要替换的原文，new_string 为替换后的文本。',
+      'type=delete：删除文件，path 为文件路径。',
+      'type=move：移动/重命名文件，path 为源路径，new_string 为目标路径。',
       '',
-      'Update File 后可跟 *** Move to: <new path> 重命名文件。',
-      '然后是多个 hunk，每个以 @@ 开头（可跟上下文标识）。',
-      'hunk 内每行以 " "（上下文）、"+"（新增）、"-"（删除）开头。',
-      '',
-      '示例：',
-      '*** Begin Patch',
-      '*** Add File: hello.txt',
-      '+Hello world',
-      '*** Update File: src/app.py',
-      '*** Move to: src/main.py',
-      '@@ def greet():',
-      '-print("Hi")',
-      '+print("Hello, world!")',
-      '*** Delete File: obsolete.txt',
-      '*** End Patch',
+      '所有路径必须位于当前 workPath 内。add/move 默认不会覆盖已有文件，除非传 overwrite=true。',
+      'modify 要求 old_string 精确匹配；为避免误改，old_string 应尽量包含足够上下文且只匹配一次。'
     ].join('\n'),
     inputSchema: z.object({
-      patch: z
+      path: z
         .string()
-        .describe(
-          '补丁文本，必须以 *** Begin Patch 开头，*** End Patch 结尾。支持 Add File、Delete File、Update File 操作。'
-        )
+        .describe('要操作的文件路径。相对路径会基于当前 workPath 解析。type=move 时表示源路径。'),
+      type: z
+        .enum(['add', 'modify', 'delete', 'move'])
+        .describe('操作类型：add 新增文件，modify 替换文本，delete 删除文件，move 移动/重命名文件。'),
+      old_string: z
+        .string()
+        .optional()
+        .describe('type=modify 时必填，要替换的原文。'),
+      new_string: z
+        .string()
+        .optional()
+        .describe('type=add 时为完整文件内容；type=modify 时为替换后的文本；type=move 时为目标路径。'),
+      overwrite: z
+        .boolean()
+        .optional()
+        .describe('type=add 或 type=move 目标已存在时是否覆盖，默认 false。')
     }),
-    render: ApplyPatchRender,
     execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
-      const patch = typeof params.patch === 'string' ? params.patch : ''
+      const filePath = typeof params.path === 'string' ? params.path.trim() : ''
+      const type = typeof params.type === 'string' ? params.type.trim().toLowerCase() : ''
 
-      if (!patch.trim()) {
+      if (!filePath) {
         return {
-          error: '缺少必要参数: patch',
+          error: '缺少必要参数: path',
           toolResult: {
-            content: [{ type: 'text', text: 'apply_patch 失败：缺少必要参数 patch' }]
+            content: [{ type: 'text', text: 'edit_file 失败：缺少必要参数 path' }]
+          }
+        }
+      }
+
+      if (!['add', 'modify', 'delete', 'move'].includes(type)) {
+        return {
+          error: '缺少或不支持的参数: type',
+          toolResult: {
+            content: [{ type: 'text', text: 'edit_file 失败：type 必须是 add、modify、delete 或 move' }]
           }
         }
       }
@@ -611,31 +617,35 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         return {
           error: '未设置 workPath',
           toolResult: {
-            content: [{ type: 'text', text: 'apply_patch 失败：未设置 workPath，优先使用 `set_work_path` 工具临时设置' }]
+            content: [{ type: 'text', text: 'edit_file 失败：未设置 workPath，优先使用 `set_work_path` 工具临时设置' }]
           }
         }
       }
       try {
-        const result = await window.api.applyPatch.execute({
+        const result = await window.api.editFile.execute({
           baseDir,
-          patch
+          path: filePath,
+          type: type as 'add' | 'modify' | 'delete' | 'move',
+          old_string: typeof params.old_string === 'string' ? params.old_string : undefined,
+          new_string: typeof params.new_string === 'string' ? params.new_string : undefined,
+          overwrite: Boolean(params.overwrite)
         })
 
-        if (!result?.ok || !result.summaries) {
-          throw new Error(result?.error || 'apply_patch failed')
+        if (!result?.ok || !result.summary) {
+          throw new Error(result?.error || 'edit_file failed')
         }
 
         return {
-          summaries: result.summaries,
+          summary: result.summary,
           toolResult: {
-            content: [{ type: 'text', text: result.summaries.join('\n') }]
+            content: [{ type: 'text', text: result.summary }]
           }
         }
       } catch (error) {
         return {
           error: (error as Error).message,
           toolResult: {
-            content: [{ type: 'text', text: `apply_patch 失败: ${(error as Error).message}` }]
+            content: [{ type: 'text', text: `edit_file 失败: ${(error as Error).message}` }]
           }
         }
       }
