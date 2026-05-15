@@ -48,6 +48,9 @@
                             <RotateRightIcon />
                         </Button>
                         <div class="toolbar-divider"></div>
+                        <Button variant="text" @click="copyImage" title="复制图片">
+                            <CopyIcon />
+                        </Button>
                         <Button variant="text" @click="downloadImage" title="下载">
                             <DownloadIcon />
                         </Button>
@@ -73,6 +76,7 @@
 
 <script setup lang="ts">
 import { useEventListener } from '@vueuse/core'
+import { copyImageToClipboard } from '@renderer/utils'
 
 const props = withDefaults(defineProps<{
     src?: string
@@ -180,6 +184,12 @@ const prevImage = () => {
     currentIndex.value = (currentIndex.value - 1 + images.value.length) % images.value.length
 }
 
+// Copy
+const copyImage = async () => {
+    if (!currentSrc.value) return
+    await copyImageToClipboard(currentSrc.value)
+}
+
 // Download
 const downloadImage = async () => {
     try {
@@ -210,10 +220,11 @@ const {
     ZoomIn: AddIcon,
     ZoomOut: RemoveIcon,
     Refresh: RefreshIcon,
+    Copy: CopyIcon,
     Download: DownloadIcon,
     RotateLeft: RotateLeftIcon,
     RotateRight: RotateRightIcon
-} = useIcon(['Close', 'ChevronLeft', 'ChevronRight', 'ZoomIn', 'ZoomOut', 'Refresh', 'Download', 'RotateLeft', 'RotateRight'])
+} = useIcon(['Close', 'ChevronLeft', 'ChevronRight', 'ZoomIn', 'ZoomOut', 'Refresh', 'Copy', 'Download', 'RotateLeft', 'RotateRight'])
 
 useEventListener('keydown', (e) => {
     if (!props.visible) return

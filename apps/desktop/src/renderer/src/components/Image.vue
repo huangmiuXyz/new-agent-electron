@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { assetsHandler, copyText } from '@renderer/utils'
+import { assetsHandler, copyImageToClipboard, copyText } from '@renderer/utils'
 import { useContextMenu, type MenuItem } from '@renderer/composables/useContextMenu'
 
 const props = defineProps<{
@@ -118,28 +118,11 @@ const downloadImage = async () => {
 
 const copyImage = async () => {
     if (!computedSrc.value) return
-    try {
-        if (isVideo.value) {
-            copyText(computedSrc.value)
-            return
-        }
-        if (!navigator.clipboard?.write) {
-            copyText(computedSrc.value)
-            return
-        }
-        const ClipboardItemConstructor = (window as any).ClipboardItem
-        if (!ClipboardItemConstructor) {
-            copyText(computedSrc.value)
-            return
-        }
-        const response = await fetch(computedSrc.value)
-        const blob = await response.blob()
-        const type = blob.type || 'image/png'
-        const item = new ClipboardItemConstructor({ [type]: blob })
-        await navigator.clipboard.write([item])
-    } catch (err) {
-        console.error('复制图片失败:', err)
+    if (isVideo.value) {
+        copyText(computedSrc.value)
+        return
     }
+    await copyImageToClipboard(computedSrc.value)
 }
 
 const handleContextMenu = (event: MouseEvent) => {

@@ -75,6 +75,34 @@ export const copyText = (text: string) => {
   }
 }
 
+export const copyImageToClipboard = async (src: string, fallbackText = src): Promise<boolean> => {
+  if (!src) return false
+
+  try {
+    if (!navigator.clipboard?.write || !(window as any).ClipboardItem) {
+      copyText(fallbackText)
+      return false
+    }
+
+    const response = await fetch(src)
+    const blob = await response.blob()
+    const type = blob.type || 'image/png'
+    const ClipboardItemConstructor = (window as any).ClipboardItem
+
+    await navigator.clipboard.write([
+      new ClipboardItemConstructor({
+        [type]: blob
+      })
+    ])
+
+    return true
+  } catch (err) {
+    console.error('复制图片失败:', err)
+    copyText(fallbackText)
+    return false
+  }
+}
+
 const DEBOUNCED_STORAGE_KEYS = new Set(['chats'])
 const STORAGE_WRITE_DEBOUNCE_MS = 800
 const pendingStorageWrites = new Map<string, {
