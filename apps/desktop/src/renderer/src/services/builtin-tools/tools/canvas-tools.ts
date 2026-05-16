@@ -101,6 +101,24 @@ const normalizeDirectoryPath = (value?: string) => {
   return normalizeSandboxPath(value)
 }
 
+const normalizeCanvasEditPath = (workspaceDir: string, rawPath: string) => {
+  const inputPath = rawPath.trim()
+  const noPrefixPath =
+    inputPath.startsWith('a/') || inputPath.startsWith('b/') ? inputPath.slice(2) : inputPath
+  const resolvedPath = window.api.path.isAbsolute(noPrefixPath)
+    ? window.api.path.resolve(window.api.path.normalize(noPrefixPath))
+    : window.api.path.resolve(workspaceDir, noPrefixPath)
+  const relativePath = window.api.path.relative(workspaceDir, resolvedPath)
+  const isInsideWorkspace =
+    relativePath === '' || (!relativePath.startsWith('..') && !window.api.path.isAbsolute(relativePath))
+
+  if (!isInsideWorkspace) {
+    throw new Error(`路径越界：仅允许访问 Canvas 工作区内文件 (${workspaceDir})`)
+  }
+
+  return normalizeSandboxPath(relativePath)
+}
+
 const formatDirectoryList = (chatId?: string, directoryPath = '/') => {
   const canvasStore = useCanvasStore()
   const normalizedDirectoryPath = normalizeDirectoryPath(directoryPath)
@@ -469,64 +487,98 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
       }
     }
   },
-  search_replace_canvas: {
-    title: '搜索和替换 Canvas',
-    description:
-      '在当前 Canvas 工作区中执行文件操作：modify(替换内容)、add(新增文件)、delete(删除文件)、move(移动/重命名文件)。',
+  edit_file_canvas: {
+    title: '编辑 Canvas 文件',
+    description: [
+      '使用 edit_file_canvas 编辑当前 Canvas 工作区内的文件。',
+      '',
+      '支持四种操作：',
+      'type=add：创建文件，path 为文件路径，new_string 为完整文件内容。',
+      'type=modify：替换文件中的一段文本，path 为文件路径，old_string 为要替换的原文，new_string 为替换后的文本。',
+      'type=delete：删除文件，path 为文件路径。',
+      'type=move：移动/重命名文件，path 为源路径，new_string 为目标路径。',
+      '',
+      '所有路径必须位于当前 Canvas 工作区内。add/move 默认不会覆盖已有文件，除非传 overwrite=true。',
+      'modify 要求 old_string 精确匹配；为避免误改，old_string 应尽量包含足够上下文且只匹配一次。'
+    ].join('\n'),
     inputSchema: z.object({
+      path: z
+        .string()
+        .describe('要操作的文件路径。相对路径会基于当前 Canvas 工作区解析。type=move 时表示源路径。'),
       type: z
-        .enum(['modify', 'add', 'delete', 'move'])
+        .enum(['add', 'modify', 'delete', 'move'])
+        .describe('操作类型：add 新增文件，modify 替换文本，delete 删除文件，move 移动/重命名文件。'),
+      old_string: z
+        .string()
         .optional()
-        .default('modify')
-        .describe('操作类型：modify=替换文件内容，add=新增文件，delete=删除文件，move=移动/重命名文件'),
-      file_path: z.string().describe('源文件路径（add/delete/modify 为目标文件，move 为原路径）'),
-      old_str: z.string().optional().describe('type=modify 时必填：要搜索的旧代码片段'),
-      new_str: z.string().optional().describe('type=modify 时为替换内容；type=add 时为新文件内容'),
-      target_path: z.string().optional().describe('type=move 时必填：目标文件路径'),
+        .describe('type=modify 时必填，要替换的原文。'),
+      new_string: z
+        .string()
+        .optional()
+        .describe('type=add 时为完整文件内容；type=modify 时为替换后的文本；type=move 时为目标路径。'),
       overwrite: z
         .boolean()
         .optional()
-        .default(false)
-        .describe('type=add 或 move 时可选：目标已存在时是否覆盖，默认 false')
+        .describe('type=add 或 type=move 目标已存在时是否覆盖，默认 false。')
     }),
     execute: async (args: unknown, options?: { chatId?: string }) => {
-      const params = args as {
-        type?: 'modify' | 'add' | 'delete' | 'move'
-        file_path?: string
-        old_str?: string
-        new_str?: string
-        target_path?: string
-        overwrite?: boolean
-      }
-      const filePath = typeof params.file_path === 'string' ? params.file_path : ''
+      const params = args as Record<string, any>
+      const filePath = typeof params.path === 'string' ? params.path.trim() : ''
+      const type = typeof params.type === 'string' ? params.type.trim().toLowerCase() : ''
 
       if (!filePath.trim()) {
         return {
-          error: '缺少必要参数: file_path',
+          error: '缺少必要参数: path',
           toolResult: {
-            content: [{ type: 'text', text: 'search_replace_canvas 失败：缺少必要参数 file_path' }]
+            content: [{ type: 'text', text: 'edit_file_canvas 失败：缺少必要参数 path' }]
+          }
+        }
+      }
+
+      if (!['add', 'modify', 'delete', 'move'].includes(type)) {
+        return {
+          error: '缺少或不支持的参数: type',
+          toolResult: {
+            content: [{ type: 'text', text: 'edit_file_canvas 失败：type 必须是 add、modify、delete 或 move' }]
           }
         }
       }
 
       try {
         const canvasStore = useCanvasStore()
-        const result = canvasStore.applyOperation(
-          {
-            type: params.type,
-            filePath,
-            oldStr: params.old_str,
-            newStr: params.new_str,
-            targetPath: params.target_path,
-            overwrite: params.overwrite
-          },
-          options?.chatId
-        )
+        const { workspaceDir } = await ensureCanvasWorkspace(options?.chatId)
+        const result = await window.api.editFile.execute({
+          baseDir: workspaceDir,
+          path: filePath,
+          type: type as 'add' | 'modify' | 'delete' | 'move',
+          old_string: typeof params.old_string === 'string' ? params.old_string : undefined,
+          new_string: typeof params.new_string === 'string' ? params.new_string : undefined,
+          overwrite: Boolean(params.overwrite)
+        })
+
+        if (!result?.ok || !result.summary) {
+          throw new Error(result?.error || 'edit_file_canvas failed')
+        }
+
+        if (type === 'delete') {
+          const deletedPath = normalizeCanvasEditPath(workspaceDir, filePath)
+          if (canvasStore.getActiveFilePath(options?.chatId) === deletedPath) {
+            canvasStore.resetActiveFilePath(options?.chatId)
+          } else {
+            canvasStore.touchWorkspace(options?.chatId)
+          }
+        } else {
+          const nextActivePath = normalizeCanvasEditPath(
+            workspaceDir,
+            type === 'move' && typeof params.new_string === 'string' ? params.new_string : filePath
+          )
+          canvasStore.setActiveFilePath(nextActivePath, options?.chatId)
+        }
 
         openCanvasPanel()
 
         return {
-          summaries: [result.summary],
+          summary: result.summary,
           toolResult: {
             content: [{ type: 'text', text: result.summary }]
           }
@@ -535,7 +587,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
         return {
           error: (error as Error).message,
           toolResult: {
-            content: [{ type: 'text', text: `search_replace_canvas 失败: ${(error as Error).message}` }]
+            content: [{ type: 'text', text: `edit_file_canvas 失败: ${(error as Error).message}` }]
           }
         }
       }
