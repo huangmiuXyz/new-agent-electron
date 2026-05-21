@@ -1,6 +1,7 @@
 import { Chat as _useChat } from '@ai-sdk/vue'
 import type { APICallError, FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai'
+import { z } from 'zod'
 import { speechService } from '../services/speechService'
 import { useMessageScroll } from './useMessageScroll'
 import {
@@ -147,6 +148,7 @@ export const useChat = (chatId: string) => {
 
     return scope.run(() => {
       let processedText = ''
+      let manuallyStopped = false
       let sentenceSegmenter = createSentenceSegmenter(getChatAgent()?.speechLanguage)
       let streamFlushHandle: ReturnType<typeof setTimeout> | null = null
       let pendingStreamParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
@@ -155,6 +157,135 @@ export const useChat = (chatId: string) => {
       const pendingSyncMessages = new Map<string, BaseMessage>()
 
       const targetMessageId = ref<string | undefined>(regenerateMessageId)
+
+      const triggerNextPendingMessage = (targetChatId: string) => {
+        const chatsStore = useChatsStores()
+        if (chatsStore.isChatGenerating(targetChatId)) return
+
+        const pendingMessage = chatsStore.shiftPendingMessage(targetChatId)
+        const parts = pendingMessage?.parts
+        if (!parts) return
+
+        setTimeout(() => {
+          useChat(targetChatId).sendMessages(parts)
+        }, 0)
+      }
+
+      const markSubTaskFailed = (error: string) => {
+        const runtimeChat = getChatById(chatId)
+        if (!runtimeChat?.parentChatId || runtimeChat.subTask?.status !== 'running') return
+
+        useChatsStores().updateSubTask(chatId, {
+          status: 'failed',
+          completedAt: Date.now(),
+          error
+        })
+      }
+
+      const submitSubTaskSummary = async () => {
+        const runtimeChat = getChatById(chatId)
+        if (!runtimeChat?.parentChatId || runtimeChat.subTask?.status !== 'running') return
+
+        const runtimeAgent = getChatAgent()
+        const providerId = runtimeChat.providerId
+        const modelId = runtimeChat.modelId
+        const selectedProvider = providerId ? settingsStore.getProviderById(providerId) : null
+        const selectedModel =
+          providerId && modelId ? settingsStore.getModelById(providerId, modelId).model : null
+
+        if (!runtimeAgent || !selectedProvider || !selectedModel) {
+          markSubTaskFailed('子任务总结失败：未找到会话绑定的智能体或模型配置')
+          return
+        }
+
+        const parentChatId = runtimeChat.parentChatId
+        const childAgentName = runtimeAgent.name || runtimeChat.title || '子智能体'
+        const taskText = runtimeChat.subTask?.task || runtimeChat.title
+
+        const submitTool: Tool = {
+          title: '提交子任务总结',
+          description: '提交子智能体停止工作后的最终总结。必须使用结构化参数调用。',
+          inputSchema: z.object({
+            success: z.boolean().describe('任务是否成功完成'),
+            summary: z.string().min(1).describe('面向主智能体的最终结论或成果摘要'),
+            error: z.string().optional().describe('失败或阻塞原因，success=false 时填写')
+          }),
+          execute: async (args: unknown) => {
+            const params = args as { success?: boolean; summary?: string; error?: string }
+            const success = params.success !== false
+            const summary = String(params.summary || '').trim()
+            const error = String(params.error || '').trim()
+            const status: SubTaskStatus = success ? 'completed' : 'failed'
+
+            useChatsStores().updateSubTask(chatId, {
+              status,
+              completedAt: Date.now(),
+              result: summary,
+              error: success ? undefined : error || '子任务执行失败'
+            })
+
+            useChatsStores().addPendingMessage(parentChatId, [
+              {
+                type: 'text',
+                text:
+                  `[子智能体总结]\n` +
+                  `来自: ${childAgentName}\n` +
+                  `状态: ${status}\n` +
+                  `任务: ${taskText}\n` +
+                  `总结: ${summary}` +
+                  (!success && error ? `\n错误: ${error}` : '')
+              }
+            ])
+            triggerNextPendingMessage(parentChatId)
+
+            return {
+              toolResult: {
+                content: [{ type: 'text', text: '子任务总结已提交给主智能体。' }]
+              }
+            }
+          }
+        }
+
+        const prompt =
+          `你刚刚作为子智能体停止工作。现在必须根据已完成的具体任务，调用 submit_sub_task_result 工具提交最终结果。\n` +
+          `summary 必须直接回答任务要求，包含主智能体继续处理所需的结论、产物、关键事实或失败原因。\n` +
+          `不要复述会话记录，不要泛泛总结过程，不要输出自然语言正文，只调用工具。\n\n` +
+          `子智能体: ${childAgentName}\n` +
+          `任务:\n${taskText}`
+        const summaryMessages: BaseMessage[] = [
+          ...cloneDeep(getVisibleMessages()),
+          {
+            id: nanoid(),
+            role: 'user',
+            parts: [{ type: 'text', text: prompt }]
+          } as BaseMessage
+        ]
+
+        try {
+          const result = await service.generateTextWithMessages(summaryMessages, {
+            model: modelId!,
+            apiKey: selectedProvider.apiKey!,
+            baseURL: selectedProvider.baseUrl!,
+            provider: providerId!,
+            providerType: selectedProvider.providerType,
+            tools: { submit_sub_task_result: submitTool },
+            toolChoice: {
+              type: 'tool',
+              toolName: 'submit_sub_task_result'
+            }
+          })
+          if (
+            !result.toolResults?.some(
+              (toolResult) => toolResult.toolName === 'submit_sub_task_result'
+            )
+          ) {
+            markSubTaskFailed('子任务总结失败：模型没有调用提交总结工具')
+          }
+        } catch (error) {
+          const message = (error as Error).message || '子任务总结失败'
+          markSubTaskFailed(message)
+        }
+      }
 
       const chat = new _useChat<BaseMessage>({
         id: chatId,
@@ -239,6 +370,9 @@ export const useChat = (chatId: string) => {
           }
 
           useTitle(chatId).generateTitle()
+          if (!manuallyStopped) {
+            void submitSubTaskSummary()
+          }
           scope.stop()
           scheduleNextPendingMessage()
         },
@@ -246,6 +380,11 @@ export const useChat = (chatId: string) => {
         onError: (error) => {
           console.error(error)
           finalizeMessageSync(chat.lastMessage, error as APICallError)
+          if (manuallyStopped) {
+            markSubTaskFailed('用户手动停止了子任务')
+          } else {
+            markSubTaskFailed((error as Error).message || '子任务执行失败')
+          }
           scope.stop()
           scheduleNextPendingMessage()
         }
@@ -262,6 +401,13 @@ export const useChat = (chatId: string) => {
           ...message.metadata,
           ...(error ? { error, loading: false } : {})
         } as MetaData
+        if (nextMetadata.stop) {
+          const originalStop = nextMetadata.stop
+          nextMetadata.stop = (() => {
+            manuallyStopped = true
+            originalStop()
+          }) as AbortController['abort']
+        }
         const isFinalized = !nextMetadata.loading || !!error
         const flatUsage = getFlatTokenUsage(nextMetadata.usage)
 

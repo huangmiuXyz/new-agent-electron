@@ -365,11 +365,9 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           `你是子智能体，正在执行主智能体分配的任务。\n` +
           `主智能体: ${agentStore.getAgentById(parentChat.agentId || '')?.name || parentChat.title}\n\n` +
           `任务内容:\n${task}\n\n` +
-          `要求：默认不要中途通信以节省 token。\n` +
-          `仅在任务阻塞、需要主智能体决策、或发现高风险问题时，才调用 agent_communicate。\n` +
-          `如需中途通信，请合并关键信息一次发送，避免频繁小消息。\n` +
-          `任务结束时必须调用一次 agent_communicate 回传最终结果，并设置 isFinal=true。\n` +
-          `成功请设置 success=true 并在 message 写最终结论；失败请设置 success=false 并填写 error。`
+          `要求：直接完成任务。\n` +
+          `如果遇到阻塞或失败，请在当前回复中记录原因并停止。\n` +
+          `任务停止后，系统会自动要求你调用总结工具提交最终结果。`
 
         setTimeout(() => {
           useChat(subChatId)
@@ -392,7 +390,7 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
                   `子智能体任务已创建并开始异步执行。\n` +
                   `- 子智能体: ${targetAgent.name}\n` +
                   `- 子任务: ${params.title || `${targetAgent.name} · 子任务`}\n` +
-                  `说明：任务执行不会阻塞当前主智能体，主子智能体统一使用 agent_communicate 通信。`
+                  `说明：任务执行不会阻塞当前主智能体，子智能体停止后会自动汇总结论。`
               }
             ]
           }

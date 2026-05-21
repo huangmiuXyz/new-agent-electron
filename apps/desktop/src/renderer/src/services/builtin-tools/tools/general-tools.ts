@@ -94,8 +94,16 @@ const formatParallelToolUseResults = (
 const getAvailableToolContext = (chatId?: string) => {
   const agentStore = useAgentStore()
   const settingsStore = useSettingsStore()
+  const chatsStore = useChatsStores()
   const agent = getAgentByChat(chatId)
-  const builtinToolNames = new Set(agent?.builtinTools || [])
+  const chat = chatId ? chatsStore.getChatById(chatId) : chatsStore.currentChat
+  const builtinToolNames = new Set(
+    (agent?.builtinTools || []).filter(
+      (toolName) =>
+        toolName !== 'agent_communicate' &&
+        !(chat?.parentChatId && toolName === 'delegate_to_sub_agent')
+    )
+  )
   const mcpToolNames = new Set(agent?.tools || [])
   const mcpServers = agent?.id ? agentStore.getMcpByAgent(agent.id).mcpServers : settingsStore.mcpServers
 

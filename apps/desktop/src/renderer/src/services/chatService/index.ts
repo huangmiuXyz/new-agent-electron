@@ -475,22 +475,23 @@ export const chatService = () => {
     const currentChat = useChatsStores().getChatById(cid)
     const agentWorkPath = useCanvasStore().getWorkPath(cid) || undefined
     const isSubAgentChat = !!currentChat?.parentChatId
-    const assignedBuiltinTools = selectedBuiltinTools || []
+    const assignedBuiltinTools = (selectedBuiltinTools || []).filter(
+      (toolName) =>
+        toolName !== 'agent_communicate' &&
+        !(isSubAgentChat && toolName === 'delegate_to_sub_agent')
+    )
     const hasAssignedAgentTools = assignedBuiltinTools.some(
-      (toolName) => toolName === 'delegate_to_sub_agent' || toolName === 'agent_communicate'
+      (toolName) => toolName === 'delegate_to_sub_agent'
     )
     const multiAgentPrompt =
       hasAssignedAgentTools || isSubAgentChat ? buildMultiAgentSystemPrompt(cid) : ''
-    const codexEnvironmentPrompt = buildCodexEnvironmentPrompt(cid, selectedBuiltinTools)
+    const codexEnvironmentPrompt = buildCodexEnvironmentPrompt(cid, assignedBuiltinTools)
     const agentInstructions =
       [codexEnvironmentPrompt, instructions?.trim(), skillsPrompt, multiAgentPrompt].filter(Boolean).join('\n\n') ||
       undefined
 
-    const builtinToolKeys = new Set<string>(selectedBuiltinTools || [])
+    const builtinToolKeys = new Set<string>(assignedBuiltinTools)
     const builtinToolApprovalKeys = new Set<string>(builtinToolsRequireApproval || [])
-    if (isSubAgentChat) {
-      builtinToolKeys.add('agent_communicate')
-    }
 
     if (builtinToolKeys.size > 0) {
       builtinToolKeys.forEach((toolKey) => {
@@ -743,6 +744,43 @@ export const chatService = () => {
       throw error
     }
   }
+  const generateTextWithMessages = async (
+    messages: BaseMessage[],
+    {
+      model,
+      apiKey,
+      baseURL,
+      provider,
+      providerType,
+      tools,
+      toolChoice = 'auto'
+    }: ChatServiceOptions
+  ) => {
+    await onUseAIBefore({ model, providerType, apiKey, baseURL })
+    try {
+      const validatedMessages = await validateUIMessages({
+        messages,
+        tools
+      })
+      const sanitizedMessages = sanitizeUIMessages(validatedMessages)
+      const normalizedMessages = normalizeInlineFilePartUrls(sanitizedMessages)
+      const modelMessages = await convertToModelMessages(normalizedMessages)
+
+      const result = await _generateText({
+        model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
+          `${providerType}:${model}`
+        ),
+        tools,
+        messages: modelMessages,
+        toolChoice,
+        frequencyPenalty: 2
+      })
+      return result
+    } catch (error) {
+      messageApi.error((error as Error).message)
+      throw error
+    }
+  }
   const streamText = async (
     prompt: string,
     {
@@ -906,6 +944,7 @@ export const chatService = () => {
     list_models,
     list_tools,
     generateText,
+    generateTextWithMessages,
     streamText,
     translateText,
     generateImage,
