@@ -120,8 +120,140 @@ const buildAgentCreatorDescription = (
   ].join('\n')
 }
 
+const submitSummaryToParent = (params: {
+  chatId: string
+  parentChatId: string
+  summary: string
+  success?: boolean
+  error?: string
+}) => {
+  const { chatId, parentChatId, summary, success = true, error } = params
+  const chatsStore = useChatsStores()
+  const agentStore = useAgentStore()
+
+  const runtimeChat = chatsStore.getChatById(chatId)
+  const runtimeAgentId = runtimeChat?.agentId
+  const runtimeAgent = runtimeAgentId ? agentStore.getAgentById(runtimeAgentId) : null
+  const childAgentName =
+    runtimeAgent?.name || runtimeChat?.title || '子智能体'
+  const taskText = runtimeChat?.subTask?.task || runtimeChat?.title || ''
+
+  const status: SubTaskStatus = success ? 'completed' : 'failed'
+
+  chatsStore.updateSubTask(chatId, {
+    status,
+    completedAt: Date.now(),
+    result: summary,
+    error: success ? undefined : error || '子任务执行失败',
+    subTaskResultSubmitted: true
+  })
+
+  chatsStore.addPendingMessage(parentChatId, [
+    {
+      type: 'text',
+      text:
+        `[子智能体总结]\n` +
+        `来自: ${childAgentName}\n` +
+        `状态: ${status}\n` +
+        `任务: ${taskText}\n` +
+        `总结: ${summary}` +
+        (!success && error ? `\n错误: ${error}` : '')
+    }
+  ])
+}
+
 export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> => {
   const agentToolsWithoutCreator: Partial<Tools> = {
+    finish_sub_task: {
+      title: '结束子任务',
+      description:
+        '子智能体在完成任务或遇到阻塞时调用此工具，向主智能体提交最终结果并结束任务。支持两种方式：直接返回最后一条回复内容，或自定义总结内容。',
+      inputSchema: z.object({
+        mode: z
+          .enum(['last_message', 'custom'])
+          .describe(
+            '"last_message"：将当前最后一条回复作为结果返回给主智能体；"custom"：使用 message 字段自定义返回内容'
+          ),
+        message: z
+          .string()
+          .optional()
+          .describe(
+            '仅在 mode="custom" 时有效。面向主智能体的自定义返回内容，需包含结论、产物、关键事实或失败原因。'
+          )
+      }),
+      execute: async (
+        args: unknown,
+        options: { chatId: string }
+      ) => {
+        const params = args as { mode: 'last_message' | 'custom'; message?: string }
+        const chatsStore = useChatsStores()
+        const runtimeChat = chatsStore.getChatById(options.chatId)
+
+        if (!runtimeChat?.parentChatId || runtimeChat.subTask?.status !== 'running') {
+          return {
+            toolResult: {
+              content: [
+                { type: 'text', text: '仅子智能体在任务运行期间可调用此工具。' }
+              ]
+            }
+          }
+        }
+
+        let summary = ''
+        if (params.mode === 'last_message') {
+          const lastAssistantMessage = [...runtimeChat.messages]
+            .reverse()
+            .find((msg) => msg.role === 'assistant')
+          summary =
+            lastAssistantMessage!.parts
+              .reverse()
+              .find((part) => part.type === 'text')?.text!
+          if (!summary) {
+            return {
+              toolResult: {
+                content: [
+                  {
+                    type: 'text',
+                    text: '未找到可用的最后一条回复内容，请使用 "custom" 模式填写返回内容。'
+                  }
+                ]
+              }
+            }
+          }
+        } else {
+          summary = (params.message || '').trim()
+          if (!summary) {
+            return {
+              toolResult: {
+                content: [
+                  {
+                    type: 'text',
+                    text: 'mode="custom" 时，message 字段不能为空。'
+                  }
+                ]
+              }
+            }
+          }
+        }
+
+        submitSummaryToParent({
+          chatId: options.chatId,
+          parentChatId: runtimeChat.parentChatId,
+          summary
+        })
+
+        return {
+          toolResult: {
+            content: [
+              {
+                type: 'text',
+                text: '子任务结果已提交给主智能体，任务即将结束，请立即停止输出。'
+              }
+            ]
+          }
+        }
+      }
+    },
     delegate_to_sub_agent: {
       title: '分派子智能体任务',
       description: '主智能体将任务异步分派给子智能体执行，立即返回，不阻塞当前会话',
@@ -197,13 +329,18 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           activate: !!params.switchToSubChat
         })
 
+        const parentAgentName =
+          agentStore.getAgentById(parentChat.agentId || '')?.name || parentChat.title
         const childPrompt =
           `你是子智能体，正在执行主智能体分配的任务。\n` +
-          `主智能体: ${agentStore.getAgentById(parentChat.agentId || '')?.name || parentChat.title}\n\n` +
+          `主智能体: ${parentAgentName}\n\n` +
           `任务内容:\n${task}\n\n` +
-          `要求：直接完成任务。\n` +
-          `如果遇到阻塞或失败，请在当前回复中记录原因并停止。\n` +
-          `任务停止后，系统会自动要求你调用总结工具提交最终结果。`
+          `要求：\n` +
+          `1. 直接完成任务。\n` +
+          `2. 完成任务后，必须调用 finish_sub_task 工具提交结果给主智能体：\n` +
+          `   - mode="last_message"：以你最后一条回复作为返回内容\n` +
+          `   - mode="custom" + message：撰写自定义的返回内容\n` +
+          `3. 如遇到阻塞或失败，记录原因后调用 finish_sub_task 提交说明。`
 
         setTimeout(() => {
           useChat(subChatId)
@@ -226,7 +363,7 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
                   `子智能体任务已创建并开始异步执行。\n` +
                   `- 子智能体: ${targetAgent.name}\n` +
                   `- 子任务: ${params.title || `${targetAgent.name} · 子任务`}\n` +
-                  `说明：任务执行不会阻塞当前主智能体，子智能体停止后会自动汇总结论。`
+                  `说明：任务执行不会阻塞当前主智能体，子智能体完成后会通过 finish_sub_task 工具主动返回结果。`
               }
             ]
           }

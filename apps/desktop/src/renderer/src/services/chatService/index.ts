@@ -478,6 +478,7 @@ export const chatService = () => {
     const assignedBuiltinTools = (selectedBuiltinTools || []).filter(
       (toolName) =>
         toolName !== 'agent_communicate' &&
+        toolName !== 'finish_sub_task' &&
         !(isSubAgentChat && toolName === 'delegate_to_sub_agent')
     )
     const hasAssignedAgentTools = assignedBuiltinTools.some(
@@ -491,6 +492,9 @@ export const chatService = () => {
       undefined
 
     const builtinToolKeys = new Set<string>(assignedBuiltinTools)
+    if (isSubAgentChat) {
+      builtinToolKeys.add('finish_sub_task')
+    }
     const builtinToolApprovalKeys = new Set<string>(builtinToolsRequireApproval || [])
 
     if (builtinToolKeys.size > 0) {

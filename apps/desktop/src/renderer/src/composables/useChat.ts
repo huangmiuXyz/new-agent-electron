@@ -182,9 +182,23 @@ export const useChat = (chatId: string) => {
         })
       }
 
+      const finishParentMessage = () => {
+        const parentChatId = getChatById(chatId)?.parentChatId
+        if (parentChatId) {
+          triggerNextPendingMessage(parentChatId)
+        }
+      }
+
       const submitSubTaskSummary = async () => {
         const runtimeChat = getChatById(chatId)
-        if (!runtimeChat?.parentChatId || runtimeChat.subTask?.status !== 'running') return
+        if (!runtimeChat?.parentChatId) return
+
+        if (runtimeChat.subTask?.subTaskResultSubmitted) {
+          finishParentMessage()
+          return
+        }
+
+        if (runtimeChat.subTask?.status !== 'running') return
 
         const runtimeAgent = getChatAgent()
         const providerId = runtimeChat.providerId

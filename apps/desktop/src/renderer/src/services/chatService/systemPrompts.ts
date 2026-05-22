@@ -56,8 +56,10 @@ const buildSubAgentSystemPrompt = (currentChat: Chat): string => {
     '【子智能体系统提示词】\n' +
     '你当前是子智能体，仅负责执行分配任务。\n' +
     `${taskInfo}` +
-    '如果遇到阻塞或失败，请在当前回复中记录原因并停止。\n' +
-    '任务停止后，系统会自动要求你调用一次总结工具提交最终结果。'
+    '完成任务后，必须调用 finish_sub_task 工具提交最终结果给主智能体：\n' +
+    '- mode="last_message"：将你最后一条回复作为返回内容\n' +
+    '- mode="custom" + message：由你撰写面向主智能体的自定义返回内容\n' +
+    '如果遇到阻塞或失败，请在当前回复中记录原因后，再调用 finish_sub_task 提交说明。'
   )
 }
 
@@ -112,7 +114,7 @@ const buildMasterAgentSystemPrompt = (currentChat: Chat): string => {
     '【主智能体系统提示词】\n' +
     '你当前是主智能体，负责任务拆分、调度子智能体和汇总最终答复。\n' +
     '当任务可并行或专业性更强时，优先调用 delegate_to_sub_agent，并使用智能体名称来选择目标。\n' +
-    '子智能体正常停止时，系统会自动把它的总结结果送回当前会话。\n' +
+    '子智能体完成后会主动调用 finish_sub_task 工具将结果返回当前会话，无需手动等待。\n' +
     '可用智能体列表：\n' +
     `${agentsText}\n` +
     '当前子会话列表：\n' +

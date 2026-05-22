@@ -13,6 +13,7 @@ declare global {
     completedAt?: number
     result?: string
     error?: string
+    subTaskResultSubmitted?: boolean
   }
 
   interface Chat {
