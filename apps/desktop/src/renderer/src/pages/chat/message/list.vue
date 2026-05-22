@@ -2,6 +2,7 @@
 import { FileUIPart, TextUIPart } from 'ai'
 import type { MenuItem } from '@renderer/composables/useContextMenu'
 import { getLanguageFlag } from '@renderer/utils/flagIcons'
+import { copyElementImageToClipboard } from '@renderer/utils'
 import { useElementSize } from '@vueuse/core'
 import { AutoScrollContainer } from '@incremark/vue'
 import { useMessageScroll } from '@renderer/composables/useMessageScroll'
@@ -15,13 +16,14 @@ const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage, updateMessage } = useChatsStores()
 const mobileEditModal = useModal()
-const { Delete, Refresh, Continue, Copy, Edit, Branch, Language } = useIcon([
+const { Delete, Refresh, Continue, Copy, Edit, Branch, Language, Image } = useIcon([
   'Delete',
   'Refresh',
   'Copy',
   'Edit',
   'Branch',
   'Language',
+  'Image',
   'Stop',
   'Continue'
 ])
@@ -92,6 +94,29 @@ const lastMessageHeight = computed(() => {
 
 const getMessageText = (message: BaseMessage) => {
   return message.parts.map((e) => (e.type === 'text' ? e.text : '')).join('')
+}
+
+const copyMessageAsImage = async (message: BaseMessage) => {
+  if (!message.id) return
+
+  const element = document.getElementById(`message-${message.id}`)
+  if (!element) {
+    messageApi.error('未找到当前信息')
+    return
+  }
+
+  const hideSelectors = ['.context-divider']
+  const copied = await copyElementImageToClipboard(element, {
+    filter: (node) => !hideSelectors.some((selector) => node.matches(selector)),
+    width: Math.max(element.scrollWidth, element.getBoundingClientRect().width)
+  })
+
+  if (copied) {
+    messageApi.success('已复制为图片')
+    return
+  }
+
+  messageApi.error('复制图片失败')
 }
 
 const isContextDividerVisible = (index: number) => {
@@ -389,6 +414,11 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
           label: '复制当前信息',
           icon: Copy,
           onClick: () => copyText(getMessageText(message))
+        },
+        {
+          label: '复制为图片',
+          icon: Image,
+          onClick: () => copyMessageAsImage(message)
         },
         {
           label: '复制当前话题',

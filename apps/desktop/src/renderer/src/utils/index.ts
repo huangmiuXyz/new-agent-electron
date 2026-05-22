@@ -4,6 +4,7 @@ export { cloneDeep, throttle, mapValues, retry, debounce, chunk } from 'es-toolk
 export { blobToDataURL, dataURLToBlob, arrayBufferToBlob } from 'blob-util'
 import { dataURLToBlob as _dataURLToBlob, arrayBufferToBlob as _arrayBufferToBlob } from 'blob-util'
 import stripAnsi from 'strip-ansi'
+import { toBlob } from 'html-to-image'
 // @ts-ignore
 import extensions from 'textextensions'
 
@@ -99,6 +100,58 @@ export const copyImageToClipboard = async (src: string, fallbackText = src): Pro
   } catch (err) {
     console.error('复制图片失败:', err)
     copyText(fallbackText)
+    return false
+  }
+}
+
+export const copyElementImageToClipboard = async (
+  element: HTMLElement,
+  options: {
+    backgroundColor?: string
+    filter?: (node: HTMLElement) => boolean
+    pixelRatio?: number
+    width?: number
+  } = {}
+): Promise<boolean> => {
+  try {
+    if (!navigator.clipboard?.write || !(window as any).ClipboardItem) return false
+
+    const computedStyle = window.getComputedStyle(document.body)
+    const backgroundColor =
+      options.backgroundColor ||
+      computedStyle.getPropertyValue('--bg-primary').trim() ||
+      computedStyle.backgroundColor ||
+      '#ffffff'
+    const blob = await toBlob(element, {
+      backgroundColor,
+      cacheBust: true,
+      pixelRatio: options.pixelRatio ?? Math.min(window.devicePixelRatio || 1, 2),
+      width: options.width ?? element.scrollWidth,
+      height: element.scrollHeight,
+      filter: options.filter
+        ? (node) => {
+            if (!(node instanceof HTMLElement)) return true
+            return options.filter!(node)
+          }
+        : undefined,
+      style: {
+        margin: '0',
+        transform: 'none'
+      }
+    })
+
+    if (!blob) return false
+
+    const ClipboardItemConstructor = (window as any).ClipboardItem
+    await navigator.clipboard.write([
+      new ClipboardItemConstructor({
+        'image/png': blob
+      })
+    ])
+
+    return true
+  } catch (err) {
+    console.error('复制长图失败:', err)
     return false
   }
 }
