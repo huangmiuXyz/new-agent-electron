@@ -506,6 +506,8 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
         overflow-x: auto;
         overflow-y: hidden;
         background: var(--bg-card);
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
       }
 
       .table-wrapper.virtual-scroll {
@@ -513,6 +515,8 @@ export function useTable<T extends Record<string, any>>(config: TableConfig<T>) 
         flex-direction: column;
         overflow-x: auto;
         overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
       }
 
       .table-content {
