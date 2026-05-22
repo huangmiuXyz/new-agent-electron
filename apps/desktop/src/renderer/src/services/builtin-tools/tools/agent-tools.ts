@@ -204,10 +204,11 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           const lastAssistantMessage = [...runtimeChat.messages]
             .reverse()
             .find((msg) => msg.role === 'assistant')
-          summary =
-            lastAssistantMessage!.parts
+          summary = lastAssistantMessage
+            ? [...lastAssistantMessage.parts]
               .reverse()
               .find((part) => part.type === 'text')?.text!
+            : ''
           if (!summary) {
             return {
               toolResult: {
@@ -346,11 +347,21 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           useChat(subChatId)
             .sendMessages(childPrompt)
             .catch((error) => {
-              chatsStore.updateSubTask(subChatId, {
-                status: 'failed',
-                completedAt: Date.now(),
-                error: (error as Error).message
+              const message = (error as Error).message || '子任务启动失败'
+              submitSummaryToParent({
+                chatId: subChatId,
+                parentChatId: parentChat.id,
+                summary: message,
+                success: false,
+                error: message
               })
+
+              if (!chatsStore.isChatGenerating(parentChat.id)) {
+                const pendingMessage = chatsStore.shiftPendingMessage(parentChat.id)
+                if (pendingMessage) {
+                  useChat(parentChat.id).sendMessages(pendingMessage.parts)
+                }
+              }
             })
         }, 0)
 

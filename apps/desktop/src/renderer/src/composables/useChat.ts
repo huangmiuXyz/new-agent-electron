@@ -171,13 +171,49 @@ export const useChat = (chatId: string) => {
         }, 0)
       }
 
-      const markSubTaskFailed = (error: string) => {
+      const submitSubTaskResultToParent = (params: {
+        success?: boolean
+        summary?: string
+        error?: string
+      }) => {
         const runtimeChat = getChatById(chatId)
         if (!runtimeChat?.parentChatId || runtimeChat.subTask?.status !== 'running') return
 
+        const runtimeAgent = getChatAgent()
+        const success = params.success !== false
+        const summary = String(params.summary || '').trim()
+        const error = String(params.error || '').trim()
+        const status: SubTaskStatus = success ? 'completed' : 'failed'
+        const childAgentName = runtimeAgent?.name || runtimeChat.title || '子智能体'
+        const taskText = runtimeChat.subTask?.task || runtimeChat.title
+
         useChatsStores().updateSubTask(chatId, {
-          status: 'failed',
+          status,
           completedAt: Date.now(),
+          result: summary,
+          error: success ? undefined : error || '子任务执行失败',
+          subTaskResultSubmitted: true
+        })
+
+        useChatsStores().addPendingMessage(runtimeChat.parentChatId, [
+          {
+            type: 'text',
+            text:
+              `[子智能体总结]\n` +
+              `来自: ${childAgentName}\n` +
+              `状态: ${status}\n` +
+              `任务: ${taskText}\n` +
+              `总结: ${summary || (success ? '子任务已完成，但未返回总结。' : '子任务执行失败。')}` +
+              (!success && error ? `\n错误: ${error}` : '')
+          }
+        ])
+        triggerNextPendingMessage(runtimeChat.parentChatId)
+      }
+
+      const markSubTaskFailed = (error: string) => {
+        submitSubTaskResultToParent({
+          success: false,
+          summary: error,
           error
         })
       }
@@ -212,36 +248,11 @@ export const useChat = (chatId: string) => {
           return
         }
 
-        const parentChatId = runtimeChat.parentChatId
         const childAgentName = runtimeAgent.name || runtimeChat.title || '子智能体'
         const taskText = runtimeChat.subTask?.task || runtimeChat.title
 
         const submitSummary = (params: { success?: boolean; summary?: string; error?: string }) => {
-          const success = params.success !== false
-          const summary = String(params.summary || '').trim()
-          const error = String(params.error || '').trim()
-          const status: SubTaskStatus = success ? 'completed' : 'failed'
-
-          useChatsStores().updateSubTask(chatId, {
-            status,
-            completedAt: Date.now(),
-            result: summary,
-            error: success ? undefined : error || '子任务执行失败'
-          })
-
-          useChatsStores().addPendingMessage(parentChatId, [
-            {
-              type: 'text',
-              text:
-                `[子智能体总结]\n` +
-                `来自: ${childAgentName}\n` +
-                `状态: ${status}\n` +
-                `任务: ${taskText}\n` +
-                `总结: ${summary}` +
-                (!success && error ? `\n错误: ${error}` : '')
-            }
-          ])
-          triggerNextPendingMessage(parentChatId)
+          submitSubTaskResultToParent(params)
         }
 
         const submitTool: Tool = {
