@@ -3,7 +3,6 @@ const MOBILE_UNSUPPORTED_SETTING_IDS = new Set([
   'shortcuts',
   'knowledge',
   'mcp',
-  'plugins',
   'terminal',
   'userData',
   'backup'
