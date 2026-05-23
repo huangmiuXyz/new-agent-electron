@@ -168,18 +168,34 @@ const getAndroidSafeAreaBottom = () => {
   return Math.max(12, Math.min(occludedBottom, 32))
 }
 
+const isFormControlFocusedInModal = () => {
+  const activeElement = document.activeElement
+  if (!(activeElement instanceof HTMLElement)) return false
+  const isFormControl = activeElement.matches('input, textarea, select, [contenteditable="true"]')
+  return isFormControl && Boolean(activeElement.closest('.modal-overlay'))
+}
+
 const updateViewportHeight = () => {
   if (isMobile.value) {
-    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight
-    document.documentElement.style.setProperty('--vh', `${vh}px`)
+    const visualVh = window.visualViewport ? window.visualViewport.height : window.innerHeight
+    document.documentElement.style.setProperty('--visual-vh', `${visualVh}px`)
+    if (!isFormControlFocusedInModal()) {
+      document.documentElement.style.setProperty('--vh', `${visualVh}px`)
+    }
     document.documentElement.style.setProperty('--safe-area-bottom', `${getAndroidSafeAreaBottom()}px`)
 
-    // 强制滚动到顶部，防止键盘弹出导致页面偏移
-    if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+    // 强制滚动到顶部，防止键盘弹出导致页面偏移；弹窗内输入时不要触发底层页面重排。
+    const activeElement = document.activeElement
+    const shouldResetWindowScroll =
+      activeElement instanceof HTMLElement &&
+      activeElement.matches('input, textarea') &&
+      !activeElement.closest('.modal-overlay')
+    if (shouldResetWindowScroll) {
       window.scrollTo(0, 0)
     }
   } else {
     document.documentElement.style.setProperty('--vh', '100%')
+    document.documentElement.style.setProperty('--visual-vh', '100%')
     document.documentElement.style.setProperty('--safe-area-bottom', '0px')
   }
 }

@@ -18,7 +18,7 @@
           </div>
         </div>
         <div class="modal-body" :class="{ 'is-fullscreen-body': isFullscreen }"
-          :style="{ height: isFullscreen ? '100vh' : height, maxHeight: isFullscreen ? '100vh' : maxHeight, ...(modalBodyStyle || {}) }">
+          :style="{ height: isFullscreen ? modalViewportHeight : resolveModalViewportValue(height), maxHeight: isFullscreen ? modalViewportHeight : resolveModalViewportValue(maxHeight), ...modalBodyResolvedStyle }">
           <slot>
             <div v-if="content" class="modal-desc">
               <template v-if="typeof content === 'string'">{{ content }}</template>
@@ -40,7 +40,7 @@
         </div>
       </div>
 
-      <div v-else class="drawer-container" :style="{ maxHeight: props.maxHeight || drawerViewportHeight, height: props.height }">
+      <div v-else class="drawer-container" :style="drawerContainerStyle">
         <div class="drawer-header">
           <div class="drawer-title">{{ title }}</div>
         </div>
@@ -96,7 +96,19 @@ const confirmButton = useTemplateRef('confirmButton')
 const modalBox = ref<HTMLElement | null>(null)
 const modalHeader = ref<HTMLElement | null>(null)
 const { height: windowHeight } = useWindowSize()
-const drawerViewportHeight = computed(() => `${windowHeight.value}px`)
+const modalViewportHeight = computed(() => `var(--visual-vh, ${windowHeight.value}px)`)
+const resolveModalViewportValue = (value?: string) => value?.replace(/var\(--vh/g, 'var(--visual-vh')
+const modalBodyResolvedStyle = computed(() => {
+  const style: Record<string, unknown> = { ...(props.modalBodyStyle || {}) }
+  if (typeof style.height === 'string') style.height = resolveModalViewportValue(style.height)
+  if (typeof style.maxHeight === 'string') style.maxHeight = resolveModalViewportValue(style.maxHeight)
+  if (typeof style.minHeight === 'string') style.minHeight = resolveModalViewportValue(style.minHeight)
+  return style
+})
+const drawerContainerStyle = computed(() => ({
+  maxHeight: resolveModalViewportValue(props.maxHeight) || modalViewportHeight.value,
+  height: resolveModalViewportValue(props.height)
+}))
 
 const isDraggableEnabled = computed(() => !isMobile.value && props.variant !== 'drawer' && visible.value)
 
@@ -608,8 +620,8 @@ onBeforeUnmount(() => {
 
 .modal-box.is-fullscreen {
   width: 100vw !important;
-  height: 100vh;
-  max-height: 100vh;
+  height: var(--visual-vh, 100vh);
+  max-height: var(--visual-vh, 100vh);
   border-radius: 0;
   top: 0 !important;
   left: 0 !important;
@@ -624,7 +636,7 @@ onBeforeUnmount(() => {
 
 .modal-box.is-fullscreen .modal-body {
   flex: 1;
-  max-height: 100vh !important;
+  max-height: var(--visual-vh, 100vh) !important;
   padding: 0;
 }
 
