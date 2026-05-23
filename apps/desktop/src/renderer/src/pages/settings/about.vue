@@ -9,6 +9,8 @@ const updateStatus = ref('idle') // idle, checking, available, not-available, do
 const updateInfo = ref<any>(null)
 const downloadProgress = ref<any>(null)
 const errorMessage = ref('')
+const hasUpdater = computed(() => Boolean(window.api?.updater))
+const hasDevTools = computed(() => Boolean(window.api?.openDevTools))
 
 const { ChevronRight } = useIcon(['ChevronRight'])
 
@@ -28,6 +30,7 @@ const handleLinkClick = (url: string) => {
 }
 
 const checkUpdates = async () => {
+  if (!window.api?.updater) return
   if (updateStatus.value === 'checking' || updateStatus.value === 'downloading') return
 
   updateStatus.value = 'checking'
@@ -40,6 +43,7 @@ const checkUpdates = async () => {
 }
 
 const startDownload = async () => {
+  if (!window.api?.updater) return
   try {
     updateStatus.value = 'downloading'
     await window.api.updater.downloadUpdate()
@@ -50,16 +54,18 @@ const startDownload = async () => {
 }
 
 const installUpdate = () => {
-  window.api.updater.quitAndInstall()
+  window.api?.updater?.quitAndInstall()
 }
 
 const openDevTools = () => {
-  window.api.openDevTools()
+  window.api?.openDevTools?.()
 }
 
 let removeListener: (() => void) | null = null
 
 onMounted(async () => {
+  if (!window.api?.updater) return
+
   version.value = await window.api.updater.getVersion()
 
   removeListener = window.api.updater.onStatus((status: any) => {
@@ -85,7 +91,7 @@ onUnmounted(() => {
             <div class="header-info">
               <div class="title-row">
                 <h1 class="app-name">Agent Qi</h1>
-                <Tags :tags="['v' + version]" color="orange" />
+                <Tags v-if="version" :tags="['v' + version]" color="orange" />
               </div>
             </div>
           </div>
@@ -94,7 +100,7 @@ onUnmounted(() => {
         <!-- App Header -->
 
         <!-- Update Section -->
-        <FormItem label="软件更新">
+        <FormItem v-if="hasUpdater" label="软件更新">
           <Card>
             <div class="update-row">
               <div class="update-status-text">
@@ -135,7 +141,7 @@ onUnmounted(() => {
           </Card>
         </FormItem>
 
-        <FormItem label="开发者">
+        <FormItem v-if="hasDevTools" label="开发者">
           <Card>
             <div class="update-row">
               <div class="update-status-text">

@@ -11,7 +11,7 @@ import {
   type DataContent
 } from 'ai'
 import { createRegistry } from './registry'
-import { getBuiltinTools } from '../builtin-tools'
+import { getBuiltinToolGroups, getBuiltinTools } from '../builtin-tools'
 import { buildSkillsPrompt, discoverSkills } from '../skillsService'
 import { createRagMiddleware } from './middleware/rags'
 import { createContextLimitMiddleware } from './middleware/contextLimit'
@@ -29,6 +29,16 @@ import {
   buildTranslationPrompt
 } from './systemPrompts'
 import { estimateMessagesTokens, serializeMessageForTokenEstimation } from './tokenUsage'
+import { isMobile } from '@renderer/composables/useDeviceType'
+
+const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
+  '画布工具',
+  '电脑操作',
+  'Agent工具',
+  '知识库',
+  'Codex工具',
+  '插件工具'
+])
 
 interface VideoGenerateOptions {
   n?: number
@@ -470,7 +480,13 @@ export const chatService = () => {
     const skills = discoverSkills(undefined, { chatId: cid })
     const hasLoadSkillTool = skillsEnabled && !!selectedBuiltinTools?.includes('loadSkill')
     const skillsForBuiltinTools = skillsEnabled ? skills : []
-    const builtinTools = getBuiltinTools({ knowledgeBaseIds, skills: skillsForBuiltinTools })
+    const builtinToolContext = { knowledgeBaseIds, skills: skillsForBuiltinTools }
+    const builtinTools = getBuiltinTools(builtinToolContext)
+    const mobileCompatibleBuiltinToolKeys = new Set(
+      Object.entries(getBuiltinToolGroups(builtinToolContext))
+        .filter(([group]) => !MOBILE_UNSUPPORTED_TOOL_GROUPS.has(group))
+        .flatMap(([, toolKeys]) => toolKeys)
+    )
     const skillsPrompt = hasLoadSkillTool ? buildSkillsPrompt(skills, cid) : ''
     const currentChat = useChatsStores().getChatById(cid)
     const agentWorkPath = useCanvasStore().getWorkPath(cid) || undefined
@@ -479,7 +495,8 @@ export const chatService = () => {
       (toolName) =>
         toolName !== 'agent_communicate' &&
         toolName !== 'finish_sub_task' &&
-        !(isSubAgentChat && toolName === 'delegate_to_sub_agent')
+        !(isSubAgentChat && toolName === 'delegate_to_sub_agent') &&
+        (!isMobile.value || mobileCompatibleBuiltinToolKeys.has(toolName))
     )
     const hasAssignedAgentTools = assignedBuiltinTools.some(
       (toolName) => toolName === 'delegate_to_sub_agent'
@@ -505,7 +522,7 @@ export const chatService = () => {
       })
     }
 
-    if (mcpTools && mcpTools.length > 0) {
+    if (!isMobile.value && mcpTools && mcpTools.length > 0) {
       const close = messageApi.loading('连接mcp服务器中...')
       try {
         const allTools = await list_tools(JSON.parse(JSON.stringify(mcpClient)))

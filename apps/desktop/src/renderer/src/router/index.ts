@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { isMobile } from '../composables/useDeviceType'
+import { isMobileRouteSupported, isMobileSettingSupported } from '../constants/mobileCompatibility'
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
@@ -77,6 +78,7 @@ const router = createRouter({
         showTabBar: true,
         sort: 3,
         depth: 1,
+        mobileHidden: true,
         title: '我的应用'
       }
     },
@@ -138,6 +140,23 @@ const router = createRouter({
       ]
     }
   ]
+})
+
+router.beforeEach((to) => {
+  if (!isMobile.value) return true
+
+  if (!isMobileRouteSupported(to.path)) {
+    return '/mobile/chat/list'
+  }
+
+  if (to.path.startsWith('/mobile/settings/')) {
+    const tab = to.params.tab
+    if (typeof tab === 'string' && !isMobileSettingSupported(tab)) {
+      return '/mobile/settings/list'
+    }
+  }
+
+  return true
 })
 
 export default router

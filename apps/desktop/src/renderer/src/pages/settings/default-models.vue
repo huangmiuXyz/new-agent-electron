@@ -1,49 +1,53 @@
 <script setup lang="ts">
+import { isMobile } from '@renderer/composables/useDeviceType'
 
 const settingsStore = useSettingsStore()
 const { defaultModels } = storeToRefs(settingsStore)
 const { updateDefaultModels } = settingsStore
-
-const [DefaultModelsForm] = useForm({
-    title: '默认模型设置',
-    showHeader: false,
-    fields: [
-        {
-            name: 'titleGenerationModel',
-            type: 'modelSelector',
-            label: '标题生成模型',
-            popupPosition: 'bottom',
-            modelCategory: 'text'
-        },
-        {
-            name: 'translationModel',
-            type: 'modelSelector',
-            label: '翻译模型',
-            popupPosition: 'bottom',
-            modelCategory: 'text'
-        },
-        {
-            name: 'searchModel',
-            type: 'modelSelector',
-            label: '搜索模型',
-            popupPosition: 'bottom',
-            modelCategory: 'text'
-        },
+const defaultModelFields: FormField<any>[] = [
+    {
+        name: 'titleGenerationModel',
+        type: 'modelSelector',
+        label: '标题生成模型',
+        popupPosition: 'bottom',
+        modelCategory: 'text'
+    },
+    {
+        name: 'translationModel',
+        type: 'modelSelector',
+        label: '翻译模型',
+        popupPosition: 'bottom',
+        modelCategory: 'text'
+    },
+    {
+        name: 'searchModel',
+        type: 'modelSelector',
+        label: '搜索模型',
+        popupPosition: 'bottom',
+        modelCategory: 'text'
+    },
+    ...(!isMobile.value ? [
         {
             name: 'speechModel',
             type: 'modelSelector',
             label: '语音转文字模型',
             popupPosition: 'bottom',
             modelCategory: 'speech',
-        },
+        } as FormField<any>,
         {
             name: 'ttsModel',
             type: 'modelSelector',
             label: '文字转语音模型',
             popupPosition: 'bottom',
             modelCategory: 'tts',
-        }
-    ],
+        } as FormField<any>
+    ] : [])
+]
+
+const [DefaultModelsForm] = useForm({
+    title: '默认模型设置',
+    showHeader: false,
+    fields: defaultModelFields,
     initialData: {
         titleGenerationModel: {
             modelId: defaultModels.value.titleGenerationModelId,

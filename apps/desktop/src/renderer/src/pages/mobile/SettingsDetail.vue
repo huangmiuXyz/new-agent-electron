@@ -1,8 +1,21 @@
 <script setup lang="ts">
+import { isMobileSettingSupported } from '@renderer/constants/mobileCompatibility'
+
 const route = useRoute()
+const router = useRouter()
 const activeTab = computed(() => route.params.tab as string)
 const { setTitle, customTitle } = useAppHeader()
 setTitle(route.query.name as string)
+
+watch(
+  activeTab,
+  (tab) => {
+    if (tab && !isMobileSettingSupported(tab)) {
+      router.replace('/mobile/settings/list')
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>

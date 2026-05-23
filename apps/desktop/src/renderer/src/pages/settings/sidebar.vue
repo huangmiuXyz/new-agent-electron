@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { isMobile } from '@renderer/composables/useDeviceType'
+import { isMobileSettingSupported } from '@renderer/constants/mobileCompatibility'
 
 interface Props {
   activeTab: string
@@ -47,6 +48,9 @@ const settingsList = [
   { id: 'backup', name: '备份与恢复', icon: Database, section: '系统与文件' },
   { id: 'about', name: '关于我们', icon: InfoCircle, section: '其他' }
 ]
+const visibleSettingsList = computed(() => {
+  return isMobile.value ? settingsList.filter((item) => isMobileSettingSupported(item.id)) : settingsList
+})
 interface Emits {
   (e: 'tab-change', tabName: string, tabItem: (typeof settingsList)[number]): void
 }
@@ -56,7 +60,9 @@ const emit = defineEmits<Emits>()
 const handleTabChange = (tabName: string) => {
   const { setTitle } = useAppHeader()
   setTitle(tabName)
-  emit('tab-change', tabName, settingsList.find((item) => item.id === tabName)!)
+  const tabItem = visibleSettingsList.value.find((item) => item.id === tabName)
+  if (!tabItem) return
+  emit('tab-change', tabName, tabItem)
 }
 </script>
 
@@ -65,7 +71,7 @@ const handleTabChange = (tabName: string) => {
     <!-- 设置选项 -->
     <List
       class="settings-sidebar-list"
-      :items="settingsList"
+      :items="visibleSettingsList"
       :active-id="activeTab"
       :key-field="'id'"
       :main-field="'name'"

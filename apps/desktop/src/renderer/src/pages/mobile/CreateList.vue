@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { isMobileRouteSupported } from '@renderer/constants/mobileCompatibility'
+
 const router = useRouter()
 
 const { Image, Screen, VolumeMedium, ChevronRight } = useIcon([
@@ -32,6 +34,10 @@ const createOptions = [
   }
 ] as const
 
+const visibleCreateOptions = computed(() => {
+  return createOptions.filter((option) => isMobileRouteSupported(option.path))
+})
+
 const openCreatePage = (path: string) => {
   router.push(path)
 }
@@ -43,7 +49,7 @@ const openCreatePage = (path: string) => {
 
     <div class="create-list-content">
       <button
-        v-for="option in createOptions"
+        v-for="option in visibleCreateOptions"
         :key="option.key"
         class="create-card"
         type="button"

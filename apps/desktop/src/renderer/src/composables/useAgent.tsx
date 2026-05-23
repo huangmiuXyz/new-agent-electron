@@ -5,6 +5,7 @@ import Markdown from '@renderer/components/Markdown.vue'
 import Button from '@renderer/components/Button.vue'
 import CheckboxGroup from '@renderer/components/CheckboxGroup.vue'
 import { useContextMenu, type MenuItem } from '@renderer/composables/useContextMenu'
+import { isMobile } from '@renderer/composables/useDeviceType'
 
 interface AgentFormData extends Omit<
   Agent,
@@ -17,6 +18,14 @@ interface AgentFormData extends Omit<
 }
 
 const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
+const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
+  '画布工具',
+  '电脑操作',
+  'Agent工具',
+  '知识库',
+  'Codex工具',
+  '插件工具'
+])
 
 export const useAgent = () => {
   const agentStore = useAgentStore()
@@ -29,6 +38,7 @@ export const useAgent = () => {
 
   const resolveSkillDirectory = (rawPath?: string) => {
     const normalizedPath = rawPath?.trim() || DEFAULT_SKILL_DIRECTORY
+    if (!window.api?.path || !window.api?.os) return normalizedPath
     if (normalizedPath.startsWith('~/')) {
       return window.api.path.join(window.api.os.homedir(), normalizedPath.slice(2))
     }
@@ -58,6 +68,7 @@ export const useAgent = () => {
         tags: approvalSet.has(key) ? ['需批准'] : [],
         tagColor: 'orange'
       }))
+      .filter((option) => !isMobile.value || !MOBILE_UNSUPPORTED_TOOL_GROUPS.has(option.group))
       .sort((a, b) => {
         if (a.group !== b.group) return a.group.localeCompare(b.group, 'zh-Hans-CN')
         return a.label.localeCompare(b.label, 'zh-Hans-CN')
@@ -1209,18 +1220,20 @@ export const useAgent = () => {
         dialogOptions: {
           properties: ['openDirectory'],
           title: '选择工作目录'
-        }
+        },
+        ifShow: () => !isMobile.value
       } as PathSelectorField<AgentFormData>
     ]
+
+    const desktopIntegrationFields = isMobile.value ? [] : [...mcpFields, ...skillFields]
 
     const allFields: FormField<AgentFormData>[] = [
       ...basicFields,
       ...modelFields,
-      ...speechFields,
+      ...(isMobile.value ? [] : speechFields),
       ...builtinToolFields,
-      ...mcpFields,
-      ...skillFields,
-      ...knowledgeFields,
+      ...desktopIntegrationFields,
+      ...(isMobile.value ? [] : knowledgeFields),
       ...appearanceFields,
       ...advancedFields
     ]
@@ -1344,7 +1357,9 @@ export const useAgent = () => {
           { id: 'knowledge', name: '知识库', icon: Library16Filled, fields: knowledgeFields },
           { id: 'appearance', name: '外观设置', icon: FormatImage, fields: appearanceFields },
           { id: 'advanced', name: '高级设置', icon: Screen, fields: advancedFields }
-        ]
+        ].filter((category) => {
+          return !isMobile.value || !['speech', 'mcp', 'skills', 'knowledge'].includes(category.id)
+        })
 
         const activeCategory = ref('basic')
 
@@ -1361,11 +1376,15 @@ export const useAgent = () => {
             <div
               class="tabs-container"
               style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 2,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
                 padding: '8px 16px',
                 borderBottom: '1px solid var(--border-subtle)',
+                background: 'var(--bg-card)',
                 overflowX: 'auto',
                 whiteSpace: 'nowrap',
                 scrollbarWidth: 'none',

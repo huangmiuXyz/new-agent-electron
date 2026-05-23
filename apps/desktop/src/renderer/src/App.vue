@@ -217,7 +217,7 @@ provide('switchView', switchView)
 
 const mobileTabs = computed(() => {
   return router.getRoutes()
-    .filter((r) => r.path.startsWith('/mobile/') && r.meta?.sort !== undefined)
+    .filter((r) => r.path.startsWith('/mobile/') && r.meta?.sort !== undefined && r.meta?.mobileHidden !== true)
     .sort((a, b) => (a.meta.sort as number) - (b.meta.sort as number))
 })
 const isTabSwipeEnabled = computed(() => {
