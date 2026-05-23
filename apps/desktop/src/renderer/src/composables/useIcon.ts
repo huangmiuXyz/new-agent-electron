@@ -72,6 +72,7 @@ import {
   FileInvoice,
   Markdown,
   Video,
+  Artboard,
   Box,
   Language,
   Folder,
@@ -99,7 +100,6 @@ import {
   Send
 } from '@vicons/tabler'
 import {
-  CommentAdd16Regular,
   ErrorCircle24Filled,
   Library16Filled,
   Mic16Filled,
@@ -110,6 +110,26 @@ import {
 } from '@vicons/fluent'
 import { Globe, Mic, MicOff, Sparkles, VolumeMute, VolumeMedium } from '@vicons/ionicons5'
 import { ArrowBackIosNewSharp, EditNoteFilled, UploadOutlined } from '@vicons/material'
+
+const CommentAdd16Regular = defineComponent({
+  name: 'CommentAdd16Regular',
+  render() {
+    return h(
+      'svg',
+      {
+        viewBox: '-192 -192 1408 1408',
+        xmlns: 'http://www.w3.org/2000/svg',
+        fill: 'currentColor',
+        'aria-hidden': 'true'
+      },
+      [
+        h('path', {
+          d: 'M153.599886 102.399924a51.199962 51.199962 0 0 0-51.199962 51.199962v543.999596a51.199962 51.199962 0 0 0 51.199962 51.199962h99.213926a51.199962 51.199962 0 0 1 51.199962 51.199962v89.969933l271.473799-135.736899a51.552962 51.552962 0 0 1 22.897983-5.432996H870.399354a51.199962 51.199962 0 0 0 51.199962-51.199962V511.99962a51.199962 51.199962 0 1 1 102.399924 0v185.599862a153.599886 153.599886 0 0 1-153.599886 153.599886H610.502547l-334.847752 167.423876a51.199962 51.199962 0 0 1-74.039945-45.795966V851.199368H153.599886A153.599886 153.599886 0 0 1 0 697.599482v-543.999596A153.599886 153.599886 0 0 1 153.599886 0h300.799777a51.199962 51.199962 0 0 1 0 102.399924H153.599886zM771.213428 0a51.199962 51.199962 0 0 1 51.199962 51.199962v121.59991h121.599909a51.199962 51.199962 0 0 1 0 102.399924h-121.599909v121.59991a51.199962 51.199962 0 1 1-102.399924 0V275.199796h-121.59991a51.199962 51.199962 0 0 1 0-102.399924h121.57191V51.199962a51.199962 51.199962 0 0 1 51.199962-51.199962h0.028z'
+        })
+      ]
+    )
+  }
+})
 
 export const icons = {
   Edit,
@@ -158,6 +178,7 @@ export const icons = {
   FileInvoice,
   Markdown,
   Video,
+  Artboard,
   Mic16Filled,
   Box,
   Language,

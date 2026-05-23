@@ -18,7 +18,7 @@ const chatsStore = useChatsStores()
 const { register } = useShortcuts()
 const switchView = inject('switchView') as (view: 'chat' | 'notes' | 'settings' | 'image' | 'my-apps') => void
 
-const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp, Settings, Box } = useIcon([
+const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp, Settings, Artboard } = useIcon([
   'Search',
   'PanelOpen',
   'PanelClose',
@@ -26,7 +26,7 @@ const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp
   'ArrowBackIosNewSharp',
   'NoteAdd24Regular',
   'Settings',
-  'Box'
+  'Artboard'
 ])
 const showSearch = ref(false)
 const router = useRouter()
@@ -180,7 +180,7 @@ watch(
         title="画布"
         @click="openMobileCanvas"
       >
-        <Box />
+        <Artboard />
       </Button>
     </div>
 
