@@ -77,7 +77,7 @@ const toggleTaskList = () => {
             </Button>
         </div>
 
-        <Divider vertical />
+        <Divider vertical class="toolbar-divider" />
 
         <!-- 文本格式 -->
         <div class="toolbar-group">
@@ -93,20 +93,20 @@ const toggleTaskList = () => {
                 @click="editor.chain().focus().toggleUnderline().run()" title="下划线 (Ctrl+U)">
                 <FormatUnderlined />
             </Button>
-            <Button variant="icon" size="sm" :class="{ 'is-active': editor.isActive('strike') }"
+            <Button variant="icon" size="sm" class="mobile-hidden" :class="{ 'is-active': editor.isActive('strike') }"
                 @click="editor.chain().focus().toggleStrike().run()" title="删除线">
                 <FormatStrikethrough />
             </Button>
-            <Button variant="icon" size="sm" :class="{ 'is-active': editor.isActive('code') }"
+            <Button variant="icon" size="sm" class="mobile-hidden" :class="{ 'is-active': editor.isActive('code') }"
                 @click="editor.chain().focus().toggleCode().run()" title="行内代码">
                 <FormatCode />
             </Button>
         </div>
 
-        <Divider vertical />
+        <Divider vertical class="toolbar-divider mobile-hidden" />
 
         <!-- 标题 -->
-        <div class="toolbar-group">
+        <div class="toolbar-group mobile-hidden">
             <Button variant="icon" size="sm" :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }"
                 @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" title="标题 1">
                 H1
@@ -121,14 +121,7 @@ const toggleTaskList = () => {
             </Button>
         </div>
 
-        <Divider vertical />
-
-        <!-- 字号 -->
-        <div class="toolbar-group font-size-group">
-            <Select v-model="currentFontSize" :options="fontSizeOptions" size="sm" title="字号" />
-        </div>
-
-        <Divider vertical />
+        <Divider vertical class="toolbar-divider" />
 
         <!-- 列表 -->
         <div class="toolbar-group">
@@ -140,16 +133,16 @@ const toggleTaskList = () => {
                 @click="editor.chain().focus().toggleOrderedList().run()" title="有序列表">
                 <FormatListNumbered />
             </Button>
-            <Button variant="icon" size="sm" :class="{ 'is-active': editor.isActive('taskList') }"
+            <Button variant="icon" size="sm" class="mobile-hidden" :class="{ 'is-active': editor.isActive('taskList') }"
                 @click="toggleTaskList" title="任务列表">
                 <CheckCircle />
             </Button>
         </div>
 
-        <Divider vertical />
+        <Divider vertical class="toolbar-divider mobile-hidden" />
 
         <!-- 对齐 -->
-        <div class="toolbar-group">
+        <div class="toolbar-group mobile-hidden">
             <Button variant="icon" size="sm" :class="{ 'is-active': editor.isActive({ textAlign: 'left' }) }"
                 @click="editor.chain().focus().setTextAlign('left').run()" title="左对齐">
                 <FormatAlignLeft />
@@ -168,10 +161,10 @@ const toggleTaskList = () => {
             </Button>
         </div>
 
-        <Divider vertical />
+        <Divider vertical class="toolbar-divider mobile-hidden" />
 
         <!-- 其他 -->
-        <div class="toolbar-group">
+        <div class="toolbar-group mobile-hidden">
             <Button variant="icon" size="sm" :class="{ 'is-active': editor.isActive('blockquote') }"
                 @click="editor.chain().focus().toggleBlockquote().run()" title="引用">
                 <FormatQuote />
@@ -183,6 +176,13 @@ const toggleTaskList = () => {
             <Button variant="icon" size="sm" @click="editor.chain().focus().setHorizontalRule().run()" title="水平线">
                 <FormatHorizontalRule />
             </Button>
+        </div>
+
+        <Divider vertical class="toolbar-divider font-size-divider" />
+
+        <!-- 字号 -->
+        <div class="toolbar-group font-size-group">
+            <Select v-model="currentFontSize" :options="fontSizeOptions" size="sm" title="字号" />
         </div>
     </div>
 </template>
@@ -201,8 +201,26 @@ const toggleTaskList = () => {
 }
 
 .rich-text-toolbar.is-mobile {
-    padding: 8px;
+    min-height: 40px;
+    padding: 6px 8px;
     gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.rich-text-toolbar.is-mobile::-webkit-scrollbar {
+    display: none;
+}
+
+.rich-text-toolbar.is-mobile .mobile-hidden,
+.rich-text-toolbar.is-mobile .toolbar-divider {
+    display: none;
+}
+
+.rich-text-toolbar.is-mobile .font-size-group {
+    width: 56px;
+    flex-basis: 56px;
 }
 
 .toolbar-group {
@@ -214,6 +232,7 @@ const toggleTaskList = () => {
 .font-size-group {
     width: 72px;
     flex: 0 0 72px;
+    margin-left: auto;
 }
 
 .font-size-group :deep(.form-select) {
