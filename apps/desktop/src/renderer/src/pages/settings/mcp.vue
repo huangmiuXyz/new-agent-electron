@@ -317,7 +317,7 @@ const toggleActive = async (server: any) => {
 .mcp-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
 }
 
 .mcp-header {
