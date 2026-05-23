@@ -77,7 +77,7 @@ const props = withDefaults(defineProps<BaseModalProps>(), {
   variant: isMobile.value ? 'drawer' : 'center',
   showFooter: true,
   showCancel: true,
-  maxHeight: '90vh'
+  maxHeight: 'calc(var(--visual-vh, 100vh) * 0.9)'
 })
 
 const { Close, Fullscreen, FullscreenExit } = useIcon(['Close', 'Fullscreen', 'FullscreenExit'])
@@ -162,8 +162,13 @@ const resetPosition = () => {
     const el = modalBox.value
     if (!el) return
     const rect = el.getBoundingClientRect()
-    x.value = (window.innerWidth - rect.width) / 2
-    y.value = (window.innerHeight - rect.height) / 2
+    const viewport = window.visualViewport
+    const viewportWidth = viewport?.width ?? window.innerWidth
+    const viewportHeight = viewport?.height ?? window.innerHeight
+    const viewportLeft = viewport?.offsetLeft ?? 0
+    const viewportTop = viewport?.offsetTop ?? 0
+    x.value = viewportLeft + (viewportWidth - rect.width) / 2
+    y.value = viewportTop + (viewportHeight - rect.height) / 2
   })
 }
 
@@ -177,6 +182,12 @@ const observeModalSize = () => {
     resetPosition()
   })
   modalResizeObserver.observe(modalBox.value)
+}
+
+const handleViewportChange = () => {
+  if (props.variant === 'drawer') return
+  if (!visible.value || isDragging.value || isFullscreen.value) return
+  resetPosition()
 }
 
 const finalizeClose = (result: boolean) => {
@@ -303,6 +314,8 @@ onMounted(async () => {
   window.addEventListener('keyup', handleGlobalKeyUp, true)
   window.addEventListener('blur', clearEscHold)
   window.addEventListener('agent-qi-preview-escape', handlePreviewEscapeEvent as EventListener)
+  window.visualViewport?.addEventListener('resize', handleViewportChange)
+  window.visualViewport?.addEventListener('scroll', handleViewportChange)
   nextTick(() => {
     observeModalSize()
     modalOverlay.value?.focus()
@@ -316,6 +329,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('keyup', handleGlobalKeyUp, true)
   window.removeEventListener('blur', clearEscHold)
   window.removeEventListener('agent-qi-preview-escape', handlePreviewEscapeEvent as EventListener)
+  window.visualViewport?.removeEventListener('resize', handleViewportChange)
+  window.visualViewport?.removeEventListener('scroll', handleViewportChange)
   modalResizeObserver?.disconnect()
   modalResizeObserver = null
 })

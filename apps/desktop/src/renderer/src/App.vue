@@ -178,10 +178,14 @@ const isFormControlFocusedInModal = () => {
 const updateViewportHeight = () => {
   if (isMobile.value) {
     const visualVh = window.visualViewport ? window.visualViewport.height : window.innerHeight
+    const isModalFormControlFocused = isFormControlFocusedInModal()
     document.documentElement.style.setProperty('--visual-vh', `${visualVh}px`)
-    if (!isFormControlFocusedInModal()) {
-      document.documentElement.style.setProperty('--vh', `${visualVh}px`)
+
+    if (isModalFormControlFocused) {
+      return
     }
+
+    document.documentElement.style.setProperty('--vh', `${visualVh}px`)
     document.documentElement.style.setProperty('--safe-area-bottom', `${getAndroidSafeAreaBottom()}px`)
 
     // 强制滚动到顶部，防止键盘弹出导致页面偏移；弹窗内输入时不要触发底层页面重排。
