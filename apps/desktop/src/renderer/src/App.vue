@@ -510,7 +510,6 @@ const { width } = useWindowSize()
   margin: 0;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior: none;
 }
 
 @media (max-width: 767px) {
@@ -528,6 +527,7 @@ html {
   background-color: var(--bg-app);
   height: 100dvh;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -538,6 +538,7 @@ body {
   display: flex;
   color: var(--text-primary);
   overflow: hidden;
+  overscroll-behavior: none;
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
 }
@@ -545,6 +546,7 @@ body {
 #app {
   width: 100%;
   height: 100%;
+  overscroll-behavior: none;
 }
 
 /* 隐藏滚动条但保持滚动功能 */

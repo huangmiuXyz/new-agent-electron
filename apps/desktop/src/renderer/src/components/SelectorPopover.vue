@@ -127,7 +127,7 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
           />
           <slot name="search-action"></slot>
         </div>
-          <div class="selector-list-container" v-scroll>
+          <div class="selector-list-container">
             <div v-if="!hasResults" class="no-results">
               {{ noResultsText || '未找到结果' }}
             </div>
@@ -170,7 +170,7 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
             />
             <slot name="search-action"></slot>
           </div>
-          <div class="selector-list-container" v-scroll>
+          <div class="selector-list-container">
             <div v-if="!hasResults" class="no-results">
               {{ noResultsText || '未找到结果' }}
             </div>
