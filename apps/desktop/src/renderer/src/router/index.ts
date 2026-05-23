@@ -53,6 +53,11 @@ const router = createRouter({
           path: '/mobile/chat/session',
           component: () => import('../pages/mobile/ChatDetail.vue'),
           meta: { depth: 2 }
+        },
+        {
+          path: '/mobile/chat/canvas',
+          component: () => import('../pages/mobile/CanvasPage.vue'),
+          meta: { depth: 3 }
         }
       ]
     },

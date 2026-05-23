@@ -752,7 +752,7 @@ const runMobileToolAction = async (toolId: MobileDragToolId) => {
   if (toolId === 'thinking') return updateThinkingMode(!thinkingMode.value)
   if (toolId === 'settings') return openProviderOptionsModal()
   if (toolId === 'speech') return toggleSpeech()
-  if (toolId === 'playlist') return toggleAssistantPanel()
+  if (toolId === 'playlist') return toggleAssistantPanel('playlist')
   if (toolId === 'stop') return stopAllGeneratingInCurrentChat()
 }
 
@@ -1314,8 +1314,8 @@ onUnmounted(() => {
                   <VolumeMuteIcon v-else />
                 </Button>
                 <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
-                  :class="{ 'speech-active': !display.speechSidebarCollapsed }"
-                  :title="display.speechSidebarCollapsed ? '打开侧边面板' : '关闭侧边面板'"
+                  :class="{ 'speech-active': !display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist' }"
+                  :title="display.speechSidebarCollapsed || display.assistantSidebarTab !== 'playlist' ? '打开播放列表' : '关闭播放列表'"
                   @click="handleMobileToolClick('playlist', $event)">
                   <PlaylistIcon />
                 </Button>
@@ -1376,8 +1376,8 @@ onUnmounted(() => {
                   <VolumeMuteIcon v-else />
                 </Button>
                 <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
-                  :class="{ 'speech-active': !display.speechSidebarCollapsed }"
-                  :title="display.speechSidebarCollapsed ? '打开侧边面板' : '关闭侧边面板'"
+                  :class="{ 'speech-active': !display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist' }"
+                  :title="display.speechSidebarCollapsed || display.assistantSidebarTab !== 'playlist' ? '打开播放列表' : '关闭播放列表'"
                   @click="handleMobileToolClick('playlist', $event)">
                   <PlaylistIcon />
                 </Button>
@@ -1435,8 +1435,8 @@ onUnmounted(() => {
                 <VolumeMuteIcon v-else />
               </Button>
               <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
-                :class="{ 'speech-active': !display.speechSidebarCollapsed }"
-                :title="display.speechSidebarCollapsed ? '打开侧边面板' : '关闭侧边面板'"
+                :class="{ 'speech-active': !display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist' }"
+                :title="display.speechSidebarCollapsed || display.assistantSidebarTab !== 'playlist' ? '打开播放列表' : '关闭播放列表'"
                 @click="handleMobileToolClick('playlist', $event)">
                 <PlaylistIcon />
               </Button>

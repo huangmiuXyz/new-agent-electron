@@ -18,16 +18,18 @@ const chatsStore = useChatsStores()
 const { register } = useShortcuts()
 const switchView = inject('switchView') as (view: 'chat' | 'notes' | 'settings' | 'image' | 'my-apps') => void
 
-const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp, Settings } = useIcon([
+const { Search, PanelOpen, PanelClose, CommentAdd16Regular, ArrowBackIosNewSharp, Settings, Box } = useIcon([
   'Search',
   'PanelOpen',
   'PanelClose',
   'CommentAdd16Regular',
   'ArrowBackIosNewSharp',
   'NoteAdd24Regular',
-  'Settings'
+  'Settings',
+  'Box'
 ])
 const showSearch = ref(false)
+const router = useRouter()
 const isMacDesktop = computed(() => !isMobile.value && window.api?.process?.platform === 'darwin')
 const isMacNativeFullscreen = ref(false)
 const shouldHideHeader = computed(() => isMacDesktop.value && isMacNativeFullscreen.value)
@@ -46,9 +48,14 @@ const createNewChat = () => {
   chatsStore.createChat()
 }
 
+const openMobileCanvas = () => {
+  router.push('/mobile/chat/canvas')
+}
+
 const { back } = useMobile()
 const route = useRoute()
 const isWindowsDesktop = computed(() => !isMobile.value && window.api?.process?.platform === 'win32')
+const isMobileChatCanvasRoute = computed(() => route.path === '/mobile/chat/canvas')
 let removeFullScreenListener: (() => void) | null = null
 
 // 注册全局快捷键
@@ -165,6 +172,15 @@ watch(
         @click="toggleImageSidebar"
       >
         <Settings />
+      </Button>
+      <Button
+        v-if="isMobile && !isListMode && props.currentView === 'chat' && !isMobileChatCanvasRoute"
+        variant="icon"
+        size="md"
+        title="画布"
+        @click="openMobileCanvas"
+      >
+        <Box />
       </Button>
     </div>
 

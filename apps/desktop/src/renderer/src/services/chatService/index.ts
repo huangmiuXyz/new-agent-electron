@@ -32,7 +32,6 @@ import { estimateMessagesTokens, serializeMessageForTokenEstimation } from './to
 import { isMobile } from '@renderer/composables/useDeviceType'
 
 const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
-  '画布工具',
   '电脑操作',
   'Agent工具',
   '知识库',

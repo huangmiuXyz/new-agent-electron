@@ -42,6 +42,7 @@ const openSpeechPlaylist = () => {
     if (isSpeechPlaylistOpen.value) return
 
     isSpeechPlaylistOpen.value = true
+    settingsStore.display.assistantSidebarTab = 'playlist'
     settingsStore.display.speechSidebarCollapsed = false
 
     speechSidebarModal.confirm({
