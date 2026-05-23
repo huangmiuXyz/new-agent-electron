@@ -172,19 +172,29 @@ const isFormControlFocusedInModal = () => {
   const activeElement = document.activeElement
   if (!(activeElement instanceof HTMLElement)) return false
   const isFormControl = activeElement.matches('input, textarea, select, [contenteditable="true"]')
-  return isFormControl && Boolean(activeElement.closest('.modal-overlay'))
+  return isFormControl && Boolean(activeElement.closest('.basic-modal-overlay'))
+}
+
+const hasBaseModalOpen = () => {
+  return Boolean(document.querySelector('.basic-modal-overlay'))
 }
 
 const updateViewportHeight = () => {
   if (isMobile.value) {
     const visualVh = window.visualViewport ? window.visualViewport.height : window.innerHeight
     const isModalFormControlFocused = isFormControlFocusedInModal()
+    const viewportOffsetTop = window.visualViewport?.offsetTop ?? window.scrollY ?? 0
     document.documentElement.style.setProperty('--visual-vh', `${visualVh}px`)
 
-    if (isModalFormControlFocused) {
+    if (isModalFormControlFocused || hasBaseModalOpen()) {
+      document.documentElement.style.setProperty('--visual-viewport-offset-top', `${viewportOffsetTop}px`)
+      document.documentElement.style.setProperty('--safe-area-bottom', '0px')
+      window.scrollTo(0, 0)
+      requestAnimationFrame(() => window.scrollTo(0, 0))
       return
     }
 
+    document.documentElement.style.setProperty('--visual-viewport-offset-top', '0px')
     document.documentElement.style.setProperty('--vh', `${visualVh}px`)
     document.documentElement.style.setProperty('--safe-area-bottom', `${getAndroidSafeAreaBottom()}px`)
 
@@ -193,13 +203,14 @@ const updateViewportHeight = () => {
     const shouldResetWindowScroll =
       activeElement instanceof HTMLElement &&
       activeElement.matches('input, textarea') &&
-      !activeElement.closest('.modal-overlay')
+      !activeElement.closest('.basic-modal-overlay')
     if (shouldResetWindowScroll) {
       window.scrollTo(0, 0)
     }
   } else {
     document.documentElement.style.setProperty('--vh', '100%')
     document.documentElement.style.setProperty('--visual-vh', '100%')
+    document.documentElement.style.setProperty('--visual-viewport-offset-top', '0px')
     document.documentElement.style.setProperty('--safe-area-bottom', '0px')
   }
 }
@@ -615,6 +626,10 @@ body {
   position: fixed;
   top: 0;
   left: 0;
+}
+
+:global(.basic-modal-open) .app-layout {
+  transform: translateY(var(--visual-viewport-offset-top, 0px));
 }
 
 .app-body {

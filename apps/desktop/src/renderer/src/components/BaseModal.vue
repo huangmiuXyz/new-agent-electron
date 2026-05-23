@@ -295,7 +295,7 @@ const handleConfirm = () => {
 }
 
 const overlayClass = computed(() => {
-  return props.variant === 'drawer' ? 'modal-overlay drawer-overlay' : 'modal-overlay'
+  return props.variant === 'drawer' ? 'modal-overlay basic-modal-overlay drawer-overlay' : 'modal-overlay basic-modal-overlay'
 })
 
 useBackButton({

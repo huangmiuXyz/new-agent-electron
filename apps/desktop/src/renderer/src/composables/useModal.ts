@@ -4,10 +4,15 @@ import BaseModal from '@renderer/components/BaseModal.vue'
 const MODAL_BASE_Z_INDEX = 3000
 const activeModalContainers: HTMLDivElement[] = []
 
+function syncModalDocumentState() {
+  document.documentElement.classList.toggle('basic-modal-open', activeModalContainers.length > 0)
+}
+
 function syncModalStackZIndex() {
   activeModalContainers.forEach((container, index) => {
     container.style.setProperty('--modal-z-index', String(MODAL_BASE_Z_INDEX + index))
   })
+  syncModalDocumentState()
 }
 
 export function useModal(): ModalActions {
