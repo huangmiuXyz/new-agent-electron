@@ -63,9 +63,12 @@ const openSpeechPlaylist = () => {
 }
 
 watch(
-    () => settingsStore.display.speechSidebarCollapsed,
-    (collapsed) => {
-        if (collapsed) {
+    () => [
+        settingsStore.display.speechSidebarCollapsed,
+        settingsStore.display.assistantSidebarTab
+    ] as const,
+    ([collapsed, activeTab]) => {
+        if (collapsed || activeTab !== 'playlist') {
             if (isSpeechPlaylistOpen.value) {
                 isSpeechPlaylistOpen.value = false
                 speechSidebarModal.remove()

@@ -19,12 +19,14 @@ interface AgentFormData extends Omit<
 
 const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
 const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
-  '画布工具',
   '电脑操作',
   'Agent工具',
   '知识库',
   'Codex工具',
   '插件工具'
+])
+const MOBILE_UNSUPPORTED_BUILTIN_TOOLS = new Set([
+  'exec_command_canvas'
 ])
 
 export const useAgent = () => {
@@ -68,7 +70,12 @@ export const useAgent = () => {
         tags: approvalSet.has(key) ? ['需批准'] : [],
         tagColor: 'orange'
       }))
-      .filter((option) => !isMobile.value || !MOBILE_UNSUPPORTED_TOOL_GROUPS.has(option.group))
+      .filter(
+        (option) =>
+          !isMobile.value ||
+          (!MOBILE_UNSUPPORTED_TOOL_GROUPS.has(option.group) &&
+            !MOBILE_UNSUPPORTED_BUILTIN_TOOLS.has(option.value))
+      )
       .sort((a, b) => {
         if (a.group !== b.group) return a.group.localeCompare(b.group, 'zh-Hans-CN')
         return a.label.localeCompare(b.label, 'zh-Hans-CN')

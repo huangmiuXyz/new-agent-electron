@@ -38,6 +38,9 @@ const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
   'Codex工具',
   '插件工具'
 ])
+const MOBILE_UNSUPPORTED_BUILTIN_TOOLS = new Set([
+  'exec_command_canvas'
+])
 
 interface VideoGenerateOptions {
   n?: number
@@ -495,7 +498,9 @@ export const chatService = () => {
         toolName !== 'agent_communicate' &&
         toolName !== 'finish_sub_task' &&
         !(isSubAgentChat && toolName === 'delegate_to_sub_agent') &&
-        (!isMobile.value || mobileCompatibleBuiltinToolKeys.has(toolName))
+        (!isMobile.value ||
+          (mobileCompatibleBuiltinToolKeys.has(toolName) &&
+            !MOBILE_UNSUPPORTED_BUILTIN_TOOLS.has(toolName)))
     )
     const hasAssignedAgentTools = assignedBuiltinTools.some(
       (toolName) => toolName === 'delegate_to_sub_agent'
