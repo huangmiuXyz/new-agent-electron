@@ -1,7 +1,8 @@
 <template>
   <Transition :name="variant === 'drawer' ? 'drawer' : 'modal-fade'">
     <div v-if="visible" ref="modalOverlay" :class="overlayClass" @click.self="handleEsc"
-      tabindex="-1">
+      @touchstart.capture="handleModalTouchStart" @touchmove.capture="handleModalTouchMove"
+      @wheel.capture="handleModalWheel" tabindex="-1">
       <div v-if="variant !== 'drawer'" ref="modalBox" class="modal-box"
         :class="{ 'is-dragging': isDragging, 'is-fullscreen': isFullscreen }"
         :style="[{ width: isFullscreen ? '100%' : props.width }, draggableStyle]">
@@ -88,6 +89,7 @@ let modalResizeObserver: ResizeObserver | null = null
 let escHoldTimer: ReturnType<typeof setTimeout> | null = null
 let isEscHolding = false
 let suppressEscUntilKeyUp = false
+let modalTouchStartY = 0
 const ESC_HOLD_EXIT_MS = 500
 
 const visible = ref(false)
@@ -188,6 +190,63 @@ const handleViewportChange = () => {
   if (props.variant === 'drawer') return
   if (!visible.value || isDragging.value || isFullscreen.value) return
   resetPosition()
+}
+
+const getModalScrollable = (target: EventTarget | null): HTMLElement | null => {
+  if (!(target instanceof HTMLElement)) return null
+  const overlay = modalOverlay.value
+  if (!overlay?.contains(target)) return null
+
+  let current: HTMLElement | null = target
+  while (current && current !== overlay) {
+    const style = window.getComputedStyle(current)
+    const canScrollY =
+      /(auto|scroll)/.test(style.overflowY) &&
+      current.scrollHeight > current.clientHeight
+    if (canScrollY) return current
+    current = current.parentElement
+  }
+
+  return null
+}
+
+const shouldPreventScrollChaining = (target: EventTarget | null, deltaY: number) => {
+  const scrollable = getModalScrollable(target)
+  if (!scrollable) return true
+
+  const atTop = scrollable.scrollTop <= 0
+  const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 1
+  return (deltaY < 0 && atTop) || (deltaY > 0 && atBottom)
+}
+
+const handleModalTouchStart = (event: TouchEvent) => {
+  modalTouchStartY = event.touches[0]?.clientY ?? 0
+}
+
+const handleModalTouchMove = (event: TouchEvent) => {
+  if (!isTopmostModal()) return
+
+  const currentY = event.touches[0]?.clientY ?? modalTouchStartY
+  const deltaY = modalTouchStartY - currentY
+  modalTouchStartY = currentY
+
+  if (shouldPreventScrollChaining(event.target, deltaY)) {
+    event.preventDefault()
+    return
+  }
+
+  event.stopPropagation()
+}
+
+const handleModalWheel = (event: WheelEvent) => {
+  if (!isTopmostModal()) return
+
+  if (shouldPreventScrollChaining(event.target, event.deltaY)) {
+    event.preventDefault()
+    return
+  }
+
+  event.stopPropagation()
 }
 
 const finalizeClose = (result: boolean) => {
@@ -348,6 +407,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   background: rgba(0, 0, 0, 0.4);
   z-index: var(--modal-z-index, 3000);
+  overscroll-behavior: none;
 }
 
 .drawer-overlay {
@@ -428,6 +488,7 @@ onBeforeUnmount(() => {
 .modal-body {
   padding: 20px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .modal-desc {
@@ -556,6 +617,7 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   touch-action: pan-y;
   padding: 8px;
 }
