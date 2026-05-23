@@ -710,6 +710,7 @@ const VoiceTable = defineComponent({
       :items="visibleProviders"
       :active-id="activeProviderId"
       :sortable="true"
+      :long-press-ms="650"
       @select="selectProvider"
       @sort="handleProviderSort"
     >

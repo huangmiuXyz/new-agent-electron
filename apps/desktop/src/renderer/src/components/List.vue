@@ -5,6 +5,7 @@ import { useTimeoutFn } from '@vueuse/core'
 
 const TRANSPARENT_DRAG_IMAGE =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
+const LONG_PRESS_MOVE_TOLERANCE_PX = 8
 
 interface Props {
   defaultIcon?: VNode
@@ -113,6 +114,8 @@ const handleAction = (
 }
 
 const pressCandidateKey = ref<string | null>(null)
+const pressPointerId = ref<number | null>(null)
+const pressStartPoint = ref<{ x: number; y: number } | null>(null)
 const longPressArmedKey = ref<string | null>(null)
 const draggingKey = ref<string | null>(null)
 const lastDropTarget = ref<{ toId: string; after: boolean } | null>(null)
@@ -141,24 +144,47 @@ const canSort = (item: (typeof viewItems.value)[number]) => {
   return props.canSortItem(item.raw)
 }
 
+const isInteractiveTarget = (target: EventTarget | null) =>
+  target instanceof HTMLElement &&
+  !!target.closest('button, a, input, textarea, select, [role="button"], [contenteditable="true"]')
+
+const releasePointerCapture = (event?: PointerEvent) => {
+  if (!event || pressPointerId.value !== event.pointerId) return
+  const target = event.currentTarget as HTMLElement | null
+  if (target?.hasPointerCapture?.(event.pointerId)) {
+    target.releasePointerCapture(event.pointerId)
+  }
+}
+
 const handlePointerDown = (item: (typeof viewItems.value)[number], event: PointerEvent) => {
   if (!canSort(item)) return
-  if (event.pointerType === 'mouse' && event.button !== 0) return
-  if (event.pointerType === 'mouse') {
-    longPressArmedKey.value = item.key
-    pressCandidateKey.value = null
-    stopLongPress()
-    return
-  }
+  if (event.button !== 0 || isInteractiveTarget(event.target)) return
+  ;(event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId)
   pressCandidateKey.value = item.key
+  pressPointerId.value = event.pointerId
+  pressStartPoint.value = { x: event.clientX, y: event.clientY }
   startLongPress()
 }
 
-const clearPressState = () => {
+const clearPressState = (event?: PointerEvent) => {
+  releasePointerCapture(event)
   stopLongPress()
   pressCandidateKey.value = null
+  pressPointerId.value = null
+  pressStartPoint.value = null
   if (!draggingKey.value) {
     longPressArmedKey.value = null
+  }
+}
+
+const handlePointerMove = (event: PointerEvent) => {
+  if (!pressCandidateKey.value || pressPointerId.value !== event.pointerId || !pressStartPoint.value) {
+    return
+  }
+  const distanceX = Math.abs(event.clientX - pressStartPoint.value.x)
+  const distanceY = Math.abs(event.clientY - pressStartPoint.value.y)
+  if (distanceX > LONG_PRESS_MOVE_TOLERANCE_PX || distanceY > LONG_PRESS_MOVE_TOLERANCE_PX) {
+    clearPressState(event)
   }
 }
 
@@ -238,6 +264,8 @@ const handleDragEnd = () => {
   draggingKey.value = null
   longPressArmedKey.value = null
   pressCandidateKey.value = null
+  pressPointerId.value = null
+  pressStartPoint.value = null
   lastDropTarget.value = null
   hasCommittedSort.value = false
   isWaitingSortSync.value = shouldWaitForSync
@@ -314,6 +342,7 @@ const handleItemClick = (item: (typeof viewItems.value)[number]) => {
             @click="handleItemClick(item)"
             @contextmenu="handleAction('contextmenu', item, $event)"
             @pointerdown="handlePointerDown(item, $event)"
+            @pointermove="handlePointerMove"
             @pointerup="clearPressState"
             @pointercancel="clearPressState"
             @dragstart="handleDragStart(item, $event)"
