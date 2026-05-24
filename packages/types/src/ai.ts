@@ -18,6 +18,7 @@ export type providerType =
   | 'deepseek'
   | 'google'
   | 'xai'
+  | 'openrouter'
   | 'openai-compatible'
   | 'ollama'
   | 'hume'

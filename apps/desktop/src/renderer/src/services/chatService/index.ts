@@ -68,7 +68,7 @@ interface ChatServiceConfig {
   builtinToolsRequireApproval?: string[]
   skillsEnabled?: boolean
   knowledgeBaseIds?: string[]
-  thinkingMode?: boolean
+  thinkingMode?: string | null
   ragEnabled?: boolean
   temperature?: number
   topP?: number
@@ -623,17 +623,55 @@ export const chatService = () => {
     const { transformRequestBody: _transformRequestBody, ...runtimeProviderOptions } =
       customProviderOptions || {}
 
-    const supportsThinkingToggle = providerType === 'anthropic' || providerType === 'deepseek'
+    const thinkingToggleProviders = new Set([
+      'anthropic',
+      'deepseek',
+      'google',
+      'openai',
+      'xai',
+      'openrouter',
+      'openai-compatible'
+    ])
+
+    const supportsThinkingToggle = thinkingToggleProviders.has(providerType)
+
+    const thinkingProviderOptions: Record<string, unknown> = {}
+
+    if (supportsThinkingToggle && thinkingMode) {
+      const depth = thinkingMode
+      switch (providerType) {
+        case 'anthropic':
+          thinkingProviderOptions.thinking = { type: 'enabled' }
+          break
+        case 'deepseek':
+          thinkingProviderOptions.thinking = { type: 'enabled' }
+          thinkingProviderOptions.enable_thinking = true
+          thinkingProviderOptions.reasoningEffort = depth === 'max' ? 'max' : 'high'
+          break
+        case 'google':
+          thinkingProviderOptions.thinkingConfig = {
+            includeThoughts: true,
+            thinkingLevel: depth
+          }
+          break
+        case 'openai':
+          thinkingProviderOptions.reasoningEffort = depth
+          break
+        case 'xai':
+          thinkingProviderOptions.reasoningEffort = depth === 'low' ? 'low' : 'high'
+          break
+        case 'openrouter':
+          thinkingProviderOptions.reasoning = { enabled: true, effort: depth }
+          break
+        case 'openai-compatible':
+          thinkingProviderOptions.reasoningEffort = depth
+          break
+      }
+    }
 
     const mergedProviderOptions =
       cleanProviderOptions({
-        ...(supportsThinkingToggle &&
-          thinkingMode !== undefined && {
-          thinking: {
-            type: thinkingMode ? 'enabled' : 'disabled'
-          },
-          enable_thinking: thinkingMode
-        }),
+        ...thinkingProviderOptions,
         ...runtimeProviderOptions
       }) || {}
 

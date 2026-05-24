@@ -220,11 +220,11 @@ export const useSettingsStore = defineStore(
       ttsProviderId: '',
     })
 
-    const thinkingMode = ref(false)
+    const thinkingMode = ref<string | null>(null)
     const speechEnabled = ref(false)
     const providerOptions = ref<Record<string, any>>({})
 
-    const updateThinkingMode = (mode: boolean) => {
+    const updateThinkingMode = (mode: string | null) => {
       thinkingMode.value = mode
     }
 

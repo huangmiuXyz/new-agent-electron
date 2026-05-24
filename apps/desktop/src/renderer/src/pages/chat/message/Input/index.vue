@@ -1,6 +1,7 @@
 <script setup lang="tsx">
 import { FileUIPart, TextUIPart } from 'ai'
 import AtPanel from './AtPanel.vue'
+import ThinkingModeButton from './ThinkingModeButton.vue'
 import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
 import { usePlugins } from '@renderer/composables/usePlugins'
@@ -14,7 +15,6 @@ const { triggerHook } = usePlugins()
 const selectedFiles = ref<Array<UploadFile>>([])
 
 const {
-  thinkingMode,
   speechEnabled,
   providerOptions: allProviderOptions,
   display,
@@ -22,8 +22,9 @@ const {
 } = storeToRefs(useSettingsStore())
 const agentStore = useAgentStore()
 const canvasStore = useCanvasStore()
-const { updateThinkingMode, updateSpeechEnabled, updateProviderOptions } = useSettingsStore()
+const { updateSpeechEnabled, updateProviderOptions } = useSettingsStore()
 const settingsStore = useSettingsStore()
+
 const currentChatAgent = computed(() => {
   const agentId = chatStore.currentChat?.agentId
   return agentId ? agentStore.getAgentById(agentId) : null
@@ -260,7 +261,6 @@ const toggleCurrentChatToolFeatures = () => {
 
 // 图标
 const FileUploadIcon = useIcon('Folder')
-const Bulb = useIcon('Bulb')
 const MicIcon = useIcon('Mic')
 const MicOffIcon = useIcon('MicOff')
 const VolumeIcon = useIcon('VolumeMedium')
@@ -749,7 +749,6 @@ const onMobileGlobalPointerCancel = (event: PointerEvent) => {
 const runMobileToolAction = async (toolId: MobileDragToolId) => {
   if (toolId === 'upload') return fileUploadRef.value?.triggerUpload?.()
   if (toolId === 'voice') return toggleVoiceRecording()
-  if (toolId === 'thinking') return updateThinkingMode(!thinkingMode.value)
   if (toolId === 'settings') return openProviderOptionsModal()
   if (toolId === 'speech') return toggleSpeech()
   if (toolId === 'playlist') return toggleAssistantPanel('playlist')
@@ -1107,10 +1106,7 @@ onUnmounted(() => {
             <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
               <FileUploadIcon />
             </Button>
-            <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
-              @click="updateThinkingMode(!thinkingMode)" title="思考模式">
-              <Bulb />
-            </Button>
+            <ThinkingModeButton :provider-type="currentChatProvider?.providerType" />
 
             <Button variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
               <SettingsIcon />
@@ -1298,11 +1294,7 @@ onUnmounted(() => {
                   <MicIcon v-if="!voiceIsActive" />
                   <MicOffIcon v-else />
                 </Button>
-                <Button v-else-if="toolId === 'thinking'" variant="icon" size="sm"
-                  :class="{ 'thinking-active': thinkingMode }" title="思考模式"
-                  @click="handleMobileToolClick('thinking', $event)">
-                  <Bulb />
-                </Button>
+                <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" />
                 <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
                   @click="handleMobileToolClick('settings', $event)">
                   <SettingsIcon />
@@ -1360,11 +1352,7 @@ onUnmounted(() => {
                   <MicIcon v-if="!voiceIsActive" />
                   <MicOffIcon v-else />
                 </Button>
-                <Button v-else-if="toolId === 'thinking'" variant="icon" size="sm"
-                  :class="{ 'thinking-active': thinkingMode }" title="思考模式"
-                  @click="handleMobileToolClick('thinking', $event)">
-                  <Bulb />
-                </Button>
+                <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" />
                 <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
                   @click="handleMobileToolClick('settings', $event)">
                   <SettingsIcon />
@@ -1419,11 +1407,7 @@ onUnmounted(() => {
                 <MicIcon v-if="!voiceIsActive" />
                 <MicOffIcon v-else />
               </Button>
-              <Button v-else-if="toolId === 'thinking'" variant="icon" size="sm"
-                :class="{ 'thinking-active': thinkingMode }" title="思考模式"
-                @click="handleMobileToolClick('thinking', $event)">
-                <Bulb />
-              </Button>
+              <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" />
               <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
                 @click="handleMobileToolClick('settings', $event)">
                 <SettingsIcon />
@@ -2059,11 +2043,6 @@ onUnmounted(() => {
   color: var(--text-secondary);
   background: transparent;
   opacity: 0.45;
-}
-
-.thinking-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
 }
 
 .tool-features-active {
