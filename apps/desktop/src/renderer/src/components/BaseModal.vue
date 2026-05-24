@@ -89,6 +89,7 @@ let modalResizeObserver: ResizeObserver | null = null
 let escHoldTimer: ReturnType<typeof setTimeout> | null = null
 let isEscHolding = false
 let suppressEscUntilKeyUp = false
+let modalTouchStartX = 0
 let modalTouchStartY = 0
 const ESC_HOLD_EXIT_MS = 500
 
@@ -192,7 +193,7 @@ const handleViewportChange = () => {
   resetPosition()
 }
 
-const getModalScrollable = (target: EventTarget | null): HTMLElement | null => {
+const getModalScrollable = (target: EventTarget | null, axis: 'x' | 'y'): HTMLElement | null => {
   if (!(target instanceof HTMLElement)) return null
   const overlay = modalOverlay.value
   if (!overlay?.contains(target)) return null
@@ -200,18 +201,31 @@ const getModalScrollable = (target: EventTarget | null): HTMLElement | null => {
   let current: HTMLElement | null = target
   while (current && current !== overlay) {
     const style = window.getComputedStyle(current)
-    const canScrollY =
-      /(auto|scroll)/.test(style.overflowY) &&
-      current.scrollHeight > current.clientHeight
-    if (canScrollY) return current
+    const overflow = axis === 'x' ? style.overflowX : style.overflowY
+    const scrollSize = axis === 'x' ? current.scrollWidth : current.scrollHeight
+    const clientSize = axis === 'x' ? current.clientWidth : current.clientHeight
+    if (/(auto|scroll)/.test(overflow) && scrollSize > clientSize) return current
     current = current.parentElement
   }
 
   return null
 }
 
-const shouldPreventScrollChaining = (target: EventTarget | null, deltaY: number) => {
-  const scrollable = getModalScrollable(target)
+const shouldPreventScrollChaining = (
+  target: EventTarget | null,
+  deltaX: number,
+  deltaY: number
+) => {
+  if (Math.abs(deltaX) > Math.abs(deltaY)) {
+    const scrollableX = getModalScrollable(target, 'x')
+    if (!scrollableX) return false
+
+    const atLeft = scrollableX.scrollLeft <= 0
+    const atRight = scrollableX.scrollLeft + scrollableX.clientWidth >= scrollableX.scrollWidth - 1
+    return (deltaX < 0 && atLeft) || (deltaX > 0 && atRight)
+  }
+
+  const scrollable = getModalScrollable(target, 'y')
   if (!scrollable) return true
 
   const atTop = scrollable.scrollTop <= 0
@@ -220,17 +234,21 @@ const shouldPreventScrollChaining = (target: EventTarget | null, deltaY: number)
 }
 
 const handleModalTouchStart = (event: TouchEvent) => {
+  modalTouchStartX = event.touches[0]?.clientX ?? 0
   modalTouchStartY = event.touches[0]?.clientY ?? 0
 }
 
 const handleModalTouchMove = (event: TouchEvent) => {
   if (!isTopmostModal()) return
 
+  const currentX = event.touches[0]?.clientX ?? modalTouchStartX
   const currentY = event.touches[0]?.clientY ?? modalTouchStartY
+  const deltaX = modalTouchStartX - currentX
   const deltaY = modalTouchStartY - currentY
+  modalTouchStartX = currentX
   modalTouchStartY = currentY
 
-  if (shouldPreventScrollChaining(event.target, deltaY)) {
+  if (shouldPreventScrollChaining(event.target, deltaX, deltaY)) {
     event.preventDefault()
     return
   }
@@ -241,7 +259,7 @@ const handleModalTouchMove = (event: TouchEvent) => {
 const handleModalWheel = (event: WheelEvent) => {
   if (!isTopmostModal()) return
 
-  if (shouldPreventScrollChaining(event.target, event.deltaY)) {
+  if (shouldPreventScrollChaining(event.target, event.deltaX, event.deltaY)) {
     event.preventDefault()
     return
   }
@@ -618,7 +636,7 @@ onBeforeUnmount(() => {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  touch-action: pan-y;
+  touch-action: pan-x pan-y;
   padding: 8px;
 }
 

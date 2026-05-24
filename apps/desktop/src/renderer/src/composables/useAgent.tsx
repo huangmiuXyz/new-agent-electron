@@ -1395,7 +1395,10 @@ export const useAgent = () => {
                 overflowX: 'auto',
                 whiteSpace: 'nowrap',
                 scrollbarWidth: 'none',
-                msOverflowStyle: 'none'
+                msOverflowStyle: 'none',
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehaviorX: 'contain',
+                touchAction: 'pan-x'
               }}
             >
               {categories.map((cat) => (
