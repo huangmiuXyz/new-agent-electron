@@ -4,6 +4,9 @@ import { useAgentStore } from '@renderer/stores/agent'
 import { useChatsStores } from '@renderer/stores/chats'
 import { useKnowledgeStore } from '@renderer/stores/knowledge'
 import { useNotesStore } from '@renderer/stores/notes'
+import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
@@ -15,41 +18,115 @@ const { Download, Upload, Trash } = useIcon(['Download', 'Upload', 'Trash'])
 const modal = useModal()
 const message = messageApi
 
+const isNativePlatform = Capacitor.isNativePlatform()
+
+const buildBackupData = async () => {
+  const sqliteData = await window.api.sqlite.getAllChunks()
+  return {
+    settings: settingsStore.$state,
+    agent: agentStore.$state,
+    chats: chatsStore.$state,
+    knowledge: knowledgeStore.$state,
+    notes: {
+      folders: notesStore.folders,
+      notes: notesStore.notes
+    },
+    localStorage: { ...localStorage },
+    sqlite: sqliteData,
+    version: '1.0.0',
+    timestamp: Date.now()
+  }
+}
+
+const exportDataWeb = async (jsonStr: string) => {
+  const blob = new Blob([jsonStr], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `agent-qi-backup-${new Date().toISOString().split('T')[0]}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+const exportDataNative = async (jsonStr: string) => {
+  const fileName = `agent-qi-backup-${new Date().toISOString().split('T')[0]}.json`
+  const result = await Filesystem.writeFile({
+    path: fileName,
+    data: jsonStr,
+    directory: Directory.Cache,
+    encoding: Encoding.UTF8,
+    recursive: true
+  })
+  await Share.share({
+    title: fileName,
+    url: result.uri,
+    dialogTitle: '导出备份文件'
+  })
+  await Filesystem.deleteFile({
+    path: fileName,
+    directory: Directory.Cache
+  })
+}
+
 const exportData = async () => {
   try {
-      const sqliteData = await window.api.sqlite.getAllChunks()
-      const backupData = {
-        settings: settingsStore.$state,
-        agent: agentStore.$state,
-        chats: chatsStore.$state,
-        knowledge: knowledgeStore.$state,
-        notes: {
-          folders: notesStore.folders,
-          notes: notesStore.notes
-        },
-        localStorage: { ...localStorage },
-        sqlite: sqliteData,
-        version: '1.0.0',
-        timestamp: Date.now()
-      }
-
+    const backupData = await buildBackupData()
     const jsonStr = JSON.stringify(backupData, null, 2)
-    const blob = new Blob([jsonStr], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
 
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `agent-qi-backup-${new Date().toISOString().split('T')[0]}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    if (isNativePlatform) {
+      await exportDataNative(jsonStr)
+    } else {
+      await exportDataWeb(jsonStr)
+    }
 
     message.success('导出备份成功')
   } catch (error) {
     console.error('导出备份失败:', error)
     message.error('导出备份失败')
   }
+}
+
+const restoreFromData = async (data: any) => {
+  if (!data.settings || !data.agent) {
+    throw new Error('无效的备份文件')
+  }
+
+  if (data.settings) {
+    settingsStore.$patch(data.settings)
+  }
+
+  if (data.agent) {
+    agentStore.$patch(data.agent)
+  }
+
+  if (data.chats) {
+    chatsStore.$patch(data.chats)
+  }
+
+  if (data.knowledge) {
+    knowledgeStore.$patch(data.knowledge)
+  }
+
+  if (data.notes) {
+    notesStore.folders = data.notes.folders || []
+    notesStore.notes = data.notes.notes || []
+    notesStore.saveToStorage()
+  }
+
+  if (data.localStorage) {
+    Object.keys(data.localStorage).forEach((key) => {
+      localStorage.setItem(key, data.localStorage[key])
+    })
+  }
+
+  if (data.sqlite && Array.isArray(data.sqlite)) {
+    await window.api.sqlite.upsertChunks(data.sqlite)
+  }
+
+  const { restorePlugins } = usePlugins()
+  await restorePlugins()
 }
 
 const importData = async (event: Event) => {
@@ -76,55 +153,7 @@ const importData = async (event: Event) => {
       try {
         const content = e.target?.result as string
         const data = JSON.parse(content)
-
-        // Basic validation
-        if (!data.settings || !data.agent) {
-          throw new Error('无效的备份文件')
-        }
-
-        // Restore Settings
-        if (data.settings) {
-          settingsStore.$patch(data.settings)
-        }
-
-        // Restore Agents
-        if (data.agent) {
-          agentStore.$patch(data.agent)
-        }
-
-        // Restore Chats
-        if (data.chats) {
-          chatsStore.$patch(data.chats)
-        }
-
-        // Restore Knowledge
-        if (data.knowledge) {
-          knowledgeStore.$patch(data.knowledge)
-        }
-
-        // Restore Notes
-        if (data.notes) {
-          notesStore.folders = data.notes.folders || []
-          notesStore.notes = data.notes.notes || []
-          notesStore.saveToStorage()
-        }
-
-        // Restore localStorage
-        if (data.localStorage) {
-          Object.keys(data.localStorage).forEach((key) => {
-            localStorage.setItem(key, data.localStorage[key])
-          })
-        }
-
-        // Restore SQLite Chunks
-        if (data.sqlite && Array.isArray(data.sqlite)) {
-          await window.api.sqlite.upsertChunks(data.sqlite)
-        }
-
-        // 重新加载插件（因为 afterRestore 只在应用启动时执行一次）
-        const { restorePlugins } = usePlugins()
-        await restorePlugins()
-
+        await restoreFromData(data)
         message.success('导入备份成功')
       } catch (err) {
         console.error('解析备份文件失败:', err)
@@ -137,6 +166,42 @@ const importData = async (event: Event) => {
     message.error('读取文件失败')
   } finally {
     target.value = ''
+  }
+}
+
+const importDataNative = async () => {
+  const confirmed = await modal.confirm({
+    title: '导入备份',
+    content: '导入备份将覆盖当前的所有数据（设置、智能体、聊天记录、知识库配置、笔记），确定要继续吗？',
+    confirmProps: {
+      danger: true
+    }
+  })
+
+  if (!confirmed) return
+
+  try {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        const text = await file.text()
+        const data = JSON.parse(text)
+        await restoreFromData(data)
+        message.success('导入备份成功')
+      } catch (err) {
+        console.error('解析备份文件失败:', err)
+        message.error('解析备份文件失败: ' + (err as Error).message)
+      }
+    }
+    input.click()
+  } catch (error) {
+    console.error('读取文件失败:', error)
+    message.error('读取文件失败')
   }
 }
 
@@ -192,7 +257,13 @@ const resetData = async () => {
               <div class="item-desc">从之前导出的 JSON 文件中恢复数据。注意：这将覆盖您当前的所有数据。</div>
             </div>
             <div class="upload-wrapper">
-              <Button variant="secondary">
+              <Button v-if="isNativePlatform" variant="secondary" @click="importDataNative">
+                <template #icon>
+                  <Upload />
+                </template>
+                导入备份文件
+              </Button>
+              <Button v-else variant="secondary">
                 <template #icon>
                   <Upload />
                 </template>
