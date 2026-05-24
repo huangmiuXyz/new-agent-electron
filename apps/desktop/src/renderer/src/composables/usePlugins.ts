@@ -148,7 +148,7 @@ export function usePlugins() {
 
         const selectedPath = result.filePaths[0]
         const stat = window.api.fs.lstatSync(selectedPath)
-        const isDir = stat.isDirectory()
+        const isDir = (stat.mode & 0o170000) === 0o040000
 
         if (isDir) {
           const pluginDirs = resolveDevPluginDirectories(selectedPath)
