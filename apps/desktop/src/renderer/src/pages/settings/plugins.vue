@@ -23,8 +23,6 @@ const {
   activePluginId,
   activePlugin,
   addPlugin,
-  installPlugin,
-  loadPluginDev,
   refreshPlugins,
   loadPlugin,
   unloadPlugin,
