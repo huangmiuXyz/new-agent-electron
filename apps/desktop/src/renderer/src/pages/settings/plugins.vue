@@ -7,14 +7,13 @@ const incremark = useIncremark({
 })
 
 const { blocks } = incremark
-const { Plugin: PluginIcon, Refresh, Check, Dismiss, Play, Download, Code } = useIcon([
+const { Plugin: PluginIcon, Refresh, Check, Dismiss, Play, Download } = useIcon([
   'Plugin',
   'Refresh',
   'Check',
   'Dismiss',
   'Play',
-  'Download',
-  'Code'
+  'Download'
 ])
 // 使用 usePlugins composable
 const { confirm, remove } = useModal()
@@ -23,6 +22,7 @@ const {
   loading,
   activePluginId,
   activePlugin,
+  addPlugin,
   installPlugin,
   loadPluginDev,
   refreshPlugins,
@@ -286,17 +286,11 @@ const handleUninstallPlugin = async (pluginName: string) => {
     <List title="插件" :items="allPlugins" :active-id="activePluginId" :loading="loading" key-field="id" main-field="name"
       sub-field="description" :logo-field="'PluginIcon'" @select="handleSelectPlugin">
       <template #title-tool>
-        <Button v-if="!isMobile" @click="loadPluginDev" size="sm" type="button" variant="text">
-          <template #icon>
-            <Code />
-          </template>
-          开发模式
-        </Button>
-        <Button @click="installPlugin" size="sm" type="button" variant="text">
+        <Button @click="addPlugin" size="sm" type="button" variant="text">
           <template #icon>
             <Download />
           </template>
-          安装插件
+          添加插件
         </Button>
       </template>
       <template #main="{ item }">

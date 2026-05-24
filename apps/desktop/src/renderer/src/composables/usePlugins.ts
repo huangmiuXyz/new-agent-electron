@@ -128,6 +128,97 @@ export function usePlugins() {
     }
   }
 
+  const addPlugin = async (): Promise<void> => {
+    try {
+      installing.value = true
+
+      if (window.api?.showOpenDialog) {
+        const result = await window.api.showOpenDialog({
+          title: '选择插件',
+          filters: [
+            { name: '插件包', extensions: ['qi', 'zip'] },
+            { name: '所有文件', extensions: ['*'] }
+          ],
+          properties: ['openFile', 'openDirectory']
+        })
+
+        if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+          return
+        }
+
+        const selectedPath = result.filePaths[0]
+        const stat = window.api.fs.lstatSync(selectedPath)
+        const isDir = stat.isDirectory()
+
+        if (isDir) {
+          const pluginDirs = resolveDevPluginDirectories(selectedPath)
+
+          if (pluginDirs.length === 0) {
+            throw new Error('所选文件夹中未找到插件，请确认目录本身或其子目录包含 info.json')
+          }
+
+          const loaded: string[] = []
+          const failed: Array<{ name: string; reason: string }> = []
+
+          for (const localPath of pluginDirs) {
+            const pluginId = window.api.path.basename(localPath)
+
+            try {
+              await pluginLoader.loadPluginDev(localPath)
+              settingsStore.addDevPluginPath(pluginId, localPath)
+              loaded.push(pluginId)
+            } catch (error) {
+              failed.push({
+                name: pluginId,
+                reason: error instanceof Error ? error.message : String(error)
+              })
+            }
+          }
+
+          await refreshPlugins()
+
+          if (loaded.length > 0 && failed.length === 0) {
+            messageApi.success(
+              pluginDirs.length === 1
+                ? `开发插件已加载：${loaded[0]}`
+                : `已批量加载 ${loaded.length} 个开发插件`
+            )
+            return
+          }
+
+          if (loaded.length > 0) {
+            messageApi.warning(
+              `已加载 ${loaded.length} 个插件，${failed.length} 个失败：${failed.map((item) => item.name).join('、')}`
+            )
+            console.warn('Failed to load some dev plugins:', failed)
+            return
+          }
+
+          throw new Error(
+            failed.map((item) => `${item.name}: ${item.reason}`).join('\n') || '开发插件加载失败'
+          )
+        } else {
+          await pluginLoader.installPlugin(selectedPath)
+          await refreshPlugins()
+          messageApi.success('插件安装成功')
+        }
+      } else {
+        const file = await pickPluginFile()
+        if (!file) {
+          return
+        }
+        await pluginLoader.installPlugin(file)
+        await refreshPlugins()
+        messageApi.success('插件安装成功')
+      }
+    } catch (err) {
+      console.error('Failed to add plugin:', err)
+      messageApi.error(`操作失败: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      installing.value = false
+    }
+  }
+
   const installPlugin = async (): Promise<void> => {
     try {
       installing.value = true
@@ -421,6 +512,7 @@ export function usePlugins() {
     installing,
     activePluginId,
     activePlugin,
+    addPlugin,
     installPlugin,
     loadPluginDev,
     refreshPlugins,
