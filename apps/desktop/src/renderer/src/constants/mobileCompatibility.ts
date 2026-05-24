@@ -4,8 +4,7 @@ const MOBILE_UNSUPPORTED_SETTING_IDS = new Set([
   'knowledge',
   'mcp',
   'terminal',
-  'userData',
-  'backup'
+  'userData'
 ])
 
 const MOBILE_UNSUPPORTED_ROUTE_PREFIXES = ['/mobile/my-apps', '/mobile/image/speech']
