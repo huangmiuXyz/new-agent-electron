@@ -36,7 +36,7 @@ const depthOptions = computed<{ label: string; value: ThinkingDepth; desc: strin
 })
 
 const toggle = () => {
-  if (thinkingMode) {
+  if (thinkingMode.value) {
     updateThinkingMode(null)
   } else {
     showPopover.value = !showPopover.value
@@ -48,8 +48,12 @@ const selectDepth = (depth: ThinkingDepth | null) => {
   showPopover.value = false
 }
 
+const closePopover = () => {
+  showPopover.value = false
+}
+
 const handleClickOutside = (event: MouseEvent) => {
-  if (showPopover.value && popoverRef.value && !popoverRef.value.contains(event.target as Node)) {
+  if (!isMobile.value && showPopover.value && popoverRef.value && !popoverRef.value.contains(event.target as Node)) {
     showPopover.value = false
   }
 }
@@ -65,22 +69,50 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
       :title="thinkingMode ? `思考模式: ${thinkingMode}` : '思考模式'">
       <Bulb />
     </Button>
-    <div v-if="showPopover" class="thinking-panel">
-      <div class="thinking-panel-title">思考深度</div>
-      <div class="thinking-panel-options">
-        <button v-for="opt in depthOptions" :key="opt.value" class="thinking-depth-item"
-          :class="{ active: thinkingMode === opt.value }"
-          @click.stop="selectDepth(opt.value)">
-          <span class="thinking-depth-label">{{ opt.label }}</span>
-          <span class="thinking-depth-desc">{{ opt.desc }}</span>
-        </button>
-        <button v-if="thinkingMode" class="thinking-depth-item thinking-depth-off"
-          @click.stop="selectDepth(null)">
-          <span class="thinking-depth-label">关闭</span>
-        </button>
+
+    <template v-if="!isMobile">
+      <div v-if="showPopover" class="thinking-panel">
+        <div class="thinking-panel-title">思考深度</div>
+        <div class="thinking-panel-options">
+          <button v-for="opt in depthOptions" :key="opt.value" class="thinking-depth-item"
+            :class="{ active: thinkingMode === opt.value }"
+            @click.stop="selectDepth(opt.value)">
+            <span class="thinking-depth-label">{{ opt.label }}</span>
+            <span class="thinking-depth-desc">{{ opt.desc }}</span>
+          </button>
+          <button v-if="thinkingMode" class="thinking-depth-item thinking-depth-off"
+            @click.stop="selectDepth(null)">
+            <span class="thinking-depth-label">关闭</span>
+          </button>
+        </div>
       </div>
-    </div>
+    </template>
   </div>
+
+  <Teleport to="body">
+    <Transition name="drawer">
+      <div v-if="isMobile && showPopover" class="thinking-drawer-overlay" @click.self="closePopover">
+        <div class="thinking-drawer-container">
+          <div class="thinking-drawer-header">
+            <div class="thinking-drawer-handle"></div>
+            <div class="thinking-drawer-title">思考深度</div>
+          </div>
+          <div class="thinking-drawer-body">
+            <button v-for="opt in depthOptions" :key="opt.value" class="thinking-drawer-item"
+              :class="{ active: thinkingMode === opt.value }"
+              @click="selectDepth(opt.value)">
+              <span class="thinking-drawer-item-label">{{ opt.label }}</span>
+              <span class="thinking-drawer-item-desc">{{ opt.desc }}</span>
+            </button>
+            <button v-if="thinkingMode" class="thinking-drawer-item thinking-drawer-off"
+              @click="selectDepth(null)">
+              <span class="thinking-drawer-item-label">关闭</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -166,5 +198,126 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .thinking-depth-off:hover {
   color: var(--color-danger);
   background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+}
+
+.thinking-drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 3000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.thinking-drawer-container {
+  width: 100%;
+  max-width: 100%;
+  background: var(--bg-card);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  padding-bottom: max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px));
+}
+
+.thinking-drawer-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.thinking-drawer-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-color-medium);
+  margin-bottom: 8px;
+}
+
+.thinking-drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.thinking-drawer-body {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.thinking-drawer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text-primary);
+  transition: background 0.12s ease;
+}
+
+.thinking-drawer-item:active {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.thinking-drawer-item.active {
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+}
+
+.thinking-drawer-item-label {
+  font-weight: 500;
+}
+
+.thinking-drawer-item-desc {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.thinking-drawer-item.active .thinking-drawer-item-desc {
+  color: var(--color-primary);
+  opacity: 0.7;
+}
+
+.thinking-drawer-off {
+  color: var(--text-secondary);
+}
+
+.thinking-drawer-off:active {
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+}
+
+.drawer-enter-active,
+.drawer-leave-active {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.drawer-enter-from,
+.drawer-leave-to {
+  opacity: 0;
+}
+
+.drawer-enter-active .thinking-drawer-container,
+.drawer-leave-active .thinking-drawer-container {
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.drawer-enter-from .thinking-drawer-container {
+  transform: translateY(100%) scale(0.95);
+}
+
+.drawer-leave-to .thinking-drawer-container {
+  transform: translateY(100%) scale(0.95);
 }
 </style>
