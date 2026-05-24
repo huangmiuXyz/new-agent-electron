@@ -1,9 +1,18 @@
 import { FileUIPart, TextUIPart } from 'ai'
+import { allowNextIndexedDBEmptyWrite, setIndexedDBStorageRestoreGuard } from '@renderer/utils'
 
 let resolveRestore: () => void
 const restorePromise = new Promise<void>((resolve) => {
   resolveRestore = resolve
 })
+
+const resolvePersistedActiveChatId = (persistedChats: Chat[], persistedActiveId: string | null) => {
+  if (persistedActiveId && persistedChats.some((chat) => chat.id === persistedActiveId)) {
+    return persistedActiveId
+  }
+
+  return persistedChats[0]?.id || null
+}
 
 export const useChatsStores = defineStore(
   'chats',
@@ -194,6 +203,7 @@ export const useChatsStores = defineStore(
         if (fallbackId) {
           setActiveChat(fallbackId)
         } else {
+          allowNextIndexedDBEmptyWrite('chats')
           activeChatId.value = null
         }
       }
@@ -476,8 +486,11 @@ export const useChatsStores = defineStore(
         const messageSets = collectMessageSets(chat.messages)
         messageSets.flat().forEach((message) => message.metadata?.stop?.())
       })
+      if (nextState.chats.length === 0) {
+        allowNextIndexedDBEmptyWrite('chats')
+      }
       chats.value = nextState.chats
-      activeChatId.value = nextState.activeChatId
+      activeChatId.value = resolvePersistedActiveChatId(nextState.chats, nextState.activeChatId)
     }
 
     const { scrollToBottom } = useMessageScroll()
@@ -534,7 +547,15 @@ export const useChatsStores = defineStore(
     persist: {
       storage: indexedDBStorage,
       paths: ['chats', 'activeChatId'],
-      afterRestore: () => {
+      beforeRestore: () => {
+        setIndexedDBStorageRestoreGuard('chats', true)
+      },
+      afterRestore: (ctx) => {
+        const store = ctx.store as unknown as { chats: Chat[]; activeChatId: string | null }
+        if (store) {
+          store.activeChatId = resolvePersistedActiveChatId(store.chats, store.activeChatId)
+        }
+        setIndexedDBStorageRestoreGuard('chats', false)
         resolveRestore()
       }
     }

@@ -158,13 +158,68 @@ export const copyElementImageToClipboard = async (
 
 const DEBOUNCED_STORAGE_KEYS = new Set(['chats'])
 const STORAGE_WRITE_DEBOUNCE_MS = 800
+const storageRestoreGuards = new Map<string, boolean>()
+const allowedEmptyStorageWrites = new Map<string, number>()
 const pendingStorageWrites = new Map<string, {
   timer: ReturnType<typeof setTimeout> | null
   value: string
 }>()
 
+export const setIndexedDBStorageRestoreGuard = (key: string, restoring: boolean) => {
+  storageRestoreGuards.set(key, restoring)
+}
+
+export const allowNextIndexedDBEmptyWrite = (key: string) => {
+  allowedEmptyStorageWrites.set(key, (allowedEmptyStorageWrites.get(key) || 0) + 1)
+}
+
 const writeStorageValue = async (key: string, value: string) => {
   await localforage.setItem(key, JSON.parse(value))
+}
+
+const consumeAllowedEmptyStorageWrite = (key: string) => {
+  const allowedCount = allowedEmptyStorageWrites.get(key) || 0
+  if (allowedCount <= 0) return false
+
+  if (allowedCount === 1) {
+    allowedEmptyStorageWrites.delete(key)
+  } else {
+    allowedEmptyStorageWrites.set(key, allowedCount - 1)
+  }
+  return true
+}
+
+const parseStorageValue = (value: unknown) => {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value)
+    } catch {
+      return null
+    }
+  }
+  return value
+}
+
+const getPersistedChatCount = (value: unknown) => {
+  const parsed = parseStorageValue(value) as { chats?: unknown } | null
+  return Array.isArray(parsed?.chats) ? parsed.chats.length : 0
+}
+
+const isEmptyChatStateWrite = (key: string, value: string) => {
+  return key === 'chats' && getPersistedChatCount(value) === 0
+}
+
+const shouldBlockEmptyChatStateWrite = async (key: string, value: string) => {
+  if (!isEmptyChatStateWrite(key, value)) return false
+  if (consumeAllowedEmptyStorageWrite(key)) return false
+
+  const pendingWrite = pendingStorageWrites.get(key)
+  if (pendingWrite && getPersistedChatCount(pendingWrite.value) > 0) {
+    return true
+  }
+
+  const persistedValue = await localforage.getItem(key)
+  return getPersistedChatCount(persistedValue) > 0
 }
 
 const flushPendingStorageWrite = (key: string) => {
@@ -188,10 +243,31 @@ export const flushIndexedDBStorage = async (key?: string) => {
   await Promise.all([...pendingStorageWrites.keys()].map((storageKey) => flushPendingStorageWrite(storageKey)))
 }
 
+const flushStorageOnPageLifecycleChange = () => {
+  void flushIndexedDBStorage()
+}
+
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
-    void flushIndexedDBStorage()
+  window.addEventListener('beforeunload', flushStorageOnPageLifecycleChange)
+  window.addEventListener('pagehide', flushStorageOnPageLifecycleChange)
+  window.addEventListener('freeze', flushStorageOnPageLifecycleChange)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flushStorageOnPageLifecycleChange()
+    }
   })
+
+  void import('@capacitor/app')
+    .then(({ App }) => {
+      void App.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) {
+          flushStorageOnPageLifecycleChange()
+        }
+      })
+    })
+    .catch(() => {
+      // Capacitor is unavailable in the Electron renderer.
+    })
 }
 
 export const indexedDBStorage = {
@@ -202,6 +278,15 @@ export const indexedDBStorage = {
   },
 
   async setItem(key: string, value: string): Promise<void> {
+    if (storageRestoreGuards.get(key)) {
+      return
+    }
+
+    if (await shouldBlockEmptyChatStateWrite(key, value)) {
+      console.warn(`[storage] blocked empty "${key}" state from overwriting existing chats`)
+      return
+    }
+
     if (!DEBOUNCED_STORAGE_KEYS.has(key)) {
       await writeStorageValue(key, value)
       return
