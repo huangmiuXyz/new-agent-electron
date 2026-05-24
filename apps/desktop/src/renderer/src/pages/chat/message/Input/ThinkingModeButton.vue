@@ -7,7 +7,9 @@ const props = defineProps<{
   providerType?: string
 }>()
 
-const { thinkingMode, updateThinkingMode } = useSettingsStore()
+const settingsStore = useSettingsStore()
+const { thinkingMode } = storeToRefs(settingsStore)
+const { updateThinkingMode } = settingsStore
 const showPopover = ref(false)
 const popoverRef = ref<HTMLElement>()
 const Bulb = useIcon('Bulb')
