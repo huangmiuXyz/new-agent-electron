@@ -6,7 +6,10 @@ import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousV
 import { useShortcuts } from '@renderer/composables/useShortcuts'
 import { usePlugins } from '@renderer/composables/usePlugins'
 import { createRegistry } from '@renderer/services/chatService/registry'
-import { getFlatTokenUsage } from '@renderer/services/chatService/tokenUsage'
+import {
+  estimateMessagesTokens,
+  estimateTextTokens
+} from '@renderer/services/chatService/tokenUsage'
 import { z } from 'zod'
 
 const message = ref('')
@@ -104,33 +107,111 @@ const currentChatModel = computed(() => {
 })
 const InfoCircle = useIcon('InfoCircle')
 const numberFormatter = new Intl.NumberFormat('zh-CN')
-const currentChatTokenUsage = computed(() => {
-  const totals = (chatStore.currentChat?.messages || []).reduce(
-    (acc, message) => {
-      const usage = getFlatTokenUsage(message.metadata?.usage)
-      acc.total += usage.totalTokens || 0
-      acc.input += usage.inputTokens || 0
-      acc.output += usage.outputTokens || 0
-      return acc
-    },
-    { total: 0, input: 0, output: 0 }
+const COMPRESSED_CONTEXT_MARKER = '[上下文已压缩]'
+
+const isCompressedContextMessage = (message: BaseMessage): boolean => {
+  return Boolean(
+    message.metadata?.isCompressedContext ||
+    message.parts?.some(
+      (part) => part.type === 'text' && part.text?.includes(COMPRESSED_CONTEXT_MARKER)
+    )
   )
+}
+
+const isCompressingContextMessage = (message: BaseMessage): boolean => {
+  return Boolean(message.metadata?.isCompressingContext)
+}
+
+const estimateSystemTextTokens = (text: string, model?: string): number => {
+  const trimmed = text.trim()
+  if (!trimmed) return 0
+  return estimateTextTokens(`system: ${trimmed}`, model) + 4
+}
+
+const getCurrentContextMessages = (chat: Chat, agent?: Agent | null): BaseMessage[] => {
+  const contextCount = agent?.contextCount ?? 50
+  const messages = chat.messages.filter((message) => !isCompressingContextMessage(message))
+  const compressedContext = chat.compressedContext
+
+  if (compressedContext?.content && !compressedContext.loading) {
+    const baseMessages = messages.filter((message) => !isCompressedContextMessage(message))
+    const preservedSystemMessages = baseMessages.filter((message) => message.role === 'system')
+    const compressedUpToIndex = compressedContext.compressedUpToIndex
+    const tailMessages =
+      compressedUpToIndex == null || compressedUpToIndex < 0
+        ? baseMessages.filter((message) => message.role !== 'system')
+        : baseMessages
+          .slice(compressedUpToIndex + 1)
+          .filter((message) => message.role !== 'system')
+    const recentMessageBudget =
+      contextCount > 0
+        ? Math.max(contextCount - preservedSystemMessages.length - 1, 0)
+        : tailMessages.length
+    const recentMessages =
+      recentMessageBudget > 0 ? tailMessages.slice(-recentMessageBudget) : []
+
+    return [...preservedSystemMessages, ...recentMessages]
+  }
+
+  if (contextCount > 0 && messages.length > contextCount) {
+    return messages.slice(-contextCount)
+  }
+
+  return messages
+}
+
+const currentChatContextTokens = computed(() => {
+  const chat = chatStore.currentChat
+  const model = currentChatModel.value?.id || chatModelId.value
+  const agent = currentChatAgent.value
+
+  if (!chat) {
+    return {
+      total: 0,
+      messageTokens: 0,
+      systemTokens: 0,
+      contextMessageCount: 0,
+      hasContext: false,
+      totalDisplay: numberFormatter.format(0),
+      messageDisplay: numberFormatter.format(0),
+      systemDisplay: numberFormatter.format(0),
+      contextMessageCountDisplay: numberFormatter.format(0),
+      tooltip: '当前上下文 Token\n暂无可用统计'
+    }
+  }
+
+  const contextMessages = getCurrentContextMessages(chat, agent)
+  const messageTokens = estimateMessagesTokens(contextMessages, model)
+  const compressedContextTokens =
+    chat.compressedContext?.content && !chat.compressedContext.loading
+      ? estimateSystemTextTokens(
+        `${chat.compressedContext.content}\n\n${COMPRESSED_CONTEXT_MARKER}`,
+        model
+      )
+      : 0
+  const systemTokens = estimateSystemTextTokens(agent?.systemPrompt || '', model)
+  const total = messageTokens + compressedContextTokens + systemTokens
 
   return {
-    ...totals,
-    hasUsage: totals.total > 0 || totals.input > 0 || totals.output > 0,
-    totalDisplay: numberFormatter.format(totals.total),
-    inputDisplay: numberFormatter.format(totals.input),
-    outputDisplay: numberFormatter.format(totals.output),
+    total,
+    messageTokens,
+    systemTokens: systemTokens + compressedContextTokens,
+    contextMessageCount: contextMessages.length,
+    hasContext: total > 0 || contextMessages.length > 0,
+    totalDisplay: numberFormatter.format(total),
+    messageDisplay: numberFormatter.format(messageTokens),
+    systemDisplay: numberFormatter.format(systemTokens + compressedContextTokens),
+    contextMessageCountDisplay: numberFormatter.format(contextMessages.length),
     tooltip:
-      totals.total > 0 || totals.input > 0 || totals.output > 0
+      total > 0 || contextMessages.length > 0
         ? [
-          '当前聊天总 Token',
-          `总计: ${numberFormatter.format(totals.total)}`,
-          `输入: ${numberFormatter.format(totals.input)}`,
-          `输出: ${numberFormatter.format(totals.output)}`
+          '当前上下文 Token（估算）',
+          `总计: ${numberFormatter.format(total)}`,
+          `消息上下文: ${numberFormatter.format(messageTokens)}`,
+          `系统/压缩摘要: ${numberFormatter.format(systemTokens + compressedContextTokens)}`,
+          `上下文消息: ${numberFormatter.format(contextMessages.length)} 条`
         ].join('\n')
-        : '当前聊天总 Token\n暂无可用统计'
+        : '当前上下文 Token\n暂无可用统计'
   }
 })
 
@@ -1121,23 +1202,33 @@ onUnmounted(() => {
               <ToolFeaturesIcon />
             </Button>
             <div class="token-usage-popover">
-              <Button variant="icon" size="sm" class="token-usage-btn" aria-label="当前聊天 Token 统计">
+              <Button
+                variant="icon"
+                size="sm"
+                class="token-usage-btn"
+                aria-label="当前上下文 Token 统计"
+                :title="currentChatContextTokens.tooltip"
+              >
                 <InfoCircle />
               </Button>
               <div class="token-usage-panel">
-                <div class="token-usage-panel-title">当前聊天 Token</div>
-                <template v-if="currentChatTokenUsage.hasUsage">
+                <div class="token-usage-panel-title">当前上下文 Token</div>
+                <template v-if="currentChatContextTokens.hasContext">
                   <div class="token-usage-panel-row">
                     <span>总计</span>
-                    <strong>{{ currentChatTokenUsage.totalDisplay }}</strong>
+                    <strong>{{ currentChatContextTokens.totalDisplay }}</strong>
                   </div>
                   <div class="token-usage-panel-row">
-                    <span>输入</span>
-                    <span>{{ currentChatTokenUsage.inputDisplay }}</span>
+                    <span>消息上下文</span>
+                    <span>{{ currentChatContextTokens.messageDisplay }}</span>
                   </div>
                   <div class="token-usage-panel-row">
-                    <span>输出</span>
-                    <span>{{ currentChatTokenUsage.outputDisplay }}</span>
+                    <span>系统/摘要</span>
+                    <span>{{ currentChatContextTokens.systemDisplay }}</span>
+                  </div>
+                  <div class="token-usage-panel-row">
+                    <span>上下文消息</span>
+                    <span>{{ currentChatContextTokens.contextMessageCountDisplay }}</span>
                   </div>
                 </template>
                 <div v-else class="token-usage-panel-empty">暂无可用统计</div>
