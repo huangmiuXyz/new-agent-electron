@@ -177,29 +177,16 @@ const currentChatContextTokens = computed(() => {
   if (!chat) {
     return {
       total: 0,
-      userToolTokens: 0,
-      assistantTokens: 0,
-      systemSummaryTokens: 0,
       contextMessageCount: 0,
       hasContext: false,
       totalDisplay: formatTokenCount(0),
-      userToolDisplay: formatTokenCount(0),
-      assistantDisplay: formatTokenCount(0),
-      systemSummaryDisplay: formatTokenCount(0),
       contextMessageCountDisplay: numberFormatter.format(0),
       tooltip: '当前上下文 Token\n暂无可用统计'
     }
   }
 
   const contextMessages = getCurrentContextMessages(chat, agent)
-  const userToolContextMessages = contextMessages.filter(
-    (message) => message.role !== 'assistant' && message.role !== 'system'
-  )
-  const assistantContextMessages = contextMessages.filter((message) => message.role === 'assistant')
-  const systemContextMessages = contextMessages.filter((message) => message.role === 'system')
-  const userToolTokens = estimateMessagesTokens(userToolContextMessages, model)
-  const assistantTokens = estimateMessagesTokens(assistantContextMessages, model)
-  const systemMessageTokens = estimateMessagesTokens(systemContextMessages, model)
+  const messageTokens = estimateMessagesTokens(contextMessages, model)
   const compressedContextTokens =
     chat.compressedContext?.content && !chat.compressedContext.loading
       ? estimateSystemTextTokens(
@@ -208,29 +195,19 @@ const currentChatContextTokens = computed(() => {
       )
       : 0
   const systemTokens = estimateSystemTextTokens(agent?.systemPrompt || '', model)
-  const systemSummaryTokens = systemMessageTokens + compressedContextTokens + systemTokens
-  const total = userToolTokens + assistantTokens + systemSummaryTokens
+  const total = messageTokens + compressedContextTokens + systemTokens
 
   return {
     total,
-    userToolTokens,
-    assistantTokens,
-    systemSummaryTokens,
     contextMessageCount: contextMessages.length,
     hasContext: total > 0 || contextMessages.length > 0,
     totalDisplay: formatTokenCount(total),
-    userToolDisplay: formatTokenCount(userToolTokens),
-    assistantDisplay: formatTokenCount(assistantTokens),
-    systemSummaryDisplay: formatTokenCount(systemSummaryTokens),
     contextMessageCountDisplay: numberFormatter.format(contextMessages.length),
     tooltip:
       total > 0 || contextMessages.length > 0
         ? [
           '当前上下文 Token（估算）',
           `总计: ${formatTokenCount(total)}`,
-          `用户/工具: ${formatTokenCount(userToolTokens)}`,
-          `助手历史: ${formatTokenCount(assistantTokens)}`,
-          `系统/摘要: ${formatTokenCount(systemSummaryTokens)}`,
           `上下文消息: ${numberFormatter.format(contextMessages.length)} 条`
         ].join('\n')
         : '当前上下文 Token\n暂无可用统计'
@@ -1239,18 +1216,6 @@ onUnmounted(() => {
                   <div class="token-usage-panel-row">
                     <span>总计</span>
                     <strong>{{ currentChatContextTokens.totalDisplay }}</strong>
-                  </div>
-                  <div class="token-usage-panel-row">
-                    <span>用户/工具</span>
-                    <span>{{ currentChatContextTokens.userToolDisplay }}</span>
-                  </div>
-                  <div class="token-usage-panel-row">
-                    <span>助手历史</span>
-                    <span>{{ currentChatContextTokens.assistantDisplay }}</span>
-                  </div>
-                  <div class="token-usage-panel-row">
-                    <span>系统/摘要</span>
-                    <span>{{ currentChatContextTokens.systemSummaryDisplay }}</span>
                   </div>
                   <div class="token-usage-panel-row">
                     <span>上下文消息</span>
