@@ -152,20 +152,27 @@ const isStoreReady = computed(() => {
 
 
 // 处理移动端键盘弹出时视口高度变化
-const getAndroidSafeAreaBottom = () => {
+const getAndroidSafeAreaBottom = (effectiveViewportHeight?: number) => {
   const isAndroidPlatform = /android/i.test(navigator.userAgent)
   if (!isAndroidPlatform) return 0
 
   const viewport = window.visualViewport
   if (!viewport) return 12
 
-  const viewportBottom = viewport.height + viewport.offsetTop
+  const viewportHeight = effectiveViewportHeight ?? viewport.height
+  const viewportBottom = viewportHeight + viewport.offsetTop
   const occludedBottom = Math.max(0, window.innerHeight - viewportBottom)
 
   // Keyboard open: avoid inflating bottom safe area with IME height.
   if (occludedBottom >= 120) return 0
 
   return Math.max(12, Math.min(occludedBottom, 32))
+}
+
+const isFocusedFormControl = () => {
+  const activeElement = document.activeElement
+  return activeElement instanceof HTMLElement &&
+    activeElement.matches('input, textarea, select, [contenteditable="true"]')
 }
 
 const isFormControlFocusedInModal = () => {
@@ -181,9 +188,17 @@ const hasBaseModalOpen = () => {
 
 const updateViewportHeight = () => {
   if (isMobile.value) {
-    const visualVh = window.visualViewport ? window.visualViewport.height : window.innerHeight
+    const rawVisualVh = window.visualViewport ? window.visualViewport.height : window.innerHeight
+    const layoutVh = window.innerHeight
     const isModalFormControlFocused = isFormControlFocusedInModal()
     const viewportOffsetTop = window.visualViewport?.offsetTop ?? window.scrollY ?? 0
+    const isKeyboardLikelyOpen = isFocusedFormControl() && layoutVh - rawVisualVh >= 120
+    const isTransientCompressedViewport =
+      !isKeyboardLikelyOpen &&
+      rawVisualVh > 0 &&
+      layoutVh > 0 &&
+      rawVisualVh < layoutVh * 0.78
+    const visualVh = isTransientCompressedViewport ? layoutVh : rawVisualVh
     document.documentElement.style.setProperty('--visual-vh', `${visualVh}px`)
 
     if (isModalFormControlFocused || hasBaseModalOpen()) {
@@ -196,7 +211,7 @@ const updateViewportHeight = () => {
 
     document.documentElement.style.setProperty('--visual-viewport-offset-top', '0px')
     document.documentElement.style.setProperty('--vh', `${visualVh}px`)
-    document.documentElement.style.setProperty('--safe-area-bottom', `${getAndroidSafeAreaBottom()}px`)
+    document.documentElement.style.setProperty('--safe-area-bottom', `${getAndroidSafeAreaBottom(visualVh)}px`)
 
     // 强制滚动到顶部，防止键盘弹出导致页面偏移；弹窗内输入时不要触发底层页面重排。
     const activeElement = document.activeElement
@@ -215,17 +230,30 @@ const updateViewportHeight = () => {
   }
 }
 
+const scheduleViewportRecovery = () => {
+  updateViewportHeight()
+  window.setTimeout(updateViewportHeight, 80)
+  window.setTimeout(updateViewportHeight, 260)
+  window.setTimeout(updateViewportHeight, 600)
+}
+
 onMounted(() => {
   updateViewportHeight()
   window.visualViewport?.addEventListener('resize', updateViewportHeight)
   window.visualViewport?.addEventListener('scroll', updateViewportHeight)
   window.addEventListener('resize', updateViewportHeight)
+  window.addEventListener('focus', scheduleViewportRecovery)
+  window.addEventListener('pageshow', scheduleViewportRecovery)
+  document.addEventListener('visibilitychange', scheduleViewportRecovery)
 })
 
 onUnmounted(() => {
   window.visualViewport?.removeEventListener('resize', updateViewportHeight)
   window.visualViewport?.removeEventListener('scroll', updateViewportHeight)
   window.removeEventListener('resize', updateViewportHeight)
+  window.removeEventListener('focus', scheduleViewportRecovery)
+  window.removeEventListener('pageshow', scheduleViewportRecovery)
+  document.removeEventListener('visibilitychange', scheduleViewportRecovery)
 })
 
 provide('switchView', switchView)
@@ -469,7 +497,14 @@ const { width } = useWindowSize()
   --color-warning-rgb: 245, 158, 11;
   --color-danger-rgb: 239, 68, 68;
   --color-info-rgb: 59, 130, 246;
+  --native-safe-area-top: 0px;
+  --native-safe-area-right: 0px;
+  --native-safe-area-bottom: 0px;
+  --native-safe-area-left: 0px;
+  --safe-area-top: max(env(safe-area-inset-top), var(--native-safe-area-top, 0px));
+  --safe-area-right: max(env(safe-area-inset-right), var(--native-safe-area-right, 0px));
   --safe-area-bottom: 0px;
+  --safe-area-left: max(env(safe-area-inset-left), var(--native-safe-area-left, 0px));
 }
 
 /* 黑暗模式 */

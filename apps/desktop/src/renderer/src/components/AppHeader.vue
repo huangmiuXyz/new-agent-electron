@@ -213,12 +213,12 @@ watch(
 .app-header {
   --mobile-header-h: 56px;
   --desktop-header-h: 30px;
-  height: calc(var(--header-h) + env(safe-area-inset-top));
+  height: calc(var(--header-h) + var(--safe-area-top, env(safe-area-inset-top)));
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: var(--bg-header);
-  padding-top: env(safe-area-inset-top);
+  padding-top: var(--safe-area-top, env(safe-area-inset-top));
   backdrop-filter: blur(12px);
   position: sticky;
   top: 0;
@@ -228,7 +228,7 @@ watch(
 
 @media screen and (min-width: 769px) {
   .app-header {
-    height: calc(var(--desktop-header-h) + env(safe-area-inset-top));
+    height: calc(var(--desktop-header-h) + var(--safe-area-top, env(safe-area-inset-top)));
   }
 }
 
@@ -247,10 +247,10 @@ watch(
     left: 0;
     width: 100%;
     height: auto;
-    min-height: calc(var(--mobile-header-h) + env(safe-area-inset-top));
+    min-height: calc(var(--mobile-header-h) + var(--safe-area-top, env(safe-area-inset-top)));
     border-bottom: 0.5px solid var(--border-subtle);
     flex-shrink: 0;
-    padding: env(safe-area-inset-top) 0 0;
+    padding: var(--safe-area-top, env(safe-area-inset-top)) 0 0;
     display: block;
     /* 改为 block 以支持列表页大标题布局 */
   }

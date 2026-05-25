@@ -432,7 +432,7 @@ onBeforeUnmount(() => {
   align-items: flex-end;
   justify-content: center;
   background: rgba(0, 0, 0, 0.5);
-  padding-top: max(env(safe-area-inset-top), 0px);
+  padding-top: max(var(--safe-area-top, env(safe-area-inset-top)), 0px);
 }
 
 .modal-box {

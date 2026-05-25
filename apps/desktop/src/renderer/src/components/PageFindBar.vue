@@ -303,7 +303,7 @@ onUnmounted(() => {
 <style scoped>
 .page-find-bar {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 10px);
+  top: calc(var(--safe-area-top, env(safe-area-inset-top)) + 10px);
   right: 16px;
   z-index: 1000;
   display: flex;
