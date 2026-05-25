@@ -168,23 +168,29 @@ const currentChatContextTokens = computed(() => {
   if (!chat) {
     return {
       total: 0,
-      inputTokens: 0,
-      outputTokens: 0,
+      userToolTokens: 0,
+      assistantTokens: 0,
+      systemSummaryTokens: 0,
       contextMessageCount: 0,
       hasContext: false,
       totalDisplay: numberFormatter.format(0),
-      inputDisplay: numberFormatter.format(0),
-      outputDisplay: numberFormatter.format(0),
+      userToolDisplay: numberFormatter.format(0),
+      assistantDisplay: numberFormatter.format(0),
+      systemSummaryDisplay: numberFormatter.format(0),
       contextMessageCountDisplay: numberFormatter.format(0),
       tooltip: '当前上下文 Token\n暂无可用统计'
     }
   }
 
   const contextMessages = getCurrentContextMessages(chat, agent)
-  const inputContextMessages = contextMessages.filter((message) => message.role !== 'assistant')
-  const outputContextMessages = contextMessages.filter((message) => message.role === 'assistant')
-  const inputContextTokens = estimateMessagesTokens(inputContextMessages, model)
-  const outputTokens = estimateMessagesTokens(outputContextMessages, model)
+  const userToolContextMessages = contextMessages.filter(
+    (message) => message.role !== 'assistant' && message.role !== 'system'
+  )
+  const assistantContextMessages = contextMessages.filter((message) => message.role === 'assistant')
+  const systemContextMessages = contextMessages.filter((message) => message.role === 'system')
+  const userToolTokens = estimateMessagesTokens(userToolContextMessages, model)
+  const assistantTokens = estimateMessagesTokens(assistantContextMessages, model)
+  const systemMessageTokens = estimateMessagesTokens(systemContextMessages, model)
   const compressedContextTokens =
     chat.compressedContext?.content && !chat.compressedContext.loading
       ? estimateSystemTextTokens(
@@ -193,26 +199,29 @@ const currentChatContextTokens = computed(() => {
       )
       : 0
   const systemTokens = estimateSystemTextTokens(agent?.systemPrompt || '', model)
-  const inputTokens = inputContextTokens + compressedContextTokens + systemTokens
-  const total = inputTokens + outputTokens
+  const systemSummaryTokens = systemMessageTokens + compressedContextTokens + systemTokens
+  const total = userToolTokens + assistantTokens + systemSummaryTokens
 
   return {
     total,
-    inputTokens,
-    outputTokens,
+    userToolTokens,
+    assistantTokens,
+    systemSummaryTokens,
     contextMessageCount: contextMessages.length,
     hasContext: total > 0 || contextMessages.length > 0,
     totalDisplay: numberFormatter.format(total),
-    inputDisplay: numberFormatter.format(inputTokens),
-    outputDisplay: numberFormatter.format(outputTokens),
+    userToolDisplay: numberFormatter.format(userToolTokens),
+    assistantDisplay: numberFormatter.format(assistantTokens),
+    systemSummaryDisplay: numberFormatter.format(systemSummaryTokens),
     contextMessageCountDisplay: numberFormatter.format(contextMessages.length),
     tooltip:
       total > 0 || contextMessages.length > 0
         ? [
           '当前上下文 Token（估算）',
           `总计: ${numberFormatter.format(total)}`,
-          `输入: ${numberFormatter.format(inputTokens)}`,
-          `输出: ${numberFormatter.format(outputTokens)}`,
+          `用户/工具: ${numberFormatter.format(userToolTokens)}`,
+          `助手历史: ${numberFormatter.format(assistantTokens)}`,
+          `系统/摘要: ${numberFormatter.format(systemSummaryTokens)}`,
           `上下文消息: ${numberFormatter.format(contextMessages.length)} 条`
         ].join('\n')
         : '当前上下文 Token\n暂无可用统计'
@@ -1223,12 +1232,16 @@ onUnmounted(() => {
                     <strong>{{ currentChatContextTokens.totalDisplay }}</strong>
                   </div>
                   <div class="token-usage-panel-row">
-                    <span>输入</span>
-                    <span>{{ currentChatContextTokens.inputDisplay }}</span>
+                    <span>用户/工具</span>
+                    <span>{{ currentChatContextTokens.userToolDisplay }}</span>
                   </div>
                   <div class="token-usage-panel-row">
-                    <span>输出</span>
-                    <span>{{ currentChatContextTokens.outputDisplay }}</span>
+                    <span>助手历史</span>
+                    <span>{{ currentChatContextTokens.assistantDisplay }}</span>
+                  </div>
+                  <div class="token-usage-panel-row">
+                    <span>系统/摘要</span>
+                    <span>{{ currentChatContextTokens.systemSummaryDisplay }}</span>
                   </div>
                   <div class="token-usage-panel-row">
                     <span>上下文消息</span>
