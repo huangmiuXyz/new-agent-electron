@@ -120,22 +120,6 @@ const createIgnoreState = (
   }
 }
 
-const execCommand = async (
-  command: string,
-  options: { cwd?: string; maxBuffer?: number } = {}
-): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
-  const resolvedCommand = injectBundledRipgrepPath(command)
-  if (isWindows) {
-    return window.api.execFileCommand(
-      getPowerShellPath(),
-      ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', resolvedCommand],
-      options
-    )
-  }
-
-  return window.api.execFileCommand(getPosixShellPath(), ['-lc', resolvedCommand], options)
-}
-
 const getPowerShellPath = (): string => {
   const systemRoot = window.api.process.env.SystemRoot
   return systemRoot
@@ -209,63 +193,62 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   },
   readFile: {
     title: '读取文件',
-    description: isWindows
-      ? '用于读取文件内容。优先使用 Get-Content、type、findstr 等读取命令；需要搜索内容时请改用 search_project 并优先使用 rg。'
-      : '用于读取文件内容。优先使用 cat、sed、nl 等读取命令；需要搜索内容时请改用 search_project 并优先使用 rg。',
+    description:
+      [
+        '读取 workPath 内的文本文件，并以 hashline 格式返回。',
+        '每一行格式为 LINEhash|内容，例如 12ab|const value = 1。',
+        '锚点只包含 | 左侧的 LINEhash，例如 12ab；编辑时不要复制 | 或后面的内容到操作行。',
+        '默认只读取 160 行；显式传 end_line 或 limit 时会自动附带前 1 行、后 3 行上下文。',
+        '超长行会显示为 LINE|截断内容，不带 hash，表示这行不可作为 edit_file 锚点。',
+        '编辑文件前必须先读取目标区域，复制左侧 LINEhash 锚点到 edit_file 的 hashline 输入。',
+        '需要搜索文件名或内容时请改用 search_project；定位到文件后再用 readFile 读取锚点。'
+      ].join('\n'),
     inputSchema: z.object({
-      cmd: z.string().describe('要原样执行的命令字符串')
+      path: z.string().describe('要读取的文件路径。相对路径会基于当前 workPath 解析。'),
+      start_line: z.number().int().min(1).optional().describe('起始行号，1-based，默认 1。'),
+      end_line: z.number().int().min(1).optional().describe('结束行号，1-based；传入后会自动附带少量上下文。'),
+      limit: z.number().int().min(1).max(2000).optional().describe('最多读取多少行，默认 160，最大 2000。'),
+      max_columns: z.number().int().min(20).max(2000).optional().describe('单行最大显示列数，默认 240；超出后不生成 hash 锚点。')
     }),
     execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
-      const cmd = String(params.cmd || '')
-      if (!cmd.trim()) {
-        return { toolResult: { content: [{ type: 'text', text: '读取文件失败：cmd 不能为空' }] } }
+      const rawPath = String(params.path || '').trim()
+      if (!rawPath) {
+        return { toolResult: { content: [{ type: 'text', text: '读取文件失败：path 不能为空' }] } }
       }
 
       try {
-        const rootDir = resolvePath('.', options?.chatId)
-        const result = await execCommand(cmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
-        const stdout = result.stdout.trim()
-        const stderr = result.stderr.trim()
-        const errorMessage = result.errorMessage?.trim() || ''
-
-        if (result.code === 1 && !stdout) {
+        const baseDir = getCurrentWorkPath(options?.chatId)
+        if (!baseDir) {
           return {
+            error: '未设置 workPath',
             toolResult: {
-              content: [
-                {
-                  type: 'text',
-                  text: `命令执行完成，无标准输出\ncmd: ${cmd}\ncwd: ${rootDir.replaceAll('\\', '/')}\n${stderr ? `\nstderr:\n${stderr}` : ''}`
-                }
-              ]
+              content: [{ type: 'text', text: '读取文件失败：未设置 workPath，优先使用 `set_work_path` 工具临时设置' }]
             }
           }
         }
 
-        if (result.code !== 0 && result.code !== 1) {
-          return {
-            toolResult: {
-              content: [
-                {
-                  type: 'text',
-                  text: `读取文件失败：${stderr || stdout || errorMessage || 'command execution failed'}`
-                }
-              ]
-            }
-          }
-        }
+        const result = await window.api.hashline.read({
+          baseDir,
+          path: rawPath,
+          start_line: typeof params.start_line === 'number' ? params.start_line : undefined,
+          end_line: typeof params.end_line === 'number' ? params.end_line : undefined,
+          limit: typeof params.limit === 'number' ? params.limit : undefined,
+          max_columns: typeof params.max_columns === 'number' ? params.max_columns : undefined
+        })
 
-        const outputSections = [`命令执行完成\ncmd: ${cmd}\ncwd: ${rootDir.replaceAll('\\', '/')}`]
-        if (stdout) {
-          outputSections.push(`stdout:\n${stdout}`)
-        }
-        if (stderr) {
-          outputSections.push(`stderr:\n${stderr}`)
+        if (!result?.ok || !result.text) {
+          throw new Error(result?.error || 'hashline read failed')
         }
 
         return {
           toolResult: {
-            content: [{ type: 'text', text: outputSections.join('\n\n') }]
+            content: [
+              {
+                type: 'text',
+                text: result.text
+              }
+            ]
           }
         }
       } catch (error) {
@@ -558,56 +541,30 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   edit_file: {
     title: '编辑文件',
     description: [
-      '使用 edit_file 编辑 workPath 内的文件。',
+      '使用 hashline 模式编辑 workPath 内的文件。',
       '',
-      '支持四种操作：',
-      'type=add：创建文件，path 为文件路径，new_string 为完整文件内容。',
-      'type=modify：替换文件中的一段文本，path 为文件路径，old_string 为要替换的原文，new_string 为替换后的文本。',
-      'type=delete：删除文件，path 为文件路径。',
-      'type=move：移动/重命名文件，path 为源路径，new_string 为目标路径。',
+      '输入格式：',
+      '§path/to/file',
+      '»ANCHOR 在锚点后插入；«ANCHOR 在锚点前插入；≔ANCHOR 或 ≔START..END 替换/删除行。',
+      '操作符 + 锚点必须独占一行；payload 必须从下一行开始。不要写成 »12ab|payload。',
+      '»BOF/«BOF 表示文件开头，»EOF 表示文件末尾。',
+      '≔ANCHOR 后跟 payload 表示替换；不跟 payload 表示删除。',
       '',
-      '所有路径必须位于当前 workPath 内。add/move 默认不会覆盖已有文件，除非传 overwrite=true。',
-      'modify 要求 old_string 精确匹配；为避免误改，old_string 应尽量包含足够上下文且只匹配一次。'
+      '编辑前必须用 readFile 获取最新 LINEhash 锚点，例如 12ab|const value = 1 中的锚点是 12ab。',
+      '所有路径必须位于当前 workPath 内。'
     ].join('\n'),
     inputSchema: z.object({
-      path: z
-        .string()
-        .describe('要操作的文件路径。相对路径会基于当前 workPath 解析。type=move 时表示源路径。'),
-      type: z
-        .enum(['add', 'modify', 'delete', 'move'])
-        .describe('操作类型：add 新增文件，modify 替换文本，delete 删除文件，move 移动/重命名文件。'),
-      old_string: z
-        .string()
-        .optional()
-        .describe('type=modify 时必填，要替换的原文。'),
-      new_string: z
-        .string()
-        .optional()
-        .describe('type=add 时为完整文件内容；type=modify 时为替换后的文本；type=move 时为目标路径。'),
-      overwrite: z
-        .boolean()
-        .optional()
-        .describe('type=add 或 type=move 目标已存在时是否覆盖，默认 false。')
+      input: z.string().describe('hashline 编辑内容，必须包含一个或多个 §PATH 文件区块。')
     }),
     execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
-      const filePath = typeof params.path === 'string' ? params.path.trim() : ''
-      const type = typeof params.type === 'string' ? params.type.trim().toLowerCase() : ''
+      const input = typeof params.input === 'string' ? params.input : ''
 
-      if (!filePath) {
+      if (!input.trim()) {
         return {
-          error: '缺少必要参数: path',
+          error: '缺少必要参数: input',
           toolResult: {
-            content: [{ type: 'text', text: 'edit_file 失败：缺少必要参数 path' }]
-          }
-        }
-      }
-
-      if (!['add', 'modify', 'delete', 'move'].includes(type)) {
-        return {
-          error: '缺少或不支持的参数: type',
-          toolResult: {
-            content: [{ type: 'text', text: 'edit_file 失败：type 必须是 add、modify、delete 或 move' }]
+            content: [{ type: 'text', text: 'edit_file 失败：缺少必要参数 input' }]
           }
         }
       }
@@ -624,11 +581,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       try {
         const result = await window.api.editFile.execute({
           baseDir,
-          path: filePath,
-          type: type as 'add' | 'modify' | 'delete' | 'move',
-          old_string: typeof params.old_string === 'string' ? params.old_string : undefined,
-          new_string: typeof params.new_string === 'string' ? params.new_string : undefined,
-          overwrite: Boolean(params.overwrite)
+          input
         })
 
         if (!result?.ok || !result.summary) {

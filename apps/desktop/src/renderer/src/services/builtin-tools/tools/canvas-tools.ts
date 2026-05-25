@@ -8,33 +8,6 @@ import {
 } from '@renderer/services/sandbox'
 import { execRipgrepSearch, injectBundledRipgrepPath } from './command-utils'
 
-const isWindows = navigator.platform.toLowerCase().includes('win')
-
-const getPowerShellPath = (): string => {
-  const systemRoot = window.api.process.env.SystemRoot
-  return systemRoot
-    ? window.api.path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
-    : 'powershell.exe'
-}
-
-const getPosixShellPath = (): string => window.api.process.env.SHELL || '/bin/sh'
-
-const execCommand = async (
-  command: string,
-  options: { cwd?: string; maxBuffer?: number } = {}
-): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
-  const resolvedCommand = injectBundledRipgrepPath(command)
-  if (isWindows) {
-    return window.api.execFileCommand(
-      getPowerShellPath(),
-      ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', resolvedCommand],
-      options
-    )
-  }
-
-  return window.api.execFileCommand(getPosixShellPath(), ['-lc', resolvedCommand], options)
-}
-
 const ensureCanvasWorkspace = async (chatId?: string) => {
   const canvasStore = useCanvasStore()
   const workspaceDir = canvasStore.getWorkspaceDir(chatId)
@@ -140,38 +113,6 @@ const formatDirectoryList = (chatId?: string, directoryPath = '/') => {
   return [`目录: ${normalizedDirectoryPath}`, ...lines].join('\n')
 }
 
-const quotePosixPath = (value: string) => `'${value.replaceAll('\'', '\'\\\'\'')}'`
-
-const quotePowerShellPath = (value: string) => `'${value.replaceAll('\'', '\'\'')}'`
-
-const buildLegacyReadCommand = (
-  filePath: string,
-  options?: { startLine?: number; endLine?: number }
-) => {
-  const normalizedFilePath = normalizeSandboxPath(filePath)
-  const hasLineRange = options?.startLine !== undefined || options?.endLine !== undefined
-  const startLine = Math.max(1, options?.startLine || 1)
-
-  if (isWindows) {
-    const quotedPath = quotePowerShellPath(`.${normalizedFilePath}`)
-    if (!hasLineRange) {
-      return `Get-Content -Path ${quotedPath}`
-    }
-
-    const endLine = Math.max(startLine, options?.endLine || startLine)
-    const lineCount = endLine - startLine + 1
-    return `(Get-Content -Path ${quotedPath}) | Select-Object -Skip ${startLine - 1} -First ${lineCount}`
-  }
-
-  const quotedPath = quotePosixPath(`.${normalizedFilePath}`)
-  if (!hasLineRange) {
-    return `cat ${quotedPath}`
-  }
-
-  const endLine = Math.max(startLine, options?.endLine || startLine)
-  return `sed -n '${startLine},${endLine}p' ${quotedPath}`
-}
-
 const searchCanvasContent = (
   workspaceDir: string,
   query: string,
@@ -251,31 +192,31 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
   },
   read_canvas_file: {
     title: '读取 Canvas 文件',
-    description: isWindows
-      ? '用于读取当前 Canvas 工作区中的文件内容。优先使用 Get-Content、type、findstr 等读取命令；需要搜索内容时请改用 search_canvas_content 或 exec_command_canvas，并优先使用 rg。'
-      : '用于读取当前 Canvas 工作区中的文件内容。优先使用 cat、sed、nl 等读取命令；需要搜索内容时请改用 search_canvas_content 或 exec_command_canvas，并优先使用 rg。',
+    description:
+      [
+        '读取当前 Canvas 工作区中的文本文件，并以 hashline 格式返回。',
+        '每一行格式为 LINEhash|内容，例如 12ab|const value = 1。',
+        '锚点只包含 | 左侧的 LINEhash，例如 12ab；编辑时不要复制 | 或后面的内容到操作行。',
+        '默认只读取 160 行；显式传 end_line 或 limit 时会自动附带前 1 行、后 3 行上下文。',
+        '超长行会显示为 LINE|截断内容，不带 hash，表示这行不可作为 edit_file_canvas 锚点。',
+        '编辑文件前必须先读取目标区域，复制左侧 LINEhash 锚点到 edit_file_canvas 的 hashline 输入。'
+      ].join('\n'),
     inputSchema: z.object({
-      cmd: z.string().optional().describe('要原样执行的命令字符串'),
-      file_path: z.string().optional().describe('兼容旧参数：要读取的文件路径'),
-      start_line: z.number().int().min(1).optional().describe('兼容旧参数：起始行号，1-based，可选'),
-      end_line: z.number().int().min(1).optional().describe('兼容旧参数：结束行号，1-based，可选')
+      path: z.string().describe('要读取的文件路径。相对路径会基于当前 Canvas 工作区解析。'),
+      start_line: z.number().int().min(1).optional().describe('起始行号，1-based，默认 1。'),
+      end_line: z.number().int().min(1).optional().describe('结束行号，1-based；传入后会自动附带少量上下文。'),
+      limit: z.number().int().min(1).max(2000).optional().describe('最多读取多少行，默认 160，最大 2000。'),
+      max_columns: z.number().int().min(20).max(2000).optional().describe('单行最大显示列数，默认 240；超出后不生成 hash 锚点。')
     }),
     execute: async (args: unknown, options?: { chatId?: string }) => {
-      const params = args as { cmd?: string; file_path?: string; start_line?: number; end_line?: number }
-      const cmd = String(params.cmd || '').trim()
-      const filePath = String(params.file_path || '').trim()
-      const resolvedCmd = cmd || (filePath
-        ? buildLegacyReadCommand(filePath, {
-          startLine: params.start_line,
-          endLine: params.end_line
-        })
-        : '')
+      const params = args as { path?: string; start_line?: number; end_line?: number; limit?: number; max_columns?: number }
+      const rawPath = String(params.path || '').trim()
 
-      if (!resolvedCmd) {
+      if (!rawPath) {
         return {
-          error: '缺少必要参数: cmd',
+          error: '缺少必要参数: path',
           toolResult: {
-            content: [{ type: 'text', text: 'read_canvas_file 失败：缺少必要参数 cmd' }]
+            content: [{ type: 'text', text: 'read_canvas_file 失败：缺少必要参数 path' }]
           }
         }
       }
@@ -283,47 +224,25 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
       try {
         openCanvasPanel()
         const { workspaceDir } = await ensureCanvasWorkspace(options?.chatId)
-        const result = await execCommand(resolvedCmd, { cwd: workspaceDir, maxBuffer: 8 * 1024 * 1024 })
-        const stdout = result.stdout.trim()
-        const stderr = result.stderr.trim()
-        const errorMessage = result.errorMessage?.trim() || ''
+        const normalizedPath = normalizeCanvasEditPath(workspaceDir, rawPath)
+        const result = await window.api.hashline.read({
+          baseDir: workspaceDir,
+          path: normalizedPath.slice(1),
+          start_line: typeof params.start_line === 'number' ? params.start_line : undefined,
+          end_line: typeof params.end_line === 'number' ? params.end_line : undefined,
+          limit: typeof params.limit === 'number' ? params.limit : undefined,
+          max_columns: typeof params.max_columns === 'number' ? params.max_columns : undefined
+        })
 
-        if (result.code === 1 && !stdout) {
-          return {
-            toolResult: {
-              content: [{
-                type: 'text',
-                text: `命令执行完成，无标准输出\ncmd: ${resolvedCmd}\ncwd: ${workspaceDir.replaceAll('\\', '/')}\n${stderr ? `\nstderr:\n${stderr}` : ''}`
-              }]
-            }
-          }
-        }
-
-        if (result.code !== 0 && result.code !== 1) {
-          return {
-            error: stderr || stdout || errorMessage || 'command execution failed',
-            toolResult: {
-              content: [{
-                type: 'text',
-                text: `read_canvas_file 失败：${stderr || stdout || errorMessage || 'command execution failed'}`
-              }]
-            }
-          }
-        }
-
-        const outputSections = [`命令执行完成\ncmd: ${resolvedCmd}\ncwd: ${workspaceDir.replaceAll('\\', '/')}`]
-        if (stdout) {
-          outputSections.push(`stdout:\n${stdout}`)
-        }
-        if (stderr) {
-          outputSections.push(`stderr:\n${stderr}`)
+        if (!result?.ok || !result.text) {
+          throw new Error(result?.error || 'hashline read failed')
         }
 
         return {
           toolResult: {
             content: [{
               type: 'text',
-              text: outputSections.join('\n\n')
+              text: result.text
             }]
           }
         }
@@ -490,56 +409,30 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
   edit_file_canvas: {
     title: '编辑 Canvas 文件',
     description: [
-      '使用 edit_file_canvas 编辑当前 Canvas 工作区内的文件。',
+      '使用 hashline 模式编辑当前 Canvas 工作区内的文件。',
       '',
-      '支持四种操作：',
-      'type=add：创建文件，path 为文件路径，new_string 为完整文件内容。',
-      'type=modify：替换文件中的一段文本，path 为文件路径，old_string 为要替换的原文，new_string 为替换后的文本。',
-      'type=delete：删除文件，path 为文件路径。',
-      'type=move：移动/重命名文件，path 为源路径，new_string 为目标路径。',
+      '输入格式：',
+      '§path/to/file',
+      '»ANCHOR 在锚点后插入；«ANCHOR 在锚点前插入；≔ANCHOR 或 ≔START..END 替换/删除行。',
+      '操作符 + 锚点必须独占一行；payload 必须从下一行开始。不要写成 »12ab|payload。',
+      '»BOF/«BOF 表示文件开头，»EOF 表示文件末尾。',
+      '≔ANCHOR 后跟 payload 表示替换；不跟 payload 表示删除。',
       '',
-      '所有路径必须位于当前 Canvas 工作区内。add/move 默认不会覆盖已有文件，除非传 overwrite=true。',
-      'modify 要求 old_string 精确匹配；为避免误改，old_string 应尽量包含足够上下文且只匹配一次。'
+      '编辑前必须用 read_canvas_file 获取最新 LINEhash 锚点。',
+      '所有路径必须位于当前 Canvas 工作区内。'
     ].join('\n'),
     inputSchema: z.object({
-      path: z
-        .string()
-        .describe('要操作的文件路径。相对路径会基于当前 Canvas 工作区解析。type=move 时表示源路径。'),
-      type: z
-        .enum(['add', 'modify', 'delete', 'move'])
-        .describe('操作类型：add 新增文件，modify 替换文本，delete 删除文件，move 移动/重命名文件。'),
-      old_string: z
-        .string()
-        .optional()
-        .describe('type=modify 时必填，要替换的原文。'),
-      new_string: z
-        .string()
-        .optional()
-        .describe('type=add 时为完整文件内容；type=modify 时为替换后的文本；type=move 时为目标路径。'),
-      overwrite: z
-        .boolean()
-        .optional()
-        .describe('type=add 或 type=move 目标已存在时是否覆盖，默认 false。')
+      input: z.string().describe('hashline 编辑内容，必须包含一个或多个 §PATH 文件区块。')
     }),
     execute: async (args: unknown, options?: { chatId?: string }) => {
       const params = args as Record<string, any>
-      const filePath = typeof params.path === 'string' ? params.path.trim() : ''
-      const type = typeof params.type === 'string' ? params.type.trim().toLowerCase() : ''
+      const input = typeof params.input === 'string' ? params.input : ''
 
-      if (!filePath.trim()) {
+      if (!input.trim()) {
         return {
-          error: '缺少必要参数: path',
+          error: '缺少必要参数: input',
           toolResult: {
-            content: [{ type: 'text', text: 'edit_file_canvas 失败：缺少必要参数 path' }]
-          }
-        }
-      }
-
-      if (!['add', 'modify', 'delete', 'move'].includes(type)) {
-        return {
-          error: '缺少或不支持的参数: type',
-          toolResult: {
-            content: [{ type: 'text', text: 'edit_file_canvas 失败：type 必须是 add、modify、delete 或 move' }]
+            content: [{ type: 'text', text: 'edit_file_canvas 失败：缺少必要参数 input' }]
           }
         }
       }
@@ -549,30 +442,18 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
         const { workspaceDir } = await ensureCanvasWorkspace(options?.chatId)
         const result = await window.api.editFile.execute({
           baseDir: workspaceDir,
-          path: filePath,
-          type: type as 'add' | 'modify' | 'delete' | 'move',
-          old_string: typeof params.old_string === 'string' ? params.old_string : undefined,
-          new_string: typeof params.new_string === 'string' ? params.new_string : undefined,
-          overwrite: Boolean(params.overwrite)
+          input
         })
 
         if (!result?.ok || !result.summary) {
           throw new Error(result?.error || 'edit_file_canvas failed')
         }
 
-        if (type === 'delete') {
-          const deletedPath = normalizeCanvasEditPath(workspaceDir, filePath)
-          if (canvasStore.getActiveFilePath(options?.chatId) === deletedPath) {
-            canvasStore.resetActiveFilePath(options?.chatId)
-          } else {
-            canvasStore.touchWorkspace(options?.chatId)
-          }
+        const firstSummaryPath = result.summary.split('\n')[0]?.replace(/^[A-Z]\s+/, '').trim()
+        if (firstSummaryPath) {
+          canvasStore.setActiveFilePath(normalizeCanvasEditPath(workspaceDir, firstSummaryPath), options?.chatId)
         } else {
-          const nextActivePath = normalizeCanvasEditPath(
-            workspaceDir,
-            type === 'move' && typeof params.new_string === 'string' ? params.new_string : filePath
-          )
-          canvasStore.setActiveFilePath(nextActivePath, options?.chatId)
+          canvasStore.touchWorkspace(options?.chatId)
         }
 
         openCanvasPanel()

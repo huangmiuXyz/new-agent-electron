@@ -642,14 +642,20 @@ export const api: ElectronAPI = {
       patch: string
     }) => electronAPI.ipcRenderer.invoke('apply-patch:execute', payload)
   },
+  hashline: {
+    read: (payload: {
+      baseDir: string
+      path: string
+      start_line?: number
+      end_line?: number
+      limit?: number
+      max_columns?: number
+    }) => electronAPI.ipcRenderer.invoke('hashline:read', payload)
+  },
   editFile: {
     execute: (payload: {
       baseDir: string
-      path: string
-      type: 'add' | 'delete' | 'move' | 'modify'
-      old_string?: string
-      new_string?: string
-      overwrite?: boolean
+      input: string
     }) => electronAPI.ipcRenderer.invoke('edit-file:execute', payload)
   },
   sync: {

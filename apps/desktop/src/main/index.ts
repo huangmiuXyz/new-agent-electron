@@ -7,6 +7,7 @@ import { setupUpdaterHandlers } from './services/updater'
 import { setupPtyHandlers } from './services/pty'
 import { setupComputerHandlers } from './services/computer'
 import { setupApplyPatchHandlers } from './services/applyPatch'
+import { setupHashlineHandlers } from './services/hashline'
 import { setupSearchReplaceHandlers } from './services/searchReplace'
 import { setupSyncHandlers } from './services/sync'
 import { initTray } from './initTray'
@@ -468,6 +469,7 @@ if (gotSingleInstanceLock) {
     setupPtyHandlers()
     setupComputerHandlers()
     setupApplyPatchHandlers()
+    setupHashlineHandlers()
     setupSearchReplaceHandlers()
     setupSyncHandlers()
   })

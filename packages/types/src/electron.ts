@@ -210,14 +210,25 @@ export interface ElectronAPI {
     }>;
   };
 
+  hashline: {
+    read: (payload: {
+      baseDir: string;
+      path: string;
+      start_line?: number;
+      end_line?: number;
+      limit?: number;
+      max_columns?: number;
+    }) => Promise<{
+      ok: boolean;
+      text?: string;
+      error?: string;
+    }>;
+  };
+
   editFile: {
     execute: (payload: {
       baseDir: string;
-      path: string;
-      type: 'add' | 'delete' | 'move' | 'modify';
-      old_string?: string;
-      new_string?: string;
-      overwrite?: boolean;
+      input: string;
     }) => Promise<{
       ok: boolean;
       summary?: string;
