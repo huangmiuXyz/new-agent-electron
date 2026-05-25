@@ -128,6 +128,15 @@ const estimateSystemTextTokens = (text: string, model?: string): number => {
   return estimateTextTokens(`system: ${trimmed}`, model) + 4
 }
 
+const formatTokenCount = (value: number): string => {
+  if (value >= 1000) {
+    const compactValue = value / 1000
+    return `${compactValue >= 10 ? compactValue.toFixed(0) : compactValue.toFixed(1)}k`
+  }
+
+  return numberFormatter.format(value)
+}
+
 const getCurrentContextMessages = (chat: Chat, agent?: Agent | null): BaseMessage[] => {
   const contextCount = agent?.contextCount ?? 50
   const messages = chat.messages.filter((message) => !isCompressingContextMessage(message))
@@ -173,10 +182,10 @@ const currentChatContextTokens = computed(() => {
       systemSummaryTokens: 0,
       contextMessageCount: 0,
       hasContext: false,
-      totalDisplay: numberFormatter.format(0),
-      userToolDisplay: numberFormatter.format(0),
-      assistantDisplay: numberFormatter.format(0),
-      systemSummaryDisplay: numberFormatter.format(0),
+      totalDisplay: formatTokenCount(0),
+      userToolDisplay: formatTokenCount(0),
+      assistantDisplay: formatTokenCount(0),
+      systemSummaryDisplay: formatTokenCount(0),
       contextMessageCountDisplay: numberFormatter.format(0),
       tooltip: '当前上下文 Token\n暂无可用统计'
     }
@@ -209,19 +218,19 @@ const currentChatContextTokens = computed(() => {
     systemSummaryTokens,
     contextMessageCount: contextMessages.length,
     hasContext: total > 0 || contextMessages.length > 0,
-    totalDisplay: numberFormatter.format(total),
-    userToolDisplay: numberFormatter.format(userToolTokens),
-    assistantDisplay: numberFormatter.format(assistantTokens),
-    systemSummaryDisplay: numberFormatter.format(systemSummaryTokens),
+    totalDisplay: formatTokenCount(total),
+    userToolDisplay: formatTokenCount(userToolTokens),
+    assistantDisplay: formatTokenCount(assistantTokens),
+    systemSummaryDisplay: formatTokenCount(systemSummaryTokens),
     contextMessageCountDisplay: numberFormatter.format(contextMessages.length),
     tooltip:
       total > 0 || contextMessages.length > 0
         ? [
           '当前上下文 Token（估算）',
-          `总计: ${numberFormatter.format(total)}`,
-          `用户/工具: ${numberFormatter.format(userToolTokens)}`,
-          `助手历史: ${numberFormatter.format(assistantTokens)}`,
-          `系统/摘要: ${numberFormatter.format(systemSummaryTokens)}`,
+          `总计: ${formatTokenCount(total)}`,
+          `用户/工具: ${formatTokenCount(userToolTokens)}`,
+          `助手历史: ${formatTokenCount(assistantTokens)}`,
+          `系统/摘要: ${formatTokenCount(systemSummaryTokens)}`,
           `上下文消息: ${numberFormatter.format(contextMessages.length)} 条`
         ].join('\n')
         : '当前上下文 Token\n暂无可用统计'
