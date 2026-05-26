@@ -93,7 +93,8 @@ const {
   Settings: SettingsIcon,
   Upload: UploadIcon,
   Box: BoxIcon,
-  Terminal: TerminalIcon
+  Terminal: TerminalIcon,
+  Sparkles: SparklesIcon
 } = useIcon([
   'Download',
   'FileZip',
@@ -106,7 +107,8 @@ const {
   'Upload',
   'Box',
   'Terminal',
-  'Refresh'
+  'Refresh',
+  'Sparkles'
 ])
 const { showContextMenu, hideContextMenu } = useContextMenu<TreeRow>()
 const { showContextMenu: showTabContextMenu } = useContextMenu<{ filePath: string }>()
@@ -2450,7 +2452,8 @@ onBeforeUnmount(() => {
                     :title="gitGeneratingCommitMessage ? '生成提交信息中' : '生成提交信息'"
                     @click.capture="gitGenerateAfterModelPick = true">
                     <ModelSelector v-model:model-id="gitCommitModelId" v-model:provider-id="gitCommitProviderId"
-                      type="icon" category="text" popup-position="bottom" @select="handleGitCommitModelSelect" />
+                      type="icon" category="text" popup-position="bottom" :icon="SparklesIcon"
+                      @select="handleGitCommitModelSelect" />
                   </div>
                   <button type="button" class="sandbox-sidebar-tool canvas-git-more-tool" :disabled="gitActionLoading"
                     title="更多 Git 操作" @click="void openGitActionsMenu($event)">
@@ -2949,30 +2952,33 @@ onBeforeUnmount(() => {
   opacity: 0.7;
 }
 
-.canvas-git-ai-selector :deep(.btn) {
-  width: auto;
+.canvas-git-ai-selector :deep(.btn.btn--icon.btn--sm) {
+  display: grid;
+  place-items: center;
+  width: 18px;
   min-width: 18px;
   height: 18px;
   min-height: 18px;
-  padding: 0 3px;
+  padding: 0;
   border-radius: 2px;
-  color: transparent;
+  color: var(--sandbox-sidebar-muted);
+  line-height: 1;
   position: relative;
 }
 
-.canvas-git-ai-selector :deep(.btn:hover) {
+.canvas-git-ai-selector :deep(.btn.btn--icon.btn--sm:hover) {
   background: var(--sandbox-tool-hover);
 }
 
-.canvas-git-ai-selector :deep(.icon-btn),
-.canvas-git-ai-selector :deep(img),
 .canvas-git-ai-selector :deep(svg) {
-  opacity: 0;
-  pointer-events: none;
+  display: block;
+  width: 12px;
+  height: 12px;
+  transform: translate(0.5px, 0.25px);
 }
 
-.canvas-git-ai-selector :deep(.btn)::after {
-  content: 'AI';
+.canvas-git-ai-selector.is-loading :deep(.btn)::after {
+  content: '…';
   position: absolute;
   inset: 0;
   display: grid;
@@ -2982,8 +2988,8 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.canvas-git-ai-selector.is-loading :deep(.btn)::after {
-  content: '…';
+.canvas-git-ai-selector.is-loading :deep(svg) {
+  opacity: 0;
 }
 
 .sandbox-tree {

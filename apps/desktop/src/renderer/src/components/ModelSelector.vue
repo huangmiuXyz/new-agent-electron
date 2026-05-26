@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { assetsHandler } from '@renderer/utils'
+import type { Component } from 'vue'
 
 type FlatModelItem = {
   key: string
@@ -25,6 +26,7 @@ const props = withDefaults(
     popupPosition?: 'top' | 'bottom'
     category?: ModelCategory | ModelCategory[]
     multiple?: boolean
+    icon?: Component
   }>(),
   {
     type: 'select',
@@ -103,6 +105,8 @@ const { ChevronDown, Check, Close, Box, Settings } = useIcon([
   'Box',
   'Settings'
 ])
+
+const iconTriggerComponent = computed(() => props.icon || null)
 
 const currentModelLabel = computed(() => {
   if (props.multiple) {
@@ -323,8 +327,9 @@ const handleModelLogoError = () => {
         </div>
       </div>
       <Button v-else variant="icon" size="sm">
+        <component :is="iconTriggerComponent" v-if="iconTriggerComponent" style="font-size: 16px" />
         <img
-          v-if="selectedModelId && currentSelectedProviderLogo && !modelLogoLoadFailed"
+          v-else-if="selectedModelId && currentSelectedProviderLogo && !modelLogoLoadFailed"
           style="width: 15px; border-radius: 2px"
           :src="currentSelectedProviderLogo"
           alt=""
