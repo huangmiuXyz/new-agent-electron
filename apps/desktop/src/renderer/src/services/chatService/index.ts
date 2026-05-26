@@ -895,8 +895,9 @@ export const chatService = () => {
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
     try {
+      const imageProviderName = providerType === 'openai-compatible' ? providerType : provider
       const result = await _generateImage({
-        model: createRegistry({ apiKey, baseURL, name: provider }).imageModel(
+        model: createRegistry({ apiKey, baseURL, name: imageProviderName }).imageModel(
           `${providerType}:${model}`
         ),
         prompt,

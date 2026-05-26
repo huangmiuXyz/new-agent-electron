@@ -152,6 +152,37 @@ const openAICompatibleChatCallOptionsSchema = z.object({
     .describe('用于合并到请求体的 JSON 字符串，例如 {"custom_field":"value"}')
 })
 
+const openAICompatibleImageCallOptionsSchema = z.object({
+  quality: z
+    .enum(['low', 'medium', 'high', 'auto'])
+    .default('auto')
+    .describe('图像质量。'),
+  background: z
+    .enum(['transparent', 'opaque', 'auto'])
+    .default('auto')
+    .describe('背景类型。'),
+  output_format: z
+    .enum(['png', 'jpeg', 'webp'])
+    .default('png')
+    .describe('输出格式。'),
+  output_compression: z
+    .number()
+    .int()
+    .min(0)
+    .max(100)
+    .default(100)
+    .describe('JPEG/WebP 压缩等级。'),
+  moderation: z
+    .enum(['auto', 'low'])
+    .default('auto')
+    .describe('内容审核强度。'),
+  input_fidelity: z
+    .enum(['high', 'low'])
+    .default('low')
+    .describe('编辑参考图保真度。'),
+  user: z.string().optional().describe('终端用户标识，用于滥用监测。')
+})
+
 const ollamaChatCallOptionsSchema = z.object({
   headers: z.record(z.string(), z.string()).optional(),
   structuredOutputs: z.boolean().optional()
@@ -618,6 +649,7 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
       }),
       {
         chatCallOptionsSchema: openAICompatibleChatCallOptionsSchema,
+        imageCallOptionsSchema: openAICompatibleImageCallOptionsSchema,
         listModels: createStandardListModels(options)
       }
     )
