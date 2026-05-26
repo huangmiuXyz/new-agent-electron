@@ -1,11 +1,21 @@
 <script setup lang="ts">
-const { Document } = useIcon([
+const { Document, Fullscreen, FullscreenExit } = useIcon([
     'Document',
+    'Fullscreen',
+    'FullscreenExit',
 ])
 
 const { customTitle, setTitle } = useAppHeader()
 const notesStore = useNotesStore()
+const settingsStore = useSettingsStore()
 const { currentNote } = storeToRefs(notesStore)
+
+const isErgonomicWidth = computed(() => settingsStore.display.notesInputWidthMode === 'ergonomic')
+const widthToggleTitle = computed(() => isErgonomicWidth.value ? '切换为全屏输入宽度' : '切换为适应人体工学宽度')
+
+const toggleInputWidthMode = () => {
+    settingsStore.display.notesInputWidthMode = isErgonomicWidth.value ? 'full' : 'ergonomic'
+}
 
 // 移动端设置标题
 watch(currentNote, (note) => {
@@ -80,7 +90,13 @@ onUnmounted(() => {
             </div>
 
             <!-- 笔记编辑区域 -->
-            <div v-else class="editor-container">
+            <div v-else class="editor-container" :class="{ 'is-ergonomic': isErgonomicWidth }">
+                <div class="editor-actions">
+                    <Button variant="icon" size="sm" :title="widthToggleTitle" @click="toggleInputWidthMode">
+                        <component :is="isErgonomicWidth ? Fullscreen : FullscreenExit" />
+                    </Button>
+                </div>
+
                 <!-- 笔记内容 -->
                 <div class="note-content">
                     <RichTextEditor v-model="noteContent" placeholder="开始输入笔记内容..." class="content-editor"
@@ -144,10 +160,42 @@ onUnmounted(() => {
 }
 
 .editor-container {
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
+    width: 100%;
+    max-width: none;
+    margin: 0 auto;
     overflow: hidden;
+    transition: max-width 0.2s ease, padding 0.2s ease;
+}
+
+.editor-container.is-ergonomic {
+    max-width: 820px;
+    padding: 0 24px;
+}
+
+.editor-actions {
+    position: absolute;
+    top: 7px;
+    right: 12px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+    border-radius: 6px;
+}
+
+.editor-actions :deep(.btn) {
+    width: 28px;
+    height: 28px;
+    color: var(--text-tertiary);
+}
+
+.editor-actions :deep(.btn:hover) {
+    color: var(--text-primary);
 }
 
 
@@ -209,6 +257,15 @@ onUnmounted(() => {
 .note-editor.is-mobile .title-input {
     font-size: 20px;
     flex: 1;
+}
+
+.note-editor.is-mobile .editor-container {
+    max-width: none;
+    padding: 0;
+}
+
+.note-editor.is-mobile .editor-actions {
+    display: none;
 }
 
 .back-button {

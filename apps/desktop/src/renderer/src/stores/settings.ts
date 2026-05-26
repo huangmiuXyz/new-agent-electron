@@ -144,6 +144,7 @@ export const useSettingsStore = defineStore(
       speechSidebarCollapsed: true,
       assistantSidebarTab: 'playlist' as 'canvas' | 'playlist' | 'downloads' | 'notifications',
       canvasEditorTab: 'preview' as 'preview' | 'code' | 'git',
+      notesInputWidthMode: 'full' as 'ergonomic' | 'full',
       showTerminal: false,
       terminalHeight: 200,
       expandToolsByDefault: true,
@@ -815,7 +816,8 @@ export const useSettingsStore = defineStore(
         const settingsStore = useSettingsStore()
         settingsStore.display = {
           ...settingsStore.display,
-          collapsePreviousContent: settingsStore.display.collapsePreviousContent ?? true
+          collapsePreviousContent: settingsStore.display.collapsePreviousContent ?? true,
+          notesInputWidthMode: settingsStore.display.notesInputWidthMode ?? 'full'
         }
         settingsStore.syncBuiltinProviders()
         settingsStore.updateTerminalSettings(settingsStore.terminal as any)

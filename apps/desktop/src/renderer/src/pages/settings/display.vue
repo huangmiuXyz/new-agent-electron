@@ -37,6 +37,16 @@ const [DisplayForm] = useForm({
       type: 'boolean',
       label: '聊天内容居中显示',
       hint: '使聊天内容在宽屏下保持居中固定宽度，提升阅读体验'
+    },
+    {
+      name: 'notesInputWidthMode',
+      type: 'select',
+      label: '笔记输入宽度',
+      options: [
+        { label: '全屏', value: 'full' },
+        { label: '适应人体工学', value: 'ergonomic' }
+      ],
+      required: true
     }
   ],
   initialData: settingsStore.display,

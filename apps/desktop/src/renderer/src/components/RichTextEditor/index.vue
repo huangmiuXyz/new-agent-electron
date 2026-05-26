@@ -19,6 +19,8 @@ import { common, createLowlight } from 'lowlight'
 import 'highlight.js/styles/atom-one-dark.css'
 
 const lowlight = createLowlight(common)
+const { Sparkles } = useIcon(['Sparkles'])
+const { showContextMenu } = useContextMenu()
 
 interface Props {
     modelValue: string
@@ -41,6 +43,142 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+
+const normalizeBlockText = (text: string) =>
+    text
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t\u3000]+/g, ' ')
+        .trim()
+
+const normalizeNovelText = (text: string) =>
+    normalizeBlockText(text)
+        .replace(/\s+([，。！？；：、）】》」』”’])/g, '$1')
+        .replace(/([（【《「『“‘])\s+/g, '$1')
+        .replace(/\.{6}/g, '……')
+        .replace(/\.{3}/g, '……')
+
+const isNovelHeading = (text: string) => {
+    if (text.length > 60) return false
+
+    return (
+        /^第\s*[0-9０-９零〇一二三四五六七八九十百千万]+\s*[章节卷回部集]/.test(text) ||
+        /^(楔子|序章|序幕|引子|尾声|后记|番外|前言)(\s*[:：]?.*)?$/.test(text)
+    )
+}
+
+const extractTextWithBreaks = (element: Element) => {
+    const parts: string[] = []
+
+    const visit = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            parts.push(node.textContent || '')
+            return
+        }
+
+        if (node instanceof HTMLBRElement) {
+            parts.push('\n')
+            return
+        }
+
+        node.childNodes.forEach(visit)
+    }
+
+    visit(element)
+    return parts.join('')
+}
+
+const normalizeTextNodes = (element: Element) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+    const textNodes: Text[] = []
+
+    while (walker.nextNode()) {
+        textNodes.push(walker.currentNode as Text)
+    }
+
+    textNodes.forEach((node) => {
+        node.nodeValue = node.nodeValue?.replace(/\u00a0/g, ' ').replace(/[ \t\u3000]{2,}/g, ' ') || ''
+    })
+}
+
+const createTextElement = (tagName: string, text: string) => {
+    const element = document.createElement(tagName)
+    element.textContent = normalizeNovelText(text)
+    return element
+}
+
+const createNovelParagraph = (text: string) => {
+    const paragraph = document.createElement('p')
+    paragraph.textContent = `　　${normalizeNovelText(text)}`
+    return paragraph
+}
+
+const cloneFormattedElement = (element: Element) => {
+    const clone = element.cloneNode(true) as HTMLElement
+    normalizeTextNodes(clone)
+
+    clone.querySelectorAll('li').forEach((listItem) => {
+        if (!normalizeBlockText(listItem.textContent || '') && !listItem.querySelector('img, table, hr')) {
+            listItem.remove()
+        }
+    })
+
+    return clone
+}
+
+const formatEditorHtml = (html: string) => {
+    const source = document.createElement('div')
+    const result = document.createElement('div')
+    source.innerHTML = html
+
+    const children = Array.from(source.children)
+    children.forEach((child) => {
+        const tagName = child.tagName.toLowerCase()
+        const hasRichContent = child.querySelector('img, table, hr, pre, code-block')
+        const textLines = extractTextWithBreaks(child)
+            .split('\n')
+            .map(normalizeNovelText)
+            .filter(Boolean)
+
+        if (!textLines.length) {
+            if (hasRichContent) result.appendChild(cloneFormattedElement(child))
+            return
+        }
+
+        if (hasRichContent || ['ul', 'ol', 'blockquote', 'pre'].includes(tagName)) {
+            result.appendChild(cloneFormattedElement(child))
+            return
+        }
+
+        textLines.forEach((text) => {
+            result.appendChild(isNovelHeading(text) ? createTextElement('h2', text) : createNovelParagraph(text))
+        })
+    })
+
+    return result.innerHTML || '<p></p>'
+}
+
+const formatCurrentContent = () => {
+    if (!editor.value) return
+
+    const formattedHtml = formatEditorHtml(editor.value.getHTML())
+    editor.value.commands.setContent(formattedHtml)
+    emit('update:modelValue', formattedHtml)
+    emit('change', formattedHtml)
+    messageApi.success('已完成一键排版')
+}
+
+const handleEditorContextMenu = (event: MouseEvent) => {
+    if (!props.editable || !editor.value) return
+
+    showContextMenu(event, [
+        {
+            label: '一键小说排版',
+            icon: Sparkles,
+            disabled: !normalizeBlockText(editor.value.getText()),
+            onClick: formatCurrentContent
+        }
+    ])
+}
 
 const editor = useEditor({
     content: props.modelValue,
@@ -148,7 +286,7 @@ defineExpose({
 <template>
     <div class="rich-text-editor">
         <RichTextEditorToolbar v-if="editable && editor" :editor="editor" />
-        <EditorContent style="flex: 1; overflow: auto;" :editor="editor" />
+        <EditorContent class="rich-text-editor-scroll" :editor="editor" @contextmenu="handleEditorContextMenu" />
     </div>
 </template>
 
@@ -159,6 +297,11 @@ defineExpose({
     border-radius: 8px;
     background: var(--bg-card);
     overflow: hidden;
+}
+
+.rich-text-editor-scroll {
+    flex: 1;
+    overflow: auto;
 }
 
 .rich-text-editor-content {
@@ -173,6 +316,17 @@ defineExpose({
 .ProseMirror {
     outline: none !important;
     min-height: 500px;
+}
+
+.ProseMirror h2 {
+    margin: 28px 0 18px;
+    font-size: 1.35em;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.ProseMirror p {
+    line-height: 1.8;
 }
 
 .ProseMirror-focused {
