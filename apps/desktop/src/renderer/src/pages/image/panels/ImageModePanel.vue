@@ -110,6 +110,7 @@ const getDynamicFields = (providerId: string) => {
     label: '更多设置',
     collapsible: true,
     defaultCollapsed: false,
+    ifShow: (data: any) => !!data.providerOptionsEnabled,
     children: fields,
     noStyle: true
   } as FormField<any>
@@ -219,6 +220,12 @@ const imageFields = computed<FormField<any>[]>(() => {
   ]
 
   if (imageDynamicField.value) {
+    fields.push({
+      name: 'providerOptionsEnabled',
+      type: 'boolean',
+      label: '启用更多设置',
+      defaultValue: false
+    } as FormField<any>)
     fields.push(imageDynamicField.value)
   }
 
@@ -274,7 +281,7 @@ const submit = async (prompt: string, referenceImages: string[] = []) => {
     size: data.size,
     n: data.n,
     seed: data.seed ? Number(data.seed) : undefined,
-    providerOptions: data.providerOptions,
+    providerOptions: data.providerOptionsEnabled ? data.providerOptions : undefined,
     referenceImages: referenceImages.length > 0 ? referenceImages : undefined
   })
 
@@ -288,6 +295,7 @@ const restoreFromBatch = (batch: ImageBatch) => {
   const preset = getPresetBySize(batch.size)
   const parsed = parseSize(batch.size)
   const autoSizeEnabled = batch.size === 'auto'
+  const providerOptionsEnabled = !!batch.params?.providerOptions
 
   imageFormActions.setFieldsValue({
     model: {
@@ -297,6 +305,7 @@ const restoreFromBatch = (batch: ImageBatch) => {
     n: batch.n,
     seed: batch.seed,
     providerOptions: batch.params?.providerOptions,
+    providerOptionsEnabled,
     autoSizeEnabled,
     customSizeEnabled: !autoSizeEnabled && preset.custom,
     resolution: preset.resolution,
@@ -319,7 +328,9 @@ onMounted(() => {
   const preset = getPresetBySize(saved.size)
   const parsed = parseSize(saved.size)
   const autoSizeEnabled = (saved as any).autoSizeEnabled ?? String(saved.size) === 'auto'
+  const providerOptionsEnabled = (saved as any).providerOptionsEnabled ?? !!saved.providerOptions
   imageFormActions.setFieldValue('autoSizeEnabled', autoSizeEnabled)
+  imageFormActions.setFieldValue('providerOptionsEnabled', providerOptionsEnabled)
   imageFormActions.setFieldValue('customSizeEnabled', autoSizeEnabled ? false : (saved as any).customSizeEnabled ?? preset.custom)
   imageFormActions.setFieldValue('resolution', (saved as any).resolution || preset.resolution)
   imageFormActions.setFieldValue('aspectRatio', (saved as any).aspectRatio || preset.aspectRatio)
