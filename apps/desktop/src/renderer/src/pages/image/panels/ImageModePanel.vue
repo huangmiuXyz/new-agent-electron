@@ -80,6 +80,14 @@ const getPresetBySize = (size?: string): { resolution: ImageResolutionPreset; as
   return { resolution: '2K', aspectRatio: '1:1', custom: true }
 }
 
+const getSizeFromFormData = (data: any): string => {
+  if (data.autoSizeEnabled) return 'auto'
+  if (data.customSizeEnabled) {
+    return `${Number(data.customWidth) || 1024}x${Number(data.customHeight) || 1024}`
+  }
+  return getSizeFromPreset(data.resolution, data.aspectRatio)
+}
+
 const getDynamicFields = (providerId: string) => {
   const provider = settingsStore.getProviderById(providerId)
   if (!provider) return null
@@ -124,10 +132,17 @@ const imageFields = computed<FormField<any>[]>(() => {
       }
     },
     {
+      name: 'autoSizeEnabled',
+      type: 'boolean',
+      label: '自动尺寸',
+      defaultValue: true
+    } as FormField<any>,
+    {
       name: 'customSizeEnabled',
       type: 'boolean',
       label: '自定义分辨率',
-      defaultValue: false
+      defaultValue: false,
+      ifShow: (data: any) => !data.autoSizeEnabled
     } as FormField<any>,
     {
       name: 'resolution',
@@ -140,7 +155,7 @@ const imageFields = computed<FormField<any>[]>(() => {
         { label: '3K', value: '3K' },
         { label: '4K', value: '4K' }
       ],
-      ifShow: (data: any) => !data.customSizeEnabled
+      ifShow: (data: any) => !data.autoSizeEnabled && !data.customSizeEnabled
     } as FormField<any>,
     {
       name: 'aspectRatio',
@@ -148,32 +163,30 @@ const imageFields = computed<FormField<any>[]>(() => {
       label: '宽高比',
       defaultValue: '1:1',
       options: IMAGE_ASPECT_RATIOS.map((ratio) => ({ label: ratio, value: ratio })),
-      ifShow: (data: any) => !data.customSizeEnabled
+      ifShow: (data: any) => !data.autoSizeEnabled && !data.customSizeEnabled
     } as FormField<any>,
     {
       name: 'customWidth',
       type: 'number',
       label: '自定义宽度',
       defaultValue: 1024,
-      ifShow: (data: any) => !!data.customSizeEnabled
+      ifShow: (data: any) => !data.autoSizeEnabled && !!data.customSizeEnabled
     } as FormField<any>,
     {
       name: 'customHeight',
       type: 'number',
       label: '自定义高度',
       defaultValue: 1024,
-      ifShow: (data: any) => !!data.customSizeEnabled
+      ifShow: (data: any) => !data.autoSizeEnabled && !!data.customSizeEnabled
     } as FormField<any>,
     {
       name: 'size',
       type: 'custom',
       label: '当前像素',
-      defaultValue: IMAGE_SIZE_PRESETS['2K']['1:1'],
+      defaultValue: 'auto',
       render: (data: any) => (
         <div class="resolution-value">
-          {data.size || (data.customSizeEnabled
-            ? `${Number(data.customWidth) || 1024}x${Number(data.customHeight) || 1024}`
-            : getSizeFromPreset(data.resolution, data.aspectRatio))}
+          {getSizeFromFormData(data)}
         </div>
       )
     } as FormField<any>,
@@ -215,24 +228,29 @@ const imageFields = computed<FormField<any>[]>(() => {
 const [ImageForm, imageFormActions] = useForm({
   fields: () => imageFields.value,
   onChange: (field, _value, data) => {
-    if (field === 'customSizeEnabled') {
-      const nextSize = data.customSizeEnabled
-        ? `${Number(data.customWidth) || 1024}x${Number(data.customHeight) || 1024}`
-        : getSizeFromPreset(data.resolution, data.aspectRatio)
+    if (field === 'autoSizeEnabled') {
+      const nextSize = getSizeFromFormData(data)
       if (data.size !== nextSize) {
         imageFormActions.setFieldValue('size', nextSize)
         return
       }
     }
-    if (!data.customSizeEnabled && (field === 'resolution' || field === 'aspectRatio')) {
+    if (field === 'customSizeEnabled') {
+      const nextSize = getSizeFromFormData(data)
+      if (data.size !== nextSize) {
+        imageFormActions.setFieldValue('size', nextSize)
+        return
+      }
+    }
+    if (!data.autoSizeEnabled && !data.customSizeEnabled && (field === 'resolution' || field === 'aspectRatio')) {
       const nextSize = getSizeFromPreset(data.resolution, data.aspectRatio)
       if (data.size !== nextSize) {
         imageFormActions.setFieldValue('size', nextSize)
         return
       }
     }
-    if (data.customSizeEnabled && (field === 'customWidth' || field === 'customHeight')) {
-      const nextSize = `${Number(data.customWidth) || 1024}x${Number(data.customHeight) || 1024}`
+    if (!data.autoSizeEnabled && data.customSizeEnabled && (field === 'customWidth' || field === 'customHeight')) {
+      const nextSize = getSizeFromFormData(data)
       if (data.size !== nextSize) {
         imageFormActions.setFieldValue('size', nextSize)
         return
@@ -269,6 +287,7 @@ const hasModelSelected = () => !!imageFormActions.getData()?.model?.modelId
 const restoreFromBatch = (batch: ImageBatch) => {
   const preset = getPresetBySize(batch.size)
   const parsed = parseSize(batch.size)
+  const autoSizeEnabled = batch.size === 'auto'
 
   imageFormActions.setFieldsValue({
     model: {
@@ -278,7 +297,8 @@ const restoreFromBatch = (batch: ImageBatch) => {
     n: batch.n,
     seed: batch.seed,
     providerOptions: batch.params?.providerOptions,
-    customSizeEnabled: preset.custom,
+    autoSizeEnabled,
+    customSizeEnabled: !autoSizeEnabled && preset.custom,
     resolution: preset.resolution,
     aspectRatio: preset.aspectRatio,
     customWidth: parsed.width,
@@ -298,12 +318,14 @@ onMounted(() => {
   imageFormActions.setData(saved)
   const preset = getPresetBySize(saved.size)
   const parsed = parseSize(saved.size)
-  imageFormActions.setFieldValue('customSizeEnabled', (saved as any).customSizeEnabled ?? preset.custom)
+  const autoSizeEnabled = (saved as any).autoSizeEnabled ?? String(saved.size) === 'auto'
+  imageFormActions.setFieldValue('autoSizeEnabled', autoSizeEnabled)
+  imageFormActions.setFieldValue('customSizeEnabled', autoSizeEnabled ? false : (saved as any).customSizeEnabled ?? preset.custom)
   imageFormActions.setFieldValue('resolution', (saved as any).resolution || preset.resolution)
   imageFormActions.setFieldValue('aspectRatio', (saved as any).aspectRatio || preset.aspectRatio)
   imageFormActions.setFieldValue('customWidth', Number((saved as any).customWidth) || parsed.width)
   imageFormActions.setFieldValue('customHeight', Number((saved as any).customHeight) || parsed.height)
-  imageFormActions.setFieldValue('size', saved.size || getSizeFromPreset(preset.resolution, preset.aspectRatio))
+  imageFormActions.setFieldValue('size', autoSizeEnabled ? 'auto' : saved.size || getSizeFromPreset(preset.resolution, preset.aspectRatio))
   imageDynamicField.value = getDynamicFields(saved.model.providerId)
 })
 
