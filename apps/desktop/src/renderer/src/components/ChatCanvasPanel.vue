@@ -78,6 +78,7 @@ type GitDiffPreview =
 const chatsStore = useChatsStores()
 const settingsStore = useSettingsStore()
 const canvasStore = useCanvasStore()
+const agentStore = useAgentStore()
 const myAppsStore = useMyAppsStore()
 const message = messageApi
 const modal = useModal()
@@ -139,6 +140,14 @@ const dragTargetDirectoryPath = ref('')
 const CANVAS_FILE_DRAG_MIME = 'application/x-agent-qi-canvas-file'
 
 const currentChatId = computed(() => props.chatId || chatsStore.currentChat?.id)
+const currentChatAgentWorkspaceDir = computed(() => {
+  if (isMobile.value || !window.api?.path) return ''
+  const chatId = currentChatId.value
+  const chat = chatId ? chatsStore.getChatById(chatId) : chatsStore.currentChat
+  const workPath = agentStore.getAgentById(chat?.agentId || '')?.workPath?.trim()
+  if (!workPath) return ''
+  return window.api.path.resolve(window.api.path.normalize(workPath))
+})
 const currentWorkspaceVersion = computed(() => canvasStore.getWorkspaceVersion(currentChatId.value))
 const currentWorkspaceDir = computed(() => canvasStore.getWorkspaceDir(currentChatId.value))
 const isPreviewTab = computed(() => settingsStore.display.canvasEditorTab === 'preview')
@@ -1766,6 +1775,27 @@ const switchToTempWorkspace = () => {
   message.success('已切换回临时工作区')
 }
 
+const switchToCurrentAgentWorkspace = () => {
+  if (!currentChatAgentWorkspaceDir.value) {
+    message.warning('当前智能体未设置工作路径')
+    return
+  }
+
+  canvasStore.resetWorkspaceRoot(currentChatId.value)
+  previewReady.value = false
+  syncWorkspaceView()
+  message.success(`已切换到当前智能体的工作路径：${currentChatAgentWorkspaceDir.value}`)
+}
+
+const toggleCanvasWorkspaceRoot = () => {
+  if (isUsingTempWorkspace.value) {
+    switchToCurrentAgentWorkspace()
+    return
+  }
+
+  switchToTempWorkspace()
+}
+
 const createCanvasFileFromDrop = async (
   file: File,
   relativePath: string,
@@ -2260,10 +2290,10 @@ const openActionsMenu = (event: MouseEvent) => {
         }
       },
       {
-        label: '切回临时工作区',
+        label: isUsingTempWorkspace.value ? '切换为当前智能体的工作路径' : '切回临时工作区',
         icon: RefreshIcon,
-        disabled: isUsingTempWorkspace.value,
-        onClick: () => switchToTempWorkspace()
+        disabled: isUsingTempWorkspace.value && !currentChatAgentWorkspaceDir.value,
+        onClick: () => toggleCanvasWorkspaceRoot()
       },
       {
         label: '同步本地文件夹',
