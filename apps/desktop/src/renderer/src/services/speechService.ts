@@ -1,14 +1,206 @@
 import { experimental_generateSpeech as generateSpeech } from 'ai'
 import { createRegistry } from './chatService/registry'
 import { useSettingsStore } from '../stores/settings'
-import { useSpeechStore } from '../stores/speech'
+import { useSpeechStore, type AudioChunk } from '../stores/speech'
 import { useAgentStore } from '../stores/agent'
 import { nanoid } from 'nanoid'
+import { base64ToUint8Array, parseBase64DataUrl, uint8ArrayToBase64 } from '@renderer/utils'
+
+type TtsAudioInput = string | Uint8Array | ArrayBuffer | Blob
+
+type TtsHookResult = {
+  handled?: boolean
+  audioData?: string
+  audio?: TtsAudioInput
+  mediaType?: string
+  audioMediaType?: string
+  audioFormat?: string
+  format?: string
+}
+
+type TtsAudioMetadata = {
+  mediaType?: string
+  audioMediaType?: string
+  audioFormat?: string
+  format?: string
+}
+
+type ResolvedTtsConfig = {
+  modelId: string
+  providerId: string
+  provider: NonNullable<ReturnType<ReturnType<typeof useSettingsStore>['getProviderById']>>
+  modelInfo?: any
+}
+
+type TtsBaseParams = {
+  messageId: string
+  modelId?: string
+  providerId?: string
+  voice?: string
+  speed?: number
+  language?: string
+  providerOptions?: Record<string, any>
+  agentId?: string
+}
+
+export type TtsTextStreamSession = {
+  chunkId: string
+  handled: true
+  appendText: (text: string) => Promise<void>
+  finish: () => Promise<AudioChunk | undefined>
+  error: (error: unknown) => Promise<void>
+  getText: () => string
+  getChunk: () => AudioChunk | undefined
+}
+
+const isHandledTtsHookResult = (result: unknown): result is TtsHookResult => {
+  return Boolean(
+    result &&
+    typeof result === 'object' &&
+    (result as TtsHookResult).handled === true
+  )
+}
+
+const normalizeBase64Audio = (value: string) => {
+  const dataUrl = parseBase64DataUrl(value)
+  if (dataUrl) {
+    return {
+      audioData: dataUrl.base64,
+      audioMediaType: dataUrl.mediaType
+    }
+  }
+  return { audioData: value }
+}
+
+const normalizeAudioBytes = async (input: TtsAudioInput): Promise<Uint8Array> => {
+  if (input instanceof Uint8Array) return input
+  if (input instanceof ArrayBuffer) return new Uint8Array(input)
+  if (input instanceof Blob) return new Uint8Array(await input.arrayBuffer())
+
+  return base64ToUint8Array(normalizeBase64Audio(input).audioData)
+}
 
 export const speechService = () => {
   const settingsStore = useSettingsStore()
   const speechStore = useSpeechStore()
   const agentStore = useAgentStore()
+
+  const resolveTtsConfig = (params: TtsBaseParams): ResolvedTtsConfig | null => {
+    let modelId = params.modelId
+    let providerId = params.providerId
+
+    if (params.agentId) {
+      const agent = agentStore.getAgentById(params.agentId)
+      if (agent?.speechModel?.modelId && agent?.speechModel?.providerId) {
+        modelId = agent.speechModel.modelId
+        providerId = agent.speechModel.providerId
+      }
+    }
+
+    if (!modelId) {
+      modelId = settingsStore.defaultModels.ttsModelId
+    }
+    if (!providerId) {
+      providerId = settingsStore.defaultModels.ttsProviderId
+    }
+
+    if (!modelId || !providerId) return null
+
+    const provider = settingsStore.getProviderById(providerId)
+    if (!provider) return null
+
+    return {
+      modelId,
+      providerId,
+      provider,
+      modelInfo: provider.models?.find((item) => item.id === modelId)
+    }
+  }
+
+  const createHookController = (chunkId: string, options?: {
+    ensureChunk?: () => void
+    appendText?: (text: string) => void
+    setText?: (text: string) => void
+  }) => {
+    let settled = false
+    let settleHook: () => void = () => undefined
+    const done = new Promise<void>((resolve) => {
+      settleHook = () => {
+        settled = true
+        resolve()
+      }
+    })
+
+    const normalizeMetadata = (metadata?: TtsAudioMetadata) => ({
+      audioMediaType: metadata?.audioMediaType || metadata?.mediaType,
+      audioFormat: metadata?.audioFormat || metadata?.format
+    })
+
+    const ensureChunk = () => {
+      options?.ensureChunk?.()
+    }
+
+    const controller = {
+      chunkId,
+      get settled() {
+        return settled
+      },
+      start: (metadata?: TtsAudioMetadata) => {
+        ensureChunk()
+        speechStore.startStreamChunk(chunkId, normalizeMetadata(metadata))
+      },
+      appendText: (text: string) => {
+        ensureChunk()
+        options?.appendText?.(text)
+      },
+      setText: (text: string) => {
+        ensureChunk()
+        if (options?.setText) {
+          options.setText(text)
+        } else {
+          speechStore.updateChunkText(chunkId, text)
+        }
+      },
+      append: async (data: TtsAudioInput, metadata?: TtsAudioMetadata) => {
+        ensureChunk()
+        const bytes = await normalizeAudioBytes(data)
+        speechStore.appendStreamChunk(chunkId, bytes, normalizeMetadata(metadata))
+      },
+      appendAudio: async (data: TtsAudioInput, metadata?: TtsAudioMetadata) => {
+        ensureChunk()
+        const bytes = await normalizeAudioBytes(data)
+        speechStore.appendStreamChunk(chunkId, bytes, normalizeMetadata(metadata))
+      },
+      fulfill: async (data: TtsAudioInput, metadata?: TtsAudioMetadata) => {
+        ensureChunk()
+        const audioData = typeof data === 'string'
+          ? normalizeBase64Audio(data).audioData
+          : uint8ArrayToBase64(await normalizeAudioBytes(data))
+        const normalized = typeof data === 'string' ? normalizeBase64Audio(data) : undefined
+        const duration = await speechStore.fulfillChunk(chunkId, audioData, {
+          audioMediaType: metadata?.audioMediaType || metadata?.mediaType || normalized?.audioMediaType,
+          audioFormat: metadata?.audioFormat || metadata?.format
+        })
+        settleHook()
+        return duration
+      },
+      finish: async (metadata?: TtsAudioMetadata) => {
+        ensureChunk()
+        const duration = await speechStore.finishStreamChunk(chunkId, normalizeMetadata(metadata))
+        settleHook()
+        return duration
+      },
+      error: (error: unknown) => {
+        ensureChunk()
+        const message = error instanceof Error ? error.message : String(error)
+        speechStore.markChunkError(chunkId, message)
+        settleHook()
+      },
+      done
+    }
+
+    return controller
+  }
 
   const generateAndPlay = async (params: {
     text: string
@@ -27,32 +219,12 @@ export const speechService = () => {
       voice,
       speed,
       language,
-      providerOptions,
-      agentId
+      providerOptions
     } = params
 
-    // 优先使用智能体配置的语音模型
-    let modelId = params.modelId
-    let providerId = params.providerId
-
-    if (agentId) {
-      const agent = agentStore.getAgentById(agentId)
-      if (agent?.speechModel?.modelId && agent?.speechModel?.providerId) {
-        modelId = agent.speechModel.modelId
-        providerId = agent.speechModel.providerId
-      }
-    }
-
-    // 如果没有智能体配置的模型，使用默认模型
-    if (!modelId) {
-      modelId = settingsStore.defaultModels.ttsModelId
-    }
-    if (!providerId) {
-      providerId = settingsStore.defaultModels.ttsProviderId
-    }
-
     const chunkId = nanoid()
-    if (!modelId || !providerId) {
+    const resolved = resolveTtsConfig(params)
+    if (!resolved) {
       const placeholder = speechStore.createPlaceholder(chunkId, messageId, text, {
         kind: 'speech'
       })
@@ -61,19 +233,7 @@ export const speechService = () => {
       return placeholder
     }
 
-    const provider = settingsStore.getProviderById(providerId)
-    if (!provider) {
-      const placeholder = speechStore.createPlaceholder(chunkId, messageId, text, {
-        providerId,
-        modelId,
-        kind: modelId.startsWith('music-') ? 'music' : 'speech'
-      })
-      speechStore.markChunkError(chunkId, `Provider ${providerId} not found`)
-      console.warn(`Provider ${providerId} not found`)
-      return placeholder
-    }
-
-    const modelInfo = provider.models?.find((item) => item.id === modelId)
+    const { modelId, providerId, provider, modelInfo } = resolved
     const placeholder = speechStore.createPlaceholder(chunkId, messageId, text, {
       providerId,
       providerName: provider.name,
@@ -98,7 +258,47 @@ export const speechService = () => {
         )
       }
       const { triggerHook } = usePlugins()
-      await triggerHook('ai:before-tts-use', params)
+      const hookController = createHookController(chunkId)
+
+      const hookResults = await triggerHook('ai:before-tts-use', {
+        ...params,
+        modelId,
+        providerId,
+        provider,
+        modelInfo,
+        chunkId,
+        controller: hookController
+      })
+      const handledHookResult = hookResults.find(isHandledTtsHookResult)
+      if (handledHookResult) {
+        const mediaType = handledHookResult.audioMediaType || handledHookResult.mediaType
+        const audioFormat = handledHookResult.audioFormat || handledHookResult.format
+
+        if (handledHookResult.audioData) {
+          await hookController.fulfill(handledHookResult.audioData, {
+            mediaType,
+            audioFormat
+          })
+        } else if (handledHookResult.audio) {
+          await hookController.fulfill(handledHookResult.audio, {
+            mediaType,
+            audioFormat
+          })
+        } else if (!hookController.settled) {
+          await hookController.done
+        }
+
+        const completedChunk = speechStore.queue.find((chunk) => chunk.id === chunkId)
+        if (completedChunk?.error) {
+          throw new Error(completedChunk.error)
+        }
+        return {
+          ...placeholder,
+          ...completedChunk,
+          loading: false
+        }
+      }
+
       const { audio } = await generateSpeech({
         model: createRegistry({
           apiKey: provider.apiKey || '',
@@ -129,7 +329,108 @@ export const speechService = () => {
     }
   }
 
+  const createTextStream = async (params: TtsBaseParams): Promise<TtsTextStreamSession | null> => {
+    const resolved = resolveTtsConfig(params)
+    if (!resolved) return null
+
+    const { modelId, providerId, provider, modelInfo } = resolved
+    const chunkId = nanoid()
+    const { triggerHook } = usePlugins()
+    let created = false
+    let text = ''
+
+    const ensureChunk = () => {
+      if (created) return
+      speechStore.createPlaceholder(chunkId, params.messageId, text, {
+        providerId,
+        providerName: provider.name,
+        modelId,
+        modelName: modelInfo?.name || modelId,
+        kind: modelId.startsWith('music-') ? 'music' : 'speech'
+      })
+      created = true
+    }
+
+    const controller = createHookController(chunkId, {
+      ensureChunk,
+      appendText: (delta) => {
+        text += delta
+        speechStore.updateChunkText(chunkId, text)
+      },
+      setText: (nextText) => {
+        text = nextText
+        speechStore.updateChunkText(chunkId, text)
+      }
+    })
+
+    const hookPayload = {
+      ...params,
+      modelId,
+      providerId,
+      provider,
+      modelInfo,
+      chunkId,
+      text,
+      controller
+    }
+
+    const startResults = await triggerHook('ai:tts-stream-start', hookPayload)
+    if (!startResults.some(isHandledTtsHookResult)) {
+      if (created) {
+        speechStore.removeChunk(chunkId)
+      }
+      return null
+    }
+
+    ensureChunk()
+
+    const session: TtsTextStreamSession = {
+      chunkId,
+      handled: true,
+      appendText: async (delta: string) => {
+        if (!delta) return
+        text += delta
+        speechStore.updateChunkText(chunkId, text)
+        await triggerHook('ai:tts-stream-text', {
+          ...hookPayload,
+          text,
+          delta,
+          controller
+        })
+      },
+      finish: async () => {
+        await triggerHook('ai:tts-stream-finish', {
+          ...hookPayload,
+          text,
+          controller
+        })
+        if (!controller.settled) {
+          await controller.finish()
+        }
+        const chunk = speechStore.queue.find((item) => item.id === chunkId)
+        if (chunk?.error) {
+          throw new Error(chunk.error)
+        }
+        return chunk
+      },
+      error: async (error: unknown) => {
+        controller.error(error)
+        await triggerHook('ai:tts-stream-error', {
+          ...hookPayload,
+          text,
+          error,
+          controller
+        })
+      },
+      getText: () => text,
+      getChunk: () => speechStore.queue.find((item) => item.id === chunkId)
+    }
+
+    return session
+  }
+
   return {
-    generateAndPlay
+    generateAndPlay,
+    createTextStream
   }
 }

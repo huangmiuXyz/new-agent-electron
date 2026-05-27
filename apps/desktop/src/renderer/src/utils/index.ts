@@ -547,6 +547,50 @@ export const getFileIcon = (file: { name?: string; mediaType: string }) => {
 
   return 'File'
 }
+export const parseBase64DataUrl = (value: string): { mediaType?: string; base64: string } | null => {
+  const match = value.match(/^data:([^;,]+)?;base64,(.*)$/)
+  if (!match) return null
+  return {
+    mediaType: match[1],
+    base64: match[2]
+  }
+}
+
+export const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
+  let binary = ''
+  const chunkSize = 0x8000
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize))
+  }
+
+  return btoa(binary)
+}
+
+export const base64ToUint8Array = (base64: string): Uint8Array => {
+  const binary = atob(parseBase64DataUrl(base64)?.base64 || base64)
+  const bytes = new Uint8Array(binary.length)
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+
+  return bytes
+}
+
+export const concatUint8Arrays = (chunks: Uint8Array[]): Uint8Array => {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0)
+  const result = new Uint8Array(totalLength)
+  let offset = 0
+
+  for (const chunk of chunks) {
+    result.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+
+  return result
+}
+
 export const base64ToText = (base64: string) => {
   const binary = atob(base64.split(',').pop()!)
   const bytes = new Uint8Array(binary.length)

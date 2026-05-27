@@ -2,7 +2,7 @@ import { Chat as _useChat } from '@ai-sdk/vue'
 import type { APICallError, FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai'
 import { z } from 'zod'
-import { speechService } from '../services/speechService'
+import { speechService, type TtsTextStreamSession } from '../services/speechService'
 import { useMessageScroll } from './useMessageScroll'
 import {
   buildFlatTokenUsage,
@@ -153,6 +153,10 @@ export const useChat = (chatId: string) => {
       let streamFlushHandle: ReturnType<typeof setTimeout> | null = null
       let pendingStreamParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
       let pendingSpeechMessage: BaseMessage | undefined
+      let streamingSpeechSession: TtsTextStreamSession | null = null
+      let streamingSpeechSessionPromise: Promise<TtsTextStreamSession | null> | null = null
+      let streamingSpeechChunkIndex: number | null = null
+      let speechProcessingQueue = Promise.resolve()
       const pendingSyncMessageIds: string[] = []
       const pendingSyncMessages = new Map<string, BaseMessage>()
 
@@ -417,19 +421,23 @@ export const useChat = (chatId: string) => {
           finalizeMessageSync(finalMessage)
 
           if (speechEnabled.value) {
-            const mode = getChatAgent()?.speechMode as string
+            void speechProcessingQueue.then(async () => {
+              if (await finishStreamingSpeech(finalMessage)) return
 
-            if (mode === 'sentence') {
-              sentenceSegmenter.flush((sentence) => {
-                generateSpeech(sentence, finalMessage)
-              })
-            } else {
-              const fullText = getMessageText(finalMessage)
-              const remainingText = fullText.slice(processedText.length).trim()
-              if (remainingText) {
-                generateSpeech(remainingText, finalMessage)
+              const mode = getChatAgent()?.speechMode as string
+
+              if (mode === 'sentence') {
+                sentenceSegmenter.flush((sentence) => {
+                  generateSpeech(sentence, finalMessage)
+                })
+              } else {
+                const fullText = getMessageText(finalMessage)
+                const remainingText = fullText.slice(processedText.length).trim()
+                if (remainingText) {
+                  generateSpeech(remainingText, finalMessage)
+                }
               }
-            }
+            })
           }
 
           useTitle(chatId).generateTitle()
@@ -443,6 +451,12 @@ export const useChat = (chatId: string) => {
         onError: (error) => {
           console.error(error)
           finalizeMessageSync(chat.lastMessage, error as APICallError)
+          void speechProcessingQueue.then(async () => {
+            const session = streamingSpeechSession || await streamingSpeechSessionPromise
+            if (session) {
+              await session.error(error)
+            }
+          })
           if (manuallyStopped) {
             markSubTaskFailed('用户手动停止了子任务')
           } else {
@@ -609,6 +623,133 @@ export const useChat = (chatId: string) => {
         }
       }
 
+      const updateStreamingSpeechMetadata = (
+        message: BaseMessage,
+        session: TtsTextStreamSession,
+        error?: string
+      ) => {
+        const chunk = session.getChunk()
+        if (!message.metadata) message.metadata = {} as MetaData
+        if (!message.metadata.audio) {
+          message.metadata.audio = {
+            chunks: [],
+            voice: getChatAgent()?.speechVoice || '',
+            model: chunk?.modelId || ''
+          }
+        }
+        const audioMetadata = message.metadata.audio
+
+        if (streamingSpeechChunkIndex === null) {
+          streamingSpeechChunkIndex = audioMetadata.chunks.length
+          audioMetadata.chunks.push({ data: '', text: session.getText() })
+        }
+
+        const target = audioMetadata.chunks[streamingSpeechChunkIndex]
+        if (!target) return
+
+        audioMetadata.chunks[streamingSpeechChunkIndex] = {
+          ...target,
+          text: session.getText(),
+          data: chunk?.audioData || target.data || '',
+          duration: chunk?.duration,
+          error
+        }
+        updateMessageMetadata(chatId, message.id, message.metadata)
+      }
+
+      const createStreamingSpeechSession = async (
+        message: BaseMessage
+      ): Promise<TtsTextStreamSession | null> => {
+        if (streamingSpeechSession) return streamingSpeechSession
+        if (streamingSpeechSessionPromise) return streamingSpeechSessionPromise
+
+        const runtimeAgent = getChatAgent()
+        const voice = runtimeAgent?.speechVoice
+        if (!voice) return null
+
+        const { getModelByVoice } = useSettingsStore()
+        const modelInfo = getModelByVoice(voice)
+        if (!modelInfo) return null
+
+        const rawOptions = runtimeAgent?.speechProviderOptions
+        const providerOptions = rawOptions?.[modelInfo.providerId] ?? rawOptions
+
+        streamingSpeechSessionPromise = tts.createTextStream({
+          messageId: message.id,
+          modelId: modelInfo.modelId,
+          providerId: modelInfo.providerId,
+          voice,
+          speed: runtimeAgent?.speechSpeed,
+          language: runtimeAgent?.speechLanguage,
+          providerOptions,
+          agentId: runtimeAgent?.id
+        }).then((session) => {
+          streamingSpeechSession = session
+          if (session) {
+            updateStreamingSpeechMetadata(message, session)
+          }
+          return session
+        }).finally(() => {
+          streamingSpeechSessionPromise = null
+        })
+
+        return streamingSpeechSessionPromise
+      }
+
+      const appendStreamingSpeechText = async (message: BaseMessage, text: string) => {
+        if (!text) return false
+        const session = await createStreamingSpeechSession(message)
+        if (!session) return false
+
+        await session.appendText(text)
+        updateStreamingSpeechMetadata(message, session)
+        return true
+      }
+
+      const finishStreamingSpeech = async (message: BaseMessage) => {
+        const session = streamingSpeechSession || await streamingSpeechSessionPromise
+        if (!session) return false
+
+        try {
+          await session.finish()
+          updateStreamingSpeechMetadata(message, session)
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          updateStreamingSpeechMetadata(message, session, `生成失败：${errorMessage}`)
+          messageApi.error('语音合成失败: ' + errorMessage)
+        } finally {
+          streamingSpeechSession = null
+          streamingSpeechSessionPromise = null
+          streamingSpeechChunkIndex = null
+        }
+
+        return true
+      }
+
+      const processStreamingSpeechQueued = (
+        message: BaseMessage | undefined,
+        newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
+      ) => {
+        speechProcessingQueue = speechProcessingQueue
+          .then(async () => {
+            if (!message || !newParts || message.role !== 'assistant' || !speechEnabled.value) return
+
+            const fullText = getMessageText(message)
+            const currentText = fullText.slice(processedText.length)
+            if (!currentText) return
+
+            if (await appendStreamingSpeechText(message, currentText)) {
+              processedText = fullText
+              return
+            }
+
+            processStreamingSpeech(message, newParts)
+          })
+          .catch((error) => {
+            console.error('Streaming speech processing failed:', error)
+          })
+      }
+
       const replaceMessageById = (
         messages: BaseMessage[],
         messageId: string,
@@ -639,7 +780,7 @@ export const useChat = (chatId: string) => {
           syncMessageToStore(message)
         })
 
-        processStreamingSpeech(pendingSpeechMessage, pendingStreamParts)
+        processStreamingSpeechQueued(pendingSpeechMessage, pendingStreamParts)
         pendingSpeechMessage = undefined
         pendingStreamParts = undefined
       }
