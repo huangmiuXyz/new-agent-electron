@@ -199,9 +199,12 @@ const updateViewportHeight = () => {
       layoutVh > 0 &&
       rawVisualVh < layoutVh * 0.78
     const visualVh = isTransientCompressedViewport ? layoutVh : rawVisualVh
+    const hasModalOpen = hasBaseModalOpen()
+    const shouldLockKeyboardViewport = isKeyboardLikelyOpen && !isModalFormControlFocused && !hasModalOpen
+    document.documentElement.classList.toggle('keyboard-viewport-locked', shouldLockKeyboardViewport)
     document.documentElement.style.setProperty('--visual-vh', `${visualVh}px`)
 
-    if (isModalFormControlFocused || hasBaseModalOpen()) {
+    if (isModalFormControlFocused || hasModalOpen) {
       document.documentElement.style.setProperty('--visual-viewport-offset-top', `${viewportOffsetTop}px`)
       document.documentElement.style.setProperty('--safe-area-bottom', '0px')
       window.scrollTo(0, 0)
@@ -221,8 +224,10 @@ const updateViewportHeight = () => {
       !activeElement.closest('.basic-modal-overlay')
     if (shouldResetWindowScroll) {
       window.scrollTo(0, 0)
+      requestAnimationFrame(() => window.scrollTo(0, 0))
     }
   } else {
+    document.documentElement.classList.remove('keyboard-viewport-locked')
     document.documentElement.style.setProperty('--vh', '100%')
     document.documentElement.style.setProperty('--visual-vh', '100%')
     document.documentElement.style.setProperty('--visual-viewport-offset-top', '0px')
@@ -579,6 +584,21 @@ const { width } = useWindowSize()
 }
 
 @media (max-width: 767px) {
+  html.keyboard-viewport-locked,
+  html.keyboard-viewport-locked body,
+  html.keyboard-viewport-locked #app {
+    height: var(--vh, 100dvh);
+    max-height: var(--vh, 100dvh);
+    overflow: hidden;
+  }
+
+  html.keyboard-viewport-locked body {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+  }
 
   *,
   *::before,
