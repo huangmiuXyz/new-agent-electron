@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { isMobile } from '@renderer/composables/useDeviceType'
+import { copyElementImageToClipboard } from '@renderer/utils'
 import { formatTime } from '@renderer/utils/time'
 
-const { Plus, ArrowLeft, Folder, File, ChevronRight } = useIcon([
+const { Plus, ArrowLeft, Folder, File, ChevronRight, Image } = useIcon([
     'Plus',
     'MoreHorizontal',
     'ArrowLeft',
     'Folder',
     'File',
-    'ChevronRight'
+    'ChevronRight',
+    'Image'
 ])
 
 const notesStore = useNotesStore()
@@ -159,6 +161,11 @@ const showNoteContextMenu = (event: MouseEvent, note: any) => {
             onClick: () => sendToKnowledgeBase('note', note)
         },
         {
+            label: '复制为图片',
+            icon: Image,
+            onClick: () => copyNoteAsImage(note)
+        },
+        {
             label: '重命名',
             onClick: () => renameNote(note)
         },
@@ -169,6 +176,69 @@ const showNoteContextMenu = (event: MouseEvent, note: any) => {
         }
     ]
     showContextMenu(event, options, { type: 'note', data: note })
+}
+
+const getFolderPathText = (folderId: string | null) => {
+    if (!folderId) return '根目录'
+    return notesStore.folderPath(folderId).map(folder => folder.name).join(' / ') || '根目录'
+}
+
+const waitForImages = async (element: HTMLElement) => {
+    const images = Array.from(element.querySelectorAll('img'))
+    await Promise.all(images.map((image) => {
+        if (image.complete) return Promise.resolve()
+        return new Promise<void>((resolve) => {
+            image.onload = () => resolve()
+            image.onerror = () => resolve()
+        })
+    }))
+}
+
+const createNoteImageElement = (note: any) => {
+    const shell = document.createElement('article')
+    shell.className = 'note-image-card'
+
+    const title = document.createElement('h1')
+    title.className = 'note-image-title'
+    title.textContent = note.title || '未命名笔记'
+
+    const meta = document.createElement('div')
+    meta.className = 'note-image-meta'
+    meta.textContent = `${getFolderPathText(note.folderId)} · ${formatTime(note.updatedAt || note.createdAt)}`
+
+    const divider = document.createElement('div')
+    divider.className = 'note-image-divider'
+
+    const content = document.createElement('div')
+    content.className = 'note-image-content'
+    content.innerHTML = note.content || '<p>无内容</p>'
+
+    shell.append(title, meta, divider, content)
+    return shell
+}
+
+const copyNoteAsImage = async (note: any) => {
+    const element = createNoteImageElement(note)
+    document.body.appendChild(element)
+
+    try {
+        await document.fonts?.ready
+        await waitForImages(element)
+
+        const copied = await copyElementImageToClipboard(element, {
+            backgroundColor: '#ffffff',
+            width: element.scrollWidth
+        })
+
+        if (copied) {
+            messageApi.success('已复制笔记图片')
+            return
+        }
+
+        messageApi.error('复制笔记图片失败')
+    } finally {
+        element.remove()
+    }
 }
 
 const showCreateMenu = (event: MouseEvent) => {
@@ -608,5 +678,149 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+:global(.note-image-card) {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    width: 720px;
+    padding: 44px 52px;
+    background: #ffffff;
+    color: #1f2937;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.75;
+    box-sizing: border-box;
+}
+
+:global(.note-image-title) {
+    margin: 0;
+    color: #111827;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.35;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+}
+
+:global(.note-image-meta) {
+    margin-top: 10px;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+:global(.note-image-divider) {
+    height: 1px;
+    margin: 26px 0 28px;
+    background: #e5e7eb;
+}
+
+:global(.note-image-content) {
+    color: #1f2937;
+    font-size: 16px;
+    overflow-wrap: anywhere;
+}
+
+:global(.note-image-content > :first-child) {
+    margin-top: 0;
+}
+
+:global(.note-image-content > :last-child) {
+    margin-bottom: 0;
+}
+
+:global(.note-image-content p) {
+    margin: 0 0 16px;
+    line-height: 1.85;
+}
+
+:global(.note-image-content h1),
+:global(.note-image-content h2),
+:global(.note-image-content h3) {
+    margin: 28px 0 14px;
+    color: #111827;
+    line-height: 1.45;
+    letter-spacing: 0;
+}
+
+:global(.note-image-content h1) {
+    font-size: 26px;
+}
+
+:global(.note-image-content h2) {
+    font-size: 23px;
+}
+
+:global(.note-image-content h3) {
+    font-size: 20px;
+}
+
+:global(.note-image-content ul),
+:global(.note-image-content ol) {
+    margin: 0 0 16px;
+    padding-left: 24px;
+}
+
+:global(.note-image-content li) {
+    margin: 6px 0;
+}
+
+:global(.note-image-content blockquote) {
+    margin: 18px 0;
+    padding: 2px 0 2px 16px;
+    color: #4b5563;
+    border-left: 4px solid #cbd5e1;
+}
+
+:global(.note-image-content pre) {
+    margin: 18px 0;
+    padding: 16px;
+    overflow: hidden;
+    color: #e5e7eb;
+    background: #111827;
+    border-radius: 8px;
+    white-space: pre-wrap;
+}
+
+:global(.note-image-content code) {
+    padding: 2px 5px;
+    color: #be123c;
+    background: #fff1f2;
+    border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 0.92em;
+}
+
+:global(.note-image-content pre code) {
+    padding: 0;
+    color: inherit;
+    background: transparent;
+}
+
+:global(.note-image-content img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+:global(.note-image-content table) {
+    width: 100%;
+    margin: 18px 0;
+    border-collapse: collapse;
+}
+
+:global(.note-image-content th),
+:global(.note-image-content td) {
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    text-align: left;
+}
+
+:global(.note-image-content th) {
+    background: #f3f4f6;
+    font-weight: 700;
 }
 </style>

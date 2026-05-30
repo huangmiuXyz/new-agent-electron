@@ -188,6 +188,28 @@ const resolvePathSegments = (rawPath: string, useCurrent: boolean): { parentId: 
   return { parentId, segments }
 }
 
+const resolveFolderSegments = (
+  folders: NoteFolderLike[],
+  segments: string[],
+  initialParentId: string | null,
+  rawPath: string
+): string | null => {
+  let parentId = initialParentId
+
+  for (const segment of segments) {
+    const matchedFolders = folders.filter((folder) => folder.parentId === parentId && folder.name === segment)
+    if (matchedFolders.length === 0) {
+      throw new Error(`未找到路径：${rawPath}`)
+    }
+    if (matchedFolders.length > 1) {
+      throw new Error(`路径"${rawPath}"中的"${segment}"匹配到多个文件夹，请改用 folder_id`)
+    }
+    parentId = matchedFolders[0].id
+  }
+
+  return parentId
+}
+
 const resolveFolderId = (
   folders: NoteFolderLike[],
   params: { folder_id?: unknown; path?: unknown; use_current?: unknown }
@@ -207,20 +229,25 @@ const resolveFolderId = (
 
   if (['/', '.', 'root', '根目录'].includes(rawPath)) return null
 
-  let { parentId, segments } = resolvePathSegments(rawPath, params.use_current !== false)
+  const { parentId, segments } = resolvePathSegments(rawPath, params.use_current !== false)
+  return resolveFolderSegments(folders, segments, parentId, rawPath)
+}
 
-  for (const segment of segments) {
-    const matchedFolders = folders.filter((folder) => folder.parentId === parentId && folder.name === segment)
-    if (matchedFolders.length === 0) {
-      throw new Error(`未找到路径：${rawPath}`)
-    }
-    if (matchedFolders.length > 1) {
-      throw new Error(`路径"${rawPath}"中的"${segment}"匹配到多个文件夹，请改用 folder_id`)
-    }
-    parentId = matchedFolders[0].id
+const resolveRequiredFolderId = (
+  folders: NoteFolderLike[],
+  params: { folder_id?: unknown; folder_path?: unknown; use_current?: unknown },
+  actionLabel: string
+): string => {
+  const folderId = resolveFolderId(folders, {
+    folder_id: params.folder_id,
+    path: params.folder_path,
+    use_current: params.use_current
+  })
+  if (!folderId) {
+    throw new Error(`${actionLabel}必须指定具体文件夹，不能使用根目录`)
   }
 
-  return parentId
+  return folderId
 }
 
 const resolveListNotesTarget = (
@@ -297,6 +324,77 @@ const resolveNoteForEdit = (folders: NoteFolderLike[], notes: NoteLike[], refere
   if (target.type === 'note') return target.note
 
   throw new Error(`编辑目标不是笔记：${reference}`)
+}
+
+const resolveNoteForManage = (
+  folders: NoteFolderLike[],
+  notes: NoteLike[],
+  params: { note_id?: unknown; path?: unknown; use_current?: unknown },
+  actionLabel: string
+): NoteLike => {
+  const noteId = typeof params.note_id === 'string' ? params.note_id.trim() : ''
+  if (noteId) {
+    const note = notes.find((item) => item.id === noteId)
+    if (!note) throw new Error(`未找到笔记：note_id=${noteId}`)
+    return note
+  }
+
+  const rawPath = typeof params.path === 'string' ? params.path.trim() : ''
+  if (!rawPath) {
+    throw new Error(`${actionLabel}缺少必要参数：note_id 或 path`)
+  }
+
+  const target = resolveListNotesTarget(folders, notes, {
+    path: rawPath,
+    use_current: params.use_current
+  })
+  if (target.type !== 'note') {
+    throw new Error(`${actionLabel}目标不是笔记：${rawPath}`)
+  }
+  return target.note
+}
+
+const resolveCreateNoteTarget = (
+  folders: NoteFolderLike[],
+  notes: NoteLike[],
+  params: {
+    title?: unknown
+    path?: unknown
+    folder_id?: unknown
+    folder_path?: unknown
+    use_current?: unknown
+  }
+): { title: string; folderId: string } => {
+  const explicitTitle = typeof params.title === 'string' ? params.title.trim() : ''
+  if (explicitTitle) {
+    const folderId = resolveRequiredFolderId(folders, params, '新增笔记')
+    if (notes.some((note) => note.folderId === folderId && note.title === explicitTitle)) {
+      throw new Error(`文件夹 ${getFolderDisplayPath(folders, folderId)} 中已存在同名笔记：${explicitTitle}`)
+    }
+    return { title: explicitTitle, folderId }
+  }
+
+  const rawPath = typeof params.path === 'string' ? params.path.trim() : ''
+  if (!rawPath) {
+    throw new Error('新增笔记缺少必要参数：title 或 path')
+  }
+  if (['/', '.', 'root', '根目录'].includes(rawPath) || /[\\/]$/.test(rawPath)) {
+    throw new Error('新增笔记的 path 必须包含笔记标题，不能只指向文件夹')
+  }
+
+  const { parentId, segments } = resolvePathSegments(rawPath, params.use_current !== false)
+  const title = segments.pop()?.trim() || ''
+  if (!title) throw new Error('新增笔记的 path 必须包含笔记标题')
+
+  const folderId = resolveFolderSegments(folders, segments, parentId, rawPath)
+  if (!folderId) {
+    throw new Error('新增笔记必须指定具体文件夹，不能使用根目录')
+  }
+  if (notes.some((note) => note.folderId === folderId && note.title === title)) {
+    throw new Error(`路径"${rawPath}"对应位置已存在同名笔记：${title}`)
+  }
+
+  return { title, folderId }
 }
 
 const isHashlineSectionHeader = (line: string) => line.startsWith('§')
@@ -706,6 +804,134 @@ export const getNotesBuiltinTools = (): Partial<Tools> => ({
         return {
           toolResult: {
             content: [{ type: 'text', text: `list_notes 失败：${(error as Error).message}` }]
+          }
+        }
+      }
+    }
+  },
+
+  manage_note: {
+    title: '管理笔记',
+    description: [
+      '使用一个工具新增、删除或移动应用内笔记。',
+      '',
+      'action=create：新增笔记。可传 title + folder_id/folder_path（未传文件夹时使用当前文件夹），或传完整 path（最后一段作为标题）。content_format=text 时会转换为笔记富文本段落 HTML；content_format=html 时保存原始 HTML。',
+      'action=delete：删除笔记。用 note_id 或 path 指定目标笔记。',
+      'action=move：移动笔记。用 note_id 或 path 指定源笔记，用 folder_id 或 folder_path 指定目标文件夹。',
+      '',
+      '路径默认从根目录解析；使用 ./ 前缀时基于当前文件夹解析。笔记不能创建或移动到根目录，必须位于具体文件夹下。'
+    ].join('\n'),
+    inputSchema: z.object({
+      action: z
+        .enum(['create', 'delete', 'move'])
+        .describe('要执行的操作：create 新增笔记，delete 删除笔记，move 移动笔记。'),
+      note_id: z.string().optional().describe('delete/move 时的源笔记 ID。优先级高于 path。'),
+      path: z
+        .string()
+        .optional()
+        .describe('delete/move 时的源笔记路径；create 时可作为完整新笔记路径，最后一段会作为标题。'),
+      title: z
+        .string()
+        .optional()
+        .describe('create 时的新笔记标题。提供 title 时可用 folder_id 或 folder_path 指定文件夹，未指定时使用当前文件夹。'),
+      folder_id: z.string().optional().describe('create/move 时的目标文件夹 ID。优先级高于 folder_path。'),
+      folder_path: z
+        .string()
+        .optional()
+        .describe('create/move 时的目标文件夹路径，例如 默认文件夹/子文件夹；/ 表示根目录但不能用于 create/move。'),
+      content: z.string().optional().describe('create 时的初始正文。默认空。'),
+      content_format: z
+        .enum(['text', 'html'])
+        .optional()
+        .default('text')
+        .describe('create 时 content 的格式。text 会转成富文本 HTML；html 按原样保存。默认 text。'),
+      use_current: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe('是否允许 ./ 路径基于当前笔记文件夹解析，默认 true。')
+    }),
+    execute: async (args: unknown) => {
+      const params = (args || {}) as Record<string, any>
+      const notesStore = ensureNotesInitialized()
+
+      try {
+        if (params.action === 'create') {
+          const { title, folderId } = resolveCreateNoteTarget(notesStore.folders, notesStore.notes, params)
+          const note = notesStore.createNote(title, folderId)
+
+          if (typeof params.content === 'string') {
+            notesStore.updateNote(note.id, {
+              content: params.content_format === 'html' ? params.content : textToNoteHtml(params.content)
+            })
+          }
+
+          const createdNote = notesStore.notes.find((item) => item.id === note.id) || note
+          const summary = [
+            '笔记已新增',
+            `path: ${getNoteDisplayPath(notesStore.folders, createdNote)}`,
+            `note_id: ${createdNote.id}`,
+            `folder: ${getFolderDisplayPath(notesStore.folders, createdNote.folderId)}`
+          ].join('\n')
+
+          return {
+            summary,
+            toolResult: {
+              content: [{ type: 'text', text: summary }]
+            }
+          }
+        }
+
+        if (params.action === 'delete') {
+          const note = resolveNoteForManage(notesStore.folders, notesStore.notes, params, '删除笔记')
+          const notePath = getNoteDisplayPath(notesStore.folders, note)
+          notesStore.deleteNote(note.id)
+          const summary = ['笔记已删除', `path: ${notePath}`, `note_id: ${note.id}`].join('\n')
+
+          return {
+            summary,
+            toolResult: {
+              content: [{ type: 'text', text: summary }]
+            }
+          }
+        }
+
+        if (params.action === 'move') {
+          const note = resolveNoteForManage(notesStore.folders, notesStore.notes, params, '移动笔记')
+          const targetFolderId = resolveRequiredFolderId(notesStore.folders, params, '移动笔记')
+          if (
+            notesStore.notes.some(
+              (item) => item.id !== note.id && item.folderId === targetFolderId && item.title === note.title
+            )
+          ) {
+            throw new Error(`目标文件夹中已存在同名笔记：${note.title}`)
+          }
+
+          const fromPath = getNoteDisplayPath(notesStore.folders, note)
+          notesStore.updateNote(note.id, { folderId: targetFolderId })
+          const toPath = getNoteDisplayPath(notesStore.folders, note)
+          const summary = [
+            '笔记已移动',
+            `from: ${fromPath}`,
+            `to: ${toPath}`,
+            `note_id: ${note.id}`,
+            `folder: ${getFolderDisplayPath(notesStore.folders, targetFolderId)}`
+          ].join('\n')
+
+          return {
+            summary,
+            toolResult: {
+              content: [{ type: 'text', text: summary }]
+            }
+          }
+        }
+
+        throw new Error('不支持的 action，仅支持 create/delete/move')
+      } catch (error) {
+        return {
+          error: (error as Error).message,
+          toolResult: {
+            content: [{ type: 'text', text: `manage_note 失败：${(error as Error).message}` }]
           }
         }
       }
