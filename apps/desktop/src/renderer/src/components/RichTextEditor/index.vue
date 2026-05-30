@@ -285,7 +285,9 @@ defineExpose({
 
 <template>
     <div class="rich-text-editor">
-        <RichTextEditorToolbar v-if="editable && editor" :editor="editor" />
+        <RichTextEditorToolbar v-if="editable && editor" :editor="editor">
+            <slot name="toolbar-actions" />
+        </RichTextEditorToolbar>
         <EditorContent class="rich-text-editor-scroll" :editor="editor" @contextmenu="handleEditorContextMenu" />
     </div>
 </template>

@@ -91,16 +91,17 @@ onUnmounted(() => {
 
             <!-- 笔记编辑区域 -->
             <div v-else class="editor-container" :class="{ 'is-ergonomic': isErgonomicWidth }">
-                <div class="editor-actions">
-                    <Button variant="icon" size="sm" :title="widthToggleTitle" @click="toggleInputWidthMode">
-                        <component :is="isErgonomicWidth ? Fullscreen : FullscreenExit" />
-                    </Button>
-                </div>
-
                 <!-- 笔记内容 -->
                 <div class="note-content">
                     <RichTextEditor v-model="noteContent" placeholder="开始输入笔记内容..." class="content-editor"
-                        @change="onContentChange" />
+                        @change="onContentChange">
+                        <template #toolbar-actions>
+                            <Button v-if="!isMobile" variant="icon" size="sm" :title="widthToggleTitle"
+                                @click="toggleInputWidthMode">
+                                <component :is="isErgonomicWidth ? Fullscreen : FullscreenExit" />
+                            </Button>
+                        </template>
+                    </RichTextEditor>
                     <div class="note-word-count">{{ contentCharCount }} 字</div>
                 </div>
             </div>
@@ -176,29 +177,6 @@ onUnmounted(() => {
     padding: 0 24px;
 }
 
-.editor-actions {
-    position: absolute;
-    top: 7px;
-    right: 12px;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    padding-left: 8px;
-    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
-    border-radius: 6px;
-}
-
-.editor-actions :deep(.btn) {
-    width: 28px;
-    height: 28px;
-    color: var(--text-tertiary);
-}
-
-.editor-actions :deep(.btn:hover) {
-    color: var(--text-primary);
-}
-
-
 .title-input {
     font-size: 24px;
     font-weight: 700;
@@ -262,10 +240,6 @@ onUnmounted(() => {
 .note-editor.is-mobile .editor-container {
     max-width: none;
     padding: 0;
-}
-
-.note-editor.is-mobile .editor-actions {
-    display: none;
 }
 
 .back-button {

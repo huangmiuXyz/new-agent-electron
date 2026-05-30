@@ -184,6 +184,10 @@ const toggleTaskList = () => {
         <div class="toolbar-group font-size-group">
             <Select v-model="currentFontSize" :options="fontSizeOptions" size="sm" title="字号" />
         </div>
+
+        <div v-if="$slots.default" class="toolbar-group toolbar-extra-actions">
+            <slot />
+        </div>
     </div>
 </template>
 
@@ -244,6 +248,10 @@ const toggleTaskList = () => {
 
 .font-size-group :deep(.form-select:hover) {
     background: var(--bg-hover);
+}
+
+.toolbar-extra-actions {
+    flex: 0 0 auto;
 }
 
 .toolbar-group :deep(.button) {
