@@ -10,6 +10,12 @@ import {
   searchWorkspaceEntries,
   type WorkspaceFileEntry
 } from '@renderer/services/fileMentionsService'
+import {
+  formatNoteMentionPath,
+  listNoteEntries,
+  searchNoteEntries,
+  type NoteMentionEntry
+} from '@renderer/services/noteMentionsService'
 
 interface Props {
   mobile?: boolean
@@ -21,12 +27,14 @@ interface MentionRange {
   end: number
 }
 
-type MentionScope = 'all' | 'skills' | 'files' | 'agents'
+type MentionScope = 'all' | 'skills' | 'files' | 'notes' | 'agents'
 
 type MentionItemData =
   | { type: 'skill'; skill: SkillMetadata }
   | { type: 'file'; entry: WorkspaceFileEntry }
   | { type: 'file-nav'; targetDir: string }
+  | { type: 'note'; entry: NoteMentionEntry }
+  | { type: 'note-nav'; targetFolderId: string | null }
   | { type: 'agent'; agent: Agent }
 
 export interface MentionApplyPayload {
@@ -67,6 +75,8 @@ const SKILL_MENTION_REGEX = /(^|[\s([{"'`"'])@([a-z0-9-]*)$/i
 const SKILL_MENTION_NAMESPACE_REGEX = /(^|[\s([{"'`"'])@(skills|技能):([a-z0-9-]*)$/i
 const FILE_MENTION_NAMESPACE_REGEX =
   /(^|[\s([{"'`"'])@(file|文件):(?:"([^"\n\r]*)"|'([^'\n\r]*)'|([^\s]*))$/i
+const NOTE_MENTION_NAMESPACE_REGEX =
+  /(^|[\s([{"'`"'])@(note|笔记):(?:"([^"\n\r]*)"|'([^'\n\r]*)'|([^\s]*))$/i
 const AGENT_MENTION_NAMESPACE_REGEX = /(^|[\s([{"'`"'])@(agent|智能体):([a-z0-9-\u4e00-\u9fa5]*)$/i
 const PARTIAL_MENTION_REGEX = /(^|[\s([{"'`"'])@([^\s]*)$/i
 
@@ -105,6 +115,9 @@ const lastActivePathKeys = ref<string[]>([])
 const fileItems = ref<CascaderPanelItem[]>([])
 const currentFileDirectory = ref('')
 const fileListStrategy = ref<'search' | 'directory'>('directory')
+const noteItems = ref<CascaderPanelItem[]>([])
+const currentNoteFolderId = ref<string | null>(null)
+const noteListStrategy = ref<'search' | 'directory'>('directory')
 let closeTimer: ReturnType<typeof setTimeout> | null = null
 
 const currentWorkPath = computed(() => {
@@ -135,6 +148,10 @@ const resolveMentionStart = (match: RegExpMatchArray, cursor: number) => {
 }
 
 const getFileMentionQuery = (match: RegExpMatchArray) => {
+  return match[3] || match[4] || match[5] || ''
+}
+
+const getNoteMentionQuery = (match: RegExpMatchArray) => {
   return match[3] || match[4] || match[5] || ''
 }
 
@@ -260,6 +277,106 @@ const debouncedRefreshFileItems = debounce((nextQuery: string) => {
   resetFileListSelection()
 }, 140)
 
+const enterNoteFolder = (folderId: string | null) => {
+  currentNoteFolderId.value = folderId
+  noteListStrategy.value = 'directory'
+}
+
+const buildNoteParentItem = (): CascaderPanelItem | null => {
+  if (!currentNoteFolderId.value) return null
+
+  const notesStore = useNotesStore()
+  const currentFolder = notesStore.folders.find((folder) => folder.id === currentNoteFolderId.value)
+  const parentId = currentFolder?.parentId || null
+
+  return {
+    key: 'note-nav:parent',
+    label: '..',
+    description: '返回上级文件夹',
+    onKeydown: ({ event }) => {
+      if (event.key === 'Enter' || event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        enterNoteFolder(parentId)
+        return { action: 'stay' }
+      }
+
+      return undefined
+    },
+    data: {
+      type: 'note-nav',
+      targetFolderId: parentId
+    } satisfies MentionItemData
+  }
+}
+
+const buildNoteDescription = (entry: NoteMentionEntry) => {
+  const normalizedQuery = query.value.trim()
+  if (!normalizedQuery || noteListStrategy.value === 'directory') {
+    return entry.kind === 'folder' ? '笔记文件夹' : '笔记'
+  }
+
+  return entry.path
+}
+
+const buildNoteItem = (entry: NoteMentionEntry): CascaderPanelItem => {
+  return {
+    key: `note:${entry.kind}:${entry.id}`,
+    label: entry.name,
+    description: buildNoteDescription(entry),
+    onKeydown: ({ event }) => {
+      if (event.key === 'ArrowLeft' && currentNoteFolderId.value) {
+        const notesStore = useNotesStore()
+        const currentFolder = notesStore.folders.find((folder) => folder.id === currentNoteFolderId.value)
+        enterNoteFolder(currentFolder?.parentId || null)
+        return { action: 'stay' }
+      }
+
+      if (entry.kind === 'folder' && event.key === 'ArrowRight') {
+        enterNoteFolder(entry.id)
+        return { action: 'stay' }
+      }
+
+      if (entry.kind === 'folder' && event.key === 'Enter') {
+        return { action: 'select' }
+      }
+
+      return undefined
+    },
+    data: {
+      type: 'note',
+      entry
+    } satisfies MentionItemData
+  }
+}
+
+const refreshNoteItems = (nextQuery: string) => {
+  const shouldSearch = noteListStrategy.value === 'search' && Boolean(nextQuery)
+  const entries = shouldSearch
+    ? searchNoteEntries(nextQuery, { limit: 80 })
+    : listNoteEntries(currentNoteFolderId.value)
+
+  const parentItem = shouldSearch ? null : buildNoteParentItem()
+  noteItems.value = [
+    ...(parentItem ? [parentItem] : []),
+    ...entries.map(buildNoteItem)
+  ]
+}
+
+const resetNoteListSelection = () => {
+  nextTick(() => {
+    const activePath = cascaderPanelRef.value?.getActivePath?.() || []
+    const isNotesActive = mentionScope.value === 'notes' || activePath[0]?.key === 'notes'
+
+    if (!isNotesActive) return
+    const firstSelectableIndex = noteItems.value[0]?.key === 'note-nav:parent' ? 1 : 0
+    cascaderPanelRef.value?.resetActiveIndexAtDepth?.(1, true, firstSelectableIndex)
+  })
+}
+
+const debouncedRefreshNoteItems = debounce((nextQuery: string) => {
+  refreshNoteItems(nextQuery)
+  resetNoteListSelection()
+}, 140)
+
 const skillsRootItem = reactive<CascaderPanelItem>({
   key: 'skills',
   label: '技能',
@@ -283,6 +400,14 @@ const workspaceRootItem = reactive<CascaderPanelItem>({
   children: () => fileItems.value
 })
 
+const notesRootItem = reactive<CascaderPanelItem>({
+  key: 'notes',
+  label: '笔记',
+  icon: 'split',
+  description: '引用笔记内容',
+  children: () => noteItems.value
+})
+
 const agentsRootItem = reactive<CascaderPanelItem>({
   key: 'agents',
   label: '智能体',
@@ -298,7 +423,7 @@ const agentsRootItem = reactive<CascaderPanelItem>({
   }))
 })
 
-const cascaderItems = ref<CascaderPanelItem[]>([skillsRootItem, workspaceRootItem, agentsRootItem])
+const cascaderItems = ref<CascaderPanelItem[]>([skillsRootItem, workspaceRootItem, notesRootItem, agentsRootItem])
 
 const syncCascaderItems = () => {
   workspaceRootItem.description = currentWorkPath.value || '未设置工作路径'
@@ -318,7 +443,12 @@ const syncCascaderItems = () => {
     return
   }
 
-  cascaderItems.value = [skillsRootItem, workspaceRootItem, agentsRootItem]
+  if (mentionScope.value === 'notes') {
+    cascaderItems.value = [notesRootItem]
+    return
+  }
+
+  cascaderItems.value = [skillsRootItem, workspaceRootItem, notesRootItem, agentsRootItem]
 }
 
 const panelEmptyText = computed(() => {
@@ -332,6 +462,10 @@ const panelEmptyText = computed(() => {
 
   if (mentionScope.value === 'agents') {
     return query.value.trim() ? '未找到匹配智能体' : '暂无可用智能体'
+  }
+
+  if (mentionScope.value === 'notes') {
+    return query.value.trim() && noteListStrategy.value === 'search' ? '未找到匹配笔记' : '当前文件夹为空'
   }
 
   if (mentionScope.value === 'all') {
@@ -357,6 +491,8 @@ const closePanel = (options?: { suppressCurrentMessage?: boolean }) => {
   lastActivePathKeys.value = []
   currentFileDirectory.value = ''
   fileListStrategy.value = 'directory'
+  currentNoteFolderId.value = null
+  noteListStrategy.value = 'directory'
 }
 
 const clearCloseTimer = () => {
@@ -387,6 +523,7 @@ const applyMentionParseResult = (
 
   if (shouldResetDirectory) {
     currentFileDirectory.value = ''
+    currentNoteFolderId.value = null
   }
 
   const normalizedQuery = nextQuery.trim()
@@ -405,6 +542,7 @@ const applyMentionParseResult = (
   }
 
   fileListStrategy.value = scope === 'files' && normalizedQuery ? 'search' : 'directory'
+  noteListStrategy.value = scope === 'notes' && normalizedQuery ? 'search' : 'directory'
 }
 
 const isStickyNamespacePrefix = (scope: Exclude<MentionScope, 'all'>, token: string) => {
@@ -415,6 +553,10 @@ const isStickyNamespacePrefix = (scope: Exclude<MentionScope, 'all'>, token: str
 
   if (scope === 'agents') {
     return 'agent'.startsWith(normalizedToken) || '智能体'.startsWith(token) || '助手'.startsWith(token)
+  }
+
+  if (scope === 'notes') {
+    return 'note'.startsWith(normalizedToken) || '笔记'.startsWith(token)
   }
 
   return 'skills'.startsWith(normalizedToken) || '技能'.startsWith(token)
@@ -484,7 +626,7 @@ const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null
     cursor === message.length
   ) {
     query.value = ''
-    isOpen.value = availableSkills.value.length > 0 || Boolean(currentWorkPath.value)
+    isOpen.value = true
     return
   }
 
@@ -493,6 +635,17 @@ const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null
   if (fileMatch) {
     applyMentionParseResult('files', getFileMentionQuery(fileMatch), {
       start: resolveMentionStart(fileMatch, cursor),
+      end: cursor
+    })
+    isOpen.value = true
+    return
+  }
+
+  const noteMatch = beforeCursor.match(NOTE_MENTION_NAMESPACE_REGEX)
+
+  if (noteMatch) {
+    applyMentionParseResult('notes', getNoteMentionQuery(noteMatch), {
+      start: resolveMentionStart(noteMatch, cursor),
       end: cursor
     })
     isOpen.value = true
@@ -526,6 +679,8 @@ const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null
     applyMentionParseResult(stickyMatch.scope, stickyMatch.query, stickyMatch.range)
     isOpen.value = stickyMatch.scope === 'files'
       ? Boolean(currentWorkPath.value)
+      : stickyMatch.scope === 'notes'
+        ? true
       : availableSkills.value.length > 0
     return
   }
@@ -540,7 +695,7 @@ const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null
     start: resolveMentionStart(match, cursor),
     end: cursor
   })
-  isOpen.value = availableSkills.value.length > 0 || Boolean(currentWorkPath.value) || availableAgents.value.length > 0
+  isOpen.value = true
 }
 
 const buildSkillMentionPayload = (skill: SkillMetadata): MentionApplyPayload | null => {
@@ -579,6 +734,24 @@ const buildFileMentionPayload = (entry: WorkspaceFileEntry): MentionApplyPayload
   }
 }
 
+const buildNoteMentionPayload = (entry: NoteMentionEntry): MentionApplyPayload | null => {
+  const range = mentionRange.value
+  if (!range) return null
+
+  const mentionText = `@note:${formatNoteMentionPath(entry.path || entry.id)} `
+  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
+  const cursor = range.start + mentionText.length
+
+  previewMessage.value = nextMessage
+  previewScope.value = 'notes'
+  rootPreviewScope.value = null
+
+  return {
+    message: nextMessage,
+    cursor
+  }
+}
+
 const buildAgentMentionPayload = (agent: Agent): MentionApplyPayload | null => {
   const range = mentionRange.value
   if (!range) return null
@@ -607,6 +780,8 @@ const buildScopePreviewPayload = (item: CascaderPanelItem, path: CascaderPanelIt
     mentionText = '@skills:'
   } else if (item.key === 'workspace' && path.length === 1) {
     mentionText = '@file:'
+  } else if (item.key === 'notes' && path.length === 1) {
+    mentionText = '@note:'
   } else if (item.key === 'agents' && path.length === 1) {
     mentionText = '@agent:'
   } else {
@@ -618,6 +793,8 @@ const buildScopePreviewPayload = (item: CascaderPanelItem, path: CascaderPanelIt
   previewMessage.value = nextMessage
   if (item.key === 'workspace') {
     previewScope.value = 'files'
+  } else if (item.key === 'notes') {
+    previewScope.value = 'notes'
   } else if (item.key === 'agents') {
     previewScope.value = 'agents'
   } else {
@@ -647,6 +824,10 @@ const buildMentionPayload = (data: MentionItemData): MentionApplyPayload | null 
     return buildFileMentionPayload(data.entry)
   }
 
+  if (data.type === 'note') {
+    return buildNoteMentionPayload(data.entry)
+  }
+
   if (data.type === 'agent') {
     return buildAgentMentionPayload(data.agent)
   }
@@ -657,6 +838,11 @@ const buildMentionPayload = (data: MentionItemData): MentionApplyPayload | null 
 const applyMentionItem = (data: MentionItemData) => {
   if (data.type === 'file-nav') {
     enterDirectory(data.targetDir)
+    return null
+  }
+
+  if (data.type === 'note-nav') {
+    enterNoteFolder(data.targetFolderId)
     return null
   }
 
@@ -703,7 +889,7 @@ const handleCascaderActiveChange = ({ item, path }: { item: CascaderPanelItem | 
   }
 
   const data = getMentionItemData(item)
-  if (data?.type === 'file' || data?.type === 'file-nav' || data?.type === 'agent') {
+  if (data?.type === 'file' || data?.type === 'file-nav' || data?.type === 'note' || data?.type === 'note-nav' || data?.type === 'agent') {
     return
   }
 
@@ -748,7 +934,7 @@ const handleKeydown = (
   const data = getMentionItemData(result.item)
   if (!data) return { handled: true }
 
-  if (data.type === 'file-nav') {
+  if (data.type === 'file-nav' || data.type === 'note-nav') {
     applyMentionItem(data)
     return { handled: true }
   }
@@ -765,8 +951,8 @@ const handleKeydown = (
 }
 
 watch(availableSkills, (skills) => {
-  if (mentionScope.value === 'files' || mentionScope.value === 'agents') return
-  if (skills.length > 0 || currentWorkPath.value || availableAgents.value.length > 0) return
+  if (mentionScope.value !== 'skills') return
+  if (skills.length > 0) return
   closePanel()
 })
 
@@ -805,9 +991,32 @@ watch(
   { immediate: true }
 )
 
+watch(
+  [isOpen, mentionScope, query, currentNoteFolderId, noteListStrategy],
+  ([open, scope, nextQuery]) => {
+    debouncedRefreshNoteItems.cancel?.()
+
+    if (!open || (scope !== 'notes' && scope !== 'all')) {
+      noteItems.value = []
+      return
+    }
+
+    const normalizedQuery = nextQuery.trim()
+    if (scope !== 'notes' || noteListStrategy.value !== 'search' || !normalizedQuery) {
+      refreshNoteItems('')
+      resetNoteListSelection()
+      return
+    }
+
+    debouncedRefreshNoteItems(normalizedQuery)
+  },
+  { immediate: true }
+)
+
 onBeforeUnmount(() => {
   clearCloseTimer()
   debouncedRefreshFileItems.cancel?.()
+  debouncedRefreshNoteItems.cancel?.()
 })
 
 defineExpose({

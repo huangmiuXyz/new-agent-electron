@@ -7,6 +7,7 @@ import { getGeneralBuiltinTools } from './tools/general-tools'
 import { getKnowledgeBuiltinTools } from './tools/knowledge-tools'
 import { getMediaBuiltinTools } from './tools/media-tools'
 import { getNetworkBuiltinTools } from './tools/network-tools'
+import { getNotesBuiltinTools } from './tools/notes-tools'
 
 export type BuiltinToolGroupEntry = {
   group: string
@@ -30,6 +31,7 @@ export const getBuiltinToolGroupEntries = (options?: {
       group: '知识库',
       tools: getKnowledgeBuiltinTools({ knowledgeBaseIds: options?.knowledgeBaseIds })
     },
+    { group: '笔记工具', tools: getNotesBuiltinTools() },
     { group: '多媒体工具', tools: getMediaBuiltinTools() },
     { group: 'Codex工具', tools: getCodexBuiltinTools() }
   ]

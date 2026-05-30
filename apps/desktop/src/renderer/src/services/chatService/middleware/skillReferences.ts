@@ -8,6 +8,13 @@ import {
   searchWorkspaceEntries,
   type WorkspaceFileEntry
 } from '@renderer/services/fileMentionsService'
+import {
+  getNoteEntry,
+  getNotePlainTextContent,
+  listNoteEntries,
+  searchNoteEntries,
+  type NoteMentionEntry
+} from '@renderer/services/noteMentionsService'
 
 interface SkillReferenceMiddlewareOptions {
   skills?: SkillMetadata[]
@@ -17,8 +24,12 @@ interface SkillReferenceMiddlewareOptions {
 const SKILL_REFERENCE_REGEX = /(^|[\s([{'"“‘])@(?:(?:skills|技能):)?([a-z0-9-]{1,64})(?=$|[\s)\]};,.!?'"，。！？、】【])/gi
 const FILE_REFERENCE_REGEX =
   /(^|[\s([{'"“‘])@(?:file|文件):(?:"([^"\n\r]+)"|'([^'\n\r]+)'|([^\s)\]};,.!?'"，。！？、】【]+))/gi
+const NOTE_REFERENCE_REGEX =
+  /(^|[\s([{'"“‘])@(?:note|笔记):(?:"([^"\n\r]+)"|'([^'\n\r]+)'|([^\s)\]};,.!?'"，。！？、】【]+))/gi
 const DIRECTORY_TREE_MAX_DEPTH = 2
 const DIRECTORY_TREE_MAX_ENTRIES = 120
+const NOTE_TREE_MAX_DEPTH = 2
+const NOTE_TREE_MAX_ENTRIES = 120
 
 export const createSkillReferenceMiddleware = (
   options: SkillReferenceMiddlewareOptions
@@ -28,10 +39,6 @@ export const createSkillReferenceMiddleware = (
   return {
     specificationVersion: 'v3',
     transformParams: async ({ params }) => {
-      if (!skills.length && !workPath) {
-        return params
-      }
-
       const lastUserMessageText = getLastUserMessageText(params.prompt)
       if (!lastUserMessageText) {
         return params
@@ -58,8 +65,12 @@ export const createSkillReferenceMiddleware = (
             .map((path) => buildFileReferenceBlock(workPath, path))
             .filter((file): file is string => Boolean(file))
         : []
+      const referencedNotePaths = extractReferencedNotePaths(lastUserMessageText)
+      const referencedNotes = referencedNotePaths
+        .map((path) => buildNoteReferenceBlock(path))
+        .filter((note): note is string => Boolean(note))
 
-      if (!referencedSkills.length && !referencedFiles.length) {
+      if (!referencedSkills.length && !referencedFiles.length && !referencedNotes.length) {
         return params
       }
 
@@ -68,7 +79,8 @@ export const createSkillReferenceMiddleware = (
         buildMentionContextText({
           userInput: lastUserMessageText,
           skills: referencedSkills,
-          files: referencedFiles
+          files: referencedFiles,
+          notes: referencedNotes
         })
       )
     }
@@ -86,6 +98,16 @@ function extractReferencedSkillNames(input: string): string[] {
 
 function extractReferencedFilePaths(input: string): string[] {
   const matches = Array.from(input.matchAll(FILE_REFERENCE_REGEX))
+  const paths = matches
+    .map((match) => match[2] || match[3] || match[4] || '')
+    .map((path) => path.trim())
+    .filter((path): path is string => Boolean(path))
+
+  return [...new Set(paths)]
+}
+
+function extractReferencedNotePaths(input: string): string[] {
+  const matches = Array.from(input.matchAll(NOTE_REFERENCE_REGEX))
   const paths = matches
     .map((match) => match[2] || match[3] || match[4] || '')
     .map((path) => path.trim())
@@ -232,14 +254,111 @@ function buildFileContextSection(files: string[]): string {
   ].join('\n')
 }
 
+function buildNoteTree(folderId: string | null): string {
+  const lines: string[] = []
+  let totalEntries = 0
+  let truncated = false
+
+  const walk = (currentFolderId: string | null, depth: number) => {
+    if (depth >= NOTE_TREE_MAX_DEPTH || truncated) return
+
+    const entries = listNoteEntries(currentFolderId)
+    for (const entry of entries) {
+      if (totalEntries >= NOTE_TREE_MAX_ENTRIES) {
+        truncated = true
+        return
+      }
+
+      lines.push(`${'  '.repeat(depth)}${entry.kind === 'folder' ? 'd' : '-'} ${entry.name}`)
+      totalEntries += 1
+
+      if (entry.kind === 'folder') {
+        walk(entry.id, depth + 1)
+      }
+    }
+  }
+
+  walk(folderId, 0)
+
+  if (!lines.length) {
+    return '(empty)'
+  }
+
+  if (truncated) {
+    lines.push('... [truncated]')
+  }
+
+  return lines.join('\n')
+}
+
+function buildResolvedNoteBlock(entry: NoteMentionEntry, sourceReference: string): string {
+  if (entry.kind === 'folder') {
+    return [
+      `<note_folder path="${escapeXml(entry.path)}" source="${escapeXml(sourceReference)}">`,
+      '<tree>',
+      escapeXml(buildNoteTree(entry.id)),
+      '</tree>',
+      '</note_folder>'
+    ].join('\n')
+  }
+
+  return [
+    `<note path="${escapeXml(entry.path)}" source="${escapeXml(sourceReference)}" id="${escapeXml(entry.id)}">`,
+    '<content>',
+    escapeXml(getNotePlainTextContent(entry) || ''),
+    '</content>',
+    '</note>'
+  ].join('\n')
+}
+
+function buildNoteReferenceBlock(reference: string): string | null {
+  const exactEntry = getNoteEntry(reference)
+  if (exactEntry) {
+    return buildResolvedNoteBlock(exactEntry, reference)
+  }
+
+  const fuzzyMatches = searchNoteEntries(reference, { limit: 6 })
+  if (fuzzyMatches.length === 1) {
+    return buildResolvedNoteBlock(fuzzyMatches[0], reference)
+  }
+
+  if (fuzzyMatches.length > 1) {
+    return [
+      `<note_reference query="${escapeXml(reference)}" status="ambiguous">`,
+      '<candidates>',
+      escapeXml(fuzzyMatches.map((entry) => entry.path).join('\n')),
+      '</candidates>',
+      '</note_reference>'
+    ].join('\n')
+  }
+
+  return [
+    `<note_reference query="${escapeXml(reference)}" status="missing">`,
+    '未找到匹配的笔记或笔记文件夹。',
+    '</note_reference>'
+  ].join('\n')
+}
+
+function buildNoteContextSection(notes: string[]): string {
+  return [
+    '以下是用户通过 @note 引用的笔记内容，请优先参考这些笔记：',
+    '',
+    '<referenced_notes>',
+    notes.join('\n\n'),
+    '</referenced_notes>'
+  ].join('\n')
+}
+
 function buildMentionContextText(options: {
   userInput: string
   skills: Array<{ metadata: SkillMetadata, content: string }>
   files: string[]
+  notes: string[]
 }): string {
   const sections = [
     options.skills.length > 0 ? buildSkillContextSection(options.skills) : '',
-    options.files.length > 0 ? buildFileContextSection(options.files) : ''
+    options.files.length > 0 ? buildFileContextSection(options.files) : '',
+    options.notes.length > 0 ? buildNoteContextSection(options.notes) : ''
   ].filter(Boolean)
 
   return [
