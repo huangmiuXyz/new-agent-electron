@@ -715,7 +715,7 @@ export const getNotesBuiltinTools = (): Partial<Tools> => ({
   edit_note: {
     title: '修改笔记',
     description: [
-      '使用 hashline 模式编辑应用内笔记正文，参数形式与 Codex edit_file 保持一致。',
+      '使用 hashline 模式编辑应用内笔记正文',
       '',
       '输入格式：',
       '§NOTE_ID 或 §笔记路径',
