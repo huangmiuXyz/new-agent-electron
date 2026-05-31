@@ -87,6 +87,49 @@ const extractTextWithBreaks = (element: Element) => {
     return parts.join('')
 }
 
+const findNearestFontSize = (node: Node, boundary: Element) => {
+    let element = node.parentElement
+
+    while (element) {
+        if (element instanceof HTMLElement && element.style.fontSize) {
+            return element.style.fontSize
+        }
+
+        if (element === boundary) break
+        element = element.parentElement
+    }
+
+    return ''
+}
+
+const getDominantFontSize = (element: Element) => {
+    const sizes = new Map<string, number>()
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+
+    while (walker.nextNode()) {
+        const node = walker.currentNode
+        const text = normalizeBlockText(node.textContent || '')
+        if (!text) continue
+
+        const fontSize = findNearestFontSize(node, element)
+        if (!fontSize) continue
+
+        sizes.set(fontSize, (sizes.get(fontSize) || 0) + text.length)
+    }
+
+    let dominantFontSize = ''
+    let dominantWeight = 0
+
+    sizes.forEach((weight, fontSize) => {
+        if (weight > dominantWeight) {
+            dominantFontSize = fontSize
+            dominantWeight = weight
+        }
+    })
+
+    return dominantFontSize
+}
+
 const normalizeTextNodes = (element: Element) => {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
     const textNodes: Text[] = []
@@ -100,15 +143,27 @@ const normalizeTextNodes = (element: Element) => {
     })
 }
 
+const setTextWithFontSize = (element: HTMLElement, text: string, fontSize?: string) => {
+    if (!fontSize) {
+        element.textContent = text
+        return
+    }
+
+    const span = document.createElement('span')
+    span.style.fontSize = fontSize
+    span.textContent = text
+    element.appendChild(span)
+}
+
 const createTextElement = (tagName: string, text: string) => {
     const element = document.createElement(tagName)
     element.textContent = normalizeNovelText(text)
     return element
 }
 
-const createNovelParagraph = (text: string) => {
+const createNovelParagraph = (text: string, fontSize?: string) => {
     const paragraph = document.createElement('p')
-    paragraph.textContent = `　　${normalizeNovelText(text)}`
+    setTextWithFontSize(paragraph, `　　${normalizeNovelText(text)}`, fontSize)
     return paragraph
 }
 
@@ -129,6 +184,7 @@ const formatEditorHtml = (html: string) => {
     const source = document.createElement('div')
     const result = document.createElement('div')
     source.innerHTML = html
+    const bodyFontSize = getDominantFontSize(source)
 
     const children = Array.from(source.children)
     children.forEach((child) => {
@@ -150,7 +206,7 @@ const formatEditorHtml = (html: string) => {
         }
 
         textLines.forEach((text) => {
-            result.appendChild(isNovelHeading(text) ? createTextElement('h2', text) : createNovelParagraph(text))
+            result.appendChild(isNovelHeading(text) ? createTextElement('h2', text) : createNovelParagraph(text, bodyFontSize))
         })
     })
 
