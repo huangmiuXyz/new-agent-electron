@@ -220,6 +220,7 @@ const createNoteImageElement = (note: any) => {
 const copyNoteAsImage = async (note: any) => {
     const element = createNoteImageElement(note)
     document.body.appendChild(element)
+    const closeLoading = messageApi.loading('正在复制笔记图片...')
 
     try {
         await document.fonts?.ready
@@ -230,11 +231,17 @@ const copyNoteAsImage = async (note: any) => {
             width: element.scrollWidth
         })
 
+        closeLoading()
+
         if (copied) {
             messageApi.success('已复制笔记图片')
             return
         }
 
+        messageApi.error('复制笔记图片失败')
+    } catch (error) {
+        closeLoading()
+        console.error('复制笔记图片失败:', error)
         messageApi.error('复制笔记图片失败')
     } finally {
         element.remove()

@@ -104,6 +104,155 @@ export const copyImageToClipboard = async (src: string, fallbackText = src): Pro
   }
 }
 
+const waitForNextPaint = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+
+const readBlobAsDataURL = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+const serializeCssVariables = (style: CSSStyleDeclaration) =>
+  Array.from(style)
+    .filter((name) => name.startsWith('--'))
+    .map((name) => `${name}: ${style.getPropertyValue(name)}${style.getPropertyPriority(name) ? ' !important' : ''};`)
+    .join(' ')
+
+const collectDocumentStyles = () => {
+  const styles: string[] = []
+
+  Array.from(document.styleSheets).forEach((styleSheet) => {
+    try {
+      const rules = Array.from(styleSheet.cssRules || [])
+      styles.push(rules.map((rule) => rule.cssText).join('\n'))
+    } catch {
+      if (styleSheet.href) {
+        styles.push(`@import url("${styleSheet.href.replace(/"/g, '\\"')}");`)
+      }
+    }
+  })
+
+  return styles.join('\n')
+}
+
+const applyElementFilter = (root: HTMLElement, filter?: (node: HTMLElement) => boolean) => {
+  if (!filter) return
+
+  Array.from(root.querySelectorAll<HTMLElement>('*')).forEach((node) => {
+    if (!filter(node)) {
+      node.remove()
+    }
+  })
+}
+
+const inlineImageSources = async (root: HTMLElement) => {
+  const images = Array.from(root.querySelectorAll<HTMLImageElement>('img'))
+
+  await Promise.all(
+    images.map(async (image) => {
+      const src = image.currentSrc || image.src || image.getAttribute('src')
+      if (!src || src.startsWith('data:')) return
+
+      try {
+        const response = await fetch(src)
+        const blob = await response.blob()
+        image.setAttribute('src', await readBlobAsDataURL(blob))
+        image.removeAttribute('srcset')
+      } catch {
+        // Keep the original src. The offscreen window may still be able to load it.
+      }
+    })
+  )
+}
+
+const buildElementImageHtml = async (
+  element: HTMLElement,
+  options: {
+    backgroundColor?: string
+    filter?: (node: HTMLElement) => boolean
+    width?: number
+  }
+) => {
+  const computedStyle = window.getComputedStyle(document.body)
+  const backgroundColor =
+    options.backgroundColor ||
+    computedStyle.getPropertyValue('--bg-primary').trim() ||
+    computedStyle.backgroundColor ||
+    '#ffffff'
+  const width = Math.ceil(options.width ?? element.scrollWidth ?? element.getBoundingClientRect().width)
+  const height = Math.ceil(element.scrollHeight || element.getBoundingClientRect().height)
+  const clone = element.cloneNode(true) as HTMLElement
+
+  applyElementFilter(clone, options.filter)
+  clone.style.setProperty('position', 'static', 'important')
+  clone.style.setProperty('left', 'auto', 'important')
+  clone.style.setProperty('top', 'auto', 'important')
+  clone.style.setProperty('right', 'auto', 'important')
+  clone.style.setProperty('bottom', 'auto', 'important')
+  clone.style.setProperty('margin', '0', 'important')
+  clone.style.setProperty('transform', 'none', 'important')
+  if (width > 0) {
+    clone.style.setProperty('width', `${width}px`, 'important')
+    clone.style.setProperty('max-width', 'none', 'important')
+  }
+
+  await inlineImageSources(clone)
+
+  const html = `<!doctype html>
+<html class="${escapeHtml(document.documentElement.className)}" style="${escapeHtml(serializeCssVariables(window.getComputedStyle(document.documentElement)))}">
+  <head>
+    <meta charset="utf-8">
+    <style>
+      ${collectDocumentStyles()}
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: fit-content;
+        min-width: ${width}px;
+        background: ${backgroundColor};
+        overflow: hidden;
+      }
+      * {
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      #capture-root {
+        display: block;
+        width: ${width}px;
+        min-height: ${height}px;
+        background: ${backgroundColor};
+      }
+      #capture-root > * {
+        box-sizing: border-box;
+      }
+    </style>
+    <title>${escapeHtml(document.title || 'capture')}</title>
+  </head>
+  <body class="${escapeHtml(document.body.className)}" style="${escapeHtml(serializeCssVariables(window.getComputedStyle(document.body)))}">
+    <div id="capture-root">${clone.outerHTML}</div>
+  </body>
+</html>`
+
+  return {
+    html,
+    width,
+    height,
+    backgroundColor
+  }
+}
+
 export const copyElementImageToClipboard = async (
   element: HTMLElement,
   options: {
@@ -114,6 +263,16 @@ export const copyElementImageToClipboard = async (
   } = {}
 ): Promise<boolean> => {
   try {
+    if (window.api?.clipboard?.copyHtmlImage) {
+      await waitForNextPaint()
+      const payload = await buildElementImageHtml(element, options)
+      const result = await window.api.clipboard.copyHtmlImage(payload)
+      if (!result?.ok) {
+        console.error('复制长图失败:', result?.error)
+      }
+      return Boolean(result?.ok)
+    }
+
     if (!navigator.clipboard?.write || !(window as any).ClipboardItem) return false
 
     const computedStyle = window.getComputedStyle(document.body)

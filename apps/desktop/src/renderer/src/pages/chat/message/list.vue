@@ -105,18 +105,27 @@ const copyMessageAsImage = async (message: BaseMessage) => {
     return
   }
 
-  const hideSelectors = ['.context-divider']
-  const copied = await copyElementImageToClipboard(element, {
-    filter: (node) => !hideSelectors.some((selector) => node.matches(selector)),
-    width: Math.max(element.scrollWidth, element.getBoundingClientRect().width)
-  })
+  const closeLoading = messageApi.loading('正在复制为图片...')
+  try {
+    const hideSelectors = ['.context-divider']
+    const copied = await copyElementImageToClipboard(element, {
+      filter: (node) => !hideSelectors.some((selector) => node.matches(selector)),
+      width: Math.max(element.scrollWidth, element.getBoundingClientRect().width)
+    })
 
-  if (copied) {
-    messageApi.success('已复制为图片')
-    return
+    closeLoading()
+
+    if (copied) {
+      messageApi.success('已复制为图片')
+      return
+    }
+
+    messageApi.error('复制图片失败')
+  } catch (error) {
+    closeLoading()
+    console.error('复制图片失败:', error)
+    messageApi.error('复制图片失败')
   }
-
-  messageApi.error('复制图片失败')
 }
 
 const isContextDividerVisible = (index: number) => {

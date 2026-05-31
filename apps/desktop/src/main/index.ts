@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, net, protocol, nativeTheme } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, net, protocol, nativeTheme, clipboard } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { pathToFileURL } from 'url'
@@ -33,8 +33,119 @@ const WINDOWS_TITLE_BAR_HEIGHT = 30
 const WINDOWS_SYMBOL_COLOR_DARK = '#f5f5f7'
 const WINDOWS_SYMBOL_COLOR_LIGHT = '#1d1d1f'
 const WINDOW_SHOW_FALLBACK_DELAY = 3000
+const MAX_CLIPBOARD_IMAGE_DIMENSION = 30000
 
 let mainWindow: BrowserWindow | null = null
+interface CaptureHtmlImagePayload {
+  html: string
+  width?: number
+  height?: number
+  backgroundColor?: string
+}
+
+function normalizeCaptureSize(value: unknown, fallback: number): number {
+  const next = Math.ceil(Number(value))
+  if (!Number.isFinite(next) || next <= 0) return fallback
+  return Math.min(next, MAX_CLIPBOARD_IMAGE_DIMENSION)
+}
+
+async function captureHtmlImageToClipboard(payload: CaptureHtmlImagePayload) {
+  const width = normalizeCaptureSize(payload.width, 800)
+  const height = normalizeCaptureSize(payload.height, 600)
+  const backgroundColor = payload.backgroundColor || '#ffffff'
+  let win: BrowserWindow | null = null
+
+  try {
+    win = new BrowserWindow({
+      width,
+      height,
+      show: false,
+      frame: false,
+      transparent: false,
+      backgroundColor,
+      webPreferences: {
+        offscreen: true,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        webSecurity: false
+      }
+    })
+
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+
+    await win.loadURL('about:blank')
+    await win.webContents.executeJavaScript(`
+      document.open()
+      document.write(${JSON.stringify(payload.html)})
+      document.close()
+    `)
+
+    const measured = await win.webContents.executeJavaScript(`
+      new Promise((resolve) => {
+        const waitForImages = () => Promise.all(
+          Array.from(document.images).map((image) => {
+            if (image.complete) return Promise.resolve()
+            return new Promise((imageResolve) => {
+              image.onload = imageResolve
+              image.onerror = imageResolve
+            })
+          })
+        )
+        const finish = async () => {
+          await waitForImages()
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+          const root = document.getElementById('capture-root') || document.body
+          const rect = root.getBoundingClientRect()
+          resolve({
+            width: Math.ceil(Math.max(rect.width, root.scrollWidth, document.documentElement.scrollWidth)),
+            height: Math.ceil(Math.max(rect.height, root.scrollHeight, document.documentElement.scrollHeight))
+          })
+        }))
+        }
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(finish, finish)
+        } else {
+          finish()
+        }
+      })
+    `) as { width?: number; height?: number }
+
+    const captureWidth = normalizeCaptureSize(measured?.width, width)
+    const captureHeight = normalizeCaptureSize(measured?.height, height)
+    win.setContentSize(captureWidth, captureHeight)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const image = await win.webContents.capturePage({
+      x: 0,
+      y: 0,
+      width: captureWidth,
+      height: captureHeight
+    })
+
+    if (image.isEmpty()) {
+      throw new Error('截图结果为空')
+    }
+
+    clipboard.writeImage(image)
+
+    return {
+      ok: true,
+      width: captureWidth,
+      height: captureHeight
+    }
+  } catch (error) {
+    console.error('[clipboard] Failed to capture HTML image', error)
+    return {
+      ok: false,
+      error: (error as Error)?.message || String(error)
+    }
+  } finally {
+    if (win && !win.isDestroyed()) {
+      win.destroy()
+    }
+  }
+}
 interface SystemPreferences {
   openAtLogin: boolean
 }
@@ -258,6 +369,11 @@ if (gotSingleInstanceLock) {
     const result = await dialog.showOpenDialog(options)
     return result
   })
+
+  ipcMain.handle('clipboard:capture-html-image', async (_event, payload: CaptureHtmlImagePayload) => {
+    return captureHtmlImageToClipboard(payload)
+  })
+
   ipcMain.handle(
     'window:create-temp-chat',
     async (_event, { model, agentId, agent, history, autoReply }) => {

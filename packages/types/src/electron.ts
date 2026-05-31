@@ -121,6 +121,17 @@ export interface ElectronAPI {
   clipboard: {
     writeText: (text: string) => void;
     readText: () => string;
+    copyHtmlImage: (payload: {
+      html: string;
+      width?: number;
+      height?: number;
+      backgroundColor?: string;
+    }) => Promise<{
+      ok: boolean;
+      width?: number;
+      height?: number;
+      error?: string;
+    }>;
   };
   fs: typeof import('fs');
   path: typeof import('path');

@@ -557,7 +557,13 @@ export const api: ElectronAPI = {
   shell,
   clipboard: {
     writeText: (text: string) => clipboard.writeText(text),
-    readText: () => clipboard.readText()
+    readText: () => clipboard.readText(),
+    copyHtmlImage: (payload: {
+      html: string
+      width?: number
+      height?: number
+      backgroundColor?: string
+    }) => electronAPI.ipcRenderer.invoke('clipboard:capture-html-image', payload)
   },
   fs,
   path,
