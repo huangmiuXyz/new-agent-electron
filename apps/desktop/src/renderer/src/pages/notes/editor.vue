@@ -24,8 +24,8 @@ watch(currentNote, (note) => {
     }
 }, { immediate: true })
 
-const noteTitle = ref('')
 const noteContent = ref('')
+const activeNoteId = ref<string | null>(null)
 
 const plainTextContent = computed(() => {
     if (!noteContent.value) return ''
@@ -37,41 +37,61 @@ const plainTextContent = computed(() => {
 
 const contentCharCount = computed(() => plainTextContent.value.replace(/\s/g, '').length)
 
+let saveTimeout: ReturnType<typeof setTimeout> | null = null
+
+const clearPendingSave = () => {
+    if (saveTimeout) {
+        clearTimeout(saveTimeout)
+        saveTimeout = null
+    }
+}
+
+const saveNoteContent = (noteId = activeNoteId.value, content = noteContent.value) => {
+    if (!noteId) return
+
+    notesStore.updateNote(noteId, {
+        content
+    })
+}
+
+const flushPendingSave = () => {
+    if (!saveTimeout || !activeNoteId.value) return
+
+    const noteId = activeNoteId.value
+    const content = noteContent.value
+    clearPendingSave()
+    saveNoteContent(noteId, content)
+}
+
 // 监听当前笔记变化
-watch(() => notesStore.currentNote, (note) => {
+watch(() => notesStore.currentNoteId, () => {
+    flushPendingSave()
+
+    const note = notesStore.currentNote
     if (note) {
-        noteTitle.value = note.title
+        activeNoteId.value = note.id
         noteContent.value = note.content
     } else {
-        noteTitle.value = ''
+        activeNoteId.value = null
         noteContent.value = ''
     }
 }, { immediate: true })
 
 // 监听标题和内容变化，自动保存
-let saveTimeout: NodeJS.Timeout | null = null
-
-const saveNote = () => {
-    if (!notesStore.currentNote) return
-
-    notesStore.updateNote(notesStore.currentNote.id, {
-        title: noteTitle.value,
-        content: noteContent.value
-    })
-}
-
-
 const onContentChange = () => {
-    if (saveTimeout) clearTimeout(saveTimeout)
-    saveTimeout = setTimeout(saveNote, 1000)
+    const noteId = activeNoteId.value
+    if (!noteId) return
+
+    clearPendingSave()
+    saveTimeout = setTimeout(() => {
+        saveTimeout = null
+        saveNoteContent(noteId, noteContent.value)
+    }, 1000)
 }
 
 // 组件卸载时保存
 onUnmounted(() => {
-    if (saveTimeout) {
-        clearTimeout(saveTimeout)
-    }
-    saveNote()
+    flushPendingSave()
 })
 </script>
 
