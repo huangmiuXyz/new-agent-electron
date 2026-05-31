@@ -39,11 +39,15 @@ const mobileEditingMessageId = ref<string | null>(null)
 const mobileEditDraftContent = ref<Array<FileUIPart | TextUIPart>>([])
 
 const triggerEdit = (messageId: string) => {
+  autoScrollEnabled.value = false
   editingMessageId.value = messageId
 }
 
 const cancelEdit = () => {
   editingMessageId.value = null
+  nextTick(() => {
+    autoScrollEnabled.value = true
+  })
 }
 
 provide('messageEdit', {
