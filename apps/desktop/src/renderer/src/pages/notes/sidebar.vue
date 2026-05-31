@@ -19,6 +19,21 @@ const router = useRouter()
 
 const { showContextMenu } = useContextMenu()
 
+type NoteListItem = {
+    id: string
+    name: string
+    type: 'folder' | 'note'
+    icon: NonNullable<typeof File>
+    content: string
+    createdAt: number
+    updatedAt: number
+}
+
+const toTimestamp = (value: Date | string | number) => {
+    if (typeof value === 'number') return value
+    return new Date(value).getTime()
+}
+
 // 初始化数据
 onMounted(() => {
     notesStore.initializeData()
@@ -54,50 +69,30 @@ const handleBackToFolders = () => {
 }
 
 // 合并文件夹和笔记到一个列表
-const combinedList = computed(() => {
-    const items: any[] = []
-
-    // 如果有当前文件夹，显示该文件夹下的子文件夹和笔记
-    if (notesStore.currentFolderId) {
-        // 先显示子文件夹
-        notesStore.currentSubFolders.forEach(folder => {
-            items.push({
-                id: folder.id,
-                name: folder.name,
-                type: 'folder',
-                icon: Folder,
-                createdAt: folder.createdAt,
-                updatedAt: folder.updatedAt
-            })
-        })
-
-        // 再显示笔记
-        notesStore.notesInCurrentFolder.forEach(note => {
-            items.push({
-                id: note.id,
-                name: note.title,
+const combinedList = computed<NoteListItem[]>(() => {
+    return notesStore.orderedItemsInCurrentScope.map((item) => {
+        if ('content' in item) {
+            return {
+                id: item.id,
+                name: item.title,
                 type: 'note',
-                icon: File,
-                content: note.content,
-                createdAt: note.createdAt,
-                updatedAt: note.updatedAt
-            })
-        })
-    } else {
-        // 没有选中文件夹时，显示所有根文件夹
-        notesStore.rootFolders.forEach(folder => {
-            items.push({
-                id: folder.id,
-                name: folder.name,
-                type: 'folder',
-                icon: Folder,
-                createdAt: folder.createdAt,
-                updatedAt: folder.updatedAt
-            })
-        })
-    }
+                icon: File!,
+                content: item.content,
+                createdAt: toTimestamp(item.createdAt),
+                updatedAt: toTimestamp(item.updatedAt)
+            }
+        }
 
-    return items
+        return {
+            id: item.id,
+            name: item.name,
+            type: 'folder',
+            icon: Folder!,
+            content: '',
+            createdAt: toTimestamp(item.createdAt),
+            updatedAt: toTimestamp(item.updatedAt)
+        }
+    })
 })
 
 // 处理列表项点击
@@ -153,6 +148,10 @@ const activeId = computed(() => {
     if (notesStore.currentNoteId) return notesStore.currentNoteId
     return notesStore.currentFolderId
 })
+
+const handleItemSort = ({ fromId, toId, after }: { fromId: string; toId: string; after: boolean }) => {
+    notesStore.moveItem(fromId, toId, after)
+}
 
 const showNoteContextMenu = (event: MouseEvent, note: any) => {
     const options = [
@@ -461,7 +460,8 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
         <ListContainer class="combined-list">
             <List :title="notesStore.currentFolder ? notesStore.currentFolder.name : '笔记'" :items="combinedList"
                 :active-id="activeId!" :key-field="'id'" :main-field="'name'" :logo-field="'icon'" :selectable="true"
-                :item-height="isMobile ? 72 : 35" @select="handleItemClick" @contextmenu="handleContextMenu">
+                :item-height="isMobile ? 72 : 35" :sortable="true" :long-press-ms="650" @select="handleItemClick"
+                @contextmenu="handleContextMenu" @sort="handleItemSort">
                 <template #title-tool>
                     <Button v-if="notesStore.currentFolderId" variant="icon" size="sm" @click="handleBackToFolders"
                         title="返回上一级">
