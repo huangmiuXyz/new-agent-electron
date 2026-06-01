@@ -150,7 +150,8 @@ export const useSettingsStore = defineStore(
       expandToolsByDefault: true,
       expandThoughtByDefault: true,
       collapsePreviousContent: true,
-      chatCenteredLayout: false
+      chatCenteredLayout: false,
+      showOutputSpeed: true
     })
 
     const system = ref<LocalSystemSettings>({
@@ -817,7 +818,8 @@ export const useSettingsStore = defineStore(
         settingsStore.display = {
           ...settingsStore.display,
           collapsePreviousContent: settingsStore.display.collapsePreviousContent ?? true,
-          notesInputWidthMode: settingsStore.display.notesInputWidthMode ?? 'full'
+          notesInputWidthMode: settingsStore.display.notesInputWidthMode ?? 'full',
+          showOutputSpeed: settingsStore.display.showOutputSpeed ?? true
         }
         settingsStore.syncBuiltinProviders()
         settingsStore.updateTerminalSettings(settingsStore.terminal as any)

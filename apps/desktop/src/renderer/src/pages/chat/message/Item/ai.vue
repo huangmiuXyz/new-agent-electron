@@ -29,6 +29,17 @@ const hasAudioChunks = computed(() => {
 
 const flatUsage = computed(() => getFlatTokenUsage(props.message.metadata?.usage))
 
+const outputSpeed = computed(() => props.message.metadata?.outputSpeed)
+const averageOutputSpeed = computed(() => props.message.metadata?.averageOutputSpeed)
+
+const speedDisplay = computed(() => {
+  if (!settingsStore.display.showOutputSpeed) return ''
+  const isStreaming = !!props.message.metadata?.loading
+  const value = isStreaming ? outputSpeed.value : averageOutputSpeed.value
+  if (value == null || !Number.isFinite(value) || value <= 0) return ''
+  return `${value.toFixed(1)} tok/s`
+})
+
 const renderableParts = computed(() => {
   const parts = props.message.parts.filter((part) => part.type !== 'step-start')
   return parts.length > 0 ? parts : props.message.parts
@@ -44,9 +55,7 @@ const lastTextPartIndex = computed(() => {
 })
 
 const lastTextPart = computed(() => {
-  return lastTextPartIndex.value === -1
-    ? undefined
-    : renderableParts.value[lastTextPartIndex.value]
+  return lastTextPartIndex.value === -1 ? undefined : renderableParts.value[lastTextPartIndex.value]
 })
 
 const displayedCollapsedParts = computed(() => {
@@ -213,6 +222,9 @@ const playMessageAudio = () => {
             <span v-if="flatUsage.inputTokens">↑{{ flatUsage.inputTokens }}</span>
             <span v-if="flatUsage.outputTokens">↓{{ flatUsage.outputTokens }}</span>
           </div>
+          <div v-if="speedDisplay" class="msg-usage msg-usage-speed">
+            <span>{{ speedDisplay }}</span>
+          </div>
         </div>
       </div>
       <ChatMessageItemRagSearch
@@ -257,10 +269,10 @@ const playMessageAudio = () => {
         <Button
           v-if="hasAudioChunks"
           size="sm"
-          @click="playMessageAudio"
           variant="icon"
           type="button"
           :class="{ 'is-active': isCurrentPlaying }"
+          @click="playMessageAudio"
         >
           <template #icon>
             <VolumeMedium
@@ -271,9 +283,9 @@ const playMessageAudio = () => {
         <Button
           v-if="message.metadata?.loading && !message.metadata?.error && message.metadata.stop"
           size="sm"
-          @click="message.metadata?.stop"
           variant="icon"
           type="button"
+          @click="message.metadata?.stop"
         >
           <template #icon>
             <Stop style="color: red" />
@@ -287,9 +299,9 @@ const playMessageAudio = () => {
       <MessageTranslation
         v-if="message.metadata?.translations || message.metadata?.translationLoading"
         :translations="message.metadata.translations"
-        :translationLoading="message.metadata.translationLoading"
-        :translationController="message.metadata.translationController"
-        @stopTranslation="() => message.metadata?.translationController?.()"
+        :translation-loading="message.metadata.translationLoading"
+        :translation-controller="message.metadata.translationController"
+        @stop-translation="() => message.metadata?.translationController?.()"
       />
     </div>
   </div>
@@ -366,6 +378,10 @@ const playMessageAudio = () => {
 .msg-usage span {
   display: flex;
   align-items: center;
+}
+
+.msg-usage-speed {
+  color: var(--accent-color);
 }
 
 .msg-meta {
