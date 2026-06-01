@@ -965,12 +965,22 @@ const toggleAssistantPanel = (tab?: 'canvas' | 'playlist') => {
   }
 }
 
+const MAX_TEXTAREA_ROWS = 5
+
 const adjustTextareaHeight = (target: Event | HTMLTextAreaElement | null | undefined) => {
   const textarea =
     target instanceof HTMLTextAreaElement ? target : (target?.target as HTMLTextAreaElement | null)
   if (!textarea) return
+
+  const style = window.getComputedStyle(textarea)
+  const lineHeight = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.4
+  const verticalPadding =
+    Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom)
+  const maxHeight = Math.ceil(lineHeight * MAX_TEXTAREA_ROWS + verticalPadding)
+
   textarea.style.height = 'auto'
-  textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
+  textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`
+  textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
 }
 
 const isComposing = ref(false)
@@ -1019,7 +1029,36 @@ const handleTextareaInput = (event: Event) => {
   atPanelRef.value?.syncMentionState(message.value, textareaRef.value)
 }
 
+watch(message, () => {
+  nextTick(() => {
+    adjustTextareaHeight(textareaRef.value)
+  })
+})
+
+const insertTextareaNewline = (textarea: HTMLTextAreaElement) => {
+  const selectionStart = textarea.selectionStart
+  const selectionEnd = textarea.selectionEnd
+  const currentMessage = message.value
+  message.value =
+    currentMessage.slice(0, selectionStart) + '\n' + currentMessage.slice(selectionEnd)
+
+  nextTick(() => {
+    const cursor = selectionStart + 1
+    textarea.focus()
+    textarea.setSelectionRange(cursor, cursor)
+    adjustTextareaHeight(textarea)
+    atPanelRef.value?.syncMentionState(message.value, textarea)
+  })
+}
+
 const handleTextareaKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' && event.ctrlKey) {
+    event.preventDefault()
+    if (!textareaRef.value) return
+    insertTextareaNewline(textareaRef.value)
+    return
+  }
+
   const mentionResult = atPanelRef.value?.handleKeydown(event, message.value, textareaRef.value)
   if (mentionResult?.handled) {
     if (mentionResult.payload) {
@@ -1133,6 +1172,9 @@ onMounted(() => {
     handler: () => {
       textareaRef.value?.focus()
     }
+  })
+  nextTick(() => {
+    adjustTextareaHeight(textareaRef.value)
   })
 })
 onUnmounted(() => {
@@ -2013,6 +2055,7 @@ onUnmounted(() => {
 }
 
 .input-field {
+  box-sizing: border-box;
   border: none;
   outline: none;
   width: 100%;
@@ -2021,11 +2064,12 @@ onUnmounted(() => {
   font-family: var(--font-stack);
   resize: none;
   min-height: 24px;
-  max-height: 120px;
-  overflow-y: auto;
+  overflow-y: hidden;
   line-height: 1.4;
   background: transparent;
   color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .input-actions {
@@ -2233,9 +2277,7 @@ onUnmounted(() => {
   min-height: 38px;
   font-size: 14px;
   padding: 8px 8px;
-  white-space: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow-x: hidden;
 }
 
 .mobile-partial-text {
