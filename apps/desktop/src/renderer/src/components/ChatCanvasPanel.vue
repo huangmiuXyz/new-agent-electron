@@ -60,20 +60,20 @@ type GitDiffMode = 'staged' | 'worktree'
 
 type GitDiffPreview =
   | {
-    kind: 'diff'
-    path: string
-    originalText: string
-    modifiedText: string
-    originalPath: string
-    modifiedPath: string
-    hint: string
-    availableModes: GitDiffMode[]
-    activeMode: GitDiffMode
-  }
+      kind: 'diff'
+      path: string
+      originalText: string
+      modifiedText: string
+      originalPath: string
+      modifiedPath: string
+      hint: string
+      availableModes: GitDiffMode[]
+      activeMode: GitDiffMode
+    }
   | {
-    kind: 'message'
-    message: string
-  }
+      kind: 'message'
+      message: string
+    }
 
 const chatsStore = useChatsStores()
 const settingsStore = useSettingsStore()
@@ -95,7 +95,10 @@ const {
   Upload: UploadIcon,
   Box: BoxIcon,
   Terminal: TerminalIcon,
-  Sparkles: SparklesIcon
+  Sparkles: SparklesIcon,
+  Branch: BranchIcon,
+  Close: CloseIcon,
+  Check: CheckIcon
 } = useIcon([
   'Download',
   'FileZip',
@@ -108,7 +111,9 @@ const {
   'Upload',
   'Box',
   'Terminal',
-  'Refresh',
+  'Branch',
+  'Close',
+  'Check',
   'Sparkles'
 ])
 const { showContextMenu, hideContextMenu } = useContextMenu<TreeRow>()
@@ -732,6 +737,7 @@ const openGitActionsMenu = async (event: MouseEvent) => {
       const branches = await gitService.listBranches(currentWorkspaceDir.value)
       branchChildren = branches.map((branch) => ({
         label: branch.name,
+        icon: branch.current ? CheckIcon : BranchIcon,
         disabled: branch.current || gitActionLoading.value,
         shortcut: branch.current ? '当前' : branch.upstream || '',
         onClick: () => {
@@ -747,6 +753,7 @@ const openGitActionsMenu = async (event: MouseEvent) => {
   const options: MenuItem<TreeRow>[] = [
     {
       label: '拉取',
+      icon: RefreshIcon,
       disabled: !hasGitRepo.value || gitActionLoading.value,
       onClick: () => {
         void pullGitChanges()
@@ -754,6 +761,7 @@ const openGitActionsMenu = async (event: MouseEvent) => {
     },
     {
       label: '推送',
+      icon: RefreshIcon,
       disabled: !hasGitRepo.value || gitActionLoading.value,
       onClick: () => {
         void pushGitChanges()
@@ -761,6 +769,7 @@ const openGitActionsMenu = async (event: MouseEvent) => {
     },
     {
       label: '克隆仓库',
+      icon: DownloadIcon,
       disabled: gitActionLoading.value,
       onClick: () => {
         void cloneGitRepository()
@@ -768,11 +777,13 @@ const openGitActionsMenu = async (event: MouseEvent) => {
     },
     {
       label: '切换到...',
+      icon: BranchIcon,
       disabled: !hasGitRepo.value || branchChildren.length === 0 || gitActionLoading.value,
       children: branchChildren
     },
     {
       label: '抓取',
+      icon: RefreshIcon,
       disabled: !hasGitRepo.value || gitActionLoading.value,
       onClick: () => {
         void fetchGitChanges()
@@ -1183,43 +1194,43 @@ const openTreeRowMenu = (event: MouseEvent, row: TreeRow) => {
   const options: MenuItem<TreeRow>[] = [
     ...(row.type === 'directory'
       ? [
-        {
-          label: '上传',
-          icon: UploadIcon,
-          children: [
-            {
-              label: '上传文件',
-              icon: UploadIcon,
-              onClick: (targetRow: TreeRow) => {
-                void uploadCanvasFiles(targetRow.path)
+          {
+            label: '上传',
+            icon: UploadIcon,
+            children: [
+              {
+                label: '上传文件',
+                icon: UploadIcon,
+                onClick: (targetRow: TreeRow) => {
+                  void uploadCanvasFiles(targetRow.path)
+                }
+              },
+              {
+                label: '上传文件夹',
+                icon: FolderIcon,
+                onClick: (targetRow: TreeRow) => {
+                  void uploadCanvasFolder(targetRow.path)
+                }
               }
-            },
-            {
-              label: '上传文件夹',
-              icon: FolderIcon,
-              onClick: (targetRow: TreeRow) => {
-                void uploadCanvasFolder(targetRow.path)
-              }
-            }
-          ]
-        },
-        {
-          type: 'divider' as const
-        },
-        {
-          label: '新建文件',
-          icon: AddIcon,
-          onClick: (targetRow: TreeRow) => createFile(targetRow.path)
-        },
-        {
-          label: '新建文件夹',
-          icon: FolderIcon,
-          onClick: (targetRow: TreeRow) => createFolder(targetRow.path)
-        },
-        {
-          type: 'divider' as const
-        }
-      ]
+            ]
+          },
+          {
+            type: 'divider' as const
+          },
+          {
+            label: '新建文件',
+            icon: AddIcon,
+            onClick: (targetRow: TreeRow) => createFile(targetRow.path)
+          },
+          {
+            label: '新建文件夹',
+            icon: FolderIcon,
+            onClick: (targetRow: TreeRow) => createFolder(targetRow.path)
+          },
+          {
+            type: 'divider' as const
+          }
+        ]
       : []),
     {
       label: row.type === 'directory' ? '重命名目录' : '重命名',
@@ -1228,21 +1239,21 @@ const openTreeRowMenu = (event: MouseEvent, row: TreeRow) => {
     },
     ...(row.type === 'file'
       ? [
-        {
-          label: '下载文件',
-          icon: DownloadIcon,
-          onClick: (targetRow: TreeRow) => downloadCurrentFile(targetRow.path)
-        }
-      ]
-      : [
-        {
-          label: '下载目录',
-          icon: DownloadIcon,
-          onClick: (targetRow: TreeRow) => {
-            void downloadDirectoryAsZip(targetRow)
+          {
+            label: '下载文件',
+            icon: DownloadIcon,
+            onClick: (targetRow: TreeRow) => downloadCurrentFile(targetRow.path)
           }
-        }
-      ]),
+        ]
+      : [
+          {
+            label: '下载目录',
+            icon: DownloadIcon,
+            onClick: (targetRow: TreeRow) => {
+              void downloadDirectoryAsZip(targetRow)
+            }
+          }
+        ]),
     {
       label: row.type === 'directory' ? '删除目录' : '删除',
       icon: TrashIcon,
@@ -1267,15 +1278,15 @@ const downloadCurrentFile = (filePath = activeFilePath.value) => {
     const parsedDataUrl = file.encoding === 'data-url' ? parseSandboxDataUrl(file.content) : null
     const blob = parsedDataUrl
       ? (() => {
-        const binary = atob(parsedDataUrl.base64)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i += 1) {
-          bytes[i] = binary.charCodeAt(i)
-        }
-        return new Blob([bytes], {
-          type: parsedDataUrl.mediaType || file.mediaType || 'application/octet-stream'
-        })
-      })()
+          const binary = atob(parsedDataUrl.base64)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i += 1) {
+            bytes[i] = binary.charCodeAt(i)
+          }
+          return new Blob([bytes], {
+            type: parsedDataUrl.mediaType || file.mediaType || 'application/octet-stream'
+          })
+        })()
       : new Blob([file.content], { type: `${file.mediaType || 'text/plain'};charset=utf-8` })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -1383,12 +1394,14 @@ const openTabContextMenu = (event: MouseEvent, filePath: string) => {
   const options: MenuItem<{ filePath: string }>[] = [
     {
       label: '关闭',
+      icon: CloseIcon,
       onClick: ({ filePath: targetPath }) => {
         void closeFileTab(targetPath)
       }
     },
     {
       label: '关闭其他',
+      icon: CloseIcon,
       disabled: otherTabs.length === 0,
       onClick: () => {
         void closeFileTabs(otherTabs)
@@ -1396,6 +1409,7 @@ const openTabContextMenu = (event: MouseEvent, filePath: string) => {
     },
     {
       label: '关闭右侧标签页',
+      icon: CloseIcon,
       disabled: rightSideTabs.length === 0,
       onClick: () => {
         void closeFileTabs(rightSideTabs)
@@ -1403,6 +1417,7 @@ const openTabContextMenu = (event: MouseEvent, filePath: string) => {
     },
     {
       label: '关闭已保存',
+      icon: CheckIcon,
       disabled: savedTabs.length === 0,
       onClick: () => {
         void closeFileTabs(savedTabs)
@@ -1410,6 +1425,7 @@ const openTabContextMenu = (event: MouseEvent, filePath: string) => {
     },
     {
       label: '全部关闭',
+      icon: CloseIcon,
       disabled: openFileTabs.value.length === 0,
       onClick: () => {
         void closeFileTabs([...openFileTabs.value])
@@ -2267,6 +2283,7 @@ const openActionsMenu = (event: MouseEvent) => {
     },
     {
       label: '重置',
+      icon: RefreshIcon,
       onClick: () => clearCanvas()
     }
   ]
@@ -2425,8 +2442,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="canvas-panel" :class="{ 'is-drag-over': isCanvasDragOver }" @dragenter="handleCanvasDragEnter"
-    @dragover="handleCanvasDragOver" @dragleave="handleCanvasDragLeave" @drop="handleCanvasDrop">
+  <div
+    class="canvas-panel"
+    :class="{ 'is-drag-over': isCanvasDragOver }"
+    @dragenter="handleCanvasDragEnter"
+    @dragover="handleCanvasDragOver"
+    @dragleave="handleCanvasDragLeave"
+    @drop="handleCanvasDrop"
+  >
     <div v-if="isCanvasDragOver" class="canvas-drop-overlay">
       <div class="canvas-drop-card">
         <strong>拖入文件到画布</strong>
@@ -2439,31 +2462,55 @@ onBeforeUnmount(() => {
           <Tabs v-model="settingsStore.display.canvasEditorTab" :items="canvasTabs" size="sm" />
         </div>
         <div class="sandbox-sidebar-tools">
-          <button type="button" class="sandbox-sidebar-tool" :class="{ active: isSandboxRuntimeVisible }"
+          <button
+            type="button"
+            class="sandbox-sidebar-tool"
+            :class="{ active: isSandboxRuntimeVisible }"
             :title="isSandboxRuntimeVisible ? '隐藏 Sandbox runtime' : '显示 Sandbox runtime'"
-            @click="toggleSandboxRuntime">
+            @click="toggleSandboxRuntime"
+          >
             <TerminalIcon />
           </button>
-          <button type="button" class="sandbox-sidebar-tool" title="更多操作" @click="openActionsMenu">
+          <button
+            type="button"
+            class="sandbox-sidebar-tool"
+            title="更多操作"
+            @click="openActionsMenu"
+          >
             <SettingsIcon />
           </button>
         </div>
       </div>
 
-      <ResizeBox v-if="!isPreviewTab" v-model:width="sandboxTreeWidth" v-model:is-collapsed="sandboxTreeCollapsed"
-        :min-size="140" :max-size="360" class="sandbox-sidebar-resize">
+      <ResizeBox
+        v-if="!isPreviewTab"
+        v-model:width="sandboxTreeWidth"
+        v-model:is-collapsed="sandboxTreeCollapsed"
+        :min-size="140"
+        :max-size="360"
+        class="sandbox-sidebar-resize"
+      >
         <aside class="sandbox-sidebar">
           <div class="sandbox-sidebar-header">
             <div class="canvas-tabs">
               <Tabs v-model="settingsStore.display.canvasEditorTab" :items="canvasTabs" size="sm" />
             </div>
             <div class="sandbox-sidebar-tools">
-              <button type="button" class="sandbox-sidebar-tool" :class="{ active: isSandboxRuntimeVisible }"
+              <button
+                type="button"
+                class="sandbox-sidebar-tool"
+                :class="{ active: isSandboxRuntimeVisible }"
                 :title="isSandboxRuntimeVisible ? '隐藏 Sandbox runtime' : '显示 Sandbox runtime'"
-                @click="toggleSandboxRuntime">
+                @click="toggleSandboxRuntime"
+              >
                 <TerminalIcon />
               </button>
-              <button type="button" class="sandbox-sidebar-tool" title="更多操作" @click="openActionsMenu">
+              <button
+                type="button"
+                class="sandbox-sidebar-tool"
+                title="更多操作"
+                @click="openActionsMenu"
+              >
                 <SettingsIcon />
               </button>
             </div>
@@ -2473,20 +2520,42 @@ onBeforeUnmount(() => {
               <div class="sandbox-explorer-group-header-row">
                 <span class="sandbox-explorer-group-title">{{
                   settingsStore.display.canvasEditorTab === 'git' ? '更改' : 'SANDBOX'
-                  }}</span>
-                <div v-if="settingsStore.display.canvasEditorTab === 'git'" class="canvas-git-header-actions">
-                  <button type="button" class="sandbox-sidebar-tool" title="刷新" @click="void refreshGitStatus()">
+                }}</span>
+                <div
+                  v-if="settingsStore.display.canvasEditorTab === 'git'"
+                  class="canvas-git-header-actions"
+                >
+                  <button
+                    type="button"
+                    class="sandbox-sidebar-tool"
+                    title="刷新"
+                    @click="void refreshGitStatus()"
+                  >
                     <RefreshIcon />
                   </button>
-                  <div class="canvas-git-ai-selector" :class="{ 'is-loading': gitGeneratingCommitMessage }"
+                  <div
+                    class="canvas-git-ai-selector"
+                    :class="{ 'is-loading': gitGeneratingCommitMessage }"
                     :title="gitGeneratingCommitMessage ? '生成提交信息中' : '生成提交信息'"
-                    @click.capture="gitGenerateAfterModelPick = true">
-                    <ModelSelector v-model:model-id="gitCommitModelId" v-model:provider-id="gitCommitProviderId"
-                      type="icon" category="text" popup-position="bottom" :icon="SparklesIcon"
-                      @select="handleGitCommitModelSelect" />
+                    @click.capture="gitGenerateAfterModelPick = true"
+                  >
+                    <ModelSelector
+                      v-model:model-id="gitCommitModelId"
+                      v-model:provider-id="gitCommitProviderId"
+                      type="icon"
+                      category="text"
+                      popup-position="bottom"
+                      :icon="SparklesIcon"
+                      @select="handleGitCommitModelSelect"
+                    />
                   </div>
-                  <button type="button" class="sandbox-sidebar-tool canvas-git-more-tool" :disabled="gitActionLoading"
-                    title="更多 Git 操作" @click="void openGitActionsMenu($event)">
+                  <button
+                    type="button"
+                    class="sandbox-sidebar-tool canvas-git-more-tool"
+                    :disabled="gitActionLoading"
+                    title="更多 Git 操作"
+                    @click="void openGitActionsMenu($event)"
+                  >
                     ⋯
                   </button>
                 </div>
@@ -2494,10 +2563,18 @@ onBeforeUnmount(() => {
             </div>
             <div v-if="settingsStore.display.canvasEditorTab === 'git'" class="sandbox-tree">
               <div class="canvas-git-compose">
-                <textarea v-model="gitCommitMessage" class="canvas-git-commit-input" rows="1"
-                  :placeholder="`消息 (${hasGitRepo ? `⌘Enter 在“${gitStatus?.branch || 'HEAD'}”提交` : '提交'})`" />
-                <button type="button" class="canvas-git-commit-primary" :disabled="isGitPrimaryButtonDisabled"
-                  @click="void runGitPrimaryAction()">
+                <textarea
+                  v-model="gitCommitMessage"
+                  class="canvas-git-commit-input"
+                  rows="1"
+                  :placeholder="`消息 (${hasGitRepo ? `⌘Enter 在“${gitStatus?.branch || 'HEAD'}”提交` : '提交'})`"
+                />
+                <button
+                  type="button"
+                  class="canvas-git-commit-primary"
+                  :disabled="isGitPrimaryButtonDisabled"
+                  @click="void runGitPrimaryAction()"
+                >
                   {{
                     gitCommitting || gitActionLoading
                       ? gitPrimaryButtonLoadingLabel
@@ -2505,16 +2582,21 @@ onBeforeUnmount(() => {
                   }}
                 </button>
               </div>
-              <button v-for="entry in gitEntries" :key="entry.path" type="button"
-                class="sandbox-tree-row canvas-git-tree-row" :class="{ active: entry.path === gitSelectedPath }"
-                @click="void refreshGitDiff(entry.path)">
+              <button
+                v-for="entry in gitEntries"
+                :key="entry.path"
+                type="button"
+                class="sandbox-tree-row canvas-git-tree-row"
+                :class="{ active: entry.path === gitSelectedPath }"
+                @click="void refreshGitDiff(entry.path)"
+              >
                 <span class="sandbox-tree-file-icon type-file">
                   <span class="sandbox-tree-file-glyph"></span>
                 </span>
                 <span class="canvas-git-tree-name">{{ getBaseNameFromPath(entry.path) }}</span>
                 <span class="canvas-git-tree-dir">{{
                   getParentPath(entry.path).replace(/^\/+/, '') || '.'
-                  }}</span>
+                }}</span>
                 <span class="canvas-git-tree-code">{{
                   entry.untracked
                     ? 'U'
@@ -2522,26 +2604,39 @@ onBeforeUnmount(() => {
                 }}</span>
               </button>
             </div>
-            <div v-else class="sandbox-tree" v-bind="sandboxTreeContainerProps"
-              @contextmenu.prevent="openTreeBlankMenu">
+            <div
+              v-else
+              class="sandbox-tree"
+              v-bind="sandboxTreeContainerProps"
+              @contextmenu.prevent="openTreeBlankMenu"
+            >
               <div class="sandbox-tree-wrapper" v-bind="sandboxTreeWrapperProps">
-                <button v-for="item in virtualSandboxTreeRows" :key="item.data.id" type="button"
-                  class="sandbox-tree-row" :class="{
+                <button
+                  v-for="item in virtualSandboxTreeRows"
+                  :key="item.data.id"
+                  type="button"
+                  class="sandbox-tree-row"
+                  :class="{
                     active: item.data.type === 'file' && item.data.path === activeFilePath,
                     directory: item.data.type === 'directory',
                     'drop-target':
                       item.data.type === 'directory' && item.data.path === dragTargetDirectoryPath,
                     dragging: item.data.path === draggingCanvasFilePath
-                  }" :style="{
+                  }"
+                  :style="{
                     paddingLeft: `${8 + item.data.depth * 14}px`,
                     height: `${SANDBOX_TREE_ROW_HEIGHT}px`
-                  }" @click="handleTreeRowClick(item.data)" @contextmenu.prevent="openTreeRowMenu($event, item.data)"
+                  }"
+                  @click="handleTreeRowClick(item.data)"
+                  @contextmenu.prevent="openTreeRowMenu($event, item.data)"
                   :draggable="item.data.type === 'file' || item.data.type === 'directory'"
-                  @dragstart="handleTreeRowDragStart(item.data, $event)" @dragend="handleTreeRowDragEnd"
+                  @dragstart="handleTreeRowDragStart(item.data, $event)"
+                  @dragend="handleTreeRowDragEnd"
                   @dragenter="handleDirectoryDragEnter(item.data, $event)"
                   @dragover="handleDirectoryDragOver(item.data, $event)"
                   @dragleave="handleDirectoryDragLeave(item.data, $event)"
-                  @drop="handleDirectoryDrop(item.data, $event)">
+                  @drop="handleDirectoryDrop(item.data, $event)"
+                >
                   <span class="sandbox-tree-chevron">
                     {{
                       item.data.type === 'directory' && item.data.hasChildren
@@ -2571,12 +2666,23 @@ onBeforeUnmount(() => {
             <div v-if="!isUsingTempWorkspace" class="canvas-empty-state">
               预览仅支持临时工作区。当前画布正跟随工作路径，可在未设置工作路径时使用预览。
             </div>
-            <HtmlPreview v-else-if="previewReady" :srcdoc="previewDocument" :channel-id="previewChannelId"
-              @sandbox-event="handleSandboxEvent" />
+            <HtmlPreview
+              v-else-if="previewReady"
+              :srcdoc="previewDocument"
+              :channel-id="previewChannelId"
+              @sandbox-event="handleSandboxEvent"
+            />
             <div v-else class="canvas-empty-state">当前预览尚未准备好。</div>
           </div>
-          <ResizeBox v-model:height="sandboxLogsHeight" v-model:is-collapsed="sandboxLogsCollapsed" direction="vertical"
-            handle-position="top" :min-size="120" :max-size="360" class="sandbox-logs-resize">
+          <ResizeBox
+            v-model:height="sandboxLogsHeight"
+            v-model:is-collapsed="sandboxLogsCollapsed"
+            direction="vertical"
+            handle-position="top"
+            :min-size="120"
+            :max-size="360"
+            class="sandbox-logs-resize"
+          >
             <div class="canvas-panel-surface sandbox-logs">
               <div class="canvas-surface-header">
                 <span class="canvas-surface-title">TERMINAL</span>
@@ -2584,8 +2690,12 @@ onBeforeUnmount(() => {
               </div>
               <div v-if="previewLogs.length === 0" class="sandbox-logs-empty">等待预览输出...</div>
               <div v-else class="sandbox-log-list">
-                <div v-for="item in previewLogs" :key="item.id" class="sandbox-log-item"
-                  :class="[`kind-${item.kind}`, item.level ? `level-${item.level}` : '']">
+                <div
+                  v-for="item in previewLogs"
+                  :key="item.id"
+                  class="sandbox-log-item"
+                  :class="[`kind-${item.kind}`, item.level ? `level-${item.level}` : '']"
+                >
                   {{ item.text }}
                 </div>
               </div>
@@ -2600,15 +2710,19 @@ onBeforeUnmount(() => {
                 <button type="button" class="canvas-file-tab active">
                   <span class="canvas-file-tab-name">{{
                     getBaseNameFromPath(gitSelectedEntry.path)
-                    }}</span>
+                  }}</span>
                 </button>
               </div>
               <div class="canvas-code-editor">
                 <template v-if="gitDiffView">
-                  <SandboxCodeEditor :model-value="gitDiffView.modifiedText"
-                    :original-model-value="gitDiffView.originalText" :path="gitDiffView.modifiedPath"
-                    :original-path="gitDiffView.originalPath" :language="getSandboxFileLanguage(gitDiffView.path)"
-                    read-only />
+                  <SandboxCodeEditor
+                    :model-value="gitDiffView.modifiedText"
+                    :original-model-value="gitDiffView.originalText"
+                    :path="gitDiffView.modifiedPath"
+                    :original-path="gitDiffView.originalPath"
+                    :language="getSandboxFileLanguage(gitDiffView.path)"
+                    read-only
+                  />
                 </template>
               </div>
             </div>
@@ -2616,13 +2730,23 @@ onBeforeUnmount(() => {
           <template v-else-if="activeFile">
             <div class="canvas-panel-surface canvas-code-editor-shell">
               <div v-if="openFileTabs.length > 0" class="canvas-file-tabs">
-                <button v-for="filePath in openFileTabs" :key="filePath" type="button" class="canvas-file-tab"
-                  :class="{ active: filePath === activeFilePath }" @click="activeFilePath = filePath"
-                  @contextmenu="openTabContextMenu($event, filePath)">
+                <button
+                  v-for="filePath in openFileTabs"
+                  :key="filePath"
+                  type="button"
+                  class="canvas-file-tab"
+                  :class="{ active: filePath === activeFilePath }"
+                  @click="activeFilePath = filePath"
+                  @contextmenu="openTabContextMenu($event, filePath)"
+                >
                   <span class="canvas-file-tab-name">{{ getBaseNameFromPath(filePath) }}</span>
-                  <span v-if="getDraftContent(filePath) !== (getPersistedFile(filePath)?.content || '')"
-                    class="canvas-file-tab-dirty"></span>
-                  <span class="canvas-file-tab-close" @click.stop="void closeFileTab(filePath)">x</span>
+                  <span
+                    v-if="getDraftContent(filePath) !== (getPersistedFile(filePath)?.content || '')"
+                    class="canvas-file-tab-dirty"
+                  ></span>
+                  <span class="canvas-file-tab-close" @click.stop="void closeFileTab(filePath)"
+                    >x</span
+                  >
                 </button>
               </div>
               <div v-if="isActiveImageFile" class="canvas-image-preview">
@@ -2634,7 +2758,11 @@ onBeforeUnmount(() => {
                 <p>该文件已保存在画布工作区中，可直接在终端或 exec_command_canvas 中使用。</p>
               </div>
               <div v-else class="canvas-code-editor">
-                <SandboxCodeEditor v-model="activeFileContent" :path="currentTabFilePath" :language="activeLanguage" />
+                <SandboxCodeEditor
+                  v-model="activeFileContent"
+                  :path="currentTabFilePath"
+                  :language="activeLanguage"
+                />
               </div>
             </div>
           </template>
@@ -3325,16 +3453,20 @@ onBeforeUnmount(() => {
   justify-content: center;
   padding: 20px;
   background:
-    linear-gradient(45deg,
+    linear-gradient(
+      45deg,
       rgba(var(--text-rgb), 0.04) 25%,
       transparent 25%,
       transparent 75%,
-      rgba(var(--text-rgb), 0.04) 75%),
-    linear-gradient(45deg,
+      rgba(var(--text-rgb), 0.04) 75%
+    ),
+    linear-gradient(
+      45deg,
       rgba(var(--text-rgb), 0.04) 25%,
       transparent 25%,
       transparent 75%,
-      rgba(var(--text-rgb), 0.04) 75%);
+      rgba(var(--text-rgb), 0.04) 75%
+    );
   background-position:
     0 0,
     12px 12px;
@@ -3388,7 +3520,7 @@ onBeforeUnmount(() => {
   word-break: break-word;
 }
 
-.sandbox-log-item+.sandbox-log-item {
+.sandbox-log-item + .sandbox-log-item {
   margin-top: 8px;
 }
 
