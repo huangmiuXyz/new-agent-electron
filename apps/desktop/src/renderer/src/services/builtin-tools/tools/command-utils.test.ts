@@ -76,6 +76,20 @@ describe('injectBundledRipgrepPath', () => {
       expect(result).toContain('|')
     })
 
+    it('should not treat regex alternation in double quotes as a pipeline', () => {
+      const result = injectBundledRipgrepPath('rg -i "TODO|FIXME|XXX" apps/desktop/src')
+      expect(result).toContain('"TODO|FIXME|XXX"')
+      expect(result).not.toContain('"TODO | FIXME | XXX"')
+    })
+
+    it('should preserve regex alternation while replacing rg commands in a real pipeline', () => {
+      const result = injectBundledRipgrepPath('rg -i "TODO|FIXME|XXX" apps/desktop/src | rg "\\.ts:"')
+      expect(result).toContain('"TODO|FIXME|XXX"')
+      expect(result).toContain('"\\.ts:"')
+      const occurrences = result.split(mockRipgrepPath).length - 1
+      expect(occurrences).toBe(2)
+    })
+
     it('should replace only rg commands, not other piped commands', () => {
       const result = injectBundledRipgrepPath('cat file.txt | rg "pattern"')
       expect(result).toContain('cat file.txt')

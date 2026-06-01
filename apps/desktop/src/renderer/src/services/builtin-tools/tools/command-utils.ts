@@ -8,6 +8,58 @@ type ExecCommandResult = {
   errorCode?: string
 }
 
+const splitShellPipeline = (command: string): string[] => {
+  const segments: string[] = []
+  let start = 0
+  let quote: '"' | "'" | null = null
+  let escaped = false
+
+  for (let i = 0; i < command.length; i += 1) {
+    const char = command[i]
+
+    if (escaped) {
+      escaped = false
+      continue
+    }
+
+    if (quote === "'") {
+      if (char === "'") {
+        quote = null
+      }
+      continue
+    }
+
+    if (quote === '"') {
+      if ((!isWindows && char === '\\') || (isWindows && char === '`')) {
+        escaped = true
+        continue
+      }
+      if (char === '"') {
+        quote = null
+      }
+      continue
+    }
+
+    if ((!isWindows && char === '\\') || (isWindows && char === '`')) {
+      escaped = true
+      continue
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char
+      continue
+    }
+
+    if (char === '|') {
+      segments.push(command.slice(start, i))
+      start = i + 1
+    }
+  }
+
+  segments.push(command.slice(start))
+  return segments
+}
+
 export const injectBundledRipgrepPath = (command: string): string => {
   const ripgrepPath = window.api.getBundledRipgrepPath()
   if (!ripgrepPath) {
@@ -27,7 +79,7 @@ export const injectBundledRipgrepPath = (command: string): string => {
     return `${leadingWhitespace}${quotedRipgrepPath}${rest}`
   }
 
-  const segments = command.split('|')
+  const segments = splitShellPipeline(command)
   if (segments.length === 1) {
     return replaceRg(command)
   }
