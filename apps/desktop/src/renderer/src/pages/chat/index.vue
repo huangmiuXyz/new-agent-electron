@@ -127,14 +127,7 @@ onMounted(() => {
       <ChatSidebar />
     </Teleport>
 
-    <!-- 主聊天区域 -->
-    <main class="main-chat">
-      <!-- 消息列表 -->
-      <ChatMessageList />
-
-      <!-- 输入框 -->
-      <ChatMessageInput />
-    </main>
+    <ChatMain />
 
     <!-- 移动端语音播放按钮 -->
     <Button
@@ -163,17 +156,6 @@ onMounted(() => {
   font-size: 13px;
   /* 保持精细的字体大小 */
   -webkit-font-smoothing: antialiased;
-  position: relative;
-}
-
-/* === 主区域：干净、通透 === */
-.main-chat {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: transparent;
   position: relative;
 }
 

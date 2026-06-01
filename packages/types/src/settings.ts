@@ -6,6 +6,11 @@ export interface DisplaySettings {
   compactDensity: boolean
   showTimestamps: boolean
   fontSize: number
+  sidebarCollapsed?: boolean
+  sidebarWidth?: number
+  speechSidebarWidth?: number
+  speechSidebarCollapsed?: boolean
+  assistantSidebarTab?: 'chat' | 'canvas' | 'playlist' | 'downloads' | 'notifications'
   expandToolsByDefault: boolean
   expandThoughtByDefault: boolean
   chatCenteredLayout: boolean

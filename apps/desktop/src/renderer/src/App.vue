@@ -282,6 +282,11 @@ watch(
       else if (path.startsWith('/image')) currentView.value = 'image'
       else if (path.startsWith('/my-apps')) currentView.value = 'my-apps'
       else if (path.startsWith('/settings')) currentView.value = 'settings'
+
+      if (currentView.value === 'chat' && settingsStore.display.assistantSidebarTab === 'chat') {
+        settingsStore.display.assistantSidebarTab = 'canvas'
+        settingsStore.display.speechSidebarCollapsed = true
+      }
     }
     resetTitle()
   },

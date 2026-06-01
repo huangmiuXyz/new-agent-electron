@@ -11,7 +11,7 @@ const props = defineProps<{
 const notificationStore = useNotificationStore()
 const settingsStore = useSettingsStore()
 const downloadStore = useDownloadStore()
-const { Bell, InfoCircle, Refresh, Check, Mic, Terminal, Download, Box, Menu } = useIcon([
+const { Bell, InfoCircle, Refresh, Check, Mic, Terminal, Download, Box, Menu, Chat } = useIcon([
   'Bell',
   'InfoCircle',
   'Refresh',
@@ -20,7 +20,8 @@ const { Bell, InfoCircle, Refresh, Check, Mic, Terminal, Download, Box, Menu } =
   'Terminal',
   'Download',
   'Box',
-  'Menu'
+  'Menu',
+  'Chat'
 ])
 
 // 切换终端
@@ -28,9 +29,13 @@ const toggleTerminal = () => {
   settingsStore.display.showTerminal = !settingsStore.display.showTerminal
 }
 
-const toggleRightPanel = (tab: 'canvas' | 'playlist' | 'downloads' | 'notifications') => {
+const toggleRightPanel = (tab: 'chat' | 'canvas' | 'playlist' | 'downloads' | 'notifications') => {
   const isSameTab = settingsStore.display.assistantSidebarTab === tab
   const isCollapsed = settingsStore.display.speechSidebarCollapsed
+
+  if (tab === 'chat' && settingsStore.display.speechSidebarWidth < 380) {
+    settingsStore.display.speechSidebarWidth = 420
+  }
 
   settingsStore.display.assistantSidebarTab = tab
   settingsStore.display.speechSidebarCollapsed = !isCollapsed && isSameTab
@@ -44,7 +49,7 @@ const StatusIcon = defineComponent({
   props: ['icon', 'color'],
   setup(props) {
     return () => {
-      const iconMap = { Bell, InfoCircle, Refresh, Check, Mic, Download, Box, Menu }
+      const iconMap = { Bell, InfoCircle, Refresh, Check, Mic, Download, Box, Menu, Chat }
       const IconComponent = props.icon ? (iconMap[props.icon] || useIcon(props.icon)) : Bell
       return h(IconComponent, {
         style: { color: props.color || 'inherit' },
@@ -93,6 +98,17 @@ const StatusRender = defineComponent({
       </div>
 
       <div class="status-bar-right">
+        <div
+          v-if="props.currentView !== 'chat'"
+          class="status-item"
+          :class="{ active: !settingsStore.display.speechSidebarCollapsed && settingsStore.display.assistantSidebarTab === 'chat' }"
+          title="AI 聊天"
+          @click="toggleRightPanel('chat')"
+        >
+          <div class="icon-wrapper">
+            <Chat />
+          </div>
+        </div>
         <div
           class="status-item"
           :class="{ active: !settingsStore.display.speechSidebarCollapsed && settingsStore.display.assistantSidebarTab === 'canvas' }"
