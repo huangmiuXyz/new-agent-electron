@@ -114,7 +114,7 @@ onUnmounted(() => {
                 <!-- 笔记内容 -->
                 <div class="note-content">
                     <RichTextEditor v-model="noteContent" placeholder="开始输入笔记内容..." class="content-editor"
-                        @change="onContentChange">
+                        :reference-title="currentNote.title" :reference-id="currentNote.id" @change="onContentChange">
                         <template #toolbar-actions>
                             <Button v-if="!isMobile" variant="icon" size="sm" :title="widthToggleTitle"
                                 @click="toggleInputWidthMode">

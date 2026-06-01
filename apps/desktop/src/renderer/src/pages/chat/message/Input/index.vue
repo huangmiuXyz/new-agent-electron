@@ -12,8 +12,13 @@ import {
 } from '@renderer/services/chatService/tokenUsage'
 import { z } from 'zod'
 
-const message = ref('')
 const chatStore = useChatsStores()
+const message = computed({
+  get: () => chatStore.getChatDraft(),
+  set: (value: string) => {
+    chatStore.setChatDraft(value)
+  }
+})
 const { triggerHook } = usePlugins()
 const selectedFiles = ref<Array<UploadFile>>([])
 

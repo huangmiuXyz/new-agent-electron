@@ -6,6 +6,8 @@ const restorePromise = new Promise<void>((resolve) => {
   resolveRestore = resolve
 })
 
+const NEW_CHAT_DRAFT_ID = '__new__'
+
 const resolvePersistedActiveChatId = (persistedChats: Chat[], persistedActiveId: string | null) => {
   if (persistedActiveId && persistedChats.some((chat) => chat.id === persistedActiveId)) {
     return persistedActiveId
@@ -21,6 +23,7 @@ export const useChatsStores = defineStore(
     const chats = ref<Chat[]>([])
     const tempChats = ref<Chat[]>([])
     const activeChatId = ref<string | null>(null)
+    const chatDrafts = ref<Record<string, string>>({})
     const titleGeneratingChats = ref<Set<string>>(new Set())
     const isAfterRestore = restorePromise
 
@@ -154,6 +157,11 @@ export const useChatsStores = defineStore(
 
       if (options?.activate !== false) {
         activeChatId.value = id
+        const pendingDraft = chatDrafts.value[NEW_CHAT_DRAFT_ID]
+        if (pendingDraft && !chatDrafts.value[id]) {
+          chatDrafts.value[id] = pendingDraft
+          delete chatDrafts.value[NEW_CHAT_DRAFT_ID]
+        }
       }
       return id
     }
@@ -207,6 +215,10 @@ export const useChatsStores = defineStore(
           activeChatId.value = null
         }
       }
+
+      allIds.forEach((chatId) => {
+        delete chatDrafts.value[chatId]
+      })
     }
 
     const addMessageToChat = (msg: BaseMessage, chatId?: string) => {
@@ -238,6 +250,34 @@ export const useChatsStores = defineStore(
 
     const setActiveChat = (id: string) => {
       activeChatId.value = id
+    }
+
+    const getDraftKey = (chatId?: string | null) => chatId || activeChatId.value || NEW_CHAT_DRAFT_ID
+
+    const getChatDraft = (chatId?: string | null) => {
+      return chatDrafts.value[getDraftKey(chatId)] || ''
+    }
+
+    const setChatDraft = (value: string, chatId?: string | null) => {
+      const key = getDraftKey(chatId)
+      if (value) {
+        chatDrafts.value[key] = value
+      } else {
+        delete chatDrafts.value[key]
+      }
+    }
+
+    const appendChatDraft = (text: string, chatId?: string | null) => {
+      const trimmedText = text.trim()
+      if (!trimmedText) return ''
+
+      const currentDraft = getChatDraft(chatId)
+      const nextDraft = currentDraft
+        ? `${currentDraft.replace(/\s+$/g, '')}\n\n${trimmedText}`
+        : trimmedText
+
+      setChatDraft(nextDraft, chatId)
+      return nextDraft
     }
 
     const setChatAgent = (
@@ -481,6 +521,15 @@ export const useChatsStores = defineStore(
       })
     }
 
+    const pruneChatDrafts = () => {
+      const validChatIds = new Set(allChats.value.map((chat) => chat.id))
+      Object.keys(chatDrafts.value).forEach((chatId) => {
+        if (chatId !== NEW_CHAT_DRAFT_ID && !validChatIds.has(chatId)) {
+          delete chatDrafts.value[chatId]
+        }
+      })
+    }
+
     const replacePersistedState = (nextState: { chats: Chat[]; activeChatId: string | null }) => {
       chats.value.forEach((chat) => {
         const messageSets = collectMessageSets(chat.messages)
@@ -491,6 +540,7 @@ export const useChatsStores = defineStore(
       }
       chats.value = nextState.chats
       activeChatId.value = resolvePersistedActiveChatId(nextState.chats, nextState.activeChatId)
+      pruneChatDrafts()
     }
 
     const { scrollToBottom } = useMessageScroll()
@@ -507,6 +557,7 @@ export const useChatsStores = defineStore(
       updateMessages,
       chats,
       tempChats,
+      chatDrafts,
       allChats,
       activeChatId,
       currentChat,
@@ -514,6 +565,9 @@ export const useChatsStores = defineStore(
       deleteChat,
       renameChat,
       setActiveChat,
+      getChatDraft,
+      setChatDraft,
+      appendChatDraft,
       setChatAgent,
       ensureChatAgent,
       setChatModel,
@@ -546,14 +600,15 @@ export const useChatsStores = defineStore(
   {
     persist: {
       storage: indexedDBStorage,
-      paths: ['chats', 'activeChatId'],
+      paths: ['chats', 'activeChatId', 'chatDrafts'],
       beforeRestore: () => {
         setIndexedDBStorageRestoreGuard('chats', true)
       },
       afterRestore: (ctx) => {
-        const store = ctx.store as unknown as { chats: Chat[]; activeChatId: string | null }
+        const store = ctx.store as unknown as { chats: Chat[]; activeChatId: string | null; chatDrafts?: Record<string, string> }
         if (store) {
           store.activeChatId = resolvePersistedActiveChatId(store.chats, store.activeChatId)
+          store.chatDrafts = store.chatDrafts || {}
         }
         setIndexedDBStorageRestoreGuard('chats', false)
         resolveRestore()
