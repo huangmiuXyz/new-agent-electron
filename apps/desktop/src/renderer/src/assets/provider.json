@@ -124,5 +124,12 @@
     "id": "ollama",
     "logo": "/images/providers/ollama.png",
     "providerType": "ollama"
+  },
+  {
+    "name": "opencode",
+    "baseUrl": "https://opencode.ai/zen/v1",
+    "id": "opencode",
+    "logo": "/images/providers/opencode.svg",
+    "providerType": "openai-compatible"
   }
 ]
