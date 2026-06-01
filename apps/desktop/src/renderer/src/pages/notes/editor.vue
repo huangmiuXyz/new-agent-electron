@@ -249,7 +249,11 @@ onUnmounted(() => {
 }
 
 .content-editor :deep(.rich-text-editor-content) {
-    padding: 12px;
+    padding: 12px 12px max(168px, 28vh);
+}
+
+.content-editor :deep(.rich-text-editor-scroll) {
+    scroll-padding: 16px 0 max(168px, 28vh);
 }
 
 .note-editor.is-mobile .title-input {
