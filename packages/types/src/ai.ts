@@ -43,10 +43,6 @@ export interface MetaData {
   estimatedInputTokens?: number
   tokenUsageSource?: 'reported' | 'estimated' | 'mixed'
   providerMetadata?: ProviderMetadata
-  outputSpeed?: number
-  averageOutputSpeed?: number
-  outputChars?: number
-  outputDurationMs?: number
   audio?: {
     chunks: {
       data: string // base64

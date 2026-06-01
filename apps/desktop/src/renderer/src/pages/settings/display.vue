@@ -33,12 +33,6 @@ const [DisplayForm] = useForm({
       label: '自动折叠历史回复内容'
     },
     {
-      name: 'showOutputSpeed',
-      type: 'boolean',
-      label: '显示 AI 输出速度',
-      hint: '在消息头部显示 AI 生成内容的实时速度（字/秒）'
-    },
-    {
       name: 'chatCenteredLayout',
       type: 'boolean',
       label: '聊天内容居中显示',

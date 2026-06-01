@@ -7,7 +7,6 @@ import { useMessageScroll } from './useMessageScroll'
 import {
   buildFlatTokenUsage,
   estimateMessageTokens,
-  estimateTextTokens,
   getFlatTokenUsage
 } from '@renderer/services/chatService/tokenUsage'
 
@@ -160,83 +159,6 @@ export const useChat = (chatId: string) => {
       let speechProcessingQueue = Promise.resolve()
       const pendingSyncMessageIds: string[] = []
       const pendingSyncMessages = new Map<string, BaseMessage>()
-      const streamingSpeedStats = new Map<
-        string,
-        {
-          startTime: number
-          lastSampleTime: number
-          lastSampleTokens: number
-          currentSpeed: number
-          totalTokens: number
-          totalTime: number
-        }
-      >()
-
-      const getGeneratedText = (message?: BaseMessage): string => {
-        if (!message?.parts) return ''
-        let total = ''
-        for (const part of message.parts) {
-          if (part.type === 'text') {
-            total += (part as TextUIPart).text || ''
-          } else if (part.type === 'reasoning') {
-            total += (part as { text?: string }).text || ''
-          }
-        }
-        return total
-      }
-
-      const measureOutputSpeed = (message: BaseMessage, isFinalized: boolean): void => {
-        if (!message.id) return
-        const text = getGeneratedText(message)
-        if (!text) return
-
-        const tokens = estimateTextTokens(text, message.metadata?.model)
-        const now = performance.now()
-
-        let stats = streamingSpeedStats.get(message.id)
-        if (!stats) {
-          stats = {
-            startTime: now,
-            lastSampleTime: now,
-            lastSampleTokens: 0,
-            currentSpeed: 0,
-            totalTokens: 0,
-            totalTime: 0
-          }
-          streamingSpeedStats.set(message.id, stats)
-        }
-
-        const deltaTokens = tokens - stats.lastSampleTokens
-        const deltaTime = now - stats.lastSampleTime
-
-        if (deltaTime > 0 && deltaTokens > 0) {
-          const instantSpeed = deltaTokens / (deltaTime / 1000)
-          stats.currentSpeed =
-            stats.currentSpeed === 0 ? instantSpeed : stats.currentSpeed * 0.7 + instantSpeed * 0.3
-        }
-
-        stats.lastSampleTime = now
-        stats.lastSampleTokens = tokens
-        stats.totalTokens = tokens
-        stats.totalTime = (now - stats.startTime) / 1000
-
-        if (isFinalized && stats.totalTime > 0) {
-          const averageSpeed = stats.totalTokens / stats.totalTime
-          message.metadata = {
-            ...message.metadata,
-            outputChars: text.length,
-            outputDurationMs: Math.round(stats.totalTime * 1000),
-            averageOutputSpeed: Math.round(averageSpeed * 10) / 10
-          } as MetaData
-        } else if (stats.currentSpeed > 0) {
-          message.metadata = {
-            ...message.metadata,
-            outputSpeed: Math.round(stats.currentSpeed * 10) / 10,
-            outputChars: text.length,
-            outputDurationMs: Math.round(stats.totalTime * 1000)
-          } as MetaData
-        }
-      }
 
       const targetMessageId = ref<string | undefined>(regenerateMessageId)
 
@@ -530,7 +452,7 @@ export const useChat = (chatId: string) => {
           console.error(error)
           finalizeMessageSync(chat.lastMessage, error as APICallError)
           void speechProcessingQueue.then(async () => {
-            const session = streamingSpeechSession || (await streamingSpeechSessionPromise)
+            const session = streamingSpeechSession || await streamingSpeechSessionPromise
             if (session) {
               await session.error(error)
             }
@@ -556,26 +478,6 @@ export const useChat = (chatId: string) => {
           ...message.metadata,
           ...(error ? { error, loading: false } : {})
         } as MetaData
-
-        const isFinalized = !nextMetadata.loading || !!error
-
-        if (message.role === 'assistant') {
-          measureOutputSpeed(message, isFinalized)
-          const measured = message.metadata as MetaData | undefined
-          if (measured?.outputSpeed != null) {
-            nextMetadata.outputSpeed = measured.outputSpeed
-          }
-          if (measured?.outputChars != null) {
-            nextMetadata.outputChars = measured.outputChars
-          }
-          if (measured?.outputDurationMs != null) {
-            nextMetadata.outputDurationMs = measured.outputDurationMs
-          }
-          if (isFinalized && measured?.averageOutputSpeed != null) {
-            nextMetadata.averageOutputSpeed = measured.averageOutputSpeed
-          }
-        }
-
         if (nextMetadata.stop) {
           const originalStop = nextMetadata.stop
           nextMetadata.stop = (() => {
@@ -583,6 +485,7 @@ export const useChat = (chatId: string) => {
             originalStop()
           }) as AbortController['abort']
         }
+        const isFinalized = !nextMetadata.loading || !!error
         const flatUsage = getFlatTokenUsage(nextMetadata.usage)
 
         if (isFinalized) {
@@ -771,27 +674,24 @@ export const useChat = (chatId: string) => {
         const rawOptions = runtimeAgent?.speechProviderOptions
         const providerOptions = rawOptions?.[modelInfo.providerId] ?? rawOptions
 
-        streamingSpeechSessionPromise = tts
-          .createTextStream({
-            messageId: message.id,
-            modelId: modelInfo.modelId,
-            providerId: modelInfo.providerId,
-            voice,
-            speed: runtimeAgent?.speechSpeed,
-            language: runtimeAgent?.speechLanguage,
-            providerOptions,
-            agentId: runtimeAgent?.id
-          })
-          .then((session) => {
-            streamingSpeechSession = session
-            if (session) {
-              updateStreamingSpeechMetadata(message, session)
-            }
-            return session
-          })
-          .finally(() => {
-            streamingSpeechSessionPromise = null
-          })
+        streamingSpeechSessionPromise = tts.createTextStream({
+          messageId: message.id,
+          modelId: modelInfo.modelId,
+          providerId: modelInfo.providerId,
+          voice,
+          speed: runtimeAgent?.speechSpeed,
+          language: runtimeAgent?.speechLanguage,
+          providerOptions,
+          agentId: runtimeAgent?.id
+        }).then((session) => {
+          streamingSpeechSession = session
+          if (session) {
+            updateStreamingSpeechMetadata(message, session)
+          }
+          return session
+        }).finally(() => {
+          streamingSpeechSessionPromise = null
+        })
 
         return streamingSpeechSessionPromise
       }
@@ -807,7 +707,7 @@ export const useChat = (chatId: string) => {
       }
 
       const finishStreamingSpeech = async (message: BaseMessage) => {
-        const session = streamingSpeechSession || (await streamingSpeechSessionPromise)
+        const session = streamingSpeechSession || await streamingSpeechSessionPromise
         if (!session) return false
 
         try {
@@ -832,8 +732,7 @@ export const useChat = (chatId: string) => {
       ) => {
         speechProcessingQueue = speechProcessingQueue
           .then(async () => {
-            if (!message || !newParts || message.role !== 'assistant' || !speechEnabled.value)
-              return
+            if (!message || !newParts || message.role !== 'assistant' || !speechEnabled.value) return
 
             const fullText = getMessageText(message)
             const currentText = fullText.slice(processedText.length)
