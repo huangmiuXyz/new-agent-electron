@@ -97,6 +97,7 @@ const getIconColor = (type: string) => {
 .panel-tools {
   display: flex;
   justify-content: flex-end;
+  padding: 8px;
 }
 
 .empty-state {
@@ -120,6 +121,7 @@ const getIconColor = (type: string) => {
   display: flex;
   flex-direction: column;
   padding: 8px;
+  padding-top: 0 !important;
   gap: 8px;
 }
 
