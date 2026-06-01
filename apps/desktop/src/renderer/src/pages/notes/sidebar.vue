@@ -3,14 +3,16 @@ import { isMobile } from '@renderer/composables/useDeviceType'
 import { copyElementImageToClipboard } from '@renderer/utils'
 import { formatTime } from '@renderer/utils/time'
 
-const { Plus, ArrowLeft, Folder, File, ChevronRight, Image } = useIcon([
+const { Plus, ArrowLeft, Folder, File, ChevronRight, Image, Copy, Paste } = useIcon([
     'Plus',
     'MoreHorizontal',
     'ArrowLeft',
     'Folder',
     'File',
     'ChevronRight',
-    'Image'
+    'Image',
+    'Copy',
+    'Paste'
 ])
 
 const notesStore = useNotesStore()
@@ -165,6 +167,11 @@ const showNoteContextMenu = (event: MouseEvent, note: any) => {
             onClick: () => copyNoteAsImage(note)
         },
         {
+            label: '复制',
+            icon: Copy,
+            onClick: () => copyNote(note)
+        },
+        {
             label: '重命名',
             onClick: () => renameNote(note)
         },
@@ -175,6 +182,31 @@ const showNoteContextMenu = (event: MouseEvent, note: any) => {
         }
     ]
     showContextMenu(event, options, { type: 'note', data: note })
+}
+
+const copyNote = (note: any) => {
+    if (notesStore.copyNote(note.id)) {
+        messageApi.success(`已复制笔记"${note.title}"`)
+    } else {
+        messageApi.error('复制失败')
+    }
+}
+
+const pasteNoteToFolder = (folder: any) => {
+    const newNote = notesStore.pasteNote(folder.id)
+    if (newNote) {
+        messageApi.success(`已粘贴到文件夹"${folder.name}"`)
+    } else {
+        messageApi.error('粘贴失败，请先复制笔记')
+    }
+}
+
+const pasteNoteToCurrentFolder = () => {
+    if (!notesStore.currentFolderId) return
+    const folder = notesStore.folders.find(f => f.id === notesStore.currentFolderId)
+    if (folder) {
+        pasteNoteToFolder(folder)
+    }
 }
 
 const getFolderPathText = (folderId: string | null) => {
@@ -248,7 +280,7 @@ const copyNoteAsImage = async (note: any) => {
 }
 
 const showCreateMenu = (event: MouseEvent) => {
-    const options = [
+    const options: any[] = [
         {
             label: '新建文件夹',
             icon: Folder,
@@ -261,6 +293,16 @@ const showCreateMenu = (event: MouseEvent) => {
             disabled: !notesStore.currentFolderId
         }
     ]
+
+    if (notesStore.currentFolderId) {
+        options.push({
+            label: '粘贴到当前文件夹',
+            icon: Paste,
+            disabled: !notesStore.copyBuffer,
+            onClick: () => pasteNoteToCurrentFolder()
+        })
+    }
+
     showContextMenu(event, options)
 }
 
@@ -270,6 +312,12 @@ const showFolderContextMenu = (event: MouseEvent, folder: any) => {
         {
             label: '发送到知识库',
             onClick: () => sendToKnowledgeBase('folder', folder)
+        },
+        {
+            label: '粘贴笔记',
+            icon: Paste,
+            disabled: !notesStore.copyBuffer,
+            onClick: () => pasteNoteToFolder(folder)
         },
         {
             label: '重命名',

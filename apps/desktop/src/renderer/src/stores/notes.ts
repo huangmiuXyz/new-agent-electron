@@ -35,13 +35,19 @@ const normalizeItemOrder = (itemIds: string[], savedOrder: string[] = []) => {
   return normalized
 }
 
+export interface NoteClipboard {
+  title: string
+  content: string
+}
+
 export const useNotesStore = defineStore('notes', {
   state: () => ({
     folders: [] as NoteFolder[],
     notes: [] as Note[],
     itemOrder: {} as Record<string, string[]>,
     currentFolderId: null as string | null,
-    currentNoteId: null as string | null
+    currentNoteId: null as string | null,
+    copyBuffer: null as NoteClipboard | null
   }),
 
   getters: {
@@ -282,11 +288,11 @@ export const useNotesStore = defineStore('notes', {
     },
 
     
-    createNote(title: string, folderId: string) {
+    createNote(title: string, folderId: string, content = '') {
       const newNote: Note = {
         id: nanoid(),
         title,
-        content: '',
+        content,
         folderId,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -294,6 +300,35 @@ export const useNotesStore = defineStore('notes', {
 
       this.notes.push(newNote)
       this.addItemToOrder(folderId, newNote.id)
+      this.saveToStorage()
+      return newNote
+    },
+
+    copyNote(id: string) {
+      const note = this.notes.find((n) => n.id === id)
+      if (!note) return false
+      this.copyBuffer = {
+        title: note.title,
+        content: note.content
+      }
+      return true
+    },
+
+    pasteNote(folderId: string) {
+      if (!this.copyBuffer) return null
+      const folder = this.folders.find((f) => f.id === folderId)
+      if (!folder) return null
+
+      const baseTitle = this.copyBuffer.title
+      let title = `${baseTitle} (副本)`
+      let suffix = 2
+      while (this.notes.some((n) => n.folderId === folderId && n.title === title)) {
+        title = `${baseTitle} (副本 ${suffix})`
+        suffix += 1
+      }
+
+      const newNote = this.createNote(title, folderId, this.copyBuffer.content)
+      this.setCurrentNote(newNote.id)
       this.saveToStorage()
       return newNote
     },
