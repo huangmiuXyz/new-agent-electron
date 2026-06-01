@@ -35,10 +35,18 @@ const normalizeItemOrder = (itemIds: string[], savedOrder: string[] = []) => {
   return normalized
 }
 
-export interface NoteClipboard {
-  title: string
-  content: string
-}
+export type NoteClipboard =
+  | {
+      kind: 'note'
+      title: string
+      content: string
+    }
+  | {
+      kind: 'folder'
+      folder: NoteFolder
+      subFolders: NoteFolder[]
+      notes: Note[]
+    }
 
 export const useNotesStore = defineStore('notes', {
   state: () => ({
@@ -70,17 +78,17 @@ export const useNotesStore = defineStore('notes', {
       return state.notes.filter((note) => note.folderId === folderId)
     },
 
-    
+
     rootFolders: (state) => {
       return state.folders.filter((folder) => folder.parentId === null)
     },
 
-    
+
     subFolders: (state) => (parentId: string) => {
       return state.folders.filter((folder) => folder.parentId === parentId)
     },
 
-    
+
     currentSubFolders: (state) => {
       if (!state.currentFolderId) return []
       return state.folders.filter((folder) => folder.parentId === state.currentFolderId)
@@ -101,7 +109,7 @@ export const useNotesStore = defineStore('notes', {
       return order.map((id) => itemMap.get(id)).filter(Boolean) as (NoteFolder | Note)[]
     },
 
-    
+
     folderPath: (state) => (folderId: string) => {
       const path: NoteFolder[] = []
       let currentFolder: NoteFolder | null = state.folders.find((f) => f.id === folderId)!
@@ -120,7 +128,7 @@ export const useNotesStore = defineStore('notes', {
   },
 
   actions: {
-    
+
     initializeData() {
       const savedFolders = localStorage.getItem('notes-folders')
       const savedNotes = localStorage.getItem('notes-data')
@@ -144,7 +152,7 @@ export const useNotesStore = defineStore('notes', {
       this.saveToStorage()
     },
 
-    
+
     saveToStorage() {
       localStorage.setItem('notes-folders', JSON.stringify(this.folders))
       localStorage.setItem('notes-data', JSON.stringify(this.notes))
@@ -226,7 +234,7 @@ export const useNotesStore = defineStore('notes', {
       this.saveToStorage()
     },
 
-    
+
     createFolder(name: string, parentId: string | null = null) {
       const newFolder: NoteFolder = {
         id: nanoid(),
@@ -242,7 +250,7 @@ export const useNotesStore = defineStore('notes', {
       return newFolder
     },
 
-    
+
     updateFolder(id: string, name: string) {
       const folder = this.folders.find((f) => f.id === id)
       if (folder) {
@@ -252,22 +260,22 @@ export const useNotesStore = defineStore('notes', {
       }
     },
 
-    
+
     deleteFolder(id: string) {
-      
+
       const deleteRecursive = (folderId: string) => {
-        
+
         const subFolders = this.folders.filter((f) => f.parentId === folderId)
 
-        
+
         subFolders.forEach((subFolder) => {
           deleteRecursive(subFolder.id)
         })
 
-        
+
         this.notes = this.notes.filter((note) => note.folderId !== folderId)
 
-        
+
         const index = this.folders.findIndex((f) => f.id === folderId)
         if (index !== -1) {
           this.removeItemFromOrder(folderId)
@@ -278,7 +286,7 @@ export const useNotesStore = defineStore('notes', {
 
       deleteRecursive(id)
 
-      
+
       if (this.currentFolderId === id) {
         this.currentFolderId = null
         this.currentNoteId = null
@@ -287,7 +295,7 @@ export const useNotesStore = defineStore('notes', {
       this.saveToStorage()
     },
 
-    
+
     createNote(title: string, folderId: string, content = '') {
       const newNote: Note = {
         id: nanoid(),
@@ -308,14 +316,44 @@ export const useNotesStore = defineStore('notes', {
       const note = this.notes.find((n) => n.id === id)
       if (!note) return false
       this.copyBuffer = {
+        kind: 'note',
         title: note.title,
         content: note.content
       }
       return true
     },
 
+    copyFolder(id: string) {
+      const folder = this.folders.find((f) => f.id === id)
+      if (!folder) return false
+
+      const subFolders: NoteFolder[] = []
+      const folderIds = new Set<string>([id])
+
+      const queue: string[] = [id]
+      while (queue.length) {
+        const currentId = queue.shift()!
+        const children = this.folders.filter((f) => f.parentId === currentId)
+        for (const child of children) {
+          subFolders.push({ ...child })
+          folderIds.add(child.id)
+          queue.push(child.id)
+        }
+      }
+
+      const notes = this.notes.filter((n) => folderIds.has(n.folderId)).map((n) => ({ ...n }))
+
+      this.copyBuffer = {
+        kind: 'folder',
+        folder: { ...folder },
+        subFolders,
+        notes
+      }
+      return true
+    },
+
     pasteNote(folderId: string) {
-      if (!this.copyBuffer) return null
+      if (!this.copyBuffer || this.copyBuffer.kind !== 'note') return null
       const folder = this.folders.find((f) => f.id === folderId)
       if (!folder) return null
 
@@ -333,7 +371,113 @@ export const useNotesStore = defineStore('notes', {
       return newNote
     },
 
-    
+    pasteClipboard(targetFolderId: string): Note | NoteFolder | null {
+      if (!this.copyBuffer) return null
+      if (this.copyBuffer.kind === 'note') {
+        return this.pasteNote(targetFolderId)
+      }
+      return this.pasteFolder(targetFolderId)
+    },
+
+    pasteFolder(targetFolderId: string): NoteFolder | null {
+      if (!this.copyBuffer || this.copyBuffer.kind !== 'folder') return null
+      const target = this.folders.find((f) => f.id === targetFolderId)
+      if (!target) return null
+
+      const sourceRootId = this.copyBuffer.folder.id
+      if (targetFolderId === sourceRootId || this.isDescendantOf(targetFolderId, sourceRootId)) {
+        return null
+      }
+
+      const idMap = new Map<string, string>()
+      const now = new Date()
+
+      const baseName = this.copyBuffer.folder.name
+      const siblingNames = new Set(
+        this.folders.filter((f) => f.parentId === targetFolderId).map((f) => f.name)
+      )
+      let newName = `${baseName} (副本)`
+      let nameSuffix = 2
+      while (siblingNames.has(newName)) {
+        newName = `${baseName} (副本 ${nameSuffix})`
+        nameSuffix += 1
+      }
+
+      const newRoot: NoteFolder = {
+        id: nanoid(),
+        name: newName,
+        parentId: targetFolderId,
+        createdAt: now,
+        updatedAt: now
+      }
+      idMap.set(sourceRootId, newRoot.id)
+      this.folders.push(newRoot)
+      this.addItemToOrder(targetFolderId, newRoot.id)
+
+      const childrenByParent = new Map<string, NoteFolder[]>()
+      for (const sf of this.copyBuffer.subFolders) {
+        const parentKey = sf.parentId || sourceRootId
+        const list = childrenByParent.get(parentKey) || []
+        list.push(sf)
+        childrenByParent.set(parentKey, list)
+      }
+
+      const processQueue: string[] = [sourceRootId]
+      while (processQueue.length) {
+        const currentSourceId = processQueue.shift()!
+        const currentNewParentId = idMap.get(currentSourceId)!
+        const children = childrenByParent.get(currentSourceId) || []
+        for (const child of children) {
+          const newId = nanoid()
+          idMap.set(child.id, newId)
+          const newFolder: NoteFolder = {
+            id: newId,
+            name: child.name,
+            parentId: currentNewParentId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+          this.folders.push(newFolder)
+          this.addItemToOrder(currentNewParentId, newId)
+          processQueue.push(child.id)
+        }
+      }
+
+      for (const note of this.copyBuffer.notes) {
+        const newFolderId = idMap.get(note.folderId)
+        if (!newFolderId) continue
+
+        const baseTitle = note.title
+        let newTitle = `${baseTitle} (副本)`
+        let titleSuffix = 2
+        while (this.notes.some((n) => n.folderId === newFolderId && n.title === newTitle)) {
+          newTitle = `${baseTitle} (副本 ${titleSuffix})`
+          titleSuffix += 1
+        }
+
+        this.createNote(newTitle, newFolderId, note.content)
+      }
+
+      this.saveToStorage()
+      this.setCurrentFolder(newRoot.id)
+      return newRoot
+    },
+
+    isDescendantOf(folderId: string, ancestorId: string): boolean {
+      let current: string | null | undefined = folderId
+      const visited = new Set<string>()
+      while (current) {
+        if (current === ancestorId) return true
+        if (visited.has(current)) return false
+        visited.add(current)
+        const folder = this.folders.find((f) => f.id === current)
+        if (!folder) return false
+        current = folder.parentId
+      }
+      return false
+    },
+
+
     updateNote(id: string, data: Partial<Note>) {
       const note = this.notes.find((n) => n.id === id)
       if (note) {
@@ -343,14 +487,14 @@ export const useNotesStore = defineStore('notes', {
       }
     },
 
-    
+
     deleteNote(id: string) {
       const index = this.notes.findIndex((n) => n.id === id)
       if (index !== -1) {
         this.notes.splice(index, 1)
         this.removeItemFromOrder(id)
 
-        
+
         if (this.currentNoteId === id) {
           this.currentNoteId = null
         }
@@ -359,18 +503,18 @@ export const useNotesStore = defineStore('notes', {
       }
     },
 
-    
+
     setCurrentFolder(folderId: string | null) {
       this.currentFolderId = folderId
       this.currentNoteId = null
     },
 
-    
+
     setCurrentNote(noteId: string | null) {
       this.currentNoteId = noteId
     },
 
-    
+
     async sendToKnowledgeBase(type: 'note' | 'folder', item: any, knowledgeBase: KnowledgeBase) {
       const { addDocumentToKnowledgeBase } = useKnowledgeStore()
 
@@ -413,15 +557,15 @@ export const useNotesStore = defineStore('notes', {
       messageApi.success('发送成功')
     },
 
-    
+
     getAllNotesInFolder(folderId: string): Note[] {
       const notes: Note[] = []
 
-      
+
       const folderNotes = this.notes.filter((note) => note.folderId === folderId)
       notes.push(...folderNotes)
 
-      
+
       const subFolders = this.folders.filter((folder) => folder.parentId === folderId)
       for (const subFolder of subFolders) {
         notes.push(...this.getAllNotesInFolder(subFolder.id))

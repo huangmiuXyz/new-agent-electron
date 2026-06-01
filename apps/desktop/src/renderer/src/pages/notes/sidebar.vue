@@ -217,20 +217,28 @@ const copyNote = (note: any) => {
   }
 }
 
-const pasteNoteToFolder = (folder: any) => {
-  const newNote = notesStore.pasteNote(folder.id)
-  if (newNote) {
-    messageApi.success(`已粘贴到文件夹"${folder.name}"`)
+const copyFolder = (folder: any) => {
+  if (notesStore.copyFolder(folder.id)) {
+    messageApi.success(`已复制文件夹"${folder.name}"`)
   } else {
-    messageApi.error('粘贴失败，请先复制笔记')
+    messageApi.error('复制失败')
   }
 }
 
-const pasteNoteToCurrentFolder = () => {
+const pasteClipboardToFolder = (folder: any) => {
+  const result = notesStore.pasteClipboard(folder.id)
+  if (result) {
+    messageApi.success(`已粘贴到"${folder.name}"`)
+  } else {
+    messageApi.error('粘贴失败，请先复制笔记或文件夹')
+  }
+}
+
+const pasteClipboardToCurrentFolder = () => {
   if (!notesStore.currentFolderId) return
   const folder = notesStore.folders.find((f) => f.id === notesStore.currentFolderId)
   if (folder) {
-    pasteNoteToFolder(folder)
+    pasteClipboardToFolder(folder)
   }
 }
 
@@ -331,7 +339,7 @@ const showCreateMenu = (event: MouseEvent) => {
       label: '粘贴到当前文件夹',
       icon: Paste,
       disabled: !notesStore.copyBuffer,
-      onClick: () => pasteNoteToCurrentFolder()
+      onClick: () => pasteClipboardToCurrentFolder()
     })
   }
 
@@ -347,10 +355,15 @@ const showFolderContextMenu = (event: MouseEvent, folder: any) => {
       onClick: () => sendToKnowledgeBase('folder', folder)
     },
     {
-      label: '粘贴笔记',
+      label: '复制',
+      icon: Copy,
+      onClick: () => copyFolder(folder)
+    },
+    {
+      label: '粘贴',
       icon: Paste,
       disabled: !notesStore.copyBuffer,
-      onClick: () => pasteNoteToFolder(folder)
+      onClick: () => pasteClipboardToFolder(folder)
     },
     {
       label: '重命名',
