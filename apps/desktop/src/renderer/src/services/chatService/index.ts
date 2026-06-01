@@ -5,6 +5,7 @@ import {
   ToolLoopAgent,
   ToolChoice,
   wrapLanguageModel,
+  extractReasoningMiddleware,
   streamText as _streamText,
   convertToModelMessages,
   validateUIMessages,
@@ -684,6 +685,7 @@ export const chatService = () => {
           transformRequestBody
         }).languageModel(`${providerType}:${model}`),
         middleware: [
+          extractReasoningMiddleware({ tagName: 'think' }),
           createUsageGuardMiddleware(),
           createToolMiddleware(),
           createTextFileMiddleware(),
