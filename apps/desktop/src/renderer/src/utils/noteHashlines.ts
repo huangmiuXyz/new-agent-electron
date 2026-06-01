@@ -20,6 +20,106 @@ export const computeLineHash = (line: string): string => {
   return HL_BIGRAMS[fnv1a(normalized) % HL_BIGRAMS.length]
 }
 
+const getLineIndexAtOffset = (text: string, offset: number) => {
+  const lines = text.split('\n')
+  let cursor = 0
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const lineEnd = cursor + lines[index].length
+    if (offset <= lineEnd) return index
+    cursor = lineEnd + 1
+  }
+
+  return Math.max(0, lines.length - 1)
+}
+
+const getLineStartOffsets = (lines: string[]) => {
+  const offsets: number[] = []
+  let cursor = 0
+
+  lines.forEach((line) => {
+    offsets.push(cursor)
+    cursor += line.length + 1
+  })
+
+  return offsets
+}
+
+const sliceLineSelection = (
+  line: string,
+  lineStartOffset: number,
+  selectionStart: number,
+  selectionEnd: number
+) => {
+  const lineEndOffset = lineStartOffset + line.length
+  const start = Math.max(0, Math.min(line.length, selectionStart - lineStartOffset))
+  const end = Math.max(0, Math.min(line.length, selectionEnd - lineStartOffset))
+
+  if (selectionEnd < lineStartOffset || selectionStart > lineEndOffset) return null
+  if (start === end && selectionStart !== selectionEnd) return null
+
+  return {
+    start,
+    end,
+    text: line.slice(start, end)
+  }
+}
+
+export const buildNoteHashlineReference = (options: {
+  text: string
+  selectionStartOffset: number
+  selectionEndOffset: number
+  title: string
+  referenceId?: string
+}) => {
+  const text = normalizeHashlineText(options.text)
+  if (!text.trim()) return ''
+
+  const selectionStartOffset = Math.max(0, Math.min(options.selectionStartOffset, text.length))
+  const selectionEndOffset = Math.max(selectionStartOffset, Math.min(options.selectionEndOffset, text.length))
+  const hasSelection = selectionEndOffset > selectionStartOffset
+  const startIndex = getLineIndexAtOffset(text, selectionStartOffset)
+  const endIndex = getLineIndexAtOffset(
+    text,
+    hasSelection ? Math.max(selectionStartOffset, selectionEndOffset - 1) : selectionEndOffset
+  )
+  const lines = text.split('\n')
+  const lineStartOffsets = getLineStartOffsets(lines)
+  const selectedLines = lines.slice(startIndex, endIndex + 1)
+
+  if (!selectedLines.some((line) => line.trim())) return ''
+
+  const startLine = startIndex + 1
+  const endLine = endIndex + 1
+  const hashLines = selectedLines.map((line, index) => {
+    const lineNumber = startLine + index
+    const anchorLine = `${lineNumber}${computeLineHash(line)}|${line}`
+    if (!hasSelection) return anchorLine
+
+    const selectedPart = sliceLineSelection(
+      line,
+      lineStartOffsets[startIndex + index] ?? 0,
+      selectionStartOffset,
+      selectionEndOffset
+    )
+
+    if (!selectedPart || !selectedPart.text) return anchorLine
+    return [
+      anchorLine,
+      `  selection: cols ${selectedPart.start + 1}-${selectedPart.end}`,
+      `  text: ${selectedPart.text}`
+    ].join('\n')
+  })
+
+  return [
+    `note: ${options.title}`,
+    options.referenceId ? `note_id: ${options.referenceId}` : '',
+    `lines: ${startLine}-${endLine}`,
+    'hashlines:',
+    hashLines.join('\n')
+  ].filter(Boolean).join('\n')
+}
+
 export const stripNoteHtml = (html: string): string =>
   html
     .replace(/<br\s*\/?>/gi, '\n')

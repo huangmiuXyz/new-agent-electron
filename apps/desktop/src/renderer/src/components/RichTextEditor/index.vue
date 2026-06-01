@@ -16,7 +16,7 @@ import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import RichTextEditorToolbar from './toolbar.vue'
 import { common, createLowlight } from 'lowlight'
-import { computeLineHash, normalizeHashlineText, stripNoteHtml } from '@renderer/utils/noteHashlines'
+import { buildNoteHashlineReference, normalizeHashlineText } from '@renderer/utils/noteHashlines'
 import 'highlight.js/styles/atom-one-dark.css'
 
 const lowlight = createLowlight(common)
@@ -38,6 +38,11 @@ interface Props {
 interface Emits {
     (e: 'update:modelValue', value: string): void
     (e: 'change', value: string): void
+}
+
+type NoteReferenceSelection = {
+    from: number
+    to: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -228,114 +233,34 @@ const formatCurrentContent = () => {
     messageApi.success('已完成一键排版')
 }
 
-const getLineIndexAtOffset = (text: string, offset: number) => {
-    const lines = text.split('\n')
-    let cursor = 0
+const buildNoteReference = (selection?: NoteReferenceSelection) => {
+    if (!editor.value || !selection) return ''
 
-    for (let index = 0; index < lines.length; index += 1) {
-        const lineEnd = cursor + lines[index].length
-        if (offset <= lineEnd) return index
-        cursor = lineEnd + 1
-    }
-
-    return Math.max(0, lines.length - 1)
-}
-
-const getLineStartOffsets = (lines: string[]) => {
-    const offsets: number[] = []
-    let cursor = 0
-
-    lines.forEach((line) => {
-        offsets.push(cursor)
-        cursor += line.length + 1
-    })
-
-    return offsets
-}
-
-const sliceLineSelection = (
-    line: string,
-    lineStartOffset: number,
-    selectionStart: number,
-    selectionEnd: number
-) => {
-    const lineEndOffset = lineStartOffset + line.length
-    const start = Math.max(0, Math.min(line.length, selectionStart - lineStartOffset))
-    const end = Math.max(0, Math.min(line.length, selectionEnd - lineStartOffset))
-
-    if (selectionEnd < lineStartOffset || selectionStart > lineEndOffset) return null
-    if (start === end && selectionStart !== selectionEnd) return null
-
-    return {
-        start,
-        end,
-        text: line.slice(start, end)
-    }
-}
-
-const buildNoteReference = () => {
-    if (!editor.value) return ''
-
-    const { from, to } = editor.value.state.selection
-    const selectionText = normalizeHashlineText(
+    const { from, to } = selection
+    const documentText = normalizeHashlineText(
         editor.value.state.doc.textBetween(0, editor.value.state.doc.content.size, '\n')
-    ).replace(/\n{3,}/g, '\n\n').trim()
-    const fullText = stripNoteHtml(editor.value.getHTML()) || selectionText
-
-    if (!fullText) return ''
-
-    const textBefore = normalizeHashlineText(editor.value.state.doc.textBetween(0, from, '\n'))
-    const selectedText = normalizeHashlineText(editor.value.state.doc.textBetween(from, to, '\n'))
-    const hasSelection = Boolean(selectedText)
-    const selectionStartOffset = Math.min(textBefore.length, selectionText.length)
-    const selectionEndOffset = hasSelection
-        ? Math.min(textBefore.length + selectedText.length, selectionText.length)
-        : textBefore.length
-    const startIndex = getLineIndexAtOffset(selectionText, selectionStartOffset)
-    const endIndex = getLineIndexAtOffset(
-        selectionText,
-        hasSelection ? Math.max(selectionStartOffset, selectionEndOffset - 1) : selectionEndOffset
     )
-    const lines = fullText.split('\n')
-    const lineStartOffsets = getLineStartOffsets(selectionText.split('\n'))
-    const selectedLines = lines.slice(startIndex, endIndex + 1)
 
-    if (!selectedLines.some((line) => line.trim())) return ''
+    if (!documentText.trim()) return ''
 
-    const startLine = startIndex + 1
-    const endLine = endIndex + 1
-    const title = props.referenceTitle || '当前笔记'
-    const hashLines = selectedLines.map((line, index) => {
-        const lineNumber = startLine + index
-        const anchorLine = `${lineNumber}${computeLineHash(line)}|${line}`
-        if (!hasSelection) return anchorLine
+    const selectionStartOffset = normalizeHashlineText(
+        editor.value.state.doc.textBetween(0, from, '\n')
+    ).length
+    const selectionEndOffset = normalizeHashlineText(
+        editor.value.state.doc.textBetween(0, to, '\n')
+    ).length
 
-        const selectedPart = sliceLineSelection(
-            line,
-            lineStartOffsets[startIndex + index] ?? 0,
-            selectionStartOffset,
-            selectionEndOffset
-        )
-
-        if (!selectedPart || !selectedPart.text) return anchorLine
-        return [
-            anchorLine,
-            `  selection: cols ${selectedPart.start + 1}-${selectedPart.end}`,
-            `  text: ${selectedPart.text}`
-        ].join('\n')
+    return buildNoteHashlineReference({
+        text: documentText,
+        selectionStartOffset,
+        selectionEndOffset,
+        title: props.referenceTitle || '当前笔记',
+        referenceId: props.referenceId
     })
-
-    return [
-        `note: ${title}`,
-        props.referenceId ? `note_id: ${props.referenceId}` : '',
-        `lines: ${startLine}-${endLine}`,
-        'hashlines:',
-        hashLines.join('\n')
-    ].filter(Boolean).join('\n')
 }
 
-const copyNoteReference = () => {
-    const reference = buildNoteReference()
+const copyNoteReference = (selection?: NoteReferenceSelection) => {
+    const reference = buildNoteReference(selection)
     if (!reference) {
         messageApi.warning('当前行没有可引用内容')
         return
@@ -361,6 +286,10 @@ const copyNoteReference = () => {
 
 const handleEditorContextMenu = (event: MouseEvent) => {
     if (!props.editable || !editor.value) return
+    const referenceSelection = {
+        from: editor.value.state.selection.from,
+        to: editor.value.state.selection.to
+    }
 
     showContextMenu(event, [
         {
@@ -373,7 +302,7 @@ const handleEditorContextMenu = (event: MouseEvent) => {
             label: '引用笔记内容',
             icon: FormatQuote,
             disabled: !normalizeBlockText(editor.value.getText()),
-            onClick: copyNoteReference
+            onClick: () => copyNoteReference(referenceSelection)
         }
     ])
 }
