@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useEditor, EditorContent } from '@tiptap/vue-3'
+import { Extension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
@@ -24,6 +25,27 @@ const { Sparkles, FormatQuote } = useIcon(['Sparkles', 'FormatQuote'])
 const { showContextMenu } = useContextMenu()
 const chatsStore = useChatsStores()
 const settingsStore = useSettingsStore()
+
+const ChineseParagraphIndent = Extension.create({
+    name: 'chineseParagraphIndent',
+    addKeyboardShortcuts() {
+        return {
+            Enter: ({ editor }) => {
+                const { $from } = editor.state.selection
+                if ($from.parent.type.name !== 'paragraph') {
+                    return false
+                }
+                if (!$from.parent.textContent.startsWith('　　')) {
+                    return false
+                }
+                return editor.chain()
+                    .splitBlock()
+                    .insertContent('　　')
+                    .run()
+            }
+        }
+    }
+})
 
 interface Props {
     modelValue: string
@@ -362,7 +384,8 @@ const editor = useEditor({
         }),
         TableRow,
         TableHeader,
-        TableCell
+        TableCell,
+        ChineseParagraphIndent
     ],
     onUpdate: ({ editor }) => {
         const html = editor.getHTML()
