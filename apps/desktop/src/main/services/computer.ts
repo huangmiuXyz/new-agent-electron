@@ -155,7 +155,9 @@ const getRobotCoordinateMode = (robot: RobotModule): RobotCoordinateMode => {
 
   const robotPos = robot.getMousePos()
   const dipPoint = screen.getCursorScreenPoint()
-  const physicalPoint = screen.dipToScreenPoint(dipPoint)
+  const physicalPoint = process.platform === 'darwin'
+    ? dipPoint
+    : screen.dipToScreenPoint(dipPoint)
   const dipDistance = Math.abs(robotPos.x - dipPoint.x) + Math.abs(robotPos.y - dipPoint.y)
   const physicalDistance = Math.abs(robotPos.x - physicalPoint.x) + Math.abs(robotPos.y - physicalPoint.y)
 
@@ -353,7 +355,9 @@ const captureToRobotPoint = (
     }
   }
 
-  const screenPoint = screen.dipToScreenPoint(dipPoint)
+  const screenPoint = process.platform === 'darwin'
+    ? dipPoint
+    : screen.dipToScreenPoint(dipPoint)
   return {
     x: Math.round(screenPoint.x),
     y: Math.round(screenPoint.y)
