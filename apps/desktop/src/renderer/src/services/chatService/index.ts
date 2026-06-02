@@ -145,6 +145,12 @@ const cleanProviderOptions = (value: any): any => {
   return value
 }
 
+const isMiniMaxProvider = (provider: string, baseURL: string) => {
+  const providerName = provider.toLowerCase()
+  const providerBaseURL = baseURL.toLowerCase()
+  return providerName.includes('minimax') || providerBaseURL.includes('minimax')
+}
+
 const isCompressedContextMessage = (message: BaseMessage): boolean => {
   return Boolean(
     message.role === 'system' &&
@@ -620,11 +626,15 @@ export const chatService = () => {
       }
     }
 
-    const transformRequestBody = buildOpenAICompatibleTransformRequestBody(customProviderOptions?.transformRequestBody)
-
+    const transformRequestBody = buildOpenAICompatibleTransformRequestBody(
+      customProviderOptions?.transformRequestBody
+    )
 
     const { transformRequestBody: _transformRequestBody, ...runtimeProviderOptions } =
       customProviderOptions || {}
+    const providerOptionsKey = providerType === 'openai-compatible' ? provider : providerType
+    const isMiniMaxOpenAICompatible =
+      providerType === 'openai-compatible' && isMiniMaxProvider(provider, baseURL)
 
     const thinkingToggleProviders = new Set([
       'anthropic',
@@ -667,7 +677,11 @@ export const chatService = () => {
           thinkingProviderOptions.reasoning = { enabled: true, effort: depth }
           break
         case 'openai-compatible':
-          thinkingProviderOptions.reasoningEffort = depth
+          if (isMiniMaxOpenAICompatible) {
+            thinkingProviderOptions.thinking = { type: 'adaptive' }
+          } else {
+            thinkingProviderOptions.reasoningEffort = depth
+          }
           break
       }
     }
@@ -704,7 +718,7 @@ export const chatService = () => {
         ]
       }),
       providerOptions: {
-        [providerType]: mergedProviderOptions
+        [providerOptionsKey]: mergedProviderOptions
       },
       tools: wrappedTools,
       temperature,

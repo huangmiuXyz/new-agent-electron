@@ -152,6 +152,26 @@ const openAICompatibleChatCallOptionsSchema = z.object({
     .describe('用于合并到请求体的 JSON 字符串，例如 {"custom_field":"value"}')
 })
 
+const miniMaxChatCallOptionsSchema = openAICompatibleChatCallOptionsSchema.extend({
+  thinking: z
+    .object({
+      type: z
+        .enum(['disabled', 'adaptive'])
+        .default('adaptive')
+        .describe('MiniMax-M3 深度思考控制。adaptive 为默认自适应，disabled 为关闭。')
+        .meta({ label: '类型' })
+    })
+    .optional()
+    .describe('MiniMax-M3 额外参数：控制深度思考。')
+    .meta({ label: '深度思考' })
+})
+
+const isMiniMaxProvider = (options: { name?: string; baseURL?: string }) => {
+  const name = options.name?.toLowerCase() || ''
+  const baseURL = options.baseURL?.toLowerCase() || ''
+  return name.includes('minimax') || baseURL.includes('minimax')
+}
+
 const openAICompatibleImageCallOptionsSchema = z.object({
   quality: z
     .enum(['low', 'medium', 'high', 'auto'])
@@ -648,7 +668,9 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
         transformRequestBody: options.transformRequestBody
       }),
       {
-        chatCallOptionsSchema: openAICompatibleChatCallOptionsSchema,
+        chatCallOptionsSchema: isMiniMaxProvider(options)
+          ? miniMaxChatCallOptionsSchema
+          : openAICompatibleChatCallOptionsSchema,
         imageCallOptionsSchema: openAICompatibleImageCallOptionsSchema,
         listModels: createStandardListModels(options)
       }
