@@ -445,6 +445,7 @@ defineExpose({
 .ProseMirror {
     outline: none !important;
     min-height: 500px;
+    font-size: 16px;
 }
 
 .ProseMirror h2 {
