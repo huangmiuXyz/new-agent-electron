@@ -151,6 +151,63 @@ const isMiniMaxProvider = (provider: string, baseURL: string) => {
   return providerName.includes('minimax') || providerBaseURL.includes('minimax')
 }
 
+const stripThinkingRuntimeOptions = (options: Record<string, any>) => {
+  const {
+    thinking,
+    thinkingConfig,
+    thinking_config,
+    reasoning,
+    reasoningEffort,
+    reasoning_effort,
+    reasoningSummary,
+    reasoning_summary,
+    forceReasoning,
+    force_reasoning,
+    sendReasoning,
+    send_reasoning,
+    enable_thinking,
+    effort,
+    taskBudget,
+    task_budget,
+    ...rest
+  } = options
+
+  const sanitized = { ...rest }
+
+  if (Array.isArray(sanitized.include)) {
+    sanitized.include = sanitized.include.filter(
+      (item: unknown) => typeof item !== 'string' || !item.includes('reasoning')
+    )
+    if (sanitized.include.length === 0) {
+      delete sanitized.include
+    }
+  }
+
+  if (sanitized.contextManagement?.edits && Array.isArray(sanitized.contextManagement.edits)) {
+    const edits = sanitized.contextManagement.edits.filter(
+      (edit: unknown) =>
+        !(
+          edit &&
+          typeof edit === 'object' &&
+          'type' in edit &&
+          typeof edit.type === 'string' &&
+          edit.type.includes('thinking')
+        )
+    )
+
+    if (edits.length > 0) {
+      sanitized.contextManagement = {
+        ...sanitized.contextManagement,
+        edits
+      }
+    } else {
+      delete sanitized.contextManagement
+    }
+  }
+
+  return sanitized
+}
+
 const isCompressedContextMessage = (message: BaseMessage): boolean => {
   return Boolean(
     message.role === 'system' &&
@@ -632,6 +689,7 @@ export const chatService = () => {
 
     const { transformRequestBody: _transformRequestBody, ...runtimeProviderOptions } =
       customProviderOptions || {}
+    const sanitizedRuntimeProviderOptions = stripThinkingRuntimeOptions(runtimeProviderOptions)
     const providerOptionsKey = providerType === 'openai-compatible' ? provider : providerType
     const isMiniMaxOpenAICompatible =
       providerType === 'openai-compatible' && isMiniMaxProvider(provider, baseURL)
@@ -688,8 +746,8 @@ export const chatService = () => {
 
     const mergedProviderOptions =
       cleanProviderOptions({
-        ...thinkingProviderOptions,
-        ...runtimeProviderOptions
+        ...sanitizedRuntimeProviderOptions,
+        ...thinkingProviderOptions
       }) || {}
 
     const agent = new ToolLoopAgent({

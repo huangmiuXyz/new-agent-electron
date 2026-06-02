@@ -143,7 +143,6 @@ const createOllamaListModels = (options: { baseURL: string }) => {
 
 const openAICompatibleChatCallOptionsSchema = z.object({
   user: z.string().optional(),
-  reasoningEffort: z.string().optional(),
   textVerbosity: z.string().optional(),
   strictJsonSchema: z.boolean().optional(),
   transformRequestBody: z
@@ -151,26 +150,6 @@ const openAICompatibleChatCallOptionsSchema = z.object({
     .optional()
     .describe('用于合并到请求体的 JSON 字符串，例如 {"custom_field":"value"}')
 })
-
-const miniMaxChatCallOptionsSchema = openAICompatibleChatCallOptionsSchema.extend({
-  thinking: z
-    .object({
-      type: z
-        .enum(['disabled', 'adaptive'])
-        .default('adaptive')
-        .describe('MiniMax-M3 深度思考控制。adaptive 为默认自适应，disabled 为关闭。')
-        .meta({ label: '类型' })
-    })
-    .optional()
-    .describe('MiniMax-M3 额外参数：控制深度思考。')
-    .meta({ label: '深度思考' })
-})
-
-const isMiniMaxProvider = (options: { name?: string; baseURL?: string }) => {
-  const name = options.name?.toLowerCase() || ''
-  const baseURL = options.baseURL?.toLowerCase() || ''
-  return name.includes('minimax') || baseURL.includes('minimax')
-}
 
 const openAICompatibleImageCallOptionsSchema = z.object({
   quality: z
@@ -213,7 +192,6 @@ const openAIChatCallOptionsSchema = z.object({
   include: z
     .array(
       z.enum([
-        'reasoning.encrypted_content',
         'file_search_call.results',
         'message.output_text.logprobs'
       ])
@@ -226,10 +204,6 @@ const openAIChatCallOptionsSchema = z.object({
   parallelToolCalls: z.boolean().optional(),
   previousResponseId: z.string().nullish(),
   user: z.string().optional(),
-  reasoningEffort: z
-    .enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh'])
-    .nullish(),
-  reasoningSummary: z.string().nullish(),
   maxCompletionTokens: z.number().optional(),
   store: z.boolean().nullish(),
   metadata: z.any().nullish(),
@@ -242,7 +216,6 @@ const openAIChatCallOptionsSchema = z.object({
   promptCacheRetention: z.enum(['in_memory', '24h']).nullish(),
   safetyIdentifier: z.string().nullish(),
   systemMessageMode: z.enum(['remove', 'system', 'developer']).optional(),
-  forceReasoning: z.boolean().optional(),
   allowedTools: z
     .object({
       toolNames: z.array(z.string()).min(1),
@@ -252,23 +225,7 @@ const openAIChatCallOptionsSchema = z.object({
 })
 
 const anthropicChatCallOptionsSchema = z.object({
-  sendReasoning: z.boolean().optional(),
   structuredOutputMode: z.enum(['outputFormat', 'jsonTool', 'auto']).optional(),
-  thinking: z
-    .discriminatedUnion('type', [
-      z.object({
-        type: z.literal('adaptive'),
-        display: z.enum(['omitted', 'summarized']).optional()
-      }),
-      z.object({
-        type: z.literal('enabled'),
-        budgetTokens: z.number().optional()
-      }),
-      z.object({
-        type: z.literal('disabled')
-      })
-    ])
-    .optional(),
   disableParallelToolUse: z.boolean().optional(),
   cacheControl: z
     .object({
@@ -313,14 +270,6 @@ const anthropicChatCallOptionsSchema = z.object({
     })
     .optional(),
   toolStreaming: z.boolean().optional(),
-  effort: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).optional(),
-  taskBudget: z
-    .object({
-      type: z.literal('tokens'),
-      total: z.number().int().min(20000),
-      remaining: z.number().int().min(0).optional()
-    })
-    .optional(),
   speed: z.enum(['fast', 'standard']).optional(),
   inferenceGeo: z.enum(['us', 'global']).optional(),
   anthropicBeta: z.array(z.string()).optional(),
@@ -358,18 +307,6 @@ const anthropicChatCallOptionsSchema = z.object({
             excludeTools: z.array(z.string()).optional()
           }),
           z.object({
-            type: z.literal('clear_thinking_20251015'),
-            keep: z
-              .union([
-                z.literal('all'),
-                z.object({
-                  type: z.literal('thinking_turns'),
-                  value: z.number()
-                })
-              ])
-              .optional()
-          }),
-          z.object({
             type: z.literal('compact_20260112'),
             trigger: z
               .object({
@@ -386,24 +323,8 @@ const anthropicChatCallOptionsSchema = z.object({
     .optional()
 })
 
-const deepSeekChatCallOptionsSchema = z.object({
-  thinking: z
-    .object({
-      type: z.enum(['enabled', 'disabled']).optional()
-    })
-    .optional(),
-  reasoningEffort: z.enum(['high', 'max']).optional()
-})
-
 const googleChatCallOptionsSchema = z.object({
   responseModalities: z.array(z.enum(['TEXT', 'IMAGE'])).optional(),
-  thinkingConfig: z
-    .object({
-      thinkingBudget: z.number().optional(),
-      includeThoughts: z.boolean().optional(),
-      thinkingLevel: z.enum(['minimal', 'low', 'medium', 'high']).optional()
-    })
-    .optional(),
   cachedContent: z.string().optional(),
   structuredOutputs: z.boolean().optional(),
   safetySettings: z
@@ -486,7 +407,6 @@ const googleChatCallOptionsSchema = z.object({
 })
 
 const xaiChatCallOptionsSchema = z.object({
-  reasoningEffort: z.enum(['low', 'high']).optional(),
   logprobs: z.boolean().optional(),
   topLogprobs: z.number().int().min(0).max(8).optional(),
   parallel_function_calling: z.boolean().optional(),
@@ -546,7 +466,6 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
     }),
   deepseek: (options) =>
     mergeFun(createDeepSeek(options), {
-      chatCallOptionsSchema: deepSeekChatCallOptionsSchema,
       listModels: createStandardListModels(options)
     }),
   google: (options) =>
@@ -590,21 +509,6 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
       listModels: createStandardListModels(options),
       chatCallOptionsSchema: z.object({
         models: z.array(z.string()).optional().describe('可用的模型列表'),
-
-        reasoning: z
-          .object({
-            enabled: z.boolean().optional().describe('是否启用推理'),
-            exclude: z.boolean().optional().describe('为 true 时从响应中移除推理内容'),
-            max_tokens: z.number().int().min(1).optional().describe('推理的最大 token 数'),
-            effort: z
-              .enum(['xhigh', 'high', 'medium', 'low', 'minimal', 'none'])
-              .optional()
-              .default('medium')
-              .describe('推理努力程度')
-          })
-          .optional()
-          .describe('推理配置'),
-
         user: z.string().optional().describe('终端用户的唯一标识')
       })
     }),
@@ -668,9 +572,7 @@ export const providerFactories = shallowReactive<Record<string, ProviderFactory>
         transformRequestBody: options.transformRequestBody
       }),
       {
-        chatCallOptionsSchema: isMiniMaxProvider(options)
-          ? miniMaxChatCallOptionsSchema
-          : openAICompatibleChatCallOptionsSchema,
+        chatCallOptionsSchema: openAICompatibleChatCallOptionsSchema,
         imageCallOptionsSchema: openAICompatibleImageCallOptionsSchema,
         listModels: createStandardListModels(options)
       }
