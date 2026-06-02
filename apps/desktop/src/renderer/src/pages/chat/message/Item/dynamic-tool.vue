@@ -98,7 +98,7 @@ const runTool = async (e: Event) => {
       }
 
       localOutput.value = outputText
-      props.tool_part.output = outputText
+      props.tool_part.output = customRender.value ? anyResult : outputText
     }
   } catch (error) {
     console.error('Tool execution failed', error)
