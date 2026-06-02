@@ -145,10 +145,15 @@ const cleanProviderOptions = (value: any): any => {
   return value
 }
 
-const isMiniMaxProvider = (provider: string, baseURL: string) => {
+const isMiniMaxM3Request = (provider: string, baseURL: string, model: string) => {
   const providerName = provider.toLowerCase()
   const providerBaseURL = baseURL.toLowerCase()
-  return providerName.includes('minimax') || providerBaseURL.includes('minimax')
+  const modelName = model.toLowerCase()
+  return (
+    modelName.includes('minimax-m3') ||
+    providerName.includes('minimax') ||
+    providerBaseURL.includes('minimax')
+  )
 }
 
 const stripThinkingRuntimeOptions = (options: Record<string, any>) => {
@@ -663,23 +668,41 @@ export const chatService = () => {
         ]
       })
     )
+    const isMiniMaxM3OpenAICompatible =
+      providerType === 'openai-compatible' && isMiniMaxM3Request(provider, baseURL, model)
     const buildOpenAICompatibleTransformRequestBody = (transformRequestBody?: string) => {
-      if (!transformRequestBody?.trim()) return undefined
-
+      let parsedTransform: Record<string, any> | undefined
       try {
-        const parsed = JSON.parse(transformRequestBody)
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-          console.warn('transformRequestBody 必须是 JSON 对象字符串')
-          return undefined
+        if (transformRequestBody?.trim()) {
+          const parsed = JSON.parse(transformRequestBody)
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            console.warn('transformRequestBody 必须是 JSON 对象字符串')
+          } else {
+            parsedTransform = parsed
+          }
         }
-
-        return (args: Record<string, any>) => ({
-          ...args,
-          ...parsed
-        })
       } catch (error) {
         console.warn('transformRequestBody JSON 解析失败:', error)
-        return undefined
+      }
+
+      if (!parsedTransform && !isMiniMaxM3OpenAICompatible) return undefined
+
+      return (args: Record<string, any>) => {
+        const next = {
+          ...args,
+          ...parsedTransform
+        }
+
+        if (isMiniMaxM3OpenAICompatible) {
+          delete next.reasoningEffort
+          delete next.reasoning_effort
+          delete next.enable_thinking
+          next.thinking = {
+            type: thinkingMode ? 'adaptive' : 'disabled'
+          }
+        }
+
+        return next
       }
     }
 
@@ -691,8 +714,6 @@ export const chatService = () => {
       customProviderOptions || {}
     const sanitizedRuntimeProviderOptions = stripThinkingRuntimeOptions(runtimeProviderOptions)
     const providerOptionsKey = providerType === 'openai-compatible' ? provider : providerType
-    const isMiniMaxOpenAICompatible =
-      providerType === 'openai-compatible' && isMiniMaxProvider(provider, baseURL)
 
     const thinkingToggleProviders = new Set([
       'anthropic',
@@ -710,6 +731,7 @@ export const chatService = () => {
 
     if (supportsThinkingToggle) {
       const depth = thinkingMode
+      const normalizedDepth = depth === 'adaptive' ? 'medium' : depth
       const thinkingEnabled = Boolean(depth)
       switch (providerType) {
         case 'anthropic':
@@ -723,35 +745,31 @@ export const chatService = () => {
           }
           thinkingProviderOptions.enable_thinking = thinkingEnabled
           if (thinkingEnabled) {
-            thinkingProviderOptions.reasoningEffort = depth === 'max' ? 'max' : 'high'
+            thinkingProviderOptions.reasoningEffort = normalizedDepth === 'max' ? 'max' : 'high'
           }
           break
         case 'google':
           thinkingProviderOptions.thinkingConfig = {
             includeThoughts: thinkingEnabled,
-            ...(thinkingEnabled ? { thinkingLevel: depth } : { thinkingBudget: 0 })
+            ...(thinkingEnabled ? { thinkingLevel: normalizedDepth } : { thinkingBudget: 0 })
           }
           break
         case 'openai':
-          thinkingProviderOptions.reasoningEffort = thinkingEnabled ? depth : 'none'
+          thinkingProviderOptions.reasoningEffort = thinkingEnabled ? normalizedDepth : 'none'
           break
         case 'xai':
           if (thinkingEnabled) {
-            thinkingProviderOptions.reasoningEffort = depth === 'low' ? 'low' : 'high'
+            thinkingProviderOptions.reasoningEffort = normalizedDepth === 'low' ? 'low' : 'high'
           }
           break
         case 'openrouter':
           thinkingProviderOptions.reasoning = thinkingEnabled
-            ? { enabled: true, effort: depth }
+            ? { enabled: true, effort: normalizedDepth }
             : { enabled: false }
           break
         case 'openai-compatible':
-          if (isMiniMaxOpenAICompatible) {
-            thinkingProviderOptions.thinking = {
-              type: thinkingEnabled ? 'adaptive' : 'disabled'
-            }
-          } else {
-            thinkingProviderOptions.reasoningEffort = thinkingEnabled ? depth : 'none'
+          if (!isMiniMaxM3OpenAICompatible) {
+            thinkingProviderOptions.reasoningEffort = thinkingEnabled ? normalizedDepth : 'none'
           }
           break
       }

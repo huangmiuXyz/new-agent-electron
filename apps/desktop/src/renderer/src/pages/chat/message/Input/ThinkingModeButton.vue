@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useSettingsStore } from '@renderer/stores/settings'
 
-type ThinkingDepth = 'low' | 'medium' | 'high' | 'max'
+type ThinkingDepth = 'low' | 'medium' | 'high' | 'max' | 'adaptive'
 
 const props = defineProps<{
   providerType?: string
+  providerId?: string
+  modelId?: string
 }>()
 
 const settingsStore = useSettingsStore()
@@ -14,7 +16,27 @@ const showPopover = ref(false)
 const popoverRef = ref<HTMLElement>()
 const Bulb = useIcon('Bulb')
 
+const isMiniMaxM3 = computed(() => {
+  const providerId = props.providerId?.toLowerCase() || ''
+  const modelId = props.modelId?.toLowerCase() || ''
+  return props.providerType === 'openai-compatible' && (
+    modelId.includes('minimax-m3') ||
+    providerId.includes('minimax')
+  )
+})
+
+const thinkingLabel = computed(() => {
+  if (!thinkingMode.value) return '思考模式'
+  if (isMiniMaxM3.value && thinkingMode.value === 'adaptive') return '思考模式: 自适应'
+  return `思考模式: ${thinkingMode.value}`
+})
+
 const depthOptions = computed<{ label: string; value: ThinkingDepth; desc: string }[]>(() => {
+  if (isMiniMaxM3.value) {
+    return [
+      { label: '自适应', value: 'adaptive', desc: 'MiniMax-M3 自适应思考' }
+    ]
+  }
   const pt = props.providerType
   if (pt === 'deepseek') {
     return [
@@ -38,6 +60,9 @@ const depthOptions = computed<{ label: string; value: ThinkingDepth; desc: strin
 const toggle = () => {
   if (thinkingMode.value) {
     updateThinkingMode(null)
+  } else if (isMiniMaxM3.value) {
+    updateThinkingMode('adaptive')
+    showPopover.value = false
   } else {
     showPopover.value = !showPopover.value
   }
@@ -66,12 +91,12 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   <div class="thinking-popover" ref="popoverRef">
     <Button variant="icon" size="sm" :class="{ 'thinking-active': thinkingMode }"
       @click.stop="toggle"
-      :title="thinkingMode ? `思考模式: ${thinkingMode}` : '思考模式'">
+      :title="thinkingLabel">
       <Bulb />
     </Button>
 
     <template v-if="!isMobile">
-      <div v-if="showPopover" class="thinking-panel">
+      <div v-if="showPopover && !isMiniMaxM3" class="thinking-panel">
         <div class="thinking-panel-title">思考深度</div>
         <div class="thinking-panel-options">
           <button v-for="opt in depthOptions" :key="opt.value" class="thinking-depth-item"
@@ -91,7 +116,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
   <Teleport to="body">
     <Transition name="drawer">
-      <div v-if="isMobile && showPopover" class="thinking-drawer-overlay" @click.self="closePopover">
+      <div v-if="isMobile && showPopover && !isMiniMaxM3" class="thinking-drawer-overlay" @click.self="closePopover">
         <div class="thinking-drawer-container">
           <div class="thinking-drawer-header">
             <div class="thinking-drawer-handle"></div>

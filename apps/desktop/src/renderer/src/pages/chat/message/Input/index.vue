@@ -1233,7 +1233,7 @@ onUnmounted(() => {
             <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
               <FileUploadIcon />
             </Button>
-            <ThinkingModeButton :provider-type="currentChatProvider?.providerType" />
+            <ThinkingModeButton :provider-type="currentChatProvider?.providerType" :provider-id="currentChatProvider?.id" :model-id="chatModelId" />
 
             <Button variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
               <SettingsIcon />
@@ -1423,7 +1423,7 @@ onUnmounted(() => {
                   <MicIcon v-if="!voiceIsActive" />
                   <MicOffIcon v-else />
                 </Button>
-                <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" />
+                <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" :provider-id="currentChatProvider?.id" :model-id="chatModelId" />
                 <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
                   @click="handleMobileToolClick('settings', $event)">
                   <SettingsIcon />
@@ -1481,7 +1481,7 @@ onUnmounted(() => {
                   <MicIcon v-if="!voiceIsActive" />
                   <MicOffIcon v-else />
                 </Button>
-                <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" />
+                <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" :provider-id="currentChatProvider?.id" :model-id="chatModelId" />
                 <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
                   @click="handleMobileToolClick('settings', $event)">
                   <SettingsIcon />
@@ -1536,7 +1536,7 @@ onUnmounted(() => {
                 <MicIcon v-if="!voiceIsActive" />
                 <MicOffIcon v-else />
               </Button>
-              <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" />
+              <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" :provider-id="currentChatProvider?.id" :model-id="chatModelId" />
               <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
                 @click="handleMobileToolClick('settings', $event)">
                 <SettingsIcon />
