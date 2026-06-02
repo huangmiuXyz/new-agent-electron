@@ -393,6 +393,9 @@ export const useChat = (chatId: string) => {
                 builtinToolsRequireApproval: toolFeaturesEnabled
                   ? runtimeAgent?.builtinToolsRequireApproval || []
                   : [],
+                builtinToolConfigs: toolFeaturesEnabled
+                  ? runtimeAgent?.builtinToolConfigs || {}
+                  : {},
                 skillsEnabled: toolFeaturesEnabled,
                 knowledgeBaseIds: runtimeAgent?.knowledgeBaseIds,
                 thinkingMode: thinkingMode.value,

@@ -18,6 +18,15 @@ interface AgentFormData extends Omit<
 }
 
 const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
+const DEFAULT_COMPUTER_SCREENSHOT_MAX_SIDE_PX = 1600
+const COMPUTER_SCREENSHOT_MAX_SIDE_OPTIONS = [
+  { label: '低 · 最长边 800px', value: 800 },
+  { label: '均衡 · 最长边 1200px', value: 1200 },
+  { label: '标准 · 最长边 1600px', value: 1600 },
+  { label: '高清 · 最长边 2400px', value: 2400 },
+  { label: '超清 · 最长边 3200px', value: 3200 },
+  { label: '原生上限 · 最长边 3840px', value: 3840 }
+]
 const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
   '电脑操作',
   'Agent工具',
@@ -213,6 +222,9 @@ export const useAgent = () => {
           tools: [...(agent.tools || [])],
           builtinTools: [...(agent.builtinTools || [])],
           builtinToolsRequireApproval: [...(agent.builtinToolsRequireApproval || [])],
+          builtinToolConfigs: agent.builtinToolConfigs
+            ? JSON.parse(JSON.stringify(agent.builtinToolConfigs))
+            : {},
           execCommandRunInBackground: agent.execCommandRunInBackground ?? false,
           ragEnabled: agent.ragEnabled ?? false,
           workPath: agent.workPath || '',
@@ -251,6 +263,7 @@ export const useAgent = () => {
           tools: [],
           builtinTools: [],
           builtinToolsRequireApproval: [],
+          builtinToolConfigs: {},
           execCommandRunInBackground: false,
           ragEnabled: false,
           workPath: '',
@@ -608,20 +621,27 @@ export const useAgent = () => {
         (formActions.getFieldValue('execCommandRunInBackground') as boolean) ?? false
       const currentAllowedSubAgents =
         (formActions.getFieldValue('allowedSubAgents') as string[]) || []
+      const currentScreenshotMaxSidePx =
+        (formActions.getFieldValue(
+          'builtinToolConfigs.computer_use.screenshotMaxSidePx'
+        ) as number) || DEFAULT_COMPUTER_SCREENSHOT_MAX_SIDE_PX
       const isExecCommand = option.value === 'exec_command'
       const isDelegateToSubAgent = option.value === 'delegate_to_sub_agent'
+      const isComputerUse = option.value === 'computer_use'
 
       const [ApprovalForm, approvalFormActions] = useForm<{
         requireApproval: boolean
         execCommandRunInBackground: boolean
         allowedSubAgents: string[]
+        screenshotMaxSidePx: number
       }>({
         title: `工具设置 · ${option.label}`,
         showHeader: false,
         initialData: {
           requireApproval: currentValue,
           execCommandRunInBackground: currentExecCommandRunInBackground,
-          allowedSubAgents: currentAllowedSubAgents
+          allowedSubAgents: currentAllowedSubAgents,
+          screenshotMaxSidePx: currentScreenshotMaxSidePx
         },
         fields: [
           {
@@ -633,6 +653,20 @@ export const useAgent = () => {
             requireApproval: boolean
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
+            screenshotMaxSidePx: number
+          }>,
+          {
+            name: 'screenshotMaxSidePx',
+            type: 'select',
+            label: '截图分辨率',
+            options: COMPUTER_SCREENSHOT_MAX_SIDE_OPTIONS,
+            hint: '控制发送给 AI 的截图最长边。坐标会始终按实际发送的截图尺寸换算，避免因缩放产生点击错位。',
+            ifShow: () => isComputerUse
+          } as SelectField<{
+            requireApproval: boolean
+            execCommandRunInBackground: boolean
+            allowedSubAgents: string[]
+            screenshotMaxSidePx: number
           }>,
           {
             name: 'execCommandRunInBackground',
@@ -644,6 +678,7 @@ export const useAgent = () => {
             requireApproval: boolean
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
+            screenshotMaxSidePx: number
           }>,
           {
             name: 'allowedSubAgents',
@@ -656,6 +691,7 @@ export const useAgent = () => {
             requireApproval: boolean
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
+            screenshotMaxSidePx: number
           }>
         ],
         onSubmit: (data) => {
@@ -669,13 +705,19 @@ export const useAgent = () => {
           if (isDelegateToSubAgent) {
             formActions.setFieldValue('allowedSubAgents', data.allowedSubAgents || [])
           }
+          if (isComputerUse) {
+            formActions.setFieldValue(
+              'builtinToolConfigs.computer_use.screenshotMaxSidePx',
+              Number(data.screenshotMaxSidePx) || DEFAULT_COMPUTER_SCREENSHOT_MAX_SIDE_PX
+            )
+          }
         }
       })
 
       confirm({
         title: `工具设置 · ${option.label}`,
         content: ApprovalForm,
-        width: '420px',
+        width: '460px',
         maxHeight: '60vh',
         onOk: (removeModal) => {
           if (approvalFormActions.submit()) removeModal()
@@ -700,7 +742,12 @@ export const useAgent = () => {
         name: 'allowedSubAgents',
         type: 'text',
         ifShow: () => false
-      } as TextField<AgentFormData>
+      } as TextField<AgentFormData>,
+      {
+        name: 'builtinToolConfigs',
+        type: 'object',
+        ifShow: () => false
+      } as ObjectField<AgentFormData>
     ]
 
     const knowledgeFields: FormField<AgentFormData>[] = [

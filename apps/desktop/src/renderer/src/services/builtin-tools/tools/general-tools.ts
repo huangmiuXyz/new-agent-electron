@@ -209,7 +209,10 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
       }
 
       const { agent, builtinToolNames, mcpToolNames, mcpServers } = getAvailableToolContext(options?.chatId)
-      const builtinTools = getBuiltinTools({ knowledgeBaseIds: agent?.knowledgeBaseIds })
+      const builtinTools = getBuiltinTools({
+        knowledgeBaseIds: agent?.knowledgeBaseIds,
+        builtinToolConfigs: agent?.builtinToolConfigs
+      })
       const results = await Promise.all(
         toolUses.map(async (toolUse, index) => {
           try {

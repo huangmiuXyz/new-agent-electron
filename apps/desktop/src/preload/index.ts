@@ -719,6 +719,7 @@ export const api: ElectronAPI = {
       y?: number
       width?: number
       height?: number
+      maxSidePx?: number
       format?: 'png' | 'jpeg'
       quality?: number
     }) =>

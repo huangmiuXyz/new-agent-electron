@@ -48,6 +48,10 @@ const computerInputSchema = z.object({
 })
 
 type ComputerAction = z.infer<typeof computerActionSchema>
+type ComputerToolConfig = NonNullable<Agent['builtinToolConfigs']>['computer_use']
+
+const DEFAULT_SCREENSHOT_MAX_SIDE_PX = 1600
+const SCREENSHOT_MAX_SIDE_OPTIONS = [800, 1200, 1600, 2400, 3200, 3840] as const
 
 const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
 
@@ -71,6 +75,15 @@ const normalizeActions = (input: z.infer<typeof computerInputSchema>): ComputerA
   if (input.actions?.length) return input.actions
   if (input.action) return [input.action]
   throw new Error('No computer action provided')
+}
+
+const normalizeScreenshotMaxSidePx = (value: unknown): number => {
+  const numericValue = typeof value === 'string' ? Number(value) : value
+  if (typeof numericValue !== 'number' || !Number.isFinite(numericValue)) return DEFAULT_SCREENSHOT_MAX_SIDE_PX
+  const rounded = Math.round(numericValue)
+  return SCREENSHOT_MAX_SIDE_OPTIONS.includes(rounded as any)
+    ? rounded
+    : DEFAULT_SCREENSHOT_MAX_SIDE_PX
 }
 
 const normalizeKeyName = (key: string): string => {
@@ -205,7 +218,7 @@ const runAction = async (action: ComputerAction) => {
   }
 }
 
-export const getComputerBuiltinTools = (): Partial<Tools> => ({
+export const getComputerBuiltinTools = (config?: ComputerToolConfig): Partial<Tools> => ({
   computer_use: {
     title: '电脑操作',
     description:
@@ -216,13 +229,14 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
       withComputerError(async () => {
         const input = computerInputSchema.parse(args)
         const actions = normalizeActions(input)
+        const screenshotMaxSidePx = normalizeScreenshotMaxSidePx(config?.screenshotMaxSidePx)
 
         for (const action of actions) {
           await runAction(action)
         }
 
         const [capture, mousePosition, availability] = await Promise.all([
-          window.api.computer.captureScreen(),
+          window.api.computer.captureScreen({ maxSidePx: screenshotMaxSidePx }),
           window.api.computer.getMousePosition(),
           window.api.computer.isAvailable()
         ])
@@ -238,6 +252,7 @@ export const getComputerBuiltinTools = (): Partial<Tools> => ({
                   `mouse_position: (${mousePosition.x}, ${mousePosition.y})`,
                   `screenshot_origin: (${capture.x}, ${capture.y})`,
                   `screenshot_size: ${capture.width}x${capture.height}`,
+                  `screenshot_max_side: ${capture.maxSidePx || screenshotMaxSidePx}`,
                   availability.display
                     ? `display_bounds: (${availability.display.bounds.x}, ${availability.display.bounds.y}, ${availability.display.bounds.width}, ${availability.display.bounds.height})`
                     : undefined,

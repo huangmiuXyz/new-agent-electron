@@ -6,13 +6,15 @@ type BuiltinToolGroups = Record<string, string[]>
 export const getBuiltinToolGroups = (options?: {
   knowledgeBaseIds?: string[]
   skills?: SkillMetadata[]
+  builtinToolConfigs?: Agent['builtinToolConfigs']
 }): BuiltinToolGroups => {
   const { pluginLoader } = usePlugins()
   const manager = pluginLoader.getPluginManager()
   const skills = options?.skills ?? discoverSkills()
   const groupEntries = getBuiltinToolGroupEntries({
     knowledgeBaseIds: options?.knowledgeBaseIds,
-    skills
+    skills,
+    builtinToolConfigs: options?.builtinToolConfigs
   })
 
   const groups: BuiltinToolGroups = Object.fromEntries(
@@ -33,6 +35,7 @@ export const getBuiltinToolGroups = (options?: {
 export const getBuiltinTools = (options?: {
   knowledgeBaseIds?: string[]
   skills?: SkillMetadata[]
+  builtinToolConfigs?: Agent['builtinToolConfigs']
 }): Tools => {
   const { pluginLoader } = usePlugins()
   const manager = pluginLoader.getPluginManager()
@@ -43,7 +46,8 @@ export const getBuiltinTools = (options?: {
       {},
       ...getBuiltinToolGroupEntries({
         knowledgeBaseIds: options?.knowledgeBaseIds,
-        skills
+        skills,
+        builtinToolConfigs: options?.builtinToolConfigs
       }).map(({ tools }) => tools)
     ),
     ...(manager?.getBuiltinTools ? Object.fromEntries(manager.getBuiltinTools()) : {})

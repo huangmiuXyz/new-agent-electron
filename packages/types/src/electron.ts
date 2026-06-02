@@ -346,6 +346,7 @@ export interface ElectronAPI {
       y?: number;
       width?: number;
       height?: number;
+      maxSidePx?: number;
       format?: 'png' | 'jpeg';
       quality?: number;
     }) => Promise<{
@@ -358,6 +359,7 @@ export interface ElectronAPI {
       rawDataUrl?: string;
       imageFormat?: 'png' | 'jpeg';
       imageQuality?: number;
+      maxSidePx?: number;
       annotation?: {
         minorGridPx: number;
         majorGridPx: number;

@@ -18,13 +18,14 @@ export const getBuiltinToolGroupEntries = (options?: {
   knowledgeBaseIds?: string[]
   skills?: SkillMetadata[]
   agentTools?: Partial<Tools>
+  builtinToolConfigs?: Agent['builtinToolConfigs']
 }): BuiltinToolGroupEntry[] => {
   const skills = options?.skills ?? []
 
   return [
     { group: '通用工具', tools: getGeneralBuiltinTools() },
     { group: '画布工具', tools: getCanvasBuiltinTools() },
-    { group: '电脑操作', tools: getComputerBuiltinTools() },
+    { group: '电脑操作', tools: getComputerBuiltinTools(options?.builtinToolConfigs?.computer_use) },
     { group: 'Agent工具', tools: options?.agentTools ?? getAgentBuiltinTools(skills) },
     { group: '网络工具', tools: getNetworkBuiltinTools() },
     {

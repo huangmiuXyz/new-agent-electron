@@ -6,7 +6,9 @@ type CoordinateSpace = 'screen' | 'screenshot'
 type RobotCoordinateMode = 'dip' | 'physical'
 type CaptureImageFormat = 'png' | 'jpeg'
 
-const CAPTURE_MAX_SIDE_PX = 1600
+const DEFAULT_CAPTURE_MAX_SIDE_PX = 1600
+const MIN_CAPTURE_MAX_SIDE_PX = 800
+const MAX_CAPTURE_MAX_SIDE_PX = 3840
 
 let robotInstance: RobotModule | null = null
 let robotLoadError: Error | null = null
@@ -50,8 +52,18 @@ const normalizeMouseButton = (value: unknown): MouseButton => {
 }
 
 const normalizeCoordinateSpace = (value: unknown): CoordinateSpace => {
+  if (value === 'screen') return 'screen'
   if (value === 'screenshot') return 'screenshot'
   return 'screenshot'
+}
+
+const normalizeCaptureMaxSidePx = (value: unknown): number => {
+  const numericValue = typeof value === 'string' ? Number(value) : value
+  if (typeof numericValue !== 'number' || !Number.isFinite(numericValue)) {
+    return DEFAULT_CAPTURE_MAX_SIDE_PX
+  }
+
+  return Math.min(MAX_CAPTURE_MAX_SIDE_PX, Math.max(MIN_CAPTURE_MAX_SIDE_PX, Math.round(numericValue)))
 }
 
 const normalizeCaptureImageFormat = (value: unknown): CaptureImageFormat => {
@@ -78,13 +90,13 @@ const toImageDataUrl = (image: Electron.NativeImage, format: CaptureImageFormat,
   return `data:image/jpeg;base64,${buffer.toString('base64')}`
 }
 
-const getThumbnailSize = (size: { width: number; height: number }) => {
+const getThumbnailSize = (size: { width: number; height: number }, maxSidePx: number) => {
   const maxSide = Math.max(size.width, size.height)
-  if (maxSide <= CAPTURE_MAX_SIDE_PX) {
+  if (maxSide <= maxSidePx) {
     return size
   }
 
-  const scale = CAPTURE_MAX_SIDE_PX / maxSide
+  const scale = maxSidePx / maxSide
   return {
     width: Math.max(1, Math.round(size.width * scale)),
     height: Math.max(1, Math.round(size.height * scale))
@@ -644,7 +656,8 @@ export const setupComputerHandlers = () => {
     const robot = getRobot()
     const display = getDefaultDisplay(payload.displayId)
     const baseMetrics = getDisplayMetrics(robot, display)
-    const thumbnailSize = getThumbnailSize(baseMetrics.captureSize)
+    const maxSidePx = normalizeCaptureMaxSidePx(payload.maxSidePx)
+    const thumbnailSize = getThumbnailSize(baseMetrics.captureSize, maxSidePx)
 
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
@@ -717,6 +730,7 @@ export const setupComputerHandlers = () => {
       rawDataUrl: toImageDataUrl(cropped, format, quality),
       imageFormat: format,
       imageQuality: format === 'jpeg' ? quality : undefined,
+      maxSidePx,
       annotation:
         annotated?.annotation || {
           minorGridPx: 0,

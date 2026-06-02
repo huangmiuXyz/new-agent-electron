@@ -1,5 +1,9 @@
 <template>
-  <div class="reasoning-block" :class="{ 'is-open': isReasoningExpanded }">
+  <div
+    class="reasoning-block"
+    :class="{ 'is-open': isReasoningExpanded }"
+    @contextmenu="openReasoningContextMenu"
+  >
     <div class="reasoning-header" @click="toggleReasoning">
       <div class="reasoning-label">
         <span class="reasoning-mark" aria-hidden="true">
@@ -36,6 +40,8 @@ import { estimateParagraphHeight, splitTextIntoParagraphs } from '@renderer/comp
 
 const { display } = storeToRefs(useSettingsStore())
 const Bulb = useIcon('Bulb')
+const Copy = useIcon('Copy')
+const { showContextMenu } = useContextMenu()
 
 const props = defineProps<{ reasoning_content: string }>()
 
@@ -62,6 +68,29 @@ const reasoningViewportHeight = computed(() => {
 
 const toggleReasoning = () => {
   isReasoningExpanded.value = !isReasoningExpanded.value
+}
+
+const copyReasoningContent = () => {
+  const text = props.reasoning_content.trim()
+  if (!text) {
+    messageApi.warning('暂无可复制的思考过程')
+    return
+  }
+
+  copyText(text)
+}
+
+const openReasoningContextMenu = (event: MouseEvent) => {
+  const hasReasoningContent = props.reasoning_content.trim().length > 0
+
+  showContextMenu(event, [
+    {
+      label: '复制思考过程',
+      icon: Copy,
+      disabled: !hasReasoningContent,
+      onClick: copyReasoningContent
+    }
+  ])
 }
 </script>
 

@@ -67,6 +67,7 @@ interface ChatServiceConfig {
   mcpTools?: string[]
   builtinTools?: string[]
   builtinToolsRequireApproval?: string[]
+  builtinToolConfigs?: Agent['builtinToolConfigs']
   skillsEnabled?: boolean
   knowledgeBaseIds?: string[]
   thinkingMode?: string | null
@@ -443,6 +444,7 @@ export const chatService = () => {
       mcpTools,
       builtinTools: selectedBuiltinTools,
       builtinToolsRequireApproval,
+      builtinToolConfigs,
       skillsEnabled = true,
       knowledgeBaseIds,
       thinkingMode,
@@ -483,7 +485,7 @@ export const chatService = () => {
     const skills = discoverSkills(undefined, { chatId: cid })
     const hasLoadSkillTool = skillsEnabled && !!selectedBuiltinTools?.includes('loadSkill')
     const skillsForBuiltinTools = skillsEnabled ? skills : []
-    const builtinToolContext = { knowledgeBaseIds, skills: skillsForBuiltinTools }
+    const builtinToolContext = { knowledgeBaseIds, skills: skillsForBuiltinTools, builtinToolConfigs }
     const builtinTools = getBuiltinTools(builtinToolContext)
     const mobileCompatibleBuiltinToolKeys = new Set(
       Object.entries(getBuiltinToolGroups(builtinToolContext))
