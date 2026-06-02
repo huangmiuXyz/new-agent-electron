@@ -9,21 +9,45 @@ const computerActionSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('click'),
-    x: z.number(),
-    y: z.number(),
+    x: z
+      .number()
+      .describe(
+        'X pixel coordinate in the attached screenshot, measured from the image left edge. Do not add screenshot_origin.'
+      ),
+    y: z
+      .number()
+      .describe(
+        'Y pixel coordinate in the attached screenshot, measured from the image top edge. Do not add screenshot_origin.'
+      ),
     button: mouseButtonSchema.optional().default('left')
   }),
   z.object({
     type: z.literal('double_click'),
-    x: z.number(),
-    y: z.number(),
+    x: z
+      .number()
+      .describe(
+        'X pixel coordinate in the attached screenshot, measured from the image left edge. Do not add screenshot_origin.'
+      ),
+    y: z
+      .number()
+      .describe(
+        'Y pixel coordinate in the attached screenshot, measured from the image top edge. Do not add screenshot_origin.'
+      ),
     button: mouseButtonSchema.optional().default('left')
   }),
   z.object({
     startY: z.number().optional(),
     type: z.literal('scroll'),
-    x: z.number(),
-    y: z.number(),
+    x: z
+      .number()
+      .describe(
+        'X pixel coordinate in the attached screenshot, measured from the image left edge. Do not add screenshot_origin.'
+      ),
+    y: z
+      .number()
+      .describe(
+        'Y pixel coordinate in the attached screenshot, measured from the image top edge. Do not add screenshot_origin.'
+      ),
     scrollX: z.number().optional().default(0),
     scrollY: z.number().optional().default(0)
   }),
@@ -40,12 +64,14 @@ const computerActionSchema = z.discriminatedUnion('type', [
   })
 ])
 
-const computerInputSchema = z.object({
-  action: computerActionSchema.optional(),
-  actions: z.array(computerActionSchema).min(1).optional()
-}).refine((value) => value.action || value.actions?.length, {
-  message: 'Provide action or actions'
-})
+const computerInputSchema = z
+  .object({
+    action: computerActionSchema.optional(),
+    actions: z.array(computerActionSchema).min(1).optional()
+  })
+  .refine((value) => value.action || value.actions?.length, {
+    message: 'Provide action or actions'
+  })
 
 type ComputerAction = z.infer<typeof computerActionSchema>
 type ComputerToolConfig = NonNullable<Agent['builtinToolConfigs']>['computer_use']
@@ -79,7 +105,8 @@ const normalizeActions = (input: z.infer<typeof computerInputSchema>): ComputerA
 
 const normalizeScreenshotMaxSidePx = (value: unknown): number => {
   const numericValue = typeof value === 'string' ? Number(value) : value
-  if (typeof numericValue !== 'number' || !Number.isFinite(numericValue)) return DEFAULT_SCREENSHOT_MAX_SIDE_PX
+  if (typeof numericValue !== 'number' || !Number.isFinite(numericValue))
+    return DEFAULT_SCREENSHOT_MAX_SIDE_PX
   const rounded = Math.round(numericValue)
   return SCREENSHOT_MAX_SIDE_OPTIONS.includes(rounded as any)
     ? rounded
@@ -87,7 +114,10 @@ const normalizeScreenshotMaxSidePx = (value: unknown): number => {
 }
 
 const normalizeKeyName = (key: string): string => {
-  const normalized = key.trim().toLowerCase().replace(/[\s-]+/g, '_')
+  const normalized = key
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
   const map: Record<string, string> = {
     ctrl: 'control',
     control: 'control',
@@ -156,32 +186,41 @@ const formatActionSummary = (action: ComputerAction) => {
 const runAction = async (action: ComputerAction) => {
   switch (action.type) {
     case 'screenshot':
-      return
-    case 'click':
-      await window.api.computer.mouseClick({
+      return formatActionSummary(action)
+    case 'click': {
+      const result = await window.api.computer.mouseClick({
         x: action.x,
         y: action.y,
+        coordinateSpace: 'screenshot',
         button: action.button
       })
-      return
-    case 'double_click':
-      await window.api.computer.mouseClick({
+      const position = result.screenPosition || result.position
+      return `${formatActionSummary(action)} -> screen(${position.x}, ${position.y})`
+    }
+    case 'double_click': {
+      const result = await window.api.computer.mouseClick({
         x: action.x,
         y: action.y,
+        coordinateSpace: 'screenshot',
         button: action.button,
         double: true
       })
-      return
-    case 'scroll':
-      await window.api.computer.moveMouse({
+      const position = result.screenPosition || result.position
+      return `${formatActionSummary(action)} -> screen(${position.x}, ${position.y})`
+    }
+    case 'scroll': {
+      const result = await window.api.computer.moveMouse({
         x: action.x,
-        y: action.y
+        y: action.y,
+        coordinateSpace: 'screenshot'
       })
       await window.api.computer.scrollMouse({
         x: action.scrollX,
         y: action.scrollY
       })
-      return
+      const position = result.screenPosition || result.position
+      return `${formatActionSummary(action)} -> screen(${position.x}, ${position.y})`
+    }
     case 'keypress': {
       const normalizedKeys = action.keys.map(normalizeKeyName)
       const key = normalizedKeys[normalizedKeys.length - 1]
@@ -194,14 +233,14 @@ const runAction = async (action: ComputerAction) => {
       if (modifiers.length > 0) {
         await sleep(120)
       }
-      return
+      return formatActionSummary(action)
     }
     case 'type':
       if (isAsciiText(action.text)) {
         await window.api.computer.typeText({
           text: action.text
         })
-        return
+        return formatActionSummary(action)
       }
 
       window.api.clipboard.writeText(action.text)
@@ -211,10 +250,10 @@ const runAction = async (action: ComputerAction) => {
         modifiers: ['control']
       })
       await sleep(80)
-      return
+      return formatActionSummary(action)
     case 'wait':
       await sleep(2000)
-      return
+      return formatActionSummary(action)
   }
 }
 
@@ -231,12 +270,14 @@ export const getComputerBuiltinTools = (config?: ComputerToolConfig): Partial<To
         const actions = normalizeActions(input)
         const screenshotMaxSidePx = normalizeScreenshotMaxSidePx(config?.screenshotMaxSidePx)
 
+        const executedActions: string[] = []
+
         for (const action of actions) {
-          await runAction(action)
+          executedActions.push(await runAction(action))
         }
 
         const [capture, mousePosition, availability] = await Promise.all([
-          window.api.computer.captureScreen({ maxSidePx: screenshotMaxSidePx }),
+          window.api.computer.captureScreen({ maxSidePx: screenshotMaxSidePx, annotate: true }),
           window.api.computer.getMousePosition(),
           window.api.computer.isAvailable()
         ])
@@ -248,15 +289,17 @@ export const getComputerBuiltinTools = (config?: ComputerToolConfig): Partial<To
                 type: 'text',
                 text: toToolText([
                   `status: success`,
-                  `executed_actions: ${actions.map(formatActionSummary).join(', ')}`,
-                  `mouse_position: (${mousePosition.x}, ${mousePosition.y})`,
+                  `executed_actions: ${executedActions.join(', ')}`,
+                  `debug_mouse_position_screen: (${mousePosition.x}, ${mousePosition.y})`,
                   `screenshot_origin: (${capture.x}, ${capture.y})`,
                   `screenshot_size: ${capture.width}x${capture.height}`,
                   `screenshot_max_side: ${capture.maxSidePx || screenshotMaxSidePx}`,
+                  'coordinate_space: screenshot pixels; origin is the attached image top-left (0,0).',
+                  'coordinate_rule: use x in [0, screenshot_width) and y in [0, screenshot_height); do not add screenshot_origin.',
                   availability.display
                     ? `display_bounds: (${availability.display.bounds.x}, ${availability.display.bounds.y}, ${availability.display.bounds.width}, ${availability.display.bounds.height})`
                     : undefined,
-                  capture.annotation
+                  capture.annotation && capture.annotation.majorGridPx > 0
                     ? `pixel_grid: minor ${capture.annotation.minorGridPx}px, major ${capture.annotation.majorGridPx}px`
                     : undefined,
                   'Use the attached screenshot for the next action coordinates.'
@@ -264,7 +307,7 @@ export const getComputerBuiltinTools = (config?: ComputerToolConfig): Partial<To
               },
               {
                 type: 'image-url',
-                url: capture.rawDataUrl || capture.dataUrl
+                url: capture.dataUrl
               }
             ]
           }

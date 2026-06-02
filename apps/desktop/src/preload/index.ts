@@ -82,8 +82,20 @@ const resolveRipgrepPath = (): string | null => {
 
   const appPath = app.getAppPath()
   addCandidate(path.join(appPath, 'node_modules', '@vscode', 'ripgrep', 'bin', executableName))
-  addCandidate(path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', '@vscode', 'ripgrep', 'bin', executableName))
-  addCandidate(path.join(process.resourcesPath, 'node_modules', '@vscode', 'ripgrep', 'bin', executableName))
+  addCandidate(
+    path.join(
+      process.resourcesPath,
+      'app.asar.unpacked',
+      'node_modules',
+      '@vscode',
+      'ripgrep',
+      'bin',
+      executableName
+    )
+  )
+  addCandidate(
+    path.join(process.resourcesPath, 'node_modules', '@vscode', 'ripgrep', 'bin', executableName)
+  )
 
   for (const candidate of candidates) {
     if (candidate.includes(`${path.sep}app.asar${path.sep}`)) {
@@ -104,7 +116,13 @@ const execFileCommand = (
   file: string,
   args: string[] = [],
   options: { cwd?: string; maxBuffer?: number } = {}
-): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
+): Promise<{
+  code: number | null
+  stdout: string
+  stderr: string
+  errorMessage?: string
+  errorCode?: string
+}> => {
   return new Promise((resolve) => {
     const maxBuffer = options.maxBuffer ?? 1024 * 1024
     const child = spawn(file, args, {
@@ -337,9 +355,7 @@ const loadCodePath = async (requireFromBase, filePath, cwd, tempDir) => {
 })
 `
 
-const execNodejs = <T = unknown>(
-  options: ExecNodejsOptions
-): Promise<ExecNodejsResult<T>> => {
+const execNodejs = <T = unknown>(options: ExecNodejsOptions): Promise<ExecNodejsResult<T>> => {
   return new Promise((resolve) => {
     const cwd = options.cwd || options.moduleBasePath || app.getPath('userData')
     const maxBuffer = options.maxBuffer ?? 1024 * 1024
@@ -373,8 +389,7 @@ const execNodejs = <T = unknown>(
     const cleanup = () => {
       try {
         fs.rmSync(tempDir, { recursive: true, force: true })
-      } catch {
-      }
+      } catch {}
     }
 
     const finish = (result: ExecNodejsResult<T>) => {
@@ -397,17 +412,19 @@ const execNodejs = <T = unknown>(
           errorCode: typeof errorWithCode.code === 'string' ? errorWithCode.code : undefined
         })
       })
-      child.stdin?.end(JSON.stringify({
-        code: options.code,
-        codePath: options.codePath,
-        file: options.file,
-        args: options.args || [],
-        modules: options.modules,
-        cwd,
-        moduleBasePath: options.moduleBasePath || cwd,
-        resultPath,
-        tempDir
-      }))
+      child.stdin?.end(
+        JSON.stringify({
+          code: options.code,
+          codePath: options.codePath,
+          file: options.file,
+          args: options.args || [],
+          modules: options.modules,
+          cwd,
+          moduleBasePath: options.moduleBasePath || cwd,
+          resultPath,
+          tempDir
+        })
+      )
       if (typeof child.unref === 'function') child.unref()
       setTimeout(() => {
         finish({
@@ -475,8 +492,7 @@ const execNodejs = <T = unknown>(
         if (fs.existsSync(resultPath)) {
           payload = JSON.parse(fs.readFileSync(resultPath, 'utf8'))
         }
-      } catch {
-      }
+      } catch {}
 
       finish({
         ok: Boolean(payload?.ok) && (code === 0 || code === null),
@@ -486,25 +502,29 @@ const execNodejs = <T = unknown>(
         result: payload?.result,
         error: payload?.error,
         ...(!payload?.ok && !payload?.error && code
-          ? { errorMessage: stderr.trim() || stdout.trim() || `Node.js execution failed with exit code ${code}` }
+          ? {
+              errorMessage:
+                stderr.trim() || stdout.trim() || `Node.js execution failed with exit code ${code}`
+            }
           : {})
       })
     })
 
-    child.stdin?.end(JSON.stringify({
-      code: options.code,
-      codePath: options.codePath,
-      file: options.file,
-      args: options.args || [],
-      modules: options.modules,
-      cwd,
-      moduleBasePath: options.moduleBasePath || cwd,
-      resultPath,
-      tempDir
-    }))
+    child.stdin?.end(
+      JSON.stringify({
+        code: options.code,
+        codePath: options.codePath,
+        file: options.file,
+        args: options.args || [],
+        modules: options.modules,
+        cwd,
+        moduleBasePath: options.moduleBasePath || cwd,
+        resultPath,
+        tempDir
+      })
+    )
   })
 }
-
 
 export const api: ElectronAPI = {
   ...aiServices(),
@@ -632,7 +652,8 @@ export const api: ElectronAPI = {
     }
   },
   net: {
-    fetch: (url: string, options?: any) => electronAPI.ipcRenderer.invoke('net:fetch', url, options),
+    fetch: (url: string, options?: any) =>
+      electronAPI.ipcRenderer.invoke('net:fetch', url, options),
     download: (options: { url: string; destPath: string; id?: string; offset?: number }) =>
       electronAPI.ipcRenderer.invoke('net:download', options),
     onDownloadProgress: (id: string, callback: (progress: any) => void) => {
@@ -643,10 +664,8 @@ export const api: ElectronAPI = {
     cancelDownload: (id: string) => electronAPI.ipcRenderer.invoke('net:cancel-download', id)
   },
   applyPatch: {
-    execute: (payload: {
-      baseDir: string
-      patch: string
-    }) => electronAPI.ipcRenderer.invoke('apply-patch:execute', payload)
+    execute: (payload: { baseDir: string; patch: string }) =>
+      electronAPI.ipcRenderer.invoke('apply-patch:execute', payload)
   },
   hashline: {
     read: (payload: {
@@ -659,10 +678,8 @@ export const api: ElectronAPI = {
     }) => electronAPI.ipcRenderer.invoke('hashline:read', payload)
   },
   editFile: {
-    execute: (payload: {
-      baseDir: string
-      input: string
-    }) => electronAPI.ipcRenderer.invoke('edit-file:execute', payload)
+    execute: (payload: { baseDir: string; input: string }) =>
+      electronAPI.ipcRenderer.invoke('edit-file:execute', payload)
   },
   sync: {
     startHost: (options?: { displayName?: string; port?: number }) =>
@@ -674,7 +691,8 @@ export const api: ElectronAPI = {
     publishSnapshot: (payload: { deviceId: string; displayName: string; snapshot: any }) =>
       electronAPI.ipcRenderer.invoke('sync:publish-snapshot', payload),
     listEndpoints: () => electronAPI.ipcRenderer.invoke('sync:list-endpoints'),
-    getEndpointSnapshot: (deviceId: string) => electronAPI.ipcRenderer.invoke('sync:get-endpoint-snapshot', deviceId),
+    getEndpointSnapshot: (deviceId: string) =>
+      electronAPI.ipcRenderer.invoke('sync:get-endpoint-snapshot', deviceId),
     onEvent: (callback: (event: any) => void) => {
       const listener = (_event: any, payload: any) => callback(payload)
       electronAPI.ipcRenderer.on('sync:event', listener)
@@ -685,13 +703,26 @@ export const api: ElectronAPI = {
     isAvailable: () => electronAPI.ipcRenderer.invoke('computer:is-available'),
     getScreenSize: () => electronAPI.ipcRenderer.invoke('computer:get-screen-size'),
     getMousePosition: () => electronAPI.ipcRenderer.invoke('computer:get-mouse-position'),
-    moveMouse: (options: { x: number; y: number; smooth?: boolean; speed?: number; delayMs?: number }) =>
-      electronAPI.ipcRenderer.invoke('computer:move-mouse', options),
+    moveMouse: (options: {
+      x: number
+      y: number
+      coordinateSpace?: 'screen' | 'screenshot'
+      originX?: number
+      originY?: number
+      displayId?: string
+      smooth?: boolean
+      speed?: number
+      delayMs?: number
+    }) => electronAPI.ipcRenderer.invoke('computer:move-mouse', options),
     mouseClick: (options?: {
       button?: 'left' | 'right' | 'middle'
       double?: boolean
       x?: number
       y?: number
+      coordinateSpace?: 'screen' | 'screenshot'
+      originX?: number
+      originY?: number
+      displayId?: string
       smooth?: boolean
       speed?: number
       delayMs?: number
@@ -702,6 +733,10 @@ export const api: ElectronAPI = {
       startX?: number
       startY?: number
       button?: 'left' | 'right' | 'middle'
+      coordinateSpace?: 'screen' | 'screenshot'
+      originX?: number
+      originY?: number
+      displayId?: string
       smooth?: boolean
       speed?: number
       delayMs?: number
@@ -712,8 +747,14 @@ export const api: ElectronAPI = {
       electronAPI.ipcRenderer.invoke('computer:type-text', options),
     keyTap: (options: { key: string; modifiers?: string[]; delayMs?: number }) =>
       electronAPI.ipcRenderer.invoke('computer:key-tap', options),
-    getPixelColor: (options: { x: number; y: number }) =>
-      electronAPI.ipcRenderer.invoke('computer:get-pixel-color', options),
+    getPixelColor: (options: {
+      x: number
+      y: number
+      coordinateSpace?: 'screen' | 'screenshot'
+      originX?: number
+      originY?: number
+      displayId?: string
+    }) => electronAPI.ipcRenderer.invoke('computer:get-pixel-color', options),
     captureScreen: (options?: {
       x?: number
       y?: number
@@ -722,8 +763,9 @@ export const api: ElectronAPI = {
       maxSidePx?: number
       format?: 'png' | 'jpeg'
       quality?: number
-    }) =>
-      electronAPI.ipcRenderer.invoke('computer:capture-screen', options)
+      annotate?: boolean
+      displayId?: string
+    }) => electronAPI.ipcRenderer.invoke('computer:capture-screen', options)
   }
 }
 
