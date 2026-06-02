@@ -708,37 +708,50 @@ export const chatService = () => {
 
     const thinkingProviderOptions: Record<string, unknown> = {}
 
-    if (supportsThinkingToggle && thinkingMode) {
+    if (supportsThinkingToggle) {
       const depth = thinkingMode
+      const thinkingEnabled = Boolean(depth)
       switch (providerType) {
         case 'anthropic':
-          thinkingProviderOptions.thinking = { type: 'enabled' }
+          thinkingProviderOptions.thinking = thinkingEnabled
+            ? { type: 'enabled' }
+            : { type: 'disabled' }
           break
         case 'deepseek':
-          thinkingProviderOptions.thinking = { type: 'enabled' }
-          thinkingProviderOptions.enable_thinking = true
-          thinkingProviderOptions.reasoningEffort = depth === 'max' ? 'max' : 'high'
+          thinkingProviderOptions.thinking = {
+            type: thinkingEnabled ? 'enabled' : 'disabled'
+          }
+          thinkingProviderOptions.enable_thinking = thinkingEnabled
+          if (thinkingEnabled) {
+            thinkingProviderOptions.reasoningEffort = depth === 'max' ? 'max' : 'high'
+          }
           break
         case 'google':
           thinkingProviderOptions.thinkingConfig = {
-            includeThoughts: true,
-            thinkingLevel: depth
+            includeThoughts: thinkingEnabled,
+            ...(thinkingEnabled ? { thinkingLevel: depth } : { thinkingBudget: 0 })
           }
           break
         case 'openai':
-          thinkingProviderOptions.reasoningEffort = depth
+          thinkingProviderOptions.reasoningEffort = thinkingEnabled ? depth : 'none'
           break
         case 'xai':
-          thinkingProviderOptions.reasoningEffort = depth === 'low' ? 'low' : 'high'
+          if (thinkingEnabled) {
+            thinkingProviderOptions.reasoningEffort = depth === 'low' ? 'low' : 'high'
+          }
           break
         case 'openrouter':
-          thinkingProviderOptions.reasoning = { enabled: true, effort: depth }
+          thinkingProviderOptions.reasoning = thinkingEnabled
+            ? { enabled: true, effort: depth }
+            : { enabled: false }
           break
         case 'openai-compatible':
           if (isMiniMaxOpenAICompatible) {
-            thinkingProviderOptions.thinking = { type: 'adaptive' }
+            thinkingProviderOptions.thinking = {
+              type: thinkingEnabled ? 'adaptive' : 'disabled'
+            }
           } else {
-            thinkingProviderOptions.reasoningEffort = depth
+            thinkingProviderOptions.reasoningEffort = thinkingEnabled ? depth : 'none'
           }
           break
       }
