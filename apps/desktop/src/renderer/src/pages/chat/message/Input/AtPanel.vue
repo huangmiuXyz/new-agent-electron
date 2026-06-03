@@ -63,6 +63,7 @@ const canvasStore = useCanvasStore()
 const cascaderPanelRef = useTemplateRef<{
   handleKeydown: (event: KeyboardEvent) => CascaderPanelSelectResult
   resetActiveIndexAtDepth: (depth: number, focus?: boolean, index?: number) => void
+  focusRootItem: (key: string, focusChild?: boolean) => boolean
   getActivePath: () => CascaderPanelItem[]
 }>('cascaderPanelRef')
 
@@ -425,30 +426,25 @@ const agentsRootItem = reactive<CascaderPanelItem>({
 
 const cascaderItems = ref<CascaderPanelItem[]>([skillsRootItem, workspaceRootItem, notesRootItem, agentsRootItem])
 
+const scopeRootItemKeyMap: Record<Exclude<MentionScope, 'all'>, string> = {
+  skills: 'skills',
+  files: 'workspace',
+  notes: 'notes',
+  agents: 'agents'
+}
+
 const syncCascaderItems = () => {
   workspaceRootItem.description = currentWorkPath.value || '未设置工作路径'
-
-  if (mentionScope.value === 'files') {
-    cascaderItems.value = [workspaceRootItem]
-    return
-  }
-
-  if (mentionScope.value === 'skills') {
-    cascaderItems.value = [skillsRootItem]
-    return
-  }
-
-  if (mentionScope.value === 'agents') {
-    cascaderItems.value = [agentsRootItem]
-    return
-  }
-
-  if (mentionScope.value === 'notes') {
-    cascaderItems.value = [notesRootItem]
-    return
-  }
-
   cascaderItems.value = [skillsRootItem, workspaceRootItem, notesRootItem, agentsRootItem]
+}
+
+const focusMentionScopeRoot = (scope: MentionScope) => {
+  if (scope === 'all') return
+
+  const rootKey = scopeRootItemKeyMap[scope]
+  nextTick(() => {
+    cascaderPanelRef.value?.focusRootItem?.(rootKey, true)
+  })
 }
 
 const panelEmptyText = computed(() => {
@@ -520,6 +516,7 @@ const applyMentionParseResult = (
   mentionScope.value = scope
   query.value = nextQuery
   mentionRange.value = nextRange
+  focusMentionScopeRoot(scope)
 
   if (shouldResetDirectory) {
     currentFileDirectory.value = ''
@@ -564,7 +561,8 @@ const isStickyNamespacePrefix = (scope: Exclude<MentionScope, 'all'>, token: str
 
 const getStickyMentionParseResult = (beforeCursor: string, cursor: number) => {
   const preferredScope =
-    previewScope.value ?? (mentionScope.value === 'all' ? null : mentionScope.value)
+    previewScope.value ??
+    (mentionScope.value === 'all' ? null : mentionScope.value)
 
   if (!preferredScope) return null
 
@@ -828,8 +826,13 @@ const getMentionItemData = (item?: CascaderPanelItem | null) => {
   return data ? (data as MentionItemData) : null
 }
 
-const isHorizontalArrowKey = (event: KeyboardEvent) => {
-  return event.key === 'ArrowLeft' || event.key === 'ArrowRight'
+const isArrowNavigationKey = (event: KeyboardEvent) => {
+  return (
+    event.key === 'ArrowLeft' ||
+    event.key === 'ArrowRight' ||
+    event.key === 'ArrowUp' ||
+    event.key === 'ArrowDown'
+  )
 }
 
 const isMentionPanelOpen = () => isOpen.value
@@ -912,9 +915,9 @@ const handleCascaderActiveChange = ({ item, path }: { item: CascaderPanelItem | 
     return
   }
 
-  const payload = data
-    ? buildMentionPayload(data)
-    : buildScopePreviewPayload(item, path)
+  if (!data) return
+
+  const payload = buildMentionPayload(data)
 
   if (!payload) return
   emit('preview', payload)
@@ -935,16 +938,12 @@ const handleKeydown = (
   }
 
   allowPreviewOnActiveChange.value = [
-    'ArrowDown',
-    'ArrowUp',
-    'ArrowLeft',
-    'ArrowRight',
     'Tab'
   ].includes(event.key)
 
   const result = cascaderPanelRef.value?.handleKeydown(event)
   if (!result?.handled) {
-    if (isHorizontalArrowKey(event)) {
+    if (isArrowNavigationKey(event)) {
       event.preventDefault()
       return { handled: true }
     }
@@ -958,7 +957,17 @@ const handleKeydown = (
   }
 
   const data = getMentionItemData(result.item)
-  if (!data) return { handled: true }
+  if (!data) {
+    const payload =
+      event.key !== 'ArrowRight' && result.item && result.path
+        ? buildScopePreviewPayload(result.item, result.path)
+        : null
+
+    return {
+      handled: true,
+      payload
+    }
+  }
 
   if (data.type === 'file-nav' || data.type === 'note-nav') {
     applyMentionItem(data)
@@ -1008,10 +1017,16 @@ watch(
     const normalizedQuery = nextQuery.trim()
     if (scope !== 'files' || fileListStrategy.value !== 'search' || !normalizedQuery) {
       refreshFileItems('')
+      if (scope === 'files') {
+        focusMentionScopeRoot('files')
+      }
       resetFileListSelection()
       return
     }
 
+    if (scope === 'files') {
+      focusMentionScopeRoot('files')
+    }
     debouncedRefreshFileItems(normalizedQuery)
   },
   { immediate: true }
@@ -1030,10 +1045,16 @@ watch(
     const normalizedQuery = nextQuery.trim()
     if (scope !== 'notes' || noteListStrategy.value !== 'search' || !normalizedQuery) {
       refreshNoteItems('')
+      if (scope === 'notes') {
+        focusMentionScopeRoot('notes')
+      }
       resetNoteListSelection()
       return
     }
 
+    if (scope === 'notes') {
+      focusMentionScopeRoot('notes')
+    }
     debouncedRefreshNoteItems(normalizedQuery)
   },
   { immediate: true }
@@ -1061,7 +1082,7 @@ defineExpose({
     :mobile="mobile"
     :empty-text="panelEmptyText"
     :items="cascaderItems"
-    :auto-expand-first="mentionScope !== 'all'"
+    :auto-expand-first="false"
     @mouseenter="clearCloseTimer"
     @active-change="handleCascaderActiveChange"
     @select="handleCascaderSelect"

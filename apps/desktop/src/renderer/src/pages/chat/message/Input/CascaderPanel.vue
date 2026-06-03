@@ -130,6 +130,21 @@ const resetActiveIndexAtDepth = (depth: number, focus = false, index = 0) => {
   scrollActiveItemIntoView()
 }
 
+const focusRootItem = (key: string, focusChild = true) => {
+  const index = props.items.findIndex((item) => item.key === key)
+  if (index < 0) return false
+
+  activeIndices.value[0] = index
+  activeDepth.value = 0
+  if (focusChild) {
+    return openChildPanel(0, index, true)
+  }
+
+  resetToDepth(0)
+  scrollActiveItemIntoView()
+  return true
+}
+
 const getActivePath = () => {
   return getPathToItem(activeDepth.value)
 }
@@ -228,7 +243,11 @@ const selectItem = (depth: number, index?: number): CascaderPanelSelectResult =>
 
   if (hasChildren(item)) {
     openChildPanel(depth, index, true)
-    return { handled: true }
+    return {
+      handled: true,
+      item,
+      path: getPathToItem(depth, index)
+    }
   }
 
   return buildSelectResult(depth, index)
@@ -334,9 +353,14 @@ const handleKeydown = (event: KeyboardEvent): CascaderPanelSelectResult => {
     if (!currentItem || !hasChildren(currentItem)) {
       return { handled: true }
     }
+    const currentPath = getPathToItem(activeDepth.value)
 
     return openChildPanel(activeDepth.value, undefined, true)
-      ? { handled: true }
+      ? {
+        handled: true,
+        item: currentItem,
+        path: currentPath
+      }
       : { handled: false }
   }
 
@@ -404,6 +428,7 @@ defineExpose({
   handleKeydown,
   initializeNavigation,
   resetActiveIndexAtDepth,
+  focusRootItem,
   getActivePath
 })
 </script>

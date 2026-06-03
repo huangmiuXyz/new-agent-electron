@@ -1115,17 +1115,8 @@ const createMentionChipNode = (chip: MentionChip) => {
   return chipNode
 }
 
-const createCaretAnchorNode = () => {
-  const anchorNode = document.createTextNode('\u200B')
-  ;(anchorNode as any).__caretAnchor = true
-  return anchorNode
-}
-
-const isCaretAnchorNode = (node: Node) => {
-  return Boolean((node as any).__caretAnchor) || node.textContent === '\u200B'
-}
-
 const stripCaretAnchors = (text: string) => text.replace(/\u200B/g, '')
+const editorIsEmpty = computed(() => stripCaretAnchors(message.value).trim().length === 0)
 
 const resolveDomOffsetFromSerializedTextOffset = (text: string, serializedOffset: number) => {
   if (serializedOffset <= 0) return text.startsWith('\u200B') ? 1 : 0
@@ -1164,7 +1155,6 @@ const renderEditorContent = () => {
     }
 
     editor.append(createMentionChipNode(token))
-    editor.append(createCaretAnchorNode())
     offset = token.end
   }
 
@@ -1271,12 +1261,7 @@ const setEditorCaretOffset = (targetOffset: number) => {
     if (node instanceof HTMLElement && node.matches(MENTION_CHIP_SELECTOR)) {
       const length = getNodeSerializedLength(node)
       if (offset <= length) {
-        const nextSibling = node.nextSibling
-        if (nextSibling?.nodeType === Node.TEXT_NODE && isCaretAnchorNode(nextSibling)) {
-          range.setStart(nextSibling, nextSibling.textContent?.length || 0)
-        } else {
-          range.setStartAfter(node)
-        }
+        range.setStartAfter(node)
         range.collapse(true)
         return true
       }
@@ -1458,6 +1443,13 @@ const handleEditorKeydown = (event: KeyboardEvent) => {
     return
   }
 
+  if (event.key === '@' && !atPanelRef.value?.isMentionPanelOpen?.()) {
+    nextTick(() => {
+      syncEditorMessage()
+      atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
+    })
+  }
+
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
     if (isComposing.value) return
@@ -1614,7 +1606,8 @@ onUnmounted(() => {
       <div v-if="!isMobile">
         <div class="input-wrapper">
           <AtPanel ref="atPanelRef" @apply="applyMention" @preview="previewMention" />
-          <div ref="textareaRef" class="input-field editor-field" :class="{ 'is-empty': !message }" role="textbox"
+          <div v-if="editorIsEmpty" class="editor-placeholder">{{ desktopPlaceholder }}</div>
+          <div ref="textareaRef" class="input-field editor-field" :class="{ 'is-empty': editorIsEmpty }" role="textbox"
             aria-multiline="true" :data-placeholder="desktopPlaceholder"
             @input="handleEditorInput" @keydown="handleEditorKeydown" @paste="handleEditorPaste"
             @pointerdown="lockEditorCursorWhileMentionPanelOpen"
@@ -1852,7 +1845,10 @@ onUnmounted(() => {
           </div>
           <div class="mobile-input-wrapper">
             <AtPanel ref="atPanelRef" mobile @apply="applyMention" @preview="previewMention" />
-            <div ref="textareaRef" class="input-field editor-field mobile-input-field" :class="{ 'is-empty': !message }"
+            <div v-if="editorIsEmpty" class="editor-placeholder mobile-editor-placeholder">
+              {{ mobilePlaceholder }}
+            </div>
+            <div ref="textareaRef" class="input-field editor-field mobile-input-field" :class="{ 'is-empty': editorIsEmpty }"
               role="textbox" aria-multiline="true" :data-placeholder="mobilePlaceholder"
               @input="handleEditorInput" @keydown="handleEditorKeydown" @paste="handleEditorPaste"
               @pointerdown="lockEditorCursorWhileMentionPanelOpen"
@@ -2447,9 +2443,10 @@ onUnmounted(() => {
 }
 
 :deep(.mention-chip) {
+  box-sizing: border-box;
   max-width: min(260px, 100%);
   min-width: 0;
-  height: 17px;
+  height: 14px;
   padding: 0 4px;
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
@@ -2457,11 +2454,11 @@ onUnmounted(() => {
   color: var(--text-primary);
   display: inline-flex;
   align-items: center;
-  vertical-align: middle;
+  vertical-align: text-bottom;
   gap: 4px;
   margin: 0 1px;
   font-family: var(--font-stack);
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1;
   cursor: pointer;
   user-select: none;
@@ -2577,10 +2574,24 @@ onUnmounted(() => {
   line-height: 17px;
 }
 
-.editor-field.is-empty::before {
-  content: attr(data-placeholder);
+.editor-placeholder {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
   color: var(--text-tertiary);
   pointer-events: none;
+  font-size: 12px;
+  line-height: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-editor-placeholder {
+  top: 8px;
+  font-size: 14px;
 }
 
 .editor-field[contenteditable='false'] {
