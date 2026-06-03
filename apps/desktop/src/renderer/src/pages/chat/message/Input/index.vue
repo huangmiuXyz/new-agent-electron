@@ -1089,6 +1089,7 @@ const confirmMentionTokens = (text: string) => {
 const isRenderingEditor = ref(false)
 const isSyncingMessageFromEditor = ref(false)
 const isSettingEditorMessageProgrammatically = ref(false)
+const activeMentionChipNode = ref<HTMLElement | null>(null)
 
 const createMentionChipNode = (chip: MentionChip) => {
   const chipNode = document.createElement('span')
@@ -1186,6 +1187,59 @@ const serializeEditorContent = () => {
   const editor = textareaRef.value
   if (!editor) return ''
   return Array.from(editor.childNodes).map(serializeEditorNode).join('')
+}
+
+const serializeEditorRange = (range: Range) => {
+  const fragment = range.cloneContents()
+  return Array.from(fragment.childNodes).map(serializeEditorNode).join('')
+}
+
+const getClosestMentionChipNode = (node: Node | null) => {
+  const element = node instanceof HTMLElement ? node : node?.parentElement
+  return element?.closest?.(MENTION_CHIP_SELECTOR) as HTMLElement | null
+}
+
+const setActiveMentionChipNode = (chipNode: HTMLElement | null) => {
+  if (activeMentionChipNode.value === chipNode) return
+  activeMentionChipNode.value?.classList.remove('is-active')
+  activeMentionChipNode.value = chipNode
+  activeMentionChipNode.value?.classList.add('is-active')
+}
+
+const getActiveMentionChipNode = () => {
+  const editor = textareaRef.value
+  const selection = window.getSelection()
+  if (!editor) return null
+
+  if (activeMentionChipNode.value?.isConnected && editor.contains(activeMentionChipNode.value)) {
+    return activeMentionChipNode.value
+  }
+
+  const anchorChip = getClosestMentionChipNode(selection?.anchorNode ?? null)
+  if (anchorChip && editor.contains(anchorChip)) return anchorChip
+
+  const focusChip = getClosestMentionChipNode(selection?.focusNode ?? null)
+  if (focusChip && editor.contains(focusChip)) return focusChip
+
+  return null
+}
+
+const resolveEditorClipboardPayload = () => {
+  const editor = textareaRef.value
+  const selection = window.getSelection()
+  if (!editor || !selection || selection.rangeCount === 0) return null
+
+  const range = selection.getRangeAt(0)
+  if (!selection.isCollapsed && editor.contains(range.commonAncestorContainer)) {
+    const text = serializeEditorRange(range)
+    if (text) return { text, range, chipNode: null as HTMLElement | null }
+  }
+
+  const chipNode = getActiveMentionChipNode()
+  if (!chipNode) return null
+
+  const text = serializeEditorNode(chipNode)
+  return text ? { text, range: null, chipNode } : null
 }
 
 const getNodeSerializedLength = (node: Node) => serializeEditorNode(node).length
@@ -1423,8 +1477,37 @@ const handleEditorPaste = (event: ClipboardEvent) => {
   normalizeEditorProtocolMentions()
 }
 
+const handleEditorCopy = (event: ClipboardEvent) => {
+  const payload = resolveEditorClipboardPayload()
+  if (!payload) return
+  event.preventDefault()
+  event.clipboardData?.setData('text/plain', payload.text)
+}
+
+const handleEditorCut = (event: ClipboardEvent) => {
+  const payload = resolveEditorClipboardPayload()
+  if (!payload) return
+
+  event.preventDefault()
+  event.clipboardData?.setData('text/plain', payload.text)
+
+  if (payload.chipNode) {
+    payload.chipNode.remove()
+    setActiveMentionChipNode(null)
+  } else if (payload.range) {
+    const selection = window.getSelection()
+    payload.range.deleteContents()
+    selection?.removeAllRanges()
+    selection?.addRange(payload.range)
+  }
+
+  syncEditorMessage()
+  adjustEditorHeight(textareaRef.value)
+}
+
 const removeMentionChipNode = (chipNode: HTMLElement) => {
   chipNode.remove()
+  setActiveMentionChipNode(null)
   syncEditorMessage()
 
   nextTick(() => {
@@ -1444,6 +1527,7 @@ const handleEditorClick = (event: MouseEvent) => {
     return
   }
 
+  setActiveMentionChipNode(chipNode)
   handleEditorClickWhileMentionPanelOpen(event)
 }
 
@@ -1640,7 +1724,8 @@ onUnmounted(() => {
           <div v-if="editorIsEmpty" class="editor-placeholder">{{ desktopPlaceholder }}</div>
           <div ref="textareaRef" class="input-field editor-field" :class="{ 'is-empty': editorIsEmpty }" role="textbox"
             aria-multiline="true" :data-placeholder="desktopPlaceholder"
-            @input="handleEditorInput" @keydown="handleEditorKeydown" @keyup="handleEditorKeyup" @paste="handleEditorPaste"
+            @input="handleEditorInput" @keydown="handleEditorKeydown" @keyup="handleEditorKeyup"
+            @copy="handleEditorCopy" @cut="handleEditorCut" @paste="handleEditorPaste"
             @pointerdown="lockEditorCursorWhileMentionPanelOpen"
             @mousedown="lockEditorCursorWhileMentionPanelOpen"
             @touchstart="lockEditorCursorWhileMentionPanelOpen"
@@ -1881,7 +1966,8 @@ onUnmounted(() => {
             </div>
             <div ref="textareaRef" class="input-field editor-field mobile-input-field" :class="{ 'is-empty': editorIsEmpty }"
               role="textbox" aria-multiline="true" :data-placeholder="mobilePlaceholder"
-              @input="handleEditorInput" @keydown="handleEditorKeydown" @keyup="handleEditorKeyup" @paste="handleEditorPaste"
+              @input="handleEditorInput" @keydown="handleEditorKeydown" @keyup="handleEditorKeyup"
+              @copy="handleEditorCopy" @cut="handleEditorCut" @paste="handleEditorPaste"
               @pointerdown="lockEditorCursorWhileMentionPanelOpen"
               @mousedown="lockEditorCursorWhileMentionPanelOpen"
               @touchstart="lockEditorCursorWhileMentionPanelOpen"
@@ -2499,6 +2585,11 @@ onUnmounted(() => {
 }
 
 :deep(.mention-chip:hover) {
+  border-color: var(--border-focus);
+  background: var(--bg-active);
+}
+
+:deep(.mention-chip.is-active) {
   border-color: var(--border-focus);
   background: var(--bg-active);
 }
