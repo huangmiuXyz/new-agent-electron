@@ -6,7 +6,7 @@ interface Props {
   removable?: boolean
   showUpload?: boolean
   dropZoneRef?: HTMLElement | null
-  inputRef?: HTMLTextAreaElement | null
+  inputRef?: HTMLElement | null
   onRemove?: (index: number) => void
   /** 媒体类型过滤，如 'image' 表示只允许上传图片 */
   media?: 'image' | 'video' | 'audio'
@@ -58,7 +58,7 @@ const {
 } = useUpload({
   files: initialFiles.value,
   dropZoneRef: dropZoneRef as Ref<HTMLElement | undefined>,
-  inputRef: inputRef as Ref<HTMLTextAreaElement | undefined>,
+  inputRef: inputRef as Ref<HTMLElement | undefined>,
   media: props.media,
   returnType: props.returnType,
   onFilesSelected: (files) => {

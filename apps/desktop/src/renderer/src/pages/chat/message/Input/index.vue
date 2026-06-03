@@ -369,7 +369,7 @@ const { Edit, Delete, CommentAdd16Regular, Search } = useIcon([
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
 const inputContainerRef = useTemplateRef('inputContainerRef')
-const textareaRef = useTemplateRef('textareaRef')
+const textareaRef = useTemplateRef<HTMLElement>('textareaRef')
 const atPanelRef = useTemplateRef<InstanceType<typeof AtPanel>>('atPanelRef')
 
 // 当前聊天的预发送消息列表
@@ -965,22 +965,23 @@ const toggleAssistantPanel = (tab?: 'canvas' | 'playlist') => {
   }
 }
 
-const MAX_TEXTAREA_ROWS = 5
+const MAX_EDITOR_ROWS = 5
+const MENTION_CHIP_SELECTOR = '[data-mention-chip="true"]'
 
-const adjustTextareaHeight = (target: Event | HTMLTextAreaElement | null | undefined) => {
-  const textarea =
-    target instanceof HTMLTextAreaElement ? target : (target?.target as HTMLTextAreaElement | null)
-  if (!textarea) return
+const adjustEditorHeight = (target: Event | HTMLElement | null | undefined) => {
+  const editor =
+    target instanceof HTMLElement ? target : (target?.target as HTMLElement | null)
+  if (!editor) return
 
-  const style = window.getComputedStyle(textarea)
+  const style = window.getComputedStyle(editor)
   const lineHeight = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.4
   const verticalPadding =
     Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom)
-  const maxHeight = Math.ceil(lineHeight * MAX_TEXTAREA_ROWS + verticalPadding)
+  const maxHeight = Math.ceil(lineHeight * MAX_EDITOR_ROWS + verticalPadding)
 
-  textarea.style.height = 'auto'
-  textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`
-  textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
+  editor.style.height = 'auto'
+  editor.style.height = `${Math.min(editor.scrollHeight, maxHeight)}px`
+  editor.style.overflowY = editor.scrollHeight > maxHeight ? 'auto' : 'hidden'
 }
 
 const isComposing = ref(false)
@@ -1008,92 +1009,448 @@ const handleCompositionEnd = () => {
   isComposing.value = false
 }
 
+type MentionChip = {
+  id: string
+  kind: 'skills' | 'file' | 'note' | 'agent'
+  kindLabel: string
+  label: string
+  raw: string
+}
+
+type MentionToken = MentionChip & { start: number, end: number }
+
+const FORMAL_MENTION_REGEX =
+  /@(skills|技能|file|文件|note|笔记|agent|智能体):(?:"((?:\\"|[^"])*)"|'([^'\n\r]*)'|([^\s]+))/gi
+const CONFIRMED_MENTION_START = '<|at_start|>'
+const CONFIRMED_MENTION_END = '<|at_end|>'
+const CONFIRMED_MENTION_REGEX =
+  /<\|at_start\|>@?((skills|技能|file|文件|note|笔记|agent|智能体):(?:"((?:\\"|[^"])*)"|'([^'\n\r]*)'|([^\s<>]+)))<\|at_end\|>/gi
+
+const mentionKindLabelMap: Record<MentionChip['kind'], string> = {
+  skills: '技能',
+  file: '文件',
+  note: '笔记',
+  agent: '智能体'
+}
+
+const normalizeMentionKind = (kind: string): MentionChip['kind'] => {
+  const normalizedKind = kind.toLowerCase()
+  if (normalizedKind === 'file' || kind === '文件') return 'file'
+  if (normalizedKind === 'note' || kind === '笔记') return 'note'
+  if (normalizedKind === 'agent' || kind === '智能体') return 'agent'
+  return 'skills'
+}
+
+const unescapeMentionLabel = (label: string) => label.replace(/\\"/g, '"').trim()
+
+const createMentionChipId = (kind: MentionChip['kind'], raw: string) => {
+  return `${kind}:${raw}:${Date.now()}:${Math.random().toString(36).slice(2)}`
+}
+
+const wrapConfirmedMention = (raw: string) => {
+  return `${CONFIRMED_MENTION_START}${raw.replace(/^@/, '')}${CONFIRMED_MENTION_END}`
+}
+
+const unwrapConfirmedMentions = (text: string) => {
+  return text.replace(CONFIRMED_MENTION_REGEX, '@$1')
+}
+
+const parseMentionTokens = (text: string) => {
+  const tokens: MentionToken[] = []
+
+  for (const match of text.matchAll(CONFIRMED_MENTION_REGEX)) {
+    const raw = match[1]
+    const rawKind = match[2] || 'skills'
+    const kind = normalizeMentionKind(rawKind)
+    const label = unescapeMentionLabel(match[3] || match[4] || match[5] || '')
+    const start = match.index ?? 0
+    const end = start + match[0].length
+
+    if (!label) continue
+
+    tokens.push({
+      id: createMentionChipId(kind, raw),
+      kind,
+      kindLabel: mentionKindLabelMap[kind],
+      label,
+      raw,
+      start,
+      end
+    })
+  }
+
+  return tokens
+}
+
+const confirmMentionTokens = (text: string) => {
+  return text.replace(FORMAL_MENTION_REGEX, (raw) => wrapConfirmedMention(raw))
+}
+
+const isRenderingEditor = ref(false)
+const isSyncingMessageFromEditor = ref(false)
+const isSettingEditorMessageProgrammatically = ref(false)
+
+const createMentionChipNode = (chip: MentionChip) => {
+  const chipNode = document.createElement('span')
+  chipNode.className = `mention-chip mention-chip--${chip.kind}`
+  chipNode.contentEditable = 'false'
+  chipNode.dataset.mentionChip = 'true'
+  chipNode.dataset.raw = chip.raw
+  chipNode.dataset.kind = chip.kind
+  chipNode.title = `${chip.kindLabel}: ${chip.label}`
+
+  const kindNode = document.createElement('span')
+  kindNode.className = 'mention-chip__kind'
+  kindNode.textContent = chip.kindLabel
+
+  const labelNode = document.createElement('span')
+  labelNode.className = 'mention-chip__label'
+  labelNode.textContent = chip.label
+
+  const closeNode = document.createElement('span')
+  closeNode.className = 'mention-chip__close'
+  closeNode.setAttribute('aria-hidden', 'true')
+
+  chipNode.append(kindNode, labelNode, closeNode)
+  return chipNode
+}
+
+const createCaretAnchorNode = () => {
+  const anchorNode = document.createTextNode('\u200B')
+  ;(anchorNode as any).__caretAnchor = true
+  return anchorNode
+}
+
+const isCaretAnchorNode = (node: Node) => {
+  return Boolean((node as any).__caretAnchor) || node.textContent === '\u200B'
+}
+
+const stripCaretAnchors = (text: string) => text.replace(/\u200B/g, '')
+
+const resolveDomOffsetFromSerializedTextOffset = (text: string, serializedOffset: number) => {
+  if (serializedOffset <= 0) return text.startsWith('\u200B') ? 1 : 0
+
+  let visibleOffset = 0
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] !== '\u200B') {
+      visibleOffset += 1
+    }
+    if (visibleOffset >= serializedOffset) {
+      return index + 1
+    }
+  }
+
+  return text.length
+}
+
+const resolveSerializedOffsetFromDomTextOffset = (text: string, domOffset: number) => {
+  return stripCaretAnchors(text.slice(0, domOffset)).length
+}
+
+const renderEditorContent = () => {
+  const editor = textareaRef.value
+  if (!editor) return
+
+  isRenderingEditor.value = true
+  editor.replaceChildren()
+
+  const text = message.value
+  const tokens = parseMentionTokens(text)
+  let offset = 0
+
+  for (const token of tokens) {
+    if (token.start > offset) {
+      editor.append(document.createTextNode(text.slice(offset, token.start)))
+    }
+
+    editor.append(createMentionChipNode(token))
+    editor.append(createCaretAnchorNode())
+    offset = token.end
+  }
+
+  if (offset < text.length) {
+    editor.append(document.createTextNode(text.slice(offset)))
+  }
+
+  isRenderingEditor.value = false
+  adjustEditorHeight(editor)
+}
+
+const serializeEditorNode = (node: Node): string => {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return stripCaretAnchors(node.textContent || '')
+  }
+
+  if (!(node instanceof HTMLElement)) return ''
+
+  if (node.matches(MENTION_CHIP_SELECTOR)) {
+    return wrapConfirmedMention(node.dataset.raw || '')
+  }
+
+  if (node.tagName === 'BR') return '\n'
+
+  return Array.from(node.childNodes).map(serializeEditorNode).join('')
+}
+
+const serializeEditorContent = () => {
+  const editor = textareaRef.value
+  if (!editor) return ''
+  return Array.from(editor.childNodes).map(serializeEditorNode).join('')
+}
+
+const getNodeSerializedLength = (node: Node) => serializeEditorNode(node).length
+
+const getEditorCaretOffset = () => {
+  const editor = textareaRef.value
+  const selection = window.getSelection()
+  if (!editor || !selection || selection.rangeCount === 0) return message.value.length
+
+  const range = selection.getRangeAt(0)
+  if (!editor.contains(range.startContainer)) return message.value.length
+
+  let offset = 0
+  let found = false
+
+  const walk = (node: Node) => {
+    if (found) return
+
+    if (node === range.startContainer) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += resolveSerializedOffsetFromDomTextOffset(node.textContent || '', range.startOffset)
+      } else {
+        const children = Array.from(node.childNodes).slice(0, range.startOffset)
+        offset += children.reduce((sum, child) => sum + getNodeSerializedLength(child), 0)
+      }
+      found = true
+      return
+    }
+
+    if (node instanceof HTMLElement && node.matches(MENTION_CHIP_SELECTOR)) {
+      offset += getNodeSerializedLength(node)
+      return
+    }
+
+    for (const child of Array.from(node.childNodes)) {
+      walk(child)
+      if (found) return
+    }
+  }
+
+  walk(editor)
+  return offset
+}
+
+const setEditorCaretOffset = (targetOffset: number) => {
+  const editor = textareaRef.value
+  if (!editor) return
+
+  const selection = window.getSelection()
+  if (!selection) return
+
+  let offset = Math.min(Math.max(targetOffset, 0), serializeEditorContent().length)
+  const range = document.createRange()
+
+  const placeAtEnd = () => {
+    range.selectNodeContents(editor)
+    range.collapse(false)
+  }
+
+  const walk = (node: Node): boolean => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent || ''
+      const length = stripCaretAnchors(text).length
+      if (offset <= length) {
+        range.setStart(node, resolveDomOffsetFromSerializedTextOffset(text, offset))
+        range.collapse(true)
+        return true
+      }
+      offset -= length
+      return false
+    }
+
+    if (node instanceof HTMLElement && node.matches(MENTION_CHIP_SELECTOR)) {
+      const length = getNodeSerializedLength(node)
+      if (offset <= length) {
+        const nextSibling = node.nextSibling
+        if (nextSibling?.nodeType === Node.TEXT_NODE && isCaretAnchorNode(nextSibling)) {
+          range.setStart(nextSibling, nextSibling.textContent?.length || 0)
+        } else {
+          range.setStartAfter(node)
+        }
+        range.collapse(true)
+        return true
+      }
+      offset -= length
+      return false
+    }
+
+    for (const child of Array.from(node.childNodes)) {
+      if (walk(child)) return true
+    }
+
+    return false
+  }
+
+  if (!walk(editor)) {
+    placeAtEnd()
+  }
+
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
+const syncEditorMessage = () => {
+  if (isRenderingEditor.value) return
+  isSyncingMessageFromEditor.value = true
+  message.value = serializeEditorContent()
+  nextTick(() => {
+    isSyncingMessageFromEditor.value = false
+  })
+}
+
+const focusEditorAtEnd = () => {
+  const editor = textareaRef.value
+  if (!editor) return
+  editor.focus()
+  setEditorCaretOffset(serializeEditorContent().length)
+}
+
+const insertEditorTextAtCursor = (text: string) => {
+  const editor = textareaRef.value
+  const selection = window.getSelection()
+  if (!editor || !selection || selection.rangeCount === 0) return
+
+  const range = selection.getRangeAt(0)
+  range.deleteContents()
+  const textNode = document.createTextNode(text)
+  range.insertNode(textNode)
+  range.setStartAfter(textNode)
+  range.collapse(true)
+  selection.removeAllRanges()
+  selection.addRange(range)
+  syncEditorMessage()
+  adjustEditorHeight(editor)
+  atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
+}
+
 const applyMention = (payload: { message: string; cursor: number }) => {
-  message.value = payload.message
+  const originalBeforeCursor = payload.message.slice(0, payload.cursor)
+  const confirmedBeforeCursor = confirmMentionTokens(originalBeforeCursor).replace(
+    new RegExp(`${CONFIRMED_MENTION_END.replace(/[|<>]/g, '\\$&')} $`),
+    CONFIRMED_MENTION_END
+  )
+  isSettingEditorMessageProgrammatically.value = true
+  message.value = `${confirmedBeforeCursor}${confirmMentionTokens(payload.message.slice(payload.cursor))}`
+  const cursor = confirmedBeforeCursor.length
 
   nextTick(() => {
-    const textarea = textareaRef.value
-    if (!textarea) return
-    textarea.focus()
-    textarea.setSelectionRange(payload.cursor, payload.cursor)
-    adjustTextareaHeight(textarea)
+    renderEditorContent()
+    textareaRef.value?.focus()
+    setEditorCaretOffset(cursor)
+    adjustEditorHeight(textareaRef.value)
+    isSettingEditorMessageProgrammatically.value = false
   })
 }
 
 const previewMention = (payload: { message: string; cursor: number }) => {
-  applyMention(payload)
+  isSettingEditorMessageProgrammatically.value = true
+  message.value = payload.message
+
+  nextTick(() => {
+    renderEditorContent()
+    textareaRef.value?.focus()
+    setEditorCaretOffset(payload.cursor)
+    adjustEditorHeight(textareaRef.value)
+    isSettingEditorMessageProgrammatically.value = false
+  })
 }
 
-const handleTextareaInput = (event: Event) => {
-  adjustTextareaHeight(event)
-  atPanelRef.value?.syncMentionState(message.value, textareaRef.value)
+const handleEditorInput = (event: Event) => {
+  syncEditorMessage()
+  adjustEditorHeight(event)
+  atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
 }
 
-const lockedTextareaSelection = ref<{ start: number, end: number } | null>(null)
+const lockedEditorSelection = ref<number | null>(null)
 
-const restoreLockedTextareaSelection = () => {
-  const selection = lockedTextareaSelection.value
-  const textarea = textareaRef.value
-  if (!selection || !textarea) return
+const restoreLockedEditorSelection = () => {
+  if (lockedEditorSelection.value == null || !textareaRef.value) return
 
-  textarea.focus()
-  textarea.setSelectionRange(selection.start, selection.end)
+  textareaRef.value.focus()
+  setEditorCaretOffset(lockedEditorSelection.value)
 }
 
-const lockTextareaCursorWhileMentionPanelOpen = (event: Event) => {
+const lockEditorCursorWhileMentionPanelOpen = (event: Event) => {
   if (!atPanelRef.value?.isMentionPanelOpen?.()) return
 
-  const textarea = textareaRef.value
-  if (textarea) {
-    lockedTextareaSelection.value = {
-      start: textarea.selectionStart,
-      end: textarea.selectionEnd
-    }
-  }
+  lockedEditorSelection.value = getEditorCaretOffset()
 
   event.preventDefault()
   atPanelRef.value?.clearCloseTimer()
-  restoreLockedTextareaSelection()
+  restoreLockedEditorSelection()
 }
 
-const handleTextareaClickWhileMentionPanelOpen = (event: MouseEvent) => {
+const handleEditorClickWhileMentionPanelOpen = (event: MouseEvent) => {
   if (!atPanelRef.value?.isMentionPanelOpen?.()) return
 
   event.preventDefault()
-  restoreLockedTextareaSelection()
+  restoreLockedEditorSelection()
 }
 
 watch(message, () => {
+  if (isSyncingMessageFromEditor.value || isSettingEditorMessageProgrammatically.value) return
   nextTick(() => {
-    adjustTextareaHeight(textareaRef.value)
+    renderEditorContent()
   })
 })
 
-const insertTextareaNewline = (textarea: HTMLTextAreaElement) => {
-  const selectionStart = textarea.selectionStart
-  const selectionEnd = textarea.selectionEnd
-  const currentMessage = message.value
-  message.value =
-    currentMessage.slice(0, selectionStart) + '\n' + currentMessage.slice(selectionEnd)
+const insertEditorNewline = () => {
+  insertEditorTextAtCursor('\n')
+}
+
+const handleEditorPaste = (event: ClipboardEvent) => {
+  const hasFile = Array.from(event.clipboardData?.items || []).some((item) => item.kind === 'file')
+  if (hasFile) return
+
+  const text = event.clipboardData?.getData('text/plain')
+  if (text == null) return
+
+  event.preventDefault()
+  insertEditorTextAtCursor(text)
+}
+
+const removeMentionChipNode = (chipNode: HTMLElement) => {
+  chipNode.remove()
+  syncEditorMessage()
 
   nextTick(() => {
-    const cursor = selectionStart + 1
-    textarea.focus()
-    textarea.setSelectionRange(cursor, cursor)
-    adjustTextareaHeight(textarea)
-    atPanelRef.value?.syncMentionState(message.value, textarea)
+    textareaRef.value?.focus()
+    adjustEditorHeight(textareaRef.value)
+    atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
   })
 }
 
-const handleTextareaKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && event.ctrlKey) {
+const handleEditorClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement | null
+  const chipNode = target?.closest?.(MENTION_CHIP_SELECTOR) as HTMLElement | null
+
+  if (chipNode && target?.closest?.('.mention-chip__close')) {
     event.preventDefault()
-    if (!textareaRef.value) return
-    insertTextareaNewline(textareaRef.value)
+    removeMentionChipNode(chipNode)
     return
   }
 
-  const mentionResult = atPanelRef.value?.handleKeydown(event, message.value, textareaRef.value)
+  handleEditorClickWhileMentionPanelOpen(event)
+}
+
+const handleEditorKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' && event.ctrlKey) {
+    event.preventDefault()
+    insertEditorNewline()
+    return
+  }
+
+  const mentionResult = atPanelRef.value?.handleKeydown(event, message.value, getEditorCaretOffset())
   if (mentionResult?.handled) {
     if (mentionResult.payload) {
       applyMention(mentionResult.payload)
@@ -1112,7 +1469,8 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
 const AGENT_MENTION_REGEX = /@(?:agent|智能体):([^\s]+)/gi
 
 const _sendMessage = async () => {
-  const input = message.value.trim()
+  syncEditorMessage()
+  const input = unwrapConfirmedMentions(message.value).trim()
   const hasContent = input || selectedFiles.value.length > 0
 
   if (!hasContent) return
@@ -1178,7 +1536,8 @@ const _sendMessage = async () => {
   atPanelRef.value?.scheduleClose()
   selectedFiles.value = []
   nextTick(() => {
-    adjustTextareaHeight(textareaRef.value)
+    renderEditorContent()
+    adjustEditorHeight(textareaRef.value)
   })
 
   // 确保有聊天会话
@@ -1204,11 +1563,12 @@ onMounted(() => {
   register({
     id: 'global.focusInput',
     handler: () => {
-      textareaRef.value?.focus()
+      focusEditorAtEnd()
     }
   })
   nextTick(() => {
-    adjustTextareaHeight(textareaRef.value)
+    renderEditorContent()
+    adjustEditorHeight(textareaRef.value)
   })
 })
 onUnmounted(() => {
@@ -1254,15 +1614,16 @@ onUnmounted(() => {
       <div v-if="!isMobile">
         <div class="input-wrapper">
           <AtPanel ref="atPanelRef" @apply="applyMention" @preview="previewMention" />
-          <textarea ref="textareaRef" class="input-field" rows="1" :placeholder="desktopPlaceholder" v-model="message"
-            @input="handleTextareaInput" @keydown="handleTextareaKeydown"
-            @pointerdown="lockTextareaCursorWhileMentionPanelOpen"
-            @mousedown="lockTextareaCursorWhileMentionPanelOpen"
-            @touchstart="lockTextareaCursorWhileMentionPanelOpen"
-            @click="handleTextareaClickWhileMentionPanelOpen"
-            @focus="atPanelRef?.syncMentionState(message, textareaRef)" @blur="atPanelRef?.scheduleClose()"
+          <div ref="textareaRef" class="input-field editor-field" :class="{ 'is-empty': !message }" role="textbox"
+            aria-multiline="true" :data-placeholder="desktopPlaceholder"
+            @input="handleEditorInput" @keydown="handleEditorKeydown" @paste="handleEditorPaste"
+            @pointerdown="lockEditorCursorWhileMentionPanelOpen"
+            @mousedown="lockEditorCursorWhileMentionPanelOpen"
+            @touchstart="lockEditorCursorWhileMentionPanelOpen"
+            @click="handleEditorClick"
+            @focus="atPanelRef?.syncMentionState(message, getEditorCaretOffset())" @blur="atPanelRef?.scheduleClose()"
             @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
-            :disabled="isProcessingVoice"></textarea>
+            :contenteditable="isProcessingVoice ? 'false' : 'true'"></div>
           <div v-if="partialSpeechText" class="partial-text">{{ partialSpeechText }}</div>
         </div>
 
@@ -1491,15 +1852,16 @@ onUnmounted(() => {
           </div>
           <div class="mobile-input-wrapper">
             <AtPanel ref="atPanelRef" mobile @apply="applyMention" @preview="previewMention" />
-            <textarea ref="textareaRef" class="input-field mobile-input-field" rows="1" :placeholder="mobilePlaceholder"
-              v-model="message" @input="handleTextareaInput" @keydown="handleTextareaKeydown"
-              @pointerdown="lockTextareaCursorWhileMentionPanelOpen"
-              @mousedown="lockTextareaCursorWhileMentionPanelOpen"
-              @touchstart="lockTextareaCursorWhileMentionPanelOpen"
-              @click="handleTextareaClickWhileMentionPanelOpen"
-              @focus="atPanelRef?.syncMentionState(message, textareaRef)" @blur="atPanelRef?.scheduleClose()"
+            <div ref="textareaRef" class="input-field editor-field mobile-input-field" :class="{ 'is-empty': !message }"
+              role="textbox" aria-multiline="true" :data-placeholder="mobilePlaceholder"
+              @input="handleEditorInput" @keydown="handleEditorKeydown" @paste="handleEditorPaste"
+              @pointerdown="lockEditorCursorWhileMentionPanelOpen"
+              @mousedown="lockEditorCursorWhileMentionPanelOpen"
+              @touchstart="lockEditorCursorWhileMentionPanelOpen"
+              @click="handleEditorClick"
+              @focus="atPanelRef?.syncMentionState(message, getEditorCaretOffset())" @blur="atPanelRef?.scheduleClose()"
               @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
-              :disabled="isProcessingVoice"></textarea>
+              :contenteditable="isProcessingVoice ? 'false' : 'true'"></div>
             <div v-if="partialSpeechText" class="partial-text mobile-partial-text">
               {{ partialSpeechText }}
             </div>
@@ -2084,6 +2446,101 @@ onUnmounted(() => {
   width: 100%;
 }
 
+:deep(.mention-chip) {
+  max-width: min(260px, 100%);
+  min-width: 0;
+  height: 17px;
+  padding: 0 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  gap: 4px;
+  margin: 0 1px;
+  font-family: var(--font-stack);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+:deep(.mention-chip:hover) {
+  border-color: var(--border-focus);
+  background: var(--bg-active);
+}
+
+:deep(.mention-chip__kind) {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+:deep(.mention-chip__label) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+:deep(.mention-chip__close) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+:deep(.mention-chip__close::before),
+:deep(.mention-chip__close::after) {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: center;
+}
+
+:deep(.mention-chip__close::before) {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+:deep(.mention-chip__close::after) {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+:deep(.mention-chip:hover .mention-chip__close) {
+  color: var(--color-danger);
+}
+
+:deep(.mention-chip--skills) {
+  background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+}
+
+:deep(.mention-chip--file) {
+  background: rgba(var(--color-success-rgb, 16, 185, 129), 0.1);
+}
+
+:deep(.mention-chip--note) {
+  background: rgba(var(--color-warning-rgb, 245, 158, 11), 0.12);
+}
+
+:deep(.mention-chip--agent) {
+  background: rgba(var(--color-info-rgb, 59, 130, 246), 0.1);
+}
+
 .partial-text {
   position: absolute;
   left: 8px;
@@ -2112,6 +2569,23 @@ onUnmounted(() => {
   color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.editor-field {
+  cursor: text;
+  user-select: text;
+  line-height: 17px;
+}
+
+.editor-field.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.editor-field[contenteditable='false'] {
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .input-actions {
@@ -2310,7 +2784,8 @@ onUnmounted(() => {
 .mobile-input-wrapper {
   flex: 1;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   position: relative;
   min-width: 0;
 }

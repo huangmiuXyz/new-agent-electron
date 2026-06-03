@@ -586,7 +586,18 @@ const getStickyMentionParseResult = (beforeCursor: string, cursor: number) => {
   }
 }
 
-const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null) => {
+type MentionCursorSource = HTMLTextAreaElement | number | null | undefined
+const CONFIRMED_MENTION_LOOKUP_REGEX = /<\|at_start\|>[\s\S]*?<\|at_end\|>/g
+
+const resolveMentionCursor = (message: string, cursorSource?: MentionCursorSource) => {
+  if (typeof cursorSource === 'number') {
+    return Math.min(Math.max(cursorSource, 0), message.length)
+  }
+
+  return cursorSource?.selectionStart ?? message.length
+}
+
+const syncMentionState = (message: string, cursorSource?: MentionCursorSource) => {
   if (suppressedMessage.value) {
     if (message === suppressedMessage.value) {
       return
@@ -602,13 +613,15 @@ const syncMentionState = (message: string, textarea?: HTMLTextAreaElement | null
   }
   clearCloseTimer()
 
-  if (!textarea) {
+  if (cursorSource == null) {
     closePanel()
     return
   }
 
-  const cursor = textarea.selectionStart ?? message.length
-  const beforeCursor = message.slice(0, cursor)
+  const cursor = resolveMentionCursor(message, cursorSource)
+  const beforeCursor = message
+    .slice(0, cursor)
+    .replace(CONFIRMED_MENTION_LOOKUP_REGEX, (match) => ' '.repeat(match.length))
 
   if (
     message === previewMessage.value &&
@@ -910,9 +923,9 @@ const handleCascaderActiveChange = ({ item, path }: { item: CascaderPanelItem | 
 const handleKeydown = (
   event: KeyboardEvent,
   message: string,
-  textarea?: HTMLTextAreaElement | null
+  cursorSource?: MentionCursorSource
 ): MentionKeydownResult => {
-  syncMentionState(message, textarea)
+  syncMentionState(message, cursorSource)
 
   if (!isOpen.value) return { handled: false }
 

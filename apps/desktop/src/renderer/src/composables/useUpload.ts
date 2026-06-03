@@ -23,7 +23,7 @@ interface FileItem {
 export interface UseUploadOptions {
   files?: UploadFile[]
   dropZoneRef?: Ref<HTMLElement | undefined>
-  inputRef?: Ref<HTMLTextAreaElement | undefined>
+  inputRef?: Ref<HTMLElement | undefined>
   onlyText?: boolean
   /** 媒体类型过滤，如 'image' 表示只允许上传图片 */
   media?: 'image' | 'video' | 'audio'
