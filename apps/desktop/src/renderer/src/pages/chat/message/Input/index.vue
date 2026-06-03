@@ -1318,6 +1318,18 @@ const insertEditorTextAtCursor = (text: string) => {
   atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
 }
 
+const normalizeEditorProtocolMentions = () => {
+  const editor = textareaRef.value
+  if (!editor?.textContent?.includes(CONFIRMED_MENTION_START)) return false
+
+  const cursor = message.value.length
+  renderEditorContent()
+  textareaRef.value?.focus()
+  setEditorCaretOffset(cursor)
+  adjustEditorHeight(textareaRef.value)
+  return true
+}
+
 const applyMention = (payload: { message: string; cursor: number }) => {
   const originalBeforeCursor = payload.message.slice(0, payload.cursor)
   const confirmedBeforeCursor = confirmMentionTokens(originalBeforeCursor).replace(
@@ -1352,7 +1364,13 @@ const previewMention = (payload: { message: string; cursor: number }) => {
 
 const handleEditorInput = (event: Event) => {
   syncEditorMessage()
+  normalizeEditorProtocolMentions()
   adjustEditorHeight(event)
+  atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
+}
+
+const syncMentionPanelFromEditor = () => {
+  syncEditorMessage()
   atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
 }
 
@@ -1402,6 +1420,7 @@ const handleEditorPaste = (event: ClipboardEvent) => {
 
   event.preventDefault()
   insertEditorTextAtCursor(text)
+  normalizeEditorProtocolMentions()
 }
 
 const removeMentionChipNode = (chipNode: HTMLElement) => {
@@ -1454,6 +1473,18 @@ const handleEditorKeydown = (event: KeyboardEvent) => {
     event.preventDefault()
     if (isComposing.value) return
     _sendMessage()
+  }
+}
+
+const handleEditorKeyup = (event: KeyboardEvent) => {
+  if (isComposing.value) return
+  if (
+    event.key === '@' ||
+    event.key.length === 1 ||
+    event.key === 'Backspace' ||
+    event.key === 'Delete'
+  ) {
+    nextTick(syncMentionPanelFromEditor)
   }
 }
 
@@ -1609,7 +1640,7 @@ onUnmounted(() => {
           <div v-if="editorIsEmpty" class="editor-placeholder">{{ desktopPlaceholder }}</div>
           <div ref="textareaRef" class="input-field editor-field" :class="{ 'is-empty': editorIsEmpty }" role="textbox"
             aria-multiline="true" :data-placeholder="desktopPlaceholder"
-            @input="handleEditorInput" @keydown="handleEditorKeydown" @paste="handleEditorPaste"
+            @input="handleEditorInput" @keydown="handleEditorKeydown" @keyup="handleEditorKeyup" @paste="handleEditorPaste"
             @pointerdown="lockEditorCursorWhileMentionPanelOpen"
             @mousedown="lockEditorCursorWhileMentionPanelOpen"
             @touchstart="lockEditorCursorWhileMentionPanelOpen"
@@ -1850,7 +1881,7 @@ onUnmounted(() => {
             </div>
             <div ref="textareaRef" class="input-field editor-field mobile-input-field" :class="{ 'is-empty': editorIsEmpty }"
               role="textbox" aria-multiline="true" :data-placeholder="mobilePlaceholder"
-              @input="handleEditorInput" @keydown="handleEditorKeydown" @paste="handleEditorPaste"
+              @input="handleEditorInput" @keydown="handleEditorKeydown" @keyup="handleEditorKeyup" @paste="handleEditorPaste"
               @pointerdown="lockEditorCursorWhileMentionPanelOpen"
               @mousedown="lockEditorCursorWhileMentionPanelOpen"
               @touchstart="lockEditorCursorWhileMentionPanelOpen"

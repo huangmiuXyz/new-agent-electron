@@ -72,14 +72,14 @@ const currentChatAgent = computed(() => {
   return agentId ? agentStore.getAgentById(agentId) : null
 })
 
-const SKILL_MENTION_REGEX = /(^|[\s([{"'`"'])@([a-z0-9-]*)$/i
-const SKILL_MENTION_NAMESPACE_REGEX = /(^|[\s([{"'`"'])@(skills|技能):([a-z0-9-]*)$/i
+const SKILL_MENTION_REGEX = /(^|[\s\S])@([a-z0-9-]*)$/i
+const SKILL_MENTION_NAMESPACE_REGEX = /(^|[\s\S])@(skills|技能):([a-z0-9-]*)$/i
 const FILE_MENTION_NAMESPACE_REGEX =
-  /(^|[\s([{"'`"'])@(file|文件):(?:"([^"\n\r]*)"|'([^'\n\r]*)'|([^\s]*))$/i
+  /(^|[\s\S])@(file|文件):(?:"([^"\n\r]*)"|'([^'\n\r]*)'|([^\s]*))$/i
 const NOTE_MENTION_NAMESPACE_REGEX =
-  /(^|[\s([{"'`"'])@(note|笔记):(?:"([^"\n\r]*)"|'([^'\n\r]*)'|([^\s]*))$/i
-const AGENT_MENTION_NAMESPACE_REGEX = /(^|[\s([{"'`"'])@(agent|智能体):([a-z0-9-\u4e00-\u9fa5]*)$/i
-const PARTIAL_MENTION_REGEX = /(^|[\s([{"'`"'])@([^\s]*)$/i
+  /(^|[\s\S])@(note|笔记):(?:"([^"\n\r]*)"|'([^'\n\r]*)'|([^\s]*))$/i
+const AGENT_MENTION_NAMESPACE_REGEX = /(^|[\s\S])@(agent|智能体):([a-z0-9-\u4e00-\u9fa5]*)$/i
+const PARTIAL_MENTION_REGEX = /(^|[\s\S])@([^\s]*)$/i
 
 const availableSkills = computed<SkillMetadata[]>(() => {
   void currentChatAgent.value?.id
@@ -146,6 +146,11 @@ const filteredSkills = computed(() => {
 const resolveMentionStart = (match: RegExpMatchArray, cursor: number) => {
   const leadingToken = match[1] || ''
   return cursor - (match[0]?.length || 0) + leadingToken.length
+}
+
+const resolveMentionStartFromBeforeCursor = (beforeCursor: string, fallbackMatch: RegExpMatchArray, cursor: number) => {
+  const mentionStart = beforeCursor.lastIndexOf('@')
+  return mentionStart >= 0 ? mentionStart : resolveMentionStart(fallbackMatch, cursor)
 }
 
 const getFileMentionQuery = (match: RegExpMatchArray) => {
@@ -578,7 +583,7 @@ const getStickyMentionParseResult = (beforeCursor: string, cursor: number) => {
     scope: preferredScope,
     query: '',
     range: {
-      start: resolveMentionStart(match, cursor),
+      start: resolveMentionStartFromBeforeCursor(beforeCursor, match, cursor),
       end: cursor
     }
   }
@@ -645,7 +650,7 @@ const syncMentionState = (message: string, cursorSource?: MentionCursorSource) =
 
   if (fileMatch) {
     applyMentionParseResult('files', getFileMentionQuery(fileMatch), {
-      start: resolveMentionStart(fileMatch, cursor),
+      start: resolveMentionStartFromBeforeCursor(beforeCursor, fileMatch, cursor),
       end: cursor
     })
     isOpen.value = true
@@ -656,7 +661,7 @@ const syncMentionState = (message: string, cursorSource?: MentionCursorSource) =
 
   if (noteMatch) {
     applyMentionParseResult('notes', getNoteMentionQuery(noteMatch), {
-      start: resolveMentionStart(noteMatch, cursor),
+      start: resolveMentionStartFromBeforeCursor(beforeCursor, noteMatch, cursor),
       end: cursor
     })
     isOpen.value = true
@@ -667,7 +672,7 @@ const syncMentionState = (message: string, cursorSource?: MentionCursorSource) =
 
   if (agentMatch) {
     applyMentionParseResult('agents', agentMatch[3] || '', {
-      start: resolveMentionStart(agentMatch, cursor),
+      start: resolveMentionStartFromBeforeCursor(beforeCursor, agentMatch, cursor),
       end: cursor
     })
     isOpen.value = availableAgents.value.length > 0
@@ -678,7 +683,7 @@ const syncMentionState = (message: string, cursorSource?: MentionCursorSource) =
 
   if (namespacedMatch) {
     applyMentionParseResult('skills', namespacedMatch[3] || '', {
-      start: resolveMentionStart(namespacedMatch, cursor),
+      start: resolveMentionStartFromBeforeCursor(beforeCursor, namespacedMatch, cursor),
       end: cursor
     })
     isOpen.value = availableSkills.value.length > 0
@@ -703,7 +708,7 @@ const syncMentionState = (message: string, cursorSource?: MentionCursorSource) =
   }
 
   applyMentionParseResult('all', match[2] || '', {
-    start: resolveMentionStart(match, cursor),
+    start: resolveMentionStartFromBeforeCursor(beforeCursor, match, cursor),
     end: cursor
   })
   isOpen.value = true
