@@ -815,6 +815,10 @@ const getMentionItemData = (item?: CascaderPanelItem | null) => {
   return data ? (data as MentionItemData) : null
 }
 
+const isHorizontalArrowKey = (event: KeyboardEvent) => {
+  return event.key === 'ArrowLeft' || event.key === 'ArrowRight'
+}
+
 const buildMentionPayload = (data: MentionItemData): MentionApplyPayload | null => {
   if (data.type === 'skill') {
     return buildSkillMentionPayload(data.skill)
@@ -924,7 +928,14 @@ const handleKeydown = (
   ].includes(event.key)
 
   const result = cascaderPanelRef.value?.handleKeydown(event)
-  if (!result?.handled) return { handled: false }
+  if (!result?.handled) {
+    if (isHorizontalArrowKey(event)) {
+      event.preventDefault()
+      return { handled: true }
+    }
+
+    return { handled: false }
+  }
 
   if (result.requestClose) {
     closePanel({ suppressCurrentMessage: true })
