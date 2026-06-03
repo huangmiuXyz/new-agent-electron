@@ -819,6 +819,8 @@ const isHorizontalArrowKey = (event: KeyboardEvent) => {
   return event.key === 'ArrowLeft' || event.key === 'ArrowRight'
 }
 
+const isMentionPanelOpen = () => isOpen.value
+
 const buildMentionPayload = (data: MentionItemData): MentionApplyPayload | null => {
   if (data.type === 'skill') {
     return buildSkillMentionPayload(data.skill)
@@ -1034,7 +1036,8 @@ defineExpose({
   syncMentionState,
   scheduleClose,
   clearCloseTimer,
-  handleKeydown
+  handleKeydown,
+  isMentionPanelOpen
 })
 </script>
 

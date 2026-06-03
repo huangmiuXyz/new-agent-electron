@@ -1029,6 +1029,40 @@ const handleTextareaInput = (event: Event) => {
   atPanelRef.value?.syncMentionState(message.value, textareaRef.value)
 }
 
+const lockedTextareaSelection = ref<{ start: number, end: number } | null>(null)
+
+const restoreLockedTextareaSelection = () => {
+  const selection = lockedTextareaSelection.value
+  const textarea = textareaRef.value
+  if (!selection || !textarea) return
+
+  textarea.focus()
+  textarea.setSelectionRange(selection.start, selection.end)
+}
+
+const lockTextareaCursorWhileMentionPanelOpen = (event: Event) => {
+  if (!atPanelRef.value?.isMentionPanelOpen?.()) return
+
+  const textarea = textareaRef.value
+  if (textarea) {
+    lockedTextareaSelection.value = {
+      start: textarea.selectionStart,
+      end: textarea.selectionEnd
+    }
+  }
+
+  event.preventDefault()
+  atPanelRef.value?.clearCloseTimer()
+  restoreLockedTextareaSelection()
+}
+
+const handleTextareaClickWhileMentionPanelOpen = (event: MouseEvent) => {
+  if (!atPanelRef.value?.isMentionPanelOpen?.()) return
+
+  event.preventDefault()
+  restoreLockedTextareaSelection()
+}
+
 watch(message, () => {
   nextTick(() => {
     adjustTextareaHeight(textareaRef.value)
@@ -1222,6 +1256,10 @@ onUnmounted(() => {
           <AtPanel ref="atPanelRef" @apply="applyMention" @preview="previewMention" />
           <textarea ref="textareaRef" class="input-field" rows="1" :placeholder="desktopPlaceholder" v-model="message"
             @input="handleTextareaInput" @keydown="handleTextareaKeydown"
+            @pointerdown="lockTextareaCursorWhileMentionPanelOpen"
+            @mousedown="lockTextareaCursorWhileMentionPanelOpen"
+            @touchstart="lockTextareaCursorWhileMentionPanelOpen"
+            @click="handleTextareaClickWhileMentionPanelOpen"
             @focus="atPanelRef?.syncMentionState(message, textareaRef)" @blur="atPanelRef?.scheduleClose()"
             @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
             :disabled="isProcessingVoice"></textarea>
@@ -1455,6 +1493,10 @@ onUnmounted(() => {
             <AtPanel ref="atPanelRef" mobile @apply="applyMention" @preview="previewMention" />
             <textarea ref="textareaRef" class="input-field mobile-input-field" rows="1" :placeholder="mobilePlaceholder"
               v-model="message" @input="handleTextareaInput" @keydown="handleTextareaKeydown"
+              @pointerdown="lockTextareaCursorWhileMentionPanelOpen"
+              @mousedown="lockTextareaCursorWhileMentionPanelOpen"
+              @touchstart="lockTextareaCursorWhileMentionPanelOpen"
+              @click="handleTextareaClickWhileMentionPanelOpen"
               @focus="atPanelRef?.syncMentionState(message, textareaRef)" @blur="atPanelRef?.scheduleClose()"
               @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
               :disabled="isProcessingVoice"></textarea>
