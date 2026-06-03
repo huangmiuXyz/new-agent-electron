@@ -819,9 +819,9 @@ export const chatService = () => {
       instructions: agentInstructions,
       stopWhen: [
         ({ steps }) => {
-          const maxSteps = maxToolCalls || 50
+          const maxSteps = maxToolCalls && maxToolCalls > 0 ? maxToolCalls : undefined
           return (
-            steps.length >= maxSteps ||
+            (maxSteps != null && steps.length >= maxSteps) ||
             (steps.some((step) =>
               step.toolResults?.some((toolResult) => {
                 return shouldStopForToolResult({

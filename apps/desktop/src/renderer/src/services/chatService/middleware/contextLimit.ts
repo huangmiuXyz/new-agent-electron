@@ -5,7 +5,7 @@ interface ContextLimitOptions {
 }
 
 export const createContextLimitMiddleware = (options: ContextLimitOptions): LanguageModelV3Middleware => {
-  const { contextCount = 50 } = options
+  const { contextCount = 0 } = options
 
   return {
     specificationVersion: 'v3',

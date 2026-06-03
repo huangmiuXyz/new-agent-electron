@@ -143,7 +143,7 @@ const formatTokenCount = (value: number): string => {
 }
 
 const getCurrentContextMessages = (chat: Chat, agent?: Agent | null): BaseMessage[] => {
-  const contextCount = agent?.contextCount ?? 50
+  const contextCount = agent?.contextCount ?? 0
   const messages = chat.messages.filter((message) => !isCompressingContextMessage(message))
   const compressedContext = chat.compressedContext
 

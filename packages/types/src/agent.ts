@@ -33,12 +33,12 @@ declare global {
     topK?: number // top-k
     presencePenalty?: number // 话题新鲜度 (presence penalty)
     frequencyPenalty?: number // 频率惩罚 (frequency penalty)
-    maxOutputTokens?: number // 最大输出 token 数
-    contextCount?: number // 上下文条数
-    contextTokenCount?: number // 上下文 token 阈值
+    maxOutputTokens?: number // 最大输出 token 数，0 表示不限制
+    contextCount?: number // 上下文条数，0 表示不限制
+    contextTokenCount?: number // 上下文 token 阈值，0 表示不限制
     autoCompressContext?: boolean // 自动压缩上下文
     compressModel?: { providerId: string; modelId: string } // 用于压缩的模型
-    maxToolCalls?: number // 一次对话中最大调用工具次数，默认 20
+    maxToolCalls?: number // 一次对话中最大调用工具次数，0 表示不限制
     speechVoice?: string // 语音名称
     speechMode?: 'sentence' | 'paragraph' | 'full' // 语音生成模式
     speechSpeed?: number // 语音速度

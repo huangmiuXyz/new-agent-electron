@@ -19,6 +19,7 @@ interface AgentFormData extends Omit<
 
 const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
 const DEFAULT_COMPUTER_SCREENSHOT_MAX_SIDE_PX = 1600
+const DEFAULT_UNLIMITED_VALUE = 0
 const COMPUTER_SCREENSHOT_MAX_SIDE_OPTIONS = [
   { label: '低 · 最长边 800px', value: 800 },
   { label: '均衡 · 最长边 1200px', value: 1200 },
@@ -37,6 +38,13 @@ const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
 const MOBILE_UNSUPPORTED_BUILTIN_TOOLS = new Set([
   'exec_command_canvas'
 ])
+
+const normalizeUnlimitedNumber = (value: unknown): number => {
+  if (value === '' || value == null) return DEFAULT_UNLIMITED_VALUE
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue)) return DEFAULT_UNLIMITED_VALUE
+  return Math.max(0, numberValue)
+}
 
 export const useAgent = () => {
   const agentStore = useAgentStore()
@@ -237,12 +245,12 @@ export const useAgent = () => {
           topK: agent.topK ?? 40,
           presencePenalty: agent.presencePenalty ?? 0,
           frequencyPenalty: agent.frequencyPenalty ?? 0,
-          maxOutputTokens: agent.maxOutputTokens,
-          contextCount: agent.contextCount ?? 50,
-          contextTokenCount: agent.contextTokenCount ?? 128000,
+          maxOutputTokens: agent.maxOutputTokens ?? DEFAULT_UNLIMITED_VALUE,
+          contextCount: agent.contextCount ?? DEFAULT_UNLIMITED_VALUE,
+          contextTokenCount: agent.contextTokenCount ?? DEFAULT_UNLIMITED_VALUE,
           autoCompressContext: agent.autoCompressContext ?? false,
           compressModel: agent.compressModel,
-          maxToolCalls: agent.maxToolCalls,
+          maxToolCalls: agent.maxToolCalls ?? DEFAULT_UNLIMITED_VALUE,
           speechVoice: agent.speechVoice || '',
           speechMode: agent.speechMode || 'sentence',
           speechSpeed: agent.speechSpeed ?? 1,
@@ -276,10 +284,11 @@ export const useAgent = () => {
           topK: 40,
           presencePenalty: 0,
           frequencyPenalty: 0,
-          contextCount: 50,
-          contextTokenCount: 128000,
+          maxOutputTokens: DEFAULT_UNLIMITED_VALUE,
+          contextCount: DEFAULT_UNLIMITED_VALUE,
+          contextTokenCount: DEFAULT_UNLIMITED_VALUE,
           autoCompressContext: false,
-          maxToolCalls: undefined,
+          maxToolCalls: DEFAULT_UNLIMITED_VALUE,
           speechVoice: '',
           speechMode: 'sentence',
           speechSpeed: 1,
@@ -411,8 +420,9 @@ export const useAgent = () => {
                   topK: 40,
                   presencePenalty: 0,
                   frequencyPenalty: 0,
-                  contextCount: 50,
-                  contextTokenCount: 128000
+                  maxOutputTokens: DEFAULT_UNLIMITED_VALUE,
+                  contextCount: DEFAULT_UNLIMITED_VALUE,
+                  contextTokenCount: DEFAULT_UNLIMITED_VALUE
                 }
                 Object.entries(defaultParams).forEach(([key, value]) => {
                   formActions.setFieldValue(key, value)
@@ -475,9 +485,9 @@ export const useAgent = () => {
         name: 'maxOutputTokens',
         label: '最大输出 Token (Max Output Tokens)',
         type: 'number',
-        min: 1,
+        min: 0,
         max: 128000,
-        hint: '模型允许生成的最大 Token 数量。'
+        hint: '模型允许生成的最大 Token 数量。填 0 表示不限制。'
       } as TextField<AgentFormData>
     ]
 
@@ -1234,13 +1244,15 @@ export const useAgent = () => {
         name: 'contextCount',
         type: 'number',
         label: '历史上下文条数',
-        hint: '发送给模型进行参考的历史消息条数。当消息数量接近此限制时，将触发自动压缩（如果已启用）。'
+        min: 0,
+        hint: '发送给模型进行参考的历史消息条数。填 0 表示不限制；当消息数量接近此限制时，将触发自动压缩（如果已启用）。'
       } as TextField<AgentFormData>,
       {
         name: 'contextTokenCount',
         type: 'number',
         label: '历史上下文 Token',
-        hint: '发送给模型的历史消息估算 token 阈值。达到该阈值时，也会触发自动压缩。'
+        min: 0,
+        hint: '发送给模型的历史消息估算 token 阈值。填 0 表示不限制；达到该阈值时，也会触发自动压缩。'
       } as TextField<AgentFormData>,
       {
         name: 'autoCompressContext',
@@ -1261,10 +1273,10 @@ export const useAgent = () => {
         name: 'maxToolCalls',
         type: 'number',
         label: '最大工具调用次数',
-        min: 1,
+        min: 0,
         max: 100,
-        defaultValue: 50,
-        hint: '一次对话中允许的最大工具调用次数，默认 20 次。达到限制后将停止工具调用并返回结果。'
+        defaultValue: DEFAULT_UNLIMITED_VALUE,
+        hint: '一次对话中允许的最大工具调用次数。填 0 表示不限制；达到限制后将停止工具调用并返回结果。'
       } as TextField<AgentFormData>,
       {
         name: 'workPath',
@@ -1363,6 +1375,10 @@ export const useAgent = () => {
 
         const finalData = {
           ...data,
+          maxOutputTokens: normalizeUnlimitedNumber(data.maxOutputTokens),
+          contextCount: normalizeUnlimitedNumber(data.contextCount),
+          contextTokenCount: normalizeUnlimitedNumber(data.contextTokenCount),
+          maxToolCalls: normalizeUnlimitedNumber(data.maxToolCalls),
           backgrounds:
             data.backgrounds?.map((url) => {
               const isVideo = isVideoUrl(url)

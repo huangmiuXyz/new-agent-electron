@@ -65,7 +65,7 @@ const visibleMessages = computed(() => {
 
 const contextCount = computed(() => {
   const agentId = currentChat.value?.agentId
-  return (agentId ? agentStore.getAgentById(agentId)?.contextCount : undefined) ?? 10
+  return (agentId ? agentStore.getAgentById(agentId)?.contextCount : undefined) ?? 0
 })
 
 // 判断是否存在上下文压缩消息
