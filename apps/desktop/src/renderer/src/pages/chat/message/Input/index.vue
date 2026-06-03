@@ -1051,8 +1051,19 @@ const wrapConfirmedMention = (raw: string) => {
   return `${CONFIRMED_MENTION_START}${raw.replace(/^@/, '')}${CONFIRMED_MENTION_END}`
 }
 
+const escapeRegexSource = (source: string) => source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 const unwrapConfirmedMentions = (text: string) => {
   return text.replace(CONFIRMED_MENTION_REGEX, '@$1')
+}
+
+const separateConfirmedMentionsForSend = (text: string) => {
+  const confirmedMentionEndPattern = new RegExp(
+    `${escapeRegexSource(CONFIRMED_MENTION_END)}(?=[^\\s)\\]};,.!?'"，。！？、】【])`,
+    'g'
+  )
+
+  return text.replace(confirmedMentionEndPattern, `${CONFIRMED_MENTION_END} `)
 }
 
 const parseMentionTokens = (text: string) => {
@@ -1423,7 +1434,7 @@ const normalizeEditorProtocolMentions = () => {
 const applyMention = (payload: { message: string; cursor: number }) => {
   const originalBeforeCursor = payload.message.slice(0, payload.cursor)
   const confirmedBeforeCursor = confirmMentionTokens(originalBeforeCursor).replace(
-    new RegExp(`${CONFIRMED_MENTION_END.replace(/[|<>]/g, '\\$&')} $`),
+    new RegExp(`${escapeRegexSource(CONFIRMED_MENTION_END)} $`),
     CONFIRMED_MENTION_END
   )
   isSettingEditorMessageProgrammatically.value = true
@@ -1613,7 +1624,7 @@ const AGENT_MENTION_REGEX = /@(?:agent|智能体):([^\s]+)/gi
 
 const _sendMessage = async () => {
   syncEditorMessage()
-  const input = unwrapConfirmedMentions(message.value).trim()
+  const input = unwrapConfirmedMentions(separateConfirmedMentionsForSend(confirmMentionTokens(message.value))).trim()
   const hasContent = input || selectedFiles.value.length > 0
 
   if (!hasContent) return
