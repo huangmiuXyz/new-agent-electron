@@ -1194,6 +1194,10 @@ const serializeEditorRange = (range: Range) => {
   return Array.from(fragment.childNodes).map(serializeEditorNode).join('')
 }
 
+const getMentionChipNodes = () => {
+  return Array.from(textareaRef.value?.querySelectorAll<HTMLElement>(MENTION_CHIP_SELECTOR) || [])
+}
+
 const getClosestMentionChipNode = (node: Node | null) => {
   const element = node instanceof HTMLElement ? node : node?.parentElement
   return element?.closest?.(MENTION_CHIP_SELECTOR) as HTMLElement | null
@@ -1224,6 +1228,34 @@ const getActiveMentionChipNode = () => {
   return null
 }
 
+const isRangeIntersectingNode = (range: Range, node: Node) => {
+  try {
+    return range.intersectsNode(node)
+  } catch {
+    return false
+  }
+}
+
+const getSelectedMentionChipNodes = (range: Range | null = null) => {
+  const chips = getMentionChipNodes()
+  if (!range) return chips.filter((chip) => chip.classList.contains('is-selected'))
+  return chips.filter((chip) => isRangeIntersectingNode(range, chip))
+}
+
+const updateMentionChipSelectionState = () => {
+  const editor = textareaRef.value
+  const selection = window.getSelection()
+  const chips = getMentionChipNodes()
+
+  chips.forEach((chip) => chip.classList.remove('is-selected'))
+  if (!editor || !selection || selection.rangeCount === 0 || selection.isCollapsed) return
+
+  const range = selection.getRangeAt(0)
+  if (!isRangeIntersectingNode(range, editor)) return
+
+  getSelectedMentionChipNodes(range).forEach((chip) => chip.classList.add('is-selected'))
+}
+
 const resolveEditorClipboardPayload = () => {
   const editor = textareaRef.value
   const selection = window.getSelection()
@@ -1231,8 +1263,12 @@ const resolveEditorClipboardPayload = () => {
 
   const range = selection.getRangeAt(0)
   if (!selection.isCollapsed && editor.contains(range.commonAncestorContainer)) {
+    const selectedChipNodes = getSelectedMentionChipNodes(range)
     const text = serializeEditorRange(range)
     if (text) return { text, range, chipNode: null as HTMLElement | null }
+
+    const selectedChipText = selectedChipNodes.map(serializeEditorNode).join('')
+    if (selectedChipText) return { text: selectedChipText, range, chipNode: null as HTMLElement | null }
   }
 
   const chipNode = getActiveMentionChipNode()
@@ -1673,6 +1709,7 @@ onMounted(() => {
       focusEditorAtEnd()
     }
   })
+  document.addEventListener('selectionchange', updateMentionChipSelectionState)
   nextTick(() => {
     renderEditorContent()
     adjustEditorHeight(textareaRef.value)
@@ -1680,6 +1717,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
   unregister('global.focusInput')
+  document.removeEventListener('selectionchange', updateMentionChipSelectionState)
   unbindMobilePointerListeners()
   clearLongPressTimer()
 })
@@ -2592,6 +2630,12 @@ onUnmounted(() => {
 :deep(.mention-chip.is-active) {
   border-color: var(--border-focus);
   background: var(--bg-active);
+}
+
+:deep(.mention-chip.is-selected) {
+  border-color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.18);
+  color: var(--text-primary);
 }
 
 :deep(.mention-chip__kind) {
