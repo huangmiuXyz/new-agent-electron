@@ -54,8 +54,7 @@ const shouldSkipNode = (node: Node) => {
     'textarea',
     'input',
     'select',
-    'button',
-    '[contenteditable="true"]'
+    'button'
   ].join(',')))
 }
 
