@@ -27,10 +27,10 @@ type ExportSettingsForm = {
 
 const formatTabs: { key: ExportFormat; label: string; disabled?: boolean }[] = [
   { key: 'image', label: '图片' },
-  { key: 'pdf', label: 'PDF', disabled: true },
-  { key: 'word', label: 'Word', disabled: true },
-  { key: 'epub', label: 'EPUB', disabled: true },
-  { key: 'html', label: 'HTML', disabled: true },
+  // { key: 'pdf', label: 'PDF', disabled: true },
+  // { key: 'word', label: 'Word', disabled: true },
+  // { key: 'epub', label: 'EPUB', disabled: true },
+  // { key: 'html', label: 'HTML', disabled: true },
   { key: 'text', label: '文本' }
 ]
 
@@ -40,20 +40,22 @@ const includeTitle = ref(true)
 const imageWidth = ref(600)
 const imageWaitSeconds = ref(3)
 const useEditorStyle = ref(true)
+const customCss = ref('')
 const textOutputMode = ref('single')
-const textExtension = ref('txt')
+const textExtension = ref<'txt' | 'md'>('txt')
 const lineBreakMode = ref('auto')
 const isCopyingImage = ref(false)
 const isExporting = ref(false)
+const previewArticleRef = ref<HTMLElement | null>(null)
 
-const exportContentOptions = [{ label: '文档正文', value: 'body' }]
-const customCssOptions = [{ label: '不使用', value: 'none' }]
 const textOutputOptions = [
   { label: '单个文件', value: 'single' },
   { label: '多个文件', value: 'multiple' }
 ]
-const textExtensionOptions = [{ label: 'Text (.txt)', value: 'txt' }]
-const lineBreakOptions = [{ label: '自动', value: 'auto' }]
+const textExtensionOptions = [
+  { label: 'Text (.txt)', value: 'txt' },
+  { label: 'Markdown (.md)', value: 'md' }
+]
 
 const [SettingsForm, settingsFormActions] = useForm<ExportSettingsForm>({
   size: 'sm',
@@ -62,7 +64,7 @@ const [SettingsForm, settingsFormActions] = useForm<ExportSettingsForm>({
     includeTitle: includeTitle.value,
     exportContent: 'body',
     useEditorStyle: useEditorStyle.value,
-    customCss: 'none',
+    customCss: customCss.value,
     textOutputMode: textOutputMode.value,
     textExtension: textExtension.value,
     lineBreakMode: lineBreakMode.value
@@ -83,10 +85,9 @@ const [SettingsForm, settingsFormActions] = useForm<ExportSettingsForm>({
           {
             name: 'customCss',
             label: '自定义 CSS',
-            type: 'select',
-            required: true,
-            disabled: true,
-            options: customCssOptions
+            type: 'textarea',
+            rows: 8,
+            placeholder: '.note-export-image-card {\n  padding: 48px;\n}'
           }
         ] as FormField<ExportSettingsForm>[])
       : ([
@@ -103,21 +104,15 @@ const [SettingsForm, settingsFormActions] = useForm<ExportSettingsForm>({
             type: 'select',
             required: true,
             options: textExtensionOptions
-          },
-          {
-            name: 'lineBreakMode',
-            label: '换行符',
-            type: 'select',
-            required: true,
-            options: lineBreakOptions
           }
         ] as FormField<ExportSettingsForm>[]))
   ],
   onChange: (_field, _value, data) => {
     includeTitle.value = Boolean(data.includeTitle)
     useEditorStyle.value = Boolean(data.useEditorStyle)
+    customCss.value = String(data.customCss || '')
     textOutputMode.value = String(data.textOutputMode || 'single')
-    textExtension.value = String(data.textExtension || 'txt')
+    textExtension.value = data.textExtension === 'md' ? 'md' : 'txt'
     lineBreakMode.value = String(data.lineBreakMode || 'auto')
   }
 })
@@ -139,10 +134,9 @@ const imageStyleSettingsFields = computed<FormField<ExportSettingsForm>[]>(() =>
   {
     name: 'customCss',
     label: '自定义 CSS',
-    type: 'select',
-    required: true,
-    disabled: true,
-    options: customCssOptions
+    type: 'textarea',
+    rows: 8,
+    placeholder: '.note-export-image-card {\n  padding: 48px;\n}'
   }
 ])
 
@@ -160,13 +154,6 @@ const textSettingsFields = computed<FormField<ExportSettingsForm>[]>(() => [
     type: 'select',
     required: true,
     options: textExtensionOptions
-  },
-  {
-    name: 'lineBreakMode',
-    label: '换行符',
-    type: 'select',
-    required: true,
-    options: lineBreakOptions
   }
 ])
 
@@ -201,6 +188,7 @@ const selectedCountText = computed(
   () => `${selectedNotes.value.length} / ${availableNotes.value.length}`
 )
 const hasSelectedNotes = computed(() => selectedNotes.value.length > 0)
+const normalizedCustomCss = computed(() => customCss.value.trim())
 const allSelected = computed(
   () =>
     availableNotes.value.length > 0 && selectedNotes.value.length === availableNotes.value.length
@@ -229,11 +217,35 @@ watch(activeFormat, () => {
     ...settingsFormActions.getData(),
     includeTitle: includeTitle.value,
     useEditorStyle: useEditorStyle.value,
+    customCss: customCss.value,
     textOutputMode: textOutputMode.value,
     textExtension: textExtension.value,
     lineBreakMode: lineBreakMode.value
   })
 })
+
+const syncPreviewCustomCss = async () => {
+  await nextTick()
+  const article = previewArticleRef.value
+  if (!article) return
+
+  let style = article.querySelector<HTMLStyleElement>(':scope > style[data-note-export-custom-css]')
+  if (!normalizedCustomCss.value) {
+    style?.remove()
+    return
+  }
+
+  if (!style) {
+    style = document.createElement('style')
+    style.dataset.noteExportCustomCss = 'true'
+    article.prepend(style)
+  }
+  style.textContent = normalizedCustomCss.value
+}
+
+watch([normalizedCustomCss, activeFormat, previewNote], () => {
+  void syncPreviewCustomCss()
+}, { immediate: true })
 
 const setAllNotesSelected = (checked: boolean) => {
   selectedNoteIds.value = checked ? availableNotes.value.map((note) => note.id) : []
@@ -325,6 +337,12 @@ const createNoteImageElement = (note: Note, options: { capture?: boolean } = {})
     : 'note-export-image-card'
   shell.style.width = `${Math.max(320, Math.min(2000, imageWidth.value || 600))}px`
 
+  if (normalizedCustomCss.value) {
+    const style = document.createElement('style')
+    style.textContent = normalizedCustomCss.value
+    shell.appendChild(style)
+  }
+
   if (includeTitle.value) {
     const title = document.createElement('h1')
     title.className = 'note-export-image-title'
@@ -399,7 +417,8 @@ const getTextFromHtml = (html: string) => {
 const buildNoteText = (note: Note) => {
   const parts: string[] = []
   if (includeTitle.value) {
-    parts.push(note.title || '未命名笔记')
+    const title = note.title || '未命名笔记'
+    parts.push(textExtension.value === 'md' ? `# ${title}` : title)
   }
   parts.push(getTextFromHtml(note.content) || '无内容')
   return parts.filter(Boolean).join('\n\n')
@@ -433,7 +452,11 @@ const exportText = async () => {
     const zip = new JSZip()
     const usedNames = new Set<string>()
     for (const note of selectedNotes.value) {
-      const fileName = getUniqueArchiveFileName(usedNames, sanitizeFileName(note.title), 'txt')
+      const fileName = getUniqueArchiveFileName(
+        usedNames,
+        sanitizeFileName(note.title),
+        textExtension.value
+      )
       zip.file(fileName, buildNoteText(note))
     }
 
@@ -447,18 +470,26 @@ const exportText = async () => {
   const firstNote = selectedNotes.value[0]!
   const defaultPath = window.api.path.join(
     getDownloadsPath(),
-    `${sanitizeFileName(firstNote.title)}.txt`
+    `${sanitizeFileName(firstNote.title)}.${textExtension.value}`
   )
   const result = await window.api.showSaveDialog({
     title: '导出文本',
     defaultPath,
-    filters: [{ name: 'Text', extensions: ['txt'] }]
+    filters: [
+      textExtension.value === 'md'
+        ? { name: 'Markdown', extensions: ['md'] }
+        : { name: 'Text', extensions: ['txt'] }
+    ]
   })
 
   if (result.canceled || !result.filePath) return
 
   const content = selectedNotes.value.map(buildNoteText).join('\n\n---\n\n')
-  window.api.fs.writeFileSync(ensureExtension(result.filePath, 'txt'), content, 'utf-8')
+  window.api.fs.writeFileSync(
+    ensureExtension(result.filePath, textExtension.value),
+    content,
+    'utf-8'
+  )
   messageApi.success('已导出文本')
   props.onClose?.()
 }
@@ -672,6 +703,7 @@ const handleExport = async () => {
 
         <div v-else-if="activeFormat === 'image'" class="image-preview">
           <article
+            ref="previewArticleRef"
             class="note-export-image-card"
             :style="{ width: `${Math.max(320, Math.min(2000, imageWidth || 600))}px` }"
           >
