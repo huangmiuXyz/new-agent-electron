@@ -563,6 +563,11 @@ export const api: ElectronAPI = {
       'dialog:showOpenDialog',
       options
     )) as Electron.OpenDialogReturnValue,
+  showSaveDialog: async (options: Electron.SaveDialogOptions) =>
+    (await electronAPI.ipcRenderer.invoke(
+      'dialog:showSaveDialog',
+      options
+    )) as Electron.SaveDialogReturnValue,
   app,
   openDevTools: () => getCurrentWindow().webContents.openDevTools(),
   isPackaged: app.isPackaged,
@@ -584,6 +589,15 @@ export const api: ElectronAPI = {
       height?: number
       backgroundColor?: string
     }) => electronAPI.ipcRenderer.invoke('clipboard:capture-html-image', payload)
+  },
+  exporter: {
+    saveHtmlImage: (payload: {
+      html: string
+      filePath: string
+      width?: number
+      height?: number
+      backgroundColor?: string
+    }) => electronAPI.ipcRenderer.invoke('export:capture-html-image', payload)
   },
   fs,
   path,

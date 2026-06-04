@@ -97,6 +97,7 @@ export interface ElectronAPI {
 
   // dialog
   showOpenDialog: (options: any) => Promise<any>
+  showSaveDialog: (options: any) => Promise<any>
 
   // app
   app: any
@@ -133,6 +134,21 @@ export interface ElectronAPI {
       ok: boolean
       width?: number
       height?: number
+      error?: string
+    }>
+  }
+  exporter: {
+    saveHtmlImage: (payload: {
+      html: string
+      filePath: string
+      width?: number
+      height?: number
+      backgroundColor?: string
+    }) => Promise<{
+      ok: boolean
+      width?: number
+      height?: number
+      filePath?: string
       error?: string
     }>
   }

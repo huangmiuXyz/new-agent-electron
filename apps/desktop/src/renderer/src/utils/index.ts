@@ -68,8 +68,7 @@ export const copyText = (text: string) => {
   if (text) {
     navigator.clipboard
       .writeText(text)
-      .then(() => {
-      })
+      .then(() => {})
       .catch((err) => {
         console.error('复制失败:', err)
       })
@@ -105,7 +104,9 @@ export const copyImageToClipboard = async (src: string, fallbackText = src): Pro
 }
 
 const waitForNextPaint = () =>
-  new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+  new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  )
 
 const readBlobAsDataURL = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
@@ -126,7 +127,10 @@ const escapeHtml = (value: string) =>
 const serializeCssVariables = (style: CSSStyleDeclaration) =>
   Array.from(style)
     .filter((name) => name.startsWith('--'))
-    .map((name) => `${name}: ${style.getPropertyValue(name)}${style.getPropertyPriority(name) ? ' !important' : ''};`)
+    .map(
+      (name) =>
+        `${name}: ${style.getPropertyValue(name)}${style.getPropertyPriority(name) ? ' !important' : ''};`
+    )
     .join(' ')
 
 const collectDocumentStyles = () => {
@@ -190,7 +194,9 @@ const buildElementImageHtml = async (
     computedStyle.getPropertyValue('--bg-primary').trim() ||
     computedStyle.backgroundColor ||
     '#ffffff'
-  const width = Math.ceil(options.width ?? element.scrollWidth ?? element.getBoundingClientRect().width)
+  const width = Math.ceil(
+    options.width ?? element.scrollWidth ?? element.getBoundingClientRect().width
+  )
   const height = Math.ceil(element.scrollHeight || element.getBoundingClientRect().height)
   const clone = element.cloneNode(true) as HTMLElement
 
@@ -315,14 +321,79 @@ export const copyElementImageToClipboard = async (
   }
 }
 
+export const saveElementImageToFile = async (
+  element: HTMLElement,
+  filePath: string,
+  options: {
+    backgroundColor?: string
+    filter?: (node: HTMLElement) => boolean
+    pixelRatio?: number
+    width?: number
+  } = {}
+): Promise<boolean> => {
+  try {
+    if (window.api?.exporter?.saveHtmlImage) {
+      await waitForNextPaint()
+      const payload = await buildElementImageHtml(element, options)
+      const result = await window.api.exporter.saveHtmlImage({
+        ...payload,
+        filePath
+      })
+      if (!result?.ok) {
+        console.error('导出图片失败:', result?.error)
+      }
+      return Boolean(result?.ok)
+    }
+
+    const computedStyle = window.getComputedStyle(document.body)
+    const backgroundColor =
+      options.backgroundColor ||
+      computedStyle.getPropertyValue('--bg-primary').trim() ||
+      computedStyle.backgroundColor ||
+      '#ffffff'
+    const blob = await toBlob(element, {
+      backgroundColor,
+      cacheBust: true,
+      pixelRatio: options.pixelRatio ?? Math.min(window.devicePixelRatio || 1, 2),
+      width: options.width ?? element.scrollWidth,
+      height: element.scrollHeight,
+      filter: options.filter
+        ? (node) => {
+            if (!(node instanceof HTMLElement)) return true
+            return options.filter!(node)
+          }
+        : undefined,
+      style: {
+        margin: '0',
+        transform: 'none'
+      }
+    })
+
+    if (!blob) return false
+
+    const buffer =
+      typeof Buffer !== 'undefined'
+        ? Buffer.from(await blob.arrayBuffer())
+        : new Uint8Array(await blob.arrayBuffer())
+    window.api.fs.writeFileSync(filePath, buffer)
+    return true
+  } catch (err) {
+    console.error('导出图片失败:', err)
+    return false
+  }
+}
+
 const DEBOUNCED_STORAGE_KEYS = new Set(['chats'])
 const STORAGE_WRITE_DEBOUNCE_MS = 800
 const storageRestoreGuards = new Map<string, boolean>()
 const allowedEmptyStorageWrites = new Map<string, number>()
-const pendingStorageWrites = new Map<string, {
-  timer: ReturnType<typeof setTimeout> | null
-  value: string
-}>()
+const pendingStorageWrites = new Map<
+  string,
+  {
+    timer: ReturnType<typeof setTimeout> | null
+    value: string
+  }
+>()
 
 export const setIndexedDBStorageRestoreGuard = (key: string, restoring: boolean) => {
   storageRestoreGuards.set(key, restoring)
@@ -399,7 +470,9 @@ export const flushIndexedDBStorage = async (key?: string) => {
     return
   }
 
-  await Promise.all([...pendingStorageWrites.keys()].map((storageKey) => flushPendingStorageWrite(storageKey)))
+  await Promise.all(
+    [...pendingStorageWrites.keys()].map((storageKey) => flushPendingStorageWrite(storageKey))
+  )
 }
 
 const flushStorageOnPageLifecycleChange = () => {
@@ -573,7 +646,8 @@ export const saveFilesToUserData = async (
 
   for (const file of files) {
     const filePath = window.api.path.join(uploadDir, file.name)
-    const buffer = typeof Buffer !== 'undefined' ? Buffer.from(file.buffer) : new Uint8Array(file.buffer)
+    const buffer =
+      typeof Buffer !== 'undefined' ? Buffer.from(file.buffer) : new Uint8Array(file.buffer)
 
     window.api.fs.writeFileSync(filePath, buffer)
 
@@ -706,7 +780,9 @@ export const getFileIcon = (file: { name?: string; mediaType: string }) => {
 
   return 'File'
 }
-export const parseBase64DataUrl = (value: string): { mediaType?: string; base64: string } | null => {
+export const parseBase64DataUrl = (
+  value: string
+): { mediaType?: string; base64: string } | null => {
   const match = value.match(/^data:([^;,]+)?;base64,(.*)$/)
   if (!match) return null
   return {

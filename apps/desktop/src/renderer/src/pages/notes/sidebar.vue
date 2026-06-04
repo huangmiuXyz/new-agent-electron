@@ -1,15 +1,15 @@
 <script setup lang="ts">
+import { createVNode } from 'vue'
 import { isMobile } from '@renderer/composables/useDeviceType'
-import { copyElementImageToClipboard } from '@renderer/utils'
 import { formatTime } from '@renderer/utils/time'
+import NoteExportDialog from './NoteExportDialog.vue'
 
 const {
-  Plus,
   ArrowLeft,
   Folder,
   File,
   ChevronRight,
-  Image,
+  Download,
   Copy,
   Paste,
   Edit,
@@ -17,13 +17,12 @@ const {
   Library16Filled,
   Settings
 } = useIcon([
-  'Plus',
   'MoreHorizontal',
   'ArrowLeft',
   'Folder',
   'File',
   'ChevronRight',
-  'Image',
+  'Download',
   'Copy',
   'Paste',
   'Edit',
@@ -33,7 +32,8 @@ const {
 ])
 
 const notesStore = useNotesStore()
-const { confirm } = useModal()
+const modal = useModal()
+const { confirm } = modal
 const router = useRouter()
 
 const { showContextMenu } = useContextMenu()
@@ -187,11 +187,6 @@ const showNoteContextMenu = (event: MouseEvent, note: any) => {
       onClick: () => sendToKnowledgeBase('note', note)
     },
     {
-      label: '复制为图片',
-      icon: Image,
-      onClick: () => copyNoteAsImage(note)
-    },
-    {
       label: '复制',
       icon: Copy,
       onClick: () => copyNote(note)
@@ -244,85 +239,32 @@ const pasteClipboardToCurrentFolder = () => {
   }
 }
 
-const getFolderPathText = (folderId: string | null) => {
-  if (!folderId) return '根目录'
-  return (
-    notesStore
-      .folderPath(folderId)
-      .map((folder) => folder.name)
-      .join(' / ') || '根目录'
-  )
-}
+const openExportDialog = () => {
+  const content = createVNode(NoteExportDialog, {
+    onClose: () => modal.remove()
+  })
 
-const waitForImages = async (element: HTMLElement) => {
-  const images = Array.from(element.querySelectorAll('img'))
-  await Promise.all(
-    images.map((image) => {
-      if (image.complete) return Promise.resolve()
-      return new Promise<void>((resolve) => {
-        image.onload = () => resolve()
-        image.onerror = () => resolve()
-      })
-    })
-  )
-}
-
-const createNoteImageElement = (note: any) => {
-  const shell = document.createElement('article')
-  shell.className = 'note-image-card'
-
-  const title = document.createElement('h1')
-  title.className = 'note-image-title'
-  title.textContent = note.title || '未命名笔记'
-
-  const meta = document.createElement('div')
-  meta.className = 'note-image-meta'
-  meta.textContent = `${getFolderPathText(note.folderId)} · ${formatTime(note.updatedAt || note.createdAt)}`
-
-  const divider = document.createElement('div')
-  divider.className = 'note-image-divider'
-
-  const content = document.createElement('div')
-  content.className = 'note-image-content'
-  content.innerHTML = note.content || '<p>无内容</p>'
-
-  shell.append(title, meta, divider, content)
-  return shell
-}
-
-const copyNoteAsImage = async (note: any) => {
-  const element = createNoteImageElement(note)
-  document.body.appendChild(element)
-  const closeLoading = messageApi.loading('正在复制笔记图片...')
-
-  try {
-    await document.fonts?.ready
-    await waitForImages(element)
-
-    const copied = await copyElementImageToClipboard(element, {
-      backgroundColor: '#ffffff',
-      width: element.scrollWidth
-    })
-
-    closeLoading()
-
-    if (copied) {
-      messageApi.success('已复制笔记图片')
-      return
+  void modal.confirm({
+    title: '导出',
+    content,
+    width: '900px',
+    height: '600px',
+    showFooter: false,
+    modalBodyStyle: {
+      padding: '0',
+      overflow: 'hidden'
     }
-
-    messageApi.error('复制笔记图片失败')
-  } catch (error) {
-    closeLoading()
-    console.error('复制笔记图片失败:', error)
-    messageApi.error('复制笔记图片失败')
-  } finally {
-    element.remove()
-  }
+  })
 }
 
 const showCreateMenu = (event: MouseEvent) => {
   const options: any[] = [
+    {
+      label: '导出',
+      icon: Download,
+      disabled: notesStore.notes.length === 0,
+      onClick: () => openExportDialog()
+    },
     {
       label: '新建文件夹',
       icon: Folder,
@@ -403,10 +345,10 @@ const createNewFolder = async (parentId: string | null = null) => {
     }
   })
 
-    ; (await confirm({
-      title: parentId ? '新建子文件夹' : '新建文件夹',
-      content: FormComponent
-    })) && formActions.submit()
+  ;(await confirm({
+    title: parentId ? '新建子文件夹' : '新建文件夹',
+    content: FormComponent
+  })) && formActions.submit()
 }
 
 const createNewNote = async () => {
@@ -430,10 +372,10 @@ const createNewNote = async () => {
     }
   })
 
-    ; (await confirm({
-      title: '新建笔记',
-      content: FormComponent
-    })) && formActions.submit()
+  ;(await confirm({
+    title: '新建笔记',
+    content: FormComponent
+  })) && formActions.submit()
 }
 
 const renameFolder = async (folder: any) => {
@@ -455,14 +397,14 @@ const renameFolder = async (folder: any) => {
     }
   })
 
-    ; (await confirm({
-      title: '重命名文件夹',
-      content: FormComponent
-    })) && formActions.submit()
+  ;(await confirm({
+    title: '重命名文件夹',
+    content: FormComponent
+  })) && formActions.submit()
 }
 
 const deleteFolder = async (folder: any) => {
-  ; (await confirm({
+  ;(await confirm({
     title: '删除文件夹',
     content: `确定要删除文件夹"${folder.name}"吗？此操作将同时删除该文件夹及其所有子文件夹下的笔记。`
   })) && notesStore.deleteFolder(folder.id)
@@ -487,14 +429,14 @@ const renameNote = async (note: any) => {
     }
   })
 
-    ; (await confirm({
-      title: '重命名笔记',
-      content: FormComponent
-    })) && formActions.submit()
+  ;(await confirm({
+    title: '重命名笔记',
+    content: FormComponent
+  })) && formActions.submit()
 }
 
 const deleteNote = async (note: any) => {
-  ; (await confirm({
+  ;(await confirm({
     title: '删除笔记',
     content: `确定要删除笔记"${note.title}"吗？`
   })) && notesStore.deleteNote(note.id)
@@ -540,10 +482,10 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
   const title =
     type === 'note' ? `发送笔记"${item.title}"到知识库` : `发送文件夹"${item.name}"到知识库`
   formActions.setFieldValue('knowledgeBaseId', knowledgeBases[0].id)
-    ; (await confirm({
-      title,
-      content: FormComponent
-    })) && formActions.submit()
+  ;(await confirm({
+    title,
+    content: FormComponent
+  })) && formActions.submit()
 }
 </script>
 
@@ -551,12 +493,29 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
   <div class="notes-sidebar" :class="{ 'is-mobile': isMobile }">
     <!-- 统一的文件夹和笔记列表 -->
     <ListContainer class="combined-list">
-      <List :title="notesStore.currentFolder ? notesStore.currentFolder.name : '笔记'" :items="combinedList"
-        :active-id="activeId!" :key-field="'id'" :main-field="'name'" :logo-field="'icon'" :selectable="true"
-        :item-height="isMobile ? 72 : 35" :sortable="true" :long-press-ms="650" @select="handleItemClick"
-        @contextmenu="handleContextMenu" @sort="handleItemSort">
+      <List
+        :title="notesStore.currentFolder ? notesStore.currentFolder.name : '笔记'"
+        :items="combinedList"
+        :active-id="activeId!"
+        :key-field="'id'"
+        :main-field="'name'"
+        :logo-field="'icon'"
+        :selectable="true"
+        :item-height="isMobile ? 72 : 35"
+        :sortable="true"
+        :long-press-ms="650"
+        @select="handleItemClick"
+        @contextmenu="handleContextMenu"
+        @sort="handleItemSort"
+      >
         <template #title-tool>
-          <Button v-if="notesStore.currentFolderId" variant="icon" size="sm" @click="handleBackToFolders" title="返回上一级">
+          <Button
+            v-if="notesStore.currentFolderId"
+            variant="icon"
+            size="sm"
+            @click="handleBackToFolders"
+            title="返回上一级"
+          >
             <ArrowLeft size="12" />
           </Button>
           <Button variant="icon" size="sm" @click="showCreateMenu" title="新建">
@@ -775,149 +734,5 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-:global(.note-image-card) {
-  position: fixed;
-  left: -10000px;
-  top: 0;
-  width: 720px;
-  padding: 44px 52px;
-  background: #ffffff;
-  color: #1f2937;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  line-height: 1.75;
-  box-sizing: border-box;
-}
-
-:global(.note-image-title) {
-  margin: 0;
-  color: #111827;
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1.35;
-  letter-spacing: 0;
-  overflow-wrap: anywhere;
-}
-
-:global(.note-image-meta) {
-  margin-top: 10px;
-  color: #6b7280;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-:global(.note-image-divider) {
-  height: 1px;
-  margin: 26px 0 28px;
-  background: #e5e7eb;
-}
-
-:global(.note-image-content) {
-  color: #1f2937;
-  font-size: 16px;
-  overflow-wrap: anywhere;
-}
-
-:global(.note-image-content > :first-child) {
-  margin-top: 0;
-}
-
-:global(.note-image-content > :last-child) {
-  margin-bottom: 0;
-}
-
-:global(.note-image-content p) {
-  margin: 0 0 16px;
-  line-height: 1.85;
-}
-
-:global(.note-image-content h1),
-:global(.note-image-content h2),
-:global(.note-image-content h3) {
-  margin: 28px 0 14px;
-  color: #111827;
-  line-height: 1.45;
-  letter-spacing: 0;
-}
-
-:global(.note-image-content h1) {
-  font-size: 26px;
-}
-
-:global(.note-image-content h2) {
-  font-size: 23px;
-}
-
-:global(.note-image-content h3) {
-  font-size: 20px;
-}
-
-:global(.note-image-content ul),
-:global(.note-image-content ol) {
-  margin: 0 0 16px;
-  padding-left: 24px;
-}
-
-:global(.note-image-content li) {
-  margin: 6px 0;
-}
-
-:global(.note-image-content blockquote) {
-  margin: 18px 0;
-  padding: 2px 0 2px 16px;
-  color: #4b5563;
-  border-left: 4px solid #cbd5e1;
-}
-
-:global(.note-image-content pre) {
-  margin: 18px 0;
-  padding: 16px;
-  overflow: hidden;
-  color: #e5e7eb;
-  background: #111827;
-  border-radius: 8px;
-  white-space: pre-wrap;
-}
-
-:global(.note-image-content code) {
-  padding: 2px 5px;
-  color: #be123c;
-  background: #fff1f2;
-  border-radius: 4px;
-  font-family: 'SFMono-Regular', Consolas, monospace;
-  font-size: 0.92em;
-}
-
-:global(.note-image-content pre code) {
-  padding: 0;
-  color: inherit;
-  background: transparent;
-}
-
-:global(.note-image-content img) {
-  max-width: 100%;
-  height: auto;
-  border-radius: 8px;
-}
-
-:global(.note-image-content table) {
-  width: 100%;
-  margin: 18px 0;
-  border-collapse: collapse;
-}
-
-:global(.note-image-content th),
-:global(.note-image-content td) {
-  padding: 8px 10px;
-  border: 1px solid #d1d5db;
-  text-align: left;
-}
-
-:global(.note-image-content th) {
-  background: #f3f4f6;
-  font-weight: 700;
 }
 </style>

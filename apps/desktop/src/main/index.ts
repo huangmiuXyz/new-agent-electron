@@ -41,6 +41,7 @@ interface CaptureHtmlImagePayload {
   width?: number
   height?: number
   backgroundColor?: string
+  filePath?: string
 }
 
 function normalizeCaptureSize(value: unknown, fallback: number): number {
@@ -125,6 +126,18 @@ async function captureHtmlImageToClipboard(payload: CaptureHtmlImagePayload) {
 
     if (image.isEmpty()) {
       throw new Error('截图结果为空')
+    }
+
+    if (payload.filePath) {
+      mkdirSync(dirname(payload.filePath), { recursive: true })
+      writeFileSync(payload.filePath, image.toPNG())
+
+      return {
+        ok: true,
+        width: captureWidth,
+        height: captureHeight,
+        filePath: payload.filePath
+      }
     }
 
     clipboard.writeImage(image)
@@ -370,7 +383,16 @@ if (gotSingleInstanceLock) {
     return result
   })
 
+  ipcMain.handle('dialog:showSaveDialog', async (_event, options) => {
+    const result = await dialog.showSaveDialog(options)
+    return result
+  })
+
   ipcMain.handle('clipboard:capture-html-image', async (_event, payload: CaptureHtmlImagePayload) => {
+    return captureHtmlImageToClipboard(payload)
+  })
+
+  ipcMain.handle('export:capture-html-image', async (_event, payload: CaptureHtmlImagePayload) => {
     return captureHtmlImageToClipboard(payload)
   })
 
