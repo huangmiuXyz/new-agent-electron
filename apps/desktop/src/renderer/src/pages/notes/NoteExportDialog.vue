@@ -239,13 +239,18 @@ const setAllNotesSelected = (checked: boolean) => {
   selectedNoteIds.value = checked ? availableNotes.value.map((note) => note.id) : []
 }
 
-const toggleNoteSelection = (noteId: string) => {
-  const checked = !selectedNoteIds.value.includes(noteId)
+const isNoteSelected = (noteId: string) => selectedNoteIds.value.includes(noteId)
+
+const setNoteSelected = (noteId: string, checked: boolean) => {
   if (checked) {
     selectedNoteIds.value = [...new Set([...selectedNoteIds.value, noteId])]
     return
   }
   selectedNoteIds.value = selectedNoteIds.value.filter((id) => id !== noteId)
+}
+
+const toggleNoteSelection = (noteId: string) => {
+  setNoteSelected(noteId, !isNoteSelected(noteId))
 }
 
 const getFolderPathText = (folderId: string | null) => {
@@ -609,7 +614,7 @@ const handleExport = async () => {
         <List
           :title="selectedCountText"
           :items="noteListItems"
-          :active-id="previewNote?.id"
+          :is-selected="(item) => isNoteSelected(item.id)"
           key-field="id"
           main-field="title"
           logo-field="icon"
@@ -626,8 +631,8 @@ const handleExport = async () => {
 
           <template #actions="{ item }">
             <Checkbox
-              :model-value="selectedNoteIds.includes(item.id)"
-              @update:model-value="() => toggleNoteSelection(item.id)"
+              :model-value="isNoteSelected(item.id)"
+              @update:model-value="(checked) => setNoteSelected(item.id, checked)"
             />
           </template>
         </List>
