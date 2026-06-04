@@ -14,7 +14,8 @@ const {
   Paste,
   Edit,
   Trash,
-  Library16Filled
+  Library16Filled,
+  Settings
 } = useIcon([
   'Plus',
   'MoreHorizontal',
@@ -27,7 +28,8 @@ const {
   'Paste',
   'Edit',
   'Trash',
-  'Library16Filled'
+  'Library16Filled',
+  'Settings'
 ])
 
 const notesStore = useNotesStore()
@@ -558,7 +560,7 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
             <ArrowLeft />
           </Button>
           <Button variant="icon" size="sm" @click="showCreateMenu" title="新建">
-            <Plus />
+            <Settings />
           </Button>
         </template>
 
