@@ -557,10 +557,10 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
         @contextmenu="handleContextMenu" @sort="handleItemSort">
         <template #title-tool>
           <Button v-if="notesStore.currentFolderId" variant="icon" size="sm" @click="handleBackToFolders" title="返回上一级">
-            <ArrowLeft />
+            <ArrowLeft size="12" />
           </Button>
           <Button variant="icon" size="sm" @click="showCreateMenu" title="新建">
-            <Settings />
+            <Settings size="12" />
           </Button>
         </template>
 
