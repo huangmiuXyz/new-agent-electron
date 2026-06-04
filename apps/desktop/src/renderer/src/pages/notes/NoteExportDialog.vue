@@ -73,13 +73,6 @@ const [SettingsForm, settingsFormActions] = useForm<ExportSettingsForm>({
       label: '导出项中包含文档标题',
       type: 'boolean'
     },
-    {
-      name: 'exportContent',
-      label: '导出内容',
-      type: 'select',
-      required: true,
-      options: exportContentOptions
-    },
     ...(activeFormat.value === 'image'
       ? ([
           {
@@ -134,13 +127,6 @@ const baseSettingsFields = computed<FormField<ExportSettingsForm>[]>(() => [
     name: 'includeTitle',
     label: '导出项中包含文档标题',
     type: 'boolean'
-  },
-  {
-    name: 'exportContent',
-    label: '导出内容',
-    type: 'select',
-    required: true,
-    options: exportContentOptions
   }
 ])
 
