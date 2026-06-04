@@ -4,6 +4,7 @@ import type { Note } from '@renderer/stores/notes'
 import type { FormField } from '@renderer/types/components'
 import { copyElementImageToClipboard, saveElementImageToFile } from '@renderer/utils'
 import { formatTime } from '@renderer/utils/time'
+import JSZip from 'jszip'
 
 const props = defineProps<{
   onClose?: () => void
@@ -47,7 +48,10 @@ const isExporting = ref(false)
 
 const exportContentOptions = [{ label: '文档正文', value: 'body' }]
 const customCssOptions = [{ label: '不使用', value: 'none' }]
-const textOutputOptions = [{ label: '单个文件', value: 'single' }]
+const textOutputOptions = [
+  { label: '单个文件', value: 'single' },
+  { label: '多个文件', value: 'multiple' }
+]
 const textExtensionOptions = [{ label: 'Text (.txt)', value: 'txt' }]
 const lineBreakOptions = [{ label: '自动', value: 'auto' }]
 
@@ -295,6 +299,19 @@ const getUniquePath = (directory: string, baseName: string, extension: string) =
   }
 }
 
+const getUniqueArchiveFileName = (usedNames: Set<string>, baseName: string, extension: string) => {
+  let index = 0
+  while (true) {
+    const suffix = index === 0 ? '' : `-${index + 1}`
+    const candidate = `${baseName}${suffix}.${extension}`
+    if (!usedNames.has(candidate)) {
+      usedNames.add(candidate)
+      return candidate
+    }
+    index += 1
+  }
+}
+
 const waitForImages = async (element: HTMLElement) => {
   const images = Array.from(element.querySelectorAll('img'))
   await Promise.all(
@@ -405,6 +422,34 @@ const textPreview = computed(() => {
 const exportText = async () => {
   if (selectedNotes.value.length === 0) {
     messageApi.warning('请选择要导出的笔记')
+    return
+  }
+
+  if (textOutputMode.value === 'multiple') {
+    const firstNote = selectedNotes.value[0]!
+    const defaultPath = window.api.path.join(
+      getDownloadsPath(),
+      `${sanitizeFileName(firstNote.title)}.zip`
+    )
+    const result = await window.api.showSaveDialog({
+      title: '导出文本压缩包',
+      defaultPath,
+      filters: [{ name: 'ZIP 压缩包', extensions: ['zip'] }]
+    })
+
+    if (result.canceled || !result.filePath) return
+
+    const zip = new JSZip()
+    const usedNames = new Set<string>()
+    for (const note of selectedNotes.value) {
+      const fileName = getUniqueArchiveFileName(usedNames, sanitizeFileName(note.title), 'txt')
+      zip.file(fileName, buildNoteText(note))
+    }
+
+    const content = await zip.generateAsync({ type: 'uint8array' })
+    window.api.fs.writeFileSync(ensureExtension(result.filePath, 'zip'), content)
+    messageApi.success(`已导出 ${selectedNotes.value.length} 个文本文件到 ZIP`)
+    props.onClose?.()
     return
   }
 
