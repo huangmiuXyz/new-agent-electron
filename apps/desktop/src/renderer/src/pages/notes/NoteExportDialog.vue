@@ -107,28 +107,6 @@ const BUILTIN_CSS_PRESETS: CssPreset[] = [
     builtin: true
   },
   {
-    id: 'builtin-simulation',
-    name: '仿真',
-    css: `.note-export-image-card {
-  background:
-    linear-gradient(90deg, rgba(255, 0, 0, 0.035) 1px, transparent 1px) 42px 0 / 24px 24px,
-    linear-gradient(#f9f2de 23px, #e7d8b6 24px);
-  color: #2c2418;
-  border: 1px solid #d8c69f;
-  box-shadow: 0 26px 70px rgba(58, 42, 22, 0.24);
-}
-
-.note-export-image-content {
-  font-family: "Bradley Hand", "Comic Sans MS", "Segoe Print", cursive;
-  font-size: 18px;
-}
-
-.note-export-image-title {
-  font-family: "Bradley Hand", "Comic Sans MS", "Segoe Print", cursive;
-}`,
-    builtin: true
-  },
-  {
     id: 'builtin-cyberpunk',
     name: '赛博朋克',
     css: `.note-export-image-card {
