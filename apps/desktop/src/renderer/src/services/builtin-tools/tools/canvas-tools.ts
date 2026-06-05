@@ -78,19 +78,45 @@ const normalizeCanvasEditPath = (workspaceDir: string, rawPath: string) => {
   const inputPath = rawPath.trim()
   const noPrefixPath =
     inputPath.startsWith('a/') || inputPath.startsWith('b/') ? inputPath.slice(2) : inputPath
-  const resolvedPath = window.api.path.isAbsolute(noPrefixPath)
-    ? window.api.path.resolve(window.api.path.normalize(noPrefixPath))
-    : window.api.path.resolve(workspaceDir, noPrefixPath)
-  const relativePath = window.api.path.relative(workspaceDir, resolvedPath)
+  const normalizedWorkspaceDir = window.api.path.resolve(window.api.path.normalize(workspaceDir))
+  const resolveRelativePath = (value: string) => {
+    const resolvedPath = window.api.path.resolve(normalizedWorkspaceDir, value)
+    return window.api.path.relative(normalizedWorkspaceDir, resolvedPath)
+  }
+  const getWorkspaceRelativePath = () => {
+    if (!window.api.path.isAbsolute(noPrefixPath)) {
+      return resolveRelativePath(noPrefixPath)
+    }
+
+    const resolvedPath = window.api.path.resolve(window.api.path.normalize(noPrefixPath))
+    const absoluteRelativePath = window.api.path.relative(normalizedWorkspaceDir, resolvedPath)
+    const isInsideWorkspace =
+      absoluteRelativePath === '' ||
+      (!absoluteRelativePath.startsWith('..') && !window.api.path.isAbsolute(absoluteRelativePath))
+
+    if (isInsideWorkspace) {
+      return absoluteRelativePath
+    }
+
+    // Canvas paths commonly use a leading slash to mean "workspace root", e.g. /index.html.
+    return resolveRelativePath(noPrefixPath.replace(/^[/\\]+/, ''))
+  }
+  const relativePath = getWorkspaceRelativePath()
   const isInsideWorkspace =
     relativePath === '' || (!relativePath.startsWith('..') && !window.api.path.isAbsolute(relativePath))
 
   if (!isInsideWorkspace) {
-    throw new Error(`路径越界：仅允许访问 Canvas 工作区内文件 (${workspaceDir})`)
+    throw new Error(`路径越界：仅允许访问 Canvas 工作区内文件 (${normalizedWorkspaceDir})`)
   }
 
   return normalizeSandboxPath(relativePath)
 }
+
+const normalizeCanvasEditInput = (workspaceDir: string, input: string) =>
+  input.replace(/^§+([^\r\n]*)/gm, (_, rawPath: string) => {
+    const normalizedPath = normalizeCanvasEditPath(workspaceDir, rawPath)
+    return `§${normalizedPath.replace(/^\/+/, '')}`
+  })
 
 const formatDirectoryList = (chatId?: string, directoryPath = '/') => {
   const canvasStore = useCanvasStore()
@@ -440,9 +466,10 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
       try {
         const canvasStore = useCanvasStore()
         const { workspaceDir } = await ensureCanvasWorkspace(options?.chatId)
+        const normalizedInput = normalizeCanvasEditInput(workspaceDir, input)
         const result = await window.api.editFile.execute({
           baseDir: workspaceDir,
-          input
+          input: normalizedInput
         })
 
         if (!result?.ok || !result.summary) {
@@ -451,10 +478,12 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
 
         const firstSummaryPath = result.summary.split('\n')[0]?.replace(/^[A-Z]\s+/, '').trim()
         if (firstSummaryPath) {
-          canvasStore.setActiveFilePath(normalizeCanvasEditPath(workspaceDir, firstSummaryPath), options?.chatId)
-        } else {
-          canvasStore.touchWorkspace(options?.chatId)
+          canvasStore.setActiveFilePath(
+            normalizeCanvasEditPath(workspaceDir, firstSummaryPath),
+            options?.chatId
+          )
         }
+        canvasStore.touchWorkspace(options?.chatId)
 
         openCanvasPanel()
 

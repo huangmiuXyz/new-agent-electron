@@ -235,9 +235,9 @@ const ensureFileTabOpen = (filePath: string) => {
 const hasDraftForFile = (filePath: string) =>
   Object.prototype.hasOwnProperty.call(fileDrafts.value, filePath)
 
-const getPersistedFile = (filePath: string) => {
+const getPersistedFile = (filePath: string, options?: { force?: boolean }) => {
   if (!filePath) return null
-  if (activeFile.value?.path === filePath) {
+  if (!options?.force && activeFile.value?.path === filePath) {
     return activeFile.value
   }
   try {
@@ -2412,7 +2412,7 @@ watch(
       activeFile.value = null
       return
     }
-    activeFile.value = getPersistedFile(filePath)
+    activeFile.value = getPersistedFile(filePath, { force: true })
   },
   { immediate: true }
 )
