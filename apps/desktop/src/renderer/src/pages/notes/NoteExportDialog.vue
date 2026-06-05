@@ -5,6 +5,7 @@ import Select from '@renderer/components/Select.vue'
 import Textarea from '@renderer/components/Textarea.vue'
 import { useModal } from '@renderer/composables/useModal'
 import { FormItem } from '@renderer/composables/useForm'
+import type { MenuItem } from '@renderer/composables/useContextMenu'
 import type { Note } from '@renderer/stores/notes'
 import type { FormField } from '@renderer/types/components'
 import { copyElementImageToClipboard, saveElementImageToFile } from '@renderer/utils'
@@ -17,6 +18,7 @@ const props = defineProps<{
 }>()
 
 type ExportFormat = 'image' | 'pdf' | 'word' | 'epub' | 'html' | 'text'
+type CssPresetEditorMode = 'create' | 'edit'
 type CssPreset = {
   id: string
   name: string
@@ -26,12 +28,17 @@ type CssPreset = {
 
 const notesStore = useNotesStore()
 const cssPresetModal = useModal()
-const { Copy, Document, Download, File, Settings } = useIcon([
+const { showContextMenu } = useContextMenu()
+const { Copy, Document, Download, Edit, File, Help, Plus, Settings, Trash } = useIcon([
   'Copy',
   'Document',
   'Download',
+  'Edit',
   'File',
-  'Settings'
+  'Help',
+  'Plus',
+  'Settings',
+  'Trash'
 ])
 
 type ExportSettingsForm = {
@@ -76,6 +83,37 @@ const textExtensionOptions = [
   { label: 'Markdown (.md)', value: 'md' }
 ]
 const CUSTOM_CSS_PRESETS_STORAGE_KEY = 'note-export-custom-css-presets'
+const CSS_PRESET_GENERATION_PROMPT = `你是一名擅长排版和视觉设计的前端工程师。请根据我给出的风格关键词，为“笔记导出图片卡片”生成一段 CSS。
+
+只输出 CSS，不要输出解释、HTML、JavaScript，也不要使用 Markdown 代码围栏。
+
+可用选择器：
+.note-export-image-card
+.note-export-image-title
+.note-export-image-meta
+.note-export-image-divider
+.note-export-image-content
+.note-export-image-content h1
+.note-export-image-content h2
+.note-export-image-content h3
+.note-export-image-content p
+.note-export-image-content blockquote
+.note-export-image-content code
+.note-export-image-content pre
+.note-export-image-content table
+.note-export-image-content img
+.note-export-image-content ul
+.note-export-image-content ol
+.note-export-image-content li
+
+约束：
+1. 适合导出为 PNG 的笔记卡片，默认宽度约 600px。
+2. CSS 必须限定在上述选择器内，避免影响页面其他元素。
+3. 不要使用外链资源、@import、position: fixed、动画或依赖视口的大尺寸布局。
+4. 保持正文可读，标题、元信息、分隔线、引用、代码块和图片都要有协调样式。
+5. 如需字体，只使用系统字体栈或常见安全字体。
+
+我的风格关键词是：[在这里填写风格，例如：极简日式、复古纸张、赛博朋克、学术论文、暗色玻璃拟态]`
 const BUILTIN_CSS_PRESETS: CssPreset[] = [
   {
     id: 'builtin-default',
@@ -166,7 +204,10 @@ const loadCustomCssPresets = (): CssPreset[] => {
 
 const customCssPresets = ref<CssPreset[]>(loadCustomCssPresets())
 const selectedCssPresetId = ref(BUILTIN_CSS_PRESETS[0]!.id)
-const cssPresetName = ref('')
+const cssPresetDraftMode = ref<CssPresetEditorMode>('create')
+const cssPresetDraftEditingId = ref('')
+const cssPresetDraftName = ref('')
+const cssPresetDraftCss = ref('')
 
 const [SettingsForm, settingsFormActions] = useForm<ExportSettingsForm>({
   size: 'sm',
@@ -366,55 +407,41 @@ const applyCssPreset = (presetId: string | number | undefined) => {
   const preset = cssPresets.value.find((item) => item.id === presetId)
   if (!preset) return
 
-  cssPresetName.value = preset.builtin
-    ? preset.id === 'builtin-default'
-      ? ''
-      : `${preset.name}副本`
-    : preset.name
   setCustomCssValue(preset.css)
 }
 
 watch(selectedCssPresetId, applyCssPreset, { immediate: true })
 
-const createBlankCssPreset = () => {
-  selectedCssPresetId.value = ''
-  cssPresetName.value = ''
-  setCustomCssValue('')
-}
-
-const markCssPresetDraft = () => {
-  if (selectedCssPresetId.value && !selectedCustomCssPreset.value) {
-    selectedCssPresetId.value = ''
-  }
-}
-
-const saveCssPreset = () => {
-  const name = cssPresetName.value.trim()
+const saveCssPresetDraft = () => {
+  const name = cssPresetDraftName.value.trim()
   if (!name) {
     messageApi.warning('请输入预设名称')
-    return
+    return false
   }
 
-  const selectedCustom = selectedCustomCssPreset.value
-  if (selectedCustom) {
+  const editingCustom = customCssPresets.value.find(
+    (preset) => preset.id === cssPresetDraftEditingId.value
+  )
+  if (cssPresetDraftMode.value === 'edit' && editingCustom) {
     customCssPresets.value = customCssPresets.value.map((preset) =>
-      preset.id === selectedCustom.id
-        ? { ...preset, name, css: customCss.value }
+      preset.id === editingCustom.id
+        ? { ...preset, name, css: cssPresetDraftCss.value }
         : preset
     )
+    setCustomCssValue(cssPresetDraftCss.value)
     messageApi.success('已更新 CSS 预设')
-    return
+    return true
   }
 
   const preset: CssPreset = {
     id: createCssPresetId(),
     name: getUniquePresetName(name),
-    css: customCss.value
+    css: cssPresetDraftCss.value
   }
   customCssPresets.value = [...customCssPresets.value, preset]
   selectedCssPresetId.value = preset.id
-  cssPresetName.value = preset.name
   messageApi.success('已保存 CSS 预设')
+  return true
 }
 
 const deleteCssPreset = () => {
@@ -428,119 +455,97 @@ const deleteCssPreset = () => {
   messageApi.success('已删除 CSS 预设')
 }
 
-const openCssPresetManager = () => {
-  const content = defineComponent({
-    name: 'NoteExportCssPresetManager',
-    setup() {
-      const selectPreset = (presetId: string | number | undefined) => {
-        selectedCssPresetId.value = String(presetId || '')
-      }
+const openCssPresetEditor = (mode: CssPresetEditorMode) => {
+  const selectedPreset = mode === 'edit' ? selectedCustomCssPreset.value : null
+  if (mode === 'edit' && !selectedPreset) {
+    messageApi.warning('内置 CSS 预设不可编辑')
+    return
+  }
 
+  cssPresetDraftMode.value = mode
+  cssPresetDraftEditingId.value = mode === 'edit' && selectedPreset ? selectedPreset.id : ''
+  cssPresetDraftName.value = mode === 'edit' && selectedPreset ? selectedPreset.name : ''
+  cssPresetDraftCss.value = mode === 'edit' && selectedPreset ? selectedPreset.css : ''
+
+  const content = defineComponent({
+    name: 'NoteExportCssPresetEditor',
+    setup: () => {
       return () =>
-        h('div', { class: 'css-preset-manager' }, [
-          h('div', { class: 'css-preset-manager-grid' }, [
-            h('div', { class: 'css-preset-manager-sidebar' }, [
-              h('div', { class: 'css-preset-manager-label' }, '预设'),
-              h(Select, {
-                modelValue: selectedCssPresetId.value,
-                'onUpdate:modelValue': selectPreset,
-                options: cssPresetOptions.value,
-                placeholder: '未选择预设',
-                size: 'sm'
-              }),
-              h('div', { class: 'css-preset-manager-list' }, [
-                ...cssPresets.value.map((preset) =>
-                  h(
-                    'button',
-                    {
-                      key: preset.id,
-                      class: [
-                        'css-preset-manager-item',
-                        selectedCssPresetId.value === preset.id && 'active'
-                      ],
-                      type: 'button',
-                      onClick: () => selectPreset(preset.id)
-                    },
-                    [
-                      h('span', { class: 'css-preset-manager-item-name' }, preset.name),
-                      h(
-                        'span',
-                        { class: ['css-preset-manager-badge', preset.builtin && 'builtin'] },
-                        preset.builtin ? '内置' : '自定义'
-                      )
-                    ]
-                  )
-                )
-              ])
-            ]),
-            h('div', { class: 'css-preset-manager-editor' }, [
-              h('div', { class: 'css-preset-manager-label' }, '名称'),
-              h(Input, {
-                modelValue: cssPresetName.value,
-                'onUpdate:modelValue': (value: string | number | undefined) => {
-                  markCssPresetDraft()
-                  cssPresetName.value = String(value || '')
-                },
-                placeholder: '预设名称',
-                size: 'sm'
-              }),
-              h('div', { class: 'css-preset-manager-label css-preset-manager-css-label' }, 'CSS'),
-              h(Textarea, {
-                modelValue: customCss.value,
-                'onUpdate:modelValue': (value: string | undefined) => {
-                  markCssPresetDraft()
-                  setCustomCssValue(String(value || ''))
-                },
-                class: 'css-preset-manager-textarea',
-                rows: 16,
-                placeholder: '.note-export-image-card {\n  padding: 48px;\n}'
-              })
-            ])
-          ]),
-          h('div', { class: 'css-preset-manager-actions' }, [
-            h(
-              Button,
-              {
-                size: 'sm',
-                variant: 'secondary',
-                onClick: createBlankCssPreset
-              },
-              () => '新建'
-            ),
-            h(
-              Button,
-              {
-                size: 'sm',
-                onClick: saveCssPreset
-              },
-              () => '保存'
-            ),
-            h(
-              Button,
-              {
-                size: 'sm',
-                variant: 'secondary',
-                danger: true,
-                disabled: !selectedCustomCssPreset.value,
-                onClick: deleteCssPreset
-              },
-              () => '删除'
-            )
-          ])
+        h('div', { class: 'css-preset-editor' }, [
+          h('div', { class: 'css-preset-editor-label' }, '名称'),
+          h(Input, {
+            modelValue: cssPresetDraftName.value,
+            'onUpdate:modelValue': (value: string | number | undefined) => {
+              cssPresetDraftName.value = String(value || '')
+            },
+            placeholder: '预设名称',
+            size: 'sm'
+          }),
+          h('div', { class: 'css-preset-editor-label css-preset-editor-css-label' }, 'CSS'),
+          h(Textarea, {
+            modelValue: cssPresetDraftCss.value,
+            'onUpdate:modelValue': (value: string | undefined) => {
+              cssPresetDraftCss.value = String(value || '')
+            },
+            class: 'css-preset-editor-textarea',
+            rows: 16,
+            placeholder: '.note-export-image-card {\n  padding: 48px;\n}'
+          })
         ])
     }
   })
 
   void cssPresetModal.confirm({
-    title: 'CSS 预设',
+    title: mode === 'edit' ? '编辑 CSS 预设' : '新增 CSS 预设',
     content,
-    showFooter: false,
-    width: '720px',
+    width: '560px',
+    confirmText: '保存',
+    onOk: (remove) => {
+      if (saveCssPresetDraft()) remove()
+    },
     modalBodyStyle: {
       padding: '14px',
       overflow: 'hidden'
     }
   })
+}
+
+const openCssPresetMenu = (event: MouseEvent) => {
+  const options: MenuItem[] = [
+    {
+      label: '新增',
+      icon: Plus,
+      onClick: () => openCssPresetEditor('create')
+    },
+    {
+      label: '编辑',
+      icon: Edit,
+      disabled: !selectedCustomCssPreset.value,
+      onClick: () => openCssPresetEditor('edit')
+    },
+    {
+      label: '删除',
+      icon: Trash,
+      danger: true,
+      disabled: !selectedCustomCssPreset.value,
+      onClick: deleteCssPreset
+    }
+  ]
+  showContextMenu(event, options)
+}
+
+const copyCssPresetGenerationPrompt = async () => {
+  try {
+    if (window.api?.clipboard?.writeText) {
+      window.api.clipboard.writeText(CSS_PRESET_GENERATION_PROMPT)
+    } else {
+      await navigator.clipboard.writeText(CSS_PRESET_GENERATION_PROMPT)
+    }
+    messageApi.success('已复制 CSS 生成提示词')
+  } catch (error) {
+    console.error('复制 CSS 生成提示词失败:', error)
+    messageApi.error('复制提示词失败')
+  }
 }
 
 const syncPreviewCustomCss = async () => {
@@ -1019,9 +1024,17 @@ const handleExport = async () => {
                 size="sm"
                 variant="icon"
                 title="管理 CSS 预设"
-                @click="openCssPresetManager"
+                @click="openCssPresetMenu"
               >
                 <Settings />
+              </Button>
+              <Button
+                size="sm"
+                variant="icon"
+                title="复制 CSS 生成提示词"
+                @click="copyCssPresetGenerationPrompt"
+              >
+                <Help />
               </Button>
             </div>
           </FormItem>
@@ -1248,102 +1261,26 @@ const handleExport = async () => {
   font-size: 13px;
 }
 
-:global(.css-preset-manager) {
+:global(.css-preset-editor) {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   min-height: 0;
 }
 
-:global(.css-preset-manager-grid) {
-  display: grid;
-  grid-template-columns: 210px minmax(0, 1fr);
-  gap: 12px;
-  min-height: 0;
-}
-
-:global(.css-preset-manager-sidebar),
-:global(.css-preset-manager-editor) {
-  min-width: 0;
-}
-
-:global(.css-preset-manager-label) {
+:global(.css-preset-editor-label) {
   margin-bottom: 6px;
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 600;
 }
 
-:global(.css-preset-manager-css-label) {
+:global(.css-preset-editor-css-label) {
   margin-top: 12px;
 }
 
-:global(.css-preset-manager-list) {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 338px;
-  margin-top: 10px;
-  overflow: auto;
-}
-
-:global(.css-preset-manager-item) {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  min-height: 30px;
-  padding: 5px 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-primary);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-:global(.css-preset-manager-item:hover) {
-  background: var(--bg-hover);
-}
-
-:global(.css-preset-manager-item.active) {
-  background: var(--bg-active);
-  color: var(--accent-color);
-}
-
-:global(.css-preset-manager-item-name) {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-:global(.css-preset-manager-badge) {
-  flex: 0 0 auto;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  color: var(--text-tertiary);
-  font-size: 11px;
-}
-
-:global(.css-preset-manager-badge.builtin) {
-  color: var(--accent-color);
-}
-
-:global(.css-preset-manager-textarea) {
+:global(.css-preset-editor-textarea) {
   min-height: 300px;
   font-family: 'SFMono-Regular', Consolas, monospace;
-}
-
-:global(.css-preset-manager-actions) {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-subtle);
 }
 
 .image-preview,
