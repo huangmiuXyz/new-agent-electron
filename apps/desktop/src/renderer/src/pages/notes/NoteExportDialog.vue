@@ -71,6 +71,7 @@ const textOutputMode = ref('single')
 const textExtension = ref<'txt' | 'md'>('txt')
 const lineBreakMode = ref('auto')
 const isCopyingImage = ref(false)
+const isCopyingText = ref(false)
 const isExporting = ref(false)
 const previewArticleRef = ref<HTMLElement | null>(null)
 
@@ -534,13 +535,17 @@ const openCssPresetMenu = (event: MouseEvent) => {
   showContextMenu(event, options)
 }
 
+const writeClipboardText = async (text: string) => {
+  if (window.api?.clipboard?.writeText) {
+    window.api.clipboard.writeText(text)
+    return
+  }
+  await navigator.clipboard.writeText(text)
+}
+
 const copyCssPresetGenerationPrompt = async () => {
   try {
-    if (window.api?.clipboard?.writeText) {
-      window.api.clipboard.writeText(CSS_PRESET_GENERATION_PROMPT)
-    } else {
-      await navigator.clipboard.writeText(CSS_PRESET_GENERATION_PROMPT)
-    }
+    await writeClipboardText(CSS_PRESET_GENERATION_PROMPT)
     messageApi.success('已复制 CSS 生成提示词')
   } catch (error) {
     console.error('复制 CSS 生成提示词失败:', error)
@@ -753,6 +758,31 @@ const textPreview = computed(() => {
   return buildNoteText(previewNote.value)
 })
 
+const buildSelectedNotesText = () => selectedNotes.value.map(buildNoteText).join('\n\n---\n\n')
+
+const handleCopyTextToClipboard = async () => {
+  if (activeFormat.value !== 'text' || isCopyingText.value) return
+  if (selectedNotes.value.length === 0) {
+    messageApi.warning('请选择要复制的笔记')
+    return
+  }
+
+  isCopyingText.value = true
+  try {
+    await writeClipboardText(buildSelectedNotesText())
+    messageApi.success(
+      selectedNotes.value.length > 1
+        ? `已复制 ${selectedNotes.value.length} 篇笔记文本`
+        : '已复制文本到剪贴板'
+    )
+  } catch (error) {
+    console.error('复制文本到剪贴板失败:', error)
+    messageApi.error((error as Error)?.message || '复制文本失败')
+  } finally {
+    isCopyingText.value = false
+  }
+}
+
 const exportText = async () => {
   if (selectedNotes.value.length === 0) {
     messageApi.warning('请选择要导出的笔记')
@@ -808,7 +838,7 @@ const exportText = async () => {
 
   if (result.canceled || !result.filePath) return
 
-  const content = selectedNotes.value.map(buildNoteText).join('\n\n---\n\n')
+  const content = buildSelectedNotesText()
   window.api.fs.writeFileSync(
     ensureExtension(result.filePath, textExtension.value),
     content,
@@ -1096,6 +1126,19 @@ const handleExport = async () => {
           <Copy />
         </template>
         复制图片到剪贴板
+      </Button>
+      <Button
+        v-else-if="activeFormat === 'text'"
+        class="footer-copy-button"
+        variant="secondary"
+        :loading="isCopyingText"
+        :disabled="!hasSelectedNotes"
+        @click="handleCopyTextToClipboard"
+      >
+        <template #icon>
+          <Copy />
+        </template>
+        复制文本到剪贴板
       </Button>
       <Button variant="secondary" @click="props.onClose?.()">取消</Button>
       <Button :loading="isExporting" :disabled="selectedNotes.length === 0" @click="handleExport">
