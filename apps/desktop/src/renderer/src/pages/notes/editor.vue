@@ -12,6 +12,17 @@ const { currentNote } = storeToRefs(notesStore)
 
 const isErgonomicWidth = computed(() => settingsStore.display.notesInputWidthMode === 'ergonomic')
 const widthToggleTitle = computed(() => isErgonomicWidth.value ? '切换为全屏输入宽度' : '切换为适应人体工学宽度')
+const currentNoteReferencePath = computed(() => {
+    const note = currentNote.value
+    if (!note) return ''
+
+    const pathSegments = [
+        ...notesStore.folderPath(note.folderId).map((folder) => folder.name),
+        note.title
+    ].filter(Boolean)
+
+    return `/${pathSegments.join('/')}`.replace(/\/+/g, '/')
+})
 
 const toggleInputWidthMode = () => {
     settingsStore.display.notesInputWidthMode = isErgonomicWidth.value ? 'full' : 'ergonomic'
@@ -114,7 +125,8 @@ onUnmounted(() => {
                 <!-- 笔记内容 -->
                 <div class="note-content">
                     <RichTextEditor v-model="noteContent" placeholder="开始输入笔记内容..." class="content-editor"
-                        :reference-title="currentNote.title" :reference-id="currentNote.id" @change="onContentChange">
+                        :reference-title="currentNote.title" :reference-path="currentNoteReferencePath"
+                        :reference-id="currentNote.id" @change="onContentChange">
                         <template #toolbar-actions>
                             <Button v-if="!isMobile" variant="icon" size="sm" :title="widthToggleTitle"
                                 @click="toggleInputWidthMode">

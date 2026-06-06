@@ -54,6 +54,7 @@ interface Props {
     minHeight?: string
     maxHeight?: string
     referenceTitle?: string
+    referencePath?: string
     referenceId?: string
 }
 
@@ -277,6 +278,7 @@ const buildNoteReference = (selection?: NoteReferenceSelection) => {
         selectionStartOffset,
         selectionEndOffset,
         title: props.referenceTitle || '当前笔记',
+        path: props.referencePath,
         referenceId: props.referenceId
     })
 }

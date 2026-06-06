@@ -12,13 +12,15 @@ describe('buildNoteHashlineReference', () => {
       selectionStartOffset,
       selectionEndOffset,
       title: 'Demo note',
+      path: '/Folder/Demo note',
       referenceId: 'note-1'
     })
 
-    expect(reference).toContain('note: Demo note')
+    expect(reference).toContain('note: /Folder/Demo note')
     expect(reference).toContain('note_id: note-1')
+    expect(reference).toContain('title: Demo note')
     expect(reference).toContain('lines: 2-2')
-    expect(reference).toContain('|Bravo Charlie')
+    expect(reference).toContain('2:Bravo Charlie')
     expect(reference).toContain('selection: cols 4-8')
     expect(reference).toContain('text: vo Ch')
   })
@@ -36,10 +38,10 @@ describe('buildNoteHashlineReference', () => {
     })
 
     expect(reference).toContain('lines: 1-2')
-    expect(reference).toContain('|Alpha')
+    expect(reference).toContain('1:Alpha')
     expect(reference).toContain('selection: cols 3-5')
     expect(reference).toContain('text: pha')
-    expect(reference).toContain('|Bravo Charlie')
+    expect(reference).toContain('2:Bravo Charlie')
     expect(reference).toContain('selection: cols 1-3')
     expect(reference).toContain('text: Bra')
   })
@@ -56,7 +58,7 @@ describe('buildNoteHashlineReference', () => {
     })
 
     expect(reference).toContain('lines: 2-2')
-    expect(reference).toContain('|Bravo Charlie')
+    expect(reference).toContain('2:Bravo Charlie')
     expect(reference).not.toContain('selection: cols')
     expect(reference).not.toContain('text: Charlie')
   })

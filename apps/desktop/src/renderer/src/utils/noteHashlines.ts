@@ -62,6 +62,7 @@ export const buildNoteHashlineReference = (options: {
   selectionStartOffset: number
   selectionEndOffset: number
   title: string
+  path?: string
   referenceId?: string
 }) => {
   const text = normalizeHashlineText(options.text)
@@ -104,8 +105,9 @@ export const buildNoteHashlineReference = (options: {
   })
 
   return [
-    `note: ${options.title}`,
+    `note: ${options.path || options.title}`,
     options.referenceId ? `note_id: ${options.referenceId}` : '',
+    options.path ? `title: ${options.title}` : '',
     `lines: ${startLine}-${endLine}`,
     'hashlines:',
     `¶${options.referenceId || options.title}#${computeSnapshotTag(text)}`,
