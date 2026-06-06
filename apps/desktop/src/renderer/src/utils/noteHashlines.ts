@@ -1,9 +1,3 @@
-const HL_BIGRAMS = Array.from({ length: 26 * 26 }, (_, index) => {
-  const first = String.fromCharCode(97 + Math.floor(index / 26))
-  const second = String.fromCharCode(97 + (index % 26))
-  return `${first}${second}`
-})
-
 const fnv1a = (value: string): number => {
   let hash = 0x811c9dc5
   for (let index = 0; index < value.length; index += 1) {
@@ -15,10 +9,8 @@ const fnv1a = (value: string): number => {
 
 export const normalizeHashlineText = (value: string) => value.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 
-export const computeLineHash = (line: string): string => {
-  const normalized = line.replace(/\r/g, '').trimEnd()
-  return HL_BIGRAMS[fnv1a(normalized) % HL_BIGRAMS.length]
-}
+export const computeSnapshotTag = (text: string): string =>
+  (fnv1a(normalizeHashlineText(text)) & 0xffff).toString(16).padStart(4, '0').toUpperCase()
 
 const getLineIndexAtOffset = (text: string, offset: number) => {
   const lines = text.split('\n')
@@ -93,7 +85,7 @@ export const buildNoteHashlineReference = (options: {
   const endLine = endIndex + 1
   const hashLines = selectedLines.map((line, index) => {
     const lineNumber = startLine + index
-    const anchorLine = `${lineNumber}${computeLineHash(line)}|${line}`
+    const anchorLine = `${lineNumber}:${line}`
     if (!hasSelection) return anchorLine
 
     const selectedPart = sliceLineSelection(
@@ -116,6 +108,7 @@ export const buildNoteHashlineReference = (options: {
     options.referenceId ? `note_id: ${options.referenceId}` : '',
     `lines: ${startLine}-${endLine}`,
     'hashlines:',
+    `¶${options.referenceId || options.title}#${computeSnapshotTag(text)}`,
     hashLines.join('\n')
   ].filter(Boolean).join('\n')
 }

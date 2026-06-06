@@ -196,11 +196,11 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     description:
       [
         '读取 workPath 内的文本文件，并以 hashline 格式返回。',
-        '每一行格式为 LINEhash|内容，例如 12ab|const value = 1。',
-        '锚点只包含 | 左侧的 LINEhash，例如 12ab；编辑时不要复制 | 或后面的内容到操作行。',
+        'hashlines 会包含文件头 ¶path#TAG，TAG 是当前文件快照指纹，编辑时必须原样复制。',
+        '正文每一行格式为 LINE:内容，例如 12:const value = 1。编辑操作使用行号 12。',
         '默认只读取 160 行；显式传 end_line 或 limit 时会自动附带前 1 行、后 3 行上下文。',
-        '超长行会显示为 LINE|截断内容，不带 hash，表示这行不可作为 edit_file 锚点。',
-        '编辑文件前必须先读取目标区域，复制左侧 LINEhash 锚点到 edit_file 的 hashline 输入。',
+        '超长行会截断显示，但仍可用行号编辑；提交前请确认目标行内容。',
+        '编辑文件前必须先读取目标区域，复制 ¶path#TAG 文件头到 edit_file 的 hashline 输入。',
         '需要搜索文件名或内容时请改用 search_project；定位到文件后再用 readFile 读取锚点。'
       ].join('\n'),
     inputSchema: z.object({
@@ -208,7 +208,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       start_line: z.number().int().min(1).optional().describe('起始行号，1-based，默认 1。'),
       end_line: z.number().int().min(1).optional().describe('结束行号，1-based；传入后会自动附带少量上下文。'),
       limit: z.number().int().min(1).max(2000).optional().describe('最多读取多少行，默认 160，最大 2000。'),
-      max_columns: z.number().int().min(20).max(2000).optional().describe('单行最大显示列数，默认 240；超出后不生成 hash 锚点。')
+      max_columns: z.number().int().min(20).max(2000).optional().describe('单行最大显示列数，默认 240；超出后截断显示。')
     }),
     execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
@@ -560,29 +560,41 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   edit_file: {
     title: '编辑文件',
     description: [
-      '使用 hashline 模式编辑 workPath 内的文件。',
+      '编辑 workPath 内的文件。用 type 区分文件操作：update/add/delete/move。',
       '',
-      '输入格式：',
-      '§path/to/file',
-      '»ANCHOR 在锚点后插入；«ANCHOR 在锚点前插入；≔ANCHOR 或 ≔START..END 替换/删除行。',
-      '»BOF/«BOF 表示文件开头，»EOF 表示文件末尾。',
-      '≔ANCHOR 后跟 payload 表示替换；不跟 payload 表示删除。',
+      'type=update：使用 hashline 编辑已有文件，必须提供 input。',
+      '¶path/to/file#TAG',
+      'replace N..M:',
+      '+new line',
+      'delete N..M',
+      'insert before N:',
+      '+new line',
+      'insert after N: / insert head: / insert tail:',
       '',
-      '编辑前必须用 readFile 获取最新 LINEhash 锚点，例如 12ab|const value = 1 中的锚点是 12ab。',
+      'type=add：提供 path 和 content，新建文件；目标已存在会失败。',
+      'type=delete：提供 path，删除文件。',
+      'type=move：提供 path 和 new_path，移动/重命名文件；目标已存在会失败。',
+      '',
+      'update 前必须用 readFile 获取最新 ¶path#TAG 文件头和行号。payload 每行必须以 + 开头，+ 单独一行表示插入空行。',
       '所有路径必须位于当前 workPath 内。'
     ].join('\n'),
     inputSchema: z.object({
-      input: z.string().describe('hashline 编辑内容，必须包含一个或多个 §PATH 文件区块。')
+      type: z.enum(['update', 'add', 'delete', 'move']).optional().default('update').describe('文件操作类型。update 走 hashline；add/delete/move 是文件级操作。'),
+      input: z.string().optional().describe('type=update 时的 hashline 编辑内容，必须包含一个或多个 ¶PATH#TAG 文件区块。'),
+      path: z.string().optional().describe('type=add/delete/move 时的源/目标文件路径。相对路径基于当前 workPath。'),
+      new_path: z.string().optional().describe('type=move 时的新文件路径。相对路径基于当前 workPath。'),
+      content: z.string().optional().describe('type=add 时的新文件内容。')
     }),
     execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
+      const type = ['update', 'add', 'delete', 'move'].includes(params.type) ? params.type : 'update'
       const input = typeof params.input === 'string' ? params.input : ''
 
-      if (!input.trim()) {
+      if (type === 'update' && !input.trim()) {
         return {
           error: '缺少必要参数: input',
           toolResult: {
-            content: [{ type: 'text', text: 'edit_file 失败：缺少必要参数 input' }]
+            content: [{ type: 'text', text: 'edit_file 失败：type=update 缺少必要参数 input' }]
           }
         }
       }
@@ -599,7 +611,11 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       try {
         const result = await window.api.editFile.execute({
           baseDir,
-          input
+          type,
+          input,
+          path: typeof params.path === 'string' ? params.path : undefined,
+          new_path: typeof params.new_path === 'string' ? params.new_path : undefined,
+          content: typeof params.content === 'string' ? params.content : undefined
         })
 
         if (!result?.ok || !result.summary) {

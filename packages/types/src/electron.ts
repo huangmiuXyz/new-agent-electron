@@ -273,7 +273,14 @@ export interface ElectronAPI {
   }
 
   editFile: {
-    execute: (payload: { baseDir: string; input: string }) => Promise<{
+    execute: (payload: {
+      baseDir: string
+      type?: 'add' | 'delete' | 'update' | 'move'
+      input?: string
+      path?: string
+      new_path?: string
+      content?: string
+    }) => Promise<{
       ok: boolean
       summary?: string
       error?: string

@@ -2,18 +2,10 @@ import { ipcMain } from 'electron'
 import { promises as fs } from 'fs'
 import nodePath from 'path'
 
-const HL_BIGRAMS = Array.from({ length: 26 * 26 }, (_, index) => {
-  const first = String.fromCharCode(97 + Math.floor(index / 26))
-  const second = String.fromCharCode(97 + (index % 26))
-  return `${first}${second}`
-})
-
-export const HL_FILE_PREFIX = '§'
-export const HL_INSERT_BEFORE = '«'
-export const HL_INSERT_AFTER = '»'
-export const HL_REPLACE = '≔'
-export const HL_BODY_SEPARATOR = '|'
-export const RANGE_INTERIOR_HASH = '**'
+export const HL_FILE_PREFIX = '¶'
+export const HL_FILE_HASH_SEPARATOR = '#'
+export const HL_BODY_PREFIX = '+'
+export const HL_LINE_SEPARATOR = ':'
 export const DEFAULT_HASHLINE_READ_LIMIT = 160
 export const MAX_HASHLINE_READ_LIMIT = 2000
 export const HASHLINE_RANGE_LEADING_CONTEXT = 1
@@ -22,11 +14,11 @@ export const DEFAULT_HASHLINE_MAX_COLUMNS = 240
 
 export type HashlineAnchor = {
   line: number
-  hash: string
 }
 
 export type HashlineSection = {
   path: string
+  tag: string
   body: string
 }
 
@@ -48,7 +40,7 @@ export type HashlineOperation =
       index: number
     }
 
-export const normalizeHashlineText = (value: string) => value.replace(/\r\n/g, '\n')
+export const normalizeHashlineText = (value: string) => value.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 
 export const splitFileLines = (text: string) => normalizeHashlineText(text).split('\n')
 
@@ -61,13 +53,11 @@ const fnv1a = (value: string): number => {
   return hash >>> 0
 }
 
-export const computeLineHash = (_lineNumber: number, line: string): string => {
-  const normalized = line.replace(/\r/g, '').trimEnd()
-  return HL_BIGRAMS[fnv1a(normalized) % HL_BIGRAMS.length]
-}
+export const computeSnapshotTag = (text: string): string =>
+  (fnv1a(normalizeHashlineText(text)) & 0xffff).toString(16).padStart(4, '0').toUpperCase()
 
 export const formatHashLine = (lineNumber: number, line: string): string =>
-  `${lineNumber}${computeLineHash(lineNumber, line)}${HL_BODY_SEPARATOR}${line}`
+  `${lineNumber}${HL_LINE_SEPARATOR}${line}`
 
 export const formatHashLines = (text: string, startLine = 1): string =>
   splitFileLines(text).map((line, index) => formatHashLine(startLine + index, line)).join('\n')
@@ -156,7 +146,7 @@ export const formatHashlineDisplayLines = (
       const truncated = truncateDisplayLine(line, maxColumns)
       if (truncated.wasTruncated) {
         truncatedLineNumbers.push(lineNumber)
-        return `${lineNumber}${HL_BODY_SEPARATOR}${truncated.text}`
+        return `${lineNumber}${HL_LINE_SEPARATOR}${truncated.text}`
       }
       return formatHashLine(lineNumber, line)
     })
@@ -167,38 +157,15 @@ export const formatHashlineDisplayLines = (
 
 const isSectionHeader = (line: string) => line.startsWith(HL_FILE_PREFIX)
 
-const isOpLine = (line: string) =>
-  line.startsWith(HL_INSERT_BEFORE) || line.startsWith(HL_INSERT_AFTER) || line.startsWith(HL_REPLACE)
-
-const parseOperationLine = (
-  line: string,
-  operator: typeof HL_INSERT_BEFORE | typeof HL_INSERT_AFTER | typeof HL_REPLACE
-): { target: string; inlinePayload?: string } | null => {
-  if (!line.startsWith(operator)) return null
-
-  const rawTarget = line.slice(operator.length).trim()
-  if (!rawTarget) return null
-
-  const separatorIndex = rawTarget.indexOf(HL_BODY_SEPARATOR)
-  if (separatorIndex >= 0) {
-    return {
-      target: rawTarget.slice(0, separatorIndex).trim(),
-      inlinePayload: rawTarget.slice(separatorIndex + HL_BODY_SEPARATOR.length)
-    }
-  }
-
-  if (!/^\S+$/.test(rawTarget)) return null
-  return { target: rawTarget }
-}
+const isOpLine = (line: string) => /^(replace|delete|insert)\b/.test(line.trim())
 
 const parseAnchor = (rawValue: string, lineNumber: number): HashlineAnchor => {
-  const match = rawValue.match(/^([1-9]\d*)([a-z]{2})$/)
+  const match = rawValue.match(/^([1-9]\d*)$/)
   if (!match) {
-    throw new Error(`line ${lineNumber}: expected hashline anchor like "12ab", got "${rawValue}"`)
+    throw new Error(`line ${lineNumber}: expected line number like "12", got "${rawValue}"`)
   }
   return {
-    line: Number.parseInt(match[1], 10),
-    hash: match[2]
+    line: Number.parseInt(match[1], 10)
   }
 }
 
@@ -225,16 +192,20 @@ const collectPayload = (
   lines: string[],
   startIndex: number,
   requirePayload: boolean,
-  sourceLine: number,
-  inlinePayload?: string
+  sourceLine: number
 ): { payload: string[]; nextIndex: number } => {
-  const payload: string[] = inlinePayload === undefined ? [] : [inlinePayload]
+  const payload: string[] = []
   let cursor = startIndex
 
   while (cursor < lines.length) {
     const line = lines[cursor]
     if (line === '*** End Patch' || isSectionHeader(line) || isOpLine(line)) break
-    payload.push(line)
+    if (!line.startsWith(HL_BODY_PREFIX)) {
+      throw new Error(
+        `line ${cursor + 1}: payload rows must start with "+". Use "+" alone to insert a blank line.`
+      )
+    }
+    payload.push(line.slice(HL_BODY_PREFIX.length))
     cursor += 1
   }
 
@@ -245,19 +216,42 @@ const collectPayload = (
   return { payload, nextIndex: cursor }
 }
 
+const parseSectionHeader = (line: string, sourceLine: number): { path: string; tag: string } => {
+  if (!line.startsWith(HL_FILE_PREFIX)) {
+    throw new Error(`line ${sourceLine}: section header must start with "${HL_FILE_PREFIX}"`)
+  }
+
+  const rawHeader = line.slice(HL_FILE_PREFIX.length).trim()
+  const separatorIndex = rawHeader.lastIndexOf(HL_FILE_HASH_SEPARATOR)
+  if (separatorIndex <= 0 || separatorIndex === rawHeader.length - 1) {
+    throw new Error(`line ${sourceLine}: section header must be "¶path#TAG" from readFile output`)
+  }
+
+  const path = rawHeader.slice(0, separatorIndex).trim()
+  const tag = rawHeader.slice(separatorIndex + 1).trim().toUpperCase()
+  if (!path) throw new Error(`line ${sourceLine}: hashline section path is empty`)
+  if (!/^[0-9A-F]{4}$/.test(tag)) {
+    throw new Error(`line ${sourceLine}: snapshot tag must be four uppercase hex characters, got "${tag}"`)
+  }
+
+  return { path, tag }
+}
+
 export const splitHashlineSections = (input: string): HashlineSection[] => {
   const lines = normalizeHashlineText(input).split('\n')
   const sections: HashlineSection[] = []
   let currentPath = ''
+  let currentTag = ''
   let currentBody: string[] = []
 
   const pushCurrent = () => {
     if (!currentPath) return
-    sections.push({ path: currentPath, body: currentBody.join('\n') })
+    sections.push({ path: currentPath, tag: currentTag, body: currentBody.join('\n') })
     currentBody = []
   }
 
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]
     if (!line.trim() || line === '*** Begin Patch' || line === '*** End Patch') {
       if (currentPath && line !== '*** Begin Patch' && line !== '*** End Patch') currentBody.push(line)
       continue
@@ -265,13 +259,14 @@ export const splitHashlineSections = (input: string): HashlineSection[] => {
 
     if (isSectionHeader(line)) {
       pushCurrent()
-      currentPath = line.replace(/^§+/, '').trim()
-      if (!currentPath) throw new Error('hashline section path is empty')
+      const header = parseSectionHeader(line, index + 1)
+      currentPath = header.path
+      currentTag = header.tag
       continue
     }
 
     if (!currentPath) {
-      throw new Error('hashline input must start with a section header like "§src/file.ts"')
+      throw new Error('hashline input must start with a section header like "¶src/file.ts#ABCD"')
     }
     currentBody.push(line)
   }
@@ -301,52 +296,10 @@ export const parseHashlineOperations = (body: string): HashlineOperation[] => {
     }
     if (line === '*** End Patch') break
 
-    const beforeMatch = parseOperationLine(line, HL_INSERT_BEFORE)
-    if (beforeMatch) {
-      const target = beforeMatch.target
-      const { payload, nextIndex } = collectPayload(lines, cursor + 1, true, sourceLine, beforeMatch.inlinePayload)
-      operations.push(
-        target === 'BOF'
-          ? { type: 'insert', position: 'bof', payload, sourceLine, index: operations.length }
-          : {
-              type: 'insert',
-              position: 'before',
-              anchor: parseAnchor(target, sourceLine),
-              payload,
-              sourceLine,
-              index: operations.length
-            }
-      )
-      cursor = nextIndex
-      continue
-    }
-
-    const afterMatch = parseOperationLine(line, HL_INSERT_AFTER)
-    if (afterMatch) {
-      const target = afterMatch.target
-      const { payload, nextIndex } = collectPayload(lines, cursor + 1, true, sourceLine, afterMatch.inlinePayload)
-      operations.push(
-        target === 'EOF'
-          ? { type: 'insert', position: 'eof', payload, sourceLine, index: operations.length }
-          : target === 'BOF'
-            ? { type: 'insert', position: 'bof', payload, sourceLine, index: operations.length }
-            : {
-                type: 'insert',
-                position: 'after',
-                anchor: parseAnchor(target, sourceLine),
-                payload,
-                sourceLine,
-                index: operations.length
-              }
-      )
-      cursor = nextIndex
-      continue
-    }
-
-    const replaceMatch = parseOperationLine(line, HL_REPLACE)
+    const replaceMatch = line.trim().match(/^replace\s+(.+?)(?::)?$/)
     if (replaceMatch) {
-      const range = parseRange(replaceMatch.target, sourceLine)
-      const { payload, nextIndex } = collectPayload(lines, cursor + 1, false, sourceLine, replaceMatch.inlinePayload)
+      const range = parseRange(replaceMatch[1].trim(), sourceLine)
+      const { payload, nextIndex } = collectPayload(lines, cursor + 1, true, sourceLine)
       operations.push({
         type: 'replace',
         ...range,
@@ -358,13 +311,68 @@ export const parseHashlineOperations = (body: string): HashlineOperation[] => {
       continue
     }
 
-    if (isOpLine(line)) {
-      throw new Error(
-        `line ${sourceLine}: operation line must be only an operator plus anchor, for example "»3rx". Do not include "|content" on the operation line; payload belongs on the next line.`
-      )
+    const deleteMatch = line.trim().match(/^delete\s+(.+?)(?::)?$/)
+    if (deleteMatch) {
+      if (line.trim().endsWith(':')) {
+        throw new Error(`line ${sourceLine}: delete does not take payload rows. Use replace N..M: to replace.`)
+      }
+      const range = parseRange(deleteMatch[1].trim(), sourceLine)
+      operations.push({
+        type: 'replace',
+        ...range,
+        payload: [],
+        sourceLine,
+        index: operations.length
+      })
+      cursor += 1
+      continue
     }
 
-    throw new Error(`line ${sourceLine}: expected «ANCHOR, »ANCHOR, or ≔ANCHOR, got "${line}"`)
+    const insertMatch = line.trim().match(/^insert\s+(before|after)\s+([1-9]\d*)\s*:?\s*$/)
+    if (insertMatch) {
+      const [, position, target] = insertMatch
+      const { payload, nextIndex } = collectPayload(lines, cursor + 1, true, sourceLine)
+      operations.push(
+        position === 'before'
+          ? {
+              type: 'insert',
+              position: 'before',
+              anchor: parseAnchor(target, sourceLine),
+              payload,
+              sourceLine,
+              index: operations.length
+            }
+          : {
+              type: 'insert',
+              position: 'after',
+              anchor: parseAnchor(target, sourceLine),
+              payload,
+              sourceLine,
+              index: operations.length
+            }
+      )
+      cursor = nextIndex
+      continue
+    }
+
+    const edgeInsertMatch = line.trim().match(/^insert\s+(head|tail)\s*:?\s*$/)
+    if (edgeInsertMatch) {
+      const [, position] = edgeInsertMatch
+      const { payload, nextIndex } = collectPayload(lines, cursor + 1, true, sourceLine)
+      operations.push(
+        position === 'tail'
+          ? { type: 'insert', position: 'eof', payload, sourceLine, index: operations.length }
+          : { type: 'insert', position: 'bof', payload, sourceLine, index: operations.length }
+      )
+      cursor = nextIndex
+      continue
+    }
+
+    if (isOpLine(line)) {
+      throw new Error(`line ${sourceLine}: malformed hashline operation "${line}"`)
+    }
+
+    throw new Error(`line ${sourceLine}: expected replace, delete, or insert operation, got "${line}"`)
   }
 
   if (operations.length === 0) {
@@ -377,14 +385,6 @@ export const parseHashlineOperations = (body: string): HashlineOperation[] => {
 const validateAnchor = (anchor: HashlineAnchor, lines: string[]) => {
   if (anchor.line < 1 || anchor.line > lines.length) {
     throw new Error(`Line ${anchor.line} does not exist (file has ${lines.length} lines)`)
-  }
-  if (anchor.hash === RANGE_INTERIOR_HASH) return
-
-  const actualHash = computeLineHash(anchor.line, lines[anchor.line - 1] || '')
-  if (actualHash !== anchor.hash) {
-    throw new Error(
-      `Hash mismatch at line ${anchor.line}: expected ${anchor.hash}, actual ${actualHash}. Re-read the file and retry with fresh anchors.`
-    )
   }
 }
 
@@ -510,6 +510,7 @@ const executeHashlineRead = async (payload: HashlineReadPayload): Promise<string
   const hashlineDisplay = formatHashlineDisplayLines(selection.selectedLines, selection.startLine, {
     maxColumns: payload.max_columns
   })
+  const relativeDisplayPath = nodePath.relative(nodePath.resolve(baseDir), filePath).replaceAll('\\', '/') || rawPath
 
   return [
     `file: ${filePath.replaceAll('\\', '/')}`,
@@ -519,9 +520,10 @@ const executeHashlineRead = async (payload: HashlineReadPayload): Promise<string
       : '',
     selection.hasMore ? `note: output truncated; call readFile with start_line=${selection.requestedEndLine + 1} for more anchors.` : '',
     hashlineDisplay.truncatedLineNumbers.length > 0
-      ? `note: lines without hash anchors due to column truncation: ${hashlineDisplay.truncatedLineNumbers.join(', ')}`
+      ? `note: long lines truncated for display: ${hashlineDisplay.truncatedLineNumbers.join(', ')}`
       : '',
     'hashlines:',
+    `${HL_FILE_PREFIX}${relativeDisplayPath}${HL_FILE_HASH_SEPARATOR}${computeSnapshotTag(content)}`,
     hashlineDisplay.text
   ]
     .filter(Boolean)

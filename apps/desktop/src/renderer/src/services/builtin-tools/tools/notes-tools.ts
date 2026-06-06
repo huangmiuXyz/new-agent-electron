@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { computeLineHash, stripNoteHtml as stripHtml } from '@renderer/utils/noteHashlines'
+import { computeSnapshotTag, stripNoteHtml as stripHtml } from '@renderer/utils/noteHashlines'
 
 type NoteLike = {
   id: string
@@ -54,7 +54,6 @@ const formatDate = (value: Date | string): string => {
 
 type HashlineAnchor = {
   line: number
-  hash: string
 }
 
 type HashlineOperation =
@@ -102,9 +101,9 @@ const formatHashlineRead = (
   const hashLines = lines.slice(displayStartLine - 1, displayEndLine).map((line, index) => {
     const lineNumber = displayStartLine + index
     if (line.length > maxColumns) {
-      return `${lineNumber}|${line.slice(0, maxColumns - 1)}…`
+      return `${lineNumber}:${line.slice(0, maxColumns - 1)}…`
     }
-    return `${lineNumber}${computeLineHash(line)}|${line}`
+    return `${lineNumber}:${line}`
   })
 
   return [
@@ -119,6 +118,7 @@ const formatHashlineRead = (
       : '',
     requestedEndLine < totalLines ? `note: output truncated; call list_notes with start_line=${requestedEndLine + 1} for more anchors.` : '',
     'hashlines:',
+    `¶${note.id}#${computeSnapshotTag(plainText)}`,
     hashLines.join('\n')
   ].filter(Boolean).join('\n')
 }
@@ -364,39 +364,16 @@ const resolveCreateNoteTarget = (
   return { title, folderId }
 }
 
-const isHashlineSectionHeader = (line: string) => line.startsWith('§')
-const isHashlineOperationLine = (line: string) =>
-  line.startsWith('«') || line.startsWith('»') || line.startsWith('≔')
-
-const parseHashlineOperationLine = (
-  line: string,
-  operator: '«' | '»' | '≔'
-): { target: string; inlinePayload?: string } | null => {
-  if (!line.startsWith(operator)) return null
-
-  const rawTarget = line.slice(operator.length).trim()
-  if (!rawTarget) return null
-
-  const separatorIndex = rawTarget.indexOf('|')
-  if (separatorIndex >= 0) {
-    return {
-      target: rawTarget.slice(0, separatorIndex).trim(),
-      inlinePayload: rawTarget.slice(separatorIndex + 1)
-    }
-  }
-
-  if (!/^\S+$/.test(rawTarget)) return null
-  return { target: rawTarget }
-}
+const isHashlineSectionHeader = (line: string) => line.startsWith('¶')
+const isHashlineOperationLine = (line: string) => /^(replace|delete|insert)\b/.test(line.trim())
 
 const parseHashlineAnchor = (rawValue: string, sourceLine: number): HashlineAnchor => {
-  const match = rawValue.match(/^([1-9]\d*)([a-z]{2})$/)
+  const match = rawValue.match(/^([1-9]\d*)$/)
   if (!match) {
-    throw new Error(`line ${sourceLine}: expected hashline anchor like "12ab", got "${rawValue}"`)
+    throw new Error(`line ${sourceLine}: expected line number like "12", got "${rawValue}"`)
   }
   return {
-    line: Number.parseInt(match[1], 10),
-    hash: match[2]
+    line: Number.parseInt(match[1], 10)
   }
 }
 
@@ -423,16 +400,20 @@ const collectHashlinePayload = (
   lines: string[],
   startIndex: number,
   requirePayload: boolean,
-  sourceLine: number,
-  inlinePayload?: string
+  sourceLine: number
 ): { payload: string[]; nextIndex: number } => {
-  const payload: string[] = inlinePayload === undefined ? [] : [inlinePayload]
+  const payload: string[] = []
   let cursor = startIndex
 
   while (cursor < lines.length) {
     const line = lines[cursor]
     if (line === '*** End Patch' || isHashlineSectionHeader(line) || isHashlineOperationLine(line)) break
-    payload.push(line)
+    if (!line.startsWith('+')) {
+      throw new Error(
+        `line ${cursor + 1}: payload rows must start with "+". Use "+" alone to insert a blank line.`
+      )
+    }
+    payload.push(line.slice(1))
     cursor += 1
   }
 
@@ -443,19 +424,38 @@ const collectHashlinePayload = (
   return { payload, nextIndex: cursor }
 }
 
-const splitHashlineSections = (input: string): Array<{ path: string; body: string }> => {
+const parseHashlineSectionHeader = (line: string, sourceLine: number): { path: string; tag: string } => {
+  const rawHeader = line.slice('¶'.length).trim()
+  const separatorIndex = rawHeader.lastIndexOf('#')
+  if (separatorIndex <= 0 || separatorIndex === rawHeader.length - 1) {
+    throw new Error(`line ${sourceLine}: section header must be "¶NOTE_ID#TAG" or "¶folder/note#TAG" from list_notes output`)
+  }
+
+  const path = rawHeader.slice(0, separatorIndex).trim()
+  const tag = rawHeader.slice(separatorIndex + 1).trim().toUpperCase()
+  if (!path) throw new Error('hashline section note id/path is empty')
+  if (!/^[0-9A-F]{4}$/.test(tag)) {
+    throw new Error(`line ${sourceLine}: snapshot tag must be four uppercase hex characters, got "${tag}"`)
+  }
+
+  return { path, tag }
+}
+
+const splitHashlineSections = (input: string): Array<{ path: string; tag: string; body: string }> => {
   const lines = normalizeText(input).split('\n')
-  const sections: Array<{ path: string; body: string }> = []
+  const sections: Array<{ path: string; tag: string; body: string }> = []
   let currentPath = ''
+  let currentTag = ''
   let currentBody: string[] = []
 
   const pushCurrent = () => {
     if (!currentPath) return
-    sections.push({ path: currentPath, body: currentBody.join('\n') })
+    sections.push({ path: currentPath, tag: currentTag, body: currentBody.join('\n') })
     currentBody = []
   }
 
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]
     if (!line.trim() || line === '*** Begin Patch' || line === '*** End Patch') {
       if (currentPath && line !== '*** Begin Patch' && line !== '*** End Patch') currentBody.push(line)
       continue
@@ -463,13 +463,14 @@ const splitHashlineSections = (input: string): Array<{ path: string; body: strin
 
     if (isHashlineSectionHeader(line)) {
       pushCurrent()
-      currentPath = line.replace(/^§+/, '').trim()
-      if (!currentPath) throw new Error('hashline section note id/path is empty')
+      const header = parseHashlineSectionHeader(line, index + 1)
+      currentPath = header.path
+      currentTag = header.tag
       continue
     }
 
     if (!currentPath) {
-      throw new Error('hashline input must start with a section header like "§NOTE_ID" or "§folder/note"')
+      throw new Error('hashline input must start with a section header like "¶NOTE_ID#ABCD" or "¶folder/note#ABCD"')
     }
     currentBody.push(line)
   }
@@ -499,68 +500,10 @@ const parseHashlineOperations = (body: string): HashlineOperation[] => {
     }
     if (line === '*** End Patch') break
 
-    const beforeMatch = parseHashlineOperationLine(line, '«')
-    if (beforeMatch) {
-      const target = beforeMatch.target
-      const { payload, nextIndex } = collectHashlinePayload(
-        lines,
-        cursor + 1,
-        true,
-        sourceLine,
-        beforeMatch.inlinePayload
-      )
-      operations.push(
-        target === 'BOF'
-          ? { type: 'insert', position: 'bof', payload, index: operations.length }
-          : {
-              type: 'insert',
-              position: 'before',
-              anchor: parseHashlineAnchor(target, sourceLine),
-              payload,
-              index: operations.length
-            }
-      )
-      cursor = nextIndex
-      continue
-    }
-
-    const afterMatch = parseHashlineOperationLine(line, '»')
-    if (afterMatch) {
-      const target = afterMatch.target
-      const { payload, nextIndex } = collectHashlinePayload(
-        lines,
-        cursor + 1,
-        true,
-        sourceLine,
-        afterMatch.inlinePayload
-      )
-      operations.push(
-        target === 'EOF'
-          ? { type: 'insert', position: 'eof', payload, index: operations.length }
-          : target === 'BOF'
-            ? { type: 'insert', position: 'bof', payload, index: operations.length }
-            : {
-                type: 'insert',
-                position: 'after',
-                anchor: parseHashlineAnchor(target, sourceLine),
-                payload,
-                index: operations.length
-              }
-      )
-      cursor = nextIndex
-      continue
-    }
-
-    const replaceMatch = parseHashlineOperationLine(line, '≔')
+    const replaceMatch = line.trim().match(/^replace\s+(.+?)(?::)?$/)
     if (replaceMatch) {
-      const range = parseHashlineRange(replaceMatch.target, sourceLine)
-      const { payload, nextIndex } = collectHashlinePayload(
-        lines,
-        cursor + 1,
-        false,
-        sourceLine,
-        replaceMatch.inlinePayload
-      )
+      const range = parseHashlineRange(replaceMatch[1].trim(), sourceLine)
+      const { payload, nextIndex } = collectHashlinePayload(lines, cursor + 1, true, sourceLine)
       operations.push({
         type: 'replace',
         ...range,
@@ -571,7 +514,61 @@ const parseHashlineOperations = (body: string): HashlineOperation[] => {
       continue
     }
 
-    throw new Error(`line ${sourceLine}: expected «ANCHOR, »ANCHOR, or ≔ANCHOR, got "${line}"`)
+    const deleteMatch = line.trim().match(/^delete\s+(.+?)(?::)?$/)
+    if (deleteMatch) {
+      if (line.trim().endsWith(':')) {
+        throw new Error(`line ${sourceLine}: delete does not take payload rows. Use replace N..M: to replace.`)
+      }
+      const range = parseHashlineRange(deleteMatch[1].trim(), sourceLine)
+      operations.push({
+        type: 'replace',
+        ...range,
+        payload: [],
+        index: operations.length
+      })
+      cursor += 1
+      continue
+    }
+
+    const insertMatch = line.trim().match(/^insert\s+(before|after)\s+([1-9]\d*)\s*:?\s*$/)
+    if (insertMatch) {
+      const [, position, target] = insertMatch
+      const { payload, nextIndex } = collectHashlinePayload(lines, cursor + 1, true, sourceLine)
+      operations.push(
+        position === 'before'
+          ? {
+              type: 'insert',
+              position: 'before',
+              anchor: parseHashlineAnchor(target, sourceLine),
+              payload,
+              index: operations.length
+            }
+          : {
+              type: 'insert',
+              position: 'after',
+              anchor: parseHashlineAnchor(target, sourceLine),
+              payload,
+              index: operations.length
+            }
+      )
+      cursor = nextIndex
+      continue
+    }
+
+    const edgeInsertMatch = line.trim().match(/^insert\s+(head|tail)\s*:?\s*$/)
+    if (edgeInsertMatch) {
+      const [, position] = edgeInsertMatch
+      const { payload, nextIndex } = collectHashlinePayload(lines, cursor + 1, true, sourceLine)
+      operations.push(
+        position === 'tail'
+          ? { type: 'insert', position: 'eof', payload, index: operations.length }
+          : { type: 'insert', position: 'bof', payload, index: operations.length }
+      )
+      cursor = nextIndex
+      continue
+    }
+
+    throw new Error(`line ${sourceLine}: expected replace, delete, or insert operation, got "${line}"`)
   }
 
   if (operations.length === 0) {
@@ -584,13 +581,6 @@ const parseHashlineOperations = (body: string): HashlineOperation[] => {
 const validateHashlineAnchor = (anchor: HashlineAnchor, lines: string[]) => {
   if (anchor.line < 1 || anchor.line > lines.length) {
     throw new Error(`Line ${anchor.line} does not exist (note has ${lines.length} lines)`)
-  }
-
-  const actualHash = computeLineHash(lines[anchor.line - 1] || '')
-  if (actualHash !== anchor.hash) {
-    throw new Error(
-      `Hash mismatch at line ${anchor.line}: expected ${anchor.hash}, actual ${actualHash}. Re-read the note and retry with fresh anchors.`
-    )
   }
 }
 
@@ -675,7 +665,7 @@ export const getNotesBuiltinTools = (): Partial<Tools> => ({
       start_line: z.number().int().min(1).optional().describe('读取笔记时的起始行号，1-based，默认 1。'),
       end_line: z.number().int().min(1).optional().describe('读取笔记时的结束行号，1-based；传入后会自动附带少量上下文。'),
       limit: z.number().int().min(1).max(2000).optional().describe('读取笔记时最多读取多少行，默认 160，最大 2000。'),
-      max_columns: z.number().int().min(20).max(2000).optional().describe('读取笔记时单行最大显示列数，默认 240；超出后不生成 hash 锚点。'),
+      max_columns: z.number().int().min(20).max(2000).optional().describe('读取笔记时单行最大显示列数，默认 240；超出后截断显示。'),
       max_length: z
         .number()
         .int()
@@ -942,16 +932,19 @@ export const getNotesBuiltinTools = (): Partial<Tools> => ({
       '使用 hashline 模式编辑应用内笔记正文',
       '',
       '输入格式：',
-      '§NOTE_ID 或 §笔记路径',
-      '»ANCHOR 在锚点后插入；«ANCHOR 在锚点前插入；≔ANCHOR 或 ≔START..END 替换/删除行。',
-      '»BOF/«BOF 表示笔记开头，»EOF 表示笔记末尾。',
-      '≔ANCHOR 后跟 payload 表示替换；不跟 payload 表示删除。',
+      '¶NOTE_ID#TAG 或 ¶笔记路径#TAG',
+      'replace N..M:',
+      '+new line',
+      'delete N..M',
+      'insert before N:',
+      '+new line',
+      'insert after N: / insert head: / insert tail:',
       '',
-      '编辑前必须用 list_notes 读取目标笔记，复制左侧 LINEhash 锚点，例如 12ab|内容 中的锚点是 12ab。',
+      '编辑前必须用 list_notes 读取目标笔记，复制最新 ¶NOTE_ID#TAG 文件头和行号。payload 每行必须以 + 开头，+ 单独一行表示插入空行。',
       '注意：hashline 编辑基于纯文本正文，保存时会转换为笔记富文本段落 HTML。'
     ].join('\n'),
     inputSchema: z.object({
-      input: z.string().describe('hashline 编辑内容，必须包含一个或多个 §NOTE_ID 或 §笔记路径 区块。')
+      input: z.string().describe('hashline 编辑内容，必须包含一个或多个 ¶NOTE_ID#TAG 或 ¶笔记路径#TAG 区块。')
     }),
     execute: async (args: unknown) => {
       const params = (args || {}) as Record<string, any>
@@ -975,6 +968,12 @@ export const getNotesBuiltinTools = (): Partial<Tools> => ({
         for (const section of sections) {
           const note = resolveNoteForEdit(notesStore.folders, notesStore.notes, section.path)
           const originalText = stripHtml(note.content)
+          const currentTag = computeSnapshotTag(originalText)
+          if (section.tag !== currentTag) {
+            throw new Error(
+              `Hashline snapshot mismatch for ${section.path}: expected ${section.tag}, actual ${currentTag}. Re-read the note and retry with the fresh ¶NOTE_ID#TAG header.`
+            )
+          }
           const operations = parseHashlineOperations(section.body)
           const nextText = applyHashlineOperations(originalText, operations)
           notesStore.updateNote(note.id, { content: textToNoteHtml(nextText) })

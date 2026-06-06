@@ -692,7 +692,14 @@ export const api: ElectronAPI = {
     }) => electronAPI.ipcRenderer.invoke('hashline:read', payload)
   },
   editFile: {
-    execute: (payload: { baseDir: string; input: string }) =>
+    execute: (payload: {
+      baseDir: string
+      type?: 'add' | 'delete' | 'update' | 'move'
+      input?: string
+      path?: string
+      new_path?: string
+      content?: string
+    }) =>
       electronAPI.ipcRenderer.invoke('edit-file:execute', payload)
   },
   sync: {

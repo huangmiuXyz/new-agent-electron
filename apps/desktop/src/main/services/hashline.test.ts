@@ -1,32 +1,35 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyHashlineOperations,
-  computeLineHash,
+  computeSnapshotTag,
+  formatHashLines,
   parseHashlineOperations
 } from './hashline'
 
-const anchorFor = (lineNumber: number, text: string) =>
-  `${lineNumber}${computeLineHash(lineNumber, text)}`
-
 describe('parseHashlineOperations', () => {
-  it('accepts inline payload after an insert-after anchor separator', () => {
+  it('accepts insert-after syntax', () => {
     const source = 'alpha\nbravo\ncharlie'
-    const operations = parseHashlineOperations(`»${anchorFor(2, 'bravo')}|inserted line`)
+    const operations = parseHashlineOperations(`insert after 2:\n+inserted line`)
 
     expect(applyHashlineOperations(source, operations)).toBe('alpha\nbravo\ninserted line\ncharlie')
   })
 
-  it('keeps following payload lines after an inline payload', () => {
+  it('accepts multi-line replacement payloads', () => {
     const source = 'alpha\nbravo\ncharlie'
-    const operations = parseHashlineOperations(`»${anchorFor(2, 'bravo')}|first\nsecond`)
+    const operations = parseHashlineOperations(`replace 2..2:\n+first\n+second`)
 
-    expect(applyHashlineOperations(source, operations)).toBe('alpha\nbravo\nfirst\nsecond\ncharlie')
+    expect(applyHashlineOperations(source, operations)).toBe('alpha\nfirst\nsecond\ncharlie')
   })
 
-  it('accepts inline payload when replacing a line', () => {
+  it('accepts delete syntax', () => {
     const source = 'alpha\nbravo\ncharlie'
-    const operations = parseHashlineOperations(`≔${anchorFor(2, 'bravo')}|BRAVO`)
+    const operations = parseHashlineOperations('delete 2')
 
-    expect(applyHashlineOperations(source, operations)).toBe('alpha\nBRAVO\ncharlie')
+    expect(applyHashlineOperations(source, operations)).toBe('alpha\ncharlie')
+  })
+
+  it('formats read output body lines with line numbers only', () => {
+    expect(formatHashLines('alpha\nbravo')).toBe('1:alpha\n2:bravo')
+    expect(computeSnapshotTag('alpha\nbravo')).toMatch(/^[0-9A-F]{4}$/)
   })
 })
