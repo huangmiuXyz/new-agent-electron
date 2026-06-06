@@ -232,7 +232,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
         '正文每一行格式为 LINE:内容，例如 12:const value = 1。编辑操作使用行号 12。',
         '默认只读取 160 行；显式传 end_line 或 limit 时会自动附带前 1 行、后 3 行上下文。',
         '超长行会截断显示，但仍可用行号编辑；提交前请确认目标行内容。',
-        '编辑文件前必须先读取目标区域，复制 ¶path#TAG 文件头到 edit_file_canvas 的 hashline 输入。'
+        '编辑文件前必须先读取目标区域，复制 ¶path#TAG 文件头到 edit_file_canvas 的 content。'
       ].join('\n'),
     inputSchema: z.object({
       path: z.string().describe('要读取的文件路径。相对路径会基于当前 Canvas 工作区解析。'),
@@ -445,7 +445,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
     description: [
       '编辑当前 Canvas 工作区内的文件。用 type 区分文件操作：update/add/delete/move。',
       '',
-      'type=update：使用 hashline 编辑已有文件，必须提供 input。',
+      'type=update：使用 hashline 编辑已有文件，必须提供 content。',
       '¶path/to/file#TAG',
       'replace N..M:',
       '+new line',
@@ -463,21 +463,21 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
     ].join('\n'),
     inputSchema: z.object({
       type: z.enum(['update', 'add', 'delete', 'move']).optional().default('update').describe('文件操作类型。update 走 hashline；add/delete/move 是文件级操作。'),
-      input: z.string().optional().describe('type=update 时的 hashline 编辑内容，必须包含一个或多个 ¶PATH#TAG 文件区块。'),
       path: z.string().optional().describe('type=add/delete/move 时的源/目标文件路径。相对路径基于当前 Canvas 工作区。'),
       new_path: z.string().optional().describe('type=move 时的新文件路径。相对路径基于当前 Canvas 工作区。'),
-      content: z.string().optional().describe('type=add 时的新文件内容。')
+      content: z.string().optional().describe('type=update 时的 hashline 编辑内容；type=add 时的新文件内容。')
     }),
     execute: async (args: unknown, options?: { chatId?: string }) => {
       const params = args as Record<string, any>
       const type = ['update', 'add', 'delete', 'move'].includes(params.type) ? params.type : 'update'
-      const input = typeof params.input === 'string' ? params.input : ''
+      const content = typeof params.content === 'string' ? params.content : ''
+      const input = type === 'update' ? content : ''
 
       if (type === 'update' && !input.trim()) {
         return {
-          error: '缺少必要参数: input',
+          error: '缺少必要参数: content',
           toolResult: {
-            content: [{ type: 'text', text: 'edit_file_canvas 失败：type=update 缺少必要参数 input' }]
+            content: [{ type: 'text', text: 'edit_file_canvas 失败：type=update 缺少必要参数 content' }]
           }
         }
       }
@@ -500,7 +500,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
           input: normalizedInput,
           path: normalizedPath,
           new_path: normalizedNewPath,
-          content: typeof params.content === 'string' ? params.content : undefined
+          content: type === 'add' ? content : undefined
         })
 
         if (!result?.ok || !result.summary) {
