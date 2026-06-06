@@ -1,6 +1,6 @@
 ﻿import { z } from 'zod'
 import ignore from 'ignore'
-import { injectBundledRipgrepPath } from './command-utils'
+import { getDedicatedFileToolHint, injectBundledRipgrepPath } from './command-utils'
 
 type CodexToolExecuteOptions = {
   chatId?: string
@@ -48,7 +48,7 @@ const resolveWorkspaceRootPath = (rawPath: string, chatId?: string): string => {
 const resolvePath = (rawPath: string, chatId?: string): string => {
   const baseDir = getCurrentWorkPath(chatId)
   if (!baseDir) {
-    throw new Error('未设置 workPath，已禁止回退路径解析，优先使用 `set_work_path` 工具临时设置，禁止使用exec_command执行')
+    throw new Error('未设置 workPath，已禁止回退路径解析，优先使用 `change_working_directory` 工具临时设置，禁止使用 exec_command 执行文件操作')
   }
   const normalizedBaseDir = window.api.path.resolve(window.api.path.normalize(baseDir))
   const inputPath = rawPath.trim()
@@ -223,7 +223,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           return {
             error: '未设置 workPath',
             toolResult: {
-              content: [{ type: 'text', text: '读取文件失败：未设置 workPath，优先使用 `set_work_path` 工具临时设置' }]
+              content: [{ type: 'text', text: '读取文件失败：未设置 workPath，优先使用 `change_working_directory` 工具临时设置' }]
             }
           }
         }
@@ -411,7 +411,8 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     title: '项目搜索',
     description:
       [
-        '使用 ripgrep(rg) 在当前 workPath 内搜索项目文件。必须使用 rg。',
+        '项目搜索工具。在当前 workPath 内执行 rg 风格搜索命令；本工具内部会注入 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。',
+        '搜索文件名或内容时必须调用 search_project，不要改用 exec_command 执行 rg/grep/git grep。',
         '常用模式：',
         '- 搜内容：rg -n "keyword" .',
         '- 搜文件名：rg --files | rg "keyword"',
@@ -437,7 +438,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         const isRipgrepCommand = startsWithRipgrep(cmd)
         const commandHint = isRipgrepCommand
           ? ''
-          : '\n提示：search_project 是项目搜索工具，搜索内容或文件名时请优先使用 rg，例如 rg -n "keyword" . 或 rg --files | rg "keyword"。'
+          : '\n提示：search_project 是项目搜索工具，搜索内容或文件名时请使用 rg 风格命令，例如 rg -n "keyword" . 或 rg --files | rg "keyword"。'
         const result = await execProjectSearchCommand(resolvedCmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
         const stdout = result.stdout.trim()
         const stderr = result.stderr.trim()
@@ -504,7 +505,12 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   exec_command: {
     title: '在终端中执行命令',
     description:
-      '在现有终端会话中执行命令。首次调用可不传 terminal_id 来创建新终端；一旦工具返回了终端ID，后续相关命令应优先复用同一个 terminal_id，避免每次创建新终端导致上下文丢失。',
+      [
+        '在现有终端会话中执行测试、构建、包管理、git 等真正需要终端的命令。',
+        '不要用 exec_command 搜索、读取、列出或编辑项目文件：搜索文件名/内容请用 search_project，读取文件请用 readFile，列目录请用 list_dir，编辑文件请用 edit_file。',
+        '尤其不要在 exec_command 中运行 rg/grep/git grep/cat/sed/head/tail/nl/ls/find；search_project 内部会使用 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。',
+        '首次调用可不传 terminal_id 来创建新终端；一旦工具返回了终端ID，后续相关命令应优先复用同一个 terminal_id，避免每次创建新终端导致上下文丢失。'
+      ].join('\n'),
     inputSchema: z.object({
       command: z.string().describe('要执行的命令'),
       terminal_id: z
@@ -516,6 +522,19 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     }),
     execute: async (args: any, options?: CodexToolExecuteOptions) => {
       const { command, terminal_id } = args
+      const fileToolHint = getDedicatedFileToolHint(String(command || ''), {
+        searchTool: 'search_project',
+        readTool: 'readFile',
+        listTool: 'list_dir'
+      })
+      if (fileToolHint) {
+        return {
+          toolResult: {
+            content: [{ type: 'text', text: fileToolHint }]
+          }
+        }
+      }
+
       const { createTab } = useTerminal()
       const currentAgent = getCurrentAgent(options?.chatId)
       const runInBackground = currentAgent?.execCommandRunInBackground ?? false
@@ -573,7 +592,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         return {
           error: '未设置 workPath',
           toolResult: {
-            content: [{ type: 'text', text: 'edit_file 失败：未设置 workPath，优先使用 `set_work_path` 工具临时设置' }]
+            content: [{ type: 'text', text: 'edit_file 失败：未设置 workPath，优先使用 `change_working_directory` 工具临时设置' }]
           }
         }
       }

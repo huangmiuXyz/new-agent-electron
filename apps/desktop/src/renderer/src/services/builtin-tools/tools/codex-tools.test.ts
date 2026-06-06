@@ -9,8 +9,27 @@ const mockGetAgentById = vi.fn().mockReturnValue(null)
 const mockExecFileCommand = vi.fn()
 const mockGetBundledRipgrepPath = vi.fn().mockReturnValue(mockRipgrepPath)
 const mockInjectBundledRipgrepPath = vi.fn()
+const mockCreateTab = vi.fn()
 
 vi.mock('./command-utils', () => ({
+  getDedicatedFileToolHint: (command: string, tools: { searchTool: string; readTool: string; listTool: string }) => {
+    const trimmed = command.trim()
+    if (/^rg(?:\s|$)/.test(trimmed)) {
+      return [
+        '检测到 shell 文件搜索命令: rg',
+        `请改用 ${tools.searchTool}。搜索工具内部会使用 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。`,
+        `${tools.readTool} 用于读取定位后的文件，${tools.listTool} 用于列目录；exec_command 仅用于测试、构建、包管理、git 等真正需要终端的命令。`
+      ].join('\n')
+    }
+    if (/^cat(?:\s|$)/.test(trimmed)) {
+      return [
+        '检测到 shell 文件读取命令: cat',
+        `请改用 ${tools.readTool} 读取文件和行号范围。`,
+        `需要先搜索内容或文件名时，请使用 ${tools.searchTool}；需要列目录时，请使用 ${tools.listTool}。`
+      ].join('\n')
+    }
+    return null
+  },
   injectBundledRipgrepPath: (...args: string[]) => mockInjectBundledRipgrepPath(...args)
 }))
 
@@ -59,12 +78,20 @@ beforeEach(() => {
   vi.stubGlobal('useAgentStore', () => ({
     getAgentById: mockGetAgentById
   }))
+  vi.stubGlobal('useTerminal', () => ({
+    createTab: mockCreateTab
+  }))
 
   mockGetWorkPath.mockReturnValue(mockWorkPath)
   mockGetChatById.mockReturnValue({ agentId: 'default' })
   mockGetAgentById.mockReturnValue(null)
   mockInjectBundledRipgrepPath.mockImplementation((cmd: string) => cmd)
   mockExecFileCommand.mockReset()
+  mockCreateTab.mockReset()
+  mockCreateTab.mockResolvedValue({
+    id: 'terminal-1',
+    result: { output: 'terminal output' }
+  })
   mockPathApi.resolve.mockImplementation((...args: string[]) => args.join('/').replace(/\/+/g, '/'))
   mockPathApi.normalize.mockImplementation((p: string) => p.replace(/\/+/g, '/'))
   mockPathApi.isAbsolute.mockImplementation((p: string) => /^[A-Z]:/i.test(p) || p.startsWith('/'))
@@ -80,6 +107,11 @@ import { getCodexBuiltinTools } from './codex-tools'
 const getSearchProjectTool = () => {
   const tools = getCodexBuiltinTools()
   return tools.search_project!
+}
+
+const getExecCommandTool = () => {
+  const tools = getCodexBuiltinTools()
+  return tools.exec_command!
 }
 
 const extractText = (result: any): string => result.toolResult.content[0].text
@@ -562,5 +594,41 @@ describe('search_project', () => {
         expect.arrayContaining(['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command'])
       )
     })
+  })
+})
+
+describe('exec_command', () => {
+  it('should steer shell rg searches to search_project without opening a terminal', async () => {
+    const tool = getExecCommandTool()
+    const text = extractText(await tool.execute({ command: 'rg -n "createApp" .' }, defaultOptions))
+
+    expect(text).toContain('检测到 shell 文件搜索命令: rg')
+    expect(text).toContain('请改用 search_project')
+    expect(text).toContain('bundled ripgrep')
+    expect(mockCreateTab).not.toHaveBeenCalled()
+  })
+
+  it('should steer shell file reads to readFile without opening a terminal', async () => {
+    const tool = getExecCommandTool()
+    const text = extractText(await tool.execute({ command: 'cat src/main.ts' }, defaultOptions))
+
+    expect(text).toContain('检测到 shell 文件读取命令: cat')
+    expect(text).toContain('请改用 readFile')
+    expect(mockCreateTab).not.toHaveBeenCalled()
+  })
+
+  it('should still run non-file terminal commands', async () => {
+    const tool = getExecCommandTool()
+    const text = extractText(await tool.execute({ command: 'npm test', terminal_id: 'terminal-1' }, defaultOptions))
+
+    expect(mockCreateTab).toHaveBeenCalledWith({
+      command: 'npm test',
+      cwd: mockWorkPath,
+      id: 'terminal-1',
+      toolCallId: defaultOptions.toolCallId,
+      showTerminal: true
+    })
+    expect(text).toContain('终端ID: terminal-1')
+    expect(text).toContain('terminal output')
   })
 })

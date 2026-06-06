@@ -17,7 +17,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-import { injectBundledRipgrepPath } from './command-utils'
+import { getDedicatedFileToolHint, injectBundledRipgrepPath } from './command-utils'
 
 describe('injectBundledRipgrepPath', () => {
   describe('basic rg command', () => {
@@ -118,5 +118,47 @@ describe('injectBundledRipgrepPath', () => {
       const result = injectBundledRipgrepPath('rg --files | rg "\\.ts$"')
       expect(result).toBe('rg --files | rg "\\.ts$"')
     })
+  })
+})
+
+describe('getDedicatedFileToolHint', () => {
+  const tools = {
+    searchTool: 'search_project',
+    readTool: 'readFile',
+    listTool: 'list_dir'
+  }
+
+  it('should steer rg to the dedicated search tool', () => {
+    const hint = getDedicatedFileToolHint('rg -n "needle" .', tools)
+
+    expect(hint).toContain('检测到 shell 文件搜索命令: rg')
+    expect(hint).toContain('请改用 search_project')
+    expect(hint).toContain('bundled ripgrep')
+  })
+
+  it('should detect rg in command chains', () => {
+    const hint = getDedicatedFileToolHint('npm test && rg -n "needle" .', tools)
+
+    expect(hint).toContain('检测到 shell 文件搜索命令: rg')
+  })
+
+  it('should steer cat to the dedicated read tool', () => {
+    const hint = getDedicatedFileToolHint('cat src/main.ts', tools)
+
+    expect(hint).toContain('检测到 shell 文件读取命令: cat')
+    expect(hint).toContain('请改用 readFile')
+  })
+
+  it('should steer ls to the dedicated list tool', () => {
+    const hint = getDedicatedFileToolHint('ls src', tools)
+
+    expect(hint).toContain('检测到 shell 文件列表命令: ls')
+    expect(hint).toContain('请改用 list_dir')
+  })
+
+  it('should allow non-file terminal commands', () => {
+    const hint = getDedicatedFileToolHint('npm test', tools)
+
+    expect(hint).toBeNull()
   })
 })

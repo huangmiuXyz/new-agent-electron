@@ -191,7 +191,7 @@ const searchCanvasContent = (
 export const getCanvasBuiltinTools = (): Partial<Tools> => ({
   list_canvas_directory: {
     title: '列出 Canvas 目录',
-    description: '列出当前 Canvas 工作区中某个目录下的直接子目录和文件。需要搜索文件名、代码或内容时，优先改用 exec_command_canvas 并使用 rg。',
+    description: '列出当前 Canvas 工作区中某个目录下的直接子目录和文件。需要搜索代码或内容时请使用 search_canvas_content；该搜索工具内部会使用 bundled ripgrep。',
     inputSchema: z.object({
       directory_path: z.string().optional().describe('要列出的目录路径，默认为 /')
     }),
@@ -286,14 +286,10 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
     title: '搜索 Canvas 内容',
     description:
       [
-        '使用 ripgrep(rg) 当前 Canvas 工作区中搜索指定代码或内容，返回匹配文件、行号和文本。必须使用 rg。',
-        '常用模式：',
-        '- 搜内容：rg -n "keyword" .',
-        '- 搜文件名：rg --files | rg "keyword"',
-        '- 限定目录或类型：rg -n "keyword" apps/desktop/src -g "*.ts" -g "*.vue"',
-        '- 带上下文：rg -n "keyword" -C 3',
-        '- 搜隐藏文件、ignore 文件或 node_modules：rg -uuu -n "keyword"',
-        '- 输出可能很大时：加具体目录、-g/--glob、--max-count 或更精确关键词。',
+        'Canvas 内容搜索工具。在当前 Canvas 工作区中搜索指定代码或文本，返回匹配文件、行号和文本。',
+        '搜索代码或内容时必须调用 search_canvas_content，不要改用 exec_command_canvas 执行 rg/grep。',
+        '本工具内部会使用 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。',
+        'query 传要查找的关键词或文本片段；输出可能很大时，请使用更精确的 query 或调低 max_results。',
       ].join('\n'),
     inputSchema: z.object({
       query: z.string().describe('要搜索的关键词或文本片段'),
@@ -335,7 +331,12 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
   exec_command_canvas: {
     title: '在 Canvas 工作区执行命令',
     description:
-      '在现有 Canvas 终端会话中执行命令。首次调用可不传 terminal_id 来创建新终端；一旦工具返回了终端ID，后续相关命令应优先复用同一个 terminal_id。搜索代码、内容或文件时优先使用 rg；读取代码或文件时优先使用 cat、sed、nl 等命令。',
+      [
+        '在现有 Canvas 终端会话中执行测试、构建、包管理、脚本等真正需要终端的命令。',
+        '不要用 exec_command_canvas 搜索或读取 Canvas 文件：搜索代码/内容请用 search_canvas_content，读取文件请用 read_canvas_file，编辑文件请用 edit_file_canvas。',
+        'search_canvas_content 内部会使用 bundled ripgrep，不依赖 shell PATH 中是否存在 rg；读取文件时不要用 cat/sed/head/tail/nl。',
+        '首次调用可不传 terminal_id 来创建新终端；一旦工具返回了终端ID，后续相关命令应优先复用同一个 terminal_id。'
+      ].join('\n'),
     inputSchema: z.object({
       command: z.string().describe('要执行的命令'),
       terminal_id: z

@@ -100,6 +100,110 @@ export const injectBundledRipgrepPath = (command: string): string => {
   return `${leadingWhitespace}${replaced.join(' | ')}`
 }
 
+type DedicatedFileToolNames = {
+  searchTool: string
+  readTool: string
+  listTool: string
+}
+
+const SEARCH_COMMANDS = new Set(['ag', 'ack', 'awk', 'grep', 'rg', 'ripgrep'])
+const READ_COMMANDS = new Set(['cat', 'head', 'less', 'more', 'nl', 'sed', 'tail'])
+const LIST_COMMANDS = new Set(['fd', 'find', 'ls', 'tree'])
+
+const splitShellCommandSegments = (command: string): string[] => {
+  const segments: string[] = []
+  let start = 0
+  let quote: '"' | "'" | null = null
+  let escaped = false
+
+  for (let i = 0; i < command.length; i += 1) {
+    const char = command[i]
+    const next = command[i + 1]
+
+    if (escaped) {
+      escaped = false
+      continue
+    }
+
+    if (quote === "'") {
+      if (char === "'") quote = null
+      continue
+    }
+
+    if (quote === '"') {
+      if ((!isWindows && char === '\\') || (isWindows && char === '`')) {
+        escaped = true
+        continue
+      }
+      if (char === '"') quote = null
+      continue
+    }
+
+    if ((!isWindows && char === '\\') || (isWindows && char === '`')) {
+      escaped = true
+      continue
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char
+      continue
+    }
+
+    if (char === ';' || char === '|' || char === '&') {
+      if ((char === '|' && next === '|') || (char === '&' && next === '&')) {
+        segments.push(command.slice(start, i))
+        i += 1
+        start = i + 1
+        continue
+      }
+      if (char === '|' || char === ';') {
+        segments.push(command.slice(start, i))
+        start = i + 1
+      }
+    }
+  }
+
+  segments.push(command.slice(start))
+  return segments.map((segment) => segment.trim()).filter(Boolean)
+}
+
+export const getDedicatedFileToolHint = (
+  command: string,
+  tools: DedicatedFileToolNames
+): string | null => {
+  for (const segment of splitShellCommandSegments(command)) {
+    const cleaned = segment.replace(/^!+/, '').replace(/^\(+/, '').trim()
+    const baseCommand = cleaned.match(/^([A-Za-z0-9._-]+)/)?.[1]
+    if (!baseCommand) continue
+
+    if (SEARCH_COMMANDS.has(baseCommand) || /^git\s+grep(?:\s|$)/.test(cleaned)) {
+      return [
+        `检测到 shell 文件搜索命令: ${baseCommand === 'git' ? 'git grep' : baseCommand}`,
+        `请改用 ${tools.searchTool}。搜索工具内部会使用 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。`,
+        `${tools.readTool} 用于读取定位后的文件，${tools.listTool} 用于列目录；exec_command 仅用于测试、构建、包管理、git 等真正需要终端的命令。`
+      ].join('\n')
+    }
+
+    if (READ_COMMANDS.has(baseCommand)) {
+      return [
+        `检测到 shell 文件读取命令: ${baseCommand}`,
+        `请改用 ${tools.readTool} 读取文件和行号范围。`,
+        `需要先搜索内容或文件名时，请使用 ${tools.searchTool}；需要列目录时，请使用 ${tools.listTool}。`
+      ].join('\n')
+    }
+
+    if (LIST_COMMANDS.has(baseCommand)) {
+      return [
+        `检测到 shell 文件列表命令: ${baseCommand}`,
+        `请改用 ${tools.listTool} 列目录；需要搜索内容或文件名时，请使用 ${tools.searchTool}。`,
+        'exec_command 仅用于测试、构建、包管理、git 等真正需要终端的命令。'
+      ].join('\n')
+    }
+  }
+
+  return null
+}
+
 export const execRipgrepSearch = async (
   query: string,
   options: {
