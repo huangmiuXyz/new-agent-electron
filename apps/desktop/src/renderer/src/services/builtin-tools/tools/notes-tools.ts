@@ -368,6 +368,27 @@ const isHashlineSectionHeader = (line: string) => line.startsWith('§')
 const isHashlineOperationLine = (line: string) =>
   line.startsWith('«') || line.startsWith('»') || line.startsWith('≔')
 
+const parseHashlineOperationLine = (
+  line: string,
+  operator: '«' | '»' | '≔'
+): { target: string; inlinePayload?: string } | null => {
+  if (!line.startsWith(operator)) return null
+
+  const rawTarget = line.slice(operator.length).trim()
+  if (!rawTarget) return null
+
+  const separatorIndex = rawTarget.indexOf('|')
+  if (separatorIndex >= 0) {
+    return {
+      target: rawTarget.slice(0, separatorIndex).trim(),
+      inlinePayload: rawTarget.slice(separatorIndex + 1)
+    }
+  }
+
+  if (!/^\S+$/.test(rawTarget)) return null
+  return { target: rawTarget }
+}
+
 const parseHashlineAnchor = (rawValue: string, sourceLine: number): HashlineAnchor => {
   const match = rawValue.match(/^([1-9]\d*)([a-z]{2})$/)
   if (!match) {
@@ -402,9 +423,10 @@ const collectHashlinePayload = (
   lines: string[],
   startIndex: number,
   requirePayload: boolean,
-  sourceLine: number
+  sourceLine: number,
+  inlinePayload?: string
 ): { payload: string[]; nextIndex: number } => {
-  const payload: string[] = []
+  const payload: string[] = inlinePayload === undefined ? [] : [inlinePayload]
   let cursor = startIndex
 
   while (cursor < lines.length) {
@@ -477,13 +499,16 @@ const parseHashlineOperations = (body: string): HashlineOperation[] => {
     }
     if (line === '*** End Patch') break
 
-    const beforeMatch = line.match(/^«\s*(\S+)\s*$/)
+    const beforeMatch = parseHashlineOperationLine(line, '«')
     if (beforeMatch) {
-      const target = beforeMatch[1]
-      if (target.includes('|')) {
-        throw new Error(`line ${sourceLine}: operation line must use only the anchor before "|".`)
-      }
-      const { payload, nextIndex } = collectHashlinePayload(lines, cursor + 1, true, sourceLine)
+      const target = beforeMatch.target
+      const { payload, nextIndex } = collectHashlinePayload(
+        lines,
+        cursor + 1,
+        true,
+        sourceLine,
+        beforeMatch.inlinePayload
+      )
       operations.push(
         target === 'BOF'
           ? { type: 'insert', position: 'bof', payload, index: operations.length }
@@ -499,13 +524,16 @@ const parseHashlineOperations = (body: string): HashlineOperation[] => {
       continue
     }
 
-    const afterMatch = line.match(/^»\s*(\S+)\s*$/)
+    const afterMatch = parseHashlineOperationLine(line, '»')
     if (afterMatch) {
-      const target = afterMatch[1]
-      if (target.includes('|')) {
-        throw new Error(`line ${sourceLine}: operation line must use only the anchor before "|".`)
-      }
-      const { payload, nextIndex } = collectHashlinePayload(lines, cursor + 1, true, sourceLine)
+      const target = afterMatch.target
+      const { payload, nextIndex } = collectHashlinePayload(
+        lines,
+        cursor + 1,
+        true,
+        sourceLine,
+        afterMatch.inlinePayload
+      )
       operations.push(
         target === 'EOF'
           ? { type: 'insert', position: 'eof', payload, index: operations.length }
@@ -523,13 +551,16 @@ const parseHashlineOperations = (body: string): HashlineOperation[] => {
       continue
     }
 
-    const replaceMatch = line.match(/^≔\s*(\S+)\s*$/)
+    const replaceMatch = parseHashlineOperationLine(line, '≔')
     if (replaceMatch) {
-      if (replaceMatch[1].includes('|')) {
-        throw new Error(`line ${sourceLine}: operation line must use only anchors before "|".`)
-      }
-      const range = parseHashlineRange(replaceMatch[1], sourceLine)
-      const { payload, nextIndex } = collectHashlinePayload(lines, cursor + 1, false, sourceLine)
+      const range = parseHashlineRange(replaceMatch.target, sourceLine)
+      const { payload, nextIndex } = collectHashlinePayload(
+        lines,
+        cursor + 1,
+        false,
+        sourceLine,
+        replaceMatch.inlinePayload
+      )
       operations.push({
         type: 'replace',
         ...range,
@@ -913,7 +944,6 @@ export const getNotesBuiltinTools = (): Partial<Tools> => ({
       '输入格式：',
       '§NOTE_ID 或 §笔记路径',
       '»ANCHOR 在锚点后插入；«ANCHOR 在锚点前插入；≔ANCHOR 或 ≔START..END 替换/删除行。',
-      '操作符 + 锚点必须独占一行；payload 必须从下一行开始。不要写成 »12ab|payload。',
       '»BOF/«BOF 表示笔记开头，»EOF 表示笔记末尾。',
       '≔ANCHOR 后跟 payload 表示替换；不跟 payload 表示删除。',
       '',

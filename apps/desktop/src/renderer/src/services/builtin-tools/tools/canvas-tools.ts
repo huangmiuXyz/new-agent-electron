@@ -440,7 +440,6 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
       '输入格式：',
       '§path/to/file',
       '»ANCHOR 在锚点后插入；«ANCHOR 在锚点前插入；≔ANCHOR 或 ≔START..END 替换/删除行。',
-      '操作符 + 锚点必须独占一行；payload 必须从下一行开始。不要写成 »12ab|payload。',
       '»BOF/«BOF 表示文件开头，»EOF 表示文件末尾。',
       '≔ANCHOR 后跟 payload 表示替换；不跟 payload 表示删除。',
       '',

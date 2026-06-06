@@ -170,6 +170,27 @@ const isSectionHeader = (line: string) => line.startsWith(HL_FILE_PREFIX)
 const isOpLine = (line: string) =>
   line.startsWith(HL_INSERT_BEFORE) || line.startsWith(HL_INSERT_AFTER) || line.startsWith(HL_REPLACE)
 
+const parseOperationLine = (
+  line: string,
+  operator: typeof HL_INSERT_BEFORE | typeof HL_INSERT_AFTER | typeof HL_REPLACE
+): { target: string; inlinePayload?: string } | null => {
+  if (!line.startsWith(operator)) return null
+
+  const rawTarget = line.slice(operator.length).trim()
+  if (!rawTarget) return null
+
+  const separatorIndex = rawTarget.indexOf(HL_BODY_SEPARATOR)
+  if (separatorIndex >= 0) {
+    return {
+      target: rawTarget.slice(0, separatorIndex).trim(),
+      inlinePayload: rawTarget.slice(separatorIndex + HL_BODY_SEPARATOR.length)
+    }
+  }
+
+  if (!/^\S+$/.test(rawTarget)) return null
+  return { target: rawTarget }
+}
+
 const parseAnchor = (rawValue: string, lineNumber: number): HashlineAnchor => {
   const match = rawValue.match(/^([1-9]\d*)([a-z]{2})$/)
   if (!match) {
@@ -204,9 +225,10 @@ const collectPayload = (
   lines: string[],
   startIndex: number,
   requirePayload: boolean,
-  sourceLine: number
+  sourceLine: number,
+  inlinePayload?: string
 ): { payload: string[]; nextIndex: number } => {
-  const payload: string[] = []
+  const payload: string[] = inlinePayload === undefined ? [] : [inlinePayload]
   let cursor = startIndex
 
   while (cursor < lines.length) {
@@ -279,15 +301,10 @@ export const parseHashlineOperations = (body: string): HashlineOperation[] => {
     }
     if (line === '*** End Patch') break
 
-    const beforeMatch = line.match(/^«\s*(\S+)\s*$/)
+    const beforeMatch = parseOperationLine(line, HL_INSERT_BEFORE)
     if (beforeMatch) {
-      const target = beforeMatch[1]
-      if (target.includes(HL_BODY_SEPARATOR)) {
-        throw new Error(
-          `line ${sourceLine}: operation line must use only the anchor before "|". Write "«3rx" on its own line, then put payload on following lines.`
-        )
-      }
-      const { payload, nextIndex } = collectPayload(lines, cursor + 1, true, sourceLine)
+      const target = beforeMatch.target
+      const { payload, nextIndex } = collectPayload(lines, cursor + 1, true, sourceLine, beforeMatch.inlinePayload)
       operations.push(
         target === 'BOF'
           ? { type: 'insert', position: 'bof', payload, sourceLine, index: operations.length }
@@ -304,15 +321,10 @@ export const parseHashlineOperations = (body: string): HashlineOperation[] => {
       continue
     }
 
-    const afterMatch = line.match(/^»\s*(\S+)\s*$/)
+    const afterMatch = parseOperationLine(line, HL_INSERT_AFTER)
     if (afterMatch) {
-      const target = afterMatch[1]
-      if (target.includes(HL_BODY_SEPARATOR)) {
-        throw new Error(
-          `line ${sourceLine}: operation line must use only the anchor before "|". Write "»3rx" on its own line, then put payload on following lines.`
-        )
-      }
-      const { payload, nextIndex } = collectPayload(lines, cursor + 1, true, sourceLine)
+      const target = afterMatch.target
+      const { payload, nextIndex } = collectPayload(lines, cursor + 1, true, sourceLine, afterMatch.inlinePayload)
       operations.push(
         target === 'EOF'
           ? { type: 'insert', position: 'eof', payload, sourceLine, index: operations.length }
@@ -331,15 +343,10 @@ export const parseHashlineOperations = (body: string): HashlineOperation[] => {
       continue
     }
 
-    const replaceMatch = line.match(/^≔\s*(\S+)\s*$/)
+    const replaceMatch = parseOperationLine(line, HL_REPLACE)
     if (replaceMatch) {
-      if (replaceMatch[1].includes(HL_BODY_SEPARATOR)) {
-        throw new Error(
-          `line ${sourceLine}: operation line must use only anchors before "|". Write "≔3rx" or "≔3rx..5ab" on its own line, then put replacement payload on following lines.`
-        )
-      }
-      const range = parseRange(replaceMatch[1], sourceLine)
-      const { payload, nextIndex } = collectPayload(lines, cursor + 1, false, sourceLine)
+      const range = parseRange(replaceMatch.target, sourceLine)
+      const { payload, nextIndex } = collectPayload(lines, cursor + 1, false, sourceLine, replaceMatch.inlinePayload)
       operations.push({
         type: 'replace',
         ...range,
