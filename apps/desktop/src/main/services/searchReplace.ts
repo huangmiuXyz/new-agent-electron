@@ -89,7 +89,10 @@ export const executeFileEdit = async (payload: HashlineEditPayload) => {
     throw new Error('workPath is required')
   }
 
-  const type = payload.type || 'update'
+  const rawType = typeof payload.type === 'string' ? payload.type.trim() : ''
+  const type = rawType === 'add' || rawType === 'delete' || rawType === 'move' || rawType === 'update'
+    ? rawType
+    : 'update'
 
   if (type === 'update') {
     const input = typeof payload.input === 'string' ? payload.input : ''

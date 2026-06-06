@@ -13,6 +13,7 @@ describe('executeFileEdit', () => {
         baseDir,
         type: 'add',
         path: 'src/hello.txt',
+        new_path: '',
         content: 'hello'
       })
     ).resolves.toEqual(['A src/hello.txt'])

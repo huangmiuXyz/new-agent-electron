@@ -122,6 +122,9 @@ const normalizeCanvasEditInput = (workspaceDir: string, input: string) =>
     return `¶${normalizedPath.replace(/^\/+/, '')}${tag}`
   })
 
+const nonEmptyString = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.trim() ? value : undefined
+
 const formatDirectoryList = (chatId?: string, directoryPath = '/') => {
   const canvasStore = useCanvasStore()
   const normalizedDirectoryPath = normalizeDirectoryPath(directoryPath)
@@ -483,11 +486,13 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
         const canvasStore = useCanvasStore()
         const { workspaceDir } = await ensureCanvasWorkspace(options?.chatId)
         const normalizedInput = type === 'update' ? normalizeCanvasEditInput(workspaceDir, input) : input
-        const normalizedPath = typeof params.path === 'string'
-          ? normalizeCanvasEditPath(workspaceDir, params.path).replace(/^\/+/, '')
+        const rawPath = nonEmptyString(params.path)
+        const rawNewPath = type === 'move' ? nonEmptyString(params.new_path) : undefined
+        const normalizedPath = rawPath
+          ? normalizeCanvasEditPath(workspaceDir, rawPath).replace(/^\/+/, '')
           : undefined
-        const normalizedNewPath = typeof params.new_path === 'string'
-          ? normalizeCanvasEditPath(workspaceDir, params.new_path).replace(/^\/+/, '')
+        const normalizedNewPath = rawNewPath
+          ? normalizeCanvasEditPath(workspaceDir, rawNewPath).replace(/^\/+/, '')
           : undefined
         const result = await window.api.editFile.execute({
           baseDir: workspaceDir,

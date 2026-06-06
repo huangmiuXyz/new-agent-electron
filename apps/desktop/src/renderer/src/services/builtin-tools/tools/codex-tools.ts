@@ -146,6 +146,8 @@ const execProjectSearchCommand = async (
 
 const isWindows = navigator.platform.toLowerCase().includes('win')
 const startsWithRipgrep = (command: string): boolean => /^rg(?:\s|$)/.test(command.trimStart())
+const nonEmptyString = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.trim() ? value : undefined
 
 export const getCodexBuiltinTools = (): Partial<Tools> => ({
   change_working_directory: {
@@ -613,8 +615,8 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           baseDir,
           type,
           input,
-          path: typeof params.path === 'string' ? params.path : undefined,
-          new_path: typeof params.new_path === 'string' ? params.new_path : undefined,
+          path: nonEmptyString(params.path),
+          new_path: type === 'move' ? nonEmptyString(params.new_path) : undefined,
           content: typeof params.content === 'string' ? params.content : undefined
         })
 
