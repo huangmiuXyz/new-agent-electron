@@ -29,7 +29,7 @@
     "@types/koa__cors": "^5.0.1",
     "@types/koa__router": "^12.0.5",
     "typescript": "^5.4.5",
-    "vite": "^5.2.11"
+    "vite": "^8.0.16"
   },
   "author": "Agent-Qi"
 }

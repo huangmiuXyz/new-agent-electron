@@ -14,7 +14,7 @@
   "devDependencies": {
     "@agent-qi/types": "workspace:*",
     "typescript": "*",
-    "vite": "*"
+    "vite": "^8.0.16"
   },
   "author": "Agent-Qi"
 }

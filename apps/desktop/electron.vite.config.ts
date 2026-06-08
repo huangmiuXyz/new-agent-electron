@@ -34,14 +34,29 @@ export default defineConfig({
       exclude: ['@chevrotain/regexp-to-ast']
     },
     plugins: [
-      vue(),
+      vue({
+        script: {
+          globalTypeFiles: [
+            resolve('src/renderer/src/types/components.d.ts')
+          ]
+        }
+      }),
       vueJsx(),
       vueDevTools(),
       AutoImport({
         imports: ['vue', 'vue-router', 'pinia'],
         dts: 'src/auto-imports.d.ts',
         vueTemplate: true,
-        dirs: ['src/composables', 'src/utils', 'src/stores', 'src/services']
+        dirs: [
+          'src/composables',
+          'src/composables/**',
+          'src/utils',
+          'src/utils/**',
+          'src/stores',
+          'src/stores/**',
+          'src/services',
+          'src/services/**'
+        ]
       }),
       Components({
         dirs: ['src/components', 'src/pages'],

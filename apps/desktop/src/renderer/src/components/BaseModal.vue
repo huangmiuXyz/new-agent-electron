@@ -71,7 +71,6 @@
 import Button from './Button.vue'
 import { useIcon } from '@renderer/composables/useIcon'
 import { useBackButton } from '@renderer/composables/useBackButton'
-import { BaseModalProps } from '@renderer/types/components'
 import { useDraggable, useWindowSize } from '@vueuse/core'
 
 const props = withDefaults(defineProps<BaseModalProps>(), {

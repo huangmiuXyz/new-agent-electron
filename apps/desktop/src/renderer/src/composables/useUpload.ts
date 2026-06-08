@@ -283,12 +283,12 @@ export function useUpload(options: UseUploadOptions = {}) {
   }
 
   watchEffect(() => {
-    const ref = inputRef?.value
-    if (ref) {
+    const inputElement = inputRef?.value
+    if (inputElement) {
       const wrappedHandlePaste = (event: ClipboardEvent) => handlePaste(event)
-      ref.addEventListener('paste', wrappedHandlePaste)
+      inputElement.addEventListener('paste', wrappedHandlePaste)
       return () => {
-        ref.removeEventListener('paste', wrappedHandlePaste)
+        inputElement.removeEventListener('paste', wrappedHandlePaste)
       }
     }
     return () => { }
