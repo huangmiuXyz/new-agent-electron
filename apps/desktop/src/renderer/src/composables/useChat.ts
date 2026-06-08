@@ -1,58 +1,13 @@
 import { Chat as _useChat } from '@ai-sdk/vue'
 import type { APICallError, FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai'
-import { z } from 'zod'
-import { speechService, type TtsTextStreamSession } from '../services/speechService'
+import { speechService } from '../services/speechService'
 import { useMessageScroll } from './useMessageScroll'
-import {
-  buildFlatTokenUsage,
-  estimateMessageTokens,
-  getFlatTokenUsage
-} from '@renderer/services/chatService/tokenUsage'
-
-function createSentenceSegmenter(locale: string = 'und') {
-  const segmenter = new Intl.Segmenter(locale === 'auto' ? 'und' : locale, {
-    granularity: 'sentence'
-  })
-
-  let buffer = ''
-
-  function push(text: string, onSentence: (s: string) => void) {
-    buffer += text
-
-    const segments = segmenter.segment(buffer)
-    let lastConsumedIndex = 0
-
-    for (const segment of segments) {
-      const end = segment.index + segment.segment.length
-
-      if (end < buffer.length) {
-        const sentence = segment.segment.trim()
-        if (sentence) {
-          onSentence(sentence)
-          lastConsumedIndex = end
-        }
-      }
-    }
-
-    if (lastConsumedIndex > 0) {
-      buffer = buffer.slice(lastConsumedIndex)
-    }
-  }
-
-  function flush(onSentence: (s: string) => void) {
-    const rest = buffer.trim()
-    if (rest) {
-      onSentence(rest)
-    }
-    buffer = ''
-  }
-
-  return { push, flush }
-}
+import { createChatMessageSyncController } from './chat/messageSyncController'
+import { createSpeechStreamController } from './chat/speechStreamController'
+import { createSubTaskResultCoordinator } from './chat/subTaskResultCoordinator'
 
 const chatCache = new Map<string, any>()
-const STREAM_SYNC_INTERVAL_MS = 80
 
 export const useChat = (chatId: string) => {
   if (chatCache.has(chatId)) {
@@ -147,19 +102,7 @@ export const useChat = (chatId: string) => {
     }
 
     return scope.run(() => {
-      let processedText = ''
       let manuallyStopped = false
-      let sentenceSegmenter = createSentenceSegmenter(getChatAgent()?.speechLanguage)
-      let streamFlushHandle: ReturnType<typeof setTimeout> | null = null
-      let pendingStreamParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
-      let pendingSpeechMessage: BaseMessage | undefined
-      let streamingSpeechSession: TtsTextStreamSession | null = null
-      let streamingSpeechSessionPromise: Promise<TtsTextStreamSession | null> | null = null
-      let streamingSpeechChunkIndex: number | null = null
-      let speechProcessingQueue = Promise.resolve()
-      const pendingSyncMessageIds: string[] = []
-      const pendingSyncMessages = new Map<string, BaseMessage>()
-
       const targetMessageId = ref<string | undefined>(regenerateMessageId)
 
       const triggerNextPendingMessage = (targetChatId: string) => {
@@ -175,184 +118,35 @@ export const useChat = (chatId: string) => {
         }, 0)
       }
 
-      const submitSubTaskResultToParent = (params: {
-        success?: boolean
-        summary?: string
-        error?: string
-      }) => {
-        const runtimeChat = getChatById(chatId)
-        if (!runtimeChat?.parentChatId || runtimeChat.subTask?.status !== 'running') return
+      const speechController = createSpeechStreamController({
+        chatId,
+        speechEnabled,
+        tts,
+        getChatAgent,
+        getMessageText,
+        updateMessageMetadata
+      })
 
-        const runtimeAgent = getChatAgent()
-        const success = params.success !== false
-        const summary = String(params.summary || '').trim()
-        const error = String(params.error || '').trim()
-        const status: SubTaskStatus = success ? 'completed' : 'failed'
-        const childAgentName = runtimeAgent?.name || runtimeChat.title || '子智能体'
-        const taskText = runtimeChat.subTask?.task || runtimeChat.title
+      const subTaskCoordinator = createSubTaskResultCoordinator({
+        chatId,
+        service,
+        settingsStore,
+        getChatById,
+        getChatAgent,
+        getVisibleMessages,
+        triggerNextPendingMessage
+      })
 
-        useChatsStores().updateSubTask(chatId, {
-          status,
-          completedAt: Date.now(),
-          result: summary,
-          error: success ? undefined : error || '子任务执行失败',
-          subTaskResultSubmitted: true
-        })
-
-        useChatsStores().addPendingMessage(runtimeChat.parentChatId, [
-          {
-            type: 'text',
-            text:
-              `[子智能体总结]\n` +
-              `来自: ${childAgentName}\n` +
-              `状态: ${status}\n` +
-              `任务: ${taskText}\n` +
-              `总结: ${summary || (success ? '子任务已完成，但未返回总结。' : '子任务执行失败。')}` +
-              (!success && error ? `\n错误: ${error}` : '')
-          }
-        ])
-        triggerNextPendingMessage(runtimeChat.parentChatId)
-      }
-
-      const markSubTaskFailed = (error: string) => {
-        submitSubTaskResultToParent({
-          success: false,
-          summary: error,
-          error
-        })
-      }
-
-      const finishParentMessage = () => {
-        const parentChatId = getChatById(chatId)?.parentChatId
-        if (parentChatId) {
-          triggerNextPendingMessage(parentChatId)
-        }
-      }
-
-      const submitSubTaskSummary = async () => {
-        const runtimeChat = getChatById(chatId)
-        if (!runtimeChat?.parentChatId) return
-
-        if (runtimeChat.subTask?.subTaskResultSubmitted) {
-          finishParentMessage()
-          return
-        }
-
-        if (runtimeChat.subTask?.status !== 'running') return
-
-        const runtimeAgent = getChatAgent()
-        const providerId = runtimeChat.providerId
-        const modelId = runtimeChat.modelId
-        const selectedProvider = providerId ? settingsStore.getProviderById(providerId) : null
-        const selectedModel =
-          providerId && modelId ? settingsStore.getModelById(providerId, modelId).model : null
-
-        if (!runtimeAgent || !selectedProvider || !selectedModel) {
-          markSubTaskFailed('子任务总结失败：未找到会话绑定的智能体或模型配置')
-          return
-        }
-
-        const childAgentName = runtimeAgent.name || runtimeChat.title || '子智能体'
-        const taskText = runtimeChat.subTask?.task || runtimeChat.title
-
-        const submitSummary = (params: { success?: boolean; summary?: string; error?: string }) => {
-          submitSubTaskResultToParent(params)
-        }
-
-        const submitTool: Tool = {
-          title: '提交子任务总结',
-          description: '提交子智能体停止工作后的最终总结。必须使用结构化参数调用。',
-          inputSchema: z.object({
-            success: z.boolean().describe('任务是否成功完成'),
-            summary: z.string().min(1).describe('面向主智能体的最终结论或成果摘要'),
-            error: z.string().optional().describe('失败或阻塞原因，success=false 时填写')
-          }),
-          execute: async (args: unknown) => {
-            const params = args as { success?: boolean; summary?: string; error?: string }
-            submitSummary(params)
-
-            return {
-              toolResult: {
-                content: [{ type: 'text', text: '子任务总结已提交给主智能体。' }]
-              }
-            }
-          }
-        }
-
-        const fallbackPrompt =
-          `你刚刚作为子智能体停止工作。现在必须根据已完成的具体任务，输出给主智能体继续处理所需的最终总结。\n` +
-          `总结必须直接回答任务要求，包含结论、产物、关键事实或失败原因。\n` +
-          `不要复述会话记录，不要泛泛总结过程，只输出总结正文。\n\n` +
-          `子智能体: ${childAgentName}\n` +
-          `任务:\n${taskText}`
-        const prompt =
-          `你刚刚作为子智能体停止工作。现在必须根据已完成的具体任务，调用 submit_sub_task_result 工具提交最终结果。\n` +
-          `summary 必须直接回答任务要求，包含主智能体继续处理所需的结论、产物、关键事实或失败原因。\n` +
-          `不要复述会话记录，不要泛泛总结过程，不要输出自然语言正文，只调用工具。\n\n` +
-          `子智能体: ${childAgentName}\n` +
-          `任务:\n${taskText}`
-        const summaryMessages: BaseMessage[] = [
-          ...cloneDeep(getVisibleMessages()),
-          {
-            id: nanoid(),
-            role: 'user',
-            parts: [{ type: 'text', text: prompt }]
-          } as BaseMessage
-        ]
-        const fallbackMessages: BaseMessage[] = [
-          ...cloneDeep(getVisibleMessages()),
-          {
-            id: nanoid(),
-            role: 'user',
-            parts: [{ type: 'text', text: fallbackPrompt }]
-          } as BaseMessage
-        ]
-
-        const generatePlainTextSummary = async () => {
-          const result = await service.generateTextWithMessages(fallbackMessages, {
-            model: modelId!,
-            apiKey: selectedProvider.apiKey!,
-            baseURL: selectedProvider.baseUrl!,
-            provider: providerId!,
-            providerType: selectedProvider.providerType
-          })
-          const summary = result.text.trim()
-          if (!summary) {
-            markSubTaskFailed('子任务总结失败：模型没有返回总结正文')
-            return
-          }
-          submitSummary({ success: true, summary })
-        }
-
-        try {
-          const result = await service.generateTextWithMessages(summaryMessages, {
-            model: modelId!,
-            apiKey: selectedProvider.apiKey!,
-            baseURL: selectedProvider.baseUrl!,
-            provider: providerId!,
-            providerType: selectedProvider.providerType,
-            tools: { submit_sub_task_result: submitTool },
-            toolChoice: {
-              type: 'tool',
-              toolName: 'submit_sub_task_result'
-            }
-          })
-          if (
-            !result.toolResults?.some(
-              (toolResult) => toolResult.toolName === 'submit_sub_task_result'
-            )
-          ) {
-            markSubTaskFailed('子任务总结失败：模型没有调用提交总结工具')
-          }
-        } catch (error) {
-          const message = (error as Error).message || '子任务总结失败'
-          try {
-            await generatePlainTextSummary()
-          } catch {
-            markSubTaskFailed(message)
-          }
-        }
-      }
+      const messageSyncController = createChatMessageSyncController({
+        chatId,
+        targetMessageId,
+        getChatById,
+        updateMessages,
+        markManuallyStopped: () => {
+          manuallyStopped = true
+        },
+        onStreamingUpdate: speechController.processQueued
+      })
 
       const chat = new _useChat<BaseMessage>({
         id: chatId,
@@ -371,8 +165,7 @@ export const useChat = (chatId: string) => {
               throw new Error('未找到会话绑定的智能体或模型配置')
             }
 
-            processedText = ''
-            sentenceSegmenter = createSentenceSegmenter(runtimeAgent?.speechLanguage || 'und')
+            speechController.reset(runtimeAgent)
             const toolFeaturesEnabled = runtimeChat?.toolFeaturesEnabled !== false
 
             return service.createAgent(
@@ -421,31 +214,12 @@ export const useChat = (chatId: string) => {
 
         onFinish: () => {
           const finalMessage = chat.lastMessage!
-          finalizeMessageSync(finalMessage)
-
-          if (speechEnabled.value) {
-            void speechProcessingQueue.then(async () => {
-              if (await finishStreamingSpeech(finalMessage)) return
-
-              const mode = getChatAgent()?.speechMode as string
-
-              if (mode === 'sentence') {
-                sentenceSegmenter.flush((sentence) => {
-                  generateSpeech(sentence, finalMessage)
-                })
-              } else {
-                const fullText = getMessageText(finalMessage)
-                const remainingText = fullText.slice(processedText.length).trim()
-                if (remainingText) {
-                  generateSpeech(remainingText, finalMessage)
-                }
-              }
-            })
-          }
+          messageSyncController.finalizeMessageSync(finalMessage)
+          speechController.finishMessageSpeech(finalMessage)
 
           useTitle(chatId).generateTitle()
           if (!manuallyStopped) {
-            void submitSubTaskSummary()
+            void subTaskCoordinator.submitSummaryOnStop()
           }
           scope.stop()
           scheduleNextPendingMessage()
@@ -453,444 +227,32 @@ export const useChat = (chatId: string) => {
 
         onError: (error) => {
           console.error(error)
-          finalizeMessageSync(chat.lastMessage, error as APICallError)
-          void speechProcessingQueue.then(async () => {
-            const session = streamingSpeechSession || await streamingSpeechSessionPromise
-            if (session) {
-              await session.error(error)
-            }
-          })
+          messageSyncController.finalizeMessageSync(chat.lastMessage, error as APICallError)
+          speechController.fail(error)
           if (manuallyStopped) {
-            markSubTaskFailed('用户手动停止了子任务')
+            subTaskCoordinator.markFailed('用户手动停止了子任务')
           } else {
-            markSubTaskFailed((error as Error).message || '子任务执行失败')
+            subTaskCoordinator.markFailed((error as Error).message || '子任务执行失败')
           }
           scope.stop()
           scheduleNextPendingMessage()
         }
       })
 
-      const createStoreMessageSnapshot = (
-        message?: BaseMessage,
-        error?: APICallError
-      ): BaseMessage | null => {
-        if (!message) return null
-
-        const nextParts = message.parts?.map((part) => ({ ...part }))
-        const nextMetadata = {
-          ...message.metadata,
-          ...(error ? { error, loading: false } : {})
-        } as MetaData
-        if (nextMetadata.stop) {
-          const originalStop = nextMetadata.stop
-          nextMetadata.stop = (() => {
-            manuallyStopped = true
-            originalStop()
-          }) as AbortController['abort']
-        }
-        const isFinalized = !nextMetadata.loading || !!error
-        const flatUsage = getFlatTokenUsage(nextMetadata.usage)
-
-        if (isFinalized) {
-          const estimatedOutputTokens =
-            flatUsage.outputTokens ?? estimateMessageTokens(message, nextMetadata.model)
-          const estimatedInputTokens = flatUsage.inputTokens ?? nextMetadata.estimatedInputTokens
-          const hasAnyUsage =
-            flatUsage.totalTokens != null ||
-            flatUsage.inputTokens != null ||
-            flatUsage.outputTokens != null
-
-          if (!hasAnyUsage || flatUsage.inputTokens == null || flatUsage.outputTokens == null) {
-            nextMetadata.usage = buildFlatTokenUsage({
-              inputTokens: estimatedInputTokens,
-              outputTokens: estimatedOutputTokens,
-              totalTokens: flatUsage.totalTokens,
-              estimated: !hasAnyUsage
-            }) as any
-            nextMetadata.tokenUsageSource = hasAnyUsage ? 'mixed' : 'estimated'
-          } else {
-            nextMetadata.tokenUsageSource = 'reported'
-          }
-        }
-
-        return {
-          ...message,
-          parts: nextParts,
-          metadata: nextMetadata
-        }
-      }
-
-      const syncMessageToStore = (
-        message: BaseMessage | undefined = chat.lastMessage,
-        error?: APICallError
-      ) => {
-        const msgToUpdate = createStoreMessageSnapshot(message ?? undefined, error)
-        if (!msgToUpdate) return
-
-        const storeChat = getChatById(chatId)
-        if (!storeChat) return
-        const oldMessages = storeChat.messages
-
-        const existingIndex = oldMessages.findIndex((m) => m.id === msgToUpdate.id)
-        if (existingIndex >= 0) {
-          const existingMessage = oldMessages[existingIndex]
-          // 如果引用没变，说明 snapshot 判定内容无变化，跳过 store 更新
-          if (existingMessage === msgToUpdate) return
-
-          updateMessages(chatId, (messages) =>
-            replaceMessageById(messages, msgToUpdate.id!, (message) => ({
-              ...message,
-              parts: msgToUpdate.parts,
-              metadata: msgToUpdate.metadata
-            }))
-          )
-          return
-        }
-
-        if (!targetMessageId.value) {
-          updateMessages(chatId, [...oldMessages, msgToUpdate])
-          return
-        }
-
-        const targetIndex = oldMessages.findIndex((m) => m.id === targetMessageId.value)
-        if (targetIndex < 0) {
-          updateMessages(chatId, [...oldMessages, msgToUpdate])
-          return
-        }
-
-        const copy = [...oldMessages]
-        const targetMsg = copy[targetIndex]
-
-        if (targetMsg.role === 'assistant') {
-          copy[targetIndex] = msgToUpdate
-        } else {
-          copy.splice(targetIndex + 1, 0, msgToUpdate)
-        }
-
-        updateMessages(chatId, copy)
-      }
-
-      const queueMessageSync = (message?: BaseMessage, error?: APICallError) => {
-        const messageSnapshot = createStoreMessageSnapshot(message, error)
-        if (!messageSnapshot) return
-
-        if (!pendingSyncMessages.has(messageSnapshot.id)) {
-          pendingSyncMessageIds.push(messageSnapshot.id)
-        }
-        pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
-      }
-
-      const finalizeMessageSync = (message?: BaseMessage, error?: APICallError) => {
-        if (!message) {
-          flushStreamingUpdate()
-          return
-        }
-
-        message.metadata = {
-          ...message.metadata,
-          loading: false,
-          ...(error ? { error } : {})
-        } as MetaData
-
-        queueMessageSync(message, error)
-        flushStreamingUpdate()
-      }
-
-      const processStreamingSpeech = (
-        message: BaseMessage | undefined,
-        newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
-      ) => {
-        if (!message || !newParts || message.role !== 'assistant' || !speechEnabled.value) return
-        const mode = getChatAgent()?.speechMode as string
-        if (mode === 'full') return
-
-        const fullText = getMessageText(message)
-        const currentText = fullText.slice(processedText.length)
-
-        if (mode === 'sentence') {
-          sentenceSegmenter.push(currentText, (sentence) => {
-            generateSpeech(sentence, message)
-          })
-          processedText = fullText
-        } else if (mode === 'paragraph') {
-          const paragraphs = currentText.split(/\n+/)
-          if (paragraphs.length > 1) {
-            for (let i = 0; i < paragraphs.length - 1; i++) {
-              const p = paragraphs[i]
-              if (p.trim()) {
-                generateSpeech(p, message)
-              }
-              processedText += paragraphs[i] + '\n'
-            }
-          }
-        }
-      }
-
-      const updateStreamingSpeechMetadata = (
-        message: BaseMessage,
-        session: TtsTextStreamSession,
-        error?: string
-      ) => {
-        const chunk = session.getChunk()
-        if (!message.metadata) message.metadata = {} as MetaData
-        if (!message.metadata.audio) {
-          message.metadata.audio = {
-            chunks: [],
-            voice: getChatAgent()?.speechVoice || '',
-            model: chunk?.modelId || ''
-          }
-        }
-        const audioMetadata = message.metadata.audio
-
-        if (streamingSpeechChunkIndex === null) {
-          streamingSpeechChunkIndex = audioMetadata.chunks.length
-          audioMetadata.chunks.push({ data: '', text: session.getText() })
-        }
-
-        const target = audioMetadata.chunks[streamingSpeechChunkIndex]
-        if (!target) return
-
-        audioMetadata.chunks[streamingSpeechChunkIndex] = {
-          ...target,
-          text: session.getText(),
-          data: chunk?.audioData || target.data || '',
-          duration: chunk?.duration,
-          error
-        }
-        updateMessageMetadata(chatId, message.id, message.metadata)
-      }
-
-      const createStreamingSpeechSession = async (
-        message: BaseMessage
-      ): Promise<TtsTextStreamSession | null> => {
-        if (streamingSpeechSession) return streamingSpeechSession
-        if (streamingSpeechSessionPromise) return streamingSpeechSessionPromise
-
-        const runtimeAgent = getChatAgent()
-        const voice = runtimeAgent?.speechVoice
-        if (!voice) return null
-
-        const { getModelByVoice } = useSettingsStore()
-        const modelInfo = getModelByVoice(voice)
-        if (!modelInfo) return null
-
-        const rawOptions = runtimeAgent?.speechProviderOptions
-        const providerOptions = rawOptions?.[modelInfo.providerId] ?? rawOptions
-
-        streamingSpeechSessionPromise = tts.createTextStream({
-          messageId: message.id,
-          modelId: modelInfo.modelId,
-          providerId: modelInfo.providerId,
-          voice,
-          speed: runtimeAgent?.speechSpeed,
-          language: runtimeAgent?.speechLanguage,
-          providerOptions,
-          agentId: runtimeAgent?.id
-        }).then((session) => {
-          streamingSpeechSession = session
-          if (session) {
-            updateStreamingSpeechMetadata(message, session)
-          }
-          return session
-        }).finally(() => {
-          streamingSpeechSessionPromise = null
-        })
-
-        return streamingSpeechSessionPromise
-      }
-
-      const appendStreamingSpeechText = async (message: BaseMessage, text: string) => {
-        if (!text) return false
-        const session = await createStreamingSpeechSession(message)
-        if (!session) return false
-
-        await session.appendText(text)
-        updateStreamingSpeechMetadata(message, session)
-        return true
-      }
-
-      const finishStreamingSpeech = async (message: BaseMessage) => {
-        const session = streamingSpeechSession || await streamingSpeechSessionPromise
-        if (!session) return false
-
-        try {
-          await session.finish()
-          updateStreamingSpeechMetadata(message, session)
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error)
-          updateStreamingSpeechMetadata(message, session, `生成失败：${errorMessage}`)
-          messageApi.error('语音合成失败: ' + errorMessage)
-        } finally {
-          streamingSpeechSession = null
-          streamingSpeechSessionPromise = null
-          streamingSpeechChunkIndex = null
-        }
-
-        return true
-      }
-
-      const processStreamingSpeechQueued = (
-        message: BaseMessage | undefined,
-        newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
-      ) => {
-        speechProcessingQueue = speechProcessingQueue
-          .then(async () => {
-            if (!message || !newParts || message.role !== 'assistant' || !speechEnabled.value) return
-
-            const fullText = getMessageText(message)
-            const currentText = fullText.slice(processedText.length)
-            if (!currentText) return
-
-            if (await appendStreamingSpeechText(message, currentText)) {
-              processedText = fullText
-              return
-            }
-
-            processStreamingSpeech(message, newParts)
-          })
-          .catch((error) => {
-            console.error('Streaming speech processing failed:', error)
-          })
-      }
-
-      const replaceMessageById = (
-        messages: BaseMessage[],
-        messageId: string,
-        updater: (message: BaseMessage) => BaseMessage
-      ) => {
-        const messageIndex = messages.findIndex((message) => message.id === messageId)
-        if (messageIndex < 0) return messages
-
-        const nextMessages = [...messages]
-        nextMessages[messageIndex] = updater(messages[messageIndex]!)
-        return nextMessages
-      }
-
-      const flushStreamingUpdate = () => {
-        if (streamFlushHandle) {
-          clearTimeout(streamFlushHandle)
-          streamFlushHandle = null
-        }
-
-        const messagesToSync = pendingSyncMessageIds
-          .map((id) => pendingSyncMessages.get(id))
-          .filter((message): message is BaseMessage => Boolean(message))
-
-        pendingSyncMessageIds.length = 0
-        pendingSyncMessages.clear()
-
-        messagesToSync.forEach((message) => {
-          syncMessageToStore(message)
-        })
-
-        processStreamingSpeechQueued(pendingSpeechMessage, pendingStreamParts)
-        pendingSpeechMessage = undefined
-        pendingStreamParts = undefined
-      }
-
-      const scheduleStreamingUpdate = (message?: BaseMessage) => {
-        const messageSnapshot = createStoreMessageSnapshot(message)
-        if (!messageSnapshot) return
-
-        if (!pendingSyncMessages.has(messageSnapshot.id)) {
-          pendingSyncMessageIds.push(messageSnapshot.id)
-        }
-        pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
-
-        pendingStreamParts = messageSnapshot.parts as
-          | (TextUIPart | ToolUIPart | FileUIPart)[]
-          | undefined
-        pendingSpeechMessage = messageSnapshot.role === 'assistant' ? messageSnapshot : undefined
-
-        if (streamFlushHandle) return
-
-        // Batch token-level updates so markdown parsing, Pinia persistence, and list patching
-        // do not run on every tiny stream chunk.
-        streamFlushHandle = setTimeout(() => {
-          flushStreamingUpdate()
-        }, STREAM_SYNC_INTERVAL_MS)
-      }
-
       watch(
         () => chat.lastMessage,
         (newMessage) => {
-          scheduleStreamingUpdate(newMessage)
+          messageSyncController.scheduleStreamingUpdate(newMessage)
         },
         { deep: true }
       )
 
       onScopeDispose(() => {
-        if (streamFlushHandle) {
-          clearTimeout(streamFlushHandle)
-          streamFlushHandle = null
-        }
+        messageSyncController.dispose()
       })
 
       return chat
     })!
-  }
-
-  const generateSpeech = async (text: string, message: BaseMessage) => {
-    if (!text.trim() || !speechEnabled.value) return
-
-    const runtimeAgent = getChatAgent()
-    const voice = runtimeAgent?.speechVoice!
-    const speed = runtimeAgent?.speechSpeed
-    const language = runtimeAgent?.speechLanguage
-    const { getModelByVoice } = useSettingsStore()
-    const modelInfo = getModelByVoice(voice)
-
-    if (!modelInfo) return
-
-    const { modelId: targetModelId, providerId: targetProviderId } = modelInfo
-    const rawOptions = runtimeAgent?.speechProviderOptions
-    const providerOptions = rawOptions?.[targetProviderId] ?? rawOptions
-
-    if (!message.metadata) message.metadata = {} as MetaData
-    if (!message.metadata.audio) {
-      message.metadata.audio = { chunks: [], voice, model: targetModelId }
-    }
-
-    const chunks = message.metadata.audio.chunks
-    const chunkIndex = chunks.length
-    chunks.push({ data: '', text })
-
-    updateMessageMetadata(chatId, message.id, message.metadata)
-
-    try {
-      const chunk = await tts.generateAndPlay({
-        text,
-        messageId: message.id,
-        modelId: targetModelId,
-        providerId: targetProviderId,
-        voice,
-        speed,
-        language,
-        providerOptions,
-        agentId: runtimeAgent?.id
-      })
-
-      if (chunk && message.metadata?.audio?.chunks[chunkIndex]) {
-        message.metadata.audio.chunks[chunkIndex] = {
-          ...message.metadata.audio.chunks[chunkIndex],
-          data: chunk.audioData || '',
-          duration: chunk.duration,
-          error: undefined
-        }
-        updateMessageMetadata(chatId, message.id, message.metadata)
-      } else if (message.metadata?.audio?.chunks[chunkIndex]) {
-        message.metadata.audio.chunks[chunkIndex].error = '生成失败：未返回音频数据'
-        updateMessageMetadata(chatId, message.id, message.metadata)
-      }
-    } catch (error) {
-      const err = error as APICallError
-      const errorMessage = err.message || err.name || String(error)
-      if (message.metadata?.audio?.chunks[chunkIndex]) {
-        message.metadata.audio.chunks[chunkIndex].error = `生成失败：${errorMessage}`
-        updateMessageMetadata(chatId, message.id, message.metadata)
-      }
-      messageApi.error('语音合成失败: ' + errorMessage)
-    }
   }
 
   const scrollToBottom = () => {

@@ -1,15 +1,9 @@
 import {
-  generateText as _generateText,
-  generateImage as _generateImage,
-  experimental_generateVideo as _generateVideo,
   ToolLoopAgent,
-  ToolChoice,
   wrapLanguageModel,
   extractReasoningMiddleware,
-  streamText as _streamText,
   convertToModelMessages,
-  validateUIMessages,
-  type DataContent
+  validateUIMessages
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinToolGroups, getBuiltinTools } from '../builtin-tools'
@@ -21,16 +15,19 @@ import { createUsageGuardMiddleware } from './middleware/usageGuard'
 import { createSkillReferenceMiddleware } from './middleware/skillReferences'
 import { createTextFileMiddleware } from './middleware/textFiles'
 import { normalizeInlineFilePartUrls, sanitizeUIMessages } from './utils'
-import { useSettingsStore } from '@renderer/stores/settings'
 import { createToolMiddleware } from './middleware/createToolMiddleware'
-import {
-  buildCodexEnvironmentPrompt,
-  buildContextCompressionPrompt,
-  buildMultiAgentSystemPrompt,
-  buildTranslationPrompt
-} from './systemPrompts'
-import { estimateMessagesTokens, serializeMessageForTokenEstimation } from './tokenUsage'
+import { buildCodexEnvironmentPrompt, buildMultiAgentSystemPrompt } from './systemPrompts'
+import { estimateMessagesTokens } from './tokenUsage'
 import { isMobile } from '@renderer/composables/useDeviceType'
+import { messageApi } from '@renderer/utils/messages'
+import { onUseAIBefore } from '@renderer/utils/onuseAIbefore'
+import { retry } from '@renderer/utils'
+import { autoCompressContext } from './contextCompression'
+import { createGenerationService } from './generation'
+import { resolveProviderRuntime } from './providerRuntime'
+import type { ChatServiceConfig, ChatServiceOptions } from './types'
+
+export type { GenerateImagePrompt, ImageGenerateOptions } from './types'
 
 const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
   '电脑操作',
@@ -39,464 +36,8 @@ const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
   'Codex工具',
   '插件工具'
 ])
-const MOBILE_UNSUPPORTED_BUILTIN_TOOLS = new Set([
-  'exec_command_canvas'
-])
+const MOBILE_UNSUPPORTED_BUILTIN_TOOLS = new Set(['exec_command_canvas'])
 
-interface VideoGenerateOptions {
-  n?: number
-  duration?: number
-  resolution?: `${number}x${number}`
-  aspectRatio?: `${number}:${number}`
-  seed?: number
-  providerOptions?: any
-}
-interface ChatServiceOptions {
-  model: string
-  apiKey: string
-  baseURL: string
-  provider: string
-  providerType: providerType
-  tools?: any
-  toolChoice?: ToolChoice<any>
-}
-
-interface ChatServiceConfig {
-  mcpClient: ClientConfig
-  instructions?: string
-  mcpTools?: string[]
-  builtinTools?: string[]
-  builtinToolsRequireApproval?: string[]
-  builtinToolConfigs?: Agent['builtinToolConfigs']
-  skillsEnabled?: boolean
-  knowledgeBaseIds?: string[]
-  thinkingMode?: string | null
-  ragEnabled?: boolean
-  temperature?: number
-  topP?: number
-  topK?: number
-  presencePenalty?: number
-  frequencyPenalty?: number
-  maxOutputTokens?: number
-  contextCount?: number
-  contextTokenCount?: number
-  autoCompressContext?: boolean
-  compressModel?: { providerId: string; modelId: string }
-  maxToolCalls?: number
-  providerOptions?: Record<string, any>
-  onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
-  isApprovalAction?: boolean
-  abortSignal?: AbortSignal
-}
-
-export type GenerateImagePrompt =
-  | string
-  | {
-    images: Array<DataContent>
-    text?: string
-    mask?: DataContent
-  }
-
-export interface ImageGenerateOptions {
-  n?: number
-  size?: `${number}x${number}`
-  aspectRatio?: `${number}:${number}`
-  seed?: number
-  providerOptions?: any
-}
-
-interface AutoCompressOptions {
-  cid: string
-  messages: BaseMessage[]
-  contextCount?: number
-  contextTokenCount?: number
-  compressModel?: { providerId: string; modelId: string }
-  activeModel?: string
-}
-
-type CompressionMetaData = MetaData & {
-  compressedUpToIndex?: number
-}
-
-const COMPRESSED_CONTEXT_MARKER = '[上下文已压缩]'
-const MESSAGE_HEADROOM_AFTER_COMPRESSION = 2
-const TOKEN_HEADROOM_RATIO_AFTER_COMPRESSION = 0.2
-
-const cleanProviderOptions = (value: any): any => {
-  if (Array.isArray(value)) {
-    const cleanedArray = value
-      .map((item) => cleanProviderOptions(item))
-      .filter((item) => item !== undefined)
-    return cleanedArray.length > 0 ? cleanedArray : undefined
-  }
-
-  if (value && typeof value === 'object') {
-    const cleanedEntries = Object.entries(value)
-      .map(([key, nestedValue]) => [key, cleanProviderOptions(nestedValue)] as const)
-      .filter(([, nestedValue]) => nestedValue !== undefined)
-
-    return cleanedEntries.length > 0 ? Object.fromEntries(cleanedEntries) : undefined
-  }
-
-  if (value === '' || value === null || value === undefined) {
-    return undefined
-  }
-
-  return value
-}
-
-const isMiniMaxM3Request = (provider: string, baseURL: string, model: string) => {
-  const providerName = provider.toLowerCase()
-  const providerBaseURL = baseURL.toLowerCase()
-  const modelName = model.toLowerCase()
-  return (
-    modelName.includes('minimax-m3') ||
-    providerName.includes('minimax') ||
-    providerBaseURL.includes('minimax')
-  )
-}
-
-const stripThinkingRuntimeOptions = (options: Record<string, any>) => {
-  const {
-    thinking,
-    thinkingConfig,
-    thinking_config,
-    reasoning,
-    reasoningEffort,
-    reasoning_effort,
-    reasoningSummary,
-    reasoning_summary,
-    forceReasoning,
-    force_reasoning,
-    sendReasoning,
-    send_reasoning,
-    enable_thinking,
-    effort,
-    taskBudget,
-    task_budget,
-    ...rest
-  } = options
-
-  const sanitized = { ...rest }
-
-  if (Array.isArray(sanitized.include)) {
-    sanitized.include = sanitized.include.filter(
-      (item: unknown) => typeof item !== 'string' || !item.includes('reasoning')
-    )
-    if (sanitized.include.length === 0) {
-      delete sanitized.include
-    }
-  }
-
-  if (sanitized.contextManagement?.edits && Array.isArray(sanitized.contextManagement.edits)) {
-    const edits = sanitized.contextManagement.edits.filter(
-      (edit: unknown) =>
-        !(
-          edit &&
-          typeof edit === 'object' &&
-          'type' in edit &&
-          typeof edit.type === 'string' &&
-          edit.type.includes('thinking')
-        )
-    )
-
-    if (edits.length > 0) {
-      sanitized.contextManagement = {
-        ...sanitized.contextManagement,
-        edits
-      }
-    } else {
-      delete sanitized.contextManagement
-    }
-  }
-
-  return sanitized
-}
-
-const isCompressedContextMessage = (message: BaseMessage): boolean => {
-  return Boolean(
-    message.role === 'system' &&
-    message.parts?.some(
-      (part) => part.type === 'text' && part.text?.includes(COMPRESSED_CONTEXT_MARKER)
-    )
-  )
-}
-
-const isCompressingContextMessage = (message: BaseMessage): boolean => {
-  return Boolean(
-    (message.metadata as { isCompressingContext?: boolean } | undefined)?.isCompressingContext
-  )
-}
-
-const serializeMessageForCompression = (message: BaseMessage): string => {
-  return serializeMessageForTokenEstimation(message)
-}
-
-const getCompressionBoundaryTailMessages = (
-  messages: BaseMessage[],
-  compressedUpToIndex?: number
-): BaseMessage[] => {
-  const visibleMessages = messages.filter((message) => !isCompressingContextMessage(message))
-  const baseMessages = visibleMessages.filter((message) => !isCompressedContextMessage(message))
-
-  if (compressedUpToIndex == null || compressedUpToIndex < 0) {
-    return baseMessages.filter((message) => message.role !== 'system')
-  }
-
-  if (compressedUpToIndex < baseMessages.length) {
-    return baseMessages
-      .slice(compressedUpToIndex + 1)
-      .filter((message) => message.role !== 'system')
-  }
-
-  const latestCompressedMessageIndex = (() => {
-    for (let i = visibleMessages.length - 1; i >= 0; i--) {
-      if (isCompressedContextMessage(visibleMessages[i])) {
-        return i
-      }
-    }
-
-    return -1
-  })()
-
-  if (latestCompressedMessageIndex === -1) {
-    return []
-  }
-
-  return visibleMessages
-    .slice(latestCompressedMessageIndex + 1)
-    .filter((message) => message.role !== 'system' && !isCompressedContextMessage(message))
-}
-
-const normalizeCompressedMessages = (
-  messages: BaseMessage[],
-  compressedMessage: BaseMessage,
-  _options: { recentMessageCount?: number; recentTokenCount?: number; model?: string }
-): BaseMessage[] => {
-  const baseMessages = messages.filter(
-    (message) => !isCompressedContextMessage(message) && !isCompressingContextMessage(message)
-  )
-  return [...baseMessages, compressedMessage]
-}
-
-const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMessage[]> => {
-  const { cid, messages, contextCount, contextTokenCount, compressModel, activeModel } = options
-  const { getChatById } = useChatsStores()
-  const chat = getChatById(cid)
-  const persistedMessages = chat?.messages ?? messages
-  const persistedBaseMessages = persistedMessages.filter(
-    (message) => !isCompressingContextMessage(message) && !isCompressedContextMessage(message)
-  )
-  const compressedContext = chat?.compressedContext
-  const compressedBoundaryIndex = compressedContext?.compressedUpToIndex
-
-  const preservedSystemCount = persistedBaseMessages.filter(
-    (message) => message.role === 'system'
-  ).length
-  const recentMessageCount =
-    contextCount && contextCount > 1
-      ? Math.max(
-        1,
-        Math.min(
-          Math.max(1, Math.floor((contextCount - preservedSystemCount - 1) / 2)),
-          contextCount - preservedSystemCount - 1 - MESSAGE_HEADROOM_AFTER_COMPRESSION
-        )
-      )
-      : undefined
-  const recentTokenCount =
-    contextTokenCount && contextTokenCount > 1
-      ? Math.max(1, Math.floor(contextTokenCount * (1 - TOKEN_HEADROOM_RATIO_AFTER_COMPRESSION)))
-      : undefined
-  const hasPriorSummary = Boolean(compressedContext?.content)
-  const unsummarizedTailMessages = getCompressionBoundaryTailMessages(
-    persistedMessages,
-    compressedBoundaryIndex
-  )
-  const messageThresholdReached = hasPriorSummary
-    ? Boolean(contextCount && unsummarizedTailMessages.length > contextCount)
-    : Boolean(contextCount && persistedBaseMessages.length > contextCount)
-  const tokenThresholdReached = hasPriorSummary
-    ? Boolean(
-      contextTokenCount &&
-      estimateMessagesTokens(unsummarizedTailMessages, activeModel) > contextTokenCount
-    )
-    : Boolean(
-      contextTokenCount &&
-      estimateMessagesTokens(persistedBaseMessages, activeModel) > contextTokenCount
-    )
-
-  const shouldAutoCompress =
-    (messageThresholdReached || tokenThresholdReached) &&
-    compressModel?.providerId &&
-    compressModel?.modelId
-
-  if (!shouldAutoCompress) return messages
-
-  const compressProvider = useSettingsStore().getProviderById(compressModel.providerId)
-  if (!compressProvider) return messages
-
-  try {
-    const compressionWindow = {
-      recentMessageCount,
-      recentTokenCount,
-      model: activeModel
-    }
-    const meaningfulMessagesToCompress = hasPriorSummary
-      ? unsummarizedTailMessages
-      : persistedBaseMessages.filter((message) => {
-        return message.role !== 'system' || Boolean(serializeMessageForCompression(message))
-      })
-
-    if (hasPriorSummary && meaningfulMessagesToCompress.length === 0) return messages
-    if (!hasPriorSummary && meaningfulMessagesToCompress.length === 0) return messages
-
-    const lastCompressedIndex = (() => {
-      for (let i = persistedBaseMessages.length - 1; i >= 0; i--) {
-        if (persistedBaseMessages[i].role !== 'system') {
-          return i
-        }
-      }
-
-      return undefined
-    })()
-
-    const compressedPrefix = compressedContext?.content?.trim()
-    const newTailContext = meaningfulMessagesToCompress
-      .map((message) => serializeMessageForCompression(message))
-      .filter(Boolean)
-      .join('\n\n')
-    const contextToCompress = [compressedPrefix, newTailContext].filter(Boolean).join('\n\n')
-
-    if (!contextToCompress) return messages
-
-    const { updateMessages, updateMessage, updateMessageMetadata } = useChatsStores()
-
-    const compressingMessageId = nanoid()
-    const compressingMessage: BaseMessage = {
-      id: compressingMessageId,
-      role: 'system',
-      parts: [
-        {
-          type: 'text',
-          text: '🔃 正在压缩上下文...'
-        }
-      ],
-      metadata: {
-        isCompressingContext: true,
-        date: Date.now(),
-        provider: compressProvider.id,
-        model: compressModel.modelId,
-        stop: () => { },
-        loading: true,
-        cid,
-        compressedUpToIndex: lastCompressedIndex
-      } as CompressionMetaData
-    }
-
-    if (chat) {
-      chat.compressedContext = {
-        content: compressedContext?.content || '',
-        compressedUpToIndex: compressedBoundaryIndex,
-        updatedAt: Date.now(),
-        provider: compressProvider.id,
-        model: compressModel.modelId,
-        loading: true
-      }
-      updateMessages(cid, (msgs) =>
-        normalizeCompressedMessages(msgs, compressingMessage, compressionWindow)
-      )
-    }
-
-    let compressedText = ''
-
-    const compressStream = _streamText({
-      model: createRegistry({
-        apiKey: compressProvider.apiKey || '',
-        baseURL: compressProvider.baseUrl,
-        name: compressProvider.name
-      }).languageModel(`${compressProvider.providerType}:${compressModel.modelId}`),
-      prompt: buildContextCompressionPrompt(contextToCompress),
-      onFinish: ({ text }) => {
-        compressedText = text
-      }
-    })
-
-    let accumulatedText = ''
-    try {
-      for await (const data of compressStream.textStream) {
-        accumulatedText += data
-        if (chat) {
-          updateMessage(cid, compressingMessageId, [
-            {
-              type: 'text',
-              text: `🔃 正在压缩上下文...\n\n${accumulatedText}`
-            }
-          ])
-        }
-      }
-
-      if (chat && compressedText) {
-        chat.compressedContext = {
-          content: compressedText,
-          compressedUpToIndex: lastCompressedIndex,
-          updatedAt: Date.now(),
-          provider: compressProvider.id,
-          model: compressModel.modelId,
-          loading: false
-        }
-        updateMessage(cid, compressingMessageId, [
-          {
-            type: 'text',
-            text: `${compressedText}\n\n${COMPRESSED_CONTEXT_MARKER}`
-          }
-        ])
-      }
-
-      if (chat) {
-        const msg = chat.messages.find((m) => m.id === compressingMessageId)
-        if (msg && msg.metadata) {
-          const newMetadata = {
-            ...msg.metadata,
-            loading: false,
-            ...(compressedText ? { isCompressedContext: true } : {})
-          } as MetaData
-          updateMessageMetadata(cid, compressingMessageId, newMetadata)
-        }
-      }
-    } catch (streamError) {
-      console.error('流式压缩出错:', streamError)
-      if (chat) {
-        chat.compressedContext = compressedContext
-          ? { ...compressedContext, loading: false }
-          : undefined
-        updateMessage(cid, compressingMessageId, [
-          {
-            type: 'text',
-            text: accumulatedText + '\n\n❌ 压缩过程出错，将使用原始上下文继续。'
-          }
-        ])
-        const errorMsg = chat.messages.find((m) => m.id === compressingMessageId)
-        if (errorMsg && errorMsg.metadata) {
-          const newMetadata = { ...errorMsg.metadata, loading: false } as MetaData
-          updateMessageMetadata(cid, compressingMessageId, newMetadata)
-        }
-      }
-      return messages
-    }
-
-    if (compressedText && chat) {
-      const compressingMsg = chat.messages.find((m) => m.id === compressingMessageId)
-      if (compressingMsg) {
-        return messages
-      }
-    }
-
-    return messages
-  } catch (error) {
-    console.error('自动压缩上下文失败:', error)
-    return messages
-  }
-}
 const shouldStopForToolResult = (toolResult: { toolName?: string; output: unknown }): boolean => {
   return Boolean((toolResult.output as any)?.queueAsUserMessage)
 }
@@ -553,7 +94,11 @@ export const chatService = () => {
     const skills = discoverSkills(undefined, { chatId: cid })
     const hasLoadSkillTool = skillsEnabled && !!selectedBuiltinTools?.includes('loadSkill')
     const skillsForBuiltinTools = skillsEnabled ? skills : []
-    const builtinToolContext = { knowledgeBaseIds, skills: skillsForBuiltinTools, builtinToolConfigs }
+    const builtinToolContext = {
+      knowledgeBaseIds,
+      skills: skillsForBuiltinTools,
+      builtinToolConfigs
+    }
     const builtinTools = getBuiltinTools(builtinToolContext)
     const mobileCompatibleBuiltinToolKeys = new Set(
       Object.entries(getBuiltinToolGroups(builtinToolContext))
@@ -580,8 +125,9 @@ export const chatService = () => {
       hasAssignedAgentTools || isSubAgentChat ? buildMultiAgentSystemPrompt(cid) : ''
     const codexEnvironmentPrompt = buildCodexEnvironmentPrompt(cid, assignedBuiltinTools)
     const agentInstructions =
-      [codexEnvironmentPrompt, instructions?.trim(), skillsPrompt, multiAgentPrompt].filter(Boolean).join('\n\n') ||
-      undefined
+      [codexEnvironmentPrompt, instructions?.trim(), skillsPrompt, multiAgentPrompt]
+        .filter(Boolean)
+        .join('\n\n') || undefined
 
     const builtinToolKeys = new Set<string>(assignedBuiltinTools)
     if (isSubAgentChat) {
@@ -634,18 +180,19 @@ export const chatService = () => {
         const needsApproval =
           toolName === 'multi_tool_use_parallel' && isConfiguredBuiltinTool
             ? (input: unknown) => {
-              if (needsConfiguredApproval) return true
+                if (needsConfiguredApproval) return true
 
-              const toolUses = (input as { tool_uses?: Array<{ recipient_name?: string }> })?.tool_uses
-              if (!Array.isArray(toolUses)) return false
+                const toolUses = (input as { tool_uses?: Array<{ recipient_name?: string }> })
+                  ?.tool_uses
+                if (!Array.isArray(toolUses)) return false
 
-              return toolUses.some((toolUse) => {
-                const recipientName = toolUse?.recipient_name || ''
-                if (!recipientName.startsWith('builtin.')) return false
-                const nestedToolName = recipientName.slice('builtin.'.length)
-                return builtinToolApprovalKeys.has(nestedToolName)
-              })
-            }
+                return toolUses.some((toolUse) => {
+                  const recipientName = toolUse?.recipient_name || ''
+                  if (!recipientName.startsWith('builtin.')) return false
+                  const nestedToolName = recipientName.slice('builtin.'.length)
+                  return builtinToolApprovalKeys.has(nestedToolName)
+                })
+              }
             : needsConfiguredApproval
 
         return [
@@ -668,118 +215,15 @@ export const chatService = () => {
         ]
       })
     )
-    const isMiniMaxM3OpenAICompatible =
-      providerType === 'openai-compatible' && isMiniMaxM3Request(provider, baseURL, model)
-    const buildOpenAICompatibleTransformRequestBody = (transformRequestBody?: string) => {
-      let parsedTransform: Record<string, any> | undefined
-      try {
-        if (transformRequestBody?.trim()) {
-          const parsed = JSON.parse(transformRequestBody)
-          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            console.warn('transformRequestBody 必须是 JSON 对象字符串')
-          } else {
-            parsedTransform = parsed
-          }
-        }
-      } catch (error) {
-        console.warn('transformRequestBody JSON 解析失败:', error)
-      }
-
-      if (!parsedTransform && !isMiniMaxM3OpenAICompatible) return undefined
-
-      return (args: Record<string, any>) => {
-        const next = {
-          ...args,
-          ...parsedTransform
-        }
-
-        if (isMiniMaxM3OpenAICompatible) {
-          delete next.reasoningEffort
-          delete next.reasoning_effort
-          delete next.enable_thinking
-          next.thinking = {
-            type: thinkingMode ? 'adaptive' : 'disabled'
-          }
-        }
-
-        return next
-      }
-    }
-
-    const transformRequestBody = buildOpenAICompatibleTransformRequestBody(
-      customProviderOptions?.transformRequestBody
-    )
-
-    const { transformRequestBody: _transformRequestBody, ...runtimeProviderOptions } =
-      customProviderOptions || {}
-    const sanitizedRuntimeProviderOptions = stripThinkingRuntimeOptions(runtimeProviderOptions)
-    const providerOptionsKey = providerType === 'openai-compatible' ? provider : providerType
-
-    const thinkingToggleProviders = new Set([
-      'anthropic',
-      'deepseek',
-      'google',
-      'openai',
-      'xai',
-      'openrouter',
-      'openai-compatible'
-    ])
-
-    const supportsThinkingToggle = thinkingToggleProviders.has(providerType)
-
-    const thinkingProviderOptions: Record<string, unknown> = {}
-
-    if (supportsThinkingToggle) {
-      const depth = thinkingMode
-      const normalizedDepth = depth === 'adaptive' ? 'medium' : depth
-      const thinkingEnabled = Boolean(depth)
-      switch (providerType) {
-        case 'anthropic':
-          thinkingProviderOptions.thinking = thinkingEnabled
-            ? { type: 'enabled' }
-            : { type: 'disabled' }
-          break
-        case 'deepseek':
-          thinkingProviderOptions.thinking = {
-            type: thinkingEnabled ? 'enabled' : 'disabled'
-          }
-          thinkingProviderOptions.enable_thinking = thinkingEnabled
-          if (thinkingEnabled) {
-            thinkingProviderOptions.reasoningEffort = normalizedDepth === 'max' ? 'max' : 'high'
-          }
-          break
-        case 'google':
-          thinkingProviderOptions.thinkingConfig = {
-            includeThoughts: thinkingEnabled,
-            ...(thinkingEnabled ? { thinkingLevel: normalizedDepth } : { thinkingBudget: 0 })
-          }
-          break
-        case 'openai':
-          thinkingProviderOptions.reasoningEffort = thinkingEnabled ? normalizedDepth : 'none'
-          break
-        case 'xai':
-          if (thinkingEnabled) {
-            thinkingProviderOptions.reasoningEffort = normalizedDepth === 'low' ? 'low' : 'high'
-          }
-          break
-        case 'openrouter':
-          thinkingProviderOptions.reasoning = thinkingEnabled
-            ? { enabled: true, effort: normalizedDepth }
-            : { enabled: false }
-          break
-        case 'openai-compatible':
-          if (!isMiniMaxM3OpenAICompatible) {
-            thinkingProviderOptions.reasoningEffort = thinkingEnabled ? normalizedDepth : 'none'
-          }
-          break
-      }
-    }
-
-    const mergedProviderOptions =
-      cleanProviderOptions({
-        ...sanitizedRuntimeProviderOptions,
-        ...thinkingProviderOptions
-      }) || {}
+    const { providerOptionsKey, mergedProviderOptions, transformRequestBody } =
+      resolveProviderRuntime({
+        providerType,
+        provider,
+        baseURL,
+        model,
+        thinkingMode,
+        customProviderOptions
+      })
 
     const agent = new ToolLoopAgent({
       model: wrapLanguageModel({
@@ -885,214 +329,16 @@ export const chatService = () => {
     })
     return uiStream
   }
-  const generateText = async (
-    prompt: string,
-    {
-      model,
-      apiKey,
-      baseURL,
-      provider,
-      providerType,
-      tools,
-      toolChoice = 'auto'
-    }: ChatServiceOptions
-  ) => {
-    await onUseAIBefore({ model, providerType, apiKey, baseURL })
-    try {
-      const result = await _generateText({
-        model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-          `${providerType}:${model}`
-        ),
-        tools,
-        prompt,
-        toolChoice,
-        frequencyPenalty: 2
-      })
-      return result
-    } catch (error) {
-      messageApi.error((error as Error).message)
-      throw error
-    }
-  }
-  const generateTextWithMessages = async (
-    messages: BaseMessage[],
-    {
-      model,
-      apiKey,
-      baseURL,
-      provider,
-      providerType,
-      tools,
-      toolChoice = 'auto'
-    }: ChatServiceOptions
-  ) => {
-    await onUseAIBefore({ model, providerType, apiKey, baseURL })
-    try {
-      const validatedMessages = await validateUIMessages({
-        messages,
-        tools
-      })
-      const sanitizedMessages = sanitizeUIMessages(validatedMessages)
-      const normalizedMessages = normalizeInlineFilePartUrls(sanitizedMessages)
-      const modelMessages = await convertToModelMessages(normalizedMessages)
+  const {
+    generateText,
+    generateTextWithMessages,
+    streamText,
+    generateImage,
+    translateText,
+    generateVideo,
+    list_models
+  } = createGenerationService()
 
-      const result = await _generateText({
-        model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-          `${providerType}:${model}`
-        ),
-        tools,
-        messages: modelMessages,
-        toolChoice,
-        frequencyPenalty: 2
-      })
-      return result
-    } catch (error) {
-      messageApi.error((error as Error).message)
-      throw error
-    }
-  }
-  const streamText = async (
-    prompt: string,
-    {
-      model,
-      apiKey,
-      baseURL,
-      provider,
-      providerType,
-      tools,
-      toolChoice = 'auto',
-      onData,
-      onFinish
-    }: ChatServiceOptions & { onData: (text: string) => void; onFinish: () => void }
-  ) => {
-    await onUseAIBefore({ model, providerType, apiKey, baseURL })
-    try {
-      const result = _streamText({
-        model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-          `${providerType}:${model}`
-        ),
-        tools,
-        prompt,
-        toolChoice,
-        onFinish
-      })
-      for await (const data of result.textStream) {
-        onData(data)
-      }
-    } catch (error) {
-      messageApi.error((error as Error).message)
-      throw error
-    }
-  }
-
-  const generateImage = async (
-    prompt: string | GenerateImagePrompt,
-    {
-      model,
-      apiKey,
-      baseURL,
-      provider,
-      providerType,
-      n,
-      size,
-      aspectRatio,
-      seed,
-      providerOptions
-    }: ImageGenerateOptions & ChatServiceOptions
-  ) => {
-    await onUseAIBefore({ model, providerType, apiKey, baseURL })
-    try {
-      const imageProviderName = providerType === 'openai-compatible' ? providerType : provider
-      const result = await _generateImage({
-        model: createRegistry({ apiKey, baseURL, name: imageProviderName }).imageModel(
-          `${providerType}:${model}`
-        ),
-        prompt,
-        n,
-        size: size as `${number}x${number}`,
-        aspectRatio: aspectRatio as `${number}:${number}`,
-        seed,
-        providerOptions
-      })
-      return result
-    } catch (error) {
-      messageApi.error((error as Error).message)
-      throw error
-    }
-  }
-
-  const translateText = async (
-    text: string,
-    targetLanguage: string = '中文',
-    { model, apiKey, baseURL, provider, providerType }: ChatServiceOptions,
-    abortSignal?: AbortSignal
-  ) => {
-    await onUseAIBefore({ model, providerType, apiKey, baseURL })
-    const prompt = buildTranslationPrompt(text, targetLanguage)
-    try {
-      const result = await _generateText({
-        model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-          `${providerType}:${model}`
-        ),
-        prompt,
-        abortSignal
-      })
-      return result.text
-    } catch (error) {
-      messageApi.error((error as Error).message)
-      throw error
-    }
-  }
-
-  const generateVideo = async (
-    prompt: string,
-    {
-      model,
-      apiKey,
-      baseURL,
-      provider,
-      providerType,
-      n,
-      duration,
-      resolution,
-      aspectRatio,
-      seed,
-      providerOptions
-    }: VideoGenerateOptions & ChatServiceOptions
-  ) => {
-    await onUseAIBefore({ model, providerType, apiKey, baseURL })
-    try {
-      const registry = createRegistry({ apiKey, baseURL, name: provider })
-
-      // 检查 provider 是否支持 videoModel
-      const providerInstance = registry.getProvider(providerType)
-      if (!providerInstance || typeof (providerInstance as any).video !== 'function') {
-        throw new Error(`提供商 ${providerType} 不支持视频生成`)
-      }
-
-      const result = await _generateVideo({
-        model: (providerInstance as any).video(model),
-        prompt,
-        n,
-        duration,
-        resolution,
-        aspectRatio: aspectRatio as `${number}:${number}`,
-        seed,
-        providerOptions
-      })
-      return result
-    } catch (error) {
-      messageApi.error((error as Error).message)
-      throw error
-    }
-  }
-  const list_models = async ({ baseURL, apiKey, providerType, name }) => {
-    await onUseAIBefore({ providerType, apiKey, baseURL })
-    const registry = createRegistry({ apiKey, baseURL, name: name || providerType })
-    const providerInstance = registry.getProvider(providerType)
-    const listModelsResult = await providerInstance.listModels?.()
-    return listModelsResult || []
-  }
   const list_tools = async (config: ClientConfig, cache?: boolean) => {
     try {
       const tools = await retry(
