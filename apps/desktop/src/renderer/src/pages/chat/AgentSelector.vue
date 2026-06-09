@@ -112,6 +112,21 @@ const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
   settingsStore.toggleFavoriteAgent(agentId)
 }
 
+const copyAgent = (agent: Agent) => {
+  const clonedId = agentStore.cloneAgent(agent.id)
+  if (!clonedId) return
+
+  // 拷贝成功后关闭弹窗并选中新拷贝的智能体
+  isPopupOpen.value = false
+  const currentChatId = chatsStore.currentChat?.id
+  if (currentChatId) {
+    chatsStore.setChatAgent(currentChatId, clonedId)
+  } else {
+    chatsStore.createChat('新的聊天', { agentId: clonedId })
+  }
+}
+
+
 const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
   event.preventDefault()
   event.stopPropagation()
@@ -120,22 +135,12 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 
   const menuItems: MenuItem<Agent>[] = [
     {
-      label: '克隆智能体',
+      label: '拷贝智能体',
       icon: Copy,
-      action: 'clone',
+      action: 'copy',
       disabled: false,
       onClick: (data: Agent) => {
-        if (data) {
-          const clonedId = agentStore.cloneAgent(data.id)
-          if (clonedId) {
-            // 克隆成功后关闭弹窗并选中新克隆的智能体
-            isPopupOpen.value = false
-            const currentChatId = chatsStore.currentChat?.id
-            if (currentChatId) {
-              chatsStore.setChatAgent(currentChatId, clonedId)
-            }
-          }
-        }
+        if (data) copyAgent(data)
       }
     },
     {
@@ -270,6 +275,12 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 
               <Check v-if="isAgentSelected(agent.id)" />
 
+              <Button @click.stop="copyAgent(agent)" variant="icon" size="sm" title="拷贝智能体">
+                <template #icon>
+                  <Copy />
+                </template>
+              </Button>
+
               <Button @click.stop="openAgentModal(agent)" variant="icon" size="sm">
                 <template #icon>
                   <Edit />
@@ -335,6 +346,12 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
               </button>
 
               <Check v-if="isAgentSelected(agent.id)" />
+
+              <Button @click.stop="copyAgent(agent)" variant="icon" size="sm" title="拷贝智能体">
+                <template #icon>
+                  <Copy />
+                </template>
+              </Button>
 
               <Button @click.stop="openAgentModal(agent)" variant="icon" size="sm">
                 <template #icon>
