@@ -27,8 +27,6 @@ import { createGenerationService } from './generation'
 import { resolveProviderRuntime } from './providerRuntime'
 import type { ChatServiceConfig, ChatServiceOptions } from './types'
 
-export type { GenerateImagePrompt, ImageGenerateOptions } from './types'
-
 const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
   '电脑操作',
   'Agent工具',
