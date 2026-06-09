@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent-Qi 插件开发（中文）"
   short_description: "按真实运行时 API 构建、调试与打包 Agent-Qi 插件。"
-  default_prompt: "使用 $agent-qi-plugin-dev-zh 实现、调试、验证或打包 Agent-Qi 插件，并优先遵循本地运行时 API 和最接近的示例插件。"
+  default_prompt: "使用 $agent-qi-plugin-dev-zh 先通过 qi code init -y 初始化 Agent-Qi 插件，再基于最接近的示例模板实现、调试、验证或打包。"

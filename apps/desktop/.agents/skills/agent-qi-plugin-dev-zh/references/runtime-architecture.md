@@ -165,9 +165,12 @@ loader 也支持移动端存储的插件包。
 规则：
 
 - 生成模板使用 Vite library mode，IIFE 输出，`entryFileNames: 'index.js'`
+- `qi code init <name> -t <template> -d "<description>" -a "<author>" -v "<version>" -y` 可以无交互创建插件项目
+- `qi code init -y` 仍然需要传入插件包名
 - `qi code dev` 要求有 `package.json`，并运行 `build:watch` 或 `dev`
 - `qi code build` 会向上查找 `info.json`
 - build 要求存在 `dist/`
+- `qi code build -y` 会跳过交互式版本提示
 - build 会更新 `info.json.updatedAt`，可选更新 version，并写出 `.qi`
 - 存在 `extraAssets` 时会把这些条目复制进包内
 

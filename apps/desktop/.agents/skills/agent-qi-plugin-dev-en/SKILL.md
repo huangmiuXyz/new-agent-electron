@@ -5,7 +5,25 @@ description: English skill for Agent-Qi / agent-qi-electron plugin development. 
 
 # Agent-Qi Plugin Development
 
-Implement plugins the way this repository actually loads and runs them. Prefer local source, `@agent-qi/types`, runtime internals, and the `qi code` workflow over generic Electron, Vue, or Vite advice.
+Implement plugins by starting from the repository's `qi code init` templates, then modifying the generated plugin to match the task. Prefer the CLI workflow, local examples, `@agent-qi/types`, and runtime internals over generic Electron, Vue, or Vite advice.
+
+## Start With The CLI
+
+For a new plugin, do not hand-write the project from scratch. Initialize it first with a fully parameterized command:
+
+```bash
+qi code init my-plugin -t hello-world -d "My plugin description" -a "Author Name" -v "1.0.0" -y
+```
+
+Use `qi code init --list-templates` to inspect template names. Choose the closest template with `-t`; if unsure, use `hello-world` only for tiny plugins and prefer real example templates for provider, UI, TTS, local-service, or tool plugins.
+
+After initialization:
+
+1. `cd my-plugin`
+2. install dependencies with the repo's package manager
+3. implement the requested behavior inside the generated structure
+4. run `qi code dev` for development mode or build with the package scripts
+5. run `qi code build -y` when packaging a distributable `.qi`
 
 ## Runtime Facts To Respect
 
@@ -29,7 +47,7 @@ Metadata constraints:
 
 ## Work Order
 
-1. Classify the plugin.
+1. Classify the plugin and choose a `qi code init -t ...` template.
    - Minimal starter: only `install()`.
    - Provider plugin: `registerRegistry()` and/or `registerProvider()`.
    - Settings or rich UI plugin: `useForm()`, `useTable()`, `useModal()`, `registerSettings()`, TSX, or `context.vue`.
@@ -37,7 +55,11 @@ Metadata constraints:
    - Hook or automation plugin: `registerHook()`.
    - Runtime service plugin: `execNodejs()`, `context.api.spawn`, downloads, polling, status indicators, persisted config, and cleanup.
 
-2. Read the real source before editing.
+2. Initialize or locate the plugin project.
+   - New plugin: use `qi code init <plugin-name> -t <template> -d "<description>" -a "<author>" -v "<version>" -y`.
+   - Existing plugin: inspect its `info.json`, `package.json`, `src/index.ts(x)`, and `vite.config.ts` before editing.
+
+3. Read the real source before editing generated code.
    - `packages/types/src/plugin.ts`
    - `packages/types/src/electron.ts` when using `context.api` or `execNodejs`
    - the closest example plugin under `packages/qi-cli/example/*`
@@ -48,11 +70,11 @@ Metadata constraints:
      - `apps/desktop/src/renderer/src/stores/settings.ts`
      - `apps/desktop/src/renderer/src/services/chatService/registry.ts`
 
-3. Copy the nearest local pattern first.
+4. Keep the generated or nearest local pattern first.
    - Keep the example directory shape, state flow, Vite config, and UI composition style unless the repository clearly needs a different shape.
    - Do not design a new plugin architecture for a one-plugin request.
 
-4. Validate the workflow the user will actually use.
+5. Validate the workflow the user will actually use.
    - Build `dist`.
    - Package `.qi` if distribution is part of the task.
    - For dev-mode work, ensure `package.json` has `build:watch` or `dev`.

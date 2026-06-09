@@ -11,6 +11,7 @@
 - `packages/qi-cli/src/commands/init.ts`
   - 生成 hello-world 骨架
   - 适合第一目标只是“让插件能加载”
+  - 通过 `qi code init <name> -t hello-world ... -y` 使用
 
 ## 文本、图像、视频、语音 Provider
 
@@ -98,6 +99,7 @@
 ## 选型建议
 
 - 只注册 provider factory：从 `moonshot-plugin` 开始。
+- 新项目骨架：运行 `qi code init <name> -t <template> -d "<description>" -a "<author>" -v "1.0.0" -y`。
 - 简单 API provider：从 `minimax-plugin`、`modelscope-plugin` 或 `siliconflow-plugin` 开始。
 - 图像/视频 provider：从 `ark-plugin`、`skyreels-plugin` 或 `comfyui-plugin` 开始。
 - 远程 TTS：从 `qwen-tts-plugin` 开始。

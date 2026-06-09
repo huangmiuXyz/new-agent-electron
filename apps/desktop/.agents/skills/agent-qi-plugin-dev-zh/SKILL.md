@@ -5,7 +5,25 @@ description: 面向 Agent-Qi / agent-qi-electron 的中文插件开发技能。�
 
 # Agent-Qi 插件开发
 
-按这个仓库真实加载和运行插件的方式实现插件。优先相信本地源码、`@agent-qi/types`、运行时实现和 `qi code` 工作流，不套用泛泛的 Electron、Vue 或 Vite 插件经验。
+开发插件时先用仓库自带的 `qi code init` 模板初始化，再在生成的插件结构里实现需求。优先相信 CLI 工作流、本地示例、`@agent-qi/types` 和运行时实现，不套用泛泛的 Electron、Vue 或 Vite 插件经验。
+
+## 先用 CLI 初始化
+
+新建插件时，不要从零手写项目。先用完整带参数命令初始化：
+
+```bash
+qi code init my-plugin -t hello-world -d "插件描述" -a "作者" -v "1.0.0" -y
+```
+
+用 `qi code init --list-templates` 查看模板名。通过 `-t` 选择最接近的模板；只有很小的插件才用 `hello-world`，provider、UI、TTS、本地服务、工具类插件优先使用真实示例模板。
+
+初始化后：
+
+1. `cd my-plugin`
+2. 用仓库对应的包管理器安装依赖
+3. 在生成结构内实现需求
+4. 开发模式运行 `qi code dev`，或使用 package scripts 构建
+5. 分发 `.qi` 时运行 `qi code build -y`
 
 ## 必须遵守的运行时事实
 
@@ -29,7 +47,7 @@ description: 面向 Agent-Qi / agent-qi-electron 的中文插件开发技能。�
 
 ## 工作顺序
 
-1. 先判断插件类型。
+1. 先判断插件类型，并选择 `qi code init -t ...` 模板。
    - 最小插件：通常只需要 `install()`。
    - Provider 插件：需要 `registerRegistry()` 和/或 `registerProvider()`。
    - 设置页或复杂 UI 插件：需要 `useForm()`、`useTable()`、`useModal()`、`registerSettings()`、TSX 或 `context.vue`。
@@ -37,7 +55,11 @@ description: 面向 Agent-Qi / agent-qi-electron 的中文插件开发技能。�
    - Hook 或自动化插件：需要 `registerHook()`。
    - 运行时服务插件：需要 `execNodejs()`、`context.api.spawn`、下载、轮询、状态条、持久化配置和清理逻辑。
 
-2. 改代码前先读真实源码。
+2. 初始化或定位插件项目。
+   - 新插件：使用 `qi code init <plugin-name> -t <template> -d "<description>" -a "<author>" -v "<version>" -y`。
+   - 已有插件：改动前先检查 `info.json`、`package.json`、`src/index.ts(x)`、`vite.config.ts`。
+
+3. 改生成代码前先读真实源码。
    - `packages/types/src/plugin.ts`
    - 使用 `context.api` 或 `execNodejs` 时读 `packages/types/src/electron.ts`
    - `packages/qi-cli/example/*` 下最接近需求的示例插件
@@ -48,11 +70,11 @@ description: 面向 Agent-Qi / agent-qi-electron 的中文插件开发技能。�
      - `apps/desktop/src/renderer/src/stores/settings.ts`
      - `apps/desktop/src/renderer/src/services/chatService/registry.ts`
 
-3. 优先复制最接近的本地模式。
+4. 优先保留生成结构或最接近的本地模式。
    - 除非仓库确实需要新结构，否则沿用示例的目录组织、状态流、Vite 配置和 UI 拼装方式。
    - 不要为了单个插件需求重新设计一套插件架构。
 
-4. 验证用户真正会用到的工作流。
+5. 验证用户真正会用到的工作流。
    - 构建 `dist`。
    - 如果需求包含分发，打包 `.qi`。
    - 开发模式插件要确认 `package.json` 有 `build:watch` 或 `dev`。

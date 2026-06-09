@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent-Qi Plugin Development"
   short_description: "Build Agent-Qi plugins from real runtime APIs."
-  default_prompt: "Use $agent-qi-plugin-dev-en to implement, debug, validate, or package Agent-Qi plugins from the local runtime APIs and nearest example plugin."
+  default_prompt: "Use $agent-qi-plugin-dev-en to initialize an Agent-Qi plugin with qi code init -y, then implement, debug, validate, or package it from the nearest example template."

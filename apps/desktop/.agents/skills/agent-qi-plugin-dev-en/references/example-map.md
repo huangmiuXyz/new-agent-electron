@@ -11,6 +11,7 @@ Use the nearest example before inventing a structure. Read only the examples tha
 - `packages/qi-cli/src/commands/init.ts`
   - generated hello-world skeleton
   - good when the first goal is simply "make a plugin load"
+  - use through `qi code init <name> -t hello-world ... -y`
 
 ## Text, Image, Video, Speech Providers
 
@@ -98,6 +99,7 @@ Use the nearest example before inventing a structure. Read only the examples tha
 ## Selection Guide
 
 - Provider factory only: start from `moonshot-plugin`.
+- New project skeleton: run `qi code init <name> -t <template> -d "<description>" -a "<author>" -v "1.0.0" -y`.
 - Simple API provider: start from `minimax-plugin`, `modelscope-plugin`, or `siliconflow-plugin`.
 - Image/video provider: start from `ark-plugin`, `skyreels-plugin`, or `comfyui-plugin`.
 - Remote TTS: start from `qwen-tts-plugin`.

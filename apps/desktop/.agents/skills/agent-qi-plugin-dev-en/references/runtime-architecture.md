@@ -165,9 +165,12 @@ Key files:
 Rules:
 
 - generated templates use Vite library mode with IIFE output and `entryFileNames: 'index.js'`
+- `qi code init <name> -t <template> -d "<description>" -a "<author>" -v "<version>" -y` creates a plugin project without prompts
+- `qi code init -y` still needs the positional plugin package name
 - `qi code dev` requires `package.json` and runs `build:watch` or `dev`
 - `qi code build` searches upward for `info.json`
 - build requires `dist/`
+- `qi code build -y` skips the interactive version prompt
 - build updates `info.json.updatedAt`, optionally version, and writes the `.qi`
 - `extraAssets` entries are copied into the package when present
 

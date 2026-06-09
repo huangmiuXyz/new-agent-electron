@@ -274,6 +274,7 @@ export const initCommand = new Command('init')
   .option('-a, --author <author>', 'Plugin author')
   .option('-v, --version <version>', 'Plugin version', '1.0.0')
   .option('-t, --template <template>', 'Template name to use, for example "llama-cpp-plugin"')
+  .option('-y, --yes', 'Skip interactive prompts and use defaults')
   .option('--list-templates', 'List available templates and exit')
   .argument('[name]', 'Plugin package name')
   .action(async (name: string | undefined, options: Record<string, unknown>) => {
@@ -296,8 +297,13 @@ export const initCommand = new Command('init')
 
       spinner?.stop();
 
+      const skipPrompts = Boolean(options.yes);
       let pluginName = name;
       if (!pluginName) {
+        if (skipPrompts) {
+          console.error(chalk.red('Plugin package name is required when using --yes.'));
+          process.exit(1);
+        }
         const answers = await inquirer.prompt([
           {
             type: 'input',
@@ -326,7 +332,7 @@ export const initCommand = new Command('init')
 
       const promptQuestions: any[] = [];
 
-      if (!options.description) {
+      if (!options.description && !skipPrompts) {
         promptQuestions.push({
           type: 'input',
           name: 'description',
@@ -335,7 +341,7 @@ export const initCommand = new Command('init')
         });
       }
 
-      if (!options.author) {
+      if (!options.author && !skipPrompts) {
         promptQuestions.push({
           type: 'input',
           name: 'author',
@@ -364,7 +370,8 @@ export const initCommand = new Command('init')
         process.exit(1);
       }
 
-      const description = String(options.description || answers.description || '').trim();
+      const defaultDescription = skipPrompts ? `${toDisplayName(pluginName!)} plugin` : '';
+      const description = String(options.description || answers.description || defaultDescription).trim();
       const author = String(options.author || answers.author || '').trim();
       const version = String(options.version || '1.0.0').trim();
 

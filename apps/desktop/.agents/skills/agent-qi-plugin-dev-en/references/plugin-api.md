@@ -261,6 +261,16 @@ Hook handlers should be idempotent. `plugin.clearData` is recommended for plugin
 
 ## Build And Packaging
 
+### Initialization
+
+- Start new plugins with `qi code init`, not a hand-written folder.
+- Use `qi code init --list-templates` before choosing a template.
+- Prefer fully parameterized non-interactive commands:
+  - `qi code init my-plugin -t hello-world -d "Description" -a "Author" -v "1.0.0" -y`
+- `-y` skips interactive prompts and uses defaults for missing optional fields.
+- `-y` still requires a plugin package name.
+- Use a real example template with `-t` whenever the plugin is more than a tiny hello-world plugin.
+
 ### Dev mode
 
 - `qi code dev` runs `build:watch` when present, otherwise `dev`.
@@ -271,6 +281,7 @@ Hook handlers should be idempotent. `plugin.clearData` is recommended for plugin
 
 - `qi code build` searches upward for `info.json`.
 - It requires a built `dist/` directory.
+- Use `qi code build -y` to skip interactive version prompts.
 - It writes updated `version` and `updatedAt` into `info.json`.
 - It zips `info.json` and the contents of `dist/` into the `.qi` root.
 - `info.json.extraAssets` can add files or directories.

@@ -261,6 +261,16 @@ hook 处理函数应保持幂等。插件如果拥有 `getPluginsDataPath()` 下
 
 ## 构建与打包
 
+### 初始化
+
+- 新插件先用 `qi code init`，不要手写空目录。
+- 选择模板前先用 `qi code init --list-templates` 查看可用模板。
+- 优先使用完整带参的非交互命令：
+  - `qi code init my-plugin -t hello-world -d "描述" -a "作者" -v "1.0.0" -y`
+- `-y` 会跳过交互提示，并给缺失的可选字段使用默认值。
+- `-y` 仍然要求传入插件包名。
+- 只要不是极小 hello-world 插件，就用 `-t` 选择真实示例模板。
+
 ### 开发模式
 
 - `qi code dev` 优先运行 `build:watch`，否则运行 `dev`。
@@ -271,6 +281,7 @@ hook 处理函数应保持幂等。插件如果拥有 `getPluginsDataPath()` 下
 
 - `qi code build` 会向上查找 `info.json`。
 - 它要求已经构建出 `dist/` 目录。
+- 使用 `qi code build -y` 跳过交互式版本提示。
 - 它会把更新后的 `version` 和 `updatedAt` 写回 `info.json`。
 - 它把 `info.json` 和 `dist/` 内容压到 `.qi` 根目录。
 - `info.json.extraAssets` 可以额外加入文件或目录。
