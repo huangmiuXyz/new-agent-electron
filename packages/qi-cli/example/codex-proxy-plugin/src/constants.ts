@@ -103,6 +103,10 @@ type BuiltinModel = {
 
 export const MODELS: ReadonlyArray<BuiltinModel> = [
   {
+    id: 'gpt-5.5',
+    description: '最新旗舰模型，支持编程和自然语言任务'
+  },
+  {
     id: 'gpt-5.4',
     alias: 'codex',
     description: '最新旗舰编程模型'

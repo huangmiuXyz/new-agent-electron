@@ -63,11 +63,12 @@ const REASONING_EFFORT = (() => {
 })()
 const API_KEY = String(process.env.CODEX_PROXY_PLUGIN_API_KEY || '').trim()
 const UPSTREAM_BASE_URL = 'https://chatgpt.com/backend-api/codex'
-const CODEX_CLIENT_VERSION = '0.101.0'
+const CODEX_CLIENT_VERSION = '0.137.0-alpha.4'
 const CODEX_USER_AGENT =
-  'codex_cli_rs/0.101.0 (Mac OS 26.0.1; arm64) Apple_Terminal/464'
+  'codex_cli_rs/0.137.0-alpha.4 (Mac OS 26.0.1; arm64) Apple_Terminal/464'
 
 const FALLBACK_MODEL_ENTRIES = [
+  ['gpt-5.5', '', ''],
   ['gpt-5.4', 'codex', 'latest flagship coding model'],
   ['gpt-5.3-codex', '', 'previous flagship agentic coding model'],
   ['gpt-5.3-codex-spark', '', 'ultra-light coding model'],
@@ -414,6 +415,7 @@ const normalizeModelForUpstream = (model) => {
   if (value === 'codex-max') return 'gpt-5.1-codex-max'
   if (value === 'codex-mini') return 'gpt-5.1-codex-mini'
   if (value === 'gpt-5-4') return 'gpt-5.4'
+  if (value === 'gpt-5-5') return 'gpt-5.5'
   return value
 }
 
