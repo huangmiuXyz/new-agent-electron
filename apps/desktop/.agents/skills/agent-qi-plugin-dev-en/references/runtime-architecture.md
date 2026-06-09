@@ -1,129 +1,183 @@
 # Runtime Architecture
 
-These notes come from the plugin loader, plugin manager, settings store, and provider registry implementation. Treat them as hard constraints.
+These notes come from the plugin loader, plugin manager, settings store, provider registry, and CLI commands. Treat them as source-backed constraints.
 
-## 1. How plugins are loaded
+## 1. How Desktop Plugins Are Loaded
 
 Key files:
 
 - `apps/desktop/src/renderer/src/services/plugins/pluginLoader.ts`
 - `apps/desktop/src/renderer/src/services/plugins/pluginManager.ts`
 
-Desktop loading flow, roughly:
+Desktop load flow:
 
-1. find `index.js`, `dist/index.js`, or `build/index.js`
-2. read the built code as text
-3. wrap it with `new Function('Vue', code + 'return plugin;')`
-4. execute it and retrieve `plugin`
-5. create a context with `PluginManager.createContext()` and call `plugin.install(context)`
-
-So you should assume:
-
-- the artifact must expose a variable named `plugin`
-- the entry filename should usually stay `index.js`
-- the example Vite configs using IIFE output and `lib.name = 'plugin'` are intentional
-
-## 2. Who owns metadata
-
-After code is loaded, `pluginLoader` reads `info.json` and `README.md`:
-
-- `info.json` can overwrite `plugin.name`
-- it also overwrites `version/description/author/updatedAt`
-- `README.md` is shown in the plugin details page
+1. resolve the plugin directory
+2. search for `index.js`, `dist/index.js`, then `build/index.js`
+3. fetch/read the JavaScript code as text
+4. wrap it as `new Function('Vue', code + 'return plugin;')`
+5. execute it and retrieve `plugin`
+6. read metadata from `info.json` and README when available
+7. create a context with `PluginManager.createContext()`
+8. call `plugin.install(context)`
 
 Implications:
 
-- code metadata is not the only source of truth
-- keep `info.json` accurate
-- README is user-visible and worth maintaining
+- the built artifact must expose a variable named `plugin`
+- IIFE output with Vite `lib.name = 'plugin'` is intentional
+- `export default plugin` is fine only if the final bundle still exposes `plugin`
+- `info.json.main` is metadata; do not depend on it for desktop loader entry resolution
 
-## 3. Dev mode versus installed mode
+## 2. Dev Mode Versus Installed Mode
 
 ### Dev mode
 
-- loaded from a local directory via Development Mode
-- plugin id comes from the directory basename
-- loader stores the local path and watches for file changes
-- changes trigger plugin reload
+- loaded from a user-selected local directory
+- plugin id is the directory basename
+- the selected path is stored in `devPlugins`
+- the directory is watched; changes trigger reload
+- loader can find `dist/index.js`, so normal Vite build output works
 
 ### Installed mode
 
-- `.qi` packages are extracted into the user plugin directory
-- the package must include `info.json` and `index.js`
-- README and extra assets may also be included
+- `.qi` packages are extracted into the user plugins directory
+- the package must include root `info.json` and root `index.js`
+- `qi code build` achieves this by zipping the contents of `dist/` into the package root
+- README and `extraAssets` may be included
 
-## 4. How plugin context is built
+## 3. Mobile Package Loading
+
+The loader also supports mobile-stored plugin packages.
+
+Important platform behavior:
+
+- `info.json.platforms` controls whether a plugin is supported on `desktop` or `mobile`
+- missing or empty `platforms` means supported everywhere
+- `mobileUnsupportedReason` can explain why a desktop-only plugin is blocked on mobile
+- mobile plugins cannot assume desktop preload APIs such as local filesystem, local process spawning, PTY, or native dialogs
+
+When writing plugins that should work on mobile, keep runtime dependencies API/network-oriented and check the actual available API surface.
+
+## 4. Metadata Ownership
+
+After code is loaded, `pluginLoader` reads `info.json`:
+
+- `plugin.name = info.name || pluginName`
+- `version`, `description`, `author`, and `updatedAt` are copied from metadata when present
+- README content can be attached to the plugin info for display
+
+Consequences:
+
+- code metadata is not the only source of truth
+- display names should be maintained in `info.json`
+- dev-mode identity can differ from display name
+- inconsistent names can make reloads, settings display, and provider ownership confusing
+
+## 5. Plugin Context Construction
 
 `PluginManager.createContext()` injects:
 
 - `window.api`
-- `pinia/router/app`
+- `pinia`, `router`, and app
 - `context.vue`
-- `useForm/useTable/useDownload/useModal/useTerminal/useIcon`
-- a plugin-scoped `localforage` instance named after the plugin
-- access to settings / chats / notes / knowledge / agent stores
+- `useForm`, `useTable`, `useDownload`, `useModal`, `useTerminal`, `useIcon`
+- `registerSettings` and `unregisterSettings`
+- plugin-scoped `localforage`
+- `execNodejs()` with plugin-local defaults
+- store access through `getStore()`
+- notification helpers
 
-One especially useful detail:
+Useful detail:
 
-- `getPluginsDataPath()` returns a plugin-specific data directory
-- use it for models, downloads, and clearable assets
+- `getPluginsDataPath()` returns a plugin-specific data directory under user data on desktop
+- use it for models, downloads, cache, and clearable plugin assets
 
-## 5. How providers actually enter the UI
+## 6. Provider Visibility
 
 Key files:
 
-- `pluginManager.ts`
-- `stores/settings.ts`
-- `pages/settings/provider.vue`
+- `apps/desktop/src/renderer/src/services/plugins/pluginManager.ts`
+- `apps/desktop/src/renderer/src/stores/settings.ts`
+- `apps/desktop/src/renderer/src/pages/settings/provider.vue`
 
-Real flow:
+Flow:
 
 1. plugin calls `registerProvider(providerId, options)`
-2. `PluginManager` writes a record into `registeredProviders`
-3. `settings.ts` merges `providers` and `registeredProviders` via `getAllProviders`
-4. settings and chat selection use that merged list
+2. `PluginManager` writes or updates a record in `registeredProviders`
+3. `settings.ts` merges built-in `providers` and `registeredProviders` via `getAllProviders`
+4. settings pages and model selection use the merged list
 
 Therefore:
 
-- plugin providers are not directly written into the default provider list
-- they are dynamic providers carrying `pluginName`
-- unload can remove them by `pluginName`
+- plugin providers are dynamic provider records, not direct edits to the built-in provider list
+- provider records carry `pluginName`
+- repeated registration refreshes a plugin-owned provider
+- unload can remove plugin-owned providers and clear related default model references
 
-## 6. Registry and providerType
+## 7. Registry And Provider Type
 
 Key file:
 
 - `apps/desktop/src/renderer/src/services/chatService/registry.ts`
 
-`registerRegistry(name, factory)` means:
+`registerRegistry(name, factory, options?)`:
 
-- add a provider factory to the provider registry
-- make the chat service able to instantiate that provider type
-- if the registry is not hidden, it can appear in provider type selectors
+- registers a provider factory by type/name
+- lets chat services instantiate that provider type
+- can be hidden with `{ hide: true }`
 
 General rule:
 
-- `registerRegistry()` defines how to construct a provider
-- `registerProvider()` makes that provider visible in UI/settings
+- `registerRegistry()` defines "how to construct it"
+- `registerProvider()` defines "where users see/select it"
 
-Complex plugins often use both.
+Complex provider plugins often need both.
 
-## 7. What the framework cleans up, and what it does not
+## 8. Cleanup Responsibilities
 
-`PluginManager.unregisterPlugin()` automatically removes:
+`PluginManager.unregisterPlugin()` automatically removes plugin-owned:
 
-- commands registered by the plugin
+- commands
 - hooks
 - built-in tools
 - registry bookkeeping
 - registered providers and some default model references
+- registered plugin settings forms
 
-But `uninstall()` should still clean up:
+`uninstall()` should still clean up resources the framework cannot fully know about:
 
-- persistent status indicators created with `notification.status()`
-- timers and polling
-- child processes
-- recognizers, models, or other runtime singletons
-- anything else the plugin owns directly
+- persistent `notification.status()` entries
+- timers, watchers, polling loops, subscriptions
+- child processes and local servers
+- terminal sessions, recognizers, model instances
+- download tasks and temporary files
+- any runtime singleton owned by the plugin
 
-Do not assume framework cleanup is enough for complex plugins.
+Do explicit cleanup for non-trivial plugins.
+
+## 9. CLI Behavior That Matters
+
+Key files:
+
+- `packages/qi-cli/src/commands/init.ts`
+- `packages/qi-cli/src/commands/dev.ts`
+- `packages/qi-cli/src/commands/build.ts`
+
+Rules:
+
+- generated templates use Vite library mode with IIFE output and `entryFileNames: 'index.js'`
+- `qi code dev` requires `package.json` and runs `build:watch` or `dev`
+- `qi code build` searches upward for `info.json`
+- build requires `dist/`
+- build updates `info.json.updatedAt`, optionally version, and writes the `.qi`
+- `extraAssets` entries are copied into the package when present
+
+## 10. Practical Failure Modes
+
+- bundle does not expose `plugin`: loader throws before install
+- package has `dist/index.js` instead of root `index.js`: installed plugin fails
+- dev directory basename and `info.json.name` drift unexpectedly: confusing reload/provider ownership
+- provider registered without matching registry: UI shows provider but chat cannot instantiate it
+- registry registered without provider: provider type exists but no provider appears in settings
+- status indicator created but never removed: stale UI after unload
+- local process started without cleanup: orphaned service
+- desktop-only plugin marked mobile-compatible: mobile load fails or has missing API errors

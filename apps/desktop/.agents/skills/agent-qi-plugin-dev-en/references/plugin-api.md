@@ -1,8 +1,14 @@
 # Plugin API Notes
 
-## Core Interfaces
+Use this file when implementing plugin code or checking available context APIs. Primary sources:
 
-Reference source: `packages/types/src/plugin.ts`
+- `packages/types/src/plugin.ts`
+- `packages/types/src/electron.ts`
+- `packages/types/src/components.ts`
+- `apps/desktop/src/preload/index.ts`
+- `apps/desktop/src/renderer/src/services/plugins/pluginManager.ts`
+
+## Core Interfaces
 
 ### Plugin
 
@@ -10,22 +16,29 @@ Reference source: `packages/types/src/plugin.ts`
 - `version?: string`
 - `description?: string`
 - `updatedAt?: string`
+- `readme?: string`
 - `install(context): void | Promise<void>`
 - `uninstall?(context): void | Promise<void>`
 
-### Most Useful PluginContext APIs
+### PluginContext: Common APIs
 
+- lifecycle and app context
+  - `app`, `pinia`, `router`, `basePath`
+  - `execNodejs(options)`
 - provider / registry
   - `registerProvider(providerId, options)`
   - `unregisterProvider(providerId)`
   - `registerRegistry(name, factory, options?)`
   - `unregisterRegistry(name)`
+  - `getRegisteredProviders()`
 - tools / hooks / commands
   - `registerBuiltinTool(name, tool)`
   - `unregisterBuiltinTool(name)`
   - `registerHook(name, handler)`
   - `registerCommand(name, handler)`
 - UI
+  - `registerSettings(component)`
+  - `unregisterSettings()`
   - `useForm()`
   - `useTable()`
   - `useModal()`
@@ -33,42 +46,45 @@ Reference source: `packages/types/src/plugin.ts`
   - `useIcon()`
   - `useTerminal()`
   - `components`
-  - `vue.ref/reactive/computed/watch/h/defineComponent/...`
+  - `vue.ref/reactive/computed/watch/onMounted/onUnmounted/nextTick/markRaw/h/defineComponent/toRaw/toRef/toRefs/isRef/isReactive`
 - storage / app state
   - `localforage.getItem/setItem/removeItem`
   - `getStore('settings')`
-  - `getRegisteredProviders()`
   - `getPluginsDataPath()`
 - feedback
   - `notification.success/info/warning/error/loading/status/removeStatus`
 
-## Real `context.api` Surface Area
+## `execNodejs()`
 
-Reference sources:
+Use `context.execNodejs()` when the plugin needs to run bundled Node.js code in a separate process. It is safer than manually shelling out for plugin-local scripts because `PluginManager.createContext()` defaults:
 
-- `packages/types/src/electron.ts`
-- `apps/desktop/src/preload/index.ts`
+- `cwd` to `basePath`
+- `moduleBasePath` to `basePath`
+- args and env are cloned into plain serializable data
 
-Do not reduce `context.api` to only `fs/path/os/spawn`. The plugin context exposes a much broader Electron preload API.
+Good fit:
+
+- local HTTP bridge services
+- plugin-bundled scripts
+- tasks that need plugin-local npm dependencies
+
+Example source: `packages/qi-cli/example/agent-qi-openai-server-plugin`.
+
+## `context.api` Surface
+
+Do not reduce `context.api` to only `fs/path/os/spawn`. Check `packages/types/src/electron.ts` before using an API.
 
 ### Process And System
 
-- `api.process`
-  - `platform`
-  - `env`
-  - `execPath`
+- `api.process.platform/env/execPath`
 - `api.os`
 - `api.exec`
 - `api.spawn`
 - `api.fork`
+- `api.execNodejs`
 - `api.execFileCommand()`
 
-Good for:
-
-- starting local services
-- reading environment variables
-- launching external commands
-- reliably executing a single binary
+Use for local services, environment inspection, external commands, and executable-specific calls.
 
 ### Files And Paths
 
@@ -80,14 +96,9 @@ Good for:
 - `api.getPluginsPath()`
 - `api.getBundledRipgrepPath()`
 
-Good for:
+Use for plugin files, directories, watching, app paths, user data paths, and bundled ripgrep.
 
-- reading and writing plugin files
-- directory traversal
-- file watching
-- locating user data, plugin directories, and app paths
-
-### Shell And Clipboard
+### Shell, Clipboard, URL, MIME
 
 - `api.shell`
 - `api.clipboard.writeText()`
@@ -95,11 +106,7 @@ Good for:
 - `api.url`
 - `api.mime`
 
-Good for:
-
-- opening external links or files
-- copy/paste flows
-- URL and MIME handling
+Use for opening external files/links, copy/paste flows, and URL/MIME handling.
 
 ### Dialog And App Capabilities
 
@@ -108,11 +115,7 @@ Good for:
 - `api.openDevTools()`
 - `api.isPackaged`
 
-Good for:
-
-- choosing files or directories
-- detecting packaged versus dev environments
-- reading Electron app metadata
+Use for native selection dialogs, package-mode checks, and app metadata.
 
 ### PTY And Terminal
 
@@ -123,10 +126,7 @@ Good for:
 - `api.pty.onData()`
 - `api.pty.onExit()`
 
-Good for:
-
-- interactive terminal experiences
-- long-running shell sessions
+Use for interactive terminal experiences and long-running shell sessions.
 
 ### Network And Download
 
@@ -135,10 +135,9 @@ Good for:
 - `api.net.onDownloadProgress()`
 - `api.net.cancelDownload()`
 
-Good for:
+Use for main-process networking and large downloads with progress.
 
-- requests that should go through main-process networking
-- large file downloads with progress reporting
+Prefer `context.useDownload()` when you want plugin-scoped task state and UI-friendly progress.
 
 ### SQLite And Local Indexing
 
@@ -152,18 +151,13 @@ Good for:
 - `api.sqlite.getAllChunks()`
 - `api.sqlite.getChunksByHash()`
 
-Good for:
-
-- plugins participating in local knowledge or embedding/index workflows
+Use for knowledge-base, embedding, or local indexing plugins.
 
 ### Apply Patch
 
 - `api.applyPatch.execute(...)`
 
-Good for:
-
-- controlled file edits
-- batch patch flows
+Use for controlled file edits or patch-based batch changes.
 
 ### Sync Features
 
@@ -176,9 +170,7 @@ Good for:
 - `api.sync.getEndpointSnapshot()`
 - `api.sync.onEvent()`
 
-Good for:
-
-- device sync or LAN sync style plugins
+Use for LAN/device sync plugins.
 
 ### Computer Control
 
@@ -194,11 +186,7 @@ Good for:
 - `api.computer.getPixelColor()`
 - `api.computer.captureScreen()`
 
-Good for:
-
-- desktop automation
-- screenshots
-- mouse and keyboard control
+Use for desktop automation, screenshots, and mouse/keyboard control.
 
 ### Windows And Updater
 
@@ -211,129 +199,105 @@ Good for:
 - `api.updater.quitAndInstall()`
 - `api.updater.onStatus()`
 
-Good for:
+Use for window behavior, temporary chat flows, and update state.
 
-- window behavior
-- temporary chat flows
-- app update state
+## Provider Patterns
 
-## Documentation Guidance
+### `registerRegistry()`
 
-- If a plugin only needs standard file/process access, document `fs/path/os/spawn/execFileCommand/watch` first
-- If a plugin needs downloads, PTY, automation, sync, or sqlite, call out the relevant `api.*` namespace explicitly
-- Do not guess preload APIs; go back to `packages/types/src/electron.ts`
+- Adds a provider factory to the chat service registry.
+- The registry name usually becomes `providerType`.
+- `{ hide: true }` lets a factory exist without appearing in provider type selectors.
+- Use this when the app must know how to instantiate a provider implementation.
 
-## Common Implementation Patterns
+### `registerProvider()`
 
-### 1. Minimal plugin
+- Writes a plugin-owned provider record into `settings.registeredProviders`.
+- The UI merges built-in `providers` with `registeredProviders` through `getAllProviders`.
+- Repeated calls update the existing plugin-owned provider record.
+- Use this when a provider should appear in settings or model selection.
 
-- Implement only `install()`
-- Show a notification or register exactly one capability
-- Good starting point for small features
+Provider refresh helper pattern:
 
-### 2. Provider sync helper
+1. Load and normalize config.
+2. Build models, form, logo, provider type, and display name.
+3. Call `registerProvider(PROVIDER_ID, options)`.
+4. Re-run after config/model/status changes.
 
-Complex provider plugins often centralize provider refresh in one helper:
+## Settings UI Patterns
 
-- build provider options from current runtime config
-- call `registerProvider(PROVIDER_ID, options)`
-- call it again after config, model, or status changes
+### Plugin settings tab
 
-This is a strong pattern in `llama-cpp-plugin`.
+Use `registerSettings(component)` when the plugin needs its own settings tab in plugin details. Unregister it in `uninstall()` if the plugin has explicit cleanup.
 
-### 2.1 What `registerProvider()` really does
+Example source: `packages/qi-cli/example/agent-qi-openai-server-plugin`.
 
-`registerProvider()` does not directly overwrite the built-in `providers` list in the settings store.
+### Provider form extension
 
-The real behavior is:
+Use `registerHook('provider:form-fields', ...)` when adding fields to the app's existing provider settings page.
 
-1. write a plugin-owned record into `registeredProviders`
-2. let the UI merge `providers` and `registeredProviders` through `getAllProviders`
-3. expose the merged result in settings and model selection flows
+Example source: `packages/qi-cli/example/ollama-starter`.
 
-Implications:
+### Rich plugin UI
 
-- plugin providers are appended dynamically
-- calling `registerProvider()` repeatedly to refresh form, models, name, or logo is expected
-- unload removes those plugin-owned providers and clears some related default model references
+Use `useForm`, `useTable`, `useModal`, TSX, and `context.vue.markRaw` for complex interfaces. Good examples:
 
-### 2.2 What `registerRegistry()` really does
+- `civitai-plugin`
+- `llama-cpp-plugin`
+- `vosk-speech-recognition`
+- `codex-proxy-plugin`
 
-- `registerRegistry(name, factory)` adds a provider factory to the chat service registry
-- provider type selectors are driven by the registry in `registry.ts`
-- `{ hide: true }` allows a registry to exist without appearing in normal provider type pickers
-
-### 3. Persisted local config
-
-Typical flow:
-
-1. Load from `localforage` inside `install()`
-2. Normalize it
-3. Save updates back to `localforage`
-4. Re-sync the provider if behavior changes
-
-### 4. settings store integration
-
-Use `getStore('settings')` when the plugin must read or update the app's own settings.
-
-Typical use cases:
-
-- update provider settings in bulk
-- align app defaults with plugin-managed providers
-- inspect the list of existing providers
-
-### 5. Long-running work and services
-
-If the plugin starts local services, downloads files, or polls state:
-
-- prevent duplicate starts
-- expose progress with `notification.loading()` or `notification.status()`
-- use timeout and retry
-- clean up timers, providers, statuses, and tools in `uninstall()`
-
-### 6. Hook-driven extension
-
-Hook-based extension points visible in source and examples include:
+## Hook Names Seen In Source
 
 - `provider:form-fields`
-  - inject extra fields into the global provider settings form
-  - example: `ollama-starter`
 - `ai:before-use`
-  - perform setup before a provider is actually used
-  - examples: `ollama-starter`, `llama-cpp-plugin`, `codex-proxy-plugin`
+- `speech.stream.start`
+- `speech.stream.data`
+- `speech.stream.stop`
+- `speech.recognize`
 - `plugin.clearData`
-  - cooperate with the settings page's clear-cache action
-  - example: `vosk-speech-recognition`
 
-If the plugin owns local assets, models, or caches, implement `plugin.clearData`
+Hook handlers should be idempotent. `plugin.clearData` is recommended for plugins that own files under `getPluginsDataPath()` or other cache locations.
 
 ## Build And Packaging
 
 ### Dev mode
 
-- `qi code dev` looks for `build:watch` or `dev`
-- Load the directory in Agent-Qi via `Settings -> Plugins -> Development Mode`
+- `qi code dev` runs `build:watch` when present, otherwise `dev`.
+- Agent-Qi Development Mode loads the selected directory and watches for file changes.
+- Desktop dev mode can load `dist/index.js`.
 
 ### Packaging
 
-- `qi code build` searches upward for `info.json`
-- It packages `dist/` plus `info.json`
-- If `info.json.extraAssets` exists, those files/directories are added too
+- `qi code build` searches upward for `info.json`.
+- It requires a built `dist/` directory.
+- It writes updated `version` and `updatedAt` into `info.json`.
+- It zips `info.json` and the contents of `dist/` into the `.qi` root.
+- `info.json.extraAssets` can add files or directories.
+- Installed `.qi` packages must include root `index.js`.
 
-### Important files
+### `info.json` Fields
 
-- `info.json`
-  - display name, version, author, update time, extra assets
-- `package.json`
-  - package name, scripts, dependencies
-- `vite.config.ts`
-  - should emit `dist/index.js`
+Common fields:
+
+- `name`
+- `description`
+- `version`
+- `author`
+- `updatedAt`
+- `main`
+- `platforms`
+- `mobileUnsupportedReason`
+- `extraAssets`
+
+The desktop loader uses its own entry search; do not assume `main` overrides the loader's `index.js` expectations.
 
 ## Quick Checklist
 
-- Does the plugin `export default plugin`?
-- Is `dist/` generated?
-- Is `info.json.name` readable to users?
-- Are provider ids, registry ids, and storage keys stable?
-- Does `uninstall()` clean up?
-- Are user-visible failures surfaced via `notification.error()`?
+- Does the built code make `plugin` available to `return plugin`?
+- Does `dist/index.js` exist?
+- Does the `.qi` contain root `index.js`?
+- Does `info.json` carry accurate display metadata and platform metadata?
+- Are provider ids, registry ids, hook names, tool names, and storage keys stable?
+- Does config persist via `localforage` where users expect it?
+- Does `uninstall()` clean up statuses, processes, timers, registries, providers, tools, and settings UI?

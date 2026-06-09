@@ -1,219 +1,142 @@
 ---
 name: agent-qi-plugin-dev-en
-description: English skill for Agent-Qi / agent-qi-electron plugin development. Use when creating, modifying, debugging, refactoring, or packaging plugins for this app, especially for work involving `info.json`, `src/index.ts(x)`, provider registration, settings forms, built-in tools, status notifications, local persistence, download/modal UI, or reuse of examples under `packages/qi-cli/example/*`.
+description: English skill for Agent-Qi / agent-qi-electron plugin development. Use when creating, modifying, debugging, refactoring, documenting, validating, or packaging plugins for this app, especially work involving `info.json`, `src/index.ts(x)`, Vite IIFE output, provider or registry registration, settings forms, plugin settings tabs, built-in tools, hooks, status notifications, `execNodejs`, local persistence, downloads, modal/table UI, desktop/mobile platform metadata, or reuse of examples under `packages/qi-cli/example/*`.
 ---
 
 # Agent-Qi Plugin Development
 
-Implement plugins the way this repository actually does it. Prefer existing examples, `@agent-qi/types`, the plugin runtime internals, and the `qi code` workflow over generic Electron, Vue, or Vite advice.
+Implement plugins the way this repository actually loads and runs them. Prefer local source, `@agent-qi/types`, runtime internals, and the `qi code` workflow over generic Electron, Vue, or Vite advice.
 
-## Understand The Runtime First
+## Runtime Facts To Respect
 
-In this repository, plugins are not loaded through a normal ESM dynamic import path. `pluginLoader.ts` reads built output as text and evaluates it with `new Function(... return plugin)`.
+Plugins are not loaded through normal ESM dynamic import. `pluginLoader.ts` reads built JavaScript as text and evaluates it with `new Function('Vue', code + 'return plugin;')`.
 
-That creates a few hard constraints:
+Hard constraints:
 
 - the built artifact must expose a variable named `plugin`
-- the runtime looks for `index.js`
-- example `vite.config.ts` files commonly set the library name to `plugin` and emit an IIFE into `dist/index.js`
-- if you switch to an arbitrary export pattern, the runtime may fail before `install()` is ever called
+- desktop dev mode searches `index.js`, `dist/index.js`, then `build/index.js`
+- installed `.qi` packages must contain root `info.json` and root `index.js`
+- example `vite.config.ts` files intentionally emit an IIFE named `plugin` with `entryFileNames: 'index.js'`
+- arbitrary ESM-only or named-export-only output can fail before `install()` runs
 
-Metadata is also not controlled purely by code:
+Metadata constraints:
 
-- installed plugins have `name/version/description/author/updatedAt` overwritten from `info.json`
-- dev-mode plugin identity comes from the directory basename
-- the visible name can still come from `info.json.name`
-- do not let directory name, `package.json.name`, `plugin.name`, and `info.json.name` drift casually
+- in dev mode, the plugin id is the selected directory basename
+- after loading, `info.json` can overwrite `plugin.name`, `version`, `description`, `author`, and `updatedAt`
+- `README.md` is user-visible in plugin details when present
+- keep directory name, `package.json.name`, `plugin.name`, and `info.json.name` intentionally aligned or intentionally different
+- use `info.json.platforms` and `mobileUnsupportedReason` when a plugin depends on desktop-only APIs
 
-## How To Work
+## Work Order
 
-1. Classify the plugin first.
-   - Minimal / hello world: only `install()`, usually start from the hello-world shape.
-   - Provider plugin: needs `registerRegistry()` and/or `registerProvider()`, see `moonshot-plugin`, `minimax-plugin`, `llama-cpp-plugin`.
-   - Settings-heavy or UI-heavy plugin: needs `useForm()`, `useTable()`, `useModal()`, `context.vue`, see `civitai-plugin`, `vosk-speech-recognition`, `codex-proxy-plugin`.
-   - Tool plugin: needs `registerBuiltinTool()`, see `smart-api-key-filler`.
-   - Runtime service plugin: needs `context.api.spawn`, polling, status notifications, persisted config, see `ollama-starter`, `llama-cpp-plugin`.
+1. Classify the plugin.
+   - Minimal starter: only `install()`.
+   - Provider plugin: `registerRegistry()` and/or `registerProvider()`.
+   - Settings or rich UI plugin: `useForm()`, `useTable()`, `useModal()`, `registerSettings()`, TSX, or `context.vue`.
+   - Built-in tool plugin: `registerBuiltinTool()`.
+   - Hook or automation plugin: `registerHook()`.
+   - Runtime service plugin: `execNodejs()`, `context.api.spawn`, downloads, polling, status indicators, persisted config, and cleanup.
 
-2. Read these files before changing code.
-   - [`packages/types/src/plugin.ts`](e:\code\private\agent-qi-electron\packages\types\src\plugin.ts)
-   - The closest example plugin directory
-   - Only read `packages/qi-cli/src/commands/init.ts`, `dev.ts`, and `build.ts` when scaffolding or packaging behavior matters
+2. Read the real source before editing.
+   - `packages/types/src/plugin.ts`
+   - `packages/types/src/electron.ts` when using `context.api` or `execNodejs`
+   - the closest example plugin under `packages/qi-cli/example/*`
+   - `packages/qi-cli/src/commands/init.ts`, `dev.ts`, and `build.ts` when scaffolding, dev mode, or packaging behavior matters
+   - runtime files only when behavior is ambiguous:
+     - `apps/desktop/src/renderer/src/services/plugins/pluginLoader.ts`
+     - `apps/desktop/src/renderer/src/services/plugins/pluginManager.ts`
+     - `apps/desktop/src/renderer/src/stores/settings.ts`
+     - `apps/desktop/src/renderer/src/services/chatService/registry.ts`
 
-3. Match the nearest example before inventing structure.
-   - Do not create a brand-new plugin architecture unless the repository clearly needs one.
-   - Reuse the existing directory shape, state flow, and UI composition style whenever possible.
+3. Copy the nearest local pattern first.
+   - Keep the example directory shape, state flow, Vite config, and UI composition style unless the repository clearly needs a different shape.
+   - Do not design a new plugin architecture for a one-plugin request.
 
-4. Read the runtime destination as well.
-   - `apps/desktop/src/renderer/src/services/plugins/pluginLoader.ts`
-   - `apps/desktop/src/renderer/src/services/plugins/pluginManager.ts`
-   - `apps/desktop/src/renderer/src/stores/settings.ts`
-   - `apps/desktop/src/renderer/src/services/chatService/registry.ts`
-   - These files define what plugin APIs actually do in the app
-
-## Default Workflow
-
-1. Decide the output shape.
-   - Registering a provider only
-   - Adding a built-in tool only
-   - Building a settings form or a table/modal UI
-   - Managing long-lived local services, downloads, accounts, or model state
-
-2. Establish the minimum skeleton.
-   - Export `default plugin`
-   - Keep `plugin.name` stable as the plugin identifier
-   - Do not confuse display metadata in `info.json` with the package name in `package.json`
-
-3. Wire into Agent-Qi APIs.
-   - Provider APIs: `registerRegistry()`, `registerProvider()`, `unregisterProvider()`
-   - Tool APIs: `registerBuiltinTool()`, `unregisterBuiltinTool()`
-   - Hook APIs: `registerHook()`
-   - UI APIs: `useForm()`, `useTable()`, `useModal()`, `useDownload()`, `useIcon()`
-   - Persistence APIs: `localforage`, `getStore('settings')`
-   - System APIs: `context.api` for `fs/path/os/spawn`
-   - Feedback APIs: `notification.success/error/info/warning/loading/status`
-
-4. Keep one clear source of truth for configuration.
-   - In-memory state for transient runtime values
-   - `localforage` for restorable plugin config
-   - `settings` store only when the plugin must update real app settings
-   - Re-register providers after config changes when provider-visible behavior changes
-
-5. Validate the real workflow.
-   - Build `dist`
-   - Package `.qi`
-   - If it is a dev-mode plugin, ensure `build:watch` or `dev` exists
-   - Verify `uninstall()` cleans up provider, registry, status, tool, timers, and side effects
+4. Validate the workflow the user will actually use.
+   - Build `dist`.
+   - Package `.qi` if distribution is part of the task.
+   - For dev-mode work, ensure `package.json` has `build:watch` or `dev`.
+   - Check that `uninstall()` cleans up owned side effects.
 
 ## Implementation Rules
 
-### Entry Point And Metadata
+### Entry Point And Build Output
 
-- The entry file is usually `src/index.ts` or `src/index.tsx`
-- Export `const plugin: Plugin = { ... }` and `export default plugin`
-- `install(context)` is the main entry point
-- If the plugin registers providers, tools, statuses, timers, or processes, it should usually implement `uninstall(context)`
+- The entry file is usually `src/index.ts` or `src/index.tsx`.
+- Prefer `const plugin: Plugin = { ... }` and `export default plugin`.
+- Keep the Vite library name as `plugin` and output `dist/index.js`.
+- `qi code build` packages the contents of `dist/` into the `.qi` root, so `dist/index.js` becomes package root `index.js`.
+- Do not rely on `info.json.main` to rescue a nonstandard desktop entry path.
+
+### Metadata
+
+- `info.json.name` is the display/install metadata and can overwrite code metadata.
+- In dev mode, the directory basename is the stable plugin id used for loading and watching.
+- Use stable provider ids, registry ids, hook names, tool names, and storage keys.
+- If the plugin uses desktop-only APIs, set `platforms: ["desktop"]` and a helpful `mobileUnsupportedReason`.
+- If a plugin is mobile-compatible, avoid `window.api.fs`, local processes, desktop paths, PTY, native dialogs, and desktop-only bridge services.
 
 ### Provider Plugins
 
-- Lightweight provider:
-  - Only `registerRegistry()` to expose a provider factory
-  - Example: `moonshot-plugin`
-- Full provider:
-  - Build runtime config and optional form first
-  - Then call `registerProvider(PROVIDER_ID, { name, providerType, form, models, logo })`
-  - Examples: `llama-cpp-plugin`, `civitai-plugin`
-- If config changes affect models, logo, form, or behavior, centralize the refresh in a `syncProvider(context)` helper
-- Understand the real `registerProvider()` semantics:
-  - it writes into the settings store's `registeredProviders`
-  - the UI merges `providers + registeredProviders` through `getAllProviders`
-  - plugin providers are therefore appended dynamically rather than directly mutating the built-in provider list
-- On unload, `PluginManager.unregisterPlugin()` attempts to remove that plugin's registered providers and clear default model references
+- Lightweight provider: often only `registerRegistry()`; see `moonshot-plugin`.
+- Full provider: build config/form/runtime state, then call `registerProvider(PROVIDER_ID, { name, providerType, form, models, logo })`.
+- For config changes that affect models, form, logo, status, or behavior, centralize refresh in a `syncProvider(context)` helper.
+- `registerRegistry()` defines how chat services construct a provider type.
+- `registerProvider()` makes a plugin-owned provider visible in settings and model selection.
+- Repeated `registerProvider()` calls are acceptable for refreshing provider-visible data.
 
-### Settings Forms And Rich UI
+### Settings, Forms, And Rich UI
 
-- Prefer `useForm()`, `useTable()`, and `useModal()` instead of ad hoc UI patterns
-- Use `context.vue.ref/reactive/computed/watch` for reactive state
-- TSX/JSX is already used in examples and is appropriate for richer plugin UIs
-- If you want to extend the existing provider settings page instead of registering a whole new provider, use hooks such as `registerHook('provider:form-fields', ...)`
-  - `pages/settings/provider.vue` collects these fields and injects them into the provider form
+- Prefer `useForm()`, `useTable()`, `useModal()`, `useDownload()`, `useTerminal()`, and `useIcon()` over ad hoc UI.
+- Use `registerSettings(component)` for a plugin settings tab in the plugin details page.
+- Use `registerHook('provider:form-fields', ...)` only when extending an existing provider settings form.
+- Use `context.vue.ref/reactive/computed/watch/defineComponent/h/markRaw` for reactive plugin UI.
+- TSX/JSX is already used in examples and is appropriate for richer plugin settings.
 
-### Built-In Tool Plugins
+### Tools, Hooks, And Commands
 
-- Register tools with `registerBuiltinTool()`
-- Provide a clear `title`, `description`, and `inputSchema`
-- Return readable `toolResult.content`
-- Example: `smart-api-key-filler`
+- Built-in tools use `registerBuiltinTool(name, tool)` and should provide clear `title`, `description`, `inputSchema`, and readable `toolResult.content`.
+- Hooks should be idempotent and guarded against repeated side effects.
+- Known hook names include `provider:form-fields`, `ai:before-use`, `speech.stream.start`, `speech.stream.data`, `speech.stream.stop`, `speech.recognize`, and `plugin.clearData`.
+- If a plugin owns files, models, or cache, implement `plugin.clearData` so the settings page can clear real data.
 
-### Hooks And Automation
+### Processes, Downloads, And Background Work
 
-- Use `registerHook()` for pre-flight checks or lifecycle-driven behavior
-- Example: `ollama-starter` uses `ai:before-use` to auto-start a service
-- Make hooks idempotent and guard against repeated side effects
-- Hook usage visible in this repository includes:
-  - `provider:form-fields`
-  - `ai:before-use`
-  - `speech.stream.start`
-  - `speech.stream.data`
-  - `speech.stream.stop`
-  - `speech.recognize`
-  - `plugin.clearData`
-- If the plugin owns files or cache, implementing `plugin.clearData` is strongly recommended so the settings page can really clear plugin data
+- Prefer `execNodejs()` for plugin-bundled Node.js scripts because it defaults `cwd` and module resolution to the plugin directory.
+- Use `context.api.spawn`, `exec`, `fork`, or `execFileCommand()` for external binaries.
+- Use `context.useDownload()` or `context.api.net.download()` for large files and progress.
+- Use `notification.loading()` for temporary work and `notification.status(id, text, options)` for persistent status indicators.
+- Always plan re-entry protection, timeout, cancellation, and uninstall cleanup for processes, timers, downloads, watchers, and polling.
 
-### Status Notifications And Background Work
+### Persistence And App State
 
-- For long-running work, prefer `notification.loading()` or `notification.status()` over silent logs
-- For polling, timers, downloads, or child processes, always handle:
-  - re-entry protection
-  - timeout
-  - cancellation
-  - uninstall cleanup
-- See `llama-cpp-plugin` and `vosk-speech-recognition`
-- `notification.status(id, text, options)` is suitable for persistent status indicators; remove it on uninstall
-- `context.useDownload()` is plugin-scoped and is a good fit for model or asset downloads
-- `context.getPluginsDataPath()` gives the plugin a dedicated data directory for downloadable or clearable assets
+- Use plugin-scoped `localforage` for restorable plugin config.
+- Use `getStore('settings')` only when the plugin must read or update actual app settings.
+- Use `getPluginsDataPath()` for model files, downloads, caches, and clearable plugin assets.
+- Keep transient runtime values in memory; persist only values users expect to survive reloads.
 
-## Repository-Specific Conventions
+### Uninstall
 
-### About Vite Output
+Non-trivial plugins should implement `uninstall(context)` and explicitly clean up:
 
-- Keep the example plugin `vite.config.ts` shape unless there is a strong reason not to
-- Core goals:
-  - emit into `dist/`
-  - produce `index.js`
-  - expose `plugin` as the library/global name
-  - stay compatible with `pluginLoader`
+- providers and registries when not fully handled by framework cleanup
+- built-in tools if manually managed
+- persistent `notification.status()` entries via `removeStatus()`
+- timers, watchers, polling, and subscriptions
+- child processes and server handles
+- recognizers, model instances, terminals, downloads, and runtime singletons
 
-### About Metadata
+## Validation Checklist
 
-- `info.json.name` behaves like the display/install name
-- in dev mode, the directory basename becomes the plugin id
-- `plugin.name` in code should still consistently represent the plugin identity
-- inconsistent naming makes restore, dev reload, and settings display more fragile
-
-### About Uninstall
-
-Do not stop at `install()`. Always ask what must be cleaned up:
-
-- `registerProvider()`
-- `registerRegistry()`
-- `registerBuiltinTool()`
-- `notification.status()`
-- timers and polling
-- child processes
-- download state
-- runtime singletons
-
-Non-trivial plugins should explicitly clean these up in `uninstall()` rather than relying only on framework cleanup
-
-## File And Build Conventions
-
-- A minimal plugin usually has:
-  - `package.json`
-  - `info.json`
-  - `src/index.ts` or `src/index.tsx`
-  - `vite.config.ts`
-  - generated `dist/`
-- `qi code build` packages `info.json` and `dist/` into a `.qi`
-- `info.json.extraAssets` can include extra files or directories
-- `qi code dev` expects `build:watch` or `dev` in `package.json`
-
-## Do And Do Not
-
-Do:
-
-- Start from the closest example
-- Use `@agent-qi/types`
-- Keep provider ids, registry ids, and storage keys stable
-- Extract helpers such as `normalizeConfig`, `syncProvider`, and `saveConfig` for non-trivial plugins
-- Surface real errors with `notification.error()`
-
-Do not:
-
-- Reduce the skill to basic `qi cli` usage
-- Assume this plugin API is the same as a generic Electron or Vue plugin API
-- Keep all state in globals without persistence when users expect config to survive reloads
-- Forget to clean up registered providers, tools, hooks, statuses, timers, or processes
-- Ignore repository examples and reinvent provider/form synchronization
+- Is the built output compatible with `return plugin`?
+- Does `dist/index.js` exist after build?
+- Does the `.qi` package contain root `info.json` and root `index.js`?
+- Is `info.json.name` readable to users?
+- Are platform fields correct for desktop/mobile behavior?
+- Are provider ids, registry ids, hook names, tool names, and storage keys stable?
+- Does config reload from `localforage` and re-sync providers when needed?
+- Does `uninstall()` remove statuses, timers, processes, providers, registries, tools, and other owned side effects?
+- Are user-visible failures surfaced through `notification.error()` or a status indicator?
 
 ## Read More Only When Needed
 

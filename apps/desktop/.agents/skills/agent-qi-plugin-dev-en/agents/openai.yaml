@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent-Qi Plugin Development"
-  short_description: "Build Agent-Qi plugins from real repository examples and APIs."
-  default_prompt: "Use this skill to implement or modify Agent-Qi plugins by following the repository type definitions and example plugins."
+  short_description: "Build Agent-Qi plugins from real runtime APIs."
+  default_prompt: "Use $agent-qi-plugin-dev-en to implement, debug, validate, or package Agent-Qi plugins from the local runtime APIs and nearest example plugin."

@@ -1,129 +1,183 @@
 # Runtime Architecture
 
-这些内容来自插件加载器、插件管理器、settings store 和 registry 实现，是写技能时最该优先信任的“硬约束”。
+这些说明来自插件加载器、插件管理器、settings store、provider registry 和 CLI 命令。把它们当成有源码支撑的约束。
 
-## 1. 插件如何被加载
+## 1. 桌面插件如何加载
 
 关键文件：
 
 - `apps/desktop/src/renderer/src/services/plugins/pluginLoader.ts`
 - `apps/desktop/src/renderer/src/services/plugins/pluginManager.ts`
 
-桌面端流程大致是：
+桌面加载流程：
 
-1. 在插件目录里寻找 `index.js`、`dist/index.js` 或 `build/index.js`
-2. 读取代码文本
-3. 拼成 `new Function('Vue', code + 'return plugin;')`
-4. 执行后拿到 `plugin` 对象
-5. 再用 `PluginManager.createContext()` 创建上下文并调用 `plugin.install(context)`
+1. 解析插件目录
+2. 依次查找 `index.js`、`dist/index.js`、`build/index.js`
+3. 以文本形式读取 JavaScript 代码
+4. 包装成 `new Function('Vue', code + 'return plugin;')`
+5. 执行并拿到 `plugin`
+6. 可用时读取 `info.json` 和 README 元数据
+7. 用 `PluginManager.createContext()` 创建上下文
+8. 调用 `plugin.install(context)`
 
-因此你必须假设：
+影响：
 
-- 产物需要能暴露名为 `plugin` 的变量
-- 入口文件名通常应该稳定为 `index.js`
-- 示例里用 Vite IIFE 并设置 `lib.name = 'plugin'` 不是偶然
+- 构建产物必须暴露名为 `plugin` 的变量
+- Vite `lib.name = 'plugin'` 的 IIFE 输出是有意设计
+- 只要最终 bundle 仍暴露 `plugin`，`export default plugin` 没问题
+- `info.json.main` 是元数据；不要依赖它改变桌面 loader 的入口查找逻辑
 
-## 2. 元数据谁说了算
+## 2. 开发模式与安装模式
 
-加载后，`pluginLoader` 会再读 `info.json` 和 `README.md`：
+### 开发模式
 
-- `info.json` 可覆盖 `plugin.name`
-- 也会覆盖 `version/description/author/updatedAt`
-- `README.md` 会进入插件详情页展示
+- 从用户选择的本地目录加载
+- 插件 ID 是目录 basename
+- 所选路径保存在 `devPlugins`
+- 目录会被监听，变化触发 reload
+- loader 能找到 `dist/index.js`，所以普通 Vite 构建产物可用
 
-这意味着：
+### 安装模式
+
+- `.qi` 包会解压到用户插件目录
+- 包根目录必须包含 `info.json` 和 `index.js`
+- `qi code build` 通过把 `dist/` 内容压到包根目录实现这一点
+- README 和 `extraAssets` 可以一并包含
+
+## 3. 移动端包加载
+
+loader 也支持移动端存储的插件包。
+
+重要平台行为：
+
+- `info.json.platforms` 控制插件支持 `desktop` 还是 `mobile`
+- 缺失或为空的 `platforms` 表示所有平台都支持
+- `mobileUnsupportedReason` 可以解释为什么桌面专属插件不能在移动端运行
+- 移动端插件不能假设有本地文件系统、本地进程、PTY 或原生对话框等桌面 preload API
+
+如果插件需要移动端可用，运行依赖应尽量偏 API/网络，并确认真实可用的 API 范围。
+
+## 4. 元数据归属
+
+代码加载后，`pluginLoader` 会读取 `info.json`：
+
+- `plugin.name = info.name || pluginName`
+- 存在时复制 `version`、`description`、`author`、`updatedAt`
+- README 内容可附加到插件信息并用于展示
+
+结论：
 
 - 代码里的元数据不是唯一来源
-- `info.json` 应当始终保持正确
-- README 是值得维护的用户可见文档
+- 展示名应维护在 `info.json`
+- 开发模式身份可以不同于展示名
+- 名称不一致会让 reload、设置页展示和 provider 归属更难判断
 
-## 3. 开发态与安装态的差异
+## 5. 插件上下文如何创建
 
-### 开发态
-
-- 通过“Development Mode”选择本地目录
-- 插件 ID 取目录名
-- loader 会记录本地路径并监视文件变化
-- 变更后自动 reload
-
-### 安装态
-
-- `.qi` 包安装后解压到用户插件目录
-- 安装包必须包含 `info.json` 和 `index.js`
-- 可包含 README 与额外资源
-
-## 4. 插件上下文如何创建
-
-`PluginManager.createContext()` 会注入：
+`PluginManager.createContext()` 注入：
 
 - `window.api`
-- `pinia/router/app`
+- `pinia`、`router` 和 app
 - `context.vue`
-- `useForm/useTable/useDownload/useModal/useTerminal/useIcon`
-- 插件隔离的 `localforage` 实例，实例名就是插件名
-- settings / chats / notes / knowledge / agent store 访问能力
+- `useForm`、`useTable`、`useDownload`、`useModal`、`useTerminal`、`useIcon`
+- `registerSettings` 和 `unregisterSettings`
+- 插件隔离的 `localforage`
+- 带插件本地默认值的 `execNodejs()`
+- 通过 `getStore()` 访问 store
+- notification helpers
 
-一个很重要的细节：
+有用细节：
 
-- `getPluginsDataPath()` 会给当前插件生成独立数据目录
-- 适合保存模型、下载文件和缓存资源
+- 桌面端 `getPluginsDataPath()` 会返回用户数据目录下的插件专属数据目录
+- 适合放模型、下载文件、缓存和可清理资源
 
-## 5. provider 实际如何进入界面
+## 6. Provider 如何可见
 
 关键文件：
 
-- `pluginManager.ts`
-- `stores/settings.ts`
-- `pages/settings/provider.vue`
+- `apps/desktop/src/renderer/src/services/plugins/pluginManager.ts`
+- `apps/desktop/src/renderer/src/stores/settings.ts`
+- `apps/desktop/src/renderer/src/pages/settings/provider.vue`
 
-真实过程：
+流程：
 
 1. 插件调用 `registerProvider(providerId, options)`
-2. `PluginManager` 向 `registeredProviders` 写入记录
-3. `settings.ts` 中 `getAllProviders` 把 `providers` 与 `registeredProviders` 合并
-4. provider 设置页与聊天选择器使用这个合并结果
+2. `PluginManager` 在 `registeredProviders` 中写入或更新记录
+3. `settings.ts` 通过 `getAllProviders` 合并内置 `providers` 与 `registeredProviders`
+4. 设置页和模型选择使用合并后的列表
 
-所以：
+因此：
 
-- 插件 provider 不是直接写死到默认 providers 列表里
-- 它们是带 `pluginName` 的“动态 provider”
-- 卸载时可以按 `pluginName` 反向清理
+- 插件 provider 是动态 provider 记录，不是直接改内置 provider 列表
+- provider 记录带有 `pluginName`
+- 重复注册会刷新插件拥有的 provider
+- 卸载可以移除插件 provider，并清理部分相关默认模型引用
 
-## 6. registry 与 providerType 的关系
+## 7. Registry 与 Provider Type
 
 关键文件：
 
 - `apps/desktop/src/renderer/src/services/chatService/registry.ts`
 
-`registerRegistry(name, factory)` 的效果：
+`registerRegistry(name, factory, options?)`：
 
-- 给 provider factory registry 增加一个 providerType
-- 这个 type 可被聊天服务创建 provider 实例
-- 若不是隐藏 registry，还会出现在 provider type 下拉中
+- 按 type/name 注册 provider factory
+- 让聊天服务能实例化该 provider type
+- 可用 `{ hide: true }` 隐藏
 
-一般规律：
+一般规则：
 
-- `registerRegistry()` 负责“怎么创建 provider”
-- `registerProvider()` 负责“让这个 provider 出现在 UI 和设置里”
+- `registerRegistry()` 定义“怎么构造”
+- `registerProvider()` 定义“用户在哪里看到/选择”
 
-复杂插件往往两者都用。
+复杂 provider 插件通常两者都需要。
 
-## 7. 框架会帮你清理什么，不会帮你清理什么
+## 8. 清理职责
 
-`PluginManager.unregisterPlugin()` 会自动清理：
+`PluginManager.unregisterPlugin()` 会自动移除插件拥有的：
 
-- 该插件注册的 commands
+- commands
 - hooks
-- builtin tools
-- registries 记录
-- registeredProviders 以及部分默认模型引用
+- built-in tools
+- registry 记录
+- registered providers 以及部分默认模型引用
+- 插件设置表单
 
-但你仍然应该在 `uninstall()` 手动清理：
+但 `uninstall()` 仍应清理框架无法完全知道的资源：
 
-- `notification.status()` 产生的状态位
-- 定时器、轮询
-- 子进程
-- 模型实例、音频识别器之类运行时对象
-- 你自己额外注册或持有的资源
+- 常驻 `notification.status()` 状态位
+- 定时器、watcher、轮询、订阅
+- 子进程和本地服务
+- terminal 会话、识别器、模型实例
+- 下载任务和临时文件
+- 插件拥有的运行时单例
 
-不要把所有清理都赌在框架上。
+非简单插件要显式清理。
+
+## 9. 重要 CLI 行为
+
+关键文件：
+
+- `packages/qi-cli/src/commands/init.ts`
+- `packages/qi-cli/src/commands/dev.ts`
+- `packages/qi-cli/src/commands/build.ts`
+
+规则：
+
+- 生成模板使用 Vite library mode，IIFE 输出，`entryFileNames: 'index.js'`
+- `qi code dev` 要求有 `package.json`，并运行 `build:watch` 或 `dev`
+- `qi code build` 会向上查找 `info.json`
+- build 要求存在 `dist/`
+- build 会更新 `info.json.updatedAt`，可选更新 version，并写出 `.qi`
+- 存在 `extraAssets` 时会把这些条目复制进包内
+
+## 10. 常见失败模式
+
+- bundle 没暴露 `plugin`：loader 在 install 前报错
+- 包里是 `dist/index.js` 而不是根目录 `index.js`：安装态插件失败
+- 开发目录 basename 与 `info.json.name` 意外漂移：reload/provider 归属混乱
+- 注册 provider 但没有匹配 registry：UI 看得到 provider，但聊天无法实例化
+- 注册 registry 但没有 provider：provider type 存在，但设置页没有 provider
+- 创建状态位但不移除：卸载后残留 UI
+- 启动本地进程但不清理：残留孤立服务
+- 桌面专属插件标成移动端兼容：移动端加载失败或缺 API
