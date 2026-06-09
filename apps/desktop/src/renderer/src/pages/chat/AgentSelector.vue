@@ -116,7 +116,7 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
   event.preventDefault()
   event.stopPropagation()
 
-  const isDefaultAgent = agent.id === 'default'
+  const isBuiltinAgent = agentStore.isBuiltinAgent(agent.id)
 
   const menuItems: MenuItem<Agent>[] = [
     {
@@ -146,9 +146,9 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
       icon: Delete,
       action: 'delete',
       danger: true,
-      disabled: isDefaultAgent,
+      disabled: isBuiltinAgent,
       onClick: (data: Agent) => {
-        if (data && data.id !== 'default') {
+        if (data && !agentStore.isBuiltinAgent(data.id)) {
           agentStore.deleteAgent(data.id)
           // 如果删除的是当前智能体，切换到默认智能体
           const currentChatId = chatsStore.currentChat?.id

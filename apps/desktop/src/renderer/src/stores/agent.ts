@@ -1,36 +1,15 @@
+import {
+  BUILTIN_AGENT_IDS,
+  BUILTIN_AGENT_TAG,
+  ensureBuiltinTags,
+  getBuiltinAgents,
+  mergeBuiltinAgents
+} from './builtinAgents'
+
 export const useAgentStore = defineStore(
   'agent',
   () => {
-    const agents = ref<Agent[]>([
-      {
-        id: 'default',
-        name: '默认助手',
-        description: '通用AI助手',
-        tags: ['默认'],
-        systemPrompt: '你是一个有帮助的AI助手。',
-        mcpServers: [],
-        tools: [],
-        builtinTools: [],
-        builtinToolsRequireApproval: [],
-        builtinToolConfigs: {},
-        execCommandRunInBackground: false,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        knowledgeBaseIds: [],
-        temperature: 0.7,
-        topP: 1,
-        topK: 40,
-        presencePenalty: 0,
-        frequencyPenalty: 0,
-        maxOutputTokens: 0,
-        contextCount: 0,
-        contextTokenCount: 0,
-        maxToolCalls: 0,
-        speechSpeed: 1,
-        speechLanguage: 'auto',
-        speechModel: undefined
-      }
-    ])
+    const agents = ref<Agent[]>(getBuiltinAgents())
 
     const createAgent = (agentData: Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>) => {
       const id = nanoid()
@@ -71,7 +50,7 @@ export const useAgentStore = defineStore(
 
 
     const deleteAgent = (id: string) => {
-      if (id === 'default') return
+      if (isBuiltinAgent(id)) return
 
       const initialLength = agents.value.length
       agents.value = agents.value.filter((a) => a.id !== id)
@@ -87,10 +66,14 @@ export const useAgentStore = defineStore(
 
       const clonedId = nanoid()
       const now = Date.now()
+      const clonedTags = (sourceAgent.tags || []).filter(
+        (tag) => tag !== BUILTIN_AGENT_TAG && (sourceAgent.id !== 'default' || tag !== '默认')
+      )
       const clonedAgent: Agent = {
         ...sourceAgent,
         id: clonedId,
         name: `${sourceAgent.name} (副本)`,
+        tags: clonedTags,
         createdAt: now,
         updatedAt: now
       }
@@ -147,41 +130,15 @@ export const useAgentStore = defineStore(
     }
 
     const replaceAgents = (newAgents: Agent[]) => {
-      // 确保默认智能体始终存在
-      const hasDefault = newAgents.some((a) => a.id === 'default')
-      if (!hasDefault) {
-        const defaultAgent: Agent = {
-          id: 'default',
-          name: '默认助手',
-          description: '通用AI助手',
-          tags: ['默认'],
-          systemPrompt: '你是一个有帮助的AI助手。',
-          mcpServers: [],
-          tools: [],
-          builtinTools: [],
-          builtinToolsRequireApproval: [],
-          builtinToolConfigs: {},
-          execCommandRunInBackground: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          knowledgeBaseIds: [],
-          temperature: 0.7,
-          topP: 1,
-          topK: 40,
-          presencePenalty: 0,
-          frequencyPenalty: 0,
-          maxOutputTokens: 0,
-          contextCount: 0,
-          contextTokenCount: 0,
-          maxToolCalls: 0,
-          speechSpeed: 1,
-          speechLanguage: 'auto',
-          speechModel: undefined
-        }
-        agents.value = [defaultAgent, ...newAgents]
-      } else {
-        agents.value = newAgents
-      }
+      agents.value = mergeBuiltinAgents(newAgents)
+    }
+
+    const ensureBuiltinAgents = () => {
+      agents.value = mergeBuiltinAgents(agents.value).map(ensureBuiltinTags)
+    }
+
+    const isBuiltinAgent = (id: string) => {
+      return BUILTIN_AGENT_IDS.has(id)
     }
 
     return {
@@ -195,12 +152,18 @@ export const useAgentStore = defineStore(
       cloneAgent,
       getAgentById,
       getMcpByAgent,
-      replaceAgents
+      replaceAgents,
+      ensureBuiltinAgents,
+      isBuiltinAgent
     }
   },
   {
     persist: {
-      paths: ['agents']
+      paths: ['agents'],
+      afterRestore: (context) => {
+        const store = context.store as ReturnType<typeof useAgentStore>
+        store.ensureBuiltinAgents()
+      }
     }
   }
 )

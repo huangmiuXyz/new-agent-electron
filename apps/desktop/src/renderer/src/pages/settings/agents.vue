@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { agents } = storeToRefs(useAgentStore())
+const agentStore = useAgentStore()
 
 const { Plus, Pencil, Trash, Robot } = useIcon(['Plus', 'Pencil', 'Trash', 'Robot'])
 const { openAgentModal, handleDelete } = useAgent()
@@ -50,7 +51,7 @@ const getAgentTags = (agent: Agent) => {
                   </template>
                 </Button>
                 <Button
-                  v-if="agent.id !== 'default'"
+                  v-if="!agentStore.isBuiltinAgent(agent.id)"
                   size="sm"
                   variant="text"
                   class="delete-btn"

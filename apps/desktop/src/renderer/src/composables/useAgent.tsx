@@ -1522,8 +1522,8 @@ export const useAgent = () => {
   }
 
   const handleDelete = (id: string) => {
-    if (id === 'default') {
-      alert('默认智能体不能删除')
+    if (agentStore.isBuiltinAgent(id)) {
+      alert('内置智能体不能删除')
       return
     }
     agentStore.deleteAgent(id)
