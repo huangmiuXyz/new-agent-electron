@@ -1,5 +1,4 @@
 import data from '@renderer/assets/provider.json'
-import { ImageGenerateOptions } from '@renderer/services/chatService'
 
 let resolveRestore: () => void
 const restorePromise = new Promise<void>((resolve) => {
