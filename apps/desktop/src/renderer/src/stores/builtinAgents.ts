@@ -220,8 +220,6 @@ export const mergeBuiltinAgents = (currentAgents: Agent[]): Agent[] => {
       ...builtinAgent,
       ...agent,
       tags: builtinAgent.tags,
-      builtinTools: builtinAgent.builtinTools,
-      builtinToolsRequireApproval: builtinAgent.builtinToolsRequireApproval,
       builtinToolConfigs: {
         ...(builtinAgent.builtinToolConfigs || {}),
         ...(agent.builtinToolConfigs || {})
