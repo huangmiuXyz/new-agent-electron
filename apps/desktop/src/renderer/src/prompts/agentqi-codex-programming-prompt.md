@@ -65,7 +65,7 @@ Use dedicated project tools for file work.
 
 ## Parallel Tools
 
-Use `multi_tool_use_parallel` when tool calls are independent.
+Must use `multi_tool_use_parallel` when tool calls are independent.
 
 Good candidates:
 
