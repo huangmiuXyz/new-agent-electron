@@ -52,7 +52,7 @@
 ### 编辑
 
 - 文件修改使用 `edit_file`。
-- 修改已有文件时，先调用 `readFile`，再使用最新 hashline 文件头和基于行号的编辑 payload。
+- 修改已有文件时，先调用 `readFile`，再使用最新 hashline 文件头和基于行号的编辑 payload。`edit_file` 成功后，同一文件下一次编辑直接使用返回的 `new_hash` 作为新的 `¶path#TAG`；如果后续编辑提示 snapshot mismatch，再调用 `readFile` 重读。
 - 文件级新增、删除、移动使用 `edit_file` 对应操作。
 - 不要通过 shell 重定向、临时脚本或终端命令编辑文件。
 - 修改范围只覆盖用户请求。

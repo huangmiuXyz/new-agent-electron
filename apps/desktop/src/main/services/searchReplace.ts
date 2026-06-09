@@ -18,14 +18,26 @@ type HashlineEditPayload = {
   content?: string
 }
 
+export type FileEditChange = {
+  status: 'A' | 'D' | 'M' | 'R'
+  path: string
+  new_path?: string
+  old_hash?: string
+  new_hash?: string
+  summary: string
+}
+
 const ensureParentDir = async (filePath: string) => {
   await fs.mkdir(nodePath.dirname(filePath), { recursive: true })
 }
 
-const readTextIfExists = async (filePath: string): Promise<{ exists: boolean; content: string }> => {
+const readTextIfExists = async (
+  filePath: string
+): Promise<{ exists: boolean; content: string }> => {
   try {
     const stat = await fs.lstat(filePath)
-    if (stat.isDirectory()) throw new Error(`Hashline edit failed: target is a directory ${filePath}`)
+    if (stat.isDirectory())
+      throw new Error(`Hashline edit failed: target is a directory ${filePath}`)
     return { exists: true, content: await fs.readFile(filePath, 'utf-8') }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -35,9 +47,24 @@ const readTextIfExists = async (filePath: string): Promise<{ exists: boolean; co
   }
 }
 
-const applyHashlineInput = async (baseDir: string, input: string): Promise<string[]> => {
+const formatChangeSummary = (change: Omit<FileEditChange, 'summary'>): string => {
+  const pathPart =
+    change.status === 'R' && change.new_path ? `${change.path} -> ${change.new_path}` : change.path
+  const hashParts = [
+    change.old_hash ? `old_hash=${change.old_hash}` : '',
+    change.new_hash ? `new_hash=${change.new_hash}` : ''
+  ].filter(Boolean)
+  return [`${change.status} ${pathPart}`, ...hashParts].join(' ')
+}
+
+const makeChange = (change: Omit<FileEditChange, 'summary'>): FileEditChange => ({
+  ...change,
+  summary: formatChangeSummary(change)
+})
+
+const applyHashlineInput = async (baseDir: string, input: string): Promise<FileEditChange[]> => {
   const sections = splitHashlineSections(input)
-  const summaries: string[] = []
+  const changes: FileEditChange[] = []
 
   for (const section of sections) {
     const filePath = resolveHashlinePathInBaseDir(baseDir, section.path)
@@ -57,10 +84,17 @@ const applyHashlineInput = async (baseDir: string, input: string): Promise<strin
 
     await ensureParentDir(filePath)
     await fs.writeFile(filePath, nextContent, 'utf-8')
-    summaries.push(`${current.exists ? 'M' : 'A'} ${section.path}`)
+    changes.push(
+      makeChange({
+        status: current.exists ? 'M' : 'A',
+        path: section.path,
+        old_hash: current.exists ? currentTag : undefined,
+        new_hash: computeSnapshotTag(nextContent)
+      })
+    )
   }
 
-  return summaries
+  return changes
 }
 
 const getRequiredPath = (payload: HashlineEditPayload, field: 'path' | 'new_path') => {
@@ -90,9 +124,10 @@ export const executeFileEdit = async (payload: HashlineEditPayload) => {
   }
 
   const rawType = typeof payload.type === 'string' ? payload.type.trim() : ''
-  const type = rawType === 'add' || rawType === 'delete' || rawType === 'move' || rawType === 'update'
-    ? rawType
-    : 'update'
+  const type =
+    rawType === 'add' || rawType === 'delete' || rawType === 'move' || rawType === 'update'
+      ? rawType
+      : 'update'
 
   if (type === 'update') {
     const input = typeof payload.input === 'string' ? payload.input : ''
@@ -114,16 +149,30 @@ export const executeFileEdit = async (payload: HashlineEditPayload) => {
     }
 
     await ensureParentDir(filePath)
-    await fs.writeFile(filePath, typeof payload.content === 'string' ? payload.content : '', 'utf-8')
-    return [`A ${toDisplayPath(baseDir, filePath)}`]
+    const content = typeof payload.content === 'string' ? payload.content : ''
+    await fs.writeFile(filePath, content, 'utf-8')
+    return [
+      makeChange({
+        status: 'A',
+        path: toDisplayPath(baseDir, filePath),
+        new_hash: computeSnapshotTag(content)
+      })
+    ]
   }
 
   if (type === 'delete') {
     const rawPath = getRequiredPath(payload, 'path')
     const filePath = resolveHashlinePathInBaseDir(baseDir, rawPath)
     await assertRegularFileTarget(filePath, 'Delete target')
+    const oldContent = await fs.readFile(filePath, 'utf-8')
     await fs.unlink(filePath)
-    return [`D ${toDisplayPath(baseDir, filePath)}`]
+    return [
+      makeChange({
+        status: 'D',
+        path: toDisplayPath(baseDir, filePath),
+        old_hash: computeSnapshotTag(oldContent)
+      })
+    ]
   }
 
   if (type === 'move') {
@@ -136,6 +185,8 @@ export const executeFileEdit = async (payload: HashlineEditPayload) => {
     }
 
     await assertRegularFileTarget(filePath, 'Move source')
+    const content = await fs.readFile(filePath, 'utf-8')
+    const contentHash = computeSnapshotTag(content)
     try {
       await fs.lstat(newFilePath)
       throw new Error(`Move destination already exists: ${toDisplayPath(baseDir, newFilePath)}`)
@@ -145,7 +196,15 @@ export const executeFileEdit = async (payload: HashlineEditPayload) => {
 
     await ensureParentDir(newFilePath)
     await fs.rename(filePath, newFilePath)
-    return [`R ${toDisplayPath(baseDir, filePath)} -> ${toDisplayPath(baseDir, newFilePath)}`]
+    return [
+      makeChange({
+        status: 'R',
+        path: toDisplayPath(baseDir, filePath),
+        new_path: toDisplayPath(baseDir, newFilePath),
+        old_hash: contentHash,
+        new_hash: contentHash
+      })
+    ]
   }
 
   throw new Error(`Unsupported edit type: ${type}`)
@@ -154,10 +213,11 @@ export const executeFileEdit = async (payload: HashlineEditPayload) => {
 export const setupSearchReplaceHandlers = () => {
   ipcMain.handle('search-replace:execute', async (_event, payload: HashlineEditPayload) => {
     try {
-      const summaries = await executeFileEdit({ ...payload, type: 'update' })
+      const changes = await executeFileEdit({ ...payload, type: 'update' })
       return {
         ok: true,
-        summary: summaries.join('\n')
+        summary: changes.map((change) => change.summary).join('\n'),
+        changes
       }
     } catch (error) {
       return {
@@ -169,10 +229,11 @@ export const setupSearchReplaceHandlers = () => {
 
   ipcMain.handle('edit-file:execute', async (_event, payload: HashlineEditPayload) => {
     try {
-      const summaries = await executeFileEdit(payload)
+      const changes = await executeFileEdit(payload)
       return {
         ok: true,
-        summary: summaries.join('\n')
+        summary: changes.map((change) => change.summary).join('\n'),
+        changes
       }
     } catch (error) {
       return {

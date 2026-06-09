@@ -283,6 +283,14 @@ export interface ElectronAPI {
     }) => Promise<{
       ok: boolean
       summary?: string
+      changes?: Array<{
+        status: 'A' | 'D' | 'M' | 'R'
+        path: string
+        new_path?: string
+        old_hash?: string
+        new_hash?: string
+        summary: string
+      }>
       error?: string
     }>
   }

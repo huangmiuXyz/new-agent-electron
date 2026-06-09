@@ -10,7 +10,8 @@ type CodexToolExecuteOptions = {
 const getCurrentAgent = (chatId?: string) => {
   const chatsStore = useChatsStores()
   const agentStore = useAgentStore()
-  const agentId = chatsStore.getChatById(chatId || '')?.agentId || chatsStore.currentChat?.agentId || 'default'
+  const agentId =
+    chatsStore.getChatById(chatId || '')?.agentId || chatsStore.currentChat?.agentId || 'default'
   return agentStore.getAgentById(agentId) || null
 }
 
@@ -25,12 +26,11 @@ const resolveWorkspaceRootPath = (rawPath: string, chatId?: string): string => {
   }
 
   const currentWorkPath = getCurrentWorkPath(chatId)
-  const resolvedPath =
-    window.api.path.isAbsolute(inputPath)
-      ? window.api.path.resolve(window.api.path.normalize(inputPath))
-      : currentWorkPath
-        ? window.api.path.resolve(window.api.path.normalize(currentWorkPath), inputPath)
-        : window.api.path.resolve(window.api.path.normalize(inputPath))
+  const resolvedPath = window.api.path.isAbsolute(inputPath)
+    ? window.api.path.resolve(window.api.path.normalize(inputPath))
+    : currentWorkPath
+      ? window.api.path.resolve(window.api.path.normalize(currentWorkPath), inputPath)
+      : window.api.path.resolve(window.api.path.normalize(inputPath))
 
   if (!window.api.fs.existsSync(resolvedPath)) {
     throw new Error(`路径不存在：${resolvedPath}`)
@@ -48,7 +48,9 @@ const resolveWorkspaceRootPath = (rawPath: string, chatId?: string): string => {
 const resolvePath = (rawPath: string, chatId?: string): string => {
   const baseDir = getCurrentWorkPath(chatId)
   if (!baseDir) {
-    throw new Error('未设置 workPath，已禁止回退路径解析，优先使用 `change_working_directory` 工具临时设置，禁止使用 exec_command 执行文件操作')
+    throw new Error(
+      '未设置 workPath，已禁止回退路径解析，优先使用 `change_working_directory` 工具临时设置，禁止使用 exec_command 执行文件操作'
+    )
   }
   const normalizedBaseDir = window.api.path.resolve(window.api.path.normalize(baseDir))
   const inputPath = rawPath.trim()
@@ -58,7 +60,8 @@ const resolvePath = (rawPath: string, chatId?: string): string => {
 
   const relativePath = window.api.path.relative(normalizedBaseDir, resolvedPath)
   const isInsideBaseDir =
-    relativePath === '' || (!relativePath.startsWith('..') && !window.api.path.isAbsolute(relativePath))
+    relativePath === '' ||
+    (!relativePath.startsWith('..') && !window.api.path.isAbsolute(relativePath))
 
   if (!isInsideBaseDir) {
     throw new Error(`路径越界：仅允许访问 workPath 内文件 (${normalizedBaseDir})`)
@@ -73,7 +76,10 @@ type IgnoreState = {
 }
 
 const rebaseGitignorePatterns = (content: string, dirRelativeToRoot: string): string[] => {
-  const baseDir = dirRelativeToRoot.replaceAll('\\', '/').replace(/^\.\/?/, '').replace(/\/$/, '')
+  const baseDir = dirRelativeToRoot
+    .replaceAll('\\', '/')
+    .replace(/^\.\/?/, '')
+    .replace(/\/$/, '')
   return content
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -132,7 +138,13 @@ const getPosixShellPath = (): string => window.api.process.env.SHELL || '/bin/sh
 const execProjectSearchCommand = async (
   command: string,
   options: { cwd?: string; maxBuffer?: number } = {}
-): Promise<{ code: number | null; stdout: string; stderr: string; errorMessage?: string; errorCode?: string }> => {
+): Promise<{
+  code: number | null
+  stdout: string
+  stderr: string
+  errorMessage?: string
+  errorCode?: string
+}> => {
   if (!isWindows) {
     return window.api.execFileCommand(getPosixShellPath(), ['-lc', command], options)
   }
@@ -195,22 +207,38 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   },
   readFile: {
     title: '读取文件',
-    description:
-      [
-        '读取 workPath 内的文本文件，并以 hashline 格式返回。',
-        'hashlines 会包含文件头 ¶path#TAG，TAG 是当前文件快照指纹，编辑时必须原样复制。',
-        '正文每一行格式为 LINE:内容，例如 12:const value = 1。编辑操作使用行号 12。',
-        '默认只读取 160 行；显式传 end_line 或 limit 时会自动附带前 1 行、后 3 行上下文。',
-        '超长行会截断显示，但仍可用行号编辑；提交前请确认目标行内容。',
-        '编辑文件前必须先读取目标区域，复制 ¶path#TAG 文件头到 edit_file 的 content。',
-        '需要搜索文件名或内容时请改用 search_project；定位到文件后再用 readFile 读取锚点。'
-      ].join('\n'),
+    description: [
+      '读取 workPath 内的文本文件，并以 hashline 格式返回。',
+      'hashlines 会包含文件头 ¶path#TAG，TAG 是当前文件快照指纹，编辑时必须原样复制。',
+      '正文每一行格式为 LINE:内容，例如 12:const value = 1。编辑操作使用行号 12。',
+      '默认只读取 160 行；显式传 end_line 或 limit 时会自动附带前 1 行、后 3 行上下文。',
+      '超长行会截断显示，但仍可用行号编辑；提交前请确认目标行内容。',
+      '编辑文件前必须先读取目标区域，复制 ¶path#TAG 文件头到 edit_file 的 content。',
+      '需要搜索文件名或内容时请改用 search_project；定位到文件后再用 readFile 读取锚点。'
+    ].join('\n'),
     inputSchema: z.object({
       path: z.string().describe('要读取的文件路径。相对路径会基于当前 workPath 解析。'),
       start_line: z.number().int().min(1).optional().describe('起始行号，1-based，默认 1。'),
-      end_line: z.number().int().min(1).optional().describe('结束行号，1-based；传入后会自动附带少量上下文。'),
-      limit: z.number().int().min(1).max(2000).optional().describe('最多读取多少行，默认 160，最大 2000。'),
-      max_columns: z.number().int().min(20).max(2000).optional().describe('单行最大显示列数，默认 240；超出后截断显示。')
+      end_line: z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe('结束行号，1-based；传入后会自动附带少量上下文。'),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(2000)
+        .optional()
+        .describe('最多读取多少行，默认 160，最大 2000。'),
+      max_columns: z
+        .number()
+        .int()
+        .min(20)
+        .max(2000)
+        .optional()
+        .describe('单行最大显示列数，默认 240；超出后截断显示。')
     }),
     execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
@@ -225,7 +253,12 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           return {
             error: '未设置 workPath',
             toolResult: {
-              content: [{ type: 'text', text: '读取文件失败：未设置 workPath，优先使用 `change_working_directory` 工具临时设置' }]
+              content: [
+                {
+                  type: 'text',
+                  text: '读取文件失败：未设置 workPath，优先使用 `change_working_directory` 工具临时设置'
+                }
+              ]
             }
           }
         }
@@ -318,7 +351,11 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         let currentLength = 0
         const rootIgnoreState = createIgnoreState(dirPath, dirPath)
 
-        const processDir = (currentPath: string, currentDepth: number, ignoreState: IgnoreState) => {
+        const processDir = (
+          currentPath: string,
+          currentDepth: number,
+          ignoreState: IgnoreState
+        ) => {
           if (currentLength >= maxLength) return
           if (currentDepth >= maxDepth) return
 
@@ -342,12 +379,12 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
               aIsDir =
                 (window.api.fs.lstatSync(window.api.path.join(currentPath, a)).mode & 0o170000) ===
                 0o040000
-            } catch { }
+            } catch {}
             try {
               bIsDir =
                 (window.api.fs.lstatSync(window.api.path.join(currentPath, b)).mode & 0o170000) ===
                 0o040000
-            } catch { }
+            } catch {}
             if (aIsDir && !bIsDir) return -1
             if (!aIsDir && bIsDir) return 1
             return a.localeCompare(b)
@@ -386,7 +423,11 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
             currentLength += line.length
 
             if (isDir) {
-              processDir(fullPath, currentDepth + 1, createIgnoreState(dirPath, fullPath, ignoreState))
+              processDir(
+                fullPath,
+                currentDepth + 1,
+                createIgnoreState(dirPath, fullPath, ignoreState)
+              )
             }
           }
         }
@@ -396,7 +437,10 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         return {
           toolResult: {
             content: [
-              { type: 'text', text: `Directory listing for ${dirPath.replaceAll('\\', '/')}:\n${results.join('')}` }
+              {
+                type: 'text',
+                text: `Directory listing for ${dirPath.replaceAll('\\', '/')}:\n${results.join('')}`
+              }
             ]
           }
         }
@@ -411,26 +455,29 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   },
   search_project: {
     title: '项目搜索',
-    description:
-      [
-        '项目搜索工具。在当前 workPath 内执行 rg 风格搜索命令；本工具内部会注入 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。',
-        '搜索文件名或内容时必须调用 search_project，不要改用 exec_command 执行 rg/grep/git grep。',
-        '常用模式：',
-        '- 搜内容：rg -n "keyword" .',
-        '- 搜文件名：rg --files | rg "keyword"',
-        '- 限定目录或类型：rg -n "keyword" apps/desktop/src -g "*.ts" -g "*.vue"',
-        '- 带上下文：rg -n "keyword" -C 3',
-        '- 搜隐藏文件、ignore 文件或 node_modules：rg -uuu -n "keyword"',
-        '- 输出可能很大时：加具体目录、-g/--glob、--max-count 或更精确关键词。',
-      ].join('\n'),
+    description: [
+      '项目搜索工具。在当前 workPath 内执行 rg 风格搜索命令；本工具内部会注入 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。',
+      '搜索文件名或内容时必须调用 search_project，不要改用 exec_command 执行 rg/grep/git grep。',
+      '常用模式：',
+      '- 搜内容：rg -n "keyword" .',
+      '- 搜文件名：rg --files | rg "keyword"',
+      '- 限定目录或类型：rg -n "keyword" apps/desktop/src -g "*.ts" -g "*.vue"',
+      '- 带上下文：rg -n "keyword" -C 3',
+      '- 搜隐藏文件、ignore 文件或 node_modules：rg -uuu -n "keyword"',
+      '- 输出可能很大时：加具体目录、-g/--glob、--max-count 或更精确关键词。'
+    ].join('\n'),
     inputSchema: z.object({
-      cmd: z.string().describe('要原样执行的 rg 搜索命令，例如 rg -n "keyword" . 或 rg --files | rg "keyword"')
+      cmd: z
+        .string()
+        .describe('要原样执行的 rg 搜索命令，例如 rg -n "keyword" . 或 rg --files | rg "keyword"')
     }),
     execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
       const cmd = String(params.cmd || '')
       if (!cmd.trim()) {
-        return { toolResult: { content: [{ type: 'text', text: 'search_project 失败：cmd 不能为空' }] } }
+        return {
+          toolResult: { content: [{ type: 'text', text: 'search_project 失败：cmd 不能为空' }] }
+        }
       }
 
       try {
@@ -441,7 +488,10 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         const commandHint = isRipgrepCommand
           ? ''
           : '\n提示：search_project 是项目搜索工具，搜索内容或文件名时请使用 rg 风格命令，例如 rg -n "keyword" . 或 rg --files | rg "keyword"。'
-        const result = await execProjectSearchCommand(resolvedCmd, { cwd: rootDir, maxBuffer: 8 * 1024 * 1024 })
+        const result = await execProjectSearchCommand(resolvedCmd, {
+          cwd: rootDir,
+          maxBuffer: 8 * 1024 * 1024
+        })
         const stdout = result.stdout.trim()
         const stderr = result.stderr.trim()
         const errorMessage = result.errorMessage?.trim() || ''
@@ -506,13 +556,12 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   },
   exec_command: {
     title: '在终端中执行命令',
-    description:
-      [
-        '在现有终端会话中执行测试、构建、包管理、git 等真正需要终端的命令。',
-        '不要用 exec_command 搜索、读取、列出或编辑项目文件：搜索文件名/内容请用 search_project，读取文件请用 readFile，列目录请用 list_dir，编辑文件请用 edit_file。',
-        '尤其不要在 exec_command 中运行 rg/grep/git grep/cat/sed/head/tail/nl/ls/find；search_project 内部会使用 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。',
-        '首次调用可不传 terminal_id 来创建新终端；一旦工具返回了终端ID，后续相关命令应优先复用同一个 terminal_id，避免每次创建新终端导致上下文丢失。'
-      ].join('\n'),
+    description: [
+      '在现有终端会话中执行测试、构建、包管理、git 等真正需要终端的命令。',
+      '不要用 exec_command 搜索、读取、列出或编辑项目文件：搜索文件名/内容请用 search_project，读取文件请用 readFile，列目录请用 list_dir，编辑文件请用 edit_file。',
+      '尤其不要在 exec_command 中运行 rg/grep/git grep/cat/sed/head/tail/nl/ls/find；search_project 内部会使用 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。',
+      '首次调用可不传 terminal_id 来创建新终端；一旦工具返回了终端ID，后续相关命令应优先复用同一个 terminal_id，避免每次创建新终端导致上下文丢失。'
+    ].join('\n'),
     inputSchema: z.object({
       command: z.string().describe('要执行的命令'),
       terminal_id: z
@@ -551,10 +600,12 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       })
       return {
         toolResult: {
-          content: [{
-            type: 'stdout',
-            text: `终端ID: ${tabId}\n后续如果要在同一终端继续执行命令，请复用这个终端ID。\n${result!.output}`
-          }]
+          content: [
+            {
+              type: 'stdout',
+              text: `终端ID: ${tabId}\n后续如果要在同一终端继续执行命令，请复用这个终端ID。\n${result!.output}`
+            }
+          ]
         }
       }
     }
@@ -578,17 +629,33 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       'type=move：提供 path 和 new_path，移动/重命名文件；目标已存在会失败。',
       '',
       'update 前必须用 readFile 获取最新 ¶path#TAG 文件头和行号。payload 每行必须以 + 开头，+ 单独一行表示插入空行。',
+      '成功后会返回 old_hash/new_hash；下一次编辑同文件可直接用 new_hash 构造新的 ¶path#TAG 文件头；如果提示 snapshot mismatch，再调用 readFile 重读。',
       '所有路径必须位于当前 workPath 内。'
     ].join('\n'),
     inputSchema: z.object({
-      type: z.enum(['update', 'add', 'delete', 'move']).optional().default('update').describe('文件操作类型。update 走 hashline；add/delete/move 是文件级操作。'),
-      path: z.string().optional().describe('type=add/delete/move 时的源/目标文件路径。相对路径基于当前 workPath。'),
-      new_path: z.string().optional().describe('type=move 时的新文件路径。相对路径基于当前 workPath。'),
-      content: z.string().optional().describe('type=update 时的 hashline 编辑内容；type=add 时的新文件内容。')
+      type: z
+        .enum(['update', 'add', 'delete', 'move'])
+        .optional()
+        .default('update')
+        .describe('文件操作类型。update 走 hashline；add/delete/move 是文件级操作。'),
+      path: z
+        .string()
+        .optional()
+        .describe('type=add/delete/move 时的源/目标文件路径。相对路径基于当前 workPath。'),
+      new_path: z
+        .string()
+        .optional()
+        .describe('type=move 时的新文件路径。相对路径基于当前 workPath。'),
+      content: z
+        .string()
+        .optional()
+        .describe('type=update 时的 hashline 编辑内容；type=add 时的新文件内容。')
     }),
     execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
       const params = args as Record<string, any>
-      const type = ['update', 'add', 'delete', 'move'].includes(params.type) ? params.type : 'update'
+      const type = ['update', 'add', 'delete', 'move'].includes(params.type)
+        ? params.type
+        : 'update'
       const content = typeof params.content === 'string' ? params.content : ''
       const input = type === 'update' ? content : ''
 
@@ -606,7 +673,12 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         return {
           error: '未设置 workPath',
           toolResult: {
-            content: [{ type: 'text', text: 'edit_file 失败：未设置 workPath，优先使用 `change_working_directory` 工具临时设置' }]
+            content: [
+              {
+                type: 'text',
+                text: 'edit_file 失败：未设置 workPath，优先使用 `change_working_directory` 工具临时设置'
+              }
+            ]
           }
         }
       }

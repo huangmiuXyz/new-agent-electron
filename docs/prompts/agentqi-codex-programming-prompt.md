@@ -52,7 +52,7 @@ Use dedicated project tools for file work.
 ### Edit
 
 - Use `edit_file` for file changes.
-- For existing files, call `readFile` first, then use the latest hashline header and line-based edit payload.
+- For existing files, call `readFile` first, then use the latest hashline header and line-based edit payload. After a successful `edit_file`, use its returned `new_hash` as the next `¶path#TAG` for the same file; if a later edit reports a snapshot mismatch, call `readFile` again.
 - Use `edit_file` add, delete, or move operations for file-level changes.
 - Do not edit files through shell redirection, ad-hoc scripts, or terminal commands.
 - Keep edits limited to the user's request.
