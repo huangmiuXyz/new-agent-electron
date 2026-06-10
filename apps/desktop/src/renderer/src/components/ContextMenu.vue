@@ -3,7 +3,7 @@
   <Teleport to="body">
     <transition name="radix-zoom">
       <div v-if="visible" ref="menuRef" class="radix-menu-content" :class="[`variant-${props.variant}`]"
-        :style="styleObject" @contextmenu.prevent>
+        :style="styleObject" @click.stop @contextmenu.prevent.stop>
         <template v-for="(item, index) in menuOptions" :key="index">
           <!-- 分割线 -->
           <div v-if="item.type === 'divider'" class="radix-separator"></div>
@@ -39,7 +39,7 @@
   <Teleport to="body">
     <transition name="radix-zoom">
       <div v-if="submenuVisible" ref="submenuRef" class="radix-menu-content radix-submenu"
-        :class="[`variant-${props.variant}`]" :style="submenuStyleObject" @contextmenu.prevent>
+        :class="[`variant-${props.variant}`]" :style="submenuStyleObject" @click.stop @contextmenu.prevent.stop>
         <template v-for="(item, index) in submenuOptions" :key="index">
           <!-- 分割线 -->
           <div v-if="item.type === 'divider'" class="radix-separator"></div>
@@ -64,7 +64,12 @@
   </Teleport>
 
   <!-- 透明遮罩 -->
-  <div v-if="visible" class="radix-overlay" @click="hideContextMenu" @contextmenu.prevent="hideContextMenu"></div>
+  <div
+    v-if="visible"
+    class="radix-overlay"
+    @click.stop="hideContextMenu"
+    @contextmenu.prevent.stop="hideContextMenu"
+  ></div>
 </template>
 
 <script setup lang="ts" generic="T">
