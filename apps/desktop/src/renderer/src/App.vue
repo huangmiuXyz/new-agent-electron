@@ -673,7 +673,9 @@ body {
 }
 
 .xicon {
-  align-items: center;
+  align-items: center !important;
+  display: inline-flex !important;
+  justify-content: center !important;
 }
 
 .app-layout {
