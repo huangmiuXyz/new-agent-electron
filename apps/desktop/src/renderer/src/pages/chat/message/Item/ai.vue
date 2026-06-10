@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { getFlatTokenUsage } from '@renderer/services/chatService/tokenUsage'
+import { getCollapsedMessageParts, getRenderableMessageParts } from './messageParts'
 
 const props = defineProps<{
   message: BaseMessage
@@ -30,50 +31,18 @@ const hasAudioChunks = computed(() => {
 const flatUsage = computed(() => getFlatTokenUsage(props.message.metadata?.usage))
 
 const renderableParts = computed(() => {
-  const parts = props.message.parts.filter((part) => part.type !== 'step-start')
-  return parts.length > 0 ? parts : props.message.parts
-})
-
-const lastTextPartIndex = computed(() => {
-  for (let index = renderableParts.value.length - 1; index >= 0; index--) {
-    const part = renderableParts.value[index]
-    if (part.type === 'text') return index
-  }
-
-  return -1
-})
-
-const lastTextPart = computed(() => {
-  return lastTextPartIndex.value === -1
-    ? undefined
-    : renderableParts.value[lastTextPartIndex.value]
+  return getRenderableMessageParts(props.message.parts)
 })
 
 const displayedCollapsedParts = computed(() => {
-  if (lastTextPartIndex.value === -1) return []
-
-  const collapsedParts: BaseMessage['parts'] = []
-  let lastReasoningPartIndex = -1
-  for (let index = lastTextPartIndex.value - 1; index >= 0; index--) {
-    if (renderableParts.value[index].type === 'reasoning') {
-      lastReasoningPartIndex = index
-      break
-    }
-  }
-
-  if (lastReasoningPartIndex !== -1) {
-    collapsedParts.push(renderableParts.value[lastReasoningPartIndex])
-  }
-  collapsedParts.push(renderableParts.value[lastTextPartIndex.value])
-
-  return collapsedParts
+  return getCollapsedMessageParts(props.message.parts)
 })
 
 const canCollapsePreviousContent = computed(() => {
   return (
     settingsStore.display.collapsePreviousContent &&
-    renderableParts.value.length > displayedCollapsedParts.value.length &&
-    !!lastTextPart.value
+    displayedCollapsedParts.value.length > 0 &&
+    renderableParts.value.length > displayedCollapsedParts.value.length
   )
 })
 
