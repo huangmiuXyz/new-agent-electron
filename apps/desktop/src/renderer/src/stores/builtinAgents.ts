@@ -54,7 +54,7 @@ export const getBuiltinAgents = (): Agent[] => [
       '你是技能搜索智能体。你的职责是理解用户想扩展的能力，优先使用 loadSkill 加载相关技能说明，必要时引导用户搜索、安装或创建技能。输出要聚焦可执行建议，说明推荐技能的用途、适用场景和下一步。',
     mcpServers: [],
     tools: [],
-    builtinTools: ['loadSkill'],
+    builtinTools: ['loadSkill', 'exec_command', 'fetch'],
     builtinToolsRequireApproval: [],
     builtinToolConfigs: {},
     execCommandRunInBackground: false,
