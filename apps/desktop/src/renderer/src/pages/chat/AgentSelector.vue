@@ -19,7 +19,7 @@ withDefaults(
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
-const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus, Copy, Delete } = useIcon([
+const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus, Copy, Delete, Settings } = useIcon([
   'Wrench20Regular',
   'Robot',
   'ChevronDown',
@@ -28,7 +28,8 @@ const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus, Copy, Delete } =
   'Edit',
   'Plus',
   'Copy',
-  'Delete'
+  'Delete',
+  'Settings'
 ])
 
 const { showContextMenu } = useContextMenu<Agent>()
@@ -107,8 +108,8 @@ const openCreateAgentModal = () => {
   openAgentModal()
 }
 
-const toggleFavoriteAgent = (agentId: string, event: MouseEvent) => {
-  event.stopPropagation()
+const toggleFavoriteAgent = (agentId: string, event?: MouseEvent) => {
+  event?.stopPropagation()
   settingsStore.toggleFavoriteAgent(agentId)
 }
 
@@ -135,12 +136,31 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 
   const menuItems: MenuItem<Agent>[] = [
     {
+      label: favoriteAgentSet.value.has(agent.id) ? '取消收藏' : '收藏智能体',
+      icon: favoriteAgentSet.value.has(agent.id) ? Check : undefined,
+      action: 'favorite',
+      onClick: (data: Agent) => {
+        if (data) toggleFavoriteAgent(data.id)
+      }
+    },
+    {
+      type: 'divider'
+    },
+    {
       label: '拷贝智能体',
       icon: Copy,
       action: 'copy',
       disabled: false,
       onClick: (data: Agent) => {
         if (data) copyAgent(data)
+      }
+    },
+    {
+      label: '配置智能体',
+      icon: Edit,
+      action: 'edit',
+      onClick: (data: Agent) => {
+        if (data) openAgentModal(data)
       }
     },
     {
@@ -263,27 +283,11 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
                 <span class="agent-mcp-count">{{ getAgentToolCount(agent) }}</span>
               </div>
 
-              <button
-                class="favorite-toggle"
-                type="button"
-                :class="{ active: favoriteAgentSet.has(agent.id) }"
-                :title="favoriteAgentSet.has(agent.id) ? '取消收藏' : '收藏智能体'"
-                @click="toggleFavoriteAgent(agent.id, $event)"
-              >
-                ★
-              </button>
-
               <Check v-if="isAgentSelected(agent.id)" />
 
-              <Button @click.stop="copyAgent(agent)" variant="icon" size="sm" title="拷贝智能体">
+              <Button @click.stop="handleAgentContextMenu($event, agent)" variant="icon" size="sm" title="智能体设置">
                 <template #icon>
-                  <Copy />
-                </template>
-              </Button>
-
-              <Button @click.stop="openAgentModal(agent)" variant="icon" size="sm">
-                <template #icon>
-                  <Edit />
+                  <Settings />
                 </template>
               </Button>
             </div>
@@ -335,27 +339,11 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
                 <span class="agent-mcp-count">{{ getAgentToolCount(agent) }}</span>
               </div>
 
-              <button
-                class="favorite-toggle"
-                type="button"
-                :class="{ active: favoriteAgentSet.has(agent.id) }"
-                :title="favoriteAgentSet.has(agent.id) ? '取消收藏' : '收藏智能体'"
-                @click="toggleFavoriteAgent(agent.id, $event)"
-              >
-                ★
-              </button>
-
               <Check v-if="isAgentSelected(agent.id)" />
 
-              <Button @click.stop="copyAgent(agent)" variant="icon" size="sm" title="拷贝智能体">
+              <Button @click.stop="handleAgentContextMenu($event, agent)" variant="icon" size="sm" title="智能体设置">
                 <template #icon>
-                  <Copy />
-                </template>
-              </Button>
-
-              <Button @click.stop="openAgentModal(agent)" variant="icon" size="sm">
-                <template #icon>
-                  <Edit />
+                  <Settings />
                 </template>
               </Button>
             </div>
@@ -550,25 +538,7 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
   gap: 8px;
 }
 
-.favorite-toggle {
-  border: 0;
-  background: transparent;
-  color: var(--text-tertiary);
-  font-size: 16px;
-  line-height: 1;
-  padding: 0;
-  cursor: pointer;
-  transition: color 0.15s ease, transform 0.15s ease;
-}
 
-.favorite-toggle:hover {
-  color: #f5b301;
-  transform: scale(1.06);
-}
-
-.favorite-toggle.active {
-  color: #f5b301;
-}
 
 .agent-check :deep(svg) {
   font-size: 14px;
