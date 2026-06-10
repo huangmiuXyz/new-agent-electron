@@ -5,6 +5,7 @@ import { getDedicatedFileToolHint, injectBundledRipgrepPath } from './command-ut
 type CodexToolExecuteOptions = {
   chatId?: string
   toolCallId?: string
+  availableBuiltinTools?: string[]
 }
 
 const getCurrentAgent = (chatId?: string) => {
@@ -18,6 +19,18 @@ const getCurrentAgent = (chatId?: string) => {
 const getCurrentWorkPath = (chatId?: string) => {
   return useCanvasStore().getWorkPath(chatId)
 }
+
+const getAvailableBuiltinToolSet = (options?: CodexToolExecuteOptions): Set<string> | null => {
+  if (Array.isArray(options?.availableBuiltinTools)) {
+    return new Set(options.availableBuiltinTools)
+  }
+
+  const currentAgent = getCurrentAgent(options?.chatId)
+  return currentAgent?.builtinTools ? new Set(currentAgent.builtinTools) : null
+}
+
+const isBuiltinToolAvailable = (availableTools: Set<string> | null, toolName: string): boolean =>
+  !availableTools || availableTools.has(toolName)
 
 const resolveWorkspaceRootPath = (rawPath: string, chatId?: string): string => {
   const inputPath = rawPath.trim()
@@ -705,8 +718,6 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     title: '在终端中执行命令',
     description: [
       '在现有终端会话中执行测试、构建、包管理、git 等真正需要终端的命令。',
-      '不要用 exec_command 搜索、读取、列出或编辑项目文件：搜索文件名/内容请用 search_project，读取文件请用 readFile，列目录请用 list_dir，编辑文件请用 edit_file。',
-      '尤其不要在 exec_command 中运行 rg/grep/git grep/cat/sed/head/tail/nl/ls/find；search_project 内部会使用 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。',
       '首次调用可不传 terminal_id 来创建新终端；一旦工具返回了终端ID，后续相关命令应优先复用同一个 terminal_id，避免每次创建新终端导致上下文丢失。'
     ].join('\n'),
     inputSchema: z.object({
@@ -720,10 +731,13 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     }),
     execute: async (args: any, options?: CodexToolExecuteOptions) => {
       const { command, terminal_id } = args
+      const availableBuiltinTools = getAvailableBuiltinToolSet(options)
       const fileToolHint = getDedicatedFileToolHint(String(command || ''), {
-        searchTool: 'search_project',
-        readTool: 'readFile',
-        listTool: 'list_dir'
+        searchTool: isBuiltinToolAvailable(availableBuiltinTools, 'search_project')
+          ? 'search_project'
+          : undefined,
+        readTool: isBuiltinToolAvailable(availableBuiltinTools, 'readFile') ? 'readFile' : undefined,
+        listTool: isBuiltinToolAvailable(availableBuiltinTools, 'list_dir') ? 'list_dir' : undefined
       })
       if (fileToolHint) {
         return {

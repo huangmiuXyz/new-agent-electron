@@ -12,20 +12,30 @@ const mockInjectBundledRipgrepPath = vi.fn()
 const mockCreateTab = vi.fn()
 
 vi.mock('./command-utils', () => ({
-  getDedicatedFileToolHint: (command: string, tools: { searchTool: string; readTool: string; listTool: string }) => {
+  getDedicatedFileToolHint: (
+    command: string,
+    tools: { searchTool?: string; readTool?: string; listTool?: string }
+  ) => {
     const trimmed = command.trim()
-    if (/^rg(?:\s|$)/.test(trimmed)) {
+    if (tools.searchTool && /^rg(?:\s|$)/.test(trimmed)) {
       return [
         '检测到 shell 文件搜索命令: rg',
         `请改用 ${tools.searchTool}。搜索工具内部会使用 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。`,
         `${tools.readTool} 用于读取定位后的文件，${tools.listTool} 用于列目录；exec_command 仅用于测试、构建、包管理、git 等真正需要终端的命令。`
       ].join('\n')
     }
-    if (/^cat(?:\s|$)/.test(trimmed)) {
+    if (tools.readTool && /^cat(?:\s|$)/.test(trimmed)) {
       return [
         '检测到 shell 文件读取命令: cat',
         `请改用 ${tools.readTool} 读取文件和行号范围。`,
         `需要先搜索内容或文件名时，请使用 ${tools.searchTool}；需要列目录时，请使用 ${tools.listTool}。`
+      ].join('\n')
+    }
+    if (tools.listTool && /^ls(?:\s|$)/.test(trimmed)) {
+      return [
+        '检测到 shell 文件列表命令: ls',
+        `请改用 ${tools.listTool} 列目录；需要搜索内容或文件名时，请使用 ${tools.searchTool}。`,
+        'exec_command 仅用于测试、构建、包管理、git 等真正需要终端的命令。'
       ].join('\n')
     }
     return null
@@ -646,6 +656,44 @@ describe('exec_command', () => {
     expect(text).toContain('检测到 shell 文件读取命令: cat')
     expect(text).toContain('请改用 readFile')
     expect(mockCreateTab).not.toHaveBeenCalled()
+  })
+
+  it('should run rg when search_project is not enabled for the current agent', async () => {
+    const tool = getExecCommandTool()
+    const text = extractText(
+      await tool.execute(
+        { command: 'rg -n "createApp" .' },
+        { ...defaultOptions, availableBuiltinTools: ['exec_command'] } as any
+      )
+    )
+
+    expect(mockCreateTab).toHaveBeenCalledWith({
+      command: 'rg -n "createApp" .',
+      cwd: mockWorkPath,
+      id: undefined,
+      toolCallId: defaultOptions.toolCallId,
+      showTerminal: true
+    })
+    expect(text).toContain('终端ID: terminal-1')
+  })
+
+  it('should run ls when list_dir is not enabled for the current agent', async () => {
+    const tool = getExecCommandTool()
+    const text = extractText(
+      await tool.execute(
+        { command: 'ls src' },
+        { ...defaultOptions, availableBuiltinTools: ['exec_command', 'search_project', 'readFile'] } as any
+      )
+    )
+
+    expect(mockCreateTab).toHaveBeenCalledWith({
+      command: 'ls src',
+      cwd: mockWorkPath,
+      id: undefined,
+      toolCallId: defaultOptions.toolCallId,
+      showTerminal: true
+    })
+    expect(text).toContain('终端ID: terminal-1')
   })
 
   it('should still run non-file terminal commands', async () => {

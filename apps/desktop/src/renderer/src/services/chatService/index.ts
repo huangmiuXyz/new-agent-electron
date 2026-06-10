@@ -205,6 +205,7 @@ export const chatService = () => {
                 chatId: cid,
                 model,
                 provider,
+                availableBuiltinTools: Array.from(builtinToolKeys),
                 abortSignal: controller.signal
               })
               return result

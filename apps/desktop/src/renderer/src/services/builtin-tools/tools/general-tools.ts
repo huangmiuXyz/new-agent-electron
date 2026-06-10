@@ -196,7 +196,13 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
     }),
     execute: async (
       args: unknown,
-      options?: { toolCallId?: string; chatId?: string; model?: string; provider?: string }
+      options?: {
+        toolCallId?: string
+        chatId?: string
+        model?: string
+        provider?: string
+        availableBuiltinTools?: string[]
+      }
     ) => {
       const params = args as {
         tool_uses?: Array<z.infer<typeof parallelToolUseSchema>>
@@ -239,8 +245,9 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
                 toolCallId: `${options?.toolCallId || 'multi_tool_use_parallel'}:${index}`,
                 chatId: options?.chatId || '',
                 model: options?.model || '',
-                provider: options?.provider || ''
-              })
+                provider: options?.provider || '',
+                availableBuiltinTools: Array.from(builtinToolNames)
+              } as any)
 
               return {
                 recipient_name: toolUse.recipient_name,

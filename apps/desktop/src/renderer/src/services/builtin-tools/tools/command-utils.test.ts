@@ -156,6 +156,33 @@ describe('getDedicatedFileToolHint', () => {
     expect(hint).toContain('请改用 list_dir')
   })
 
+  it('should not steer search commands when search_project is unavailable', () => {
+    const hint = getDedicatedFileToolHint('rg -n "needle" .', {
+      readTool: 'readFile',
+      listTool: 'list_dir'
+    })
+
+    expect(hint).toBeNull()
+  })
+
+  it('should not steer list commands when list_dir is unavailable', () => {
+    const hint = getDedicatedFileToolHint('ls src', {
+      searchTool: 'search_project',
+      readTool: 'readFile'
+    })
+
+    expect(hint).toBeNull()
+  })
+
+  it('should not steer read commands when readFile is unavailable', () => {
+    const hint = getDedicatedFileToolHint('cat src/main.ts', {
+      searchTool: 'search_project',
+      listTool: 'list_dir'
+    })
+
+    expect(hint).toBeNull()
+  })
+
   it('should allow non-file terminal commands', () => {
     const hint = getDedicatedFileToolHint('npm test', tools)
 
