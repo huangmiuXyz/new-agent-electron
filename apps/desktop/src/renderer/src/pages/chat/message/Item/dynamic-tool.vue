@@ -11,7 +11,15 @@ const props = defineProps<{
 const { display } = storeToRefs(useSettingsStore())
 const { currentChat } = storeToRefs(useChatsStores())
 const { showContextMenu } = useContextMenu<{ toolCallId: string }>()
-const { Check, Close, Refresh } = useIcon(['Check', 'Close', 'Refresh'])
+const { Check, Close, Refresh, Play, Edit, ChevronDown, Wrench20Regular } = useIcon([
+  'Check',
+  'Close',
+  'Refresh',
+  'Play',
+  'Edit',
+  'ChevronDown',
+  'Wrench20Regular'
+])
 const isCollapsed = ref(!display.value.expandToolsByDefault)
 
 const isInputCollapsed = ref(true)
@@ -91,7 +99,7 @@ const runTool = async (e: Event) => {
       const anyResult = result as any
       if (anyResult.toolResult && Array.isArray(anyResult.toolResult.content)) {
         outputText = anyResult.toolResult.content
-          .map((c: any) => c.type === 'text' ? c.text : '')
+          .map((c: any) => (c.type === 'text' ? c.text : ''))
           .join('\n')
       } else {
         outputText = JSON.stringify(result, null, 2)
@@ -144,7 +152,9 @@ const isSingleCmdInput = (value: unknown): value is { cmd: string } => {
 }
 
 const extractToolResultText = (value: unknown) => {
-  const toolResult = (value as { toolResult?: { content?: Array<{ type?: string; text?: string }> } })?.toolResult
+  const toolResult = (
+    value as { toolResult?: { content?: Array<{ type?: string; text?: string }> } }
+  )?.toolResult
   if (!toolResult || !Array.isArray(toolResult.content)) return ''
 
   return toolResult.content
@@ -245,15 +255,15 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
 
 <template>
   <div class="msg-row tool-row">
-    <div class="tool-container" :class="{ 'is-expanded': !isCollapsed }" @contextmenu="openRetryContextMenu">
+    <div
+      class="tool-container"
+      :class="{ 'is-expanded': !isCollapsed }"
+      @contextmenu="openRetryContextMenu"
+    >
       <div class="tool-header" @click="toggleCollapse">
         <div class="tool-info">
           <div class="tool-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path
-                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-            </svg>
+            <Wrench20Regular />
           </div>
           <span class="tool-name">{{
             (tool_part as DynamicToolUIPart)?.toolName || tool_part?.title || toolName
@@ -265,12 +275,22 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
               <div class="approval-inline" aria-label="工具需要批准">
                 <span class="approval-pulse" title="等待批准"></span>
                 <span class="approval-label">需批准</span>
-                <button class="approval-icon-btn approve" type="button" title="允许执行工具" aria-label="允许执行工具"
-                  @click.stop="handleApproval(true)">
+                <button
+                  class="approval-icon-btn approve"
+                  type="button"
+                  title="允许执行工具"
+                  aria-label="允许执行工具"
+                  @click.stop="handleApproval(true)"
+                >
                   <Check />
                 </button>
-                <button class="approval-icon-btn reject" type="button" title="拒绝执行工具" aria-label="拒绝执行工具"
-                  @click.stop="handleApproval(false)">
+                <button
+                  class="approval-icon-btn reject"
+                  type="button"
+                  title="拒绝执行工具"
+                  aria-label="拒绝执行工具"
+                  @click.stop="handleApproval(false)"
+                >
                   <Close />
                 </button>
               </div>
@@ -278,60 +298,62 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
             <span v-else class="status-dot"></span>
           </slot>
         </div>
-        <button v-if="canRetryAroundToolCall" class="retry-tool-btn" type="button" title="重试选项"
-          @click="openRetryMenuFromButton">
+        <button
+          v-if="canRetryAroundToolCall"
+          class="retry-tool-btn"
+          type="button"
+          title="重试选项"
+          @click="openRetryMenuFromButton"
+        >
           <Refresh />
         </button>
         <div class="tool-toggle">
-          <svg class="header-collapse-icon" :class="{ collapsed: isCollapsed }" xmlns="http://www.w3.org/2000/svg"
-            width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <ChevronDown class="header-collapse-icon" :class="{ collapsed: isCollapsed }" />
         </div>
       </div>
 
       <div class="tool-content-wrapper" v-if="!isCollapsed">
         <slot name="content">
-          <component v-if="customRender" :message="message" :is="customRender" :args="tool_part.input"
-            :result="tool_part.output" :tool_part="tool_part" />
+          <component
+            v-if="customRender"
+            :message="message"
+            :is="customRender"
+            :args="tool_part.input"
+            :result="tool_part.output"
+            :tool_part="tool_part"
+          />
           <div v-else class="io-container">
             <div class="io-section io-input">
               <div class="io-header" @click="toggleInputCollapse">
                 <span class="io-label">输入</span>
                 <div class="io-actions">
-                  <button class="icon-btn" @click.stop="runTool" title="运行工具" :disabled="isRunning">
-                    <svg v-if="!isRunning" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
-                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
-                    <svg v-else class="spin" xmlns="http://www.w3.org/2000/svg" width="10" height="10"
-                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                      stroke-linejoin="round">
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
-                    </svg>
+                  <button
+                    class="icon-btn"
+                    @click.stop="runTool"
+                    title="运行工具"
+                    :disabled="isRunning"
+                  >
+                    <Play v-if="!isRunning" />
+                    <Refresh v-else class="spin" />
                   </button>
-                  <button class="icon-btn" @click.stop="toggleEditInput" :title="isEditingInput ? '保存' : '编辑'">
-                    <svg v-if="!isEditingInput" xmlns="http://www.w3.org/2000/svg" width="10" height="10"
-                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                      stroke-linejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
-                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
+                  <button
+                    class="icon-btn"
+                    @click.stop="toggleEditInput"
+                    :title="isEditingInput ? '保存' : '编辑'"
+                  >
+                    <Edit v-if="!isEditingInput" />
+                    <Check v-else />
                   </button>
                 </div>
-                <svg class="collapse-icon" :class="{ collapsed: isInputCollapsed }" xmlns="http://www.w3.org/2000/svg"
-                  width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
+                <ChevronDown class="collapse-icon" :class="{ collapsed: isInputCollapsed }" />
               </div>
               <div class="io-content" v-if="!isInputCollapsed">
-                <textarea v-if="isEditingInput" v-model="localInput" class="io-textarea" @click.stop></textarea>
+                <textarea
+                  v-if="isEditingInput"
+                  v-model="localInput"
+                  class="io-textarea"
+                  @click.stop
+                ></textarea>
                 <div v-else>{{ localInput }}</div>
               </div>
             </div>
@@ -339,30 +361,39 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
               <div class="io-header" @click="toggleOutputCollapse">
                 <span class="io-label">输出</span>
                 <div class="io-actions">
-                  <button class="icon-btn" @click.stop="toggleEditOutput" :title="isEditingOutput ? '保存' : '编辑'">
-                    <svg v-if="!isEditingOutput" xmlns="http://www.w3.org/2000/svg" width="10" height="10"
-                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                      stroke-linejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
-                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
+                  <button
+                    class="icon-btn"
+                    @click.stop="toggleEditOutput"
+                    :title="isEditingOutput ? '保存' : '编辑'"
+                  >
+                    <Edit v-if="!isEditingOutput" />
+                    <Check v-else />
                   </button>
                 </div>
-                <svg class="collapse-icon" :class="{ collapsed: isOutputCollapsed }" xmlns="http://www.w3.org/2000/svg"
-                  width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
+                <ChevronDown class="collapse-icon" :class="{ collapsed: isOutputCollapsed }" />
               </div>
               <div class="io-content" v-if="!isOutputCollapsed">
-                <textarea v-if="isEditingOutput" v-model="localOutput" class="io-textarea" @click.stop></textarea>
-                <VirtualParagraphText v-else class="io-virtual-output" :text="localOutput" :height="300"
-                  split-mode="newline" preserve-empty :font-size="10" :line-height="15" :paragraph-padding-block="0"
-                  :paragraph-gap="0" :min-paragraph-height="15" :fixed-item-height="15" stick-to-bottom />
+                <textarea
+                  v-if="isEditingOutput"
+                  v-model="localOutput"
+                  class="io-textarea"
+                  @click.stop
+                ></textarea>
+                <VirtualParagraphText
+                  v-else
+                  class="io-virtual-output"
+                  :text="localOutput"
+                  :height="300"
+                  split-mode="newline"
+                  preserve-empty
+                  :font-size="10"
+                  :line-height="15"
+                  :paragraph-padding-block="0"
+                  :paragraph-gap="0"
+                  :min-paragraph-height="15"
+                  :fixed-item-height="15"
+                  stick-to-bottom
+                />
               </div>
             </div>
           </div>
@@ -427,6 +458,13 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
   display: flex;
   align-items: center;
   opacity: 0.8;
+}
+
+.tool-icon :deep(.xicon),
+.tool-icon :deep(svg) {
+  width: 12px;
+  height: 12px;
+  display: block;
 }
 
 .tool-name {
@@ -577,7 +615,15 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
 }
 
 .header-collapse-icon {
+  width: 10px;
+  height: 10px;
   transition: transform 0.2s ease;
+}
+
+.header-collapse-icon :deep(svg) {
+  width: 10px;
+  height: 10px;
+  display: block;
 }
 
 .header-collapse-icon.collapsed {
@@ -628,7 +674,15 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
 
 .collapse-icon {
   color: var(--text-tertiary);
+  width: 10px;
+  height: 10px;
   transition: transform 0.2s ease;
+}
+
+.collapse-icon :deep(svg) {
+  width: 10px;
+  height: 10px;
+  display: block;
 }
 
 .collapse-icon.collapsed {
@@ -704,6 +758,13 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
 .icon-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.icon-btn :deep(.xicon),
+.icon-btn :deep(svg) {
+  width: 10px;
+  height: 10px;
+  display: block;
 }
 
 .spin {
