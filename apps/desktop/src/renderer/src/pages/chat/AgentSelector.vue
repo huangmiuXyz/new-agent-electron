@@ -190,17 +190,9 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 </script>
 
 <template>
-  <SelectorPopover
-    v-model:visible="isPopupOpen"
-    v-model:searchQuery="searchQuery"
-    :data="allAgents"
-    desktop-presentation="dialog"
-    placeholder="搜索智能体..."
-    noResultsText="未找到智能体"
-    :hasResults="filteredAgents.length > 0"
-    width="620px"
-    title="选择智能体"
-  >
+  <SelectorPopover v-model:visible="isPopupOpen" v-model:searchQuery="searchQuery" :data="allAgents"
+    desktop-presentation="dialog" placeholder="搜索智能体..." noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0"
+    width="620px" title="选择智能体">
     <template #search-action>
       <Button variant="icon" size="sm" title="添加智能体" @click.stop="openCreateAgentModal">
         <template #icon>
@@ -211,29 +203,15 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 
     <template #trigger>
       <div v-if="type === 'select'" class="agent-btn" :title="selectedAgentLabel">
-        <Image
-          v-if="selectedAgent?.avatar"
-          class="agent-avatar"
-          :src="selectedAgent.avatar"
-          alt=""
-        />
+        <Image v-if="selectedAgent?.avatar" class="agent-avatar" :src="selectedAgent.avatar" alt="" />
         <Robot v-else />
         <span class="agent-name">{{ selectedAgentLabel }}</span>
-        <Tags
-          v-if="selectedAgent && getAgentTags(selectedAgent).length"
-          :tags="getAgentTags(selectedAgent)"
-          color="orange"
-          size="sm"
-        />
+        <Tags v-if="selectedAgent && getAgentTags(selectedAgent).length" :tags="getAgentTags(selectedAgent)"
+          color="orange" size="sm" />
         <ChevronDown class="arrow-icon" />
       </div>
       <Button v-else variant="icon" size="sm">
-        <Image
-          v-if="selectedAgent?.avatar"
-          class="agent-avatar"
-          :src="selectedAgent.avatar"
-          alt=""
-        />
+        <Image v-if="selectedAgent?.avatar" class="agent-avatar" :src="selectedAgent.avatar" alt="" />
         <Robot v-else />
       </Button>
     </template>
@@ -241,14 +219,8 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
     <div class="agent-list">
       <template v-if="favoriteAgents.length > 0">
         <div class="agent-section-title">收藏</div>
-        <div
-          v-for="agent in favoriteAgents"
-          :key="`favorite-${agent.id}`"
-          class="agent-item"
-          :class="{ selected: isAgentSelected(agent.id) }"
-          @click="selectAgent(agent.id)"
-          @contextmenu="handleAgentContextMenu($event, agent)"
-        >
+        <div v-for="agent in favoriteAgents" :key="`favorite-${agent.id}`" class="agent-item"
+          :class="{ selected: isAgentSelected(agent.id) }" @click="selectAgent(agent.id)">
           <div class="agent-main">
             <div class="agent-icon-container">
               <Image v-if="agent.avatar" class="agent-avatar-list" :src="agent.avatar" alt="" />
@@ -269,13 +241,8 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
           </div>
 
           <div class="agent-side">
-            <Tags
-              v-if="getAgentTags(agent).length"
-              :tags="getAgentTags(agent)"
-              color="orange"
-              size="sm"
-              class="agent-tags"
-            />
+            <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm"
+              class="agent-tags" />
 
             <div class="agent-check">
               <div v-if="hasAgentTools(agent)" class="agent-mcp">
@@ -297,14 +264,9 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 
       <template v-if="regularAgents.length > 0">
         <div v-if="favoriteAgents.length > 0" class="agent-section-title">全部</div>
-        <div
-          v-for="agent in regularAgents"
-          :key="agent.id"
-          class="agent-item"
-          :class="{ selected: isAgentSelected(agent.id) }"
-          @click="selectAgent(agent.id)"
-          @contextmenu="handleAgentContextMenu($event, agent)"
-        >
+        <div v-for="agent in regularAgents" :key="agent.id" class="agent-item"
+          :class="{ selected: isAgentSelected(agent.id) }" @click="selectAgent(agent.id)"
+          @contextmenu="handleAgentContextMenu($event, agent)">
           <div class="agent-main">
             <div class="agent-icon-container">
               <Image v-if="agent.avatar" class="agent-avatar-list" :src="agent.avatar" alt="" />
@@ -325,13 +287,8 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
           </div>
 
           <div class="agent-side">
-            <Tags
-              v-if="getAgentTags(agent).length"
-              :tags="getAgentTags(agent)"
-              color="orange"
-              size="sm"
-              class="agent-tags"
-            />
+            <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm"
+              class="agent-tags" />
 
             <div class="agent-check">
               <div v-if="hasAgentTools(agent)" class="agent-mcp">
