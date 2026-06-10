@@ -147,7 +147,8 @@ export const getBuiltinAgents = (): Agent[] => [
       'list_dir',
       'readFile',
       'edit_file',
-      'exec_command'
+      'exec_command',
+      'loadSkill'
     ],
     builtinToolsRequireApproval: ['exec_command'],
     builtinToolConfigs: {},
