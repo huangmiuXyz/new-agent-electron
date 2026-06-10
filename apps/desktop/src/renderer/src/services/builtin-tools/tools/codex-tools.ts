@@ -145,7 +145,7 @@ const execProjectSearchCommand = async (
   errorMessage?: string
   errorCode?: string
 }> => {
-  if (!isWindows) {
+  if (!isWindowsPlatform()) {
     return window.api.execFileCommand(getPosixShellPath(), ['-lc', command], options)
   }
 
@@ -156,10 +156,149 @@ const execProjectSearchCommand = async (
   )
 }
 
-const isWindows = navigator.platform.toLowerCase().includes('win')
+const isWindowsPlatform = (): boolean => navigator.platform.toLowerCase().includes('win')
 const startsWithRipgrep = (command: string): boolean => /^rg(?:\s|$)/.test(command.trimStart())
 const nonEmptyString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() ? value : undefined
+const SEARCH_OUTPUT_PREVIEW_LINE_LIMIT = 160
+const SEARCH_OUTPUT_PREVIEW_CHAR_LIMIT = 30000
+const SEARCH_CANDIDATE_FILE_LIMIT = 20
+const SEARCH_REFINE_FILE_THRESHOLD = 12
+const TOOL_OUTPUT_CHAR_LIMIT = 30000
+
+type SearchHit = {
+  path: string
+  line?: number
+  text: string
+}
+
+const truncateText = (text: string, maxLength: number): string => {
+  if (text.length <= maxLength) return text
+  const marker = `\n... (output truncated, ${text.length - maxLength} chars omitted)`
+  if (marker.length >= maxLength) return text.slice(0, maxLength)
+  return `${text.slice(0, maxLength - marker.length)}${marker}`
+}
+
+const truncateLinesAndText = (text: string, maxLines: number, maxLength: number): string => {
+  const lines = text.split(/\r?\n/)
+  const truncatedByLines = lines.length > maxLines
+  const lineLimited = truncatedByLines ? lines.slice(0, maxLines).join('\n') : text
+  const truncated = truncateText(lineLimited, maxLength)
+  return truncatedByLines
+    ? `${truncated}\n... (output truncated, ${lines.length - maxLines} lines omitted)`
+    : truncated
+}
+
+const stripAnsiCodes = (text: string): string =>
+  text.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '')
+
+const parseSearchHits = (stdout: string): SearchHit[] => {
+  return stdout
+    .split(/\r?\n/)
+    .map((line) => stripAnsiCodes(line).trimEnd())
+    .filter(Boolean)
+    .map((line) => {
+      const match = line.match(/^(.+?):(\d+)(?::\d+)?:(.*)$/)
+      if (match) {
+        return {
+          path: match[1],
+          line: Number(match[2]),
+          text: match[3].trim()
+        }
+      }
+
+      return {
+        path: line,
+        text: ''
+      }
+    })
+}
+
+const buildSearchSummary = (stdout: string): string => {
+  const hits = parseSearchHits(stdout)
+  if (hits.length === 0) return ''
+
+  const byFile = new Map<string, { count: number; lines: number[]; preview: string }>()
+  for (const hit of hits) {
+    const entry = byFile.get(hit.path) || { count: 0, lines: [], preview: '' }
+    entry.count += 1
+    if (typeof hit.line === 'number' && entry.lines.length < 8) {
+      entry.lines.push(hit.line)
+    }
+    if (!entry.preview && hit.text) {
+      entry.preview = hit.text
+    }
+    byFile.set(hit.path, entry)
+  }
+
+  const files = Array.from(byFile.entries())
+  const candidateLines = files.slice(0, SEARCH_CANDIDATE_FILE_LIMIT).map(([path, entry], index) => {
+    const lineHint = entry.lines.length > 0 ? ` lines: ${entry.lines.join(', ')}` : ''
+    const preview = entry.preview ? ` first_match: ${entry.preview.slice(0, 180)}` : ''
+    return `${index + 1}. ${path} (${entry.count} match${entry.count === 1 ? '' : 'es'}${lineHint})${preview}`
+  })
+
+  const refineHint =
+    files.length > SEARCH_REFINE_FILE_THRESHOLD
+      ? [
+          '',
+          'next_step:',
+          `- Search matched ${files.length} files. Refine with a narrower path, glob, symbol, or --max-count before reading files.`,
+          '- Do not read every candidate. Read only files whose path and line matches directly support the task.'
+        ]
+      : [
+          '',
+          'next_step:',
+          '- Read only the relevant line ranges from candidate files.',
+          '- If multiple files are clearly relevant, call multi_tool_use_parallel with builtin.readFile entries in one batch.'
+        ]
+
+  return [
+    'search_summary:',
+    `- output_lines: ${stdout ? stdout.split(/\r?\n/).filter(Boolean).length : 0}`,
+    `- candidate_files: ${files.length}`,
+    'candidate_files:',
+    ...candidateLines,
+    ...(files.length > SEARCH_CANDIDATE_FILE_LIMIT
+      ? [`... (${files.length - SEARCH_CANDIDATE_FILE_LIMIT} more files omitted from summary)`]
+      : []),
+    ...refineHint
+  ].join('\n')
+}
+
+const formatSearchOutput = (params: {
+  cmd: string
+  resolvedCmd: string
+  cwd: string
+  stdout: string
+  stderr: string
+  commandHint: string
+}): string => {
+  const { cmd, resolvedCmd, cwd, stdout, stderr, commandHint } = params
+  const outputSections = [
+    `命令执行完成\ncmd: ${cmd}${resolvedCmd !== cmd ? `\nresolved_cmd: ${resolvedCmd}` : ''}\ncwd: ${cwd}`
+  ]
+
+  if (commandHint) {
+    outputSections.push(commandHint.trimStart())
+  }
+
+  const summary = buildSearchSummary(stdout)
+  if (summary) {
+    outputSections.push(summary)
+  }
+
+  if (stdout) {
+    outputSections.push(
+      `stdout:\n${truncateLinesAndText(stdout, SEARCH_OUTPUT_PREVIEW_LINE_LIMIT, SEARCH_OUTPUT_PREVIEW_CHAR_LIMIT)}`
+    )
+  }
+  if (stderr) {
+    outputSections.push(`stderr:\n${truncateText(stderr, 10000)}`)
+  }
+
+  return outputSections.join('\n\n')
+}
 
 export const getCodexBuiltinTools = (): Partial<Tools> => ({
   change_working_directory: {
@@ -212,6 +351,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       'hashlines 会包含文件头 ¶path#TAG，TAG 是当前文件快照指纹，编辑时必须原样复制。',
       '正文每一行格式为 LINE:内容，例如 12:const value = 1。编辑操作使用行号 12。',
       '默认只读取 160 行；显式传 end_line 或 limit 时会自动附带前 1 行、后 3 行上下文。',
+      '除非用户明确要求浏览文件开头，否则应先用 search_project 定位行号，再读取小范围。',
       '超长行会截断显示，但仍可用行号编辑；提交前请确认目标行内容。',
       '编辑文件前必须先读取目标区域，复制 ¶path#TAG 文件头到 edit_file 的 content。',
       '需要搜索文件名或内容时请改用 search_project；定位到文件后再用 readFile 读取锚点。'
@@ -447,7 +587,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       } catch (error) {
         return {
           toolResult: {
-            content: [{ type: 'text', text: `鍒楀嚭鐩綍澶辫触: ${(error as Error).message}` }]
+            content: [{ type: 'text', text: `列出目录失败: ${(error as Error).message}` }]
           }
         }
       }
@@ -458,13 +598,16 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     description: [
       '项目搜索工具。在当前 workPath 内执行 rg 风格搜索命令；本工具内部会注入 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。',
       '搜索文件名或内容时必须调用 search_project，不要改用 exec_command 执行 rg/grep/git grep。',
+      '返回会包含 search_summary、candidate_files 和 next_step；候选太多时先收窄搜索，不要逐个读取所有文件。',
       '常用模式：',
       '- 搜内容：rg -n "keyword" .',
+      '- 只列命中文件：rg -l "keyword" apps/desktop/src -g "*.ts"',
       '- 搜文件名：rg --files | rg "keyword"',
       '- 限定目录或类型：rg -n "keyword" apps/desktop/src -g "*.ts" -g "*.vue"',
       '- 带上下文：rg -n "keyword" -C 3',
       '- 搜隐藏文件、ignore 文件或 node_modules：rg -uuu -n "keyword"',
-      '- 输出可能很大时：加具体目录、-g/--glob、--max-count 或更精确关键词。'
+      '- 输出可能很大时：加具体目录、-g/--glob、--max-count 或更精确关键词。',
+      '拿到明确候选文件和行号后，再用 readFile 读取小范围；多个明确候选文件应使用 multi_tool_use_parallel 批量读取。'
     ].join('\n'),
     inputSchema: z.object({
       cmd: z
@@ -497,12 +640,22 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         const errorMessage = result.errorMessage?.trim() || ''
 
         if (result.code === 1 && !stdout) {
+          const noOutputSections = [
+            `命令执行完成，无标准输出${isRipgrepCommand ? '（rg 未找到匹配项）' : ''}`,
+            `cmd: ${cmd}${resolvedCmd !== cmd ? `\nresolved_cmd: ${resolvedCmd}` : ''}`,
+            `cwd: ${rootDir.replaceAll('\\', '/')}`,
+            commandHint.trim(),
+            'next_step:',
+            '- Try a broader or alternate symbol/name search before reading files.',
+            '- If the target file is already known, read only the expected small line range.'
+          ].filter(Boolean)
+
           return {
             toolResult: {
               content: [
                 {
                   type: 'text',
-                  text: `命令执行完成，无标准输出${isRipgrepCommand ? '（rg 未找到匹配项）' : ''}\ncmd: ${cmd}${resolvedCmd !== cmd ? `\nresolved_cmd: ${resolvedCmd}` : ''}\ncwd: ${rootDir.replaceAll('\\', '/')}${commandHint}\n${stderr ? `\nstderr:\n${stderr}` : ''}`
+                  text: `${noOutputSections.join('\n')}${stderr ? `\n\nstderr:\n${truncateText(stderr, 10000)}` : ''}`
                 }
               ]
             }
@@ -515,24 +668,11 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
               content: [
                 {
                   type: 'text',
-                  text: `search_project 失败：${stderr || stdout.substring(0, 10000) || errorMessage || 'command execution failed'}`
+                  text: `search_project 失败：${stderr || truncateText(stdout, 10000) || errorMessage || 'command execution failed'}`
                 }
               ]
             }
           }
-        }
-
-        const outputSections = [
-          `命令执行完成\ncmd: ${cmd}${resolvedCmd !== cmd ? `\nresolved_cmd: ${resolvedCmd}` : ''}\ncwd: ${rootDir}`
-        ]
-        if (commandHint) {
-          outputSections.push(commandHint.trimStart())
-        }
-        if (stdout) {
-          outputSections.push(`stdout:\n${stdout}`)
-        }
-        if (stderr) {
-          outputSections.push(`stderr:\n${stderr}`)
         }
 
         return {
@@ -540,7 +680,14 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
             content: [
               {
                 type: 'text',
-                text: outputSections.join('\n\n')
+                text: formatSearchOutput({
+                  cmd,
+                  resolvedCmd,
+                  cwd: rootDir,
+                  stdout,
+                  stderr,
+                  commandHint
+                })
               }
             ]
           }
@@ -603,7 +750,7 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           content: [
             {
               type: 'stdout',
-              text: `终端ID: ${tabId}\n后续如果要在同一终端继续执行命令，请复用这个终端ID。\n${result!.output}`
+              text: `终端ID: ${tabId}\n后续如果要在同一终端继续执行命令，请复用这个终端ID。\n${truncateText(String(result?.output || ''), TOOL_OUTPUT_CHAR_LIMIT)}`
             }
           ]
         }

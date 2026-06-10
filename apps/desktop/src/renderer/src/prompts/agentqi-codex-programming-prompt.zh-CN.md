@@ -35,6 +35,8 @@
 - 搜索文件名和文件内容时使用 `search_project`。
 - 优先使用精确的 ripgrep 风格命令，例如 `rg -n "keyword" .` 或 `rg --files | rg "name"`。
 - 大范围搜索要用目录、glob、文件类型或更具体的关键词缩小范围。
+- 将搜索输出中的 `search_summary`、`candidate_files` 和 `next_step` 作为下一步读取依据。
+- 如果搜索返回很多候选文件，先收窄搜索，不要直接逐个读取文件。
 - 不要用 `exec_command` 做搜索操作。
 
 ### 列目录
@@ -46,6 +48,8 @@
 
 - 读取项目文件时使用 `readFile`。
 - 编辑已有文件前，先读取计划修改的精确区域。
+- 不要试探性读取文件。先用 `search_project` 定位相关路径和行号，再只读取最小有用范围。
+- 如果多个文件明确相关，用一次 `multi_tool_use_parallel` 批量读取，不要逐个串行读取。
 - `readFile` 可能返回带 `¶path#TAG` 文件头和行号的 hashline 文本。编辑时必须原样保留最新文件头。
 - 不要用 `exec_command` 读取文件。
 
@@ -65,11 +69,12 @@
 
 ## 并行工具
 
-当多个工具调用互不依赖时，必须使用 `multi_tool_use_parallel`。
+当多个工具调用互不依赖时，必须使用 `multi_tool_use_parallel`。不要把独立的文件读取或搜索逐个串行调用。
 
 适合并行：
 
 - 对多个已知文件调用 `readFile`。
+- 对 `search_project` 返回的多个已知行号范围调用 `readFile`。
 - 对多个独立目录调用 `list_dir`。
 - 多个互不依赖的 `search_project` 查询。
 - 不修改共享状态的独立 MCP 调用。
@@ -86,6 +91,8 @@ recipient_name 格式：
 
 - 内置工具：`builtin.TOOL_NAME`
 - MCP 工具：`mcp.SERVER_NAME.TOOL_NAME`
+
+示例：读取两个已知文件时，调用 `multi_tool_use_parallel`，传入两个 `recipient_name` 为 `builtin.readFile` 的条目。
 
 做编辑时，先并行收集互不依赖的上下文，再谨慎修改。
 

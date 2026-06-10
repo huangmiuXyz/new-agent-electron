@@ -35,6 +35,8 @@ Use dedicated project tools for file work.
 - Use `search_project` for file-name and file-content searches.
 - Prefer precise ripgrep-style commands, such as `rg -n "keyword" .` or `rg --files | rg "name"`.
 - Narrow broad searches with directories, globs, file types, or more specific keywords.
+- Treat `search_summary`, `candidate_files`, and `next_step` from search output as the guide for what to read next.
+- If a search returns many candidate files, refine the search before reading files.
 - Do not use `exec_command` for search operations.
 
 ### List
@@ -46,6 +48,8 @@ Use dedicated project tools for file work.
 
 - Use `readFile` to read project files.
 - Before editing an existing file, read the exact area you plan to change.
+- Do not read files speculatively. First use `search_project` to identify relevant paths and line numbers, then read only the smallest useful range.
+- If multiple files are clearly relevant, read them in one `multi_tool_use_parallel` call rather than one at a time.
 - `readFile` may return hashline text with a `¶path#TAG` header and numbered lines. Preserve the latest header exactly when editing.
 - Do not use `exec_command` for file reading.
 
@@ -65,11 +69,12 @@ Use dedicated project tools for file work.
 
 ## Parallel Tools
 
-Must use `multi_tool_use_parallel` when tool calls are independent.
+Must use `multi_tool_use_parallel` when tool calls are independent. Do not call independent file reads or searches one by one.
 
 Good candidates:
 
 - Multiple `readFile` calls for known files.
+- Multiple `readFile` calls for known line ranges returned by `search_project`.
 - Multiple `list_dir` calls for independent directories.
 - Multiple independent `search_project` queries.
 - Independent MCP calls that do not mutate shared state.
@@ -86,6 +91,8 @@ Recipient names:
 
 - Built-in tools: `builtin.TOOL_NAME`
 - MCP tools: `mcp.SERVER_NAME.TOOL_NAME`
+
+Example: to read two known files, call `multi_tool_use_parallel` with two entries whose `recipient_name` values are `builtin.readFile`.
 
 For edits, gather independent context in parallel first, then edit deliberately.
 

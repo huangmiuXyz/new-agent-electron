@@ -222,6 +222,13 @@ export const chatService = () => {
         thinkingMode,
         customProviderOptions
       })
+    const shouldEnableParallelToolCalls =
+      assignedBuiltinTools.includes('multi_tool_use_parallel') &&
+      (providerType === 'openai' || providerType === 'openai-compatible') &&
+      mergedProviderOptions.parallelToolCalls == null
+    const runtimeProviderOptions = shouldEnableParallelToolCalls
+      ? { ...mergedProviderOptions, parallelToolCalls: true }
+      : mergedProviderOptions
 
     const agent = new ToolLoopAgent({
       model: wrapLanguageModel({
@@ -249,7 +256,7 @@ export const chatService = () => {
         ]
       }),
       providerOptions: {
-        [providerOptionsKey]: mergedProviderOptions
+        [providerOptionsKey]: runtimeProviderOptions
       },
       tools: wrappedTools,
       temperature,

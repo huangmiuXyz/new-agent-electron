@@ -182,8 +182,11 @@ export const getGeneralBuiltinTools = (): Partial<Tools> => ({
   },
   'multi_tool_use_parallel': {
     title: '批量并行工具调用',
-    description:
+    description: [
       '用于批量并行调用多个工具。只允许调用当前智能体已启用的内置工具或 MCP 工具。',
+      '当需要读取多个已知文件、小范围行号，或执行多个独立 search_project 查询时必须优先使用它，避免串行逐个调用。',
+      '每个 tool_uses 条目都要写 recipient_name 和 parameters，例如 recipient_name="builtin.readFile"。'
+    ].join('\n'),
     inputSchema: z.object({
       tool_uses: z
         .array(parallelToolUseSchema)

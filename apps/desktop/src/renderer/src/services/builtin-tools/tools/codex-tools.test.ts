@@ -267,6 +267,37 @@ describe('search_project', () => {
 
       expect(text).toContain('cwd:')
     })
+
+    it('should summarize candidate files and line numbers', async () => {
+      mockExecFileCommand.mockResolvedValue(successResult(
+        [
+          'src/main.ts:10:const app = createApp()',
+          'src/main.ts:20:app.mount("#app")',
+          'src/utils.ts:5:export const helper = true'
+        ].join('\n')
+      ))
+
+      const tool = getSearchProjectTool()
+      const text = extractText(await tool.execute({ cmd: 'rg -n "app" src -g "*.ts"' }, defaultOptions))
+
+      expect(text).toContain('search_summary:')
+      expect(text).toContain('candidate_files:')
+      expect(text).toContain('src/main.ts (2 matches lines: 10, 20)')
+      expect(text).toContain('src/utils.ts (1 match lines: 5)')
+      expect(text).toContain('multi_tool_use_parallel')
+    })
+
+    it('should tell the model to refine broad searches before reading files', async () => {
+      const stdout = Array.from({ length: 13 }, (_, index) => `src/file${index}.ts:1:match`).join('\n')
+      mockExecFileCommand.mockResolvedValue(successResult(stdout))
+
+      const tool = getSearchProjectTool()
+      const text = extractText(await tool.execute({ cmd: 'rg -n "match" src' }, defaultOptions))
+
+      expect(text).toContain('Search matched 13 files')
+      expect(text).toContain('Refine with a narrower path')
+      expect(text).toContain('Do not read every candidate')
+    })
   })
 
   describe('no matches found (rg exit code 1, no stdout)', () => {
@@ -630,5 +661,18 @@ describe('exec_command', () => {
     })
     expect(text).toContain('终端ID: terminal-1')
     expect(text).toContain('terminal output')
+  })
+
+  it('should truncate very large terminal output', async () => {
+    mockCreateTab.mockResolvedValue({
+      id: 'terminal-1',
+      result: { output: 'x'.repeat(40000) }
+    })
+
+    const tool = getExecCommandTool()
+    const text = extractText(await tool.execute({ command: 'npm test' }, defaultOptions))
+
+    expect(text.length).toBeLessThan(31000)
+    expect(text).toContain('output truncated')
   })
 })
