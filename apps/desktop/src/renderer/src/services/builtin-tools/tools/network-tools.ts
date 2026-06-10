@@ -238,42 +238,6 @@ const topCounts = (counts: Map<string, number>, limit: number) =>
     .slice(0, limit)
     .map(([value, count]) => `${value} (${count})`)
 
-const summarizeCapture = (rawText: string) => {
-  const lines = cleanCaptureLines(rawText)
-  const protocols = new Map<string, number>()
-  const endpoints = new Map<string, number>()
-  const dnsQueries = new Map<string, number>()
-
-  for (const line of lines) {
-    const upper = line.toUpperCase()
-    if (upper.includes(' TCP ') || /^TCP[46]?\b/i.test(line)) incrementCount(protocols, 'TCP')
-    else if (upper.includes(' UDP ') || /^UDP[46]?\b/i.test(line)) incrementCount(protocols, 'UDP')
-    else if (upper.includes(' ICMP')) incrementCount(protocols, 'ICMP')
-    else if (upper.includes(' ARP')) incrementCount(protocols, 'ARP')
-    else if (upper.includes(' IP6 ')) incrementCount(protocols, 'IPv6')
-    else if (upper.includes(' IP ')) incrementCount(protocols, 'IPv4')
-    else incrementCount(protocols, '其他')
-
-    const endpointMatch = line.match(/\b(?:IP6?|IPv6)\s+([^ ]+)\s+>\s+([^:]+):/)
-    if (endpointMatch) {
-      incrementCount(endpoints, `${endpointMatch[1]} > ${endpointMatch[2]}`)
-    }
-
-    const dnsMatch = line.match(/\b(?:A|AAAA|HTTPS|SVCB|PTR|CNAME|MX|TXT)\?\s+([^\s]+)/)
-    if (dnsMatch) {
-      incrementCount(dnsQueries, dnsMatch[1].replace(/\.$/, ''))
-    }
-  }
-
-  return {
-    packetCount: lines.length,
-    protocols: topCounts(protocols, 8),
-    endpoints: topCounts(endpoints, 12),
-    dnsQueries: topCounts(dnsQueries, 12),
-    lines
-  }
-}
-
 export const getNetworkBuiltinTools = (): Partial<Tools> => ({
   fetch: {
     title: '网页抓取',
