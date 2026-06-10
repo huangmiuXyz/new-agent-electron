@@ -72,12 +72,10 @@ const buildMasterAgentSystemPrompt = (currentChat: Chat): string => {
   const currentAgent = agentStore.getAgentById(currentAgentId || '')
   const allowedSubAgents = currentAgent?.allowedSubAgents
 
-  let availableAgents = agentStore.allAgents
-    .filter((agent) => agent.id !== currentAgentId)
-    .map((agent) => ({
-      name: agent.name,
-      description: agent.description || '无'
-    }))
+  let availableAgents = agentStore.allAgents.map((agent) => ({
+    name: agent.name,
+    description: agent.description || '无'
+  }))
 
   // 如果配置了 allowedSubAgents，则只允许列表中的智能体
   if (allowedSubAgents && allowedSubAgents.length > 0) {
@@ -114,6 +112,7 @@ const buildMasterAgentSystemPrompt = (currentChat: Chat): string => {
     '【主智能体系统提示词】\n' +
     '你当前是主智能体，负责任务拆分、调度子智能体和汇总最终答复。\n' +
     '当任务可并行或专业性更强时，优先调用 delegate_to_sub_agent，并使用智能体名称来选择目标。\n' +
+    '如果子任务需要理解当前会话背景，可在调用 delegate_to_sub_agent 时设置 inheritContext=true；默认不继承主会话上下文。\n' +
     '子智能体完成后会主动调用 finish_sub_task 工具将结果返回当前会话，无需手动等待。\n' +
     '可用智能体列表：\n' +
     `${agentsText}\n` +

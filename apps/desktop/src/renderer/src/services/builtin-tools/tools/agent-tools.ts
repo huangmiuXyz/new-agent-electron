@@ -4,6 +4,56 @@ import { getBuiltinToolGroupEntries } from '../grouped-tools'
 import { getBuiltinTools } from '..'
 
 const MAX_RESOURCE_LINES = 40
+const MAX_INHERITED_CONTEXT_MESSAGES = 30
+const MAX_INHERITED_CONTEXT_CHARS = 12000
+
+const getTextFromMessage = (message: BaseMessage): string => {
+  return (
+    message.parts
+      ?.filter((part) => part.type === 'text')
+      .map((part) => part.text?.trim())
+      .filter(Boolean)
+      .join('\n') || ''
+  )
+}
+
+const getMessageRoleLabel = (role: BaseMessage['role']): string => {
+  if (role === 'user') return '用户'
+  if (role === 'assistant') return '主智能体'
+  if (role === 'system') return '系统'
+  return String(role)
+}
+
+const truncateText = (text: string, maxLength: number): string => {
+  if (text.length <= maxLength) return text
+  return `${text.slice(0, maxLength)}\n...[已截断 ${text.length - maxLength} 字符]`
+}
+
+const buildInheritedParentContext = (chat: Chat): string => {
+  const compressedContext = chat.compressedContext?.loading
+    ? ''
+    : chat.compressedContext?.content?.trim() || ''
+  const serializedMessages = chat.messages
+    .filter((message) => message.role !== 'system')
+    .slice(-MAX_INHERITED_CONTEXT_MESSAGES)
+    .map((message) => {
+      const text = getTextFromMessage(message)
+      if (!text) return ''
+      return `${getMessageRoleLabel(message.role)}: ${text}`
+    })
+    .filter(Boolean)
+    .join('\n\n')
+
+  const context = [
+    compressedContext ? `已压缩上下文:\n${compressedContext}` : '',
+    serializedMessages ? `近期对话:\n${serializedMessages}` : ''
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+    .trim()
+
+  return truncateText(context, MAX_INHERITED_CONTEXT_CHARS)
+}
 
 const formatResourceList = (
   lines: string[],
@@ -87,7 +137,7 @@ const buildAvailableAgentsReference = (): string => {
     const description = agent.description?.trim() || '无描述'
     return `- ${agent.name} | ${description}`
   })
-  return formatResourceList(lines, '当前没有其他可用智能体。')
+  return formatResourceList(lines, '当前没有可用智能体。')
 }
 
 const buildAgentCreatorDescription = (
@@ -262,6 +312,13 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
         task: z.string().describe('要分派给子智能体的任务内容'),
         agentName: z.string().optional().describe('子智能体名称，建议明确指定'),
         title: z.string().optional().describe('子会话标题'),
+        inheritContext: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe(
+            '是否继承主智能体会话上下文。开启后会把主会话的压缩上下文和近期文本对话作为参考上下文传给子智能体。'
+          ),
         switchToSubChat: z.boolean().optional().default(false).describe('是否切换到子会话')
       }),
       execute: async (args: unknown, options: { chatId: string }) => {
@@ -291,9 +348,7 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
         const allowedSubAgents = parentAgent?.allowedSubAgents
 
         const requestedAgentName = String(params.agentName || '').trim()
-        let availableAgents = agentStore.allAgents.filter(
-          (agent) => agent.id !== parentChat.agentId
-        )
+        let availableAgents = agentStore.allAgents
 
         // 如果配置了 allowedSubAgents，则只允许调用列表中的智能体
         if (allowedSubAgents && allowedSubAgents.length > 0) {
@@ -309,7 +364,7 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           const allowedList =
             allowedSubAgents && allowedSubAgents.length > 0
               ? `允许的子智能体: ${allowedSubAgents.join('、')}`
-              : '当前没有其他可用智能体'
+              : '当前没有可用智能体'
           return {
             toolResult: {
               content: [
@@ -332,9 +387,16 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
 
         const parentAgentName =
           agentStore.getAgentById(parentChat.agentId || '')?.name || parentChat.title
+        const inheritedContext = params.inheritContext
+          ? buildInheritedParentContext(parentChat)
+          : ''
+        const inheritedContextSection = inheritedContext
+          ? `主会话参考上下文（仅供理解任务背景，仍以本次任务内容为准）:\n${inheritedContext}\n\n`
+          : ''
         const childPrompt =
           `你是子智能体，正在执行主智能体分配的任务。\n` +
           `主智能体: ${parentAgentName}\n\n` +
+          inheritedContextSection +
           `任务内容:\n${task}\n\n` +
           `要求：\n` +
           `1. 直接完成任务。\n` +
@@ -374,6 +436,7 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
                   `子智能体任务已创建并开始异步执行。\n` +
                   `- 子智能体: ${targetAgent.name}\n` +
                   `- 子任务: ${params.title || `${targetAgent.name} · 子任务`}\n` +
+                  `- 继承主会话上下文: ${params.inheritContext ? '是' : '否'}\n` +
                   `说明：任务执行不会阻塞当前主智能体，子智能体完成后会通过 finish_sub_task 工具主动返回结果。`
               }
             ]
@@ -627,7 +690,7 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           .optional()
           .describe(
             [
-              '允许该智能体调用的子智能体名称列表。留空表示允许调用所有智能体（除自身外）。',
+              '允许该智能体调用的子智能体名称列表。留空表示允许调用所有智能体。',
               '可选值请严格从下列列表中选择：',
               buildAvailableAgentsReference()
             ].join('\n')
@@ -807,7 +870,7 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
                     `- 技能: ${selectedEnabledSkills && selectedEnabledSkills.length > 0 ? selectedEnabledSkills.join(', ') : '默认全部启用'}\n` +
                     `- 技能目录: ${typeof skillDirectory === 'string' && skillDirectory.trim() ? skillDirectory.trim() : '默认'}\n` +
                     `- 图标: ${icon || '默认'}\n` +
-                    `- 允许调用的子智能体: ${selectedAllowedSubAgents.length > 0 ? selectedAllowedSubAgents.join(', ') : '所有智能体（除自身外）'}\n` +
+                    `- 允许调用的子智能体: ${selectedAllowedSubAgents.length > 0 ? selectedAllowedSubAgents.join(', ') : '所有智能体'}\n` +
                     `- ID: ${agentId}\n`
                 }
               ]

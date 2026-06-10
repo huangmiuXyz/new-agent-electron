@@ -122,15 +122,13 @@ export const useAgent = () => {
     })
   }
 
-  const getAvailableSubAgentOptions = (currentAgentId?: string) => {
+  const getAvailableSubAgentOptions = () => {
     const allAgents = agentStore.agents || []
-    return allAgents
-      .filter((agent) => agent.id !== currentAgentId)
-      .map((agent) => ({
-        label: agent.name,
-        value: agent.name,
-        description: agent.description || '无描述'
-      }))
+    return allAgents.map((agent) => ({
+      label: agent.name,
+      value: agent.name,
+      description: agent.description || '无描述'
+    }))
   }
 
   const getSpeechVoiceOptions = () => {
@@ -694,8 +692,8 @@ export const useAgent = () => {
             name: 'allowedSubAgents',
             type: 'checkboxGroup',
             label: '允许调用的子智能体',
-            options: getAvailableSubAgentOptions(agent?.id),
-            hint: '留空表示允许调用所有智能体（除自身外）。选中后，delegate_to_sub_agent 只能分派任务给所选子智能体。',
+            options: getAvailableSubAgentOptions(),
+            hint: '留空表示允许调用所有智能体。选中后，delegate_to_sub_agent 只能分派任务给所选子智能体。',
             ifShow: () => isDelegateToSubAgent
           } as CheckboxGroupField<{
             requireApproval: boolean
