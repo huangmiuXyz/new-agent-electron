@@ -215,29 +215,6 @@ const buildResultText = async (args: unknown) => {
   return results.map((result, index) => `## Result ${index + 1}\n\n${result}`).join('\n\n---\n\n')
 }
 
-const cleanCaptureLines = (text: string) =>
-  text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(
-      (line) =>
-        line &&
-        !/^time,,interface,state,/i.test(line) &&
-        !/^listening on /i.test(line) &&
-        !/^tcpdump: verbose output suppressed/i.test(line) &&
-        !/packets (captured|received|dropped)/i.test(line)
-    )
-
-const incrementCount = (counts: Map<string, number>, key: string) => {
-  counts.set(key, (counts.get(key) || 0) + 1)
-}
-
-const topCounts = (counts: Map<string, number>, limit: number) =>
-  Array.from(counts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([value, count]) => `${value} (${count})`)
-
 export const getNetworkBuiltinTools = (): Partial<Tools> => ({
   fetch: {
     title: '网页抓取',
