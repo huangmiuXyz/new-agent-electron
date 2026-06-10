@@ -380,9 +380,13 @@ export const useChat = (chatId: string) => {
     },
     approval: (part: ToolUIPart, approved: boolean) => {
       const chat = createChat(getVisibleMessages(), { isApproval: true })
+      const toolName = part.type.startsWith('tool-') ? part.type.slice('tool-'.length) : part.type
       chat.addToolApprovalResponse({
         id: part.approval!.id!,
-        approved
+        approved,
+        reason: approved
+          ? undefined
+          : `用户手动拒绝执行工具 ${toolName}。请向用户提问为何拒绝，并根据用户的回答调整后续的工具调用。`
       })
     }
   }
