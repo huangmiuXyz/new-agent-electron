@@ -233,10 +233,10 @@ const updateAccountUsageCache = (
   accounts: config.accounts.map((account) =>
     account.id === accountId
       ? {
-          ...account,
-          usage,
-          usageError
-        }
+        ...account,
+        usage,
+        usageError
+      }
       : account
   )
 })
@@ -622,12 +622,7 @@ const syncProvider = async (context: PluginContext, form: unknown) => {
   })
 }
 
-const codexChatCallOptionsSchema = z.object({
-  reasoningEffort: z
-    .enum(['low', 'medium', 'high', 'xhigh'])
-    .optional()
-    .describe('Reasoning effort for this request')
-})
+const codexChatCallOptionsSchema = z.object({})
 
 const plugin: Plugin = {
   name: PLUGIN_NAME,
@@ -788,10 +783,10 @@ const plugin: Plugin = {
         accounts: current.accounts.map((account) =>
           account.id === activeAccount.id
             ? {
-                ...account,
-                authPath,
-                lastRefresh: new Date().toISOString()
-              }
+              ...account,
+              authPath,
+              lastRefresh: new Date().toISOString()
+            }
             : account
         )
       })
@@ -1127,10 +1122,10 @@ const plugin: Plugin = {
           ]),
           usageError
             ? context.vue.h(
-                'div',
-                { class: 'codex-settings-usage-error', title: usageError },
-                usageError
-              )
+              'div',
+              { class: 'codex-settings-usage-error', title: usageError },
+              usageError
+            )
             : null
         ]
       )
@@ -1322,177 +1317,177 @@ const plugin: Plugin = {
           ]),
           config.accounts.length
             ? context.vue.h(
-                'div',
-                { class: 'codex-settings-account-list' },
-                config.accounts.map((account) => {
-                  const display = deriveUsageDisplay({
-                    usage: account.usage,
-                    usageError: account.usageError
-                  })
-                  const label = getAccountLabel(account)
-                  const isActive = account.id === config.activeAccountId
-                  const usedFiveHour = clampPercent(account.usage?.fiveHour?.usedPercent) ?? 0
-                  const usedOneWeek = clampPercent(account.usage?.oneWeek?.usedPercent) ?? 0
-                  return context.vue.h(
-                    'div',
-                    {
-                      class: ['codex-settings-account-item', isActive ? 'active' : '']
-                    },
-                    [
-                      context.vue.h('div', { class: 'codex-settings-account-item-head' }, [
-                        context.vue.h('div', { class: 'codex-settings-account-item-head-main' }, [
-                          context.vue.h(
-                            'span',
-                            {
-                              class: 'codex-settings-account-item-left',
-                              title: label
-                            },
-                            label
-                          ),
-                          isActive
-                            ? context.vue.h('span', { class: 'codex-settings-account-item-chip' }, '当前')
-                            : null
-                        ]),
-                        context.vue.h('div', { class: 'codex-settings-account-item-actions' }, [
-                          context.vue.h(
-                            'button',
-                            {
-                              type: 'button',
-                              class: 'codex-settings-account-icon-btn',
-                              title: isActive ? '当前账号' : '切换到此账号',
-                              disabled: Boolean(busyMessage) || isActive,
-                              onClick: (event: Event) => {
-                                event.stopPropagation()
-                                doSwitchAccount(account.id).catch((error) => {
-                                  context.notification.error(
-                                    error instanceof Error ? error.message : String(error),
-                                    'Codex 代理'
-                                  )
-                                })
-                              }
-                            },
-                            CheckIcon
-                          ),
-                          context.vue.h(
-                            'button',
-                            {
-                              type: 'button',
-                              class: 'codex-settings-account-icon-btn',
-                              title: '写回 auth.json',
-                              disabled: Boolean(busyMessage),
-                              onClick: (event: Event) => {
-                                event.stopPropagation()
-                                doWriteBackAuth(account.id).catch((error) => {
-                                  context.notification.error(
-                                    error instanceof Error ? error.message : String(error),
-                                    'Codex 代理'
-                                  )
-                                })
-                              }
-                            },
-                            FileIcon
-                          ),
-                          context.vue.h(
-                            'button',
-                            {
-                              type: 'button',
-                              class: 'codex-settings-account-icon-btn',
-                              title: '移除此账号',
-                              disabled: Boolean(busyMessage),
-                              onClick: (event: Event) => {
-                                event.stopPropagation()
-                                doRemoveCurrentAccount(account.id).catch((error) => {
-                                  context.notification.error(
-                                    error instanceof Error ? error.message : String(error),
-                                    'Codex 代理'
-                                  )
-                                })
-                              }
-                            },
-                            TrashIcon
-                          )
-                        ])
-                      ]),
-                      context.vue.h('div', { class: 'codex-settings-account-item-meta' }, [
+              'div',
+              { class: 'codex-settings-account-list' },
+              config.accounts.map((account) => {
+                const display = deriveUsageDisplay({
+                  usage: account.usage,
+                  usageError: account.usageError
+                })
+                const label = getAccountLabel(account)
+                const isActive = account.id === config.activeAccountId
+                const usedFiveHour = clampPercent(account.usage?.fiveHour?.usedPercent) ?? 0
+                const usedOneWeek = clampPercent(account.usage?.oneWeek?.usedPercent) ?? 0
+                return context.vue.h(
+                  'div',
+                  {
+                    class: ['codex-settings-account-item', isActive ? 'active' : '']
+                  },
+                  [
+                    context.vue.h('div', { class: 'codex-settings-account-item-head' }, [
+                      context.vue.h('div', { class: 'codex-settings-account-item-head-main' }, [
                         context.vue.h(
                           'span',
-                          { class: 'codex-settings-account-item-left' },
-                          `${account.planType || '--'} / ${account.authMode || '--'}`
+                          {
+                            class: 'codex-settings-account-item-left',
+                            title: label
+                          },
+                          label
+                        ),
+                        isActive
+                          ? context.vue.h('span', { class: 'codex-settings-account-item-chip' }, '当前')
+                          : null
+                      ]),
+                      context.vue.h('div', { class: 'codex-settings-account-item-actions' }, [
+                        context.vue.h(
+                          'button',
+                          {
+                            type: 'button',
+                            class: 'codex-settings-account-icon-btn',
+                            title: isActive ? '当前账号' : '切换到此账号',
+                            disabled: Boolean(busyMessage) || isActive,
+                            onClick: (event: Event) => {
+                              event.stopPropagation()
+                              doSwitchAccount(account.id).catch((error) => {
+                                context.notification.error(
+                                  error instanceof Error ? error.message : String(error),
+                                  'Codex 代理'
+                                )
+                              })
+                            }
+                          },
+                          CheckIcon
                         ),
                         context.vue.h(
-                          'span',
-                          { class: 'codex-settings-account-item-right' },
-                          formatTimestampText(account.lastRefresh)
+                          'button',
+                          {
+                            type: 'button',
+                            class: 'codex-settings-account-icon-btn',
+                            title: '写回 auth.json',
+                            disabled: Boolean(busyMessage),
+                            onClick: (event: Event) => {
+                              event.stopPropagation()
+                              doWriteBackAuth(account.id).catch((error) => {
+                                context.notification.error(
+                                  error instanceof Error ? error.message : String(error),
+                                  'Codex 代理'
+                                )
+                              })
+                            }
+                          },
+                          FileIcon
+                        ),
+                        context.vue.h(
+                          'button',
+                          {
+                            type: 'button',
+                            class: 'codex-settings-account-icon-btn',
+                            title: '移除此账号',
+                            disabled: Boolean(busyMessage),
+                            onClick: (event: Event) => {
+                              event.stopPropagation()
+                              doRemoveCurrentAccount(account.id).catch((error) => {
+                                context.notification.error(
+                                  error instanceof Error ? error.message : String(error),
+                                  'Codex 代理'
+                                )
+                              })
+                            }
+                          },
+                          TrashIcon
                         )
-                      ]),
+                      ])
+                    ]),
+                    context.vue.h('div', { class: 'codex-settings-account-item-meta' }, [
+                      context.vue.h(
+                        'span',
+                        { class: 'codex-settings-account-item-left' },
+                        `${account.planType || '--'} / ${account.authMode || '--'}`
+                      ),
+                      context.vue.h(
+                        'span',
+                        { class: 'codex-settings-account-item-right' },
+                        formatTimestampText(account.lastRefresh)
+                      )
+                    ]),
+                    context.vue.h('div', { class: 'codex-settings-account-item-usage' }, [
+                      context.vue.h(
+                        'span',
+                        { class: 'codex-settings-account-item-left' },
+                        `Credits ${display.creditsDisplay}`
+                      ),
+                      context.vue.h(
+                        'span',
+                        { class: 'codex-settings-account-item-right' },
+                        display.usageUpdatedDisplay
+                      )
+                    ]),
+                    context.vue.h('div', { class: 'codex-settings-account-item-quota' }, [
                       context.vue.h('div', { class: 'codex-settings-account-item-usage' }, [
                         context.vue.h(
                           'span',
                           { class: 'codex-settings-account-item-left' },
-                          `Credits ${display.creditsDisplay}`
+                          `5h ${display.fiveHourDisplay}`
                         ),
                         context.vue.h(
                           'span',
                           { class: 'codex-settings-account-item-right' },
-                          display.usageUpdatedDisplay
+                          display.fiveHourResetDisplay
                         )
                       ]),
-                      context.vue.h('div', { class: 'codex-settings-account-item-quota' }, [
-                        context.vue.h('div', { class: 'codex-settings-account-item-usage' }, [
-                          context.vue.h(
-                            'span',
-                            { class: 'codex-settings-account-item-left' },
-                            `5h ${display.fiveHourDisplay}`
-                          ),
-                          context.vue.h(
-                            'span',
-                            { class: 'codex-settings-account-item-right' },
-                            display.fiveHourResetDisplay
-                          )
-                        ]),
+                      context.vue.h(
+                        'div',
+                        { class: 'codex-settings-account-item-progress', 'aria-hidden': 'true' },
+                        [
+                          context.vue.h('div', {
+                            class: 'codex-settings-account-item-progress-bar',
+                            style: {
+                              width: `${Math.max(0, 100 - usedFiveHour)}%`,
+                              marginLeft: `${usedFiveHour}%`
+                            }
+                          })
+                        ]
+                      ),
+                      context.vue.h('div', { class: 'codex-settings-account-item-usage' }, [
                         context.vue.h(
-                          'div',
-                          { class: 'codex-settings-account-item-progress', 'aria-hidden': 'true' },
-                          [
-                            context.vue.h('div', {
-                              class: 'codex-settings-account-item-progress-bar',
-                              style: {
-                                width: `${Math.max(0, 100 - usedFiveHour)}%`,
-                                marginLeft: `${usedFiveHour}%`
-                              }
-                            })
-                          ]
+                          'span',
+                          { class: 'codex-settings-account-item-left' },
+                          `1w ${display.oneWeekDisplay}`
                         ),
-                        context.vue.h('div', { class: 'codex-settings-account-item-usage' }, [
-                          context.vue.h(
-                            'span',
-                            { class: 'codex-settings-account-item-left' },
-                            `1w ${display.oneWeekDisplay}`
-                          ),
-                          context.vue.h(
-                            'span',
-                            { class: 'codex-settings-account-item-right' },
-                            display.oneWeekResetDisplay
-                          )
-                        ]),
                         context.vue.h(
-                          'div',
-                          { class: 'codex-settings-account-item-progress', 'aria-hidden': 'true' },
-                          [
-                            context.vue.h('div', {
-                              class: 'codex-settings-account-item-progress-bar',
-                              style: {
-                                width: `${Math.max(0, 100 - usedOneWeek)}%`,
-                                marginLeft: `${usedOneWeek}%`
-                              }
-                            })
-                          ]
+                          'span',
+                          { class: 'codex-settings-account-item-right' },
+                          display.oneWeekResetDisplay
                         )
-                      ])
-                    ]
-                  )
-                })
-              )
+                      ]),
+                      context.vue.h(
+                        'div',
+                        { class: 'codex-settings-account-item-progress', 'aria-hidden': 'true' },
+                        [
+                          context.vue.h('div', {
+                            class: 'codex-settings-account-item-progress-bar',
+                            style: {
+                              width: `${Math.max(0, 100 - usedOneWeek)}%`,
+                              marginLeft: `${usedOneWeek}%`
+                            }
+                          })
+                        ]
+                      )
+                    ])
+                  ]
+                )
+              })
+            )
             : context.vue.h('div', { class: 'codex-settings-account-empty' }, '暂无已保存账号')
         ]
       )
@@ -1538,80 +1533,80 @@ const plugin: Plugin = {
         }
       })
 
-      ;(context.notification.status as unknown as (
-        id: string,
-        text: string,
-        options?: Record<string, unknown>
-      ) => void)(SERVICE_STATUS_ID, '', {
-        render: statusRender,
-        tooltip,
-        color: '#fff'
-      })
+        ; (context.notification.status as unknown as (
+          id: string,
+          text: string,
+          options?: Record<string, unknown>
+        ) => void)(SERVICE_STATUS_ID, '', {
+          render: statusRender,
+          tooltip,
+          color: '#fff'
+        })
       isStatusRegistered = true
     }
 
-    ;[FormComp, formActions] = context.useForm<CodexProxyPluginConfig>({
-      title: 'Codex 代理',
-      showHeader: false,
-      fields: [
-        {
-          name: 'activeAccountId',
-          type: 'select',
-          label: '当前账号',
-          options: getAccountOptions(initialConfig),
-          placeholder: '请先保存当前登录',
-          clearable: false,
-          ifShow: false
-        },
-        {
-          name: 'accountActions',
-          type: 'custom',
-          label: '账号操作',
-          render: () => renderAccountActions(),
-          ifShow: false
-        },
-        {
-          name: 'usageSummary',
-          type: 'custom',
-          label: '额度 / 用量',
-          render: () => renderUsageSummary(),
-          ifShow: false
-        },
-        {
-          name: 'accountsOverview',
-          type: 'custom',
-          label: '全部账号',
-          render: () => renderAccountsOverview()
-        }
-      ],
-      initialData: initialConfig,
-      onChange: async (field, value, data) => {
-        if (isProgrammaticFormUpdate) return
-        if (isBridgeBusy()) {
+      ;[FormComp, formActions] = context.useForm<CodexProxyPluginConfig>({
+        title: 'Codex 代理',
+        showHeader: false,
+        fields: [
+          {
+            name: 'activeAccountId',
+            type: 'select',
+            label: '当前账号',
+            options: getAccountOptions(initialConfig),
+            placeholder: '请先保存当前登录',
+            clearable: false,
+            ifShow: false
+          },
+          {
+            name: 'accountActions',
+            type: 'custom',
+            label: '账号操作',
+            render: () => renderAccountActions(),
+            ifShow: false
+          },
+          {
+            name: 'usageSummary',
+            type: 'custom',
+            label: '额度 / 用量',
+            render: () => renderUsageSummary(),
+            ifShow: false
+          },
+          {
+            name: 'accountsOverview',
+            type: 'custom',
+            label: '全部账号',
+            render: () => renderAccountsOverview()
+          }
+        ],
+        initialData: initialConfig,
+        onChange: async (field, value, data) => {
+          if (isProgrammaticFormUpdate) return
+          if (isBridgeBusy()) {
+            syncFormActions(runtimeConfig)
+            return
+          }
+          if (field === 'activeAccountId') {
+            syncFormActions(runtimeConfig)
+            await doSwitchAccount(String(value || ''))
+            return
+          }
+          const previous = runtimeConfig
+          runtimeConfig = buildRuntimeConfig(context, {
+            ...runtimeConfig,
+            ...data
+          })
+          await saveConfig(context, runtimeConfig)
           syncFormActions(runtimeConfig)
-          return
+          if (runtimeConfig.accessToken) {
+            await startBridge(context, runtimeConfig).catch(() => undefined)
+          } else if (previous.accessToken) {
+            await stopBridge(previous)
+          }
+          await syncProvider(context, FormComp)
+          updateStatusIndicator()
         }
-        if (field === 'activeAccountId') {
-          syncFormActions(runtimeConfig)
-          await doSwitchAccount(String(value || ''))
-          return
-        }
-        const previous = runtimeConfig
-        runtimeConfig = buildRuntimeConfig(context, {
-          ...runtimeConfig,
-          ...data
-        })
-        await saveConfig(context, runtimeConfig)
-        syncFormActions(runtimeConfig)
-        if (runtimeConfig.accessToken) {
-          await startBridge(context, runtimeConfig).catch(() => undefined)
-        } else if (previous.accessToken) {
-          await stopBridge(previous)
-        }
-        await syncProvider(context, FormComp)
-        updateStatusIndicator()
-      }
-    })
+      })
 
     context.registerRegistry(REGISTRY_ID, () => {
       const provider = createOpenAICompatible({
