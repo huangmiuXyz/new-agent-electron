@@ -34,13 +34,6 @@ const defaultModelFields: FormField<any>[] = [
             popupPosition: 'bottom',
             modelCategory: 'speech',
         } as FormField<any>,
-        {
-            name: 'ttsModel',
-            type: 'modelSelector',
-            label: '文字转语音模型',
-            popupPosition: 'bottom',
-            modelCategory: 'tts',
-        } as FormField<any>
     ] : [])
 ]
 
@@ -64,11 +57,7 @@ const [DefaultModelsForm] = useForm({
         speechModel: {
             modelId: defaultModels.value.speechModelId,
             providerId: defaultModels.value.speechProviderId
-        },
-        ttsModel: {
-            modelId: defaultModels.value.ttsModelId,
-            providerId: defaultModels.value.ttsProviderId
-        },
+        }
     },
     onChange: (_field, _value, data) => {
         updateDefaultModels({
@@ -80,8 +69,6 @@ const [DefaultModelsForm] = useForm({
             searchProviderId: data.searchModel?.providerId || '',
             speechModelId: data.speechModel?.modelId || '',
             speechProviderId: data.speechModel?.providerId || '',
-            ttsModelId: data.ttsModel?.modelId || '',
-            ttsProviderId: data.ttsModel?.providerId || '',
         })
     }
 })

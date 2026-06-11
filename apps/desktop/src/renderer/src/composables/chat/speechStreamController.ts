@@ -75,20 +75,17 @@ export const createSpeechStreamController = ({
 
     const runtimeAgent = getChatAgent()
     const voice = runtimeAgent?.speechVoice
-    if (!voice) return null
-
-    const { getModelByVoice } = useSettingsStore()
-    const modelInfo = getModelByVoice(voice)
-    if (!modelInfo) return null
+    const speechModel = runtimeAgent?.speechModel
+    if (!voice || !speechModel?.modelId || !speechModel?.providerId) return null
 
     const rawOptions = runtimeAgent?.speechProviderOptions
-    const providerOptions = rawOptions?.[modelInfo.providerId] ?? rawOptions
+    const providerOptions = rawOptions?.[speechModel.providerId] ?? rawOptions
 
     streamingSpeechSessionPromise = tts
       .createTextStream({
         messageId: message.id,
-        modelId: modelInfo.modelId,
-        providerId: modelInfo.providerId,
+        modelId: speechModel.modelId,
+        providerId: speechModel.providerId,
         voice,
         speed: runtimeAgent?.speechSpeed,
         language: runtimeAgent?.speechLanguage,
@@ -123,15 +120,14 @@ export const createSpeechStreamController = ({
     if (!text.trim() || !speechEnabled.value) return
 
     const runtimeAgent = getChatAgent()
-    const voice = runtimeAgent?.speechVoice!
+    const voice = runtimeAgent?.speechVoice
     const speed = runtimeAgent?.speechSpeed
     const language = runtimeAgent?.speechLanguage
-    const { getModelByVoice } = useSettingsStore()
-    const modelInfo = getModelByVoice(voice)
+    const speechModel = runtimeAgent?.speechModel
 
-    if (!modelInfo) return
+    if (!voice || !speechModel?.modelId || !speechModel?.providerId) return
 
-    const { modelId: targetModelId, providerId: targetProviderId } = modelInfo
+    const { modelId: targetModelId, providerId: targetProviderId } = speechModel
     const rawOptions = runtimeAgent?.speechProviderOptions
     const providerOptions = rawOptions?.[targetProviderId] ?? rawOptions
 

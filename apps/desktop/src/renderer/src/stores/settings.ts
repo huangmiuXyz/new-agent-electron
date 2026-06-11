@@ -216,8 +216,6 @@ export const useSettingsStore = defineStore(
       searchProviderId: '',
       speechModelId: '',
       speechProviderId: '',
-      ttsModelId: '',
-      ttsProviderId: '',
     })
 
     const thinkingMode = ref<string | null>(null)
@@ -638,24 +636,6 @@ export const useSettingsStore = defineStore(
       return { model: provider?.models.find((m) => m.id === mid)!, provider }
     }
 
-    const getModelByVoice = (voice: string) => {
-      const { ttsModelId, ttsProviderId } = defaultModels.value
-      const modelIds = Array.isArray(ttsModelId) ? ttsModelId : [ttsModelId]
-      const providerIds = Array.isArray(ttsProviderId) ? ttsProviderId : [ttsProviderId]
-
-      for (let i = 0; i < modelIds.length; i++) {
-        const mId = modelIds[i]
-        const pId = providerIds[i]
-        const provider = getProviderById(pId)
-        const model = provider?.models?.find((m) => m.id === mId)
-        if (model?.voices?.some((v) => v.id === voice)) {
-          return { modelId: mId, providerId: pId }
-        }
-      }
-      return null
-    }
-
-
     const getTitleGenerationModel = computed(() => {
       const provider = getAllProviders.value.find(
         (p) => p.id === defaultModels.value.titleGenerationProviderId
@@ -771,7 +751,6 @@ export const useSettingsStore = defineStore(
       resetProviderBaseUrl,
       getAllProviders,
       registeredProviders,
-      getModelByVoice,
       createFavoriteModelKey,
       isFavoriteAgent,
       toggleFavoriteAgent,

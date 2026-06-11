@@ -357,25 +357,6 @@ onMounted(() => {
     )
     return
   }
-
-  if (settingsStore.defaultModels.ttsProviderId && settingsStore.defaultModels.ttsModelId) {
-    speechFormActions.setFieldsValue(normalizeFormData({
-      model: {
-        providerId: settingsStore.defaultModels.ttsProviderId,
-        modelId: settingsStore.defaultModels.ttsModelId
-      },
-      speed: 1,
-      language: 'auto'
-    } as any))
-    speechVoiceOptions.value = getSpeechVoiceOptions(
-      settingsStore.defaultModels.ttsProviderId,
-      settingsStore.defaultModels.ttsModelId
-    )
-    speechDynamicField.value = getSpeechDynamicFields(
-      settingsStore.defaultModels.ttsProviderId,
-      settingsStore.defaultModels.ttsModelId
-    )
-  }
 })
 
 defineExpose({

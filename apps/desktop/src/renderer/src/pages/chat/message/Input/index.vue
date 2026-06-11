@@ -997,14 +997,15 @@ const toggleSpeech = () => {
   const newState = !speechEnabled.value
 
   if (newState) {
-    if (!defaultModels.value.ttsModelId) {
-      messageApi.error('请先在设置中选择默认文字转语音模型')
+    const speechModel = currentChatAgent.value?.speechModel
+    if (!speechModel?.modelId || !speechModel?.providerId) {
+      messageApi.error('请先在智能体设置中选择语音模型')
       return
     }
 
     const voice = currentChatAgent.value?.speechVoice
     if (!voice) {
-      messageApi.error('请先在智能体设置或默认设置中选择语音音色')
+      messageApi.error('请先在智能体设置中选择语音音色')
       return
     }
   }

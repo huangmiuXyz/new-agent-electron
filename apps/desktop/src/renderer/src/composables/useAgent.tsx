@@ -131,28 +131,21 @@ export const useAgent = () => {
     }))
   }
 
-  const getSpeechVoiceOptions = () => {
-    const { ttsModelId, ttsProviderId } = settingsStore.defaultModels
-    const modelIds = Array.isArray(ttsModelId) ? ttsModelId : [ttsModelId]
-    const providerIds = Array.isArray(ttsProviderId) ? ttsProviderId : [ttsProviderId]
-
+  const getSpeechVoiceOptions = (speechModel?: AgentFormData['speechModel']) => {
     const options: { label: string; value: string }[] = []
+    const providerId = speechModel?.providerId
+    const modelId = speechModel?.modelId
 
-    modelIds.forEach((mId, index) => {
-      const pId = providerIds[index]
-      if (!mId || !pId) return
+    if (!providerId || !modelId) return options
 
-      const provider = settingsStore.getAllProviders.find((p) => p.id === pId)
-      if (!provider) return
+    const provider = settingsStore.getAllProviders.find((p) => p.id === providerId)
+    const model = provider?.models?.find((m) => m.id === modelId)
+    if (!model?.voices) return options
 
-      const model = provider.models?.find((m) => m.id === mId)
-      if (!model || !model.voices) return
-
-      model.voices.forEach((v) => {
-        options.push({
-          label: `${v.name} (${model.name})`,
-          value: v.id
-        })
+    model.voices.forEach((voice) => {
+      options.push({
+        label: voice.name,
+        value: voice.id
       })
     })
 
@@ -539,7 +532,7 @@ export const useAgent = () => {
         type: 'modelSelector',
         label: '语音模型',
         placeholder: '选择语音模型',
-        hint: '选择该智能体使用的语音模型。如果不设置，将使用全局默认语音模型。',
+        hint: '选择该智能体用于文字转语音的模型。',
         modelCategory: 'tts',
         popupPosition: 'bottom',
         clearable: true
@@ -548,7 +541,7 @@ export const useAgent = () => {
         name: 'speechVoice',
         type: 'select',
         label: '默认语音',
-        options: getSpeechVoiceOptions(),
+        options: getSpeechVoiceOptions(initialData.speechModel),
         placeholder: '请选择音色'
       } as SelectField<AgentFormData>,
       {
@@ -1347,6 +1340,16 @@ export const useAgent = () => {
           formActions.updateFieldProps('builtinTools', {
             options: getBuiltinToolOptions(selectedBuiltinTools, currentApprovalTools)
           })
+        }
+        if (field === 'speechModel') {
+          const speechVoiceOptions = getSpeechVoiceOptions(value as AgentFormData['speechModel'])
+          formActions.updateFieldProps('speechVoice', {
+            options: speechVoiceOptions
+          })
+          const currentVoice = formData.speechVoice
+          if (currentVoice && !speechVoiceOptions.some((option) => option.value === currentVoice)) {
+            formActions.setFieldValue('speechVoice', '')
+          }
         }
       },
       onSubmit: (data) => {

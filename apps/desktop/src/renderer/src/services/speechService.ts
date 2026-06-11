@@ -97,13 +97,6 @@ export const speechService = () => {
       }
     }
 
-    if (!modelId) {
-      modelId = settingsStore.defaultModels.ttsModelId
-    }
-    if (!providerId) {
-      providerId = settingsStore.defaultModels.ttsProviderId
-    }
-
     if (!modelId || !providerId) return null
 
     const provider = settingsStore.getProviderById(providerId)
