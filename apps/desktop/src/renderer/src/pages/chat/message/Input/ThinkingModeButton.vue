@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useSettingsStore } from '@renderer/stores/settings'
 
-type ThinkingDepth = 'low' | 'medium' | 'high' | 'max' | 'adaptive'
+type ThinkingDepth = 'low' | 'medium' | 'high' | 'max' | 'adaptive' | 'xhigh'
 
 const props = defineProps<{
   providerType?: string
