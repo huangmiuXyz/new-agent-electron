@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { FileUIPart, TextUIPart, ToolUIPart } from 'ai'
+import type { InputAudioItem } from '@renderer/composables/useInputAudioRecorder'
+import AudioInputPreview from '../Input/AudioInputPreview.vue'
 import '@incremark/theme/styles.css'
 const props = defineProps<{
   message: BaseMessage
@@ -104,6 +106,21 @@ const getBlockKey = (block: BaseMessage['parts'][number], idx: number) => {
   return blockId ? `${block.type}:${blockId}` : `${block.type}:${idx}`
 }
 
+const isAudioFilePart = (block: BaseMessage['parts'][number]): block is FileUIPart => {
+  return block.type === 'file' && Boolean(block.mediaType?.startsWith('audio/'))
+}
+
+const audioPartToPreviewItem = (block: FileUIPart, idx: number): InputAudioItem => ({
+  id: `${block.filename || 'audio'}-${idx}`,
+  filename: block.filename || `input-audio-${idx + 1}.wav`,
+  mediaType: block.mediaType === 'audio/mpeg' ? 'audio/mpeg' : 'audio/wav',
+  dataUrl: block.url,
+  blobUrl: '',
+  size: 0,
+  duration: 0,
+  createdAt: Date.now()
+})
+
 const displayParts = computed(() => props.parts ?? props.message.parts)
 </script>
 
@@ -122,8 +139,14 @@ const displayParts = computed(() => props.parts ?? props.message.parts)
           </div>
           <FileUpload
             :removable="false"
-            v-if="block.type === 'file'"
+            v-if="block.type === 'file' && !isAudioFilePart(block)"
             :files="[{ ...block, blobUrl: anyUrlToBlobUrl(block.url) }]"
+          />
+          <AudioInputPreview
+            v-if="isAudioFilePart(block)"
+            :audios="[audioPartToPreviewItem(block, idx)]"
+            :removable="false"
+            variant="message"
           />
           <ChatMessageItemReasoning_content
             v-if="block.type === 'reasoning'"

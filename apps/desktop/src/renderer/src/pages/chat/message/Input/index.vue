@@ -1,5 +1,7 @@
 <script setup lang="tsx">
 import { FileUIPart, TextUIPart } from 'ai'
+import AudioInputControls from './AudioInputControls.vue'
+import AudioInputPreview from './AudioInputPreview.vue'
 import AtPanel from './AtPanel.vue'
 import ThinkingModeButton from './ThinkingModeButton.vue'
 import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
@@ -10,6 +12,7 @@ import {
   estimateMessagesTokens,
   estimateTextTokens
 } from '@renderer/services/chatService/tokenUsage'
+import { useChatInputAudio } from './useChatInputAudio'
 import { z } from 'zod'
 
 const chatStore = useChatsStores()
@@ -346,6 +349,7 @@ const toggleCurrentChatToolFeatures = () => {
 
 // 图标
 const FileUploadIcon = useIcon('Folder')
+const InputAudioIcon = useIcon('FileMusic')
 const MicIcon = useIcon('Mic')
 const MicOffIcon = useIcon('MicOff')
 const VolumeIcon = useIcon('VolumeMedium')
@@ -520,10 +524,16 @@ const stopAllGeneratingInCurrentChat = () => {
 const getPendingMessagePreview = (parts: Array<FileUIPart | TextUIPart>): string => {
   const textParts = parts.filter((p): p is TextUIPart => p.type === 'text')
   const fileParts = parts.filter((p): p is FileUIPart => p.type === 'file')
+  const audioParts = fileParts.filter((p) => p.mediaType?.startsWith('audio/'))
+  const otherFileParts = fileParts.filter((p) => !p.mediaType?.startsWith('audio/'))
 
   let preview = textParts.map((p) => p.text).join(' ')
-  if (fileParts.length > 0) {
-    const fileText = fileParts.length === 1 ? '[文件]' : `[${fileParts.length}个文件]`
+  if (audioParts.length > 0) {
+    const audioText = audioParts.length === 1 ? '[音频]' : `[${audioParts.length}段音频]`
+    preview = preview ? `${preview} ${audioText}` : audioText
+  }
+  if (otherFileParts.length > 0) {
+    const fileText = otherFileParts.length === 1 ? '[文件]' : `[${otherFileParts.length}个文件]`
     preview = preview ? `${preview} ${fileText}` : fileText
   }
 
@@ -543,6 +553,7 @@ const partialSpeechText = ref('')
 const showMobileTools = ref(false)
 type MobileDragToolId =
   | 'upload'
+  | 'inputAudio'
   | 'voice'
   | 'thinking'
   | 'settings'
@@ -563,6 +574,7 @@ type MobileToolLayoutStorage = {
 }
 const mobileToolOrder: MobileDragToolId[] = [
   'upload',
+  'inputAudio',
   'voice',
   'thinking',
   'settings',
@@ -574,6 +586,7 @@ const mobileToolOrder: MobileDragToolId[] = [
 ]
 const mobileToolLabelMap: Record<MobileDragToolId, string> = {
   upload: '上传',
+  inputAudio: '音频',
   voice: '语音',
   thinking: '思考',
   settings: '参数',
@@ -584,7 +597,7 @@ const mobileToolLabelMap: Record<MobileDragToolId, string> = {
   stop: '停止'
 }
 const defaultMobileLayout: MobileToolLayoutStorage = {
-  topLeft: ['upload', 'voice'],
+  topLeft: ['upload', 'inputAudio', 'voice'],
   topRight: [],
   bottom: ['thinking', 'settings', 'speech', 'playlist', 'agent', 'model', 'stop']
 }
@@ -833,6 +846,7 @@ const onMobileGlobalPointerCancel = (event: PointerEvent) => {
 
 const runMobileToolAction = async (toolId: MobileDragToolId) => {
   if (toolId === 'upload') return fileUploadRef.value?.triggerUpload?.()
+  if (toolId === 'inputAudio') return toggleInputAudioPanel()
   if (toolId === 'voice') return toggleVoiceRecording()
   if (toolId === 'settings') return openProviderOptionsModal()
   if (toolId === 'speech') return toggleSpeech()
@@ -854,6 +868,61 @@ const handleMobileToolWrapperClickCapture = (event: MouseEvent) => {
   event.preventDefault()
   event.stopPropagation()
 }
+
+const ensureSendableChat = () => {
+  let chatId = chatStore.currentChat?.id
+  if (!chatId) {
+    chatId = chatStore.createChat()
+  }
+
+  chatStore.ensureChatAgent(chatId)
+
+  const currentChat = chatStore.getChatById(chatId)
+  const providerId = currentChat?.providerId
+  const modelId = currentChat?.modelId
+  const selectedModel =
+    providerId && modelId ? settingsStore.getModelById(providerId, modelId).model : null
+
+  if (!selectedModel) {
+    messageApi.error('请先选择模型')
+    return null
+  }
+
+  if (!chatStore.currentChat?.id && chatId) {
+    chatStore.setActiveChat(chatId)
+  }
+
+  return chatId
+}
+
+const sendMessageParts = (chatId: string, parts: Array<FileUIPart | TextUIPart>) => {
+  const { sendMessages } = useChat(chatId)
+
+  if (chatStore.isChatGenerating(chatId)) {
+    chatStore.addPendingMessage(chatId, parts)
+  } else {
+    sendMessages(parts)
+  }
+}
+
+const {
+  selectedAudioInputs,
+  showInputAudioControls,
+  inputAudioIsActive,
+  inputAudioLevel,
+  isManualInputAudioRecording,
+  isContinuousInputAudioActive,
+  buildAudioFileParts,
+  removeAudioInput,
+  clearAudioInputs,
+  toggleInputAudioPanel,
+  toggleManualInputAudio,
+  toggleContinuousInputAudio,
+  disposeInputAudio
+} = useChatInputAudio({
+  ensureSendableChat,
+  sendMessageParts
+})
 
 const {
   start: startVoice,
@@ -1625,7 +1694,7 @@ const AGENT_MENTION_REGEX = /@(?:agent|智能体):([^\s]+)/gi
 const _sendMessage = async () => {
   syncEditorMessage()
   const input = unwrapConfirmedMentions(separateConfirmedMentionsForSend(confirmMentionTokens(message.value))).trim()
-  const hasContent = input || selectedFiles.value.length > 0
+  const hasContent = input || selectedFiles.value.length > 0 || selectedAudioInputs.value.length > 0
 
   if (!hasContent) return
 
@@ -1658,16 +1727,11 @@ const _sendMessage = async () => {
     }
   }
 
-  const currentChat = chatStore.getChatById(chatId)
-  const providerId = currentChat?.providerId
-  const modelId = currentChat?.modelId
-  const selectedModel =
-    providerId && modelId ? settingsStore.getModelById(providerId, modelId).model : null
-
-  if (!selectedModel) {
-    messageApi.error('请先选择模型')
+  const sendableChatId = ensureSendableChat()
+  if (!sendableChatId) {
     return
   }
+  chatId = sendableChatId
 
   // 构建消息parts
   const parts: Array<FileUIPart | TextUIPart> = []
@@ -1685,30 +1749,19 @@ const _sendMessage = async () => {
     } as FileUIPart)
   }
 
+  parts.push(...buildAudioFileParts())
+
   // 清空输入
   message.value = ''
   atPanelRef.value?.scheduleClose()
   selectedFiles.value = []
+  clearAudioInputs()
   nextTick(() => {
     renderEditorContent()
     adjustEditorHeight(textareaRef.value)
   })
 
-  // 确保有聊天会话
-  if (!chatStore.currentChat?.id && chatId) {
-    chatStore.setActiveChat(chatId)
-  }
-
-  const { sendMessages } = useChat(chatId)
-
-  // 检查是否正在生成回复
-  if (chatStore.isChatGenerating(chatId)) {
-    // 添加到预发送队列
-    chatStore.addPendingMessage(chatId, parts)
-  } else {
-    // 直接发送
-    sendMessages(parts)
-  }
+  sendMessageParts(chatId, parts)
 }
 
 // 注册聚焦输入框快捷键
@@ -1731,6 +1784,7 @@ onUnmounted(() => {
   document.removeEventListener('selectionchange', updateMentionChipSelectionState)
   unbindMobilePointerListeners()
   clearLongPressTimer()
+  disposeInputAudio()
 })
 </script>
 
@@ -1766,6 +1820,16 @@ onUnmounted(() => {
       :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
       <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
         @files-selected="handleFilesSelected" @remove="handleFileRemoved" />
+      <AudioInputPreview :audios="selectedAudioInputs" @remove="removeAudioInput" />
+      <AudioInputControls
+        :visible="showInputAudioControls"
+        :active="inputAudioIsActive"
+        :level="inputAudioLevel"
+        :manual-recording="isManualInputAudioRecording"
+        :continuous-active="isContinuousInputAudioActive"
+        @toggle-manual="toggleManualInputAudio"
+        @toggle-continuous="toggleContinuousInputAudio"
+      />
 
       <div v-if="!isMobile">
         <div class="input-wrapper">
@@ -1789,6 +1853,16 @@ onUnmounted(() => {
           <div class="action-left">
             <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
               <FileUploadIcon />
+            </Button>
+            <Button
+              variant="icon"
+              size="sm"
+              :class="{ 'input-audio-active': showInputAudioControls || inputAudioIsActive }"
+              aria-label="录入 input_audio"
+              title="录入 input_audio"
+              @click="toggleInputAudioPanel"
+            >
+              <InputAudioIcon />
             </Button>
             <ThinkingModeButton :provider-type="currentChatProvider?.providerType" :provider-id="currentChatProvider?.id" :model-id="chatModelId" />
 
@@ -1973,6 +2047,13 @@ onUnmounted(() => {
                   @click="handleMobileToolClick('upload', $event)">
                   <FileUploadIcon />
                 </Button>
+                <Button v-else-if="toolId === 'inputAudio'" variant="icon" size="sm"
+                  :class="{ 'input-audio-active': showInputAudioControls || inputAudioIsActive }"
+                  aria-label="录入 input_audio"
+                  title="录入 input_audio"
+                  @click="handleMobileToolClick('inputAudio', $event)">
+                  <InputAudioIcon />
+                </Button>
                 <Button v-else-if="toolId === 'voice'" variant="icon" size="sm"
                   :class="{ 'voice-active': voiceIsActive }"
                   :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
@@ -2040,6 +2121,13 @@ onUnmounted(() => {
                   @click="handleMobileToolClick('upload', $event)">
                   <FileUploadIcon />
                 </Button>
+                <Button v-else-if="toolId === 'inputAudio'" variant="icon" size="sm"
+                  :class="{ 'input-audio-active': showInputAudioControls || inputAudioIsActive }"
+                  aria-label="录入 input_audio"
+                  title="录入 input_audio"
+                  @click="handleMobileToolClick('inputAudio', $event)">
+                  <InputAudioIcon />
+                </Button>
                 <Button v-else-if="toolId === 'voice'" variant="icon" size="sm"
                   :class="{ 'voice-active': voiceIsActive }"
                   :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
@@ -2095,6 +2183,13 @@ onUnmounted(() => {
               <Button v-if="toolId === 'upload'" variant="icon" size="sm"
                 @click="handleMobileToolClick('upload', $event)">
                 <FileUploadIcon />
+              </Button>
+              <Button v-else-if="toolId === 'inputAudio'" variant="icon" size="sm"
+                :class="{ 'input-audio-active': showInputAudioControls || inputAudioIsActive }"
+                aria-label="录入 input_audio"
+                title="录入 input_audio"
+                @click="handleMobileToolClick('inputAudio', $event)">
+                <InputAudioIcon />
               </Button>
               <Button v-else-if="toolId === 'voice'" variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }"
                 :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
@@ -2881,6 +2976,11 @@ onUnmounted(() => {
 }
 
 .tool-features-active {
+  color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+}
+
+.input-audio-active {
   color: var(--color-primary);
   background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
 }

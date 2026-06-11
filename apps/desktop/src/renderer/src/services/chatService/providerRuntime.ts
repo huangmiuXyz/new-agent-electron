@@ -89,12 +89,53 @@ const stripThinkingRuntimeOptions = (options: Record<string, any>) => {
   return sanitized
 }
 
+const getInputAudioMimeType = (format?: unknown): string => {
+  return format === 'mp3' ? 'audio/mpeg' : 'audio/wav'
+}
+
+const normalizeInputAudioDataUrls = (value: any): any => {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeInputAudioDataUrls(item))
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value
+  }
+
+  if (value.type === 'input_audio' && value.input_audio && typeof value.input_audio === 'object') {
+    const data = value.input_audio.data
+    const format = value.input_audio.format
+    const normalizedData =
+      typeof data === 'string' && data.startsWith('data:')
+        ? data
+        : typeof data === 'string'
+          ? `data:${getInputAudioMimeType(format)};base64,${data}`
+          : data
+
+    return {
+      ...value,
+      input_audio: {
+        data: normalizedData
+      }
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nestedValue]) => [
+      key,
+      normalizeInputAudioDataUrls(nestedValue)
+    ])
+  )
+}
+
 const buildOpenAICompatibleTransformRequestBody = (params: {
   transformRequestBody?: string
   isMiniMaxM3OpenAICompatible: boolean
+  normalizeInputAudio?: boolean
   thinkingMode?: string | null
 }) => {
-  const { transformRequestBody, isMiniMaxM3OpenAICompatible, thinkingMode } = params
+  const { transformRequestBody, isMiniMaxM3OpenAICompatible, normalizeInputAudio, thinkingMode } =
+    params
   let parsedTransform: Record<string, any> | undefined
   try {
     if (transformRequestBody?.trim()) {
@@ -109,10 +150,10 @@ const buildOpenAICompatibleTransformRequestBody = (params: {
     console.warn('transformRequestBody JSON 解析失败:', error)
   }
 
-  if (!parsedTransform && !isMiniMaxM3OpenAICompatible) return undefined
+  if (!parsedTransform && !isMiniMaxM3OpenAICompatible && !normalizeInputAudio) return undefined
 
   return (args: Record<string, any>) => {
-    const next = {
+    let next = {
       ...args,
       ...parsedTransform
     }
@@ -124,6 +165,10 @@ const buildOpenAICompatibleTransformRequestBody = (params: {
       next.thinking = {
         type: thinkingMode ? 'adaptive' : 'disabled'
       }
+    }
+
+    if (normalizeInputAudio) {
+      next = normalizeInputAudioDataUrls(next)
     }
 
     return next
@@ -206,6 +251,7 @@ export const resolveProviderRuntime = (params: {
   const transformRequestBody = buildOpenAICompatibleTransformRequestBody({
     transformRequestBody: customProviderOptions?.transformRequestBody,
     isMiniMaxM3OpenAICompatible,
+    normalizeInputAudio: providerType === 'openai-compatible',
     thinkingMode
   })
 
