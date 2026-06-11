@@ -53,7 +53,8 @@ const depthOptions = computed<{ label: string; value: ThinkingDepth; desc: strin
   return [
     { label: '低', value: 'low', desc: '轻量思考' },
     { label: '中', value: 'medium', desc: '均衡思考' },
-    { label: '高', value: 'high', desc: '深度思考' }
+    { label: '高', value: 'high', desc: '深度思考' },
+    { label: '超高', value: 'xhigh', desc: '最大思考' }
   ]
 })
 
