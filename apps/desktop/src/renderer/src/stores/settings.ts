@@ -185,6 +185,19 @@ export const useSettingsStore = defineStore(
       shortcuts.value = BUILTIN_SHORTCUTS.map(s => ({ ...s }))
     }
 
+    const syncBuiltinShortcuts = () => {
+      const currentById = new Map(shortcuts.value.map(shortcut => [shortcut.id, shortcut]))
+      shortcuts.value = BUILTIN_SHORTCUTS.map(builtin => {
+        const current = currentById.get(builtin.id)
+        if (!current) return { ...builtin }
+        return {
+          ...builtin,
+          currentKey: current.currentKey,
+          enabled: current.enabled
+        }
+      })
+    }
+
     // 获取生效的快捷键（优先使用 currentKey，否则使用 defaultKey）
     const getActiveShortcutKey = (id: string): string => {
       const shortcut = shortcuts.value.find(s => s.id === id)
@@ -764,6 +777,7 @@ export const useSettingsStore = defineStore(
       updateShortcut,
       resetShortcut,
       resetAllShortcuts,
+      syncBuiltinShortcuts,
       getActiveShortcutKey
     }
   },
@@ -798,6 +812,7 @@ export const useSettingsStore = defineStore(
           notesInputWidthMode: settingsStore.display.notesInputWidthMode ?? 'full'
         }
         settingsStore.syncBuiltinProviders()
+        settingsStore.syncBuiltinShortcuts()
         settingsStore.updateTerminalSettings(settingsStore.terminal as any)
 
         resolveRestore()

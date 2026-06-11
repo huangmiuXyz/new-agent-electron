@@ -1774,6 +1774,18 @@ onMounted(() => {
       focusEditorAtEnd()
     }
   })
+  register({
+    id: 'chat.toggleManualInputAudio',
+    handler: () => {
+      void toggleManualInputAudio()
+    }
+  })
+  register({
+    id: 'chat.toggleContinuousInputAudio',
+    handler: () => {
+      void toggleContinuousInputAudio()
+    }
+  })
   document.addEventListener('selectionchange', updateMentionChipSelectionState)
   nextTick(() => {
     renderEditorContent()
@@ -1782,6 +1794,8 @@ onMounted(() => {
 })
 onUnmounted(() => {
   unregister('global.focusInput')
+  unregister('chat.toggleManualInputAudio')
+  unregister('chat.toggleContinuousInputAudio')
   document.removeEventListener('selectionchange', updateMentionChipSelectionState)
   unbindMobilePointerListeners()
   clearLongPressTimer()

@@ -70,18 +70,33 @@ export function useChatInputAudio(options: UseChatInputAudioOptions) {
     () => inputAudioMode.value === 'continuous' && inputAudioIsActive.value
   )
 
-  function toggleInputAudioPanel() {
-    showInputAudioControls.value = !showInputAudioControls.value
+  const closeInputAudioPanel = async () => {
+    if (isManualInputAudioRecording.value) {
+      const audio = await stopManualInputAudio()
+      if (audio) {
+        selectedAudioInputs.value.push(audio)
+      }
+    } else if (isContinuousInputAudioActive.value) {
+      stopContinuousInputAudio()
+    } else {
+      stopInputAudio()
+    }
+    showInputAudioControls.value = false
+  }
+
+  const toggleInputAudioPanel = async () => {
+    if (showInputAudioControls.value || inputAudioIsActive.value) {
+      await closeInputAudioPanel()
+      return
+    }
+    showInputAudioControls.value = true
   }
 
   const toggleManualInputAudio = async () => {
     try {
       showInputAudioControls.value = true
       if (isManualInputAudioRecording.value) {
-        const audio = await stopManualInputAudio()
-        if (audio) {
-          selectedAudioInputs.value.push(audio)
-        }
+        await closeInputAudioPanel()
         return
       }
       if (isContinuousInputAudioActive.value) {
@@ -97,7 +112,7 @@ export function useChatInputAudio(options: UseChatInputAudioOptions) {
     try {
       showInputAudioControls.value = true
       if (isContinuousInputAudioActive.value) {
-        stopContinuousInputAudio()
+        await closeInputAudioPanel()
         return
       }
       if (isManualInputAudioRecording.value) {

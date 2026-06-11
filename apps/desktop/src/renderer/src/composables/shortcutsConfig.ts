@@ -149,6 +149,26 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         allowedInInput: true
     },
     {
+        id: 'chat.toggleManualInputAudio',
+        name: '手动录入开关',
+        description: '一键开启/关闭手动音频录入',
+        defaultKey: 'F8',
+        enabled: true,
+        editable: true,
+        scope: 'chat',
+        allowedInInput: true
+    },
+    {
+        id: 'chat.toggleContinuousInputAudio',
+        name: '连续录入开关',
+        description: '一键开启/关闭连续音频录入',
+        defaultKey: 'F9',
+        enabled: true,
+        editable: true,
+        scope: 'chat',
+        allowedInInput: true
+    },
+    {
         id: 'chat.regenerateLast',
         name: '重写最后一条',
         description: '自动重写最后一条助手消息',
