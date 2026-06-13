@@ -261,7 +261,7 @@ export const getComputerBuiltinTools = (config?: ComputerToolConfig): Partial<To
   computer_use: {
     title: '电脑操作',
     description:
-      '通过单个 OpenAI 风格动作工具操作本地电脑。支持的动作包括：截图、单击、双击、滚动、按键、输入文本、等待。',
+      '支持的动作包括：截图、单击、双击、滚动、按键、输入文本、等待。',
     render: ComputerUseRender,
     inputSchema: computerInputSchema,
     execute: async (args: unknown) =>
