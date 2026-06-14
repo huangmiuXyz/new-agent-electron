@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { getFlatTokenUsage } from '@renderer/services/chatService/tokenUsage'
 import { getCollapsedMessageParts, getRenderableMessageParts } from './messageParts'
+import { getRetryStopHandler } from '@renderer/composables/useChat'
 
 const props = defineProps<{
   message: BaseMessage
@@ -102,6 +103,11 @@ const activityStatus = computed(() => {
 // —— 自动重试等待态：展示倒计时 ——
 const isRetrying = computed(() => props.message.metadata?.retrying === true)
 const retryAttempt = computed(() => props.message.metadata?.retryAttempt ?? 0)
+const stopRetryHandler = computed(() => {
+  const chatId = chatsStore.currentChat?.id
+  if (!chatId) return undefined
+  return getRetryStopHandler(chatId, props.message.id)
+})
 
 // 每 200ms 更新一次「现在」，用于计算倒计时文案
 const now = ref(Date.now())
@@ -138,7 +144,7 @@ const retryStatusText = computed(() => {
   const secs = retryCountdownSeconds.value
   const attemptText = attempt > 0 ? `第 ${attempt} 次` : ''
   if (secs > 0) {
-    return `请求失败，${attemptText}重试中，${secs.toFixed(1)} 秒后重试...`
+    return `请求失败，${attemptText}重试中，${Math.ceil(secs)} 秒后重试...`
   }
   return `请求失败，正在${attemptText}重试...`
 })
@@ -250,13 +256,13 @@ const playMessageAudio = () => {
       <div v-if="isRetrying" class="retry-container">
         <span class="retry-text">{{ retryStatusText }}</span>
         <Button
-          v-if="message.metadata?.stopRetry"
+          v-if="stopRetryHandler"
           size="sm"
           variant="icon"
           type="button"
           class="retry-stop-btn"
           title="停止自动重试"
-          @click="message.metadata?.stopRetry?.()"
+          @click="stopRetryHandler()"
         >
           <template #icon>
             <Stop style="color: red" />

@@ -9,6 +9,13 @@ import { createSubTaskResultCoordinator } from './chat/subTaskResultCoordinator'
 
 const chatCache = new Map<string, any>()
 
+// 重试停止处理器（按 chatId:messageId 索引）。
+// 不放进消息 metadata，避免被 pinia 持久化时触发循环引用 / 序列化函数失败。
+const retryStopHandlers = new Map<string, () => void>()
+const retryStopHandlerKey = (chatId: string, messageId: string) => `${chatId}:${messageId}`
+export const getRetryStopHandler = (chatId: string, messageId: string) =>
+  retryStopHandlers.get(retryStopHandlerKey(chatId, messageId))
+
 export const useChat = (chatId: string) => {
   if (chatCache.has(chatId)) {
     return chatCache.get(chatId)
@@ -86,7 +93,6 @@ export const useChat = (chatId: string) => {
     delete nextMetadata.retrying
     delete nextMetadata.retryAttempt
     delete nextMetadata.retryCountdownEndsAt
-    delete nextMetadata.stopRetry
     return nextMetadata as MetaData
   }
 
@@ -105,10 +111,6 @@ export const useChat = (chatId: string) => {
       clearInterval(retryCountdownTimer)
       retryCountdownTimer = null
     }
-  }
-
-  const resetRetryAttempt = () => {
-    retryAttempt = 0
   }
 
   const createChat = (
@@ -176,16 +178,6 @@ export const useChat = (chatId: string) => {
 
       // —— 自动重试辅助：状态（retryTimer / retryCountdownTimer / retryAttempt）
       //    与 cancelRetry 定义在外层 createChat 之外，跨多次 createChat 共享 ——
-      const clearRetryMetadata = (messageId: string) => {
-        const storeChat = getChatById(chatId)
-        if (!storeChat) return
-        const target = storeChat.messages.find((m) => m.id === messageId)
-        if (!target) return
-        // 清理失败/重试态，恢复为普通消息，交由新一轮流接管 loading 等状态
-        const nextMetadata = clearTransientMetadata(target.metadata)
-        updateMessageMetadata(chatId, messageId, nextMetadata as MetaData)
-      }
-
       const scheduleRetry = (failedMessageId: string, attempt: number) => {
         const agent = getChatAgent()
         const intervalMs = Math.max(0, agent?.retryIntervalMs ?? 3000)
@@ -197,6 +189,8 @@ export const useChat = (chatId: string) => {
           if (manuallyStopped) return
           manuallyStopped = true
           cancelRetry()
+          retryAttempt = 0
+          retryStopHandlers.delete(retryStopHandlerKey(chatId, failedMessageId))
           const storeChat = getChatById(chatId)
           const target = storeChat?.messages.find((m) => m.id === failedMessageId)
           if (target) {
@@ -204,13 +198,15 @@ export const useChat = (chatId: string) => {
               ...target.metadata,
               retrying: false,
               loading: false,
-              error: new Error('用户已停止自动重试'),
-              stopRetry: undefined
+              error: new Error('用户已停止自动重试')
             } as MetaData)
           }
           scope.stop()
           scheduleNextPendingMessage()
         }
+
+        // 注册停止处理器，供 UI 通过 getRetryStopHandler 获取
+        retryStopHandlers.set(retryStopHandlerKey(chatId, failedMessageId), stopRetry)
 
         const setMessageRetryState = (countdownEndsAt?: number) => {
           const storeChat = getChatById(chatId)
@@ -223,8 +219,7 @@ export const useChat = (chatId: string) => {
             retryAttempt: attempt,
             retryCountdownEndsAt: countdownEndsAt,
             loading: false,
-            error: undefined,
-            stopRetry
+            error: undefined
           } as MetaData)
         }
 
@@ -257,13 +252,25 @@ export const useChat = (chatId: string) => {
             scheduleNextPendingMessage()
             return
           }
-          // 清理失败/重试态，停止当前 scope，然后用「继续」触发下一次请求。
-          // 继续而非 regenerate：保留已生成的内容，只让模型接着往下生成。
-          clearRetryMetadata(failedMessageId)
+          // 重试已发起，清理本次的停止处理器
+          retryStopHandlers.delete(retryStopHandlerKey(chatId, failedMessageId))
+          // 停止当前 scope，然后重新发起请求：
+          // - 失败消息已有内容（parts 非空）→ 用「继续」在同一消息上接着生成
+          // - 失败消息没有任何内容（parts 为空）→ 用 regenerate 从用户消息重新生成
           scope.stop()
-          result.continueMessages()
+          const storeChat = getChatById(chatId)
+          const failedMessage = storeChat?.messages.find((m) => m.id === failedMessageId)
+          if (failedMessage && failedMessage.parts.length > 0) {
+            result.continueMessages()
+          } else {
+            result.regenerate(failedMessageId)
+          }
         }, intervalMs)
       }
+
+      // 标记是否已安排自动重试。错误时 AI SDK 可能同时触发 onError 与 onFinish，
+      // 用此标志让 onFinish 在重试等待期间跳过收尾与状态清理。
+      let retryScheduled = false
 
       const chat = new _useChat<BaseMessage>({
         id: chatId,
@@ -330,13 +337,16 @@ export const useChat = (chatId: string) => {
         },
 
         onFinish: () => {
+          // 错误时 AI SDK 可能也会触发 onFinish；若已安排自动重试，
+          // 这里不收尾，重试由 retryTimer 驱动。
+          if (retryScheduled) return
+
           const finalMessage = chat.lastMessage!
           messageSyncController.finalizeMessageSync(finalMessage)
           speechController.finishMessageSpeech(finalMessage)
 
-          // 成功完成：清理重试状态
-          cancelRetry()
-          resetRetryAttempt()
+          // 真正成功完成：重置重试计数
+          retryAttempt = 0
 
           useTitle(chatId).generateTitle()
           if (!manuallyStopped) {
@@ -348,7 +358,13 @@ export const useChat = (chatId: string) => {
 
         onError: (error) => {
           console.error(error)
-          messageSyncController.finalizeMessageSync(chat.lastMessage, error as APICallError)
+          // 将 error 扁平化为可序列化的 Error，避免原始错误对象（如 _TypeValidationError）
+          // 携带循环引用，导致 chats store 持久化时 JSON.stringify 报错。
+          const serializableError = new Error((error as Error)?.message || '请求失败')
+          messageSyncController.finalizeMessageSync(
+            chat.lastMessage,
+            serializableError as APICallError
+          )
           speechController.fail(error)
 
           const failedMessage = chat.lastMessage
@@ -378,6 +394,7 @@ export const useChat = (chatId: string) => {
           }
 
           // 安排下一次重试：保持当前 scope 存活，由 retryTimer 驱动
+          retryScheduled = true
           retryAttempt += 1
           scheduleRetry(failedMessageId!, retryAttempt)
         }
