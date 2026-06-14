@@ -51,6 +51,7 @@ const [DisplayForm] = useForm({
   <FormContainer header-title="显示设置">
     <template #content>
       <DisplayForm />
+      <SettingsInputButtonConfig />
     </template>
   </FormContainer>
 </template>

@@ -15,6 +15,10 @@ import {
 import { useChatInputAudio } from './useChatInputAudio'
 import { z } from 'zod'
 
+const props = defineProps<{
+  preview?: boolean
+}>()
+
 const chatStore = useChatsStores()
 const message = computed({
   get: () => chatStore.getChatDraft(),
@@ -35,6 +39,12 @@ const agentStore = useAgentStore()
 const canvasStore = useCanvasStore()
 const { updateSpeechEnabled, updateProviderOptions } = useSettingsStore()
 const settingsStore = useSettingsStore()
+
+// 桌面端输入框按钮布局（按配置过滤可见按钮，保留顺序）
+const visibleInputButtons = computed(() => {
+  const layout = display.value.inputButtonLayout || []
+  return layout.filter((item) => item.visible).map((item) => item.id)
+})
 
 const currentChatAgent = computed(() => {
   const agentId = chatStore.currentChat?.agentId
@@ -1768,35 +1778,40 @@ const _sendMessage = async () => {
 // 注册聚焦输入框快捷键
 const { register, unregister } = useShortcuts()
 onMounted(() => {
-  register({
-    id: 'global.focusInput',
-    handler: () => {
-      focusEditorAtEnd()
-    }
-  })
-  register({
-    id: 'chat.toggleManualInputAudio',
-    handler: () => {
-      void toggleManualInputAudio()
-    }
-  })
-  register({
-    id: 'chat.toggleContinuousInputAudio',
-    handler: () => {
-      void toggleContinuousInputAudio()
-    }
-  })
-  document.addEventListener('selectionchange', updateMentionChipSelectionState)
+  // 预览模式下不注册全局快捷键与 document 监听，避免污染真实聊天页
+  if (!props.preview) {
+    register({
+      id: 'global.focusInput',
+      handler: () => {
+        focusEditorAtEnd()
+      }
+    })
+    register({
+      id: 'chat.toggleManualInputAudio',
+      handler: () => {
+        void toggleManualInputAudio()
+      }
+    })
+    register({
+      id: 'chat.toggleContinuousInputAudio',
+      handler: () => {
+        void toggleContinuousInputAudio()
+      }
+    })
+    document.addEventListener('selectionchange', updateMentionChipSelectionState)
+  }
   nextTick(() => {
     renderEditorContent()
     adjustEditorHeight(textareaRef.value)
   })
 })
 onUnmounted(() => {
-  unregister('global.focusInput')
-  unregister('chat.toggleManualInputAudio')
-  unregister('chat.toggleContinuousInputAudio')
-  document.removeEventListener('selectionchange', updateMentionChipSelectionState)
+  if (!props.preview) {
+    unregister('global.focusInput')
+    unregister('chat.toggleManualInputAudio')
+    unregister('chat.toggleContinuousInputAudio')
+    document.removeEventListener('selectionchange', updateMentionChipSelectionState)
+  }
   unbindMobilePointerListeners()
   clearLongPressTimer()
   disposeInputAudio()
@@ -1866,181 +1881,185 @@ onUnmounted(() => {
 
         <div class="input-actions">
           <div class="action-left">
-            <Button variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
-              <FileUploadIcon />
-            </Button>
-            <Button
-              variant="icon"
-              size="sm"
-              :class="{ 'input-audio-active': showInputAudioControls || inputAudioIsActive }"
-              aria-label="录入 input_audio"
-              title="录入 input_audio"
-              @click="toggleInputAudioPanel"
-            >
-              <InputAudioIcon />
-            </Button>
-            <ThinkingModeButton :provider-type="currentChatProvider?.providerType" :provider-id="currentChatProvider?.id" :model-id="chatModelId" />
-
-            <Button variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
-              <SettingsIcon />
-            </Button>
-            <Button
-              variant="icon"
-              size="sm"
-              :class="{ 'tool-features-active': currentChatToolFeaturesEnabled }"
-              :title="currentChatToolFeaturesEnabled ? '本对话已启用技能、内置工具和 MCP' : '本对话已禁用自动技能、内置工具和 MCP，@技能引用仍可用'"
-              @click="toggleCurrentChatToolFeatures"
-            >
-              <ToolFeaturesIcon />
-            </Button>
-            <div class="token-usage-popover">
+            <template v-for="btnId in visibleInputButtons" :key="btnId">
+              <Button v-if="btnId === 'upload'" variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
+                <FileUploadIcon />
+              </Button>
               <Button
+                v-else-if="btnId === 'inputAudio'"
                 variant="icon"
                 size="sm"
-                class="token-usage-btn"
-                aria-label="当前上下文 Token 统计"
-                :title="currentChatContextTokens.tooltip"
+                :class="{ 'input-audio-active': showInputAudioControls || inputAudioIsActive }"
+                aria-label="录入 input_audio"
+                title="录入 input_audio"
+                @click="toggleInputAudioPanel"
               >
-                <InfoCircle />
+                <InputAudioIcon />
               </Button>
-              <div class="token-usage-panel">
-                <div class="token-usage-panel-title">当前上下文 Token</div>
-                <template v-if="currentChatContextTokens.hasContext">
-                  <div class="token-usage-panel-row">
-                    <span>总计</span>
-                    <strong>{{ currentChatContextTokens.totalDisplay }}</strong>
-                  </div>
-                  <div class="token-usage-panel-row">
-                    <span>上下文消息</span>
-                    <span>{{ currentChatContextTokens.contextMessageCountDisplay }}</span>
-                  </div>
-                </template>
-                <div v-else class="token-usage-panel-empty">暂无可用统计</div>
-              </div>
-            </div>
+              <ThinkingModeButton v-else-if="btnId === 'thinking'" :provider-type="currentChatProvider?.providerType" :provider-id="currentChatProvider?.id" :model-id="chatModelId" />
 
-            <Button variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }" @click="toggleVoiceRecording"
-              :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'">
-              <MicIcon v-if="!voiceIsActive" />
-              <MicOffIcon v-else />
-            </Button>
-
-            <Button variant="icon" size="sm" :class="{ 'speech-active': speechEnabled }" @click="toggleSpeech"
-              :title="speechEnabled ? '关闭语音播报' : '开启语音播报'">
-              <VolumeIcon v-if="speechEnabled" />
-              <VolumeMuteIcon v-else />
-            </Button>
-
-            <Button v-if="isScopeGenerating" variant="icon" size="sm" class="stop-all-btn" title="停止当前聊天内全部生成"
-              @click="stopAllGeneratingInCurrentChat">
-              <StopIcon />
-            </Button>
-
-            <ChatAgentSelector type="icon" />
-            <ModelSelector type="icon" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" />
-            <SelectorPopover v-model:visible="showChatSwitcher" v-model:search-query="chatSwitcherQuery" width="380px"
-              position="top">
-              <template #trigger>
-                <button class="chat-switcher-trigger no-drag" :class="{ active: showChatSwitcher }" type="button"
-                  title="聊天列表">
-                  <HistoryIcon />
-                </button>
-              </template>
-              <template #content>
-                <div class="chat-switcher-panel">
-                  <div class="chat-switcher-search-shell">
-                    <Search class="chat-switcher-search-icon" />
-                    <input v-model="chatSwitcherQuery" class="chat-switcher-search-input" placeholder="搜索最近任务"
-                      type="text" />
-                  </div>
-                  <div class="chat-switcher-toolbar">
-                    <button class="chat-switcher-filter" type="button">
-                      <span>聊天列表</span>
-                      <ChevronDown />
-                    </button>
-                    <Button variant="icon" size="sm" title="新建聊天" class="chat-switcher-add-btn"
-                      @click.stop="openCreateChatInline">
-                      <CommentAdd16Regular />
-                    </Button>
-                  </div>
-
-                  <div v-if="chatSwitcherMode === 'create' || chatSwitcherMode === 'rename'"
-                    class="chat-switcher-inline-card">
-                    <div class="chat-switcher-inline-title">
-                      {{ chatSwitcherMode === 'create' ? '新建聊天' : '重命名聊天' }}
+              <Button v-else-if="btnId === 'settings'" variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
+                <SettingsIcon />
+              </Button>
+              <Button
+                v-else-if="btnId === 'toolFeatures'"
+                variant="icon"
+                size="sm"
+                :class="{ 'tool-features-active': currentChatToolFeaturesEnabled }"
+                :title="currentChatToolFeaturesEnabled ? '本对话已启用技能、内置工具和 MCP' : '本对话已禁用自动技能、内置工具和 MCP，@技能引用仍可用'"
+                @click="toggleCurrentChatToolFeatures"
+              >
+                <ToolFeaturesIcon />
+              </Button>
+              <div v-else-if="btnId === 'tokenUsage'" class="token-usage-popover">
+                <Button
+                  variant="icon"
+                  size="sm"
+                  class="token-usage-btn"
+                  aria-label="当前上下文 Token 统计"
+                  :title="currentChatContextTokens.tooltip"
+                >
+                  <InfoCircle />
+                </Button>
+                <div class="token-usage-panel">
+                  <div class="token-usage-panel-title">当前上下文 Token</div>
+                  <template v-if="currentChatContextTokens.hasContext">
+                    <div class="token-usage-panel-row">
+                      <span>总计</span>
+                      <strong>{{ currentChatContextTokens.totalDisplay }}</strong>
                     </div>
-                    <input v-model="chatSwitcherDraftTitle" class="chat-switcher-input"
-                      :placeholder="chatSwitcherMode === 'create' ? '输入聊天名称' : '输入新的名称'" @keydown.enter.stop.prevent="
-                        chatSwitcherMode === 'create'
-                          ? submitCreateChatInline()
-                          : submitRenameChatInline()
-                        " />
-                    <div class="chat-switcher-inline-actions">
-                      <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState">取消</Button>
-                      <Button variant="primary" size="sm"
-                        :disabled="chatSwitcherMode === 'rename' && !chatSwitcherDraftTitle.trim()" @click.stop="
+                    <div class="token-usage-panel-row">
+                      <span>上下文消息</span>
+                      <span>{{ currentChatContextTokens.contextMessageCountDisplay }}</span>
+                    </div>
+                  </template>
+                  <div v-else class="token-usage-panel-empty">暂无可用统计</div>
+                </div>
+              </div>
+
+              <Button v-else-if="btnId === 'voice'" variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }" @click="toggleVoiceRecording"
+                :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'">
+                <MicIcon v-if="!voiceIsActive" />
+                <MicOffIcon v-else />
+              </Button>
+
+              <Button v-else-if="btnId === 'speech'" variant="icon" size="sm" :class="{ 'speech-active': speechEnabled }" @click="toggleSpeech"
+                :title="speechEnabled ? '关闭语音播报' : '开启语音播报'">
+                <VolumeIcon v-if="speechEnabled" />
+                <VolumeMuteIcon v-else />
+              </Button>
+
+              <Button v-else-if="btnId === 'stop' && isScopeGenerating" variant="icon" size="sm" class="stop-all-btn" title="停止当前聊天内全部生成"
+                @click="stopAllGeneratingInCurrentChat">
+                <StopIcon />
+              </Button>
+
+              <ChatAgentSelector v-else-if="btnId === 'agent'" type="icon" />
+              <ModelSelector v-else-if="btnId === 'model'" type="icon" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" />
+              <SelectorPopover v-else-if="btnId === 'chatSwitcher'" v-model:visible="showChatSwitcher" v-model:search-query="chatSwitcherQuery" width="380px"
+                position="top">
+                <template #trigger>
+                  <button class="chat-switcher-trigger no-drag" :class="{ active: showChatSwitcher }" type="button"
+                    title="聊天列表">
+                    <HistoryIcon />
+                  </button>
+                </template>
+                <template #content>
+                  <div class="chat-switcher-panel">
+                    <div class="chat-switcher-search-shell">
+                      <Search class="chat-switcher-search-icon" />
+                      <input v-model="chatSwitcherQuery" class="chat-switcher-search-input" placeholder="搜索最近任务"
+                        type="text" />
+                    </div>
+                    <div class="chat-switcher-toolbar">
+                      <button class="chat-switcher-filter" type="button">
+                        <span>聊天列表</span>
+                        <ChevronDown />
+                      </button>
+                      <Button variant="icon" size="sm" title="新建聊天" class="chat-switcher-add-btn"
+                        @click.stop="openCreateChatInline">
+                        <CommentAdd16Regular />
+                      </Button>
+                    </div>
+
+                    <div v-if="chatSwitcherMode === 'create' || chatSwitcherMode === 'rename'"
+                      class="chat-switcher-inline-card">
+                      <div class="chat-switcher-inline-title">
+                        {{ chatSwitcherMode === 'create' ? '新建聊天' : '重命名聊天' }}
+                      </div>
+                      <input v-model="chatSwitcherDraftTitle" class="chat-switcher-input"
+                        :placeholder="chatSwitcherMode === 'create' ? '输入聊天名称' : '输入新的名称'" @keydown.enter.stop.prevent="
                           chatSwitcherMode === 'create'
                             ? submitCreateChatInline()
                             : submitRenameChatInline()
+                          " />
+                      <div class="chat-switcher-inline-actions">
+                        <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState">取消</Button>
+                        <Button variant="primary" size="sm"
+                          :disabled="chatSwitcherMode === 'rename' && !chatSwitcherDraftTitle.trim()" @click.stop="
+                            chatSwitcherMode === 'create'
+                              ? submitCreateChatInline()
+                              : submitRenameChatInline()
+                            ">
+                          {{ chatSwitcherMode === 'create' ? '创建' : '保存' }}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div v-else-if="chatSwitcherMode === 'delete' && chatSwitcherTargetChat"
+                      class="chat-switcher-inline-card danger">
+                      <div class="chat-switcher-inline-title">删除聊天</div>
+                      <div class="chat-switcher-delete-text">
+                        确定删除“{{ chatSwitcherTargetChat.title }}”吗？
+                      </div>
+                      <div class="chat-switcher-inline-actions">
+                        <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState">取消</Button>
+                        <Button variant="primary" size="sm" danger @click.stop="submitDeleteChatInline">删除</Button>
+                      </div>
+                    </div>
+
+                    <div class="chat-switcher-list">
+                      <div v-for="chat in filteredChats" :key="chat.id" class="chat-switcher-item"
+                        :class="{ active: chatStore.activeChatId === chat.id }" @click="selectChatFromSwitcher(chat.id)"
+                        @keydown.enter.prevent="selectChatFromSwitcher(chat.id)" tabindex="0" role="button">
+                        <div class="chat-switcher-item-main">
+                          <div class="chat-switcher-item-top">
+                            <span class="chat-switcher-item-title">{{ chat.title }}</span>
+                          </div>
+                          <div class="chat-switcher-item-bottom" v-if="
+                            getChatSecondaryText(chat) ||
+                            chat.parentChatId ||
+                            isChatGenerating(chat)
                           ">
-                        {{ chatSwitcherMode === 'create' ? '创建' : '保存' }}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div v-else-if="chatSwitcherMode === 'delete' && chatSwitcherTargetChat"
-                    class="chat-switcher-inline-card danger">
-                    <div class="chat-switcher-inline-title">删除聊天</div>
-                    <div class="chat-switcher-delete-text">
-                      确定删除“{{ chatSwitcherTargetChat.title }}”吗？
-                    </div>
-                    <div class="chat-switcher-inline-actions">
-                      <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState">取消</Button>
-                      <Button variant="primary" size="sm" danger @click.stop="submitDeleteChatInline">删除</Button>
-                    </div>
-                  </div>
-
-                  <div class="chat-switcher-list">
-                    <div v-for="chat in filteredChats" :key="chat.id" class="chat-switcher-item"
-                      :class="{ active: chatStore.activeChatId === chat.id }" @click="selectChatFromSwitcher(chat.id)"
-                      @keydown.enter.prevent="selectChatFromSwitcher(chat.id)" tabindex="0" role="button">
-                      <div class="chat-switcher-item-main">
-                        <div class="chat-switcher-item-top">
-                          <span class="chat-switcher-item-title">{{ chat.title }}</span>
+                            <span v-if="getChatSecondaryText(chat)" class="chat-switcher-item-subtitle">
+                              {{ getChatSecondaryText(chat) }}
+                            </span>
+                            <span v-if="chat.parentChatId" class="chat-switcher-badge">子会话</span>
+                            <span v-if="isChatGenerating(chat)" class="chat-switcher-badge generating">生成中</span>
+                          </div>
                         </div>
-                        <div class="chat-switcher-item-bottom" v-if="
-                          getChatSecondaryText(chat) ||
-                          chat.parentChatId ||
-                          isChatGenerating(chat)
-                        ">
-                          <span v-if="getChatSecondaryText(chat)" class="chat-switcher-item-subtitle">
-                            {{ getChatSecondaryText(chat) }}
-                          </span>
-                          <span v-if="chat.parentChatId" class="chat-switcher-badge">子会话</span>
-                          <span v-if="isChatGenerating(chat)" class="chat-switcher-badge generating">生成中</span>
+                        <div class="chat-switcher-item-actions" @click.stop>
+                          <Button variant="icon" size="sm" title="重命名" @click.stop="openRenameChatInline(chat)">
+                            <Edit />
+                          </Button>
+                          <Button variant="icon" size="sm" danger title="删除" @click.stop="openDeleteChatInline(chat)">
+                            <Delete />
+                          </Button>
                         </div>
                       </div>
-                      <div class="chat-switcher-item-actions" @click.stop>
-                        <Button variant="icon" size="sm" title="重命名" @click.stop="openRenameChatInline(chat)">
-                          <Edit />
-                        </Button>
-                        <Button variant="icon" size="sm" danger title="删除" @click.stop="openDeleteChatInline(chat)">
-                          <Delete />
-                        </Button>
+                      <div v-if="!filteredChats.length" class="chat-switcher-empty">
+                        没找到匹配的聊天
                       </div>
                     </div>
-                    <div v-if="!filteredChats.length" class="chat-switcher-empty">
-                      没找到匹配的聊天
-                    </div>
                   </div>
-                </div>
-              </template>
-            </SelectorPopover>
-            <button v-if="canChooseLocalWorkPath" type="button" class="workpath-trigger no-drag"
-              :class="{ 'workpath-active': currentAgentWorkPath }" :title="workPathButtonTitle"
-              @click="chooseCurrentAgentWorkPath" @contextmenu="openWorkPathContextMenu">
-              {{ workPathButtonLabel }}
-            </button>
+                </template>
+              </SelectorPopover>
+              <button v-else-if="btnId === 'workpath' && canChooseLocalWorkPath" type="button" class="workpath-trigger no-drag"
+                :class="{ 'workpath-active': currentAgentWorkPath }" :title="workPathButtonTitle"
+                @click="chooseCurrentAgentWorkPath" @contextmenu="openWorkPathContextMenu">
+                {{ workPathButtonLabel }}
+              </button>
+            </template>
           </div>
           <div class="action-right">
             <Button variant="primary" size="md" @click="_sendMessage">

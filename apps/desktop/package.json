@@ -114,6 +114,7 @@
     "turndown": "^7.2.0",
     "vue": "catalog:",
     "vue-router": "catalog:",
+    "vuedraggable": "^4.1.0",
     "xterm": "catalog:",
     "xterm-addon-fit": "catalog:",
     "zhipu-ai-provider": "catalog:"

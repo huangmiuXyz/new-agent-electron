@@ -128,7 +128,45 @@ export const useSettingsStore = defineStore(
       return normalizedOrder
     }
 
-    const display = ref({
+    // 输入框按钮布局配置（桌面端）
+    type InputButtonId =
+      | 'upload'
+      | 'inputAudio'
+      | 'thinking'
+      | 'settings'
+      | 'toolFeatures'
+      | 'tokenUsage'
+      | 'voice'
+      | 'speech'
+      | 'stop'
+      | 'agent'
+      | 'model'
+      | 'chatSwitcher'
+      | 'workpath'
+
+    interface InputButtonItem {
+      id: InputButtonId
+      visible: boolean
+    }
+
+    // 与 Input/index.vue 桌面端 .action-left 渲染顺序保持一致
+    const createDefaultInputButtonLayout = (): InputButtonItem[] => [
+      { id: 'upload', visible: true },
+      { id: 'inputAudio', visible: true },
+      { id: 'thinking', visible: true },
+      { id: 'settings', visible: true },
+      { id: 'toolFeatures', visible: true },
+      { id: 'tokenUsage', visible: true },
+      { id: 'voice', visible: true },
+      { id: 'speech', visible: true },
+      { id: 'stop', visible: true },
+      { id: 'agent', visible: true },
+      { id: 'model', visible: true },
+      { id: 'chatSwitcher', visible: true },
+      { id: 'workpath', visible: true }
+    ]
+
+    const createDefaultDisplay = () => ({
       darkMode: false,
       compactDensity: true,
       showTimestamps: true,
@@ -149,8 +187,11 @@ export const useSettingsStore = defineStore(
       expandToolsByDefault: true,
       expandThoughtByDefault: true,
       collapsePreviousContent: true,
-      chatCenteredLayout: false
+      chatCenteredLayout: false,
+      inputButtonLayout: createDefaultInputButtonLayout()
     })
+
+    const display = ref(createDefaultDisplay())
 
     const system = ref<LocalSystemSettings>({
       openAtLogin: false
@@ -249,6 +290,56 @@ export const useSettingsStore = defineStore(
 
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
       display.value = { ...display.value, ...settings }
+    }
+
+    // 归一化输入框按钮布局：补全缺失按钮、剔除无效 id、保留用户已设的顺序与可见性
+    const normalizeInputButtonLayout = (
+      raw: unknown
+    ): InputButtonItem[] => {
+      const defaults = createDefaultInputButtonLayout()
+      const defaultMap = new Map(defaults.map((item) => [item.id, item.visible]))
+      const validIds = new Set<InputButtonId>(defaultMap.keys())
+      const result: InputButtonItem[] = []
+      const seen = new Set<InputButtonId>()
+
+      if (Array.isArray(raw)) {
+        raw.forEach((entry) => {
+          if (!entry || typeof entry !== 'object') return
+          const id = (entry as InputButtonItem).id
+          if (typeof id !== 'string' || !validIds.has(id as InputButtonId)) return
+          const typedId = id as InputButtonId
+          if (seen.has(typedId)) return
+          seen.add(typedId)
+          result.push({
+            id: typedId,
+            visible: (entry as InputButtonItem).visible ?? true
+          })
+        })
+      }
+
+      // 补全默认布局里存在但用户配置里缺失的按钮
+      defaults.forEach((item) => {
+        if (!seen.has(item.id)) {
+          result.push({ id: item.id, visible: item.visible })
+        }
+      })
+
+      return result
+    }
+
+    const updateInputButtonLayout = (layout: InputButtonItem[]) => {
+      display.value = {
+        ...display.value,
+        inputButtonLayout: normalizeInputButtonLayout(layout)
+      }
+    }
+
+    // 重置输入框按钮布局为默认顺序与全可见
+    const resetInputButtonLayout = () => {
+      display.value = {
+        ...display.value,
+        inputButtonLayout: createDefaultInputButtonLayout()
+      }
     }
 
     const updateSystemSettings = (settings: Partial<typeof system.value>) => {
@@ -734,6 +825,8 @@ export const useSettingsStore = defineStore(
       updateSpeechEnabled,
       updateProviderOptions,
       updateDisplaySettings,
+      updateInputButtonLayout,
+      resetInputButtonLayout,
       updateSystemSettings,
       updateTerminalSettings,
       addRegisteredProvider,
@@ -811,6 +904,7 @@ export const useSettingsStore = defineStore(
           collapsePreviousContent: settingsStore.display.collapsePreviousContent ?? true,
           notesInputWidthMode: settingsStore.display.notesInputWidthMode ?? 'full'
         }
+        settingsStore.updateInputButtonLayout(settingsStore.display.inputButtonLayout)
         settingsStore.syncBuiltinProviders()
         settingsStore.syncBuiltinShortcuts()
         settingsStore.updateTerminalSettings(settingsStore.terminal as any)
