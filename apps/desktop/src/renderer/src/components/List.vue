@@ -1,11 +1,7 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { computed, ref, VNode, watch } from 'vue'
+import draggable from 'vuedraggable'
 import { assetsHandler } from '@renderer/utils'
-import { useTimeoutFn } from '@vueuse/core'
-
-const TRANSPARENT_DRAG_IMAGE =
-  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
-const LONG_PRESS_MOVE_TOLERANCE_PX = 8
 
 interface Props {
   defaultIcon?: VNode
@@ -51,7 +47,22 @@ const emit = defineEmits<{
   sort: [payload: { fromId: string; toId: string; after: boolean }]
 }>()
 
-const viewItems = computed(() => {
+// 列表项视图类型：固定结构，raw 用 any 规避 Vue3 泛型组件中
+// T 经 computed/ref 解包为 UnwrapRef<T> 后与 T 不兼容的类型陷阱
+interface ListItemView {
+  raw: any
+  key: string
+  main: any
+  sub: any
+  logo: any
+  isIcon: boolean
+  isActive: boolean
+  groupKey: string
+  groupTitle: string
+  isLastItem: boolean
+}
+
+const viewItems = computed<ListItemView[]>(() => {
   const items = props.items.map((item) => {
     const key = item[props.keyField] ?? JSON.stringify(item)
     let logo = item[props.logoField]
@@ -92,17 +103,38 @@ const viewItems = computed(() => {
   }))
 })
 
-const dragPreviewKeys = ref<string[] | null>(null)
-const displayedItems = computed(() => {
-  const preview = dragPreviewKeys.value
-  if (!preview) return viewItems.value
-  const itemMap = new Map(viewItems.value.map((item) => [item.key, item] as const))
-  return preview.map((key) => itemMap.get(key)).filter(Boolean) as (typeof viewItems.value)
-})
+// 内部预览顺序：拖拽时由 vuedraggable 直接修改，实现乐观预览
+// 非拖拽时跟随 viewItems（由 watch 同步）
+const previewItems = ref<ListItemView[]>(viewItems.value.map((i) => i))
+const isWaitingSortSync = ref(false)
+const draggingKey = ref<string | null>(null)
+const longPressingKey = ref<string | null>(null)
+
+watch(
+  () => viewItems.value,
+  (next) => {
+    if (draggingKey.value) return
+    previewItems.value = next.map((i) => i)
+  },
+  { deep: true, immediate: true }
+)
+
+watch(
+  () => viewItems.value.map((item) => item.key),
+  (keys) => {
+    if (!isWaitingSortSync.value) return
+    const previewKeys = previewItems.value.map((i) => i.key)
+    const sameLength = keys.length === previewKeys.length
+    const sameOrder = sameLength && keys.every((k, idx) => k === previewKeys[idx])
+    if (sameOrder) {
+      isWaitingSortSync.value = false
+    }
+  }
+)
 
 const handleAction = (
   type: 'select' | 'contextmenu',
-  item: (typeof viewItems.value)[number],
+  item: ListItemView,
   e?: MouseEvent
 ) => {
   if (type === 'select' && props.selectable) {
@@ -113,183 +145,79 @@ const handleAction = (
   }
 }
 
-const pressCandidateKey = ref<string | null>(null)
-const pressPointerId = ref<number | null>(null)
-const pressStartPoint = ref<{ x: number; y: number } | null>(null)
-const longPressArmedKey = ref<string | null>(null)
-const draggingKey = ref<string | null>(null)
-const lastDropTarget = ref<{ toId: string; after: boolean } | null>(null)
-const hasCommittedSort = ref(false)
-const isWaitingSortSync = ref(false)
-const suppressNextClick = ref(false)
-const dragImage = new Image()
-dragImage.src = TRANSPARENT_DRAG_IMAGE
-
-const isSameOrder = (a: string[], b: string[]) =>
-  a.length === b.length && a.every((key, index) => key === b[index])
-
-const { start: startLongPress, stop: stopLongPress, isPending: isLongPressPending } = useTimeoutFn(
-  () => {
-    if (pressCandidateKey.value) {
-      longPressArmedKey.value = pressCandidateKey.value
-    }
-  },
-  computed(() => props.longPressMs),
-  { immediate: false }
-)
-
-const canSort = (item: (typeof viewItems.value)[number]) => {
+const canSort = (item: ListItemView) => {
   if (!props.sortable) return false
   if (!props.canSortItem) return true
   return props.canSortItem(item.raw)
 }
 
-const isInteractiveTarget = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  !!target.closest('button, a, input, textarea, select, [role="button"], [contenteditable="true"]')
+const suppressNextClick = ref(false)
 
-const releasePointerCapture = (event?: PointerEvent) => {
-  if (!event || pressPointerId.value !== event.pointerId) return
-  const target = event.currentTarget as HTMLElement | null
-  if (target?.hasPointerCapture?.(event.pointerId)) {
-    target.releasePointerCapture(event.pointerId)
+// sortablejs 长按激活：按下后等 longPressMs 才真正进入拖拽，期间移动或松开会取消（防误触）
+const dragDelay = computed(() => (props.sortable ? props.longPressMs : 0))
+
+// sortablejs 的 choose 事件：按下被选中（delay 期间也会触发），用于视觉反馈
+const onChoose = (evt: { oldIndex: number }) => {
+  const item = previewItems.value[evt.oldIndex]
+  if (item && canSort(item)) {
+    longPressingKey.value = item.key
   }
 }
 
-const handlePointerDown = (item: (typeof viewItems.value)[number], event: PointerEvent) => {
-  if (!canSort(item)) return
-  if (event.button !== 0 || isInteractiveTarget(event.target)) return
-  ;(event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId)
-  pressCandidateKey.value = item.key
-  pressPointerId.value = event.pointerId
-  pressStartPoint.value = { x: event.clientX, y: event.clientY }
-  startLongPress()
+const onUnchoose = () => {
+  longPressingKey.value = null
 }
 
-const clearPressState = (event?: PointerEvent) => {
-  releasePointerCapture(event)
-  stopLongPress()
-  pressCandidateKey.value = null
-  pressPointerId.value = null
-  pressStartPoint.value = null
-  if (!draggingKey.value) {
-    longPressArmedKey.value = null
-  }
-}
-
-const handlePointerMove = (event: PointerEvent) => {
-  if (!pressCandidateKey.value || pressPointerId.value !== event.pointerId || !pressStartPoint.value) {
-    return
-  }
-  const distanceX = Math.abs(event.clientX - pressStartPoint.value.x)
-  const distanceY = Math.abs(event.clientY - pressStartPoint.value.y)
-  if (distanceX > LONG_PRESS_MOVE_TOLERANCE_PX || distanceY > LONG_PRESS_MOVE_TOLERANCE_PX) {
-    clearPressState(event)
-  }
-}
-
-const handleDragStart = (item: (typeof viewItems.value)[number], event: DragEvent) => {
-  if (!props.sortable || longPressArmedKey.value !== item.key || !canSort(item)) {
-    event.preventDefault()
-    return
-  }
+// vuedraggable 拖拽真正开始（delay 结束后）
+const onDragStart = (evt: { oldIndex: number }) => {
+  const item = previewItems.value[evt.oldIndex]
+  if (!item) return
   draggingKey.value = item.key
-  dragPreviewKeys.value = viewItems.value.map((v) => v.key)
-  hasCommittedSort.value = false
+  longPressingKey.value = null
   suppressNextClick.value = true
-  event.dataTransfer?.setData('text/plain', item.key)
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setDragImage(dragImage, 0, 0)
-  }
 }
 
-const handleDrop = (item: (typeof viewItems.value)[number]) => {
-  if (!draggingKey.value) return
-  const dropTarget = lastDropTarget.value || { toId: item.key, after: false }
-  if (draggingKey.value !== dropTarget.toId) {
-    emit('sort', { fromId: draggingKey.value, toId: dropTarget.toId, after: dropTarget.after })
-    hasCommittedSort.value = true
-  }
-}
-
-const moveKeyByTarget = (keys: string[], fromId: string, toId: string, after: boolean) => {
-  if (fromId === toId) return keys
-  const fromIndex = keys.indexOf(fromId)
-  if (fromIndex === -1) return keys
-  const next = [...keys]
-  const [dragged] = next.splice(fromIndex, 1)
-  if (!dragged) return keys
-  const targetIndex = next.indexOf(toId)
-  if (targetIndex === -1) return keys
-  const insertIndex = after ? targetIndex + 1 : targetIndex
-  next.splice(insertIndex, 0, dragged)
-  return next
-}
-
-const handleDragOver = (item: (typeof viewItems.value)[number], event: DragEvent) => {
-  if (!draggingKey.value || !canSort(item) || draggingKey.value === item.key) return
-  event.preventDefault()
-  if (event.dataTransfer) {
-    event.dataTransfer.dropEffect = 'move'
-  }
-  const targetEl = event.currentTarget as HTMLElement | null
-  const rect = targetEl?.getBoundingClientRect()
-  const after = !!rect && event.clientY > rect.top + rect.height / 2
-  lastDropTarget.value = { toId: item.key, after }
-  const baseKeys = dragPreviewKeys.value ?? viewItems.value.map((v) => v.key)
-  dragPreviewKeys.value = moveKeyByTarget(baseKeys, draggingKey.value, item.key, after)
-}
-
-const handleDragEnd = () => {
-  const draggingId = draggingKey.value
-  const previewKeys = dragPreviewKeys.value
-  let shouldWaitForSync = false
-  if (!hasCommittedSort.value && draggingId && previewKeys) {
-    const originKeys = viewItems.value.map((v) => v.key)
-    const changed = !isSameOrder(originKeys, previewKeys)
-    if (changed) {
-      const nextIndex = previewKeys.indexOf(draggingId)
-      if (nextIndex > 0) {
-        emit('sort', { fromId: draggingId, toId: previewKeys[nextIndex - 1]!, after: true })
-        shouldWaitForSync = true
-      } else if (nextIndex === 0 && previewKeys.length > 1) {
-        emit('sort', { fromId: draggingId, toId: previewKeys[1]!, after: false })
-        shouldWaitForSync = true
-      }
-    }
-  } else if (hasCommittedSort.value && previewKeys) {
-    shouldWaitForSync = true
-  }
+// vuedraggable 拖拽结束：根据 oldIndex/newIndex 计算 fromId/toId/after 并 emit
+const onDragEnd = (evt: { oldIndex: number; newIndex: number }) => {
+  const { oldIndex, newIndex } = evt
+  const fromItem = previewItems.value[newIndex] // 拖拽后预览数组已更新，被拖项现在在 newIndex
   draggingKey.value = null
-  longPressArmedKey.value = null
-  pressCandidateKey.value = null
-  pressPointerId.value = null
-  pressStartPoint.value = null
-  lastDropTarget.value = null
-  hasCommittedSort.value = false
-  isWaitingSortSync.value = shouldWaitForSync
-  if (!shouldWaitForSync) {
-    dragPreviewKeys.value = null
+  longPressingKey.value = null
+
+  if (oldIndex === newIndex || !fromItem) {
+    previewItems.value = viewItems.value.map((i) => i)
+    window.setTimeout(() => {
+      suppressNextClick.value = false
+    }, 150)
+    return
   }
-  stopLongPress()
+
+  let toId: string
+  let after: boolean
+  if (newIndex > 0) {
+    toId = previewItems.value[newIndex - 1]!.key
+    after = true
+  } else if (previewItems.value.length > 1) {
+    toId = previewItems.value[1]!.key
+    after = false
+  } else {
+    previewItems.value = viewItems.value.map((i) => i)
+    return
+  }
+
+  emit('sort', { fromId: fromItem.key, toId, after })
+  isWaitingSortSync.value = true
+
   window.setTimeout(() => {
     suppressNextClick.value = false
-  }, 150)
+    if (isWaitingSortSync.value) {
+      isWaitingSortSync.value = false
+      previewItems.value = viewItems.value.map((i) => i)
+    }
+  }, 300)
 }
 
-watch(
-  () => viewItems.value.map((item) => item.key),
-  (keys) => {
-    if (!isWaitingSortSync.value || !dragPreviewKeys.value) return
-    if (isSameOrder(keys, dragPreviewKeys.value)) {
-      dragPreviewKeys.value = null
-      isWaitingSortSync.value = false
-    }
-  }
-)
-
-const handleItemClick = (item: (typeof viewItems.value)[number]) => {
+const handleItemClick = (item: ListItemView) => {
   if (props.sortable && suppressNextClick.value) {
     suppressNextClick.value = false
     return
@@ -320,64 +248,71 @@ const handleItemClick = (item: (typeof viewItems.value)[number]) => {
         </slot>
       </div>
 
-      <template v-else>
-        <template v-for="item in displayedItems" :key="item.key">
-          <div v-if="item.groupTitle" class="group-header">
-            <slot name="group-header" :title="item.groupTitle" :item="item.raw">
-              {{ item.groupTitle }}
-            </slot>
-          </div>
-
-          <div
-            class="list-item"
-            :class="{
-              'is-active': item.isActive,
-              'is-last': item.isLastItem,
-              'is-sortable': canSort(item),
-              'is-long-pressing': isLongPressPending && pressCandidateKey === item.key,
-              'is-drag-ready': longPressArmedKey === item.key,
-              'is-dragging': draggingKey === item.key
-            }"
-            :draggable="sortable && longPressArmedKey === item.key && canSort(item)"
-            @click="handleItemClick(item)"
-            @contextmenu="handleAction('contextmenu', item, $event)"
-            @pointerdown="handlePointerDown(item, $event)"
-            @pointermove="handlePointerMove"
-            @pointerup="clearPressState"
-            @pointercancel="clearPressState"
-            @dragstart="handleDragStart(item, $event)"
-            @dragover="handleDragOver(item, $event)"
-            @drop.prevent="handleDrop(item)"
-            @dragend="handleDragEnd"
-          >
-            <div v-if="item.logo || defaultIcon" class="item-media">
-              <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
-              <Image
-                v-else-if="item.logo"
-                :src="item.logo"
-                :alt="String(item.main)"
-                class="media-img"
-              />
-              <component v-else-if="defaultIcon" :is="defaultIcon" class="media-icon" />
-            </div>
-
-            <div class="item-content">
-              <slot name="main" :item="item.raw">
-                <div class="main-text text-truncate">
-                  {{ item.main }}
-                </div>
+      <draggable
+        v-else
+        v-model="previewItems"
+        :item-key="(item: any) => item.key"
+        :disabled="!sortable"
+        :delay="dragDelay"
+        :delay-on-touch-only="false"
+        :touch-start-threshold="8"
+        :animation="180"
+        ghost-class="list-drag-ghost"
+        chosen-class="list-drag-chosen"
+        @choose="onChoose"
+        @unchoose="onUnchoose"
+        @start="onDragStart"
+        @end="onDragEnd"
+      >
+        <template #item="{ element: item }">
+          <div>
+            <div v-if="item.groupTitle" class="group-header">
+              <slot name="group-header" :title="item.groupTitle" :item="item.raw">
+                {{ item.groupTitle }}
               </slot>
-              <div v-if="item.sub" class="sub-text text-truncate">
-                {{ item.sub }}
-              </div>
             </div>
 
-            <div v-if="$slots.actions" class="item-actions">
-              <slot name="actions" :item="item.raw" :is-active="item.isActive" />
+            <div
+              class="list-item"
+              :class="{
+                'is-active': item.isActive,
+                'is-last': item.isLastItem,
+                'is-sortable': canSort(item),
+                'is-long-pressing': longPressingKey === item.key,
+                'is-dragging': draggingKey === item.key
+              }"
+              @click="handleItemClick(item)"
+              @contextmenu="handleAction('contextmenu', item, $event)"
+            >
+              <div v-if="item.logo || defaultIcon" class="item-media">
+                <component v-if="item.isIcon" :is="item.logo" class="media-icon" />
+                <Image
+                  v-else-if="item.logo"
+                  :src="item.logo"
+                  :alt="String(item.main)"
+                  class="media-img"
+                />
+                <component v-else-if="defaultIcon" :is="defaultIcon" class="media-icon" />
+              </div>
+
+              <div class="item-content">
+                <slot name="main" :item="item.raw">
+                  <div class="main-text text-truncate">
+                    {{ item.main }}
+                  </div>
+                </slot>
+                <div v-if="item.sub" class="sub-text text-truncate">
+                  {{ item.sub }}
+                </div>
+              </div>
+
+              <div v-if="$slots.actions" class="item-actions">
+                <slot name="actions" :item="item.raw" :is-active="item.isActive" />
+              </div>
             </div>
           </div>
         </template>
-      </template>
+      </draggable>
     </div>
   </div>
 </template>
@@ -389,7 +324,6 @@ const handleItemClick = (item: (typeof viewItems.value)[number]) => {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
   position: relative;
   contain: content;
   overscroll-behavior: contain;
@@ -471,7 +405,9 @@ const handleItemClick = (item: (typeof viewItems.value)[number]) => {
   cursor: pointer;
   transition:
     background-color 0.12s ease,
-    color 0.12s ease;
+    color 0.12s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
   gap: 10px;
   padding: 8px 10px;
   margin-bottom: 4px;
@@ -484,15 +420,20 @@ const handleItemClick = (item: (typeof viewItems.value)[number]) => {
 }
 
 .list-item.is-long-pressing {
-  transform: scale(0.99);
-}
-
-.list-item.is-drag-ready {
+  /* 长按激活拖拽：明显的视觉提示，让用户知道现在可以拖动了 */
+  transform: scale(1.02);
+  background-color: var(--bg-active);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   cursor: grab;
 }
 
-.list-item.is-dragging {
+.list-item.is-dragging,
+:deep(.list-drag-ghost) {
   opacity: 0.55;
+}
+
+:deep(.list-drag-chosen) {
+  cursor: grabbing;
 }
 
 .list-item:hover {
