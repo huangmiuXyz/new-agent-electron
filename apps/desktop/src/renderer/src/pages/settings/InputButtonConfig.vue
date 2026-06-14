@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import draggable from 'vuedraggable'
-import ChatInput from '@renderer/pages/chat/message/Input/index.vue'
+import List from '@renderer/components/List.vue'
 import Switch from '@renderer/components/Switch.vue'
+import ChatInput from '@renderer/pages/chat/message/Input/index.vue'
 
 const settingsStore = useSettingsStore()
 const { display } = storeToRefs(settingsStore)
@@ -47,33 +47,45 @@ const buttonHintMap: Partial<Record<InputButtonId, string>> = {
   workpath: '智能体支持本地工作路径时显示'
 }
 
-// 以本地可拖拽列表驱动，变更即写回 store
-const localLayout = ref<InputButtonItem[]>(
-  (display.value.inputButtonLayout || []).map((item: InputButtonItem) => ({ ...item }))
-)
-
-watch(
-  () => display.value.inputButtonLayout,
-  (next) => {
-    if (!next) return
-    // 仅在 store 端发生外部变更（如重置）时同步，避免拖拽过程中的循环更新
-    const nextIds = next.map((i: InputButtonItem) => `${i.id}:${i.visible}`).join('|')
-    const localIds = localLayout.value.map((i) => `${i.id}:${i.visible}`).join('|')
-    if (nextIds !== localIds) {
-      localLayout.value = next.map((item: InputButtonItem) => ({ ...item }))
-    }
-  }
-)
-
-const commit = () => {
-  settingsStore.updateInputButtonLayout(
-    localLayout.value.map((item) => ({ id: item.id, visible: item.visible }))
-  )
+// 适配 List 组件的列表项：把 store 的 layout 映射成带 name/hint 的视图数据
+interface ButtonListItem {
+  id: InputButtonId
+  name: string
+  hint: string
+  visible: boolean
 }
 
-watch(localLayout, commit, { deep: true })
+const listItems = computed<ButtonListItem[]>(() => {
+  const layout = (display.value.inputButtonLayout || []) as InputButtonItem[]
+  return layout.map((item) => ({
+    id: item.id,
+    name: buttonLabelMap[item.id] || item.id,
+    hint: buttonHintMap[item.id] || '',
+    visible: item.visible
+  }))
+})
 
-const onDragEnd = () => commit()
+// List emit sort 后，根据 fromId/toId/after 重排并写回 store
+const handleSort = ({ fromId, toId, after }: { fromId: string; toId: string; after: boolean }) => {
+  const layout = (display.value.inputButtonLayout || []) as InputButtonItem[]
+  const fromIndex = layout.findIndex((i) => i.id === fromId)
+  if (fromIndex === -1) return
+  const next = [...layout]
+  const [moved] = next.splice(fromIndex, 1)
+  if (!moved) return
+  const toIndex = next.findIndex((i) => i.id === toId)
+  if (toIndex === -1) return
+  next.splice(after ? toIndex + 1 : toIndex, 0, moved)
+  settingsStore.updateInputButtonLayout(next)
+}
+
+const toggleVisible = (item: ButtonListItem, value: boolean) => {
+  const layout = (display.value.inputButtonLayout || []) as InputButtonItem[]
+  const next = layout.map((i) =>
+    i.id === item.id ? { ...i, visible: value } : i
+  )
+  settingsStore.updateInputButtonLayout(next)
+}
 
 const resetToDefault = () => {
   settingsStore.resetInputButtonLayout()
@@ -85,44 +97,35 @@ const resetToDefault = () => {
     <div class="config-header">
       <div class="config-header-title">
         <span>输入框按钮管理</span>
-        <span class="config-header-hint">左侧拖动排序、切换显隐，右侧实时预览</span>
+        <span class="config-header-hint">拖动手柄排序、切换开关控制显隐，右侧实时预览</span>
       </div>
       <button class="reset-btn" type="button" @click="resetToDefault">恢复默认</button>
     </div>
 
     <div class="config-body">
-      <!-- 左：按钮排序（可滚动） -->
+      <!-- 左：按钮排序（可滚动，拖拽手柄模式） -->
       <div class="config-panel config-panel-left">
         <div class="config-panel-title">按钮顺序</div>
         <div class="button-list">
-          <draggable
-            v-model="localLayout"
-            item-key="id"
-            handle=".drag-handle"
-            animation="180"
-            ghost-class="drag-ghost"
-            @end="onDragEnd"
+          <List
+            :items="listItems"
+            key-field="id"
+            main-field="name"
+            sub-field="hint"
+            :selectable="false"
+            :sortable="true"
+            sort-mode="handle"
+            :is-disabled="(item: ButtonListItem) => !item.visible"
+            @sort="handleSort"
           >
-            <template #item="{ element }">
-              <div class="button-row" :class="{ disabled: !element.visible }">
-                <div class="drag-handle" title="拖动排序">
-                  <svg viewBox="0 0 24 24" width="16" height="16">
-                    <circle cx="9" cy="6" r="1.4" />
-                    <circle cx="15" cy="6" r="1.4" />
-                    <circle cx="9" cy="12" r="1.4" />
-                    <circle cx="15" cy="12" r="1.4" />
-                    <circle cx="9" cy="18" r="1.4" />
-                    <circle cx="15" cy="18" r="1.4" />
-                  </svg>
-                </div>
-                <span class="button-name">{{ buttonLabelMap[element.id as InputButtonId] || element.id }}</span>
-                <span v-if="buttonHintMap[element.id as InputButtonId]" class="button-hint">
-                  {{ buttonHintMap[element.id as InputButtonId] }}
-                </span>
-                <Switch v-model="element.visible" size="sm" />
-              </div>
+            <template #actions="{ item }">
+              <Switch
+                :model-value="item.visible"
+                size="sm"
+                @update:model-value="(v: boolean | undefined) => toggleVisible(item, !!v)"
+              />
             </template>
-          </draggable>
+          </List>
         </div>
       </div>
 
@@ -206,6 +209,8 @@ const resetToDefault = () => {
 .config-panel-left {
   flex: 1;
   min-width: 0;
+  /* 限制左侧高度，让 List 内部滚动 */
+  height: 320px;
 }
 
 .config-panel-right {
@@ -221,64 +226,21 @@ const resetToDefault = () => {
 }
 
 .button-list {
-  height: 280px;
-  overflow-y: auto;
-  padding-right: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.button-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
+.button-list :deep(.list-scroll-area) {
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: var(--bg-card);
-  margin-bottom: 6px;
-  transition: background 0.15s, opacity 0.15s;
 }
 
-.button-row:hover {
-  background: var(--bg-secondary);
-}
-
-.button-row.disabled {
-  opacity: 0.55;
-}
-
-.drag-handle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-  touch-action: none;
-}
-
-.drag-handle:active {
-  cursor: grabbing;
-}
-
-.drag-ghost {
-  opacity: 0.4;
-  background: var(--bg-secondary);
-}
-
-.button-name {
-  font-size: 13px;
-  color: var(--text-primary);
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.button-hint {
+/* 显示 hint 子文本（List 默认隐藏 sub-text） */
+.button-list :deep(.sub-text) {
+  display: block;
   font-size: 11px;
   color: var(--text-tertiary);
-  flex-shrink: 0;
 }
 
 .preview-box {

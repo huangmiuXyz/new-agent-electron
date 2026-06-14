@@ -22,7 +22,11 @@ interface Props {
   showHeader?: boolean
   renderHeader?: (item: T) => string
   isSelected?: (item: T) => boolean
+  // 标记项为禁用态（视觉弱化），如已隐藏的配置项
+  isDisabled?: (item: T) => boolean
   sortable?: boolean
+  // 拖拽触发方式：'longpress'（长按整行）/ 'handle'（拖拽手柄）。仅 sortable 时生效
+  sortMode?: 'longpress' | 'handle'
   longPressMs?: number
   canSortItem?: (item: T) => boolean
 }
@@ -38,6 +42,7 @@ const props = withDefaults(defineProps<Props>(), {
   variant: 'default',
   showHeader: false,
   sortable: false,
+  sortMode: 'longpress',
   longPressMs: 300
 })
 
@@ -57,6 +62,7 @@ interface ListItemView {
   logo: any
   isIcon: boolean
   isActive: boolean
+  isDisabled: boolean
   groupKey: string
   groupTitle: string
   isLastItem: boolean
@@ -80,6 +86,7 @@ const viewItems = computed<ListItemView[]>(() => {
       logo,
       isIcon,
       isActive: props.isSelected?.(item) || props.activeId === key,
+      isDisabled: !!props.isDisabled?.(item),
       groupKey: '',
       groupTitle: ''
     }
@@ -153,8 +160,12 @@ const canSort = (item: ListItemView) => {
 
 const suppressNextClick = ref(false)
 
-// sortablejs 长按激活：按下后等 longPressMs 才真正进入拖拽，期间移动或松开会取消（防误触）
-const dragDelay = computed(() => (props.sortable ? props.longPressMs : 0))
+// sortablejs 长按激活：仅 sortMode='longpress' 时启用 delay；'handle' 模式按手柄即拖
+const dragDelay = computed(() =>
+  props.sortable && props.sortMode === 'longpress' ? props.longPressMs : 0
+)
+// 手柄模式：sortablejs 通过 handle 选择器限定只能从手柄元素发起拖拽
+const dragHandle = computed(() => (props.sortMode === 'handle' ? '.list-item-drag-handle' : undefined))
 
 // sortablejs 的 choose 事件：按下被选中（delay 期间也会触发），用于视觉反馈
 const onChoose = (evt: { oldIndex: number }) => {
@@ -235,7 +246,7 @@ const handleItemClick = (item: ListItemView) => {
       </div>
     </div>
 
-    <div class="list-scroll-area">
+    <div class="list-scroll-area" :class="{ 'has-long-press': !!longPressingKey }">
       <div v-if="loading" class="state-container">
         <slot name="loading">
           <Loading />
@@ -256,6 +267,7 @@ const handleItemClick = (item: ListItemView) => {
         :delay="dragDelay"
         :delay-on-touch-only="false"
         :touch-start-threshold="8"
+        :handle="dragHandle"
         :animation="180"
         ghost-class="list-drag-ghost"
         chosen-class="list-drag-chosen"
@@ -278,6 +290,7 @@ const handleItemClick = (item: ListItemView) => {
                 'is-active': item.isActive,
                 'is-last': item.isLastItem,
                 'is-sortable': canSort(item),
+                'is-disabled': item.isDisabled,
                 'is-long-pressing': longPressingKey === item.key,
                 'is-dragging': draggingKey === item.key
               }"
@@ -308,6 +321,22 @@ const handleItemClick = (item: ListItemView) => {
 
               <div v-if="$slots.actions" class="item-actions">
                 <slot name="actions" :item="item.raw" :is-active="item.isActive" />
+              </div>
+
+              <!-- 拖拽手柄：仅 sortMode='handle' 且可排序时显示 -->
+              <div
+                v-if="sortable && sortMode === 'handle' && canSort(item)"
+                class="list-item-drag-handle"
+                title="拖动排序"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <circle cx="9" cy="6" r="1.4" />
+                  <circle cx="15" cy="6" r="1.4" />
+                  <circle cx="9" cy="12" r="1.4" />
+                  <circle cx="15" cy="12" r="1.4" />
+                  <circle cx="9" cy="18" r="1.4" />
+                  <circle cx="15" cy="18" r="1.4" />
+                </svg>
               </div>
             </div>
           </div>
@@ -419,12 +448,22 @@ const handleItemClick = (item: ListItemView) => {
   touch-action: manipulation;
 }
 
+/* 进入长按态时，其他项轻微变暗，制造对比 */
+.list-scroll-area.has-long-press .list-item:not(.is-long-pressing):not(.is-dragging) {
+  opacity: 0.45;
+}
+
+/* 被长按激活的项：主题色描边 + 内高光 + 抬起阴影，不改变尺寸避免溢出截断 */
 .list-item.is-long-pressing {
-  /* 长按激活拖拽：明显的视觉提示，让用户知道现在可以拖动了 */
-  transform: scale(1.02);
   background-color: var(--bg-active);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  outline: 2px solid var(--accent-color, var(--color-primary, #3b82f6));
+  outline-offset: -2px;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.18),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent-color, var(--color-primary, #3b82f6)) 30%, transparent);
   cursor: grab;
+  z-index: 5;
+  position: relative;
 }
 
 .list-item.is-dragging,
@@ -445,6 +484,11 @@ const handleItemClick = (item: ListItemView) => {
   color: var(--accent-color);
 }
 
+/* 禁用态（如已隐藏的配置项）：视觉弱化 */
+.list-item.is-disabled {
+  opacity: 0.5;
+}
+
 .item-content {
   flex: 1;
   min-width: 0;
@@ -463,6 +507,36 @@ const handleItemClick = (item: ListItemView) => {
 .item-actions {
   margin-left: auto;
   padding-left: 8px;
+}
+
+/* 拖拽手柄 */
+.list-item-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 24px;
+  margin-left: 4px;
+  color: var(--text-tertiary);
+  cursor: grab;
+  touch-action: none;
+  opacity: 0.6;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+
+.list-item-drag-handle:hover {
+  opacity: 1;
+  color: var(--text-primary);
+}
+
+.list-item-drag-handle:active {
+  cursor: grabbing;
+}
+
+.list-item-drag-handle :deep(svg) {
+  width: 100%;
+  height: 100%;
 }
 
 .item-media {
