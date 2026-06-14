@@ -99,6 +99,50 @@ const activityStatus = computed(() => {
   return '正在处理中'
 })
 
+// —— 自动重试等待态：展示倒计时 ——
+const isRetrying = computed(() => props.message.metadata?.retrying === true)
+const retryAttempt = computed(() => props.message.metadata?.retryAttempt ?? 0)
+
+// 每 200ms 更新一次「现在」，用于计算倒计时文案
+const now = ref(Date.now())
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+watch(
+  isRetrying,
+  (retrying) => {
+    if (retrying && !countdownTimer) {
+      countdownTimer = setInterval(() => {
+        now.value = Date.now()
+      }, 200)
+    } else if (!retrying && countdownTimer) {
+      clearInterval(countdownTimer)
+      countdownTimer = null
+    }
+  },
+  { immediate: true }
+)
+onUnmounted(() => {
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+    countdownTimer = null
+  }
+})
+
+const retryCountdownSeconds = computed(() => {
+  const endsAt = props.message.metadata?.retryCountdownEndsAt
+  if (!endsAt) return 0
+  return Math.max(0, (endsAt - now.value) / 1000)
+})
+
+const retryStatusText = computed(() => {
+  const attempt = retryAttempt.value
+  const secs = retryCountdownSeconds.value
+  const attemptText = attempt > 0 ? `第 ${attempt} 次` : ''
+  if (secs > 0) {
+    return `请求失败，${attemptText}重试中，${secs.toFixed(1)} 秒后重试...`
+  }
+  return `请求失败，正在${attemptText}重试...`
+})
+
 const togglePreviousContent = () => {
   isPreviousContentExpanded.value = !isPreviousContentExpanded.value
 }
@@ -202,6 +246,22 @@ const playMessageAudio = () => {
           <span class="dot"></span>
           <span class="dot"></span>
         </div>
+      </div>
+      <div v-if="isRetrying" class="retry-container">
+        <span class="retry-text">{{ retryStatusText }}</span>
+        <Button
+          v-if="message.metadata?.stopRetry"
+          size="sm"
+          variant="icon"
+          type="button"
+          class="retry-stop-btn"
+          title="停止自动重试"
+          @click="message.metadata?.stopRetry?.()"
+        >
+          <template #icon>
+            <Stop style="color: red" />
+          </template>
+        </Button>
       </div>
       <button
         v-if="canCollapsePreviousContent"
@@ -409,6 +469,34 @@ const playMessageAudio = () => {
 
 .loading-container.is-mobile {
   padding-top: 14px;
+}
+
+/* 自动重试提示 */
+.retry-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  background-color: var(--bg-error, rgba(254, 242, 242, 0.9));
+  border: 1px solid var(--border-error, rgba(252, 165, 165, 0.6));
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.retry-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.retry-stop-btn {
+  flex-shrink: 0;
+}
+
+.dark-mode .retry-container {
+  background-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.15);
+  border-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.3);
 }
 
 .loading-dots {

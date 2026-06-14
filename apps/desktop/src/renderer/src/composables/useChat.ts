@@ -83,7 +83,32 @@ export const useChat = (chatId: string) => {
     delete nextMetadata.translations
     delete nextMetadata.usage
     delete nextMetadata.providerMetadata
+    delete nextMetadata.retrying
+    delete nextMetadata.retryAttempt
+    delete nextMetadata.retryCountdownEndsAt
+    delete nextMetadata.stopRetry
     return nextMetadata as MetaData
+  }
+
+  // —— 自动重试状态（跨 createChat 调用共享）——
+  // 失败后按智能体配置的间隔自动重试，直到用户点击停止按钮。
+  let retryTimer: ReturnType<typeof setTimeout> | null = null
+  let retryCountdownTimer: ReturnType<typeof setInterval> | null = null
+  let retryAttempt = 0
+
+  const cancelRetry = () => {
+    if (retryTimer) {
+      clearTimeout(retryTimer)
+      retryTimer = null
+    }
+    if (retryCountdownTimer) {
+      clearInterval(retryCountdownTimer)
+      retryCountdownTimer = null
+    }
+  }
+
+  const resetRetryAttempt = () => {
+    retryAttempt = 0
   }
 
   const createChat = (
@@ -144,9 +169,101 @@ export const useChat = (chatId: string) => {
         updateMessages,
         markManuallyStopped: () => {
           manuallyStopped = true
+          cancelRetry()
         },
         onStreamingUpdate: speechController.processQueued
       })
+
+      // —— 自动重试辅助：状态（retryTimer / retryCountdownTimer / retryAttempt）
+      //    与 cancelRetry 定义在外层 createChat 之外，跨多次 createChat 共享 ——
+      const clearRetryMetadata = (messageId: string) => {
+        const storeChat = getChatById(chatId)
+        if (!storeChat) return
+        const target = storeChat.messages.find((m) => m.id === messageId)
+        if (!target) return
+        // 清理失败/重试态，恢复为普通消息，交由新一轮流接管 loading 等状态
+        const nextMetadata = clearTransientMetadata(target.metadata)
+        updateMessageMetadata(chatId, messageId, nextMetadata as MetaData)
+      }
+
+      const scheduleRetry = (failedMessageId: string, attempt: number) => {
+        const agent = getChatAgent()
+        const intervalMs = Math.max(0, agent?.retryIntervalMs ?? 3000)
+        const endsAt = Date.now() + intervalMs
+
+        // 用户点击「停止重试」时调用：标记手动停止，清理 timer，
+        // 将消息标记为最终失败态并结束当前 scope。
+        const stopRetry = () => {
+          if (manuallyStopped) return
+          manuallyStopped = true
+          cancelRetry()
+          const storeChat = getChatById(chatId)
+          const target = storeChat?.messages.find((m) => m.id === failedMessageId)
+          if (target) {
+            updateMessageMetadata(chatId, failedMessageId, {
+              ...target.metadata,
+              retrying: false,
+              loading: false,
+              error: new Error('用户已停止自动重试'),
+              stopRetry: undefined
+            } as MetaData)
+          }
+          scope.stop()
+          scheduleNextPendingMessage()
+        }
+
+        const setMessageRetryState = (countdownEndsAt?: number) => {
+          const storeChat = getChatById(chatId)
+          if (!storeChat) return
+          const target = storeChat.messages.find((m) => m.id === failedMessageId)
+          if (!target) return
+          updateMessageMetadata(chatId, failedMessageId, {
+            ...target.metadata,
+            retrying: true,
+            retryAttempt: attempt,
+            retryCountdownEndsAt: countdownEndsAt,
+            loading: false,
+            error: undefined,
+            stopRetry
+          } as MetaData)
+        }
+
+        setMessageRetryState(endsAt)
+
+        // 倒计时刷新（每 500ms 更新展示用的剩余时间）
+        if (intervalMs > 0) {
+          retryCountdownTimer = setInterval(() => {
+            const remaining = endsAt - Date.now()
+            if (remaining <= 0) {
+              if (retryCountdownTimer) {
+                clearInterval(retryCountdownTimer)
+                retryCountdownTimer = null
+              }
+              return
+            }
+            setMessageRetryState(endsAt)
+          }, 500)
+        }
+
+        retryTimer = setTimeout(() => {
+          retryTimer = null
+          if (retryCountdownTimer) {
+            clearInterval(retryCountdownTimer)
+            retryCountdownTimer = null
+          }
+          // 用户在等待期间点击了停止
+          if (manuallyStopped) {
+            scope.stop()
+            scheduleNextPendingMessage()
+            return
+          }
+          // 清理失败/重试态，停止当前 scope，然后用「继续」触发下一次请求。
+          // 继续而非 regenerate：保留已生成的内容，只让模型接着往下生成。
+          clearRetryMetadata(failedMessageId)
+          scope.stop()
+          result.continueMessages()
+        }, intervalMs)
+      }
 
       const chat = new _useChat<BaseMessage>({
         id: chatId,
@@ -217,6 +334,10 @@ export const useChat = (chatId: string) => {
           messageSyncController.finalizeMessageSync(finalMessage)
           speechController.finishMessageSpeech(finalMessage)
 
+          // 成功完成：清理重试状态
+          cancelRetry()
+          resetRetryAttempt()
+
           useTitle(chatId).generateTitle()
           if (!manuallyStopped) {
             void subTaskCoordinator.submitSummaryOnStop()
@@ -229,13 +350,36 @@ export const useChat = (chatId: string) => {
           console.error(error)
           messageSyncController.finalizeMessageSync(chat.lastMessage, error as APICallError)
           speechController.fail(error)
+
+          const failedMessage = chat.lastMessage
+          const failedMessageId = failedMessage?.id
+
+          // 用户手动停止：不重试
           if (manuallyStopped) {
             subTaskCoordinator.markFailed('用户手动停止了子任务')
-          } else {
-            subTaskCoordinator.markFailed((error as Error).message || '子任务执行失败')
+            scope.stop()
+            scheduleNextPendingMessage()
+            return
           }
-          scope.stop()
-          scheduleNextPendingMessage()
+
+          // 普通对话失败：检查智能体是否配置了自动重试
+          // 子任务场景（has parentChatId）不自动重试，按原逻辑上报失败
+          // 缺省（未配置）视为开启自动重试
+          const isSubTask = !!getChatById(chatId)?.parentChatId
+          const agent = getChatAgent()
+          const autoRetryEnabled =
+            agent?.retryAutoEnabled !== false && !!failedMessageId && !isApproval && !isSubTask
+
+          if (!autoRetryEnabled) {
+            subTaskCoordinator.markFailed((error as Error).message || '子任务执行失败')
+            scope.stop()
+            scheduleNextPendingMessage()
+            return
+          }
+
+          // 安排下一次重试：保持当前 scope 存活，由 retryTimer 驱动
+          retryAttempt += 1
+          scheduleRetry(failedMessageId!, retryAttempt)
         }
       })
 
@@ -249,6 +393,7 @@ export const useChat = (chatId: string) => {
 
       onScopeDispose(() => {
         messageSyncController.dispose()
+        cancelRetry()
       })
 
       return chat

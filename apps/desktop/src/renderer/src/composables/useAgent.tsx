@@ -46,6 +46,14 @@ const normalizeUnlimitedNumber = (value: unknown): number => {
   return Math.max(0, numberValue)
 }
 
+const DEFAULT_RETRY_INTERVAL_MS = 3000
+const normalizeRetryInterval = (value: unknown): number => {
+  if (value === '' || value == null) return DEFAULT_RETRY_INTERVAL_MS
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue)) return DEFAULT_RETRY_INTERVAL_MS
+  return Math.max(0, Math.round(numberValue))
+}
+
 export const useAgent = () => {
   const agentStore = useAgentStore()
   const settingsStore = useSettingsStore()
@@ -242,6 +250,8 @@ export const useAgent = () => {
           autoCompressContext: agent.autoCompressContext ?? false,
           compressModel: agent.compressModel,
           maxToolCalls: agent.maxToolCalls ?? DEFAULT_UNLIMITED_VALUE,
+          retryAutoEnabled: agent.retryAutoEnabled ?? true,
+          retryIntervalMs: agent.retryIntervalMs ?? 3000,
           speechVoice: agent.speechVoice || '',
           speechMode: agent.speechMode || 'sentence',
           speechSpeed: agent.speechSpeed ?? 1,
@@ -280,6 +290,8 @@ export const useAgent = () => {
           contextTokenCount: DEFAULT_UNLIMITED_VALUE,
           autoCompressContext: false,
           maxToolCalls: DEFAULT_UNLIMITED_VALUE,
+          retryAutoEnabled: true,
+          retryIntervalMs: 3000,
           speechVoice: '',
           speechMode: 'sentence',
           speechSpeed: 1,
@@ -1270,6 +1282,22 @@ export const useAgent = () => {
         hint: '一次对话中允许的最大工具调用次数。填 0 表示不限制；达到限制后将停止工具调用并返回结果。'
       } as TextField<AgentFormData>,
       {
+        name: 'retryAutoEnabled',
+        type: 'boolean',
+        label: '失败自动重试',
+        hint: '开启后，对话请求失败时会自动重试，直到你手动点击停止按钮。'
+      } as BooleanField<AgentFormData>,
+      {
+        name: 'retryIntervalMs',
+        type: 'number',
+        label: '重试间隔 (毫秒)',
+        min: 0,
+        step: 500,
+        defaultValue: 3000,
+        hint: '自动重试之间的等待时间（毫秒）。填 0 表示失败后立即重试。建议设置 1000 以上的间隔，避免被接口限流。',
+        ifShow: (data) => data.retryAutoEnabled === true
+      } as TextField<AgentFormData>,
+      {
         name: 'workPath',
         type: 'path',
         label: '工作路径',
@@ -1380,6 +1408,7 @@ export const useAgent = () => {
           contextCount: normalizeUnlimitedNumber(data.contextCount),
           contextTokenCount: normalizeUnlimitedNumber(data.contextTokenCount),
           maxToolCalls: normalizeUnlimitedNumber(data.maxToolCalls),
+          retryIntervalMs: normalizeRetryInterval(data.retryIntervalMs),
           backgrounds:
             data.backgrounds?.map((url) => {
               const isVideo = isVideoUrl(url)

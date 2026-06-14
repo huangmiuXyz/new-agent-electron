@@ -39,6 +39,8 @@ declare global {
     autoCompressContext?: boolean // 自动压缩上下文
     compressModel?: { providerId: string; modelId: string } // 用于压缩的模型
     maxToolCalls?: number // 一次对话中最大调用工具次数，0 表示不限制
+    retryAutoEnabled?: boolean // 对话失败时是否自动重试，直到用户手动停止
+    retryIntervalMs?: number // 自动重试间隔（毫秒），0 表示不等待
     speechVoice?: string // 语音名称
     speechMode?: 'sentence' | 'paragraph' | 'full' // 语音生成模式
     speechSpeed?: number // 语音速度
