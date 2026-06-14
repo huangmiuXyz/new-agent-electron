@@ -1,5 +1,10 @@
 import { FileUIPart, TextUIPart } from 'ai'
-import { allowNextIndexedDBEmptyWrite, setIndexedDBStorageRestoreGuard } from '@renderer/utils'
+import {
+  allowNextIndexedDBEmptyWrite,
+  isIndexedDBStorageRestoring,
+  setIndexedDBStorageRestoreGuard
+} from '@renderer/utils'
+import { correctThinkingMode } from '@renderer/services/chatService/thinkingMode'
 
 let resolveRestore: () => void
 const restorePromise = new Promise<void>((resolve) => {
@@ -280,6 +285,25 @@ export const useChatsStores = defineStore(
       return nextDraft
     }
 
+    // 切换模型/provider 后，校正全局 thinkingMode 到新 provider 支持的最近档位，
+    // 避免不同 providerType 的思考参数不兼容导致后端报错。
+    // 恢复持久化数据时跳过校正，避免覆盖用户已保存的设置。
+    const correctThinkingModeForProvider = (providerId: string, modelId: string) => {
+      if (isIndexedDBStorageRestoring('chats')) return
+      const settingsStore = useSettingsStore()
+      const provider = settingsStore.getProviderById(providerId)
+      if (!provider) return
+      const current = settingsStore.thinkingMode
+      const corrected = correctThinkingMode(current, {
+        providerType: provider.providerType,
+        providerId,
+        modelId
+      })
+      if (corrected !== (current ?? null)) {
+        settingsStore.updateThinkingMode(corrected)
+      }
+    }
+
     const setChatAgent = (
       chatId: string,
       agentId: string,
@@ -301,8 +325,13 @@ export const useChatsStores = defineStore(
           currentProviderId,
           currentModelId
         )
+        const modelChanged =
+          chat.providerId !== providerId || chat.modelId !== modelId
         chat.providerId = providerId
         chat.modelId = modelId
+        if (modelChanged) {
+          correctThinkingModeForProvider(providerId, modelId)
+        }
       }
     }
 
@@ -318,8 +347,13 @@ export const useChatsStores = defineStore(
     const setChatModel = (chatId: string, providerId: string, modelId: string) => {
       const chat = getChatById(chatId)
       if (!chat) return
+      const modelChanged =
+        chat.providerId !== providerId || chat.modelId !== modelId
       chat.providerId = providerId
       chat.modelId = modelId
+      if (modelChanged) {
+        correctThinkingModeForProvider(providerId, modelId)
+      }
     }
 
     const setChatToolFeaturesEnabled = (chatId: string, enabled: boolean) => {

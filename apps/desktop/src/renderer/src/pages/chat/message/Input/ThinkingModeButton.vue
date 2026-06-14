@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useSettingsStore } from '@renderer/stores/settings'
-
-type ThinkingDepth = 'low' | 'medium' | 'high' | 'max' | 'adaptive' | 'xhigh'
+import {
+  getThinkingDepthOptions,
+  isMiniMaxM3Provider,
+  type ThinkingDepth
+} from '@renderer/services/chatService/thinkingMode'
 
 const props = defineProps<{
   providerType?: string
@@ -16,14 +19,9 @@ const showPopover = ref(false)
 const popoverRef = ref<HTMLElement>()
 const Bulb = useIcon('Bulb')
 
-const isMiniMaxM3 = computed(() => {
-  const providerId = props.providerId?.toLowerCase() || ''
-  const modelId = props.modelId?.toLowerCase() || ''
-  return props.providerType === 'openai-compatible' && (
-    modelId.includes('minimax-m3') ||
-    providerId.includes('minimax')
-  )
-})
+const isMiniMaxM3 = computed(() =>
+  isMiniMaxM3Provider(props.providerType, props.providerId, props.modelId)
+)
 
 const thinkingLabel = computed(() => {
   if (!thinkingMode.value) return '思考模式'
@@ -31,32 +29,13 @@ const thinkingLabel = computed(() => {
   return `思考模式: ${thinkingMode.value}`
 })
 
-const depthOptions = computed<{ label: string; value: ThinkingDepth; desc: string }[]>(() => {
-  if (isMiniMaxM3.value) {
-    return [
-      { label: '自适应', value: 'adaptive', desc: 'MiniMax-M3 自适应思考' }
-    ]
-  }
-  const pt = props.providerType
-  if (pt === 'deepseek') {
-    return [
-      { label: '高', value: 'high', desc: '标准思考' },
-      { label: '最大', value: 'max', desc: '深度思考' }
-    ]
-  }
-  if (pt === 'xai') {
-    return [
-      { label: '低', value: 'low', desc: '轻量思考' },
-      { label: '高', value: 'high', desc: '深度思考' }
-    ]
-  }
-  return [
-    { label: '低', value: 'low', desc: '轻量思考' },
-    { label: '中', value: 'medium', desc: '均衡思考' },
-    { label: '高', value: 'high', desc: '深度思考' },
-    { label: '超高', value: 'xhigh', desc: '最大思考' }
-  ]
-})
+const depthOptions = computed(() =>
+  getThinkingDepthOptions({
+    providerType: props.providerType,
+    providerId: props.providerId,
+    modelId: props.modelId
+  })
+)
 
 const toggle = () => {
   if (thinkingMode.value) {

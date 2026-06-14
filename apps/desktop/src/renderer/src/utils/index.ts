@@ -399,6 +399,10 @@ export const setIndexedDBStorageRestoreGuard = (key: string, restoring: boolean)
   storageRestoreGuards.set(key, restoring)
 }
 
+export const isIndexedDBStorageRestoring = (key: string) => {
+  return storageRestoreGuards.get(key) === true
+}
+
 export const allowNextIndexedDBEmptyWrite = (key: string) => {
   allowedEmptyStorageWrites.set(key, (allowedEmptyStorageWrites.get(key) || 0) + 1)
 }
