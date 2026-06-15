@@ -153,13 +153,13 @@ watch(
     <div v-if="!isListMode" :style="{
       marginLeft: (isMobile || isWindowsDesktop) ? '0' : '68px'
     }" :class="{ isMobile, isWindowsDesktop }" class="header-info drag">
-      <Button v-if="isWindowsDesktop && props.currentView === 'chat'" variant="icon" size="md" class="no-drag windows-search-left" @click="openSearch">
+      <Button v-if="isWindowsDesktop && props.currentView === 'chat'" variant="icon" size="sm" class="no-drag windows-search-left" @click="openSearch">
         <component :is="Search" />
       </Button>
-      <Button v-if="!isMobile" variant="icon" size="md" @click="toggleSidebar">
+      <Button v-if="!isMobile" variant="icon" size="sm" @click="toggleSidebar">
         <component :is="settingsStore.display.sidebarCollapsed ? PanelOpen : PanelClose" />
       </Button>
-      <Button v-if="isMobile && !isListMode" variant="icon" size="md" @click="back">
+      <Button v-if="isMobile && !isListMode" variant="icon" size="sm" @click="back">
         <ArrowBackIosNewSharp />
       </Button>
       <div v-if="isMobile" class="header-title-container">
