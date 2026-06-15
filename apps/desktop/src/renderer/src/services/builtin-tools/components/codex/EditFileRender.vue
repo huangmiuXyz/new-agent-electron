@@ -2,7 +2,6 @@
 import {
   extractResultError,
   extractResultSummary,
-  toDisplayPath,
   truncate
 } from './codexUtils'
 

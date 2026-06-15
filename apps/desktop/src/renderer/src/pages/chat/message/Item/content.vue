@@ -110,6 +110,15 @@ const isAudioFilePart = (block: BaseMessage['parts'][number]): block is FileUIPa
   return block.type === 'file' && Boolean(block.mediaType?.startsWith('audio/'))
 }
 
+const isNonAudioFilePart = (block: BaseMessage['parts'][number]): block is FileUIPart => {
+  return block.type === 'file' && !isAudioFilePart(block)
+}
+
+const filePartToUploadFile = (block: FileUIPart) => ({
+  ...block,
+  blobUrl: anyUrlToBlobUrl(block.url)
+})
+
 const audioPartToPreviewItem = (block: FileUIPart, idx: number): InputAudioItem => ({
   id: `${block.filename || 'audio'}-${idx}`,
   filename: block.filename || `input-audio-${idx + 1}.wav`,
@@ -139,8 +148,8 @@ const displayParts = computed(() => props.parts ?? props.message.parts)
           </div>
           <FileUpload
             :removable="false"
-            v-if="block.type === 'file' && !isAudioFilePart(block)"
-            :files="[{ ...block, blobUrl: anyUrlToBlobUrl(block.url) }]"
+            v-if="isNonAudioFilePart(block)"
+            :files="[filePartToUploadFile(block)]"
           />
           <AudioInputPreview
             v-if="isAudioFilePart(block)"

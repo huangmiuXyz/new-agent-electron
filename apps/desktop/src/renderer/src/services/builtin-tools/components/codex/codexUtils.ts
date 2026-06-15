@@ -215,7 +215,8 @@ export const parseSearchSummary = (text: string): ParsedSearchSummary => {
       const rest = trimmed.slice(m[0].length).trim()
       const candidate: SearchCandidate = {
         path: m[1],
-        count: Number(m[2])
+        count: Number(m[2]),
+        lines: []
       }
       const linesMatch = rest.match(/lines:\s*([0-9,\s]+)/)
       if (linesMatch) {

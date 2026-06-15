@@ -46,6 +46,11 @@ vi.mock('./command-utils', () => ({
 vi.mock('../components/ApplyPatchRender.vue', () => ({
   default: {}
 }))
+vi.mock('../components/codex/ReadFileRender.vue', () => ({ default: {} }))
+vi.mock('../components/codex/SearchProjectRender.vue', () => ({ default: {} }))
+vi.mock('../components/codex/EditFileRender.vue', () => ({ default: {} }))
+vi.mock('../components/codex/ListDirRender.vue', () => ({ default: {} }))
+vi.mock('../components/codex/ChangeWorkingDirectoryRender.vue', () => ({ default: {} }))
 
 const mockPathApi = {
   isAbsolute: vi.fn((p: string) => /^[A-Z]:/i.test(p) || p.startsWith('/')),
@@ -639,6 +644,14 @@ describe('search_project', () => {
 })
 
 describe('exec_command', () => {
+  it('should expose command as header summary', () => {
+    const tool = getExecCommandTool()
+
+    expect(tool.renderSummary?.({ command: 'pnpm typecheck:web' }, undefined)).toBe(
+      '💻 pnpm typecheck:web'
+    )
+  })
+
   it('should steer shell rg searches to search_project without opening a terminal', async () => {
     const tool = getExecCommandTool()
     const text = extractText(await tool.execute({ command: 'rg -n "createApp" .' }, defaultOptions))

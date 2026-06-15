@@ -3,7 +3,6 @@ import {
   extractResultError,
   extractResultText,
   parseHashline,
-  toDisplayPath,
   truncate
 } from './codexUtils'
 
