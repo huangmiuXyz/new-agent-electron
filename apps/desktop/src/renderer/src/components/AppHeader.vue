@@ -209,7 +209,7 @@ watch(
 </template>
 
 <style scoped>
-/* 头部：磨砂玻璃效果，极简边框 */
+/* 头部：macOS 振动玻璃工具栏 */
 .app-header {
   --mobile-header-h: 56px;
   --desktop-header-h: 30px;
@@ -219,7 +219,8 @@ watch(
   justify-content: space-between;
   background: var(--bg-header);
   padding-top: var(--safe-area-top, env(safe-area-inset-top));
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: var(--vibrancy-blur);
+  backdrop-filter: var(--vibrancy-blur);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -272,7 +273,7 @@ watch(
     font-weight: 800;
     color: var(--text-primary);
     margin: 0;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.022em;
   }
 
   .mobile-header-actions {
@@ -281,7 +282,7 @@ watch(
   }
 
   .mobile-action-btn {
-    background: var(--bg-modifier-hover);
+    background: var(--bg-hover);
     border: none;
     border-radius: 50%;
     width: 36px;
@@ -365,12 +366,12 @@ watch(
 
 .header-title {
   font-weight: 600;
-  font-size: 16px;
-  /* 稍微加大标题字号 */
+  font-size: 15px;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 /* Ensure buttons are above the title for interaction */

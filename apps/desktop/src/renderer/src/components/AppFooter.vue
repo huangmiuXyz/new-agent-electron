@@ -167,6 +167,8 @@ const StatusRender = defineComponent({
 .app-footer {
   height: 22px;
   background: var(--footer-bg);
+  -webkit-backdrop-filter: var(--vibrancy-blur-light);
+  backdrop-filter: var(--vibrancy-blur-light);
   color: var(--footer-text);
   border-top: 1px solid var(--border-subtle);
   display: flex;
@@ -186,18 +188,19 @@ const StatusRender = defineComponent({
   justify-content: center;
   cursor: pointer;
   height: 100%;
-  transition: background 0.2s;
+  transition: color 0.18s ease, background-color 0.18s ease;
   min-width: 26px;
   gap: 4px;
 }
 
 .status-item:hover {
+  color: var(--text-primary);
   background: var(--bg-hover);
 }
 
 .status-item.active {
   color: var(--accent-color);
-  background: var(--active-bg);
+  background: var(--bg-active);
 }
 
 .status-bar {
@@ -225,18 +228,19 @@ const StatusRender = defineComponent({
   position: absolute;
   top: -4px;
   right: -5px;
-  background: #f44336;
+  background: var(--color-danger);
   color: white;
-  border-radius: 10px;
-  padding: 0 3px;
+  border-radius: 100px;
+  padding: 0 4px;
   font-size: 8px;
+  font-weight: 700;
   min-width: 12px;
   height: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1;
-  border: 1px solid var(--footer-bg);
+  border: 1.5px solid var(--footer-bg);
   line-height: 1;
   pointer-events: none;
 }

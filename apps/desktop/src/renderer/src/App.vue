@@ -440,24 +440,24 @@ const { width } = useWindowSize()
 
 <style>
 :root {
-  --bg-app: #fbfbfb;
-  --bg-sidebar: #fff;
-  --bg-header: #fbfbfb;
-  --bg-sidebar-surface: #f3f4f6;
+  --bg-app: #f6f6f6;
+  --bg-sidebar: #ffffff;
+  --bg-header: rgba(246, 246, 246, 0.72);
+  --bg-sidebar-surface: #ececec;
   --bg-main-surface: #ffffff;
   --bg-secondary: #fff;
-  --bg-hover: rgba(0, 0, 0, 0.05);
-  --bg-active: rgba(0, 0, 0, 0.08);
-  --bg-secondary: #f9fafb;
-  --bg-secondary-hover: #f3f4f6;
-  --bg-tertiary-hover: #f9f9f9;
-  --bg-tertiary: #fcfcfc;
-  --border-subtle: #eaeaea;
+  --bg-hover: rgba(0, 0, 0, 0.06);
+  --bg-active: rgba(0, 0, 0, 0.1);
+  --bg-secondary: #f5f5f5;
+  --bg-secondary-hover: #ececec;
+  --bg-tertiary-hover: #f5f5f5;
+  --bg-tertiary: #fbfbfb;
+  --border-subtle: rgba(0, 0, 0, 0.09);
   --border-focus: #d1d1d6;
-  --bg-settings-mobile-sidebar: #f7f7f8;
+  --bg-settings-mobile-sidebar: #f0f0f0;
   --accent-color: #000000;
   --accent-text: #ffffff;
-  --footer-bg: #fbfbfb;
+  --footer-bg: rgba(246, 246, 246, 0.72);
   --footer-text: #86868b;
 
   --text-primary: #1d1d1f;
@@ -471,42 +471,56 @@ const { width } = useWindowSize()
   --radius-md: 10px;
   --radius-sm: 6px;
 
+  /* macOS 原生圆角比例 */
+  --radius-xs: 4px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
   --font-stack: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
 
+  /* macOS 振动玻璃效果 */
+  --vibrancy-blur: saturate(180%) blur(20px);
+  --vibrancy-blur-light: saturate(180%) blur(12px);
+
+  /* macOS 阴影 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+
   /* GlobalSearch 组件所需的变量 */
-  --modal-bg: rgba(255, 255, 255, 0.85);
+  --modal-bg: rgba(246, 246, 246, 0.8);
   --modal-backdrop: blur(16px);
-  --border-color: rgba(0, 0, 0, 0.05);
-  --text-main: #1f2937;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --text-main: #1d1d1f;
   --text-sub: #6b7280;
-  --accent: #3b82f6;
-  --active-bg: rgba(59, 130, 246, 0.08);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --accent: #007aff;
+  --active-bg: rgba(0, 122, 255, 0.1);
+  --shadow-xl: 0 24px 48px -8px rgba(0, 0, 0, 0.18), 0 8px 16px -4px rgba(0, 0, 0, 0.08);
 
   /* 额外的颜色变量 */
   --bg-card: #fff;
-  --bg-input: #ffffff99;
-  --bg-disabled: #f5f5f5;
-  --border-color-light: #e5e7eb;
-  --border-color-medium: #d1d5db;
-  --border-hover: #d1d1d1;
-  --text-disabled: #999;
-  --text-placeholder: #999;
-  --color-primary: #007bff;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  --bg-input: #ffffff;
+  --bg-disabled: #f0f0f0;
+  --border-color-light: rgba(0, 0, 0, 0.06);
+  --border-color-medium: rgba(0, 0, 0, 0.14);
+  --border-hover: rgba(0, 0, 0, 0.2);
+  --text-disabled: #a1a1a6;
+  --text-placeholder: #a1a1a6;
+  --color-primary: #007aff;
+  --color-success: #34c759;
+  --color-warning: #ff9f0a;
+  --color-danger: #ff3b30;
+  --color-info: #5ac8fa;
 
   /* RGB 变量，用于 rgba() */
-  --bg-rgb: 255, 255, 255;
+  --bg-rgb: 246, 246, 246;
   --text-rgb: 29, 29, 31;
   --accent-rgb: 0, 0, 0;
-  --color-primary-rgb: 0, 123, 255;
-  --color-success-rgb: 16, 185, 129;
-  --color-warning-rgb: 245, 158, 11;
-  --color-danger-rgb: 239, 68, 68;
-  --color-info-rgb: 59, 130, 246;
+  --color-primary-rgb: 0, 122, 255;
+  --color-success-rgb: 52, 199, 89;
+  --color-warning-rgb: 255, 159, 10;
+  --color-danger-rgb: 255, 59, 48;
+  --color-info-rgb: 90, 200, 250;
   --native-safe-area-top: 0px;
   --native-safe-area-right: 0px;
   --native-safe-area-bottom: 0px;
@@ -519,24 +533,24 @@ const { width } = useWindowSize()
 
 /* 黑暗模式 */
 .dark-mode {
-  --bg-app: #1c1c1e;
-  --bg-sidebar: #2c2c2e;
-  --bg-header: #1c1c1e;
-  --bg-sidebar-surface: #242426;
-  --bg-main-surface: #1f1f21;
+  --bg-app: #1e1e1e;
+  --bg-sidebar: #2a2a2a;
+  --bg-header: rgba(30, 30, 30, 0.72);
+  --bg-sidebar-surface: #262626;
+  --bg-main-surface: #2a2a2a;
   --bg-secondary: #2c2c2e;
-  --bg-hover: rgba(255, 255, 255, 0.08);
-  --bg-active: rgba(255, 255, 255, 0.12);
+  --bg-hover: rgba(255, 255, 255, 0.07);
+  --bg-active: rgba(255, 255, 255, 0.11);
   --bg-secondary-hover: #3a3a3c;
   --bg-tertiary-hover: #2c2c2e;
-  --bg-tertiary: #1c1c1e;
+  --bg-tertiary: #1e1e1e;
   --bg-settings-mobile-sidebar: #2c2c2e;
-  --border-subtle: #38383a;
+  --border-subtle: rgba(255, 255, 255, 0.09);
   --border-focus: #48484a;
 
   --accent-color: #ffffff;
   --accent-text: #000000;
-  --footer-bg: #1c1c1e;
+  --footer-bg: rgba(30, 30, 30, 0.72);
   --footer-text: #a1a1a6;
 
   --text-primary: #f5f5f7;
@@ -546,39 +560,44 @@ const { width } = useWindowSize()
   --bubble-me: #0a84ff;
   --bubble-them: #2c2c2e;
 
+  /* macOS 阴影 - 深色模式 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+
   /* GlobalSearch 组件所需的变量 */
-  --modal-bg: rgba(44, 44, 46, 0.85);
+  --modal-bg: rgba(42, 42, 42, 0.82);
   --border-color: rgba(255, 255, 255, 0.1);
   --text-main: #f5f5f7;
   --text-sub: #a1a1a6;
   --accent: #0a84ff;
-  --active-bg: rgba(10, 132, 255, 0.15);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --active-bg: rgba(10, 132, 255, 0.2);
+  --shadow-xl: 0 24px 48px -8px rgba(0, 0, 0, 0.6), 0 8px 16px -4px rgba(0, 0, 0, 0.4);
 
   /* 额外的颜色变量 */
   --bg-card: #2c2c2e;
-  --bg-input: #2c2c2e;
+  --bg-input: #1e1e1e;
   --bg-disabled: #3a3a3c;
-  --border-color-light: #38383a;
-  --border-color-medium: #48484a;
-  --border-hover: #5a5a5c;
+  --border-color-light: rgba(255, 255, 255, 0.08);
+  --border-color-medium: rgba(255, 255, 255, 0.16);
+  --border-hover: rgba(255, 255, 255, 0.28);
   --text-disabled: #6e6e73;
   --text-placeholder: #6e6e73;
   --color-primary: #0a84ff;
   --color-success: #32d74b;
   --color-warning: #ffd60a;
   --color-danger: #ff453a;
-  --color-info: #0a84ff;
+  --color-info: #64d2ff;
 
   /* RGB 变量，用于 rgba() */
-  --bg-rgb: 44, 44, 46;
+  --bg-rgb: 30, 30, 30;
   --text-rgb: 245, 245, 247;
   --accent-rgb: 255, 255, 255;
   --color-primary-rgb: 10, 132, 255;
   --color-success-rgb: 50, 215, 75;
   --color-warning-rgb: 255, 214, 10;
   --color-danger-rgb: 255, 69, 58;
-  --color-info-rgb: 10, 132, 255;
+  --color-info-rgb: 100, 210, 255;
 }
 
 * {
@@ -632,6 +651,9 @@ body {
   overscroll-behavior: none;
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.005em;
 }
 
 #app {
@@ -643,6 +665,7 @@ body {
 /* 隐藏滚动条但保持滚动功能 */
 ::-webkit-scrollbar {
   width: 0px;
+  height: 0px;
   display: none;
 }
 
@@ -651,6 +674,10 @@ body {
 }
 
 ::-webkit-scrollbar-track {
+  display: none;
+}
+
+::-webkit-scrollbar-corner {
   display: none;
 }
 
@@ -724,7 +751,8 @@ body {
   position: relative;
   border-top: 1px solid var(--border-subtle);
   background: var(--bg-main-surface);
-  border-top-left-radius: var(--radius-md);
+  border-top-left-radius: var(--radius-lg);
+  box-shadow: 0 -1px 0 var(--border-subtle);
 }
 
 .app-page-host {

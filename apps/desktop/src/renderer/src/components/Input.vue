@@ -89,7 +89,7 @@ defineExpose({
   width: 100%;
   border: 1px solid var(--border-subtle);
   outline: none;
-  transition: border 0.2s, box-shadow 0.2s;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
   color: var(--text-primary);
   font-family: inherit;
   background-color: var(--bg-input);
@@ -98,13 +98,13 @@ defineExpose({
 .form-input--md {
   padding: 8px 10px;
   font-size: 13px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .form-input--sm {
   padding: 4px 8px;
   font-size: 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 .form-input--with-toggle {
@@ -120,8 +120,8 @@ defineExpose({
 }
 
 .form-input:focus {
-  border-color: var(--text-secondary);
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.2);
 }
 
 .form-input:disabled {

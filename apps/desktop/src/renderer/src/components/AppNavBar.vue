@@ -75,6 +75,7 @@ const SettingsIcon = useIcon('Settings')
     align-items: center;
     gap: 8px;
     width: 100%;
+    margin-left: 8  px;
 }
 
 .app-nav-bar.sidebar-top .nav-section {
@@ -89,17 +90,17 @@ const SettingsIcon = useIcon('Settings')
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     color: var(--text-tertiary);
     position: relative;
-    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: color 0.18s ease, background-color 0.18s ease, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .app-nav-bar.sidebar-top .nav-item {
     width: 28px;
     height: 28px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
 }
 
 .nav-item:hover {
@@ -107,8 +108,12 @@ const SettingsIcon = useIcon('Settings')
     color: var(--text-primary);
 }
 
+.nav-item:active {
+    transform: scale(0.92);
+}
+
 .nav-item.active {
-    background-color: var(--bg-hover);
+    background-color: var(--bg-active);
     color: var(--text-primary);
 }
 
@@ -131,7 +136,7 @@ const SettingsIcon = useIcon('Settings')
     position: absolute;
     top: 4px;
     right: 4px;
-    background-color: #ef4444;
+    background-color: var(--color-danger);
     color: white;
     font-size: 10px;
     padding: 2px 4px;

@@ -88,7 +88,7 @@ const handleClick = (event: MouseEvent) => {
   font-family: var(--font-stack);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.1s ease, opacity 0.18s ease;
   outline: none;
   user-select: none;
 }
@@ -102,24 +102,26 @@ const handleClick = (event: MouseEvent) => {
 .btn--primary {
   background: var(--accent-color);
   color: var(--accent-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .btn--primary:hover:not(.btn--disabled) {
-  opacity: 0.9;
+  opacity: 0.88;
 }
 
 .btn--primary:active:not(.btn--disabled) {
-  opacity: 0.8;
+  transform: scale(0.98);
+  opacity: 0.82;
 }
 
 /* 次要按钮样式 */
 .btn--secondary {
-  background: transparent;
+  background: var(--bg-secondary);
   color: var(--text-secondary);
 }
 
 .btn--secondary:hover:not(.btn--disabled) {
-  background: var(--bg-hover);
+  background: var(--bg-secondary-hover);
   color: var(--text-primary);
 }
 
@@ -128,7 +130,7 @@ const handleClick = (event: MouseEvent) => {
   background: transparent;
   color: var(--text-secondary);
   padding: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs, 4px);
   font-size: inherit;
   width: auto;
   height: auto;
@@ -142,6 +144,10 @@ const handleClick = (event: MouseEvent) => {
 .btn--icon:hover:not(.btn--disabled) {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.btn--icon:active:not(.btn--disabled) {
+  transform: scale(0.92);
 }
 
 /* 文本按钮样式 - 无背景hover效果 */

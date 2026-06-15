@@ -28,11 +28,11 @@ const toggle = () => {
 .toggle-switch {
   width: 36px;
   height: 20px;
-  background: var(--border-color-medium);
-  border-radius: 20px;
+  background: rgba(var(--text-rgb), 0.2);
+  border-radius: 100px;
   position: relative;
   cursor: pointer;
-  transition: background 0.2s, opacity 0.2s;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s;
   -webkit-tap-highlight-color: transparent;
   flex-shrink: 0;
 }
@@ -55,8 +55,8 @@ const toggle = () => {
   height: 16px;
   background: var(--bg-card);
   border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  transition: left 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), 0 1px 1px rgba(0, 0, 0, 0.1);
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   /* 为了居中 loading 图标 */
   display: flex;
