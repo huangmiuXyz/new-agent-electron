@@ -75,7 +75,7 @@ const SettingsIcon = useIcon('Settings')
     align-items: center;
     gap: 8px;
     width: 100%;
-    margin-left: 8px;
+    margin-left: 4px;
 }
 
 .app-nav-bar.sidebar-top .nav-section {
