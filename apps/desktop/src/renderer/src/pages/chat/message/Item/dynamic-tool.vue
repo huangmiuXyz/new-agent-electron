@@ -141,6 +141,20 @@ const customRender = computed(() => {
   }
 })
 
+const headerSummary = computed(() => {
+  if (!props.allowCustomRender || !toolName.value) return ''
+  try {
+    const tool = getBuiltinTools()[toolName.value] as {
+      renderSummary?: (args: unknown, result: unknown) => string
+    } | undefined
+    if (typeof tool?.renderSummary !== 'function') return ''
+    const summary = tool.renderSummary(props.tool_part.input, props.tool_part.output)
+    return typeof summary === 'string' ? summary.trim() : ''
+  } catch (e) {
+    return ''
+  }
+})
+
 const isSingleCmdInput = (value: unknown): value is { cmd: string } => {
   return Boolean(
     value &&
@@ -267,6 +281,9 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
           </div>
           <span class="tool-name">{{
             (tool_part as DynamicToolUIPart)?.toolName || tool_part?.title || toolName
+          }}</span>
+          <span v-if="headerSummary" class="tool-summary" :title="headerSummary">{{
+            headerSummary
           }}</span>
         </div>
         <div class="tool-status-right" @click.stop @mousedown.stop>
@@ -476,6 +493,20 @@ const openRetryMenuFromButton = (event: MouseEvent) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: none;
+}
+
+.tool-summary {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  padding-left: 2px;
 }
 
 .tool-status-right {

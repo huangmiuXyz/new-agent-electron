@@ -1,6 +1,11 @@
 ﻿import { z } from 'zod'
 import ignore from 'ignore'
 import { getDedicatedFileToolHint, injectBundledRipgrepPath } from './command-utils'
+import ReadFileRender from '../components/codex/ReadFileRender.vue'
+import SearchProjectRender from '../components/codex/SearchProjectRender.vue'
+import EditFileRender from '../components/codex/EditFileRender.vue'
+import ListDirRender from '../components/codex/ListDirRender.vue'
+import ChangeWorkingDirectoryRender from '../components/codex/ChangeWorkingDirectoryRender.vue'
 
 type CodexToolExecuteOptions = {
   chatId?: string
@@ -318,6 +323,11 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
     title: '切换工作路径',
     description:
       '临时切换当前对话后续工具调用使用的工作路径。路径切换仅作用于本次对话的运行时状态，不会修改智能体配置。',
+    render: ChangeWorkingDirectoryRender,
+    renderSummary: (args: unknown) => {
+      const path = String((args as Record<string, any>)?.path || '')
+      return path ? `🔀 → ${path}` : '🔀 切换工作路径'
+    },
     inputSchema: z.object({
       path: z
         .string()
@@ -359,6 +369,18 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   },
   readFile: {
     title: '读取文件',
+    render: ReadFileRender,
+    renderSummary: (args: unknown) => {
+      const params = args as Record<string, any>
+      const path = String(params?.path || '')
+      const start = Number(params?.start_line)
+      const end = Number(params?.end_line)
+      const range =
+        Number.isFinite(start) && start > 0 && Number.isFinite(end) && end > 0
+          ? ` :${start}-${end}`
+          : ''
+      return path ? `📖 ${path}${range}` : '📖 读取文件'
+    },
     description: [
       '读取 workPath 内的文本文件，并以 hashline 格式返回。',
       'hashlines 会包含文件头 ¶path#TAG，TAG 是当前文件快照指纹，编辑时必须原样复制。',
@@ -450,6 +472,11 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   },
   list_dir: {
     title: '列出目录',
+    render: ListDirRender,
+    renderSummary: (args: unknown) => {
+      const path = String((args as Record<string, any>)?.path || '')
+      return path ? `📁 ${path}` : '📁 列出目录'
+    },
     description: '列出指定目录下的文件和子目录，支持递归深度限制',
     inputSchema: z.object({
       path: z.string().describe('要列出的目录路径，支持相对路径（基于 workPath）或绝对路径'),
@@ -608,6 +635,11 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   },
   search_project: {
     title: '项目搜索',
+    render: SearchProjectRender,
+    renderSummary: (args: unknown) => {
+      const cmd = String((args as Record<string, any>)?.cmd || '')
+      return cmd ? `🔍 ${cmd}` : '🔍 项目搜索'
+    },
     description: [
       '项目搜索工具。在当前 workPath 内执行 rg 风格搜索命令；本工具内部会注入 bundled ripgrep，不依赖 shell PATH 中是否存在 rg。',
       '搜索文件名或内容时必须调用 search_project，不要改用 exec_command 执行 rg/grep/git grep。',
@@ -773,6 +805,23 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
   },
   edit_file: {
     title: '编辑文件',
+    render: EditFileRender,
+    renderSummary: (args: unknown) => {
+      const params = (args as Record<string, any>) || {}
+      const type = String(params.type || 'update')
+      const path = String(params.path || '')
+      const newPath = String(params.new_path || '')
+      switch (type) {
+        case 'add':
+          return path ? `➕ 新增 ${path}` : '➕ 新增文件'
+        case 'delete':
+          return path ? `🗑 删除 ${path}` : '🗑 删除文件'
+        case 'move':
+          return path && newPath ? `↪ 移动 ${path} → ${newPath}` : '↪ 移动文件'
+        default:
+          return path ? `✏ 更新 ${path}` : '✏ 更新文件'
+      }
+    },
     description: [
       '编辑 workPath 内的文件。用 type 区分文件操作：update/add/delete/move。',
       '',

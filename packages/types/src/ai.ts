@@ -99,6 +99,7 @@ export type Tools = Record<
       }
     ) => Promise<unknown>
     render?: unknown
+    renderSummary?: (args: unknown, result: unknown) => string
     title?: string
     needsApproval?: boolean
   }
