@@ -585,35 +585,11 @@ onUnmounted(() => {
 
 /* === PC端风格动画 === */
 .radix-zoom-enter-active {
-  animation: pcMenuFadeIn 0.15s ease-out forwards;
+  animation: motion-pop-in var(--motion-duration-fast) var(--motion-ease-decelerated) forwards;
 }
 
 .radix-zoom-leave-active {
-  animation: pcMenuFadeOut 0.1s ease-in forwards;
-}
-
-@keyframes pcMenuFadeIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes pcMenuFadeOut {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  100% {
-    opacity: 0;
-    transform: scale(0.95);
-  }
+  animation: motion-pop-in var(--motion-duration-fast) var(--motion-ease-standard) reverse forwards;
 }
 
 /* 子菜单样式 */

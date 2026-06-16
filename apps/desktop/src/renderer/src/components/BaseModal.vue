@@ -451,7 +451,7 @@ onBeforeUnmount(() => {
 
 .modal-fade-enter-active,
 .modal-fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity var(--motion-duration-normal) var(--motion-ease-standard);
 }
 
 .modal-fade-enter-from,
@@ -461,7 +461,7 @@ onBeforeUnmount(() => {
 
 .modal-fade-enter-active .modal-box:not(.is-dragging),
 .modal-fade-leave-active .modal-box:not(.is-dragging) {
-  transition: transform 0.2s ease;
+  transition: transform var(--motion-duration-normal) var(--motion-ease-decelerated);
 }
 
 .modal-fade-enter-from .modal-box,
@@ -671,7 +671,7 @@ onBeforeUnmount(() => {
 
 .drawer-enter-active,
 .drawer-leave-active {
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity var(--motion-duration-slow) var(--motion-ease-standard);
 }
 
 .drawer-enter-from,
@@ -686,7 +686,7 @@ onBeforeUnmount(() => {
 
 .drawer-enter-active .drawer-container,
 .drawer-leave-active .drawer-container {
-  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform var(--motion-duration-slow) var(--motion-ease-emphasized);
 }
 
 .drawer-enter-from .drawer-container {

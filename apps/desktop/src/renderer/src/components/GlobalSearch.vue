@@ -463,15 +463,15 @@ const highlightText = (text: string) => {
 
 .modal-fade-enter-active,
 .modal-fade-leave-active {
-    transition: opacity 0.15s ease, transform 0.15s ease;
+    transition: opacity var(--motion-duration-fast) var(--motion-ease-standard), transform var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 .modal-fade-enter-active .modal-content {
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform var(--motion-duration-normal) var(--motion-ease-decelerated);
 }
 
 .modal-fade-leave-active .modal-content {
-    transition: transform 0.15s ease-in;
+    transition: transform var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 .modal-fade-enter-from,

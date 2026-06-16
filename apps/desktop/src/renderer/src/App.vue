@@ -521,6 +521,23 @@ const { width } = useWindowSize()
   --color-warning-rgb: 255, 159, 10;
   --color-danger-rgb: 255, 59, 48;
   --color-info-rgb: 90, 200, 250;
+
+  /* === Motion tokens（动效令牌，全应用唯一真相源）===
+     克制但可配置：调整以下变量即可整体改变动效风格。
+     时长、缓动、位移三类参数被复用于组件、浮层、列表等所有动效。 */
+  --motion-duration-fast: 0.15s;
+  --motion-duration-normal: 0.25s;
+  --motion-duration-slow: 0.35s;
+  /* 缓动曲线 */
+  --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ease-emphasized: cubic-bezier(0.32, 0.72, 0, 1);
+  --motion-ease-decelerated: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-linear: linear;
+  /* 位移幅度 */
+  --motion-distance-sm: 6px;
+  --motion-distance-md: 10px;
+  --motion-distance-lg: 16px;
+
   --native-safe-area-top: 0px;
   --native-safe-area-right: 0px;
   --native-safe-area-bottom: 0px;
@@ -598,6 +615,85 @@ const { width } = useWindowSize()
   --color-warning-rgb: 255, 214, 10;
   --color-danger-rgb: 255, 69, 58;
   --color-info-rgb: 100, 210, 255;
+}
+
+/* === 全局共享 keyframes ===
+   抽取各组件重复定义的动画到全局，组件用 var(--motion-*) 引用。
+   组件内原有的 @keyframes 可逐步替换为这里的标准定义。 */
+@keyframes motion-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes motion-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* 入场上浮：消息气泡、列表项等克制地淡入并轻微上移 */
+@keyframes motion-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-md));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 弹性缩放入场：浮层、下拉面板、上下文菜单 */
+@keyframes motion-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 闪烁光标：流式输出末尾的输入指示器 */
+@keyframes motion-caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+/* === prefers-reduced-motion 无障碍支持 ===
+   覆盖 motion token，将所有基于 token 的动画压到最短/无位移。
+   组件级 keyframes 也通过下面规则尽量收敛。 */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-fast: 0.01ms;
+    --motion-duration-normal: 0.01ms;
+    --motion-duration-slow: 0.01ms;
+    --motion-distance-sm: 0px;
+    --motion-distance-md: 0px;
+    --motion-distance-lg: 0px;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 * {
@@ -826,7 +922,7 @@ a {
 .slide-right-leave-active,
 .fade-enter-active,
 .fade-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--motion-duration-slow) var(--motion-ease-standard);
   position: absolute;
   top: 0;
   left: 0;

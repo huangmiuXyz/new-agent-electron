@@ -100,6 +100,13 @@ const activityStatus = computed(() => {
   return '正在处理中'
 })
 
+// 流式输出中：已开始输出文本（有文本 part 且仍在 loading），用于显示尾部闪烁光标
+const isStreamingText = computed(() => {
+  if (!props.message.metadata?.loading) return false
+  const hasText = renderableParts.value.some((p) => p.type === 'text')
+  return hasText
+})
+
 // —— 自动重试等待态：展示倒计时 ——
 const isRetrying = computed(() => props.message.metadata?.retrying === true)
 const retryAttempt = computed(() => props.message.metadata?.retryAttempt ?? 0)
@@ -279,7 +286,12 @@ const playMessageAudio = () => {
         <ChevronDown />
         <span>{{ collapsedContentText }}</span>
       </button>
-      <ChatMessageItemContent markdown :message="message" :parts="displayedParts" />
+      <ChatMessageItemContent
+        markdown
+        :message="message"
+        :parts="displayedParts"
+        :streaming="isStreamingText"
+      />
 
       <div
         v-if="
@@ -531,6 +543,7 @@ const playMessageAudio = () => {
   animation-delay: 0.4s;
 }
 
+/* 思考态脉冲：保留原有节奏，本地定义（带 scale 位移，与全局 fade 不同） */
 @keyframes pulse {
   0%,
   80%,
@@ -565,19 +578,7 @@ const playMessageAudio = () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  animation: motion-rise-in var(--motion-duration-normal) var(--motion-ease-decelerated);
 }
 
 .queue-title {

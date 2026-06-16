@@ -63,6 +63,74 @@ const visibleMessages = computed(() => {
   return currentChat.value?.messages || []
 })
 
+// —— 消息入场动画追踪 ——
+// 历史消息（会话恢复 / 切换会话加载）不播动画；只有在本视图中"新加入"的消息
+// （用户发送、AI 新回复）才播放一次上浮淡入动画。
+const seenMessageIds = ref<Set<string>>(new Set())
+const animatingMessageIds = ref<Set<string>>(new Set())
+const historySettled = ref(false)
+const MESSAGE_ENTER_ANIMATION_MS = 320
+
+const markMessageEntering = (messageId: string) => {
+  const next = new Set(animatingMessageIds.value)
+  next.add(messageId)
+  animatingMessageIds.value = next
+
+  window.setTimeout(() => {
+    const current = new Set(animatingMessageIds.value)
+    current.delete(messageId)
+    animatingMessageIds.value = current
+  }, MESSAGE_ENTER_ANIMATION_MS)
+}
+
+const settleEmptyHistory = () => {
+  window.requestAnimationFrame(() => {
+    if (visibleMessages.value.length === 0) {
+      historySettled.value = true
+    }
+  })
+}
+
+// 切换会话时重置，使新会话的历史消息不播动画
+watch(
+  () => currentChat.value?.id,
+  () => {
+    seenMessageIds.value = new Set()
+    animatingMessageIds.value = new Set()
+    historySettled.value = false
+    settleEmptyHistory()
+  }
+)
+
+watch(
+  visibleMessages,
+  (messages) => {
+    if (!historySettled.value) {
+      // 历史未落定：非空批次记为历史；空会话下一帧落定，后续首条消息播放动画。
+      if (messages.length === 0) {
+        settleEmptyHistory()
+        return
+      }
+      seenMessageIds.value = new Set(messages.map((m) => m.id).filter(Boolean) as string[])
+      historySettled.value = true
+      return
+    }
+
+    const nextSeen = new Set(seenMessageIds.value)
+    messages.forEach((message) => {
+      if (!message.id || nextSeen.has(message.id)) return
+      nextSeen.add(message.id)
+      markMessageEntering(message.id)
+    })
+    seenMessageIds.value = nextSeen
+  },
+  { immediate: true }
+)
+
+const isNewlyEntered = (messageId: string | undefined): boolean => {
+  return !!messageId && animatingMessageIds.value.has(messageId)
+}
+
 const contextCount = computed(() => {
   const agentId = currentChat.value?.agentId
   return (agentId ? agentStore.getAgentById(agentId)?.contextCount : undefined) ?? 0
@@ -578,12 +646,14 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
                 index === lastMessageIndex,
                 index === lastMessageIndex ? lastMessageHeight : '',
                 editingMessageId === message.id,
-                isContextDividerVisible(index)
+                isContextDividerVisible(index),
+                isNewlyEntered(message.id)
               ]"
               :id="`message-${message.id}`"
               class="message-item-wrapper"
               :class="{
-                'is-last-message': index === lastMessageIndex
+                'is-last-message': index === lastMessageIndex,
+                'is-newly-entered': isNewlyEntered(message.id)
               }"
               :style="index === lastMessageIndex ? { minHeight: lastMessageHeight } : undefined"
               :ref="
@@ -717,6 +787,23 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 
 .message-item-wrapper.is-last-message {
   min-height: 0;
+}
+
+/* 新消息入场：克制但可感知地淡入并轻微上浮，仅播放一次 */
+.message-item-wrapper.is-newly-entered {
+  animation: message-rise-in 0.32s var(--motion-ease-decelerated);
+}
+
+@keyframes message-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .message-item-wrapper.highlight-jump {

@@ -7,6 +7,7 @@ const props = defineProps<{
   message: BaseMessage
   markdown?: boolean
   parts?: BaseMessage['parts']
+  streaming?: boolean
 }>()
 const { currentChat } = storeToRefs(useChatsStores())
 const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
@@ -131,6 +132,13 @@ const audioPartToPreviewItem = (block: FileUIPart, idx: number): InputAudioItem 
 })
 
 const displayParts = computed(() => props.parts ?? props.message.parts)
+
+const lastTextBlockIndex = computed(() => {
+  for (let index = displayParts.value.length - 1; index >= 0; index -= 1) {
+    if (displayParts.value[index].type === 'text') return index
+  }
+  return -1
+})
 </script>
 
 <template>
@@ -138,8 +146,18 @@ const displayParts = computed(() => props.parts ?? props.message.parts)
     <div v-if="!isEditing" class="msg-bubble">
       <div class="blocks-container">
         <div v-for="(block, idx) in displayParts" :key="getBlockKey(block, idx)" class="view-block">
-          <div v-if="block.type === 'text'" class="text-block" :style="contentStyle">
-            <Markdown v-if="markdown && block.text" :block="block" :message="message" />
+          <div
+            v-if="block.type === 'text'"
+            class="text-block"
+            :class="{ 'is-streaming-last': streaming && idx === lastTextBlockIndex }"
+            :style="contentStyle"
+          >
+            <Markdown
+              v-if="markdown && block.text"
+              :block="block"
+              :message="message"
+              :streaming="streaming && idx === lastTextBlockIndex"
+            />
             <template v-else>
               <div class="text-content">
                 {{ block.text }}

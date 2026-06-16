@@ -194,7 +194,7 @@ const getIconColor = (type: string) => {
 
 .list-enter-active,
 .list-leave-active {
-  transition: all 0.3s ease;
+  transition: all var(--motion-duration-normal) var(--motion-ease-standard);
 }
 
 .list-enter-from,
@@ -209,6 +209,6 @@ const getIconColor = (type: string) => {
 }
 
 .list-move {
-  transition: transform 0.3s ease;
+  transition: transform var(--motion-duration-normal) var(--motion-ease-standard);
 }
 </style>
