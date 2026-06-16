@@ -6,7 +6,7 @@ import {
   getFlatTokenUsage
 } from '@renderer/services/chatService/tokenUsage'
 
-const STREAM_SYNC_INTERVAL_MS = 80
+const STREAM_SYNC_INTERVAL_MS = 1000
 
 type ChatMessageSyncControllerOptions = {
   chatId: string

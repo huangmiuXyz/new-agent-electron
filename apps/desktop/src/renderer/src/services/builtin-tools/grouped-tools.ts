@@ -34,6 +34,9 @@ export const getBuiltinToolGroupEntries = (options?: {
     },
     { group: '笔记工具', tools: getNotesBuiltinTools() },
     { group: '多媒体工具', tools: getMediaBuiltinTools() },
-    { group: 'Codex工具', tools: getCodexBuiltinTools() }
+    {
+      group: 'Codex工具',
+      tools: getCodexBuiltinTools({ editFileMode: options?.builtinToolConfigs?.edit_file?.mode })
+    }
   ]
 }

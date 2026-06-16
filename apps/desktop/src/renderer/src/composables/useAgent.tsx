@@ -20,6 +20,11 @@ interface AgentFormData extends Omit<
 const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
 const DEFAULT_COMPUTER_SCREENSHOT_MAX_SIDE_PX = 1600
 const DEFAULT_UNLIMITED_VALUE = 0
+const DEFAULT_EDIT_FILE_MODE: 'hashline' | 'patch' = 'patch'
+const EDIT_FILE_MODE_OPTIONS = [
+  { label: '补丁模式（默认）', value: 'patch' },
+  { label: '哈希行模式', value: 'hashline' }
+]
 const COMPUTER_SCREENSHOT_MAX_SIDE_OPTIONS = [
   { label: '低 · 最长边 800px', value: 800 },
   { label: '均衡 · 最长边 1200px', value: 1200 },
@@ -638,15 +643,21 @@ export const useAgent = () => {
         (formActions.getFieldValue(
           'builtinToolConfigs.computer_use.screenshotMaxSidePx'
         ) as number) || DEFAULT_COMPUTER_SCREENSHOT_MAX_SIDE_PX
+      const currentEditFileMode =
+        (formActions.getFieldValue('builtinToolConfigs.edit_file.mode') as
+          | 'hashline'
+          | 'patch') || DEFAULT_EDIT_FILE_MODE
       const isExecCommand = option.value === 'exec_command'
       const isDelegateToSubAgent = option.value === 'delegate_to_sub_agent'
       const isComputerUse = option.value === 'computer_use'
+      const isEditFile = option.value === 'edit_file'
 
       const [ApprovalForm, approvalFormActions] = useForm<{
         requireApproval: boolean
         execCommandRunInBackground: boolean
         allowedSubAgents: string[]
         screenshotMaxSidePx: number
+        editFileMode: 'hashline' | 'patch'
       }>({
         title: `工具设置 · ${option.label}`,
         showHeader: false,
@@ -654,7 +665,8 @@ export const useAgent = () => {
           requireApproval: currentValue,
           execCommandRunInBackground: currentExecCommandRunInBackground,
           allowedSubAgents: currentAllowedSubAgents,
-          screenshotMaxSidePx: currentScreenshotMaxSidePx
+          screenshotMaxSidePx: currentScreenshotMaxSidePx,
+          editFileMode: currentEditFileMode
         },
         fields: [
           {
@@ -667,6 +679,7 @@ export const useAgent = () => {
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
             screenshotMaxSidePx: number
+            editFileMode: 'hashline' | 'patch'
           }>,
           {
             name: 'screenshotMaxSidePx',
@@ -680,6 +693,7 @@ export const useAgent = () => {
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
             screenshotMaxSidePx: number
+            editFileMode: 'hashline' | 'patch'
           }>,
           {
             name: 'execCommandRunInBackground',
@@ -692,6 +706,7 @@ export const useAgent = () => {
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
             screenshotMaxSidePx: number
+            editFileMode: 'hashline' | 'patch'
           }>,
           {
             name: 'allowedSubAgents',
@@ -705,6 +720,21 @@ export const useAgent = () => {
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
             screenshotMaxSidePx: number
+            editFileMode: 'hashline' | 'patch'
+          }>,
+          {
+            name: 'editFileMode',
+            type: 'select',
+            label: '编辑模式',
+            options: EDIT_FILE_MODE_OPTIONS,
+            hint: '哈希行模式用行号锚点编辑单个文件；补丁模式用 Codex 标准补丁格式，可批量增删改多个文件。',
+            ifShow: () => isEditFile
+          } as SelectField<{
+            requireApproval: boolean
+            execCommandRunInBackground: boolean
+            allowedSubAgents: string[]
+            screenshotMaxSidePx: number
+            editFileMode: 'hashline' | 'patch'
           }>
         ],
         onSubmit: (data) => {
@@ -723,6 +753,10 @@ export const useAgent = () => {
               'builtinToolConfigs.computer_use.screenshotMaxSidePx',
               Number(data.screenshotMaxSidePx) || DEFAULT_COMPUTER_SCREENSHOT_MAX_SIDE_PX
             )
+          }
+          if (isEditFile) {
+            const mode = data.editFileMode === 'patch' ? 'patch' : 'hashline'
+            formActions.setFieldValue('builtinToolConfigs.edit_file.mode', mode)
           }
         }
       })
@@ -1542,7 +1576,7 @@ export const useAgent = () => {
     confirm({
       title: modalTitle,
       content: ModalContent,
-      modalBodyStyle: { padding: 0 },
+      modalBodyStyle: { padding: 0, overflow: 'hidden' },
       maxHeight: '90vh',
       width: '800px',
       onOk: async (removeModal) => {

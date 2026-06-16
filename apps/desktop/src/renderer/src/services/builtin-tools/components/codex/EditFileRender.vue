@@ -10,6 +10,13 @@ type EditOp =
   | { kind: 'delete'; start: number; end: number }
   | { kind: 'insert'; anchor: number | 'head' | 'tail'; position: string; adds: string[] }
 
+type PatchFileOp = {
+  op: 'add' | 'delete' | 'update'
+  path: string
+  moveTo?: string
+  lines: { sign: '+' | '-' | ' ' | ''; text: string }[]
+}
+
 const props = defineProps<{
   args?: any
   result?: any
@@ -29,6 +36,9 @@ const summary = computed(() => extractResultSummary(props.result))
 const errorMsg = computed(() => extractResultError(props.result))
 const hasError = computed(() => !!errorMsg.value)
 
+// 补丁模式检测：content 中包含 *** Begin Patch
+const isPatchMode = computed(() => content.value.includes('*** Begin Patch'))
+
 // 解析 hashline 编辑内容里的文件头
 const headerPath = computed(() => {
   const m = content.value.match(/^¶(.+?)#/m)
@@ -41,6 +51,53 @@ const addPreviewLines = computed(() => {
   if (editType.value !== 'add') return []
   return content.value.replace(/\r\n/g, '\n').split('\n').slice(0, 10)
 })
+
+// 解析补丁格式
+const patchOps = computed<PatchFileOp[]>(() => {
+  if (!isPatchMode.value) return []
+  const lines = content.value.replace(/\r\n/g, '\n').split('\n')
+  const ops: PatchFileOp[] = []
+  let current: PatchFileOp | null = null
+
+  for (const line of lines) {
+    if (line.startsWith('*** Add File: ')) {
+      current = { op: 'add', path: line.slice('*** Add File: '.length).trim(), lines: [] }
+      ops.push(current)
+      continue
+    }
+    if (line.startsWith('*** Delete File: ')) {
+      current = { op: 'delete', path: line.slice('*** Delete File: '.length).trim(), lines: [] }
+      ops.push(current)
+      continue
+    }
+    if (line.startsWith('*** Update File: ')) {
+      current = { op: 'update', path: line.slice('*** Update File: '.length).trim(), lines: [] }
+      ops.push(current)
+      continue
+    }
+    if (line.startsWith('*** Move to: ') && current) {
+      current.moveTo = line.slice('*** Move to: '.length).trim()
+      continue
+    }
+    if (line.startsWith('*** ') || !current) continue
+
+    if (line.startsWith('+')) {
+      current.lines.push({ sign: '+', text: line.slice(1) })
+    } else if (line.startsWith('-')) {
+      current.lines.push({ sign: '-', text: line.slice(1) })
+    } else if (line.startsWith('@@')) {
+      current.lines.push({ sign: '', text: line })
+    } else {
+      current.lines.push({ sign: ' ', text: line })
+    }
+  }
+
+  return ops
+})
+
+const patchTotalChanges = computed(
+  () => patchOps.value.reduce((sum, op) => sum + op.lines.filter((l) => l.sign === '+' || l.sign === '-').length, 0)
+)
 
 // 解析 update 类型的编辑操作
 const ops = computed<EditOp[]>(() => {
@@ -95,14 +152,48 @@ const totalChanges = computed(() => ops.value.length)
 <template>
   <div class="edit-file-render">
     <CodexSummaryBar
+      v-if="!isPatchMode"
       :text="editType === 'move' ? `${displayPath} → ${newPath}` : displayPath"
       :path="editType === 'move' ? newPath : displayPath"
       :badge="editType !== 'update' ? editType : `${totalChanges}处改动`"
       :message="message"
     />
+    <CodexSummaryBar
+      v-else
+      text="补丁编辑"
+      :badge="`${patchOps.length}个文件 / ${patchTotalChanges}处改动`"
+      :message="message"
+    />
+
+    <!-- patch 模式：补丁预览 -->
+    <div v-if="isPatchMode && patchOps.length > 0" class="patch-preview">
+      <div v-for="(op, i) in patchOps" :key="i" class="patch-file">
+        <div class="patch-file-header">
+          <span class="patch-op-tag" :class="op.op">
+            {{ op.op === 'add' ? '➕ 新增' : op.op === 'delete' ? '🗑 删除' : '✏ 更新' }}
+          </span>
+          <span class="patch-file-path">{{ op.path }}</span>
+          <span v-if="op.moveTo" class="patch-move">→ {{ op.moveTo }}</span>
+        </div>
+        <div v-if="op.lines.length > 0" class="diff-lines">
+          <div
+            v-for="(line, li) in op.lines.slice(0, 15)"
+            :key="li"
+            class="diff-line"
+            :class="line.sign === '+' ? 'add' : line.sign === '-' ? 'del' : 'ctx'"
+          >
+            <span class="marker">{{ line.sign || ' ' }}</span>
+            <span class="text">{{ line.text || ' ' }}</span>
+          </div>
+          <div v-if="op.lines.length > 15" class="more-hint">
+            … 共 {{ op.lines.length }} 行
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- update: diff 预览 -->
-    <div v-if="editType === 'update' && ops.length > 0" class="diff-preview">
+    <div v-else-if="!isPatchMode && editType === 'update' && ops.length > 0" class="diff-preview">
       <div v-for="(op, i) in ops" :key="i" class="diff-op">
         <div class="op-header">
           <span v-if="op.kind === 'replace'" class="op-tag replace">替换 {{ op.start }}-{{ op.end }}</span>
@@ -119,7 +210,7 @@ const totalChanges = computed(() => ops.value.length)
     </div>
 
     <!-- add: 新文件内容预览 -->
-    <div v-else-if="editType === 'add' && addPreviewLines.length > 0" class="add-preview">
+    <div v-else-if="!isPatchMode && editType === 'add' && addPreviewLines.length > 0" class="add-preview">
       <div v-for="(text, i) in addPreviewLines" :key="i" class="diff-line add">
         <span class="marker">+</span>
         <span class="text">{{ text || ' ' }}</span>
@@ -130,8 +221,8 @@ const totalChanges = computed(() => ops.value.length)
     </div>
 
     <!-- delete / move: 仅路径 -->
-    <div v-else-if="editType === 'delete'" class="plain-info">删除文件</div>
-    <div v-else-if="editType === 'move'" class="plain-info">移动 / 重命名文件</div>
+    <div v-else-if="!isPatchMode && editType === 'delete'" class="plain-info">删除文件</div>
+    <div v-else-if="!isPatchMode && editType === 'move'" class="plain-info">移动 / 重命名文件</div>
 
     <!-- 结果 -->
     <div v-if="hasError" class="result-section error">
@@ -152,11 +243,60 @@ const totalChanges = computed(() => ops.value.length)
 }
 
 .diff-preview,
-.add-preview {
+.add-preview,
+.patch-preview {
   padding: 4px 0;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 10px;
   line-height: 1.5;
+}
+
+.patch-file {
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.patch-file:last-child {
+  border-bottom: none;
+}
+
+.patch-file-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  flex-wrap: wrap;
+}
+
+.patch-op-tag {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.patch-op-tag.add {
+  color: var(--color-success);
+  background: rgba(var(--color-success-rgb, 34, 197, 94), 0.1);
+}
+
+.patch-op-tag.delete {
+  color: var(--color-error);
+  background: rgba(var(--color-error-rgb, 239, 68, 68), 0.1);
+}
+
+.patch-op-tag.update {
+  color: var(--accent-color);
+  background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+}
+
+.patch-file-path {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.patch-move {
+  color: var(--text-tertiary);
 }
 
 .diff-op {
@@ -202,6 +342,18 @@ const totalChanges = computed(() => ops.value.length)
 
 .diff-line.add {
   background: rgba(var(--color-success-rgb, 34, 197, 94), 0.08);
+}
+
+.diff-line.del {
+  background: rgba(var(--color-error-rgb, 239, 68, 68), 0.08);
+}
+
+.diff-line.ctx {
+  color: var(--text-tertiary);
+}
+
+.diff-line.del .marker {
+  color: var(--color-error);
 }
 
 .marker {

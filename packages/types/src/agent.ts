@@ -14,6 +14,9 @@ declare global {
       computer_use?: {
         screenshotMaxSidePx?: number
       }
+      edit_file?: {
+        mode?: 'hashline' | 'patch'
+      }
       [toolName: string]: Record<string, unknown> | undefined
     } // 内置工具配置
     execCommandRunInBackground?: boolean // exec_command 是否默认在后台静默执行

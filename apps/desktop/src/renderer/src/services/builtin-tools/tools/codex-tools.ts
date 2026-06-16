@@ -13,6 +13,10 @@ type CodexToolExecuteOptions = {
   availableBuiltinTools?: string[]
 }
 
+type CodexBuiltinToolsOptions = {
+  editFileMode?: 'hashline' | 'patch'
+}
+
 const getCurrentAgent = (chatId?: string) => {
   const chatsStore = useChatsStores()
   const agentStore = useAgentStore()
@@ -318,7 +322,10 @@ const formatSearchOutput = (params: {
   return outputSections.join('\n\n')
 }
 
-export const getCodexBuiltinTools = (): Partial<Tools> => ({
+export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partial<Tools> => {
+  const editFileMode: 'hashline' | 'patch' =
+    options?.editFileMode === 'hashline' ? 'hashline' : 'patch'
+  return {
   change_working_directory: {
     title: '切换工作路径',
     description:
@@ -381,16 +388,30 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           : ''
       return path ? `📖 ${path}${range}` : '📖 读取文件'
     },
-    description: [
-      '读取 workPath 内的文本文件，并以 hashline 格式返回。',
-      'hashlines 会包含文件头 ¶path#TAG，TAG 是当前文件快照指纹，编辑时必须原样复制。',
-      '正文每一行格式为 LINE:内容，例如 12:const value = 1。编辑操作使用行号 12。',
-      '默认只读取 160 行；显式传 end_line 或 limit 时会自动附带前 1 行、后 3 行上下文。',
-      '除非用户明确要求浏览文件开头，否则应先用 search_project 定位行号，再读取小范围。',
-      '超长行会截断显示，但仍可用行号编辑；提交前请确认目标行内容。',
-      '编辑文件前必须先读取目标区域，复制 ¶path#TAG 文件头到 edit_file 的 content。',
-      '需要搜索文件名或内容时请改用 search_project；定位到文件后再用 readFile 读取锚点。'
-    ].join('\n'),
+    description:
+      editFileMode === 'patch'
+        ? [
+            '读取 workPath 内的文本文件。返回格式为「行号:内容」，例如 12:const value = 1。',
+            '构造补丁时，请去掉行号前缀，用行内容本身作为 Update File 的 context 行（无前缀）、+ 行或 - 行。',
+            '例如 readFile 返回 12:const foo = 1，要新增一行可写成：',
+            '*** Update File: path',
+            ' const foo = 1',
+            '+const bar = 2',
+            '默认只读取 160 行；显式传 end_line 或 limit 时会自动附带前 1 行、后 3 行上下文。',
+            '除非用户明确要求浏览文件开头，否则应先用 search_project 定位行号，再读取小范围。',
+            '超长行会截断显示，提交前请确认目标行内容。',
+            '需要搜索文件名或内容时请改用 search_project；定位到文件后再用 readFile 读取锚点。'
+          ].join('\n')
+        : [
+            '读取 workPath 内的文本文件，并以 hashline 格式返回。',
+            'hashlines 会包含文件头 ¶path#TAG，TAG 是当前文件快照指纹，编辑时必须原样复制。',
+            '正文每一行格式为 LINE:内容，例如 12:const value = 1。编辑操作使用行号 12。',
+            '默认只读取 160 行；显式传 end_line 或 limit 时会自动附带前 1 行、后 3 行上下文。',
+            '除非用户明确要求浏览文件开头，否则应先用 search_project 定位行号，再读取小范围。',
+            '超长行会截断显示，但仍可用行号编辑；提交前请确认目标行内容。',
+            '编辑文件前必须先读取目标区域，复制 ¶path#TAG 文件头到 edit_file 的 content。',
+            '需要搜索文件名或内容时请改用 search_project；定位到文件后再用 readFile 读取锚点。'
+          ].join('\n'),
     inputSchema: z.object({
       path: z.string().describe('要读取的文件路径。相对路径会基于当前 workPath 解析。'),
       start_line: z.number().int().min(1).optional().describe('起始行号，1-based，默认 1。'),
@@ -803,77 +824,95 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
       }
     }
   },
-  edit_file: {
-    title: '编辑文件',
-    render: EditFileRender,
-    renderSummary: (args: unknown) => {
-      const params = (args as Record<string, any>) || {}
-      const type = String(params.type || 'update')
-      const path = String(params.path || '')
-      const newPath = String(params.new_path || '')
-      switch (type) {
-        case 'add':
-          return path ? `➕ 新增 ${path}` : '➕ 新增文件'
-        case 'delete':
-          return path ? `🗑 删除 ${path}` : '🗑 删除文件'
-        case 'move':
-          return path && newPath ? `↪ 移动 ${path} → ${newPath}` : '↪ 移动文件'
-        default:
-          return path ? `✏ 更新 ${path}` : '✏ 更新文件'
-      }
-    },
-    description: [
-      '编辑 workPath 内的文件。用 type 区分文件操作：update/add/delete/move。',
-      '',
-      'type=update：使用 hashline 编辑已有文件，必须提供 content。',
-      '¶path/to/file#TAG',
-      'replace N..M:',
-      '+new line',
-      'delete N..M',
-      'insert before N:',
-      '+new line',
-      'insert after N: / insert head: / insert tail:',
-      '',
-      'type=add：提供 path 和 content，新建文件；目标已存在会失败。',
-      'type=delete：提供 path，删除文件。',
-      'type=move：提供 path 和 new_path，移动/重命名文件；目标已存在会失败。',
-      '',
-      'update 前必须用 readFile 获取最新 ¶path#TAG 文件头和行号。payload 每行必须以 + 开头，+ 单独一行表示插入空行。',
-      '成功后会返回 old_hash/new_hash；下一次编辑同文件可直接用 new_hash 构造新的 ¶path#TAG 文件头；如果提示 snapshot mismatch，再调用 readFile 重读。',
-      '所有路径必须位于当前 workPath 内。'
-    ].join('\n'),
-    inputSchema: z.object({
-      type: z
-        .enum(['update', 'add', 'delete', 'move'])
-        .optional()
-        .default('update')
-        .describe('文件操作类型。update 走 hashline；add/delete/move 是文件级操作。'),
-      path: z
-        .string()
-        .optional()
-        .describe('type=add/delete/move 时的源/目标文件路径。相对路径基于当前 workPath。'),
-      new_path: z
-        .string()
-        .optional()
-        .describe('type=move 时的新文件路径。相对路径基于当前 workPath。'),
-      content: z
-        .string()
-        .optional()
-        .describe('type=update 时的 hashline 编辑内容；type=add 时的新文件内容。')
-    }),
-    execute: async (args: unknown, options?: CodexToolExecuteOptions) => {
-      const params = args as Record<string, any>
-      const type = ['update', 'add', 'delete', 'move'].includes(params.type)
-        ? params.type
-        : 'update'
-      const content = typeof params.content === 'string' ? params.content : ''
-      const input = type === 'update' ? content : ''
+  edit_file: (() => {
+    const isPatchMode = editFileMode === 'patch'
+    const description = isPatchMode
+      ? [
+          '编辑 workPath 内的文件，使用 Codex 标准补丁格式，可批量增删改多个文件。',
+          '在 content 中传入完整补丁文本，首行必须是 *** Begin Patch，末行必须是 *** End Patch。',
+          '',
+          '补丁格式：',
+          '*** Begin Patch',
+          '*** Add File: path/to/new.js',
+          '+console.log("hi")',
+          '*** Delete File: path/to/old.js',
+          '*** Update File: path/to/existing.js',
+          '@@ context line',
+          '+new line',
+          '-removed line',
+          ' context line',
+          '*** Update File: path/to/file.js',
+          '*** Move to: path/to/renamed.js',
+          '@@ ...',
+          '*** End Patch',
+          '',
+          'Update File 使用上下文行（无前缀）定位位置，+ 开头为新增行，- 开头为删除行；Move to 可在同一 Update File 块中重命名。',
+          '编辑已有文件前建议先用 readFile 查看当前内容，以便构造准确的上下文行。',
+          '所有路径必须位于当前 workPath 内。'
+        ].join('\n')
+      : [
+          '编辑 workPath 内的文件。用 type 区分文件操作：update/add/delete/move。',
+          '',
+          'type=update：使用 hashline 编辑已有文件，必须提供 content。',
+          '¶path/to/file#TAG',
+          'replace N..M:',
+          '+new line',
+          'delete N..M',
+          'insert before N:',
+          '+new line',
+          'insert after N: / insert head: / insert tail:',
+          '',
+          'type=add：提供 path 和 content，新建文件；目标已存在会失败。',
+          'type=delete：提供 path，删除文件。',
+          'type=move：提供 path 和 new_path，移动/重命名文件；目标已存在会失败。',
+          '',
+          'update 前必须用 readFile 获取最新 ¶path#TAG 文件头和行号。payload 每行必须以 + 开头，+ 单独一行表示插入空行。',
+          '成功后会返回 old_hash/new_hash；下一次编辑同文件可直接用 new_hash 构造新的 ¶path#TAG 文件头；如果提示 snapshot mismatch，再调用 readFile 重读。',
+          '所有路径必须位于当前 workPath 内。'
+        ].join('\n')
 
-      if (type === 'update' && !input.trim()) {
+    const inputSchema = isPatchMode
+      ? z.object({
+          content: z
+            .string()
+            .describe(
+              '完整补丁文本，首行 *** Begin Patch，末行 *** End Patch，中间用 *** Add/Delete/Update File 标记每个文件操作。'
+            )
+        })
+      : z.object({
+          type: z
+            .enum(['update', 'add', 'delete', 'move'])
+            .optional()
+            .default('update')
+            .describe('文件操作类型。update 走 hashline；add/delete/move 是文件级操作。'),
+          path: z
+            .string()
+            .optional()
+            .describe('type=add/delete/move 时的源/目标文件路径。相对路径基于当前 workPath。'),
+          new_path: z
+            .string()
+            .optional()
+            .describe('type=move 时的新文件路径。相对路径基于当前 workPath。'),
+          content: z
+            .string()
+            .optional()
+            .describe('type=update 时的 hashline 编辑内容；type=add 时的新文件内容。')
+        })
+
+    const execute = async (args: unknown, options?: CodexToolExecuteOptions) => {
+      const params = args as Record<string, any>
+      const content = typeof params.content === 'string' ? params.content : ''
+
+      if (!content.trim()) {
         return {
           error: '缺少必要参数: content',
           toolResult: {
-            content: [{ type: 'text', text: 'edit_file 失败：type=update 缺少必要参数 content' }]
+            content: [
+              {
+                type: 'text',
+                text: `edit_file 失败：缺少必要参数 content${isPatchMode ? '（补丁文本）' : ''}`
+              }
+            ]
           }
         }
       }
@@ -892,7 +931,40 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
           }
         }
       }
+
+      if (isPatchMode) {
+        try {
+          const result = await window.api.applyPatch.execute({
+            baseDir,
+            patch: content
+          })
+
+          if (!result?.ok || !result.summaries?.length) {
+            throw new Error(result?.error || 'edit_file (patch) failed')
+          }
+
+          const summary = result.summaries.join('\n')
+          return {
+            summary,
+            toolResult: {
+              content: [{ type: 'text', text: summary }]
+            }
+          }
+        } catch (error) {
+          return {
+            error: (error as Error).message,
+            toolResult: {
+              content: [{ type: 'text', text: `edit_file 失败: ${(error as Error).message}` }]
+            }
+          }
+        }
+      }
+
       try {
+        const type = ['update', 'add', 'delete', 'move'].includes(params.type)
+          ? params.type
+          : 'update'
+        const input = type === 'update' ? content : ''
         const result = await window.api.editFile.execute({
           baseDir,
           type,
@@ -921,5 +993,33 @@ export const getCodexBuiltinTools = (): Partial<Tools> => ({
         }
       }
     }
-  }
-})
+
+    return {
+      title: '编辑文件',
+      render: EditFileRender,
+      renderSummary: (args: unknown) => {
+        const params = (args as Record<string, any>) || {}
+        if (isPatchMode) {
+          return '🩹 应用补丁'
+        }
+        const type = String(params.type || 'update')
+        const path = String(params.path || '')
+        const newPath = String(params.new_path || '')
+        switch (type) {
+          case 'add':
+            return path ? `➕ 新增 ${path}` : '➕ 新增文件'
+          case 'delete':
+            return path ? `🗑 删除 ${path}` : '🗑 删除文件'
+          case 'move':
+            return path && newPath ? `↪ 移动 ${path} → ${newPath}` : '↪ 移动文件'
+          default:
+            return path ? `✏ 更新 ${path}` : '✏ 更新文件'
+        }
+      },
+      description,
+      inputSchema,
+      execute
+    }
+  })()
+}
+}
