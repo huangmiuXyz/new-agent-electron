@@ -1,8 +1,8 @@
-import { mkdtemp, readFile, stat } from 'fs/promises'
+import { mkdtemp, readFile, stat, writeFile, mkdir } from 'fs/promises'
 import { tmpdir } from 'os'
 import path from 'path'
 import { describe, expect, it } from 'vitest'
-import { computeSnapshotTag } from './hashline'
+import { computeSnapshotTag, executeHashlineRead } from './hashline'
 import { executeFileEdit } from './searchReplace'
 
 describe('executeFileEdit', () => {
@@ -152,5 +152,72 @@ describe('executeFileEdit', () => {
       replace_all: true
     })
     await expect(readFile(filePath, 'utf-8')).resolves.toBe('changed\nchanged')
+  })
+
+  it('supports readFile plain output as replace old_string without escaping', async () => {
+    const baseDir = await mkdtemp(path.join(tmpdir(), 'agent-qi-edit-file-'))
+    const filePath = path.join(baseDir, 'src/escape.txt')
+    await mkdir(path.dirname(filePath), { recursive: true })
+    const trickyBlock = [
+      'const re = /\\d+\\.\\d+/g',
+      'const msg = `hello ${name}`',
+      '{"key": "value\\nwith tab\\t"}',
+      'console.log("she said \\"hi\\"")',
+      '+payload line',
+      '¶src/file.ts#ABCD',
+      '\tindented'
+    ].join('\n')
+    const content = ['before', trickyBlock, 'after'].join('\n')
+    await writeFile(filePath, content, 'utf-8')
+
+    const oldString = await executeHashlineRead({
+      baseDir,
+      path: 'src/escape.txt',
+      start_line: 2,
+      end_line: 8,
+      format: 'plain'
+    })
+
+    await expect(
+      executeFileEdit({
+        baseDir,
+        type: 'replace',
+        path: 'src/escape.txt',
+        old_string: oldString,
+        new_string: 'REPLACED'
+      })
+    ).resolves.toMatchObject([{ status: 'M', path: 'src/escape.txt', replacements: 1 }])
+    await expect(readFile(filePath, 'utf-8')).resolves.toBe('REPLACED')
+  })
+
+  it('supports LF-normalized readFile output as old_string for CRLF files', async () => {
+    const baseDir = await mkdtemp(path.join(tmpdir(), 'agent-qi-edit-file-'))
+    const filePath = path.join(baseDir, 'src/crlf.txt')
+    await mkdir(path.dirname(filePath), { recursive: true })
+    await writeFile(
+      filePath,
+      ['before', 'const path = "C:\\temp\\file.txt"', 'console.log("hi")', 'after'].join('\r\n'),
+      'utf-8'
+    )
+
+    const oldString = await executeHashlineRead({
+      baseDir,
+      path: 'src/crlf.txt',
+      start_line: 2,
+      end_line: 3,
+      format: 'plain'
+    })
+
+    expect(oldString).toBe('before\nconst path = "C:\\temp\\file.txt"\nconsole.log("hi")\nafter')
+    await expect(
+      executeFileEdit({
+        baseDir,
+        type: 'replace',
+        path: 'src/crlf.txt',
+        old_string: oldString,
+        new_string: 'REPLACED'
+      })
+    ).resolves.toMatchObject([{ status: 'M', path: 'src/crlf.txt', replacements: 1 }])
+    await expect(readFile(filePath, 'utf-8')).resolves.toBe('REPLACED')
   })
 })

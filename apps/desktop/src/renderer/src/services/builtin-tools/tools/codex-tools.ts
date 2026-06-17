@@ -689,9 +689,12 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
       }
 
       try {
+        // 兼容 GNU grep BRE 的 \| 交替语法，转换为 ripgrep 的 | 语法
+        const normalizedCmd = cmd.replace(/\\[|]/g, '|')
+
         const rootDir = resolvePath('.', options?.chatId)
 
-        const resolvedCmd = injectBundledRipgrepPath(cmd)
+        const resolvedCmd = injectBundledRipgrepPath(normalizedCmd)
         const isRipgrepCommand = startsWithRipgrep(cmd)
         const commandHint = isRipgrepCommand
           ? ''

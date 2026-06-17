@@ -10,6 +10,7 @@ const mockExecFileCommand = vi.fn()
 const mockGetBundledRipgrepPath = vi.fn().mockReturnValue(mockRipgrepPath)
 const mockInjectBundledRipgrepPath = vi.fn()
 const mockCreateTab = vi.fn()
+const mockHashlineRead = vi.fn()
 
 vi.mock('./command-utils', () => ({
   getDedicatedFileToolHint: (
@@ -78,6 +79,7 @@ beforeEach(() => {
       fs: {},
       execFileCommand: mockExecFileCommand,
       getBundledRipgrepPath: mockGetBundledRipgrepPath,
+      hashline: { read: mockHashlineRead },
       process: { env: { SystemRoot: 'C:\\Windows', SHELL: '/bin/bash' } }
     }
   })
@@ -103,6 +105,7 @@ beforeEach(() => {
   mockInjectBundledRipgrepPath.mockImplementation((cmd: string) => cmd)
   mockExecFileCommand.mockReset()
   mockCreateTab.mockReset()
+  mockHashlineRead.mockReset()
   mockCreateTab.mockResolvedValue({
     id: 'terminal-1',
     result: { output: 'terminal output' }
@@ -127,6 +130,11 @@ const getSearchProjectTool = () => {
 const getExecCommandTool = () => {
   const tools = getCodexBuiltinTools()
   return tools.exec_command!
+}
+
+const getReadFileTool = () => {
+  const tools = getCodexBuiltinTools()
+  return tools.readFile!
 }
 
 const extractText = (result: any): string => result.toolResult.content[0].text
@@ -735,5 +743,45 @@ describe('exec_command', () => {
 
     expect(text.length).toBeLessThan(31000)
     expect(text).toContain('output truncated')
+  })
+})
+
+describe('readFile', () => {
+  it('should request plain format (no hashline prefixes) in replace mode', async () => {
+    mockHashlineRead.mockResolvedValue({ ok: true, text: 'alpha\nbravo' })
+
+    const tool = getReadFileTool()
+    await tool.execute({ path: 'src/app.ts', start_line: 1, end_line: 2 }, defaultOptions)
+
+    expect(mockHashlineRead).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'src/app.ts', format: 'plain' })
+    )
+  })
+
+  it('should pass through file content verbatim without escaping', async () => {
+    const content = [
+      'const re = /\\d+\\.\\d+/g',
+      'const msg = `hello ${name}`',
+      '{"key": "value\\nwith tab\\t"}',
+      'console.log("she said \\"hi\\"")',
+      '+payload line',
+      '¶src/file.ts#ABCD',
+      '\tindented'
+    ].join('\n')
+    mockHashlineRead.mockResolvedValue({ ok: true, text: content })
+
+    const tool = getReadFileTool()
+    const text = extractText(await tool.execute({ path: 'escape.txt' }, defaultOptions))
+
+    expect(text).toBe(content)
+  })
+
+  it('should return error text when hashline read reports failure', async () => {
+    mockHashlineRead.mockResolvedValue({ ok: false, error: 'File does not exist' })
+
+    const tool = getReadFileTool()
+    const text = extractText(await tool.execute({ path: 'missing.txt' }, defaultOptions))
+
+    expect(text).toBe('读取文件失败: File does not exist')
   })
 })
