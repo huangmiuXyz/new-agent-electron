@@ -173,8 +173,9 @@ export const getBuiltinAgents = (): Agent[] => [
   createBuiltinAgent({
     id: 'builtin-codex',
     name: 'Codex',
-    description: '面向项目代码的搜索、读取、编辑、测试和命令执行。',
+    description: '面向项目代码的搜索、读取、编辑、测试和命令执行。搜索代码使用技能codegraph',
     tags: [],
+    builtinSkills: ['codegraph'],
     systemPrompt: codexProgrammingPrompt,
     mcpServers: [],
     tools: [],
