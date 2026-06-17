@@ -941,11 +941,12 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
           if (!result?.ok || !result.summary) {
             throw new Error(result?.error || 'edit_file replace failed')
           }
+          const diffText = result.changes?.[0]?.diff || result.summary
 
           return {
             summary: result.summary,
             toolResult: {
-              content: [{ type: 'text', text: result.summary }]
+              content: [{ type: 'text', text: diffText }]
             }
           }
         } catch (error) {

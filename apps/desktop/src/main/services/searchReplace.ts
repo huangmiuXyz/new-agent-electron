@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { promises as fs } from 'fs'
 import nodePath from 'path'
+import { createTwoFilesPatch } from 'diff'
 import {
   applyHashlineOperations,
   computeSnapshotTag,
@@ -28,6 +29,7 @@ export type FileEditChange = {
   old_hash?: string
   new_hash?: string
   replacements?: number
+  diff?: string
   summary: string
 }
 
@@ -68,6 +70,12 @@ const makeChange = (change: Omit<FileEditChange, 'summary'>): FileEditChange => 
   ...change,
   summary: formatChangeSummary(change)
 })
+
+const buildUnifiedDiff = (oldContent: string, newContent: string, filePath: string) => {
+  return createTwoFilesPatch(filePath, filePath, oldContent, newContent, '', '', {
+    context: 3
+  })
+}
 
 const applyHashlineInput = async (baseDir: string, input: string): Promise<FileEditChange[]> => {
   const sections = splitHashlineSections(input)
@@ -174,7 +182,8 @@ const applyStringReplace = async (baseDir: string, payload: HashlineEditPayload)
       path: toDisplayPath(baseDir, filePath),
       old_hash: computeSnapshotTag(currentContent),
       new_hash: computeSnapshotTag(nextContent),
-      replacements: payload.replace_all ? matches : 1
+      replacements: payload.replace_all ? matches : 1,
+      diff: buildUnifiedDiff(currentContent, nextContent, toDisplayPath(baseDir, filePath))
     })
   ]
 }

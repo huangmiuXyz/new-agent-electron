@@ -294,6 +294,7 @@ export interface ElectronAPI {
         old_hash?: string
         new_hash?: string
         replacements?: number
+        diff?: string
         summary: string
       }>
       error?: string
