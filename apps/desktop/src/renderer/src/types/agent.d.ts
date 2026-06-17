@@ -6,6 +6,8 @@ declare global {
     builtinToolsRequireApproval?: string[]
     execCommandRunInBackground?: boolean
     allowedSubAgents?: string[]
+    builtinSkills?: string[]
+    enabledSkills?: string[]
   }
 }
 

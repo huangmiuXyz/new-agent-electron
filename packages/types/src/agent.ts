@@ -29,6 +29,8 @@ declare global {
     ragEnabled?: boolean // 是否启用RAG，将检索上下文插入到用户输入中
     workPath?: string // 工作路径
     skillDirectory?: string // 技能目录
+    builtinSkills?: string[] // 内置智能体默认启用的技能名称列表；存在时其他技能默认关闭
+    enabledSkills?: string[] // 用户手动启用的非默认技能名称列表
     disabledSkills?: string[] // 当前智能体禁用的技能名称列表
     backgrounds?: AgentBackground[] // 背景图片或视频列表
     temperature?: number // 温度

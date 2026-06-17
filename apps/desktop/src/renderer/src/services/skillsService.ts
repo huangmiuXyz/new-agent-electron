@@ -24,6 +24,8 @@ interface SkillFrontmatter {
 interface DiscoverSkillsOptions {
   includeDisabled?: boolean
   disabledSkillNames?: string[]
+  enabledSkillNames?: string[]
+  builtinSkillNames?: string[]
   applyCurrentAgentFilters?: boolean
   chatId?: string
   includeBuiltin?: boolean
@@ -264,6 +266,20 @@ export function discoverSkills(
       []
     ).map((name) => name.trim().toLowerCase())
   )
+  const enabledSkillNames = new Set(
+    (
+      options.enabledSkillNames ||
+      (applyCurrentAgentFilters ? currentAgent?.enabledSkills : []) ||
+      []
+    ).map((name) => name.trim().toLowerCase())
+  )
+  const builtinSkillNames = new Set(
+    (
+      options.builtinSkillNames ||
+      (applyCurrentAgentFilters ? currentAgent?.builtinSkills : []) ||
+      []
+    ).map((name) => name.trim().toLowerCase())
+  )
 
   for (const skillsDir of resolvedDirectories) {
     const builtin = builtinDirectories.includes(skillsDir)
@@ -299,7 +315,11 @@ export function discoverSkills(
         if (seenNames.has(normalizedName)) continue
         seenNames.add(normalizedName)
 
-        const enabled = !disabledSkillNames.has(normalizedName)
+        const enabled =
+          builtinSkillNames.size > 0
+            ? enabledSkillNames.has(normalizedName) ||
+              (builtinSkillNames.has(normalizedName) && !disabledSkillNames.has(normalizedName))
+            : !disabledSkillNames.has(normalizedName)
         if (!includeDisabled && !enabled) continue
 
         skills.push({

@@ -56,6 +56,7 @@ export const getBuiltinAgents = (): Agent[] => [
     mcpServers: [],
     tools: [],
     builtinTools: ['loadSkill', 'exec_command', 'fetch'],
+    builtinSkills: ['find-skills'],
     builtinToolsRequireApproval: [],
     builtinToolConfigs: {},
     execCommandRunInBackground: false,
@@ -91,6 +92,7 @@ export const getBuiltinAgents = (): Agent[] => [
       'exec_command',
       'fetch'
     ],
+    builtinSkills: ['skill-creator'],
     builtinToolsRequireApproval: ['exec_command'],
     builtinToolConfigs: {},
     execCommandRunInBackground: false,
@@ -258,6 +260,7 @@ export const mergeBuiltinAgents = (currentAgents: Agent[]): Agent[] => {
       ...builtinAgent,
       ...agent,
       tags: builtinAgent.tags,
+      builtinSkills: builtinAgent.builtinSkills,
       builtinToolConfigs: {
         ...(builtinAgent.builtinToolConfigs || {}),
         ...(agent.builtinToolConfigs || {})

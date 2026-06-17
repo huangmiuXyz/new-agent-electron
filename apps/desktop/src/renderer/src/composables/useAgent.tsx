@@ -241,6 +241,8 @@ export const useAgent = () => {
           ragEnabled: agent.ragEnabled ?? false,
           workPath: agent.workPath || '',
           skillDirectory: agent.skillDirectory || DEFAULT_SKILL_DIRECTORY,
+          builtinSkills: [...(agent.builtinSkills || [])],
+          enabledSkills: [...(agent.enabledSkills || [])],
           disabledSkills: [...(agent.disabledSkills || [])],
           backgrounds: agent.backgrounds ? agent.backgrounds.map((bg) => bg.url) : [],
           avatar: agent.avatar || '',
@@ -282,6 +284,8 @@ export const useAgent = () => {
           ragEnabled: false,
           workPath: '',
           skillDirectory: DEFAULT_SKILL_DIRECTORY,
+          builtinSkills: [],
+          enabledSkills: [],
           disabledSkills: [],
           backgrounds: [],
           avatar: '',
@@ -824,12 +828,25 @@ export const useAgent = () => {
     const getDisabledSkills = () =>
       ((formActions?.getFieldValue('disabledSkills') as string[]) || []).slice()
 
+    const getEnabledSkills = () =>
+      ((formActions?.getFieldValue('enabledSkills') as string[]) || []).slice()
+
+    const normalizeSkillNames = (skillNames: string[]) =>
+      skillNames
+        .map((name) => name.trim())
+        .filter(Boolean)
+        .filter(
+          (name, index, array) =>
+            array.findIndex((item) => item.toLowerCase() === name.toLowerCase()) === index
+        )
+
     const setDisabledSkills = (skillNames: string[]) => {
-      const nextSkillNames = skillNames.filter(
-        (name, index, array) =>
-          array.findIndex((item) => item.toLowerCase() === name.toLowerCase()) === index
-      )
-      formActions.setFieldValue('disabledSkills', nextSkillNames)
+      formActions.setFieldValue('disabledSkills', normalizeSkillNames(skillNames))
+      skillRefreshVersion.value += 1
+    }
+
+    const setEnabledSkills = (skillNames: string[]) => {
+      formActions.setFieldValue('enabledSkills', normalizeSkillNames(skillNames))
       skillRefreshVersion.value += 1
     }
 
@@ -976,6 +993,10 @@ export const useAgent = () => {
                 name.toLowerCase() === skill.name.toLowerCase() ? nextName : name
               )
               setDisabledSkills(nextDisabledSkills)
+              const nextEnabledSkills = getEnabledSkills().map((name) =>
+                name.toLowerCase() === skill.name.toLowerCase() ? nextName : name
+              )
+              setEnabledSkills(nextEnabledSkills)
             } else {
               skillRefreshVersion.value += 1
             }
@@ -1018,6 +1039,9 @@ export const useAgent = () => {
         window.api.fs.rmSync(skill.path, { recursive: true, force: true })
         setDisabledSkills(
           getDisabledSkills().filter((name) => name.toLowerCase() !== skill.name.toLowerCase())
+        )
+        setEnabledSkills(
+          getEnabledSkills().filter((name) => name.toLowerCase() !== skill.name.toLowerCase())
         )
         messageApi.success(`已删除技能：${skill.name}`)
       } catch (error) {
@@ -1117,11 +1141,27 @@ export const useAgent = () => {
         }
       } as PathSelectorField<AgentFormData>,
       {
+        name: 'builtinSkills',
+        type: 'text',
+        ifShow: () => false
+      } as TextField<AgentFormData>,
+      {
+        name: 'enabledSkills',
+        type: 'text',
+        ifShow: () => false
+      } as TextField<AgentFormData>,
+      {
         name: 'disabledSkills',
         type: 'custom',
         render: (formData) => {
           void skillRefreshVersion.value
           const skillDirectory = resolveSkillDirectory(formData.skillDirectory)
+          const builtinSkillNames = new Set(
+            ((formData.builtinSkills as string[]) || []).map((name) => name.toLowerCase())
+          )
+          const enabledExtraSkillNames = new Set(
+            ((formData.enabledSkills as string[]) || []).map((name) => name.toLowerCase())
+          )
           const disabledSkillNames = new Set(
             ((formData.disabledSkills as string[]) || []).map((name) => name.toLowerCase())
           )
@@ -1129,6 +1169,8 @@ export const useAgent = () => {
             ? discoverSkills([skillDirectory], {
                 includeDisabled: true,
                 disabledSkillNames: formData.disabledSkills as string[],
+                enabledSkillNames: formData.enabledSkills as string[],
+                builtinSkillNames: formData.builtinSkills as string[],
                 applyCurrentAgentFilters: false
               })
             : []
@@ -1176,19 +1218,39 @@ export const useAgent = () => {
           }
 
           const skillOptions: CheckboxOption[] = skills.map((skill) => {
-            const isDisabled = disabledSkillNames.has(skill.name.toLowerCase())
+            const normalizedName = skill.name.toLowerCase()
+            const isDefaultSkill =
+              builtinSkillNames.size === 0 || builtinSkillNames.has(normalizedName)
+            const isDisabled =
+              builtinSkillNames.size > 0
+                ? !enabledExtraSkillNames.has(normalizedName) &&
+                  (!isDefaultSkill || disabledSkillNames.has(normalizedName))
+                : disabledSkillNames.has(normalizedName)
             return {
               value: skill.name,
               label: skill.name,
               description: `${skill.description}\n${skill.path}`,
-              tags: [skill.builtin ? '内置' : '', isDisabled ? '已禁用' : ''].filter(Boolean),
+              tags: [
+                skill.builtin ? '内置' : '',
+                builtinSkillNames.size > 0 && isDefaultSkill ? '默认' : '',
+                isDisabled ? '已禁用' : ''
+              ].filter(Boolean),
               tagColor: isDisabled ? 'gray' : 'orange',
               actionTitle: '技能设置'
             }
           })
 
           const enabledSkillNames = skills
-            .filter((skill) => !disabledSkillNames.has(skill.name.toLowerCase()))
+            .filter((skill) => {
+              const normalizedName = skill.name.toLowerCase()
+              if (builtinSkillNames.size === 0) {
+                return !disabledSkillNames.has(normalizedName)
+              }
+              return (
+                enabledExtraSkillNames.has(normalizedName) ||
+                (builtinSkillNames.has(normalizedName) && !disabledSkillNames.has(normalizedName))
+              )
+            })
             .map((skill) => skill.name)
 
           return (
@@ -1208,10 +1270,36 @@ export const useAgent = () => {
                     const nextEnabledNameSet = new Set(
                       nextEnabledSkillNames.map((name) => name.toLowerCase())
                     )
+                    if (builtinSkillNames.size === 0) {
+                      const nextDisabledSkills = skills
+                        .filter((skill) => !nextEnabledNameSet.has(skill.name.toLowerCase()))
+                        .map((skill) => skill.name)
+                      setDisabledSkills(nextDisabledSkills)
+                      setEnabledSkills([])
+                      return
+                    }
+
                     const nextDisabledSkills = skills
-                      .filter((skill) => !nextEnabledNameSet.has(skill.name.toLowerCase()))
+                      .filter((skill) => {
+                        const normalizedName = skill.name.toLowerCase()
+                        return (
+                          builtinSkillNames.has(normalizedName) &&
+                          !nextEnabledNameSet.has(normalizedName)
+                        )
+                      })
                       .map((skill) => skill.name)
+                    const nextEnabledSkills = skills
+                      .filter((skill) => {
+                        const normalizedName = skill.name.toLowerCase()
+                        return (
+                          !builtinSkillNames.has(normalizedName) &&
+                          nextEnabledNameSet.has(normalizedName)
+                        )
+                      })
+                      .map((skill) => skill.name)
+
                     setDisabledSkills(nextDisabledSkills)
+                    setEnabledSkills(nextEnabledSkills)
                   }}
                   optionAction={(option, event) => {
                     const skill = getSkillByName(option.value)
