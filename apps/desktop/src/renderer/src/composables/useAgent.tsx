@@ -20,9 +20,9 @@ interface AgentFormData extends Omit<
 const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
 const DEFAULT_COMPUTER_SCREENSHOT_MAX_SIDE_PX = 1600
 const DEFAULT_UNLIMITED_VALUE = 0
-const DEFAULT_EDIT_FILE_MODE: 'hashline' | 'patch' = 'patch'
+const DEFAULT_EDIT_FILE_MODE: 'hashline' | 'replace' = 'replace'
 const EDIT_FILE_MODE_OPTIONS = [
-  { label: '补丁模式（默认）', value: 'patch' },
+  { label: '精确替换模式（默认）', value: 'replace' },
   { label: '哈希行模式', value: 'hashline' }
 ]
 const COMPUTER_SCREENSHOT_MAX_SIDE_OPTIONS = [
@@ -646,7 +646,7 @@ export const useAgent = () => {
       const currentEditFileMode =
         (formActions.getFieldValue('builtinToolConfigs.edit_file.mode') as
           | 'hashline'
-          | 'patch') || DEFAULT_EDIT_FILE_MODE
+          | 'replace') || DEFAULT_EDIT_FILE_MODE
       const isExecCommand = option.value === 'exec_command'
       const isDelegateToSubAgent = option.value === 'delegate_to_sub_agent'
       const isComputerUse = option.value === 'computer_use'
@@ -657,7 +657,7 @@ export const useAgent = () => {
         execCommandRunInBackground: boolean
         allowedSubAgents: string[]
         screenshotMaxSidePx: number
-        editFileMode: 'hashline' | 'patch'
+        editFileMode: 'hashline' | 'replace'
       }>({
         title: `工具设置 · ${option.label}`,
         showHeader: false,
@@ -679,7 +679,7 @@ export const useAgent = () => {
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
             screenshotMaxSidePx: number
-            editFileMode: 'hashline' | 'patch'
+            editFileMode: 'hashline' | 'replace'
           }>,
           {
             name: 'screenshotMaxSidePx',
@@ -693,7 +693,7 @@ export const useAgent = () => {
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
             screenshotMaxSidePx: number
-            editFileMode: 'hashline' | 'patch'
+            editFileMode: 'hashline' | 'replace'
           }>,
           {
             name: 'execCommandRunInBackground',
@@ -706,7 +706,7 @@ export const useAgent = () => {
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
             screenshotMaxSidePx: number
-            editFileMode: 'hashline' | 'patch'
+            editFileMode: 'hashline' | 'replace'
           }>,
           {
             name: 'allowedSubAgents',
@@ -720,21 +720,21 @@ export const useAgent = () => {
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
             screenshotMaxSidePx: number
-            editFileMode: 'hashline' | 'patch'
+            editFileMode: 'hashline' | 'replace'
           }>,
           {
             name: 'editFileMode',
             type: 'select',
             label: '编辑模式',
             options: EDIT_FILE_MODE_OPTIONS,
-            hint: '哈希行模式用行号锚点编辑单个文件；补丁模式用 Codex 标准补丁格式，可批量增删改多个文件。',
+            hint: '精确替换模式用 old_string/new_string 编辑文件；哈希行模式用行号锚点编辑单个文件。',
             ifShow: () => isEditFile
           } as SelectField<{
             requireApproval: boolean
             execCommandRunInBackground: boolean
             allowedSubAgents: string[]
             screenshotMaxSidePx: number
-            editFileMode: 'hashline' | 'patch'
+            editFileMode: 'hashline' | 'replace'
           }>
         ],
         onSubmit: (data) => {
@@ -755,7 +755,7 @@ export const useAgent = () => {
             )
           }
           if (isEditFile) {
-            const mode = data.editFileMode === 'patch' ? 'patch' : 'hashline'
+            const mode = data.editFileMode === 'hashline' ? 'hashline' : 'replace'
             formActions.setFieldValue('builtinToolConfigs.edit_file.mode', mode)
           }
         }

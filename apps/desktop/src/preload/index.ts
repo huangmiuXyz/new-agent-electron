@@ -689,16 +689,20 @@ export const api: ElectronAPI = {
       end_line?: number
       limit?: number
       max_columns?: number
+      format?: 'hashline' | 'plain'
     }) => electronAPI.ipcRenderer.invoke('hashline:read', payload)
   },
   editFile: {
     execute: (payload: {
       baseDir: string
-      type?: 'add' | 'delete' | 'update' | 'move'
+      type?: 'add' | 'delete' | 'update' | 'move' | 'replace'
       input?: string
       path?: string
       new_path?: string
       content?: string
+      old_string?: string
+      new_string?: string
+      replace_all?: boolean
     }) =>
       electronAPI.ipcRenderer.invoke('edit-file:execute', payload)
   },

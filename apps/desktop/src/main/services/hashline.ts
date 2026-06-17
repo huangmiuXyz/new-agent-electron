@@ -455,6 +455,7 @@ type HashlineReadPayload = {
   end_line?: number
   limit?: number
   max_columns?: number
+  format?: 'hashline' | 'plain'
 }
 
 export const resolveHashlinePathInBaseDir = (baseDir: string, rawPath: string) => {
@@ -474,7 +475,7 @@ export const resolveHashlinePathInBaseDir = (baseDir: string, rawPath: string) =
   return targetPath
 }
 
-const executeHashlineRead = async (payload: HashlineReadPayload): Promise<string> => {
+export const executeHashlineRead = async (payload: HashlineReadPayload): Promise<string> => {
   const baseDir = typeof payload.baseDir === 'string' ? payload.baseDir.trim() : ''
   if (!baseDir) {
     throw new Error('workPath is required')
@@ -507,6 +508,11 @@ const executeHashlineRead = async (payload: HashlineReadPayload): Promise<string
     endLine: payload.end_line,
     limit: payload.limit
   })
+
+  if (payload.format === 'plain') {
+    return selection.selectedLines.join('\n')
+  }
+
   const hashlineDisplay = formatHashlineDisplayLines(selection.selectedLines, selection.startLine, {
     maxColumns: payload.max_columns
   })

@@ -15,7 +15,7 @@ declare global {
         screenshotMaxSidePx?: number
       }
       edit_file?: {
-        mode?: 'hashline' | 'patch'
+        mode?: 'hashline' | 'replace'
       }
       [toolName: string]: Record<string, unknown> | undefined
     } // 内置工具配置

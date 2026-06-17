@@ -12,10 +12,13 @@ import {
 type HashlineEditPayload = {
   baseDir?: string
   input?: string
-  type?: 'add' | 'delete' | 'update' | 'move'
+  type?: 'add' | 'delete' | 'update' | 'move' | 'replace'
   path?: string
   new_path?: string
   content?: string
+  old_string?: string
+  new_string?: string
+  replace_all?: boolean
 }
 
 export type FileEditChange = {
@@ -24,6 +27,7 @@ export type FileEditChange = {
   new_path?: string
   old_hash?: string
   new_hash?: string
+  replacements?: number
   summary: string
 }
 
@@ -50,9 +54,12 @@ const readTextIfExists = async (
 const formatChangeSummary = (change: Omit<FileEditChange, 'summary'>): string => {
   const pathPart =
     change.status === 'R' && change.new_path ? `${change.path} -> ${change.new_path}` : change.path
+  const replacePart =
+    typeof change.replacements === 'number' ? `replacements=${change.replacements}` : ''
   const hashParts = [
     change.old_hash ? `old_hash=${change.old_hash}` : '',
-    change.new_hash ? `new_hash=${change.new_hash}` : ''
+    change.new_hash ? `new_hash=${change.new_hash}` : '',
+    replacePart
   ].filter(Boolean)
   return [`${change.status} ${pathPart}`, ...hashParts].join(' ')
 }
@@ -105,6 +112,73 @@ const getRequiredPath = (payload: HashlineEditPayload, field: 'path' | 'new_path
   return value
 }
 
+const normalizeModelEditableQuotes = (text: string) =>
+  text
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+
+const findActualString = (content: string, oldString: string): string | null => {
+  if (content.includes(oldString)) return oldString
+
+  const normalizedOldString = normalizeModelEditableQuotes(oldString)
+  if (normalizedOldString === oldString) return null
+
+  const normalizedContent = normalizeModelEditableQuotes(content)
+  const index = normalizedContent.indexOf(normalizedOldString)
+  if (index === -1) return null
+
+  return content.slice(index, index + oldString.length)
+}
+
+const countOccurrences = (content: string, needle: string) => {
+  if (!needle) return 0
+  return content.split(needle).length - 1
+}
+
+const applyStringReplace = async (baseDir: string, payload: HashlineEditPayload) => {
+  const rawPath = getRequiredPath(payload, 'path')
+  const filePath = resolveHashlinePathInBaseDir(baseDir, rawPath)
+  await assertRegularFileTarget(filePath, 'Replace target')
+
+  const oldString = typeof payload.old_string === 'string' ? payload.old_string : ''
+  if (!oldString) {
+    throw new Error('old_string is required')
+  }
+
+  const newString = typeof payload.new_string === 'string' ? payload.new_string : ''
+  const currentContent = await fs.readFile(filePath, 'utf-8')
+  const actualOldString = findActualString(currentContent, oldString)
+  if (!actualOldString) {
+    throw new Error('String to replace not found in file')
+  }
+
+  const matches = countOccurrences(currentContent, actualOldString)
+  if (matches > 1 && !payload.replace_all) {
+    throw new Error(
+      `Found ${matches} matches for old_string. Provide more context or set replace_all=true.`
+    )
+  }
+
+  const nextContent = payload.replace_all
+    ? currentContent.replaceAll(actualOldString, newString)
+    : currentContent.replace(actualOldString, newString)
+
+  if (currentContent === nextContent) {
+    throw new Error(`String replacement made no changes: ${rawPath}`)
+  }
+
+  await fs.writeFile(filePath, nextContent, 'utf-8')
+  return [
+    makeChange({
+      status: 'M',
+      path: toDisplayPath(baseDir, filePath),
+      old_hash: computeSnapshotTag(currentContent),
+      new_hash: computeSnapshotTag(nextContent),
+      replacements: payload.replace_all ? matches : 1
+    })
+  ]
+}
+
 const toDisplayPath = (baseDir: string, filePath: string) => {
   const relativePath = nodePath.relative(nodePath.resolve(baseDir), filePath)
   return (relativePath || nodePath.basename(filePath)).replaceAll('\\', '/')
@@ -125,9 +199,17 @@ export const executeFileEdit = async (payload: HashlineEditPayload) => {
 
   const rawType = typeof payload.type === 'string' ? payload.type.trim() : ''
   const type =
-    rawType === 'add' || rawType === 'delete' || rawType === 'move' || rawType === 'update'
+    rawType === 'add' ||
+    rawType === 'delete' ||
+    rawType === 'move' ||
+    rawType === 'replace' ||
+    rawType === 'update'
       ? rawType
       : 'update'
+
+  if (type === 'replace') {
+    return applyStringReplace(baseDir, payload)
+  }
 
   if (type === 'update') {
     const input = typeof payload.input === 'string' ? payload.input : ''

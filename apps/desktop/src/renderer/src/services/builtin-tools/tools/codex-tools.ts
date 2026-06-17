@@ -14,7 +14,7 @@ type CodexToolExecuteOptions = {
 }
 
 type CodexBuiltinToolsOptions = {
-  editFileMode?: 'hashline' | 'patch'
+  editFileMode?: 'hashline' | 'replace' | 'patch'
 }
 
 const getCurrentAgent = (chatId?: string) => {
@@ -323,8 +323,9 @@ const formatSearchOutput = (params: {
 }
 
 export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partial<Tools> => {
-  const editFileMode: 'hashline' | 'patch' =
-    options?.editFileMode === 'hashline' ? 'hashline' : 'patch'
+  const editFileMode: 'hashline' | 'replace' =
+    options?.editFileMode === 'hashline' ? 'hashline' : 'replace'
+  const isReplaceEditFileMode = editFileMode === 'replace'
   return {
   change_working_directory: {
     title: '切换工作路径',
@@ -389,17 +390,14 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
       return path ? `📖 ${path}${range}` : '📖 读取文件'
     },
     description:
-      editFileMode === 'patch'
+      isReplaceEditFileMode
         ? [
-            '读取 workPath 内的文本文件。返回格式为「行号:内容」，例如 12:const value = 1。',
-            '构造补丁时，请去掉行号前缀，用行内容本身作为 Update File 的 context 行（无前缀）、+ 行或 - 行。',
-            '例如 readFile 返回 12:const foo = 1，要新增一行可写成：',
-            '*** Update File: path',
-            ' const foo = 1',
-            '+const bar = 2',
+            '读取 workPath 内的文本文件。精确替换模式下返回真实文件文本片段，不包含行号、hashline 文件头或其它展示前缀。',
+            '可直接从 readFile 输出复制 old_string；保留精确缩进和换行。',
+            'old_string 默认必须在文件中唯一；如果目标文本重复，请扩大 old_string 上下文，只有确实要全部替换时才设置 replace_all=true。',
             '默认只读取 160 行；显式传 end_line 或 limit 时会自动附带前 1 行、后 3 行上下文。',
             '除非用户明确要求浏览文件开头，否则应先用 search_project 定位行号，再读取小范围。',
-            '超长行会截断显示，提交前请确认目标行内容。',
+            '需要更大上下文时继续调用 readFile 调整范围。',
             '需要搜索文件名或内容时请改用 search_project；定位到文件后再用 readFile 读取锚点。'
           ].join('\n')
         : [
@@ -465,7 +463,8 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
           start_line: typeof params.start_line === 'number' ? params.start_line : undefined,
           end_line: typeof params.end_line === 'number' ? params.end_line : undefined,
           limit: typeof params.limit === 'number' ? params.limit : undefined,
-          max_columns: typeof params.max_columns === 'number' ? params.max_columns : undefined
+          max_columns: typeof params.max_columns === 'number' ? params.max_columns : undefined,
+          format: isReplaceEditFileMode ? 'plain' : 'hashline'
         })
 
         if (!result?.ok || !result.text) {
@@ -769,6 +768,10 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
   },
   exec_command: {
     title: '在终端中执行命令',
+    renderSummary: (args: unknown) => {
+      const command = String((args as Record<string, any>)?.command || '')
+      return command ? `💻 ${command}` : '💻 执行命令'
+    },
     description: [
       '在现有终端会话中执行测试、构建、包管理、git 等真正需要终端的命令。',
       '首次调用可不传 terminal_id 来创建新终端；一旦工具返回了终端ID，后续相关命令应优先复用同一个 terminal_id，避免每次创建新终端导致上下文丢失。'
@@ -825,29 +828,15 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
     }
   },
   edit_file: (() => {
-    const isPatchMode = editFileMode === 'patch'
-    const description = isPatchMode
+    const isReplaceMode = isReplaceEditFileMode
+    const description = isReplaceMode
       ? [
-          '编辑 workPath 内的文件，使用 Codex 标准补丁格式，可批量增删改多个文件。',
-          '在 content 中传入完整补丁文本，首行必须是 *** Begin Patch，末行必须是 *** End Patch。',
-          '',
-          '补丁格式：',
-          '*** Begin Patch',
-          '*** Add File: path/to/new.js',
-          '+console.log("hi")',
-          '*** Delete File: path/to/old.js',
-          '*** Update File: path/to/existing.js',
-          '@@ context line',
-          '+new line',
-          '-removed line',
-          ' context line',
-          '*** Update File: path/to/file.js',
-          '*** Move to: path/to/renamed.js',
-          '@@ ...',
-          '*** End Patch',
-          '',
-          'Update File 使用上下文行（无前缀）定位位置，+ 开头为新增行，- 开头为删除行；Move to 可在同一 Update File 块中重命名。',
-          '编辑已有文件前建议先用 readFile 查看当前内容，以便构造准确的上下文行。',
+          '编辑 workPath 内的文件。',
+          '修改已有文件前必须先用 readFile 读取目标区域；path 指向目标文件，old_string 是要替换的原文，new_string 是替换后的文本。',
+          'old_string 必须复制 readFile 返回的真实文件内容；保留精确缩进和换行。',
+          '默认要求 old_string 在文件中唯一；如果匹配多处，请扩大 old_string 上下文，只有明确要替换所有匹配时才设置 replace_all=true。',
+          '工具会先精确匹配；如果只存在弯引号/直引号差异，会使用文件里的实际文本执行替换。',
+          '新增、删除、移动文件请切换到哈希行模式，或使用其它专用工具流程。',
           '所有路径必须位于当前 workPath 内。'
         ].join('\n')
       : [
@@ -871,13 +860,20 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
           '所有路径必须位于当前 workPath 内。'
         ].join('\n')
 
-    const inputSchema = isPatchMode
+    const inputSchema = isReplaceMode
       ? z.object({
-          content: z
+          path: z
             .string()
-            .describe(
-              '完整补丁文本，首行 *** Begin Patch，末行 *** End Patch，中间用 *** Add/Delete/Update File 标记每个文件操作。'
-            )
+            .describe('要编辑的文件路径。相对路径基于当前 workPath。'),
+          old_string: z
+            .string()
+            .describe('要被替换的原文。必须来自 readFile 返回的真实文件内容。'),
+          new_string: z.string().describe('替换后的文本。'),
+          replace_all: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe('是否替换文件内所有匹配项。默认 false，要求 old_string 唯一。')
         })
       : z.object({
           type: z
@@ -903,14 +899,14 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
       const params = args as Record<string, any>
       const content = typeof params.content === 'string' ? params.content : ''
 
-      if (!content.trim()) {
+      if (!isReplaceMode && !content.trim()) {
         return {
           error: '缺少必要参数: content',
           toolResult: {
             content: [
               {
                 type: 'text',
-                text: `edit_file 失败：缺少必要参数 content${isPatchMode ? '（补丁文本）' : ''}`
+                text: 'edit_file 失败：缺少必要参数 content'
               }
             ]
           }
@@ -932,22 +928,25 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
         }
       }
 
-      if (isPatchMode) {
+      if (isReplaceMode) {
         try {
-          const result = await window.api.applyPatch.execute({
+          const result = await window.api.editFile.execute({
             baseDir,
-            patch: content
+            type: 'replace',
+            path: nonEmptyString(params.path),
+            old_string: typeof params.old_string === 'string' ? params.old_string : '',
+            new_string: typeof params.new_string === 'string' ? params.new_string : '',
+            replace_all: params.replace_all === true
           })
 
-          if (!result?.ok || !result.summaries?.length) {
-            throw new Error(result?.error || 'edit_file (patch) failed')
+          if (!result?.ok || !result.summary) {
+            throw new Error(result?.error || 'edit_file replace failed')
           }
 
-          const summary = result.summaries.join('\n')
           return {
-            summary,
+            summary: result.summary,
             toolResult: {
-              content: [{ type: 'text', text: summary }]
+              content: [{ type: 'text', text: result.summary }]
             }
           }
         } catch (error) {
@@ -999,8 +998,9 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
       render: EditFileRender,
       renderSummary: (args: unknown) => {
         const params = (args as Record<string, any>) || {}
-        if (isPatchMode) {
-          return '🩹 应用补丁'
+        if (isReplaceMode) {
+          const path = String(params.path || '')
+          return path ? `✏ 替换 ${path}` : '✏ 替换文本'
         }
         const type = String(params.type || 'update')
         const path = String(params.path || '')

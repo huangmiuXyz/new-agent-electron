@@ -94,4 +94,63 @@ describe('executeFileEdit', () => {
     ])
     await expect(readFile(filePath, 'utf-8')).resolves.toBe(newContent)
   })
+
+  it('supports exact string replacement mode', async () => {
+    const baseDir = await mkdtemp(path.join(tmpdir(), 'agent-qi-edit-file-'))
+    const filePath = path.join(baseDir, 'src/hello.txt')
+    await executeFileEdit({
+      baseDir,
+      type: 'add',
+      path: 'src/hello.txt',
+      content: 'alpha\nbravo\ncharlie'
+    })
+
+    await expect(
+      executeFileEdit({
+        baseDir,
+        type: 'replace',
+        path: 'src/hello.txt',
+        old_string: 'bravo',
+        new_string: 'BRAVO'
+      })
+    ).resolves.toMatchObject([
+      {
+        status: 'M',
+        path: 'src/hello.txt',
+        replacements: 1
+      }
+    ])
+    await expect(readFile(filePath, 'utf-8')).resolves.toBe('alpha\nBRAVO\ncharlie')
+  })
+
+  it('requires replace_all for repeated exact string replacements', async () => {
+    const baseDir = await mkdtemp(path.join(tmpdir(), 'agent-qi-edit-file-'))
+    const filePath = path.join(baseDir, 'src/repeat.txt')
+    await executeFileEdit({
+      baseDir,
+      type: 'add',
+      path: 'src/repeat.txt',
+      content: 'same\nsame'
+    })
+
+    await expect(
+      executeFileEdit({
+        baseDir,
+        type: 'replace',
+        path: 'src/repeat.txt',
+        old_string: 'same',
+        new_string: 'changed'
+      })
+    ).rejects.toThrow('Found 2 matches')
+
+    await executeFileEdit({
+      baseDir,
+      type: 'replace',
+      path: 'src/repeat.txt',
+      old_string: 'same',
+      new_string: 'changed',
+      replace_all: true
+    })
+    await expect(readFile(filePath, 'utf-8')).resolves.toBe('changed\nchanged')
+  })
 })

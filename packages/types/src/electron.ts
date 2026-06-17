@@ -265,6 +265,7 @@ export interface ElectronAPI {
       end_line?: number
       limit?: number
       max_columns?: number
+      format?: 'hashline' | 'plain'
     }) => Promise<{
       ok: boolean
       text?: string
@@ -275,11 +276,14 @@ export interface ElectronAPI {
   editFile: {
     execute: (payload: {
       baseDir: string
-      type?: 'add' | 'delete' | 'update' | 'move'
+      type?: 'add' | 'delete' | 'update' | 'move' | 'replace'
       input?: string
       path?: string
       new_path?: string
       content?: string
+      old_string?: string
+      new_string?: string
+      replace_all?: boolean
     }) => Promise<{
       ok: boolean
       summary?: string
@@ -289,6 +293,7 @@ export interface ElectronAPI {
         new_path?: string
         old_hash?: string
         new_hash?: string
+        replacements?: number
         summary: string
       }>
       error?: string
