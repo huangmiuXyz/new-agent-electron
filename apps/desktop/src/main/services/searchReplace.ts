@@ -125,17 +125,71 @@ const normalizeModelEditableQuotes = (text: string) =>
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u201C\u201D]/g, '"')
 
+const CRLF = String.fromCharCode(13, 10);
+const LF = String.fromCharCode(10);
+const CR = String.fromCharCode(13);
 const findActualString = (content: string, oldString: string): string | null => {
   if (content.includes(oldString)) return oldString
 
-  const normalizedOldString = normalizeModelEditableQuotes(oldString)
-  if (normalizedOldString === oldString) return null
+  // CRLF 归一化：readFile 返回 LF 但文件可能含 CRLF
+  const normalize = (s: string) => s.replace(/\r\n/g, LF)
+  const lfContent = normalize(content)
+  const lfOldString = normalize(oldString)
+  if (lfContent.includes(lfOldString)) {
+    const lfIdx = lfContent.indexOf(lfOldString)
+    // 逐步扫描原始内容，跳过 LF 索引对应的字符，找到 CRLF 中的真实起止位置
+    let origIdx = 0
+    let lfPos = 0
+    while (lfPos < lfIdx && origIdx < content.length) {
+      if (content[origIdx] === CR && content[origIdx + 1] === LF) {
+        origIdx += 2; lfPos += 1
+      } else {
+        origIdx += 1; lfPos += 1
+      }
+    }
+    // 扫描匹配长度
+    const start = origIdx
+    const matchLen = lfOldString.length
+    let origEnd = start
+    let matched = 0
+    while (matched < matchLen && origEnd < content.length) {
+      if (content[origEnd] === CR && content[origEnd + 1] === LF) {
+        origEnd += 2; matched += 1
+      } else {
+        origEnd += 1; matched += 1
+      }
+    }
+    return content.slice(start, origEnd)
+  }
 
-  const normalizedContent = normalizeModelEditableQuotes(content)
+  const normalizedOldString = normalizeModelEditableQuotes(lfOldString)
+  if (normalizedOldString === lfOldString) return null
+
+  const normalizedContent = normalizeModelEditableQuotes(lfContent)
   const index = normalizedContent.indexOf(normalizedOldString)
   if (index === -1) return null
 
-  return content.slice(index, index + oldString.length)
+  // 同 CRLF 分支：将 LF 索引映射回原始内容
+  let origIdx2 = 0
+  let lfPos2 = 0
+  while (lfPos2 < index && origIdx2 < content.length) {
+    if (content[origIdx2] === CR && content[origIdx2 + 1] === LF) {
+      origIdx2 += 2; lfPos2 += 1
+    } else {
+      origIdx2 += 1; lfPos2 += 1
+    }
+  }
+  const start2 = origIdx2
+  let origEnd2 = start2
+  let matched2 = 0
+  while (matched2 < normalizedOldString.length && origEnd2 < content.length) {
+    if (content[origEnd2] === CR && content[origEnd2 + 1] === LF) {
+      origEnd2 += 2; matched2 += 1
+    } else {
+      origEnd2 += 1; matched2 += 1
+    }
+  }
+  return content.slice(start2, origEnd2)
 }
 
 const countOccurrences = (content: string, needle: string) => {
@@ -209,10 +263,10 @@ export const executeFileEdit = async (payload: HashlineEditPayload) => {
   const rawType = typeof payload.type === 'string' ? payload.type.trim() : ''
   const type =
     rawType === 'add' ||
-    rawType === 'delete' ||
-    rawType === 'move' ||
-    rawType === 'replace' ||
-    rawType === 'update'
+      rawType === 'delete' ||
+      rawType === 'move' ||
+      rawType === 'replace' ||
+      rawType === 'update'
       ? rawType
       : 'update'
 

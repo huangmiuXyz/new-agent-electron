@@ -4,6 +4,9 @@ import { getProviderTypes } from '@renderer/services/chatService/registry'
 import providerData from '@renderer/assets/provider.json'
 import { copyText } from '@renderer/utils'
 
+// API 密钥编辑状态
+const editingApiKey = ref<ApiKeyInfo | null>(null)
+
 const settingsStore = useSettingsStore()
 const { getAllProviders, registeredProviders } = storeToRefs(settingsStore)
 const visibleProviders = computed(() => getAllProviders.value.filter((p) => !p.hide))
@@ -106,22 +109,36 @@ const [ApiKeyTable, apiKeyTableActions] = useTable<ApiKeyInfo>({
     {
       key: 'actions',
       label: '操作',
-      width: '60px',
+      width: '100px',
       align: 'center',
       render: (row) => (
-        <Button
-          type="button"
-          variant="text"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation()
-            handleDeleteApiKey(row)
-          }}
-          title="删除"
-          class="text-red-500"
-        >
-          {Delete}
-        </Button>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
+          <Button
+            type="button"
+            variant="text"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleEditApiKey(row)
+            }}
+            title="编辑"
+          >
+            {Edit}
+          </Button>
+          <Button
+            type="button"
+            variant="text"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDeleteApiKey(row)
+            }}
+            title="删除"
+            class="text-red-500"
+          >
+            {Delete}
+          </Button>
+        </div>
       )
     }
   ],
@@ -158,6 +175,24 @@ const [ApiKeyForm, apiKeyFormActions] = useForm({
   ],
   onSubmit: (data) => {
     if (!activeProvider.value) return
+
+    if (editingApiKey.value) {
+      const updatedKey: ApiKeyInfo = {
+        ...editingApiKey.value,
+        name: data.name!,
+        key: data.key!
+      }
+      const newApiKeys = (activeProvider.value.apiKeys || []).map((k) =>
+        k.id === editingApiKey.value!.id ? updatedKey : k
+      )
+      formActions.setFieldValue('apiKeys', [...newApiKeys])
+      if (activeProvider.value.activeApiKeyId === editingApiKey.value.id) {
+        formActions.setFieldValue('apiKey', updatedKey.key)
+      }
+      editingApiKey.value = null
+      return
+    }
+
     const newApiKey: ApiKeyInfo = {
       id: nanoid(),
       name: data.name!,
@@ -181,11 +216,23 @@ const [ApiKeyForm, apiKeyFormActions] = useForm({
   }
 })
 
+const handleEditApiKey = async (apiKey: ApiKeyInfo) => {
+  editingApiKey.value = apiKey
+  await showAddApiKeyModal()
+  editingApiKey.value = null
+}
+
 const showAddApiKeyModal = async () => {
   if (!activeProvider.value) return
   apiKeyFormActions.reset()
+  if (editingApiKey.value) {
+    apiKeyFormActions.setFieldsValue({
+      name: editingApiKey.value.name,
+      key: editingApiKey.value.key
+    })
+  }
   const result = await confirm({
-    title: `添加 API 密钥到 ${activeProvider.value.name}`,
+    title: editingApiKey.value ? `编辑 API 密钥 - ${activeProvider.value.name}` : `添加 API 密钥到 ${activeProvider.value.name}`,
     content: ApiKeyForm
   })
   if (result) apiKeyFormActions.submit()
