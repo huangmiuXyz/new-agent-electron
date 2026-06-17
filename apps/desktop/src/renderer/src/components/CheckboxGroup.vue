@@ -113,7 +113,7 @@ const handleOptionContextMenu = (option: CheckboxOption, event: MouseEvent) => {
                 <div class="checkbox group-checkbox" :class="{ checked: getGroupSelectionState(group.options).checked }">
                     <div class="checkbox-box"
                         :class="{ indeterminate: getGroupSelectionState(group.options).indeterminate }">
-                        <checkIcon
+                        <Check
                             v-if="getGroupSelectionState(group.options).checked || getGroupSelectionState(group.options).indeterminate" />
                     </div>
                 </div>
