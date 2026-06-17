@@ -258,7 +258,12 @@ const handleModalTouchMove = (event: TouchEvent) => {
 const handleModalWheel = (event: WheelEvent) => {
   if (!isTopmostModal()) return
 
-  if (shouldPreventScrollChaining(event.target, event.deltaX, event.deltaY)) {
+  // Windows 上 Shift + 滚轮会将 deltaY 转换为横向滚动
+  // 此时 deltaX 可能为 0，需要将 deltaY 视为 deltaX
+  const effectiveDeltaX = event.shiftKey && event.deltaX === 0 ? event.deltaY : event.deltaX
+  const effectiveDeltaY = event.shiftKey && event.deltaX === 0 ? 0 : event.deltaY
+
+  if (shouldPreventScrollChaining(event.target, effectiveDeltaX, effectiveDeltaY)) {
     event.preventDefault()
     return
   }
