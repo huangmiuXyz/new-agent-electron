@@ -836,7 +836,6 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
           'old_string 必须复制 readFile 返回的真实文件内容；保留精确缩进和换行。',
           '默认要求 old_string 在文件中唯一；如果匹配多处，请扩大 old_string 上下文，只有明确要替换所有匹配时才设置 replace_all=true。',
           '工具会先精确匹配；如果只存在弯引号/直引号差异，会使用文件里的实际文本执行替换。',
-          '新增、删除、移动文件请切换到哈希行模式，或使用其它专用工具流程。',
           '所有路径必须位于当前 workPath 内。'
         ].join('\n')
       : [
