@@ -946,8 +946,14 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
           }
           const diffText = result.changes?.[0]?.diff || result.summary
 
+          // replace 模式下不返回 hash 信息，只返回 diff
+          const summaryWithoutHash = result.summary
+            .replace(/\s*old_hash=\S+/g, '')
+            .replace(/\s*new_hash=\S+/g, '')
+            .trim()
+
           return {
-            summary: result.summary,
+            summary: summaryWithoutHash,
             toolResult: {
               content: [{ type: 'text', text: diffText }]
             }
