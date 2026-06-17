@@ -1,4 +1,5 @@
 import codexProgrammingPrompt from '@renderer/prompts/agentqi-codex-programming-prompt.md?raw'
+import skillCreatorPrompt from '@renderer/prompts/agentqi-skill-creator-prompt.md?raw'
 
 export const BUILTIN_AGENT_TAG = '内置'
 
@@ -60,6 +61,41 @@ export const getBuiltinAgents = (): Agent[] => [
     execCommandRunInBackground: false,
     knowledgeBaseIds: [],
     temperature: 0.5,
+    topP: 1,
+    topK: 40,
+    presencePenalty: 0,
+    frequencyPenalty: 0,
+    maxOutputTokens: 0,
+    contextCount: 0,
+    contextTokenCount: 0,
+    maxToolCalls: 0,
+    speechSpeed: 1,
+    speechLanguage: 'auto',
+    speechModel: undefined
+  }),
+  createBuiltinAgent({
+    id: 'builtin-skill-creator',
+    name: '技能创建',
+    description: '创建、更新和整理技能目录中的技能。',
+    tags: [],
+    systemPrompt: skillCreatorPrompt,
+    mcpServers: [],
+    tools: [],
+    builtinTools: [
+      'loadSkill',
+      'change_working_directory',
+      'list_dir',
+      'search_project',
+      'readFile',
+      'edit_file',
+      'exec_command',
+      'fetch'
+    ],
+    builtinToolsRequireApproval: ['exec_command'],
+    builtinToolConfigs: {},
+    execCommandRunInBackground: false,
+    knowledgeBaseIds: [],
+    temperature: 0.4,
     topP: 1,
     topK: 40,
     presencePenalty: 0,
