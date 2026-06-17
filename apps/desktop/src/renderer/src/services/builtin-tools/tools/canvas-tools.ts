@@ -578,17 +578,19 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
           throw new Error(result?.error || 'edit_file_canvas failed')
         }
 
+        const firstChange = result.changes?.[0]
+        const firstChangePath =
+          firstChange?.status === 'R' && firstChange.new_path
+            ? firstChange.new_path
+            : firstChange?.path
         const firstSummaryPath =
           type === 'move'
-            ? normalizedNewPath
+            ? normalizedNewPath || firstChangePath
             : type === 'add'
-              ? normalizedPath
+              ? normalizedPath || firstChangePath
               : type === 'delete'
                 ? ''
-                : result.summary
-                    .split('\n')[0]
-                    ?.replace(/^[A-Z]\s+/, '')
-                    .trim()
+                : firstChangePath
         if (firstSummaryPath) {
           canvasStore.setActiveFilePath(
             normalizeCanvasEditPath(workspaceDir, firstSummaryPath),
