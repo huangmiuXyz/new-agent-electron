@@ -182,7 +182,6 @@ export const getBuiltinAgents = (): Agent[] => [
     builtinTools: [
       'multi_tool_use_parallel',
       'change_working_directory',
-      'search_project',
       'list_dir',
       'readFile',
       'edit_file',
