@@ -36,6 +36,14 @@ const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
 ])
 const MOBILE_UNSUPPORTED_BUILTIN_TOOLS = new Set(['exec_command_canvas'])
 
+// MCP 工具列表渲染层缓存：避免每次发送消息都执行
+// `JSON.parse(JSON.stringify(mcpClient))` 深拷贝 + IPC 往返 + 弹出 loading 遮罩。
+// preload 侧虽然也有按 config 是否变化判断的缓存，但渲染层缓存可以在命中时
+// 完全跳过 IPC 与 loading，进一步缩短「点击发送 → 首个 token」的延迟。
+// 按 mcpClient 序列化结果作为 key，配置变化自动失效；TTL 5 分钟。
+const MCP_TOOLS_CACHE_TTL = 5 * 60 * 1000
+const mcpToolsCache = new Map<string, { tools: Tools; timestamp: number }>()
+
 const shouldStopForToolResult = (toolResult: { toolName?: string; output: unknown }): boolean => {
   return Boolean((toolResult.output as any)?.queueAsUserMessage)
 }
@@ -142,19 +150,32 @@ export const chatService = () => {
     }
 
     if (!isMobile.value && mcpTools && mcpTools.length > 0) {
-      const close = messageApi.loading('连接mcp服务器中...')
-      try {
-        const allTools = await list_tools(JSON.parse(JSON.stringify(mcpClient)))
+      const mcpCacheKey = JSON.stringify(mcpClient)
+      const mcpCached = mcpToolsCache.get(mcpCacheKey)
+      const mcpCacheFresh = mcpCached && Date.now() - mcpCached.timestamp < MCP_TOOLS_CACHE_TTL
+
+      const applyMcpTools = (allTools: Tools) => {
         mcpTools.forEach((toolKey) => {
           const key = toolKey.split('.')[1]
           if (key && allTools[key]) {
             tools[key] = allTools[key]
           }
         })
-      } catch (error) {
-        messageApi.error((error as Error).message)
-      } finally {
-        close()
+      }
+
+      if (mcpCacheFresh) {
+        applyMcpTools(mcpCached!.tools)
+      } else {
+        const close = messageApi.loading('连接mcp服务器中...')
+        try {
+          const allTools = await list_tools(JSON.parse(JSON.stringify(mcpClient)))
+          mcpToolsCache.set(mcpCacheKey, { tools: allTools, timestamp: Date.now() })
+          applyMcpTools(allTools)
+        } catch (error) {
+          messageApi.error((error as Error).message)
+        } finally {
+          close()
+        }
       }
     }
     let ragSearchDetails:

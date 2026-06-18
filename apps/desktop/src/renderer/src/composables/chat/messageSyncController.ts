@@ -197,18 +197,22 @@ export const createChatMessageSyncController = ({
   }
 
   const scheduleStreamingUpdate = (message?: BaseMessage) => {
-    const messageSnapshot = createStoreMessageSnapshot(message)
-    if (!messageSnapshot) return
+    if (!message) return
 
-    if (!pendingSyncMessages.has(messageSnapshot.id)) {
-      pendingSyncMessageIds.push(messageSnapshot.id)
+    // 只存消息引用，不在每个流式 token 上创建快照。
+    // 每次 watcher 触发都会用最新的 lastMessage 覆盖同 id 的引用，
+    // 因此 flush 时拿到的一定是最新状态；快照创建（含 parts 拷贝、usage 计算、
+    // stop 包装）统一延迟到 flushStreamingUpdate → syncMessageToStore 中执行，
+    // 避免高频 token 更新下每帧都做一次 createStoreMessageSnapshot 的开销。
+    if (!pendingSyncMessages.has(message.id)) {
+      pendingSyncMessageIds.push(message.id)
     }
-    pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
+    pendingSyncMessages.set(message.id, message)
 
-    pendingStreamParts = messageSnapshot.parts as
+    pendingStreamParts = message.parts as
       | (TextUIPart | ToolUIPart | FileUIPart)[]
       | undefined
-    pendingSpeechMessage = messageSnapshot.role === 'assistant' ? messageSnapshot : undefined
+    pendingSpeechMessage = message.role === 'assistant' ? message : undefined
 
     if (streamFlushHandle) return
 

@@ -384,7 +384,11 @@ export const saveElementImageToFile = async (
 }
 
 const DEBOUNCED_STORAGE_KEYS = new Set(['chats'])
-const STORAGE_WRITE_DEBOUNCE_MS = 800
+// 流式更新期间 messageSyncController 每 1s 触发一次状态变更，Pinia persist 会随之
+// 调用 setItem。将 debounce 抬高到 2s，使全量 JSON.stringify(chats) 在流式期间至多
+// 每两秒执行一次，显著减少主线程阻塞。页面隐藏/关闭/切后台时
+// flushStorageOnPageLifecycleChange 会立即冲刷未写数据，不会丢失。
+const STORAGE_WRITE_DEBOUNCE_MS = 2000
 const storageRestoreGuards = new Map<string, boolean>()
 const allowedEmptyStorageWrites = new Map<string, number>()
 const pendingStorageWrites = new Map<
