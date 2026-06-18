@@ -3,10 +3,9 @@ import { FileUIPart, TextUIPart } from 'ai'
 import AudioInputControls from './AudioInputControls.vue'
 import AudioInputPreview from './AudioInputPreview.vue'
 import AtPanel from './AtPanel.vue'
-import ChatSwitcherPopover from './ChatSwitcherPopover.vue'
+import DesktopInputActions from './DesktopInputActions.vue'
 import MobileToolButton from './MobileToolButton.vue'
 import PendingMessages from './PendingMessages.vue'
-import ThinkingModeButton from './ThinkingModeButton.vue'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
 import { useAgentWorkPath } from './useAgentWorkPath'
 import { useChatInputAudio } from './useChatInputAudio'
@@ -64,7 +63,6 @@ const {
   chooseCurrentAgentWorkPath,
   openWorkPathContextMenu
 } = useAgentWorkPath({ currentChatAgent })
-const InfoCircle = useIcon('InfoCircle')
 const currentChatContextTokens = useInputContextTokens({
   chat: computed(() => chatStore.currentChat),
   agent: currentChatAgent,
@@ -87,14 +85,7 @@ const toggleCurrentChatToolFeatures = () => {
 
 // 图标
 const FileUploadIcon = useIcon('Folder')
-const InputAudioIcon = useIcon('FileMusic')
-const MicIcon = useIcon('Mic')
-const MicOffIcon = useIcon('MicOff')
-const VolumeIcon = useIcon('VolumeMedium')
-const VolumeMuteIcon = useIcon('VolumeMute')
 const SettingsIcon = useIcon('Settings')
-const ToolFeaturesIcon = useIcon('Wrench20Regular')
-const StopIcon = useIcon('Stop')
 const ChevronDown = useIcon('ChevronDown')
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
