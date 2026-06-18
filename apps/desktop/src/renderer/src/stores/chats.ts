@@ -452,7 +452,15 @@ export const useChatsStores = defineStore(
       if (mIndex === -1) return
 
       const messagesToKeep = sourceChat.messages.slice(0, mIndex + 1)
-      const clonedMessages = cloneDeep(messagesToKeep)
+      // 浅拷贝外两层（消息对象/parts/metadata）即可切断与新会话的引用共享。
+      // fork 后新会话对消息的修改走 updateMessages/replaceMessageById 替换整条对象引用，
+      // 嵌套对象不会被就地修改；改用 cloneDeep 会对含工具结果/长文本的历史做递归深拷贝，
+      // 长会话分叉时主线程阻塞明显。
+      const clonedMessages = messagesToKeep.map((msg) => ({
+        ...msg,
+        parts: msg.parts ? msg.parts.map((part) => ({ ...part })) : msg.parts,
+        metadata: msg.metadata ? { ...msg.metadata } : msg.metadata
+      }))
 
       const newChatId = createChat(`${sourceChat.title}`, {
         agentId: sourceChat.agentId

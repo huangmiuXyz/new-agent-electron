@@ -6,7 +6,10 @@ import {
   getFlatTokenUsage
 } from '@renderer/services/chatService/tokenUsage'
 
-const STREAM_SYNC_INTERVAL_MS = 1000
+// 流式 flush 节流间隔。
+// 原为 1000ms，用户感知首字偏慢；降到 500ms 让流式输出更跟手，同时仍比逐 token
+// flush 低频，不会把 Pinia 持久化（debounce 2s）和 tiktoken 估算打满。
+const STREAM_SYNC_INTERVAL_MS = 500
 
 type ChatMessageSyncControllerOptions = {
   chatId: string
@@ -21,19 +24,6 @@ type ChatMessageSyncControllerOptions = {
     message: BaseMessage | undefined,
     newParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
   ) => void
-}
-
-const replaceMessageById = (
-  messages: BaseMessage[],
-  messageId: string,
-  updater: (message: BaseMessage) => BaseMessage
-) => {
-  const messageIndex = messages.findIndex((message) => message.id === messageId)
-  if (messageIndex < 0) return messages
-
-  const nextMessages = [...messages]
-  nextMessages[messageIndex] = updater(messages[messageIndex]!)
-  return nextMessages
 }
 
 export const createChatMessageSyncController = ({
@@ -102,41 +92,36 @@ export const createChatMessageSyncController = ({
     }
   }
 
-  const syncMessageToStore = (message: BaseMessage | undefined) => {
-    const msgToUpdate = createStoreMessageSnapshot(message)
-    if (!msgToUpdate) return
-
-    const storeChat = getChatById(chatId)
-    if (!storeChat) return
-    const oldMessages = storeChat.messages
-
-    const existingIndex = oldMessages.findIndex((m) => m.id === msgToUpdate.id)
+  // 把单条流式消息应用到 messages 数组，返回新数组（不修改原数组）。
+  // 抽出共享以便 flush 批量合并所有 pending 快照为一次 updateMessages。
+  const applySnapshotToMessages = (
+    messages: BaseMessage[],
+    msgToUpdate: BaseMessage
+  ): BaseMessage[] => {
+    const existingIndex = messages.findIndex((m) => m.id === msgToUpdate.id)
     if (existingIndex >= 0) {
-      const existingMessage = oldMessages[existingIndex]
-      if (existingMessage === msgToUpdate) return
+      const existingMessage = messages[existingIndex]
+      if (existingMessage === msgToUpdate) return messages
 
-      updateMessages(chatId, (messages) =>
-        replaceMessageById(messages, msgToUpdate.id!, (message) => ({
-          ...message,
-          parts: msgToUpdate.parts,
-          metadata: msgToUpdate.metadata
-        }))
-      )
-      return
+      const nextMessages = [...messages]
+      nextMessages[existingIndex] = {
+        ...existingMessage,
+        parts: msgToUpdate.parts,
+        metadata: msgToUpdate.metadata
+      }
+      return nextMessages
     }
 
     if (!targetMessageId.value) {
-      updateMessages(chatId, [...oldMessages, msgToUpdate])
-      return
+      return [...messages, msgToUpdate]
     }
 
-    const targetIndex = oldMessages.findIndex((m) => m.id === targetMessageId.value)
+    const targetIndex = messages.findIndex((m) => m.id === targetMessageId.value)
     if (targetIndex < 0) {
-      updateMessages(chatId, [...oldMessages, msgToUpdate])
-      return
+      return [...messages, msgToUpdate]
     }
 
-    const copy = [...oldMessages]
+    const copy = [...messages]
     const targetMsg = copy[targetIndex]
 
     if (targetMsg.role === 'assistant') {
@@ -145,7 +130,7 @@ export const createChatMessageSyncController = ({
       copy.splice(targetIndex + 1, 0, msgToUpdate)
     }
 
-    updateMessages(chatId, copy)
+    return copy
   }
 
   const queueMessageSync = (message?: BaseMessage, error?: APICallError) => {
@@ -171,9 +156,21 @@ export const createChatMessageSyncController = ({
     pendingSyncMessageIds.length = 0
     pendingSyncMessages.clear()
 
-    messagesToSync.forEach((message) => {
-      syncMessageToStore(message)
-    })
+    // 批量合并：所有 pending 快照一次性应用到一个新数组，只触发一次 updateMessages，
+    // 避免多条 pending（如工具循环多 step）时多次响应式更新 + 多次数组拷贝。
+    // 只要 messagesToSync 非空就一定调 updateMessages，不做 changed 跳过判断，
+    // 确保响应式始终触发（即使内容相同也用新数组引用替换，保证 visibleMessages
+    // computed 重新求值、v-memo 重新校验）。
+    const storeChat = getChatById(chatId)
+    if (storeChat && messagesToSync.length > 0) {
+      let nextMessages = storeChat.messages
+      for (const message of messagesToSync) {
+        const snapshot = createStoreMessageSnapshot(message)
+        if (!snapshot) continue
+        nextMessages = applySnapshotToMessages(nextMessages, snapshot)
+      }
+      updateMessages(chatId, nextMessages)
+    }
 
     onStreamingUpdate(pendingSpeechMessage, pendingStreamParts)
     pendingSpeechMessage = undefined
@@ -202,7 +199,7 @@ export const createChatMessageSyncController = ({
     // 只存消息引用，不在每个流式 token 上创建快照。
     // 每次 watcher 触发都会用最新的 lastMessage 覆盖同 id 的引用，
     // 因此 flush 时拿到的一定是最新状态；快照创建（含 parts 拷贝、usage 计算、
-    // stop 包装）统一延迟到 flushStreamingUpdate → syncMessageToStore 中执行，
+    // stop 包装）统一延迟到 flushStreamingUpdate 中执行，
     // 避免高频 token 更新下每帧都做一次 createStoreMessageSnapshot 的开销。
     if (!pendingSyncMessages.has(message.id)) {
       pendingSyncMessageIds.push(message.id)

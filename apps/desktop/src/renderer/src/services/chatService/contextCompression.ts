@@ -195,17 +195,39 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
     })
 
     let accumulatedText = ''
+    // 压缩流每个 token chunk 都会触发 for await，原代码每 chunk 都 updateMessage
+    // 会让 store + IndexedDB 序列化在压缩期间高频触发。这里用时间戳节流：至多每
+    // 200ms 更新一次 UI，压缩结束（catch 块外的 finishUpdateCompressingMessage）
+    // 会做最后一次更新，不会丢最终结果。
+    const COMPRESS_UI_THROTTLE_MS = 200
+    let lastCompressUiAt = 0
+    let compressUiDirty = false
+
+    const flushCompressingMessage = (text: string) => {
+      if (!chat) return
+      lastCompressUiAt = Date.now()
+      compressUiDirty = false
+      updateMessage(cid, compressingMessageId, [
+        {
+          type: 'text',
+          text: `🔃 正在压缩上下文...\n\n${text}`
+        }
+      ])
+    }
+
     try {
       for await (const data of compressStream.textStream) {
         accumulatedText += data
-        if (chat) {
-          updateMessage(cid, compressingMessageId, [
-            {
-              type: 'text',
-              text: `🔃 正在压缩上下文...\n\n${accumulatedText}`
-            }
-          ])
+        if (!chat) continue
+        compressUiDirty = true
+        const now = Date.now()
+        if (now - lastCompressUiAt >= COMPRESS_UI_THROTTLE_MS) {
+          flushCompressingMessage(accumulatedText)
         }
+      }
+      // 流结束后若还有未刷新的增量，补一次最终 UI 更新
+      if (compressUiDirty) {
+        flushCompressingMessage(accumulatedText)
       }
 
       if (chat && compressedText) {

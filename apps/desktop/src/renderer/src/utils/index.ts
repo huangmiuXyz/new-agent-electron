@@ -411,8 +411,16 @@ export const allowNextIndexedDBEmptyWrite = (key: string) => {
   allowedEmptyStorageWrites.set(key, (allowedEmptyStorageWrites.get(key) || 0) + 1)
 }
 
+// writeStorageValue 直接把 Pinia 已 stringify 的字符串存入 localforage。
+// 之前这里是 `localforage.setItem(key, JSON.parse(value))`——先把字符串 parse 回对象，
+// 再由 localforage 的 IndexedDB driver 内部 structuredClone 存储；读取时又
+// `localforage.getItem` 拿到对象后再 `JSON.stringify` 返回给 Pinia。
+// 即一次写入路径有 stringify（Pinia 内）+ parse（这里）+ structuredClone（IDB），
+// 读取路径有 IDB 读 + stringify（getItem 里）+ parse（Pinia 内）。
+// 改为直接存字符串：写入只剩 stringify（Pinia 内），读取只剩 parse（Pinia 内），
+// 省掉主线程上一次 parse + 一次 stringify，长对话下节省明显。
 const writeStorageValue = async (key: string, value: string) => {
-  await localforage.setItem(key, JSON.parse(value))
+  await localforage.setItem(key, value)
 }
 
 const consumeAllowedEmptyStorageWrite = (key: string) => {
@@ -513,8 +521,17 @@ if (typeof window !== 'undefined') {
 export const indexedDBStorage = {
   async getItem(key: string): Promise<string | null> {
     await flushPendingStorageWrite(key)
+    // 直接返回 localforage 中存储的字符串，不再 JSON.stringify。
+    // 与 writeStorageValue 的改动配套：存储层只存/取字符串，序列化/反序列化
+    // 全部交给 Pinia persist 的默认 serializer（JSON.stringify / JSON.parse），
+    // 避免存储层与 Pinia 之间重复 parse/stringify。
+    // 兼容旧数据：之前 writeStorageValue 用 JSON.parse(value) 存对象到 localforage，
+    // 旧用户首次升级时这里拿到的还是对象，检测到非字符串则 stringify 一次返回，
+    // 下次写入（debounce 2s 后）就会覆盖成字符串格式，完成迁移。
     const value = await localforage.getItem<string>(key)
-    return JSON.stringify(value) ?? null
+    if (value == null) return null
+    if (typeof value === 'string') return value
+    return JSON.stringify(value)
   },
 
   async setItem(key: string, value: string): Promise<void> {

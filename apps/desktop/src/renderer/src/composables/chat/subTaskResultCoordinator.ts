@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { cloneDeep } from '@renderer/utils'
 import { nanoid } from '@renderer/utils/nanoid'
 import type { chatService } from '@renderer/services/chatService'
 
@@ -136,8 +135,17 @@ export const createSubTaskResultCoordinator = ({
       `不要复述会话记录，不要泛泛总结过程，不要输出自然语言正文，只调用工具。\n\n` +
       `子智能体: ${childAgentName}\n` +
       `任务:\n${taskText}`
+    // 浅拷贝一次可见消息作为 base：generateTextWithMessages 内部对历史消息只读不写，
+    // 嵌套对象（part.input、metadata.usage 等）按引用共享是安全的。
+    // 之前用 cloneDeep 会对含工具结果/长文本的全部历史做递归深拷贝，且拷了两次，
+    // 子任务停止时长会话主线程明显阻塞。
+    const baseMessages: BaseMessage[] = getVisibleMessages().map((msg) => ({
+      ...msg,
+      parts: msg.parts ? msg.parts.map((part) => ({ ...part })) : msg.parts,
+      metadata: msg.metadata ? { ...msg.metadata } : msg.metadata
+    }))
     const summaryMessages: BaseMessage[] = [
-      ...cloneDeep(getVisibleMessages()),
+      ...baseMessages,
       {
         id: nanoid(),
         role: 'user',
@@ -145,7 +153,7 @@ export const createSubTaskResultCoordinator = ({
       } as BaseMessage
     ]
     const fallbackMessages: BaseMessage[] = [
-      ...cloneDeep(getVisibleMessages()),
+      ...baseMessages,
       {
         id: nanoid(),
         role: 'user',

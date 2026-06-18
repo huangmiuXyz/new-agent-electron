@@ -168,6 +168,11 @@ export const chatService = () => {
       } else {
         const close = messageApi.loading('连接mcp服务器中...')
         try {
+          // mcpClient 来自 agentStore.getMcpByAgent(...).mcpServers，最终指向
+          // settings.mcpServers 的 Pinia reactive proxy。structuredClone 对 Proxy
+          // 会抛 DataCloneError，所以这里仍用 JSON 深拷贝：既能剥离响应式代理，
+          // 又能切断 preload 侧对 store 的引用共享。MCP 配置是纯数据（无函数/Date），
+          // JSON 方式安全。仅在 cache miss（每 5 分钟最多一次）时执行，热路径已由缓存覆盖。
           const allTools = await list_tools(JSON.parse(JSON.stringify(mcpClient)))
           mcpToolsCache.set(mcpCacheKey, { tools: allTools, timestamp: Date.now() })
           applyMcpTools(allTools)
@@ -221,8 +226,13 @@ export const chatService = () => {
             needsApproval,
             execute: async (input: any, options: any) => {
               await onBeforeToolExecute?.({ tool: t, input, options })
+              // 浅拷贝 options 即可：options 只在工具调用时被读取，不会被就地修改；
+              // 我们要新增的 chatId/model/provider 等字段也是顶层属性。
+              // 之前用 JSON.parse(JSON.stringify(options)) 会对每次工具调用做一次
+              // 全量深拷贝，工具循环越多开销越大，且会丢失 options 上的函数/AbortSignal
+              // 等不可序列化字段。
               const result = await t.execute(input, {
-                ...JSON.parse(JSON.stringify(options)),
+                ...options,
                 chatId: cid,
                 model,
                 provider,
