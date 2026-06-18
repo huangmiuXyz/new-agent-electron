@@ -66,3 +66,95 @@ const getPendingMessagePreview = (parts: Array<FileUIPart | TextUIPart>): string
     </div>
   </div>
 </template>
+
+<style scoped>
+.pending-messages-container {
+  margin-bottom: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.pending-messages-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.pending-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--color-primary);
+}
+
+.pending-title {
+  font-weight: 500;
+}
+
+.pending-status {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.pending-messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pending-message-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.pending-message-item:hover {
+  background: var(--bg-active);
+}
+
+.pending-message-text {
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.pending-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.guide-btn {
+  color: var(--color-primary);
+}
+
+.guide-btn:hover {
+  color: var(--color-primary);
+  opacity: 0.9;
+}
+
+.remove-btn {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.remove-btn:hover {
+  opacity: 1;
+  color: var(--color-danger);
+}
+</style>
