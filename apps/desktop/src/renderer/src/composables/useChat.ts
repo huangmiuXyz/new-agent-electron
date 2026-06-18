@@ -11,7 +11,7 @@ const chatCache = new Map<string, any>()
 
 // 浅拷贝消息列表，用于初始化 AI SDK 的 _useChat 实例。
 // 目的：切断 store 与 AI SDK 内部状态在最外两层（消息对象、parts 数组、metadata 对象）
-// 的引用共享，避免双方相互泄露改动；同时避免 lodash cloneDeep 对含 base64/工具结果/
+// 的引用共享，避免双方相互泄露改动；同时避免 es-toolkit cloneDeep 对含 base64/工具结果/
 // audio chunks 的历史消息做递归深拷贝带来的主线程阻塞。
 // 嵌套对象（如 part.input、metadata.usage）仍按引用共享——AI SDK 对历史消息只读不写，
 // 流式新消息由 AI SDK 自行创建，不共享本拷贝，因此无需深拷贝。
