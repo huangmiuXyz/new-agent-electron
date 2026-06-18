@@ -207,7 +207,8 @@ export const useAgent = () => {
       Eye,
       Pencil,
       Trash,
-      Plus
+      Plus,
+      Refresh
     } = useIcon([
       'Robot',
       'Settings',
@@ -221,55 +222,58 @@ export const useAgent = () => {
       'Eye',
       'Pencil',
       'Trash',
-      'Plus'
+      'Plus',
+      'Refresh'
     ])
 
+    const agentToFormData = (source: Agent): AgentFormData => ({
+      name: source.name,
+      description: source.description,
+      systemPrompt: source.systemPrompt,
+      knowledgeBaseIds: [...(source.knowledgeBaseIds || [])],
+      mcpServers: [...(source.mcpServers || [])],
+      tools: [...(source.tools || [])],
+      builtinTools: [...(source.builtinTools || [])],
+      builtinToolsRequireApproval: [...(source.builtinToolsRequireApproval || [])],
+      builtinToolConfigs: source.builtinToolConfigs
+        ? JSON.parse(JSON.stringify(source.builtinToolConfigs))
+        : {},
+      execCommandRunInBackground: source.execCommandRunInBackground ?? false,
+      ragEnabled: source.ragEnabled ?? false,
+      workPath: source.workPath || '',
+      skillDirectory: source.skillDirectory || DEFAULT_SKILL_DIRECTORY,
+      builtinSkills: [...(source.builtinSkills || [])],
+      enabledSkills: [...(source.enabledSkills || [])],
+      disabledSkills: [...(source.disabledSkills || [])],
+      backgrounds: source.backgrounds ? source.backgrounds.map((bg) => bg.url) : [],
+      avatar: source.avatar || '',
+      temperature: source.temperature ?? 0.7,
+      topP: source.topP ?? 1,
+      topK: source.topK ?? 40,
+      presencePenalty: source.presencePenalty ?? 0,
+      frequencyPenalty: source.frequencyPenalty ?? 0,
+      maxOutputTokens: source.maxOutputTokens ?? DEFAULT_UNLIMITED_VALUE,
+      contextCount: source.contextCount ?? DEFAULT_UNLIMITED_VALUE,
+      contextTokenCount: source.contextTokenCount ?? DEFAULT_UNLIMITED_VALUE,
+      autoCompressContext: source.autoCompressContext ?? false,
+      compressModel: source.compressModel,
+      maxToolCalls: source.maxToolCalls ?? DEFAULT_UNLIMITED_VALUE,
+      retryAutoEnabled: source.retryAutoEnabled ?? true,
+      retryIntervalMs: source.retryIntervalMs ?? 3000,
+      speechVoice: source.speechVoice || '',
+      speechMode: source.speechMode || 'sentence',
+      speechSpeed: source.speechSpeed ?? 1,
+      speechLanguage: source.speechLanguage || 'auto',
+      speechProviderOptions: source.speechProviderOptions
+        ? { ...source.speechProviderOptions }
+        : {},
+      speechModel: source.speechModel,
+      defaultModel: source.defaultModel,
+      allowedSubAgents: [...(source.allowedSubAgents || [])]
+    })
+
     const initialData: AgentFormData = agent
-      ? {
-          name: agent.name,
-          description: agent.description,
-          systemPrompt: agent.systemPrompt,
-          knowledgeBaseIds: [...(agent.knowledgeBaseIds || [])],
-          mcpServers: [...(agent.mcpServers || [])],
-          tools: [...(agent.tools || [])],
-          builtinTools: [...(agent.builtinTools || [])],
-          builtinToolsRequireApproval: [...(agent.builtinToolsRequireApproval || [])],
-          builtinToolConfigs: agent.builtinToolConfigs
-            ? JSON.parse(JSON.stringify(agent.builtinToolConfigs))
-            : {},
-          execCommandRunInBackground: agent.execCommandRunInBackground ?? false,
-          ragEnabled: agent.ragEnabled ?? false,
-          workPath: agent.workPath || '',
-          skillDirectory: agent.skillDirectory || DEFAULT_SKILL_DIRECTORY,
-          builtinSkills: [...(agent.builtinSkills || [])],
-          enabledSkills: [...(agent.enabledSkills || [])],
-          disabledSkills: [...(agent.disabledSkills || [])],
-          backgrounds: agent.backgrounds ? agent.backgrounds.map((bg) => bg.url) : [],
-          avatar: agent.avatar || '',
-          temperature: agent.temperature ?? 0.7,
-          topP: agent.topP ?? 1,
-          topK: agent.topK ?? 40,
-          presencePenalty: agent.presencePenalty ?? 0,
-          frequencyPenalty: agent.frequencyPenalty ?? 0,
-          maxOutputTokens: agent.maxOutputTokens ?? DEFAULT_UNLIMITED_VALUE,
-          contextCount: agent.contextCount ?? DEFAULT_UNLIMITED_VALUE,
-          contextTokenCount: agent.contextTokenCount ?? DEFAULT_UNLIMITED_VALUE,
-          autoCompressContext: agent.autoCompressContext ?? false,
-          compressModel: agent.compressModel,
-          maxToolCalls: agent.maxToolCalls ?? DEFAULT_UNLIMITED_VALUE,
-          retryAutoEnabled: agent.retryAutoEnabled ?? true,
-          retryIntervalMs: agent.retryIntervalMs ?? 3000,
-          speechVoice: agent.speechVoice || '',
-          speechMode: agent.speechMode || 'sentence',
-          speechSpeed: agent.speechSpeed ?? 1,
-          speechLanguage: agent.speechLanguage || 'auto',
-          speechProviderOptions: agent.speechProviderOptions
-            ? { ...agent.speechProviderOptions }
-            : {},
-          speechModel: agent.speechModel,
-          defaultModel: agent.defaultModel,
-          allowedSubAgents: [...(agent.allowedSubAgents || [])]
-        }
+      ? agentToFormData(agent)
       : {
           name: '',
           description: '',
@@ -1429,7 +1433,76 @@ export const useAgent = () => {
           title: '选择工作目录'
         },
         ifShow: () => !isMobile.value
-      } as PathSelectorField<AgentFormData>
+      } as PathSelectorField<AgentFormData>,
+      {
+        name: 'reset_config',
+        type: 'custom',
+        ifShow: () => isEdit && !!agent && agentStore.isBuiltinAgent(agent.id),
+        render: () => (
+          <div
+            style={{
+              marginTop: '24px',
+              paddingTop: '16px',
+              borderTop: '1px solid var(--border-subtle)'
+            }}
+          >
+            <div
+              style={{
+                fontSize: '13px',
+                color: 'var(--text-secondary)',
+                marginBottom: '12px',
+                lineHeight: 1.6
+              }}
+            >
+              将此内置智能体的所有配置恢复为默认值，包括基本信息、模型参数、工具、技能等全部设置。
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={async () => {
+                if (!agent) return
+                const confirmed = await confirm({
+                  title: '重置配置',
+                  content: `确定要将内置智能体「${agent.name}」的所有配置恢复为默认值吗？此操作会覆盖当前的所有修改。`
+                })
+                if (!confirmed) return
+
+                const defaultBuiltinAgent = getBuiltinAgents().find((a) => a.id === agent.id)
+                if (!defaultBuiltinAgent) {
+                  messageApi.error('未找到该内置智能体的默认配置')
+                  return
+                }
+
+                const resetData = agentToFormData(defaultBuiltinAgent)
+                formActions.setData(resetData)
+
+                // 同步依赖状态，确保工具选项、MCP 关联等与重置后的数据一致
+                previousMcpServers = [...(resetData.mcpServers || [])]
+                formActions.updateFieldProps('tools', {
+                  options: getAllToolOptions(resetData.mcpServers || [])
+                })
+                formActions.updateFieldProps('builtinTools', {
+                  options: getBuiltinToolOptions(
+                    resetData.builtinTools || [],
+                    resetData.builtinToolsRequireApproval || []
+                  )
+                })
+                formActions.updateFieldProps('speechVoice', {
+                  options: getSpeechVoiceOptions(resetData.speechModel)
+                })
+                skillRefreshVersion.value += 1
+
+                messageApi.success('已重置为默认配置')
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                {Refresh}
+                <span>重置配置</span>
+              </span>
+            </Button>
+          </div>
+        )
+      } as CustomField<AgentFormData>
     ]
 
     const desktopIntegrationFields = isMobile.value ? [] : [...mcpFields, ...skillFields]
