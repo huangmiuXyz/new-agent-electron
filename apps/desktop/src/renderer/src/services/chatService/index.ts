@@ -228,7 +228,7 @@ export const chatService = () => {
       (providerType === 'openai' || providerType === 'openai-compatible') &&
       mergedProviderOptions.parallelToolCalls == null
     const runtimeProviderOptions = shouldEnableParallelToolCalls
-      ? { ...mergedProviderOptions, parallelToolCalls: true }
+      ? { ...mergedProviderOptions }
       : mergedProviderOptions
 
     const agent = new ToolLoopAgent({
