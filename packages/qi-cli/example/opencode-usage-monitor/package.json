@@ -1,0 +1,19 @@
+{
+  "name": "opencode-usage-monitor",
+  "version": "1.0.0",
+  "description": "实时查看 OpenCode 平台用量",
+  "author": "Agent-Qi",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "build:watch": "vite build --watch"
+  },
+  "dependencies": {
+    "@agent-qi/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue-jsx": "catalog:",
+    "typescript": "^5.9.2",
+    "vite": "^5.0.0"
+  }
+}

@@ -6,342 +6,9 @@ settings:
 
 catalogs:
   default:
-    '@ai-sdk/anthropic':
-      specifier: 3.0.76
-      version: 3.0.76
-    '@ai-sdk/deepseek':
-      specifier: 2.0.34
-      version: 2.0.34
-    '@ai-sdk/elevenlabs':
-      specifier: ^2.0.33
-      version: 2.0.33
-    '@ai-sdk/google':
-      specifier: 3.0.72
-      version: 3.0.72
-    '@ai-sdk/hume':
-      specifier: 2.0.33
-      version: 2.0.33
-    '@ai-sdk/mcp':
-      specifier: 1.0.42
-      version: 1.0.42
-    '@ai-sdk/moonshotai':
-      specifier: 2.0.22
-      version: 2.0.22
-    '@ai-sdk/openai':
-      specifier: 3.0.63
-      version: 3.0.63
-    '@ai-sdk/openai-compatible':
-      specifier: 2.0.47
-      version: 2.0.47
-    '@ai-sdk/provider':
-      specifier: 3.0.10
-      version: 3.0.10
-    '@ai-sdk/provider-utils':
-      specifier: 4.0.27
-      version: 4.0.27
-    '@ai-sdk/vue':
-      specifier: 3.0.177
-      version: 3.0.177
-    '@ai-sdk/xai':
-      specifier: 3.0.89
-      version: 3.0.89
-    '@capacitor/android':
-      specifier: ^8.0.2
-      version: 8.0.2
-    '@capacitor/app':
-      specifier: ^8.0.0
-      version: 8.0.0
-    '@capacitor/cli':
-      specifier: ^8.0.2
-      version: 8.0.2
-    '@capacitor/core':
-      specifier: ^8.0.2
-      version: 8.0.2
-    '@capacitor/ios':
-      specifier: ^8.0.2
-      version: 8.0.2
-    '@electron-toolkit/eslint-config-prettier':
-      specifier: 3.0.0
-      version: 3.0.0
-    '@electron-toolkit/eslint-config-ts':
-      specifier: ^3.1.0
-      version: 3.1.0
-    '@electron-toolkit/preload':
-      specifier: ^3.0.2
-      version: 3.0.2
-    '@electron-toolkit/tsconfig':
-      specifier: ^2.0.0
-      version: 2.0.0
-    '@electron-toolkit/utils':
-      specifier: ^4.0.0
-      version: 4.0.0
-    '@electron/rebuild':
-      specifier: ^4.0.3
-      version: 4.0.3
-    '@electron/remote':
-      specifier: ^2.1.3
-      version: 2.1.3
-    '@incremark/core':
-      specifier: ^0.3.10
-      version: 0.3.10
-    '@incremark/theme':
-      specifier: ^0.3.10
-      version: 0.3.10
-    '@incremark/vue':
-      specifier: ^0.3.10
-      version: 0.3.10
-    '@langchain/core':
-      specifier: ^1.1.45
-      version: 1.1.45
-    '@langchain/textsplitters':
-      specifier: ^1.0.1
-      version: 1.0.1
-    '@modelcontextprotocol/sdk':
-      specifier: ^1.29.0
-      version: 1.29.0
-    '@prettier/plugin-oxc':
-      specifier: ^0.1.3
-      version: 0.1.3
-    '@tiptap/extension-code-block':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-code-block-lowlight':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-color':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-horizontal-rule':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-image':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-placeholder':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-table':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-table-cell':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-table-header':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-table-row':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-task-item':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-task-list':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-text-align':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/extension-text-style':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/starter-kit':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tiptap/vue-3':
-      specifier: ^3.19.0
-      version: 3.19.0
-    '@tsconfig/node22':
-      specifier: ^22.0.5
-      version: 22.0.5
-    '@types/inquirer':
-      specifier: ^9.0.9
-      version: 9.0.9
-    '@types/jszip':
-      specifier: ^3.4.1
-      version: 3.4.1
-    '@types/mime-types':
-      specifier: ^3.0.1
-      version: 3.0.1
-    '@types/node':
-      specifier: ^25.2.0
-      version: 25.2.0
-    '@vicons/carbon':
-      specifier: ^0.13.0
-      version: 0.13.0
-    '@vicons/fluent':
-      specifier: ^0.13.0
-      version: 0.13.0
-    '@vicons/ionicons5':
-      specifier: ^0.13.0
-      version: 0.13.0
-    '@vicons/material':
-      specifier: ^0.13.0
-      version: 0.13.0
-    '@vicons/tabler':
-      specifier: ^0.13.0
-      version: 0.13.0
-    '@vicons/utils':
-      specifier: ^0.1.4
-      version: 0.1.4
-    '@vitejs/plugin-vue':
-      specifier: ^6.0.7
-      version: 6.0.7
     '@vitejs/plugin-vue-jsx':
-      specifier: ^5.1.5
+      specifier: 5.1.5
       version: 5.1.5
-    '@vue/eslint-config-prettier':
-      specifier: ^10.2.0
-      version: 10.2.0
-    '@vue/eslint-config-typescript':
-      specifier: ^14.6.0
-      version: 14.6.0
-    '@vue/tsconfig':
-      specifier: ^0.8.1
-      version: 0.8.1
-    '@vueuse/core':
-      specifier: ^14.2.0
-      version: 14.2.0
-    ai:
-      specifier: 6.0.177
-      version: 6.0.177
-    ai-sdk-ollama:
-      specifier: 3.8.4
-      version: 3.8.4
-    better-sqlite3:
-      specifier: ^12.6.2
-      version: 12.6.2
-    blob-util:
-      specifier: ^2.0.2
-      version: 2.0.2
-    chalk:
-      specifier: ^5.6.2
-      version: 5.6.2
-    commander:
-      specifier: ^14.0.3
-      version: 14.0.3
-    dayjs:
-      specifier: ^1.11.19
-      version: 1.11.19
-    electron:
-      specifier: ^40.1.0
-      version: 40.1.0
-    electron-builder:
-      specifier: ^26.7.0
-      version: 26.7.0
-    electron-vite:
-      specifier: ^6.0.0-beta.1
-      version: 6.0.0-beta.1
-    es-toolkit:
-      specifier: ^1.44.0
-      version: 1.44.0
-    eslint:
-      specifier: ^9.39.2
-      version: 9.39.2
-    eslint-plugin-oxlint:
-      specifier: ~1.43.0
-      version: 1.43.0
-    eslint-plugin-vue:
-      specifier: ^10.7.0
-      version: 10.7.0
-    hast-util-to-html:
-      specifier: ^9.0.5
-      version: 9.0.5
-    highlight.js:
-      specifier: ^11.11.1
-      version: 11.11.1
-    inquirer:
-      specifier: ^13.2.2
-      version: 13.2.2
-    jszip:
-      specifier: ^3.10.1
-      version: 3.10.1
-    localforage:
-      specifier: ^1.10.0
-      version: 1.10.0
-    lowlight:
-      specifier: ^3.3.0
-      version: 3.3.0
-    mime-types:
-      specifier: ^3.0.2
-      version: 3.0.2
-    nanoid:
-      specifier: ^5.1.6
-      version: 5.1.6
-    node-pty:
-      specifier: ^1.1.0
-      version: 1.1.0
-    npm-run-all2:
-      specifier: ^8.0.4
-      version: 8.0.4
-    openai:
-      specifier: ^6.37.0
-      version: 6.37.0
-    ora:
-      specifier: ^9.1.0
-      version: 9.1.0
-    oxlint:
-      specifier: ~1.43.0
-      version: 1.43.0
-    pinia:
-      specifier: ^3.0.4
-      version: 3.0.4
-    pinia-plugin-persistedstate:
-      specifier: ^4.7.1
-      version: 4.7.1
-    pinia-plugin-persistedstate-async:
-      specifier: ^1.6.3
-      version: 1.6.3
-    prettier:
-      specifier: ^3.8.1
-      version: 3.8.1
-    sqlite-vec:
-      specifier: ^0.1.7-alpha.2
-      version: 0.1.7-alpha.2
-    strip-ansi:
-      specifier: ^7.1.2
-      version: 7.1.2
-    turbo:
-      specifier: ^2.8.3
-      version: 2.8.3
-    typescript:
-      specifier: ^5.9.3
-      version: 5.9.3
-    unplugin-auto-import:
-      specifier: ^21.0.0
-      version: 21.0.0
-    unplugin-vue-components:
-      specifier: ^31.0.0
-      version: 31.0.0
-    vite-plugin-dts:
-      specifier: ^5.0.2
-      version: 5.0.2
-    vite-plugin-vue-devtools:
-      specifier: ^8.1.2
-      version: 8.1.2
-    vue:
-      specifier: ^3.5.27
-      version: 3.5.27
-    vue-eslint-parser:
-      specifier: ^10.2.0
-      version: 10.2.0
-    vue-router:
-      specifier: ^5.0.2
-      version: 5.0.2
-    vue-tsc:
-      specifier: ^3.2.4
-      version: 3.2.4
-    xterm:
-      specifier: ^5.3.0
-      version: 5.3.0
-    xterm-addon-fit:
-      specifier: ^0.8.0
-      version: 0.8.0
-    zhipu-ai-provider:
-      specifier: 0.3.1
-      version: 0.3.1
-    zod:
-      specifier: ^4.3.6
-      version: 4.3.6
 
 overrides:
   vite: ^8.0.16
@@ -783,6 +450,22 @@ importers:
       vue-tsc:
         specifier: 'catalog:'
         version: 3.2.4(typescript@5.9.3)
+
+  opencode-usage-monitor:
+    dependencies:
+      '@agent-qi/types':
+        specifier: workspace:*
+        version: link:../packages/types
+    devDependencies:
+      '@vitejs/plugin-vue-jsx':
+        specifier: 'catalog:'
+        version: 5.1.5(vite@8.0.16(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2))(vue@3.5.27(typescript@5.9.3))
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vite:
+        specifier: ^8.0.16
+        version: 8.0.16(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2)
 
   packages/qi-cli:
     dependencies:
@@ -2513,9 +2196,6 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
-
-  '@rolldown/pluginutils@1.0.0-rc.2':
-    resolution: {integrity: sha512-izyXV/v+cHiRfozX62W9htOAvwMo4/bXKDrQ+vom1L1qRuexPock/7VZDAhnpHCLNejd3NJ6hiab+tO0D44Rgw==}
 
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
@@ -5679,11 +5359,6 @@ packages:
   nan@2.25.0:
     resolution: {integrity: sha512-0M90Ag7Xn5KMLLZ7zliPWP3rT90P6PN+IzVFS0VqmnPktBk3700xUVv8Ikm9EUaUE5SDWdp/BIxdENzVznpm1g==}
 
-  nanoid@3.3.11:
-    resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
   nanoid@3.3.12:
     resolution: {integrity: sha512-ZB9RH/39qpq5Vu6Y+NmUaFhQR6pp+M2Xt76XBnEwDaGcVAqhlvxrl3B2bKS5D3NH3QR76v3aSrKaF/Kiy7lEtQ==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -6077,10 +5752,6 @@ packages:
 
   postcss@8.5.15:
     resolution: {integrity: sha512-FfR8sjd4em2T6fb3I2MwAJU7HWVMr9zba+enmQeeWFfCbm+UOC/0X4DS8XtpUTMwWMGbjKYP7xjfNekzyGmB3A==}
-    engines: {node: ^10 || ^12 || >=14}
-
-  postcss@8.5.6:
-    resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
     engines: {node: ^10 || ^12 || >=14}
 
   prebuild-install@5.3.6:
@@ -8897,8 +8568,6 @@ snapshots:
   '@rolldown/binding-win32-x64-msvc@1.0.3':
     optional: true
 
-  '@rolldown/pluginutils@1.0.0-rc.2': {}
-
   '@rolldown/pluginutils@1.0.1': {}
 
   '@rollup/pluginutils@5.3.0(rollup@4.57.1)':
@@ -9644,7 +9313,7 @@ snapshots:
       '@babel/core': 7.29.0
       '@babel/plugin-syntax-typescript': 7.28.6(@babel/core@7.29.0)
       '@babel/plugin-transform-typescript': 7.28.6(@babel/core@7.29.0)
-      '@rolldown/pluginutils': 1.0.0-rc.2
+      '@rolldown/pluginutils': 1.0.1
       '@vue/babel-plugin-jsx': 2.0.1(@babel/core@7.29.0)
       vite: 8.0.16(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2)
       vue: 3.5.27(typescript@5.9.3)
@@ -9821,7 +9490,7 @@ snapshots:
       '@vue/shared': 3.5.27
       estree-walker: 2.0.2
       magic-string: 0.30.21
-      postcss: 8.5.6
+      postcss: 8.5.15
       source-map-js: 1.2.1
 
   '@vue/compiler-ssr@3.5.27':
@@ -12653,8 +12322,6 @@ snapshots:
 
   nan@2.25.0: {}
 
-  nanoid@3.3.11: {}
-
   nanoid@3.3.12: {}
 
   nanoid@5.1.6: {}
@@ -13066,12 +12733,6 @@ snapshots:
   postcss@8.5.15:
     dependencies:
       nanoid: 3.3.12
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
-
-  postcss@8.5.6:
-    dependencies:
-      nanoid: 3.3.11
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
