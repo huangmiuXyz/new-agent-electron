@@ -6,6 +6,7 @@ import AtPanel from './AtPanel.vue'
 import DesktopInputActions from './DesktopInputActions.vue'
 import MobileToolButton from './MobileToolButton.vue'
 import PendingMessages from './PendingMessages.vue'
+import { defineComponent, type PropType } from 'vue'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
 import { useAgentWorkPath } from './useAgentWorkPath'
 import { useChatInputAudio } from './useChatInputAudio'
@@ -310,6 +311,59 @@ const toggleAssistantPanel = (tab?: 'canvas' | 'playlist') => {
   }
 }
 
+const mobileToolButtonProps = computed(() => ({
+  providerType: currentChatProvider.value?.providerType,
+  providerId: currentChatProvider.value?.id || undefined,
+  modelId: chatModelId.value,
+  providerModelId: chatProviderId.value,
+  inputAudioActive: showInputAudioControls.value || inputAudioIsActive.value,
+  voiceActive: voiceIsActive.value,
+  isRecording: isRecording.value,
+  speechEnabled: speechEnabled.value,
+  playlistActive:
+    !display.value.speechSidebarCollapsed && display.value.assistantSidebarTab === 'playlist',
+  isScopeGenerating: isScopeGenerating.value
+}))
+
+const MobileToolButtonItem = defineComponent({
+  props: {
+    toolId: {
+      type: String as PropType<MobileDragToolId>,
+      required: true
+    }
+  },
+  setup(itemProps) {
+    return () => {
+      if (!isMobileToolVisible(itemProps.toolId)) return null
+
+      return (
+        <div
+          class={['mobile-drag-tool', mobileToolClass(itemProps.toolId)]}
+          onPointerdown={(event) => onMobileToolPointerDown(itemProps.toolId, event)}
+          onPointercancel={onMobileToolPointerCancel}
+          onClickCapture={handleMobileToolWrapperClickCapture}
+        >
+          <MobileToolButton
+            toolId={itemProps.toolId}
+            {...mobileToolButtonProps.value}
+            onAction={handleMobileToolClick}
+            onUpdate:modelId={(value: string) => {
+              chatModelId.value = value
+            }}
+            onUpdate:providerModelId={(value: string) => {
+              chatProviderId.value = value
+            }}
+          >
+            {{
+              'settings-icon': () => <component is={SettingsIcon} />
+            }}
+          </MobileToolButton>
+        </div>
+      )
+    }
+  }
+})
+
 const desktopPlaceholder = computed(() => {
   if (isProcessingVoice.value) return '正在处理语音...'
   if (currentChatModel.value?.name && currentChatProvider.value?.name) {
@@ -570,30 +624,7 @@ onUnmounted(() => {
           <div class="mobile-top-drop-zone mobile-top-left-zone" ref="mobileTopLeftZoneRef"
             :class="{ 'mobile-drop-hover': mobileHoverDropZone === 'top-left' }">
             <template v-for="toolId in mobileTopLeftTools" :key="`top-left-${toolId}`">
-              <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
-                @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
-                @click.capture="handleMobileToolWrapperClickCapture">
-                <MobileToolButton
-                  :tool-id="toolId"
-                  :provider-type="currentChatProvider?.providerType"
-                  :provider-id="currentChatProvider?.id || undefined"
-                  :model-id="chatModelId"
-                  :provider-model-id="chatProviderId"
-                  :input-audio-active="showInputAudioControls || inputAudioIsActive"
-                  :voice-active="voiceIsActive"
-                  :is-recording="isRecording"
-                  :speech-enabled="speechEnabled"
-                  :playlist-active="!display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist'"
-                  :is-scope-generating="isScopeGenerating"
-                  @action="handleMobileToolClick"
-                  @update:model-id="chatModelId = $event"
-                  @update:provider-model-id="chatProviderId = $event"
-                >
-                  <template #settings-icon>
-                    <SettingsIcon />
-                  </template>
-                </MobileToolButton>
-              </div>
+              <MobileToolButtonItem :tool-id="toolId" />
             </template>
           </div>
           <div class="mobile-input-wrapper">
@@ -621,30 +652,7 @@ onUnmounted(() => {
             (isMobileToolDragging && mobileHoverDropZone === 'top-right')
           " ref="mobileTopRightZoneRef" :class="{ 'mobile-drop-hover': mobileHoverDropZone === 'top-right' }">
             <template v-for="toolId in mobileTopRightTools" :key="`top-right-${toolId}`">
-              <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
-                @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
-                @click.capture="handleMobileToolWrapperClickCapture">
-                <MobileToolButton
-                  :tool-id="toolId"
-                  :provider-type="currentChatProvider?.providerType"
-                  :provider-id="currentChatProvider?.id || undefined"
-                  :model-id="chatModelId"
-                  :provider-model-id="chatProviderId"
-                  :input-audio-active="showInputAudioControls || inputAudioIsActive"
-                  :voice-active="voiceIsActive"
-                  :is-recording="isRecording"
-                  :speech-enabled="speechEnabled"
-                  :playlist-active="!display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist'"
-                  :is-scope-generating="isScopeGenerating"
-                  @action="handleMobileToolClick"
-                  @update:model-id="chatModelId = $event"
-                  @update:provider-model-id="chatProviderId = $event"
-                >
-                  <template #settings-icon>
-                    <SettingsIcon />
-                  </template>
-                </MobileToolButton>
-              </div>
+              <MobileToolButtonItem :tool-id="toolId" />
             </template>
           </div>
           <Button variant="icon" size="sm" @click="showMobileTools = !showMobileTools"
@@ -661,30 +669,7 @@ onUnmounted(() => {
           'mobile-drop-hover': mobileHoverDropZone === 'bottom'
         }">
           <template v-for="toolId in mobileBottomTools" :key="`bottom-${toolId}`">
-            <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
-              @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
-              @click.capture="handleMobileToolWrapperClickCapture">
-              <MobileToolButton
-                :tool-id="toolId"
-                :provider-type="currentChatProvider?.providerType"
-                :provider-id="currentChatProvider?.id || undefined"
-                :model-id="chatModelId"
-                :provider-model-id="chatProviderId"
-                :input-audio-active="showInputAudioControls || inputAudioIsActive"
-                :voice-active="voiceIsActive"
-                :is-recording="isRecording"
-                :speech-enabled="speechEnabled"
-                :playlist-active="!display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist'"
-                :is-scope-generating="isScopeGenerating"
-                @action="handleMobileToolClick"
-                @update:model-id="chatModelId = $event"
-                @update:provider-model-id="chatProviderId = $event"
-              >
-                <template #settings-icon>
-                  <SettingsIcon />
-                </template>
-              </MobileToolButton>
-            </div>
+            <MobileToolButtonItem :tool-id="toolId" />
           </template>
         </div>
       </div>

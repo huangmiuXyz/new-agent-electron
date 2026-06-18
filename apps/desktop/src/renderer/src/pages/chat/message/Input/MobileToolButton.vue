@@ -30,6 +30,7 @@ const VolumeIcon = useIcon('VolumeMedium')
 const VolumeMuteIcon = useIcon('VolumeMute')
 const PlaylistIcon = useIcon('Menu')
 const StopIcon = useIcon('Stop')
+const SettingsIcon = useIcon('Settings')
 </script>
 
 <template>
@@ -65,7 +66,7 @@ const StopIcon = useIcon('Stop')
     :model-id="props.modelId"
   />
   <Button v-else-if="props.toolId === 'settings'" variant="icon" size="sm" title="参数设置" @click="emit('action', 'settings', $event)">
-    <slot name="settings-icon" />
+    <SettingsIcon />
   </Button>
   <Button
     v-else-if="props.toolId === 'speech'"
