@@ -3,17 +3,25 @@ import { FileUIPart, TextUIPart } from 'ai'
 import AudioInputControls from './AudioInputControls.vue'
 import AudioInputPreview from './AudioInputPreview.vue'
 import AtPanel from './AtPanel.vue'
+import ChatSwitcherPopover from './ChatSwitcherPopover.vue'
+import MobileToolButton from './MobileToolButton.vue'
+import PendingMessages from './PendingMessages.vue'
 import ThinkingModeButton from './ThinkingModeButton.vue'
-import { useContinuousVoiceRecorder } from '@renderer/composables/useContinuousVoiceRecorder'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
-import { usePlugins } from '@renderer/composables/usePlugins'
-import { createRegistry } from '@renderer/services/chatService/registry'
-import {
-  estimateMessagesTokens,
-  estimateTextTokens
-} from '@renderer/services/chatService/tokenUsage'
+import { useAgentWorkPath } from './useAgentWorkPath'
 import { useChatInputAudio } from './useChatInputAudio'
-import { z } from 'zod'
+import { useChatModelSelection } from './useChatModelSelection'
+import { useChatSwitcher } from './useChatSwitcher'
+import { useInputContextTokens } from './useInputContextTokens'
+import {
+  confirmMentionTokens,
+  separateConfirmedMentionsForSend,
+  unwrapConfirmedMentions,
+  useMentionEditor
+} from './useMentionEditor'
+import { useMobileToolLayout, type MobileDragToolId } from './useMobileToolLayout'
+import { useProviderOptionsModal } from './useProviderOptionsModal'
+import { useVoiceInputControls } from './useVoiceInputControls'
 
 const props = defineProps<{
   preview?: boolean
@@ -26,18 +34,10 @@ const message = computed({
     chatStore.setChatDraft(value)
   }
 })
-const { triggerHook } = usePlugins()
 const selectedFiles = ref<Array<UploadFile>>([])
 
-const {
-  speechEnabled,
-  providerOptions: allProviderOptions,
-  display,
-  defaultModels
-} = storeToRefs(useSettingsStore())
+const { display } = storeToRefs(useSettingsStore())
 const agentStore = useAgentStore()
-const canvasStore = useCanvasStore()
-const { updateSpeechEnabled, updateProviderOptions } = useSettingsStore()
 const settingsStore = useSettingsStore()
 
 // 桌面端输入框按钮布局（按配置过滤可见按钮，保留顺序）
@@ -46,307 +46,35 @@ const visibleInputButtons = computed(() => {
   return layout.filter((item) => item.visible).map((item) => item.id)
 })
 
-const currentChatAgent = computed(() => {
-  const agentId = chatStore.currentChat?.agentId
-  return agentId ? agentStore.getAgentById(agentId) : null
-})
+const {
+  currentChatAgent,
+  chatProviderId,
+  chatModelId,
+  currentChatProvider,
+  currentChatModel
+} = useChatModelSelection()
 const currentChatToolFeaturesEnabled = computed(
   () => chatStore.currentChat?.toolFeaturesEnabled !== false
 )
-const currentAgentWorkPath = computed(() => currentChatAgent.value?.workPath?.trim() || '')
-const canChooseLocalWorkPath = computed(() => {
-  const api = window.api as Partial<typeof window.api> | undefined
-  return (
-    !isMobile.value &&
-    typeof api?.showOpenDialog === 'function' &&
-    Boolean(api.path && api.fs)
-  )
-})
-const workPathButtonTitle = computed(() => {
-  const agentName = currentChatAgent.value?.name || '当前智能体'
-  return currentAgentWorkPath.value
-    ? `${agentName} 工作路径：${currentAgentWorkPath.value}，右键清空`
-    : `设置 ${agentName} 的工作路径`
-})
-const workPathButtonLabel = computed(() => {
-  if (!currentAgentWorkPath.value) return '工作路径'
-  const api = window.api as Partial<typeof window.api> | undefined
-  return api?.path?.basename(currentAgentWorkPath.value) || currentAgentWorkPath.value.split(/[\\/]/).filter(Boolean).pop() || currentAgentWorkPath.value
-})
-const chatProviderId = computed({
-  get: () => chatStore.currentChat?.providerId || '',
-  set: (value: string) => {
-    if (!value) return
-    let chatId = chatStore.currentChat?.id
-    if (!chatId) {
-      chatId = chatStore.createChat()
-    }
-    const chat = chatStore.getChatById(chatId)
-    const provider = settingsStore.getProviderById(value)
-    const currentModelId = chat?.modelId
-    const modelExists = !!provider?.models?.some((m) => m.id === currentModelId)
-    const fallbackModelId =
-      provider?.models?.find((m) => m.active && m.category === 'text')?.id ||
-      provider?.models?.[0]?.id ||
-      ''
-    const modelId = modelExists ? currentModelId! : fallbackModelId
-    if (!modelId) return
-    chatStore.setChatModel(chatId, value, modelId)
-  }
-})
-const chatModelId = computed({
-  get: () => chatStore.currentChat?.modelId || '',
-  set: (value: string) => {
-    if (!value) return
-    let chatId = chatStore.currentChat?.id
-    if (!chatId) {
-      chatId = chatStore.createChat()
-    }
-    let providerId = chatStore.currentChat?.providerId
-    if (
-      !providerId ||
-      !settingsStore.getProviderById(providerId)?.models?.some((m) => m.id === value)
-    ) {
-      const provider = settingsStore.getAllProviders.find((p) =>
-        p.models?.some((m) => m.id === value)
-      )
-      providerId = provider?.id
-    }
-    if (!providerId) return
-    chatStore.setChatModel(chatId, providerId, value)
-  }
-})
-const currentChatProvider = computed(() => {
-  return chatProviderId.value ? settingsStore.getProviderById(chatProviderId.value) : null
-})
-const currentChatModel = computed(() => {
-  if (!chatProviderId.value || !chatModelId.value) return null
-  return settingsStore.getModelById(chatProviderId.value, chatModelId.value).model
-})
+const {
+  currentAgentWorkPath,
+  canChooseLocalWorkPath,
+  workPathButtonTitle,
+  workPathButtonLabel,
+  chooseCurrentAgentWorkPath,
+  openWorkPathContextMenu
+} = useAgentWorkPath({ currentChatAgent })
 const InfoCircle = useIcon('InfoCircle')
-const numberFormatter = new Intl.NumberFormat('zh-CN')
-const COMPRESSED_CONTEXT_MARKER = '[上下文已压缩]'
-
-const isCompressedContextMessage = (message: BaseMessage): boolean => {
-  return Boolean(
-    message.metadata?.isCompressedContext ||
-    message.parts?.some(
-      (part) => part.type === 'text' && part.text?.includes(COMPRESSED_CONTEXT_MARKER)
-    )
-  )
-}
-
-const isCompressingContextMessage = (message: BaseMessage): boolean => {
-  return Boolean(message.metadata?.isCompressingContext)
-}
-
-const estimateSystemTextTokens = (text: string, model?: string): number => {
-  const trimmed = text.trim()
-  if (!trimmed) return 0
-  return estimateTextTokens(`system: ${trimmed}`, model) + 4
-}
-
-const formatTokenCount = (value: number): string => {
-  if (value >= 1000) {
-    const compactValue = value / 1000
-    return `${compactValue >= 10 ? compactValue.toFixed(0) : compactValue.toFixed(1)}k`
-  }
-
-  return numberFormatter.format(value)
-}
-
-const getCurrentContextMessages = (chat: Chat, agent?: Agent | null): BaseMessage[] => {
-  const contextCount = agent?.contextCount ?? 0
-  const messages = chat.messages.filter((message) => !isCompressingContextMessage(message))
-  const compressedContext = chat.compressedContext
-
-  if (compressedContext?.content && !compressedContext.loading) {
-    const baseMessages = messages.filter((message) => !isCompressedContextMessage(message))
-    const preservedSystemMessages = baseMessages.filter((message) => message.role === 'system')
-    const compressedUpToIndex = compressedContext.compressedUpToIndex
-    const tailMessages =
-      compressedUpToIndex == null || compressedUpToIndex < 0
-        ? baseMessages.filter((message) => message.role !== 'system')
-        : baseMessages
-          .slice(compressedUpToIndex + 1)
-          .filter((message) => message.role !== 'system')
-    const recentMessageBudget =
-      contextCount > 0
-        ? Math.max(contextCount - preservedSystemMessages.length - 1, 0)
-        : tailMessages.length
-    const recentMessages =
-      recentMessageBudget > 0 ? tailMessages.slice(-recentMessageBudget) : []
-
-    return [...preservedSystemMessages, ...recentMessages]
-  }
-
-  if (contextCount > 0 && messages.length > contextCount) {
-    return messages.slice(-contextCount)
-  }
-
-  return messages
-}
-
-const currentChatContextTokens = computed(() => {
-  const chat = chatStore.currentChat
-  const model = currentChatModel.value?.id || chatModelId.value
-  const agent = currentChatAgent.value
-
-  if (!chat) {
-    return {
-      total: 0,
-      contextMessageCount: 0,
-      hasContext: false,
-      totalDisplay: formatTokenCount(0),
-      contextMessageCountDisplay: numberFormatter.format(0),
-      tooltip: '当前上下文 Token\n暂无可用统计'
-    }
-  }
-
-  const contextMessages = getCurrentContextMessages(chat, agent)
-  const messageTokens = estimateMessagesTokens(contextMessages, model)
-  const compressedContextTokens =
-    chat.compressedContext?.content && !chat.compressedContext.loading
-      ? estimateSystemTextTokens(
-        `${chat.compressedContext.content}\n\n${COMPRESSED_CONTEXT_MARKER}`,
-        model
-      )
-      : 0
-  const systemTokens = estimateSystemTextTokens(agent?.systemPrompt || '', model)
-  const total = messageTokens + compressedContextTokens + systemTokens
-
-  return {
-    total,
-    contextMessageCount: contextMessages.length,
-    hasContext: total > 0 || contextMessages.length > 0,
-    totalDisplay: formatTokenCount(total),
-    contextMessageCountDisplay: numberFormatter.format(contextMessages.length),
-    tooltip:
-      total > 0 || contextMessages.length > 0
-        ? [
-          '当前上下文 Token（估算）',
-          `总计: ${formatTokenCount(total)}`,
-          `上下文消息: ${numberFormatter.format(contextMessages.length)} 条`
-        ].join('\n')
-        : '当前上下文 Token\n暂无可用统计'
-  }
+const currentChatContextTokens = useInputContextTokens({
+  chat: computed(() => chatStore.currentChat),
+  agent: currentChatAgent,
+  modelId: computed(() => currentChatModel.value?.id || chatModelId.value)
 })
 
-const speechStore = useSpeechStore()
-const modal = useModal()
-const { showContextMenu } = useContextMenu()
-
-// 提供商参数设置
-const openProviderOptionsModal = () => {
-  const schema = (() => {
-    try {
-      const registry = createRegistry({
-        apiKey: currentChatProvider.value?.apiKey || '',
-        baseURL: currentChatProvider.value?.baseUrl || '',
-        name: chatProviderId.value
-      })
-      const provider = registry.getProvider(currentChatProvider.value?.providerType || '')
-      return provider?.chatCallOptionsSchema || null
-    } catch (e) {
-      console.warn('Failed to get chat options schema:', e)
-      return null
-    }
-  })()
-
-  if (!schema) {
-    modal.confirm({
-      title: '参数设置',
-      content: '当前提供商不支持参数配置',
-      showCancel: false,
-      confirmText: '确定'
-    })
-    return
-  }
-
-  const [FormComponent, formActions] = useForm<Record<string, any>>({
-    schemas: schema as z.ZodObject<any>,
-    initialData: allProviderOptions.value[chatProviderId.value] || {},
-    size: 'sm',
-    onSubmit: (data) => {
-      if (chatProviderId.value) {
-        updateProviderOptions(chatProviderId.value, data)
-      }
-      modal.remove()
-    }
-  })
-
-  modal.confirm({
-    title: '参数设置',
-    width: '50%',
-    content: FormComponent,
-    confirmText: '应用',
-    cancelText: '取消',
-    onOk: () => {
-      formActions.submit()
-    }
-  })
-}
-
-const chooseCurrentAgentWorkPath = async () => {
-  if (!canChooseLocalWorkPath.value) {
-    messageApi.warning('移动端暂不支持本机工作路径，请使用临时工作区')
-    return
-  }
-
-  let chatId = chatStore.currentChat?.id
-  if (!chatId) {
-    chatId = chatStore.createChat()
-  }
-
-  const chat = chatStore.getChatById(chatId)
-  const agentId = chat?.agentId || 'default'
-  const agent = agentStore.getAgentById(agentId)
-
-  if (!agent) {
-    messageApi.error('未找到当前智能体')
-    return
-  }
-
-  const result = await window.api.showOpenDialog({
-    title: `选择 ${agent.name} 的工作路径`,
-    properties: ['openDirectory', 'createDirectory'],
-    defaultPath: agent.workPath || undefined
-  })
-
-  if (result.canceled || !result.filePaths?.[0]) return
-
-  const workPath = result.filePaths[0]
-  agentStore.updateAgent(agent.id, { workPath })
-  canvasStore.resetWorkspaceRoot(chatId)
-  messageApi.success(`已设置工作路径：${workPath}`)
-}
-
-const clearCurrentAgentWorkPath = () => {
-  if (!canChooseLocalWorkPath.value || !currentAgentWorkPath.value) return
-
-  const chatId = chatStore.currentChat?.id
-  const agentId = chatStore.currentChat?.agentId || 'default'
-  const agent = agentStore.getAgentById(agentId)
-  if (!agent) return
-
-  agentStore.updateAgent(agent.id, { workPath: '' })
-  if (chatId) {
-    canvasStore.resetWorkspaceRoot(chatId)
-  }
-  messageApi.success('已清空工作路径')
-}
-
-const openWorkPathContextMenu = (event: MouseEvent) => {
-  showContextMenu(event, [
-    {
-      label: '清空工作路径',
-      icon: Delete,
-      danger: true,
-      disabled: !currentAgentWorkPath.value,
-      onClick: clearCurrentAgentWorkPath
-    }
-  ])
-}
+const { openProviderOptionsModal } = useProviderOptionsModal({
+  chatProviderId,
+  currentChatProvider
+})
 
 const toggleCurrentChatToolFeatures = () => {
   let chatId = chatStore.currentChat?.id
@@ -364,22 +92,10 @@ const MicIcon = useIcon('Mic')
 const MicOffIcon = useIcon('MicOff')
 const VolumeIcon = useIcon('VolumeMedium')
 const VolumeMuteIcon = useIcon('VolumeMute')
-const CloseIcon = useIcon('Close')
-const PendingIcon = useIcon('FormatListBulleted')
 const SettingsIcon = useIcon('Settings')
 const ToolFeaturesIcon = useIcon('Wrench20Regular')
-const PlaylistIcon = useIcon('Menu')
 const StopIcon = useIcon('Stop')
 const ChevronDown = useIcon('ChevronDown')
-const SendIcon = useIcon('Send')
-const HistoryIcon = useIcon('HistoryClock')
-const { Edit, Delete, CommentAdd16Regular, Search } = useIcon([
-  'Edit',
-  'Delete',
-  'CommentAdd16Regular',
-  'Search'
-])
-
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
 const inputContainerRef = useTemplateRef('inputContainerRef')
@@ -403,92 +119,24 @@ const isScopeGenerating = computed(() => {
   return chatStore.isChatScopeGenerating(chatStore.currentChat.id)
 })
 
-const showChatSwitcher = ref(false)
-const chatSwitcherQuery = ref('')
-const chatSwitcherMode = ref<'list' | 'create' | 'rename' | 'delete'>('list')
-const chatSwitcherTargetId = ref<string | null>(null)
-const chatSwitcherDraftTitle = ref('')
-const sortedChats = computed(() =>
-  [...chatStore.allChats].sort((a, b) => b.createdAt - a.createdAt)
-)
-const filteredChats = computed(() => {
-  const keyword = chatSwitcherQuery.value.trim().toLowerCase()
-  if (!keyword) return sortedChats.value
-  return sortedChats.value.filter((chat) => {
-    const parentTitle = chat.parentChatId
-      ? chatStore.getChatById(chat.parentChatId)?.title || ''
-      : ''
-    return `${chat.title} ${parentTitle}`.toLowerCase().includes(keyword)
-  })
-})
-const chatSwitcherTargetChat = computed(() =>
-  chatSwitcherTargetId.value ? chatStore.getChatById(chatSwitcherTargetId.value) || null : null
-)
-
-const isChatGenerating = (chat: Chat) => {
-  return chatStore.isChatGenerating(chat.id)
-}
-
-const getChatSecondaryText = (chat: Chat) => {
-  if (!chat.parentChatId) return ''
-  return chatStore.getChatById(chat.parentChatId)?.title || '子会话'
-}
-
-const resetChatSwitcherState = () => {
-  chatSwitcherMode.value = 'list'
-  chatSwitcherTargetId.value = null
-  chatSwitcherDraftTitle.value = ''
-}
-
-watch(showChatSwitcher, (visible) => {
-  if (!visible) {
-    chatSwitcherQuery.value = ''
-    resetChatSwitcherState()
-  }
-})
-
-const selectChatFromSwitcher = (chatId: string) => {
-  chatStore.setActiveChat(chatId)
-  showChatSwitcher.value = false
-}
-
-const openCreateChatInline = () => {
-  chatSwitcherMode.value = 'create'
-  chatSwitcherTargetId.value = null
-  chatSwitcherDraftTitle.value = ''
-}
-
-const openRenameChatInline = (chat: Chat) => {
-  chatSwitcherMode.value = 'rename'
-  chatSwitcherTargetId.value = chat.id
-  chatSwitcherDraftTitle.value = chat.title
-}
-
-const openDeleteChatInline = (chat: Chat) => {
-  chatSwitcherMode.value = 'delete'
-  chatSwitcherTargetId.value = chat.id
-  chatSwitcherDraftTitle.value = chat.title
-}
-
-const submitCreateChatInline = () => {
-  chatStore.createChat(chatSwitcherDraftTitle.value.trim() || '新的聊天')
-  showChatSwitcher.value = false
-}
-
-const submitRenameChatInline = () => {
-  const chatId = chatSwitcherTargetId.value
-  const title = chatSwitcherDraftTitle.value.trim()
-  if (!chatId || !title) return
-  chatStore.renameChat(chatId, title)
-  resetChatSwitcherState()
-}
-
-const submitDeleteChatInline = () => {
-  const chatId = chatSwitcherTargetId.value
-  if (!chatId) return
-  chatStore.deleteChat(chatId)
-  resetChatSwitcherState()
-}
+const {
+  showChatSwitcher,
+  chatSwitcherQuery,
+  chatSwitcherMode,
+  chatSwitcherDraftTitle,
+  filteredChats,
+  chatSwitcherTargetChat,
+  isChatGenerating,
+  getChatSecondaryText,
+  resetChatSwitcherState,
+  selectChatFromSwitcher,
+  openCreateChatInline,
+  openRenameChatInline,
+  openDeleteChatInline,
+  submitCreateChatInline,
+  submitRenameChatInline,
+  submitDeleteChatInline
+} = useChatSwitcher()
 
 // 处理文件选择
 const handleFilesSelected = (files: Array<UploadFile>) => {
@@ -530,354 +178,37 @@ const stopAllGeneratingInCurrentChat = () => {
   chatStore.stopGeneratingInChatScope(chatId)
 }
 
-// 获取预发送消息的文本预览
-const getPendingMessagePreview = (parts: Array<FileUIPart | TextUIPart>): string => {
-  const textParts = parts.filter((p): p is TextUIPart => p.type === 'text')
-  const fileParts = parts.filter((p): p is FileUIPart => p.type === 'file')
-  const audioParts = fileParts.filter((p) => p.mediaType?.startsWith('audio/'))
-  const otherFileParts = fileParts.filter((p) => !p.mediaType?.startsWith('audio/'))
-
-  let preview = textParts.map((p) => p.text).join(' ')
-  if (audioParts.length > 0) {
-    const audioText = audioParts.length === 1 ? '[音频]' : `[${audioParts.length}段音频]`
-    preview = preview ? `${preview} ${audioText}` : audioText
-  }
-  if (otherFileParts.length > 0) {
-    const fileText = otherFileParts.length === 1 ? '[文件]' : `[${otherFileParts.length}个文件]`
-    preview = preview ? `${preview} ${fileText}` : fileText
-  }
-
-  // 截断显示
-  if (preview.length > 50) {
-    preview = preview.substring(0, 50) + '...'
-  }
-  return preview || '[空消息]'
-}
-
-// 语音录制
-const isRecording = ref(false)
-const isListening = ref(false)
-const isProcessingVoice = ref(false)
-
-const partialSpeechText = ref('')
 const showMobileTools = ref(false)
-type MobileDragToolId =
-  | 'upload'
-  | 'inputAudio'
-  | 'voice'
-  | 'thinking'
-  | 'settings'
-  | 'speech'
-  | 'playlist'
-  | 'agent'
-  | 'model'
-  | 'stop'
-type MobileDropZone = 'top-left' | 'top-right' | 'bottom'
-const MOBILE_LONG_PRESS_MS = 380
-const MOBILE_POINTER_MOVE_CANCEL_PX = 10
-const MOBILE_TOP_MAX_TOOLS = 4
-const MOBILE_TOOL_LAYOUT_STORAGE_KEY = 'chat.mobile.tool-layout.v1'
-type MobileToolLayoutStorage = {
-  topLeft: MobileDragToolId[]
-  topRight: MobileDragToolId[]
-  bottom: MobileDragToolId[]
-}
-const mobileToolOrder: MobileDragToolId[] = [
-  'upload',
-  'inputAudio',
-  'voice',
-  'thinking',
-  'settings',
-  'speech',
-  'playlist',
-  'agent',
-  'model',
-  'stop'
-]
-const mobileToolLabelMap: Record<MobileDragToolId, string> = {
-  upload: '上传',
-  inputAudio: '音频',
-  voice: '语音',
-  thinking: '思考',
-  settings: '参数',
-  speech: '播报',
-  playlist: '列表',
-  agent: '助手',
-  model: '模型',
-  stop: '停止'
-}
-const defaultMobileLayout: MobileToolLayoutStorage = {
-  topLeft: ['upload', 'inputAudio', 'voice'],
-  topRight: [],
-  bottom: ['thinking', 'settings', 'speech', 'playlist', 'agent', 'model', 'stop']
-}
-const mobileToolLayout = useLocalStorage<MobileToolLayoutStorage>(
-  MOBILE_TOOL_LAYOUT_STORAGE_KEY,
-  defaultMobileLayout
-)
-
-function normalizeMobileToolList(list: unknown): MobileDragToolId[] {
-  if (!Array.isArray(list)) return []
-  const validSet = new Set<MobileDragToolId>(mobileToolOrder)
-  const unique: MobileDragToolId[] = []
-  list.forEach((item) => {
-    if (typeof item !== 'string') return
-    const toolId = item as MobileDragToolId
-    if (!validSet.has(toolId) || unique.includes(toolId)) return
-    unique.push(toolId)
-  })
-  return unique
-}
-
-function normalizeMobileLayout(layout: unknown): MobileToolLayoutStorage {
-  const raw = (layout || {}) as Partial<MobileToolLayoutStorage>
-  const topLeft = normalizeMobileToolList(raw.topLeft)
-  const topRight = normalizeMobileToolList(raw.topRight)
-  const bottom = normalizeMobileToolList(raw.bottom)
-  const merged = [...topLeft, ...topRight, ...bottom]
-  const missing = mobileToolOrder.filter((toolId) => !merged.includes(toolId))
-  const uniqueTopLeft = topLeft.filter((toolId, index) => merged.indexOf(toolId) === index)
-  const uniqueTopRight = topRight.filter((toolId) => !uniqueTopLeft.includes(toolId))
-  const uniqueBottom = bottom.filter(
-    (toolId) => !uniqueTopLeft.includes(toolId) && !uniqueTopRight.includes(toolId)
-  )
-  const mergedTop = [...uniqueTopLeft, ...uniqueTopRight]
-  const keptTop = mergedTop.slice(0, MOBILE_TOP_MAX_TOOLS)
-  const overflowTop = mergedTop.slice(MOBILE_TOP_MAX_TOOLS)
-  const topLeftCapped = keptTop.filter((toolId) => uniqueTopLeft.includes(toolId))
-  const topRightCapped = keptTop.filter((toolId) => uniqueTopRight.includes(toolId))
-  return {
-    topLeft: topLeftCapped,
-    topRight: topRightCapped,
-    bottom: [...overflowTop, ...uniqueBottom, ...missing]
-  }
-}
-
-const normalizedMobileLayout = normalizeMobileLayout(mobileToolLayout.value)
-const mobileTopLeftTools = ref<MobileDragToolId[]>(normalizedMobileLayout.topLeft)
-const mobileTopRightTools = ref<MobileDragToolId[]>(normalizedMobileLayout.topRight)
 const mobileTopBarRef = useTemplateRef('mobileTopBarRef')
-const mobileBottomTools = ref<MobileDragToolId[]>(normalizedMobileLayout.bottom)
-const mobileLayoutSnapshot = computed<MobileToolLayoutStorage>(() => ({
-  topLeft: [...mobileTopLeftTools.value],
-  topRight: [...mobileTopRightTools.value],
-  bottom: [...mobileBottomTools.value]
-}))
 const mobileTopLeftZoneRef = useTemplateRef('mobileTopLeftZoneRef')
 const mobileTopRightZoneRef = useTemplateRef('mobileTopRightZoneRef')
 const mobileBottomZoneRef = useTemplateRef('mobileBottomZoneRef')
-const longPressTimer = ref<number | null>(null)
-const longPressPointerId = ref<number | null>(null)
-const longPressToolId = ref<MobileDragToolId | null>(null)
-const longPressStartPoint = ref<{ x: number; y: number } | null>(null)
-const draggingToolId = ref<MobileDragToolId | null>(null)
-const suppressMobileToolClick = ref(false)
-const mobileDragPointer = ref<{ x: number; y: number }>({ x: 0, y: 0 })
-const mobileHoverDropZone = ref<MobileDropZone | null>(null)
 
-const isMobileToolDragging = computed(() => !!draggingToolId.value)
-
-const isMobileToolVisible = (_toolId: MobileDragToolId) => {
-  return true
-}
-const mobileDraggingToolLabel = computed(() => {
-  if (!draggingToolId.value) return ''
-  return mobileToolLabelMap[draggingToolId.value]
+const isMobileToolVisible = (_toolId: MobileDragToolId) => true
+const {
+  mobileTopLeftTools,
+  mobileTopRightTools,
+  mobileBottomTools,
+  draggingToolId,
+  mobileDragPointer,
+  mobileHoverDropZone,
+  isMobileToolDragging,
+  mobileDraggingToolLabel,
+  mobileToolClass,
+  onMobileToolPointerDown,
+  onMobileToolPointerCancel,
+  handleMobileToolWrapperClickCapture,
+  suppressMobileToolClick,
+  clearLongPressTimer,
+  unbindMobilePointerListeners
+} = useMobileToolLayout({
+  isMobile,
+  showMobileTools,
+  topBarRef: mobileTopBarRef,
+  topLeftZoneRef: mobileTopLeftZoneRef,
+  topRightZoneRef: mobileTopRightZoneRef,
+  bottomZoneRef: mobileBottomZoneRef
 })
-
-watch(
-  mobileLayoutSnapshot,
-  (layout) => {
-    mobileToolLayout.value = normalizeMobileLayout(layout)
-  },
-  { deep: true }
-)
-
-const sortMobileTools = (tools: MobileDragToolId[]) => {
-  return [...tools].sort((a, b) => mobileToolOrder.indexOf(a) - mobileToolOrder.indexOf(b))
-}
-
-const clearLongPressTimer = () => {
-  if (longPressTimer.value) {
-    window.clearTimeout(longPressTimer.value)
-    longPressTimer.value = null
-  }
-}
-
-const mobileToolClass = (toolId: MobileDragToolId) => ({
-  'is-long-pressing': longPressToolId.value === toolId && !draggingToolId.value,
-  'is-dragging': draggingToolId.value === toolId
-})
-
-const startDraggingTool = (toolId: MobileDragToolId) => {
-  draggingToolId.value = toolId
-  suppressMobileToolClick.value = true
-  showMobileTools.value = true
-}
-
-const resolveDropZoneByPoint = (x: number, y: number): MobileDropZone | null => {
-  const target = document.elementFromPoint(x, y) as HTMLElement | null
-  if (!target) return null
-  if (mobileTopLeftZoneRef.value?.contains(target)) return 'top-left'
-  if (mobileTopRightZoneRef.value?.contains(target)) return 'top-right'
-  if (mobileTopBarRef.value?.contains(target)) {
-    const topBarRect = mobileTopBarRef.value.getBoundingClientRect()
-    const rightDropThreshold = topBarRect.right - 120
-    return x >= rightDropThreshold ? 'top-right' : 'top-left'
-  }
-  if (mobileBottomZoneRef.value?.contains(target)) return 'bottom'
-  return null
-}
-
-const moveMobileToolToZone = (toolId: MobileDragToolId, zone: MobileDropZone) => {
-  const nextTopLeft = mobileTopLeftTools.value.filter((id) => id !== toolId)
-  const nextTopRight = mobileTopRightTools.value.filter((id) => id !== toolId)
-  const nextBottom = mobileBottomTools.value.filter((id) => id !== toolId)
-  const wasInTop =
-    mobileTopLeftTools.value.includes(toolId) || mobileTopRightTools.value.includes(toolId)
-  const nextTopCount = nextTopLeft.length + nextTopRight.length
-
-  if (!wasInTop && zone !== 'bottom' && nextTopCount >= MOBILE_TOP_MAX_TOOLS) {
-    messageApi.warning(`上方最多放 ${MOBILE_TOP_MAX_TOOLS} 个按钮`)
-    return
-  }
-
-  if (zone === 'top-left') {
-    mobileTopLeftTools.value = sortMobileTools([...nextTopLeft, toolId])
-    mobileTopRightTools.value = sortMobileTools(nextTopRight)
-    mobileBottomTools.value = sortMobileTools(nextBottom)
-    return
-  }
-  if (zone === 'top-right') {
-    mobileTopRightTools.value = sortMobileTools([...nextTopRight, toolId])
-    mobileTopLeftTools.value = sortMobileTools(nextTopLeft)
-    mobileBottomTools.value = sortMobileTools(nextBottom)
-    return
-  }
-  mobileBottomTools.value = sortMobileTools([...nextBottom, toolId])
-  mobileTopLeftTools.value = sortMobileTools(nextTopLeft)
-  mobileTopRightTools.value = sortMobileTools(nextTopRight)
-}
-
-const finalizeMobileToolDrag = (event: PointerEvent) => {
-  if (!draggingToolId.value) return
-  const dropZone = resolveDropZoneByPoint(event.clientX, event.clientY)
-  if (dropZone) {
-    moveMobileToolToZone(draggingToolId.value, dropZone)
-  }
-}
-
-const resetMobilePressState = () => {
-  clearLongPressTimer()
-  longPressPointerId.value = null
-  longPressToolId.value = null
-  longPressStartPoint.value = null
-  draggingToolId.value = null
-  mobileHoverDropZone.value = null
-  window.setTimeout(() => {
-    suppressMobileToolClick.value = false
-  }, 0)
-}
-
-const bindMobilePointerListeners = () => {
-  window.addEventListener('pointermove', onMobileGlobalPointerMove, { passive: false })
-  window.addEventListener('pointerup', onMobileGlobalPointerUp)
-  window.addEventListener('pointercancel', onMobileGlobalPointerCancel)
-}
-
-const unbindMobilePointerListeners = () => {
-  window.removeEventListener('pointermove', onMobileGlobalPointerMove)
-  window.removeEventListener('pointerup', onMobileGlobalPointerUp)
-  window.removeEventListener('pointercancel', onMobileGlobalPointerCancel)
-}
-
-const onMobileToolPointerDown = (toolId: MobileDragToolId, event: PointerEvent) => {
-  if (!isMobile.value || event.button !== 0) return
-  const target = event.target as HTMLElement | null
-  if (target?.closest('.modal-overlay, .selector-popup')) {
-    // Selector popover content is rendered inside the tool wrapper on mobile,
-    // so interactions in the popup must not start toolbar drag logic.
-    return
-  }
-  clearLongPressTimer()
-  bindMobilePointerListeners()
-  longPressPointerId.value = event.pointerId
-  longPressToolId.value = toolId
-  longPressStartPoint.value = { x: event.clientX, y: event.clientY }
-  mobileDragPointer.value = { x: event.clientX, y: event.clientY }
-  longPressTimer.value = window.setTimeout(() => {
-    startDraggingTool(toolId)
-  }, MOBILE_LONG_PRESS_MS)
-}
-
-const onMobileToolPointerMove = (event: PointerEvent) => {
-  if (draggingToolId.value) return
-  if (longPressPointerId.value !== event.pointerId || !longPressStartPoint.value) return
-  const distanceX = Math.abs(event.clientX - longPressStartPoint.value.x)
-  const distanceY = Math.abs(event.clientY - longPressStartPoint.value.y)
-  if (distanceX > MOBILE_POINTER_MOVE_CANCEL_PX || distanceY > MOBILE_POINTER_MOVE_CANCEL_PX) {
-    clearLongPressTimer()
-    longPressToolId.value = null
-  }
-}
-
-const onMobileToolPointerUp = (event: PointerEvent) => {
-  if (draggingToolId.value) {
-    finalizeMobileToolDrag(event)
-  }
-  unbindMobilePointerListeners()
-  resetMobilePressState()
-}
-
-const onMobileToolPointerCancel = () => {
-  unbindMobilePointerListeners()
-  resetMobilePressState()
-}
-
-const onMobileGlobalPointerMove = (event: PointerEvent) => {
-  if (longPressPointerId.value !== event.pointerId) return
-  mobileDragPointer.value = { x: event.clientX, y: event.clientY }
-  onMobileToolPointerMove(event)
-  if (draggingToolId.value) {
-    mobileHoverDropZone.value = resolveDropZoneByPoint(event.clientX, event.clientY)
-    event.preventDefault()
-  }
-}
-
-const onMobileGlobalPointerUp = (event: PointerEvent) => {
-  if (longPressPointerId.value !== event.pointerId) return
-  onMobileToolPointerUp(event)
-}
-
-const onMobileGlobalPointerCancel = (event: PointerEvent) => {
-  if (longPressPointerId.value !== event.pointerId) return
-  onMobileToolPointerCancel()
-}
-
-const runMobileToolAction = async (toolId: MobileDragToolId) => {
-  if (toolId === 'upload') return fileUploadRef.value?.triggerUpload?.()
-  if (toolId === 'inputAudio') return toggleInputAudioPanel()
-  if (toolId === 'voice') return toggleVoiceRecording()
-  if (toolId === 'settings') return openProviderOptionsModal()
-  if (toolId === 'speech') return toggleSpeech()
-  if (toolId === 'playlist') return toggleAssistantPanel('playlist')
-  if (toolId === 'stop') return stopAllGeneratingInCurrentChat()
-}
-
-const handleMobileToolClick = async (toolId: MobileDragToolId, event: MouseEvent) => {
-  if (suppressMobileToolClick.value) {
-    event.preventDefault()
-    event.stopPropagation()
-    return
-  }
-  await runMobileToolAction(toolId)
-}
-
-const handleMobileToolWrapperClickCapture = (event: MouseEvent) => {
-  if (!suppressMobileToolClick.value) return
-  event.preventDefault()
-  event.stopPropagation()
-}
 
 const ensureSendableChat = () => {
   let chatId = chatStore.currentChat?.id
@@ -934,98 +265,41 @@ const {
   sendMessageParts
 })
 
+const runMobileToolAction = async (toolId: MobileDragToolId) => {
+  if (toolId === 'upload') return fileUploadRef.value?.triggerUpload?.()
+  if (toolId === 'inputAudio') return toggleInputAudioPanel()
+  if (toolId === 'voice') return toggleVoiceRecording()
+  if (toolId === 'settings') return openProviderOptionsModal()
+  if (toolId === 'speech') return toggleSpeech()
+  if (toolId === 'playlist') return toggleAssistantPanel('playlist')
+  if (toolId === 'stop') return stopAllGeneratingInCurrentChat()
+}
+
+const handleMobileToolClick = async (toolId: MobileDragToolId, event: MouseEvent) => {
+  if (suppressMobileToolClick.value) {
+    event.preventDefault()
+    event.stopPropagation()
+    return
+  }
+  await runMobileToolAction(toolId)
+}
+
 const {
-  start: startVoice,
-  stop: stopVoice,
-  state: voiceState,
-  isActive: voiceIsActive
-} = useContinuousVoiceRecorder({
-  volumeThreshold: 0.02,
-  silenceDuration: 800,
-  onData: (data: Float32Array) => {
-    if (!(window as any)._audioSampleRate) {
-      ; (window as any)._audioSampleRate = new (
-        window.AudioContext || (window as any).webkitAudioContext
-      )().sampleRate
-    }
-    const sampleRate = (window as any)._audioSampleRate
-    triggerHook('speech.stream.data', { data, sampleRate })
-  },
-  onStart: async () => {
-    if (!(window as any)._audioSampleRate) {
-      ; (window as any)._audioSampleRate = new (
-        window.AudioContext || (window as any).webkitAudioContext
-      )().sampleRate
-    }
-    const sampleRate = (window as any)._audioSampleRate
-    await triggerHook('speech.stream.start', {
-      sampleRate,
-      providerId: defaultModels.value.speechProviderId || chatProviderId.value,
-      onResult: (text: string) => {
-        if (text) {
-          message.value += (message.value ? ' ' : '') + text
-          partialSpeechText.value = ''
-          _sendMessage()
-        }
-      },
-      onPartial: (text: string) => {
-        partialSpeechText.value = text
-      }
-    })
-  },
-  onStop: async () => {
-    try {
-      await triggerHook('speech.stream.stop')
-    } catch (error) {
-      console.error('语音识别停止失败:', error)
-    } finally {
-      partialSpeechText.value = ''
-    }
+  speechEnabled,
+  isRecording,
+  isProcessingVoice,
+  partialSpeechText,
+  voiceIsActive,
+  toggleVoiceRecording,
+  toggleSpeech
+} = useVoiceInputControls({
+  message,
+  chatProviderId,
+  currentChatAgent,
+  onRecognizedText: () => {
+    void _sendMessage()
   }
 })
-
-// 监听语音状态变化
-watch(voiceState, (newState) => {
-  isListening.value = newState === 'listening'
-  isRecording.value = newState === 'recording'
-})
-
-// 切换语音录制
-const toggleVoiceRecording = async () => {
-  if (voiceIsActive.value) {
-    stopVoice()
-  } else {
-    if (!defaultModels.value.speechModelId) {
-      messageApi.error('请先在设置中选择默认语音转文字模型')
-      return
-    }
-    await startVoice()
-  }
-}
-
-const toggleSpeech = () => {
-  const newState = !speechEnabled.value
-
-  if (newState) {
-    const speechModel = currentChatAgent.value?.speechModel
-    if (!speechModel?.modelId || !speechModel?.providerId) {
-      messageApi.error('请先在智能体设置中选择语音模型')
-      return
-    }
-
-    const voice = currentChatAgent.value?.speechVoice
-    if (!voice) {
-      messageApi.error('请先在智能体设置中选择语音音色')
-      return
-    }
-  }
-
-  updateSpeechEnabled(newState)
-  if (!newState) {
-    speechStore.stop()
-    speechStore.clearQueue()
-  }
-}
 
 const toggleAssistantPanel = (tab?: 'canvas' | 'playlist') => {
   const targetTab = tab ?? display.value.assistantSidebarTab
@@ -1045,27 +319,6 @@ const toggleAssistantPanel = (tab?: 'canvas' | 'playlist') => {
   }
 }
 
-const MAX_EDITOR_ROWS = 5
-const MENTION_CHIP_SELECTOR = '[data-mention-chip="true"]'
-
-const adjustEditorHeight = (target: Event | HTMLElement | null | undefined) => {
-  const editor =
-    target instanceof HTMLElement ? target : (target?.target as HTMLElement | null)
-  if (!editor) return
-
-  const style = window.getComputedStyle(editor)
-  const lineHeight = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.4
-  const verticalPadding =
-    Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom)
-  const maxHeight = Math.ceil(lineHeight * MAX_EDITOR_ROWS + verticalPadding)
-
-  editor.style.height = 'auto'
-  editor.style.height = `${Math.min(editor.scrollHeight, maxHeight)}px`
-  editor.style.overflowY = editor.scrollHeight > maxHeight ? 'auto' : 'hidden'
-}
-
-const isComposing = ref(false)
-
 const desktopPlaceholder = computed(() => {
   if (isProcessingVoice.value) return '正在处理语音...'
   if (currentChatModel.value?.name && currentChatProvider.value?.name) {
@@ -1081,623 +334,35 @@ const mobilePlaceholder = computed(() => {
   return '发消息或按住说话...'
 })
 
-const handleCompositionStart = () => {
-  isComposing.value = true
-}
-
-const handleCompositionEnd = () => {
-  isComposing.value = false
-}
-
-type MentionChip = {
-  id: string
-  kind: 'skills' | 'file' | 'note' | 'agent'
-  kindLabel: string
-  label: string
-  raw: string
-}
-
-type MentionToken = MentionChip & { start: number, end: number }
-
-const FORMAL_MENTION_REGEX =
-  /@(skills|技能|file|文件|note|笔记|agent|智能体):(?:"((?:\\"|[^"])*)"|'([^'\n\r]*)'|([^\s]+))/gi
-const CONFIRMED_MENTION_START = '<|at_start|>'
-const CONFIRMED_MENTION_END = '<|at_end|>'
-const CONFIRMED_MENTION_REGEX =
-  /<\|at_start\|>@?((skills|技能|file|文件|note|笔记|agent|智能体):(?:"((?:\\"|[^"])*)"|'([^'\n\r]*)'|([^\s<>]+)))<\|at_end\|>/gi
-
-const mentionKindLabelMap: Record<MentionChip['kind'], string> = {
-  skills: '技能',
-  file: '文件',
-  note: '笔记',
-  agent: '智能体'
-}
-
-const normalizeMentionKind = (kind: string): MentionChip['kind'] => {
-  const normalizedKind = kind.toLowerCase()
-  if (normalizedKind === 'file' || kind === '文件') return 'file'
-  if (normalizedKind === 'note' || kind === '笔记') return 'note'
-  if (normalizedKind === 'agent' || kind === '智能体') return 'agent'
-  return 'skills'
-}
-
-const unescapeMentionLabel = (label: string) => label.replace(/\\"/g, '"').trim()
-
-const createMentionChipId = (kind: MentionChip['kind'], raw: string) => {
-  return `${kind}:${raw}:${Date.now()}:${Math.random().toString(36).slice(2)}`
-}
-
-const wrapConfirmedMention = (raw: string) => {
-  return `${CONFIRMED_MENTION_START}${raw.replace(/^@/, '')}${CONFIRMED_MENTION_END}`
-}
-
-const escapeRegexSource = (source: string) => source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-const unwrapConfirmedMentions = (text: string) => {
-  return text.replace(CONFIRMED_MENTION_REGEX, '@$1')
-}
-
-const separateConfirmedMentionsForSend = (text: string) => {
-  const confirmedMentionEndPattern = new RegExp(
-    `${escapeRegexSource(CONFIRMED_MENTION_END)}(?=[^\\s)\\]};,.!?'"，。！？、】【])`,
-    'g'
-  )
-
-  return text.replace(confirmedMentionEndPattern, `${CONFIRMED_MENTION_END} `)
-}
-
-const parseMentionTokens = (text: string) => {
-  const tokens: MentionToken[] = []
-
-  for (const match of text.matchAll(CONFIRMED_MENTION_REGEX)) {
-    const raw = match[1]
-    const rawKind = match[2] || 'skills'
-    const kind = normalizeMentionKind(rawKind)
-    const label = unescapeMentionLabel(match[3] || match[4] || match[5] || '')
-    const start = match.index ?? 0
-    const end = start + match[0].length
-
-    if (!label) continue
-
-    tokens.push({
-      id: createMentionChipId(kind, raw),
-      kind,
-      kindLabel: mentionKindLabelMap[kind],
-      label,
-      raw,
-      start,
-      end
-    })
-  }
-
-  return tokens
-}
-
-const confirmMentionTokens = (text: string) => {
-  return text.replace(FORMAL_MENTION_REGEX, (raw) => wrapConfirmedMention(raw))
-}
-
-const isRenderingEditor = ref(false)
-const isSyncingMessageFromEditor = ref(false)
-const isSettingEditorMessageProgrammatically = ref(false)
-const activeMentionChipNode = ref<HTMLElement | null>(null)
-
-const createMentionChipNode = (chip: MentionChip) => {
-  const chipNode = document.createElement('span')
-  chipNode.className = `mention-chip mention-chip--${chip.kind}`
-  chipNode.contentEditable = 'false'
-  chipNode.dataset.mentionChip = 'true'
-  chipNode.dataset.raw = chip.raw
-  chipNode.dataset.kind = chip.kind
-  chipNode.title = `${chip.kindLabel}: ${chip.label}`
-
-  const kindNode = document.createElement('span')
-  kindNode.className = 'mention-chip__kind'
-  kindNode.textContent = chip.kindLabel
-
-  const labelNode = document.createElement('span')
-  labelNode.className = 'mention-chip__label'
-  labelNode.textContent = chip.label
-
-  const closeNode = document.createElement('span')
-  closeNode.className = 'mention-chip__close'
-  closeNode.setAttribute('aria-hidden', 'true')
-
-  chipNode.append(kindNode, labelNode, closeNode)
-  return chipNode
-}
-
-const stripCaretAnchors = (text: string) => text.replace(/\u200B/g, '')
-const editorIsEmpty = computed(() => stripCaretAnchors(message.value).trim().length === 0)
-
-const resolveDomOffsetFromSerializedTextOffset = (text: string, serializedOffset: number) => {
-  if (serializedOffset <= 0) return text.startsWith('\u200B') ? 1 : 0
-
-  let visibleOffset = 0
-  for (let index = 0; index < text.length; index += 1) {
-    if (text[index] !== '\u200B') {
-      visibleOffset += 1
-    }
-    if (visibleOffset >= serializedOffset) {
-      return index + 1
-    }
-  }
-
-  return text.length
-}
-
-const resolveSerializedOffsetFromDomTextOffset = (text: string, domOffset: number) => {
-  return stripCaretAnchors(text.slice(0, domOffset)).length
-}
-
-const renderEditorContent = () => {
-  const editor = textareaRef.value
-  if (!editor) return
-
-  isRenderingEditor.value = true
-  editor.replaceChildren()
-
-  const text = message.value
-  const tokens = parseMentionTokens(text)
-  let offset = 0
-
-  for (const token of tokens) {
-    if (token.start > offset) {
-      editor.append(document.createTextNode(text.slice(offset, token.start)))
-    }
-
-    editor.append(createMentionChipNode(token))
-    offset = token.end
-  }
-
-  if (offset < text.length) {
-    editor.append(document.createTextNode(text.slice(offset)))
-  }
-
-  isRenderingEditor.value = false
-  adjustEditorHeight(editor)
-}
-
-const serializeEditorNode = (node: Node): string => {
-  if (node.nodeType === Node.TEXT_NODE) {
-    return stripCaretAnchors(node.textContent || '')
-  }
-
-  if (!(node instanceof HTMLElement)) return ''
-
-  if (node.matches(MENTION_CHIP_SELECTOR)) {
-    return wrapConfirmedMention(node.dataset.raw || '')
-  }
-
-  if (node.tagName === 'BR') return '\n'
-
-  return Array.from(node.childNodes).map(serializeEditorNode).join('')
-}
-
-const serializeEditorContent = () => {
-  const editor = textareaRef.value
-  if (!editor) return ''
-  return Array.from(editor.childNodes).map(serializeEditorNode).join('')
-}
-
-const serializeEditorRange = (range: Range) => {
-  const fragment = range.cloneContents()
-  return Array.from(fragment.childNodes).map(serializeEditorNode).join('')
-}
-
-const getMentionChipNodes = () => {
-  return Array.from(textareaRef.value?.querySelectorAll<HTMLElement>(MENTION_CHIP_SELECTOR) || [])
-}
-
-const getClosestMentionChipNode = (node: Node | null) => {
-  const element = node instanceof HTMLElement ? node : node?.parentElement
-  return element?.closest?.(MENTION_CHIP_SELECTOR) as HTMLElement | null
-}
-
-const setActiveMentionChipNode = (chipNode: HTMLElement | null) => {
-  if (activeMentionChipNode.value === chipNode) return
-  activeMentionChipNode.value?.classList.remove('is-active')
-  activeMentionChipNode.value = chipNode
-  activeMentionChipNode.value?.classList.add('is-active')
-}
-
-const getActiveMentionChipNode = () => {
-  const editor = textareaRef.value
-  const selection = window.getSelection()
-  if (!editor) return null
-
-  if (activeMentionChipNode.value?.isConnected && editor.contains(activeMentionChipNode.value)) {
-    return activeMentionChipNode.value
-  }
-
-  const anchorChip = getClosestMentionChipNode(selection?.anchorNode ?? null)
-  if (anchorChip && editor.contains(anchorChip)) return anchorChip
-
-  const focusChip = getClosestMentionChipNode(selection?.focusNode ?? null)
-  if (focusChip && editor.contains(focusChip)) return focusChip
-
-  return null
-}
-
-const isRangeIntersectingNode = (range: Range, node: Node) => {
-  try {
-    return range.intersectsNode(node)
-  } catch {
-    return false
-  }
-}
-
-const getSelectedMentionChipNodes = (range: Range | null = null) => {
-  const chips = getMentionChipNodes()
-  if (!range) return chips.filter((chip) => chip.classList.contains('is-selected'))
-  return chips.filter((chip) => isRangeIntersectingNode(range, chip))
-}
-
-const updateMentionChipSelectionState = () => {
-  const editor = textareaRef.value
-  const selection = window.getSelection()
-  const chips = getMentionChipNodes()
-
-  chips.forEach((chip) => chip.classList.remove('is-selected'))
-  if (!editor || !selection || selection.rangeCount === 0 || selection.isCollapsed) return
-
-  const range = selection.getRangeAt(0)
-  if (!isRangeIntersectingNode(range, editor)) return
-
-  getSelectedMentionChipNodes(range).forEach((chip) => chip.classList.add('is-selected'))
-}
-
-const resolveEditorClipboardPayload = () => {
-  const editor = textareaRef.value
-  const selection = window.getSelection()
-  if (!editor || !selection || selection.rangeCount === 0) return null
-
-  const range = selection.getRangeAt(0)
-  if (!selection.isCollapsed && editor.contains(range.commonAncestorContainer)) {
-    const selectedChipNodes = getSelectedMentionChipNodes(range)
-    const text = serializeEditorRange(range)
-    if (text) return { text, range, chipNode: null as HTMLElement | null }
-
-    const selectedChipText = selectedChipNodes.map(serializeEditorNode).join('')
-    if (selectedChipText) return { text: selectedChipText, range, chipNode: null as HTMLElement | null }
-  }
-
-  const chipNode = getActiveMentionChipNode()
-  if (!chipNode) return null
-
-  const text = serializeEditorNode(chipNode)
-  return text ? { text, range: null, chipNode } : null
-}
-
-const getNodeSerializedLength = (node: Node) => serializeEditorNode(node).length
-
-const getEditorCaretOffset = () => {
-  const editor = textareaRef.value
-  const selection = window.getSelection()
-  if (!editor || !selection || selection.rangeCount === 0) return message.value.length
-
-  const range = selection.getRangeAt(0)
-  if (!editor.contains(range.startContainer)) return message.value.length
-
-  let offset = 0
-  let found = false
-
-  const walk = (node: Node) => {
-    if (found) return
-
-    if (node === range.startContainer) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        offset += resolveSerializedOffsetFromDomTextOffset(node.textContent || '', range.startOffset)
-      } else {
-        const children = Array.from(node.childNodes).slice(0, range.startOffset)
-        offset += children.reduce((sum, child) => sum + getNodeSerializedLength(child), 0)
-      }
-      found = true
-      return
-    }
-
-    if (node instanceof HTMLElement && node.matches(MENTION_CHIP_SELECTOR)) {
-      offset += getNodeSerializedLength(node)
-      return
-    }
-
-    for (const child of Array.from(node.childNodes)) {
-      walk(child)
-      if (found) return
-    }
-  }
-
-  walk(editor)
-  return offset
-}
-
-const setEditorCaretOffset = (targetOffset: number) => {
-  const editor = textareaRef.value
-  if (!editor) return
-
-  const selection = window.getSelection()
-  if (!selection) return
-
-  let offset = Math.min(Math.max(targetOffset, 0), serializeEditorContent().length)
-  const range = document.createRange()
-
-  const placeAtEnd = () => {
-    range.selectNodeContents(editor)
-    range.collapse(false)
-  }
-
-  const walk = (node: Node): boolean => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent || ''
-      const length = stripCaretAnchors(text).length
-      if (offset <= length) {
-        range.setStart(node, resolveDomOffsetFromSerializedTextOffset(text, offset))
-        range.collapse(true)
-        return true
-      }
-      offset -= length
-      return false
-    }
-
-    if (node instanceof HTMLElement && node.matches(MENTION_CHIP_SELECTOR)) {
-      const length = getNodeSerializedLength(node)
-      if (offset <= length) {
-        range.setStartAfter(node)
-        range.collapse(true)
-        return true
-      }
-      offset -= length
-      return false
-    }
-
-    for (const child of Array.from(node.childNodes)) {
-      if (walk(child)) return true
-    }
-
-    return false
-  }
-
-  if (!walk(editor)) {
-    placeAtEnd()
-  }
-
-  selection.removeAllRanges()
-  selection.addRange(range)
-}
-
-const syncEditorMessage = () => {
-  if (isRenderingEditor.value) return
-  isSyncingMessageFromEditor.value = true
-  message.value = serializeEditorContent()
-  nextTick(() => {
-    isSyncingMessageFromEditor.value = false
-  })
-}
-
-const focusEditorAtEnd = () => {
-  const editor = textareaRef.value
-  if (!editor) return
-  editor.focus()
-  setEditorCaretOffset(serializeEditorContent().length)
-}
-
-const insertEditorTextAtCursor = (text: string) => {
-  const editor = textareaRef.value
-  const selection = window.getSelection()
-  if (!editor || !selection || selection.rangeCount === 0) return
-
-  const range = selection.getRangeAt(0)
-  range.deleteContents()
-  const textNode = document.createTextNode(text)
-  range.insertNode(textNode)
-  range.setStartAfter(textNode)
-  range.collapse(true)
-  selection.removeAllRanges()
-  selection.addRange(range)
-  syncEditorMessage()
-  adjustEditorHeight(editor)
-  atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
-}
-
-const normalizeEditorProtocolMentions = () => {
-  const editor = textareaRef.value
-  if (!editor?.textContent?.includes(CONFIRMED_MENTION_START)) return false
-
-  const cursor = message.value.length
-  renderEditorContent()
-  textareaRef.value?.focus()
-  setEditorCaretOffset(cursor)
-  adjustEditorHeight(textareaRef.value)
-  return true
-}
-
-const applyMention = (payload: { message: string; cursor: number }) => {
-  const originalBeforeCursor = payload.message.slice(0, payload.cursor)
-  const confirmedBeforeCursor = confirmMentionTokens(originalBeforeCursor).replace(
-    new RegExp(`${escapeRegexSource(CONFIRMED_MENTION_END)} $`),
-    CONFIRMED_MENTION_END
-  )
-  isSettingEditorMessageProgrammatically.value = true
-  message.value = `${confirmedBeforeCursor}${confirmMentionTokens(payload.message.slice(payload.cursor))}`
-  const cursor = confirmedBeforeCursor.length
-
-  nextTick(() => {
-    renderEditorContent()
-    textareaRef.value?.focus()
-    setEditorCaretOffset(cursor)
-    adjustEditorHeight(textareaRef.value)
-    isSettingEditorMessageProgrammatically.value = false
-  })
-}
-
-const previewMention = (payload: { message: string; cursor: number }) => {
-  isSettingEditorMessageProgrammatically.value = true
-  message.value = payload.message
-
-  nextTick(() => {
-    renderEditorContent()
-    textareaRef.value?.focus()
-    setEditorCaretOffset(payload.cursor)
-    adjustEditorHeight(textareaRef.value)
-    isSettingEditorMessageProgrammatically.value = false
-  })
-}
-
-const handleEditorInput = (event: Event) => {
-  syncEditorMessage()
-  normalizeEditorProtocolMentions()
-  adjustEditorHeight(event)
-  atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
-}
-
-const syncMentionPanelFromEditor = () => {
-  syncEditorMessage()
-  atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
-}
-
-const lockedEditorSelection = ref<number | null>(null)
-
-const restoreLockedEditorSelection = () => {
-  if (lockedEditorSelection.value == null || !textareaRef.value) return
-
-  textareaRef.value.focus()
-  setEditorCaretOffset(lockedEditorSelection.value)
-}
-
-const lockEditorCursorWhileMentionPanelOpen = (event: Event) => {
-  if (!atPanelRef.value?.isMentionPanelOpen?.()) return
-
-  lockedEditorSelection.value = getEditorCaretOffset()
-
-  event.preventDefault()
-  atPanelRef.value?.clearCloseTimer()
-  restoreLockedEditorSelection()
-}
-
-const handleEditorClickWhileMentionPanelOpen = (event: MouseEvent) => {
-  if (!atPanelRef.value?.isMentionPanelOpen?.()) return
-
-  event.preventDefault()
-  restoreLockedEditorSelection()
-}
-
-watch(message, () => {
-  if (isSyncingMessageFromEditor.value || isSettingEditorMessageProgrammatically.value) return
-  nextTick(() => {
-    renderEditorContent()
-  })
+const {
+  editorIsEmpty,
+  adjustEditorHeight,
+  renderEditorContent,
+  syncEditorMessage,
+  focusEditorAtEnd,
+  getEditorCaretOffset,
+  updateMentionChipSelectionState,
+  applyMention,
+  previewMention,
+  handleEditorInput,
+  handleEditorKeydown,
+  handleEditorKeyup,
+  handleEditorPaste,
+  handleEditorCopy,
+  handleEditorCut,
+  handleEditorClick,
+  lockEditorCursorWhileMentionPanelOpen,
+  handleCompositionStart,
+  handleCompositionEnd
+} = useMentionEditor({
+  message,
+  textareaRef,
+  atPanelRef,
+  onSend: () => {
+    void _sendMessage()
+  },
+  isProcessingVoice
 })
-
-const insertEditorNewline = () => {
-  insertEditorTextAtCursor('\n')
-}
-
-const handleEditorPaste = (event: ClipboardEvent) => {
-  const hasFile = Array.from(event.clipboardData?.items || []).some((item) => item.kind === 'file')
-  if (hasFile) return
-
-  const text = event.clipboardData?.getData('text/plain')
-  if (text == null) return
-
-  event.preventDefault()
-  insertEditorTextAtCursor(text)
-  normalizeEditorProtocolMentions()
-}
-
-const handleEditorCopy = (event: ClipboardEvent) => {
-  const payload = resolveEditorClipboardPayload()
-  if (!payload) return
-  event.preventDefault()
-  event.clipboardData?.setData('text/plain', payload.text)
-}
-
-const handleEditorCut = (event: ClipboardEvent) => {
-  const payload = resolveEditorClipboardPayload()
-  if (!payload) return
-
-  event.preventDefault()
-  event.clipboardData?.setData('text/plain', payload.text)
-
-  if (payload.chipNode) {
-    payload.chipNode.remove()
-    setActiveMentionChipNode(null)
-  } else if (payload.range) {
-    const selection = window.getSelection()
-    payload.range.deleteContents()
-    selection?.removeAllRanges()
-    selection?.addRange(payload.range)
-  }
-
-  syncEditorMessage()
-  adjustEditorHeight(textareaRef.value)
-}
-
-const removeMentionChipNode = (chipNode: HTMLElement) => {
-  chipNode.remove()
-  setActiveMentionChipNode(null)
-  syncEditorMessage()
-
-  nextTick(() => {
-    textareaRef.value?.focus()
-    adjustEditorHeight(textareaRef.value)
-    atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
-  })
-}
-
-const handleEditorClick = (event: MouseEvent) => {
-  const target = event.target as HTMLElement | null
-  const chipNode = target?.closest?.(MENTION_CHIP_SELECTOR) as HTMLElement | null
-
-  if (chipNode && target?.closest?.('.mention-chip__close')) {
-    event.preventDefault()
-    removeMentionChipNode(chipNode)
-    return
-  }
-
-  setActiveMentionChipNode(chipNode)
-  handleEditorClickWhileMentionPanelOpen(event)
-}
-
-const handleEditorKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && event.ctrlKey) {
-    event.preventDefault()
-    insertEditorNewline()
-    return
-  }
-
-  const mentionResult = atPanelRef.value?.handleKeydown(event, message.value, getEditorCaretOffset())
-  if (mentionResult?.handled) {
-    if (mentionResult.payload) {
-      applyMention(mentionResult.payload)
-    }
-    return
-  }
-
-  if (event.key === '@' && !atPanelRef.value?.isMentionPanelOpen?.()) {
-    nextTick(() => {
-      syncEditorMessage()
-      atPanelRef.value?.syncMentionState(message.value, getEditorCaretOffset())
-    })
-  }
-
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    if (isComposing.value) return
-    _sendMessage()
-  }
-}
-
-const handleEditorKeyup = (event: KeyboardEvent) => {
-  if (isComposing.value) return
-  if (
-    event.key === '@' ||
-    event.key.length === 1 ||
-    event.key === 'Backspace' ||
-    event.key === 'Delete'
-  ) {
-    nextTick(syncMentionPanelFromEditor)
-  }
-}
 
 // 正则匹配 @agent:xxx 或 @智能体:xxx
 const AGENT_MENTION_REGEX = /@(?:agent|智能体):([^\s]+)/gi
@@ -1820,31 +485,12 @@ onUnmounted(() => {
 
 <template>
   <footer class="footer" :class="{ 'is-centered': display.chatCenteredLayout, 'is-mobile': isMobile }">
-    <!-- 预发送消息列表 -->
-    <div v-if="pendingMessages.length > 0" class="pending-messages-container">
-      <div class="pending-messages-header">
-        <PendingIcon class="pending-icon" />
-        <span class="pending-title">预发送队列 ({{ pendingMessages.length }})</span>
-        <span v-if="isGenerating" class="pending-status">等待AI回复中...</span>
-      </div>
-      <div class="pending-messages-list">
-        <div v-for="item in pendingMessages" :key="item.id" class="pending-message-item">
-          <span class="pending-message-text">{{ getPendingMessagePreview(item.parts) }}</span>
-          <div class="pending-message-actions">
-            <Button variant="text" size="sm" class="guide-btn" title="停止当前生成，并让这条消息下一条进入上下文"
-              @click="guidePendingMessage(item.id)">
-              <template #icon>
-                <SendIcon />
-              </template>
-              引导
-            </Button>
-            <Button variant="icon" size="sm" class="remove-btn" @click="removePendingMessage(item.id)">
-              <CloseIcon />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <PendingMessages
+      :pending-messages="pendingMessages"
+      :is-generating="isGenerating"
+      @guide="guidePendingMessage"
+      @remove="removePendingMessage"
+    />
 
     <div class="input-container" ref="inputContainerRef"
       :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
@@ -1879,194 +525,53 @@ onUnmounted(() => {
           <div v-if="partialSpeechText" class="partial-text">{{ partialSpeechText }}</div>
         </div>
 
-        <div class="input-actions">
-          <div class="action-left">
-            <template v-for="btnId in visibleInputButtons" :key="btnId">
-              <Button v-if="btnId === 'upload'" variant="icon" size="sm" @click="fileUploadRef?.triggerUpload!">
-                <FileUploadIcon />
-              </Button>
-              <Button
-                v-else-if="btnId === 'inputAudio'"
-                variant="icon"
-                size="sm"
-                :class="{ 'input-audio-active': showInputAudioControls || inputAudioIsActive }"
-                aria-label="录入 input_audio"
-                title="录入 input_audio"
-                @click="toggleInputAudioPanel"
-              >
-                <InputAudioIcon />
-              </Button>
-              <ThinkingModeButton v-else-if="btnId === 'thinking'" :provider-type="currentChatProvider?.providerType" :provider-id="currentChatProvider?.id" :model-id="chatModelId" />
-
-              <Button v-else-if="btnId === 'settings'" variant="icon" size="sm" title="参数设置" @click="openProviderOptionsModal">
-                <SettingsIcon />
-              </Button>
-              <Button
-                v-else-if="btnId === 'toolFeatures'"
-                variant="icon"
-                size="sm"
-                :class="{ 'tool-features-active': currentChatToolFeaturesEnabled }"
-                :title="currentChatToolFeaturesEnabled ? '本对话已启用技能、内置工具和 MCP' : '本对话已禁用自动技能、内置工具和 MCP，@技能引用仍可用'"
-                @click="toggleCurrentChatToolFeatures"
-              >
-                <ToolFeaturesIcon />
-              </Button>
-              <div v-else-if="btnId === 'tokenUsage'" class="token-usage-popover">
-                <Button
-                  variant="icon"
-                  size="sm"
-                  class="token-usage-btn"
-                  aria-label="当前上下文 Token 统计"
-                  :title="currentChatContextTokens.tooltip"
-                >
-                  <InfoCircle />
-                </Button>
-                <div class="token-usage-panel">
-                  <div class="token-usage-panel-title">当前上下文 Token</div>
-                  <template v-if="currentChatContextTokens.hasContext">
-                    <div class="token-usage-panel-row">
-                      <span>总计</span>
-                      <strong>{{ currentChatContextTokens.totalDisplay }}</strong>
-                    </div>
-                    <div class="token-usage-panel-row">
-                      <span>上下文消息</span>
-                      <span>{{ currentChatContextTokens.contextMessageCountDisplay }}</span>
-                    </div>
-                  </template>
-                  <div v-else class="token-usage-panel-empty">暂无可用统计</div>
-                </div>
-              </div>
-
-              <Button v-else-if="btnId === 'voice'" variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }" @click="toggleVoiceRecording"
-                :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'">
-                <MicIcon v-if="!voiceIsActive" />
-                <MicOffIcon v-else />
-              </Button>
-
-              <Button v-else-if="btnId === 'speech'" variant="icon" size="sm" :class="{ 'speech-active': speechEnabled }" @click="toggleSpeech"
-                :title="speechEnabled ? '关闭语音播报' : '开启语音播报'">
-                <VolumeIcon v-if="speechEnabled" />
-                <VolumeMuteIcon v-else />
-              </Button>
-
-              <Button v-else-if="btnId === 'stop' && isScopeGenerating" variant="icon" size="sm" class="stop-all-btn" title="停止当前聊天内全部生成"
-                @click="stopAllGeneratingInCurrentChat">
-                <StopIcon />
-              </Button>
-
-              <ChatAgentSelector v-else-if="btnId === 'agent'" type="icon" />
-              <ModelSelector v-else-if="btnId === 'model'" type="icon" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" />
-              <SelectorPopover v-else-if="btnId === 'chatSwitcher'" v-model:visible="showChatSwitcher" v-model:search-query="chatSwitcherQuery" width="380px"
-                position="top">
-                <template #trigger>
-                  <button class="chat-switcher-trigger no-drag" :class="{ active: showChatSwitcher }" type="button"
-                    title="聊天列表">
-                    <HistoryIcon />
-                  </button>
-                </template>
-                <template #content>
-                  <div class="chat-switcher-panel">
-                    <div class="chat-switcher-search-shell">
-                      <Search class="chat-switcher-search-icon" />
-                      <input v-model="chatSwitcherQuery" class="chat-switcher-search-input" placeholder="搜索最近任务"
-                        type="text" />
-                    </div>
-                    <div class="chat-switcher-toolbar">
-                      <button class="chat-switcher-filter" type="button">
-                        <span>聊天列表</span>
-                        <ChevronDown />
-                      </button>
-                      <Button variant="icon" size="sm" title="新建聊天" class="chat-switcher-add-btn"
-                        @click.stop="openCreateChatInline">
-                        <CommentAdd16Regular />
-                      </Button>
-                    </div>
-
-                    <div v-if="chatSwitcherMode === 'create' || chatSwitcherMode === 'rename'"
-                      class="chat-switcher-inline-card">
-                      <div class="chat-switcher-inline-title">
-                        {{ chatSwitcherMode === 'create' ? '新建聊天' : '重命名聊天' }}
-                      </div>
-                      <input v-model="chatSwitcherDraftTitle" class="chat-switcher-input"
-                        :placeholder="chatSwitcherMode === 'create' ? '输入聊天名称' : '输入新的名称'" @keydown.enter.stop.prevent="
-                          chatSwitcherMode === 'create'
-                            ? submitCreateChatInline()
-                            : submitRenameChatInline()
-                          " />
-                      <div class="chat-switcher-inline-actions">
-                        <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState">取消</Button>
-                        <Button variant="primary" size="sm"
-                          :disabled="chatSwitcherMode === 'rename' && !chatSwitcherDraftTitle.trim()" @click.stop="
-                            chatSwitcherMode === 'create'
-                              ? submitCreateChatInline()
-                              : submitRenameChatInline()
-                            ">
-                          {{ chatSwitcherMode === 'create' ? '创建' : '保存' }}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div v-else-if="chatSwitcherMode === 'delete' && chatSwitcherTargetChat"
-                      class="chat-switcher-inline-card danger">
-                      <div class="chat-switcher-inline-title">删除聊天</div>
-                      <div class="chat-switcher-delete-text">
-                        确定删除“{{ chatSwitcherTargetChat.title }}”吗？
-                      </div>
-                      <div class="chat-switcher-inline-actions">
-                        <Button variant="secondary" size="sm" @click.stop="resetChatSwitcherState">取消</Button>
-                        <Button variant="primary" size="sm" danger @click.stop="submitDeleteChatInline">删除</Button>
-                      </div>
-                    </div>
-
-                    <div class="chat-switcher-list">
-                      <div v-for="chat in filteredChats" :key="chat.id" class="chat-switcher-item"
-                        :class="{ active: chatStore.activeChatId === chat.id }" @click="selectChatFromSwitcher(chat.id)"
-                        @keydown.enter.prevent="selectChatFromSwitcher(chat.id)" tabindex="0" role="button">
-                        <div class="chat-switcher-item-main">
-                          <div class="chat-switcher-item-top">
-                            <span class="chat-switcher-item-title">{{ chat.title }}</span>
-                          </div>
-                          <div class="chat-switcher-item-bottom" v-if="
-                            getChatSecondaryText(chat) ||
-                            chat.parentChatId ||
-                            isChatGenerating(chat)
-                          ">
-                            <span v-if="getChatSecondaryText(chat)" class="chat-switcher-item-subtitle">
-                              {{ getChatSecondaryText(chat) }}
-                            </span>
-                            <span v-if="chat.parentChatId" class="chat-switcher-badge">子会话</span>
-                            <span v-if="isChatGenerating(chat)" class="chat-switcher-badge generating">生成中</span>
-                          </div>
-                        </div>
-                        <div class="chat-switcher-item-actions" @click.stop>
-                          <Button variant="icon" size="sm" title="重命名" @click.stop="openRenameChatInline(chat)">
-                            <Edit />
-                          </Button>
-                          <Button variant="icon" size="sm" danger title="删除" @click.stop="openDeleteChatInline(chat)">
-                            <Delete />
-                          </Button>
-                        </div>
-                      </div>
-                      <div v-if="!filteredChats.length" class="chat-switcher-empty">
-                        没找到匹配的聊天
-                      </div>
-                    </div>
-                  </div>
-                </template>
-              </SelectorPopover>
-              <button v-else-if="btnId === 'workpath' && canChooseLocalWorkPath" type="button" class="workpath-trigger no-drag"
-                :class="{ 'workpath-active': currentAgentWorkPath }" :title="workPathButtonTitle"
-                @click="chooseCurrentAgentWorkPath" @contextmenu="openWorkPathContextMenu">
-                {{ workPathButtonLabel }}
-              </button>
-            </template>
-          </div>
-          <div class="action-right">
-            <Button variant="primary" size="md" @click="_sendMessage">
-              {{ isGenerating && pendingMessages.length > 0 ? '加入队列' : '发送' }}
-            </Button>
-          </div>
-        </div>
+        <DesktopInputActions
+          v-model:provider-id="chatProviderId"
+          v-model:model-id="chatModelId"
+          v-model:show-chat-switcher="showChatSwitcher"
+          v-model:chat-switcher-query="chatSwitcherQuery"
+          v-model:chat-switcher-mode="chatSwitcherMode"
+          v-model:chat-switcher-draft-title="chatSwitcherDraftTitle"
+          :visible-input-buttons="visibleInputButtons"
+          :current-chat-provider="currentChatProvider"
+          :current-chat-context-tokens="currentChatContextTokens"
+          :current-chat-tool-features-enabled="currentChatToolFeaturesEnabled"
+          :show-input-audio-controls="showInputAudioControls"
+          :input-audio-active="inputAudioIsActive"
+          :voice-is-active="voiceIsActive"
+          :is-recording="isRecording"
+          :speech-enabled="speechEnabled"
+          :is-scope-generating="isScopeGenerating"
+          :is-generating="isGenerating"
+          :pending-messages-count="pendingMessages.length"
+          :can-choose-local-work-path="canChooseLocalWorkPath"
+          :current-agent-work-path="currentAgentWorkPath"
+          :work-path-button-title="workPathButtonTitle"
+          :work-path-button-label="workPathButtonLabel"
+          :active-chat-id="chatStore.activeChatId || undefined"
+          :filtered-chats="filteredChats"
+          :chat-switcher-target-chat="chatSwitcherTargetChat"
+          :is-chat-generating="isChatGenerating"
+          :get-chat-secondary-text="getChatSecondaryText"
+          @upload="fileUploadRef?.triggerUpload?.()"
+          @toggle-input-audio="toggleInputAudioPanel"
+          @open-provider-options="openProviderOptionsModal"
+          @toggle-tool-features="toggleCurrentChatToolFeatures"
+          @toggle-voice="toggleVoiceRecording"
+          @toggle-speech="toggleSpeech"
+          @stop-generating="stopAllGeneratingInCurrentChat"
+          @send="_sendMessage"
+          @choose-work-path="chooseCurrentAgentWorkPath"
+          @open-work-path-menu="openWorkPathContextMenu"
+          @create-chat="openCreateChatInline"
+          @rename-chat="openRenameChatInline"
+          @delete-chat="openDeleteChatInline"
+          @reset-chat-switcher="resetChatSwitcherState"
+          @submit-create-chat="submitCreateChatInline"
+          @submit-rename-chat="submitRenameChatInline"
+          @submit-delete-chat="submitDeleteChatInline"
+          @select-chat="selectChatFromSwitcher"
+        />
       </div>
 
       <div v-else>
@@ -2077,49 +582,26 @@ onUnmounted(() => {
               <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
                 @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
                 @click.capture="handleMobileToolWrapperClickCapture">
-                <Button v-if="toolId === 'upload'" variant="icon" size="sm"
-                  @click="handleMobileToolClick('upload', $event)">
-                  <FileUploadIcon />
-                </Button>
-                <Button v-else-if="toolId === 'inputAudio'" variant="icon" size="sm"
-                  :class="{ 'input-audio-active': showInputAudioControls || inputAudioIsActive }"
-                  aria-label="录入 input_audio"
-                  title="录入 input_audio"
-                  @click="handleMobileToolClick('inputAudio', $event)">
-                  <InputAudioIcon />
-                </Button>
-                <Button v-else-if="toolId === 'voice'" variant="icon" size="sm"
-                  :class="{ 'voice-active': voiceIsActive }"
-                  :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
-                  @click="handleMobileToolClick('voice', $event)">
-                  <MicIcon v-if="!voiceIsActive" />
-                  <MicOffIcon v-else />
-                </Button>
-                <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" :provider-id="currentChatProvider?.id" :model-id="chatModelId" />
-                <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
-                  @click="handleMobileToolClick('settings', $event)">
-                  <SettingsIcon />
-                </Button>
-                <Button v-else-if="toolId === 'speech'" variant="icon" size="sm"
-                  :class="{ 'speech-active': speechEnabled }" :title="speechEnabled ? '关闭语音播报' : '开启语音播报'"
-                  @click="handleMobileToolClick('speech', $event)">
-                  <VolumeIcon v-if="speechEnabled" />
-                  <VolumeMuteIcon v-else />
-                </Button>
-                <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
-                  :class="{ 'speech-active': !display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist' }"
-                  :title="display.speechSidebarCollapsed || display.assistantSidebarTab !== 'playlist' ? '打开播放列表' : '关闭播放列表'"
-                  @click="handleMobileToolClick('playlist', $event)">
-                  <PlaylistIcon />
-                </Button>
-                <ChatAgentSelector v-else-if="toolId === 'agent'" type="icon" />
-                <ModelSelector v-else-if="toolId === 'model'" type="icon" v-model:model-id="chatModelId"
-                  v-model:provider-id="chatProviderId" />
-                <Button v-else-if="toolId === 'stop'" variant="icon" size="sm" class="stop-all-btn"
-                  :class="{ 'is-idle': !isScopeGenerating }" title="停止当前聊天内全部生成"
-                  @click="handleMobileToolClick('stop', $event)">
-                  <StopIcon />
-                </Button>
+                <MobileToolButton
+                  :tool-id="toolId"
+                  :provider-type="currentChatProvider?.providerType"
+                  :provider-id="currentChatProvider?.id || undefined"
+                  :model-id="chatModelId"
+                  :provider-model-id="chatProviderId"
+                  :input-audio-active="showInputAudioControls || inputAudioIsActive"
+                  :voice-active="voiceIsActive"
+                  :is-recording="isRecording"
+                  :speech-enabled="speechEnabled"
+                  :playlist-active="!display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist'"
+                  :is-scope-generating="isScopeGenerating"
+                  @action="handleMobileToolClick"
+                  @update:model-id="chatModelId = $event"
+                  @update:provider-model-id="chatProviderId = $event"
+                >
+                  <template #settings-icon>
+                    <SettingsIcon />
+                  </template>
+                </MobileToolButton>
               </div>
             </template>
           </div>
@@ -2151,49 +633,26 @@ onUnmounted(() => {
               <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
                 @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
                 @click.capture="handleMobileToolWrapperClickCapture">
-                <Button v-if="toolId === 'upload'" variant="icon" size="sm"
-                  @click="handleMobileToolClick('upload', $event)">
-                  <FileUploadIcon />
-                </Button>
-                <Button v-else-if="toolId === 'inputAudio'" variant="icon" size="sm"
-                  :class="{ 'input-audio-active': showInputAudioControls || inputAudioIsActive }"
-                  aria-label="录入 input_audio"
-                  title="录入 input_audio"
-                  @click="handleMobileToolClick('inputAudio', $event)">
-                  <InputAudioIcon />
-                </Button>
-                <Button v-else-if="toolId === 'voice'" variant="icon" size="sm"
-                  :class="{ 'voice-active': voiceIsActive }"
-                  :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
-                  @click="handleMobileToolClick('voice', $event)">
-                  <MicIcon v-if="!voiceIsActive" />
-                  <MicOffIcon v-else />
-                </Button>
-                <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" :provider-id="currentChatProvider?.id" :model-id="chatModelId" />
-                <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
-                  @click="handleMobileToolClick('settings', $event)">
-                  <SettingsIcon />
-                </Button>
-                <Button v-else-if="toolId === 'speech'" variant="icon" size="sm"
-                  :class="{ 'speech-active': speechEnabled }" :title="speechEnabled ? '关闭语音播报' : '开启语音播报'"
-                  @click="handleMobileToolClick('speech', $event)">
-                  <VolumeIcon v-if="speechEnabled" />
-                  <VolumeMuteIcon v-else />
-                </Button>
-                <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
-                  :class="{ 'speech-active': !display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist' }"
-                  :title="display.speechSidebarCollapsed || display.assistantSidebarTab !== 'playlist' ? '打开播放列表' : '关闭播放列表'"
-                  @click="handleMobileToolClick('playlist', $event)">
-                  <PlaylistIcon />
-                </Button>
-                <ChatAgentSelector v-else-if="toolId === 'agent'" type="icon" />
-                <ModelSelector v-else-if="toolId === 'model'" type="icon" v-model:model-id="chatModelId"
-                  v-model:provider-id="chatProviderId" />
-                <Button v-else-if="toolId === 'stop'" variant="icon" size="sm" class="stop-all-btn"
-                  :class="{ 'is-idle': !isScopeGenerating }" title="停止当前聊天内全部生成"
-                  @click="handleMobileToolClick('stop', $event)">
-                  <StopIcon />
-                </Button>
+                <MobileToolButton
+                  :tool-id="toolId"
+                  :provider-type="currentChatProvider?.providerType"
+                  :provider-id="currentChatProvider?.id || undefined"
+                  :model-id="chatModelId"
+                  :provider-model-id="chatProviderId"
+                  :input-audio-active="showInputAudioControls || inputAudioIsActive"
+                  :voice-active="voiceIsActive"
+                  :is-recording="isRecording"
+                  :speech-enabled="speechEnabled"
+                  :playlist-active="!display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist'"
+                  :is-scope-generating="isScopeGenerating"
+                  @action="handleMobileToolClick"
+                  @update:model-id="chatModelId = $event"
+                  @update:provider-model-id="chatProviderId = $event"
+                >
+                  <template #settings-icon>
+                    <SettingsIcon />
+                  </template>
+                </MobileToolButton>
               </div>
             </template>
           </div>
@@ -2214,48 +673,26 @@ onUnmounted(() => {
             <div v-if="isMobileToolVisible(toolId)" class="mobile-drag-tool" :class="mobileToolClass(toolId)"
               @pointerdown="onMobileToolPointerDown(toolId, $event)" @pointercancel="onMobileToolPointerCancel"
               @click.capture="handleMobileToolWrapperClickCapture">
-              <Button v-if="toolId === 'upload'" variant="icon" size="sm"
-                @click="handleMobileToolClick('upload', $event)">
-                <FileUploadIcon />
-              </Button>
-              <Button v-else-if="toolId === 'inputAudio'" variant="icon" size="sm"
-                :class="{ 'input-audio-active': showInputAudioControls || inputAudioIsActive }"
-                aria-label="录入 input_audio"
-                title="录入 input_audio"
-                @click="handleMobileToolClick('inputAudio', $event)">
-                <InputAudioIcon />
-              </Button>
-              <Button v-else-if="toolId === 'voice'" variant="icon" size="sm" :class="{ 'voice-active': voiceIsActive }"
-                :title="voiceIsActive ? (isRecording ? '正在录制' : '正在监听') : '语音输入'"
-                @click="handleMobileToolClick('voice', $event)">
-                <MicIcon v-if="!voiceIsActive" />
-                <MicOffIcon v-else />
-              </Button>
-              <ThinkingModeButton v-else-if="toolId === 'thinking'" :provider-type="currentChatProvider?.providerType" :provider-id="currentChatProvider?.id" :model-id="chatModelId" />
-              <Button v-else-if="toolId === 'settings'" variant="icon" size="sm" title="参数设置"
-                @click="handleMobileToolClick('settings', $event)">
-                <SettingsIcon />
-              </Button>
-              <Button v-else-if="toolId === 'speech'" variant="icon" size="sm"
-                :class="{ 'speech-active': speechEnabled }" :title="speechEnabled ? '关闭语音播报' : '开启语音播报'"
-                @click="handleMobileToolClick('speech', $event)">
-                <VolumeIcon v-if="speechEnabled" />
-                <VolumeMuteIcon v-else />
-              </Button>
-              <Button v-else-if="toolId === 'playlist'" variant="icon" size="sm"
-                :class="{ 'speech-active': !display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist' }"
-                :title="display.speechSidebarCollapsed || display.assistantSidebarTab !== 'playlist' ? '打开播放列表' : '关闭播放列表'"
-                @click="handleMobileToolClick('playlist', $event)">
-                <PlaylistIcon />
-              </Button>
-              <ChatAgentSelector v-else-if="toolId === 'agent'" type="icon" />
-              <ModelSelector v-else-if="toolId === 'model'" type="icon" v-model:model-id="chatModelId"
-                v-model:provider-id="chatProviderId" />
-              <Button v-else-if="toolId === 'stop'" variant="icon" size="sm" class="stop-all-btn"
-                :class="{ 'is-idle': !isScopeGenerating }" title="停止当前聊天内全部生成"
-                @click="handleMobileToolClick('stop', $event)">
-                <StopIcon />
-              </Button>
+              <MobileToolButton
+                :tool-id="toolId"
+                :provider-type="currentChatProvider?.providerType"
+                :provider-id="currentChatProvider?.id || undefined"
+                :model-id="chatModelId"
+                :provider-model-id="chatProviderId"
+                :input-audio-active="showInputAudioControls || inputAudioIsActive"
+                :voice-active="voiceIsActive"
+                :is-recording="isRecording"
+                :speech-enabled="speechEnabled"
+                :playlist-active="!display.speechSidebarCollapsed && display.assistantSidebarTab === 'playlist'"
+                :is-scope-generating="isScopeGenerating"
+                @action="handleMobileToolClick"
+                @update:model-id="chatModelId = $event"
+                @update:provider-model-id="chatProviderId = $event"
+              >
+                <template #settings-icon>
+                  <SettingsIcon />
+                </template>
+              </MobileToolButton>
             </div>
           </template>
         </div>
@@ -2280,970 +717,5 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.footer {
-  padding: 10px;
-  background: transparent;
-  width: 100%;
-  transition:
-    max-width 0.3s ease,
-    margin 0.3s ease;
-}
-
-.footer.is-centered {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-/* 预发送消息列表样式 */
-.pending-messages-container {
-  margin-bottom: 8px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 8px 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-}
-
-.pending-messages-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.chat-switcher-panel {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.chat-switcher-trigger {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  min-height: 24px;
-  padding: 4px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.18s ease;
-}
-
-.chat-switcher-trigger:hover,
-.chat-switcher-trigger.active {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-.chat-switcher-search-shell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 6px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  transition: border-color 0.2s;
-}
-
-.chat-switcher-search-shell:focus-within {
-  border-color: var(--border-focus);
-}
-
-.chat-switcher-search-icon {
-  width: 14px;
-  height: 14px;
-  color: var(--text-tertiary);
-}
-
-.chat-switcher-search-input {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text-primary);
-  font-size: 13px;
-}
-
-.chat-switcher-search-input::placeholder {
-  color: var(--text-tertiary);
-}
-
-.chat-switcher-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 28px;
-  padding: 0 4px;
-}
-
-.chat-switcher-filter {
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-
-.chat-switcher-filter:hover {
-  color: var(--text-primary);
-}
-
-.chat-switcher-add-btn {
-  flex-shrink: 0;
-  color: var(--text-secondary);
-}
-
-.chat-switcher-add-btn:hover {
-  color: var(--text-primary);
-}
-
-.chat-switcher-inline-card {
-  padding: 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-hover);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.chat-switcher-inline-card.danger {
-  border-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.3);
-  background: rgba(var(--color-danger-rgb, 239, 68, 68), 0.08);
-}
-
-.chat-switcher-inline-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.chat-switcher-input {
-  width: 100%;
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 12px;
-  padding: 6px 10px;
-  outline: none;
-  transition: all 0.2s;
-}
-
-.chat-switcher-input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb, 0, 123, 255), 0.15);
-}
-
-.chat-switcher-inline-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.chat-switcher-delete-text {
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.chat-switcher-list {
-  max-height: 300px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-right: 2px;
-}
-
-.chat-switcher-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.chat-switcher-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-switcher-list::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
-  border-radius: 2px;
-}
-
-.chat-switcher-list::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
-}
-
-.chat-switcher-item {
-  width: 100%;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  padding: 0 8px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.chat-switcher-item:hover {
-  background: var(--bg-hover);
-}
-
-.chat-switcher-item.active {
-  background: var(--bg-active);
-  border-color: var(--border-subtle);
-}
-
-.chat-switcher-item-main {
-  min-width: 0;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.chat-switcher-item-top {
-  min-width: 0;
-  flex: 1;
-  display: flex;
-  align-items: center;
-}
-
-.chat-switcher-item-title {
-  min-width: 0;
-  flex: 1;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.chat-switcher-item-bottom {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  gap: 4px;
-}
-
-.chat-switcher-item-subtitle {
-  max-width: 120px;
-  font-size: 11px;
-  color: var(--text-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.chat-switcher-badge {
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 1.2;
-}
-
-.chat-switcher-badge.generating {
-  background: rgba(var(--color-success-rgb, 16, 185, 129), 0.15);
-  color: var(--color-success);
-}
-
-.chat-switcher-item-actions {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.chat-switcher-item:hover .chat-switcher-item-actions,
-.chat-switcher-item.active .chat-switcher-item-actions {
-  opacity: 1;
-}
-
-.chat-switcher-item-actions :deep(.btn--icon) {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
-  border-radius: 4px;
-}
-
-.chat-switcher-item-actions :deep(.btn--icon svg) {
-  width: 12px;
-  height: 12px;
-}
-
-.chat-switcher-empty {
-  padding: 24px 12px;
-  text-align: center;
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-
-.pending-icon {
-  width: 14px;
-  height: 14px;
-  color: var(--color-primary);
-}
-
-.pending-title {
-  font-weight: 500;
-}
-
-.pending-status {
-  margin-left: auto;
-  color: var(--text-tertiary);
-  font-style: italic;
-}
-
-.pending-messages-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.pending-message-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px;
-  background: var(--bg-hover);
-  border-radius: 8px;
-  font-size: 12px;
-  transition: background-color 0.2s;
-}
-
-.pending-message-item:hover {
-  background: var(--bg-active);
-}
-
-.pending-message-text {
-  color: var(--text-primary);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-right: 8px;
-}
-
-.pending-message-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.guide-btn {
-  color: var(--color-primary);
-}
-
-.guide-btn:hover {
-  color: var(--color-primary);
-  opacity: 0.9;
-}
-
-.remove-btn {
-  opacity: 0.6;
-  transition: opacity 0.2s;
-}
-
-.remove-btn:hover {
-  opacity: 1;
-  color: var(--color-danger);
-}
-
-.input-container {
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-  display: flex;
-  flex-direction: column;
-  transition:
-    border 0.2s,
-    box-shadow 0.2s;
-  position: relative;
-}
-
-.input-container:focus-within {
-  border-color: var(--border-focus);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-}
-
-.input-container.drag-over {
-  border-color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.05);
-}
-
-.drag-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  pointer-events: none;
-}
-
-.drag-message {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-primary);
-  font-weight: 500;
-}
-
-.drag-message svg {
-  width: 32px;
-  height: 32px;
-}
-
-.input-wrapper {
-  position: relative;
-  width: 100%;
-}
-
-:deep(.mention-chip) {
-  box-sizing: border-box;
-  max-width: min(260px, 100%);
-  min-width: 0;
-  height: 14px;
-  padding: 0 4px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  display: inline-flex;
-  align-items: center;
-  vertical-align: text-bottom;
-  gap: 4px;
-  margin: 0 1px;
-  font-family: var(--font-stack);
-  font-size: 9px;
-  line-height: 1;
-  cursor: pointer;
-  user-select: none;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease;
-}
-
-:deep(.mention-chip:hover) {
-  border-color: var(--border-focus);
-  background: var(--bg-active);
-}
-
-:deep(.mention-chip.is-active) {
-  border-color: var(--border-focus);
-  background: var(--bg-active);
-}
-
-:deep(.mention-chip.is-selected) {
-  border-color: var(--color-primary);
-  background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.18);
-  color: var(--text-primary);
-}
-
-:deep(.mention-chip__kind) {
-  flex-shrink: 0;
-  color: var(--text-secondary);
-  font-weight: 700;
-}
-
-:deep(.mention-chip__label) {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-}
-
-:deep(.mention-chip__close) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  width: 10px;
-  height: 10px;
-  flex-shrink: 0;
-  color: var(--text-tertiary);
-}
-
-:deep(.mention-chip__close::before),
-:deep(.mention-chip__close::after) {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 1px;
-  border-radius: 999px;
-  background: currentColor;
-  transform-origin: center;
-}
-
-:deep(.mention-chip__close::before) {
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-:deep(.mention-chip__close::after) {
-  transform: translate(-50%, -50%) rotate(-45deg);
-}
-
-:deep(.mention-chip:hover .mention-chip__close) {
-  color: var(--color-danger);
-}
-
-:deep(.mention-chip--skills) {
-  background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
-}
-
-:deep(.mention-chip--file) {
-  background: rgba(var(--color-success-rgb, 16, 185, 129), 0.1);
-}
-
-:deep(.mention-chip--note) {
-  background: rgba(var(--color-warning-rgb, 245, 158, 11), 0.12);
-}
-
-:deep(.mention-chip--agent) {
-  background: rgba(var(--color-info-rgb, 59, 130, 246), 0.1);
-}
-
-.partial-text {
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  color: var(--text-tertiary);
-  pointer-events: none;
-  font-size: 12px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  opacity: 0.7;
-}
-
-.input-field {
-  box-sizing: border-box;
-  border: none;
-  outline: none;
-  width: 100%;
-  padding: 8px;
-  font-size: 12px;
-  font-family: var(--font-stack);
-  resize: none;
-  min-height: 24px;
-  overflow-y: hidden;
-  line-height: 1.4;
-  background: transparent;
-  color: var(--text-primary);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.editor-field {
-  cursor: text;
-  user-select: text;
-  line-height: 17px;
-}
-
-.editor-placeholder {
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  right: 8px;
-  z-index: 1;
-  color: var(--text-tertiary);
-  pointer-events: none;
-  font-size: 12px;
-  line-height: 17px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.mobile-editor-placeholder {
-  top: 8px;
-  font-size: 14px;
-}
-
-.editor-field[contenteditable='false'] {
-  cursor: not-allowed;
-  opacity: 0.72;
-}
-
-.input-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 6px;
-  margin-top: 4px;
-  border-top: 1px solid var(--border-color-light);
-}
-
-.action-left {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.action-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.token-usage-popover {
-  position: relative;
-  display: inline-flex;
-}
-
-.token-usage-btn {
-  color: var(--text-tertiary);
-}
-
-.token-usage-btn:hover {
-  color: var(--text-primary);
-}
-
-.token-usage-panel {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 10px);
-  transform: translateX(-50%) translateY(4px);
-  min-width: 150px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-card) 96%, white);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
-  z-index: 20;
-}
-
-.token-usage-popover:hover .token-usage-panel,
-.token-usage-popover:focus-within .token-usage-panel {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-.token-usage-panel-title {
-  margin-bottom: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.token-usage-panel-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.token-usage-panel-row+.token-usage-panel-row {
-  margin-top: 6px;
-}
-
-.token-usage-panel-row strong {
-  color: var(--text-primary);
-  font-weight: 700;
-}
-
-.token-usage-panel-empty {
-  font-size: 11px;
-  color: var(--text-tertiary);
-}
-
-.stop-all-btn:not(.is-idle) {
-  color: var(--color-danger);
-  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
-}
-
-.stop-all-btn:not(.is-idle):hover {
-  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
-}
-
-.stop-all-btn.is-idle {
-  color: var(--text-secondary);
-  background: transparent;
-  opacity: 0.45;
-}
-
-.tool-features-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
-}
-
-.input-audio-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
-}
-
-.options-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
-}
-
-.voice-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
-  animation: pulse 1.5s infinite;
-}
-
-.speech-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
-}
-
-.workpath-trigger {
-  height: 24px;
-  min-height: 24px;
-  max-width: 120px;
-  padding: 2px 8px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-stack);
-  font-size: 11px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.workpath-trigger:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.workpath-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
-}
-
-@keyframes pulse {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.6;
-  }
-}
-
-.mobile-input-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color-light);
-  border-radius: 16px;
-  padding: 7px;
-}
-
-.mobile-top-drop-zone {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 10px;
-}
-
-.mobile-top-left-zone,
-.mobile-top-right-zone {
-  flex-shrink: 0;
-}
-
-.mobile-input-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  position: relative;
-  min-width: 0;
-}
-
-.mobile-input-field {
-  min-height: 38px;
-  font-size: 14px;
-  padding: 8px 8px;
-  overflow-x: hidden;
-}
-
-.mobile-partial-text {
-  top: 7px;
-}
-
-.mobile-tools-panel {
-  margin-top: 8px;
-  display: grid;
-  grid-template-columns: repeat(6, minmax(40px, 1fr));
-  justify-items: center;
-  align-items: center;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 16px;
-  border: 1px solid var(--border-color-light);
-  background: var(--bg-input);
-}
-
-.mobile-drag-tool {
-  display: inline-flex;
-  touch-action: none;
-  transition:
-    transform 0.12s ease,
-    opacity 0.12s ease;
-  user-select: none;
-}
-
-.mobile-drag-tool.is-long-pressing {
-  opacity: 0.75;
-}
-
-.mobile-drag-tool.is-dragging {
-  opacity: 0.55;
-  transform: scale(0.94);
-}
-
-.mobile-drop-active {
-  outline: 1px dashed color-mix(in srgb, var(--color-primary) 52%, transparent);
-  outline-offset: 2px;
-}
-
-.mobile-drop-hover {
-  background: color-mix(in srgb, var(--color-primary) 12%, var(--bg-input));
-}
-
-.mobile-drag-ghost {
-  position: fixed;
-  z-index: 30;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  min-width: 56px;
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 45%, var(--border-subtle));
-  background: color-mix(in srgb, var(--bg-card) 92%, #ffffff);
-  color: var(--text-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
-}
-
-.mobile-send-btn {
-  flex-shrink: 0;
-  border-radius: 12px;
-  min-width: 58px;
-  height: 40px;
-}
-
-.mobile-toggle-open {
-  transform: rotate(180deg);
-  transition: transform 0.2s ease;
-}
-
-.footer.is-mobile .input-container {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-}
-
-.footer.is-mobile {
-  padding-bottom: calc(8px + max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px)));
-}
-
-@media (max-width: 767px) {
-  .footer {
-    padding: 8px;
-  }
-
-  .input-container {
-    border-radius: 22px;
-    padding: 10px;
-    background: var(--bg-card);
-    border: none;
-    box-shadow: none;
-  }
-
-  .mobile-tools-panel :deep(button),
-  .mobile-input-bar :deep(button:not(.mobile-send-btn)) {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-  }
-}
-
-:global(.dark-mode) .mobile-input-bar {
-  background: color-mix(in srgb, var(--bg-card) 82%, #141519);
-  border-color: var(--border-subtle);
-}
-
-:global(.dark-mode) .mobile-tools-panel {
-  background: color-mix(in srgb, var(--bg-card) 82%, #141519);
-  border-color: var(--border-subtle);
-}
-
-:global(.dark-mode) .footer.is-mobile .input-container {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
+@import './input.css';
 </style>
