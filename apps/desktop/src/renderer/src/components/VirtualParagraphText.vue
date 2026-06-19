@@ -137,7 +137,6 @@ defineExpose({
 <template>
   <div
     ref="containerRef"
-    v-scroll
     class="virtual-paragraph-text"
     :style="[
       containerProps.style,
