@@ -11,6 +11,7 @@ type PluginConfig = {
   adminKey: string
   model: { providerId: string; modelId: string }
   status: string
+  logRequests: boolean
 }
 
 const DEFAULT_CONFIG: PluginConfig = {
@@ -20,7 +21,8 @@ const DEFAULT_CONFIG: PluginConfig = {
   apiKey: 'sk-agent-qi-local',
   adminKey: '',
   model: { providerId: '', modelId: '' },
-  status: '未启动'
+  status: '未启动',
+  logRequests: false
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -43,7 +45,8 @@ const normalizeConfig = (input?: Partial<PluginConfig> | null): PluginConfig => 
     providerId: String(input?.model?.providerId || '').trim(),
     modelId: String(input?.model?.modelId || '').trim()
   },
-  status: String(input?.status || DEFAULT_CONFIG.status)
+  status: String(input?.status || DEFAULT_CONFIG.status),
+  logRequests: input?.logRequests !== undefined ? Boolean(input.logRequests) : DEFAULT_CONFIG.logRequests
 })
 
 const getBaseURL = (config: PluginConfig) => `http://${config.host}:${config.port}`
@@ -186,6 +189,17 @@ const plugin: Plugin = {
       ])
     }
 
+    const openLogDir = () => {
+      try {
+        const os = context.api?.os as { homedir?: () => string } | undefined
+        const path = context.api?.path as { join?: (...args: string[]) => string } | undefined
+        const shell = context.api?.shell as { openPath?: (p: string) => Promise<string>; showItemInFolder?: (p: string) => void } | undefined
+        if (!os?.homedir || !path?.join || !shell?.openPath) return
+        const logDir = path.join(os.homedir(), '.agent-qi', 'logs')
+        shell.openPath(logDir)
+      } catch {}
+    }
+
     const [ConfigForm, formActions] = context.useForm<PluginConfig>({
       title: 'OpenAI 兼容服务',
       showHeader: false,
@@ -232,6 +246,22 @@ const plugin: Plugin = {
           label: '服务操作',
           type: 'custom',
           render: () => renderServiceActions()
+        },
+        {
+          name: 'logRequests',
+          label: '记录请求日志',
+          type: 'boolean',
+          hint: '每次请求的完整内容保存到 JSON 文件'
+        },
+        {
+          name: 'openLogBtn',
+          label: '日志文件夹',
+          type: 'custom',
+          render: () => {
+            const Button = context.components?.Button as Record<string, unknown> | undefined
+            if (!Button) return null
+            return context.vue.h(Button as never, { type: 'button', size: 'sm', onClick: openLogDir }, { default: () => '打开日志文件夹' })
+          }
         }
       ],
       initialData: runtimeConfig,

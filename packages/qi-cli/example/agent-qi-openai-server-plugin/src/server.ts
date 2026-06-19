@@ -3,9 +3,10 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 // ====== 日志配置 ======
-// 写到用户主目录下，避免触发项目目录文件监听导致插件重载
 const LOG_DIR = process.env.LOG_DIR || join(homedir(), '.agent-qi', 'logs')
 const LOG_FILE = join(LOG_DIR, 'openai-server.log')
+const JSON_LOG_FILE = join(LOG_DIR, 'openai-server-requests.jsonl')
+let logRequestsEnabled = false
 
 // 确保日志目录存在
 if (!existsSync(LOG_DIR)) {
@@ -28,11 +29,10 @@ const logToFile = (level: LogLevel, method: string, pathname: string, status: nu
   }
 }
 
-const logEvent = (event: string, detail?: string) => {
-  const timestamp = new Date().toISOString()
-  const line = `[${timestamp}] [EVENT] ${event}${detail ? ` | ${detail}` : ''}\n`
+const appendJsonLog = (data: unknown) => {
+  if (!logRequestsEnabled) return
   try {
-    appendFileSync(LOG_FILE, line, 'utf-8')
+    appendFileSync(JSON_LOG_FILE, JSON.stringify(data) + '\n', 'utf-8')
   } catch {
     // 忽略
   }
@@ -79,6 +79,7 @@ type PluginConfig = {
   apiKey: string
   adminKey: string
   model?: { providerId?: string; modelId?: string }
+  logRequests?: boolean
 }
 
 type ServerConfig = {
@@ -89,6 +90,7 @@ type ServerConfig = {
   defaultProviderId: string
   defaultModelId: string
   providers: ProviderConfig[]
+  logRequests: boolean
 }
 
 type RuntimeContext = {
@@ -264,7 +266,8 @@ const buildServerConfig = (config: PluginConfig, rawProviders: RawProviderConfig
     adminKey: String(config.adminKey || '').trim(),
     defaultProviderId: selectedProvider.id,
     defaultModelId: selectedModel.id,
-    providers
+    providers,
+    logRequests: config.logRequests !== false
   }
 }
 
@@ -325,7 +328,7 @@ const buildUpstreamHeaders = (provider: ProviderConfig, incomingHeaders: Record<
   return headers
 }
 
-const pipeUpstreamResponse = async (upstream: any, res: any) => {
+const pipeUpstreamResponse = async (upstream: any, res: any, onChunk?: (chunk: Buffer) => void) => {
   const headers: Record<string, string> = {
     'Access-Control-Allow-Origin': '*'
   }
@@ -349,6 +352,7 @@ const pipeUpstreamResponse = async (upstream: any, res: any) => {
 
   for await (const chunk of upstream.body) {
     if (res.destroyed || res.writableEnded) return
+    onChunk?.(chunk)
     res.write(chunk)
     res.flush?.()
   }
@@ -393,6 +397,8 @@ const startServer = async (
   const host = normalizeHost(config.host)
   const port = normalizePort(config.port)
 
+  logRequestsEnabled = config.logRequests
+
   const server = http.createServer(async (req: any, res: any) => {
     try {
       const url = new URL(req.url || '/', `http://${req.headers.host || `${host}:${port}`}`)
@@ -417,7 +423,6 @@ const startServer = async (
         if (body?.adminKey !== config.adminKey) {
           return sendJson(res, 401, { error: { message: 'Invalid admin key.' } })
         }
-        logEvent('SERVER_SHUTDOWN', `Admin shutdown via ${req.socket?.remoteAddress || 'unknown'}`)
         sendJson(res, 200, { ok: true })
         setTimeout(() => server.close(() => process.exit(0)), 50)
         return
@@ -470,35 +475,59 @@ const startServer = async (
             : JSON.stringify(msg.content)
           logParts.push(`msg[${i}].role=${role}`)
           logParts.push(`msg[${i}].content=${content}`)
-          // 如果有 name
           if (msg.name) logParts.push(`msg[${i}].name=${msg.name}`)
-          // 如果有 tool_calls
           if (msg.tool_calls) logParts.push(`msg[${i}].tool_calls=${JSON.stringify(msg.tool_calls)}`)
-          // 如果有 tool_call_id
           if (msg.tool_call_id) logParts.push(`msg[${i}].tool_call_id=${msg.tool_call_id}`)
         })
 
-        // 记录 tools 定义
-        if (body.tools) {
-          logParts.push(`tools=${JSON.stringify(body.tools)}`)
-        }
+        if (body.tools) logParts.push(`tools=${JSON.stringify(body.tools)}`)
+        if (body.tool_choice !== undefined) logParts.push(`tool_choice=${JSON.stringify(body.tool_choice)}`)
 
-        // 记录 tool_choice
-        if (body.tool_choice !== undefined) {
-          logParts.push(`tool_choice=${JSON.stringify(body.tool_choice)}`)
-        }
-
-        // 记录其他常见参数
         const extraParams = ['temperature', 'top_p', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'stop', 'n', 'seed', 'response_format', 'user']
         extraParams.forEach((key) => {
-          if (body[key] !== undefined) {
-            logParts.push(`${key}=${JSON.stringify(body[key])}`)
-          }
+          if (body[key] !== undefined) logParts.push(`${key}=${JSON.stringify(body[key])}`)
         })
 
         logToFile('INFO', currentRequestMethod, currentRequestPath, upstream.status, logParts.join(' | '))
 
-        return await pipeUpstreamResponse(upstream, res)
+        // JSON 记录请求和结果
+        if (body.stream) {
+          const streamChunks: string[] = []
+          const requestStart = Date.now()
+          await pipeUpstreamResponse(upstream, res, (chunk) => { streamChunks.push(chunk.toString()) })
+          appendJsonLog({
+            id: `req_${requestStart}`,
+            timestamp: new Date().toISOString(),
+            type: 'stream',
+            endpoint: '/v1/chat/completions',
+            model: `${selected.provider.id}:${selected.modelId}`,
+            request: body,
+            responseStream: streamChunks.join(''),
+            duration: Date.now() - requestStart,
+            status: upstream.status
+          })
+        } else {
+          const requestStart = Date.now()
+          const upstreamText = await upstream.text()
+          let responseJson: unknown = null
+          try { responseJson = JSON.parse(upstreamText) } catch {}
+          const responseHeaders: Record<string, string> = { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' }
+          res.writeHead(upstream.status, responseHeaders)
+          res.end(upstreamText)
+          appendJsonLog({
+            id: `req_${requestStart}`,
+            timestamp: new Date().toISOString(),
+            type: 'completion',
+            endpoint: '/v1/chat/completions',
+            model: `${selected.provider.id}:${selected.modelId}`,
+            request: body,
+            response: responseJson,
+            duration: Date.now() - requestStart,
+            status: upstream.status
+          })
+        }
+
+        return
       }
 
       return sendJson(res, 404, { error: { message: 'Not found.' } })
@@ -513,7 +542,7 @@ const startServer = async (
   })
 
   server.listen(port, host)
-  logEvent('SERVER_START', `Listening on http://${host}:${port} | providers=${config.providers.length} | defaultModel=${config.defaultProviderId}:${config.defaultModelId}`)
+  // 启动成功，不写日志
 }
 
 export default async function runAgentQiOpenAIServerCommand(
