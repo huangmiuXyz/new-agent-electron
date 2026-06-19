@@ -225,6 +225,7 @@ export const chatService = () => {
             ...t,
             needsApproval,
             execute: async (input: any, options: any) => {
+              debugger
               await onBeforeToolExecute?.({ tool: t, input, options })
               // 浅拷贝 options 即可：options 只在工具调用时被读取，不会被就地修改；
               // 我们要新增的 chatId/model/provider 等字段也是顶层属性。
