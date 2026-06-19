@@ -102,11 +102,14 @@ export default mainPlugin
 - `ctx.ipc.once(channel, handler)`
 - `ctx.ipc.removeHandler(channel)`
 - `ctx.ipc.removeListener(channel, handler)`
+- `ctx.ipc.broadcast(channel, ...args)`：向所有未销毁的渲染窗口广播消息，等价遍历 `BrowserWindow.getAllWindows()` 并 `webContents.send`
+
+channel 不能包含 `:`，否则 `channelFor()` 会抛错。
 
 渲染端调用：
 ```ts
-context.api.pluginMain.ipc.invoke(pluginName, 'my-channel', ...args)
-context.api.pluginMain.ipc.on(pluginName, 'my-channel', callback)
+context.api.pluginMain.ipc.invoke(pluginName, 'my-channel', ...args)  // 自带 15s 超时
+context.api.pluginMain.ipc.on(pluginName, 'my-channel', callback)     // 返回 unsubscribe 函数
 ```
 
 ### ctx.onUnload(fn)
@@ -198,43 +201,64 @@ export default defineConfig({
 
 ## 9. 两端通信模式
 
-### 主进程 → 渲染端（推）
+所有 IPC 通道名采用 `plugin:<pluginName>:<channel>` 三段式约定。主进程侧 `ctx.ipc` 自动加前缀，渲染端侧 `pluginMain.ipc` 手动拼接，两端 byte 一致才能配对。
 
-主进程拿到 `BrowserWindow` 后用 `win.webContents.send`，或通过渲染端订阅：
+### 渲染端 → 主进程（请求-响应）
 
 ```ts
+// 渲染端（返回 Promise，15s 超时自动 reject）
+const result = await context.api.pluginMain.ipc.invoke(pluginName, 'my-action', arg1)
+
 // 主进程
-ctx.ipc.handle('get-data', () => data)
+ctx.ipc.handle('my-action', (event, arg1) => {
+  return { ok: true }
+})
 ```
+
+### 主进程 → 渲染端（推送）
 
 ```ts
-// 渲染端
-const data = await context.api.pluginMain.ipc.invoke(pluginName, 'get-data')
+// 主进程 — 用 broadcast 向所有窗口推送
+ctx.ipc.broadcast('my-event', data1, data2)
+
+// 渲染端 — 订阅推送
+const unsub = context.api.pluginMain.ipc.on(pluginName, 'my-event', (data1, data2) => {
+  // 处理推送
+})
+// 卸载时必须调用 unsub() 防止泄漏
 ```
 
-### 渲染端 → 主进程（调）
+`ctx.ipc.broadcast` 优于手写 `for...of BrowserWindow.getAllWindows()`，因为它自动处理前缀拼接、窗口销毁检查和异常吞没。
+
+### 推荐：类型协议模式
+
+双入口插件推荐提取 `src/protocol.ts`，用一个 `PluginProtocol` 接口集中声明所有通道的 args/result 类型，然后通过 `createMainBridge` / `createRendererBridge` 获得编译期类型推导：
 
 ```ts
-// 渲染端
-await context.api.pluginMain.ipc.invoke(pluginName, 'show-window', arg)
+// src/protocol.ts
+export interface PluginProtocol {
+  'show-window': { args: []; result: { ok: boolean } }
+  'hide-window': { args: []; result: { ok: boolean } }
+  'workspace-data': { args: [{ workId: string; authCookie: string }]; result: void }
+}
 ```
 
-```ts
-// 主进程
-ctx.ipc.handle('show-window', (event, arg) => { ... })
-```
+两端使用同一份协议定义，channel 名拼错或 payload 类型不匹配在编译期报错。参考 `packages/qi-cli/example/opencode-usage-monitor/src/protocol.ts`。
 
 ### 窗口数据同步
 
 主进程窗口是独立的 `BrowserWindow`，不共享渲染端状态。推荐模式：
 
 1. 主进程缓存 `lastData`
-2. 渲染端每次数据变化调 `update-usage` IPC，主进程更新缓存并注入窗口
-3. `show-window` 时窗口 ready 后回放 `lastData`，避免打开瞬间空白
+2. 捕获到数据后调用 `ctx.ipc.broadcast('channel', lastData)`
+3. `show-window` 时若 `lastData` 存在则再次 `broadcast`，实现回放，避免打开瞬间空白
+4. 渲染端 `bridge.on('channel', handler)` 接收后保存配置并刷新 UI
 
-参考 `opencode-usage-monitor/src/main.ts` 的 `lastData` + `isWindowReady` + `did-finish-load` 时序处理。
+参考 `opencode-usage-monitor/src/main.ts` 的 `lastData` + `show-window` 回放时序处理。
 
 ## 10. 卸载清理清单
+
+### 主进程侧
 
 主进程插件必须清理：
 
@@ -246,6 +270,14 @@ ctx.ipc.handle('show-window', (event, arg) => { ... })
 
 用 `ctx.onUnload(fn)` 注册清理回调，或实现 `uninstall(ctx)` 显式清理。两者都会被执行。
 
+### 渲染端侧
+
+渲染端 `uninstall()` 必须清理：
+
+- `pluginMain.ipc.on` 返回的 unsubscribe 函数（最常见的泄漏源）
+- `setInterval` / `setTimeout`
+- `notification.status()` 创建的常驻状态位（`removeStatus()`）
+
 ## 11. 常见失败模式
 
 - `info.json` 写了 `mainEntry` 但没建 `dist/main.js`：主进程加载失败，渲染端 console.error 可见
@@ -253,3 +285,7 @@ ctx.ipc.handle('show-window', (event, arg) => { ... })
 - `emptyOutDir: true`：主进程构建清空 dist，删掉渲染端 `index.js`
 - `dev` 脚本只 watch 渲染端：改 `src/main.ts` 后 `dist/main.js` 不更新，主进程跑的还是旧代码
 - 主进程窗口 `loadURL` 后立即 `executeJavaScript`：DOM 未 ready，注入丢失。用 `did-finish-load` / `dom-ready` 事件等待
+- 主进程 handler 卡死无返回：渲染端 `invoke` 15s 后超时 reject `PluginIpcTimeoutError`，捕获处理
+- `pluginMain.ipc.on` 不存 unsubscribe 函数：热重载后监听器重复注册，消息处理多次。**必须存储并在 `uninstall` 调用**
+- channel 名包含 `:`：`channelFor()` 抛错，插件加载失败。channel 只能使用字母、数字、连字符、下划线
+- `ctx.ipc.broadcast` 在非桌面环境调用：不会抛出，但无效果。保持渲染端通过 `createRendererBridge` 的 `null` 检查处理移动端降级

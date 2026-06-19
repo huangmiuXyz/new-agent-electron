@@ -101,9 +101,12 @@ qi code init my-plugin -t hello-world -d "插件描述" -a "作者" -v "1.0.0" -
 - `vite.main.config.ts` 必须设 `external: ['electron']` 和 `emptyOutDir: false`，否则会破坏渲染端产物。
 - `package.json` 的 `build` 脚本串行构建两端：`vite build && vite build --config vite.main.config.ts`。
 - `dev` 脚本用 `dev.mjs` 并行 watch 两端，不依赖 `concurrently`。
-- 主进程 IPC 用 `ctx.ipc.handle/on`，channel 自动加 `plugin:<name>:` 前缀，卸载时按前缀批量清理。
-- 渲染端通过 `context.api.pluginMain.ipc.invoke(pluginName, channel, ...args)` 调用主进程。
-- 主进程窗口是独立 `BrowserWindow`，不共享渲染端状态；用 `lastData` 缓存 + `did-finish-load` 回放避免空白。
+- 主进程 IPC 用 `ctx.ipc.handle/on`，channel 自动加 `plugin:<name>:` 前缀，卸载时按前缀批量清理。channel **不能包含冒号**，`channelFor()` 校验不通过则抛错。
+- 主进程用 `ctx.ipc.broadcast(channel, ...args)` 向所有渲染窗口广播消息（框架自动加前缀、遍历窗口、异常吞没）。
+- 渲染端通过 `context.api.pluginMain.ipc.invoke(pluginName, channel, ...args)` 调用主进程，**自带 15s 超时保护**（超时抛 `PluginIpcTimeoutError`）。
+- `pluginMain.ipc.on` 返回 unsubscribe 函数，**必须存储并在 `uninstall()` 中调用**，否则热重载会重复注册。
+- 主进程窗口是独立 `BrowserWindow`，不共享渲染端状态；用 `lastData` 缓存 + `show-window` 时回放避免空白。
+- 双入口插件推荐提取 `src/protocol.ts`，通过 `PluginProtocol` 类型约束两端 channel 名和 payload，用 `createMainBridge` / `createRendererBridge` 获得编译期类型推导（参考 `packages/qi-cli/example/opencode-usage-monitor`）。
 - 用 `ctx.onUnload(fn)` 注册清理回调，销毁窗口/托盘/快捷键。细节读 `references/main-plugin.md`。
 
 ### 元数据
@@ -160,6 +163,7 @@ qi code init my-plugin -t hello-world -d "插件描述" -a "作者" -v "1.0.0" -
 - 框架没有完全兜底时的 providers 和 registries
 - 手动管理的内置工具
 - `notification.status()` 创建的常驻状态位，用 `removeStatus()` 移除
+- `pluginMain.ipc.on` 注册的监听器（它返回的 unsubscribe 函数）
 - 定时器、watcher、轮询和订阅
 - 子进程和服务句柄
 - 识别器、模型实例、终端、下载任务和运行时单例
@@ -174,8 +178,9 @@ qi code init my-plugin -t hello-world -d "插件描述" -a "作者" -v "1.0.0" -
 - 桌面/移动端平台字段是否正确？有 `mainEntry` 时是否声明了 `platforms: ["desktop"]`？
 - provider id、registry id、hook 名、tool 名、storage key 是否稳定？
 - 配置是否能从 `localforage` 恢复，并在需要时重新同步 provider？
-- 渲染端 `uninstall()` 是否清理状态位、定时器、进程、providers、registries、tools 和其他副作用？
+- 渲染端 `uninstall()` 是否清理状态位、定时器、进程、providers、registries、tools、`pluginMain.ipc.on` 监听器和其他副作用？
 - 主进程 `uninstall()` / `onUnload` 是否销毁窗口、托盘、快捷键？
+- 主进程 broadcast 是否使用了 `ctx.ipc.broadcast` 而非手动遍历窗口拼 channel？
 - 用户可见错误是否通过 `notification.error()` 或状态位展示？
 
 ## 需要细节时再读
