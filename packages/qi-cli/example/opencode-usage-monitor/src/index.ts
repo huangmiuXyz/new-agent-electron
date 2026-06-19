@@ -71,12 +71,13 @@ const plugin: Plugin = {
     let usageData: UsageData | null = null
     let refreshTimer: ReturnType<typeof setInterval> | null = null
     let isStatusRegistered = false
-
+    const { BrowserWindow } = context.api.Electron
     const usageDataState = context.vue.ref<UsageData | null>(null)
     const isPanelOpenState = context.vue.ref(false)
     const isBusyState = context.vue.ref(false)
     const isConfiguredState = context.vue.ref(false)
     const statusTooltipState = context.vue.ref('OpenCode Go 用量')
+    console.log(BrowserWindow);
 
     const loadConfig = async () => {
       try {
@@ -151,15 +152,15 @@ const plugin: Plugin = {
         }
       })
 
-      ;(context.notification.status as unknown as (
-        id: string,
-        text: string,
-        options?: Record<string, unknown>
-      ) => void)(STATUS_ID, '', {
-        render: statusRender,
-        tooltip,
-        color: '#fff'
-      })
+        ; (context.notification.status as unknown as (
+          id: string,
+          text: string,
+          options?: Record<string, unknown>
+        ) => void)(STATUS_ID, '', {
+          render: statusRender,
+          tooltip,
+          color: '#fff'
+        })
       isStatusRegistered = true
     }
 

@@ -10,7 +10,7 @@ import { app, getCurrentWindow } from '@electron/remote'
 import { exec, spawn, fork } from 'child_process'
 import os from 'os'
 import { type ElectronAPI } from '@agent-qi/types'
-
+import Electron from 'electron'
 type ExecNodejsOptions = {
   code?: string
   codePath?: string
@@ -528,6 +528,7 @@ const execNodejs = <T = unknown>(options: ExecNodejsOptions): Promise<ExecNodejs
 
 export const api: ElectronAPI = {
   ...aiServices(),
+  Electron,
   process: {
     platform: process.platform,
     env: process.env,

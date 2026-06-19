@@ -1,6 +1,6 @@
 import { ClientConfig, Tools } from './ai'
 import { DownloadProgress } from './components'
-
+import Electron from 'electron'
 export interface SyncHostState {
   running: boolean
   port: number
@@ -64,6 +64,7 @@ export interface ExecNodejsResult<T = unknown> {
 }
 
 export interface ElectronAPI {
+  Electron: typeof Electron,
   // aiServices
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
 
@@ -449,7 +450,7 @@ export interface ElectronAPI {
 }
 
 declare global {
-  interface ElectronAPI extends _ElectronAPI {}
+  interface ElectronAPI extends _ElectronAPI { }
 }
 
 type _ElectronAPI = ElectronAPI
