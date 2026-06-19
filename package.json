@@ -29,7 +29,7 @@
     "prettier": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.9"
   },
   "pnpm": {
     "overrides": {
@@ -57,10 +57,10 @@
     "@ai-sdk/moonshotai": "catalog:",
     "@ai-sdk/provider": "catalog:",
     "@mozilla/readability": "^0.6.0",
-    "@openrouter/ai-sdk-provider": "^2.9.0",
+    "@openrouter/ai-sdk-provider": "^2.9.1",
     "ai-sdk-ollama": "catalog:",
     "istextorbinary": "^9.5.0",
     "textextensions": "^6.11.0",
-    "turndown": "^7.2.2"
+    "turndown": "^7.2.4"
   }
 }
