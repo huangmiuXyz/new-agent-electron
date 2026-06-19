@@ -82,6 +82,19 @@ function injectAuthOAuthGuide(bw: BrowserWindow) {
   bw.webContents.executeJavaScript('(' + fn.toString() + ')()').catch(() => {})
 }
 
+function injectAuthSuccessTip(bw: BrowserWindow) {
+  const fn = () => {
+    if (document.querySelector('.qi-auth-ok')) return
+    const tip = document.createElement('div')
+    tip.className = 'qi-auth-ok qi-t'
+    tip.textContent = '✓ 授权成功！'
+    tip.style.cssText = 'position:fixed!important;top:20px!important;left:50%!important;transform:translateX(-50%)!important;padding:10px 24px!important;border-radius:8px!important;background:#22c55e!important;color:#fff!important;font-size:15px!important;z-index:99999!important;pointer-events:none!important;white-space:nowrap!important;box-shadow:0 4px 12px rgba(0,0,0,.3)!important;line-height:1.4!important;font-weight:600!important'
+    document.body.appendChild(tip)
+    setTimeout(() => tip.remove(), 4000)
+  }
+  bw.webContents.executeJavaScript('(' + fn.toString() + ')()').catch(() => {})
+}
+
 const mainPlugin: MainPlugin = {
   name: 'opencode-usage-monitor',
   version: '1.0.0',
@@ -144,6 +157,7 @@ const mainPlugin: MainPlugin = {
             if (!authNotified) {
               authNotified = true
               bridge.broadcast('auth-success')
+              if (win && !win.isDestroyed()) injectAuthSuccessTip(win)
             }
           } catch {}
         }
