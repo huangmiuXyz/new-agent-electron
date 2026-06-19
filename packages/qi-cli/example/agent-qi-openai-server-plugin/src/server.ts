@@ -492,9 +492,8 @@ const startServer = async (
 
         // JSON 记录请求和结果
         if (body.stream) {
-          const streamChunks: string[] = []
           const requestStart = Date.now()
-          await pipeUpstreamResponse(upstream, res, (chunk) => { streamChunks.push(chunk.toString()) })
+          await pipeUpstreamResponse(upstream, res)
           appendJsonLog({
             id: `req_${requestStart}`,
             timestamp: new Date().toISOString(),
@@ -502,7 +501,6 @@ const startServer = async (
             endpoint: '/v1/chat/completions',
             model: `${selected.provider.id}:${selected.modelId}`,
             request: body,
-            responseStream: streamChunks.join(''),
             duration: Date.now() - requestStart,
             status: upstream.status
           })
