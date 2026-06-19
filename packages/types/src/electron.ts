@@ -64,7 +64,6 @@ export interface ExecNodejsResult<T = unknown> {
 }
 
 export interface ElectronAPI {
-  Electron: typeof Electron,
   // aiServices
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
 

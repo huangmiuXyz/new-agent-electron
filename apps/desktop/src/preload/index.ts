@@ -528,7 +528,6 @@ const execNodejs = <T = unknown>(options: ExecNodejsOptions): Promise<ExecNodejs
 
 export const api: ElectronAPI = {
   ...aiServices(),
-  Electron,
   process: {
     platform: process.platform,
     env: process.env,
