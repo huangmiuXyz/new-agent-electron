@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "prettier": "catalog:",
+    "taze": "^19.14.1",
     "turbo": "catalog:",
     "typescript": "catalog:",
     "vitest": "^4.1.9"
