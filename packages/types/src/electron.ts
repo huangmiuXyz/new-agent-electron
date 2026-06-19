@@ -63,9 +63,38 @@ export interface ExecNodejsResult<T = unknown> {
   errorCode?: string
 }
 
+export interface PluginMainLoadPayload {
+  pluginName: string
+  pluginDir: string
+  mainEntry: string
+  info: Record<string, unknown>
+}
+
+export interface PluginMainIpcInvokePayload {
+  pluginName: string
+  channel: string
+  args: unknown[]
+}
+
+export interface PluginMainIpcOnPayload {
+  pluginName: string
+  channel: string
+}
+
 export interface ElectronAPI {
   // aiServices
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
+
+  // plugin main-process bridge
+  pluginMain: {
+    load: (payload: PluginMainLoadPayload) => Promise<{ ok: boolean; error?: string }>
+    unload: (pluginName: string) => Promise<{ ok: boolean; error?: string }>
+    reload: (payload: PluginMainLoadPayload) => Promise<{ ok: boolean; error?: string }>
+    ipc: {
+      invoke: (pluginName: string, channel: string, ...args: unknown[]) => Promise<unknown>
+      on: (pluginName: string, channel: string, callback: (...args: unknown[]) => void) => () => void
+    }
+  }
 
   // process
   process: {

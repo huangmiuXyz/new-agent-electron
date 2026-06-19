@@ -23,6 +23,7 @@ interface CreateStatusRenderOptions {
   isBusyRef: { value: boolean }
   isConfiguredRef: { value: boolean }
   onRefreshUsage: () => Promise<void>
+  onOpenStandaloneWindow: () => void
 }
 
 const clampPercent = (value: number | null | undefined) => {
@@ -70,7 +71,8 @@ export const createStatusRender = (
     tooltipRef,
     isBusyRef,
     isConfiguredRef,
-    onRefreshUsage
+    onRefreshUsage,
+    onOpenStandaloneWindow
   } = options
 
   return context.vue.markRaw(
@@ -120,6 +122,11 @@ export const createStatusRender = (
           event.stopPropagation()
           if (isBusy.value) return
           await onRefreshUsage()
+        }
+
+        const handleOpenWindow = (event: MouseEvent) => {
+          event.stopPropagation()
+          onOpenStandaloneWindow()
         }
 
         const renderUsageBlock = (
@@ -297,15 +304,26 @@ export const createStatusRender = (
                       {isConfiguredRef.value ? '已连接' : '未配置 Workspace ID / Cookie'}
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={isBusy.value || !isConfiguredRef.value}
-                    onClick={handleRefresh}
-                  >
-                    刷新
-                  </Button>
+                  <div style="display:flex;gap:6px">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={isBusy.value || !isConfiguredRef.value}
+                      onClick={handleRefresh}
+                    >
+                      刷新
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleOpenWindow}
+                      title="在独立窗口中打开"
+                    >
+                      独立窗口
+                    </Button>
+                  </div>
                 </div>
                 {!isConfiguredRef.value ? (
                   <div class="ocgo-config-warn">

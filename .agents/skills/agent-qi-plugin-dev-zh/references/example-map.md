@@ -71,6 +71,15 @@
   - `execNodejs()`、本地 Node.js server、`registerSettings()`
   - 最适合插件自带后端脚本和插件设置标签
 
+## 主进程插件（BrowserWindow / Tray / globalShortcut）
+
+- `packages/qi-cli/example/opencode-usage-monitor`
+  - 双入口：渲染端 `src/index.ts` + 主进程 `src/main.ts`
+  - 主进程创建独立 `BrowserWindow`，通过 `ctx.ipc.handle` 暴露 `show-window` / `update-usage`
+  - 渲染端用 `context.api.pluginMain.ipc.invoke` 调主进程，数据推送 + 窗口回放
+  - `vite.main.config.ts`（CJS、external electron）+ `dev.mjs`（并行 watch 两端）
+  - 最适合需要原生窗口、托盘、全局快捷键的插件
+
 ## 设置较重与复杂 UI
 
 - `packages/qi-cli/example/civitai-plugin`
@@ -111,6 +120,7 @@
 - 内置工具：从 `smart-api-key-filler` 开始。
 - 调用前自动准备环境：从 `ollama-starter` 开始。
 - 多账号或代理状态：从 `codex-proxy-plugin` 开始。
+- 原生窗口、托盘、全局快捷键等主进程能力：从 `opencode-usage-monitor` 开始，细节读 `main-plugin.md`。
 
 ## 平台提示
 

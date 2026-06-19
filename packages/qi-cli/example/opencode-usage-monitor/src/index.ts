@@ -136,6 +136,10 @@ const plugin: Plugin = {
           : 'OpenCode Go: 未配置'
       statusTooltipState.value = tooltip
 
+      if (usageData && context.api?.pluginMain?.ipc) {
+        void context.api.pluginMain.ipc.invoke(PLUGIN_NAME, 'update-usage', usageData).catch(() => undefined)
+      }
+
       if (isStatusRegistered) return
 
       const statusRender = createStatusRender({
@@ -147,6 +151,23 @@ const plugin: Plugin = {
         isConfiguredRef: isConfiguredState,
         onRefreshUsage: async () => {
           await refreshUsage(true)
+        },
+        onOpenStandaloneWindow: async () => {
+          if (!context.api?.pluginMain?.ipc) {
+            context.notification.warning('当前环境不支持主进程窗口。', PLUGIN_NAME)
+            return
+          }
+          try {
+            await context.api.pluginMain.ipc.invoke(PLUGIN_NAME, 'show-window')
+            if (usageData) {
+              await context.api.pluginMain.ipc.invoke(PLUGIN_NAME, 'update-usage', usageData)
+            } else if (isConfiguredState.value) {
+              await refreshUsage(true)
+            }
+          } catch (error) {
+            console.error('Failed to open standalone window:', error)
+            context.notification.error('无法打开独立窗口。', PLUGIN_NAME)
+          }
         }
       })
 

@@ -5,8 +5,11 @@
   "author": "Agent-Qi",
   "main": "dist/index.js",
   "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch"
+    "build": "vite build && vite build --config vite.main.config.ts",
+    "build:main": "vite build --config vite.main.config.ts",
+    "dev": "node dev.mjs",
+    "dev:renderer": "vite build --watch",
+    "dev:main": "vite build --watch --config vite.main.config.ts"
   },
   "dependencies": {
     "@agent-qi/types": "workspace:*"

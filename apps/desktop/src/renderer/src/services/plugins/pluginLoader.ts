@@ -242,7 +242,9 @@ export class PluginLoader {
       this.loadedPlugins.set(pluginName, pluginInfo);
 
       try {
-        
+
+        let mainEntry: string | undefined
+        let mainInfo: Record<string, unknown> | undefined
 
         // 加载 info.json 中的 metadata
         const fs = window.api?.fs;
@@ -267,6 +269,10 @@ export class PluginLoader {
               }
               if (info.updatedAt) {
                 plugin.updatedAt = info.updatedAt;
+              }
+              if (typeof info.mainEntry === 'string' && info.mainEntry) {
+                mainEntry = info.mainEntry
+                mainInfo = info
               }
             } catch (e) {
               console.warn(`Failed to read metadata from info.json for ${pluginName}:`, e);
@@ -298,6 +304,24 @@ export class PluginLoader {
           }
           if (metadata.readme) {
             plugin.readme = metadata.readme;
+          }
+        }
+
+        // 主进程插件入口：在渲染端 install 之前加载主进程代码，
+        // 这样渲染端插件可以立即通过 context.api.pluginMain.ipc 与主进程通信
+        if (mainEntry && this.hasDesktopPluginApi() && window.api?.pluginMain) {
+          try {
+            const result = await window.api.pluginMain.load({
+              pluginName,
+              pluginDir: basePath,
+              mainEntry,
+              info: mainInfo || {}
+            })
+            if (!result?.ok) {
+              console.error(`Main-process plugin "${pluginName}" failed to load: ${result?.error || 'unknown'}`)
+            }
+          } catch (error) {
+            console.error(`Main-process plugin "${pluginName}" load error:`, error)
           }
         }
 
@@ -345,13 +369,21 @@ export class PluginLoader {
 
       pluginInfo.status = 'unloading' as PluginStatus;
 
-      // 卸载插件
+      // 卸载渲染端插件
       if (pluginInfo.plugin.uninstall) {
         const basePath = this.resolvePluginPath(pluginName);
         const context = this.pluginManager.createContext(pluginName, basePath);
         await pluginInfo.plugin.uninstall(context);
       }
 
+      // 卸载主进程插件入口
+      if (this.hasDesktopPluginApi() && window.api?.pluginMain) {
+        try {
+          await window.api.pluginMain.unload(pluginName)
+        } catch (error) {
+          console.warn(`Main-process plugin "${pluginName}" unload error:`, error)
+        }
+      }
 
       this.pluginManager.unregisterPlugin(pluginName);
 

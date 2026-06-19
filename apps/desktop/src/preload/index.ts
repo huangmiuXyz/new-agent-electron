@@ -791,6 +791,31 @@ export const api: ElectronAPI = {
       annotate?: boolean
       displayId?: string
     }) => electronAPI.ipcRenderer.invoke('computer:capture-screen', options)
+  },
+  pluginMain: {
+    load: (payload: {
+      pluginName: string
+      pluginDir: string
+      mainEntry: string
+      info?: Record<string, unknown>
+    }) => electronAPI.ipcRenderer.invoke('plugin:main:load', payload),
+    unload: (pluginName: string) => electronAPI.ipcRenderer.invoke('plugin:main:unload', pluginName),
+    reload: (payload: {
+      pluginName: string
+      pluginDir: string
+      mainEntry: string
+      info?: Record<string, unknown>
+    }) => electronAPI.ipcRenderer.invoke('plugin:main:reload', payload),
+    ipc: {
+      invoke: (pluginName: string, channel: string, ...args: unknown[]) =>
+        electronAPI.ipcRenderer.invoke(`plugin:${pluginName}:${channel}`, ...args),
+      on: (pluginName: string, channel: string, callback: (...args: unknown[]) => void) => {
+        const fullChannel = `plugin:${pluginName}:${channel}`
+        const listener = (_event: any, ...args: any[]) => callback(...args)
+        electronAPI.ipcRenderer.on(fullChannel, listener)
+        return () => electronAPI.ipcRenderer.removeListener(fullChannel, listener)
+      }
+    }
   }
 }
 
