@@ -416,13 +416,14 @@ export const useSettingsStore = defineStore(
       const { index, target } = result
       const currentProvider = target.value[index]
       if (currentProvider) {
-        target.value[index] = {
-          ...currentProvider,
-          ...updates,
-          id: currentProvider.id,
-          name: currentProvider.name,
-          logo: currentProvider.logo
-        }
+        // 原地修改字段，避免替换对象引用导致下游（ModelSelector 等）意外触发选中变更
+        Object.assign(currentProvider, updates)
+        // 保护不可覆盖字段
+        currentProvider.id = currentProvider.id
+        currentProvider.name = currentProvider.name
+        currentProvider.logo = currentProvider.logo
+        // 触发 Pinia 响应式
+        target.value[index] = currentProvider
       }
     }
 
