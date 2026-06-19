@@ -18,6 +18,9 @@ const IPC_PREFIX = 'plugin'
 
 const channelFor = (pluginName: string, channel: string): string => {
   if (!channel) throw new Error('ipc channel is required')
+  if (channel.includes(':')) {
+    throw new Error(`ipc channel must not contain ':', got: ${channel}`)
+  }
   return `${IPC_PREFIX}:${pluginName}:${channel}`
 }
 
@@ -109,6 +112,16 @@ export class PluginMainLoader {
         electronIpcMain.removeListener(full, handler as any)
         set.delete(handler as (...args: any[]) => void)
         if (set.size === 0) registeredListeners.delete(full)
+      },
+      broadcast: (channel, ...args) => {
+        const full = channelFor(pluginName, channel)
+        for (const w of BrowserWindow.getAllWindows()) {
+          if (!w.isDestroyed()) {
+            try {
+              w.webContents.send(full, ...args)
+            } catch {}
+          }
+        }
       }
     }
 

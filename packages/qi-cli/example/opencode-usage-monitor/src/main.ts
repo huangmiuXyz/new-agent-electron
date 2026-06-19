@@ -1,9 +1,10 @@
 import type { MainPlugin, MainPluginContext } from '@agent-qi/types'
 import type { BrowserWindow, OnBeforeSendHeadersListenerDetails, BeforeSendResponse } from 'electron'
+import { createMainBridge, type WorkspaceData } from './protocol'
 
 let win: BrowserWindow | null = null
 /** 缓存最近一次推送的数据，新窗口 ready 后回放，避免打开瞬间空白 */
-let lastData: Record<string, unknown> | null = null
+let lastData: WorkspaceData | null = null
 let isWindowReady = false
 
 function injectZenGuide(bw: BrowserWindow) {
@@ -86,6 +87,7 @@ const mainPlugin: MainPlugin = {
 
   install: (ctx: MainPluginContext) => {
     const { BrowserWindow } = ctx.electron
+    const bridge = createMainBridge(ctx)
 
     const ensureWindow = (): Promise<BrowserWindow> => {
       if (win && !win.isDestroyed()) return Promise.resolve(win)
@@ -133,13 +135,10 @@ const mainPlugin: MainPlugin = {
         const authMatch = cookieHeader.match(/(?:^|;\s*)auth=([^;]+)/)
         const authCookie = authMatch ? authMatch[1] : null
         if (workId && authCookie) {
-          lastData = { workId, authCookie, timestamp: Date.now() }
+          lastData = { workId, authCookie }
           ctx.logger.info(`Captured workspace: ${workId}`)
-          const channel = `plugin:${ctx.pluginName}:workspace-data`
           try {
-            for (const w of ctx.electron.BrowserWindow.getAllWindows()) {
-              if (!w.isDestroyed()) w.webContents.send(channel, { workId, authCookie })
-            }
+            bridge.broadcast('workspace-data', { workId, authCookie })
           } catch {}
         }
         callback({ requestHeaders: details.requestHeaders })
@@ -147,7 +146,7 @@ const mainPlugin: MainPlugin = {
       win!.webContents.session.webRequest.onBeforeSendHeaders(workspaceFilter, onWorkspaceRequest)
 
       win.on('closed', () => {
-        try { win?.webContents.session.webRequest.removeListener('onBeforeSendHeaders', onWorkspaceRequest) } catch {}
+        try { win?.webContents.session.webRequest.onBeforeSendHeaders(workspaceFilter, null as any) } catch {}
         win = null
         isWindowReady = false
       })
@@ -155,14 +154,17 @@ const mainPlugin: MainPlugin = {
       return readyPromise.then(() => win as BrowserWindow)
     }
 
-    ctx.ipc.handle('show-window', async () => {
+    bridge.handle('show-window', async () => {
       const w = await ensureWindow()
       w.show()
       w.focus()
+      if (lastData) {
+        bridge.broadcast('workspace-data', lastData)
+      }
       return { ok: true }
     })
 
-    ctx.ipc.handle('hide-window', () => {
+    bridge.handle('hide-window', () => {
       if (win && !win.isDestroyed()) win.hide()
       return { ok: true }
     })

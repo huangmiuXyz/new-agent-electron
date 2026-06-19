@@ -1,9 +1,13 @@
 import type { Plugin, PluginContext } from '@agent-qi/types'
 import { createStatusRender, type UsageData, type UsageEntry } from './status-indicator'
+import { createRendererBridge, type WorkspaceData } from './protocol'
 
 const PLUGIN_NAME = 'opencode-usage-monitor'
 const STATUS_ID = 'opencode-usage-status'
 const STORAGE_KEY = 'opencode_usage_monitor_config'
+
+let unsubWorkspaceData: (() => void) | null = null
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 interface PluginConfig {
   workspaceId: string
@@ -67,9 +71,9 @@ const plugin: Plugin = {
   version: '1.0.0',
   description: '实时查看 OpenCode Go 用量',
   install: async (context: PluginContext) => {
+    const bridge = createRendererBridge(context, PLUGIN_NAME)
     let config: PluginConfig = { ...DEFAULT_CONFIG }
     let usageData: UsageData | null = null
-    let refreshTimer: ReturnType<typeof setInterval> | null = null
     let isStatusRegistered = false
     const usageDataState = context.vue.ref<UsageData | null>(null)
     const isPanelOpenState = context.vue.ref(false)
@@ -149,12 +153,12 @@ const plugin: Plugin = {
           await refreshUsage(true)
         },
         onOpenStandaloneWindow: async () => {
-          if (!context.api?.pluginMain?.ipc) {
+          if (!bridge) {
             context.notification.warning('当前环境不支持主进程窗口。', PLUGIN_NAME)
             return
           }
           try {
-            await context.api.pluginMain.ipc.invoke(PLUGIN_NAME, 'show-window')
+            await bridge.invoke('show-window')
             if (usageData) {
             } else if (isConfiguredState.value) {
               await refreshUsage(true)
@@ -219,10 +223,11 @@ const plugin: Plugin = {
     startAutoRefresh()
     updateStatusIndicator()
 
-    if (context.api?.pluginMain?.ipc?.on) {
-      context.api.pluginMain.ipc.on(PLUGIN_NAME, 'workspace-data', (data: { workId: string; authCookie: string }) => {
+    if (bridge) {
+      unsubWorkspaceData = bridge.on('workspace-data', (data: WorkspaceData) => {
         if (data?.workId && data?.authCookie) {
-          formActions.setFieldsValue({ workspaceId: data.workId, authCookie: data.authCookie })
+          formActions.setFieldValue('workspaceId', data.workId)
+          formActions.setFieldValue('authCookie', data.authCookie)
           saveConfig({ workspaceId: data.workId, authCookie: data.authCookie })
             .then(() => refreshUsage(true))
             .catch(console.error)
@@ -271,6 +276,12 @@ const plugin: Plugin = {
   },
 
   uninstall: async (context: PluginContext) => {
+    unsubWorkspaceData?.()
+    unsubWorkspaceData = null
+    if (refreshTimer) {
+      clearInterval(refreshTimer)
+      refreshTimer = null
+    }
     context.notification.removeStatus(STATUS_ID)
     context.unregisterSettings()
   }

@@ -81,6 +81,23 @@ export interface PluginMainIpcOnPayload {
   channel: string
 }
 
+/** pluginMain.ipc.invoke 超时时抛出的错误 */
+export class PluginIpcTimeoutError extends Error {
+  readonly pluginName: string
+  readonly channel: string
+  readonly timeoutMs: number
+  constructor(pluginName: string, channel: string, timeoutMs: number) {
+    super(`plugin ipc timeout: ${pluginName}:${channel} (${timeoutMs}ms)`)
+    this.name = 'PluginIpcTimeoutError'
+    this.pluginName = pluginName
+    this.channel = channel
+    this.timeoutMs = timeoutMs
+  }
+}
+
+/** pluginMain.ipc.invoke 默认超时（毫秒），0 表示不限 */
+export const PLUGIN_IPC_DEFAULT_TIMEOUT_MS = 15000
+
 export interface ElectronAPI {
   // aiServices
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>

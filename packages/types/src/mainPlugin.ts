@@ -60,6 +60,11 @@ export interface MainPluginIpc {
   removeHandler: (channel: string) => void
   /** 移除本插件注册的指定 channel listener */
   removeListener: (channel: string, handler: (...args: any[]) => void) => void
+  /**
+   * 向所有未销毁的渲染窗口广播消息，channel 自动加 `plugin:<name>:` 前缀。
+   * 等价于遍历 BrowserWindow.getAllWindows() 调用 webContents.send。
+   */
+  broadcast: (channel: string, ...args: unknown[]) => void
 }
 
 /**
