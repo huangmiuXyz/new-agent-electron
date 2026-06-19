@@ -9,6 +9,7 @@ export interface PluginProtocol {
   'show-window': { args: []; result: { ok: boolean } }
   'hide-window': { args: []; result: { ok: boolean } }
   'workspace-data': { args: [WorkspaceData]; result: void }
+  'auth-success': { args: []; result: void }
 }
 
 export type ProtocolChannel = keyof PluginProtocol

@@ -7,6 +7,7 @@ const STATUS_ID = 'opencode-usage-status'
 const STORAGE_KEY = 'opencode_usage_monitor_config'
 
 let unsubWorkspaceData: (() => void) | null = null
+let unsubAuthSuccess: (() => void) | null = null
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 interface PluginConfig {
@@ -233,6 +234,9 @@ const plugin: Plugin = {
             .catch(console.error)
         }
       })
+      unsubAuthSuccess = bridge.on('auth-success', () => {
+        context.notification.success('授权成功！已获取 OpenCode 访问权限。', PLUGIN_NAME)
+      })
     }
 
     context.registerHook('ai:after-use', async () => {
@@ -278,6 +282,8 @@ const plugin: Plugin = {
   uninstall: async (context: PluginContext) => {
     unsubWorkspaceData?.()
     unsubWorkspaceData = null
+    unsubAuthSuccess?.()
+    unsubAuthSuccess = null
     if (refreshTimer) {
       clearInterval(refreshTimer)
       refreshTimer = null

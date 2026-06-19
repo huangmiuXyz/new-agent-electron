@@ -6,6 +6,8 @@ let win: BrowserWindow | null = null
 /** 缓存最近一次推送的数据，新窗口 ready 后回放，避免打开瞬间空白 */
 let lastData: WorkspaceData | null = null
 let isWindowReady = false
+/** 防重复通知授权成功 */
+let authNotified = false
 
 function injectZenGuide(bw: BrowserWindow) {
   const fn = () => {
@@ -139,6 +141,10 @@ const mainPlugin: MainPlugin = {
           ctx.logger.info(`Captured workspace: ${workId}`)
           try {
             bridge.broadcast('workspace-data', { workId, authCookie })
+            if (!authNotified) {
+              authNotified = true
+              bridge.broadcast('auth-success')
+            }
           } catch {}
         }
         callback({ requestHeaders: details.requestHeaders })
@@ -176,6 +182,7 @@ const mainPlugin: MainPlugin = {
       win = null
       isWindowReady = false
       lastData = null
+      authNotified = false
     })
 
     ctx.logger.info('main-process window plugin installed')
@@ -188,6 +195,7 @@ const mainPlugin: MainPlugin = {
     win = null
     isWindowReady = false
     lastData = null
+    authNotified = false
     ctx.logger.info('main-process window plugin uninstalled')
   }
 }
