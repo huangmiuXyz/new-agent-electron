@@ -206,8 +206,8 @@ export const createStatusRender = (
                   border: 1px solid var(--border-subtle);
                   border-radius: 8px;
                   padding: 10px;
-                  min-width: 280px;
-                  max-width: 360px;
+                    min-width: 340px;
+                    max-width: 440px;
                   visibility: hidden;
                   opacity: 0;
                   transition: all 0.2s ease;
@@ -319,15 +319,15 @@ export const createStatusRender = (
                       variant="secondary"
                       size="sm"
                       onClick={handleOpenWindow}
-                      title="在独立窗口中打开"
+                      title="快速授权以自动获取配置"
                     >
-                      独立窗口
+                      快速授权
                     </Button>
                   </div>
                 </div>
                 {!isConfiguredRef.value ? (
                   <div class="ocgo-config-warn">
-                    请在插件设置中填写 Workspace ID 和 Auth Cookie。
+                    请在插件设置中填写 Workspace ID 和 Auth Cookie，或者点击快速授权根据引导进行登录。
                   </div>
                 ) : (
                   <div class="ocgo-usage-card">

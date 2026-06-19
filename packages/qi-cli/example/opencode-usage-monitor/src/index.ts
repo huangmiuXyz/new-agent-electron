@@ -161,7 +161,7 @@ const plugin: Plugin = {
             }
           } catch (error) {
             console.error('Failed to open standalone window:', error)
-            context.notification.error('无法打开独立窗口。', PLUGIN_NAME)
+            context.notification.error('无法打开 Zen 页面。', PLUGIN_NAME)
           }
         }
       })
@@ -219,11 +219,22 @@ const plugin: Plugin = {
     startAutoRefresh()
     updateStatusIndicator()
 
+    if (context.api?.pluginMain?.ipc?.on) {
+      context.api.pluginMain.ipc.on(PLUGIN_NAME, 'workspace-data', (data: { workId: string; authCookie: string }) => {
+        if (data?.workId && data?.authCookie) {
+          formActions.setFieldsValue({ workspaceId: data.workId, authCookie: data.authCookie })
+          saveConfig({ workspaceId: data.workId, authCookie: data.authCookie })
+            .then(() => refreshUsage(true))
+            .catch(console.error)
+        }
+      })
+    }
+
     context.registerHook('ai:after-use', async () => {
       await refreshUsage(false)
     })
 
-    const [ConfigForm] = context.useForm<PluginConfig>({
+    const [ConfigForm, formActions] = context.useForm<PluginConfig>({
       title: 'OpenCode Go 用量监控',
       fields: [
         {
