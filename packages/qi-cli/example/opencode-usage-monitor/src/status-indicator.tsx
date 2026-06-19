@@ -166,11 +166,7 @@ export const createStatusRender = (
           const updatedText = usage
             ? formatElapsed(Math.floor(usage.lastUpdated / 1000))
             : '未刷新'
-          const summaryText = usage
-            ? `Go: ${formatPercent(usage.rolling?.percentage)}`
-            : isConfiguredRef.value
-              ? 'Go: ...'
-              : 'Go: 未配置'
+          const summaryText = formatPercent(usage?.rolling?.percentage) || 'GO'
 
           return (
             <div class="ocgo-status-wrap" onClick={toggleOpen} title={tooltip}>
@@ -291,7 +287,6 @@ export const createStatusRender = (
                   padding: 6px 0;
                 }
               `}</style>
-              <span class="ocgo-status-icon">{context.useIcon('Cpu')}</span>
               <span class="ocgo-status-text">{summaryText}</span>
               <div
                 class={['ocgo-status-panel', isOpen.value ? 'open' : '']}
