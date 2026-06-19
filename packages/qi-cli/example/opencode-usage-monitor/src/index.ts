@@ -136,10 +136,6 @@ const plugin: Plugin = {
           : 'OpenCode Go: 未配置'
       statusTooltipState.value = tooltip
 
-      if (usageData && context.api?.pluginMain?.ipc) {
-        void context.api.pluginMain.ipc.invoke(PLUGIN_NAME, 'update-usage', usageData).catch(() => undefined)
-      }
-
       if (isStatusRegistered) return
 
       const statusRender = createStatusRender({
@@ -160,7 +156,6 @@ const plugin: Plugin = {
           try {
             await context.api.pluginMain.ipc.invoke(PLUGIN_NAME, 'show-window')
             if (usageData) {
-              await context.api.pluginMain.ipc.invoke(PLUGIN_NAME, 'update-usage', usageData)
             } else if (isConfiguredState.value) {
               await refreshUsage(true)
             }
