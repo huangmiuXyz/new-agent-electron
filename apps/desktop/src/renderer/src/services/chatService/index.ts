@@ -232,12 +232,11 @@ export const chatService = () => {
               // 全量深拷贝，工具循环越多开销越大，且会丢失 options 上的函数/AbortSignal
               // 等不可序列化字段。
               const result = await t.execute(input, {
-                ...options,
+                ...JSON.parse(JSON.stringify(options)),
                 chatId: cid,
                 model,
                 provider,
-                availableBuiltinTools: Array.from(builtinToolKeys),
-                // abortSignal: controller.signal
+                availableBuiltinTools: Array.from(builtinToolKeys)
               })
               return result
             }
