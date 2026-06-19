@@ -6,9 +6,342 @@ settings:
 
 catalogs:
   default:
+    '@ai-sdk/anthropic':
+      specifier: 3.0.76
+      version: 3.0.76
+    '@ai-sdk/deepseek':
+      specifier: 2.0.34
+      version: 2.0.34
+    '@ai-sdk/elevenlabs':
+      specifier: ^2.0.33
+      version: 2.0.33
+    '@ai-sdk/google':
+      specifier: 3.0.72
+      version: 3.0.72
+    '@ai-sdk/hume':
+      specifier: 2.0.33
+      version: 2.0.33
+    '@ai-sdk/mcp':
+      specifier: 1.0.42
+      version: 1.0.42
+    '@ai-sdk/moonshotai':
+      specifier: 2.0.22
+      version: 2.0.22
+    '@ai-sdk/openai':
+      specifier: 3.0.63
+      version: 3.0.63
+    '@ai-sdk/openai-compatible':
+      specifier: 2.0.47
+      version: 2.0.47
+    '@ai-sdk/provider':
+      specifier: 3.0.10
+      version: 3.0.10
+    '@ai-sdk/provider-utils':
+      specifier: 4.0.27
+      version: 4.0.27
+    '@ai-sdk/vue':
+      specifier: 3.0.177
+      version: 3.0.177
+    '@ai-sdk/xai':
+      specifier: 3.0.89
+      version: 3.0.89
+    '@capacitor/android':
+      specifier: ^8.0.2
+      version: 8.0.2
+    '@capacitor/app':
+      specifier: ^8.0.0
+      version: 8.0.0
+    '@capacitor/cli':
+      specifier: ^8.0.2
+      version: 8.0.2
+    '@capacitor/core':
+      specifier: ^8.0.2
+      version: 8.0.2
+    '@capacitor/ios':
+      specifier: ^8.0.2
+      version: 8.0.2
+    '@electron-toolkit/eslint-config-prettier':
+      specifier: 3.0.0
+      version: 3.0.0
+    '@electron-toolkit/eslint-config-ts':
+      specifier: ^3.1.0
+      version: 3.1.0
+    '@electron-toolkit/preload':
+      specifier: ^3.0.2
+      version: 3.0.2
+    '@electron-toolkit/tsconfig':
+      specifier: ^2.0.0
+      version: 2.0.0
+    '@electron-toolkit/utils':
+      specifier: ^4.0.0
+      version: 4.0.0
+    '@electron/rebuild':
+      specifier: ^4.0.3
+      version: 4.0.3
+    '@electron/remote':
+      specifier: ^2.1.3
+      version: 2.1.3
+    '@incremark/core':
+      specifier: ^0.3.10
+      version: 0.3.10
+    '@incremark/theme':
+      specifier: ^0.3.10
+      version: 0.3.10
+    '@incremark/vue':
+      specifier: ^0.3.10
+      version: 0.3.10
+    '@langchain/core':
+      specifier: ^1.1.45
+      version: 1.1.45
+    '@langchain/textsplitters':
+      specifier: ^1.0.1
+      version: 1.0.1
+    '@modelcontextprotocol/sdk':
+      specifier: ^1.29.0
+      version: 1.29.0
+    '@prettier/plugin-oxc':
+      specifier: ^0.1.3
+      version: 0.1.3
+    '@tiptap/extension-code-block':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-code-block-lowlight':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-color':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-horizontal-rule':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-image':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-placeholder':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-table':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-table-cell':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-table-header':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-table-row':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-task-item':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-task-list':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-text-align':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/extension-text-style':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/starter-kit':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tiptap/vue-3':
+      specifier: ^3.19.0
+      version: 3.19.0
+    '@tsconfig/node22':
+      specifier: ^22.0.5
+      version: 22.0.5
+    '@types/inquirer':
+      specifier: ^9.0.9
+      version: 9.0.9
+    '@types/jszip':
+      specifier: ^3.4.1
+      version: 3.4.1
+    '@types/mime-types':
+      specifier: ^3.0.1
+      version: 3.0.1
+    '@types/node':
+      specifier: ^25.2.0
+      version: 25.2.0
+    '@vicons/carbon':
+      specifier: ^0.13.0
+      version: 0.13.0
+    '@vicons/fluent':
+      specifier: ^0.13.0
+      version: 0.13.0
+    '@vicons/ionicons5':
+      specifier: ^0.13.0
+      version: 0.13.0
+    '@vicons/material':
+      specifier: ^0.13.0
+      version: 0.13.0
+    '@vicons/tabler':
+      specifier: ^0.13.0
+      version: 0.13.0
+    '@vicons/utils':
+      specifier: ^0.1.4
+      version: 0.1.4
+    '@vitejs/plugin-vue':
+      specifier: ^6.0.7
+      version: 6.0.7
     '@vitejs/plugin-vue-jsx':
       specifier: 5.1.5
       version: 5.1.5
+    '@vue/eslint-config-prettier':
+      specifier: ^10.2.0
+      version: 10.2.0
+    '@vue/eslint-config-typescript':
+      specifier: ^14.6.0
+      version: 14.6.0
+    '@vue/tsconfig':
+      specifier: ^0.8.1
+      version: 0.8.1
+    '@vueuse/core':
+      specifier: ^14.2.0
+      version: 14.2.0
+    ai:
+      specifier: 6.0.177
+      version: 6.0.177
+    ai-sdk-ollama:
+      specifier: 3.8.4
+      version: 3.8.4
+    better-sqlite3:
+      specifier: ^12.6.2
+      version: 12.6.2
+    blob-util:
+      specifier: ^2.0.2
+      version: 2.0.2
+    chalk:
+      specifier: ^5.6.2
+      version: 5.6.2
+    commander:
+      specifier: ^14.0.3
+      version: 14.0.3
+    dayjs:
+      specifier: ^1.11.19
+      version: 1.11.19
+    electron:
+      specifier: ^40.1.0
+      version: 40.1.0
+    electron-builder:
+      specifier: ^26.7.0
+      version: 26.7.0
+    electron-vite:
+      specifier: ^6.0.0-beta.1
+      version: 6.0.0-beta.1
+    es-toolkit:
+      specifier: ^1.44.0
+      version: 1.44.0
+    eslint:
+      specifier: ^9.39.2
+      version: 9.39.2
+    eslint-plugin-oxlint:
+      specifier: ~1.43.0
+      version: 1.43.0
+    eslint-plugin-vue:
+      specifier: ^10.7.0
+      version: 10.7.0
+    hast-util-to-html:
+      specifier: ^9.0.5
+      version: 9.0.5
+    highlight.js:
+      specifier: ^11.11.1
+      version: 11.11.1
+    inquirer:
+      specifier: ^13.2.2
+      version: 13.2.2
+    jszip:
+      specifier: ^3.10.1
+      version: 3.10.1
+    localforage:
+      specifier: ^1.10.0
+      version: 1.10.0
+    lowlight:
+      specifier: ^3.3.0
+      version: 3.3.0
+    mime-types:
+      specifier: ^3.0.2
+      version: 3.0.2
+    nanoid:
+      specifier: ^5.1.6
+      version: 5.1.6
+    node-pty:
+      specifier: ^1.1.0
+      version: 1.1.0
+    npm-run-all2:
+      specifier: ^8.0.4
+      version: 8.0.4
+    openai:
+      specifier: ^6.37.0
+      version: 6.37.0
+    ora:
+      specifier: ^9.1.0
+      version: 9.1.0
+    oxlint:
+      specifier: ~1.43.0
+      version: 1.43.0
+    pinia:
+      specifier: ^3.0.4
+      version: 3.0.4
+    pinia-plugin-persistedstate:
+      specifier: ^4.7.1
+      version: 4.7.1
+    pinia-plugin-persistedstate-async:
+      specifier: ^1.6.3
+      version: 1.6.3
+    prettier:
+      specifier: ^3.8.1
+      version: 3.8.1
+    sqlite-vec:
+      specifier: ^0.1.7-alpha.2
+      version: 0.1.7-alpha.2
+    strip-ansi:
+      specifier: ^7.1.2
+      version: 7.1.2
+    turbo:
+      specifier: ^2.8.3
+      version: 2.8.3
+    typescript:
+      specifier: ^5.9.3
+      version: 5.9.3
+    unplugin-auto-import:
+      specifier: ^21.0.0
+      version: 21.0.0
+    unplugin-vue-components:
+      specifier: ^31.0.0
+      version: 31.0.0
+    vite-plugin-dts:
+      specifier: ^5.0.2
+      version: 5.0.2
+    vite-plugin-vue-devtools:
+      specifier: ^8.1.2
+      version: 8.1.2
+    vue:
+      specifier: ^3.5.27
+      version: 3.5.27
+    vue-eslint-parser:
+      specifier: ^10.2.0
+      version: 10.2.0
+    vue-router:
+      specifier: ^5.0.2
+      version: 5.0.2
+    vue-tsc:
+      specifier: ^3.2.4
+      version: 3.2.4
+    xterm:
+      specifier: ^5.3.0
+      version: 5.3.0
+    xterm-addon-fit:
+      specifier: ^0.8.0
+      version: 0.8.0
+    zhipu-ai-provider:
+      specifier: 0.3.1
+      version: 0.3.1
+    zod:
+      specifier: ^4.3.6
+      version: 4.3.6
 
 overrides:
   vite: ^8.0.16
@@ -344,7 +677,7 @@ importers:
         version: 4.0.3
       '@prettier/plugin-oxc':
         specifier: 'catalog:'
-        version: 0.1.3
+        version: 0.1.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       '@tsconfig/node22':
         specifier: 'catalog:'
         version: 22.0.5
@@ -450,22 +783,6 @@ importers:
       vue-tsc:
         specifier: 'catalog:'
         version: 3.2.4(typescript@5.9.3)
-
-  opencode-usage-monitor:
-    dependencies:
-      '@agent-qi/types':
-        specifier: workspace:*
-        version: link:../packages/types
-    devDependencies:
-      '@vitejs/plugin-vue-jsx':
-        specifier: 'catalog:'
-        version: 5.1.5(vite@8.0.16(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2))(vue@3.5.27(typescript@5.9.3))
-      typescript:
-        specifier: ^5.9.2
-        version: 5.9.3
-      vite:
-        specifier: ^8.0.16
-        version: 8.0.16(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2)
 
   packages/qi-cli:
     dependencies:
@@ -761,6 +1078,22 @@ importers:
         specifier: ^8.0.16
         version: 8.0.16(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2)
 
+  packages/qi-cli/example/opencode-usage-monitor:
+    dependencies:
+      '@agent-qi/types':
+        specifier: workspace:*
+        version: link:../../../types
+    devDependencies:
+      '@vitejs/plugin-vue-jsx':
+        specifier: 'catalog:'
+        version: 5.1.5(vite@8.0.16(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2))(vue@3.5.27(typescript@6.0.3))
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.16
+        version: 8.0.16(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2)
+
   packages/qi-cli/example/qwen-tts-plugin:
     dependencies:
       '@ai-sdk/provider':
@@ -972,12 +1305,6 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@4.0.19':
-    resolution: {integrity: sha512-3eG55CrSWCu2SXlqq2QCsFjo3+E7+Gmg7i/oRVoSZzIodTuDSfLb3MRje67xE9RFea73Zao7Lm4mADIfUETKGg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
   '@ai-sdk/provider-utils@4.0.27':
     resolution: {integrity: sha512-ubkAJ+xODouwtmN1tYlvTPphH1hPOBfZaEQe8U7skGvFAnIRs9PPpsq57bC2+Ky/MB4yzhd6YOsxTAx9sGpazw==}
     engines: {node: '>=18'}
@@ -986,10 +1313,6 @@ packages:
 
   '@ai-sdk/provider@3.0.10':
     resolution: {integrity: sha512-Q3BZ27qfpYqnCYGvE3vt+Qi6LGOF9R5Nmzn+9JoM1lCRsD9mYaIhfJLkSunN48nfGXJ6n+XNV0J/XVpqGQl7Dw==}
-    engines: {node: '>=18'}
-
-  '@ai-sdk/provider@3.0.8':
-    resolution: {integrity: sha512-oGMAgGoQdBXbZqNG0Ze56CHjDZ1IDYOwGYxYjO5KLSlz5HiNQ9udIXsPZ61VWaHGZ5XW/jyjmr6t2xz2jGVwbQ==}
     engines: {node: '>=18'}
 
   '@ai-sdk/vue@3.0.177':
@@ -1283,17 +1606,8 @@ packages:
   '@emnapi/core@1.10.0':
     resolution: {integrity: sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw==}
 
-  '@emnapi/core@1.8.1':
-    resolution: {integrity: sha512-AvT9QFpxK0Zd8J0jopedNm+w/2fIzvtPKPjqyw9jwvBaReTTqPBk9Hixaz7KbjimP+QNz605/XnjFcDAL2pqBg==}
-
   '@emnapi/runtime@1.10.0':
     resolution: {integrity: sha512-ewvYlk86xUoGI0zQRNq/mC+16R1QeDlKQy21Ki3oSYXNgLb45GV1P6A0M+/s6nyCuNDqe5VpaY84BzXGwVbwFA==}
-
-  '@emnapi/runtime@1.8.1':
-    resolution: {integrity: sha512-mehfKSMWjjNol8659Z8KxEMrdSJDDot5SXMq00dM8BN4o+CLNXQ0xH2V7EchNHV4RmbZLmmPdEaXZc5H2FXmDg==}
-
-  '@emnapi/wasi-threads@1.1.0':
-    resolution: {integrity: sha512-WI0DdZ8xFSbgMjR1sFsKABJ/C5OnRrjT06JXbZKexJGrDuPTzZdDYfFlsgcCXCyf+suG5QU2e/y1Wo2V/OapLQ==}
 
   '@emnapi/wasi-threads@1.2.1':
     resolution: {integrity: sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w==}
@@ -1873,9 +2187,6 @@ packages:
   '@mswjs/interceptors@0.41.3':
     resolution: {integrity: sha512-cXu86tF4VQVfwz8W1SPbhoRyHJkti6mjH/XJIxp40jhO4j2k1m4KYrEykxqWPkFF3vrK4rgQppBh//AwyGSXPA==}
     engines: {node: '>=18'}
-
-  '@napi-rs/wasm-runtime@1.1.1':
-    resolution: {integrity: sha512-p64ah1M1ld8xjWv3qbvFwHiFVWrq1yFvV4f7w+mzaqiR4IlSgkqhcRdHwsGgomwzBH51sRY4NEowLxnaBjcW/A==}
 
   '@napi-rs/wasm-runtime@1.1.4':
     resolution: {integrity: sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow==}
@@ -2863,6 +3174,7 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+    deprecated: Potential CWE-502 - Update to 1.3.1 or higher
 
   '@vercel/oidc@3.2.0':
     resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
@@ -3019,17 +3331,11 @@ packages:
   '@vue/devtools-kit@7.7.9':
     resolution: {integrity: sha512-PyQ6odHSgiDVd4hnTP+aDk2X4gl2HmLDfiyEnn3/oV+ckFDuswRs4IbBT7vacMuGdwY/XemxBoh302ctbsptuA==}
 
-  '@vue/devtools-kit@8.0.5':
-    resolution: {integrity: sha512-q2VV6x1U3KJMTQPUlRMyWEKVbcHuxhqJdSr6Jtjz5uAThAIrfJ6WVZdGZm5cuO63ZnSUz0RCsVwiUUb0mDV0Yg==}
-
   '@vue/devtools-kit@8.1.2':
     resolution: {integrity: sha512-f75/upc+GCyjXErpgPGz4582ujS0L/adAltGy+tqXMGUJpgAcfGr6CxnnhpZY8BHuMYt6KpbF8uaFrrQG66rGQ==}
 
   '@vue/devtools-shared@7.7.9':
     resolution: {integrity: sha512-iWAb0v2WYf0QWmxCGy0seZNDPdO3Sp5+u78ORnyeonS6MT4PC7VPrryX2BpMJrwlDeaZ6BD4vP4XKjK0SZqaeA==}
-
-  '@vue/devtools-shared@8.0.5':
-    resolution: {integrity: sha512-bRLn6/spxpmgLk+iwOrR29KrYnJjG9DGpHGkDFG82UM21ZpJ39ztUT9OXX3g+usW7/b2z+h46I9ZiYyB07XMXg==}
 
   '@vue/devtools-shared@8.1.2':
     resolution: {integrity: sha512-X9RyVFYAdkBe4IUf5v48TxBF/6QPmF8CmWrDAjXzfUHrgQ/HGfTC1A6TqgXqZ03ye66l3AD51BAGD69IvKM9sw==}
@@ -4101,10 +4407,6 @@ packages:
   eventemitter3@4.0.7:
     resolution: {integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==}
 
-  eventsource-parser@3.0.6:
-    resolution: {integrity: sha512-Vo1ab+QXPzZ4tCa8SwIHJFaSzy4R6SHf7BY79rFBDf0idraZWAkYrDjDj8uWaSm3S2TK+hJ7/t1CEmZ7jXw+pg==}
-    engines: {node: '>=18.0.0'}
-
   eventsource-parser@3.0.8:
     resolution: {integrity: sha512-70QWGkr4snxr0OXLRWsFLeRBIRPuQOvt4s8QYjmUlmlkyTZkRqS7EDVRZtzU3TiyDbXSzaOeF0XUKy8PchzukQ==}
     engines: {node: '>=18.0.0'}
@@ -4537,10 +4839,6 @@ packages:
     peerDependenciesMeta:
       '@types/node':
         optional: true
-
-  ip-address@10.1.0:
-    resolution: {integrity: sha512-XXADHxXmvT9+CRxhXg56LJovE+bmWnEWB78LB83VZTprKTmaC5QfruXocxzTZ2Kl0DNwKuBdlIhjL8LeY8Sf8Q==}
-    engines: {node: '>= 12'}
 
   ip-address@10.2.0:
     resolution: {integrity: sha512-/+S6j4E9AHvW9SWMSEY9Xfy66O5PWvVEJ08O0y5JGyEKQpojb0K0GKpz/v5HJ/G0vi3D2sjGK78119oXZeE0qA==}
@@ -6597,6 +6895,11 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   uc.micro@2.1.0:
     resolution: {integrity: sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A==}
 
@@ -7176,13 +7479,6 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.27(zod@4.3.6)
       zod: 4.3.6
 
-  '@ai-sdk/provider-utils@4.0.19(zod@4.3.6)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@standard-schema/spec': 1.1.0
-      eventsource-parser: 3.0.6
-      zod: 4.3.6
-
   '@ai-sdk/provider-utils@4.0.27(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
@@ -7198,10 +7494,6 @@ snapshots:
       zod: 4.3.6
 
   '@ai-sdk/provider@3.0.10':
-    dependencies:
-      json-schema: 0.4.0
-
-  '@ai-sdk/provider@3.0.8':
     dependencies:
       json-schema: 0.4.0
 
@@ -7649,23 +7941,7 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@emnapi/core@1.8.1':
-    dependencies:
-      '@emnapi/wasi-threads': 1.1.0
-      tslib: 2.8.1
-    optional: true
-
   '@emnapi/runtime@1.10.0':
-    dependencies:
-      tslib: 2.8.1
-    optional: true
-
-  '@emnapi/runtime@1.8.1':
-    dependencies:
-      tslib: 2.8.1
-    optional: true
-
-  '@emnapi/wasi-threads@1.1.0':
     dependencies:
       tslib: 2.8.1
     optional: true
@@ -8288,7 +8564,7 @@ snapshots:
       cors: 2.8.6
       cross-spawn: 7.0.6
       eventsource: 3.0.7
-      eventsource-parser: 3.0.6
+      eventsource-parser: 3.0.8
       express: 5.2.1
       express-rate-limit: 8.5.1(express@5.2.1)
       hono: 4.12.18
@@ -8313,13 +8589,6 @@ snapshots:
       is-node-process: 1.2.0
       outvariant: 1.4.3
       strict-event-emitter: 0.5.1
-
-  '@napi-rs/wasm-runtime@1.1.1':
-    dependencies:
-      '@emnapi/core': 1.8.1
-      '@emnapi/runtime': 1.8.1
-      '@tybys/wasm-util': 0.10.1
-    optional: true
 
   '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
@@ -8467,9 +8736,12 @@ snapshots:
   '@oxc-parser/binding-linux-x64-musl@0.99.0':
     optional: true
 
-  '@oxc-parser/binding-wasm32-wasi@0.99.0':
+  '@oxc-parser/binding-wasm32-wasi@0.99.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.1
+      '@napi-rs/wasm-runtime': 1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+    transitivePeerDependencies:
+      - '@emnapi/core'
+      - '@emnapi/runtime'
     optional: true
 
   '@oxc-parser/binding-win32-arm64-msvc@0.99.0':
@@ -8513,9 +8785,12 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@prettier/plugin-oxc@0.1.3':
+  '@prettier/plugin-oxc@0.1.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
-      oxc-parser: 0.99.0
+      oxc-parser: 0.99.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+    transitivePeerDependencies:
+      - '@emnapi/core'
+      - '@emnapi/runtime'
 
   '@remirror/core-constants@3.0.0': {}
 
@@ -8574,7 +8849,7 @@ snapshots:
     dependencies:
       '@types/estree': 1.0.8
       estree-walker: 2.0.2
-      picomatch: 4.0.3
+      picomatch: 4.0.4
     optionalDependencies:
       rollup: 4.57.1
 
@@ -9267,7 +9542,7 @@ snapshots:
       debug: 4.4.3
       minimatch: 9.0.9
       semver: 7.7.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       ts-api-utils: 2.4.0(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -9317,6 +9592,18 @@ snapshots:
       '@vue/babel-plugin-jsx': 2.0.1(@babel/core@7.29.0)
       vite: 8.0.16(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2)
       vue: 3.5.27(typescript@5.9.3)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@vitejs/plugin-vue-jsx@5.1.5(vite@8.0.16(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2))(vue@3.5.27(typescript@6.0.3))':
+    dependencies:
+      '@babel/core': 7.29.0
+      '@babel/plugin-syntax-typescript': 7.28.6(@babel/core@7.29.0)
+      '@babel/plugin-transform-typescript': 7.28.6(@babel/core@7.29.0)
+      '@rolldown/pluginutils': 1.0.1
+      '@vue/babel-plugin-jsx': 2.0.1(@babel/core@7.29.0)
+      vite: 8.0.16(@types/node@25.2.0)(jiti@2.6.1)(yaml@2.8.2)
+      vue: 3.5.27(typescript@6.0.3)
     transitivePeerDependencies:
       - supports-color
 
@@ -9504,7 +9791,7 @@ snapshots:
 
   '@vue/devtools-api@8.0.5':
     dependencies:
-      '@vue/devtools-kit': 8.0.5
+      '@vue/devtools-kit': 8.1.2
 
   '@vue/devtools-core@8.1.2(vue@3.5.27(typescript@5.9.3))':
     dependencies:
@@ -9522,16 +9809,6 @@ snapshots:
       speakingurl: 14.0.1
       superjson: 2.2.6
 
-  '@vue/devtools-kit@8.0.5':
-    dependencies:
-      '@vue/devtools-shared': 8.0.5
-      birpc: 2.9.0
-      hookable: 5.5.3
-      mitt: 3.0.1
-      perfect-debounce: 2.1.0
-      speakingurl: 14.0.1
-      superjson: 2.2.6
-
   '@vue/devtools-kit@8.1.2':
     dependencies:
       '@vue/devtools-shared': 8.1.2
@@ -9540,10 +9817,6 @@ snapshots:
       perfect-debounce: 2.1.0
 
   '@vue/devtools-shared@7.7.9':
-    dependencies:
-      rfdc: 1.4.1
-
-  '@vue/devtools-shared@8.0.5':
     dependencies:
       rfdc: 1.4.1
 
@@ -9579,7 +9852,7 @@ snapshots:
       alien-signals: 3.1.2
       muggle-string: 0.4.1
       path-browserify: 1.0.1
-      picomatch: 4.0.3
+      picomatch: 4.0.4
 
   '@vue/reactivity@3.5.27':
     dependencies:
@@ -9602,6 +9875,12 @@ snapshots:
       '@vue/compiler-ssr': 3.5.27
       '@vue/shared': 3.5.27
       vue: 3.5.27(typescript@5.9.3)
+
+  '@vue/server-renderer@3.5.27(vue@3.5.27(typescript@6.0.3))':
+    dependencies:
+      '@vue/compiler-ssr': 3.5.27
+      '@vue/shared': 3.5.27
+      vue: 3.5.27(typescript@6.0.3)
 
   '@vue/shared@3.5.27': {}
 
@@ -10799,15 +11078,13 @@ snapshots:
 
   eventemitter3@4.0.7: {}
 
-  eventsource-parser@3.0.6: {}
-
   eventsource-parser@3.0.8: {}
 
   eventsource@2.0.2: {}
 
   eventsource@3.0.7:
     dependencies:
-      eventsource-parser: 3.0.6
+      eventsource-parser: 3.0.8
 
   expand-template@2.0.3: {}
 
@@ -11314,8 +11591,6 @@ snapshots:
       rxjs: 7.8.2
     optionalDependencies:
       '@types/node': 25.2.0
-
-  ip-address@10.1.0: {}
 
   ip-address@10.2.0: {}
 
@@ -12387,7 +12662,7 @@ snapshots:
       proc-log: 5.0.0
       semver: 7.7.4
       tar: 7.5.7
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       which: 5.0.0
     transitivePeerDependencies:
       - supports-color
@@ -12436,7 +12711,7 @@ snapshots:
       ansi-styles: 6.2.3
       cross-spawn: 7.0.6
       memorystream: 0.3.1
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       pidtree: 0.6.0
       read-package-json-fast: 4.0.0
       shell-quote: 1.8.3
@@ -12557,7 +12832,7 @@ snapshots:
 
   outvariant@1.4.3: {}
 
-  oxc-parser@0.99.0:
+  oxc-parser@0.99.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0):
     dependencies:
       '@oxc-project/types': 0.99.0
     optionalDependencies:
@@ -12573,9 +12848,12 @@ snapshots:
       '@oxc-parser/binding-linux-s390x-gnu': 0.99.0
       '@oxc-parser/binding-linux-x64-gnu': 0.99.0
       '@oxc-parser/binding-linux-x64-musl': 0.99.0
-      '@oxc-parser/binding-wasm32-wasi': 0.99.0
+      '@oxc-parser/binding-wasm32-wasi': 0.99.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       '@oxc-parser/binding-win32-arm64-msvc': 0.99.0
       '@oxc-parser/binding-win32-x64-msvc': 0.99.0
+    transitivePeerDependencies:
+      - '@emnapi/core'
+      - '@emnapi/runtime'
 
   oxlint@1.43.0:
     optionalDependencies:
@@ -13339,7 +13617,7 @@ snapshots:
 
   socks@2.8.7:
     dependencies:
-      ip-address: 10.1.0
+      ip-address: 10.2.0
       smart-buffer: 4.2.0
 
   sortablejs@1.14.0: {}
@@ -13691,6 +13969,8 @@ snapshots:
 
   typescript@5.9.3: {}
 
+  typescript@6.0.3: {}
+
   uc.micro@2.1.0: {}
 
   ufo@1.6.3: {}
@@ -13708,11 +13988,11 @@ snapshots:
       magic-string: 0.30.21
       mlly: 1.8.0
       pathe: 2.0.3
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       pkg-types: 2.3.0
       scule: 1.3.0
       strip-literal: 3.1.0
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       unplugin: 2.3.11
       unplugin-utils: 0.3.1
 
@@ -13770,7 +14050,7 @@ snapshots:
     dependencies:
       local-pkg: 1.1.2
       magic-string: 0.30.21
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       unimport: 5.6.0
       unplugin: 2.3.11
       unplugin-utils: 0.3.1
@@ -13799,7 +14079,7 @@ snapshots:
   unplugin-utils@0.3.1:
     dependencies:
       pathe: 2.0.3
-      picomatch: 4.0.3
+      picomatch: 4.0.4
 
   unplugin-vue-components@31.0.0(vue@3.5.27(typescript@5.9.3)):
     dependencies:
@@ -13808,8 +14088,8 @@ snapshots:
       magic-string: 0.30.21
       mlly: 1.8.0
       obug: 2.1.1
-      picomatch: 4.0.3
-      tinyglobby: 0.2.15
+      picomatch: 4.0.4
+      tinyglobby: 0.2.17
       unplugin: 2.3.11
       unplugin-utils: 0.3.1
       vue: 3.5.27(typescript@5.9.3)
@@ -13818,13 +14098,13 @@ snapshots:
     dependencies:
       '@jridgewell/remapping': 2.3.5
       acorn: 8.15.0
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       webpack-virtual-modules: 0.6.2
 
   unplugin@3.0.0:
     dependencies:
       '@jridgewell/remapping': 2.3.5
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       webpack-virtual-modules: 0.6.2
 
   until-async@3.0.2: {}
@@ -14010,9 +14290,9 @@ snapshots:
       mlly: 1.8.0
       muggle-string: 0.4.1
       pathe: 2.0.3
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       scule: 1.3.0
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       unplugin: 3.0.0
       unplugin-utils: 0.3.1
       vue: 3.5.27(typescript@5.9.3)
@@ -14036,6 +14316,16 @@ snapshots:
       '@vue/shared': 3.5.27
     optionalDependencies:
       typescript: 5.9.3
+
+  vue@3.5.27(typescript@6.0.3):
+    dependencies:
+      '@vue/compiler-dom': 3.5.27
+      '@vue/compiler-sfc': 3.5.27
+      '@vue/runtime-dom': 3.5.27
+      '@vue/server-renderer': 3.5.27(vue@3.5.27(typescript@6.0.3))
+      '@vue/shared': 3.5.27
+    optionalDependencies:
+      typescript: 6.0.3
 
   vuedraggable@4.1.0(vue@3.5.27(typescript@5.9.3)):
     dependencies:
@@ -14162,7 +14452,7 @@ snapshots:
   zhipu-ai-provider@0.3.1(zod@4.3.6):
     dependencies:
       '@ai-sdk/provider': 3.0.10
-      '@ai-sdk/provider-utils': 4.0.19(zod@4.3.6)
+      '@ai-sdk/provider-utils': 4.0.27(zod@4.3.6)
     transitivePeerDependencies:
       - zod
 
