@@ -342,9 +342,16 @@ export interface ElectronAPI {
         replacements?: number
         diff?: string
         summary: string
+        beforeSnapshot?: { hash: string; files: string[] } | null
+        afterSnapshot?: { hash: string; files: string[] } | null
       }>
       error?: string
     }>
+  }
+
+  snapshot: {
+    revert: (payload: string) => Promise<{ ok: boolean; error?: string }>
+    diff: (payload: string) => Promise<{ ok: boolean; diff?: string; error?: string }>
   }
 
   sync: {

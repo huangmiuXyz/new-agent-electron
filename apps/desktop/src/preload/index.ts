@@ -706,6 +706,10 @@ export const api: ElectronAPI = {
     }) =>
       electronAPI.ipcRenderer.invoke('edit-file:execute', payload)
   },
+  snapshot: {
+    revert: (payload: string) => electronAPI.ipcRenderer.invoke('snapshot:revert', payload),
+    diff: (payload: string) => electronAPI.ipcRenderer.invoke('snapshot:diff', payload)
+  },
   sync: {
     startHost: (options?: { displayName?: string; port?: number }) =>
       electronAPI.ipcRenderer.invoke('sync:start-host', options),

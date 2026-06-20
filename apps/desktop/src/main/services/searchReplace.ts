@@ -9,6 +9,7 @@ import {
   resolveHashlinePathInBaseDir,
   splitHashlineSections
 } from './hashline'
+import { trackSnapshot, type SnapshotPatch } from './snapshotRepo'
 
 type HashlineEditPayload = {
   baseDir?: string
@@ -31,6 +32,8 @@ export type FileEditChange = {
   replacements?: number
   diff?: string
   summary: string
+  beforeSnapshot?: SnapshotPatch | null
+  afterSnapshot?: SnapshotPatch | null
 }
 
 const ensureParentDir = async (filePath: string) => {
@@ -97,14 +100,18 @@ const applyHashlineInput = async (baseDir: string, input: string): Promise<FileE
       throw new Error(`Hashline edit made no changes: ${section.path}`)
     }
 
+    const beforeSnap = await trackSnapshot(baseDir)
     await ensureParentDir(filePath)
     await fs.writeFile(filePath, nextContent, 'utf-8')
+    const afterSnap = await trackSnapshot(baseDir)
     changes.push(
       makeChange({
         status: current.exists ? 'M' : 'A',
         path: section.path,
         old_hash: current.exists ? currentTag : undefined,
-        new_hash: computeSnapshotTag(nextContent)
+        new_hash: computeSnapshotTag(nextContent),
+        beforeSnapshot: beforeSnap,
+        afterSnapshot: afterSnap
       })
     )
   }
@@ -229,7 +236,10 @@ const applyStringReplace = async (baseDir: string, payload: HashlineEditPayload)
     throw new Error(`String replacement made no changes: ${rawPath}`)
   }
 
+  const beforeSnap = await trackSnapshot(baseDir)
   await fs.writeFile(filePath, nextContent, 'utf-8')
+  const afterSnap = await trackSnapshot(baseDir)
+
   return [
     makeChange({
       status: 'M',
@@ -237,7 +247,9 @@ const applyStringReplace = async (baseDir: string, payload: HashlineEditPayload)
       old_hash: computeSnapshotTag(currentContent),
       new_hash: computeSnapshotTag(nextContent),
       replacements: payload.replace_all ? matches : 1,
-      diff: buildUnifiedDiff(currentContent, nextContent, toDisplayPath(baseDir, filePath))
+      diff: buildUnifiedDiff(currentContent, nextContent, toDisplayPath(baseDir, filePath)),
+      beforeSnapshot: beforeSnap,
+      afterSnapshot: afterSnap
     })
   ]
 }
@@ -295,12 +307,16 @@ export const executeFileEdit = async (payload: HashlineEditPayload) => {
 
     await ensureParentDir(filePath)
     const content = typeof payload.content === 'string' ? payload.content : ''
+    const beforeSnap = await trackSnapshot(baseDir)
     await fs.writeFile(filePath, content, 'utf-8')
+    const afterSnap = await trackSnapshot(baseDir)
     return [
       makeChange({
         status: 'A',
         path: toDisplayPath(baseDir, filePath),
-        new_hash: computeSnapshotTag(content)
+        new_hash: computeSnapshotTag(content),
+        beforeSnapshot: beforeSnap,
+        afterSnapshot: afterSnap
       })
     ]
   }
@@ -310,12 +326,16 @@ export const executeFileEdit = async (payload: HashlineEditPayload) => {
     const filePath = resolveHashlinePathInBaseDir(baseDir, rawPath)
     await assertRegularFileTarget(filePath, 'Delete target')
     const oldContent = await fs.readFile(filePath, 'utf-8')
+    const beforeSnap = await trackSnapshot(baseDir)
     await fs.unlink(filePath)
+    const afterSnap = await trackSnapshot(baseDir)
     return [
       makeChange({
         status: 'D',
         path: toDisplayPath(baseDir, filePath),
-        old_hash: computeSnapshotTag(oldContent)
+        old_hash: computeSnapshotTag(oldContent),
+        beforeSnapshot: beforeSnap,
+        afterSnapshot: afterSnap
       })
     ]
   }
@@ -340,14 +360,18 @@ export const executeFileEdit = async (payload: HashlineEditPayload) => {
     }
 
     await ensureParentDir(newFilePath)
+    const beforeSnap = await trackSnapshot(baseDir)
     await fs.rename(filePath, newFilePath)
+    const afterSnap = await trackSnapshot(baseDir)
     return [
       makeChange({
         status: 'R',
         path: toDisplayPath(baseDir, filePath),
         new_path: toDisplayPath(baseDir, newFilePath),
         old_hash: contentHash,
-        new_hash: contentHash
+        new_hash: contentHash,
+        beforeSnapshot: beforeSnap,
+        afterSnapshot: afterSnap
       })
     ]
   }

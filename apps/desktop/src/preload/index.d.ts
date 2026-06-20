@@ -17,6 +17,10 @@ type ElectronAPI = SharedElectronAPI & {
       openAtLoginSupported: boolean
     }>
   }
+  snapshot: {
+    revert: (payload: string) => Promise<{ ok: boolean; error?: string }>
+    diff: (payload: string) => Promise<{ ok: boolean; diff?: string; error?: string }>
+  }
   sync?: {
     startHost: (options?: { displayName?: string; port?: number }) => Promise<{
       running: boolean

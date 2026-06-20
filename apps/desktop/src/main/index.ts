@@ -10,6 +10,7 @@ import { setupApplyPatchHandlers } from './services/applyPatch'
 import { setupHashlineHandlers } from './services/hashline'
 import { setupSearchReplaceHandlers } from './services/searchReplace'
 import { setupSyncHandlers } from './services/sync'
+import { setupSnapshotRepoHandlers } from './services/snapshotRepo'
 import { initTray } from './initTray'
 import { pluginMainLoader } from './services/pluginMainLoader'
 
@@ -610,6 +611,7 @@ if (gotSingleInstanceLock) {
     setupApplyPatchHandlers()
     setupHashlineHandlers()
     setupSearchReplaceHandlers()
+    setupSnapshotRepoHandlers()
     setupSyncHandlers()
 
     ipcMain.handle('plugin:main:load', async (_event, payload) => {

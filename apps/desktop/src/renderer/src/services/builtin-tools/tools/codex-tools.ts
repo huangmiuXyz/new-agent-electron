@@ -987,7 +987,11 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
           throw new Error(result?.error || 'edit_file failed')
         }
 
-        // replace 模式只返回 diff，去掉 hash 信息；其余类型原样返回 summary
+        debugger
+
+        const afterSnapshot = result.changes?.[0]?.afterSnapshot || undefined
+        const snapData = afterSnapshot ? { ...afterSnapshot, baseDir } : undefined
+
         if (type === 'replace') {
           const diffText = result.changes?.[0]?.diff || result.summary
           const summaryWithoutHash = result.summary
@@ -998,7 +1002,8 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
             summary: summaryWithoutHash,
             toolResult: {
               content: [{ type: 'text', text: diffText }]
-            }
+            },
+            _snapshot: snapData
           }
         }
 
@@ -1006,7 +1011,8 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
           summary: result.summary,
           toolResult: {
             content: [{ type: 'text', text: result.summary }]
-          }
+          },
+          _snapshot: snapData
         }
       } catch (error) {
         return {

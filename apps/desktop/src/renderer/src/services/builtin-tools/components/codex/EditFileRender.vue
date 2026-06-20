@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CodexSummaryBar from './CodexSummaryBar.vue'
 import { extractResultError, extractResultSummary, truncate } from './codexUtils'
+import { useChatsStores } from '@renderer/stores/chats'
 
 type EditOp =
   | { kind: 'replace'; start: number; end: number; adds: string[] }
@@ -13,6 +14,10 @@ const props = defineProps<{
   message?: any
   tool_part?: any
 }>()
+
+const chatsStore = useChatsStores()
+const reverting = ref(false)
+const reverted = ref(false)
 
 const editType = computed(() => {
   const t = String(props.args?.type || 'update')
@@ -38,7 +43,6 @@ const displayPath = computed(() => headerPath.value || path.value)
 
 const addText = computed(() => {
   if (editType.value !== 'add') return ''
-  // hashline 模式 add 内容在 content；replace 模式 add 内容在 new_string
   return content.value || newString.value
 })
 const addPreviewLines = computed(() => {
@@ -103,6 +107,95 @@ const ops = computed<EditOp[]>(() => {
 })
 
 const totalChanges = computed(() => ops.value.length)
+
+const canRevert = computed(() => {
+  if (reverted.value || reverting.value) return false
+  if (hasError.value) return false
+  return !!props.result?._snapshot
+})
+
+const collectSubsequentPatches = () => {
+  const chatId = props.message?.metadata?.cid
+  if (!chatId) return { patches: [], chatId: '' }
+
+  const msgId = props.message?.id
+  if (!msgId) return { patches: [], chatId }
+
+  const chat = chatsStore.allChats.find((c: any) => c.id === chatId)
+  if (!chat) return { patches: [], chatId }
+
+  const msgs = chat.messages || []
+  const currentIdx = msgs.findIndex((m: any) => m.id === msgId)
+  if (currentIdx < 0) return { patches: [], chatId }
+
+  const patches: Array<{ hash: string; files: string[] }> = []
+
+  for (let i = currentIdx + 1; i < msgs.length; i++) {
+    const msg = msgs[i]
+    const parts = msg.parts || []
+    for (const part of parts) {
+      if (part.output?._snapshot?.hash && part.output?._snapshot?.files?.length) {
+        patches.push({
+          hash: part.output._snapshot.hash,
+          files: part.output._snapshot.files
+        })
+      }
+    }
+  }
+
+  return { patches, chatId }
+}
+
+const handleRevert = async () => {
+  if (reverting.value || reverted.value) return
+
+  const snapshot = props.result?._snapshot
+  if (!snapshot?.baseDir) return
+
+  const { patches, chatId } = collectSubsequentPatches()
+  const allPatches = [snapshot, ...patches].filter(
+    (p: any) => p?.hash && p?.files?.length
+  )
+  if (!allPatches.length) return
+
+  reverting.value = true
+  try {
+    const serialized = JSON.stringify({
+      baseDir: snapshot.baseDir,
+      patches: allPatches.map((p: any) => ({
+        hash: p.hash,
+        files: p.files
+      }))
+    })
+    const res = await window.api.snapshot.revert(serialized)
+
+    if (!res.ok) {
+      console.error('revert failed:', res.error)
+      return
+    }
+
+    reverted.value = true
+
+    if (chatId) {
+      const msgId = props.message?.id
+      const chat = chatsStore.allChats.find((c: any) => c.id === chatId)
+      if (chat) {
+        const msgs = chat.messages || []
+        const currentIdx = msgs.findIndex((m: any) => m.id === msgId)
+        if (currentIdx >= 0) {
+          const toRemove = msgs.slice(currentIdx + 1)
+          for (const rm of toRemove) {
+            chatsStore.deleteMessage(chatId, rm.id)
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error('revert error:', e)
+  } finally {
+    reverting.value = false
+  }
+}
 </script>
 
 <template>
@@ -175,6 +268,15 @@ const totalChanges = computed(() => ops.value.length)
     <div v-else-if="summary" class="result-section success">
       <div class="result-icon">✓</div>
       <div class="result-text">{{ truncate(summary, 1000) }}</div>
+      <button
+        v-if="canRevert"
+        class="revert-btn"
+        :class="{ loading: reverting }"
+        :disabled="reverting"
+        @click="handleRevert"
+      >
+        {{ reverted ? '已恢复' : '恢复' }}
+      </button>
     </div>
   </div>
 </template>
@@ -301,5 +403,34 @@ const totalChanges = computed(() => ops.value.length)
   word-break: break-all;
   line-height: 1.5;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.revert-btn {
+  flex: none;
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border: 1px solid var(--color-warning);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-warning);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.revert-btn:hover:not(:disabled) {
+  background: rgba(var(--color-warning-rgb, 234, 179, 8), 0.12);
+}
+
+.revert-btn.loading {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.revert-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 </style>
