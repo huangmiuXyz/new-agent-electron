@@ -29,7 +29,7 @@ const props = withDefaults(
   {
     alwaysVisible: false,
     estimateHeight: 80,
-    rootMargin: '3w00px 0px'
+    rootMargin: '600px 0px'
   }
 )
 
