@@ -1,11 +1,11 @@
 ---
 name: mcp-search
-description: 搜索和发现 MCP（Model Context Protocol）相关开源项目、服务器和工具。当用户想查找 MCP 服务、AI 工具集成、或通过 GitHub API 搜索特定技术栈的开源项目时使用。支持通过 curl 调用 GitHub REST API 搜索、筛选和评估开源项目。也适用于任何需要通过 GitHub 搜索 API 查找开源项目的场景。
+description: 搜索和发现 MCP（Model Context Protocol）相关开源项目、服务器和工具。通过 GitHub REST API 搜索、筛选和评估开源项目。也适用于任何需要通过 GitHub 搜索 API 查找开源项目的场景。
 ---
 
 # MCP Search
 
-搜索和发现 MCP（Model Context Protocol）相关开源项目、服务器和工具，通过 GitHub API 使用 curl 进行搜索。
+搜索和发现 MCP（Model Context Protocol）相关开源项目、服务器和工具，通过 GitHub REST API 搜索。
 
 ## 何时使用
 
@@ -16,7 +16,6 @@ description: 搜索和发现 MCP（Model Context Protocol）相关开源项目�
 - 对比不同的 MCP 实现方案（如不同语言、不同协议版本）
 - 用户提到 "MCP server"、"Model Context Protocol"、"AI 工具集成" 等关键词
 - 需要通过 GitHub API 搜索任何类型的开源项目
-- 需要从命令行/终端使用 curl 查询 GitHub 仓库信息
 
 ## 搜索流程
 
@@ -31,38 +30,40 @@ description: 搜索和发现 MCP（Model Context Protocol）相关开源项目�
 
 ### 第二步：通过 GitHub API 搜索
 
-使用 `curl.exe`（Windows PowerShell 下需用 `curl.exe` 而非 `curl`，因为 `curl` 是 `Invoke-WebRequest` 的别名）调用 GitHub 搜索 API：
+使用 `fetch` 工具调 GitHub 搜索 API。**必须使用 `api.github.com`，不要用 `github.com/search`。**
 
-```powershell
-# 基础搜索：按 Stars 排序
-curl.exe -s -H "User-Agent: curl" "https://api.github.com/search/repositories?q=KEYWORD+mcp&sort=stars&order=desc&per_page=10"
+**参数说明：**
+- `raw: true` — 返回原始 JSON，不做 HTML 简化
+- `max_length: 999999` — 获取完整响应
+- `headers` — 设置 `User-Agent`（GitHub API 要求）
 
-# 按语言过滤
-curl.exe -s -H "User-Agent: curl" "https://api.github.com/search/repositories?q=KEYWORD+mcp+language:python&sort=stars&order=desc&per_page=10"
-
-# 按话题标签搜索
-curl.exe -s -H "User-Agent: curl" "https://api.github.com/search/repositories?q=topic:mcp+topic:KEYWORD&sort=stars&order=desc&per_page=10"
-
-# 高 Star 过滤（>100）
-curl.exe -s -H "User-Agent: curl" "https://api.github.com/search/repositories?q=KEYWORD+mcp+stars:>100&sort=stars&order=desc&per_page=10"
-
-# 按最后更新日期筛选
-curl.exe -s -H "User-Agent: curl" "https://api.github.com/search/repositories?q=KEYWORD+mcp+pushed:>2025-01-01&sort=updated&order=desc&per_page=10"
+**调用方式：**
+```json
+fetch({
+  url: "https://api.github.com/search/repositories?q=KEYWORD+mcp&sort=stars&order=desc&per_page=10",
+  raw: true,
+  max_length: 999999,
+  headers: { "User-Agent": "Mozilla/5.0" }
+})
 ```
+
+**搜索 URL 示例表（替换 KEYWORD）：**
+
+| 目的 | URL |
+|------|-----|
+| 基础搜索（按 Stars） | `https://api.github.com/search/repositories?q=KEYWORD+mcp&sort=stars&order=desc&per_page=10` |
+| 按语言过滤 | `https://api.github.com/search/repositories?q=KEYWORD+mcp+language:python&sort=stars&order=desc&per_page=10` |
+| 按话题标签 | `https://api.github.com/search/repositories?q=topic:mcp+topic:KEYWORD&sort=stars&order=desc&per_page=10` |
+| 高 Star 过滤 | `https://api.github.com/search/repositories?q=KEYWORD+mcp+stars:>100&sort=stars&order=desc&per_page=10` |
+| 按更新日期 | `https://api.github.com/search/repositories?q=KEYWORD+mcp+pushed:>2025-01-01&sort=updated&order=desc&per_page=10` |
 
 > 将所有 `KEYWORD` 替换为用户感兴趣的领域关键词，例如 `godot`、`browser`、`database`、`docker`、`claude`、`openai` 等。
 
-**关键参数说明：**
-- `-s`：静默模式，不显示进度条
-- `-H "User-Agent: curl"`：GitHub API 要求必须设置 User-Agent
-- `sort=stars&order=desc`：按 Star 数降序排列
-- `sort=updated&order=desc`：按最近更新时间排列
-- `per_page=N`：每页返回结果数（最大 100）
-- `q=`：搜索查询，支持 GitHub 搜索语法
+返回的是完整 JSON 字符串。从中提取 `items` 数组解析结果。
 
 ### 第三步：解析搜索结果
 
-GitHub API 返回 JSON 格式，关注以下关键字段：
+GitHub API 返回 JSON，关注以下关键字段：
 
 | 字段 | 含义 | 评估要点 |
 |------|------|---------|
@@ -76,25 +77,20 @@ GitHub API 返回 JSON 格式，关注以下关键字段：
 | `created_at` | 创建时间 | 项目成熟度 |
 | `topics` | 话题标签 | 功能分类 |
 | `license` | 开源协议（`license.key`） | 商业使用限制 |
+| `html_url` | GitHub 页面链接 | 项目地址 |
 
 ### 第四步：扩展搜索
 
 根据初步结果，可以进一步深入：
 
-```powershell
-# 查看仓库详情
-curl.exe -s -H "User-Agent: curl" "https://api.github.com/repos/{owner}/{repo}"
+| 目的 | URL |
+|------|-----|
+| 查看仓库详情 | `https://api.github.com/repos/{owner}/{repo}` |
+| 查看 README | `https://api.github.com/repos/{owner}/{repo}/readme` |
+| 查看最近版本 | `https://api.github.com/repos/{owner}/{repo}/releases?per_page=5` |
+| 更多关联搜索 | `https://api.github.com/search/repositories?q=KEYWORD+mcp+server&sort=stars&order=desc&per_page=10` |
 
-# 查看 README（获取项目介绍）
-curl.exe -s -H "User-Agent: curl" "https://api.github.com/repos/{owner}/{repo}/readme"
-
-# 查看最近发布的版本
-curl.exe -s -H "User-Agent: curl" "https://api.github.com/repos/{owner}/{repo}/releases?per_page=5"
-
-# 搜索其他相关关键词组合
-curl.exe -s -H "User-Agent: curl" "https://api.github.com/search/repositories?q=KEYWORD+mcp+server&sort=stars&order=desc&per_page=10"
-curl.exe -s -H "User-Agent: curl" "https://api.github.com/search/repositories?q=KEYWORD+ai+plugin&sort=stars&order=desc&per_page=10"
-```
+README API 返回的 `content` 字段是 Base64 编码，用 `atob()` 解码后得到 markdown。
 
 ### 第五步：结果整理与推荐
 
@@ -103,7 +99,7 @@ curl.exe -s -H "User-Agent: curl" "https://api.github.com/search/repositories?q=
 ```
 | # | 项目 | ⭐ Stars | 描述 | 语言 | 活跃度 |
 |---|------|---------|------|------|--------|
-| 1 | [owner/repo](https://github.com/owner/repo) | ⭐ N | 描述文本 | 语言 | 最后推送日期 |
+| 1 | [owner/repo](https://github.com/owner/repo) | N | 描述文本 | 语言 | 最后推送日期 |
 ```
 
 评估推荐优先级：
@@ -112,19 +108,7 @@ curl.exe -s -H "User-Agent: curl" "https://api.github.com/search/repositories?q=
 3. **Star 数低但近期活跃** → 潜力项目，值得关注
 4. **付费产品** → 明确标注费用和许可
 
-如果用户需要，可以进一步查看项目 README 获取详细功能说明。
-
-## Windows curl 注意事项
-
-Windows 系统下 `curl` 命令的使用要点：
-
-1. **使用 `curl.exe` 而非 `curl`** — PowerShell 中 `curl` 是 `Invoke-WebRequest` 的别名
-2. **URL 包含 `&` 时用引号包裹** — PowerShell 会解释 `&` 为调用操作符
-3. **推荐写法**：
-   ```powershell
-   curl.exe -s -H "User-Agent: curl" "https://api.github.com/search/repositories?q=KEYWORD+mcp&sort=stars&order=desc"
-   ```
-4. **GitHub API 速率限制**：未认证时每小时 60 次请求，加 `-H "Authorization: Bearer YOUR_TOKEN"` 可提高到 5000 次/小时
+如果用户需要，可以进一步查看项目 README 获取详细功能说明。如果用户想安装找到的 MCP 服务器，使用 `mcp_installer` 工具添加配置。
 
 ## GitHub 搜索语法参考
 
@@ -190,8 +174,18 @@ Windows 系统下 `curl` 命令的使用要点：
 
 ### 认证（提高速率限制）
 
-```powershell
-curl.exe -s -H "User-Agent: curl" -H "Authorization: Bearer ghp_你的Token" "https://api.github.com/search/repositories?q=mcp+server&sort=stars&order=desc"
+如果需要认证，在 `headers` 中加入 `Authorization`：
+
+```json
+fetch({
+  url: "https://api.github.com/search/repositories?q=mcp+server&sort=stars&order=desc&per_page=10",
+  raw: true,
+  max_length: 999999,
+  headers: {
+    "User-Agent": "Mozilla/5.0",
+    "Authorization": "Bearer ghp_你的Token"
+  }
+})
 ```
 
 Token 获取：GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens
