@@ -987,10 +987,8 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
           throw new Error(result?.error || 'edit_file failed')
         }
 
-        debugger
-
-        const afterSnapshot = result.changes?.[0]?.afterSnapshot || undefined
-        const snapData = afterSnapshot ? { ...afterSnapshot, baseDir } : undefined
+        const beforeSnapshot = result.changes?.[0]?.beforeSnapshot || undefined
+        const snapData = beforeSnapshot ? { ...beforeSnapshot, baseDir } : undefined
 
         if (type === 'replace') {
           const diffText = result.changes?.[0]?.diff || result.summary
