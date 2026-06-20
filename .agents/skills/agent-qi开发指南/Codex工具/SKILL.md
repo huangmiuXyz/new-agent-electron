@@ -1,6 +1,6 @@
 ---
 name: agent-qi-app-dev-zh
-description: 面向 Agent-Qi / agent-qi-electron 应用本体开发的中文技能。涉及 Codex 内置工具（readFile、edit_file、search_project、list_dir、exec_command、change_working_directory）的修改或新增时，必须使用此技能。
+description: 面向 Agent-Qi / agent-qi-electron 应用本体开发的中文技能。涉及内置工具（readFile、edit_file、search_project、list_dir、exec_command、change_working_directory、todowrite）的修改或新增时，必须使用此技能。
 ---
 
 # Codex 内置工具链路
@@ -9,17 +9,21 @@ Codex 工具是预设给 AI 智能体的文件操作/命令执行类内置工具
 
 ```
 智能体 (Agent)
-  └─► builtinToolConfigs.edit_file.mode  ('hashline' | 'replace')
+  │
+  ├─► builtinToolConfigs.edit_file.mode  ('hashline' | 'replace')
+  │
+  ▼
+grouped-tools.ts ── getCodexBuiltinTools({ editFileMode }) 合并 getTodoBuiltinTools()
         │
         ▼
-grouped-tools.ts ── getCodexBuiltinTools({ editFileMode })
+codex-tools.ts  +  todo-tools.ts ── 7 个工具定义
+  (readFile, edit_file, search_project, list_dir, exec_command, change_working_directory, todowrite)
         │
-        ▼
-codex-tools.ts ── 6 个工具定义 (readFile, edit_file, search_project, list_dir, exec_command, change_working_directory)
+        ├─► Render 组件 (Vue)
+        │     ├─ builtin-tools/components/codex/*.vue        (6 个)
+        │     └─ builtin-tools/components/todo/TodoWriteRender.vue  (1 个)
         │
-        ├─► Render 组件 (Vue) ── builtin-tools/components/codex/*.vue
-        │
-        └─► window.api.* (Preload bridge) ──► 主进程 IPC handler
+        └─► window.api.* (Preload bridge) ──► 主进程 IPC handler (仅 Codex 6 工具)
 ```
 
 ## 1. 工具注册链路
@@ -28,14 +32,17 @@ codex-tools.ts ── 6 个工具定义 (readFile, edit_file, search_project, li
 
 `apps/desktop/src/renderer/src/services/builtin-tools/grouped-tools.ts`
 
-每个工具组导出为 `BuiltinToolGroupEntry` 列表，Codex 工具组的 key 为 `'Codex工具'`：
+每个工具组导出为 `BuiltinToolGroupEntry` 列表，Codex 工具组的 key 为 `'Codex工具'`，内部合并了 `todo-tools.ts` 的 `todowrite`：
 
 ```ts
 {
   group: 'Codex工具',
-  tools: getCodexBuiltinTools({
-    editFileMode: options?.builtinToolConfigs?.edit_file?.mode // from Agent config
-  })
+  tools: {
+    ...getCodexBuiltinTools({
+      editFileMode: options?.builtinToolConfigs?.edit_file?.mode // from Agent config
+    }),
+    ...getTodoBuiltinTools()
+  }
 }
 ```
 
@@ -67,7 +74,7 @@ const output = await tool.execute(params, options)
 
 寻址格式：`builtin.<toolName>`，在 `general-tools.ts` 中被剥离 `builtin.` 前缀。
 
-## 2. 六个工具详细实现
+## 2. 工具详细实现
 
 ### 2.1 change_working_directory
 
@@ -166,6 +173,32 @@ ipcMain.handle('edit-file:execute', async (_event, payload) => {
 
 Render: `EditFileRender.vue`
 
+### 2.7 todowrite
+
+| 项目 | 内容 |
+|------|------|
+| 文件 | `todo-tools.ts` |
+| 功能 | 创建并维护 AI 编码会话的结构化任务清单 |
+| Schema | `{ todos: [{ content, status?, priority? }] }` |
+| status | `'pending' \| 'in_progress' \| 'completed' \| 'cancelled'`，默认 `pending` |
+| priority | `'high' \| 'medium' \| 'low'`，默认 `medium` |
+| 关键逻辑 | AI 自身维护状态，每次调用传入完整列表；工具仅计算统计并返回 |
+| 数据流 | 纯渲染进程，无需 IPC 或主进程 |
+| Store | 无（AI 消息中的 args 即状态来源） |
+| Render | `TodoWriteRender.vue` — 进度条 + 状态图标 + 优先级徽标 |
+
+**执行流程**：
+1. AI 调用 `builtin.todowrite({ todos: [...] })`，传入完整任务列表
+2. `todo-tools.ts` 校验参数 → 计算统计摘要（总数/各状态/进度百分比）
+3. 返回摘要给 AI 继续推理
+4. `TodoWriteRender.vue` 从 `message` 中的 `args.todos` 读取数据渲染
+
+**渲染组件设计**：
+- 顶部进度条（已完成比例）
+- 每项显示状态图标 + 内容 + 优先级徽标
+- 进行中任务左侧高亮边框，已完成/已取消半透明+删除线
+- 优先级：🔴高 / 🟡中（默认不显示）/ 🟢低
+
 ## 3. Preload Bridge
 
 `apps/desktop/src/preload/index.ts` — 通过 `contextBridge.exposeInMainWorld('api', {...})` 暴露给渲染进程。
@@ -259,16 +292,17 @@ type HashlineEditPayload = {
 
 ## 6. Render 组件
 
-所有 render 组件在 `apps/desktop/src/renderer/src/services/builtin-tools/components/codex/`：
+Codex 工具组（含 `todowrite`）的 render 组件分布：
 
-| 文件 | 用途 |
-|------|------|
-| `CodexSummaryBar.vue` | 可复用组件：路径徽章 + canvas 打开 + 复制按钮 |
-| `ReadFileRender.vue` | 显示文件内容（hashline 或纯文本模式） |
-| `SearchProjectRender.vue` | 搜索结果的候选文件列表 |
-| `EditFileRender.vue` | 编辑操作的 diff/结果展示 |
-| `ListDirRender.vue` | 目录结构树 |
-| `ChangeWorkingDirectoryRender.vue` | 工作路径切换通知 |
+| 文件 | 组 | 用途 |
+|------|----|------|
+| `CodexSummaryBar.vue` | codex | 可复用组件：路径徽章 + canvas 打开 + 复制按钮 |
+| `ReadFileRender.vue` | codex | 显示文件内容（hashline 或纯文本模式） |
+| `SearchProjectRender.vue` | codex | 搜索结果的候选文件列表 |
+| `EditFileRender.vue` | codex | 编辑操作的 diff/结果展示 |
+| `ListDirRender.vue` | codex | 目录结构树 |
+| `ChangeWorkingDirectoryRender.vue` | codex | 工作路径切换通知 |
+| `TodoWriteRender.vue` | codex | 任务清单：进度条 + 状态图标 + 优先级徽标 |
 
 ## 7. 路径解析安全机制
 
@@ -294,12 +328,14 @@ const getAvailableBuiltinToolSet = (options) => {
 | 文件 | 职责 |
 |------|------|
 | `apps/desktop/src/renderer/src/services/builtin-tools/tools/codex-tools.ts` | 6 个 Codex 工具定义 |
+| `apps/desktop/src/renderer/src/services/builtin-tools/tools/todo-tools.ts` | todowrite 工具定义 |
 | `apps/desktop/src/renderer/src/services/builtin-tools/tools/codex-utils.ts` | 补丁解析、search/replace、只读验证 |
 | `apps/desktop/src/renderer/src/services/builtin-tools/tools/command-utils.ts` | ripgrep 注入、文件工具提示 |
 | `apps/desktop/src/renderer/src/services/builtin-tools/grouped-tools.ts` | 工具分组注册 |
 | `apps/desktop/src/renderer/src/services/builtin-tools/index.ts` | 工具聚合导出 |
 | `apps/desktop/src/renderer/src/services/builtin-tools/components/codex/codexUtils.ts` | Render 共享辅助函数 |
-| `apps/desktop/src/renderer/src/services/builtin-tools/components/codex/*.vue` | 6 个 Render 组件 |
+| `apps/desktop/src/renderer/src/services/builtin-tools/components/codex/*.vue` | 6 个 Codex Render 组件 |
+| `apps/desktop/src/renderer/src/services/builtin-tools/components/todo/TodoWriteRender.vue` | todowrite Render 组件 |
 | `apps/desktop/src/renderer/src/services/builtin-tools/tools/general-tools.ts` | `multi_tool_use_parallel` 动态分发 |
 | `apps/desktop/src/preload/index.ts` | Preload bridge (`window.api.*`) |
 | `apps/desktop/src/main/services/hashline.ts` | 主进程 hashline 读取/快照 |
@@ -310,8 +346,9 @@ const getAvailableBuiltinToolSet = (options) => {
 
 ## 10. 验证
 
-- 新增/修改工具后确认 `getCodexBuiltinTools` 返回值包含新工具
+- 新增/修改工具后确认对应的 `get*BuiltinTools` 返回值包含新工具
 - 确认 `grouped-tools.ts` 中注册了新的工具组或新工具
 - 确认 `Tools` 类型兼容新工具的 `execute` 签名
 - `pnpm --filter desktop typecheck` 通过
 - 如有 render 组件，确认在 `dynamic-tool.vue` 中能正确渲染
+- 数据流无需 IPC 的工具（如 `todowrite`），确认 render 组件能从 args 正确读取数据
