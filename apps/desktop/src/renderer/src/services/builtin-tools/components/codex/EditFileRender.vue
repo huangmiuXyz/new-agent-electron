@@ -36,9 +36,14 @@ const headerPath = computed(() => {
 })
 const displayPath = computed(() => headerPath.value || path.value)
 
+const addText = computed(() => {
+  if (editType.value !== 'add') return ''
+  // hashline 模式 add 内容在 content；replace 模式 add 内容在 new_string
+  return content.value || newString.value
+})
 const addPreviewLines = computed(() => {
   if (editType.value !== 'add') return []
-  return content.value.replace(/\r\n/g, '\n').split('\n').slice(0, 10)
+  return addText.value.replace(/\r\n/g, '\n').split('\n').slice(0, 10)
 })
 
 const replacementLines = computed(() => {
@@ -155,8 +160,8 @@ const totalChanges = computed(() => ops.value.length)
         <span class="marker">+</span>
         <span class="text">{{ text || ' ' }}</span>
       </div>
-      <div v-if="content.split('\n').length > 10" class="more-hint">
-        … 共 {{ content.split('\n').length }} 行
+      <div v-if="addText.split('\n').length > 10" class="more-hint">
+        … 共 {{ addText.split('\n').length }} 行
       </div>
     </div>
 
