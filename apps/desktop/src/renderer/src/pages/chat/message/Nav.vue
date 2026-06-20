@@ -30,6 +30,7 @@ const startHideTimer = () => {
 
 const getContainer = () => {
   if (!props.container) return null
+  if (props.container.container?.value) return props.container.container.value
   return props.container.$el || props.container
 }
 

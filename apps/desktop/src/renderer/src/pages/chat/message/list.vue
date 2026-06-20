@@ -4,7 +4,6 @@ import type { MenuItem } from '@renderer/composables/useContextMenu'
 import { getLanguageFlag } from '@renderer/utils/flagIcons'
 import { copyElementImageToClipboard } from '@renderer/utils'
 import { useElementSize } from '@vueuse/core'
-import { AutoScrollContainer } from '@incremark/vue'
 import { useMessageScroll } from '@renderer/composables/useMessageScroll'
 
 const { messageScrollRef } = useMessageScroll()
@@ -149,6 +148,17 @@ const hasCompressedContext = computed(() => {
 const lastMessageIndex = computed(() => {
   if (visibleMessages.value.length === 0) return -1
   return visibleMessages.value.length - 1
+})
+
+const autoScrollTrigger = computed(() => {
+  const msgs = visibleMessages.value
+  const last = msgs[msgs.length - 1]
+  if (!last) return `${msgs.length}`
+  let textLen = 0
+  for (const p of last.parts) {
+    if (p.type === 'text') textLen += (p as TextUIPart).text.length
+  }
+  return `${msgs.length}:${last.id}:${last.parts.length}:${textLen}`
 })
 
 const { height: containerHeight } = useElementSize(scrollHostRef)
@@ -637,7 +647,12 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 <template>
   <div class="message-list-wrapper">
     <div ref="scrollHostRef" class="message-scroll-host">
-      <AutoScrollContainer ref="messageScrollRef" :enabled="autoScrollEnabled" :threshold="5">
+      <MessageScrollContainer
+        ref="messageScrollRef"
+        :enabled="autoScrollEnabled"
+        :threshold="5"
+        :auto-scroll-trigger="autoScrollTrigger"
+      >
         <div :class="{ 'is-centered': display.chatCenteredLayout }" class="messages-content">
           <template v-for="(message, index) in visibleMessages" :key="message.id">
             <div
@@ -708,7 +723,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
             </div>
           </template>
         </div>
-      </AutoScrollContainer>
+      </MessageScrollContainer>
     </div>
 
     <ChatMessageNav :container="messageScrollRef" />
@@ -914,7 +929,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
     touch-action: pan-y;
   }
 
-  .message-list-wrapper :deep(.auto-scroll-container) {
+.message-list-wrapper :deep(.message-scroll-container) {
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
