@@ -51,7 +51,6 @@ const emit = defineEmits<{
   toggleSpeech: []
   stopGenerating: []
   send: []
-  chooseWorkPath: []
   openWorkPathMenu: [event: MouseEvent]
   createChat: []
   renameChat: [chat: Chat]
@@ -191,7 +190,7 @@ const InfoCircle = useIcon('InfoCircle')
           class="workpath-trigger no-drag"
           :class="{ 'workpath-active': props.currentAgentWorkPath }"
           :title="props.workPathButtonTitle"
-          @click="emit('chooseWorkPath')"
+          @click="emit('openWorkPathMenu', $event)"
           @contextmenu="emit('openWorkPathMenu', $event)"
         >
           {{ props.workPathButtonLabel }}

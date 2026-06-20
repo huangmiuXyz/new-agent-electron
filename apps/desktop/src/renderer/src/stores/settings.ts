@@ -188,7 +188,8 @@ export const useSettingsStore = defineStore(
       expandThoughtByDefault: true,
       collapsePreviousContent: true,
       chatCenteredLayout: false,
-      inputButtonLayout: createDefaultInputButtonLayout()
+      inputButtonLayout: createDefaultInputButtonLayout(),
+      workPathHistory: [] as string[]
     })
 
     const display = ref(createDefaultDisplay())

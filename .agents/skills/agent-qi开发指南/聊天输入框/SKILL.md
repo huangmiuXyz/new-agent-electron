@@ -163,6 +163,42 @@ mobile-tools-panel (v-if showMobileTools)
 - `suppressMobileToolClick` 防止拖拽误触 click
 - 布局持久化到 `display.mobileToolLayout`
 
+## 工作路径历史
+
+`useAgentWorkPath.ts` 管理智能体工作路径的选取、清除和历史记录。
+
+### 数据持久化
+
+工作路径历史存储在 `display.workPathHistory`（`string[]`），属于全局显示设置，最多保留 10 条，自动去重（新路径移至队首）。
+
+### 交互流程
+
+```
+点击 "工作路径" 按钮
+  │
+  ├─ 有历史路径 → 弹出右键菜单
+  │   ├─ 最近路径（带时钟图标）
+  │   ├─ 分隔线
+  │   ├─ 浏览...（打开系统目录选择器）
+  │   ├─ 分隔线
+  │   └─ 清空工作路径（仅当前有路径时可点击）
+  │
+  └─ 选择历史路径 → applyWorkPath(path) → 更新 agent.workPath + 写入历史
+  └─ 选择浏览...   → chooseCurrentAgentWorkPath() → 系统对话框 → 更新 + 写入历史
+```
+
+### 关键函数
+
+| 函数 | 说明 |
+|------|------|
+| `addToWorkPathHistory(path)` | 去重后插入队首，截取前 10 条 |
+| `applyWorkPath(path)` | 直接设置工作路径并写入历史（用于历史路径选择） |
+| `chooseCurrentAgentWorkPath()` | 打开系统目录选择器，设置并写入历史 |
+| `openWorkPathContextMenu(event)` | 构造上下文菜单（历史路径 + 浏览... + 清空） |
+| `clearCurrentAgentWorkPath()` | 清空当前智能体工作路径 |
+
+左键和右键均触发 `openWorkPathContextMenu`，统一通过上下文菜单交互。
+
 ## 文件上传
 
 文件上传通过 `FileUpload` 子组件（未在 Input 目录下，为公共组件）实现：

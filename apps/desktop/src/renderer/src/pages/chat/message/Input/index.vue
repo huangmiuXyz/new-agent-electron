@@ -61,7 +61,6 @@ const {
   canChooseLocalWorkPath,
   workPathButtonTitle,
   workPathButtonLabel,
-  chooseCurrentAgentWorkPath,
   openWorkPathContextMenu
 } = useAgentWorkPath({ currentChatAgent })
 const currentChatContextTokens = useInputContextTokens({
@@ -606,7 +605,6 @@ onUnmounted(() => {
           @toggle-speech="toggleSpeech"
           @stop-generating="stopAllGeneratingInCurrentChat"
           @send="_sendMessage"
-          @choose-work-path="chooseCurrentAgentWorkPath"
           @open-work-path-menu="openWorkPathContextMenu"
           @create-chat="openCreateChatInline"
           @rename-chat="openRenameChatInline"
