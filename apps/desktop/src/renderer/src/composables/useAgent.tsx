@@ -239,6 +239,7 @@ export const useAgent = () => {
             : {},
           execCommandRunInBackground: agent.execCommandRunInBackground ?? false,
           ragEnabled: agent.ragEnabled ?? false,
+          enableCodexEnvContext: agent.enableCodexEnvContext ?? true,
           workPath: agent.workPath || '',
           skillDirectory: agent.skillDirectory || DEFAULT_SKILL_DIRECTORY,
           builtinSkills: [...(agent.builtinSkills || [])],
@@ -282,6 +283,7 @@ export const useAgent = () => {
           builtinToolConfigs: {},
           execCommandRunInBackground: false,
           ragEnabled: false,
+          enableCodexEnvContext: true,
           workPath: '',
           skillDirectory: DEFAULT_SKILL_DIRECTORY,
           builtinSkills: [],
@@ -1434,6 +1436,7 @@ export const useAgent = () => {
         name: 'enableCodexEnvContext',
         type: 'boolean',
         label: '注入环境上下文',
+        defaultValue: true,
         hint: '关闭后，Codex 等编程智能体将不会自动注入当前工作路径、终端类型、日期和时区等环境上下文信息。'
       } as BooleanField<AgentFormData>
     ]
