@@ -1429,7 +1429,13 @@ export const useAgent = () => {
           title: '选择工作目录'
         },
         ifShow: () => !isMobile.value
-      } as PathSelectorField<AgentFormData>
+      } as PathSelectorField<AgentFormData>,
+      {
+        name: 'enableCodexEnvContext',
+        type: 'boolean',
+        label: '注入环境上下文',
+        hint: '关闭后，Codex 等编程智能体将不会自动注入当前工作路径、终端类型、日期和时区等环境上下文信息。'
+      } as BooleanField<AgentFormData>
     ]
 
     const desktopIntegrationFields = isMobile.value ? [] : [...mcpFields, ...skillFields]

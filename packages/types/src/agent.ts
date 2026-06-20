@@ -43,6 +43,7 @@ declare global {
     contextTokenCount?: number // 上下文 token 阈值，0 表示不限制
     autoCompressContext?: boolean // 自动压缩上下文
     compressModel?: { providerId: string; modelId: string } // 用于压缩的模型
+    enableCodexEnvContext?: boolean // Codex 智能体是否注入环境上下文（cwd/shell/日期/时区）
     maxToolCalls?: number // 一次对话中最大调用工具次数，0 表示不限制
     retryAutoEnabled?: boolean // 对话失败时是否自动重试，直到用户手动停止
     retryIntervalMs?: number // 自动重试间隔（毫秒），0 表示不等待

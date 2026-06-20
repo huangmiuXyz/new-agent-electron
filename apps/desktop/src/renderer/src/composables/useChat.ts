@@ -341,6 +341,7 @@ export const useChat = (chatId: string) => {
                 autoCompressContext: runtimeAgent?.autoCompressContext,
                 compressModel: runtimeAgent?.compressModel,
                 maxToolCalls: runtimeAgent?.maxToolCalls,
+                enableCodexEnvContext: runtimeAgent?.enableCodexEnvContext,
                 providerOptions: providerOptions.value[selectedProvider.id],
                 isApprovalAction: isApproval
               }

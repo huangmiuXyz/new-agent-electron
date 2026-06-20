@@ -75,6 +75,7 @@ export const chatService = () => {
       autoCompressContext: shouldAutoCompress,
       compressModel,
       maxToolCalls,
+      enableCodexEnvContext,
       providerOptions: customProviderOptions,
       onBeforeToolExecute,
       isApprovalAction,
@@ -129,7 +130,10 @@ export const chatService = () => {
     )
     const multiAgentPrompt =
       hasAssignedAgentTools || isSubAgentChat ? buildMultiAgentSystemPrompt(cid) : ''
-    const codexEnvironmentPrompt = buildCodexEnvironmentPrompt(cid, assignedBuiltinTools)
+    const codexEnvironmentPrompt =
+      enableCodexEnvContext !== false
+        ? buildCodexEnvironmentPrompt(cid, assignedBuiltinTools)
+        : ''
     const agentInstructions =
       [codexEnvironmentPrompt, instructions?.trim(), skillsPrompt, multiAgentPrompt]
         .filter(Boolean)

@@ -175,6 +175,7 @@ export const getBuiltinAgents = (): Agent[] => [
     name: 'Codex',
     description: '面向项目代码的搜索、读取、编辑、测试和命令执行。搜索代码使用技能codegraph',
     tags: [],
+    enableCodexEnvContext: true,
     builtinSkills: ['codegraph', 'agent-browser'],
     systemPrompt: codexProgrammingPrompt,
     mcpServers: [],
