@@ -40,7 +40,7 @@ description: 搜索和发现 MCP（Model Context Protocol）相关开源项目�
 **调用方式：**
 ```json
 fetch({
-  url: "https://api.github.com/search/repositories?q=KEYWORD+mcp&sort=stars&order=desc&per_page=10",
+  url: "https://api.github.com/search/repositories?q=KEYWORD+mcp&sort=stars&order=desc&per_page=5",
   raw: true,
   max_length: 999999,
   headers: { "User-Agent": "Mozilla/5.0" }
@@ -51,10 +51,10 @@ fetch({
 
 | 目的 | URL |
 |------|-----|
-| 基础搜索（按 Stars） | `https://api.github.com/search/repositories?q=KEYWORD+mcp&sort=stars&order=desc&per_page=10` |
-| 按语言过滤 | `https://api.github.com/search/repositories?q=KEYWORD+mcp+language:python&sort=stars&order=desc&per_page=10` |
-| 按话题标签 | `https://api.github.com/search/repositories?q=topic:mcp+topic:KEYWORD&sort=stars&order=desc&per_page=10` |
-| 高 Star 过滤 | `https://api.github.com/search/repositories?q=KEYWORD+mcp+stars:>100&sort=stars&order=desc&per_page=10` |
+| 基础搜索（按 Stars） | `https://api.github.com/search/repositories?q=KEYWORD+mcp&sort=stars&order=desc&per_page=5` |
+| 按语言过滤 | `https://api.github.com/search/repositories?q=KEYWORD+mcp+language:python&sort=stars&order=desc&per_page=5` |
+| 按话题标签 | `https://api.github.com/search/repositories?q=topic:mcp+topic:KEYWORD&sort=stars&order=desc&per_page=5` |
+| 高 Star 过滤 | `https://api.github.com/search/repositories?q=KEYWORD+mcp+stars:>100&sort=stars&order=desc&per_page=5` |
 | 按更新日期 | `https://api.github.com/search/repositories?q=KEYWORD+mcp+pushed:>2025-01-01&sort=updated&order=desc&per_page=10` |
 
 > 将所有 `KEYWORD` 替换为用户感兴趣的领域关键词，例如 `godot`、`browser`、`database`、`docker`、`claude`、`openai` 等。
@@ -88,13 +88,13 @@ GitHub API 返回 JSON，关注以下关键字段：
 | 查看仓库详情 | `https://api.github.com/repos/{owner}/{repo}` |
 | 查看 README | `https://api.github.com/repos/{owner}/{repo}/readme` |
 | 查看最近版本 | `https://api.github.com/repos/{owner}/{repo}/releases?per_page=5` |
-| 更多关联搜索 | `https://api.github.com/search/repositories?q=KEYWORD+mcp+server&sort=stars&order=desc&per_page=10` |
+| 更多关联搜索 | `https://api.github.com/search/repositories?q=KEYWORD+mcp+server&sort=stars&order=desc&per_page=5` |
 
 README API 返回的 `content` 字段是 Base64 编码，用 `atob()` 解码后得到 markdown。
 
 ### 第五步：结果整理与推荐
 
-向用户呈现结果时，使用清晰易读的表格格式：
+搜索结束后只列出前 5 个最热门（按 Stars 排序）的结果。向用户呈现时使用清晰易读的表格格式：
 
 ```
 | # | 项目 | ⭐ Stars | 描述 | 语言 | 活跃度 |
@@ -178,7 +178,7 @@ README API 返回的 `content` 字段是 Base64 编码，用 `atob()` 解码后�
 
 ```json
 fetch({
-  url: "https://api.github.com/search/repositories?q=mcp+server&sort=stars&order=desc&per_page=10",
+  url: "https://api.github.com/search/repositories?q=mcp+server&sort=stars&order=desc&per_page=5",
   raw: true,
   max_length: 999999,
   headers: {
