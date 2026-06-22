@@ -184,14 +184,14 @@ export const createSubTaskResultCoordinator = ({
         baseURL: selectedProvider.baseUrl!,
         provider: providerId!,
         providerType: selectedProvider.providerType,
-        tools: { submit_sub_task_result: submitTool },
+        tools: { finish_sub_task: submitTool },
         toolChoice: {
           type: 'tool',
-          toolName: 'submit_sub_task_result'
+          toolName: 'finish_sub_task'
         }
       })
       if (
-        !result.toolResults?.some((toolResult) => toolResult.toolName === 'submit_sub_task_result')
+        !result.toolResults?.some((toolResult) => toolResult.toolName === 'finish_sub_task')
       ) {
         markFailed('子任务总结失败：模型没有调用提交总结工具')
       }
