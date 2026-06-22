@@ -100,7 +100,6 @@ const getAvailableToolContext = (chatId?: string) => {
   const builtinToolNames = new Set(
     (agent?.builtinTools || []).filter(
       (toolName) =>
-        toolName !== 'agent_communicate' &&
         toolName !== 'finish_sub_task' &&
         !(chat?.parentChatId && toolName === 'delegate_to_sub_agent')
     )

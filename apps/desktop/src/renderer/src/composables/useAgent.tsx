@@ -41,6 +41,10 @@ const MOBILE_UNSUPPORTED_TOOL_GROUPS = new Set([
   'Codex工具',
   '插件工具'
 ])
+const HIDDEN_BUILTIN_TOOLS = new Set([
+  'finish_sub_task'
+])
+
 const MOBILE_UNSUPPORTED_BUILTIN_TOOLS = new Set([
   'exec_command_canvas'
 ])
@@ -103,9 +107,10 @@ export const useAgent = () => {
       }))
       .filter(
         (option) =>
-          !isMobile.value ||
-          (!MOBILE_UNSUPPORTED_TOOL_GROUPS.has(option.group) &&
-            !MOBILE_UNSUPPORTED_BUILTIN_TOOLS.has(option.value))
+          !HIDDEN_BUILTIN_TOOLS.has(option.value) &&
+          (!isMobile.value ||
+            (!MOBILE_UNSUPPORTED_TOOL_GROUPS.has(option.group) &&
+              !MOBILE_UNSUPPORTED_BUILTIN_TOOLS.has(option.value)))
       )
       .sort((a, b) => {
         if (a.group !== b.group) return a.group.localeCompare(b.group, 'zh-Hans-CN')

@@ -118,7 +118,6 @@ export const chatService = () => {
     const isSubAgentChat = !!currentChat?.parentChatId
     const assignedBuiltinTools = (selectedBuiltinTools || []).filter(
       (toolName) =>
-        toolName !== 'agent_communicate' &&
         toolName !== 'finish_sub_task' &&
         !(isSubAgentChat && toolName === 'delegate_to_sub_agent') &&
         (!isMobile.value ||
