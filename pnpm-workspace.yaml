@@ -6,19 +6,20 @@ packages:
   - packages/qi-cli/example/*
 
 catalog:
-  '@ai-sdk/anthropic': 3.0.85
-  '@ai-sdk/deepseek': 2.0.39
-  '@ai-sdk/elevenlabs': ^2.0.36
-  '@ai-sdk/google': 3.0.83
-  '@ai-sdk/hume': 2.0.36
-  '@ai-sdk/mcp': 1.0.52
-  '@ai-sdk/moonshotai': 2.0.26
-  '@ai-sdk/openai': 3.0.73
-  '@ai-sdk/openai-compatible': 2.0.51
-  '@ai-sdk/provider': 3.0.10
-  '@ai-sdk/provider-utils': 4.0.30
-  '@ai-sdk/vue': 3.0.208
-  '@ai-sdk/xai': 3.0.96
+  '@ai-sdk/anthropic': 4.0.0-beta.67
+  '@ai-sdk/deepseek': 3.0.0-beta.55
+  '@ai-sdk/elevenlabs': 3.0.0-beta.50
+  '@ai-sdk/google': 4.0.0-beta.83
+  '@ai-sdk/hume': 3.0.0-beta.50
+  '@ai-sdk/mcp': 2.0.0-beta.66
+  '@ai-sdk/moonshotai': 3.0.0-beta.57
+  '@ai-sdk/openai': 4.0.0-beta.75
+  '@ai-sdk/openai-compatible': 3.0.0-beta.57
+  '@ai-sdk/provider': 4.0.0-beta.19
+  '@ai-sdk/provider-utils': 5.0.0-beta.49
+  '@ai-sdk/vue': 4.0.0-beta.182
+  '@ai-sdk/xai': 4.0.0-beta.75
+  '@ai-sdk/otel': 1.0.0-beta.128
   '@capacitor/android': ^8.4.1
   '@capacitor/app': ^8.1.0
   '@capacitor/cli': ^8.4.1
@@ -72,8 +73,8 @@ catalog:
   '@vue/eslint-config-typescript': ^14.9.0
   '@vue/tsconfig': ^0.9.1
   '@vueuse/core': ^14.3.0
-  ai: 6.0.208
-  ai-sdk-ollama: 3.8.8
+  ai: 7.0.0-beta.182
+  ai-sdk-ollama: 4.0.0-beta.0
   better-sqlite3: ^12.11.1
   blob-util: ^2.0.2
   chalk: ^5.6.2
