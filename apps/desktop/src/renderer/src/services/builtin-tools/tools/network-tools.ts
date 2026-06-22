@@ -26,14 +26,6 @@ type ToolFetchResponse = {
   error?: string
 }
 
-const getRobotsTxtUrl = (url: string) => {
-  const parsed = new URL(url)
-  parsed.pathname = '/robots.txt'
-  parsed.search = ''
-  parsed.hash = ''
-  return parsed.toString()
-}
-
 const fetchWithFallback = async (
   url: string,
   options?: {
@@ -72,62 +64,10 @@ const fetchWithFallback = async (
   }
 }
 
-const canFetchByRobots = (url: string, robotsTxt: string) => {
-  const path = new URL(url).pathname || '/'
-  const lines = robotsTxt
-    .split(/\r?\n/)
-    .map((line) => line.replace(/#.*$/, '').trim())
-    .filter(Boolean)
-
-  let applies = false
-  let matchedRule: { type: 'allow' | 'disallow'; path: string } | null = null
-
-  for (const line of lines) {
-    const [rawKey, ...rest] = line.split(':')
-    const key = rawKey?.trim().toLowerCase()
-    const value = rest.join(':').trim()
-    if (!key) continue
-
-    if (key === 'user-agent') {
-      applies = value === '*' || USER_AGENT.toLowerCase().includes(value.toLowerCase())
-      continue
-    }
-
-    if (!applies || (key !== 'allow' && key !== 'disallow') || !value || !path.startsWith(value)) {
-      continue
-    }
-
-    if (!matchedRule || value.length >= matchedRule.path.length) {
-      matchedRule = { type: key, path: value }
-    }
-  }
-
-  return matchedRule?.type !== 'disallow'
-}
-
 const buildRequestHeaders = (headers?: Record<string, string>) => ({
   'User-Agent': USER_AGENT,
   ...headers
 })
-
-const checkRobotsTxt = async (url: string, headers?: Record<string, string>) => {
-  const robotsUrl = getRobotsTxtUrl(url)
-  const response = await fetchWithFallback(robotsUrl, {
-    headers: buildRequestHeaders(headers)
-  })
-
-  if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
-      throw new Error(`When fetching robots.txt (${robotsUrl}), received status ${response.status} so assuming autonomous fetching is not allowed.`)
-    }
-    if (response.status! >= 400 && response.status! < 500) return
-    throw new Error(`Failed to fetch robots.txt ${robotsUrl}: ${response.error || response.statusText || 'Unknown error'}`)
-  }
-
-  if (!canFetchByRobots(url, response.text || '')) {
-    throw new Error(`The site's robots.txt (${robotsUrl}) disallows autonomous fetching for ${url}.`)
-  }
-}
 
 const simplifyHtml = (html: string) => {
   const doc = new DOMParser().parseFromString(html, 'text/html')
@@ -176,8 +116,6 @@ const buildSingleResultText = async (
   url: string,
   input: Pick<z.infer<typeof fetchInputSchema>, 'headers' | 'max_length' | 'start_index' | 'raw'>
 ) => {
-  await checkRobotsTxt(url, input.headers)
-
   const { prefix, content } = await fetchPage(url, input.raw, input.headers)
   const chunk = content.slice(input.start_index, input.start_index + input.max_length)
 

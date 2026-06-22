@@ -50,23 +50,46 @@ const extractTerminalBufferText = (term: Terminal, startLine: number, endLine: n
   return lines.join('\n')
 }
 
-const stripCommandEcho = (output: string, command?: string): string => {
+export const stripCommandEcho = (output: string, command?: string): string => {
   if (!command) return output.trimEnd()
 
+  const normalizedCommand = command.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const commandLines = normalizedCommand.split('\n')
   const lines = output.replace(/\u00a0/g, ' ').split('\n')
-  const commandLineIndex = lines.findIndex((line) => line.includes(command))
+
+  const firstCmdLine = commandLines[0]
+  const commandLineIndex = lines.findIndex((line) => line.includes(firstCmdLine))
   if (commandLineIndex === -1) return output.trimEnd()
 
-  const commandLine = lines[commandLineIndex]
-  const commandStart = commandLine.indexOf(command)
-  const afterCommand = commandLine.slice(commandStart + command.length).trimStart()
-  const remaining = [...lines.slice(commandLineIndex + 1)]
+  if (commandLines.length === 1) {
+    const commandLine = lines[commandLineIndex]
+    const commandStart = commandLine.indexOf(firstCmdLine)
+    const afterCommand = commandLine.slice(commandStart + firstCmdLine.length).trimStart()
+    const remaining = [...lines.slice(commandLineIndex + 1)]
 
-  if (afterCommand) {
-    remaining.unshift(afterCommand)
+    if (afterCommand) {
+      remaining.unshift(afterCommand)
+    }
+
+    return remaining.join('\n').trimEnd()
   }
 
-  return remaining.join('\n').trimEnd()
+  let outputIdx = commandLineIndex + 1
+  for (let i = 1; i < commandLines.length; i++) {
+    if (outputIdx >= lines.length) break
+    const cmdLine = commandLines[i]
+    if (!cmdLine.trim()) {
+      if (!lines[outputIdx].trim()) outputIdx++
+      continue
+    }
+    if (lines[outputIdx].includes(cmdLine)) {
+      outputIdx++
+    } else {
+      break
+    }
+  }
+
+  return lines.slice(outputIdx).join('\n').trimEnd()
 }
 
 const captureCommandOutput = (tab: TerminalTab): string => {
@@ -82,12 +105,12 @@ const captureCommandOutput = (tab: TerminalTab): string => {
   return stripCommandEcho(rawOutput, tab.captureCommand)
 }
 
-const encodeCommandForPty = (command: string): string => {
+export const encodeCommandForPty = (command: string): string => {
   if (!command.includes('\n') && !command.includes('\r')) {
     return `${command}\r`
   }
 
-  const normalized = command.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const normalized = command.replace(/\r\n/g, '\r').replace(/\n/g, '\r')
   return `${BRACKETED_PASTE_START}${normalized}${BRACKETED_PASTE_END}\r`
 }
 

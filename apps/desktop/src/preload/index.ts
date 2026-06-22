@@ -9,8 +9,8 @@ import url from 'url'
 import { app, getCurrentWindow } from '@electron/remote'
 import { exec, spawn, fork } from 'child_process'
 import os from 'os'
-import { type ElectronAPI } from '@agent-qi/types'
-
+import { type ElectronAPI, PluginIpcTimeoutError, PLUGIN_IPC_DEFAULT_TIMEOUT_MS } from '@agent-qi/types'
+import Electron from 'electron'
 type ExecNodejsOptions = {
   code?: string
   codePath?: string
@@ -791,6 +791,48 @@ export const api: ElectronAPI = {
       annotate?: boolean
       displayId?: string
     }) => electronAPI.ipcRenderer.invoke('computer:capture-screen', options)
+  },
+  pluginMain: {
+    load: (payload: {
+      pluginName: string
+      pluginDir: string
+      mainEntry: string
+      info?: Record<string, unknown>
+    }) => electronAPI.ipcRenderer.invoke('plugin:main:load', payload),
+    unload: (pluginName: string) => electronAPI.ipcRenderer.invoke('plugin:main:unload', pluginName),
+    reload: (payload: {
+      pluginName: string
+      pluginDir: string
+      mainEntry: string
+      info?: Record<string, unknown>
+    }) => electronAPI.ipcRenderer.invoke('plugin:main:reload', payload),
+    ipc: {
+      invoke: (pluginName: string, channel: string, ...args: unknown[]) => {
+        const fullChannel = `plugin:${pluginName}:${channel}`
+        const timeoutMs = PLUGIN_IPC_DEFAULT_TIMEOUT_MS
+        if (timeoutMs <= 0) {
+          return electronAPI.ipcRenderer.invoke(fullChannel, ...args)
+        }
+        let timer: ReturnType<typeof setTimeout> | undefined
+        return Promise.race([
+          electronAPI.ipcRenderer.invoke(fullChannel, ...args).finally(() => {
+            if (timer) clearTimeout(timer)
+          }),
+          new Promise((_, reject) => {
+            timer = setTimeout(
+              () => reject(new PluginIpcTimeoutError(pluginName, channel, timeoutMs)),
+              timeoutMs
+            )
+          })
+        ])
+      },
+      on: (pluginName: string, channel: string, callback: (...args: unknown[]) => void) => {
+        const fullChannel = `plugin:${pluginName}:${channel}`
+        const listener = (_event: any, ...args: any[]) => callback(...args)
+        electronAPI.ipcRenderer.on(fullChannel, listener)
+        return () => electronAPI.ipcRenderer.removeListener(fullChannel, listener)
+      }
+    }
   }
 }
 

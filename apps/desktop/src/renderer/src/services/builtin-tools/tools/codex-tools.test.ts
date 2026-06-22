@@ -744,6 +744,41 @@ describe('exec_command', () => {
     expect(text.length).toBeLessThan(31000)
     expect(text).toContain('output truncated')
   })
+
+  it('should pass multiline cmd /c batch command verbatim to terminal', async () => {
+    const multilineCmd = [
+      'cmd /c "(',
+      '  echo # 迷雾森林',
+      '  echo.',
+      '  echo 第一章 迷路',
+      '  echo.',
+      '  echo 林深不知道自己是第几次看表了。',
+      '  echo.',
+      ') > story.txt & type story.txt"'
+    ].join('\n')
+
+    const tool = getExecCommandTool()
+    const text = extractText(
+      await tool.execute({ command: multilineCmd, terminal_id: 'c396rr2' }, defaultOptions)
+    )
+
+    expect(mockCreateTab).toHaveBeenCalledWith({
+      command: multilineCmd,
+      cwd: mockWorkPath,
+      id: 'c396rr2',
+      toolCallId: defaultOptions.toolCallId,
+      showTerminal: true
+    })
+    expect(text).toContain('终端ID: terminal-1')
+  })
+
+  it('should not redirect multiline cmd batch to file tool hint', async () => {
+    const multilineCmd = 'cmd /c "(\necho line1\necho line2\n)"'
+    const tool = getExecCommandTool()
+    await tool.execute({ command: multilineCmd }, defaultOptions)
+
+    expect(mockCreateTab).toHaveBeenCalled()
+  })
 })
 
 describe('readFile', () => {

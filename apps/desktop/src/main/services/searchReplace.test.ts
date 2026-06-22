@@ -220,4 +220,41 @@ describe('executeFileEdit', () => {
     ).resolves.toMatchObject([{ status: 'M', path: 'src/crlf.txt', replacements: 1 }])
     await expect(readFile(filePath, 'utf-8')).resolves.toBe('REPLACED')
   })
+
+  it('does not rewrite unrelated mixed line endings during string replacement', async () => {
+    const baseDir = await mkdtemp(path.join(tmpdir(), 'agent-qi-edit-file-'))
+    const filePath = path.join(baseDir, 'src/mixed.txt')
+    await mkdir(path.dirname(filePath), { recursive: true })
+    await writeFile(filePath, 'crlf line\r\nold\nlast', 'utf-8')
+
+    await expect(
+      executeFileEdit({
+        baseDir,
+        type: 'replace',
+        path: 'src/mixed.txt',
+        old_string: 'old',
+        new_string: 'new'
+      })
+    ).resolves.toMatchObject([{ status: 'M', path: 'src/mixed.txt', replacements: 1 }])
+    await expect(readFile(filePath, 'utf-8')).resolves.toBe('crlf line\r\nnew\nlast')
+  })
+
+  it('rejects block anchor matches when the body is too different', async () => {
+    const baseDir = await mkdtemp(path.join(tmpdir(), 'agent-qi-edit-file-'))
+    const filePath = path.join(baseDir, 'src/fuzzy.ts')
+    await mkdir(path.dirname(filePath), { recursive: true })
+    const content = ['function run() {', '  deleteImportantData()', '}'].join('\n')
+    await writeFile(filePath, content, 'utf-8')
+
+    await expect(
+      executeFileEdit({
+        baseDir,
+        type: 'replace',
+        path: 'src/fuzzy.ts',
+        old_string: ['function run() {', '  console.log("hello")', '}'].join('\n'),
+        new_string: 'SAFE'
+      })
+    ).rejects.toThrow('Could not find oldString')
+    await expect(readFile(filePath, 'utf-8')).resolves.toBe(content)
+  })
 })

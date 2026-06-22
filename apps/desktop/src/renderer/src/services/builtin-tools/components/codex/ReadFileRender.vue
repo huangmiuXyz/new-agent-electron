@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CodexSummaryBar from './CodexSummaryBar.vue'
 import {
   extractResultError,
   extractResultText,

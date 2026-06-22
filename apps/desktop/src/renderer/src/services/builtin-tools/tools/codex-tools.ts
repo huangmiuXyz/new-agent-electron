@@ -834,11 +834,17 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
     const isReplaceMode = isReplaceEditFileMode
     const description = isReplaceMode
       ? [
-          '编辑 workPath 内的文件。',
-          '修改已有文件前必须先用 readFile 读取目标区域；path 指向目标文件，old_string 是要替换的原文，new_string 是替换后的文本。',
+          '编辑 workPath 内的文件。用 type 区分操作类型，默认 type=replace。',
+          '',
+          'type=replace（默认）：修改已有文件。先用 readFile 读取目标区域；path 指向目标文件，old_string 是要替换的原文，new_string 是替换后的文本。',
           'old_string 必须复制 readFile 返回的真实文件内容；保留精确缩进和换行。',
           '默认要求 old_string 在文件中唯一；如果匹配多处，请扩大 old_string 上下文，只有明确要替换所有匹配时才设置 replace_all=true。',
           '工具会先精确匹配；如果只存在弯引号/直引号差异，会使用文件里的实际文本执行替换。',
+          '',
+          'type=add：提供 path 和 new_string，新建文件；目标已存在会失败。',
+          'type=delete：提供 path，删除文件。',
+          'type=move：提供 path 和 new_path，移动/重命名文件；目标已存在会失败。',
+          '',
           '所有路径必须位于当前 workPath 内。'
         ].join('\n')
       : [
@@ -864,18 +870,35 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
 
     const inputSchema = isReplaceMode
       ? z.object({
+          type: z
+            .enum(['replace', 'add', 'delete', 'move'])
+            .optional()
+            .default('replace')
+            .describe(
+              '文件操作类型，默认 replace。replace=精确替换文本；add=新建文件（需 content）；delete=删除文件；move=移动/重命名文件（需 new_path）。'
+            ),
           path: z
             .string()
             .describe('要编辑的文件路径。相对路径基于当前 workPath。'),
           old_string: z
             .string()
-            .describe('要被替换的原文。必须来自 readFile 返回的真实文件内容。'),
-          new_string: z.string().describe('替换后的文本。'),
+            .optional()
+            .describe('type=replace 时要被替换的原文。必须来自 readFile 返回的真实文件内容。'),
+          new_string: z
+            .string()
+            .optional()
+            .describe(
+              'type=replace 时替换后的文本；type=add 时作为新文件内容。'
+            ),
           replace_all: z
             .boolean()
             .optional()
             .default(false)
-            .describe('是否替换文件内所有匹配项。默认 false，要求 old_string 唯一。')
+            .describe('type=replace 时是否替换文件内所有匹配项。默认 false，要求 old_string 唯一。'),
+          new_path: z
+            .string()
+            .optional()
+            .describe('type=move 时的新文件路径。相对路径基于当前 workPath。')
         })
       : z.object({
           type: z
@@ -930,60 +953,53 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
         }
       }
 
-      if (isReplaceMode) {
-        try {
-          const result = await window.api.editFile.execute({
-            baseDir,
-            type: 'replace',
-            path: nonEmptyString(params.path),
-            old_string: typeof params.old_string === 'string' ? params.old_string : '',
-            new_string: typeof params.new_string === 'string' ? params.new_string : '',
-            replace_all: params.replace_all === true
-          })
+      // 统一解析 type：replace 模式默认 replace，hashline 模式默认 update
+      const allowedTypes = isReplaceMode
+        ? (['replace', 'add', 'delete', 'move'] as const)
+        : (['update', 'add', 'delete', 'move'] as const)
+      const defaultType = isReplaceMode ? 'replace' : 'update'
+      const type = (allowedTypes as readonly string[]).includes(params.type)
+        ? params.type
+        : defaultType
 
-          if (!result?.ok || !result.summary) {
-            throw new Error(result?.error || 'edit_file replace failed')
-          }
+      try {
+        // 统一组装 payload，按 type 复用同一组参数字段
+        const result = await window.api.editFile.execute({
+          baseDir,
+          type,
+          input: type === 'update' ? content : undefined,
+          path: nonEmptyString(params.path),
+          new_path: type === 'move' ? nonEmptyString(params.new_path) : undefined,
+          content:
+            type === 'add'
+              ? isReplaceMode
+                ? (typeof params.new_string === 'string' ? params.new_string : '')
+                : content
+              : undefined,
+          old_string:
+            type === 'replace' ? (typeof params.old_string === 'string' ? params.old_string : '') : undefined,
+          new_string:
+            type === 'replace' ? (typeof params.new_string === 'string' ? params.new_string : '') : undefined,
+          replace_all: type === 'replace' ? params.replace_all === true : undefined
+        })
+
+        if (!result?.ok || !result.summary) {
+          throw new Error(result?.error || 'edit_file failed')
+        }
+
+        // replace 模式只返回 diff，去掉 hash 信息；其余类型原样返回 summary
+        if (type === 'replace') {
           const diffText = result.changes?.[0]?.diff || result.summary
-
-          // replace 模式下不返回 hash 信息，只返回 diff
           const summaryWithoutHash = result.summary
             .replace(/\s*old_hash=\S+/g, '')
             .replace(/\s*new_hash=\S+/g, '')
             .trim()
-
           return {
             summary: summaryWithoutHash,
             toolResult: {
               content: [{ type: 'text', text: diffText }]
             }
           }
-        } catch (error) {
-          return {
-            error: (error as Error).message,
-            toolResult: {
-              content: [{ type: 'text', text: `edit_file 失败: ${(error as Error).message}` }]
-            }
-          }
-        }
-      }
-
-      try {
-        const type = ['update', 'add', 'delete', 'move'].includes(params.type)
-          ? params.type
-          : 'update'
-        const input = type === 'update' ? content : ''
-        const result = await window.api.editFile.execute({
-          baseDir,
-          type,
-          input,
-          path: nonEmptyString(params.path),
-          new_path: type === 'move' ? nonEmptyString(params.new_path) : undefined,
-          content: type === 'add' ? content : undefined
-        })
-
-        if (!result?.ok || !result.summary) {
-          throw new Error(result?.error || 'edit_file failed')
         }
 
         return {
@@ -1007,11 +1023,7 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
       render: EditFileRender,
       renderSummary: (args: unknown) => {
         const params = (args as Record<string, any>) || {}
-        if (isReplaceMode) {
-          const path = String(params.path || '')
-          return path ? `✏ 替换 ${path}` : '✏ 替换文本'
-        }
-        const type = String(params.type || 'update')
+        const type = String(params.type || (isReplaceMode ? 'replace' : 'update'))
         const path = String(params.path || '')
         const newPath = String(params.new_path || '')
         switch (type) {
@@ -1021,6 +1033,8 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
             return path ? `🗑 删除 ${path}` : '🗑 删除文件'
           case 'move':
             return path && newPath ? `↪ 移动 ${path} → ${newPath}` : '↪ 移动文件'
+          case 'replace':
+            return path ? `✏ 替换 ${path}` : '✏ 替换文本'
           default:
             return path ? `✏ 更新 ${path}` : '✏ 更新文件'
         }

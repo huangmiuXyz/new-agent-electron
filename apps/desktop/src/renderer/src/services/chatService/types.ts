@@ -41,6 +41,7 @@ export interface ChatServiceConfig {
   autoCompressContext?: boolean
   compressModel?: { providerId: string; modelId: string }
   maxToolCalls?: number
+  enableCodexEnvContext?: boolean
   providerOptions?: Record<string, any>
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
   isApprovalAction?: boolean

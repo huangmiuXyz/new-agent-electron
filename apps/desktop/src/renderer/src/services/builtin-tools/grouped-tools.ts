@@ -8,6 +8,7 @@ import { getKnowledgeBuiltinTools } from './tools/knowledge-tools'
 import { getMediaBuiltinTools } from './tools/media-tools'
 import { getNetworkBuiltinTools } from './tools/network-tools'
 import { getNotesBuiltinTools } from './tools/notes-tools'
+import { getTodoBuiltinTools } from './tools/todo-tools'
 
 export type BuiltinToolGroupEntry = {
   group: string
@@ -36,7 +37,10 @@ export const getBuiltinToolGroupEntries = (options?: {
     { group: '多媒体工具', tools: getMediaBuiltinTools() },
     {
       group: 'Codex工具',
-      tools: getCodexBuiltinTools({ editFileMode: options?.builtinToolConfigs?.edit_file?.mode })
+      tools: {
+        ...getCodexBuiltinTools({ editFileMode: options?.builtinToolConfigs?.edit_file?.mode }),
+        ...getTodoBuiltinTools()
+      }
     }
   ]
 }

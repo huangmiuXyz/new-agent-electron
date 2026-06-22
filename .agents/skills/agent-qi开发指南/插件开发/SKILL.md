@@ -1,6 +1,6 @@
 ---
 name: agent-qi-plugin-dev-zh
-description: 面向 Agent-Qi / agent-qi-electron 的中文插件开发技能。用于创建、修改、调试、重构、记录、验证或打包本应用插件时触发，尤其适合处理 `info.json`、`src/index.ts(x)`、Vite IIFE 产物、provider/registry 注册、设置表单、插件设置页、内置工具、hooks、状态通知、`execNodejs`、本地持久化、下载、模态框/表格 UI、桌面/移动端平台元数据，以及复用 `packages/qi-cli/example/*` 示例插件。
+description: 面向 Agent-Qi / agent-qi-electron 的中文插件开发技能。用于创建、修改、调试、重构、记录、验证或打包本应用插件时触发，尤其适合处理 `info.json`、`src/index.ts(x)`、`src/main.ts`、主进程插件、双入口构建、Vite IIFE/CJS 产物、provider/registry 注册、设置表单、插件设置页、内置工具、hooks、状态通知、`execNodejs`、本地持久化、下载、模态框/表格 UI、桌面/移动端平台元数据，以及复用 `packages/qi-cli/example/*` 示例插件。
 ---
 
 # Agent-Qi 插件开发
@@ -48,12 +48,13 @@ qi code init my-plugin -t hello-world -d "插件描述" -a "作者" -v "1.0.0" -
 ## 工作顺序
 
 1. 先判断插件类型，并选择 `qi code init -t ...` 模板。
-   - 最小插件：通常只需要 `install()`。
+   - 最小插件：通常只需要 `install()`。hello-world 模板自带双入口，可同时演示渲染端和主进程。
    - Provider 插件：需要 `registerRegistry()` 和/或 `registerProvider()`。
    - 设置页或复杂 UI 插件：需要 `useForm()`、`useTable()`、`useModal()`、`registerSettings()`、TSX 或 `context.vue`。
    - 内置工具插件：需要 `registerBuiltinTool()`。
    - Hook 或自动化插件：需要 `registerHook()`。
    - 运行时服务插件：需要 `execNodejs()`、`context.api.spawn`、下载、轮询、状态条、持久化配置和清理逻辑。
+   - 主进程插件：需要 `BrowserWindow`、`Tray`、`globalShortcut` 等主进程独有 API。在 `info.json` 声明 `mainEntry`，加 `src/main.ts` + `vite.main.config.ts`，细节读 `references/main-plugin.md`。
 
 2. 初始化或定位插件项目。
    - 新插件：使用 `qi code init <plugin-name> -t <template> -d "<description>" -a "<author>" -v "<version>" -y`。
@@ -61,7 +62,9 @@ qi code init my-plugin -t hello-world -d "插件描述" -a "作者" -v "1.0.0" -
 
 3. 改生成代码前先读真实源码。
    - `packages/types/src/plugin.ts`
+   - `packages/types/src/mainPlugin.ts`（主进程插件类型）
    - 使用 `context.api` 或 `execNodejs` 时读 `packages/types/src/electron.ts`
+   - 主进程插件另读 `apps/desktop/src/main/services/pluginMainLoader.ts`
    - `packages/qi-cli/example/*` 下最接近需求的示例插件
    - 涉及脚手架、开发模式或打包时读 `packages/qi-cli/src/commands/init.ts`、`dev.ts`、`build.ts`
    - 行为不确定时再读运行时落点：
@@ -89,6 +92,22 @@ qi code init my-plugin -t hello-world -d "插件描述" -a "作者" -v "1.0.0" -
 - Vite library name 保持为 `plugin`，输出 `dist/index.js`。
 - `qi code build` 会把 `dist/` 内容打到 `.qi` 根目录，所以 `dist/index.js` 会成为包根的 `index.js`。
 - 不要指望 `info.json.main` 修复非标准桌面入口路径。
+
+### 主进程插件
+
+- 需要主进程独有 API（`BrowserWindow`、`Tray`、`Menu`、`globalShortcut`、`Notification`、`powerMonitor`）时才加主进程入口，否则保持纯渲染端插件。
+- 在 `info.json` 声明 `"mainEntry": "main.js"`，并强制 `"platforms": ["desktop"]` + `mobileUnsupportedReason`。
+- 主进程入口文件 `src/main.ts` 导出 `MainPlugin` 对象，构建为 `dist/main.js`（CJS）。
+- `vite.main.config.ts` 必须设 `external: ['electron']` 和 `emptyOutDir: false`，否则会破坏渲染端产物。
+- `package.json` 的 `build` 脚本串行构建两端：`vite build && vite build --config vite.main.config.ts`。
+- `dev` 脚本用 `dev.mjs` 并行 watch 两端，不依赖 `concurrently`。
+- 主进程 IPC 用 `ctx.ipc.handle/on`，channel 自动加 `plugin:<name>:` 前缀，卸载时按前缀批量清理。channel **不能包含冒号**，`channelFor()` 校验不通过则抛错。
+- 主进程用 `ctx.ipc.broadcast(channel, ...args)` 向所有渲染窗口广播消息（框架自动加前缀、遍历窗口、异常吞没）。
+- 渲染端通过 `context.api.pluginMain.ipc.invoke(pluginName, channel, ...args)` 调用主进程，**自带 15s 超时保护**（超时抛 `PluginIpcTimeoutError`）。
+- `pluginMain.ipc.on` 返回 unsubscribe 函数，**必须存储并在 `uninstall()` 中调用**，否则热重载会重复注册。
+- 主进程窗口是独立 `BrowserWindow`，不共享渲染端状态；用 `lastData` 缓存 + `show-window` 时回放避免空白。
+- 双入口插件推荐提取 `src/protocol.ts`，通过 `PluginProtocol` 类型约束两端 channel 名和 payload，用 `createMainBridge` / `createRendererBridge` 获得编译期类型推导（参考 `packages/qi-cli/example/opencode-usage-monitor`）。
+- 用 `ctx.onUnload(fn)` 注册清理回调，销毁窗口/托盘/快捷键。细节读 `references/main-plugin.md`。
 
 ### 元数据
 
@@ -144,6 +163,7 @@ qi code init my-plugin -t hello-world -d "插件描述" -a "作者" -v "1.0.0" -
 - 框架没有完全兜底时的 providers 和 registries
 - 手动管理的内置工具
 - `notification.status()` 创建的常驻状态位，用 `removeStatus()` 移除
+- `pluginMain.ipc.on` 注册的监听器（它返回的 unsubscribe 函数）
 - 定时器、watcher、轮询和订阅
 - 子进程和服务句柄
 - 识别器、模型实例、终端、下载任务和运行时单例
@@ -152,16 +172,20 @@ qi code init my-plugin -t hello-world -d "插件描述" -a "作者" -v "1.0.0" -
 
 - 构建产物能否被 `return plugin` 拿到？
 - 构建后是否存在 `dist/index.js`？
-- `.qi` 包根目录是否包含 `info.json` 和 `index.js`？
+- 有 `mainEntry` 时是否存在 `dist/main.js`？
+- `.qi` 包根目录是否包含 `info.json` 和 `index.js`（以及 `main.js`）？
 - `info.json.name` 对用户是否可读？
-- 桌面/移动端平台字段是否正确？
+- 桌面/移动端平台字段是否正确？有 `mainEntry` 时是否声明了 `platforms: ["desktop"]`？
 - provider id、registry id、hook 名、tool 名、storage key 是否稳定？
 - 配置是否能从 `localforage` 恢复，并在需要时重新同步 provider？
-- `uninstall()` 是否清理状态位、定时器、进程、providers、registries、tools 和其他副作用？
+- 渲染端 `uninstall()` 是否清理状态位、定时器、进程、providers、registries、tools、`pluginMain.ipc.on` 监听器和其他副作用？
+- 主进程 `uninstall()` / `onUnload` 是否销毁窗口、托盘、快捷键？
+- 主进程 broadcast 是否使用了 `ctx.ipc.broadcast` 而非手动遍历窗口拼 channel？
 - 用户可见错误是否通过 `notification.error()` 或状态位展示？
 
 ## 需要细节时再读
 
 - 插件 API 与常用上下文：`references/plugin-api.md`
+- 主进程插件开发：`references/main-plugin.md`
 - 该复制哪个示例插件：`references/example-map.md`
 - 插件运行机制与源码级约束：`references/runtime-architecture.md`

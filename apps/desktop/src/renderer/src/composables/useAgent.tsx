@@ -15,6 +15,7 @@ interface AgentFormData extends Omit<
   defaultModel?: { providerId: string; modelId: string }
   speechModel?: { providerId: string; modelId: string }
   allowedSubAgents?: string[]
+  enableCodexEnvContext?: boolean
 }
 
 const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
@@ -240,6 +241,7 @@ export const useAgent = () => {
         : {},
       execCommandRunInBackground: source.execCommandRunInBackground ?? false,
       ragEnabled: source.ragEnabled ?? false,
+      enableCodexEnvContext: source.enableCodexEnvContext ?? true,
       workPath: source.workPath || '',
       skillDirectory: source.skillDirectory || DEFAULT_SKILL_DIRECTORY,
       builtinSkills: [...(source.builtinSkills || [])],
@@ -286,6 +288,7 @@ export const useAgent = () => {
           builtinToolConfigs: {},
           execCommandRunInBackground: false,
           ragEnabled: false,
+          enableCodexEnvContext: true,
           workPath: '',
           skillDirectory: DEFAULT_SKILL_DIRECTORY,
           builtinSkills: [],
@@ -1434,6 +1437,14 @@ export const useAgent = () => {
         },
         ifShow: () => !isMobile.value
       } as PathSelectorField<AgentFormData>,
+      {
+      {
+        name: 'enableCodexEnvContext',
+        type: 'boolean',
+        label: '注入环境上下文',
+        defaultValue: true,
+        hint: '关闭后，Codex 等编程智能体将不会自动注入当前工作路径、终端类型、日期和时区等环境上下文信息。'
+      } as BooleanField<AgentFormData>,
       {
         name: 'reset_config',
         type: 'custom',

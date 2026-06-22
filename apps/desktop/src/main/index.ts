@@ -11,6 +11,7 @@ import { setupHashlineHandlers } from './services/hashline'
 import { setupSearchReplaceHandlers } from './services/searchReplace'
 import { setupSyncHandlers } from './services/sync'
 import { initTray } from './initTray'
+import { pluginMainLoader } from './services/pluginMainLoader'
 
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -610,5 +611,34 @@ if (gotSingleInstanceLock) {
     setupHashlineHandlers()
     setupSearchReplaceHandlers()
     setupSyncHandlers()
+
+    ipcMain.handle('plugin:main:load', async (_event, payload) => {
+      if (!payload || typeof payload.pluginName !== 'string' || typeof payload.pluginDir !== 'string' || typeof payload.mainEntry !== 'string') {
+        return { ok: false, error: 'invalid payload: pluginName, pluginDir, mainEntry are required' }
+      }
+      return await pluginMainLoader.load({
+        pluginName: payload.pluginName,
+        pluginDir: payload.pluginDir,
+        mainEntry: payload.mainEntry,
+        info: payload.info || {}
+      })
+    })
+
+    ipcMain.handle('plugin:main:unload', async (_event, pluginName) => {
+      if (typeof pluginName !== 'string') return { ok: false, error: 'pluginName is required' }
+      return await pluginMainLoader.unload(pluginName)
+    })
+
+    ipcMain.handle('plugin:main:reload', async (_event, payload) => {
+      if (!payload || typeof payload.pluginName !== 'string') {
+        return { ok: false, error: 'invalid payload' }
+      }
+      return await pluginMainLoader.reload({
+        pluginName: payload.pluginName,
+        pluginDir: payload.pluginDir,
+        mainEntry: payload.mainEntry,
+        info: payload.info || {}
+      })
+    })
   })
 }

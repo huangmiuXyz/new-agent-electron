@@ -6,6 +6,7 @@ export interface DisplaySettings {
   compactDensity: boolean
   showTimestamps: boolean
   fontSize: number
+  workPathHistory: string[]
   sidebarCollapsed?: boolean
   sidebarWidth?: number
   speechSidebarWidth?: number

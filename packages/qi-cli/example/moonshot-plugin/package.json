@@ -9,12 +9,12 @@
   },
   "dependencies": {
     "@ai-sdk/moonshotai": "catalog:",
-    "zod": "*"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@agent-qi/types": "workspace:*",
-    "typescript": "*",
-    "vite": "^8.0.16"
+    "typescript": "^6.0.3",
+    "vite": "catalog:"
   },
   "author": "Agent-Qi"
 }

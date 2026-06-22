@@ -17,6 +17,7 @@ export const useChatModelSelection = () => {
     get: () => chatStore.currentChat?.providerId || '',
     set: (value: string) => {
       if (!value) return
+      if (value === chatStore.currentChat?.providerId) return
       let chatId = chatStore.currentChat?.id
       if (!chatId) chatId = chatStore.createChat()
       const chat = chatStore.getChatById(chatId)

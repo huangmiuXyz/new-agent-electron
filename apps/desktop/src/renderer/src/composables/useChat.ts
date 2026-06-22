@@ -9,6 +9,19 @@ import { createSubTaskResultCoordinator } from './chat/subTaskResultCoordinator'
 
 const chatCache = new Map<string, any>()
 
+// 浅拷贝消息列表，用于初始化 AI SDK 的 _useChat 实例。
+// 目的：切断 store 与 AI SDK 内部状态在最外两层（消息对象、parts 数组、metadata 对象）
+// 的引用共享，避免双方相互泄露改动；同时避免 es-toolkit cloneDeep 对含 base64/工具结果/
+// audio chunks 的历史消息做递归深拷贝带来的主线程阻塞。
+// 嵌套对象（如 part.input、metadata.usage）仍按引用共享——AI SDK 对历史消息只读不写，
+// 流式新消息由 AI SDK 自行创建，不共享本拷贝，因此无需深拷贝。
+const cloneMessagesForChat = (messages: BaseMessage[]): BaseMessage[] =>
+  messages.map((msg) => ({
+    ...msg,
+    parts: msg.parts ? msg.parts.map((part) => ({ ...part })) : msg.parts,
+    metadata: msg.metadata ? { ...msg.metadata } : msg.metadata
+  }))
+
 // 重试停止处理器（按 chatId:messageId 索引）。
 // 不放进消息 metadata，避免被 pinia 持久化时触发循环引用 / 序列化函数失败。
 const retryStopHandlers = new Map<string, () => void>()
@@ -274,7 +287,7 @@ export const useChat = (chatId: string) => {
 
       const chat = new _useChat<BaseMessage>({
         id: chatId,
-        messages: cloneDeep(messages),
+        messages: cloneMessagesForChat(messages),
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         transport: {
           sendMessages: ({ messages }) => {
@@ -328,6 +341,7 @@ export const useChat = (chatId: string) => {
                 autoCompressContext: runtimeAgent?.autoCompressContext,
                 compressModel: runtimeAgent?.compressModel,
                 maxToolCalls: runtimeAgent?.maxToolCalls,
+                enableCodexEnvContext: runtimeAgent?.enableCodexEnvContext,
                 providerOptions: providerOptions.value[selectedProvider.id],
                 isApprovalAction: isApproval
               }
@@ -400,12 +414,15 @@ export const useChat = (chatId: string) => {
         }
       })
 
+      // AI SDK 的 VueChatState.replaceMessage 在每次流式更新时都会用
+      // `{ ...message }` 生成新消息对象（见 @ai-sdk/vue chat.vue.ts），lastMessage
+      // 的对象引用随之改变，因此浅监听即可在每个 token 到达时触发，无需 deep:true
+      // 避免对含大量 parts/metadata/工具结果的消息做递归深度比较造成的主线程压力。
       watch(
         () => chat.lastMessage,
         (newMessage) => {
           messageSyncController.scheduleStreamingUpdate(newMessage)
-        },
-        { deep: true }
+        }
       )
 
       onScopeDispose(() => {
@@ -502,13 +519,13 @@ export const useChat = (chatId: string) => {
               ...baseMessages,
               {
                 ...message,
-                parts: cloneDeep(truncatedParts),
+                parts: truncatedParts.map((part) => ({ ...part })),
                 metadata: clearTransientMetadata(message.metadata)
               }
             ]
           : baseMessages
 
-      updateMessages(chatId, cloneDeep(nextMessages))
+      updateMessages(chatId, cloneMessagesForChat(nextMessages))
 
       scrollToBottom()
       const chat = createChat(nextMessages)
@@ -532,8 +549,8 @@ export const useChat = (chatId: string) => {
       )
       const retryMessages =
         retryAnchorMessageIndex >= 0
-          ? cloneDeep(messages.slice(0, retryAnchorMessageIndex + 1))
-          : cloneDeep(messages)
+          ? cloneMessagesForChat(messages.slice(0, retryAnchorMessageIndex + 1))
+          : cloneMessagesForChat(messages)
       updateMessages(chatId, retryMessages)
       const chat = createChat(retryMessages, {
         regenerateMessageId

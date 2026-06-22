@@ -1,11 +1,45 @@
 import { computed, type ComputedRef } from 'vue'
 import {
-  estimateMessagesTokens,
-  estimateTextTokens
+  estimateTextTokens,
+  serializeMessageForTokenEstimation
 } from '@renderer/services/chatService/tokenUsage'
 
 const numberFormatter = new Intl.NumberFormat('zh-CN')
 const COMPRESSED_CONTEXT_MARKER = '[上下文已压缩]'
+
+// 单条消息 token 数缓存：key = `${messageId}:${model}:${serializedLength}`。
+// 流式期间 messageSyncController 每 500ms 触发一次 store 变更，会让本 computed 重新求值。
+// 不缓存时每次都会对全部上下文消息重新跑 tiktoken（WASM 字符级扫描），长对话下高频开销显著。
+//
+// key 纳入 serializedLength（序列化后文本长度）：同一 message.id 在流式输出、
+// 编辑、工具结果补全时 parts 会变化，序列化长度随之变化，key 不同即可触发重新编码。
+// 历史稳定消息长度不变 → 命中缓存；最后一条流式消息长度持续增长 → 每次重新编码。
+// 序列化是纯字符串拼接（轻），tiktoken encode 是 WASM 字符级扫描（重），用轻量序列化
+// 换掉重量 encode，收益保留，且不会返回过期的 token 数。
+const MESSAGE_TOKEN_CACHE_LIMIT = 2000
+const messageTokenCache = new Map<string, number>()
+
+const estimateMessageTokensCached = (message: BaseMessage, model?: string): number => {
+  const serialized = serializeMessageForTokenEstimation(message)
+  if (!serialized) return 0
+
+  const cacheKey = `${message.id}:${model || ''}:${serialized.length}`
+  const cached = messageTokenCache.get(cacheKey)
+  if (cached != null) return cached
+
+  const tokens = estimateTextTokens(serialized, model) + 4
+  // 简单容量保护：超过上限直接清空重建。token 数估算本身是幂等的，清空只会让
+  // 下一轮重新编码一次，不会出错。比 LRU 实现更轻量，够用。
+  if (messageTokenCache.size >= MESSAGE_TOKEN_CACHE_LIMIT) {
+    messageTokenCache.clear()
+  }
+  messageTokenCache.set(cacheKey, tokens)
+  return tokens
+}
+
+const estimateContextMessagesTokens = (messages: BaseMessage[], model?: string): number => {
+  return messages.reduce((total, message) => total + estimateMessageTokensCached(message, model), 0)
+}
 
 const isCompressedContextMessage = (message: BaseMessage): boolean => {
   return Boolean(
@@ -89,7 +123,7 @@ export const useInputContextTokens = (options: {
     }
 
     const contextMessages = getCurrentContextMessages(chat, agent)
-    const messageTokens = estimateMessagesTokens(contextMessages, model)
+    const messageTokens = estimateContextMessagesTokens(contextMessages, model)
     const compressedContextTokens =
       chat.compressedContext?.content && !chat.compressedContext.loading
         ? estimateSystemTextTokens(

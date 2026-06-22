@@ -5,10 +5,10 @@
   "main": "./out/main/index.js",
   "author": "example.com",
   "homepage": "https://electron-vite.org",
-  "packageManager": "pnpm@10.24.0",
+  "packageManager": "pnpm@10.34.4",
   "scripts": {
     "turbo": "turbo dev --filter=!qi-cli",
-    "predev": "pnpm --filter @agent-qi/types build",
+    "predev": "pnpm taze -w && pnpm --filter @agent-qi/types build",
     "rebuild:native": "node ./node_modules/@electron/rebuild/lib/cli.js -f -w better-sqlite3,node-pty,sqlite-vec,robotjs",
     "dev": "pnpm --filter desktop dev",
     "android:debug": "node ./scripts/build-android.mjs debug",
@@ -27,9 +27,10 @@
   },
   "devDependencies": {
     "prettier": "catalog:",
+    "taze": "^19.14.1",
     "turbo": "catalog:",
     "typescript": "catalog:",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.9"
   },
   "pnpm": {
     "overrides": {
@@ -57,10 +58,10 @@
     "@ai-sdk/moonshotai": "catalog:",
     "@ai-sdk/provider": "catalog:",
     "@mozilla/readability": "^0.6.0",
-    "@openrouter/ai-sdk-provider": "^2.9.0",
+    "@openrouter/ai-sdk-provider": "^2.9.1",
     "ai-sdk-ollama": "catalog:",
     "istextorbinary": "^9.5.0",
     "textextensions": "^6.11.0",
-    "turndown": "^7.2.2"
+    "turndown": "^7.2.4"
   }
 }

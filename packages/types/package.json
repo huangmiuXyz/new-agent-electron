@@ -4,14 +4,14 @@
   "description": "Type definitions for Agent Qi",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./dist/src/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     },
-    "./*": "./dist/*.d.ts"
+    "./*": "./dist/src/*.d.ts"
   },
   "files": [
     "dist"

@@ -1,6 +1,6 @@
 import { ClientConfig, Tools } from './ai'
 import { DownloadProgress } from './components'
-
+import Electron from 'electron'
 export interface SyncHostState {
   running: boolean
   port: number
@@ -63,9 +63,55 @@ export interface ExecNodejsResult<T = unknown> {
   errorCode?: string
 }
 
+export interface PluginMainLoadPayload {
+  pluginName: string
+  pluginDir: string
+  mainEntry: string
+  info: Record<string, unknown>
+}
+
+export interface PluginMainIpcInvokePayload {
+  pluginName: string
+  channel: string
+  args: unknown[]
+}
+
+export interface PluginMainIpcOnPayload {
+  pluginName: string
+  channel: string
+}
+
+/** pluginMain.ipc.invoke 超时时抛出的错误 */
+export class PluginIpcTimeoutError extends Error {
+  readonly pluginName: string
+  readonly channel: string
+  readonly timeoutMs: number
+  constructor(pluginName: string, channel: string, timeoutMs: number) {
+    super(`plugin ipc timeout: ${pluginName}:${channel} (${timeoutMs}ms)`)
+    this.name = 'PluginIpcTimeoutError'
+    this.pluginName = pluginName
+    this.channel = channel
+    this.timeoutMs = timeoutMs
+  }
+}
+
+/** pluginMain.ipc.invoke 默认超时（毫秒），0 表示不限 */
+export const PLUGIN_IPC_DEFAULT_TIMEOUT_MS = 15000
+
 export interface ElectronAPI {
   // aiServices
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
+
+  // plugin main-process bridge
+  pluginMain: {
+    load: (payload: PluginMainLoadPayload) => Promise<{ ok: boolean; error?: string }>
+    unload: (pluginName: string) => Promise<{ ok: boolean; error?: string }>
+    reload: (payload: PluginMainLoadPayload) => Promise<{ ok: boolean; error?: string }>
+    ipc: {
+      invoke: (pluginName: string, channel: string, ...args: unknown[]) => Promise<unknown>
+      on: (pluginName: string, channel: string, callback: (...args: unknown[]) => void) => () => void
+    }
+  }
 
   // process
   process: {
@@ -449,7 +495,7 @@ export interface ElectronAPI {
 }
 
 declare global {
-  interface ElectronAPI extends _ElectronAPI {}
+  interface ElectronAPI extends _ElectronAPI { }
 }
 
 type _ElectronAPI = ElectronAPI
