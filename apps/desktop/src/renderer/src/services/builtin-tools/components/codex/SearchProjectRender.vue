@@ -70,13 +70,13 @@ const handleOpen = (path: string) => {
       </div>
 
       <!-- 原始输出（折叠） -->
-      <div v-if="rawOutput" class="raw-section">
+      <!-- <div v-if="rawOutput" class="raw-section">
         <div class="raw-header" @click="isOutputExpanded = !isOutputExpanded">
           <span>原始输出</span>
           <span class="toggle">{{ isOutputExpanded ? '▾' : '▸' }}</span>
         </div>
         <pre v-if="isOutputExpanded" class="raw-output">{{ rawOutput }}</pre>
-      </div>
+      </div> -->
 
       <div v-if="!hasError && !resultText" class="empty-hint">命令执行中或无输出</div>
     </template>
