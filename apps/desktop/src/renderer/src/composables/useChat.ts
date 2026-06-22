@@ -1,4 +1,5 @@
-import { Chat as _useChat } from '@ai-sdk/vue'
+import { useChat as _useChat } from '@ai-sdk/vue'
+import type { UseChatHelpers } from '@ai-sdk/vue'
 import type { APICallError, FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai'
 import { speechService } from '../services/speechService'
@@ -129,7 +130,7 @@ export const useChat = (chatId: string) => {
   const createChat = (
     messages: BaseMessage[],
     options?: { regenerateMessageId?: string; isApproval?: boolean }
-  ): _useChat<BaseMessage> => {
+  ): UseChatHelpers<BaseMessage> => {
     const { regenerateMessageId, isApproval } = options || {}
     const scope = effectScope()
 
@@ -285,7 +286,7 @@ export const useChat = (chatId: string) => {
       // 用此标志让 onFinish 在重试等待期间跳过收尾与状态清理。
       let retryScheduled = false
 
-      const chat = new _useChat<BaseMessage>({
+      const chat = _useChat<BaseMessage>({
         id: chatId,
         messages: cloneMessagesForChat(messages),
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
@@ -306,7 +307,7 @@ export const useChat = (chatId: string) => {
             const toolFeaturesEnabled = runtimeChat?.toolFeaturesEnabled !== false
 
             return service.createAgent(
-              chat.id,
+              chat.id.value,
               {
                 model: modelId!,
                 apiKey: selectedProvider.apiKey!,
@@ -350,12 +351,10 @@ export const useChat = (chatId: string) => {
           reconnectToStream: undefined as any
         },
 
-        onFinish: () => {
+        onFinish: ({ message: finalMessage }) => {
           // 错误时 AI SDK 可能也会触发 onFinish；若已安排自动重试，
           // 这里不收尾，重试由 retryTimer 驱动。
           if (retryScheduled) return
-
-          const finalMessage = chat.lastMessage!
           messageSyncController.finalizeMessageSync(finalMessage)
           speechController.finishMessageSpeech(finalMessage)
 
@@ -375,13 +374,13 @@ export const useChat = (chatId: string) => {
           // 将 error 扁平化为可序列化的 Error，避免原始错误对象（如 _TypeValidationError）
           // 携带循环引用，导致 chats store 持久化时 JSON.stringify 报错。
           const serializableError = new Error((error as Error)?.message || '请求失败')
+          const failedMessage = chat.messages.value[chat.messages.value.length - 1]
           messageSyncController.finalizeMessageSync(
-            chat.lastMessage,
+            failedMessage,
             serializableError as APICallError
           )
           speechController.fail(error)
 
-          const failedMessage = chat.lastMessage
           const failedMessageId = failedMessage?.id
 
           // 用户手动停止：不重试
@@ -416,9 +415,9 @@ export const useChat = (chatId: string) => {
       // 的对象引用随之改变，因此浅监听即可在每个 token 到达时触发，无需 deep:true
       // 避免对含大量 parts/metadata/工具结果的消息做递归深度比较造成的主线程压力。
       watch(
-        () => chat.lastMessage,
-        (newMessage) => {
-          messageSyncController.scheduleStreamingUpdate(newMessage)
+        chat.messages,
+        (newMessages) => {
+          messageSyncController.scheduleStreamingUpdate(newMessages[newMessages.length - 1])
         }
       )
 
@@ -470,7 +469,7 @@ export const useChat = (chatId: string) => {
         typeof content === 'string' ? [{ type: 'text', text: content }] : content
 
       chat.sendMessage({
-        id: chat.generateId(),
+        id: nanoid(),
         role: 'user',
         parts
       })
