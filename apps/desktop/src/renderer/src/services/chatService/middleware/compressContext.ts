@@ -1,4 +1,4 @@
-import type { LanguageModelV3Middleware } from '@ai-sdk/provider'
+import type { LanguageModelMiddleware } from 'ai'
 import { useChatsStores } from '@renderer/stores/chats'
 
 interface CompressContextMiddlewareOptions {
@@ -28,11 +28,11 @@ const getCompressedContextFromStore = (cid: string): string => {
 
 export const createCompressContextMiddleware = (
   options: CompressContextMiddlewareOptions
-): LanguageModelV3Middleware => {
+): LanguageModelMiddleware => {
   const { cid, contextCount } = options
 
   return {
-    specificationVersion: 'v3',
+    specificationVersion: 'v4',
     transformParams: async ({ params }) => {
       if (!Array.isArray(params.prompt)) {
         return params

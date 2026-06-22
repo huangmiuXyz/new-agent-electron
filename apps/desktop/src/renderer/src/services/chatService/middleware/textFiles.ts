@@ -1,4 +1,5 @@
-import type { LanguageModelV3CallOptions, LanguageModelV3Middleware } from '@ai-sdk/provider'
+import type { LanguageModelV4Prompt, LanguageModelV4Message } from '@ai-sdk/provider'
+import type { LanguageModelMiddleware } from 'ai'
 import { isTextFile } from '@renderer/utils'
 
 const decodeBase64ToText = (payload: string): string => {
@@ -87,15 +88,15 @@ const convertTextFilePart = (part: any) => {
   }
 }
 
-export const createTextFileMiddleware = (): LanguageModelV3Middleware => {
+export const createTextFileMiddleware = (): LanguageModelMiddleware => {
   return {
-    specificationVersion: 'v3',
+    specificationVersion: 'v4',
     transformParams: async ({ params }) => {
-      if (!Array.isArray(params.prompt)) return params
+      const prompt = params.prompt
 
       return {
         ...params,
-        prompt: params.prompt.map((message) => {
+        prompt: prompt.map((message) => {
           if (!Array.isArray(message.content)) return message
 
           return {
@@ -103,7 +104,7 @@ export const createTextFileMiddleware = (): LanguageModelV3Middleware => {
             content: message.content.map(convertTextFilePart)
           }
         })
-      } as LanguageModelV3CallOptions
+      }
     }
   }
 }

@@ -1,4 +1,4 @@
-import type { LanguageModelV3Middleware } from '@ai-sdk/provider'
+import type { LanguageModelMiddleware } from 'ai'
 import type { SkillMetadata } from '@renderer/services/skillsService'
 import { loadSkill } from '@renderer/services/skillsService'
 import {
@@ -33,11 +33,11 @@ const NOTE_TREE_MAX_ENTRIES = 120
 
 export const createSkillReferenceMiddleware = (
   options: SkillReferenceMiddlewareOptions
-): LanguageModelV3Middleware => {
+): LanguageModelMiddleware => {
   const { skills = [], workPath } = options
 
   return {
-    specificationVersion: 'v3',
+    specificationVersion: 'v4',
     transformParams: async ({ params }) => {
       const lastUserMessageText = getLastUserMessageText(params.prompt)
       if (!lastUserMessageText) {

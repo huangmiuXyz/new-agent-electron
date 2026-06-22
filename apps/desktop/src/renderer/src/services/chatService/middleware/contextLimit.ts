@@ -1,14 +1,14 @@
-import type { LanguageModelV3Middleware } from '@ai-sdk/provider'
+import type { LanguageModelMiddleware } from 'ai'
 
 interface ContextLimitOptions {
   contextCount?: number
 }
 
-export const createContextLimitMiddleware = (options: ContextLimitOptions): LanguageModelV3Middleware => {
+export const createContextLimitMiddleware = (options: ContextLimitOptions): LanguageModelMiddleware => {
   const { contextCount = 0 } = options
 
   return {
-    specificationVersion: 'v3',
+    specificationVersion: 'v4',
     transformParams: async ({ params }) => {
       if (!contextCount || contextCount <= 0 || !Array.isArray(params.prompt)) {
         return params

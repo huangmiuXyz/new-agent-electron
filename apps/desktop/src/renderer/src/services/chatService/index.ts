@@ -2,6 +2,7 @@ import {
   ToolLoopAgent,
   wrapLanguageModel,
   extractReasoningMiddleware,
+  type LanguageModelMiddleware,
   convertToModelMessages,
   validateUIMessages
 } from 'ai'

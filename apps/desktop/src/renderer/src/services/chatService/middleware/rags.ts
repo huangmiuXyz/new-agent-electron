@@ -1,4 +1,4 @@
-import type { LanguageModelV3Middleware } from '@ai-sdk/provider'
+import type { LanguageModelMiddleware } from 'ai'
 
 interface RagMiddlewareOptions {
   knowledgeBaseIds?: string[]
@@ -12,10 +12,10 @@ interface RagSearchDetail {
   score?: number
 }
 
-export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageModelV3Middleware => {
+export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageModelMiddleware => {
   const { knowledgeBaseIds, ragEnabled, onRagSearchComplete } = options
   return {
-    specificationVersion: 'v3',
+    specificationVersion: 'v4',
     transformParams: async ({ params }) => {
       if (!ragEnabled || !knowledgeBaseIds || knowledgeBaseIds.length === 0) {
         return params
