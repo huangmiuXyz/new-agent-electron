@@ -1438,7 +1438,6 @@ export const useAgent = () => {
         ifShow: () => !isMobile.value
       } as PathSelectorField<AgentFormData>,
       {
-      {
         name: 'enableCodexEnvContext',
         type: 'boolean',
         label: '注入环境上下文',
