@@ -392,13 +392,10 @@ export const useChat = (chatId: string) => {
             return
           }
 
-          // 普通对话失败：检查智能体是否配置了自动重试
-          // 子任务场景（has parentChatId）不自动重试，按原逻辑上报失败
-          // 缺省（未配置）视为开启自动重试
-          const isSubTask = !!getChatById(chatId)?.parentChatId
+          // 检查智能体是否配置了自动重试，缺省（未配置）视为开启自动重试
           const agent = getChatAgent()
           const autoRetryEnabled =
-            agent?.retryAutoEnabled !== false && !!failedMessageId && !isApproval && !isSubTask
+            agent?.retryAutoEnabled !== false && !!failedMessageId && !isApproval
 
           if (!autoRetryEnabled) {
             subTaskCoordinator.markFailed((error as Error).message || '子任务执行失败')
