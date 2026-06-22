@@ -3,7 +3,6 @@ import { createRegistry } from '@renderer/services/chatService/registry'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { ImageBatch, useImageStore } from '@renderer/stores/image'
 import { useImageGeneration } from '@renderer/composables/useImageGeneration'
-import type { ModelCategory } from '@agent-qi/types'
 
 type ImageResolutionPreset = '1K' | '2K' | '3K' | '4K'
 

@@ -3,7 +3,6 @@ import { createRegistry } from '@renderer/services/chatService/registry'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { ImageBatch, useImageStore } from '@renderer/stores/image'
 import { useImageGeneration } from '@renderer/composables/useImageGeneration'
-import type { ModelCategory } from '@agent-qi/types'
 
 const settingsStore = useSettingsStore()
 const imgStore = useImageStore()

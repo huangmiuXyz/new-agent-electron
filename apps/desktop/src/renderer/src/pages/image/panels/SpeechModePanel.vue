@@ -3,7 +3,6 @@ import { experimental_generateSpeech as generateSpeech } from 'ai'
 import { createRegistry } from '@renderer/services/chatService/registry'
 import { useSettingsStore } from '@renderer/stores/settings'
 import { useAudioStore } from '@renderer/stores/audio'
-import type { ModelCategory } from '@agent-qi/types'
 
 const settingsStore = useSettingsStore()
 const audioStore = useAudioStore()
