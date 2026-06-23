@@ -58,8 +58,10 @@ export const createCompressContextMiddleware = (
         contextCount && contextCount > 0
           ? Math.max(contextCount - preservedSystemPrompts.length - 1, 0)
           : recentMessages.length
-      const truncatedRecentMessages =
+      const slicedRecentMessages =
         recentMessageBudget > 0 ? recentMessages.slice(-recentMessageBudget) : []
+      const firstNonTool = slicedRecentMessages.findIndex(m => m.role !== 'tool')
+      const truncatedRecentMessages = firstNonTool > 0 ? slicedRecentMessages.slice(firstNonTool) : slicedRecentMessages
 
       return {
         ...params,

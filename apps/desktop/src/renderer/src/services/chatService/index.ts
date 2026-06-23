@@ -333,8 +333,14 @@ export const chatService = () => {
 
     const normalizedMessages = normalizeInlineFilePartUrls(sanitizedMessages)
 
-    // 3. Convert to model messages
-    const modelMessages = await convertToModelMessages(normalizedMessages)
+    // 3. 按 contextCount 截断 UI 消息（在 convertToModelMessages 之前，按整条消息计数）
+    const contextTruncatedMessages =
+      contextCount && contextCount > 0 && normalizedMessages.length > contextCount
+        ? normalizedMessages.slice(-contextCount)
+        : normalizedMessages
+
+    // 4. Convert to model messages
+    const modelMessages = await convertToModelMessages(contextTruncatedMessages)
 
     const estimatedPromptTokens = estimateMessagesTokens(messages, model)
 

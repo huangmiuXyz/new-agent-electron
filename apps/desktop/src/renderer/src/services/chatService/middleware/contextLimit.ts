@@ -30,9 +30,10 @@ export const createContextLimitMiddleware = (options: ContextLimitOptions): Lang
       }
 
       if (lastCompressedIndex === -1) {
+        const firstNonTool = messages.findIndex(m => m.role !== 'tool')
         return {
           ...params,
-          prompt: messages.slice(-contextCount)
+          prompt: firstNonTool > 0 ? messages.slice(firstNonTool) : messages
         }
       }
 
@@ -56,8 +57,10 @@ export const createContextLimitMiddleware = (options: ContextLimitOptions): Lang
 
       const tailMessages = messages.slice(lastCompressedIndex + 1)
       const truncatedTail = tailMessages.slice(-remainingSlots)
+      const firstNonToolTail = truncatedTail.findIndex(m => m.role !== 'tool')
+      const adjustedTail = firstNonToolTail > 0 ? truncatedTail.slice(firstNonToolTail) : truncatedTail
 
-      const truncatedMessages = [...preservedMessages, ...truncatedTail]
+      const truncatedMessages = [...preservedMessages, ...adjustedTail]
 
       return {
         ...params,
