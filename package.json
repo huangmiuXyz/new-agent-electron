@@ -34,7 +34,7 @@
   },
   "pnpm": {
     "overrides": {
-      "vite": "^8.0.16"
+      "vite": "^8.1.0"
     },
     "patchedDependencies": {
       "node-pty@1.1.0": "patches/node-pty@1.1.0.patch"
