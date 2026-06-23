@@ -652,6 +652,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
         :enabled="autoScrollEnabled"
         :threshold="5"
         :auto-scroll-trigger="autoScrollTrigger"
+        :reset-key="currentChat?.id ?? null"
       >
         <div :class="{ 'is-centered': display.chatCenteredLayout }" class="messages-content">
           <template v-for="(message, index) in visibleMessages" :key="message.id">
