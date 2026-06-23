@@ -104,11 +104,31 @@ type DedicatedFileToolNames = {
   searchTool?: string
   readTool?: string
   listTool?: string
+  editTool?: string
 }
 
 const SEARCH_COMMANDS = new Set(['ag', 'ack', 'awk', 'grep', 'rg', 'ripgrep'])
 const READ_COMMANDS = new Set(['cat', 'head', 'less', 'more', 'nl', 'sed', 'tail'])
 const LIST_COMMANDS = new Set(['fd', 'find', 'ls', 'tree'])
+
+const WRITE_COMMANDS = new Set([
+  'rm', 'cp', 'mv', 'mkdir', 'touch', 'chmod', 'chown',
+  'ln', 'mkfifo', 'mknod', 'dd', 'truncate', 'install',
+  'tee',
+])
+
+const WRITE_COMMAND_PATTERNS: RegExp[] = [
+  /sed\s+-(?:i|in-place)\b/,
+  /\b(?:npm|bun|pnpm|yarn)\s+(?:install|add|remove|uninstall|update|publish|link|unlink|init|run\s+(?:build|dev|start|test)|exec\s+\S+\s+(?:install|add))/,
+  /\bpip(?:3)?\s+(?:install|uninstall|download)\b/,
+  /\bgit\s+(?:add|commit|push|pull|merge|rebase|reset|checkout|restore\s+-[sS]|branch\s+-[dDmM]|tag\s+-[adf]|stash\s+(?:drop|pop|push|apply)|rm|mv|update-index|submodule\s+update|worktree\s+(?:add|prune|remove|lock|unlock)|clean|cherry-pick|revert)\b/,
+  /\b(?:apt|apt-get|aptitude|dpkg|brew|yum|dnf|rpm|pacman|zypper|snap|port)\s+(?:install|remove|update|upgrade|purge|autoremove|clean)\b/,
+  /\b(?:docker|podman)\s+(?:build|commit|push|pull|tag|rmi|rm|network\s+create|volume\s+create|save|load|import|export|login|logout)\b/,
+  /\b(?:cargo|go|rustup)\s+(?:install|uninstall|publish|build|run|test|update|add|remove)\b/,
+  /\b(?:make|cmake\s+--build|ninja)\s+(?:install|uninstall)?/,
+  /\b(?:terraform|pulumi|sst|cdk)\s+(?:apply|destroy|import)\b/,
+  /\bkubectl\s+(?:apply|delete|create|edit|patch|replace|rollout|scale|autoscale|label|annotate|taint|cordon|uncordon|drain)\b/,
+]
 
 const splitShellCommandSegments = (command: string): string[] => {
   const segments: string[] = []
@@ -215,6 +235,36 @@ export const getDedicatedFileToolHint = (
         `检测到 shell 文件列表命令: ${baseCommand}`,
         `请改用 ${tools.listTool} 列目录${tools.searchTool ? `；需要搜索内容或文件名时，请使用 ${tools.searchTool}` : ''}。`,
         'exec_command 仅用于测试、构建、包管理、git 等真正需要终端的命令。'
+      ].join('\n')
+    }
+  }
+
+  if (WRITE_COMMAND_PATTERNS.some((p) => p.test(command))) {
+    return [
+      'exec_command 是只读 shell，禁止执行写操作。',
+      '如果想创建或修改文件，应该使用 edit_file 工具而不是 exec_command。',
+      '如果想搜索文件内容，应该使用 search_project 工具而不是 exec_command。',
+      '',
+      '注意：不允许通过 exec_command 间接执行写操作（如 sed -i、重定向、git commit、npm install 等）。'
+    ].join('\n')
+  }
+
+  if (/(?:^|[^a-zA-Z0-9_])>(>?)(?!\s*[|&(])/.test(command)) {
+    return [
+      'exec_command 是只读 shell，禁止通过重定向写入文件。',
+      '请改用 edit_file 工具创建或编辑文件。'
+    ].join('\n')
+  }
+
+  for (const segment of splitShellCommandSegments(command)) {
+    const cleaned = segment.replace(/^!+/, '').replace(/^\(+/, '').trim()
+    const baseCommand = cleaned.match(/^([A-Za-z0-9._-]+)/)?.[1]
+    if (!baseCommand) continue
+    if (WRITE_COMMANDS.has(baseCommand)) {
+      return [
+        `exec_command 是只读 shell，不支持 \`${baseCommand}\` 命令。`,
+        '文件操作应使用 edit_file 工具完成。',
+        'exec_command 仅用于查看状态、运行测试、启动开发服务器等只读命令。'
       ].join('\n')
     }
   }

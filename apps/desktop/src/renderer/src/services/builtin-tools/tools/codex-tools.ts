@@ -796,7 +796,8 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
           ? 'search_project'
           : undefined,
         readTool: isBuiltinToolAvailable(availableBuiltinTools, 'readFile') ? 'readFile' : undefined,
-        listTool: isBuiltinToolAvailable(availableBuiltinTools, 'list_dir') ? 'list_dir' : undefined
+        listTool: isBuiltinToolAvailable(availableBuiltinTools, 'list_dir') ? 'list_dir' : undefined,
+        editTool: isBuiltinToolAvailable(availableBuiltinTools, 'edit_file') ? 'edit_file' : undefined
       })
       if (fileToolHint) {
         return {
