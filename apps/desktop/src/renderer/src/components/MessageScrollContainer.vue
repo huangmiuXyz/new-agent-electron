@@ -174,8 +174,6 @@ defineExpose({
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  /* 底部留一点呼吸空间，避免最后一条贴边 */
-  padding-bottom: 12px;
   box-sizing: border-box;
 }
 
