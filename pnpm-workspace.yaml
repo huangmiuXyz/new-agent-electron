@@ -36,7 +36,7 @@ catalog:
   '@incremark/core': ^1.0.2
   '@incremark/theme': ^1.0.2
   '@incremark/vue': ^1.0.2
-  '@langchain/core': ^1.2.0
+  '@langchain/core': ^1.2.1
   '@langchain/textsplitters': ^1.0.1
   '@modelcontextprotocol/sdk': ^1.29.0
   '@prettier/plugin-oxc': ^0.1.4
@@ -99,7 +99,7 @@ catalog:
   node-pty: ^1.1.0
   npm-run-all2: ^9.0.2
   openai: ^6.44.0
-  ora: ^9.4.0
+  ora: ^9.4.1
   oxlint: ~1.70.0
   pinia: ^3.0.4
   pinia-plugin-persistedstate: ^4.7.1
