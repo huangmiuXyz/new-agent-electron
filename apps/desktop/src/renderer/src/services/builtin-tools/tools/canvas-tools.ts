@@ -266,7 +266,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
         .min(20)
         .max(2000)
         .optional()
-        .describe('单行最大显示列数，默认 240；超出后截断显示。')
+        .describe('单行最大显示列数，默认 400；超出后截断显示。')
     }),
     execute: async (args: unknown, options?: { chatId?: string }) => {
       const params = args as {

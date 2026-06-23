@@ -666,7 +666,7 @@ export const getNotesBuiltinTools = (): Partial<Tools> => ({
       start_line: z.number().int().min(1).optional().describe('读取笔记时的起始行号，1-based，默认 1。'),
       end_line: z.number().int().min(1).optional().describe('读取笔记时的结束行号，1-based；传入后会自动附带少量上下文。'),
       limit: z.number().int().min(1).max(2000).optional().describe('读取笔记时最多读取多少行，默认 160，最大 2000。'),
-      max_columns: z.number().int().min(20).max(2000).optional().describe('读取笔记时单行最大显示列数，默认 240；超出后截断显示。'),
+      max_columns: z.number().int().min(20).max(2000).optional().describe('读取笔记时单行最大显示列数，默认 400；超出后截断显示。'),
       max_length: z
         .number()
         .int()

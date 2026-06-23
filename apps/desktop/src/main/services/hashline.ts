@@ -10,7 +10,7 @@ export const DEFAULT_HASHLINE_READ_LIMIT = 160
 export const MAX_HASHLINE_READ_LIMIT = 2000
 export const HASHLINE_RANGE_LEADING_CONTEXT = 1
 export const HASHLINE_RANGE_TRAILING_CONTEXT = 3
-export const DEFAULT_HASHLINE_MAX_COLUMNS = 240
+export const DEFAULT_HASHLINE_MAX_COLUMNS = 400
 
 export type HashlineAnchor = {
   line: number
