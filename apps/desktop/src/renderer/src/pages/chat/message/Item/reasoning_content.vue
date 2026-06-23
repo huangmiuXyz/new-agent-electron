@@ -26,6 +26,7 @@
         split-mode="blank-line"
         :font-size="11"
         :line-height="17"
+        :bottomThreshold="1"
         :paragraph-padding-block="4"
         :paragraph-gap="2"
         :min-paragraph-height="21"
