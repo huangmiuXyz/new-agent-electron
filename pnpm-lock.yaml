@@ -97,8 +97,8 @@ catalogs:
       specifier: ^1.0.2
       version: 1.0.2
     '@langchain/core':
-      specifier: ^1.2.0
-      version: 1.2.0
+      specifier: ^1.2.1
+      version: 1.2.1
     '@langchain/textsplitters':
       specifier: ^1.0.1
       version: 1.0.1
@@ -286,8 +286,8 @@ catalogs:
       specifier: ^6.44.0
       version: 6.44.0
     ora:
-      specifier: ^9.4.0
-      version: 9.4.0
+      specifier: ^9.4.1
+      version: 9.4.1
     oxlint:
       specifier: ~1.70.0
       version: 1.70.0
@@ -499,10 +499,10 @@ importers:
         version: 15.6.0(koa@3.2.1)
       '@langchain/core':
         specifier: 'catalog:'
-        version: 1.2.0(@opentelemetry/api@1.9.1)(openai@6.44.0(ws@8.21.0(bufferutil@4.1.0))(zod@4.4.3))(ws@8.21.0(bufferutil@4.1.0))
+        version: 1.2.1(@opentelemetry/api@1.9.1)(openai@6.44.0(ws@8.21.0(bufferutil@4.1.0))(zod@4.4.3))(ws@8.21.0(bufferutil@4.1.0))
       '@langchain/textsplitters':
         specifier: 'catalog:'
-        version: 1.0.1(@langchain/core@1.2.0(@opentelemetry/api@1.9.1)(openai@6.44.0(ws@8.21.0(bufferutil@4.1.0))(zod@4.4.3))(ws@8.21.0(bufferutil@4.1.0)))
+        version: 1.0.1(@langchain/core@1.2.1(@opentelemetry/api@1.9.1)(openai@6.44.0(ws@8.21.0(bufferutil@4.1.0))(zod@4.4.3))(ws@8.21.0(bufferutil@4.1.0)))
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
@@ -827,7 +827,7 @@ importers:
         version: 3.10.1
       ora:
         specifier: 'catalog:'
-        version: 9.4.0
+        version: 9.4.1
     devDependencies:
       '@types/inquirer':
         specifier: 'catalog:'
@@ -2149,8 +2149,8 @@ packages:
     peerDependencies:
       koa: ^2.0.0 || ^3.0.0
 
-  '@langchain/core@1.2.0':
-    resolution: {integrity: sha512-nXmyH0FbcsASlRmC9sbqX0gjQdxgB9KcS13vkw9PMaH0zzylwZkGFU9sY0XCPa2/AokmaNTU9DOW3IUDfAtQow==}
+  '@langchain/core@1.2.1':
+    resolution: {integrity: sha512-NNG/cC5FGuHDOAP56h0ddp8Rfk8p+othWzEK5RV9JIG6RvnF5vGa5r0AEGtKfQieed7s1kC42GuIzVOBvMBL/g==}
     engines: {node: '>=20'}
 
   '@langchain/textsplitters@1.0.1':
@@ -5756,8 +5756,8 @@ packages:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
 
-  ora@9.4.0:
-    resolution: {integrity: sha512-84cglkRILFxdtA8hAvLNdMrtBpPNBTrQ9/ulg0FA7xLMnD6mifv+enAIeRmvtv+WgdCE+LPGOfQmtJRrVaIVhQ==}
+  ora@9.4.1:
+    resolution: {integrity: sha512-6VlU9MLXbjVQD04AZCMX28hVtA5bUoadvUqO76MUCVA0ilwJbMiHsITRPfyVm6p/BC0Av/BXMujx39WCe1LEqw==}
     engines: {node: '>=20'}
 
   orderedmap@2.1.1:
@@ -8197,7 +8197,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@langchain/core@1.2.0(@opentelemetry/api@1.9.1)(openai@6.44.0(ws@8.21.0(bufferutil@4.1.0))(zod@4.4.3))(ws@8.21.0(bufferutil@4.1.0))':
+  '@langchain/core@1.2.1(@opentelemetry/api@1.9.1)(openai@6.44.0(ws@8.21.0(bufferutil@4.1.0))(zod@4.4.3))(ws@8.21.0(bufferutil@4.1.0))':
     dependencies:
       '@cfworker/json-schema': 4.1.1
       '@standard-schema/spec': 1.1.0
@@ -8213,9 +8213,9 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/textsplitters@1.0.1(@langchain/core@1.2.0(@opentelemetry/api@1.9.1)(openai@6.44.0(ws@8.21.0(bufferutil@4.1.0))(zod@4.4.3))(ws@8.21.0(bufferutil@4.1.0)))':
+  '@langchain/textsplitters@1.0.1(@langchain/core@1.2.1(@opentelemetry/api@1.9.1)(openai@6.44.0(ws@8.21.0(bufferutil@4.1.0))(zod@4.4.3))(ws@8.21.0(bufferutil@4.1.0)))':
     dependencies:
-      '@langchain/core': 1.2.0(@opentelemetry/api@1.9.1)(openai@6.44.0(ws@8.21.0(bufferutil@4.1.0))(zod@4.4.3))(ws@8.21.0(bufferutil@4.1.0))
+      '@langchain/core': 1.2.1(@opentelemetry/api@1.9.1)(openai@6.44.0(ws@8.21.0(bufferutil@4.1.0))(zod@4.4.3))(ws@8.21.0(bufferutil@4.1.0))
       js-tiktoken: 1.0.21
 
   '@malept/cross-spawn-promise@1.1.1':
@@ -12077,7 +12077,7 @@ snapshots:
       type-check: 0.4.0
       word-wrap: 1.2.5
 
-  ora@9.4.0:
+  ora@9.4.1:
     dependencies:
       chalk: 5.6.2
       cli-cursor: 5.0.0
@@ -13549,7 +13549,7 @@ snapshots:
 
   wide-align@1.1.5:
     dependencies:
-      string-width: 1.0.2
+      string-width: 4.2.3
 
   word-wrap@1.2.5: {}
 
