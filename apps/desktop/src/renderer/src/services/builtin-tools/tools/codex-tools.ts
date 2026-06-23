@@ -770,7 +770,7 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
     }
   },
   exec_command: {
-    title: '在终端中执行命令',
+    title: '在终端中执行命令(只读)',
     renderSummary: (args: unknown) => {
       const command = String((args as Record<string, any>)?.command || '')
       return command ? `💻 ${command}` : '💻 执行命令'
