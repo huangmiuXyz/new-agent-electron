@@ -140,6 +140,13 @@ const lastTextBlockIndex = computed(() => {
   return -1
 })
 
+const lastReasoningBlockIndex = computed(() => {
+  for (let index = displayParts.value.length - 1; index >= 0; index -= 1) {
+    if (displayParts.value[index].type === 'reasoning') return index
+  }
+  return -1
+})
+
 const estimatePartHeight = (block: BaseMessage['parts'][number]) => {
   if (block.type === 'text') {
     const len = (block as TextUIPart).text?.length ?? 0
@@ -195,6 +202,7 @@ const estimatePartHeight = (block: BaseMessage['parts'][number]) => {
           <ChatMessageItemReasoning_content
             v-if="block.type === 'reasoning'"
             :reasoning_content="block.text"
+            :streaming="message?.metadata?.loading && idx === lastReasoningBlockIndex"
           />
           <ChatMessageItemDynamicTool
             :message="message"

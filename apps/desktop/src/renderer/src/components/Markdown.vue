@@ -107,23 +107,73 @@ watch(
 let lastSourceText = ''
 let finalized = false
 let pendingChunk = ''
-let appendFrameId: number | null = null
+let charFrameId: number | null = null
+let charFrameAt = 0
+let charBudget = 0
 let finalizeTimer: ReturnType<typeof setTimeout> | null = null
 
 const FINALIZE_DELAY_MS = 120
+const MIN_STREAM_CHARS_PER_SECOND = 90
+const MAX_STREAM_CHARS_PER_SECOND = 1800
+const STREAM_BACKLOG_SPEED_FACTOR = 4
 
-const flushPendingChunk = () => {
-  if (!pendingChunk) return
-  incremark.append(pendingChunk)
-  pendingChunk = ''
-  nextTick(scheduleCaretPosition)
+const resetCharTiming = () => {
+  charFrameAt = 0
+  charBudget = 0
 }
 
-const cancelAppendFrame = () => {
-  if (appendFrameId !== null) {
-    cancelAnimationFrame(appendFrameId)
-    appendFrameId = null
+const getNextBatchSize = (remaining: number, frameTime: number) => {
+  const elapsedMs = charFrameAt ? frameTime - charFrameAt : 16
+  charFrameAt = frameTime
+
+  const clampedElapsedMs = Math.min(Math.max(elapsedMs, 8), 48)
+  const charsPerSecond = Math.min(
+    MAX_STREAM_CHARS_PER_SECOND,
+    Math.max(MIN_STREAM_CHARS_PER_SECOND, remaining * STREAM_BACKLOG_SPEED_FACTOR)
+  )
+
+  charBudget += (charsPerSecond * clampedElapsedMs) / 1000
+  const batchSize = Math.min(remaining, Math.max(1, Math.floor(charBudget)))
+  charBudget = Math.max(0, charBudget - batchSize)
+
+  return batchSize
+}
+
+const cancelCharFrame = () => {
+  if (charFrameId !== null) {
+    cancelAnimationFrame(charFrameId)
+    charFrameId = null
   }
+  resetCharTiming()
+}
+
+const processNextChar = (frameTime: number) => {
+  charFrameId = null
+  if (!pendingChunk) {
+    resetCharTiming()
+    nextTick(scheduleCaretPosition)
+    return
+  }
+
+  // 积压越多速度越快，同时按帧间隔平滑消费，避免大 chunk 突然跳字。
+  const batchSize = getNextBatchSize(pendingChunk.length, frameTime)
+  const batch = pendingChunk.slice(0, batchSize)
+  pendingChunk = pendingChunk.slice(batchSize)
+
+  incremark.append(batch)
+
+  nextTick(scheduleCaretPosition)
+  if (pendingChunk) {
+    charFrameId = requestAnimationFrame(processNextChar)
+  } else {
+    resetCharTiming()
+  }
+}
+
+const scheduleNextChar = () => {
+  if (charFrameId !== null) return
+  if (!pendingChunk) return
+  charFrameId = requestAnimationFrame(processNextChar)
 }
 
 const cancelFinalizeTimer = () => {
@@ -134,20 +184,16 @@ const cancelFinalizeTimer = () => {
 }
 
 const scheduleAppend = () => {
-  if (appendFrameId !== null) return
-  appendFrameId = requestAnimationFrame(() => {
-    appendFrameId = null
-    flushPendingChunk()
-    if (pendingChunk) {
-      scheduleAppend()
-    }
-  })
+  // 已有逐字定时器在跑，新 chunk 会被 pendingChunk 累积，
+  // 定时器自然逐个消费，无需额外动作。
+  if (charFrameId !== null) return
+  scheduleNextChar()
 }
 
 const finalizeFromFullText = () => {
   const finalText = props.block.text || ''
   pendingChunk = ''
-  cancelAppendFrame()
+  cancelCharFrame()
   incremark.reset()
   lastSourceText = ''
 
@@ -162,7 +208,7 @@ const finalizeFromFullText = () => {
 
 const resetAndReplay = (nextText: string) => {
   pendingChunk = ''
-  cancelAppendFrame()
+  cancelCharFrame()
   incremark.reset()
   finalized = false
   lastSourceText = ''
@@ -170,7 +216,7 @@ const resetAndReplay = (nextText: string) => {
   if (nextText) {
     pendingChunk = nextText
     lastSourceText = nextText
-    scheduleAppend()
+    scheduleNextChar()
   }
 }
 
@@ -233,7 +279,7 @@ watch(
 
 onBeforeUnmount(() => {
   pendingChunk = ''
-  cancelAppendFrame()
+  cancelCharFrame()
   cancelFinalizeTimer()
   if (caretFrameId !== null) {
     cancelAnimationFrame(caretFrameId)
