@@ -789,7 +789,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   content-visibility: auto;
   contain-intrinsic-size: auto 100px;
 
-  contain: content;
   display: flex;
   flex-direction: column;
   flex: none;

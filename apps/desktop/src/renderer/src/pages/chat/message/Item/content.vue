@@ -150,68 +150,62 @@ const estimatePartHeight = (block: BaseMessage['parts'][number]) => {
   if (block.type === 'file') return 140
   return 80
 }
-
-const isPartAlwaysVisible = (block: BaseMessage['parts'][number], idx: number) => {
-  if (props.streaming && idx === lastTextBlockIndex.value && block.type === 'text') {
-    return true
-  }
-  return false
-}
 </script>
 
 <template>
   <div>
     <div v-if="!isEditing" class="msg-bubble">
       <div class="blocks-container">
-        <div v-for="(block, idx) in displayParts" :key="getBlockKey(block, idx)" class="view-block" :class="{ 'view-block--tight': block.type === 'reasoning' || block.type === 'text' }">
-          <LazyMessagePart
-            :always-visible="isPartAlwaysVisible(block, idx)"
-            :estimate-height="estimatePartHeight(block)"
+        <div
+          v-for="(block, idx) in displayParts"
+          :key="getBlockKey(block, idx)"
+          class="view-block"
+          :class="{ 'view-block--tight': block.type === 'reasoning' || block.type === 'text' }"
+          :style="{ '--intrinsic-h': estimatePartHeight(block) + 'px' }"
+        >
+          <div
+            v-if="block.type === 'text'"
+            class="text-block"
+            :class="{ 'is-streaming-last': streaming && idx === lastTextBlockIndex }"
+            :style="contentStyle"
           >
-            <div
-              v-if="block.type === 'text'"
-              class="text-block"
-              :class="{ 'is-streaming-last': streaming && idx === lastTextBlockIndex }"
-              :style="contentStyle"
-            >
-              <Markdown
-                v-if="markdown && block.text"
-                :block="block"
-                :message="message"
-                :streaming="streaming && idx === lastTextBlockIndex"
-              />
-              <template v-else>
-                <div class="text-content">
-                  {{ block.text }}
-                </div>
-              </template>
-            </div>
-            <FileUpload
-              :removable="false"
-              v-if="isNonAudioFilePart(block)"
-              :files="[filePartToUploadFile(block)]"
-            />
-            <AudioInputPreview
-              v-if="isAudioFilePart(block)"
-              :audios="[audioPartToPreviewItem(block, idx)]"
-              :removable="false"
-              variant="message"
-            />
-            <ChatMessageItemReasoning_content
-              v-if="block.type === 'reasoning'"
-              :reasoning_content="block.text"
-            />
-            <ChatMessageItemDynamicTool
+            <Markdown
+              v-if="markdown && block.text"
+              :block="block"
               :message="message"
-              v-if="block.type === 'dynamic-tool'"
-              :tool_part="block"
+              :streaming="streaming && idx === lastTextBlockIndex"
             />
-            <ChatMessageItemTool
-              v-if="block.type.startsWith('tool')"
-              :tool_part="block as ToolUIPart"
-              :message="message"
-            />
-          </LazyMessagePart>
+            <template v-else>
+              <div class="text-content">
+                {{ block.text }}
+              </div>
+            </template>
+          </div>
+          <FileUpload
+            :removable="false"
+            v-if="isNonAudioFilePart(block)"
+            :files="[filePartToUploadFile(block)]"
+          />
+          <AudioInputPreview
+            v-if="isAudioFilePart(block)"
+            :audios="[audioPartToPreviewItem(block, idx)]"
+            :removable="false"
+            variant="message"
+          />
+          <ChatMessageItemReasoning_content
+            v-if="block.type === 'reasoning'"
+            :reasoning_content="block.text"
+          />
+          <ChatMessageItemDynamicTool
+            :message="message"
+            v-if="block.type === 'dynamic-tool'"
+            :tool_part="block"
+          />
+          <ChatMessageItemTool
+            v-if="block.type.startsWith('tool')"
+            :tool_part="block as ToolUIPart"
+            :message="message"
+          />
         </div>
         <ChatMessageItemError
           @retry="retry"
@@ -269,6 +263,8 @@ const isPartAlwaysVisible = (block: BaseMessage['parts'][number], idx: number) =
   max-width: 100%;
   min-width: 0;
   padding-block: 5px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--intrinsic-h, 80px);
 }
 
 .view-block--tight {
