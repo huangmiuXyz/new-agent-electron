@@ -102,7 +102,7 @@
     "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
     "id": "ark",
     "logo": "/images/providers/volcengine.png",
-    "providerType": "ark"
+    "providerType": "deepseek"
   },
   {
     "name": "快手万擎",
