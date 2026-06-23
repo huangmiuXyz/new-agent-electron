@@ -104,7 +104,8 @@ const applyHashlineInput = async (baseDir: string, input: string): Promise<FileE
         status: current.exists ? 'M' : 'A',
         path: section.path,
         old_hash: current.exists ? currentTag : undefined,
-        new_hash: computeSnapshotTag(nextContent)
+        new_hash: computeSnapshotTag(nextContent),
+        diff: buildUnifiedDiff(current.content, nextContent, section.path)
       })
     )
   }

@@ -988,9 +988,10 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
           throw new Error(result?.error || 'edit_file failed')
         }
 
-        // replace 模式只返回 diff，去掉 hash 信息；其余类型原样返回 summary
+        const diffText = result.changes?.[0]?.diff || result.summary
+
+        // replace 模式只返回 diff，去掉 hash 信息
         if (type === 'replace') {
-          const diffText = result.changes?.[0]?.diff || result.summary
           const summaryWithoutHash = result.summary
             .replace(/\s*old_hash=\S+/g, '')
             .replace(/\s*new_hash=\S+/g, '')
@@ -1003,10 +1004,11 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
           }
         }
 
+        // hashline/add/delete/move 模式
         return {
           summary: result.summary,
           toolResult: {
-            content: [{ type: 'text', text: result.summary }]
+            content: [{ type: 'text', text: diffText }]
           }
         }
       } catch (error) {

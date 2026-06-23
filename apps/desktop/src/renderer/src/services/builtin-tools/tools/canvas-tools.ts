@@ -601,10 +601,11 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
 
         openCanvasPanel()
 
+        const diffText = result.changes?.[0]?.diff || result.summary
         return {
           summary: result.summary,
           toolResult: {
-            content: [{ type: 'text', text: result.summary }]
+            content: [{ type: 'text', text: diffText }]
           }
         }
       } catch (error) {

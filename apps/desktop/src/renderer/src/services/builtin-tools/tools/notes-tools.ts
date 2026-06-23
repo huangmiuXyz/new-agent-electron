@@ -1,3 +1,4 @@
+import { createTwoFilesPatch } from 'diff'
 import { z } from 'zod'
 import { computeSnapshotTag, stripNoteHtml as stripHtml } from '@renderer/utils/noteHashlines'
 
@@ -978,10 +979,14 @@ export const getNotesBuiltinTools = (): Partial<Tools> => ({
           const nextText = applyHashlineOperations(originalText, operations)
           notesStore.updateNote(note.id, { content: textToNoteHtml(nextText) })
           const lineCount = normalizeText(nextText).split('\n').length
-          summaries.push(`updated ${getNoteDisplayPath(notesStore.folders, note)} (note_id: ${note.id}, ${lineCount} lines)`)
+          const notePath = getNoteDisplayPath(notesStore.folders, note)
+          summaries.push(`updated ${notePath} (note_id: ${note.id}, ${lineCount} lines)`)
+          // generate and push per-section diff
+          const sectionDiff = originalText === nextText ? '' : createTwoFilesPatch(notePath, notePath, originalText, nextText, '', '', { context: 3 })
+          if (sectionDiff) summaries.push(sectionDiff)
         }
 
-        const summary = ['笔记已修改', ...summaries].join('\n')
+        const summary = summaries.join('\n')
 
         return {
           summary,

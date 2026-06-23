@@ -83,7 +83,7 @@ describe('executeFileEdit', () => {
         type: 'update',
         input: `¶src/hello.txt#${oldHash}\nreplace 2:\n+BRAVO`
       })
-    ).resolves.toEqual([
+    ).resolves.toMatchObject([
       {
         status: 'M',
         path: 'src/hello.txt',
