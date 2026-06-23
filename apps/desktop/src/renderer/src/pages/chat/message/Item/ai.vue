@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { getFlatTokenUsage } from '@renderer/services/chatService/tokenUsage'
+import {
+  getFlatTokenUsage,
+  estimateTextTokens,
+  extractGeneratedTextForTokenEstimation
+} from '@renderer/services/chatService/tokenUsage'
 import { getCollapsedMessageParts, getRenderableMessageParts } from './messageParts'
 import { getRetryStopHandler } from '@renderer/composables/useChat'
 
@@ -156,6 +160,58 @@ const retryStatusText = computed(() => {
   return `请求失败，正在${attemptText}重试...`
 })
 
+// —— Token 速度 ——
+const speedNow = ref(Date.now())
+let speedTimer: ReturnType<typeof setInterval> | null = null
+
+watch(
+  () => props.message.metadata?.loading,
+  (loading, oldLoading) => {
+    if (loading) {
+      if (!speedTimer) {
+        speedTimer = setInterval(() => {
+          speedNow.value = Date.now()
+        }, 200)
+      }
+    } else if (oldLoading === true && speedTimer) {
+      if (speedTimer) {
+        clearInterval(speedTimer)
+        speedTimer = null
+      }
+    }
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  if (speedTimer) {
+    clearInterval(speedTimer)
+    speedTimer = null
+  }
+})
+
+const tokenSpeed = computed(() => {
+  const outputStartTime = props.message.metadata?.outputStartTime
+  if (!outputStartTime) return null
+
+  const isStreaming = !!props.message.metadata?.loading
+  let tokens = flatUsage.value.outputTokens
+  if (!tokens && isStreaming) {
+    tokens = estimateTextTokens(
+      extractGeneratedTextForTokenEstimation(props.message),
+      props.message.metadata?.model
+    )
+  }
+  if (!tokens) return null
+
+  const endTime = isStreaming ? speedNow.value : props.message.metadata?.outputEndTime
+  if (!endTime) return null
+  const elapsedSec = (endTime - outputStartTime) / 1000
+  if (elapsedSec <= 0) return null
+
+  return (tokens / elapsedSec).toFixed(1)
+})
+
 const togglePreviousContent = () => {
   isPreviousContentExpanded.value = !isPreviousContentExpanded.value
 }
@@ -230,7 +286,7 @@ const playMessageAudio = () => {
           <span class="msg-name">{{ message.metadata?.model }}</span>
 
           <div
-            v-if="flatUsage.totalTokens || flatUsage.inputTokens || flatUsage.outputTokens"
+            v-if="message.metadata?.loading || flatUsage.totalTokens || flatUsage.inputTokens || flatUsage.outputTokens"
             class="msg-usage"
           >
             <span v-if="flatUsage.inputTokens || flatUsage.outputTokens"
@@ -238,6 +294,7 @@ const playMessageAudio = () => {
             >
             <span v-if="flatUsage.inputTokens">↑{{ flatUsage.inputTokens }}</span>
             <span v-if="flatUsage.outputTokens">↓{{ flatUsage.outputTokens }}</span>
+            <span v-if="tokenSpeed !== null">{{ tokenSpeed }} tok/s</span>
           </div>
         </div>
       </div>

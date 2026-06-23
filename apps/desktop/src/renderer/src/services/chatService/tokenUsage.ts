@@ -65,40 +65,92 @@ export const serializeMessageForTokenEstimation = (
 ): string => {
   const includeRole = options.includeRole !== false
   const serializedParts = message.parts
-    ?.map((part) => {
-      if (part.type === 'text') {
-        return part.text?.trim() || ''
-      }
-
-      if (part.type.startsWith('tool')) {
-        const toolPart = part as any
-        const toolName = toolPart.toolName || part.type.replace(/^tool-/, '')
-        const input = serializeValueForTokenEstimation(toolPart.input)
-        const output = serializeValueForTokenEstimation(toolPart.output)
-
-        return [
-          `[工具:${toolName}]`,
-          input ? `输入: ${input}` : '',
-          output ? `输出: ${output}` : ''
-        ]
-          .filter(Boolean)
-          .join('\n')
-      }
-
-      if (part.type === 'file') {
-        const filePart = part as any
-        const fileName = filePart.filename || filePart.url || '未命名文件'
-        const mediaType = filePart.mediaType || 'unknown'
-        return `[文件] ${fileName} (${mediaType})`
-      }
-
-      return ''
-    })
+    ?.map((part) => serializeMessagePartForTokenEstimation(part))
     .filter(Boolean)
     .join('\n')
 
   if (!serializedParts) return ''
   return includeRole ? `${message.role}: ${serializedParts}` : serializedParts
+}
+
+export const serializeMessagePartForTokenEstimation = (
+  part: BaseMessage['parts'][number]
+): string => {
+  if (part.type === 'text' || part.type === 'reasoning') {
+    return (part.text as string | undefined)?.trim() || ''
+  }
+
+  if (part.type === 'dynamic-tool' || part.type.startsWith('tool')) {
+    const toolPart = part as any
+    const toolName = toolPart.toolName || toolPart.title || part.type.replace(/^tool-/, '')
+    const input = serializeValueForTokenEstimation(toolPart.input)
+    const output = serializeValueForTokenEstimation(toolPart.output)
+    const errorText = serializeValueForTokenEstimation(toolPart.errorText)
+
+    return [
+      `[工具:${toolName}]`,
+      toolPart.state ? `状态: ${toolPart.state}` : '',
+      input ? `输入: ${input}` : '',
+      output ? `输出: ${output}` : '',
+      errorText ? `错误: ${errorText}` : ''
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+
+  if (part.type === 'file' || part.type === 'reasoning-file') {
+    const filePart = part as any
+    const fileName = filePart.filename || filePart.url || '未命名文件'
+    const mediaType = filePart.mediaType || 'unknown'
+    return `[文件] ${fileName} (${mediaType})`
+  }
+
+  if (part.type === 'source-url') {
+    const sourcePart = part as any
+    return `[来源] ${sourcePart.title || sourcePart.url || sourcePart.sourceId || ''}`.trim()
+  }
+
+  if (part.type === 'source-document') {
+    const sourcePart = part as any
+    return `[来源] ${sourcePart.title || sourcePart.filename || sourcePart.sourceId || ''}`.trim()
+  }
+
+  if (part.type.startsWith('data-')) {
+    const dataPart = part as any
+    const data = serializeValueForTokenEstimation(dataPart.data)
+    return data ? `[数据:${part.type.replace(/^data-/, '')}] ${data}` : ''
+  }
+
+  return ''
+}
+
+const serializeGeneratedPartForTokenEstimation = (part: BaseMessage['parts'][number]): string => {
+  if (part.type === 'text' || part.type === 'reasoning') return part.text?.trim() || ''
+
+  if (part.type === 'dynamic-tool' || part.type.startsWith('tool-')) {
+    const toolPart = part as any
+    const toolName = toolPart.toolName || toolPart.title || part.type.replace(/^tool-/, '')
+    const input = serializeValueForTokenEstimation(toolPart.input)
+
+    return [
+      `[工具:${toolName}]`,
+      toolPart.state ? `状态: ${toolPart.state}` : '',
+      input ? `输入: ${input}` : ''
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+
+  return ''
+}
+
+export const extractGeneratedTextForTokenEstimation = (message: BaseMessage): string => {
+  return (
+    message.parts
+      ?.map((part) => serializeGeneratedPartForTokenEstimation(part))
+      .filter(Boolean)
+      .join('\n') || ''
+  )
 }
 
 export const estimateTextTokens = (text: string, model?: string): number => {

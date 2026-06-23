@@ -46,6 +46,8 @@ export interface MetaData {
   retrying?: boolean // 是否处于自动重试等待中
   retryAttempt?: number // 当前重试次数（从 1 开始）
   retryCountdownEndsAt?: number // 下次重试的时间戳（毫秒），用于倒计时展示
+  outputStartTime?: number // 首次检测到生成内容的时间戳（毫秒），用于计算 token 速度
+  outputEndTime?: number // 生成结束的时间戳（毫秒），用于完成后稳定展示 token 速度
   audio?: {
     chunks: {
       data: string // base64

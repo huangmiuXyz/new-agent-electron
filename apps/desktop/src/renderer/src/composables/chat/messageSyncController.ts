@@ -2,8 +2,9 @@ import type { Ref } from 'vue'
 import type { APICallError, FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import {
   buildFlatTokenUsage,
-  estimateMessageTokens,
-  getFlatTokenUsage
+  estimateTextTokens,
+  extractGeneratedTextForTokenEstimation,
+  getFlatTokenUsage,
 } from '@renderer/services/chatService/tokenUsage'
 
 // 流式 flush 节流间隔。
@@ -63,9 +64,29 @@ export const createChatMessageSyncController = ({
     const isFinalized = !nextMetadata.loading || !!error
     const flatUsage = getFlatTokenUsage(nextMetadata.usage)
 
+    const generatedAt = Date.now()
+    const generatedText = extractGeneratedTextForTokenEstimation(message)
+    const hasGeneratedContent = Boolean(generatedText)
+
+    // 保留或设置 outputStartTime：首次检测到任意生成内容时记录时间戳，
+    // 包括思考、工具调用和正文，避免深度思考阶段速度为空。
+    if (!nextMetadata.outputStartTime) {
+      const storeChat = getChatById(chatId)
+      const existing = storeChat?.messages.find((m) => m.id === message?.id)
+      if (existing?.metadata?.outputStartTime) {
+        nextMetadata.outputStartTime = existing.metadata.outputStartTime
+      } else if (hasGeneratedContent) {
+        nextMetadata.outputStartTime = generatedAt
+      }
+    }
+
     if (isFinalized) {
+      if (nextMetadata.outputStartTime && !nextMetadata.outputEndTime) {
+        nextMetadata.outputEndTime = Date.now()
+      }
+
       const estimatedOutputTokens =
-        flatUsage.outputTokens ?? estimateMessageTokens(message, nextMetadata.model)
+        flatUsage.outputTokens ?? estimateTextTokens(generatedText, nextMetadata.model)
       const estimatedInputTokens = flatUsage.inputTokens ?? nextMetadata.estimatedInputTokens
       const hasAnyUsage =
         flatUsage.totalTokens != null ||
