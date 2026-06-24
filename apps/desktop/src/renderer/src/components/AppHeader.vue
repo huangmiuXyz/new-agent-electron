@@ -95,6 +95,16 @@ onMounted(() => {
     }
   })
 
+  // 切换右侧面板 (Ctrl+U)
+  register({
+    id: 'global.toggleRightPanelAlt',
+    handler: () => {
+      if (!isMobile.value) {
+        settingsStore.display.speechSidebarCollapsed = !settingsStore.display.speechSidebarCollapsed
+      }
+    }
+  })
+
   // 切换右侧面板
   register({
     id: 'global.toggleRightPanel',

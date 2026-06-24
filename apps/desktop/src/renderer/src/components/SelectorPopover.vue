@@ -17,6 +17,7 @@ const visible = defineModel<boolean>('visible')
 const searchQuery = defineModel<string>('searchQuery')
 
 const containerRef = ref<HTMLElement>()
+const searchInputRef = ref<{ focus: () => void }>()
 
 const closePopup = () => {
   visible.value = false
@@ -43,6 +44,12 @@ const handleClickOutside = (event: MouseEvent) => {
     closePopup()
   }
 }
+
+watch(searchInputRef, (input) => {
+  if (input && visible.value) {
+    requestAnimationFrame(() => input.focus())
+  }
+})
 
 watch(
   () => visible.value,
@@ -115,6 +122,7 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
       <template v-else>
         <div class="selector-search" :class="{ 'selector-search-dialog': shouldUseDialog }">
           <SearchInput
+            ref="searchInputRef"
             :search-data="data"
             :model-value="searchQuery"
             @update:model-value="handleSearch"
@@ -158,6 +166,7 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
         <template v-else>
           <div class="selector-search">
             <SearchInput
+              ref="searchInputRef"
               :search-data="data"
               :model-value="searchQuery"
               @update:model-value="handleSearch"
@@ -296,6 +305,7 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
   overflow: visible;
   max-height: none;
   touch-action: auto;
+  contain: none;
 }
 
 /* 确保 list-item 不阻止滚轮事件 */

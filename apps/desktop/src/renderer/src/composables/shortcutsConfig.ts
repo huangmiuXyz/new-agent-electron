@@ -100,6 +100,15 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         scope: 'global'
     },
     {
+        id: 'global.toggleRightPanelAlt',
+        name: '切换右侧面板 (U)',
+        description: '展开/收起右侧面板，快捷键 Ctrl+U',
+        defaultKey: 'CmdOrCtrl+U',
+        enabled: true,
+        editable: true,
+        scope: 'global'
+    },
+    {
         id: 'global.toggleRightPanel',
         name: '切换右侧面板',
         description: '显示/隐藏右侧面板',
