@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { assetsHandler } from '@renderer/utils'
 import type { Component } from 'vue'
+import MiniSearch from 'minisearch'
+import { pinyin } from 'pinyin-pro'
+
+const addPinyin = (text: string) => {
+  if (!text) return text
+  const initials = pinyin(text, { pattern: 'first', toneType: 'none' }).replace(/\s/g, '')
+  return initials ? `${text} ${initials}` : text
+}
 
 type FlatModelItem = {
   key: string
@@ -99,6 +107,82 @@ watch(currentSelectedProviderLogo, () => {
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
+const modelSelectorWrapperRef = ref<HTMLElement>()
+const focusedKey = ref<string | null>(null)
+
+const flatItems = computed(() => [...favoriteListItems.value, ...regularListItems.value])
+
+const focusSearchInput = () => {
+  if (!modelSelectorWrapperRef.value) return
+  const input = modelSelectorWrapperRef.value.querySelector<HTMLElement>(
+    '.search-input__field, .selector-search-input input'
+  )
+  input?.focus()
+}
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if (!isPopupOpen.value) return
+  const items = flatItems.value
+  if (items.length === 0) return
+  const currentIdx = items.findIndex((i) => i.key === focusedKey.value)
+
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault()
+      {
+        const nextIdx = currentIdx < items.length - 1 ? currentIdx + 1 : 0
+        focusedKey.value = items[nextIdx].key
+      }
+      focusSearchInput()
+      break
+    case 'ArrowUp':
+      e.preventDefault()
+      {
+        const prevIdx = currentIdx > 0 ? currentIdx - 1 : items.length - 1
+        focusedKey.value = items[prevIdx].key
+      }
+      focusSearchInput()
+      break
+    case 'Enter':
+      e.preventDefault()
+      if (focusedKey.value) {
+        handleModelSelect(focusedKey.value)
+      }
+      break
+  }
+}
+
+watch(isPopupOpen, (val) => {
+  if (val) {
+    nextTick(() => {
+      const currentKey =
+        selectedModelId.value && selectedProviderId.value
+          ? settingsStore.createFavoriteModelKey(selectedProviderId.value, selectedModelId.value)
+          : null
+      const idx = currentKey ? flatItems.value.findIndex((i) => i.key === currentKey) : -1
+      focusedKey.value = idx >= 0 ? flatItems.value[idx].key : flatItems.value[0]?.key || null
+    })
+  } else {
+    focusedKey.value = null
+  }
+})
+
+watch(focusedKey, (key) => {
+  nextTick(() => {
+    if (!modelSelectorWrapperRef.value) return
+    modelSelectorWrapperRef.value.querySelectorAll('.list-item').forEach((el) => {
+      el.classList.remove('keyboard-focused')
+    })
+    if (!key) return
+    const idx = flatItems.value.findIndex((i) => i.key === key)
+    if (idx < 0) return
+    const items = modelSelectorWrapperRef.value.querySelectorAll('.list-item')
+    if (items[idx]) {
+      items[idx].classList.add('keyboard-focused')
+      items[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  })
+})
 const { ChevronDown, Check, Close, Box, Settings } = useIcon([
   'ChevronDown',
   'Check',
@@ -188,11 +272,34 @@ watch(
   { immediate: true }
 )
 
+const modelSearch = new MiniSearch({
+  fields: ['name', 'id', 'providerName'],
+  storeFields: ['key'],
+  idField: 'key',
+  searchOptions: { fuzzy: 0.2, prefix: true }
+})
+
+const rebuildModelIndex = (list: FlatModelItem[]) => {
+  modelSearch.removeAll()
+  modelSearch.addAll(
+    list.map((item) => ({
+      key: item.key,
+      name: addPinyin(item.model.name),
+      id: item.model.id,
+      providerName: addPinyin(providerNameById.value.get(item.providerId) ?? '')
+    }))
+  )
+}
+
+onMounted(() => rebuildModelIndex(flatModelList.value))
+watch(flatModelList, (list) => rebuildModelIndex(list))
+
 const searchModels = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase()
+  const query = searchQuery.value.trim()
   if (!query) return flatModelList.value
-  const result = flatModelList.value.filter((item) => item.nameLower.includes(query) || item.idLower.includes(query) || item.providerNameLower.includes(query))
-  return result
+  const results = modelSearch.search(query)
+  const keys = new Set(results.map((r) => r.key))
+  return flatModelList.value.filter((item) => keys.has(item.key))
 })
 
 const listItems = computed<ListModelItem[]>(() =>
@@ -292,6 +399,7 @@ const handleModelLogoError = () => {
 </script>
 
 <template>
+  <div ref="modelSelectorWrapperRef" @keydown="handleKeydown">
   <SelectorPopover
     v-model:visible="isPopupOpen"
     :data="listItems"
@@ -446,6 +554,7 @@ const handleModelLogoError = () => {
       </section>
     </div>
   </SelectorPopover>
+  </div>
 </template>
 
 <style scoped>
@@ -529,7 +638,6 @@ const handleModelLogoError = () => {
   --bg-active: var(--accent-color);
   /* 确保圆角正确应用 */
   border-radius: 10px;
-  overflow: hidden;
 }
 
 :deep(.list-item) {
@@ -541,6 +649,11 @@ const handleModelLogoError = () => {
 
 :deep(.list-item:hover) {
   background-color: var(--bg-hover) !important;
+}
+
+:deep(.list-item.keyboard-focused) {
+  box-shadow: 0 0 0 2px var(--accent-color);
+  border-radius: 6px !important;
 }
 
 :deep(.list-item.is-active) {
@@ -647,5 +760,10 @@ const handleModelLogoError = () => {
 
 :deep(.modal-body .group-header) {
   padding: 12px 8px 6px;
+}
+
+:deep(.modal-body .list-item.keyboard-focused) {
+  box-shadow: 0 0 0 2px var(--accent-color);
+  border-radius: 10px !important;
 }
 </style>

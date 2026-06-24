@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { useContextMenu, type MenuItem } from '@renderer/composables/useContextMenu'
 import ContextMenu from '@renderer/components/ContextMenu.vue'
+import MiniSearch from 'minisearch'
+import { pinyin } from 'pinyin-pro'
+
+const addPinyin = (text: string) => {
+  if (!text) return text
+  const initials = pinyin(text, { pattern: 'first', toneType: 'none' }).replace(/\s/g, '')
+  return initials ? `${text} ${initials}` : text
+}
 
 const agentStore = useAgentStore()
 const chatsStore = useChatsStores()
@@ -19,6 +27,52 @@ withDefaults(
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
+const agentSelectorWrapperRef = ref<HTMLElement>()
+const focusedIndex = ref(-1)
+
+const visibleAgents = computed(() => [...favoriteAgents.value, ...regularAgents.value])
+
+const focusSearchInput = () => {
+  if (!agentSelectorWrapperRef.value) return
+  const input = agentSelectorWrapperRef.value.querySelector<HTMLElement>(
+    '.search-input__field, .selector-search-input input'
+  )
+  input?.focus()
+}
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if (!isPopupOpen.value) return
+  if ((e.target as HTMLElement).closest('.context-menu')) return
+  const items = visibleAgents.value
+  if (items.length === 0) return
+
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault()
+      if (focusedIndex.value < items.length - 1) {
+        focusedIndex.value++
+      } else {
+        focusedIndex.value = 0
+      }
+      focusSearchInput()
+      break
+    case 'ArrowUp':
+      e.preventDefault()
+      if (focusedIndex.value > 0) {
+        focusedIndex.value--
+      } else {
+        focusedIndex.value = items.length - 1
+      }
+      focusSearchInput()
+      break
+    case 'Enter':
+      e.preventDefault()
+      if (focusedIndex.value >= 0 && focusedIndex.value < items.length) {
+        selectAgent(items[focusedIndex.value].id)
+      }
+      break
+  }
+}
 const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus, Copy, Delete, Settings } = useIcon([
   'Wrench20Regular',
   'Robot',
@@ -46,14 +100,28 @@ const selectedAgentLabel = computed(() => {
   return agent.name + (tempAgents.value.some((a) => a.id === agent.id) ? ' (临时)' : '')
 })
 
-const filteredAgents = computed(() => {
-  const query = searchQuery.value.toLowerCase()
-  if (!query) return allAgents.value
+const agentSearch = new MiniSearch({
+  fields: ['name', 'description'],
+  storeFields: ['id'],
+  searchOptions: { fuzzy: 0.2, prefix: true }
+})
 
-  return allAgents.value.filter(
-    (agent) =>
-      agent.name.toLowerCase().includes(query) || agent.description?.toLowerCase().includes(query)
+const rebuildAgentIndex = (agents: Agent[]) => {
+  agentSearch.removeAll()
+  agentSearch.addAll(
+    agents.map((a) => ({ id: a.id, name: addPinyin(a.name), description: addPinyin(a.description || '') }))
   )
+}
+
+onMounted(() => rebuildAgentIndex(allAgents.value))
+watch(allAgents, (agents) => rebuildAgentIndex(agents))
+
+const filteredAgents = computed(() => {
+  const query = searchQuery.value.trim()
+  if (!query) return allAgents.value
+  const results = agentSearch.search(query)
+  const ids = new Set(results.map((r) => r.id))
+  return allAgents.value.filter((a) => ids.has(a.id))
 })
 
 const favoriteAgentSet = computed(() => new Set(favoriteAgentIds.value))
@@ -80,9 +148,27 @@ const regularAgents = computed(() =>
 )
 
 watch(isPopupOpen, (val) => {
-  if (!val) {
+  if (val) {
+    nextTick(() => {
+      const currentAgentId = chatsStore.currentChat?.agentId
+      const idx = visibleAgents.value.findIndex((a) => a.id === currentAgentId)
+      focusedIndex.value = idx >= 0 ? idx : 0
+    })
+  } else {
     searchQuery.value = ''
+    focusedIndex.value = -1
   }
+})
+
+watch(focusedIndex, (idx) => {
+  if (idx < 0) return
+  nextTick(() => {
+    if (!agentSelectorWrapperRef.value) return
+    const items = agentSelectorWrapperRef.value.querySelectorAll('.agent-item')
+    if (items[idx]) {
+      items[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  })
 })
 
 const selectAgent = (agentId: string) => {
@@ -190,6 +276,7 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 </script>
 
 <template>
+  <div ref="agentSelectorWrapperRef" @keydown="handleKeydown">
   <SelectorPopover v-model:visible="isPopupOpen" v-model:searchQuery="searchQuery" :data="allAgents"
     desktop-presentation="dialog" placeholder="搜索智能体..." noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0"
     width="620px" title="选择智能体">
@@ -219,8 +306,8 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
     <div class="agent-list">
       <template v-if="favoriteAgents.length > 0">
         <div class="agent-section-title">收藏</div>
-        <div v-for="agent in favoriteAgents" :key="`favorite-${agent.id}`" class="agent-item"
-          :class="{ selected: isAgentSelected(agent.id) }" @click="selectAgent(agent.id)">
+        <div v-for="(agent, i) in favoriteAgents" :key="`favorite-${agent.id}`" class="agent-item"
+          :class="{ selected: isAgentSelected(agent.id), focused: focusedIndex === i }" @click="selectAgent(agent.id)">
           <div class="agent-main">
             <div class="agent-icon-container">
               <Image v-if="agent.avatar" class="agent-avatar-list" :src="agent.avatar" alt="" />
@@ -264,8 +351,8 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 
       <template v-if="regularAgents.length > 0">
         <div v-if="favoriteAgents.length > 0" class="agent-section-title">全部</div>
-        <div v-for="agent in regularAgents" :key="agent.id" class="agent-item"
-          :class="{ selected: isAgentSelected(agent.id) }" @click="selectAgent(agent.id)"
+        <div v-for="(agent, i) in regularAgents" :key="agent.id" class="agent-item"
+          :class="{ selected: isAgentSelected(agent.id), focused: focusedIndex === favoriteAgents.length + i }" @click="selectAgent(agent.id)"
           @contextmenu="handleAgentContextMenu($event, agent)">
           <div class="agent-main">
             <div class="agent-icon-container">
@@ -310,6 +397,7 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
     </div>
   </SelectorPopover>
   <ContextMenu />
+  </div>
 </template>
 
 <style scoped>
@@ -401,6 +489,11 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
   font-weight: 700;
   color: var(--text-tertiary);
   letter-spacing: 0.06em;
+}
+
+.agent-item.focused {
+  box-shadow: 0 0 0 2px var(--accent-color);
+  border-radius: 10px;
 }
 
 .agent-item:hover {
@@ -531,6 +624,10 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 :deep(.modal-body) .agent-item.selected {
   background: color-mix(in srgb, var(--accent-color) 12%, var(--bg-card));
   border-color: color-mix(in srgb, var(--accent-color) 28%, transparent);
+}
+
+:deep(.modal-body) .agent-item.focused {
+  box-shadow: 0 0 0 2px var(--accent-color);
 }
 
 :deep(.modal-body) .agent-avatar-list,

@@ -399,7 +399,6 @@ onMounted(async () => {
   window.visualViewport?.addEventListener('scroll', handleViewportChange)
   nextTick(() => {
     observeModalSize()
-    modalOverlay.value?.focus()
     confirmButton.value?.focus()
   })
 })

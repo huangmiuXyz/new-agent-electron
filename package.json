@@ -44,6 +44,8 @@
     "ai": "catalog:",
     "ai-sdk-ollama": "catalog:",
     "istextorbinary": "^9.5.0",
+    "minisearch": "^7.2.0",
+    "pinyin-pro": "^3.28.1",
     "textextensions": "^6.11.0",
     "turndown": "^7.2.4"
   }
