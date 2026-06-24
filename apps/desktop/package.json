@@ -117,6 +117,7 @@
     "textextensions": "^6.11.0",
     "turndown": "^7.2.4",
     "vue": "catalog:",
+    "zod": "catalog:",
     "vue-router": "catalog:",
     "vuedraggable": "^4.1.0",
     "xterm": "catalog:",
