@@ -708,6 +708,9 @@ importers:
       zhipu-ai-provider:
         specifier: 'catalog:'
         version: 0.3.1(zod@4.4.3)
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
     devDependencies:
       '@electron-toolkit/eslint-config-prettier':
         specifier: 'catalog:'
