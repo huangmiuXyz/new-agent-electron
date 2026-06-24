@@ -163,7 +163,6 @@ export class PluginMainLoader {
       await plugin.install(context)
 
       this.loaded.set(pluginName, { plugin, context, cleanupFns, registeredHandlerChannels, registeredListeners })
-      logger.info('main-process plugin loaded')
       return { ok: true }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

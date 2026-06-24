@@ -210,7 +210,6 @@ const mainPlugin: MainPlugin = {
     isWindowReady = false
     lastData = null
     authNotified = false
-    ctx.logger.info('main-process window plugin uninstalled')
   }
 }
 
