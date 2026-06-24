@@ -2,8 +2,7 @@
   <span ref="wrapperRef" class="markdown-stream-wrapper">
     <IncremarkRenderer
       :blocks="blocks"
-      :customCodeBlocks="customCodeBlocks"
-      :codeBlockConfigs="codeBlockConfigs"
+      :components="codeBlockComponents"
     />
     <span
       v-if="streaming"
@@ -16,26 +15,17 @@
 <script setup lang="ts">
 import { useIncremark } from '@incremark/vue'
 import { TextUIPart } from 'ai'
-import CustomCodeBlock from './CustomCodeBlock.vue'
+import CodeBlockAdapter from './CodeBlockAdapter.vue'
 import IncremarkRenderer from './IncremarkRenderer.vue'
-import { CUSTOM_CODE_BLOCK_COMPLETED_KEY } from './customCodeBlockCompletion'
 
 const props = defineProps<{
   block: TextUIPart
   message: BaseMessage
   streaming?: boolean
 }>()
-const isBlockCompleted = computed(() => props.block.state === 'done')
-provide(CUSTOM_CODE_BLOCK_COMPLETED_KEY, isBlockCompleted)
 
-const customCodeBlocks = {
-  html: CustomCodeBlock,
-  htm: CustomCodeBlock
-}
-
-const codeBlockConfigs = {
-  html: { takeOver: true },
-  htm: { takeOver: true }
+const codeBlockComponents = {
+  code: CodeBlockAdapter
 }
 
 const incremark = useIncremark({

@@ -171,6 +171,7 @@ export const useSettingsStore = defineStore(
       compactDensity: true,
       showTimestamps: true,
       fontSize: 18,
+      codeTheme: 'github',
       sidebarCollapsed: false,
       sidebarWidth: 200,
       chatSidebarWidth: 260,
@@ -904,7 +905,8 @@ export const useSettingsStore = defineStore(
         settingsStore.display = {
           ...settingsStore.display,
           collapsePreviousContent: settingsStore.display.collapsePreviousContent ?? true,
-          notesInputWidthMode: settingsStore.display.notesInputWidthMode ?? 'full'
+          notesInputWidthMode: settingsStore.display.notesInputWidthMode ?? 'full',
+          codeTheme: settingsStore.display.codeTheme ?? 'github'
         }
         settingsStore.updateInputButtonLayout(settingsStore.display.inputButtonLayout)
         settingsStore.syncBuiltinProviders()

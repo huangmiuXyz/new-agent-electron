@@ -18,7 +18,6 @@ import TableHeader from '@tiptap/extension-table-header'
 import RichTextEditorToolbar from './toolbar.vue'
 import { common, createLowlight } from 'lowlight'
 import { buildNoteHashlineReference, normalizeHashlineText } from '@renderer/utils/noteHashlines'
-import 'highlight.js/styles/atom-one-dark.css'
 
 const lowlight = createLowlight(common)
 const { Sparkles, FormatQuote } = useIcon(['Sparkles', 'FormatQuote'])

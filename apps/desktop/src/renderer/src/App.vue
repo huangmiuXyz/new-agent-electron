@@ -16,6 +16,7 @@ import { useImageStore } from './stores/image'
 import { useKnowledgeStore } from './stores/knowledge'
 import { useSyncStore } from './stores/sync'
 import { useShortcuts } from './composables/useShortcuts'
+import { useCodeTheme } from './composables/useCodeTheme'
 import { useWindowSize } from '@vueuse/core'
 
 const route = useRoute()
@@ -64,6 +65,9 @@ watchEffect(() => {
     void window.api.setTitleBarTheme(display.value.darkMode)
   }
 })
+
+// 代码主题
+useCodeTheme()
 
 const switchView = (view: 'chat' | 'notes' | 'settings' | 'image' | 'my-apps') => {
   currentView.value = view

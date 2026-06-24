@@ -5,6 +5,7 @@
       :blocks="blocks"
       :customCodeBlocks="customCodeBlocks"
       :codeBlockConfigs="codeBlockConfigs"
+      :components="components"
       v-bind="$attrs"
     />
   </ThemeProvider>
@@ -24,6 +25,7 @@ defineProps<{
   blocks?: RenderableBlock[]
   customCodeBlocks?: IncremarkContentProps['customCodeBlocks']
   codeBlockConfigs?: IncremarkContentProps['codeBlockConfigs']
+  components?: IncremarkContentProps['components']
 }>()
 
 const { display } = storeToRefs(useSettingsStore())

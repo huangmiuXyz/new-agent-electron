@@ -30,9 +30,6 @@ import { useSettingsStore } from '@renderer/stores/settings'
 import HtmlPreview from './HtmlPreview.vue'
 import { useIcon } from '@renderer/composables/useIcon'
 import { CUSTOM_CODE_BLOCK_COMPLETED_KEY } from './customCodeBlockCompletion'
-import 'highlight.js/styles/github.css'
-import 'highlight.js/styles/atom-one-dark.css'
-
 const lowlight = createLowlight(common)
 const { display } = storeToRefs(useSettingsStore())
 const { confirm } = useModal()
