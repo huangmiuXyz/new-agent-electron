@@ -5,10 +5,10 @@
   "main": "./out/main/index.js",
   "author": "example.com",
   "homepage": "https://electron-vite.org",
-  "packageManager": "pnpm@10.34.4",
+  "packageManager": "pnpm@11.9.0",
   "scripts": {
     "turbo": "turbo dev --filter=!qi-cli",
-    "predev": "pnpm taze -w && pnpm --filter @agent-qi/types build",
+    "predev": "pnpm taze latest -w && pnpm --filter @agent-qi/types build",
     "rebuild:native": "node ./node_modules/@electron/rebuild/lib/cli.js -f -w better-sqlite3,node-pty,sqlite-vec,robotjs",
     "dev": "pnpm --filter desktop dev",
     "android:debug": "node ./scripts/build-android.mjs debug",
