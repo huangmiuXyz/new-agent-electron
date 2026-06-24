@@ -32,6 +32,7 @@
     "@ai-sdk/mcp": "catalog:",
     "@types/node": "catalog:",
     "ai": "catalog:",
+    "electron": "catalog:",
     "openai": "catalog:",
     "pinia": "catalog:",
     "typescript": "catalog:",
@@ -39,6 +40,8 @@
     "vite-plugin-dts": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:",
+    "xterm": "catalog:",
+    "xterm-addon-fit": "catalog:",
     "zod": "catalog:"
   },
   "peerDependencies": {

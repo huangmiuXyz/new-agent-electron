@@ -117,6 +117,9 @@ catalogs:
     '@prettier/plugin-oxc':
       specifier: ^0.1.4
       version: 0.1.4
+    '@tiptap/core':
+      specifier: ^3.27.1
+      version: 3.27.1
     '@tiptap/extension-code-block':
       specifier: ^3.27.1
       version: 3.27.1
@@ -531,6 +534,9 @@ importers:
       '@openai/agents':
         specifier: ^0.11.8
         version: 0.11.8(@cfworker/json-schema@4.1.1)(ws@8.21.0)(zod@4.4.3)
+      '@tiptap/core':
+        specifier: 'catalog:'
+        version: 3.27.1(@tiptap/pm@3.27.1)
       '@tiptap/extension-code-block':
         specifier: 'catalog:'
         version: 3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1)
@@ -1264,6 +1270,9 @@ importers:
       ai:
         specifier: 'catalog:'
         version: 7.0.0-beta.182(zod@4.4.3)
+      electron:
+        specifier: 'catalog:'
+        version: 42.4.1
       openai:
         specifier: 'catalog:'
         version: 6.44.0(ws@8.21.0)(zod@4.4.3)
@@ -1285,6 +1294,12 @@ importers:
       vue-router:
         specifier: 'catalog:'
         version: 5.1.0(@vue/compiler-sfc@3.5.38)(pinia@3.0.4(typescript@6.0.3)(vue@3.5.38(typescript@6.0.3)))(vite@8.1.0(@types/node@26.0.0)(jiti@2.7.0)(yaml@2.9.0))(vue@3.5.38(typescript@6.0.3))
+      xterm:
+        specifier: 'catalog:'
+        version: 5.3.0
+      xterm-addon-fit:
+        specifier: 'catalog:'
+        version: 0.8.0(xterm@5.3.0)
       zod:
         specifier: 'catalog:'
         version: 4.4.3
