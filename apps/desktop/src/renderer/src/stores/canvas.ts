@@ -165,9 +165,13 @@ export const useCanvasStore = defineStore(
 
     const setActiveFilePath = (filePath: string, chatId?: string) => {
       const resolvedChatId = resolveChatId(chatId)
-      const nextFile = readFile(filePath, resolvedChatId)
-      if (transientActiveFilePaths[resolvedChatId] === nextFile.path) return
-      transientActiveFilePaths[resolvedChatId] = nextFile.path
+      const normalizedPath = normalizeSandboxPath(filePath)
+      const workspaceDir = ensureWorkspace(resolvedChatId).workspaceDir
+      if (!window.api.fs.existsSync(window.api.path.join(workspaceDir, normalizedPath.replace(/^\/+/, '')))) {
+        throw new Error(`文件不存在: ${normalizedPath}`)
+      }
+      if (transientActiveFilePaths[resolvedChatId] === normalizedPath) return
+      transientActiveFilePaths[resolvedChatId] = normalizedPath
       bumpWorkspaceVersion(resolvedChatId)
     }
 

@@ -1,12 +1,19 @@
 import { z } from 'zod'
 import {
-  createSandboxState,
   getSandboxTempWorkspacePath,
   normalizeSandboxPath,
-  readSandboxWorkspaceAsync,
-  type SandboxState
 } from '@renderer/services/sandbox'
 import { execRipgrepSearch, injectBundledRipgrepPath } from './command-utils'
+
+type CanvasSyncFileEntry = {
+  path: string
+  mtimeMs: number
+  size: number
+}
+
+type CanvasSyncSnapshot = {
+  fileEntries: CanvasSyncFileEntry[]
+}
 
 const ensureCanvasWorkspace = async (chatId?: string) => {
   const canvasStore = useCanvasStore()
@@ -25,37 +32,58 @@ const isTempCanvasWorkspace = (workspaceDir: string, chatId?: string) => {
 const readCanvasSnapshotForSync = async (
   workspaceDir: string,
   chatId?: string
-): Promise<SandboxState | null> => {
+): Promise<CanvasSyncSnapshot | null> => {
   if (!isTempCanvasWorkspace(workspaceDir, chatId)) return null
   try {
-    return await readSandboxWorkspaceAsync(workspaceDir)
+    const fileEntries: CanvasSyncFileEntry[] = []
+
+    const walk = async (currentDir: string) => {
+      const entries = await window.api.fs.promises.readdir(currentDir, { withFileTypes: true })
+      for (const entry of entries) {
+        const fullPath = window.api.path.join(currentDir, entry.name)
+        const stat = await window.api.fs.promises.stat(fullPath)
+        if (stat.isDirectory()) {
+          await walk(fullPath)
+        } else if (stat.isFile()) {
+          const relativePath = window.api.path.relative(workspaceDir, fullPath).replaceAll('\\', '/')
+          fileEntries.push({
+            path: normalizeSandboxPath(relativePath),
+            mtimeMs: stat.mtimeMs,
+            size: stat.size
+          })
+        }
+      }
+    }
+
+    await walk(workspaceDir)
+    return { fileEntries }
   } catch {
-    return createSandboxState()
+    return { fileEntries: [] }
   }
 }
 
 const summarizeCanvasSync = (
-  previousFiles: Record<string, { content: string }>,
-  nextFiles: Record<string, { content: string }>
+  previous: CanvasSyncSnapshot,
+  next: CanvasSyncSnapshot
 ) => {
+  const prevMap = new Map(previous.fileEntries.map(f => [f.path, f]))
+  const nextMap = new Map(next.fileEntries.map(f => [f.path, f]))
+
   let added = 0
   let updated = 0
   let deleted = 0
 
-  for (const [path, nextFile] of Object.entries(nextFiles)) {
-    const previousFile = previousFiles[path]
-    if (!previousFile) {
+  for (const [path, nextFile] of nextMap) {
+    const prevFile = prevMap.get(path)
+    if (!prevFile) {
       added += 1
-      continue
-    }
-
-    if (previousFile.content !== nextFile.content) {
+    } else if (prevFile.mtimeMs !== nextFile.mtimeMs || prevFile.size !== nextFile.size) {
       updated += 1
     }
   }
 
-  for (const path of Object.keys(previousFiles)) {
-    if (!nextFiles[path]) {
+  for (const path of prevMap.keys()) {
+    if (!nextMap.has(path)) {
       deleted += 1
     }
   }
@@ -443,11 +471,14 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
         })
         // 命令执行结束后，把当前工作区里的最新文件重新读回成 canvas 状态。
         const syncedCanvas = await readCanvasSnapshotForSync(workspaceDir, options?.chatId)
-        // 尽量保留用户之前选中的文件；如果那个文件已经不存在了，再退回到新的 activeFilePath。
+        // 尽量保留用户之前选中的文件；如果那个文件已经不存在了，再退回到空。
+        const lastActiveFilePath = canvasStore.getActiveFilePath(options?.chatId)
         const nextActiveFilePath =
-          sandbox?.activeFilePath && syncedCanvas?.files[sandbox.activeFilePath]
-            ? sandbox.activeFilePath
-            : syncedCanvas?.activeFilePath
+          lastActiveFilePath && window.api.fs.existsSync(
+            window.api.path.join(workspaceDir, lastActiveFilePath.replace(/^\/+/, ''))
+          )
+            ? lastActiveFilePath
+            : ''
         // 用工作区执行后的最新结果覆盖当前聊天里的 canvas。
         if (nextActiveFilePath) {
           canvasStore.setActiveFilePath(nextActiveFilePath, options?.chatId)
@@ -458,7 +489,7 @@ export const getCanvasBuiltinTools = (): Partial<Tools> => ({
         // 生成一段新增/更新/删除统计，方便工具调用结果里快速理解发生了什么。
         const syncSummary =
           sandbox && syncedCanvas
-            ? summarizeCanvasSync(sandbox.files, syncedCanvas.files)
+            ? summarizeCanvasSync(sandbox, syncedCanvas)
             : '非临时工作区已跳过 Canvas 快照同步。'
 
         // 返回给模型和界面的结果里包含终端ID、工作区路径、同步摘要和命令输出。

@@ -24,8 +24,8 @@ import {
   type SandboxFile,
   type SandboxWorkspaceEntry
 } from '@renderer/services/sandbox'
-import { blobToDataURL } from 'blob-util'
 import { isTextFile } from '@renderer/utils'
+import { blobToDataURL } from 'blob-util'
 
 interface Props {
   chatId?: string
@@ -241,6 +241,20 @@ const getPersistedFile = (filePath: string, options?: { force?: boolean }) => {
     return activeFile.value
   }
   try {
+    if (!isTextFile(filePath)) {
+      const normalizedPath = normalizeSandboxPath(filePath)
+      const workspaceDir = canvasStore.getWorkspaceDir(currentChatId.value)
+      const fullPath = window.api.path.join(workspaceDir, normalizedPath.replace(/^\/+/, ''))
+      if (!window.api.fs.existsSync(fullPath)) return null
+      const stat = window.api.fs.statSync(fullPath)
+      return {
+        path: normalizedPath,
+        content: '',
+        encoding: 'data-url' as const,
+        mediaType: getSandboxMediaType(normalizedPath),
+        updatedAt: stat.mtimeMs || Date.now()
+      }
+    }
     return canvasStore.readFile(filePath, currentChatId.value)
   } catch {
     return null
@@ -900,9 +914,8 @@ const syncWorkspaceView = () => {
 
   const nextActiveFilePath = canvasStore.getActiveFilePath(currentChatId.value)
   if (nextActiveFilePath) {
-    try {
-      canvasStore.readFile(nextActiveFilePath, currentChatId.value)
-    } catch {
+    const workspaceDir = canvasStore.getWorkspaceDir(currentChatId.value)
+    if (!window.api.fs.existsSync(window.api.path.join(workspaceDir, nextActiveFilePath.replace(/^\/+/, '')))) {
       canvasStore.resetActiveFilePath(currentChatId.value)
     }
   }
