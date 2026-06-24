@@ -8,6 +8,7 @@ type FlatModelItem = {
   providerId: string
   nameLower: string
   idLower: string
+  providerNameLower: string
 }
 
 type ListModelItem = Model & { providerId: string; key: string }
@@ -145,7 +146,8 @@ const flatModelList = computed(() => {
         model,
         providerId: provider.id,
         nameLower: model.name.toLowerCase(),
-        idLower: model.id.toLowerCase()
+        idLower: model.id.toLowerCase(),
+        providerNameLower: provider.name.toLowerCase()
       })
     })
   })
@@ -189,7 +191,8 @@ watch(
 const searchModels = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   if (!query) return flatModelList.value
-  return flatModelList.value.filter((item) => item.nameLower.includes(query) || item.idLower.includes(query))
+  const result = flatModelList.value.filter((item) => item.nameLower.includes(query) || item.idLower.includes(query) || item.providerNameLower.includes(query))
+  return result
 })
 
 const listItems = computed<ListModelItem[]>(() =>
