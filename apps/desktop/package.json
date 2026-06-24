@@ -89,6 +89,7 @@
     "better-sqlite3": "catalog:",
     "blob-util": "catalog:",
     "dayjs": "catalog:",
+    "diff": "^7.0.0",
     "electron-updater": "catalog:",
     "es-toolkit": "catalog:",
     "hast-util-to-html": "catalog:",
