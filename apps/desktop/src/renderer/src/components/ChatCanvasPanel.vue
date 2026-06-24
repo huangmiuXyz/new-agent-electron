@@ -2051,6 +2051,12 @@ const getAllFilesFromDataTransfer = async (
 
 const handleDroppedDataTransfer = async (dataTransfer: DataTransfer, directoryPath?: string) => {
   try {
+    const currentWorkPath = canvasStore.getWorkPath(currentChatId.value)
+    if (currentWorkPath) {
+      canvasStore.useTempWorkspace(currentChatId.value)
+      syncWorkspaceView()
+    }
+
     const fileInfos = await getAllFilesFromDataTransfer(dataTransfer)
     if (fileInfos.length === 0) return
 
@@ -2066,7 +2072,8 @@ const handleDroppedDataTransfer = async (dataTransfer: DataTransfer, directoryPa
     const successText = directoryPath
       ? `已导入 ${droppedFiles.length} 个文件到 ${normalizeSandboxPath(directoryPath)}`
       : `已导入 ${droppedFiles.length} 个文件`
-    message.success(successText)
+    const switchedNotice = currentWorkPath ? '（已切换到临时工作区）' : ''
+    message.success(`${successText}${switchedNotice}`)
   } catch (error) {
     console.error('Canvas drop import error:', error)
     message.error((error as Error).message || '导入文件失败')
