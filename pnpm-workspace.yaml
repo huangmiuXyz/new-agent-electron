@@ -125,3 +125,28 @@ catalog:
   xterm-addon-fit: ^0.8.0
   zhipu-ai-provider: 0.3.1
   zod: ^4.4.3
+
+onlyBuiltDependencies:
+  - electron
+  - esbuild
+  - '@vscode/ripgrep'
+  - better-sqlite3
+  - node-pty
+  - sqlite-vec
+  - robotjs
+
+overrides:
+  vite: ^8.1.0
+
+patchedDependencies:
+  node-pty@1.1.0: patches/node-pty@1.1.0.patch
+
+peerDependencyRules:
+  allowedVersions:
+    vite: "8"
+
+minimumReleaseAgeExclude:
+  - vite@8.1.0
+
+allowBuilds:
+  node-pty: true

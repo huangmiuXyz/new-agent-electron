@@ -26,33 +26,12 @@
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
+    "@electron/rebuild": "catalog:",
     "prettier": "catalog:",
     "taze": "^19.14.1",
     "turbo": "catalog:",
     "typescript": "catalog:",
     "vitest": "^4.1.9"
-  },
-  "pnpm": {
-    "overrides": {
-      "vite": "^8.1.0"
-    },
-    "patchedDependencies": {
-      "node-pty@1.1.0": "patches/node-pty@1.1.0.patch"
-    },
-    "peerDependencyRules": {
-      "allowedVersions": {
-        "vite": "8"
-      }
-    },
-    "onlyBuiltDependencies": [
-      "electron",
-      "esbuild",
-      "@vscode/ripgrep",
-      "better-sqlite3",
-      "node-pty",
-      "sqlite-vec",
-      "robotjs"
-    ]
   },
   "dependencies": {
     "@ai-sdk/moonshotai": "catalog:",
