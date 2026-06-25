@@ -72,6 +72,8 @@ const SettingsIcon = useIcon('Settings')
 const ToolFeaturesIcon = useIcon('Wrench20Regular')
 const StopIcon = useIcon('Stop')
 const InfoCircle = useIcon('InfoCircle')
+const WorkPathFolderIcon = useIcon('Folder')
+const WorkPathChevronIcon = useIcon('ChevronDown')
 </script>
 
 <template>
@@ -193,7 +195,9 @@ const InfoCircle = useIcon('InfoCircle')
           @click="emit('openWorkPathMenu', $event)"
           @contextmenu="emit('openWorkPathMenu', $event)"
         >
-          {{ props.workPathButtonLabel }}
+          <WorkPathFolderIcon class="workpath-trigger-icon" />
+          <span class="workpath-trigger-label">{{ props.workPathButtonLabel }}</span>
+          <WorkPathChevronIcon class="workpath-trigger-chevron" />
         </button>
       </template>
     </div>
