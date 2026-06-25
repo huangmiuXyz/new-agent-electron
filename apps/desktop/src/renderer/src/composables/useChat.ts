@@ -361,7 +361,6 @@ export const useChat = (chatId: string) => {
           // 真正成功完成：重置重试计数
           retryAttempt = 0
 
-          useTitle(chatId).generateTitle()
           if (!manuallyStopped) {
             void subTaskCoordinator.submitSummaryOnStop()
           }
@@ -463,6 +462,8 @@ export const useChat = (chatId: string) => {
   const result = {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
       scrollToBottom()
+
+      const isFirstMessage = getVisibleMessages().length === 0
       const chat = createChat(getVisibleMessages())
 
       const parts: Array<FileUIPart | TextUIPart> =
@@ -473,6 +474,13 @@ export const useChat = (chatId: string) => {
         role: 'user',
         parts
       })
+
+      if (isFirstMessage) {
+        const userText = typeof content === 'string'
+          ? content
+          : content.filter((p): p is TextUIPart => p.type === 'text').map((p) => p.text).join(' ')
+        useTitle(chatId).generateTitle(userText)
+      }
     },
     continueMessages: () => {
       const chat = createChat(getVisibleMessages())
