@@ -17,11 +17,16 @@ export default defineConfig({
       formats: ['iife']
     },
     rollupOptions: {
+      external: ['vue', 'vue/jsx-runtime'],
       output: {
         dir: 'dist',
         entryFileNames: 'index.js',
         chunkFileNames: '[name].js',
-        inlineDynamicImports: true
+        inlineDynamicImports: true,
+        globals: {
+          vue: 'Vue',
+          'vue/jsx-runtime': 'Vue'
+        }
       }
     },
     outDir: 'dist',
