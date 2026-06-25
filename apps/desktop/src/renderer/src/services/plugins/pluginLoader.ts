@@ -214,8 +214,8 @@ export class PluginLoader {
           ${code}
           return ${pluginGlobalName};
         `;
-      const getPlugin = new Function('Vue', wrappedCode);
-      const plugin = getPlugin(Vue);
+      const getPlugin = new Function('Vue', 'vue', wrappedCode);
+      const plugin = getPlugin(Vue, Vue);
 
 
       if (!plugin || typeof plugin !== 'object') {
