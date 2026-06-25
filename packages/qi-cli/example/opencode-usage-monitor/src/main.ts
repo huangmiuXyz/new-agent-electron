@@ -198,8 +198,6 @@ const mainPlugin: MainPlugin = {
       lastData = null
       authNotified = false
     })
-
-    ctx.logger.info('main-process window plugin installed')
   },
 
   uninstall: (ctx: MainPluginContext) => {

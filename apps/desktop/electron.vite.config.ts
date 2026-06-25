@@ -73,7 +73,7 @@ export default defineConfig(() => {
           ]
         }),
         Components({
-          dirs: ['src/components', 'src/pages'],
+          dirs: ['src/components'],
           directoryAsNamespace: true,
           dts: 'src/components.d.ts',
         })

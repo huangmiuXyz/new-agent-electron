@@ -33,7 +33,7 @@ protocol.registerSchemesAsPrivileged([
 const WINDOWS_TITLE_BAR_HEIGHT = 30
 const WINDOWS_SYMBOL_COLOR_DARK = '#f5f5f7'
 const WINDOWS_SYMBOL_COLOR_LIGHT = '#1d1d1f'
-const WINDOW_SHOW_FALLBACK_DELAY = 3000
+const WINDOW_SHOW_FALLBACK_DELAY = 8000
 const MAX_CLIPBOARD_IMAGE_DIMENSION = 30000
 
 let mainWindow: BrowserWindow | null = null
@@ -214,16 +214,24 @@ function applyOpenAtLoginSetting(enabled: boolean) {
     return false
   }
 
-  app.setLoginItemSettings({
-    openAtLogin: enabled,
-    openAsHidden: false,
-    ...(process.platform === 'win32' && process.defaultApp
-      ? {
-        path: process.execPath,
-        args: [app.getAppPath()]
-      }
-      : {})
-  })
+  if (!is.packaged) {
+    return false
+  }
+
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: enabled,
+      openAsHidden: false,
+      ...(process.platform === 'win32' && process.defaultApp
+        ? {
+          path: process.execPath,
+          args: [app.getAppPath()]
+        }
+        : {})
+    })
+  } catch {
+    return false
+  }
 
   return true
 }
