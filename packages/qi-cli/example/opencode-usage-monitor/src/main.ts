@@ -151,7 +151,6 @@ const mainPlugin: MainPlugin = {
         const authCookie = authMatch ? authMatch[1] : null
         if (workId && authCookie) {
           lastData = { workId, authCookie }
-          ctx.logger.info(`Captured workspace: ${workId}`)
           try {
             bridge.broadcast('workspace-data', { workId, authCookie })
             if (!authNotified) {

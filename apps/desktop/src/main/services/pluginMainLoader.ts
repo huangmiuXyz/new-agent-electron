@@ -184,7 +184,6 @@ export class PluginMainLoader {
       await this.runCleanup(entry.cleanupFns, pluginName)
       await this.cleanupIpc(entry.registeredHandlerChannels, entry.registeredListeners)
       this.loaded.delete(pluginName)
-      entry.context.logger.info('main-process plugin unloaded')
       return { ok: true }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
