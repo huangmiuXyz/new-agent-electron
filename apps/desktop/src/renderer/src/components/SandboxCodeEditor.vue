@@ -39,6 +39,7 @@ const containerRef = useTemplateRef('containerRef')
 const editorRef = shallowRef<editor.IStandaloneCodeEditor | editor.IStandaloneDiffEditor | null>(null)
 let changeListener: IDisposable | null = null
 let resizeObserver: ResizeObserver | null = null
+const monacoWorkers = new Set<Worker>()
 
 const configureMonaco = () => {
   if (typeof self === 'undefined') return
@@ -53,11 +54,14 @@ const configureMonaco = () => {
 
   globalScope.MonacoEnvironment = {
     getWorker(_: string, label: string) {
-      if (label === 'json') return new jsonWorker()
-      if (label === 'css' || label === 'scss' || label === 'less') return new cssWorker()
-      if (label === 'html' || label === 'handlebars' || label === 'razor') return new htmlWorker()
-      if (label === 'typescript' || label === 'javascript') return new tsWorker()
-      return new editorWorker()
+      let worker: Worker
+      if (label === 'json') worker = new jsonWorker()
+      else if (label === 'css' || label === 'scss' || label === 'less') worker = new cssWorker()
+      else if (label === 'html' || label === 'handlebars' || label === 'razor') worker = new htmlWorker()
+      else if (label === 'typescript' || label === 'javascript') worker = new tsWorker()
+      else worker = new editorWorker()
+      monacoWorkers.add(worker)
+      return worker
     }
   }
 
@@ -271,6 +275,18 @@ onBeforeUnmount(() => {
   originalModelRef = null
   modelRef?.dispose()
   modelRef = null
+  for (const worker of monacoWorkers) {
+    worker.terminate()
+  }
+  monacoWorkers.clear()
+  const globalScope = self as typeof self & {
+    MonacoEnvironment?: {
+      getWorker: (_: string, label: string) => Worker
+    }
+    [MONACO_CONFIGURED_KEY]?: boolean
+  }
+  globalScope.MonacoEnvironment = undefined
+  globalScope[MONACO_CONFIGURED_KEY] = false
 })
 </script>
 
