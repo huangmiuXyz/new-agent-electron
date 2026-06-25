@@ -1,5 +1,3 @@
-import localforage from 'localforage'
-
 export { cloneDeep, throttle, mapValues, retry, debounce, chunk } from 'es-toolkit'
 export { blobToDataURL, dataURLToBlob, arrayBufferToBlob } from 'blob-util'
 import { dataURLToBlob as _dataURLToBlob, arrayBufferToBlob as _arrayBufferToBlob } from 'blob-util'
@@ -61,17 +59,6 @@ export const assetsHandler = (path: string): string => {
     return new URL(relativePath, import.meta.url).href
   } catch (e) {
     return normalizedPath
-  }
-}
-
-export const copyText = (text: string) => {
-  if (text) {
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {})
-      .catch((err) => {
-        console.error('复制失败:', err)
-      })
   }
 }
 
@@ -383,194 +370,13 @@ export const saveElementImageToFile = async (
   }
 }
 
-const DEBOUNCED_STORAGE_KEYS = new Set(['chats'])
-// 流式更新期间 messageSyncController 每 1s 触发一次状态变更，Pinia persist 会随之
-// 调用 setItem。将 debounce 抬高到 2s，使全量 JSON.stringify(chats) 在流式期间至多
-// 每两秒执行一次，显著减少主线程阻塞。页面隐藏/关闭/切后台时
-// flushStorageOnPageLifecycleChange 会立即冲刷未写数据，不会丢失。
-const STORAGE_WRITE_DEBOUNCE_MS = 2000
-const storageRestoreGuards = new Map<string, boolean>()
-const allowedEmptyStorageWrites = new Map<string, number>()
-const pendingStorageWrites = new Map<
-  string,
-  {
-    timer: ReturnType<typeof setTimeout> | null
-    value: string
-  }
->()
-
-export const setIndexedDBStorageRestoreGuard = (key: string, restoring: boolean) => {
-  storageRestoreGuards.set(key, restoring)
-}
-
-export const isIndexedDBStorageRestoring = (key: string) => {
-  return storageRestoreGuards.get(key) === true
-}
-
-export const allowNextIndexedDBEmptyWrite = (key: string) => {
-  allowedEmptyStorageWrites.set(key, (allowedEmptyStorageWrites.get(key) || 0) + 1)
-}
-
-// writeStorageValue 直接把 Pinia 已 stringify 的字符串存入 localforage。
-// 之前这里是 `localforage.setItem(key, JSON.parse(value))`——先把字符串 parse 回对象，
-// 再由 localforage 的 IndexedDB driver 内部 structuredClone 存储；读取时又
-// `localforage.getItem` 拿到对象后再 `JSON.stringify` 返回给 Pinia。
-// 即一次写入路径有 stringify（Pinia 内）+ parse（这里）+ structuredClone（IDB），
-// 读取路径有 IDB 读 + stringify（getItem 里）+ parse（Pinia 内）。
-// 改为直接存字符串：写入只剩 stringify（Pinia 内），读取只剩 parse（Pinia 内），
-// 省掉主线程上一次 parse + 一次 stringify，长对话下节省明显。
-const writeStorageValue = async (key: string, value: string) => {
-  await localforage.setItem(key, value)
-}
-
-const consumeAllowedEmptyStorageWrite = (key: string) => {
-  const allowedCount = allowedEmptyStorageWrites.get(key) || 0
-  if (allowedCount <= 0) return false
-
-  if (allowedCount === 1) {
-    allowedEmptyStorageWrites.delete(key)
-  } else {
-    allowedEmptyStorageWrites.set(key, allowedCount - 1)
-  }
-  return true
-}
-
-const parseStorageValue = (value: unknown) => {
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value)
-    } catch {
-      return null
-    }
-  }
-  return value
-}
-
-const getPersistedChatCount = (value: unknown) => {
-  const parsed = parseStorageValue(value) as { chats?: unknown } | null
-  return Array.isArray(parsed?.chats) ? parsed.chats.length : 0
-}
-
-const isEmptyChatStateWrite = (key: string, value: string) => {
-  return key === 'chats' && getPersistedChatCount(value) === 0
-}
-
-const shouldBlockEmptyChatStateWrite = async (key: string, value: string) => {
-  if (!isEmptyChatStateWrite(key, value)) return false
-  if (consumeAllowedEmptyStorageWrite(key)) return false
-
-  const pendingWrite = pendingStorageWrites.get(key)
-  if (pendingWrite && getPersistedChatCount(pendingWrite.value) > 0) {
-    return true
-  }
-
-  const persistedValue = await localforage.getItem(key)
-  return getPersistedChatCount(persistedValue) > 0
-}
-
-const flushPendingStorageWrite = (key: string) => {
-  const pendingWrite = pendingStorageWrites.get(key)
-  if (!pendingWrite) return Promise.resolve()
-
-  if (pendingWrite.timer) {
-    clearTimeout(pendingWrite.timer)
-  }
-
-  pendingStorageWrites.delete(key)
-  return writeStorageValue(key, pendingWrite.value)
-}
-
-export const flushIndexedDBStorage = async (key?: string) => {
-  if (key) {
-    await flushPendingStorageWrite(key)
-    return
-  }
-
-  await Promise.all(
-    [...pendingStorageWrites.keys()].map((storageKey) => flushPendingStorageWrite(storageKey))
-  )
-}
-
-const flushStorageOnPageLifecycleChange = () => {
-  void flushIndexedDBStorage()
-}
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', flushStorageOnPageLifecycleChange)
-  window.addEventListener('pagehide', flushStorageOnPageLifecycleChange)
-  window.addEventListener('freeze', flushStorageOnPageLifecycleChange)
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      flushStorageOnPageLifecycleChange()
-    }
-  })
-
-  void import('@capacitor/app')
-    .then(({ App }) => {
-      void App.addListener('appStateChange', ({ isActive }) => {
-        if (!isActive) {
-          flushStorageOnPageLifecycleChange()
-        }
-      })
-    })
-    .catch(() => {
-      // Capacitor is unavailable in the Electron renderer.
-    })
-}
-
-export const indexedDBStorage = {
-  async getItem(key: string): Promise<string | null> {
-    await flushPendingStorageWrite(key)
-    // 直接返回 localforage 中存储的字符串，不再 JSON.stringify。
-    // 与 writeStorageValue 的改动配套：存储层只存/取字符串，序列化/反序列化
-    // 全部交给 Pinia persist 的默认 serializer（JSON.stringify / JSON.parse），
-    // 避免存储层与 Pinia 之间重复 parse/stringify。
-    // 兼容旧数据：之前 writeStorageValue 用 JSON.parse(value) 存对象到 localforage，
-    // 旧用户首次升级时这里拿到的还是对象，检测到非字符串则 stringify 一次返回，
-    // 下次写入（debounce 2s 后）就会覆盖成字符串格式，完成迁移。
-    const value = await localforage.getItem<string>(key)
-    if (value == null) return null
-    if (typeof value === 'string') return value
-    return JSON.stringify(value)
-  },
-
-  async setItem(key: string, value: string): Promise<void> {
-    if (storageRestoreGuards.get(key)) {
-      return
-    }
-
-    if (await shouldBlockEmptyChatStateWrite(key, value)) {
-      console.warn(`[storage] blocked empty "${key}" state from overwriting existing chats`)
-      return
-    }
-
-    if (!DEBOUNCED_STORAGE_KEYS.has(key)) {
-      await writeStorageValue(key, value)
-      return
-    }
-
-    const pendingWrite = pendingStorageWrites.get(key)
-    if (pendingWrite?.timer) {
-      clearTimeout(pendingWrite.timer)
-    }
-
-    pendingStorageWrites.set(key, {
-      value,
-      timer: setTimeout(() => {
-        void flushPendingStorageWrite(key)
-      }, STORAGE_WRITE_DEBOUNCE_MS)
-    })
-  },
-
-  async removeItem(key: string): Promise<void> {
-    const pendingWrite = pendingStorageWrites.get(key)
-    if (pendingWrite?.timer) {
-      clearTimeout(pendingWrite.timer)
-    }
-    pendingStorageWrites.delete(key)
-    await localforage.removeItem(key)
-  }
-}
+export {
+  indexedDBStorage,
+  setIndexedDBStorageRestoreGuard,
+  isIndexedDBStorageRestoring,
+  allowNextIndexedDBEmptyWrite,
+  flushIndexedDBStorage,
+} from './storage'
 
 export const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes'

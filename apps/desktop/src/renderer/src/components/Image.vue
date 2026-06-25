@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { assetsHandler, copyImageToClipboard, copyText } from '@renderer/utils'
+import { assetsHandler, copyImageToClipboard } from '@renderer/utils'
 import { useContextMenu, type MenuItem } from '@renderer/composables/useContextMenu'
 
 const props = defineProps<{

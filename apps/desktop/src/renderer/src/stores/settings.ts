@@ -1,4 +1,5 @@
 import data from '@renderer/assets/provider.json'
+import { indexedDBStorage } from '@renderer/utils/storage'
 
 let resolveRestore: () => void
 const restorePromise = new Promise<void>((resolve) => {

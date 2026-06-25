@@ -2,7 +2,6 @@
 import { FormItem } from '@renderer/composables/useForm'
 import { getProviderTypes } from '@renderer/services/chatService/registry'
 import providerData from '@renderer/assets/provider.json'
-import { copyText } from '@renderer/utils'
 
 // API 密钥编辑状态
 const editingApiKey = ref<ApiKeyInfo | null>(null)
