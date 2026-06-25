@@ -171,12 +171,12 @@ export const useChatsStores = defineStore(
 
     const initializeChatsStore = async () => {
       await initializeChatStorage()
+      await isAfterRestore
       if (activeChatId.value) {
         const window = await chatRepository.loadRecentMessages(activeChatId.value, MESSAGE_WINDOW_SIZE)
         messageWindows.value = { [activeChatId.value]: window }
         activeMessageWindow.value = window
       }
-      resolveRestore()
     }
 
     const createChat = (
