@@ -103,7 +103,7 @@ settingsStore.isAfterRestore.then(() => {
   })
 })
 
-chatsStore.isAfterRestore.then(() => {
+chatsStore.initializeChatsStore().finally(() => {
   chatsReady.value = true
 })
 

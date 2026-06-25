@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { chatRepository } from '@renderer/services/chatRepository'
+import { useDebounceFn } from '@vueuse/core'
+
 interface SearchResult {
     id: string
     chatId: string
@@ -37,51 +40,68 @@ const providerLogoMap = computed(() => {
     return map
 })
 
-const filteredResults = computed(() => {
-    const searchTrimmed = query.value.trim()
-    if (!searchTrimmed) return []
+const searchResults = ref<SearchResult[]>([])
+const isSearching = ref(false)
 
-    const lowerQuery = searchTrimmed.toLowerCase()
-    const results: SearchResult[] = []
-    const MAX_RESULTS = 50
+const performSearch = useDebounceFn(async (query: string) => {
+    const trimmed = query.trim()
+    if (!trimmed) {
+        searchResults.value = []
+        return
+    }
+    isSearching.value = true
+    try {
+        const lowerQuery = trimmed.toLowerCase()
+        const results: SearchResult[] = []
+        const MAX_RESULTS = 50
+        const summaries = chatsStore.chatSummaries
 
-    for (const chat of chatsStore.chats) {
-        if (results.length >= MAX_RESULTS) break
+        const messagesByChat = await Promise.all(
+            summaries.map(async (summary) => ({
+                summary,
+                messages: await chatRepository.loadAllMessages(summary.id)
+            }))
+        )
 
-        const chatTitle = chat.title || ''
-        const lowerChatTitle = chatTitle.toLowerCase()
-        const chatTitleMatches = lowerChatTitle.includes(lowerQuery)
-
-        for (const message of chat.messages) {
+        for (const { summary, messages } of messagesByChat) {
             if (results.length >= MAX_RESULTS) break
+            const chatTitle = summary.title || ''
+            const lowerChatTitle = chatTitle.toLowerCase()
+            const chatTitleMatches = lowerChatTitle.includes(lowerQuery)
 
-            const contentText = message.parts
-                .filter(block => block.type === 'text')
-                .map(block => (block as any).text || '')
-                .join('')
+            for (const message of messages) {
+                if (results.length >= MAX_RESULTS) break
+                const contentText = message.parts
+                    .filter(block => block.type === 'text')
+                    .map(block => (block as any).text || '')
+                    .join('')
+                const lowerContent = contentText.toLowerCase()
+                const contentMatches = lowerContent.includes(lowerQuery)
 
-            const lowerContent = contentText.toLowerCase()
-            const contentMatches = lowerContent.includes(lowerQuery)
-
-            if (chatTitleMatches || contentMatches) {
-                const metadata = message.metadata
-                results.push({
-                    id: `${chat.id}-${message.id}`,
-                    chatId: chat.id,
-                    chatTitle,
-                    messageId: message.id!,
-                    content: contentText,
-                    logo: providerLogoMap.value.get(metadata?.provider || '') || '',
-                    modelName: metadata?.model || '未知模型',
-                    isHuman: message.role === 'user',
-                    date: new Date(metadata?.date || chat.createdAt).toLocaleDateString()
-                })
+                if (chatTitleMatches || contentMatches) {
+                    const metadata = message.metadata
+                    results.push({
+                        id: `${summary.id}-${message.id}`,
+                        chatId: summary.id,
+                        chatTitle,
+                        messageId: message.id!,
+                        content: contentText,
+                        logo: providerLogoMap.value.get(metadata?.provider || '') || '',
+                        modelName: metadata?.model || '未知模型',
+                        isHuman: message.role === 'user',
+                        date: new Date(metadata?.date || summary.createdAt).toLocaleDateString()
+                    })
+                }
             }
         }
-    }
 
-    return results
-})
+        searchResults.value = results
+    } finally {
+        isSearching.value = false
+    }
+}, 300)
+
+watch(query, (val) => performSearch(val))
 
 const close = () => emit('update:modelValue', false)
 
@@ -104,7 +124,7 @@ watch(() => props.modelValue, (val) => {
 const handleKeydown = (e: KeyboardEvent) => {
     if (!props.modelValue) return
 
-    const listLen = filteredResults.value.length
+    const listLen = searchResults.value.length
 
     switch (e.key) {
         case 'ArrowDown':
@@ -119,7 +139,7 @@ const handleKeydown = (e: KeyboardEvent) => {
             break
         case 'Enter':
             e.preventDefault()
-            if (listLen > 0) handleSelect(filteredResults.value[selectedIndex.value]!)
+            if (listLen > 0) handleSelect(searchResults.value[selectedIndex.value]!)
             break
         case 'Escape':
             e.preventDefault()
@@ -178,7 +198,11 @@ const highlightText = (text: string) => {
                     </div>
 
                     <div class="results-container" ref="scrollContainer">
-                        <div v-if="filteredResults.length === 0 && query" class="empty-state">
+                        <div v-if="isSearching" class="empty-state">
+                            搜索中...
+                        </div>
+
+                        <div v-else-if="searchResults.length === 0 && query" class="empty-state">
                             没有找到相关结果
                         </div>
 
@@ -186,7 +210,7 @@ const highlightText = (text: string) => {
                             输入关键词开始搜索
                         </div>
 
-                        <div v-for="(item, index) in filteredResults" :key="item.id" class="result-item"
+                        <div v-for="(item, index) in searchResults" :key="item.id" class="result-item"
                             :class="{ active: index === selectedIndex }" @click="handleSelect(item)"
                             @mouseenter="selectedIndex = index">
                             <div class="model-avatar">
@@ -219,8 +243,8 @@ const highlightText = (text: string) => {
                         <span class="footer-item">
                             <kbd class="kbd">↵</kbd> 选择
                         </span>
-                        <span class="count" v-if="filteredResults.length">
-                            {{ filteredResults.length }} 条结果
+                        <span class="count" v-if="searchResults.length">
+                            {{ searchResults.length }} 条结果
                         </span>
                     </div>
                 </div>

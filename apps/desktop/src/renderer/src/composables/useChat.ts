@@ -7,6 +7,7 @@ import { useMessageScroll } from './useMessageScroll'
 import { createChatMessageSyncController } from './chat/messageSyncController'
 import { createSpeechStreamController } from './chat/speechStreamController'
 import { createSubTaskResultCoordinator } from './chat/subTaskResultCoordinator'
+import { buildContextMessages } from '@renderer/services/chatContextMessages'
 
 const chatCache = new Map<string, any>()
 
@@ -464,7 +465,8 @@ export const useChat = (chatId: string) => {
       scrollToBottom()
 
       const isFirstMessage = getVisibleMessages().length === 0
-      const chat = createChat(getVisibleMessages())
+      const contextMessages = await buildContextMessages(chatId, {})
+      const chat = createChat(contextMessages)
 
       const parts: Array<FileUIPart | TextUIPart> =
         typeof content === 'string' ? [{ type: 'text', text: content }] : content
@@ -482,11 +484,12 @@ export const useChat = (chatId: string) => {
         useTitle(chatId).generateTitle(userText)
       }
     },
-    continueMessages: () => {
-      const chat = createChat(getVisibleMessages())
+    continueMessages: async () => {
+      const contextMessages = await buildContextMessages(chatId, {})
+      const chat = createChat(contextMessages)
       chat.sendMessage()
     },
-    retryFromToolCall: (toolCallId: string, position: 'above' | 'below') => {
+    retryFromToolCall: async (toolCallId: string, position: 'above' | 'below') => {
       const currentMessages = getVisibleMessages()
       const toolCallLocation = findToolCallLocation(currentMessages, toolCallId)
 
@@ -532,10 +535,11 @@ export const useChat = (chatId: string) => {
       updateMessages(chatId, cloneMessagesForChat(nextMessages))
 
       scrollToBottom()
-      const chat = createChat(nextMessages)
+      const contextMessages = await buildContextMessages(chatId, {})
+      const chat = createChat(contextMessages)
       chat.sendMessage()
     },
-    regenerate: (messageId: string) => {
+    regenerate: async (messageId: string) => {
       const currentChats = getChatById(chatId)
       const messages = currentChats?.messages || []
       const { retryAnchorMessageId, regenerateMessageId } = normalizeRegenerateTarget(
@@ -556,7 +560,8 @@ export const useChat = (chatId: string) => {
           ? cloneMessagesForChat(messages.slice(0, retryAnchorMessageIndex + 1))
           : cloneMessagesForChat(messages)
       updateMessages(chatId, retryMessages)
-      const chat = createChat(retryMessages, {
+      const contextMessages = await buildContextMessages(chatId, {})
+      const chat = createChat(contextMessages, {
         regenerateMessageId
       })
       chat.regenerate({ messageId: regenerateMessageId })

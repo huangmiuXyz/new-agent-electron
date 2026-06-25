@@ -1,3 +1,5 @@
+import { chatRepository } from '@renderer/services/chatRepository'
+
 let resolveRestore: () => void
 const restorePromise = new Promise<void>((resolve) => {
   resolveRestore = resolve
@@ -153,7 +155,6 @@ const diffSnapshots = (localSnapshot: SyncSnapshotPayload, remoteSnapshot: SyncS
     providerChanges += 1
   }
 
-  // 计算智能体差异
   const localAgents = new Map((localSnapshot.agents || []).map((agent) => [agent.id, agent]))
   const remoteAgents = new Map((remoteSnapshot.agents || []).map((agent) => [agent.id, agent]))
   const agentIds = new Set([...localAgents.keys(), ...remoteAgents.keys()])
@@ -226,11 +227,31 @@ export const useSyncStore = defineStore(
       }
     }
 
-    const buildLocalSnapshot = () => {
+    const buildLocalSnapshot = async () => {
       const agentStore = useAgentStore()
+      const summaries = chatsStore.chatSummaries
+      const chats = await Promise.all(
+        summaries.map(async (summary) => {
+          const messages = await chatRepository.loadAllMessages(summary.id)
+          return {
+            id: summary.id,
+            title: summary.title,
+            messages,
+            createdAt: summary.createdAt,
+            agentId: summary.agentId,
+            providerId: summary.providerId,
+            modelId: summary.modelId,
+            isTemp: summary.isTemp,
+            parentChatId: summary.parentChatId,
+            subTask: summary.subTask,
+            toolFeaturesEnabled: summary.toolFeaturesEnabled,
+            compressedContext: summary.compressedContext
+          }
+        })
+      )
       return clonePersistedState(
         {
-          chats: chatsStore.chats,
+          chats,
           activeChatId: chatsStore.activeChatId,
           providers: settingsStore.providers.filter((provider) => !provider.pluginName),
           providerOrder: settingsStore.providerOrder,
@@ -240,13 +261,13 @@ export const useSyncStore = defineStore(
       )
     }
 
-    const recomputeDiff = () => {
+    const recomputeDiff = async () => {
       const snapshot = selectedEndpointSnapshot.value
       if (!snapshot) {
         diffSummary.value = { messageChanges: 0, chatChanges: 0, providerChanges: 0, agentChanges: 0 }
         return
       }
-      diffSummary.value = diffSnapshots(buildLocalSnapshot(), snapshot)
+      diffSummary.value = diffSnapshots(await buildLocalSnapshot(), snapshot)
     }
 
     const scheduleAutoPublish = () => {
@@ -262,9 +283,9 @@ export const useSyncStore = defineStore(
     }
 
     watch(
-      () => [chatsStore.chats, chatsStore.activeChatId],
-      () => {
-        recomputeDiff()
+      () => [chatsStore.chatSummaries, chatsStore.activeChatId],
+      async () => {
+        await recomputeDiff()
         scheduleAutoPublish()
       },
       { deep: true }
@@ -272,8 +293,8 @@ export const useSyncStore = defineStore(
 
     watch(
       () => [settingsStore.providers, settingsStore.providerOrder],
-      () => {
-        recomputeDiff()
+      async () => {
+        await recomputeDiff()
         scheduleAutoPublish()
       },
       { deep: true }
@@ -284,8 +305,8 @@ export const useSyncStore = defineStore(
         const agentStore = useAgentStore()
         return agentStore.agents
       },
-      () => {
-        recomputeDiff()
+      async () => {
+        await recomputeDiff()
         scheduleAutoPublish()
       },
       { deep: true }
@@ -317,7 +338,7 @@ export const useSyncStore = defineStore(
     const fetchEndpointSnapshot = async (deviceId: string) => {
       if (!deviceId) {
         selectedEndpointSnapshot.value = null
-        recomputeDiff()
+        await recomputeDiff()
         return null
       }
 
@@ -332,12 +353,12 @@ export const useSyncStore = defineStore(
       }
 
       selectedEndpointSnapshot.value = snapshot
-      recomputeDiff()
+      await recomputeDiff()
       return snapshot
     }
 
     const publishLocalSnapshot = async () => {
-      const snapshot = buildLocalSnapshot()
+      const snapshot = await buildLocalSnapshot()
       const payload = {
         deviceId: selfDeviceId.value,
         displayName: profile.value.displayName || hostState.value.displayName || selfDeviceId.value,
@@ -419,7 +440,7 @@ export const useSyncStore = defineStore(
       endpoints.value = []
       selectedEndpointId.value = ''
       selectedEndpointSnapshot.value = null
-      recomputeDiff()
+      await recomputeDiff()
       hostState.value = await getDesktopSyncApi().stopHost()
     }
 
@@ -539,7 +560,7 @@ export const useSyncStore = defineStore(
         const snapshot = await fetchEndpointSnapshot(deviceId)
         if (!snapshot) return
         if (shouldPullChats) {
-          chatsStore.replacePersistedState({
+          await chatsStore.replacePersistedState({
             chats: snapshot.chats,
             activeChatId: snapshot.activeChatId
           })

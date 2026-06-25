@@ -3,7 +3,8 @@ import { FileUIPart, TextUIPart } from 'ai'
 import type { MenuItem } from '@renderer/composables/useContextMenu'
 import { getLanguageFlag } from '@renderer/utils/flagIcons'
 import { copyElementImageToClipboard } from '@renderer/utils'
-import { useElementSize } from '@vueuse/core'
+import { useElementSize, useThrottleFn } from '@vueuse/core'
+import { nextTick } from 'vue'
 import { useMessageScroll } from '@renderer/composables/useMessageScroll'
 
 const { messageScrollRef } = useMessageScroll()
@@ -13,7 +14,8 @@ const prevMessageWrapperRef = ref<HTMLElement | null>(null)
 const autoScrollEnabled = ref(true)
 const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
-const { deleteMessage, updateMessage } = useChatsStores()
+const { deleteMessage, updateMessage, loadMoreMessagesBefore } = useChatsStores()
+const isLoadingMore = ref(false)
 const mobileEditModal = useModal()
 const { Delete, Refresh, Continue, Copy, Edit, Branch, Language, Image } = useIcon([
   'Delete',
@@ -159,6 +161,37 @@ const autoScrollTrigger = computed(() => {
     if (p.type === 'text') textLen += (p as TextUIPart).text.length
   }
   return `${msgs.length}:${last.id}:${last.parts.length}:${textLen}`
+})
+
+const handleScrollTop = useThrottleFn(async (event: Event) => {
+  const el = event.target as HTMLElement
+  if (!el || isLoadingMore.value) return
+  if (el.scrollTop > 50) return
+  const chat = currentChat.value
+  if (!chat) return
+  isLoadingMore.value = true
+  const prevScrollHeight = el.scrollHeight
+  try {
+    await loadMoreMessagesBefore(chat.id)
+    await nextTick()
+    el.scrollTop = el.scrollHeight - prevScrollHeight
+  } finally {
+    isLoadingMore.value = false
+  }
+}, 300)
+
+onMounted(() => {
+  const el = scrollHostRef.value
+  if (el) {
+    el.addEventListener('scroll', handleScrollTop as EventListener)
+  }
+})
+
+onUnmounted(() => {
+  const el = scrollHostRef.value
+  if (el) {
+    el.removeEventListener('scroll', handleScrollTop as EventListener)
+  }
 })
 
 const { height: containerHeight } = useElementSize(scrollHostRef)
@@ -448,14 +481,14 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
     {
       label: '创建分支并继续',
       icon: Branch,
-      onClick: (data) => {
+      onClick: async (data) => {
         if (!currentSelectedModel.value) {
           messageApi.error('请先选择模型')
           return
         }
         const chatsStore = useChatsStores()
         const selectedMessage = data
-        const newChatId = chatsStore.forkChat(currentChat.value!.id, data.id!)
+        const newChatId = await chatsStore.forkChat(currentChat.value!.id, data.id!)
         if (!newChatId) return
         const { regenerate } = useChat(newChatId)
         setTimeout(() => {

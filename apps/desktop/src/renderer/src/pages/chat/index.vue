@@ -34,10 +34,10 @@ onMounted(() => {
   // 清空上下文
   register({
     id: 'chat.clearContext',
-    handler: () => {
+    handler: async () => {
       const chat = chatsStore.currentChat
       if (chat && chat.messages.length > 0) {
-        chat.messages = []
+        await chatsStore.updateMessages(chat.id, [])
       }
     }
   })

@@ -1,10 +1,10 @@
 import { FileUIPart, TextUIPart } from 'ai'
 import {
-  allowNextIndexedDBEmptyWrite,
-  isIndexedDBStorageRestoring,
-  setIndexedDBStorageRestoreGuard
+  allowNextIndexedDBEmptyWrite
 } from '@renderer/utils/storage'
 import { correctThinkingMode } from '@renderer/services/chatService/thinkingMode'
+import { chatRepository } from '@renderer/services/chatRepository'
+import { initializeChatStorage } from '@renderer/services/chatStorageBootstrap'
 
 let resolveRestore: () => void
 const restorePromise = new Promise<void>((resolve) => {
@@ -12,12 +12,13 @@ const restorePromise = new Promise<void>((resolve) => {
 })
 
 const NEW_CHAT_DRAFT_ID = '__new__'
+const MESSAGE_WINDOW_SIZE = 100
+const MESSAGE_PAGE_SIZE = 50
 
-const resolvePersistedActiveChatId = (persistedChats: Chat[], persistedActiveId: string | null) => {
+const resolvePersistedActiveChatId = (persistedChats: { id: string }[], persistedActiveId: string | null) => {
   if (persistedActiveId && persistedChats.some((chat) => chat.id === persistedActiveId)) {
     return persistedActiveId
   }
-
   return persistedChats[0]?.id || null
 }
 
@@ -25,27 +26,48 @@ export const useChatsStores = defineStore(
   'chats',
   () => {
     const DEFAULT_AGENT_ID = 'default'
-    const chats = ref<Chat[]>([])
+    const chatSummaries = ref<ChatSummary[]>([])
     const tempChats = ref<Chat[]>([])
     const activeChatId = ref<string | null>(null)
+    const activeMessageWindow = ref<LoadedMessageWindow | null>(null)
+    const messageWindows = shallowRef<Record<string, LoadedMessageWindow>>({})
     const chatDrafts = ref<Record<string, string>>({})
     const titleGeneratingChats = ref<Set<string>>(new Set())
+    const pendingMessagesMap = ref<Record<string, PendingMessage[]>>({})
     const isAfterRestore = restorePromise
 
+    const getLoadedMessages = (chatId: string): BaseMessage[] => {
+      return messageWindows.value[chatId]?.messages || []
+    }
+
+    const materializeChat = (summary: ChatSummary, messages: BaseMessage[] = []): Chat => ({
+      id: summary.id,
+      title: summary.title,
+      createdAt: summary.createdAt,
+      agentId: summary.agentId,
+      providerId: summary.providerId,
+      modelId: summary.modelId,
+      isTemp: summary.isTemp,
+      parentChatId: summary.parentChatId,
+      subTask: summary.subTask,
+      toolFeaturesEnabled: summary.toolFeaturesEnabled,
+      compressedContext: summary.compressedContext,
+      pendingMessages: pendingMessagesMap.value[summary.id] || [],
+      messages,
+    })
+
     const allChats = computed(() => {
-      return [...chats.value, ...tempChats.value]
+      return [...chatSummaries.value.map((s) => materializeChat(s, getLoadedMessages(s.id))), ...tempChats.value]
     })
 
     const currentChat = computed(() => {
-      return allChats.value.find((c) => c.id === activeChatId.value) || null
+      const summary = chatSummaries.value.find((chat) => chat.id === activeChatId.value)
+      if (!summary) return tempChats.value.find((chat) => chat.id === activeChatId.value) || null
+      return materializeChat(summary, getLoadedMessages(summary.id))
     })
 
     const isTitleGenerating = (chatId: string) => {
       return titleGeneratingChats.value.has(chatId)
-    }
-
-    const collectMessageSets = (messages: BaseMessage[]): BaseMessage[][] => {
-      return [messages]
     }
 
     const someMessageDeep = (
@@ -55,7 +77,6 @@ export const useChatsStores = defineStore(
       for (const message of messages) {
         if (predicate(message)) return true
       }
-
       return false
     }
 
@@ -121,6 +142,43 @@ export const useChatsStores = defineStore(
       return { providerId, modelId }
     }
 
+    const withChatMeta = (chatId: string, fn: (meta: ChatSummary | Chat) => void) => {
+      const summary = chatSummaries.value.find((s) => s.id === chatId)
+      if (summary) {
+        fn(summary)
+        summary.updatedAt = Date.now()
+        chatSummaries.value = [...chatSummaries.value]
+        return
+      }
+      const chat = tempChats.value.find((c) => c.id === chatId)
+      if (chat) fn(chat)
+    }
+
+    const replaceWindowMessages = (chatId: string, messages: BaseMessage[]) => {
+      const existing = messageWindows.value[chatId]
+      const next: LoadedMessageWindow = {
+        chatId,
+        messages,
+        hasMoreBefore: existing?.hasMoreBefore ?? false,
+        oldestOrder: existing?.oldestOrder ?? 0,
+        newestOrder: messages.length - 1
+      }
+      messageWindows.value = { ...messageWindows.value, [chatId]: next }
+      if (activeMessageWindow.value?.chatId === chatId) {
+        activeMessageWindow.value = next
+      }
+    }
+
+    const initializeChatsStore = async () => {
+      await initializeChatStorage()
+      if (activeChatId.value) {
+        const window = await chatRepository.loadRecentMessages(activeChatId.value, MESSAGE_WINDOW_SIZE)
+        messageWindows.value = { [activeChatId.value]: window }
+        activeMessageWindow.value = window
+      }
+      resolveRestore()
+    }
+
     const createChat = (
       title = '新的聊天',
       options?: {
@@ -140,24 +198,36 @@ export const useChatsStores = defineStore(
       const { providerId, modelId } = resolveChatModelConfig(agentId)
 
       const id = nanoid()
-      const chat: Chat = {
-        id,
-        title,
-        messages: [],
-        createdAt: Date.now(),
-        agentId,
-        providerId,
-        modelId,
-        isTemp: options?.isTemp,
-        pendingMessages: [],
-        parentChatId: options?.parentChatId,
-        subTask: options?.subTask
-      }
 
       if (options?.isTemp) {
+        const chat: Chat = {
+          id,
+          title,
+          messages: [],
+          createdAt: Date.now(),
+          agentId,
+          providerId,
+          modelId,
+          isTemp: true,
+          pendingMessages: [],
+          parentChatId: options?.parentChatId,
+          subTask: options?.subTask
+        }
         tempChats.value.push(chat)
       } else {
-        chats.value.push(chat)
+        const summary: ChatSummary = {
+          id,
+          title,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          agentId,
+          providerId,
+          modelId,
+          parentChatId: options?.parentChatId,
+          subTask: options?.subTask,
+          messageCount: 0
+        }
+        chatSummaries.value.push(summary)
       }
 
       if (options?.activate !== false) {
@@ -170,9 +240,11 @@ export const useChatsStores = defineStore(
       }
       return id
     }
+
     const getChatById = (id: string) => {
       return allChats.value.find((c) => c.id === id)
     }
+
     const getDescendantChatIds = (id: string): string[] => {
       const descendants: string[] = []
       const queue = [id]
@@ -188,61 +260,60 @@ export const useChatsStores = defineStore(
       return descendants
     }
 
-    const deleteChat = (id: string) => {
+    const deleteChat = async (id: string) => {
       const allIds = new Set([id, ...getDescendantChatIds(id)])
       !isMobile.value && useCanvasStore().deleteCanvases([...allIds])
 
-      const initialLength = chats.value.length
-      chats.value = chats.value.filter((c) => {
-        if (allIds.has(c.id)) {
-          const messageSets = collectMessageSets(c.messages)
-          messageSets.flat().forEach((m) => m.metadata?.stop?.())
+      for (const chatId of allIds) {
+        const window = messageWindows.value[chatId]
+        if (window) {
+          window.messages.forEach((m) => m.metadata?.stop?.())
         }
-        return !allIds.has(c.id)
-      })
-
-      if (chats.value.length === initialLength) {
-        tempChats.value = tempChats.value.filter((c) => {
-          if (allIds.has(c.id)) {
-            const messageSets = collectMessageSets(c.messages)
-            messageSets.flat().forEach((m) => m.metadata?.stop?.())
-          }
-          return !allIds.has(c.id)
-        })
+        const summary = chatSummaries.value.find((s) => s.id === chatId)
+        if (summary) {
+          await chatRepository.deleteChatMessages(chatId)
+          chatSummaries.value = chatSummaries.value.filter((s) => s.id !== chatId)
+        } else {
+          tempChats.value = tempChats.value.filter((c) => c.id !== chatId)
+        }
+        const remaining = { ...messageWindows.value }
+        delete remaining[chatId]
+        messageWindows.value = remaining
+        delete chatDrafts.value[chatId]
       }
 
       if (activeChatId.value && allIds.has(activeChatId.value)) {
         const fallbackId = allChats.value[0]?.id || null
         if (fallbackId) {
-          setActiveChat(fallbackId)
+          await setActiveChat(fallbackId)
         } else {
           allowNextIndexedDBEmptyWrite('chats')
           activeChatId.value = null
+          activeMessageWindow.value = null
         }
       }
-
-      allIds.forEach((chatId) => {
-        delete chatDrafts.value[chatId]
-      })
     }
 
-    const addMessageToChat = (msg: BaseMessage, chatId?: string) => {
-      const chat = chatId ? getChatById(chatId) : currentChat.value
-      if (!chat) return ''
-      chat.messages.push(msg)
+    const addMessageToChat = async (msg: BaseMessage, chatId?: string) => {
+      const cid = chatId || activeChatId.value
+      if (!cid) return ''
+      const nextMessages = [...(messageWindows.value[cid]?.messages || []), msg]
+      await chatRepository.appendMessages(cid, [msg])
+      replaceWindowMessages(cid, nextMessages)
       return msg.id
     }
-    const deleteMessage = (cid: string, mid: string) => {
-      const chat = getChatById(cid)!
-      chat.messages.find((m) => m.id === mid)?.metadata?.stop?.()
-      setTimeout(() => {
-        chat.messages = chat.messages.filter((message) => message.id !== mid)
-      })
+
+    const deleteMessage = async (cid: string, mid: string) => {
+      const window = messageWindows.value[cid]
+      if (!window) return
+      window.messages.find((m) => m.id === mid)?.metadata?.stop?.()
+      const nextMessages = window.messages.filter((message) => message.id !== mid)
+      await chatRepository.replaceMessages(cid, nextMessages)
+      replaceWindowMessages(cid, nextMessages)
     }
 
     const renameChat = (id: string, title: string) => {
-      const chat = getChatById(id)
-      if (chat) chat.title = title
+      withChatMeta(id, (meta) => { meta.title = title })
     }
 
     const setTitleGenerating = (id: string, generating: boolean) => {
@@ -253,8 +324,15 @@ export const useChatsStores = defineStore(
       }
     }
 
-    const setActiveChat = (id: string) => {
+    const setActiveChat = async (id: string) => {
       activeChatId.value = id
+      if (messageWindows.value[id]) {
+        activeMessageWindow.value = messageWindows.value[id]
+      } else {
+        const window = await chatRepository.loadRecentMessages(id, MESSAGE_WINDOW_SIZE)
+        messageWindows.value = { ...messageWindows.value, [id]: window }
+        activeMessageWindow.value = window
+      }
     }
 
     const getDraftKey = (chatId?: string | null) => chatId || activeChatId.value || NEW_CHAT_DRAFT_ID
@@ -285,11 +363,7 @@ export const useChatsStores = defineStore(
       return nextDraft
     }
 
-    // 切换模型/provider 后，校正全局 thinkingMode 到新 provider 支持的最近档位，
-    // 避免不同 providerType 的思考参数不兼容导致后端报错。
-    // 恢复持久化数据时跳过校正，避免覆盖用户已保存的设置。
     const correctThinkingModeForProvider = (providerId: string, modelId: string) => {
-      if (isIndexedDBStorageRestoring('chats')) return
       const settingsStore = useSettingsStore()
       const provider = settingsStore.getProviderById(providerId)
       if (!provider) return
@@ -304,62 +378,60 @@ export const useChatsStores = defineStore(
       }
     }
 
+    const applyAgentChange = (
+      meta: { agentId?: string; providerId?: string; modelId?: string },
+      agentId: string,
+      options?: { keepCurrentModel?: boolean }
+    ) => {
+      const agentStore = useAgentStore()
+      const normalizedAgentId = agentStore.getAgentById(agentId) ? agentId : DEFAULT_AGENT_ID
+      const agentChanged = meta.agentId !== normalizedAgentId
+      meta.agentId = normalizedAgentId
+      if (!agentChanged) return
+      const currentProviderId = options?.keepCurrentModel ? meta.providerId : undefined
+      const currentModelId = options?.keepCurrentModel ? meta.modelId : undefined
+      const { providerId, modelId } = resolveChatModelConfig(meta.agentId, currentProviderId, currentModelId)
+      const modelChanged = meta.providerId !== providerId || meta.modelId !== modelId
+      meta.providerId = providerId
+      meta.modelId = modelId
+      if (modelChanged) correctThinkingModeForProvider(providerId, modelId)
+    }
+
+    const applyModelChange = (
+      meta: { providerId?: string; modelId?: string },
+      providerId: string,
+      modelId: string
+    ) => {
+      const modelChanged = meta.providerId !== providerId || meta.modelId !== modelId
+      meta.providerId = providerId
+      meta.modelId = modelId
+      if (modelChanged) correctThinkingModeForProvider(providerId, modelId)
+    }
+
     const setChatAgent = (
       chatId: string,
       agentId: string,
       options?: { keepCurrentModel?: boolean }
     ) => {
-      const chat = getChatById(chatId)
-      if (!chat) return
-      const agentStore = useAgentStore()
-      const normalizedAgentId = agentStore.getAgentById(agentId) ? agentId : DEFAULT_AGENT_ID
-      const agentChanged = chat.agentId !== normalizedAgentId
-      chat.agentId = normalizedAgentId
-      // 只有当智能体真正改变时才重新解析模型配置
-      if (agentChanged) {
-        // 如果指定保持当前模型，则传入当前模型信息；否则让新智能体使用其默认模型
-        const currentProviderId = options?.keepCurrentModel ? chat.providerId : undefined
-        const currentModelId = options?.keepCurrentModel ? chat.modelId : undefined
-        const { providerId, modelId } = resolveChatModelConfig(
-          chat.agentId,
-          currentProviderId,
-          currentModelId
-        )
-        const modelChanged =
-          chat.providerId !== providerId || chat.modelId !== modelId
-        chat.providerId = providerId
-        chat.modelId = modelId
-        if (modelChanged) {
-          correctThinkingModeForProvider(providerId, modelId)
-        }
-      }
+      withChatMeta(chatId, (meta) => applyAgentChange(meta, agentId, options))
     }
 
     const ensureChatAgent = (chatId: string) => {
-      const chat = getChatById(chatId)
-      if (!chat) return null
-      const targetAgentId = chat.agentId || DEFAULT_AGENT_ID
-      // 保持当前模型不变，因为这只是确保智能体有效，不是用户主动切换
-      setChatAgent(chatId, targetAgentId, { keepCurrentModel: true })
-      return chat.agentId
+      let result: string | null = null
+      withChatMeta(chatId, (meta) => {
+        const targetAgentId = meta.agentId || DEFAULT_AGENT_ID
+        setChatAgent(chatId, targetAgentId, { keepCurrentModel: true })
+        result = meta.agentId || null
+      })
+      return result
     }
 
     const setChatModel = (chatId: string, providerId: string, modelId: string) => {
-      const chat = getChatById(chatId)
-      if (!chat) return
-      const modelChanged =
-        chat.providerId !== providerId || chat.modelId !== modelId
-      chat.providerId = providerId
-      chat.modelId = modelId
-      if (modelChanged) {
-        correctThinkingModeForProvider(providerId, modelId)
-      }
+      withChatMeta(chatId, (meta) => applyModelChange(meta, providerId, modelId))
     }
 
     const setChatToolFeaturesEnabled = (chatId: string, enabled: boolean) => {
-      const chat = getChatById(chatId)
-      if (!chat) return
-      chat.toolFeaturesEnabled = enabled
+      withChatMeta(chatId, (meta) => { meta.toolFeaturesEnabled = enabled })
     }
 
     const getChildChats = (parentChatId: string) => {
@@ -411,85 +483,89 @@ export const useChatsStores = defineStore(
       chatId: string,
       updater: Partial<SubTaskInfo> | ((task: SubTaskInfo) => SubTaskInfo)
     ) => {
-      const chat = getChatById(chatId)
-      if (!chat?.subTask) return
-      chat.subTask =
-        typeof updater === 'function' ? updater(chat.subTask) : { ...chat.subTask, ...updater }
+      withChatMeta(chatId, (meta) => {
+        if (!meta.subTask) return
+        meta.subTask =
+          typeof updater === 'function' ? updater(meta.subTask) : { ...meta.subTask, ...updater }
+      })
     }
 
-    const updateMessage = (cid: string, mid: string, newParts: any[]) => {
-      const chat = getChatById(cid)
-      if (!chat) return
-      updateMessages(cid, (messages) =>
+    const updateMessage = async (cid: string, mid: string, newParts: any[]) => {
+      await updateMessages(cid, (messages) =>
         messages.map((message) => (message.id === mid ? { ...message, parts: newParts } : message))
       )
     }
-    const updateMessageMetadata = (cid: string, mid: string, newMetadata: MetaData) => {
-      const chat = getChatById(cid)
-      if (!chat) return
-      updateMessages(cid, (messages) =>
+
+    const updateMessageMetadata = async (cid: string, mid: string, newMetadata: MetaData) => {
+      await updateMessages(cid, (messages) =>
         messages.map((message) =>
           message.id === mid ? { ...message, metadata: newMetadata } : message
         )
       )
     }
-    const updateMessages = (
+
+    const updateMessages = async (
       chatId: string,
       messages: BaseMessage[] | ((messages: BaseMessage[]) => BaseMessage[])
     ) => {
-      const chat = getChatById(chatId)
-      if (chat) {
-        const nextMessages = typeof messages === 'function' ? messages(chat.messages) : messages
-        chat.messages = nextMessages
+      const currentMessages = messageWindows.value[chatId]?.messages || []
+      const nextMessages = typeof messages === 'function' ? messages(currentMessages) : messages
+      await chatRepository.replaceMessages(chatId, nextMessages)
+      replaceWindowMessages(chatId, nextMessages)
+    }
+
+    const loadMoreMessagesBefore = async (chatId: string) => {
+      const window = messageWindows.value[chatId]
+      if (!window || window.oldestOrder === undefined || !window.hasMoreBefore) return
+      const batch = await chatRepository.loadMessagesBefore(chatId, window.oldestOrder, MESSAGE_PAGE_SIZE)
+      if (batch.messages.length === 0) return
+      messageWindows.value = {
+        ...messageWindows.value,
+        [chatId]: {
+          chatId,
+          messages: [...batch.messages, ...window.messages],
+          hasMoreBefore: batch.hasMoreBefore,
+          oldestOrder: batch.oldestOrder,
+          newestOrder: window.newestOrder
+        }
       }
     }
 
-    const forkChat = (sourceChatId: string, messageId: string) => {
-      const sourceChat = getChatById(sourceChatId)
-      if (!sourceChat) return
-
-      const mIndex = sourceChat.messages.findIndex((m) => m.id === messageId)
+    const forkChat = async (sourceChatId: string, messageId: string) => {
+      const sourceMessages = await chatRepository.loadAllMessages(sourceChatId)
+      const mIndex = sourceMessages.findIndex((m) => m.id === messageId)
       if (mIndex === -1) return
 
-      const messagesToKeep = sourceChat.messages.slice(0, mIndex + 1)
-      // 浅拷贝外两层（消息对象/parts/metadata）即可切断与新会话的引用共享。
-      // fork 后新会话对消息的修改走 updateMessages/replaceMessageById 替换整条对象引用，
-      // 嵌套对象不会被就地修改；改用 cloneDeep 会对含工具结果/长文本的历史做递归深拷贝，
-      // 长会话分叉时主线程阻塞明显。
+      const messagesToKeep = sourceMessages.slice(0, mIndex + 1)
       const clonedMessages = messagesToKeep.map((msg) => ({
         ...msg,
         parts: msg.parts ? msg.parts.map((part) => ({ ...part })) : msg.parts,
         metadata: msg.metadata ? { ...msg.metadata } : msg.metadata
       }))
 
-      const newChatId = createChat(`${sourceChat.title}`, {
-        agentId: sourceChat.agentId
+      const sourceSummary = chatSummaries.value.find((s) => s.id === sourceChatId)
+      const newChatId = createChat(sourceSummary?.title || '新的聊天', {
+        agentId: sourceSummary?.agentId
       })
-      const newChat = getChatById(newChatId)
-      if (newChat) {
-        newChat.messages = clonedMessages
-        newChat.providerId = sourceChat.providerId
-        newChat.modelId = sourceChat.modelId
-      }
+
+      await chatRepository.replaceMessages(newChatId, clonedMessages)
+      const window = await chatRepository.loadRecentMessages(newChatId, MESSAGE_WINDOW_SIZE)
+      messageWindows.value = { ...messageWindows.value, [newChatId]: window }
+      activeMessageWindow.value = window
       return newChatId
     }
 
-    // 预发送队列相关方法
     const getPendingMessages = (chatId: string): PendingMessage[] => {
-      const chat = getChatById(chatId)
-      return chat?.pendingMessages || []
+      return pendingMessagesMap.value[chatId] || []
     }
 
     const addPendingMessage = (chatId: string, parts: Array<FileUIPart | TextUIPart>): string => {
-      const chat = getChatById(chatId)
-      if (!chat) return ''
-
-      if (!chat.pendingMessages) {
-        chat.pendingMessages = []
+      if (!pendingMessagesMap.value[chatId]) {
+        pendingMessagesMap.value = { ...pendingMessagesMap.value, [chatId]: [] }
       }
 
       const id = nanoid()
-      chat.pendingMessages.push({
+      pendingMessagesMap.value[chatId].push({
         id,
         parts,
         timestamp: Date.now()
@@ -498,39 +574,39 @@ export const useChatsStores = defineStore(
     }
 
     const removePendingMessage = (chatId: string, messageId: string) => {
-      const chat = getChatById(chatId)
-      if (!chat || !chat.pendingMessages) return
-
-      chat.pendingMessages = chat.pendingMessages.filter((m) => m.id !== messageId)
+      const list = pendingMessagesMap.value[chatId]
+      if (!list) return
+      pendingMessagesMap.value = {
+        ...pendingMessagesMap.value,
+        [chatId]: list.filter((m) => m.id !== messageId)
+      }
     }
 
     const clearPendingMessages = (chatId: string) => {
-      const chat = getChatById(chatId)
-      if (!chat) return
-      chat.pendingMessages = []
+      if (!pendingMessagesMap.value[chatId]) return
+      pendingMessagesMap.value = { ...pendingMessagesMap.value, [chatId]: [] }
     }
 
     const prioritizePendingMessage = (chatId: string, messageId: string) => {
-      const chat = getChatById(chatId)
-      if (!chat?.pendingMessages?.length) return
+      const list = pendingMessagesMap.value[chatId]
+      if (!list?.length) return
 
-      const index = chat.pendingMessages.findIndex((message) => message.id === messageId)
+      const index = list.findIndex((message) => message.id === messageId)
       if (index <= 0) return
 
-      const [message] = chat.pendingMessages.splice(index, 1)
+      const [message] = list.splice(index, 1)
       if (!message) return
-      chat.pendingMessages.unshift(message)
+      list.unshift(message)
     }
 
     const shiftPendingMessage = (chatId: string): PendingMessage | undefined => {
-      const chat = getChatById(chatId)
-      if (!chat || !chat.pendingMessages || chat.pendingMessages.length === 0) return undefined
+      const list = pendingMessagesMap.value[chatId]
+      if (!list?.length) return undefined
 
-      const message = chat.pendingMessages.shift()
+      const message = list.shift()
       return message
     }
 
-    // 检查聊天是否正在生成回复
     const isChatGenerating = (chatId: string): boolean => {
       const chat = getChatById(chatId)
       if (!chat) return false
@@ -558,7 +634,9 @@ export const useChatsStores = defineStore(
           }
         })
         if (!options?.preservePendingMessages) {
-          chat.pendingMessages = []
+          if (pendingMessagesMap.value[id]) {
+            pendingMessagesMap.value = { ...pendingMessagesMap.value, [id]: [] }
+          }
         }
       })
     }
@@ -572,17 +650,51 @@ export const useChatsStores = defineStore(
       })
     }
 
-    const replacePersistedState = (nextState: { chats: Chat[]; activeChatId: string | null }) => {
-      chats.value.forEach((chat) => {
-        const messageSets = collectMessageSets(chat.messages)
-        messageSets.flat().forEach((message) => message.metadata?.stop?.())
+    const replacePersistedState = async (nextState: { chats: Chat[]; activeChatId: string | null }) => {
+      Object.values(messageWindows.value).forEach((window) => {
+        window.messages.forEach((message) => message.metadata?.stop?.())
       })
       if (nextState.chats.length === 0) {
         allowNextIndexedDBEmptyWrite('chats')
       }
-      chats.value = nextState.chats
-      activeChatId.value = resolvePersistedActiveChatId(nextState.chats, nextState.activeChatId)
+      const summaries: ChatSummary[] = nextState.chats.map((chat) => ({
+        id: chat.id,
+        title: chat.title,
+        createdAt: chat.createdAt,
+        updatedAt: Date.now(),
+        agentId: chat.agentId,
+        providerId: chat.providerId,
+        modelId: chat.modelId,
+        isTemp: chat.isTemp,
+        parentChatId: chat.parentChatId,
+        subTask: chat.subTask,
+        toolFeaturesEnabled: chat.toolFeaturesEnabled,
+        compressedContext: chat.compressedContext,
+        messageCount: chat.messages?.length || 0
+      }))
+      chatSummaries.value = summaries
+      tempChats.value = []
+      messageWindows.value = {}
+      activeMessageWindow.value = null
+      activeChatId.value = resolvePersistedActiveChatId(summaries, nextState.activeChatId)
       pruneChatDrafts()
+      await Promise.all(
+        nextState.chats
+          .filter((chat) => chat.messages?.length)
+          .map((chat) => chatRepository.replaceMessages(chat.id, chat.messages!))
+      )
+      if (activeChatId.value) {
+        const window = await chatRepository.loadRecentMessages(activeChatId.value, MESSAGE_WINDOW_SIZE)
+        messageWindows.value = { [activeChatId.value]: window }
+        activeMessageWindow.value = window
+      }
+    }
+
+    const updateChatSummaryMeta = (chatId: string, updates: Partial<ChatSummary>) => {
+      const summary = chatSummaries.value.find((s) => s.id === chatId)
+      if (!summary) return
+      Object.assign(summary, updates, { updatedAt: Date.now() })
+      chatSummaries.value = [...chatSummaries.value]
     }
 
     const { scrollToBottom } = useMessageScroll()
@@ -597,12 +709,13 @@ export const useChatsStores = defineStore(
     return {
       forkChat,
       updateMessages,
-      chats,
+      chatSummaries,
       tempChats,
       chatDrafts,
       allChats,
       activeChatId,
       currentChat,
+      initializeChatsStore,
       createChat,
       deleteChat,
       renameChat,
@@ -625,7 +738,7 @@ export const useChatsStores = defineStore(
       updateMessageMetadata,
       isTitleGenerating,
       setTitleGenerating,
-      // 预发送队列方法
+      loadMoreMessagesBefore,
       getPendingMessages,
       addPendingMessage,
       removePendingMessage,
@@ -636,23 +749,15 @@ export const useChatsStores = defineStore(
       isChatScopeGenerating,
       stopGeneratingInChatScope,
       replacePersistedState,
-      isAfterRestore
+      isAfterRestore,
+      updateChatSummaryMeta
     }
   },
   {
     persist: {
       storage: indexedDBStorage,
-      paths: ['chats', 'activeChatId', 'chatDrafts'],
-      beforeRestore: () => {
-        setIndexedDBStorageRestoreGuard('chats', true)
-      },
-      afterRestore: (ctx) => {
-        const store = ctx.store as unknown as { chats: Chat[]; activeChatId: string | null; chatDrafts?: Record<string, string> }
-        if (store) {
-          store.activeChatId = resolvePersistedActiveChatId(store.chats, store.activeChatId)
-          store.chatDrafts = store.chatDrafts || {}
-        }
-        setIndexedDBStorageRestoreGuard('chats', false)
+      paths: ['chatSummaries', 'activeChatId', 'chatDrafts'],
+      afterRestore: () => {
         resolveRestore()
       }
     }

@@ -1,6 +1,7 @@
 import { streamText as _streamText } from 'ai'
 import { useChatsStores } from '@renderer/stores/chats'
 import { useSettingsStore } from '@renderer/stores/settings'
+import { chatRepository } from '@renderer/services/chatRepository'
 import { nanoid } from '@renderer/utils/nanoid'
 import { createRegistry } from './registry'
 import { buildContextCompressionPrompt } from './systemPrompts'
@@ -79,13 +80,13 @@ const normalizeCompressedMessages = (
 
 export const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMessage[]> => {
   const { cid, messages, contextCount, contextTokenCount, compressModel, activeModel } = options
-  const { getChatById } = useChatsStores()
-  const chat = getChatById(cid)
-  const persistedMessages = chat?.messages ?? messages
+  const persistedMessages = messages?.length ? messages : await chatRepository.loadAllMessages(cid)
   const persistedBaseMessages = persistedMessages.filter(
     (message) => !isCompressingContextMessage(message) && !isCompressedContextMessage(message)
   )
-  const compressedContext = chat?.compressedContext
+  const chatsStore = useChatsStores()
+  const summary = chatsStore.chatSummaries.find((s) => s.id === cid)
+  const compressedContext = summary?.compressedContext
   const compressedBoundaryIndex = compressedContext?.compressedUpToIndex
 
   const hasPriorSummary = Boolean(compressedContext?.content)
@@ -144,7 +145,7 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
 
     if (!contextToCompress) return messages
 
-    const { updateMessages, updateMessage, updateMessageMetadata } = useChatsStores()
+    const store = useChatsStores()
 
     const compressingMessageId = nanoid()
     const compressingMessage: BaseMessage = {
@@ -168,8 +169,12 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
       } as CompressionMetaData
     }
 
-    if (chat) {
-      chat.compressedContext = {
+    const allMsgs = await chatRepository.loadAllMessages(cid)
+    const nextMsgs = normalizeCompressedMessages(allMsgs, compressingMessage)
+    await store.updateMessages(cid, nextMsgs)
+
+    chatsStore.updateChatSummaryMeta(cid, {
+      compressedContext: {
         content: compressedContext?.content || '',
         compressedUpToIndex: compressedBoundaryIndex,
         updatedAt: Date.now(),
@@ -177,8 +182,7 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
         model: compressModel.modelId,
         loading: true
       }
-      updateMessages(cid, (msgs) => normalizeCompressedMessages(msgs, compressingMessage))
-    }
+    })
 
     let compressedText = ''
 
@@ -195,95 +199,90 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
     })
 
     let accumulatedText = ''
-    // 压缩流每个 token chunk 都会触发 for await，原代码每 chunk 都 updateMessage
-    // 会让 store + IndexedDB 序列化在压缩期间高频触发。这里用时间戳节流：至多每
-    // 200ms 更新一次 UI，压缩结束（catch 块外的 finishUpdateCompressingMessage）
-    // 会做最后一次更新，不会丢最终结果。
     const COMPRESS_UI_THROTTLE_MS = 200
     let lastCompressUiAt = 0
     let compressUiDirty = false
 
-    const flushCompressingMessage = (text: string) => {
-      if (!chat) return
+    const flushCompressingMessage = async (text: string) => {
       lastCompressUiAt = Date.now()
       compressUiDirty = false
-      updateMessage(cid, compressingMessageId, [
-        {
-          type: 'text',
-          text: `🔃 正在压缩上下文...\n\n${text}`
-        }
-      ])
+      const msgs = await chatRepository.loadAllMessages(cid)
+      const next = msgs.map((m) =>
+        m.id === compressingMessageId
+          ? { ...m, parts: [{ type: 'text' as const, text: `🔃 正在压缩上下文...\n\n${text}` }] }
+          : m
+      )
+      await store.updateMessages(cid, next)
     }
 
     try {
       for await (const data of compressStream.textStream) {
         accumulatedText += data
-        if (!chat) continue
         compressUiDirty = true
         const now = Date.now()
         if (now - lastCompressUiAt >= COMPRESS_UI_THROTTLE_MS) {
-          flushCompressingMessage(accumulatedText)
+          await flushCompressingMessage(accumulatedText)
         }
       }
-      // 流结束后若还有未刷新的增量，补一次最终 UI 更新
       if (compressUiDirty) {
-        flushCompressingMessage(accumulatedText)
+        await flushCompressingMessage(accumulatedText)
       }
 
-      if (chat && compressedText) {
-        chat.compressedContext = {
-          content: compressedText,
-          compressedUpToIndex: lastCompressedIndex,
-          updatedAt: Date.now(),
-          provider: compressProvider.id,
-          model: compressModel.modelId,
-          loading: false
-        }
-        updateMessage(cid, compressingMessageId, [
-          {
-            type: 'text',
-            text: `${compressedText}\n\n${COMPRESSED_CONTEXT_MARKER}`
+      if (compressedText) {
+        const msgsAfter = await chatRepository.loadAllMessages(cid)
+        const nextAfter = msgsAfter.map((m) =>
+          m.id === compressingMessageId
+            ? { ...m, parts: [{ type: 'text' as const, text: `${compressedText}\n\n${COMPRESSED_CONTEXT_MARKER}` }] }
+            : m
+        )
+        await store.updateMessages(cid, nextAfter)
+
+        chatsStore.updateChatSummaryMeta(cid, {
+          compressedContext: {
+            content: compressedText,
+            compressedUpToIndex: lastCompressedIndex,
+            updatedAt: Date.now(),
+            provider: compressProvider.id,
+            model: compressModel.modelId,
+            loading: false
           }
-        ])
-      }
+        })
 
-      if (chat) {
-        const msg = chat.messages.find((m) => m.id === compressingMessageId)
-        if (msg && msg.metadata) {
-          const newMetadata = {
-            ...msg.metadata,
-            loading: false,
-            ...(compressedText ? { isCompressedContext: true } : {})
-          } as MetaData
-          updateMessageMetadata(cid, compressingMessageId, newMetadata)
-        }
+        const msgsMeta = await chatRepository.loadAllMessages(cid)
+        const nextMeta = msgsMeta.map((m) => {
+          if (m.id === compressingMessageId && m.metadata) {
+            return {
+              ...m,
+              metadata: {
+                ...m.metadata,
+                loading: false,
+                ...(compressedText ? { isCompressedContext: true } : {})
+              } as MetaData
+            }
+          }
+          return m
+        })
+        await store.updateMessages(cid, nextMeta)
       }
     } catch (streamError) {
       console.error('流式压缩出错:', streamError)
-      if (chat) {
-        chat.compressedContext = compressedContext
+      chatsStore.updateChatSummaryMeta(cid, {
+        compressedContext: compressedContext
           ? { ...compressedContext, loading: false }
           : undefined
-        updateMessage(cid, compressingMessageId, [
-          {
-            type: 'text',
-            text: accumulatedText + '\n\n❌ 压缩过程出错，将使用原始上下文继续。'
-          }
-        ])
-        const errorMsg = chat.messages.find((m) => m.id === compressingMessageId)
-        if (errorMsg && errorMsg.metadata) {
-          const newMetadata = { ...errorMsg.metadata, loading: false } as MetaData
-          updateMessageMetadata(cid, compressingMessageId, newMetadata)
-        }
-      }
+      })
+      const msgsErr = await chatRepository.loadAllMessages(cid)
+      const nextErr = msgsErr.map((m) =>
+        m.id === compressingMessageId
+          ? {
+              ...m,
+              parts: [{ type: 'text' as const, text: accumulatedText + '\n\n❌ 压缩过程出错，将使用原始上下文继续。' }],
+              metadata: { ...(m.metadata || {}), loading: false } as MetaData
+            }
+          : m
+      )
+      await store.updateMessages(cid, nextErr)
       return messages
-    }
-
-    if (compressedText && chat) {
-      const compressingMsg = chat.messages.find((m) => m.id === compressingMessageId)
-      if (compressingMsg) {
-        return messages
-      }
     }
 
     return messages

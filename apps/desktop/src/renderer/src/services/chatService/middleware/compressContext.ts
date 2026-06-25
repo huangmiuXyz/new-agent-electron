@@ -1,6 +1,4 @@
 import type { LanguageModelMiddleware } from 'ai'
-import { useChatsStores } from '@renderer/stores/chats'
-
 interface CompressContextMiddlewareOptions {
   cid: string
   contextCount?: number
@@ -20,10 +18,11 @@ const getLatestCompressedContextIndex = (messages: Array<{ role: string; content
   return -1
 }
 
-const getCompressedContextFromStore = (cid: string): string => {
-  const chat = useChatsStores().getChatById(cid)
-  if (!chat?.compressedContext?.content || chat.compressedContext.loading) return ''
-  return `${chat.compressedContext.content}\n\n${COMPRESSED_CONTEXT_MARKER}`
+const getCompressedContextFromStore = async (cid: string): Promise<string> => {
+  const chatsStore = useChatsStores()
+  const summary = chatsStore.chatSummaries.find((s) => s.id === cid)
+  if (!summary?.compressedContext?.content || summary.compressedContext.loading) return ''
+  return `${summary.compressedContext.content}\n\n${COMPRESSED_CONTEXT_MARKER}`
 }
 
 export const createCompressContextMiddleware = (
@@ -38,7 +37,7 @@ export const createCompressContextMiddleware = (
         return params
       }
 
-      const compressedContent = getCompressedContextFromStore(cid)
+      const compressedContent = await getCompressedContextFromStore(cid)
       if (!compressedContent) {
         return params
       }

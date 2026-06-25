@@ -7,6 +7,7 @@ import { useNotesStore } from '@renderer/stores/notes'
 import { Capacitor } from '@capacitor/core'
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
+import { chatRepository } from '@renderer/services/chatRepository'
 
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
@@ -25,7 +26,11 @@ const buildBackupData = async () => {
   return {
     settings: settingsStore.$state,
     agent: agentStore.$state,
-    chats: chatsStore.$state,
+    chatsSnapshot: await chatRepository.exportSnapshot({
+      summaries: chatsStore.chatSummaries,
+      activeChatId: chatsStore.activeChatId,
+      chatDrafts: chatsStore.chatDrafts
+    }),
     knowledge: knowledgeStore.$state,
     notes: {
       folders: notesStore.folders,
@@ -101,8 +106,18 @@ const restoreFromData = async (data: any) => {
     agentStore.$patch(data.agent)
   }
 
-  if (data.chats) {
-    chatsStore.$patch(data.chats)
+  if (data.chatsSnapshot) {
+    if (data.chatsSnapshot.summaries) {
+      chatsStore.chatSummaries = data.chatsSnapshot.summaries
+    }
+    if (data.chatsSnapshot.activeChatId !== undefined) {
+      chatsStore.activeChatId = data.chatsSnapshot.activeChatId
+    }
+    if (data.chatsSnapshot.chatDrafts) {
+      chatsStore.chatDrafts = data.chatsSnapshot.chatDrafts
+    }
+    await chatRepository.importSnapshot(data.chatsSnapshot)
+    await chatsStore.initializeChatsStore()
   }
 
   if (data.knowledge) {
@@ -218,7 +233,10 @@ const resetData = async () => {
     localStorage.clear()
     settingsStore.$reset()
     agentStore.$reset()
-    chatsStore.$reset()
+    chatsStore.chatSummaries = []
+    chatsStore.activeChatId = null
+    chatsStore.chatDrafts = {}
+    await chatRepository.clearAllChatMessages()
     knowledgeStore.$reset()
     notesStore.folders = []
     notesStore.notes = []

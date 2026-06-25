@@ -44,6 +44,51 @@ declare global {
     timestamp: number
   }
 
+  interface ChatSummary {
+    id: string
+    title: string
+    createdAt: number
+    updatedAt: number
+    agentId?: string
+    providerId?: string
+    modelId?: string
+    isTemp?: boolean
+    parentChatId?: string
+    subTask?: SubTaskInfo
+    toolFeaturesEnabled?: boolean
+    compressedContext?: Chat['compressedContext']
+    messageCount: number
+    lastMessageAt?: number
+    lastMessagePreview?: string
+  }
+
+  interface ChatMessageRecord {
+    id: string
+    chatId: string
+    role: BaseMessage['role']
+    parts: BaseMessage['parts']
+    metadata?: MetaData
+    createdAt: number
+    updatedAt: number
+    order: number
+  }
+
+  interface LoadedMessageWindow {
+    chatId: string
+    messages: BaseMessage[]
+    hasMoreBefore: boolean
+    oldestOrder?: number
+    newestOrder?: number
+  }
+
+  interface ChatRepositorySnapshot {
+    schemaVersion: number
+    summaries: ChatSummary[]
+    messagesByChatId: Record<string, ChatMessageRecord[]>
+    activeChatId: string | null
+    chatDrafts: Record<string, string>
+  }
+
 }
 
 export { }

@@ -7,6 +7,7 @@ import {
   getFlatTokenUsage,
 } from '@renderer/services/chatService/tokenUsage'
 
+
 // 流式 flush 节流间隔。
 // 原为 1000ms，用户感知首字偏慢；降到 500ms 让流式输出更跟手，同时仍比逐 token
 // flush 低频，不会把 Pinia 持久化（debounce 2s）和 tiktoken 估算打满。
@@ -164,7 +165,7 @@ export const createChatMessageSyncController = ({
     pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
   }
 
-  const flushStreamingUpdate = () => {
+  const flushStreamingUpdate = (): BaseMessage[] | undefined => {
     if (streamFlushHandle) {
       clearTimeout(streamFlushHandle)
       streamFlushHandle = null
@@ -177,14 +178,11 @@ export const createChatMessageSyncController = ({
     pendingSyncMessageIds.length = 0
     pendingSyncMessages.clear()
 
-    // 批量合并：所有 pending 快照一次性应用到一个新数组，只触发一次 updateMessages，
-    // 避免多条 pending（如工具循环多 step）时多次响应式更新 + 多次数组拷贝。
-    // 只要 messagesToSync 非空就一定调 updateMessages，不做 changed 跳过判断，
-    // 确保响应式始终触发（即使内容相同也用新数组引用替换，保证 visibleMessages
-    // computed 重新求值、v-memo 重新校验）。
+    let nextMessages: BaseMessage[] | undefined
+
     const storeChat = getChatById(chatId)
     if (storeChat && messagesToSync.length > 0) {
-      let nextMessages = storeChat.messages
+      nextMessages = storeChat.messages
       for (const message of messagesToSync) {
         const snapshot = createStoreMessageSnapshot(message)
         if (!snapshot) continue
@@ -196,9 +194,10 @@ export const createChatMessageSyncController = ({
     onStreamingUpdate(pendingSpeechMessage, pendingStreamParts)
     pendingSpeechMessage = undefined
     pendingStreamParts = undefined
+    return nextMessages
   }
 
-  const finalizeMessageSync = (message?: BaseMessage, error?: APICallError) => {
+  const finalizeMessageSync = async (message?: BaseMessage, error?: APICallError) => {
     if (!message) {
       flushStreamingUpdate()
       return
@@ -211,7 +210,19 @@ export const createChatMessageSyncController = ({
     } as MetaData
 
     queueMessageSync(message, error)
-    flushStreamingUpdate()
+    const updatedMessages = flushStreamingUpdate()
+
+    const chatsStore = useChatsStores()
+    const preview = message?.parts
+      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+      .map((p) => p.text)
+      .join('')
+      .slice(0, 200)
+    chatsStore.updateChatSummaryMeta(chatId, {
+      messageCount: updatedMessages?.length || 0,
+      lastMessageAt: Date.now(),
+      ...(preview ? { lastMessagePreview: preview } : {})
+    })
   }
 
   const scheduleStreamingUpdate = (message?: BaseMessage) => {
