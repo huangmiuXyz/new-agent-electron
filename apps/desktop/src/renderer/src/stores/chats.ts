@@ -3,7 +3,7 @@ import {
   allowNextIndexedDBEmptyWrite,
   isIndexedDBStorageRestoring,
   setIndexedDBStorageRestoreGuard
-} from '@renderer/utils'
+} from '@renderer/utils/storage'
 import { correctThinkingMode } from '@renderer/services/chatService/thinkingMode'
 
 let resolveRestore: () => void

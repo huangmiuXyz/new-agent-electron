@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { indexedDBStorage } from '@renderer/utils'
+import { indexedDBStorage } from '@renderer/utils/storage'
 import type { DownloadProgress } from '@agent-qi/types'
 
 export type DownloadTaskStatus =

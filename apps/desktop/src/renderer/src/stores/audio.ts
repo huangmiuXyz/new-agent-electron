@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { indexedDBStorage } from '@renderer/utils'
+import { indexedDBStorage } from '@renderer/utils/storage'
 
 export interface AudioBatch {
   id: string

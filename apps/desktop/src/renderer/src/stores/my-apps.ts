@@ -1,4 +1,4 @@
-import { indexedDBStorage } from '@renderer/utils'
+import { indexedDBStorage } from '@renderer/utils/storage'
 import { type SandboxState } from '@renderer/services/sandbox'
 
 export interface SavedAppRecord {
