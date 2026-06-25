@@ -1,3 +1,4 @@
-export { createKokoro, kokoro, DEFAULT_VOICES } from './kokoro-provider';
+export { createKokoro } from './kokoro-provider';
 export type { KokoroProvider, KokoroProviderSettings } from './kokoro-provider';
-export type { KokoroConcurrencyConfig } from './kokoro-config';
+export type { KokoroConfig, KokoroSpeechCallOptions } from './kokoro-config';
+export type { KokoroVoiceInfo } from './kokoro-api-types';

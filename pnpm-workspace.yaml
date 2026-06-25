@@ -111,7 +111,7 @@ catalog:
   prettier: ^3.8.4
   sqlite-vec: ^0.1.9
   strip-ansi: ^7.2.0
-  turbo: ^2.9.19-canary.9
+  turbo: ^2.9.19-canary.10
   typescript: ^6.0.3
   unplugin-auto-import: ^21.0.0
   unplugin-vue-components: ^32.1.0
@@ -160,5 +160,7 @@ allowBuilds:
   esbuild: true
   node-liblzma: true
   node-pty: true
+  onnxruntime-node: true
   protobufjs: true
   robotjs: true
+  sharp: true

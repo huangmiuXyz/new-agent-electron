@@ -1,30 +1,37 @@
 import { SpeechModelV3, ProviderV3 } from '@ai-sdk/provider';
-import { FetchFunction } from '@ai-sdk/provider-utils';
 import { KokoroSpeechModel } from './kokoro-speech-model';
-import { KokoroVoiceInfo, KokoroListVoicesResponse } from './kokoro-api-types';
-import { Model, ModelVoice } from '../types';
-import { KokoroConcurrencyConfig } from './kokoro-config';
+import type { KokoroVoiceInfo } from './kokoro-api-types';
+import type { Model } from '@agent-qi/types';
 
 export const DEFAULT_VOICES: KokoroVoiceInfo[] = [
-  { id: 'af_maple', name: 'Maple (English Female)', language: 'en', gender: 'female', description: 'American female voice' },
-  { id: 'af_sol', name: 'Sol (English Female)', language: 'en', gender: 'female', description: 'American female voice' },
-  { id: 'bf_vale', name: 'Vale (English Female)', language: 'en', gender: 'female', description: 'British female voice' },
-  { id: 'zf_001', name: '中文女声 001', language: 'zh', gender: 'female', description: '标准中文女声' },
-  { id: 'zf_002', name: '中文女声 002', language: 'zh', gender: 'female', description: '温柔中文女声' },
-  { id: 'zf_003', name: '中文女声 003', language: 'zh', gender: 'female', description: '活泼中文女声' },
-  { id: 'zf_004', name: '中文女声 004', language: 'zh', gender: 'female', description: '成熟中文女声' },
-  { id: 'zf_005', name: '中文女声 005', language: 'zh', gender: 'female', description: '甜美中文女声' },
-  { id: 'zf_006', name: '中文女声 006', language: 'zh', gender: 'female', description: '清晰中文女声' },
-  { id: 'zf_007', name: '中文女声 007', language: 'zh', gender: 'female', description: '自然中文女声' },
-  { id: 'zf_008', name: '中文女声 008', language: 'zh', gender: 'female', description: '优雅中文女声' },
-  { id: 'zm_009', name: '中文男声 009', language: 'zh', gender: 'male', description: '标准中文男声' },
-  { id: 'zm_010', name: '中文男声 010', language: 'zh', gender: 'male', description: '磁性中文男声' },
-  { id: 'zm_011', name: '中文男声 011', language: 'zh', gender: 'male', description: '成熟中文男声' },
-  { id: 'zm_012', name: '中文男声 012', language: 'zh', gender: 'male', description: '年轻中文男声' },
-  { id: 'zm_013', name: '中文男声 013', language: 'zh', gender: 'male', description: '稳重中文男声' },
-  { id: 'zm_014', name: '中文男声 014', language: 'zh', gender: 'male', description: '活力中文男声' },
-  { id: 'zm_015', name: '中文男声 015', language: 'zh', gender: 'male', description: '深沉中文男声' },
-  { id: 'zm_016', name: '中文男声 016', language: 'zh', gender: 'male', description: '温和中文男声' },
+  { id: 'af_heart', name: 'Heart', language: 'en', gender: 'female' },
+  { id: 'af_alloy', name: 'Alloy', language: 'en', gender: 'female' },
+  { id: 'af_aoede', name: 'Aoede', language: 'en', gender: 'female' },
+  { id: 'af_bella', name: 'Bella', language: 'en', gender: 'female' },
+  { id: 'af_jessica', name: 'Jessica', language: 'en', gender: 'female' },
+  { id: 'af_kore', name: 'Kore', language: 'en', gender: 'female' },
+  { id: 'af_nicole', name: 'Nicole', language: 'en', gender: 'female' },
+  { id: 'af_nova', name: 'Nova', language: 'en', gender: 'female' },
+  { id: 'af_river', name: 'River', language: 'en', gender: 'female' },
+  { id: 'af_sarah', name: 'Sarah', language: 'en', gender: 'female' },
+  { id: 'af_sky', name: 'Sky', language: 'en', gender: 'female' },
+  { id: 'am_adam', name: 'Adam', language: 'en', gender: 'male' },
+  { id: 'am_echo', name: 'Echo', language: 'en', gender: 'male' },
+  { id: 'am_eric', name: 'Eric', language: 'en', gender: 'male' },
+  { id: 'am_fenrir', name: 'Fenrir', language: 'en', gender: 'male' },
+  { id: 'am_liam', name: 'Liam', language: 'en', gender: 'male' },
+  { id: 'am_michael', name: 'Michael', language: 'en', gender: 'male' },
+  { id: 'am_onyx', name: 'Onyx', language: 'en', gender: 'male' },
+  { id: 'am_puck', name: 'Puck', language: 'en', gender: 'male' },
+  { id: 'am_santa', name: 'Santa', language: 'en', gender: 'male' },
+  { id: 'bf_emma', name: 'Emma', language: 'en', gender: 'female' },
+  { id: 'bf_isabella', name: 'Isabella', language: 'en', gender: 'female' },
+  { id: 'bf_alice', name: 'Alice', language: 'en', gender: 'female' },
+  { id: 'bf_lily', name: 'Lily', language: 'en', gender: 'female' },
+  { id: 'bm_george', name: 'George', language: 'en', gender: 'male' },
+  { id: 'bm_lewis', name: 'Lewis', language: 'en', gender: 'male' },
+  { id: 'bm_daniel', name: 'Daniel', language: 'en', gender: 'male' },
+  { id: 'bm_fable', name: 'Fable', language: 'en', gender: 'male' },
 ];
 
 export interface KokoroProvider extends Pick<ProviderV3, 'speechModel'> {
@@ -37,45 +44,16 @@ export interface KokoroProvider extends Pick<ProviderV3, 'speechModel'> {
 }
 
 export interface KokoroProviderSettings {
-  baseURL?: string;
-  headers?: Record<string, string>;
-  fetch?: FetchFunction;
-  autoStart?: {
-    enabled: boolean;
-    port: number;
-    basePath: string;
-    /** 使用终端创建 tab 来执行命令 */
-    createTab: (options: { command: string; timeout?: number; showTerminal?: boolean }) => Promise<{ id: string; result?: { success: boolean; output: string } }>;
-    platform: string;
-    pathJoin: (...paths: string[]) => string;
-    notification: {
-      info: (content: string, title?: string) => void;
-      success: (content: string, title?: string) => void;
-      error: (content: string, title?: string) => void;
-      loading: (content: string, title?: string, duration?: number) => void;
-      removeStatus: (id: string) => void;
-    };
-  };
-  concurrency?: KokoroConcurrencyConfig;
+  invokeIPC: (channel: string, ...args: any[]) => Promise<any>;
 }
 
 export function createKokoro(
-  options: KokoroProviderSettings = {},
+  options: KokoroProviderSettings,
 ): KokoroProvider {
-  const baseURL = options.baseURL ?? 'http://localhost:18889';
-
-  const getHeaders = () => ({
-    ...options.headers,
-  });
-
-  const createSpeechModel = (modelId: string = 'kokoro-v1.1-zh') =>
+  const createSpeechModel = (modelId: string = 'onnx-community/Kokoro-82M-v1.1-zh-ONNX') =>
     new KokoroSpeechModel(modelId, {
       provider: `kokoro.speech`,
-      url: ({ path }) => `${baseURL}${path}`,
-      headers: getHeaders,
-      fetch: options.fetch,
-      autoStart: options.autoStart,
-      concurrency: options.concurrency,
+      invokeIPC: options.invokeIPC,
     });
 
   const provider = function () {
@@ -89,7 +67,7 @@ export function createKokoro(
 
   const defaultModels: Model[] = [
     {
-      id: 'kokoro-v1.1-zh',
+      id: 'onnx-community/Kokoro-82M-v1.1-zh-ONNX',
       category: 'tts',
       name: 'Kokoro v1.1 中文',
       created: 1706745600,
@@ -101,19 +79,9 @@ export function createKokoro(
 
   provider.listVoices = async () => {
     try {
-      const response = await fetch(`${baseURL}/voices`, {
-        method: 'GET',
-        headers: getHeaders(),
-      });
-
-      if (!response.ok) {
-        return DEFAULT_VOICES;
-      }
-
-      const result = (await response.json()) as KokoroListVoicesResponse;
-      return result.voices || DEFAULT_VOICES;
-    } catch (error) {
-      console.error('Failed to fetch Kokoro voices:', error);
+      const voices = await options.invokeIPC('voices');
+      return voices as KokoroVoiceInfo[];
+    } catch {
       return DEFAULT_VOICES;
     }
   };
@@ -122,11 +90,9 @@ export function createKokoro(
     const voices = await provider.listVoices();
     return defaultModels.map((m) => ({
       ...m,
-      voices: voices.map((v): ModelVoice => ({ id: v.id, name: v.name })),
+      voices: voices.map((v) => ({ id: v.id, name: v.name })),
     }));
   };
 
   return provider satisfies KokoroProvider;
 }
-
-export const kokoro = createKokoro();

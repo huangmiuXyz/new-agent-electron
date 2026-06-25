@@ -1,115 +1,43 @@
-import { Plugin, PluginContext } from './types';
+import { Plugin, PluginContext } from '@agent-qi/types';
 import { createKokoro, DEFAULT_VOICES } from './kokoro/kokoro-provider';
 
 const PLUGIN_NAME = 'kokoro-plugin';
-const STORAGE_KEY = 'kokoro-config';
 const PROVIDER_ID = 'kokoro';
 
-/**
- * Kokoro TTS Plugin
- * 
- * 集成 Kokoro 开源 TTS 模型，支持本地语音合成。
- * 支持在调用 doGenerate 时自动启动后端服务。
- */
 const plugin: Plugin = {
   name: PLUGIN_NAME,
-  version: '1.0.0',
-  description: 'Kokoro Local TTS Plugin with Auto-start',
-  author: 'Agent-Qi',
+  version: '2.0.0',
+  description: 'Kokoro Local TTS Plugin (kokoro-js)',
 
   install: async (context: PluginContext) => {
-    const { localforage, useForm, registerRegistry, registerProvider } = context;
-
-    let currentConfig: any = (await localforage.getItem(STORAGE_KEY)) || {};
-
-    const [ConfigForm] = useForm({
-      fields: [
-        {
-          name: 'baseURL',
-          label: '服务地址',
-          type: 'text',
-          placeholder: 'http://localhost:18889',
-          hint: 'Kokoro TTS 后端服务地址'
-        },
-        {
-          name: 'autoStartServer',
-          label: '自动启动后端服务',
-          type: 'boolean',
-          hint: '在调用 TTS 时自动启动 Python 后端服务'
-        },
-        {
-          name: 'serverPort',
-          label: '服务端口号',
-          type: 'number',
-          placeholder: '18889',
-          hint: '本地服务监听端口'
-        },
-        {
-          name: 'maxConcurrency',
-          label: '最大并发数',
-          type: 'number',
-          placeholder: '3',
-          hint: '同时进行的TTS请求数量，0或留空表示不限制'
-        }
-      ],
-      initialData: {
-        baseURL: currentConfig.baseURL || 'http://localhost:18889',
-        autoStartServer: currentConfig.autoStartServer ?? true,
-        serverPort: currentConfig.serverPort || 18889,
-        maxConcurrency: currentConfig.maxConcurrency ?? 3
-      },
-      onChange: async (_field: string, _value: any, data: any) => {
-        currentConfig = JSON.parse(JSON.stringify(data));
-        await localforage.setItem(STORAGE_KEY, currentConfig);
-      }
-    });
+    const { registerRegistry, registerProvider } = context;
 
     registerRegistry(PROVIDER_ID, (options: any) => {
-      const autoStartEnabled = currentConfig?.autoStartServer ?? true;
-      const serverPort = currentConfig?.serverPort ?? 18889;
-      const baseURL = options?.baseURL || currentConfig?.baseURL || 'http://localhost:18889';
-
-      // 使用 useTerminal.createTab 启动服务
-      const terminal = context.useTerminal?.();
-      
-      const autoStart = autoStartEnabled && terminal?.createTab ? {
-        enabled: true,
-        port: serverPort,
-        basePath: context.basePath,
-        createTab: terminal.createTab,
-        platform: context.api?.os?.platform(),
-        pathJoin: context.api?.path?.join.bind(context.api.path),
-        notification: context.notification
-      } : undefined;
-
-      const maxConcurrency = currentConfig?.maxConcurrency ?? 3;
-
       return createKokoro({
         ...options,
-        baseURL,
-        autoStart,
-        concurrency: maxConcurrency > 0 ? { maxConcurrency } : undefined
+        invokeIPC: async (channel: string, ...args: any[]) => {
+          return context.api.pluginMain.ipc.invoke(PLUGIN_NAME, channel, ...args);
+        },
       });
     });
 
     registerProvider(PROVIDER_ID, {
       name: 'Kokoro TTS',
-      form: ConfigForm,
       models: [
         {
-          id: 'kokoro-v1.1-zh',
+          id: 'onnx-community/Kokoro-82M-v1.1-zh-ONNX',
           name: 'Kokoro v1.1 中文',
           category: 'tts',
           active: true,
-          voices: DEFAULT_VOICES.map(v => ({ id: v.id, name: v.name }))
-        }
-      ]
+          voices: DEFAULT_VOICES.map(v => ({ id: v.id, name: v.name })),
+        },
+      ],
     });
   },
 
   uninstall: (context: PluginContext) => {
-    context.unregisterProvider(PROVIDER_ID);
-  }
+    context.api.pluginMain.unload(PLUGIN_NAME);
+  },
 };
 
 export default plugin;
