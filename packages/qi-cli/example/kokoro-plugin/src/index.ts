@@ -26,7 +26,7 @@ const plugin: Plugin = {
       models: [
         {
           id: 'onnx-community/Kokoro-82M-v1.1-zh-ONNX',
-          name: 'Kokoro v1.1 中文',
+          name: 'Kokoro v1.1',
           category: 'tts',
           active: true,
           voices: DEFAULT_VOICES.map(v => ({ id: v.id, name: v.name })),

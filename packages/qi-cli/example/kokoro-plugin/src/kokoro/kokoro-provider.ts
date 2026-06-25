@@ -69,7 +69,7 @@ export function createKokoro(
     {
       id: 'onnx-community/Kokoro-82M-v1.1-zh-ONNX',
       category: 'tts',
-      name: 'Kokoro v1.1 中文',
+      name: 'Kokoro v1.1',
       created: 1706745600,
       object: 'model',
       owned_by: 'kokoro',
