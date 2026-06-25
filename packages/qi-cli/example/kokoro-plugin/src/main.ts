@@ -31,6 +31,7 @@ const plugin: MainPlugin = {
 
     let reqId = 0;
 
+    context.ipc.removeHandler('tts')
     context.ipc.handle('tts', async (_event, params: { text: string; voice: string; speed?: number }) => {
       const id = String(++reqId);
       return new Promise((resolve, reject) => {
@@ -39,6 +40,7 @@ const plugin: MainPlugin = {
       });
     });
 
+    context.ipc.removeHandler('voices')
     context.ipc.handle('voices', () => {
       const id = String(++reqId);
       return new Promise((resolve, reject) => {
