@@ -110,7 +110,7 @@ function getState(): SyncHostState {
 }
 
 function getMessageCount(snapshot: SyncSnapshot | null) {
-  return snapshot?.chats.reduce((sum, chat) => sum + chat.messages.length, 0) || 0
+  return snapshot?.chats.reduce((sum, chat) => sum + (chat.messages?.length || 0), 0) || 0
 }
 
 function toEndpointRecord(input: {
