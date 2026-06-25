@@ -148,6 +148,17 @@ peerDependencyRules:
 
 minimumReleaseAgeExclude:
   - vite@8.1.0
+  - unplugin-dts@1.0.3
+  - vite-plugin-dts@5.0.3
 
 allowBuilds:
+  '@google/genai': true
+  '@mongodb-js/zstd': true
+  '@openrouter/sdk': true
+  better-sqlite3: true
+  electron-winstaller: true
+  esbuild: true
+  node-liblzma: true
   node-pty: true
+  protobufjs: true
+  robotjs: true
