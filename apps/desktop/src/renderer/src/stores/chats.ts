@@ -520,8 +520,8 @@ export const useChatsStores = defineStore(
     ) => {
       const currentMessages = messageWindows.value[chatId]?.messages || []
       const nextMessages = typeof messages === 'function' ? messages(currentMessages) : messages
-      await chatRepository.replaceMessages(chatId, nextMessages)
       replaceWindowMessages(chatId, nextMessages)
+      await chatRepository.replaceMessages(chatId, nextMessages)
     }
 
     const loadMoreMessagesBefore = async (chatId: string) => {
