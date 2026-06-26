@@ -22,6 +22,7 @@ import { estimateMessagesTokens } from './tokenUsage'
 import { isMobile } from '@renderer/composables/useDeviceType'
 import { messageApi } from '@renderer/utils/messages'
 import { onUseAIBefore } from '@renderer/utils/onuseAIbefore'
+import { onUseToolAfter } from '@renderer/utils/onUseToolAfter'
 import { retry } from '@renderer/utils'
 import { autoCompressContext } from './contextCompression'
 import { createGenerationService } from './generation'
@@ -242,7 +243,12 @@ export const chatService = () => {
                 provider,
                 availableBuiltinTools: Array.from(builtinToolKeys)
               })
-              return result
+              return await onUseToolAfter({
+                toolName,
+                input,
+                result,
+                options: { chatId: cid, model, provider }
+              })
             }
           }
         ]

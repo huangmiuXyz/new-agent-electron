@@ -251,6 +251,7 @@ Provider 刷新 helper 模式：
 
 - `provider:form-fields`
 - `ai:before-use`
+- `tool:after-use`
 - `speech.stream.start`
 - `speech.stream.data`
 - `speech.stream.stop`

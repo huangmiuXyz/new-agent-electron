@@ -138,7 +138,7 @@ qi code init my-plugin -t hello-world -d "插件描述" -a "作者" -v "1.0.0" -
 
 - 内置工具使用 `registerBuiltinTool(name, tool)`，并提供清楚的 `title`、`description`、`inputSchema` 和可读的 `toolResult.content`。
 - hook 必须幂等，并防止重复副作用。
-- 已知 hook 名包括 `provider:form-fields`、`ai:before-use`、`speech.stream.start`、`speech.stream.data`、`speech.stream.stop`、`speech.recognize`、`plugin.clearData`。
+- 已知 hook 名包括 `provider:form-fields`、`ai:before-use`、`tool:after-use`、`speech.stream.start`、`speech.stream.data`、`speech.stream.stop`、`speech.recognize`、`plugin.clearData`。
 - 如果插件拥有文件、模型或缓存，实现 `plugin.clearData`，让设置页能真正清理数据。
 
 ### 进程、下载与后台任务
