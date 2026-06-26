@@ -11,6 +11,7 @@ type SpeechStreamControllerOptions = {
   getChatAgent: () => Agent | null
   getMessageText: (message: BaseMessage) => string
   updateMessageMetadata: (chatId: string, messageId: string, metadata: MetaData) => void
+  updateMessageAudioChunks: (chatId: string, messageId: string, audio: NonNullable<MetaData['audio']>) => void
 }
 
 export const createSpeechStreamController = ({
@@ -19,7 +20,8 @@ export const createSpeechStreamController = ({
   tts,
   getChatAgent,
   getMessageText,
-  updateMessageMetadata
+  updateMessageMetadata,
+  updateMessageAudioChunks
 }: SpeechStreamControllerOptions) => {
   let processedText = ''
   let sentenceSegmenter = createSentenceSegmenter(getChatAgent()?.speechLanguage)
@@ -64,7 +66,9 @@ export const createSpeechStreamController = ({
       duration: chunk?.duration,
       error
     }
-    updateMessageMetadata(chatId, message.id, message.metadata)
+    if (message.metadata?.audio) {
+      updateMessageAudioChunks(chatId, message.id, message.metadata.audio)
+    }
   }
 
   const createStreamingSpeechSession = async (
@@ -140,7 +144,7 @@ export const createSpeechStreamController = ({
     const chunkIndex = chunks.length
     chunks.push({ data: '', text })
 
-    updateMessageMetadata(chatId, message.id, message.metadata)
+    updateMessageAudioChunks(chatId, message.id, message.metadata.audio)
 
     try {
       const chunk = await tts.generateAndPlay({
@@ -162,17 +166,17 @@ export const createSpeechStreamController = ({
           duration: chunk.duration,
           error: undefined
         }
-        updateMessageMetadata(chatId, message.id, message.metadata)
+        updateMessageAudioChunks(chatId, message.id, message.metadata.audio)
       } else if (message.metadata?.audio?.chunks[chunkIndex]) {
         message.metadata.audio.chunks[chunkIndex].error = '生成失败：未返回音频数据'
-        updateMessageMetadata(chatId, message.id, message.metadata)
+        updateMessageAudioChunks(chatId, message.id, message.metadata.audio)
       }
     } catch (error) {
       const err = error as Error
       const errorMessage = err.message || err.name || String(error)
       if (message.metadata?.audio?.chunks[chunkIndex]) {
         message.metadata.audio.chunks[chunkIndex].error = `生成失败：${errorMessage}`
-        updateMessageMetadata(chatId, message.id, message.metadata)
+        updateMessageAudioChunks(chatId, message.id, message.metadata.audio)
       }
       messageApi.error('语音合成失败: ' + errorMessage)
     }

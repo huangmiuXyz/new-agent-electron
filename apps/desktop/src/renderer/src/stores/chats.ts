@@ -504,6 +504,16 @@ export const useChatsStores = defineStore(
       )
     }
 
+    const updateMessageAudioChunks = async (cid: string, mid: string, audio: NonNullable<MetaData['audio']>) => {
+      await updateMessages(cid, (messages) =>
+        messages.map((message) =>
+          message.id === mid
+            ? { ...message, metadata: { ...message.metadata, audio } as MetaData }
+            : message
+        )
+      )
+    }
+
     const updateMessages = async (
       chatId: string,
       messages: BaseMessage[] | ((messages: BaseMessage[]) => BaseMessage[])
@@ -736,6 +746,7 @@ export const useChatsStores = defineStore(
       deleteMessage,
       updateMessage,
       updateMessageMetadata,
+      updateMessageAudioChunks,
       isTitleGenerating,
       setTitleGenerating,
       loadMoreMessagesBefore,

@@ -41,6 +41,7 @@ export const useChat = (chatId: string) => {
     getChatById,
     shiftPendingMessage,
     updateMessageMetadata,
+    updateMessageAudioChunks,
     updateMessages
   } = useChatsStores()
   const { messageScrollRef } = useMessageScroll()
@@ -166,7 +167,8 @@ export const useChat = (chatId: string) => {
         tts,
         getChatAgent,
         getMessageText,
-        updateMessageMetadata
+        updateMessageMetadata,
+        updateMessageAudioChunks
       })
 
       const subTaskCoordinator = createSubTaskResultCoordinator({
