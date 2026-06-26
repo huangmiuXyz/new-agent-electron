@@ -32,14 +32,6 @@ export const DEFAULT_VOICES: KokoroVoiceInfo[] = [
   { id: 'bm_lewis', name: 'Lewis', language: 'en', gender: 'male' },
   { id: 'bm_daniel', name: 'Daniel', language: 'en', gender: 'male' },
   { id: 'bm_fable', name: 'Fable', language: 'en', gender: 'male' },
-  { id: 'zf_xiaobei', name: '小北', language: 'zh', gender: 'female' },
-  { id: 'zf_xiaoni', name: '小妮', language: 'zh', gender: 'female' },
-  { id: 'zf_xiaoxiao', name: '小小', language: 'zh', gender: 'female' },
-  { id: 'zf_xiaoyi', name: '小艺', language: 'zh', gender: 'female' },
-  { id: 'zm_yunjian', name: '云剑', language: 'zh', gender: 'male' },
-  { id: 'zm_yunxi', name: '云希', language: 'zh', gender: 'male' },
-  { id: 'zm_yunxia', name: '云夏', language: 'zh', gender: 'male' },
-  { id: 'zm_yunyang', name: '云扬', language: 'zh', gender: 'male' },
 ];
 
 export interface KokoroProvider extends Pick<ProviderV3, 'speechModel'> {
