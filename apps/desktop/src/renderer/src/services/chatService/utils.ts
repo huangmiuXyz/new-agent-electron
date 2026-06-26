@@ -67,31 +67,43 @@ export function sanitizeUIMessages(
 
     return {
       ...message,
-      parts: message.parts.filter((part) => {
-        // 如果不是工具调用部分，保留
-        if (!isToolUIPart(part)) return true
+      parts: message.parts
+        .map((part) => {
+          if (
+            isToolUIPart(part) &&
+            part.state === 'output-available' &&
+            part.approval &&
+            !part.approval.approved
+          ) {
+            return { ...part, approval: undefined }
+          }
+          return part
+        })
+        .filter((part) => {
+          // 如果不是工具调用部分，保留
+          if (!isToolUIPart(part)) return true
 
-        // 1. 始终保留有明确结果的工具调用
-        if (
-          part.state === 'output-available' ||
-          part.state === 'output-error' ||
-          part.state === 'output-denied'
-        ) {
-          return true
-        }
+          // 1. 始终保留有明确结果的工具调用
+          if (
+            part.state === 'output-available' ||
+            part.state === 'output-error' ||
+            part.state === 'output-denied'
+          ) {
+            return true
+          }
 
-        // 2. 特殊处理：手动批准场景
-        // 仅当是最后一条消息（即包含用户刚刚操作的工具调用的消息）时生效
-        if (options.isManualApproval && isLastMessage) {
-          // 保留已批准的（等待执行）
-          if (part.state === 'approval-responded') return true
-          // 保留未批准的（等待用户操作），因为用户明确要求不能过滤
-          if (part.state === 'approval-requested') return true
-        }
+          // 2. 特殊处理：手动批准场景
+          // 仅当是最后一条消息（即包含用户刚刚操作的工具调用的消息）时生效
+          if (options.isManualApproval && isLastMessage) {
+            // 保留已批准的（等待执行）
+            if (part.state === 'approval-responded') return true
+            // 保留未批准的（等待用户操作），因为用户明确要求不能过滤
+            if (part.state === 'approval-requested') return true
+          }
 
-        // 其他情况（如 executing, input-streaming 等，以及非手动批准场景下的 approval-responded/requested）统统过滤
-        return false
-      })
+          // 其他情况（如 executing, input-streaming 等，以及非手动批准场景下的 approval-responded/requested）统统过滤
+          return false
+        })
     }
   })
 }

@@ -63,11 +63,11 @@ export const createGenerationService = () => {
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
     try {
+      const sanitizedMessages = sanitizeUIMessages(messages as UIMessage[])
       const validatedMessages = await validateUIMessages({
-        messages,
+        messages: sanitizedMessages,
         tools
       })
-      const sanitizedMessages = sanitizeUIMessages(validatedMessages)
       const normalizedMessages = normalizeInlineFilePartUrls(sanitizedMessages)
       const modelMessages = await convertToModelMessages(normalizedMessages)
 

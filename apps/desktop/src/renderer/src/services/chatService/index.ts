@@ -320,15 +320,15 @@ export const chatService = () => {
       ]
     })
 
-    // 1. Validate UI messages
-    const validatedMessages = await validateUIMessages({
-      messages,
-      tools: agent.tools
+    // 1. 清洗数据：移除历史中没有结果的工具调用，修复不兼容字段，防止模型报错
+    const sanitizedMessages = sanitizeUIMessages(messages, {
+      isManualApproval: isApprovalAction || false
     })
 
-    // 2. 清洗数据：移除历史中没有结果的工具调用，防止模型报错
-    const sanitizedMessages = sanitizeUIMessages(validatedMessages, {
-      isManualApproval: isApprovalAction || false
+    // 2. Validate UI messages
+    const validatedMessages = await validateUIMessages({
+      messages: sanitizedMessages,
+      tools: agent.tools
     })
 
     const normalizedMessages = normalizeInlineFilePartUrls(sanitizedMessages)
