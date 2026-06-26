@@ -33,9 +33,8 @@ const focusedIndex = ref(-1)
 const visibleAgents = computed(() => [...favoriteAgents.value, ...regularAgents.value])
 
 const focusSearchInput = () => {
-  if (!agentSelectorWrapperRef.value) return
-  const input = agentSelectorWrapperRef.value.querySelector<HTMLElement>(
-    '.search-input__field, .selector-search-input input'
+  const input = document.querySelector<HTMLElement>(
+    '.selector-tray .search-input__field, .selector-tray .selector-search-input input'
   )
   input?.focus()
 }
@@ -73,6 +72,10 @@ const handleKeydown = (e: KeyboardEvent) => {
       break
   }
 }
+
+// Listen globally since tray is Teleported to body
+onMounted(() => document.addEventListener('keydown', handleKeydown))
+onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus, Copy, Delete, Settings } = useIcon([
   'Wrench20Regular',
   'Robot',
@@ -163,8 +166,7 @@ watch(isPopupOpen, (val) => {
 watch(focusedIndex, (idx) => {
   if (idx < 0) return
   nextTick(() => {
-    if (!agentSelectorWrapperRef.value) return
-    const items = agentSelectorWrapperRef.value.querySelectorAll('.agent-item')
+    const items = document.querySelectorAll('.selector-tray .agent-item')
     if (items[idx]) {
       items[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }
@@ -276,10 +278,10 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 </script>
 
 <template>
-  <div ref="agentSelectorWrapperRef" @keydown="handleKeydown">
+  <div ref="agentSelectorWrapperRef">
   <SelectorPopover v-model:visible="isPopupOpen" v-model:searchQuery="searchQuery" :data="allAgents"
-    desktop-presentation="dialog" placeholder="搜索智能体..." noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0"
-    width="620px" title="选择智能体">
+    desktop-presentation="tray" placeholder="搜索智能体..." noResultsText="未找到智能体" :hasResults="filteredAgents.length > 0"
+    width="420px" title="选择智能体" tray-anchor=".input-container">
     <template #search-action>
       <Button variant="icon" size="sm" title="添加智能体" @click.stop="openCreateAgentModal">
         <template #icon>
@@ -307,43 +309,22 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
       <template v-if="favoriteAgents.length > 0">
         <div class="agent-section-title">收藏</div>
         <div v-for="(agent, i) in favoriteAgents" :key="`favorite-${agent.id}`" class="agent-item"
-          :class="{ selected: isAgentSelected(agent.id), focused: focusedIndex === i }" @click="selectAgent(agent.id)">
-          <div class="agent-main">
-            <div class="agent-icon-container">
-              <Image v-if="agent.avatar" class="agent-avatar-list" :src="agent.avatar" alt="" />
-              <div v-else class="agent-icon">
-                <Robot />
-              </div>
-            </div>
-
-            <div class="agent-content" :class="{ 'agent-content--center': !agent.description }">
-              <div class="agent-title-row">
-                <div class="agent-title" :title="agent.name">{{ agent.name }}</div>
-                <span v-if="tempAgents.some((a) => a.id === agent.id)" class="temp-tag">临时</span>
-              </div>
-              <div v-if="agent.description" class="agent-desc" :title="agent.description">
-                {{ agent.description }}
-              </div>
+          :class="{ selected: isAgentSelected(agent.id), focused: focusedIndex === i }" @click="selectAgent(agent.id)"
+          @contextmenu="handleAgentContextMenu($event, agent)">
+          <div class="agent-item-icon">
+            <Image v-if="agent.avatar" class="agent-item-avatar" :src="agent.avatar" alt="" />
+            <div v-else class="agent-item-default-icon">
+              <Robot />
             </div>
           </div>
-
-          <div class="agent-side">
-            <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm"
-              class="agent-tags" />
-
-            <div class="agent-check">
-              <div v-if="hasAgentTools(agent)" class="agent-mcp">
-                <Wrench20Regular />
-                <span class="agent-mcp-count">{{ getAgentToolCount(agent) }}</span>
-              </div>
-
-              <Check v-if="isAgentSelected(agent.id)" />
-
-              <Button @click.stop="handleAgentContextMenu($event, agent)" variant="icon" size="sm" title="智能体设置">
-                <template #icon>
-                  <Settings />
-                </template>
-              </Button>
+          <div class="agent-item-body">
+            <div class="agent-item-name">{{ agent.name }}</div>
+            <div v-if="agent.description" class="agent-item-desc">{{ agent.description }}</div>
+          </div>
+          <div class="agent-item-tail">
+            <Check v-if="isAgentSelected(agent.id)" class="agent-item-check" />
+            <div v-if="hasAgentTools(agent)" class="agent-item-tools">
+              <Wrench20Regular />
             </div>
           </div>
         </div>
@@ -354,42 +335,20 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
         <div v-for="(agent, i) in regularAgents" :key="agent.id" class="agent-item"
           :class="{ selected: isAgentSelected(agent.id), focused: focusedIndex === favoriteAgents.length + i }" @click="selectAgent(agent.id)"
           @contextmenu="handleAgentContextMenu($event, agent)">
-          <div class="agent-main">
-            <div class="agent-icon-container">
-              <Image v-if="agent.avatar" class="agent-avatar-list" :src="agent.avatar" alt="" />
-              <div v-else class="agent-icon">
-                <Robot />
-              </div>
-            </div>
-
-            <div class="agent-content" :class="{ 'agent-content--center': !agent.description }">
-              <div class="agent-title-row">
-                <div class="agent-title" :title="agent.name">{{ agent.name }}</div>
-                <span v-if="tempAgents.some((a) => a.id === agent.id)" class="temp-tag">临时</span>
-              </div>
-              <div v-if="agent.description" class="agent-desc" :title="agent.description">
-                {{ agent.description }}
-              </div>
+          <div class="agent-item-icon">
+            <Image v-if="agent.avatar" class="agent-item-avatar" :src="agent.avatar" alt="" />
+            <div v-else class="agent-item-default-icon">
+              <Robot />
             </div>
           </div>
-
-          <div class="agent-side">
-            <Tags v-if="getAgentTags(agent).length" :tags="getAgentTags(agent)" color="orange" size="sm"
-              class="agent-tags" />
-
-            <div class="agent-check">
-              <div v-if="hasAgentTools(agent)" class="agent-mcp">
-                <Wrench20Regular />
-                <span class="agent-mcp-count">{{ getAgentToolCount(agent) }}</span>
-              </div>
-
-              <Check v-if="isAgentSelected(agent.id)" />
-
-              <Button @click.stop="handleAgentContextMenu($event, agent)" variant="icon" size="sm" title="智能体设置">
-                <template #icon>
-                  <Settings />
-                </template>
-              </Button>
+          <div class="agent-item-body">
+            <div class="agent-item-name">{{ agent.name }}</div>
+            <div v-if="agent.description" class="agent-item-desc">{{ agent.description }}</div>
+          </div>
+          <div class="agent-item-tail">
+            <Check v-if="isAgentSelected(agent.id)" class="agent-item-check" />
+            <div v-if="hasAgentTools(agent)" class="agent-item-tools">
+              <Wrench20Regular />
             </div>
           </div>
         </div>
@@ -401,6 +360,7 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 </template>
 
 <style scoped>
+/* ---- Trigger button ---- */
 .agent-btn {
   display: flex;
   align-items: center;
@@ -410,10 +370,10 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
   background: var(--bg-hover);
   border: 1px solid transparent;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-primary);
-  transition: all 0.2s;
+  transition: all 0.12s ease;
   max-width: 180px;
 }
 
@@ -430,21 +390,10 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 }
 
 .agent-avatar {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 4px;
   object-fit: cover;
-}
-
-.agent-avatar-list {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  object-fit: cover;
-}
-
-.agent-icon-container {
-  flex-shrink: 0;
 }
 
 .arrow-icon {
@@ -452,196 +401,122 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
   color: var(--text-tertiary);
 }
 
+/* ---- Agent list items (tray-style) ---- */
 .agent-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
-  margin-bottom: 2px;
-  min-height: 52px;
-  position: relative;
-}
-
-.agent-main {
-  display: flex;
-  align-items: center;
   gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-
-.agent-side {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.agent-section-title {
-  padding: 8px 4px 6px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-tertiary);
-  letter-spacing: 0.06em;
-}
-
-.agent-item.focused {
-  box-shadow: 0 0 0 2px var(--accent-color);
-  border-radius: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  min-height: 44px;
+  border: 1px solid transparent;
 }
 
 .agent-item:hover {
   background: var(--bg-hover);
 }
 
-.agent-item.selected {
-  background: var(--border-color-light);
+.agent-item.focused {
+  box-shadow: 0 0 0 1px var(--accent-color);
 }
 
-.agent-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-color) 100%);
+.agent-item.selected {
+  background: rgba(var(--accent-rgb, 47, 116, 255), 0.08);
+  border-color: rgba(var(--accent-rgb, 47, 116, 255), 0.16);
+}
+
+/* Icon: 20px line icon style */
+.agent-item-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
 }
 
-.agent-icon :deep(svg) {
-  font-size: 18px;
-  color: var(--bg-card);
+.agent-item-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
-.agent-content {
+.agent-item-default-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: rgba(var(--accent-rgb, 47, 116, 255), 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agent-item-default-icon :deep(svg) {
+  font-size: 12px;
+  color: var(--accent-color);
+}
+
+/* Body: name + desc */
+.agent-item-body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  gap: 4px;
+  gap: 2px;
 }
 
-.agent-content--center {
-  gap: 0;
-  justify-content: center;
-}
-
-.agent-title {
-  font-size: 13px;
+.agent-item-name {
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
-  min-width: 0;
+  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  line-height: 1.4;
 }
 
-.agent-title-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  width: 100%;
-}
-
-.agent-desc {
+.agent-item-desc {
   font-size: 11px;
   color: var(--text-tertiary);
   line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  width: 100%;
 }
 
-.agent-mcp {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  color: var(--text-secondary);
-}
-
-.agent-mcp-count {
-  white-space: nowrap;
-}
-
-.agent-mcp :deep(svg) {
-  font-size: 10px;
-}
-
-.agent-check {
+/* Tail: check + tools indicator */
+.agent-item-tail {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-
-
-.agent-check :deep(svg) {
+.agent-item-check {
   font-size: 14px;
   color: var(--accent-color);
-  transition: opacity 0.15s;
 }
 
-.temp-tag {
-  font-size: 10px;
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-  padding: 1px 4px;
-  border-radius: 4px;
-  margin-left: 4px;
-  font-weight: normal;
-}
-
-:deep(.modal-body) .agent-list {
-  padding-bottom: 4px;
-}
-
-:deep(.modal-body) .agent-item {
-  padding: 12px;
-  border-radius: 10px;
-  margin-bottom: 6px;
-  border: 1px solid transparent;
-}
-
-:deep(.modal-body) .agent-item:hover {
-  border-color: rgba(var(--text-rgb), 0.06);
-}
-
-:deep(.modal-body) .agent-item.selected {
-  background: color-mix(in srgb, var(--accent-color) 12%, var(--bg-card));
-  border-color: color-mix(in srgb, var(--accent-color) 28%, transparent);
-}
-
-:deep(.modal-body) .agent-item.focused {
-  box-shadow: 0 0 0 2px var(--accent-color);
-}
-
-:deep(.modal-body) .agent-avatar-list,
-:deep(.modal-body) .agent-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-}
-
-:deep(.modal-body) .agent-title {
-  font-size: 14px;
-}
-
-:deep(.modal-body) .agent-desc {
+.agent-item-tools {
+  display: flex;
+  align-items: center;
   font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Section title */
+.agent-section-title {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.agent-list {
+  padding-top: 4px ;
 }
 </style>

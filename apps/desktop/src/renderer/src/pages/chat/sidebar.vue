@@ -584,24 +584,25 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 80px 24px;
   text-align: center;
-  color: var(--text-tertiary);
+  flex: 1;
 }
 
 .sidebar:not(.is-mobile) .empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
+  display: none;
 }
 
 .sidebar:not(.is-mobile) .empty-text {
-  margin-bottom: 16px;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+  margin-bottom: 0;
 }
 
 .sidebar:not(.is-mobile) .empty-button {
-  margin-top: 8px;
+  display: none;
 }
 
 .chat-tree-list {

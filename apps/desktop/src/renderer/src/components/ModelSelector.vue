@@ -404,14 +404,15 @@ const handleModelLogoError = () => {
     v-model:visible="isPopupOpen"
     :data="listItems"
     v-model:searchQuery="searchQuery"
-    desktop-presentation="dialog"
+    desktop-presentation="tray"
     placeholder="搜索模型..."
     noResultsText="未找到模型"
     :hasResults="listItems.length > 0"
     :search-debounce="120"
-    width="560px"
+    width="380px"
     title="选择模型"
     :position="popupPosition || 'top'"
+    tray-anchor=".input-container"
   >
     <template #trigger>
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">

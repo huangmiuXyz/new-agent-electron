@@ -1,5 +1,5 @@
 .footer {
-  padding: 10px;
+  padding: 10px 12px;
   background: transparent;
   width: 100%;
   transition:
@@ -17,9 +17,9 @@
   margin-bottom: 8px;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 8px 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .pending-messages-header {
@@ -106,20 +106,20 @@
 .input-container {
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  border-radius: 22px;
+  padding: 14px 16px 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
   transition:
-    border 0.2s,
-    box-shadow 0.2s;
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
   position: relative;
 }
 
 .input-container:focus-within {
-  border-color: var(--border-focus);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb, 0, 122, 255), 0.18);
 }
 
 .input-container.drag-over {
@@ -133,13 +133,14 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
-  border-radius: 12px;
+  background-color: rgba(var(--color-primary-rgb, 0, 122, 255), 0.06);
+  border-radius: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10;
   pointer-events: none;
+  backdrop-filter: blur(2px);
 }
 
 .drag-message {
@@ -163,49 +164,45 @@
 
 :deep(.mention-chip) {
   box-sizing: border-box;
-  max-width: min(260px, 100%);
+  max-width: min(320px, 100%);
   min-width: 0;
-  height: 14px;
-  padding: 0 4px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  height: 20px;
+  padding: 0 2px 0 7px;
+  border: none;
+  border-radius: 5px;
   background: var(--bg-hover);
   color: var(--text-primary);
   display: inline-flex;
   align-items: center;
-  vertical-align: text-bottom;
-  gap: 4px;
-  margin: 0 1px;
+  vertical-align: baseline;
+  gap: 3px;
+  margin: 0 2px;
   font-family: var(--font-stack);
-  font-size: 9px;
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
   user-select: none;
   transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease;
+    background-color 0.12s ease;
 }
 
 :deep(.mention-chip:hover) {
-  border-color: var(--border-focus);
   background: var(--bg-active);
 }
 
 :deep(.mention-chip.is-active) {
-  border-color: var(--border-focus);
   background: var(--bg-active);
 }
 
 :deep(.mention-chip.is-selected) {
-  border-color: var(--color-primary);
-  background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.18);
-  color: var(--text-primary);
+  background: rgba(var(--color-primary-rgb, 0, 122, 255), 0.14);
 }
 
 :deep(.mention-chip__kind) {
   flex-shrink: 0;
-  color: var(--text-secondary);
-  font-weight: 700;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  font-size: 12px;
 }
 
 :deep(.mention-chip__label) {
@@ -221,10 +218,15 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  width: 10px;
-  height: 10px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
+  border-radius: 3px;
   color: var(--text-tertiary);
+  margin-left: 1px;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
 }
 
 :deep(.mention-chip__close::before),
@@ -234,7 +236,7 @@
   left: 50%;
   top: 50%;
   width: 8px;
-  height: 1px;
+  height: 1.5px;
   border-radius: 999px;
   background: currentColor;
   transform-origin: center;
@@ -249,32 +251,37 @@
 }
 
 :deep(.mention-chip:hover .mention-chip__close) {
+  color: var(--text-secondary);
+}
+
+:deep(.mention-chip:hover .mention-chip__close:hover) {
+  background: var(--bg-hover);
   color: var(--color-danger);
 }
 
 :deep(.mention-chip--skills) {
-  background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+  background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.08);
 }
 
 :deep(.mention-chip--file) {
-  background: rgba(var(--color-success-rgb, 16, 185, 129), 0.1);
+  background: rgba(var(--color-success-rgb, 16, 185, 129), 0.08);
 }
 
 :deep(.mention-chip--note) {
-  background: rgba(var(--color-warning-rgb, 245, 158, 11), 0.12);
+  background: rgba(var(--color-warning-rgb, 245, 158, 11), 0.1);
 }
 
 :deep(.mention-chip--agent) {
-  background: rgba(var(--color-info-rgb, 59, 130, 246), 0.1);
+  background: rgba(var(--color-info-rgb, 59, 130, 246), 0.08);
 }
 
 .partial-text {
   position: absolute;
-  left: 8px;
+  left: 10px;
   top: 8px;
   color: var(--text-tertiary);
   pointer-events: none;
-  font-size: 12px;
+  font-size: 14px;
   white-space: pre-wrap;
   word-break: break-all;
   opacity: 0.7;
@@ -285,13 +292,14 @@
   border: none;
   outline: none;
   width: 100%;
-  padding: 8px;
-  font-size: 12px;
+  padding: 8px 10px;
+  font-size: 15px;
   font-family: var(--font-stack);
   resize: none;
   min-height: 24px;
+  max-height: 180px;
   overflow-y: hidden;
-  line-height: 1.4;
+  line-height: 1.5;
   background: transparent;
   color: var(--text-primary);
   white-space: pre-wrap;
@@ -301,27 +309,28 @@
 .editor-field {
   cursor: text;
   user-select: text;
-  line-height: 17px;
 }
 
 .editor-placeholder {
   position: absolute;
-  left: 8px;
+  left: 10px;
   top: 8px;
-  right: 8px;
+  right: 10px;
   z-index: 1;
   color: var(--text-tertiary);
   pointer-events: none;
-  font-size: 12px;
-  line-height: 17px;
+  font-size: 15px;
+  line-height: 1.5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: opacity 0.16s ease;
 }
 
 .mobile-editor-placeholder {
   top: 8px;
-  font-size: 14px;
+  left: 8px;
+  font-size: 15px;
 }
 
 .editor-field[contenteditable='false'] {
@@ -333,21 +342,56 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 6px;
-  margin-top: 4px;
-  border-top: 1px solid var(--border-color-light);
+  padding-top: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .action-left {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .action-right {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* 图标按钮：圆角方形 */
+:deep(.btn--icon.btn--sm) {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 10px;
+  border: none;
+  font-size: 16px;
+  padding: 0;
+  transition:
+    background-color 0.14s ease,
+    color 0.14s ease;
+}
+
+:deep(.btn--icon.btn--sm:hover) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+:deep(.btn--icon.btn--sm:active) {
+  transform: scale(0.92);
+  background: var(--bg-active);
+}
+
+/* 发送按钮：柔和 pill */
+:deep(.btn--primary.btn--md) {
+  border-radius: 16px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .token-usage-popover {
@@ -466,19 +510,19 @@
  *  - active：已设置路径时，用主题反相 monochrome chip 强调
  * ------------------------------------------------------------------ */
 .workpath-trigger {
-  height: 26px;
-  min-height: 26px;
-  max-width: 168px;
-  padding: 0 8px;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  height: 32px;
+  min-height: 32px;
+  max-width: 180px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
   background: transparent;
   color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
   gap: 5px;
   font-family: var(--font-stack);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1;
   overflow: hidden;
@@ -486,15 +530,13 @@
   -webkit-user-select: none;
   user-select: none;
   transition:
-    background-color 0.16s ease,
-    color 0.16s ease,
-    border-color 0.16s ease;
+    background-color 0.14s ease,
+    color 0.14s ease;
 }
 
 .workpath-trigger:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
-  border-color: var(--border-color-light);
 }
 
 .workpath-trigger:active {
@@ -555,9 +597,15 @@
   align-items: center;
   gap: 6px;
   background: var(--bg-input);
-  border: 1px solid var(--border-color-light);
-  border-radius: 16px;
-  padding: 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 22px;
+  padding: 12px 14px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.mobile-input-bar:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb, 0, 122, 255), 0.18);
 }
 
 .mobile-top-drop-zone {
@@ -583,8 +631,8 @@
 }
 
 .mobile-input-field {
-  min-height: 38px;
-  font-size: 14px;
+  min-height: 40px;
+  font-size: 15px;
   padding: 8px 8px;
   overflow-x: hidden;
 }
@@ -655,9 +703,36 @@
 
 .mobile-send-btn {
   flex-shrink: 0;
-  border-radius: 12px;
-  min-width: 58px;
-  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: var(--accent-text);
+  cursor: pointer;
+  transition:
+    background-color 0.14s ease,
+    transform 0.1s ease,
+    opacity 0.14s ease;
+}
+
+.mobile-send-btn:hover {
+  opacity: 0.88;
+}
+
+.mobile-send-btn:active {
+  transform: scale(0.92);
+  opacity: 0.82;
+}
+
+.mobile-send-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .mobile-toggle-open {
@@ -683,7 +758,7 @@
 
   .input-container {
     border-radius: 22px;
-    padding: 10px;
+    padding: 12px 14px 10px;
     background: var(--bg-card);
     border: none;
     box-shadow: none;
@@ -697,7 +772,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: 12px;
   }
 }
 

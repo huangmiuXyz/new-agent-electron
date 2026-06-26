@@ -657,9 +657,13 @@ onUnmounted(() => {
             :title="showMobileTools ? '收起工具' : '展开工具'">
             <ChevronDown :class="{ 'mobile-toggle-open': showMobileTools }" />
           </Button>
-          <Button variant="primary" size="sm" class="mobile-send-btn" @click="_sendMessage">
-            {{ isGenerating && pendingMessages.length > 0 ? '队列' : '发送' }}
-          </Button>
+          <button
+            class="mobile-send-btn"
+            :title="isGenerating && pendingMessages.length > 0 ? '队列' : '发送'"
+            @click="_sendMessage"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 13V3m0 0L4 7m4-4l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
         </div>
 
         <div v-if="showMobileTools" class="mobile-tools-panel" ref="mobileBottomZoneRef" :class="{
@@ -692,4 +696,21 @@ onUnmounted(() => {
 
 <style scoped>
 @import './input.css';
+</style>
+
+<style>
+.dark-mode .input-container:focus-within {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.03) !important;
+}
+
+.dark-mode .mobile-input-bar:focus-within {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.03) !important;
+}
+
+.dark-mode .send-btn,
+.dark-mode .mobile-send-btn {
+  color: #fff !important;
+}
 </style>

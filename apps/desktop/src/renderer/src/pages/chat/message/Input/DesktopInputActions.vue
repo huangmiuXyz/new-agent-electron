@@ -202,9 +202,13 @@ const WorkPathChevronIcon = useIcon('ChevronDown')
       </template>
     </div>
     <div class="action-right">
-      <Button variant="primary" size="md" @click="emit('send')">
-        {{ props.isGenerating && props.pendingMessagesCount > 0 ? '加入队列' : '发送' }}
-      </Button>
+      <button
+        class="send-btn"
+        :title="props.isGenerating && props.pendingMessagesCount > 0 ? '加入队列' : '发送'"
+        @click="emit('send')"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 13V3m0 0L4 7m4-4l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
     </div>
   </div>
 </template>
@@ -216,9 +220,10 @@ const WorkPathChevronIcon = useIcon('ChevronDown')
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 6px;
-  margin-top: 4px;
-  border-top: 1px solid var(--border-color-light);
+  padding-top: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .action-left,
@@ -228,12 +233,72 @@ const WorkPathChevronIcon = useIcon('ChevronDown')
 }
 
 .action-left {
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .action-right {
   gap: 8px;
   flex-shrink: 0;
+}
+
+/* 图标按钮：圆角方形 */
+:deep(.btn--icon.btn--sm) {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 10px;
+  border: none;
+  font-size: 16px;
+  padding: 0;
+  transition:
+    background-color 0.14s ease,
+    color 0.14s ease;
+}
+
+:deep(.btn--icon.btn--sm:hover) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+:deep(.btn--icon.btn--sm:active) {
+  transform: scale(0.92);
+  background: var(--bg-active);
+}
+
+/* 发送按钮：圆角方形 */
+.send-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: var(--accent-text);
+  cursor: pointer;
+  transition:
+    background-color 0.14s ease,
+    transform 0.1s ease,
+    opacity 0.14s ease;
+}
+
+.send-btn:hover {
+  opacity: 0.88;
+}
+
+.send-btn:active {
+  transform: scale(0.92);
+  opacity: 0.82;
+}
+
+.send-btn svg {
+  width: 16px;
+  height: 16px;
 }
 </style>

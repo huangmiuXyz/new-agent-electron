@@ -2,7 +2,7 @@ export interface CascaderPanelItem {
   key: string
   label: string
   description?: string
-  icon?: 'split'
+  icon?: string
   children?: CascaderPanelItem[] | ((item: CascaderPanelItem, path: CascaderPanelItem[]) => CascaderPanelItem[])
   onKeydown?: (context: CascaderPanelItemKeydownContext) => CascaderPanelItemKeydownResult | void
   data?: unknown

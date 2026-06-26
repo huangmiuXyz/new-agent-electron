@@ -9,15 +9,19 @@ const props = defineProps<{
   hasResults?: boolean
   width?: string
   position?: 'top' | 'bottom'
-  desktopPresentation?: 'popover' | 'dialog'
+  desktopPresentation?: 'popover' | 'dialog' | 'tray'
   data?: Array<any>
   title?: string
+  /** Anchor element selector or ref for tray positioning; defaults to the trigger */
+  trayAnchor?: string
 }>()
 const visible = defineModel<boolean>('visible')
 const searchQuery = defineModel<string>('searchQuery')
 
 const containerRef = ref<HTMLElement>()
 const searchInputRef = ref<{ focus: () => void }>()
+const triggerSlotRef = ref<HTMLElement>()
+const trayRef = ref<HTMLElement>()
 
 const closePopup = () => {
   visible.value = false
@@ -45,6 +49,15 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
+const handleTrayClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  if (trayRef.value && !trayRef.value.contains(target)) {
+    // Allow clicks inside the container (trigger) to toggle, not close
+    if (containerRef.value?.contains(target)) return
+    closePopup()
+  }
+}
+
 watch(searchInputRef, (input) => {
   if (input && visible.value) {
     requestAnimationFrame(() => input.focus())
@@ -56,19 +69,25 @@ watch(
   (newVal) => {
     if (newVal) {
       nextTick(() => {
-        document.addEventListener('click', handleClickOutside)
+        if (shouldUseTray.value) {
+          document.addEventListener('mousedown', handleTrayClickOutside)
+        } else {
+          document.addEventListener('click', handleClickOutside)
+        }
         requestAnimationFrame(() => {
           scrollToActiveItem()
         })
       })
     } else {
       document.removeEventListener('click', handleClickOutside)
+      document.removeEventListener('mousedown', handleTrayClickOutside)
     }
   }
 )
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('mousedown', handleTrayClickOutside)
 })
 
 const handleSearch = (value: string) => {
@@ -90,6 +109,7 @@ const modalBodyStyle: CSSProperties = {
 }
 
 const shouldUseDialog = computed(() => !isMobile.value && props.desktopPresentation === 'dialog')
+const shouldUseTray = computed(() => !isMobile.value && props.desktopPresentation === 'tray')
 
 const dialogBodyStyle = computed<CSSProperties>(() => ({
   overflowY: 'hidden',
@@ -98,13 +118,82 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
   flexDirection: 'column',
   maxHeight: 'min(78vh, 820px)'
 }))
+
+const trayStyle = computed<CSSProperties>(() => {
+  // Priority: trayAnchor selector > trigger slot element
+  const anchor = props.trayAnchor
+    ? document.querySelector<HTMLElement>(props.trayAnchor)
+    : null
+  const triggerEl = anchor || triggerSlotRef.value
+  if (!triggerEl) return {}
+  const rect = triggerEl.getBoundingClientRect()
+  const viewportHeight = window.innerHeight
+  // Position tray bottom edge above the anchor, constrained to viewport
+  const bottom = viewportHeight - rect.top + 8
+  const maxHeight = Math.max(200, Math.min(rect.top - 24, 560))
+  return {
+    position: 'fixed' as const,
+    left: `${rect.left + 6}px`,
+    bottom: `${bottom}px`,
+    width: `${rect.width - 12}px`,
+    maxHeight: `${maxHeight}px`,
+    zIndex: '2100'
+  }
+})
 </script>
 
 <template>
   <div class="selector" ref="containerRef">
-    <div @click="triggerClick">
+    <div ref="triggerSlotRef" @click="triggerClick">
       <slot name="trigger"></slot>
     </div>
+
+    <!-- Tray presentation: floating panel above the input bar -->
+    <Teleport to="body">
+      <Transition name="tray-fade">
+        <div
+          v-if="shouldUseTray && visible"
+          ref="trayRef"
+          class="selector-tray"
+          :style="trayStyle"
+        >
+          <template v-if="$slots.content">
+            <div v-if="title" class="selector-tray-header">
+              <span class="selector-tray-title">{{ title }}</span>
+            </div>
+            <div class="selector-tray-body selector-tray-body--full">
+              <slot name="content"></slot>
+            </div>
+          </template>
+          <template v-else>
+            <div class="selector-tray-header">
+              <span class="selector-tray-title">{{ title }}</span>
+            </div>
+            <div class="selector-tray-body">
+              <div v-if="!hasResults" class="no-results">
+                {{ noResultsText || '未找到结果' }}
+              </div>
+              <slot v-else></slot>
+            </div>
+            <div class="selector-tray-search">
+              <SearchInput
+                ref="searchInputRef"
+                :search-data="data"
+                :model-value="searchQuery"
+                @update:model-value="handleSearch"
+                :placeholder="placeholder || '搜索...'"
+                size="sm"
+                variant="minimal"
+                :show-icon="true"
+                :debounce="searchDebounce ?? 0"
+                class="selector-search-input"
+              />
+              <slot name="search-action"></slot>
+            </div>
+          </template>
+        </div>
+      </Transition>
+    </Teleport>
 
     <BaseModal
       @ok="onOk"
@@ -112,7 +201,7 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
       :show-footer="false"
       :modal-body-style="shouldUseDialog ? dialogBodyStyle : modalBodyStyle"
       :width="width || '240px'"
-      v-if="(isMobile || shouldUseDialog) && visible"
+      v-if="(isMobile || shouldUseDialog) && visible && !shouldUseTray"
       :on-close="closePopup"
       :on-cancel="closePopup"
     >
@@ -143,7 +232,7 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
           </div>
       </template>
     </BaseModal>
-    <div v-if="!isMobile && !shouldUseDialog" class="selector-wrapper">
+    <div v-if="!isMobile && !shouldUseDialog && !shouldUseTray" class="selector-wrapper">
       <div
         class="selector-popup"
         :class="{
@@ -346,5 +435,164 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
 
 .content {
   padding: 12px;
+}
+
+/* ---- Tray presentation (unscoped for Teleport) ---- */
+</style>
+
+<style>
+/* ---- Tray presentation (unscoped for Teleport) ---- */
+.selector-tray {
+  position: fixed;
+  background: var(--bg-card);
+  border: 1px solid rgba(var(--text-rgb), 0.08);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.selector-tray-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.selector-tray-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.selector-tray-search {
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid rgba(var(--text-rgb), 0.06);
+  flex-shrink: 0;
+}
+
+.selector-tray-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 8px;
+  overscroll-behavior: contain;
+  padding-top: 0 !important;
+}
+
+.selector-tray-body--full {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 8px;
+}
+
+/* Tray scrollbar */
+.selector-tray-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.selector-tray-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.selector-tray-body::-webkit-scrollbar-thumb {
+  background: rgba(var(--text-rgb), 0.1);
+  border-radius: 999px;
+}
+
+.selector-tray-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--text-rgb), 0.2);
+}
+
+/* ---- Tray: model list overrides ---- */
+.selector-tray-body :deep(.list-item) {
+  padding: 8px 10px;
+  border-radius: 8px !important;
+  margin-bottom: 2px !important;
+}
+
+.selector-tray-body :deep(.list-item:hover) {
+  background-color: var(--bg-hover) !important;
+}
+
+.selector-tray-body :deep(.list-item.keyboard-focused) {
+  box-shadow: 0 0 0 2px var(--accent-color);
+  border-radius: 8px !important;
+}
+
+.selector-tray-body :deep(.list-item.is-active) {
+  background: var(--accent-color) !important;
+  color: var(--bg-card) !important;
+}
+
+.selector-tray-body :deep(.main-text) {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.selector-tray-body :deep(.sub-text) {
+  font-size: 11px;
+}
+
+.selector-tray-body :deep(.group-header) {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  padding: 8px 8px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ---- Tray: agent item overrides ---- */
+.selector-tray-body :deep(.agent-item) {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  min-height: 44px;
+}
+
+.selector-tray-body :deep(.agent-item:hover) {
+  background: var(--bg-hover);
+}
+
+.selector-tray-body :deep(.agent-item.selected) {
+  background: rgba(var(--accent-rgb, 47, 116, 255), 0.08);
+  border-color: rgba(var(--accent-rgb, 47, 116, 255), 0.16);
+}
+
+.selector-tray-body :deep(.agent-item.focused) {
+  box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+/* ---- Tray transition ---- */
+.tray-fade-enter-active {
+  transition: opacity 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.tray-fade-leave-active {
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.tray-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+}
+
+.tray-fade-leave-to {
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tray-fade-enter-active,
+  .tray-fade-leave-active {
+    transition: none !important;
+  }
 }
 </style>

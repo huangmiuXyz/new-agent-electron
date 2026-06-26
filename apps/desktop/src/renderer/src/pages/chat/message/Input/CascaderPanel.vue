@@ -467,9 +467,17 @@ defineExpose({
               <span
                 v-if="item.icon"
                 class="cascader-panel__item-icon"
-                :class="`cascader-panel__item-icon--${item.icon}`"
               >
-                <span class="cascader-panel__item-icon-glyph"></span>
+                <!-- 技能：sparkle -->
+                <svg v-if="item.icon === 'sparkle'" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.8 5.2H15l-4.2 3.1 1.6 5.2L8 11.4 3.6 14.5l1.6-5.2L1 6.2h5.2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                <!-- 文件夹 -->
+                <svg v-else-if="item.icon === 'folder'" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M1.5 3.5h4l1.5 1.5h7.5v9H1.5v-10.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                <!-- 笔记 -->
+                <svg v-else-if="item.icon === 'note'" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10.5 1.5h-8v13h11v-9l-3-4z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10.5 1.5v4h3" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M4.5 7.5h4M4.5 10.5h7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                <!-- 智能体 -->
+                <svg v-else-if="item.icon === 'robot'" width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="3" y="5.5" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><circle cx="5.5" cy="9" r="1" fill="currentColor"/><circle cx="10.5" cy="9" r="1" fill="currentColor"/><path d="M6 3.5h4v2H6z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M2 9h1M13 9h1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                <!-- 默认方块 -->
+                <span v-else class="cascader-panel__item-icon-glyph"></span>
               </span>
               <div class="cascader-panel__item-copy">
                 <span class="cascader-panel__item-label">{{ item.label }}</span>
@@ -492,43 +500,43 @@ defineExpose({
 .cascader-panel {
   position: absolute;
   left: 0;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 10px);
   z-index: 30;
 }
 
 .cascader-panel__track {
   display: flex;
   align-items: flex-end;
-  gap: 4px;
+  gap: 6px;
   overflow: visible;
 }
 
 .cascader-panel__column {
   position: relative;
-  padding: 4px;
+  padding: 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--bg-card);
   box-shadow:
-    0 8px 18px rgba(var(--text-rgb), 0.1),
-    0 1px 3px rgba(var(--text-rgb), 0.05);
+    0 8px 24px rgba(var(--text-rgb), 0.12),
+    0 2px 6px rgba(var(--text-rgb), 0.06);
 }
 
 .cascader-panel__column--root {
-  width: 138px;
+  width: 180px;
 }
 
 .cascader-panel__column--child {
-  width: min(248px, 20vw);
-  max-height: min(220px, calc(100vh - 240px));
+  width: min(260px, 22vw);
+  max-height: min(240px, calc(100vh - 240px));
   overflow-y: auto;
 }
 
 .cascader-panel__column--child::before {
   content: '';
   position: absolute;
-  left: -5px;
-  bottom: 11px;
+  left: -6px;
+  bottom: 14px;
   width: 10px;
   height: 10px;
   border-left: 1px solid rgba(var(--text-rgb), 0.08);
@@ -540,22 +548,22 @@ defineExpose({
 .cascader-panel__list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .cascader-panel__item {
   width: 100%;
-  min-height: 30px;
-  padding: 0 8px;
+  min-height: 38px;
+  padding: 6px 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 8px;
   text-align: left;
-  transition: background-color 0.14s ease;
+  transition: background-color 0.12s ease;
 }
 
 .cascader-panel__item:hover,
@@ -565,13 +573,15 @@ defineExpose({
 }
 
 .cascader-panel__item-icon {
-  width: 12px;
-  height: 12px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
   flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--bg-hover);
 }
 
 .cascader-panel__item-icon-glyph {
@@ -583,60 +593,54 @@ defineExpose({
   border-radius: 2px;
 }
 
-.cascader-panel__item-icon--split .cascader-panel__item-icon-glyph::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: -1px;
-  bottom: -1px;
-  width: 1px;
-  background: currentColor;
-  transform: translateX(-50%);
-}
-
 .cascader-panel__item-copy {
   min-width: 0;
   flex: 1;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
 }
 
 .cascader-panel__item-label {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.25;
-  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cascader-panel__item-desc {
   min-width: 0;
   flex: 1;
-  font-size: 9px;
-  color: var(--text-secondary);
+  font-size: 11px;
+  color: var(--text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.3;
 }
 
 .cascader-panel__item-arrow {
   flex-shrink: 0;
   color: var(--text-tertiary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
+  opacity: 0.5;
 }
 
 .cascader-panel__empty {
-  padding: 10px 6px;
+  padding: 16px 12px;
   margin: auto 0;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-tertiary);
   text-align: center;
 }
 
 .cascader-panel--mobile {
   bottom: calc(100% + 6px);
-  width: min(248px, calc(100vw - 32px));
+  width: min(260px, calc(100vw - 32px));
 }
 
 .cascader-panel--mobile .cascader-panel__track {
@@ -651,7 +655,7 @@ defineExpose({
 }
 
 .cascader-panel--mobile .cascader-panel__column--child {
-  max-height: 160px;
+  max-height: 180px;
 }
 
 .cascader-panel--mobile .cascader-panel__column--child::before {
@@ -660,7 +664,7 @@ defineExpose({
 
 @media (max-width: 767px) {
   .cascader-panel {
-    width: min(248px, calc(100vw - 32px));
+    width: min(260px, calc(100vw - 32px));
   }
 
   .cascader-panel__track {
@@ -675,7 +679,7 @@ defineExpose({
   }
 
   .cascader-panel__column--child {
-    max-height: 160px;
+    max-height: 180px;
   }
 
   .cascader-panel__column--child::before {

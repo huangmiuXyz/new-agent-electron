@@ -386,7 +386,7 @@ const debouncedRefreshNoteItems = debounce((nextQuery: string) => {
 const skillsRootItem = reactive<CascaderPanelItem>({
   key: 'skills',
   label: '技能',
-  icon: 'split',
+  icon: 'sparkle',
   children: () => filteredSkills.value.map((skill) => ({
     key: skill.path,
     label: `@${skill.name}`,
@@ -401,7 +401,7 @@ const skillsRootItem = reactive<CascaderPanelItem>({
 const workspaceRootItem = reactive<CascaderPanelItem>({
   key: 'workspace',
   label: '工作',
-  icon: 'split',
+  icon: 'folder',
   description: currentWorkPath.value || '未设置工作路径',
   children: () => fileItems.value
 })
@@ -409,7 +409,7 @@ const workspaceRootItem = reactive<CascaderPanelItem>({
 const notesRootItem = reactive<CascaderPanelItem>({
   key: 'notes',
   label: '笔记',
-  icon: 'split',
+  icon: 'note',
   description: '引用笔记内容',
   children: () => noteItems.value
 })
@@ -417,7 +417,7 @@ const notesRootItem = reactive<CascaderPanelItem>({
 const agentsRootItem = reactive<CascaderPanelItem>({
   key: 'agents',
   label: '智能体',
-  icon: 'split',
+  icon: 'robot',
   children: () => filteredAgents.value.map((agent) => ({
     key: agent.id,
     label: `@${agent.name}`,
