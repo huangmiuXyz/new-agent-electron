@@ -1,0 +1,10 @@
+{
+  "name": "LSP 诊断",
+  "description": "基于真实 LSP 协议的诊断插件。在 edit_file 后自动连接语言服务器（TypeScript/ESLint/Ruff/RustAnalyzer 等 38 种），通过 textDocument/publishDiagnostics 获取结构化诊断并注入工具输出。",
+  "version": "2.0.0",
+  "author": "Agent-Qi",
+  "updatedAt": "2026-06-26",
+  "mainEntry": "main.js",
+  "platforms": ["desktop"],
+  "mobileUnsupportedReason": "Requires main-process to spawn persistent LSP servers."
+}

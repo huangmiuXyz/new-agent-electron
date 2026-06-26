@@ -1,0 +1,26 @@
+{
+  "name": "lsp-diagnostics",
+  "version": "2.0.0",
+  "description": "基于 LSP 协议的 edit_file 后自动诊断插件",
+  "author": "Agent-Qi",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build && vite build --config vite.main.config.ts",
+    "build:main": "vite build --config vite.main.config.ts",
+    "dev": "node dev.mjs",
+    "dev:renderer": "vite build --watch",
+    "dev:main": "vite build --watch --config vite.main.config.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@agent-qi/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "vscode-jsonrpc": "^8.2.0",
+    "vscode-languageserver-types": "^3.17.5"
+  }
+}

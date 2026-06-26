@@ -101,6 +101,11 @@
   - `registerHook('ai:before-use', ...)`
   - 适合真正调用模型前先准备环境
 
+- `packages/qi-cli/example/lsp-diagnostics`
+  - `registerHook('tool:after-use', ...)`
+  - 在 `edit_file` 执行后自动运行 TypeScript/ESLint/Ruff 等诊断
+  - 适合在工具结果中注入 LSP 诊断，让 LLM 及时发现代码问题
+
 - `packages/qi-cli/example/smart-api-key-filler`
   - `registerBuiltinTool()`
   - 适合工具型或批处理型插件
@@ -119,6 +124,7 @@
 - 下载或本地模型文件：从 `vosk-speech-recognition` 开始。
 - 内置工具：从 `smart-api-key-filler` 开始。
 - 调用前自动准备环境：从 `ollama-starter` 开始。
+- 工具结果后处理或注入诊断：从 `lsp-diagnostics` 开始。
 - 多账号或代理状态：从 `codex-proxy-plugin` 开始。
 - 原生窗口、托盘、全局快捷键等主进程能力：从 `opencode-usage-monitor` 开始，细节读 `main-plugin.md`。
 
