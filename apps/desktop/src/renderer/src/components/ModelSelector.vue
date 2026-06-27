@@ -545,13 +545,6 @@ const handleModelLogoError = () => {
                 :title="favoriteModelKeySet.has(item.key) ? '取消收藏' : '收藏模型'"
                 @click="toggleFavoriteModel(item, $event)"
               >★</button>
-              <Check
-                :style="{
-                  fontSize: '12px',
-                  color: 'var(--bg-card)'
-                }"
-                v-if="isActive"
-              />
             </div>
           </template>
         </List>
@@ -658,11 +651,6 @@ const handleModelLogoError = () => {
 :deep(.list-item.keyboard-focused) {
   box-shadow: 0 0 0 1px var(--accent-color);
   border-radius: 6px !important;
-}
-
-:deep(.list-item.is-active) {
-  background: var(--accent-color) !important;
-  color: var(--bg-card) !important;
 }
 
 :deep(.main-text) {

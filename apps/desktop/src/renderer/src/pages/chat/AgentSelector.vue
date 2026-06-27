@@ -346,7 +346,6 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
             <div v-if="agent.description" class="agent-item-desc">{{ agent.description }}</div>
           </div>
           <div class="agent-item-tail">
-            <Check v-if="isAgentSelected(agent.id)" class="agent-item-check" />
             <div v-if="hasAgentTools(agent)" class="agent-item-tools">
               <Wrench20Regular />
             </div>
