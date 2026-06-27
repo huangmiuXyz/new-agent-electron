@@ -611,16 +611,16 @@ export const useAgent = () => {
       {
         name: 'mcpServers',
         type: 'checkboxGroup',
-        label: 'MCP 服务器',
+        label: '',
         options: getMcpServerOptions(),
-        columns: 2
+        showSearch: true
       } as CheckboxGroupField<AgentFormData>,
       {
         name: 'tools',
         type: 'checkboxGroup',
-        label: 'MCP工具',
+        label: '',
         options: [],
-        columns: 2,
+        showSearch: true,
         ifShow: (data) => data.mcpServers! && data.mcpServers!.length > 0
       } as CheckboxGroupField<AgentFormData>
     ]
@@ -797,7 +797,7 @@ export const useAgent = () => {
           initialData.builtinTools || [],
           initialData.builtinToolsRequireApproval || []
         ),
-        columns: 2,
+        showSearch: true,
         optionAction: (option: CheckboxOption) => openBuiltinToolApprovalModal(option)
       } as CheckboxGroupField<AgentFormData>,
       // 隐藏字段，用于存储允许调用的子智能体列表
@@ -1142,17 +1142,6 @@ export const useAgent = () => {
 
     const skillFields: FormField<AgentFormData>[] = [
       {
-        name: 'skillDirectory',
-        type: 'path',
-        label: '技能位置',
-        placeholder: '选择或输入技能目录',
-        hint: '智能体会从这个目录读取技能。',
-        dialogOptions: {
-          properties: ['openDirectory'],
-          title: '选择技能目录'
-        }
-      } as PathSelectorField<AgentFormData>,
-      {
         name: 'builtinSkills',
         type: 'text',
         ifShow: () => false
@@ -1278,6 +1267,7 @@ export const useAgent = () => {
                   modelValue={enabledSkillNames}
                   options={skillOptions}
                   columns={2}
+                  showSearch
                   onUpdate:modelValue={(nextEnabledSkillNames: string[]) => {
                     const nextEnabledNameSet = new Set(
                       nextEnabledSkillNames.map((name) => name.toLowerCase())
@@ -1373,7 +1363,18 @@ export const useAgent = () => {
             </div>
           )
         }
-      } as CustomField<AgentFormData>
+      } as CustomField<AgentFormData>,
+      {
+        name: 'skillDirectory',
+        type: 'path',
+        label: '技能位置',
+        placeholder: '选择或输入技能目录',
+        hint: '智能体会从这个目录读取技能。',
+        dialogOptions: {
+          properties: ['openDirectory'],
+          title: '选择技能目录'
+        }
+      } as PathSelectorField<AgentFormData>,
     ]
 
     const advancedFields: FormField<AgentFormData>[] = [

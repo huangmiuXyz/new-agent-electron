@@ -10,12 +10,16 @@ interface Props {
   toggleOnCardClick?: boolean
   optionAction?: (option: CheckboxOption, event?: MouseEvent) => void
   optionContextMenu?: (option: CheckboxOption, event: MouseEvent) => void
+  showSearch?: boolean
+  searchPlaceholder?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   options: () => [],
   disabled: false,
-  toggleOnCardClick: true
+  toggleOnCardClick: true,
+  showSearch: false,
+  searchPlaceholder: '搜索'
 })
 
 const modelValue = defineModel<string[]>({ default: [] })
@@ -31,10 +35,22 @@ const toggleOption = (value: string) => {
 
 const isChecked = (value: string) => modelValue.value.includes(value)
 
+const searchQuery = ref('')
+const query = computed(() => searchQuery.value.toLowerCase().trim())
+
+const filteredOptions = computed(() => {
+  if (!query.value) return props.options
+  return props.options.filter(
+    (opt) =>
+      opt.label.toLowerCase().includes(query.value) ||
+      opt.description?.toLowerCase().includes(query.value)
+  )
+})
+
 const groupedOptions = computed(() => {
   const groupMap = new Map<string, CheckboxOption[]>()
   const ungrouped: CheckboxOption[] = []
-  for (const option of props.options) {
+  for (const option of filteredOptions.value) {
     if (option.group && option.group.trim()) {
       const list = groupMap.get(option.group) || []
       list.push(option)
@@ -65,6 +81,23 @@ const handleOptionContextMenu = (option: CheckboxOption, event: MouseEvent) => {
 
 <template>
   <div class="cg">
+    <!-- Search -->
+    <div v-if="showSearch" class="cg-search">
+      <svg class="cg-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input
+        class="cg-search-input"
+        v-model="searchQuery"
+        :placeholder="searchPlaceholder"
+      />
+      <button v-if="searchQuery" class="cg-search-clear" @click="searchQuery = ''">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+        </svg>
+      </button>
+    </div>
+
     <template v-for="group in groupedOptions" :key="group.name || '__ungrouped__'">
       <SettingsGroup v-if="group.name" :label="group.name">
         <SettingsRow
@@ -147,7 +180,9 @@ const handleOptionContextMenu = (option: CheckboxOption, event: MouseEvent) => {
       </div>
     </template>
 
-    <div v-if="options.length === 0" class="cg-empty">暂无可用选项</div>
+    <div v-if="filteredOptions.length === 0" class="cg-empty">
+      {{ query ? '没有匹配的选项' : '暂无可用选项' }}
+    </div>
   </div>
 </template>
 
@@ -156,6 +191,65 @@ const handleOptionContextMenu = (option: CheckboxOption, event: MouseEvent) => {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+/* ---- Apple 风格搜索条 ---- */
+.cg-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9999px;
+  transition: border-color 0.2s var(--motion-ease-standard);
+}
+
+.cg-search:focus-within {
+  border-color: var(--border-hover);
+}
+
+.cg-search-icon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.cg-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-stack);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: -0.003em;
+}
+
+.cg-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.cg-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  border: none;
+  background: var(--text-tertiary);
+  color: var(--bg-card);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.cg-search-clear:hover {
+  opacity: 1;
 }
 
 .cg-ungrouped {

@@ -2,12 +2,22 @@
 interface Props {
   count?: number
   countLabel?: string
+  searchTerm?: string
+  showSearch?: boolean
+  searchPlaceholder?: string
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   count: undefined,
-  countLabel: ''
+  countLabel: '',
+  searchTerm: '',
+  showSearch: false,
+  searchPlaceholder: '搜索'
 })
+
+const emit = defineEmits<{
+  'update:searchTerm': [value: string]
+}>()
 </script>
 
 <template>
@@ -21,6 +31,24 @@ withDefaults(defineProps<Props>(), {
       <div class="sl-header-actions">
         <slot name="actions" />
       </div>
+    </div>
+
+    <!-- Search -->
+    <div v-if="showSearch" class="sl-search">
+      <svg class="sl-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input
+        class="sl-search-input"
+        :value="searchTerm"
+        :placeholder="searchPlaceholder"
+        @input="emit('update:searchTerm', ($event.target as HTMLInputElement).value)"
+      />
+      <button v-if="searchTerm" class="sl-search-clear" @click="emit('update:searchTerm', '')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+        </svg>
+      </button>
     </div>
 
     <!-- Groups -->
@@ -74,6 +102,65 @@ withDefaults(defineProps<Props>(), {
   align-items: center;
 }
 
+/* ---- Apple 风格搜索条 ---- */
+.sl-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9999px;
+  transition: border-color 0.2s var(--motion-ease-standard);
+}
+
+.sl-search:focus-within {
+  border-color: var(--border-hover);
+}
+
+.sl-search-icon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.sl-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-stack);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: -0.003em;
+}
+
+.sl-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.sl-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  border: none;
+  background: var(--text-tertiary);
+  color: var(--bg-card);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.sl-search-clear:hover {
+  opacity: 1;
+}
+
 .sl-empty {
   display: flex;
   flex-direction: column;
@@ -86,7 +173,6 @@ withDefaults(defineProps<Props>(), {
   border: 1px solid var(--border-subtle);
 }
 
-/* ---- empty state sub-elements (shared) ---- */
 .empty-icon {
   color: var(--text-tertiary);
   opacity: 0.3;

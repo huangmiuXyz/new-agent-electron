@@ -230,6 +230,7 @@ const serverEntries = computed(() => {
   const active: [string, any][] = []
   const inactive: [string, any][] = []
   for (const [name, server] of Object.entries(servers)) {
+    if (!matchesServer(name, server)) continue
     if (server.active) {
       active.push([name, server])
     } else {
@@ -238,6 +239,19 @@ const serverEntries = computed(() => {
   }
   return { active, inactive, total: active.length + inactive.length }
 })
+
+const searchQuery = ref('')
+
+const query = computed(() => searchQuery.value.toLowerCase().trim())
+
+const matchesServer = (name: string, server: any) => {
+  if (!query.value) return true
+  const desc = server.description || server.command || server.url || server.transport || ''
+  return (
+    name.toLowerCase().includes(query.value) ||
+    desc.toLowerCase().includes(query.value)
+  )
+}
 
 const getServerDesc = (server: any) => {
   const parts: string[] = []
@@ -259,7 +273,14 @@ const getServerDesc = (server: any) => {
   <FormContainer header-title="MCP 服务器">
     <template #content>
       <div class="mcp-wrap">
-        <SettingsList :count="serverEntries.total" count-label="个服务器">
+        <SettingsList
+          :count="serverEntries.total"
+          count-label="个服务器"
+          :search-term="searchQuery"
+          :show-search="serverEntries.total > 0 || !!searchQuery"
+          search-placeholder="搜索服务器"
+          @update:search-term="searchQuery = $event"
+        >
         <template #actions>
           <Button size="sm" variant="secondary" @click="openJsonEditor()">
             <template #icon><Settings /></template>
@@ -338,8 +359,8 @@ const getServerDesc = (server: any) => {
 
         <template #empty>
           <div class="empty-icon"><Settings /></div>
-          <div class="empty-title">尚未配置 MCP 服务器</div>
-          <div class="empty-hint">点击"添加服务器"开始配置</div>
+          <div class="empty-title">{{ query ? '没有匹配的服务器' : '尚未配置 MCP 服务器' }}</div>
+          <div class="empty-hint">{{ query ? '试试其他关键词' : '点击"添加服务器"开始配置' }}</div>
         </template>
       </SettingsList>
       </div>

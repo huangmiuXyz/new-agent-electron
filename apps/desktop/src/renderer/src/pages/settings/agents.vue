@@ -5,14 +5,44 @@ const agentStore = useAgentStore()
 const { Plus, Pencil, Trash, Robot } = useIcon(['Plus', 'Pencil', 'Trash', 'Robot'])
 const { openAgentModal, handleDelete } = useAgent()
 
-const builtinAgents = computed(() => agents.value.filter((a) => agentStore.isBuiltinAgent(a.id)))
-const customAgents = computed(() => agents.value.filter((a) => !agentStore.isBuiltinAgent(a.id)))
+const searchQuery = ref('')
+
+const query = computed(() => searchQuery.value.toLowerCase().trim())
+
+const builtinAgents = computed(() =>
+  agents.value.filter(
+    (a) => agentStore.isBuiltinAgent(a.id) && matchesQuery(a)
+  )
+)
+
+const customAgents = computed(() =>
+  agents.value.filter(
+    (a) => !agentStore.isBuiltinAgent(a.id) && matchesQuery(a)
+  )
+)
+
+const filteredCount = computed(() => builtinAgents.value.length + customAgents.value.length)
+
+const matchesQuery = (agent: Agent) => {
+  if (!query.value) return true
+  return (
+    agent.name.toLowerCase().includes(query.value) ||
+    agent.description?.toLowerCase().includes(query.value)
+  )
+}
 </script>
 
 <template>
   <FormContainer header-title="智能体管理">
     <template #content>
-      <SettingsList :count="agents.length" count-label="个智能体">
+      <SettingsList
+        :count="filteredCount"
+        count-label="个智能体"
+        :search-term="searchQuery"
+        :show-search="agents.length > 0"
+        search-placeholder="搜索智能体"
+        @update:search-term="searchQuery = $event"
+      >
         <template #actions>
           <Button size="sm" @click="openAgentModal()">
             <template #icon><Plus /></template>
@@ -70,8 +100,8 @@ const customAgents = computed(() => agents.value.filter((a) => !agentStore.isBui
 
         <template #empty>
           <div class="empty-icon"><Robot /></div>
-          <div class="empty-title">尚未创建智能体</div>
-          <div class="empty-hint">点击"创建智能体"开始配置</div>
+          <div class="empty-title">{{ query ? '没有匹配的智能体' : '尚未创建智能体' }}</div>
+          <div class="empty-hint">{{ query ? '试试其他关键词' : '点击"创建智能体"开始配置' }}</div>
         </template>
       </SettingsList>
     </template>
