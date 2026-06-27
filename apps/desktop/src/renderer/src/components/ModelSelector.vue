@@ -113,15 +113,16 @@ const focusedKey = ref<string | null>(null)
 const flatItems = computed(() => [...favoriteListItems.value, ...regularListItems.value])
 
 const focusSearchInput = () => {
-  if (!modelSelectorWrapperRef.value) return
-  const input = modelSelectorWrapperRef.value.querySelector<HTMLElement>(
-    '.search-input__field, .selector-search-input input'
+  const input = document.querySelector<HTMLElement>(
+    '.selector-tray .search-input__field, .selector-tray .selector-search-input input'
   )
   input?.focus()
 }
 
 const handleKeydown = (e: KeyboardEvent) => {
   if (!isPopupOpen.value) return
+  if ((e.target as HTMLElement).closest('.context-menu')) return
+  if (!(e.target as HTMLElement).closest('.selector-tray')) return
   const items = flatItems.value
   if (items.length === 0) return
   const currentIdx = items.findIndex((i) => i.key === focusedKey.value)
@@ -152,6 +153,9 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
+onMounted(() => document.addEventListener('keydown', handleKeydown))
+onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
+
 watch(isPopupOpen, (val) => {
   if (val) {
     nextTick(() => {
@@ -169,14 +173,13 @@ watch(isPopupOpen, (val) => {
 
 watch(focusedKey, (key) => {
   nextTick(() => {
-    if (!modelSelectorWrapperRef.value) return
-    modelSelectorWrapperRef.value.querySelectorAll('.list-item').forEach((el) => {
+    document.querySelectorAll('.selector-tray .list-item').forEach((el) => {
       el.classList.remove('keyboard-focused')
     })
     if (!key) return
     const idx = flatItems.value.findIndex((i) => i.key === key)
     if (idx < 0) return
-    const items = modelSelectorWrapperRef.value.querySelectorAll('.list-item')
+    const items = document.querySelectorAll('.selector-tray .list-item')
     if (items[idx]) {
       items[idx].classList.add('keyboard-focused')
       items[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' })
@@ -399,7 +402,7 @@ const handleModelLogoError = () => {
 </script>
 
 <template>
-  <div ref="modelSelectorWrapperRef" @keydown="handleKeydown">
+  <div ref="modelSelectorWrapperRef">
   <SelectorPopover
     v-model:visible="isPopupOpen"
     :data="listItems"
@@ -653,7 +656,7 @@ const handleModelLogoError = () => {
 }
 
 :deep(.list-item.keyboard-focused) {
-  box-shadow: 0 0 0 2px var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
   border-radius: 6px !important;
 }
 
@@ -764,7 +767,7 @@ const handleModelLogoError = () => {
 }
 
 :deep(.modal-body .list-item.keyboard-focused) {
-  box-shadow: 0 0 0 2px var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
   border-radius: 10px !important;
 }
 </style>

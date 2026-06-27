@@ -529,7 +529,7 @@ const trayStyle = computed<CSSProperties>(() => {
 }
 
 .selector-tray-body :deep(.list-item.keyboard-focused) {
-  box-shadow: 0 0 0 2px var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
   border-radius: 8px !important;
 }
 
