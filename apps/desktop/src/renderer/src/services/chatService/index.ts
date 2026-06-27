@@ -106,7 +106,8 @@ export const chatService = () => {
     const builtinToolContext = {
       knowledgeBaseIds,
       skills: skillsForBuiltinTools,
-      builtinToolConfigs
+      builtinToolConfigs,
+      builtinTools: selectedBuiltinTools
     }
     const builtinTools = getBuiltinTools(builtinToolContext)
     const mobileCompatibleBuiltinToolKeys = new Set(

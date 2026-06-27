@@ -20,6 +20,7 @@ export const getBuiltinToolGroupEntries = (options?: {
   skills?: SkillMetadata[]
   agentTools?: Partial<Tools>
   builtinToolConfigs?: Agent['builtinToolConfigs']
+  builtinTools?: string[]
 }): BuiltinToolGroupEntry[] => {
   const skills = options?.skills ?? []
 
@@ -38,7 +39,7 @@ export const getBuiltinToolGroupEntries = (options?: {
     {
       group: 'Codex工具',
       tools: {
-        ...getCodexBuiltinTools({ editFileMode: options?.builtinToolConfigs?.edit_file?.mode }),
+        ...getCodexBuiltinTools({ editFileMode: options?.builtinToolConfigs?.edit_file?.mode, builtinTools: options?.builtinTools }),
         ...getTodoBuiltinTools()
       }
     }

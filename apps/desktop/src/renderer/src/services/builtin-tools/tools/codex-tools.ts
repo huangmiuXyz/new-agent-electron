@@ -15,6 +15,24 @@ type CodexToolExecuteOptions = {
 
 type CodexBuiltinToolsOptions = {
   editFileMode?: 'hashline' | 'replace' | 'patch'
+  builtinTools?: string[]
+}
+
+const buildExecCommandDescription = (builtinTools?: string[]): string => {
+  const toolSet = builtinTools ? new Set(builtinTools) : null
+
+  const lines: string[] = [
+    '仅限于执行测试/构建/包管理/git 等真正需要终端的命令。禁止所有写操作（sed -i/重定向>/cp/mv/rm/touch/mkdir/tee，以及 npm install/git commit/pip install/docker build/apt install/kubectl apply 等写入命令）。'
+  ]
+
+  if (!toolSet || toolSet.has('search_project')) lines.push('- 禁用 rg/grep/awk/git grep → 用 search_project')
+  if (!toolSet || toolSet.has('readFile')) lines.push('- 禁用 cat/head/tail/sed/less/more/nl → 用 readFile')
+  if (!toolSet || toolSet.has('list_dir')) lines.push('- 禁用 ls/find/fd/tree → 用 list_dir')
+  if (!toolSet || toolSet.has('edit_file')) lines.push('- 写文件操作用 edit_file')
+
+  lines.push('首次调用可不传 terminal_id 创建新终端；后续复用返回的 terminal_id。')
+
+  return lines.join('\n')
 }
 
 const getCurrentAgent = (chatId?: string) => {
@@ -326,6 +344,7 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
   const editFileMode: 'hashline' | 'replace' =
     options?.editFileMode === 'hashline' ? 'hashline' : 'replace'
   const isReplaceEditFileMode = editFileMode === 'replace'
+  const execCommandDescription = buildExecCommandDescription(options?.builtinTools)
   return {
   change_working_directory: {
     title: '切换工作路径',
@@ -775,10 +794,7 @@ export const getCodexBuiltinTools = (options?: CodexBuiltinToolsOptions): Partia
       const command = String((args as Record<string, any>)?.command || '')
       return command ? `💻 ${command}` : '💻 执行命令'
     },
-    description: [
-      '在现有终端会话中执行测试、构建、包管理、git 等真正需要终端的命令。',
-      '首次调用可不传 terminal_id 来创建新终端；一旦工具返回了终端ID，后续相关命令应优先复用同一个 terminal_id，避免每次创建新终端导致上下文丢失。'
-    ].join('\n'),
+    description: execCommandDescription,
     inputSchema: z.object({
       command: z.string().describe('要执行的命令'),
       terminal_id: z
