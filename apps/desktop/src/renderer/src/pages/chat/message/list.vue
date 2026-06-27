@@ -634,6 +634,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
     {
       label: '重试',
       icon: Refresh,
+      disabled: useChatsStores().isChatGenerating(currentChat.value!.id) && !message.metadata?.loading,
       onClick: async (data) => {
         if (!currentSelectedModel.value) {
           messageApi.error('请先选择模型')
