@@ -532,7 +532,7 @@ const trayStyle = computed<CSSProperties>(() => {
 }
 
 .selector-tray-body :deep(.list-item.keyboard-focused) {
-  box-shadow: 0 0 0 1px var(--accent-color);
+  background: rgba(var(--accent-rgb, 47, 116, 255), 0.07);
   border-radius: 8px !important;
 }
 
@@ -577,7 +577,7 @@ const trayStyle = computed<CSSProperties>(() => {
 }
 
 .selector-tray-body :deep(.agent-item.focused) {
-  box-shadow: 0 0 0 2px var(--accent-color);
+  background: rgba(var(--accent-rgb, 47, 116, 255), 0.07);
 }
 
 /* ---- Tray transition ---- */

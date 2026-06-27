@@ -245,13 +245,13 @@ const WorkPathChevronIcon = useIcon('ChevronDown')
 
 /* 图标按钮：圆角方形 */
 :deep(.btn--icon.btn--sm) {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 8px;
   border: none;
-  font-size: 16px;
+  font-size: 14px;
   padding: 0;
   transition:
     background-color 0.14s ease,
@@ -273,12 +273,12 @@ const WorkPathChevronIcon = useIcon('ChevronDown')
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--color-primary);
   color: var(--accent-text);
   cursor: pointer;
@@ -298,7 +298,7 @@ const WorkPathChevronIcon = useIcon('ChevronDown')
 }
 
 .send-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 </style>

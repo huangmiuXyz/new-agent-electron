@@ -418,7 +418,7 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 }
 
 .agent-item.focused {
-  box-shadow: 0 0 0 1px var(--accent-color);
+  background: rgba(var(--accent-rgb, 47, 116, 255), 0.07);
 }
 
 .agent-item.selected {

@@ -292,10 +292,10 @@
   font-size: 15px;
   font-family: var(--font-stack);
   resize: none;
-  min-height: 24px;
-  max-height: 180px;
-  overflow-y: hidden;
-  line-height: 1.5;
+  min-height: 44px;
+  max-height: 280px;
+  overflow-y: auto;
+  line-height: 1.6;
   background: transparent;
   color: var(--text-primary);
   white-space: pre-wrap;
@@ -359,13 +359,13 @@
 
 /* 图标按钮：圆角方形 */
 :deep(.btn--icon.btn--sm) {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 8px;
   border: none;
-  font-size: 16px;
+  font-size: 14px;
   padding: 0;
   transition:
     background-color 0.14s ease,
@@ -628,10 +628,11 @@
 }
 
 .mobile-input-field {
-  min-height: 40px;
+  min-height: 44px;
+  max-height: 240px;
   font-size: 15px;
   padding: 8px 8px;
-  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .mobile-partial-text {
@@ -703,12 +704,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--color-primary);
   color: var(--accent-text);
   cursor: pointer;
@@ -728,8 +729,8 @@
 }
 
 .mobile-send-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .mobile-toggle-open {
@@ -763,13 +764,13 @@
 
   .mobile-tools-panel :deep(button),
   .mobile-input-bar :deep(button:not(.mobile-send-btn)) {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
     padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 12px;
+    border-radius: 10px;
   }
 }
 
