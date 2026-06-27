@@ -9,7 +9,6 @@ const { Plus, Pencil, Trash, Refresh, Settings } = useIcon([
 ])
 const { confirm, remove } = useModal()
 
-// 类型推断函数
 const inferServerConfig = (serverName: string, serverConfig: any) => {
   const inferredConfig = { ...serverConfig }
   if (!inferredConfig.transport) {
@@ -259,219 +258,97 @@ const getServerDesc = (server: any) => {
 <template>
   <FormContainer header-title="MCP 服务器">
     <template #content>
-      <div class="mcp-container">
-        <div class="mcp-header">
-          <div class="header-title">
-            <span class="header-count">{{ serverEntries.total }}</span>
-            <span class="header-label">个服务器</span>
-          </div>
-          <div class="header-actions">
-            <Button size="sm" variant="secondary" @click="openJsonEditor()">
-              <template #icon>
-                <Settings />
-              </template>
-              编辑 JSON
-            </Button>
-            <Button size="sm" @click="openServerModal()">
-              <template #icon>
-                <Plus />
-              </template>
-              添加服务器
-            </Button>
-          </div>
-        </div>
+      <div class="mcp-wrap">
+        <SettingsList :count="serverEntries.total" count-label="个服务器">
+        <template #actions>
+          <Button size="sm" variant="secondary" @click="openJsonEditor()">
+            <template #icon><Settings /></template>
+            编辑 JSON
+          </Button>
+          <Button size="sm" @click="openServerModal()">
+            <template #icon><Plus /></template>
+            添加服务器
+          </Button>
+        </template>
 
-        <!-- 已启用 -->
-        <div v-if="serverEntries.active.length" class="section">
-          <div class="section-label">已启用</div>
-          <div class="list-group">
-            <div
-              v-for="([name, server], i) in serverEntries.active"
-              :key="name"
-              class="list-row"
-              :class="{ 'list-row--last': i === serverEntries.active.length - 1 }"
-            >
-              <div class="icon-wrap">
-                <div class="server-icon">
-                  <Settings />
-                </div>
-                <span class="active-dot" />
-              </div>
-              <div class="info">
-                <span class="name">{{ name }}</span>
-                <span class="desc">{{ getServerDesc(server) }}</span>
-              </div>
-              <div class="actions">
-                <Button
-                  size="sm"
-                  variant="text"
-                  class="action-btn"
-                  :loading="activeMcpLoading === name"
-                  @click="fetchTools(server)"
-                  title="刷新工具列表"
-                >
-                  <template #icon><Refresh /></template>
-                </Button>
-                <Switch
-                  :loading="activeMcpLoading === name"
-                  :model-value="server.active"
-                  @update:model-value="toggleActive(server)"
-                />
-                <Button size="sm" variant="text" class="action-btn" @click="openServerModal(server)" title="编辑">
-                  <template #icon><Pencil /></template>
-                </Button>
-                <Button size="sm" variant="text" class="action-btn delete-btn" @click="handleDelete(name)" title="删除">
-                  <template #icon><Trash /></template>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SettingsGroup v-if="serverEntries.active.length" label="已启用">
+          <SettingsRow
+            v-for="([name, server], i) in serverEntries.active"
+            :key="name"
+            :name="name"
+            :desc="getServerDesc(server)"
+            mono
+            dot
+            dot-color="var(--color-success)"
+          >
+            <template #icon>
+              <div class="srv-icon"><Settings /></div>
+            </template>
+            <template #actions>
+              <Button
+                size="sm" variant="text" class="action-btn"
+                :loading="activeMcpLoading === name"
+                @click="fetchTools(server)"
+                title="刷新工具列表"
+              >
+                <template #icon><Refresh /></template>
+              </Button>
+              <Switch
+                :loading="activeMcpLoading === name"
+                :model-value="server.active"
+                @update:model-value="toggleActive(server)"
+              />
+              <Button size="sm" variant="text" class="action-btn" @click="openServerModal(server)" title="编辑">
+                <template #icon><Pencil /></template>
+              </Button>
+              <Button size="sm" variant="text" class="action-btn delete-btn" @click="handleDelete(name)" title="删除">
+                <template #icon><Trash /></template>
+              </Button>
+            </template>
+          </SettingsRow>
+        </SettingsGroup>
 
-        <!-- 未启用 -->
-        <div v-if="serverEntries.inactive.length" class="section">
-          <div class="section-label">未启用</div>
-          <div class="list-group">
-            <div
-              v-for="([name, server], i) in serverEntries.inactive"
-              :key="name"
-              class="list-row"
-              :class="{ 'list-row--last': i === serverEntries.inactive.length - 1 }"
-            >
-              <div class="icon-wrap">
-                <div class="server-icon server-icon--inactive">
-                  <Settings />
-                </div>
-              </div>
-              <div class="info">
-                <span class="name name--inactive">{{ name }}</span>
-                <span class="desc">{{ getServerDesc(server) }}</span>
-              </div>
-              <div class="actions">
-                <Switch
-                  :loading="activeMcpLoading === name"
-                  :model-value="server.active"
-                  @update:model-value="toggleActive(server)"
-                />
-                <Button size="sm" variant="text" class="action-btn" @click="openServerModal(server)" title="编辑">
-                  <template #icon><Pencil /></template>
-                </Button>
-                <Button size="sm" variant="text" class="action-btn delete-btn" @click="handleDelete(name)" title="删除">
-                  <template #icon><Trash /></template>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SettingsGroup v-if="serverEntries.inactive.length" label="未启用">
+          <SettingsRow
+            v-for="([name, server], i) in serverEntries.inactive"
+            :key="name"
+            :name="name"
+            :desc="getServerDesc(server)"
+            mono
+            muted
+          >
+            <template #icon>
+              <div class="srv-icon srv-icon--dim"><Settings /></div>
+            </template>
+            <template #actions>
+              <Switch
+                :loading="activeMcpLoading === name"
+                :model-value="server.active"
+                @update:model-value="toggleActive(server)"
+              />
+              <Button size="sm" variant="text" class="action-btn" @click="openServerModal(server)" title="编辑">
+                <template #icon><Pencil /></template>
+              </Button>
+              <Button size="sm" variant="text" class="action-btn delete-btn" @click="handleDelete(name)" title="删除">
+                <template #icon><Trash /></template>
+              </Button>
+            </template>
+          </SettingsRow>
+        </SettingsGroup>
 
-        <!-- 空状态 -->
-        <div v-if="serverEntries.total === 0" class="empty-state">
+        <template #empty>
           <div class="empty-icon"><Settings /></div>
           <div class="empty-title">尚未配置 MCP 服务器</div>
           <div class="empty-hint">点击"添加服务器"开始配置</div>
-        </div>
+        </template>
+      </SettingsList>
       </div>
     </template>
   </FormContainer>
 </template>
 
 <style scoped>
-.mcp-container {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 2px 2px 24px;
-}
-
-/* ===== 顶部 ===== */
-.mcp-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-title {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  padding-left: 2px;
-}
-
-.header-count {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.header-label {
-  font-size: 13px;
-  color: var(--text-tertiary);
-  font-weight: 400;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-/* ===== 分组 ===== */
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.section-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding-left: 4px;
-}
-
-/* ===== list-group 圆角容器 ===== */
-.list-group {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-/* ===== 单行 ===== */
-.list-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 12px;
-  position: relative;
-  transition: background-color 0.18s var(--motion-ease-standard);
-}
-
-.list-row:not(.list-row--last)::after {
-  content: '';
-  position: absolute;
-  left: 52px;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: var(--border-subtle);
-}
-
-.list-row:active {
-  background: var(--bg-hover);
-}
-
-/* ===== 图标 ===== */
-.icon-wrap {
-  flex-shrink: 0;
-  position: relative;
-}
-
-.server-icon {
+.srv-icon {
   width: 32px;
   height: 32px;
   border-radius: 7px;
@@ -483,125 +360,14 @@ const getServerDesc = (server: any) => {
   border: 1px solid var(--border-subtle);
 }
 
-.server-icon :deep(svg) { font-size: 15px; }
+.srv-icon :deep(svg) { font-size: 15px; }
 
-.server-icon--inactive {
+.srv-icon--dim {
   color: var(--text-tertiary);
 }
 
-/* 活跃圆点 */
-.active-dot {
-  position: absolute;
-  right: -1px;
-  bottom: -1px;
-  width: 8px;
-  height: 8px;
-  background: var(--color-success);
-  border: 2px solid var(--bg-card);
-  border-radius: 9999px;
-  box-sizing: content-box;
-}
-
-/* ===== 信息区 ===== */
-.info {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1px;
-  flex: 1;
-  min-width: 0;
-}
-
-.name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.31;
-  letter-spacing: -0.008em;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.name--inactive {
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.desc {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--text-secondary);
-  line-height: 1.36;
-  letter-spacing: -0.003em;
-  font-family: 'SF Mono', ui-monospace, monospace;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* ===== 操作区 ===== */
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-/* 深度覆盖 Switch 外观更紧凑 */
-.actions :deep(.toggle-switch) {
+.mcp-wrap :deep(.toggle-switch) {
   margin: 0 4px;
   transform: scale(0.85);
-}
-
-.action-btn {
-  color: var(--text-tertiary) !important;
-  border-radius: 6px !important;
-  transition: color 0.15s var(--motion-ease-standard),
-    background-color 0.15s var(--motion-ease-standard),
-    transform 0.1s var(--motion-ease-standard) !important;
-}
-
-.action-btn:hover {
-  color: var(--text-primary) !important;
-  background: var(--bg-hover) !important;
-}
-
-.action-btn:active { transform: scale(0.9); }
-.delete-btn:hover { color: var(--color-danger) !important; }
-
-/* ===== 空状态 ===== */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 56px 24px;
-  background: var(--bg-tertiary);
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-}
-
-.empty-icon {
-  color: var(--text-tertiary);
-  opacity: 0.3;
-}
-
-.empty-icon :deep(svg) { font-size: 36px; }
-
-.empty-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: -0.01em;
-}
-
-.empty-hint {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  font-weight: 400;
 }
 </style>
