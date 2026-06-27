@@ -97,7 +97,6 @@ const resetToDefault = () => {
     <div class="config-header">
       <div class="config-header-title">
         <span>输入框按钮管理</span>
-        <span class="config-header-hint">拖动手柄排序、切换开关控制显隐，右侧实时预览</span>
       </div>
       <button class="reset-btn" type="button" @click="resetToDefault">恢复默认</button>
     </div>
@@ -105,7 +104,6 @@ const resetToDefault = () => {
     <div class="config-body">
       <!-- 左：按钮排序（可滚动，拖拽手柄模式） -->
       <div class="config-panel config-panel-left">
-        <div class="config-panel-title">按钮顺序</div>
         <div class="button-list">
           <List
             :items="listItems"
@@ -131,7 +129,6 @@ const resetToDefault = () => {
 
       <!-- 右：实时预览 -->
       <div class="config-panel config-panel-right">
-        <div class="config-panel-title">预览</div>
         <div class="preview-box">
           <!-- 复用聊天输入框组件，屏蔽所有交互 -->
           <div
@@ -198,6 +195,7 @@ const resetToDefault = () => {
   display: flex;
   gap: 12px;
   align-items: stretch;
+  flex-direction: column;
 }
 
 .config-panel {
@@ -244,8 +242,6 @@ const resetToDefault = () => {
 }
 
 .preview-box {
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
   background: var(--bg-secondary-soft);
   overflow: hidden;
   flex: 1;

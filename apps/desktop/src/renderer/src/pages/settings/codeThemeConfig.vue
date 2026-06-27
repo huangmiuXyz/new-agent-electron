@@ -34,7 +34,6 @@ function selectTheme(id: string) {
   <div class="code-theme-config">
     <div class="config-header">
       <span class="config-title">代码主题</span>
-      <span class="config-hint">选择聊天代码块的语法高亮主题</span>
     </div>
 
     <div class="theme-grid">
@@ -54,7 +53,6 @@ function selectTheme(id: string) {
     </div>
 
     <div class="preview-section">
-      <div class="preview-label">实时预览</div>
       <div class="preview-box">
         <div class="preview-header-bar">
           <span class="preview-lang">TypeScript</span>
