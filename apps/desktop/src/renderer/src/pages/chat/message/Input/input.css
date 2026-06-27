@@ -107,7 +107,7 @@
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  padding: 14px 16px 10px;
+  padding: 14px 14px 10px;
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.04),
     0 1px 3px rgba(0, 0, 0, 0.06);
@@ -367,6 +367,7 @@
   border: none;
   font-size: 14px;
   padding: 0;
+  color: var(--text-primary);
   transition:
     background-color 0.14s ease,
     color 0.14s ease;
@@ -474,29 +475,29 @@
 }
 
 .tool-features-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .input-audio-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .options-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .voice-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+  color: var(--text-primary);
+  background: var(--bg-hover);
   animation: pulse 1.5s infinite;
 }
 
 .speech-active {
-  color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 /* ------------------------------------------------------------------
