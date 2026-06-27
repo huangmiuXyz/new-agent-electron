@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useSettingsStore } from '@renderer/stores/settings'
 import { formatShortcut, useShortcuts } from '@renderer/composables/useShortcuts'
-import List from '@renderer/components/List.vue'
 
 const settingsStore = useSettingsStore()
 const { shortcuts } = storeToRefs(settingsStore)
@@ -9,10 +8,45 @@ const { updateConfig } = useShortcuts()
 
 const { RotateCounterclockwise } = useIcon(['RotateCounterclockwise'])
 
+const searchQuery = ref('')
+const query = computed(() => searchQuery.value.toLowerCase().trim())
+
+const scopeNames: Record<string, string> = {
+  global: '全局快捷键',
+  chat: '对话页面',
+  notes: '笔记页面',
+  image: '图像生成',
+  settings: '设置页面'
+}
+
+const scopeOrder = ['global', 'chat', 'notes', 'image', 'settings']
+
+const matchesQuery = (shortcut: ShortcutConfig) => {
+  if (!query.value) return true
+  return (
+    shortcut.name.toLowerCase().includes(query.value) ||
+    shortcut.description?.toLowerCase().includes(query.value)
+  )
+}
+
+const groupedShortcuts = computed(() => {
+  const groups: { label: string; items: ShortcutConfig[] }[] = []
+  for (const scope of scopeOrder) {
+    const items = shortcuts.value.filter(s => s.scope === scope && matchesQuery(s))
+    if (items.length) {
+      groups.push({ label: scopeNames[scope] || scope, items })
+    }
+  }
+  return groups
+})
+
+const filteredCount = computed(() =>
+  groupedShortcuts.value.reduce((sum, g) => sum + g.items.length, 0)
+)
+
 // 重置所有快捷键
 const handleResetAll = () => {
   settingsStore.resetAllShortcuts()
-  // 同步到 ShortcutManager
   shortcuts.value.forEach(s => {
     updateConfig(s.id, { currentKey: undefined, enabled: s.enabled })
   })
@@ -28,28 +62,6 @@ const recordingModifiers = ref({
   alt: false
 })
 
-// 按作用域分组并转换格式
-const listItems = computed(() => {
-  const items: Array<ShortcutConfig & { group: string }> = []
-
-  const scopeNames: Record<string, string> = {
-    global: '全局快捷键',
-    chat: '对话页面',
-    notes: '笔记页面',
-    image: '图像生成',
-    settings: '设置页面'
-  }
-
-  shortcuts.value.forEach(shortcut => {
-    items.push({
-      ...shortcut,
-      group: scopeNames[shortcut.scope] || shortcut.scope
-    })
-  })
-
-  return items
-})
-
 // 显示当前快捷键
 const displayKey = (shortcut: ShortcutConfig) => {
   const key = shortcut.currentKey || shortcut.defaultKey
@@ -63,12 +75,9 @@ const recordingDisplay = computed(() => {
   if (recordingModifiers.value.meta) parts.push('Cmd')
   if (recordingModifiers.value.shift) parts.push('Shift')
   if (recordingModifiers.value.alt) parts.push('Alt')
-
-  // 显示所有普通键
   recordingKeys.value.forEach(key => {
     parts.push(key.length === 1 ? key.toUpperCase() : key)
   })
-
   return parts.length > 0 ? parts.join('+') : '按下快捷键...'
 })
 
@@ -95,28 +104,19 @@ const cancelRecording = () => {
 // 保存录制的快捷键
 const saveRecording = () => {
   if (!editingId.value) return
-
   const parts: string[] = []
   if (recordingModifiers.value.ctrl) parts.push('Ctrl')
   if (recordingModifiers.value.meta) parts.push('Cmd')
   if (recordingModifiers.value.shift) parts.push('Shift')
   if (recordingModifiers.value.alt) parts.push('Alt')
-
-  // 添加所有普通键
   recordingKeys.value.forEach(key => {
-    if (key.length === 1) {
-      parts.push(key.toUpperCase())
-    } else {
-      parts.push(key)
-    }
+    parts.push(key.length === 1 ? key.toUpperCase() : key)
   })
-
   if (parts.length > 0) {
     const newKey = parts.join('+')
     settingsStore.updateShortcut(editingId.value, { currentKey: newKey })
     updateConfig(editingId.value, { currentKey: newKey })
   }
-
   cancelRecording()
 }
 
@@ -137,38 +137,29 @@ const toggleEnabled = (e: Event, shortcut: ShortcutConfig) => {
 // 录制键盘事件
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!editingId.value) return
-
   e.preventDefault()
   e.stopPropagation()
-
   recordingModifiers.value = {
     ctrl: e.ctrlKey,
     meta: e.metaKey,
     shift: e.shiftKey,
     alt: e.altKey
   }
-
   const modifierKeys = ['Control', 'Meta', 'Shift', 'Alt', 'OS']
   if (!modifierKeys.includes(e.key)) {
-    // 添加新按键，避免重复
     if (!recordingKeys.value.includes(e.key)) {
       recordingKeys.value.push(e.key)
     }
   }
-
-  // 只要有修饰键+普通键 或 多个普通键，就立即保存
   const hasModifiers = e.ctrlKey || e.metaKey || e.shiftKey || e.altKey
   const hasKeys = recordingKeys.value.length > 0
-
   if ((hasModifiers && hasKeys) || recordingKeys.value.length >= 2) {
     nextTick(() => saveRecording())
   }
 }
 
-// 处理按键抬起
 const handleKeyUp = (e: KeyboardEvent) => {
   if (!editingId.value) return
-
   recordingModifiers.value = {
     ctrl: e.ctrlKey,
     meta: e.metaKey,
@@ -177,7 +168,6 @@ const handleKeyUp = (e: KeyboardEvent) => {
   }
 }
 
-// 监听录制
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown, true)
   window.addEventListener('keyup', handleKeyUp, true)
@@ -192,126 +182,87 @@ onUnmounted(() => {
 <template>
   <FormContainer header-title="快捷键设置">
     <template #content>
-      <div class="shortcuts-container">
-        <div class="shortcuts-header">
-          <p class="description">自定义应用的键盘快捷键，点击快捷键即可修改</p>
+      <SettingsList
+        :count="filteredCount"
+        count-label="个快捷键"
+        :search-term="searchQuery"
+        :show-search="shortcuts.length > 0"
+        search-placeholder="搜索快捷键"
+        @update:search-term="searchQuery = $event"
+      >
+        <template #actions>
           <Button size="sm" variant="text" @click="handleResetAll">
-            <template #icon>
-              <RotateCounterclockwise />
-            </template>
+            <template #icon><RotateCounterclockwise /></template>
             恢复默认
           </Button>
-        </div>
+        </template>
 
-        <div class="shortcuts-list-wrapper">
-          <List
-            :items="listItems"
-            key-field="id"
-            main-field="name"
-            sub-field="description"
-            :show-header="true"
-            :render-header="(item) => item.group"
-            :selectable="false"
-            variant="card"
+        <SettingsGroup
+          v-for="group in groupedShortcuts"
+          :key="group.label"
+          :label="group.label"
+        >
+          <SettingsRow
+            v-for="shortcut in group.items"
+            :key="shortcut.id"
+            :name="shortcut.name"
+            :desc="shortcut.description"
+            :muted="!shortcut.enabled"
+            clickable
+            fade-actions
+            @click="startRecording(shortcut)"
           >
-            <template #actions="{ item }">
-              <div class="shortcut-actions">
-                <!-- 编辑中的显示 -->
-                <template v-if="editingId === item.id">
-                  <button class="shortcut-key recording">
-                    <span class="recording-text">{{ recordingDisplay }}</span>
-                  </button>
-                  <Button size="sm" variant="text" @click="cancelRecording">取消</Button>
-                </template>
-
-                <!-- 正常显示 -->
-                <template v-else>
-                  <button
-                    class="shortcut-key"
-                    :class="{
-                      'custom': hasCustomKey(item),
-                      'default': !hasCustomKey(item),
-                      'disabled': !item.enabled
-                    }"
-                    @click="startRecording(item)"
-                  >
-                    {{ displayKey(item) }}
-                  </button>
-
-                  <button
-                    v-if="item.editable"
-                    class="btn-toggle"
-                    :class="{ 'is-enabled': item.enabled }"
-                    @click="(e) => toggleEnabled(e, item)"
-                    :title="item.enabled ? '禁用' : '启用'"
-                  >
-                    <span class="toggle-dot"></span>
-                  </button>
-
-                  <Button
-                    v-if="hasCustomKey(item)"
-                    size="sm"
-                    variant="text"
-                    @click="resetToDefault(item)"
-                    title="恢复默认"
-                  >
-                    <RotateCounterclockwise />
-                  </Button>
-                </template>
-              </div>
+            <template #actions>
+              <template v-if="editingId === shortcut.id">
+                <button class="shortcut-key recording" @click.stop>
+                  <span class="recording-text">{{ recordingDisplay }}</span>
+                </button>
+                <Button size="sm" variant="text" @click.stop="cancelRecording">取消</Button>
+              </template>
+              <template v-else>
+                <button
+                  class="shortcut-key"
+                  :class="{
+                    custom: hasCustomKey(shortcut),
+                    disabled: !shortcut.enabled
+                  }"
+                  @click.stop="startRecording(shortcut)"
+                >
+                  {{ displayKey(shortcut) }}
+                </button>
+                <button
+                  v-if="shortcut.editable !== false"
+                  class="btn-toggle"
+                  :class="{ 'is-enabled': shortcut.enabled }"
+                  @click.stop="(e) => toggleEnabled(e, shortcut)"
+                >
+                  <span class="toggle-dot"></span>
+                </button>
+                <Button
+                  v-if="hasCustomKey(shortcut)"
+                  size="sm"
+                  variant="text"
+                  @click.stop="resetToDefault(shortcut)"
+                  title="恢复默认"
+                >
+                  <RotateCounterclockwise />
+                </Button>
+              </template>
             </template>
-          </List>
-        </div>
-      </div>
+          </SettingsRow>
+        </SettingsGroup>
+
+        <template #empty>
+          <div class="empty-icon"><Keyboard /></div>
+          <div class="empty-title">{{ query ? '没有匹配的快捷键' : '暂无可用的快捷键' }}</div>
+          <div class="empty-hint">{{ query ? '试试其他关键词' : '所有快捷键功能已加载' }}</div>
+        </template>
+      </SettingsList>
     </template>
   </FormContainer>
 </template>
 
 <style scoped>
-.shortcuts-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  height: 100%;
-}
-
-.shortcuts-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.description {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.shortcuts-list-wrapper {
-  flex: 1;
-  overflow: hidden;
-  background: var(--bg-card);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
-
-.shortcuts-list-wrapper :deep(.list-container) {
-  height: 100%;
-}
-
-.shortcuts-list-wrapper :deep(.list-scroll-area) {
-  height: 100%;
-  overflow-y: auto;
-  background: transparent;
-  border: none;
-}
-
-.shortcut-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .shortcut-key {
   padding: 6px 16px;
   font-size: 13px;
@@ -374,6 +325,7 @@ onUnmounted(() => {
   transition: all 0.2s ease;
   padding: 0;
   flex-shrink: 0;
+  margin-left: 12px;
 }
 
 .btn-toggle.is-enabled {
