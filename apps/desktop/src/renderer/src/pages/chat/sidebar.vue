@@ -499,7 +499,7 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 .sidebar:not(.is-mobile) {
   width: 100%;
   background-color: var(--bg-sidebar-surface);
-  border-right: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
+  border-right: 1px solid var(--sidebar-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -510,7 +510,7 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 .sidebar:not(.is-mobile) .nav-list {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: var(--sidebar-container-pad);
   background: transparent;
 }
 
@@ -519,14 +519,15 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px;
-  padding-top: 0;
+  margin-bottom: 6px;
+  padding: 2px 4px;
 }
 
 .chat-list-title-text {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
+  letter-spacing: -0.08px;
 }
 
 .chat-list-title-actions {
@@ -608,13 +609,13 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 .chat-tree-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--sidebar-gap);
 }
 
 .chat-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sidebar-gap);
 }
 
 .chat-tree-item {
@@ -624,10 +625,11 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
-  padding: 8px;
-  border-radius: var(--radius-sm);
+  padding: var(--sidebar-item-pad);
+  border-radius: var(--sidebar-item-radius);
+  font-weight: 400;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 .chat-tree-item:hover {
@@ -635,7 +637,21 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 }
 
 .chat-tree-item.active {
-  background-color: var(--bg-active);
+  background-color: var(--sidebar-active-bg, var(--bg-active));
+  font-weight: 600;
+  position: relative;
+}
+
+.chat-tree-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--sidebar-active-indicator-width, 3px);
+  height: 55%;
+  background: var(--sidebar-active-accent, var(--color-primary));
+  border-radius: var(--sidebar-active-indicator-radius, 2px);
 }
 
 .expand-btn,

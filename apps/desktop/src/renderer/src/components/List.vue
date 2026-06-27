@@ -421,8 +421,9 @@ const handleItemClick = (item: ListItemView) => {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-tertiary);
-  margin-bottom: 8px;
-  padding-left: 4px;
+  margin-bottom: 6px;
+  padding: 4px 6px 0;
+  letter-spacing: -0.08px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -433,14 +434,14 @@ const handleItemClick = (item: ListItemView) => {
   align-items: center;
   cursor: pointer;
   transition:
-    background-color 0.12s ease,
-    color 0.12s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-emphasized),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-standard);
   gap: 10px;
   padding: 8px 10px;
-  margin-bottom: 4px;
-  border-radius: var(--radius-sm);
+  margin-bottom: var(--sidebar-gap, 2px);
+  border-radius: var(--sidebar-item-radius, var(--radius-sm));
   user-select: none;
 }
 
@@ -476,12 +477,29 @@ const handleItemClick = (item: ListItemView) => {
 }
 
 .list-item:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--sidebar-hover-bg, var(--bg-hover));
 }
 
 .list-item.is-active {
-  background-color: var(--bg-active);
-  color: var(--accent-color);
+  background-color: var(--sidebar-active-bg, var(--bg-active));
+  color: var(--text-primary);
+  position: relative;
+}
+
+.list-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--sidebar-active-indicator-width, 3px);
+  height: 55%;
+  background: var(--sidebar-active-accent, var(--color-primary));
+  border-radius: var(--sidebar-active-indicator-radius, 2px);
+}
+
+.list-item:active {
+  transform: scale(0.97);
 }
 
 /* 禁用态（如已隐藏的配置项）：视觉弱化 */
@@ -554,7 +572,7 @@ const handleItemClick = (item: ListItemView) => {
 
 .main-text {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .media-img {
@@ -580,12 +598,11 @@ const handleItemClick = (item: ListItemView) => {
 }
 
 .group-header {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-tertiary);
-  padding: 6px 8px 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  padding: 8px 8px 4px;
+  letter-spacing: -0.08px;
   display: flex;
   align-items: center;
   justify-content: space-between;

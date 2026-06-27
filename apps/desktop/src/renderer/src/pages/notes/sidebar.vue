@@ -568,21 +568,40 @@ const sendToKnowledgeBase = async (type: 'note' | 'folder', item: any) => {
 }
 
 .notes-sidebar:not(.is-mobile) :deep(.list-item) {
-  height: 35px !important;
-  min-height: 35px !important;
-  margin-bottom: 2px !important;
-  padding: 8px !important;
-  border-radius: var(--radius-sm);
-  transition: background-color 0.2s;
+  height: var(--sidebar-item-h) !important;
+  min-height: var(--sidebar-item-h) !important;
+  margin-bottom: var(--sidebar-gap) !important;
+  padding: var(--sidebar-item-pad) !important;
+  border-radius: var(--sidebar-item-radius);
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard);
   background-color: transparent;
 }
 
 .notes-sidebar:not(.is-mobile) :deep(.list-item:hover) {
-  background-color: var(--bg-hover);
+  background-color: var(--sidebar-hover-bg, var(--bg-hover));
 }
 
 .notes-sidebar:not(.is-mobile) :deep(.list-item.is-active) {
-  background-color: var(--bg-active) !important;
+  background-color: var(--sidebar-active-bg, var(--bg-active)) !important;
+  color: var(--text-primary);
+  position: relative;
+}
+
+.notes-sidebar:not(.is-mobile) :deep(.list-item.is-active)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--sidebar-active-indicator-width, 3px);
+  height: 55%;
+  background: var(--sidebar-active-accent, var(--color-primary));
+  border-radius: var(--sidebar-active-indicator-radius, 2px);
+}
+
+.notes-sidebar:not(.is-mobile) :deep(.list-item.is-active .main-text) {
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .combined-list {

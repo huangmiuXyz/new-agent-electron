@@ -820,7 +820,7 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
 
 .form-section {
   width: 100%;
-  border-right: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
+  border-right: 1px solid var(--sidebar-border);
   height: 100%;
 }
 

@@ -480,6 +480,24 @@ const { width } = useWindowSize()
   --radius-lg: 12px;
   --radius-xl: 16px;
 
+  /* === 侧栏共享令牌（Apple 风格：统一的发丝边框 + 列表项规范）=== */
+  /* Apple hairline 等效：rgba(0,0,0,0.06~0.08) 的发丝边框 */
+  --sidebar-border: color-mix(in srgb, var(--border-subtle) 70%, transparent);
+  --sidebar-nav-border: color-mix(in srgb, var(--border-subtle) 72%, transparent);
+  /* 侧栏列表项对齐 Apple 8px 间距节奏 */
+  --sidebar-item-h: 36px;
+  --sidebar-item-pad: 10px;
+  --sidebar-item-radius: var(--radius-sm);
+  --sidebar-container-pad: 10px;
+  --sidebar-gap: 4px;
+  /* Apple 选中项左侧强调线 */
+  --sidebar-active-accent: var(--color-primary);
+  --sidebar-active-indicator-width: 3px;
+  --sidebar-active-indicator-radius: 2px;
+  /* 选中项 surface 分层：略深于普通 hover */
+  --sidebar-active-bg: rgba(0, 0, 0, 0.07);
+  --sidebar-hover-bg: rgba(0, 0, 0, 0.04);
+
   --font-stack: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
 
   /* macOS 振动玻璃效果 */
@@ -562,6 +580,8 @@ const { width } = useWindowSize()
   --bg-secondary: #2c2c2e;
   --bg-hover: rgba(255, 255, 255, 0.07);
   --bg-active: rgba(255, 255, 255, 0.11);
+  --sidebar-active-bg: rgba(255, 255, 255, 0.09);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
   --bg-secondary-hover: #3a3a3c;
   --bg-tertiary-hover: #2c2c2e;
   --bg-tertiary: #1e1e1e;

@@ -59,11 +59,11 @@ const handleContextMenu = (event: MouseEvent, appId: string) => {
 .my-apps-sidebar:not(.is-mobile) {
   width: 100%;
   height: 100%;
-  padding: 10px;
+  padding: var(--sidebar-container-pad);
   display: flex;
   flex-direction: column;
   background: var(--bg-sidebar-surface);
-  border-right: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
+  border-right: 1px solid var(--sidebar-border);
 }
 
 .my-apps-sidebar:not(.is-mobile) :deep(.my-apps-sidebar-list),
@@ -74,13 +74,15 @@ const handleContextMenu = (event: MouseEvent, appId: string) => {
 
 .my-apps-sidebar:not(.is-mobile) :deep(.list-title) {
   padding: 4px 6px 8px;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-secondary);
+  letter-spacing: -0.08px;
 }
 
 .my-apps-sidebar:not(.is-mobile) :deep(.list-item) {
   align-items: flex-start;
-  margin-bottom: 4px;
+  margin-bottom: var(--sidebar-gap);
   background: transparent;
 }
 
@@ -154,8 +156,12 @@ const handleContextMenu = (event: MouseEvent, appId: string) => {
 
 .sidebar-app-name {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--text-primary);
+}
+
+.my-apps-sidebar:not(.is-mobile) :deep(.list-item.is-active .sidebar-app-name) {
+  font-weight: 600;
 }
 
 .sidebar-app-desc {
