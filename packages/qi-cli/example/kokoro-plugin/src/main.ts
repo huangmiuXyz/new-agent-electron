@@ -17,6 +17,22 @@ const plugin: MainPlugin = {
 
     const worker = new Worker(workerPath);
 
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Model loading timeout (120s)')), 120_000);
+      worker.on('message', function handler(msg: any) {
+        if (msg.type === 'ready') {
+          clearTimeout(timeout);
+          worker.removeListener('message', handler);
+          resolve();
+        } else if (msg.type === 'error') {
+          clearTimeout(timeout);
+          worker.removeListener('message', handler);
+          reject(new Error(msg.error));
+        }
+      });
+      worker.on('error', (err) => { clearTimeout(timeout); reject(err); });
+    });
+
     const pending = new Map<string, { resolve: (v: any) => void; reject: (e: any) => void }>();
 
     worker.on('message', (msg: { id: string; ok: boolean; result?: any; error?: string }) => {

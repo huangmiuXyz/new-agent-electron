@@ -29,17 +29,33 @@ function rawAudioToWav(audio: { audio: Float32Array; sampling_rate: number }): U
 }
 
 let tts: any = null;
+let modelReady = false;
+let modelError: string | null = null;
 
-async function ensureModel() {
-  if (tts) return;
-  const { KokoroTTS } = await import('kokoro-js');
-  const modelId = 'onnx-community/Kokoro-82M-v1.1-zh-ONNX';
-  tts = await KokoroTTS.from_pretrained(modelId, { dtype: 'q8', device: 'cpu' });
-}
+(async () => {
+  try {
+    const { KokoroTTS } = await import('kokoro-js');
+    const modelId = 'onnx-community/Kokoro-82M-v1.1-zh-ONNX';
+    tts = await KokoroTTS.from_pretrained(modelId, { dtype: 'q8', device: 'cpu' });
+    modelReady = true;
+    parentPort!.postMessage({ type: 'ready' });
+  } catch (err: any) {
+    modelError = err.message;
+    parentPort!.postMessage({ type: 'error', error: err.message });
+  }
+})();
 
 parentPort!.on('message', async (msg: { id: string; type: string; text?: string; voice?: string; speed?: number }) => {
   try {
-    await ensureModel();
+    if (modelError) throw new Error(modelError);
+    if (!modelReady) {
+      await new Promise<void>((resolve, reject) => {
+        const check = setInterval(() => {
+          if (modelReady) { clearInterval(check); resolve(); }
+          if (modelError) { clearInterval(check); reject(new Error(modelError!)); }
+        }, 100);
+      });
+    }
 
     if (msg.type === 'tts') {
       const audio = await tts.generate(msg.text!, { voice: msg.voice as any, speed: msg.speed ?? 1.0 });
