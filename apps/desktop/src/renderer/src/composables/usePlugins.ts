@@ -363,11 +363,11 @@ export function usePlugins() {
 
   const getStatusText = (status: PluginStatus): string => {
     const statusMap: Record<PluginStatus, string> = {
-      unloaded: 'Unloaded',
-      loading: 'Loading',
-      loaded: 'Loaded',
+      unloaded: '未加载',
+      loading: '加载中',
+      loaded: '已安装',
       unloading: 'Unloading',
-      error: 'Error'
+      error: '出错了'
     }
     return statusMap[status] || status
   }
