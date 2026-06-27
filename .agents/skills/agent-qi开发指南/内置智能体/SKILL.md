@@ -191,13 +191,12 @@ export const getBuiltinAgents = (): Agent[] => {
 - `createBuiltinAgent` 自动为所有内置智能体添加 `'内置'` 标签
 - `default` 智能体额外添加 `'默认'` 标签（在 JSON 的 `tags` 中声明）
 
-### 现有 7 个内置智能体
+### 现有 6 个内置智能体
 
 | ID | 名称 | 描述 | 关键内置工具 | 关键技能 |
 |----|------|------|-------------|---------|
 | `default` | 默认助手 | 通用AI助手 | 无 | 无 |
-| `builtin-skill-search` | 技能搜索 | 发现、加载和推荐技能 | `loadSkill`, `exec_command`, `fetch` | `find-skills` |
-| `builtin-skill-creator` | 技能创建 | 创建、更新和整理技能 | `loadSkill`, `readFile`, `edit_file`, `exec_command`, 等 | `skill-creator` |
+| `builtin-skill-manager` | 技能管理 | 发现、安装、创建、更新和整理技能 | `loadSkill`, `readFile`, `edit_file`, `exec_command`, `fetch`, 等 | `skill-creator`, `find-skills` |
 | `builtin-canvas` | Canvas | Canvas 工作区操作 | `list_canvas_directory`, `read_canvas_file`, `edit_file_canvas`, 等 | 无 |
 | `builtin-agent-creator` | 智能体创建 | 根据目标创建新智能体 | `agentCreator`, `loadSkill` | 无 |
 | `builtin-codex` | Codex | 项目代码编程 | `multi_tool_use_parallel`, `readFile`, `edit_file`, `exec_command`, 等 | `codegraph`, `agent-browser` |
@@ -481,4 +480,5 @@ export const buildCodexEnvironmentPrompt = (chatId, builtinTools): string => {
 | `apps/desktop/src/renderer/src/stores/settings.ts` | `favoriteAgentIds` 收藏 |
 | `apps/desktop/src/renderer/src/stores/sync.ts` | 设备间智能体同步 |
 | `apps/desktop/src/renderer/src/prompts/agentqi-codex-programming-prompt.md` | Codex 智能体系统提示词 |
-| `apps/desktop/src/renderer/src/prompts/agentqi-skill-creator-prompt.md` | 技能创建智能体系统提示词 |
+| `apps/desktop/src/renderer/src/prompts/agentqi-skill-manager-prompt.md` | 技能管理智能体系统提示词 |
+| `apps/desktop/src/renderer/src/prompts/agentqi-skill-creator-prompt.md` | （已废弃，由 skill-manager 替代） |
