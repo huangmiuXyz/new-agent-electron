@@ -18,7 +18,7 @@ import { createTextFileMiddleware } from './middleware/textFiles'
 import { normalizeInlineFilePartUrls, sanitizeUIMessages } from './utils'
 import { createToolMiddleware } from './middleware/createToolMiddleware'
 import { buildCodexEnvironmentPrompt, buildMultiAgentSystemPrompt } from './systemPrompts'
-import { estimateMessagesTokens } from './tokenUsage'
+import { createTokenEstimationMiddleware } from './middleware/tokenEstimation'
 import { isMobile } from '@renderer/composables/useDeviceType'
 import { messageApi } from '@renderer/utils/messages'
 import { onUseAIBefore } from '@renderer/utils/onuseAIbefore'
@@ -294,7 +294,10 @@ export const chatService = () => {
               ragSearchDetails = details?.map((item) => ({ ...item }))
             }
           }),
-          createSkillReferenceMiddleware({ skills, workPath: agentWorkPath })
+          createSkillReferenceMiddleware({ skills, workPath: agentWorkPath }),
+          createTokenEstimationMiddleware((result) => {
+            estimatedPromptTokens = result.total
+          })
         ]
       }),
       providerOptions: {
@@ -349,7 +352,7 @@ export const chatService = () => {
     // 4. Convert to model messages
     const modelMessages = await convertToModelMessages(contextTruncatedMessages)
 
-    const estimatedPromptTokens = estimateMessagesTokens(messages, model)
+    let estimatedPromptTokens = 0
 
     const result = await agent.stream({
       prompt: modelMessages,

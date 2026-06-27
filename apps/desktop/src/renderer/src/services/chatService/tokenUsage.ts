@@ -76,7 +76,7 @@ export const serializeMessageForTokenEstimation = (
 export const serializeMessagePartForTokenEstimation = (
   part: BaseMessage['parts'][number]
 ): string => {
-  if (part.type === 'text') {
+  if (part.type === 'text' || part.type === 'reasoning') {
     return (part.text as string | undefined)?.trim() || ''
   }
 
@@ -171,6 +171,59 @@ export const estimateMessageTokens = (message: BaseMessage, model?: string): num
 
 export const estimateMessagesTokens = (messages: BaseMessage[], model?: string): number => {
   return messages.reduce((total, message) => total + estimateMessageTokens(message, model), 0)
+}
+
+export const serializeV4PromptForTokenEstimation = (prompt: unknown[]): string => {
+  return prompt
+    .map((msg) => {
+      const message = msg as { role: string; content: unknown }
+      let content = ''
+
+      if (typeof message.content === 'string') {
+        content = message.content
+      } else if (Array.isArray(message.content)) {
+        content = message.content
+          .map((part: Record<string, unknown>) => {
+            if (part.type === 'text' || part.type === 'reasoning') {
+              return (part.text as string) || ''
+            }
+            if (part.type === 'file' || part.type === 'reasoning-file') {
+              const fileName = (part.filename as string) || (part as Record<string, unknown>).url as string || ''
+              return `[文件]${fileName ? ` ${fileName}` : ''}`
+            }
+            if (part.type === 'tool-call') {
+              const input = serializeValueForTokenEstimation(part.input)
+              const name = part.toolName as string || ''
+              return `[工具调用:${name}]${input ? ` ${input}` : ''}`
+            }
+            if (part.type === 'tool-result') {
+              const output = serializeValueForTokenEstimation(part.output)
+              const name = part.toolName as string || ''
+              return `[工具结果:${name}]${output ? ` ${output}` : ''}`
+            }
+            return ''
+          })
+          .filter(Boolean)
+          .join('\n')
+      }
+
+      return content ? `${message.role}: ${content}` : ''
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+export const serializeV4ToolsForTokenEstimation = (tools: unknown[] | undefined): string => {
+  if (!tools || tools.length === 0) return ''
+  return tools
+    .map((t) => {
+      const tool = t as { name: string; description?: string; inputSchema?: Record<string, unknown> }
+      const schema = serializeValueForTokenEstimation(tool.inputSchema)
+      const desc = tool.description ? ` - ${tool.description}` : ''
+      return `[工具定义:${tool.name}]${desc}${schema ? `\n参数: ${schema}` : ''}`
+    })
+    .filter(Boolean)
+    .join('\n\n')
 }
 
 export const getFlatTokenUsage = (
