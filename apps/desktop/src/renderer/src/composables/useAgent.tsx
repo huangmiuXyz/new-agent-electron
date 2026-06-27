@@ -910,7 +910,7 @@ export const useAgent = () => {
       confirm({
         title: `技能详情 · ${skill.name}`,
         content: SkillDetailContent,
-        width: '760px',
+        width:'80vw',
         maxHeight: '80vh',
         showCancel: false
       })

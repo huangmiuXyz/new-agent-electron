@@ -43,6 +43,7 @@ const settingsList = [
   { id: 'knowledge', name: '知识库', icon: Library16Filled, section: '资源管理' },
   { id: 'mcp', name: 'MCP 服务器', icon: Server, section: '资源管理' },
   { id: 'plugins', name: '插件管理', icon: Plugin, section: '扩展功能' },
+  { id: 'skills', name: '技能管理', icon: useIcon('Sparkles'), section: '扩展功能' },
   { id: 'terminal', name: '终端设置', icon: Terminal, section: '系统与文件' },
   { id: 'userData', name: '文件管理', icon: Folder, section: '系统与文件' },
   { id: 'backup', name: '备份与恢复', icon: Database, section: '系统与文件' },

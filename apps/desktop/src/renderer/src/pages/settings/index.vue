@@ -5,6 +5,7 @@ const route = useRoute()
 const availableTabs = new Set([
   'system',
   'agents',
+  'skills',
   'models',
   'defaultModels',
   'knowledge',
@@ -45,6 +46,9 @@ const switchTab = (tabName: string) => {
     <div class="settings-content">
       <!-- 智能体管理 -->
       <SettingsAgents v-if="activeTab === 'agents'" />
+
+      <!-- 技能管理 -->
+      <SettingsSkillManager v-else-if="activeTab === 'skills'" />
 
       <!-- 模型提供商设置 -->
       <SettingsProvider v-else-if="activeTab === 'models'" />

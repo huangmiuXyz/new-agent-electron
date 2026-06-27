@@ -1,10 +1,7 @@
-<script setup lang="tsx">
-import { discoverSkills, loadSkill, type SkillMetadata } from '@renderer/services/skillsService'
-import Markdown from '@renderer/components/Markdown.vue'
-import Button from '@renderer/components/Button.vue'
+<script setup lang="ts">
+import { discoverSkills, type SkillMetadata } from '@renderer/services/skillsService'
 
 const DEFAULT_SKILL_DIRECTORY = '~/.agents/skills'
-const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---/
 
 interface SkillDirectoryEntry {
   key: string
@@ -14,17 +11,18 @@ interface SkillDirectoryEntry {
 }
 
 const { Sparkles, Plus, Refresh, Folder, Eye, Pencil, Trash, Active, Inactive } = useIcon([
-  'Sparkles',
-  'Plus',
-  'Refresh',
-  'Folder',
-  'Eye',
-  'Pencil',
-  'Trash',
-  'Active',
-  'Inactive'
+  'Sparkles', 'Plus', 'Refresh', 'Folder', 'Eye', 'Pencil', 'Trash', 'Active', 'Inactive'
 ])
-const { confirm, remove } = useModal()
+const {
+  openSkillMenu, getSkillMenuOptions,
+  toggleSkillEnabled: _toggleSkillEnabled,
+  openSkillDetail: _openSkillDetail,
+  openEditSkillModal: _openEditSkillModal,
+  deleteSkill: _deleteSkill,
+  openCreateSkillModal: _openCreateSkillModal,
+  openSkillDirectory: _openSkillDirectory
+} = useSkills()
+
 const agentStore = useAgentStore()
 const chatsStore = useChatsStores()
 
@@ -75,6 +73,34 @@ const refreshSkills = () => {
     : []
 }
 
+const toggleSkillEnabled = (skill: SkillMetadata) => {
+  _toggleSkillEnabled(skill, refreshSkills)
+}
+
+const openSkillDetail = (skill: SkillMetadata) => {
+  _openSkillDetail(skill)
+}
+
+const openEditSkillModal = (skill: SkillMetadata) => {
+  _openEditSkillModal(skill, skillDirectory.value, refreshSkills)
+}
+
+const deleteSkill = async (skill: SkillMetadata) => {
+  await _deleteSkill(skill, refreshSkills)
+}
+
+const openCreateSkillModal = () => {
+  if (!skillDirectory.value) {
+    messageApi.error('当前没有可用的技能目录，请先切换目录')
+    return
+  }
+  _openCreateSkillModal(skillDirectory.value, refreshSkills)
+}
+
+const openSkillDirectory = async (targetPath?: string) => {
+  await _openSkillDirectory(targetPath || skillDirectory.value)
+}
+
 const selectSkillDirectory = (directoryKey: string) => {
   if (!directoryKey || directoryKey === activeDirectoryKey.value) return
   selectedDirectoryKey.value = directoryKey
@@ -91,339 +117,6 @@ const filteredSkills = computed(() => {
       skill.path.toLowerCase().includes(keyword)
   )
 })
-
-const openSkillDirectory = async (targetPath?: string) => {
-  const path = targetPath || skillDirectory.value
-  if (!path) return
-  await window.api.shell.openPath(path)
-}
-
-const getSkillFilePath = (skillPath: string) => window.api.path.join(skillPath, 'SKILL.md')
-
-const getRawSkillContent = (skill: SkillMetadata) => {
-  return window.api.fs.readFileSync(getSkillFilePath(skill.path), 'utf-8')
-}
-
-const stripFrontmatter = (content: string) => {
-  return content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim()
-}
-
-const buildSkillFileContent = (name: string, description: string, body: string, enabled = true) => {
-  const normalizedBody = body.trim()
-  return [
-    '---',
-    `name: ${name}`,
-    `description: ${description}`,
-    `enabled: ${enabled}`,
-    '---',
-    '',
-    normalizedBody
-  ].join('\n')
-}
-
-const validateSkillName = (name: string) => {
-  return (
-    /^[a-z0-9-]+$/.test(name) &&
-    !name.startsWith('-') &&
-    !name.endsWith('-') &&
-    !name.includes('--')
-  )
-}
-
-const setSkillEnabledInContent = (content: string, enabled: boolean) => {
-  const match = content.match(FRONTMATTER_PATTERN)
-  if (!match) return content
-
-  const frontmatter = match[1]
-  const updatedFrontmatter = /(^|\n)enabled:\s*(true|false)\s*($|\n)/.test(frontmatter)
-    ? frontmatter.replace(/(^|\n)enabled:\s*(true|false)\s*($|\n)/, `$1enabled: ${enabled}$3`)
-    : `${frontmatter}\nenabled: ${enabled}`
-
-  return content.replace(FRONTMATTER_PATTERN, `---\n${updatedFrontmatter}\n---`)
-}
-
-const toggleSkillEnabled = (skill: SkillMetadata) => {
-  if (skill.builtin) {
-    messageApi.info('内置技能随应用提供，始终可用')
-    return
-  }
-
-  try {
-    const rawContent = getRawSkillContent(skill)
-    const nextEnabled = !skill.enabled
-    const nextContent = setSkillEnabledInContent(rawContent, nextEnabled)
-    window.api.fs.writeFileSync(getSkillFilePath(skill.path), nextContent, 'utf-8')
-    refreshSkills()
-    messageApi.success(nextEnabled ? `已启用技能：${skill.name}` : `已禁用技能：${skill.name}`)
-  } catch (error) {
-    messageApi.error(`更新技能状态失败：${error instanceof Error ? error.message : String(error)}`)
-  }
-}
-
-const openSkillDetail = (skill: SkillMetadata) => {
-  const loaded = loadSkill(skill.name, skills.value)
-  if (!loaded) {
-    messageApi.error(`加载技能失败：${skill.name}`)
-    return
-  }
-
-  const SkillDetailContent = defineComponent({
-    setup() {
-      const block = {
-        text: loaded.content,
-        state: 'done',
-        type: 'text'
-      } as any
-      const message = {
-        content: loaded.content,
-        role: 'assistant',
-        id: `skill-${skill.name}`
-      } as any
-
-      return {
-        skill,
-        block,
-        message
-      }
-    },
-    render() {
-      return (
-        <div class="skill-detail-modal">
-          <div class="skill-detail-header-card">
-            <div class="skill-detail-meta">
-              <div>
-                <div class="skill-detail-name">{this.skill.name}</div>
-                <div class="skill-detail-desc">{this.skill.description}</div>
-              </div>
-            </div>
-          </div>
-          <div class="skill-detail-body">
-            <Markdown block={this.block} message={this.message} />
-          </div>
-        </div>
-      )
-    }
-  })
-
-  confirm({
-    title: `技能详情 · ${skill.name}`,
-    content: SkillDetailContent,
-    width: '760px',
-    maxHeight: '80vh',
-    showCancel: false
-  })
-}
-
-const createSkillTemplate = (name: string, description: string) =>
-  buildSkillFileContent(
-    name,
-    description,
-    [
-      `# ${name}`,
-      '',
-      description,
-      '',
-      '## Instructions',
-      '',
-      '- 在这里编写技能使用说明。',
-      '- 需要引用文件时，使用相对路径。'
-    ].join('\n')
-  )
-
-const openEditSkillModal = (skill: SkillMetadata) => {
-  if (skill.builtin) {
-    messageApi.info('内置技能不可直接编辑；需要改动时可以复制到本地技能目录')
-    return
-  }
-
-  let rawContent = ''
-  try {
-    rawContent = getRawSkillContent(skill)
-  } catch (error) {
-    messageApi.error(`读取技能失败：${error instanceof Error ? error.message : String(error)}`)
-    return
-  }
-
-  const [FormComponent, formActions] = useForm({
-    title: `编辑技能 · ${skill.name}`,
-    showHeader: false,
-    initialData: {
-      name: skill.name,
-      description: skill.description,
-      body: stripFrontmatter(rawContent)
-    },
-    fields: [
-      {
-        name: 'name',
-        type: 'text',
-        label: '技能名称',
-        required: true,
-        placeholder: '例如：design-review'
-      },
-      {
-        name: 'description',
-        type: 'textarea',
-        label: '技能描述',
-        required: true,
-        placeholder: '简要描述这个技能负责什么'
-      },
-      {
-        name: 'body',
-        type: 'textarea',
-        label: '技能正文',
-        required: true,
-        placeholder: '请输入技能正文 Markdown',
-        rows: 18
-      }
-    ],
-    onSubmit: (data) => {
-      const nextName = data.name.trim()
-      const nextDescription = data.description.trim()
-      const nextBody = data.body.trim()
-
-      if (!nextName || !nextDescription || !nextBody) {
-        messageApi.error('请填写完整的技能名称、描述和正文')
-        return
-      }
-
-      if (!validateSkillName(nextName)) {
-        messageApi.error('技能名称只能包含小写字母、数字和中划线')
-        return
-      }
-
-      const nextDir = window.api.path.join(skillDirectory.value, nextName)
-      const nextFile = getSkillFilePath(nextDir)
-      const currentDir = skill.path
-
-      if (nextName !== skill.name && window.api.fs.existsSync(nextDir)) {
-        messageApi.error(`目标技能目录已存在：${nextName}`)
-        return
-      }
-
-      try {
-        if (nextName !== skill.name) {
-          window.api.fs.renameSync(currentDir, nextDir)
-        }
-
-        window.api.fs.writeFileSync(
-          nextFile,
-          buildSkillFileContent(nextName, nextDescription, nextBody, skill.enabled),
-          'utf-8'
-        )
-        refreshSkills()
-        remove()
-        messageApi.success(`已更新技能：${nextName}`)
-      } catch (error) {
-        messageApi.error(`更新技能失败：${error instanceof Error ? error.message : String(error)}`)
-      }
-    }
-  })
-
-  confirm({
-    title: `编辑技能 · ${skill.name}`,
-    content: FormComponent,
-    width: '720px',
-    maxHeight: '80vh',
-    onOk: async () => {
-      formActions.submit()
-    }
-  })
-}
-
-const deleteSkill = async (skill: SkillMetadata) => {
-  if (skill.builtin) {
-    messageApi.info('内置技能不可删除')
-    return
-  }
-
-  const confirmed = await confirm({
-    title: '删除技能',
-    content: `确定要删除技能 "${skill.name}" 吗？此操作不可撤销。`
-  })
-
-  if (!confirmed) return
-
-  try {
-    window.api.fs.rmSync(skill.path, { recursive: true, force: true })
-    refreshSkills()
-    messageApi.success(`已删除技能：${skill.name}`)
-  } catch (error) {
-    messageApi.error(`删除技能失败：${error instanceof Error ? error.message : String(error)}`)
-  }
-}
-
-const openCreateSkillModal = () => {
-  if (!skillDirectory.value) {
-    messageApi.error('当前没有可用的技能目录，请先切换目录')
-    return
-  }
-
-  const [FormComponent, formActions] = useForm({
-    title: '新技能',
-    showHeader: false,
-    initialData: {
-      name: '',
-      description: ''
-    },
-    fields: [
-      {
-        name: 'name',
-        type: 'text',
-        label: '技能名称',
-        required: true,
-        placeholder: '例如：design-review'
-      },
-      {
-        name: 'description',
-        type: 'textarea',
-        label: '技能描述',
-        required: true,
-        placeholder: '简要描述这个技能负责什么'
-      }
-    ],
-    onSubmit: (data) => {
-      const name = data.name.trim()
-      const description = data.description.trim()
-      if (!name || !description) {
-        messageApi.error('请填写完整的技能名称和描述')
-        return
-      }
-
-      if (!validateSkillName(name)) {
-        messageApi.error('技能名称只能包含小写字母、数字和中划线')
-        return
-      }
-
-      const targetDir = window.api.path.join(skillDirectory.value, name)
-      const skillFile = window.api.path.join(targetDir, 'SKILL.md')
-
-      if (window.api.fs.existsSync(targetDir)) {
-        messageApi.error(`技能目录已存在：${name}`)
-        return
-      }
-
-      try {
-        window.api.fs.mkdirSync(targetDir, { recursive: true })
-        window.api.fs.writeFileSync(skillFile, createSkillTemplate(name, description), 'utf-8')
-        refreshSkills()
-        remove()
-        messageApi.success(`已创建技能：${name}`)
-      } catch (error) {
-        messageApi.error(`创建技能失败：${error instanceof Error ? error.message : String(error)}`)
-      }
-    }
-  })
-
-  confirm({
-    title: '新技能',
-    content: FormComponent,
-    width: '560px',
-    maxHeight: '70vh',
-    onOk: async () => {
-      formActions.submit()
-    }
-  })
-}
 
 onMounted(() => {
   refreshSkills()
@@ -937,10 +630,6 @@ watch(
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.55;
-}
-
-:deep(.skill-link-btn) {
-  flex-shrink: 0;
 }
 
 :deep(.skill-detail-body .incremark) {
