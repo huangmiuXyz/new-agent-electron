@@ -784,7 +784,6 @@ export function useForm<T extends Record<string, any>>(config: FormConfig<T>) {
         justify-content: space-between;
         align-items: center;
         padding: 12px 0;
-        border-bottom: 1px solid #f5f5f5;
         margin-top: 0;
       }
 
