@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import { builtinModules } from 'module'
 import { resolve } from 'path'
 
 export default defineConfig({
@@ -15,7 +16,12 @@ export default defineConfig({
         entryFileNames: 'main.js',
         inlineDynamicImports: true,
       },
-      external: ['electron'],
+      external: [
+        'electron',
+        ...builtinModules.map((m) => `node:${m}`),
+        ...builtinModules,
+        'vscode-jsonrpc/node',
+      ],
     },
     outDir: 'dist',
     emptyOutDir: false,

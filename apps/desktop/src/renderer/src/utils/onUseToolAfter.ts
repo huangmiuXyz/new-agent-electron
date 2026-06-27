@@ -1,7 +1,5 @@
 import { usePlugins } from '@renderer/composables/usePlugins'
 
-const HOOK_TIMEOUT_MS = 2000
-
 export const onUseToolAfter = async <T>(params: {
   toolName: string
   input: unknown
@@ -15,31 +13,21 @@ export const onUseToolAfter = async <T>(params: {
   if (hooks.length === 0) return params.result
 
   let currentResult = params.result
-  const timeoutPromise = new Promise<void>((resolve) =>
-    setTimeout(() => {
-      console.warn(`[onUseToolAfter] 插件 tool:after-use 钩子超过 ${HOOK_TIMEOUT_MS}ms 未完成，已跳过等待`)
-      resolve()
-    }, HOOK_TIMEOUT_MS)
-  )
 
   for (const hook of hooks) {
-    const hookPromise = (async () => {
-      try {
-        const modified = await hook.handler({
-          toolName: params.toolName,
-          input: params.input,
-          result: currentResult,
-          options: params.options
-        })
-        if (modified !== undefined) {
-          currentResult = modified
-        }
-      } catch (error) {
-        console.error(`[tool:after-use] 插件 "${hook.pluginName}" 处理失败:`, error)
+    try {
+      const modified = await manager.runHook(hook, 'tool:after-use', {
+        toolName: params.toolName,
+        input: params.input,
+        result: currentResult,
+        options: params.options
+      })
+      if (modified !== undefined) {
+        currentResult = modified
       }
-    })()
-
-    await Promise.race([hookPromise, timeoutPromise])
+    } catch (error) {
+      console.error(`[tool:after-use] 插件 "${hook.pluginName}" 处理失败:`, error)
+    }
   }
 
   return currentResult

@@ -11,6 +11,8 @@ const clonePlain = <T>(value: T): T => {
   if (value === undefined || value === null) return value;
   return JSON.parse(JSON.stringify(value)) as T;
 }
+
+const HOOK_TIMEOUT_MS = 2000
 /**
  * 插件管理器
  * 负责维护插件注册表、命令系统和钩子系统
@@ -566,6 +568,28 @@ export class PluginManager {
   }
 
   /**
+   * 执行单个钩子，超时后不跳过只提醒
+   */
+  private async runHookWithTimeout(hook: Hook, name: string, data?: any): Promise<any> {
+    const timeoutId = setTimeout(() => {
+      console.warn(`[plugin] 插件 "${hook.pluginName}" 的钩子 "${name}" 已执行超过 ${HOOK_TIMEOUT_MS}ms，仍在等待...`)
+      try {
+        notificationApi.warning(
+          `插件 "${hook.pluginName}" 的 "${name}" 钩子执行较慢，请耐心等待`,
+          '插件正在后台运行',
+          0
+        )
+      } catch {}
+    }, HOOK_TIMEOUT_MS)
+
+    try {
+      return await hook.handler(data)
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
+
+  /**
    * 触发钩子
    * @param name 钩子名称
    * @param data 钩子数据
@@ -582,7 +606,7 @@ export class PluginManager {
 
     for (const hook of hooks) {
       try {
-        const result = await hook.handler(data);
+        const result = await this.runHookWithTimeout(hook, name, data);
         results.push(result);
       } catch (error) {
         console.error(`Hook "${name}" failed:`, error);
@@ -605,7 +629,7 @@ export class PluginManager {
 
     const results = await Promise.allSettled(
       hooks.map(async (hook) => {
-        return await hook.handler(data);
+        return await this.runHookWithTimeout(hook, name, data);
       })
     );
 
@@ -616,6 +640,13 @@ export class PluginManager {
       console.error(`Hook "${name}" failed:`, result.reason);
       return null;
     });
+  }
+
+  /**
+   * 执行单个钩子（用于需要链式传参的场景）
+   */
+  async runHook(hook: Hook, name: string, data?: any): Promise<any> {
+    return this.runHookWithTimeout(hook, name, data);
   }
 
   /**
