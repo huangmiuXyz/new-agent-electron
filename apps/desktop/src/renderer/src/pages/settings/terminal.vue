@@ -126,7 +126,9 @@ const [TerminalForm] = useForm({
 <template>
   <FormContainer header-title="终端设置">
     <template #content>
-      <TerminalForm />
+      <div class="settings-page-wrapper">
+        <TerminalForm />
+      </div>
     </template>
   </FormContainer>
 </template>

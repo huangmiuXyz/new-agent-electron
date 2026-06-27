@@ -183,6 +183,7 @@ onMounted(loadFiles)
 <template>
   <FormContainer header-title="文件管理">
     <template #content>
+      <div class="settings-page-wrapper">
       <div class="user-data-page">
         <!-- Toolbar -->
         <div class="toolbar">
@@ -211,6 +212,7 @@ onMounted(loadFiles)
             <div class="empty-text">暂无文件</div>
           </div>
         </div>
+      </div>
       </div>
     </template>
   </FormContainer>

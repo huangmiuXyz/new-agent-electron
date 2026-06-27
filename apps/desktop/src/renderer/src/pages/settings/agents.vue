@@ -35,6 +35,7 @@ const matchesQuery = (agent: Agent) => {
 <template>
   <FormContainer header-title="智能体管理">
     <template #content>
+      <div class="settings-page-wrapper">
       <SettingsList
         :count="filteredCount"
         count-label="个智能体"
@@ -104,6 +105,7 @@ const matchesQuery = (agent: Agent) => {
           <div class="empty-hint">{{ query ? '试试其他关键词' : '点击"创建智能体"开始配置' }}</div>
         </template>
       </SettingsList>
+      </div>
     </template>
   </FormContainer>
 </template>

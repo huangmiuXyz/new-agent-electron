@@ -88,9 +88,11 @@ onMounted(() => {
 <template>
   <FormContainer header-title="系统设置">
     <template #content>
-      <SystemForm />
-      <div v-if="!openAtLoginSupported" class="system-note">
-        当前平台暂不支持开机启动，已自动忽略该选项。
+      <div class="settings-page-wrapper">
+        <SystemForm />
+        <div v-if="!openAtLoginSupported" class="system-note">
+          当前平台暂不支持开机启动，已自动忽略该选项。
+        </div>
       </div>
     </template>
   </FormContainer>

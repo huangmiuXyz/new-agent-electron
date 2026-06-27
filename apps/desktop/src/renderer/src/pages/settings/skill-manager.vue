@@ -49,6 +49,7 @@ onMounted(() => {
 <template>
   <FormContainer header-title="技能管理">
     <template #content>
+      <div class="settings-page-wrapper">
       <SettingsList
         :count="filteredCount"
         count-label="个技能"
@@ -121,6 +122,7 @@ onMounted(() => {
           <div class="empty-hint">{{ query ? '试试其他关键词' : '技能文件存放在技能目录中' }}</div>
         </template>
       </SettingsList>
+      </div>
     </template>
   </FormContainer>
 </template>

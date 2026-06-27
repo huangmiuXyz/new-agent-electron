@@ -109,3 +109,12 @@ const switchTab = (tabName: string) => {
   background: var(--bg-card);
 }
 </style>
+
+<style>
+.settings-page-wrapper {
+  width: 70%;
+  margin: 0 auto;
+  margin-top: 20px;
+  min-width: 640px;
+}
+</style>

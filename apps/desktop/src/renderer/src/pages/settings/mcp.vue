@@ -387,6 +387,11 @@ const getServerDesc = (server: any) => {
   color: var(--text-tertiary);
 }
 
+.mcp-wrap {
+  width: 70%;
+  margin: 0 auto;
+}
+
 .mcp-wrap :deep(.toggle-switch) {
   margin: 0 4px;
   transform: scale(0.85);

@@ -118,6 +118,7 @@ const hasSelectedDiff = computed(() => {
 <template>
   <FormContainer header-title="同步">
     <template #content>
+      <div class="settings-page-wrapper">
       <div class="sync-wrapper">
         <div v-if="hasDesktopSyncApi" class="sync-row">
           <div class="sync-copy">
@@ -218,14 +219,13 @@ const hasSelectedDiff = computed(() => {
           <div class="error-text">{{ connection.error }}</div>
         </Card>
       </div>
+      </div>
     </template>
   </FormContainer>
 </template>
 
 <style scoped>
 .sync-wrapper {
-  max-width: 640px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;

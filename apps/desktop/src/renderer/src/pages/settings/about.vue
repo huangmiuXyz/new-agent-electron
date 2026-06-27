@@ -84,6 +84,7 @@ onUnmounted(() => {
 <template>
   <FormContainer header-title="关于我们">
     <template #content>
+      <div class="settings-page-wrapper">
       <div class="about-wrapper">
         <FormItem>
           <div class="header-card">
@@ -164,14 +165,13 @@ onUnmounted(() => {
           </List>
         </FormItem>
       </div>
+      </div>
     </template>
   </FormContainer>
 </template>
 
 <style scoped>
 .about-wrapper {
-  max-width: 640px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
 }

@@ -50,9 +50,11 @@ const [DisplayForm] = useForm({
 <template>
   <FormContainer header-title="显示设置">
     <template #content>
-      <DisplayForm />
-      <SettingsCodeThemeConfig />
-      <SettingsInputButtonConfig />
+      <div class="settings-page-wrapper">
+        <DisplayForm />
+        <SettingsCodeThemeConfig />
+        <SettingsInputButtonConfig />
+      </div>
     </template>
   </FormContainer>
 </template>

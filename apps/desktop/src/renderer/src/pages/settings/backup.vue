@@ -252,6 +252,7 @@ const resetData = async () => {
 <template>
   <FormContainer header-title="备份与恢复">
     <template #content>
+      <div class="settings-page-wrapper">
       <div class="backup-page">
         <Card padding="20px">
           <div class="setting-item">
@@ -306,6 +307,7 @@ const resetData = async () => {
             </Button>
           </div>
         </Card>
+      </div>
       </div>
     </template>
   </FormContainer>

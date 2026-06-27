@@ -182,6 +182,7 @@ onUnmounted(() => {
 <template>
   <FormContainer header-title="快捷键设置">
     <template #content>
+      <div class="settings-page-wrapper">
       <SettingsList
         :count="filteredCount"
         count-label="个快捷键"
@@ -258,6 +259,7 @@ onUnmounted(() => {
           <div class="empty-hint">{{ query ? '试试其他关键词' : '所有快捷键功能已加载' }}</div>
         </template>
       </SettingsList>
+      </div>
     </template>
   </FormContainer>
 </template>

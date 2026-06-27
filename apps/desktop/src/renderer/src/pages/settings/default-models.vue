@@ -78,7 +78,9 @@ const [DefaultModelsForm] = useForm({
 <template>
     <FormContainer header-title="默认模型设置">
         <template #content>
-            <DefaultModelsForm />
+            <div class="settings-page-wrapper">
+                <DefaultModelsForm />
+            </div>
         </template>
     </FormContainer>
 </template>
