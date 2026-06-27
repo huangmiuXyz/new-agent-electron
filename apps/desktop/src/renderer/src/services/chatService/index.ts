@@ -81,7 +81,8 @@ export const chatService = () => {
       providerOptions: customProviderOptions,
       onBeforeToolExecute,
       isApprovalAction,
-      abortSignal
+      abortSignal,
+      stopWhen
     }: ChatServiceConfig
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
@@ -326,7 +327,8 @@ export const chatService = () => {
             ) ??
               false)
           )
-        }
+        },
+        ...(stopWhen || [])
       ]
     })
 

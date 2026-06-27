@@ -57,11 +57,15 @@ export const useChat = (chatId: string) => {
     const pendingMessage = shiftPendingMessage(chatId)
     if (!pendingMessage) return
 
+    useChatsStores().clearChatGuided(chatId)
+
     setTimeout(() => {
       const { sendMessages } = useChat(chatId)
       sendMessages(pendingMessage.parts)
     }, 100)
   }
+
+
 
   const getChatAgent = (): Agent | null => {
     const agentId = ensureChatAgent(chatId)
@@ -347,7 +351,8 @@ export const useChat = (chatId: string) => {
                 maxToolCalls: runtimeAgent?.maxToolCalls,
                 enableCodexEnvContext: runtimeAgent?.enableCodexEnvContext,
                 providerOptions: providerOptions.value[selectedProvider.id],
-                isApprovalAction: isApproval
+                isApprovalAction: isApproval,
+                stopWhen: [() => useChatsStores().isChatGuided(chatId)]
               }
             )
           },

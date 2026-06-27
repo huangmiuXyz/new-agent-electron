@@ -1,4 +1,4 @@
-import type { ToolChoice, DataContent } from 'ai'
+import type { ToolChoice, DataContent, StopCondition } from 'ai'
 
 export interface VideoGenerateOptions {
   n?: number
@@ -46,6 +46,7 @@ export interface ChatServiceConfig {
   onBeforeToolExecute?: (params: { tool: Tool; input: string; options: any }) => Promise<void>
   isApprovalAction?: boolean
   abortSignal?: AbortSignal
+  stopWhen?: StopCondition<any, any>[]
 }
 
 export type GenerateImagePrompt =

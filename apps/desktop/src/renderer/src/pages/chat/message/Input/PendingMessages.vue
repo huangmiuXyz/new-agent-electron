@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { FileUIPart, TextUIPart } from 'ai'
+import { ref } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   pendingMessages: Array<{ id: string; parts: Array<FileUIPart | TextUIPart> }>
   isGenerating: boolean
 }>()
@@ -14,6 +15,9 @@ const emit = defineEmits<{
 const PendingIcon = useIcon('FormatListBulleted')
 const CloseIcon = useIcon('Close')
 const SendIcon = useIcon('Send')
+const CheckCircleIcon = useIcon('CheckCircle')
+
+const guidedIds = ref(new Set<string>())
 
 const getPendingMessagePreview = (parts: Array<FileUIPart | TextUIPart>): string => {
   const textParts = parts.filter((p): p is TextUIPart => p.type === 'text')
@@ -33,6 +37,13 @@ const getPendingMessagePreview = (parts: Array<FileUIPart | TextUIPart>): string
 
   return preview.length > 50 ? `${preview.substring(0, 50)}...` : preview || '[空消息]'
 }
+
+const handleGuide = (id: string) => {
+  guidedIds.value = new Set([...guidedIds.value, id])
+  emit('guide', id)
+}
+
+const isGuided = (id: string) => guidedIds.value.has(id)
 </script>
 
 <template>
@@ -43,21 +54,31 @@ const getPendingMessagePreview = (parts: Array<FileUIPart | TextUIPart>): string
       <span v-if="isGenerating" class="pending-status">等待AI回复中...</span>
     </div>
     <div class="pending-messages-list">
-      <div v-for="item in pendingMessages" :key="item.id" class="pending-message-item">
+      <div
+        v-for="item in pendingMessages"
+        :key="item.id"
+        class="pending-message-item"
+        :class="{ 'is-guided': isGuided(item.id) }"
+      >
         <span class="pending-message-text">{{ getPendingMessagePreview(item.parts) }}</span>
         <div class="pending-message-actions">
           <Button
+            v-if="!isGuided(item.id)"
             variant="text"
             size="sm"
             class="guide-btn"
-            title="停止当前生成，并让这条消息下一条进入上下文"
-            @click="emit('guide', item.id)"
+            title="让这条消息下一条进入上下文"
+            @click="handleGuide(item.id)"
           >
             <template #icon>
               <SendIcon />
             </template>
             引导
           </Button>
+          <span v-else class="guided-badge">
+            <CheckCircleIcon class="guided-icon" />
+            <span>已排入下一条</span>
+          </span>
           <Button variant="icon" size="sm" class="remove-btn" @click="emit('remove', item.id)">
             <CloseIcon />
           </Button>
@@ -146,6 +167,25 @@ const getPendingMessagePreview = (parts: Array<FileUIPart | TextUIPart>): string
 .guide-btn:hover {
   color: var(--color-primary);
   opacity: 0.9;
+}
+
+.guided-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.guided-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.pending-message-item.is-guided {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--bg-hover));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
 .remove-btn {

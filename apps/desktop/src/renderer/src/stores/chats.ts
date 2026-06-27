@@ -34,6 +34,7 @@ export const useChatsStores = defineStore(
     const chatDrafts = ref<Record<string, string>>({})
     const titleGeneratingChats = ref<Set<string>>(new Set())
     const pendingMessagesMap = ref<Record<string, PendingMessage[]>>({})
+    const guidedChatIds = ref<Set<string>>(new Set())
     const isAfterRestore = restorePromise
 
     const getLoadedMessages = (chatId: string): BaseMessage[] => {
@@ -597,6 +598,20 @@ export const useChatsStores = defineStore(
       pendingMessagesMap.value = { ...pendingMessagesMap.value, [chatId]: [] }
     }
 
+    const markChatGuided = (chatId: string) => {
+      guidedChatIds.value = new Set([...guidedChatIds.value, chatId])
+    }
+
+    const clearChatGuided = (chatId: string) => {
+      const next = new Set(guidedChatIds.value)
+      next.delete(chatId)
+      guidedChatIds.value = next
+    }
+
+    const isChatGuided = (chatId: string): boolean => {
+      return guidedChatIds.value.has(chatId)
+    }
+
     const prioritizePendingMessage = (chatId: string, messageId: string) => {
       const list = pendingMessagesMap.value[chatId]
       if (!list?.length) return
@@ -759,6 +774,9 @@ export const useChatsStores = defineStore(
       isChatGenerating,
       isChatScopeGenerating,
       stopGeneratingInChatScope,
+      markChatGuided,
+      clearChatGuided,
+      isChatGuided,
       replacePersistedState,
       isAfterRestore,
       updateChatSummaryMeta

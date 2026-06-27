@@ -151,7 +151,7 @@ const guidePendingMessage = async (messageId: string) => {
 
   if (chatStore.isChatGenerating(chatId)) {
     chatStore.prioritizePendingMessage(chatId, messageId)
-    chatStore.stopGeneratingInChatScope(chatId, { preservePendingMessages: true })
+    chatStore.markChatGuided(chatId)
     return
   }
 
