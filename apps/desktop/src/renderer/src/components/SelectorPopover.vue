@@ -137,7 +137,7 @@ const trayStyle = computed<CSSProperties>(() => {
     bottom: `${bottom}px`,
     width: `${rect.width - 12}px`,
     maxHeight: `${maxHeight}px`,
-    zIndex: '2100'
+    zIndex: '3100'
   }
 })
 </script>
@@ -508,6 +508,13 @@ const trayStyle = computed<CSSProperties>(() => {
 
 .selector-tray-body::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--text-rgb), 0.2);
+}
+
+/* ---- Tray: let tray-body handle scrolling, disable inner List scroll ---- */
+.selector-tray-body .list-scroll-area {
+  overflow: visible !important;
+  max-height: none !important;
+  contain: none !important;
 }
 
 /* ---- Tray: model list overrides ---- */
