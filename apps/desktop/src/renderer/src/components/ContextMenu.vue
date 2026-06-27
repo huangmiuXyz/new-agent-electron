@@ -105,9 +105,17 @@ const {
 } = useContextMenu<T>()
 const menuRef = ref<HTMLElement | null>(null)
 const submenuRef = ref<HTMLElement | null>(null)
-const overlayZIndex = acquireZIndex()
-const menuZIndex = acquireZIndex()
-const submenuZIndex = acquireZIndex()
+const overlayZIndex = ref(acquireZIndex())
+const menuZIndex = ref(acquireZIndex())
+const submenuZIndex = ref(acquireZIndex())
+
+watch(visible, (val) => {
+  if (val) {
+    overlayZIndex.value = acquireZIndex()
+    menuZIndex.value = acquireZIndex()
+    submenuZIndex.value = acquireZIndex()
+  }
+})
 const adjustedPos = ref({ x: 0, y: 0 })
 const submenuAdjustedPos = ref({ x: 0, y: 0 })
 const transformOrigin = ref('top left')
