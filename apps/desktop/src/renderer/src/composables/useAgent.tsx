@@ -792,7 +792,7 @@ export const useAgent = () => {
       {
         name: 'builtinTools',
         type: 'checkboxGroup',
-        label: '内置工具',
+        label: '',
         options: getBuiltinToolOptions(
           initialData.builtinTools || [],
           initialData.builtinToolsRequireApproval || []

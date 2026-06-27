@@ -64,7 +64,7 @@ const emit = defineEmits<{
 .sr:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: 52px;
+  left: 0;
   right: 0;
   bottom: 0;
   height: 1px;
