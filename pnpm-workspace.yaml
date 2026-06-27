@@ -108,7 +108,7 @@ catalog:
   pinia: ^3.0.4
   pinia-plugin-persistedstate: ^4.7.1
   pinia-plugin-persistedstate-async: ^1.6.3
-  prettier: ^3.8.4
+  prettier: ^3.8.5
   sqlite-vec: ^0.1.9
   strip-ansi: ^7.2.0
   turbo: ^2.10.0
