@@ -76,7 +76,7 @@ export const serializeMessageForTokenEstimation = (
 export const serializeMessagePartForTokenEstimation = (
   part: BaseMessage['parts'][number]
 ): string => {
-  if (part.type === 'text' || part.type === 'reasoning') {
+  if (part.type === 'text') {
     return (part.text as string | undefined)?.trim() || ''
   }
 
