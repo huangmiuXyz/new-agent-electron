@@ -125,19 +125,12 @@ watch(activeChunkIndex, (newIndex) => {
 
       <!-- Lyrics -->
       <div class="lyrics" ref="lyricsContainer">
-        <div
-          v-for="chunk in speechStore.queue"
-          :key="chunk.id"
-          class="lyric"
-          :class="{
-            '-a': chunk.id === speechStore.currentChunkId,
-            '-p': chunk.played && chunk.id !== speechStore.currentChunkId,
-            '-l': chunk.loading,
-            '-e': !!chunk.error
-          }"
-          :title="chunk.error"
-          @click="handleChunkClick(chunk.id)"
-        >
+        <div v-for="chunk in speechStore.queue" :key="chunk.id" class="lyric" :class="{
+          '-a': chunk.id === speechStore.currentChunkId,
+          '-p': chunk.played && chunk.id !== speechStore.currentChunkId,
+          '-l': chunk.loading,
+          '-e': !!chunk.error
+        }" :title="chunk.error" @click="handleChunkClick(chunk.id)">
           <span v-if="chunk.error" class="err-badge">!</span>
           <span class="lyric-txt">{{ chunk.text }}</span>
           <span v-if="chunk.id === speechStore.currentChunkId && speechStore.isPlaying" class="viz">
@@ -148,22 +141,16 @@ watch(activeChunkIndex, (newIndex) => {
 
       <!-- Bottom Player -->
       <div class="dock">
-        <input
-          type="range"
-          min="0"
-          max="100"
-          step="0.1"
-          :value="totalProgress"
-          class="seek"
-          :style="{ '--p': totalProgress + '%' }"
-          @input="handleSeek"
-        />
+        <input type="range" min="0" max="100" step="0.1" :value="totalProgress" class="seek"
+          :style="{ '--p': totalProgress + '%' }" @input="handleSeek" />
         <div class="dock-row">
           <span class="t t-l">{{ formatTime(speechStore.currentTime) }}</span>
           <div class="btns">
             <button class="b b-s" :class="{ off: !canPrev }" :disabled="!canPrev" @click="handlePrev">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="19 20 9 12 19 4 19 20" /><line x1="5" y1="19" x2="5" y2="5" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="19 20 9 12 19 4 19 20" />
+                <line x1="5" y1="19" x2="5" y2="5" />
               </svg>
             </button>
             <button class="b b-p" @click="speechStore.togglePlay">
@@ -171,8 +158,10 @@ watch(activeChunkIndex, (newIndex) => {
               <Play v-else />
             </button>
             <button class="b b-s" :class="{ off: !canNext }" :disabled="!canNext" @click="handleNext">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="5 4 15 12 5 20 5 4" /><line x1="19" y1="5" x2="19" y2="19" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 4 15 12 5 20 5 4" />
+                <line x1="19" y1="5" x2="19" y2="19" />
               </svg>
             </button>
             <button class="b b-stop" @click="speechStore.stop">
@@ -233,7 +222,10 @@ watch(activeChunkIndex, (newIndex) => {
   overflow: hidden;
   user-select: none;
 }
-.speech-sidebar.collapsed { display: none; }
+
+.speech-sidebar.collapsed {
+  display: none;
+}
 
 /* ─── Empty ─── */
 .empty-state {
@@ -246,12 +238,14 @@ watch(activeChunkIndex, (newIndex) => {
   padding: 32px 24px;
   text-align: center;
 }
+
 .empty-visual {
   position: relative;
   width: 72px;
   height: 72px;
   margin-bottom: 4px;
 }
+
 .empty-disc {
   width: 72px;
   height: 72px;
@@ -261,6 +255,7 @@ watch(activeChunkIndex, (newIndex) => {
   position: absolute;
   inset: 0;
 }
+
 .empty-glow {
   width: 72px;
   height: 72px;
@@ -271,6 +266,7 @@ watch(activeChunkIndex, (newIndex) => {
   filter: blur(28px);
   opacity: 0.08;
 }
+
 .empty-title {
   margin: 0;
   font-size: 14px;
@@ -278,6 +274,7 @@ watch(activeChunkIndex, (newIndex) => {
   color: var(--g-text);
   letter-spacing: 0.3px;
 }
+
 .empty-hint {
   margin: 0;
   font-size: 12px;
@@ -293,12 +290,14 @@ watch(activeChunkIndex, (newIndex) => {
   gap: 12px;
   padding: 14px 16px 10px;
 }
+
 .art-wrap {
   position: relative;
   width: 44px;
   height: 44px;
   flex-shrink: 0;
 }
+
 .art-disc {
   width: 44px;
   height: 44px;
@@ -308,16 +307,24 @@ watch(activeChunkIndex, (newIndex) => {
   z-index: 1;
   transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
 .art-disc.spinning {
   animation: spin 3s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .art-inner {
   position: absolute;
   inset: 12px;
   border-radius: 50%;
   background: var(--g-bg);
 }
+
 .art-ring {
   position: absolute;
   inset: -3px;
@@ -325,17 +332,30 @@ watch(activeChunkIndex, (newIndex) => {
   border: 1.5px solid var(--g-accent-dim);
   transition: all 0.3s;
 }
+
 .art-ring.pulse {
   animation: ring-pulse 2s ease-in-out infinite;
 }
+
 @keyframes ring-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.08); opacity: 0.4; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.08);
+    opacity: 0.4;
+  }
 }
+
 .head-meta {
   flex: 1;
   min-width: 0;
 }
+
 .head-label {
   font-size: 9px;
   font-weight: 600;
@@ -345,6 +365,7 @@ watch(activeChunkIndex, (newIndex) => {
   display: block;
   margin-bottom: 2px;
 }
+
 .head-text {
   margin: 0;
   font-size: 12px;
@@ -368,7 +389,10 @@ watch(activeChunkIndex, (newIndex) => {
   mask-image: linear-gradient(to bottom, transparent 0%, var(--g-mask) 6%, var(--g-mask) 80%, transparent 96%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, var(--g-mask) 6%, var(--g-mask) 80%, transparent 96%);
 }
-.lyrics::-webkit-scrollbar { width: 0; }
+
+.lyrics::-webkit-scrollbar {
+  width: 0;
+}
 
 .lyric {
   display: flex;
@@ -380,6 +404,7 @@ watch(activeChunkIndex, (newIndex) => {
   transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   position: relative;
 }
+
 .lyric:hover {
   background: var(--g-accent-soft);
 }
@@ -403,6 +428,7 @@ watch(activeChunkIndex, (newIndex) => {
   padding: 10px 12px;
   margin: 3px 0;
 }
+
 .lyric.-a .lyric-txt {
   font-size: 14px;
   font-weight: 500;
@@ -411,7 +437,11 @@ watch(activeChunkIndex, (newIndex) => {
 }
 
 /* loading */
-.lyric.-l { opacity: 0.35; pointer-events: none; }
+.lyric.-l {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
 .lyric.-l .lyric-txt::after {
   content: '';
   display: inline-block;
@@ -422,10 +452,24 @@ watch(activeChunkIndex, (newIndex) => {
   animation: blink 0.8s steps(2) infinite;
   vertical-align: middle;
 }
-@keyframes blink { 0% { opacity: 0; } 100% { opacity: 1; } }
+
+@keyframes blink {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
 
 /* error */
-.lyric.-e .lyric-txt { color: var(--g-accent); opacity: 0.6; text-decoration: line-through; }
+.lyric.-e .lyric-txt {
+  color: var(--g-accent);
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
 .err-badge {
   font-size: 9px;
   font-weight: 700;
@@ -446,24 +490,51 @@ watch(activeChunkIndex, (newIndex) => {
   margin-left: auto;
   flex-shrink: 0;
 }
+
 .viz span {
   width: 2.5px;
   background: var(--g-accent);
   border-radius: 2px;
   animation: bar 0.7s ease-in-out infinite;
 }
-.viz span:nth-child(1) { height: 5px; animation-delay: 0s; }
-.viz span:nth-child(2) { height: 10px; animation-delay: 0.12s; }
-.viz span:nth-child(3) { height: 7px; animation-delay: 0.25s; }
-.viz span:nth-child(4) { height: 12px; animation-delay: 0.37s; }
+
+.viz span:nth-child(1) {
+  height: 5px;
+  animation-delay: 0s;
+}
+
+.viz span:nth-child(2) {
+  height: 10px;
+  animation-delay: 0.12s;
+}
+
+.viz span:nth-child(3) {
+  height: 7px;
+  animation-delay: 0.25s;
+}
+
+.viz span:nth-child(4) {
+  height: 12px;
+  animation-delay: 0.37s;
+}
+
 @keyframes bar {
-  0%, 100% { transform: scaleY(0.45); opacity: 0.5; }
-  50% { transform: scaleY(1); opacity: 1; }
+
+  0%,
+  100% {
+    transform: scaleY(0.45);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
 }
 
 /* ─── Dock ─── */
 .dock {
-  padding: 6px 16px 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -484,6 +555,7 @@ watch(activeChunkIndex, (newIndex) => {
   cursor: pointer;
   background: linear-gradient(to right, var(--g-accent) 0%, var(--g-accent) var(--p, 0%), var(--g-border-strong) var(--p, 0%), var(--g-border-strong) 100%);
 }
+
 .seek::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 12px;
@@ -493,12 +565,28 @@ watch(activeChunkIndex, (newIndex) => {
   cursor: pointer;
   box-shadow: 0 0 8px var(--g-accent-glow);
   transition: transform 0.15s;
+  margin-top: -4px;
 }
-.seek::-webkit-slider-thumb:hover { transform: scale(1.2); }
-.seek::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; }
-.seek::-moz-range-track { height: 3px; border-radius: 2px; background: var(--g-border-strong); border: none; }
+
+.seek::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.seek::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+}
+
+.seek::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--g-border-strong);
+  border: none;
+}
+
 .seek::-moz-range-thumb {
-  width: 12px; height: 12px;
+  width: 12px;
+  height: 12px;
   background: var(--g-accent);
   border-radius: 50%;
   border: none;
@@ -519,8 +607,14 @@ watch(activeChunkIndex, (newIndex) => {
   min-width: 30px;
   letter-spacing: 0.5px;
 }
-.t-l { text-align: right; }
-.t-r { text-align: left; }
+
+.t-l {
+  text-align: right;
+}
+
+.t-r {
+  text-align: left;
+}
 
 .btns {
   flex: 1;
@@ -542,14 +636,25 @@ watch(activeChunkIndex, (newIndex) => {
   color: var(--g-text-dim);
   padding: 0;
 }
-.b:active { transform: scale(0.92); }
+
+.b:active {
+  transform: scale(0.92);
+}
 
 .b-s {
   width: 30px;
   height: 28px;
 }
-.b-s:hover { background: var(--g-accent-soft); color: var(--g-text); }
-.b-s.off { opacity: 0.2; pointer-events: none; }
+
+.b-s:hover {
+  background: var(--g-accent-soft);
+  color: var(--g-text);
+}
+
+.b-s.off {
+  opacity: 0.2;
+  pointer-events: none;
+}
 
 /* play button */
 .b-p {
@@ -560,23 +665,52 @@ watch(activeChunkIndex, (newIndex) => {
   border-radius: 8px;
   box-shadow: 0 0 12px var(--g-accent-glow);
 }
+
 .b-p:hover {
   background: var(--g-accent);
   filter: brightness(1.15);
   box-shadow: 0 0 20px var(--g-accent-glow);
   transform: scale(1.04);
 }
-.b-p :deep(svg) { width: 18px; height: 18px; }
 
-.b-stop { width: 28px; height: 28px; }
-.b-stop:hover { color: var(--g-accent); background: var(--g-accent-dim); }
-.b-stop :deep(svg) { width: 15px; height: 15px; }
+.b-p :deep(svg) {
+  width: 18px;
+  height: 18px;
+}
+
+.b-stop {
+  width: 28px;
+  height: 28px;
+}
+
+.b-stop:hover {
+  color: var(--g-accent);
+  background: var(--g-accent-dim);
+}
+
+.b-stop :deep(svg) {
+  width: 15px;
+  height: 15px;
+}
 
 /* ─── Responsive ─── */
 @media (max-height: 500px) {
-  .player-head { padding: 10px 12px 6px; }
-  .art-wrap, .art-disc { width: 36px; height: 36px; }
-  .dock { padding: 4px 12px 10px; }
-  .lyrics { padding: 4px 8px; }
+  .player-head {
+    padding: 10px 12px 6px;
+  }
+
+  .art-wrap,
+  .art-disc {
+    width: 36px;
+    height: 36px;
+  }
+
+  .dock {
+    padding: 4px 12px 10px;
+  }
+
+  .lyrics {
+    padding: 4px 8px;
+  }
 }
 </style>
