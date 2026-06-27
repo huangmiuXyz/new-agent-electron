@@ -1651,6 +1651,18 @@ export const useAgent = () => {
       )
     })
 
+    // 新智能体默认禁用所有技能
+    if (!isEdit) {
+      const skillDir = resolveSkillDirectory(initialData.skillDirectory)
+      const skills = discoverSkills([skillDir], {
+        includeDisabled: true,
+        applyCurrentAgentFilters: false
+      })
+      if (skills.length > 0) {
+        formActions.setFieldValue('disabledSkills', skills.map((s) => s.name))
+      }
+    }
+
     const ModalContent = defineComponent({
       setup() {
         const categories = [
