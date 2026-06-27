@@ -1,7 +1,7 @@
 <template>
     <Teleport to="body">
         <Transition name="viewer-fade">
-            <div v-if="visible" class="image-viewer-overlay" @click="close" @keydown.esc="close" tabindex="-1">
+            <div v-if="visible" class="image-viewer-overlay" :style="{ zIndex }" @click="close" @keydown.esc="close" tabindex="-1">
                 <div class="image-viewer-content" @click.stop>
                     <!-- Main Image with Transform -->
                     <div class="image-stage" @wheel.prevent="handleWheel" @click="close">
@@ -77,7 +77,9 @@
 <script setup lang="ts">
 import { useEventListener } from '@vueuse/core'
 import { copyImageToClipboard } from '@renderer/utils'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
+const zIndex = acquireZIndex()
 const props = withDefaults(defineProps<{
     src?: string
     images?: string[]
@@ -254,7 +256,6 @@ useEventListener('keydown', (e) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 9999;
     cursor: zoom-out;
 }
 

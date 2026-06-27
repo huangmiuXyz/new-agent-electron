@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 interface Props {
   modelValue?: string
@@ -35,6 +36,7 @@ const emit = defineEmits<{
 const colorInput = ref(props.modelValue || 'var(--text-primary)')
 const showPicker = ref(false)
 const pickerRef = ref<HTMLElement>()
+const popupZIndex = acquireZIndex()
 
 // 颜色格式验证和转换
 const isValidHexColor = (color: string): boolean => {
@@ -159,7 +161,7 @@ onUnmounted(() => {
 
     <!-- 颜色选择器面板 -->
     <Transition name="picker-fade">
-      <div v-if="showPicker && !disabled" class="color-picker-panel">
+      <div v-if="showPicker && !disabled" class="color-picker-panel" :style="{ zIndex: popupZIndex }">
         <!-- RGB值显示 -->
         <div class="color-info">
           <div class="color-hex">{{ currentColor }}</div>
@@ -277,7 +279,6 @@ onUnmounted(() => {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  z-index: 1000;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;

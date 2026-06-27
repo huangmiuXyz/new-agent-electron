@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useVirtualList } from '@vueuse/core'
 import { useSettingsStore } from '@renderer/stores/settings'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 import { ImageBatch, useImageStore } from '@renderer/stores/image'
 import { useAudioStore } from '@renderer/stores/audio'
 import { useImageGeneration } from '@renderer/composables/useImageGeneration'
@@ -70,6 +71,7 @@ const resultsContentRef = ref<HTMLElement>()
 const floatingInputRef = ref<InstanceType<typeof FloatingInputArea>>()
 
 const showSidebar = ref(false)
+const sidebarOverlayZIndex = acquireZIndex()
 const toggleSidebar = () => {
   showSidebar.value = !showSidebar.value
 }
@@ -601,7 +603,7 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
     </Teleport>
 
     <!-- Mobile Sidebar Drawer -->
-    <div v-if="isMobile && !isToolMode" class="mobile-sidebar-overlay" :class="{ active: showSidebar }" @click="showSidebar = false">
+    <div v-if="isMobile && !isToolMode" class="mobile-sidebar-overlay" :style="{ zIndex: sidebarOverlayZIndex }" :class="{ active: showSidebar }" @click="showSidebar = false">
       <div class="mobile-sidebar" :class="{ active: showSidebar }" @click.stop>
         <div class="mobile-sidebar-header">
           <span>模型配置</span>
@@ -741,7 +743,6 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
-  z-index: 1000;
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;

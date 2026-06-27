@@ -1,5 +1,5 @@
 <template>
-  <nav class="mobile-tab-bar">
+  <nav class="mobile-tab-bar" :style="{ zIndex: tabBarZIndex }">
     <div v-for="(tab, index) in tabs" :key="tab.key" class="tab-item" :class="{ active: activeTab === tab.key }"
       @click="switchTab(tab)">
       <div class="icon-box">
@@ -14,6 +14,7 @@
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useIcon } from '../composables/useIcon'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 const router = useRouter()
 const route = useRoute()
@@ -28,6 +29,7 @@ const tabs = [
 const activeTab = computed(() => {
   return tabs.find((tab) => route.path.startsWith(tab.path.replace(/\/list$/, '')))?.key || tabs[0].key
 })
+const tabBarZIndex = acquireZIndex()
 
 const switchTab = (tab) => {
   router.push(tab.path)
@@ -39,7 +41,6 @@ const switchTab = (tab) => {
   position: relative;
   background-color: var(--bg-card);
   display: flex;
-  z-index: 100;
   height: calc(56px + max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px)));
   padding-bottom: max(env(safe-area-inset-bottom), var(--safe-area-bottom, 0px));
   box-shadow: 0 -1px 0 var(--border-subtle);

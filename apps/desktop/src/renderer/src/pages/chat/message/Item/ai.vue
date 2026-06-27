@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 import {
   getFlatTokenUsage,
   estimateTextTokens,
@@ -22,6 +23,7 @@ const { Stop, VolumeMedium, Robot, ChevronDown } = useIcon([
   'ChevronDown'
 ])
 const isPreviousContentExpanded = ref(false)
+const speechPopupZIndex = acquireZIndex()
 
 const currentAgentAvatar = computed(() => {
   const currentAgentId = chatsStore.currentChat?.agentId
@@ -631,7 +633,6 @@ const playMessageAudio = () => {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
   display: flex;
   flex-direction: column;
   overflow: hidden;

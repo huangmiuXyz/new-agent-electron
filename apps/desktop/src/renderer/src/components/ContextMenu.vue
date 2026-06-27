@@ -3,7 +3,7 @@
   <Teleport to="body">
     <transition name="radix-zoom">
       <div v-if="visible" ref="menuRef" class="radix-menu-content" :class="[`variant-${props.variant}`]"
-        :style="styleObject" @click.stop @contextmenu.prevent.stop>
+        :style="{ ...styleObject, zIndex: menuZIndex }" @click.stop @contextmenu.prevent.stop>
         <template v-for="(item, index) in menuOptions" :key="index">
           <!-- 分割线 -->
           <div v-if="item.type === 'divider'" class="radix-separator"></div>
@@ -39,7 +39,7 @@
   <Teleport to="body">
     <transition name="radix-zoom">
       <div v-if="submenuVisible" ref="submenuRef" class="radix-menu-content radix-submenu"
-        :class="[`variant-${props.variant}`]" :style="submenuStyleObject" @click.stop @contextmenu.prevent.stop>
+        :class="[`variant-${props.variant}`]" :style="{ ...submenuStyleObject, zIndex: submenuZIndex }" @click.stop @contextmenu.prevent.stop>
         <template v-for="(item, index) in submenuOptions" :key="index">
           <!-- 分割线 -->
           <div v-if="item.type === 'divider'" class="radix-separator"></div>
@@ -67,6 +67,7 @@
   <div
     v-if="visible"
     class="radix-overlay"
+    :style="{ zIndex: overlayZIndex }"
     @click.stop="hideContextMenu"
     @contextmenu.prevent.stop="hideContextMenu"
   ></div>
@@ -76,6 +77,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useContextMenu, type MenuItem } from '../composables/useContextMenu'
 import { useBackButton } from '../composables/useBackButton'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 // 定义 variant 类型
 type MenuVariant = 'default' | 'glass' | 'mobile'
@@ -103,6 +105,9 @@ const {
 } = useContextMenu<T>()
 const menuRef = ref<HTMLElement | null>(null)
 const submenuRef = ref<HTMLElement | null>(null)
+const overlayZIndex = acquireZIndex()
+const menuZIndex = acquireZIndex()
+const submenuZIndex = acquireZIndex()
 const adjustedPos = ref({ x: 0, y: 0 })
 const submenuAdjustedPos = ref({ x: 0, y: 0 })
 const transformOrigin = ref('top left')
@@ -258,13 +263,15 @@ watch(submenuVisible, (val) => {
 const styleObject = computed(() => ({
   left: `${adjustedPos.value.x}px`,
   top: `${adjustedPos.value.y}px`,
-  transformOrigin: transformOrigin.value
+  transformOrigin: transformOrigin.value,
+  zIndex: menuZIndex
 }))
 
 const submenuStyleObject = computed(() => ({
   left: `${submenuAdjustedPos.value.x}px`,
   top: `${submenuAdjustedPos.value.y}px`,
-  transformOrigin: submenuTransformOrigin.value
+  transformOrigin: submenuTransformOrigin.value,
+  zIndex: submenuZIndex
 }))
 
 
@@ -294,14 +301,12 @@ onUnmounted(() => {
 .radix-overlay {
   position: fixed;
   inset: 0;
-  z-index: 3999;
   background: transparent;
 }
 
 /* 菜单容器 */
 .radix-menu-content {
   position: fixed;
-  z-index: 4000;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -592,10 +597,7 @@ onUnmounted(() => {
   animation: motion-pop-in var(--motion-duration-fast) var(--motion-ease-standard) reverse forwards;
 }
 
-/* 子菜单样式 */
-.radix-submenu {
-  z-index: 4001;
-}
+
 
 /* 有子菜单的项 */
 .radix-item.has-submenu {

@@ -27,7 +27,7 @@
             </div>
           </slot>
         </div>
-        <Button v-if="isFullscreen" @click="exitFullscreen" variant="text" class="fullscreen-exit-btn" title="退出全屏">
+        <Button v-if="isFullscreen" @click="exitFullscreen" variant="text" class="fullscreen-exit-btn" :style="{ zIndex: fullscreenBtnZIndex }" title="退出全屏">
           <FullscreenExit />
         </Button>
         <div v-show="!isFullscreen && showFooter" class="modal-footer" :class="{ 'is-hidden': isFullscreen }">
@@ -70,6 +70,7 @@
 <script setup lang="ts">
 import Button from './Button.vue'
 import { useIcon } from '@renderer/composables/useIcon'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 import { useBackButton } from '@renderer/composables/useBackButton'
 import { useDraggable, useWindowSize } from '@vueuse/core'
 
@@ -95,6 +96,7 @@ const ESC_HOLD_EXIT_MS = 500
 const visible = ref(false)
 const modalOverlay = useTemplateRef('modalOverlay')
 const confirmButton = useTemplateRef('confirmButton')
+const fullscreenBtnZIndex = acquireZIndex()
 const modalBox = ref<HTMLElement | null>(null)
 const modalHeader = ref<HTMLElement | null>(null)
 const { height: windowHeight } = useWindowSize()
@@ -742,7 +744,6 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 100;
   background: rgba(0, 0, 0, 0.5);
   border-radius: 4px;
   color: white;

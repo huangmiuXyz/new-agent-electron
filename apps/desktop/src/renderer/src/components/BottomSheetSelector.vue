@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
+
+const zIndex = acquireZIndex()
+
 interface Props {
   modelValue: boolean
   searchQuery?: string
@@ -58,7 +62,7 @@ onUnmounted(() => {
   <slot name="trigger" :isOpen="isOpen" :toggle="() => (isOpen = !isOpen)"></slot>
 
   <Transition name="bottom-sheet">
-    <div v-if="isOpen" class="bottom-sheet-backdrop" @click="handleBackdropClick">
+    <div v-if="isOpen" class="bottom-sheet-backdrop" :style="{ zIndex }" @click="handleBackdropClick">
       <div class="bottom-sheet-container" :style="{ maxHeight }">
         <div class="bottom-sheet-header">
           <div class="bottom-sheet-handle"></div>
@@ -90,7 +94,6 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 9999;
   display: flex;
   align-items: flex-end;
   justify-content: center;

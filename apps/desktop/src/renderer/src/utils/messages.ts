@@ -1,4 +1,5 @@
 import { createVNode, render, ref, TransitionGroup, defineComponent, h } from 'vue'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 export type MessageType = 'success' | 'error' | 'warning' | 'info' | 'loading'
 
@@ -36,7 +37,6 @@ if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
         top: 24px;
         left: 0;
         width: 100%;
-        z-index: 5000;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -185,6 +185,7 @@ function mountContainer(): void {
   container = document.createElement('div')
   // 添加一个特定的 ID 方便调试或覆盖
   container.id = 'nexus-message-root'
+  container.style.zIndex = String(acquireZIndex())
   document.body.appendChild(container)
   const vnode = createVNode(MessageComponent)
   render(vnode, container)

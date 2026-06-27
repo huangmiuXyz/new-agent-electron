@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
+
 const { Search, ChevronUp, ChevronDown, X } = useIcon([
   'Search',
   'ChevronUp',
@@ -10,6 +12,7 @@ const visible = ref(false)
 const query = ref('')
 const activeMatch = ref(0)
 const matches = ref(0)
+const findBarZIndex = acquireZIndex()
 const inputRef = ref<HTMLInputElement | null>(null)
 let findTimer: ReturnType<typeof setTimeout> | null = null
 let matchRanges: Range[] = []
@@ -271,7 +274,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="visible" class="page-find-bar no-drag" @keydown.stop>
+  <div v-if="visible" class="page-find-bar no-drag" :style="{ zIndex: findBarZIndex }" @keydown.stop>
     <div class="find-input-wrap">
       <component :is="Search" class="find-icon" />
       <input
@@ -304,7 +307,6 @@ onUnmounted(() => {
   position: fixed;
   top: calc(var(--safe-area-top, env(safe-area-inset-top)) + 10px);
   right: 16px;
-  z-index: 1000;
   display: flex;
   align-items: center;
   gap: 6px;

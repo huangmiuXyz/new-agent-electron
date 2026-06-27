@@ -2,6 +2,10 @@
 import { computed } from 'vue'
 import type { Component } from 'vue'
 import { useIcon } from '../composables/useIcon'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
+
+const panelZIndex = acquireZIndex()
+const overlayZIndex = acquireZIndex()
 
 const props = withDefaults(defineProps<{
   visible: boolean
@@ -27,7 +31,8 @@ const { X } = useIcon(['X'])
 
 const panelStyle = computed(() => ({
   width: props.width,
-  bottom: props.bottom
+  bottom: props.bottom,
+  zIndex: panelZIndex
 }))
 
 const contentStyle = computed(() => ({
@@ -37,7 +42,7 @@ const contentStyle = computed(() => ({
 
 <template>
   <Transition name="slide-panel">
-    <div v-if="visible" class="right-slide-panel" :style="panelStyle" @click.stop>
+    <div v-if="visible" class="right-slide-panel" :style="{ ...panelStyle, zIndex: panelZIndex }" @click.stop>
       <div class="panel-header no-drag">
         <div class="header-title">
           <component v-if="icon" :is="icon" class="header-icon" />
@@ -59,7 +64,7 @@ const contentStyle = computed(() => ({
   </Transition>
 
   <Transition name="fade-overlay">
-    <div v-if="visible" class="panel-overlay" @click="emit('close')"></div>
+    <div v-if="visible" class="panel-overlay" :style="{ zIndex: overlayZIndex }" @click="emit('close')"></div>
   </Transition>
 </template>
 
@@ -82,7 +87,6 @@ const contentStyle = computed(() => ({
   border-left: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
-  z-index: 1000;
   border: 1px solid var(--border-subtle);
 }
 
@@ -161,7 +165,6 @@ const contentStyle = computed(() => ({
 .panel-overlay {
   position: fixed;
   inset: 0;
-  z-index: 999;
   background: transparent;
 }
 

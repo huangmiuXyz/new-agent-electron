@@ -4,6 +4,7 @@ import { useAgentStore } from '@renderer/stores/agent'
 import { useSpeechStore } from '@renderer/stores/speech'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
 import { useChat } from '@renderer/composables/useChat'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
@@ -16,6 +17,7 @@ const currentChatAgent = computed(() => {
 })
 
 const VolumeMedium = useIcon('VolumeMedium')
+const speechBtnZIndex = acquireZIndex()
 
 const toggleSpeechSidebar = () => {
   if (settingsStore.display.speechSidebarCollapsed) {
@@ -133,6 +135,7 @@ onMounted(() => {
     <Button
       v-if="isMobile && hasQueue"
       class="mobile-speech-btn"
+      :style="{ zIndex: speechBtnZIndex }"
       size="lg"
       variant="primary"
       @click="toggleSpeechSidebar"
@@ -163,7 +166,6 @@ onMounted(() => {
   position: fixed;
   bottom: 80px;
   right: 20px;
-  z-index: 100;
   border-radius: 50%;
   width: 56px;
   height: 56px;

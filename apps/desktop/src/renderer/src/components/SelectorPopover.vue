@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CSSProperties } from 'vue'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 const props = defineProps<{
   searchQuery?: string
@@ -22,6 +23,8 @@ const containerRef = ref<HTMLElement>()
 const searchInputRef = ref<{ focus: () => void }>()
 const triggerSlotRef = ref<HTMLElement>()
 const trayRef = ref<HTMLElement>()
+const trayZIndex = acquireZIndex()
+const popupZIndex = acquireZIndex()
 
 const closePopup = () => {
   visible.value = false
@@ -137,7 +140,7 @@ const trayStyle = computed<CSSProperties>(() => {
     bottom: `${bottom}px`,
     width: `${rect.width - 12}px`,
     maxHeight: `${maxHeight}px`,
-    zIndex: '3100'
+    zIndex: trayZIndex
   }
 })
 </script>
@@ -242,6 +245,7 @@ const trayStyle = computed<CSSProperties>(() => {
         }"
         :style="{
           width: width || '240px',
+          zIndex: popupZIndex,
           animation: visible
             ? (position || 'top') === 'top'
               ? 'popupFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)'
@@ -301,7 +305,6 @@ const trayStyle = computed<CSSProperties>(() => {
   display: none;
   flex-direction: column;
   overflow: hidden;
-  z-index: 100;
   transform-origin: bottom left;
 }
 

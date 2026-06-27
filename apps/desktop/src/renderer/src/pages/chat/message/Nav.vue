@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
+
 const props = defineProps<{
   container: any // 兼容 ref 或 HTMLElement
 }>()
@@ -13,6 +15,7 @@ const { ChevronUp, ChevronDown, ArrowBarToUp, ArrowBarToDown } = useIcon([
 
 const showMobileNav = ref(false)
 let hideTimer: any = null
+const navZIndex = acquireZIndex()
 const toggleMobileNav = () => {
   if (!isMobile.value) return
   showMobileNav.value = !showMobileNav.value
@@ -82,7 +85,7 @@ const scrollToNext = () => {
 </script>
 
 <template>
-  <div class="message-nav-bar" :class="{ 'mobile-visible': showMobileNav }" @click="toggleMobileNav">
+  <div class="message-nav-bar" :style="{ zIndex: navZIndex }" :class="{ 'mobile-visible': showMobileNav }" @click="toggleMobileNav">
     <div class="nav-buttons" @click.stop>
       <Button size="sm" type="button" variant="text" @click="scrollToTop" title="到最前">
         <template #icon>
@@ -114,7 +117,6 @@ const scrollToNext = () => {
   right: 0;
   top: 50%;
   transform: translate(10px, -50%);
-  z-index: 1000;
   opacity: 0;
   width: 40px;
   height: 200px;

@@ -1,7 +1,7 @@
 import { createVNode, render, type VNode } from 'vue'
 import BaseModal from '@renderer/components/BaseModal.vue'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
-const MODAL_BASE_Z_INDEX = 3000
 const activeModalContainers: HTMLDivElement[] = []
 
 function syncModalDocumentState() {
@@ -9,8 +9,8 @@ function syncModalDocumentState() {
 }
 
 function syncModalStackZIndex() {
-  activeModalContainers.forEach((container, index) => {
-    container.style.setProperty('--modal-z-index', String(MODAL_BASE_Z_INDEX + index))
+  activeModalContainers.forEach((container) => {
+    container.style.setProperty('--modal-z-index', container.dataset.zIndex ?? '0')
   })
   syncModalDocumentState()
 }
@@ -38,6 +38,7 @@ export function useModal(): ModalActions {
       currentContainer = container
       const remove = (): void => removeContainer(container)
 
+      container.dataset.zIndex = String(acquireZIndex())
       activeModalContainers.push(container)
       syncModalStackZIndex()
       document.body.appendChild(container)

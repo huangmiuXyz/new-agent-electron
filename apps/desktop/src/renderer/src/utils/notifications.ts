@@ -1,4 +1,5 @@
 import { createVNode, render, ref, TransitionGroup, defineComponent, h } from 'vue'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 export interface NotificationItem {
   id: number
@@ -23,7 +24,6 @@ if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
         right: 0;
         bottom: 0;
         left: 0;
-        z-index: 9999;
         pointer-events: none;
     }
 
@@ -216,6 +216,7 @@ function mountContainer(): void {
   if (container) return
   container = document.createElement('div')
   container.id = 'nexus-notification-root'
+  container.style.zIndex = String(acquireZIndex())
   document.body.appendChild(container)
   const vnode = createVNode(NotificationComponent)
   render(vnode, container)

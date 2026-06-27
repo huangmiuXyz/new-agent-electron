@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { chatRepository } from '@renderer/services/chatRepository'
 import { useDebounceFn } from '@vueuse/core'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 interface SearchResult {
     id: string
@@ -24,6 +25,7 @@ const emit = defineEmits<{
 }>()
 
 const searchInputRef = useTemplateRef('searchInputRef')
+const zIndex = acquireZIndex()
 const query = ref('')
 const selectedIndex = ref(0)
 const scrollContainer = ref<HTMLElement | null>(null)
@@ -189,7 +191,7 @@ const highlightText = (text: string) => {
 <template>
     <Teleport to="body">
         <Transition name="modal-fade">
-            <div v-if="modelValue" class="modal-overlay" @click="close">
+            <div v-if="modelValue" class="modal-overlay" :style="{ zIndex }" @click="close">
                 <div class="modal-content" @click.stop @keydown="handleKeydown">
                     <div class="search-header">
                         <SearchInput ref="searchInputRef" v-model="query" placeholder="搜索聊天记录" size="md"
@@ -262,7 +264,6 @@ const highlightText = (text: string) => {
     justify-content: center;
     align-items: flex-start;
     padding-top: 12vh;
-    z-index: 9999;
     backdrop-filter: blur(2px);
 }
 

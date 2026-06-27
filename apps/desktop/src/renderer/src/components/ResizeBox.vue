@@ -16,6 +16,7 @@
     <div
       v-if="isResizing"
       class="resize-mask"
+      :style="{ zIndex: boxZIndex }"
       :class="{
         'is-horizontal': direction === 'horizontal',
         'is-vertical': direction === 'vertical'
@@ -23,6 +24,7 @@
     ></div>
     <div
       class="resize-handle"
+      :style="{ zIndex: handleZIndex }"
       :class="{ 
         'is-collapsed': isCollapsed,
         'is-top': direction === 'vertical' && handlePosition === 'top',
@@ -37,6 +39,7 @@
 
 <script setup lang="ts">
 import { ref, onUnmounted, computed, onMounted } from 'vue'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 const props = withDefaults(defineProps<{
   width?: number
@@ -64,6 +67,8 @@ const emit = defineEmits<{
 
 const isResizing = ref(false)
 const isMounted = ref(false)
+const handleZIndex = acquireZIndex()
+const boxZIndex = acquireZIndex()
 
 onMounted(() => {
   // 挂载后短暂禁用过渡动画，避免初始动画影响子组件尺寸计算
@@ -192,7 +197,6 @@ onUnmounted(() => {
 .resize-mask {
   position: fixed;
   inset: 0;
-  z-index: 9999;
   background: transparent;
 }
 
@@ -206,7 +210,6 @@ onUnmounted(() => {
 
 .resize-handle {
   position: absolute;
-  z-index: 100;
   transition: background-color 0.2s, right 0.2s, left 0.2s, top 0.2s, bottom 0.2s;
 }
 

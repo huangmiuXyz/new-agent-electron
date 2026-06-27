@@ -1,7 +1,6 @@
 <script setup lang="ts" generic="T extends Array<any>">
 import { z } from 'zod'
 
-
 interface Props {
     modelValue?: string
     placeholder?: string
@@ -470,7 +469,6 @@ defineExpose({
     border-top: none;
     border-radius: 0 0 6px 6px;
     box-shadow: 0 4px 12px rgba(var(--text-rgb), 0.1);
-    z-index: 1000;
     max-width: 100%;
     overflow: hidden;
 }

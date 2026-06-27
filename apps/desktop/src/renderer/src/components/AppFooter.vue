@@ -2,7 +2,8 @@
 import { useNotificationStore } from '../stores/notifications'
 import { useSettingsStore } from '../stores/settings'
 import { useDownloadStore } from '../stores/downloads'
-import { useIcon } from '../composables/useIcon' 
+import { useIcon } from '../composables/useIcon'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 const props = defineProps<{
   currentView: string
@@ -11,6 +12,7 @@ const props = defineProps<{
 const notificationStore = useNotificationStore()
 const settingsStore = useSettingsStore()
 const downloadStore = useDownloadStore()
+const footerZIndex = acquireZIndex()
 const { Bell, InfoCircle, Refresh, Check, Mic, Terminal, Download, Box, Menu, Chat } = useIcon([
   'Bell',
   'InfoCircle',
@@ -79,7 +81,7 @@ const StatusRender = defineComponent({
 </script>
 
 <template>
-  <footer class="app-footer no-drag">
+  <footer class="app-footer no-drag" :style="{ zIndex: footerZIndex }">
     <div class="status-bar">
       <div class="status-bar-left">
         <template v-if="notificationStore.statusItems.length > 0">
@@ -176,7 +178,6 @@ const StatusRender = defineComponent({
   padding: 0 12px;
   font-size: 11px;
   flex-shrink: 0;
-  z-index: 100;
   user-select: none;
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }

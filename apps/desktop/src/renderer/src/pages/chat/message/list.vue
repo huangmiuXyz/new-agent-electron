@@ -6,12 +6,14 @@ import { copyElementImageToClipboard } from '@renderer/utils'
 import { useElementSize, useThrottleFn } from '@vueuse/core'
 import { nextTick } from 'vue'
 import { useMessageScroll } from '@renderer/composables/useMessageScroll'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 const { messageScrollRef } = useMessageScroll()
 const scrollHostRef = ref<HTMLElement | null>(null)
 const prevMessageWrapperRef = ref<HTMLElement | null>(null)
 
 const autoScrollEnabled = ref(true)
+const copyPreviewZIndex = acquireZIndex()
 const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage, updateMessage, loadMoreMessagesBefore } = useChatsStores()
@@ -766,6 +768,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
       <div
         v-if="isMobile && mobileCopyPreviewVisible"
         class="mobile-copy-preview-overlay"
+        :style="{ zIndex: copyPreviewZIndex }"
         @click.self="closeMobileCopyPreview"
       >
         <div class="mobile-copy-preview-card" role="dialog" aria-modal="true">
@@ -884,7 +887,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 .mobile-copy-preview-overlay {
   position: fixed;
   inset: 0;
-  z-index: 2200;
   background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: flex-end;

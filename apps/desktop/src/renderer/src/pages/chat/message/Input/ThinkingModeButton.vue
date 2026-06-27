@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useSettingsStore } from '@renderer/stores/settings'
+import { acquireZIndex } from '@renderer/utils/z-index-manager'
 import {
   getThinkingDepthOptions,
   isMiniMaxM3Provider,
@@ -16,7 +17,9 @@ const settingsStore = useSettingsStore()
 const { thinkingMode } = storeToRefs(settingsStore)
 const { updateThinkingMode } = settingsStore
 const showPopover = ref(false)
+const drawerOverlayZIndex = acquireZIndex()
 const popoverRef = ref<HTMLElement>()
+const panelZIndex = acquireZIndex()
 const Bulb = useIcon('Bulb')
 
 const isMiniMaxM3 = computed(() =>
@@ -76,7 +79,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     </Button>
 
     <template v-if="!isMobile">
-      <div v-if="showPopover && !isMiniMaxM3" class="thinking-panel">
+      <div v-if="showPopover && !isMiniMaxM3" class="thinking-panel" :style="{ zIndex: panelZIndex }">
         <div class="thinking-panel-title">思考深度</div>
         <div class="thinking-panel-options">
           <button v-for="opt in depthOptions" :key="opt.value" class="thinking-depth-item"
@@ -96,7 +99,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
   <Teleport to="body">
     <Transition name="drawer">
-      <div v-if="isMobile && showPopover && !isMiniMaxM3" class="thinking-drawer-overlay" @click.self="closePopover">
+      <div v-if="isMobile && showPopover && !isMiniMaxM3" class="thinking-drawer-overlay" :style="{ zIndex: drawerOverlayZIndex }" @click.self="closePopover">
         <div class="thinking-drawer-container">
           <div class="thinking-drawer-header">
             <div class="thinking-drawer-handle"></div>
@@ -142,7 +145,6 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   border: 1px solid var(--border-subtle);
   background: color-mix(in srgb, var(--bg-card) 96%, white);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
-  z-index: 20;
 }
 
 .thinking-panel-title {
@@ -212,7 +214,6 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 3000;
   display: flex;
   align-items: flex-end;
   justify-content: center;
