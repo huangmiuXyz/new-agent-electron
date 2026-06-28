@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "vite build && esbuild src/main.ts --bundle --outfile=dist/main.cjs --platform=node --format=cjs --external:kokoro-js --external:@huggingface/transformers --footer:js='module.exports = main_default;' && esbuild src/tts-worker.ts --bundle --outfile=dist/tts-worker.cjs --platform=node --format=cjs --external:kokoro-js --external:@huggingface/transformers",
+    "build": "vite build && node -e \"require('esbuild').buildSync({entryPoints:['src/main.ts'],bundle:true,outfile:'dist/main.cjs',platform:'node',format:'cjs',external:['kokoro-js','@huggingface/transformers'],footer:{js:'module.exports = main_default;'}})\" && node -e \"require('esbuild').buildSync({entryPoints:['src/tts-worker.ts'],bundle:true,outfile:'dist/tts-worker.cjs',platform:'node',format:'cjs',external:['kokoro-js','@huggingface/transformers']})\"",
     "dev": "vite build --watch"
   },
   "dependencies": {

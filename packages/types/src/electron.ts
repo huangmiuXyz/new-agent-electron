@@ -96,7 +96,7 @@ export class PluginIpcTimeoutError extends Error {
 }
 
 /** pluginMain.ipc.invoke 默认超时（毫秒），0 表示不限 */
-export const PLUGIN_IPC_DEFAULT_TIMEOUT_MS = 15000
+export const PLUGIN_IPC_DEFAULT_TIMEOUT_MS = 120000
 
 export interface ElectronAPI {
   // aiServices

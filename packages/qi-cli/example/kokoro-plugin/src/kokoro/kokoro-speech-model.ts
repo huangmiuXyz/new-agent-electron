@@ -1,6 +1,22 @@
 import { SpeechModelV3, SharedV3Warning } from '@ai-sdk/provider';
 import { KokoroConfig, KokoroSpeechCallOptions } from './kokoro-config';
 
+export const STORAGE_KEY = 'kokoro_plugin_settings';
+
+export interface KokoroPluginSettings {
+  timeoutMs: number;
+  modelId: string;
+  dtype: string;
+  device: string;
+}
+
+export const DEFAULT_SETTINGS: KokoroPluginSettings = {
+  timeoutMs: 60000,
+  modelId: 'onnx-community/Kokoro-82M-v1.1-zh-ONNX',
+  dtype: 'q8',
+  device: 'cpu',
+};
+
 export class KokoroSpeechModel implements SpeechModelV3 {
   readonly specificationVersion = 'v3';
 
@@ -37,8 +53,23 @@ export class KokoroSpeechModel implements SpeechModelV3 {
   ): Promise<Awaited<ReturnType<SpeechModelV3['doGenerate']>>> {
     const { requestBody, warnings } = await this.getArgs(options);
 
+    if (!requestBody.text) {
+      throw new Error(`Kokoro TTS text is empty: "${String(requestBody.text)}"`);
+    }
+
     try {
-      const audioUint8Array: Uint8Array = await this.config.invokeIPC('tts', requestBody);
+      let settings = DEFAULT_SETTINGS;
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) settings = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+      } catch {}
+
+      const audioUint8Array: Uint8Array = await this.config.invokeIPC('tts', {
+        ...requestBody,
+        modelId: settings.modelId,
+        dtype: settings.dtype,
+        device: settings.device,
+      });
 
       return {
         audio: audioUint8Array,
