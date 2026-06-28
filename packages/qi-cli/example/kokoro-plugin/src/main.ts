@@ -1,16 +1,16 @@
 import type { MainPlugin, MainPluginContext } from '@agent-qi/types';
-import { Worker } from 'worker_threads';
+import { fork } from 'child_process';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
 interface MainRouterOptions {
-  postMessage: (msg: any) => void;
+  send: (msg: any) => void;
   broadcast: (channel: string, data: any) => void;
   logger?: { error: (...args: any[]) => void };
 }
 
 export function createMainRouter(opts: MainRouterOptions) {
-  const { postMessage, broadcast, logger } = opts;
+  const { send, broadcast, logger } = opts;
   const pending = new Map<string, { resolve: (v: any) => void; reject: (e: any) => void }>();
   let streamingResolve: ((v: any) => void) | null = null;
   let streamingReject: ((e: Error) => void) | null = null;
@@ -57,20 +57,40 @@ export function createMainRouter(opts: MainRouterOptions) {
     const p = pending.get(msg.id);
     if (!p) return;
     pending.delete(msg.id);
-    if (msg.ok) p.resolve(msg.result);
-    else p.reject(new Error(msg.error));
+    if (msg.ok) {
+      let result = msg.result;
+      if (Array.isArray(result) && result.length > 0 && typeof result[0] === 'number') {
+        result = new Uint8Array(result);
+      }
+      p.resolve(result);
+    } else {
+      p.reject(new Error(msg.error));
+    }
   };
 
   const sendWithPending = (type: string, params: any): Promise<any> => {
     const id = String(++reqId);
     return new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject });
-      postMessage({ id, type, ...params });
+      send({ id, type, ...params });
     });
   };
 
+  function rejectAll(error: Error) {
+    for (const [id, { reject }] of pending) {
+      reject(error);
+      pending.delete(id);
+    }
+    if (streamingReject) {
+      streamingReject(error);
+      streamingResolve = null;
+      streamingReject = null;
+    }
+  }
+
   return {
     handleWorkerMessage,
+    rejectAll,
 
     handleTTS(params: { text: string; voice: string; speed?: number }) {
       return sendWithPending('tts', params);
@@ -81,7 +101,7 @@ export function createMainRouter(opts: MainRouterOptions) {
     },
 
     handleReconfigure(config: { modelId?: string; dtype?: string; device?: string }) {
-      postMessage({ type: 'reconfigure', ...config });
+      send({ type: 'reconfigure', ...config });
     },
 
     handleStreamStart(params: { voice: string; speed?: number }) {
@@ -89,7 +109,7 @@ export function createMainRouter(opts: MainRouterOptions) {
       return new Promise<string>((resolve, reject) => {
         streamingResolve = resolve;
         streamingReject = reject;
-        postMessage({
+        send({
           type: 'stream-start',
           streamingId,
           voice: params.voice,
@@ -99,90 +119,109 @@ export function createMainRouter(opts: MainRouterOptions) {
     },
 
     handleStreamText(params: { text: string }) {
-      postMessage({ type: 'stream-text', text: params.text });
+      send({ type: 'stream-text', text: params.text });
     },
 
     handleStreamFinish() {
       return new Promise<void>((resolve, reject) => {
         streamingResolve = resolve;
         streamingReject = reject;
-        postMessage({ type: 'stream-finish' });
-      });
-    },
-
-    handleReconfigureWait(config: { modelId?: string; dtype?: string; device?: string }) {
-      return new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Model reload timeout (120s)')), 120_000);
-        const handler = (msg: any) => {
-          if (msg.type === 'ready') {
-            clearTimeout(timeout);
-            resolve();
-          } else if (msg.type === 'error') {
-            clearTimeout(timeout);
-            reject(new Error(msg.error));
-          }
-        };
-        postMessage({ type: 'reconfigure', ...config });
-        return { handler, cleanup: () => clearTimeout(timeout) };
+        send({ type: 'stream-finish' });
       });
     },
   };
 }
 
+let cp: ReturnType<typeof fork> | null = null;
+let router: ReturnType<typeof createMainRouter> | null = null;
+
+function startWorker(context: MainPluginContext, workerPath: string, currentModelId: string, currentDtype: string, currentDevice: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    cp = fork(workerPath, [], { stdio: 'pipe' });
+
+    cp.stdout?.on('data', (data) => {
+      context.logger.info('[kokoro-worker] ' + data.toString().trim());
+    });
+    cp.stderr?.on('data', (data) => {
+      context.logger.error('[kokoro-worker] ' + data.toString().trim());
+    });
+
+    const initTimeout = setTimeout(() => {
+      reject(new Error('Model loading timeout (120s)'));
+    }, 120_000);
+
+    cp.on('message', function onInit(msg: any) {
+      if (msg.type === 'ready') {
+        clearTimeout(initTimeout);
+        resolve();
+      } else if (msg.type === 'error') {
+        clearTimeout(initTimeout);
+        reject(new Error(msg.error));
+      }
+    });
+
+    cp.on('exit', (code) => {
+      clearTimeout(initTimeout);
+      reject(new Error(`Worker exited prematurely with code ${code}`));
+    });
+
+    cp.send({
+      type: 'init',
+      modelId: currentModelId,
+      dtype: currentDtype,
+      device: currentDevice,
+    });
+  });
+}
+
+function setupRouter(context: MainPluginContext, currentModelId: string, currentDtype: string, currentDevice: string) {
+  router = createMainRouter({
+    send: (msg) => cp!.send(msg),
+    broadcast: (channel, data) => context.ipc.broadcast(channel, data),
+    logger: context.logger,
+  });
+
+  cp!.on('message', router.handleWorkerMessage);
+
+  cp!.on('exit', (code) => {
+    if (code !== 0) {
+      context.logger.error(`Worker crashed (code: ${code}), restarting...`);
+      router?.rejectAll(new Error('Worker process crashed'));
+      router = null;
+      cp = null;
+      spawnWorker(context, workerPath);
+    }
+  });
+}
+
+let workerPath: string;
+function spawnWorker(context: MainPluginContext, wp?: string) {
+  if (wp) workerPath = wp;
+  if (!workerPath) return;
+  startWorker(context, workerPath, currentModelId, currentDtype, currentDevice)
+    .then(() => setupRouter(context, currentModelId, currentDtype, currentDevice))
+    .catch((err) => context.logger.error('Failed to spawn worker:', err));
+}
+
+let currentModelId = 'onnx-community/Kokoro-82M-v1.1-zh-ONNX';
+let currentDtype = 'q8';
+let currentDevice = 'cpu';
+
 const plugin: MainPlugin = {
   name: 'kokoro-plugin',
   async install(context: MainPluginContext) {
-    let workerPath = join(__dirname, 'tts-worker.cjs');
-    if (!existsSync(workerPath)) {
-      workerPath = join(__dirname, '..', 'dist', 'tts-worker.cjs');
+    let wp = join(__dirname, 'tts-worker.cjs');
+    if (!existsSync(wp)) {
+      wp = join(__dirname, '..', 'dist', 'tts-worker.cjs');
     }
-    if (!existsSync(workerPath)) {
-      context.logger.error('TTS worker not found at: ' + workerPath);
+    if (!existsSync(wp)) {
+      context.logger.error('TTS worker not found at: ' + wp);
       return;
     }
+    workerPath = wp;
 
-    const worker = new Worker(workerPath);
-
-    let currentModelId = 'onnx-community/Kokoro-82M-v1.1-zh-ONNX';
-    let currentDtype = 'q8';
-    let currentDevice = 'cpu';
-
-    const initWorker = () => {
-      worker.postMessage({
-        type: 'init',
-        modelId: currentModelId,
-        dtype: currentDtype,
-        device: currentDevice,
-      });
-    };
-
-    initWorker();
-
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Model loading timeout (120s)')), 120_000);
-      worker.on('message', function handler(msg: any) {
-        if (msg.type === 'ready') {
-          clearTimeout(timeout);
-          worker.removeListener('message', handler);
-          resolve();
-        } else if (msg.type === 'error') {
-          clearTimeout(timeout);
-          worker.removeListener('message', handler);
-          reject(new Error(msg.error));
-        }
-      });
-      worker.on('error', (err) => { clearTimeout(timeout); reject(err); });
-    });
-
-    const router = createMainRouter({
-      postMessage: (msg) => worker.postMessage(msg),
-      broadcast: (channel, data) => context.ipc.broadcast(channel, data),
-      logger: context.logger,
-    });
-
-    worker.on('message', router.handleWorkerMessage);
-
-    worker.on('error', (err) => context.logger.error('Worker error:', err));
+    await startWorker(context, workerPath, currentModelId, currentDtype, currentDevice);
+    setupRouter(context, currentModelId, currentDtype, currentDevice);
 
     context.ipc.removeHandler('tts')
     context.ipc.handle('tts', async (_event, params: {
@@ -202,12 +241,12 @@ const plugin: MainPlugin = {
       if (params.device && params.device !== currentDevice) {
         currentDevice = params.device;
       }
-      return router.handleTTS(params);
+      return router!.handleTTS(params);
     });
 
     context.ipc.removeHandler('voices')
     context.ipc.handle('voices', () => {
-      return router.handleVoices();
+      return router!.handleVoices();
     });
 
     context.ipc.removeHandler('reconfigure')
@@ -219,11 +258,7 @@ const plugin: MainPlugin = {
       if (config.modelId) currentModelId = config.modelId;
       if (config.dtype) currentDtype = config.dtype;
       if (config.device) currentDevice = config.device;
-      await router.handleReconfigureWait({
-        modelId: currentModelId,
-        dtype: currentDtype,
-        device: currentDevice,
-      });
+      cp!.send({ type: 'reconfigure', modelId: currentModelId, dtype: currentDtype, device: currentDevice });
     });
 
     context.ipc.removeHandler('tts-stream-start')
@@ -231,20 +266,20 @@ const plugin: MainPlugin = {
       voice: string;
       speed?: number;
     }) => {
-      return router.handleStreamStart(params);
+      return router!.handleStreamStart(params);
     });
 
     context.ipc.removeHandler('tts-stream-text')
     context.ipc.handle('tts-stream-text', async (_event, params: { text: string }) => {
-      router.handleStreamText(params);
+      router!.handleStreamText(params);
     });
 
     context.ipc.removeHandler('tts-stream-finish')
     context.ipc.handle('tts-stream-finish', async () => {
-      return router.handleStreamFinish();
+      return router!.handleStreamFinish();
     });
 
-    context.onUnload(() => { worker.terminate(); });
+    context.onUnload(() => { if (cp) cp.kill(); });
   },
 };
 

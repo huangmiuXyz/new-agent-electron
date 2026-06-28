@@ -248,7 +248,6 @@ export const createChatMessageSyncController = ({
     // Batch token-level updates so markdown parsing, Pinia persistence, and list patching
     // do not run on every tiny stream chunk.
     streamFlushHandle = setTimeout(() => {
-      debugger
       flushStreamingUpdate()
     }, STREAM_SYNC_INTERVAL_MS)
   }

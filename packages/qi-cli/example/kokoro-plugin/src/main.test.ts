@@ -3,17 +3,17 @@ import { createMainRouter } from './main';
 
 describe('createMainRouter', () => {
   it('handleTTS posts message and resolves with worker response', async () => {
-    const postMessage = vi.fn();
+    const send = vi.fn();
     const broadcast = vi.fn();
-    const router = createMainRouter({ postMessage, broadcast });
+    const router = createMainRouter({ send, broadcast });
 
     const promise = router.handleTTS({ text: 'hello', voice: 'af_heart', speed: 1.0 });
 
-    expect(postMessage).toHaveBeenCalledWith(
+    expect(send).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'tts', text: 'hello', voice: 'af_heart', speed: 1.0 }),
     );
 
-    const msg = postMessage.mock.calls[0][0];
+    const msg = send.mock.calls[0][0];
     router.handleWorkerMessage({ id: msg.id, ok: true, result: 'wav-data' });
 
     const result = await promise;
@@ -21,12 +21,12 @@ describe('createMainRouter', () => {
   });
 
   it('handleVoices posts message and resolves', async () => {
-    const postMessage = vi.fn();
+    const send = vi.fn();
     const broadcast = vi.fn();
-    const router = createMainRouter({ postMessage, broadcast });
+    const router = createMainRouter({ send, broadcast });
 
     const promise = router.handleVoices();
-    const msg = postMessage.mock.calls[0][0];
+    const msg = send.mock.calls[0][0];
     expect(msg.type).toBe('voices');
 
     router.handleWorkerMessage({ id: msg.id, ok: true, result: ['voice1'] });
@@ -34,17 +34,17 @@ describe('createMainRouter', () => {
   });
 
   it('handleStreamStart posts stream-start and resolves on stream-started', async () => {
-    const postMessage = vi.fn();
+    const send = vi.fn();
     const broadcast = vi.fn();
-    const router = createMainRouter({ postMessage, broadcast });
+    const router = createMainRouter({ send, broadcast });
 
     const promise = router.handleStreamStart({ voice: 'af_heart', speed: 1.0 });
 
-    expect(postMessage).toHaveBeenCalledWith(
+    expect(send).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'stream-start', voice: 'af_heart', speed: 1.0 }),
     );
 
-    const msg = postMessage.mock.calls[0][0];
+    const msg = send.mock.calls[0][0];
     expect(msg.streamingId).toBeDefined();
 
     router.handleWorkerMessage({ type: 'stream-started', streamingId: msg.streamingId });
@@ -54,23 +54,23 @@ describe('createMainRouter', () => {
   });
 
   it('handleStreamText posts stream-text', () => {
-    const postMessage = vi.fn();
+    const send = vi.fn();
     const broadcast = vi.fn();
-    const router = createMainRouter({ postMessage, broadcast });
+    const router = createMainRouter({ send, broadcast });
 
     router.handleStreamText({ text: 'hello' });
 
-    expect(postMessage).toHaveBeenCalledWith({ type: 'stream-text', text: 'hello' });
+    expect(send).toHaveBeenCalledWith({ type: 'stream-text', text: 'hello' });
   });
 
   it('handleStreamFinish posts stream-finish and resolves on stream-end', async () => {
-    const postMessage = vi.fn();
+    const send = vi.fn();
     const broadcast = vi.fn();
-    const router = createMainRouter({ postMessage, broadcast });
+    const router = createMainRouter({ send, broadcast });
 
     const promise = router.handleStreamFinish();
 
-    expect(postMessage).toHaveBeenCalledWith({ type: 'stream-finish' });
+    expect(send).toHaveBeenCalledWith({ type: 'stream-finish' });
 
     router.handleWorkerMessage({ type: 'stream-end', streamingId: 'test' });
 
@@ -78,9 +78,9 @@ describe('createMainRouter', () => {
   });
 
   it('handleWorkerMessage: stream-chunk broadcasts tts-stream-chunk', () => {
-    const postMessage = vi.fn();
+    const send = vi.fn();
     const broadcast = vi.fn();
-    const router = createMainRouter({ postMessage, broadcast });
+    const router = createMainRouter({ send, broadcast });
 
     router.handleWorkerMessage({
       type: 'stream-chunk',
@@ -95,9 +95,9 @@ describe('createMainRouter', () => {
   });
 
   it('handleWorkerMessage: stream-end broadcasts and resolves streaming', async () => {
-    const postMessage = vi.fn();
+    const send = vi.fn();
     const broadcast = vi.fn();
-    const router = createMainRouter({ postMessage, broadcast });
+    const router = createMainRouter({ send, broadcast });
 
     const promise = router.handleStreamFinish();
     router.handleWorkerMessage({ type: 'stream-end', streamingId: 'test-1' });
@@ -110,9 +110,9 @@ describe('createMainRouter', () => {
   });
 
   it('handleWorkerMessage: stream-error broadcasts with error message', async () => {
-    const postMessage = vi.fn();
+    const send = vi.fn();
     const broadcast = vi.fn();
-    const router = createMainRouter({ postMessage, broadcast });
+    const router = createMainRouter({ send, broadcast });
 
     const promise = router.handleStreamFinish();
     router.handleWorkerMessage({

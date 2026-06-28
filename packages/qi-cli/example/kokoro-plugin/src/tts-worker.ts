@@ -1,5 +1,3 @@
-import { parentPort } from 'worker_threads';
-
 const validDtypes = ['fp32', 'fp16', 'q8', 'q4', 'q4f16'] as const;
 const validDevices = ['wasm', 'webgpu', 'cpu'] as const;
 
@@ -152,7 +150,12 @@ export function createWorkerHandler(postMessage: (msg: any) => void) {
   };
 }
 
-if (parentPort) {
-  const handler = createWorkerHandler((msg) => parentPort!.postMessage(msg));
-  parentPort.on('message', handler);
-}
+const handler = createWorkerHandler((msg) => {
+  if (!process.send) return;
+  const converted: any = {};
+  for (const [k, v] of Object.entries(msg)) {
+    converted[k] = v instanceof Uint8Array ? Array.from(v) : v;
+  }
+  process.send(converted);
+});
+process.on('message', handler);
