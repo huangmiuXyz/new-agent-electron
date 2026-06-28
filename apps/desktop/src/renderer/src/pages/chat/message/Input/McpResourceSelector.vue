@@ -102,6 +102,7 @@ const toggleResource = (key: string) => {
     next.add(key)
   }
   selectedKeys.value = next
+  applySelection()
 }
 
 const selectAllServer = (serverName: string, checked: boolean) => {
@@ -115,6 +116,7 @@ const selectAllServer = (serverName: string, checked: boolean) => {
     }
   })
   selectedKeys.value = next
+  applySelection()
 }
 
 const serverSelectedCount = (serverName: string) => {
@@ -130,7 +132,7 @@ const serverAllSelected = (serverName: string) => {
   return serverSelectedCount(serverName) === serverTotalCount(serverName) && serverTotalCount(serverName) > 0
 }
 
-const saveSelection = () => {
+const applySelection = () => {
   if (!currentChat.value) return
   const selected: Record<string, string[]> = {}
   selectedKeys.value.forEach((key) => {
@@ -140,14 +142,6 @@ const saveSelection = () => {
     selected[serverName].push(uri)
   })
   updateChatMcpResources(currentChat.value.id, selected)
-  isPopupOpen.value = false
-}
-
-const clearSelection = () => {
-  selectedKeys.value = new Set()
-  if (currentChat.value) {
-    updateChatMcpResources(currentChat.value.id, {})
-  }
 }
 
 const restoreSelection = () => {
@@ -221,14 +215,6 @@ const hasSelectedResources = computed(() => totalSelected.value > 0)
             </div>
           </div>
         </div>
-      </div>
-      <div class="resource-footer">
-        <Button variant="icon" size="sm" @click="clearSelection">
-          清除选择
-        </Button>
-        <Button variant="primary" size="sm" :disabled="totalSelected === 0" @click="saveSelection">
-          确认引用 ({{ totalSelected }})
-        </Button>
       </div>
     </div>
   </SelectorPopover>
@@ -367,11 +353,4 @@ const hasSelectedResources = computed(() => totalSelected.value > 0)
   flex-shrink: 0;
 }
 
-.resource-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-subtle);
-}
 </style>
