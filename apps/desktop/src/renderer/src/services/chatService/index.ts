@@ -59,6 +59,7 @@ export const chatService = () => {
       mcpClient,
       instructions,
       mcpTools,
+      mcpResourceContent,
       builtinTools: selectedBuiltinTools,
       builtinToolsRequireApproval,
       builtinToolConfigs,
@@ -138,7 +139,7 @@ export const chatService = () => {
         ? buildCodexEnvironmentPrompt(cid, assignedBuiltinTools)
         : ''
     const agentInstructions =
-      [codexEnvironmentPrompt, instructions?.trim(), skillsPrompt, multiAgentPrompt]
+      [codexEnvironmentPrompt, instructions?.trim(), skillsPrompt, multiAgentPrompt, mcpResourceContent]
         .filter(Boolean)
         .join('\n\n') || undefined
 

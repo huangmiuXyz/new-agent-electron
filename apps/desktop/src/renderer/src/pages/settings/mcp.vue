@@ -1,13 +1,16 @@
 <script setup lang="ts">
+import { useContextMenu, type MenuItem } from '@renderer/composables/useContextMenu'
 const { mcpServers } = storeToRefs(useSettingsStore())
-const { Plus, Pencil, Trash, Refresh, Settings } = useIcon([
+const { Plus, Pencil, Trash, Refresh, Settings, FileCode } = useIcon([
   'Plus',
   'Pencil',
   'Trash',
   'Refresh',
-  'Settings'
+  'Settings',
+  'FileCode'
 ])
 const { confirm, remove } = useModal()
+const { showContextMenu } = useContextMenu()
 
 const inferServerConfig = (serverName: string, serverConfig: any) => {
   const inferredConfig = { ...serverConfig }
@@ -28,19 +31,11 @@ const inferServerConfig = (serverName: string, serverConfig: any) => {
   return inferredConfig
 }
 
-const openJsonEditor = () => {
-  const serversConfig = JSON.parse(JSON.stringify(mcpServers.value || {}))
-  for (const key in serversConfig) {
-    delete serversConfig[key].tools
-    delete serversConfig[key].active
-  }
-
-  const initialData = {
-    json: JSON.stringify({ mcpServers: serversConfig }, null, 2)
-  }
+const openJsonImport = () => {
+  const initialData = { json: '' }
 
   const [FormComponent, formActions] = useForm({
-    title: '编辑 MCP JSON 配置',
+    title: 'JSON 添加 MCP 服务器',
     showHeader: false,
     initialData,
     fields: [
@@ -49,7 +44,7 @@ const openJsonEditor = () => {
         type: 'textarea',
         label: 'JSON 配置',
         placeholder:
-          '请输入 JSON 配置，例如：\n{\n  "mcpServers": {\n    "context7": {\n      "command": "npx",\n      "args": ["-y", "@upstash/context7-mcp", "--api-key", "YOUR_API_KEY"]\n    }\n  }\n}',
+          '{\n  "mcpServers": {\n    "godot": {\n      "name": "godot",\n      "description": "",\n      "transport": "stdio",\n      "command": "npx",\n      "args": ["@coding-solo/godot-mcp"],\n      "env": {}\n    }\n  }\n}',
         required: true,
         rows: 20
       }
@@ -57,7 +52,7 @@ const openJsonEditor = () => {
   })
 
   confirm({
-    title: '编辑 MCP JSON 配置',
+    title: 'JSON 添加 MCP 服务器',
     content: FormComponent,
     maxHeight: '90vh',
     width: '60%',
@@ -72,15 +67,11 @@ const openJsonEditor = () => {
             for (const key in newServers) {
               newServers[key] = inferServerConfig(key, newServers[key])
               if (currentServers[key]) {
-                if (currentServers[key].tools) {
-                  newServers[key].tools = currentServers[key].tools
-                }
-                if (currentServers[key].active !== undefined) {
-                  newServers[key].active = currentServers[key].active
-                }
+                newServers[key].tools = currentServers[key].tools
+                newServers[key].active = currentServers[key].active
               }
             }
-            mcpServers.value = newServers
+            mcpServers.value = { ...currentServers, ...newServers }
             remove()
           } else {
             messageApi.error('JSON 格式错误: 缺少 mcpServers 字段')
@@ -193,6 +184,22 @@ const openServerModal = async (server?: any) => {
   })
 }
 
+const handleAddServerMenu = (event: MouseEvent) => {
+  const items: MenuItem[] = [
+    {
+      label: 'JSON 添加',
+      icon: FileCode,
+      onClick: () => openJsonImport()
+    },
+    {
+      label: '手动添加',
+      icon: Plus,
+      onClick: () => openServerModal()
+    }
+  ]
+  showContextMenu(event, items)
+}
+
 const handleDelete = (name: string) => {
   delete mcpServers.value[name]
 }
@@ -282,15 +289,12 @@ const getServerDesc = (server: any) => {
           @update:search-term="searchQuery = $event"
         >
         <template #actions>
-          <Button size="sm" variant="secondary" @click="openJsonEditor()">
-            <template #icon><Settings /></template>
-            编辑 JSON
-          </Button>
-          <Button size="sm" @click="openServerModal()">
+          <Button size="sm" @click="handleAddServerMenu">
             <template #icon><Plus /></template>
             添加服务器
           </Button>
         </template>
+        <ContextMenu />
 
         <SettingsGroup v-if="serverEntries.active.length" label="已启用">
           <SettingsRow

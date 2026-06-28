@@ -29,6 +29,13 @@ const fmt = (s: number) => {
   return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`
 }
 
+const readingPct = (id: string) => {
+  if (id !== speechStore.currentChunkId) return '0%'
+  const chunk = speechStore.queue.find(c => c.id === id)
+  if (!chunk?.duration || chunk.duration <= 0) return '100%'
+  return Math.min(100, (speechStore.currentTime / chunk.duration) * 100) + '%'
+}
+
 const prev = () => { if (canPrev.value) speechStore.jumpToChunk(speechStore.queue[idx.value - 1].id) }
 const next = () => { if (canNext.value) speechStore.jumpToChunk(speechStore.queue[idx.value + 1].id) }
 const seek = (e: MouseEvent) => {
@@ -105,9 +112,26 @@ watch(() => Math.floor(speechStore.currentTime * 10), (tick) => {
         >
           <span class="lx__n">{{ String(i + 1).padStart(2, '0') }}</span>
           <div class="lx__b">
-            <span class="lx__t">{{ c.text || '...' }}</span>
-            <span class="lx__d" v-if="c.streaming && !c.duration">生成中...</span>
-            <span class="lx__d" v-else>{{ c.duration ? fmt(c.duration) : '--:--' }}</span>
+            <span
+            class="lx__t"
+            :class="{
+              'lx__t--cur': c.id === speechStore.currentChunkId || c.streaming,
+              'lx__t--reading': c.id === speechStore.currentChunkId && c.duration && c.duration > 0
+            }"
+            :style="c.id === speechStore.currentChunkId && c.duration ? { '--read-pct': readingPct(c.id) } : {}"
+          >{{ c.text || '...' }}</span>
+            <div class="lx__meta">
+              <span class="lx__d" v-if="c.streaming && !c.duration">生成中...</span>
+              <span class="lx__d" v-else>{{ c.duration ? fmt(c.duration) : '--:--' }}</span>
+              <div v-if="c.id === speechStore.currentChunkId" class="lx__prog">
+                <div
+                  v-if="c.duration && c.duration > 0"
+                  class="lx__prog-fill"
+                  :style="{ width: Math.min(100, (speechStore.currentTime / c.duration) * 100) + '%' }"
+                ></div>
+                <div v-else class="lx__prog-fill lx__prog-fill--indet"></div>
+              </div>
+            </div>
           </div>
           <span class="lx__e" v-if="c.error">!</span>
           <span class="lx__v" v-if="c.streaming && !c.played"><i></i><i></i><i></i></span>
@@ -223,6 +247,52 @@ watch(() => Math.floor(speechStore.currentTime * 10), (tick) => {
   font-size: 10px; color: var(--text-sub, #6b7280);
   font-family: 'SF Mono', monospace;
   opacity: 0.55;
+}
+
+.lx__t--cur {
+  white-space: normal; word-break: break-word;
+  overflow: visible; text-overflow: clip;
+  -webkit-line-clamp: unset;
+}
+
+.lx__t--reading {
+  background: linear-gradient(
+    to right,
+    var(--color-primary, #007aff) var(--read-pct, 0%),
+    var(--text-main, #1d1d1f) var(--read-pct, 0%)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.lx__meta {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 2px;
+}
+
+.lx__prog {
+  flex: 1; max-width: 100px;
+  height: 2px;
+  background: var(--border-color, rgba(0,0,0,0.08));
+  border-radius: 2px; overflow: hidden;
+}
+
+.lx__prog-fill {
+  height: 100%;
+  background: var(--color-primary, #007aff);
+  border-radius: 2px;
+  transition: width 0.15s linear;
+}
+
+.lx__prog-fill--indet {
+  width: 30%;
+  animation: prog-indet 1.4s ease-in-out infinite;
+}
+
+@keyframes prog-indet {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(calc(100px / 0.3 + 100%)); }
 }
 
 .lx__e {

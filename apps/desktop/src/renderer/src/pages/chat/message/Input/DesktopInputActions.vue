@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ChatSwitcherPopover from './ChatSwitcherPopover.vue'
 import ThinkingModeButton from './ThinkingModeButton.vue'
+import McpResourceSelector from './McpResourceSelector.vue'
 
 type ContextTokens = {
   hasContext: boolean
@@ -166,6 +167,7 @@ const WorkPathChevronIcon = useIcon('ChevronDown')
         </Button>
         <ChatAgentSelector v-else-if="btnId === 'agent'" type="icon" />
         <ModelSelector v-else-if="btnId === 'model'" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" type="icon" />
+        <McpResourceSelector v-else-if="btnId === 'mcpResources'" />
         <ChatSwitcherPopover
           v-else-if="btnId === 'chatSwitcher'"
           v-model:visible="showChatSwitcher"

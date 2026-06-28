@@ -1,4 +1,4 @@
-import { ClientConfig, Tools } from './ai'
+import { ClientConfig, Tools, MCPResourceInfo, MCPReadResourceResult, MCPResourceTemplate } from './ai'
 import { DownloadProgress } from './components'
 import Electron from 'electron'
 export interface SyncHostState {
@@ -101,6 +101,13 @@ export const PLUGIN_IPC_DEFAULT_TIMEOUT_MS = 120000
 export interface ElectronAPI {
   // aiServices
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
+  list_mcp_resources: (config: ClientConfig, cache?: boolean) => Promise<MCPResourceInfo[]>
+  read_mcp_resource: (
+    config: ClientConfig,
+    serverName: string,
+    uri: string
+  ) => Promise<MCPReadResourceResult>
+  list_mcp_resource_templates: (config: ClientConfig, cache?: boolean) => Promise<MCPResourceTemplate[]>
 
   // plugin main-process bridge
   pluginMain: {

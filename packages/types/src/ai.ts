@@ -127,6 +127,36 @@ export interface Model {
   voices?: ModelVoice[]
 }
 
+export interface MCPResourceInfo {
+  uri: string
+  name: string
+  title?: string
+  description?: string
+  mimeType?: string
+  size?: number
+  serverName: string
+}
+
+export interface MCPResourceContent {
+  uri: string
+  mimeType?: string
+  text?: string
+  blob?: string
+}
+
+export interface MCPReadResourceResult {
+  contents: MCPResourceContent[]
+}
+
+export interface MCPResourceTemplate {
+  uriTemplate: string
+  name: string
+  title?: string
+  description?: string
+  mimeType?: string
+  serverName: string
+}
+
 declare global {
   type AsyncImageResult = _AsyncImageResult
   type providerType = _providerType
@@ -138,9 +168,12 @@ declare global {
   type BaseMessage = _BaseMessage
   type Tool = _Tool
   type ContentBlock<T extends UIDataTypes, K extends UITools> = _ContentBlock<T, K>
-  type ModelCategory = _ModelCategory
   interface ModelVoice extends _ModelVoice {}
   interface Model extends _Model {}
+  interface MCPResourceInfo extends _MCPResourceInfo {}
+  interface MCPResourceContent extends _MCPResourceContent {}
+  interface MCPReadResourceResult extends _MCPReadResourceResult {}
+  interface MCPResourceTemplate extends _MCPResourceTemplate {}
 }
 
 type _AsyncImageResult = AsyncImageResult
@@ -153,6 +186,9 @@ type _Tools = Tools
 type _BaseMessage = BaseMessage
 type _Tool = Tool
 type _ContentBlock<T extends UIDataTypes, K extends UITools> = ContentBlock<T, K>
-type _ModelCategory = ModelCategory
 type _ModelVoice = ModelVoice
 type _Model = Model
+type _MCPResourceInfo = MCPResourceInfo
+type _MCPResourceContent = MCPResourceContent
+type _MCPReadResourceResult = MCPReadResourceResult
+type _MCPResourceTemplate = MCPResourceTemplate

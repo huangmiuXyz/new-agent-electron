@@ -126,10 +126,16 @@ export const createChatMessageSyncController = ({
       if (existingMessage === msgToUpdate) return messages
 
       const nextMessages = [...messages]
+      const existingMeta = existingMessage.metadata || ({} as MetaData)
+      const newMeta = (msgToUpdate.metadata || {}) as MetaData
       nextMessages[existingIndex] = {
         ...existingMessage,
         parts: msgToUpdate.parts,
-        metadata: msgToUpdate.metadata
+        metadata: {
+          ...existingMeta,
+          ...newMeta,
+          audio: newMeta.audio || existingMeta.audio
+        }
       }
       return nextMessages
     }

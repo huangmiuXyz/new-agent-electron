@@ -23,6 +23,7 @@ export interface ChatServiceConfig {
   mcpClient: ClientConfig
   instructions?: string
   mcpTools?: string[]
+  mcpResourceContent?: string
   builtinTools?: string[]
   builtinToolsRequireApproval?: string[]
   builtinToolConfigs?: Agent['builtinToolConfigs']

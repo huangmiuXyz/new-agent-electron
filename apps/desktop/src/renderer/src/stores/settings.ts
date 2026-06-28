@@ -144,6 +144,7 @@ export const useSettingsStore = defineStore(
       | 'model'
       | 'chatSwitcher'
       | 'workpath'
+      | 'mcpResources'
 
     interface InputButtonItem {
       id: InputButtonId
@@ -163,6 +164,7 @@ export const useSettingsStore = defineStore(
       { id: 'stop', visible: true },
       { id: 'agent', visible: true },
       { id: 'model', visible: true },
+      { id: 'mcpResources', visible: true },
       { id: 'chatSwitcher', visible: true },
       { id: 'workpath', visible: true }
     ]

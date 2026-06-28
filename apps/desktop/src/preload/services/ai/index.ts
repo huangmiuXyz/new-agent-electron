@@ -17,8 +17,34 @@ type ClientConfig = Record<
 >
 type Tools = Awaited<ReturnType<MCPClient['tools']>>
 
+interface ResourceInfo {
+  uri: string
+  name: string
+  title?: string
+  description?: string
+  mimeType?: string
+  size?: number
+  serverName: string
+}
+
+interface ReadResourceResult {
+  contents: Array<{ uri: string; mimeType?: string; text?: string; blob?: string }>
+}
+
+interface ResourceTemplateInfo {
+  uriTemplate: string
+  name: string
+  title?: string
+  description?: string
+  mimeType?: string
+  serverName: string
+}
+
 interface aiServiceResult {
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
+  list_mcp_resources: (config: ClientConfig, cache?: boolean) => Promise<ResourceInfo[]>
+  read_mcp_resource: (config: ClientConfig, serverName: string, uri: string) => Promise<ReadResourceResult>
+  list_mcp_resource_templates: (config: ClientConfig, cache?: boolean) => Promise<ResourceTemplateInfo[]>
 }
 
 export const aiServices = (): aiServiceResult => {
@@ -118,16 +144,91 @@ export const aiServices = (): aiServiceResult => {
 
     await syncClients(config)
 
-    const toolsList = await Promise.all(
-      Object.values(clientMap).map(async (client) => wrapMcpTools(await client.tools()))
-    )
+    const toolsList = (
+      await Promise.allSettled(
+        Object.values(clientMap).map(async (client) => wrapMcpTools(await client.tools()))
+      )
+    ).flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []))
 
     toolsCache = toolsList.reduce((acc, curr) => ({ ...acc, ...curr }), {})
 
     return toolsCache
   }
 
+  let resourcesCache: ResourceInfo[] | undefined
+  let templatesCache: ResourceTemplateInfo[] | undefined
+
+  const list_mcp_resources = async (config: ClientConfig, cache = true) => {
+    if (resourcesCache && JSON.stringify(lastConfig) === JSON.stringify(config) && cache) {
+      return resourcesCache
+    }
+
+    await syncClients(config)
+
+    const results = (
+      await Promise.allSettled(
+        Object.entries(clientMap).map(async ([serverName, client]) => {
+          const { resources } = await client.listResources()
+          return (resources || []).map((r) => ({
+            uri: r.uri,
+            name: r.name,
+            title: r.title,
+            description: r.description,
+            mimeType: r.mimeType,
+            size: r.size,
+            serverName
+          }))
+        })
+      )
+    ).flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
+
+    resourcesCache = results.flat()
+    return resourcesCache
+  }
+
+  const read_mcp_resource = async (config: ClientConfig, serverName: string, uri: string) => {
+    await syncClients(config)
+
+    const client = clientMap[serverName]
+    if (!client) {
+      throw new Error(`MCP server "${serverName}" is not available.`)
+    }
+
+    const result = await client.readResource({ uri })
+    return result as ReadResourceResult
+  }
+
+  const list_mcp_resource_templates = async (config: ClientConfig, cache = true) => {
+    if (templatesCache && JSON.stringify(lastConfig) === JSON.stringify(config) && cache) {
+      return templatesCache
+    }
+
+    await syncClients(config)
+
+    const results = (
+      await Promise.allSettled(
+        Object.entries(clientMap).map(async ([serverName, client]) => {
+          const { resourceTemplates } = await client.listResourceTemplates()
+          return (resourceTemplates || []).map((t) => ({
+            uriTemplate: t.uriTemplate,
+            name: t.name,
+            title: t.title,
+            description: t.description,
+            mimeType: t.mimeType,
+            serverName
+          }))
+        })
+      )
+    ).flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
+
+    templatesCache = results.flat()
+    return templatesCache
+  }
+
   return {
-    list_tools
+    list_tools,
+    list_mcp_resources,
+    read_mcp_resource,
+    list_mcp_resource_templates
   }
 }

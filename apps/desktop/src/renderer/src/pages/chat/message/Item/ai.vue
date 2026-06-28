@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { TextUIPart } from 'ai'
 import { acquireZIndex } from '@renderer/utils/z-index-manager'
 import {
   getFlatTokenUsage,
@@ -8,6 +9,7 @@ import {
 } from '@renderer/services/chatService/tokenUsage'
 import { getCollapsedMessageParts, getRenderableMessageParts } from './messageParts'
 import { getRetryStopHandler } from '@renderer/composables/useChat'
+import LiveWaveform from '@renderer/components/LiveWaveform.vue'
 
 const props = defineProps<{
   message: BaseMessage
@@ -33,6 +35,13 @@ const currentAgentAvatar = computed(() => {
 
 const hasAudioChunks = computed(() => {
   return (props.message.metadata?.audio?.chunks?.length ?? 0) > 0
+})
+
+const isStreamingAudio = computed(() => {
+  if (!props.message.metadata?.loading) return false
+  const audio = props.message.metadata?.audio
+  if (!audio?.chunks?.length) return false
+  return audio.chunks.some(c => !c.data || c.data === '')
 })
 
 const flatUsage = computed(() => getFlatTokenUsage(props.message.metadata?.usage))
@@ -225,6 +234,49 @@ watch(
   }
 )
 
+// 从 message.parts 提取完整流式文本（最可靠，不受 session.getText() 更新顺序影响）
+const getFullMessageText = (msg: BaseMessage) =>
+  msg.parts?.filter((p): p is TextUIPart => p.type === 'text').map(p => p.text).join('') || ''
+
+// Sync streaming audio chunks → speechStore queue (playlist 实时显示)
+// compound key = loading + message.parts 全文 + chunks data/duration
+// 不将 loading 作为 guard，而是纳入 key，确保 loading 从 true→false 的最终更新也能触发 watch
+const streamingAudioKey = computed(() => {
+  const chunks = props.message.metadata?.audio?.chunks
+  if (!chunks?.length) return ''
+  const loading = props.message.metadata?.loading
+  const text = getFullMessageText(props.message)
+  const extra = chunks.map(c => `${c.data || ''}\x00${c.duration ?? ''}`).join('|')
+  return `${text}\x00${extra}\x00${String(loading)}`
+})
+
+watch(streamingAudioKey, (key) => {
+  if (!key) return
+  const chunks = props.message.metadata?.audio?.chunks
+  if (!chunks?.length) return
+
+  const fullText = getFullMessageText(props.message)
+  const keep = speechStore.queue.filter(c => c.messageId !== props.message.id)
+  const fresh = chunks.map((chunk, i) => ({
+    id: `${props.message.id}-audio-${i}`,
+    messageId: props.message.id,
+    text: fullText || chunk.text || '',
+    streaming: true,
+    loading: !chunk.data || chunk.data === '',
+    played: false,
+    audioData: (chunk.data && chunk.data !== '') ? chunk.data : undefined,
+    duration: chunk.duration,
+  }))
+  speechStore.queue.splice(0, speechStore.queue.length, ...keep, ...fresh)
+
+  if (!speechStore.currentChunkId && chunks.length > 0) {
+    speechStore.currentChunkId = `${props.message.id}-audio-0`
+  }
+
+  settingsStore.display.assistantSidebarTab = 'playlist'
+  settingsStore.display.speechSidebarCollapsed = false
+})
+
 const isCurrentPlaying = computed(() => {
   return (
     speechStore.isPlaying &&
@@ -352,6 +404,8 @@ const playMessageAudio = () => {
         :streaming="isStreamingText"
       />
 
+      <LiveWaveform :active="isStreamingAudio" />
+
       <div
         v-if="
           activityStatus ||
@@ -361,7 +415,7 @@ const playMessageAudio = () => {
         class="msg-actions"
       >
         <Button
-          v-if="hasAudioChunks"
+          v-if="hasAudioChunks && !isStreamingAudio"
           size="sm"
           @click="playMessageAudio"
           variant="icon"

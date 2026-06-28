@@ -8,6 +8,7 @@ declare global {
     systemPrompt: string
     mcpServers: string[] // MCP服务器名称列表
     tools: string[] // 工具名称列表，格式为 "服务器名.工具名"
+    mcpResources?: string[] // MCP资源URI白名单，格式为 "服务器名::uri"
     builtinTools: string[] // 内置工具名称列表
     builtinToolsRequireApproval?: string[] // 需要手动批准的内置工具名称列表
     builtinToolConfigs?: {

@@ -298,7 +298,7 @@ export const useChat = (chatId: string) => {
         messages: cloneMessagesForChat(messages),
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         transport: {
-          sendMessages: ({ messages }) => {
+          sendMessages: async ({ messages }) => {
             const runtimeAgent = getChatAgent()
             const runtimeChat = getChatById(chatId)
             const providerId = runtimeChat?.providerId
@@ -313,6 +313,38 @@ export const useChat = (chatId: string) => {
             speechController.reset(runtimeAgent)
             const toolFeaturesEnabled = runtimeChat?.toolFeaturesEnabled !== false
 
+            // 读取选中的 MCP 资源内容，注入为上下文
+            const selectedMcpResources = (runtimeChat as any)?.selectedMcpResources as Record<string, string[]> | undefined
+            let mcpResourceContent = ''
+            if (selectedMcpResources && Object.keys(selectedMcpResources).length > 0) {
+              const mcpClient = agentStore.getMcpByAgent(runtimeAgent.id).mcpServers
+              const resourceParts: string[] = []
+              for (const [serverName, uris] of Object.entries(selectedMcpResources)) {
+                for (const uri of (uris || [])) {
+                  try {
+                    const result = await (window.api as any).read_mcp_resource(mcpClient, serverName, uri)
+                    const text = (result.contents || [])
+                      .filter((c: any) => c.text)
+                      .map((c: any) => c.text)
+                      .join('\n')
+                    if (text) {
+                      resourceParts.push(`[${serverName}] ${uri}\n${text}`)
+                    }
+                  } catch {
+                    resourceParts.push(`[${serverName}] ${uri} (读取失败)`)
+                  }
+                }
+              }
+              if (resourceParts.length > 0) {
+                mcpResourceContent = [
+                  '以下是用户选中的 MCP 资源内容，作为本次对话的上下文参考：',
+                  '---',
+                  ...resourceParts,
+                  '---'
+                ].join('\n')
+              }
+            }
+
             return service.createAgent(
               chat.id.value,
               {
@@ -326,6 +358,7 @@ export const useChat = (chatId: string) => {
               {
                 mcpClient: agentStore.getMcpByAgent(runtimeAgent.id).mcpServers,
                 instructions: runtimeAgent?.systemPrompt,
+                mcpResourceContent,
                 mcpTools: toolFeaturesEnabled ? runtimeAgent?.tools || [] : [],
                 builtinTools: toolFeaturesEnabled ? runtimeAgent?.builtinTools || [] : [],
                 builtinToolsRequireApproval: toolFeaturesEnabled

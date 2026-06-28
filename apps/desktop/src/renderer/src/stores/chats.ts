@@ -53,6 +53,7 @@ export const useChatsStores = defineStore(
       subTask: summary.subTask,
       toolFeaturesEnabled: summary.toolFeaturesEnabled,
       compressedContext: summary.compressedContext,
+      selectedMcpResources: summary.selectedMcpResources,
       pendingMessages: pendingMessagesMap.value[summary.id] || [],
       messages,
     })
