@@ -23,8 +23,8 @@ const emit = defineEmits<{
 <template>
   <div class="sl">
     <!-- Header -->
-    <div class="sl-header">
-      <div v-if="count !== undefined" class="sl-header-title">
+    <div v-if="count !== undefined && $slots['actions']" class="sl-header">
+      <div  class="sl-header-title">
         <span class="sl-header-count">{{ count }}</span>
         <span class="sl-header-label">{{ countLabel }}</span>
       </div>

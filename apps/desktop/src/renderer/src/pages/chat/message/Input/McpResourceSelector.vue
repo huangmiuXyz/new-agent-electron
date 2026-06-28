@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { useSettingsStore } from '@renderer/stores/settings'
 import { useAgentStore } from '@renderer/stores/agent'
 
 const chatsStore = useChatsStores()
-const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
 
 const updateChatMcpResources = (chatId: string, selectedMcpResources: Record<string, string[]>) => {
@@ -12,7 +10,6 @@ const updateChatMcpResources = (chatId: string, selectedMcpResources: Record<str
   summary.selectedMcpResources = selectedMcpResources
 }
 
-const { mcpServers } = storeToRefs(settingsStore)
 const DocumentIcon = useIcon('Document')
 
 interface ResourceItem {
@@ -172,65 +169,55 @@ const hasSelectedResources = computed(() => totalSelected.value > 0)
 </script>
 
 <template>
-  <SelectorPopover v-model:visible="isPopupOpen" :data="resources" desktop-presentation="tray" width="420px"
-    title="选择 MCP 资源" :show-search="false" no-results-text="该智能体关联的 MCP 服务器暂无可用资源"
-    :has-results="resources.length > 0 || loading" tray-anchor=".input-container">
+  <SelectorPopover v-model:visible="isPopupOpen" desktop-presentation="tray" title="选择 MCP 资源"
+    tray-anchor=".input-container">
     <template #trigger>
       <Button variant="icon" size="sm" :class="{ 'resource-active': hasSelectedResources }" :title="totalSelectedLabel">
         <DocumentIcon />
       </Button>
     </template>
-
-    <div class="resource-selector">
-      <div v-if="loading" class="resource-loading">
+    <template #content>
+      <div v-if="loading" class="resource-status">
         <Loading size="small" /> 加载资源中...
       </div>
-      <div v-else-if="errorMessage" class="resource-error">
+      <div v-else-if="errorMessage" class="resource-status resource-error">
         {{ errorMessage }}
       </div>
-      <div v-else-if="groupedResources.size === 0" class="resource-empty">
-        暂无可用资源
-      </div>
-      <div v-else class="resource-groups">
-        <div v-for="[serverName, items] in groupedResources" :key="serverName" class="resource-group">
-          <div class="group-header">
-            <div class="group-header-left">
+      <div v-else>
+        <SettingsList v-if="groupedResources.size">
+          <SettingsGroup v-for="[serverName, items] in groupedResources" :key="serverName" :label="serverName">
+            <div class="rg-bar">
               <Checkbox :model-value="serverAllSelected(serverName)"
                 :indeterminate="serverSelectedCount(serverName) > 0 && !serverAllSelected(serverName)"
                 @update:model-value="(v: boolean) => selectAllServer(serverName, v)" />
-              <span class="group-server-name">{{ serverName }}</span>
+              <span class="rg-count">{{ serverSelectedCount(serverName) }}/{{ serverTotalCount(serverName) }}</span>
             </div>
-            <span class="group-count">{{ serverSelectedCount(serverName) }}/{{ serverTotalCount(serverName) }}</span>
-          </div>
-          <div class="resource-items">
-            <div v-for="item in items" :key="item.key" class="resource-item"
-              :class="{ selected: selectedKeys.has(item.key) }" @click="toggleResource(item.key)">
-              <Checkbox :model-value="selectedKeys.has(item.key)" />
-              <span class="resource-icon">{{ getResourceIcon(item.mimeType) }}</span>
-              <div class="resource-body">
-                <span class="resource-name">{{ item.name }}</span>
-                <span v-if="item.description" class="resource-desc">{{ item.description }}</span>
-              </div>
-              <span v-if="item.mimeType" class="resource-mime">{{ item.mimeType }}</span>
-            </div>
-          </div>
-        </div>
+            <SettingsRow
+              v-for="item in items"
+              :key="item.key"
+              :name="item.name"
+              :desc="item.description || item.mimeType || ''"
+              clickable
+              :class="{ 'sr--selected': selectedKeys.has(item.key) }"
+              @click="toggleResource(item.key)"
+            >
+              <template #icon>
+                <span class="resource-emoji">{{ getResourceIcon(item.mimeType) }}</span>
+              </template>
+              <template #actions>
+                <Checkbox :model-value="selectedKeys.has(item.key)" @update:model-value="toggleResource(item.key)" />
+              </template>
+            </SettingsRow>
+          </SettingsGroup>
+        </SettingsList>
+        <div v-else class="resource-status">暂无可用资源</div>
       </div>
-    </div>
+    </template>
   </SelectorPopover>
 </template>
 
 <style scoped>
-.resource-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 150px;
-}
-
-.resource-loading,
-.resource-error,
-.resource-empty {
+.resource-status {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,119 +225,38 @@ const hasSelectedResources = computed(() => totalSelected.value > 0)
   font-size: 12px;
   color: var(--text-tertiary);
   gap: 8px;
+  min-height: 120px;
 }
 
 .resource-error {
   color: var(--color-danger);
 }
 
-.resource-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 360px;
-  overflow-y: auto;
+.resource-emoji {
+  font-size: 15px;
+  line-height: 1;
 }
 
-.resource-group {
-  background: var(--bg-hover);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.group-header {
+.rg-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--bg-active);
+  gap: 8px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.group-header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.group-server-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.group-count {
+.rg-count {
   font-size: 10px;
   color: var(--text-tertiary);
   font-weight: 500;
+  margin-left: auto;
 }
 
-.resource-items {
-  display: flex;
-  flex-direction: column;
+.sr--selected {
+  background: rgba(var(--accent-rgb, 47, 116, 255), 0.06);
 }
 
-.resource-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  cursor: pointer;
-  transition: background-color 0.12s ease;
-  border-bottom: 1px solid var(--border-subtle);
+.sr--selected:hover {
+  background: rgba(var(--accent-rgb, 47, 116, 255), 0.1);
 }
-
-.resource-item:last-child {
-  border-bottom: none;
-}
-
-.resource-item:hover {
-  background: var(--bg-hover);
-}
-
-.resource-item.selected {
-  background: rgba(var(--accent-rgb, 47, 116, 255), 0.05);
-}
-
-.resource-icon {
-  font-size: 14px;
-  flex-shrink: 0;
-  width: 18px;
-  text-align: center;
-}
-
-.resource-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.resource-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.resource-desc {
-  font-size: 10px;
-  color: var(--text-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.resource-mime {
-  font-size: 10px;
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-}
-
 </style>
