@@ -1,7 +1,6 @@
 import type { Ref } from 'vue'
 import type { FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import { speechService, type TtsTextStreamSession } from '@renderer/services/speechService'
-import { messageApi } from '@renderer/utils/messages'
 import { createSentenceSegmenter } from './sentenceSegmenter'
 
 type SpeechStreamControllerOptions = {
@@ -171,14 +170,12 @@ export const createSpeechStreamController = ({
         message.metadata.audio.chunks[chunkIndex].error = '生成失败：未返回音频数据'
         updateMessageAudioChunks(chatId, message.id, message.metadata.audio)
       }
-    } catch (error) {
-      const err = error as Error
-      const errorMessage = err.message || err.name || String(error)
+          } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       if (message.metadata?.audio?.chunks[chunkIndex]) {
         message.metadata.audio.chunks[chunkIndex].error = `生成失败：${errorMessage}`
         updateMessageAudioChunks(chatId, message.id, message.metadata.audio)
       }
-      messageApi.error('语音合成失败: ' + errorMessage)
     }
   }
 
@@ -246,7 +243,6 @@ export const createSpeechStreamController = ({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       updateStreamingSpeechMetadata(message, session, `生成失败：${errorMessage}`)
-      messageApi.error('语音合成失败: ' + errorMessage)
     } finally {
       streamingSpeechSession = null
       streamingSpeechSessionPromise = null
@@ -294,3 +290,4 @@ export const createSpeechStreamController = ({
     fail
   }
 }
+
