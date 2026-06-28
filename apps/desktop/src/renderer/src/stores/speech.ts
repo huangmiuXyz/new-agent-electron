@@ -228,17 +228,19 @@ export const useSpeechStore = defineStore('speech', () => {
       chunk.streaming = false
       chunk.error = errorMessage
       chunk.played = true
-      if (activeStreamPlayback?.chunkId === id) {
-        activeStreamPlayback.finished = true
+      const wasActiveStream = activeStreamPlayback?.chunkId === id
+      if (wasActiveStream) {
+        activeStreamPlayback!.finished = true
         try {
-          if (activeStreamPlayback.mediaSource.readyState === 'open') {
-            activeStreamPlayback.mediaSource.endOfStream('decode')
+          if (activeStreamPlayback!.mediaSource.readyState === 'open') {
+            activeStreamPlayback!.mediaSource.endOfStream('decode')
           }
         } catch {
           // Ignore MediaSource shutdown errors; the chunk is already marked failed.
         }
+        cleanupActiveStream()
       }
-      if (isWaiting.value || !isPlaying.value) {
+      if (isWaiting.value || !isPlaying.value || wasActiveStream) {
         isWaiting.value = false
         playNext()
       }
@@ -460,6 +462,9 @@ export const useSpeechStore = defineStore('speech', () => {
       audioPlayer.play()
       isPlaying.value = true
     } else {
+      queue.value.forEach(chunk => {
+        chunk.played = !!(chunk.error && !chunk.audioData)
+      })
       playNext()
     }
   }

@@ -39,6 +39,7 @@
     "@ai-sdk/otel": "catalog:",
     "@ai-sdk/provider": "catalog:",
     "@ai-sdk/vue": "catalog:",
+    "@fortawesome/fontawesome-free": "^7.3.0",
     "@mozilla/readability": "^0.6.0",
     "@openrouter/ai-sdk-provider": "^6.0.0-alpha.1",
     "ai": "catalog:",
