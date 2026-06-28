@@ -322,7 +322,7 @@ export const useChat = (chatId: string) => {
               for (const [serverName, uris] of Object.entries(selectedMcpResources)) {
                 for (const uri of (uris || [])) {
                   try {
-                    const result = await (window.api as any).read_mcp_resource(mcpClient, serverName, uri)
+                    const result = await window.api.read_mcp_resource(JSON.parse(JSON.stringify(mcpClient)), serverName, uri)
                     const text = (result.contents || [])
                       .filter((c: any) => c.text)
                       .map((c: any) => c.text)
@@ -563,13 +563,13 @@ export const useChat = (chatId: string) => {
       const nextMessages =
         truncatedParts.length > 0
           ? [
-              ...baseMessages,
-              {
-                ...message,
-                parts: truncatedParts.map((part) => ({ ...part })),
-                metadata: clearTransientMetadata(message.metadata)
-              }
-            ]
+            ...baseMessages,
+            {
+              ...message,
+              parts: truncatedParts.map((part) => ({ ...part })),
+              metadata: clearTransientMetadata(message.metadata)
+            }
+          ]
           : baseMessages
 
       updateMessages(chatId, cloneMessagesForChat(nextMessages))
