@@ -99,17 +99,18 @@ watch(() => Math.floor(speechStore.currentTime * 10), (tick) => {
           v-for="(c, i) in speechStore.queue"
           :key="c.id"
           class="lx__r"
-          :class="{ cur: c.id === speechStore.currentChunkId, done: c.played && c.id !== speechStore.currentChunkId, err: !!c.error, ld: c.loading }"
+          :class="{ cur: c.id === speechStore.currentChunkId, done: c.played && c.id !== speechStore.currentChunkId, err: !!c.error, ld: c.loading && !c.streaming, streaming: c.streaming }"
           :title="c.error"
           @click="click(c.id)"
         >
           <span class="lx__n">{{ String(i + 1).padStart(2, '0') }}</span>
           <div class="lx__b">
-            <span class="lx__t">{{ c.text }}</span>
-            <span class="lx__d">{{ c.duration ? fmt(c.duration) : '--:--' }}</span>
+            <span class="lx__t">{{ c.text || '...' }}</span>
+            <span class="lx__d" v-if="c.streaming && !c.duration">生成中...</span>
+            <span class="lx__d" v-else>{{ c.duration ? fmt(c.duration) : '--:--' }}</span>
           </div>
           <span class="lx__e" v-if="c.error">!</span>
-          <span class="lx__v" v-if="c.id === speechStore.currentChunkId && speechStore.isPlaying"><i></i><i></i><i></i></span>
+          <span class="lx__v" v-if="c.streaming && !c.played"><i></i><i></i><i></i></span>
           <span class="lx__v lx__v--idle" v-else-if="c.id === speechStore.currentChunkId"><i></i><i></i><i></i></span>
         </div>
       </div>
@@ -187,6 +188,7 @@ watch(() => Math.floor(speechStore.currentTime * 10), (tick) => {
 .lx__r:hover { background: var(--sidebar-hover-bg, rgba(0,0,0,0.04)); }
 .lx__r.done { opacity: 0.35; }
 .lx__r.ld  { opacity: 0.2; pointer-events: none; }
+.lx__r.streaming { opacity: 0.85; background: var(--sidebar-streaming-bg, rgba(0,122,255,0.04)); }
 .lx__r.err { opacity: 0.4; }
 .lx__r.cur {
   background: var(--sidebar-active-bg, rgba(0,0,0,0.07));
@@ -232,7 +234,8 @@ watch(() => Math.floor(speechStore.currentTime * 10), (tick) => {
 
 .lx__v { display: flex; align-items: flex-end; gap: 2px; height: 14px; flex-shrink: 0; }
 .lx__v i { width: 2px; border-radius: 2px; background: var(--color-primary, #007aff); animation: vb 0.8s ease-in-out infinite; }
-.lx__v--idle i { opacity: 0.2; transform: scaleY(0.4); }
+.lx__v--idle i { opacity: 0.2; transform: scaleY(0.4); animation: none; }
+.lx__r.streaming .lx__v i { background: var(--accent-color, #34c759); }
 .lx__v i:nth-child(1) { height: 6px;  animation-delay: 0s; }
 .lx__v i:nth-child(2) { height: 12px; animation-delay: 0.15s; }
 .lx__v i:nth-child(3) { height: 8px;  animation-delay: 0.3s; }

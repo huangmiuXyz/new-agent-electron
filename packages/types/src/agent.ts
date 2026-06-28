@@ -48,7 +48,7 @@ declare global {
     retryAutoEnabled?: boolean // 对话失败时是否自动重试，直到用户手动停止
     retryIntervalMs?: number // 自动重试间隔（毫秒），0 表示不等待
     speechVoice?: string // 语音名称
-    speechMode?: 'sentence' | 'paragraph' | 'full' // 语音生成模式
+    speechMode?: 'sentence' | 'paragraph' | 'full' | 'stream' // 语音生成模式
     speechSpeed?: number // 语音速度
     speechLanguage?: string // 语音语言
     speechProviderOptions?: Record<string, unknown> // 语音选项

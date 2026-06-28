@@ -1,9 +1,13 @@
 import { Plugin, PluginContext } from '@agent-qi/types';
 import { createKokoro, DEFAULT_VOICES } from './kokoro/kokoro-provider';
 import { DEFAULT_SETTINGS, STORAGE_KEY, type KokoroPluginSettings } from './kokoro/kokoro-speech-model';
+import { createStreamListener } from './stream-listener';
 
 const PLUGIN_NAME = 'kokoro-plugin';
 const PROVIDER_ID = 'kokoro';
+
+let unsubStream: (() => void) | null = null;
+let streamListener: ReturnType<typeof createStreamListener> | null = null;
 
 const plugin: Plugin = {
   name: PLUGIN_NAME,
@@ -11,7 +15,7 @@ const plugin: Plugin = {
   description: 'Kokoro Local TTS Plugin (kokoro-js)',
 
   install: async (context: PluginContext) => {
-    const { registerRegistry, registerProvider } = context;
+    const { registerRegistry, registerProvider, registerHook } = context;
 
     registerRegistry(PROVIDER_ID, (options: any) => {
       return createKokoro({
@@ -33,6 +37,40 @@ const plugin: Plugin = {
           voices: DEFAULT_VOICES.map(v => ({ id: v.id, name: v.name })),
         },
       ],
+    });
+
+    registerHook('ai:tts-stream-start', async (payload: any) => {
+      const { voice, speed, controller } = payload;
+
+      streamListener = createStreamListener();
+      streamListener.setController(controller);
+
+      await context.api.pluginMain.ipc.invoke(
+        PLUGIN_NAME, 'tts-stream-start', { voice, speed },
+      );
+
+      if (!unsubStream) {
+        unsubStream = setupStreamListener(context, streamListener);
+      }
+
+      return { handled: true };
+    });
+
+    registerHook('ai:tts-stream-text', async (payload: any) => {
+      const { delta } = payload;
+      if (!delta) return;
+      await context.api.pluginMain.ipc.invoke(
+        PLUGIN_NAME, 'tts-stream-text', { text: delta },
+      );
+    });
+
+    registerHook('ai:tts-stream-finish', async (_payload: any) => {
+      await context.api.pluginMain.ipc.invoke(PLUGIN_NAME, 'tts-stream-finish');
+      cleanupStream();
+    });
+
+    registerHook('ai:tts-stream-error', async (_payload: any) => {
+      cleanupStream();
     });
 
     const loadSettings = (): KokoroPluginSettings => {
@@ -109,9 +147,37 @@ const plugin: Plugin = {
   },
 
   uninstall: (context: PluginContext) => {
+    cleanupStream();
     context.api.pluginMain.unload(PLUGIN_NAME);
     context.unregisterSettings();
   },
 };
+
+function setupStreamListener(context: PluginContext, listener: ReturnType<typeof createStreamListener>): () => void {
+  const unsubChunk = context.api.pluginMain.ipc.on(
+    PLUGIN_NAME, 'tts-stream-chunk',
+    async ({ audio: audioArr }: any) => {
+      listener.handleChunk(audioArr);
+    },
+  );
+
+  const unsubEnd = context.api.pluginMain.ipc.on(
+    PLUGIN_NAME, 'tts-stream-end',
+    async ({ error }: any) => {
+      listener.handleEnd(error);
+    },
+  );
+
+  return () => { unsubChunk(); unsubEnd(); };
+}
+
+function cleanupStream() {
+  streamListener?.reset();
+  streamListener = null;
+  if (unsubStream) {
+    unsubStream();
+    unsubStream = null;
+  }
+}
 
 export default plugin;

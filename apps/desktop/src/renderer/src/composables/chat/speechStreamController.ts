@@ -77,6 +77,8 @@ export const createSpeechStreamController = ({
     if (streamingSpeechSessionPromise) return streamingSpeechSessionPromise
 
     const runtimeAgent = getChatAgent()
+    if (runtimeAgent?.speechMode !== 'stream') return null
+
     const voice = runtimeAgent?.speechVoice
     const speechModel = runtimeAgent?.speechModel
     if (!voice || !speechModel?.modelId || !speechModel?.providerId) return null

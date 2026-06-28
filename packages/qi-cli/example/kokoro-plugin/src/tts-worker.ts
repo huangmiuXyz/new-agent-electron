@@ -1,5 +1,11 @@
 import { parentPort } from 'worker_threads';
 
+const validDtypes = ['fp32', 'fp16', 'q8', 'q4', 'q4f16'] as const;
+const validDevices = ['wasm', 'webgpu', 'cpu'] as const;
+
+type Dtype = typeof validDtypes[number];
+type Device = typeof validDevices[number];
+
 function rawAudioToWav(audio: { audio: Float32Array; sampling_rate: number }): Uint8Array {
   const numChannels = 1;
   const sampleRate = audio.sampling_rate;
@@ -28,80 +34,125 @@ function rawAudioToWav(audio: { audio: Float32Array; sampling_rate: number }): U
   return new Uint8Array(header);
 }
 
-let tts: any = null;
-let modelReady = false;
-let modelError: string | null = null;
-let modelId = 'onnx-community/Kokoro-82M-v1.1-zh-ONNX';
-let modelDtype: 'fp32' | 'fp16' | 'q8' | 'q4' | 'q4f16' = 'q8';
-let modelDevice: 'wasm' | 'webgpu' | 'cpu' | null = 'cpu';
+export function createWorkerHandler(postMessage: (msg: any) => void) {
+  let tts: any = null;
+  let modelReady = false;
+  let modelError: string | null = null;
+  let modelId = 'onnx-community/Kokoro-82M-v1.1-zh-ONNX';
+  let modelDtype: Dtype = 'q8';
+  let modelDevice: Device = 'cpu';
+  let textStream: any = null;
+  let currentStreamingId: string | null = null;
+  let currentStreamPromise: Promise<void> | null = null;
 
-async function loadModel(): Promise<void> {
-  const { KokoroTTS } = await import('kokoro-js');
-  tts = await KokoroTTS.from_pretrained(modelId, { dtype: modelDtype, device: modelDevice });
+  async function loadModel(): Promise<void> {
+    const { KokoroTTS } = await import('kokoro-js');
+    tts = await KokoroTTS.from_pretrained(modelId, { dtype: modelDtype, device: modelDevice });
+  }
+
+  function awaitModel(): Promise<void> {
+    if (modelReady) return Promise.resolve();
+    if (modelError) return Promise.reject(new Error(modelError));
+    return new Promise<void>((resolve, reject) => {
+      const check = setInterval(() => {
+        if (modelReady) { clearInterval(check); resolve(); }
+        if (modelError) { clearInterval(check); reject(new Error(modelError!)); }
+      }, 100);
+    });
+  }
+
+  return async function handleWorkerMessage(msg: any): Promise<void> {
+    try {
+      if (msg.type === 'init') {
+        if (msg.modelId) modelId = msg.modelId;
+        if (msg.dtype && validDtypes.includes(msg.dtype)) modelDtype = msg.dtype;
+        if (msg.device && validDevices.includes(msg.device)) modelDevice = msg.device;
+        try {
+          await loadModel();
+          modelReady = true;
+          postMessage({ type: 'ready' });
+        } catch (err: any) {
+          modelError = err.message;
+          postMessage({ type: 'error', error: err.message });
+        }
+        return;
+      }
+
+      if (msg.type === 'reconfigure') {
+        if (msg.modelId) modelId = msg.modelId;
+        if (msg.dtype && validDtypes.includes(msg.dtype)) modelDtype = msg.dtype;
+        if (msg.device && validDevices.includes(msg.device)) modelDevice = msg.device;
+        tts = null;
+        modelReady = false;
+        modelError = null;
+        try {
+          await loadModel();
+          modelReady = true;
+          postMessage({ type: 'ready' });
+        } catch (err: any) {
+          modelError = err.message;
+          postMessage({ type: 'error', error: err.message });
+        }
+        return;
+      }
+
+      await awaitModel();
+
+      if (msg.type === 'tts') {
+        if (!msg.text) throw new Error(`TTS text is ${msg.text === null ? 'null' : 'undefined'}`);
+        const audio = await tts.generate(msg.text, { voice: msg.voice, speed: msg.speed ?? 1.0 });
+        postMessage({ id: msg.id, ok: true, result: rawAudioToWav(audio) });
+      } else if (msg.type === 'voices') {
+        const voices = Object.entries(tts.voices).map(([id, v]: [string, any]) => ({
+          id, name: v.name, language: v.language, gender: v.gender,
+        }));
+        postMessage({ id: msg.id, ok: true, result: voices });
+      } else if (msg.type === 'stream-start') {
+        const { TextSplitterStream } = await import('kokoro-js');
+        textStream = new TextSplitterStream();
+        currentStreamingId = msg.streamingId;
+
+        postMessage({ type: 'stream-started', streamingId: msg.streamingId });
+
+        currentStreamPromise = (async () => {
+          try {
+            for await (const chunk of tts.stream(textStream, {
+              voice: msg.voice,
+              speed: msg.speed ?? 1.0,
+            })) {
+              postMessage({
+                type: 'stream-chunk',
+                streamingId: msg.streamingId,
+                audio: rawAudioToWav(chunk.audio),
+              });
+            }
+            postMessage({ type: 'stream-end', streamingId: msg.streamingId });
+          } catch (err: any) {
+            postMessage({
+              type: 'stream-error',
+              streamingId: msg.streamingId,
+              error: err.message,
+            });
+          } finally {
+            textStream = null;
+            currentStreamingId = null;
+            currentStreamPromise = null;
+          }
+        })();
+      } else if (msg.type === 'stream-text' && textStream) {
+        textStream.push(msg.text);
+      } else if (msg.type === 'stream-finish' && textStream) {
+        textStream.close();
+      }
+    } catch (err: any) {
+      if (msg.id) {
+        postMessage({ id: msg.id, ok: false, error: err.message });
+      }
+    }
+  };
 }
 
-const validDtypes = ['fp32', 'fp16', 'q8', 'q4', 'q4f16'];
-const validDevices = ['wasm', 'webgpu', 'cpu'];
-
-parentPort!.on('message', async (msg: any) => {
-  try {
-    if (msg.type === 'init') {
-      if (msg.modelId) modelId = msg.modelId;
-      if (msg.dtype && validDtypes.includes(msg.dtype)) modelDtype = msg.dtype as typeof modelDtype;
-      if (msg.device && validDevices.includes(msg.device)) modelDevice = msg.device as typeof modelDevice;
-      try {
-        await loadModel();
-        modelReady = true;
-        parentPort!.postMessage({ type: 'ready' });
-      } catch (err: any) {
-        modelError = err.message;
-        parentPort!.postMessage({ type: 'error', error: err.message });
-      }
-      return;
-    }
-
-    if (msg.type === 'reconfigure') {
-      if (msg.modelId) modelId = msg.modelId;
-      if (msg.dtype && validDtypes.includes(msg.dtype)) modelDtype = msg.dtype as typeof modelDtype;
-      if (msg.device && validDevices.includes(msg.device)) modelDevice = msg.device as typeof modelDevice;
-      tts = null;
-      modelReady = false;
-      modelError = null;
-      try {
-        await loadModel();
-        modelReady = true;
-        parentPort!.postMessage({ type: 'ready' });
-      } catch (err: any) {
-        modelError = err.message;
-        parentPort!.postMessage({ type: 'error', error: err.message });
-      }
-      return;
-    }
-
-    if (modelError) throw new Error(modelError);
-    if (!modelReady) {
-      await new Promise<void>((resolve, reject) => {
-        const check = setInterval(() => {
-          if (modelReady) { clearInterval(check); resolve(); }
-          if (modelError) { clearInterval(check); reject(new Error(modelError!)); }
-        }, 100);
-      });
-    }
-
-    if (msg.type === 'tts') {
-      if (!msg.text) throw new Error(`TTS text is ${msg.text === null ? 'null' : 'undefined'}`);
-      const audio = await tts.generate(msg.text!, { voice: msg.voice as any, speed: msg.speed ?? 1.0 });
-      const wav = rawAudioToWav(audio);
-      parentPort!.postMessage({ id: msg.id, ok: true, result: wav });
-    } else if (msg.type === 'voices') {
-      const voices = Object.entries(tts.voices).map(([id, v]: [string, any]) => ({
-        id, name: v.name, language: v.language, gender: v.gender,
-      }));
-      parentPort!.postMessage({ id: msg.id, ok: true, result: voices });
-    }
-  } catch (err: any) {
-    if (msg.id) {
-      parentPort!.postMessage({ id: msg.id, ok: false, error: err.message });
-    }
-  }
-});
+if (parentPort) {
+  const handler = createWorkerHandler((msg) => parentPort!.postMessage(msg));
+  parentPort.on('message', handler);
+}

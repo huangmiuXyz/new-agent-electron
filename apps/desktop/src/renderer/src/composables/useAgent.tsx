@@ -584,7 +584,8 @@ export const useAgent = () => {
         options: [
           { label: '一句一生成', value: 'sentence' },
           { label: '一段一生成', value: 'paragraph' },
-          { label: '回复后生成', value: 'full' }
+          { label: '回复后生成', value: 'full' },
+          { label: '流式生成', value: 'stream' }
         ],
         hint: '控制语音生成的颗粒度。'
       } as SelectField<AgentFormData>,

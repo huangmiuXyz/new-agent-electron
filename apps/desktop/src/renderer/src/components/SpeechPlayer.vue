@@ -116,11 +116,13 @@ watch(activeChunkIndex, (newIndex) => {
       <div v-for="chunk in messageChunks" :key="chunk.id" class="lyric-line" :class="{
         'is-active': chunk.id === speechStore.currentChunkId,
         'is-played': chunk.played && chunk.id !== speechStore.currentChunkId,
-        'is-loading': chunk.loading,
+        'is-loading': chunk.loading && !chunk.streaming,
+        'is-streaming': chunk.streaming,
         'is-error': !!chunk.error
       }" :title="chunk.error" @click="handleChunkClick(chunk.id)">
+        <span v-if="chunk.streaming" class="streaming-dots"><i></i><i></i><i></i></span>
         <span v-if="chunk.error" class="error-icon">⚠️</span>
-        {{ chunk.text }}
+        {{ chunk.text || '...' }}
       </div>
     </div>
   </div>
@@ -235,6 +237,32 @@ watch(activeChunkIndex, (newIndex) => {
 .lyric-line.is-loading {
   opacity: 0.5;
   font-style: italic;
+}
+
+.lyric-line.is-streaming {
+  color: var(--accent-color);
+  opacity: 0.9;
+}
+
+.streaming-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.streaming-dots i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  animation: sd 1s ease-in-out infinite;
+}
+.streaming-dots i:nth-child(2) { animation-delay: 0.2s; }
+.streaming-dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes sd {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
 }
 
 .lyric-line.is-error {

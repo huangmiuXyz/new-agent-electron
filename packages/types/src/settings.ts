@@ -69,7 +69,7 @@ export interface DefaultModelsSettings {
   speechModelId: string | string[]
   speechProviderId: string | string[]
   speechVoice: string
-  speechMode: 'sentence' | 'paragraph' | 'full'
+  speechMode: 'sentence' | 'paragraph' | 'full' | 'stream'
   speechSpeed?: number
   speechLanguage?: string
 }
