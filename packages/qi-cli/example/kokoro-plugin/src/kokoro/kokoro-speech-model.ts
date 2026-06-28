@@ -1,5 +1,6 @@
 import { SpeechModelV3, SharedV3Warning } from '@ai-sdk/provider';
 import { KokoroConfig, KokoroSpeechCallOptions } from './kokoro-config';
+import removeMd from 'remove-markdown';
 
 export const STORAGE_KEY = 'kokoro_plugin_settings';
 
@@ -29,6 +30,14 @@ export class KokoroSpeechModel implements SpeechModelV3 {
     private readonly config: KokoroConfig,
   ) {}
 
+  private cleanText(text: string): string {
+    return removeMd(text, { stripListLeaders: true, useImgAltText: false })
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
   private async getArgs({
     text,
     voice = 'af_heart',
@@ -40,7 +49,7 @@ export class KokoroSpeechModel implements SpeechModelV3 {
 
     return {
       requestBody: {
-        text,
+        text: this.cleanText(text),
         voice: voice || 'af_heart',
         speed: speed ?? kokoroOptions?.speed ?? 1.0,
       },

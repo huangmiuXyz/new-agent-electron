@@ -9,10 +9,11 @@
     "dev": "vite build --watch"
   },
   "dependencies": {
+    "@agent-qi/types": "workspace:*",
     "@ai-sdk/provider": "catalog:",
     "@ai-sdk/provider-utils": "catalog:",
-    "@agent-qi/types": "workspace:*",
     "kokoro-js": "^1.2.1",
+    "remove-markdown": "^0.6.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {

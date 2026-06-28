@@ -240,10 +240,8 @@ export const useSpeechStore = defineStore('speech', () => {
         }
         cleanupActiveStream()
       }
-      if (isWaiting.value || !isPlaying.value || wasActiveStream) {
-        isWaiting.value = false
-        playNext()
-      }
+      isWaiting.value = false
+      playNext()
     }
   }
 
@@ -300,6 +298,11 @@ export const useSpeechStore = defineStore('speech', () => {
     }
 
     const nextChunk = queue.value[nextIndex]
+
+    if (nextChunk.id === currentChunkId.value && (isPlaying.value || isWaiting.value)) {
+      return
+    }
+
     if (nextChunk.streaming || (nextChunk.streamChunks?.length && !nextChunk.audioData)) {
       playStreamChunk(nextChunk)
       return
