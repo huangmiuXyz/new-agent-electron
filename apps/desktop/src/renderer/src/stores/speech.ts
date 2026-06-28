@@ -472,6 +472,8 @@ export const useSpeechStore = defineStore('speech', () => {
   const stop = () => {
     audioPlayer.pause()
     audioPlayer.currentTime = 0
+    audioPlayer.onended = null
+    audioPlayer.onerror = null
     audioPlayer.removeAttribute('src')
     audioPlayer.load()
     isPlaying.value = false
