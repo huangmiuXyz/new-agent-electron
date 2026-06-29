@@ -34,6 +34,7 @@ type ResolvedTtsConfig = {
 
 type TtsBaseParams = {
   messageId: string
+  chunkId?: string
   modelId?: string
   providerId?: string
   voice?: string
@@ -47,11 +48,15 @@ export type TtsTextStreamSession = {
   chunkId: string
   handled: true
   appendText: (text: string) => Promise<void>
+  appendTargetText: (targetText: string) => Promise<void>
   finish: () => Promise<AudioChunk | undefined>
   error: (error: unknown) => Promise<void>
   getText: () => string
   getChunk: () => AudioChunk | undefined
 }
+
+const activeTextStreamSessions = new Map<string, TtsTextStreamSession>()
+const activeTextStreamPromises = new Map<string, Promise<TtsTextStreamSession | null>>()
 
 const isHandledTtsHookResult = (result: unknown): result is TtsHookResult => {
   return Boolean(
@@ -198,6 +203,7 @@ export const speechService = () => {
   const generateAndPlay = async (params: {
     text: string
     messageId: string
+    chunkId?: string
     modelId?: string
     providerId?: string
     voice?: string
@@ -215,7 +221,7 @@ export const speechService = () => {
       providerOptions
     } = params
 
-    const chunkId = nanoid()
+    const chunkId = params.chunkId || nanoid()
     const resolved = resolveTtsConfig(params)
     if (!resolved) {
       const placeholder = speechStore.createPlaceholder(chunkId, messageId, text, {
@@ -323,103 +329,158 @@ export const speechService = () => {
   }
 
   const createTextStream = async (params: TtsBaseParams): Promise<TtsTextStreamSession | null> => {
+    const streamKey = params.messageId
+    const activeSession = activeTextStreamSessions.get(streamKey)
+    if (activeSession) return activeSession
+
+    const activePromise = activeTextStreamPromises.get(streamKey)
+    if (activePromise) return activePromise
+
     const resolved = resolveTtsConfig(params)
     if (!resolved) return null
 
-    const { modelId, providerId, provider, modelInfo } = resolved
-    const chunkId = nanoid()
-    const { triggerHook } = usePlugins()
-    let created = false
-    let text = ''
+    const sessionPromise = (async () => {
+      const { modelId, providerId, provider, modelInfo } = resolved
+      const chunkId = params.chunkId || nanoid()
+      const { triggerHook } = usePlugins()
+      let created = false
+      let text = ''
+      let finished = false
+      let textUpdateQueue = Promise.resolve()
 
-    const ensureChunk = () => {
-      if (created) return
-      speechStore.createPlaceholder(chunkId, params.messageId, text, {
-        providerId,
-        providerName: provider.name,
-        modelId,
-        modelName: modelInfo?.name || modelId,
-        kind: modelId.startsWith('music-') ? 'music' : 'speech'
-      })
-      created = true
-    }
-
-    const controller = createHookController(chunkId, {
-      ensureChunk,
-      appendText: (delta) => {
-        text += delta
-        speechStore.updateChunkText(chunkId, text)
-      },
-      setText: (nextText) => {
-        text = nextText
-        speechStore.updateChunkText(chunkId, text)
+      const cleanup = () => {
+        activeTextStreamSessions.delete(streamKey)
+        activeTextStreamPromises.delete(streamKey)
       }
+
+      const ensureChunk = () => {
+        if (created) return
+        speechStore.createPlaceholder(chunkId, params.messageId, text, {
+          providerId,
+          providerName: provider.name,
+          modelId,
+          modelName: modelInfo?.name || modelId,
+          kind: modelId.startsWith('music-') ? 'music' : 'speech'
+        })
+        created = true
+      }
+
+      const controller = createHookController(chunkId, {
+        ensureChunk,
+        appendText: (delta) => {
+          text += delta
+          speechStore.updateChunkText(chunkId, text)
+        },
+        setText: (nextText) => {
+          text = nextText
+          speechStore.updateChunkText(chunkId, text)
+        }
+      })
+
+      const hookPayload = {
+        ...params,
+        modelId,
+        providerId,
+        provider,
+        modelInfo,
+        chunkId,
+        text,
+        controller
+      }
+
+      const startResults = await triggerHook('ai:tts-stream-start', hookPayload)
+      if (!startResults.some(isHandledTtsHookResult)) {
+        if (created) {
+          speechStore.removeChunk(chunkId)
+        }
+        cleanup()
+        return null
+      }
+
+      ensureChunk()
+
+      const session: TtsTextStreamSession = {
+        chunkId,
+        handled: true,
+        appendText: async (delta: string) => {
+          textUpdateQueue = textUpdateQueue.then(async () => {
+            if (!delta || finished) return
+            text += delta
+            speechStore.updateChunkText(chunkId, text)
+            await triggerHook('ai:tts-stream-text', {
+              ...hookPayload,
+              text,
+              delta,
+              controller
+            })
+          })
+          await textUpdateQueue
+        },
+        appendTargetText: async (targetText: string) => {
+          textUpdateQueue = textUpdateQueue.then(async () => {
+            if (!targetText || finished || targetText.length <= text.length) return
+            const delta = targetText.startsWith(text)
+              ? targetText.slice(text.length)
+              : targetText
+            if (!delta) return
+            text += delta
+            speechStore.updateChunkText(chunkId, text)
+            await triggerHook('ai:tts-stream-text', {
+              ...hookPayload,
+              text,
+              delta,
+              controller
+            })
+          })
+          await textUpdateQueue
+        },
+        finish: async () => {
+          if (finished) {
+            return speechStore.queue.find((item) => item.id === chunkId)
+          }
+          finished = true
+          await textUpdateQueue
+          await triggerHook('ai:tts-stream-finish', {
+            ...hookPayload,
+            text,
+            controller
+          })
+          if (!controller.settled) {
+            await controller.finish()
+          }
+          const chunk = speechStore.queue.find((item) => item.id === chunkId)
+          cleanup()
+          if (chunk?.error) {
+            throw new Error(chunk.error)
+          }
+          return chunk
+        },
+        error: async (error: unknown) => {
+          if (finished) return
+          finished = true
+          controller.error(error)
+          cleanup()
+          await triggerHook('ai:tts-stream-error', {
+            ...hookPayload,
+            text,
+            error,
+            controller
+          })
+        },
+        getText: () => text,
+        getChunk: () => speechStore.queue.find((item) => item.id === chunkId)
+      }
+
+      activeTextStreamSessions.set(streamKey, session)
+      activeTextStreamPromises.delete(streamKey)
+      return session
+    })().catch((error) => {
+      activeTextStreamPromises.delete(streamKey)
+      throw error
     })
 
-    const hookPayload = {
-      ...params,
-      modelId,
-      providerId,
-      provider,
-      modelInfo,
-      chunkId,
-      text,
-      controller
-    }
-
-    const startResults = await triggerHook('ai:tts-stream-start', hookPayload)
-    if (!startResults.some(isHandledTtsHookResult)) {
-      if (created) {
-        speechStore.removeChunk(chunkId)
-      }
-      return null
-    }
-
-    ensureChunk()
-
-    const session: TtsTextStreamSession = {
-      chunkId,
-      handled: true,
-      appendText: async (delta: string) => {
-        if (!delta) return
-        text += delta
-        speechStore.updateChunkText(chunkId, text)
-        await triggerHook('ai:tts-stream-text', {
-          ...hookPayload,
-          text,
-          delta,
-          controller
-        })
-      },
-      finish: async () => {
-        await triggerHook('ai:tts-stream-finish', {
-          ...hookPayload,
-          text,
-          controller
-        })
-        if (!controller.settled) {
-          await controller.finish()
-        }
-        const chunk = speechStore.queue.find((item) => item.id === chunkId)
-        if (chunk?.error) {
-          throw new Error(chunk.error)
-        }
-        return chunk
-      },
-      error: async (error: unknown) => {
-        controller.error(error)
-        await triggerHook('ai:tts-stream-error', {
-          ...hookPayload,
-          text,
-          error,
-          controller
-        })
-      },
-      getText: () => text,
-      getChunk: () => speechStore.queue.find((item) => item.id === chunkId)
-    }
-
-    return session
+    activeTextStreamPromises.set(streamKey, sessionPromise)
+    return sessionPromise
   }
 
   return {
