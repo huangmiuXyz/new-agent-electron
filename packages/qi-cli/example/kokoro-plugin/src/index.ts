@@ -68,7 +68,6 @@ const plugin: Plugin = {
 
     registerHook('ai:tts-stream-finish', async (_payload: any) => {
       await context.api.pluginMain.ipc.invoke(PLUGIN_NAME, 'tts-stream-finish');
-      cleanupStream();
     });
 
     registerHook('ai:tts-stream-error', async (_payload: any) => {
@@ -167,6 +166,7 @@ function setupStreamListener(context: PluginContext, listener: ReturnType<typeof
     PLUGIN_NAME, 'tts-stream-end',
     async ({ error }: any) => {
       listener.handleEnd(error);
+      cleanupStream();
     },
   );
 

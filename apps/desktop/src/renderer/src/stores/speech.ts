@@ -216,8 +216,9 @@ export const useSpeechStore = defineStore('speech', () => {
     if (!chunk) return Promise.resolve(0)
 
     const bytes = concatUint8Arrays(chunk.streamChunks || [])
-    const base64 = uint8ArrayToBase64(bytes)
-    chunk.audioData = base64
+    if (!chunk.audioData) {
+      chunk.audioData = uint8ArrayToBase64(bytes)
+    }
     chunk.loading = false
     chunk.streaming = false
     chunk.error = undefined
@@ -250,7 +251,7 @@ export const useSpeechStore = defineStore('speech', () => {
     }
 
     const durationPromise = new Promise<number>((resolve) => {
-      const tempAudio = new Audio(`data:${chunk.audioMediaType};base64,${base64}`)
+      const tempAudio = new Audio(`data:${chunk.audioMediaType};base64,${chunk.audioData}`)
       tempAudio.onloadedmetadata = () => {
         chunk.duration = tempAudio.duration
         resolve(tempAudio.duration)
