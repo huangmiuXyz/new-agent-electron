@@ -436,7 +436,6 @@ const handleItemClick = (item: ListItemView) => {
   transition:
     background-color var(--motion-duration-fast) var(--motion-ease-standard),
     color var(--motion-duration-fast) var(--motion-ease-standard),
-    transform var(--motion-duration-fast) var(--motion-ease-emphasized),
     box-shadow var(--motion-duration-fast) var(--motion-ease-standard);
   gap: 10px;
   padding: 8px 10px;
@@ -496,10 +495,6 @@ const handleItemClick = (item: ListItemView) => {
   height: 55%;
   background: var(--sidebar-active-accent, var(--color-primary));
   border-radius: var(--sidebar-active-indicator-radius, 2px);
-}
-
-.list-item:active {
-  transform: scale(0.97);
 }
 
 /* 禁用态（如已隐藏的配置项）：视觉弱化 */

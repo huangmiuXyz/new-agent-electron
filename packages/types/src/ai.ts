@@ -50,6 +50,7 @@ export interface MetaData {
   outputEndTime?: number // 生成结束的时间戳（毫秒），用于完成后稳定展示 token 速度
   audio?: {
     chunks: {
+      id?: string
       data: string // base64
       text: string
       duration?: number // duration in seconds

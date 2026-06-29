@@ -54,6 +54,7 @@ export const useChatsStores = defineStore(
       toolFeaturesEnabled: summary.toolFeaturesEnabled,
       compressedContext: summary.compressedContext,
       selectedMcpResources: summary.selectedMcpResources,
+      is_collected: summary.is_collected,
       pendingMessages: pendingMessagesMap.value[summary.id] || [],
       messages,
     })
@@ -264,6 +265,12 @@ export const useChatsStores = defineStore(
 
     const deleteChat = async (id: string) => {
       const allIds = new Set([id, ...getDescendantChatIds(id)])
+
+      if (allChats.value.every(c => allIds.has(c.id))) {
+        await clearChat(id)
+        return
+      }
+
       !isMobile.value && useCanvasStore().deleteCanvases([...allIds])
 
       for (const chatId of allIds) {
@@ -445,7 +452,30 @@ export const useChatsStores = defineStore(
     const getRootChats = () => {
       return allChats.value
         .filter((chat) => !chat.parentChatId)
-        .sort((a, b) => b.createdAt - a.createdAt)
+        .sort((a, b) => {
+          if (a.is_collected && !b.is_collected) return -1
+          if (!a.is_collected && b.is_collected) return 1
+          return b.createdAt - a.createdAt
+        })
+    }
+
+    const togglePinChat = (chatId: string) => {
+      const summary = chatSummaries.value.find((s) => s.id === chatId)
+      if (summary) {
+        updateChatSummaryMeta(chatId, { is_collected: !summary.is_collected })
+        return
+      }
+      const chat = tempChats.value.find((c) => c.id === chatId)
+      if (chat) {
+        chat.is_collected = !chat.is_collected
+      }
+    }
+
+    const isChatPinned = (chatId: string): boolean => {
+      const summary = chatSummaries.value.find((s) => s.id === chatId)
+      if (summary) return !!summary.is_collected
+      const chat = tempChats.value.find((c) => c.id === chatId)
+      return !!chat?.is_collected
     }
 
     const createSubChat = (options: {
@@ -696,6 +726,7 @@ export const useChatsStores = defineStore(
         subTask: chat.subTask,
         toolFeaturesEnabled: chat.toolFeaturesEnabled,
         compressedContext: chat.compressedContext,
+        is_collected: chat.is_collected,
         messageCount: chat.messages?.length || 0
       }))
       chatSummaries.value = summaries
@@ -721,6 +752,30 @@ export const useChatsStores = defineStore(
       if (!summary) return
       Object.assign(summary, updates, { updatedAt: Date.now() })
       chatSummaries.value = [...chatSummaries.value]
+    }
+
+    const clearChat = async (id: string) => {
+      const allIds = new Set([id, ...getDescendantChatIds(id)])
+      !isMobile.value && useCanvasStore().deleteCanvases([...allIds])
+
+      for (const chatId of allIds) {
+        const window = messageWindows.value[chatId]
+        if (window) {
+          window.messages.forEach((m) => m.metadata?.stop?.())
+        }
+        const summary = chatSummaries.value.find((s) => s.id === chatId)
+        if (summary) {
+          await chatRepository.deleteChatMessages(chatId)
+          replaceWindowMessages(chatId, [])
+        } else {
+          tempChats.value = tempChats.value.filter((c) => c.id !== chatId)
+        }
+        delete chatDrafts.value[chatId]
+      }
+
+      if (activeChatId.value && allIds.has(activeChatId.value)) {
+        activeMessageWindow.value = messageWindows.value[activeChatId.value] || null
+      }
     }
 
     const { scrollToBottom } = useMessageScroll()
@@ -780,14 +835,20 @@ export const useChatsStores = defineStore(
       isChatGuided,
       replacePersistedState,
       isAfterRestore,
-      updateChatSummaryMeta
+      updateChatSummaryMeta,
+      clearChat,
+      togglePinChat,
+      isChatPinned
     }
   },
   {
     persist: {
       storage: indexedDBStorage,
       paths: ['chatSummaries', 'activeChatId', 'chatDrafts'],
-      afterRestore: () => {
+      afterRestore: (ctx) => {
+        if (ctx.store.chatSummaries.length === 0 && ctx.store.tempChats.length === 0) {
+          ctx.store.createChat('新的聊天')
+        }
         resolveRestore()
       }
     }

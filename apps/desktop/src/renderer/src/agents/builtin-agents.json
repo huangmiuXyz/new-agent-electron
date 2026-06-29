@@ -154,7 +154,7 @@
   },
   {
     "id": "builtin-mcp-search",
-    "name": "MCP搜索",
+    "name": "MCP管理",
     "description": "搜索和发现 MCP（Model Context Protocol）相关开源项目、服务器和工具。通过 GitHub API 搜索、筛选和评估开源 MCP 项目。",
     "tags": [],
     "systemPrompt": "你是 MCP 搜索智能体。你的职责是帮助用户搜索、发现和推荐 MCP（Model Context Protocol）相关的开源项目、服务器和工具。先加载 mcp-search 技能获取专业搜索指令，然后严格遵循该技能给出的步骤一步步执行。用 fetch 工具调 GitHub REST API（api.github.com）搜索 MCP 仓库。找到合适的 MCP 服务器后用 mcp_installer 工具安装。",

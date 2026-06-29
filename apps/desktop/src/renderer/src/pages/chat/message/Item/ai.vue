@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { TextUIPart } from 'ai'
-import { acquireZIndex } from '@renderer/utils/z-index-manager'
 import {
   getFlatTokenUsage,
   estimateTextTokens,
@@ -25,7 +24,6 @@ const { Stop, VolumeMedium, Robot, ChevronDown } = useIcon([
   'ChevronDown'
 ])
 const isPreviousContentExpanded = ref(false)
-const speechPopupZIndex = acquireZIndex()
 
 const currentAgentAvatar = computed(() => {
   const currentAgentId = chatsStore.currentChat?.agentId
@@ -238,6 +236,10 @@ watch(
 const getFullMessageText = (msg: BaseMessage) =>
   msg.parts?.filter((p): p is TextUIPart => p.type === 'text').map(p => p.text).join('') || ''
 
+type SpeechAudioChunkMetadata = NonNullable<MetaData['audio']>['chunks'][number] & {
+  id?: string
+}
+
 // Sync streaming audio chunks → speechStore queue (playlist 实时显示)
 // compound key = loading + message.parts 全文 + chunks data/duration
 // 不将 loading 作为 guard，而是纳入 key，确保 loading 从 true→false 的最终更新也能触发 watch
@@ -246,31 +248,53 @@ const streamingAudioKey = computed(() => {
   if (!chunks?.length) return ''
   const loading = props.message.metadata?.loading
   const text = getFullMessageText(props.message)
-  const extra = chunks.map(c => `${c.data || ''}\x00${c.duration ?? ''}`).join('|')
+  const audioChunks = chunks as SpeechAudioChunkMetadata[]
+  const extra = audioChunks.map(c => `${c.id || ''}\x00${c.data || ''}\x00${c.duration ?? ''}\x00${c.error || ''}`).join('|')
   return `${text}\x00${extra}\x00${String(loading)}`
 })
 
 watch(streamingAudioKey, (key) => {
   if (!key) return
-  const chunks = props.message.metadata?.audio?.chunks
+  const chunks = props.message.metadata?.audio?.chunks as SpeechAudioChunkMetadata[] | undefined
   if (!chunks?.length) return
 
   const fullText = getFullMessageText(props.message)
-  const keep = speechStore.queue.filter(c => c.messageId !== props.message.id)
   const fresh = chunks.map((chunk, i) => ({
-    id: `${props.message.id}-audio-${i}`,
+    id: chunk.id || `${props.message.id}-audio-${i}`,
     messageId: props.message.id,
-    text: fullText || chunk.text || '',
-    streaming: true,
+    text: chunk.text || fullText || '',
+    streaming: !chunk.data,
     loading: !chunk.data || chunk.data === '',
     played: false,
     audioData: (chunk.data && chunk.data !== '') ? chunk.data : undefined,
     duration: chunk.duration,
+    error: chunk.error
   }))
-  speechStore.queue.splice(0, speechStore.queue.length, ...keep, ...fresh)
+
+  const freshIds = new Set(fresh.map((chunk) => chunk.id))
+  fresh.forEach((chunk) => {
+    const existing = speechStore.queue.find((item) => item.id === chunk.id)
+    if (existing) {
+      existing.text = chunk.text
+      existing.audioData = chunk.audioData || existing.audioData
+      existing.duration = chunk.duration || existing.duration
+      existing.error = chunk.error
+      existing.loading = chunk.loading
+      existing.streaming = chunk.streaming && existing.streaming
+    } else if (chunk.audioData || chunk.error || chunk.loading) {
+      speechStore.queue.push(chunk)
+    }
+  })
+
+  for (let i = speechStore.queue.length - 1; i >= 0; i -= 1) {
+    const chunk = speechStore.queue[i]
+    if (chunk.messageId === props.message.id && !freshIds.has(chunk.id)) {
+      speechStore.queue.splice(i, 1)
+    }
+  }
 
   if (!speechStore.currentChunkId && chunks.length > 0) {
-    speechStore.currentChunkId = `${props.message.id}-audio-0`
+    speechStore.currentChunkId = fresh[0]?.id || null
   }
 
   settingsStore.display.assistantSidebarTab = 'playlist'
@@ -292,10 +316,10 @@ const playMessageAudio = () => {
 
   const currentChatMessages = chatsStore.currentChat?.messages || []
   const queueChunks = currentChatMessages.flatMap((message) => {
-    const audioChunks = message.metadata?.audio?.chunks?.filter((chunk) => chunk.data) || []
+    const audioChunks = (message.metadata?.audio?.chunks as SpeechAudioChunkMetadata[] | undefined)?.filter((chunk) => chunk.data) || []
 
     return audioChunks.map((chunk, chunkIndex) => ({
-      id: `${message.id}-audio-${chunkIndex}`,
+      id: chunk.id || `${message.id}-audio-${chunkIndex}`,
       messageId: message.id,
       text: chunk.text,
       audioData: chunk.data,

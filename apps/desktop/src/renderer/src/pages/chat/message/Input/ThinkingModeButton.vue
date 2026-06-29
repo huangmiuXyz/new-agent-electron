@@ -67,9 +67,3 @@ const handleClick = (event: MouseEvent) => {
   </Button>
 </template>
 
-<style scoped>
-.thinking-active {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-</style>

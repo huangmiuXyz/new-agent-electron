@@ -213,6 +213,20 @@ const resetAndReplay = (nextText: string) => {
 const updateMarkdown = (newText: string) => {
   const nextText = newText || ''
 
+  // Non-streaming: render full text directly without typing animation
+  if (!props.streaming) {
+    if (nextText === lastSourceText) return
+    pendingChunk = ''
+    cancelCharFrame()
+    cancelFinalizeTimer()
+    incremark.reset()
+    lastSourceText = nextText
+    if (nextText) incremark.append(nextText)
+    incremark.finalize()
+    finalized = true
+    return
+  }
+
   // If late tokens arrive after finalize, replay from scratch to avoid losing the tail.
   if (finalized && nextText !== lastSourceText) {
     resetAndReplay(nextText)

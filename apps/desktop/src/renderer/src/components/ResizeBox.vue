@@ -10,8 +10,10 @@
     'is-mounted': isMounted
   }"
   >
-    <div class="resize-content">
-      <slot></slot>
+    <div class="resize-content-clip">
+      <div class="resize-content" :style="{ '--resize-min-size': `${minSize}px` }">
+        <slot></slot>
+      </div>
     </div>
     <div
       v-if="isResizing"
@@ -38,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted, computed, onMounted } from 'vue'
+import { ref, watch, onUnmounted, computed, onMounted } from 'vue'
 import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
 const props = withDefaults(defineProps<{
@@ -171,6 +173,12 @@ onUnmounted(() => {
   position: relative;
   flex-shrink: 0;
 }
+
+.resize-content-clip {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
 .resize-box.is-mounted:not(.resizing) {
   transition: width var(--motion-duration-slow) var(--motion-ease-emphasized),
               height var(--motion-duration-slow) var(--motion-ease-emphasized);
@@ -192,6 +200,14 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   overflow: hidden;
+}
+
+.is-horizontal .resize-content {
+  min-width: var(--resize-min-size, 150px);
+}
+
+.is-vertical .resize-content {
+  min-height: var(--resize-min-size, 150px);
 }
 
 .resize-mask {

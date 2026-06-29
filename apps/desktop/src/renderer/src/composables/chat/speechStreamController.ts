@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import type { FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import { speechService, type TtsTextStreamSession } from '@renderer/services/speechService'
 import { createSentenceSegmenter } from './sentenceSegmenter'
+import { nanoid } from 'nanoid'
 
 type SpeechStreamControllerOptions = {
   chatId: string
@@ -13,13 +14,16 @@ type SpeechStreamControllerOptions = {
   updateMessageAudioChunks: (chatId: string, messageId: string, audio: NonNullable<MetaData['audio']>) => void
 }
 
+type SpeechAudioChunkMetadata = NonNullable<MetaData['audio']>['chunks'][number] & {
+  id?: string
+}
+
 export const createSpeechStreamController = ({
   chatId,
   speechEnabled,
   tts,
   getChatAgent,
   getMessageText,
-  updateMessageMetadata,
   updateMessageAudioChunks
 }: SpeechStreamControllerOptions) => {
   let processedText = ''
@@ -28,10 +32,12 @@ export const createSpeechStreamController = ({
   let streamingSpeechSessionPromise: Promise<TtsTextStreamSession | null> | null = null
   let streamingSpeechChunkIndex: number | null = null
   let speechProcessingQueue = Promise.resolve()
+  let speechGenerateQueue = Promise.resolve()
 
   const reset = (agent?: Agent | null) => {
     processedText = ''
     sentenceSegmenter = createSentenceSegmenter(agent?.speechLanguage || 'und')
+    speechGenerateQueue = Promise.resolve()
   }
 
   const updateStreamingSpeechMetadata = (
@@ -49,17 +55,24 @@ export const createSpeechStreamController = ({
       }
     }
     const audioMetadata = message.metadata.audio
+    const audioChunks = audioMetadata.chunks as SpeechAudioChunkMetadata[]
 
     if (streamingSpeechChunkIndex === null) {
-      streamingSpeechChunkIndex = audioMetadata.chunks.length
-      audioMetadata.chunks.push({ data: '', text: session.getText() })
+      const existingIndex = audioChunks.findIndex((item) => item.id === session.chunkId)
+      if (existingIndex >= 0) {
+        streamingSpeechChunkIndex = existingIndex
+      } else {
+        streamingSpeechChunkIndex = audioChunks.length
+        audioChunks.push({ id: session.chunkId, data: '', text: session.getText() })
+      }
     }
 
-    const target = audioMetadata.chunks[streamingSpeechChunkIndex]
+    const target = audioChunks[streamingSpeechChunkIndex]
     if (!target) return
 
-    audioMetadata.chunks[streamingSpeechChunkIndex] = {
+    audioChunks[streamingSpeechChunkIndex] = {
       ...target,
+      id: target.id || session.chunkId,
       text: session.getText(),
       data: chunk?.audioData || target.data || '',
       duration: chunk?.duration,
@@ -111,12 +124,12 @@ export const createSpeechStreamController = ({
     return streamingSpeechSessionPromise
   }
 
-  const appendStreamingSpeechText = async (message: BaseMessage, text: string) => {
-    if (!text) return false
+  const appendStreamingSpeechText = async (message: BaseMessage, targetText: string) => {
+    if (!targetText) return false
     const session = await createStreamingSpeechSession(message)
     if (!session) return false
 
-    await session.appendText(text)
+    await session.appendTargetText(targetText)
     updateStreamingSpeechMetadata(message, session)
     return true
   }
@@ -141,9 +154,10 @@ export const createSpeechStreamController = ({
       message.metadata.audio = { chunks: [], voice, model: targetModelId }
     }
 
-    const chunks = message.metadata.audio.chunks
+    const chunks = message.metadata.audio.chunks as SpeechAudioChunkMetadata[]
+    const chunkId = nanoid()
     const chunkIndex = chunks.length
-    chunks.push({ data: '', text })
+    chunks.push({ id: chunkId, data: '', text })
 
     updateMessageAudioChunks(chatId, message.id, message.metadata.audio)
 
@@ -151,6 +165,7 @@ export const createSpeechStreamController = ({
       const chunk = await tts.generateAndPlay({
         text,
         messageId: message.id,
+        chunkId,
         modelId: targetModelId,
         providerId: targetProviderId,
         voice,
@@ -194,7 +209,7 @@ export const createSpeechStreamController = ({
 
     if (mode === 'sentence') {
       sentenceSegmenter.push(currentText, (sentence) => {
-        generateSpeech(sentence, message)
+        speechGenerateQueue = speechGenerateQueue.then(() => generateSpeech(sentence, message))
       })
       processedText = fullText
     } else if (mode === 'paragraph') {
@@ -203,7 +218,7 @@ export const createSpeechStreamController = ({
         for (let i = 0; i < paragraphs.length - 1; i += 1) {
           const paragraph = paragraphs[i]
           if (paragraph.trim()) {
-            generateSpeech(paragraph, message)
+            speechGenerateQueue = speechGenerateQueue.then(() => generateSpeech(paragraph, message))
           }
           processedText += paragraphs[i] + '\n'
         }
@@ -220,10 +235,9 @@ export const createSpeechStreamController = ({
         if (!message || !newParts || message.role !== 'assistant' || !speechEnabled.value) return
 
         const fullText = getMessageText(message)
-        const currentText = fullText.slice(processedText.length)
-        if (!currentText) return
+        if (!fullText) return
 
-        if (await appendStreamingSpeechText(message, currentText)) {
+        if (await appendStreamingSpeechText(message, fullText)) {
           processedText = fullText
           return
         }
@@ -264,13 +278,13 @@ export const createSpeechStreamController = ({
 
       if (mode === 'sentence') {
         sentenceSegmenter.flush((sentence) => {
-          generateSpeech(sentence, message)
+          speechGenerateQueue = speechGenerateQueue.then(() => generateSpeech(sentence, message))
         })
       } else {
         const fullText = getMessageText(message)
         const remainingText = fullText.slice(processedText.length).trim()
         if (remainingText) {
-          generateSpeech(remainingText, message)
+          speechGenerateQueue = speechGenerateQueue.then(() => generateSpeech(remainingText, message))
         }
       }
     })
@@ -292,4 +306,3 @@ export const createSpeechStreamController = ({
     fail
   }
 }
-
