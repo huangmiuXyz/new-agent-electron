@@ -47,13 +47,13 @@ const plugin: Plugin = {
       streamListener = createStreamListener();
       streamListener.setController(controller);
 
-      await context.api.pluginMain.ipc.invoke(
-        PLUGIN_NAME, 'tts-stream-start', { voice, speed },
-      );
-
       if (!unsubStream) {
         unsubStream = setupStreamListener(context, streamListener);
       }
+
+      await context.api.pluginMain.ipc.invoke(
+        PLUGIN_NAME, 'tts-stream-start', { voice, speed },
+      );
 
       return { handled: true };
     });
