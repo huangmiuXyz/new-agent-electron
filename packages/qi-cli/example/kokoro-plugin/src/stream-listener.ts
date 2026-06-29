@@ -4,16 +4,24 @@ export function createStreamListener() {
   let controller: any = null;
   let accumulatedSamples: Float32Array[] = [];
   let sampleRate = 24000;
+  let currentStreamingId: string | null = null;
 
   function doReset() {
     controller = null;
     accumulatedSamples = [];
+    currentStreamingId = null;
   }
 
   return {
-    setController(c: any) { controller = c; },
+    get streamingId() { return currentStreamingId; },
+    get hasActive() { return controller !== null; },
 
-    async handleChunk(audioArr: number[]) {
+    setController(streamingId: string, c: any) {
+      controller = c;
+      currentStreamingId = streamingId;
+    },
+
+    async handleChunk(_streamingId: string, audioArr: number[]) {
       if (!controller) return;
       const wav = new Uint8Array(audioArr);
 
@@ -23,7 +31,7 @@ export function createStreamListener() {
       accumulatedSamples.push(pcm);
     },
 
-    handleEnd(error?: string) {
+    handleEnd(_streamingId: string, error?: string) {
       if (!controller) return;
       if (error) {
         controller.error(new Error(error));
