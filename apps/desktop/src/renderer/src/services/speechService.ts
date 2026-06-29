@@ -388,6 +388,8 @@ export const speechService = () => {
         controller
       }
 
+      ensureChunk()
+
       const startResults = await triggerHook('ai:tts-stream-start', hookPayload)
       if (!startResults.some(isHandledTtsHookResult)) {
         if (created) {
@@ -396,8 +398,6 @@ export const speechService = () => {
         cleanup()
         return null
       }
-
-      ensureChunk()
 
       const session: TtsTextStreamSession = {
         chunkId,
