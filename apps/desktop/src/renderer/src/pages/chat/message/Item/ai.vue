@@ -262,7 +262,7 @@ watch(streamingAudioKey, (key) => {
   const fresh = chunks.map((chunk, i) => ({
     id: chunk.id || `${props.message.id}-audio-${i}`,
     messageId: props.message.id,
-    text: fullText || chunk.text || '',
+    text: chunk.text || fullText || '',
     streaming: !chunk.data,
     loading: !chunk.data || chunk.data === '',
     played: false,
