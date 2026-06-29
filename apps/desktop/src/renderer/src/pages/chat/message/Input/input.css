@@ -460,7 +460,7 @@
 }
 
 .stop-all-btn:not(.is-idle) {
-  color: var(--color-danger);
+  color: var(--color-danger) !important;
   background: color-mix(in srgb, var(--color-danger) 12%, transparent);
 }
 

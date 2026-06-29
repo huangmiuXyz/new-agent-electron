@@ -28,10 +28,12 @@ export const createSpeechStreamController = ({
   let streamingSpeechSessionPromise: Promise<TtsTextStreamSession | null> | null = null
   let streamingSpeechChunkIndex: number | null = null
   let speechProcessingQueue = Promise.resolve()
+  let speechGenerateQueue = Promise.resolve()
 
   const reset = (agent?: Agent | null) => {
     processedText = ''
     sentenceSegmenter = createSentenceSegmenter(agent?.speechLanguage || 'und')
+    speechGenerateQueue = Promise.resolve()
   }
 
   const updateStreamingSpeechMetadata = (
@@ -194,7 +196,7 @@ export const createSpeechStreamController = ({
 
     if (mode === 'sentence') {
       sentenceSegmenter.push(currentText, (sentence) => {
-        generateSpeech(sentence, message)
+        speechGenerateQueue = speechGenerateQueue.then(() => generateSpeech(sentence, message))
       })
       processedText = fullText
     } else if (mode === 'paragraph') {
@@ -203,7 +205,7 @@ export const createSpeechStreamController = ({
         for (let i = 0; i < paragraphs.length - 1; i += 1) {
           const paragraph = paragraphs[i]
           if (paragraph.trim()) {
-            generateSpeech(paragraph, message)
+            speechGenerateQueue = speechGenerateQueue.then(() => generateSpeech(paragraph, message))
           }
           processedText += paragraphs[i] + '\n'
         }
@@ -264,13 +266,13 @@ export const createSpeechStreamController = ({
 
       if (mode === 'sentence') {
         sentenceSegmenter.flush((sentence) => {
-          generateSpeech(sentence, message)
+          speechGenerateQueue = speechGenerateQueue.then(() => generateSpeech(sentence, message))
         })
       } else {
         const fullText = getMessageText(message)
         const remainingText = fullText.slice(processedText.length).trim()
         if (remainingText) {
-          generateSpeech(remainingText, message)
+          speechGenerateQueue = speechGenerateQueue.then(() => generateSpeech(remainingText, message))
         }
       }
     })
