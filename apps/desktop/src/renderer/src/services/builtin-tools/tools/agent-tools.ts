@@ -445,24 +445,31 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
       }
     },
     mcp_installer: {
-      description: '自动添加MCP服务器配置到系统中，支持stdio、http和sse传输方式',
+      description: '管理MCP服务器配置：添加(add)、删除(delete)或更新(update)服务器。添加/更新支持stdio、http和sse传输方式。',
       inputSchema: z.object({
-        name: z.string().describe('MCP服务器名称，必须是唯一的'),
-        description: z.string().optional().describe('MCP服务器描述'),
+        action: z
+          .enum(['add', 'delete', 'update'])
+          .optional()
+          .default('add')
+          .describe('操作类型：add(添加)、delete(删除)、update(更新现有服务器)'),
+        name: z.string().describe('MCP服务器名称'),
+        description: z.string().optional().describe('MCP服务器描述(仅add/update)'),
         transport: z
           .enum(['stdio', 'http', 'sse'])
-          .describe('传输方式：stdio(本地进程)、http(HTTP请求)或sse(服务端推送)'),
+          .optional()
+          .describe('传输方式：stdio(本地进程)、http(HTTP请求)或sse(服务端推送)(仅add/update)'),
         command: z.string().optional().describe('命令(仅stdio传输)，例如：npx、python、node'),
         args: z.array(z.string()).optional().describe('命令参数列表(仅stdio传输)'),
         env: z.record(z.string(), z.string()).optional().describe('环境变量(仅stdio传输)'),
         url: z.string().optional().describe('服务器URL(http或sse传输)'),
         headers: z.record(z.string(), z.string()).optional().describe('请求头(http或sse传输)'),
-        auto_activate: z.boolean().optional().describe('是否自动激活服务器，默认为true')
+        auto_activate: z.boolean().optional().describe('是否自动激活服务器，默认为true(仅add/update)')
       }),
-      title: 'MCP服务器安装器',
+      title: 'MCP服务器管理工具',
       execute: async (args: unknown) => {
         const params = args as Record<string, any>
         const {
+          action = 'add',
           name,
           description,
           transport,
@@ -473,17 +480,95 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           headers,
           auto_activate = true
         } = params
+
         if (!name) throw new Error('MCP服务器名称不能为空')
-        if (!transport) throw new Error('必须指定传输方式(stdio、http或sse)')
-        if (transport === 'stdio' && !command) throw new Error('stdio传输方式必须指定命令')
-        if ((transport === 'http' || transport === 'sse') && !url)
-          throw new Error('http或sse传输方式必须指定URL')
 
         try {
           const settingsStore = useSettingsStore()
           const currentServers = settingsStore.mcpServers || {}
+
+          // 删除操作
+          if (action === 'delete') {
+            if (!currentServers[name])
+              throw new Error(`MCP服务器"${name}"不存在`)
+            delete currentServers[name]
+            settingsStore.mcpServers = currentServers
+            return {
+              toolResult: {
+                content: [
+                  {
+                    type: 'text',
+                    text: `成功删除MCP服务器配置：\n- 名称: ${name}`
+                  }
+                ]
+              }
+            }
+          }
+
+          // 更新操作
+          if (action === 'update') {
+            if (!currentServers[name])
+              throw new Error(`MCP服务器"${name}"不存在，无法更新`)
+
+            const existing = currentServers[name]
+            const serverConfig: any = { ...existing }
+
+            if (description !== undefined) serverConfig.description = description
+            if (transport) serverConfig.transport = transport
+            if (transport === 'stdio') {
+              if (command) serverConfig.command = command
+              if (cmdArgs !== undefined) serverConfig.args = cmdArgs
+              if (env !== undefined) serverConfig.env = env
+              delete serverConfig.url
+              delete serverConfig.headers
+            } else if (transport === 'http' || transport === 'sse') {
+              if (url) serverConfig.url = url
+              if (headers !== undefined) serverConfig.headers = headers
+              delete serverConfig.command
+              delete serverConfig.args
+              delete serverConfig.env
+            }
+            serverConfig.active = auto_activate
+            if (auto_activate) delete serverConfig.tools
+
+            currentServers[name] = serverConfig
+            settingsStore.mcpServers = currentServers
+
+            let toolsInfo = ''
+            if (auto_activate) {
+              try {
+                const tools = await chatService().list_tools({ [name]: serverConfig }, false)
+                serverConfig.tools = tools
+                settingsStore.mcpServers = currentServers
+                toolsInfo = `\n已自动激活并获取到 ${Object.keys(tools).length} 个工具`
+              } catch (error) {
+                toolsInfo = `\n注意：服务器已更新但自动激活失败：${(error as Error).message}`
+              }
+            }
+
+            return {
+              toolResult: {
+                content: [
+                  {
+                    type: 'text',
+                    text:
+                      `成功更新MCP服务器配置：\n` +
+                      `- 名称: ${name}\n` +
+                      `${toolsInfo}`
+                  }
+                ]
+              }
+            }
+          }
+
+          // 添加操作（原有逻辑）
+          if (!transport) throw new Error('必须指定传输方式(stdio、http或sse)')
+          if (transport === 'stdio' && !command) throw new Error('stdio传输方式必须指定命令')
+          if ((transport === 'http' || transport === 'sse') && !url)
+            throw new Error('http或sse传输方式必须指定URL')
+
           if (currentServers[name])
-            throw new Error(`MCP服务器名称"${name}"已存在，请使用不同的名称`)
+            throw new Error(`MCP服务器名称"${name}"已存在，请使用不同的名称或使用action="update"`)
 
           const serverConfig: any = { name, transport, active: auto_activate, tools: [] }
           if (description) serverConfig.description = description
@@ -530,9 +615,10 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
             }
           }
         } catch (error) {
+          const actionLabel = action === 'delete' ? '删除' : action === 'update' ? '更新' : '添加'
           return {
             toolResult: {
-              content: [{ type: 'text', text: `添加MCP服务器失败: ${(error as Error).message}` }]
+              content: [{ type: 'text', text: `${actionLabel}MCP服务器失败: ${(error as Error).message}` }]
             }
           }
         }
