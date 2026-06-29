@@ -486,10 +486,10 @@ const { width } = useWindowSize()
   --sidebar-nav-border: color-mix(in srgb, var(--border-subtle) 72%, transparent);
   /* 侧栏列表项对齐 Apple 8px 间距节奏 */
   --sidebar-item-h: 36px;
-  --sidebar-item-pad: 10px;
+  --sidebar-item-pad: 7px;
   --sidebar-item-radius: var(--radius-sm);
-  --sidebar-container-pad: 10px;
-  --sidebar-gap: 4px;
+  --sidebar-container-pad: 8px;
+  --sidebar-gap: 3px;
   /* Apple 选中项左侧强调线 */
   --sidebar-active-accent: var(--color-primary);
   --sidebar-active-indicator-width: 3px;

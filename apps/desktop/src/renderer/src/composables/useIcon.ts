@@ -97,6 +97,7 @@ import {
   Dice,
   Database,
   History,
+  Pin,
   Maximize as Fullscreen,
   Minimize as FullscreenExit,
   Send
@@ -250,6 +251,7 @@ export const icons = {
   Dices: Dice,
   Database,
   HistoryClock: History,
+  Pin,
   Filter,
   Continue,
   Fullscreen,

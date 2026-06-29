@@ -91,8 +91,8 @@ catalogs:
       specifier: ^4.0.0
       version: 4.0.0
     '@electron/rebuild':
-      specifier: ^4.0.5
-      version: 4.0.5
+      specifier: ^4.0.6
+      version: 4.0.6
     '@electron/remote':
       specifier: ^2.1.3
       version: 2.1.3
@@ -425,7 +425,7 @@ importers:
     devDependencies:
       '@electron/rebuild':
         specifier: 'catalog:'
-        version: 4.0.5
+        version: 4.0.6
       prettier:
         specifier: 'catalog:'
         version: 3.9.1
@@ -741,7 +741,7 @@ importers:
         version: 2.0.0(@types/node@26.0.1)
       '@electron/rebuild':
         specifier: 'catalog:'
-        version: 4.0.5
+        version: 4.0.6
       '@prettier/plugin-oxc':
         specifier: 'catalog:'
         version: 0.2.0
@@ -1874,13 +1874,13 @@ packages:
     engines: {node: '>=12.0.0'}
     hasBin: true
 
-  '@electron/rebuild@4.0.4':
-    resolution: {integrity: sha512-Rzc39XPdk/+/wBG8MfwAHohXflep0ITUfulb6Rgz3R0NeSB1noE+E9/M/cb8ftCAiyDD9PPhLuuWgE1GaInbKg==}
+  '@electron/rebuild@4.0.5':
+    resolution: {integrity: sha512-VKM5HP/+dnogW7QdcY7y3egfvzTDusCCoT/UycOCLq4WvnIygt0Kl6fAxWkhJfiSb55zaewFH1bfGcYlEm/drg==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@electron/rebuild@4.0.5':
-    resolution: {integrity: sha512-VKM5HP/+dnogW7QdcY7y3egfvzTDusCCoT/UycOCLq4WvnIygt0Kl6fAxWkhJfiSb55zaewFH1bfGcYlEm/drg==}
+  '@electron/rebuild@4.0.6':
+    resolution: {integrity: sha512-323ygp5Lz4DP2nVu54NLCx4n0TKsQ3OMDG3PPeOFjOTMDtSxGbCi7mQfWBc5C80pp+9awEsiHx9HR9DfAM/IEQ==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -8769,7 +8769,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@electron/rebuild@4.0.4':
+  '@electron/rebuild@4.0.5':
     dependencies:
       '@malept/cross-spawn-promise': 2.0.0
       debug: 4.4.3
@@ -8780,7 +8780,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@electron/rebuild@4.0.5':
+  '@electron/rebuild@4.0.6':
     dependencies:
       '@malept/cross-spawn-promise': 2.0.0
       debug: 4.4.3
@@ -11185,7 +11185,7 @@ snapshots:
       '@electron/get': 3.1.0
       '@electron/notarize': 2.5.0
       '@electron/osx-sign': 1.3.3
-      '@electron/rebuild': 4.0.4
+      '@electron/rebuild': 4.0.5
       '@electron/universal': 2.0.3
       '@malept/flatpak-bundler': 0.4.0
       '@noble/hashes': 2.2.0

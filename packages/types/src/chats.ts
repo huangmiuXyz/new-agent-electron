@@ -38,6 +38,7 @@ declare global {
     parentChatId?: string // 父会话ID，存在则为子智能体会话
     subTask?: SubTaskInfo // 子任务信息（仅子会话）
     selectedMcpResources?: Record<string, string[]> // 按服务器名分组的已选MCP资源URI列表
+    is_collected?: boolean // 是否已收藏
   }
   interface PendingMessage {
     id: string
@@ -59,6 +60,7 @@ declare global {
     toolFeaturesEnabled?: boolean
     compressedContext?: Chat['compressedContext']
     selectedMcpResources?: Record<string, string[]>
+    is_collected?: boolean
     messageCount: number
     lastMessageAt?: number
     lastMessagePreview?: string

@@ -3,16 +3,76 @@ import { isMobile } from '@renderer/composables/useDeviceType'
 const chatsStore = useChatsStores()
 const { showContextMenu } = useContextMenu()
 const chatsIcon = useIcon('Chat')
-const { ChevronDown, ChevronRight, Edit, Delete, CommentAdd16Regular } = useIcon([
+const { ChevronDown, ChevronRight, Edit, Delete, CommentAdd16Regular, MoreHorizontal, Pin } = useIcon([
   'ChevronDown',
   'ChevronRight',
   'Edit',
   'Delete',
-  'CommentAdd16Regular'
+  'CommentAdd16Regular',
+  'MoreHorizontal',
+  'Pin'
 ])
 const router = useRouter()
 const expandedRootIds = ref<Set<string>>(new Set())
 const rootChats = computed(() => chatsStore.getRootChats())
+
+const formatDateLabel = (ts: number) => {
+  const d = new Date(ts)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+type ChatGroup = { label: string; key: string; chats: Chat[] }
+const chatGroups = computed(() => {
+  const now = Date.now()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayTs = today.getTime()
+  const yesterdayTs = todayTs - 86400000
+  const sevenDaysTs = todayTs - 7 * 86400000
+  const thirtyDaysTs = todayTs - 30 * 86400000
+
+  const groups: ChatGroup[] = []
+  const pinned: Chat[] = []
+  const todayChats: Chat[] = []
+  const yesterdayChats: Chat[] = []
+  const sevenDayChats: Chat[] = []
+  const thirtyDayChats: Chat[] = []
+  const olderByDate: Record<string, Chat[]> = {}
+
+  for (const chat of rootChats.value) {
+    if (chat.is_collected) {
+      pinned.push(chat)
+      continue
+    }
+    const createdAt = chat.createdAt
+    if (createdAt >= todayTs) {
+      todayChats.push(chat)
+    } else if (createdAt >= yesterdayTs) {
+      yesterdayChats.push(chat)
+    } else if (createdAt >= sevenDaysTs) {
+      sevenDayChats.push(chat)
+    } else if (createdAt >= thirtyDaysTs) {
+      thirtyDayChats.push(chat)
+    } else {
+      const key = formatDateLabel(createdAt)
+      if (!olderByDate[key]) olderByDate[key] = []
+      olderByDate[key].push(chat)
+    }
+  }
+
+  if (pinned.length) groups.push({ label: '置顶', key: 'pinned', chats: pinned })
+  if (todayChats.length) groups.push({ label: '今天', key: 'today', chats: todayChats })
+  if (yesterdayChats.length) groups.push({ label: '昨天', key: 'yesterday', chats: yesterdayChats })
+  if (sevenDayChats.length) groups.push({ label: '7天内', key: '7d', chats: sevenDayChats })
+  if (thirtyDayChats.length) groups.push({ label: '30天内', key: '30d', chats: thirtyDayChats })
+
+  const sortedDates = Object.keys(olderByDate).sort((a, b) => b.localeCompare(a))
+  for (const dateLabel of sortedDates) {
+    groups.push({ label: dateLabel, key: dateLabel, chats: olderByDate[dateLabel] })
+  }
+
+  return groups
+})
 
 const getChildChats = (chatId: string) => chatsStore.getChildChats(chatId)
 
@@ -42,16 +102,21 @@ const createNewChat = () => {
 }
 const { confirm } = useModal()
 const deleteChat = async (chatId: string) => {
+  const isLastChat = chatsStore.allChats.length <= 1
   if (
     await confirm({
-      title: '删除会话',
-      content: '确定要删除这个聊天吗？',
+      title: isLastChat ? '清空会话' : '删除会话',
+      content: isLastChat ? '确定要清空这个聊天的所有记录吗？' : '确定要删除这个聊天吗？',
       confirmProps: {
         danger: true
       }
     })
   ) {
-    chatsStore.deleteChat(chatId)
+    if (isLastChat) {
+      chatsStore.clearChat(chatId)
+    } else {
+      chatsStore.deleteChat(chatId)
+    }
   }
 }
 
@@ -94,6 +159,10 @@ const toggleExpand = (chatId: string) => {
     next.add(chatId)
   }
   expandedRootIds.value = next
+}
+
+const togglePin = (chatId: string) => {
+  chatsStore.togglePinChat(chatId)
 }
 
 const showChatContextMenu = (event: MouseEvent, chatId: string) => {
@@ -169,39 +238,58 @@ const getSubTaskStatusLabel = (chat: Chat) => {
       </div>
 
       <div v-if="chatsStore.allChats.length" class="chat-tree-list">
-        <div v-for="rootChat in rootChats" :key="rootChat.id" class="chat-group">
-          <div class="chat-tree-item root-item" :class="{ active: chatsStore.activeChatId === rootChat.id }"
-            @click="selectChat(rootChat.id)" @contextmenu="showChatContextMenu($event, rootChat.id)">
-            <button v-if="getChildChats(rootChat.id).length > 0" class="expand-btn"
-              @click.stop="toggleExpand(rootChat.id)">
-              <ChevronDown v-if="isExpanded(rootChat.id)" />
-              <ChevronRight v-else />
-            </button>
-            <span v-else class="expand-placeholder"></span>
-            <div v-if="isChatGenerating(rootChat) && rootChat.id !== chatsStore.activeChatId"
-              class="status-dot generating">
-            </div>
-            <span v-if="chatsStore.isTitleGenerating(rootChat.id)" class="chat-title-loading"><Loading size="mini" /></span>
-            <span v-else class="chat-title">{{ rootChat.title }}</span>
-            <span class="item-time">{{ formatTime(rootChat.createdAt) }}</span>
-          </div>
-
-          <div v-if="isExpanded(rootChat.id) && getChildChats(rootChat.id).length > 0" class="subchat-list">
-            <div v-for="subChat in getChildChats(rootChat.id)" :key="subChat.id" class="chat-tree-item sub-item"
-              :class="{ active: chatsStore.activeChatId === subChat.id }" @click="selectChat(subChat.id)"
-              @contextmenu="showChatContextMenu($event, subChat.id)">
-              <span class="sub-indicator"></span>
-              <div v-if="isChatGenerating(subChat) && subChat.id !== chatsStore.activeChatId"
+        <template v-for="group in chatGroups" :key="group.key">
+          <div class="chat-group-header">{{ group.label }}</div>
+          <div v-for="rootChat in group.chats" :key="rootChat.id" class="chat-group">
+            <div class="chat-tree-item root-item" :class="{ active: chatsStore.activeChatId === rootChat.id }"
+              @click="selectChat(rootChat.id)" @contextmenu="showChatContextMenu($event, rootChat.id)">
+              <button v-if="getChildChats(rootChat.id).length > 0" class="expand-btn"
+                @click.stop="toggleExpand(rootChat.id)">
+                <ChevronDown v-if="isExpanded(rootChat.id)" />
+                <ChevronRight v-else />
+              </button>
+              <span v-else class="expand-placeholder"></span>
+              <div v-if="isChatGenerating(rootChat) && rootChat.id !== chatsStore.activeChatId"
                 class="status-dot generating">
               </div>
-              <span v-if="chatsStore.isTitleGenerating(subChat.id)" class="chat-title-loading"><Loading size="mini" /></span>
-              <span v-else class="chat-title">{{ subChat.title }}</span>
-              <span class="task-status" :class="`status-${subChat.subTask?.status || 'pending'}`">
-                {{ getSubTaskStatusLabel(subChat) }}
-              </span>
+              <span v-if="chatsStore.isTitleGenerating(rootChat.id)" class="chat-title-loading"><Loading size="mini" /></span>
+              <span v-else class="chat-title">{{ rootChat.title }}</span>
+              <div class="item-actions" @click.stop>
+                <button class="item-action-btn pin-btn" :class="{ pinned: chatsStore.isChatPinned(rootChat.id) }"
+                  title="收藏" @click="togglePin(rootChat.id)">
+                  <Pin />
+                </button>
+                <button class="item-action-btn menu-btn" title="更多"
+                  @click="showChatContextMenu($event, rootChat.id)">
+                  <MoreHorizontal />
+                </button>
+              </div>
+            </div>
+
+            <div v-if="isExpanded(rootChat.id) && getChildChats(rootChat.id).length > 0" class="subchat-list">
+              <div v-for="subChat in getChildChats(rootChat.id)" :key="subChat.id" class="chat-tree-item sub-item"
+                :class="{ active: chatsStore.activeChatId === subChat.id }" @click="selectChat(subChat.id)"
+                @contextmenu="showChatContextMenu($event, subChat.id)">
+                <span class="sub-indicator"></span>
+                <div v-if="isChatGenerating(subChat) && subChat.id !== chatsStore.activeChatId"
+                  class="status-dot generating">
+                </div>
+                <span v-if="chatsStore.isTitleGenerating(subChat.id)" class="chat-title-loading"><Loading size="mini" /></span>
+                <span v-else class="chat-title">{{ subChat.title }}</span>
+                <div class="item-actions" @click.stop>
+                <button class="item-action-btn pin-btn" :class="{ pinned: chatsStore.isChatPinned(subChat.id) }"
+                  title="收藏" @click="togglePin(subChat.id)">
+                    <Pin />
+                  </button>
+                  <button class="item-action-btn menu-btn" title="更多"
+                    @click="showChatContextMenu($event, subChat.id)">
+                    <MoreHorizontal />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </template>
       </div>
     </div>
     <GlobalSearch v-model="showSearch" />
@@ -229,8 +317,8 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -519,12 +607,11 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 6px;
   padding: 2px 4px;
 }
 
 .chat-list-title-text {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: -0.08px;
@@ -534,6 +621,18 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.chat-group-header {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  padding: 6px 4px 2px;
+  letter-spacing: -0.05px;
+}
+
+.chat-group-header + .chat-group {
+  margin-top: 0;
 }
 
 /* 调整List组件的样式以匹配原有样式 */
@@ -621,7 +720,7 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 .chat-tree-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
@@ -656,8 +755,8 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 
 .expand-btn,
 .expand-placeholder {
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
   flex-shrink: 0;
 }
 
@@ -674,15 +773,15 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 .subchat-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin-left: 18px;
-  padding-left: 6px;
+  gap: 1px;
+  margin-left: 14px;
+  padding-left: 5px;
   border-left: 1px solid var(--border-subtle);
 }
 
 .sub-indicator {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--border-color-medium);
   flex-shrink: 0;
@@ -690,7 +789,7 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 
 .task-status {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-tertiary);
   flex-shrink: 0;
   white-space: nowrap;
@@ -708,11 +807,46 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   color: var(--color-danger);
 }
 
-.item-time {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--text-tertiary);
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
   flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.chat-tree-item:hover .item-actions {
+  opacity: 1;
+}
+
+.chat-tree-item.active .item-actions {
+  opacity: 1;
+}
+
+.item-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.item-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.pin-btn.pinned {
+  color: var(--color-primary);
 }
 
 .chat-title {
@@ -721,5 +855,6 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 11px;
 }
 </style>
