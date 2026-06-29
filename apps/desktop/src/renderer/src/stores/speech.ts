@@ -50,6 +50,7 @@ export const useSpeechStore = defineStore('speech', () => {
     finished: boolean
     mediaType: string
     currentAudio: HTMLAudioElement | null
+    accumulatedDuration: number
   }
 
   let audioQueuePlayback: AudioQueuePlayback | null = null
@@ -122,7 +123,17 @@ export const useSpeechStore = defineStore('speech', () => {
           resolve(chunk.duration || 0)
           return
         }
-        resolve(chunk.duration || 0)
+        if (!chunk.duration) {
+          const durAudio = new Audio(`data:${chunk.audioMediaType};base64,${chunk.audioData}`)
+          durAudio.onloadedmetadata = () => {
+            chunk.duration = durAudio.duration
+            duration.value = durAudio.duration
+            resolve(durAudio.duration)
+          }
+          durAudio.onerror = () => resolve(0)
+        } else {
+          resolve(chunk.duration)
+        }
         return
       }
 
@@ -455,7 +466,18 @@ export const useSpeechStore = defineStore('speech', () => {
     const url = URL.createObjectURL(blob)
     const audio = new Audio(url)
     q.currentAudio = audio
+
+    if (!duration.value) {
+      audio.addEventListener('loadedmetadata', () => {
+        duration.value = q.accumulatedDuration + audio.duration
+      }, { once: true })
+    }
+    audio.addEventListener('timeupdate', () => {
+      currentTime.value = q.accumulatedDuration + audio.currentTime
+    })
+
     audio.onended = () => {
+      q.accumulatedDuration += audio.duration || 0
       q.currentAudio = null
       URL.revokeObjectURL(url)
       q.playing = false
@@ -494,6 +516,10 @@ export const useSpeechStore = defineStore('speech', () => {
       cleanupActiveStream()
       audioPlayer.onended = null
       audioPlayer.onerror = null
+      audioPlayer.removeAttribute('src')
+      audioPlayer.load()
+      currentTime.value = 0
+      duration.value = 0
       isWaiting.value = false
       isPlaying.value = true
       currentChunkId.value = chunk.id
@@ -507,7 +533,8 @@ export const useSpeechStore = defineStore('speech', () => {
         playing: false,
         finished: !chunk.loading && !chunk.streaming,
         mediaType,
-        currentAudio: null
+        currentAudio: null,
+        accumulatedDuration: 0
       }
       playNextAudioFromQueue()
       return
