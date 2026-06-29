@@ -638,7 +638,7 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 
 .chat-tree-item.active {
   background-color: var(--sidebar-active-bg, var(--bg-active));
-  font-weight: 600;
+  font-weight: 500;
   position: relative;
 }
 
