@@ -65,6 +65,16 @@ const toggleRepeat = () => {
   else repeatMode.value = 'none'
 }
 
+const prevVolume = ref(1)
+const toggleMute = () => {
+  if (speechStore.volume === 0) {
+    speechStore.volume = prevVolume.value
+  } else {
+    prevVolume.value = speechStore.volume
+    speechStore.volume = 0
+  }
+}
+
 const handledEnd = ref(false)
 watch(() => Math.floor(speechStore.currentTime * 10), (tick) => {
   if (idx.value === -1 || !speechStore.isPlaying) return
@@ -153,6 +163,25 @@ watch(() => Math.floor(speechStore.currentTime * 10), (tick) => {
           </button>
           <button class="btn" title="下一首" :disabled="!canNext" @click="next"><i class="fa-solid fa-forward-step"></i></button>
           <button class="btn" title="停止" @click="speechStore.stop"><i class="fa-solid fa-stop"></i></button>
+          <div class="pl__vol">
+            <button class="btn" title="音量" @click="toggleMute">
+              <i
+                class="fa-solid"
+                :class="speechStore.volume === 0 ? 'fa-volume-xmark' : speechStore.volume < 0.5 ? 'fa-volume-low' : 'fa-volume-high'"
+              ></i>
+            </button>
+            <div class="pl__vol-popup">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                class="pl__vol-slider"
+                :value="speechStore.volume"
+                @input="speechStore.volume = parseFloat(($event.target as HTMLInputElement).value)"
+              />
+            </div>
+          </div>
         </div>
         <div class="pl__prog">
           <span class="pl__tm">{{ fmt(speechStore.currentTime) }}</span>
@@ -316,6 +345,7 @@ watch(() => Math.floor(speechStore.currentTime * 10), (tick) => {
   padding: 8px 14px 12px;
   display: flex; flex-direction: column; gap: 8px;
   border-top: 1px solid var(--border-color, rgba(0,0,0,0.08));
+  overflow: visible;
 }
 
 .pl__btns {
@@ -378,6 +408,66 @@ watch(() => Math.floor(speechStore.currentTime * 10), (tick) => {
   pointer-events: none;
 }
 .pl__bar:hover .pl__knob { opacity: 1; }
+
+/* volume */
+.pl__vol {
+  position: relative; display: flex; align-items: center;
+  margin-left: 4px;
+}
+.pl__vol-popup {
+  position: absolute;
+  left: 50%; bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  display: none;
+  padding: 8px 10px;
+  background: var(--bg-sidebar, #fff);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  z-index: 10;
+}
+.pl__vol-popup::after {
+  content: ''; position: absolute;
+  left: 50%; bottom: -6px;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--bg-sidebar, #fff);
+}
+.pl__vol::before {
+  content: ''; position: absolute;
+  left: 0; right: 0; bottom: 100%;
+  height: 24px;
+  pointer-events: none;
+}
+.pl__vol:hover .pl__vol-popup,
+.pl__vol-popup:hover {
+  display: flex; align-items: center;
+}
+.pl__vol:hover::before {
+  pointer-events: auto;
+}
+.pl__vol-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 64px; height: 4px;
+  background: var(--border-color, rgba(0,0,0,0.12));
+  border-radius: 2px; outline: none; cursor: pointer;
+}
+.pl__vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--text-sub, #6b7280);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.pl__vol-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+.pl__vol-slider::-moz-range-thumb {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--text-sub, #6b7280);
+  cursor: pointer; border: none;
+}
 
 @media (max-height: 500px) {
   .lx { padding: 0 10px 4px; }

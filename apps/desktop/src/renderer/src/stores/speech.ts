@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { concatUint8Arrays, uint8ArrayToBase64 } from '@renderer/utils'
 
 export interface AudioChunk {
@@ -30,6 +30,14 @@ export const useSpeechStore = defineStore('speech', () => {
   const currentTime = ref(0)
   const duration = ref(0)
   const audioPlayer = new Audio()
+  const volume = ref(1)
+  audioPlayer.volume = volume.value
+  watch(volume, (v) => {
+    audioPlayer.volume = v
+    if (audioQueuePlayback?.currentAudio) {
+      audioQueuePlayback.currentAudio.volume = v
+    }
+  })
 
   type ActiveStreamPlayback = {
     chunkId: string
@@ -466,6 +474,7 @@ export const useSpeechStore = defineStore('speech', () => {
     const blob = q.queue.shift()!
     const url = URL.createObjectURL(blob)
     const audio = new Audio(url)
+    audio.volume = volume.value
     q.currentAudio = audio
 
     if (!duration.value) {
@@ -660,6 +669,7 @@ export const useSpeechStore = defineStore('speech', () => {
     currentChunkIndex,
     currentTime,
     duration,
+    volume,
     addToQueue,
     replaceQueue,
     createPlaceholder,
