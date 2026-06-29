@@ -49,6 +49,7 @@ export const useSpeechStore = defineStore('speech', () => {
     playing: boolean
     finished: boolean
     mediaType: string
+    currentAudio: HTMLAudioElement | null
   }
 
   let audioQueuePlayback: AudioQueuePlayback | null = null
@@ -104,6 +105,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
       chunk.audioData = audioData
       chunk.loading = false
+      chunk.streaming = false
       chunk.error = undefined
       chunk.audioMediaType = metadata?.audioMediaType || chunk.audioMediaType || 'audio/mpeg'
       chunk.audioFormat = metadata?.audioFormat || chunk.audioFormat
@@ -118,7 +120,9 @@ export const useSpeechStore = defineStore('speech', () => {
             playNext()
           }
           resolve(chunk.duration || 0)
+          return
         }
+        resolve(chunk.duration || 0)
         return
       }
 
@@ -370,7 +374,7 @@ export const useSpeechStore = defineStore('speech', () => {
     const url = URL.createObjectURL(blob)
 
     audioPlayer.src = url
-    audioPlayer.play()
+    audioPlayer.play().catch(() => {})
 
     audioPlayer.onended = () => {
       nextChunk.played = true
@@ -434,6 +438,7 @@ export const useSpeechStore = defineStore('speech', () => {
         const chunk = queue.value.find(c => c.id === q.chunkId)
         if (chunk) {
           chunk.played = true
+          chunk.streaming = false
         }
         cleanupAudioQueuePlayback()
         if (isWaiting.value || !isPlaying.value) {
@@ -448,17 +453,21 @@ export const useSpeechStore = defineStore('speech', () => {
     const blob = q.queue.shift()!
     const url = URL.createObjectURL(blob)
     const audio = new Audio(url)
+    q.currentAudio = audio
     audio.onended = () => {
+      q.currentAudio = null
       URL.revokeObjectURL(url)
       q.playing = false
       playNextAudioFromQueue()
     }
     audio.onerror = () => {
+      q.currentAudio = null
       URL.revokeObjectURL(url)
       q.playing = false
       playNextAudioFromQueue()
     }
     audio.play().catch(() => {
+      q.currentAudio = null
       URL.revokeObjectURL(url)
       q.playing = false
       playNextAudioFromQueue()
@@ -466,6 +475,11 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   const cleanupAudioQueuePlayback = () => {
+    const q = audioQueuePlayback
+    if (q?.currentAudio) {
+      q.currentAudio.pause()
+      q.currentAudio.src = ''
+    }
     audioQueuePlayback = null
   }
 
@@ -476,6 +490,9 @@ export const useSpeechStore = defineStore('speech', () => {
       !MediaSource.isTypeSupported(mediaType)
     ) {
       cleanupAudioQueuePlayback()
+      cleanupActiveStream()
+      audioPlayer.onended = null
+      audioPlayer.onerror = null
       isWaiting.value = false
       isPlaying.value = true
       currentChunkId.value = chunk.id
@@ -488,7 +505,8 @@ export const useSpeechStore = defineStore('speech', () => {
         queue: initialBlobs,
         playing: false,
         finished: !chunk.loading && !chunk.streaming,
-        mediaType
+        mediaType,
+        currentAudio: null
       }
       playNextAudioFromQueue()
       return
@@ -561,9 +579,16 @@ export const useSpeechStore = defineStore('speech', () => {
   const togglePlay = () => {
     if (isPlaying.value) {
       audioPlayer.pause()
+      if (audioQueuePlayback?.currentAudio) {
+        audioQueuePlayback.currentAudio.pause()
+      }
       isPlaying.value = false
     } else if (currentChunkId.value) {
-      audioPlayer.play()
+      if (audioQueuePlayback?.currentAudio) {
+        audioQueuePlayback.currentAudio.play().catch(() => {})
+      } else {
+        audioPlayer.play().catch(() => {})
+      }
       isPlaying.value = true
     } else {
       queue.value.forEach(chunk => {
