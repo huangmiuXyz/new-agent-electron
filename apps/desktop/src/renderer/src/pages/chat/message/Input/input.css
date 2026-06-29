@@ -474,30 +474,17 @@
   opacity: 0.45;
 }
 
-.tool-features-active {
-  color: var(--text-primary);
-  background: var(--bg-hover);
+:deep(.btn--icon.btn--sm.tool-features-active),
+:deep(.btn--icon.btn--sm.thinking-active),
+:deep(.btn--icon.btn--sm.input-audio-active),
+:deep(.btn--icon.btn--sm.options-active),
+:deep(.btn--icon.btn--sm.voice-active),
+:deep(.btn--icon.btn--sm.speech-active) {
+  color: var(--color-primary);
 }
 
-.input-audio-active {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-.options-active {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-.voice-active {
-  color: var(--text-primary);
-  background: var(--bg-hover);
+:deep(.btn--icon.btn--sm.voice-active) {
   animation: pulse 1.5s infinite;
-}
-
-.speech-active {
-  color: var(--text-primary);
-  background: var(--bg-hover);
 }
 
 /* ------------------------------------------------------------------
