@@ -43,6 +43,16 @@ export const useSpeechStore = defineStore('speech', () => {
 
   let activeStreamPlayback: ActiveStreamPlayback | null = null
 
+  type AudioQueuePlayback = {
+    chunkId: string
+    queue: Blob[]
+    playing: boolean
+    finished: boolean
+    mediaType: string
+  }
+
+  let audioQueuePlayback: AudioQueuePlayback | null = null
+
   audioPlayer.ontimeupdate = () => {
     currentTime.value = audioPlayer.currentTime
     duration.value = audioPlayer.duration || 0
@@ -97,6 +107,20 @@ export const useSpeechStore = defineStore('speech', () => {
       chunk.error = undefined
       chunk.audioMediaType = metadata?.audioMediaType || chunk.audioMediaType || 'audio/mpeg'
       chunk.audioFormat = metadata?.audioFormat || chunk.audioFormat
+
+      if (audioQueuePlayback?.chunkId === id) {
+        audioQueuePlayback.finished = true
+        if (!audioQueuePlayback.playing && audioQueuePlayback.queue.length === 0) {
+          chunk.played = true
+          cleanupAudioQueuePlayback()
+          if (isWaiting.value || !isPlaying.value) {
+            isWaiting.value = false
+            playNext()
+          }
+          resolve(chunk.duration || 0)
+        }
+        return
+      }
 
       const tempAudio = new Audio(`data:${chunk.audioMediaType};base64,${audioData}`)
       tempAudio.onloadedmetadata = () => {
@@ -170,6 +194,11 @@ export const useSpeechStore = defineStore('speech', () => {
     if (activeStreamPlayback?.chunkId === id) {
       activeStreamPlayback.pending.push(data)
       pumpActiveStream()
+    } else if (audioQueuePlayback?.chunkId === id) {
+      audioQueuePlayback.queue.push(new Blob([new Uint8Array(data)], { type: audioQueuePlayback.mediaType }))
+      if (!audioQueuePlayback.playing) {
+        playNextAudioFromQueue()
+      }
     } else if (!isPlaying.value && isWaiting.value) {
       playNext()
     }
@@ -197,8 +226,22 @@ export const useSpeechStore = defineStore('speech', () => {
       pumpActiveStream()
     }
 
+    const finalizeAudioQueue = () => {
+      if (audioQueuePlayback?.chunkId !== id) return
+      audioQueuePlayback.finished = true
+      if (!audioQueuePlayback.playing && audioQueuePlayback.queue.length === 0) {
+        chunk.played = true
+        cleanupAudioQueuePlayback()
+        if (isWaiting.value || !isPlaying.value) {
+          isWaiting.value = false
+          playNext()
+        }
+      }
+    }
+
     if (bytes.byteLength === 0) {
       finalizeActiveStream()
+      finalizeAudioQueue()
       return Promise.resolve(0)
     }
 
@@ -212,6 +255,7 @@ export const useSpeechStore = defineStore('speech', () => {
     })
 
     finalizeActiveStream()
+    finalizeAudioQueue()
 
     if (isWaiting.value || !isPlaying.value) {
       isWaiting.value = false
@@ -239,6 +283,9 @@ export const useSpeechStore = defineStore('speech', () => {
           // Ignore MediaSource shutdown errors; the chunk is already marked failed.
         }
         cleanupActiveStream()
+      }
+      if (audioQueuePlayback?.chunkId === id) {
+        cleanupAudioQueuePlayback()
       }
       isWaiting.value = false
       playNext()
@@ -378,18 +425,72 @@ export const useSpeechStore = defineStore('speech', () => {
     }
   }
 
+  const playNextAudioFromQueue = () => {
+    const q = audioQueuePlayback
+    if (!q || q.playing) return
+
+    if (q.queue.length === 0) {
+      if (q.finished) {
+        const chunk = queue.value.find(c => c.id === q.chunkId)
+        if (chunk) {
+          chunk.played = true
+        }
+        cleanupAudioQueuePlayback()
+        if (isWaiting.value || !isPlaying.value) {
+          isWaiting.value = false
+          playNext()
+        }
+      }
+      return
+    }
+
+    q.playing = true
+    const blob = q.queue.shift()!
+    const url = URL.createObjectURL(blob)
+    const audio = new Audio(url)
+    audio.onended = () => {
+      URL.revokeObjectURL(url)
+      q.playing = false
+      playNextAudioFromQueue()
+    }
+    audio.onerror = () => {
+      URL.revokeObjectURL(url)
+      q.playing = false
+      playNextAudioFromQueue()
+    }
+    audio.play().catch(() => {
+      URL.revokeObjectURL(url)
+      q.playing = false
+      playNextAudioFromQueue()
+    })
+  }
+
+  const cleanupAudioQueuePlayback = () => {
+    audioQueuePlayback = null
+  }
+
   const playStreamChunk = (chunk: AudioChunk) => {
     const mediaType = chunk.audioMediaType || 'audio/mpeg'
     if (
       typeof MediaSource === 'undefined' ||
       !MediaSource.isTypeSupported(mediaType)
     ) {
-      if (chunk.loading || !chunk.audioData) {
-        isPlaying.value = false
-        isWaiting.value = true
-        return
+      cleanupAudioQueuePlayback()
+      isWaiting.value = false
+      isPlaying.value = true
+      currentChunkId.value = chunk.id
+
+      const existingChunks = chunk.streamChunks || []
+      const initialBlobs = existingChunks.map(data => new Blob([new Uint8Array(data)], { type: mediaType }))
+
+      audioQueuePlayback = {
+        chunkId: chunk.id,
+        queue: initialBlobs,
+        playing: false,
+        finished: !chunk.loading && !chunk.streaming,
+        mediaType
       }
-      playNext()
+      playNextAudioFromQueue()
       return
     }
 
@@ -485,6 +586,7 @@ export const useSpeechStore = defineStore('speech', () => {
     currentTime.value = 0
     duration.value = 0
     cleanupActiveStream()
+    cleanupAudioQueuePlayback()
     queue.value.forEach(chunk => {
       chunk.played = !!chunk.error
     })
