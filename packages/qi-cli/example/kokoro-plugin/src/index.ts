@@ -42,6 +42,8 @@ const plugin: Plugin = {
     registerHook('ai:tts-stream-start', async (payload: any) => {
       const { voice, speed, controller } = payload;
 
+      controller.start({ audioMediaType: 'audio/wav' });
+
       streamListener = createStreamListener();
       streamListener.setController(controller);
 
