@@ -453,10 +453,11 @@ export const useSpeechStore = defineStore('speech', () => {
           chunk.streaming = false
         }
         cleanupAudioQueuePlayback()
-        if (isWaiting.value || !isPlaying.value) {
-          isWaiting.value = false
-          playNext()
+        isWaiting.value = false
+        if (isPlaying.value) {
+          isPlaying.value = false
         }
+        playNext()
       }
       return
     }
