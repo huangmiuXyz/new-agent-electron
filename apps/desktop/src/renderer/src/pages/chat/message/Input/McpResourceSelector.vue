@@ -237,9 +237,6 @@ const openPreview = (item: ResourceItem) => {
               :class="{ 'sr--selected': selectedKeys.has(item.key) }"
               @click="toggleResource(item.key)"
             >
-              <template #icon>
-                <span class="resource-emoji">{{ getResourceIcon(item.mimeType) }}</span>
-              </template>
               <template #actions>
                 <Button size="sm" variant="text" class="action-btn" @click.stop="openPreview(item)" title="预览内容">
                   <template #icon><EyeIcon /></template>
@@ -269,11 +266,6 @@ const openPreview = (item: ResourceItem) => {
 
 .resource-error {
   color: var(--color-danger);
-}
-
-.resource-emoji {
-  font-size: 15px;
-  line-height: 1;
 }
 
 .rg-bar {
