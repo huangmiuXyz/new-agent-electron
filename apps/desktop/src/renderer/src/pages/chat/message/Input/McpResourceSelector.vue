@@ -1,7 +1,6 @@
-<script setup lang="ts">
-import { useIncremark } from '@incremark/vue'
+<script setup lang="tsx">
 import IncremarkRenderer from '@renderer/components/IncremarkRenderer.vue'
-import { defineComponent, h } from 'vue'
+import { defineComponent } from 'vue'
 
 const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
@@ -180,15 +179,9 @@ const formatSize = (bytes?: number) => {
 const PreviewContent = defineComponent({
   props: { text: { type: String, default: '' } },
   setup(props) {
-    const incremark = useIncremark({ gfm: true })
-    watch(() => props.text, (text) => {
-      incremark.reset()
-      if (text) {
-        incremark.append(text)
-        incremark.finalize()
-      }
-    }, { immediate: true })
-    return () => h(IncremarkRenderer, { blocks: incremark.blocks.value, style: 'padding:16px;max-height:60vh;overflow:auto' })
+    return () => (
+      <IncremarkRenderer text={props.text} />
+    )
   }
 })
 

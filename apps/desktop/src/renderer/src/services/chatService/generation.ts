@@ -161,19 +161,42 @@ export const createGenerationService = () => {
     text: string,
     targetLanguage: string = '中文',
     { model, apiKey, baseURL, provider, providerType }: ChatServiceOptions,
-    abortSignal?: AbortSignal
+    abortSignal?: AbortSignal,
+    onChunk?: (chunk: string) => void,
+    onReasoning?: (text: string) => void
   ) => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
     const prompt = buildTranslationPrompt(text, targetLanguage)
     try {
-      const result = await _generateText({
-        model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
-          `${providerType}:${model}`
-        ),
-        prompt,
-        abortSignal
-      })
-      return result.text
+      if (onChunk) {
+        const stream = _streamText({
+          model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
+            `${providerType}:${model}`
+          ),
+          prompt,
+          abortSignal
+        })
+        let full = ''
+        for await (const part of stream.stream) {
+          if (part.type === 'text-delta') {
+            full += part.text
+            onChunk(part.text)
+          } else if (part.type === 'reasoning-delta') {
+            onReasoning?.(part.text || '')
+          }
+          await Promise.resolve()
+        }
+        return full
+      } else {
+        const result = await _generateText({
+          model: createRegistry({ apiKey, baseURL, name: provider }).languageModel(
+            `${providerType}:${model}`
+          ),
+          prompt,
+          abortSignal
+        })
+        return result.text
+      }
     } catch (error) {
       messageApi.error((error as Error).message)
       throw error

@@ -3,6 +3,8 @@
     <IncremarkRenderer
       :blocks="blocks"
       :components="codeBlockComponents"
+      :text="block.text"
+      :disable-translation="true"
     />
     <span
       v-if="streaming"

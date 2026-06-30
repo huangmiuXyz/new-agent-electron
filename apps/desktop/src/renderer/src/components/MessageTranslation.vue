@@ -1,70 +1,87 @@
 <script setup lang="ts">
+import IncremarkRenderer from './IncremarkRenderer.vue'
+import { isMobile } from '@renderer/composables/useDeviceType'
+
 const props = defineProps<{
     translations?: TranslationResult[]
+    reasoningResults?: string[]
     translationLoading?: boolean
     translationController?: AbortController['abort']
+    streamingText?: string
+    streamingLanguage?: string
+    streamingTick?: number
+    reasoningText?: string
 }>()
 
 const emit = defineEmits<{
     stopTranslation: []
 }>()
 
-// 获取最新的翻译结果
-const latestTranslation = computed(() => {
-    if (!props.translations || props.translations.length === 0) {
-        return null
-    }
-    return props.translations[props.translations.length - 1]
-})
-
-// 翻译显示状态
 const showTranslation = ref(false)
-const selectedTranslationIndex = ref(0)
+const selectedTab = ref(0)
+const allTabs = ref<Array<{ label: string; text: string; loading?: boolean; timestamp?: number }>>([])
 
-// 当前选中的翻译
-const selectedTranslation = computed(() => {
-    if (!props.translations || props.translations.length === 0) {
-        return null
+// 用 watchEffect 统一同步 props → allTabs（避免 computed 缓存/长度不变的问题）
+watchEffect(() => {
+    const trans = props.translations || []
+    const tabs = trans.map((t) => ({ label: t.targetLanguage, text: t.text, timestamp: t.timestamp }))
+    if (props.translationLoading) {
+        tabs.push({ label: props.streamingLanguage || '翻译', text: props.streamingText || '', loading: true })
     }
-    return props.translations[selectedTranslationIndex.value]
+    // eslint-disable-next-line no-unused-expressions
+    props.streamingTick // 额外依赖，流式更新时触发
+    allTabs.value = tabs
 })
 
-// 选择翻译版本
-const selectTranslation = (index: number) => {
-    selectedTranslationIndex.value = index
+// 当前选中的 tab
+const currentTab = computed(() => allTabs.value[selectedTab.value])
+
+// 当前 tab 的深度思考内容（流式中取 reasoningText，完成时取 reasoningResults）
+const currentReasoning = computed(() => {
+    if (currentTab.value?.loading) return props.reasoningText || ''
+    const idx = selectedTab.value
+    return props.reasoningResults?.[idx] || ''
+})
+
+// tab 数量增加时自动切到最新；翻译完成（数量不变但内容变了）也切
+watchEffect(() => {
+    const n = allTabs.value.length
+    if (n === 0) return
+    // 有流式 tab（最后一个）时自动选中；无流式 tab 时也选中最后一个（刚完成）
+    if (props.translationLoading || selectedTab.value >= n) {
+        selectedTab.value = n - 1
+    }
+})
+
+// 翻译开始时展开
+watchEffect(() => {
+    if (props.translationLoading) showTranslation.value = true
+})
+
+const reasoningExpanded = ref(true)
+const reasoningViewportHeight = computed(() => {
+    if (!currentReasoning.value) return 48
+    const lines = currentReasoning.value.split('\n').length
+    return Math.min(Math.max(lines * 21, 48), isMobile.value ? 260 : 360)
+})
+
+const selectTab = (index: number) => {
+    if (index < allTabs.value.length) selectedTab.value = index
 }
 
-// 初始化选中最新翻译
-watch(() => props.translations, (newTranslations) => {
-    if (newTranslations && newTranslations.length > 0) {
-        selectedTranslationIndex.value = newTranslations.length - 1
-    }
-}, { immediate: true })
-
-// 如果正在加载翻译，自动展开显示加载状态
-watch(() => props.translationLoading, (newLoading) => {
-    if (newLoading) {
-        showTranslation.value = true
-    }
-})
-
-// 截断长语言名称，用于显示
 const truncateLanguageName = (name: string, maxLength: number = 10) => {
     if (name.length <= maxLength) return name
     return name.substring(0, maxLength) + '...'
 }
 
-// 停止翻译
 const handleStopTranslation = () => {
-    if (props.translationController) {
-        props.translationController()
-    }
+    if (props.translationController) props.translationController()
     emit('stopTranslation')
 }
 </script>
 
 <template>
-    <div v-if="latestTranslation || translationLoading" class="translation-container">
+    <div v-if="allTabs.length > 0" class="translation-container">
         <div class="translation-header" @click="showTranslation = !showTranslation">
             <span class="translation-label">
                 翻译
@@ -72,9 +89,6 @@ const handleStopTranslation = () => {
                     <span class="loading-dot"></span>
                     <span class="loading-dot"></span>
                     <span class="loading-dot"></span>
-                </span>
-                <span v-else-if="props.translations && props.translations.length > 1" class="translation-count">
-                    ({{ selectedTranslationIndex + 1 }}/{{ props.translations.length }})
                 </span>
             </span>
             <div class="translation-controls">
@@ -89,32 +103,52 @@ const handleStopTranslation = () => {
         </div>
 
         <div v-if="showTranslation">
-            <!-- 翻译版本选择器 -->
-            <div v-if="props.translations && props.translations.length > 1" class="translation-tabs">
-                <div v-for="(translation, index) in props.translations" :key="index" class="translation-tab"
-                    :class="{ active: selectedTranslationIndex === index }" @click="selectTranslation(index)">
-                    <span :title="translation.targetLanguage" class="language-name">
-                        {{ truncateLanguageName(translation.targetLanguage || '中文') }}
-                    </span>
-                    <span class="translation-time">
-                        {{ new Date(translation.timestamp).toLocaleTimeString() }}
-                    </span>
+            <!-- tab 栏 -->
+            <div v-if="allTabs.length > 0" class="translation-tabs">
+                <div v-for="(tab, index) in allTabs" :key="index" class="translation-tab"
+                    :class="{ active: selectedTab === index, 'tab-loading': tab.loading }"
+                    @click="selectTab(index)">
+                    <span :title="tab.label" class="language-name">{{ truncateLanguageName(tab.label || '翻译') }}</span>
+                    <span v-if="tab.timestamp" class="translation-time">{{ new Date(tab.timestamp).toLocaleTimeString() }}</span>
+                    <span v-if="tab.loading" class="tab-loading-dot" />
                 </div>
             </div>
 
-            <!-- 翻译内容 -->
-            <div v-if="selectedTranslation" class="translation-content">
-                <div class="translation-info">
-                    <span :title="selectedTranslation?.targetLanguage" class="language-name">
-                        {{ truncateLanguageName(selectedTranslation?.targetLanguage || '中文') }}
-                    </span>
-                    <span class="translation-time">
-                        {{ selectedTranslation ? new Date(selectedTranslation.timestamp).toLocaleString() : '' }}
-                    </span>
+            <!-- 当前 tab 内容 -->
+            <div v-if="currentTab" class="translation-content">
+                <!-- 深度思考内容 -->
+                <div v-if="currentReasoning" class="reasoning-block">
+                    <div class="reasoning-header" @click.stop="reasoningExpanded = !reasoningExpanded">
+                        <span class="reasoning-label-text">思考过程</span>
+                        <svg class="reasoning-arrow" :class="{ rotated: reasoningExpanded }" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 256 256" fill="currentColor">
+                            <path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/>
+                        </svg>
+                    </div>
+                    <div v-show="reasoningExpanded" class="reasoning-body">
+                        <VirtualParagraphText
+                            class="reasoning-virtual-text"
+                            :text="currentReasoning"
+                            :height="reasoningViewportHeight"
+                            split-mode="blank-line"
+                            :font-size="11"
+                            :line-height="17"
+                            :bottom-threshold="1"
+                            :paragraph-padding-block="4"
+                            :paragraph-gap="2"
+                            :min-paragraph-height="21"
+                            stick-to-bottom
+                        />
+                    </div>
                 </div>
-                <div class="translation-text">
-                    {{ selectedTranslation?.text }}
+
+                <div v-if="!currentTab.loading" class="translation-info">
+                    <span :title="currentTab.label" class="language-name">{{ truncateLanguageName(currentTab.label || '翻译') }}</span>
+                    <span v-if="currentTab.timestamp" class="translation-time">{{ new Date(currentTab.timestamp).toLocaleString() }}</span>
                 </div>
+                <div v-if="currentTab.text">
+                    <IncremarkRenderer :text="currentTab.text" :disable-translation="true" />
+                </div>
+                <div v-else-if="currentTab.loading" class="translation-stream-waiting">等待翻译结果...</div>
             </div>
         </div>
     </div>
@@ -231,41 +265,7 @@ const handleStopTranslation = () => {
     white-space: nowrap;
 }
 
-/* 翻译加载状态样式 */
-
-.loading-dots {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.loading-dots .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: var(--accent-color);
-    animation: pulse 1.4s ease-in-out infinite;
-}
-
-.loading-dots .dot:nth-child(1) {
-    animation-delay: 0s;
-}
-
-.loading-dots .dot:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.loading-dots .dot:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-.loading-text {
-    font-size: 12px;
-    color: var(--text-sub);
-}
-
-
-/* 标题中的加载指示器 */
+/* 加载指示器 */
 .loading-indicator {
     display: flex;
     align-items: center;
@@ -280,16 +280,72 @@ const handleStopTranslation = () => {
     animation: pulse 1.4s ease-in-out infinite;
 }
 
-.loading-indicator .loading-dot:nth-child(1) {
-    animation-delay: 0s;
+.loading-indicator .loading-dot:nth-child(1) { animation-delay: 0s; }
+.loading-indicator .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-indicator .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+.translation-stream-waiting {
+    padding: 16px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    text-align: center;
 }
 
-.loading-indicator .loading-dot:nth-child(2) {
-    animation-delay: 0.2s;
+.tab-loading {
+    opacity: 0.7;
 }
 
-.loading-indicator .loading-dot:nth-child(3) {
-    animation-delay: 0.4s;
+.tab-loading-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    margin-left: 4px;
+}
+
+.tab-streaming {
+    border-left: 2px solid var(--color-primary);
+}
+
+.reasoning-block {
+    margin-bottom: 8px;
+}
+
+.reasoning-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    cursor: pointer;
+    user-select: none;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.reasoning-header:hover {
+    color: var(--text-primary);
+}
+
+.reasoning-arrow {
+    transition: transform 0.2s ease;
+    color: var(--text-tertiary);
+}
+
+.reasoning-arrow.rotated {
+    transform: rotate(180deg);
+}
+
+.reasoning-body {
+    border-left: 2px solid var(--border-color-light);
+    padding-left: 8px;
+    margin-left: 2px;
+}
+
+.reasoning-virtual-text {
+    color: var(--text-secondary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 11px;
 }
 
 @keyframes pulse {
