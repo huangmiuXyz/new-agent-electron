@@ -1,17 +1,11 @@
 <template>
-  <span ref="wrapperRef" class="markdown-stream-wrapper">
+  <span class="markdown-stream-wrapper">
     <IncremarkRenderer
       :blocks="blocks"
       :components="codeBlockComponents"
       :text="block.text"
       :disable-translation="disableTranslation"
     />
-    <span
-      v-if="streaming"
-      class="markdown-stream-caret"
-      :style="caretStyle"
-      aria-hidden="true"
-    ></span>
   </span>
 </template>
 <script setup lang="ts">
@@ -38,66 +32,6 @@ const incremark = useIncremark({
 })
 
 const { blocks } = incremark
-
-const wrapperRef = ref<HTMLElement | null>(null)
-const caretStyle = ref<Record<string, string>>({})
-let caretFrameId: number | null = null
-
-const findLastTextNode = (root: HTMLElement): Text | null => {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) => {
-      const text = node.textContent ?? ''
-      return text.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP
-    }
-  })
-
-  let lastNode: Text | null = null
-  while (walker.nextNode()) {
-    lastNode = walker.currentNode as Text
-  }
-  return lastNode
-}
-
-const updateCaretPosition = () => {
-  if (!props.streaming || !wrapperRef.value) return
-
-  const wrapper = wrapperRef.value
-  const lastTextNode = findLastTextNode(wrapper)
-  if (!lastTextNode || !lastTextNode.textContent) return
-
-  const range = document.createRange()
-  const length = lastTextNode.textContent.length
-  range.setStart(lastTextNode, Math.max(0, length - 1))
-  range.setEnd(lastTextNode, length)
-
-  const rect = range.getBoundingClientRect()
-  const wrapperRect = wrapper.getBoundingClientRect()
-  range.detach()
-
-  if (rect.width === 0 && rect.height === 0) return
-
-  caretStyle.value = {
-    left: `${rect.right - wrapperRect.left + 2}px`,
-    top: `${rect.top - wrapperRect.top + 2}px`,
-    height: `${Math.max(14, rect.height - 2)}px`
-  }
-}
-
-const scheduleCaretPosition = () => {
-  if (caretFrameId !== null) return
-  caretFrameId = requestAnimationFrame(() => {
-    caretFrameId = null
-    updateCaretPosition()
-  })
-}
-
-watch(
-  () => [props.streaming, props.block.text],
-  () => {
-    nextTick(scheduleCaretPosition)
-  },
-  { immediate: true }
-)
 
 let lastSourceText = ''
 let finalized = false
@@ -146,7 +80,6 @@ const processNextChar = (frameTime: number) => {
   charFrameId = null
   if (!pendingChunk) {
     resetCharTiming()
-    nextTick(scheduleCaretPosition)
     return
   }
 
@@ -157,7 +90,6 @@ const processNextChar = (frameTime: number) => {
 
   incremark.append(batch)
 
-  nextTick(scheduleCaretPosition)
   if (pendingChunk) {
     charFrameId = requestAnimationFrame(processNextChar)
   } else {
@@ -290,10 +222,6 @@ onBeforeUnmount(() => {
   pendingChunk = ''
   cancelCharFrame()
   cancelFinalizeTimer()
-  if (caretFrameId !== null) {
-    cancelAnimationFrame(caretFrameId)
-    caretFrameId = null
-  }
 })
 </script>
 
@@ -302,15 +230,5 @@ onBeforeUnmount(() => {
   display: block;
   max-width: 100%;
   position: relative;
-}
-
-.markdown-stream-caret {
-  position: absolute;
-  width: 2px;
-  min-height: 14px;
-  background-color: var(--accent-color);
-  border-radius: 1px;
-  pointer-events: none;
-  animation: motion-caret-blink 1s steps(2, start) infinite;
 }
 </style>
