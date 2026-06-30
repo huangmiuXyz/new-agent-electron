@@ -17,6 +17,14 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import '@electron/remote/main'
 
+// 全局未捕获异常处理：防止插件或其他模块的未捕获错误导致主进程退出
+process.on('uncaughtException', (error) => {
+  console.error('[main] Uncaught exception:', error)
+})
+process.on('unhandledRejection', (reason) => {
+  console.error('[main] Unhandled rejection:', reason)
+})
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'plugin-resource',
