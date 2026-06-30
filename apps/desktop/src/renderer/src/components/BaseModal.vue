@@ -286,12 +286,21 @@ const finalizeClose = (result: boolean) => {
   }, 200)
 }
 
+const tryClose = async () => {
+  if (props.beforeClose) {
+    const canClose = await props.beforeClose()
+    if (!canClose) return false
+  }
+  finalizeClose(false)
+  return true
+}
+
 const handleEsc = () => {
   if (!isTopmostModal()) return
   if (isFullscreen.value) {
     return
   }
-  finalizeClose(false)
+  tryClose()
 }
 
 const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -314,7 +323,7 @@ const handleGlobalKeyDown = (event: KeyboardEvent) => {
   }
 
   event.preventDefault()
-  finalizeClose(false)
+  tryClose()
 }
 
 const handleGlobalKeyUp = (event: KeyboardEvent) => {
@@ -341,16 +350,7 @@ const handleCancel = () => {
     exitFullscreen()
     return
   }
-  visible.value = false
-  setTimeout(() => {
-    resetPosition()
-    if (props.onCancel) {
-      props.onCancel()
-      return
-    }
-    props.resolve?.(false)
-    props.remove?.()
-  }, 200)
+  tryClose()
 }
 
 const handleConfirm = () => {

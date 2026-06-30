@@ -28,6 +28,7 @@ declare global {
     confirmText?: string
     onCancel?: () => void | Promise<void>
     onClose?: () => void
+    beforeClose?: () => boolean | Promise<boolean>
     variant?: 'center' | 'drawer'
     showFooter?: boolean
     modalBodyStyle?: CSSProperties

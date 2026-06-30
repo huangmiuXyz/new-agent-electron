@@ -132,9 +132,13 @@ export function useSkills() {
     confirm({
       title: `技能详情 · ${skill.name}`,
       content: SkillDetailContent,
-      width: '760px',
+      width: '80vw',
       maxHeight: '80vh',
-      showCancel: false
+      showCancel: false,
+      beforeClose: async () => {
+        const confirmed = await confirm({ title: '关闭', content: '是否关闭？' })
+        return !!confirmed
+      }
     })
   }
 
