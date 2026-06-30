@@ -11,7 +11,6 @@ export function initTray(mainWindow: BrowserWindow): void {
     console.error('Tray icon image is invalid at path:', trayIconPath)
     return
   }
-  trayIcon.setTemplateImage(true)
 
   tray = new Tray(trayIcon)
 
