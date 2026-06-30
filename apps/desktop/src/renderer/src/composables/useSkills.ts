@@ -112,26 +112,20 @@ export function useSkills() {
       return
     }
 
+    const fullContent = `> ${skill.description}\n\n${loaded.content}`
+
     const SkillDetailContent = defineComponent({
       setup() {
-        const block = { text: loaded.content, state: 'done', type: 'text' } as any
-        const message = { content: loaded.content, role: 'assistant', id: `skill-${skill.name}` } as any
+        const block = { text: fullContent, state: 'done', type: 'text' } as any
+        const message = { content: fullContent, role: 'assistant', id: `skill-${skill.name}` } as any
         return { skill, block, message }
       },
       render() {
-        return h('div', { class: 'skill-detail-modal' }, [
-          h('div', { class: 'skill-detail-header-card' }, [
-            h('div', { class: 'skill-detail-meta' }, [
-              h('div', [
-                h('div', { class: 'skill-detail-name' }, this.skill.name),
-                h('div', { class: 'skill-detail-desc' }, this.skill.description)
-              ])
-            ])
-          ]),
+        return h('div', { class: 'skill-detail-modal' },
           h('div', { class: 'skill-detail-body' }, [
-            h(Markdown, { block: this.block, message: this.message })
+            h(Markdown, { block: this.block, message: this.message, disableTranslation: false })
           ])
-        ])
+        )
       }
     })
 

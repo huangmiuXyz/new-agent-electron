@@ -4,7 +4,7 @@
       :blocks="blocks"
       :components="codeBlockComponents"
       :text="block.text"
-      :disable-translation="true"
+      :disable-translation="disableTranslation"
     />
     <span
       v-if="streaming"
@@ -24,7 +24,10 @@ const props = defineProps<{
   block: TextUIPart
   message: BaseMessage
   streaming?: boolean
+  disableTranslation?: boolean
 }>()
+
+const disableTranslation = computed(() => props.disableTranslation !== false)
 
 const codeBlockComponents = {
   code: CodeBlockAdapter
