@@ -522,9 +522,9 @@ const trayStyle = computed<CSSProperties>(() => {
 
 /* ---- Tray: model list overrides ---- */
 .selector-tray-body :deep(.list-item) {
-  padding: 8px 10px;
-  border-radius: 8px !important;
-  margin-bottom: 2px !important;
+  padding: 6px 8px;
+  border-radius: 6px !important;
+  margin-bottom: 1px !important;
 }
 
 .selector-tray-body :deep(.list-item:hover) {
@@ -561,10 +561,7 @@ const trayStyle = computed<CSSProperties>(() => {
 
 /* ---- Tray: agent item overrides ---- */
 .selector-tray-body :deep(.agent-item) {
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  min-height: 44px;
+  border-radius: 6px;
 }
 
 .selector-tray-body :deep(.agent-item:hover) {
@@ -572,12 +569,24 @@ const trayStyle = computed<CSSProperties>(() => {
 }
 
 .selector-tray-body :deep(.agent-item.selected) {
-  background: rgba(var(--accent-rgb, 47, 116, 255), 0.08);
-  border-color: rgba(var(--accent-rgb, 47, 116, 255), 0.16);
+  background: var(--sidebar-active-bg, var(--bg-active));
 }
 
 .selector-tray-body :deep(.agent-item.focused) {
   background: rgba(var(--accent-rgb, 47, 116, 255), 0.07);
+}
+
+/* ---- Tray: chat switcher item overrides ---- */
+.selector-tray-body :deep(.chat-switcher-item) {
+  border-radius: 6px;
+}
+
+.selector-tray-body :deep(.chat-switcher-item:hover) {
+  background: var(--bg-hover);
+}
+
+.selector-tray-body :deep(.chat-switcher-item.active) {
+  background: var(--sidebar-active-bg, var(--bg-active));
 }
 
 /* ---- Tray transition ---- */

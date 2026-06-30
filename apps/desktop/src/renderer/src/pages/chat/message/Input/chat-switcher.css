@@ -23,8 +23,7 @@
 
 .chat-switcher-item,
 .chat-switcher-item-main,
-.chat-switcher-item-bottom,
-.chat-switcher-item-actions {
+.chat-switcher-item-bottom {
   display: flex;
   align-items: center;
 }
@@ -89,18 +88,16 @@
 .chat-switcher-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 /* ---- List item (matching agent selector style) ---- */
 .chat-switcher-item {
   width: 100%;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   padding: 8px 10px;
-  min-height: 44px;
   gap: 10px;
+  margin-bottom: 2px;
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -112,8 +109,20 @@
 }
 
 .chat-switcher-item.active {
-  background: rgba(var(--accent-rgb, 47, 116, 255), 0.08);
-  border-color: rgba(var(--accent-rgb, 47, 116, 255), 0.16);
+  background: var(--sidebar-active-bg, var(--bg-active));
+  position: relative;
+}
+
+.chat-switcher-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 55%;
+  background: var(--color-primary);
+  border-radius: 2px;
 }
 
 .chat-switcher-item-main {
@@ -121,7 +130,6 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
   align-items: stretch;
 }
 
@@ -134,7 +142,7 @@
 .chat-switcher-item-title {
   min-width: 0;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -144,12 +152,11 @@
 .chat-switcher-item-bottom {
   flex-shrink: 0;
   gap: 4px;
-  margin-top: 2px;
 }
 
 .chat-switcher-item-subtitle {
   max-width: 120px;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
@@ -168,31 +175,6 @@
 .chat-switcher-badge.generating {
   background: rgba(var(--color-success-rgb, 16, 185, 129), 0.15);
   color: var(--color-success);
-}
-
-.chat-switcher-item-actions {
-  flex-shrink: 0;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.chat-switcher-item:hover .chat-switcher-item-actions,
-.chat-switcher-item.active .chat-switcher-item-actions {
-  opacity: 1;
-}
-
-.chat-switcher-item-actions :deep(.btn--icon) {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
-  border-radius: 4px;
-}
-
-.chat-switcher-item-actions :deep(.btn--icon svg) {
-  width: 12px;
-  height: 12px;
 }
 
 .chat-switcher-empty {

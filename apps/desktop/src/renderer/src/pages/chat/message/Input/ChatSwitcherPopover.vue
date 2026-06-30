@@ -23,27 +23,11 @@ const emit = defineEmits<{
   select: [chatId: string]
 }>()
 
-const { Delete, Plus, ChevronDown, HistoryClock } = useIcon([
-  'Delete',
+const { Plus, ChevronDown, HistoryClock } = useIcon([
   'Plus',
   'ChevronDown',
   'HistoryClock'
 ])
-
-const handleDelete = async (chat: Chat) => {
-  if (
-    await useModal().confirm({
-      title: '删除会话',
-      content: '确定要删除这个聊天吗？',
-      confirmProps: {
-        danger: true
-      }
-    })
-  ) {
-    emit('delete', chat)
-    emit('submitDelete')
-  }
-}
 </script>
 
 <template>
@@ -116,11 +100,6 @@ const handleDelete = async (chat: Chat) => {
             <span v-if="chat.parentChatId" class="chat-switcher-badge">子会话</span>
             <span v-if="props.isChatGenerating(chat)" class="chat-switcher-badge generating">生成中</span>
           </div>
-        </div>
-        <div class="chat-switcher-item-actions" @click.stop>
-          <Button variant="icon" size="sm" danger title="删除" @click.stop="handleDelete(chat)">
-            <Delete />
-          </Button>
         </div>
       </div>
       <div v-if="!props.filteredChats.length" class="chat-switcher-empty">没找到匹配的聊天</div>

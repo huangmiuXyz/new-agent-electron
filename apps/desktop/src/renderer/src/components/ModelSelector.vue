@@ -638,10 +638,8 @@ const handleModelLogoError = () => {
 }
 
 :deep(.list-item) {
-  padding: 6px 8px;
   background-color: transparent;
   border-radius: 6px !important;
-  margin-bottom: 1px !important;
 }
 
 :deep(.list-item:hover) {

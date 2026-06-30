@@ -311,12 +311,6 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
         <div v-for="(agent, i) in favoriteAgents" :key="`favorite-${agent.id}`" class="agent-item"
           :class="{ selected: isAgentSelected(agent.id), focused: focusedIndex === i }" @click="selectAgent(agent.id)"
           @contextmenu="handleAgentContextMenu($event, agent)">
-          <div class="agent-item-icon">
-            <Image v-if="agent.avatar" class="agent-item-avatar" :src="agent.avatar" alt="" />
-            <div v-else class="agent-item-default-icon">
-              <Robot />
-            </div>
-          </div>
           <div class="agent-item-body">
             <div class="agent-item-name">{{ agent.name }}</div>
             <div v-if="agent.description" class="agent-item-desc">{{ agent.description }}</div>
@@ -335,12 +329,6 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
         <div v-for="(agent, i) in regularAgents" :key="agent.id" class="agent-item"
           :class="{ selected: isAgentSelected(agent.id), focused: focusedIndex === favoriteAgents.length + i }" @click="selectAgent(agent.id)"
           @contextmenu="handleAgentContextMenu($event, agent)">
-          <div class="agent-item-icon">
-            <Image v-if="agent.avatar" class="agent-item-avatar" :src="agent.avatar" alt="" />
-            <div v-else class="agent-item-default-icon">
-              <Robot />
-            </div>
-          </div>
           <div class="agent-item-body">
             <div class="agent-item-name">{{ agent.name }}</div>
             <div v-if="agent.description" class="agent-item-desc">{{ agent.description }}</div>
@@ -406,11 +394,10 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: 6px;
+  margin-bottom: 2px;
   cursor: pointer;
   transition: background-color 0.12s ease;
-  min-height: 44px;
-  border: 1px solid transparent;
 }
 
 .agent-item:hover {
@@ -422,40 +409,20 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 }
 
 .agent-item.selected {
-  background: rgba(var(--accent-rgb, 47, 116, 255), 0.08);
-  border-color: rgba(var(--accent-rgb, 47, 116, 255), 0.16);
+  background: var(--sidebar-active-bg, var(--bg-active));
+  position: relative;
 }
 
-/* Icon: 20px line icon style */
-.agent-item-icon {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.agent-item-avatar {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  object-fit: cover;
-}
-
-.agent-item-default-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: rgba(var(--accent-rgb, 47, 116, 255), 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.agent-item-default-icon :deep(svg) {
-  font-size: 12px;
-  color: var(--accent-color);
+.agent-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 55%;
+  background: var(--color-primary);
+  border-radius: 2px;
 }
 
 /* Body: name + desc */
@@ -464,23 +431,20 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .agent-item-name {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--text-primary);
-  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .agent-item-desc {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-tertiary);
-  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -508,14 +472,13 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 
 /* Section title */
 .agent-section-title {
-  padding: 8px 10px 4px;
+  padding: 8px 8px 6px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-tertiary);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 .agent-list {
-  padding-top: 4px ;
 }
 </style>
