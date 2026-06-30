@@ -299,6 +299,23 @@ const handleButtonContextMenu = (event: MouseEvent) => {
 
   const menuItems: MenuItem<Agent>[] = [
     {
+      label: '新增智能体',
+      icon: Plus,
+      action: 'create',
+      onClick: () => openAgentModal()
+    },
+    {
+      type: 'divider'
+    },
+    {
+      label: favoriteAgentSet.value.has(agent.id) ? '取消收藏' : '收藏智能体',
+      icon: favoriteAgentSet.value.has(agent.id) ? Check : undefined,
+      action: 'favorite',
+      onClick: (data: Agent) => {
+        if (data) toggleFavoriteAgent(data.id)
+      }
+    },
+    {
       label: '配置智能体',
       icon: Edit,
       action: 'edit',
