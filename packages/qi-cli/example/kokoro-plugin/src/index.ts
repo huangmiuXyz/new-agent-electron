@@ -9,6 +9,42 @@ const PROVIDER_ID = 'kokoro';
 let unsubStream: (() => void) | null = null;
 let streamListener: ReturnType<typeof createStreamListener> | null = null;
 
+type QueuedStart = {
+  voice: string;
+  speed: number;
+  controller: any;
+  textQueue: string[];
+};
+
+let streamQueue: QueuedStart[] = [];
+
+async function processQueue(context: PluginContext) {
+  if (streamQueue.length === 0 || streamListener?.hasActive) return;
+
+  const item = streamQueue.shift()!;
+  const { voice, speed, controller, textQueue } = item;
+
+  controller.start({ audioMediaType: 'audio/wav' });
+
+  const streamingId = await context.api.pluginMain.ipc.invoke(
+    PLUGIN_NAME, 'tts-stream-start', { voice, speed },
+  ) as string;
+
+  if (!streamListener) {
+    streamListener = createStreamListener();
+  }
+  streamListener.setController(streamingId, controller);
+
+  for (const text of textQueue) {
+    await context.api.pluginMain.ipc.invoke(
+      PLUGIN_NAME, 'tts-stream-text', { text },
+    );
+  }
+
+  // Send finish so worker closes the text stream
+  await context.api.pluginMain.ipc.invoke(PLUGIN_NAME, 'tts-stream-finish');
+}
+
 const plugin: Plugin = {
   name: PLUGIN_NAME,
   version: '2.0.0',
@@ -42,15 +78,24 @@ const plugin: Plugin = {
     registerHook('ai:tts-stream-start', async (payload: any) => {
       const { voice, speed, controller } = payload;
 
-      streamListener = createStreamListener();
-      streamListener.setController(controller);
+      if (streamListener?.hasActive) {
+        streamQueue.push({ voice, speed, controller, textQueue: [] });
+        return { handled: true };
+      }
 
-      await context.api.pluginMain.ipc.invoke(
-        PLUGIN_NAME, 'tts-stream-start', { voice, speed },
-      );
+      controller.start({ audioMediaType: 'audio/wav' });
 
       if (!unsubStream) {
+        streamListener = createStreamListener();
         unsubStream = setupStreamListener(context, streamListener);
+      }
+
+      const streamingId = await context.api.pluginMain.ipc.invoke(
+        PLUGIN_NAME, 'tts-stream-start', { voice, speed },
+      ) as string;
+
+      if (streamListener) {
+        streamListener.setController(streamingId, controller);
       }
 
       return { handled: true };
@@ -59,6 +104,15 @@ const plugin: Plugin = {
     registerHook('ai:tts-stream-text', async (payload: any) => {
       const { delta } = payload;
       if (!delta) return;
+
+      if (streamQueue.length > 0) {
+        const last = streamQueue[streamQueue.length - 1];
+        if (last.textQueue.length === 0 || last.textQueue[last.textQueue.length - 1] !== delta) {
+          last.textQueue.push(delta);
+        }
+        return;
+      }
+
       await context.api.pluginMain.ipc.invoke(
         PLUGIN_NAME, 'tts-stream-text', { text: delta },
       );
@@ -66,11 +120,18 @@ const plugin: Plugin = {
 
     registerHook('ai:tts-stream-finish', async (_payload: any) => {
       await context.api.pluginMain.ipc.invoke(PLUGIN_NAME, 'tts-stream-finish');
-      cleanupStream();
     });
 
     registerHook('ai:tts-stream-error', async (_payload: any) => {
-      cleanupStream();
+      streamQueue = [];
+      if (streamListener) {
+        streamListener.reset();
+      }
+      if (unsubStream) {
+        unsubStream();
+        unsubStream = null;
+        streamListener = null;
+      }
     });
 
     const loadSettings = (): KokoroPluginSettings => {
@@ -147,7 +208,12 @@ const plugin: Plugin = {
   },
 
   uninstall: (context: PluginContext) => {
-    cleanupStream();
+    streamQueue = [];
+    if (unsubStream) {
+      unsubStream();
+      unsubStream = null;
+    }
+    streamListener = null;
     context.api.pluginMain.unload(PLUGIN_NAME);
     context.unregisterSettings();
   },
@@ -156,28 +222,20 @@ const plugin: Plugin = {
 function setupStreamListener(context: PluginContext, listener: ReturnType<typeof createStreamListener>): () => void {
   const unsubChunk = context.api.pluginMain.ipc.on(
     PLUGIN_NAME, 'tts-stream-chunk',
-    async ({ audio: audioArr }: any) => {
-      listener.handleChunk(audioArr);
+    async ({ streamingId, audio: audioArr }: any) => {
+      listener.handleChunk(streamingId, audioArr);
     },
   );
 
   const unsubEnd = context.api.pluginMain.ipc.on(
     PLUGIN_NAME, 'tts-stream-end',
-    async ({ error }: any) => {
-      listener.handleEnd(error);
+    async ({ streamingId, error }: any) => {
+      listener.handleEnd(streamingId, error);
+      processQueue(context);
     },
   );
 
   return () => { unsubChunk(); unsubEnd(); };
-}
-
-function cleanupStream() {
-  streamListener?.reset();
-  streamListener = null;
-  if (unsubStream) {
-    unsubStream();
-    unsubStream = null;
-  }
 }
 
 export default plugin;
