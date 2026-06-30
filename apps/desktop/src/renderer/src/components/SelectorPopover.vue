@@ -122,6 +122,9 @@ const dialogBodyStyle = computed<CSSProperties>(() => ({
   maxHeight: 'min(78vh, 820px)'
 }))
 
+const calcMaxHeight = (availablePx: number) =>
+  Math.max(Math.min(availablePx, 560), Math.min(120, availablePx))
+
 const trayStyle = computed<CSSProperties>(() => {
   // Priority: trayAnchor selector > trigger slot element
   const anchor = props.trayAnchor
@@ -131,13 +134,29 @@ const trayStyle = computed<CSSProperties>(() => {
   if (!triggerEl) return {}
   const rect = triggerEl.getBoundingClientRect()
   const viewportHeight = window.innerHeight
-  // Position tray bottom edge above the anchor, constrained to viewport
-  const bottom = viewportHeight - rect.top + 8
-  const maxHeight = Math.max(200, Math.min(rect.top - 24, 560))
+
+  const spaceAbove = rect.top - 16
+  const spaceBelow = viewportHeight - rect.bottom - 16
+
+  // Open downward when there's significantly more space below than above
+  if (spaceBelow >= spaceAbove + 40 && spaceBelow >= 120) {
+    const maxHeight = calcMaxHeight(spaceBelow)
+    return {
+      position: 'fixed' as const,
+      left: `${rect.left + 6}px`,
+      top: `${rect.bottom + 8}px`,
+      width: `${rect.width - 12}px`,
+      maxHeight: `${maxHeight}px`,
+      zIndex: trayZIndex
+    }
+  }
+
+  // Open upward (default), but cap height to available space to prevent overflow
+  const maxHeight = calcMaxHeight(spaceAbove)
   return {
     position: 'fixed' as const,
     left: `${rect.left + 6}px`,
-    bottom: `${bottom}px`,
+    bottom: `${viewportHeight - rect.top + 8}px`,
     width: `${rect.width - 12}px`,
     maxHeight: `${maxHeight}px`,
     zIndex: trayZIndex
