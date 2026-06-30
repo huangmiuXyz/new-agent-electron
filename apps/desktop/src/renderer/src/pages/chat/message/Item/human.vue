@@ -35,7 +35,6 @@ const props = defineProps<{
 .translation-row {
   width: 100%;
   padding: 0px 20px;
-  padding-left: 65px;
 }
 
 .msg-row:hover {
