@@ -350,6 +350,10 @@ const handleCancel = () => {
     exitFullscreen()
     return
   }
+  if (props.onCancel) {
+    props.onCancel()
+    return
+  }
   tryClose()
 }
 
