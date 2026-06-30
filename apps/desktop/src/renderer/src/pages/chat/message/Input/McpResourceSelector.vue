@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { useAgentStore } from '@renderer/stores/agent'
+import { useIncremark } from '@incremark/vue'
+import IncremarkRenderer from '@renderer/components/IncremarkRenderer.vue'
+import { defineComponent, h } from 'vue'
 
+const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
-const agentStore = useAgentStore()
 
 const updateChatMcpResources = (chatId: string, selectedMcpResources: Record<string, string[]>) => {
   const summary = chatsStore.chatSummaries.find((s) => s.id === chatId)
@@ -10,7 +12,7 @@ const updateChatMcpResources = (chatId: string, selectedMcpResources: Record<str
   summary.selectedMcpResources = selectedMcpResources
 }
 
-const DocumentIcon = useIcon('Document')
+const { Document: DocumentIcon, Eye: EyeIcon } = useIcon(['Document', 'Eye'])
 
 interface ResourceItem {
   uri: string
@@ -19,12 +21,14 @@ interface ResourceItem {
   mimeType?: string
   serverName: string
   key: string
+  size?: number
+  title?: string
 }
 
 const isPopupOpen = ref(false)
 const resources = ref<ResourceItem[]>([])
-const loading = ref(false)
 const errorMessage = ref('')
+const loading = ref(false)
 const selectedKeys = ref<Set<string>>(new Set())
 
 const currentChat = computed(() => chatsStore.currentChat)
@@ -50,33 +54,32 @@ const getResourceIcon = (mimeType?: string) => {
   return '📄'
 }
 
-const loadResources = async () => {
+const loadResources = () => {
   if (!currentChat.value) return
   const agentId = currentChat.value.agentId
   if (!agentId) return
 
-  const mcpClient = agentStore.getMcpByAgent(agentId).mcpServers
-  const activeServers = Object.keys(mcpClient).filter((key) => mcpClient[key]?.active !== false)
-  if (activeServers.length === 0) {
-    resources.value = []
-    return
-  }
-
-  loading.value = true
+  const cache = settingsStore.mcpResourceCache
   errorMessage.value = ''
-  try {
-    const allResources = await window.api.list_mcp_resources(JSON.parse(JSON.stringify(mcpClient)), false)
-    resources.value = allResources
-      .filter((r) => activeServers.includes(r.serverName))
-      .map((r) => ({
-        ...r,
-        key: `${r.serverName}::${r.uri}`
-      }))
-  } catch (error) {
-    errorMessage.value = (error as Error).message
-  } finally {
-    loading.value = false
+  const items: ResourceItem[] = []
+  for (const [serverName, uris] of Object.entries(cache)) {
+    for (const [uri, value] of Object.entries(uris)) {
+      // 兼容旧持久化格式（ReadResourceResult vs {content, name, ...}）
+      const hasMeta = 'content' in value
+      const shortUri = uri.replace(/^[a-z]+:\/\//, '')
+      items.push({
+        uri,
+        name: hasMeta ? (value.title || value.name || shortUri) : shortUri,
+        description: hasMeta ? [value.description, value.mimeType].filter(Boolean).join(' · ') : value.mimeType || '',
+        mimeType: hasMeta ? value.mimeType : value.mimeType,
+        serverName,
+        key: `${serverName}::${uri}`,
+        size: hasMeta ? value.size : undefined,
+        title: hasMeta ? value.title : undefined,
+      })
+    }
   }
+  resources.value = items
 }
 
 const groupedResources = computed(() => {
@@ -152,10 +155,10 @@ const restoreSelection = () => {
   })
 }
 
-watch(isPopupOpen, async (val) => {
+watch(isPopupOpen, (val) => {
   if (val) {
     restoreSelection()
-    await loadResources()
+    loadResources()
   }
 })
 
@@ -166,6 +169,48 @@ const totalSelectedLabel = computed(() => {
 })
 
 const hasSelectedResources = computed(() => totalSelected.value > 0)
+
+const formatSize = (bytes?: number) => {
+  if (bytes == null) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const PreviewContent = defineComponent({
+  props: { text: { type: String, default: '' } },
+  setup(props) {
+    const incremark = useIncremark({ gfm: true })
+    watch(() => props.text, (text) => {
+      incremark.reset()
+      if (text) {
+        incremark.append(text)
+        incremark.finalize()
+      }
+    }, { immediate: true })
+    return () => h(IncremarkRenderer, { blocks: incremark.blocks.value, style: 'padding:16px;max-height:60vh;overflow:auto' })
+  }
+})
+
+const openPreview = (item: ResourceItem) => {
+  const cached = settingsStore.mcpResourceCache?.[item.serverName]?.[item.uri]
+  if (!cached) return
+  const parts = cached.content?.contents || []
+  const texts = parts.filter((c: any) => c.text).map((c: any) => c.text)
+  const blobs = parts.filter((c: any) => c.blob)
+  const content = texts.length > 0
+    ? texts.join('\n\n---\n\n')
+    : blobs.length > 0
+      ? '```\n[二进制内容，MIME: ' + (item.mimeType || '未知') + '，大小: ' + formatSize(item.size) + ']\n```'
+      : '_(无内容)_'
+  useModal().confirm({
+    title: item.name,
+    width: '60%',
+    maxHeight: '80vh',
+    showFooter: false,
+    content: () => h(PreviewContent, { text: content })
+  })
+}
 </script>
 
 <template>
@@ -177,10 +222,7 @@ const hasSelectedResources = computed(() => totalSelected.value > 0)
       </Button>
     </template>
     <template #content>
-      <div v-if="loading" class="resource-status">
-        <Loading size="small" /> 加载资源中...
-      </div>
-      <div v-else-if="errorMessage" class="resource-status resource-error">
+      <div v-if="errorMessage" class="resource-status resource-error">
         {{ errorMessage }}
       </div>
       <div v-else>
@@ -196,7 +238,8 @@ const hasSelectedResources = computed(() => totalSelected.value > 0)
               v-for="item in items"
               :key="item.key"
               :name="item.name"
-              :desc="item.description || item.mimeType || ''"
+              :desc="item.description || ''"
+              :desc2="formatSize(item.size)"
               clickable
               :class="{ 'sr--selected': selectedKeys.has(item.key) }"
               @click="toggleResource(item.key)"
@@ -205,6 +248,9 @@ const hasSelectedResources = computed(() => totalSelected.value > 0)
                 <span class="resource-emoji">{{ getResourceIcon(item.mimeType) }}</span>
               </template>
               <template #actions>
+                <Button size="sm" variant="text" class="action-btn" @click.stop="openPreview(item)" title="预览内容">
+                  <template #icon><EyeIcon /></template>
+                </Button>
                 <Checkbox :model-value="selectedKeys.has(item.key)" @update:model-value="toggleResource(item.key)" />
               </template>
             </SettingsRow>
@@ -258,5 +304,14 @@ const hasSelectedResources = computed(() => totalSelected.value > 0)
 
 .sr--selected:hover {
   background: rgba(var(--accent-rgb, 47, 116, 255), 0.1);
+}
+
+.action-btn {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.sr--selected .action-btn,
+.settings-row:hover .action-btn {
+  opacity: 1;
 }
 </style>

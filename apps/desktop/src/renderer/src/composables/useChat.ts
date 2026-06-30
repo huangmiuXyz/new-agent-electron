@@ -324,7 +324,7 @@ export const useChat = (chatId: string) => {
                   try {
                     // 优先走 store 缓存（激活/刷新时预取），再 fallback 到实时读取
                     const cached = settingsStore.getMcpResourceCache(serverName, uri)
-                    const result = cached ?? await window.api.read_mcp_resource(JSON.parse(JSON.stringify(mcpClient)), serverName, uri)
+                    const result = cached?.content ?? await window.api.read_mcp_resource(JSON.parse(JSON.stringify(mcpClient)), serverName, uri)
                     const text = (result.contents || [])
                       .filter((c: any) => c.text)
                       .map((c: any) => c.text)

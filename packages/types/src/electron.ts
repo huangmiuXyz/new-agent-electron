@@ -101,7 +101,7 @@ export const PLUGIN_IPC_DEFAULT_TIMEOUT_MS = 120000
 export interface ElectronAPI {
   // aiServices
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
-  list_mcp_resources: (config: ClientConfig, cache?: boolean) => Promise<MCPResourceInfo[]>
+  list_mcp_resources: (config: ClientConfig) => Promise<MCPResourceInfo[]>
   read_mcp_resource: (
     config: ClientConfig,
     serverName: string,
@@ -110,7 +110,7 @@ export interface ElectronAPI {
   list_mcp_resource_templates: (config: ClientConfig, cache?: boolean) => Promise<MCPResourceTemplate[]>
   cache_all_mcp_resources: (
     config: ClientConfig
-  ) => Promise<Record<string, MCPReadResourceResult>>
+  ) => Promise<Record<string, Record<string, { content: MCPReadResourceResult; name?: string; title?: string; description?: string; mimeType?: string; size?: number }>>>
 
   // plugin main-process bridge
   pluginMain: {

@@ -42,10 +42,10 @@ interface ResourceTemplateInfo {
 
 interface aiServiceResult {
   list_tools: (config: ClientConfig, cache?: boolean) => Promise<Tools>
-  list_mcp_resources: (config: ClientConfig, cache?: boolean) => Promise<ResourceInfo[]>
+  list_mcp_resources: (config: ClientConfig) => Promise<ResourceInfo[]>
   read_mcp_resource: (config: ClientConfig, serverName: string, uri: string) => Promise<ReadResourceResult>
   list_mcp_resource_templates: (config: ClientConfig, cache?: boolean) => Promise<ResourceTemplateInfo[]>
-  cache_all_mcp_resources: (config: ClientConfig) => Promise<Record<string, ReadResourceResult>>
+  cache_all_mcp_resources: (config: ClientConfig) => Promise<Record<string, Record<string, { content: ReadResourceResult; name?: string; title?: string; description?: string; mimeType?: string; size?: number }>>>
 }
 
 export const aiServices = (): aiServiceResult => {
@@ -156,14 +156,9 @@ export const aiServices = (): aiServiceResult => {
     return toolsCache
   }
 
-  let resourcesCache: ResourceInfo[] | undefined
   let templatesCache: ResourceTemplateInfo[] | undefined
 
-  const list_mcp_resources = async (config: ClientConfig, cache = true) => {
-    if (resourcesCache && JSON.stringify(lastConfig) === JSON.stringify(config) && cache) {
-      return resourcesCache
-    }
-
+  const list_mcp_resources = async (config: ClientConfig) => {
     await syncClients(config)
 
     const results = (
@@ -183,8 +178,7 @@ export const aiServices = (): aiServiceResult => {
       )
     ).flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
 
-    resourcesCache = results.flat()
-    return resourcesCache
+    return results.flat()
   }
 
   const read_mcp_resource = async (config: ClientConfig, serverName: string, uri: string) => {
@@ -202,33 +196,39 @@ export const aiServices = (): aiServiceResult => {
   const cache_all_mcp_resources = async (config: ClientConfig) => {
     await syncClients(config)
 
-    const cache: Record<string, ReadResourceResult> = {}
-    const tasks: Promise<void>[] = []
+    const cache: Record<string, Record<string, { content: ReadResourceResult; name?: string; title?: string; description?: string; mimeType?: string; size?: number }>> = {}
 
     for (const [serverName, client] of Object.entries(clientMap)) {
       if (!client) continue
-      tasks.push(
-        (async () => {
-          try {
-            const { resources } = await client.listResources()
-            if (!resources) return
-            const readTasks = resources.map(async (r) => {
-              try {
-                const result = await client.readResource({ uri: r.uri })
-                cache[`${serverName}::${r.uri}`] = result as ReadResourceResult
-              } catch {
-                // skip individual resource read failures
-              }
-            })
-            await Promise.allSettled(readTasks)
-          } catch {
-            // skip server failures
-          }
-        })()
-      )
+      try {
+        const { resources } = await client.listResources()
+        if (!resources) continue
+        const serverCache: Record<string, { content: ReadResourceResult; name?: string; title?: string; description?: string; mimeType?: string; size?: number }> = {}
+        await Promise.allSettled(
+          resources.map(async (r) => {
+            try {
+              const result = await client.readResource({ uri: r.uri })
+                serverCache[r.uri] = {
+                  content: result as ReadResourceResult,
+                  name: r.name,
+                  title: r.title,
+                  description: r.description,
+                  mimeType: r.mimeType,
+                  size: r.size
+                }
+            } catch {
+              // skip individual resource read failures
+            }
+          })
+        )
+        if (Object.keys(serverCache).length > 0) {
+          cache[serverName] = serverCache
+        }
+      } catch {
+        // skip server failures
+      }
     }
 
-    await Promise.allSettled(tasks)
     return cache
   }
 

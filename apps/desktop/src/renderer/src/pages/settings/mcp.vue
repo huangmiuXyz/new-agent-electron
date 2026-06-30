@@ -235,18 +235,18 @@ const fetchResources = async (server: any) => {
   activeMcpResourcesLoading.value = server.name
   try {
     const settingsStore = useSettingsStore()
-    const allActiveServers = Object.fromEntries(
-      Object.entries(mcpServers.value || {}).filter(
-        ([, s]) => s.active || s.name === server.name
+    const allActiveServers = JSON.parse(JSON.stringify(
+      Object.fromEntries(
+        Object.entries(mcpServers.value || {}).filter(
+          ([, s]) => s.active || s.name === server.name
+        )
       )
-    )
-    const allContents = await window.api.cache_all_mcp_resources(
-      JSON.parse(JSON.stringify(allActiveServers))
-    )
-    for (const [key, content] of Object.entries(allContents)) {
-      const sep = key.indexOf('::')
-      if (sep === -1) continue
-      settingsStore.setMcpResourceCache(key.slice(0, sep), key.slice(sep + 2), content)
+    ))
+    const allResources = await window.api.cache_all_mcp_resources(allActiveServers)
+    for (const [serverName, uris] of Object.entries(allResources)) {
+      for (const [uri, value] of Object.entries(uris)) {
+        settingsStore.setMcpResourceCache(serverName, uri, value)
+      }
     }
   } catch (error) {
     messageApi.error((error as Error).message)
