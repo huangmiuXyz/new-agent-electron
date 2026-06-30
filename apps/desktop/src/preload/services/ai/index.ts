@@ -45,6 +45,7 @@ interface aiServiceResult {
   list_mcp_resources: (config: ClientConfig, cache?: boolean) => Promise<ResourceInfo[]>
   read_mcp_resource: (config: ClientConfig, serverName: string, uri: string) => Promise<ReadResourceResult>
   list_mcp_resource_templates: (config: ClientConfig, cache?: boolean) => Promise<ResourceTemplateInfo[]>
+  cache_all_mcp_resources: (config: ClientConfig) => Promise<Record<string, ReadResourceResult>>
 }
 
 export const aiServices = (): aiServiceResult => {
@@ -198,6 +199,39 @@ export const aiServices = (): aiServiceResult => {
     return result as ReadResourceResult
   }
 
+  const cache_all_mcp_resources = async (config: ClientConfig) => {
+    await syncClients(config)
+
+    const cache: Record<string, ReadResourceResult> = {}
+    const tasks: Promise<void>[] = []
+
+    for (const [serverName, client] of Object.entries(clientMap)) {
+      if (!client) continue
+      tasks.push(
+        (async () => {
+          try {
+            const { resources } = await client.listResources()
+            if (!resources) return
+            const readTasks = resources.map(async (r) => {
+              try {
+                const result = await client.readResource({ uri: r.uri })
+                cache[`${serverName}::${r.uri}`] = result as ReadResourceResult
+              } catch {
+                // skip individual resource read failures
+              }
+            })
+            await Promise.allSettled(readTasks)
+          } catch {
+            // skip server failures
+          }
+        })()
+      )
+    }
+
+    await Promise.allSettled(tasks)
+    return cache
+  }
+
   const list_mcp_resource_templates = async (config: ClientConfig, cache = true) => {
     if (templatesCache && JSON.stringify(lastConfig) === JSON.stringify(config) && cache) {
       return templatesCache
@@ -229,6 +263,7 @@ export const aiServices = (): aiServiceResult => {
     list_tools,
     list_mcp_resources,
     read_mcp_resource,
-    list_mcp_resource_templates
+    list_mcp_resource_templates,
+    cache_all_mcp_resources
   }
 }

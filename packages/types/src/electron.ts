@@ -108,6 +108,9 @@ export interface ElectronAPI {
     uri: string
   ) => Promise<MCPReadResourceResult>
   list_mcp_resource_templates: (config: ClientConfig, cache?: boolean) => Promise<MCPResourceTemplate[]>
+  cache_all_mcp_resources: (
+    config: ClientConfig
+  ) => Promise<Record<string, MCPReadResourceResult>>
 
   // plugin main-process bridge
   pluginMain: {

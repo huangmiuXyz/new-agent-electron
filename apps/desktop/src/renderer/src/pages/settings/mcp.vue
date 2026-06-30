@@ -205,6 +205,7 @@ const handleDelete = (name: string) => {
 }
 
 const activeMcpLoading = ref<string | null>(null)
+const activeMcpResourcesLoading = ref<string | null>(null)
 
 const fetchTools = async (server: ClientConfig[string]) => {
   activeMcpLoading.value = server.name
@@ -216,7 +217,8 @@ const fetchTools = async (server: ClientConfig[string]) => {
       false
     )
     server.tools = tools
-    server.active = !server.active
+    // 同时刷新资源缓存
+    await fetchResources(server)
   } catch (error) {
     messageApi.error((error as Error).message)
   } finally {
@@ -224,11 +226,40 @@ const fetchTools = async (server: ClientConfig[string]) => {
   }
 }
 
+const activateServer = async (server: any) => {
+  server.active = true
+  await fetchTools(server)
+}
+
+const fetchResources = async (server: any) => {
+  activeMcpResourcesLoading.value = server.name
+  try {
+    const settingsStore = useSettingsStore()
+    const allActiveServers = Object.fromEntries(
+      Object.entries(mcpServers.value || {}).filter(
+        ([, s]) => s.active || s.name === server.name
+      )
+    )
+    const allContents = await window.api.cache_all_mcp_resources(
+      JSON.parse(JSON.stringify(allActiveServers))
+    )
+    for (const [key, content] of Object.entries(allContents)) {
+      const sep = key.indexOf('::')
+      if (sep === -1) continue
+      settingsStore.setMcpResourceCache(key.slice(0, sep), key.slice(sep + 2), content)
+    }
+  } catch (error) {
+    messageApi.error((error as Error).message)
+  } finally {
+    activeMcpResourcesLoading.value = ''
+  }
+}
+
 const toggleActive = async (server: any) => {
   if (!server.active) {
-    await fetchTools(server)
+    await activateServer(server)
   } else {
-    server.active = !server.active
+    server.active = false
   }
 }
 
@@ -319,7 +350,7 @@ const getServerDesc = (server: any) => {
                 <template #icon><Refresh /></template>
               </Button>
               <Switch
-                :loading="activeMcpLoading === name"
+                :loading="activeMcpLoading === name || activeMcpResourcesLoading === name"
                 :model-value="server.active"
                 @update:model-value="toggleActive(server)"
               />

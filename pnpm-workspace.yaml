@@ -111,7 +111,7 @@ catalog:
   prettier: ^3.9.1
   sqlite-vec: ^0.1.9
   strip-ansi: ^7.2.0
-  turbo: ^2.10.0
+  turbo: ^2.10.1-canary.2
   typescript: ^6.0.3
   unplugin-auto-import: ^21.0.0
   unplugin-vue-components: ^32.1.0

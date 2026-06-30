@@ -259,7 +259,26 @@ export const useSettingsStore = defineStore(
     const favoriteModelKeys = ref<string[]>([])
 
     const mcpServers = ref<ClientConfig>({})
+    const mcpResourceCache = ref<Record<string, Record<string, any>>>({})
 
+    const getMcpResourceCache = (serverName: string, uri: string) => {
+      return mcpResourceCache.value?.[serverName]?.[uri]
+    }
+    const setMcpResourceCache = (serverName: string, uri: string, content: any) => {
+      if (!mcpResourceCache.value[serverName]) {
+        mcpResourceCache.value[serverName] = {}
+      }
+      mcpResourceCache.value[serverName][uri] = content
+    }
+
+    watch(mcpServers, (servers) => {
+      const names = new Set(Object.keys(servers))
+      for (const name of Object.keys(mcpResourceCache.value)) {
+        if (!names.has(name)) {
+          delete mcpResourceCache.value[name]
+        }
+      }
+    })
 
     const loadedPlugins = ref<LoadedPluginConfig[]>([])
 
@@ -815,6 +834,9 @@ export const useSettingsStore = defineStore(
       favoriteAgentIds,
       favoriteModelKeys,
       mcpServers,
+      mcpResourceCache,
+      getMcpResourceCache,
+      setMcpResourceCache,
       loadedPlugins,
       devPluginPaths,
       defaultModels,
@@ -892,6 +914,7 @@ export const useSettingsStore = defineStore(
         'favoriteAgentIds',
         'favoriteModelKeys',
         'mcpServers',
+        'mcpResourceCache',
         'loadedPlugins',
         'devPluginPaths',
         'defaultModels',
