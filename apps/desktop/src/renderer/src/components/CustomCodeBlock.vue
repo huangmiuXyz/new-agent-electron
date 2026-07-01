@@ -1,6 +1,7 @@
 <template>
-    <div class="code-block" :class="display.darkMode ? 'dark' : 'light'">
-        <div class="header">
+    <div ref="codeBlockRef" class="code-block" :class="display.darkMode ? 'dark' : 'light'">
+        <div ref="sentinelRef" class="sentinel"></div>
+        <div class="header" :class="{ 'is-stuck': isStuck }">
             <span class="language">{{ lang }}</span>
             <div class="actions">
                 <button v-if="isHtml" class="browser-btn" @click="openInBrowser" title="在浏览器中打开">
@@ -50,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { h, computed, inject, ref, watch, onBeforeUnmount } from 'vue'
+import { h, computed, inject, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { common, createLowlight } from 'lowlight'
 import { toHtml } from 'hast-util-to-html'
 import { useSettingsStore } from '@renderer/stores/settings'
@@ -70,6 +71,26 @@ const props = defineProps<{
 }>()
 
 const copied = ref(false)
+const isStuck = ref(false)
+const codeBlockRef = ref<HTMLElement | null>(null)
+const sentinelRef = ref<HTMLElement | null>(null)
+let sentinelObserver: IntersectionObserver | null = null
+
+onMounted(() => {
+  if (!sentinelRef.value) return
+  sentinelObserver = new IntersectionObserver(
+    ([entry]) => {
+      isStuck.value = !entry.isIntersecting
+    },
+    { threshold: 0, rootMargin: '-1px 0px 0px 0px' }
+  )
+  sentinelObserver.observe(sentinelRef.value)
+})
+
+onBeforeUnmount(() => {
+  sentinelObserver?.disconnect()
+  sentinelObserver = null
+})
 
 const lang = computed(() => props.lang || 'text')
 const lowerLang = computed(() => lang.value.toLowerCase())
@@ -277,6 +298,15 @@ async function copy() {
     --code-bg: #fff;
 }
 
+.sentinel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    pointer-events: none;
+}
+
 .header {
     display: flex;
     justify-content: space-between;
@@ -284,10 +314,13 @@ async function copy() {
     padding: 8px 16px;
     background: var(--header-bg);
     border-radius: 8px;
-    border-radius: 8px;
     position: sticky;
     top: 0;
     z-index: 10;
+}
+
+.header.is-stuck {
+    border-radius: 0;
 }
 
 .language {
