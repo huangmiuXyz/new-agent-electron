@@ -181,6 +181,7 @@ const estimatePartHeight = (block: BaseMessage['parts'][number]) => {
               :block="block"
               :message="message"
               :streaming="streaming && idx === lastTextBlockIndex"
+              :disable-translation="message.role === 'assistant'"
             />
             <template v-else>
               <div class="text-content">
