@@ -147,16 +147,6 @@ const lastReasoningBlockIndex = computed(() => {
   return -1
 })
 
-const estimatePartHeight = (block: BaseMessage['parts'][number]) => {
-  if (block.type === 'text') {
-    const len = (block as TextUIPart).text?.length ?? 0
-    return Math.max(60, Math.min(len * 0.7, 1200))
-  }
-  if (block.type === 'reasoning') return 200
-  if (block.type === 'dynamic-tool' || block.type.startsWith('tool')) return 56
-  if (block.type === 'file') return 140
-  return 80
-}
 </script>
 
 <template>
@@ -168,7 +158,6 @@ const estimatePartHeight = (block: BaseMessage['parts'][number]) => {
           :key="getBlockKey(block, idx)"
           class="view-block"
           :class="{ 'view-block--tight': block.type === 'reasoning' || block.type === 'text' }"
-          :style="{ '--intrinsic-h': estimatePartHeight(block) + 'px' }"
         >
           <div
             v-if="block.type === 'text'"
@@ -272,8 +261,6 @@ const estimatePartHeight = (block: BaseMessage['parts'][number]) => {
   max-width: 100%;
   min-width: 0;
   padding-block: 5px;
-  content-visibility: auto;
-  contain-intrinsic-size: auto var(--intrinsic-h, 80px);
 }
 
 .view-block--tight {
