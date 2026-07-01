@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useRafFn } from '@vueuse/core'
+
 const props = withDefaults(
   defineProps<{
     enabled?: boolean
@@ -20,11 +22,19 @@ const isUserScrolledUp = ref(false)
 const isResetting = ref(false)
 let lastScrollTop = 0
 let observer: MutationObserver | null = null
-let observerRafId: number | null = null
 let resetRafId: number | null = null
 let resetRetryTimer: number | null = null
 let resetAttempts = 0
 const MAX_RESET_ATTEMPTS = 20 // 最多重试 ~1s
+
+// 用 useRafFn 做单帧滚动调度：
+// - resume() 在下一帧执行一次滚动后自动 pause（one-shot）
+// - 同一帧内多次 resume() 被 coalesce（内部检查 !isActive）
+// - pause() 可取消待执行的滚动
+const scrollRaf = useRafFn(() => {
+  scrollToBottom()
+  scrollRaf.pause()
+}, { immediate: false })
 
 const isNearBottom = () => {
   const el = containerRef.value
@@ -52,10 +62,7 @@ const handleScroll = () => {
 }
 
 const clearResetTimers = () => {
-  if (observerRafId !== null) {
-    cancelAnimationFrame(observerRafId)
-    observerRafId = null
-  }
+  scrollRaf.pause()
   if (resetRafId !== null) {
     cancelAnimationFrame(resetRafId)
     resetRafId = null
@@ -64,6 +71,12 @@ const clearResetTimers = () => {
     window.clearTimeout(resetRetryTimer)
     resetRetryTimer = null
   }
+}
+
+// 合并多条滚动来源到同一帧内的一次滚动，消除流式输出时"一跳一跳"的抖动
+const scheduleScrollToBottom = () => {
+  if (!props.enabled || isUserScrolledUp.value || isResetting.value) return
+  scrollRaf.resume()
 }
 
 // 强制滚动到底部：content-visibility: auto 会让 scrollHeight 在元素进入视口前是估算值，
@@ -128,9 +141,7 @@ watch(
 watch(
   () => props.autoScrollTrigger,
   () => {
-    if (props.enabled && !isUserScrolledUp.value) {
-      nextTick(() => scrollToBottom())
-    }
+    scheduleScrollToBottom()
   }
 )
 
@@ -140,13 +151,7 @@ onMounted(() => {
   // 首次挂载时也强制滚到底，避免初始位置闪烁
   forceScrollToBottomAndReveal()
   observer = new MutationObserver(() => {
-    if (!props.enabled || isUserScrolledUp.value) return
-    if (isResetting.value) return // 重置流程中由 tryScroll 统一处理
-    if (observerRafId !== null) return
-    observerRafId = requestAnimationFrame(() => {
-      observerRafId = null
-      nextTick(() => scrollToBottom())
-    })
+    scheduleScrollToBottom()
   })
   observer.observe(containerRef.value, {
     childList: true,
