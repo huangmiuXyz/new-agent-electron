@@ -14,14 +14,14 @@ import { TextUIPart } from 'ai'
 import CodeBlockAdapter from './CodeBlockAdapter.vue'
 import IncremarkRenderer from './IncremarkRenderer.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   block: TextUIPart
   message: BaseMessage
   streaming?: boolean
   disableTranslation?: boolean
-}>()
-
-const disableTranslation = computed(() => props.disableTranslation !== false)
+}>(), {
+  disableTranslation: true
+})
 
 const codeBlockComponents = {
   code: CodeBlockAdapter
