@@ -41,14 +41,7 @@ export default defineConfig(() => {
         }
       },
       optimizeDeps: {
-        exclude: [
-          '@chevrotain/regexp-to-ast',
-          'monaco-editor',
-          'drizzle-kit',
-          'js-tiktoken',
-          'typescript',
-          '@agent-qi/types'
-        ],
+        exclude: ['monaco-editor', 'drizzle-kit', 'typescript'],
         rolldownOptions: {
           output: {
             sourcemapExcludeSources: true
