@@ -744,7 +744,6 @@ onBeforeUnmount(() => {
 .modal-box.is-fullscreen .modal-body {
   flex: 1;
   max-height: var(--visual-vh, 100vh) !important;
-  padding: 0;
 }
 
 .fullscreen-exit-btn {
