@@ -14,7 +14,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": false,
-    "sourceMap": false,
+    "sourceMap": true,
     "jsx": "preserve",
     "jsxImportSource": "vue"
   },

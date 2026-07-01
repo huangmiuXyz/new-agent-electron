@@ -275,6 +275,85 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 
   showContextMenu(event, menuItems, agent)
 }
+
+const handleButtonContextMenu = (event: MouseEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+
+  const agent = selectedAgent.value
+
+  if (!agent) {
+    const menuItems: MenuItem<null>[] = [
+      {
+        label: '添加智能体',
+        icon: Plus,
+        action: 'create',
+        onClick: () => openAgentModal()
+      }
+    ]
+    showContextMenu(event, menuItems, null)
+    return
+  }
+
+  const isBuiltinAgent = agentStore.isBuiltinAgent(agent.id)
+
+  const menuItems: MenuItem<Agent>[] = [
+    {
+      label: '新增智能体',
+      icon: Plus,
+      action: 'create',
+      onClick: () => openAgentModal()
+    },
+    {
+      type: 'divider'
+    },
+    {
+      label: favoriteAgentSet.value.has(agent.id) ? '取消收藏' : '收藏智能体',
+      icon: favoriteAgentSet.value.has(agent.id) ? Check : undefined,
+      action: 'favorite',
+      onClick: (data: Agent) => {
+        if (data) toggleFavoriteAgent(data.id)
+      }
+    },
+    {
+      label: '配置智能体',
+      icon: Edit,
+      action: 'edit',
+      onClick: (data: Agent) => {
+        if (data) openAgentModal(data)
+      }
+    },
+    {
+      label: '拷贝智能体',
+      icon: Copy,
+      action: 'copy',
+      onClick: (data: Agent) => {
+        if (data) copyAgent(data)
+      }
+    },
+    {
+      type: 'divider'
+    },
+    {
+      label: '删除智能体',
+      icon: Delete,
+      action: 'delete',
+      danger: true,
+      disabled: isBuiltinAgent,
+      onClick: (data: Agent) => {
+        if (data && !agentStore.isBuiltinAgent(data.id)) {
+          agentStore.deleteAgent(data.id)
+          const currentChatId = chatsStore.currentChat?.id
+          if (currentChatId && chatsStore.currentChat?.agentId === data.id) {
+            chatsStore.setChatAgent(currentChatId, 'default')
+          }
+        }
+      }
+    }
+  ]
+
+  showContextMenu(event, menuItems, agent)
+}
 </script>
 
 <template>
@@ -291,7 +370,7 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
     </template>
 
     <template #trigger>
-      <div v-if="type === 'select'" class="agent-btn" :title="selectedAgentLabel">
+      <div v-if="type === 'select'" class="agent-btn" :title="selectedAgentLabel" @contextmenu="handleButtonContextMenu">
         <Image v-if="selectedAgent?.avatar" class="agent-avatar" :src="selectedAgent.avatar" alt="" />
         <Robot v-else />
         <span class="agent-name">{{ selectedAgentLabel }}</span>
@@ -299,7 +378,7 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
           color="orange" size="sm" />
         <ChevronDown class="arrow-icon" />
       </div>
-      <Button v-else variant="icon" size="sm">
+      <Button v-else variant="icon" size="sm" @contextmenu="handleButtonContextMenu">
         <Image v-if="selectedAgent?.avatar" class="agent-avatar" :src="selectedAgent.avatar" alt="" />
         <Robot v-else />
       </Button>
