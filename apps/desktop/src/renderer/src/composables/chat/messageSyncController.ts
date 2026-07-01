@@ -198,8 +198,11 @@ export const createChatMessageSyncController = ({
         nextMessages = applySnapshotToMessages(nextMessages, snapshot)
       }
       const now = Date.now()
+      // 工具循环中 onFinish 频繁触发 → 之前 options.persist === true 绕过间隔检查，
+      // 导致密集工具循环中 persists 排队堆积（实测 1220ms+）。
+      // 现在统一受 STREAM_PERSIST_INTERVAL_MS 节流，除非 force: true（仅 dispose 用）。
       const shouldPersist =
-        options.persist === true ||
+        options.force === true ||
         (options.persist !== false && now - lastPersistAt >= STREAM_PERSIST_INTERVAL_MS)
       updateMessages(chatId, nextMessages, { persist: shouldPersist })
       if (shouldPersist) lastPersistAt = now
