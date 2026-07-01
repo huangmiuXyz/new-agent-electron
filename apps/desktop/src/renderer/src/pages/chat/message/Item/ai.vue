@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRafFn } from '@vueuse/core'
 import { TextUIPart } from 'ai'
 import {
   getFlatTokenUsage,
@@ -171,33 +172,26 @@ const retryStatusText = computed(() => {
 
 // —— Token 速度 ——
 const speedNow = ref(Date.now())
-let speedTimer: ReturnType<typeof setInterval> | null = null
+let lastSpeedTick = 0
+const { resume: resumeSpeed, pause: pauseSpeed } = useRafFn(() => {
+  const now = Date.now()
+  if (now - lastSpeedTick >= 200) {
+    lastSpeedTick = now
+    speedNow.value = now
+  }
+}, { immediate: false })
 
 watch(
   () => props.message.metadata?.loading,
-  (loading, oldLoading) => {
+  (loading) => {
     if (loading) {
-      if (!speedTimer) {
-        speedTimer = setInterval(() => {
-          speedNow.value = Date.now()
-        }, 200)
-      }
-    } else if (oldLoading === true && speedTimer) {
-      if (speedTimer) {
-        clearInterval(speedTimer)
-        speedTimer = null
-      }
+      resumeSpeed()
+    } else {
+      pauseSpeed()
     }
   },
   { immediate: true }
 )
-
-onUnmounted(() => {
-  if (speedTimer) {
-    clearInterval(speedTimer)
-    speedTimer = null
-  }
-})
 
 const tokenSpeed = computed(() => {
   const outputStartTime = props.message.metadata?.outputStartTime
