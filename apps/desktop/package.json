@@ -12,7 +12,7 @@
     "build:icon:win": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-win-icon.ps1",
     "postinstall": "pnpm rebuild @vscode/ripgrep && pnpm -w rebuild:native",
     "start": "electron-vite preview",
-    "dev": "electron-vite dev",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-vite dev",
     "dev:debug": "electron-vite dev -- --remote-debugging-port=9222",
     "build": "npm run typecheck && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-vite build",
     "build:unpack": "npm run build && electron-builder --dir",
