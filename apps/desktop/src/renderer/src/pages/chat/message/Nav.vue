@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { acquireZIndex } from '@renderer/utils/z-index-manager'
+import type { Virtualizer } from '@tanstack/vue-virtual'
 
 const props = defineProps<{
-  container: any // 兼容 ref 或 HTMLElement
+  container: any
+  virtualizer?: Virtualizer<any, any>
+  totalCount?: number
 }>()
 
 const { ChevronUp, ChevronDown, ArrowBarToUp, ArrowBarToDown } = useIcon([
@@ -37,8 +40,24 @@ const getContainer = () => {
   return props.container.$el || props.container
 }
 
+const getVirtualIndex = () => {
+  const virt = props.virtualizer
+  if (!virt) return -1
+  const items = virt.getVirtualItems()
+  if (items.length === 0) return -1
+  const offset = virt.scrollElement.scrollTop ?? 0
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (items[i].start <= offset + 10) return items[i].index
+  }
+  return items[0]?.index ?? 0
+}
+
 const scrollToTop = () => {
   if (isMobile.value) startHideTimer()
+  if (props.virtualizer) {
+    props.virtualizer.scrollToIndex(0, { align: 'start' })
+    return
+  }
   const el = getContainer()
   if (el) {
     el.scrollTo({ top: 0, behavior: 'smooth' })
@@ -47,6 +66,10 @@ const scrollToTop = () => {
 
 const scrollToBottom = () => {
   if (isMobile.value) startHideTimer()
+  if (props.virtualizer) {
+    props.virtualizer.scrollToIndex(Math.max(0, (props.totalCount ?? 1) - 1), { align: 'end' })
+    return
+  }
   const el = getContainer()
   if (el) {
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
@@ -55,6 +78,13 @@ const scrollToBottom = () => {
 
 const scrollToPrev = () => {
   if (isMobile.value) startHideTimer()
+  if (props.virtualizer) {
+    const currentIdx = getVirtualIndex()
+    if (currentIdx > 0) {
+      props.virtualizer.scrollToIndex(currentIdx - 1, { align: 'start' })
+    }
+    return
+  }
   const el = getContainer()
   if (!el) return
   const messages = el.querySelectorAll('.message-item-wrapper')
@@ -70,6 +100,16 @@ const scrollToPrev = () => {
 
 const scrollToNext = () => {
   if (isMobile.value) startHideTimer()
+  if (props.virtualizer) {
+    const currentIdx = getVirtualIndex()
+    const lastIndex = (props.totalCount ?? 1) - 1
+    if (currentIdx < lastIndex) {
+      props.virtualizer.scrollToIndex(currentIdx + 1, { align: 'start' })
+    } else {
+      scrollToBottom()
+    }
+    return
+  }
   const el = getContainer()
   if (!el) return
   const messages = el.querySelectorAll('.message-item-wrapper')

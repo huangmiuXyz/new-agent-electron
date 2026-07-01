@@ -64,6 +64,7 @@
     "@modelcontextprotocol/sdk": "catalog:",
     "@mozilla/readability": "^0.6.0",
     "@openai/agents": "^0.11.8",
+    "@tanstack/vue-virtual": "^3.13.30",
     "@tiptap/core": "catalog:",
     "@tiptap/extension-code-block": "catalog:",
     "@tiptap/extension-code-block-lowlight": "catalog:",

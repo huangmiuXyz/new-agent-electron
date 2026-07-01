@@ -1,25 +1,30 @@
 <script setup lang="ts">
-import { FileUIPart, TextUIPart } from 'ai'
+import type { FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import type { MenuItem } from '@renderer/composables/useContextMenu'
 import { getLanguageFlag } from '@renderer/utils/flagIcons'
 import { copyElementImageToClipboard } from '@renderer/utils'
-import { useElementSize, useThrottleFn } from '@vueuse/core'
 import { nextTick } from 'vue'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useMessageScroll } from '@renderer/composables/useMessageScroll'
 import { acquireZIndex } from '@renderer/utils/z-index-manager'
+import { generateFlatItems, estimateItemHeight, type VirtualChatItem } from './composables/flatItems'
+import { getRetryStopHandler } from '@renderer/composables/useChat'
 
 const { messageScrollRef } = useMessageScroll()
 const scrollHostRef = ref<HTMLElement | null>(null)
-const prevMessageWrapperRef = ref<HTMLElement | null>(null)
 
 const autoScrollEnabled = ref(true)
+const isUserScrolledUp = ref(false)
+let lastScrollTop = 0
+let lastUserScrollTime = 0
+
 const copyPreviewZIndex = acquireZIndex()
 const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
 const { deleteMessage, updateMessage, loadMoreMessagesBefore } = useChatsStores()
 const isLoadingMore = ref(false)
 const mobileEditModal = useModal()
-const { Delete, Refresh, Continue, Copy, Edit, Branch, Language, Image } = useIcon([
+const { Delete, Refresh, Continue, Copy, Edit, Branch, Language, Image, Stop, VolumeMedium, Robot, ChevronDown } = useIcon([
   'Delete',
   'Refresh',
   'Copy',
@@ -28,7 +33,10 @@ const { Delete, Refresh, Continue, Copy, Edit, Branch, Language, Image } = useIc
   'Language',
   'Image',
   'Stop',
-  'Continue'
+  'Continue',
+  'VolumeMedium',
+  'Robot',
+  'ChevronDown'
 ])
 
 const { translateMessage, translateWithCustomLanguage } = useTranslation()
@@ -60,11 +68,36 @@ provide('messageEdit', {
 })
 
 const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
+const settingsStore = useSettingsStore()
 const agentStore = useAgentStore()
+const chatsStore = useChatsStores()
+
 
 const visibleMessages = computed(() => {
   return currentChat.value?.messages || []
 })
+
+const expandedCollapsedIds = ref(new Set<string>())
+
+const toggleCollapsed = (messageId: string) => {
+  const next = new Set(expandedCollapsedIds.value)
+  if (next.has(messageId)) {
+    next.delete(messageId)
+  } else {
+    next.add(messageId)
+  }
+  expandedCollapsedIds.value = next
+}
+
+// —— Flat items（assistant 消息的 parts 全打平到虚拟列表层）——
+const flatItems = computed<VirtualChatItem[]>(() => generateFlatItems(
+  visibleMessages.value,
+  contextCount.value,
+  hasCompressedContext.value,
+  editingMessageId.value,
+  settingsStore.display.collapsePreviousContent,
+  expandedCollapsedIds.value
+))
 
 // —— 消息入场动画追踪 ——
 // 历史消息（会话恢复 / 切换会话加载）不播动画；只有在本视图中"新加入"的消息
@@ -109,7 +142,6 @@ watch(
   visibleMessages,
   (messages) => {
     if (!historySettled.value) {
-      // 历史未落定：非空批次记为历史；空会话下一帧落定，后续首条消息播放动画。
       if (messages.length === 0) {
         settleEmptyHistory()
         return
@@ -134,12 +166,46 @@ const isNewlyEntered = (messageId: string | undefined): boolean => {
   return !!messageId && animatingMessageIds.value.has(messageId)
 }
 
+const hasAudioChunks = (msg: BaseMessage | null | undefined): boolean => {
+  return (msg?.metadata?.audio?.chunks?.length ?? 0) > 0
+}
+
+const getRetryText = (msg: BaseMessage | null | undefined): string => {
+  if (!msg?.metadata?.retrying) return ''
+  const attempt = msg.metadata.retryAttempt ?? 0
+  const endsAt = msg.metadata.retryCountdownEndsAt
+  const secs = endsAt ? Math.max(0, (endsAt - Date.now()) / 1000) : 0
+  const attemptText = attempt > 0 ? `第 ${attempt} 次` : ''
+  if (secs > 0) {
+    return `请求失败，${attemptText}重试中，${Math.ceil(secs)} 秒后重试...`
+  }
+  return `请求失败，正在${attemptText}重试...`
+}
+
+const getActivityText = (msg: BaseMessage | null | undefined): string => {
+  if (!msg?.metadata?.loading) return ''
+  const parts = msg.parts
+  if (!parts?.length) return '正在准备中'
+  const lastPart = parts[parts.length - 1]
+  if (lastPart.type === 'reasoning') return '正在思考中'
+  if (lastPart.type === 'dynamic-tool' || String(lastPart.type).startsWith('tool-')) {
+    const toolName = String(lastPart.type).replace(/^tool-/, '') || '未知工具'
+    const state = (lastPart as any)?.state
+    if (state === 'approval-requested') return `等待确认工具 ${toolName}`
+    if (state === 'output-error') return `工具 ${toolName} 调用失败`
+    if (state === 'output-denied') return `工具 ${toolName} 已拒绝`
+    if (state === 'output-available') return ''
+    return `调用工具 ${toolName} 中`
+  }
+  if (lastPart.type === 'text') return '正在回复中'
+  return '正在处理中'
+}
+
 const contextCount = computed(() => {
   const agentId = currentChat.value?.agentId
   return (agentId ? agentStore.getAgentById(agentId)?.contextCount : undefined) ?? 0
 })
 
-// 判断是否存在上下文压缩消息
 const hasCompressedContext = computed(() => {
   return visibleMessages.value.some(
     (msg) =>
@@ -149,11 +215,31 @@ const hasCompressedContext = computed(() => {
   )
 })
 
-const lastMessageIndex = computed(() => {
-  if (visibleMessages.value.length === 0) return -1
-  return visibleMessages.value.length - 1
+const contentStyle = computed(() => ({
+  fontSize: `${display.value.fontSize}px`
+}))
+
+const lastFlatIndex = computed(() => {
+  if (flatItems.value.length === 0) return -1
+  return flatItems.value.length - 1
 })
 
+// 虚拟滚动器
+const virtualizer = useVirtualizer({
+  get count() { return flatItems.value.length },
+  getScrollElement: () => scrollHostRef.value,
+  estimateSize: (index: number) => {
+    const item = flatItems.value[index]
+    return item ? estimateItemHeight(item) : 80
+  },
+  overscan: 8
+})
+
+const measureRef = (el: unknown) => {
+  if (el instanceof HTMLElement) virtualizer.value.measureElement(el)
+}
+
+// 自动滚动：新消息到达时滚到底
 const autoScrollTrigger = computed(() => {
   const msgs = visibleMessages.value
   const last = msgs[msgs.length - 1]
@@ -165,48 +251,95 @@ const autoScrollTrigger = computed(() => {
   return `${msgs.length}:${last.id}:${last.parts.length}:${textLen}`
 })
 
-const handleScrollTop = useThrottleFn(async (event: Event) => {
+const tryAutoScroll = () => {
+  if (!autoScrollEnabled.value || isUserScrolledUp.value) return
+  if (Date.now() - lastUserScrollTime < 800) return
+  const lastIdx = lastFlatIndex.value
+  if (lastIdx < 0) return
+  virtualizer.value.scrollToIndex(lastIdx, { align: 'end' })
+}
+
+// 监听到触发变更时滚动
+watch(autoScrollTrigger, () => {
+  nextTick(tryAutoScroll)
+})
+
+// 切换会话时滚到底
+watch(() => currentChat.value?.id, () => {
+  nextTick(() => {
+    isUserScrolledUp.value = false
+    lastScrollTop = 0
+    virtualizer.value.scrollToIndex(Math.max(0, flatItems.value.length - 1), { align: 'end' })
+  })
+})
+
+// 加载更多（滚动到顶部时）
+const handleScrollEvent = (event: Event) => {
   const el = event.target as HTMLElement
-  if (!el || isLoadingMore.value) return
-  if (el.scrollTop > 50) return
-  const chat = currentChat.value
-  if (!chat) return
-  isLoadingMore.value = true
-  const prevScrollHeight = el.scrollHeight
-  try {
-    await loadMoreMessagesBefore(chat.id)
-    await nextTick()
-    el.scrollTop = el.scrollHeight - prevScrollHeight
-  } finally {
-    isLoadingMore.value = false
+  if (!el) return
+  lastUserScrollTime = Date.now()
+
+  // 检测用户是否滚上去
+  if (el.scrollTop < lastScrollTop) {
+    isUserScrolledUp.value = el.scrollTop + el.clientHeight < el.scrollHeight - 5
+  } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 5) {
+    isUserScrolledUp.value = false
   }
-}, 300)
+  lastScrollTop = el.scrollTop
+
+  // 滚动到顶部加载更多
+  if (!isLoadingMore.value && el.scrollTop <= 50) {
+    const chat = currentChat.value
+    if (!chat) return
+    isLoadingMore.value = true
+    const prevScrollHeight = el.scrollHeight
+    loadMoreMessagesBefore(chat.id).finally(() => {
+      nextTick(() => {
+        el.scrollTop = el.scrollHeight - prevScrollHeight
+        isLoadingMore.value = false
+      })
+    })
+  }
+}
 
 onMounted(() => {
   const el = scrollHostRef.value
   if (el) {
-    el.addEventListener('scroll', handleScrollTop as EventListener)
+    el.addEventListener('scroll', handleScrollEvent)
   }
 })
 
 onUnmounted(() => {
   const el = scrollHostRef.value
   if (el) {
-    el.removeEventListener('scroll', handleScrollTop as EventListener)
+    el.removeEventListener('scroll', handleScrollEvent)
   }
 })
 
-const { height: containerHeight } = useElementSize(scrollHostRef)
-const { height: prevMessageHeight } = useElementSize(prevMessageWrapperRef)
-const LAST_MESSAGE_BOTTOM_GAP = 16
-
-const lastMessageHeight = computed(() => {
-  if (lastMessageIndex.value >= 0 && containerHeight.value > 0 && prevMessageHeight.value > 0) {
-    const prevHeight = prevMessageHeight.value
-    const height = containerHeight.value - prevHeight - LAST_MESSAGE_BOTTOM_GAP
-    return `${Math.max(0, height)}px`
+// 兼容旧的 useMessageScroll API
+const scrollToBottom = () => {
+  const lastIdx = lastFlatIndex.value
+  if (lastIdx >= 0) {
+    virtualizer.value.scrollToIndex(lastIdx, { align: 'end' })
   }
-  return 'auto'
+  isUserScrolledUp.value = false
+}
+
+const getScrollContainer = () => scrollHostRef.value
+
+defineExpose({
+  scrollToBottom,
+  isUserScrolledUp: () => isUserScrolledUp.value,
+  container: getScrollContainer
+})
+
+// 同步到外部 messageScrollRef
+onMounted(() => {
+  ;(messageScrollRef as any).value = {
+    scrollToBottom,
+    isUserScrolledUp: () => isUserScrolledUp.value,
+    container: getScrollContainer
+  }
 })
 
 const getMessageText = (message: BaseMessage) => {
@@ -243,18 +376,6 @@ const copyMessageAsImage = async (message: BaseMessage) => {
     console.error('复制图片失败:', error)
     messageApi.error('复制图片失败')
   }
-}
-
-const isContextDividerVisible = (index: number) => {
-  return (
-    index === visibleMessages.value.length - contextCount.value &&
-    contextCount.value < visibleMessages.value.length &&
-    !hasCompressedContext.value
-  )
-}
-
-const setPrevMessageWrapperRef = (el: Element | null) => {
-  prevMessageWrapperRef.value = el instanceof HTMLElement ? el : null
 }
 
 const openMobileCopyPreview = (message: BaseMessage, selectedText = '') => {
@@ -683,87 +804,179 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 <template>
   <div class="message-list-wrapper">
     <div ref="scrollHostRef" class="message-scroll-host">
-      <MessageScrollContainer
-        ref="messageScrollRef"
-        :enabled="autoScrollEnabled"
-        :threshold="5"
-        :auto-scroll-trigger="autoScrollTrigger"
-        :reset-key="currentChat?.id ?? null"
+      <div
+        :class="{ 'is-centered': display.chatCenteredLayout }"
+        :style="{
+          height: `${virtualizer.getTotalSize()}px`,
+          position: 'relative',
+          width: '100%'
+        }"
       >
-        <div :class="{ 'is-centered': display.chatCenteredLayout }" class="messages-content">
-          <template v-for="(message, index) in visibleMessages" :key="message.id">
-            <div
-              v-memo="[
-                message,
-                index === lastMessageIndex,
-                index === lastMessageIndex ? lastMessageHeight : '',
-                editingMessageId === message.id,
-                isContextDividerVisible(index),
-                isNewlyEntered(message.id)
-              ]"
-              :id="`message-${message.id}`"
-              class="message-item-wrapper"
-              :class="{
-                'is-last-message': index === lastMessageIndex,
-                'is-newly-entered': isNewlyEntered(message.id)
-              }"
-              :style="index === lastMessageIndex ? { minHeight: lastMessageHeight } : undefined"
-              :ref="
-                index === lastMessageIndex - 1
-                  ? (ref) => setPrevMessageWrapperRef(ref as Element)
-                  : undefined
-              "
-            >
-              <div v-if="isContextDividerVisible(index)" class="context-divider">
-                <div class="divider-line"></div>
-                <span class="divider-text">上下文分割线</span>
-                <div class="divider-line"></div>
+        <div
+          v-for="vItem in virtualizer.getVirtualItems()"
+          :key="String(vItem.key)"
+          :data-index="vItem.index"
+          :ref="measureRef"
+          :id="`message-${flatItems[vItem.index]?.messageId ?? ''}`"
+          class="virtual-item"
+          :class="[
+            `vi-${flatItems[vItem.index]?.type ?? 'unknown'}`,
+            {
+              'vi-group-last': flatItems[vItem.index]?.isLastInGroup,
+              'vi-is-new': flatItems[vItem.index]?.messageId ? isNewlyEntered(flatItems[vItem.index]!.messageId) : false
+            }
+          ]"
+          :style="{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            transform: `translateY(${vItem.start}px)`
+          }"
+        >
+            <!-- context divider -->
+            <div v-if="flatItems[vItem.index]?.type === 'context-divider'" class="context-divider">
+              <div class="divider-line"></div>
+              <span class="divider-text">上下文分割线</span>
+              <div class="divider-line"></div>
+            </div>
+
+            <!-- user message (single item, unchanged) -->
+            <ChatMessageItemHuman
+              v-else-if="flatItems[vItem.index]?.type === 'user-message'"
+              :message="flatItems[vItem.index]!.msg!"
+              @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)"
+            />
+
+            <!-- system message (single item, unchanged) -->
+            <ChatMessageItemSystem
+              v-else-if="flatItems[vItem.index]?.type === 'system-message'"
+              :message="flatItems[vItem.index]!.msg!"
+              @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)"
+            />
+
+            <!-- AI header: avatar + model name + token -->
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-header'" class="header-inner">
+              <div class="vi-ai-avatar-area">
+                <Image
+                  v-if="chatsStore.currentChat?.agentId && agentStore.getAgentById(chatsStore.currentChat!.agentId!)?.avatar"
+                  :src="agentStore.getAgentById(chatsStore.currentChat!.agentId!)!.avatar!"
+                  class="vi-ai-avatar"
+                  alt="avatar"
+                />
+                <div v-else class="vi-ai-avatar-fallback"><Robot /></div>
               </div>
-              <ChatMessageItemHuman
-                v-if="message.role === 'user'"
-                :message="message"
-                :style="
-                  index === lastMessageIndex
-                    ? {
-                        minHeight: 0,
-                        height: 'auto',
-                        flex: '1 1 auto'
-                      }
-                    : undefined
-                "
-                @contextmenu="onMessageRightClick($event, message)"
-              />
-              <ChatMessageItemAi
-                v-else-if="message.role === 'assistant'"
-                :message="message"
-                :style="{
-                  minHeight: index === lastMessageIndex ? 0 : undefined,
-                  height: 'auto',
-                  flex: index === lastMessageIndex ? '1 1 auto' : 'none'
-                }"
-                @contextmenu="onMessageRightClick($event, message)"
-              />
-              <ChatMessageItemSystem
-                v-else-if="message.role === 'system'"
-                :message="message"
-                :style="
-                  index === lastMessageIndex
-                    ? {
-                        minHeight: 0,
-                        height: 'auto',
-                        flex: '1 1 auto'
-                      }
-                    : undefined
-                "
-                @contextmenu="onMessageRightClick($event, message)"
+              <div class="vi-ai-meta">
+                <span class="vi-ai-name">{{ flatItems[vItem.index]!.msg?.metadata?.model }}</span>
+                <div v-if="flatItems[vItem.index]!.msg?.metadata?.loading || flatItems[vItem.index]!.msg?.metadata?.usage" class="vi-ai-usage">
+                  <span v-if="(flatItems[vItem.index]!.msg?.metadata?.usage as any)?.totalTokens != null">
+                    Tokens: {{ (flatItems[vItem.index]!.msg?.metadata?.usage as any)?.totalTokens }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- RAG search -->
+            <ChatMessageItemRagSearch
+              v-else-if="flatItems[vItem.index]?.type === 'ai-rag-search'"
+              :searching="!flatItems[vItem.index]!.msg?.metadata?.ragSearchDetails?.length && !!flatItems[vItem.index]!.msg?.metadata?.ragEnabled"
+              :search-details="flatItems[vItem.index]!.msg?.metadata?.ragSearchDetails"
+            />
+
+            <!-- loading dots -->
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-loading'" class="vi-loading">
+              <div class="loading-dots">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </div>
+            </div>
+
+            <!-- retry status -->
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-retry'" class="retry-container">
+              <span class="retry-text">{{ getRetryText(flatItems[vItem.index]!.msg!) }}</span>
+              <Button v-if="flatItems[vItem.index]!.msg?.id && chatsStore.currentChat?.id" size="sm" variant="icon" type="button" class="retry-stop-btn" title="停止自动重试" @click="getRetryStopHandler?.(chatsStore.currentChat!.id, flatItems[vItem.index]!.msg!.id!)?.()">
+                <template #icon><Stop style="color: red" /></template>
+              </Button>
+            </div>
+
+            <!-- collapsed toggle -->
+            <button v-else-if="flatItems[vItem.index]?.type === 'ai-collapsed-toggle'" class="previous-content-toggle" :class="{ 'is-expanded': expandedCollapsedIds.has(flatItems[vItem.index]!.messageId) }" type="button" @click="toggleCollapsed(flatItems[vItem.index]!.messageId)">
+              <ChevronDown />
+              <span>{{ expandedCollapsedIds.has(flatItems[vItem.index]!.messageId) ? '收起前文' : `已折叠前文 ${flatItems[vItem.index]?.hiddenCount ?? 0} 项` }}</span>
+            </button>
+
+            <!-- text part -->
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-text'" class="vi-part">
+              <div class="text-block" :style="contentStyle">
+                <Markdown
+                  v-if="flatItems[vItem.index]!.part?.text"
+                  :block="flatItems[vItem.index]!.part as TextUIPart"
+                  :message="flatItems[vItem.index]!.msg!"
+                  :streaming="false"
+                  :disable-translation="true"
+                />
+              </div>
+            </div>
+
+            <!-- reasoning part -->
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-reasoning'" class="vi-part">
+              <ChatMessageItemReasoning_content
+                :reasoning_content="(flatItems[vItem.index]!.part as TextUIPart)?.text ?? ''"
+                :streaming="false"
               />
             </div>
-          </template>
-        </div>
-      </MessageScrollContainer>
-    </div>
 
-    <ChatMessageNav :container="messageScrollRef" />
+            <!-- dynamic-tool part -->
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-dynamic-tool'" class="vi-part">
+              <ChatMessageItemDynamicTool
+                :message="flatItems[vItem.index]!.msg!"
+                :tool_part="flatItems[vItem.index]!.part as any"
+              />
+            </div>
+
+            <!-- tool part -->
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-tool'" class="vi-part">
+              <ChatMessageItemTool
+                :message="flatItems[vItem.index]!.msg!"
+                :tool_part="flatItems[vItem.index]!.part as ToolUIPart"
+              />
+            </div>
+
+            <!-- file part -->
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-file'" class="vi-part">
+              <FileUpload :removable="false" :files="[flatItems[vItem.index]!.part as any]" />
+            </div>
+
+            <!-- waveform -->
+            <LiveWaveform v-else-if="flatItems[vItem.index]?.type === 'ai-waveform'" :active="true" />
+
+            <!-- actions -->
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-actions'" class="msg-actions">
+              <Button v-if="hasAudioChunks(flatItems[vItem.index]!.msg!)" size="sm" variant="icon" type="button">
+                <template #icon><VolumeMedium /></template>
+              </Button>
+              <Button v-if="flatItems[vItem.index]!.msg?.metadata?.loading && !flatItems[vItem.index]!.msg?.metadata?.error && flatItems[vItem.index]!.msg?.metadata?.stop" size="sm" variant="icon" type="button" @click="flatItems[vItem.index]!.msg?.metadata?.stop">
+                <template #icon><Stop style="color: red" /></template>
+              </Button>
+              <div v-if="getActivityText(flatItems[vItem.index]!.msg!)" class="message-activity-status">
+                {{ getActivityText(flatItems[vItem.index]!.msg!) }}
+              </div>
+            </div>
+
+            <!-- translation -->
+            <MessageTranslation
+              v-else-if="flatItems[vItem.index]?.type === 'ai-translation'"
+              :translations="flatItems[vItem.index]!.msg?.metadata?.translations"
+              :translationLoading="flatItems[vItem.index]!.msg?.metadata?.translationLoading"
+              :translationController="flatItems[vItem.index]!.msg?.metadata?.translationController"
+              @stopTranslation="() => flatItems[vItem.index]!.msg?.metadata?.translationController?.()"
+            />
+          </div>
+        </div>
+      </div>
+
+    <ChatMessageNav :container="messageScrollRef" :virtualizer="virtualizer" :total-count="flatItems.length" />
 
     <Teleport to="body">
       <div
@@ -800,69 +1013,49 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   width: 100%;
 }
 
-.messages-content.is-centered {
+.message-scroll-host {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  overflow-anchor: none;
+  scroll-snap-type: none;
+}
+
+.is-centered {
   max-width: 800px;
   margin: 0 auto;
 }
 
-.message-scroll-host {
-  flex: 1;
-  min-height: 0;
-}
-
-.messages-content {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-
-.message-list-wrapper :deep(.auto-scroll-container) {
-  display: flex;
-  flex: 1 0 auto;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.message-item-wrapper {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 100px;
-
-  display: flex;
-  flex-direction: column;
-  flex: none;
-  position: relative;
-
-  margin-bottom: 8px;
+/* —— Virtual item base —— */
+.virtual-item {
   transition: background-color 0.5s ease;
 }
 
-.message-item-wrapper.is-last-message {
-  min-height: 0;
+/* Group spacing */
+.vi-group-last {
+  padding-bottom: 8px;
 }
 
-/* 新消息入场：克制但可感知地淡入并轻微上浮，仅播放一次 */
-.message-item-wrapper.is-newly-entered {
+/* Highlight for scrollToMessage */
+.virtual-item.highlight-jump {
+  background-color: rgba(var(--accent-rgb), 0.15);
+  border-radius: 8px;
+}
+
+/* Entry animation */
+.virtual-item.vi-is-new {
   will-change: transform, opacity;
   animation: message-rise-in 0.32s var(--motion-ease-decelerated);
 }
 
 @keyframes message-rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.985);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.message-item-wrapper.highlight-jump {
-  background-color: rgba(var(--accent-rgb), 0.15);
-  border-radius: 8px;
-}
-
+/* —— Context divider —— */
 .context-divider {
   display: flex;
   align-items: center;
@@ -870,106 +1063,95 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   margin: 16px 0;
   padding: 0 20px;
 }
+.divider-line { flex: 1; height: 1px; background: var(--border-color); opacity: 0.5; }
+.divider-text { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; font-weight: 500; }
 
-.divider-line {
-  flex: 1;
-  height: 1px;
-  background: var(--border-color);
-  opacity: 0.5;
+/* —— AI header —— */
+.vi-ai-header {
+  /* dynamic class on virtual-item – no layout, only for identification */
 }
-
-.divider-text {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  white-space: nowrap;
-  font-weight: 500;
-}
-
-.mobile-copy-preview-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+.header-inner {
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  gap: 8px;
+  padding: 0 20px;
+  align-items: center;
+  min-height: 40px;
+}
+.vi-ai-avatar-area { display: flex; align-items: center; padding-top: 2px; }
+.vi-ai-avatar { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; background-color: var(--border-color-medium); }
+.vi-ai-avatar-fallback { width: 32px; height: 32px; border-radius: 6px; background: var(--bg-hover); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; }
+.vi-ai-meta { display: flex; flex-direction: column; gap: 1px; }
+.vi-ai-name { font-weight: 600; font-size: 13px; color: var(--text-primary); }
+.vi-ai-usage { font-size: 10px; color: var(--text-tertiary); line-height: 1; }
+
+/* —— Loading dots —— */
+.vi-loading { padding: 8px 20px; }
+.loading-dots { display: flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-color); animation: pulse 1.4s ease-in-out infinite; }
+.dot:nth-child(1) { animation-delay: 0s; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* —— Retry —— */
+.retry-container {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin: 4px 20px;
+  background-color: var(--bg-error, rgba(254, 242, 242, 0.9));
+  border: 1px solid var(--border-error, rgba(252, 165, 165, 0.6)); border-radius: 6px;
+  font-size: 12px; color: var(--color-danger);
+}
+.retry-text { flex: 1; line-height: 1.4; }
+.dark-mode .retry-container {
+  background-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.15);
+  border-color: rgba(var(--color-danger-rgb, 239, 68, 68), 0.3);
+}
+
+/* —— Collapsed toggle —— */
+.previous-content-toggle {
+  align-self: stretch; display: flex; align-items: center; gap: 4px; width: calc(100% - 40px);
+  margin: 1px 20px 4px; padding: 2px 6px; border: none; border-radius: 4px;
+  background: transparent; color: var(--text-tertiary); font-size: 11px; line-height: 1.4; cursor: pointer;
+}
+.previous-content-toggle:hover { background: var(--bg-hover); color: var(--text-secondary); }
+.previous-content-toggle svg { width: 11px; height: 11px; transform: rotate(-90deg); transition: transform 0.2s ease; }
+
+/* —— Parts —— */
+.vi-part {
+  padding: 5px 20px;
+}
+.text-block {
+  font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+  max-width: 100%; min-width: 0;
+}
+
+/* —— Actions —— */
+.msg-actions {
+  align-self: stretch; display: flex; align-items: center; gap: 8px; padding: 4px 20px;
+}
+.message-activity-status { margin-left: auto; color: var(--text-tertiary); font-size: 11px; line-height: 1.4; white-space: nowrap; }
+
+/* —— Mobile copy preview —— */
+.mobile-copy-preview-overlay {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); display: flex;
+  align-items: flex-end; justify-content: center;
   padding: 12px 12px max(12px, var(--safe-area-bottom, 0px)) 12px;
 }
-
 .mobile-copy-preview-card {
-  width: 100%;
-  max-width: 620px;
-  max-height: calc(var(--vh, 100vh) - 24px);
-  background: var(--bg-card);
-  border-radius: 16px;
-  border: 1px solid var(--border-color);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow: hidden;
+  width: 100%; max-width: 620px; max-height: calc(var(--vh, 100vh) - 24px);
+  background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color);
+  padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow: hidden;
 }
-
-.mobile-copy-preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.mobile-copy-preview-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
+.mobile-copy-preview-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mobile-copy-preview-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .mobile-copy-selected-text {
-  font-size: 12px;
-  color: var(--text-secondary);
-  background: var(--bg-hover);
-  border-radius: 8px;
-  padding: 8px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-.mobile-copy-preview-content {
-  flex: 1;
-  min-height: 0;
-  max-height: calc(var(--vh, 100vh) - 180px);
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color-light);
-  background: var(--bg-hover);
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text-primary);
-  white-space: pre-wrap;
-  word-break: break-word;
-  user-select: text;
-  -webkit-user-select: text;
-  -webkit-touch-callout: default;
-}
-
-.mobile-copy-preview-tip {
-  font-size: 12px;
-  color: var(--text-tertiary);
+  font-size: 12px; color: var(--text-secondary); background: var(--bg-hover); border-radius: 8px;
+  padding: 8px; white-space: pre-wrap; word-break: break-word;
 }
 
 @media (max-width: 767px) {
-  .message-list-wrapper {
-    touch-action: pan-y;
-  }
-
-.message-list-wrapper :deep(.message-scroll-container) {
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-  }
+  .message-list-wrapper { touch-action: pan-y; }
 }
 </style>

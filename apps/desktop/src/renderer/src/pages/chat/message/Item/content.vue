@@ -261,6 +261,8 @@ const lastReasoningBlockIndex = computed(() => {
   max-width: 100%;
   min-width: 0;
   padding-block: 5px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 60px;
 }
 
 .view-block--tight {
