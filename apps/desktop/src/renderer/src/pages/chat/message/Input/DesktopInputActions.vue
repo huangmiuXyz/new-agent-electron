@@ -273,10 +273,10 @@ const WorkPathChevronIcon = useIcon('ChevronDown')
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  min-height: 30px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   border: none;
   border-radius: 8px;
   background: var(--color-primary);
