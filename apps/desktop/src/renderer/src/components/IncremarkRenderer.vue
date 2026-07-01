@@ -158,7 +158,6 @@ const stopTranslate = () => {
 
 const showTransMenu = (e: MouseEvent) => {
   if (props.disableTranslation) {
-    e.stopPropagation()
     return
   }
   if (!props.text) return
