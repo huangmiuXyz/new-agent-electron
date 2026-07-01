@@ -20,6 +20,7 @@ type InputButtonId =
   | 'model'
   | 'chatSwitcher'
   | 'workpath'
+  | 'mcpResources'
 
 interface InputButtonItem {
   id: InputButtonId
@@ -39,12 +40,8 @@ const buttonLabelMap: Record<InputButtonId, string> = {
   agent: '智能体选择',
   model: '模型选择',
   chatSwitcher: '聊天列表',
-  workpath: '工作路径'
-}
-
-const buttonHintMap: Partial<Record<InputButtonId, string>> = {
-  stop: '仅在生成中显示',
-  workpath: '智能体支持本地工作路径时显示'
+  workpath: '工作路径',
+  mcpResources: 'MCP 资源'
 }
 
 // 适配 List 组件的列表项：把 store 的 layout 映射成带 name/hint 的视图数据
@@ -57,10 +54,21 @@ interface ButtonListItem {
 
 const listItems = computed<ButtonListItem[]>(() => {
   const layout = (display.value.inputButtonLayout || []) as InputButtonItem[]
-  return layout.map((item) => ({
+  // 顶栏按钮（agent/model/workpath）固定在最上方
+  const topIds = ['agent', 'model', 'workpath']
+  const sorted = [...layout]
+  const topItems: InputButtonItem[] = []
+  for (const id of topIds) {
+    const idx = sorted.findIndex((i) => i.id === id)
+    if (idx !== -1) {
+      topItems.push(...sorted.splice(idx, 1))
+    }
+  }
+  sorted.unshift(...topItems)
+  return sorted.map((item) => ({
     id: item.id,
     name: buttonLabelMap[item.id] || item.id,
-    hint: buttonHintMap[item.id] || '',
+    hint: '',
     visible: item.visible
   }))
 })
@@ -76,6 +84,16 @@ const handleSort = ({ fromId, toId, after }: { fromId: string; toId: string; aft
   const toIndex = next.findIndex((i) => i.id === toId)
   if (toIndex === -1) return
   next.splice(after ? toIndex + 1 : toIndex, 0, moved)
+  // 顶栏按钮（agent/model/workpath）始终固定在最上方
+  const topIds = ['agent', 'model', 'workpath']
+  const topItems: InputButtonItem[] = []
+  for (const id of topIds) {
+    const idx = next.findIndex((i) => i.id === id)
+    if (idx !== -1) {
+      topItems.push(...next.splice(idx, 1))
+    }
+  }
+  next.unshift(...topItems)
   settingsStore.updateInputButtonLayout(next)
 }
 
@@ -109,11 +127,12 @@ const resetToDefault = () => {
             :items="listItems"
             key-field="id"
             main-field="name"
-            sub-field="hint"
+            sub-field=""
             :selectable="false"
             :sortable="true"
             sort-mode="handle"
             :is-disabled="(item: ButtonListItem) => !item.visible"
+            :can-sort-item="(item: ButtonListItem) => item.visible && !['agent', 'model', 'workpath'].includes(item.id)"
             @sort="handleSort"
           >
             <template #actions="{ item }">

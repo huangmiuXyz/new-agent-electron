@@ -153,6 +153,9 @@ export const useSettingsStore = defineStore(
 
     // 与 Input/index.vue 桌面端 .action-left 渲染顺序保持一致
     const createDefaultInputButtonLayout = (): InputButtonItem[] => [
+      { id: 'agent', visible: true },
+      { id: 'model', visible: true },
+      { id: 'workpath', visible: true },
       { id: 'upload', visible: true },
       { id: 'inputAudio', visible: true },
       { id: 'thinking', visible: true },
@@ -162,11 +165,8 @@ export const useSettingsStore = defineStore(
       { id: 'voice', visible: true },
       { id: 'speech', visible: true },
       { id: 'stop', visible: true },
-      { id: 'agent', visible: true },
-      { id: 'model', visible: true },
       { id: 'mcpResources', visible: true },
-      { id: 'chatSwitcher', visible: true },
-      { id: 'workpath', visible: true }
+      { id: 'chatSwitcher', visible: true }
     ]
 
     const createDefaultDisplay = () => ({

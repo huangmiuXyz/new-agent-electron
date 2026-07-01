@@ -541,10 +541,10 @@ onUnmounted(() => {
     />
 
     <div v-if="!isMobile" class="input-header">
-      <ChatAgentSelector type="select" />
-      <ModelSelector v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" type="select" />
+      <ChatAgentSelector v-if="visibleInputButtons.includes('agent')" type="select" />
+      <ModelSelector v-if="visibleInputButtons.includes('model')" v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" type="select" />
       <button
-        v-if="canChooseLocalWorkPath"
+        v-if="canChooseLocalWorkPath && visibleInputButtons.includes('workpath')"
         type="button"
         class="workpath-trigger no-drag"
         :class="{ 'workpath-active': currentAgentWorkPath }"
