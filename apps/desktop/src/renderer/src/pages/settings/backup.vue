@@ -27,7 +27,7 @@ const buildBackupData = async () => {
     settings: settingsStore.$state,
     agent: agentStore.$state,
     chatsSnapshot: await chatRepository.exportSnapshot({
-      summaries: chatsStore.chatSummaries,
+      summaries: chatsStore.chatList,
       activeChatId: chatsStore.activeChatId,
       chatDrafts: chatsStore.chatDrafts
     }),
@@ -108,7 +108,7 @@ const restoreFromData = async (data: any) => {
 
   if (data.chatsSnapshot) {
     if (data.chatsSnapshot.summaries) {
-      chatsStore.chatSummaries = data.chatsSnapshot.summaries
+      chatsStore.chatList = data.chatsSnapshot.summaries
     }
     if (data.chatsSnapshot.activeChatId !== undefined) {
       chatsStore.activeChatId = data.chatsSnapshot.activeChatId
@@ -233,7 +233,7 @@ const resetData = async () => {
     localStorage.clear()
     settingsStore.$reset()
     agentStore.$reset()
-    chatsStore.chatSummaries = []
+    chatsStore.chatList = []
     chatsStore.activeChatId = null
     chatsStore.chatDrafts = {}
     await chatRepository.clearAllChatMessages()

@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { pathToFileURL } from 'url'
 import { setupSqliteHandlers, initSqlite } from './services/sqlite'
+import { initChatDb } from './db/chatDb'
+import { setupChatDbHandlers } from './ipc/chatDbHandlers'
 import { setupUpdaterHandlers } from './services/updater'
 import { setupPtyHandlers } from './services/pty'
 import { setupComputerHandlers } from './services/computer'
@@ -619,6 +621,13 @@ if (gotSingleInstanceLock) {
       setupSqliteHandlers()
     } catch (error) {
       console.error('[main] Failed to initialize sqlite services', error)
+    }
+
+    try {
+      initChatDb()
+      setupChatDbHandlers()
+    } catch (error) {
+      console.error('[main] Failed to initialize chat database', error)
     }
 
     setupPtyHandlers()

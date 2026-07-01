@@ -56,7 +56,7 @@ const performSearch = useDebounceFn(async (query: string) => {
         const lowerQuery = trimmed.toLowerCase()
         const results: SearchResult[] = []
         const MAX_RESULTS = 50
-        const summaries = chatsStore.chatSummaries
+        const summaries = chatsStore.chatList
 
         const messagesByChat = await Promise.all(
             summaries.map(async (summary) => ({

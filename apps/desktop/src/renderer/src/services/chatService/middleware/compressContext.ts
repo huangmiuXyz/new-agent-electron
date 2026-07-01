@@ -20,7 +20,7 @@ const getLatestCompressedContextIndex = (messages: Array<{ role: string; content
 
 const getCompressedContextFromStore = async (cid: string): Promise<string> => {
   const chatsStore = useChatsStores()
-  const summary = chatsStore.chatSummaries.find((s) => s.id === cid)
+  const summary = chatsStore.chatList.find((s) => s.id === cid)
   if (!summary?.compressedContext?.content || summary.compressedContext.loading) return ''
   return `${summary.compressedContext.content}\n\n${COMPRESSED_CONTEXT_MARKER}`
 }

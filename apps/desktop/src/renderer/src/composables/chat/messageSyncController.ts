@@ -6,6 +6,7 @@ import {
   extractGeneratedTextForTokenEstimation,
   getFlatTokenUsage,
 } from '@renderer/services/chatService/tokenUsage'
+import { chatStreamPersistence } from '@renderer/services/chatStreamPersistence'
 
 
 // 流式 flush 节流间隔。
@@ -44,6 +45,7 @@ export const createChatMessageSyncController = ({
   let pendingSpeechMessage: BaseMessage | undefined
   const pendingSyncMessageIds: string[] = []
   const pendingSyncMessages = new Map<string, BaseMessage>()
+  const persistedMessageIds = new Set<string>()
 
   const createStoreMessageSnapshot = (
     message?: BaseMessage,
@@ -174,7 +176,7 @@ export const createChatMessageSyncController = ({
     pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
   }
 
-  const flushStreamingUpdate = (options: { persist?: boolean } = {}): BaseMessage[] | undefined => {
+  const flushStreamingUpdate = async (options: { persist?: boolean; force?: boolean } = {}): Promise<BaseMessage[] | undefined> => {
     if (streamFlushHandle) {
       clearTimeout(streamFlushHandle)
       streamFlushHandle = null
@@ -198,14 +200,33 @@ export const createChatMessageSyncController = ({
         nextMessages = applySnapshotToMessages(nextMessages, snapshot)
       }
       const now = Date.now()
-      // 工具循环中 onFinish 频繁触发 → 之前 options.persist === true 绕过间隔检查，
-      // 导致密集工具循环中 persists 排队堆积（实测 1220ms+）。
-      // 现在统一受 STREAM_PERSIST_INTERVAL_MS 节流，除非 force: true（仅 dispose 用）。
       const shouldPersist =
         options.force === true ||
         (options.persist !== false && now - lastPersistAt >= STREAM_PERSIST_INTERVAL_MS)
-      updateMessages(chatId, nextMessages, { persist: shouldPersist })
-      if (shouldPersist) lastPersistAt = now
+
+      // UI always updates without triggering full replaceMessages
+      updateMessages(chatId, nextMessages, { persist: false })
+
+      // Persist changed messages at part level instead of full rewrite.
+      // upsertPart depends on the message row existing, so upsertMessageSnapshot must complete first.
+      if (shouldPersist && !options.force) {
+        for (const message of messagesToSync) {
+          try {
+            if (!persistedMessageIds.has(message.id)) {
+              persistedMessageIds.add(message.id)
+              await chatStreamPersistence.upsertMessageSnapshot(chatId, message)
+            }
+            if (message.parts) {
+              for (let i = 0; i < message.parts.length; i++) {
+                await chatStreamPersistence.upsertPart(message.id, i, message.parts[i])
+              }
+            }
+          } catch (err) {
+            console.error('[messageSync] Failed to persist message', err)
+          }
+        }
+        lastPersistAt = now
+      }
     }
 
     if (pendingSpeechMessage || pendingStreamParts) {
@@ -218,7 +239,7 @@ export const createChatMessageSyncController = ({
 
   const finalizeMessageSync = async (message?: BaseMessage, error?: APICallError) => {
     if (!message) {
-      flushStreamingUpdate({ persist: true })
+      flushStreamingUpdate({ force: true })
       return
     }
 
@@ -229,7 +250,12 @@ export const createChatMessageSyncController = ({
     } as MetaData
 
     queueMessageSync(message, error)
-    const updatedMessages = flushStreamingUpdate({ persist: true })
+    const updatedMessages = await flushStreamingUpdate({ force: true })
+
+    persistedMessageIds.delete(message.id)
+    chatStreamPersistence.finalizeMessage(chatId, message).catch((err) => {
+      console.error('[messageSync] Failed to finalize message', err)
+    })
 
     const chatsStore = useChatsStores()
     const preview = message?.parts
@@ -267,12 +293,12 @@ export const createChatMessageSyncController = ({
     // Batch token-level updates so markdown parsing, Pinia persistence, and list patching
     // do not run on every tiny stream chunk.
     streamFlushHandle = setTimeout(() => {
-      flushStreamingUpdate()
+      void flushStreamingUpdate()
     }, STREAM_SYNC_INTERVAL_MS)
   }
 
   const dispose = () => {
-    flushStreamingUpdate({ persist: true })
+    void flushStreamingUpdate({ force: true })
   }
 
   return {

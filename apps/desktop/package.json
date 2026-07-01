@@ -13,7 +13,7 @@
     "postinstall": "pnpm rebuild @vscode/ripgrep && pnpm -w rebuild:native",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
-    "dev:debug":"electron-vite dev -- --remote-debugging-port=9222",
+    "dev:debug": "electron-vite dev -- --remote-debugging-port=9222",
     "build": "npm run typecheck && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-vite build",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "node ./scripts/build-win.mjs",
@@ -92,6 +92,7 @@
     "blob-util": "catalog:",
     "dayjs": "catalog:",
     "diff": "^7.0.0",
+    "drizzle-orm": "^0.45.2",
     "electron-updater": "catalog:",
     "es-toolkit": "catalog:",
     "hast-util-to-html": "catalog:",
@@ -119,12 +120,12 @@
     "textextensions": "^6.11.0",
     "turndown": "^7.2.4",
     "vue": "catalog:",
-    "zod": "catalog:",
     "vue-router": "catalog:",
     "vuedraggable": "^4.1.0",
     "xterm": "catalog:",
     "xterm-addon-fit": "catalog:",
-    "zhipu-ai-provider": "catalog:"
+    "zhipu-ai-provider": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "catalog:",
@@ -148,6 +149,7 @@
     "@vue/eslint-config-typescript": "catalog:",
     "@vue/tsconfig": "catalog:",
     "cross-env": "^10.1.0",
+    "drizzle-kit": "^0.31.10",
     "electron": "catalog:",
     "electron-builder": "catalog:",
     "electron-vite": "catalog:",
@@ -198,6 +200,12 @@
       "!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}",
       "!{.env,.env.*,.npmrc,pnpm-lock.yaml}",
       "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
+    ],
+    "extraResources": [
+      {
+        "from": "src/main/db/migrations",
+        "to": "db/migrations"
+      }
     ],
     "asarUnpack": [
       "resources/**",

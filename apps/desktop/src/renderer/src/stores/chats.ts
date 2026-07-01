@@ -4,7 +4,6 @@ import {
 } from '@renderer/utils/storage'
 import { correctThinkingMode } from '@renderer/services/chatService/thinkingMode'
 import { chatRepository } from '@renderer/services/chatRepository'
-import { initializeChatStorage } from '@renderer/services/chatStorageBootstrap'
 
 let resolveRestore: () => void
 const restorePromise = new Promise<void>((resolve) => {
@@ -29,7 +28,7 @@ export const useChatsStores = defineStore(
   'chats',
   () => {
     const DEFAULT_AGENT_ID = 'default'
-    const chatSummaries = ref<ChatSummary[]>([])
+    const chatList = ref<ChatSummary[]>([])
     const tempChats = ref<Chat[]>([])
     const activeChatId = ref<string | null>(null)
     const activeMessageWindow = ref<LoadedMessageWindow | null>(null)
@@ -63,11 +62,11 @@ export const useChatsStores = defineStore(
     })
 
     const allChats = computed(() => {
-      return [...chatSummaries.value.map((s) => materializeChat(s, getLoadedMessages(s.id))), ...tempChats.value]
+      return [...chatList.value.map((s) => materializeChat(s, getLoadedMessages(s.id))), ...tempChats.value]
     })
 
     const currentChat = computed(() => {
-      const summary = chatSummaries.value.find((chat) => chat.id === activeChatId.value)
+      const summary = chatList.value.find((chat) => chat.id === activeChatId.value)
       if (!summary) return tempChats.value.find((chat) => chat.id === activeChatId.value) || null
       return materializeChat(summary, getLoadedMessages(summary.id))
     })
@@ -149,11 +148,16 @@ export const useChatsStores = defineStore(
     }
 
     const withChatMeta = (chatId: string, fn: (meta: ChatSummary | Chat) => void) => {
-      const summary = chatSummaries.value.find((s) => s.id === chatId)
+      const summary = chatList.value.find((s) => s.id === chatId)
       if (summary) {
         fn(summary)
         summary.updatedAt = Date.now()
-        chatSummaries.value = [...chatSummaries.value]
+        chatList.value = [...chatList.value]
+        if (!isMobile.value) {
+          window.api.chatDb.chat.update(chatId, JSON.parse(JSON.stringify(summary))).catch((err) => {
+            console.error('[chats] Failed to sync chat meta', err)
+          })
+        }
         return
       }
       const chat = tempChats.value.find((c) => c.id === chatId)
@@ -176,12 +180,24 @@ export const useChatsStores = defineStore(
     }
 
     const initializeChatsStore = async () => {
-      await initializeChatStorage()
       await isAfterRestore
+      if (!isMobile.value) {
+        const summaries = await window.api.chatDb.chat.list()
+        chatList.value = summaries
+      }
+      if (chatList.value.length === 0 && tempChats.value.length === 0) {
+        createChat('新的聊天')
+      }
       if (activeChatId.value) {
-        const window = await chatRepository.loadRecentMessages(activeChatId.value, MESSAGE_WINDOW_SIZE)
-        messageWindows.value = { [activeChatId.value]: window }
-        activeMessageWindow.value = window
+        const chatExists = chatList.value.some(c => c.id === activeChatId.value)
+        if (!chatExists) {
+          activeChatId.value = chatList.value[0]?.id || null
+        }
+        if (activeChatId.value) {
+          const window = await chatRepository.loadRecentMessages(activeChatId.value, MESSAGE_WINDOW_SIZE)
+          messageWindows.value = { [activeChatId.value]: window }
+          activeMessageWindow.value = window
+        }
       }
     }
 
@@ -233,7 +249,12 @@ export const useChatsStores = defineStore(
           subTask: options?.subTask,
           messageCount: 0
         }
-        chatSummaries.value.push(summary)
+        chatList.value.push(summary)
+        if (!isMobile.value) {
+          window.api.chatDb.chat.create(summary).catch((err) => {
+            console.error('[chats] Failed to persist chat', err)
+          })
+        }
       }
 
       if (options?.activate !== false) {
@@ -277,14 +298,16 @@ export const useChatsStores = defineStore(
       !isMobile.value && useCanvasStore().deleteCanvases([...allIds])
 
       for (const chatId of allIds) {
-        const window = messageWindows.value[chatId]
-        if (window) {
-          window.messages.forEach((m) => m.metadata?.stop?.())
+        const loaded = messageWindows.value[chatId]
+        if (loaded) {
+          loaded.messages.forEach((m) => m.metadata?.stop?.())
         }
-        const summary = chatSummaries.value.find((s) => s.id === chatId)
+        const summary = chatList.value.find((s) => s.id === chatId)
         if (summary) {
-          await chatRepository.deleteChatMessages(chatId)
-          chatSummaries.value = chatSummaries.value.filter((s) => s.id !== chatId)
+          chatList.value = chatList.value.filter((s) => s.id !== chatId)
+          if (!isMobile.value) {
+            await window.api.chatDb.chat.delete(chatId)
+          }
         } else {
           tempChats.value = tempChats.value.filter((c) => c.id !== chatId)
         }
@@ -463,7 +486,7 @@ export const useChatsStores = defineStore(
     }
 
     const togglePinChat = (chatId: string) => {
-      const summary = chatSummaries.value.find((s) => s.id === chatId)
+      const summary = chatList.value.find((s) => s.id === chatId)
       if (summary) {
         updateChatSummaryMeta(chatId, { is_collected: !summary.is_collected })
         return
@@ -475,7 +498,7 @@ export const useChatsStores = defineStore(
     }
 
     const isChatPinned = (chatId: string): boolean => {
-      const summary = chatSummaries.value.find((s) => s.id === chatId)
+      const summary = chatList.value.find((s) => s.id === chatId)
       if (summary) return !!summary.is_collected
       const chat = tempChats.value.find((c) => c.id === chatId)
       return !!chat?.is_collected
@@ -590,7 +613,7 @@ export const useChatsStores = defineStore(
         metadata: msg.metadata ? { ...msg.metadata } : msg.metadata
       }))
 
-      const sourceSummary = chatSummaries.value.find((s) => s.id === sourceChatId)
+      const sourceSummary = chatList.value.find((s) => s.id === sourceChatId)
       const newChatId = createChat(sourceSummary?.title || '新的聊天', {
         agentId: sourceSummary?.agentId
       })
@@ -715,9 +738,6 @@ export const useChatsStores = defineStore(
       Object.values(messageWindows.value).forEach((window) => {
         window.messages.forEach((message) => message.metadata?.stop?.())
       })
-      if (nextState.chats.length === 0) {
-        allowNextIndexedDBEmptyWrite('chats')
-      }
       const summaries: ChatSummary[] = nextState.chats.map((chat) => ({
         id: chat.id,
         title: chat.title,
@@ -734,12 +754,21 @@ export const useChatsStores = defineStore(
         is_collected: chat.is_collected,
         messageCount: chat.messages?.length || 0
       }))
-      chatSummaries.value = summaries
+      chatList.value = summaries
       tempChats.value = []
       messageWindows.value = {}
       activeMessageWindow.value = null
       activeChatId.value = resolvePersistedActiveChatId(summaries, nextState.activeChatId)
       pruneChatDrafts()
+      if (!isMobile.value) {
+        await window.api.chatDb.snapshot.import({
+          schemaVersion: 2,
+          summaries,
+          messagesByChatId: {},
+          activeChatId: activeChatId.value,
+          chatDrafts: {}
+        })
+      }
       await Promise.all(
         nextState.chats
           .filter((chat) => chat.messages?.length)
@@ -753,10 +782,15 @@ export const useChatsStores = defineStore(
     }
 
     const updateChatSummaryMeta = (chatId: string, updates: Partial<ChatSummary>) => {
-      const summary = chatSummaries.value.find((s) => s.id === chatId)
+      const summary = chatList.value.find((s) => s.id === chatId)
       if (!summary) return
       Object.assign(summary, updates, { updatedAt: Date.now() })
-      chatSummaries.value = [...chatSummaries.value]
+      chatList.value = [...chatList.value]
+      if (!isMobile.value) {
+        window.api.chatDb.chat.update(chatId, JSON.parse(JSON.stringify({ ...summary, ...updates, updatedAt: Date.now() }))).catch((err) => {
+          console.error('[chats] Failed to sync chat meta', err)
+        })
+      }
     }
 
     const clearChat = async (id: string) => {
@@ -764,14 +798,19 @@ export const useChatsStores = defineStore(
       !isMobile.value && useCanvasStore().deleteCanvases([...allIds])
 
       for (const chatId of allIds) {
-        const window = messageWindows.value[chatId]
-        if (window) {
-          window.messages.forEach((m) => m.metadata?.stop?.())
+        const loaded = messageWindows.value[chatId]
+        if (loaded) {
+          loaded.messages.forEach((m) => m.metadata?.stop?.())
         }
-        const summary = chatSummaries.value.find((s) => s.id === chatId)
+        const summary = chatList.value.find((s) => s.id === chatId)
         if (summary) {
           await chatRepository.deleteChatMessages(chatId)
           replaceWindowMessages(chatId, [])
+          updateChatSummaryMeta(chatId, {
+            messageCount: 0,
+            lastMessageAt: undefined,
+            lastMessagePreview: undefined
+          })
         } else {
           tempChats.value = tempChats.value.filter((c) => c.id !== chatId)
         }
@@ -795,7 +834,7 @@ export const useChatsStores = defineStore(
     return {
       forkChat,
       updateMessages,
-      chatSummaries,
+      chatList,
       tempChats,
       chatDrafts,
       allChats,
@@ -849,11 +888,8 @@ export const useChatsStores = defineStore(
   {
     persist: {
       storage: indexedDBStorage,
-      paths: ['chatSummaries', 'activeChatId', 'chatDrafts'],
-      afterRestore: (ctx) => {
-        if (ctx.store.chatSummaries.length === 0 && ctx.store.tempChats.length === 0) {
-          ctx.store.createChat('新的聊天')
-        }
+      paths: ['activeChatId', 'chatDrafts'],
+      afterRestore: () => {
         resolveRestore()
       }
     }

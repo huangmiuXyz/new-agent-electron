@@ -85,7 +85,7 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
     (message) => !isCompressingContextMessage(message) && !isCompressedContextMessage(message)
   )
   const chatsStore = useChatsStores()
-  const summary = chatsStore.chatSummaries.find((s) => s.id === cid)
+  const summary = chatsStore.chatList.find((s) => s.id === cid)
   const compressedContext = summary?.compressedContext
   const compressedBoundaryIndex = compressedContext?.compressedUpToIndex
 

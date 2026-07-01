@@ -603,6 +603,33 @@ export const api: ElectronAPI = {
   path,
   mime,
   url,
+  chatDb: {
+    chat: {
+      list: () => electronAPI.ipcRenderer.invoke('chatDb:chat:list'),
+      create: (summary: ChatSummary) => electronAPI.ipcRenderer.invoke('chatDb:chat:create', summary),
+      update: (chatId: string, updates: Partial<ChatSummary>) => electronAPI.ipcRenderer.invoke('chatDb:chat:update', chatId, updates),
+      delete: (chatId: string) => electronAPI.ipcRenderer.invoke('chatDb:chat:delete', chatId)
+    },
+    message: {
+      loadRecent: (chatId: string, limit: number) => electronAPI.ipcRenderer.invoke('chatDb:message:loadRecent', chatId, limit),
+      loadBefore: (chatId: string, beforeOrder: number, limit: number) => electronAPI.ipcRenderer.invoke('chatDb:message:loadBefore', chatId, beforeOrder, limit),
+      loadAll: (chatId: string) => electronAPI.ipcRenderer.invoke('chatDb:message:loadAll', chatId),
+      replaceAll: (chatId: string, messages: BaseMessage[]) => electronAPI.ipcRenderer.invoke('chatDb:message:replaceAll', chatId, messages),
+      replaceFrom: (chatId: string, anchorMessageId: string, messages: BaseMessage[]) => electronAPI.ipcRenderer.invoke('chatDb:message:replaceFrom', chatId, anchorMessageId, messages),
+      append: (chatId: string, messages: BaseMessage[]) => electronAPI.ipcRenderer.invoke('chatDb:message:append', chatId, messages),
+      deleteAll: (chatId: string) => electronAPI.ipcRenderer.invoke('chatDb:message:deleteAll', chatId),
+      clearAll: () => electronAPI.ipcRenderer.invoke('chatDb:message:clearAll'),
+      upsert: (chatId: string, message: BaseMessage, seqHint?: number) => electronAPI.ipcRenderer.invoke('chatDb:message:upsert', chatId, message, seqHint),
+      replaceParts: (messageId: string, parts: BaseMessage['parts']) => electronAPI.ipcRenderer.invoke('chatDb:message:replaceParts', messageId, parts),
+      upsertPart: (messageId: string, idx: number, part: BaseMessage['parts'][number]) => electronAPI.ipcRenderer.invoke('chatDb:message:upsertPart', messageId, idx, part),
+      updateMetadata: (messageId: string, metadata: MetaData) => electronAPI.ipcRenderer.invoke('chatDb:message:updateMetadata', messageId, metadata),
+      finalize: (chatId: string, message: BaseMessage) => electronAPI.ipcRenderer.invoke('chatDb:message:finalize', chatId, message)
+    },
+    snapshot: {
+      export: (options: { summaries: ChatSummary[]; activeChatId: string | null; chatDrafts: Record<string, string> }) => electronAPI.ipcRenderer.invoke('chatDb:snapshot:export', options),
+      import: (snapshot: ChatRepositorySnapshot) => electronAPI.ipcRenderer.invoke('chatDb:snapshot:import', snapshot)
+    }
+  },
   sqlite: {
     isSupported: () => electronAPI.ipcRenderer.invoke('sqlite:isSupported'),
     upsertChunks: (chunks: any[]) => electronAPI.ipcRenderer.invoke('sqlite:upsertChunks', chunks),

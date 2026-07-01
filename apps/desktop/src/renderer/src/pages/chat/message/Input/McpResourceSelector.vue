@@ -6,7 +6,7 @@ const settingsStore = useSettingsStore()
 const chatsStore = useChatsStores()
 
 const updateChatMcpResources = (chatId: string, selectedMcpResources: Record<string, string[]>) => {
-  const summary = chatsStore.chatSummaries.find((s) => s.id === chatId)
+  const summary = chatsStore.chatList.find((s) => s.id === chatId)
   if (!summary) return
   summary.selectedMcpResources = selectedMcpResources
 }

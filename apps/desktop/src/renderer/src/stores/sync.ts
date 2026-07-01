@@ -229,7 +229,7 @@ export const useSyncStore = defineStore(
 
     const buildLocalSnapshot = async () => {
       const agentStore = useAgentStore()
-      const summaries = chatsStore.chatSummaries
+      const summaries = chatsStore.chatList
       const chats = await Promise.all(
         summaries.map(async (summary) => {
           const messages = await chatRepository.loadAllMessages(summary.id)
@@ -283,7 +283,7 @@ export const useSyncStore = defineStore(
     }
 
     watch(
-      () => [chatsStore.chatSummaries, chatsStore.activeChatId],
+      () => [chatsStore.chatList, chatsStore.activeChatId],
       async () => {
         await recomputeDiff()
         scheduleAutoPublish()

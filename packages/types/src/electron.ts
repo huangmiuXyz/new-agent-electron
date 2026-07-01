@@ -213,6 +213,35 @@ export interface ElectronAPI {
   mime: any
   url: any
 
+  // chat database (SQLite)
+  chatDb: {
+    chat: {
+      list: () => Promise<ChatSummary[]>
+      create: (summary: ChatSummary) => Promise<void>
+      update: (chatId: string, updates: Partial<ChatSummary>) => Promise<void>
+      delete: (chatId: string) => Promise<void>
+    }
+    message: {
+      loadRecent: (chatId: string, limit: number) => Promise<LoadedMessageWindow>
+      loadBefore: (chatId: string, beforeOrder: number, limit: number) => Promise<LoadedMessageWindow>
+      loadAll: (chatId: string) => Promise<BaseMessage[]>
+      replaceAll: (chatId: string, messages: BaseMessage[]) => Promise<void>
+      replaceFrom: (chatId: string, anchorMessageId: string, messages: BaseMessage[]) => Promise<void>
+      append: (chatId: string, messages: BaseMessage[]) => Promise<void>
+      deleteAll: (chatId: string) => Promise<void>
+      clearAll: () => Promise<void>
+      upsert: (chatId: string, message: BaseMessage, seqHint?: number) => Promise<void>
+      replaceParts: (messageId: string, parts: BaseMessage['parts']) => Promise<void>
+      upsertPart: (messageId: string, idx: number, part: BaseMessage['parts'][number]) => Promise<void>
+      updateMetadata: (messageId: string, metadata: MetaData) => Promise<void>
+      finalize: (chatId: string, message: BaseMessage) => Promise<void>
+    }
+    snapshot: {
+      export: (options: { summaries: ChatSummary[]; activeChatId: string | null; chatDrafts: Record<string, string> }) => Promise<ChatRepositorySnapshot>
+      import: (snapshot: ChatRepositorySnapshot) => Promise<void>
+    }
+  }
+
   // sqlite
   sqlite: {
     isSupported: () => Promise<boolean>
