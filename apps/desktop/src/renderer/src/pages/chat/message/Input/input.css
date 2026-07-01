@@ -5,11 +5,67 @@
   transition:
     max-width 0.3s ease,
     margin 0.3s ease;
+  padding-top: 0 !important;
 }
 
 .footer.is-centered {
   max-width: 800px;
   margin: 0 auto;
+}
+
+/* header：智能体 / 模型 / 工作路径选择器 */
+.input-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  flex-wrap: wrap;
+}
+
+.input-header :deep(.selector-trigger) {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.input-header :deep(.agent-btn .tags-display-container) {
+  display: none;
+}
+
+.input-header :deep(.agent-btn),
+.input-header :deep(.model-btn),
+.input-header .workpath-trigger {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  gap: 6px;
+}
+
+.input-header .workpath-trigger-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.input-header .workpath-trigger:hover,
+.input-header .workpath-trigger:active {
+  background: transparent;
+}
+
+.input-header :deep(.model-btn-content) {
+  gap: 4px;
+}
+
+.input-header :deep(.model-btn .model-logo) {
+  width: 14px !important;
+  height: 14px;
+  border-radius: 3px;
 }
 
 /* 预发送消息列表样式 */
@@ -107,7 +163,7 @@
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  padding: 14px 14px 10px;
+  padding: 8px;
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.04),
     0 1px 3px rgba(0, 0, 0, 0.06);
@@ -338,8 +394,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 10px;
-  margin-top: 8px;
   flex-wrap: wrap;
   gap: 6px;
 }

@@ -222,8 +222,6 @@ const WorkPathChevronIcon = useIcon('ChevronDown')
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 10px;
-  margin-top: 8px;
   flex-wrap: wrap;
   gap: 6px;
 }

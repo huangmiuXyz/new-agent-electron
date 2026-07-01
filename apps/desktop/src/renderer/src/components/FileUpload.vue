@@ -133,7 +133,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="file-upload-preview" :class="{ 'drag-over': isDragOver || isOverDropZone }">
+  <div class="file-upload-preview" v-if="selectedFiles.length > 0" :class="{ 'drag-over': isDragOver || isOverDropZone }">
     <!-- 文件预览区域 -->
     <div class="file-preview-container">
       <div v-for="(file, index) in selectedFiles" :key="index" class="file-preview-item">

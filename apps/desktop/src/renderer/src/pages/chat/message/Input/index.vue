@@ -46,6 +46,11 @@ const visibleInputButtons = computed(() => {
   return layout.filter((item) => item.visible).map((item) => item.id)
 })
 
+// 桌面端输入框底栏按钮（排除已移至顶栏的 agent/model/workpath）
+const desktopInputButtons = computed(() => {
+  return visibleInputButtons.value.filter((id) => !['agent', 'model', 'workpath'].includes(id))
+})
+
 const {
   currentChatAgent,
   chatProviderId,
@@ -87,6 +92,8 @@ const toggleCurrentChatToolFeatures = () => {
 const FileUploadIcon = useIcon('Folder')
 const SettingsIcon = useIcon('Settings')
 const ChevronDown = useIcon('ChevronDown')
+const WorkPathFolderIcon = useIcon('Folder')
+const WorkPathChevronIcon = useIcon('ChevronDown')
 // 引入子组件
 const fileUploadRef = useTemplateRef('fileUploadRef')
 const inputContainerRef = useTemplateRef('inputContainerRef')
@@ -365,10 +372,7 @@ const MobileToolButtonItem = defineComponent({
 
 const desktopPlaceholder = computed(() => {
   if (isProcessingVoice.value) return '正在处理语音...'
-  if (currentChatModel.value?.name && currentChatProvider.value?.name) {
-    return `${currentChatAgent.value?.name || '未绑定智能体'} · ${currentChatProvider.value.name} · ${currentChatModel.value.name}`
-  }
-  return '请选择模型'
+  return '输入后按 Enter 发送'
 })
 
 const mobilePlaceholder = computed(() => {
@@ -536,6 +540,24 @@ onUnmounted(() => {
       @remove="removePendingMessage"
     />
 
+    <div v-if="!isMobile" class="input-header">
+      <ChatAgentSelector type="select" />
+      <ModelSelector v-model:model-id="chatModelId" v-model:provider-id="chatProviderId" type="select" />
+      <button
+        v-if="canChooseLocalWorkPath"
+        type="button"
+        class="workpath-trigger no-drag"
+        :class="{ 'workpath-active': currentAgentWorkPath }"
+        :title="workPathButtonTitle"
+        @click="openWorkPathContextMenu($event)"
+        @contextmenu="openWorkPathContextMenu($event)"
+      >
+        <WorkPathFolderIcon class="workpath-trigger-icon" />
+        <span class="workpath-trigger-label">{{ workPathButtonLabel }}</span>
+        <WorkPathChevronIcon class="workpath-trigger-chevron" />
+      </button>
+    </div>
+
     <div class="input-container" ref="inputContainerRef"
       :class="{ 'drag-over': fileUploadRef?.isDragOver || fileUploadRef?.isOverDropZone }">
       <FileUpload ref="fileUploadRef" :files="selectedFiles" :dropZoneRef="inputContainerRef!" :inputRef="textareaRef!"
@@ -576,7 +598,7 @@ onUnmounted(() => {
           v-model:chat-switcher-query="chatSwitcherQuery"
           v-model:chat-switcher-mode="chatSwitcherMode"
           v-model:chat-switcher-draft-title="chatSwitcherDraftTitle"
-          :visible-input-buttons="visibleInputButtons"
+          :visible-input-buttons="desktopInputButtons"
           :current-chat-provider="currentChatProvider"
           :current-chat-context-tokens="currentChatContextTokens"
           :current-chat-tool-features-enabled="currentChatToolFeaturesEnabled"
@@ -712,5 +734,9 @@ onUnmounted(() => {
 .dark-mode .send-btn,
 .dark-mode .mobile-send-btn {
   color: #fff !important;
+}
+
+.input-header .model-btn .clear-btn {
+  display: none !important;
 }
 </style>
