@@ -155,6 +155,7 @@ export const createToolMiddleware = (): LanguageModelMiddleware => {
   return {
     specificationVersion: 'v4',
     transformParams: async ({ params }) => {
+      const _t1 = createTimeLog('createTool中间件')
       const newPrompt: LanguageModelV4Prompt = []
 
       for (const message of params.prompt) {
@@ -189,6 +190,7 @@ export const createToolMiddleware = (): LanguageModelMiddleware => {
         newPrompt.push(message)
       }
 
+      syncTimeLog(_t1, 'createTool中间件')
       return {
         ...params,
         prompt: newPrompt

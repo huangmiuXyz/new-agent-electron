@@ -33,12 +33,15 @@ export const createCompressContextMiddleware = (
   return {
     specificationVersion: 'v4',
     transformParams: async ({ params }) => {
+      const _t1 = createTimeLog('压缩上下文中间件')
       if (!Array.isArray(params.prompt)) {
+        syncTimeLog(_t1, '压缩上下文中间件')
         return params
       }
 
       const compressedContent = await getCompressedContextFromStore(cid)
       if (!compressedContent) {
+        syncTimeLog(_t1, '压缩上下文中间件')
         return params
       }
 
@@ -62,6 +65,7 @@ export const createCompressContextMiddleware = (
       const firstNonTool = slicedRecentMessages.findIndex(m => m.role !== 'tool')
       const truncatedRecentMessages = firstNonTool > 0 ? slicedRecentMessages.slice(firstNonTool) : slicedRecentMessages
 
+      syncTimeLog(_t1, '压缩上下文中间件')
       return {
         ...params,
         prompt: [

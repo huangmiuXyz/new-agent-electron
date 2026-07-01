@@ -17,7 +17,9 @@ export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageMode
   return {
     specificationVersion: 'v4',
     transformParams: async ({ params }) => {
+      const _t1 = createTimeLog('RAG中间件')
       if (!ragEnabled || !knowledgeBaseIds || knowledgeBaseIds.length === 0) {
+        syncTimeLog(_t1, 'RAG中间件')
         return params
       }
       const lastUserMessageText = getLastUserMessageText({
@@ -25,6 +27,7 @@ export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageMode
       })
 
       if (lastUserMessageText == null) {
+        syncTimeLog(_t1, 'RAG中间件')
         return params
       }
 
@@ -55,6 +58,7 @@ export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageMode
         onRagSearchComplete?.(searchDetails)
 
         if (allResults.length === 0) {
+          syncTimeLog(_t1, 'RAG中间件')
           return params
         }
 
@@ -76,9 +80,11 @@ export const createRagMiddleware = (options: RagMiddlewareOptions): LanguageMode
           lastUserMessageText
         ].join('\n')
 
+        syncTimeLog(_t1, 'RAG中间件')
         return addToLastUserMessage({ params, text: instruction })
       } catch (error) {
         console.error('RAG middleware error:', error)
+        syncTimeLog(_t1, 'RAG中间件')
         return params
       }
     }

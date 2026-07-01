@@ -92,9 +92,10 @@ export const createTextFileMiddleware = (): LanguageModelMiddleware => {
   return {
     specificationVersion: 'v4',
     transformParams: async ({ params }) => {
+      const _t1 = createTimeLog('文本文件中间件')
       const prompt = params.prompt
 
-      return {
+      const result = {
         ...params,
         prompt: prompt.map((message) => {
           if (!Array.isArray(message.content)) return message
@@ -105,6 +106,8 @@ export const createTextFileMiddleware = (): LanguageModelMiddleware => {
           }
         })
       }
+      syncTimeLog(_t1, '文本文件中间件')
+      return result
     }
   }
 }

@@ -39,8 +39,10 @@ export const createSkillReferenceMiddleware = (
   return {
     specificationVersion: 'v4',
     transformParams: async ({ params }) => {
+      const _t1 = createTimeLog('SkillReferences中间件')
       const lastUserMessageText = getLastUserMessageText(params.prompt)
       if (!lastUserMessageText) {
+        syncTimeLog(_t1, 'SkillReferences中间件')
         return params
       }
 
@@ -71,9 +73,11 @@ export const createSkillReferenceMiddleware = (
         .filter((note): note is string => Boolean(note))
 
       if (!referencedSkills.length && !referencedFiles.length && !referencedNotes.length) {
+        syncTimeLog(_t1, 'SkillReferences中间件')
         return params
       }
 
+      syncTimeLog(_t1, 'SkillReferences中间件')
       return replaceLastUserMessageText(
         params,
         buildMentionContextText({

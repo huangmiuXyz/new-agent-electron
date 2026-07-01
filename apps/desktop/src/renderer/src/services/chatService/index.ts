@@ -86,10 +86,14 @@ export const chatService = () => {
       stopWhen
     }: ChatServiceConfig
   ) => {
+    const _t0 = createTimeLog('onUseAIBefore')
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
+    syncTimeLog(_t0, 'onUseAIBefore')
 
     // 自动压缩上下文
+    let _t1 = 0
     if (shouldAutoCompress) {
+      _t1 = createTimeLog('自动压缩上下文')
       messages = await autoCompressContext({
         cid,
         messages,
@@ -98,10 +102,12 @@ export const chatService = () => {
         compressModel,
         activeModel: model
       })
+      syncTimeLog(_t1, '自动压缩上下文')
     }
 
     let tools: Tools = {}
 
+    const _t2 = createTimeLog('工具发现')
     const skills = discoverSkills(undefined, { chatId: cid })
     const hasLoadSkillTool = skillsEnabled && !!selectedBuiltinTools?.includes('loadSkill')
     const skillsForBuiltinTools = skillsEnabled ? skills : []
@@ -118,6 +124,7 @@ export const chatService = () => {
         .flatMap(([, toolKeys]) => toolKeys)
     )
     const skillsPrompt = hasLoadSkillTool ? buildSkillsPrompt(skills, cid) : ''
+    syncTimeLog(_t2, '工具发现')
     const currentChat = useChatsStores().getChatById(cid)
     const agentWorkPath = useCanvasStore().getWorkPath(cid) || undefined
     const isSubAgentChat = !!currentChat?.parentChatId
@@ -132,6 +139,7 @@ export const chatService = () => {
     const hasAssignedAgentTools = assignedBuiltinTools.some(
       (toolName) => toolName === 'delegate_to_sub_agent'
     )
+    const _t3 = createTimeLog('系统提示词组装')
     const multiAgentPrompt =
       hasAssignedAgentTools || isSubAgentChat ? buildMultiAgentSystemPrompt(cid) : ''
     const codexEnvironmentPrompt =
@@ -142,6 +150,7 @@ export const chatService = () => {
       [codexEnvironmentPrompt, instructions?.trim(), skillsPrompt, multiAgentPrompt, mcpResourceContent]
         .filter(Boolean)
         .join('\n\n') || undefined
+    syncTimeLog(_t3, '系统提示词组装')
 
     const builtinToolKeys = new Set<string>(assignedBuiltinTools)
     if (isSubAgentChat) {
@@ -157,6 +166,7 @@ export const chatService = () => {
       })
     }
 
+    const _t4 = createTimeLog('MCP工具加载')
     if (!isMobile.value && mcpTools && mcpTools.length > 0) {
       const mcpCacheKey = JSON.stringify(mcpClient)
       const mcpCached = mcpToolsCache.get(mcpCacheKey)
@@ -191,6 +201,7 @@ export const chatService = () => {
         }
       }
     }
+    syncTimeLog(_t4, 'MCP工具加载')
     let ragSearchDetails:
       | Array<{ knowledgeBaseId: string; documentId: string; score?: number }>
       | undefined
@@ -257,6 +268,7 @@ export const chatService = () => {
         ]
       })
     )
+    const _t5 = createTimeLog('ProviderRuntime解析')
     const { providerOptionsKey, mergedProviderOptions, transformRequestBody } =
       resolveProviderRuntime({
         providerType,
@@ -266,6 +278,7 @@ export const chatService = () => {
         thinkingMode,
         customProviderOptions
       })
+    syncTimeLog(_t5, 'ProviderRuntime解析')
     const shouldEnableParallelToolCalls =
       assignedBuiltinTools.includes('multi_tool_use_parallel') &&
       (providerType === 'openai' || providerType === 'openai-compatible') &&
@@ -334,6 +347,7 @@ export const chatService = () => {
     })
 
     // 1. 清洗数据：移除历史中没有结果的工具调用，修复不兼容字段，防止模型报错
+    const _t6 = createTimeLog('消息清洗验证归一化')
     const sanitizedMessages = sanitizeUIMessages(messages, {
       isManualApproval: isApprovalAction || false
     })
@@ -354,13 +368,16 @@ export const chatService = () => {
 
     // 4. Convert to model messages
     const modelMessages = await convertToModelMessages(contextTruncatedMessages)
+    syncTimeLog(_t6, '消息清洗验证归一化')
 
     let estimatedPromptTokens = 0
 
+    const _t7 = createTimeLog('agent.stream')
     const result = await agent.stream({
       prompt: modelMessages,
       abortSignal: controller.signal
     })
+    syncTimeLog(_t7, 'agent.stream')
 
     const uiStream = result.toUIMessageStream({
       originalMessages: validatedMessages,

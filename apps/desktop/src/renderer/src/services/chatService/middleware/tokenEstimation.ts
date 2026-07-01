@@ -13,6 +13,7 @@ export const createTokenEstimationMiddleware = (
   return {
     specificationVersion: 'v4',
     transformParams: async ({ params }) => {
+      const _t1 = createTimeLog('TokenEstimation中间件')
       const promptText = serializeV4PromptForTokenEstimation(params.prompt as unknown[])
       const promptTokens = promptText ? estimateTextTokens(promptText) + 4 : 0
 
@@ -24,7 +25,7 @@ export const createTokenEstimationMiddleware = (
         toolTokens,
         total: promptTokens + toolTokens
       })
-
+      syncTimeLog(_t1, 'TokenEstimation中间件')
       return params
     }
   }

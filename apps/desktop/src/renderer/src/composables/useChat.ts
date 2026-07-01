@@ -299,6 +299,7 @@ export const useChat = (chatId: string) => {
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         transport: {
           sendMessages: async ({ messages }) => {
+            const _t3 = createTimeLog('transport.sendMessages(发送传输)')
             const runtimeAgent = getChatAgent()
             const runtimeChat = getChatById(chatId)
             const providerId = runtimeChat?.providerId
@@ -390,11 +391,13 @@ export const useChat = (chatId: string) => {
                 stopWhen: [() => useChatsStores().isChatGuided(chatId)]
               }
             )
+            syncTimeLog(_t3, 'transport.sendMessages(发送传输)')
           },
           reconnectToStream: undefined as any
         },
 
         onFinish: ({ message: finalMessage }) => {
+          const _t4 = createTimeLog('onFinish')
           // 错误时 AI SDK 可能也会触发 onFinish；若已安排自动重试，
           // 这里不收尾，重试由 retryTimer 驱动。
           if (retryScheduled) return
@@ -409,9 +412,11 @@ export const useChat = (chatId: string) => {
           }
           scope.stop()
           scheduleNextPendingMessage()
+          syncTimeLog(_t4, 'onFinish')
         },
 
         onError: (error) => {
+          const _t5 = createTimeLog('onError')
           console.error(error)
           // 将 error 扁平化为可序列化的 Error，避免原始错误对象（如 _TypeValidationError）
           // 携带循环引用，导致 chats store 持久化时 JSON.stringify 报错。
@@ -449,6 +454,7 @@ export const useChat = (chatId: string) => {
           retryScheduled = true
           retryAttempt += 1
           scheduleRetry(failedMessageId!, retryAttempt)
+          syncTimeLog(_t5, 'onError')
         }
       })
 
@@ -506,9 +512,13 @@ export const useChat = (chatId: string) => {
     sendMessages: async (content: string | Array<FileUIPart | TextUIPart>) => {
       scrollToBottom()
 
+      const _t1 = createTimeLog('buildContextMessages(send)')
       const isFirstMessage = getVisibleMessages().length === 0
       const contextMessages = await buildContextMessages(chatId, {})
+      syncTimeLog(_t1, 'buildContextMessages(send)')
+      const _t2 = createTimeLog('createChat(send)')
       const chat = createChat(contextMessages)
+      syncTimeLog(_t2, 'createChat(send)')
 
       const parts: Array<FileUIPart | TextUIPart> =
         typeof content === 'string' ? [{ type: 'text', text: content }] : content
@@ -527,11 +537,14 @@ export const useChat = (chatId: string) => {
       }
     },
     continueMessages: async () => {
+      const _t6 = createTimeLog('continueMessages')
       const contextMessages = await buildContextMessages(chatId, {})
       const chat = createChat(contextMessages)
       chat.sendMessage()
+      syncTimeLog(_t6, 'continueMessages')
     },
     retryFromToolCall: async (toolCallId: string, position: 'above' | 'below') => {
+      const _t8 = createTimeLog('retryFromToolCall')
       const currentMessages = getVisibleMessages()
       const toolCallLocation = findToolCallLocation(currentMessages, toolCallId)
 
@@ -580,8 +593,10 @@ export const useChat = (chatId: string) => {
       const contextMessages = await buildContextMessages(chatId, {})
       const chat = createChat(contextMessages)
       chat.sendMessage()
+      syncTimeLog(_t8, 'retryFromToolCall')
     },
     regenerate: async (messageId: string) => {
+      const _t7 = createTimeLog('regenerate')
       const currentChats = getChatById(chatId)
       const messages = currentChats?.messages || []
       const { retryAnchorMessageId, regenerateMessageId } = normalizeRegenerateTarget(
@@ -607,6 +622,7 @@ export const useChat = (chatId: string) => {
         regenerateMessageId
       })
       chat.regenerate({ messageId: regenerateMessageId })
+      syncTimeLog(_t7, 'regenerate')
     },
     approval: (part: ToolUIPart, approved: boolean) => {
       const chat = createChat(getVisibleMessages(), { isApproval: true })

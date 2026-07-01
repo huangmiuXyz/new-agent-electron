@@ -10,13 +10,16 @@ export const createContextLimitMiddleware = (options: ContextLimitOptions): Lang
   return {
     specificationVersion: 'v4',
     transformParams: async ({ params }) => {
+      const _t1 = createTimeLog('ContextLimit中间件')
       if (!contextCount || contextCount <= 0 || !Array.isArray(params.prompt)) {
+        syncTimeLog(_t1, 'ContextLimit中间件')
         return params
       }
 
       const messages = params.prompt
 
       if (messages.length <= contextCount) {
+        syncTimeLog(_t1, 'ContextLimit中间件')
         return params
       }
 
@@ -31,6 +34,7 @@ export const createContextLimitMiddleware = (options: ContextLimitOptions): Lang
 
       if (lastCompressedIndex === -1) {
         const firstNonTool = messages.findIndex(m => m.role !== 'tool')
+        syncTimeLog(_t1, 'ContextLimit中间件')
         return {
           ...params,
           prompt: firstNonTool > 0 ? messages.slice(firstNonTool) : messages
@@ -49,6 +53,7 @@ export const createContextLimitMiddleware = (options: ContextLimitOptions): Lang
 
       const remainingSlots = contextCount - preservedMessages.length
       if (remainingSlots <= 0) {
+        syncTimeLog(_t1, 'ContextLimit中间件')
         return {
           ...params,
           prompt: preservedMessages.slice(-contextCount)
@@ -62,6 +67,7 @@ export const createContextLimitMiddleware = (options: ContextLimitOptions): Lang
 
       const truncatedMessages = [...preservedMessages, ...adjustedTail]
 
+      syncTimeLog(_t1, 'ContextLimit中间件')
       return {
         ...params,
         prompt: truncatedMessages

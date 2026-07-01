@@ -20,6 +20,7 @@ export async function buildContextMessages(
   chatId: string,
   options: { contextCount?: number; contextTokenCount?: number; model?: string }
 ): Promise<BaseMessage[]> {
+  const _t1 = createTimeLog('buildContextMessages')
   const { contextCount } = options
   const allMessages = await chatRepository.loadAllMessages(chatId)
   const messages = allMessages.filter((msg) => !isCompressingContextMessage(msg))
@@ -37,13 +38,16 @@ export async function buildContextMessages(
         ? Math.max(contextCount - systemMessages.length - 1, 0)
         : tailMessages.length
     const recentMessages = recentMessageBudget > 0 ? tailMessages.slice(-recentMessageBudget) : []
+    syncTimeLog(_t1, 'buildContextMessages')
     return [...systemMessages, compressedContextMsg, ...recentMessages]
   }
 
   if (contextCount && contextCount > 0 && messages.length > contextCount) {
+    syncTimeLog(_t1, 'buildContextMessages')
     return messages.slice(-contextCount)
   }
 
+  syncTimeLog(_t1, 'buildContextMessages')
   return messages
 }
 

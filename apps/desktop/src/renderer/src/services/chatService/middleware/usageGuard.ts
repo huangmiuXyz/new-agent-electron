@@ -69,14 +69,18 @@ export const createUsageGuardMiddleware = (): LanguageModelMiddleware => {
   return {
     specificationVersion: 'v4',
     wrapGenerate: async ({ doGenerate }) => {
+      const _t1 = createTimeLog('UsageGuard-wrapGenerate')
       const result = await doGenerate()
+      syncTimeLog(_t1, 'UsageGuard-wrapGenerate')
       return {
         ...result,
         usage: normalizeUsage(result.usage),
       }
     },
     wrapStream: async ({ doStream }) => {
+      const _t2 = createTimeLog('UsageGuard-wrapStream')
       const result = await doStream()
+      syncTimeLog(_t2, 'UsageGuard-wrapStream')
       return {
         ...result,
         stream: result.stream.pipeThrough(

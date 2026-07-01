@@ -51,7 +51,11 @@ export const createChatMessageSyncController = ({
     message?: BaseMessage,
     error?: APICallError
   ): BaseMessage | null => {
-    if (!message) return null
+    const _t3 = createTimeLog('createStoreMessageSnapshot')
+    if (!message) {
+      syncTimeLog(_t3, 'createStoreMessageSnapshot')
+      return null
+    }
 
     const nextParts = message.parts?.map((part) => ({ ...part }))
     const nextMetadata = {
@@ -112,6 +116,7 @@ export const createChatMessageSyncController = ({
       }
     }
 
+    syncTimeLog(_t3, 'createStoreMessageSnapshot')
     return {
       ...message,
       parts: nextParts,
@@ -205,11 +210,14 @@ export const createChatMessageSyncController = ({
         (options.persist !== false && now - lastPersistAt >= STREAM_PERSIST_INTERVAL_MS)
 
       // UI always updates without triggering full replaceMessages
+      const _t1b = createTimeLog('flushStreamingUpdate-UI更新')
       updateMessages(chatId, nextMessages, { persist: false })
+      syncTimeLog(_t1b, 'flushStreamingUpdate-UI更新')
 
       // Persist changed messages at part level instead of full rewrite.
       // upsertPart depends on the message row existing, so upsertMessageSnapshot must complete first.
       if (shouldPersist && !options.force) {
+        const _t1 = createTimeLog('flushStreamingUpdate-持久化')
         for (const message of messagesToSync) {
           try {
             if (!persistedMessageIds.has(message.id)) {
@@ -225,6 +233,7 @@ export const createChatMessageSyncController = ({
             console.error('[messageSync] Failed to persist message', err)
           }
         }
+        syncTimeLog(_t1, 'flushStreamingUpdate-持久化')
         lastPersistAt = now
       }
     }
@@ -238,8 +247,10 @@ export const createChatMessageSyncController = ({
   }
 
   const finalizeMessageSync = async (message?: BaseMessage, error?: APICallError) => {
+    const _t2 = createTimeLog('finalizeMessageSync')
     if (!message) {
       flushStreamingUpdate({ force: true })
+      syncTimeLog(_t2, 'finalizeMessageSync')
       return
     }
 
@@ -268,6 +279,7 @@ export const createChatMessageSyncController = ({
       lastMessageAt: Date.now(),
       ...(preview ? { lastMessagePreview: preview } : {})
     })
+    syncTimeLog(_t2, 'finalizeMessageSync')
   }
 
   const scheduleStreamingUpdate = (message?: BaseMessage) => {

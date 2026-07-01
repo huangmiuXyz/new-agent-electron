@@ -79,6 +79,7 @@ const normalizeCompressedMessages = (
 }
 
 export const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMessage[]> => {
+  const _t1 = createTimeLog('autoCompressContext-总计')
   const { cid, messages, contextCount, contextTokenCount, compressModel, activeModel } = options
   const persistedMessages = messages?.length ? messages : await chatRepository.loadAllMessages(cid)
   const persistedBaseMessages = persistedMessages.filter(
@@ -186,6 +187,7 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
 
     let compressedText = ''
 
+    const _t2 = createTimeLog('autoCompressContext-AI流式压缩')
     const compressStream = _streamText({
       model: createRegistry({
         apiKey: compressProvider.apiKey || '',
@@ -284,7 +286,9 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
       await store.updateMessages(cid, nextErr)
       return messages
     }
+    syncTimeLog(_t2, 'autoCompressContext-AI流式压缩')
 
+    syncTimeLog(_t1, 'autoCompressContext-总计')
     return messages
   } catch (error) {
     console.error('自动压缩上下文失败:', error)
