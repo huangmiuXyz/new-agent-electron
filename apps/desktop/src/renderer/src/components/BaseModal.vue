@@ -32,6 +32,11 @@
           :style="{ zIndex: fullscreenBtnZIndex }" title="退出全屏">
           <FullscreenExit />
         </Button>
+        <Transition name="tip-fade">
+          <div v-if="isFullscreen && showFullscreenTip" class="fullscreen-tip">
+            按住 <kbd>Esc</kbd> 退出全屏
+          </div>
+        </Transition>
         <div v-show="!isFullscreen && showFooter" class="modal-footer" :class="{ 'is-hidden': isFullscreen }">
           <Button v-if="showCancel" class="btn btn-secondary" type="button" @click="handleCancel">
             {{ props.cancelText || '取消' }}
@@ -762,5 +767,40 @@ onBeforeUnmount(() => {
 
 .fullscreen-exit-btn:hover {
   background: rgba(0, 0, 0, 0.7);
+}
+
+.fullscreen-tip {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.fullscreen-tip kbd {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 0 6px;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 12px;
+  margin: 0 2px;
+}
+
+.tip-fade-enter-active,
+.tip-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.tip-fade-enter-from,
+.tip-fade-leave-to {
+  opacity: 0;
 }
 </style>
