@@ -5,7 +5,7 @@
       :translations="transResults"
       :reasoning-results="transReasoningResults"
       :translation-loading="translating"
-      :translation-controller="abortController ? () => abortController!.abort() : undefined"
+      :translation-controller="translationController"
       :streaming-text="transText"
       :streaming-language="transLanguage || undefined"
       :streaming-tick="transTick"
@@ -53,7 +53,8 @@ const { display } = storeToRefs(useSettingsStore())
 const theme = computed(() => (display.value.darkMode ? 'dark' : 'default'))
 
 const textIncremark = useIncremark({ gfm: true })
-watch(() => props.text, (text) => {
+watch(() => [props.text, props.blocks] as const, ([text, blocks]) => {
+  if (blocks) return
   textIncremark.reset()
   if (text) {
     textIncremark.append(text)
@@ -70,7 +71,12 @@ const transReasoning = ref('')
 const transTick = ref(0)
 const transResults = ref<TranslationResult[]>([])
 const transReasoningResults = ref<string[]>([])
-let abortController: AbortController | null = null
+const abortController = shallowRef<AbortController | null>(null)
+
+const translationController = computed<AbortController['abort'] | undefined>(() => {
+  const controller = abortController.value
+  return controller ? () => controller.abort() : undefined
+})
 
 const doTranslate = async (language: string) => {
   if (!props.text || translating.value) return
@@ -91,7 +97,7 @@ const doTranslate = async (language: string) => {
   translating.value = true
   transLanguage.value = language
   transText.value = ''
-  abortController = new AbortController()
+  abortController.value = new AbortController()
 
   try {
     const { translateText } = chatService()
@@ -117,7 +123,7 @@ const doTranslate = async (language: string) => {
         provider: provider.id,
         providerType: provider.providerType
       },
-      abortController?.signal,
+      abortController.value?.signal,
       (chunk: string) => {
         textBuf += chunk
         const now = Date.now()
@@ -141,13 +147,13 @@ const doTranslate = async (language: string) => {
     }
   } finally {
     translating.value = false
-    abortController = null
+    abortController.value = null
   }
 }
 
 const stopTranslate = () => {
-  abortController?.abort()
-  abortController = null
+  abortController.value?.abort()
+  abortController.value = null
 }
 
 const showTransMenu = (e: MouseEvent) => {

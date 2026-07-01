@@ -14,6 +14,9 @@ const restorePromise = new Promise<void>((resolve) => {
 const NEW_CHAT_DRAFT_ID = '__new__'
 const MESSAGE_WINDOW_SIZE = 100
 const MESSAGE_PAGE_SIZE = 50
+type UpdateMessagesOptions = {
+  persist?: boolean
+}
 
 const resolvePersistedActiveChatId = (persistedChats: { id: string }[], persistedActiveId: string | null) => {
   if (persistedActiveId && persistedChats.some((chat) => chat.id === persistedActiveId)) {
@@ -548,11 +551,13 @@ export const useChatsStores = defineStore(
 
     const updateMessages = async (
       chatId: string,
-      messages: BaseMessage[] | ((messages: BaseMessage[]) => BaseMessage[])
+      messages: BaseMessage[] | ((messages: BaseMessage[]) => BaseMessage[]),
+      options: UpdateMessagesOptions = {}
     ) => {
       const currentMessages = messageWindows.value[chatId]?.messages || []
       const nextMessages = typeof messages === 'function' ? messages(currentMessages) : messages
       replaceWindowMessages(chatId, nextMessages)
+      if (options.persist === false) return
       await chatRepository.replaceMessages(chatId, nextMessages)
     }
 

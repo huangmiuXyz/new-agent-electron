@@ -12,6 +12,7 @@ import {
 // 原为 1000ms，用户感知首字偏慢；降到 500ms 让流式输出更跟手，同时仍比逐 token
 // flush 低频，不会把 Pinia 持久化（debounce 2s）和 tiktoken 估算打满。
 const STREAM_SYNC_INTERVAL_MS = 500
+const STREAM_PERSIST_INTERVAL_MS = 2500
 
 type ChatMessageSyncControllerOptions = {
   chatId: string
@@ -19,7 +20,8 @@ type ChatMessageSyncControllerOptions = {
   getChatById: (chatId: string) => Chat | undefined | null
   updateMessages: (
     chatId: string,
-    messages: BaseMessage[] | ((messages: BaseMessage[]) => BaseMessage[])
+    messages: BaseMessage[] | ((messages: BaseMessage[]) => BaseMessage[]),
+    options?: { persist?: boolean }
   ) => void
   markManuallyStopped: () => void
   onStreamingUpdate: (
@@ -37,6 +39,7 @@ export const createChatMessageSyncController = ({
   onStreamingUpdate
 }: ChatMessageSyncControllerOptions) => {
   let streamFlushHandle: ReturnType<typeof setTimeout> | null = null
+  let lastPersistAt = Date.now()
   let pendingStreamParts: (TextUIPart | ToolUIPart | FileUIPart)[] | undefined
   let pendingSpeechMessage: BaseMessage | undefined
   const pendingSyncMessageIds: string[] = []
@@ -171,7 +174,7 @@ export const createChatMessageSyncController = ({
     pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
   }
 
-  const flushStreamingUpdate = (): BaseMessage[] | undefined => {
+  const flushStreamingUpdate = (options: { persist?: boolean } = {}): BaseMessage[] | undefined => {
     if (streamFlushHandle) {
       clearTimeout(streamFlushHandle)
       streamFlushHandle = null
@@ -194,10 +197,17 @@ export const createChatMessageSyncController = ({
         if (!snapshot) continue
         nextMessages = applySnapshotToMessages(nextMessages, snapshot)
       }
-      updateMessages(chatId, nextMessages)
+      const now = Date.now()
+      const shouldPersist =
+        options.persist === true ||
+        (options.persist !== false && now - lastPersistAt >= STREAM_PERSIST_INTERVAL_MS)
+      updateMessages(chatId, nextMessages, { persist: shouldPersist })
+      if (shouldPersist) lastPersistAt = now
     }
 
-    onStreamingUpdate(pendingSpeechMessage, pendingStreamParts)
+    if (pendingSpeechMessage || pendingStreamParts) {
+      onStreamingUpdate(pendingSpeechMessage, pendingStreamParts)
+    }
     pendingSpeechMessage = undefined
     pendingStreamParts = undefined
     return nextMessages
@@ -205,7 +215,7 @@ export const createChatMessageSyncController = ({
 
   const finalizeMessageSync = async (message?: BaseMessage, error?: APICallError) => {
     if (!message) {
-      flushStreamingUpdate()
+      flushStreamingUpdate({ persist: true })
       return
     }
 
@@ -216,7 +226,7 @@ export const createChatMessageSyncController = ({
     } as MetaData
 
     queueMessageSync(message, error)
-    const updatedMessages = flushStreamingUpdate()
+    const updatedMessages = flushStreamingUpdate({ persist: true })
 
     const chatsStore = useChatsStores()
     const preview = message?.parts
@@ -259,10 +269,7 @@ export const createChatMessageSyncController = ({
   }
 
   const dispose = () => {
-    if (streamFlushHandle) {
-      clearTimeout(streamFlushHandle)
-      streamFlushHandle = null
-    }
+    flushStreamingUpdate({ persist: true })
   }
 
   return {

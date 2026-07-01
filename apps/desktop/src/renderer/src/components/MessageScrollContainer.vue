@@ -20,6 +20,7 @@ const isUserScrolledUp = ref(false)
 const isResetting = ref(false)
 let lastScrollTop = 0
 let observer: MutationObserver | null = null
+let observerRafId: number | null = null
 let resetRafId: number | null = null
 let resetRetryTimer: number | null = null
 let resetAttempts = 0
@@ -51,6 +52,10 @@ const handleScroll = () => {
 }
 
 const clearResetTimers = () => {
+  if (observerRafId !== null) {
+    cancelAnimationFrame(observerRafId)
+    observerRafId = null
+  }
   if (resetRafId !== null) {
     cancelAnimationFrame(resetRafId)
     resetRafId = null
@@ -137,12 +142,15 @@ onMounted(() => {
   observer = new MutationObserver(() => {
     if (!props.enabled || isUserScrolledUp.value) return
     if (isResetting.value) return // 重置流程中由 tryScroll 统一处理
-    nextTick(() => scrollToBottom())
+    if (observerRafId !== null) return
+    observerRafId = requestAnimationFrame(() => {
+      observerRafId = null
+      nextTick(() => scrollToBottom())
+    })
   })
   observer.observe(containerRef.value, {
     childList: true,
-    subtree: true,
-    characterData: true
+    subtree: true
   })
 })
 

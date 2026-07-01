@@ -830,7 +830,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
   display: flex;
   flex-direction: column;
   flex: none;
-  will-change: transform;
   position: relative;
 
   margin-bottom: 8px;
@@ -843,6 +842,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 
 /* 新消息入场：克制但可感知地淡入并轻微上浮，仅播放一次 */
 .message-item-wrapper.is-newly-entered {
+  will-change: transform, opacity;
   animation: message-rise-in 0.32s var(--motion-ease-decelerated);
 }
 
