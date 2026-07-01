@@ -87,7 +87,8 @@ export default defineConfig(() => {
         }
       },
       server: {
-        port: 3000
+        port: 3000,
+        watch: process.env.NO_RELOAD ? { ignored: ['**/*'] } : undefined
       }
     }
   }
