@@ -42,6 +42,10 @@ export const setupChatDbHandlers = () => {
     await chatDatabaseService.appendMessages(chatId, messages)
   })
 
+  ipcMain.handle('chatDb:message:delete', async (_event, messageId: string) => {
+    await chatDatabaseService.deleteMessage(messageId)
+  })
+
   ipcMain.handle('chatDb:message:deleteAll', async (_event, chatId: string) => {
     await chatDatabaseService.deleteChatMessages(chatId)
   })

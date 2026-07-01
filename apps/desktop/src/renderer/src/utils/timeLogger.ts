@@ -16,10 +16,11 @@ export const createTimeLog = (label: string): number => {
   return performance.now()
 }
 
-export const syncTimeLog = (startTime: number, label: string) => {
+export const syncTimeLog = (startTime: number, label: string, detail?: string) => {
   if (!_enabled || !startTime) return
   const elapsed = performance.now() - startTime
-  console.debug(prefix(label), `${formatMs(elapsed)}`)
+  const msg = detail ? `${formatMs(elapsed)} | ${detail}` : `${formatMs(elapsed)}`
+  console.debug(prefix(label), msg)
   const agg = aggregates.get(label)
   if (agg) {
     agg.count++

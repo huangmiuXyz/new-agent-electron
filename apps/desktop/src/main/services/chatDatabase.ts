@@ -302,6 +302,15 @@ export const chatDatabaseService = {
     await db.delete(messages).where(eq(messages.chatId, chatId)).run()
   },
 
+  async deleteMessage(messageId: string): Promise<void> {
+    const db = getSqliteDb()
+    const tx = db.transaction(() => {
+      db.prepare(DELETE_PART_BY_MESSAGE).run(messageId)
+      db.prepare('DELETE FROM message WHERE id = ?').run(messageId)
+    })
+    tx()
+  },
+
   async clearAllChatMessages(): Promise<void> {
     const db = getDb()
     await db.delete(parts).run()

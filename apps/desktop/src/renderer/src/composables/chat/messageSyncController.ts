@@ -212,12 +212,13 @@ export const createChatMessageSyncController = ({
       // UI always updates without triggering full replaceMessages
       const _t1b = createTimeLog('flushStreamingUpdate-UI更新')
       updateMessages(chatId, nextMessages, { persist: false })
-      syncTimeLog(_t1b, 'flushStreamingUpdate-UI更新')
+      syncTimeLog(_t1b, 'flushStreamingUpdate-UI更新', `msgs=${messagesToSync.length}`)
 
       // Persist changed messages at part level instead of full rewrite.
       // upsertPart depends on the message row existing, so upsertMessageSnapshot must complete first.
       if (shouldPersist && !options.force) {
         const _t1 = createTimeLog('flushStreamingUpdate-持久化')
+        const details: string[] = []
         for (const message of messagesToSync) {
           try {
             if (!persistedMessageIds.has(message.id)) {
@@ -229,11 +230,12 @@ export const createChatMessageSyncController = ({
                 await chatStreamPersistence.upsertPart(message.id, i, message.parts[i])
               }
             }
+            details.push(`${message.id.slice(0, 8)} parts=${message.parts.length}`)
           } catch (err) {
             console.error('[messageSync] Failed to persist message', err)
           }
         }
-        syncTimeLog(_t1, 'flushStreamingUpdate-持久化')
+        syncTimeLog(_t1, 'flushStreamingUpdate-持久化', details.join(' | '))
         lastPersistAt = now
       }
     }

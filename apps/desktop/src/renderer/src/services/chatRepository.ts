@@ -1,6 +1,18 @@
 const forIpc = <T>(obj: T): T => JSON.parse(JSON.stringify(obj))
 
 export const chatRepository = {
+  async deleteMessage(messageId: string): Promise<void> {
+    await window.api.chatDb.message.delete(messageId)
+  },
+
+  async replaceMessageParts(messageId: string, parts: BaseMessage['parts']): Promise<void> {
+    await window.api.chatDb.message.replaceParts(messageId, forIpc(parts))
+  },
+
+  async updateMessageMetadata(messageId: string, metadata: MetaData): Promise<void> {
+    await window.api.chatDb.message.updateMetadata(messageId, forIpc(metadata))
+  },
+
   async deleteChatMessages(chatId: string): Promise<void> {
     await window.api.chatDb.message.deleteAll(chatId)
   },

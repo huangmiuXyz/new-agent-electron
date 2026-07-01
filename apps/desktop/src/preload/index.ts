@@ -617,6 +617,7 @@ export const api: ElectronAPI = {
       replaceAll: (chatId: string, messages: BaseMessage[]) => electronAPI.ipcRenderer.invoke('chatDb:message:replaceAll', chatId, messages),
       replaceFrom: (chatId: string, anchorMessageId: string, messages: BaseMessage[]) => electronAPI.ipcRenderer.invoke('chatDb:message:replaceFrom', chatId, anchorMessageId, messages),
       append: (chatId: string, messages: BaseMessage[]) => electronAPI.ipcRenderer.invoke('chatDb:message:append', chatId, messages),
+      delete: (messageId: string) => electronAPI.ipcRenderer.invoke('chatDb:message:delete', messageId),
       deleteAll: (chatId: string) => electronAPI.ipcRenderer.invoke('chatDb:message:deleteAll', chatId),
       clearAll: () => electronAPI.ipcRenderer.invoke('chatDb:message:clearAll'),
       upsert: (chatId: string, message: BaseMessage, seqHint?: number) => electronAPI.ipcRenderer.invoke('chatDb:message:upsert', chatId, message, seqHint),

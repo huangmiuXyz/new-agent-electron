@@ -228,6 +228,7 @@ export interface ElectronAPI {
       replaceAll: (chatId: string, messages: BaseMessage[]) => Promise<void>
       replaceFrom: (chatId: string, anchorMessageId: string, messages: BaseMessage[]) => Promise<void>
       append: (chatId: string, messages: BaseMessage[]) => Promise<void>
+      delete: (messageId: string) => Promise<void>
       deleteAll: (chatId: string) => Promise<void>
       clearAll: () => Promise<void>
       upsert: (chatId: string, message: BaseMessage, seqHint?: number) => Promise<void>

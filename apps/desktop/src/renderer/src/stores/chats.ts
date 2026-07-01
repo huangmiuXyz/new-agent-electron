@@ -343,7 +343,7 @@ export const useChatsStores = defineStore(
       if (!window) return
       window.messages.find((m) => m.id === mid)?.metadata?.stop?.()
       const nextMessages = window.messages.filter((message) => message.id !== mid)
-      await chatRepository.replaceMessages(cid, nextMessages)
+      await chatRepository.deleteMessage(mid)
       replaceWindowMessages(cid, nextMessages)
     }
 
@@ -549,27 +549,36 @@ export const useChatsStores = defineStore(
     }
 
     const updateMessage = async (cid: string, mid: string, newParts: any[]) => {
-      await updateMessages(cid, (messages) =>
-        messages.map((message) => (message.id === mid ? { ...message, parts: newParts } : message))
+      const window = messageWindows.value[cid]
+      if (!window) return
+      const nextMessages = window.messages.map((message) =>
+        message.id === mid ? { ...message, parts: newParts } : message
       )
+      replaceWindowMessages(cid, nextMessages)
+      await chatRepository.replaceMessageParts(mid, newParts)
     }
 
     const updateMessageMetadata = async (cid: string, mid: string, newMetadata: MetaData) => {
-      await updateMessages(cid, (messages) =>
-        messages.map((message) =>
-          message.id === mid ? { ...message, metadata: newMetadata } : message
-        )
+      const window = messageWindows.value[cid]
+      if (!window) return
+      const nextMessages = window.messages.map((message) =>
+        message.id === mid ? { ...message, metadata: newMetadata } : message
       )
+      replaceWindowMessages(cid, nextMessages)
+      await chatRepository.updateMessageMetadata(mid, newMetadata)
     }
 
     const updateMessageAudioChunks = async (cid: string, mid: string, audio: NonNullable<MetaData['audio']>) => {
-      await updateMessages(cid, (messages) =>
-        messages.map((message) =>
-          message.id === mid
-            ? { ...message, metadata: { ...message.metadata, audio } as MetaData }
-            : message
-        )
+      const window = messageWindows.value[cid]
+      if (!window) return
+      const message = window.messages.find((m) => m.id === mid)
+      if (!message) return
+      const newMetadata = { ...message.metadata, audio } as MetaData
+      const nextMessages = window.messages.map((m) =>
+        m.id === mid ? { ...m, metadata: newMetadata } : m
       )
+      replaceWindowMessages(cid, nextMessages)
+      await chatRepository.updateMessageMetadata(mid, newMetadata)
     }
 
     const updateMessages = async (
