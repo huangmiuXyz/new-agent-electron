@@ -9,16 +9,43 @@
                 <button v-if="isHtml" class="preview-btn" @click="showPreviewModal">
                     预览
                 </button>
+                <button
+                    v-if="isLongCode"
+                    class="expand-btn"
+                    type="button"
+                    @click="toggleExpanded"
+                    :title="isExpanded ? '收起长代码' : longCodeTitle"
+                >
+                    {{ isExpanded ? '收起' : '展开' }}
+                </button>
                 <button class="copy-btn" @click="copy">
                     {{ copied ? '✓' : '复制' }}
                 </button>
             </div>
         </div>
 
-        <pre v-if="useHighlightedHtml" class="code-content" v-html="highlightedCode"></pre>
-        <pre v-else class="code-content">
+        <pre
+            v-if="useHighlightedHtml"
+            class="code-content"
+            :class="{ 'has-expand-overlay': isLongCode && !isExpanded }"
+            v-html="highlightedCode"
+        ></pre>
+        <pre
+            v-else
+            class="code-content"
+            :class="{ 'has-expand-overlay': isLongCode && !isExpanded }"
+        >
             <code class="hljs" :class="`language-${lang}`" v-text="plainCode"></code>
         </pre>
+        <button
+            v-if="isLongCode && !isExpanded"
+            class="code-expand-overlay"
+            type="button"
+            @click="toggleExpanded"
+            :title="longCodeTitle"
+        >
+            {{ longCodeTitle }}
+        </button>
     </div>
 </template>
 
@@ -61,14 +88,49 @@ const isHtml = computed(
 )
 
 const HIGHLIGHT_MAX_LENGTH = 30000
+const PREVIEW_MAX_LENGTH = 20000
+const PREVIEW_MAX_LINES = 240
 
 const highlightedCode = ref('')
 const plainCode = ref('')
 const useHighlightedHtml = ref(false)
+const isExpanded = ref(false)
 
 let highlightTimer: ReturnType<typeof setTimeout> | null = null
 let idleCallbackId: number | null = null
 let renderVersion = 0
+
+const getPreviewEndIndex = (code: string) => {
+    if (!code) return 0
+
+    let lines = 1
+    const maxIndex = Math.min(code.length, PREVIEW_MAX_LENGTH)
+    for (let index = 0; index < maxIndex; index += 1) {
+        if (code.charCodeAt(index) === 10) {
+            lines += 1
+            if (lines > PREVIEW_MAX_LINES) {
+                return index
+            }
+        }
+    }
+
+    return maxIndex
+}
+
+const previewEndIndex = computed(() => getPreviewEndIndex(props.codeStr || ''))
+const isLongCode = computed(() => previewEndIndex.value < (props.codeStr || '').length)
+const renderCode = computed(() => {
+    const code = props.codeStr || ''
+    return isLongCode.value && !isExpanded.value ? code.slice(0, previewEndIndex.value) : code
+})
+const longCodeTitle = computed(() => {
+    const hiddenChars = Math.max(0, (props.codeStr || '').length - previewEndIndex.value)
+    return `展开完整代码，剩余 ${hiddenChars.toLocaleString()} 字符`
+})
+
+const toggleExpanded = () => {
+    isExpanded.value = !isExpanded.value
+}
 
 function setPlainCode(code: string) {
     plainCode.value = code
@@ -91,7 +153,7 @@ function runHighlight(version: number) {
         return
     }
 
-    const code = props.codeStr
+    const code = renderCode.value
     if (!code || code.length > HIGHLIGHT_MAX_LENGTH) {
         setPlainCode(code || '')
         return
@@ -112,7 +174,7 @@ function scheduleHighlight() {
     clearHighlightTasks()
     renderVersion += 1
     const currentVersion = renderVersion
-    const code = props.codeStr || ''
+    const code = renderCode.value
 
     // Keep streaming lightweight; only upgrade to highlighted HTML after completion.
     setPlainCode(code)
@@ -135,9 +197,16 @@ function scheduleHighlight() {
     run()
 }
 
-watch([() => props.codeStr, () => lowerLang.value, () => isCompleted.value], () => {
+watch([renderCode, () => lowerLang.value, () => isCompleted.value], () => {
     scheduleHighlight()
 }, { immediate: true })
+
+watch(
+    () => props.codeStr,
+    () => {
+        isExpanded.value = false
+    }
+)
 
 onBeforeUnmount(() => {
     clearHighlightTasks()
@@ -253,6 +322,7 @@ async function copy() {
 }
 
 .preview-btn,
+.expand-btn,
 .copy-btn {
     padding: 4px 12px;
     font-size: 12px;
@@ -265,6 +335,7 @@ async function copy() {
 }
 
 .preview-btn:hover,
+.expand-btn:hover,
 .copy-btn:hover,
 .browser-btn:hover {
     background: var(--button-hover-bg);
@@ -276,6 +347,26 @@ async function copy() {
     overflow-x: auto;
     background: var(--code-bg);
     border-radius: 0 0 8px 8px;
+}
+
+.code-content.has-expand-overlay {
+    border-radius: 0;
+}
+
+.code-expand-overlay {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--button-color);
+    background: var(--header-bg);
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 0 8px 8px;
+    cursor: pointer;
+}
+
+.code-expand-overlay:hover {
+    background: var(--button-hover-bg);
 }
 
 .code-content code {
