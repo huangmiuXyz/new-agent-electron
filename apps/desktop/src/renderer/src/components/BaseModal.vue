@@ -27,7 +27,9 @@
             </div>
           </slot>
         </div>
-        <Button v-if="isFullscreen" @click="exitFullscreen" variant="text" class="fullscreen-exit-btn" :style="{ zIndex: fullscreenBtnZIndex }" title="退出全屏">
+        <Button v-if="isFullscreen" @click="exitFullscreen" variant="text" class="fullscreen-exit-btn"
+          :class="{ 'is-windows': isWindows }"
+          :style="{ zIndex: fullscreenBtnZIndex }" title="退出全屏">
           <FullscreenExit />
         </Button>
         <div v-show="!isFullscreen && showFooter" class="modal-footer" :class="{ 'is-hidden': isFullscreen }">
@@ -83,6 +85,7 @@ const props = withDefaults(defineProps<BaseModalProps>(), {
 
 const { Close, Fullscreen, FullscreenExit } = useIcon(['Close', 'Fullscreen', 'FullscreenExit'])
 const isFullscreen = ref(false)
+const isWindows = window.api?.process?.platform === 'win32'
 const showFullscreenTip = ref(false)
 let fullscreenTipTimer: ReturnType<typeof setTimeout> | null = null
 let modalResizeObserver: ResizeObserver | null = null
@@ -751,6 +754,11 @@ onBeforeUnmount(() => {
   background: rgba(0, 0, 0, 0.5);
   border-radius: 4px;
   color: white;
+}
+
+.fullscreen-exit-btn.is-windows {
+  right: auto;
+  left: 8px;
 }
 
 .fullscreen-exit-btn:hover {
