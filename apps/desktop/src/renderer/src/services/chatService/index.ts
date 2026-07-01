@@ -381,7 +381,7 @@ export const chatService = () => {
           estimatedInputTokens: estimatedPromptTokens,
           stop: () => controller.abort(),
           ragSearchDetails: ragSearchDetails?.map((item) => ({ ...item })),
-          ragEnabled,
+          ragEnabled: !!knowledgeBaseIds && knowledgeBaseIds.length > 0 && ragEnabled,
           ...finishMetadata
         }
       }
