@@ -46,6 +46,7 @@ const heroSubtitle = computed(
   flex-direction: column;
   background: transparent;
   position: relative;
+  padding: 0 12px;
 }
 
 .main-chat.compact {
