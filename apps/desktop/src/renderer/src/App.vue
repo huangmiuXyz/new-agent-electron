@@ -871,7 +871,6 @@ body {
   position: relative;
   border-top: 1px solid var(--border-subtle);
   background: var(--bg-main-surface);
-  border-top-left-radius: var(--radius-lg);
   box-shadow: 0 -1px 0 var(--border-subtle);
 }
 
