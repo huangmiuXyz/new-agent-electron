@@ -193,6 +193,7 @@ const lastReasoningBlockIndex = computed(() => {
             v-if="block.type === 'reasoning'"
             :reasoning_content="block.text"
             :streaming="message?.metadata?.loading && idx === lastReasoningBlockIndex"
+            :is-last-reasoning="idx === lastReasoningBlockIndex"
           />
           <ChatMessageItemDynamicTool
             :message="message"

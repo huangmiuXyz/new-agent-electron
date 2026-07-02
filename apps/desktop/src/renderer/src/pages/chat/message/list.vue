@@ -169,6 +169,8 @@ const hasAudioChunks = (msg: BaseMessage | null | undefined): boolean => {
   return (msg?.metadata?.audio?.chunks?.length ?? 0) > 0
 }
 
+
+
 const getRetryText = (msg: BaseMessage | null | undefined): string => {
   if (!msg?.metadata?.retrying) return ''
   const errMsg = msg.metadata?.error?.message
@@ -930,6 +932,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
               <ChatMessageItemReasoning_content
                 :reasoning_content="(flatItems[vItem.index]!.part as TextUIPart)?.text ?? ''"
                 :streaming="false"
+                :is-last-reasoning="flatItems[vItem.index]?.isLastReasoningPart ?? false"
               />
             </div>
 
@@ -1091,7 +1094,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 .vi-ai-usage { font-size: 10px; color: var(--text-tertiary); line-height: 1; }
 
 /* —— Loading dots —— */
-.vi-loading { padding: 8px 20px; }
+.vi-loading { padding: 8px 0px; }
 .loading-dots { display: flex; align-items: center; gap: 6px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-color); animation: pulse 1.4s ease-in-out infinite; }
 .dot:nth-child(1) { animation-delay: 0s; }

@@ -14,6 +14,8 @@ export interface VirtualChatItem {
   partIndex: number
   /** collapsed toggle: how many parts are hidden */
   hiddenCount?: number
+  /** whether this reasoning part is the last reasoning block in the message */
+  isLastReasoningPart?: boolean
 }
 
 function estimateTextHeight(len: number): number {
@@ -166,6 +168,11 @@ export function generateFlatItems(
       })
     }
 
+    let lastReasoningPartIdx = -1
+    for (let pi = 0; pi < displayedParts.length; pi++) {
+      if (displayedParts[pi].type === 'reasoning') lastReasoningPartIdx = pi
+    }
+
     for (let pi = 0; pi < displayedParts.length; pi++) {
       const part = displayedParts[pi]
       // skip step-start/step-end parts
@@ -183,7 +190,8 @@ export function generateFlatItems(
         type: ptype,
         messageId: msg.id!, groupId: gid,
         isFirstInGroup: false, isLastInGroup: false,
-        msg, part, partIndex: pi
+        msg, part, partIndex: pi,
+        isLastReasoningPart: part.type === 'reasoning' && pi === lastReasoningPartIdx
       })
     }
 

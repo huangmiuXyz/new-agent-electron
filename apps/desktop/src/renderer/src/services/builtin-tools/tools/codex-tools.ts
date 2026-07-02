@@ -22,7 +22,7 @@ const buildExecCommandDescription = (builtinTools?: string[]): string => {
   const toolSet = builtinTools ? new Set(builtinTools) : null
 
   const lines: string[] = [
-    '仅限于执行测试/构建/包管理/git 等真正需要终端的命令。禁止所有写操作（sed -i/重定向>/cp/mv/rm/touch/mkdir/tee，以及 npm install/git commit/pip install/docker build/apt install/kubectl apply 等写入命令）。'
+    '仅限于执行查看状态、运行测试、启动开发服务器等只读终端命令。禁止所有写操作（sed -i/重定向>/cp/mv/rm/touch/mkdir/tee，以及 npm install/git commit/pip install/docker build/apt install/kubectl apply 等写入命令）。'
   ]
 
   if (!toolSet || toolSet.has('search_project')) lines.push('- 禁用 rg/grep/awk/git grep → 用 search_project')

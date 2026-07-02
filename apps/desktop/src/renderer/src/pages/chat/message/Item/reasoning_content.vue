@@ -44,9 +44,32 @@ const Bulb = useIcon('Bulb')
 const Copy = useIcon('Copy')
 const { showContextMenu } = useContextMenu()
 
-const props = defineProps<{ reasoning_content: string; streaming?: boolean }>()
+const props = defineProps<{
+  reasoning_content: string
+  streaming?: boolean
+  isLastReasoning?: boolean
+}>()
 
-const isReasoningExpanded = ref(display.value.expandThoughtByDefault)
+const userToggle = ref(display.value.expandThoughtByDefault)
+
+watch(
+  () => props.isLastReasoning,
+  (val, oldVal) => {
+    if (!val && oldVal) {
+      userToggle.value = false
+    }
+  }
+)
+
+const isReasoningExpanded = computed({
+  get: () => {
+    if (props.isLastReasoning) return true
+    return userToggle.value
+  },
+  set: (val: boolean) => {
+    userToggle.value = val
+  }
+})
 
 // 逐字出现打字机效果
 const displayedReasoning = ref('')
@@ -155,6 +178,18 @@ watch(
       scheduleReasoningNextChar()
     }
   }
+)
+
+watch(
+  () => props.alwaysExpand,
+  (val, oldVal) => {
+    if (val) {
+      isReasoningExpanded.value = true
+    } else if (oldVal !== undefined) {
+      isReasoningExpanded.value = false
+    }
+  },
+  { immediate: true }
 )
 
 onBeforeUnmount(() => {
