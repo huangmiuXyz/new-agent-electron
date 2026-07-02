@@ -16,7 +16,14 @@ const scrollHostRef = ref<HTMLElement | null>(null)
 const autoScrollEnabled = ref(true)
 const isUserScrolledUp = ref(false)
 let lastScrollTop = 0
-let lastUserScrollTime = 0
+let bottomFollowRafId: number | null = null
+let bottomFollowFramesRemaining = 0
+let bottomFollowStableFrames = 0
+let bottomFollowLastTotalSize = 0
+let suppressProgrammaticScrollUntil = 0
+const BOTTOM_FOLLOW_MAX_FRAMES = 24
+const BOTTOM_THRESHOLD = 5
+const PROGRAMMATIC_SCROLL_SUPPRESS_MS = 80
 
 const copyPreviewZIndex = acquireZIndex()
 const { showContextMenu } = useContextMenu<BaseMessage>()
@@ -228,6 +235,7 @@ const lastFlatIndex = computed(() => {
 const virtualizer = useVirtualizer({
   get count() { return flatItems.value.length },
   getScrollElement: () => scrollHostRef.value,
+  getItemKey: (index: number) => flatItems.value[index]?.uid ?? index,
   estimateSize: (index: number) => {
     const item = flatItems.value[index]
     return item ? estimateItemHeight(item) : 80
@@ -237,6 +245,64 @@ const virtualizer = useVirtualizer({
 
 const measureRef = (el: unknown) => {
   if (el instanceof HTMLElement) virtualizer.value.measureElement(el)
+}
+
+const getDistanceFromBottom = (el: HTMLElement) => {
+  return Math.max(0, el.scrollHeight - el.scrollTop - el.clientHeight)
+}
+
+const scrollVirtualizerToBottom = () => {
+  const lastIdx = lastFlatIndex.value
+  if (lastIdx < 0) return
+  suppressProgrammaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_SUPPRESS_MS
+  virtualizer.value.scrollToIndex(lastIdx, { align: 'end' })
+}
+
+const cancelBottomFollow = () => {
+  if (bottomFollowRafId !== null) {
+    cancelAnimationFrame(bottomFollowRafId)
+    bottomFollowRafId = null
+  }
+  bottomFollowFramesRemaining = 0
+  bottomFollowStableFrames = 0
+}
+
+const runBottomFollowFrame = () => {
+  bottomFollowRafId = null
+  const el = scrollHostRef.value
+  if (!el || !autoScrollEnabled.value || isUserScrolledUp.value) {
+    cancelBottomFollow()
+    return
+  }
+
+  scrollVirtualizerToBottom()
+
+  const totalSize = virtualizer.value.getTotalSize()
+  const distance = getDistanceFromBottom(el)
+  const totalSizeStable = Math.abs(totalSize - bottomFollowLastTotalSize) <= 1
+
+  if (totalSizeStable && distance <= BOTTOM_THRESHOLD) {
+    bottomFollowStableFrames += 1
+  } else {
+    bottomFollowStableFrames = 0
+  }
+
+  bottomFollowLastTotalSize = totalSize
+  bottomFollowFramesRemaining -= 1
+
+  if (bottomFollowFramesRemaining > 0 && bottomFollowStableFrames < 2) {
+    bottomFollowRafId = requestAnimationFrame(runBottomFollowFrame)
+  }
+}
+
+const scheduleBottomFollow = (frames = BOTTOM_FOLLOW_MAX_FRAMES) => {
+  if (!autoScrollEnabled.value || isUserScrolledUp.value) return
+  bottomFollowFramesRemaining = Math.max(bottomFollowFramesRemaining, frames)
+  bottomFollowStableFrames = 0
+  bottomFollowLastTotalSize = virtualizer.value.getTotalSize()
+  if (bottomFollowRafId === null) {
+    bottomFollowRafId = requestAnimationFrame(runBottomFollowFrame)
+  }
 }
 
 // 自动滚动：新消息到达时滚到底
@@ -253,10 +319,8 @@ const autoScrollTrigger = computed(() => {
 
 const tryAutoScroll = () => {
   if (!autoScrollEnabled.value || isUserScrolledUp.value) return
-  if (Date.now() - lastUserScrollTime < 800) return
-  const lastIdx = lastFlatIndex.value
-  if (lastIdx < 0) return
-  virtualizer.value.scrollToIndex(lastIdx, { align: 'end' })
+  scrollVirtualizerToBottom()
+  scheduleBottomFollow()
 }
 
 // 监听到触发变更时滚动
@@ -269,19 +333,26 @@ watch(() => currentChat.value?.id, () => {
   nextTick(() => {
     isUserScrolledUp.value = false
     lastScrollTop = 0
-    virtualizer.value.scrollToIndex(Math.max(0, flatItems.value.length - 1), { align: 'end' })
+    scrollVirtualizerToBottom()
+    scheduleBottomFollow()
   })
 })
+
+const handleUserScrollIntent = () => {
+  suppressProgrammaticScrollUntil = 0
+}
 
 // 加载更多（滚动到顶部时）
 const handleScrollEvent = (event: Event) => {
   const el = event.target as HTMLElement
   if (!el) return
-  lastUserScrollTime = Date.now()
 
   // 检测用户是否滚上去
   if (el.scrollTop < lastScrollTop) {
-    isUserScrolledUp.value = el.scrollTop + el.clientHeight < el.scrollHeight - 5
+    if (Date.now() >= suppressProgrammaticScrollUntil) {
+      isUserScrolledUp.value = el.scrollTop + el.clientHeight < el.scrollHeight - 5
+      if (isUserScrolledUp.value) cancelBottomFollow()
+    }
   } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 5) {
     isUserScrolledUp.value = false
   }
@@ -292,10 +363,18 @@ const handleScrollEvent = (event: Event) => {
     const chat = currentChat.value
     if (!chat) return
     isLoadingMore.value = true
-    const prevScrollHeight = el.scrollHeight
+    const anchorItem = virtualizer.value.getVirtualItems()[0]
+    const anchorUid = anchorItem ? flatItems.value[anchorItem.index]?.uid : undefined
+    const anchorOffset = anchorItem ? el.scrollTop - anchorItem.start : 0
     loadMoreMessagesBefore(chat.id).finally(() => {
       nextTick(() => {
-        el.scrollTop = el.scrollHeight - prevScrollHeight
+        const anchorIndex = anchorUid ? flatItems.value.findIndex((item) => item.uid === anchorUid) : -1
+        if (anchorIndex >= 0) {
+          const offset = virtualizer.value.getOffsetForIndex(anchorIndex, 'start')?.[0]
+          if (typeof offset === 'number') {
+            virtualizer.value.scrollToOffset(Math.max(0, offset + anchorOffset))
+          }
+        }
         isLoadingMore.value = false
       })
     })
@@ -306,23 +385,28 @@ onMounted(() => {
   const el = scrollHostRef.value
   if (el) {
     el.addEventListener('scroll', handleScrollEvent)
+    el.addEventListener('wheel', handleUserScrollIntent, { passive: true })
+    el.addEventListener('touchstart', handleUserScrollIntent, { passive: true })
+    el.addEventListener('pointerdown', handleUserScrollIntent)
   }
 })
 
 onUnmounted(() => {
+  cancelBottomFollow()
   const el = scrollHostRef.value
   if (el) {
     el.removeEventListener('scroll', handleScrollEvent)
+    el.removeEventListener('wheel', handleUserScrollIntent)
+    el.removeEventListener('touchstart', handleUserScrollIntent)
+    el.removeEventListener('pointerdown', handleUserScrollIntent)
   }
 })
 
 // 兼容旧的 useMessageScroll API
 const scrollToBottom = () => {
-  const lastIdx = lastFlatIndex.value
-  if (lastIdx >= 0) {
-    virtualizer.value.scrollToIndex(lastIdx, { align: 'end' })
-  }
   isUserScrolledUp.value = false
+  scrollVirtualizerToBottom()
+  scheduleBottomFollow()
 }
 
 const getScrollContainer = () => scrollHostRef.value
@@ -834,6 +918,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
             transform: `translateY(${vItem.start}px)`
           }"
         >
+          <div class="virtual-item-content">
             <!-- context divider -->
             <div v-if="flatItems[vItem.index]?.type === 'context-divider'" class="context-divider">
               <div class="divider-line"></div>
@@ -973,6 +1058,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
               @stopTranslation="() => flatItems[vItem.index]!.msg?.metadata?.translationController?.()"
             />
           </div>
+          </div>
         </div>
       </div>
 
@@ -1045,8 +1131,8 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 }
 
 /* Entry animation */
-.virtual-item.vi-is-new {
-  will-change: transform, opacity;
+.virtual-item.vi-is-new .virtual-item-content {
+  will-change: opacity, transform;
   animation: message-rise-in 0.32s var(--motion-ease-decelerated);
 }
 
