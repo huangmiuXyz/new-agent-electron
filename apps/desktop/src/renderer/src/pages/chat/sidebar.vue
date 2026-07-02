@@ -597,7 +597,8 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 .sidebar:not(.is-mobile) .nav-list {
   flex: 1;
   overflow-y: auto;
-  padding: var(--sidebar-container-pad);
+  padding: 12px;
+  padding-top: 8px;
   background: transparent;
 }
 
@@ -606,7 +607,6 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 2px 4px;
 }
 
 .chat-list-title-text {
@@ -627,6 +627,7 @@ const getSubTaskStatusLabel = (chat: Chat) => {
   font-weight: 600;
   color: var(--text-tertiary);
   padding: 6px 4px 2px;
+  padding-left: 0;
   letter-spacing: -0.05px;
 }
 

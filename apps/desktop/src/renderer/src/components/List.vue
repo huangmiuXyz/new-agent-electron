@@ -422,7 +422,6 @@ const handleItemClick = (item: ListItemView) => {
   font-weight: 600;
   color: var(--text-tertiary);
   margin-bottom: 6px;
-  padding: 4px 6px 0;
   letter-spacing: -0.08px;
   display: flex;
   justify-content: space-between;
