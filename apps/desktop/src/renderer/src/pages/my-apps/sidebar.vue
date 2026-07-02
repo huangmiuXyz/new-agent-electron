@@ -63,7 +63,6 @@ const handleContextMenu = (event: MouseEvent, appId: string) => {
   display: flex;
   flex-direction: column;
   background: var(--bg-sidebar-surface);
-  border-right: 1px solid var(--sidebar-border);
 }
 
 .my-apps-sidebar:not(.is-mobile) :deep(.my-apps-sidebar-list),

@@ -447,7 +447,7 @@ const { width } = useWindowSize()
   --bg-app: #f6f6f6;
   --bg-sidebar: #ffffff;
   --bg-header: rgba(246, 246, 246, 0.72);
-  --bg-sidebar-surface: #ececec;
+  --bg-sidebar-surface: rgba(246, 246, 246, 0.72);
   --bg-main-surface: #ffffff;
   --bg-secondary: #fff;
   --bg-hover: rgba(0, 0, 0, 0.06);
@@ -899,6 +899,7 @@ body {
 .global-left-panel {
   width: 100%;
   height: 100%;
+  border-right: 1px solid var(--sidebar-border);
   min-width: 0;
   min-height: 0;
   overflow: hidden;

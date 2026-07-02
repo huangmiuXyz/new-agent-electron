@@ -280,8 +280,6 @@ const openAppContextMenu = (event: MouseEvent, appId: string) => {
   justify-content: center;
   min-height: 0;
   padding: 28px;
-  border: 1px solid color-mix(in srgb, var(--border-subtle) 88%, transparent);
-  border-radius: 12px;
   background:
     radial-gradient(circle at top, rgba(var(--accent-rgb), 0.035), transparent 34%),
     linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 94%, var(--bg-hover) 6%) 0%, var(--bg-card) 100%);

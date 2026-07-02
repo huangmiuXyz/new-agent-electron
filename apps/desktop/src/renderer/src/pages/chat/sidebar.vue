@@ -587,7 +587,6 @@ const getSubTaskStatusLabel = (chat: Chat) => {
 .sidebar:not(.is-mobile) {
   width: 100%;
   background-color: var(--bg-sidebar-surface);
-  border-right: 1px solid var(--sidebar-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;

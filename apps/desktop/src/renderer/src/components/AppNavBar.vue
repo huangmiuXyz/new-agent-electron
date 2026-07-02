@@ -64,7 +64,6 @@ const SettingsIcon = useIcon('Settings')
     align-items: center;
     padding: 0 6px 0 4px;
     border-bottom: 1px solid var(--sidebar-nav-border);
-    background: color-mix(in srgb, var(--bg-sidebar-surface) 88%, var(--bg-header) 12%);
     backdrop-filter: var(--vibrancy-blur-light);
     -webkit-backdrop-filter: var(--vibrancy-blur-light);
 }
