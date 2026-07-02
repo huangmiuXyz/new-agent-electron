@@ -16,14 +16,6 @@ const scrollHostRef = ref<HTMLElement | null>(null)
 const autoScrollEnabled = ref(true)
 const isUserScrolledUp = ref(false)
 let lastScrollTop = 0
-let bottomFollowRafId: number | null = null
-let bottomFollowFramesRemaining = 0
-let bottomFollowStableFrames = 0
-let bottomFollowLastTotalSize = 0
-let suppressProgrammaticScrollUntil = 0
-const BOTTOM_FOLLOW_MAX_FRAMES = 24
-const BOTTOM_THRESHOLD = 5
-const PROGRAMMATIC_SCROLL_SUPPRESS_MS = 80
 
 const copyPreviewZIndex = acquireZIndex()
 const { showContextMenu } = useContextMenu<BaseMessage>()
@@ -226,11 +218,6 @@ const contentStyle = computed(() => ({
   fontSize: `${display.value.fontSize}px`
 }))
 
-const lastFlatIndex = computed(() => {
-  if (flatItems.value.length === 0) return -1
-  return flatItems.value.length - 1
-})
-
 // 虚拟滚动器
 const virtualizer = useVirtualizer({
   get count() { return flatItems.value.length },
@@ -247,118 +234,43 @@ const measureRef = (el: unknown) => {
   if (el instanceof HTMLElement) virtualizer.value.measureElement(el)
 }
 
-const getDistanceFromBottom = (el: HTMLElement) => {
-  return Math.max(0, el.scrollHeight - el.scrollTop - el.clientHeight)
-}
-
 const scrollVirtualizerToBottom = () => {
-  const lastIdx = lastFlatIndex.value
-  if (lastIdx < 0) return
-  suppressProgrammaticScrollUntil = Date.now() + PROGRAMMATIC_SCROLL_SUPPRESS_MS
-  virtualizer.value.scrollToIndex(lastIdx, { align: 'end' })
-}
-
-const cancelBottomFollow = () => {
-  if (bottomFollowRafId !== null) {
-    cancelAnimationFrame(bottomFollowRafId)
-    bottomFollowRafId = null
-  }
-  bottomFollowFramesRemaining = 0
-  bottomFollowStableFrames = 0
-}
-
-const runBottomFollowFrame = () => {
-  bottomFollowRafId = null
   const el = scrollHostRef.value
-  if (!el || !autoScrollEnabled.value || isUserScrolledUp.value) {
-    cancelBottomFollow()
-    return
-  }
-
-  scrollVirtualizerToBottom()
-
-  const totalSize = virtualizer.value.getTotalSize()
-  const distance = getDistanceFromBottom(el)
-  const totalSizeStable = Math.abs(totalSize - bottomFollowLastTotalSize) <= 1
-
-  if (totalSizeStable && distance <= BOTTOM_THRESHOLD) {
-    bottomFollowStableFrames += 1
-  } else {
-    bottomFollowStableFrames = 0
-  }
-
-  bottomFollowLastTotalSize = totalSize
-  bottomFollowFramesRemaining -= 1
-
-  if (bottomFollowFramesRemaining > 0 && bottomFollowStableFrames < 2) {
-    bottomFollowRafId = requestAnimationFrame(runBottomFollowFrame)
-  }
+  if (!el) return
+  el.scrollTop = el.scrollHeight
 }
 
-const scheduleBottomFollow = (frames = BOTTOM_FOLLOW_MAX_FRAMES) => {
-  if (!autoScrollEnabled.value || isUserScrolledUp.value) return
-  bottomFollowFramesRemaining = Math.max(bottomFollowFramesRemaining, frames)
-  bottomFollowStableFrames = 0
-  bottomFollowLastTotalSize = virtualizer.value.getTotalSize()
-  if (bottomFollowRafId === null) {
-    bottomFollowRafId = requestAnimationFrame(runBottomFollowFrame)
+watch(
+  () => virtualizer.value.getTotalSize(),
+  () => {
+    nextTick(() => {
+      if (!autoScrollEnabled.value || isUserScrolledUp.value) return
+      const el = scrollHostRef.value
+      if (!el) return
+      el.scrollTop = el.scrollHeight
+    })
   }
-}
+)
 
-// 自动滚动：新消息到达时滚到底
-const autoScrollTrigger = computed(() => {
-  const msgs = visibleMessages.value
-  const last = msgs[msgs.length - 1]
-  if (!last) return `${msgs.length}`
-  let textLen = 0
-  for (const p of last.parts) {
-    if (p.type === 'text') textLen += (p as TextUIPart).text.length
-  }
-  return `${msgs.length}:${last.id}:${last.parts.length}:${textLen}`
-})
-
-const tryAutoScroll = () => {
-  if (!autoScrollEnabled.value || isUserScrolledUp.value) return
-  scrollVirtualizerToBottom()
-  scheduleBottomFollow()
-}
-
-// 监听到触发变更时滚动
-watch(autoScrollTrigger, () => {
-  nextTick(tryAutoScroll)
-})
-
-// 切换会话时滚到底
 watch(() => currentChat.value?.id, () => {
   nextTick(() => {
     isUserScrolledUp.value = false
     lastScrollTop = 0
     scrollVirtualizerToBottom()
-    scheduleBottomFollow()
   })
 })
 
-const handleUserScrollIntent = () => {
-  suppressProgrammaticScrollUntil = 0
-}
-
-// 加载更多（滚动到顶部时）
 const handleScrollEvent = (event: Event) => {
   const el = event.target as HTMLElement
   if (!el) return
 
-  // 检测用户是否滚上去
   if (el.scrollTop < lastScrollTop) {
-    if (Date.now() >= suppressProgrammaticScrollUntil) {
-      isUserScrolledUp.value = el.scrollTop + el.clientHeight < el.scrollHeight - 5
-      if (isUserScrolledUp.value) cancelBottomFollow()
-    }
+    isUserScrolledUp.value = el.scrollTop + el.clientHeight < el.scrollHeight - 5
   } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 5) {
     isUserScrolledUp.value = false
   }
   lastScrollTop = el.scrollTop
 
-  // 滚动到顶部加载更多
   if (!isLoadingMore.value && el.scrollTop <= 50) {
     const chat = currentChat.value
     if (!chat) return
@@ -385,28 +297,19 @@ onMounted(() => {
   const el = scrollHostRef.value
   if (el) {
     el.addEventListener('scroll', handleScrollEvent)
-    el.addEventListener('wheel', handleUserScrollIntent, { passive: true })
-    el.addEventListener('touchstart', handleUserScrollIntent, { passive: true })
-    el.addEventListener('pointerdown', handleUserScrollIntent)
   }
 })
 
 onUnmounted(() => {
-  cancelBottomFollow()
   const el = scrollHostRef.value
   if (el) {
     el.removeEventListener('scroll', handleScrollEvent)
-    el.removeEventListener('wheel', handleUserScrollIntent)
-    el.removeEventListener('touchstart', handleUserScrollIntent)
-    el.removeEventListener('pointerdown', handleUserScrollIntent)
   }
 })
 
-// 兼容旧的 useMessageScroll API
 const scrollToBottom = () => {
   isUserScrolledUp.value = false
   scrollVirtualizerToBottom()
-  scheduleBottomFollow()
 }
 
 const getScrollContainer = () => scrollHostRef.value
@@ -1215,7 +1118,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 
 /* —— Actions —— */
 .msg-actions {
-  align-self: stretch; display: flex; align-items: center; gap: 8px; padding: 4px 20px;
+  align-self: stretch; display: flex; align-items: center; gap: 8px; padding: 4px 20px; min-height: 36px;
 }
 .message-activity-status { margin-left: auto; color: var(--text-tertiary); font-size: 11px; line-height: 1.4; white-space: nowrap; }
 
