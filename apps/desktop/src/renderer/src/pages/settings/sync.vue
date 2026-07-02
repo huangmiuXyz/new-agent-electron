@@ -106,6 +106,12 @@ const endpointBadge = (endpoint: SyncEndpoint) => {
   return endpoint.source === 'desktop' ? '桌面端' : '移动端'
 }
 
+const endpointDisplayName = (endpoint: SyncEndpoint) => {
+  const name = endpoint.displayName || endpoint.deviceId
+  const badge = endpointBadge(endpoint)
+  return `${name}  ${badge}`
+}
+
 const hasSelectedDiff = computed(() => {
   return (
     diffSummary.value.messageChanges > 0 ||
@@ -158,59 +164,47 @@ const hasSelectedDiff = computed(() => {
           </Card>
         </template>
 
-        <Card>
-          <div class="endpoint-header">
-            <div class="endpoint-title">设备列表</div>
-          </div>
-          <div v-if="endpoints.length > 0" class="endpoint-list">
-            <div
-              v-for="endpoint in endpoints"
-              :key="endpoint.deviceId"
-              class="endpoint-item"
-              :class="{ selected: selectedEndpointId === endpoint.deviceId }"
-              @click="selectEndpoint(endpoint.deviceId)"
-            >
-              <div class="endpoint-main">
-                <div class="endpoint-name-row">
-                  <div class="endpoint-name-block">
-                    <div class="endpoint-name">{{ endpoint.displayName || endpoint.deviceId }}</div>
-                    <div v-if="endpoint.displayName" class="endpoint-id">{{ endpoint.deviceId }}</div>
-                  </div>
-                  <div class="endpoint-badge">{{ endpointBadge(endpoint) }}</div>
-                </div>
-                <div class="endpoint-metrics">
-                  <div class="endpoint-metric">
-                    <span class="metric-value">{{ endpoint.chatCount }}</span>
-                    <span class="metric-label">会话</span>
-                  </div>
-                  <div class="endpoint-metric">
-                    <span class="metric-value">{{ endpoint.messageCount }}</span>
-                    <span class="metric-label">消息</span>
-                  </div>
-                  <div
-                    v-if="selectedEndpointId === endpoint.deviceId && endpoint.deviceId !== selfDeviceId"
-                    class="endpoint-metric"
+        <SettingsList
+          :count="endpoints.length"
+          count-label="个设备"
+        >
+          <SettingsGroup v-if="endpoints.length > 0" label="在线设备">
+            <div v-for="endpoint in endpoints" :key="endpoint.deviceId" class="device-row-wrapper">
+              <SettingsRow
+                :name="endpointDisplayName(endpoint)"
+                :desc="`${endpoint.deviceId} · ${endpoint.chatCount} 会话 · ${endpoint.messageCount} 消息` + (selectedEndpointId === endpoint.deviceId && endpoint.deviceId !== selfDeviceId ? ` · ${diffSummary.providerChanges} 提供商变更` : '')"
+                :class="{ selected: selectedEndpointId === endpoint.deviceId }"
+                clickable
+                mono
+                @click="selectEndpoint(endpoint.deviceId)"
+              >
+                <template #icon>
+                  <component :is="useIcon('Server')" />
+                </template>
+                <template #actions>
+                  <Button
+                    v-if="endpoint.deviceId !== selfDeviceId"
+                    size="sm"
+                    variant="secondary"
+                    :disabled="(!hasDesktopSyncApi && !connection.connected) || (selectedEndpointId === endpoint.deviceId && !hasSelectedDiff)"
+                    :loading="isPulling && selectedEndpointId === endpoint.deviceId"
+                    @click.stop="pullEndpoint(endpoint)"
                   >
-                    <span class="metric-value">{{ diffSummary.providerChanges }}</span>
-                    <span class="metric-label">提供商变更</span>
-                  </div>
-                </div>
-              </div>
-              <div v-if="endpoint.deviceId !== selfDeviceId" class="endpoint-actions">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  :disabled="(!hasDesktopSyncApi && !connection.connected) || (selectedEndpointId === endpoint.deviceId && !hasSelectedDiff)"
-                  :loading="isPulling && selectedEndpointId === endpoint.deviceId"
-                  @click.stop="pullEndpoint(endpoint)"
-                >
-                  拉取
-                </Button>
-              </div>
+                    拉取
+                  </Button>
+                </template>
+              </SettingsRow>
             </div>
-          </div>
-          <div v-else class="peer-empty">当前还没有可见端点</div>
-        </Card>
+          </SettingsGroup>
+
+          <template #empty>
+            <div class="empty-icon">
+              <component :is="useIcon('Globe')" />
+            </div>
+            <div class="empty-title">当前还没有可见设备</div>
+            <div class="empty-hint">启动同步服务或连接同步入口后将显示在线设备</div>
+          </template>
+        </SettingsList>
 
         <Card v-if="hasDesktopSyncApi && hostState.error">
           <div class="error-text">{{ hostState.error }}</div>
@@ -246,15 +240,13 @@ const hasSelectedDiff = computed(() => {
   min-width: 0;
 }
 
-.sync-title,
-.endpoint-title {
+.sync-title {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.address-section-label,
-.endpoint-meta {
+.address-section-label {
   font-size: 11px;
   color: var(--text-secondary);
 }
@@ -275,132 +267,10 @@ const hasSelectedDiff = computed(() => {
   color: var(--text-primary);
   word-break: break-all;
 }
-
-.endpoint-header {
-  padding: 16px 16px 8px;
-}
-
-.endpoint-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0 16px 16px;
-}
-
-.endpoint-item {
-  display: flex;
-  width: 100%;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  background: var(--bg-card);
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.endpoint-item:hover {
-  border-color: var(--border-default);
-  background: var(--bg-hover);
-}
-
-.endpoint-item.selected {
-  border-color: var(--accent-color);
-  background: var(--bg-secondary);
-}
-
-.endpoint-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.endpoint-name-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.endpoint-name-block {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.endpoint-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.45;
-  word-break: break-word;
-}
-
-.endpoint-id {
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  word-break: break-all;
-}
-
-.endpoint-badge {
-  flex-shrink: 0;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: var(--bg-secondary);
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.endpoint-metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.endpoint-metric {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: var(--bg-secondary);
-}
-
-.metric-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.metric-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.endpoint-actions {
-  display: flex;
-  align-items: stretch;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
 .client-actions {
   padding: 16px;
   display: flex;
   justify-content: flex-end;
-}
-
-.peer-empty {
-  padding: 18px;
-  border: 1px dashed var(--border-subtle);
-  border-radius: 12px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--text-secondary);
 }
 
 .error-text {
@@ -445,63 +315,6 @@ const hasSelectedDiff = computed(() => {
     min-height: 40px;
   }
 
-  .endpoint-header {
-    padding: 14px 14px 10px;
-  }
-
-  .endpoint-list {
-    padding: 0 14px 14px;
-    gap: 10px;
-  }
-
-  .endpoint-item {
-    flex-direction: column;
-    padding: 12px;
-    gap: 10px;
-  }
-
-  .endpoint-name-row {
-    gap: 10px;
-  }
-
-  .endpoint-badge {
-    align-self: flex-start;
-  }
-
-  .endpoint-name {
-    font-size: 15px;
-  }
-
-  .endpoint-id {
-    font-size: 10px;
-  }
-
-  .endpoint-metrics {
-    margin-top: 10px;
-  }
-
-  .endpoint-metric {
-    padding: 5px 9px;
-  }
-
-  .endpoint-actions {
-    width: 100%;
-    margin-left: 0;
-    padding-top: 2px;
-  }
-
-  .endpoint-actions :deep(.btn) {
-    width: 100%;
-    min-height: 40px;
-    border-radius: 10px;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-  }
-
-  .peer-empty {
-    margin: 0 14px 14px;
-    padding: 14px;
-  }
 }
 
 @media (max-width: 420px) {
@@ -511,32 +324,6 @@ const hasSelectedDiff = computed(() => {
 
   .sync-overview {
     padding: 12px 12px 10px;
-  }
-
-  .endpoint-header,
-  .endpoint-list,
-  .peer-empty {
-    margin-left: 0;
-    margin-right: 0;
-  }
-
-  .endpoint-header {
-    padding: 12px 12px 8px;
-  }
-
-  .endpoint-list {
-    padding: 0 12px 12px;
-  }
-
-  .endpoint-item {
-    padding: 12px;
-    gap: 12px;
-    border-radius: 10px;
-  }
-
-  .endpoint-name-row {
-    flex-direction: column;
-    gap: 8px;
   }
 }
 </style>

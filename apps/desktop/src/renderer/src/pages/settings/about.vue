@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import { FormItem } from '@renderer/composables/useForm'
 import Divider from '@renderer/components/Divider.vue'
-import List from '@renderer/components/List.vue'
-import Card from '@renderer/components/Card.vue'
 
 const version = ref('')
 const updateStatus = ref('idle') // idle, checking, available, not-available, downloading, downloaded, error
@@ -14,6 +11,23 @@ const hasDevTools = computed(() => Boolean(window.api?.openDevTools))
 
 const { ChevronRight } = useIcon(['ChevronRight'])
 
+const updateStatusText = computed(() => {
+  switch (updateStatus.value) {
+    case 'idle': return '检查新版本'
+    case 'checking': return '正在检查更新…'
+    case 'not-available': return '当前已是最新版本'
+    case 'available': return `发现新版本 ${updateInfo.value?.version ?? ''}`
+    case 'downloading': return '正在下载更新…'
+    case 'downloaded': return '更新已就绪'
+    case 'error': return '检查失败'
+    default: return ''
+  }
+})
+
+const openLink = (url: string) => {
+  window.open(url, '_blank')
+}
+
 const aboutLinks = [
   {
     name: 'GitHub 项目主页',
@@ -24,10 +38,6 @@ const aboutLinks = [
     url: 'https://github.com/huangmiuXyz/new-agent-electron/issues'
   }
 ]
-
-const handleLinkClick = (url: string) => {
-  window.open(url, '_blank')
-}
 
 const checkUpdates = async () => {
   if (!window.api?.updater) return
@@ -86,84 +96,107 @@ onUnmounted(() => {
     <template #content>
       <div class="settings-page-wrapper">
       <div class="about-wrapper">
-        <FormItem>
-          <div class="header-card">
-            <Image src="/logo.png" alt="logo" class="app-logo" />
-            <div class="header-info">
-              <div class="title-row">
-                <h1 class="app-name">Agent Qi</h1>
-                <Tags v-if="version" :tags="['v' + version]" color="orange" />
-              </div>
+        <!-- Hero -->
+        <div class="about-hero">
+          <Image src="/logo.png" alt="logo" class="about-logo" />
+          <div class="about-hero-info">
+            <div class="about-hero-top">
+              <h1 class="about-app-name">Agent Qi</h1>
+              <Tags v-if="version" :tags="['v' + version]" color="orange" size="sm" />
             </div>
+            <p class="about-desc">一个智能的 AI 助手，帮助你更高效地工作和创作</p>
           </div>
-          <Divider margin="24px 0 0 0" />
-        </FormItem>
-        <!-- App Header -->
+        </div>
 
-        <!-- Update Section -->
-        <FormItem v-if="hasUpdater" label="软件更新">
-          <Card>
-            <div class="update-row">
-              <div class="update-status-text">
-                <span v-if="updateStatus === 'idle'">检查新版本</span>
-                <span v-else-if="updateStatus === 'checking'">正在检查更新...</span>
-                <span v-else-if="updateStatus === 'not-available'">当前已是最新版本</span>
-                <span v-else-if="updateStatus === 'available'">发现新版本 {{ updateInfo?.version }}</span>
-                <span v-else-if="updateStatus === 'downloading'">正在下载更新...</span>
-                <span v-else-if="updateStatus === 'downloaded'">更新已就绪</span>
-                <span v-else-if="updateStatus === 'error'" class="error-text">检查失败: {{ errorMessage }}</span>
-              </div>
+        <Divider margin="24px 0" />
 
-              <div class="update-actions">
-                <Button v-if="['idle', 'not-available', 'error'].includes(updateStatus)" @click="checkUpdates">
+        <!-- Software Update -->
+        <div v-if="hasUpdater" class="about-section">
+          <SettingsGroup label="软件更新">
+            <SettingsRow
+              :name="updateStatusText"
+              :desc="updateStatus === 'error' ? errorMessage : ''"
+              :muted="updateStatus === 'error'"
+            >
+              <template #icon>
+                <component :is="useIcon('Download')" />
+              </template>
+              <template #actions>
+                <Button
+                  v-if="['idle', 'not-available', 'error'].includes(updateStatus)"
+                  size="sm"
+                  @click="checkUpdates"
+                >
                   检查更新
                 </Button>
-                <Button v-if="updateStatus === 'available'" @click="startDownload">
+                <Button
+                  v-if="updateStatus === 'available'"
+                  size="sm"
+                  @click="startDownload"
+                >
                   立即下载
                 </Button>
-                <Button v-if="updateStatus === 'downloaded'" @click="installUpdate">
+                <Button
+                  v-if="updateStatus === 'downloaded'"
+                  size="sm"
+                  @click="installUpdate"
+                >
                   重启安装
                 </Button>
-              </div>
-            </div>
+              </template>
+            </SettingsRow>
 
-            <!-- Progress Bar -->
-            <div v-if="updateStatus === 'downloading'" class="progress-section">
-              <div class="progress-track">
-                <div class="progress-bar" :style="{ width: downloadProgress?.percent + '%' }"></div>
+            <!-- Progress -->
+            <div v-if="updateStatus === 'downloading'" class="about-progress">
+              <div class="about-progress-track">
+                <div class="about-progress-bar" :style="{ width: downloadProgress?.percent + '%' }"></div>
               </div>
-              <span class="progress-value">{{ downloadProgress?.percent?.toFixed(0) }}%</span>
+              <span class="about-progress-value">{{ downloadProgress?.percent?.toFixed(0) }}%</span>
             </div>
 
             <!-- Release Notes -->
-            <div v-if="updateInfo?.releaseNotes && updateStatus === 'available'" class="release-notes">
-              <div class="notes-content" v-html="updateInfo.releaseNotes"></div>
+            <div v-if="updateInfo?.releaseNotes && updateStatus === 'available'" class="about-release-notes">
+              <div class="about-notes-content" v-html="updateInfo.releaseNotes"></div>
             </div>
-          </Card>
-        </FormItem>
+          </SettingsGroup>
+        </div>
 
-        <FormItem v-if="hasDevTools" label="开发者">
-          <Card>
-            <div class="update-row">
-              <div class="update-status-text">
-                <span>调试窗口</span>
-              </div>
-              <div class="update-actions">
-                <Button @click="openDevTools">
-                  打开调试窗口
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </FormItem>
+        <!-- Dev Tools -->
+        <div v-if="hasDevTools" class="about-section">
+          <SettingsGroup label="开发者">
+            <SettingsRow name="调试窗口">
+              <template #icon>
+                <component :is="useIcon('Terminal')" />
+              </template>
+              <template #actions>
+                <Button size="sm" @click="openDevTools">打开调试窗口</Button>
+              </template>
+            </SettingsRow>
+          </SettingsGroup>
+        </div>
 
-        <FormItem label="相关链接">
-          <List :items="aboutLinks" variant="card" key-field="url" main-field="name" @select="handleLinkClick">
-            <template #actions>
-              <component :is="ChevronRight" class="link-icon" />
-            </template>
-          </List>
-        </FormItem>
+        <!-- Links -->
+        <div class="about-section">
+          <SettingsGroup label="相关链接">
+            <SettingsRow
+              v-for="link in aboutLinks"
+              :key="link.url"
+              :name="link.name"
+              clickable
+              @click="openLink(link.url)"
+            >
+              <template #icon>
+                <component :is="useIcon('Link')" />
+              </template>
+              <template #actions>
+                <ChevronRight class="about-link-arrow" />
+              </template>
+            </SettingsRow>
+          </SettingsGroup>
+        </div>
+
+        <!-- Footer -->
+        <p class="about-footer">© {{ new Date().getFullYear() }} Agent Qi</p>
       </div>
       </div>
     </template>
@@ -176,133 +209,63 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
-/* Header Card */
-.header-card {
+/* Hero */
+.about-hero {
   display: flex;
   align-items: center;
   gap: 20px;
+  padding: 4px 0;
 }
 
-.app-logo {
+.about-logo {
   width: 64px;
   height: 64px;
-  border-radius: 8px;
+  border-radius: 14px;
+  flex-shrink: 0;
 }
 
-.header-info {
+.about-hero-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.title-row {
+.about-hero-top {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
-.app-name {
-  font-size: 20px;
-  font-weight: 600;
+.about-app-name {
+  font-size: 22px;
+  font-weight: 650;
   color: var(--text-primary);
   margin: 0;
-  text-wrap: nowrap;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-.version-tag {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  background: var(--bg-secondary);
-  padding: 2px 8px;
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-}
-
-.app-desc {
+.about-desc {
   font-size: 13px;
   color: var(--text-tertiary);
   margin: 0;
+  line-height: 1.5;
 }
 
-/* Section Common */
-.section-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+/* Section */
+.about-section {
+  margin-bottom: 16px;
 }
 
-.section-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* Update Card */
-.update-row {
+/* Progress */
+.about-progress {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  min-height: 56px;
+  gap: 10px;
+  padding: 0 16px 14px;
 }
 
-.update-status-text {
-  font-size: 14px;
-  color: var(--text-primary);
-  font-weight: 500;
-  height: 30px;
-  align-items: center;
-  display: flex;
-}
-
-.error-text {
-  color: var(--color-danger);
-}
-
-/* Buttons */
-.btn {
-  padding: 6px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  outline: none;
-}
-
-.btn-secondary {
-  background: transparent;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-}
-
-.btn-secondary:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-hover);
-}
-
-.btn-primary {
-  background: var(--text-primary);
-  color: var(--bg-primary);
-  border: 1px solid transparent;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-/* Progress Bar */
-.progress-section {
-  padding: 0 16px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.progress-track {
+.about-progress-track {
   flex: 1;
   height: 4px;
   background: var(--border-subtle);
@@ -310,45 +273,48 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.progress-bar {
+.about-progress-bar {
   height: 100%;
-  background: var(--text-primary);
-  transition: width 0.2s ease;
+  background: var(--accent-color, var(--color-primary));
+  transition: width 0.3s ease;
+  border-radius: 2px;
 }
 
-.progress-value {
-  font-size: 12px;
-  color: var(--text-secondary);
-  width: 36px;
+.about-progress-value {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  width: 34px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Release Notes */
-.release-notes {
-  padding: 0 16px 16px;
+.about-release-notes {
+  border-top: 1px solid var(--border-subtle);
+  padding: 14px 16px;
 }
 
-.notes-content {
-  margin-top: 12px;
+.about-notes-content {
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--text-secondary);
   max-height: 200px;
   overflow-y: auto;
 }
 
-/* Link Icon */
-.link-icon {
-  width: 16px;
-  height: 16px;
+/* Link arrow */
+.about-link-arrow {
+  width: 14px;
+  height: 14px;
   color: var(--text-tertiary);
 }
 
-/* Copyright */
-.copyright {
+/* Footer */
+.about-footer {
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
-  margin-top: auto;
+  opacity: 0.5;
+  margin-top: 32px;
 }
 </style>

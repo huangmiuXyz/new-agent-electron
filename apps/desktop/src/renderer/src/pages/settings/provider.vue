@@ -792,6 +792,27 @@ const VoiceTable = defineComponent({
   min-height: 0;
 }
 
+/* 提供商列表项高度变窄 */
+:deep(.list-item) {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+:deep(.item-media),
+:deep(.media-icon),
+:deep(.media-img) {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+:deep(.media-icon) {
+  font-size: 20px !important;
+}
+
+:deep(.list-title) {
+  margin-bottom: 2px;
+}
+
 .font-mono {
   font-family: var(--font-mono, monospace);
 }

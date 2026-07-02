@@ -511,6 +511,13 @@ onMounted(() => {
         void toggleContinuousInputAudio()
       }
     })
+    register({
+      id: 'chat.stop',
+      when: () => !!chatStore.currentChat?.id && chatStore.isChatGenerating(chatStore.currentChat.id),
+      handler: () => {
+        stopAllGeneratingInCurrentChat()
+      }
+    })
     document.addEventListener('selectionchange', updateMentionChipSelectionState)
   }
   nextTick(() => {
@@ -523,6 +530,7 @@ onUnmounted(() => {
     unregister('global.focusInput')
     unregister('chat.toggleManualInputAudio')
     unregister('chat.toggleContinuousInputAudio')
+    unregister('chat.stop')
     document.removeEventListener('selectionchange', updateMentionChipSelectionState)
   }
   unbindMobilePointerListeners()

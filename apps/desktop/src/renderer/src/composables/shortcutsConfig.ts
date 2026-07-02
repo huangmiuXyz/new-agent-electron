@@ -186,5 +186,15 @@ export const BUILTIN_SHORTCUTS: ShortcutConfig[] = [
         editable: true,
         scope: 'chat',
         allowedInInput: true
+    },
+    {
+        id: 'chat.stop',
+        name: '停止生成',
+        description: '停止当前对话的 AI 回复',
+        defaultKey: 'Escape',
+        enabled: true,
+        editable: true,
+        scope: 'chat',
+        allowedInInput: true
     }
 ]

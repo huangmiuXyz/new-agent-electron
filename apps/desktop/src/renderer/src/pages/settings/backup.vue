@@ -253,103 +253,71 @@ const resetData = async () => {
   <FormContainer header-title="备份与恢复">
     <template #content>
       <div class="settings-page-wrapper">
-      <div class="backup-page">
-        <Card padding="20px">
-          <div class="setting-item">
-            <div class="item-info">
-              <div class="item-title">导出数据</div>
-              <div class="item-desc">将您的所有数据（包括设置、智能体、聊天记录、知识库配置和笔记）导出为一个 JSON 文件，以便在其他设备上恢复或作为备份。</div>
-            </div>
-            <Button @click="exportData" variant="secondary">
-              <template #icon>
-                <Download />
-              </template>
-              导出备份文件
-            </Button>
-          </div>
-        </Card>
-
-        <Card padding="20px">
-          <div class="setting-item">
-            <div class="item-info">
-              <div class="item-title">导入数据</div>
-              <div class="item-desc">从之前导出的 JSON 文件中恢复数据。注意：这将覆盖您当前的所有数据。</div>
-            </div>
-            <div class="upload-wrapper">
-              <Button v-if="isNativePlatform" variant="secondary" @click="importDataNative">
-                <template #icon>
-                  <Upload />
-                </template>
-                导入备份文件
+      <SettingsList>
+        <SettingsGroup label="数据管理">
+          <SettingsRow
+            name="导出数据"
+            desc="将您的所有数据（包括设置、智能体、聊天记录、知识库配置和笔记）导出为一个 JSON 文件，以便在其他设备上恢复或作为备份。"
+            @click="exportData"
+          >
+            <template #icon>
+              <Download />
+            </template>
+            <template #actions>
+              <Button size="sm" variant="secondary" @click.stop="exportData">
+                <template #icon><Download /></template>
+                导出备份文件
               </Button>
-              <Button v-else variant="secondary">
-                <template #icon>
-                  <Upload />
-                </template>
-                导入备份文件
-                <input type="file" accept=".json" @change="importData" class="file-input" />
-              </Button>
-            </div>
-          </div>
-        </Card>
+            </template>
+          </SettingsRow>
 
-        <Card padding="20px" :border="true" background="transparent">
-          <div class="setting-item">
-            <div class="item-info">
-              <div class="item-title danger">重置所有数据</div>
-              <div class="item-desc">清除应用中的所有数据并恢复到初始状态。此操作不可撤销。</div>
-            </div>
-            <Button @click="resetData" variant="text" danger>
-              <template #icon>
-                <Trash />
-              </template>
-              重置应用数据
-            </Button>
-          </div>
-        </Card>
-      </div>
+          <SettingsRow
+            name="导入数据"
+            desc="从之前导出的 JSON 文件中恢复数据。注意：这将覆盖您当前的所有数据。"
+          >
+            <template #icon>
+              <Upload />
+            </template>
+            <template #actions>
+              <div class="upload-wrapper">
+                <Button v-if="isNativePlatform" size="sm" variant="secondary" @click.stop="importDataNative">
+                  <template #icon><Upload /></template>
+                  导入备份文件
+                </Button>
+                <Button v-else size="sm" variant="secondary">
+                  <template #icon><Upload /></template>
+                  导入备份文件
+                  <input type="file" accept=".json" @change="importData" class="file-input" />
+                </Button>
+              </div>
+            </template>
+          </SettingsRow>
+        </SettingsGroup>
+
+        <SettingsGroup label="危险操作">
+          <SettingsRow
+            name="重置所有数据"
+            desc="清除应用中的所有数据并恢复到初始状态。此操作不可撤销。"
+            @click="resetData"
+          >
+            <template #icon>
+              <Trash />
+            </template>
+            <template #actions>
+              <Button size="sm" variant="text" danger @click.stop="resetData">
+                <template #icon><Trash /></template>
+                重置应用数据
+              </Button>
+            </template>
+          </SettingsRow>
+        </SettingsGroup>
+      </SettingsList>
       </div>
     </template>
   </FormContainer>
 </template>
 
 <style scoped>
-.backup-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 4px 0;
-}
-
-.setting-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
-}
-
-.item-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.item-title {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: var(--text-primary);
-}
-
-.item-title.danger {
-  color: var(--color-danger);
-}
-
-.item-desc {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
 .upload-wrapper {
   position: relative;
 }
@@ -362,13 +330,5 @@ const resetData = async () => {
   height: 100%;
   opacity: 0;
   cursor: pointer;
-}
-
-@media (max-width: 640px) {
-  .setting-item {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-  }
 }
 </style>
