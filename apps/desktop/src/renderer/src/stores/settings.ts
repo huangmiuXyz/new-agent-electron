@@ -105,7 +105,6 @@ export const useSettingsStore = defineStore(
           id: defaultProvider.id,
           name: defaultProvider.name,
           logo: defaultProvider.logo,
-          providerType: defaultProvider.providerType
         }
       })
 
