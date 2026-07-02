@@ -27,7 +27,7 @@ const props = defineProps<{
 .msg-row {
   display: flex;
   position: relative;
-  padding: 8px 20px;
+  padding: 8px 0px;
   flex-direction: row-reverse;
   width: 100%;
 }

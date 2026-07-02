@@ -34,6 +34,7 @@ export function estimateItemHeight(item: VirtualChatItem): number {
     case 'ai-header': return 48
     case 'ai-rag-search': return 60
     case 'ai-loading': return 40
+    case 'ai-error': return 40
     case 'ai-retry': return 40
     case 'ai-collapsed-toggle': return 28
     case 'ai-waveform': return 40
@@ -125,6 +126,16 @@ export function generateFlatItems(
       })
     }
 
+    // error
+    if (msg.metadata?.error && !msg.metadata?.retrying) {
+      items.push({
+        uid: `ai-err-${msg.id}`, type: 'ai-error',
+        messageId: msg.id!, groupId: gid,
+        isFirstInGroup: false, isLastInGroup: false,
+        msg, part: null, partIndex: -1
+      })
+    }
+
     // retry
     if (msg.metadata?.retrying) {
       items.push({
@@ -190,7 +201,7 @@ export function generateFlatItems(
     }
 
     // actions
-    if (!!msg.metadata?.loading || hasAudio || (msg.metadata?.loading && !msg.metadata?.error && msg.metadata?.stop)) {
+    if (!!msg.metadata?.loading || hasAudio || msg.metadata?.retrying || (msg.metadata?.loading && !msg.metadata?.error && msg.metadata?.stop)) {
       items.push({
         uid: `ai-act-${msg.id}`, type: 'ai-actions',
         messageId: msg.id!, groupId: gid,

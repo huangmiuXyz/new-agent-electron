@@ -475,7 +475,7 @@ const playMessageAudio = () => {
 
 <style scoped>
 .msg-row {
-  padding: 8px 20px;
+  padding: 8px 0px;
   display: flex;
   gap: 16px;
   position: relative;

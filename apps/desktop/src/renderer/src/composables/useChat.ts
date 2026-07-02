@@ -211,12 +211,12 @@ export const useChat = (chatId: string) => {
           manuallyStopped = true
           cancelRetry()
           retryAttempt = 0
-          retryStopHandlers.delete(retryStopHandlerKey(chatId, failedMessageId))
           const storeChat = getChatById(chatId)
           const target = storeChat?.messages.find((m) => m.id === failedMessageId)
           if (target) {
+            const { stop, ...cleanMeta } = target.metadata || ({} as MetaData)
             updateMessageMetadata(chatId, failedMessageId, {
-              ...target.metadata,
+              ...cleanMeta,
               retrying: false,
               loading: false,
               error: new Error('用户已停止自动重试')
@@ -225,9 +225,6 @@ export const useChat = (chatId: string) => {
           scope.stop()
           scheduleNextPendingMessage()
         }
-
-        // 注册停止处理器，供 UI 通过 getRetryStopHandler 获取
-        retryStopHandlers.set(retryStopHandlerKey(chatId, failedMessageId), stopRetry)
 
         const setMessageRetryState = (countdownEndsAt?: number) => {
           const storeChat = getChatById(chatId)
@@ -239,12 +236,23 @@ export const useChat = (chatId: string) => {
             retrying: true,
             retryAttempt: attempt,
             retryCountdownEndsAt: countdownEndsAt,
-            loading: false,
-            error: undefined
+            loading: false
           } as MetaData)
         }
 
         setMessageRetryState(endsAt)
+
+        // 将停止函数存到 metadata.stop（仅内存，不持久化），
+        // 使重试期间流式输出的停止按钮也能用于停止重试
+        const chatStore = getChatById(chatId)
+        if (chatStore) {
+          const nextMsgs = chatStore.messages.map((m) =>
+            m.id === failedMessageId
+              ? { ...m, metadata: { ...m.metadata, stop: stopRetry } as MetaData }
+              : m
+          )
+          updateMessages(chatId, nextMsgs, { persist: false })
+        }
 
         // 倒计时刷新（每 500ms 更新展示用的剩余时间）
         if (intervalMs > 0) {
@@ -273,8 +281,18 @@ export const useChat = (chatId: string) => {
             scheduleNextPendingMessage()
             return
           }
-          // 重试已发起，清理本次的停止处理器
-          retryStopHandlers.delete(retryStopHandlerKey(chatId, failedMessageId))
+          // 清理 metadata.stop，新 stream 会设置自己的
+          {
+            const storeChat = getChatById(chatId)
+            if (storeChat) {
+              const cleanedMsgs = storeChat.messages.map((m) =>
+                m.id === failedMessageId
+                  ? { ...m, metadata: { ...m.metadata, stop: undefined } as unknown as MetaData }
+                  : m
+              )
+              updateMessages(chatId, cleanedMsgs, { persist: false })
+            }
+          }
           // 停止当前 scope，然后重新发起请求：
           // - 失败消息已有内容（parts 非空）→ 用「继续」在同一消息上接着生成
           // - 失败消息没有任何内容（parts 为空）→ 用 regenerate 从用户消息重新生成

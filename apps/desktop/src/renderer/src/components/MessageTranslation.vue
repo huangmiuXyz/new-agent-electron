@@ -315,7 +315,6 @@ const handleStopTranslation = () => {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 0;
     cursor: pointer;
     user-select: none;
     font-size: 11px;

@@ -8,7 +8,7 @@ import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useMessageScroll } from '@renderer/composables/useMessageScroll'
 import { acquireZIndex } from '@renderer/utils/z-index-manager'
 import { generateFlatItems, estimateItemHeight, type VirtualChatItem } from './composables/flatItems'
-import { getRetryStopHandler } from '@renderer/composables/useChat'
+import { useChat } from '@renderer/composables/useChat'
 
 const { messageScrollRef } = useMessageScroll()
 const scrollHostRef = ref<HTMLElement | null>(null)
@@ -171,14 +171,28 @@ const hasAudioChunks = (msg: BaseMessage | null | undefined): boolean => {
 
 const getRetryText = (msg: BaseMessage | null | undefined): string => {
   if (!msg?.metadata?.retrying) return ''
+  const errMsg = msg.metadata?.error?.message
   const attempt = msg.metadata.retryAttempt ?? 0
   const endsAt = msg.metadata.retryCountdownEndsAt
   const secs = endsAt ? Math.max(0, (endsAt - Date.now()) / 1000) : 0
   const attemptText = attempt > 0 ? `第 ${attempt} 次` : ''
+  const prefix = errMsg ? `请求失败：${errMsg}` : '请求失败'
   if (secs > 0) {
-    return `请求失败，${attemptText}重试中，${Math.ceil(secs)} 秒后重试...`
+    return `${prefix}，${attemptText}重试中，${Math.ceil(secs)} 秒后重试...`
   }
-  return `请求失败，正在${attemptText}重试...`
+  return `${prefix}，正在${attemptText}重试...`
+}
+
+const handleErrorRetry = (messageId: string) => {
+  if (!currentSelectedModel.value) {
+    messageApi.error('请先选择模型')
+    return
+  }
+  if (!currentChat.value?.id) return
+  const { regenerate } = useChat(currentChat.value.id)
+  setTimeout(() => {
+    regenerate(messageId)
+  })
 }
 
 const getActivityText = (msg: BaseMessage | null | undefined): string => {
@@ -883,10 +897,14 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
             <!-- retry status -->
             <div v-else-if="flatItems[vItem.index]?.type === 'ai-retry'" class="retry-container">
               <span class="retry-text">{{ getRetryText(flatItems[vItem.index]!.msg!) }}</span>
-              <Button v-if="flatItems[vItem.index]!.msg?.id && chatsStore.currentChat?.id" size="sm" variant="icon" type="button" class="retry-stop-btn" title="停止自动重试" @click="getRetryStopHandler?.(chatsStore.currentChat!.id, flatItems[vItem.index]!.msg!.id!)?.()">
-                <template #icon><Stop style="color: red" /></template>
-              </Button>
             </div>
+
+            <!-- error -->
+            <ChatMessageItemError
+              v-else-if="flatItems[vItem.index]?.type === 'ai-error'"
+              :error="flatItems[vItem.index]!.msg?.metadata?.error! as Error"
+              @retry="handleErrorRetry(flatItems[vItem.index]!.msg?.id!)"
+            />
 
             <!-- collapsed toggle -->
             <button v-else-if="flatItems[vItem.index]?.type === 'ai-collapsed-toggle'" class="previous-content-toggle" :class="{ 'is-expanded': expandedCollapsedIds.has(flatItems[vItem.index]!.messageId) }" type="button" @click="toggleCollapsed(flatItems[vItem.index]!.messageId)">
@@ -944,7 +962,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
               <Button v-if="hasAudioChunks(flatItems[vItem.index]!.msg!)" size="sm" variant="icon" type="button">
                 <template #icon><VolumeMedium /></template>
               </Button>
-              <Button v-if="flatItems[vItem.index]!.msg?.metadata?.loading && !flatItems[vItem.index]!.msg?.metadata?.error && flatItems[vItem.index]!.msg?.metadata?.stop" size="sm" variant="icon" type="button" @click="flatItems[vItem.index]!.msg?.metadata?.stop">
+              <Button v-if="(flatItems[vItem.index]!.msg?.metadata?.loading || flatItems[vItem.index]!.msg?.metadata?.retrying) && !flatItems[vItem.index]!.msg?.metadata?.error && flatItems[vItem.index]!.msg?.metadata?.stop" size="sm" variant="icon" type="button" @click="flatItems[vItem.index]!.msg?.metadata?.stop">
                 <template #icon><Stop style="color: red" /></template>
               </Button>
               <div v-if="getActivityText(flatItems[vItem.index]!.msg!)" class="message-activity-status">
@@ -1062,7 +1080,6 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 .header-inner {
   display: flex;
   gap: 8px;
-  padding: 0 20px;
   align-items: center;
   min-height: 40px;
 }
@@ -1101,7 +1118,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 /* —— Collapsed toggle —— */
 .previous-content-toggle {
   align-self: stretch; display: flex; align-items: center; gap: 4px; width: calc(100% - 40px);
-  margin: 1px 20px 4px; padding: 2px 6px; border: none; border-radius: 4px;
+  margin: 1px 0px 4px; padding: 2px 6px; border: none; border-radius: 4px;
   background: transparent; color: var(--text-tertiary); font-size: 11px; line-height: 1.4; cursor: pointer;
 }
 .previous-content-toggle:hover { background: var(--bg-hover); color: var(--text-secondary); }
@@ -1109,7 +1126,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 
 /* —— Parts —— */
 .vi-part {
-  padding: 5px 20px;
+  padding: 4px 0px;
 }
 .text-block {
   font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
@@ -1118,7 +1135,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 
 /* —— Actions —— */
 .msg-actions {
-  align-self: stretch; display: flex; align-items: center; gap: 8px; padding: 4px 20px; min-height: 36px;
+  align-self: stretch; display: flex; align-items: center; gap: 8px; padding: 4px 0px; min-height: 36px;
 }
 .message-activity-status { margin-left: auto; color: var(--text-tertiary); font-size: 11px; line-height: 1.4; white-space: nowrap; }
 
