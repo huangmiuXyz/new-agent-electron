@@ -14,13 +14,6 @@ withDefaults(defineProps<Props>(), {
 
 <template>
   <div class="setting-form-container">
-    <!-- 可配置的头部插槽 -->
-    <header v-if="showHeader" class="settings-header">
-      <slot name="header">
-        {{ headerTitle }}
-      </slot>
-    </header>
-
     <!-- 内容插槽 -->
     <div class="setting-content" :class="{ 'no-padding': noPadding }">
       <slot name="content"></slot>
