@@ -852,6 +852,16 @@ const { Trash, Image: ImageIcon, Screen, VolumeMedium, X } = useIcon([
   background: var(--bg-tertiary);
   border-radius: 8px;
   margin-bottom: 4px;
+  container-type: inline-size;
+}
+
+@container (max-width: 175px) {
+  .mode-tab span {
+    display: none;
+  }
+  .mode-tab {
+    gap: 0;
+  }
 }
 
 .mode-tab {

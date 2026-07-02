@@ -96,9 +96,6 @@ const SettingsIcon = useIcon('Settings')
     cursor: pointer;
     color: var(--text-tertiary);
     position: relative;
-    transition: color var(--motion-duration-fast) var(--motion-ease-standard),
-        background-color var(--motion-duration-fast) var(--motion-ease-standard),
-        transform var(--motion-duration-fast) var(--motion-ease-emphasized);
 }
 
 .app-nav-bar.sidebar-top .nav-item {
@@ -112,10 +109,6 @@ const SettingsIcon = useIcon('Settings')
     color: var(--text-primary);
 }
 
-.nav-item:active {
-    transform: scale(0.95);
-}
-
 .nav-item.active {
     background-color: var(--bg-active);
     color: var(--text-primary);
@@ -124,16 +117,11 @@ const SettingsIcon = useIcon('Settings')
 .nav-icon {
     width: 18px;
     height: 18px;
-    transition: transform 0.2s ease;
 }
 
 .app-nav-bar.sidebar-top .nav-icon {
     width: 16px;
     height: 16px;
-}
-
-.nav-item.active .nav-icon {
-    transform: scale(1);
 }
 
 .notification-badge {
@@ -149,6 +137,5 @@ const SettingsIcon = useIcon('Settings')
     min-width: 12px;
     text-align: center;
     border: 2px solid var(--bg-header);
-    transform: translate(25%, -25%);
 }
 </style>
