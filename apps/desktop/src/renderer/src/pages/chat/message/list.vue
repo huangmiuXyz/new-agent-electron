@@ -860,7 +860,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
             />
 
             <!-- AI header: avatar + model name + token -->
-            <div v-else-if="flatItems[vItem.index]?.type === 'ai-header'" class="header-inner">
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-header'" class="header-inner" @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)">
               <div class="vi-ai-avatar-area">
                 <Image
                   v-if="chatsStore.currentChat?.agentId && agentStore.getAgentById(chatsStore.currentChat!.agentId!)?.avatar"
@@ -885,10 +885,11 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
               v-else-if="flatItems[vItem.index]?.type === 'ai-rag-search'"
               :searching="!flatItems[vItem.index]!.msg?.metadata?.ragSearchDetails?.length && !!flatItems[vItem.index]!.msg?.metadata?.ragEnabled"
               :search-details="flatItems[vItem.index]!.msg?.metadata?.ragSearchDetails"
+              @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)"
             />
 
             <!-- loading dots -->
-            <div v-else-if="flatItems[vItem.index]?.type === 'ai-loading'" class="vi-loading">
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-loading'" class="vi-loading" @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)">
               <div class="loading-dots">
                 <span class="dot"></span>
                 <span class="dot"></span>
@@ -897,7 +898,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
             </div>
 
             <!-- retry status -->
-            <div v-else-if="flatItems[vItem.index]?.type === 'ai-retry'" class="retry-container">
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-retry'" class="retry-container" @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)">
               <span class="retry-text">{{ getRetryText(flatItems[vItem.index]!.msg!) }}</span>
             </div>
 
@@ -906,16 +907,17 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
               v-else-if="flatItems[vItem.index]?.type === 'ai-error'"
               :error="flatItems[vItem.index]!.msg?.metadata?.error! as Error"
               @retry="handleErrorRetry(flatItems[vItem.index]!.msg?.id!)"
+              @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)"
             />
 
             <!-- collapsed toggle -->
-            <button v-else-if="flatItems[vItem.index]?.type === 'ai-collapsed-toggle'" class="previous-content-toggle" :class="{ 'is-expanded': expandedCollapsedIds.has(flatItems[vItem.index]!.messageId) }" type="button" @click="toggleCollapsed(flatItems[vItem.index]!.messageId)">
+            <button v-else-if="flatItems[vItem.index]?.type === 'ai-collapsed-toggle'" class="previous-content-toggle" :class="{ 'is-expanded': expandedCollapsedIds.has(flatItems[vItem.index]!.messageId) }" type="button" @click="toggleCollapsed(flatItems[vItem.index]!.messageId)" @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)">
               <ChevronDown />
               <span>{{ expandedCollapsedIds.has(flatItems[vItem.index]!.messageId) ? '收起前文' : `已折叠前文 ${flatItems[vItem.index]?.hiddenCount ?? 0} 项` }}</span>
             </button>
 
             <!-- text part -->
-            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-text'" class="vi-part">
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-text'" class="vi-part" @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)">
               <div class="text-block" :style="contentStyle">
                 <Markdown
                   v-if="flatItems[vItem.index]!.part?.text"
@@ -945,7 +947,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
             </div>
 
             <!-- tool part -->
-            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-tool'" class="vi-part">
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-tool'" class="vi-part" @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)">
               <ChatMessageItemTool
                 :message="flatItems[vItem.index]!.msg!"
                 :tool_part="flatItems[vItem.index]!.part as ToolUIPart"
@@ -953,15 +955,15 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
             </div>
 
             <!-- file part -->
-            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-file'" class="vi-part">
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-file'" class="vi-part" @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)">
               <FileUpload :removable="false" :files="[flatItems[vItem.index]!.part as any]" />
             </div>
 
             <!-- waveform -->
-            <LiveWaveform v-else-if="flatItems[vItem.index]?.type === 'ai-waveform'" :active="true" />
+            <LiveWaveform v-else-if="flatItems[vItem.index]?.type === 'ai-waveform'" :active="true" @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)" />
 
             <!-- actions -->
-            <div v-else-if="flatItems[vItem.index]?.type === 'ai-actions'" class="msg-actions">
+            <div v-else-if="flatItems[vItem.index]?.type === 'ai-actions'" class="msg-actions" @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)">
               <Button v-if="hasAudioChunks(flatItems[vItem.index]!.msg!)" size="sm" variant="icon" type="button">
                 <template #icon><VolumeMedium /></template>
               </Button>
@@ -980,6 +982,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
               :translationLoading="flatItems[vItem.index]!.msg?.metadata?.translationLoading"
               :translationController="flatItems[vItem.index]!.msg?.metadata?.translationController"
               @stopTranslation="() => flatItems[vItem.index]!.msg?.metadata?.translationController?.()"
+              @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)"
             />
           </div>
           </div>

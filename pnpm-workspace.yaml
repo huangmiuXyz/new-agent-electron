@@ -64,7 +64,7 @@ catalog:
   '@types/inquirer': ^9.0.10
   '@types/jszip': ^3.4.1
   '@types/mime-types': ^3.0.1
-  '@types/node': ^26.0.1
+  '@types/node': ^26.1.0
   '@vicons/carbon': ^0.13.0
   '@vicons/fluent': ^0.13.0
   '@vicons/ionicons5': ^0.13.0
