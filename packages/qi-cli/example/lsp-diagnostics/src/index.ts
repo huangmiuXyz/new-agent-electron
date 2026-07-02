@@ -49,7 +49,6 @@ const plugin: Plugin = {
           serverId: serverConfig.id,
           filePath: fullPath,
         })
-
         await delay(500)
 
         const diagResult = await bridge.invoke('get-diagnostics', {
@@ -58,11 +57,9 @@ const plugin: Plugin = {
         })
 
         const fileDiags = diagResult.diagnostics[fullPath] || []
-        const errorsOnly = fileDiags.filter((d) => d.severity === 1)
-
-        if (errorsOnly.length > 0) {
-          const limited = errorsOnly.slice(0, MAX_PER_FILE)
-          const more = errorsOnly.length - MAX_PER_FILE
+        if (fileDiags.length > 0) {
+          const limited = fileDiags.slice(0, MAX_PER_FILE)
+          const more = fileDiags.length - MAX_PER_FILE
           const suffix = more > 0 ? `\n... and ${more} more` : ''
           const formatted = limited.map(formatDiagnostic).join('\n')
 
@@ -81,7 +78,7 @@ const plugin: Plugin = {
   async uninstall(context: PluginContext) {
     const bridge = createRendererBridge(context, PLUGIN_NAME)
     if (bridge) {
-      await bridge.invoke('shutdown-all').catch(() => {})
+      await bridge.invoke('shutdown-all').catch(() => { })
     }
     if (unsubBridge) {
       unsubBridge()

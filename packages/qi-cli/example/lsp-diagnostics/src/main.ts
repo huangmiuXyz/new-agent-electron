@@ -31,7 +31,12 @@ type ServerState = {
 
 function getFilePath(uri: string): string | undefined {
   if (!uri.startsWith('file://')) return
-  return path.normalize(decodeURIComponent(uri.slice(7)))
+  let p = decodeURIComponent(uri.slice(7))
+  if (process.platform === 'win32') {
+    if (p.startsWith('/')) p = p.slice(1)
+    if (/^[a-z]:/.test(p)) p = p[0].toUpperCase() + p.slice(1)
+  }
+  return path.normalize(p)
 }
 
 function pathToFileURL(p: string): string {
@@ -567,6 +572,38 @@ const mainPlugin: MainPlugin = {
         : [...state.clients.values()]
 
       for (const handle of entries) {
+        // 主动拉取诊断（pull 模式）
+        if (handle!.diagnosticPullRegistered && params.filePath) {
+          try {
+            const uri = pathToFileURL(params.filePath)
+            const report: any = await withTimeout(
+              handle!.connection.sendRequest('textDocument/diagnostic', {
+                textDocument: { uri },
+              }),
+              3000,
+            )
+            if (report?.items) {
+              const parsed = parseDiagnostics(uri, report.items)
+              for (const [fp, entries] of Object.entries(parsed)) {
+                const arr = result[fp] || []
+                arr.push(...entries)
+                result[fp] = arr
+              }
+            }
+            if (report?.relatedDocuments) {
+              for (const [relUri, relDoc] of Object.entries(report.relatedDocuments) as any) {
+                const parsed = parseDiagnostics(relUri, (relDoc as any).items)
+                for (const [fp, entries] of Object.entries(parsed)) {
+                  const arr = result[fp] || []
+                  arr.push(...entries)
+                  result[fp] = arr
+                }
+              }
+            }
+          } catch {}
+        }
+
+        // 合并推送诊断（push 模式）
         for (const [fp, diags] of Object.entries(handle!.diagnostics)) {
           const arr = result[fp] || []
           arr.push(...diags)

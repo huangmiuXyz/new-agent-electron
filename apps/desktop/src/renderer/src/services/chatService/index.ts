@@ -245,11 +245,6 @@ export const chatService = () => {
             needsApproval,
             execute: async (input: any, options: any) => {
               await onBeforeToolExecute?.({ tool: t, input, options })
-              // 浅拷贝 options 即可：options 只在工具调用时被读取，不会被就地修改；
-              // 我们要新增的 chatId/model/provider 等字段也是顶层属性。
-              // 之前用 JSON.parse(JSON.stringify(options)) 会对每次工具调用做一次
-              // 全量深拷贝，工具循环越多开销越大，且会丢失 options 上的函数/AbortSignal
-              // 等不可序列化字段。
               const result = await t.execute(input, {
                 ...JSON.parse(JSON.stringify(options)),
                 chatId: cid,
@@ -257,12 +252,13 @@ export const chatService = () => {
                 provider,
                 availableBuiltinTools: Array.from(builtinToolKeys)
               })
-              return await onUseToolAfter({
+              const hookResult = await onUseToolAfter({
                 toolName,
                 input,
                 result,
                 options: { chatId: cid, model, provider }
               })
+              return hookResult
             }
           }
         ]

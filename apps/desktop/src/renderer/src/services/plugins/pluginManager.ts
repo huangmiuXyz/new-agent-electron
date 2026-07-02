@@ -583,7 +583,8 @@ export class PluginManager {
     }, HOOK_TIMEOUT_MS)
 
     try {
-      return await hook.handler(data)
+      const result = await hook.handler(data)
+      return result
     } finally {
       clearTimeout(timeoutId)
     }

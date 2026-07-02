@@ -71,7 +71,15 @@ export class PluginMainLoader {
         if (registeredHandlerChannels.has(full)) {
           electronIpcMain.removeHandler(full)
         }
-        electronIpcMain.handle(full, handler)
+        electronIpcMain.handle(full, async (event, ...args) => {
+          try {
+            const result = await handler(event, ...args)
+            return result
+          } catch (err) {
+            console.error(`[plugin-main:ipc] ${full} error:`, err)
+            throw err
+          }
+        })
         registeredHandlerChannels.add(full)
       },
       on: (channel, handler) => {
