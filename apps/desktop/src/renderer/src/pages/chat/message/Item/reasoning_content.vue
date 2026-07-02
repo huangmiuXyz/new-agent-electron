@@ -180,18 +180,6 @@ watch(
   }
 )
 
-watch(
-  () => props.alwaysExpand,
-  (val, oldVal) => {
-    if (val) {
-      isReasoningExpanded.value = true
-    } else if (oldVal !== undefined) {
-      isReasoningExpanded.value = false
-    }
-  },
-  { immediate: true }
-)
-
 onBeforeUnmount(() => {
   cancelReasoningCharFrame()
 })
