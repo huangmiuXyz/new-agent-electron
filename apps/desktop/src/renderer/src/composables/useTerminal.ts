@@ -396,8 +396,13 @@ export const useTerminal = () => {
 
     tab.lastExitCode = null
 
+    const pagerPrefix = navigator.platform.toLowerCase().includes('win')
+      ? `$env:GIT_PAGER='cat'; $env:PAGER='cat'; `
+      : `GIT_PAGER=cat PAGER=cat `
+    const finalCommand = pagerPrefix + options.command
+
     setExecuting(id, true)
-    window.api.pty.write(id, encodeCommandForPty(options.command))
+    window.api.pty.write(id, encodeCommandForPty(finalCommand))
 
     const result = await waitForCommand(id, timeout)
     return { id, result }
