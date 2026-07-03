@@ -181,9 +181,6 @@ export const createStatusRender = (
                   cursor: pointer;
                   gap: 4px;
                 }
-                .ocgo-status-wrap:hover {
-                  background: var(--bg-hover);
-                }
                 .ocgo-status-icon {
                   font-size: 13px;
                   color: var(--text-secondary);

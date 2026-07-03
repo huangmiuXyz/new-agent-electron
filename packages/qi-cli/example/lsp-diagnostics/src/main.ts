@@ -1,5 +1,5 @@
 import type { MainPlugin, MainPluginContext } from '@agent-qi/types'
-import { createMainBridge, type DiagnosticEntry } from './protocol'
+import { createMainBridge, type DiagnosticEntry, type ServerStatusInfo } from './protocol'
 import { findServerById, resolveBinary, type ServerConfig, type Installer } from './server-config'
 import { LANGUAGE_EXTENSIONS } from './language'
 import path from 'path'
@@ -22,6 +22,8 @@ interface ServerHandle {
   files: Record<string, { version: number }>
   diagnostics: Record<string, DiagnosticEntry[]>
   diagnosticPullRegistered?: boolean
+  connectedAt: number
+  triggerFilePath: string
 }
 
 type ServerState = {
@@ -403,6 +405,7 @@ async function startServer(
   serverId: string,
   filePath: string,
   directory: string,
+  onStatusChanged?: () => void,
 ): Promise<ServerHandle | undefined> {
   const config = findServerById(serverId)
   if (!config) return
@@ -434,7 +437,7 @@ async function startServer(
     console.log(`[lsp:stderr ${key}]`, chunk.toString().substring(0, 500))
   })
   proc.on('error', () => { state.broken.add(key) })
-  proc.on('exit', (code) => { console.log(`[lsp:exit ${key}]`, code); state.clients.delete(key) })
+  proc.on('exit', (code) => { console.log(`[lsp:exit ${key}]`, code); state.clients.delete(key); onStatusChanged?.() })
 
   const connection = createMessageConnection(
     new StreamMessageReader(proc.stdout),
@@ -448,6 +451,8 @@ async function startServer(
     config,
     files: {},
     diagnostics: {},
+    connectedAt: Date.now(),
+    triggerFilePath: filePath,
   }
 
   connection.onNotification('textDocument/publishDiagnostics', (params: any) => {
@@ -532,9 +537,32 @@ const mainPlugin: MainPlugin = {
     const state: ServerState = { clients: new Map(), broken: new Set() }
     const bridge = createMainBridge(ctx)
 
+    const getServerStatusList = (): ServerStatusInfo[] => {
+      const list: ServerStatusInfo[] = []
+      for (const [serverId, handle] of state.clients.entries()) {
+        list.push({
+          serverId,
+          binary: handle.config.binary,
+          filePath: handle.triggerFilePath,
+          connectedAt: handle.connectedAt,
+        })
+      }
+      list.sort((a, b) => a.connectedAt - b.connectedAt)
+      return list
+    }
+
+    const broadcastStatus = () => {
+      bridge.broadcast('server-status-changed', getServerStatusList())
+    }
+
     bridge.handle('init-server', async (params) => {
-      const handle = await startServer(state, params.serverId, params.filePath, params.directory)
+      const handle = await startServer(state, params.serverId, params.filePath, params.directory, broadcastStatus)
+      broadcastStatus()
       return { ok: !!handle, error: handle ? undefined : `Failed to start server: ${params.serverId}` }
+    })
+
+    bridge.handle('get-server-status', async () => {
+      return { servers: getServerStatusList() }
     })
 
     bridge.handle('open-document', async (params) => {

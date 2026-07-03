@@ -9,6 +9,13 @@ export interface DiagnosticEntry {
   code?: string | number
 }
 
+export interface ServerStatusInfo {
+  serverId: string
+  binary: string
+  filePath: string
+  connectedAt: number
+}
+
 export interface PluginProtocol {
   'init-server': {
     args: [{ serverId: string; filePath: string; directory: string }]
@@ -28,6 +35,14 @@ export interface PluginProtocol {
   }
   'shutdown-all': {
     args: []
+    result: void
+  }
+  'get-server-status': {
+    args: []
+    result: { servers: ServerStatusInfo[] }
+  }
+  'server-status-changed': {
+    args: [ServerStatusInfo[]]
     result: void
   }
 }

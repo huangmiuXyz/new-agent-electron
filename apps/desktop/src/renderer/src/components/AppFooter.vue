@@ -194,11 +194,6 @@ const StatusRender = defineComponent({
   gap: 4px;
 }
 
-.status-item:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
 .status-item.active {
   color: var(--accent-color);
   background: var(--bg-active);

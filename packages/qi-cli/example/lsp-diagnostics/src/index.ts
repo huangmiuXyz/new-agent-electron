@@ -1,11 +1,15 @@
 import type { Plugin, PluginContext } from '@agent-qi/types'
-import { createRendererBridge, type DiagnosticEntry } from './protocol'
+import { createRendererBridge, type DiagnosticEntry, type ServerStatusInfo } from './protocol'
 import { findServerByExtension } from './server-config'
+import { createLspStatusRender } from './status-indicator'
 
 const PLUGIN_NAME = 'lsp-diagnostics'
+const STATUS_ID = 'lsp-diagnostics-status'
 const MAX_PER_FILE = 20
 
 let unsubBridge: (() => void) | null = null
+let unsubServerStatus: (() => void) | null = null
+let isStatusRegistered = false
 
 const plugin: Plugin = {
   name: PLUGIN_NAME,
@@ -18,6 +22,53 @@ const plugin: Plugin = {
       context.notification.error('LSP 诊断插件需要桌面环境。', PLUGIN_NAME)
       return
     }
+
+    // ── LSP 服务器连接状态指示器 ──
+    const servers = context.vue.ref<ServerStatusInfo[]>([])
+    const isPanelOpen = context.vue.ref(false)
+    const tooltip = context.vue.ref('LSP 诊断')
+
+    const updateStatusIndicator = () => {
+      const list = servers.value
+      const names = list.map(s => s.serverId).join(', ')
+      tooltip.value = list.length > 0
+        ? `LSP 已连接: ${names}`
+        : 'LSP 诊断 (未连接)'
+
+      if (isStatusRegistered) return
+
+      const statusRender = createLspStatusRender({
+        context,
+        serversRef: servers,
+        isPanelOpenRef: isPanelOpen,
+        tooltipRef: tooltip,
+      })
+
+      ; (context.notification.status as unknown as (
+        id: string,
+        text: string,
+        options?: Record<string, unknown>
+      ) => void)(STATUS_ID, '', {
+        render: statusRender,
+        tooltip: tooltip.value,
+        color: '#4fc3f7',
+      })
+      isStatusRegistered = true
+    }
+
+    // 初始查询已连接的服务器
+    bridge.invoke('get-server-status')
+      .then((result) => {
+        servers.value = result.servers
+        updateStatusIndicator()
+      })
+      .catch(() => {})
+
+    // 监听服务器状态变化广播
+    unsubServerStatus = bridge.on('server-status-changed', (data: any) => {
+      servers.value = data
+      updateStatusIndicator()
+    })
 
     context.registerHook('tool:after-use', async (params: any) => {
       if (params.toolName !== 'edit_file') return
@@ -84,6 +135,12 @@ const plugin: Plugin = {
       unsubBridge()
       unsubBridge = null
     }
+    if (unsubServerStatus) {
+      unsubServerStatus()
+      unsubServerStatus = null
+    }
+    context.notification.removeStatus(STATUS_ID)
+    isStatusRegistered = false
   },
 }
 
