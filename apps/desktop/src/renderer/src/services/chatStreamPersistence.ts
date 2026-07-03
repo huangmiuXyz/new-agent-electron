@@ -4,7 +4,7 @@ export const chatStreamPersistence = {
   async upsertMessageSnapshot(chatId: string, message: BaseMessage, seqHint?: number): Promise<void> {
     const _t1 = createTimeLog('持久化-upsertMessageSnapshot')
     await window.api.chatDb.message.upsert(chatId, forIpc(message), seqHint)
-    syncTimeLog(_t1, '持久化-upsertMessageSnapshot', `parts=${message.parts.length} role=${message.role}`)
+    syncTimeLog(_t1, '持久化-upsertMessageSnapshot', `parts=${message.parts.length} role=${message.role}`, message)
   },
 
   async upsertPart(messageId: string, idx: number, part: BaseMessage['parts'][number]): Promise<void> {
@@ -12,7 +12,7 @@ export const chatStreamPersistence = {
     await window.api.chatDb.message.upsertPart(messageId, idx, forIpc(part))
     const type = part.type
     const len = 'text' in part ? (part.text as string)?.length : 'image' in part ? '<image>' : `${JSON.stringify(part).length}`
-    syncTimeLog(_t2, '持久化-upsertPart', `idx=${idx} type=${type} len=${len}`)
+    syncTimeLog(_t2, '持久化-upsertPart', `idx=${idx} type=${type} len=${len}`, part)
   },
 
   async updateMetadata(messageId: string, metadata: MetaData): Promise<void> {
