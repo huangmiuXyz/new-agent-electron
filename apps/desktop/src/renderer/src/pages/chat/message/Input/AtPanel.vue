@@ -901,6 +901,7 @@ defineExpose({
     :tray-anchor="'[data-mention-anchor=\'true\']'"
     tray-exclude-selector="[data-mention-anchor='true']"
     width="380px"
+    title="快捷选项"
   >
     <template #content>
       <div ref="panelRef" class="mention-sections">
@@ -938,7 +939,6 @@ defineExpose({
 .mention-section {
   display: flex;
   flex-direction: column;
-  padding-top: 8px;
 }
 
 :deep(.list-item) {
@@ -967,10 +967,4 @@ defineExpose({
   padding: 20px;
 }
 /* ── Override: content slot tray body padding to match default slot ── */
-</style>
-
-<style>
-.selector-tray-body--full {
-  padding-top: 0 !important;
-}
 </style>

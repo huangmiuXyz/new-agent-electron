@@ -479,6 +479,7 @@ const trayStyle = computed<CSSProperties>(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding: 0 8px 8px 8px;
 }
 
 .selector-tray-header {
@@ -495,7 +496,7 @@ const trayStyle = computed<CSSProperties>(() => {
 }
 
 .selector-tray-search {
-  padding: 8px 10px;
+  padding-top: 8px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -507,7 +508,7 @@ const trayStyle = computed<CSSProperties>(() => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 4px 8px;
+  padding: 4px 0px;
   overscroll-behavior: contain;
   padding-top: 0 !important;
 }
@@ -517,7 +518,7 @@ const trayStyle = computed<CSSProperties>(() => {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 4px 8px;
+  padding: 4px 0px;
 }
 
 /* Tray scrollbar */
