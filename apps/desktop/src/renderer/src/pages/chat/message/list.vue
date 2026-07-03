@@ -1110,7 +1110,7 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
 
 /* —— Retry —— */
 .retry-container {
-  display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin: 4px 20px;
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin: 4px 0px;
   background-color: var(--bg-error, rgba(254, 242, 242, 0.9));
   border: 1px solid var(--border-error, rgba(252, 165, 165, 0.6)); border-radius: 6px;
   font-size: 12px; color: var(--color-danger);
