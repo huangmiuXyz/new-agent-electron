@@ -409,7 +409,6 @@ export const useChat = (chatId: string) => {
                 stopWhen: [() => useChatsStores().isChatGuided(chatId)]
               }
             )
-            syncTimeLog(_t3, 'transport.sendMessages(发送传输)')
           },
           reconnectToStream: undefined as any
         },
