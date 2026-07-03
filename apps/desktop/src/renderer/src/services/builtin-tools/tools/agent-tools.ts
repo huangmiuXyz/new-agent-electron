@@ -198,7 +198,7 @@ const submitSummaryToParent = (params: {
     subTaskResultSubmitted: true
   })
 
-  chatsStore.addPendingMessage(parentChatId, [
+  const messageId = chatsStore.addPendingMessage(parentChatId, [
     {
       type: 'text',
       text:
@@ -210,6 +210,11 @@ const submitSummaryToParent = (params: {
         (!success && error ? `\n错误: ${error}` : '')
     }
   ])
+
+  if (chatsStore.isChatGenerating(parentChatId)) {
+    chatsStore.prioritizePendingMessage(parentChatId, messageId)
+    chatsStore.markChatGuided(parentChatId)
+  }
 }
 
 export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> => {

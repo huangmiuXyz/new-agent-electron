@@ -47,7 +47,9 @@ export const createSubTaskResultCoordinator = ({
       subTaskResultSubmitted: true
     })
 
-    useChatsStores().addPendingMessage(runtimeChat.parentChatId, [
+    const parentChatId = runtimeChat.parentChatId
+    const chatsStore = useChatsStores()
+    const messageId = chatsStore.addPendingMessage(parentChatId, [
       {
         type: 'text',
         text:
@@ -59,7 +61,13 @@ export const createSubTaskResultCoordinator = ({
           (!success && error ? `\n错误: ${error}` : '')
       }
     ])
-    triggerNextPendingMessage(runtimeChat.parentChatId)
+
+    if (chatsStore.isChatGenerating(parentChatId)) {
+      chatsStore.prioritizePendingMessage(parentChatId, messageId)
+      chatsStore.markChatGuided(parentChatId)
+    }
+
+    triggerNextPendingMessage(parentChatId)
   }
 
   const markFailed = (error: string) => {
