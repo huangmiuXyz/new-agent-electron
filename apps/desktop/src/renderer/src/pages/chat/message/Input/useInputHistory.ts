@@ -32,7 +32,7 @@ export function useInputHistory() {
   /**
    * Navigate backward through history (older entries).
    * Requires cursor at beginning (caretOffset === 0) to take effect.
-   * When already at the oldest entry, pressing again exits browsing mode.
+   * Stops at the oldest entry without cycling back to draft.
    */
   function navigateUp(caretOffset: number, currentText: string): string | null {
     if (history.value.length === 0) return null
@@ -52,17 +52,14 @@ export function useInputHistory() {
       return history.value[historyIndex.value]
     }
 
-    // Already at the oldest entry: exit browsing mode
-    historyIndex.value = -1
-    const backup = draftBackup.value
-    draftBackup.value = ''
-    return backup
+    // Already at the oldest entry: stay put, no cycling
+    return history.value[0]
   }
 
   /**
    * Navigate forward through history (newer entries).
    * Requires cursor at end (caretOffset === textLength) to take effect.
-   * When already at the newest entry, pressing again exits browsing mode.
+   * Stops at the newest entry without cycling back to draft.
    */
   function navigateDown(caretOffset: number, textLength: number, currentText: string): string | null {
     if (history.value.length === 0) return null
@@ -82,11 +79,8 @@ export function useInputHistory() {
       return history.value[historyIndex.value]
     }
 
-    // Already at the newest entry: exit browsing mode
-    historyIndex.value = -1
-    const backup = draftBackup.value
-    draftBackup.value = ''
-    return backup
+    // Already at the newest entry: stay put, no cycling
+    return history.value[history.value.length - 1]
   }
 
   function saveDraftBackup(text: string) {

@@ -307,8 +307,7 @@
   box-sizing: border-box;
   max-width: min(320px, 100%);
   min-width: 0;
-  height: 20px;
-  padding: 0 2px 0 7px;
+  padding: 4px 2px 4px 7px;
   border: none;
   border-radius: 5px;
   background: var(--bg-hover);

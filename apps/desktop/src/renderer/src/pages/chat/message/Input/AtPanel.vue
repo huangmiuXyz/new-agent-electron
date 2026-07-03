@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import CascaderPanel from './CascaderPanel.vue'
-import type { CascaderPanelItem, CascaderPanelSelectResult } from './CascaderPanel.types'
+import { type VNode } from 'vue'
+import SelectorPopover from '@renderer/components/SelectorPopover.vue'
+import List from '@renderer/components/List.vue'
 import { discoverSkills, type SkillMetadata } from '@renderer/services/skillsService'
+import { useIcon } from '@renderer/composables/useIcon'
 import { debounce } from '@renderer/utils'
 import {
   getWorkspaceEntry,
@@ -49,7 +51,7 @@ export interface MentionKeydownResult {
 
 const props = withDefaults(defineProps<Props>(), {
   mobile: false,
-  emptyText: '未找到匹配技能'
+  emptyText: '未找到匹配项'
 })
 
 const emit = defineEmits<{
@@ -60,19 +62,14 @@ const emit = defineEmits<{
 const chatStore = useChatsStores()
 const agentStore = useAgentStore()
 const canvasStore = useCanvasStore()
-const cascaderPanelRef = useTemplateRef<{
-  handleKeydown: (event: KeyboardEvent) => CascaderPanelSelectResult
-  resetActiveIndexAtDepth: (depth: number, focus?: boolean, index?: number) => void
-  focusRootItem: (key: string, focusChild?: boolean) => boolean
-  getActivePath: () => CascaderPanelItem[]
-}>('cascaderPanelRef')
+const panelRef = useTemplateRef<HTMLDivElement>('panelRef')
 
 const currentChatAgent = computed(() => {
   const agentId = chatStore.currentChat?.agentId
   return agentId ? agentStore.getAgentById(agentId) : null
 })
 
-const SKILL_MENTION_REGEX = /(^|[\s\S])@([a-z0-9-]*)$/i
+// ── Regex patterns ──
 const SKILL_MENTION_NAMESPACE_REGEX = /(^|[\s\S])@(skills|技能):([a-z0-9-]*)$/i
 const FILE_MENTION_NAMESPACE_REGEX =
   /(^|[\s\S])@(file|文件):(?:"([^"\n\r]*)"|'([^'\n\r]*)'|([^\s]*))$/i
@@ -81,6 +78,7 @@ const NOTE_MENTION_NAMESPACE_REGEX =
 const AGENT_MENTION_NAMESPACE_REGEX = /(^|[\s\S])@(agent|智能体):([a-z0-9-\u4e00-\u9fa5]*)$/i
 const PARTIAL_MENTION_REGEX = /(^|[\s\S])@([^\s]*)$/i
 
+// ── Data sources ──
 const availableSkills = computed<SkillMetadata[]>(() => {
   void currentChatAgent.value?.id
   void currentChatAgent.value?.skillDirectory
@@ -92,16 +90,7 @@ const availableAgents = computed<Agent[]>(() => {
   return agentStore.allAgents
 })
 
-const filteredAgents = computed(() => {
-  const normalizedQuery = query.value.trim().toLowerCase()
-  if (!normalizedQuery) return availableAgents.value
-  return availableAgents.value.filter((agent) => {
-    const name = agent.name.toLowerCase()
-    const description = (agent.description || '').toLowerCase()
-    return name.includes(normalizedQuery) || description.includes(normalizedQuery)
-  })
-})
-
+// ── Ref state ──
 const isOpen = ref(false)
 const mentionScope = ref<MentionScope>('all')
 const query = ref('')
@@ -112,13 +101,14 @@ const suppressedMessage = ref<string | null>(null)
 const previewScope = ref<Exclude<MentionScope, 'all'> | null>(null)
 const rootPreviewScope = ref<Exclude<MentionScope, 'all'> | null>(null)
 const allowPreviewOnActiveChange = ref(false)
-const lastActivePathKeys = ref<string[]>([])
-const fileItems = ref<CascaderPanelItem[]>([])
+const activeIndex = ref(0)
+
+// File directory state
 const currentFileDirectory = ref('')
 const fileListStrategy = ref<'search' | 'directory'>('directory')
-const noteItems = ref<CascaderPanelItem[]>([])
 const currentNoteFolderId = ref<string | null>(null)
 const noteListStrategy = ref<'search' | 'directory'>('directory')
+
 let closeTimer: ReturnType<typeof setTimeout> | null = null
 
 const currentWorkPath = computed(() => {
@@ -126,6 +116,9 @@ const currentWorkPath = computed(() => {
   return workPath ? normalizeWorkspacePath(workPath) : ''
 })
 
+// ── Computed search results ──
+
+/** Filtered skills based on query */
 const filteredSkills = computed(() => {
   const normalizedQuery = query.value.trim().toLowerCase()
   const exactMatches = availableSkills.value.filter(
@@ -143,6 +136,289 @@ const filteredSkills = computed(() => {
     : fuzzyMatches
 })
 
+/** Filtered agents based on query */
+const filteredAgents = computed(() => {
+  const normalizedQuery = query.value.trim().toLowerCase()
+  if (!normalizedQuery) return availableAgents.value
+  return availableAgents.value.filter((agent) => {
+    const name = agent.name.toLowerCase()
+    const description = (agent.description || '').toLowerCase()
+    return name.includes(normalizedQuery) || description.includes(normalizedQuery)
+  })
+})
+
+/** File entries for current directory or search results */
+const fileEntries = ref<WorkspaceFileEntry[]>([])
+
+const refreshFileEntries = (nextQuery: string) => {
+  if (!currentWorkPath.value) {
+    fileEntries.value = []
+    return
+  }
+
+  const isDirNav = nextQuery.endsWith('/')
+  if (isDirNav) {
+    // Directory navigation: show contents of the directory path
+    const dirPath = nextQuery.replace(/[\\/]+$/, '')
+    const dirEntry = dirPath ? getWorkspaceEntry(currentWorkPath.value, dirPath) : null
+    if (!dirEntry || dirEntry.kind !== 'directory') {
+      fileEntries.value = []
+      return
+    }
+    currentFileDirectory.value = dirEntry.relativePath
+    fileListStrategy.value = 'directory'
+    fileEntries.value = listWorkspaceEntries(currentWorkPath.value, dirEntry.relativePath)
+    return
+  }
+
+  const isAllScopeSearch = mentionScope.value === 'all' && Boolean(nextQuery)
+  const shouldSearch = isAllScopeSearch || (Boolean(nextQuery) && fileListStrategy.value === 'search')
+  fileEntries.value = shouldSearch
+    ? searchWorkspaceEntries(currentWorkPath.value, nextQuery, { limit: 80 })
+    : listWorkspaceEntries(currentWorkPath.value, currentFileDirectory.value)
+}
+
+const debouncedRefreshFileEntries = debounce((nextQuery: string) => {
+  refreshFileEntries(nextQuery)
+}, 200)
+
+/** Note entries for current folder or search results */
+const noteEntries = ref<NoteMentionEntry[]>([])
+
+const getParentDirectory = (relativePath: string) => {
+  if (!relativePath) return ''
+  return relativePath.split('/').slice(0, -1).join('/')
+}
+
+const formatFileMentionPath = (relativePath: string) => {
+  if (!/\s/.test(relativePath)) {
+    return relativePath
+  }
+  return `"${relativePath.replaceAll('"', '\\"')}"`
+}
+
+const refreshNoteEntries = (nextQuery: string) => {
+  const isAllScopeSearch = mentionScope.value === 'all' && Boolean(nextQuery)
+  const isNotesScopeSearch = mentionScope.value === 'notes' && Boolean(nextQuery) && noteListStrategy.value === 'search'
+  if (isAllScopeSearch || isNotesScopeSearch) {
+    noteEntries.value = searchNoteEntries(nextQuery, { limit: 80 })
+  } else {
+    noteEntries.value = listNoteEntries(currentNoteFolderId.value)
+  }
+}
+
+const debouncedRefreshNoteEntries = debounce((nextQuery: string) => {
+  refreshNoteEntries(nextQuery)
+}, 100)
+
+// ── Section groups (source for listItems) ──
+
+interface SectionItem {
+  id: string
+  label: string
+  description?: string
+  data: MentionItemData
+}
+
+interface SectionGroup {
+  key: string
+  title: string
+  items: SectionItem[]
+}
+
+const sectionGroups = computed((): SectionGroup[] => {
+  const nq = query.value.trim()
+  const isAllScope = mentionScope.value === 'all'
+  const isDirNav = isAllScope && nq.endsWith('/')
+  const groups: SectionGroup[] = []
+
+  // Skills section
+  if (mentionScope.value === 'all' || mentionScope.value === 'skills') {
+    const skills = filteredSkills.value
+    if (skills.length > 0) {
+      groups.push({
+        key: 'skills',
+        title: '技能',
+        items: skills.map((skill) => ({
+          id: `skill:${skill.name}`,
+          label: `${skill.name}`,
+          description: skill.description,
+          data: { type: 'skill', skill } satisfies MentionItemData
+        }))
+      })
+    }
+  }
+
+  // Files section
+  if (mentionScope.value === 'all' || mentionScope.value === 'files') {
+    if (currentWorkPath.value) {
+      const fileItems: SectionItem[] = []
+
+      if (isDirNav) {
+        const dirPath = nq.replace(/[\\\/]+$/, '')
+        if (dirPath) {
+          const parentDir = getParentDirectory(dirPath)
+          if (parentDir !== currentFileDirectory.value) {
+            fileItems.push({
+              id: 'file-nav:parent',
+              label: '..',
+              description: '返回上级目录',
+              data: { type: 'file-nav', targetDir: parentDir } satisfies MentionItemData
+            })
+          }
+        }
+        for (const entry of fileEntries.value) {
+          fileItems.push({
+            id: `file:${entry.relativePath}`,
+            label: entry.kind === 'directory' ? `${entry.name}/` : entry.name,
+            description: entry.kind === 'directory' ? '文件夹' : entry.relativePath,
+            data: { type: 'file', entry } satisfies MentionItemData
+          })
+        }
+      } else if (!isAllScope || !nq) {
+        for (const entry of fileEntries.value) {
+          fileItems.push({
+            id: `file:${entry.relativePath}`,
+            label: entry.kind === 'directory' ? `${entry.name}/` : entry.name,
+            description: entry.kind === 'directory' ? '文件夹' : entry.relativePath,
+            data: { type: 'file', entry } satisfies MentionItemData
+          })
+        }
+      } else {
+        for (const entry of fileEntries.value) {
+          fileItems.push({
+            id: `file:${entry.relativePath}`,
+            label: entry.kind === 'directory' ? `${entry.name}/` : entry.name,
+            description: entry.relativePath,
+            data: { type: 'file', entry } satisfies MentionItemData
+          })
+        }
+      }
+
+      if (fileItems.length > 0) {
+        groups.push({ key: 'files', title: '文件', items: fileItems })
+      }
+    }
+  }
+
+  // Notes section
+  if (!isDirNav && (mentionScope.value === 'all' || mentionScope.value === 'notes')) {
+    const noteItems: SectionItem[] = []
+    for (const entry of noteEntries.value) {
+      noteItems.push({
+        id: `note:${entry.kind}:${entry.id}`,
+        label: entry.kind === 'folder' ? `${entry.name}/` : entry.name,
+        description: entry.path,
+        data: { type: 'note', entry } satisfies MentionItemData
+      })
+    }
+    if (noteItems.length > 0) {
+      groups.push({ key: 'notes', title: '笔记', items: noteItems })
+    }
+  }
+
+  // Agents section
+  if (!isDirNav && (mentionScope.value === 'all' || mentionScope.value === 'agents')) {
+    const agents = filteredAgents.value
+    if (agents.length > 0) {
+      groups.push({
+        key: 'agents',
+        title: '智能体',
+        items: agents.map((agent) => ({
+          id: `agent:${agent.id}`,
+          label: `${agent.name}`,
+          description: agent.description || '暂无描述',
+          data: { type: 'agent', agent } satisfies MentionItemData
+        }))
+      })
+    }
+  }
+
+  return groups
+})
+
+const skillIcon = useIcon('Wrench20Regular')
+const fileIcon = useIcon('FileText')
+const noteIcon = useIcon('NoteAdd24Regular')
+const agentIcon = useIcon('Robot')
+
+const typeIconVNodes: Record<string, VNode> = {
+  skill: skillIcon,
+  file: fileIcon,
+  note: noteIcon,
+  agent: agentIcon
+}
+
+/** Flatten all section items into a single list (no grouping) */
+const flatSelectableItems = computed((): SectionItem[] => {
+  const items: SectionItem[] = []
+  for (const section of sectionGroups.value) {
+    for (const item of section.items) {
+      items.push(item)
+    }
+  }
+  return items
+})
+
+const clampedActiveIndex = computed(() => {
+  const len = flatSelectableItems.value.length
+  if (len === 0) return -1
+  return Math.min(Math.max(activeIndex.value, 0), len - 1)
+})
+// ── List item conversion ──
+
+interface ListItemData {
+  key: string
+  name: string
+  description: string
+  _isDir: boolean
+  _data: MentionItemData
+  logo?: VNode | null
+  isIcon?: boolean
+}
+
+const toListItems = (items: SectionItem[]): ListItemData[] => {
+  return items.map((item) => ({
+    key: item.id,
+    name: item.label,
+    description: item.description || '',
+    _isDir: item.data.type === 'file' && item.data.entry.kind === 'directory',
+    _data: item.data,
+    logo: typeIconVNodes[item.data.type] ?? null,
+    isIcon: true
+  }))
+}
+
+/** Resolve the currently active item's key */
+const activeItemId = computed((): string | undefined => {
+  const idx = clampedActiveIndex.value
+  if (idx < 0) return undefined
+  return flatSelectableItems.value[idx]?.id
+})
+
+const handleListSelect = (key: string) => {
+  for (const item of flatSelectableItems.value) {
+    if (item.id === key) {
+      handleItemClick(item.data)
+      return
+    }
+  }
+}
+
+// Keep scrollActiveIntoView working for the List component
+const scrollActiveIntoView = () => {
+  nextTick(() => {
+    if (!panelRef.value) return
+    const scrollArea = panelRef.value.querySelector('.list-scroll-area')
+    if (!scrollArea) return
+    const active = scrollArea.querySelector('.is-active, .mention-item--active')
+    if (!active) return
+    active.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+// ── Helper functions ──
+
 const resolveMentionStart = (match: RegExpMatchArray, cursor: number) => {
   const leadingToken = match[1] || ''
   return cursor - (match[0]?.length || 0) + leadingToken.length
@@ -153,330 +429,12 @@ const resolveMentionStartFromBeforeCursor = (beforeCursor: string, fallbackMatch
   return mentionStart >= 0 ? mentionStart : resolveMentionStart(fallbackMatch, cursor)
 }
 
-const getFileMentionQuery = (match: RegExpMatchArray) => {
-  return match[3] || match[4] || match[5] || ''
-}
-
-const getNoteMentionQuery = (match: RegExpMatchArray) => {
-  return match[3] || match[4] || match[5] || ''
-}
-
-const formatFileMentionPath = (relativePath: string) => {
-  if (!/\s/.test(relativePath)) {
-    return relativePath
-  }
-
-  return `"${relativePath.replaceAll('"', '\\"')}"`
-}
-
-const getParentDirectory = (relativePath: string) => {
-  if (!relativePath) return ''
-  return relativePath.split('/').slice(0, -1).join('/')
-}
-
-const enterDirectory = (relativePath: string) => {
-  currentFileDirectory.value = relativePath
-  fileListStrategy.value = 'directory'
-}
-
-const buildFileDescription = (entry: WorkspaceFileEntry) => {
-  const normalizedQuery = query.value.trim()
-  const parentPath = entry.relativePath.includes('/')
-    ? entry.relativePath.slice(0, entry.relativePath.lastIndexOf('/'))
-    : ''
-
-  if (!normalizedQuery || fileListStrategy.value === 'directory') {
-    return entry.kind === 'directory' ? '文件夹' : '文件'
-  }
-
-  if (entry.kind === 'directory') {
-    return `文件夹 · ${entry.relativePath}`
-  }
-
-  return parentPath || entry.relativePath
-}
-
-const buildParentDirectoryItem = (): CascaderPanelItem | null => {
-  if (!currentFileDirectory.value) return null
-
-  const parentDir = getParentDirectory(currentFileDirectory.value)
-  return {
-    key: 'file-nav:parent',
-    label: '..',
-    description: '返回上级目录',
-    onKeydown: ({ event }) => {
-      if (event.key === 'Enter' || event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
-        enterDirectory(parentDir)
-        return { action: 'stay' }
-      }
-
-      return undefined
-    },
-    data: {
-      type: 'file-nav',
-      targetDir: parentDir
-    } satisfies MentionItemData
-  }
-}
-
-const buildFileItem = (entry: WorkspaceFileEntry): CascaderPanelItem => {
-  return {
-    key: `file:${entry.relativePath}`,
-    label: entry.name,
-    description: buildFileDescription(entry),
-    onKeydown: ({ event }) => {
-      if (event.key === 'ArrowLeft' && currentFileDirectory.value) {
-        enterDirectory(getParentDirectory(currentFileDirectory.value))
-        return { action: 'stay' }
-      }
-
-      if (entry.kind === 'directory' && event.key === 'ArrowRight') {
-        enterDirectory(entry.relativePath)
-        return { action: 'stay' }
-      }
-
-      if (entry.kind === 'directory' && event.key === 'Enter') {
-        return { action: 'select' }
-      }
-
-      return undefined
-    },
-    data: {
-      type: 'file',
-      entry
-    } satisfies MentionItemData
-  }
-}
-
-const refreshFileItems = (nextQuery: string) => {
-  if (!currentWorkPath.value) {
-    fileItems.value = []
-    return
-  }
-
-  const shouldSearch = fileListStrategy.value === 'search' && Boolean(nextQuery)
-  const entries = shouldSearch
-    ? searchWorkspaceEntries(currentWorkPath.value, nextQuery, { limit: 80 })
-    : listWorkspaceEntries(currentWorkPath.value, currentFileDirectory.value)
-
-  const parentItem = shouldSearch ? null : buildParentDirectoryItem()
-  fileItems.value = [
-    ...(parentItem ? [parentItem] : []),
-    ...entries.map(buildFileItem)
-  ]
-}
-
-const resetFileListSelection = () => {
-  nextTick(() => {
-    const activePath = cascaderPanelRef.value?.getActivePath?.() || []
-    const isWorkspaceActive =
-      mentionScope.value === 'files' || activePath[0]?.key === 'workspace'
-
-    if (!isWorkspaceActive) return
-    const firstSelectableIndex = fileItems.value[0]?.key === 'file-nav:parent' ? 1 : 0
-    cascaderPanelRef.value?.resetActiveIndexAtDepth?.(1, true, firstSelectableIndex)
-  })
-}
-
-const debouncedRefreshFileItems = debounce((nextQuery: string) => {
-  refreshFileItems(nextQuery)
-  resetFileListSelection()
-}, 140)
-
-const enterNoteFolder = (folderId: string | null) => {
-  currentNoteFolderId.value = folderId
-  noteListStrategy.value = 'directory'
-}
-
-const buildNoteParentItem = (): CascaderPanelItem | null => {
-  if (!currentNoteFolderId.value) return null
-
-  const notesStore = useNotesStore()
-  const currentFolder = notesStore.folders.find((folder) => folder.id === currentNoteFolderId.value)
-  const parentId = currentFolder?.parentId || null
-
-  return {
-    key: 'note-nav:parent',
-    label: '..',
-    description: '返回上级文件夹',
-    onKeydown: ({ event }) => {
-      if (event.key === 'Enter' || event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
-        enterNoteFolder(parentId)
-        return { action: 'stay' }
-      }
-
-      return undefined
-    },
-    data: {
-      type: 'note-nav',
-      targetFolderId: parentId
-    } satisfies MentionItemData
-  }
-}
-
-const buildNoteDescription = (entry: NoteMentionEntry) => {
-  const normalizedQuery = query.value.trim()
-  if (!normalizedQuery || noteListStrategy.value === 'directory') {
-    return entry.kind === 'folder' ? '笔记文件夹' : '笔记'
-  }
-
-  return entry.path
-}
-
-const buildNoteItem = (entry: NoteMentionEntry): CascaderPanelItem => {
-  return {
-    key: `note:${entry.kind}:${entry.id}`,
-    label: entry.name,
-    description: buildNoteDescription(entry),
-    onKeydown: ({ event }) => {
-      if (event.key === 'ArrowLeft' && currentNoteFolderId.value) {
-        const notesStore = useNotesStore()
-        const currentFolder = notesStore.folders.find((folder) => folder.id === currentNoteFolderId.value)
-        enterNoteFolder(currentFolder?.parentId || null)
-        return { action: 'stay' }
-      }
-
-      if (entry.kind === 'folder' && event.key === 'ArrowRight') {
-        enterNoteFolder(entry.id)
-        return { action: 'stay' }
-      }
-
-      if (entry.kind === 'folder' && event.key === 'Enter') {
-        return { action: 'select' }
-      }
-
-      return undefined
-    },
-    data: {
-      type: 'note',
-      entry
-    } satisfies MentionItemData
-  }
-}
-
-const refreshNoteItems = (nextQuery: string) => {
-  const shouldSearch = noteListStrategy.value === 'search' && Boolean(nextQuery)
-  const entries = shouldSearch
-    ? searchNoteEntries(nextQuery, { limit: 80 })
-    : listNoteEntries(currentNoteFolderId.value)
-
-  const parentItem = shouldSearch ? null : buildNoteParentItem()
-  noteItems.value = [
-    ...(parentItem ? [parentItem] : []),
-    ...entries.map(buildNoteItem)
-  ]
-}
-
-const resetNoteListSelection = () => {
-  nextTick(() => {
-    const activePath = cascaderPanelRef.value?.getActivePath?.() || []
-    const isNotesActive = mentionScope.value === 'notes' || activePath[0]?.key === 'notes'
-
-    if (!isNotesActive) return
-    const firstSelectableIndex = noteItems.value[0]?.key === 'note-nav:parent' ? 1 : 0
-    cascaderPanelRef.value?.resetActiveIndexAtDepth?.(1, true, firstSelectableIndex)
-  })
-}
-
-const debouncedRefreshNoteItems = debounce((nextQuery: string) => {
-  refreshNoteItems(nextQuery)
-  resetNoteListSelection()
-}, 140)
-
-const skillsRootItem = reactive<CascaderPanelItem>({
-  key: 'skills',
-  label: '技能',
-  icon: 'sparkle',
-  children: () => filteredSkills.value.map((skill) => ({
-    key: skill.path,
-    label: `@${skill.name}`,
-    description: skill.description,
-    data: {
-      type: 'skill',
-      skill
-    } satisfies MentionItemData
-  }))
-})
-
-const workspaceRootItem = reactive<CascaderPanelItem>({
-  key: 'workspace',
-  label: '工作',
-  icon: 'folder',
-  description: currentWorkPath.value || '未设置工作路径',
-  children: () => fileItems.value
-})
-
-const notesRootItem = reactive<CascaderPanelItem>({
-  key: 'notes',
-  label: '笔记',
-  icon: 'note',
-  description: '引用笔记内容',
-  children: () => noteItems.value
-})
-
-const agentsRootItem = reactive<CascaderPanelItem>({
-  key: 'agents',
-  label: '智能体',
-  icon: 'robot',
-  children: () => filteredAgents.value.map((agent) => ({
-    key: agent.id,
-    label: `@${agent.name}`,
-    description: agent.description || '暂无描述',
-    data: {
-      type: 'agent',
-      agent
-    } satisfies MentionItemData
-  }))
-})
-
-const cascaderItems = ref<CascaderPanelItem[]>([skillsRootItem, workspaceRootItem, notesRootItem, agentsRootItem])
-
-const scopeRootItemKeyMap: Record<Exclude<MentionScope, 'all'>, string> = {
-  skills: 'skills',
-  files: 'workspace',
-  notes: 'notes',
-  agents: 'agents'
-}
-
-const syncCascaderItems = () => {
-  workspaceRootItem.description = currentWorkPath.value || '未设置工作路径'
-  cascaderItems.value = [skillsRootItem, workspaceRootItem, notesRootItem, agentsRootItem]
-}
-
-const focusMentionScopeRoot = (scope: MentionScope) => {
-  if (scope === 'all') return
-
-  const rootKey = scopeRootItemKeyMap[scope]
-  nextTick(() => {
-    cascaderPanelRef.value?.focusRootItem?.(rootKey, true)
-  })
-}
-
-const panelEmptyText = computed(() => {
-  if (mentionScope.value === 'files') {
-    if (!currentWorkPath.value) {
-      return '当前智能体未设置工作路径'
-    }
-
-    return query.value.trim() && fileListStrategy.value === 'search' ? '未找到匹配文件' : '当前目录为空'
-  }
-
-  if (mentionScope.value === 'agents') {
-    return query.value.trim() ? '未找到匹配智能体' : '暂无可用智能体'
-  }
-
-  if (mentionScope.value === 'notes') {
-    return query.value.trim() && noteListStrategy.value === 'search' ? '未找到匹配笔记' : '当前文件夹为空'
-  }
-
-  if (mentionScope.value === 'all') {
-    return '暂无可用选项'
-  }
-
-  return props.emptyText
-})
+let _panelOpened = false
 
 const closePanel = (options?: { suppressCurrentMessage?: boolean }) => {
+  // Panel just opened in this tick — don't let syncMentionState(keydown) close it
+  if (!_panelOpened && !isOpen.value) return
+  _panelOpened = false
   suppressedMessage.value = options?.suppressCurrentMessage
     ? (previewMessage.value || sourceMessage.value || suppressedMessage.value)
     : null
@@ -489,11 +447,19 @@ const closePanel = (options?: { suppressCurrentMessage?: boolean }) => {
   previewScope.value = null
   rootPreviewScope.value = null
   allowPreviewOnActiveChange.value = false
-  lastActivePathKeys.value = []
+  activeIndex.value = 0
   currentFileDirectory.value = ''
   fileListStrategy.value = 'directory'
   currentNoteFolderId.value = null
   noteListStrategy.value = 'directory'
+  fileEntries.value = []
+  noteEntries.value = []
+}
+
+const openPanel = () => {
+  _panelOpened = true
+  isOpen.value = true
+  nextTick(() => { _panelOpened = false })
 }
 
 const clearCloseTimer = () => {
@@ -521,7 +487,7 @@ const applyMentionParseResult = (
   mentionScope.value = scope
   query.value = nextQuery
   mentionRange.value = nextRange
-  focusMentionScopeRoot(scope)
+  activeIndex.value = 0
 
   if (shouldResetDirectory) {
     currentFileDirectory.value = ''
@@ -547,47 +513,85 @@ const applyMentionParseResult = (
   noteListStrategy.value = scope === 'notes' && normalizedQuery ? 'search' : 'directory'
 }
 
-const isStickyNamespacePrefix = (scope: Exclude<MentionScope, 'all'>, token: string) => {
-  const normalizedToken = token.toLowerCase()
-  if (scope === 'files') {
-    return 'file'.startsWith(normalizedToken) || '文件'.startsWith(token)
-  }
+// ── Payload builders ──
 
-  if (scope === 'agents') {
-    return 'agent'.startsWith(normalizedToken) || '智能体'.startsWith(token) || '助手'.startsWith(token)
-  }
+const buildSkillMentionPayload = (skill: SkillMetadata): MentionApplyPayload | null => {
+  const range = mentionRange.value
+  if (!range) return null
 
-  if (scope === 'notes') {
-    return 'note'.startsWith(normalizedToken) || '笔记'.startsWith(token)
-  }
+  const mentionText = `@skills:${skill.name} `
+  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
+  const cursor = range.start + mentionText.length
 
-  return 'skills'.startsWith(normalizedToken) || '技能'.startsWith(token)
+  previewMessage.value = nextMessage
+  previewScope.value = 'skills'
+  rootPreviewScope.value = null
+
+  return { message: nextMessage, cursor }
 }
 
-const getStickyMentionParseResult = (beforeCursor: string, cursor: number) => {
-  const preferredScope =
-    previewScope.value ??
-    (mentionScope.value === 'all' ? null : mentionScope.value)
+const buildFileMentionPayload = (entry: WorkspaceFileEntry): MentionApplyPayload | null => {
+  const range = mentionRange.value
+  if (!range) return null
 
-  if (!preferredScope) return null
+  const mentionText = `@file:${formatFileMentionPath(entry.relativePath)} `
+  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
+  const cursor = range.start + mentionText.length
 
-  const match = beforeCursor.match(PARTIAL_MENTION_REGEX)
-  if (!match) return null
+  previewMessage.value = nextMessage
+  previewScope.value = 'files'
+  rootPreviewScope.value = null
 
-  const token = match[2] || ''
-  if (!token || token.includes(':') || !isStickyNamespacePrefix(preferredScope, token)) {
-    return null
-  }
-
-  return {
-    scope: preferredScope,
-    query: '',
-    range: {
-      start: resolveMentionStartFromBeforeCursor(beforeCursor, match, cursor),
-      end: cursor
-    }
-  }
+  return { message: nextMessage, cursor }
 }
+
+const buildNoteMentionPayload = (entry: NoteMentionEntry): MentionApplyPayload | null => {
+  const range = mentionRange.value
+  if (!range) return null
+
+  const mentionText = `@note:${formatNoteMentionPath(entry.path || entry.id)} `
+  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
+  const cursor = range.start + mentionText.length
+
+  previewMessage.value = nextMessage
+  previewScope.value = 'notes'
+  rootPreviewScope.value = null
+
+  return { message: nextMessage, cursor }
+}
+
+const buildAgentMentionPayload = (agent: Agent): MentionApplyPayload | null => {
+  const range = mentionRange.value
+  if (!range) return null
+
+  const mentionText = `@agent:${agent.name} `
+  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
+  const cursor = range.start + mentionText.length
+
+  previewMessage.value = nextMessage
+  previewScope.value = 'agents'
+  rootPreviewScope.value = null
+
+  return { message: nextMessage, cursor }
+}
+
+const buildMentionPayload = (data: MentionItemData): MentionApplyPayload | null => {
+  if (data.type === 'skill') return buildSkillMentionPayload(data.skill)
+  if (data.type === 'file') return buildFileMentionPayload(data.entry)
+  if (data.type === 'note') return buildNoteMentionPayload(data.entry)
+  if (data.type === 'agent') return buildAgentMentionPayload(data.agent)
+  return null
+}
+
+// ── Navigation helpers ──
+
+const getActiveData = (): MentionItemData | null => {
+  const idx = clampedActiveIndex.value
+  if (idx < 0) return null
+  return flatSelectableItems.value[idx]?.data ?? null
+}
+
+// ── Core state sync ──
 
 type MentionCursorSource = HTMLTextAreaElement | number | null | undefined
 const CONFIRMED_MENTION_LOOKUP_REGEX = /<\|at_start\|>[\s\S]*?<\|at_end\|>/g
@@ -596,16 +600,12 @@ const resolveMentionCursor = (message: string, cursorSource?: MentionCursorSourc
   if (typeof cursorSource === 'number') {
     return Math.min(Math.max(cursorSource, 0), message.length)
   }
-
   return cursorSource?.selectionStart ?? message.length
 }
 
 const syncMentionState = (message: string, cursorSource?: MentionCursorSource) => {
   if (suppressedMessage.value) {
-    if (message === suppressedMessage.value) {
-      return
-    }
-
+    if (message === suppressedMessage.value) return
     suppressedMessage.value = null
   }
 
@@ -635,73 +635,49 @@ const syncMentionState = (message: string, cursorSource?: MentionCursorSource) =
     return
   }
 
-  if (
-    message === previewMessage.value &&
-    mentionScope.value === 'all' &&
-    rootPreviewScope.value &&
-    cursor === message.length
-  ) {
-    query.value = ''
-    isOpen.value = true
-    return
-  }
-
+  // 1. Check namespaced mentions first (backward compat)
   const fileMatch = beforeCursor.match(FILE_MENTION_NAMESPACE_REGEX)
-
   if (fileMatch) {
-    applyMentionParseResult('files', getFileMentionQuery(fileMatch), {
+    applyMentionParseResult('files', fileMatch[3] || fileMatch[4] || fileMatch[5] || '', {
       start: resolveMentionStartFromBeforeCursor(beforeCursor, fileMatch, cursor),
       end: cursor
     })
-    isOpen.value = true
+    openPanel()
     return
   }
 
   const noteMatch = beforeCursor.match(NOTE_MENTION_NAMESPACE_REGEX)
-
   if (noteMatch) {
-    applyMentionParseResult('notes', getNoteMentionQuery(noteMatch), {
+    applyMentionParseResult('notes', noteMatch[3] || noteMatch[4] || noteMatch[5] || '', {
       start: resolveMentionStartFromBeforeCursor(beforeCursor, noteMatch, cursor),
       end: cursor
     })
-    isOpen.value = true
+    openPanel()
     return
   }
 
   const agentMatch = beforeCursor.match(AGENT_MENTION_NAMESPACE_REGEX)
-
   if (agentMatch) {
     applyMentionParseResult('agents', agentMatch[3] || '', {
       start: resolveMentionStartFromBeforeCursor(beforeCursor, agentMatch, cursor),
       end: cursor
     })
-    isOpen.value = availableAgents.value.length > 0
+    if (availableAgents.value.length > 0) openPanel()
     return
   }
 
   const namespacedMatch = beforeCursor.match(SKILL_MENTION_NAMESPACE_REGEX)
-
   if (namespacedMatch) {
     applyMentionParseResult('skills', namespacedMatch[3] || '', {
       start: resolveMentionStartFromBeforeCursor(beforeCursor, namespacedMatch, cursor),
       end: cursor
     })
-    isOpen.value = availableSkills.value.length > 0
+    if (availableSkills.value.length > 0) openPanel()
     return
   }
 
-  const stickyMatch = getStickyMentionParseResult(beforeCursor, cursor)
-  if (stickyMatch) {
-    applyMentionParseResult(stickyMatch.scope, stickyMatch.query, stickyMatch.range)
-    isOpen.value = stickyMatch.scope === 'files'
-      ? Boolean(currentWorkPath.value)
-      : stickyMatch.scope === 'notes'
-        ? true
-      : availableSkills.value.length > 0
-    return
-  }
-
-  const match = beforeCursor.match(SKILL_MENTION_REGEX)
+  // 2. Check if this is a bare @ mention → unified search
+  const match = beforeCursor.match(PARTIAL_MENTION_REGEX)
   if (!match) {
     closePanel()
     return
@@ -711,364 +687,202 @@ const syncMentionState = (message: string, cursorSource?: MentionCursorSource) =
     start: resolveMentionStartFromBeforeCursor(beforeCursor, match, cursor),
     end: cursor
   })
-  isOpen.value = true
+  openPanel()
 }
 
-const buildSkillMentionPayload = (skill: SkillMetadata): MentionApplyPayload | null => {
-  const range = mentionRange.value
-  if (!range) return null
+// ── Event handlers ──
 
-  const mentionText = `@skills:${skill.name} `
-  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
-  const cursor = range.start + mentionText.length
+const selectActiveItem = () => {
+  const data = getActiveData()
+  if (!data) return
 
-  previewMessage.value = nextMessage
-  previewScope.value = 'skills'
-  rootPreviewScope.value = null
-
-  return {
-    message: nextMessage,
-    cursor
-  }
-}
-
-const buildFileMentionPayload = (entry: WorkspaceFileEntry): MentionApplyPayload | null => {
-  const range = mentionRange.value
-  if (!range) return null
-
-  const mentionText = `@file:${formatFileMentionPath(entry.relativePath)} `
-  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
-  const cursor = range.start + mentionText.length
-
-  previewMessage.value = nextMessage
-  previewScope.value = 'files'
-  rootPreviewScope.value = null
-
-  return {
-    message: nextMessage,
-    cursor
-  }
-}
-
-const buildNoteMentionPayload = (entry: NoteMentionEntry): MentionApplyPayload | null => {
-  const range = mentionRange.value
-  if (!range) return null
-
-  const mentionText = `@note:${formatNoteMentionPath(entry.path || entry.id)} `
-  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
-  const cursor = range.start + mentionText.length
-
-  previewMessage.value = nextMessage
-  previewScope.value = 'notes'
-  rootPreviewScope.value = null
-
-  return {
-    message: nextMessage,
-    cursor
-  }
-}
-
-const buildAgentMentionPayload = (agent: Agent): MentionApplyPayload | null => {
-  const range = mentionRange.value
-  if (!range) return null
-
-  const mentionText = `@agent:${agent.name} `
-  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
-  const cursor = range.start + mentionText.length
-
-  previewMessage.value = nextMessage
-  previewScope.value = 'agents'
-  rootPreviewScope.value = null
-
-  return {
-    message: nextMessage,
-    cursor
-  }
-}
-
-const buildScopePreviewPayload = (item: CascaderPanelItem, path: CascaderPanelItem[]): MentionApplyPayload | null => {
-  const range = mentionRange.value
-  if (!range) return null
-
-  let mentionText = ''
-
-  if (item.key === 'skills' && path.length === 1) {
-    mentionText = '@skills:'
-  } else if (item.key === 'workspace' && path.length === 1) {
-    mentionText = '@file:'
-  } else if (item.key === 'notes' && path.length === 1) {
-    mentionText = '@note:'
-  } else if (item.key === 'agents' && path.length === 1) {
-    mentionText = '@agent:'
-  } else {
-    return null
-  }
-
-  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
-  const cursor = range.start + mentionText.length
-  previewMessage.value = nextMessage
-  if (item.key === 'workspace') {
-    previewScope.value = 'files'
-  } else if (item.key === 'notes') {
-    previewScope.value = 'notes'
-  } else if (item.key === 'agents') {
-    previewScope.value = 'agents'
-  } else {
-    previewScope.value = 'skills'
-  }
-  rootPreviewScope.value = mentionScope.value === 'all' && path.length === 1
-    ? previewScope.value
-    : null
-
-  return {
-    message: nextMessage,
-    cursor
-  }
-}
-
-const getMentionItemData = (item?: CascaderPanelItem | null) => {
-  const data = item?.data
-  return data ? (data as MentionItemData) : null
-}
-
-const isArrowNavigationKey = (event: KeyboardEvent) => {
-  return (
-    event.key === 'ArrowLeft' ||
-    event.key === 'ArrowRight' ||
-    event.key === 'ArrowUp' ||
-    event.key === 'ArrowDown'
-  )
-}
-
-const isMentionPanelOpen = () => isOpen.value
-
-const buildMentionPayload = (data: MentionItemData): MentionApplyPayload | null => {
-  if (data.type === 'skill') {
-    return buildSkillMentionPayload(data.skill)
-  }
-
-  if (data.type === 'file') {
-    return buildFileMentionPayload(data.entry)
-  }
-
-  if (data.type === 'note') {
-    return buildNoteMentionPayload(data.entry)
-  }
-
-  if (data.type === 'agent') {
-    return buildAgentMentionPayload(data.agent)
-  }
-
-  return null
-}
-
-const applyMentionItem = (data: MentionItemData) => {
   if (data.type === 'file-nav') {
-    enterDirectory(data.targetDir)
-    return null
+    currentFileDirectory.value = data.targetDir
+    fileListStrategy.value = 'directory'
+    const dirPath = data.targetDir || ''
+    refreshFileEntries(dirPath + '/')
+    return
   }
 
   if (data.type === 'note-nav') {
-    enterNoteFolder(data.targetFolderId)
-    return null
+    currentNoteFolderId.value = data.targetFolderId
+    noteListStrategy.value = 'directory'
+    refreshNoteEntries('')
+    return
   }
 
   const payload = buildMentionPayload(data)
-  if (!payload) return null
+  if (!payload) return
   emit('apply', payload)
   closePanel({ suppressCurrentMessage: true })
-  return payload
 }
 
-const handleCascaderSelect = ({ item }: { item: CascaderPanelItem }) => {
-  const data = getMentionItemData(item)
-  if (!data) return
-  applyMentionItem(data)
-}
-
-const handleCascaderActiveChange = ({ item, path }: { item: CascaderPanelItem | null, path: CascaderPanelItem[] }) => {
-  const previousPathKeys = lastActivePathKeys.value
-  const nextPathKeys = path.map((pathItem) => pathItem.key)
-  lastActivePathKeys.value = nextPathKeys
-
-  const enteredWorkspaceFromRoot =
-    mentionScope.value === 'all' &&
-    previousPathKeys.length === 1 &&
-    previousPathKeys[0] === 'workspace' &&
-    nextPathKeys.length === 2 &&
-    nextPathKeys[0] === 'workspace'
-
-  if (enteredWorkspaceFromRoot && currentFileDirectory.value) {
-    currentFileDirectory.value = ''
+const handleItemClick = (data: MentionItemData) => {
+  if (data.type === 'file-nav') {
+    currentFileDirectory.value = data.targetDir
     fileListStrategy.value = 'directory'
-    resetFileListSelection()
-  }
-
-  if (!item || !mentionRange.value || !allowPreviewOnActiveChange.value) return
-
-  if (
-    mentionScope.value === 'all' &&
-    !query.value.trim() &&
-    item.key === 'skills' &&
-    !previewMessage.value
-  ) {
+    const dirPath = data.targetDir || ''
+    refreshFileEntries(dirPath + '/')
     return
   }
 
-  const data = getMentionItemData(item)
-  if (data?.type === 'file' || data?.type === 'file-nav' || data?.type === 'note' || data?.type === 'note-nav' || data?.type === 'agent') {
+  if (data.type === 'note-nav') {
+    currentNoteFolderId.value = data.targetFolderId
+    noteListStrategy.value = 'directory'
+    refreshNoteEntries('')
     return
   }
-
-  if (!data) return
 
   const payload = buildMentionPayload(data)
-
   if (!payload) return
-  emit('preview', payload)
+  emit('apply', payload)
+  closePanel({ suppressCurrentMessage: true })
 }
+
+// unused - handled by List component
+
+// unused - handled by List component
+
+const isMentionPanelOpen = () => isOpen.value
+
+const NAVIGATION_KEYS = new Set([
+  'Escape',
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'Enter',
+  'Tab',
+  'Home',
+  'End'
+])
 
 const handleKeydown = (
   event: KeyboardEvent,
   message: string,
   cursorSource?: MentionCursorSource
 ): MentionKeydownResult => {
-  syncMentionState(message, cursorSource)
-
-  if (!isOpen.value) return { handled: false }
-
-  if (event.key === 'Home' || event.key === 'End') {
-    event.preventDefault()
-    return { handled: true }
-  }
-
-  allowPreviewOnActiveChange.value = [
-    'Tab'
-  ].includes(event.key)
-
-  const result = cascaderPanelRef.value?.handleKeydown(event)
-  if (!result?.handled) {
-    if (isArrowNavigationKey(event)) {
+  // 面板已打开时，纯导航按键无需重新 sync 状态，避免 syncMentionState 重置 activeIndex
+  if (isOpen.value && NAVIGATION_KEYS.has(event.key)) {
+    if (event.key === 'Escape') {
       event.preventDefault()
+      closePanel({ suppressCurrentMessage: true })
       return { handled: true }
     }
 
-    return { handled: false }
-  }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      if (flatSelectableItems.value.length > 0) {
+        activeIndex.value = (clampedActiveIndex.value + 1) % flatSelectableItems.value.length
+        scrollActiveIntoView()
+      }
+      return { handled: true }
+    }
 
-  if (result.requestClose) {
-    closePanel({ suppressCurrentMessage: true })
-    return { handled: true }
-  }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      if (flatSelectableItems.value.length > 0) {
+        activeIndex.value = (clampedActiveIndex.value - 1 + flatSelectableItems.value.length) % flatSelectableItems.value.length
+        scrollActiveIntoView()
+      }
+      return { handled: true }
+    }
 
-  const data = getMentionItemData(result.item)
-  if (!data) {
-    const payload =
-      event.key !== 'ArrowRight' && result.item && result.path
-        ? buildScopePreviewPayload(result.item, result.path)
-        : null
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault()
+      selectActiveItem()
+      return { handled: true }
+    }
 
-    return {
-      handled: true,
-      payload
+    // Directory navigation: ArrowRight to enter a directory, ArrowLeft to go up
+    if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      const data = getActiveData()
+      if (data?.type === 'file' && data.entry.kind === 'directory') {
+        currentFileDirectory.value = data.entry.relativePath
+        fileListStrategy.value = 'directory'
+        refreshFileEntries(data.entry.relativePath + '/')
+        activeIndex.value = 0
+      }
+      return { handled: true }
+    }
+
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      if (currentFileDirectory.value) {
+        const parentDir = getParentDirectory(currentFileDirectory.value)
+        currentFileDirectory.value = parentDir
+        fileListStrategy.value = 'directory'
+        refreshFileEntries(parentDir ? parentDir + '/' : '/')
+        activeIndex.value = 0
+      }
+      return { handled: true }
+    }
+
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault()
+      return { handled: true }
     }
   }
 
-  if (data.type === 'file-nav' || data.type === 'note-nav') {
-    applyMentionItem(data)
-    return { handled: true }
+  // keydown fires before the char is in DOM. Simulate @ to let syncMentionState open immediately.
+  if (event.key === '@') {
+    syncMentionState(message + '@', (resolveMentionCursor(message, cursorSource) || 0) + 1)
+  } else {
+    syncMentionState(message, cursorSource)
   }
 
-  const payload = buildMentionPayload(data)
-  if (payload) {
-    closePanel({ suppressCurrentMessage: true })
-  }
+  if (!isOpen.value) return { handled: false }
 
-  return {
-    handled: true,
-    payload
-  }
+  return { handled: false }
 }
 
-watch(availableSkills, (skills) => {
-  if (mentionScope.value !== 'skills') return
-  if (skills.length > 0) return
-  closePanel()
-})
+// ── Watchers ──
 
-watch(
-  [mentionScope, currentWorkPath],
-  () => {
-    syncCascaderItems()
-  },
-  { immediate: true }
-)
+watch([isOpen, mentionScope, query, currentWorkPath, currentFileDirectory, fileListStrategy], () => {
+  debouncedRefreshFileEntries.cancel?.()
+  if (!isOpen.value || (mentionScope.value !== 'files' && mentionScope.value !== 'all')) {
+    fileEntries.value = []
+    return
+  }
+  if (!currentWorkPath.value) {
+    fileEntries.value = []
+    return
+  }
 
-watch(
-  [isOpen, mentionScope, query, currentWorkPath, currentFileDirectory, fileListStrategy],
-  ([open, scope, nextQuery, workPath]) => {
-    debouncedRefreshFileItems.cancel?.()
+  const nq = query.value.trim()
+  const isDirNav = nq.endsWith('/') && mentionScope.value === 'all'
+  const isAllScopeSearch = mentionScope.value === 'all' && Boolean(nq) && !isDirNav
+  const isFilesScopeSearch = mentionScope.value === 'files' && fileListStrategy.value === 'search' && Boolean(nq)
 
-    if (!open || (scope !== 'files' && scope !== 'all')) {
-      fileItems.value = []
-      return
-    }
+  if (isDirNav) {
+    refreshFileEntries(nq)
+  } else if (isAllScopeSearch || isFilesScopeSearch) {
+    debouncedRefreshFileEntries(nq)
+  } else {
+    refreshFileEntries('')
+  }
+}, { immediate: true })
 
-    if (!workPath) {
-      fileItems.value = []
-      return
-    }
+watch([isOpen, mentionScope, query, currentNoteFolderId, noteListStrategy], () => {
+  debouncedRefreshNoteEntries.cancel?.()
+  if (!isOpen.value || (mentionScope.value !== 'notes' && mentionScope.value !== 'all')) {
+    noteEntries.value = []
+    return
+  }
 
-    const normalizedQuery = nextQuery.trim()
-    if (scope !== 'files' || fileListStrategy.value !== 'search' || !normalizedQuery) {
-      refreshFileItems('')
-      if (scope === 'files') {
-        focusMentionScopeRoot('files')
-      }
-      resetFileListSelection()
-      return
-    }
-
-    if (scope === 'files') {
-      focusMentionScopeRoot('files')
-    }
-    debouncedRefreshFileItems(normalizedQuery)
-  },
-  { immediate: true }
-)
-
-watch(
-  [isOpen, mentionScope, query, currentNoteFolderId, noteListStrategy],
-  ([open, scope, nextQuery]) => {
-    debouncedRefreshNoteItems.cancel?.()
-
-    if (!open || (scope !== 'notes' && scope !== 'all')) {
-      noteItems.value = []
-      return
-    }
-
-    const normalizedQuery = nextQuery.trim()
-    if (scope !== 'notes' || noteListStrategy.value !== 'search' || !normalizedQuery) {
-      refreshNoteItems('')
-      if (scope === 'notes') {
-        focusMentionScopeRoot('notes')
-      }
-      resetNoteListSelection()
-      return
-    }
-
-    if (scope === 'notes') {
-      focusMentionScopeRoot('notes')
-    }
-    debouncedRefreshNoteItems(normalizedQuery)
-  },
-  { immediate: true }
-)
+  const nq = query.value.trim()
+  if (nq && (mentionScope.value === 'all' || (mentionScope.value === 'notes' && noteListStrategy.value === 'search'))) {
+    debouncedRefreshNoteEntries(nq)
+  } else {
+    refreshNoteEntries('')
+  }
+}, { immediate: true })
 
 onBeforeUnmount(() => {
   clearCloseTimer()
-  debouncedRefreshFileItems.cancel?.()
-  debouncedRefreshNoteItems.cancel?.()
+  debouncedRefreshFileEntries.cancel?.()
+  debouncedRefreshNoteEntries.cancel?.()
 })
 
 defineExpose({
@@ -1081,15 +895,82 @@ defineExpose({
 </script>
 
 <template>
-  <CascaderPanel
-    ref="cascaderPanelRef"
-    :visible="isOpen"
-    :mobile="mobile"
-    :empty-text="panelEmptyText"
-    :items="cascaderItems"
-    :auto-expand-first="false"
-    @mouseenter="clearCloseTimer"
-    @active-change="handleCascaderActiveChange"
-    @select="handleCascaderSelect"
-  />
+  <SelectorPopover
+    v-model:visible="isOpen"
+    desktop-presentation="tray"
+    :tray-anchor="'[data-mention-anchor=\'true\']'"
+    tray-exclude-selector="[data-mention-anchor='true']"
+    width="380px"
+  >
+    <template #content>
+      <div ref="panelRef" class="mention-sections">
+        <div v-if="flatSelectableItems.length > 0" class="mention-section">
+          <List
+            :items="toListItems(flatSelectableItems)"
+            key-field="key"
+            main-field="name"
+            sub-field="description"
+            :active-id="activeItemId"
+            :selectable="true"
+            :is-selected="() => false"
+            @select="handleListSelect"
+          >
+            <template #actions="{ item }">
+              <span
+                v-if="item._isDir"
+                style="flex-shrink:0;color:var(--text-tertiary);font-size:14px;opacity:0.5"
+              >›</span>
+            </template>
+          </List>
+        </div>
+        <div v-else class="mention-empty">{{ query.trim() ? '未找到匹配项' : props.emptyText }}</div>
+      </div>
+    </template>
+  </SelectorPopover>
 </template>
+
+<style scoped>
+.mention-sections {
+  display: flex;
+  flex-direction: column;
+}
+
+.mention-section {
+  display: flex;
+  flex-direction: column;
+  padding-top: 8px;
+}
+
+:deep(.list-item) {
+  background-color: transparent;
+  border-radius: 6px !important;
+  gap: 0 !important;
+  padding: 2px 4px !important;
+}
+
+:deep(.list-item:hover) {
+  background-color: var(--bg-hover) !important;
+}
+
+:deep(.main-text) {
+  font-size: 12px;
+}
+
+:deep(.sub-text) {
+  font-size: 10px;
+}
+
+:deep(.media-icon) {
+  color: var(--text-tertiary);
+}
+.mention-empty {
+  padding: 20px;
+}
+/* ── Override: content slot tray body padding to match default slot ── */
+</style>
+
+<style>
+.selector-tray-body--full {
+  padding-top: 0 !important;
+}
+</style>

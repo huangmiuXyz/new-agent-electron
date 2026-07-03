@@ -2,7 +2,7 @@
 import type { CSSProperties } from 'vue'
 import { acquireZIndex } from '@renderer/utils/z-index-manager'
 
-const props = defineProps<{
+interface Props {
   searchQuery?: string
   searchDebounce?: number
   placeholder?: string
@@ -15,7 +15,11 @@ const props = defineProps<{
   title?: string
   /** Anchor element selector or ref for tray positioning; defaults to the trigger */
   trayAnchor?: string
-}>()
+  /** CSS selector for elements that should NOT close the tray when clicked */
+  trayExcludeSelector?: string
+}
+
+const props = defineProps<Props>()
 const visible = defineModel<boolean>('visible')
 const searchQuery = defineModel<string>('searchQuery')
 
@@ -57,6 +61,8 @@ const handleTrayClickOutside = (event: MouseEvent) => {
   if (trayRef.value && !trayRef.value.contains(target)) {
     // Allow clicks inside the container (trigger) to toggle, not close
     if (containerRef.value?.contains(target)) return
+    // Allow clicks on elements matching the exclude selector (e.g., input area)
+    if (props.trayExcludeSelector && target.closest(props.trayExcludeSelector)) return
     closePopup()
   }
 }

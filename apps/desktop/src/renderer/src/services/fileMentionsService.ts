@@ -130,6 +130,56 @@ export const listWorkspaceEntries = (workPath: string, relativeDir: string = '')
   }
 }
 
+let workspaceIndexCache: {
+  workPath: string
+  entries: WorkspaceFileEntry[]
+  timestamp: number
+} | null = null
+
+const WORKSPACE_INDEX_TTL = 60_000 // 60 秒内复用缓存
+
+const buildWorkspaceIndex = (workPath: string): WorkspaceFileEntry[] => {
+  const entries: WorkspaceFileEntry[] = []
+  const visited = new Set<string>()
+  const queue = ['']
+
+  while (queue.length > 0) {
+    const currentRelativeDir = queue.shift() || ''
+    if (visited.has(currentRelativeDir)) continue
+    visited.add(currentRelativeDir)
+
+    const dirEntries = listWorkspaceEntries(workPath, currentRelativeDir)
+    for (const entry of dirEntries) {
+      entries.push(entry)
+
+      if (entry.kind === 'directory' && !SEARCH_SKIPPED_DIR_NAMES.has(entry.name)) {
+        queue.push(entry.relativePath)
+      }
+    }
+  }
+
+  return entries
+}
+
+const getWorkspaceIndex = (workPath: string): WorkspaceFileEntry[] => {
+  if (
+    workspaceIndexCache &&
+    workspaceIndexCache.workPath === workPath &&
+    Date.now() - workspaceIndexCache.timestamp < WORKSPACE_INDEX_TTL
+  ) {
+    return workspaceIndexCache.entries
+  }
+
+  const entries = buildWorkspaceIndex(workPath)
+  workspaceIndexCache = { workPath, entries, timestamp: Date.now() }
+  return entries
+}
+
+/** 主动使工作区文件索引失效（工作目录切换或文件变更时调用） */
+export const invalidateWorkspaceFileIndex = () => {
+  workspaceIndexCache = null
+}
+
 export const searchWorkspaceEntries = (
   workPath: string,
   query: string,
@@ -140,36 +190,21 @@ export const searchWorkspaceEntries = (
     return listWorkspaceEntries(workPath)
   }
 
-  const limit = options.limit ?? 60
+  const limit = options.limit ?? 80
+  const index = getWorkspaceIndex(workPath)
+
   const matches: WorkspaceFileEntry[] = []
-  const visited = new Set<string>()
-  const queue = ['']
+  for (const entry of index) {
+    if (matches.length >= limit) break
 
-  while (queue.length > 0 && matches.length < limit) {
-    const currentRelativeDir = queue.shift() || ''
-    if (visited.has(currentRelativeDir)) continue
-    visited.add(currentRelativeDir)
+    const normalizedName = entry.name.toLowerCase()
+    const normalizedRelativePath = entry.relativePath.toLowerCase()
 
-    const entries = listWorkspaceEntries(workPath, currentRelativeDir)
-    for (const entry of entries) {
-      if (matches.length >= limit) break
-
-      const normalizedName = entry.name.toLowerCase()
-      const normalizedRelativePath = entry.relativePath.toLowerCase()
-
-      if (
-        normalizedName.includes(normalizedQuery) ||
-        normalizedRelativePath.includes(normalizedQuery)
-      ) {
-        matches.push(entry)
-      }
-
-      if (
-        entry.kind === 'directory' &&
-        !SEARCH_SKIPPED_DIR_NAMES.has(entry.name)
-      ) {
-        queue.push(entry.relativePath)
-      }
+    if (
+      normalizedName.includes(normalizedQuery) ||
+      normalizedRelativePath.includes(normalizedQuery)
+    ) {
+      matches.push(entry)
     }
   }
 

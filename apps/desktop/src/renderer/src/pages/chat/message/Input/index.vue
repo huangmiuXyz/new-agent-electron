@@ -421,33 +421,41 @@ const {
 
 // 输入框上下键历史切换
 const handleKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'ArrowUp') {
-    syncEditorMessage()
-    const caretOffset = getEditorCaretOffset()
-    const historyText = navigateUp(caretOffset, message.value)
-    if (historyText !== null) {
-      event.preventDefault()
-      message.value = historyText
-      nextTick(() => {
-        renderEditorContent()
-        adjustEditorHeight(textareaRef.value)
-        // 将光标移到末尾
-        focusEditorAtEnd()
-      })
+  if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+    // 如果@面板打开，禁用上下键切换输入历史，避免与面板导航冲突
+    if (atPanelRef.value?.isMentionPanelOpen?.()) {
+      handleEditorKeydown(event)
       return
     }
-  } else if (event.key === 'ArrowDown') {
-    syncEditorMessage()
-    const historyText = navigateDown(getEditorCaretOffset(), message.value.length, message.value)
-    if (historyText !== null) {
-      event.preventDefault()
-      message.value = historyText
-      nextTick(() => {
-        renderEditorContent()
-        adjustEditorHeight(textareaRef.value)
-        focusEditorAtEnd()
-      })
-      return
+
+    if (event.key === 'ArrowUp') {
+      syncEditorMessage()
+      const caretOffset = getEditorCaretOffset()
+      const historyText = navigateUp(caretOffset, message.value)
+      if (historyText !== null) {
+        event.preventDefault()
+        message.value = historyText
+        nextTick(() => {
+          renderEditorContent()
+          adjustEditorHeight(textareaRef.value)
+          // 将光标移到末尾
+          focusEditorAtEnd()
+        })
+        return
+      }
+    } else {
+      syncEditorMessage()
+      const historyText = navigateDown(getEditorCaretOffset(), message.value.length, message.value)
+      if (historyText !== null) {
+        event.preventDefault()
+        message.value = historyText
+        nextTick(() => {
+          renderEditorContent()
+          adjustEditorHeight(textareaRef.value)
+          focusEditorAtEnd()
+        })
+        return
+      }
     }
   }
   handleEditorKeydown(event)
@@ -626,7 +634,7 @@ onUnmounted(() => {
       />
 
       <div v-if="!isMobile">
-        <div class="input-wrapper">
+        <div class="input-wrapper" data-mention-anchor="true">
           <AtPanel ref="atPanelRef" @apply="applyMention" @preview="previewMention" />
           <div v-if="editorIsEmpty" class="editor-placeholder">{{ desktopPlaceholder }}</div>
           <div ref="textareaRef" class="input-field editor-field" :class="{ 'is-empty': editorIsEmpty }" role="textbox"
@@ -699,7 +707,7 @@ onUnmounted(() => {
               <MobileToolButtonItem :tool-id="toolId" />
             </template>
           </div>
-          <div class="mobile-input-wrapper">
+          <div class="mobile-input-wrapper" data-mention-anchor="true">
             <AtPanel ref="atPanelRef" mobile @apply="applyMention" @preview="previewMention" />
             <div v-if="editorIsEmpty" class="editor-placeholder mobile-editor-placeholder">
               {{ mobilePlaceholder }}
