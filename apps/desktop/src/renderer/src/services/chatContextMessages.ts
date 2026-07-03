@@ -37,16 +37,12 @@ export async function buildContextMessages(
         ? Math.max(contextCount - systemMessages.length - 1, 0)
         : tailMessages.length
     const recentMessages = recentMessageBudget > 0 ? tailMessages.slice(-recentMessageBudget) : []
-    syncTimeLog(_t1, 'buildContextMessages')
     return [...systemMessages, compressedContextMsg, ...recentMessages]
   }
 
   if (contextCount && contextCount > 0 && messages.length > contextCount) {
-    syncTimeLog(_t1, 'buildContextMessages')
     return messages.slice(-contextCount)
   }
-
-  syncTimeLog(_t1, 'buildContextMessages')
   return messages
 }
 
