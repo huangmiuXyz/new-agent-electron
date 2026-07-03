@@ -18,7 +18,7 @@
         </path>
       </svg>
     </div>
-    <div class="reasoning-body" v-show="isReasoningExpanded">
+    <div ref="reasoningBodyRef" class="reasoning-body" v-show="isReasoningExpanded">
       <VirtualParagraphText
         class="reasoning-virtual-text"
         :text="displayedReasoning"
@@ -209,7 +209,7 @@ const reasoningViewportHeight = computed(() => {
     0
   )
 
-  return Math.min(estimatedHeight, isMobile.value ? 260 : 360)
+  return Math.min(estimatedHeight, isMobile.value ? 360 : 480)
 })
 
 const toggleReasoning = () => {

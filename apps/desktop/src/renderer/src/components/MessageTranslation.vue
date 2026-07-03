@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import IncremarkRenderer from './IncremarkRenderer.vue'
 import { isMobile } from '@renderer/composables/useDeviceType'
+import { estimateParagraphHeight, splitTextIntoParagraphs } from '@renderer/composables/useParagraphVirtualText'
+import { useElementSize } from '@vueuse/core'
 
 const props = defineProps<{
     translations?: TranslationResult[]
@@ -59,10 +61,27 @@ watchEffect(() => {
 })
 
 const reasoningExpanded = ref(true)
+const reasoningBodyRef = ref<HTMLElement | null>(null)
+const { width: reasoningBodyWidth } = useElementSize(reasoningBodyRef)
+
 const reasoningViewportHeight = computed(() => {
     if (!currentReasoning.value) return 0
-    const lines = currentReasoning.value.split('\n').length
-    return Math.min(lines * 21, isMobile.value ? 260 : 360)
+    const paragraphs = splitTextIntoParagraphs(currentReasoning.value)
+    const actualWidth = reasoningBodyWidth.value || 200
+    const estimatedHeight = paragraphs.reduce(
+        (total, paragraph) =>
+            total +
+            estimateParagraphHeight(paragraph.text, {
+                containerWidth: actualWidth,
+                fontSize: 11,
+                lineHeight: 17,
+                paddingBlock: 4,
+                gap: 2,
+                minHeight: 21
+            }),
+        0
+    )
+    return Math.min(estimatedHeight, isMobile.value ? 360 : 480)
 })
 
 const selectTab = (index: number) => {
@@ -124,7 +143,7 @@ const handleStopTranslation = () => {
                             <path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/>
                         </svg>
                     </div>
-                    <div v-show="reasoningExpanded" class="reasoning-body">
+                    <div ref="reasoningBodyRef" v-show="reasoningExpanded" class="reasoning-body">
                         <VirtualParagraphText
                             class="reasoning-virtual-text"
                             :text="currentReasoning"
