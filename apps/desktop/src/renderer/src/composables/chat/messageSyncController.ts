@@ -191,8 +191,10 @@ export const createChatMessageSyncController = ({
       .map((id) => pendingSyncMessages.get(id))
       .filter((message): message is BaseMessage => Boolean(message))
 
-    pendingSyncMessageIds.length = 0
-    pendingSyncMessages.clear()
+    // ⚠️ 注意：不要在这里清空 pending 队列！
+    // 如果 shouldPersist 为 false（距上次持久化不足 2500ms），
+    // 消息不会写入数据库，清空队列会导致用户消息永久丢失。
+    // 清空操作移到持久化成功后执行。
 
     let nextMessages: BaseMessage[] | undefined
 
@@ -216,7 +218,7 @@ export const createChatMessageSyncController = ({
 
       // Persist changed messages at part level instead of full rewrite.
       // upsertPart depends on the message row existing, so upsertMessageSnapshot must complete first.
-      if (shouldPersist && !options.force) {
+      if (shouldPersist) {
         const _t1 = createTimeLog('flushStreamingUpdate-持久化')
         const details: string[] = []
         for (const message of messagesToSync) {
@@ -236,7 +238,13 @@ export const createChatMessageSyncController = ({
           }
         }
         syncTimeLog(_t1, 'flushStreamingUpdate-持久化', details.join(' | '))
-        lastPersistAt = now
+        // force=true 时不重置 lastPersistAt，不影响定时持久化的节奏
+        if (!options.force) {
+          lastPersistAt = now
+        }
+        // 只有真正写入数据库后，才清空待持久化队列
+        pendingSyncMessageIds.length = 0
+        pendingSyncMessages.clear()
       }
     }
 

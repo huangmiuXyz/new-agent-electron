@@ -482,8 +482,21 @@ export const useChat = (chatId: string) => {
       // 避免对含大量 parts/metadata/工具结果的消息做递归深度比较造成的主线程压力。
       watch(
         chat.messages,
-        (newMessages) => {
+        (newMessages, oldMessages) => {
+          // 始终同步最后一条消息（流式更新需要不断更新消息引用）
           messageSyncController.scheduleStreamingUpdate(newMessages[newMessages.length - 1])
+
+          // 额外检查最后一条之前是否有新增消息（如用户消息）
+          // 修复：Vue 响应式批处理导致用户消息和助手消息在同一 tick 添加时，
+          // 用户消息被跳过而无法持久化（刷新后用户消息丢失）
+          if (oldMessages) {
+            const oldIds = new Set(oldMessages.map(m => m.id))
+            for (let i = 0; i < newMessages.length - 1; i++) {
+              if (!oldIds.has(newMessages[i].id)) {
+                messageSyncController.scheduleStreamingUpdate(newMessages[i])
+              }
+            }
+          }
         }
       )
 
