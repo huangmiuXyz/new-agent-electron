@@ -68,95 +68,183 @@
   border-radius: 3px;
 }
 
-/* 预发送消息列表样式 */
+/* 预发送消息列表样式（基础 tokens，scoped style 覆盖细节） */
 .pending-messages-container {
-  margin-bottom: 8px;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  padding: 8px 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  padding: 6px 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 .pending-messages-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-  font-size: 11px;
-  color: var(--text-secondary);
+  gap: 5px;
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .pending-icon {
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
   color: var(--color-primary);
+  opacity: 0.8;
 }
 
 .pending-title {
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .pending-status {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 400;
   color: var(--text-tertiary);
-  font-style: italic;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .pending-messages-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .pending-message-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: 3px 8px;
   background: var(--bg-hover);
-  border-radius: 8px;
-  font-size: 12px;
-  transition: background-color 0.2s;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.2;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+  gap: 4px;
+  min-height: 0;
 }
 
 .pending-message-item:hover {
   background: var(--bg-active);
 }
 
+.pending-message-content {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  line-height: 1;
+}
+
 .pending-message-text {
   color: var(--text-primary);
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: 8px;
+}
+
+.pending-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.pending-type-chip.audio {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+}
+
+.pending-type-chip.file {
+  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+  color: var(--text-secondary);
+}
+
+.chip-icon {
+  width: 9px;
+  height: 9px;
+}
+
+.chip-count {
+  line-height: 1;
 }
 
 .pending-message-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0px;
   flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease;
 }
 
-.guide-btn {
-  color: var(--color-primary);
+.pending-message-item:hover .pending-message-actions,
+.pending-message-item.is-guided .pending-message-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition:
+    color 0.12s ease,
+    background-color 0.12s ease;
+}
+
+.action-btn:hover {
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+}
+
+.action-icon {
+  width: 12px;
+  height: 12px;
 }
 
 .guide-btn:hover {
-  color: var(--color-primary);
-  opacity: 0.9;
+  color: var(--color-primary) !important;
 }
 
-.remove-btn {
-  opacity: 0.6;
-  transition: opacity 0.2s;
+.guided-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--color-primary);
+}
+
+.guided-icon {
+  width: 13px;
+  height: 13px;
 }
 
 .remove-btn:hover {
-  opacity: 1;
-  color: var(--color-danger);
+  color: var(--color-danger) !important;
 }
 
 .input-container {
