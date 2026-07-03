@@ -314,9 +314,6 @@ async function copy() {
     padding: 8px 16px;
     background: var(--header-bg);
     border-radius: 8px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
 }
 
 .header.is-stuck {

@@ -37,12 +37,16 @@
 </template>
 
 <script lang="ts" setup>
+import { useElementSize } from '@vueuse/core'
 import { estimateParagraphHeight, splitTextIntoParagraphs } from '@renderer/composables/useParagraphVirtualText'
 
 const { display } = storeToRefs(useSettingsStore())
 const Bulb = useIcon('Bulb')
 const Copy = useIcon('Copy')
 const { showContextMenu } = useContextMenu()
+
+const reasoningBodyRef = ref<HTMLElement | null>(null)
+const { width: reasoningBodyWidth } = useElementSize(reasoningBodyRef)
 
 const props = defineProps<{
   reasoning_content: string
@@ -189,11 +193,13 @@ onBeforeUnmount(() => {
 
 const reasoningViewportHeight = computed(() => {
   const paragraphs = splitTextIntoParagraphs(displayedReasoning.value)
+  // 取容器实际宽度，兜底 200px 防止未挂载时除零
+  const actualWidth = reasoningBodyWidth.value || 200
   const estimatedHeight = paragraphs.reduce(
     (total, paragraph) =>
       total +
       estimateParagraphHeight(paragraph.text, {
-        containerWidth: 520,
+        containerWidth: actualWidth,
         fontSize: 11,
         lineHeight: 17,
         paddingBlock: 4,

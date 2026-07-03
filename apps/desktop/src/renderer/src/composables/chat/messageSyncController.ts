@@ -10,9 +10,10 @@ import { chatStreamPersistence } from '@renderer/services/chatStreamPersistence'
 
 
 // 流式 flush 节流间隔。
-// 原为 1000ms，用户感知首字偏慢；降到 500ms 让流式输出更跟手，同时仍比逐 token
-// flush 低频，不会把 Pinia 持久化（debounce 2s）和 tiktoken 估算打满。
-const STREAM_SYNC_INTERVAL_MS = 500
+// 0ms = 尽可能实时刷新（通过 setTimeout 0 将同一事件循环内的 token 合并后立即刷新），
+// 让 Markdown.vue 的逐字打字机效果达到最佳响应度。
+// 持久化通过独立的 STREAM_PERSIST_INTERVAL_MS (2500ms) 节流，不受此值影响。
+const STREAM_SYNC_INTERVAL_MS = 0
 const STREAM_PERSIST_INTERVAL_MS = 2500
 
 type ChatMessageSyncControllerOptions = {
@@ -309,6 +310,16 @@ export const createChatMessageSyncController = ({
       | (TextUIPart | ToolUIPart | FileUIPart)[]
       | undefined
     pendingSpeechMessage = message.role === 'assistant' ? message : undefined
+
+    // 🚀 用户消息立即 flush，不经过防抖，让用户自己的文字立刻出现在聊天中
+    if (message.role === 'user') {
+      if (streamFlushHandle) {
+        clearTimeout(streamFlushHandle)
+        streamFlushHandle = null
+      }
+      void flushStreamingUpdate()
+      return
+    }
 
     if (streamFlushHandle) return
 

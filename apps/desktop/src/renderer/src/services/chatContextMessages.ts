@@ -20,7 +20,6 @@ export async function buildContextMessages(
   chatId: string,
   options: { contextCount?: number; contextTokenCount?: number; model?: string }
 ): Promise<BaseMessage[]> {
-  const _t1 = createTimeLog('buildContextMessages')
   const { contextCount } = options
   const allMessages = await chatRepository.loadAllMessages(chatId)
   const messages = allMessages.filter((msg) => !isCompressingContextMessage(msg))
