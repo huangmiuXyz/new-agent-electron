@@ -4,7 +4,8 @@ import {
   extractReasoningMiddleware,
   type LanguageModelMiddleware,
   convertToModelMessages,
-  validateUIMessages
+  validateUIMessages,
+  toUIMessageStream
 } from 'ai'
 import { createRegistry } from './registry'
 import { getBuiltinToolGroups, getBuiltinTools } from '../builtin-tools'
@@ -375,7 +376,7 @@ export const chatService = () => {
     })
     syncTimeLog(_t7, 'agent.stream')
 
-    const uiStream = result.toUIMessageStream({
+    const uiStream = toUIMessageStream({ stream: result.stream,
       originalMessages: validatedMessages,
       messageMetadata: ({ part }) => {
         let finishMetadata = {}
