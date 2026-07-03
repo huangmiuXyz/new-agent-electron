@@ -224,7 +224,7 @@ function applyOpenAtLoginSetting(enabled: boolean) {
     return false
   }
 
-  if (!is.packaged) {
+  if (!is.dev) {
     return false
   }
 
