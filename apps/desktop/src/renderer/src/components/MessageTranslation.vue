@@ -60,9 +60,9 @@ watchEffect(() => {
 
 const reasoningExpanded = ref(true)
 const reasoningViewportHeight = computed(() => {
-    if (!currentReasoning.value) return 48
+    if (!currentReasoning.value) return 0
     const lines = currentReasoning.value.split('\n').length
-    return Math.min(Math.max(lines * 21, 48), isMobile.value ? 260 : 360)
+    return Math.min(lines * 21, isMobile.value ? 260 : 360)
 })
 
 const selectTab = (index: number) => {

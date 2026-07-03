@@ -818,7 +818,10 @@ export const useChatsStores = defineStore(
           updateChatSummaryMeta(chatId, {
             messageCount: 0,
             lastMessageAt: undefined,
-            lastMessagePreview: undefined
+            lastMessagePreview: undefined,
+            title: '新的聊天',
+            subTask: undefined,
+            compressedContext: undefined
           })
         } else {
           tempChats.value = tempChats.value.filter((c) => c.id !== chatId)

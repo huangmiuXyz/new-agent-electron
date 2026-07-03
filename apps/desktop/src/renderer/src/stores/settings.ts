@@ -298,6 +298,7 @@ export const useSettingsStore = defineStore(
     const thinkingMode = ref<string | null>(null)
     const speechEnabled = ref(false)
     const providerOptions = ref<Record<string, any>>({})
+    const chatInputHistory = ref<string[]>([])
 
     const updateThinkingMode = (mode: string | null) => {
       thinkingMode.value = mode
@@ -309,6 +310,10 @@ export const useSettingsStore = defineStore(
 
     const updateProviderOptions = (id: string, options: Record<string, any>) => {
       providerOptions.value[id] = options
+    }
+
+    const updateChatInputHistory = (history: string[]) => {
+      chatInputHistory.value = history
     }
 
     const updateDisplaySettings = (settings: Partial<typeof display.value>) => {
@@ -842,6 +847,7 @@ export const useSettingsStore = defineStore(
       thinkingMode,
       speechEnabled,
       providerOptions,
+      chatInputHistory,
       imageGenerationForm,
       videoGenerationForm,
       speechGenerationForm,
@@ -851,6 +857,7 @@ export const useSettingsStore = defineStore(
       updateThinkingMode,
       updateSpeechEnabled,
       updateProviderOptions,
+      updateChatInputHistory,
       updateDisplaySettings,
       updateInputButtonLayout,
       resetInputButtonLayout,
@@ -920,6 +927,7 @@ export const useSettingsStore = defineStore(
         'thinkingMode',
         'speechEnabled',
         'providerOptions',
+        'chatInputHistory',
         'imageGenerationForm',
         'videoGenerationForm',
         'speechGenerationForm',

@@ -50,6 +50,7 @@ const props = defineProps<{
   isLastReasoning?: boolean
 }>()
 
+const userInteracted = ref(false)
 const userToggle = ref(display.value.expandThoughtByDefault)
 
 watch(
@@ -57,16 +58,18 @@ watch(
   (val, oldVal) => {
     if (!val && oldVal) {
       userToggle.value = false
+      userInteracted.value = false
     }
   }
 )
 
 const isReasoningExpanded = computed({
   get: () => {
-    if (props.isLastReasoning) return true
+    if (props.isLastReasoning && !userInteracted.value) return true
     return userToggle.value
   },
   set: (val: boolean) => {
+    userInteracted.value = true
     userToggle.value = val
   }
 })
@@ -200,7 +203,7 @@ const reasoningViewportHeight = computed(() => {
     0
   )
 
-  return Math.min(Math.max(estimatedHeight, 48), isMobile.value ? 260 : 360)
+  return Math.min(estimatedHeight, isMobile.value ? 260 : 360)
 })
 
 const toggleReasoning = () => {
@@ -275,13 +278,12 @@ const openReasoningContextMenu = (event: MouseEvent) => {
 
 .reasoning-mark {
   display: inline-flex;
-  width: 12px;
-  height: 12px;
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
   flex: none;
   opacity: 0.8;
+  margin-bottom: 2px;
 }
 
 .reasoning-bulb {
@@ -299,14 +301,13 @@ const openReasoningContextMenu = (event: MouseEvent) => {
 }
 
 .reasoning-body {
-  margin: 2px 0 2px 6px;
-  padding: 4px 6px 4px 10px;
+  padding-left: 10px;
   color: var(--text-secondary);
   background-color: transparent;
   border-top: none;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   border-left: 2px solid var(--border-color-light);
-  margin-left: 4px;
+  margin-left: 9px;
 }
 
 .reasoning-virtual-text {

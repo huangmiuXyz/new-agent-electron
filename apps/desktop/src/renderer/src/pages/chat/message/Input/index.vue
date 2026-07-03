@@ -10,6 +10,7 @@ import { defineComponent, type PropType } from 'vue'
 import { useShortcuts } from '@renderer/composables/useShortcuts'
 import { useAgentWorkPath } from './useAgentWorkPath'
 import { useChatInputAudio } from './useChatInputAudio'
+import { useInputHistory } from './useInputHistory'
 import { useChatModelSelection } from './useChatModelSelection'
 import { useChatSwitcher } from './useChatSwitcher'
 import { useInputContextTokens } from './useInputContextTokens'
@@ -263,6 +264,12 @@ const {
   sendMessageParts
 })
 
+const {
+  saveToHistory,
+  navigateUp,
+  navigateDown
+} = useInputHistory()
+
 const runMobileToolAction = async (toolId: MobileDragToolId) => {
   if (toolId === 'upload') return fileUploadRef.value?.triggerUpload?.()
   if (toolId === 'inputAudio') return toggleInputAudioPanel()
@@ -412,6 +419,40 @@ const {
   isProcessingVoice
 })
 
+// 输入框上下键历史切换
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'ArrowUp') {
+    syncEditorMessage()
+    const caretOffset = getEditorCaretOffset()
+    const historyText = navigateUp(caretOffset, message.value)
+    if (historyText !== null) {
+      event.preventDefault()
+      message.value = historyText
+      nextTick(() => {
+        renderEditorContent()
+        adjustEditorHeight(textareaRef.value)
+        // 将光标移到末尾
+        focusEditorAtEnd()
+      })
+      return
+    }
+  } else if (event.key === 'ArrowDown') {
+    syncEditorMessage()
+    const historyText = navigateDown(getEditorCaretOffset(), message.value.length, message.value)
+    if (historyText !== null) {
+      event.preventDefault()
+      message.value = historyText
+      nextTick(() => {
+        renderEditorContent()
+        adjustEditorHeight(textareaRef.value)
+        focusEditorAtEnd()
+      })
+      return
+    }
+  }
+  handleEditorKeydown(event)
+}
+
 // 正则匹配 @agent:xxx 或 @智能体:xxx
 const AGENT_MENTION_REGEX = /@(?:agent|智能体):([^\s]+)/gi
 
@@ -474,6 +515,9 @@ const _sendMessage = async () => {
   }
 
   parts.push(...buildAudioFileParts())
+
+  // 保存到输入历史（持久化）
+  saveToHistory(processedInput)
 
   // 清空输入
   message.value = ''
@@ -587,7 +631,7 @@ onUnmounted(() => {
           <div v-if="editorIsEmpty" class="editor-placeholder">{{ desktopPlaceholder }}</div>
           <div ref="textareaRef" class="input-field editor-field" :class="{ 'is-empty': editorIsEmpty }" role="textbox"
             aria-multiline="true" :data-placeholder="desktopPlaceholder"
-            @input="handleEditorInput" @keydown="handleEditorKeydown" @keyup="handleEditorKeyup"
+            @input="handleEditorInput" @keydown="handleKeydown" @keyup="handleEditorKeyup"
             @copy="handleEditorCopy" @cut="handleEditorCut" @paste="handleEditorPaste"
             @pointerdown="lockEditorCursorWhileMentionPanelOpen"
             @mousedown="lockEditorCursorWhileMentionPanelOpen"
@@ -662,7 +706,7 @@ onUnmounted(() => {
             </div>
             <div ref="textareaRef" class="input-field editor-field mobile-input-field" :class="{ 'is-empty': editorIsEmpty }"
               role="textbox" aria-multiline="true" :data-placeholder="mobilePlaceholder"
-              @input="handleEditorInput" @keydown="handleEditorKeydown" @keyup="handleEditorKeyup"
+              @input="handleEditorInput" @keydown="handleKeydown" @keyup="handleEditorKeyup"
               @copy="handleEditorCopy" @cut="handleEditorCut" @paste="handleEditorPaste"
               @pointerdown="lockEditorCursorWhileMentionPanelOpen"
               @mousedown="lockEditorCursorWhileMentionPanelOpen"
