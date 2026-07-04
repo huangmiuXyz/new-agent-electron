@@ -8,6 +8,7 @@ import {
   toDisplayPath,
   truncate
 } from './codexUtils'
+import { getFileIcon, getFileIconByName } from '@renderer/utils/fileIcons'
 
 const props = defineProps<{
   args?: any
@@ -27,11 +28,23 @@ const handleOpen = (path: string) => {
   const ok = openInCanvas(path, props.message)
   if (!ok) messageApi.warning('该文件不在当前 Canvas 工作区内，无法打开')
 }
+
+// 头部搜索图标
+const headerIcon = getFileIconByName('search').vnode
+
+// 按候选文件路径缓存图标 VNode
+const candidateIconMap = computed(() => {
+  const map = new Map<string, any>()
+  for (const c of parsed.value.candidates) {
+    map.set(c.path, getFileIcon(c.path).vnode)
+  }
+  return map
+})
 </script>
 
 <template>
   <div class="search-render">
-    <CodexSummaryBar :text="cmd" mono :message="message" />
+    <CodexSummaryBar :text="cmd" mono :icon="headerIcon" :message="message" />
 
     <div v-if="hasError" class="error-box">{{ errorMsg }}</div>
 
@@ -47,7 +60,7 @@ const handleOpen = (path: string) => {
           class="candidate-item"
           @click="handleOpen(c.path)"
         >
-          <span class="c-icon" aria-hidden="true">›</span>
+          <span class="c-icon"><component :is="candidateIconMap.get(c.path)" /></span>
           <span class="c-path">{{ toDisplayPath(c.path) }}</span>
           <span v-if="c.count" class="c-count">{{ c.count }}处</span>
           <span v-if="c.lines && c.lines.length" class="c-lines">:{{ c.lines[0] }}</span>
@@ -116,8 +129,18 @@ const handleOpen = (path: string) => {
 }
 
 .c-icon {
-  color: var(--text-tertiary);
   flex: none;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+}
+
+.c-icon :deep(img) {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
 }
 
 .c-path {

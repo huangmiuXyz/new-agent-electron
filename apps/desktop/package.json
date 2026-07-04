@@ -108,6 +108,7 @@
     "localforage": "catalog:",
     "lowlight": "catalog:",
     "mime-types": "catalog:",
+    "material-icon-theme": "^5.36.1",
     "monaco-editor": "^0.55.1",
     "nanoid": "catalog:",
     "node-pty": "catalog:",

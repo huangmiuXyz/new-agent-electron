@@ -1,5 +1,8 @@
 <script setup lang="ts">
-defineProps<{
+import { computed, type VNode } from 'vue'
+import { getFileIcon, getFileIconByName } from '@renderer/utils/fileIcons'
+
+const props = defineProps<{
   sandboxTreeContainerProps: Record<string, any>
   sandboxTreeWrapperProps: Record<string, any>
   virtualSandboxTreeRows: any[]
@@ -19,6 +22,27 @@ const emit = defineEmits<{
   directoryDragLeave: [data: any, event: DragEvent]
   directoryDrop: [data: any, event: DragEvent]
 }>()
+
+// 缓存文件夹图标 VNode
+const folderIcon = getFileIconByName('folder').vnode
+const folderOpenIcon = getFileIconByName('folder-open').vnode
+
+/** 根据行数据返回图标 VNode */
+const getRowIcon = (row: any): VNode => {
+  if (row.data.type === 'directory') {
+    return row.data.isExpanded ? folderOpenIcon : folderIcon
+  }
+  return getFileIcon(row.data.path || row.data.name).vnode
+}
+
+// 预计算每行的图标 VNode，按 id 缓存
+const rowIcons = computed(() => {
+  const map = new Map<string, VNode>()
+  for (const row of props.virtualSandboxTreeRows) {
+    map.set(row.data.id, getRowIcon(row))
+  }
+  return map
+})
 </script>
 
 <template>
@@ -39,11 +63,10 @@ const emit = defineEmits<{
         @drop="$emit('directoryDrop', item.data, $event)">
         <span class="sandbox-tree-chevron">{{ item.data.type === 'directory' && item.data.hasChildren ?
           item.data.isExpanded ? '▾' : '▸' : '' }}</span>
-        <span class="sandbox-tree-file-icon" :class="[`type-${item.data.type}`]"><span
-            class="sandbox-tree-file-glyph"></span></span>
+        <span class="sandbox-tree-file-icon">
+          <component :is="rowIcons.get(item.data.id)" v-if="rowIcons.has(item.data.id)" />
+        </span>
         <span class="sandbox-tree-label">{{ item.data.name }}</span>
-        <span v-if="item.data.type === 'file'" class="sandbox-tree-badge">{{
-          (item.data.name.split('.').pop()?.trim().toUpperCase() || 'TXT').slice(0, 4) }}</span>
       </button>
     </div>
   </div>
@@ -148,67 +171,11 @@ const emit = defineEmits<{
   flex-shrink: 0
 }
 
-.sandbox-tree-file-glyph {
-  display: block;
-  width: 12px;
-  height: 14px;
-  position: relative;
-  border-radius: 2px
-}
-
-.sandbox-tree-file-icon.type-directory .sandbox-tree-file-glyph {
-  width: 13px;
-  height: 10px;
-  margin-top: 1px;
-  border-radius: 2px;
-  background: #dcb67a
-}
-
-.sandbox-tree-file-icon.type-directory .sandbox-tree-file-glyph::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: -3px;
-  width: 7px;
-  height: 4px;
-  border-radius: 2px 2px 0 0;
-  background: #c89d58
-}
-
-.sandbox-tree-file-icon.type-file .sandbox-tree-file-glyph {
-  background: linear-gradient(180deg, #89c7ff 0%, #5aa9ff 100%);
-  clip-path: polygon(0 0, 78% 0, 100% 22%, 100% 100%, 0 100%)
-}
-
-.sandbox-tree-file-icon.type-file .sandbox-tree-file-glyph::before {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: 4px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.55);
-  clip-path: polygon(0 0, 100% 100%, 100% 0)
-}
-
 .sandbox-tree-label {
   flex: 1;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis
-}
-
-.sandbox-tree-badge {
-  flex-shrink: 0;
-  color: var(--sandbox-sidebar-faint);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase
-}
-
-.sandbox-tree-row.active .sandbox-tree-badge {
-  color: color-mix(in srgb, var(--sandbox-tree-active-text) 72%, transparent)
 }
 </style>

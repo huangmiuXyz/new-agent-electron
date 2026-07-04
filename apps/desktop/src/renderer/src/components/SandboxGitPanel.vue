@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed, type VNode } from 'vue'
 import ModelSelector from './ModelSelector.vue'
+import { getFileIcon } from '@renderer/utils/fileIcons'
 
-defineProps<{
+const props = defineProps<{
   gitCommitMessage: string
   gitSelectedPath: string
   gitEntries: any[]
@@ -30,6 +32,15 @@ const emit = defineEmits<{
 const { Refresh: RefreshIcon, Sparkles: SparklesIcon } = useIcon(['Refresh', 'Sparkles'])
 
 const getBaseNameFromPath = (path: string) => path.split('/').filter(Boolean).pop() || path || 'untitled'
+
+// 按路径缓存图标 VNode
+const entryIcons = computed(() => {
+  const map = new Map<string, VNode>()
+  for (const entry of props.gitEntries) {
+    map.set(entry.path, getFileIcon(entry.path).vnode)
+  }
+  return map
+})
 </script>
 
 <template>
@@ -65,7 +76,9 @@ const getBaseNameFromPath = (path: string) => path.split('/').filter(Boolean).po
     <button v-for="entry in gitEntries" :key="entry.path" type="button"
       class="sandbox-tree-row canvas-git-tree-row" :class="{ active: entry.path === gitSelectedPath }"
       @click="$emit('refreshGitDiff', entry.path)">
-      <span class="sandbox-tree-file-icon type-file"><span class="sandbox-tree-file-glyph"></span></span>
+      <span class="sandbox-tree-file-icon">
+        <component :is="entryIcons.get(entry.path)" v-if="entryIcons.has(entry.path)" />
+      </span>
       <span class="canvas-git-tree-name">{{ getBaseNameFromPath(entry.path) }}</span>
       <span class="canvas-git-tree-dir">{{ entry.path.split('/').filter(Boolean).slice(0, -1).join('/') || '.' }}</span>
       <span class="canvas-git-tree-code">{{ entry.untracked ? 'U' : `${entry.indexStatus}`.trim() ||
@@ -145,30 +158,6 @@ const getBaseNameFromPath = (path: string) => path.split('/').filter(Boolean).po
   display: grid;
   place-items: center;
   flex-shrink: 0
-}
-
-.sandbox-tree-file-glyph {
-  display: block;
-  width: 12px;
-  height: 14px;
-  position: relative;
-  border-radius: 2px
-}
-
-.sandbox-tree-file-icon.type-file .sandbox-tree-file-glyph {
-  background: linear-gradient(180deg, #89c7ff 0%, #5aa9ff 100%);
-  clip-path: polygon(0 0, 78% 0, 100% 22%, 100% 100%, 0 100%)
-}
-
-.sandbox-tree-file-icon.type-file .sandbox-tree-file-glyph::before {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: 4px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.55);
-  clip-path: polygon(0 0, 100% 100%, 100% 0)
 }
 
 .sandbox-explorer-group-header {

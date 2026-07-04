@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CodexSummaryBar from './CodexSummaryBar.vue'
 import { extractResultError, extractResultSummary, truncate } from './codexUtils'
+import { getFileIcon } from '@renderer/utils/fileIcons'
 
 type EditOp =
   | { kind: 'replace'; start: number; end: number; adds: string[] }
@@ -103,6 +104,9 @@ const ops = computed<EditOp[]>(() => {
 })
 
 const totalChanges = computed(() => ops.value.length)
+
+// 头部图标：按文件路径解析类型图标
+const headerIcon = computed(() => getFileIcon(displayPath.value || path.value).vnode)
 </script>
 
 <template>
@@ -112,6 +116,7 @@ const totalChanges = computed(() => ops.value.length)
       :text="editType === 'move' ? `${displayPath} → ${newPath}` : displayPath"
       :path="editType === 'move' ? newPath : displayPath"
       :badge="editType !== 'update' ? editType : `${totalChanges}处改动`"
+      :icon="headerIcon"
       :message="message"
     />
     <CodexSummaryBar
@@ -119,6 +124,7 @@ const totalChanges = computed(() => ops.value.length)
       :text="path"
       :path="path"
       badge="精确替换"
+      :icon="headerIcon"
       :message="message"
     />
 

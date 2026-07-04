@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { VNode } from 'vue'
 import { canOpenInCanvas, copyText, openInCanvas, toDisplayPath } from './codexUtils'
 
 // 展开内容顶部的统一信息条：路径/命令 + 可选徽标 + 在 canvas 打开 + 复制
@@ -13,6 +14,8 @@ const props = defineProps<{
   message?: any
   /** 是否是命令行展示（影响字体/换行） */
   mono?: boolean
+  /** 左侧图标 VNode（如文件类型图标） */
+  icon?: VNode
 }>()
 
 const copied = ref(false)
@@ -38,6 +41,7 @@ const handleCopy = async (e: Event) => {
 <template>
   <div class="codex-summary-bar">
     <div class="bar-main" :class="{ clickable: openable, mono }" :title="openable ? '在 Canvas 中打开' : ''" @click="openable ? handleOpen() : null">
+      <span v-if="icon" class="bar-icon"><component :is="icon" /></span>
       <span class="bar-text">{{ toDisplayPath(text) }}</span>
       <span v-if="badge" class="bar-badge">{{ badge }}</span>
     </div>
@@ -96,6 +100,21 @@ const handleCopy = async (e: Event) => {
 
 .bar-main.mono {
   white-space: pre-wrap;
+}
+
+.bar-icon {
+  flex: none;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+}
+
+.bar-icon :deep(img) {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
 }
 
 .bar-main.clickable {

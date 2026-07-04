@@ -7,6 +7,7 @@ import {
   toDisplayPath,
   truncate
 } from './codexUtils'
+import { getFileIcon, getFileIconByName } from '@renderer/utils/fileIcons'
 
 type DirEntry = {
   name: string
@@ -69,11 +70,23 @@ const handleOpen = (entry: DirEntry) => {
   const ok = openInCanvas(entry.path, props.message)
   if (!ok) messageApi.warning('该文件不在当前 Canvas 工作区内，无法打开')
 }
+
+// 头部目录图标
+const dirHeaderIcon = getFileIconByName('folder').vnode
+
+// 按条目名缓存图标 VNode
+const entryIconMap = computed(() => {
+  const map = new Map<string, any>()
+  for (const e of entries.value) {
+    map.set(e.name, e.isDir ? getFileIconByName('folder').vnode : getFileIcon(e.name).vnode)
+  }
+  return map
+})
 </script>
 
 <template>
   <div class="list-dir-render">
-    <CodexSummaryBar :text="dirPath" :path="dirPath" :badge="`${entries.length}项`" :message="message" />
+    <CodexSummaryBar :text="dirPath" :path="dirPath" :badge="`${entries.length}项`" :icon="dirHeaderIcon" :message="message" />
 
     <div v-if="hasError" class="error-box">{{ errorMsg }}</div>
 
@@ -86,7 +99,7 @@ const handleOpen = (entry: DirEntry) => {
         :style="{ paddingLeft: `${8 + e.depth * 12}px` }"
         @click="!e.isDir ? handleOpen(e) : null"
       >
-        <span class="entry-icon">{{ e.isDir ? '📁' : '📄' }}</span>
+        <span class="entry-icon"><component :is="entryIconMap.get(e.name)" /></span>
         <span class="entry-name">{{ toDisplayPath(e.name) }}</span>
       </div>
     </div>
@@ -141,7 +154,17 @@ const handleOpen = (entry: DirEntry) => {
 
 .entry-icon {
   flex: none;
-  font-size: 10px;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+}
+
+.entry-icon :deep(img) {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
 }
 
 .entry-name {

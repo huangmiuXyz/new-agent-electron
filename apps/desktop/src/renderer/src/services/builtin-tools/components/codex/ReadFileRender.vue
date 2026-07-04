@@ -6,6 +6,7 @@ import {
   parseHashline,
   truncate
 } from './codexUtils'
+import { getFileIcon } from '@renderer/utils/fileIcons'
 
 const props = defineProps<{
   args?: any
@@ -52,6 +53,8 @@ const visibleLines = computed(() => {
   return parsed.value.lines.slice(0, DEFAULT_PREVIEW_LINES)
 })
 const hasMore = computed(() => parsed.value.lines.length > DEFAULT_PREVIEW_LINES)
+
+const headerIcon = computed(() => getFileIcon(displayPath.value).vnode)
 </script>
 
 <template>
@@ -60,6 +63,7 @@ const hasMore = computed(() => parsed.value.lines.length > DEFAULT_PREVIEW_LINES
       :text="displayPath"
       :path="displayPath"
       :badge="lineBadge"
+      :icon="headerIcon"
       :message="message"
     />
 

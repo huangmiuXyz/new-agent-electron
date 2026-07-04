@@ -5,6 +5,7 @@ import List from '@renderer/components/List.vue'
 import { discoverSkills, type SkillMetadata } from '@renderer/services/skillsService'
 import { useIcon } from '@renderer/composables/useIcon'
 import { debounce } from '@renderer/utils'
+import { getFileIcon as getFileTypeIcon, getFileIconByName } from '@renderer/utils/fileIcons'
 import {
   getWorkspaceEntry,
   getRecentFileEntries,
@@ -395,7 +396,8 @@ const skillIcon = useIcon('Wrench20Regular')
 const fileIcon = useIcon('FileText')
 const noteIcon = useIcon('NoteAdd24Regular')
 const agentIcon = useIcon('Robot')
-const folderIcon = useIcon('Folder')
+// 使用 material-icon-theme 的文件夹图标，与文件类型图标视觉一致
+const folderIcon = getFileIconByName('folder').vnode
 
 const categoryIconByScope: Record<'agents' | 'skills' | 'files', VNode> = {
   agents: agentIcon,
@@ -441,20 +443,32 @@ interface ListItemData {
 }
 
 const toListItems = (items: FlatSectionItem[]): ListItemData[] => {
-  return items.map((item) => ({
-    key: item.id,
-    name: item.label,
-    description: item.description || '',
-    _isDir: item.data.type === 'file' && item.data.entry.kind === 'directory',
-    _isCategory: item.data.type === 'category',
-    _groupKey: item.groupKey,
-    _data: item.data,
-    logo:
-      item.data.type === 'category'
-        ? categoryIconByScope[item.data.scope]
-        : (typeIconVNodes[item.data.type] ?? null),
-    isIcon: true
-  }))
+  return items.map((item) => {
+    let logo: VNode | null = null
+    if (item.data.type === 'category') {
+      logo = categoryIconByScope[item.data.scope]
+    } else if (item.data.type === 'file') {
+      // 文件夹用 folder 图标，文件用具体类型图标
+      logo =
+        item.data.entry.kind === 'directory'
+          ? folderIcon
+          : getFileTypeIcon(item.data.entry.relativePath).vnode
+    } else {
+      logo = typeIconVNodes[item.data.type] ?? null
+    }
+
+    return {
+      key: item.id,
+      name: item.label,
+      description: item.description || '',
+      _isDir: item.data.type === 'file' && item.data.entry.kind === 'directory',
+      _isCategory: item.data.type === 'category',
+      _groupKey: item.groupKey,
+      _data: item.data,
+      logo,
+      isIcon: true
+    }
+  })
 }
 
 /** Resolve the currently active item's key */

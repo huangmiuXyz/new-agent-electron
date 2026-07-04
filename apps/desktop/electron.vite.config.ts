@@ -88,7 +88,15 @@ export default defineConfig(() => {
       },
       server: {
         port: 3000,
-        watch: process.env.NO_RELOAD ? { ignored: ['**/*'] } : undefined
+        watch: process.env.NO_RELOAD ? { ignored: ['**/*'] } : undefined,
+        fs: {
+          // 允许访问 pnpm 符号链接真实路径下的资源（如 material-icon-theme 的 SVG）
+          allow: [
+            resolve('src/renderer/src'),
+            resolve('node_modules'),
+            resolve('../..')
+          ]
+        }
       }
     }
   }
