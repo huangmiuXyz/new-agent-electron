@@ -4,6 +4,7 @@ import {
 } from '@renderer/utils/storage'
 import { correctThinkingMode } from '@renderer/services/chatService/thinkingMode'
 import { chatRepository } from '@renderer/services/chatRepository'
+import { clearChatCache } from '@renderer/composables/useChat'
 
 let resolveRestore: () => void
 const restorePromise = new Promise<void>((resolve) => {
@@ -298,6 +299,7 @@ export const useChatsStores = defineStore(
       !isMobile.value && useCanvasStore().deleteCanvases([...allIds])
 
       for (const chatId of allIds) {
+        clearChatCache(chatId)
         const loaded = messageWindows.value[chatId]
         if (loaded) {
           loaded.messages.forEach((m) => m.metadata?.stop?.())
@@ -361,13 +363,17 @@ export const useChatsStores = defineStore(
 
     const setActiveChat = async (id: string) => {
       activeChatId.value = id
+      // 只保留当前聊天的消息窗口，其它释放
+      const retained: Record<string, LoadedMessageWindow> = {}
       if (messageWindows.value[id]) {
+        retained[id] = messageWindows.value[id]
         activeMessageWindow.value = messageWindows.value[id]
       } else {
         const window = await chatRepository.loadRecentMessages(id, MESSAGE_WINDOW_SIZE)
-        messageWindows.value = { ...messageWindows.value, [id]: window }
+        retained[id] = window
         activeMessageWindow.value = window
       }
+      messageWindows.value = retained
     }
 
     const getDraftKey = (chatId?: string | null) => chatId || activeChatId.value || NEW_CHAT_DRAFT_ID

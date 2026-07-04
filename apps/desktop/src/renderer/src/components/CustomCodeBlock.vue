@@ -11,13 +11,12 @@
                     预览
                 </button>
                 <button
-                    v-if="isLongCode"
                     class="expand-btn"
                     type="button"
-                    @click="toggleExpanded"
-                    :title="isExpanded ? '收起长代码' : longCodeTitle"
+                    @click="toggleCollapsed"
+                    :title="isCollapsed ? '展开代码块' : '收起代码块'"
                 >
-                    {{ isExpanded ? '收起' : '展开' }}
+                    {{ isCollapsed ? '展开' : '收起' }}
                 </button>
                 <button class="copy-btn" @click="copy">
                     {{ copied ? '✓' : '复制' }}
@@ -26,23 +25,23 @@
         </div>
 
         <pre
-            v-if="useHighlightedHtml"
+            v-if="useHighlightedHtml && !isCollapsed"
             class="code-content"
             :class="{ 'has-expand-overlay': isLongCode && !isExpanded }"
             v-html="highlightedCode"
         ></pre>
         <pre
-            v-else
+            v-else-if="!isCollapsed"
             class="code-content"
             :class="{ 'has-expand-overlay': isLongCode && !isExpanded }"
         >
             <code class="hljs" :class="`language-${lang}`" v-text="plainCode"></code>
         </pre>
         <button
-            v-if="isLongCode && !isExpanded"
+            v-if="isLongCode && !isExpanded && !isCollapsed"
             class="code-expand-overlay"
             type="button"
-            @click="toggleExpanded"
+            @click="expandFullCode"
             :title="longCodeTitle"
         >
             {{ longCodeTitle }}
@@ -114,7 +113,8 @@ const PREVIEW_MAX_LINES = 240
 const highlightedCode = ref('')
 const plainCode = ref('')
 const useHighlightedHtml = ref(false)
-const isExpanded = ref(false)
+const isExpanded = ref(false)       // 控制截断：false=截断显示，true=显示完整
+const isCollapsed = ref(false)      // 控制整个代码块隐藏/显示
 
 let highlightTimer: ReturnType<typeof setTimeout> | null = null
 let idleCallbackId: number | null = null
@@ -148,8 +148,15 @@ const longCodeTitle = computed(() => {
     return `展开完整代码，剩余 ${hiddenChars.toLocaleString()} 字符`
 })
 
-const toggleExpanded = () => {
-    isExpanded.value = !isExpanded.value
+// 覆盖层"展开完整代码"按钮：展开截断的代码
+const expandFullCode = () => {
+    isExpanded.value = true
+    isCollapsed.value = false
+}
+
+// 头部"收起/展开"按钮：收起/展开整个代码块
+const toggleCollapsed = () => {
+    isCollapsed.value = !isCollapsed.value
 }
 
 function setPlainCode(code: string) {
@@ -196,10 +203,37 @@ function scheduleHighlight() {
     const currentVersion = renderVersion
     const code = renderCode.value
 
-    // Keep streaming lightweight; only upgrade to highlighted HTML after completion.
-    setPlainCode(code)
+    if (!isCompleted.value) {
+        setPlainCode(code)
+        return
+    }
 
-    if (!isCompleted.value || !code || code.length > HIGHLIGHT_MAX_LENGTH) {
+    if (useHighlightedHtml.value && plainCode.value === code) {
+        return
+    }
+
+    // 已经高亮且代码只是增量追加 → 不降级回纯文本，保持现有高亮，异步覆盖新内容
+    if (useHighlightedHtml.value && code.startsWith(plainCode.value)) {
+        plainCode.value = code
+        const run = () => {
+            if (typeof requestIdleCallback === 'function') {
+                idleCallbackId = requestIdleCallback(() => {
+                    idleCallbackId = null
+                    runHighlight(currentVersion)
+                })
+                return
+            }
+            runHighlight(currentVersion)
+        }
+        run()
+        return
+    }
+
+    if (plainCode.value !== code) {
+        setPlainCode(code)
+    }
+
+    if (!code || code.length > HIGHLIGHT_MAX_LENGTH) {
         return
     }
 
@@ -221,10 +255,14 @@ watch([renderCode, () => lowerLang.value, () => isCompleted.value], () => {
     scheduleHighlight()
 }, { immediate: true })
 
+// 代码完成后再变化（非增量追加）时重置截断展开状态
+// isCollapsed 不会被自动重置，用户主动折叠的状态始终保持
 watch(
     () => props.codeStr,
     () => {
-        isExpanded.value = false
+        if (isCompleted.value) {
+            isExpanded.value = false
+        }
     }
 )
 
@@ -374,6 +412,7 @@ async function copy() {
 .code-content {
     margin: 0;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
     background: var(--code-bg);
     border-radius: 0 0 8px 8px;
 }

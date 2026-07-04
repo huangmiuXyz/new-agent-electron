@@ -277,11 +277,12 @@ watch(() => currentChat.value?.id, () => {
 })
 
 const handleScrollEvent = (event: Event) => {
+  if (!event.isTrusted) return
   const el = event.target as HTMLElement
   if (!el) return
 
   if (el.scrollTop < lastScrollTop) {
-    isUserScrolledUp.value = el.scrollTop + el.clientHeight < el.scrollHeight - 5
+    isUserScrolledUp.value = true
   } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 5) {
     isUserScrolledUp.value = false
   }

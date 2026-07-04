@@ -9,7 +9,42 @@ import { createSpeechStreamController } from './chat/speechStreamController'
 import { createSubTaskResultCoordinator } from './chat/subTaskResultCoordinator'
 import { buildContextMessages } from '@renderer/services/chatContextMessages'
 
+const MAX_CHAT_CACHE = 10
 const chatCache = new Map<string, any>()
+const chatCacheOrder: string[] = []
+
+const touchChatCache = (chatId: string) => {
+  const idx = chatCacheOrder.indexOf(chatId)
+  if (idx >= 0) chatCacheOrder.splice(idx, 1)
+  chatCacheOrder.push(chatId)
+}
+
+const evictChatCache = () => {
+  while (chatCacheOrder.length > MAX_CHAT_CACHE) {
+    const evictedId = chatCacheOrder.shift()
+    if (evictedId) {
+      chatCache.delete(evictedId)
+      for (const key of retryStopHandlers.keys()) {
+        if (key.startsWith(`${evictedId}:`)) retryStopHandlers.delete(key)
+      }
+    }
+  }
+}
+
+export const clearChatCache = (chatId?: string) => {
+  if (chatId) {
+    chatCache.delete(chatId)
+    const idx = chatCacheOrder.indexOf(chatId)
+    if (idx >= 0) chatCacheOrder.splice(idx, 1)
+    for (const key of retryStopHandlers.keys()) {
+      if (key.startsWith(`${chatId}:`)) retryStopHandlers.delete(key)
+    }
+  } else {
+    chatCache.clear()
+    chatCacheOrder.length = 0
+    retryStopHandlers.clear()
+  }
+}
 
 // 浅拷贝消息列表，用于初始化 AI SDK 的 _useChat 实例。
 // 目的：切断 store 与 AI SDK 内部状态在最外两层（消息对象、parts 数组、metadata 对象）
@@ -33,6 +68,7 @@ export const getRetryStopHandler = (chatId: string, messageId: string) =>
 
 export const useChat = (chatId: string) => {
   if (chatCache.has(chatId)) {
+    touchChatCache(chatId)
     return chatCache.get(chatId)
   }
 
@@ -668,5 +704,7 @@ export const useChat = (chatId: string) => {
   }
 
   chatCache.set(chatId, result)
+  touchChatCache(chatId)
+  evictChatCache()
   return result
 }

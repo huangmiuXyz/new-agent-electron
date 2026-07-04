@@ -53,10 +53,10 @@ const scrollToBottom = (force = false) => {
 const handleScroll = () => {
   const el = containerRef.value
   if (!el) return
-  if (isNearBottom()) {
-    isUserScrolledUp.value = false
-  } else if (el.scrollTop < lastScrollTop) {
+  if (el.scrollTop < lastScrollTop) {
     isUserScrolledUp.value = true
+  } else if (isNearBottom()) {
+    isUserScrolledUp.value = false
   }
   lastScrollTop = el.scrollTop
 }
