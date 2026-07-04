@@ -545,9 +545,9 @@ export const useChat = (chatId: string) => {
   }
 
   const scrollToBottom = () => {
-    setTimeout(() => {
+    nextTick(() => {
       messageScrollRef.value?.scrollToBottom()
-    }, 1)
+    })
   }
 
   const normalizeRegenerateTarget = (messages: BaseMessage[], messageId: string) => {

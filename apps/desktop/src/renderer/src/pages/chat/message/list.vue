@@ -16,6 +16,7 @@ const scrollHostRef = ref<HTMLElement | null>(null)
 const autoScrollEnabled = ref(true)
 const isUserScrolledUp = ref(false)
 let lastScrollTop = 0
+let isProgrammaticScroll = false
 
 const copyPreviewZIndex = acquireZIndex()
 const { showContextMenu } = useContextMenu<BaseMessage>()
@@ -250,21 +251,48 @@ const measureRef = (el: unknown) => {
   if (el instanceof HTMLElement) virtualizer.value.measureElement(el)
 }
 
-const scrollVirtualizerToBottom = () => {
-  const el = scrollHostRef.value
-  if (!el) return
-  el.scrollTop = el.scrollHeight
+/**
+ * Scroll to the last virtual item using the virtualizer's native scrollToIndex.
+ * Unlike el.scrollTop = el.scrollHeight, this uses the virtualizer's internal
+ * layout calculations which are always correct regardless of DOM update timing,
+ * making it reliable during streaming where item sizes change frequently.
+ */
+const scrollToBottom = () => {
+  isUserScrolledUp.value = false
+  const lastIndex = flatItems.value.length - 1
+  if (lastIndex < 0) return
+  isProgrammaticScroll = true
+  virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'auto' })
+  // Reset the programmatic flag after the scroll event has been processed.
+  // Use double rAF to ensure the virtualizer's DOM update has settled.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      isProgrammaticScroll = false
+    })
+  })
 }
 
+// Auto-scroll when total size changes (items added/removed or estimates change)
 watch(
   () => virtualizer.value.getTotalSize(),
   () => {
     nextTick(() => {
       if (!autoScrollEnabled.value || isUserScrolledUp.value) return
-      const el = scrollHostRef.value
-      if (!el) return
-      el.scrollTop = el.scrollHeight
+      scrollToBottom()
     })
+  }
+)
+
+// Auto-scroll when virtual items are remeasured (actual DOM height differs from estimate).
+// This is critical for streaming: as text parts grow, the virtualizer remeasures
+// the actual rendered height and updates item sizes. Without this watch,
+// scroll-to-bottom would "stutter" because the totalSize snapshot at render time
+// may be stale by the time the browser paints.
+watch(
+  () => virtualizer.value.getVirtualItems().map(v => `${v.index}:${v.size}`).join('|'),
+  () => {
+    if (!autoScrollEnabled.value || isUserScrolledUp.value) return
+    scrollToBottom()
   }
 )
 
@@ -272,18 +300,27 @@ watch(() => currentChat.value?.id, () => {
   nextTick(() => {
     isUserScrolledUp.value = false
     lastScrollTop = 0
-    scrollVirtualizerToBottom()
+    scrollToBottom()
   })
 })
 
 const handleScrollEvent = (event: Event) => {
+  // Skip programmatic scrolls triggered by our own scrollToBottom
+  if (isProgrammaticScroll) {
+    isProgrammaticScroll = false
+    return
+  }
   if (!event.isTrusted) return
   const el = event.target as HTMLElement
   if (!el) return
 
+  // Use a more reliable detection: check if we're within a small threshold of the bottom
+  // The virtualizer's scrollHeight can be imprecise during layout recalculations,
+  // so increase the tolerance slightly and compare against the last item's position.
+  // Primary check: scrollTop + clientHeight vs scrollHeight
   if (el.scrollTop < lastScrollTop) {
     isUserScrolledUp.value = true
-  } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 5) {
+  } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 10) {
     isUserScrolledUp.value = false
   }
   lastScrollTop = el.scrollTop
@@ -323,11 +360,6 @@ onUnmounted(() => {
     el.removeEventListener('scroll', handleScrollEvent)
   }
 })
-
-const scrollToBottom = () => {
-  isUserScrolledUp.value = false
-  scrollVirtualizerToBottom()
-}
 
 const getScrollContainer = () => scrollHostRef.value
 

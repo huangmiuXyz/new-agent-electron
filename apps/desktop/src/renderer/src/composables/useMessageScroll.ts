@@ -28,12 +28,11 @@ export const useMessageScroll = () => {
 
   /**
    * 滚动到底部
-   * @param delay 延迟时间（毫秒），默认为 1ms
    */
   const scrollToBottom = () => {
-    setTimeout(() => {
+    nextTick(() => {
       messageScrollRef.value?.scrollToBottom()
-    }, 3)
+    })
   }
 
   return {
