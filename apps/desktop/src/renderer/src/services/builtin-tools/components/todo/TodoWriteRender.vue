@@ -15,7 +15,6 @@ const todos = computed(() => {
 })
 
 const total = computed(() => todos.value.length)
-const pending = computed(() => todos.value.filter((t: any) => t?.status === 'pending').length)
 const inProgress = computed(() => todos.value.filter((t: any) => t?.status === 'in_progress').length)
 const completed = computed(() => todos.value.filter((t: any) => t?.status === 'completed').length)
 const cancelled = computed(() => todos.value.filter((t: any) => t?.status === 'cancelled').length)

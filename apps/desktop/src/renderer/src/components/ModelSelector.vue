@@ -107,7 +107,6 @@ watch(currentSelectedProviderLogo, () => {
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
-const modelSelectorWrapperRef = ref<HTMLElement>()
 const focusedKey = ref<string | null>(null)
 
 const flatItems = computed(() => [...favoriteListItems.value, ...regularListItems.value])
@@ -536,7 +535,7 @@ const handleModelLogoError = () => {
               </Button>
             </div>
           </template>
-          <template #actions="{ item, isActive }">
+          <template #actions="{ item }">
             <div class="model-item-actions">
               <button
                 class="favorite-toggle"

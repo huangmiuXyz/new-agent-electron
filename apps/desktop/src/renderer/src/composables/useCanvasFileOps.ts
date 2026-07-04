@@ -43,9 +43,6 @@ export function useCanvasFileOps(options: {
     return window.api.path.join(options.currentWorkspaceDir.value, ...relativePath.split('/'))
   }
 
-  const getBaseNameFromPath = (path: string) =>
-    path.split('/').filter(Boolean).pop() || path || 'untitled'
-
   const getFileExtensionLabel = (fileName: string) => {
     const extension = fileName.split('.').pop()?.trim().toUpperCase()
     return extension && extension !== fileName.toUpperCase() ? extension.slice(0, 4) : 'TXT'

@@ -2,8 +2,7 @@
 import { useSettingsStore } from '@renderer/stores/settings'
 import {
   getThinkingDepthOptions,
-  isMiniMaxM3Provider,
-  type ThinkingDepth
+  isMiniMaxM3Provider
 } from '@renderer/services/chatService/thinkingMode'
 import type { MenuItem } from '@renderer/composables/useContextMenu'
 

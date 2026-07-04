@@ -27,7 +27,6 @@ withDefaults(
 
 const isPopupOpen = ref(false)
 const searchQuery = ref('')
-const agentSelectorWrapperRef = ref<HTMLElement>()
 const focusedIndex = ref(-1)
 
 const visibleAgents = computed(() => [...favoriteAgents.value, ...regularAgents.value])
@@ -76,7 +75,7 @@ const handleKeydown = (e: KeyboardEvent) => {
 // Listen globally since tray is Teleported to body
 onMounted(() => document.addEventListener('keydown', handleKeydown))
 onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
-const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus, Copy, Delete, Settings } = useIcon([
+const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus, Copy, Delete } = useIcon([
   'Wrench20Regular',
   'Robot',
   'ChevronDown',
@@ -85,11 +84,10 @@ const { Robot, ChevronDown, Wrench20Regular, Check, Edit, Plus, Copy, Delete, Se
   'Edit',
   'Plus',
   'Copy',
-  'Delete',
-  'Settings'
+  'Delete'
 ])
 
-const { showContextMenu } = useContextMenu<Agent>()
+const { showContextMenu } = useContextMenu<Agent | null>()
 
 const selectedAgent = computed(() => {
   const currentAgentId = chatsStore.currentChat?.agentId
@@ -283,7 +281,7 @@ const handleButtonContextMenu = (event: MouseEvent) => {
   const agent = selectedAgent.value
 
   if (!agent) {
-    const menuItems: MenuItem<null>[] = [
+    const menuItems: MenuItem<Agent>[] = [
       {
         label: '添加智能体',
         icon: Plus,

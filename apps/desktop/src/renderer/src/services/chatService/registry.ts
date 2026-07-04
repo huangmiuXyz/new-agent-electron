@@ -15,10 +15,12 @@ import { createOllama } from 'ai-sdk-ollama';
 // import { createElevenLabs } from '@ai-sdk/elevenlabs'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 
-import { ProviderV3 } from '@ai-sdk/provider'
+import { ProviderV3, ProviderV4 } from '@ai-sdk/provider'
 import { z } from 'zod'
 
-export interface ProviderV3Extends extends ProviderV3 {
+export interface ProviderV3Extends extends ProviderV4 {
+  textModel?(modelId: string): unknown
+  videoModel?(modelId: string): unknown
   listModels?: () => Promise<Model[]>
   speechCallOptionsSchema?: z.ZodObject
   imageCallOptionsSchema?: z.ZodObject
@@ -51,7 +53,7 @@ interface ProviderRegistryProviderExtends<
 }
 
 export const mergeFun = (
-  provider: ProviderV3,
+  provider: ProviderV4 | ProviderV3,
   funs: Partial<ProviderV3Extends>
 ): ProviderV3Extends => {
   return {
@@ -587,7 +589,10 @@ export const registerProviderFactory = (
   options?: { hide?: boolean }
 ) => {
   providerFactories[name] = (options) => {
-    const provider = mergeFun(factory(options), providerFactories['openai-compatible'](options))
+    const provider = mergeFun(
+      factory(options),
+      providerFactories['openai-compatible'](options)
+    )
     return provider
   }
   if (options?.hide) {
@@ -615,8 +620,8 @@ export const createRegistry = (options: {
     providers[key] = providerFactories[key](options)
   })
 
-  const registry = createProviderRegistry(providers) as ProviderRegistryProviderExtends<
-    Record<string, ProviderV3Extends>
-  >
+  const registry = createProviderRegistry(
+    providers
+  ) as ProviderRegistryProviderExtends<Record<string, ProviderV3Extends>>
   return registry
 }

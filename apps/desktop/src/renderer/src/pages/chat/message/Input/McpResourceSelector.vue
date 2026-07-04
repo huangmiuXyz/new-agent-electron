@@ -27,31 +27,9 @@ interface ResourceItem {
 const isPopupOpen = ref(false)
 const resources = ref<ResourceItem[]>([])
 const errorMessage = ref('')
-const loading = ref(false)
 const selectedKeys = ref<Set<string>>(new Set())
 
 const currentChat = computed(() => chatsStore.currentChat)
-
-const resourceIcons: Record<string, string> = {
-  'text/plain': '📄',
-  'text/markdown': '📝',
-  'text/html': '🌐',
-  'application/json': '📋',
-  'application/xml': '📋',
-  'image/': '🖼️',
-  'video/': '🎬',
-  'audio/': '🎵',
-  'application/pdf': '📕',
-  'inode/directory': '📁'
-}
-
-const getResourceIcon = (mimeType?: string) => {
-  if (!mimeType) return '📄'
-  for (const [key, icon] of Object.entries(resourceIcons)) {
-    if (mimeType.startsWith(key)) return icon
-  }
-  return '📄'
-}
 
 const loadResources = () => {
   if (!currentChat.value) return

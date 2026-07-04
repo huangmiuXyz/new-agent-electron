@@ -23,7 +23,6 @@ const formatDateLabel = (ts: number) => {
 
 type ChatGroup = { label: string; key: string; chats: Chat[] }
 const chatGroups = computed(() => {
-  const now = Date.now()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayTs = today.getTime()
@@ -190,18 +189,6 @@ const isChatGenerating = (chat: Chat) => {
   return chatsStore.isChatGenerating(chat.id)
 }
 
-const getSubTaskStatusLabel = (chat: Chat) => {
-  switch (chat.subTask?.status) {
-    case 'completed':
-      return '已完成'
-    case 'failed':
-      return '失败'
-    case 'running':
-      return '执行中'
-    default:
-      return '待执行'
-  }
-}
 </script>
 
 <template>

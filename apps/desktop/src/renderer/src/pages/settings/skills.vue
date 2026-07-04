@@ -14,7 +14,6 @@ const { Sparkles, Plus, Refresh, Folder, Eye, Pencil, Trash, Active, Inactive } 
   'Sparkles', 'Plus', 'Refresh', 'Folder', 'Eye', 'Pencil', 'Trash', 'Active', 'Inactive'
 ])
 const {
-  openSkillMenu, getSkillMenuOptions,
   toggleSkillEnabled: _toggleSkillEnabled,
   openSkillDetail: _openSkillDetail,
   openEditSkillModal: _openEditSkillModal,

@@ -72,7 +72,6 @@ const props = defineProps<{
 
 const copied = ref(false)
 const isStuck = ref(false)
-const codeBlockRef = ref<HTMLElement | null>(null)
 const sentinelRef = ref<HTMLElement | null>(null)
 let sentinelObserver: IntersectionObserver | null = null
 

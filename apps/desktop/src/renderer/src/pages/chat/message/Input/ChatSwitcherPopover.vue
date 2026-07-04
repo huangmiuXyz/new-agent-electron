@@ -23,9 +23,8 @@ const emit = defineEmits<{
   select: [chatId: string]
 }>()
 
-const { Plus, ChevronDown, HistoryClock } = useIcon([
+const { Plus, HistoryClock } = useIcon([
   'Plus',
-  'ChevronDown',
   'HistoryClock'
 ])
 </script>

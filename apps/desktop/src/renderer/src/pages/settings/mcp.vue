@@ -329,7 +329,7 @@ const getServerDesc = (server: any) => {
 
         <SettingsGroup v-if="serverEntries.active.length" label="已启用">
           <SettingsRow
-            v-for="([name, server], i) in serverEntries.active"
+            v-for="([name, server]) in serverEntries.active"
             :key="name"
             :name="name"
             :desc="getServerDesc(server)"
@@ -366,7 +366,7 @@ const getServerDesc = (server: any) => {
 
         <SettingsGroup v-if="serverEntries.inactive.length" label="未启用">
           <SettingsRow
-            v-for="([name, server], i) in serverEntries.inactive"
+            v-for="([name, server]) in serverEntries.inactive"
             :key="name"
             :name="name"
             :desc="getServerDesc(server)"

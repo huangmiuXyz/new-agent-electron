@@ -193,9 +193,11 @@ export function useImageGeneration() {
     try {
       const { instance: providerInstance, provider } = getProviderInstance(batch.providerId!)
 
-      if (providerInstance?.generateImageAsyncTask) {
-        const { task_id } = await providerInstance.generateImageAsyncTask({
-          model: providerInstance.imageModel(batch.model),
+      if (!providerInstance) throw new Error('Provider instance not found')
+      const { generateImageAsyncTask, imageModel } = providerInstance
+      if (generateImageAsyncTask && imageModel) {
+        const { task_id } = await generateImageAsyncTask({
+          model: imageModel(batch.model),
           prompt: batch.prompt,
           size: batch.size as `${number}x${number}`,
           n: batch.n,

@@ -11,7 +11,7 @@ export const enableTimeLog = (enabled: boolean) => {
 
 export const isTimeLogEnabled = (): boolean => _enabled
 
-export const createTimeLog = (label: string): number => {
+export const createTimeLog = (_label: string): number => {
   if (!_enabled) return 0
   return performance.now()
 }

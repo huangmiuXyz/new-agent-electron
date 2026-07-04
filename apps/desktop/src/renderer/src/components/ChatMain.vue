@@ -19,18 +19,8 @@ defineProps<{
 }>()
 
 const { currentChat } = storeToRefs(useChatsStores())
-const agentStore = useAgentStore()
 
 const isEmpty = computed(() => !currentChat.value?.messages?.length)
-
-const currentChatAgent = computed(() => {
-  const agentId = currentChat.value?.agentId
-  return agentId ? agentStore.getAgentById(agentId) : null
-})
-
-const heroTitle = computed(() =>
-  currentChatAgent.value?.name ? `与 ${currentChatAgent.value.name} 开启对话` : '开启新的对话'
-)
 
 const heroSubtitle = computed(
   () => '输入消息开始聊天，或使用 @ 调用技能、文件与智能体'

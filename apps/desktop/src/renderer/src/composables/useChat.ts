@@ -317,7 +317,7 @@ export const useChat = (chatId: string) => {
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
         transport: {
           sendMessages: async ({ messages }) => {
-            const _t3 = createTimeLog('transport.sendMessages(发送传输)')
+            createTimeLog('transport.sendMessages(发送传输)')
             const runtimeAgent = getChatAgent()
             const runtimeChat = getChatById(chatId)
             const providerId = runtimeChat?.providerId

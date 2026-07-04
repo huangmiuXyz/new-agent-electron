@@ -266,13 +266,6 @@ export function useCanvasDragDrop(options: {
     message.success(`已移动${itemText}到 ${normalizedDirectoryPath}`)
   }
 
-  const getParentPath = (path: string) => {
-    const normalizedPath = normalizeSandboxPath(path)
-    const segments = normalizedPath.split('/').filter(Boolean)
-    if (segments.length <= 1) return ''
-    return `/${segments.slice(0, -1).join('/')}`
-  }
-
   const handleDirectoryDrop = (row: any, event: DragEvent) => {
     if (row.type !== 'directory') return
     if (!hasFileDrag(event) && !hasCanvasFileDrag(event)) return

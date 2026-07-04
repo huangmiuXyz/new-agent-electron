@@ -26,7 +26,7 @@ const allTabs = ref<Array<{ label: string; text: string; loading?: boolean; time
 // 用 watchEffect 统一同步 props → allTabs（避免 computed 缓存/长度不变的问题）
 watchEffect(() => {
     const trans = props.translations || []
-    const tabs = trans.map((t) => ({ label: t.targetLanguage, text: t.text, timestamp: t.timestamp }))
+    const tabs: { label: string; text: string; timestamp?: number; loading?: boolean }[] = trans.map((t) => ({ label: t.targetLanguage, text: t.text, timestamp: t.timestamp }))
     if (props.translationLoading) {
         tabs.push({ label: props.streamingLanguage || '翻译', text: props.streamingText || '', loading: true })
     }

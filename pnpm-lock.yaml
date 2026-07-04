@@ -322,8 +322,8 @@ catalogs:
       specifier: ^7.2.0
       version: 7.2.0
     turbo:
-      specifier: ^2.10.2
-      version: 2.10.2
+      specifier: ^2.10.3-canary.8
+      version: 2.10.3-canary.8
     typescript:
       specifier: ^6.0.3
       version: 6.0.3
@@ -434,7 +434,7 @@ importers:
         version: 19.14.1
       turbo:
         specifier: 'catalog:'
-        version: 2.10.2
+        version: 2.10.3-canary.8
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -3816,33 +3816,33 @@ packages:
   '@tsconfig/node22@22.0.5':
     resolution: {integrity: sha512-hLf2ld+sYN/BtOJjHUWOk568dvjFQkHnLNa6zce25GIH+vxKfvTgm3qpaH6ToF5tu/NN0IH66s+Bb5wElHrLcw==}
 
-  '@turbo/darwin-64@2.10.2':
-    resolution: {integrity: sha512-wBM3ObqOWnKUDmg7QfUFDkDHPFUAJmrYlYqmEM8jMPAPA/I6wRJIbWimeQUqhOiQ8xPKhzyWM+xaiUP0wz8FEQ==}
+  '@turbo/darwin-64@2.10.3-canary.8':
+    resolution: {integrity: sha512-XNTHL/yi7vX30ZtUAdpjatIB2Ej/x/bAuGFtTYqZZ3JweevCvrQsk8kkomKgsdLjQlNoqYw0/9vs9y5+OSp3Fw==}
     cpu: [x64]
     os: [darwin]
 
-  '@turbo/darwin-arm64@2.10.2':
-    resolution: {integrity: sha512-/Cq0joWnuMjDPfhjbFP4sv+C/7gkQ415zlaO4XUzD5EZxbtrKgXKvuuydMvogG8GeUnN1aDltW71RlmEfpjbyw==}
+  '@turbo/darwin-arm64@2.10.3-canary.8':
+    resolution: {integrity: sha512-dYfYkpSR5He2ll1R+4bDejwChqEBScTrFTjqSAl7pa6TcZoOaQx5B7vWxo1BZC1mrmi+CyrHkC21sgPhKn1XfQ==}
     cpu: [arm64]
     os: [darwin]
 
-  '@turbo/linux-64@2.10.2':
-    resolution: {integrity: sha512-mMsf5IIhiKuceEXNstd25IbadjBXZ0amxzFOqliEzJX6HyeeHdBQPVSY583PWqYDyqM/FB8d5ZjkthfBSeuH3Q==}
+  '@turbo/linux-64@2.10.3-canary.8':
+    resolution: {integrity: sha512-tKP0DsaEwb7XR8zolaPPGla/apormWrkBLTMD/ZQ87MPs4sxk3pLr4zsenLGXDWugeDjsONJ7It/Q77hymTXvg==}
     cpu: [x64]
     os: [linux]
 
-  '@turbo/linux-arm64@2.10.2':
-    resolution: {integrity: sha512-Wcng1i2kaKmXutmwxT9MUoYZvdaIekXAdlGr4+0TpgbhGLw7nDuEcRBFrxb5BbRoX1d1q8SpdRxLc45TvDZIdQ==}
+  '@turbo/linux-arm64@2.10.3-canary.8':
+    resolution: {integrity: sha512-u9krIvuOqdI81m3TT7V6vFfl7veGSD2xss8YWcFTeq6QmeCpbVLC3dWS1Ue8XxGcmzhIhoz5DUrC3B26hr4H6Q==}
     cpu: [arm64]
     os: [linux]
 
-  '@turbo/windows-64@2.10.2':
-    resolution: {integrity: sha512-SsNhM7Ho7EpAdwtrJKBOic9Hso23vu6Dp0gAfLOvUFjPzurr/sGQlXZEvr6z89ne4RDOypTwz5CBDrixpMKtXw==}
+  '@turbo/windows-64@2.10.3-canary.8':
+    resolution: {integrity: sha512-JLzt1wjMANTR9WwbhcIX8mQmCWR+IzRflAlBQBex79LJq5FwShrHtZsfYKi2+VmkrJmkj0rPe5sTIsUsWff9Xw==}
     cpu: [x64]
     os: [win32]
 
-  '@turbo/windows-arm64@2.10.2':
-    resolution: {integrity: sha512-Gf+S7ICAdimT/n02bOuVWKvhHnct/HYjZg3oBNIz5hZ9ZyWHbQim9J3P5Qip8WpX0ksxF7eaBVziJCuLnjhqDg==}
+  '@turbo/windows-arm64@2.10.3-canary.8':
+    resolution: {integrity: sha512-suIyzW1bnrEM78ZKHcXoLTaV95JcEJ9EShqs3V3GmA7Kyhhokmx2cIGG4JKCtDfiaDKmY2gmjc+Oj2cFgRKE/Q==}
     cpu: [arm64]
     os: [win32]
 
@@ -7639,8 +7639,8 @@ packages:
   tunnel-agent@0.6.0:
     resolution: {integrity: sha512-McnNiV1l8RYeY8tBgEpuodCC1mLUdbSN+CYBL7kJsJNInOP8UjDDEwdk6Mw60vdLLrr5NHKZhMAOSrR2NZuQ+w==}
 
-  turbo@2.10.2:
-    resolution: {integrity: sha512-wTExrNrRjB8qzIcg+ZLm0A3GFNLDsWNwdS/RBXB0FPrBDyzk3i96Yx+TxWZC7a0k1SIreFB8ciUbxjmEqTH8IQ==}
+  turbo@2.10.3-canary.8:
+    resolution: {integrity: sha512-YZrqKlZx3zRBkllaCFrGKnd88lAHg/Ealx1vHnOb39hg+gvB/MByRABm5JtDC3pxbGCxl8o23UjwhIL5rC8DMw==}
     hasBin: true
 
   turndown@7.2.4:
@@ -10679,22 +10679,22 @@ snapshots:
 
   '@tsconfig/node22@22.0.5': {}
 
-  '@turbo/darwin-64@2.10.2':
+  '@turbo/darwin-64@2.10.3-canary.8':
     optional: true
 
-  '@turbo/darwin-arm64@2.10.2':
+  '@turbo/darwin-arm64@2.10.3-canary.8':
     optional: true
 
-  '@turbo/linux-64@2.10.2':
+  '@turbo/linux-64@2.10.3-canary.8':
     optional: true
 
-  '@turbo/linux-arm64@2.10.2':
+  '@turbo/linux-arm64@2.10.3-canary.8':
     optional: true
 
-  '@turbo/windows-64@2.10.2':
+  '@turbo/windows-64@2.10.3-canary.8':
     optional: true
 
-  '@turbo/windows-arm64@2.10.2':
+  '@turbo/windows-arm64@2.10.3-canary.8':
     optional: true
 
   '@tybys/wasm-util@0.10.3':
@@ -15021,14 +15021,14 @@ snapshots:
     dependencies:
       safe-buffer: 5.2.1
 
-  turbo@2.10.2:
+  turbo@2.10.3-canary.8:
     optionalDependencies:
-      '@turbo/darwin-64': 2.10.2
-      '@turbo/darwin-arm64': 2.10.2
-      '@turbo/linux-64': 2.10.2
-      '@turbo/linux-arm64': 2.10.2
-      '@turbo/windows-64': 2.10.2
-      '@turbo/windows-arm64': 2.10.2
+      '@turbo/darwin-64': 2.10.3-canary.8
+      '@turbo/darwin-arm64': 2.10.3-canary.8
+      '@turbo/linux-64': 2.10.3-canary.8
+      '@turbo/linux-arm64': 2.10.3-canary.8
+      '@turbo/windows-64': 2.10.3-canary.8
+      '@turbo/windows-arm64': 2.10.3-canary.8
 
   turndown@7.2.4:
     dependencies:

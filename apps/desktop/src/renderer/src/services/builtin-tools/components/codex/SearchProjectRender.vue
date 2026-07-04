@@ -23,16 +23,6 @@ const hasError = computed(() => !!errorMsg.value)
 
 const parsed = computed(() => parseSearchSummary(resultText.value))
 
-const isOutputExpanded = ref(false)
-// 从原始输出里截取 stdout/stderr 段落
-const rawOutput = computed(() => {
-  const text = resultText.value
-  if (!text) return ''
-  const stdoutIdx = text.indexOf('stdout:')
-  if (stdoutIdx < 0) return ''
-  return truncate(text.slice(stdoutIdx), 8000)
-})
-
 const handleOpen = (path: string) => {
   const ok = openInCanvas(path, props.message)
   if (!ok) messageApi.warning('该文件不在当前 Canvas 工作区内，无法打开')

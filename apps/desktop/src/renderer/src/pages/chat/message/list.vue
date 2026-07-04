@@ -917,10 +917,10 @@ const onMessageRightClick = (event: MouseEvent, message: BaseMessage) => {
             </button>
 
             <!-- text part -->
-            <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-text'" class="vi-part" @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)">
+              <div v-else-if="flatItems[vItem.index]?.type === 'ai-part-text'" class="vi-part" @contextmenu="onMessageRightClick($event, flatItems[vItem.index]!.msg!)">
               <div class="text-block" :style="contentStyle">
                 <Markdown
-                  v-if="flatItems[vItem.index]!.part?.text"
+                  v-if="flatItems[vItem.index]!.part?.type === 'text'"
                   :block="flatItems[vItem.index]!.part as TextUIPart"
                   :message="flatItems[vItem.index]!.msg!"
                   :streaming="false"

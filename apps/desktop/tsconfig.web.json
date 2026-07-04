@@ -9,6 +9,7 @@
   "compilerOptions": {
     "moduleResolution": "bundler",
     "composite": false,
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@renderer/*": [

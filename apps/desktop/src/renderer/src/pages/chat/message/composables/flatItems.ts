@@ -1,5 +1,4 @@
 import type { TextUIPart } from 'ai'
-import type { BaseMessage } from '@agent-qi/types/chats'
 import { getCollapsedMessageParts, getRenderableMessageParts } from '../Item/messageParts'
 
 export interface VirtualChatItem {
@@ -176,7 +175,7 @@ export function generateFlatItems(
     for (let pi = 0; pi < displayedParts.length; pi++) {
       const part = displayedParts[pi]
       // skip step-start/step-end parts
-      if (part.type === 'step-start' || part.type === 'step-end') continue
+      if (part.type === 'step-start' || part.type === ('step-end' as string)) continue
       let ptype = 'ai-part-text'
       if (part.type === 'text') ptype = 'ai-part-text'
       else if (part.type === 'reasoning') ptype = 'ai-part-reasoning'
@@ -209,7 +208,7 @@ export function generateFlatItems(
     }
 
     // actions
-    if (!!msg.metadata?.loading || hasAudio || msg.metadata?.retrying || (msg.metadata?.loading && !msg.metadata?.error && msg.metadata?.stop)) {
+    if (!!msg.metadata?.loading || hasAudio || msg.metadata?.retrying || (msg.metadata?.loading && !msg.metadata?.error && msg.metadata?.stop != null)) {
       items.push({
         uid: `ai-act-${msg.id}`, type: 'ai-actions',
         messageId: msg.id!, groupId: gid,

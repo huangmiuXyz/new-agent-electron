@@ -6,4 +6,3 @@ import { nanoid as _nanoid } from 'nanoid'
  */
 export const nanoid = (size?: number): string => _nanoid(size)
 
-export type { Nanoid } from 'nanoid'

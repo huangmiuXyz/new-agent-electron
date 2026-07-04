@@ -4,7 +4,7 @@ import {
   experimental_generateVideo as _generateVideo,
   streamText as _streamText,
   convertToModelMessages,
-  validateUIMessages
+  UIMessage
 } from 'ai'
 import { messageApi } from '@renderer/utils/messages'
 import { onUseAIBefore } from '@renderer/utils/onuseAIbefore'
@@ -64,10 +64,6 @@ export const createGenerationService = () => {
     await onUseAIBefore({ model, providerType, apiKey, baseURL })
     try {
       const sanitizedMessages = sanitizeUIMessages(messages as UIMessage[])
-      const validatedMessages = await validateUIMessages({
-        messages: sanitizedMessages,
-        tools
-      })
       const normalizedMessages = normalizeInlineFilePartUrls(sanitizedMessages)
       const modelMessages = await convertToModelMessages(normalizedMessages)
 

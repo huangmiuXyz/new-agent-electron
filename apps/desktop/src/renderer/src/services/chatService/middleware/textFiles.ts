@@ -1,4 +1,4 @@
-import type { LanguageModelV4Prompt, LanguageModelV4Message } from '@ai-sdk/provider'
+import type { LanguageModelV4CallOptions, LanguageModelV4Prompt, LanguageModelV4Message } from '@ai-sdk/provider'
 import type { LanguageModelMiddleware } from 'ai'
 import { isTextFile } from '@renderer/utils'
 
@@ -95,16 +95,18 @@ export const createTextFileMiddleware = (): LanguageModelMiddleware => {
       const _t1 = createTimeLog('文本文件中间件')
       const prompt = params.prompt
 
-      const result = {
-        ...params,
-        prompt: prompt.map((message) => {
-          if (!Array.isArray(message.content)) return message
+      const mappedPrompt: LanguageModelV4Prompt = prompt.map((message) => {
+        if (!Array.isArray(message.content)) return message as LanguageModelV4Message
 
-          return {
-            ...message,
-            content: message.content.map(convertTextFilePart)
-          }
-        })
+        return {
+          ...message,
+          content: message.content.map(convertTextFilePart)
+        } as LanguageModelV4Message
+      }) as LanguageModelV4Prompt
+
+      const result: LanguageModelV4CallOptions = {
+        ...params,
+        prompt: mappedPrompt
       }
       syncTimeLog(_t1, '文本文件中间件')
       return result

@@ -173,11 +173,6 @@ export function useCanvasFileEditor(options: {
     await closeFileTabs([filePath])
   }
 
-  const getPersistedFileContent = (filePath: string) => {
-    const file = getPersistedFile(filePath)
-    return file?.content || ''
-  }
-
   return {
     openFileTabs,
     fileDrafts,
