@@ -220,12 +220,12 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
 
   const isBuiltinAgent = agentStore.isBuiltinAgent(agent.id)
 
-  const menuItems: MenuItem<Agent>[] = [
+  const menuItems: MenuItem<Agent | null>[] = [
     {
       label: favoriteAgentSet.value.has(agent.id) ? '取消收藏' : '收藏智能体',
       icon: favoriteAgentSet.value.has(agent.id) ? Check : undefined,
       action: 'favorite',
-      onClick: (data: Agent) => {
+      onClick: (data: Agent | null) => {
         if (data) toggleFavoriteAgent(data.id)
       }
     },
@@ -237,7 +237,7 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
       icon: Copy,
       action: 'copy',
       disabled: false,
-      onClick: (data: Agent) => {
+      onClick: (data: Agent | null) => {
         if (data) copyAgent(data)
       }
     },
@@ -245,7 +245,7 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
       label: '配置智能体',
       icon: Edit,
       action: 'edit',
-      onClick: (data: Agent) => {
+      onClick: (data: Agent | null) => {
         if (data) openAgentModal(data)
       }
     },
@@ -258,7 +258,7 @@ const handleAgentContextMenu = (event: MouseEvent, agent: Agent) => {
       action: 'delete',
       danger: true,
       disabled: isBuiltinAgent,
-      onClick: (data: Agent) => {
+      onClick: (data: Agent | null) => {
         if (data && !agentStore.isBuiltinAgent(data.id)) {
           agentStore.deleteAgent(data.id)
           // 如果删除的是当前智能体，切换到默认智能体
@@ -281,21 +281,21 @@ const handleButtonContextMenu = (event: MouseEvent) => {
   const agent = selectedAgent.value
 
   if (!agent) {
-    const menuItems: MenuItem<Agent>[] = [
-      {
-        label: '添加智能体',
-        icon: Plus,
-        action: 'create',
-        onClick: () => openAgentModal()
-      }
-    ]
-    showContextMenu(event, menuItems, null)
+    const menuItems: MenuItem<Agent | null>[] = [
+            {
+              label: '添加智能体',
+              icon: Plus,
+              action: 'create',
+              onClick: () => openAgentModal()
+            }
+          ]
+          showContextMenu(event, menuItems, null)
     return
   }
 
   const isBuiltinAgent = agentStore.isBuiltinAgent(agent.id)
 
-  const menuItems: MenuItem<Agent>[] = [
+  const menuItems: MenuItem<Agent | null>[] = [
     {
       label: '新增智能体',
       icon: Plus,
@@ -309,7 +309,7 @@ const handleButtonContextMenu = (event: MouseEvent) => {
       label: favoriteAgentSet.value.has(agent.id) ? '取消收藏' : '收藏智能体',
       icon: favoriteAgentSet.value.has(agent.id) ? Check : undefined,
       action: 'favorite',
-      onClick: (data: Agent) => {
+      onClick: (data: Agent | null) => {
         if (data) toggleFavoriteAgent(data.id)
       }
     },
@@ -317,7 +317,7 @@ const handleButtonContextMenu = (event: MouseEvent) => {
       label: '配置智能体',
       icon: Edit,
       action: 'edit',
-      onClick: (data: Agent) => {
+      onClick: (data: Agent | null) => {
         if (data) openAgentModal(data)
       }
     },
@@ -325,7 +325,7 @@ const handleButtonContextMenu = (event: MouseEvent) => {
       label: '拷贝智能体',
       icon: Copy,
       action: 'copy',
-      onClick: (data: Agent) => {
+      onClick: (data: Agent | null) => {
         if (data) copyAgent(data)
       }
     },
@@ -338,7 +338,7 @@ const handleButtonContextMenu = (event: MouseEvent) => {
       action: 'delete',
       danger: true,
       disabled: isBuiltinAgent,
-      onClick: (data: Agent) => {
+      onClick: (data: Agent | null) => {
         if (data && !agentStore.isBuiltinAgent(data.id)) {
           agentStore.deleteAgent(data.id)
           const currentChatId = chatsStore.currentChat?.id
