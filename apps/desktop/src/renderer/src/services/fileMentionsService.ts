@@ -252,3 +252,68 @@ export const readWorkspaceFileText = (
     return null
   }
 }
+
+// ── Recent file mention tracking (per workPath) ──
+
+const RECENT_FILES_STORAGE_PREFIX = 'at-panel-recent-files:'
+const MAX_RECENT_FILES = 10
+
+interface RecentFileRecord {
+  relativePath: string
+  name: string
+  kind: 'file' | 'directory'
+  timestamp: number
+}
+
+const getRecentFilesStorageKey = (workPath: string) =>
+  `${RECENT_FILES_STORAGE_PREFIX}${normalizeWorkspacePath(workPath)}`
+
+const readRecentFileRecords = (workPath: string): RecentFileRecord[] => {
+  try {
+    const raw = localStorage.getItem(getRecentFilesStorageKey(workPath))
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+const writeRecentFileRecords = (workPath: string, records: RecentFileRecord[]) => {
+  try {
+    localStorage.setItem(getRecentFilesStorageKey(workPath), JSON.stringify(records))
+  } catch {
+    // ignore quota errors
+  }
+}
+
+/** 记录最近引用的文件（按工作路径独立存储） */
+export const recordRecentFileEntry = (workPath: string, entry: WorkspaceFileEntry) => {
+  if (!workPath) return
+  const records = readRecentFileRecords(workPath)
+  const filtered = records.filter((r) => r.relativePath !== entry.relativePath)
+  filtered.unshift({
+    relativePath: entry.relativePath,
+    name: entry.name,
+    kind: entry.kind,
+    timestamp: Date.now()
+  })
+  writeRecentFileRecords(workPath, filtered.slice(0, MAX_RECENT_FILES))
+}
+
+/** 获取最近引用的文件列表（按工作路径，校验文件仍存在） */
+export const getRecentFileEntries = (
+  workPath: string,
+  limit: number = MAX_RECENT_FILES
+): WorkspaceFileEntry[] => {
+  if (!workPath) return []
+  const records = readRecentFileRecords(workPath).slice(0, limit)
+  const entries: WorkspaceFileEntry[] = []
+  for (const record of records) {
+    const entry = getWorkspaceEntry(workPath, record.relativePath)
+    if (entry && entry.kind === record.kind) {
+      entries.push(entry)
+    }
+  }
+  return entries
+}

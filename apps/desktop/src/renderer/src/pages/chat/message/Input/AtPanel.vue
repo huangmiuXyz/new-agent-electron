@@ -7,8 +7,10 @@ import { useIcon } from '@renderer/composables/useIcon'
 import { debounce } from '@renderer/utils'
 import {
   getWorkspaceEntry,
+  getRecentFileEntries,
   listWorkspaceEntries,
   normalizeWorkspacePath,
+  recordRecentFileEntry,
   searchWorkspaceEntries,
   type WorkspaceFileEntry
 } from '@renderer/services/fileMentionsService'
@@ -38,6 +40,7 @@ type MentionItemData =
   | { type: 'note'; entry: NoteMentionEntry }
   | { type: 'note-nav'; targetFolderId: string | null }
   | { type: 'agent'; agent: Agent }
+  | { type: 'category'; scope: 'agents' | 'skills' | 'files' }
 
 export interface MentionApplyPayload {
   message: string
@@ -108,6 +111,9 @@ const currentFileDirectory = ref('')
 const fileListStrategy = ref<'search' | 'directory'>('directory')
 const currentNoteFolderId = ref<string | null>(null)
 const noteListStrategy = ref<'search' | 'directory'>('directory')
+
+// Recent file entries (per workPath, loaded when panel opens with empty @)
+const recentFileEntries = ref<WorkspaceFileEntry[]>([])
 
 let closeTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -220,6 +226,10 @@ interface SectionItem {
   data: MentionItemData
 }
 
+interface FlatSectionItem extends SectionItem {
+  groupKey: string
+}
+
 interface SectionGroup {
   key: string
   title: string
@@ -230,7 +240,51 @@ const sectionGroups = computed((): SectionGroup[] => {
   const nq = query.value.trim()
   const isAllScope = mentionScope.value === 'all'
   const isDirNav = isAllScope && nq.endsWith('/')
+  const isEmptyAllScope = isAllScope && !nq && !isDirNav
   const groups: SectionGroup[] = []
+
+  // Empty @ view: recent files + parent categories
+  if (isEmptyAllScope) {
+    if (currentWorkPath.value && recentFileEntries.value.length > 0) {
+      groups.push({
+        key: 'recent-files',
+        title: '最近引用',
+        items: recentFileEntries.value.map((entry) => ({
+          id: `file:${entry.relativePath}`,
+          label: entry.kind === 'directory' ? `${entry.name}/` : entry.name,
+          description: entry.relativePath,
+          data: { type: 'file', entry } satisfies MentionItemData
+        }))
+      })
+    }
+
+    groups.push({
+      key: 'categories',
+      title: '分类',
+      items: [
+        {
+          id: 'category:agents',
+          label: '智能体',
+          description: '查看所有智能体',
+          data: { type: 'category', scope: 'agents' } satisfies MentionItemData
+        },
+        {
+          id: 'category:skills',
+          label: '技能',
+          description: '查看所有技能',
+          data: { type: 'category', scope: 'skills' } satisfies MentionItemData
+        },
+        {
+          id: 'category:files',
+          label: '文件',
+          description: '浏览工作目录文件',
+          data: { type: 'category', scope: 'files' } satisfies MentionItemData
+        }
+      ]
+    })
+
+    return groups
+  }
 
   // Skills section
   if (mentionScope.value === 'all' || mentionScope.value === 'skills') {
@@ -341,6 +395,13 @@ const skillIcon = useIcon('Wrench20Regular')
 const fileIcon = useIcon('FileText')
 const noteIcon = useIcon('NoteAdd24Regular')
 const agentIcon = useIcon('Robot')
+const folderIcon = useIcon('Folder')
+
+const categoryIconByScope: Record<'agents' | 'skills' | 'files', VNode> = {
+  agents: agentIcon,
+  skills: skillIcon,
+  files: folderIcon
+}
 
 const typeIconVNodes: Record<string, VNode> = {
   skill: skillIcon,
@@ -350,11 +411,11 @@ const typeIconVNodes: Record<string, VNode> = {
 }
 
 /** Flatten all section items into a single list (no grouping) */
-const flatSelectableItems = computed((): SectionItem[] => {
-  const items: SectionItem[] = []
+const flatSelectableItems = computed((): FlatSectionItem[] => {
+  const items: FlatSectionItem[] = []
   for (const section of sectionGroups.value) {
     for (const item of section.items) {
-      items.push(item)
+      items.push({ ...item, groupKey: section.key })
     }
   }
   return items
@@ -372,19 +433,26 @@ interface ListItemData {
   name: string
   description: string
   _isDir: boolean
+  _isCategory: boolean
+  _groupKey: string
   _data: MentionItemData
   logo?: VNode | null
   isIcon?: boolean
 }
 
-const toListItems = (items: SectionItem[]): ListItemData[] => {
+const toListItems = (items: FlatSectionItem[]): ListItemData[] => {
   return items.map((item) => ({
     key: item.id,
     name: item.label,
     description: item.description || '',
     _isDir: item.data.type === 'file' && item.data.entry.kind === 'directory',
+    _isCategory: item.data.type === 'category',
+    _groupKey: item.groupKey,
     _data: item.data,
-    logo: typeIconVNodes[item.data.type] ?? null,
+    logo:
+      item.data.type === 'category'
+        ? categoryIconByScope[item.data.scope]
+        : (typeIconVNodes[item.data.type] ?? null),
     isIcon: true
   }))
 }
@@ -533,6 +601,10 @@ const buildSkillMentionPayload = (skill: SkillMetadata): MentionApplyPayload | n
 const buildFileMentionPayload = (entry: WorkspaceFileEntry): MentionApplyPayload | null => {
   const range = mentionRange.value
   if (!range) return null
+
+  if (currentWorkPath.value) {
+    recordRecentFileEntry(currentWorkPath.value, entry)
+  }
 
   const mentionText = `@file:${formatFileMentionPath(entry.relativePath)} `
   const nextMessage = `${sourceMessage.value.slice(0, range.start)}${mentionText}${sourceMessage.value.slice(range.end)}`
@@ -692,6 +764,35 @@ const syncMentionState = (message: string, cursorSource?: MentionCursorSource) =
 
 // ── Event handlers ──
 
+const switchToCategoryScope = (scope: 'agents' | 'skills' | 'files') => {
+  const range = mentionRange.value
+  if (!range) return
+
+  const namespaceMap: Record<typeof scope, string> = {
+    files: 'file',
+    skills: 'skills',
+    agents: 'agent'
+  }
+  const prefix = `@${namespaceMap[scope]}:`
+  const nextMessage = `${sourceMessage.value.slice(0, range.start)}${prefix}${sourceMessage.value.slice(range.end)}`
+  const cursor = range.start + prefix.length
+
+  emit('preview', { message: nextMessage, cursor })
+  syncMentionState(nextMessage, cursor)
+}
+
+// 返回分类页：将当前命名空间提及（如 @file:）整体替换为裸 @
+const backToCategoryView = () => {
+  const range = mentionRange.value
+  if (!range) return
+
+  const nextMessage = `${sourceMessage.value.slice(0, range.start)}@${sourceMessage.value.slice(range.end)}`
+  const cursor = range.start + 1
+
+  emit('preview', { message: nextMessage, cursor })
+  syncMentionState(nextMessage, cursor)
+}
+
 const selectActiveItem = () => {
   const data = getActiveData()
   if (!data) return
@@ -708,6 +809,11 @@ const selectActiveItem = () => {
     currentNoteFolderId.value = data.targetFolderId
     noteListStrategy.value = 'directory'
     refreshNoteEntries('')
+    return
+  }
+
+  if (data.type === 'category') {
+    switchToCategoryScope(data.scope)
     return
   }
 
@@ -730,6 +836,11 @@ const handleItemClick = (data: MentionItemData) => {
     currentNoteFolderId.value = data.targetFolderId
     noteListStrategy.value = 'directory'
     refreshNoteEntries('')
+    return
+  }
+
+  if (data.type === 'category') {
+    switchToCategoryScope(data.scope)
     return
   }
 
@@ -794,10 +905,14 @@ const handleKeydown = (
       return { handled: true }
     }
 
-    // Directory navigation: ArrowRight to enter a directory, ArrowLeft to go up
+    // Directory navigation: ArrowRight to enter a directory or category scope, ArrowLeft to go up
     if (event.key === 'ArrowRight') {
       event.preventDefault()
       const data = getActiveData()
+      if (data?.type === 'category') {
+        switchToCategoryScope(data.scope)
+        return { handled: true }
+      }
       if (data?.type === 'file' && data.entry.kind === 'directory') {
         currentFileDirectory.value = data.entry.relativePath
         fileListStrategy.value = 'directory'
@@ -809,12 +924,19 @@ const handleKeydown = (
 
     if (event.key === 'ArrowLeft') {
       event.preventDefault()
+      // 文件作用域下：先返回目录层级，直到根目录再回退到分类页
       if (currentFileDirectory.value) {
         const parentDir = getParentDirectory(currentFileDirectory.value)
         currentFileDirectory.value = parentDir
         fileListStrategy.value = 'directory'
         refreshFileEntries(parentDir ? parentDir + '/' : '/')
         activeIndex.value = 0
+        return { handled: true }
+      }
+      // 已在分类作用域（skills/files/agents/notes）下：左键返回分类页
+      if (mentionScope.value !== 'all') {
+        backToCategoryView()
+        return { handled: true }
       }
       return { handled: true }
     }
@@ -879,11 +1001,38 @@ watch([isOpen, mentionScope, query, currentNoteFolderId, noteListStrategy], () =
   }
 }, { immediate: true })
 
+// Load recent files when panel opens with empty @ (all scope, no query)
+watch([isOpen, mentionScope, query, currentWorkPath], () => {
+  if (!isOpen.value || !currentWorkPath.value) {
+    recentFileEntries.value = []
+    return
+  }
+  const nq = query.value.trim()
+  const isEmptyAllScope = mentionScope.value === 'all' && !nq
+  recentFileEntries.value = isEmptyAllScope
+    ? getRecentFileEntries(currentWorkPath.value, 10)
+    : []
+}, { immediate: true })
+
 onBeforeUnmount(() => {
   clearCloseTimer()
   debouncedRefreshFileEntries.cancel?.()
   debouncedRefreshNoteEntries.cancel?.()
 })
+
+// ── Group headers for empty-@ view ──
+
+const GROUP_TITLE_MAP: Record<string, string> = {
+  'recent-files': '最近引用',
+  'categories': '分类'
+}
+
+const showGroupHeaders = computed(() => {
+  const nq = query.value.trim()
+  return mentionScope.value === 'all' && !nq
+})
+
+const renderGroupHeader = (item: ListItemData) => GROUP_TITLE_MAP[item._groupKey] || ''
 
 defineExpose({
   syncMentionState,
@@ -914,11 +1063,13 @@ defineExpose({
             :active-id="activeItemId"
             :selectable="true"
             :is-selected="() => false"
+            :show-header="showGroupHeaders"
+            :render-header="renderGroupHeader"
             @select="handleListSelect"
           >
             <template #actions="{ item }">
               <span
-                v-if="item._isDir"
+                v-if="item._isDir || item._isCategory"
                 style="flex-shrink:0;color:var(--text-tertiary);font-size:14px;opacity:0.5"
               >›</span>
             </template>
@@ -944,16 +1095,25 @@ defineExpose({
 :deep(.list-item) {
   background-color: transparent;
   border-radius: 6px !important;
-  gap: 0 !important;
+  gap: 8px !important;
   padding: 2px 4px !important;
+  align-items: center !important;
 }
 
 :deep(.list-item:hover) {
   background-color: var(--bg-hover) !important;
 }
 
+:deep(.item-media) {
+  width: 18px !important;
+  height: 18px !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
 :deep(.main-text) {
   font-size: 12px;
+  line-height: 18px;
 }
 
 :deep(.sub-text) {
@@ -962,6 +1122,9 @@ defineExpose({
 
 :deep(.media-icon) {
   color: var(--text-tertiary);
+  width: 16px !important;
+  height: 16px !important;
+  font-size: 16px !important;
 }
 .mention-empty {
   padding: 20px;
