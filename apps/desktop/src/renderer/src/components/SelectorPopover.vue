@@ -132,38 +132,59 @@ const calcMaxHeight = (availablePx: number) =>
   Math.max(Math.min(availablePx, 560), Math.min(120, availablePx))
 
 const trayStyle = computed<CSSProperties>(() => {
-  // Priority: trayAnchor selector > trigger slot element
-  const anchor = props.trayAnchor
-    ? document.querySelector<HTMLElement>(props.trayAnchor)
-    : null
-  const triggerEl = anchor || triggerSlotRef.value
+  // Always anchor to the trigger element that was clicked,
+  // not a globally-queried element, to avoid positioning
+  // the popup relative to the wrong element.
+  const triggerEl = triggerSlotRef.value
   if (!triggerEl) return {}
+
   const rect = triggerEl.getBoundingClientRect()
   const viewportHeight = window.innerHeight
-
   const spaceAbove = rect.top - 16
   const spaceBelow = viewportHeight - rect.bottom - 16
 
-  // Open downward when there's significantly more space below than above
-  if (spaceBelow >= spaceAbove + 40 && spaceBelow >= 120) {
+  // Determine open direction:
+  // - position='bottom' → prefer opening downward
+  // - position='top'    → prefer opening upward
+  // - unset             → auto-detect based on available space
+  let openDownward: boolean
+  if (props.position === 'bottom') {
+    openDownward = spaceBelow >= 120
+  } else if (props.position === 'top') {
+    openDownward = false
+  } else {
+    openDownward = spaceBelow >= spaceAbove + 40 && spaceBelow >= 120
+  }
+
+  // Fallback to other direction if preferred side has too little space
+  if (!openDownward && spaceAbove < 120 && spaceBelow >= 120) {
+    openDownward = true
+  } else if (openDownward && spaceBelow < 120 && spaceAbove >= 120) {
+    openDownward = false
+  }
+
+  // Use width prop if provided, otherwise derive from trigger element
+  const trayWidth = props.width || `${rect.width - 12}px`
+  const leftOffset = props.width ? `${rect.left}px` : `${rect.left + 6}px`
+
+  if (openDownward) {
     const maxHeight = calcMaxHeight(spaceBelow)
     return {
       position: 'fixed' as const,
-      left: `${rect.left + 6}px`,
+      left: leftOffset,
       top: `${rect.bottom + 8}px`,
-      width: `${rect.width - 12}px`,
+      width: trayWidth,
       maxHeight: `${maxHeight}px`,
       zIndex: trayZIndex
     }
   }
 
-  // Open upward (default), but cap height to available space to prevent overflow
   const maxHeight = calcMaxHeight(spaceAbove)
   return {
     position: 'fixed' as const,
-    left: `${rect.left + 6}px`,
+    left: leftOffset,
     bottom: `${viewportHeight - rect.top + 8}px`,
-    width: `${rect.width - 12}px`,
+    width: trayWidth,
     maxHeight: `${maxHeight}px`,
     zIndex: trayZIndex
   }

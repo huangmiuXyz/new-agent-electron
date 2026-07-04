@@ -414,7 +414,6 @@ const handleModelLogoError = () => {
     width="380px"
     title="选择模型"
     :position="popupPosition || 'top'"
-    tray-anchor=".input-container"
   >
     <template #trigger>
       <div v-if="type === 'select'" class="model-btn" :class="{ active: isPopupOpen }">
