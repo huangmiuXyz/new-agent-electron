@@ -86,26 +86,10 @@ export const createLspStatusRender = (
                   cursor: 'pointer',
                   borderRadius: '4px',
                   fontSize: '12px',
-                  color: count > 0 ? 'var(--vp-c-brand-1, #4fc3f7)' : 'var(--vp-c-text-2, #888)',
+                  color: count > 0 ? 'var(--color-primary)' : 'var(--text-tertiary)',
                 }}
               >
-                <span style={{ fontSize: '14px', lineHeight: 1 }}>⚡</span>
                 <span style={{ fontSize: '11px', fontWeight: 600 }}>LSP</span>
-                {count > 0 && (
-                  <span style={{
-                    background: 'var(--vp-c-brand-1, #4fc3f7)',
-                    color: '#fff',
-                    borderRadius: '10px',
-                    padding: '0 5px',
-                    fontSize: '10px',
-                    lineHeight: '16px',
-                    fontWeight: 700,
-                    minWidth: '16px',
-                    textAlign: 'center',
-                  }}>
-                    {formatCount(count)}
-                  </span>
-                )}
               </div>
 
               {isOpen.value && (
@@ -117,10 +101,10 @@ export const createLspStatusRender = (
                     bottom: '40px',
                     width: '320px',
                     maxHeight: '360px',
-                    background: 'var(--vp-c-bg-elv, #1e1e1e)',
-                    border: '1px solid var(--vp-c-border, #333)',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-lg)',
+                    boxShadow: 'var(--shadow-lg)',
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
@@ -130,21 +114,20 @@ export const createLspStatusRender = (
                 >
                   <div style={{
                     padding: '10px 14px',
-                    borderBottom: '1px solid var(--vp-c-border, #333)',
+                    borderBottom: '1px solid var(--border-color-light)',
                     fontSize: '13px',
                     fontWeight: 600,
-                    color: 'var(--vp-c-text-1, #ddd)',
+                    color: 'var(--text-primary)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
                   }}>
-                    <span>⚡</span>
                     <span>LSP 服务器连接</span>
                     <span style={{
                       marginLeft: 'auto',
                       fontSize: '11px',
                       fontWeight: 400,
-                      color: 'var(--vp-c-text-2, #888)',
+                      color: 'var(--text-secondary)',
                     }}>
                       {count === 0 ? '未连接' : `${count} 个活跃`}
                     </span>
@@ -158,7 +141,7 @@ export const createLspStatusRender = (
                     {count === 0 ? (
                       <div style={{
                         textAlign: 'center',
-                        color: 'var(--vp-c-text-3, #666)',
+                        color: 'var(--text-tertiary)',
                         fontSize: '12px',
                       }}>
                         暂无 LSP 服务器连接
@@ -175,7 +158,7 @@ export const createLspStatusRender = (
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            borderBottom: '1px solid var(--vp-c-border, #333)',
+                            borderBottom: '1px solid var(--border-color-light)',
                             fontSize: '12px',
                           }}
                         >
@@ -183,19 +166,19 @@ export const createLspStatusRender = (
                             width: '8px',
                             height: '8px',
                             borderRadius: '50%',
-                            background: 'var(--vp-c-green-1, #4caf50)',
+                            background: 'var(--color-success)',
                             flexShrink: 0,
                           }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
                               fontWeight: 600,
-                              color: 'var(--vp-c-text-1, #ddd)',
+                              color: 'var(--text-primary)',
                               fontSize: '12px',
                             }}>
                               {s.serverId}
                             </div>
                             <div style={{
-                              color: 'var(--vp-c-text-3, #666)',
+                              color: 'var(--text-tertiary)',
                               fontSize: '11px',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
@@ -207,7 +190,7 @@ export const createLspStatusRender = (
                           </div>
                           <div style={{
                             fontSize: '10px',
-                            color: 'var(--vp-c-text-3, #666)',
+                            color: 'var(--text-tertiary)',
                             whiteSpace: 'nowrap',
                             flexShrink: 0,
                           }}>
