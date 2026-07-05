@@ -23,6 +23,13 @@ const evictChatCache = () => {
   while (chatCacheOrder.length > MAX_CHAT_CACHE) {
     const evictedId = chatCacheOrder.shift()
     if (evictedId) {
+      // 驱逐前停止该 chat 可能仍在进行的流式 effectScope，
+      // 避免被驱逐 chat 的 scope/watcher/controller 永久驻留导致内存泄漏
+      try {
+        useChatsStores().stopGeneratingInChatScope(evictedId)
+      } catch {
+        // store 未初始化时忽略
+      }
       chatCache.delete(evictedId)
       for (const key of retryStopHandlers.keys()) {
         if (key.startsWith(`${evictedId}:`)) retryStopHandlers.delete(key)
@@ -33,6 +40,12 @@ const evictChatCache = () => {
 
 export const clearChatCache = (chatId?: string) => {
   if (chatId) {
+    // 清理前停止该 chat 可能仍在进行的流式 effectScope
+    try {
+      useChatsStores().stopGeneratingInChatScope(chatId)
+    } catch {
+      // store 未初始化时忽略
+    }
     chatCache.delete(chatId)
     const idx = chatCacheOrder.indexOf(chatId)
     if (idx >= 0) chatCacheOrder.splice(idx, 1)
@@ -40,6 +53,14 @@ export const clearChatCache = (chatId?: string) => {
       if (key.startsWith(`${chatId}:`)) retryStopHandlers.delete(key)
     }
   } else {
+    // 清理全部：停止所有缓存 chat 的流式 scope
+    for (const id of chatCacheOrder) {
+      try {
+        useChatsStores().stopGeneratingInChatScope(id)
+      } catch {
+        // store 未初始化时忽略
+      }
+    }
     chatCache.clear()
     chatCacheOrder.length = 0
     retryStopHandlers.clear()

@@ -49,15 +49,20 @@
     </div>
 </template>
 
+<script lang="ts">
+import { common, createLowlight } from 'lowlight'
+// lowlight 实例包含所有 common 语言的语法定义（~2-5MB），
+// 提升为模块级单例，避免每个代码块组件实例都创建独立实例导致内存暴涨
+const lowlight = createLowlight(common)
+</script>
+
 <script setup lang="ts">
 import { h, computed, inject, ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { common, createLowlight } from 'lowlight'
 import { toHtml } from 'hast-util-to-html'
 import { useSettingsStore } from '@renderer/stores/settings'
 import HtmlPreview from './HtmlPreview.vue'
 import { useIcon } from '@renderer/composables/useIcon'
 import { CUSTOM_CODE_BLOCK_COMPLETED_KEY } from './customCodeBlockCompletion'
-const lowlight = createLowlight(common)
 const { display } = storeToRefs(useSettingsStore())
 const { confirm } = useModal()
 const Globe = useIcon('Globe')

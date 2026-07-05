@@ -64,6 +64,12 @@ watch(() => [props.text, props.blocks] as const, ([text, blocks]) => {
 
 const effectiveBlocks = computed(() => props.blocks ?? textIncremark.blocks.value)
 
+// 组件卸载时清理 textIncremark 内部状态（parser、blocks、ast），
+// 避免卸载后 incremark 解析状态驻留导致内存泄漏
+onBeforeUnmount(() => {
+  textIncremark.reset()
+})
+
 const translating = ref(false)
 const transLanguage = ref('')
 const transText = ref('')

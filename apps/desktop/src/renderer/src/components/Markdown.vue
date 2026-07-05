@@ -222,6 +222,9 @@ onBeforeUnmount(() => {
   pendingChunk = ''
   cancelCharFrame()
   cancelFinalizeTimer()
+  // 清理 incremark 内部状态（parser、completedBlocks、pendingBlocks、ast），
+  // 避免长流式消息卸载后解析状态驻留导致内存泄漏
+  incremark.reset()
 })
 </script>
 

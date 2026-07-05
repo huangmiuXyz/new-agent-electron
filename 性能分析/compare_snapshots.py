@@ -3,8 +3,8 @@
 import json, sys, os
 from collections import Counter, defaultdict
 
-SNAPSHOT1 = "Heap-20260625T232251.heapsnapshot"
-SNAPSHOT2 = "Heap-20260625T232659.heapsnapshot"
+SNAPSHOT1 = "Heap-20260705T135151.heapsnapshot"
+SNAPSHOT2 = "Heap-20260705T135421.heapsnapshot"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def load(path):
