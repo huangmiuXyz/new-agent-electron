@@ -656,6 +656,8 @@ export const api: ElectronAPI = {
   },
   setTitleBarTheme: (isDarkMode: boolean) =>
     electronAPI.ipcRenderer.invoke('window:set-title-bar-theme', isDarkMode),
+  // 获取所有进程（主进程/渲染进程/GPU/Utility）的内存指标
+  getProcessMetrics: () => electronAPI.ipcRenderer.invoke('app:get-process-metrics'),
   createTempChat: (data: any) => electronAPI.ipcRenderer.invoke('window:create-temp-chat', data),
   getTempChatData: (windowId: string) =>
     electronAPI.ipcRenderer.invoke('window:get-temp-chat-data', windowId),

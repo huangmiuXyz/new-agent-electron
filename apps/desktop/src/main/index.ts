@@ -487,6 +487,12 @@ if (gotSingleInstanceLock) {
     return true
   })
 
+  // 暴露所有进程的内存指标给渲染进程（用于实时内存监测面板）
+  // 返回值：[{ type, memory: { workingSetSize, privateBytes, ... }, ... }]
+  ipcMain.handle('app:get-process-metrics', () => {
+    return app.getAppMetrics()
+  })
+
   ipcMain.handle('net:fetch', async (_event, url, options) => {
     try {
       const response = await net.fetch(url, options)

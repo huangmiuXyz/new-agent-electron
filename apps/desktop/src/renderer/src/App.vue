@@ -6,6 +6,7 @@ import PageFindBar from './components/PageFindBar.vue'
 import Term from './components/term.vue'
 import ResizeBox from './components/ResizeBox.vue'
 import GlobalRightPanel from './components/GlobalRightPanel.vue'
+import MemoryMonitor from './components/MemoryMonitor.vue'
 
 // 异步页面加载中的占位：白屏 + 居中 spinner，与 app-loading 风格一致
 const PageLoading = {
@@ -466,6 +467,7 @@ const { width } = useWindowSize()
   </div>
   <PageFindBar />
   <ContextMenu />
+  <MemoryMonitor />
 </template>
 
 <style>
