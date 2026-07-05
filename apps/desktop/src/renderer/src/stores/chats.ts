@@ -195,9 +195,9 @@ export const useChatsStores = defineStore(
           activeChatId.value = chatList.value[0]?.id || null
         }
         if (activeChatId.value) {
-          const window = await chatRepository.loadRecentMessages(activeChatId.value, MESSAGE_WINDOW_SIZE)
-          messageWindows.value = { [activeChatId.value]: window }
-          activeMessageWindow.value = window
+          const win = await chatRepository.loadRecentMessages(activeChatId.value, MESSAGE_WINDOW_SIZE)
+          messageWindows.value = { [activeChatId.value]: win }
+          activeMessageWindow.value = win
         }
       }
     }

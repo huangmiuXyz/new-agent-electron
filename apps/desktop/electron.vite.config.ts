@@ -42,6 +42,25 @@ export default defineConfig(() => {
       },
       optimizeDeps: {
         exclude: ['monaco-editor', 'drizzle-kit', 'typescript'],
+        include: [
+          'vue',
+          'vue-router',
+          'pinia',
+          '@vueuse/core',
+          'ai',
+          '@ai-sdk/vue',
+          '@ai-sdk/openai',
+          '@ai-sdk/anthropic',
+          '@ai-sdk/google',
+          'nanoid',
+          'dayjs',
+          'es-toolkit',
+          'zod',
+          'localforage',
+          'pinia-plugin-persistedstate-async',
+          '@modelcontextprotocol/sdk',
+          '@ai-sdk/mcp'
+        ],
         rolldownOptions: {
           output: {
             sourcemapExcludeSources: true

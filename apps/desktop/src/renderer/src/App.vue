@@ -1,14 +1,40 @@
 <script setup lang="ts">
+import { defineAsyncComponent, h } from 'vue'
 import ChatPage from './pages/chat/index.vue'
-import NotesPage from './pages/notes/index.vue'
-import ImagePage from './pages/image/index.vue'
-import SettingsPage from './pages/settings/index.vue'
-import MyAppsPage from './pages/my-apps/index.vue'
 import AppFooter from './components/AppFooter.vue'
 import PageFindBar from './components/PageFindBar.vue'
 import Term from './components/term.vue'
 import ResizeBox from './components/ResizeBox.vue'
 import GlobalRightPanel from './components/GlobalRightPanel.vue'
+
+// 异步页面加载中的占位：白屏 + 居中 spinner，与 app-loading 风格一致
+const PageLoading = {
+  render: () => h('div', { class: 'page-async-loading' }, [
+    h('div', { class: 'page-async-spinner' })
+  ])
+}
+
+// 非首屏页面异步导入，避免首屏加载所有页面组件
+const NotesPage = defineAsyncComponent({
+  loader: () => import('./pages/notes/index.vue'),
+  loadingComponent: PageLoading,
+  delay: 0
+})
+const ImagePage = defineAsyncComponent({
+  loader: () => import('./pages/image/index.vue'),
+  loadingComponent: PageLoading,
+  delay: 0
+})
+const SettingsPage = defineAsyncComponent({
+  loader: () => import('./pages/settings/index.vue'),
+  loadingComponent: PageLoading,
+  delay: 0
+})
+const MyAppsPage = defineAsyncComponent({
+  loader: () => import('./pages/my-apps/index.vue'),
+  loadingComponent: PageLoading,
+  delay: 0
+})
 import { useSettingsStore } from './stores/settings'
 import { useChatsStores } from './stores/chats'
 import { useCanvasStore } from './stores/canvas'
@@ -991,5 +1017,30 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 异步页面加载占位：白屏 + 居中 spinner */
+.page-async-loading {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-app);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-async-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--text-secondary);
+  border-radius: 50%;
+  animation: page-async-spin 0.8s linear infinite;
+}
+
+@keyframes page-async-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

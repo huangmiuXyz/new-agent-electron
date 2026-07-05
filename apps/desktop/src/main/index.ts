@@ -274,6 +274,8 @@ function createWindow(): BrowserWindow {
     height: 670,
     show: false,
     autoHideMenuBar: true,
+    // 非 mac 提供背景色，避免窗口显示时透明背景触发 GPU SharedImage 合成错误
+    ...(isMac ? {} : { backgroundColor: '#f6f6f6' }),
     ...(process.platform === 'darwin' ? {} : { icon }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -323,6 +325,13 @@ function createWindow(): BrowserWindow {
     mainWindow.maximize()
     mainWindow.show()
   })
+
+  // dev 模式下 Vite 首次编译需要时间，先显示窗口框架避免长时间无窗口
+  // 注意：只 show 不 maximize，避免 GPU 在 webContents 无内容时合成资源触发 SharedImage 错误
+  // maximize 等 ready-to-show 触发后再执行
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    mainWindow.show()
+  }
 
   mainWindow.on('closed', () => {
     clearTimeout(fallbackShowTimer)
@@ -612,10 +621,8 @@ if (gotSingleInstanceLock) {
 
     applyOpenAtLoginSetting(readSystemPreferences().openAtLogin)
 
-    mainWindow = createWindow()
-    setupUpdaterHandlers(mainWindow)
-    initTray(mainWindow)
-
+    // 先初始化数据库和 IPC handler，再创建窗口
+    // 这样渲染进程加载完后发 IPC 时 handler 已就绪，避免请求挂起或失败
     try {
       initSqlite()
       setupSqliteHandlers()
@@ -665,5 +672,10 @@ if (gotSingleInstanceLock) {
         info: payload.info || {}
       })
     })
+
+    // 所有 handler 就绪后再创建窗口并加载渲染进程
+    mainWindow = createWindow()
+    setupUpdaterHandlers(mainWindow)
+    initTray(mainWindow)
   })
 }
