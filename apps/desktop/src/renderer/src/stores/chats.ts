@@ -62,8 +62,11 @@ export const useChatsStores = defineStore(
       messages,
     })
 
+    // allChats 不传入 messages，避免依赖 messageWindows（流式时每个 token 都会更新）。
+    // 侧栏等组件只用 title/createdAt/parentChatId 等 summary 字段，不需要 messages。
+    // 需要消息的代码应通过 getChatById 或 currentChat 获取。
     const allChats = computed(() => {
-      return [...chatList.value.map((s) => materializeChat(s, getLoadedMessages(s.id))), ...tempChats.value]
+      return [...chatList.value.map((s) => materializeChat(s)), ...tempChats.value]
     })
 
     const currentChat = computed(() => {
@@ -269,8 +272,13 @@ export const useChatsStores = defineStore(
       return id
     }
 
+    // 直接查找并 materialize 单个 chat，避免通过 allChats computed 重建全量数组。
+    // allChats 每次访问都会为每一个 chat 调用 materializeChat 创建新对象，
+    // 而 getChatById 被高频调用（每次响应式更新都可能触发），用直接查找能显著减少 GC 压力。
     const getChatById = (id: string) => {
-      return allChats.value.find((c) => c.id === id)
+      const summary = chatList.value.find((s) => s.id === id)
+      if (summary) return materializeChat(summary, getLoadedMessages(summary.id))
+      return tempChats.value.find((c) => c.id === id) || undefined
     }
 
     const getDescendantChatIds = (id: string): string[] => {
@@ -707,9 +715,9 @@ export const useChatsStores = defineStore(
     }
 
     const isChatGenerating = (chatId: string): boolean => {
-      const chat = getChatById(chatId)
-      if (!chat) return false
-      return someMessageDeep(chat.messages, (m) => !!(m.metadata?.loading && m.metadata.stop))
+      // 直接访问 messageWindows，避免 getChatById 的 materializeChat 分配
+      const messages = messageWindows.value[chatId]?.messages || []
+      return someMessageDeep(messages, (m) => !!(m.metadata?.loading && m.metadata.stop))
     }
 
     const isChatScopeGenerating = (chatId: string): boolean => {

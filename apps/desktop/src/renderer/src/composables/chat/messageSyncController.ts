@@ -172,16 +172,6 @@ export const createChatMessageSyncController = ({
     return copy
   }
 
-  const queueMessageSync = (message?: BaseMessage, error?: APICallError) => {
-    const messageSnapshot = createStoreMessageSnapshot(message, error)
-    if (!messageSnapshot) return
-
-    if (!pendingSyncMessages.has(messageSnapshot.id)) {
-      pendingSyncMessageIds.push(messageSnapshot.id)
-    }
-    pendingSyncMessages.set(messageSnapshot.id, messageSnapshot)
-  }
-
   const flushStreamingUpdate = async (options: { persist?: boolean; force?: boolean } = {}): Promise<BaseMessage[] | undefined> => {
     if (streamFlushHandle) {
       clearTimeout(streamFlushHandle)
@@ -271,7 +261,12 @@ export const createChatMessageSyncController = ({
       ...(error ? { error } : {})
     } as MetaData
 
-    queueMessageSync(message, error)
+    // 存入原始引用（与 scheduleStreamingUpdate 一致），避免 queueMessageSync 先创建一次快照、
+    // flushStreamingUpdate 再创建一次的双重快照开销。快照创建统一在 flushStreamingUpdate 中完成。
+    if (!pendingSyncMessages.has(message.id)) {
+      pendingSyncMessageIds.push(message.id)
+    }
+    pendingSyncMessages.set(message.id, message)
     const updatedMessages = await flushStreamingUpdate({ force: true })
 
     persistedMessageIds.delete(message.id)

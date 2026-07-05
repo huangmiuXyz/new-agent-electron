@@ -81,7 +81,20 @@ const normalizeCompressedMessages = (
 export const autoCompressContext = async (options: AutoCompressOptions): Promise<BaseMessage[]> => {
   const _t1 = createTimeLog('autoCompressContext-总计')
   const { cid, messages, contextCount, contextTokenCount, compressModel, activeModel } = options
-  const persistedMessages = messages?.length ? messages : await chatRepository.loadAllMessages(cid)
+
+  // 优先使用传入的 messages，避免从 DB 全量加载
+  // messages 来自 messageWindows，已经包含当前窗口内的全部消息
+  let persistedMessages: BaseMessage[]
+  if (messages?.length) {
+    persistedMessages = messages
+  } else {
+    // 回退：从 DB 加载（仅在 messages 未传入时）
+    const loadLimit = contextCount ? Math.max(contextCount * 2, 100) : undefined
+    persistedMessages = loadLimit
+      ? (await chatRepository.loadRecentMessages(cid, loadLimit)).messages
+      : await chatRepository.loadAllMessages(cid)
+  }
+
   const persistedBaseMessages = persistedMessages.filter(
     (message) => !isCompressingContextMessage(message) && !isCompressedContextMessage(message)
   )
@@ -170,9 +183,10 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
       } as CompressionMetaData
     }
 
-    const allMsgs = await chatRepository.loadAllMessages(cid)
-    const nextMsgs = normalizeCompressedMessages(allMsgs, compressingMessage)
+    let currentMsgs = persistedMessages
+    const nextMsgs = normalizeCompressedMessages(currentMsgs, compressingMessage)
     await store.updateMessages(cid, nextMsgs)
+    currentMsgs = nextMsgs
 
     chatsStore.updateChatSummaryMeta(cid, {
       compressedContext: {
@@ -208,13 +222,13 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
     const flushCompressingMessage = async (text: string) => {
       lastCompressUiAt = Date.now()
       compressUiDirty = false
-      const msgs = await chatRepository.loadAllMessages(cid)
-      const next = msgs.map((m) =>
+      const next = currentMsgs.map((m) =>
         m.id === compressingMessageId
           ? { ...m, parts: [{ type: 'text' as const, text: `🔃 正在压缩上下文...\n\n${text}` }] }
           : m
       )
       await store.updateMessages(cid, next)
+      currentMsgs = next
     }
 
     try {
@@ -231,13 +245,13 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
       }
 
       if (compressedText) {
-        const msgsAfter = await chatRepository.loadAllMessages(cid)
-        const nextAfter = msgsAfter.map((m) =>
+        const nextAfter = currentMsgs.map((m) =>
           m.id === compressingMessageId
             ? { ...m, parts: [{ type: 'text' as const, text: `${compressedText}\n\n${COMPRESSED_CONTEXT_MARKER}` }] }
             : m
         )
         await store.updateMessages(cid, nextAfter)
+        currentMsgs = nextAfter
 
         chatsStore.updateChatSummaryMeta(cid, {
           compressedContext: {
@@ -250,8 +264,7 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
           }
         })
 
-        const msgsMeta = await chatRepository.loadAllMessages(cid)
-        const nextMeta = msgsMeta.map((m) => {
+        const nextMeta = currentMsgs.map((m) => {
           if (m.id === compressingMessageId && m.metadata) {
             return {
               ...m,
@@ -265,6 +278,7 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
           return m
         })
         await store.updateMessages(cid, nextMeta)
+        currentMsgs = nextMeta
       }
     } catch (streamError) {
       console.error('流式压缩出错:', streamError)
@@ -273,8 +287,7 @@ export const autoCompressContext = async (options: AutoCompressOptions): Promise
           ? { ...compressedContext, loading: false }
           : undefined
       })
-      const msgsErr = await chatRepository.loadAllMessages(cid)
-      const nextErr = msgsErr.map((m) =>
+      const nextErr = currentMsgs.map((m) =>
         m.id === compressingMessageId
           ? {
               ...m,

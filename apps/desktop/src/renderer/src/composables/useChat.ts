@@ -9,60 +9,34 @@ import { createSpeechStreamController } from './chat/speechStreamController'
 import { createSubTaskResultCoordinator } from './chat/subTaskResultCoordinator'
 import { buildContextMessages } from '@renderer/services/chatContextMessages'
 
-const MAX_CHAT_CACHE = 10
-const chatCache = new Map<string, any>()
-const chatCacheOrder: string[] = []
-
-const touchChatCache = (chatId: string) => {
-  const idx = chatCacheOrder.indexOf(chatId)
-  if (idx >= 0) chatCacheOrder.splice(idx, 1)
-  chatCacheOrder.push(chatId)
-}
-
-const evictChatCache = () => {
-  while (chatCacheOrder.length > MAX_CHAT_CACHE) {
-    const evictedId = chatCacheOrder.shift()
-    if (evictedId) {
-      // 驱逐前停止该 chat 可能仍在进行的流式 effectScope，
-      // 避免被驱逐 chat 的 scope/watcher/controller 永久驻留导致内存泄漏
-      try {
-        useChatsStores().stopGeneratingInChatScope(evictedId)
-      } catch {
-        // store 未初始化时忽略
-      }
-      chatCache.delete(evictedId)
-      for (const key of retryStopHandlers.keys()) {
-        if (key.startsWith(`${evictedId}:`)) retryStopHandlers.delete(key)
-      }
-    }
-  }
-}
-
+/**
+ * 停止指定 chat 的流式生成并清理 retry 状态。
+ *
+ * 不再缓存 chat 实例——每次 useChat(chatId) 都返回新的 result 对象，
+ * _useChat 实例在 createChat() 中按需创建，scope.stop() 后即被清理。
+ * retry 状态通过闭包自包含（scheduleRetry 的 timer 回调直接引用闭包内的 result），
+ * 不依赖实例缓存。
+ */
 export const clearChatCache = (chatId?: string) => {
   if (chatId) {
-    // 清理前停止该 chat 可能仍在进行的流式 effectScope
     try {
       useChatsStores().stopGeneratingInChatScope(chatId)
     } catch {
       // store 未初始化时忽略
     }
-    chatCache.delete(chatId)
-    const idx = chatCacheOrder.indexOf(chatId)
-    if (idx >= 0) chatCacheOrder.splice(idx, 1)
     for (const key of retryStopHandlers.keys()) {
       if (key.startsWith(`${chatId}:`)) retryStopHandlers.delete(key)
     }
   } else {
-    // 清理全部：停止所有缓存 chat 的流式 scope
-    for (const id of chatCacheOrder) {
-      try {
-        useChatsStores().stopGeneratingInChatScope(id)
-      } catch {
-        // store 未初始化时忽略
+    // 无参：停止所有 chat 的流式生成
+    try {
+      const store = useChatsStores()
+      for (const summary of store.chatList) {
+        store.stopGeneratingInChatScope(summary.id)
       }
+    } catch {
+      // store 未初始化时忽略
     }
-    chatCache.clear()
-    chatCacheOrder.length = 0
     retryStopHandlers.clear()
   }
 }
@@ -88,10 +62,6 @@ export const getRetryStopHandler = (chatId: string, messageId: string) =>
   retryStopHandlers.get(retryStopHandlerKey(chatId, messageId))
 
 export const useChat = (chatId: string) => {
-  if (chatCache.has(chatId)) {
-    touchChatCache(chatId)
-    return chatCache.get(chatId)
-  }
 
   const {
     ensureChatAgent,
@@ -542,15 +512,22 @@ export const useChat = (chatId: string) => {
           // 始终同步最后一条消息（流式更新需要不断更新消息引用）
           messageSyncController.scheduleStreamingUpdate(newMessages[newMessages.length - 1])
 
-          // 额外检查最后一条之前是否有新增消息（如用户消息）
-          // 修复：Vue 响应式批处理导致用户消息和助手消息在同一 tick 添加时，
-          // 用户消息被跳过而无法持久化（刷新后用户消息丢失）
-          if (oldMessages) {
+          // 仅当消息数组长度增加超过 1 时，才检查是否有中间新增消息（如用户消息）。
+          // 流式场景下每个 token 都会触发 watch，但通常只有最后一条消息变化，
+          // 此时 oldMessages.length === newMessages.length，无需创建 Set。
+          if (oldMessages && newMessages.length > oldMessages.length + 1) {
             const oldIds = new Set(oldMessages.map(m => m.id))
             for (let i = 0; i < newMessages.length - 1; i++) {
               if (!oldIds.has(newMessages[i].id)) {
                 messageSyncController.scheduleStreamingUpdate(newMessages[i])
               }
+            }
+          } else if (oldMessages && newMessages.length > oldMessages.length) {
+            // 恰好新增 1 条（常见：用户消息 + 助手消息在同一 tick）
+            // 只需同步倒数第二条（如果它不在 oldMessages 中）
+            const secondLast = newMessages[newMessages.length - 2]
+            if (secondLast && !oldMessages.includes(secondLast)) {
+              messageSyncController.scheduleStreamingUpdate(secondLast)
             }
           }
         }
@@ -601,7 +578,9 @@ export const useChat = (chatId: string) => {
 
       const _t1 = createTimeLog('buildContextMessages(send)')
       const isFirstMessage = getVisibleMessages().length === 0
-      const contextMessages = await buildContextMessages(chatId, {})
+      // 传入已加载的消息窗口，避免从 SQLite 全量加载全部历史
+      const preloadedMessages = getVisibleMessages()
+      const contextMessages = await buildContextMessages(chatId, {}, preloadedMessages)
       syncTimeLog(_t1, 'buildContextMessages(send)')
       const _t2 = createTimeLog('createChat(send)')
       const chat = createChat(contextMessages)
@@ -625,7 +604,7 @@ export const useChat = (chatId: string) => {
     },
     continueMessages: async () => {
       const _t6 = createTimeLog('continueMessages')
-      const contextMessages = await buildContextMessages(chatId, {})
+      const contextMessages = await buildContextMessages(chatId, {}, getVisibleMessages())
       const chat = createChat(contextMessages)
       chat.sendMessage()
       syncTimeLog(_t6, 'continueMessages')
@@ -674,10 +653,11 @@ export const useChat = (chatId: string) => {
           ]
           : baseMessages
 
-      updateMessages(chatId, cloneMessagesForChat(nextMessages))
+      // 不需要显式 cloneMessagesForChat，createChat 内部会负责克隆
+      updateMessages(chatId, nextMessages)
 
       scrollToBottom()
-      const contextMessages = await buildContextMessages(chatId, {})
+      const contextMessages = await buildContextMessages(chatId, {}, getVisibleMessages())
       const chat = createChat(contextMessages)
       chat.sendMessage()
       syncTimeLog(_t8, 'retryFromToolCall')
@@ -699,12 +679,13 @@ export const useChat = (chatId: string) => {
       const retryAnchorMessageIndex = messages.findIndex(
         (message) => message.id === retryAnchorMessageId
       )
+      // 不需要显式 cloneMessagesForChat，createChat 内部会负责克隆
       const retryMessages =
         retryAnchorMessageIndex >= 0
-          ? cloneMessagesForChat(messages.slice(0, retryAnchorMessageIndex + 1))
-          : cloneMessagesForChat(messages)
+          ? messages.slice(0, retryAnchorMessageIndex + 1)
+          : messages
       updateMessages(chatId, retryMessages)
-      const contextMessages = await buildContextMessages(chatId, {})
+      const contextMessages = await buildContextMessages(chatId, {}, getVisibleMessages())
       const chat = createChat(contextMessages, {
         regenerateMessageId
       })
@@ -724,8 +705,5 @@ export const useChat = (chatId: string) => {
     }
   }
 
-  chatCache.set(chatId, result)
-  touchChatCache(chatId)
-  evictChatCache()
   return result
 }

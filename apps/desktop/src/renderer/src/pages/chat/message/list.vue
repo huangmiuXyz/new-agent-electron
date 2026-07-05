@@ -89,16 +89,6 @@ const toggleCollapsed = (messageId: string) => {
   expandedCollapsedIds.value = next
 }
 
-// —— Flat items（assistant 消息的 parts 全打平到虚拟列表层）——
-const flatItems = computed<VirtualChatItem[]>(() => generateFlatItems(
-  visibleMessages.value,
-  contextCount.value,
-  hasCompressedContext.value,
-  editingMessageId.value,
-  settingsStore.display.collapsePreviousContent,
-  expandedCollapsedIds.value
-))
-
 // —— 消息入场动画追踪 ——
 // 历史消息（会话恢复 / 切换会话加载）不播动画；只有在本视图中"新加入"的消息
 // （用户发送、AI 新回复）才播放一次上浮淡入动画。
@@ -230,6 +220,34 @@ const hasCompressedContext = computed(() => {
         msg.parts?.some((p) => p.type === 'text' && p.text?.includes('[上下文已压缩]')))
   )
 })
+
+// —— Flat items（assistant 消息的 parts 全打平到虚拟列表层）——
+// 使用 shallowRef + watch 替代 computed，避免响应式系统对 VirtualChatItem 内部属性做深依赖追踪，
+// 同时利用 watch 的批量合并机制减少高频 token 更新时的重复计算。
+// 注意：必须放在 contextCount / hasCompressedContext 之后，否则 watch 的 immediate 回调会因 TDZ 报错。
+const flatItems = shallowRef<VirtualChatItem[]>([])
+
+watch(
+  [
+    visibleMessages,
+    contextCount,
+    hasCompressedContext,
+    editingMessageId,
+    () => settingsStore.display.collapsePreviousContent,
+    expandedCollapsedIds
+  ],
+  () => {
+    flatItems.value = generateFlatItems(
+      visibleMessages.value,
+      contextCount.value,
+      hasCompressedContext.value,
+      editingMessageId.value,
+      settingsStore.display.collapsePreviousContent,
+      expandedCollapsedIds.value
+    )
+  },
+  { immediate: true }
+)
 
 const contentStyle = computed(() => ({
   fontSize: `${display.value.fontSize}px`

@@ -13,7 +13,6 @@ import DownloadProgress from './components/DownloadProgress.vue'
 import Select from './components/Select.vue'
 import Image from './components/Image.vue'
 import Loading from './components/Loading.vue'
-import { PluginLoader } from './services/plugins/pluginLoader'
 import { setPluginLoader } from './services/plugins/pluginLoaderInstance'
 
 const app = createApp(App)
@@ -24,21 +23,24 @@ pinia.use(piniaPersist)
 app.use(pinia)
 app.use(router)
 
-const pluginLoader = new PluginLoader(app, pinia, router)
-pluginLoader.registerComponents({
-  Button,
-  Switch,
-  DownloadProgress,
-  Image,
-  Loading,
-  Input,
-  SelectorPopover,
-  Select
-})
+// 动态导入 PluginLoader（含 JSZip），避免启动时同步加载
+// registerComponents 必须在 mount 前完成，所以在 then 链中确保顺序
+import('./services/plugins/pluginLoader').then(({ PluginLoader }) => {
+  const pluginLoader = new PluginLoader(app, pinia, router)
+  pluginLoader.registerComponents({
+    Button,
+    Switch,
+    DownloadProgress,
+    Image,
+    Loading,
+    Input,
+    SelectorPopover,
+    Select
+  })
 
+  setPluginLoader(pluginLoader)
 
-setPluginLoader(pluginLoader)
-
-router.isReady().then(() => {
-  app.mount('#app')
+  router.isReady().then(() => {
+    app.mount('#app')
+  })
 })

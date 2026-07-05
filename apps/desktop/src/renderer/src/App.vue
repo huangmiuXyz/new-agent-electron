@@ -3,10 +3,14 @@ import { defineAsyncComponent, h } from 'vue'
 import ChatPage from './pages/chat/index.vue'
 import AppFooter from './components/AppFooter.vue'
 import PageFindBar from './components/PageFindBar.vue'
-import Term from './components/term.vue'
 import ResizeBox from './components/ResizeBox.vue'
-import GlobalRightPanel from './components/GlobalRightPanel.vue'
 import MemoryMonitor from './components/MemoryMonitor.vue'
+
+// 异步加载非首屏必需的重量级组件，避免启动时全量加载：
+// - Term (xterm)：终端组件，仅在用户展开终端时才需要
+// - GlobalRightPanel：右侧栏，其依赖链含 ChatCanvasPanel → SandboxCodeEditor → monaco-editor（~100MB+）
+const Term = defineAsyncComponent(() => import('./components/term.vue'))
+const GlobalRightPanel = defineAsyncComponent(() => import('./components/GlobalRightPanel.vue'))
 
 // 异步页面加载中的占位：白屏 + 居中 spinner，与 app-loading 风格一致
 const PageLoading = {

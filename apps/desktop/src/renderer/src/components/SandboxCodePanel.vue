@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue'
 import AppImage from './Image.vue'
-import SandboxCodeEditor from './SandboxCodeEditor.vue'
 import { getSandboxFileLanguage } from '@renderer/services/sandbox'
+
+// SandboxCodeEditor 直接导入 monaco-editor（~100MB+），异步加载确保仅在
+// 用户实际打开代码文件时才加载 monaco 及其 5 个 worker
+const SandboxCodeEditor = defineAsyncComponent(() => import('./SandboxCodeEditor.vue'))
 
 const props = defineProps<{
   fileTabs: { path: string; isActive: boolean; isDirty: boolean; name: string }[]

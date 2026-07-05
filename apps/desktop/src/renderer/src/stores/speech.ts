@@ -238,6 +238,10 @@ export const useSpeechStore = defineStore('speech', () => {
     if (!chunk.audioData) {
       chunk.audioData = uint8ArrayToBase64(bytes)
     }
+    // 转换完成后立即清空 streamChunks，避免同一音频数据以 Uint8Array[] 和 base64 string
+    // 两种格式同时驻留内存。一个 10s/128kbps 的音频 chunk 约 160KB binary + 213KB base64，
+    // 多个 chunk 累积会导致显著内存浪费。
+    chunk.streamChunks = undefined
     chunk.loading = false
     chunk.streaming = false
     chunk.error = undefined
@@ -398,6 +402,10 @@ export const useSpeechStore = defineStore('speech', () => {
 
     audioPlayer.onended = () => {
       nextChunk.played = true
+      // 已播放完成的 chunk 清除音频数据，避免 base64 字符串长期驻留内存。
+      // 如果用户需要重播，会从消息 metadata 中重新加载。
+      nextChunk.audioData = undefined
+      nextChunk.streamChunks = undefined
       URL.revokeObjectURL(url)
       playNext()
     }
@@ -405,6 +413,8 @@ export const useSpeechStore = defineStore('speech', () => {
     audioPlayer.onerror = () => {
       console.error('Audio playback error')
       nextChunk.played = true
+      nextChunk.audioData = undefined
+      nextChunk.streamChunks = undefined
       URL.revokeObjectURL(url)
       playNext()
     }
@@ -491,12 +501,23 @@ export const useSpeechStore = defineStore('speech', () => {
       q.currentAudio = null
       URL.revokeObjectURL(url)
       q.playing = false
+      // 清除已播放 chunk 的音频数据
+      const playedChunk = queue.value.find(c => c.id === q.chunkId)
+      if (playedChunk) {
+        playedChunk.audioData = undefined
+        playedChunk.streamChunks = undefined
+      }
       playNextAudioFromQueue()
     }
     audio.onerror = () => {
       q.currentAudio = null
       URL.revokeObjectURL(url)
       q.playing = false
+      const errChunk = queue.value.find(c => c.id === q.chunkId)
+      if (errChunk) {
+        errChunk.audioData = undefined
+        errChunk.streamChunks = undefined
+      }
       playNextAudioFromQueue()
     }
     audio.play().catch(() => {
@@ -587,6 +608,8 @@ export const useSpeechStore = defineStore('speech', () => {
 
     audioPlayer.onended = () => {
       chunk.played = true
+      chunk.audioData = undefined
+      chunk.streamChunks = undefined
       cleanupActiveStream()
       playNext()
     }
@@ -594,6 +617,8 @@ export const useSpeechStore = defineStore('speech', () => {
     audioPlayer.onerror = () => {
       console.error('Audio stream playback error')
       chunk.played = true
+      chunk.audioData = undefined
+      chunk.streamChunks = undefined
       cleanupActiveStream()
       playNext()
     }

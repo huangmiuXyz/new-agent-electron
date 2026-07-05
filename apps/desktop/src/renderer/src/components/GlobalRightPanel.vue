@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import ChatCanvasPanel from './ChatCanvasPanel.vue'
+import { defineAsyncComponent } from 'vue'
 import GlobalChatPanel from './GlobalChatPanel.vue'
 import SpeechSidebar from './SpeechSidebar.vue'
 import DownloadPanelContent from './DownloadPanelContent.vue'
 import NotificationPanelContent from './NotificationPanelContent.vue'
+
+// ChatCanvasPanel 的依赖链含 SandboxCodeEditor → monaco-editor（~100MB+），
+// 异步加载确保仅在用户切换到 canvas tab 时才加载
+const ChatCanvasPanel = defineAsyncComponent(() => import('./ChatCanvasPanel.vue'))
 
 const settingsStore = useSettingsStore()
 

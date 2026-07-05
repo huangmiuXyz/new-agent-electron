@@ -1,4 +1,20 @@
-const forIpc = <T>(obj: T): T => JSON.parse(JSON.stringify(obj))
+/**
+ * 深拷贝对象，剥离函数类型属性（如 metadata.stop）。
+ * 相比 JSON.parse(JSON.stringify()) 不创建中间 JSON 字符串，
+ * 字符串按引用共享，避免大 base64 数据产生双倍临时内存。
+ */
+const forIpc = <T>(obj: T): T => {
+  if (obj === null || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map(forIpc) as T
+  const result: Record<string, any> = {}
+  for (const key in obj) {
+    if (!Object.prototype.hasOwnProperty.call(obj, key)) continue
+    const val = (obj as any)[key]
+    if (typeof val === 'function') continue
+    result[key] = val !== null && typeof val === 'object' ? forIpc(val) : val
+  }
+  return result as T
+}
 
 export const chatRepository = {
   async deleteMessage(messageId: string): Promise<void> {

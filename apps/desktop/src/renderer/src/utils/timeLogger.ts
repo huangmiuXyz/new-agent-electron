@@ -1,4 +1,7 @@
-let _enabled = true
+// 默认关闭。这是一个开发调试工具，生产环境应保持关闭。
+// 开启后 syncTimeLog 会通过 console.debug 传递完整对象（如 message、part），
+// 这些对象会被 console 引用持有无法 GC，在流式场景下导致严重内存泄漏。
+let _enabled = false
 
 const aggregates = new Map<string, { count: number; total: number }>()
 
