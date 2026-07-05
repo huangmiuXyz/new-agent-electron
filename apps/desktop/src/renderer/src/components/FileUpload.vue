@@ -119,7 +119,7 @@ const showAddButton = computed(() => {
 const { Plus } = useIcon(['Plus'])
 
 const getIcon = (file: UploadFile) => {
-  return useIcon(getFileIcon(file))
+  return getFileIcon(file.filename!).vnode
 }
 
 // 暴露给父组件的方法和状态
@@ -275,6 +275,13 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.generic-icon :deep(img) {
+  width: 32px !important;
+  height: 32px !important;
 }
 
 .file-name {

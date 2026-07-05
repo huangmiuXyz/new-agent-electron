@@ -282,9 +282,9 @@ export const copyElementImageToClipboard = async (
       height: element.scrollHeight,
       filter: options.filter
         ? (node) => {
-            if (!(node instanceof HTMLElement)) return true
-            return options.filter!(node)
-          }
+          if (!(node instanceof HTMLElement)) return true
+          return options.filter!(node)
+        }
         : undefined,
       style: {
         margin: '0',
@@ -346,9 +346,9 @@ export const saveElementImageToFile = async (
       height: element.scrollHeight,
       filter: options.filter
         ? (node) => {
-            if (!(node instanceof HTMLElement)) return true
-            return options.filter!(node)
-          }
+          if (!(node instanceof HTMLElement)) return true
+          return options.filter!(node)
+        }
         : undefined,
       style: {
         margin: '0',
@@ -515,95 +515,6 @@ export const copyFilesToUserData = async (filePaths: string[]) => {
   return results
 }
 
-export const getFileIcon = (file: { name?: string; mediaType: string }) => {
-  const mediaType = file.mediaType || ''
-  const fileName = file.name || ''
-  const ext = fileName.split('.').pop()?.toLowerCase() || ''
-  if (mediaType.includes('pdf')) {
-    return 'FileCertificate'
-  } else if (
-    mediaType.includes('word') ||
-    mediaType.includes('document') ||
-    ext === 'doc' ||
-    ext === 'docx'
-  ) {
-    return 'File'
-  } else if (
-    mediaType.includes('excel') ||
-    mediaType.includes('spreadsheet') ||
-    ext === 'xls' ||
-    ext === 'xlsx'
-  ) {
-    return 'FileAnalytics'
-  } else if (
-    mediaType.includes('powerpoint') ||
-    mediaType.includes('presentation') ||
-    ext === 'ppt' ||
-    ext === 'pptx'
-  ) {
-    return 'FileInvoice'
-  } else if (ext === 'md' || mediaType.includes('markdown')) {
-    return 'Markdown'
-  } else if (
-    mediaType.includes('text/') ||
-    mediaType.includes('plain') ||
-    textExtensions.includes(ext)
-  ) {
-    return 'FileText'
-  } else if (
-    mediaType.includes('javascript') ||
-    mediaType.includes('json') ||
-    mediaType.includes('xml') ||
-    mediaType.includes('html') ||
-    mediaType.includes('css') ||
-    [
-      'js',
-      'ts',
-      'jsx',
-      'tsx',
-      'json',
-      'xml',
-      'html',
-      'css',
-      'py',
-      'java',
-      'cpp',
-      'c',
-      'go',
-      'rs',
-      'php',
-      'rb'
-    ].includes(ext)
-  ) {
-    return 'FileCode'
-  } else if (
-    mediaType.includes('zip') ||
-    mediaType.includes('rar') ||
-    mediaType.includes('tar') ||
-    mediaType.includes('gzip') ||
-    ['zip', 'rar', 'tar', 'gz', '7z'].includes(ext)
-  ) {
-    return 'FileZip'
-  } else if (
-    mediaType.includes('audio/') ||
-    fileName.endsWith('.mp3') ||
-    fileName.endsWith('.wav') ||
-    fileName.endsWith('.flac') ||
-    fileName.endsWith('.aac')
-  ) {
-    return 'FileMusic'
-  } else if (
-    mediaType.includes('video/') ||
-    fileName.endsWith('.mp4') ||
-    fileName.endsWith('.avi') ||
-    fileName.endsWith('.mov') ||
-    fileName.endsWith('.mkv')
-  ) {
-    return 'Video'
-  }
-
-  return 'File'
-}
 export const parseBase64DataUrl = (
   value: string
 ): { mediaType?: string; base64: string } | null => {

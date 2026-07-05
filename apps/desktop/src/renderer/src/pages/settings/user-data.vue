@@ -135,7 +135,7 @@ const [FileTable] = useTable<FileItem>({
               {{
                 icon: () => (
                   <span class="file-icon">
-                    {useIcon(getFileIcon({ name: row.name, mediaType: row.type }))}
+                    {getFileIcon(row.name).vnode}
                   </span>
                 ),
                 default: () => row.name
@@ -267,6 +267,12 @@ onMounted(loadFiles)
   justify-content: center;
   width: 24px;
   height: 24px;
+}
+
+.file-icon :deep(img) {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 
 .file-thumbnail {
