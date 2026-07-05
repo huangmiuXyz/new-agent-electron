@@ -134,15 +134,43 @@ export function createMainRouter(opts: MainRouterOptions) {
 
 let cp: ReturnType<typeof fork> | null = null;
 let router: ReturnType<typeof createMainRouter> | null = null;
+// 防止 install/崩溃重启时重复 fork 导致孤儿进程
+let workerStarting: Promise<void> | null = null;
+
+/** 终止当前 worker 进程（SIGKILL 强制，避免 ONNX 计算中无法响应 SIGTERM） */
+function killWorker() {
+  if (cp && !cp.killed) {
+    try {
+      // 先尝试 SIGTERM，1 秒后强杀
+      cp.kill('SIGTERM');
+      const proc = cp;
+      setTimeout(() => {
+        if (!proc.killed) {
+          try { proc.kill('SIGKILL') } catch {}
+        }
+      }, 1000);
+    } catch {}
+  }
+  cp = null;
+}
 
 function startWorker(context: MainPluginContext, workerPath: string, currentModelId: string, currentDtype: string, currentDevice: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    cp = fork(workerPath, [], { stdio: 'pipe' });
+  // 已经在启动中，复用同一个 Promise 避免并发 fork
+  if (workerStarting) return workerStarting;
+  // 已有 worker 在运行，先 kill
+  if (cp) {
+    context.logger.warn('[kokoro] worker already running, killing old one before spawn');
+    killWorker();
+  }
 
-    cp.stdout?.on('data', (data) => {
+  workerStarting = new Promise<void>((resolve, reject) => {
+    const child = fork(workerPath, [], { stdio: 'pipe' });
+    cp = child;
+
+    child.stdout?.on('data', (data) => {
       context.logger.info('[kokoro-worker] ' + data.toString().trim());
     });
-    cp.stderr?.on('data', (data) => {
+    child.stderr?.on('data', (data) => {
       context.logger.error('[kokoro-worker] ' + data.toString().trim());
     });
 
@@ -150,28 +178,41 @@ function startWorker(context: MainPluginContext, workerPath: string, currentMode
       reject(new Error('Model loading timeout (120s)'));
     }, 120_000);
 
-    cp.on('message', function onInit(msg: any) {
+    const onInit = (msg: any) => {
       if (msg.type === 'ready') {
         clearTimeout(initTimeout);
+        child.off('message', onInit);
+        child.off('exit', onEarlyExit);
+        workerStarting = null;
         resolve();
       } else if (msg.type === 'error') {
         clearTimeout(initTimeout);
+        child.off('message', onInit);
+        child.off('exit', onEarlyExit);
+        workerStarting = null;
         reject(new Error(msg.error));
       }
-    });
+    };
 
-    cp.on('exit', (code) => {
+    const onEarlyExit = (code: number | null) => {
       clearTimeout(initTimeout);
+      child.off('message', onInit);
+      workerStarting = null;
       reject(new Error(`Worker exited prematurely with code ${code}`));
-    });
+    };
 
-    cp.send({
+    child.on('message', onInit);
+    child.on('exit', onEarlyExit);
+
+    child.send({
       type: 'init',
       modelId: currentModelId,
       dtype: currentDtype,
       device: currentDevice,
     });
   });
+
+  return workerStarting;
 }
 
 function setupRouter(context: MainPluginContext, currentModelId: string, currentDtype: string, currentDevice: string) {
@@ -189,7 +230,9 @@ function setupRouter(context: MainPluginContext, currentModelId: string, current
       router?.rejectAll(new Error('Worker process crashed'));
       router = null;
       cp = null;
-      spawnWorker(context, workerPath);
+      workerStarting = null;
+      // 延迟 2 秒重启，避免崩溃风暴
+      setTimeout(() => spawnWorker(context, workerPath), 2000);
     }
   });
 }
@@ -219,6 +262,10 @@ const plugin: MainPlugin = {
       return;
     }
     workerPath = wp;
+
+    // install 前先清理可能残留的旧 worker（防止 reload 产生孤儿进程）
+    killWorker();
+    workerStarting = null;
 
     await startWorker(context, workerPath, currentModelId, currentDtype, currentDevice);
     setupRouter(context, currentModelId, currentDtype, currentDevice);
@@ -279,7 +326,11 @@ const plugin: MainPlugin = {
       return router!.handleStreamFinish();
     });
 
-    context.onUnload(() => { if (cp) cp.kill(); });
+    context.onUnload(() => {
+      killWorker();
+      workerStarting = null;
+      router = null;
+    });
   },
 };
 
