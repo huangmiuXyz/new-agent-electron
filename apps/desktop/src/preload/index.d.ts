@@ -1,8 +1,21 @@
 import { ElectronAPI as ToolkitElectronAPI } from '@electron-toolkit/preload'
 import { type ElectronAPI as SharedElectronAPI } from '@agent-qi/types'
 
+interface ProcessMetric {
+  type: string
+  pid: number
+  memory?: {
+    workingSetSize?: number
+    privateBytes?: number
+    sharedBytes?: number
+  }
+  url?: string
+  name?: string
+}
+
 type ElectronAPI = SharedElectronAPI & {
   setTitleBarTheme: (isDarkMode: boolean) => Promise<boolean>
+  getProcessMetrics: () => Promise<ProcessMetric[]>
   window: {
     isFullScreen: () => boolean
     onFullScreenChanged: (callback: (isFullScreen: boolean) => void) => () => void

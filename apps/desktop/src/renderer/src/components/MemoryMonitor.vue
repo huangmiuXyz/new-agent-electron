@@ -217,35 +217,6 @@ const totalProcessMem = computed(() => {
   return processMetrics.value.reduce((sum, p) => sum + (p.memory?.workingSetSize || 0), 0)
 })
 
-const processLabel = (p: ProcessMetric) => {
-  const typeMap: Record<string, string> = {
-    Browser: '主进程',
-    Renderer: '渲染进程',
-    GPU: 'GPU 进程',
-    Utility: 'Utility',
-    Worker: 'Worker',
-    Zygote: 'Zygote',
-    SandboxHelper: 'Sandbox',
-    PumpHook: 'PumpHook',
-    Unknown: '未知'
-  }
-  const label = typeMap[p.type] || p.type
-  // 渲染进程标注 URL 域名（如果有）
-  if (p.type === 'Renderer' && p.url) {
-    try {
-      const u = new URL(p.url)
-      return `${label} (${u.hostname || u.pathname})`
-    } catch {
-      return label
-    }
-  }
-  // Utility 标注 name
-  if (p.type === 'Utility' && p.name) {
-    return `${label} (${p.name})`
-  }
-  return label
-}
-
 const formatProcessMem = (p: ProcessMetric) => {
   const kb = p.memory?.workingSetSize || 0
   return formatMb(kb * 1024)
@@ -433,10 +404,6 @@ const forceGc = () => {
   } else {
     console.warn('强制 GC 需要 --js-flags="--expose-gc" 启动参数')
   }
-}
-
-const clearHistory = () => {
-  history.value = []
 }
 
 // —— 采样控制 ——
