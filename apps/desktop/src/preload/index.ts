@@ -531,7 +531,8 @@ export const api: ElectronAPI = {
   process: {
     platform: process.platform,
     env: process.env,
-    execPath: process.execPath
+    execPath: process.execPath,
+    pid: process.pid
   },
   pty: {
     spawn: (options: {

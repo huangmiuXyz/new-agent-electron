@@ -128,6 +128,7 @@ export interface ElectronAPI {
     platform: string
     env: Record<string, string | undefined>
     execPath: string
+    pid: number
   }
 
   // pty

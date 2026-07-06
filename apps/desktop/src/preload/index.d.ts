@@ -20,6 +20,9 @@ type ElectronAPI = SharedElectronAPI & {
     isFullScreen: () => boolean
     onFullScreenChanged: (callback: (isFullScreen: boolean) => void) => () => void
   }
+  process: {
+    pid: number
+  }
   system: {
     getSettings: () => Promise<{
       openAtLogin: boolean

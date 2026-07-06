@@ -167,13 +167,13 @@ const createIgnoreState = (
 }
 
 const getPowerShellPath = (): string => {
-  const systemRoot = window.api.process.env.SystemRoot
+  const systemRoot = window.api.process?.env?.SystemRoot
   return systemRoot
     ? window.api.path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
     : 'powershell.exe'
 }
 
-const getPosixShellPath = (): string => window.api.process.env.SHELL || '/bin/sh'
+const getPosixShellPath = (): string => window.api.process?.env?.SHELL || '/bin/sh'
 
 const execProjectSearchCommand = async (
   command: string,

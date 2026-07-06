@@ -8,7 +8,7 @@ const getTerminalTypeLabel = (): string => {
     return 'powershell'
   }
 
-  const shellPath = window.api.process.env.SHELL || '/bin/sh'
+  const shellPath = window.api.process?.env?.SHELL || '/bin/sh'
   const shellName = shellPath.split(/[/\\]/).pop()
   return (shellName || shellPath).toLowerCase()
 }

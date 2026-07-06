@@ -5,7 +5,7 @@
   "main": "./out/main/index.js",
   "author": "example.com",
   "homepage": "https://electron-vite.org",
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@11.10.0",
   "scripts": {
     "turbo": "turbo dev --filter=!qi-cli",
     "predev": "pnpm taze latest -w && pnpm --filter @agent-qi/types build",

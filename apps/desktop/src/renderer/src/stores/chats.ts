@@ -12,7 +12,7 @@ const restorePromise = new Promise<void>((resolve) => {
 })
 
 const NEW_CHAT_DRAFT_ID = '__new__'
-const MESSAGE_WINDOW_SIZE = 100
+const MESSAGE_WINDOW_SIZE = 0
 const MESSAGE_PAGE_SIZE = 50
 type UpdateMessagesOptions = {
   persist?: boolean

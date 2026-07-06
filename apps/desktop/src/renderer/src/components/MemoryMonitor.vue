@@ -8,7 +8,7 @@
         @mousedown="startDrag"
         @dblclick="collapsed = !collapsed">
         <span class="memory-monitor-title">
-          内存监测
+          <div style="margin-right: 10px;">内存监测</div>
           <span v-if="!sampling" class="sampling-badge">已暂停</span>
         </span>
         <div class="memory-monitor-actions">
@@ -36,7 +36,10 @@
       <div v-if="!collapsed" class="memory-monitor-body">
         <!-- 实时数字 -->
         <div class="memory-stat" :class="statClass(jsHeapUsed)">
-          <div class="memory-stat-label">JS 堆 (已用)</div>
+          <div class="memory-stat-label">
+            JS 堆<span v-if="jsHeapSource === 'process'" class="source-mark" title="数据来源于 app.getAppMetrics（进程级 privateBytes），非 V8 堆"> *</span>
+            <span class="source-label">{{ jsHeapSource === 'process' ? '（进程内存）' : '（已用）' }}</span>
+          </div>
           <div class="memory-stat-value">{{ formatMb(jsHeapUsed) }}</div>
           <div class="memory-stat-bar">
             <div class="memory-stat-bar-fill" :style="{ width: barWidth(jsHeapUsed, jsHeapLimit) }"></div>
@@ -44,11 +47,14 @@
         </div>
 
         <div class="memory-stat">
-          <div class="memory-stat-label">JS 堆 (总量)</div>
-          <div class="memory-stat-value">{{ formatMb(jsHeapTotal) }}</div>
+        <div class="memory-stat-label">
+          JS 堆<span v-if="jsHeapSource === 'process'" class="source-mark" title="Working Set Size（进程级）"> *</span>
+          <span class="source-label">{{ jsHeapSource === 'process' ? '（WSS）' : '（总量）' }}</span>
         </div>
+        <div class="memory-stat-value">{{ formatMb(jsHeapTotal) }}</div>
+      </div>
 
-        <div class="memory-stat">
+        <div v-if="jsHeapSource === 'v8'" class="memory-stat">
           <div class="memory-stat-label">JS 堆 (上限)</div>
           <div class="memory-stat-value">{{ formatMb(jsHeapLimit) }}</div>
         </div>
@@ -104,19 +110,21 @@
 
         <!-- 趋势图 -->
         <div class="memory-chart">
-          <div class="memory-chart-title">JS 堆趋势（最近 {{ history.length }} 个采样点）</div>
+          <div class="memory-chart-title">
+            {{ jsHeapSource === 'process' ? '渲染进程内存趋势' : 'JS 堆趋势' }}（最近 {{ history.length }} 个采样点）
+          </div>
           <svg class="memory-chart-svg" :viewBox="`0 0 ${chartWidth} ${chartHeight}`" preserveAspectRatio="none">
             <!-- 网格线 -->
             <line v-for="i in 4" :key="'grid-' + i"
               :x1="0" :x2="chartWidth"
               :y1="(chartHeight / 4) * (i - 1)" :y2="(chartHeight / 4) * (i - 1)"
-              stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+              class="chart-gridline" stroke-width="1" />
             <!-- 上限线 -->
             <line v-if="jsHeapLimit > 0"
               :x1="0" :x2="chartWidth"
               :y1="chartHeight - (jsHeapLimit / maxChartValue) * chartHeight"
               :y2="chartHeight - (jsHeapLimit / maxChartValue) * chartHeight"
-              stroke="rgba(255,100,100,0.4)" stroke-width="1" stroke-dasharray="4,2" />
+              class="chart-limitline" stroke-width="1" stroke-dasharray="4,2" />
             <!-- 已用堆曲线 -->
             <polyline
               :points="chartPoints"
@@ -192,6 +200,7 @@ const startDrag = (e: MouseEvent) => {
 const jsHeapUsed = ref(0)
 const jsHeapTotal = ref(0)
 const jsHeapLimit = ref(0)
+const jsHeapSource = ref<'v8' | 'process'>('v8')
 const domNodes = ref(0)
 const detachedDom = ref('—')
 const canvasCount = ref(0)
@@ -357,11 +366,14 @@ const chartColor = computed(() => {
 })
 
 const sample = () => {
+  // JS 堆内存：优先使用 performance.memory（V8 堆），回退到当前渲染进程的 OS 级内存
   const mem = (performance as any).memory
-  if (mem) {
+  const hasJSHeap = mem && typeof mem.usedJSHeapSize === 'number' && mem.usedJSHeapSize > 0
+  if (hasJSHeap) {
     jsHeapUsed.value = mem.usedJSHeapSize
     jsHeapTotal.value = mem.totalJSHeapSize
     jsHeapLimit.value = mem.jsHeapSizeLimit
+    jsHeapSource.value = 'v8'
   }
 
   // DOM 节点（浏览器内部计数器，O(1)）
@@ -382,6 +394,24 @@ const sample = () => {
       processMetrics.value = (metrics || [])
         .filter(p => p.memory?.workingSetSize)
         .sort((a, b) => (b.memory?.workingSetSize || 0) - (a.memory?.workingSetSize || 0))
+
+      // 回退：若 V8 堆 API 不可用，用当前渲染进程的 privateBytes 作为近似
+      // 使用 PID 匹配（通过 preload 桥接）而非 URL 匹配，避免生产环境下 URL 格式不一致导致匹配失败
+      if (!hasJSHeap) {
+        try {
+          const currentPid = window.api?.process?.pid
+          const currentProcess = metrics.find(
+            p => p.type === 'Renderer' && p.pid === currentPid && (p.memory?.privateBytes ?? 0) > 0
+          )
+          if (currentProcess?.memory?.privateBytes) {
+            jsHeapUsed.value = currentProcess.memory.privateBytes * 1024   // KB → bytes
+            jsHeapTotal.value = (currentProcess.memory.workingSetSize ?? 0) * 1024
+            jsHeapSource.value = 'process'
+          }
+        } catch {
+          // 匹配失败时忽略
+        }
+      }
     }).catch(() => {
       // 主进程未注册时忽略
     })
@@ -567,18 +597,19 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+
 .memory-monitor {
   position: fixed;
   z-index: 99999;
   width: 320px;
-  background: rgba(28, 28, 32, 0.95);
-  color: #e8e8e8;
+  background: var(--modal-bg);
+  color: var(--text-primary);
   border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
   font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
   font-size: 12px;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
   user-select: none;
 }
 
@@ -598,7 +629,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 8px 12px;
   cursor: move;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border-color-light);
   user-select: none;
 }
 
@@ -630,7 +661,7 @@ onBeforeUnmount(() => {
 
 /* 暂停时标题区背景变淡 */
 .memory-monitor-header.sampling-paused {
-  background: rgba(255, 169, 64, 0.05);
+  background: var(--bg-hover);
 }
 
 .memory-monitor-actions {
@@ -639,9 +670,9 @@ onBeforeUnmount(() => {
 }
 
 .memory-monitor-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #e8e8e8;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
   padding: 2px 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -650,7 +681,7 @@ onBeforeUnmount(() => {
 }
 
 .memory-monitor-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--bg-active);
 }
 
 .memory-monitor-body {
@@ -671,7 +702,7 @@ onBeforeUnmount(() => {
 
 .memory-stat-label {
   flex: 0 0 100px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-tertiary);
   font-size: 11px;
 }
 
@@ -684,21 +715,21 @@ onBeforeUnmount(() => {
 }
 
 .memory-stat.stat-warning .memory-stat-value {
-  color: #ffa940;
+  color: var(--color-warning);
 }
 
 .memory-stat.stat-danger .memory-stat-value {
-  color: #ff6b6b;
+  color: var(--color-danger);
 }
 
 .memory-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-color-light);
   margin: 6px 0;
 }
 
 .memory-section-title {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-tertiary);
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -707,14 +738,14 @@ onBeforeUnmount(() => {
 }
 
 .memory-stat-total {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--border-color);
   margin-top: 4px;
   padding-top: 6px;
 }
 
 .memory-stat-total .memory-stat-label,
 .memory-stat-total .memory-stat-value {
-  color: #e8e8e8;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -728,35 +759,35 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   padding: 4px 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-hover);
   border-radius: 4px;
   margin-bottom: 2px;
 }
 
 .process-group-name {
   flex: 1;
-  color: #e8e8e8;
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 11px;
 }
 
 .process-group-count {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-tertiary);
   font-size: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-active);
   padding: 1px 5px;
   border-radius: 8px;
 }
 
 .process-group-sum {
-  color: #e8e8e8;
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
-.process-group-header.stat-warning .process-group-sum { color: #ffa940; }
-.process-group-header.stat-danger .process-group-sum { color: #ff6b6b; }
+.process-group-header.stat-warning .process-group-sum { color: var(--color-warning); }
+.process-group-header.stat-danger .process-group-sum { color: var(--color-danger); }
 
 /* 单个进程行 */
 .process-row {
@@ -765,20 +796,20 @@ onBeforeUnmount(() => {
   gap: 8px;
   padding: 3px 6px 3px 14px;
   font-size: 11px;
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  border-left: 1px solid var(--border-color-light);
   margin-left: 4px;
 }
 
 .process-row-pid {
   flex: 0 0 60px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-tertiary);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
 
 .process-row-name {
   flex: 1;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -786,36 +817,36 @@ onBeforeUnmount(() => {
 
 .process-row-mem {
   flex: 0 0 auto;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
-.process-row.stat-warning .process-row-mem { color: #ffa940; }
-.process-row.stat-danger .process-row-mem { color: #ff6b6b; }
+.process-row.stat-warning .process-row-mem { color: var(--color-warning); }
+.process-row.stat-danger .process-row-mem { color: var(--color-danger); }
 
 .memory-stat-bar {
   flex: 0 0 60px;
   height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-color);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .memory-stat-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #52c41a, #ffa940, #ff6b6b);
+  background: linear-gradient(90deg, var(--color-success), var(--color-warning), var(--color-danger));
   transition: width 0.3s;
 }
 
 .memory-chart {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border-color-light);
 }
 
 .memory-chart-title {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-tertiary);
   margin-bottom: 4px;
 }
 
@@ -829,14 +860,33 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   font-size: 9px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-disabled);
   margin-top: 2px;
+}
+
+/* SVG 内网格线和上限线 — 通过 CSS class 设置颜色，适配主题 */
+:global(.chart-gridline) {
+  stroke: var(--border-color);
+}
+:global(.chart-limitline) {
+  stroke: rgba(var(--color-danger-rgb), 0.35);
+}
+
+/* JS 堆数据来源标记 */
+.source-mark {
+  font-size: 10px;
+  color: var(--color-warning);
+  cursor: help;
+}
+.source-label {
+  font-size: 10px;
+  color: var(--text-tertiary);
 }
 
 .memory-monitor-tip {
   margin-top: 6px;
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-disabled);
   text-align: center;
 }
 
@@ -848,12 +898,7 @@ onBeforeUnmount(() => {
   background: transparent;
 }
 .memory-monitor-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--border-color);
   border-radius: 3px;
-}
-
-/* 暗色模式适配（其实组件本身就是暗色的，亮色模式下也用暗色面板） */
-:global(.dark-mode) .memory-monitor {
-  background: rgba(20, 20, 24, 0.95);
 }
 </style>
