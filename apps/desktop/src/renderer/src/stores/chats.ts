@@ -300,7 +300,52 @@ export const useChatsStores = defineStore(
       const allIds = new Set([id, ...getDescendantChatIds(id)])
 
       if (allChats.value.every(c => allIds.has(c.id))) {
-        await clearChat(id)
+        // 所有对话都是当前对话或其子对话，无法删除最后一个根对话
+        // 子智能体创建的子对话要从数据库删除，根对话只清空消息
+        !isMobile.value && useCanvasStore().deleteCanvases([...allIds])
+        for (const chatId of allIds) {
+          clearChatCache(chatId)
+          const loaded = messageWindows.value[chatId]
+          if (loaded) {
+            loaded.messages.forEach((m) => m.metadata?.stop?.())
+          }
+          const summary = chatList.value.find((s) => s.id === chatId)
+          if (chatId === id) {
+            // 根对话：只清空消息，保留在列表中
+            if (summary) {
+              await chatRepository.deleteChatMessages(chatId)
+              replaceWindowMessages(chatId, [])
+              updateChatSummaryMeta(chatId, {
+                messageCount: 0,
+                lastMessageAt: undefined,
+                lastMessagePreview: undefined,
+                title: '新的聊天',
+                subTask: undefined,
+                compressedContext: undefined
+              })
+            } else {
+              tempChats.value = tempChats.value.filter((c) => c.id !== chatId)
+            }
+            delete chatDrafts.value[chatId]
+          } else {
+            // 子对话：从列表移除并从数据库删除
+            if (summary) {
+              chatList.value = chatList.value.filter((s) => s.id !== chatId)
+              if (!isMobile.value) {
+                await window.api.chatDb.chat.delete(chatId)
+              }
+            } else {
+              tempChats.value = tempChats.value.filter((c) => c.id !== chatId)
+            }
+            const remaining = { ...messageWindows.value }
+            delete remaining[chatId]
+            messageWindows.value = remaining
+            delete chatDrafts.value[chatId]
+          }
+        }
+        if (activeChatId.value && allIds.has(activeChatId.value)) {
+          activeMessageWindow.value = messageWindows.value[id] || null
+        }
         return
       }
 
@@ -371,17 +416,13 @@ export const useChatsStores = defineStore(
 
     const setActiveChat = async (id: string) => {
       activeChatId.value = id
-      // 只保留当前聊天的消息窗口，其它释放
-      const retained: Record<string, LoadedMessageWindow> = {}
       if (messageWindows.value[id]) {
-        retained[id] = messageWindows.value[id]
         activeMessageWindow.value = messageWindows.value[id]
       } else {
         const window = await chatRepository.loadRecentMessages(id, MESSAGE_WINDOW_SIZE)
-        retained[id] = window
+        messageWindows.value = { ...messageWindows.value, [id]: window }
         activeMessageWindow.value = window
       }
-      messageWindows.value = retained
     }
 
     const getDraftKey = (chatId?: string | null) => chatId || activeChatId.value || NEW_CHAT_DRAFT_ID
