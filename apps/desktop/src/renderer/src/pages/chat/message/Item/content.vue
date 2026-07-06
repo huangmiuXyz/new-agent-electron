@@ -11,7 +11,7 @@ const props = defineProps<{
 }>()
 const { currentChat } = storeToRefs(useChatsStores())
 const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
-const { updateMessage } = useChatsStores()
+const { updateMessages } = useChatsStores()
 
 const messageEdit = inject('messageEdit') as {
   editingMessageId: Ref<string | null>
@@ -73,7 +73,11 @@ const saveEditing = () => {
     }
     return true
   })
-  updateMessage(currentChat.value.id, props.message.id, filteredContent)
+  updateMessages(currentChat.value.id, (messages) =>
+    messages.map((m) =>
+      m.id === props.message.id ? { ...m, parts: filteredContent } : m
+    )
+  )
   messageEdit.cancelEdit()
 }
 

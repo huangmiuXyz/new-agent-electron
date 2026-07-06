@@ -751,6 +751,14 @@ export const useChatsStores = defineStore(
       return someMessageDeep(messages, (m) => !!(m.metadata?.loading && m.metadata.stop))
     }
 
+    const isChatBlocked = (chatId: string): boolean => {
+      // 检查是否有工具调用正在等待用户批准（approval-requested）
+      const messages = messageWindows.value[chatId]?.messages || []
+      return someMessageDeep(messages, (m) =>
+        m.parts?.some((part) => (part as { state?: string }).state === 'approval-requested')
+      )
+    }
+
     const isChatScopeGenerating = (chatId: string): boolean => {
       const allIds = [chatId, ...getDescendantChatIds(chatId)]
       return allIds.some((id) => isChatGenerating(id))
@@ -928,6 +936,7 @@ export const useChatsStores = defineStore(
       prioritizePendingMessage,
       shiftPendingMessage,
       isChatGenerating,
+      isChatBlocked,
       isChatScopeGenerating,
       stopGeneratingInChatScope,
       markChatGuided,

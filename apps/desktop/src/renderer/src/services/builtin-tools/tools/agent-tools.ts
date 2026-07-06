@@ -311,12 +311,20 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
       }
     },
     delegate_to_sub_agent: {
-      title: '分派子智能体任务',
-      description: '主智能体将任务异步分派给子智能体执行，立即返回，不阻塞当前会话',
+      title: '批量分派子智能体任务',
+      description:
+        '主智能体将任务分派给一个或多个子智能体执行，每个子智能体可指定不同的任务。立即返回，不阻塞当前会话。',
       inputSchema: z.object({
-        task: z.string().describe('要分派给子智能体的任务内容'),
-        agentName: z.string().optional().describe('子智能体名称，建议明确指定'),
-        title: z.string().optional().describe('子会话标题'),
+        assignments: z
+          .array(
+            z.object({
+              task: z.string().describe('分派给该子智能体的任务内容'),
+              agentName: z.string().optional().describe('子智能体名称，留空则由主智能体决定')
+            })
+          )
+          .nonempty()
+          .describe('批量分派列表，每个元素指定一个子智能体及其任务'),
+        title: z.string().optional().describe('子会话标题（所有子会话共用此标题）'),
         inheritContext: z
           .boolean()
           .optional()
@@ -324,19 +332,14 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
           .describe(
             '是否继承主智能体会话上下文。开启后会把主会话的压缩上下文和近期文本对话作为参考上下文传给子智能体。'
           ),
-        switchToSubChat: z.boolean().optional().default(false).describe('是否切换到子会话')
+        switchToSubChat: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe('是否切换到子会话（批量分派时切换到最后一个）')
       }),
       execute: async (args: unknown, options: { chatId: string }) => {
         const params = args as Record<string, any>
-        const task = String(params.task || '').trim()
-        if (!task) {
-          return {
-            toolResult: {
-              content: [{ type: 'text', text: '分派失败：task 不能为空。' }]
-            }
-          }
-        }
-
         const chatsStore = useChatsStores()
         const agentStore = useAgentStore()
         const parentChat = chatsStore.getChatById(options.chatId)
@@ -352,43 +355,38 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
         const parentAgent = agentStore.getAgentById(parentChat.agentId || '')
         const allowedSubAgents = parentAgent?.allowedSubAgents
 
-        const requestedAgentName = String(params.agentName || '').trim()
-        let availableAgents = agentStore.allAgents
+        const rawAssignments = params.assignments as Array<{ task?: string; agentName?: string }>
+        if (!Array.isArray(rawAssignments) || rawAssignments.length === 0) {
+          return {
+            toolResult: {
+              content: [{ type: 'text', text: '分派失败：assignments 不能为空。' }]
+            }
+          }
+        }
 
+        // 校验 task 有效性
+        for (let i = 0; i < rawAssignments.length; i++) {
+          if (!rawAssignments[i].task || !String(rawAssignments[i].task).trim()) {
+            return {
+              toolResult: {
+                content: [
+                  {
+                    type: 'text',
+                    text: `分派失败：assignments[${i}].task 不能为空。`
+                  }
+                ]
+              }
+            }
+          }
+        }
+
+        let availableAgents = agentStore.allAgents
         // 如果配置了 allowedSubAgents，则只允许调用列表中的智能体
         if (allowedSubAgents && allowedSubAgents.length > 0) {
           availableAgents = availableAgents.filter((agent) =>
             allowedSubAgents.includes(agent.name)
           )
         }
-
-        const targetAgent = requestedAgentName
-          ? availableAgents.find((agent) => agent.name === requestedAgentName)
-          : availableAgents[0]
-        if (!targetAgent) {
-          const allowedList =
-            allowedSubAgents && allowedSubAgents.length > 0
-              ? `允许的子智能体: ${allowedSubAgents.join('、')}`
-              : '当前没有可用智能体'
-          return {
-            toolResult: {
-              content: [
-                {
-                  type: 'text',
-                  text: `分派失败：未找到名称为「${requestedAgentName}」的子智能体。\n${allowedList}`
-                }
-              ]
-            }
-          }
-        }
-
-        const { chatId: subChatId } = chatsStore.createSubChat({
-          parentChatId: parentChat.id,
-          task,
-          agentId: targetAgent.id,
-          title: params.title || `${targetAgent.name} · 子任务`,
-          activate: !!params.switchToSubChat
-        })
 
         const parentAgentName =
           agentStore.getAgentById(parentChat.agentId || '')?.name || parentChat.title
@@ -398,39 +396,91 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
         const inheritedContextSection = inheritedContext
           ? `主会话参考上下文（仅供理解任务背景，仍以本次任务内容为准）:\n${inheritedContext}\n\n`
           : ''
-        const childPrompt =
-          `你是子智能体，正在执行主智能体分配的任务。\n` +
-          `主智能体: ${parentAgentName}\n\n` +
-          inheritedContextSection +
-          `任务内容:\n${task}\n\n` +
-          `要求：\n` +
-          `1. 直接完成任务。\n` +
-          `2. 完成任务后，必须调用 finish_sub_task 工具提交结果给主智能体：\n` +
-          `   - mode="last_message"：以你最后一条回复作为返回内容\n` +
-          `   - mode="custom" + message：撰写自定义的返回内容\n` +
-          `3. 如遇到阻塞或失败，记录原因后调用 finish_sub_task 提交说明。`
 
-        setTimeout(() => {
-          useChat(subChatId)
-            .sendMessages(childPrompt)
-            .catch((error) => {
-              const message = (error as Error).message || '子任务启动失败'
-              submitSummaryToParent({
-                chatId: subChatId,
-                parentChatId: parentChat.id,
-                summary: message,
-                success: false,
-                error: message
-              })
+        const createdSubChats: { agentName: string; task: string; chatId: string }[] = []
 
-              if (!chatsStore.isChatGenerating(parentChat.id)) {
-                const pendingMessage = chatsStore.shiftPendingMessage(parentChat.id)
-                if (pendingMessage) {
-                  useChat(parentChat.id).sendMessages(pendingMessage.parts)
+        for (let i = 0; i < rawAssignments.length; i++) {
+          const { task: rawTask, agentName: rawAgentName } = rawAssignments[i]
+          const task = String(rawTask).trim()
+          const requestedAgentName = String(rawAgentName || '').trim()
+
+          // 查找目标智能体
+          let targetAgent: Agent | undefined
+          if (requestedAgentName) {
+            targetAgent = availableAgents.find((agent) => agent.name === requestedAgentName)
+            if (!targetAgent) {
+              const allowedList =
+                allowedSubAgents && allowedSubAgents.length > 0
+                  ? `允许的子智能体: ${allowedSubAgents.join('、')}`
+                  : ''
+              return {
+                toolResult: {
+                  content: [
+                    {
+                      type: 'text',
+                      text:
+                        `分派失败：assignments[${i}] 指定的子智能体「${requestedAgentName}」不存在` +
+                        (allowedSubAgents?.length ? '或不在允许列表中' : '') +
+                        `。\n${allowedList || '当前没有可用智能体'}`
+                    }
+                  ]
                 }
               }
-            })
-        }, 0)
+            }
+          } else {
+            // 未指定 agentName 时默认取第一个可用智能体
+            targetAgent = availableAgents[0]
+            if (!targetAgent) {
+              return {
+                toolResult: {
+                  content: [{ type: 'text', text: '分派失败：当前没有可用的子智能体。' }]
+                }
+              }
+            }
+          }
+
+          const isLast = i === rawAssignments.length - 1
+
+          const { chatId: subChatId } = chatsStore.createSubChat({
+            parentChatId: parentChat.id,
+            task,
+            agentId: targetAgent.id,
+            title: params.title || `${targetAgent.name} · 子任务`,
+            activate: !!params.switchToSubChat && isLast
+          })
+
+          createdSubChats.push({ agentName: targetAgent.name, task, chatId: subChatId })
+
+          const childPrompt =
+            `你是子智能体，正在执行主智能体分配的任务。\n` +
+            `主智能体: ${parentAgentName}\n\n` +
+            inheritedContextSection +
+            `任务内容:\n${task}\n\n` +
+            `要求：\n` +
+            `1. 直接完成任务。\n` +
+            `2. 完成任务后，必须调用 finish_sub_task 工具提交结果给主智能体：\n` +
+            `   - mode="last_message"：以你最后一条回复作为返回内容\n` +
+            `   - mode="custom" + message：撰写自定义的返回内容\n` +
+            `3. 如遇到阻塞或失败，记录原因后调用 finish_sub_task 提交说明。`
+
+          // 每个子智能体独立发送任务消息
+          setTimeout(() => {
+            useChat(subChatId)
+              .sendMessages(childPrompt)
+              .catch((error) => {
+                const message = (error as Error).message || '子任务启动失败'
+                submitSummaryToParent({
+                  chatId: subChatId,
+                  parentChatId: parentChat.id,
+                  summary: message,
+                  success: false,
+                  error: message
+                })
+              })
+          }, 0)
+        }
+
+        const resultLines = createdSubChats.map((sc) => `- ${sc.agentName}: ${sc.task}`)
 
         return {
           toolResult: {
@@ -438,11 +488,9 @@ export const getAgentBuiltinTools = (skills: SkillMetadata[]): Partial<Tools> =>
               {
                 type: 'text',
                 text:
-                  `子智能体任务已创建并开始异步执行。\n` +
-                  `- 子智能体: ${targetAgent.name}\n` +
-                  `- 子任务: ${params.title || `${targetAgent.name} · 子任务`}\n` +
-                  `- 继承主会话上下文: ${params.inheritContext ? '是' : '否'}\n` +
-                  `说明：任务执行不会阻塞当前主智能体，子智能体完成后会通过 finish_sub_task 工具主动返回结果。`
+                  createdSubChats.length === 1
+                    ? `子智能体任务已创建并开始异步执行。\n${resultLines.join('\n')}\n- 继承主会话上下文: ${params.inheritContext ? '是' : '否'}\n说明：任务执行不会阻塞当前主智能体，子智能体完成后会通过 finish_sub_task 工具主动返回结果。`
+                    : `批量子智能体任务已创建，共 ${createdSubChats.length} 个，均已开始异步执行。\n${resultLines.join('\n')}\n- 继承主会话上下文: ${params.inheritContext ? '是' : '否'}\n说明：所有子任务异步并行执行，不会阻塞当前主智能体。各子智能体完成后会通过 finish_sub_task 工具主动返回结果。`
               }
             ]
           }

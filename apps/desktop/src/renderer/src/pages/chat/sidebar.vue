@@ -189,6 +189,10 @@ const isChatGenerating = (chat: Chat) => {
   return chatsStore.isChatGenerating(chat.id)
 }
 
+const isChatBlocked = (chat: Chat) => {
+  return chatsStore.isChatBlocked(chat.id)
+}
+
 </script>
 
 <template>
@@ -236,7 +240,10 @@ const isChatGenerating = (chat: Chat) => {
                 <ChevronRight v-else />
               </button>
               <span v-else class="expand-placeholder"></span>
-              <div v-if="isChatGenerating(rootChat) && rootChat.id !== chatsStore.activeChatId"
+              <div v-if="isChatBlocked(rootChat) && rootChat.id !== chatsStore.activeChatId"
+                class="status-dot blocked">
+              </div>
+              <div v-else-if="isChatGenerating(rootChat) && rootChat.id !== chatsStore.activeChatId"
                 class="status-dot generating">
               </div>
               <span v-if="chatsStore.isTitleGenerating(rootChat.id)" class="chat-title-loading"><Loading size="mini" /></span>
@@ -258,7 +265,10 @@ const isChatGenerating = (chat: Chat) => {
                 :class="{ active: chatsStore.activeChatId === subChat.id }" @click="selectChat(subChat.id)"
                 @contextmenu="showChatContextMenu($event, subChat.id)">
                 <span class="sub-indicator"></span>
-                <div v-if="isChatGenerating(subChat) && subChat.id !== chatsStore.activeChatId"
+                <div v-if="isChatBlocked(subChat) && subChat.id !== chatsStore.activeChatId"
+                  class="status-dot blocked">
+                </div>
+                <div v-else-if="isChatGenerating(subChat) && subChat.id !== chatsStore.activeChatId"
                   class="status-dot generating">
                 </div>
                 <span v-if="chatsStore.isTitleGenerating(subChat.id)" class="chat-title-loading"><Loading size="mini" /></span>
@@ -313,6 +323,12 @@ const isChatGenerating = (chat: Chat) => {
 .status-dot.generating {
   background-color: #22c55e;
   box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+  animation: pulse-dot 1.5s infinite;
+}
+
+.status-dot.blocked {
+  background-color: #eab308;
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.5);
   animation: pulse-dot 1.5s infinite;
 }
 
