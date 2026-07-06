@@ -217,6 +217,10 @@ const lastReasoningBlockIndex = computed(() => {
                   class="user-text-virtual"
                   split-mode="blank-line"
                   :font-size="display.fontSize"
+                  :paragraph-padding-block="0"
+                  :paragraph-gap="0"
+                  :line-height="Math.round(display.fontSize * 1.5)"
+                  :min-paragraph-height="Math.round(display.fontSize * 1.5)"
                 />
                 <div
                   v-if="userTextOverflow[getBlockKey(block, idx)] || userTextExpanded[getBlockKey(block, idx)]"
