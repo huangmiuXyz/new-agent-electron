@@ -12,6 +12,7 @@
   flex-shrink: 0;
   padding: 12px;
   padding-top: 8px;
+  border-right: 1px solid var(--border-color);
 }
 
 .ListContainer.isMobile {
