@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useNotificationStore } from '../stores/notifications'
 import { useSettingsStore } from '../stores/settings'
 import { useDownloadStore } from '../stores/downloads'
 import { useIcon } from '../composables/useIcon'
 import { acquireZIndex } from '@renderer/utils/z-index-manager'
+import StatusPanel from './StatusPanel.vue'
+import type { StatusItem } from '../stores/notifications'
 
 const props = defineProps<{
   currentView: string
@@ -25,6 +28,22 @@ const { Bell, InfoCircle, Refresh, Check, Mic, Terminal, Download, Box, Menu, Ch
   'Menu',
   'Chat'
 ])
+
+const activePanel = ref<{ item: StatusItem; el: HTMLElement } | null>(null)
+
+const openPanel = (item: StatusItem, el: EventTarget | HTMLElement | null) => {
+  const target = (el as HTMLElement)?.closest?.('.status-item') as HTMLElement | null
+  if (!target) return
+  if (activePanel.value?.item.id === item.id) {
+    activePanel.value = null
+    return
+  }
+  activePanel.value = { item, el: target }
+}
+
+const closePanel = () => {
+  activePanel.value = null
+}
 
 // 切换终端
 const toggleTerminal = () => {
@@ -86,8 +105,14 @@ const StatusRender = defineComponent({
       <div class="status-bar-left">
         <template v-if="notificationStore.statusItems.length > 0">
           <div v-for="item in notificationStore.statusItems" :key="item.id" class="status-item"
-            :title="item.tooltip || item.text">
+            :title="item.tooltip || item.text"
+            :class="{ 'status-item-panel': item.type === 'panel' }"
+            @click="item.type === 'panel' ? openPanel(item, $event.target) : undefined">
             <div v-if="item.html" v-html="item.html" class="status-html"></div>
+            <div v-else-if="item.type === 'panel'" class="icon-wrapper">
+              <StatusRender v-if="item.iconRender" :render="item.iconRender" />
+              <span v-else class="panel-dot" :style="{ background: item.color || 'var(--color-primary)' }"></span>
+            </div>
             <div v-else-if="item.render" class="status-html">
               <StatusRender :render="item.render" />
             </div>
@@ -162,6 +187,15 @@ const StatusRender = defineComponent({
         </div>
       </div>
     </div>
+
+    <StatusPanel
+      v-if="activePanel"
+      :title="activePanel.item.title"
+      :trigger-el="activePanel.el"
+      @close="closePanel"
+    >
+      <StatusRender :render="activePanel.item.panelRender || activePanel.item.render" />
+    </StatusPanel>
   </footer>
 </template>
 
@@ -286,5 +320,16 @@ const StatusRender = defineComponent({
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 400px;
+}
+
+.status-item-panel {
+  cursor: pointer;
+}
+
+.panel-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 </style>

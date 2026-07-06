@@ -14,6 +14,10 @@ export interface StatusItem {
   tooltip?: string
   pluginName?: string
   command?: string
+  type?: 'status' | 'panel'
+  title?: string
+  panelRender?: any
+  iconRender?: any
 }
 
 export const useNotificationStore = defineStore('notifications', () => {

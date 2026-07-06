@@ -362,9 +362,13 @@ export interface NotificationApi {
   status: (id: string, text: string, options?: {
     icon?: string
     html?: string
+    render?: any
     color?: string
     tooltip?: string
     pluginName?: string
+    type?: 'status' | 'panel'
+    title?: string
+    iconRender?: any
   }) => void
   removeStatus: (id: string) => void
 }
