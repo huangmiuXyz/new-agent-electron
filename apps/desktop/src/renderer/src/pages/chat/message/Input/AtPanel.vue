@@ -831,6 +831,15 @@ const selectActiveItem = () => {
     return
   }
 
+  // 在搜索结果中按 Enter 进入文件夹，而非将其作为文件提及
+  if (data.type === 'file' && data.entry.kind === 'directory') {
+    currentFileDirectory.value = data.entry.relativePath
+    fileListStrategy.value = 'directory'
+    refreshFileEntries(data.entry.relativePath + '/')
+    activeIndex.value = 0
+    return
+  }
+
   const payload = buildMentionPayload(data)
   if (!payload) return
   emit('apply', payload)
@@ -855,6 +864,15 @@ const handleItemClick = (data: MentionItemData) => {
 
   if (data.type === 'category') {
     switchToCategoryScope(data.scope)
+    return
+  }
+
+  // 点击文件夹时进入目录，而非将其作为文件提及
+  if (data.type === 'file' && data.entry.kind === 'directory') {
+    currentFileDirectory.value = data.entry.relativePath
+    fileListStrategy.value = 'directory'
+    refreshFileEntries(data.entry.relativePath + '/')
+    activeIndex.value = 0
     return
   }
 
@@ -990,6 +1008,12 @@ watch([isOpen, mentionScope, query, currentWorkPath, currentFileDirectory, fileL
   const isDirNav = nq.endsWith('/') && mentionScope.value === 'all'
   const isAllScopeSearch = mentionScope.value === 'all' && Boolean(nq) && !isDirNav
   const isFilesScopeSearch = mentionScope.value === 'files' && fileListStrategy.value === 'search' && Boolean(nq)
+
+  // 处于目录浏览模式时，不应因 query 未变而重复触发搜索覆盖目录内容
+  if (fileListStrategy.value === 'directory' && currentFileDirectory.value) {
+    refreshFileEntries('')
+    return
+  }
 
   if (isDirNav) {
     refreshFileEntries(nq)
