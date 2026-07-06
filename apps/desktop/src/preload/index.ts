@@ -7,7 +7,7 @@ import path from 'path'
 import mime from 'mime-types'
 import url from 'url'
 import { app, getCurrentWindow } from '@electron/remote'
-import { exec, spawn, fork } from 'child_process'
+import { exec as rawExec, spawn as rawSpawn, fork as rawFork } from 'child_process'
 import os from 'os'
 import { type ElectronAPI, PluginIpcTimeoutError, PLUGIN_IPC_DEFAULT_TIMEOUT_MS } from '@agent-qi/types'
 import Electron from 'electron'
@@ -111,6 +111,77 @@ const resolveRipgrepPath = (): string | null => {
 }
 
 const getBundledRipgrepPath = (): string | null => resolveRipgrepPath()
+
+// ── 插件子进程追踪 ──────────────────────────────────────────────
+// 追踪插件通过 spawn/exec/fork 创建的子进程，防止孤儿进程。
+// 这些函数包装了原始的 child_process 方法，自动通过 IPC
+// 向主进程注册/注销 PID，在插件卸载或 app 退出时统一清理。
+//
+// 插件名称由调用方通过 __setCurrentPlugin(name) 设置，
+// PluginManager.createContext() 会自动在 spawn/exec/fork 前后设置/清除。
+// 若插件通过 window.api.spawn 直接调用（绕过 context），则注册为 '__unknown__'。
+// ────────────────────────────────────────────────────────────────
+let __currentPlugin: string | null = null
+
+const __registerProcess = (pluginName: string | null, pid: number | undefined) => {
+  if (!pid || pid <= 0) return
+  electronAPI.ipcRenderer.send('plugin:process:register', {
+    pluginName: pluginName || '__unknown__',
+    pid
+  })
+}
+
+const __unregisterProcess = (pid: number | undefined) => {
+  if (!pid || pid <= 0) return
+  electronAPI.ipcRenderer.send('plugin:process:unregister', { pid })
+}
+
+/**
+ * 包装 spawn 以自动追踪子进程
+ */
+const trackedSpawn: typeof rawSpawn = (...args: any[]) => {
+  const child = rawSpawn(...(args as [string, string[], any]))
+  const pid = child?.pid
+  if (pid) {
+    __registerProcess(__currentPlugin, pid)
+    child.on('exit', () => __unregisterProcess(pid))
+    child.on('error', () => __unregisterProcess(pid))
+  }
+  return child
+}
+
+/**
+ * 包装 exec 以自动追踪子进程
+ */
+const trackedExec: typeof rawExec = (...args: any[]) => {
+  const child = rawExec(...(args as [string, any, any]))
+  const pid = child?.pid
+  if (pid) {
+    __registerProcess(__currentPlugin, pid)
+    child.on('exit', () => __unregisterProcess(pid))
+    child.on('error', () => __unregisterProcess(pid))
+  }
+  return child
+}
+
+/**
+ * 包装 fork 以自动追踪子进程
+ */
+const trackedFork: typeof rawFork = (...args: any[]) => {
+  const child = rawFork(...(args as [string, string[], any]))
+  const pid = child?.pid
+  if (pid) {
+    __registerProcess(__currentPlugin, pid)
+    child.on('exit', () => __unregisterProcess(pid))
+    child.on('error', () => __unregisterProcess(pid))
+  }
+  return child
+}
+
+// 导出包装后的函数作为默认的 spawn/exec/fork
+const spawn = trackedSpawn
+const exec = trackedExec
+const fork = trackedFork
 
 const execFileCommand = (
   file: string,
@@ -528,6 +599,9 @@ const execNodejs = <T = unknown>(options: ExecNodejsOptions): Promise<ExecNodejs
 
 export const api: ElectronAPI = {
   ...aiServices(),
+  // 插件子进程上下文管理
+  __setCurrentPlugin: (name: string | null) => { __currentPlugin = name },
+  __clearCurrentPlugin: () => { __currentPlugin = null },
   process: {
     platform: process.platform,
     env: process.env,

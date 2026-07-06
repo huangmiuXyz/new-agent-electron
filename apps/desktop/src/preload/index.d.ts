@@ -16,6 +16,10 @@ interface ProcessMetric {
 type ElectronAPI = SharedElectronAPI & {
   setTitleBarTheme: (isDarkMode: boolean) => Promise<boolean>
   getProcessMetrics: () => Promise<ProcessMetric[]>
+  /** 设置当前插件上下文名称（供进程追踪使用） */
+  __setCurrentPlugin: (name: string | null) => void
+  /** 清除当前插件上下文 */
+  __clearCurrentPlugin: () => void
   window: {
     isFullScreen: () => boolean
     onFullScreenChanged: (callback: (isFullScreen: boolean) => void) => () => void

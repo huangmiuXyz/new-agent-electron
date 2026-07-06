@@ -2,7 +2,9 @@ import { app, BrowserWindow, Tray, Menu, Notification, globalShortcut, nativeIma
 import { existsSync } from 'fs'
 import { join, isAbsolute } from 'path'
 import { createRequire } from 'node:module'
+import { spawn, exec, fork } from 'child_process'
 import type { MainPlugin, MainPluginContext, MainPluginIpc } from '@agent-qi/types'
+import { pluginProcessRegistry, asyncPluginContext } from './processRegistry'
 
 type LoadedEntry = {
   plugin: MainPlugin
@@ -133,6 +135,39 @@ export class PluginMainLoader {
       }
     }
 
+    // 包装 child_process 方法，自动注册子进程 PID
+    // 使用宽松类型避免重载签名不匹配
+    const trackedSpawn: (...args: any[]) => import('child_process').ChildProcess = (...args) => {
+      const child = (spawn as any)(...args)
+      const pid = child?.pid
+      if (pid) {
+        pluginProcessRegistry.register(pluginName, pid)
+        child.on('exit', () => pluginProcessRegistry.unregister(pid))
+        child.on('error', () => pluginProcessRegistry.unregister(pid))
+      }
+      return child
+    }
+    const trackedExec: (...args: any[]) => import('child_process').ChildProcess = (...args) => {
+      const child = (exec as any)(...args)
+      const pid = child?.pid
+      if (pid) {
+        pluginProcessRegistry.register(pluginName, pid)
+        child.on('exit', () => pluginProcessRegistry.unregister(pid))
+        child.on('error', () => pluginProcessRegistry.unregister(pid))
+      }
+      return child
+    }
+    const trackedFork: (...args: any[]) => import('child_process').ChildProcess = (...args) => {
+      const child = (fork as any)(...args)
+      const pid = child?.pid
+      if (pid) {
+        pluginProcessRegistry.register(pluginName, pid)
+        child.on('exit', () => pluginProcessRegistry.unregister(pid))
+        child.on('error', () => pluginProcessRegistry.unregister(pid))
+      }
+      return child
+    }
+
     const context: MainPluginContext = {
       pluginName,
       basePath: pluginDir,
@@ -148,6 +183,11 @@ export class PluginMainLoader {
         nativeImage,
         powerMonitor,
         shell
+      },
+      childProcess: {
+        spawn: trackedSpawn as typeof spawn,
+        exec: trackedExec as unknown as typeof exec,
+        fork: trackedFork as typeof fork
       },
       onUnload: (fn) => {
         if (typeof fn === 'function') cleanupFns.push(fn)
@@ -168,7 +208,7 @@ export class PluginMainLoader {
         return { ok: false, error: 'invalid MainPlugin: missing name or install' }
       }
 
-      await plugin.install(context)
+      await asyncPluginContext.run(pluginName, () => plugin.install(context))
 
       this.loaded.set(pluginName, { plugin, context, cleanupFns, registeredHandlerChannels, registeredListeners })
       return { ok: true }
@@ -192,6 +232,8 @@ export class PluginMainLoader {
       await this.runCleanup(entry.cleanupFns, pluginName)
       await this.cleanupIpc(entry.registeredHandlerChannels, entry.registeredListeners)
       this.loaded.delete(pluginName)
+      // 清理该插件创建的所有子进程
+      await pluginProcessRegistry.killAll(pluginName)
       return { ok: true }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -199,6 +241,8 @@ export class PluginMainLoader {
       await this.runCleanup(entry.cleanupFns, pluginName).catch(() => {})
       await this.cleanupIpc(entry.registeredHandlerChannels, entry.registeredListeners).catch(() => {})
       this.loaded.delete(pluginName)
+      // 即使卸载出错也尝试清理子进程，防止泄漏
+      await pluginProcessRegistry.killAll(pluginName).catch(() => {})
       return { ok: false, error: message }
     }
   }

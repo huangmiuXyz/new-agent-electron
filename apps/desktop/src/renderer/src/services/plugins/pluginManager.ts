@@ -173,9 +173,30 @@ export class PluginManager {
       });
     });
 
+    // 为每个插件包装 spawn/exec/fork，自动注册子进程 PID 到主进程
+    // 这样插件卸载时可以精准清理该插件创建的所有子进程
+    const api: ElectronAPI = {
+      ...window.api,
+      spawn: ((...args: any[]) => {
+        window.api.__setCurrentPlugin(pluginName)
+        try { return (window.api as any).spawn(...args) }
+        finally { window.api.__clearCurrentPlugin() }
+      }) as unknown as typeof window.api.spawn,
+      exec: ((...args: any[]) => {
+        window.api.__setCurrentPlugin(pluginName)
+        try { return (window.api as any).exec(...args) }
+        finally { window.api.__clearCurrentPlugin() }
+      }) as unknown as typeof window.api.exec,
+      fork: ((...args: any[]) => {
+        window.api.__setCurrentPlugin(pluginName)
+        try { return (window.api as any).fork(...args) }
+        finally { window.api.__clearCurrentPlugin() }
+      }) as unknown as typeof window.api.fork
+    }
+
     return {
       app: this.app,
-      api: window.api,
+      api,
       pinia: this.pinia,
       router: this.router,
       vue: {

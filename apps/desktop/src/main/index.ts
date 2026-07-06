@@ -14,6 +14,7 @@ import { setupSearchReplaceHandlers } from './services/searchReplace'
 import { setupSyncHandlers } from './services/sync'
 import { initTray } from './initTray'
 import { pluginMainLoader } from './services/pluginMainLoader'
+import { pluginProcessRegistry } from './services/processRegistry'
 
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -650,6 +651,10 @@ if (gotSingleInstanceLock) {
     setupSearchReplaceHandlers()
     setupSyncHandlers()
 
+    // 插件子进程注册表：追踪并清理插件创建的孤儿进程
+    pluginProcessRegistry.setupIpcHandlers()
+    pluginProcessRegistry.setupAppHooks()
+
     ipcMain.handle('plugin:main:load', async (_event, payload) => {
       if (!payload || typeof payload.pluginName !== 'string' || typeof payload.pluginDir !== 'string' || typeof payload.mainEntry !== 'string') {
         return { ok: false, error: 'invalid payload: pluginName, pluginDir, mainEntry are required' }
@@ -664,13 +669,18 @@ if (gotSingleInstanceLock) {
 
     ipcMain.handle('plugin:main:unload', async (_event, pluginName) => {
       if (typeof pluginName !== 'string') return { ok: false, error: 'pluginName is required' }
-      return await pluginMainLoader.unload(pluginName)
+      const result = await pluginMainLoader.unload(pluginName)
+      // 卸载插件后清理其子进程
+      await pluginProcessRegistry.killAll(pluginName)
+      return result
     })
 
     ipcMain.handle('plugin:main:reload', async (_event, payload) => {
       if (!payload || typeof payload.pluginName !== 'string') {
         return { ok: false, error: 'invalid payload' }
       }
+      // reload 前先清理旧进程，防止孤儿进程累积
+      await pluginProcessRegistry.killAll(payload.pluginName)
       return await pluginMainLoader.reload({
         pluginName: payload.pluginName,
         pluginDir: payload.pluginDir,

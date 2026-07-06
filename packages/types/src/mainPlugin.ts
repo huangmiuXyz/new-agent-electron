@@ -16,6 +16,16 @@ export interface MainPluginContext {
   /** Electron 主进程 API，直接来自 electron 模块，无白名单 */
   electron: MainPluginElectronApi
   /**
+   * 包装了进程追踪的 child_process 方法。
+   * 插件应优先使用这些方法替代直接从 'child_process' import，
+   * 以确保子进程在插件卸载或 app 退出时被自动清理。
+   */
+  childProcess: {
+    spawn: typeof import('child_process').spawn
+    exec: typeof import('child_process').exec
+    fork: typeof import('child_process').fork
+  }
+  /**
    * 注册卸载回调。主进程加载器在 uninstall 完成后会按注册顺序逆序执行。
    * 用于清理 tray / globalShortcut / 自建 BrowserWindow / 定时器等。
    */
