@@ -6,6 +6,8 @@ import { createLspStatusRender } from './status-indicator'
 const PLUGIN_NAME = 'lsp-diagnostics'
 const STATUS_ID = 'lsp-diagnostics-status'
 const MAX_PER_FILE = 20
+const DIAG_POLL_INTERVAL = 300
+const DIAG_TIMEOUT = 600000
 
 let unsubBridge: (() => void) | null = null
 let unsubServerStatus: (() => void) | null = null
@@ -100,14 +102,17 @@ const plugin: Plugin = {
           serverId: serverConfig.id,
           filePath: fullPath,
         })
-        await delay(500)
-
-        const diagResult = await bridge.invoke('get-diagnostics', {
-          serverId: serverConfig.id,
-          filePath: fullPath,
-        })
-
-        const fileDiags = diagResult.diagnostics[fullPath] || []
+        const deadline = Date.now() + DIAG_TIMEOUT
+        let fileDiags: DiagnosticEntry[] = []
+        while (Date.now() < deadline) {
+          await delay(DIAG_POLL_INTERVAL)
+          const diagResult = await bridge.invoke('get-diagnostics', {
+            serverId: serverConfig.id,
+            filePath: fullPath,
+          })
+          fileDiags = diagResult.diagnostics[fullPath] || []
+          if (fileDiags.length > 0) break
+        }
         if (fileDiags.length > 0) {
           const limited = fileDiags.slice(0, MAX_PER_FILE)
           const more = fileDiags.length - MAX_PER_FILE
