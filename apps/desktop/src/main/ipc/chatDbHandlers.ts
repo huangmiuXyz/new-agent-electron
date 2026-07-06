@@ -70,8 +70,8 @@ export const setupChatDbHandlers = () => {
     await chatDatabaseService.updateMessageMetadata(messageId, metadata)
   })
 
-  ipcMain.handle('chatDb:message:finalize', async (_event, chatId: string, message: BaseMessage) => {
-    await chatDatabaseService.finalizeMessage(chatId, message)
+  ipcMain.handle('chatDb:message:finalize', async (_event, chatId: string, messageId: string, metadata: MetaData) => {
+    await chatDatabaseService.finalizeMessage(chatId, messageId, metadata)
   })
 
   ipcMain.handle('chatDb:snapshot:export', async (_event, options: {

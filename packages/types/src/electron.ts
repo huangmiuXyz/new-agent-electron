@@ -236,7 +236,7 @@ export interface ElectronAPI {
       replaceParts: (messageId: string, parts: BaseMessage['parts']) => Promise<void>
       upsertPart: (messageId: string, idx: number, part: BaseMessage['parts'][number]) => Promise<void>
       updateMetadata: (messageId: string, metadata: MetaData) => Promise<void>
-      finalize: (chatId: string, message: BaseMessage) => Promise<void>
+      finalize: (chatId: string, messageId: string, metadata: MetaData) => Promise<void>
     }
     snapshot: {
       export: (options: { summaries: ChatSummary[]; activeChatId: string | null; chatDrafts: Record<string, string> }) => Promise<ChatRepositorySnapshot>

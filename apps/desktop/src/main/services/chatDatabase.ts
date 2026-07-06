@@ -366,30 +366,32 @@ export const chatDatabaseService = {
     await db.update(messages).set({ metadata: JSON.stringify(metadata), updatedAt: Date.now() }).where(eq(messages.id, messageId)).run()
   },
 
-  async finalizeMessage(chatId: string, message: BaseMessage): Promise<void> {
+  async finalizeMessage(chatId: string, messageId: string, metadata: MetaData): Promise<void> {
     const db = getSqliteDb()
     ensureChatRowExists(chatId)
     const now = Date.now()
     const tx = db.transaction(() => {
-      const existing = db.prepare('SELECT id FROM message WHERE id = ?').get(message.id) as { id: string } | undefined
-      if (existing) {
-        db.prepare('UPDATE message SET role = ?, metadata = ?, updated_at = ? WHERE id = ?').run(message.role, JSON.stringify(message.metadata ?? {}), now, message.id)
-      } else {
-        const seq = (db.prepare(SELECT_LAST_SEQ).get(chatId) as { s: number }).s + 1
-        db.prepare(INSERT_MESSAGE).run(message.id, chatId, message.role, seq, JSON.stringify(message.metadata ?? {}), now, now)
+      // 更新 message metadata (loading=false, usage 等)
+      const result = db.prepare('UPDATE message SET metadata = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(metadata), now, messageId)
+      if (result.changes === 0) {
+        // 正常情况下 message 行已由 upsertMessageSnapshot 创建
+        return
       }
-      db.prepare(DELETE_PART_BY_MESSAGE).run(message.id)
-      for (let i = 0; i < (message.parts?.length ?? 0); i++) {
-        const part = message.parts![i]
-        db.prepare(INSERT_PART).run(message.id, part.type, i, JSON.stringify(part), now, now)
-      }
+      // 从 DB 读取 parts 构建预览，无需通过 IPC 传入
       const totalMessages = (db.prepare('SELECT COUNT(*) as c FROM message WHERE chat_id = ?').get(chatId) as { c: number }).c
-      const preview = message.parts
-        ?.filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-        .map((p) => p.text)
+      const partRows = db.prepare('SELECT content FROM part WHERE message_id = ? ORDER BY idx ASC').all(messageId) as { content: string }[]
+      const preview = partRows
+        .map((row) => {
+          try {
+            const p = JSON.parse(row.content)
+            return p.type === 'text' ? (p.text || '') : ''
+          } catch {
+            return ''
+          }
+        })
         .join('')
         .slice(0, 200)
-      db.prepare('UPDATE chat SET message_count = ?, last_message_at = ?, last_message_preview = ?, updated_at = ? WHERE id = ?').run(totalMessages, now, preview ?? null, now, chatId)
+      db.prepare('UPDATE chat SET message_count = ?, last_message_at = ?, last_message_preview = ?, updated_at = ? WHERE id = ?').run(totalMessages, now, preview || null, now, chatId)
     })
     tx()
   },

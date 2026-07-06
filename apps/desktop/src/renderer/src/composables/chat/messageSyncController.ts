@@ -271,7 +271,8 @@ export const createChatMessageSyncController = ({
     const updatedMessages = await flushStreamingUpdate({ force: true })
 
     persistedMessageIds.delete(message.id)
-    chatStreamPersistence.finalizeMessage(chatId, message).catch((err) => {
+    // 轻量 finalize——只传 metadata，parts 已在流式过程中写入 DB
+    chatStreamPersistence.finalizeMessage(chatId, message.id, message.metadata || ({} as MetaData)).catch((err) => {
       console.error('[messageSync] Failed to finalize message', err)
     })
 

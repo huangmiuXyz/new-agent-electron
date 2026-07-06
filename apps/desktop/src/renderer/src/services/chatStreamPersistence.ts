@@ -41,9 +41,9 @@ export const chatStreamPersistence = {
     syncTimeLog(_t3, '持久化-updateMetadata', `keys=${Object.keys(metadata).join(',')}`)
   },
 
-  async finalizeMessage(chatId: string, message: BaseMessage): Promise<void> {
+  async finalizeMessage(chatId: string, messageId: string, metadata: MetaData): Promise<void> {
     const _t4 = createTimeLog('持久化-finalizeMessage')
-    await window.api.chatDb.message.finalize(chatId, forIpc(message))
-    syncTimeLog(_t4, '持久化-finalizeMessage', `parts=${message.parts.length} role=${message.role}`)
+    await window.api.chatDb.message.finalize(chatId, messageId, forIpc(metadata))
+    syncTimeLog(_t4, '持久化-finalizeMessage', `messageId=${messageId.slice(0, 8)}`)
   }
 }

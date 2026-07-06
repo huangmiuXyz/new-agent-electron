@@ -625,7 +625,7 @@ export const api: ElectronAPI = {
       replaceParts: (messageId: string, parts: BaseMessage['parts']) => electronAPI.ipcRenderer.invoke('chatDb:message:replaceParts', messageId, parts),
       upsertPart: (messageId: string, idx: number, part: BaseMessage['parts'][number]) => electronAPI.ipcRenderer.invoke('chatDb:message:upsertPart', messageId, idx, part),
       updateMetadata: (messageId: string, metadata: MetaData) => electronAPI.ipcRenderer.invoke('chatDb:message:updateMetadata', messageId, metadata),
-      finalize: (chatId: string, message: BaseMessage) => electronAPI.ipcRenderer.invoke('chatDb:message:finalize', chatId, message)
+      finalize: (chatId: string, messageId: string, metadata: MetaData) => electronAPI.ipcRenderer.invoke('chatDb:message:finalize', chatId, messageId, metadata)
     },
     snapshot: {
       export: (options: { summaries: ChatSummary[]; activeChatId: string | null; chatDrafts: Record<string, string> }) => electronAPI.ipcRenderer.invoke('chatDb:snapshot:export', options),
